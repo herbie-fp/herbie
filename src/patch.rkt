@@ -49,6 +49,13 @@
         (sow (alt (genexpr) `(taylor ,name ,var) (list altn) '())))
       (timeline-stop!))))
 
+(define (spec-has-nan? expr)
+  (expr-contains?
+    expr
+    (lambda (term)
+      (and (symbol? term)
+           (eq? term 'NAN)))))
+
 (define (run-taylor altns reprs)
   (timeline-event! 'series)
   (timeline-push! 'inputs (map ~a altns))
@@ -56,7 +63,8 @@
     (reap [sow]
       (for ([altn (in-list altns)] [repr (in-list reprs)])
         (for ([approximation (taylor-alt altn)])
-          (sow (cons approximation repr))))))
+          (unless (spec-has-nan? (alt-expr approximation))
+            (sow (cons approximation repr)))))))
   (timeline-push! 'outputs (map (lambda (e&r) (~a (car e&r))) approximations))
   (timeline-push! 'count (length altns) (length approximations))
   approximations)

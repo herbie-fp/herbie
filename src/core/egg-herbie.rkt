@@ -814,16 +814,12 @@
 
 ;; Prunes enodes that do not type check.
 ;; The rules:
-;;  - an eclass with a variable can only have the same type as that variable.
+;;  - an eclass with a variable can only have the same type as that variable;
+;;    eclass may have potentially multiple variables (sounds like unsoundness?)
 (define (regraph-prune-types egraph)
   (define eclasses (regraph-eclasses egraph))
   (define egg->herbie (regraph-egg->herbie egraph))
   (define n (vector-length eclasses))
-
-  ;; invariant: every eclass has at most one variable
-  (when (for/or ([eclass (in-vector eclasses)])
-          (> (for/count ([node (in-vector eclass)]) (symbol? node)) 1))
-    (error 'regraph-prune-types "invariant violated"))
 
   ;; compute node types
   (define eclass-types (regraph-node-types egraph))
@@ -831,25 +827,36 @@
   ;; prune nodes  
   (define eclasses*
     (for/vector #:length n ([id (in-range n)])
-      ; compute variable type (if it exists)
       (define eclass (vector-ref eclasses id))
       (define node-types (vector-ref eclass-types id))
-      (define ty
-        (for/or ([node (in-vector eclass)] #:when (symbol? node))
-          (cdr (hash-ref egg->herbie node))))
-      ; eliminate nodes not matching the type
-      (if ty
-          (list->vector
-            (for/fold ([nodes* '()] #:result (reverse nodes*))
-                      ([node (in-vector eclass)] [type (in-vector node-types)])
-              (cond
-                [(eq? type #t) (cons node nodes*)]
-                [(eq? type ty) (cons node nodes*)]
-                [else nodes*])))
-          eclass)))
+      ; filter for variable types
+      (define tys
+        (remove-duplicates
+          (filter-map
+            (lambda (node)
+              (and (symbol? node)
+                   (cdr (hash-ref egg->herbie node))))
+            (vector->list eclass))))
+      (cond
+        [(null? tys) eclass]
+        [else
+         (list->vector ; only keep nodes that have the same type as one of the variables
+           (filter-map
+             (lambda (node type)
+               (and (ormap
+                      (lambda (ty)
+                        (or (eq? type #t)
+                            (eq? type ty)))
+                      tys)
+                    node))
+             (vector->list eclass)
+             (vector->list node-types)))])))
+
+  ; check invariant
+  (for ([id (in-range n)])
+    (when (vector-empty? (vector-ref eclasses* id))
+      (error 'regraph-prune-specs "invariant violated: eclass contains no enodes")))
   
-  (when (for/or ([eclass (in-vector eclasses*)]) (vector-empty? eclass))
-    (error 'regraph-prune-specs "invariant violated: eclass contains no enodes"))
   ; the pruned regraph
   (struct-copy regraph egraph [eclasses eclasses*]))
 
@@ -1051,7 +1058,7 @@
               [(list (? impl-exists?) _ ...) (sow node)] ; impl
               [(list _ ...) (void)]))))
       (if (null? eclass*)
-          (vector (first eclass))
+          (vector (vector-ref eclass 0))
           (list->vector eclass*))))
 
   ; invariant: all eclasses need at least one enode

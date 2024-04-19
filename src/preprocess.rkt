@@ -2,8 +2,8 @@
 
 (require "core/egg-herbie.rkt" "core/simplify.rkt"
          "syntax/rules.rkt" "syntax/syntax.rkt" "syntax/sugar.rkt"
-         "syntax/types.rkt" "alternative.rkt" "common.rkt" "programs.rkt"
-         "points.rkt" "timeline.rkt" "float.rkt")
+         "syntax/types.rkt" "alternative.rkt" "accelerator.rkt" "common.rkt"
+         "programs.rkt" "points.rkt" "timeline.rkt" "float.rkt")
 
 (provide find-preprocessing preprocess-pcontext remove-unnecessary-preprocessing)
 
@@ -37,8 +37,9 @@
       (prune-spec)))
 
   ; egg query
+  (define spec (expand-accelerators (*rules*) (prog->spec init)))
   (define egg-query
-    (make-egg-query (list (prog->spec init))
+    (make-egg-query (list spec)
                     (list (context-repr ctx))
                     schedule
                     #:extractor (typed-egg-extractor platform-egg-cost-proc)))
