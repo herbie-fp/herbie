@@ -205,11 +205,12 @@
         (define target-test-errs-list '())
 
         ;; When in platform, evaluate error
-        (for/list ([expr (in-list (test-output test))] #:when (cdr expr))
-          (let* ([target-expr (fpcore->prog (car expr) ctx)]
-                [target-train-errs (errors target-expr train-pcontext ctx)]
-                [target-test-errs (errors target-expr test-pcontext* ctx)])
-            (alt-analysis (make-alt target-expr) target-train-errs target-test-errs)))]
+        (for/list ([(expr is-valid?) (in-dict (test-output test))] #:when is-valid?)
+          (define target-expr (fpcore->prog expr ctx))
+          (define target-train-errs (errors target-expr train-pcontext ctx))
+          (define target-test-errs (errors target-expr test-pcontext* ctx))
+
+          (alt-analysis (make-alt target-expr) target-train-errs target-test-errs))]
 
       [else #f]))
 
@@ -335,10 +336,10 @@
 
      ;; From all the targets, pick the lowest cost target
      (define target
-      (cond
-        [(empty? targets) #f] ; If the list is empty, return false
-        [else
-          (argmin (lambda (target) (alt-cost (alt-analysis-alt target) repr)) targets)]))
+      ; If the list is empty, return false
+      (if (empty? targets)
+        #f
+        (argmin (lambda (target) (alt-cost (alt-analysis-alt target) repr)) targets)))
 
      ; target analysis for comparison
      (define target-score (and target (errors-score (alt-analysis-test-errors target))))

@@ -150,14 +150,11 @@
 
   (define targets
     (for/list ([(key val) (in-dict prop-dict)] #:when (eq? key ':alt))
-      (define plat-name (extract-platform-name val))  ; plat-name is symbol or #f
-
-      (cond
+      (match (extract-platform-name val)  ; plat-name is symbol or #f
         ; If plat-name extracted, check if name matches
-        [plat-name (cons val (equal? plat-name (*platform-name*)))]
-
+        [(? symbol? plat-name) (cons val (equal? plat-name (*platform-name*)))]
         ; try to lower
-        [else
+        [#f
           (with-handlers ([exn:fail:user:herbie:missing? (lambda (e) (cons val #f))])
             ; Testing if error thrown
             (spec->prog val ctx)

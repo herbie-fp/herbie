@@ -47,11 +47,10 @@
 
       ;; Pick lowest target from all target
       (define target-error
-        (cond
-          [(empty? targets) #f] ; If the list is empty, return false
-          [else
-            (alt-analysis-test-errors 
-              (argmin (lambda (target) (errors-score (alt-analysis-test-errors target))) targets))]))
+        ; If the list is empty, return false
+        (if (empty? targets)
+          #f 
+          (argmin errors-score (map alt-analysis-test-errors targets))))
 
        (printf "[ ~as]   ~a→~a\t~a\n"
                (~r (/ time 1000) #:min-width 7 #:precision '(= 3))
