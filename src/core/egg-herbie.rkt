@@ -941,27 +941,43 @@
        [_ (hash-set! table type #f)]))
      (vector-set! costs id table))
 
+  ; We cache whether it is safe to apply the cost function on a particular node.
+  ; Once `#t` we need not check the `cost` vector to know if it is safe.
+  (define ready?-vec
+    (for/vector #:length n ([id (in-range n)])
+      (define eclass (vector-ref eclasses id))
+      (define num-enodes (vector-length eclass))
+      (for/vector #:length num-enodes ([_ (in-range num-enodes)])
+        (box #f))))
+
+  (define (slow-node-ready? node type)
+    (match node
+      [(? number?) #t]
+      [(? symbol?) #t]
+      [(list 'if cond ift iff)
+       (and (eclass-has-cost? cond (get-representation 'bool))
+            (eclass-has-cost? ift type)
+            (eclass-has-cost? iff type))]
+      [(list (? impl-exists? op) args ...)
+       (andmap eclass-has-cost? args (impl-info op 'itype))]
+      [(list op args ...)
+       (andmap eclass-has-cost? args (operator-info op 'itype))]))
+
   ; Computes the current cost of a node if its children have a cost
   ; Cost function has access to a mutable value through `cache`
   (define cache (box #f))
-  (define (node-cost node type)
-    (and (match node
-           [(? number?) #t]
-           [(? symbol?) #t]
-           [(list 'if cond ift iff)
-            (and (eclass-has-cost? cond (get-representation 'bool))
-                 (eclass-has-cost? ift type)
-                 (eclass-has-cost? iff type))]
-           [(list (? impl-exists? op) args ...)
-            (andmap eclass-has-cost? args (impl-info op 'itype))]
-           [(list op args ...)
-            (andmap eclass-has-cost? args (operator-info op 'itype))])
+  (define (node-cost node ready? type)
+    (and (or (unbox ready?)
+             (let ([v (slow-node-ready? node type)])
+               (set-box! ready? v)
+               v))
          (cost-proc regraph cache node type unsafe-eclass-cost)))
 
   ; Updates the cost of the current eclass.
   ; Returns #t if the cost of the current eclass has improved.
   (define (eclass-set-cost! _ eclass id)
     (define node-types (vector-ref eclass-types id))
+    (define node-ready? (vector-ref ready?-vec id))
     (define eclass-costs (vector-ref costs id))
     (define updated? #f)
 
@@ -975,14 +991,16 @@
           (set! updated? #t))))
 
     ; Iterate over the nodes
-    (for ([node (in-vector eclass)] [type (in-vector node-types)])
+    (for ([node (in-vector eclass)]
+          [ready? (in-vector node-ready?)]
+          [type (in-vector node-types)])
       (match type
         [(list 'or tys ...) ; node is a union type (only for some `if` nodes)
          (for ([ty (in-list tys)])
-           (define new-cost (node-cost node ty))
+           (define new-cost (node-cost node ready? ty))
            (update-cost! ty new-cost node))]
         [_ ; node is either untyped (constant) or has a specific type
-         (define new-cost (node-cost node type))
+         (define new-cost (node-cost node ready? type))
          (update-cost! type new-cost node)]))
 
     updated?)
