@@ -288,7 +288,7 @@
      (define split-idx (vector-ref result-prev-idxs i))
     (when (= idx next)
       (set! next (+ split-idx 1))
-      (cond [(false? split-idexs)
-             (set! split-idexs (cons (si alt-idx number-of-points) '()))]
-            [else (set! split-idexs (cons (si alt-idx idx) split-idexs))])))
+      (set! split-idexs (cond
+        [(false? split-idexs) (cons (si alt-idx number-of-points) '())]
+        [else (cons (si alt-idx idx) split-idexs)]))))
  split-idexs)
