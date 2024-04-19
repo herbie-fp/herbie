@@ -5,7 +5,6 @@
          "syntax/syntax.rkt"
          "syntax/types.rkt"
          "core/egg-herbie.rkt"
-         "core/matcher.rkt"
          "core/rr.rkt"
          "core/simplify.rkt"
          "core/taylor.rkt"

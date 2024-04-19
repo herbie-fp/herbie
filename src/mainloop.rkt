@@ -201,7 +201,6 @@
     (raise-user-error 'localize! "No alt chosen. Run (choose-alts!) or (choose-alt! n) to choose one"))
   (timeline-event! 'localize)
 
-
   (define ctx (*context*))
   (define loc-errss (batch-localize-error (map alt-expr (^next-alts^)) ctx))
   (define loc-costss (batch-localize-cost (map alt-expr (^next-alts^)) ctx))
@@ -212,8 +211,7 @@
       (append 
         (for/list ([loc-errs (in-list loc-errss)] #:when #t
                    [(err expr) (in-dict loc-errs)]
-                   [_ (in-range (*localize-expressions-limit*))]
-                   #:unless (eq? (type-of expr ctx) 'bool))
+                   [_ (in-range (*localize-expressions-limit*))])
           (define repr (repr-of expr ctx))
           (timeline-push! 'locations
                           (~a expr)
@@ -225,8 +223,7 @@
         ;;Timeline will push duplicates
         (for/list ([loc-costs (in-list loc-costss)] #:when #t
                    [(cost-diff expr) (in-dict loc-costs)]
-                   [i (in-range (*localize-expressions-limit*))]
-                   #:unless (eq? (type-of expr ctx) 'bool))
+                   [_ (in-range (*localize-expressions-limit*))])
           (define repr (repr-of expr ctx))  
           (timeline-push! 'locations
                           (~a expr)
