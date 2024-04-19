@@ -282,13 +282,12 @@
   ;; Loop over results vectors in reverse and build the output split index list
   (define next number-of-points)
   (define split-idexs #f)
-  (for ([idx (in-range number-of-points 0 -1)])
-     (define i (- idx 1))
-     (define alt-idx (vector-ref result-alt-idxs i))
-     (define split-idx (vector-ref result-prev-idxs i))
-    (when (= idx next)
-      (set! next (+ split-idx 1))
-      (set! split-idexs (cond
-        [(false? split-idexs) (cons (si alt-idx number-of-points) '())]
-        [else (cons (si alt-idx idx) split-idexs)]))))
+  (for ([i (in-range (- number-of-points 1) -1 -1)]
+        #:when (= (+ i 1) next))
+   (define alt-idx (vector-ref result-alt-idxs i))
+   (define split-idx (vector-ref result-prev-idxs i))
+   (set! next (+ split-idx 1))
+   (set! split-idexs (cond
+    [(false? split-idexs) (cons (si alt-idx number-of-points) '())]
+    [else (cons (si alt-idx (+ i 1)) split-idexs)])))
  split-idexs)
