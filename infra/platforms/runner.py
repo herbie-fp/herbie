@@ -474,12 +474,12 @@ class Runner(object):
 
     # TODO: Write return type spec
     def write_report(
-            self,
-            input_cores: List[FPCore],
-            platform_cores: List[FPCore],
-            driver_dirs: List[str],
-            times: List[float],
-            frontier: List[Tuple[float, float]]
+        self,
+        input_cores: List[FPCore],
+        platform_cores: List[FPCore],
+        driver_dirs: List[str],
+        times: List[float],
+        frontier: List[Tuple[float, float]]
     ) -> None:
         by_key = dict()
         for core, dir, time in zip(platform_cores, driver_dirs, times):
