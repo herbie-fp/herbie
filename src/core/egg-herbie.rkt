@@ -961,44 +961,30 @@
   ; Updates the cost of the current eclass.
   ; Returns #t if the cost of the current eclass has improved.
   (define (eclass-set-cost! _ eclass id)
-    ; compute type and untyped cost
     (define node-types (vector-ref eclass-types id))
-    (define prev-costs (vector-ref costs id))
-    (define new-costs (hash-copy prev-costs))
-    ; iterate over the nodes
+    (define eclass-costs (vector-ref costs id))
+    (define updated? #f)
+
+    ; Update cost information
+    (define (update-cost! type new-cost node)
+      (when new-cost
+        (define prev-cost/node (hash-ref eclass-costs type #f))
+        (when (or (not prev-cost/node) ; first cost
+                  (< new-cost (car prev-cost/node))) ; better cost
+          (hash-set! eclass-costs type (cons new-cost node))
+          (set! updated? #t))))
+
+    ; Iterate over the nodes
     (for ([node (in-vector eclass)] [type (in-vector node-types)])
-      (let loop ([type type])
-        (match type
-          [#t ; node is untyped (constant) => merge with all types
-           (define new-cost (node-cost node type))
-           (when new-cost
-             (for ([(type prev) (in-hash new-costs)])
-               (hash-set! new-costs
-                          type
-                          (cost-merger prev new-cost node)))
-             (hash-update! new-costs
-                           #t
-                           (lambda (prev) (cost-merger prev new-cost node))
-                           #f))]
-          [(list 'or tys ...) ; node is a union type (only for some `if` nodes)
-           (for-each loop tys)]
-          [_ ; node has a specific type
-           (define new-cost (node-cost node type))
-           (when new-cost
-             (hash-update! new-costs
-                           type
-                           (lambda (prev) (cost-merger prev new-cost node))))])))
-    ; merge the new version
-    (define updated?
-      (for/or ([type (in-list (hash-keys prev-costs))])
-        (define prev-cost (hash-ref prev-costs type))
-        (define new-cost (hash-ref new-costs type))
-        (cond [(not new-cost) #f]
-              [(not prev-cost) #t]
-              [(< (car new-cost) (car prev-cost)) #t]
-              [else #f])))
-    ; updated costs
-    (vector-set! costs id new-costs)
+      (match type
+        [(list 'or tys ...) ; node is a union type (only for some `if` nodes)
+         (for ([ty (in-list tys)])
+           (define new-cost (node-cost node ty))
+           (update-cost! ty new-cost node))]
+        [_ ; node is either untyped (constant) or has a specific type
+         (define new-cost (node-cost node type))
+         (update-cost! type new-cost node)]))
+
     updated?)
 
   ; run the analysis
