@@ -234,9 +234,10 @@
     (for ([prev-split-idx (in-range 0 point-idx)]
           [prev-alt-error-sum (in-flvector alt-error-sums)]
           [best-alt-idx (in-vector best-alt-idxs)]
-          [best-alt-cost (in-flvector best-alt-costs)])
+          [best-alt-cost (in-flvector best-alt-costs)]
+          [can-split (in-vector can-split-vec 1)]
+          #:when can-split)
      ;; Check if we can add a split point
-     (when (vector-ref can-split-vec (+ prev-split-idx 1))
       ;; compute the difference between the current error-sum and previous
       (let ([current-error (fl- (flvector-ref alt-error-sums point-idx)
                                 prev-alt-error-sum)])
@@ -245,7 +246,7 @@
        (when (or (not best-alt-idx) (fl< current-error best-alt-cost))
         ;; update best cost and best index
         (flvector-set! best-alt-costs prev-split-idx current-error)
-        (vector-set! best-alt-idxs prev-split-idx alt-idx))))))
+        (vector-set! best-alt-idxs prev-split-idx alt-idx)))))
 
    ;; Save current values for the current point we are working on.
    (define current-alt-error (flvector-ref result-error-sums point-idx))
@@ -257,8 +258,9 @@
    (for ([prev-split-idx (in-range 0 point-idx)]
          [r-error-sum (in-flvector result-error-sums)]
          [best-alt-idx (in-vector best-alt-idxs)]
-         [best-alt-cost (in-flvector best-alt-costs)])
-    (when (vector-ref can-split-vec (+ prev-split-idx 1))
+         [best-alt-cost (in-flvector best-alt-costs)]
+         [can-split (in-vector can-split-vec 1)]
+         #:when can-split)
      ;; Re compute the error sum for a potential better alt
      (define alt-error-sum (fl+ r-error-sum best-alt-cost min-weight))
      ;; pre-compute values for tie breaking
@@ -278,7 +280,7 @@
       (when set-cond
        (set! current-alt-error alt-error-sum)
        (set! current-alt-idx best-alt-idx)
-       (set! current-prev-idx prev-split-idx))))
+       (set! current-prev-idx prev-split-idx)))
    (flvector-set! result-error-sums point-idx current-alt-error)
    (vector-set! result-alt-idxs point-idx current-alt-idx)
    (vector-set! result-prev-idxs point-idx current-prev-idx))
