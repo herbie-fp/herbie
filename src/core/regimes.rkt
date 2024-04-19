@@ -205,14 +205,12 @@
   (define result-alt-idxs (make-vector number-of-points 0))
   (define result-prev-idxs (make-vector number-of-points number-of-points))
 
-  ;; TODO invert loops to match core algorithm data priority
-  (for ([point-idx (in-range number-of-points)])
-    ;; record the error for each candidate
-    (for ([alt-idx (range number-of-alts)])
-     (define val (flvector-ref (vector-ref flvec-psums alt-idx) point-idx))
-     (when (< val (flvector-ref result-error-sums point-idx))
-      (flvector-set! result-error-sums point-idx val)
-      (vector-set! result-alt-idxs point-idx alt-idx))))
+  (for ([alt-idx (in-naturals)] [alt-errors (in-vector flvec-psums)])
+   (for ([point-idx (in-range number-of-points)]
+         [err (in-flvector alt-errors)]
+         #:when (< err (flvector-ref result-error-sums point-idx)))
+    (flvector-set! result-error-sums point-idx err)
+    (vector-set! result-alt-idxs point-idx alt-idx)))
 
   ;; Vectors are now filled with starting data. Beginning main loop of the
   ;; regimes algorithm.
