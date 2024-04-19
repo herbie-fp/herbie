@@ -263,18 +263,16 @@
          #:when can-split)
      ;; Re compute the error sum for a potential better alt
      (define alt-error-sum (fl+ r-error-sum best-alt-cost min-weight))
-     ;; pre-compute values for tie breaking
-     (define current-best-alt-idx (vector-ref best-alt-idxs prev-split-idx))
      ;; Check if the new alt-error-sum is better then the current
      (define set-cond
       ;; give benefit to previous best alt
       (cond [(fl< alt-error-sum current-alt-error) #t]
             ;; Tie breaker if error are the same favor first alt
             [(and (fl= alt-error-sum current-alt-error)
-                  (> current-alt-idx current-best-alt-idx)) #t]
+                  (> current-alt-idx best-alt-idx)) #t]
             ;; Tie breaker for if error and alt is the same
             [(and (fl= alt-error-sum current-alt-error)
-                  (= current-alt-idx current-best-alt-idx)
+                  (= current-alt-idx best-alt-idx)
                   (> current-prev-idx prev-split-idx)) #t]
             [else #f]))
       (when set-cond
