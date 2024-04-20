@@ -217,8 +217,8 @@
  
   ;; Vectors used to determine if our current alt is better than our running
   ;; best alt.
-  (define best-alt-idxs (make-vector number-of-points))
-  (define best-alt-costs (make-flvector number-of-points))
+  (define best-alt-idxs (make-vector number-of-points #f))
+  (define best-alt-costs (make-flvector number-of-points +inf.0))
 
   (for ([point-idx (in-range 0 number-of-points)]
         [current-alt-error (in-flvector result-error-sums)]
@@ -226,8 +226,10 @@
         [current-prev-idx (in-vector result-prev-idxs)])
    ;; Set and fill temporary vectors with starting data
    ;; #f for best index and positive infinite for best cost
-   (vector-fill! best-alt-idxs #f)
-   (set! best-alt-costs (make-flvector number-of-points +inf.0))
+   (when (> point-idx 0)
+    (vector-fill! best-alt-idxs #f)
+    ;; Not sure how to get around allocation here, no flvector-fill!
+    (set! best-alt-costs (make-flvector number-of-points +inf.0)))
 
    ;; For each alt loop over its vector of errors
    (for ([alt-idx (in-naturals)] [alt-error-sums (in-vector flvec-psums)])
