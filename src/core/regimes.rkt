@@ -118,9 +118,10 @@
       (list* pt (apply fn pt) err-lst)))
   (match-define (list pts* splitvals* err-lsts* ...)
                 (flip-lists (sort big-table (curryr </total repr) #:key second)))
-
-  (define bit-err-lsts* (map (curry map ulps->bits) err-lsts*))
-
+  ;; Map data to reflect contract for err-lsts->split-indices
+  (define bit-err-lsts* (vector-map (curry flvector-map ulps->bits)
+                         (vector-map list->flvector
+                         (list->vector err-lsts*))))
   (define can-split? (vector-append (vector #f)
                              (for/vector ([val (cdr splitvals*)]
                                         [prev splitvals*])
@@ -184,14 +185,11 @@
 ;; range of points. Starting at 1 going up to num-points.
 ;; Alts are indexed 0 and points are index 1.
 (define/contract (err-lsts->split-indices err-lsts can-split-vec)
-  (->i ([e (listof list)] [cs (vectorof boolean?)])
+  (->i ([e (vectorof vector)] [cs (vectorof boolean?)])
         [result (cs) (curry valid-splitindices? cs)])
   ;; Converting list of list to list of flvectors
   ;; flvectors are used to remove pointer chasing
-  (define (make-vec-psum lst) 
-   (flvector-sums (list->flvector lst)))
-  (define flvec-psums (vector-map make-vec-psum (list->vector err-lsts)))
-
+  (define flvec-psums (vector-map flvector-sums err-lsts))
   ;; Set up data needed for algorithm
   (define number-of-alts (vector-length flvec-psums))
   (define number-of-points (vector-length can-split-vec))
