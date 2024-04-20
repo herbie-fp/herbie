@@ -248,7 +248,7 @@
         ;; update best cost and best index
         (flvector-set! best-alt-costs prev-split-idx current-error)
         (vector-set! best-alt-idxs prev-split-idx alt-idx)))))
-   ;; We have now have the index of the best alt and it's error up to our 
+   ;; We have now have the index of the best alt and its error up to our 
    ;; current point-idx.
    ;; Now we compare against our current best saved in the 3 vectors above
    (for ([prev-split-idx (in-range 0 point-idx)]
