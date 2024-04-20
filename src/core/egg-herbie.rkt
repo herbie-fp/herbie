@@ -579,9 +579,7 @@
 ;; its eclass id producing a non-`#f` result when the parents of the eclass
 ;; need to be revisited. Result is a vector where each entry is
 ;; the eclass's analysis.
-(define (regraph-analyze regraph eclass-proc
-                         #:analysis [analysis #f]
-                         #:dirty?-vec [dirty?-vec #f])
+(define (regraph-analyze regraph eclass-proc #:analysis [analysis #f])
   (define eclasses (regraph-eclasses regraph))
   (define has-leaf? (regraph-has-leaf? regraph))
   (define parents (regraph-parents regraph))
@@ -589,22 +587,29 @@
 
   ; set analysis if not provided
   (unless analysis (set! analysis (make-vector n #f)))
-  (unless dirty?-vec (set! dirty?-vec (vector-copy has-leaf?)))
+  (define dirty?-vec (vector-copy has-leaf?)) ; visit eclass on next pass?
+  (define changed?-vec (vector-copy has-leaf?)) ; eclass is unvisited or was changed last iteration
 
   ; run the analysis
   (let sweep ()
+    (define dirty?-vec* (make-vector n #f))
+    (define changed?-vec* (make-vector n #f))
     (for ([id (in-range n)] #:when (vector-ref dirty?-vec id))
-      (vector-set! dirty?-vec id #f)
       (define eclass (vector-ref eclasses id))
-      (when (eclass-proc analysis eclass id)
-        ; need to revisit the parents
+      (when (eclass-proc analysis changed?-vec eclass id)
+        ; eclass analysis was updated: need to revisit the parents
+        (vector-set! changed?-vec* id #t)
         (for ([parent-id (in-vector (vector-ref parents id))])
-            (vector-set! dirty?-vec parent-id #t))))
+          (vector-set! dirty?-vec* parent-id #t))))
     ; check if we need to sweep again
-    (if (for/or ([dirty? (in-vector dirty?-vec)]) dirty?)
-        (sweep)
-        (void)))
-
+    (cond
+      [(for/or ([dirty? (in-vector dirty?-vec*)]) dirty?)
+       ; analysis has not converged so loop
+       (set! dirty?-vec dirty?-vec*) ; update eclasses that require visiting
+       (set! changed?-vec changed?-vec*) ; update eclasses that have changed
+       (sweep)]
+      [else (void)]))
+  
   ; Invariant: all eclasses have an associated cost!  
   (unless (for/and ([eclass-analysis (in-vector analysis)]) eclass-analysis)
     (error 'regraph-analyze
@@ -656,20 +661,23 @@
   ; Computes the current cost of a node if its children have a cost
   ; Cost function has access to a mutable value through `cache`
   (define cache (box #f))
-  (define (node-cost node)
+  (define (node-cost node changed?-vec)
     (if (pair? node)
         (let ([child-ids (cdr node)]) ; (op child ...)
-          (and (andmap eclass-has-cost? child-ids)
+          ; compute the cost if at least one child eclass has a new analysis
+          ; ... and an analysis exists for all the child eclasses
+          (and (ormap (lambda (id) (vector-ref changed?-vec id)) child-ids)
+               (andmap eclass-has-cost? child-ids)
                (cost-proc regraph cache node unsafe-eclass-cost)))
         (cost-proc regraph cache node unsafe-eclass-cost)))
 
   ; Updates the cost of the current eclass.
   ; Returns #t if the cost of the current eclass has improved.
-  (define (eclass-set-cost! _ eclass id)
+  (define (eclass-set-cost! _ changed?-vec eclass id)
     (define prev-cost (vector-ref costs id))
     (define new-cost
       (for/fold ([best #f]) ([node (in-vector eclass)])
-        (define cost (node-cost node))
+        (define cost (node-cost node changed?-vec))
         (cost-merger best cost node)))
     (cond
       [(not new-cost) #f]
@@ -806,7 +814,7 @@
       [(list (? impl-exists? op) _ ...) (impl-info op 'otype)]
       [(list op _ ...) (operator-info op 'otype)]))
 
-  (define (eclass-set-types! analysis eclass id)
+  (define (eclass-set-types! analysis _ eclass id)
     (define eclass-analysis (vector-ref analysis id))
     (cond
       [(and eclass-analysis
@@ -887,37 +895,34 @@
   (define eclasses (regraph-eclasses regraph))
   (define n (vector-length eclasses))
 
-  ; costs: mapping eclass id to either:
-  ; - a map from type to (cost, node) pair
-  ; - (cost, node) pair 
+  ; costs: mapping eclass id to a table from type to (cost, node) pair
   (define costs (make-vector n #f))
 
   ; Checks if eclass has a cost
   (define (eclass-has-cost? id type)
     (define c (vector-ref costs id))
-    (cond [(pair? c) #t]
-          [(hash-has-key? c type) (hash-ref c type)]
-          [(hash-has-key? c #t) (hash-ref c #t)]
-          [else #t])) ; there is no choice for the eclass for the type
+    (cond
+      [(hash-has-key? c type) (hash-ref c type)] ; typed choice has cost
+      [(hash-has-key? c #t) (hash-ref c #t)] ; untyped choice has cost (constants)
+      [else #t])) ; no choice but we can compute cost with failure value
 
   ; Unsafe lookup of eclass cost
   (define (unsafe-eclass-cost id type failure)
     (define cost (vector-ref costs id))
-    (cond [(pair? cost) (car cost)] ; (cost . node)
-          [(hash-has-key? cost type) 
-           (define cost* (hash-ref cost type)) ; (cost . node) or #f
-           (and cost* (car cost*))]
-          [(hash-has-key? cost #t) ; type `#t` is always a valid choice
-           (define cost* (hash-ref cost #t))  ; (cost . node) or #f
-           (and cost* (car cost*))]
-          [else failure]))
+    (cond
+      [(hash-has-key? cost type) 
+       (define cost* (hash-ref cost type)) ; (cost . node) or #f
+       (and cost* (car cost*))]
+      [(hash-has-key? cost #t) ; type `#t` is always a valid choice
+       (define cost* (hash-ref cost #t))  ; (cost . node) or #f
+       (and cost* (car cost*))]
+      [else failure]))
 
   ; Unsafe lookup of best eclass node.
   ; Returns `#f` if no best eclass exists.
   (define (unsafe-best-node id type)
     (define cost (vector-ref costs id))
     (cond
-      [(pair? cost) (cdr cost)] ; (cost . node)
       [(hash-has-key? cost type) 
        (define cost* (hash-ref cost type)) ; (cost . node) or #f
        (and cost* (cdr cost*))]
@@ -952,8 +957,6 @@
 
   (define (slow-node-ready? node type)
     (match node
-      [(? number?) #t]
-      [(? symbol?) #t]
       [(list 'if cond ift iff)
        (and (eclass-has-cost? cond (get-representation 'bool))
             (eclass-has-cost? ift type)
@@ -967,7 +970,8 @@
   ; Cost function has access to a mutable value through `cache`
   (define cache (box #f))
   (define (node-cost node ready? type)
-    (and (or (unbox ready?)
+    (and (or (not (pair? node))
+             (unbox ready?)
              (let ([v (slow-node-ready? node type)])
                (set-box! ready? v)
                v))
@@ -975,7 +979,7 @@
 
   ; Updates the cost of the current eclass.
   ; Returns #t if the cost of the current eclass has improved.
-  (define (eclass-set-cost! _ eclass id)
+  (define (eclass-set-cost! _ changed?-vec eclass id)
     (define node-types (vector-ref eclass-types id))
     (define node-ready? (vector-ref ready?-vec id))
     (define eclass-costs (vector-ref costs id))
@@ -997,11 +1001,19 @@
       (match type
         [(list 'or tys ...) ; node is a union type (only for some `if` nodes)
          (for ([ty (in-list tys)])
-           (define new-cost (node-cost node ready? ty))
-           (update-cost! ty new-cost node))]
+           (when (or (not (pair? node)) ; only compute the cost for terminals
+                   (ormap ; ... or when a child id has an updated analysis
+                     (lambda (id) (vector-ref changed?-vec id))
+                     (cdr node)))
+             (define new-cost (node-cost node ready? ty))
+             (update-cost! ty new-cost node)))]
         [_ ; node is either untyped (constant) or has a specific type
-         (define new-cost (node-cost node ready? type))
-         (update-cost! type new-cost node)]))
+         (when (or (not (pair? node)) ; only compute the cost for terminals
+                   (ormap ; ... or when a child id has an updated analysis
+                     (lambda (id) (vector-ref changed?-vec id))
+                     (cdr node)))
+           (define new-cost (node-cost node ready? type))
+           (update-cost! type new-cost node))]))
 
     updated?)
 

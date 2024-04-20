@@ -52,26 +52,23 @@
                     schedule
                     #:extractor (typed-egg-extractor platform-egg-cost-proc)))
 
-  ; map input to simplest
-  (define simplified (simplify-batch egg-query))
-  (define expr->simplest
-    (for/hash ([expr (in-list unique)] [exprs (in-list simplified)])
-      (values expr (last exprs))))
-
   ;; For each expression takes the subexpressions and a the simplified version of those
   ;; subexpression then for each subexpression it computes the difference between the two
   ;; and return a sorted list of pairs of (subexpr and diff).
   (define expr->cost (platform-cost-proc (*active-platform*)))
+  (define simplified (simplify-batch egg-query))
+  (define expr->cost-diff
+    (for/hash ([expr (in-list unique)] [exprs (in-list simplified)])
+      (define simplest (last exprs))
+      (define init-cost (expr->cost expr (repr-of expr ctx)))
+      (define best-cost (expr->cost simplest (repr-of simplest ctx)))
+      (define cost-diff (- init-cost best-cost))
+      (values expr cost-diff)))
+  
   (for/list ([subexprs (in-list subexprss)])
-    (define simplests (map (curry hash-ref expr->simplest) subexprs))
-    (sort 
-      (for/list ([subexpr (in-list subexprs)]
-                 [simplest (in-list simplests)]
-                 #:when (list? subexpr))
-        (define init-cost (expr->cost subexpr (repr-of subexpr ctx)))
-        (define best-cost (expr->cost simplest (repr-of subexpr ctx)))
-        (define cost-diff (- init-cost best-cost))
-        (cons cost-diff subexpr))
+    (sort
+      (for/list ([subexpr (in-list subexprs)])
+        (cons (hash-ref expr->cost-diff subexpr) subexpr))
       > #:key car)))
 
 ; Compute local error or each sampled point at each node in `prog`.
