@@ -121,11 +121,11 @@
 
   (define bit-err-lsts* (map (curry map ulps->bits) err-lsts*))
 
-  (define can-split? (append (list #f)
-                             (for/list ([val (cdr splitvals*)]
+  (define can-split? (vector-append (vector #f)
+                             (for/vector ([val (cdr splitvals*)]
                                         [prev splitvals*])
                                (</total prev val repr))))
-  (define split-indices (err-lsts->split-indices bit-err-lsts* (list->vector can-split?)))
+  (define split-indices (err-lsts->split-indices bit-err-lsts* can-split?))
   (define out (option split-indices alts pts* expr (pick-errors split-indices pts* err-lsts* repr)))
   (timeline-stop!)
   (timeline-push! 'branch (~a expr) (errors-score (option-errors out)) (length split-indices) (~a (representation-name repr)))
