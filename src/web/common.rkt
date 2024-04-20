@@ -301,9 +301,14 @@
      (if (equal? (test-expected test) #t)
          #f
          (format "  :herbie-expected ~a" (test-expected test)))
-     (if (test-output test)
-         ;; Extra newlines for clarity
-         (format "\n  :alt\n  ~a\n" (prog->fpcore (test-output test) output-repr))
+     (if (not (null? (test-output test)))
+        ;; Extra newlines for clarity. Also joined formatted expressions with newlines
+        (format "\n~a"
+          (string-join
+            (map
+              (lambda (exp) (format "  :alt\n  ~a\n" (car exp)))
+              (test-output test))
+            "\n"))
          #f)
      (format "  ~a)" (prog->fpcore (test-input test) output-repr))))
    "\n"))

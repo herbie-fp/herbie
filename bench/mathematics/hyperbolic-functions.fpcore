@@ -15,7 +15,7 @@
 (FPCore (x)
  :name "Hyperbolic arcsine"
  :alt 
- (! :description (platform libm)
+ (! :herbie-platform default
   (if (< x 0)
    (log (/ -1 (- x (sqrt (+ (* x x) 1)))))
    (log (+ x (sqrt (+ (* x x) 1))))))
