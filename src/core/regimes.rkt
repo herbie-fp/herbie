@@ -215,7 +215,7 @@
   ;; Vectors are now filled with starting data. Beginning main loop of the
   ;; regimes algorithm.
  
-  ;; Vectors used to determine if our current alt is better than out running
+  ;; Vectors used to determine if our current alt is better than our running
   ;; best alt.
   (define best-alt-idxs (make-vector number-of-points))
   (define best-alt-costs (make-flvector number-of-points))
