@@ -122,9 +122,10 @@
   (define bit-err-lsts* (map (curry map ulps->bits) err-lsts*))
 
   (define can-split? (append (list #f)
-                             (for/list ([val (cdr splitvals*)] [prev splitvals*])
+                             (for/list ([val (cdr splitvals*)]
+                                        [prev splitvals*])
                                (</total prev val repr))))
-  (define split-indices (err-lsts->split-indices bit-err-lsts* can-split?))
+  (define split-indices (err-lsts->split-indices bit-err-lsts* (list->vector can-split?)))
   (define out (option split-indices alts pts* expr (pick-errors split-indices pts* err-lsts* repr)))
   (timeline-stop!)
   (timeline-push! 'branch (~a expr) (errors-score (option-errors out)) (length split-indices) (~a (representation-name repr)))
@@ -172,8 +173,8 @@
 (define (valid-splitindices? can-split? split-indices)
   (and
    (for/and ([pidx (map si-pidx (drop-right split-indices 1))])
-     (and (> pidx 0)) (list-ref can-split? pidx))
-   (= (si-pidx (last split-indices)) (length can-split?))))
+     (and (> pidx 0)) (vector-ref can-split? pidx))
+   (= (si-pidx (last split-indices)) (vector-length can-split?))))
 
 ;; This is the core main loop of the regimes algorithm.
 ;; Takes in a list of alts in the form of there error at a given point
@@ -182,11 +183,9 @@
 ;; Returns a list of split indices saying which alt to use for which
 ;; range of points. Starting at 1 going up to num-points.
 ;; Alts are indexed 0 and points are index 1.
-(define/contract (err-lsts->split-indices err-lsts can-split)
-  (->i ([e (listof list)] [cs (listof boolean?)]) 
+(define/contract (err-lsts->split-indices err-lsts can-split-vec)
+  (->i ([e (listof list)] [cs (vectorof boolean?)])
         [result (cs) (curry valid-splitindices? cs)])
-  ;; Coverts the list to vector form for faster processing
-  (define can-split-vec (list->vector can-split))
   ;; Converting list of list to list of flvectors
   ;; flvectors are used to remove pointer chasing
   (define (make-vec-psum lst) 
