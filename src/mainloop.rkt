@@ -203,30 +203,22 @@
     (raise-user-error 'localize! "No alt chosen. Run (choose-alts!) or (choose-alt! n) to choose one"))
   (timeline-event! 'localize)
   (define repr (context-repr (*context*)))
-  (define loc-errss
-     (batch-localize-error (map alt-expr (^next-alts^)) (*context*)))
-  (define loc-costss
-     (batch-localize-cost (map alt-expr (^next-alts^)) (*context*)))
-  
+  (define-values (loc-errs loc-costs)
+     (batch-localize-both (map alt-expr (^next-alts^)) (*context*)))
 
   ; high-error locations
   (^locs^
     (remove-duplicates 
       (append 
-        (for/list ([loc-errs (in-list loc-errss)]
-                  #:when true
-                  [(err expr) (in-dict loc-errs)]
+       (for/list ([(err expr) (in-dict loc-errs)]
                   [i (in-range (*localize-expressions-limit*))])
-                  (timeline-push! 'locations (~a expr) "accuracy" (errors-score err)
-                          (not (patch-table-has-expr? expr)) (~a (representation-name repr)))
-          expr)
+         (timeline-push! 'locations (~a expr) "accuracy" (errors-score err)
+                         (not (patch-table-has-expr? expr)) (~a (representation-name repr)))
+         expr)
         ;;Timeline will push duplicates
-        (for/list ([loc-costs (in-list loc-costss)]
-                  #:when true
-                  [(cost-diff expr) (in-dict loc-costs)]
-                  [i (in-range (*localize-expressions-limit*))])
-                  
-                  (timeline-push! 'locations (~a expr) "cost-diff" cost-diff
+        (for/list ([(cost-diff expr) (in-dict loc-costs)]
+                   [i (in-range (*localize-expressions-limit*))])
+          (timeline-push! 'locations (~a expr) "cost-diff" cost-diff
                           (not (patch-table-has-expr? expr)) (~a (representation-name repr)))
           expr))))
 
