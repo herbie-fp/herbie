@@ -203,6 +203,7 @@
     (raise-user-error 'localize! "No alt chosen. Run (choose-alts!) or (choose-alt! n) to choose one"))
   (timeline-event! 'localize)
   (define repr (context-repr (*context*)))
+  (define num-exprs (length (^next-alts^)))
   (define-values (loc-errs loc-costs)
      (batch-localize-both (map alt-expr (^next-alts^)) (*context*)))
 
