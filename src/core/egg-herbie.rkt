@@ -538,6 +538,8 @@
                egg-node             ; variable
                (list egg-node))]    ; constant
           [(list op child-ids ...)
+           (when (null? child-ids)
+             (vector-set! has-leaf? id #t))
            (cons op (map resolve-id child-ids))]
           [_ (error 'sexpr->regraph "malformed enode: ~a" egg-node)])))
     (vector-set! eclasses id node))
@@ -552,6 +554,11 @@
   (define egraph-str (egraph-serialize egraph-data))
   (sexpr->regraph (read (open-input-string egraph-str)) egg->herbie))
 
+;; Egraph node has children.
+;; Nullary operators have no children!
+(define (node-has-children? node)
+  (and (pair? node) (pair? (cdr node))))
+
 ;; Computes the parent relation of each eclass.
 (define (regraph-parents regraph)
   (define eclasses (regraph-eclasses regraph))
@@ -562,7 +569,7 @@
   (define (build-parents! id)
     (define eclass (vector-ref eclasses id))
     (for ([node (in-vector eclass)])
-      (when (pair? node) ; only care about nodes with children
+      (when (node-has-children? node) ; only care about nodes with children
         (for ([child-id (in-list (cdr node))])
           (vector-set! parents
                        child-id
@@ -588,15 +595,15 @@
   ; set analysis if not provided
   (unless analysis (set! analysis (make-vector n #f)))
   (define dirty?-vec (vector-copy has-leaf?)) ; visit eclass on next pass?
-  (define changed?-vec (vector-copy has-leaf?)) ; eclass is unvisited or was changed last iteration
+  (define changed?-vec (make-vector n #f)) ; eclass was changed last iteration
 
   ; run the analysis
-  (let sweep ()
+  (let sweep ([iter 0])
     (define dirty?-vec* (make-vector n #f))
     (define changed?-vec* (make-vector n #f))
     (for ([id (in-range n)] #:when (vector-ref dirty?-vec id))
       (define eclass (vector-ref eclasses id))
-      (when (eclass-proc analysis changed?-vec eclass id)
+      (when (eclass-proc analysis changed?-vec iter eclass id)
         ; eclass analysis was updated: need to revisit the parents
         (vector-set! changed?-vec* id #t)
         (for ([parent-id (in-vector (vector-ref parents id))])
@@ -607,7 +614,7 @@
        ; analysis has not converged so loop
        (set! dirty?-vec dirty?-vec*) ; update eclasses that require visiting
        (set! changed?-vec changed?-vec*) ; update eclasses that have changed
-       (sweep)]
+       (sweep (add1 iter))]
       [else (void)]))
   
   ; Invariant: all eclasses have an associated cost!  
@@ -636,12 +643,6 @@
 ;;  - unary procedure to get the eclass of an id
 ;;
 
-(define (cost-merger best cost node)
-    (cond [(not cost) best]
-          [(not best) (cons cost node)]
-          [(< cost (car best)) (cons cost node)]
-          [else best]))
-
 ;; The untyped extraction algorithm.
 (define ((untyped-egg-extractor cost-proc) regraph)
   (define eclasses (regraph-eclasses regraph))
@@ -662,7 +663,7 @@
   ; Cost function has access to a mutable value through `cache`
   (define cache (box #f))
   (define (node-cost node changed?-vec)
-    (if (pair? node)
+    (if (node-has-children? node)
         (let ([child-ids (cdr node)]) ; (op child ...)
           ; compute the cost if at least one child eclass has a new analysis
           ; ... and an analysis exists for all the child eclasses
@@ -673,17 +674,38 @@
 
   ; Updates the cost of the current eclass.
   ; Returns #t if the cost of the current eclass has improved.
-  (define (eclass-set-cost! _ changed?-vec eclass id)
-    (define prev-cost (vector-ref costs id))
+  (define (eclass-set-cost! _ changed?-vec iter eclass id)
+    ; Optimization: we only need to update node cost as needed.
+    ;  (i) terminals, nullary operators: only compute once
+    ;  (ii) non-nullary operators: compute when any of its child eclasses
+    ;       have their analysis updated
+    (define (node-requires-update? node)
+      (if (node-has-children? node)
+          (for/or ([id (in-list (cdr node))])
+            (vector-ref changed?-vec id))
+          (= iter 0)))
+
     (define new-cost
       (for/fold ([best #f]) ([node (in-vector eclass)])
-        (define cost (node-cost node changed?-vec))
-        (cost-merger best cost node)))
+        (cond
+          [(node-requires-update? node)
+           (define cost (node-cost node changed?-vec))
+           (match* (best cost)
+             [(_ #f) best]
+             [(#f _) (cons cost node)]
+             [(_ _) #:when (< cost (car best)) (cons cost node)]
+             [(_ _) best])]
+          [else best])))
+
     (cond
-      [(not new-cost) #f]
-      [(or (not prev-cost) (< (car new-cost) (car prev-cost)))
-       (vector-set! costs id new-cost)
-       #t]
+      [new-cost
+       (define prev-cost (vector-ref costs id))
+       (cond
+         [(or (not prev-cost) ; first time
+              (< (car new-cost) (car prev-cost)))
+          (vector-set! costs id new-cost)
+          #t]
+         [else #f])]
       [else #f]))
 
   ; run the analysis
@@ -814,7 +836,7 @@
       [(list (? impl-exists? op) _ ...) (impl-info op 'otype)]
       [(list op _ ...) (operator-info op 'otype)]))
 
-  (define (eclass-set-types! analysis _ eclass id)
+  (define (eclass-set-types! analysis _ iter eclass id)
     (define eclass-analysis (vector-ref analysis id))
     (cond
       [(and eclass-analysis
@@ -970,7 +992,7 @@
   ; Cost function has access to a mutable value through `cache`
   (define cache (box #f))
   (define (node-cost node ready? type)
-    (and (or (not (pair? node))
+    (and (or (not (node-has-children? node))
              (unbox ready?)
              (let ([v (slow-node-ready? node type)])
                (set-box! ready? v)
@@ -979,7 +1001,7 @@
 
   ; Updates the cost of the current eclass.
   ; Returns #t if the cost of the current eclass has improved.
-  (define (eclass-set-cost! _ changed?-vec eclass id)
+  (define (eclass-set-cost! _ changed?-vec iter eclass id)
     (define node-types (vector-ref eclass-types id))
     (define node-ready? (vector-ref ready?-vec id))
     (define eclass-costs (vector-ref costs id))
@@ -994,6 +1016,16 @@
           (hash-set! eclass-costs type (cons new-cost node))
           (set! updated? #t))))
 
+    ; Optimization: we only need to update node cost as needed.
+    ;  (i) terminals, nullary operators: only compute once
+    ;  (ii) non-nullary operators: compute when any of its child eclasses
+    ;       have their analysis updated
+    (define (node-requires-update? node)
+      (if (node-has-children? node)
+          (for/or ([id (in-list (cdr node))])
+            (vector-ref changed?-vec id))
+          (= iter 0)))
+
     ; Iterate over the nodes
     (for ([node (in-vector eclass)]
           [ready? (in-vector node-ready?)]
@@ -1001,17 +1033,11 @@
       (match type
         [(list 'or tys ...) ; node is a union type (only for some `if` nodes)
          (for ([ty (in-list tys)])
-           (when (or (not (pair? node)) ; only compute the cost for terminals
-                   (ormap ; ... or when a child id has an updated analysis
-                     (lambda (id) (vector-ref changed?-vec id))
-                     (cdr node)))
+           (when (node-requires-update? node)
              (define new-cost (node-cost node ready? ty))
              (update-cost! ty new-cost node)))]
         [_ ; node is either untyped (constant) or has a specific type
-         (when (or (not (pair? node)) ; only compute the cost for terminals
-                   (ormap ; ... or when a child id has an updated analysis
-                     (lambda (id) (vector-ref changed?-vec id))
-                     (cdr node)))
+         (when (node-requires-update? node)
            (define new-cost (node-cost node ready? type))
            (update-cost! type new-cost node))]))
 
@@ -1024,11 +1050,11 @@
                      #:analysis costs))
 
   ; invariant: all eclasses have a cost for all types
-  (unless (for/and ([cost (in-vector costs)])
-            (cond [(pair? cost) #t]
-                  [(hash? cost) (andmap identity (hash-values cost))]
-                  [else #f]))
-    (error 'typed-egg-extractor "costs not computed for all eclasses ~a" costs))
+  (for ([cost (in-vector costs)])
+    (unless (andmap identity (hash-values cost))
+      (error 'typed-egg-extractor
+             "costs not computed for all eclasses ~a"
+             costs)))
 
   ; rebuilds the extracted procedure
   (define (build-expr id type)
@@ -1073,7 +1099,7 @@
      (apply +
             (platform-impl-cost (*active-platform*) impl)
             (for/list ([arg (in-list args)] [itype (in-list itypes)])
-                (rec arg itype +inf.0)))]
+              (rec arg itype +inf.0)))]
     [(list _ ...) +inf.0])) ; specs
 
 ;; Prunes any real operator nodes from a regraph.
