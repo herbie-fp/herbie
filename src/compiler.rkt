@@ -59,11 +59,6 @@
             (vector-set! vregs n (apply-instruction instr vregs)))
           (timeline-stop!))
         
-
-        (define (fix? x prec)
-          (parameterize ([bf-precision prec])
-            (bf= (bfcopy (ival-lo x)) (bfcopy (ival-hi x)))))
-        
         (for/vector #:length rootlen ([root (in-vector rootvec)])
           (vector-ref vregs root)))
    
