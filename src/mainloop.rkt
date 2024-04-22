@@ -204,20 +204,24 @@
   (timeline-event! 'localize)
   (define repr (context-repr (*context*)))
   (define num-exprs (length (^next-alts^)))
-  (define-values (loc-errs loc-costs)
+  (define-values (loc-errss loc-costss)
      (batch-localize-both (map alt-expr (^next-alts^)) (*context*)))
 
   ; high-error locations
   (^locs^
     (remove-duplicates 
       (append 
-       (for/list ([(err expr) (in-dict loc-errs)]
+       (for/list ([loc-errs (in-list loc-errss)]
+                  #:when true
+                  [(err expr) (in-dict loc-errs)]
                   [i (in-range (*localize-expressions-limit*))])
          (timeline-push! 'locations (~a expr) "accuracy" (errors-score err)
                          (not (patch-table-has-expr? expr)) (~a (representation-name repr)))
          expr)
         ;;Timeline will push duplicates
-        (for/list ([(cost-diff expr) (in-dict loc-costs)]
+        (for/list ([loc-costs (in-list loc-costss)]
+                   #:when true
+                   [(cost-diff expr) (in-dict loc-costs)]
                    [i (in-range (*localize-expressions-limit*))])
           (timeline-push! 'locations (~a expr) "cost-diff" cost-diff
                           (not (patch-table-has-expr? expr)) (~a (representation-name repr)))

@@ -99,7 +99,7 @@
 (define *proof-max-string-length* (make-parameter 10000))
 
 ;; In localization, the maximum number of locations returned
-(define *localize-expressions-limit* (make-parameter 10))
+(define *localize-expressions-limit* (make-parameter 4))
 
 ;; How long of a Taylor series to generate; too long and we time out
 (define *taylor-order-limit* (make-parameter 4))
