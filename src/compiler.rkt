@@ -39,18 +39,6 @@
   (define prec-threshold (/ (*max-mpfr-prec*) 25))     ; parameter for sampling histogram table
   (if (equal? name 'ival)
       (λ args
-        ;(printf "----------------------------ITER ~a----------------------\n" (*sampling-iteration*))
-        #;(define args-temp (parameterize ([bf-precision 53])
-                            (list (ival (bf -1.171501402457171778607663502050081146274e172)
-                                        (bf -1.171501402457171778607663502050081146274e172))
-                                  (ival (bf 4.670443905457772127704046879197248820943e228)
-                                        (bf 4.670443905457772127704046879197248820943e228))
-                                  (ival (bf 5.591664113302900502450951538263081009552e272)
-                                        (bf 5.591664113302900502450951538263081009552e272))
-                                  (ival (bf 4.692162822516234853871047777617581836862e258)
-                                        (bf 4.692162822516234853871047777617581836862e258))
-                                  (ival (bf 3.886397548741917977233270110817520405933e-103)
-                                        (bf 3.886397548741917977233270110817520405933e-103)))))
         (define timeline-stop! (timeline-start!/unsafe 'mixsample "backward-pass"
                                                        (* (*sampling-iteration*) 1000)))
         (if (zero? (*sampling-iteration*))
@@ -69,34 +57,12 @@
                                                          (- precision (remainder precision prec-threshold))))
           (parameterize ([bf-precision precision])
             (vector-set! vregs n (apply-instruction instr vregs)))
-          ;(printf "instr: ~a, prec=~a\n" (object-name (car instr)) precision)
           (timeline-stop!))
         
 
         (define (fix? x prec)
           (parameterize ([bf-precision prec])
             (bf= (bfcopy (ival-lo x)) (bfcopy (ival-hi x)))))
-        
-        #;(when (<= (*sampling-iteration*) 5)
-          (printf "\n\n")
-          (println args)
-          (println vrepeats)
-          (for ([instr (in-vector ivec)]
-                [n (in-naturals varc)])
-            (when (and (bigfloat? (ival-lo (vector-ref vregs n)))
-                       (not (fix? (vector-ref vregs n) (- (vector-ref vstart-precs (- n varc)) (*ampl-tuning-bits*)))))
-              (printf "~a:~a "
-                      (object-name (car instr)) (vector-ref vrepeats (- n varc)))))
-          (printf "\n")
-          (for ([instr (in-vector ivec)]
-                [n (in-naturals varc)])
-            (when (equal? ival-sin (car instr))
-              (printf "sin: prec=~a, child-precs=~a, srcs=~a, out=~a\n"
-                      (vector-ref vprecs (- n varc))
-                      (map (lambda (x) (bigfloat-precision (ival-lo (vector-ref vregs x)))) (rest instr))
-                      (map (lambda (x) (vector-ref vregs x)) (rest instr))
-                      (vector-ref vregs n))))
-          (when (equal? (*sampling-iteration*) 5) (println "xuy") (sleep 10)))
         
         (for/vector #:length rootlen ([root (in-vector rootvec)])
           (vector-ref vregs root)))
@@ -279,6 +245,9 @@
                      (bigfloat->flonum (ival-lo result))
                      (bigfloat->flonum (ival-hi result))))
         (vector-set! vprecs-new (- root-reg varc) (get-slack)))))
+
+  ; Since Step 2 writes into *sampling-iteration* if the max prec was reached - save the iter number for step 3
+  (define current-iter (*sampling-iteration*))
   
   ; Step 2. Exponents calculation
   (exponents-propogation ivec vregs vprecs-new varc vstart-precs)
@@ -286,22 +255,13 @@
   ; Step 3. Repeating precisions check
   ; vrepeats[i] = #t if the node has the same precision as an iteration before and children have #t flag as well
   ; vrepeats[i] = #f if the node doesn't have the same precision as an iteration before or at least one child has #f flag
-  (vector-fill! vrepeats #f)
   (for ([instr (in-vector ivec)]
-        [prec-old (in-vector (if (equal? 1 (*sampling-iteration*)) vstart-precs vprecs))]
+        [prec-old (in-vector (if (equal? 1 current-iter) vstart-precs vprecs))]
         [prec-new (in-vector vprecs-new)]
         [n (in-naturals)])
-    (if (and (equal? prec-new prec-old)
-             (andmap (lambda (x) (or (< x varc) (vector-ref vrepeats (- x varc))))
-                     (rest instr)))
-        (vector-set! vrepeats n #t)
-        (vector-set! vrepeats n #f)))
-
-  #;(for ([prec (in-vector vprecs)]
-        [prec* (in-vector vprecs-new)]
-        [rep (in-vector vrepeats)])
-    (printf "~a=~a ~a, " prec prec* rep))
-  ;(printf "\n")
+    (vector-set! vrepeats n  (and (equal? prec-new prec-old)
+                                  (andmap (lambda (x) (or (< x varc) (vector-ref vrepeats (- x varc))))
+                                          (rest instr)))))
         
   ; Step 4. Copying new precisions into vprecs
   (vector-copy! vprecs 0 vprecs-new))
@@ -333,9 +293,6 @@
     (when (equal? final-parent-precision (*max-mpfr-prec*))         ; Early stopping
       (*sampling-iteration* (*max-sampling-iterations*)))
     (vector-set! vprecs-new (- n varc) final-parent-precision)
-
-    #;(printf "~a: instr=~a, from-above=~a, exp=~a, final-prec=~a, tail=~a\n"
-            n (object-name (car instr)) exps-from-above new-exponents final-parent-precision (rest instr))
 
     (for ([x (in-list tail-registers)]
           [new-exp (in-list new-exponents)]
