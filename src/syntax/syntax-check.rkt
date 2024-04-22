@@ -101,13 +101,10 @@
     (unless (string? (syntax-e name))
       (error! name "Invalid :name ~a; must be a string" name)))
 
-  ; TODO : not a string anymore so needs to be changed
-  ; Change to data: symbol, number, string, (data*)
-  ;(when (dict-has-key? prop-dict ':description)
-    ;(define desc (dict-ref prop-dict ':description))
-    ;(unless (string? (syntax-e desc))
-    ; (error! desc "Invalid :description ~a; must be a string" desc))
-    ;)
+  (when (dict-has-key? prop-dict ':herbie-platform)
+    (define name (dict-ref prop-dict ':herbie-platform))    
+    (unless (identifier? name)
+      (error! name "Invalid :herbie-platform ~a; must be a symbol" name)))
 
   (when (dict-has-key? prop-dict ':precision)
     (define prec (dict-ref prop-dict ':precision))

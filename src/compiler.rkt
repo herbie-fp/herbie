@@ -183,25 +183,33 @@
     ; Translates programs into an instruction sequence of operations
     (define (munge prog)
       (set! size (+ 1 size))
-      (define expr
+      (define instruction ; This compiles to the register machine
         (match prog
-          [(? number?)
-           (list (const (input->value prog 'real)))]
-          [(literal value (app get-representation repr))
-           (list (const (input->value value repr)))]
+          [(? number?) prog]
+          [(? literal?) prog]
           [(? variable?) prog]
           [`(if ,c ,t ,f)
-           (list if-proc (munge c) (munge t) (munge f))]
+           (list 'if (munge c) (munge t) (munge f))]
           [(list op args ...)
-           (cons (op->proc op) (map munge args))]
+           (cons op (map munge args))]
           [_ (raise-argument-error 'compile-specs "Not a valid expression!" prog)]))
-      (hash-ref! exprhash expr
+      (hash-ref! exprhash instruction
                  (λ ()
+                   (define expr ; Think links to actual functions to execute
+                     (match instruction
+                       [(? number? value)
+                        (list (const (input->value value 'real)))]
+                       [(literal value (app get-representation repr))
+                        (list (const (input->value value repr)))]
+                       ;No (? variable? var) case, already in the cache
+                       [`(if ,c ,t ,f) (list if-proc c t f)]
+                       [(list op args ...) (cons (op->proc op) args)]))
                    (begin0 (+ exprc varc) ; store in cache, update exprs, exprc
-                           (set! exprc (+ 1 exprc))
-                           (set! icache (cons expr icache))))))
+                     (set! exprc (+ 1 exprc))
+                     (set! icache (cons expr icache))))))
     
     (define names (map munge exprs))
+
     (timeline-push! 'compiler (+ varc size) (+ exprc varc))
     (define ivec (list->vector (reverse icache)))
     (make-progs-interpreter name vars ivec names)))
