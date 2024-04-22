@@ -9,8 +9,9 @@
 (define (actual-errors expr pcontext)
   (match-define (cons subexprs pt-errorss)
     (flip-lists
-     (hash->list (car (compute-local-errors (list expr)
-                                            (*context*))))))
+     (hash->list (first (compute-local-errors (list expr)
+                                       (*context*))))))
+
 
   (define pt-worst-subexpr
     (append* (reap [sow]
