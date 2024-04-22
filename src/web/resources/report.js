@@ -87,21 +87,73 @@ const ClientGraph = new Component('#graphs', {
 
     render_functions: function($elt, selected_var_name, selected_functions) {
         const all_lines = ALL_LINES.filter(o => this.points_json.error[o.name] != false)
+        console.log("points json : " + this.points_json.error['target'].length)
+        console.log("functions : " + selected_functions)
+
         const toggle = (option, options) => options.includes(option) ? options.filter(o => o != option) : [...options, option]
-        $elt.replaceChildren.apply(
-            $elt,
-            all_lines.map(fn => 
-                Element("label", [
+
+        var curr_list = []
+
+        if (this.points_json.error['start'] != false) {
+            curr_list.push( Element("label", [
+                            Element("input", {
+                                type: "checkbox",
+                                style: "accent-color: " + '#d00',
+                                checked: selected_functions.includes('start'),
+                                onclick: (e) => this.render(selected_var_name, toggle('start', selected_functions))
+                            }, []),
+                            Element("span", { className: "functionDescription" }, [
+                                " ", 'Initial Program']),
+                        ]))
+        }
+
+        if (this.points_json.error['end'] != false) {
+            curr_list.push( Element("label", [
+                            Element("input", {
+                                type: "checkbox",
+                                style: "accent-color: " + '#00a',
+                                checked: selected_functions.includes('end'),
+                                onclick: (e) => this.render(selected_var_name, toggle('end', selected_functions))
+                            }, []),
+                            Element("span", { className: "functionDescription" }, [
+                                " ", 'Most accurate alternative']),
+                        ]))
+        }
+
+        if (this.points_json.error['target'] != false) {
+            for (let i = 1; i <= this.points_json.error['target'].length; i+=1) {
+                curr_list.push( Element("label", [
                     Element("input", {
                         type: "checkbox",
-                        style: "accent-color: " + fn.line.stroke,
-                        checked: selected_functions.includes(fn.name),
-                        onclick: (e) => this.render(selected_var_name, toggle(fn.name, selected_functions))
+                        style: "accent-color: " + '#080',
+                        checked: selected_functions.includes(('target' + i)),
+                        onclick: (e) => this.render(selected_var_name, toggle(('target' + i), selected_functions))
                     }, []),
                     Element("span", { className: "functionDescription" }, [
-                        " ", fn.description]),
-                ])),
+                        " ", ('Developer Target' + i)]),
+                ]))
+            }
+        }
+
+        $elt.replaceChildren.apply(
+            $elt,
+            curr_list,
         );
+
+        // $elt.replaceChildren.apply(
+        //     $elt,
+        //     all_lines.map(fn => 
+        //         Element("label", [
+        //             Element("input", {
+        //                 type: "checkbox",
+        //                 style: "accent-color: " + fn.line.stroke,
+        //                 checked: selected_functions.includes(fn.name),
+        //                 onclick: (e) => this.render(selected_var_name, toggle(fn.name, selected_functions))
+        //             }, []),
+        //             Element("span", { className: "functionDescription" }, [
+        //                 " ", fn.description]),
+        //         ])),
+        // );
     },
     
     sliding_window: function(A, size) {
@@ -125,9 +177,14 @@ const ClientGraph = new Component('#graphs', {
 
     plot: async function(varName, function_names) {
         const functions = ALL_LINES.filter(o => function_names.includes(o.name))
+        console.log("\nvarName : " + varName)
+        console.log("functin_names : " + function_names)
         const index = this.all_vars.indexOf(varName)
         // NOTE ticks and splitpoints include all vars, so we must index
         const { bits, points, error, ticks_by_varidx, splitpoints_by_varidx } = this.points_json
+        // console.log("error : " + error['target'])
+        // console.log("error length : " + error['target'].length)
+        console.log("points : " + points)
         const ticks = ticks_by_varidx[index]
         if (!ticks) {
             return Element("div", "The function could not be plotted on the given range for this input.")
@@ -135,10 +192,25 @@ const ClientGraph = new Component('#graphs', {
         const tick_strings = ticks.map(t => t[0])
         const tick_ordinals = ticks.map(t => t[1])
         const tick_0_index = tick_strings.indexOf("0")
-        const grouped_data = points.map((p, i) => ({
-            input: p,
-            error: Object.fromEntries(function_names.map(name => ([name, error[name][i]])))
-        }))
+        // const grouped_data = points.map((p, i) => ({
+        //     input: p,
+        //     error: Object.fromEntries(function_names.map(name => ([name, error[name][i]])))
+        // }))
+        
+        const grouped_data = [];
+        for (let i = 0; i < points.length; i++) {
+            const p = points[i];
+            const errorEntries = [];
+            for (const name of function_names) {
+                errorEntries.push([name, error[name][i]]);
+            }
+            const errorObj = Object.fromEntries(errorEntries);
+            grouped_data.push({
+                input: p,
+                error: errorObj
+            });
+        }
+
         const domain = [Math.min(...tick_ordinals), Math.max(...tick_ordinals)]
 
         let splitpoints = splitpoints_by_varidx[index].map(p => {
@@ -298,9 +370,9 @@ const CostAccuracy = new Component('#cost-accuracy', {
                     Element("th",
                         rest_pts.length > 1 ?
                             Element("a", { href: "#alternative" + (i + 1)},
-                                "Alternative " + (i + 1)) 
+                                "Alternative test " + (i + 1)) 
                             // else
-                            : "Alternative " + (i + 1)
+                            : "Alternative test " + (i + 1)
                     ),
                     Element("td", { className: accuracy >= initial_accuracy ? "better" : "" },
                             accuracy.toFixed(1) + "%"),

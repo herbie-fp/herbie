@@ -72,13 +72,19 @@
   (define start-errors (alt-analysis-test-errors start))
 
   ;; Pick lowest error from all targets
+  ; (define target-errors 
+  ;   (cond
+  ;     [(empty? targets) #f] ; If the list is empty, return false
+  ;     [else
+  ;       ; Smallest error target
+  ;       (alt-analysis-test-errors 
+  ;         (argmin (lambda (target) (errors-score (alt-analysis-test-errors target))) targets))]))
+
   (define target-errors 
     (cond
       [(empty? targets) #f] ; If the list is empty, return false
       [else
-        ; Smallest error target
-        (alt-analysis-test-errors 
-          (argmin (lambda (target) (errors-score (alt-analysis-test-errors target))) targets))]))
+        (map alt-analysis-test-errors targets)]))
 
   (define end-errors (map alt-analysis-test-errors end))
   (define-values (newpoints _) (pcontext->lists (second pctxs)))
@@ -93,12 +99,23 @@
     (for/list ([point points])
       (for/list ([value point]) 
         (real->ordinal value repr))))
-
+        
   (define vars (test-vars test))
   (define bits (representation-total-bits repr))
   (define start-error (map ulps->bits-tenths start-errors))
-  (define target-error (and target-errors (map ulps->bits-tenths target-errors)))
+  ; (define target-error (and target-errors (map ulps->bits-tenths target-errors)))
+  (define target-error (and target-errors (map (lambda (alt-error) (map ulps->bits-tenths alt-error)) target-errors)))
   (define end-error (map ulps->bits-tenths (car end-errors)))
+
+  (define error-entries
+    (and target-error
+      (for/list ([i (in-naturals)] [error-value (in-list target-error)])
+        (list (format "target ~a" (+ i 1)) error-value))))
+
+  (define error-obj 
+    (if target-error (hash error-entries) `#hash(("target" . #f))))
+
+  (displayln (format "error : ~a" error-obj))
 
   (define ticks 
     (for/list ([idx (in-range (length vars))])
@@ -141,8 +158,8 @@
     (vars . ,(map symbol->string vars))
     (points . ,json-points) 
     (error . ,`#hasheq(
+      ; ,@error-obj
       (start . ,start-error)
-      (target . ,target-error)
       (end . ,end-error)))
     (ticks_by_varidx . ,ticks)
     (splitpoints_by_varidx . ,splitpoints)))
