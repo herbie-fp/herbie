@@ -280,7 +280,7 @@
     (define final-parent-precision (min (*max-mpfr-prec*)
                                         (max (+ exps-from-above
                                                 (vector-ref vstart-precs (- n varc)))
-                                             (vector-ref vstart-precs (- n varc)))))
+                                             (*base-tuning-precision*))))
 
     ; This case is weird. if we have a cancellation in fma -> ival-mult in fma should be in higher precision
     (when (equal? op ival-fma)
