@@ -333,7 +333,7 @@
                        (get-slack)))
      
      (list (+ (- x-exp out-exp) slack 1)              ; exponent per x
-           (+ (- y-exp out-exp) slack 1))]            ; exponent per y 
+           (+ (- x-exp out-exp) slack 1))]            ; exponent per y 
     
     [(ival-pow)
      ; log[Гpow]'x = log[y]
@@ -430,14 +430,14 @@
      (list (+ (- x-exp out-exp) 1 slack))]
     
     [(ival-atan)
-     ; log[Гatan] = log[x] - log[x^2+1] - log[atan(x)] <= -|log[x]| - log[atan(x)] <= 0
+     ; log[Гatan] = log[x] - log[x^2+1] - log[atan(x)] <= -|log[x]| - log[atan(x)] + 1 <= 0
      (define x (first srcs))
      
      (define x-exp-abs (max (abs (log2-approx (ival-hi x)))
                             (abs (log2-approx (ival-lo x)))))
      (define out-exp (ival-min-log2-approx output))
      
-     (list (- (- x-exp-abs) out-exp))]
+     (list (+ (- (- x-exp-abs) out-exp) 1))]
     
     [(ival-fmod ival-remainder)
      ; x mod y = x - y*q, where q is rnd_down(x/y)
@@ -533,7 +533,7 @@
      (list (+ 1 x-exp) (+ 2 (- x-exp out-exp)))]
     
     [(ival-atan2)
-     ; log[Гatan2]'x = log[Гatan2]'y = log[xy / ((x^2+y^2)*atan2)] <= log[x] + log[y] - 2*max[logx, logy] - log[atan2]
+     ; log[Гatan2]'x = log[Гatan2]'y = log[xy / ((x^2+y^2)*atan2)] <= log[x] + log[y] - 2*min[logx, logy] - log[atan2] + 1
      (define x (first srcs))
      (define y (second srcs))
      
@@ -541,7 +541,7 @@
      (define y-exp (ival-max-log2-approx y))
      (define out-exp (ival-min-log2-approx output))
      
-     (make-list 2 (- (+ x-exp y-exp) (* 2 (max x-exp y-exp)) out-exp))]
+     (make-list 2 (+ (- (+ x-exp y-exp) (* 2 (min x-exp y-exp)) out-exp) 1))]
     
     ; Currently has a poor implementation
     [(ival-tanh)
@@ -566,7 +566,7 @@
     [(ival-acosh)
      ; log[Гacosh] = log[x / (sqrt(x-1) * sqrt(x+1) * acosh)] <= -log[acosh] + slack
      (define out-exp (ival-min-log2-approx output))
-     (define slack (if (< out-exp 2)                 ; when acosh(x) < 1
+     (define slack (if (< out-exp 2)                  ; when acosh(x) < 1
                        (get-slack)
                        0))
      
