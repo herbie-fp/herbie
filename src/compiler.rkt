@@ -333,7 +333,7 @@
                        (get-slack)))
      
      (list (+ (- x-exp out-exp) slack 1)              ; exponent per x
-           (+ (- x-exp out-exp) slack 1))]            ; exponent per y 
+           (+ (- y-exp out-exp) slack 1))]            ; exponent per y 
     
     [(ival-pow)
      ; log[Гpow]'x = log[y]
