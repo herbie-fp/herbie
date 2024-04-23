@@ -195,14 +195,32 @@ const ClientGraph = new Component('#graphs', {
 
     plot: async function(varName, function_names) {
         const functions = ALL_LINES.filter(o => function_names.includes(o.name))
-        // console.log("\nvarName : " + varName)
-        // console.log("functin_names : " + function_names)
+        const functionMap = new Map()
+
+        for (const key in this.points_json.error) {
+            if (this.points_json.error[key][1] !== false) {
+                // Error type -> Actual Error (points??)      
+                functionMap.set(this.points_json.error[key][0], this.points_json.error[key].slice(1))
+            }
+        }
+
+        // if (error_type === "start") {
+        //     description = "Initial program"
+        //     line = '#d00'
+        //     dot = '#d002'
+        // } else if (error_type === "end") {
+        //     description = "Most accurate alternative"
+        //     line = '#00a'
+        //     dot = '#00a2'
+        // } else {
+        //     description = "Developer Target " + error_type.slice(6)
+        //     line = '#080'
+        //     dot = '#0802'
+        // }
+
         const index = this.all_vars.indexOf(varName)
         // NOTE ticks and splitpoints include all vars, so we must index
         const { bits, points, error, ticks_by_varidx, splitpoints_by_varidx } = this.points_json
-        // console.log("error : " + error['target'])
-        // console.log("error length : " + error['target'].length)
-        // console.log("points : " + points)
         const ticks = ticks_by_varidx[index]
         if (!ticks) {
             return Element("div", "The function could not be plotted on the given range for this input.")
@@ -210,24 +228,13 @@ const ClientGraph = new Component('#graphs', {
         const tick_strings = ticks.map(t => t[0])
         const tick_ordinals = ticks.map(t => t[1])
         const tick_0_index = tick_strings.indexOf("0")
-        // const grouped_data = points.map((p, i) => ({
-        //     input: p,
-        //     error: Object.fromEntries(function_names.map(name => ([name, error[name][i]])))
-        // }))
-        
-        const grouped_data = [];
-        for (let i = 0; i < points.length; i++) {
-            const p = points[i];
-            const errorEntries = [];
-            for (const name of function_names) {
-                errorEntries.push([name, error[name][i]]);
-            }
-            const errorObj = Object.fromEntries(errorEntries);
-            grouped_data.push({
-                input: p,
-                error: errorObj
-            });
-        }
+
+        // console.log("Mapping : " + function_names.map(name => ([name, functionMap.get(name)[0]])))
+
+        const grouped_data = points.map((p, i) => ({
+            input: p,
+            error: Object.fromEntries(function_names.map(name => ([name, functionMap.get(name)[i]])))
+        }))
 
         const domain = [Math.min(...tick_ordinals), Math.max(...tick_ordinals)]
 
@@ -240,8 +247,13 @@ const ClientGraph = new Component('#graphs', {
             ], { stroke: "#888" }));
         }
 
+        console.log("functions : " + functions)
+
         let marks = []
         for (let { name, fn, line, dot } of functions) {
+            console.log("na,e : " + name)
+            console.log("fn : " + fn)
+            console.log("line : " + line)
             const key_fn = fn => (a, b) => fn(a) - fn(b)
             const index = this.all_vars.indexOf(varName)
             const data = grouped_data.map(({ input, error }) => ({
