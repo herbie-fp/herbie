@@ -1,5 +1,6 @@
 #lang racket
 
+(require json)
 (require (only-in fpbench core->c)
          herbie/accelerator
          herbie/common
@@ -131,6 +132,8 @@
            [_ (error 'run-server "improve: malformed arguments ~a" args)]))
        (define tests (map (lambda (c) (parse-test (datum->syntax #f c))) cores))
        (define results (get-test-results tests #:threads threads #:seed seed #:profile #f #:dir #f))
+       (define info (make-report-info (filter values results) #:seed seed))
+       (write-datafile (build-path (current-directory) "platformresults.json") info)
        (print-output (current-output-port) results)
        (loop)]
       ; pareto <frontier:list> ...
