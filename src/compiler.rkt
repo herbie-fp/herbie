@@ -530,7 +530,7 @@
      (define x-exp (ival-max-log2-approx x))
      (define out-exp (ival-min-log2-approx output))
      
-     (list (max 0 (+ 1 x-exp) (+ 2 (- x-exp out-exp))))]
+     (list (+ 1 x-exp) (+ 2 (- x-exp out-exp)))]
     
     [(ival-atan2)
      ; log[Гatan2]'x = log[Гatan2]'y = log[xy / ((x^2+y^2)*atan2)] <= log[x] + log[y] - 2*max[logx, logy] - log[atan2]
