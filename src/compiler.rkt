@@ -45,6 +45,8 @@
             (vector-fill! vrepeats #f)
             (backward-pass ivec varc vregs vprecs vstart-precs rootvec rootlen vrepeats)) ; back-pass
         (timeline-stop!)
+
+        ;(printf "---------ITER ~a-----------\n" (*sampling-iteration*))
         
         (for ([arg (in-list args)] [n (in-naturals)])
           (vector-set! vregs n arg))
@@ -263,6 +265,8 @@
   
   ; Step 5. If precisions have not changed but the point didn't converge. Problem exists - add slack to every op
   (when (false? (vector-member #f vrepeats))
+    (printf "!"))
+  #;(when (false? (vector-member #f vrepeats))
     (printf "!") ; report smth to log
     (define slack (get-slack))
     (for ([prec (in-vector vprecs)]
@@ -298,6 +302,17 @@
     (when (equal? final-parent-precision (*max-mpfr-prec*))         ; Early stopping
       (*sampling-iteration* (*max-sampling-iterations*)))
     (vector-set! vprecs-new (- n varc) final-parent-precision)
+
+    (define (ulp-distance x prec)
+      (parameterize ([bf-precision prec])
+        (bigfloats-between (ival-lo x) (ival-hi x))))
+    #;(when (bigfloat? (ival-lo output))
+      (printf "instr=~a, ulp-distance=~a, exp-from-above=~a, exp=~a, final-prec=~a\n"
+              (object-name (car instr))
+              (ulp-distance output (- (vector-ref vstart-precs (- n varc)) (*ampl-tuning-bits*)))
+              exps-from-above
+              new-exponents
+              final-parent-precision))
 
     (for ([x (in-list tail-registers)]
           [new-exp (in-list new-exponents)]
