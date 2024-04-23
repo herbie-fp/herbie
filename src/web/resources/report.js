@@ -88,18 +88,31 @@ const ClientGraph = new Component('#graphs', {
     render_functions: function($elt, selected_var_name, selected_functions) {
         // const all_lines = ALL_LINES.filter(o => this.points_json.error[o.name] != false)
         // console.log("points json : " + this.points_json.error['target'].length)
-        console.log("functions : " + selected_functions)
+        // console.log("functions : " + selected_functions)
 
         // const all_lines = this.points_json.error
         // for (const key in this.points_json.error) {
         //     console.log("key : " + key+ "\n")
-        //     console.log("value : " + this.points_json.error[key] + "\n")
+        //     console.log("error type : " + this.points_json.error[key][0]+ "\n")
+        //     console.log("value : " + this.points_json.error[key].slice(1) + "\n")
         // }
 
-        console.log("does this exist : ")
-        console.log(this.points_json.error["1"])
+        // if (typeof this.points_json.error["1"][0] === 'string') {
+        //     console.log('Error type is a string');
+        // } else {
+        //     console.log('Error type is not a string');
+        // }
+        
+        // if (typeof this.points_json.error["1"][1] === 'number') {
+        //     console.log('Error number is a number');
+        // } else {
+        //     console.log('Error number is not a number');
+        // }
 
-        console.log("it does exist : ")
+        // console.log("does this exist : ")
+        // console.log(this.points_json.error["1"])
+
+        // console.log("it does exist : ")
 
         // console.log("points json : " + this.points_json.error)
 
@@ -107,46 +120,38 @@ const ClientGraph = new Component('#graphs', {
 
         var curr_list = []
 
-        // if (this.points_json.error['start'] != false) {
-        //     curr_list.push( Element("label", [
-        //                     Element("input", {
-        //                         type: "checkbox",
-        //                         style: "accent-color: " + '#d00',
-        //                         checked: selected_functions.includes('start'),
-        //                         onclick: (e) => this.render(selected_var_name, toggle('start', selected_functions))
-        //                     }, []),
-        //                     Element("span", { className: "functionDescription" }, [
-        //                         " ", 'Initial Program']),
-        //                 ]))
-        // }
+        for (const key in this.points_json.error) {
+            if (this.points_json.error[key][1] !== false) {
 
-        // if (this.points_json.error['end'] != false) {
-        //     curr_list.push( Element("label", [
-        //                     Element("input", {
-        //                         type: "checkbox",
-        //                         style: "accent-color: " + '#00a',
-        //                         checked: selected_functions.includes('end'),
-        //                         onclick: (e) => this.render(selected_var_name, toggle('end', selected_functions))
-        //                     }, []),
-        //                     Element("span", { className: "functionDescription" }, [
-        //                         " ", 'Most accurate alternative']),
-        //                 ]))
-        // }
+                const error_type = this.points_json.error[key][0]
+                let description, line, dot
 
-        // if (this.points_json.error['target'] != false) {
-        //     for (let i = 1; i <= this.points_json.error['target'].length; i+=1) {
-        //         curr_list.push( Element("label", [
-        //             Element("input", {
-        //                 type: "checkbox",
-        //                 style: "accent-color: " + '#080',
-        //                 checked: selected_functions.includes(('target' + i)),
-        //                 onclick: (e) => this.render(selected_var_name, toggle(('target' + i), selected_functions))
-        //             }, []),
-        //             Element("span", { className: "functionDescription" }, [
-        //                 " ", ('Developer Target' + i)]),
-        //         ]))
-        //     }
-        // }
+                if (error_type === "start") {
+                    description = "Initial program"
+                    line = '#d00'
+                    dot = '#d002'
+                } else if (error_type === "end") {
+                    description = "Most accurate alternative"
+                    line = '#00a'
+                    dot = '#00a2'
+                } else {
+                    description = "Developer Target " + error_type.slice(6)
+                    line = '#080'
+                    dot = '#0802'
+                }
+
+                curr_list.push( Element("label", [
+                    Element("input", {
+                        type: "checkbox",
+                        style: "accent-color: " + line,
+                        checked: selected_functions.includes(error_type),
+                        onclick: (e) => this.render(selected_var_name, toggle(error_type, selected_functions))
+                    }, []),
+                    Element("span", { className: "functionDescription" }, [
+                        " ", description]),
+                ]))
+            }
+        }
 
         $elt.replaceChildren.apply(
             $elt,
@@ -190,14 +195,14 @@ const ClientGraph = new Component('#graphs', {
 
     plot: async function(varName, function_names) {
         const functions = ALL_LINES.filter(o => function_names.includes(o.name))
-        console.log("\nvarName : " + varName)
-        console.log("functin_names : " + function_names)
+        // console.log("\nvarName : " + varName)
+        // console.log("functin_names : " + function_names)
         const index = this.all_vars.indexOf(varName)
         // NOTE ticks and splitpoints include all vars, so we must index
         const { bits, points, error, ticks_by_varidx, splitpoints_by_varidx } = this.points_json
         // console.log("error : " + error['target'])
         // console.log("error length : " + error['target'].length)
-        console.log("points : " + points)
+        // console.log("points : " + points)
         const ticks = ticks_by_varidx[index]
         if (!ticks) {
             return Element("div", "The function could not be plotted on the given range for this input.")
