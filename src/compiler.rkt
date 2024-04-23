@@ -240,7 +240,7 @@
                      (bigfloat->flonum (ival-lo result))
                      (bigfloat->flonum (ival-hi result))))
         (vector-set! vprecs-new (- root-reg varc) (get-slack)))))
-
+  
   ; Since Step 2 writes into *sampling-iteration* if the max prec was reached - save the iter number for step 3
   (define current-iter (*sampling-iteration*))
   
@@ -254,12 +254,22 @@
         [prec-old (in-vector (if (equal? 1 current-iter) vstart-precs vprecs))]
         [prec-new (in-vector vprecs-new)]
         [n (in-naturals)])
-    (vector-set! vrepeats n  (and (equal? prec-new prec-old)
-                                  (andmap (lambda (x) (or (< x varc) (vector-ref vrepeats (- x varc))))
-                                          (rest instr)))))
-        
+    (vector-set! vrepeats n (and (<= prec-new prec-old)
+                                 (andmap (lambda (x) (or (< x varc) (vector-ref vrepeats (- x varc))))
+                                         (rest instr)))))
+  
   ; Step 4. Copying new precisions into vprecs
-  (vector-copy! vprecs 0 vprecs-new))
+  (vector-map! max vprecs vprecs-new)
+  
+  ; Step 5. If precisions have not changed but the point didn't converge. Problem exists - add slack to every op
+  (when (false? (vector-member #f vrepeats))
+    (printf "!") ; report smth to log
+    (define slack (get-slack))
+    (for ([prec (in-vector vprecs)]
+          [n (in-range (vector-length vprecs))])
+      (define prec* (min (*max-mpfr-prec*) (+ prec slack)))
+      (when (equal? prec* (*max-mpfr-prec*)) (*sampling-iteration* (*max-sampling-iterations*)))
+      (vector-set! vprecs n prec*))))
 
 ; This function goes through ivec and vregs and calculates (+ exponents base-precisions) for each operator in ivec
 ; Roughly speaking:
