@@ -86,54 +86,67 @@ const ClientGraph = new Component('#graphs', {
     },
 
     render_functions: function($elt, selected_var_name, selected_functions) {
-        const all_lines = ALL_LINES.filter(o => this.points_json.error[o.name] != false)
-        console.log("points json : " + this.points_json.error['target'].length)
+        // const all_lines = ALL_LINES.filter(o => this.points_json.error[o.name] != false)
+        // console.log("points json : " + this.points_json.error['target'].length)
         console.log("functions : " + selected_functions)
+
+        // const all_lines = this.points_json.error
+        // for (const key in this.points_json.error) {
+        //     console.log("key : " + key+ "\n")
+        //     console.log("value : " + this.points_json.error[key] + "\n")
+        // }
+
+        console.log("does this exist : ")
+        console.log(this.points_json.error["1"])
+
+        console.log("it does exist : ")
+
+        // console.log("points json : " + this.points_json.error)
 
         const toggle = (option, options) => options.includes(option) ? options.filter(o => o != option) : [...options, option]
 
         var curr_list = []
 
-        if (this.points_json.error['start'] != false) {
-            curr_list.push( Element("label", [
-                            Element("input", {
-                                type: "checkbox",
-                                style: "accent-color: " + '#d00',
-                                checked: selected_functions.includes('start'),
-                                onclick: (e) => this.render(selected_var_name, toggle('start', selected_functions))
-                            }, []),
-                            Element("span", { className: "functionDescription" }, [
-                                " ", 'Initial Program']),
-                        ]))
-        }
+        // if (this.points_json.error['start'] != false) {
+        //     curr_list.push( Element("label", [
+        //                     Element("input", {
+        //                         type: "checkbox",
+        //                         style: "accent-color: " + '#d00',
+        //                         checked: selected_functions.includes('start'),
+        //                         onclick: (e) => this.render(selected_var_name, toggle('start', selected_functions))
+        //                     }, []),
+        //                     Element("span", { className: "functionDescription" }, [
+        //                         " ", 'Initial Program']),
+        //                 ]))
+        // }
 
-        if (this.points_json.error['end'] != false) {
-            curr_list.push( Element("label", [
-                            Element("input", {
-                                type: "checkbox",
-                                style: "accent-color: " + '#00a',
-                                checked: selected_functions.includes('end'),
-                                onclick: (e) => this.render(selected_var_name, toggle('end', selected_functions))
-                            }, []),
-                            Element("span", { className: "functionDescription" }, [
-                                " ", 'Most accurate alternative']),
-                        ]))
-        }
+        // if (this.points_json.error['end'] != false) {
+        //     curr_list.push( Element("label", [
+        //                     Element("input", {
+        //                         type: "checkbox",
+        //                         style: "accent-color: " + '#00a',
+        //                         checked: selected_functions.includes('end'),
+        //                         onclick: (e) => this.render(selected_var_name, toggle('end', selected_functions))
+        //                     }, []),
+        //                     Element("span", { className: "functionDescription" }, [
+        //                         " ", 'Most accurate alternative']),
+        //                 ]))
+        // }
 
-        if (this.points_json.error['target'] != false) {
-            for (let i = 1; i <= this.points_json.error['target'].length; i+=1) {
-                curr_list.push( Element("label", [
-                    Element("input", {
-                        type: "checkbox",
-                        style: "accent-color: " + '#080',
-                        checked: selected_functions.includes(('target' + i)),
-                        onclick: (e) => this.render(selected_var_name, toggle(('target' + i), selected_functions))
-                    }, []),
-                    Element("span", { className: "functionDescription" }, [
-                        " ", ('Developer Target' + i)]),
-                ]))
-            }
-        }
+        // if (this.points_json.error['target'] != false) {
+        //     for (let i = 1; i <= this.points_json.error['target'].length; i+=1) {
+        //         curr_list.push( Element("label", [
+        //             Element("input", {
+        //                 type: "checkbox",
+        //                 style: "accent-color: " + '#080',
+        //                 checked: selected_functions.includes(('target' + i)),
+        //                 onclick: (e) => this.render(selected_var_name, toggle(('target' + i), selected_functions))
+        //             }, []),
+        //             Element("span", { className: "functionDescription" }, [
+        //                 " ", ('Developer Target' + i)]),
+        //         ]))
+        //     }
+        // }
 
         $elt.replaceChildren.apply(
             $elt,

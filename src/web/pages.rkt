@@ -81,10 +81,9 @@
   ;         (argmin (lambda (target) (errors-score (alt-analysis-test-errors target))) targets))]))
 
   (define target-errors 
-    (cond
-      [(empty? targets) #f] ; If the list is empty, return false
-      [else
-        (map alt-analysis-test-errors targets)]))
+    (if (empty? targets) 
+      #f ; If the list is empty, return false
+      (map alt-analysis-test-errors targets)))
 
   (define end-errors (map alt-analysis-test-errors end))
   (define-values (newpoints _) (pcontext->lists (second pctxs)))
@@ -103,19 +102,16 @@
   (define vars (test-vars test))
   (define bits (representation-total-bits repr))
   (define start-error (map ulps->bits-tenths start-errors))
-  ; (define target-error (and target-errors (map ulps->bits-tenths target-errors)))
   (define target-error (and target-errors (map (lambda (alt-error) (map ulps->bits-tenths alt-error)) target-errors)))
   (define end-error (map ulps->bits-tenths (car end-errors)))
 
-  (define error-entries
-    (and target-error
-      (for/list ([i (in-naturals)] [error-value (in-list target-error)])
-        (list (format "target ~a" (+ i 1)) error-value))))
+  (define target-error-entries
+    (if (not target-error)
+        (cons "target" #f)
+        (for/list ([i (in-naturals)] [error-value (in-list target-error)])
+          (cons (format "target~a" (+ i 1)) error-value))))
 
-  (define error-obj 
-    (if target-error (hash error-entries) `#hash(("target" . #f))))
-
-  (displayln (format "error : ~a" error-obj))
+  (define error-entries (append target-error-entries `(("start" . ,start-error) ("end" . ,end-error))))
 
   (define ticks 
     (for/list ([idx (in-range (length vars))])
@@ -150,17 +146,14 @@
   ;     are ordinals representing the real input values
   ;   error: object with fields {start, target, end}, where each field holds 
   ;     an array like [y0, ..., ym] where y0 etc are bits of error for the output 
-  ;     on each point
+  ;     on each point TODO : UPDATE THIS
   ;   ticks: array of size n where each entry is 13 or so tick values as [ordinal, string] pairs
   ;   splitpoints: array with the ordinal splitpoints
   (define json-obj `#hasheq(
     (bits . ,bits)
     (vars . ,(map symbol->string vars))
     (points . ,json-points) 
-    (error . ,`#hasheq(
-      ; ,@error-obj
-      (start . ,start-error)
-      (end . ,end-error)))
+    (error . ,error-entries)
     (ticks_by_varidx . ,ticks)
     (splitpoints_by_varidx . ,splitpoints)))
   
