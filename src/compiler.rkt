@@ -292,7 +292,7 @@
     (for ([x (in-list tail-registers)]
           [new-exp (in-list new-exponents)]
           #:when (>= x varc)) ; when tail register is not a variable
-      (when (> (+ exps-from-above new-exp (vector-ref vstart-precs (- x varc))) (vector-ref vprecs-new (- x varc))) ; check whether this op already has a precision that is higher
+      (when (> (+ exps-from-above new-exp) (vector-ref vprecs-new (- x varc))) ; check whether this op already has a precision that is higher
         (vector-set! vprecs-new (- x varc) (+ exps-from-above new-exp))))))
 
 (define (ival-max-log2-approx x)
