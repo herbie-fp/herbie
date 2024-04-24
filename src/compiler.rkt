@@ -261,11 +261,12 @@
                                          (rest instr)))))
   
   ; Step 4. Copying new precisions into vprecs
-  (vector-map! max vprecs vprecs-new)
+  (vector-copy! vprecs 0 vprecs-new)
   
   ; Step 5. If precisions have not changed but the point didn't converge. Problem exists - add slack to every op
   (when (false? (vector-member #f vrepeats))
-    (printf "!"))
+    (printf "!")
+    #;(sleep 5))
   #;(when (false? (vector-member #f vrepeats))
     (printf "!") ; report smth to log
     (define slack (get-slack))
@@ -307,18 +308,27 @@
       (parameterize ([bf-precision prec])
         (bigfloats-between (ival-lo x) (ival-hi x))))
     #;(when (bigfloat? (ival-lo output))
-      (printf "instr=~a, ulp-distance=~a, exp-from-above=~a, exp=~a, final-prec=~a\n"
+      (printf "~a: instr=~a, tail=~a, ulp-distance=~a, float-distance=~a, exp-from-above=~a, exp=~a, final-prec=~a, output=~a\n"
+              n
               (object-name (car instr))
+              tail-registers
               (ulp-distance output (- (vector-ref vstart-precs (- n varc)) (*ampl-tuning-bits*)))
+              (flonums-between (bigfloat->flonum (ival-lo output)) (bigfloat->flonum (ival-hi output)))
               exps-from-above
               new-exponents
-              final-parent-precision))
+              final-parent-precision
+              output))
 
     (for ([x (in-list tail-registers)]
           [new-exp (in-list new-exponents)]
           #:when (>= x varc)) ; when tail register is not a variable
-      (when (> (+ exps-from-above new-exp (vector-ref vstart-precs (- x varc))) (vector-ref vprecs-new (- x varc))) ; check whether this op already has a precision that is higher
-        (vector-set! vprecs-new (- x varc) (+ exps-from-above new-exp))))))
+       ; check whether this op already has a precision that is higher
+      (when (> (+ exps-from-above new-exp) (vector-ref vprecs-new (- x varc)))
+        (vector-set! vprecs-new (- x varc) (+ exps-from-above new-exp)))))
+  #;(for ([n (in-range (- varc 1) -1 -1)])
+    (printf "~a: val=~a\n"
+            n
+            (vector-ref vregs n))))
 
 (define (ival-max-log2-approx x)
   (max (log2-approx (ival-hi x)) (log2-approx (ival-lo x))))
@@ -334,7 +344,7 @@
      ; log[Г*]'x = log[Г*]'y = log[Г/]'x = log[Г/]'y = 1
      ; log[Гsqrt] = 0.5
      ; log[Гcbrt] = 0.3
-     (make-list (length srcs) 1)]
+     (make-list (length srcs) 0)]
     
     [(ival-add ival-sub)
      ; log[Г+]'x = log[x] - log[x + y] + 1 (1 for mantissa approximation when dividing)
