@@ -23,7 +23,7 @@ jobs:
 
     steps:
       - name: "Install Racket"
-        uses: Bogdanp/setup-racket@v1.12
+        uses: Bogdanp/setup-racket@v1.11
         with:
             version: 8.12
             architecture: ${{ matrix.arch }}
