@@ -5,6 +5,7 @@ from pathlib import Path
 import multiprocessing as mp
 import matplotlib.pyplot as plt
 import shutil
+import json
 
 from .cache import Cache, sanitize_name
 from .fpcore import FPCore, parse_core
@@ -126,6 +127,8 @@ class Runner(object):
 
         self.driver_dir = self.working_dir.joinpath('drivers', self.name)
         self.graphs_dir = self.working_dir.joinpath('graphs', self.name)
+        # add empty list of jsons to the class instance
+        self.jsons = []
         if key is not None:
             self.graphs_dir = self.graphs_dir.joinpath(key)
 
@@ -329,8 +332,12 @@ class Runner(object):
 
                 # call out to server
                 core_strs = ' '.join(map(lambda c: c.core, uncached))
-                print(f'(improve ({core_strs}) {threads}) (exit)', file=server.stdin, flush=True)
+                print(f'(improve ({core_strs}) {threads} {self.working_dir}) (exit)', file=server.stdin, flush=True)
                 output = server.stdout.read()
+                # read json from file at path self.working_dir.joinpath('results.json'). add it to self.jsons and log the result as a string
+                
+                with open(self.working_dir.joinpath('results.json'), 'r') as f: 
+                    self.jsons.append(json.load(f))
         
             for group in chunks(output.split('\n'), 3):
                 if len(group) == 3:

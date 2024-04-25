@@ -126,14 +126,14 @@
        (loop)]
       ; improve <core> <threads:int>
       [(list 'improve args ...)
-       (define-values (cores threads)
+       (define-values (cores threads dir)
          (match args
-           [(list cores threads) (values cores threads)]
+           [(list cores threads dir) (values cores threads dir)]
            [_ (error 'run-server "improve: malformed arguments ~a" args)]))
        (define tests (map (lambda (c) (parse-test (datum->syntax #f c))) cores))
        (define results (get-test-results tests #:threads threads #:seed seed #:profile #f #:dir #f))
        (define info (make-report-info (filter values results) #:seed seed))
-       (write-datafile (build-path (current-directory) "platformresults.json") info)
+       (write-datafile (build-path (symbol->string dir) "results.json") info)
        (print-output (current-output-port) results)
        (loop)]
       ; pareto <frontier:list> ...
