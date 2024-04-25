@@ -105,17 +105,16 @@
          (li ([class "event"]) "Recombined " ,(~a (length prevs)) " regimes into one program."))]
   
       [(alt prog `(taylor ,loc ,pt ,var) `(,prev) _)
-       (define-values (err err2) (values "0" "0"))
        `(,@(render-history prev pcontext pcontext2 ctx)
          (li (p "Taylor expanded in " ,(~a var)
-                " around " ,(~a pt) " " (span ([class "error"] [title ,err2]) ,err))
+                " around " ,(~a pt))
              (div ([class "math"])
                "\\[\\leadsto "
                "expr"
                "\\]")))]
   
       [(alt prog `(simplify ,loc ,input ,proof ,soundiness) `(,prev) _)
-       (define-values (err err2) (values "0" "0"))
+       (define-values (err err2) (altn-errors altn pcontext pcontext2 ctx))
        `(,@(render-history prev pcontext pcontext2 ctx)
          (li ,(if proof (render-proof proof soundiness pcontext ctx) ""))
          (li (p "Simplified" (span ([class "error"] [title ,err2]) ,err))
@@ -128,19 +127,19 @@
        (render-history prev pcontext pcontext2 ctx)]
   
       [(alt prog `initial-simplify `(,prev) _)
-       (define-values (err err2) (values "0" "0"))
+       (define-values (err err2) (altn-errors altn pcontext pcontext2 ctx))
        `(,@(render-history prev pcontext pcontext2 ctx)
          (li (p "Initial simplification" (span ([class "error"] [title ,err2]) ,err))
              (div ([class "math"]) "\\[\\leadsto " ,(program->tex prog ctx) "\\]")))]
   
       [(alt prog `final-simplify `(,prev) _)
-       (define-values (err err2) (values "0" "0"))
+       (define-values (err err2) (altn-errors altn pcontext pcontext2 ctx))
        `(,@(render-history prev pcontext pcontext2 ctx)
          (li (p "Final simplification" (span ([class "error"] [title ,err2]) ,err))
              (div ([class "math"]) "\\[\\leadsto " ,(program->tex prog ctx) "\\]")))]
   
       [(alt prog `(rr ,loc ,input ,proof ,soundiness) `(,prev) _)
-       (define-values (err err2) (values "0" "0"))
+       (define-values (err err2) (altn-errors altn pcontext pcontext2 ctx))
        `(,@(render-history prev pcontext pcontext2 ctx)
          (li ,(if proof (render-proof proof soundiness pcontext ctx) ""))
          (li (p "Applied "
@@ -152,23 +151,26 @@
                "\\]")))])))
 
 (define (render-proof proof soundiness pcontext ctx)
-  (eprintf "trying to make proof ~a\n" proof)
   `(div ([class "proof"])
     (details
      (summary "Step-by-step derivation")
      (ol
       ,@(for/list ([step proof] [sound soundiness])
           (define-values (dir rule loc expr) (splice-proof-step step))
-          (define step-prog (program->fpcore expr ctx))
-          (define err
-            (format-accuracy (errors-score (errors expr pcontext ctx))
-                             (representation-total-bits (context-repr ctx))
-                             #:unit "%"))
+          (define step-prog '(FPCore () 1))
+          (define err "0")
+          ; (define step-prog (program->fpcore expr ctx))
+          ; (define err
+          ;   (format-accuracy (errors-score (errors expr pcontext ctx))
+          ;                    (representation-total-bits (context-repr ctx))
+          ;                    #:unit "%"))
+          (define num-increase (if sound (first sound) "N/A"))
+          (define num-decrease (if sound (second sound) "N/A"))
           (if (equal? dir 'Goal)
               ""
               `(li ,(let ([dir (match dir ['Rewrite<= "right to left"] ['Rewrite=> "left to right"])]
-                          [tag (string-append (format " ↑ ~a" (first sound))
-                                              (format " ↓ ~a" (second sound)))])
+                          [tag (string-append (format " ↑ ~a" num-increase)
+                                              (format " ↓ ~a" num-decrease))])
                       `(p (code ([title ,dir]) ,(~a rule))
                           (span ([class "error"] [title ,tag]) ,err)))
                    (div ([class "math"])
@@ -263,17 +265,20 @@
             (preprocessing . ,(map (curry map symbol->string) preprocessing)))]))
 
 (define (render-proof-json proof soundiness pcontext ctx)
-      (for/list ([step proof] [sound soundiness])
-          (define-values (dir rule loc expr) (splice-proof-step step))
-          (define err (errors-score (errors expr pcontext ctx)))
+  (for/list ([step proof] [sound soundiness])
+    (define-values (dir rule loc expr) (splice-proof-step step))
+    (define err (errors-score (errors expr pcontext ctx)))
+    (define num-increase (if sound (first sound) "N/A"))
+    (define num-decrease (if sound (second sound) "N/A"))
 
-          `#hash(
-                  (error . ,err)
-                  (program . ,(fpcore->string (program->fpcore expr ctx)))
-                  (direction . ,(match dir ['Rewrite<= "rtl"] ['Rewrite=> "ltr"] ['Goal "goal"]))
-                  (rule . ,(~a rule))
-                  (loc . ,loc)
-                  (tag . ,(string-append (format " ↑ ~a" (first sound))
-                                              (format " ↓ ~a" (second sound))))
-                  )))
+    `#hash(
+      (error . ,err)
+      (program . ,(fpcore->string (program->fpcore expr ctx)))
+      (direction . ,(match dir ['Rewrite<= "rtl"] ['Rewrite=> "ltr"] ['Goal "goal"]))
+      (rule . ,(~a rule))
+      (loc . ,loc)
+      (tag . ,(string-append
+                (format " ↑ ~a" num-increase)
+                (format " ↓ ~a" num-decrease)))
+      )))
 

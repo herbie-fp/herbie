@@ -371,12 +371,10 @@
        (list #f)]
       [else
        (match term
-         [`(Explanation ,body ...)
-          (expand-proof body budget)]
-         [(? symbol?)
-          (list term)]
-         [(? literal?)
-          (list term)]
+         [(? symbol?) (list term)]
+         [(? literal?) (list term)]
+         [(? number?) (list term)]
+         [`(Explanation ,body ...) (expand-proof body budget)]
          [(? list?)
           (define children (map loop term))
           (cond 
@@ -1434,21 +1432,30 @@
 
 ;; Herbie's version of an egg runner
 ;; Defines parameters for running rewrite rules with egg
-(struct egraph-query (exprs reprs schedule ctx extractor) #:transparent)
+(struct egraph-query (exprs reprs schedule ctx extractor)
+                     #:transparent ; for equality
+                     #:methods gen:custom-write ; for abbreviated printing
+                     [(define (write-proc alt port mode)
+                        (fprintf port "#<egraph-query>"))])
 
+;; Fallback extractor if none is specified
+(define default-egg-extractor
+  (untyped-egg-extractor default-untyped-egg-cost-proc))
+
+;; Constructs an egg runner.
 (define (make-egg-query exprs
                         reprs
                         schedule
                         #:context [ctx (*context*)]
                         #:extractor [extractor #f])
   (verify-schedule! schedule)
-  (define default-extractor (untyped-egg-extractor default-untyped-egg-cost-proc))
   (egraph-query exprs
                 reprs
                 schedule
                 ctx
-                (or extractor default-extractor)))
+                (or extractor default-egg-extractor)))
 
+;; Runs egg using an egg runner.
 (define (run-egg input variants? #:proof-inputs [proof-inputs '()])
   ;; Run egg and extract iteration data
   (define ctx (egraph-query-ctx input))

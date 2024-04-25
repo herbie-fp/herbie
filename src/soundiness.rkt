@@ -1,8 +1,12 @@
 #lang racket
 
-(require "alternative.rkt" "points.rkt" "programs.rkt"
-         "core/egg-herbie.rkt" "core/simplify.rkt" "syntax/types.rkt" 
-         "core/matcher.rkt" "syntax/rules.rkt")
+(require "alternative.rkt"
+         "accelerator.rkt"
+         "points.rkt"
+         "programs.rkt"
+         "core/egg-herbie.rkt"
+         "syntax/rules.rkt"
+         "syntax/sugar.rkt")
 
 (provide add-soundiness)
 
@@ -14,88 +18,135 @@
      (list 'Rewrite<= (get-canon-rule-name rule rule) something)]
     [(list _ ...)
      (map canonicalize-rewrite proof)]
-    [else proof]))
+    [_ proof]))
 
 (define (get-proof-errors proof pcontext ctx)
   (define proof-exprs (map remove-rewrites proof))
-  (define proof-errors (batch-errors proof-exprs pcontext ctx))
+  (define proof-progs (filter impl-prog? proof-exprs))
+  (define errss (batch-errors proof-progs pcontext ctx))
+  
+  (define prog->errs
+    (for/hash ([prog (in-list proof-progs)] [errs (in-list errss)])
+      (values prog errs)))
+
+  (define proof-errors
+    (for/list ([expr (in-list proof-exprs)])
+      (hash-ref prog->errs expr #f)))
+
   (define proof-diffs
     (cons (list 0 0)
           (for/list ([prev proof-errors] [current (rest proof-errors)])
-            (define num-increase (count > current prev))
-            (define num-decrease (count < current prev))
-            (list num-increase num-decrease (length prev)))))
+            (and prev
+                 current
+                 (list
+                   (count > current prev) ; num points where error increased
+                   (count < current prev)))))) ; num points where error decreased
+
   proof-diffs)
 
-(define (canonicalize-proof prog table loc pcontext ctx variants? e-input p-input)
-  (define proof (dict-ref (hash-ref table e-input) p-input))
+(define (canonicalize-proof prog proof loc pcontext ctx)
   (cond
-   [proof
-    ;; Proofs are actually on subexpressions,
-    ;; we need to construct the proof for the full expression
-    (define proof*
-      (for/list ([step (in-list proof)])
-        (location-do loc prog (const (canonicalize-rewrite step)))))
-    (define errors
-      (get-proof-errors proof* pcontext ctx))
-    (cons proof* errors)]
-   [else
-    (cons #f #f)]))
+    [proof
+     ;; Proofs are actually on subexpressions,
+     ;; we need to construct the proof for the full expression
+     (define proof*
+       (for/list ([step (in-list proof)])
+         (location-do loc prog (const (canonicalize-rewrite step)))))
+     (define errors
+       (get-proof-errors proof* pcontext ctx))
+     (cons proof* errors)]
+    [else
+     (cons #f #f)]))
 
-(define (collect-necessary-proofs altn table)
+;; Computes a `equal?`-based hash table key for an alternative
+(define (altn->key altn)
   (match altn
-    [(alt expr (list (or 'rr 'simplify) loc (? egraph-query? e-input) #f #f) (list prev) _)
-     (define p-input (cons (location-get loc (alt-expr prev))
-                           (location-get loc (alt-expr altn))))
-     (hash-update! table e-input (curryr set-add p-input) '())]
-    [_ (void)])
-  altn)
-  
+    [(alt expr `(rr ,loc ,method ,_ ,_) prevs _)
+     (list expr (list 'rr loc method) (map alt-expr prevs))]
+    [(alt expr `(simplify ,loc ,method ,_ ,_) prevs _)
+     (list expr (list 'simplify loc method) (map alt-expr prevs))]
+    [_
+     (error 'altn->key "unimplemented ~a" altn)]))
 
-(define (add-soundiness-to pcontext ctx cache table altn)
+;; Creates two tables:
+;;  - map from alternative to a pair (e, l ~> r) where `e` is an `egg-query`
+;;      and `l ~> r` is the rewrite we want a proof for.
+;;  - map from egg query to list of proofs
+(define (make-proof-tables altns)
+  (define alt->query&rws (make-hash))
+  (define query->rws (make-hash))
+
+  (define (build! altn)
+    (match altn
+      ; recursive rewrite using egg
+      [(alt expr `(rr ,loc ,(? egraph-query? e-input) #f #f) `(,prev) _)
+       (define start-expr (location-get loc (alt-expr prev)))
+       (define start-expr* (expand-accelerators (*rules*) (prog->spec start-expr)))
+       (define end-expr (location-get loc expr))
+       (define rewrite (cons start-expr* end-expr))
+       (hash-set! alt->query&rws (altn->key altn) (cons e-input rewrite))
+       (hash-update! query->rws e-input (lambda (rws) (set-add rws rewrite)) '())]
+      
+      ; simplify using egg
+      [(alt expr `(simplify ,loc ,(? egraph-query? e-input) #f #f) `(,prev) _)
+       (define start-expr (location-get loc (alt-expr prev)))
+       (define end-expr (location-get loc expr))
+       (define rewrite (cons start-expr end-expr))
+       (hash-set! alt->query&rws (altn->key altn) (cons e-input rewrite))
+       (hash-update! query->rws e-input (lambda (rws) (set-add rws rewrite)) '())]
+
+      ; everything else
+      [_ (void)])
+    
+    altn)
+
+  ; build the table
+  (for ([altn (in-list altns)])
+    (alt-map build! altn))
+  (values alt->query&rws query->rws))
+
+;; Runs proof extraction.
+;; Result is a map from egg query to rewrites.
+(define (compute-proofs query->rws)
+  (for/hash ([(e-input rws) (in-hash query->rws)])
+    (match-define (cons _ proofs)
+      (run-egg e-input #f #:proof-inputs rws))
+    (values e-input (map cons rws proofs))))
+
+;; Lookups a proof based on an alternative
+(define ((lookup-proof alt->query&rws query->proofs) altn)
+  (match-define (cons e-input rw) (hash-ref alt->query&rws (altn->key altn)))
+  (cdr (assoc rw (hash-ref query->proofs e-input))))
+
+;; Adds proof information to alternatives.
+(define (add-soundiness-to altn pcontext ctx alt->proof)
   (match altn
+    ; recursive rewrite using egg
+    [(alt expr `(rr ,loc ,(? egraph-query? e-input) #f #f) `(,prev) _)
+     (match-define (cons proof* errs)
+       (canonicalize-proof (alt-expr altn) (alt->proof altn) loc pcontext ctx))
+     (alt expr `(rr ,loc ,e-input ,proof* ,errs) `(,prev) '())]
 
-    [(alt expr `(rr (,@loc) ,(? egraph-query? e-input) #f #f) `(,prev) _)
-     (define p-input (cons (location-get loc (alt-expr prev)) (location-get loc (alt-expr altn))))
-     (match-define (cons proof errs)
-       (hash-ref! cache (cons p-input e-input)
-                  (λ () (canonicalize-proof (alt-expr altn) table loc pcontext ctx #t e-input p-input))))
-     (alt expr `(rr (,@loc) ,e-input ,proof ,errs) `(,prev) '())]
-
-    [(alt expr `(rr (,@loc) ,(? rule? input) #f #f) `(,prev) _)
-     (match-define (cons proof errs)
-       (hash-ref! cache (cons input expr)
-                  (λ ()
-                    (define proof
-                      (list (alt-expr prev)
-                            (list 'Rewrite=> (rule-name input) (alt-expr altn))))
-                    (define errs
-                      (get-proof-errors proof pcontext ctx))
-                    (cons proof errs))))
-     (alt expr `(rr (,@loc) ,input ,proof ,errs) `(,prev) '())]
-
-    ;; This is alt coming from simplify
-    [(alt expr `(simplify (,@loc) ,(? egraph-query? e-input) #f #f) `(,prev) _)
-     (define p-input (cons (location-get loc (alt-expr prev)) (location-get loc (alt-expr altn))))
-     (match-define (cons proof errs)
-       (hash-ref! cache (cons p-input e-input)
-                  (λ () (canonicalize-proof (alt-expr altn) table loc pcontext ctx #f e-input p-input))))
-     (alt expr `(simplify (,@loc) ,e-input ,proof ,errs) `(,prev) '())]
-
-    [else altn]))
+    ; recursive rewrite using rewrite-once
+    [(alt expr `(rr ,loc ,(? rule? input) #f #f) `(,prev) _)
+     (define proof
+       (list (alt-expr prev)
+             (list 'Rewrite=> (rule-name input) (alt-expr altn))))
+     (define errs (get-proof-errors proof pcontext ctx))
+     (alt expr `(rr ,loc ,input ,proof ,errs) `(,prev) '())]
+    
+    ; simplify using egg
+    [(alt expr `(simplify ,loc ,(? egraph-query? e-input) #f #f) `(,prev) _)
+     (match-define (cons proof* errs)
+       (canonicalize-proof (alt-expr altn) (alt->proof altn) loc pcontext ctx))
+     (alt expr `(simplify ,loc ,e-input ,proof* ,errs) `(,prev) '())]
+    
+    ; everything else
+    [_ altn]))
 
 (define (add-soundiness alts pcontext ctx)
-  alts)
-  ; (define table (make-hasheq))
-  ; (for ([altn (in-list alts)])
-  ;   (alt-map (curryr collect-necessary-proofs table) altn))
-  ; (define proof-table
-  ;   (for/hash ([(e-input p-inputs) (in-hash table)])
-  ;     (match-define (cons variants proofs)
-  ;       (run-egg e-input #f #:proof-inputs p-inputs
-  ;                #:proof-ignore-when-unsound? #t))
-  ;     (values e-input (map cons p-inputs proofs))))
-
-  ; (define cache (make-hash))
-  ; (for/list ([altn alts])
-  ;   (alt-map (curry add-soundiness-to pcontext ctx cache proof-table) altn)))
+  (define-values (alt->query&rws query->rws) (make-proof-tables alts))
+  (define query->proofs (compute-proofs query->rws))
+  (define lookup-proc (lookup-proof alt->query&rws query->proofs))
+  (for/list ([altn (in-list alts)])
+    (alt-map (curryr add-soundiness-to pcontext ctx lookup-proc) altn)))

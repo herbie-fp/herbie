@@ -6,6 +6,7 @@
 
 (provide expr? expr-contains? expr<?
          all-subexpressions ops-in-expr
+         impl-prog?
          type-of repr-of
          location-do location-get
          eval-application
@@ -61,6 +62,23 @@
     (filter-map
       (lambda (e) (and (pair? e) (first e)))
       (all-subexpressions expr))))
+
+;; Returns `#t` if program is a program of operator implementations.
+(define (impl-prog? expr)
+  (let/ec return
+    (let loop ([expr expr])
+      (match expr
+        [(? literal?) (void)]
+        [(? number?) (return #f)]
+        [(? symbol?) (void)]
+        [(list 'if cond ift iff)
+         (loop cond)
+         (loop ift)
+         (loop iff)]
+        [(list (? impl-exists?) args ...)
+         (for-each loop args)]
+        [(list _ ...) (return #f)]))
+    #t))
 
 ;; Total order on expressions
 
