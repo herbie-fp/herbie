@@ -13,16 +13,16 @@ jobs:
         include:
           - os: windows-latest
             os-name: windows
-            arch: x86
+            arch: x64
           - os: ubuntu-20.04  # keep old for glibc compatability
             os-name: ubuntu
-            arch: x86
+            arch: x64
           - os: macos-latest
             os-name: macOS-m1
             arch: arm64
           - os: macos-13
             os-name: macOS
-            arch: x86
+            arch: x64
 
     runs-on: ${{ matrix.os }}
 

@@ -13,11 +13,11 @@ jobs:
           - os: macos-latest
             arch: aarch64
           - os: macos-13
-            arch: x86
+            arch: x64
           - os: ubuntu-latest
-            arch: x86
+            arch: x64
           - os: windows-latest
-            arch: x86
+            arch: x64
 
     runs-on: ${{ matrix.os }}
 
