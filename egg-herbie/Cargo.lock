@@ -34,7 +34,7 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 [[package]]
 name = "egg"
 version = "0.9.5"
-source = "git+https://github.com/bksaiki/egg.git?branch=fix-proofs#977c89ac5eac7f4f183bfad00cd206508a258bdb"
+source = "git+https://github.com/egraphs-good/egg.git?rev=c11d03db646aca5f55df2632927eec958e1f4d4d#c11d03db646aca5f55df2632927eec958e1f4d4d"
 dependencies = [
  "env_logger",
  "fxhash",
