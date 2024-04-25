@@ -65,17 +65,26 @@
   (when (string? js-text)
     (display js-text out)))
 
+(define (ulps->bits-tenths x)
+  (string->number (real->decimal-string (ulps->bits x) 1)))
+
 (define (make-points-json result out repr)
   (match-define (job-result test _ _ _ _ 
-                 (improve-result _ pctxs start target end _) ) result)
+                 (improve-result _ pctxs start targets end _) ) result)
   (define repr (test-output-repr test))
   (define start-errors (alt-analysis-test-errors start))
-  (define target-errors (and target (alt-analysis-test-errors target)))
+
+  ;; Pick lowest error from all targets
+  (define target-errors 
+    (cond
+      [(empty? targets) #f] ; If the list is empty, return false
+      [else
+        ; Smallest error target
+        (alt-analysis-test-errors 
+          (argmin (lambda (target) (errors-score (alt-analysis-test-errors target))) targets))]))
+
   (define end-errors (map alt-analysis-test-errors end))
   (define-values (newpoints _) (pcontext->lists (second pctxs)))
-
-  (define (ulps->bits-tenths x)
-    (string->number (real->decimal-string (ulps->bits x) 1)))
 
   ; Immediately convert points to reals to handle posits
   (define points 

@@ -193,7 +193,7 @@
 
 (define (atab-add-altns atab altns errss costs)
   (define-values (atab* progs*)
-    (for/fold ([atab atab] [progs (set-map (alt-table-all atab) alt-expr)])
+    (for/fold ([atab atab] [progs (list->set (map alt-expr (alt-table-all atab)))])
               ([altn (in-list altns)] [errs (in-list errss)] [cost (in-list costs)])
       ;; this is subtle, we actually want to check for duplicates
       ;; in terms of expressions, not alts: the default `equal?`
@@ -223,7 +223,7 @@
   (match-define (alt-table point->alts alt->points alt->done? alt->cost pcontext all-alts) atab)
 
   (define point->alts*
-    (for/hash ([(pt ex) (in-pcontext pcontext)] [err errs])
+    (for/hash ([(pt ex) (in-pcontext pcontext)] [err (in-list errs)])
       (define ppt (pareto-point cost err (list altn)))
       (values pt (pareto-union (list ppt) (hash-ref point->alts pt)))))
 
