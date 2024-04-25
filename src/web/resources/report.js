@@ -50,6 +50,8 @@ var TogglableFlags = new Component("#flag-list", {
     }
 });
 
+
+// Cicular color wheel representing error values limited to size 10
 const colors = [
     { line: { stroke: '#d00' }, dot: { stroke: '#d002'} },
     { line: { stroke: '#00a' }, dot: { stroke: '#00a2'} },
@@ -93,6 +95,11 @@ const ClientGraph = new Component('#graphs', {
     render_functions: function($elt, selected_var_name, selected_functions) {
         const toggle = (option, options) => options.includes(option) ? options.filter(o => o != option) : [...options, option]
 
+        // this.points_json.error is a dictionary where keys are indices "1", "2", ..., "n".
+        // The values for each key is broken up into two parts : error_type and actual error values
+        // error_type is the first element in the list value with 1...n being the remianing values
+        // Types of error type is "start", "end", "target1", "target2", ..., "targetm" 
+
         var curr_list = []
         let i = 0
 
@@ -109,6 +116,7 @@ const ClientGraph = new Component('#graphs', {
                 } else if (error_type === "end") {
                     description = "Most accurate alternative"
                 } else {
+                    // target is 6 letters
                     description = "Developer Target " + error_type.slice(6)
                 }
 
@@ -343,9 +351,9 @@ const CostAccuracy = new Component('#cost-accuracy', {
                     Element("th",
                         rest_pts.length > 1 ?
                             Element("a", { href: "#alternative" + (i + 1)},
-                                "Alternative test " + (i + 1)) 
+                                "Alternative " + (i + 1)) 
                             // else
-                            : "Alternative test " + (i + 1)
+                            : "Alternative " + (i + 1)
                     ),
                     Element("td", { className: accuracy >= initial_accuracy ? "better" : "" },
                             accuracy.toFixed(1) + "%"),

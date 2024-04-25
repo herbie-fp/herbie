@@ -144,9 +144,9 @@
   ;   vars: array of n string variable names
   ;   points: array of size m like [[x0, x1, ..., xn], ...] where x0 etc. 
   ;     are ordinals representing the real input values
-  ;   error: object with fields {start, target, end}, where each field holds 
-  ;     an array like [y0, ..., ym] where y0 etc are bits of error for the output 
-  ;     on each point TODO : UPDATE THIS
+  ;   error: JSON dictionary where keys are {start, end, target1, ..., targetn}.
+  ;          Each key's value holds an array like [y0, ..., ym] where y0 etc are
+  ;          bits of error for the output on each point
   ;   ticks: array of size n where each entry is 13 or so tick values as [ordinal, string] pairs
   ;   splitpoints: array with the ordinal splitpoints
   (define json-obj `#hasheq(
