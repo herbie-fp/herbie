@@ -238,7 +238,7 @@
             (prev . ,(render-json prev pcontext pcontext2 ctx))
             (error . ,err)
             (training-error . ,err2)
-            (preprocessing . ,preprocessing))]))
+            (preprocessing . ,(map (curry map symbol->string) preprocessing)))]))
 
 (define (render-proof-json proof soundiness pcontext ctx)
       (for/list ([step proof] [sound soundiness])

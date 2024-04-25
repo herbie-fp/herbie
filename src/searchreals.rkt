@@ -1,6 +1,6 @@
 #lang racket
 (require math/bigfloat rival)
-(require "syntax/types.rkt" "timeline.rkt" "errors.rkt" "pretty-print.rkt" "float.rkt")
+(require "syntax/types.rkt" "timeline.rkt" "errors.rkt" "pretty-print.rkt" "float.rkt" "config.rkt")
 
 (provide find-intervals hyperrect-weight)
 
@@ -39,7 +39,7 @@
   (define reprs (context-var-reprs ctx))
   (define-values (true* false* other*)
     (for/fold ([true* true] [false* false] [other* '()]) ([rect (in-list other)])
-      (define res (apply ival-fn rect))
+      (define res (parameterize ([*sampling-iteration* 0]) (apply ival-fn rect)))
       (match-define (ival err err?) (apply ival-or (map ival-error? res)))
       (when (eq? err 'unsamplable)
         (warn 'ground-truth #:url "faq.html#ground-truth"
@@ -92,7 +92,8 @@
         (timeline-push! 'sampling n (make-sampling-table ctx true false other))
 
         (define n* (remainder n (length (first rects))))
-        (if (or (>= n depth) (empty? (search-space-other space)))
+        (if (or (>= n depth) (empty? (search-space-other space))
+                (>= (length other) (expt 2 depth)))
             (cons
              (append (search-space-true space) (search-space-other space))
              (make-sampling-table ctx true false other))

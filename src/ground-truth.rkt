@@ -44,13 +44,14 @@
 (define (make-search-func pre specs ctxs)
   (define fns (compile-specs (cons pre specs) (context-vars (car ctxs))))
   ; inputs can either be intervals or representation values
-  (λ inputs
+  (define (compiled-spec . inputs)
     (define inputs*
       (for/list ([input (in-list inputs)]
                  [repr (context-var-reprs (car ctxs))])
         (if (ival? input) input (ival ((representation-repr->bf repr) input)))))
-    (match-define (list ival-pre ival-bodies ...) (apply fns inputs*))
-    (for/list ([y ival-bodies] [ctx ctxs])
+    (define outvec (apply fns inputs*))
+    (define ival-pre (vector-ref outvec 0))
+    (for/list ([y (in-vector outvec 1)] [ctx (in-list ctxs)])
       (define repr (context-repr ctx))
       (ival-then
        ; The two `invalid` ones have to go first, because later checks
@@ -64,42 +65,45 @@
             (is-samplable-interval repr y)
             (ival (ival-hi (is-samplable-interval repr y))))
         'unsamplable)
-       y))))
+       y)))
+  compiled-spec)
 
-(define (ival-eval repr fn pt #:precision [precision (*starting-prec*)])
+(define (ival-eval fn ctxs pt [iter 0])
   (define start (current-inexact-milliseconds))
+  (define <-bfs
+    (for/list ([ctx (in-list ctxs)])
+      (representation-bf->repr (context-repr ctx))))
   (define-values (status final-prec value)
-    (let loop ([precision precision])
-      (define exs (parameterize ([bf-precision precision]) (apply fn pt)))
+    (let loop ([iter iter])
+      (define exs
+        (parameterize ([*sampling-iteration* iter]) (apply fn pt)))
       (match-define (ival err err?) (apply ival-or (map ival-error? exs)))
-      (define precision* (exact-floor (* precision 2)))
+      (define iter* (+ 1 iter))
       (cond
         [err
-         (values err precision +nan.0)]
+         (values err iter #f)]
         [(not err?)
-         (define infinite?
-           (ival-lo (is-infinite-interval repr (apply ival-or exs))))
-         (values (if infinite? 'infinite 'valid) precision exs)]
-        [(> precision* (*max-mpfr-prec*))
-         (values 'exit precision +nan.0)]
+         (values 'valid iter
+                 (for/list ([ex exs] [<-bf <-bfs]) (<-bf (ival-lo ex))))]
+        [(> iter* (*max-sampling-iterations*))
+         (values 'exit iter #f)]
         [else
-         (loop precision*)])))
+         (loop iter*)])))
   (timeline-push!/unsafe 'outcomes (- (current-inexact-milliseconds) start)
                          final-prec (~a status) 1)
-  (values status precision value))
+  (values status value))
 
 ; ENSURE: all contexts have the same list of variables
 (define (eval-progs-real progs ctxs)
   (define repr (context-repr (car ctxs)))
   (define fn (make-search-func '(TRUE) progs ctxs))
-  (define (f . pt)
-    (define-values (result prec exs) (ival-eval repr fn pt))
+  (define (<eval-prog-real> . pt)
+    (define-values (result exs) (ival-eval fn ctxs pt))
     (match exs
       [(? list?)
-      (for/list ([ex exs] [ctx* ctxs])
-        ((representation-bf->repr (context-repr ctx*)) (ival-lo ex)))]
-      [(? nan?)
-      (for/list ([ctx* ctxs])
-        ((representation-bf->repr (context-repr ctx*)) +nan.bf))]))
-  (procedure-rename f '<eval-prog-real>))
+       exs]
+      [#f
+       (for/list ([ctx* ctxs])
+         ((representation-bf->repr (context-repr ctx*)) +nan.bf))]))
+  <eval-prog-real>)
 
