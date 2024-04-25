@@ -13,10 +13,16 @@ jobs:
         include:
           - os: windows-latest
             os-name: windows
+            arch: x86
           - os: ubuntu-20.04  # keep old for glibc compatability
             os-name: ubuntu
+            arch: x86
           - os: macos-latest
+            os-name: macOS-m1
+            arch: arm64
+          - os: macos-13
             os-name: macOS
+            arch: x86
 
     runs-on: ${{ matrix.os }}
 
@@ -27,6 +33,7 @@ jobs:
         uses: Bogdanp/setup-racket@v1.11
         with:
           version: 8.11
+          architecture: ${{ matrix.arch }}
 
       - name: Install Rust compiler
         uses: dtolnay/rust-toolchain@stable
