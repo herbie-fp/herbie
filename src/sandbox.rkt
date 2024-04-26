@@ -341,18 +341,26 @@
       ;    #f
       ;    (argmin (lambda (target) (alt-cost (alt-analysis-alt target) repr)) targets)))
 
-     (define target-costs
-      ; If the list is empty, return false
-      (if (empty? targets)
-        #f
-        (map alt-analysis-test-errors targets)))
+    ;  (define target-costs
+    ;   ; If the list is empty, return false
+    ;   (if (empty? targets)
+    ;     #f
+    ;     (map alt-analysis-test-errors targets)))
 
      ; target analysis for comparison
     ;  (define target-score (and target (errors-score (alt-analysis-test-errors target))))
-     (define target-cost-score (and target-costs (map errors-score target-costs)))
+    ;  (define target-cost-score (and target-costs (map errors-score target-costs)))
 
-    ;  (displayln (format "check : ~a\n" target-cost-score))
-     
+    (define target-cost-score
+      (if (empty? targets)
+        #f
+        (for/list ([target targets])
+          (define target-expr (alt-expr (alt-analysis-alt target)))
+          (define tar-cost (expr-cost target-expr repr))
+          (define tar-score (errors-score (alt-analysis-test-errors target)))
+
+          (list tar-cost tar-score))))
+
      ; analysis of output expressions
      (define-values (end-exprs end-train-scores end-test-scores end-costs)
        (for/lists (l1 l2 l3 l4) ([result end])
@@ -375,11 +383,11 @@
        (if target-cost-score
           (map (lambda (target-score)
                 (cond
-                  [(< end-score (- target-score fuzz)) "gt-target"]
-                  [(< end-score (+ target-score fuzz)) "eq-target"]
+                  [(< end-score (- (cdr targer-score) fuzz)) "gt-target"]
+                  [(< end-score (+ (cdr targer-score) fuzz)) "eq-target"]
                   [(> end-score (+ start-test-score fuzz)) "lt-start"]
                   [(> end-score (- start-test-score fuzz)) "eq-start"]
-                  [(> end-score (+ target-score fuzz)) "lt-target"]))
+                  [(> end-score (+ (cdr targer-score) fuzz)) "lt-target"]))
             target-cost-score)
 
            (cond
