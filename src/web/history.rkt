@@ -3,9 +3,9 @@
 (require (only-in xml write-xexpr xexpr?)
          (only-in fpbench core->tex supported-by-lang?)
          json)
-(require "../syntax/types.rkt" "../syntax/rules.rkt" "../core/bsearch.rkt" 
-         "../alternative.rkt" "../common.rkt" "../float.rkt" "../points.rkt" 
-         "../programs.rkt" "../syntax/sugar.rkt" "common.rkt")
+(require "../syntax/rules.rkt" "../syntax/sugar.rkt" "../syntax/syntax.rkt" "../syntax/types.rkt"
+         "../core/bsearch.rkt"  "../alternative.rkt" "../common.rkt"
+         "../float.rkt" "../points.rkt"  "../programs.rkt" "common.rkt")
 (provide render-history render-json)
 
 (define (split-pcontext pcontext splitpoints alts ctx)
@@ -65,90 +65,99 @@
           (format "~a on training set"
                   (format-accuracy err2 repr-bits #:unit "%"))))
 
+(define (remove-literals expr)
+  (match expr
+    [(? symbol?) expr]
+    [(? number?) expr]
+    [(? literal?) (literal-value expr)]
+    [(list op args ...) (cons op (map remove-literals args))]))
+
+(define (expr->tex expr ctx #:loc [loc #f])
+  (define core `(FPCore ,(context-vars ctx) ,(remove-literals expr)))
+  (if (supported-by-lang? core "tex")
+      (core->tex core #:loc (and loc (cons 2 loc)) #:color "blue")
+      "ERROR"))
+
 ;; HTML renderer for derivations
 (define/contract (render-history altn pcontext pcontext2 ctx)
   (-> alt? pcontext? pcontext? context? (listof xexpr?))
-  (let loop ([altn altn])
-    (match altn
-      [(alt prog 'start (list) _)
-       (define-values (err err2) (altn-errors altn pcontext pcontext2 ctx))
-       (list
-        `(li (p "Initial program " (span ([class "error"] [title ,err2]) ,err))
-             (div ([class "math"]) "\\[" ,(program->tex prog ctx) "\\]")))]
+  (match altn
+    [(alt prog 'start (list) _)
+     (define-values (err err2) (altn-errors altn pcontext pcontext2 ctx))
+     (list
+      `(li (p "Initial program " (span ([class "error"] [title ,err2]) ,err))
+           (div ([class "math"]) "\\[" ,(program->tex prog ctx) "\\]")))]
 
-      [(alt prog `(start ,strategy) `(,prev) _)
-       `(,@(render-history prev pcontext pcontext2 ctx)
-         (li ([class "event"]) "Using strategy " (code ,(~a strategy))))]
-  
-      [(alt prog 'add-preprocessing `(,prev) _)
-        ;; TODO message to user is? proof later
-        `(,@(render-history prev pcontext pcontext2 ctx)
-          (li "Add Preprocessing"))]	
-  
-      [(alt _ `(regimes ,splitpoints) prevs _)
-       (define intervals
-         (for/list ([start-sp (cons (sp -1 -1 #f) splitpoints)] [end-sp splitpoints])
-           (interval (sp-cidx end-sp) (sp-point start-sp) (sp-point end-sp) (sp-bexpr end-sp))))
-       (define repr (context-repr ctx))
-  
-       `((li ([class "event"]) "Split input into " ,(~a (length prevs)) " regimes")
-         (li
-          ,@(apply
-             append
-             (for/list ([entry prevs] [idx (in-naturals)]
-                        [new-pcontext (split-pcontext pcontext splitpoints prevs ctx)]
-                        [new-pcontext2 (split-pcontext pcontext2 splitpoints prevs ctx)])
-               (define entry-ivals (filter (λ (intrvl) (= (interval-alt-idx intrvl) idx)) intervals))
-               (define condition (string-join (map (curryr interval->string repr) entry-ivals) " or "))
-               `((h2 (code "if " (span ([class "condition"]) ,condition)))
-                 (ol ,@(render-history entry new-pcontext new-pcontext2 ctx))))))
-         (li ([class "event"]) "Recombined " ,(~a (length prevs)) " regimes into one program."))]
-  
-      [(alt prog `(taylor ,loc ,pt ,var) `(,prev) _)
-       `(,@(render-history prev pcontext pcontext2 ctx)
-         (li (p "Taylor expanded in " ,(~a var)
-                " around " ,(~a pt))
-             (div ([class "math"])
-               "\\[\\leadsto "
-               "expr"
-               "\\]")))]
-  
-      [(alt prog `(simplify ,loc ,input ,proof ,soundiness) `(,prev) _)
-       (define-values (err err2) (altn-errors altn pcontext pcontext2 ctx))
-       `(,@(render-history prev pcontext pcontext2 ctx)
-         (li ,(if proof (render-proof proof soundiness pcontext ctx) ""))
-         (li (p "Simplified" (span ([class "error"] [title ,err2]) ,err))
-             (div ([class "math"])
-               "\\[\\leadsto "
-               "expr"
-               "\\]")))]
-  
-      [(alt prog `(lower) `(,prev) _)
-       (render-history prev pcontext pcontext2 ctx)]
-  
-      [(alt prog `initial-simplify `(,prev) _)
-       (define-values (err err2) (altn-errors altn pcontext pcontext2 ctx))
-       `(,@(render-history prev pcontext pcontext2 ctx)
-         (li (p "Initial simplification" (span ([class "error"] [title ,err2]) ,err))
-             (div ([class "math"]) "\\[\\leadsto " ,(program->tex prog ctx) "\\]")))]
-  
-      [(alt prog `final-simplify `(,prev) _)
-       (define-values (err err2) (altn-errors altn pcontext pcontext2 ctx))
-       `(,@(render-history prev pcontext pcontext2 ctx)
-         (li (p "Final simplification" (span ([class "error"] [title ,err2]) ,err))
-             (div ([class "math"]) "\\[\\leadsto " ,(program->tex prog ctx) "\\]")))]
-  
-      [(alt prog `(rr ,loc ,input ,proof ,soundiness) `(,prev) _)
-       (define-values (err err2) (altn-errors altn pcontext pcontext2 ctx))
-       `(,@(render-history prev pcontext pcontext2 ctx)
-         (li ,(if proof (render-proof proof soundiness pcontext ctx) ""))
-         (li (p "Applied "
-                (span ([class "rule"]) , (if (rule? input) "rewrite-once" "egg-rr"))
-                (span ([class "error"] [title ,err2]) ,err))
-             (div ([class "math"])
-               "\\[\\leadsto "
-               "expr"
-               "\\]")))])))
+    [(alt prog `(start ,strategy) `(,prev) _)
+     `(,@(render-history prev pcontext pcontext2 ctx)
+       (li ([class "event"]) "Using strategy " (code ,(~a strategy))))]
+
+    [(alt prog 'add-preprocessing `(,prev) _)
+      ;; TODO message to user is? proof later
+      `(,@(render-history prev pcontext pcontext2 ctx)
+        (li "Add Preprocessing"))]	
+
+    [(alt _ `(regimes ,splitpoints) prevs _)
+     (define intervals
+       (for/list ([start-sp (cons (sp -1 -1 #f) splitpoints)] [end-sp splitpoints])
+         (interval (sp-cidx end-sp) (sp-point start-sp) (sp-point end-sp) (sp-bexpr end-sp))))
+     (define repr (context-repr ctx))
+
+     `((li ([class "event"]) "Split input into " ,(~a (length prevs)) " regimes")
+       (li
+        ,@(apply
+           append
+           (for/list ([entry prevs] [idx (in-naturals)]
+                      [new-pcontext (split-pcontext pcontext splitpoints prevs ctx)]
+                      [new-pcontext2 (split-pcontext pcontext2 splitpoints prevs ctx)])
+             (define entry-ivals (filter (λ (intrvl) (= (interval-alt-idx intrvl) idx)) intervals))
+             (define condition (string-join (map (curryr interval->string repr) entry-ivals) " or "))
+             `((h2 (code "if " (span ([class "condition"]) ,condition)))
+               (ol ,@(render-history entry new-pcontext new-pcontext2 ctx))))))
+       (li ([class "event"]) "Recombined " ,(~a (length prevs)) " regimes into one program."))]
+
+    [(alt prog `(taylor ,loc ,pt ,var) `(,prev) _)
+     `(,@(render-history prev pcontext pcontext2 ctx)
+       (li (p "Taylor expanded in " ,(~a var)
+              " around " ,(~a pt))
+           (div ([class "math"])
+             "\\[\\leadsto "
+             ,(expr->tex prog ctx #:loc loc)
+             "\\]")))]
+
+    [(alt prog `(simplify ,loc ,input ,proof ,soundiness) `(,prev) _)
+     (define-values (err err2) (altn-errors altn pcontext pcontext2 ctx))
+     `(,@(render-history prev pcontext pcontext2 ctx)
+       (li ,(if proof (render-proof proof soundiness pcontext ctx) ""))
+       (li (p "Simplified" (span ([class "error"] [title ,err2]) ,err))
+           (div ([class "math"])
+             "\\[\\leadsto "
+             ,(program->tex prog ctx #:loc loc)
+             "\\]")))]
+
+    [(alt prog `initial-simplify `(,prev) _)
+     (define-values (err err2) (altn-errors altn pcontext pcontext2 ctx))
+     `(,@(render-history prev pcontext pcontext2 ctx)
+       (li (p "Initial simplification" (span ([class "error"] [title ,err2]) ,err))
+           (div ([class "math"]) "\\[\\leadsto " ,(program->tex prog ctx) "\\]")))]
+
+    [(alt prog `final-simplify `(,prev) _)
+     (define-values (err err2) (altn-errors altn pcontext pcontext2 ctx))
+     `(,@(render-history prev pcontext pcontext2 ctx)
+       (li (p "Final simplification" (span ([class "error"] [title ,err2]) ,err))
+           (div ([class "math"]) "\\[\\leadsto " ,(program->tex prog ctx) "\\]")))]
+
+    [(alt prog `(rr ,loc ,input ,proof ,soundiness) `(,prev) _)
+     (define-values (err err2) (altn-errors altn pcontext pcontext2 ctx))
+     `(,@(render-history prev pcontext pcontext2 ctx)
+       (li ,(if proof (render-proof proof soundiness pcontext ctx) ""))
+       (li (p "Applied "
+              (span ([class "rule"]) , (if (rule? input) "rewrite-once" "egg-rr"))
+              (span ([class "error"] [title ,err2]) ,err))
+           (div ([class "math"])
+             "\\[\\leadsto "
+             ,(program->tex prog ctx #:loc loc)
+             "\\]")))]))
 
 (define (render-proof proof soundiness pcontext ctx)
   `(div ([class "proof"])
@@ -157,15 +166,16 @@
      (ol
       ,@(for/list ([step proof] [sound soundiness])
           (define-values (dir rule loc expr) (splice-proof-step step))
-          (define step-prog '(FPCore () 1))
-          (define err "0")
-          ; (define step-prog (program->fpcore expr ctx))
-          ; (define err
-          ;   (format-accuracy (errors-score (errors expr pcontext ctx))
-          ;                    (representation-total-bits (context-repr ctx))
-          ;                    #:unit "%"))
+          (define err
+            (if (impl-prog? expr)
+                (format-accuracy
+                  (errors-score (errors expr pcontext ctx))
+                  (representation-total-bits (context-repr ctx))
+                  #:unit "%")
+                "N/A"))
           (define num-increase (if sound (first sound) "N/A"))
           (define num-decrease (if sound (second sound) "N/A"))
+
           (if (equal? dir 'Goal)
               ""
               `(li ,(let ([dir (match dir ['Rewrite<= "right to left"] ['Rewrite=> "left to right"])]
@@ -175,7 +185,7 @@
                           (span ([class "error"] [title ,tag]) ,err)))
                    (div ([class "math"])
                         "\\[\\leadsto "
-                        ,(core->tex step-prog #:loc (cons 2 loc) #:color "blue")
+                        ,(expr->tex expr ctx #:loc (cons 2 loc))
                         "\\]"))))))))
 
 
