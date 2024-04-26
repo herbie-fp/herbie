@@ -1,0 +1,18 @@
+; -*- mode: scheme -*-
+
+; 2sin involves the difference of two sine functions. According to the sum-to-product trigonometric identity,
+; the target for this benchmark can apply the identity (- (sin x) (sin y)) = (* 2 (cos (/ (+ x y) 2)) (sin (/ (- x y) 2)))
+(FPCore (x eps)
+  :name "2sin (example 3.3)"
+  :pre (and (<= -1e4 x) (<= x 1e4) (< (* 1e-16 (fabs x)) eps) (< eps (* (fabs x))))
+  :alt 
+  (! :herbie-platform default
+   (* 2 (cos (+ x (/ eps 2))) (sin (/ eps 2))))
+
+  :alt 
+  (! :herbie-platform default
+    (+ (* (sin x) (- (cos eps) 1)) (* (cos x) (sin eps))))
+ 
+  (- (sin (+ x eps)) (sin x)))
+
+; (< (fabs eps) (fabs x))
