@@ -6,14 +6,6 @@
 ;; Packaging information
 
 (define pkg-desc "A tool for automatically improving the accuracy of floating point expressions")
-(define pkg-authors
-  '("Pavel Panchekha"
-    "Alex Sanchez-Stern"
-    "David Thien"
-    "Jason Qiu"
-    "James Wilcox"
-    "Zachary Tatlock"
-    "Jack Firth"))
 
 ;; The `herbie` command-line tool
 
@@ -40,3 +32,5 @@
       '("syntax/test-rules.rkt" ; These take too long, package server gives us 60s
         "sampling.rkt") ; These require the benchmarks
       '()))
+
+(define license 'MIT)

@@ -113,14 +113,18 @@
                                
 (define (render-phase-locations locations)
   `((dt "Localize:")
-    (dd (p "Found " ,(~a (length locations)) " expressions with local error:")
+    (dd (p "Found " ,(~a (length locations)) " expressions of interest:")
         (table ([class "times"])
-          (thead (tr (th "New") (th "Accuracy") (th "Program")))
+          (thead (tr (th "New") (th "Metric") (th "Score") (th "Program")))
           ,@(for/list ([rec (in-list locations)])
-              (match-define (list expr err new? repr-name) rec)
+              (match-define (list expr metric score new? repr-name) rec)
               (define repr (get-representation (read (open-input-string repr-name))))
               `(tr (td ,(if new? "✓" ""))
-                  (td ,(format-accuracy err (representation-total-bits repr) #:unit "%") "")
+                  (td ,(~a metric))
+                  
+                  (td ,(if (equal? metric "accuracy")
+                            (format-accuracy score (representation-total-bits repr) #:unit "%")
+                            (~a score)))
                   (td (pre ,(~a expr)))))))))
 
 (define (format-value v)
@@ -195,9 +199,9 @@
                    (define time-per-op (round (apply + times)))
 
                    (list `(details
-                           (summary "Operation " (code ,op)
-                                    ", time spent: " ,(format-time time-per-op)
-                                    ", " ,(~a (round (* (/ time-per-op total-time) 100))) "% of total-time") 
+                           (summary (code ,op) ": "
+                                    ,(format-time time-per-op) " ("
+                                    ,(format-percent time-per-op total-time) " of total)") 
                            (canvas ([id ,(format "calls-~a" n)]
                                     [title "Histogram of precisions of the used operation"]))
                            (script "histogram2D(\""
@@ -352,7 +356,7 @@
     (dd (p ,(~a (length times)) " calls:")
         (canvas ([id ,(format "calls-~a" n)]
                  [title "Weighted histogram; height corresponds to percentage of runtime in that bucket."]))
-        (script "histogram(\"" ,(format "calls-~a" n) "\", " ,(jsexpr->string (map second times)) ")")
+        (script "histogram(\"" ,(format "calls-~a" n) "\", " ,(jsexpr->string (map first times)) ")")
         (table ([class "times"])
                ,@(for/list ([rec (in-list (sort times > #:key first))] [_ (in-range 5)])
                    (match-define (list time expr) rec)
@@ -363,7 +367,7 @@
     (dd (p ,(~a (length times)) " calls:")
         (canvas ([id ,(format "calls-~a" n)]
                  [title "Weighted histogram; height corresponds to percentage of runtime in that bucket."]))
-        (script "histogram(\"" ,(format "calls-~a" n) "\", " ,(jsexpr->string (map fourth times)) ")")
+        (script "histogram(\"" ,(format "calls-~a" n) "\", " ,(jsexpr->string (map first times)) ")")
         (table ([class "times"])
                (thead (tr (th "Time") (th "Variable") (th) (th "Point") (th "Expression")))
                ,@(for/list ([rec (in-list (sort times > #:key first))] [_ (in-range 5)])
@@ -393,8 +397,8 @@
 (define (render-phase-outcomes outcomes)
   `((dt "Results")
     (dd (table ([class "times"])
-         ,@(for/list ([rec (in-list (sort outcomes > #:key fourth))])
-             (match-define (list precision category time count) rec)
+         ,@(for/list ([rec (in-list (sort outcomes > #:key first))])
+             (match-define (list time precision category count) rec)
              `(tr (td ,(format-time time)) (td ,(~a count) "×")
                   (td ,(~a precision)) (td ,(~a category))))))))
 
