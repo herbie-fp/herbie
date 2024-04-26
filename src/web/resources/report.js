@@ -274,17 +274,20 @@ const CostAccuracy = new Component('#cost-accuracy', {
         // find right test by iterating through results_json
         for (let test of results_json.tests) {
             if (test.name == this.elt.dataset.benchmarkName) {
+                console.log("keys : " + Object.keys(test))
+                console.log("target pls : " + test["target"])
+
                 let [initial_pt, best_pt, rest_pts] = test["cost-accuracy"];
-                let target_pt = test["target"] && [this.elt.dataset.targetCost, test["target"]]
+                let target_pts = test["target"] && [this.elt.dataset.targetCost, test["target"]]
                 rest_pts = [best_pt].concat(rest_pts)
-                $svg.replaceWith(await this.plot(test, initial_pt, target_pt, rest_pts));
-                $tbody.replaceWith(await this.tbody(test, initial_pt, target_pt, rest_pts));
+                $svg.replaceWith(await this.plot(test, initial_pt, target_pts, rest_pts));
+                $tbody.replaceWith(await this.tbody(test, initial_pt, target_pts, rest_pts));
                 break;
             }
         }
     },
 
-    plot: async function(benchmark, initial_pt, target_pt, rest_pts) {
+    plot: async function(benchmark, initial_pt, target_pts, rest_pts) {
         const bits = benchmark["bits"];
 
         // The line differs from rest_pts in two ways:
@@ -317,11 +320,11 @@ const CostAccuracy = new Component('#cost-accuracy', {
                     y: d => 1 - d[1]/bits,
                     stroke: "#d00", symbol: "square", strokeWidth: 2
                 }),
-                target_pt && Plot.dot([target_pt], {
-                    x: d => initial_pt[0]/d[0],
-                    y: d => 1 - d[1]/bits,
-                    stroke: "#080", symbol: "circle", strokeWidth: 2
-                }),
+                // target_pt && Plot.dot([target_pt], {
+                //     x: d => initial_pt[0]/d[0],
+                //     y: d => 1 - d[1]/bits,
+                //     stroke: "#080", symbol: "circle", strokeWidth: 2
+                // }),
             ].filter(x=>x),
             marginBottom: 0,
             marginRight: 0,
@@ -334,9 +337,13 @@ const CostAccuracy = new Component('#cost-accuracy', {
         return out
     },
 
-    tbody: async function(benchmark, initial_pt, target_pt, rest_pts) {
+    tbody: async function(benchmark, initial_pt, target_pts, rest_pts) {
         const bits = benchmark["bits"];
         const initial_accuracy = 100*(1 - initial_pt[1]/bits);
+
+        console.log("rest : " + rest_pts)
+
+        console.log("target : " + target_pts)
 
         return Element("tbody", [
             Element("tr", [
@@ -360,11 +367,24 @@ const CostAccuracy = new Component('#cost-accuracy', {
                     Element("td", { className: speedup >= 1 ? "better" : "" },
                             speedup.toFixed(1) + "×")
             ])}),
-            target_pt && Element("tr", [
-                Element("th", "Developer target"),
-                Element("td", 100 * (1 - target_pt[1]/bits).toFixed(1) + "%"),
-                Element("td", (initial_pt[0] / target_pt[0]).toFixed(1) + "×"),
-            ]),
+
+            target_pts && target_pts.map((d, i) => {
+                let accuracy = 100*(1 - d[1]/bits);
+                let speedup = initial_pt[0]/d[0];
+                return Element("tr", [
+                    Element("th", "Alternative " + (i + 1)),
+                    Element("td", { className: accuracy >= initial_accuracy ? "better" : "" },
+                            accuracy.toFixed(1) + "%"),
+                    Element("td", { className: speedup >= 1 ? "better" : "" },
+                            speedup.toFixed(1) + "×")
+            ])}),
+
+            // target_pts && target_pts.map((d, i) => {
+            //                 return Element("tr", [
+            //                         Element("th", "Developer target " + (i + 1)),
+            //                         Element("td", 100 * (1 - d[1]/bits).toFixed(1) + "%"),
+            //                         Element("td", (initial_pt[0] / d[0]).toFixed(1) + "×"),
+            //                 ])}),
         ]);
     }
 });

@@ -335,14 +335,23 @@
      (define start-cost (expr-cost start-expr repr))
 
      ;; From all the targets, pick the lowest cost target
-     (define target
+      ; (define target
+      ;  ; If the list is empty, return false
+      ;  (if (empty? targets)
+      ;    #f
+      ;    (argmin (lambda (target) (alt-cost (alt-analysis-alt target) repr)) targets)))
+
+     (define target-costs
       ; If the list is empty, return false
       (if (empty? targets)
         #f
-        (argmin (lambda (target) (alt-cost (alt-analysis-alt target) repr)) targets)))
+        (map alt-analysis-test-errors targets)))
 
      ; target analysis for comparison
-     (define target-score (and target (errors-score (alt-analysis-test-errors target))))
+    ;  (define target-score (and target (errors-score (alt-analysis-test-errors target))))
+     (define target-cost-score (and target-costs (map errors-score target-costs)))
+
+    ;  (displayln (format "check : ~a\n" target-cost-score))
      
      ; analysis of output expressions
      (define-values (end-exprs end-train-scores end-test-scores end-costs)
@@ -363,13 +372,16 @@
      (define end-est-score (car end-train-scores))
      (define end-score (car end-test-scores))
      (define status
-       (if target-score
-           (cond
-            [(< end-score (- target-score fuzz)) "gt-target"]
-            [(< end-score (+ target-score fuzz)) "eq-target"]
-            [(> end-score (+ start-test-score fuzz)) "lt-start"]
-            [(> end-score (- start-test-score fuzz)) "eq-start"]
-            [(> end-score (+ target-score fuzz)) "lt-target"])
+       (if target-cost-score
+          (map (lambda (target-score)
+                (cond
+                  [(< end-score (- target-score fuzz)) "gt-target"]
+                  [(< end-score (+ target-score fuzz)) "eq-target"]
+                  [(> end-score (+ start-test-score fuzz)) "lt-start"]
+                  [(> end-score (- start-test-score fuzz)) "eq-start"]
+                  [(> end-score (+ target-score fuzz)) "lt-target"]))
+            target-cost-score)
+
            (cond
             [(and (< start-test-score 1) (< end-score (+ start-test-score 1))) "ex-start"]
             [(< end-score (- start-test-score 1)) "imp-start"]
@@ -378,7 +390,7 @@
 
      (struct-copy table-row (dummy-table-row result status link)
                   [start-est start-train-score] [start start-test-score]
-                  [target target-score]
+                  [target target-cost-score]
                   [result-est end-est-score] [result end-score]
                   [output (car end-exprs)] [cost-accuracy cost&accuracy])]
     ['failure
