@@ -52,6 +52,7 @@
     [#`(/ #,a) (datum->syntax #f (list '/ 1 (expand a)) stx)]
     ; variary operators
     [#`(,(and (or '+ '- '* '/ 'or) op) #,arg1 #,arg2 #,rest ...)
+     (if (not (null? rest)) (warn 'variary-operator "~a is not supported as a variary operator" op) #f)
      (define prev (datum->syntax #f (list op (expand arg1) (expand arg2)) stx))
      (let loop ([prev prev] [rest rest])
        (match rest
