@@ -334,25 +334,8 @@
      (define start-test-score (errors-score start-test-errs))
      (define start-cost (expr-cost start-expr repr))
 
-     ;; From all the targets, pick the lowest cost target
-      ; (define target
-      ;  ; If the list is empty, return false
-      ;  (if (empty? targets)
-      ;    #f
-      ;    (argmin (lambda (target) (alt-cost (alt-analysis-alt target) repr)) targets)))
-
-    ;  (define target-costs
-    ;   ; If the list is empty, return false
-    ;   (if (empty? targets)
-    ;     #f
-    ;     (map alt-analysis-test-errors targets)))
-
-     ; target analysis for comparison
-    ;  (define target-score (and target (errors-score (alt-analysis-test-errors target))))
-    ;  (define target-cost-score (and target-costs (map errors-score target-costs)))
-
-    (define target-cost-score
-      (if (empty? targets)
+     (define target-cost-score
+      (if (empty? targets) ; If the list is empty, return false
         #f
         (for/list ([target targets])
           (define target-expr (alt-expr (alt-analysis-alt target)))
@@ -383,11 +366,11 @@
        (if target-cost-score
           (map (lambda (target-score)
                 (cond
-                  [(< end-score (- (cdr targer-score) fuzz)) "gt-target"]
-                  [(< end-score (+ (cdr targer-score) fuzz)) "eq-target"]
+                  [(< end-score (- (cadr target-score) fuzz)) "gt-target"]
+                  [(< end-score (+ (cadr target-score) fuzz)) "eq-target"]
                   [(> end-score (+ start-test-score fuzz)) "lt-start"]
                   [(> end-score (- start-test-score fuzz)) "eq-start"]
-                  [(> end-score (+ (cdr targer-score) fuzz)) "lt-target"]))
+                  [(> end-score (+ (cadr target-score) fuzz)) "lt-target"]))
             target-cost-score)
 
            (cond
