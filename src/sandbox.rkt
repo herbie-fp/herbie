@@ -99,9 +99,8 @@
 
   (define-values (_ test-pcontext) (partition-pcontext pcontext (*context*)))
   (define errs (errors (test-input test) test-pcontext (*context*)))
-
   (for/list ([(pt _) (in-pcontext test-pcontext)] [err (in-list errs)])
-    (list pt (format-bits (ulps->bits err)))))
+    (list pt err)))
 
 ;; Given a test and a sample of points, the ground truth of each point
 ;; If the sample contains the expected number of points, i.e., `(*num-points*) + (*reeval-pts*)`,
@@ -110,8 +109,6 @@
 (define (get-exacts test pcontext)
   (unless pcontext
     (error 'get-exacts "cannnot run without a pcontext"))
-
-  (define repr (test-output-repr test))
   (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext (*context*)))
   (define-values (pts _) (pcontext->lists test-pcontext))
   (define fn (eval-progs-real 
@@ -196,7 +193,7 @@
   (define start-train-errs (errors start-expr train-pcontext ctx))
   (define start-test-errs (errors start-expr test-pcontext* ctx))
   (define start-alt-data (alt-analysis start-alt start-train-errs start-test-errs))
-
+  
   ;; optionally compute error/cost for input expression
   (define target-alt-data
     (cond
@@ -390,7 +387,9 @@
     [_
      (error 'get-table-data "unknown result type ~a"status)]))
 
-(define (unparse-result row)
+(define (unparse-result row #:expr [expr #f] #:description [descr #f])
+  (define repr (get-representation (table-row-precision row)))
+  (define expr* (or expr (table-row-output row)))
   (define top
     (if (table-row-identifier row)
         (list (table-row-identifier row) (table-row-vars row))
@@ -408,9 +407,10 @@
            `(:herbie-error-target ([,(*reeval-pts*) ,(table-row-target row)]))
            '())
      :name ,(table-row-name row)
+     ,@(if descr `(:description ,(~a descr)) '())
      :precision ,(table-row-precision row)
      :herbie-conversions ,(table-row-conversions row)
      ,@(if (eq? (table-row-pre row) 'TRUE) '() `(:pre ,(table-row-pre row)))
      ,@(if (equal? (table-row-preprocess row) empty) '() `(:herbie-preprocess ,(table-row-preprocess row)))
-     ,@(if (table-row-target-prog row) `(:alt ,(table-row-target-prog row)) '())
-     ,(table-row-output row)))
+     ,@(if (table-row-target-prog row) `(:herbie-target ,(table-row-target-prog row)) '())
+     ,(prog->fpcore expr* repr)))
