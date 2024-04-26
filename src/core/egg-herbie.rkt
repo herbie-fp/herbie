@@ -25,7 +25,6 @@
          platform-egg-cost-proc
          make-egg-query
          run-egg
-         rule->impl-rules
          get-canon-rule-name
          remove-rewrites
          real-rules
@@ -270,44 +269,21 @@
 
   (define test-exprs
     (list (cons '(+.f64 y x)
-                (~a `(+ ($Type binary64 binary64 binary64)
-                        ($Var ($Type binary64) h0)
-                        ($Var ($Type binary64) h1))))
+                (~a '(+.f64 $h0 $h1)))
           (cons '(+.f64 x y)
-                (~a `(+ ($Type binary64 binary64 binary64)
-                        ($Var ($Type binary64) h1)
-                        ($Var ($Type binary64) h0))))
+                (~a '(+.f64 $h1 $h0)))
           (cons '(-.f64 #s(literal 2 binary64) (+.f64 x y))
-                (~a '(- ($Type binary64 binary64 binary64) 2
-                        (+ ($Type binary64 binary64 binary64)
-                           ($Var ($Type binary64) h1)
-                           ($Var ($Type binary64) h0)))))
+                (~a '(-.f64 2 (+.f64 $h1 $h0))))
           (cons '(-.f64 z (+.f64 (+.f64 y #s(literal 2 binary64)) x))
-                (~a '(- ($Type binary64 binary64 binary64)
-                        ($Var ($Type binary64) h2)
-                        (+ ($Type binary64 binary64 binary64)
-                           (+ ($Type binary64 binary64 binary64)
-                              ($Var ($Type binary64) h0)
-                              2)
-                           ($Var ($Type binary64) h1)))))
+                (~a '(-.f64 $h2 (+.f64 (+.f64 $h0 2) $h1))))
           (cons '(*.f64 x y)
-                (~a `(* ($Type binary64 binary64 binary64)
-                        ($Var ($Type binary64) h1)
-                        ($Var ($Type binary64) h0))))
+                (~a '(*.f64 $h1 $h0)))
           (cons '(+.f64 (*.f64 x y) #s(literal 2 binary64))
-                (~a '(+ ($Type binary64 binary64 binary64)
-                        (* ($Type binary64 binary64 binary64)
-                           ($Var ($Type binary64) h1)
-                           ($Var ($Type binary64) h0))
-                        2)))
+                (~a '(+.f64 (*.f64 $h1 $h0) 2)))
           (cons '(cos.f32 (PI.f32))
-                (~a '(cos ($Type binary32 binary32)
-                          (PI ($Type binary32)))))
+                (~a '(cos.f32 (PI.f32))))
           (cons '(if (TRUE) x y)
-                (~a '(if real
-                         (TRUE ($Type bool))
-                         ($Var ($Type binary64) h1)
-                         ($Var ($Type binary64) h0))))))
+                (~a '(if (TRUE) $h1 $h0)))))
 
   (let ([egg-graph (make-egraph)])
     (for ([(in expected-out) (in-dict test-exprs)])
@@ -444,9 +420,6 @@
      ; non-expansive rule
      (list (rule->egg-rule ru))]))
 
-(define (rule->impl-rules rule)
-  (error 'rule->impl-rules "unimplemented"))
-
 ;; egg rule cache
 (define-resetter *egg-rule-cache*
   (λ () (make-hash))
@@ -478,13 +451,122 @@
                         (cons egg-rule (make-ffi-rule egg-rule))))))
       (for-each sow egg&ffi-rules))))
 
-(module+ test
-  ;; Make sure all built-in rules are valid in
-  ;; some configuration of representations
-  (for ([rule (in-list (*rules*))])
-    (test-case (~a (rule-name rule))
-               (check-true (> (length (rule->egg-rules rule)) 0))))
-)
+;; Spec contains no accelerators
+(define (spec-has-accelerator? spec)
+  (match spec
+    [(list (? accelerator?) _ ...) #t]
+    [(list _ args ...) (ormap spec-has-accelerator? args)]
+    [_ #f]))
+
+(define (real-rules rules)
+  (filter-not
+    (lambda (rule)
+      (or (representation? (rule-otype rule))
+          (spec-has-accelerator? (rule-input rule))
+          (spec-has-accelerator? (rule-output rule))))
+    rules))
+
+;; Rules from spec to impl
+;; These are fixed for a a particular platform
+(define-resetter *lowering-rules*
+  (λ () (make-hash))
+  (λ () (make-hash)))
+
+(define (platform-lowering-rules)
+  (define impls (platform-impls (*active-platform*)))
+  (for/list ([impl (in-list impls)])
+    (hash-ref! (*lowering-rules*)
+               (cons impl (*active-platform*))
+               (lambda ()
+                 (define op (impl->operator impl))
+                 (define itypes (operator-info op 'itype))
+                 (define otype (operator-info op 'otype))
+                 (cond
+                   [(accelerator? op)
+                    ; accelerator lowering
+                    (define vars (accelerator-info op 'vars))
+                    (rule (sym-append 'accelerator-lowering- impl)
+                          (accelerator-info op 'body)
+                          (cons impl (accelerator-info op 'vars))
+                          (map cons vars itypes)
+                          otype)]
+                   [else
+                    ; direct lowering
+                    (define vars (map (lambda (_) (gensym)) itypes))
+                    (rule (sym-append op '-lowering- impl)
+                          (cons op vars)
+                          (cons impl vars)
+                          (map cons vars itypes)
+                          otype)])))))
+
+;; Computes the product of all possible representation assignments to types.
+(define (type-combinations types reprs)
+  (reap [sow]
+    (let loop ([types types] [assigns '()])
+      (match types
+        [(? null?) (sow assigns)]
+        [(list type rest ...)
+         (for ([repr (in-list reprs)])
+           (when (equal? (representation-type repr) type)
+             (loop rest (cons (cons type repr) assigns))))]))))
+
+;; Representation name sanitizer (also in <herbie>/platform.rkt)
+(define (repr->symbol repr)
+  (define replace-table `((" " . "_") ("(" . "") (")" . "")))
+  (define repr-name (representation-name repr))
+  (string->symbol (string-replace* (~a repr-name) replace-table)))
+
+;; Instantiates rules from implementation to implementation in the platform.
+;; If a rule is over implementations, filters by supported implementations.
+;; If a rule is over real operators, instantiates for every possible output type.
+;; By default, expansive rules will be ignored (causes issues in egg)
+(define (platform-impl-rules rules #:expansive? [expansive? #f])
+  (define reprs (platform-reprs (*active-platform*)))
+  (define impls (list->set (platform-impls (*active-platform*))))
+  (reap [sow]
+    (for ([ru (in-list rules)]
+          #:when (or expansive?
+                     (not (symbol? (rule-input ru)))))
+      (match-define (rule name input output itypes otype) ru)
+      (cond
+        [(representation? otype) ; rule over representation
+         (when (andmap
+                 (curry set-member? impls)
+                 (filter-not
+                   (curry eq? 'if)
+                   (append (ops-in-expr input) (ops-in-expr output))))
+           (sow ru))]
+        [else
+         ; rule over types need to be instantiated for every representation
+         ; some operator implementations may not exist
+         (define types (remove-duplicates (cons otype (map cdr itypes))))
+         (for ([tsubst (in-list (type-combinations types reprs))])
+            ;; Strange corner case:
+            ;; Rules containing comparators cause desugaring to misbehave.
+            ;; The reported output type is bool but then desugaring
+            ;; thinks there will be a cast somewhere
+            (define otype* (dict-ref tsubst otype))
+            (define sugar-otype
+              (if (equal? otype 'bool)
+                  (dict-ref tsubst 'real (get-representation 'bool))
+                  otype*))
+
+           (define itypes* (map (λ (p) (cons (car p) (dict-ref tsubst (cdr p)))) itypes))
+           (define sugar-ctx (context (map car itypes) sugar-otype (map cdr itypes*)))
+
+           ;; The easier way to tell if every operator is supported
+           ;; in a given representation is to just try to desguar
+           ;; the expression and catch any errors.
+           (with-handlers ([exn:fail:user:herbie:missing? (const (void))])
+             (define name* (sym-append name '_ (repr->symbol sugar-otype)))
+             (define input* (spec->prog input sugar-ctx))
+             (define output* (spec->prog output sugar-ctx))
+             (when (andmap
+                     (curry set-member? impls)
+                     (filter-not
+                       (curry eq? 'if)
+                       (append (ops-in-expr input*) (ops-in-expr output*))))
+               (sow (rule name* input* output* itypes* otype*)))))]))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Racket egraph
@@ -810,8 +892,8 @@
 ;; then take their intersection: the result represents the set
 ;; of possibly types that the `if` node can take
 (define (if-node-type ift-types iff-types)
-  (define ift-type (apply type/union ift-types))
-  (define iff-type (apply type/union iff-types))
+  (define ift-type (apply type/union #f ift-types))
+  (define iff-type (apply type/union #f iff-types))
   (type/intersect ift-type iff-type))
 
 ;; Computes the type signature of every eclass.
@@ -966,14 +1048,17 @@
        [_ (hash-set! table type #f)]))
      (vector-set! costs id table))
 
-  ; We cache whether it is safe to apply the cost function on a particular node.
-  ; Once `#t` we need not check the `cost` vector to know if it is safe.
+  ; We cache whether it is safe to apply the cost function on a given node
+  ; for a particular type; once `#t` we need not check the `cost` vector
+  ; to know if it is safe.
   (define ready?-vec
     (for/vector #:length n ([id (in-range n)])
       (define eclass (vector-ref eclasses id))
-      (define num-enodes (vector-length eclass))
-      (for/vector #:length num-enodes ([_ (in-range num-enodes)])
-        (box #f))))
+      (define node-types (vector-ref eclass-types id))
+      (for/vector #:length (vector-length eclass) ([ty (in-vector node-types)])
+        (match ty
+          [(list 'or tys ...) (map (lambda (_) (box #f)) tys)]
+          [_ (box #f)]))))
 
   (define (slow-node-ready? node type)
     (match node
@@ -989,7 +1074,7 @@
   ; Computes the current cost of a node if its children have a cost
   ; Cost function has access to a mutable value through `cache`
   (define cache (box #f))
-  (define (node-cost node ready? type)
+  (define (node-cost node type ready?)
     (and (or (not (node-has-children? node))
              (unbox ready?)
              (let ([v (slow-node-ready? node type)])
@@ -1001,8 +1086,8 @@
   ; Returns #t if the cost of the current eclass has improved.
   (define (eclass-set-cost! _ changed?-vec iter eclass id)
     (define node-types (vector-ref eclass-types id))
-    (define node-ready? (vector-ref ready?-vec id))
     (define eclass-costs (vector-ref costs id))
+    (define ready?/node (vector-ref ready?-vec id))
     (define updated? #f)
 
     ; Update cost information
@@ -1026,18 +1111,18 @@
 
     ; Iterate over the nodes
     (for ([node (in-vector eclass)]
-          [ready? (in-vector node-ready?)]
-          [type (in-vector node-types)])
-      (match type
+          [ty (in-vector node-types)]
+          [ready? (in-vector ready?/node)])
+      (match ty
         [(list 'or tys ...) ; node is a union type (only for some `if` nodes)
-         (for ([ty (in-list tys)])
+         (for ([ty (in-list tys)] [ready? (in-list ready?)])
            (when (node-requires-update? node)
-             (define new-cost (node-cost node ready? ty))
+             (define new-cost (node-cost node ty ready?))
              (update-cost! ty new-cost node)))]
         [_ ; node is either untyped (constant) or has a specific type
          (when (node-requires-update? node)
-           (define new-cost (node-cost node ready? type))
-           (update-cost! type new-cost node))]))
+           (define new-cost (node-cost node ty ready?))
+           (update-cost! ty new-cost node))]))
 
     updated?)
 
@@ -1076,7 +1161,6 @@
   (lambda (id type)
     (cons (unsafe-eclass-cost id type +inf.0)
           (build-expr id type))))
-
 
 ;; Per-node cost function according to the platform
 ;; `rec` takes an id, type, and failure value
@@ -1301,127 +1385,6 @@
       (egraph-find egg-graph id)))
   ; return what we need
   (values node-ids* egg-graph (or regraph (make-regraph egg-graph))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Rule filtering
-;;
-;; Generally, we want to call egg with specific rulesets.
-;; This section defines common filters that we use.
-
-;; Spec contains no accelerators
-(define (spec-has-accelerator? spec)
-  (match spec
-    [(list (? accelerator?) _ ...) #t]
-    [(list _ args ...) (ormap spec-has-accelerator? args)]
-    [_ #f]))
-
-(define (real-rules rules)
-  (filter-not
-    (lambda (rule)
-      (or (representation? (rule-otype rule))
-          (spec-has-accelerator? (rule-input rule))
-          (spec-has-accelerator? (rule-output rule))))
-    rules))
-
-;; Rules from spec to impl
-;; These are fixed for a a particular platform
-(define-resetter *lowering-rules*
-  (λ () (make-hash))
-  (λ () (make-hash)))
-
-(define (platform-lowering-rules)
-  (define impls (platform-impls (*active-platform*)))
-  (for/list ([impl (in-list impls)])
-    (hash-ref! (*lowering-rules*)
-               (cons impl (*active-platform*))
-               (lambda ()
-                 (define op (impl->operator impl))
-                 (define itypes (operator-info op 'itype))
-                 (define otype (operator-info op 'otype))
-                 (cond
-                   [(accelerator? op)
-                    ; accelerator lowering
-                    (define vars (accelerator-info op 'vars))
-                    (rule (sym-append 'accelerator-lowering- impl)
-                          (accelerator-info op 'body)
-                          (cons impl (accelerator-info op 'vars))
-                          (map cons vars itypes)
-                          otype)]
-                   [else
-                    ; direct lowering
-                    (define vars (map (lambda (_) (gensym)) itypes))
-                    (rule (sym-append op '-lowering- impl)
-                          (cons op vars)
-                          (cons impl vars)
-                          (map cons vars itypes)
-                          otype)])))))
-
-;; Computes the product of all possible representation assignments to types.
-(define (type-combinations types reprs)
-  (reap [sow]
-    (let loop ([types types] [assigns '()])
-      (match types
-        [(? null?) (sow assigns)]
-        [(list type rest ...)
-         (for ([repr (in-list reprs)])
-           (when (equal? (representation-type repr) type)
-             (loop rest (cons (cons type repr) assigns))))]))))
-
-;; Representation name sanitizer (also in <herbie>/platform.rkt)
-(define (repr->symbol repr)
-  (define replace-table `((" " . "_") ("(" . "") (")" . "")))
-  (define repr-name (representation-name repr))
-  (string->symbol (string-replace* (~a repr-name) replace-table)))
-
-;; Instantiates rules from implementation to implementation in the platform.
-;; If a rule is over implementations, filters by supported implementations.
-;; If a rule is over real operators, instantiates for every possible output type.
-(define (platform-impl-rules rules)
-  (define reprs (platform-reprs (*active-platform*)))
-  (define impls (list->set (platform-impls (*active-platform*))))
-  (reap [sow]
-    (for ([ru (in-list rules)])
-      (match-define (rule name input output itypes otype) ru)
-      (cond
-        [(symbol? input) (void)] ; expansive rules
-        [(representation? otype) ; rule over representation
-         (when (andmap
-                 (curry set-member? impls)
-                 (filter-not
-                   (curry eq? 'if)
-                   (append (ops-in-expr input) (ops-in-expr output))))
-           (sow ru))]
-        [else
-         ; rule over types need to be instantiated for every representation
-         ; some operator implementations may not exist
-         (define types (remove-duplicates (cons otype (map cdr itypes))))
-         (for ([tsubst (in-list (type-combinations types reprs))])
-            ;; Strange corner case:
-            ;; Rules containing comparators cause desugaring to misbehave.
-            ;; The reported output type is bool but then desugaring
-            ;; thinks there will be a cast somewhere
-            (define otype* (dict-ref tsubst otype))
-            (define sugar-otype
-              (if (equal? otype 'bool)
-                  (dict-ref tsubst 'real (get-representation 'bool))
-                  otype*))
-
-           (define itypes* (map (λ (p) (cons (car p) (dict-ref tsubst (cdr p)))) itypes))
-           (define sugar-ctx (context (map car itypes) sugar-otype (map cdr itypes*)))
-
-           ;; The easier way to tell if every operator is supported
-           ;; in a given representation is to just try to desguar
-           ;; the expression and catch any errors.
-           (with-handlers ([exn:fail:user:herbie:missing? (const (void))])
-             (define name* (sym-append name '_ (repr->symbol sugar-otype)))
-             (define input* (spec->prog input sugar-ctx))
-             (define output* (spec->prog output sugar-ctx))
-             (when (andmap
-                     (curry set-member? impls)
-                     (filter-not
-                       (curry eq? 'if)
-                       (append (ops-in-expr input*) (ops-in-expr output*))))
-               (sow (rule name* input* output* itypes* otype*)))))]))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Public API

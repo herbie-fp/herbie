@@ -387,23 +387,32 @@
 
 ; TODO: restore final simplify
 (define (final-simplify! alts)
-  alts)
-  ; (cond
-  ;   [(flag-set? 'generate 'simplify)
-  ;    (timeline-event! 'simplify)
+  (cond
+    [(flag-set? 'generate 'simplify)
+     (timeline-event! 'simplify)
 
-  ;    (define input-progs (map alt-expr alts))
-  ;    (define egg-query (make-egg-query input-progs (*fp-safe-simplify-rules*) #:const-folding? #f))
-  ;    (define simplified (map last (simplify-batch egg-query)))
+     (define progs (map alt-expr alts))
+     (define reprs (map (lambda (prog) (repr-of prog (*context*))) progs))
+     (define rules (platform-impl-rules (*fp-safe-simplify-rules*)))
 
-  ;    (remove-duplicates
-  ;     (for/list ([altn (in-list alts)] [prog (in-list simplified)])
-  ;       (if (equal? (alt-expr altn) prog)
-  ;           altn
-  ;           (alt prog 'final-simplify (list altn) (alt-preprocessing altn))))
-  ;     alt-equal?)]
-  ;   [else
-  ;    alts]))
+     ; egg runner
+     (define egg-query
+       (make-egg-query progs
+                       reprs
+                       `((run ,rules ((node . ,(*node-limit*)) (const-fold? . #f))))
+                       #:extractor (typed-egg-extractor platform-egg-cost-proc)))
+
+     ; run egg
+     (define simplified (map last (simplify-batch egg-query)))
+
+     ; de-duplication
+     (remove-duplicates
+        (for/list ([altn (in-list alts)] [prog (in-list simplified)])
+          (if (equal? (alt-expr altn) prog)
+              altn
+              (alt prog 'final-simplify (list altn) (alt-preprocessing altn))))
+        alt-equal?)]
+    [else alts]))
 
 (define (add-soundness! alts)
   (cond
