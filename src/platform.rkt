@@ -759,8 +759,7 @@
          (define itypes (impl-info impl 'itype))
          (apply + (platform-impl-cost pform impl) (map loop args itypes))]
         [_
-         ;; TODO: repr->cost is not mentioned anywhere else in the codebase. Is this right?
-         (repr->cost pform repr)]))))
+         (platform-repr-cost pform repr)]))))
 
 (define (extract-platform-name value)
   (match value
