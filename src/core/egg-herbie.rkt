@@ -851,6 +851,15 @@
 ;;  - <type-name>: type-name type
 ;;  - #f: inconclusive (possible result of `if` type during analysis)
 
+;; Is `ty2` in `ty1`?
+;; Restricting `ty1` to be non-`#f` and not a union type.
+(define (has-type? ty1 ty2)
+  (match* (ty1 ty2)
+    [(_ #f) #f]
+    [(#t _) #t]
+    [((list 'or tys ...) _) (set-member? tys ty2)]
+    [(_ _) (equal? ty1 ty2)]))
+
 ;; Applying the union operation over types
 (define (type/union ty0 . tys)
   (match tys
@@ -860,6 +869,8 @@
             (match* (ty0 ty1)
               [(#t _) #t]
               [(_ #t) #t]
+              [(#f _) ty1]
+              [(_ #f) ty0]
               [((list 'or tys1 ...) (list 'or tys2 ...))
                (cons 'or (set-intersect tys1 tys2))]
               [((list 'or tys1 ...) ty)
@@ -896,10 +907,9 @@
   (define iff-type (apply type/union #f iff-types))
   (type/intersect ift-type iff-type))
 
-;; Computes the type signature of every eclass.
-;; The result is a vector of vectors (one for each node) of types.
-(define (regraph-node-types regraph)
-  (define egg->herbie (regraph-egg->herbie regraph))
+;; Computes the set of extractable types for each eclass.
+(define (regraph-eclass-types egraph)
+  (define egg->herbie (regraph-egg->herbie egraph))
 
   (define (node-type analysis node)
     (match node
@@ -908,82 +918,114 @@
       [(list 'if _ ift iff)
        (define ift-types (vector-ref analysis ift))
        (define iff-types (vector-ref analysis iff))
-       (and ift-types
-            iff-types
-            (if-node-type
-              (filter identity (vector->list ift-types))
-              (filter identity (vector->list iff-types))))]
-      [(list (? impl-exists? op) _ ...) (impl-info op 'otype)]
-      [(list op _ ...) (operator-info op 'otype)]))
+       (and ift-types iff-types (type/intersect ift-types iff-types))]
+      [(list (? impl-exists? impl) ids ...)
+       (and (andmap has-type?
+                    (map (curry vector-ref analysis) ids) 
+                    (impl-info impl 'itype))
+            (impl-info impl 'otype))]
+      [(list op ids ...)
+       (and (andmap has-type?
+                    (map (curry vector-ref analysis) ids) 
+                    (operator-info op 'itype))
+            (operator-info op 'otype))]))
 
-  (define (eclass-set-types! analysis _ iter eclass id)
-    (define eclass-analysis (vector-ref analysis id))
+  (define (eclass-set-type! analysis changed?-vec _ eclass id)
+    (define ty (vector-ref analysis id))
+    (define changed? #f)
     (cond
-      [(and eclass-analysis
-            (andmap identity (vector->list eclass-analysis)))
-       #f]
-      [else
-       (define node-types
-         (for/list ([node (in-vector eclass)])
-           (node-type analysis node)))
-       (vector-set! analysis id (list->vector node-types))
-       #t]))
+      [ty ; revisiting an eclass
+       (define ty*
+         (apply type/union ty
+                (filter-map ; only nodes (with children) with an updated child analysis
+                  (lambda (node)
+                    (and (node-has-children? node)
+                         (ormap (curry vector-ref changed?-vec) (cdr node))
+                         (andmap (curry vector-ref analysis) (cdr node))
+                         (node-type analysis node)))
+                  (vector->list eclass))))
+       (unless (equal? ty ty*)
+         (vector-set! analysis id ty*)
+         (set! changed? #t))]
+      [else ; first visit to eclass
+       (define ty*
+         (apply type/union #f
+                (filter-map ; only leaves or nodes whose children have analyses
+                  (lambda (node)
+                    (and (or (not (node-has-children? node))
+                             (andmap (curry vector-ref analysis) (cdr node)))
+                         (node-type analysis node)))
+                  (vector->list eclass))))
+       (when ty*
+         (vector-set! analysis id ty*)
+         (set! changed? #t))])
 
-  (regraph-analyze regraph eclass-set-types!))
+    changed?)
 
-;; Prunes enodes that do not type check.
-;; The rules:
-;;  - an eclass with a variable can only have the same type as that variable;
-;;    eclass may have potentially multiple variables (sounds like unsoundness?)
-(define (regraph-prune-types egraph)
+  (regraph-analyze egraph eclass-set-type!))
+
+;; Type checks the egraph, returning a copy of the egraph that only
+;; contains the well-typed nodes.
+(define (regraph-type-check egraph)
   (define eclasses (regraph-eclasses egraph))
-  (define has-leaf? (regraph-has-leaf? egraph))
   (define egg->herbie (regraph-egg->herbie egraph))
   (define n (vector-length eclasses))
 
-  ;; compute node types
-  (define eclass-types (regraph-node-types egraph))
+  ; Compute valid types for each eclass
+  (define eclass-types (regraph-eclass-types egraph))
 
-  ;; prune nodes  
+  ; The return type of a node
+  (define (node-type node)
+    (match node
+      [(? number?) #t]
+      [(? symbol?) (cdr (hash-ref egg->herbie node))]
+      [(list 'if _ ift iff)
+       (define ift-types (vector-ref eclass-types ift))
+       (define iff-types (vector-ref eclass-types iff))
+       (and ift-types iff-types (type/intersect ift-types iff-types))]
+      [(list (? impl-exists? op) _ ...) (impl-info op 'otype)]
+      [(list op _ ...) (operator-info op 'otype)]))
+
+  ; Prune any nodes that are not well-typed
   (define eclasses*
     (for/vector #:length n ([id (in-range n)])
       (define eclass (vector-ref eclasses id))
-      (cond
-        [(vector-ref has-leaf? id)
-         ; variable possibly in eclass
-         (define node-types (vector-ref eclass-types id))
-         ; filter for variable types
-         (define tys
-           (remove-duplicates
-             (filter-map
-               (lambda (node)
-                 (and (symbol? node) (cdr (hash-ref egg->herbie node))))
-               (vector->list eclass))))
-         (cond
-           [(null? tys) eclass]
-           [else
-            (list->vector ; only keep nodes that have the same type as one of the variables
-              (filter-map
-                (lambda (node type)
-                  (and (ormap
-                         (lambda (ty)
-                           (or (eq? type #t) (eq? type ty)))
-                         tys)
-                       node))
-                (vector->list eclass)
-                (vector->list node-types)))])]
-        [else
-         ; no variables in eclass
-         eclass])))
-
-  ; check invariant
-  (for ([id (in-range n)])
-    (when (vector-empty? (vector-ref eclasses* id))
-      (error 'regraph-prune-specs "invariant violated: eclass contains no enodes")))
+      (define ty (vector-ref eclass-types id))
+      (list->vector
+        (filter
+          (lambda (node) (has-type? ty (node-type node)))
+          (vector->list eclass)))))
   
-  ; the pruned regraph
   (struct-copy regraph egraph [eclasses eclasses*]))
 
+;; Computes the return type of every node.
+;; Assumes type checking has already pruned invalid nodes.
+;; The result is a vector of vectors (one for each node) of types.
+(define (regraph-node-types egraph)
+  (define eclasses (regraph-eclasses egraph))
+  (define egg->herbie (regraph-egg->herbie egraph))
+  (define n (vector-length eclasses))
+
+  ; Compute valid types for each eclass
+  (define eclass-types (regraph-eclass-types egraph))
+
+  ; The return type of a node
+  (define (node-type node)
+    (match node
+      [(? number?) #t]
+      [(? symbol?) (cdr (hash-ref egg->herbie node))]
+      [(list 'if _ ift iff)
+       (define ift-types (vector-ref eclass-types ift))
+       (define iff-types (vector-ref eclass-types iff))
+       (and ift-types iff-types (type/intersect ift-types iff-types))]
+      [(list (? impl-exists? op) _ ...) (impl-info op 'otype)]
+      [(list op _ ...) (operator-info op 'otype)]))
+
+  ; compute node types
+  (for/vector #:length n ([id (in-range n)])
+    (define eclass (vector-ref eclasses id))
+    (for/vector #:length (vector-length eclass) ([node (in-vector eclass)])
+      (node-type node))))
 
 ;; The typed extraction algorithm.
 ;; Extraction is partial, that is, the result of the extraction
@@ -991,7 +1033,7 @@
 ;; at a particular id with a particular output type.
 (define ((typed-egg-extractor cost-proc) regraph)
   ; first: prune unwanted nodes that will make the analysis crash
-  (set! regraph (regraph-prune-types regraph))
+  (set! regraph (regraph-type-check regraph))
 
   ; some important regraph fields
   (define eclasses (regraph-eclasses regraph))
@@ -1119,7 +1161,12 @@
            (when (node-requires-update? node)
              (define new-cost (node-cost node ty ready?))
              (update-cost! ty new-cost node)))]
-        [_ ; node is either untyped (constant) or has a specific type
+        [#t ; node is untyped (constant)
+         (when (node-requires-update? node)
+           (define new-cost (node-cost node ty ready?))
+           (for ([ty (in-list (hash-keys eclass-costs))])
+             (update-cost! ty new-cost node)))]
+        [_ ; node has a specific type
          (when (node-requires-update? node)
            (define new-cost (node-cost node ty ready?))
            (update-cost! ty new-cost node))]))
@@ -1183,33 +1230,6 @@
             (for/list ([arg (in-list args)] [itype (in-list itypes)])
               (rec arg itype +inf.0)))]
     [(list _ ...) +inf.0])) ; specs
-
-;; Prunes any real operator nodes from a regraph.
-(define (regraph-prune-specs re)
-  (define eclasses (regraph-eclasses re))
-  (define n (vector-length eclasses))
-
-  (define eclasses*
-    (for/vector #:length n ([id (in-range n)])
-      (define eclass (vector-ref eclasses id))
-      (define eclass*
-        (reap [sow]
-          (for ([node (in-vector eclass)])
-            (match node
-              [(? number?) (sow node)] ; number
-              [(? symbol?) (sow node)] ; variable
-              [(list 'if _ ...) (sow node)] ; `if` expression
-              [(list (? impl-exists?) _ ...) (sow node)] ; impl
-              [(list _ ...) (void)]))))
-      (if (null? eclass*)
-          (vector (vector-ref eclass 0))
-          (list->vector eclass*))))
-
-  ; invariant: all eclasses need at least one enode
-  (when (for/or ([eclass (in-vector eclasses*)]) (vector-empty? eclass))
-    (error 'regraph-prune-specs "invariant violated: eclass contains no enodes"))
-  (struct-copy regraph re [eclasses eclasses*]))
-
 
 ;; Extracts the best expression according to the extractor.
 ;; Result is a single element list.
@@ -1285,11 +1305,12 @@
          (match param
            [(cons 'node (? nonnegative-integer?)) (void)]
            [(cons 'iteration (? nonnegative-integer?)) (void)]
+           [(cons 'const-fold? (? boolean?)) (void)]
            [(cons 'scheduler mode)
             (unless (set-member? '(simple backoff) mode)
               (oops! "in instruction `~a`, unknown scheduler `~a`" instr mode))]
            [_ (oops! "in instruction `~a`, unknown parameter `~a`" instr param)]))]
-      [(list 'prune-spec) (void)]
+      [(list 'type-check) (void)]
       [(list 'convert) (void)]
       [_ (oops! "unknown instruction `~a`" instr)])))
 
@@ -1368,11 +1389,11 @@
          (when regraph
            (oops! 'convert "requires a Rust egraph (was this run after a `convert` instruction?)"))
          (values egg-graph (make-regraph egg-graph))]
-        [(list 'prune-spec)
-         ; `prune-spec` instruction
+        [(list 'type-check)
+         ; `type-check` instruction
          (unless regraph
-           (oops! 'prune-spec "can only execute after a `convert` instruction"))
-         (values egg-graph (regraph-prune-specs regraph))]
+           (oops! 'type-check "can only execute after a `convert` instruction"))
+         (values egg-graph (regraph-type-check regraph))]
         [_ (error 'egraph-run-schedule "unimplemented: ~a" instr)])))
 
   ; report rule statistics

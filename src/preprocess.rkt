@@ -32,9 +32,7 @@
   ; egg schedule (2-phases for real rewrites and implementation selection)
   (define schedule
     `((run ,rules ((node . ,(*node-limit*))))
-      (run ,lowering-rules ((iteration . 1) (scheduler . simple)))
-      (convert)
-      (prune-spec)))
+      (run ,lowering-rules ((iteration . 1) (scheduler . simple)))))
 
   ; egg query
   (define spec (expand-accelerators (*rules*) (prog->spec init)))
