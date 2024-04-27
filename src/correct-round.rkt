@@ -1,15 +1,15 @@
 #lang racket
 
-(require math/bigfloat math/flonum rival)
+(require math/bigfloat (only-in math/flonum flonums-between) rival)
 (require (only-in math/private/bigfloat/mpfr mpfr-exp mpfr-sign))
 ;; Faster than bigfloat-exponent and avoids an expensive offset & contract check.
-(require "syntax/syntax.rkt" "syntax/types.rkt"
-         "common.rkt" "timeline.rkt" "float.rkt" "config.rkt")
+(require (only-in "syntax/syntax.rkt" operator-info)
+         (only-in "common.rkt" *max-mpfr-prec* *sampling-iteration* *max-sampling-iterations* *base-tuning-precision* *ampl-tuning-bits*)
+         (only-in "timeline.rkt" timeline-push! timeline-start!/unsafe))
 
 (provide compile-spec compile-specs)
 
-(define (make-progs-interpreter name vars ivec roots)
-  (define rootvec (list->vector roots))
+(define (make-progs-interpreter vars ivec rootvec)
   (define rootlen (vector-length rootvec))
   (define iveclen (vector-length ivec))
   (define varc (length vars))
@@ -20,39 +20,36 @@
   (define vstart-precs (setup-vstart-precs ivec varc)) ; starting precisions for the tuning mode
 
   (define prec-threshold (/ (*max-mpfr-prec*) 25))     ; parameter for sampling histogram table
-  (if (equal? name 'ival)
-      (λ args
-        (define timeline-stop! (timeline-start!/unsafe 'mixsample "backward-pass"
-                                                       (* (*sampling-iteration*) 1000)))
-        (if (zero? (*sampling-iteration*))
-            (vector-fill! vrepeats #f)
-            (backward-pass ivec varc vregs vprecs vstart-precs rootvec rootlen vrepeats)) ; back-pass
-        (timeline-stop!)
+
+  (define (compiled-spec . args)
+    (define timeline-stop!
+      (timeline-start!/unsafe
+       'mixsample "backward-pass" (* (*sampling-iteration*) 1000)))
+    (define first-iter? (zero? (*sampling-iteration*)))
+    (if first-iter?
+        (vector-fill! vrepeats #f)
+        (backward-pass ivec varc vregs vprecs vstart-precs rootvec rootlen vrepeats))
+    (timeline-stop!)
         
-        (for ([arg (in-list args)] [n (in-naturals)])
-          (vector-set! vregs n arg))
-        (for ([instr (in-vector ivec)] [n (in-naturals varc)]
-                                       [precision (in-vector (if (zero? (*sampling-iteration*)) vstart-precs vprecs))]
-                                       [repeat (in-vector vrepeats)]
-                                       #:unless repeat)
-          (define timeline-stop! (timeline-start!/unsafe 'mixsample
-                                                         (symbol->string (object-name (car instr)))
-                                                         (- precision (remainder precision prec-threshold))))
-          (parameterize ([bf-precision precision])
-            (vector-set! vregs n (apply-instruction instr vregs)))
-          (timeline-stop!))
-        
-        (for/vector #:length rootlen ([root (in-vector rootvec)])
-          (vector-ref vregs root)))
-   
-      ; name is 'fl
-      (λ args
-        (for ([arg (in-list args)] [n (in-naturals)])
-          (vector-set! vregs n arg))
-        (for ([instr (in-vector ivec)] [n (in-naturals varc)])
-          (vector-set! vregs n (apply-instruction instr vregs)))
-        (for/vector #:length rootlen ([root (in-vector rootvec)])
-          (vector-ref vregs root)))))
+    (for ([arg (in-list args)] [n (in-naturals)])
+      (vector-set! vregs n arg))
+    (for ([instr (in-vector ivec)]
+          [n (in-naturals varc)]
+          [precision (in-vector (if first-iter? vstart-precs vprecs))]
+          [repeat (in-vector vrepeats)]
+          #:unless repeat)
+      (define timeline-stop!
+        (timeline-start!/unsafe
+         'mixsample (symbol->string (object-name (car instr)))
+         (- precision (remainder precision prec-threshold))))
+      (parameterize ([bf-precision precision])
+        (vector-set! vregs n (apply-instruction instr vregs)))
+      (timeline-stop!))
+    
+    (for/vector #:length rootlen ([root (in-vector rootvec)])
+      (vector-ref vregs root)))
+  
+  compiled-spec)
 
 (define (apply-instruction instr regs)
   ;; By special-casing the 0-3 instruction case,
@@ -74,98 +71,87 @@
     [(list op args ...)
      (apply op (map (curryr vector-ref regs) args))]))
 
-(define (make-compiler name
-                       #:input->value input->value
-                       #:op->procedure op->proc
-                       #:op->itypes op->itypes
-                       #:if-procedure if-proc)
-  (lambda (exprs vars)
-    ;; Instruction cache
-    (define icache '())
-    (define exprhash
-      (make-hash
-       (for/list ([var vars] [i (in-naturals)])
-         (cons var i))))
-    ; Counts
-    (define size 0)
-    (define exprc 0)
-    (define varc (length vars))
+(define (progs->batch exprs vars)
+  (define icache (reverse vars))
+  (define exprhash
+    (make-hash
+     (for/list ([var vars] [i (in-naturals)])
+       (cons var i))))
+  ; Counts
+  (define size 0)
+  (define exprc 0)
+  (define varc (length vars))
 
-    ; Translates programs into an instruction sequence of operations
-    (define (munge prog)
-      (set! size (+ 1 size))
-      (define instruction ; This compiles to the register machine
-        (match prog
-          [(? number?) prog]
-          [(? literal?) prog]
-          [(? variable?) prog]
-          [`(if ,c ,t ,f)
-           (list 'if (munge c) (munge t) (munge f))]
-          [(list op args ...)
-           (cons op (map munge args))]
-          [_ (raise-argument-error 'compile-specs "Not a valid expression!" prog)]))
-      (hash-ref! exprhash instruction
-                 (λ ()
-                   (define expr ; Think links to actual functions to execute
-                     (match instruction
-                       [(? number? value)
-                        (list (const (input->value value 'real)))]
-                       [(literal value (app get-representation repr))
-                        (list (const (input->value value repr)))]
-                       ;No (? variable? var) case, already in the cache
-                       [`(if ,c ,t ,f) (list if-proc c t f)]
-                       [(list op args ...) (cons (op->proc op) args)]))
-                   (begin0 (+ exprc varc) ; store in cache, update exprs, exprc
-                     (set! exprc (+ 1 exprc))
-                     (set! icache (cons expr icache))))))
-    
-    (define names (map munge exprs))
+  ; Translates programs into an instruction sequence of operations
+  (define (munge prog)
+    (set! size (+ 1 size))
+    (define node ; This compiles to the register machine
+      (match prog
+        [(list op args ...)
+         (cons op (map munge args))]
+        [_
+         prog]))
+    (hash-ref! exprhash node
+               (lambda ()
+                 (begin0 (+ exprc varc) ; store in cache, update exprs, exprc
+                   (set! exprc (+ 1 exprc))
+                   (set! icache (cons node icache))))))
 
-    (timeline-push! 'compiler (+ varc size) (+ exprc varc))
-    (define ivec (list->vector (reverse icache)))
-    (make-progs-interpreter name vars ivec names)))
+  (define roots (list->vector (map munge exprs)))
+  (define nodes (list->vector (reverse icache)))
+
+  (timeline-push! 'compiler (+ varc size) (+ exprc varc))
+  (values nodes roots))
+
+(define (make-compiler exprs vars)
+  (define num-vars (length vars))
+  (define-values (nodes roots)
+    (progs->batch exprs vars))
+
+  (define instructions
+    (for/vector #:length (- (vector-length nodes) num-vars)
+                ([node (in-vector nodes num-vars)])
+      (match node
+        [(? number?)
+         (define x (real->ival node))
+         (if (point-ival? x)
+             (list (const x))
+             (list (lambda () (real->ival node))))]
+        [(list 'if c y f)
+         (list ival-if c y f)]
+        [(list op args ...)
+         (cons (operator-info op 'ival) args)])))
+
+  (make-progs-interpreter vars instructions roots))
+
+(define (real->ival val)
+  (define lo (parameterize ([bf-rounding-mode 'down]) (bf val)))
+  (define hi (parameterize ([bf-rounding-mode 'up]) (bf val)))
+  (ival lo hi))
+
+(define (point-ival? x)
+  (bf= (ival-lo x) (ival-hi x)))
 
 (define (compile-specs specs vars)
-  ; strangeness with specs: need to check for `repr-conv?` operators
-  ; normally we'd call `repr-conv?` from `src/syntax/syntax.rkt`
-  ; but it will check the entire table of operators every call,
-  ; so greedily compute the set ahead of time
-  (define repr-convs (operator-all-impls 'cast))
-  (define (real-op op)
-    (if (member op repr-convs)
-        (impl->operator op)
-        op))
-
-  (define compile
-    (make-compiler 'ival
-                   #:input->value
-                   (lambda (prog _)
-                     (define lo (parameterize ([bf-rounding-mode 'down]) (bf prog)))
-                     (define hi (parameterize ([bf-rounding-mode 'up]) (bf prog)))
-                     (ival lo hi))
-                   #:op->procedure (lambda (op) (operator-info (real-op op) 'ival))
-                   #:op->itypes (lambda (op) (operator-info (real-op op) 'itype))
-                   #:if-procedure ival-if))
-  (compile specs vars))
+  (make-compiler specs vars))
 
 ;; Like `compile-specs`, but for a single spec.
 (define (compile-spec spec vars)
   (define core (compile-specs (list spec) vars))
-  (define (<compiled-spec> . xs) (vector-ref (apply core xs) 0))
-  <compiled-spec>)
+  (define (compiled-spec . xs) (vector-ref (apply core xs) 0))
+  compiled-spec)
 
 (define (backward-pass ivec varc vregs vprecs vstart-precs rootvec rootlen vrepeats)
   (define vprecs-new (make-vector (vector-length ivec) 0))          ; new vprecs vector
   ; Step 1. Adding slack in case of a rounding boundary issue
-  (for/vector #:length rootlen ([root-reg (in-vector rootvec)])
-    (when (and
-           (<= varc root-reg)                                       ; when root is not a variable
-           (bigfloat? (ival-lo (vector-ref vregs root-reg))))       ; when root is a real op
+  (for/vector #:length rootlen ([root-reg (in-vector rootvec)]
+                                #:when (>= root-reg varc))
+    (when (bigfloat? (ival-lo (vector-ref vregs root-reg))) ; when root is a real op
       (define result (vector-ref vregs root-reg))
-      (when
-          (equal? 1 (flonums-between
+      (define ulps (flonums-between
                      (bigfloat->flonum (ival-lo result))
                      (bigfloat->flonum (ival-hi result))))
+      (when (equal? 1 ulps)
         (vector-set! vprecs-new (- root-reg varc) (get-slack)))))
 
   ; Since Step 2 writes into *sampling-iteration* if the max prec was reached - save the iter number for step 3
@@ -518,7 +504,6 @@
     [3 2048]
     [4 4096]
     [5 8192]))
-
 
 ; Function sets up vstart-precs vector, where all the precisions
 ; are equal to (+ (*base-tuning-precision*) (* depth (*ampl-tuning-bits*))),
