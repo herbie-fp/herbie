@@ -18,6 +18,7 @@
 (define-runtime-module-path math-platform "platforms/math.rkt")
 (define-runtime-module-path mkl-platform "platforms/mkl.rkt")
 (define-runtime-module-path python-platform "platforms/python3-10.rkt")
+(define-runtime-module-path julia-platform "platforms/julia1-10.rkt")
 (define-runtime-module-path avx-platform "platforms/avx.rkt")
 (define-runtime-module-path numpy-platform "platforms/numpy.rkt")
 
@@ -37,6 +38,7 @@
   (dynamic-require math-platform #f)
   (dynamic-require mkl-platform #f)
   (dynamic-require python-platform #f)
+  (dynamic-require julia-platform #f)
   (dynamic-require avx-platform #f)
   (dynamic-require numpy-platform #f)
   ;; activate the default platform
