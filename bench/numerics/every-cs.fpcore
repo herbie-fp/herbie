@@ -4,12 +4,12 @@
  :name "The quadratic formula (r1)"
  :alt 
  (! :description (platform libm)
-  (let ((d (- (* b b) (* 4 a c))))
+  (let ((d (- (* b b) (* (* 4 a) c))))
    (let ((r1 (/ (+ (- b) (sqrt d)) (* 2 a))))
      (let ((r2 (/ (- (- b) (sqrt d)) (* 2 a))))
        (if (< b 0) r1 (/ c (* a r2)))))))
 
- (let ((d (- (* b b) (* 4 a c))))
+ (let ((d (- (* b b) (* (* 4 a) c))))
    (/ (+ (- b) (sqrt d)) (* 2 a))))
 
 (FPCore (a b c)
@@ -38,8 +38,8 @@
  (! :description (platform libm)
   (/ (sqrt (* (+ a (+ b c)) (- c (- a b)) (+ c (- a b)) (+ a (- b c)))) 4))
 
- (let ((s (/ (+ a b c) 2)))
-   (sqrt (* s (- s a) (- s b) (- s c)))))
+ (let ((s (/ (+ (+ a b) c) 2)))
+   (sqrt (* (* (* s (- s a)) (- s b)) (- s c)))))
 
 (FPCore (x)
  :name "ln(1 + x)"
