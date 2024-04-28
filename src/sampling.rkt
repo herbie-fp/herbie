@@ -72,14 +72,16 @@
     (raise-herbie-sampling-error "No valid values." #:url "faq.html#no-valid-values"))
   (define hyperrects (list->vector hyperrects*))
   (define lo-ends
-    (for/vector ([hyperrect hyperrects])
-      (for/list ([interval hyperrect] [repr reprs])
+    (for/vector #:length (vector-length hyperrects)
+                ([hyperrect (in-vector hyperrects)])
+      (for/list ([interval (in-list hyperrect)] [repr (in-list reprs)])
         ((representation-repr->ordinal repr)
          ((representation-bf->repr repr)
           (ival-lo interval))))))
   (define hi-ends
-    (for/vector ([hyperrect hyperrects])
-      (for/list ([interval hyperrect] [repr reprs])
+    (for/vector #:length (vector-length hyperrects)
+                ([hyperrect (in-vector hyperrects)])
+      (for/list ([interval (in-list hyperrect)] [repr (in-list reprs)])
         (+ 1 
            ((representation-repr->ordinal repr)
             ((representation-bf->repr repr)
@@ -91,8 +93,8 @@
     (define idx (binary-search weights rand-ordinal))
     (define los (vector-ref lo-ends idx))
     (define his (vector-ref hi-ends idx))
-    (for/list ([lo (in-list los)] [hi (in-list his)] [repr reprs])
-      ((representation-ordinal->repr repr) (random-integer lo hi))))
+    (for/list ([lo (in-list los)] [hi (in-list his)] [repr (in-list reprs)])
+      ((representation-ordinal->repr repr) (random-integer lo hi)))))
 
 (module+ test
   (define two-point-hyperrects (list (list (ival (bf 0) (bf 0)) (ival (bf 1) (bf 1)))))
