@@ -6,7 +6,7 @@
            (< 0.1 v) (<= v 1.5707964))
  (let ([a (/ (* cosTheta_i cosTheta_O) v)]
        [b (/ (* sinTheta_i sinTheta_O) v)])
-  (/ (* (exp (- b)) a) (* (sinh (/ 1 v)) 2 v))))
+  (/ (* (exp (- b)) a) (* (* (sinh (/ 1 v)) 2) v))))
 
 (FPCore (cosTheta_i cosTheta_O sinTheta_i sinTheta_O v)
  :name "HairBSDF, Mp, lower"
@@ -16,7 +16,7 @@
            (<= -1.5707964 v 0.1))
  (let ([a (/ (* cosTheta_i cosTheta_O) v)]
        [b (/ (* sinTheta_i sinTheta_O) v)])
-  (exp (+ (- a b (/ 1 v)) 0.6931f0 (log (/ 1 (* 2 v)))))))
+  (exp (+ (+ (- (- a b) (/ 1 v)) 0.6931f0) (log (/ 1 (* 2 v)))))))
 
 (FPCore (u v)
  :name "HairBSDF, sample_f, cosTheta"
@@ -44,7 +44,7 @@
            (<= 0 maxCos 1))
  (let* ([cosTheta (+ (- 1 ux) (* ux maxCos))]
         [sinTheta (sqrt (- 1 (* cosTheta cosTheta)))]
-        [phi (* uy 2 PI)])
+        [phi (* (* uy 2) PI)])
   (* (cos phi) sinTheta)))
 
 (FPCore (ux uy maxCos)
@@ -55,7 +55,7 @@
            (<= 0 maxCos 1))
  (let* ([cosTheta (+ (- 1 ux) (* ux maxCos))]
         [sinTheta (sqrt (- 1 (* cosTheta cosTheta)))]
-        [phi (* uy 2 PI)])
+        [phi (* (* uy 2) PI)])
   (* (sin phi) sinTheta)))
 
 (FPCore (ux uy maxCos)
@@ -66,7 +66,7 @@
            (<= 0 maxCos 1))
  (let* ([cosTheta (+ (- 1 ux) (* ux maxCos))]
         [sinTheta (sqrt (- 1 (* cosTheta cosTheta)))]
-        [phi (* uy 2 PI)])
+        [phi (* (* uy 2) PI)])
   cosTheta))
 
 ;; Unsure on reasonable bounds for xi, yi, zi
@@ -76,11 +76,11 @@
  :pre (and (<= -1e4 xi 1e4) (<= -1e4 yi 1e4) (<= -1e4 zi 1e4)
            (<= 2.328306437e-10 ux 1) (<= 2.328306437e-10 uy 1)
            (<= 0 maxCos 1))
- (let* ([cosTheta (+ (* (- 1 ux) maxCos ux))] ; (lerp ux maxCos 1)
+ (let* ([cosTheta (* (* (- 1 ux) maxCos) ux)] ; (lerp ux maxCos 1)
         [sinTheta (sqrt (- 1 (* cosTheta cosTheta)))]
-        [phi (* uy 2 PI)])
-  (+ (* (cos phi) sinTheta xi)
-     (* (sin phi) sinTheta yi)
+        [phi (* (* uy 2) PI)])
+  (+ (+ (* (* (cos phi) sinTheta) xi)
+     (* (* (sin phi) sinTheta) yi))
      (* cosTheta zi))))
 
 (FPCore (normAngle u n0_i n1_i)
@@ -108,8 +108,8 @@
  :pre (and (> cosTheta_i 0.9999) (<= cosTheta_i 1)
            (<= 2.328306437e-10 u1 1) (<= 2.328306437e-10 u2 1))
  (let ([r (sqrt (- (log (- 1 u1))))]
-       [sinPhi (sin (* 2 PI u2))]
-       [cosPhi (cos (* 2 PI u2))])
+       [sinPhi (sin (* (* 2 PI) u2))]
+       [cosPhi (cos (* (* 2 PI) u2))])
   (* r cosPhi)))
 
 (FPCore (cosTheta_i u1 u2)
@@ -118,8 +118,8 @@
  :pre (and (> cosTheta_i 0.9999) (<= cosTheta_i 1)
            (<= 2.328306437e-10 u1 1) (<= 2.328306437e-10 u2 1))
  (let ([r (sqrt (- (log (- 1 u1))))]
-       [sinPhi (sin (* 2 PI u2))]
-       [cosPhi (cos (* 2 PI u2))])
+       [sinPhi (sin (* (* 2 PI) u2))]
+       [cosPhi (cos (* (* 2 PI) u2))])
   (* r sinPhi)))
 
 (FPCore (cosTheta_i u1 u2)
@@ -147,7 +147,7 @@
            (<= 2.328306437e-10 u1 0.5)
            (<= 0.0001 alphax 1)
            (<= 0.0001 alphay 1))
- (let* ([phi (atan (* (/ alphay alphax) (tan (+ (* 2 PI u1) (* 0.5 PI)))))]
+ (let* ([phi (atan (* (/ alphay alphax) (tan (+ (* (* 2 PI) u1) (* 0.5 PI)))))]
         [sinPhi (sin phi)]
         [cosPhi (cos phi)]
         [alphax2 (* alphax alphax)]
@@ -161,7 +161,7 @@
  :precision binary32
  :pre (<= 0 s 1.0651631)
  (let ([e (exp (/ (- (fabs x)) s))])
-  (/ e (* s (+ 1 e) (+ 1 e)))))
+  (/ e (* (* s (+ 1 e)) (+ 1 e)))))
 
 (FPCore (x s)
  :name "Logistic function"
@@ -182,15 +182,15 @@
  :name "Beckmann Sample, normalization factor"
  :precision binary32
  :pre (and (< 0 cosTheta 0.9999) (< -1 c 1))
- (let* ([sinTheta (sqrt (- 1 cosTheta cosTheta))]
+ (let* ([sinTheta (sqrt (- (- 1 cosTheta) cosTheta))]
         [tanTheta (/ sinTheta cosTheta)])
-  (/ 1 (+ 1 c (* (/ 1 (sqrt PI)) tanTheta (exp (* (- cosTheta) cosTheta)))))))
+  (/ 1 (+ (+ 1 c) (* (* (/ 1 (sqrt PI)) tanTheta) (exp (* (- cosTheta) cosTheta)))))))
 
 (FPCore (alpha u0)
  :name "Beckmann Distribution sample, tan2theta, alphax == alphay"
  :precision binary32
  :pre (and (<= 0.0001 alpha 1) (<= 2.328306437e-10 u0 1))
- (* (- alpha) alpha (log (- 1 u0))))
+ (* (* (- alpha) alpha) (log (- 1 u0))))
     
 (FPCore (alphax alphay u0 cos2phi sin2phi)
  :name "Beckmann Distribution sample, tan2theta, alphax != alphay, u1 <= 0.5"
@@ -207,8 +207,8 @@
  :name "Disney BSSRDF, PDF of scattering profile"
  :precision binary32
  :pre (and (<= 0 s 256) (< 1e-6 r 1e6))
- (+ (/ (* 0.25 (exp (/ (- r) s))) (* 2 PI s r))
-    (/ (* 0.75 (exp (/ (- r) (* 3 s)))) (* 6 PI s r))))
+ (+ (/ (* 0.25 (exp (/ (- r) s))) (* (* (* 2 PI) s) r))
+    (/ (* 0.75 (exp (/ (- r) (* 3 s)))) (* (* (* 6 PI) s) r))))
 
 (FPCore (s u)
  :name "Disney BSSRDF, sample scattering profile, lower"
@@ -220,11 +220,11 @@
  :name "Disney BSSRDF, sample scattering profile, upper"
  :precision binary32
  :pre (and (<= 0 s 256) (<= 0.25 u 1))
- (* 3 s (log (/ 1 (- 1 (/ (- u 0.25) 0.75))))))
+ (* (* 3 s) (log (/ 1 (- 1 (/ (- u 0.25) 0.75))))))
 
 (FPCore (cosTheta alpha)
  :name "GTR1 distribution"
  :precision binary32
  :pre (and (<= 0 cosTheta 1) (<= 0.0001 alpha 1))
  (let ([alpha2 (* alpha alpha)])
-  (/ (- alpha2 1) (* PI (log alpha2) (+ 1 (* (- alpha2 1) cosTheta cosTheta))))))
+  (/ (- alpha2 1) (* (* PI (log alpha2)) (+ 1 (* (* (- alpha2 1) cosTheta) cosTheta))))))
