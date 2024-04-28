@@ -201,12 +201,18 @@
   (define target-alt-data
     (cond
       [(test-output test)
-       (define target-expr (test-output test))
-       (define target-train-errs (errors target-expr train-pcontext ctx))
-       (define target-test-errs (errors target-expr test-pcontext* ctx))
-       (alt-analysis (make-alt target-expr) target-train-errs target-test-errs)]
-      [else
-       #f]))
+        (define target-train-errs-list '())
+        (define target-test-errs-list '())
+
+        ;; When in platform, evaluate error
+        (for/list ([(expr is-valid?) (in-dict (test-output test))] #:when is-valid?)
+          (define target-expr (fpcore->prog expr ctx))
+          (define target-train-errs (errors target-expr train-pcontext ctx))
+          (define target-test-errs (errors target-expr test-pcontext* ctx))
+
+          (alt-analysis (make-alt target-expr) target-train-errs target-test-errs))]
+
+      [else #f]))
 
   ;; compute error/cost for output expression
   (define end-exprs (map alt-expr end-alts))
@@ -307,16 +313,17 @@
              (representation-name repr)
              (map (curry map representation-name) (test-conversions test))
              (test-vars test)
-             (prog->fpcore (test-input test) repr) #f
+             (prog->fpcore (test-input test) repr) 
+             #f
              (prog->fpcore (test-spec test) repr)
-             (and (test-output test) (prog->fpcore (test-output test) repr))
+             (test-output test)
              #f #f #f #f #f (job-result-time result) link '()))
 
 (define (get-table-data result link)
   (match-define (job-result test status time _ _ backend) result)
   (match status
     ['success
-     (match-define (improve-result _ _ start target end _) backend)
+     (match-define (improve-result _ _ start targets end _) backend)
      (define expr-cost (platform-cost-proc (*active-platform*)))
      (define repr (test-output-repr test))
     
@@ -326,6 +333,13 @@
      (define start-train-score (errors-score start-train-errs))
      (define start-test-score (errors-score start-test-errs))
      (define start-cost (expr-cost start-expr repr))
+
+     ;; From all the targets, pick the lowest cost target
+     (define target
+      ; If the list is empty, return false
+      (if (empty? targets)
+        #f
+        (argmin (lambda (target) (alt-cost (alt-analysis-alt target) repr)) targets)))
 
      ; target analysis for comparison
      (define target-score (and target (errors-score (alt-analysis-test-errors target))))

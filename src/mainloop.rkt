@@ -202,33 +202,36 @@
   (unless (^next-alts^)
     (raise-user-error 'localize! "No alt chosen. Run (choose-alts!) or (choose-alt! n) to choose one"))
   (timeline-event! 'localize)
-
-  (define loc-errss
-    (batch-localize-error (map alt-expr (^next-alts^)) (*context*)))
   (define repr (context-repr (*context*)))
+  (define num-exprs (length (^next-alts^)))
+  (define-values (loc-errss loc-costss)
+     (batch-localize-both (map alt-expr (^next-alts^)) (*context*)))
 
   ; high-error locations
   (^locs^
-    (for/list ([loc-errs (in-list loc-errss)]
-               #:when true
-               [(err expr) (in-dict loc-errs)]
-               [i (in-range (*localize-expressions-limit*))])
-      (timeline-push! 'locations (~a expr) (errors-score err)
-                      (not (patch-table-has-expr? expr)) (~a (representation-name repr)))
-      expr))
-
-  ; low-error locations (Pherbie-only with multi-precision)
-  (^lowlocs^
-    (if (and (*pareto-mode*) (not (null? (platform-conversions (*active-platform*)))))
-        (for/list ([loc-errs (in-list loc-errss)]
+    (remove-duplicates 
+      (append 
+       (for/list ([loc-errs (in-list loc-errss)]
+                  #:when true
+                  [(err expr) (in-dict loc-errs)]
+                  [i (in-range (*localize-expressions-limit*))])
+         (timeline-push! 'locations (~a expr) "accuracy" (errors-score err)
+                         (not (patch-table-has-expr? expr)) (~a (representation-name repr)))
+         expr)
+        ;;Timeline will push duplicates
+        (for/list ([loc-costs (in-list loc-costss)]
                    #:when true
-                   [(err expr) (in-dict (reverse loc-errs))]
+                   [(cost-diff expr) (in-dict loc-costs)]
                    [i (in-range (*localize-expressions-limit*))])
-          (timeline-push! 'locations (~a expr) (errors-score err) #f (~a (representation-name repr)))
-          expr) 
-        '()))
-  
+          (timeline-push! 'locations (~a expr) "cost-diff" cost-diff
+                          (not (patch-table-has-expr? expr)) (~a (representation-name repr)))
+          expr))))
+
+  (^lowlocs^
+  '())
   (void))
+
+
 
 ;; Returns the locations of `subexpr` within `expr`
 (define (get-locations expr subexpr)
