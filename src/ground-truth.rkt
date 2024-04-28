@@ -95,15 +95,12 @@
 
 ; ENSURE: all contexts have the same list of variables
 (define (eval-progs-real progs ctxs)
-  (define repr (context-repr (car ctxs)))
   (define fn (make-search-func '(TRUE) progs ctxs))
+  (define bad-pt 
+    (for/list ([ctx* (in-list ctxs)])
+      ((representation-bf->repr (context-repr ctx*)) +nan.bf)))
   (define (<eval-prog-real> . pt)
     (define-values (result exs) (ival-eval fn ctxs pt))
-    (match exs
-      [(? list?)
-       exs]
-      [#f
-       (for/list ([ctx* ctxs])
-         ((representation-bf->repr (context-repr ctx*)) +nan.bf))]))
+    (or exs bad-pt))
   <eval-prog-real>)
 
