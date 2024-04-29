@@ -143,11 +143,6 @@
   [fmm-def     (- (* x y) z)              (fma x y (neg z))]
   [fmm-undef   (fma x y (neg z))          (- (* x y) z)])
 
-(define-ruleset* special-numerical-expand (numerics)
-  #:type ([x real] [y real])
-  [log1p-expm1-u x              (log1p (expm1 x))]
-  [expm1-log1p-u x              (expm1 (log1p x))])
-
 (define-ruleset* erf-rules (special simplify)
   #:type ([x real])
   [erf-odd          (erf (neg x))        (neg (erf x))])
