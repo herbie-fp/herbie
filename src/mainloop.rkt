@@ -201,11 +201,13 @@
 (define (localize!)
   (unless (^next-alts^)
     (raise-user-error 'localize! "No alt chosen. Run (choose-alts!) or (choose-alt! n) to choose one"))
-  (timeline-event! 'localize)
   (define repr (context-repr (*context*)))
-  (define num-exprs (length (^next-alts^)))
-  (define-values (loc-errss loc-costss)
-     (batch-localize-both (map alt-expr (^next-alts^)) (*context*)))
+  (timeline-event! 'simplify)
+  (define-values (_ loc-costss)
+    (batch-localize-costs (map alt-expr (^next-alts^)) (*context*)))
+  (timeline-event! 'localize)
+  (define loc-errss
+    (batch-localize-errors (map alt-expr (^next-alts^)) (*context*)))
 
   ; high-error locations
   (^locs^
