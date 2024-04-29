@@ -56,7 +56,7 @@
                subexpr))
        > #:key car)))
 
-  (values simplifiedss localize-costss))
+  localize-costss)
 
 (define (batch-localize-errors exprs ctx)
   (define subexprss (map all-subexpressions exprs))

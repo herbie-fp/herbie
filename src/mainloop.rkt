@@ -201,36 +201,42 @@
 (define (localize!)
   (unless (^next-alts^)
     (raise-user-error 'localize! "No alt chosen. Run (choose-alts!) or (choose-alt! n) to choose one"))
-  (define repr (context-repr (*context*)))
+
   (timeline-event! 'simplify)
-  (define-values (_ loc-costss)
-    (batch-localize-costs (map alt-expr (^next-alts^)) (*context*)))
+  (define exprs (map alt-expr (^next-alts^)))
+  (define localized-exprs empty)
+  (define repr (context-repr (*context*)))
+
+  (when (flag-set? 'localize 'costs)
+    (define loc-costss (batch-localize-costs exprs (*context*)))
+    (define cost-localized
+      (for/list ([loc-costs (in-list loc-costss)]
+                 #:when true
+                 [(cost-diff expr) (in-dict loc-costs)]
+                 [i (in-range (*localize-expressions-limit*))])
+        (timeline-push! 'locations (~a expr) "cost-diff" cost-diff
+                        (not (patch-table-has-expr? expr))
+                        (~a (representation-name repr)))
+        expr))
+    (set! localized-exprs (remove-duplicates (append localized-exprs cost-localized))))
+
   (timeline-event! 'localize)
-  (define loc-errss
-    (batch-localize-errors (map alt-expr (^next-alts^)) (*context*)))
+  (when (flag-set? 'localize 'errors)
+    (define loc-errss (batch-localize-errors exprs (*context*)))
+    ;;Timeline will push duplicates
+    (define error-localized
+      (for/list ([loc-errs (in-list loc-errss)]
+                 #:when true
+                 [(err expr) (in-dict loc-errs)]
+                 [i (in-range (*localize-expressions-limit*))])
+        (timeline-push! 'locations (~a expr) "accuracy" (errors-score err)
+                        (not (patch-table-has-expr? expr))
+                        (~a (representation-name repr)))
+        expr))
+    (set! localized-exprs (remove-duplicates (append localized-exprs error-localized))))
 
-  ; high-error locations
-  (^locs^
-    (remove-duplicates 
-      (append 
-       (for/list ([loc-errs (in-list loc-errss)]
-                  #:when true
-                  [(err expr) (in-dict loc-errs)]
-                  [i (in-range (*localize-expressions-limit*))])
-         (timeline-push! 'locations (~a expr) "accuracy" (errors-score err)
-                         (not (patch-table-has-expr? expr)) (~a (representation-name repr)))
-         expr)
-        ;;Timeline will push duplicates
-        (for/list ([loc-costs (in-list loc-costss)]
-                   #:when true
-                   [(cost-diff expr) (in-dict loc-costs)]
-                   [i (in-range (*localize-expressions-limit*))])
-          (timeline-push! 'locations (~a expr) "cost-diff" cost-diff
-                          (not (patch-table-has-expr? expr)) (~a (representation-name repr)))
-          expr))))
-
-  (^lowlocs^
-  '())
+  (^locs^ localized-exprs)
+  (^lowlocs^ '())
   (void))
 
 
