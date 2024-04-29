@@ -28,12 +28,12 @@
 
 (FPCore (t l k)
  :name "Toniolo and Linder, Equation (10+)"
- (/ 2 (* (/ (pow t 3) (* l l)) (sin k) (tan k) (+ (+ 1 (pow (/ k t) 2)) 1))))
+ (/ 2 (* (* (* (/ (pow t 3) (* l l)) (sin k)) (tan k)) (+ (+ 1 (pow (/ k t) 2)) 1))))
 
 (FPCore (t l k)
  :name "Toniolo and Linder, Equation (10-)"
- (/ 2 (* (/ (pow t 3) (* l l)) (sin k) (tan k) (- (+ 1 (pow (/ k t) 2)) 1))))
+ (/ 2 (* (* (* (/ (pow t 3) (* l l)) (sin k)) (tan k)) (- (+ 1 (pow (/ k t) 2)) 1))))
 
 (FPCore (n U t l Om U*)
  :name "Toniolo and Linder, Equation (13)"
- (sqrt (* 2 n U (- t (* 2 (/ (* l l) Om)) (* n (pow (/ l Om) 2) (- U U*))))))
+ (sqrt (* (* (* 2 n) U) (- (- t (* 2 (/ (* l l) Om))) (* (* n (pow (/ l Om) 2)) (- U U*))))))
