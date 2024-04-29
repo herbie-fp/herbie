@@ -34,8 +34,7 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 [[package]]
 name = "egg"
 version = "0.9.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "96beaf9d35dbc4686bc86a4ecb851fd6a406f0bf32d9f646b1225a5c5cf5b5d7"
+source = "git+https://github.com/egraphs-good/egg.git?rev=c11d03db646aca5f55df2632927eec958e1f4d4d#c11d03db646aca5f55df2632927eec958e1f4d4d"
 dependencies = [
  "env_logger",
  "fxhash",
@@ -43,6 +42,9 @@ dependencies = [
  "indexmap",
  "instant",
  "log",
+ "num-bigint",
+ "num-traits",
+ "saturating",
  "smallvec",
  "symbol_table",
  "symbolic_expressions",
@@ -197,6 +199,12 @@ checksum = "291ec9ab5efd934aaf503a6466c5d5251535d108ee747472c3977cc5acc868ef"
 dependencies = [
  "proc-macro2",
 ]
+
+[[package]]
+name = "saturating"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ece8e78b2f38ec51c51f5d475df0a7187ba5111b2a28bdc761ee05b075d40a71"
 
 [[package]]
 name = "smallvec"

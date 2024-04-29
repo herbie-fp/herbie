@@ -12,7 +12,7 @@
  :name "Octave 3.8, jcobi/2"
  (let ((ab (+ alpha beta)) (ad (- beta alpha)) (ap (* beta alpha)))
    (let ((z (+ ab (* 2 i))))
-     (/ (+ (/ (* ab ad) z (+ z 2.0)) 1.0) 2.0))))
+     (/ (+ (/ (/ (* ab ad) z) (+ z 2.0)) 1.0) 2.0))))
 
 (FPCore (alpha beta)
  :pre (and (> alpha -1) (> beta -1))
@@ -20,7 +20,7 @@
  (let ((i 1) (ab (+ alpha beta)) (ad (- beta alpha)) (ap (* beta alpha)))
    (let ((z1 i))
      (let ((z (+ ab (* 2 z1))))
-       (/ (+ ab ap 1.0) z z (+ z 1.0))))))
+       (/ (/ (/ (+ (+ ab ap) 1.0) z) z) (+ z 1.0))))))
 
 (FPCore (alpha beta i) ; TODO: i should be an integer
  :pre (and (> alpha -1) (> beta -1) (> i 1))
@@ -29,11 +29,11 @@
    (let ((z (+ ab (* 2 i))))
      (let ((z* (* z z)) (y (* i (+ ab i))))
        (let ((y* (* y (+ ap y))))
-         (/ y* z* (- z* 1.0)))))))
+         (/ (/ y* z*) (- z* 1.0)))))))
 ; TODO: i should be an integer
 (FPCore (i)
  :pre (and (> i 0))
  :name "Octave 3.8, jcobi/4, as called"
  (let ((z (* 2 i)))
    (let ((z* (* z z)) (y (* i i)))
-     (let ((y* (* y y))) (/ y* z* (- z* 1.0))))))
+     (let ((y* (* y y))) (/ (/ y* z*) (- z* 1.0))))))
