@@ -54,7 +54,7 @@
         expr<? #:key cdr)
        > #:key (compose errors-score car))))
 
-  (define localize-costs
+  (define localize-costss
     (for/list ([subexprs (in-list subexprss)] [simplifieds (in-list simplifiedss)])
       (sort 
        (for/list ([subexpr (in-list subexprs)]
@@ -64,7 +64,7 @@
                   (expr->cost (last simplified) (repr-of subexpr ctx)))
                subexpr))
        > #:key car)))
-  (values localize-errss localize-costs))
+  (values localize-errss localize-costss))
 
 ; Compute local error or each sampled point at each node in `prog`.
 (define (compute-local-errors exprs ctx)
