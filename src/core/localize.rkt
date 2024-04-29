@@ -113,7 +113,7 @@
 ;; and returns the error information as an S-expr in the
 ;; same shape as `prog`
 (define (local-error-as-tree expr ctx)
-  (define errs (first (compute-local-errors (list expr) ctx)))
+  (define errs (first (compute-local-errors (list (all-subexpressions expr)) ctx)))
   (let loop ([expr expr])
     (match expr
       [(list op args ...) (cons (hash-ref errs expr) (map loop args))]
