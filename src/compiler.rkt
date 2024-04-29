@@ -39,14 +39,13 @@
   (define prec-threshold (/ (*max-mpfr-prec*) 25))     ; parameter for sampling histogram table
   (if (equal? name 'ival)
       (λ args
+        ;(printf "---------ITER ~a-----------\n" (*sampling-iteration*))
         (define timeline-stop! (timeline-start!/unsafe 'mixsample "backward-pass"
                                                        (* (*sampling-iteration*) 1000)))
         (if (zero? (*sampling-iteration*))
             (vector-fill! vrepeats #f)
             (backward-pass ivec varc vregs vprecs vstart-precs rootvec rootlen vrepeats)) ; back-pass
         (timeline-stop!)
-
-        ;(printf "---------ITER ~a-----------\n" (*sampling-iteration*))
         
         (for ([arg (in-list args)] [n (in-naturals)])
           (vector-set! vregs n arg))
@@ -241,7 +240,9 @@
           (equal? 1 (flonums-between
                      (bigfloat->flonum (ival-lo result))
                      (bigfloat->flonum (ival-hi result))))
-        (vector-set! vprecs-new (- root-reg varc) (get-slack)))))
+        (vector-set! vprecs-new (- root-reg varc) (get-slack)))
+      #;(printf "root: ~a, ulp-distance=~a\n" root-reg (flonums-between (bigfloat->flonum (ival-lo result)) (bigfloat->flonum (ival-hi result))))))
+  ;(printf "\n")
   
   ; Since Step 2 writes into *sampling-iteration* if the max prec was reached - save the iter number for step 3
   (define current-iter (*sampling-iteration*))
@@ -256,6 +257,9 @@
         [prec-old (in-vector (if (equal? 1 current-iter) vstart-precs vprecs))]
         [prec-new (in-vector vprecs-new)]
         [n (in-naturals)])
+    #;(printf "instr=~a, rep=~a\n" instr (and (<= prec-new prec-old)
+                                            (andmap (lambda (x) (or (< x varc) (vector-ref vrepeats (- x varc))))
+                                                    (rest instr))))
     (vector-set! vrepeats n (and (<= prec-new prec-old)
                                  (andmap (lambda (x) (or (< x varc) (vector-ref vrepeats (- x varc))))
                                          (rest instr)))))
@@ -304,7 +308,7 @@
       (*sampling-iteration* (*max-sampling-iterations*)))
     (vector-set! vprecs-new (- n varc) final-parent-precision)
 
-    (define (ulp-distance x prec)
+    #;(define (ulp-distance x prec)
       (parameterize ([bf-precision prec])
         (bigfloats-between (ival-lo x) (ival-hi x))))
     #;(when (bigfloat? (ival-lo output))
@@ -372,16 +376,17 @@
     [(ival-pow)
      ; log[Гpow]'x = log[y]
      ; log[Гpow]'y = log[y] + log[log(x)]
-     ;                        ^^^^^^^^^^^
-     ;                        always less than 30
+     
      (define x (first srcs))
      (define y (second srcs))
      
      (define x-exp (ival-max-log2-approx x))
      (define y-exp (ival-max-log2-approx y))
-     (define slack (if (>= x-exp 3)                   ; if x > 2 (actually 2.718),
+     (define slack (if (>= x-exp 5)                   ; if x > 8 (actually 10),
                        30                             ; then at least 1 additional bit is needed
-                       0)) 
+                       (if (< x-exp -1)               ; if x < 0.1
+                           (- x-exp)                  
+                           0)))
      
      (list (max 0 y-exp)                              ; exponent per x
            (max 0 (+ y-exp slack)))]                  ; exponent per y
