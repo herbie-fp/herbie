@@ -45,14 +45,25 @@
        stx)]
     ; special nullary operators
     [#`(,(or 'and 'or)) (datum->syntax #f 'TRUE stx)]
-    [#`(+) (datum->syntax #f 0 stx)]
-    [#`(*) (datum->syntax #f 1 stx)]
+    [#`(+) 
+      (warn 'nullary-operator "+ is deprecated as a nullary operator" )
+      (datum->syntax #f 0 stx)]
+    [#`(*)
+      (warn 'nullary-operator "* is deprecated as a nullary operator" )
+      (datum->syntax #f 1 stx)]
     ; special unary operators
-    [#`(,(or 'and 'or '+ '*) #,a) (expand a)]
+    [#`(,(or 'and 'or) #,a) (expand a)]
+    ; deprecated unary operators
+    [#`(,(or '+ '* '/) #,a)
+      (warn 'unary-operator "~a is deprecated as a unary operator" op) 
+      (expand a)]
     [#`(/ #,a) (datum->syntax #f (list '/ 1 (expand a)) stx)]
+    ; binary operators
+    [#`(,(and (or '+ '- '* '/ 'or) op) #,arg1 #,arg2)
+     (datum->syntax #f (list op (expand arg1) (expand arg2)) stx)]
     ; variary operators
     [#`(,(and (or '+ '- '* '/ 'or) op) #,arg1 #,arg2 #,rest ...)
-     (if (not (null? rest)) (warn 'variary-operator "~a is not supported as a variary operator" op) #f)
+     (unless (null? rest) (warn 'variary-operator "~a is deprecated as a variary operator" op))
      (define prev (datum->syntax #f (list op (expand arg1) (expand arg2)) stx))
      (let loop ([prev prev] [rest rest])
        (match rest
