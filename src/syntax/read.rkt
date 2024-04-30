@@ -55,7 +55,7 @@
     [#`(,(or 'and 'or) #,a) (expand a)]
     ; deprecated unary operators
     [#`(,(or '+ '* '/) #,a)
-      (warn 'unary-operator "~a is deprecated as a unary operator" op) 
+      (warn 'unary-operator "~a is deprecated as a unary operator" a) 
       (expand a)]
     [#`(/ #,a) (datum->syntax #f (list '/ 1 (expand a)) stx)]
     ; binary operators
