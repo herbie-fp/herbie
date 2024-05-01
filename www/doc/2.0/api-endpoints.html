@@ -227,5 +227,64 @@
     <h2 id="localerror">/api/local-error</h2>
     <!--TODO--> Forthcoming.
 
+
+    <h2 id="cost">/api/cost</h2>
+
+    <details>
+    <summary>Example inputs & outputs</summary>
+
+    <p>Request:</p>
+
+    <pre>{
+        formula: &lt;FPCore expression&gt;,
+        sample: [point ... ]
+      }</pre>
+
+    <p>Response:</p>
+
+    <pre>{
+        cost: [cost]
+      }</pre>
+
+    <p>Specific Example: sqrt(x+1)-sqrt(x)</p>
+
+    <p>Request:</p>
+
+    <pre>{
+        formula: &lt;(FPCore (x) (- (sqrt (+ x 1)) (sqrt x)))&gt;,
+        sample: [ [[1], -1.4142135623730951] ]
+      }</pre>
+
+    <p>Response:</p>
+
+    <pre>{
+        cost: [13120]
+      }</pre>
+
+    <p>Specific Example Simplified: (x+1)-(x)</p>
+
+    <p>Request:</p>
+
+    <pre>{
+        formula: &lt;(FPCore (x) (- (+ x 1 ) x))&gt;,
+        sample: [ [[1], -1.4142135623730951] ]
+      }</pre>
+
+    <p>Response:</p>
+
+    <pre>{
+        cost: [320]
+      }</pre>
+    </details>
+
+    <p>The <code>cost</code> endpoint allows the user to request
+    the evaluation of an expression's overall cost. Cost is 
+    calculated depending on the complexity of operations contained
+    in the expression. </p>
+
+    <p>Given an FPCore expression and a collection of points,
+    returns the cost of the expression. The cost value returned 
+    is calculated internally by Herbie. </p>
+
   </body>
 </html>
