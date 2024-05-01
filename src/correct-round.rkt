@@ -446,7 +446,7 @@
      (list (+ 1 x-exp) (+ 2 (- x-exp out-exp)))]
     
     [(ival-atan2)
-     ; log[Гatan2]'x = log[Гatan2]'y = log[xy / ((x^2+y^2)*atan2)] <= log[x] + log[y] - 2*min[logx, logy] - log[atan2] + 1
+     ; log[Гatan2]'x = log[Гatan2]'y = log[xy / ((x^2+y^2)*atan2)] <= log[x] + log[y] - 2*max[logx, logy] - log[atan2] + 1
      (define x (first srcs))
      (define y (second srcs))
      
@@ -454,7 +454,7 @@
      (define y-exp (ival-max-log2-approx y))
      (define out-exp (ival-min-log2-approx output))
      
-     (make-list 2 (+ (- (+ x-exp y-exp) (* 2 (min x-exp y-exp)) out-exp) 1))]
+     (make-list 2 (+ (- (+ x-exp y-exp) (* 2 (max x-exp y-exp)) out-exp) 1))]
     
     ; Currently has a poor implementation
     [(ival-tanh)
