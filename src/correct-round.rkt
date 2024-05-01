@@ -191,11 +191,8 @@
   (vector-copy! vprecs 0 vprecs-new)
   
   ; Step 5. If precisions have not changed but the point didn't converge. Problem exists - add slack to every op
-  #;(when (false? (vector-member #f vrepeats))
-    (printf "--------------UNCOVERGED WARNING--------\n")
-    (sleep 10))
-  #;(when (false? (vector-member #f vrepeats))
-    (printf "!") ; report smth to log
+  (when (false? (vector-member #f vrepeats))
+    (printf "--------------UNCOVERGED WARNING--------\n") ; report smth to log
     (define slack (get-slack))
     (for ([prec (in-vector vprecs)]
           [n (in-range (vector-length vprecs))])
@@ -231,7 +228,7 @@
       (*sampling-iteration* (*max-sampling-iterations*)))
     (vector-set! vprecs-new (- n varc) final-parent-precision)
 
-    (define (ulp-distance x prec)
+    #;(define (ulp-distance x prec)
       (parameterize ([bf-precision prec])
         (bigfloats-between (ival-lo x) (ival-hi x))))
     #;(when (bigfloat? (ival-lo output))
