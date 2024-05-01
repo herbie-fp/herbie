@@ -5,11 +5,13 @@
 ;; Faster than bigfloat-exponent and avoids an expensive offset & contract check.
 (require (only-in "syntax/syntax.rkt" operator-info)
          (only-in "common.rkt" *max-mpfr-prec* *sampling-iteration* *max-sampling-iterations* *base-tuning-precision* *ampl-tuning-bits*)
-         (only-in "timeline.rkt" timeline-push! timeline-start!/unsafe))
+         (only-in "timeline.rkt" timeline-push! timeline-start!/unsafe)
+         (only-in "float.rkt" ulp-difference)
+         "syntax/types.rkt")
 
 (provide compile-spec compile-specs)
 
-(define (make-progs-interpreter vars ivec rootvec)
+(define (make-progs-interpreter vars ivec rootvec repr)
   (define rootlen (vector-length rootvec))
   (define iveclen (vector-length ivec))
   (define varc (length vars))
@@ -22,13 +24,14 @@
   (define prec-threshold (/ (*max-mpfr-prec*) 25))     ; parameter for sampling histogram table
 
   (define (compiled-spec . args)
+    ;(printf "------------- ITER ~a ---------------\n" (*sampling-iteration*))
     (define timeline-stop!
       (timeline-start!/unsafe
        'mixsample "backward-pass" (* (*sampling-iteration*) 1000)))
     (define first-iter? (zero? (*sampling-iteration*)))
     (if first-iter?
         (vector-fill! vrepeats #f)
-        (backward-pass ivec varc vregs vprecs vstart-precs rootvec rootlen vrepeats))
+        (backward-pass ivec varc vregs vprecs vstart-precs rootvec rootlen vrepeats repr))
     (timeline-stop!)
         
     (for ([arg (in-list args)] [n (in-naturals)])
@@ -45,6 +48,9 @@
       (parameterize ([bf-precision precision])
         (vector-set! vregs n (apply-instruction instr vregs)))
       (timeline-stop!))
+    #;(when (equal? 5 (*sampling-iteration*))
+      (println "opana")
+      (sleep 10))
     
     (for/vector #:length rootlen ([root (in-vector rootvec)])
       (vector-ref vregs root)))
@@ -103,7 +109,7 @@
   (timeline-push! 'compiler (+ varc size) (+ exprc varc))
   (values nodes roots))
 
-(define (make-compiler exprs vars)
+(define (make-compiler exprs vars repr)
   (define num-vars (length vars))
   (define-values (nodes roots)
     (progs->batch exprs vars))
@@ -122,7 +128,7 @@
         [(list op args ...)
          (cons (operator-info op 'ival) args)])))
 
-  (make-progs-interpreter vars instructions roots))
+  (make-progs-interpreter vars instructions roots repr))
 
 (define (real->ival val)
   (define lo (parameterize ([bf-rounding-mode 'down]) (bf val)))
@@ -132,8 +138,8 @@
 (define (point-ival? x)
   (bf= (ival-lo x) (ival-hi x)))
 
-(define (compile-specs specs vars)
-  (make-compiler specs vars))
+(define (compile-specs specs vars repr)
+  (make-compiler specs vars repr))
 
 ;; Like `compile-specs`, but for a single spec.
 (define (compile-spec spec vars)
@@ -141,7 +147,8 @@
   (define (compiled-spec . xs) (vector-ref (apply core xs) 0))
   compiled-spec)
 
-(define (backward-pass ivec varc vregs vprecs vstart-precs rootvec rootlen vrepeats)
+(define (backward-pass ivec varc vregs vprecs vstart-precs rootvec rootlen vrepeats repr)
+  ;(println repr)
   (define vprecs-new (make-vector (vector-length ivec) 0))          ; new vprecs vector
   ; Step 1. Adding slack in case of a rounding boundary issue
   (for/vector #:length rootlen ([root-reg (in-vector rootvec)])
@@ -150,11 +157,14 @@
            (bigfloat? (ival-lo (vector-ref vregs root-reg))))       ; when root is a real op
       (define result (vector-ref vregs root-reg))
       (when
-          (equal? 1 (flonums-between
-                     (bigfloat->flonum (ival-lo result))
-                     (bigfloat->flonum (ival-hi result))))
+          (equal? 2 (ulp-difference  ; the actual ulp distance is 1, but since it over-approximates it is 2
+                     ((representation-bf->repr repr) (ival-lo result))
+                     ((representation-bf->repr repr) (ival-hi result))
+                     repr))
         (vector-set! vprecs-new (- root-reg varc) (get-slack)))
-      #;(printf "root: ~a, ulp-distance=~a\n" root-reg (flonums-between (bigfloat->flonum (ival-lo result)) (bigfloat->flonum (ival-hi result))))))
+      #;(printf "root: ~a, ulp-distance=~a, ulp-distance-new=~a\n" root-reg
+              (flonums-between (bigfloat->flonum (ival-lo result)) (bigfloat->flonum (ival-hi result)))
+              (ulp-difference ((representation-bf->repr repr) (ival-lo result)) ((representation-bf->repr repr) (ival-hi result)) repr))))
   ;(printf "\n")
   
   ; Since Step 2 writes into *sampling-iteration* if the max prec was reached - save the iter number for step 3
@@ -181,9 +191,9 @@
   (vector-copy! vprecs 0 vprecs-new)
   
   ; Step 5. If precisions have not changed but the point didn't converge. Problem exists - add slack to every op
-  (when (false? (vector-member #f vrepeats))
-    (printf "!")
-    #;(sleep 5))
+  #;(when (false? (vector-member #f vrepeats))
+    (printf "--------------UNCOVERGED WARNING--------\n")
+    (sleep 10))
   #;(when (false? (vector-member #f vrepeats))
     (printf "!") ; report smth to log
     (define slack (get-slack))
@@ -221,7 +231,7 @@
       (*sampling-iteration* (*max-sampling-iterations*)))
     (vector-set! vprecs-new (- n varc) final-parent-precision)
 
-    #;(define (ulp-distance x prec)
+    (define (ulp-distance x prec)
       (parameterize ([bf-precision prec])
         (bigfloats-between (ival-lo x) (ival-hi x))))
     #;(when (bigfloat? (ival-lo output))
@@ -530,8 +540,8 @@
 
 (define (log2-approx x)
   (define exp (mpfr-exp x))
-  (if (equal? exp -9223372036854775807)
-      (- (get-slack))  ; 0.bf
+  (if (or (equal? exp -9223372036854775807) (equal? exp -1073741823))
+      (- (get-slack))  ; 0.bf/underflow
       (if (or (< 1000000000 (abs exp)))
           (get-slack)  ; overflow/inf.bf/nan.bf
           (+ exp 1)))) ; +1 because mantissa is not considered
