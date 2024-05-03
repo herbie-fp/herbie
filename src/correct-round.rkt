@@ -255,13 +255,24 @@
      ;                        always less than 30
      (define x (first srcs))
      (define y (second srcs))
+     (define outlo (ival-lo output))
+     (define outhi (ival-hi output))
      
      (define x-exp (ival-max-log2-approx x))
      (define y-exp (ival-max-log2-approx y))
-     (define slack (if (>= x-exp 3)                   ; if x > 2 (actually 2.718),
+     (define slack (if (>= x-exp 5)                   ; if x > 8 (actually 10),
                        30                             ; then at least 1 additional bit is needed
-                       0)) 
+                       (if (< x-exp -1)               ; if x < 0.1
+                           (- x-exp)                  
+                           0)))
      
+     ; when output crosses zero and x is negative - means that y was fractional and not fixed
+     ; solution - add more slack for y to converge
+     (when (and (not (equal? (mpfr-sign outlo) (mpfr-sign outhi)))
+                (bfnegative? (ival-lo x))
+                (bfnegative? (ival-hi x)))
+       (set! slack (+ slack (get-slack))))
+       
      (list y-exp                                      ; exponent per x
            (+ y-exp slack))]                          ; exponent per y
     
