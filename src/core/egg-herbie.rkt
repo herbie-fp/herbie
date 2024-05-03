@@ -240,7 +240,10 @@
        (if (representation? type)
            (literal expr (representation-name type))
            expr)]
-      [(? symbol?) (car (hash-ref rename-dict expr))]
+      [(? symbol?)
+       (if (hash-has-key? rename-dict expr)
+           (car (hash-ref rename-dict expr)) ; variable (extract uncanonical name)
+           (list expr))] ; constant function
       [`(Explanation ,body ...) `(Explanation ,@(map (lambda (e) (loop e type)) body))]
       [(list 'Rewrite=> rule expr) (list 'Rewrite=> rule (loop expr type))]
       [(list 'Rewrite<= rule expr) (list 'Rewrite<= rule (loop expr type))]
@@ -908,15 +911,6 @@
      (and (set-member? tys2 ty1) ty1)]
     [(_ _)
      (and (equal? ty1 ty2) ty1)]))
-
-;; The type of an `if` node
-;; Need to union all type possibilities for the branches and
-;; then take their intersection: the result represents the set
-;; of possibly types that the `if` node can take
-(define (if-node-type ift-types iff-types)
-  (define ift-type (apply type/union #f ift-types))
-  (define iff-type (apply type/union #f iff-types))
-  (type/intersect ift-type iff-type))
 
 ;; Computes the set of extractable types for each eclass.
 (define (regraph-eclass-types egraph)

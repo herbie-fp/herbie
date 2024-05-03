@@ -106,10 +106,10 @@ pub struct ConstantFold {
 impl Clone for ConstantFold {
     fn clone(&self) -> Self {
         let unsound = AtomicBool::new(self.unsound.load(Ordering::SeqCst));
-        Self { 
+        Self {
             unsound,
-            constant_fold: self.constant_fold.clone(),
-            prune: self.prune.clone()
+            constant_fold: self.constant_fold,
+            prune: self.prune,
         }
     }
 }

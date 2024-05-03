@@ -78,7 +78,7 @@
 
   (define (build! altn)
     (match altn
-      ; recursive rewrite using egg
+      ; recursive rewrite using egg (spec -> impl)
       [(alt expr `(rr ,loc ,(? egraph-query? e-input) #f #f) `(,prev) _)
        (define start-expr (location-get loc (alt-expr prev)))
        (define start-expr* (expand-accelerators (*rules*) (prog->spec start-expr)))
@@ -87,11 +87,17 @@
        (hash-set! alt->query&rws (altn->key altn) (cons e-input rewrite))
        (hash-update! query->rws e-input (lambda (rws) (set-add rws rewrite)) '())]
       
-      ; simplify using egg
+      ; simplify using egg (spec -> impl)
       [(alt expr `(simplify ,loc ,(? egraph-query? e-input) #f #f) `(,prev) _)
        (define start-expr (location-get loc (alt-expr prev)))
        (define end-expr (location-get loc expr))
-       (define rewrite (cons start-expr end-expr))
+
+       (define start-expr*
+         (match (alt-event prev)
+           [(list 'taylor _ ...) start-expr]  ; input was inserted as-is
+           [_ (expand-accelerators (*rules*) (prog->spec start-expr))]))
+       (define rewrite (cons start-expr* end-expr))
+
        (hash-set! alt->query&rws (altn->key altn) (cons e-input rewrite))
        (hash-update! query->rws e-input (lambda (rws) (set-add rws rewrite)) '())]
 
@@ -102,15 +108,14 @@
 
   ; build the table
   (for ([altn (in-list altns)])
-    (alt-map build! altn))
+    (alt-for-each build! altn))
   (values alt->query&rws query->rws))
 
 ;; Runs proof extraction.
 ;; Result is a map from egg query to rewrites.
 (define (compute-proofs query->rws)
   (for/hash ([(e-input rws) (in-hash query->rws)])
-    (match-define (cons _ proofs)
-      (run-egg e-input #f #:proof-inputs rws))
+    (match-define (cons _ proofs) (run-egg e-input #f #:proof-inputs rws))
     (values e-input (map cons rws proofs))))
 
 ;; Lookups a proof based on an alternative

@@ -156,7 +156,7 @@ pub unsafe extern "C" fn egraph_run(
         } else {
             context.runner.with_scheduler(BackoffScheduler::default())
         };
-        
+
         context.runner = context
             .runner
             .with_node_limit(node_limit as usize)
