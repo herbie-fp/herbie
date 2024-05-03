@@ -72,6 +72,9 @@
     [(? literal?) (literal-value expr)]
     [(list op args ...) (cons op (map remove-literals args))]))
 
+(define (expr->fpcore expr ctx #:ident [ident #f])
+  (list 'FPCore (context-vars ctx) (remove-literals expr)))
+
 (define (expr->tex expr ctx #:loc [loc #f])
   (define core `(FPCore ,(context-vars ctx) ,(remove-literals expr)))
   (if (supported-by-lang? core "tex")
@@ -188,21 +191,25 @@
                         ,(expr->tex expr ctx #:loc (cons 2 loc))
                         "\\]"))))))))
 
-
+; TODO: needs review by Odyssey team
+; no idea how to integrate proofs
 (define (render-json altn pcontext pcontext2 ctx)
   (define repr (context-repr ctx))
-  (define err (errors-score (errors (alt-expr altn) pcontext ctx)))
-  (define err2 (errors-score (errors (alt-expr altn) pcontext2 ctx)))
+  (define-values (err err2)
+    (if (impl-prog? (alt-expr altn))
+        (values (errors-score (errors (alt-expr altn) pcontext ctx))
+                (errors-score (errors (alt-expr altn) pcontext2 ctx)))
+        (values "N/A" "N/A")))
 
   (match altn
     [(alt prog 'start (list) _)
-     `#hash((program . ,(fpcore->string (program->fpcore prog ctx)))
+     `#hash((program . ,(fpcore->string (expr->fpcore prog ctx)))
             (type . "start")
             (error . ,err)
             (training-error . ,err2))]
 
     [(alt prog `(start ,strategy) `(,prev) _)
-     `#hash((program . ,(fpcore->string (program->fpcore prog ctx))) 
+     `#hash((program . ,(fpcore->string (expr->fpcore prog ctx))) 
             (type . "strategy") 
             (strategy . ,(~a strategy)) 
             (prev . ,(render-json prev pcontext pcontext2 ctx))
@@ -214,7 +221,7 @@
        (for/list ([start-sp (cons (sp -1 -1 #f) splitpoints)] [end-sp splitpoints])
          (interval (sp-cidx end-sp) (sp-point start-sp) (sp-point end-sp) (sp-bexpr end-sp))))
 
-     `#hash((program . ,(fpcore->string (program->fpcore prog ctx))) 
+     `#hash((program . ,(fpcore->string (expr->fpcore prog ctx))) 
             (type . "regimes") 
             (conditions . ,(for/list ([entry prevs] [idx (in-naturals)]) 
                 (let ([entry-ivals (filter (λ (intrvl) (= (interval-alt-idx intrvl) idx)) intervals)]) (map (curryr interval->string repr) entry-ivals))))
@@ -224,7 +231,7 @@
                         (render-json entry new-pcontext new-pcontext2 ctx))))]
 
     [(alt prog `(taylor ,loc ,pt ,var) `(,prev) _)
-     `#hash((program . ,(fpcore->string (program->fpcore prog ctx))) 
+     `#hash((program . ,(fpcore->string (expr->fpcore prog ctx))) 
             (type . "taylor") 
             (prev . ,(render-json prev pcontext pcontext2 ctx))
             (pt . ,(~a pt))
@@ -234,7 +241,7 @@
             (training-error . ,err2))]
 
     [(alt prog `(simplify ,loc ,input ,proof ,soundiness) `(,prev) _)
-     `#hash((program . ,(fpcore->string (program->fpcore prog ctx))) 
+     `#hash((program . ,(fpcore->string (expr->fpcore prog ctx))) 
             (type . "simplify") 
             (prev . ,(render-json prev pcontext pcontext2 ctx))
             (proof . ,(if proof (render-proof-json proof soundiness pcontext ctx) (json-null)))
@@ -243,21 +250,21 @@
             (training-error . ,err2))]
 
     [(alt prog `initial-simplify `(,prev) _)
-     `#hash((program . ,(fpcore->string (program->fpcore prog ctx))) 
+     `#hash((program . ,(fpcore->string (expr->fpcore prog ctx))) 
             (type . "initial-simplify") 
             (prev . ,(render-json prev pcontext pcontext2 ctx))
             (error . ,err) 
             (training-error . ,err2))]
 
     [(alt prog `final-simplify `(,prev) _)
-     `#hash((program . ,(fpcore->string (program->fpcore prog ctx))) 
+     `#hash((program . ,(fpcore->string (expr->fpcore prog ctx))) 
             (type . "final-simplify") 
             (prev . ,(render-json prev pcontext pcontext2 ctx))
             (error . ,err) 
             (training-error . ,err2))]
 
     [(alt prog `(rr ,loc ,input ,proof ,soundiness) `(,prev) _)
-     `#hash((program . ,(fpcore->string (program->fpcore prog ctx))) 
+     `#hash((program . ,(fpcore->string (expr->fpcore prog ctx))) 
             (type . "rr") 
             (prev . ,(render-json prev pcontext pcontext2 ctx))
             (proof . ,(if proof (render-proof-json proof soundiness pcontext ctx) (json-null)))
@@ -267,7 +274,7 @@
             (training-error . ,err2))]
 
     [(alt prog 'add-preprocessing `(,prev) preprocessing)
-     `#hash((program . ,(fpcore->string (program->fpcore prog ctx)))
+     `#hash((program . ,(fpcore->string (expr->fpcore prog ctx)))
             (type . "add-preprocessing")
             (prev . ,(render-json prev pcontext pcontext2 ctx))
             (error . ,err)
@@ -277,13 +284,17 @@
 (define (render-proof-json proof soundiness pcontext ctx)
   (for/list ([step proof] [sound soundiness])
     (define-values (dir rule loc expr) (splice-proof-step step))
-    (define err (errors-score (errors expr pcontext ctx)))
+    (define err
+      (if (impl-prog? expr)
+          (errors-score (errors expr pcontext ctx))
+          "N/A"))
+
     (define num-increase (if sound (first sound) "N/A"))
     (define num-decrease (if sound (second sound) "N/A"))
 
     `#hash(
       (error . ,err)
-      (program . ,(fpcore->string (program->fpcore expr ctx)))
+      (program . ,(fpcore->string (expr->fpcore expr ctx)))
       (direction . ,(match dir ['Rewrite<= "rtl"] ['Rewrite=> "ltr"] ['Goal "goal"]))
       (rule . ,(~a rule))
       (loc . ,loc)

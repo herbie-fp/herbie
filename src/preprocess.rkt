@@ -1,5 +1,6 @@
 #lang racket
 
+(require math/bigfloat)
 (require "core/egg-herbie.rkt" "core/simplify.rkt"
          "syntax/rules.rkt" "syntax/syntax.rkt" "syntax/sugar.rkt"
          "syntax/types.rkt" "alternative.rkt" "accelerator.rkt" "common.rkt"
@@ -167,10 +168,10 @@
        (impl-info (get-parametric-operator 'neg (context-repr context)) 'fl))
      (lambda (x y)
        ;; Negation is involutive, i.e. it is its own inverse, so t^1(y') = -y'
-       (if (negative? (list-ref x index))
+       (if (negative? (repr->real (list-ref x index) (context-repr context)))
            (values
-            (list-update x index negate-variable)
-            (negate-expression y))
+             (list-update x index negate-variable)
+             (negate-expression y))
            (values x y)))]))
 
 ; until fixed point, iterate through preprocessing attempting to drop preprocessing with no effect on error

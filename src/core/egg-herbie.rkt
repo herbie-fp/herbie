@@ -919,7 +919,9 @@
   (define (node-type analysis node)
     (match node
       [(? number?) #t]
-      [(? symbol?) (cdr (hash-ref egg->herbie node))]
+      [(? symbol?)
+       (define repr (cdr (hash-ref egg->herbie node)))
+       (list 'or repr (representation-type repr))]
       [(list 'if _ ift iff)
        (define ift-types (vector-ref analysis ift))
        (define iff-types (vector-ref analysis iff))
@@ -1018,7 +1020,9 @@
   (define (node-type node)
     (match node
       [(? number?) #t]
-      [(? symbol?) (cdr (hash-ref egg->herbie node))]
+      [(? symbol?)
+       (define repr (cdr (hash-ref egg->herbie node)))
+       (list 'or repr (representation-type repr))]
       [(list 'if _ ift iff)
        (define ift-types (vector-ref eclass-types ift))
        (define iff-types (vector-ref eclass-types iff))

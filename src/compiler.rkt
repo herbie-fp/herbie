@@ -4,6 +4,7 @@
 ;; Faster than bigfloat-exponent and avoids an expensive offset & contract check.
 (require (only-in math/private/bigfloat/mpfr mpfr-exp mpfr-sign))
 (require "syntax/syntax.rkt" "syntax/types.rkt"
+         "programs.rkt"
          "common.rkt" "timeline.rkt" "float.rkt" "config.rkt")
 
 (provide compile-specs compile-spec compile-progs compile-prog)
@@ -205,6 +206,8 @@
 ;; that evaluates the program on a single input of representation values
 ;; returning representation values.
 (define (compile-progs exprs ctx)
+  (unless (andmap impl-prog? exprs)
+    (error 'compile-progs "~a" exprs))
   (define compile
     (make-compiler 'fl
                    #:input->value real->repr
