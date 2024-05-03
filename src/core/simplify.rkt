@@ -26,7 +26,7 @@
   out)
 
 (module+ test
-  (require "../syntax/types.rkt" "../syntax/rules.rkt" "../syntax/sugar.rkt")
+  (require "../syntax/types.rkt" "../syntax/rules.rkt")
 
   ;; set parameters
   (define vars '(x a b c))
@@ -41,7 +41,11 @@
      (string-append "Rule failed: " (symbol->string (rule-name rule)))))
   
   (define (test-simplify . args)
-    (map prog->spec (map last (simplify-batch (make-egg-query (map (curryr spec->prog (*context*)) args) (*simplify-rules*))))))
+    (define egg-query
+      (make-egg-query args
+                      (map (lambda (_) 'real) args)
+                      `((run ,(*simplify-rules*) ((node . ,(*node-limit*)))))))
+    (map last (simplify-batch egg-query)))
 
   (define test-exprs
     '((1 . 1)

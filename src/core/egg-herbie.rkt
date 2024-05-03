@@ -29,7 +29,8 @@
          remove-rewrites
          real-rules
          platform-lowering-rules
-         platform-impl-rules)
+         platform-impl-rules
+         rule->impl-rules)
 
 (module+ test
   (require rackunit)
@@ -567,6 +568,16 @@
                        (curry eq? 'if)
                        (append (ops-in-expr input*) (ops-in-expr output*))))
                (sow (rule name* input* output* itypes* otype*)))))]))))
+
+;; For backwards compatability in unit tests
+(define (rule->impl-rules rule)
+  (platform-impl-rules (list rule) #:expansive? #t))
+
+(module+ test
+  ; Check that all builtin rules are instantiated at least once
+  ; in the default platform
+  (for ([rule (in-list (*rules*))])
+    (> (length (rule->impl-rules rule)) 0)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Racket egraph
