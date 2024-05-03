@@ -20,8 +20,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; constants ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define-constants bool
-  [TRUE TRUE (const true)]
-  [FALSE FALSE (const false)])
+  [TRUE TRUE true]
+  [FALSE FALSE false])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; operators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
