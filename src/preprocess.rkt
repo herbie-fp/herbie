@@ -1,22 +1,35 @@
 #lang racket
 
-(require math/bigfloat)
 (require "core/egg-herbie.rkt" "core/simplify.rkt"
          "syntax/rules.rkt" "syntax/syntax.rkt" "syntax/sugar.rkt"
          "syntax/types.rkt" "alternative.rkt" "accelerator.rkt" "common.rkt"
-         "programs.rkt" "points.rkt" "timeline.rkt" "float.rkt")
+         "errors.rkt" "programs.rkt" "points.rkt" "timeline.rkt" "float.rkt")
 
 (provide find-preprocessing preprocess-pcontext remove-unnecessary-preprocessing)
 
+(define (has-fabs-neg-impls? repr)
+  (with-handlers ([exn:fail:user:herbie? (const #f)])
+    (get-parametric-operator 'neg repr)
+    (get-parametric-operator 'fabs repr)
+    #t))
+
 ;; The even identities: f(x) = f(-x)
+;; Requires `neg` and `fabs` operator implementations.
 (define (make-even-identities spec ctx)
-  (for/list ([var (in-list (context-vars ctx))])
-    (replace-vars `((,var . (neg ,var))) spec)))
+  (reap [sow]
+    (for ([var (in-list (context-vars ctx))]
+          [repr (in-list (context-var-reprs ctx))])
+      (when (has-fabs-neg-impls? repr)
+        (sow (replace-vars `((,var . (neg ,var))) spec))))))
 
 ;; The odd identities: f(x) = -f(-x)
+;; Requires `neg` and `fabs` operator implementations.
 (define (make-odd-identities spec ctx)
-  (for/list ([var (in-list (context-vars ctx))])
-    (replace-vars `((,var . (neg ,var))) `(neg ,spec))))
+  (reap [sow]
+    (for ([var (in-list (context-vars ctx))]
+          [repr (in-list (context-var-reprs ctx))])
+      (when (has-fabs-neg-impls? repr)
+        (sow (replace-vars `((,var . (neg ,var))) `(neg ,spec)))))))
 
 ;; Swap identities: f(a, b) = f(b, a)
 (define (make-swap-identities spec ctx)
