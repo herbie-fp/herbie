@@ -865,12 +865,18 @@
 ;;  - <type-name>: type-name type
 ;;  - #f: inconclusive (possible result of `if` type during analysis)
 
+;; Types are equal?
+(define (type-equal? ty1 ty2)
+  (match* (ty1 ty2)
+    [((list 'or tys1 ...) (list 'or tys2 ...)) (equal? (list->set tys1) (list->set tys2))]
+    [(_ _) (equal? ty1 ty2)]))
+
 ;; Is `ty2` in `ty1`?
-;; Restricting `ty1` to be non-`#f` and not a union type.
 (define (has-type? ty1 ty2)
   (match* (ty1 ty2)
     [(_ #f) #f]
     [(#t _) #t]
+    [((list 'or tys1 ...) (list 'or tys2 ...)) (andmap (lambda (ty) (set-member? tys1 ty)) tys2)]
     [((list 'or tys ...) _) (set-member? tys ty2)]
     [(_ _) (equal? ty1 ty2)]))
 
@@ -951,7 +957,7 @@
                          (andmap (curry vector-ref analysis) (cdr node))
                          (node-type analysis node)))
                   (vector->list eclass))))
-       (unless (equal? ty ty*)
+       (unless (type-equal? ty ty*)
          (vector-set! analysis id ty*)
          (set! changed? #t))]
       [else ; first visit to eclass
@@ -971,8 +977,8 @@
 
   (regraph-analyze egraph eclass-set-type!))
 
-;; Type checks the egraph, returning a copy of the egraph that only
-;; contains the well-typed nodes.
+;; Type checks the egraph, returning a copy of the egraph
+;; that only contains the well-typed nodes.
 (define (regraph-type-check egraph)
   (define eclasses (regraph-eclasses egraph))
   (define egg->herbie (regraph-egg->herbie egraph))
@@ -1002,7 +1008,12 @@
         (filter
           (lambda (node) (has-type? ty (node-type node)))
           (vector->list eclass)))))
-  
+
+  ; Invariant: every eclass should be non-empty
+  (for ([id (in-range n)])
+    (when (vector-empty? (vector-ref eclasses* id))
+      (error 'regraph-type-check "invariant violated: empty eclass ~a" eclasses*)))
+
   (struct-copy regraph egraph [eclasses eclasses*]))
 
 ;; Computes the return type of every node.
@@ -1330,10 +1341,10 @@
   (define iter-limit (dict-ref params 'iteration #f))
   (define scheduler (dict-ref params 'scheduler 'backoff))
   (define const-folding? (dict-ref params 'const-fold? #t))
+  (define ffi-rules (map cdr egg-rules))
 
   ;; run the rules
   (let loop ([iter-limit iter-limit])
-    (define ffi-rules (map cdr egg-rules))
     (define egg-graph (egraph-copy egg-graph0))
     (define iteration-data
       (egraph-run egg-graph
