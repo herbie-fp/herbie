@@ -424,7 +424,14 @@ function buildRow(test, other) {
         (function () {
             var startAccuracy = formatAccuracy(test.start / test.bits)
             var resultAccuracy = formatAccuracy(test.end / test.bits)
-            var targetAccuracy = formatAccuracy(test.target / test.bits)
+
+            var smallestTarget = test.target.reduce((minA, current) => {
+                const currentA = current[1];
+                return currentA < minA ? currentA : minA;
+            }, Infinity);
+
+            var targetAccuracy = formatAccuracy(smallestTarget / test.bits)
+
             if (test.status == "imp-start" || test.status == "ex-start" || test.status == "apx-start") {
                 targetAccuracy = ""
             }
@@ -762,7 +769,7 @@ function makeFilterFunction() {
                     // Diff Start Accuracy
                     if (radioState == "output") {
                         if (baseData.output != diffData.output) {
-                            returnVAlue = returnValue && false;
+                            returnValue = returnValue && false;
                         }
                         const t = baseData.start / baseData.bits
                         const o = diffData.start / diffData.bits
@@ -799,6 +806,9 @@ function makeFilterFunction() {
 
                     // Diff Target Accuracy
                     if (radioState == "targetAccuracy") {
+                        // console.log("diffData : " + diffData.target)
+                        // console.log("baseData : " + baseData.target)
+
                         const t = baseData.target / baseData.bits
                         const o = diffData.target / diffData.bits
                         const op = calculatePercent(o)
@@ -830,11 +840,13 @@ function makeFilterFunction() {
                 return false
             }
         }
-        if (filterState[baseData.status]) {
-            returnValue = returnValue && true
-        } else {
-            return false
-        }
+        // console.log("reached filter func 252 " + returnValue)
+        // if (filterState[baseData.status]) {
+        //     returnValue = returnValue && true
+        // } else {
+        //     return false
+        // }
+        // console.log("final : " + returnValue)
         return returnValue
     }
 }
