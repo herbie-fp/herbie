@@ -194,7 +194,7 @@
                                            (vector-ref vstart-precs (- n varc)))
                                         (*base-tuning-precision*)))
 
-    ; exponent propagation for the function itself
+    ; This case is weird. if we have a cancellation in fma -> ival-mult in fma should be in higher precision
     (when (equal? op ival-fma)
       (set! final-parent-precision (+ final-parent-precision (first new-exponents))))
     
@@ -222,7 +222,7 @@
      ; log[Г*]'x = log[Г*]'y = log[Г/]'x = log[Г/]'y = 1
      ; log[Гsqrt] = 0.5
      ; log[Гcbrt] = 0.3
-     (make-list (length srcs) 0)]                     ; assume that *ampl-bits* already introduces this 1 bit + 0 as an additional precision for an op
+     (make-list (length srcs) 0)]                     ; assume that *ampl-bits* already introduces this 1 bit
     
     [(ival-add ival-sub)
      ; log[Г+]'x = log[x] - log[x + y] + 1 (1 for mantissa approximation when dividing)
@@ -497,7 +497,7 @@
     ; TODO
     [(ival-erfc ival-erf ival-lgamma ival-tgamma)
      (list (get-slack))]
-    [else (make-list (length srcs) 0)]))        ; exponents for argumetns + exponent for the function itself
+    [else (make-list (length srcs) 0)]))        ; exponents for argumetns
 
 (define (log2-approx x)
   (define exp (mpfr-exp x))
