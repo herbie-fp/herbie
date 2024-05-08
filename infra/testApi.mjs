@@ -52,3 +52,8 @@ const localerror = (await (await fetch('http://127.0.0.1:8000/api/localerror', {
 
 assert.equal(localerror.tree['avg-error'] > 0, true)
 assert.equal(cost.cost > 0, true)
+
+
+
+
+// let translatedExpression = (await (await fetch('http://127.0.0.1:8000/api/translate', { method: 'POST', body: JSON.stringify({ formula: '(FPCore (x) (- (sqrt (+ x 1)) (sqrt x)))', lang: "python" }) })).json())

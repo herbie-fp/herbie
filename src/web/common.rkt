@@ -15,7 +15,8 @@
          render-bogosity render-help
          format-percent doc-url
          fpcore->string
-         program->fpcore program->tex render-reproduction js-tex-include)
+         program->fpcore program->tex render-reproduction js-tex-include
+         core->c core->fortran core->java core->python core->julia core->matlab core->wls core->tex expr->tex)
 
 (define (program->fpcore expr ctx #:ident [ident #f])
   (define body (prog->fpcore expr (context-repr ctx)))

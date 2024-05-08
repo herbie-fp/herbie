@@ -52,6 +52,8 @@
    [("api" "calculate") #:method "post" calculate-endpoint]
    [("api" "cost") #:method "post" cost-endpoint]
    [("api" "mathjs") #:method "post" ->mathjs-endpoint]
+  ;  added endpoint API rule -Ben
+   [("api" "translate") #:method "post" translate-endpoint]
    [((hash-arg) (string-arg)) generate-page]
    [("results.json") generate-report]))
 
@@ -545,6 +547,34 @@
 
       (eprintf " complete\n")
       (hasheq 'cost cost))))
+
+; Beginning of translate endpoint -Ben
+(define (translate-endpoint)
+  (post-with-json-response
+    (lambda (post-data)
+      ; FPCore formula and target language
+      (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
+      (define target-lang (hash-ref post-data 'lang))
+       ;; Select the appropriate conversion function
+      ; (define lang-converter (case target-lang
+      ;   [("python") core->python]
+      ;   [("c") core->c]
+      ;   [("fortran") core->fortran]
+      ;   [("java") core->java]
+      ;   [("julia") core->julia]
+      ;   [("matlab") core->matlab]
+      ;   [("wls") core->wls]
+      ;   [("tex") core->tex]
+      ;   [("expr->tex") expr->tex]
+      ;   [else (lambda (x) (error "Unsupported language"))]))
+      (displayln "reached 1")
+      (define lang-converter (core->python))
+      (displayln "reached 2")
+      ; convert the expression
+      (define converted (lang-converter formula))
+      (displayln "reached 3")
+      (hasheq 'result converted
+              'lang target-lang))))
 
 (define (run-demo #:quiet [quiet? #f] #:output output #:demo? demo? #:prefix prefix #:log log #:port port #:public? public)
   (*demo?* demo?)
