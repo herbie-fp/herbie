@@ -336,15 +336,13 @@ class Runner(object):
                 output = server.stdout.read()
                 # read json from file at path self.working_dir.joinpath('results.json'). add it to self.jsons and log the result as a string
                 
-                with open(self.working_dir.joinpath('results.json'), 'r') as f: 
-                    self.jsons.append(json.load(f))
-        
-            for group in chunks(output.split('\n'), 3):
-                if len(group) == 3:
-                    core = parse_core(group[0].strip())
-                    core.cost = float(group[1].strip())
-                    core.err = float(group[2].strip())
+                with open(self.working_dir.joinpath('results.json'), 'r') as f:
+                    data =  json.load(f)
+                    core = parse_core(data["tests"][0]["output"])
+                    core.cost = float(data["tests"][0]["cost-accuracy"][1][0])
+                    core.err = float(data["tests"][0]["end"])
                     core.key = key_dict[core.name]
+                    core.json = data
                     gen_dict[core.key].append(core)
                     num_improved += 1
 

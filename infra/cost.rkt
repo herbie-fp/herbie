@@ -1,6 +1,7 @@
 #lang racket
 
-(require json)
+(require json racket/date)
+(require "../src/syntax/types.rkt")
 (require (only-in fpbench core->c)
          herbie/accelerator
          herbie/common
@@ -19,6 +20,11 @@
          herbie/web/thread-pool)
 
 (load-herbie-builtins)
+
+
+(define (flags->list flags)
+  (for*/list ([rec (hash->list flags)] [fl (cdr rec)])
+    (format "~a:~a" (car rec) fl)))
 
 ;; Also in src/improve.rkt
 (define (in-table-row tr)
@@ -49,6 +55,62 @@
          (writeln expr* p)
          (writeln cost p)
          (writeln err p))])))
+
+(define (make-report-json results #:seed seed)
+  (define basic-info (make-report-info (filter values results) #:seed seed))
+  ; Copied from datafile.rkt
+  (define (simplify-test test)
+    (match test
+      [(table-row name identifier status pre preprocess prec conversions vars
+                  input output spec target-prog
+                  start-bits end-bits target-bits start-est end-est
+                  time link cost-accuracy)
+       (define bits (representation-total-bits (get-representation prec)))
+       (define cost-accuracy*
+        (match cost-accuracy
+          [(list) (list)]
+          [(list start best others)
+            (list start best
+                  (for/list ([other (in-list others)])
+                    (match-define (list cost error expr) other)
+                    (list cost error (~a expr))))]))
+       (make-hash
+        `((name . ,name)
+          (identifier . ,(~s identifier))
+          (pre . ,(~s pre))
+          (preprocess . ,(~s preprocess))
+          (prec . ,(~s prec))
+          (bits . ,(representation-total-bits (get-representation prec)))
+          (conversions . ,(map (curry map ~s) conversions))
+          (status . ,status)
+          (start . ,start-bits)
+          (end . ,end-bits)
+          (target . ,target-bits)
+          (start-est . ,start-est)
+          (end-est . ,end-est)
+          (vars . ,(if vars (map symbol->string vars) #f))
+          (input . ,(~s input))
+          (output . ,(~s (unparse-result test
+                            #:expr output)))
+          (spec . ,(~s spec))
+          (target-prog . ,(~s target-prog))
+          (time . ,time)
+          (link . ,(~a link))
+          (cost-accuracy . ,cost-accuracy*)))]))
+  (match basic-info
+      [(report-info date commit branch hostname seed flags points iterations note tests merged-cost-accuracy)
+       (make-hash
+        `((date . ,(date->seconds date))
+          (commit . ,commit)
+          (branch . ,branch)
+          (hostname . ,hostname)
+          (seed . ,(~a seed))
+          (flags . ,(flags->list flags))
+          (points . ,points)
+          (iterations . ,iterations)
+          (note . ,note)
+          (tests . ,(map simplify-test tests))
+          (merged-cost-accuracy . ,merged-cost-accuracy)))]))
 
 ;; Converts a Python-ized pcontext into a Racket pcontext
 (define (python->pcontext pts&exs)
@@ -124,7 +186,7 @@
        (define result (run-herbie 'errors test #:pcontext pctx #:seed seed #:timeline-disabled? #t))
        (printf "~a\n" (errors-score (map second (job-result-backend result))))
        (loop)]
-      ; improve <core> <threads:int>
+      ; improve <core> <threads:int> <dir>
       [(list 'improve args ...)
        (define-values (cores threads dir)
          (match args
@@ -132,8 +194,8 @@
            [_ (error 'run-server "improve: malformed arguments ~a" args)]))
        (define tests (map (lambda (c) (parse-test (datum->syntax #f c))) cores))
        (define results (get-test-results tests #:threads threads #:seed seed #:profile #f #:dir #f))
-       (define info (make-report-info (filter values results) #:seed seed))
-       (write-datafile (build-path (symbol->string dir) "results.json") info)
+       (define info (make-report-json results #:seed seed))
+       (call-with-atomic-output-file (build-path (symbol->string dir) "results.json") (λ (p name) (write-json info p)))
        (print-output (current-output-port) results)
        (loop)]
       ; pareto <frontier:list> ...
