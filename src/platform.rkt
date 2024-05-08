@@ -11,7 +11,7 @@
 
 (provide
   platform get-platform *active-platform* activate-platform!
-  extract-platform-name list->dict
+  extract-platform-name
   ;; Platform API
   (contract-out
     ;; Operator sets
@@ -761,20 +761,10 @@
         [_
          (platform-repr-cost pform repr)]))))
 
-(define (extract-platform-name value)
-  (match value
-      [`(! ,props ... ,_)
-        (let* ((prop-dict (list->dict props))
-               (contains-herbie-plat? (assoc ':herbie-platform prop-dict)))
-          (and contains-herbie-plat? (cdr contains-herbie-plat?)))]
-      [_ #f]))
-
-(define (list->dict lst)
-  (define (dict-helper lst acc)
-    (if (null? lst)
-        acc
-        (let ((prop-name (car lst))
-              (prop-value (cadr lst)))
-            (dict-helper (cddr lst) (cons (cons prop-name prop-value) acc)))))
-  (dict-helper lst '()))
-
+(define (extract-platform-name annotation)
+  (match-define (list '! props ...) annotation)
+  (let loop ([props props])
+    (match props
+      [(list ':herbie-platform name _ ...) name]
+      [(list _ _ rest ...) (loop rest)]
+      [(list) #f])))

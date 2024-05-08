@@ -2,10 +2,13 @@
 
 (require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt"
          "../ground-truth.rkt" "../syntax/types.rkt" "../syntax/sugar.rkt"
-         "../syntax/syntax.rkt" "../alternative.rkt" "../accelerator.rkt"
-         "../platform.rkt" "simplify.rkt" "egg-herbie.rkt" "../syntax/rules.rkt")
+         "../syntax/syntax.rkt" "../accelerator.rkt" "../platform.rkt"
+         "simplify.rkt" "egg-herbie.rkt" "../syntax/rules.rkt")
 
-(provide batch-localize-both local-error-as-tree compute-local-errors)
+(provide batch-localize-costs
+         batch-localize-errors
+         compute-local-errors
+         local-error-as-tree)
 
 (define (regroup-nested inputss outputs)
   (match* (inputss outputs)
@@ -44,21 +47,10 @@
   (define simplifiedss
     (regroup-nested
       subexprss
-      (simplify-batch egg-query)))
-
-  (define errss (compute-local-errors exprs ctx))
-  (define localize-errss
-    (for/list ([expr (in-list exprs)] [errs (in-list errss)])
-      (sort
-       (sort
-        (for/list ([(subexpr err) (in-hash errs)]
-                   #:when (list? subexpr))
-          (cons err subexpr))
-        expr<? #:key cdr)
-       > #:key (compose errors-score car))))
+      (map last (simplify-batch egg-query))))
 
   (define expr->cost (platform-cost-proc (*active-platform*)))
-  (define localize-costs
+  (define localize-costss
     (for/list ([subexprs (in-list subexprss)] [simplifieds (in-list simplifiedss)])
       (sort 
        (for/list ([subexpr (in-list subexprs)]

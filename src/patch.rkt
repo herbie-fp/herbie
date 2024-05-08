@@ -166,10 +166,11 @@
   (hash-has-key? (*patch-table*) expr))
 
 (define (patch-table-run locs)
+  ; Representations
+  (define reprs (map (lambda (e) (repr-of e (*context*))) locs))
   ; Starting alternatives
-  (define reprs (map cdr locs))
   (define start-altns
-    (for/list ([(expr repr) (in-dict locs)])
+    (for/list ([expr (in-list locs)] [repr (in-list reprs)])
       (define spec (expand-accelerators (*rules*) (prog->spec expr)))
       (alt spec (list 'patch expr repr) '() '())))
   ; Core

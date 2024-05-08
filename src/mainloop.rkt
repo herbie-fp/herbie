@@ -211,7 +211,7 @@
       (for/list ([loc-costs (in-list loc-costss)]
                  #:when true
                  [(cost-diff expr) (in-dict loc-costs)]
-                 [i (in-range (*localize-expressions-limit*))])
+                 [_ (in-range (*localize-expressions-limit*))])
         (timeline-push! 'locations (~a expr) "cost-diff" cost-diff
                         (not (patch-table-has-expr? expr))
                         (~a (representation-name repr)))
@@ -226,7 +226,7 @@
       (for/list ([loc-errs (in-list loc-errss)]
                  #:when true
                  [(err expr) (in-dict loc-errs)]
-                 [i (in-range (*localize-expressions-limit*))])
+                 [_ (in-range (*localize-expressions-limit*))])
         (timeline-push! 'locations (~a expr) "accuracy" (errors-score err)
                         (not (patch-table-has-expr? expr))
                         (~a (representation-name repr)))
@@ -234,7 +234,6 @@
     (set! localized-exprs (remove-duplicates (append localized-exprs error-localized))))
 
   (^locs^ localized-exprs)
-  (^lowlocs^ '())
   (void))
 
 

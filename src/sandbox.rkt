@@ -6,6 +6,7 @@
 
 (require "syntax/read.rkt"
          "syntax/sugar.rkt"
+         "syntax/syntax.rkt"
          "syntax/types.rkt"
          "core/localize.rkt"
          "alternative.rkt"
@@ -265,6 +266,7 @@
       (define start-time (current-inexact-milliseconds))
       (rollback-improve!)
       (*context* (test-context test))
+      (*functions* (make-hasheq (test-functions test)))
       (*active-platform* (get-platform (*platform-name*)))
       (activate-platform! (*active-platform*))
       (set! timeline (*timeline*))
@@ -311,7 +313,7 @@
              (prog->fpcore (test-pre test) repr)
              preprocess
              (representation-name repr)
-             (map (curry map representation-name) (test-conversions test))
+             '() ; TODO: eliminate field
              (test-vars test)
              (prog->fpcore (test-input test) repr) 
              #f

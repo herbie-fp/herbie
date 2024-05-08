@@ -11,7 +11,6 @@ use std::cmp::min;
 use std::ffi::{CStr, CString};
 use std::mem::{self, ManuallyDrop};
 use std::os::raw::c_char;
-use std::thread;
 use std::time::Duration;
 use std::{slice, sync::atomic::Ordering};
 
@@ -20,8 +19,6 @@ pub struct Context {
     runner: Runner,
     rules: Vec<Rewrite>,
 }
-
-const PROOF_BANDAID_STACK_SIZE: usize = 128 * 2usize.pow(20); // 128 MiB
 
 // I had to add $(rustc --print sysroot)/lib to LD_LIBRARY_PATH to get linking to work after installing rust with rustup
 #[no_mangle]
@@ -292,23 +289,14 @@ pub unsafe extern "C" fn egraph_get_proof(
     let egraph = &mut context.runner.egraph;
     let expr_rec = CStr::from_ptr(expr).to_str().unwrap().parse().unwrap();
     let goal_rec = CStr::from_ptr(goal).to_str().unwrap().parse().unwrap();
-    let thread = thread::Builder::new().stack_size(PROOF_BANDAID_STACK_SIZE);
 
-    // *Java programmers hate him! Prevent stack overflows with this one weird trick!*
-    let string = thread::scope(|scope| {
-        thread
-            .spawn_scoped(scope, move || {
-                egraph
-                    .explain_equivalence(&expr_rec, &goal_rec)
-                    .get_string_with_let()
-                    .replace('\n', "")
-            })
-            .unwrap()
-            .join()
-            .unwrap()
-    });
+    // extract the proof as a tree
+    let string = egraph
+        .explain_equivalence(&expr_rec, &goal_rec)
+        .get_string_with_let()
+        .replace('\n', " ");
+
     let c_string = ManuallyDrop::new(CString::new(string).unwrap());
-
     c_string.as_ptr()
 }
 
