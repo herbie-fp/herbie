@@ -196,7 +196,7 @@
        (define results (get-test-results tests #:threads threads #:seed seed #:profile #f #:dir #f))
        (define info (make-report-json results #:seed seed))
        (call-with-atomic-output-file (build-path (symbol->string dir) "results.json") (λ (p name) (write-json info p)))
-       (print-output (current-output-port) results)
+       (writeln "success' (current-output-port))
        (loop)]
       ; pareto <frontier:list> ...
       [(list 'pareto args ...)
