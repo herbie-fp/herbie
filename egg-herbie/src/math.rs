@@ -126,7 +126,7 @@ impl Default for ConstantFold {
 
 impl Analysis<Math> for ConstantFold {
     type Data = Option<(Constant, (PatternAst<Math>, Subst))>;
-    fn make(egraph: &EGraph, enode: &Math) -> Self::Data {
+    fn make(egraph: &mut EGraph, enode: &Math) -> Self::Data {
         if !egraph.analysis.constant_fold {
             return None;
         }

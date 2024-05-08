@@ -67,22 +67,34 @@
     (when (> search-result 0)
       (check-true (<= (vector-ref arr (- search-result 1)) search-for)))))
 
-(define (sample-ival interval repr)
-  (define ->ordinal (compose (representation-repr->ordinal repr) (representation-bf->repr repr)))
-  (define <-ordinal (representation-ordinal->repr repr))
-  (<-ordinal (random-integer (->ordinal (ival-lo interval))
-                             (+ 1 (->ordinal (ival-hi interval))))))
-
 (define (make-hyperrect-sampler hyperrects* reprs)
   (when (null? hyperrects*)
     (raise-herbie-sampling-error "No valid values." #:url "faq.html#no-valid-values"))
   (define hyperrects (list->vector hyperrects*))
+  (define lo-ends
+    (for/vector #:length (vector-length hyperrects)
+                ([hyperrect (in-vector hyperrects)])
+      (for/list ([interval (in-list hyperrect)] [repr (in-list reprs)])
+        ((representation-repr->ordinal repr)
+         ((representation-bf->repr repr)
+          (ival-lo interval))))))
+  (define hi-ends
+    (for/vector #:length (vector-length hyperrects)
+                ([hyperrect (in-vector hyperrects)])
+      (for/list ([interval (in-list hyperrect)] [repr (in-list reprs)])
+        (+ 1 
+           ((representation-repr->ordinal repr)
+            ((representation-bf->repr repr)
+             (ival-hi interval)))))))
   (define weights (partial-sums (vector-map (curryr hyperrect-weight reprs) hyperrects)))
   (define weight-max (vector-ref weights (- (vector-length weights) 1)))
   (λ ()
     (define rand-ordinal (random-integer 0 weight-max))
-    (define hyperrect (vector-ref hyperrects (binary-search weights rand-ordinal)))
-    (map sample-ival hyperrect reprs)))
+    (define idx (binary-search weights rand-ordinal))
+    (define los (vector-ref lo-ends idx))
+    (define his (vector-ref hi-ends idx))
+    (for/list ([lo (in-list los)] [hi (in-list his)] [repr (in-list reprs)])
+      ((representation-ordinal->repr repr) (random-integer lo hi)))))
 
 (module+ test
   (define two-point-hyperrects (list (list (ival (bf 0) (bf 0)) (ival (bf 1) (bf 1)))))
