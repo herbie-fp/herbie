@@ -104,35 +104,32 @@ const ClientGraph = new Component('#graphs', {
         let i = 0
 
         for (const key in this.points_json.error) {
-            if (this.points_json.error[key][1] !== false) {
+            const error_type = this.points_json.error[key][0]
+            const line = colors[i % colors.length].line
 
-                const error_type = this.points_json.error[key][0]
-                const line = colors[i % colors.length].line
+            let description
 
-                let description
-
-                if (error_type === "start") {
-                    description = "Initial program"
-                } else if (error_type === "end") {
-                    description = "Most accurate alternative"
-                } else {
-                    // target is 6 letters
-                    description = "Developer Target " + error_type.slice(6)
-                }
-
-                curr_list.push( Element("label", [
-                    Element("input", {
-                        type: "checkbox",
-                        style: "accent-color: " + line.stroke,
-                        checked: selected_functions.includes(error_type),
-                        onclick: (e) => this.render(selected_var_name, toggle(error_type, selected_functions))
-                    }, []),
-                    Element("span", { className: "functionDescription" }, [
-                        " ", description]),
-                ]))
-
-                i += 1
+            if (error_type === "start") {
+                description = "Initial program"
+            } else if (error_type === "end") {
+                description = "Most accurate alternative"
+            } else {
+                // target is 6 letters
+                description = "Developer Target " + error_type.slice(6)
             }
+
+            curr_list.push( Element("label", [
+                Element("input", {
+                    type: "checkbox",
+                    style: "accent-color: " + line.stroke,
+                    checked: selected_functions.includes(error_type),
+                    onclick: (e) => this.render(selected_var_name, toggle(error_type, selected_functions))
+                }, []),
+                Element("span", { className: "functionDescription" }, [
+                    " ", description]),
+            ]))
+
+            i += 1
         }
 
         $elt.replaceChildren.apply(
