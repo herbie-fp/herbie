@@ -21,7 +21,7 @@ class FPCore(object):
         compiled: Optional[str] = None,
         cost: Optional[float] = None,
         err: Optional[float] = None,
-        json: Optional[str] = None,
+        json: Optional[dict] = None,
         py_sample: bool = False,
         override: bool = False
     ):

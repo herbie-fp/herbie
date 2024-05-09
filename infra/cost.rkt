@@ -21,11 +21,6 @@
 
 (load-herbie-builtins)
 
-
-(define (flags->list flags)
-  (for*/list ([rec (hash->list flags)] [fl (cdr rec)])
-    (format "~a:~a" (car rec) fl)))
-
 ;; Also in src/improve.rkt
 (define (in-table-row tr)
   (unless (table-row? tr)
