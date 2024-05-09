@@ -58,6 +58,8 @@ def run(
         bench_dir = os.path.join(curr_dir, bench_dir)
         # read and sample input cores
         input_cores = runner.herbie_read(path=bench_dir)
+        print(bench_dir)
+        print(len(input_cores))
         samples = runner.herbie_sample(cores=input_cores, py_sample=py_sample)
         samples, input_cores = prune_unsamplable(samples, input_cores)
         check_samples(samples, input_cores) # sanity check!
@@ -103,7 +105,7 @@ def run(
         runner.herbie_error(cores=baseline_cores) # recompute the error
 
         baseline_frontier = runner.herbie_pareto(input_cores=input_cores, cores=baseline_cores)
-        runner.plot_pareto_comparison((runner.name, frontier), (f'{baseline} (baseline)', baseline_frontier))
+        runner.write_baseline_report(frontier, baseline_frontier)
     else:
         # run and plot results
         frontier = runner.herbie_pareto(input_cores=input_cores, cores=cores)
@@ -116,8 +118,6 @@ def run(
         times = runner.run_drivers(driver_dirs=driver_dirs)
         runner.write_report(input_cores, cores, driver_dirs, times, frontier)
         runner.write_samples(input_cores, cores, samples)
-        runner.plot_times(cores, times)
-        runner.plot_pareto(frontier)
         
 
 def main():
