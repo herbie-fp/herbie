@@ -302,7 +302,7 @@
          #f
          (format "  :herbie-expected ~a" (test-expected test)))
      (and (test-output test)
-          (> (length (test-output test)) 0)
+          (not (null? (test-output test)))
           (format "\n~a"
                   (string-join
                    (map
