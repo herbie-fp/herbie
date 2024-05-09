@@ -56,13 +56,19 @@
   (define repr-bits (representation-total-bits repr))
   (define ctx (test-context test))
   (define identifier (test-identifier test))
-  (match-define (improve-result preprocessing pctxs start target end bogosity) backend)
+  (match-define (improve-result preprocessing pctxs start targets end bogosity) backend)
 
   (match-define (alt-analysis start-alt _ start-error) start)
   (define start-cost (alt-cost start-alt repr))
-  (define target-alt (and target (alt-analysis-alt target)))
-  (define target-error (and target (alt-analysis-test-errors target)))
-  (define target-cost (and target (alt-cost target-alt repr)))
+
+  (define list-target-error
+    (for/list ([target targets])
+      (alt-analysis-test-errors target)))
+
+  (define list-target-cost
+    (for/list ([target targets])
+      (alt-cost (alt-analysis-alt target) repr)))
+
   (define-values (end-alts end-errors end-costs)
     (for/lists (l1 l2 l3) ([analysis end])
       (match-define (alt-analysis alt _ test-errs) analysis)
@@ -152,8 +158,10 @@
 
 
       (section ([id "cost-accuracy"] [class "section"]
-                [data-benchmark-name ,(~a (test-name test))]
-                ,@(if target-cost `([data-target-cost ,(~a target-cost)]) '()))
+                [data-benchmark-name ,(~a (test-name test))])
+
+                ; TODO : Show all Developer Target Accuracy 
+
         (h2 "Accuracy vs Speed"
             (a ([class "help-button float"] 
                 [href ,(doc-url "report.html#cost-accuracy")]
@@ -201,18 +209,18 @@
              (ol ([class "history"])
                  ,@(render-history alt train-pctx test-pctx ctx)))))
 
-      ,(if (test-output test)
-           (let-values ([(dropdown body) (render-program (test-output test) ctx #:ident identifier)])
-             `(section ([id "target"] [class "programs"])
-                       (h2 "Developer target"
-                           ": "
-                           (span ([class "subhead"])
-                                 (data ,(format-accuracy (errors-score target-error) repr-bits #:unit "%")) " accurate, "
-                                 (data ,(~r (/ (alt-cost start-alt repr) target-cost) #:precision '(= 1)) "×") " speedup")
-                           ,dropdown
-                           ,(render-help "report.html#target"))
-                       ,body))
-           "")
 
+      ,@(for/list ([i (in-naturals 1)] [target (in-list targets)] [target-error (in-list list-target-error)] [target-cost (in-list list-target-cost)])
+          (let-values ([(dropdown body) (render-program (alt-expr (alt-analysis-alt target)) ctx #:ident identifier)])
+            `(section ([id ,(format "target~a" i)] [class "programs"])
+                      (h2 "Developer Target " ,(~a i)
+                          ": "
+                          (span ([class "subhead"])
+                                (data ,(format-accuracy (errors-score target-error) repr-bits #:unit "%")) " accurate, "
+                                (data ,(~r (/ (alt-cost start-alt repr) target-cost) #:precision '(= 1)) "×") " speedup")
+                          ,dropdown
+                          ,(render-help "report.html#target"))
+                      ,body)))
+    
       ,(render-reproduction test)))
     out))
