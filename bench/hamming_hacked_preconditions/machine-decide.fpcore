@@ -1,0 +1,12 @@
+; -*- mode: scheme -*-
+
+(FPCore (a x)
+ :name "expax (section 3.5)"
+ ;:herbie-expected 14
+ :pre (and (<= (fabs a) 1000000000000000000000000000000000000000000000) (<= (fabs x) 1000000000000000000000000000000000000000000000) (and (> 710 (* a x))))
+ ; Hamming suggests using Taylor expansion for ax small
+ ; We use expm1 as it specifically avoids cancellation for ax small
+ :alt 
+ (! :herbie-platform default (expm1 (* a x)))
+
+ (- (exp (* a x)) 1))
