@@ -334,13 +334,15 @@ class Runner(object):
                 core_strs = ' '.join(map(lambda c: c.core, uncached))
                 print(f'(improve ({core_strs}) {threads} {self.working_dir}) (exit)', file=server.stdin, flush=True)
                 output = server.stdout.read()
-                # read json from file at path self.working_dir.joinpath('results.json'). add it to self.jsons and log the result as a string
+
+                if output != "success":
+                    raise RuntimeError(f'Herbie failed to improve: {output}')
                 
                 with open(self.working_dir.joinpath('results.json'), 'r') as f:
-                    data =  json.load(f)
-                    core = parse_core(data["tests"][0]["output"])
-                    core.cost = float(data["tests"][0]["cost-accuracy"][1][0])
-                    core.err = float(data["tests"][0]["end"])
+                    data =  json.load(f)["tests"][0]
+                    core = parse_core(self.herbie_resugar(data["vars"], data["name"], data["prec"], data["pre"], data["spec"], data["output"], platform))
+                    core.cost = float(data["cost-accuracy"][1][0])
+                    core.err = float(data["end"])
                     core.key = key_dict[core.name]
                     core.json = data
                     gen_dict[core.key].append(core)
@@ -354,6 +356,18 @@ class Runner(object):
 
         self.log(f'generated {num_improved} FPCores with Herbie ({num_cached} cached)')
         return gen_cores
+    
+    def herbie_resugar(self, vars : List[str], name: str, precision: str, pre: str, spec: str, output: str, platform: str) -> str:
+        with Popen(
+                args=['racket', str(self.herbie_path), "--platform", platform],
+                stdin=PIPE,
+                stdout=PIPE,
+                universal_newlines=True) as server:
+
+                # call out to server
+                print(f'(resugar ({" ".join(vars)}) "{name}" {precision} {pre} {spec} {output}) (exit)', file=server.stdin, flush=True)
+                output = server.stdout.read()
+                return output
 
     def herbie_pareto(self, input_cores: List[FPCore], cores: List[FPCore]) -> List[Tuple[float, float]]:
         """Runs Herbie's pareto frontier algorithm."""

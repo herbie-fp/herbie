@@ -1,7 +1,7 @@
 #lang racket
 
 (require json racket/date)
-(require "../src/syntax/types.rkt")
+(require "../src/syntax/types.rkt" "../src/syntax/sugar.rkt")
 (require (only-in fpbench core->c)
          herbie/accelerator
          herbie/common
@@ -56,61 +56,15 @@
          (writeln cost p)
          (writeln err p))])))
 
-(define (make-report-json results #:seed seed)
-  (define basic-info (make-report-info (filter values results) #:seed seed))
-  ; Copied from datafile.rkt
-  (define (simplify-test test)
-    (match test
-      [(table-row name identifier status pre preprocess prec conversions vars
-                  input output spec target-prog
-                  start-bits end-bits target-bits start-est end-est
-                  time link cost-accuracy)
-       (define bits (representation-total-bits (get-representation prec)))
-       (define cost-accuracy*
-        (match cost-accuracy
-          [(list) (list)]
-          [(list start best others)
-            (list start best
-                  (for/list ([other (in-list others)])
-                    (match-define (list cost error expr) other)
-                    (list cost error (~a expr))))]))
-       (make-hash
-        `((name . ,name)
-          (identifier . ,(~s identifier))
-          (pre . ,(~s pre))
-          (preprocess . ,(~s preprocess))
-          (prec . ,(~s prec))
-          (bits . ,(representation-total-bits (get-representation prec)))
-          (conversions . ,(map (curry map ~s) conversions))
-          (status . ,status)
-          (start . ,start-bits)
-          (end . ,end-bits)
-          (target . ,target-bits)
-          (start-est . ,start-est)
-          (end-est . ,end-est)
-          (vars . ,(if vars (map symbol->string vars) #f))
-          (input . ,(~s input))
-          (output . ,(~s (unparse-result test
-                            #:expr output)))
-          (spec . ,(~s spec))
-          (target-prog . ,(~s target-prog))
-          (time . ,time)
-          (link . ,(~a link))
-          (cost-accuracy . ,cost-accuracy*)))]))
-  (match basic-info
-      [(report-info date commit branch hostname seed flags points iterations note tests merged-cost-accuracy)
-       (make-hash
-        `((date . ,(date->seconds date))
-          (commit . ,commit)
-          (branch . ,branch)
-          (hostname . ,hostname)
-          (seed . ,(~a seed))
-          (flags . ,(flags->list flags))
-          (points . ,points)
-          (iterations . ,iterations)
-          (note . ,note)
-          (tests . ,(map simplify-test tests))
-          (merged-cost-accuracy . ,merged-cost-accuracy)))]))
+(define (resugar-core vars name precision pre spec output)
+  (define repr (get-representation precision))
+  (define expr* output)
+  `(FPCore ,vars
+     :name ,name
+     :precision ,precision
+     ,@(if (empty? pre) '() `(:pre ,pre))
+     ,@(if (empty? spec) '() `(:herbie-target ,spec))
+     ,(prog->fpcore expr* repr)))
 
 ;; Converts a Python-ized pcontext into a Racket pcontext
 (define (python->pcontext pts&exs)
@@ -194,11 +148,19 @@
            [_ (error 'run-server "improve: malformed arguments ~a" args)]))
        (define tests (map (lambda (c) (parse-test (datum->syntax #f c))) cores))
        (define results (get-test-results tests #:threads threads #:seed seed #:profile #f #:dir #f))
-       (define info (make-report-json results #:seed seed))
-       (call-with-atomic-output-file (build-path (symbol->string dir) "results.json") (λ (p name) (write-json info p)))
-       (writeln "success' (current-output-port))
+       (define info (make-report-info (filter values results) #:seed seed))
+       (write-datafile (build-path (symbol->string dir) "results.json") info)
+       (write 'success (current-output-port))
        (loop)]
       ; pareto <frontier:list> ...
+      [(list 'resugar args ...)
+        (define-values (vars name precision pre spec output)
+          (match args
+            [(list vars name precision pre spec output) (values vars name precision pre spec output)]
+            [_ (error 'run-server "resugar: malformed arguments ~a" args)]))
+        (define core (resugar-core vars name precision pre spec output))
+        (write core (current-output-port))
+        (loop)]
       [(list 'pareto args ...)
        (define combined (pareto-combine args #:convex? #t))
        (displayln
