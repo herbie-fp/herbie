@@ -14,22 +14,6 @@
 
 (define ground-truth-require-convergence (make-parameter #t))
 
-(define (is-infinite-interval repr interval)
-  (define <-bf (representation-bf->repr repr))
-  (define ->bf (representation-repr->bf repr))
-  ;; HACK: the comparisons to 0.bf is just about posits, where right now -inf.bf
-  ;; rounds to the NaR value, which then represents +inf.bf, which is positive.
-  (define (positive-inf? x)
-    (parameterize ([bf-rounding-mode 'nearest])
-      (and (bigfloat? x) (bf> x 0.bf) (bf= (->bf (<-bf x)) +inf.bf))))
-  (define (negative-inf? x)
-    (parameterize ([bf-rounding-mode 'nearest])
-      (and (bigfloat? x) (bf< x 0.bf) (bf= (->bf (<-bf x)) -inf.bf))))
-  (define ival-positive-infinite (monotonic->ival positive-inf?))
-  (define ival-negative-infinite (comonotonic->ival negative-inf?))
-  (ival-or (ival-positive-infinite interval)
-           (ival-negative-infinite interval)))
-
 (define (is-samplable-interval repr interval)
   (define <-bf (representation-bf->repr repr))
   (define (close-enough? lo hi)
@@ -95,15 +79,12 @@
 
 ; ENSURE: all contexts have the same list of variables
 (define (eval-progs-real progs ctxs)
-  (define repr (context-repr (car ctxs)))
   (define fn (make-search-func '(TRUE) progs ctxs))
+  (define bad-pt 
+    (for/list ([ctx* (in-list ctxs)])
+      ((representation-bf->repr (context-repr ctx*)) +nan.bf)))
   (define (<eval-prog-real> . pt)
     (define-values (result exs) (ival-eval fn ctxs pt))
-    (match exs
-      [(? list?)
-       exs]
-      [#f
-       (for/list ([ctx* ctxs])
-         ((representation-bf->repr (context-repr ctx*)) +nan.bf))]))
+    (or exs bad-pt))
   <eval-prog-real>)
 

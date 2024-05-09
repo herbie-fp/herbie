@@ -9,7 +9,7 @@
 (define (actual-errors expr pcontext)
   (match-define (cons subexprs pt-errorss)
     (flip-lists
-     (hash->list (first (compute-local-errors (list expr)
+     (hash->list (first (compute-local-errors (list (all-subexpressions expr))
                                        (*context*))))))
 
 
