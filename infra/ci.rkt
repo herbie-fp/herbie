@@ -10,7 +10,7 @@
   (match* ((test-output test) (test-expected test))
     [(_ #f) #t]
     [(_ (? number? n)) (>= n output-bits)]
-    [(#f #t) (>= input-bits output-bits)]
+    [('() #t) (>= input-bits output-bits)]
     [(_ #t) (>= target-bits (- output-bits 1))]))
 
 (define (override-test-precision the-test repr)
@@ -41,10 +41,16 @@
     (match status
       ['success
        (match-define 
-        (improve-result preprocess pctxs start target end bogosity) backend)
+        (improve-result preprocess pctxs start targets end bogosity) backend)
        (match-define (alt-analysis start-alt _ start-error) start)
        (match-define (alt-analysis end-alt _ end-error) (first end))
-       (define target-error (and target (alt-analysis-test-errors target)))
+
+      ;; Pick lowest target from all target
+      (define target-error
+        ; If the list is empty, return false
+        (if (empty? targets)
+          #f 
+          (argmin errors-score (map alt-analysis-test-errors targets))))
 
        (printf "[ ~as]   ~a→~a\t~a\n"
                (~r (/ time 1000) #:min-width 7 #:precision '(= 3))
@@ -53,19 +59,21 @@
                (test-name test))
 
        (define success?
-         (test-successful? test
-                           (errors-score start-error)
-                           (and target-error (errors-score target-error))
-                           (errors-score end-error)))
+          (test-successful? test
+                            (errors-score start-error)
+                            (if target-error (errors-score target-error) #f)
+                            (errors-score end-error)))
 
        (when (not success?)
          (printf "\nInput (~a bits):\n" (errors-score start-error))
          (pretty-print (alt-expr start-alt) (current-output-port) 1)
          (printf "\nOutput (~a bits):\n" (errors-score end-error))
          (pretty-print (alt-expr end-alt) (current-output-port) 1)
-         (when (test-output test)
+         
+         (when target-error
            (printf "\nTarget (~a bits):\n" (errors-score target-error))
-           (pretty-print (test-output test) (current-output-port) 1)))
+           ;; internal tool so okay
+           (pretty-print (list-ref (test-output test) 0) (current-output-port) 1)))
 
        success?]
       ['failure

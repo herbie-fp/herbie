@@ -1,29 +1,11 @@
 #lang racket
 
-(require "syntax/rules.rkt"
-         "syntax/sugar.rkt"
-         "syntax/syntax.rkt"
-         "syntax/types.rkt"
-         "core/alt-table.rkt"
-         "core/bsearch.rkt"
-         "core/egg-herbie.rkt"
-         "core/localize.rkt"
-         "core/regimes.rkt"
-         "core/simplify.rkt"
-         "alternative.rkt"
-         "common.rkt"
-         "conversions.rkt"
-         "error-table.rkt"    
-         "patch.rkt"
-         "platform.rkt"
-         "points.rkt"
-         "preprocess.rkt"
-         "programs.rkt"     
-         "timeline.rkt"
-         "sampling.rkt"
-         "soundiness.rkt"
-         "float.rkt")
-
+(require
+ "syntax/rules.rkt" "syntax/sugar.rkt" "syntax/syntax.rkt" "syntax/types.rkt"
+ "core/alt-table.rkt" "core/bsearch.rkt" "core/egg-herbie.rkt" "core/localize.rkt"
+ "core/regimes.rkt" "core/simplify.rkt" "alternative.rkt" "common.rkt" "float.rkt"
+ "conversions.rkt" "error-table.rkt" "patch.rkt" "platform.rkt" "points.rkt"
+ "preprocess.rkt" "programs.rkt" "timeline.rkt" "sampling.rkt" "soundiness.rkt")
 (provide (all-defined-out))
 
 ;; I'm going to use some global state here to make the shell more
@@ -34,13 +16,9 @@
 ;; head at once, because then global state is going to mess you up.
 
 (struct shellstate (table next-alts locs lowlocs patched) #:mutable)
-
-(define (empty-shellstate)
-  (shellstate #f #f #f #f #f))
-
 (define-resetter ^shell-state^
-  (λ () (empty-shellstate))
-  (λ () (empty-shellstate)))
+  (λ () (shellstate #f #f #f #f #f))
+  (λ () (shellstate #f #f #f #f #f)))
 
 (define (^locs^ [newval 'none])
   (when (not (equal? newval 'none)) (set-shellstate-locs! (^shell-state^) newval))
@@ -58,20 +36,64 @@
   (when (not (equal? newval 'none)) (set-shellstate-patched! (^shell-state^) newval))
   (shellstate-patched (^shell-state^)))
 
-;; Iteration 0 alts (original alt in every repr, constant alts, etc.)
-(define (starting-alts altn ctx)
-  (define starting-exprs
-    (reap [sow]
-      (for ([conv (platform-conversions (*active-platform*))])
-        (match-define (list itype) (impl-info conv 'itype))
-        (when (equal? itype (context-repr ctx))
-          (define otype (impl-info conv 'otype))
-          (define expr* (list (get-rewrite-operator otype) (alt-expr altn)))
-          (define body* (apply-repr-change-expr expr* ctx))
-          (when body* (sow body*))))))
-  (map make-alt starting-exprs))
+;; These high-level functions give the high-level workflow of Herbie:
+;; - First, set up a context by sampling input points
+;; - Then, do some initial steps: preprocessing, explain, and initialize the alt table
+;; - Then, in a loop, choose some alts, localize, run the patch table, and finalize
+;; - Then do regimes, final simplify, add soundiness, and remove preprocessing
 
-;; Information
+(define (setup-context! vars specification precondition repr)
+  (*context* (context vars repr (map (const repr) vars)))
+  (define sample (sample-points precondition (list specification) (list (*context*))))
+  (match-define (cons domain pts+exs) sample)
+  (cons domain (apply mk-pcontext pts+exs)))
+
+(define (run-improve! initial specification context pcontext)
+  (timeline-event! 'preprocess)
+  (define-values (simplified preprocessing)
+    (find-preprocessing initial specification context))
+  (timeline-push! 'symmetry (map ~a preprocessing))
+  (define pcontext* (preprocess-pcontext context pcontext preprocessing))
+  (match-define (and alternatives (cons (alt best _ _ _) _))
+    (mutate! simplified context pcontext* (*num-iterations*)))
+  (timeline-event! 'preprocess)
+  (define final-alts
+    (for/list ([altern alternatives])
+      (alt-add-preprocessing altern (remove-unnecessary-preprocessing best context pcontext (alt-preprocessing altern)))))
+  (values final-alts (remove-unnecessary-preprocessing best context pcontext preprocessing))) 
+
+(define (mutate! simplified context pcontext iterations)
+  (*pcontext* pcontext)
+  (explain! simplified)
+  (initialize-alt-table! simplified context pcontext)
+  (for ([iteration (in-range iterations)] #:break (atab-completed? (^table^)))
+    (run-iter!))
+  (extract!))
+
+(define (run-iter!)
+  (when (^next-alts^)
+    (raise-user-error 'run-iter! "An iteration is already in progress\n~a"
+                      "Run (finish-iter!) to finish it, or (rollback-iter!) to abandon it.\n"))
+
+  (choose-alts!)
+  (localize!)
+  (reconstruct! (patch-table-run (^locs^) (^lowlocs^)))
+  (finalize-iter!))
+
+(define (extract!)
+  (timeline-push-alts! '())
+
+  (define all-alts (atab-all-alts (^table^)))
+  (define joined-alts (make-regime! all-alts))
+  (define cleaned-alts (final-simplify! joined-alts))
+  (define annotated-alts (add-soundness! cleaned-alts))
+  
+  (timeline-push! 'stop (if (atab-completed? (^table^)) "done" "fuel") 1)
+  (sort-alts annotated-alts))
+
+;; The next few functions are for interactive use in a REPL, usually for debugging
+;; In Emacs, you can install racket-mode and then use C-c C-k to start that REPL
+
 (define (list-alts)
   (printf "Key: [.] = done, [>] = chosen\n")
   (let ([ndone-alts (atab-not-done-alts (^table^))])
@@ -85,7 +107,6 @@
        (alt-expr alt))))
   (printf "Error: ~a bits\n" (errors-score (atab-min-errors (^table^)))))
 
-;; Begin iteration
 (define (choose-alt! n)
   (unless (< n (length (atab-active-alts (^table^))))
     (raise-user-error 'choose-alt! "Couldn't select the ~ath alt of ~a (not enough alts)"
@@ -94,6 +115,46 @@
   (^next-alts^ (list picked))
   (^table^ (atab-set-picked (^table^) (^next-alts^)))
   (void))
+
+(define (inject-candidate! expr)
+  (define new-alts (list (make-alt expr)))
+  (define-values (errss costs) (atab-eval-altns (^table^) new-alts (*context*)))
+  (^table^ (atab-add-altns (^table^) new-alts errss costs))
+  (void))
+
+(define (rollback-improve!)
+  (rollback-iter!)
+  (reset!)
+  (^table^ #f)
+  (void))
+
+(define (run-improve vars prog iters
+                     #:precondition [precondition #f]
+                     #:preprocess [preprocess empty]
+                     #:precision [precision 'binary64]
+                     #:specification [specification #f])
+  (rollback-improve!)
+  (define repr (get-representation precision))
+
+  (define original-points (setup-context! vars (prog->spec (or specification prog)) (prog->spec precondition) repr))
+  (run-improve! iters prog specification preprocess original-points repr))
+
+;; The rest of the file is various helper / glue functions used by
+;; Herbie. These often wrap other Herbie components, but add logging
+;; and timeline data.
+
+;; Iteration 0 alts (original alt in every repr, constant alts, etc.)
+(define (starting-alts altn ctx)
+  (define starting-exprs
+    (reap [sow]
+      (for ([conv (platform-conversions (*active-platform*))])
+        (match-define (list itype) (impl-info conv 'itype))
+        (when (equal? itype (context-repr ctx))
+          (define otype (impl-info conv 'otype))
+          (define expr* (list (get-rewrite-operator otype) (alt-expr altn)))
+          (define body* (apply-repr-change-expr expr* ctx))
+          (when body* (sow body*))))))
+  (map make-alt starting-exprs))
 
 (define (score-alt alt)
   (errors-score (errors (alt-expr alt) (*pcontext*) (*context*))))
@@ -114,20 +175,24 @@
       (for/list ([i (in-range 1 (- (*pareto-pick-limit*) 1))])
         (list-ref altns** (- (* i div-size) 1))))]))
 
-(define (choose-alts!)
+(define (timeline-push-alts! picked-alts)
   (define fresh-alts (atab-not-done-alts (^table^)))
-  (define alts (choose-mult-alts fresh-alts))
-  (unless (*pareto-mode*) (set! alts (take alts 1)))
   (define repr (context-repr (*context*)))
   (for ([alt (atab-active-alts (^table^))])
     (timeline-push! 'alts
                     (~a (alt-expr alt))
                     (cond
-                     [(set-member? alts alt) "next"]
-                     [(set-member? fresh-alts alt) "fresh"]
-                     [else "done"])
+                      [(set-member? picked-alts alt) "next"]
+                      [(set-member? fresh-alts alt) "fresh"]
+                      [else "done"])
                     (score-alt alt)
-                    (~a (representation-name repr))))
+                    (~a (representation-name repr)))))
+
+(define (choose-alts!)
+  (define fresh-alts (atab-not-done-alts (^table^)))
+  (define alts (choose-mult-alts fresh-alts))
+  (unless (*pareto-mode*) (set! alts (take alts 1)))
+  (timeline-push-alts! alts)
   (^next-alts^ alts)
   (^table^ (atab-set-picked (^table^) alts))
   (void))
@@ -137,35 +202,36 @@
   (unless (^next-alts^)
     (raise-user-error 'localize! "No alt chosen. Run (choose-alts!) or (choose-alt! n) to choose one"))
   (timeline-event! 'localize)
-
-  (define loc-errss
-    (batch-localize-error (map alt-expr (^next-alts^)) (*context*)))
   (define repr (context-repr (*context*)))
+  (define num-exprs (length (^next-alts^)))
+  (define-values (loc-errss loc-costss)
+     (batch-localize-both (map alt-expr (^next-alts^)) (*context*)))
 
   ; high-error locations
   (^locs^
-    (for/list ([loc-errs (in-list loc-errss)]
-               #:when true
-               [(err expr) (in-dict loc-errs)]
-               [i (in-range (*localize-expressions-limit*))])
-      (timeline-push! 'locations (~a expr) (errors-score err)
-                      (not (patch-table-has-expr? expr)) (~a (representation-name repr)))
-      expr))
-
-  ; low-error locations (Pherbie-only with multi-precision)
-  (^lowlocs^
-    (if (and (*pareto-mode*) (not (null? (platform-conversions (*active-platform*)))))
-        (for/list ([loc-errs (in-list loc-errss)]
+    (remove-duplicates 
+      (append 
+       (for/list ([loc-errs (in-list loc-errss)]
+                  #:when true
+                  [(err expr) (in-dict loc-errs)]
+                  [i (in-range (*localize-expressions-limit*))])
+         (timeline-push! 'locations (~a expr) "accuracy" (errors-score err)
+                         (not (patch-table-has-expr? expr)) (~a (representation-name repr)))
+         expr)
+        ;;Timeline will push duplicates
+        (for/list ([loc-costs (in-list loc-costss)]
                    #:when true
-                   [(err expr) (in-dict (reverse loc-errs))]
+                   [(cost-diff expr) (in-dict loc-costs)]
                    [i (in-range (*localize-expressions-limit*))])
-          (timeline-push! 'locations (~a expr) (errors-score err) #f (~a (representation-name repr)))
-          expr) 
-        '()))
-  
-  (timeline-compact! 'mixsample)
+          (timeline-push! 'locations (~a expr) "cost-diff" cost-diff
+                          (not (patch-table-has-expr? expr)) (~a (representation-name repr)))
+          expr))))
 
+  (^lowlocs^
+  '())
   (void))
+
+
 
 ;; Returns the locations of `subexpr` within `expr`
 (define (get-locations expr subexpr)
@@ -261,11 +327,6 @@
   (rollback-iter!)
   (void))
 
-(define (inject-candidate! expr)
-  (define new-alts (list (make-alt expr)))
-  (define-values (errss costs) (atab-eval-altns (^table^) new-alts (*context*)))
-  (^table^ (atab-add-altns (^table^) new-alts errss costs))
-  (void))
 (define (finish-iter!)
   (unless (^next-alts^) (choose-alts!))
   (unless (^locs^) (localize!))
@@ -280,74 +341,24 @@
   (^patched^ #f)
   (void))
 
-(define (rollback-improve!)
-  (rollback-iter!)
-  (reset!)
-  (^table^ #f)
-  (void))
-
-;; Run a complete iteration
-(define (run-iter!)
-  (when (^next-alts^)
-    (raise-user-error 'run-iter! "An iteration is already in progress\n~a"
-                      "Run (finish-iter!) to finish it, or (rollback-iter!) to abandon it.\n"))
-
-  (choose-alts!)
-  (localize!)
-  (reconstruct! (patch-table-run (^locs^) (^lowlocs^)))
-  (finalize-iter!))
-  
-(define (setup-context! vars specification precondition repr)
-  (*context* (context vars repr (map (const repr) vars)))
-  (define sample (sample-points precondition (list specification) (list (*context*))))
-  (match-define (cons domain pts+exs) sample)
-  (cons domain (apply mk-pcontext pts+exs)))
-
 (define (initialize-alt-table! alternatives context pcontext)
   (match-define (cons initial simplified) alternatives)
   (*start-prog* (alt-expr initial))
   (define table (make-alt-table pcontext initial context))
   (define simplified* (append (append-map (curryr starting-alts context) simplified) simplified))
-  (timeline-compact! 'mixsample)
   (timeline-event! 'eval)
   (define-values (errss costs) (atab-eval-altns table simplified* context))
   (timeline-event! 'prune)
   (^table^ (atab-add-altns table simplified* errss costs)))
 
-;; This is only here for interactive use; normal runs use run-improve!
-(define (run-improve vars prog iters
-                     #:precondition [precondition #f]
-                     #:preprocess [preprocess empty]
-                     #:precision [precision 'binary64]
-                     #:specification [specification #f])
-  (rollback-improve!)
-  (define repr (get-representation precision))
-
-  (define original-points (setup-context! vars (prog->spec (or specification prog)) (prog->spec precondition) repr))
-  (run-improve! iters prog specification preprocess original-points repr))
-
-(define (run-improve! initial specification context pcontext)
-  (timeline-event! 'preprocess)
-  (define-values (simplified preprocessing)
-    (find-preprocessing initial specification context))
-  (timeline-push! 'symmetry (map ~a preprocessing))
-  (define pcontext* (preprocess-pcontext context pcontext preprocessing))
-  (match-define (and alternatives (cons (alt best _ _ _) _))
-    (mutate! simplified context pcontext* (*num-iterations*)))
-  (timeline-event! 'preprocess)
-  (define final-alts
-    (for/list ([altern alternatives])
-      (alt-add-preprocessing altern (remove-unnecessary-preprocessing best context pcontext (alt-preprocessing altern)))))
-  (values final-alts (remove-unnecessary-preprocessing best context pcontext preprocessing))) 
-
-(define (mutate! simplified context pcontext iterations)
-  (*pcontext* pcontext)
+(define (explain! simplified)
+  (timeline-event! 'explain)
   (define expr (alt-expr (car simplified)))
-  (define repr (repr-of expr context))
+  (define repr (repr-of expr (*context*)))
   (define (values->json vs repr)
     (map (lambda (value) (value->json value repr)) vs))
-  (define tcount-hash (actual-errors (alt-expr (car simplified)) pcontext))
-  (define pcount-hash (predicted-errors (alt-expr (car simplified)) context pcontext))
+  (define tcount-hash (actual-errors (alt-expr (car simplified)) (*pcontext*)))
+  (define pcount-hash (predicted-errors (alt-expr (car simplified)) (*context*) (*pcontext*)))
 
   (for ([(subexpr pset) (in-dict pcount-hash)])
     (define tset (hash-ref tcount-hash subexpr '()))
@@ -361,69 +372,52 @@
                                                             repr))
                     (length upred)
                     (and (not (empty? upred)) (values->json (first upred)
-                                                            repr))))
+                                                            repr)))))
 
-  (initialize-alt-table! simplified context pcontext)
-  (for ([iteration (in-range iterations)] #:break (atab-completed? (^table^)))
-    (run-iter!))
-  (extract!))
-
-(define (extract!)
+(define (make-regime! alts)
   (define ctx (*context*))
   (define repr (context-repr ctx))
-  (define all-alts (atab-all-alts (^table^)))
-  (*all-alts* (atab-active-alts (^table^)))
-  
-  (define ndone-alts (atab-not-done-alts (^table^)))
-  (for ([alt (atab-active-alts (^table^))])
-    (timeline-push! 'alts (~a (alt-expr alt))
-                    (if (set-member? ndone-alts alt) "fresh" "done")
-                    (score-alt alt) (~a (representation-name repr))))
-  (define joined-alts
-    (cond
-     [(and (flag-set? 'reduce 'regimes) (> (length all-alts) 1)
-           (equal? (representation-type repr) 'real)
-           (not (null? (context-vars ctx))))
-      (define opts (pareto-regimes (sort all-alts < #:key (curryr alt-cost repr)) ctx))
-      (for/list ([opt (in-list opts)])
-        (combine-alts opt ctx))]
-     [else
-      (list (argmin score-alt all-alts))]))
-  (define cleaned-alts
-    (cond
-      [(flag-set? 'generate 'simplify)
-       (timeline-event! 'simplify)
 
-       (define input-progs (map alt-expr joined-alts))
-       (define egg-query (make-egg-query input-progs (*fp-safe-simplify-rules*) #:const-folding? #f))
-       (define simplified (simplify-batch egg-query))
+  (cond
+    [(and (flag-set? 'reduce 'regimes) (> (length alts) 1)
+          (equal? (representation-type repr) 'real)
+          (not (null? (context-vars ctx))))
+     (define opts (pareto-regimes (sort alts < #:key (curryr alt-cost repr)) ctx))
+     (for/list ([opt (in-list opts)])
+       (combine-alts opt ctx))]
+    [else
+     (list (argmin score-alt alts))]))
 
-       (for/list ([altn joined-alts] [progs simplified])
-         (alt (last progs) 'final-simplify (list altn) (alt-preprocessing altn)))]
-      [else
-       joined-alts]))
-        
-  (define alts-deduplicated
-    (remove-duplicates cleaned-alts alt-equal?))
+(define (final-simplify! alts)
+  (cond
+    [(flag-set? 'generate 'simplify)
+     (timeline-event! 'simplify)
 
-  (timeline-push! 'stop (if (atab-completed? (^table^)) "done" "fuel") 1)
+     (define input-progs (map alt-expr alts))
+     (define egg-query (make-egg-query input-progs (*fp-safe-simplify-rules*) #:const-folding? #f))
+     (define simplified (map last (simplify-batch egg-query)))
+
+     (remove-duplicates
+      (for/list ([altn (in-list alts)] [prog (in-list simplified)])
+        (if (equal? (alt-expr altn) prog)
+            altn
+            (alt prog 'final-simplify (list altn) (alt-preprocessing altn))))
+      alt-equal?)]
+    [else
+     alts]))
+
+(define (add-soundness! alts)
+  (cond
+    [(flag-set? 'generate 'proofs)
+     (timeline-event! 'soundness)
+     (add-soundiness alts (*pcontext*) (*context*))]
+    [else
+     alts]))
+
+(define (sort-alts alts)
+  (define repr (context-repr (*context*)))
   ;; find the best, sort the rest by cost
-  (define errss (map (λ (x) (errors (alt-expr x) (*pcontext*) (*context*))) alts-deduplicated))
-  (define-values (best end-score rest)
-    (for/fold ([best #f] [score #f] [rest #f])
-              ([altn (in-list alts-deduplicated)] [errs (in-list errss)])
-      (let ([new-score (errors-score errs)])
-        (cond
-         [(not best) (values altn new-score '())]
-         [(< new-score score) (values altn new-score (cons best rest))] ; kick out current best
-         [else (values best score (cons altn rest))]))))
-  (match-define (cons best-annotated rest-annotated)
-    (cond
-     [(flag-set? 'generate 'proofs)
-      (timeline-event! 'soundness)
-      (add-soundiness (cons best rest) (*pcontext*) (*context*))]
-     [else
-      (cons best rest)]))
-  (timeline-event! 'end)
-  
-  (cons best-annotated (sort rest-annotated > #:key (curryr alt-cost repr))))
+  (define errss (batch-errors (map alt-expr alts) (*pcontext*) (*context*)))
+  (define best 
+    (car (argmin (compose errors-score cdr) (map cons alts (flip-lists errss)))))
+  (cons best (sort (set-remove alts best) > #:key (curryr alt-cost repr))))

@@ -19,13 +19,13 @@
 (FPCore (x)
  :name "math.cube on real"
  :alt 
- (! :description (platform libm) (pow x 3))
+ (! :herbie-platform default (pow x 3))
  (* (* x x) x))
 
 (FPCore (x.re x.im)
  :name "math.cube on complex, real part"
  :alt 
- (! :description (platform libm)
+ (! :herbie-platform default
   (+ (* (* x.re x.re) (- x.re x.im))
     (* (* x.re x.im) (- x.re (* 3 x.im)))))
 
@@ -36,7 +36,7 @@
 (FPCore (x.re x.im)
  :name "math.cube on complex, imaginary part"
  :alt 
- (! :description (platform libm)
+ (! :herbie-platform default
   (+
    (* (* x.re x.im) (* 2 x.re))
    (* (* x.im (- x.re x.im)) (+ x.re x.im))))
@@ -124,7 +124,7 @@
 (FPCore (re im)
  :name "math.sqrt on complex, real part"
  :alt 
- (! :description (platform libm)
+ (! :herbie-platform default
   (if (< re 0)
    (* 0.5 (* (sqrt 2) (sqrt (/ (* im im) (- (modulus re im) re)))))
    (* 0.5 (sqrt (* 2.0 (+ (modulus re im) re))))))
