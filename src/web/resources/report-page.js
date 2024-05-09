@@ -840,13 +840,11 @@ function makeFilterFunction() {
                 return false
             }
         }
-        // console.log("reached filter func 252 " + returnValue)
-        // if (filterState[baseData.status]) {
-        //     returnValue = returnValue && true
-        // } else {
-        //     return false
-        // }
-        // console.log("final : " + returnValue)
+        if (filterState[baseData.status]) {
+            returnValue = returnValue && true
+        } else {
+            return false
+        }
         return returnValue
     }
 }

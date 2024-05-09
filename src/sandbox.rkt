@@ -364,14 +364,16 @@
      (define end-score (car end-test-scores))
      (define status
        (if target-cost-score
-          (map (lambda (target-score)
-                (cond
-                  [(< end-score (- (cadr target-score) fuzz)) "gt-target"]
-                  [(< end-score (+ (cadr target-score) fuzz)) "eq-target"]
-                  [(> end-score (+ start-test-score fuzz)) "lt-start"]
-                  [(> end-score (- start-test-score fuzz)) "eq-start"]
-                  [(> end-score (+ (cadr target-score) fuzz)) "lt-target"]))
-            target-cost-score)
+          "eq-target"
+          ; TODO : Take the best target-score
+          ; (map (lambda (target-score)
+          ;       (cond
+          ;         [(< end-score (- (cadr target-score) fuzz)) "gt-target"]
+          ;         [(< end-score (+ (cadr target-score) fuzz)) "eq-target"]
+          ;         [(> end-score (+ start-test-score fuzz)) "lt-start"]
+          ;         [(> end-score (- start-test-score fuzz)) "eq-start"]
+          ;         [(> end-score (+ (cadr target-score) fuzz)) "lt-target"]))
+          ;   target-cost-score)
 
            (cond
             [(and (< start-test-score 1) (< end-score (+ start-test-score 1))) "ex-start"]
