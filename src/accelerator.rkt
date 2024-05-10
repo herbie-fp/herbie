@@ -88,6 +88,11 @@
     (error 'register-accelerator-impl "must be an accelerator ~a" op))
   (match-define (accelerator _ _ _ spec) (hash-ref accelerators op))
   (match-define (list (or 'λ 'lambda) (list vars ...) body) spec)
+  (unless (= (length vars) (length itypes))
+    (error 'register-accelerator-impl!
+           "implementation does not have expected arity: ~a ~a"
+           (length vars)
+           (length itypes)))
   (define ctx (context vars otype itypes))
   (define impl-fn
     (or impl
