@@ -27,10 +27,10 @@ fi
 echo "Running platforms evaluation"
 python3 $INFRA_DIR/platforms-eval.py \
   "$OUTDIR/platforms" $HERBIE_THREADS $THREADS \
-  "hamming_avx_a avx $BENCH_DIR/hamming 10000" \
+  "hamming_avx_a avx $BENCH_DIR/hamming 10000"
 python3 $INFRA_DIR/platforms-eval.py \
   "$OUTDIR/platforms" $HERBIE_THREADS $THREADS \
-  "hamming_avx_b avx $BENCH_DIR/hamming_hacked_preconditions 10000" \
+  "hamming_avx_b avx $BENCH_DIR/hamming_hacked_preconditions 10000"
 
 # clean up cache and build files
 rm -rf "$OUTDIR/platforms/cache"
