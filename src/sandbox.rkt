@@ -199,20 +199,13 @@
 
   ;; optionally compute error/cost for input expression
   (define target-alt-data
-    (cond
-      [(test-output test)
-        (define target-train-errs-list '())
-        (define target-test-errs-list '())
+    ;; When in platform, evaluate error
+    (for/list ([(expr is-valid?) (in-dict (test-output test))] #:when is-valid?)
+      (define target-expr (fpcore->prog expr ctx))
+      (define target-train-errs (errors target-expr train-pcontext ctx))
+      (define target-test-errs (errors target-expr test-pcontext* ctx))
 
-        ;; When in platform, evaluate error
-        (for/list ([(expr is-valid?) (in-dict (test-output test))] #:when is-valid?)
-          (define target-expr (fpcore->prog expr ctx))
-          (define target-train-errs (errors target-expr train-pcontext ctx))
-          (define target-test-errs (errors target-expr test-pcontext* ctx))
-
-          (alt-analysis (make-alt target-expr) target-train-errs target-test-errs))]
-
-      [else #f]))
+      (alt-analysis (make-alt target-expr) target-train-errs target-test-errs)))
 
   ;; compute error/cost for output expression
   (define end-exprs (map alt-expr end-alts))
