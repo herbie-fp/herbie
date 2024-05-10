@@ -17,6 +17,7 @@
          herbie/web/core2mkl
          herbie/web/core2python3-10
          herbie/web/core2avx
+         herbie/web/core2numpy
          herbie/web/thread-pool)
 
 (load-herbie-builtins)
@@ -65,6 +66,7 @@
            [(c) (core->c core "foo")]
            [(avx) (core->avx core "foo")]
            [(mkl) (core->mkl core "foo")]
+           [(numpy) (core->numpy core "foo")]
            [(python) (core->python core "foo")]
            [else (error 'run-server "compile: unsupported language ~a" lang)]))
        (printf "~a\n" (string-replace output "\n" "\\n"))
