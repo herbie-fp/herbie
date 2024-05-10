@@ -6,6 +6,7 @@ import json
 import matplotlib.pyplot as plt
 import multiprocessing as mp
 import shutil
+import json
 
 from .cache import Cache, sanitize_name
 from .fpcore import FPCore, parse_core
@@ -129,6 +130,8 @@ class Runner(object):
         self.report_dir = self.working_dir.joinpath('report', self.name)
         if key is not None:
             self.report_dir = self.report_dir.joinpath(key)
+        # add empty list of jsons to the class instance
+        self.jsons = []
 
         # mutable data
         self.cache = Cache(str(self.working_dir.joinpath('cache')))
@@ -330,15 +333,19 @@ class Runner(object):
 
                 # call out to server
                 core_strs = ' '.join(map(lambda c: c.core, uncached))
-                print(f'(improve ({core_strs}) {threads}) (exit)', file=server.stdin, flush=True)
+                print(f'(improve ({core_strs}) {threads} {self.working_dir}) (exit)', file=server.stdin, flush=True)
                 output = server.stdout.read()
-        
-            for group in chunks(output.split('\n'), 3):
-                if len(group) == 3:
-                    core = parse_core(group[0].strip())
-                    core.cost = float(group[1].strip())
-                    core.err = float(group[2].strip())
+
+                if output != "success":
+                    raise RuntimeError(f'Herbie failed to improve: {output}')
+                
+                with open(self.working_dir.joinpath('results.json'), 'r') as f:
+                    data =  json.load(f)["tests"][0]
+                    core = parse_core(self.herbie_resugar(data["vars"], data["name"], data["prec"], data["pre"], data["spec"], data["output"], platform))
+                    core.cost = float(data["cost-accuracy"][1][0])
+                    core.err = float(data["end"])
                     core.key = key_dict[core.name]
+                    core.json = data
                     gen_dict[core.key].append(core)
                     num_improved += 1
 
@@ -350,6 +357,18 @@ class Runner(object):
 
         self.log(f'generated {num_improved} FPCores with Herbie ({num_cached} cached)')
         return gen_cores
+    
+    def herbie_resugar(self, vars : List[str], name: str, precision: str, pre: str, spec: str, output: str, platform: str) -> str:
+        with Popen(
+                args=['racket', str(self.herbie_path), "--platform", platform],
+                stdin=PIPE,
+                stdout=PIPE,
+                universal_newlines=True) as server:
+
+                # call out to server
+                print(f'(resugar ({" ".join(vars)}) "{name}" {precision} {pre} {spec} {output}) (exit)', file=server.stdin, flush=True)
+                output = server.stdout.read()
+                return output
 
     def herbie_pareto(self, input_cores: List[FPCore], cores: List[FPCore]) -> List[Tuple[float, float]]:
         """Runs Herbie's pareto frontier algorithm."""

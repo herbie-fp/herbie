@@ -1,5 +1,7 @@
 #lang racket
 
+(require json racket/date)
+(require "../src/syntax/types.rkt" "../src/syntax/sugar.rkt")
 (require (only-in fpbench core->c)
          herbie/accelerator
          herbie/common
@@ -48,6 +50,16 @@
          (writeln expr* p)
          (writeln cost p)
          (writeln err p))])))
+
+(define (resugar-core vars name precision pre spec output)
+  (define repr (get-representation precision))
+  (define expr* output)
+  `(FPCore ,vars
+     :name ,name
+     :precision ,precision
+     ,@(if (empty? pre) '() `(:pre ,pre))
+     ,@(if (empty? spec) '() `(:herbie-target ,spec))
+     ,(prog->fpcore expr* repr)))
 
 ;; Converts a Python-ized pcontext into a Racket pcontext
 (define (python->pcontext pts&exs)
@@ -123,17 +135,27 @@
        (define result (run-herbie 'errors test #:pcontext pctx #:seed seed #:timeline-disabled? #t))
        (printf "~a\n" (errors-score (map second (job-result-backend result))))
        (loop)]
-      ; improve <core> <threads:int>
+      ; improve <core> <threads:int> <dir>
       [(list 'improve args ...)
-       (define-values (cores threads)
+       (define-values (cores threads dir)
          (match args
-           [(list cores threads) (values cores threads)]
+           [(list cores threads dir) (values cores threads dir)]
            [_ (error 'run-server "improve: malformed arguments ~a" args)]))
        (define tests (map (lambda (c) (parse-test (datum->syntax #f c))) cores))
        (define results (get-test-results tests #:threads threads #:seed seed #:profile #f #:dir #f))
-       (print-output (current-output-port) results)
+       (define info (make-report-info (filter values results) #:seed seed))
+       (write-datafile (build-path (symbol->string dir) "results.json") info)
+       (write 'success (current-output-port))
        (loop)]
       ; pareto <frontier:list> ...
+      [(list 'resugar args ...)
+        (define-values (vars name precision pre spec output)
+          (match args
+            [(list vars name precision pre spec output) (values vars name precision pre spec output)]
+            [_ (error 'run-server "resugar: malformed arguments ~a" args)]))
+        (define core (resugar-core vars name precision pre spec output))
+        (write core (current-output-port))
+        (loop)]
       [(list 'pareto args ...)
        (define combined (pareto-combine args #:convex? #t))
        (displayln
