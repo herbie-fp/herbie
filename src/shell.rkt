@@ -18,6 +18,7 @@
         (parse-test input))))
 
 (define (run-shell)
+  (eprintf "(run-shell)\n")
   (define seed (get-seed))
   (eprintf "Herbie ~a with seed ~a\n" *herbie-version* seed)
   (eprintf "Find help on https://herbie.uwplse.org/, exit with ~a\n"

@@ -237,6 +237,7 @@
                     #:profile? [profile? #f]
                     #:timeline-disabled? [timeline-disabled? #f])
   (define timeline #f)
+  (eprintf "run-herbie\n")
 
   ;; CS versions <= 8.2: problems with scheduler cause places to stay
   ;; in a suspended state
@@ -270,6 +271,8 @@
       (set! timeline (*timeline*))
       (when seed (set-seed! seed))
       (with-handlers ([exn? (curry on-exception start-time)])
+        (eprintf "compute-result: ~a\n" command)
+        (eprintf "Testing:\n ~a\n" test)
         (define result
           (match command 
             ['alternatives (get-alternatives test pcontext seed)]
