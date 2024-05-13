@@ -197,7 +197,7 @@
         [(list 'and x y) (list ival-and x y)]
         [(list 'or x y)  (list ival-or x y)]
 
-        [(list 'cast x)  (list ival-copy x)]
+        [(list 'cast x)  (list identity x)]
 
         [(list op args ...)
          (error 'compile-specs "Unknown operator ~a" op)])))
