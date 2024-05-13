@@ -249,9 +249,8 @@
     
     [(ival-pow)
      ; log[Гpow]'x = log[y]
-     ; log[Гpow]'y = log[y] + log[log(x)]
-     ;                        ^^^^^^^^^^^
-     ;                        always less than 30
+     ; log[Гpow]'y = log[y] + log[log(x)] <= log[y] + |log[x]|
+
      (define x (first srcs))
      (define y (second srcs))
      (define outlo (ival-lo output))
@@ -259,21 +258,26 @@
      
      (define x-exp (ival-max-log2-approx x))
      (define y-exp (ival-max-log2-approx y))
-     (define slack (if (>= x-exp 5)                   ; if x > 8 (actually 10),
-                       30                             ; then at least 1 additional bit is needed
-                       (if (< x-exp -1)               ; if x < 0.1
-                           (- x-exp)                  
-                           0)))
      
      ; when output crosses zero and x is negative - means that y was fractional and not fixed
      ; solution - add more slack for y to converge
-     (when (and (not (equal? (mpfr-sign outlo) (mpfr-sign outhi)))
-                (bfnegative? (ival-lo x))
-                (bfnegative? (ival-hi x)))
-       (set! slack (+ slack (get-slack))))
-       
-     (list y-exp                                      ; exponent per x
-           (+ y-exp slack))]                          ; exponent per y
+     (define y-slack (if (and (not (equal? (mpfr-sign outlo) (mpfr-sign outhi)))
+                              (bfnegative? (ival-lo x))
+                              (bfnegative? (ival-hi x)))
+                         (get-slack)
+                         0))
+
+     (define xlo-exp (mpfr-exp (ival-lo x)))
+     (define xhi-exp (mpfr-exp (ival-hi x)))
+     (define x-slack ; it is likely to be a handling case from IEEE, x is not close enough
+       (if (or (equal? xlo-exp -9223372036854775807)
+               (equal? xhi-exp -9223372036854775807)  ; if interval contains 0
+               (and (> 2 xlo-exp) (<= 2 xhi-exp)))    ; if interval crosses 1
+           (get-slack)
+           0))
+        
+     (list (+ y-exp x-slack)                          ; exponent per x
+           (+ y-exp (abs x-exp) y-slack))]            ; exponent per y
      
     [(ival-exp)
      ; log[Гexp] = log[x]
