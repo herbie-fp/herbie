@@ -87,6 +87,27 @@
     (set! size (+ 1 size))
     (define node ; This compiles to the register machine
       (match prog
+        [(list 'log (or (list '+ 1 args ...) (list '+ args ... 1)))
+         (cons 'log1p (map munge args))]
+        [(list '- (list 'exp args ...) 1)
+         (cons 'expm1 (map munge args))]
+        [(list 'sqrt (list '+ (list 'pow args1 ... 2) (list 'pow args2 ... 2)))
+         (cons 'hypot (map munge (append args1 args2)))]
+        #;[(list 'cos (or (list '* (list 'PI) args ...) (list '* args ... (list 'PI))))
+         ...]
+        #;[(list 'sin (or (list '* (list 'PI) args ...) (list '* args ... (list 'PI))))
+         ...]
+        #;[(list 'tan (or (list '* (list 'PI) args ...) (list '* args ... (list 'PI))))
+         ...]
+        [(or (list '+ args3 ... (list '* args1 ... args2 ...))
+             (list '+ (list '* args1 ... args2 ...) args3 ...)) 
+         (cons 'fma (map munge (append args1 args2 args3)))]
+        #;[(list '- (list '* args1 ... args2 ...) args3)           
+         (cons 'fms (map munge (append args1 args2 args3)))]
+        #;[(list '+ (list '* args1 ... args2 ...) (list '* args3 ... args4 ...))           
+         (cons 'fmma (map munge (append args1 args2 args3 args4)))]
+        #;[(list '- (list '* args1 ... args2 ...) (list '* args3 ... args4 ...))           
+         (cons 'fmms (map munge (append args1 args2 args3 args4)))]
         [(list op args ...)
          (cons op (map munge args))]
         [_
@@ -96,7 +117,6 @@
                  (begin0 (+ exprc varc) ; store in cache, update exprs, exprc
                    (set! exprc (+ 1 exprc))
                    (set! icache (cons node icache))))))
-
   (define roots (list->vector (map munge exprs)))
   (define nodes (list->vector (reverse icache)))
 
