@@ -4,7 +4,8 @@
 (require (only-in math/private/bigfloat/mpfr mpfr-exp mpfr-sign))
 ;; Faster than bigfloat-exponent and avoids an expensive offset & contract check.
 (require (only-in "syntax/syntax.rkt" operator-info)
-         (only-in "common.rkt" *max-mpfr-prec* *sampling-iteration* *max-sampling-iterations* *base-tuning-precision* *ampl-tuning-bits* *sampling-learning-rate*)
+         (only-in "common.rkt" *max-mpfr-prec* *sampling-iteration* *max-sampling-iterations*
+                  *base-tuning-precision* *ampl-tuning-bits* *sampling-learning-rate* *use-sharing-exponents*)
          (only-in "timeline.rkt" timeline-push! timeline-start!/unsafe))
 
 (provide compile-spec compile-specs)
@@ -29,7 +30,7 @@
        'mixsample "backward-pass" (* (*sampling-iteration*) 1000)))
     (define first-iter? (zero? (*sampling-iteration*)))
     (match first-iter?
-      [#t (when (> iter-count 0)
+      [#t (when (and (> iter-count 0) (*use-sharing-exponents*))
             ; Get converged precisions with slack = 0
             (parameterize ([*sampling-iteration* -1])
               (backward-pass ivec varc vregs vprecs vbase-precs rootvec rootlen vrepeats))

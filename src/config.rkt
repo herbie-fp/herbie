@@ -88,6 +88,7 @@
 
 ;; Maximum MPFR precision allowed during exact evaluation
 (define *max-mpfr-prec* (make-parameter 10000))
+(define *use-sharing-exponents* (make-parameter #t))  ; can be turned off for debugging purposes
 (define *sampling-learning-rate* (make-parameter 0.1))
 (define *ampl-tuning-bits* (make-parameter 5))
 (define *sampling-iteration* (make-parameter 0))
