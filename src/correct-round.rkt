@@ -24,7 +24,6 @@
   (define prec-threshold (/ (*max-mpfr-prec*) 25))     ; parameter for sampling histogram table
 
   (define (compiled-spec . args)
-    ;(printf "------------- ITER ~a ---------------\n" (*sampling-iteration*))
     (define timeline-stop!
       (timeline-start!/unsafe
        'mixsample "backward-pass" (* (*sampling-iteration*) 1000)))
@@ -48,9 +47,6 @@
       (parameterize ([bf-precision precision])
         (vector-set! vregs n (apply-instruction instr vregs)))
       (timeline-stop!))
-    #;(when (equal? 5 (*sampling-iteration*))
-      (println "opana")
-      (sleep 10))
     
     (for/vector #:length rootlen ([root (in-vector rootvec)])
       (vector-ref vregs root)))
@@ -148,7 +144,6 @@
   compiled-spec)
 
 (define (backward-pass ivec varc vregs vprecs vstart-precs rootvec rootlen vrepeats repr)
-  ;(println repr)
   (define vprecs-new (make-vector (vector-length ivec) 0))          ; new vprecs vector
   ; Step 1. Adding slack in case of a rounding boundary issue
   (for/vector #:length rootlen ([root-reg (in-vector rootvec)])
@@ -161,11 +156,7 @@
                      ((representation-bf->repr repr) (ival-lo result))
                      ((representation-bf->repr repr) (ival-hi result))
                      repr))
-        (vector-set! vprecs-new (- root-reg varc) (get-slack)))
-      #;(printf "root: ~a, ulp-distance=~a, ulp-distance-new=~a\n" root-reg
-              (flonums-between (bigfloat->flonum (ival-lo result)) (bigfloat->flonum (ival-hi result)))
-              (ulp-difference ((representation-bf->repr repr) (ival-lo result)) ((representation-bf->repr repr) (ival-hi result)) repr))))
-  ;(printf "\n")
+        (vector-set! vprecs-new (- root-reg varc) (get-slack)))))
   
   ; Since Step 2 writes into *sampling-iteration* if the max prec was reached - save the iter number for step 3
   (define current-iter (*sampling-iteration*))
@@ -180,9 +171,6 @@
         [prec-old (in-vector (if (equal? 1 current-iter) vstart-precs vprecs))]
         [prec-new (in-vector vprecs-new)]
         [n (in-naturals)])
-    #;(printf "instr=~a, rep=~a\n" instr (and (<= prec-new prec-old)
-                                            (andmap (lambda (x) (or (< x varc) (vector-ref vrepeats (- x varc))))
-                                                    (rest instr))))
     (vector-set! vrepeats n (and (<= prec-new prec-old)
                                  (andmap (lambda (x) (or (< x varc) (vector-ref vrepeats (- x varc))))
                                          (rest instr)))))
@@ -190,9 +178,8 @@
   ; Step 4. Copying new precisions into vprecs
   (vector-copy! vprecs 0 vprecs-new)
   
-  ; Step 5. If precisions have not changed but the point didn't converge. Problem exists - add slack to every op
+  ; Step 5. If precisions have not changed but the point didn't converge. A problem exists - add slack to every op
   (when (false? (vector-member #f vrepeats))
-    (printf "--------------UNCOVERGED WARNING--------\n") ; report smth to log
     (define slack (get-slack))
     (for ([prec (in-vector vprecs)]
           [n (in-range (vector-length vprecs))])
@@ -228,31 +215,12 @@
       (*sampling-iteration* (*max-sampling-iterations*)))
     (vector-set! vprecs-new (- n varc) final-parent-precision)
 
-    #;(define (ulp-distance x prec)
-      (parameterize ([bf-precision prec])
-        (bigfloats-between (ival-lo x) (ival-hi x))))
-    #;(when (bigfloat? (ival-lo output))
-      (printf "~a: instr=~a, tail=~a, ulp-distance=~a, float-distance=~a, exp-from-above=~a, exp=~a, final-prec=~a, output=~a\n"
-              n
-              (object-name (car instr))
-              tail-registers
-              (ulp-distance output (- (vector-ref vstart-precs (- n varc)) (*ampl-tuning-bits*)))
-              (flonums-between (bigfloat->flonum (ival-lo output)) (bigfloat->flonum (ival-hi output)))
-              exps-from-above
-              new-exponents
-              final-parent-precision
-              output))
-
     (for ([x (in-list tail-registers)]
           [new-exp (in-list new-exponents)]
           #:when (>= x varc)) ; when tail register is not a variable
        ; check whether this op already has a precision that is higher
       (when (> (+ exps-from-above new-exp) (vector-ref vprecs-new (- x varc)))
-        (vector-set! vprecs-new (- x varc) (+ exps-from-above new-exp)))))
-  #;(for ([n (in-range (- varc 1) -1 -1)])
-    (printf "~a: val=~a\n"
-            n
-            (vector-ref vregs n))))
+        (vector-set! vprecs-new (- x varc) (+ exps-from-above new-exp))))))
 
 (define (ival-max-log2-approx x)
   (max (log2-approx (ival-hi x)) (log2-approx (ival-lo x))))
