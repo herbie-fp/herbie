@@ -19,8 +19,6 @@
   (define (close-enough? lo hi)
     (let ([lo* (<-bf lo)] [hi* (<-bf hi)])
       (or (equal? lo* hi*) (and (number? lo*) (= lo* hi*)))))
-  ;(printf "lo=~a, hi=~a\n" (<-bf (ival-lo interval)) (<-bf (ival-hi interval)))
-  ;(println <-bf)
   ((close-enough->ival close-enough?) interval))
 
 

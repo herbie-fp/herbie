@@ -146,10 +146,9 @@
 (define (backward-pass ivec varc vregs vprecs vstart-precs rootvec rootlen vrepeats repr)
   (define vprecs-new (make-vector (vector-length ivec) 0))          ; new vprecs vector
   ; Step 1. Adding slack in case of a rounding boundary issue
-  (for/vector #:length rootlen ([root-reg (in-vector rootvec)])
-    (when (and
-           (<= varc root-reg)                                       ; when root is not a variable
-           (bigfloat? (ival-lo (vector-ref vregs root-reg))))       ; when root is a real op
+  (for/vector #:length rootlen ([root-reg (in-vector rootvec)]
+                                #:when (>= root-reg varc))          ; when root is not a variable
+    (when (bigfloat? (ival-lo (vector-ref vregs root-reg)))         ; when root is a real op
       (define result (vector-ref vregs root-reg))
       (when
           (equal? 2 (ulp-difference  ; the actual ulp distance is 1, but since it over-approximates it is 2
@@ -218,7 +217,7 @@
     (for ([x (in-list tail-registers)]
           [new-exp (in-list new-exponents)]
           #:when (>= x varc)) ; when tail register is not a variable
-       ; check whether this op already has a precision that is higher
+      ; check whether this op already has a precision that is higher
       (when (> (+ exps-from-above new-exp) (vector-ref vprecs-new (- x varc)))
         (vector-set! vprecs-new (- x varc) (+ exps-from-above new-exp))))))
 
@@ -236,7 +235,7 @@
      ; log[Г*]'x = log[Г*]'y = log[Г/]'x = log[Г/]'y = 1
      ; log[Гsqrt] = 0.5
      ; log[Гcbrt] = 0.3
-     (make-list (length srcs) 0)]
+     (make-list (length srcs) 1)]
     
     [(ival-add ival-sub)
      ; log[Г+]'x = log[x] - log[x + y] + 1 (1 for mantissa approximation when dividing)
@@ -270,11 +269,9 @@
      
      (define x-exp (ival-max-log2-approx x))
      (define y-exp (ival-max-log2-approx y))
-     (define slack (if (>= x-exp 5)                   ; if x > 8 (actually 10),
+     (define slack (if (>= x-exp 3)                   ; if x > 2 (actually 2.718),
                        30                             ; then at least 1 additional bit is needed
-                       (if (< x-exp -1)               ; if x < 0.1
-                           (- x-exp)                  
-                           0)))
+                       0))
      
      (list (max 0 y-exp)                              ; exponent per x
            (max 0 (+ y-exp slack)))]                  ; exponent per y
@@ -506,9 +503,9 @@
 (define (log2-approx x)
   (define exp (mpfr-exp x))
   (if (or (equal? exp -9223372036854775807) (equal? exp -1073741823))
-      (- (get-slack))  ; 0.bf/underflow
-      (if (or (< 1000000000 (abs exp)))
-          (get-slack)  ; overflow/inf.bf/nan.bf
+      (- (get-slack))  ; 0.bf/min.bf
+      (if (<= 1073741823 (abs exp))
+          (get-slack)  ; max.bf/inf.bf/nan.bf
           (+ exp 1)))) ; +1 because mantissa is not considered
 
 (define (get-slack)
