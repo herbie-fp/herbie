@@ -91,7 +91,7 @@
          (cons 'log1p (map munge args))]
         [(list '- (list 'exp args ...) 1)
          (cons 'expm1 (map munge args))]
-        [(list 'sqrt (list '+ (list 'pow args1 ... 2) (list 'pow args2 ... 2)))
+        #;[(list 'sqrt (list '+ (list 'pow args1 ... 2) (list 'pow args2 ... 2)))
          (cons 'hypot (map munge (append args1 args2)))]
         #;[(list 'cos (or (list '* (list 'PI) args ...) (list '* args ... (list 'PI))))
          ...]
@@ -99,7 +99,7 @@
          ...]
         #;[(list 'tan (or (list '* (list 'PI) args ...) (list '* args ... (list 'PI))))
          ...]
-        [(or (list '+ args3 ... (list '* args1 ... args2 ...))
+        #;[(or (list '+ args3 ... (list '* args1 ... args2 ...))
              (list '+ (list '* args1 ... args2 ...) args3 ...)) 
          (cons 'fma (map munge (append args1 args2 args3)))]
         #;[(list '- (list '* args1 ... args2 ...) args3)           
