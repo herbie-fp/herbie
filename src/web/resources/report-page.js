@@ -420,15 +420,15 @@ function buildTableContents(jsonData, otherJsonData, filterFunction) {
 // HACK I kinda hate this split lambda function, Zane
 function buildRow(test, other) {
     var row
+    var smallestTarget = test.target.reduce((minA, current) => {
+        const currentA = current[1];
+        return currentA < minA ? currentA : minA;
+    }, Infinity);
+
     eitherOr(test, other,
         (function () {
             var startAccuracy = formatAccuracy(test.start / test.bits)
             var resultAccuracy = formatAccuracy(test.end / test.bits)
-
-            var smallestTarget = test.target.reduce((minA, current) => {
-                const currentA = current[1];
-                return currentA < minA ? currentA : minA;
-            }, Infinity);
 
             var targetAccuracy = formatAccuracy(smallestTarget / test.bits)
 
@@ -513,7 +513,7 @@ function buildRow(test, other) {
             }
 
             function targetAccuracyTD(test) {
-                const t = test.target / test.bits
+                const t = smallestTarget / test.bits
                 const o = diffAgainstFields[test.name].target / diffAgainstFields[test.name].bits
                 return buildTDfor(o, t)
             }
@@ -526,7 +526,7 @@ function buildRow(test, other) {
 
             var tdStartAccuracy = radioState == "startAccuracy" ? startAccuracy.td : Element("td", {}, [formatAccuracy(test.start / test.bits)])
             var tdResultAccuracy = radioState == "resultAccuracy" ? resultAccuracy.td : Element("td", {}, [formatAccuracy(test.end / test.bits)])
-            var tdTargetAccuracy = radioState == "targetAccuracy" ? targetAccuracy.td : Element("td", {}, [formatAccuracy(test.target / test.bits)])
+            var tdTargetAccuracy = radioState == "targetAccuracy" ? targetAccuracy.td : Element("td", {}, [formatAccuracy(smallestTarget / test.bits)])
             const tdTime = radioState == "time" ? time.td : Element("td", {}, [formatTime(test.time)])
 
             var testTile = ""
@@ -758,6 +758,7 @@ function filterPreProcess(baseData) {
 function makeFilterFunction() {
     return function filterFunction(baseData, diffData) {
         var returnValue = true
+
         eitherOr(baseData, diffData,
             (function () {
                 returnValue = returnValue && filterPreProcess(baseData)
@@ -806,11 +807,19 @@ function makeFilterFunction() {
 
                     // Diff Target Accuracy
                     if (radioState == "targetAccuracy") {
-                        // console.log("diffData : " + diffData.target)
-                        // console.log("baseData : " + baseData.target)
+                        var smallestBase = baseData.target.reduce((minA, current) => {
+                            const currentA = current[1];
+                            return currentA < minA ? currentA : minA;
+                        }, Infinity);
 
-                        const t = baseData.target / baseData.bits
-                        const o = diffData.target / diffData.bits
+                        var smallestDiff = diffData.target.reduce((minA, current) => {
+                            const currentA = current[1];
+                            return currentA < minA ? currentA : minA;
+                        }, Infinity);
+
+
+                        const t = smallestBase / baseData.bits
+                        const o = smallestDiff / diffData.bits
                         const op = calculatePercent(o)
                         const tp = calculatePercent(t)
                         var diff = op - tp
