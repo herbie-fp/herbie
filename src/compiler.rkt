@@ -2,19 +2,10 @@
 
 (require math/bigfloat math/flonum rival)
 ;; Faster than bigfloat-exponent and avoids an expensive offset & contract check.
-(require (only-in math/private/bigfloat/mpfr mpfr-exp))
-(require "syntax/syntax.rkt" "syntax/types.rkt"
+(require "syntax/syntax.rkt" "syntax/types.rkt" "correct-round.rkt"
          "common.rkt" "timeline.rkt" "float.rkt" "config.rkt")
 
-(provide compile-specs compile-spec compile-progs compile-prog)
-
-(define (log2-approx x)
-  (define exp (mpfr-exp x))
-  (if (equal? exp -9223372036854775807)
-      (- (get-slack))  ; 0.bf
-      (if (or (< 1000000000 (abs exp)))
-          (get-slack)  ; overflow/inf.bf/nan.bf
-          (+ exp 1)))) ; +1 because mantissa is not considered
+(provide compile-progs compile-prog compile-specs compile-spec)
 
 ;; Interpreter taking a narrow IR
 ;; ```
@@ -24,61 +15,19 @@
 ;; where <index> refers to a previous virtual register.
 ;; Must also provide the input variables for the program(s)
 ;; as well as the indices of the roots to extract.
-;; name ::= 'fl or 'ival
-(define (make-progs-interpreter name vars ivec roots)
-  (define rootvec (list->vector roots))
+(define (make-progs-interpreter vars ivec rootvec)
   (define rootlen (vector-length rootvec))
   (define iveclen (vector-length ivec))
   (define varc (length vars))
-  (define vreg-count (+ varc iveclen))
-  (define vregs (make-vector vreg-count))
-  (define vrepeats (make-vector iveclen #f))           ; flags whether an op should be evaluated
-  (define vprecs (make-vector iveclen))                ; vector that stores working precisions
-  (define vstart-precs (setup-vstart-precs ivec varc)) ; starting precisions for the tuning mode that are to be adjusted
-  (define vbase-precs (setup-vstart-precs ivec varc))  ; base precisions for the tuning mode
-  
-  (define prec-threshold (/ (*max-mpfr-prec*) 25))     ; parameter for sampling histogram table
-  (define iter-count 0)
-  (if (equal? name 'ival)
-      (λ args
-        (define timeline-stop! (timeline-start!/unsafe 'mixsample "backward-pass"
-                                                       (* (*sampling-iteration*) 1000)))
-        (match (zero? (*sampling-iteration*))
-          [#t (when (> iter-count 0)
-                ; Get converged precision with slack = 0
-                (parameterize ([*sampling-iteration* -1])
-                  (backward-pass ivec varc vregs vprecs vbase-precs rootvec rootlen vrepeats))
-                (update-vstart-precs vstart-precs vprecs))
-              (vector-fill! vrepeats #f)
-              (set! iter-count 0)]
-          [#f (backward-pass ivec varc vregs vprecs vstart-precs rootvec rootlen vrepeats)
-              (set! iter-count (*sampling-iteration*))]) ; back-pass
-        (timeline-stop!)
-        
-        (for ([arg (in-list args)] [n (in-naturals)])
-          (vector-set! vregs n arg))
-        (for ([instr (in-vector ivec)] [n (in-naturals varc)]
-                                       [precision (in-vector (if (zero? (*sampling-iteration*)) vstart-precs vprecs))]
-                                       [repeat (in-vector vrepeats)]
-                                       #:unless repeat)
-          (define timeline-stop! (timeline-start!/unsafe 'mixsample
-                                                         (symbol->string (object-name (car instr)))
-                                                         (- precision (remainder precision prec-threshold))))
-          (parameterize ([bf-precision precision])
-            (vector-set! vregs n (apply-instruction instr vregs)))
-          (timeline-stop!))
-        
-        (for/vector #:length rootlen ([root (in-vector rootvec)])
-          (vector-ref vregs root)))
-   
-      ; name is 'fl
-      (λ args
-        (for ([arg (in-list args)] [n (in-naturals)])
-          (vector-set! vregs n arg))
-        (for ([instr (in-vector ivec)] [n (in-naturals varc)])
-          (vector-set! vregs n (apply-instruction instr vregs)))
-        (for/vector #:length rootlen ([root (in-vector rootvec)])
-          (vector-ref vregs root)))))
+  (define vregs (make-vector (+ varc iveclen)))
+  (define (compiled-prog . args)
+    (for ([arg (in-list args)] [n (in-naturals)])
+      (vector-set! vregs n arg))
+    (for ([instr (in-vector ivec)] [n (in-naturals varc)])
+      (vector-set! vregs n (apply-instruction instr vregs)))
+    (for/vector #:length rootlen ([root (in-vector rootvec)])
+      (vector-ref vregs root)))
+  compiled-prog)
 
 (define (apply-instruction instr regs)
   ;; By special-casing the 0-3 instruction case,
@@ -100,547 +49,69 @@
     [(list op args ...)
      (apply op (map (curryr vector-ref regs) args))]))
 
-(define (get-slack)
-  (match (*sampling-iteration*)
-    [-1 0]
-    [0 256]
-    [1 512]
-    [2 1024]
-    [3 2048]
-    [4 4096]
-    [5 8192]))
+(define (if-proc c a b)
+  (if c a b))
 
-;; Function sets up vstart-precs vector, where all the precisions
-;; are equal to (+ (*base-tuning-precision*) (* depth (*ground-truth-extra-bits*))),
-;; where depth is the depth of a node in the given computational tree (ivec)
-(define (setup-vstart-precs ivec varc)
-  (define ivec-len (vector-length ivec))
-  (define vstart-precs (make-vector ivec-len))
-  (unless (vector-empty? ivec)
-    (for ([instr (in-vector ivec (- ivec-len 1) -1 -1)] ; reversed over ivec
-          [n (in-range (- ivec-len 1) -1 -1)])          ; reversed over indices of vstart-precs
-      (define current-prec (max (vector-ref vstart-precs n) (*base-tuning-precision*)))
-      (vector-set! vstart-precs n current-prec)
-    
-      (define tail-registers (rest instr))
-      (for ([idx (in-list tail-registers)])
-        (when (>= idx varc)          ; if tail register is not a variable
-          (define idx-prec (vector-ref vstart-precs (- idx varc)))
-          (set! idx-prec (max        ; sometimes an instruction can be in many tail registers
-                          idx-prec   ; We wanna make sure that we do not tune a precision down
-                          (+ current-prec (*ground-truth-extra-bits*))))
-          (vector-set! vstart-precs (- idx varc) idx-prec)))))
-  vstart-precs)
+(define (progs->batch exprs vars)
+  (define icache (reverse vars))
+  (define exprhash
+    (make-hash
+     (for/list ([var vars] [i (in-naturals)])
+       (cons var i))))
+  ; Counts
+  (define size 0)
+  (define exprc 0)
+  (define varc (length vars))
 
-(define (update-vstart-precs vstart-precs vprecs)
-  (vector-map! (lambda (x y) (+ (exact-ceiling (* (- y x) (*sampling-learning-rate*))) x))
-                 vstart-precs vprecs))
+  ; Translates programs into an instruction sequence of operations
+  (define (munge prog)
+    (set! size (+ 1 size))
+    (define node ; This compiles to the register machine
+      (match prog
+        [(list op args ...)
+         (cons op (map munge args))]
+        [_
+         prog]))
+    (hash-ref! exprhash node
+               (lambda ()
+                 (begin0 (+ exprc varc) ; store in cache, update exprs, exprc
+                   (set! exprc (+ 1 exprc))
+                   (set! icache (cons node icache))))))
+
+  (define roots (list->vector (map munge exprs)))
+  (define nodes (list->vector (reverse icache)))
+
+  (timeline-push! 'compiler (+ varc size) (+ exprc varc))
+  (values nodes roots))
 
 ;; Translates a Herbie IR into an interpretable IR.
 ;; Requires some hooks to complete the translation.
-(define (make-compiler name
-                       #:input->value input->value
-                       #:op->procedure op->proc
-                       #:op->itypes op->itypes
-                       #:if-procedure if-proc)
-  (lambda (exprs vars)
-    ;; Instruction cache
-    (define icache '())
-    (define exprhash
-      (make-hash
-       (for/list ([var vars] [i (in-naturals)])
-         (cons var i))))
-    ; Counts
-    (define size 0)
-    (define exprc 0)
-    (define varc (length vars))
+(define (make-compiler exprs vars)
+  (define num-vars (length vars))
+  (define-values (nodes roots)
+    (progs->batch exprs vars))
 
-    ; Translates programs into an instruction sequence of operations
-    (define (munge prog)
-      (set! size (+ 1 size))
-      (define expr
-        (match prog
-          [(? number?)
-           (list (const (input->value prog 'real)))]
-          [(literal value (app get-representation repr))
-           (list (const (input->value value repr)))]
-          [(? variable?) prog]
-          [`(if ,c ,t ,f)
-           (list if-proc (munge c) (munge t) (munge f))]
-          [(list op args ...)
-           (cons (op->proc op) (map munge args))]
-          [_ (raise-argument-error 'compile-specs "Not a valid expression!" prog)]))
-      (hash-ref! exprhash expr
-                 (λ ()
-                   (begin0 (+ exprc varc) ; store in cache, update exprs, exprc
-                           (set! exprc (+ 1 exprc))
-                           (set! icache (cons expr icache))))))
-    
-    (define names (map munge exprs))
-    (timeline-push! 'compiler (+ varc size) (+ exprc varc))
-    (define ivec (list->vector (reverse icache)))
-    (make-progs-interpreter name vars ivec names)))
+  (define instructions
+    (for/vector #:length (- (vector-length nodes) num-vars)
+                ([node (in-vector nodes num-vars)])
+      (match node
+        [(literal value (app get-representation repr))
+         (list (const (real->repr value repr)))]
+        [(list 'if c t f)
+         (list if-proc c t f)]
+        [(list op args ...)
+         (cons (impl-info op 'fl) args)])))
 
-;; Compiles a program of operators into a procedure
-;; that evaluates the program on a single input of intervals
-;; returning intervals.
-(define (compile-specs specs vars)
-  ; strangeness with specs: need to check for `repr-conv?` operators
-  ; normally we'd call `repr-conv?` from `src/syntax/syntax.rkt`
-  ; but it will check the entire table of operators every call,
-  ; so greedily compute the set ahead of time
-  (define repr-convs (operator-all-impls 'cast))
-  (define (real-op op)
-    (if (member op repr-convs)
-        (impl->operator op)
-        op))
-
-  (define compile
-    (make-compiler 'ival
-                   #:input->value
-                   (lambda (prog _)
-                     (define lo (parameterize ([bf-rounding-mode 'down]) (bf prog)))
-                     (define hi (parameterize ([bf-rounding-mode 'up]) (bf prog)))
-                     (ival lo hi))
-                   #:op->procedure (lambda (op) (operator-info (real-op op) 'ival))
-                   #:op->itypes (lambda (op) (operator-info (real-op op) 'itype))
-                   #:if-procedure ival-if))
-  (compile specs vars))
+  (make-progs-interpreter vars instructions roots))
 
 ;; Compiles a program of operator implementations into a procedure
 ;; that evaluates the program on a single input of representation values
 ;; returning representation values.
 (define (compile-progs exprs ctx)
-  (define compile
-    (make-compiler 'fl
-                   #:input->value real->repr
-                   #:op->procedure (lambda (op) (impl-info op 'fl))
-                   #:op->itypes (lambda (op) (impl-info op 'itype))
-                   #:if-procedure (λ (c ift iff) (if c ift iff))))
-  (compile exprs (context-vars ctx)))
-
-;; Like `compile-specs`, but for a single spec.
-(define (compile-spec spec vars)
-  (define core (compile-specs (list spec) vars))
-  (define (<compiled-spec> . xs) (vector-ref (apply core xs) 0))
-  <compiled-spec>)
+  (make-compiler exprs (context-vars ctx)))
 
 ;; Like `compile-progs`, but a single prog.
 (define (compile-prog expr ctx)
   (define core (compile-progs (list expr) ctx))
-  (define (<compiled-prog> . xs) (vector-ref (apply core xs) 0))
-  <compiled-prog>)
-
-;; Function writes into vprecs new precisions that are propogated using condition number logic
-;;   and into vrepeats whether a reevaluation is needed for an instruction
-(define (backward-pass ivec varc vregs vprecs vstart-precs rootvec rootlen vrepeats)
-  (define vprecs-new (make-vector (vector-length ivec) 0))          ; new vprecs vector
-  ; Step 1. Adding slack in case of a rounding boundary issue
-  (for/vector #:length rootlen ([root-reg (in-vector rootvec)])
-    (when (and
-           (<= varc root-reg)                                       ; when root is not a variable
-           (bigfloat? (ival-lo (vector-ref vregs root-reg))))       ; when root is a real op
-      (define result (vector-ref vregs root-reg))
-      (when
-          (equal? 1 (flonums-between
-                     (bigfloat->flonum (ival-lo result))
-                     (bigfloat->flonum (ival-hi result))))
-        (vector-set! vprecs-new (- root-reg varc) (get-slack)))))
-  
-  ; Step 2. Exponents calculation
-  (exponents-propogation ivec vregs vprecs-new varc vstart-precs)
-  
-  ; Step 3. Repeating precisions check
-  ; vrepeats[i] = #t if the node has the same precision as an iteration before and children have #t flag as well
-  ; vrepeats[i] = #f if the node doesn't have the same precision as an iteration before or at least one child has #f flag
-  (for ([instr (in-vector ivec)]
-        [prec-old (in-vector (if (equal? 1 (*sampling-iteration*)) vstart-precs vprecs))]
-        [prec-new (in-vector vprecs-new)]
-        [n (in-naturals)])
-    (if (and (equal? prec-new prec-old)
-             (andmap identity (map (lambda (x) (if (>= x varc)
-                                                   (vector-ref vrepeats (- x varc))
-                                                   #t))
-                                   (rest instr))))
-        (vector-set! vrepeats n #t)
-        (vector-set! vrepeats n #f)))
-  
-  ; Step 4. Copying new precisions into vprecs
-  (vector-copy! vprecs 0 vprecs-new))
-
-;; This function goes through ivec and vregs and calculates (+ exponents base-precisions) for each operator in ivec
-;; If any precision exceeds *max-mpfr-prec* - *sampling-iteration* changes to be *max-sampling-iterations* (last iteration)
-;; Roughly speaking:
-;;   vprecs-new[i] = min( *max-mpfr-prec* max( *base-tuning-precision* (+ exponents-from-above vstart-precs[i])),
-;;   exponents-from-above = get-exponent(parent)
-(define (exponents-propogation ivec vregs vprecs-new varc vstart-precs)
-  (for ([instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)]   ; reversed over ivec
-        [n (in-range (- (vector-length vregs) 1) -1 -1)])           ; reversed over indices of vregs
-
-    (define op (car instr))                                         ; current operation
-    (define tail-registers (rest instr))
-    (define srcs (map (lambda (x) (vector-ref vregs x)) tail-registers)) ; tail of the current instr
-    (define output (vector-ref vregs n))                            ; output of the current instr
-    
-    (define exps-from-above (vector-ref vprecs-new (- n varc)))     ; vprecs-new is shifted by varc elements from vregs
-    (define new-exponents (get-exponent op output srcs))
-
-    (define final-parent-precision (min (*max-mpfr-prec*)
-                                        (+ exps-from-above
-                                           (vector-ref vstart-precs (- n varc)))))
-
-    ; This case is weird. if we have a cancellation in fma -> ival-mult in fma should be in higher precision
-    (when (equal? op ival-fma)
-      (set! final-parent-precision (+ final-parent-precision new-exponents)))
-    
-    (when (equal? final-parent-precision (*max-mpfr-prec*))         ; Early stopping
-      (*sampling-iteration* (*max-sampling-iterations*)))
-    (vector-set! vprecs-new (- n varc) final-parent-precision)
-    
-    (define child-exponents (+ exps-from-above new-exponents))
-    (for ([x (in-list tail-registers)])
-      (when (>= x varc)   ; when tail register is not a variable
-        (vector-set! vprecs-new (- x varc)
-                     (max ; check whether this op already has a precision that is higher
-                      (vector-ref vprecs-new (- x varc))
-                      child-exponents))))))
-
-;; Function calculates an exponent for a certain output and input using condition formulas,
-;;   where an exponent is an additional precision that needs to be added to srcs evaluation so,
-;;   that the output will be fixed in its precision when evaluating again
-(define (get-exponent op output srcs)
-  (cond
-    [(member op (list ival-mult ival-div ival-sqrt ival-cbrt))
-     1]
-    [(equal? op ival-add)
-     ; log[Г+] = max(log[x], log[y]) - log[x + y]
-     ;                               ^^^^^^^^^^^^
-     ;                               possible cancellation
-     (define x (first srcs))
-     (define xlo (ival-lo x))
-     (define xlo-exp (log2-approx xlo))
-     (define xlo-sgn (bigfloat-signbit xlo))
-     (define xhi (ival-hi x))
-     (define xhi-exp (log2-approx xhi))
-     (define xhi-sgn (bigfloat-signbit xhi))
-
-     (define y (second srcs))
-     (define ylo (ival-lo y))
-     (define ylo-exp (log2-approx ylo))
-     (define ylo-sgn (bigfloat-signbit ylo))
-     (define yhi (ival-hi y))
-     (define yhi-exp (log2-approx yhi))
-     (define yhi-sgn (bigfloat-signbit yhi))
-     
-     (define outlo (ival-lo output))
-     (define outlo-exp (log2-approx outlo))
-     (define outhi (ival-hi output))
-     (define outhi-exp (log2-approx outhi))
-       
-     (max 0 (+ 1 ; subtraction of logarithms doesn't consider mantissa - which can be +1 to the result
-               (max
-                (- (max xlo-exp ylo-exp) outlo-exp)
-                (- (max xhi-exp yhi-exp) outhi-exp))
-               (if (equal? (bigfloat-signbit outlo) (bigfloat-signbit outhi)) ; slack part
-                   0
-                   (get-slack))))]
-      
-    [(equal? op ival-sub)
-     ; log[Г-] = max(log[x], log[y]) - log[x - y]
-     ;                               ^^^^^^^^^^^^
-     ;                               possible cancellation
-     (define x (first srcs))
-     (define xlo (ival-lo x))
-     (define xlo-exp (log2-approx xlo))
-     (define xlo-sgn (bigfloat-signbit xlo))
-     (define xhi (ival-hi x))
-     (define xhi-exp (log2-approx xhi))
-     (define xhi-sgn (bigfloat-signbit xhi))
-
-     (define y (second srcs))
-     (define ylo (ival-lo y))
-     (define ylo-exp (log2-approx ylo))
-     (define ylo-sgn (bigfloat-signbit ylo))
-     (define yhi (ival-hi y))
-     (define yhi-exp (log2-approx yhi))
-     (define yhi-sgn (bigfloat-signbit yhi))
-
-     (define outlo (ival-lo output))
-     (define outlo-exp (log2-approx outlo))
-     (define outhi (ival-hi output))
-     (define outhi-exp (log2-approx outhi))
-
-     (max 0 (+ 1 ; subtraction of logarithms doesn't consider mantissa - which can be +1 to the result
-               (max
-                (- (max xlo-exp yhi-exp) outlo-exp)
-                (- (max xhi-exp ylo-exp) outhi-exp))
-               (if (equal? (bigfloat-signbit outlo) (bigfloat-signbit outhi)) ; slack part
-                   0
-                   (get-slack))))]
-      
-    [(equal? op ival-pow)
-     ; log[Гpow] = max[ log(y) , log(y) + log[log(x)] ]
-     ;                                    ^^^^^^^^^^^ less than 30
-     (define xlo-exp (log2-approx (ival-lo (first srcs))))
-     (define xhi-exp (log2-approx (ival-hi (first srcs))))
-     (define ylo-exp (log2-approx (ival-lo (second srcs))))
-     (define yhi-exp (log2-approx (ival-hi (second srcs))))
-
-     (max 0 (+ (max ylo-exp yhi-exp)
-               (if (> (max xlo-exp xhi-exp) 2) ; if x-exp > 2 (actually 2.718),
-                   30                          ;    then at least 1 additional bit is needed
-                   0)))]
-
-    [(equal? ival-exp op)
-     (max 0
-          (log2-approx (ival-lo (car srcs)))
-          (log2-approx (ival-hi (car srcs))))]
-
-    [(equal? ival-tan op)
-     ; log[Гtan] = log[x] - log[sin(x)*cos(x)] <= log[x] + |log[tan(x)]| + 1
-     ;                                                      ^^^^^^^^^^^
-     ;                                                 tan can be (-inf, +inf) or around to zero
-     (define outlo (ival-lo output))
-     (define outhi (ival-hi output))
-       
-     (define out-exp
-       (+ 1 (max (abs (log2-approx outlo))
-                 (abs (log2-approx outhi)))
-          (if (equal? (bigfloat-signbit outlo) (bigfloat-signbit outhi))
-              0                            ; both bounds are positive or negative
-              (get-slack))))               ; tan is (-inf, +inf) or around zero
-
-     (max 0
-          (+ (log2-approx (ival-lo (car srcs))) out-exp)
-          (+ (log2-approx (ival-hi (car srcs))) out-exp))]
-              
-    [(member op (list ival-sin ival-cos ival-sinh ival-cosh))
-     ; log[Гcos] = log[x] + log[sin(x)] - log[cos(x)] <= log[x] - log[cos(x)]
-     ; log[Гsin] = log[x] + log[cos(x)] - log[sin(x)] <= log[x] - log[sin(x)]
-     ;                      ^^^^^^^^^^^                         ^^^^^^^^^^^^^
-     ;                      can be pruned                       a possible uncertainty
-     (define outlo (ival-lo output))
-     (define outhi (ival-hi output))
-
-     (define out-exp
-       (+ (min (log2-approx outlo)
-               (log2-approx outhi))
-          (if (equal? (bigfloat-signbit outlo) (bigfloat-signbit outhi))
-              0                         ; both bounds are positive or negative
-              (- (get-slack)))))        ; Condition of uncertainty,
-     ; slack is negated because it is to be subtracted below
-     (max 0 (+ 1 ; subtraction of logarithms doesn't consider mantissa - which can be +1 to the result
-               (- (max
-                   (log2-approx (ival-lo (car srcs)))
-                   (log2-approx (ival-hi (car srcs))))
-                  out-exp)))]
-               
-    [(member op (list ival-log ival-log2 ival-log10))
-     ; log[Гlog]   = log[1/logx] = -log[log(x)]
-     ; log[Гlog2]  = log[1/(log2(x) * ln(2))] <= -log[log2(x)] + 1    < main formula
-     ; log[Гlog10] = log[1/(log10(x) * ln(10))] <= -log[log10(x)] - 1
-     ;                    ^ a possible uncertainty
-     (define outlo (ival-lo output))
-     (define outhi (ival-hi output))
-       
-     (max 0
-          (+ 1 (max (- (log2-approx outlo))  ; main formula
-                    (- (log2-approx outhi)))
-             (if (equal? (bigfloat-signbit outlo) (bigfloat-signbit outhi)) ; slack part
-                 0                           ; both bounds are positive or negative
-                 (get-slack))))]             ; output crosses 0.bf - uncertainty
-
-          
-              
-    [(member op (list ival-asin ival-acos))
-     ; log[Гasin] = log[x] - log[1-x^2]/2 - log[asin(x)]
-     ; log[Гacos] = log[x] - log[1-x^2]/2 - log[acos(x)]
-     ;                       ^^^^^^^^^^^^
-     ;                       condition of uncertainty
-     (define xlo (ival-lo (car srcs)))
-     (define xhi (ival-hi (car srcs)))
-     (define xlo-exp (log2-approx xlo))
-     (define xhi-exp (log2-approx xhi))
-     (define out-exp
-       (+ (min                                   ; log[acos(x)|asin(x)] part
-           (log2-approx (ival-lo output))      
-           (log2-approx (ival-hi output)))
-          (if (or (>= xlo-exp 0) (>= xhi-exp 0)) ; Condition of uncertainty when argument > sqrt(3)/2
-              (- (get-slack))                    ; assumes that log[1-x^2]/2 is equal to (- slack)
-              0)))
-     (max 0 (- xlo-exp out-exp) (- xhi-exp out-exp))] ; main formula
-
-    [(equal? op ival-atan)
-     ; log[Гatan] = log[x] - log[x^2+1] - log[atan(x)] <= -|log[x]| - log[atan(x)] <= 0
-     (define xlo-exp (- (abs (log2-approx (ival-lo (car srcs))))))
-     (define xhi-exp (- (abs (log2-approx (ival-hi (car srcs))))))
-     (max 0 ; never greater than 0...
-          (- xlo-exp (log2-approx (ival-lo output)))
-          (- xhi-exp (log2-approx (ival-hi output))))]
-      
-    [(member op (list ival-fmod ival-remainder))
-     ; x mod y = x - y*q, where q is a coef
-     ; log[Гmod] ~ log[ max(x, y*x/y) / mod(x,y)] ~ log[x] - log[mod(x,y)] + 1
-     ;                            ^   ^
-     ;                     conditions of uncertainty
-     (define x (first srcs))
-     (define xlo-exp (log2-approx (ival-lo x)))
-     (define xhi-exp (log2-approx (ival-hi x)))
-       
-     (define y (second srcs))
-     (define ylo (ival-lo y))
-     (define yhi (ival-hi y))
-
-     (define outlo (ival-lo output))
-     (define outlo-exp (log2-approx outlo))
-     (define outhi (ival-hi output))
-     (define outhi-exp (log2-approx outhi))
-       
-     (max 0
-          (+ (max (+ (- xlo-exp outlo-exp) 1)
-                  (+ (- xhi-exp outhi-exp) 1))
-       
-             (if (and (equal? (bigfloat-signbit ylo) (bigfloat-signbit yhi))
-                      (equal? (bigfloat-signbit outlo) (bigfloat-signbit outhi)))
-                 0                ; y and out don't cross 0
-                 (get-slack))))]   ; y or output crosses 0
-    [(equal? op ival-fma)
-     ; log[Гfma] = log[ max(x*y, -z) / fma(x,y,z)] ~ max(log[x] + log[y], log[z]) - log[fma(x,y,z)] + 1
-     ;                               ^^^^^^^^^^^^
-     ;                               possible uncertainty
-     (define x (first srcs))
-     (define xlo-exp (log2-approx (ival-lo x)))
-     (define xhi-exp (log2-approx (ival-hi x)))
-       
-     (define y (second srcs))
-     (define ylo-exp (log2-approx (ival-lo y)))
-     (define yhi-exp (log2-approx (ival-hi y)))
-
-     (define z (third srcs))
-     (define zlo-exp (log2-approx (ival-lo z)))
-     (define zhi-exp (log2-approx (ival-hi z)))
-
-     (define outlo (ival-lo output))
-     (define outlo-exp (log2-approx outlo))
-     (define outhi (ival-hi output))
-     (define outhi-exp (log2-approx outhi))
-       
-     (define condition-lhs (+ 1 ; +1 because logarithms subtraction doesn't consider mantissa bits
-                              (max (+ xlo-exp ylo-exp) ; max(log[x] + log[y], log[z])
-                                   (+ xhi-exp yhi-exp)
-                                   zlo-exp
-                                   zhi-exp)))
-     (max 0
-          (- condition-lhs (min outlo-exp outhi-exp)
-             (if (equal? (bigfloat-signbit outhi) (bigfloat-signbit outlo)) ; cancellation when output crosses 0
-                 0
-                 (- (get-slack)))))]
-    
-    [(equal? op ival-hypot)
-     ; hypot = sqrt(x^2+y^2)
-     ; log[Гhypot] = log[ (2 * max(x,y) / hypot(x,y))^2 ] = 2 * (1 + log[max(x,y)] - log[hypot]) + 1
-     ;                                  ^ 
-     ;                                  a possible division by zero, catched by log2-approx's slack
-     (define x (first srcs))
-     (define xlo-exp (log2-approx (ival-lo x)))
-     (define xhi-exp (log2-approx (ival-hi x)))
-       
-     (define y (second srcs))
-     (define ylo-exp (log2-approx (ival-lo y)))
-     (define yhi-exp (log2-approx (ival-hi y)))
-
-     (define outlo-exp (log2-approx (ival-lo output)))
-     (define outhi-exp (log2-approx (ival-hi output)))
-     
-     (max 0
-          (+ 1 (* 2 (- ; division in condition number - +1 to the result
-                     (+ (max xlo-exp ylo-exp xhi-exp yhi-exp) 1)
-                     (min outlo-exp outhi-exp)))))]
-    
-    ; Currently log1p has a very poor approximation
-    [(equal? op ival-log1p)
-     ; log[Гlog1p] = log[x] - log[1+x] - log[log1p] + 1
-     ;                      ^^^^^^^^^^
-     ;                      treated like a slack if x < 0
-     (define x (first srcs))
-     (define xlo (ival-lo x))
-     (define xlo-exp (log2-approx xlo))
-     (define xhi (ival-hi x))
-     (define xhi-exp (log2-approx xhi))
-
-     (define outlo (ival-lo output))
-     (define outlo-exp (log2-approx outlo))
-     (define outhi (ival-hi output))
-     (define outhi-exp (log2-approx outhi))
-     
-     (max 0
-          (+ (- (+ (max xlo-exp xhi-exp) 1)                   ; main formula: log[x] - log[log1p] + 1
-                (min outlo-exp outhi-exp))
-             (if (or (equal? (bigfloat-signbit xlo) 1)        ; slack part
-                     (equal? (bigfloat-signbit xhi) 1))       ; if x in negative
-                 (get-slack)
-                 0)))]
-    
-    ; Currently expm1 has a very poor solution for negative values
-    [(equal? op ival-expm1)
-     ; log[Гexpm1] = log[x * e^x / expm1] <= max(1+log[x], 1+log[x/expm1] +1)
-     ;                                                                    ^^ division accounting
-     (define x (first srcs))
-     (define xlo (ival-lo x))
-     (define xlo-exp (log2-approx xlo))
-     (define xhi (ival-hi x))
-     (define xhi-exp (log2-approx xhi))
-     (define xmax-exp (max xlo-exp xhi-exp))
-
-     (define outlo (ival-lo output))
-     (define outlo-exp (log2-approx outlo))
-     (define outhi (ival-hi output))
-     (define outhi-exp (log2-approx outhi))
-
-     (max 0
-          (+ 1 xmax-exp)
-          (+ 2 (- xmax-exp (min outlo-exp outhi-exp))))]
-
-    [(equal? op ival-atan2)
-     ; log[Гatan2] = log[xy / ((x^2+y^2)*atan2)] <= log[x] + log[y] - 2*max[logx, logy] - log[atan2]
-     (define x (first srcs))
-     (define x-exp (max (log2-approx (ival-hi x))
-                        (log2-approx (ival-lo x))))
-     
-     (define y (second srcs))
-     (define y-exp (max (log2-approx (ival-hi y))
-                        (log2-approx (ival-lo y))))
-     
-     (define out-exp (min (log2-approx (ival-lo output))
-                          (log2-approx (ival-hi output))))
-
-     (max 0
-          (- (+ x-exp y-exp) (* 2 (max x-exp y-exp)) out-exp))]
-
-    ; Currently has a poor implementation
-    [(equal? op ival-tanh)
-     ; log[Гtanh] = log[x / (sinh(x) * cosh(x))] <= -log[x] + log[tanh]. Never greater than 0
-     (define x (first srcs))
-     (define x-exp (min (log2-approx (ival-hi x))
-                        (log2-approx (ival-lo x))))
-     (define out-exp (max (log2-approx (ival-lo output))
-                          (log2-approx (ival-hi output))))
-     (max 0
-          (+ (- x-exp) out-exp))]
-    
-    [(equal? op ival-atanh)
-     ; log[Гarctanh] = log[x / ((1-x^2) * atanh)] = 1 if x < 0.5, otherwise slack
-     ;                          ^^^^^^^
-     ;                          a possible uncertainty
-     (define x (first srcs))
-     (define x-exp (max (log2-approx (ival-hi x))
-                        (log2-approx (ival-lo x))))
-
-     (if (>= x-exp 0)
-         (get-slack)
-         1)]
-    
-    ; TODO
-    [(member op (list ival-erfc ival-erf ival-lgamma ival-tgamma))
-     (get-slack)]
-    [else 0]))
+  (define (compiled-prog . xs) (vector-ref (apply core xs) 0))
+  compiled-prog)

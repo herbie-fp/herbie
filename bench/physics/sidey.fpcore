@@ -5,10 +5,10 @@
   :name "Given's Rotation SVD example"
   :pre (< 1e-150 (fabs x) 1e150)
   :alt 
-  (! :description (platform libm)
+  (! :herbie-platform default
    (sqrt (+ 1/2 (/ (copysign 1/2 x) (hypot 1 (/ (* 2 p) x))))))
 
-  (sqrt (* 0.5 (+ 1 (/ x (sqrt (+ (* 4 p p) (* x x))))))))
+  (sqrt (* 0.5 (+ 1 (/ x (sqrt (+ (* (* 4 p) p) (* x x))))))))
 
 ;; Here, I'm doing (1 - the above), and x here is (2p / x)
 (FPCore (x)
