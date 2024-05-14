@@ -4,7 +4,7 @@
 (require (only-in math/private/bigfloat/mpfr mpfr-exp mpfr-sign))
 ;; Faster than bigfloat-exponent and avoids an expensive offset & contract check.
 (require (only-in "syntax/syntax.rkt" operator-info)
-         (only-in "common.rkt" *max-mpfr-prec* *sampling-iteration* *max-sampling-iterations* *base-tuning-precision* *ampl-tuning-bits*)
+         (only-in "common.rkt" *max-mpfr-prec*)
          (only-in "timeline.rkt" timeline-push! timeline-start!/unsafe))
 
 (provide compile-spec compile-specs)
@@ -15,29 +15,14 @@
   (define varc (length vars))
   (define vreg-count (+ varc iveclen))
   (define vregs (make-vector vreg-count))
-  (define vrepeats (make-vector iveclen #f))           ; flags whether an op should be evaluated
-  (define vprecs (make-vector iveclen))                ; vector that stores working precisions
-  (define vstart-precs (setup-vstart-precs ivec varc)) ; starting precisions for the tuning mode
-
   (define prec-threshold (/ (*max-mpfr-prec*) 25))     ; parameter for sampling histogram table
 
   (define (compiled-spec . args)
-    (define timeline-stop!
-      (timeline-start!/unsafe
-       'mixsample "backward-pass" (* (*sampling-iteration*) 1000)))
-    (define first-iter? (zero? (*sampling-iteration*)))
-    (if first-iter?
-        (vector-fill! vrepeats #f)
-        (backward-pass ivec varc vregs vprecs vstart-precs rootvec rootlen vrepeats))
-    (timeline-stop!)
-        
+    (define precision (bf-precision))
     (for ([arg (in-list args)] [n (in-naturals)])
       (vector-set! vregs n arg))
     (for ([instr (in-vector ivec)]
-          [n (in-naturals varc)]
-          [precision (in-vector (if first-iter? vstart-precs vprecs))]
-          [repeat (in-vector vrepeats)]
-          #:unless repeat)
+          [n (in-naturals varc)])
       (define timeline-stop!
         (timeline-start!/unsafe
          'mixsample (symbol->string (object-name (car instr)))
@@ -141,7 +126,7 @@
   (define (compiled-spec . xs) (vector-ref (apply core xs) 0))
   compiled-spec)
 
-(define (backward-pass ivec varc vregs vprecs vstart-precs rootvec rootlen vrepeats)
+#;(define (backward-pass ivec varc vregs vprecs vstart-precs rootvec rootlen vrepeats)
   (define vprecs-new (make-vector (vector-length ivec) 0))          ; new vprecs vector
   ; Step 1. Adding slack in case of a rounding boundary issue
   (for/vector #:length rootlen ([root-reg (in-vector rootvec)]
@@ -178,7 +163,7 @@
 ; Roughly speaking:
 ;   vprecs-new[i] = min( *max-mpfr-prec* max( *base-tuning-precision* (+ exponents-from-above vstart-precs[i])),
 ;   exponents-from-above = get-exponent(parent)
-(define (exponents-propogation ivec vregs vprecs-new varc vstart-precs)
+#;(define (exponents-propogation ivec vregs vprecs-new varc vstart-precs)
   (for ([instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)]   ; reversed over ivec
         [n (in-range (- (vector-length vregs) 1) -1 -1)])           ; reversed over indices of vregs
 
@@ -208,15 +193,15 @@
       (when (> (+ exps-from-above new-exp) (vector-ref vprecs-new (- x varc))) ; check whether this op already has a precision that is higher
         (vector-set! vprecs-new (- x varc) (+ exps-from-above new-exp))))))
 
-(define (ival-max-log2-approx x)
+#;(define (ival-max-log2-approx x)
   (max (log2-approx (ival-hi x)) (log2-approx (ival-lo x))))
-(define (ival-min-log2-approx x)
+#;(define (ival-min-log2-approx x)
   (min (log2-approx (ival-hi x)) (log2-approx (ival-lo x))))
 
 ; Function calculates an exponent per input for a certain output and inputs using condition formulas,
 ;   where an exponent is an additional precision that needs to be added to srcs evaluation so,
 ;   that the output will be fixed in its precision when evaluating again
-(define (get-exponent op output srcs)
+#;(define (get-exponent op output srcs)
   (case (object-name  op)
     [(ival-mult ival-div ival-sqrt ival-cbrt)
      ; log[Г*]'x = log[Г*]'y = log[Г/]'x = log[Г/]'y = 1
@@ -503,7 +488,7 @@
      (list (get-slack))]
     [else (make-list (length srcs) 0)]))        ; exponents for argumetns
 
-(define (log2-approx x)
+#;(define (log2-approx x)
   (define exp (mpfr-exp x))
   (if (equal? exp -9223372036854775807)
       (- (get-slack))  ; 0.bf
@@ -511,7 +496,7 @@
           (get-slack)  ; overflow/inf.bf/nan.bf
           (+ exp 1)))) ; +1 because mantissa is not considered
 
-(define (get-slack)
+#;(define (get-slack)
   (match (*sampling-iteration*)
     [0 256]
     [1 512]
@@ -523,7 +508,7 @@
 ; Function sets up vstart-precs vector, where all the precisions
 ; are equal to (+ (*base-tuning-precision*) (* depth (*ampl-tuning-bits*))),
 ; where depth is the depth of a node in the given computational tree (ivec)
-(define (setup-vstart-precs ivec varc)
+#;(define (setup-vstart-precs ivec varc)
   (define ivec-len (vector-length ivec))
   (define vstart-precs (make-vector ivec-len))
   (unless (vector-empty? ivec)

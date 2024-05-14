@@ -52,27 +52,27 @@
        y)))
   compiled-spec)
 
-(define (ival-eval fn ctxs pt [iter 0])
+(define (ival-eval fn ctxs pt [precision (*start-mpfr-prec*)])
   (define start (current-inexact-milliseconds))
   (define <-bfs
     (for/list ([ctx (in-list ctxs)])
       (representation-bf->repr (context-repr ctx))))
   (define-values (status final-prec value)
-    (let loop ([iter iter])
+    (let loop ([precision precision])
       (define exs
-        (parameterize ([*sampling-iteration* iter]) (apply fn pt)))
+        (parameterize ([bf-precision precision]) (apply fn pt)))
       (match-define (ival err err?) (apply ival-or (map ival-error? exs)))
-      (define iter* (+ 1 iter))
+      (define precision* (* 2 precision))
       (cond
         [err
-         (values err iter #f)]
+         (values err precision #f)]
         [(not err?)
-         (values 'valid iter
+         (values 'valid precision
                  (for/list ([ex exs] [<-bf <-bfs]) (<-bf (ival-lo ex))))]
-        [(> iter* (*max-sampling-iterations*))
-         (values 'exit iter #f)]
+        [(> precision* (*max-mpfr-prec*))
+         (values 'exit precision #f)]
         [else
-         (loop iter*)])))
+         (loop precision*)])))
   (timeline-push!/unsafe 'outcomes (- (current-inexact-milliseconds) start)
                          final-prec (~a status) 1)
   (values status value))
