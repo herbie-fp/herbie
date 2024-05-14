@@ -291,7 +291,7 @@
      (list (+ y-exp #;x-slack)                        ; exponent per x
            (+ y-exp (abs x-exp) y-slack))]            ; exponent per y
      
-    [(ival-exp)
+    [(ival-exp ival-exp2)
      ; log[Гexp] = log[x]
      (define x (car srcs))
      (define x-exp (ival-max-log2-approx x))
@@ -511,7 +511,7 @@
      
      (list (+ (- out-exp) slack))]
     ; TODO
-    [(ival-erfc ival-erf ival-lgamma ival-tgamma)
+    [(ival-erfc ival-erf ival-lgamma ival-tgamma ival-asinh ival-logb)
      (list (get-slack))]
     [else (make-list (length srcs) 0)]))        ; exponents for argumetns
 
