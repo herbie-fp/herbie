@@ -146,6 +146,11 @@
   (*pcontext* test-pcontext)
   (local-error-as-tree (test-input test) (*context*)))
 
+(define (get-alternatives test seed #:pcontext [pcontext #f])
+  (cond 
+    [(not pcontext) (_get-alternatives/report test seed)]
+    [else (_get-alternatives test pcontext seed)]))
+
 ;; TODO: What in the timeline needs fixing with these changes?
 
 ;; Given a test and a sample of points, returns a list of improved alternatives
@@ -153,7 +158,7 @@
 ;; If the sample contains the expected number of points, i.e., `(*num-points*) + (*reeval-pts*)`,
 ;; then the first `*num-points*` will be discarded and the rest will be used for evaluation,
 ;; otherwise the entire set is used.
-(define (get-alternatives test pcontext seed)
+(define (_get-alternatives test pcontext seed)
   (unless pcontext
     (error 'get-alternatives "cannnot run without a pcontext"))
 
@@ -168,8 +173,7 @@
 
 ;; Improvement backend for generating reports
 ;; A more heavyweight version of `get-alternatives`
-(define (get-alternatives/report test)
-  (define seed (get-seed))
+(define (_get-alternatives/report test seed)
   (random) ;; Child process uses deterministic but different seed from evaluator
   
   (define repr (test-output-repr test))
@@ -272,12 +276,12 @@
       (with-handlers ([exn? (curry on-exception start-time)])
         (define result
           (match command 
-            ['alternatives (get-alternatives test pcontext seed)]
+            ['alternatives (get-alternatives test seed #:pcontext pcontext)]
             ['evaluate (get-calculation test pcontext)]
             ['cost (get-cost test)]
             ['errors (get-errors test pcontext)]
             ['exacts (get-exacts test pcontext)]
-            ['improve (get-alternatives/report test)]
+            ['improve (get-alternatives test seed)]
             ['local-error (get-local-error test pcontext)]
             ['sample (get-sample test)]
             [_ (error 'compute-result "unknown command ~a" command)]))
