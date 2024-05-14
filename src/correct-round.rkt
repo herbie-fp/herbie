@@ -99,6 +99,8 @@
          ...]
         #;[(list 'tan (or (list '* (list 'PI) args ...) (list '* args ... (list 'PI))))
          ...]
+        #;[`(cos (* (/ (PI) ,(? integer? n)) ,arg))
+         (list `(cosu ,n) (munge arg))]
         #;[(or (list '+ args3 ... (list '* args1 ... args2 ...))
              (list '+ (list '* args1 ... args2 ...) args3 ...)) 
          (cons 'fma (map munge (append args1 args2 args3)))]
@@ -139,6 +141,8 @@
              (list (lambda () (real->ival node))))]
         [(list 'if c y f)
          (list ival-if c y f)]
+        #;[(list `(cosu ,n) x)
+         (list (lambda (x) (ival-cosu x n)) x)]
         [(list op args ...)
          (cons (operator-info op 'ival) args)])))
 
