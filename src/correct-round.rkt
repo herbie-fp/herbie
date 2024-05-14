@@ -280,16 +280,16 @@
                          (get-slack)
                          0))
 
-     (define xlo-exp (mpfr-exp (ival-lo x)))
-     (define xhi-exp (mpfr-exp (ival-hi x)))
-     (define x-slack ; it is likely to be a handling case from IEEE, x is not close enough
+     #;(define xlo-exp (mpfr-exp (ival-lo x)))
+     #;(define xhi-exp (mpfr-exp (ival-hi x)))
+     #;(define x-slack ; it is likely to be a handling case from IEEE, x is not close enough
        (if (or (equal? xlo-exp -9223372036854775807)
-               (equal? xhi-exp -9223372036854775807)  ; if interval contains 0
-               (and (> 2 xlo-exp) (<= 2 xhi-exp)))    ; if interval crosses 1
+               (equal? xhi-exp -9223372036854775807)        ; if interval contains 0
+               (and (equal? 1 xlo-exp) (equal? 1 xhi-exp))) ; if interval possibly contains 1
            (get-slack)
            0))
         
-     (list (+ y-exp x-slack)                          ; exponent per x
+     (list (+ y-exp #;x-slack)                        ; exponent per x
            (+ y-exp (abs x-exp) y-slack))]            ; exponent per y
      
     [(ival-exp)
