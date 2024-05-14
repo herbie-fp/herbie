@@ -275,8 +275,7 @@
      ; when output crosses zero and x is negative - means that y was fractional and not fixed
      ; solution - add more slack for y to converge
      (define y-slack (if (and (not (equal? (mpfr-sign outlo) (mpfr-sign outhi)))
-                              (bfnegative? (ival-lo x))
-                              (bfnegative? (ival-hi x)))
+                              (bfnegative? (ival-lo x)))
                          (get-slack)
                          0))
 
