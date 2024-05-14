@@ -372,7 +372,6 @@
 (define sample-endpoint
   (post-with-json-response
     (lambda (post-data)
-      (eprintf "run-herbie 'sample\n")
       (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
       (define seed (hash-ref post-data 'seed))
       (eprintf "Sampling job started on ~a..." formula)
@@ -387,7 +386,6 @@
 (define analyze-endpoint
   (post-with-json-response
     (lambda (post-data)
-      (eprintf "run-herbie 'errors\n")
       (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
       (define sample (hash-ref post-data 'sample))
       (define seed (hash-ref post-data 'seed #f))
@@ -406,7 +404,6 @@
 (define exacts-endpoint 
   (post-with-json-response
     (lambda (post-data)
-      (eprintf "run-herbie 'exacts\n")
       (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
       (define sample (hash-ref post-data 'sample))
       (define seed (hash-ref post-data 'seed #f))
@@ -424,7 +421,6 @@
 (define calculate-endpoint 
   (post-with-json-response
     (lambda (post-data)
-      (eprintf "run-herbie 'evalutate\n")
       (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
       (define sample (hash-ref post-data 'sample))
       (define seed (hash-ref post-data 'seed #f))
@@ -442,7 +438,6 @@
 (define local-error-endpoint
   (post-with-json-response
     (lambda (post-data)
-      (eprintf "run-herbie 'local-error\n")
       (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
       (define sample (hash-ref post-data 'sample))
       (define seed (hash-ref post-data 'seed #f))
@@ -478,7 +473,6 @@
 (define alternatives-endpoint
   (post-with-json-response
     (lambda (post-data)
-      (eprintf "run-herbie 'alternatives\n")
       (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
       (define sample (hash-ref post-data 'sample))
       (define seed (hash-ref post-data 'seed #f))
@@ -542,7 +536,6 @@
 (define cost-endpoint
   (post-with-json-response
     (lambda (post-data)
-      (eprintf "run-herbie 'cost\n")
       (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
       (eprintf "Computing cost of ~a..." formula)
       
