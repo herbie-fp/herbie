@@ -202,17 +202,17 @@
     (define exps-from-above (vector-ref vprecs-new (- n varc)))     ; vprecs-new is shifted by varc elements from vregs
     (define new-exponents (get-exponent op output srcs))
 
-    (define final-parent-precision (min (*max-mpfr-prec*)
-                                        (+ exps-from-above
-                                           (vector-ref vstart-precs (- n varc)))))
+    (define final-parent-precision (max (+ exps-from-above
+                                           (vector-ref vstart-precs (- n varc)))
+                                        (*base-tuning-precision*)))
 
     ; This case is weird. if we have a cancellation in fma -> ival-mult in fma should be in higher precision
     (when (equal? op ival-fma)
       (set! final-parent-precision (+ final-parent-precision (first new-exponents))))
     
-    (when (equal? final-parent-precision (*max-mpfr-prec*))         ; Early stopping
+    (when (>= final-parent-precision (*max-mpfr-prec*))         ; Early stopping
       (*sampling-iteration* (*max-sampling-iterations*)))
-    (vector-set! vprecs-new (- n varc) final-parent-precision)
+    (vector-set! vprecs-new (- n varc) (min final-parent-precision (*max-mpfr-prec*)))
 
     (for ([x (in-list tail-registers)]
           [new-exp (in-list new-exponents)]
@@ -235,7 +235,7 @@
      ; log[Г*]'x = log[Г*]'y = log[Г/]'x = log[Г/]'y = 1
      ; log[Гsqrt] = 0.5
      ; log[Гcbrt] = 0.3
-     (make-list (length srcs) 1)]
+     (make-list (length srcs) 0)]                     ; assume that *ampl-bits* already introduces this 1 bit
     
     [(ival-add ival-sub)
      ; log[Г+]'x = log[x] - log[x + y] + 1 (1 for mantissa approximation when dividing)
@@ -257,30 +257,46 @@
                        0
                        (get-slack)))
      
-     (list (+ (max 0 (+ (- x-exp out-exp) slack)) 1)      ; exponent per x
-           (+ (max 0 (+ (- y-exp out-exp) slack)) 1))]    ; exponent per y 
+     (list (+ (- x-exp out-exp) slack 1)              ; exponent per x
+           (+ (- y-exp out-exp) slack 1))]            ; exponent per y 
     
     [(ival-pow)
      ; log[Гpow]'x = log[y]
-     ; log[Гpow]'y = log[y] + log[log(x)]
-     
+     ; log[Гpow]'y = log[y] + log[log(x)] <= log[y] + |log[x]|
+
      (define x (first srcs))
      (define y (second srcs))
+     (define outlo (ival-lo output))
+     (define outhi (ival-hi output))
      
      (define x-exp (ival-max-log2-approx x))
      (define y-exp (ival-max-log2-approx y))
-     (define slack (if (>= x-exp 3)                   ; if x > 2 (actually 2.718),
-                       30                             ; then at least 1 additional bit is needed
-                       0))
      
-     (list (max 0 y-exp)                              ; exponent per x
-           (max 0 (+ y-exp slack)))]                  ; exponent per y
-    
+     ; when output crosses zero and x is negative - means that y was fractional and not fixed
+     ; solution - add more slack for y to converge
+     (define y-slack (if (and (not (equal? (mpfr-sign outlo) (mpfr-sign outhi)))
+                              (bfnegative? (ival-lo x))
+                              (bfnegative? (ival-hi x)))
+                         (get-slack)
+                         0))
+
+     (define xlo-exp (mpfr-exp (ival-lo x)))
+     (define xhi-exp (mpfr-exp (ival-hi x)))
+     (define x-slack ; it is likely to be a handling case from IEEE, x is not close enough
+       (if (or (equal? xlo-exp -9223372036854775807)
+               (equal? xhi-exp -9223372036854775807)  ; if interval contains 0
+               (and (> 2 xlo-exp) (<= 2 xhi-exp)))    ; if interval crosses 1
+           (get-slack)
+           0))
+        
+     (list (+ y-exp x-slack)                          ; exponent per x
+           (+ y-exp (abs x-exp) y-slack))]            ; exponent per y
+     
     [(ival-exp)
      ; log[Гexp] = log[x]
      (define x (car srcs))
      (define x-exp (ival-max-log2-approx x))
-     (list (max 0 x-exp))]
+     (list x-exp)]
     
     [(ival-tan)
      ; log[Гtan] = log[x] - log[sin(x)*cos(x)] <= log[x] + |log[tan(x)]| + 1
@@ -300,7 +316,7 @@
                        (get-slack)                    ; tan is (-inf, +inf) or around zero (but x != 0)
                        0))
      
-     (list (max 0 (+ x-exp out-exp-abs 1 slack)))]
+     (list (+ x-exp out-exp-abs 1 slack))]
     
     [(ival-sin ival-cos ival-sinh ival-cosh)
      ; log[Гcos] = log[x] + log[sin(x)] - log[cos(x)] <= log[x] - log[cos(x)] + 1
@@ -320,7 +336,7 @@
                        (get-slack)                    ; Condition of uncertainty
                        0))
      
-     (list (+ (max 0 (+ (- x-exp out-exp) slack)) 1))]
+     (list (+ (- x-exp out-exp) slack 1))]
     
     [(ival-log ival-log2 ival-log10)
      ; log[Гlog]   = log[1/logx] = -log[log(x)]
@@ -336,7 +352,7 @@
                        0
                        (get-slack)))                  ; output crosses 0 - uncertainty
      
-     (list (max 0 (+ out-exp 1 slack)))]
+     (list (+ out-exp 1 slack))]
     
     [(ival-asin ival-acos)
      ; log[Гasin] = log[x] - log[1-x^2]/2 - log[asin(x)] + 1
@@ -351,17 +367,17 @@
                        (get-slack)                    ; assumes that log[1-x^2]/2 is equal to slack
                        0))
      
-     (list (max 0 (+ (- x-exp out-exp) 1 slack)))]
+     (list (+ (- x-exp out-exp) 1 slack))]
     
     [(ival-atan)
-     ; log[Гatan] = log[x] - log[x^2+1] - log[atan(x)] <= -|log[x]| - log[atan(x)] <= 0
+     ; log[Гatan] = log[x] - log[x^2+1] - log[atan(x)] <= -|log[x]| - log[atan(x)] + 1 <= 0
      (define x (first srcs))
      
      (define x-exp-abs (max (abs (log2-approx (ival-hi x)))
                             (abs (log2-approx (ival-lo x)))))
      (define out-exp (ival-min-log2-approx output))
      
-     (list (max 0 (- (- x-exp-abs) out-exp)))]
+     (list (+ (- (- x-exp-abs) out-exp) 1))]
     
     [(ival-fmod ival-remainder)
      ; x mod y = x - y*q, where q is rnd_down(x/y)
@@ -387,8 +403,8 @@
                          x-slack                
                          (+ x-slack (get-slack))))    ; y crosses zero
      
-     (list (max 0 (+ (- x-exp out-exp) 1 x-slack))    ; exponent per x
-           (max 0 (+ (- x-exp out-exp) 1 y-slack)))]  ; exponent per y
+     (list (+ (- x-exp out-exp) 1 x-slack)            ; exponent per x
+           (+ (- x-exp out-exp) 1 y-slack))]          ; exponent per y
     
     [(ival-fma)
      ; log[Гfma] = log[ max(x*y, -z) / fma(x,y,z)] ~ max(log[x] + log[y], log[z]) - log[fma(x,y,z)] + 1
@@ -411,7 +427,7 @@
      
      (define lhs-exp (max (+ x-exp y-exp)             ; max(log[x] + log[y], log[z])
                           z-exp))
-     (make-list 3 (max 0 (+ (- lhs-exp out-exp) 1 slack)))]
+     (make-list 3 (+ (- lhs-exp out-exp) 1 slack))]   ; exponents per arguments
     
     [(ival-hypot)
      ; hypot = sqrt(x^2+y^2)
@@ -425,7 +441,7 @@
      (define y-exp (ival-max-log2-approx y))
      (define out-exp (ival-min-log2-approx output))
      
-     (make-list 2 (max 0 (+ (* 2 (- (+ 1 (max x-exp y-exp)) out-exp)) 1)))]
+     (make-list 2 (+ (* 2 (- (+ 1 (max x-exp y-exp)) out-exp)) 1))]
     
     ; Currently log1p has a very poor approximation
     [(ival-log1p)
@@ -444,7 +460,7 @@
                        (get-slack)                    ; if x in negative
                        0))
      
-     (list (max 0 (+ (- x-exp out-exp) 1 slack)))]
+     (list (+ (- x-exp out-exp) 1 slack))]
     
     ; Currently expm1 has a very poor solution for negative values
     [(ival-expm1)
@@ -454,10 +470,10 @@
      (define x-exp (ival-max-log2-approx x))
      (define out-exp (ival-min-log2-approx output))
      
-     (list (max 0 (+ 1 x-exp) (+ 2 (- x-exp out-exp))))]
+     (list (max (+ 1 x-exp) (+ 2 (- x-exp out-exp))))]
     
     [(ival-atan2)
-     ; log[Гatan2]'x = log[Гatan2]'y = log[xy / ((x^2+y^2)*atan2)] <= log[x] + log[y] - 2*max[logx, logy] - log[atan2]
+     ; log[Гatan2]'x = log[Гatan2]'y = log[xy / ((x^2+y^2)*atan2)] <= log[x] + log[y] - 2*max[logx, logy] - log[atan2] + 1
      (define x (first srcs))
      (define y (second srcs))
      
@@ -465,7 +481,7 @@
      (define y-exp (ival-max-log2-approx y))
      (define out-exp (ival-min-log2-approx output))
      
-     (make-list 2 (max 0 (- (+ x-exp y-exp) (* 2 (max x-exp y-exp)) out-exp)))]
+     (make-list 2 (+ (- (+ x-exp y-exp) (* 2 (max x-exp y-exp)) out-exp) 1))]
     
     ; Currently has a poor implementation
     [(ival-tanh)
@@ -474,7 +490,7 @@
      (define x-exp (ival-min-log2-approx x))
      (define out-exp (ival-max-log2-approx output))
      
-     (list (max 0 (+ (- x-exp) out-exp)))]
+     (list (+ (- x-exp) out-exp))]
     
     [(ival-atanh)
      ; log[Гarctanh] = log[x / ((1-x^2) * atanh)] = 1 if x < 0.5, otherwise slack
@@ -490,15 +506,15 @@
     [(ival-acosh)
      ; log[Гacosh] = log[x / (sqrt(x-1) * sqrt(x+1) * acosh)] <= -log[acosh] + slack
      (define out-exp (ival-min-log2-approx output))
-     (define slack (if (< out-exp 2)                 ; when acosh(x) < 1
+     (define slack (if (< out-exp 2)                  ; when acosh(x) < 1
                        (get-slack)
                        0))
      
-     (list (max 0 (+ (- out-exp) slack)))]
+     (list (+ (- out-exp) slack))]
     ; TODO
     [(ival-erfc ival-erf ival-lgamma ival-tgamma)
      (list (get-slack))]
-    [else (make-list (length srcs) 0)]))
+    [else (make-list (length srcs) 0)]))        ; exponents for argumetns
 
 (define (log2-approx x)
   (define exp (mpfr-exp x))
