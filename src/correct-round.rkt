@@ -5,11 +5,14 @@
 ;; Faster than bigfloat-exponent and avoids an expensive offset & contract check.
 (require (only-in "syntax/syntax.rkt" operator-info)
          (only-in "common.rkt" *max-mpfr-prec* *sampling-iteration* *max-sampling-iterations* *base-tuning-precision* *ampl-tuning-bits*)
-         (only-in "timeline.rkt" timeline-push! timeline-start!/unsafe))
+         (only-in "timeline.rkt" timeline-push! timeline-start!/unsafe)
+         (only-in "float.rkt" ulp-difference)
+         (only-in "errors.rkt" warn)
+         "syntax/types.rkt")
 
 (provide compile-spec compile-specs)
 
-(define (make-progs-interpreter vars ivec rootvec)
+(define (make-progs-interpreter vars ivec rootvec repr)
   (define rootlen (vector-length rootvec))
   (define iveclen (vector-length ivec))
   (define varc (length vars))
@@ -26,9 +29,8 @@
       (timeline-start!/unsafe
        'mixsample "backward-pass" (* (*sampling-iteration*) 1000)))
     (define first-iter? (zero? (*sampling-iteration*)))
-    (if first-iter?
-        (vector-fill! vrepeats #f)
-        (backward-pass ivec varc vregs vprecs vstart-precs rootvec rootlen vrepeats))
+    (unless first-iter?
+      (backward-pass ivec varc vregs vprecs vstart-precs rootvec rootlen vrepeats repr))
     (timeline-stop!)
         
     (for ([arg (in-list args)] [n (in-naturals)])
@@ -37,7 +39,7 @@
           [n (in-naturals varc)]
           [precision (in-vector (if first-iter? vstart-precs vprecs))]
           [repeat (in-vector vrepeats)]
-          #:unless repeat)
+          #:unless (and (not first-iter?) repeat))
       (define timeline-stop!
         (timeline-start!/unsafe
          'mixsample (symbol->string (object-name (car instr)))
@@ -103,7 +105,7 @@
   (timeline-push! 'compiler (+ varc size) (+ exprc varc))
   (values nodes roots))
 
-(define (make-compiler exprs vars)
+(define (make-compiler exprs vars repr)
   (define num-vars (length vars))
   (define-values (nodes roots)
     (progs->batch exprs vars))
@@ -122,7 +124,7 @@
         [(list op args ...)
          (cons (operator-info op 'ival) args)])))
 
-  (make-progs-interpreter vars instructions roots))
+  (make-progs-interpreter vars instructions roots repr))
 
 (define (real->ival val)
   (define lo (parameterize ([bf-rounding-mode 'down]) (bf val)))
@@ -132,8 +134,8 @@
 (define (point-ival? x)
   (bf= (ival-lo x) (ival-hi x)))
 
-(define (compile-specs specs vars)
-  (make-compiler specs vars))
+(define (compile-specs specs vars repr)
+  (make-compiler specs vars repr))
 
 ;; Like `compile-specs`, but for a single spec.
 (define (compile-spec spec vars)
@@ -141,19 +143,20 @@
   (define (compiled-spec . xs) (vector-ref (apply core xs) 0))
   compiled-spec)
 
-(define (backward-pass ivec varc vregs vprecs vstart-precs rootvec rootlen vrepeats)
+(define (backward-pass ivec varc vregs vprecs vstart-precs rootvec rootlen vrepeats repr)
   (define vprecs-new (make-vector (vector-length ivec) 0))          ; new vprecs vector
   ; Step 1. Adding slack in case of a rounding boundary issue
   (for/vector #:length rootlen ([root-reg (in-vector rootvec)]
-                                #:when (>= root-reg varc))
-    (when (bigfloat? (ival-lo (vector-ref vregs root-reg))) ; when root is a real op
+                                #:when (>= root-reg varc))          ; when root is not a variable
+    (when (bigfloat? (ival-lo (vector-ref vregs root-reg)))         ; when root is a real op
       (define result (vector-ref vregs root-reg))
-      (define ulps (flonums-between
-                     (bigfloat->flonum (ival-lo result))
-                     (bigfloat->flonum (ival-hi result))))
-      (when (equal? 1 ulps)
+      (when
+          (equal? 2 (ulp-difference  ; the actual ulp distance is 1, but since it over-approximates it is 2
+                     ((representation-bf->repr repr) (ival-lo result))
+                     ((representation-bf->repr repr) (ival-hi result))
+                     repr))
         (vector-set! vprecs-new (- root-reg varc) (get-slack)))))
-
+  
   ; Since Step 2 writes into *sampling-iteration* if the max prec was reached - save the iter number for step 3
   (define current-iter (*sampling-iteration*))
   
@@ -167,12 +170,25 @@
         [prec-old (in-vector (if (equal? 1 current-iter) vstart-precs vprecs))]
         [prec-new (in-vector vprecs-new)]
         [n (in-naturals)])
-    (vector-set! vrepeats n  (and (<= prec-new prec-old)
-                                  (andmap (lambda (x) (or (< x varc) (vector-ref vrepeats (- x varc))))
-                                          (rest instr)))))
-        
+    (vector-set! vrepeats n (and (<= prec-new prec-old)
+                                 (andmap (lambda (x) (or (< x varc) (vector-ref vrepeats (- x varc))))
+                                         (rest instr)))))
+  
   ; Step 4. Copying new precisions into vprecs
-  (vector-copy! vprecs 0 vprecs-new))
+  (vector-copy! vprecs 0 vprecs-new)
+  
+  ; Step 5. If precisions have not changed but the point didn't converge. A problem exists - add slack to every op
+  (when (false? (vector-member #f vrepeats))
+    (warn 'ground-truth "Could not converge on a ground truth"
+              #:extra (for/list ([var (in-vector vregs 0 varc)]
+                                 [n (in-naturals)])
+                        (format "reg~a = ~a" n (ival-lo var))))
+    (define slack (get-slack))
+    (for ([prec (in-vector vprecs)]
+          [n (in-range (vector-length vprecs))])
+      (define prec* (min (*max-mpfr-prec*) (+ prec slack)))
+      (when (equal? prec* (*max-mpfr-prec*)) (*sampling-iteration* (*max-sampling-iterations*)))
+      (vector-set! vprecs n prec*))))
 
 ; This function goes through ivec and vregs and calculates (+ exponents base-precisions) for each operator in ivec
 ; Roughly speaking:
@@ -205,7 +221,8 @@
     (for ([x (in-list tail-registers)]
           [new-exp (in-list new-exponents)]
           #:when (>= x varc)) ; when tail register is not a variable
-      (when (> (+ exps-from-above new-exp) (vector-ref vprecs-new (- x varc))) ; check whether this op already has a precision that is higher
+      ; check whether this op already has a precision that is higher
+      (when (> (+ exps-from-above new-exp) (vector-ref vprecs-new (- x varc)))
         (vector-set! vprecs-new (- x varc) (+ exps-from-above new-exp))))))
 
 (define (ival-max-log2-approx x)
@@ -262,24 +279,23 @@
      ; when output crosses zero and x is negative - means that y was fractional and not fixed
      ; solution - add more slack for y to converge
      (define y-slack (if (and (not (equal? (mpfr-sign outlo) (mpfr-sign outhi)))
-                              (bfnegative? (ival-lo x))
-                              (bfnegative? (ival-hi x)))
+                              (bfnegative? (ival-lo x)))
                          (get-slack)
                          0))
 
-     (define xlo-exp (mpfr-exp (ival-lo x)))
-     (define xhi-exp (mpfr-exp (ival-hi x)))
-     (define x-slack ; it is likely to be a handling case from IEEE, x is not close enough
+     #;(define xlo-exp (mpfr-exp (ival-lo x)))
+     #;(define xhi-exp (mpfr-exp (ival-hi x)))
+     #;(define x-slack ; it is likely to be a handling case from IEEE, x is not close enough
        (if (or (equal? xlo-exp -9223372036854775807)
-               (equal? xhi-exp -9223372036854775807)  ; if interval contains 0
-               (and (> 2 xlo-exp) (<= 2 xhi-exp)))    ; if interval crosses 1
+               (equal? xhi-exp -9223372036854775807)        ; if interval contains 0
+               (and (equal? 1 xlo-exp) (equal? 1 xhi-exp))) ; if interval possibly contains 1
            (get-slack)
            0))
         
-     (list (+ y-exp x-slack)                          ; exponent per x
+     (list (+ y-exp #;x-slack)                        ; exponent per x
            (+ y-exp (abs x-exp) y-slack))]            ; exponent per y
      
-    [(ival-exp)
+    [(ival-exp ival-exp2)
      ; log[Гexp] = log[x]
      (define x (car srcs))
      (define x-exp (ival-max-log2-approx x))
@@ -499,16 +515,16 @@
      
      (list (+ (- out-exp) slack))]
     ; TODO
-    [(ival-erfc ival-erf ival-lgamma ival-tgamma)
+    [(ival-erfc ival-erf ival-lgamma ival-tgamma ival-asinh ival-logb)
      (list (get-slack))]
     [else (make-list (length srcs) 0)]))        ; exponents for argumetns
 
 (define (log2-approx x)
   (define exp (mpfr-exp x))
-  (if (equal? exp -9223372036854775807)
-      (- (get-slack))  ; 0.bf
-      (if (or (< 1000000000 (abs exp)))
-          (get-slack)  ; overflow/inf.bf/nan.bf
+  (if (or (equal? exp -9223372036854775807) (equal? exp -1073741823))
+      (- (get-slack))  ; 0.bf/min.bf
+      (if (<= 1073741823 (abs exp))
+          (get-slack)  ; max.bf/inf.bf/nan.bf
           (+ exp 1)))) ; +1 because mantissa is not considered
 
 (define (get-slack)
