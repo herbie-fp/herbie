@@ -100,7 +100,7 @@
     (for/list ([i (in-naturals)] [error-value (in-list target-error)])
         (cons (format "target~a" (+ i 1)) error-value)))
 
-  (define error-entries (list* `("start" . ,start-error) `("end" . ,end-error) target-error-entries))
+  (define error-entries (list* (cons "start" ,start-error) (cons "end" ,end-error) target-error-entries))
 
   (define ticks 
     (for/list ([idx (in-range (length vars))])

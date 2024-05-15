@@ -328,20 +328,19 @@
      (define start-cost (expr-cost start-expr repr))
 
      (define target-cost-score
-      (for/list ([target targets])
-        (define target-expr (alt-expr (alt-analysis-alt target)))
-        (define tar-cost (expr-cost target-expr repr))
-        (define tar-score (errors-score (alt-analysis-test-errors target)))
+       (for/list ([target targets])
+         (define target-expr (alt-expr (alt-analysis-alt target)))
+         (define tar-cost (expr-cost target-expr repr))
+         (define tar-score (errors-score (alt-analysis-test-errors target)))
 
-        (list tar-cost tar-score)))
+         (list tar-cost tar-score)))
 
-    ;  Important to calculate value of status 
+     ; Important to calculate value of status 
      (define best-score 
-        (if (null? target-cost-score)
-          target-cost-score
-          (apply min (map cadr target-cost-score))))
-
-          
+       (if (null? target-cost-score)
+         target-cost-score
+         (apply min (map second target-cost-score))))
+   
      ; analysis of output expressions
      (define-values (end-exprs end-train-scores end-test-scores end-costs)
        (for/lists (l1 l2 l3 l4) ([result end])
@@ -362,7 +361,6 @@
      (define end-score (car end-test-scores))
      (define status
        (if (not (null? best-score))
-          ; "eq-target"
           (begin 
             (cond
               [(< end-score (- best-score fuzz)) "gt-target"]

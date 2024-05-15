@@ -115,7 +115,7 @@ const ClientGraph = new Component('#graphs', {
                 description = "Most accurate alternative"
             } else {
                 // target is 6 letters
-                description = "Developer Target " + error_type.slice(6)
+                description = "Developer Target " + error_type.slice("target".length)
             }
 
             curr_list.push( Element("label", [
