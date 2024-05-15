@@ -27,7 +27,6 @@
       (vector-set! vregs n (apply-instruction instr vregs)))
     (for/vector #:length rootlen ([root (in-vector rootvec)])
       (vector-ref vregs root)))
-
   compiled-prog)
 
 (define (apply-instruction instr regs)
