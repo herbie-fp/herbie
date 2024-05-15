@@ -28,9 +28,8 @@
       (timeline-start!/unsafe
        'mixsample "backward-pass" (* (*sampling-iteration*) 1000)))
     (define first-iter? (zero? (*sampling-iteration*)))
-    (if first-iter?
-        (vector-fill! vrepeats #f)
-        (backward-pass ivec varc vregs vprecs vstart-precs rootvec rootlen vrepeats repr))
+    (unless first-iter?
+      (backward-pass ivec varc vregs vprecs vstart-precs rootvec rootlen vrepeats repr))
     (timeline-stop!)
         
     (for ([arg (in-list args)] [n (in-naturals)])
@@ -39,7 +38,7 @@
           [n (in-naturals varc)]
           [precision (in-vector (if first-iter? vstart-precs vprecs))]
           [repeat (in-vector vrepeats)]
-          #:unless repeat)
+          #:unless (and (not first-iter?) repeat))
       (define timeline-stop!
         (timeline-start!/unsafe
          'mixsample (symbol->string (object-name (car instr)))
