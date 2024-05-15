@@ -7,6 +7,7 @@
          (only-in "common.rkt" *max-mpfr-prec* *sampling-iteration* *max-sampling-iterations* *base-tuning-precision* *ampl-tuning-bits*)
          (only-in "timeline.rkt" timeline-push! timeline-start!/unsafe)
          (only-in "float.rkt" ulp-difference)
+         (only-in "errors.rkt" warn)
          "syntax/types.rkt")
 
 (provide compile-spec compile-specs)
@@ -178,6 +179,10 @@
   
   ; Step 5. If precisions have not changed but the point didn't converge. A problem exists - add slack to every op
   (when (false? (vector-member #f vrepeats))
+    (warn 'ground-truth "Could not converge on a ground truth"
+              #:extra (for/list ([var (in-vector vregs 0 varc)]
+                                 [n (in-naturals)])
+                        (format "reg~a = ~a" n (ival-lo var))))
     (define slack (get-slack))
     (for ([prec (in-vector vprecs)]
           [n (in-range (vector-length vprecs))])
