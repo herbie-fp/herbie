@@ -49,7 +49,7 @@
         (and (= major 8) (= minor 2) (zero? (string-length rest))))))
 
 ;; Partitions a joint pcontext into a training and testing set
-(define (partition-pcontext joint-pcontext ctx)
+(define (partition-pcontext joint-pcontext)
   (define num-points (pcontext-length joint-pcontext))
   (cond
     [(= num-points (+ (*num-points*) (*reeval-pts*)))
@@ -97,7 +97,7 @@
   (unless pcontext
     (error 'get-errors "cannnot run without a pcontext"))
 
-  (define-values (_ test-pcontext) (partition-pcontext pcontext (*context*)))
+  (define-values (_ test-pcontext) (partition-pcontext pcontext))
   (define errs (errors (test-input test) test-pcontext (*context*)))
 
   (for/list ([(pt _) (in-pcontext test-pcontext)] [err (in-list errs)])
@@ -112,7 +112,7 @@
     (error 'get-exacts "cannnot run without a pcontext"))
 
   (define repr (test-output-repr test))
-  (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext (*context*)))
+  (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext))
   (define-values (pts _) (pcontext->lists test-pcontext))
   (define fn (eval-progs-real 
               (list (prog->spec (test-input test)))
@@ -126,7 +126,7 @@
   (unless pcontext
     (error 'get-calculation "cannnot run without a pcontext"))
 
-  (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext (*context*)))
+  (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext))
   (define-values (pts _) (pcontext->lists test-pcontext))
 
   (define fn (compile-prog (test-input test) (test-context test)))
@@ -142,7 +142,7 @@
   (unless pcontext
     (error 'get-local-error "cannnot run without a pcontext"))
 
-  (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext (*context*)))
+  (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext))
   (*pcontext* test-pcontext)
   (local-error-as-tree (test-input test) (*context*)))
 
@@ -157,7 +157,7 @@
   (unless pcontext
     (error 'get-alternatives "cannnot run without a pcontext"))
 
-  (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext context))
+  (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext))
   ;; TODO: Ignoring all user-provided preprocessing right now
   (define-values (alternatives preprocessing)
     (run-improve! (test-input test) (test-spec test) (*context*) train-pcontext))

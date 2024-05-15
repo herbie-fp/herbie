@@ -26,7 +26,7 @@
 ;; The first element of that function's output tells you if the input is good
 ;; The other elements of that function's output tell you the output values
 (define (make-search-func pre specs ctxs)
-  (define fns (compile-specs (cons pre specs) (context-vars (car ctxs))))
+  (define fns (compile-specs (cons pre specs) (context-vars (car ctxs)) (context-repr (car ctxs))))
   ; inputs can either be intervals or representation values
   (define (compiled-spec . inputs)
     (define inputs*
