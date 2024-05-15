@@ -114,7 +114,6 @@ const ClientGraph = new Component('#graphs', {
             } else if (error_type === "end") {
                 description = "Most accurate alternative"
             } else {
-                // target is 6 letters
                 description = "Developer Target " + error_type.slice("target".length)
             }
 
