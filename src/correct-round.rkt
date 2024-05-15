@@ -22,14 +22,13 @@
   (define prec-threshold (/ (*max-mpfr-prec*) 25))     ; parameter for sampling histogram table
 
   (define (compiled-spec . args)
-    (define timeline-stop!
+    #;(define timeline-stop! ; for a fair comparison with baseline backward-pass shouldn't be measured
       (timeline-start!/unsafe
        'mixsample "backward-pass" (* (*sampling-iteration*) 1000)))
     (define first-iter? (zero? (*sampling-iteration*)))
-    (if first-iter?
-        (vector-fill! vrepeats #f)
+    (unless first-iter?
         (backward-pass ivec varc vregs vprecs vstart-precs rootvec rootlen vrepeats))
-    (timeline-stop!)
+    #;(timeline-stop!)
         
     (for ([arg (in-list args)] [n (in-naturals)])
       (vector-set! vregs n arg))
@@ -37,7 +36,7 @@
           [n (in-naturals varc)]
           [precision (in-vector (if first-iter? vstart-precs vprecs))]
           [repeat (in-vector vrepeats)]
-          #:unless repeat)
+          #:unless (and (not first-iter?) repeat))
       (define timeline-stop!
         (timeline-start!/unsafe
          'mixsample (symbol->string (object-name (car instr)))
