@@ -34,6 +34,8 @@ RECURSE=1 LOG=1 \
     --profile \
     --seed "$SEED" \
     --threads "$CORES" \
+    --disable setup:simplify \
+    --num-iters 0 \
     $FLAGS
 
 # upload
