@@ -696,10 +696,37 @@
                                maybe-predicted-total-error
                                pctx))
 
+  (define points->expl (make-hash))
+
+  (for ([(_ points) (in-dict expls->points)])
+    (for ([pt (in-list points)])
+      (hash-update! points->expl
+                    pt
+                    (lambda (x) (+ 1 x))
+                    0)))
+
+  (define freqs (make-hash))
+
+  (for ([(pt _) (in-pcontext pctx)])
+    (define freq (hash-ref points->expl pt 0))
+    (hash-update! freqs
+                  freq
+                  (lambda (x) (+ 1 x))
+                  0))
+  
+  #;(eprintf "~a\n\n" freqs)
+
+  #;(for ([(_ freq) (in-dict points->expl)])
+    (hash-update! freqs
+                  freq
+                  (lambda (x) (+ 1 x))
+                  0))
+
   (values fperrors
           sorted-explanations-table
           confusion-matrix
-          maybe-confusion-matrix))
+          maybe-confusion-matrix
+          freqs))
 
 (define (flow-list flow-hash expr type)
   (for/list ([(k v) (in-dict (hash-ref flow-hash expr))])

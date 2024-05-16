@@ -363,7 +363,7 @@
   (timeline-event! 'explain)
   (define expr (alt-expr (car simplified)))
 
-  (define-values (fperrors explanations-table confusion-matrix maybe-confusion-matrix)
+  (define-values (fperrors explanations-table confusion-matrix maybe-confusion-matrix freqs)
     (predicted-errors expr context pcontext))
 
   (for ([fperror (in-list fperrors)])
@@ -387,7 +387,10 @@
                     flow-list))
   
   (timeline-push! 'confusion confusion-matrix)
-  (timeline-push! 'maybe-confusion maybe-confusion-matrix))
+
+  (timeline-push! 'maybe-confusion maybe-confusion-matrix)
+  (for ([(key val) (in-dict freqs)])
+    (timeline-push! 'freqs key val)))
 
 (define (make-regime! alts)
   (define ctx (*context*))
