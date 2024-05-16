@@ -1,7 +1,8 @@
 #lang racket
 
 ;;; The default platform:
-;;; Optimized for C/C++ on Linux with a full libm
+;;; C/C++ on Linux with a full libm
+;;; Cost model from Pherbie (ARITH '21)
 
 (require "../plugin.rkt")
 

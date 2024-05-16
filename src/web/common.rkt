@@ -1,5 +1,5 @@
 #lang racket
-(require (only-in xml write-xexpr xexpr?) 
+(require (only-in xml write-xexpr xexpr?)
          (only-in fpbench fpcore? supported-by-lang?
                           core->c core->fortran core->java core->python
                           core->julia core->matlab core->wls core->tex
@@ -11,11 +11,11 @@
 (require "../common.rkt" "../syntax/read.rkt" "../programs.rkt"
          "../syntax/types.rkt" "../syntax/sugar.rkt" "../syntax/syntax.rkt")
 
-(provide render-menu render-warnings render-large render-comparison render-program
-         render-bogosity render-help
-         format-percent doc-url
-         fpcore->string
-         program->fpcore program->tex render-reproduction js-tex-include)
+(provide render-menu render-warnings render-large render-comparison
+         render-program render-bogosity render-help render-fpcore
+         render-reproduction format-percent
+         program->fpcore program->tex fpcore->string
+         js-tex-include doc-url)
 
 (define (program->fpcore expr ctx #:ident [ident #f])
   (define body (prog->fpcore expr (context-repr ctx)))
@@ -301,15 +301,14 @@
      (if (equal? (test-expected test) #t)
          #f
          (format "  :herbie-expected ~a" (test-expected test)))
-     (if (not (null? (test-output test)))
-        ;; Extra newlines for clarity. Also joined formatted expressions with newlines
-        (format "\n~a"
-          (string-join
-            (map
-              (lambda (exp) (format "  :alt\n  ~a\n" (car exp)))
-              (test-output test))
-            "\n"))
-         #f)
+     (and (test-output test)
+          (not (null? (test-output test)))
+          (format "\n~a"
+                  (string-join
+                   (map
+                    (lambda (exp) (format "  :alt\n  ~a\n" (car exp)))
+                    (test-output test))
+                   "\n")))
      (format "  ~a)" (prog->fpcore (test-input test) output-repr))))
    "\n"))
 

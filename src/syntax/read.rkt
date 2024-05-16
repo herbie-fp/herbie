@@ -2,7 +2,8 @@
 
 (require "../common.rkt" "../conversions.rkt" "../errors.rkt"
          "../programs.rkt" "types.rkt" "syntax.rkt" "../platform.rkt"
-         "syntax-check.rkt" "type-check.rkt" "sugar.rkt")
+         "syntax-check.rkt" "type-check.rkt" "sugar.rkt"
+         "../load-plugin.rkt")
 
 (provide (struct-out test)
          test-context test-output-repr
@@ -218,12 +219,24 @@
   (for/list ([test (in-port (curry our-read-syntax "stdin") (current-input-port))])
     (parse-test test)))
 
+;; Old benchmark loading code
+;(define (load-file file)
+;  (call-with-input-file file
+;    (λ (port)
+;      (port-count-lines! port)
+;      (for/list ([test (in-port (curry our-read-syntax file) port)])
+;        (parse-test test)))))
+
+;; New hack that ignores benchmarks with bad operations
 (define (load-file file)
   (call-with-input-file file
     (λ (port)
       (port-count-lines! port)
+      (filter
+      identity
       (for/list ([test (in-port (curry our-read-syntax file) port)])
-        (parse-test test)))))
+        (with-handlers ([exn:fail? (const #f)])
+          (parse-test test)))))))
 
 (define (load-directory dir)
   (apply append

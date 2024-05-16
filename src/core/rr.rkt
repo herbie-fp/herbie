@@ -1,13 +1,19 @@
 #lang racket
 
-(require "../syntax/rules.rkt"
-         "../common.rkt"
+(require "../common.rkt"
          "../programs.rkt"
          "../timeline.rkt"
+         "../syntax/rules.rkt"
          "egg-herbie.rkt"
          "matcher.rkt")
 
 (provide rewrite-expressions)
+
+(define (rule-apply rule expr)
+  (let ([bindings (pattern-match (rule-input rule) expr)])
+    (if bindings
+        (cons (pattern-substitute (rule-output rule) bindings) bindings)
+        #f)))
 
 ;;
 ;;  Non-recursive rewriter
@@ -23,7 +29,7 @@
       (for ([rule rules] #:when (equal? expr-repr (rule-otype rule)))
         (let* ([result (rule-apply rule expr)])
           (when result
-            (hash-update! rule-apps (rule-name rule) add1 1)
+            (hash-update! rule-apps (rule-name rule) add1 0)
             (sow (list (car result) rule)))))))
   ;; rule statistics
   (for ([(name count) (in-hash rule-apps)])

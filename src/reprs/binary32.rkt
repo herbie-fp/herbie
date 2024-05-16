@@ -3,7 +3,6 @@
 ;; Builtin single-precision plugin (:precision binary32)
 
 (require math/bigfloat)
-(require ffi/unsafe)
 (require "runtime/float32.rkt" "runtime/utils.rkt" "runtime/libm.rkt")
 
 ;; Do not run this file with `raco test`
@@ -50,7 +49,9 @@
 
 (define-libm-impls/binary32
   [(binary32 binary32)
-   (acos acosh asin asinh atan atanh cbrt ceil cos cosh erf exp exp2 fabs floor lgamma log log10 log2 logb rint round sin sinh sqrt tan tanh tgamma trunc)]
+   (acos acosh asin asinh atan atanh cbrt ceil cos cosh erf exp exp2
+    fabs floor lgamma log log10 log2 logb rint round sin sinh sqrt
+    tan tanh tgamma trunc)]
   [(binary32 binary32 binary32)
    (atan2 copysign fdim fmax fmin fmod pow remainder)])
 
@@ -68,6 +69,16 @@
 (define-operator-impl (cast binary32->binary64 binary32) binary64
   [fl identity])
 
+
+(define-operator-impl (recip recip.f32 binary32) binary32
+  [fl (λ (x)
+        (parameterize ([bf-precision 12])
+          (bigfloat->flonum (bf/ 1.bf (bf x)))))])
+
+(define-operator-impl (rsqrt rsqrt.f32 binary32) binary32
+  [fl (λ (x)
+        (parameterize ([bf-precision 12])
+          (bigfloat->flonum (bf/ 1.bf (bfsqrt (bf x))))))])
 (define-libm expm1.f32 (expm1f float float))
 (when expm1.f32
   (define-accelerator-impl expm1 expm1.f32 (binary32) binary32 expm1.f32))
@@ -87,3 +98,7 @@
 (define-libm erfc.f32 (erfcf float float))
 (when erfc.f32
   (define-accelerator-impl erfc erfc.f32 (binary32) binary32 erfc.f32))
+
+(define-accelerator-impl fmsub fmsub.f32 (binary32 binary32 binary32) binary32)
+(define-accelerator-impl fnmadd fnmadd.f32 (binary32 binary32 binary32) binary32)
+(define-accelerator-impl fnmsub fnmsub.f32 (binary32 binary32 binary32) binary32)

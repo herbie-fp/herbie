@@ -11,17 +11,30 @@
 (define-runtime-module-path fallback-plugin "reprs/fallback.rkt")
 
 ;; Builtin platforms
+(define-runtime-module-path arith-platform "platforms/arith.rkt")
+(define-runtime-module-path c-platform "platforms/libm.rkt")
 (define-runtime-module-path default-platform "platforms/default.rkt")
+(define-runtime-module-path math-platform "platforms/math.rkt")
+(define-runtime-module-path mkl-platform "platforms/mkl.rkt")
+(define-runtime-module-path python-platform "platforms/python3-10.rkt")
+(define-runtime-module-path avx-platform "platforms/avx.rkt")
 
 ; Automatically loads default representations and platforms
 (define (load-herbie-builtins)
-  ;; Load in all the files
+  ;; Load in all plugins
   ;; Warning: the order here is important!
   (dynamic-require bool-plugin #f)
   (dynamic-require binary64-plugin #f)
   (dynamic-require binary32-plugin #f)
   (dynamic-require fallback-plugin #f)
+  ;; Load all platforms
+  (dynamic-require arith-platform #f)
+  (dynamic-require c-platform #f)
   (dynamic-require default-platform #f)
+  (dynamic-require math-platform #f)
+  (dynamic-require mkl-platform #f)
+  (dynamic-require python-platform #f)
+  (dynamic-require avx-platform #f)
   ;; activate the default platform
   (*active-platform* (get-platform (*platform-name*)))
   (activate-platform! (*active-platform*)))

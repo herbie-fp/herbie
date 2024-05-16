@@ -29,9 +29,9 @@
     [platform-subtract (-> platform? platform? ... platform?)]
     [platform-operator-set (-> platform? operator-set?)]
     ; Cost model
-    [platform-cost-proc (-> platform? procedure?)]
-    [platform-impl-cost (-> platform? any/c number?)]
-    [platform-repr-cost (-> platform? representation? number?)]))
+    [platform-impl-cost (-> platform? any/c any/c)]
+    [platform-repr-cost (-> platform? any/c any/c)]
+    [platform-cost-proc (-> platform? procedure?)]))
 
 (module+ internals
   (provide platform get-platform register-platform!

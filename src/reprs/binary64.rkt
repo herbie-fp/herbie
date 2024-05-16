@@ -2,9 +2,11 @@
 
 ;; Builtin double-precision plugin (:precision binary64)
 
-(require math/flonum math/bigfloat)
-(require ffi/unsafe)
-(require "runtime/utils.rkt" "runtime/libm.rkt")
+(require math/flonum
+         math/bigfloat)
+
+(require "runtime/utils.rkt"
+         "runtime/libm.rkt")
 
 ;; Do not run this file with `raco test`
 (module test racket/base)
@@ -49,7 +51,9 @@
 
 (define-libm-impls/binary64
   [(binary64 binary64)
-   (acos acosh asin asinh atan atanh cbrt ceil cos cosh erf exp exp2 fabs floor lgamma log log10 log2 logb rint round sin sinh sqrt tan tanh tgamma trunc)]
+   (acos acosh asin asinh atan atanh cbrt ceil cos cosh erf exp exp2
+    fabs floor lgamma log log10 log2 logb rint round sin sinh sqrt
+    tan tanh tgamma trunc)]
   [(binary64 binary64 binary64)
    (atan2 copysign fdim fmax fmin fmod pow remainder)])
 
@@ -61,6 +65,11 @@
   [<= <=.f64 <=]
   [>= >=.f64 >=])
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;; accelerators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define-accelerator (recip real) real (λ (x) (/ 1 x)))
+(define-accelerator (rsqrt real) real (λ (x) (/ 1 (sqrt x))))
+      
 (define-libm expm1.f64 (expm1 double double))
 (when expm1.f64
   (define-accelerator-impl expm1 expm1.f64 (binary64) binary64 expm1.f64))
@@ -80,3 +89,24 @@
 (define-libm erfc.f64 (erfc double double))
 (when erfc.f64
   (define-accelerator-impl erfc erfc.f64 (binary64) binary64 erfc.f64))
+
+(define-accelerator-impl fmsub fmsub.f64 (binary64 binary64 binary64) binary64)
+(define-accelerator-impl fnmadd fnmadd.f64 (binary64 binary64 binary64) binary64)
+(define-accelerator-impl fnmsub fnmsub.f64 (binary64 binary64 binary64) binary64)
+
+(define-operator-impl (recip recip.f64 binary64) binary64
+  [fl (λ (x)
+        (parameterize ([bf-precision 12])
+          (bigfloat->flonum (bf/ 1.bf (bf x)))))])
+
+(define-operator-impl (rsqrt rsqrt.f64 binary64) binary64
+  [fl (λ (x)
+        (parameterize ([bf-precision 12])
+          (bigfloat->flonum (bf/ 1.bf (bfsqrt (bf x))))))])
+
+(define-ruleset* reciprocal (arithmetic simplify)
+  #:type ([a real])
+  [add-recip     (/ 1 a)        (recip a)]
+  [remove-recip  (recip a)      (/ 1 a)]
+  [add-rsqrt     (/ 1 (sqrt a)) (rsqrt a)]
+  [remove-rsqrt  (rsqrt a)      (/ 1 (sqrt a))])

@@ -7,7 +7,7 @@
          pattern-substitute
          rule-apply)
 
-;;; Our own pattern matcher.
+;; Pattern matching utility functions
 ;;
 ;; The racket (match) macro doesn't give us access to the bindings made
 ;; by the matcher, so we wrote our own.
@@ -50,7 +50,7 @@
    [(list phead pargs ...)
     (cons phead (map (curryr pattern-substitute bindings) pargs))]))
 
-;; Random helper functions
+;; Rule applying
 
 (define (rule-apply rule expr)
   (let ([bindings (pattern-match (rule-input rule) expr)])

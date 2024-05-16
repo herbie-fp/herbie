@@ -3,8 +3,8 @@
 (require rackunit)
 (require "../accelerator.rkt" "../common.rkt" "../compiler.rkt"
          "../float.rkt" "../sampling.rkt" "types.rkt" "../load-plugin.rkt"
-         "rules.rkt" (submod "rules.rkt" internals) "sugar.rkt"
-         "../core/egg-herbie.rkt" "../ground-truth.rkt")
+         "rules.rkt" (submod "rules.rkt" internals)
+         "sugar.rkt" "../core/egg-herbie.rkt" "../ground-truth.rkt")
 
 (load-herbie-builtins)
 
@@ -53,8 +53,8 @@
   (define ctx (context fv repr (map (curry dict-ref itypes) fv)))
 
   (define pre (dict-ref *conditions* name '(TRUE)))
-  (define spec1 (expand-accelerators (*rules*) (prog->spec p1)))
-  (define spec2 (expand-accelerators (*rules*) (prog->spec p2)))
+  (define spec1 (expand-accelerators (prog->spec p1)))
+  (define spec2 (expand-accelerators (prog->spec p2)))
   (match-define (list pts exs1 exs2)
     (parameterize ([*num-points* (num-test-points)] [*max-find-range-depth* 0])
       (cdr (sample-points
