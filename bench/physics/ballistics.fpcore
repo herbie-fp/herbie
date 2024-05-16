@@ -1,0 +1,5 @@
+
+(FPCore (v H)
+  :name "Optimal throwing angle"
+  (let ([g 9.8])
+    (atan (/ v (sqrt (- (* v v) (* (* 2 g) H)))))))

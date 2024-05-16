@@ -17,9 +17,9 @@
 (define (actual-errors expr pcontext)
   (match-define (cons subexprs pt-errorss)
     (flip-lists
-     (hash->list (car (compute-local-errors (list expr)
-                                            (*context*))))))
-  
+     (hash->list (first (compute-local-errors (list (all-subexpressions expr))
+                                       (*context*))))))
+
   (define pt-worst-subexpr
     (append* (reap [sow]
                    (for ([pt-errors (in-list pt-errorss)]
@@ -58,7 +58,7 @@
   
   (define ctx-list
     (for/list ([subexpr (in-list subexprs)])
-      (struct-copy context ctx [repr (cdr subexpr)])))
+      (struct-copy context ctx [repr (repr-of subexpr ctx)])))
 
   (define repr-hash
     (make-immutable-hash (map cons
@@ -106,8 +106,9 @@
                     (cons expr expl) (lambda (x) (set-add x pt)) '()))
     
     (define exacts (apply subexprs-fn pt))
+
     (define exacts-hash
-      (make-immutable-hash (map cons subexprs-list exacts)))
+      (make-immutable-hash (map cons subexprs exacts)))
     (define (exacts-ref subexpr)
       (define exacts-val (hash-ref exacts-hash subexpr))
       ((representation-repr->bf

@@ -1,7 +1,7 @@
 #lang racket
 
 (require "../common.rkt" "../conversions.rkt" "../errors.rkt"
-         "../programs.rkt" "types.rkt" "syntax.rkt"
+         "../programs.rkt" "types.rkt" "syntax.rkt" "../platform.rkt"
          "syntax-check.rkt" "type-check.rkt" "sugar.rkt")
 
 (provide (struct-out test)
@@ -45,13 +45,27 @@
        stx)]
     ; special nullary operators
     [#`(,(or 'and 'or)) (datum->syntax #f 'TRUE stx)]
-    [#`(+) (datum->syntax #f 0 stx)]
-    [#`(*) (datum->syntax #f 1 stx)]
+    [#`(+) 
+      (warn 'nullary-operator "+ is deprecated as a nullary operator")
+      (datum->syntax #f 0 stx)]
+    [#`(*)
+      (warn 'nullary-operator "* is deprecated as a nullary operator")
+      (datum->syntax #f 1 stx)]
     ; special unary operators
-    [#`(,(or 'and 'or '+ '*) #,a) (expand a)]
-    [#`(/ #,a) (datum->syntax #f (list '/ 1 (expand a)) stx)]
+    [#`(,(or 'and 'or) #,a) (expand a)]
+    ; deprecated unary operators
+    [#`(,(and (or '+ '*) op) #,a)
+      (warn 'unary-operator "~a is deprecated as a unary operator" op) 
+      (expand a)]
+    [#`(/ #,a) 
+      (warn 'unary-operator "/ is deprecated as a unary operator") 
+      (datum->syntax #f (list '/ 1 (expand a)) stx)]
+    ; binary operators
+    [#`(,(and (or '+ '- '* '/ 'or) op) #,arg1 #,arg2)
+     (datum->syntax #f (list op (expand arg1) (expand arg2)) stx)]
     ; variary operators
     [#`(,(and (or '+ '- '* '/ 'or) op) #,arg1 #,arg2 #,rest ...)
+     (unless (null? rest) (warn 'variary-operator "~a is deprecated as a variary operator" op))
      (define prev (datum->syntax #f (list op (expand arg1) (expand arg2)) stx))
      (let loop ([prev prev] [rest rest])
        (match rest
@@ -104,7 +118,6 @@
 (define (parse-test stx)
   (assert-program! stx)
   (define stx* (expand-core stx))
-  (expand-core stx*)
   (assert-program-typed! stx*)
   (define-values (func-name args props body)
     (match (syntax->datum stx*)
@@ -148,7 +161,19 @@
   ;; inline and desugar
   (define body* (fpcore->prog body ctx))
   (define pre* (fpcore->prog (dict-ref prop-dict ':pre 'TRUE) ctx))
-  (define target (fpcore->prog (dict-ref prop-dict ':alt #f) ctx))
+
+  (define targets
+    (for/list ([(key val) (in-dict prop-dict)] #:when (eq? key ':alt))
+      (match (extract-platform-name val)  ; plat-name is symbol or #f
+        ; If plat-name extracted, check if name matches
+        [(? symbol? plat-name) (cons val (equal? plat-name (*platform-name*)))]
+        ; try to lower
+        [#f
+          (with-handlers ([exn:fail:user:herbie:missing? (lambda (e) (cons val #f))])
+            ; Testing if error thrown
+            (spec->prog val ctx)
+            (cons val #t))])))
+
   (define spec (fpcore->prog (dict-ref prop-dict ':spec body) ctx))
   (check-unused-variables arg-names body* pre*)
   (check-weird-variables arg-names)
@@ -157,7 +182,7 @@
         func-name
         arg-names
         body*
-        target
+        targets
         (dict-ref prop-dict ':herbie-expected #t)
         spec
         pre*
@@ -237,13 +262,13 @@
   ;; inlining
 
   ;; Test classic quadp and quadm examples
-  (register-function! 'discr (list 'a 'b 'c) repr `(sqrt (- (* b b) (* 4 a c))))
-  (define quadp `(/ (+ (- y) (discr x y z)) (* 2 x)))
-  (define quadm `(/ (- (- y) (discr x y z)) (* 2 x)))
+  (register-function! 'discr (list 'a 'b 'c) repr `(sqrt (- (* b b) (* a c))))
+  (define quadp `(/ (+ (- y) (discr x y z)) x))
+  (define quadm `(/ (- (- y) (discr x y z)) x))
   (check-equal? (fpcore->prog quadp ctx)
-                '(/.f64 (+.f64 (neg.f64 y) (sqrt.f64 (-.f64 (*.f64 y y) (*.f64 (*.f64 4 x) z)))) (*.f64 2 x)))
+                '(/.f64 (+.f64 (neg.f64 y) (sqrt.f64 (-.f64 (*.f64 y y) (*.f64 x z)))) x))
   (check-equal? (fpcore->prog quadm ctx)
-                '(/.f64 (-.f64 (neg.f64 y) (sqrt.f64 (-.f64 (*.f64 y y) (*.f64 (*.f64 4 x) z)))) (*.f64 2 x)))
+                '(/.f64 (-.f64 (neg.f64 y) (sqrt.f64 (-.f64 (*.f64 y y) (*.f64 x z)))) x))
 
   ;; x^5 = x^3 * x^2
   (register-function! 'sqr (list 'x) repr '(* x x))

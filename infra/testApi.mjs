@@ -44,10 +44,11 @@ const calculate = (await (await fetch('http://127.0.0.1:8000/api/calculate', {me
 
 assert.deepEqual(exacts, [[[1], -1.4142135623730951]])
 
-const cost = (await (await fetch('http://127.0.0.1:8000/api/cost', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x) (- (sqrt (+ x 1))))", sample: eval_sample})})).json()).value
+const cost = (await (await fetch('http://127.0.0.1:8000/api/cost', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x) (- (sqrt (+ x 1))))", sample: eval_sample})})).json())
 
 const sample3 = (await (await fetch('http://127.0.0.1:8000/api/sample', { method: 'POST', body: JSON.stringify({ formula: '(FPCore (x) (- (sqrt (+ x 1)) (sqrt x)))', seed: 5 }) })).json())
 
 const localerror = (await (await fetch('http://127.0.0.1:8000/api/localerror', { method: 'POST', body: JSON.stringify({ formula: '(FPCore (x) (- (sqrt (+ x 1)) (sqrt x)))', sample: sample2.points }) })).json())
 
 assert.equal(localerror.tree['avg-error'] > 0, true)
+assert.equal(cost.cost > 0, true)

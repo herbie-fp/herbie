@@ -5,7 +5,7 @@
   :cite (conte-et-al-1980)
   :pre (<= -0.01 x 0.01)
   :alt 
-  (! :description (platform libm)
+  (! :herbie-platform default
    (/ (* (sin x) (sin x)) (+ 1 (cos x))))
 
   (- 1 (cos x)))
@@ -21,7 +21,7 @@
   :cite (conte-et-al-1980)
   :pre (<= -1 x 1)
   :alt 
-  (! :description (platform libm)
+  (! :herbie-platform default
    (* 1/6 (* x x)))
 
   (/ (- x (sin x)) (tan x)))
@@ -49,7 +49,7 @@
   :cite (conte-et-al-1980)
   :pre (and (<= 0 x 1e9) (<= -1 eps 1))
   :alt 
-  (! :description (platform libm)
+  (! :herbie-platform default
     (/ eps (+ x (sqrt (- (* x x) eps)))))
     
   (- x (sqrt (- (* x x) eps))))

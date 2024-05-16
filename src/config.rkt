@@ -7,6 +7,7 @@
 (define all-flags
   #hash([precision . (double fallback)]
         [setup . (simplify search)]
+        [localize . (costs errors)]
         [generate . (rr taylor simplify better-rr proofs)]
         [reduce . (regimes avg-error binary-search branch-expressions)]
         [rules . (arithmetic polynomials fractions exponents trigonometry hyperbolic numerics special bools branches)]))
@@ -14,6 +15,7 @@
 (define default-flags
   #hash([precision . ()]
         [setup . (simplify search)]
+        [localize . (costs errors)]
         [generate . (rr taylor simplify proofs)]
         [reduce . (regimes avg-error binary-search branch-expressions)]
         [rules . (arithmetic polynomials fractions exponents trigonometry hyperbolic numerics special bools branches)]))
@@ -85,9 +87,11 @@
 (define *max-bsearch-bits* (make-parameter 48))
 
 ;; Maximum MPFR precision allowed during exact evaluation
-(define *starting-prec* (make-parameter 256))
 (define *max-mpfr-prec* (make-parameter 10000))
-(define *ground-truth-extra-bits* (make-parameter 20))
+(define *ampl-tuning-bits* (make-parameter 5))
+(define *sampling-iteration* (make-parameter 0))
+(define *base-tuning-precision* (make-parameter 73))
+(define *max-sampling-iterations* (make-parameter 5))
 
 ;; The maximum size of an egraph
 (define *node-limit* (make-parameter 8000))
@@ -111,10 +115,13 @@
 ;; In mainloop, cache improvements between iterations
 (define *use-improve-cache* (make-parameter #t))
 
+;; If `:precision` is unspecified, which representation should we use?
 (define *default-precision* (make-parameter 'binary64))
-(define *default-platform-name* (make-parameter 'default))
 
-(define *platform-name* (make-parameter (*default-platform-name*)))
+;; The platform that Herbie will evaluate with.
+(define *platform-name* (make-parameter 'default))
+
+;; Plugins loaded locally rather than through Racket.
 (define *loose-plugins* (make-parameter '()))
 
 ;;; About Herbie:

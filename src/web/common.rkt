@@ -147,9 +147,10 @@
     [(list 'negabs x)
      (define x* (string->symbol (format "~a_m" x)))
      (define r (context-lookup ctx x))
+     (define p (representation-name r))
      (define e* (list (get-parametric-operator 'fabs r) x))
      (define x-sign (string->symbol (format "~a_s" x)))
-     (define e-sign (list (get-parametric-operator 'copysign r r) 1 x))
+     (define e-sign (list (get-parametric-operator 'copysign r r) (literal 1 p) x))
      (define c (context (list x) r r))
      (list
       (format "~a = ~a" (format "~a\\_m" x) (converter* e* c))
@@ -300,9 +301,14 @@
      (if (equal? (test-expected test) #t)
          #f
          (format "  :herbie-expected ~a" (test-expected test)))
-     (if (test-output test)
-         ;; Extra newlines for clarity
-         (format "\n  :alt\n  ~a\n" (prog->fpcore (test-output test) output-repr))
+     (if (not (null? (test-output test)))
+        ;; Extra newlines for clarity. Also joined formatted expressions with newlines
+        (format "\n~a"
+          (string-join
+            (map
+              (lambda (exp) (format "  :alt\n  ~a\n" (car exp)))
+              (test-output test))
+            "\n"))
          #f)
      (format "  ~a)" (prog->fpcore (test-input test) output-repr))))
    "\n"))

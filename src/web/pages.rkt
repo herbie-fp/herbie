@@ -15,11 +15,14 @@
   (define success-pages '("interactive.js" "points.json"))
   (append default-pages (if good? success-pages empty)))
 
-(define ((page-error-handler result page) e)
+(define ((page-error-handler result page out) e)
   (define test (job-result-test result))
-  ((error-display-handler)
-   (format "Error generating `~a` for \"~a\":\n~a\n" page (test-name test) (exn-message e))
-   e))
+  (eprintf "Error generating `~a` for \"~a\":\n  ~a\n"
+           page (test-name test) (exn-message e))
+  (parameterize ([current-error-port out])
+    (display "<!doctype html><pre>" out)
+    ((error-display-handler) (exn-message e) e)
+    (display "</pre>" out)))
 
 (define (make-page page out result output? profile?)
   (define test (job-result-test result))
@@ -62,17 +65,19 @@
   (when (string? js-text)
     (display js-text out)))
 
+(define (ulps->bits-tenths x)
+  (string->number (real->decimal-string (ulps->bits x) 1)))
+
 (define (make-points-json result out repr)
   (match-define (job-result test _ _ _ _ 
-                 (improve-result _ pctxs start target end _) ) result)
+                 (improve-result _ pctxs start targets end _) ) result)
   (define repr (test-output-repr test))
   (define start-errors (alt-analysis-test-errors start))
-  (define target-errors (and target (alt-analysis-test-errors target)))
+
+  (define target-errors (map alt-analysis-test-errors targets))
+
   (define end-errors (map alt-analysis-test-errors end))
   (define-values (newpoints _) (pcontext->lists (second pctxs)))
-
-  (define (ulps->bits-tenths x)
-    (string->number (real->decimal-string (ulps->bits x) 1)))
 
   ; Immediately convert points to reals to handle posits
   (define points 
@@ -88,8 +93,14 @@
   (define vars (test-vars test))
   (define bits (representation-total-bits repr))
   (define start-error (map ulps->bits-tenths start-errors))
-  (define target-error (and target-errors (map ulps->bits-tenths target-errors)))
+  (define target-error (map (lambda (alt-error) (map ulps->bits-tenths alt-error)) target-errors))
   (define end-error (map ulps->bits-tenths (car end-errors)))
+
+  (define target-error-entries
+    (for/list ([i (in-naturals)] [error-value (in-list target-error)])
+        (cons (format "target~a" (+ i 1)) error-value)))
+
+  (define error-entries (list* `("start" . ,start-error) `("end" . ,end-error) target-error-entries))
 
   (define ticks 
     (for/list ([idx (in-range (length vars))])
@@ -122,19 +133,16 @@
   ;   vars: array of n string variable names
   ;   points: array of size m like [[x0, x1, ..., xn], ...] where x0 etc. 
   ;     are ordinals representing the real input values
-  ;   error: object with fields {start, target, end}, where each field holds 
-  ;     an array like [y0, ..., ym] where y0 etc are bits of error for the output 
-  ;     on each point
+  ;   error: JSON dictionary where keys are {start, end, target1, ..., targetn}.
+  ;          Each key's value holds an array like [y0, ..., ym] where y0 etc are
+  ;          bits of error for the output on each point
   ;   ticks: array of size n where each entry is 13 or so tick values as [ordinal, string] pairs
   ;   splitpoints: array with the ordinal splitpoints
   (define json-obj `#hasheq(
     (bits . ,bits)
     (vars . ,(map symbol->string vars))
     (points . ,json-points) 
-    (error . ,`#hasheq(
-      (start . ,start-error)
-      (target . ,target-error)
-      (end . ,end-error)))
+    (error . ,error-entries)
     (ticks_by_varidx . ,ticks)
     (splitpoints_by_varidx . ,splitpoints)))
   

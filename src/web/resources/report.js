@@ -50,14 +50,21 @@ var TogglableFlags = new Component("#flag-list", {
     }
 });
 
-const ALL_LINES = [
-    { name: 'start', description: "Initial program",
-      line: { stroke: '#d00' }, dot: { stroke: '#d002'} },
-    { name: 'end', description: "Most accurate alternative",
-      line: { stroke: '#00a' }, dot: { stroke: '#00a2'} },
-    { name: 'target', description: "Developer target",
-      line: { stroke: '#080' }, dot: { stroke: '#0802'}}
-]
+
+// Cicular color wheel representing error values limited to size 10
+const colors = [
+    { line: { stroke: '#d00' }, dot: { stroke: '#d002'} },
+    { line: { stroke: '#00a' }, dot: { stroke: '#00a2'} },
+    { line: { stroke: '#080' }, dot: { stroke: '#0802'} },
+    { line: { stroke: '#0d0' }, dot: { stroke: '#0d02'} },
+    { line: { stroke: '#a00' }, dot: { stroke: '#a002'} },
+    { line: { stroke: '#0a0' }, dot: { stroke: '#0a02'} },
+    { line: { stroke: '#00d' }, dot: { stroke: '#00d2'} },
+    { line: { stroke: '#008' }, dot: { stroke: '#0082'} },
+    { line: { stroke: '#d80' }, dot: { stroke: '#d802'} },
+    { line: { stroke: '#00f' }, dot: { stroke: '#00f2'} },
+    { line: { stroke: '#f00' }, dot: { stroke: '#f002'} }
+];
 
 const ClientGraph = new Component('#graphs', {
     setup: async function() {
@@ -86,21 +93,48 @@ const ClientGraph = new Component('#graphs', {
     },
 
     render_functions: function($elt, selected_var_name, selected_functions) {
-        const all_lines = ALL_LINES.filter(o => this.points_json.error[o.name] != false)
         const toggle = (option, options) => options.includes(option) ? options.filter(o => o != option) : [...options, option]
+
+        // this.points_json.error is a dictionary where keys are indices "1", "2", ..., "n".
+        // The values for each key is broken up into two parts : error_type and actual error values
+        // error_type is the first element in the list value with 1...n being the remianing values
+        // Types of error type is "start", "end", "target1", "target2", ..., "targetm" 
+
+        var curr_list = []
+        let i = 0
+
+        for (const key in this.points_json.error) {
+            const error_type = this.points_json.error[key][0]
+            const line = colors[i % colors.length].line
+
+            let description
+
+            if (error_type === "start") {
+                description = "Initial program"
+            } else if (error_type === "end") {
+                description = "Most accurate alternative"
+            } else {
+                // target is 6 letters
+                description = "Developer Target " + error_type.slice(6)
+            }
+
+            curr_list.push( Element("label", [
+                Element("input", {
+                    type: "checkbox",
+                    style: "accent-color: " + line.stroke,
+                    checked: selected_functions.includes(error_type),
+                    onclick: (e) => this.render(selected_var_name, toggle(error_type, selected_functions))
+                }, []),
+                Element("span", { className: "functionDescription" }, [
+                    " ", description]),
+            ]))
+
+            i += 1
+        }
+
         $elt.replaceChildren.apply(
             $elt,
-            all_lines.map(fn => 
-                Element("label", [
-                    Element("input", {
-                        type: "checkbox",
-                        style: "accent-color: " + fn.line.stroke,
-                        checked: selected_functions.includes(fn.name),
-                        onclick: (e) => this.render(selected_var_name, toggle(fn.name, selected_functions))
-                    }, []),
-                    Element("span", { className: "functionDescription" }, [
-                        " ", fn.description]),
-                ])),
+            curr_list,
         );
     },
     
@@ -124,7 +158,15 @@ const ClientGraph = new Component('#graphs', {
     },
 
     plot: async function(varName, function_names) {
-        const functions = ALL_LINES.filter(o => function_names.includes(o.name))
+        const functionMap = new Map()
+
+        for (const key in this.points_json.error) {
+            if (this.points_json.error[key][1] !== false) {
+                // Error type -> Actual Error points
+                functionMap.set(this.points_json.error[key][0], this.points_json.error[key].slice(1))
+            }
+        }
+
         const index = this.all_vars.indexOf(varName)
         // NOTE ticks and splitpoints include all vars, so we must index
         const { bits, points, error, ticks_by_varidx, splitpoints_by_varidx } = this.points_json
@@ -135,10 +177,12 @@ const ClientGraph = new Component('#graphs', {
         const tick_strings = ticks.map(t => t[0])
         const tick_ordinals = ticks.map(t => t[1])
         const tick_0_index = tick_strings.indexOf("0")
+
         const grouped_data = points.map((p, i) => ({
             input: p,
-            error: Object.fromEntries(function_names.map(name => ([name, error[name][i]])))
+            error: Object.fromEntries(function_names.map(name => ([name, functionMap.get(name)[i]])))
         }))
+
         const domain = [Math.min(...tick_ordinals), Math.max(...tick_ordinals)]
 
         let splitpoints = splitpoints_by_varidx[index].map(p => {
@@ -151,7 +195,13 @@ const ClientGraph = new Component('#graphs', {
         }
 
         let marks = []
-        for (let { name, fn, line, dot } of functions) {
+        let i = 0
+        for (let [name, _] of functionMap) {
+            const line = colors[i % colors.length].line
+            const dot = colors[i % colors.length].dot
+
+            i += 1
+
             const key_fn = fn => (a, b) => fn(a) - fn(b)
             const index = this.all_vars.indexOf(varName)
             const data = grouped_data.map(({ input, error }) => ({
