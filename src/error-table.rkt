@@ -8,6 +8,13 @@
 (provide actual-errors predicted-errors make-flow-table calculate-confusion
          calculate-confusion-maybe)
 
+(define *top-3* (make-parameter #f))
+
+(define (take-top-n lst)
+  (if (*top-3*)
+      (take-n 3 lst)
+      lst))
+
 (define (take-n n lst)
   (match lst
     ['() '()]
@@ -72,7 +79,7 @@
                               subexprs-list
                               (map context-repr ctx-list))))
 
-  (define subexprs-fn (parameterize ([*max-mpfr-prec* (*starting-prec*)])
+  (define subexprs-fn (parameterize ([*max-mpfr-prec* 128])
                         (eval-progs-real spec-list ctx-list))) 
   
   (define error-count-hash
@@ -661,7 +668,7 @@
             flow-list)))
 
   (define sorted-explanations-table
-    (take-n 3 (sort explanations-table > #:key fourth)))
+    (take-top-n (sort explanations-table > #:key fourth)))
 
   (define (expls-to-points expls->points)
     (define expls-points-list (hash->list expls->points))
@@ -669,7 +676,7 @@
                               #:key (lambda (x) (length (rest x)))))
     (define points-per-expl (hash-values expls->points))
     (define points-per-expl-test (map rest sorted-list))
-    (define top-3 (take-n 3 points-per-expl-test))
+    (define top-3 (take-top-n points-per-expl-test))
     ;;(eprintf "[og] ~a\n[new] ~a\n" points-per-expl top-3)
     (define points-err (apply set-union '() top-3))
     (for/hash ([point (in-list points-err)])

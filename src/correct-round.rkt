@@ -22,7 +22,7 @@
   (define vprecs (make-vector iveclen))                ; vector that stores working precisions
   (define vstart-precs (setup-vstart-precs ivec varc)) ; starting precisions for the tuning mode
 
-  (define prec-threshold (/ (*max-mpfr-prec*) 25))     ; parameter for sampling histogram table
+  (define prec-threshold (exact-floor (/ (*max-mpfr-prec*) 25)))     ; parameter for sampling histogram table
 
   (define (compiled-spec . args)
     (define timeline-stop!
