@@ -239,7 +239,17 @@
 
             (eprintf "Job ~a complete\n" hash)
             (hash-remove! *jobs* hash)
-            (semaphore-post sema)])])
+            (semaphore-post sema)])]
+            [(list 'sample hash formula sema)
+             (define test (parse-test formula))
+             (eprintf "Sampling job started on ~a..." formula)
+             (define result (run-herbie 'sample test #:seed seed #:profile? #f #:timeline-disabled? #t))
+             (define pctx (job-result-backend result))
+             (define result-hashtable (hasheq 'points (pcontext->json pctx (context-repr (test-context test)))))
+             (hash-set! *completed-jobs* hash result-hashtable)
+             (eprintf " complete\n")
+             (hash-remove! *jobs* hash)
+            (semaphore-post sema)])
        (loop seed)))))
 
 (define (update-report result dir seed data-file html-file)
@@ -367,21 +377,27 @@
      (redirect-to (add-prefix (format "~a.~a/graph.html" hash *herbie-commit*)) see-other))
    (url main)))
 
+(define (run-sample hash formula)
+  (hash-set! *jobs* hash (*timeline*))
+  (define sema (make-semaphore))
+  (thread-send *worker-thread* (list 'sample hash formula sema))
+  sema)
+
 ; /api/sample endpoint: test in console on demo page:
 ;; (await fetch('/api/sample', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x) (- (sqrt (+ x 1))))", seed: 5})})).json()
 (define sample-endpoint
   (post-with-json-response
     (lambda (post-data)
-      (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
+      (define formula-str (hash-ref post-data 'formula))
+      (define formula (read-syntax 'web (open-input-string formula-str)))
+      (define hash (sha1 (open-input-string formula-str)))
+      ;; Hmm how should I pass seed?
+      ;; is it ok to use the seed set in the thread?
       (define seed (hash-ref post-data 'seed))
-      (eprintf "Sampling job started on ~a..." formula)
-
-      (define test (parse-test formula))
-      (define result (run-herbie 'sample test #:seed seed #:profile? #f #:timeline-disabled? #t))
-      (define pctx (job-result-backend result))
-
-      (eprintf " complete\n")
-      (hasheq 'points (pcontext->json pctx (context-repr (test-context test)))))))
+      ;; Is this ok because we are multithreaded now?
+      (set-seed! seed)
+      (semaphore-wait (run-sample hash formula))
+      (hash-ref *completed-jobs* hash))))
 
 (define analyze-endpoint
   (post-with-json-response
