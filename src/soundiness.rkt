@@ -81,7 +81,7 @@
       ; recursive rewrite using egg (spec -> impl)
       [(alt expr `(rr ,loc ,(? egraph-query? e-input) #f #f) `(,prev) _)
        (define start-expr (location-get loc (alt-expr prev)))
-       (define start-expr* (expand-accelerators (*rules*) (prog->spec start-expr)))
+       (define start-expr* (expand-accelerators (prog->spec start-expr)))
        (define end-expr (location-get loc expr))
        (define rewrite (cons start-expr* end-expr))
        (hash-set! alt->query&rws (altn->key altn) (cons e-input rewrite))
@@ -95,7 +95,7 @@
        (define start-expr*
          (match (alt-event prev)
            [(list 'taylor _ ...) start-expr]  ; input was inserted as-is
-           [_ (expand-accelerators (*rules*) (prog->spec start-expr))]))
+           [_ (expand-accelerators (prog->spec start-expr))]))
        (define rewrite (cons start-expr* end-expr))
 
        (hash-set! alt->query&rws (altn->key altn) (cons e-input rewrite))

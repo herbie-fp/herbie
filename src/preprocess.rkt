@@ -49,7 +49,7 @@
       (run ,lowering-rules ((iteration . 1) (scheduler . simple)))))
 
   ; egg query
-  (define spec (expand-accelerators (*rules*) (prog->spec init)))
+  (define spec (expand-accelerators (prog->spec init)))
   (define egg-query
     (make-egg-query (list spec)
                     (list (context-repr ctx))

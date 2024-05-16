@@ -26,7 +26,7 @@
   (define progs (apply append subexprss))
 
   ; inputs to egg
-  (define specs (map (lambda (e) (expand-accelerators (*rules*) (prog->spec e))) progs))
+  (define specs (map (lambda (e) (expand-accelerators (prog->spec e))) progs))
   (define reprs (map (lambda (prog) (repr-of prog ctx)) progs))
   (define rules (real-rules (*simplify-rules*)))
   (define lowering-rules (platform-lowering-rules))

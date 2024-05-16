@@ -38,7 +38,7 @@
       #;(log ,log-x ,exp-x))))
 
 (define (taylor-alt altn)
-  (define expr (expand-accelerators (prog->spec (alt-expr altn))))
+  (define expr (alt-expr altn))
   (reap [sow]
     (for* ([var (free-variables expr)] [transform-type transforms-to-try])
       (match-define (list name f finv) transform-type)
@@ -49,11 +49,7 @@
       (timeline-stop!))))
 
 (define (spec-has-nan? expr)
-  (expr-contains?
-    expr
-    (lambda (term)
-      (and (symbol? term)
-           (eq? term 'NAN)))))
+  (expr-contains? expr (lambda (term) (eq? term 'NAN))))
 
 (define (run-taylor altns reprs)
   (timeline-event! 'series)
@@ -171,7 +167,7 @@
   ; Starting alternatives
   (define start-altns
     (for/list ([expr (in-list locs)] [repr (in-list reprs)])
-      (define spec (expand-accelerators (*rules*) (prog->spec expr)))
+      (define spec (expand-accelerators (prog->spec expr)))
       (alt spec (list 'patch expr repr) '() '())))
   ; Core
   (define approximations (run-taylor start-altns reprs))
