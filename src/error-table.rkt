@@ -50,15 +50,15 @@
 (define (predicted-errors expr ctx pctx)
   (define cond-thres (bf 100))
   (define maybe-cond-thres (bf 32))
+
   
   (define subexprs
     (all-subexpressions-rev expr (context-repr ctx)))
   (define subexprs-list (map car subexprs))
   (define spec-list (map prog->spec subexprs-list))
-  
   (define ctx-list
     (for/list ([subexpr (in-list subexprs)])
-      (struct-copy context ctx [repr (repr-of subexpr ctx)])))
+      (struct-copy context ctx [repr (repr-of (car subexpr) ctx)])))
 
   (define repr-hash
     (make-immutable-hash (map cons
@@ -66,6 +66,7 @@
                               (map context-repr ctx-list))))
   
   (define subexprs-fn (eval-progs-real spec-list ctx-list))
+
   
   (define error-count-hash
     (make-hash (map (lambda (x) (cons x '())) subexprs-list)))
@@ -108,7 +109,7 @@
     (define exacts (apply subexprs-fn pt))
 
     (define exacts-hash
-      (make-immutable-hash (map cons subexprs exacts)))
+      (make-immutable-hash (map cons subexprs-list exacts)))
     (define (exacts-ref subexpr)
       (define exacts-val (hash-ref exacts-hash subexpr))
       ((representation-repr->bf

@@ -64,7 +64,7 @@
 
 (define (mutate! simplified context pcontext iterations)
   (*pcontext* pcontext)
-  (explain! simplified)
+  (explain! simplified context pcontext)
   (initialize-alt-table! simplified context pcontext)
   (for ([iteration (in-range iterations)] #:break (atab-completed? (^table^)))
     (run-iter!))
@@ -359,7 +359,7 @@
   (timeline-event! 'prune)
   (^table^ (atab-add-altns table simplified* errss costs)))
 
-(define (explain! simplified)
+(define (explain! simplified context pcontext)
   (timeline-event! 'explain)
   (define expr (alt-expr (car simplified)))
 
@@ -387,11 +387,7 @@
                     flow-list))
   
   (timeline-push! 'confusion confusion-matrix)
-  (timeline-push! 'maybe-confusion maybe-confusion-matrix)
-  
-  
-  
-  )
+  (timeline-push! 'maybe-confusion maybe-confusion-matrix))
 
 (define (make-regime! alts)
   (define ctx (*context*))

@@ -24,6 +24,24 @@
               [(list op args ...)
                (for ([arg args]) (loop arg))])))))
 
+
+(define (all-subexpressions-rev expr repr)
+  (remove-duplicates (reverse
+                      (reap [sow]
+                            (let loop ([expr expr] [repr repr])
+                              (sow (cons expr repr))
+                              (match expr
+                                [(? literal?) (void)]
+                                [(? variable?) (void)]
+                                [`(if ,c ,t ,f)
+                                 (loop c (get-representation 'bool))
+                                 (loop t repr)
+                                 (loop f repr)]
+                                [(list op args ...)
+                                 (define atypes (impl-info op 'itype))
+                                 (for ([arg args] [atype atypes])
+                                   (loop arg atype))]))))))
+
 (define (regroup-nested inputss outputs)
   (match* (inputss outputs)
     [((cons (cons fhead ftail) rest)
@@ -58,22 +76,6 @@
 
   localize-costss)
 
-(define (all-subexpressions-rev expr repr)
-  (remove-duplicates (reverse
-                      (reap [sow]
-                            (let loop ([expr expr] [repr repr])
-                              (sow (cons expr repr))
-                              (match expr
-                                [(? number?) (void)]
-                                [(? variable?) (void)]
-                                [`(if ,c ,t ,f)
-                                 (loop c (get-representation 'bool))
-                                 (loop t repr)
-                                 (loop f repr)]
-                                [(list op args ...)
-                                 (define atypes (impl-info op 'itype))
-                                 (for ([arg args] [atype atypes])
-                                   (loop arg atype))]))))))
 
 (define (batch-localize-errors exprs ctx)
   (define subexprss (map all-subexpressions exprs))
