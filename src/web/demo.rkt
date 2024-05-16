@@ -240,7 +240,7 @@
             (eprintf "Job ~a complete\n" hash)
             (hash-remove! *jobs* hash)
             (semaphore-post sema)])]
-            [(list 'sample hash formula sema)
+            [(list 'sample hash formula sema seed)
              (define test (parse-test formula))
              (eprintf "Sampling job started on ~a..." formula)
              (define result (run-herbie 'sample test #:seed seed #:profile? #f #:timeline-disabled? #t))
@@ -249,7 +249,19 @@
              (hash-set! *completed-jobs* hash result-hashtable)
              (eprintf " complete\n")
              (hash-remove! *jobs* hash)
-            (semaphore-post sema)])
+             (semaphore-post sema)]
+            [(list 'errors hash formula sema seed pcontext sample)
+             (define test (parse-test formula))
+             (eprintf "Analyze job started on ~a..." formula)
+             (define pcontext (json->pcontext sample (test-context test)))
+             (define result (run-herbie 'errors test
+              #:seed seed #:pcontext pcontext
+              #:profile? #f #:timeline-disabled? #t))
+             (define errs (job-result-backend result))
+             (hash-set! *completed-jobs* hash (hasheq 'points errs))
+             (eprintf " complete\n")
+             (hash-remove! *jobs* hash)
+             (semaphore-post sema)])
        (loop seed)))))
 
 (define (update-report result dir seed data-file html-file)
@@ -377,10 +389,10 @@
      (redirect-to (add-prefix (format "~a.~a/graph.html" hash *herbie-commit*)) see-other))
    (url main)))
 
-(define (run-sample hash formula)
+(define (run-sample hash formula seed)
   (hash-set! *jobs* hash (*timeline*))
   (define sema (make-semaphore))
-  (thread-send *worker-thread* (list 'sample hash formula sema))
+  (thread-send *worker-thread* (list 'sample hash formula sema seed))
   sema)
 
 ; /api/sample endpoint: test in console on demo page:
@@ -390,31 +402,29 @@
     (lambda (post-data)
       (define formula-str (hash-ref post-data 'formula))
       (define formula (read-syntax 'web (open-input-string formula-str)))
-      (define hash (sha1 (open-input-string formula-str)))
-      ;; Hmm how should I pass seed?
-      ;; is it ok to use the seed set in the thread?
       (define seed (hash-ref post-data 'seed))
-      ;; Is this ok because we are multithreaded now?
-      (set-seed! seed)
-      (semaphore-wait (run-sample hash formula))
+      (define hash (sha1 (open-input-string formula-str)))
+      (semaphore-wait (run-sample hash formula seed))
       (hash-ref *completed-jobs* hash))))
+
+(define (run-analyze hash formula seed pcontext sample)
+  (hash-set! *jobs* hash (*timeline*))
+  (define sema (make-semaphore))
+  (thread-send *worker-thread* (list 'errors hash formula sema seed pcontext sample))
+  sema)
 
 (define analyze-endpoint
   (post-with-json-response
     (lambda (post-data)
-      (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
+      (define formula-str (hash-ref post-data 'formula))
+      (define formula (read-syntax 'web (open-input-string formula-str)))
       (define sample (hash-ref post-data 'sample))
       (define seed (hash-ref post-data 'seed #f))
-      (eprintf "Analyze job started on ~a..." formula)
-
       (define test (parse-test formula))
       (define pcontext (json->pcontext sample (test-context test)))
-      (define result (run-herbie 'errors test #:seed seed #:pcontext pcontext
-                                 #:profile? #f #:timeline-disabled? #t))
-      (define errs (job-result-backend result))
-
-      (eprintf " complete\n")
-      (hasheq 'points errs))))
+      (define hash (sha1 (open-input-string formula-str)))
+      (semaphore-wait (run-analyze hash formula seed pcontext sample))
+      (hash-ref *completed-jobs* hash))))
 
 ;; (await fetch('/api/exacts', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x) (- (sqrt (+ x 1))))", points: [[1, 1]]})})).json()
 (define exacts-endpoint 
