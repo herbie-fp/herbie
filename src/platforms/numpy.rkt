@@ -59,10 +59,11 @@
       (operator-set
         [(real real)    
          (sin cos tan asin acos atan hypot sinh
-          cosh tanh asinh acosh atanh round rint floor 
+          cosh tanh asinh acosh atanh round floor 
           ceil trunc exp expm1 exp2 log log10 log2
-          log1p recip sqrt cbrt fabs neg
+          log1p recip sqrt cbrt fabs neg ;add rint back in
           square deg2rad rad2deg)]
+          
         [(real real real)
          (+ - * / atan2 copysign fmax fmin fmod pow remainder
          logaddexp logaddexp2)]))))

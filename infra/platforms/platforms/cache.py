@@ -30,7 +30,7 @@ CacheType = Dict[str, Tuple[FPCore, SampleType]]
 # ...
 
 def sanitize_name(name: str):
-    return name.replace('*', '_times_').replace('+', '_plus_').replace('/', '_divide_')
+    return name.replace('*', '_times_').replace('+', '_plus_').replace('/', '_divide_').replace('-','_minus_')
 
 class Cache(object):
     def __init__(self, path: str):
@@ -47,6 +47,7 @@ class Cache(object):
     def restore(self) -> None:
         # restore input cores
         input_path = self.path.joinpath('input')
+        print(input_path)
         if input_path.exists():
             for core_dir in input_path.iterdir():
                 key = core_dir.name

@@ -20,6 +20,7 @@
          herbie/web/core2numpy
          herbie/web/thread-pool)
 
+(*warnings-disabled* true)
 (load-herbie-builtins)
 
 (define (resugar-core vars name precision pre spec output)

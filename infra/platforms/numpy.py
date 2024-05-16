@@ -13,14 +13,12 @@ from .util import double_to_c_str
 
 unary_ops = ['neg', 'acos', 'acosh', 'asin', 'asinh', 'atan', 'atanh', 'ceil', 'cos', 'cosh', 'exp', 'expm1', 'fabs', 'floor', 'log', 'log10', 'log2', 'log1p', 'sin', 'sinh', 'sqrt', 'tan', 'tanh', 'trunc','recip','rint','square','deg2rad','rad2deg']
 binary_ops = ['+', '-', '*', '/', 'atan2', 'copysign', 'fmax', 'fmin', 'fmod', 'pow', 'remainder','logaddexp','logaddexp2']
-ternary_ops = []
-nary_ops = []
 
 #unary_ops = ['neg', 'acos', 'acosh', 'asin', 'asinh', 'atan', 'atanh', 'ceil', 'cos', 'cosh', 'exp', 'expm1', 'fabs', 'floor', 'log', 'log10', 'log2', 'log1p', 'sin', 'sinh', 'sqrt', 'tan', 'tanh', 'trunc','recip']
 #binary_ops = ['+', '-', '*', '/', 'atan2', 'copysign', 'fmax', 'fmin', 'fmod', 'pow', 'remainder']
 
 # Numpy lang
-target = 'python3'
+target = 'python'
 driver_name = 'main.py'
 time_unit = 'ms'
 
@@ -36,8 +34,6 @@ class NumpyRunner(Runner):
             lang='numpy',
             unary_ops=unary_ops,
             binary_ops=binary_ops,
-            ternary_ops=ternary_ops,
-            nary_ops=nary_ops,
             time_unit='ms',
             **kwargs
         )
@@ -54,13 +50,14 @@ class NumpyRunner(Runner):
                 print('import time', file=f)
                 print('import numpy', file=f)
                 print(f'{core.compiled}', file=f)
+                self.log(core.compiled)
 
                 spoints = []
                 for i, points in enumerate(input_points):
                     for pt in points:
                         s = double_to_c_str(pt)
                         if s == 'NAN':
-                            spoints.append('math.nan')
+                            spoints.append('numpy.nan')
                         else:
                             spoints.append(s)
 

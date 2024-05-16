@@ -13,7 +13,7 @@ from .fpcore import FPCore, parse_core
 from .util import sample_repr, py_to_racket, racket_to_py
 
 def baseline() -> FPCore:
-    return FPCore(core='(FPCore () :name "baseline" 0)', key='synth\\baseline', name='baseline', argc=0, override=True)
+    return FPCore(core='(FPCore () :name "baseline" 0)', key='synth_baseline', name='baseline', argc=0, override=True)
     
 def sample_to_pcontext(sample):
     points, gts = sample
@@ -85,7 +85,7 @@ def sample1(config: Tuple[FPCore, int, str, str]) -> Tuple[List[List[float]], Li
 def synthesize1(op: str, argc: int) -> FPCore:
     """Creates a single FPCore for an operation with an arity."""
     op_ = '-' if op == 'neg' else op
-    key = sanitize_name(f'synth\\{op}')
+    key = sanitize_name(f'synth_{op}')
     vars = [f'x{i}' for i in range(argc)]
     arg_str = ' '.join(vars)
     app_str = '(' + ' '.join([op_] + vars) + ')'
@@ -268,8 +268,10 @@ class Runner(object):
             # call out to server
             for core in cores:
                 print(f'(compile {self.lang} {core.core})', file=server.stdin, flush=True)
+                self.log(core.core)
                 output = server.stdout.readline()
                 core.compiled = output.replace('\\n', '\n').strip()
+                #self.log(core.compiled)
 
             # terminate the server
             print('(exit)', file=server.stdin, flush=True)
