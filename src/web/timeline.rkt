@@ -66,6 +66,7 @@
          ,@(dict-call curr render-phase-confusion 'confusion)
          ,@(dict-call curr render-phase-maybe-confusion 'maybe-confusion)
          ,@(dict-call curr render-phase-freqs 'freqs)
+         ,@(dict-call curr render-phase-total-confusion 'total-confusion)
          ,@(dict-call curr render-phase-egraph 'egraph)
          ,@(dict-call curr render-phase-stop 'stop)
          ,@(dict-call curr render-phase-counts 'count)
@@ -380,7 +381,27 @@
                             false-pos false-maybe true-neg)) confusion-matrix)
   `((dt "Confusion?")
     (dd (table ([class "times"])
-               (tr (th "") (th "Predicted +") (th "Predicted Maybe") (th "Predicted -"))
+               (tr (th "") (th "Predicted +") (th "Predicted Maybe") (th  "Predicted -"))
+               (tr (th "+") (td ,(~a true-pos)) (td ,(~a true-maybe)) (td ,(~a false-neg)))
+               (tr (th "-") (td ,(~a false-pos)) (td ,(~a false-maybe)) (td ,(~a true-neg)))))
+    (dt "Precision?")
+    (dd ,(if (= true-pos true-maybe false-pos false-maybe 0)
+             "0/0"
+             (~a (exact->inexact (/ (+ true-pos true-maybe)
+                                    (+ true-pos true-maybe
+                                       false-pos false-maybe))))))
+    (dt "Recall?")
+    (dd ,(if (= true-pos true-maybe false-neg 0)
+             "0/0"
+             (~a (exact->inexact (/ (+ true-pos true-maybe)
+                                    (+ true-pos true-maybe false-neg))))))))
+
+(define (render-phase-total-confusion confusion-matrix)
+  (match-define (list (list true-pos true-maybe false-neg
+                            false-pos false-maybe true-neg)) confusion-matrix)
+  `((dt "Total Confusion?")
+    (dd (table ([class "times"])
+               (tr (th "") (th "Predicted +") (th "Predicted Maybe") (th  "Predicted -"))
                (tr (th "+") (td ,(~a true-pos)) (td ,(~a true-maybe)) (td ,(~a false-neg)))
                (tr (th "-") (td ,(~a false-pos)) (td ,(~a false-maybe)) (td ,(~a true-neg)))))
     (dt "Precision?")
