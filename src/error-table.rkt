@@ -3,10 +3,18 @@
 (require racket/set math/bigfloat racket/hash)
 (require "points.rkt" "syntax/types.rkt" "core/localize.rkt" "common.rkt"
          "ground-truth.rkt" "syntax/sugar.rkt" "alternative.rkt" "programs.rkt"
-         "float.rkt")
+         "float.rkt" "config.rkt")
 
 (provide actual-errors predicted-errors make-flow-table calculate-confusion
          calculate-confusion-maybe)
+
+(define (take-n n lst)
+  (match lst
+    ['() '()]
+    [(cons x xs)
+     (if (= n 0)
+         '()
+         (cons x (take-n (- n 1) xs)))]))
 
 (define (constant? expr)
   (cond
@@ -33,7 +41,6 @@
                      (unless (empty? mapped-sub-error)
                        (sow mapped-sub-error))))))
 
-  ;(eprintf "~a\n" pt-worst-subexpr)
   (for/hash ([group (in-list (group-by car pt-worst-subexpr))])
     (let ([key (caar group)])
       (values key (map cdr group)))))
@@ -64,18 +71,14 @@
     (make-immutable-hash (map cons
                               subexprs-list
                               (map context-repr ctx-list))))
-  
-  (define subexprs-fn (eval-progs-real spec-list ctx-list))
 
+  (define subexprs-fn (parameterize ([*max-mpfr-prec* (*starting-prec*)])
+                        (eval-progs-real spec-list ctx-list))) 
   
   (define error-count-hash
     (make-hash (map (lambda (x) (cons x '())) subexprs-list)))
-  ;;(define explanations-hash (make-hash))
-  ;;(define point-error-hash (make-hash))
   (define uflow-hash (make-hash))
   (define oflow-hash (make-hash)) 
-  ;;(define maybe-explanations-hash (make-hash))
-  ;;(define maybe-point-error-hash (make-hash))
 
   (define expls->points (make-hash))
   (define maybe-expls->points (make-hash))
@@ -95,14 +98,9 @@
     
     (define (mark-erroneous! expr expl)
       (hash-update! error-count-hash expr (lambda (x) (set-add x pt)))
-      (hash-update! expls->points (cons expr expl) (lambda (x) (set-add x pt)) '())
-      #;(hash-update! explanations-hash (cons expr expl) (lambda (x) (+ 1 x)) 0)
-      #;(hash-update! point-error-hash pt (lambda (x) (or true x)) #f))
+      (hash-update! expls->points (cons expr expl) (lambda (x) (set-add x pt)) '()))
     
     (define (mark-maybe! expr [expl 'sensitivity])
-      #;(hash-update! maybe-explanations-hash
-                    (cons expr expl) (lambda (x) (+ 1 x)) 0)
-      #;(hash-update! maybe-point-error-hash pt (lambda (x) (or true x)) #f)
       (hash-update! maybe-expls->points
                     (cons expr expl) (lambda (x) (set-add x pt)) '()))
     
@@ -117,7 +115,6 @@
        exacts-val))
     
     (for/list ([subexpr (in-list subexprs-list)])
-      ;;(eprintf "[subexpr] ~a ~a\n" subexpr explanations-hash)
       (define subexpr-val (exacts-ref subexpr))
 
       (define (update-flow-hash flow-hash pred? . children)
@@ -132,7 +129,8 @@
         (define parent+child-set
           (hash-union parent-set child-set #:combine (lambda (_ v) v)))
         (define new-parent-set
-          (if (pred? subexpr-val)
+          (if (and (bigfloat? subexpr-val)
+                   (pred? subexpr-val))
               (hash-update parent+child-set subexpr
                            (lambda (x) (+ x 1)) 0)
               parent+child-set))
@@ -428,7 +426,7 @@
            ; Condition number hallucination:
            ; Condition number is high when x = 1,
            ; but x is exactly 1, so there is no error
-           [(and (bf= x 1.bf) (bfzero? subexpr-val)) #f]
+           ; [(and (bf= x 1.bf) (bfzero? subexpr-val)) #f]
            
            ; overflow rescue:
            [(bfinfinite? x) (mark-erroneous! subexpr 'oflow-rescue)]
@@ -489,14 +487,14 @@
            ;; Hallucination:
            ;; x has a large exponent and y is 1. The ylogx is large but there is
            ;; no error because the answer is exactly x
-           [(and (bf= y 1.bf)
-                 (bf= x subexpr-val)) #f]
+           ;; [(and (bf= y 1.bf)
+                 ;; (bf= x subexpr-val)) #f]
 
            ;; Hallucination:
            ;; y is large but x is exactly 1
-           [(and (= (bigfloat->flonum x) 1.0)
-                 (= (bigfloat->flonum subexpr-val) 1.0))
-            #f]
+           ;; [(and (= (bigfloat->flonum x) 1.0)
+                 ;; (= (bigfloat->flonum subexpr-val) 1.0))
+            ;; #f]
 
            ;; Hallucination:
            ;; y is large but x is zero
@@ -559,10 +557,10 @@
          (cond
            ; Condition number hallucinations:
            ; acos(1) == 0
-           [(and (bf= x 1.bf) (bfzero? subexpr-val)) #f]
+           ;; [(and (bf= x 1.bf) (bfzero? subexpr-val)) #f]
 
            ; acos(-1) == pi
-           [(bf= x -1.bf)  #f]
+           ;; [(bf= x -1.bf)  #f]
            
            ; High Condition Number:
            ; CN(acos, x) = |x / (√(1 - x^2)acos(x))|
@@ -587,8 +585,8 @@
          (cond
            ; Condition Number hallucinations:
            ; asin(1) == pi/2
-           [(bf= (bfabs x) 1.bf) #f]
-           [(and (bfzero? x) (bfzero? subexpr-val)) #f]
+           ;; [(bf= (bfabs x) 1.bf) #f]
+           ;; [(and (bfzero? x) (bfzero? subexpr-val)) #f]
            ; High Condition Number:
            ; CN(acos, x) = |x / (√(1 - x^2)asin(x))|
            [(bf> cond-x cond-thres) (mark-erroneous! subexpr 'sensitivity)]
@@ -646,7 +644,8 @@
             flow-list)))
 
   (define explanations-table
-    (for/list ([(key val) (in-dict expls->points)])
+    (for/list ([(key val) (in-dict expls->points)]
+               #:unless (zero? (length val)))
       (define expr (car key))
       (define expl (cdr key))
       (define err-count (length val))
@@ -661,9 +660,18 @@
             maybe-count
             flow-list)))
 
+  (define sorted-explanations-table
+    (take-n 3 (sort explanations-table > #:key fourth)))
+
   (define (expls-to-points expls->points)
+    (define expls-points-list (hash->list expls->points))
+    (define sorted-list (sort expls-points-list >
+                              #:key (lambda (x) (length (rest x)))))
     (define points-per-expl (hash-values expls->points))
-    (define points-err (apply set-union '() points-per-expl))
+    (define points-per-expl-test (map rest sorted-list))
+    (define top-3 (take-n 3 points-per-expl-test))
+    ;;(eprintf "[og] ~a\n[new] ~a\n" points-per-expl top-3)
+    (define points-err (apply set-union '() top-3))
     (for/hash ([point (in-list points-err)])
       (values point true)))
 
@@ -682,7 +690,7 @@
                                pctx))
 
   (values fperrors
-          explanations-table
+          sorted-explanations-table
           confusion-matrix
           maybe-confusion-matrix))
 
@@ -728,7 +736,7 @@
     (for/list ([(pt _) (in-pcontext pcontext)])
       (define error-actual? (> (hash-ref actual-error pt) 16))
       (define error-predicted? (hash-ref predicted-error pt false))
-      #;(when (and error-actual? (not error-predicted?))
+      #;(when (and error-predicted? (not error-actual?))
         (eprintf "~a\n" pt))
       (cons error-actual? error-predicted?)))
 
