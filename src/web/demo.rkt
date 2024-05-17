@@ -452,7 +452,8 @@
        (when (eof-object? formula)
          (raise-herbie-error "no formula specified"))
        (parse-test formula)
-       (define hash (sha1 (open-input-string formula-str)))
+       (define hash (sha1 (open-input-string 
+        (string-append (symbol->string 'improve) formula-str))))
        (body hash formula))]
     [_
      (response/error "Demo Error"
@@ -518,7 +519,8 @@
       (define formula-str (hash-ref post-data 'formula))
       (define formula (read-syntax 'web (open-input-string formula-str)))
       (define seed (hash-ref post-data 'seed))
-      (define hash (sha1 (open-input-string formula-str)))
+      (define hash (sha1 (open-input-string 
+       (string-append (symbol->string 'sample) formula-str))))
       (semaphore-wait (run-sample hash formula seed))
       (hash-ref *completed-jobs* hash))))
 
@@ -537,7 +539,8 @@
       (define seed (hash-ref post-data 'seed #f))
       (define test (parse-test formula))
       (define pcontext (json->pcontext sample (test-context test)))
-      (define hash (sha1 (open-input-string formula-str)))
+      (define hash (sha1 (open-input-string 
+       (string-append (symbol->string 'errors) formula-str))))
       (semaphore-wait (run-analyze hash formula seed pcontext sample))
       (hash-ref *completed-jobs* hash))))
 
@@ -555,7 +558,8 @@
       (define formula (read-syntax 'web (open-input-string formula-str)))
       (define sample (hash-ref post-data 'sample))
       (define seed (hash-ref post-data 'seed #f))
-      (define hash (sha1 (open-input-string formula-str)))
+      (define hash (sha1 (open-input-string 
+       (string-append (symbol->string 'exacts) formula-str))))
       (semaphore-wait (run-exacts hash formula seed sample))
       (hash-ref *completed-jobs* hash))))
 
@@ -572,7 +576,8 @@
       (define formula (read-syntax 'web (open-input-string formula-str)))
       (define sample (hash-ref post-data 'sample))
       (define seed (hash-ref post-data 'seed #f))
-      (define hash (sha1 (open-input-string formula-str)))
+      (define hash (sha1 (open-input-string 
+       (string-append (symbol->string 'evaluate) formula-str))))
       (semaphore-wait (run-evaluate hash formula seed sample))
       (hash-ref *completed-jobs* hash))))
 
@@ -589,9 +594,8 @@
       (define formula (read-syntax 'web (open-input-string formula-str)))
       (define sample (hash-ref post-data 'sample))
       (define seed (hash-ref post-data 'seed #f))
-      ;; Should this hash the type of command as well?
-      ;; Conflict if job for local-error and errors of the same formual.
-      (define hash (sha1 (open-input-string formula-str)))
+      (define hash (sha1 (open-input-string 
+       (string-append (symbol->string 'local-error) formula-str))))
       (semaphore-wait (run-local-error hash formula seed sample))
       (hash-ref *completed-jobs* hash))))
 
@@ -607,7 +611,9 @@
       (define formula-str (hash-ref post-data 'formula))
       (define formula (read-syntax 'web (open-input-string formula-str)))
       (define sample (hash-ref post-data 'sample))
-      (define seed (hash-ref post-data 'seed #f))    
+      (define seed (hash-ref post-data 'seed #f))   
+      (define hash (sha1 (open-input-string 
+       (string-append (symbol->string 'alternatives) formula-str)))) 
       (semaphore-wait (run-alternatives hash formula seed sample))
       (hash-ref *completed-jobs* hash))))
 
@@ -633,7 +639,9 @@
     (lambda (post-data)
       (define formula-str (hash-ref post-data 'formula))
       (define formula (read-syntax 'web (open-input-string formula-str)))
-      (define seed (hash-ref post-data 'seed #f))    
+      (define seed (hash-ref post-data 'seed #f))   
+      (define hash (sha1 (open-input-string 
+       (string-append (symbol->string 'cost) formula-str))))  
       (semaphore-wait (run-cost hash formula))
       (hash-ref *completed-jobs* hash))))
 
