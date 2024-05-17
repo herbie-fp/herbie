@@ -243,7 +243,8 @@
             [(list 'sample hash formula sema seed)
              (define test (parse-test formula))
              (eprintf "Sampling job started on ~a..." formula)
-             (define result (run-herbie 'sample test #:seed seed #:profile? #f #:timeline-disabled? #t))
+             (define result (run-herbie 'sample test #:seed seed 
+              #:profile? #f #:timeline-disabled? #t))
              (define pctx (job-result-backend result))
              (define result-hashtable (hasheq 'points (pcontext->json pctx (context-repr (test-context test)))))
              (hash-set! *completed-jobs* hash result-hashtable)
@@ -261,7 +262,36 @@
              (hash-set! *completed-jobs* hash (hasheq 'points errs))
              (eprintf " complete\n")
              (hash-remove! *jobs* hash)
-             (semaphore-post sema)])
+             (semaphore-post sema)]
+             [(list 'local-error hash formula sema seed sample)
+              (define test (parse-test formula))
+              (define expr (prog->fpcore (test-input test) (test-output-repr test)))
+              (define pcontext (json->pcontext sample (test-context test)))
+              (define result (run-herbie 'local-error test #:seed seed 
+               #:pcontext pcontext #:profile? #f #:timeline-disabled? #t))
+              (define local-error (job-result-backend result))
+              
+              ;; TODO: potentially unsafe if resugaring changes the AST
+              (define tree
+                (let loop ([expr expr] [err local-error])
+                  (match expr
+                    [(list op args ...)
+                    ;; err => (List (listof Integer) List ...)
+                    (hasheq
+                      'e (~a op)
+                      'avg-error (format-bits (errors-score (first err)))
+                      'children (map loop args (rest err)))]
+                    [_
+                    ;; err => (List (listof Integer))
+                    (hasheq
+                      'e (~a expr)
+                      'avg-error (format-bits (errors-score (first err)))
+                      'children '())])))
+
+              (hash-set! *completed-jobs* hash (hasheq 'tree tree))
+              (eprintf " complete\n")
+              (hash-remove! *jobs* hash)
+              (semaphore-post sema)])
        (loop seed)))))
 
 (define (update-report result dir seed data-file html-file)
@@ -461,40 +491,25 @@
       (eprintf " complete\n")
       (hasheq 'points approx))))
 
+(define (run-local-error hash formula seed sample)
+  (hash-set! *jobs* hash (*timeline*))
+  (define sema (make-semaphore))
+  (thread-send *worker-thread* (list 'local-error hash formula sema seed sample))
+  sema)
+
 (define local-error-endpoint
   (post-with-json-response
     (lambda (post-data)
-      (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
+      (define formula-str (hash-ref post-data 'formula))
+      (define formula (read-syntax 'web (open-input-string formula-str)))
       (define sample (hash-ref post-data 'sample))
       (define seed (hash-ref post-data 'seed #f))
       (eprintf "Local error job started on ~a..." formula)
-
-      (define test (parse-test formula))
-      (define expr (prog->fpcore (test-input test) (test-output-repr test)))
-      (define pcontext (json->pcontext sample (test-context test)))
-      (define result (run-herbie 'local-error test #:seed seed #:pcontext pcontext
-                                 #:profile? #f #:timeline-disabled? #t))
-      (define local-error (job-result-backend result))
-      
-      ;; TODO: potentially unsafe if resugaring changes the AST
-      (define tree
-        (let loop ([expr expr] [err local-error])
-          (match expr
-            [(list op args ...)
-             ;; err => (List (listof Integer) List ...)
-             (hasheq
-              'e (~a op)
-              'avg-error (format-bits (errors-score (first err)))
-              'children (map loop args (rest err)))]
-            [_
-             ;; err => (List (listof Integer))
-             (hasheq
-              'e (~a expr)
-              'avg-error (format-bits (errors-score (first err)))
-              'children '())])))
-
-      (eprintf " complete\n")
-      (hasheq 'tree tree))))
+      ;; Should this hash the type of command as well?
+      ;; Conflict if job for local-error and errors of the same formual.
+      (define hash (sha1 (open-input-string formula-str)))
+      (semaphore-wait (run-local-error hash formula seed sample))
+      (hash-ref *completed-jobs* hash))))
 
 (define alternatives-endpoint
   (post-with-json-response
