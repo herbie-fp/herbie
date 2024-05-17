@@ -366,6 +366,16 @@
              (hash-set! *completed-jobs* hash (hasheq 'points approx))
              (eprintf " complete\n")
              (hash-remove! *jobs* hash)
+             (semaphore-post sema)]
+            [(list 'cost hash formula sema)
+             (define test (parse-test formula))
+             (eprintf "Computing cost of ~a..." formula)
+             (define result (run-herbie 'cost test 
+              #:profile? #f #:timeline-disabled? #t))
+             (define cost (job-result-backend result))
+             (hash-set! *completed-jobs* hash (hasheq 'cost cost))
+             (eprintf " complete\n")
+             (hash-remove! *jobs* hash)
              (semaphore-post sema)])
        (loop seed)))))
 
@@ -531,7 +541,6 @@
       (semaphore-wait (run-analyze hash formula seed pcontext sample))
       (hash-ref *completed-jobs* hash))))
 
-
 (define (run-exacts hash formula seed sample)
   (hash-set! *jobs* hash (*timeline*))
   (define sema (make-semaphore))
@@ -602,6 +611,7 @@
       (semaphore-wait (run-alternatives hash formula seed sample))
       (hash-ref *completed-jobs* hash))))
 
+;; Should this be threaded? 'core->mathjs for a command/symbol?
 (define ->mathjs-endpoint
   (post-with-json-response
     (lambda (post-data)
@@ -612,18 +622,20 @@
       (eprintf " complete\n")
       (hasheq 'mathjs result))))
 
+(define (run-cost hash formula)
+  (hash-set! *jobs* hash (*timeline*))
+  (define sema (make-semaphore))
+  (thread-send *worker-thread* (list 'cost hash formula sema))
+  sema)
+
 (define cost-endpoint
   (post-with-json-response
     (lambda (post-data)
-      (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
-      (eprintf "Computing cost of ~a..." formula)
-      
-      (define test (parse-test formula))
-      (define result (run-herbie 'cost test #:profile? #f #:timeline-disabled? #t))
-      (define cost (job-result-backend result))
-
-      (eprintf " complete\n")
-      (hasheq 'cost cost))))
+      (define formula-str (hash-ref post-data 'formula))
+      (define formula (read-syntax 'web (open-input-string formula-str)))
+      (define seed (hash-ref post-data 'seed #f))    
+      (semaphore-wait (run-cost hash formula))
+      (hash-ref *completed-jobs* hash))))
 
 (define (run-demo #:quiet [quiet? #f] #:output output #:demo? demo? #:prefix prefix #:log log #:port port #:public? public)
   (*demo?* demo?)
