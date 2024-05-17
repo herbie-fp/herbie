@@ -5,6 +5,7 @@
 # Remove time_unit from Runner? Always use what is probably there everytime anyways
 
 from typing import List
+from pathlib import Path
 
 import argparse
 import json
@@ -25,6 +26,7 @@ def main():
     parser = argparse.ArgumentParser(description="Plotter tool for cost report data")
     parser.add_argument("report_file", help="path to report file to read", type=argparse.FileType())
     parser.add_argument("--baseline", help="plot baseline report", action="store_true")
+    parser.add_argument("--output_dir", type=Path)
     arguments = parser.parse_args()
     report = json.load(arguments.report_file)
 
@@ -38,7 +40,11 @@ def main():
         plt.xlabel('Estimated cost (Herbie)')
         plt.ylabel(f'Cumulative average error')
         plt.legend()
-        plt.show()
+
+        if arguments.output_dir:
+            plt.savefig(arguments.output_dir / "frontier_comparison.png")
+        else:
+            plt.show()
     else:
         costs, times = zip(*[(item["platform_core"]["cost"], item["time"]) for items in report["cores"] for item in items["platform_cores"]])
         plt.figure()
@@ -46,15 +52,20 @@ def main():
         plt.title('Estimated cost vs. actual run time')
         plt.xlabel('Estimated cost (Herbie)')
         plt.ylabel(f'Run time (ms)')
-        
+        if arguments.output_dir:
+            plt.savefig(arguments.output_dir / "times.png")
+
         frontier_costs, frontier_errors = zip(*report["frontier"])
         plt.figure()
         plt.plot(frontier_costs, frontier_errors, label='Points')
         plt.title('Estimated cost vs. cumulative average error (bits)')
         plt.xlabel('Estimated cost (Herbie)')
         plt.ylabel(f'Cumulative average error')
-        
-        plt.show()
+        if arguments.output_dir:
+            plt.savefig(arguments.output_dir / "frontier.png")
+
+        if arguments.output_dir is None:
+            plt.show()
 
 if __name__ == "__main__":
     main()
