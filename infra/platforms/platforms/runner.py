@@ -10,7 +10,7 @@ import json
 
 from .cache import Cache, sanitize_name
 from .fpcore import FPCore, parse_core
-from .util import sample_repr, chunks, py_to_racket, racket_to_py
+from .util import sample_repr, py_to_racket, racket_to_py
 
 def baseline() -> FPCore:
     return FPCore(core='(FPCore () :name "baseline" 0)', key='synth:baseline', name='baseline', argc=0, override=True)
@@ -127,7 +127,7 @@ class Runner(object):
         self.time_unit = time_unit
 
         self.driver_dir = self.working_dir.joinpath('drivers', self.name)
-        self.report_dir = self.working_dir.joinpath('report', self.name)
+        self.report_dir = self.working_dir.joinpath('platform', self.name)
         if key is not None:
             self.report_dir = self.report_dir.joinpath(key)
         # add empty list of jsons to the class instance
@@ -333,12 +333,12 @@ class Runner(object):
 
                 # call out to server
                 core_strs = ' '.join(map(lambda c: c.core, uncached))
-                print(f'(improve ({core_strs}) {threads} {self.working_dir}) (exit)', file=server.stdin, flush=True)
+                print(f'(improve ({core_strs}) {threads} {self.report_dir}) (exit)', file=server.stdin, flush=True)
                 _ = server.stdout.read()
 
-
             # if everything went well, Herbie should have created a datafile
-            with open(self.working_dir.joinpath('results.json'), 'r') as f:
+            json_path = self.report_dir.joinpath('herbie.json')
+            with open(json_path, 'r') as f:
                 report = json.load(f)
 
             # parse each test
@@ -513,6 +513,15 @@ class Runner(object):
         Assumes `compile_drivers()` has already been previous called.
         This method must be overriden by every implementation of `Runner`."""
         raise NotImplementedError('virtual method')
+    
+    def write_tuning_report(self, cores: List[FPCore], times: List[float]) -> None:
+        report = dict()
+        for core, time in zip(cores, times):
+            report[core.name] = time
+
+        path = self.report_dir.joinpath('tuning.json')
+        with open(path, 'w') as f:
+            json.dump(report, f)
 
     # TODO: Write return type spec
     def write_report(
@@ -541,7 +550,7 @@ class Runner(object):
             } for input_core in input_cores],
             'frontier': frontier
         }
-        path = self.report_dir.joinpath('report.json')
+        path = self.report_dir.joinpath('improve.json')
         with open(path, 'w') as _file:
             json.dump(report, _file)
 

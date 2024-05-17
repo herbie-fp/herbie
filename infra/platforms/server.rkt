@@ -1,7 +1,5 @@
 #lang racket
 
-(require json racket/date)
-(require "../src/syntax/types.rkt" "../src/syntax/sugar.rkt")
 (require (only-in fpbench core->c)
          herbie/accelerator
          herbie/common
@@ -13,6 +11,8 @@
          herbie/points
          herbie/sandbox
          herbie/syntax/read
+         herbie/syntax/sugar
+         herbie/syntax/types
          herbie/web/common
          herbie/web/core2mkl
          herbie/web/core2python3-10
@@ -20,36 +20,6 @@
          herbie/web/thread-pool)
 
 (load-herbie-builtins)
-
-;; Also in src/improve.rkt
-(define (in-table-row tr)
-  (unless (table-row? tr)
-    (raise-argument-error 'in-table-row "table-row?" tr))
-  (match (table-row-status tr)
-    [(or "error" "crash" "timeout")
-     (raise-argument-error 'in-table-row "table row not valid result" tr)]
-    [_
-     (match-define (list _ (list best-cost best-err) other) (table-row-cost-accuracy tr))
-     (define first (list best-cost best-err (table-row-output tr)))
-     (in-list (cons first other))]))
-
-;; Also in src/improve.rkt
-(define (print-output p results)
-  (for ([res results] #:when res)
-    (match (table-row-status res)
-      ["error" (void)]
-      ["crash" (void)]
-      ["timeout" (void)]
-      [(? string?)
-       (for ([i (in-naturals 1)] [entry (in-table-row res)])
-         (match-define (list cost err expr) entry)
-         (define expr*
-            (unparse-result res
-                            #:expr expr
-                            #:description (format "variant ~a" i)))
-         (writeln expr* p)
-         (writeln cost p)
-         (writeln err p))])))
 
 (define (resugar-core vars name precision pre spec output)
   (define repr (get-representation precision))
@@ -144,7 +114,7 @@
        (define tests (map (lambda (c) (parse-test (datum->syntax #f c))) cores))
        (define results (get-test-results tests #:threads threads #:seed seed #:profile #f #:dir #f))
        (define info (make-report-info (filter values results) #:seed seed))
-       (write-datafile (build-path (symbol->string dir) "results.json") info)
+       (write-datafile (build-path (symbol->string dir) "herbie.json") info)
        (write "" (current-output-port))
        (loop)]
       ; pareto <frontier:list> ...
