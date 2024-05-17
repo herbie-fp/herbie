@@ -48,7 +48,7 @@
          (vector-ref regs b)
          (vector-ref regs c))]
     [(list op args ...)
-     (apply op (map (curryr vector-ref regs) args))]))
+     (apply op (map (lambda (arg) (vector-ref regs arg)) args))]))
 
 (define (if-proc c a b)
   (if c a b))
