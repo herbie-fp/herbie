@@ -93,6 +93,64 @@ def synthesize1(op: str, argc: int) -> FPCore:
     py_sample = op == 'lgamma' or op == 'tgamma'  # Rival struggles with these
     return FPCore(core, key=key, name=op, argc=argc, py_sample=py_sample)
 
+def json_test_outputs(test: dict) -> List[Tuple[str, float, float]]:
+    """Parses a single test entry in a Herbie JSON returning a list
+    of tuples representing expr, cost, error"""
+    output = test['output']
+    cost_accuracy = test['cost-accuracy']
+    
+    outputs = [(output, cost_accuracy[1][0], cost_accuracy[1][1])]
+    for entry in cost_accuracy[2]:
+        cost = entry[0]
+        err = entry[1]
+        expr = entry[2]
+        outputs.append((expr, cost, err))
+    
+    return outputs
+
+def herbie_json_to_fpcores(path: str, key_dict: dict, herbie_path: str, platform: str) -> List[FPCore]:
+    # read JSON file
+    with open(path, 'r') as f:
+        report = json.load(f)
+
+    # extract relevant fields from report JSON
+    json_cores = []
+    for test in report['tests']:
+        vars = test['vars']
+        name = test['name']
+        prec = test['prec']
+        pre = test['pre']
+        spec = test['spec']
+
+        for expr, cost, err in json_test_outputs(test):
+            json_cores.append((vars, name, prec, pre, spec, expr, cost, err, test))
+
+    # construct FPCores (need to resugar expressions)
+    cores = []
+    with Popen(
+        args=['racket', str(herbie_path), "--platform", platform],
+        stdin=PIPE,
+        stdout=PIPE,
+        universal_newlines=True) as server:
+
+        for vars, name, prec, pre, spec, expr, cost, err, test in json_cores:
+            print(f'(resugar ({" ".join(vars)}) "{name}" {prec} {pre} {spec} {expr})', file=server.stdin, flush=True)
+            core_str = server.stdout.readline()
+
+            core = parse_core(core_str)
+            core.cost = cost
+            core.err = err
+            core.key = key_dict[core.name]
+            core.json = test
+
+            cores.append(core)
+
+        print('(exit)', file=server.stdin, flush=True)
+        _ = server.stdout.readline()
+
+    return cores
+
+
 class Runner(object):
     """Representing a runner for a given platform"""
 
@@ -338,28 +396,8 @@ class Runner(object):
 
             # if everything went well, Herbie should have created a datafile
             json_path = self.report_dir.joinpath('herbie.json')
-            with open(json_path, 'r') as f:
-                report = json.load(f)
-
-            # parse each test
-            for test in report['tests']:
-                # extract the important fields
-                vars = test['vars']
-                name = test['name']
-                prec = test['prec']
-                pre = test['pre']
-                spec = test['spec']
-                output = test['output']
-
-                # construct the FPCore
-                core_str = self.herbie_resugar(vars, name, prec, pre, spec, output, platform)
-                core = parse_core(core_str)
-                core.cost = float(test['cost-accuracy'][1][0])
-                core.err = float(test['end'])
-                core.key = key_dict[core.name]
-                core.json = test
-
-                # update
+            impl_cores = herbie_json_to_fpcores(json_path, key_dict, self.herbie_path, platform)
+            for core in impl_cores:
                 gen_dict[core.key].append(core)
                 num_improved += 1
 
@@ -371,27 +409,7 @@ class Runner(object):
 
         self.log(f'generated {num_improved} FPCores with Herbie ({num_cached} cached)')
         return gen_cores
-    
-    def herbie_resugar(
-        self,
-        vars : List[str],
-        name: str,
-        precision: str,
-        pre: str,
-        spec: str,
-        output: str,
-        platform: str
-    ) -> str:
-        with Popen(
-            args=['racket', str(self.herbie_path), "--platform", platform],
-            stdin=PIPE,
-            stdout=PIPE,
-            universal_newlines=True) as server:
 
-            # call out to server
-            print(f'(resugar ({" ".join(vars)}) "{name}" {precision} {pre} {spec} {output}) (exit)', file=server.stdin, flush=True)
-            output = server.stdout.read()
-            return output
 
     def herbie_pareto(self, input_cores: List[FPCore], cores: List[FPCore]) -> List[Tuple[float, float]]:
         """Runs Herbie's pareto frontier algorithm."""
@@ -524,7 +542,7 @@ class Runner(object):
             json.dump(report, f)
 
     # TODO: Write return type spec
-    def write_report(
+    def write_improve_report(
         self,
         input_cores: List[FPCore],
         platform_cores: List[FPCore],
@@ -532,6 +550,7 @@ class Runner(object):
         times: List[float],
         frontier: List[Tuple[float, float]]
     ) -> None:
+        # group platform cores by input [key]
         by_key = dict()
         for core, dir, time in zip(platform_cores, driver_dirs, times):
             if core.key in by_key:
@@ -539,17 +558,25 @@ class Runner(object):
             else:
                 by_key[core.key] = [(core, dir, time)]
 
-        report = {
-            'cores': [{
-                'input_core': input_core.to_json(),
-                'platform_cores': [{
+        # generate report fragments
+        core_reports = []
+        for input_core in input_cores:
+            output_cores = by_key[input_core.key]
+            platform_core_reports = []
+            for platform_core, dir, time in output_cores:
+                platform_core_reports.append({
                     'platform_core': platform_core.to_json(),
                     'dir': str(dir),
                     'time': time
-                } for platform_core, dir, time in by_key[input_core.key]]
-            } for input_core in input_cores],
-            'frontier': frontier
-        }
+                })
+            
+            core_reports.append({
+                'input_core': input_core.to_json(),
+                'platform_cores': platform_core_reports
+            })
+
+        report = { 'cores': core_reports, 'frontier': frontier }
+
         path = self.report_dir.joinpath('improve.json')
         with open(path, 'w') as _file:
             json.dump(report, _file)

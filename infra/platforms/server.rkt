@@ -115,7 +115,7 @@
        (define results (get-test-results tests #:threads threads #:seed seed #:profile #f #:dir #f))
        (define info (make-report-info (filter values results) #:seed seed))
        (write-datafile (build-path (symbol->string dir) "herbie.json") info)
-       (write "" (current-output-port))
+       (writeln "" (current-output-port))
        (loop)]
       ; pareto <frontier:list> ...
       [(list 'resugar args ...)
@@ -124,7 +124,7 @@
             [(list vars name precision pre spec output) (values vars name precision pre spec output)]
             [_ (error 'run-server "resugar: malformed arguments ~a" args)]))
         (define core (resugar-core vars name precision pre spec output))
-        (write core (current-output-port))
+        (writeln core (current-output-port))
         (loop)]
       [(list 'pareto args ...)
        (define combined (pareto-combine args #:convex? #t))

@@ -109,7 +109,7 @@ def main():
     times = runner.run_drivers(driver_dirs=driver_dirs)
 
     # publish results
-    runner.write_report(input_cores, cores, driver_dirs, times, frontier)
+    runner.write_improve_report(input_cores, cores, driver_dirs, times, frontier)
 
 
 if __name__ == "__main__":
