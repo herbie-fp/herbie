@@ -6,11 +6,11 @@
          "../load-plugin.rkt")
 
 (provide (struct-out test)
-         test-context test-output-repr test-conversions
+         test-context test-output-repr
          load-tests parse-test)
 
 (struct test (name identifier vars input output expected spec pre
-              preprocess output-repr-name var-repr-names conversion-syntax) #:prefab)
+              preprocess output-repr-name var-repr-names functions) #:prefab)
 
 (define (test-output-repr test)
   (get-representation (test-output-repr-name test)))
@@ -22,9 +22,6 @@
     (for/list ([var vars])
       (get-representation (dict-ref (test-var-repr-names test) var))))
   (context (test-vars test) output-repr var-reprs))
-
-(define (test-conversions test)
-  (map (curry map get-representation) (test-conversion-syntax test)))
 
 ;; Unfortunately copied from `src/syntax/sugar.rkt`
 (define (expand stx)
@@ -46,13 +43,27 @@
        stx)]
     ; special nullary operators
     [#`(,(or 'and 'or)) (datum->syntax #f 'TRUE stx)]
-    [#`(+) (datum->syntax #f 0 stx)]
-    [#`(*) (datum->syntax #f 1 stx)]
+    [#`(+) 
+      (warn 'nullary-operator "+ is deprecated as a nullary operator")
+      (datum->syntax #f 0 stx)]
+    [#`(*)
+      (warn 'nullary-operator "* is deprecated as a nullary operator")
+      (datum->syntax #f 1 stx)]
     ; special unary operators
-    [#`(,(or 'and 'or '+ '*) #,a) (expand a)]
-    [#`(/ #,a) (datum->syntax #f (list '/ 1 (expand a)) stx)]
+    [#`(,(or 'and 'or) #,a) (expand a)]
+    ; deprecated unary operators
+    [#`(,(and (or '+ '*) op) #,a)
+      (warn 'unary-operator "~a is deprecated as a unary operator" op) 
+      (expand a)]
+    [#`(/ #,a) 
+      (warn 'unary-operator "/ is deprecated as a unary operator") 
+      (datum->syntax #f (list '/ 1 (expand a)) stx)]
+    ; binary operators
+    [#`(,(and (or '+ '- '* '/ 'or) op) #,arg1 #,arg2)
+     (datum->syntax #f (list op (expand arg1) (expand arg2)) stx)]
     ; variary operators
     [#`(,(and (or '+ '- '* '/ 'or) op) #,arg1 #,arg2 #,rest ...)
+     (unless (null? rest) (warn 'variary-operator "~a is deprecated as a variary operator" op))
      (define prev (datum->syntax #f (list op (expand arg1) (expand arg2)) stx))
      (let loop ([prev prev] [rest rest])
        (match rest
@@ -137,7 +148,8 @@
   (define ctx (context arg-names default-repr var-reprs))
 
   ;; Named fpcores need to be added to function table
-  (when func-name (register-function! func-name args default-repr body))
+  (when func-name
+    (register-function! func-name args (representation-name default-repr) body))
 
   ;; Try props first, then identifier, else the expression itself
   (define name
@@ -176,7 +188,7 @@
         (dict-ref prop-dict ':herbie-preprocess empty)
         (representation-name default-repr)
         (for/list ([var arg-names] [repr var-reprs]) (cons var (representation-name repr)))
-        '()))
+        (hash->list (*functions*))))
 
 (define (check-unused-variables vars precondition expr)
   ;; Fun story: you might want variables in the precondition that
