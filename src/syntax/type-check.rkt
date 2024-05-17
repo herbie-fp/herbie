@@ -111,7 +111,6 @@
                    (format "<~a>" (representation-name type))
                    (string-join
                      (for/list ([impl active-impls])
-                       (eprintf "~a\n" (impl-info impl 'otype))
                        (format "<~a>" (representation-name (impl-info impl 'otype))))
                      " or "))])
         type])]
