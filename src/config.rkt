@@ -7,6 +7,7 @@
 (define all-flags
   #hash([precision . (double fallback)]
         [setup . (simplify search)]
+        [localize . (costs errors)]
         [generate . (rr taylor simplify better-rr proofs)]
         [reduce . (regimes avg-error binary-search branch-expressions)]
         [rules . (arithmetic polynomials fractions exponents trigonometry hyperbolic numerics special bools branches)]))
@@ -14,6 +15,7 @@
 (define default-flags
   #hash([precision . ()]
         [setup . (simplify search)]
+        [localize . (costs errors)]
         [generate . (rr taylor simplify proofs)]
         [reduce . (regimes avg-error binary-search branch-expressions)]
         [rules . (arithmetic polynomials fractions exponents trigonometry hyperbolic numerics special bools branches)]))

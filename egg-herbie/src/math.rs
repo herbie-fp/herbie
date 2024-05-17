@@ -43,7 +43,7 @@ impl<'a> CostFunction<Math> for AltCost<'a> {
     where
         C: FnMut(Id) -> Self::Cost,
     {
-        if let Math::Pow([_, _, i]) = enode {
+        if let Math::Pow([_, i]) = enode {
             if let Some((n, _reason)) = &self.egraph[*i].data {
                 if !n.denom().is_one() && n.denom().is_odd() {
                     return usize::MAX;
@@ -77,19 +77,19 @@ define_language! {
 
         // constant-folding operators
 
-        "+" = Add([Id; 3]),
-        "-" = Sub([Id; 3]),
-        "*" = Mul([Id; 3]),
-        "/" = Div([Id; 3]),
-        "pow" = Pow([Id; 3]),
-        "neg" = Neg([Id; 2]),
-        "sqrt" = Sqrt([Id; 2]),
-        "fabs" = Fabs([Id; 2]),
-        "ceil" = Ceil([Id; 2]),
-        "floor" = Floor([Id; 2]),
-        "round" = Round([Id; 2]),
-        "log" = Log([Id; 2]),
-        "cbrt" = Cbrt([Id; 2]),
+        "+" = Add([Id; 2]),
+        "-" = Sub([Id; 2]),
+        "*" = Mul([Id; 2]),
+        "/" = Div([Id; 2]),
+        "pow" = Pow([Id; 2]),
+        "neg" = Neg([Id; 1]),
+        "sqrt" = Sqrt([Id; 1]),
+        "fabs" = Fabs([Id; 1]),
+        "ceil" = Ceil([Id; 1]),
+        "floor" = Floor([Id; 1]),
+        "round" = Round([Id; 1]),
+        "log" = Log([Id; 1]),
+        "cbrt" = Cbrt([Id; 1]),
 
         Constant(Constant),
         Symbol(egg::Symbol),
@@ -101,6 +101,17 @@ pub struct ConstantFold {
     pub unsound: AtomicBool,
     pub constant_fold: bool,
     pub prune: bool,
+}
+
+impl Clone for ConstantFold {
+    fn clone(&self) -> Self {
+        let unsound = AtomicBool::new(self.unsound.load(Ordering::SeqCst));
+        Self {
+            unsound,
+            constant_fold: self.constant_fold,
+            prune: self.prune,
+        }
+    }
 }
 
 impl Default for ConstantFold {
@@ -115,7 +126,7 @@ impl Default for ConstantFold {
 
 impl Analysis<Math> for ConstantFold {
     type Data = Option<(Constant, (PatternAst<Math>, Subst))>;
-    fn make(egraph: &EGraph, enode: &Math) -> Self::Data {
+    fn make(egraph: &mut EGraph, enode: &Math) -> Self::Data {
         if !egraph.analysis.constant_fold {
             return None;
         }
@@ -134,18 +145,18 @@ impl Analysis<Math> for ConstantFold {
                 Math::Constant(c) => c.clone(),
 
                 // real
-                Math::Add([_p, a, b]) => x(a)? + x(b)?,
-                Math::Sub([_p, a, b]) => x(a)? - x(b)?,
-                Math::Mul([_p, a, b]) => x(a)? * x(b)?,
-                Math::Div([_p, a, b]) => {
+                Math::Add([a, b]) => x(a)? + x(b)?,
+                Math::Sub([a, b]) => x(a)? - x(b)?,
+                Math::Mul([a, b]) => x(a)? * x(b)?,
+                Math::Div([a, b]) => {
                     if x(b)?.is_zero() {
                         return None;
                     } else {
                         x(a)? / x(b)?
                     }
                 }
-                Math::Neg([_p, a]) => -x(a)?,
-                Math::Pow([_p, a, b]) => {
+                Math::Neg([a]) => -x(a)?,
+                Math::Pow([a, b]) => {
                     if is_zero(a) {
                         if x(b)?.is_positive() {
                             Ratio::new(BigInt::from(0), BigInt::from(1))
@@ -160,7 +171,7 @@ impl Analysis<Math> for ConstantFold {
                         return None;
                     }
                 }
-                Math::Sqrt([_p, a]) => {
+                Math::Sqrt([a]) => {
                     let a = x(a)?;
                     if *a.numer() > BigInt::from(0) && *a.denom() > BigInt::from(0) {
                         let s1 = a.numer().sqrt();
@@ -175,24 +186,24 @@ impl Analysis<Math> for ConstantFold {
                         return None;
                     }
                 }
-                Math::Log([_p, a]) => {
+                Math::Log([a]) => {
                     if x(a)? == Ratio::new(BigInt::from(1), BigInt::from(1)) {
                         Ratio::new(BigInt::from(0), BigInt::from(1))
                     } else {
                         return None;
                     }
                 }
-                Math::Cbrt([_p, a]) => {
+                Math::Cbrt([a]) => {
                     if x(a)? == Ratio::new(BigInt::from(1), BigInt::from(1)) {
                         Ratio::new(BigInt::from(1), BigInt::from(1))
                     } else {
                         return None;
                     }
                 }
-                Math::Fabs([_p, a]) => x(a)?.abs(),
-                Math::Floor([_p, a]) => x(a)?.floor(),
-                Math::Ceil([_p, a]) => x(a)?.ceil(),
-                Math::Round([_p, a]) => x(a)?.round(),
+                Math::Fabs([a]) => x(a)?.abs(),
+                Math::Floor([a]) => x(a)?.floor(),
+                Math::Ceil([a]) => x(a)?.ceil(),
+                Math::Round([a]) => x(a)?.round(),
 
                 _ => return None,
             },

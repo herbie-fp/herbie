@@ -3,13 +3,14 @@
 (require "common.rkt"
          "compiler.rkt"
          "ground-truth.rkt"
-         (submod "syntax/syntax.rkt" internals)
-         (submod "syntax/rules.rkt" internals)
+         "core/matcher.rkt"
          "syntax/types.rkt"
-         "core/matcher.rkt")
+         (submod "syntax/syntax.rkt" internals)
+         (submod "syntax/rules.rkt" internals))
 
-(provide accelerator-exists?
+(provide accelerator?
          all-accelerators
+         accelerator-info
          expand-accelerators)
 
 (module+ internals
@@ -18,61 +19,55 @@
            define-accelerator
            define-accelerator-impl))
 
-;;
-;;  Accelerator operators
-;;
-
 ;; An "accelerator" operator
-;;
-;; Each operator is just a composition of existing operators defined by
-;;  - a (unique) name
-;;  - input and output types
-;;  - a definition as an S-expr
-(struct accelerator (name itypes otype spec))
+;; A composition of existing Herbie operators
+(struct accelerator (name vars body itypes otype))
 
-;; Accelerators known to Herbie at runtime
-(define accelerators (make-hasheq))
+;; Table of accelerator operators
+(define accelerators (make-hash))
 
-;; Is the operator an accelerator?
-(define (accelerator-exists? x)
-  (hash-has-key? accelerators x))
+;; Key in the accelerator table
+(define (accelerator-exists? op)
+  (hash-has-key? accelerators op))
 
-;; The list of accelerators as a list.
+;; All keys in the accelerator table
 (define (all-accelerators)
   (hash-keys accelerators))
 
-;; LHS and RHS patterns of a rewrite rules to apply and undo
-;; an accelerator definition.
-(define (accelerator-patterns acc)
-  (match-define (list (or 'lambda 'λ) (list vars ...) body) (accelerator-spec acc))
-  (values (cons (accelerator-name acc) vars) body))
+;; LHS and RHS patterns of a rewrite rules to apply and
+;; undo an accelerator definition.
+(define (accelerator-patterns op)
+  (match-define (accelerator name vars body _ _) (hash-ref accelerators op))
+  (values `(,name ,@vars) body))
 
-;; Adds an accelerator to the table.
-(define (register-accelerator! name itypes otype spec)
-  (match-define (list (or 'λ 'lambda) (list vars ...) body) spec)
-  (for/fold ([ids '()]) ([var (in-list vars)])
-    (if (member var ids)
-        (error 'register-accelerator!
-               "duplicate variable for ~a: ~a"
-               name var)
-        (cons var ids))) 
-  (unless (= (length vars) (length itypes))
-    (error 'register-accelerator!
-           "implementation does not have expected arity: ~a ~a"
-           (length vars)
-           (length itypes)))
-  (define ruleset-name (sym-append name '-accelerator))
-  (define define-name (sym-append name '-define))
-  (define undefine-name (sym-append name '-undefine))
-  (define ival-fn (compile-spec body vars))
-  (define info (accelerator name itypes otype spec))
+;; Fields of an accelerator
+(define/contract (accelerator-info op field)
+  (-> symbol? (or/c 'itype 'otype 'body 'vars) any/c)
+  (unless (hash-has-key? accelerators op)
+    (error 'accelerator-info "Unknown accelerator ~a" op))
+  (define accessor
+    (match field
+      ['vars accelerator-vars]
+      ['body accelerator-body]
+      ['itype accelerator-itypes]
+      ['otype accelerator-otype]))
+  (accessor (hash-ref accelerators op)))
+
+(define (register-accelerator! name itypes otype form [ival-impl #f])
+  (match-define (list (or 'λ 'lambda) (list vars ...) body) form)
+  (define ruleset-name (sym-append name '- 'accelerator))
+  (define define-name (sym-append name '- 'define))
+  (define undefine-name (sym-append name '- 'undefine))
+  (define info (accelerator name vars body itypes otype))
+  (define impl-fn (or ival-impl (compile-spec body vars)))
   (hash-set! accelerators name info)
-  (register-operator! name itypes otype (list (cons 'ival ival-fn)))
+  (register-operator! name itypes otype (list (cons 'ival impl-fn)))
+  ;; TODO: Are the groups right now?
   (register-ruleset*! ruleset-name
-                      (list 'numerics 'simplify)
-                      (map cons vars itypes)
-                      (list (list define-name body (cons name vars))
-                            (list undefine-name (cons name vars) body))))
+                     '(numerics simplify)
+                     (map cons vars itypes)
+                     `((,define-name ,body (,name ,@vars))
+                       (,undefine-name (,name ,@vars) ,body))))
 
 (define-syntax define-accelerator
   (syntax-rules ()
@@ -86,8 +81,12 @@
                                     #:impl [impl #f])
   (unless (accelerator-exists? op)
     (error 'register-accelerator-impl "must be an accelerator ~a" op))
-  (match-define (accelerator _ _ _ spec) (hash-ref accelerators op))
-  (match-define (list (or 'λ 'lambda) (list vars ...) body) spec)
+  (match-define (accelerator _ vars body _ _) (hash-ref accelerators op))
+  (unless (= (length vars) (length itypes))
+    (error 'register-accelerator-impl!
+           "implementation does not have expected arity: ~a ~a"
+           (length vars)
+           (length itypes)))
   (define ctx (context vars otype itypes))
   (define impl-fn
     (or impl
@@ -114,8 +113,7 @@
 (define (expand-accelerators expr #:accelerators [ops (all-accelerators)])
   (define (expand expr)
     (for/fold ([expr expr]) ([op (in-list ops)])
-      (define info (hash-ref accelerators op))
-      (define-values (lhs rhs) (accelerator-patterns info))
+      (define-values (lhs rhs) (accelerator-patterns op))
       (define bindings (pattern-match lhs expr))
       (if bindings (pattern-substitute rhs bindings) expr)))
   (let loop ([expr expr])
