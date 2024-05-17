@@ -2,8 +2,9 @@ from typing import List, Tuple, Optional
 from subprocess import Popen, PIPE
 from pathlib import Path
 
-import multiprocessing as mp
+import json
 import matplotlib.pyplot as plt
+import multiprocessing as mp
 import shutil
 import json
 
@@ -126,19 +127,19 @@ class Runner(object):
         self.time_unit = time_unit
 
         self.driver_dir = self.working_dir.joinpath('drivers', self.name)
-        self.graphs_dir = self.working_dir.joinpath('graphs', self.name)
+        self.report_dir = self.working_dir.joinpath('report', self.name)
+        if key is not None:
+            self.report_dir = self.report_dir.joinpath(key)
         # add empty list of jsons to the class instance
         self.jsons = []
-        if key is not None:
-            self.graphs_dir = self.graphs_dir.joinpath(key)
 
         # mutable data
         self.cache = Cache(str(self.working_dir.joinpath('cache')))
         # if the working directories do not exist, create them
         if not self.driver_dir.exists():
             self.driver_dir.mkdir(parents=True)
-        if not self.graphs_dir.exists():
-            self.graphs_dir.mkdir(parents=True)
+        if not self.report_dir.exists():
+            self.report_dir.mkdir(parents=True)
         self.log('created working directory at `' + str(self.working_dir) + '`')
         # restore cache
         self.cache.restore()
@@ -490,6 +491,75 @@ class Runner(object):
         This method must be overriden by every implementation of `Runner`."""
         raise NotImplementedError('virtual method')
 
+    # TODO: Write return type spec
+    def write_report(
+        self,
+        input_cores: List[FPCore],
+        platform_cores: List[FPCore],
+        driver_dirs: List[str],
+        times: List[float],
+        frontier: List[Tuple[float, float]]
+    ) -> None:
+        by_key = dict()
+        for core, dir, time in zip(platform_cores, driver_dirs, times):
+            if core.key in by_key:
+                by_key[core.key].append((core, dir, time))
+            else:
+                by_key[core.key] = [(core, dir, time)]
+        report = {
+            'cores': [{
+                'input_core': input_core.to_json(),
+                'platform_cores': [{
+                    'platform_core': platform_core.to_json(),
+                    'dir': str(dir),
+                    'time': time
+                } for platform_core, dir, time in by_key[input_core.key]]
+            } for input_core in input_cores],
+            'frontier': frontier
+        }
+        path = self.report_dir.joinpath('report.json')
+        with open(path, 'w') as _file:
+            json.dump(report, _file)
+
+    def write_baseline_report(
+        self,
+        frontier: List[Tuple[float, float]],
+        baseline_frontier: List[Tuple[float, float]]
+    ) -> None:
+        data = {
+            "frontier": frontier,
+            "baseline_frontier": baseline_frontier
+        }
+        path = self.report_dir.joinpath("baseline_report.json")
+        with open(path, "w") as _file:
+            json.dump(data, _file)
+
+    def write_samples(
+        self,
+        input_cores: List[FPCore],
+        platform_cores: List[FPCore],
+        samples: List[List[List[float]]],
+    ) -> None:
+        by_key = dict()
+        for core, sample in zip(platform_cores, samples):
+            if core.key in by_key:
+                by_key[core.key].append((core, sample))
+            else:
+                by_key[core.key] = [(core, sample)]
+        data = [
+            {
+                'input_core': input_core.to_json(),
+                'platform_cores': [{
+                    'platform_core': platform_core.to_json(),
+                    'sample': sample
+                } for platform_core, sample in by_key[input_core.key]]
+            }
+            for input_core in input_cores
+        ]
+        path = self.report_dir.joinpath('sample.json')
+        with open(path, 'w') as _file:
+            json.dump(data, _file)
+
     def print_times(self, cores: List[FPCore], times: List[float]):
         """Prints driver times in a table."""
         print('op | time (ms)')
@@ -503,48 +573,3 @@ class Runner(object):
         for name, time in table:
             if name != 'baseline':
                 print(f'[{name} {time}]')
-
-    def plot_times(self, cores: List[FPCore], times: List[float]):
-        """Plots Herbie cost estimate vs. actual run time."""
-        costs = list(map(lambda c: c.cost, cores))
-        plt.scatter(costs, times)
-        plt.title('Estimated cost vs. actual run time')
-        plt.xlabel('Estimated cost (Herbie)')
-        plt.ylabel(f'Run time ({self.time_unit})')
-
-        path = self.graphs_dir.joinpath('time.png')
-        plt.savefig(f'{str(path)}')
-        plt.close()
-
-    def plot_pareto(self, frontier: List[Tuple[float, float]]):
-        """Plots cost vs. accuracy Pareto frontier."""
-        costs = list(map(lambda pt: pt[0], frontier))
-        errs = list(map(lambda pt: pt[1], frontier))
-
-        plt.plot(costs, errs, label='Points')
-        plt.title('Estimated cost vs. cumulative average error (bits)')
-        plt.xlabel('Estimated cost (Herbie)')
-        plt.ylabel(f'Cumulative average error')
-
-        path = self.graphs_dir.joinpath('pareto.png')
-        plt.savefig(f'{str(path)}')
-        plt.close()
-
-    def plot_pareto_comparison(self, *frontiers):
-        """Plots two cost vs. accuracy Pareto frontiers"""
-        names = []
-        for name, frontier in frontiers:
-            costs = list(map(lambda p: p[0], frontier))
-            errs = list(map(lambda p: p[1], frontier))
-            plt.plot(costs, errs, label=name)
-            names.append(name)
-
-        plt.title('Estimated cost vs. cumulative average error (bits)')
-        plt.xlabel('Estimated cost (Herbie)')
-        plt.ylabel(f'Cumulative average error')
-        plt.legend()
-
-        name_str = '_'.join(names)
-        path = self.graphs_dir.joinpath(f'compare_{name_str}.png')
-        plt.savefig(f'{str(path)}')
-        plt.close()
