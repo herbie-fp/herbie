@@ -10,7 +10,7 @@
   (with-terminal-cost ([bool move-cost])
     (platform
      #:default-cost move-cost
-     #:if-cost move-cost
+     #:if-cost (sum move-cost)
      [(bool) (TRUE FALSE)]
      [(bool bool) not]
      [(bool bool bool) (and or)])))

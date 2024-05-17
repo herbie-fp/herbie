@@ -1223,22 +1223,26 @@
 ;; `rec` takes an id, type, and failure value
 (define (platform-egg-cost-proc regraph cache node type rec)
   (define egg->herbie (regraph-egg->herbie regraph))
+  (define node-cost-proc (platform-node-cost-proc (*active-platform*)))
   (match node
-    [(? number?) 0] ; numbers are free I guess
+    [(? number?) 0] ; TODO: numbers are free I guess
     [(? symbol?)
      (define repr (cdr (hash-ref egg->herbie node)))
-     (platform-repr-cost (*active-platform*) repr)]
+     ((node-cost-proc node repr))]
     [(list 'if cond ift iff) ; if expression
-     (+ (platform-impl-cost (*active-platform*) 'if)
-        (rec cond (get-representation 'bool) +inf.0)
-        (rec ift type +inf.0)
-        (rec iff type +inf.0))]
+     (define cost-proc (node-cost-proc node type))
+     (cost-proc (rec cond (get-representation 'bool) +inf.0)
+                (rec ift type +inf.0)
+                (rec iff type +inf.0))]
     [(list (? impl-exists? impl) args ...) ; impls
+     (define cost-proc (node-cost-proc node type))
      (define itypes (impl-info impl 'itype))
-     (apply +
-            (platform-impl-cost (*active-platform*) impl)
-            (for/list ([arg (in-list args)] [itype (in-list itypes)])
-              (rec arg itype +inf.0)))]
+     (apply cost-proc
+            (map
+              (lambda (arg itype)
+                (rec arg itype +inf.0))
+              args
+              itypes))]
     [(list _ ...) +inf.0])) ; specs
 
 ;; Extracts the best expression according to the extractor.
