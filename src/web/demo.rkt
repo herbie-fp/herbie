@@ -263,35 +263,87 @@
              (eprintf " complete\n")
              (hash-remove! *jobs* hash)
              (semaphore-post sema)]
-             [(list 'local-error hash formula sema seed sample)
-              (define test (parse-test formula))
-              (define expr (prog->fpcore (test-input test) (test-output-repr test)))
-              (define pcontext (json->pcontext sample (test-context test)))
-              (define result (run-herbie 'local-error test #:seed seed 
-               #:pcontext pcontext #:profile? #f #:timeline-disabled? #t))
-              (define local-error (job-result-backend result))
+            [(list 'local-error hash formula sema seed sample)
+             (define test (parse-test formula))
+             (define expr (prog->fpcore (test-input test) (test-output-repr test)))
+             (define pcontext (json->pcontext sample (test-context test)))
+             (define result (run-herbie 'local-error test #:seed seed 
+              #:pcontext pcontext #:profile? #f #:timeline-disabled? #t))
+             (define local-error (job-result-backend result))
               
               ;; TODO: potentially unsafe if resugaring changes the AST
-              (define tree
-                (let loop ([expr expr] [err local-error])
-                  (match expr
-                    [(list op args ...)
-                    ;; err => (List (listof Integer) List ...)
-                    (hasheq
-                      'e (~a op)
-                      'avg-error (format-bits (errors-score (first err)))
-                      'children (map loop args (rest err)))]
-                    [_
-                    ;; err => (List (listof Integer))
-                    (hasheq
-                      'e (~a expr)
-                      'avg-error (format-bits (errors-score (first err)))
-                      'children '())])))
+             (define tree
+              (let loop ([expr expr] [err local-error])
+                (match expr
+                  [(list op args ...)
+                  ;; err => (List (listof Integer) List ...)
+                  (hasheq
+                    'e (~a op)
+                    'avg-error (format-bits (errors-score (first err)))
+                    'children (map loop args (rest err)))]
+                  [_
+                  ;; err => (List (listof Integer))
+                  (hasheq
+                    'e (~a expr)
+                    'avg-error (format-bits (errors-score (first err)))
+                    'children '())])))
 
               (hash-set! *completed-jobs* hash (hasheq 'tree tree))
               (eprintf " complete\n")
               (hash-remove! *jobs* hash)
-              (semaphore-post sema)])
+              (semaphore-post sema)]
+            [(list 'alternatives hash formula sema seed sample)
+             (define test (parse-test formula))
+             (define vars (test-vars test))
+             (define repr (test-output-repr test))
+             (eprintf "Analyze job started on ~a..." formula)
+             (define pcontext (json->pcontext sample (test-context test)))
+
+             (define result (run-herbie 'alternatives test #:seed seed 
+              #:pcontext pcontext #:profile? #f #:timeline-disabled? #t))
+             (match-define (list altns test-pcontext processed-pcontext) (job-result-backend result))
+      
+              (define splitpoints
+                (for/list ([alt altns]) 
+                  (for/list ([var vars])
+                    (define split-var? (equal? var (regime-var alt)))
+                    (if split-var?
+                        (for/list ([val (regime-splitpoints alt)])
+                          (real->ordinal (repr->real val repr) repr))
+                        '()))))
+
+              (define fpcores
+                (for/list ([altn altns])
+                  (~a (program->fpcore (alt-expr altn) (test-context test)))))
+          
+              (define histories
+                (for/list ([altn altns])
+                  (let ([os (open-output-string)])
+                    (parameterize ([current-output-port os])
+                      (write-xexpr
+                        `(div ([id "history"])
+                          (ol ,@(render-history altn
+                                                processed-pcontext
+                                                test-pcontext
+                                                (test-context test)))))
+                      (get-output-string os)))))
+              (define derivations 
+                (for/list ([altn altns])
+                          (render-json altn
+                                                processed-pcontext
+                                                test-pcontext
+                                                (test-context test))))
+
+              (eprintf " complete\n")
+              (define hash-table (hasheq 'alternatives fpcores
+                      'histories histories
+                      'derivations derivations
+                      'splitpoints splitpoints))
+
+             (hash-set! *completed-jobs* hash hash-table)
+             (eprintf " complete\n")
+             (hash-remove! *jobs* hash)
+             (semaphore-post sema)])
        (loop seed)))))
 
 (define (update-report result dir seed data-file html-file)
@@ -511,58 +563,22 @@
       (semaphore-wait (run-local-error hash formula seed sample))
       (hash-ref *completed-jobs* hash))))
 
+(define (run-alternatives hash formula seed sample)
+  (hash-set! *jobs* hash (*timeline*))
+  (define sema (make-semaphore))
+  (thread-send *worker-thread* (list 'alternatives hash formula sema seed sample))
+  sema)
+
 (define alternatives-endpoint
   (post-with-json-response
     (lambda (post-data)
-      (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
+      (define formula-str (hash-ref post-data 'formula))
+      (define formula (read-syntax 'web (open-input-string formula-str)))
       (define sample (hash-ref post-data 'sample))
       (define seed (hash-ref post-data 'seed #f))
-      (eprintf "Alternatives job started on ~a..." formula)
-
-      (define test (parse-test formula))
-      (define vars (test-vars test))
-      (define repr (test-output-repr test))
-      (define pcontext (json->pcontext sample (test-context test)))
-      (define result (run-herbie 'alternatives test #:seed seed #:pcontext pcontext
-                                 #:profile? #f #:timeline-disabled? #t))
-      (match-define (list altns test-pcontext processed-pcontext) (job-result-backend result))
-      
-      (define splitpoints
-        (for/list ([alt altns]) 
-          (for/list ([var vars])
-            (define split-var? (equal? var (regime-var alt)))
-            (if split-var?
-                (for/list ([val (regime-splitpoints alt)])
-                  (real->ordinal (repr->real val repr) repr))
-                '()))))
-
-      (define fpcores
-        (for/list ([altn altns])
-          (~a (program->fpcore (alt-expr altn) (test-context test)))))
-  
-      (define histories
-        (for/list ([altn altns])
-          (let ([os (open-output-string)])
-            (parameterize ([current-output-port os])
-              (write-xexpr
-                `(div ([id "history"])
-                  (ol ,@(render-history altn
-                                        processed-pcontext
-                                        test-pcontext
-                                        (test-context test)))))
-              (get-output-string os)))))
-      (define derivations 
-        (for/list ([altn altns])
-                  (render-json altn
-                                        processed-pcontext
-                                        test-pcontext
-                                        (test-context test))))
-
-      (eprintf " complete\n")
-      (hasheq 'alternatives fpcores
-              'histories histories
-              'derivations derivations
-              'splitpoints splitpoints))))
+      (eprintf "Alternatives job started on ~a..." formula)      
+      (semaphore-wait (run-alternatives hash formula seed sample))
+      (hash-ref *completed-jobs* hash))))
 
 (define ->mathjs-endpoint
   (post-with-json-response
