@@ -13,6 +13,11 @@
     (get-parametric-operator 'fabs repr)
     #t))
 
+(define (has-copysign-impl? repr)
+  (with-handlers ([exn:fail:user:herbie? (const #f)])
+    (get-parametric-operator 'copysign repr repr)
+    #t))
+
 ;; The even identities: f(x) = f(-x)
 ;; Requires `neg` and `fabs` operator implementations.
 (define (make-even-identities spec ctx)
@@ -28,7 +33,8 @@
   (reap [sow]
     (for ([var (in-list (context-vars ctx))]
           [repr (in-list (context-var-reprs ctx))])
-      (when (has-fabs-neg-impls? repr)
+      (when (and (has-fabs-neg-impls? repr)
+                 (has-copysign-impl? repr))
         (sow (replace-vars `((,var . (neg ,var))) `(neg ,spec)))))))
 
 ;; Swap identities: f(a, b) = f(b, a)
