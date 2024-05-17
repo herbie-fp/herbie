@@ -347,13 +347,23 @@
              (semaphore-post sema)]
             [(list 'exacts hash formula sema seed sample)
              (define test (parse-test formula))
-             (eprintf "Ground truth job started on ~a..." formula)
              (define pcontext (json->pcontext sample (test-context test)))
-
+             (eprintf "Ground truth job started on ~a..." formula)
              (define result (run-herbie 'exacts test #:seed seed 
               #:pcontext pcontext #:profile? #f #:timeline-disabled? #t))
              (define exacts (job-result-backend result))
              (hash-set! *completed-jobs* hash (hasheq 'points exacts))
+             (eprintf " complete\n")
+             (hash-remove! *jobs* hash)
+             (semaphore-post sema)]
+            [(list 'evaluate hash formula sema seed sample)
+             (define test (parse-test formula))
+             (define pcontext (json->pcontext sample (test-context test)))
+             (eprintf "Evaluation job started on ~a..." formula)
+             (define result (run-herbie 'evaluate test #:seed seed 
+              #:pcontext pcontext #:profile? #f #:timeline-disabled? #t))
+             (define approx (job-result-backend result))
+             (hash-set! *completed-jobs* hash (hasheq 'points approx))
              (eprintf " complete\n")
              (hash-remove! *jobs* hash)
              (semaphore-post sema)])
@@ -540,22 +550,22 @@
       (semaphore-wait (run-exacts hash formula seed sample))
       (hash-ref *completed-jobs* hash))))
 
-(define calculate-endpoint 
+(define (run-evaluate hash formula seed sample)
+  (hash-set! *jobs* hash (*timeline*))
+  (define sema (make-semaphore))
+  (thread-send *worker-thread* (list 'evaluate hash formula sema seed sample))
+  sema)
+
+(define calculate-endpoint
   (post-with-json-response
     (lambda (post-data)
-      (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
+      (define formula-str (hash-ref post-data 'formula))
+      (define formula (read-syntax 'web (open-input-string formula-str)))
       (define sample (hash-ref post-data 'sample))
       (define seed (hash-ref post-data 'seed #f))
-      (eprintf "Evaluation job started on ~a..." formula)
-
-      (define test (parse-test formula))
-      (define pcontext (json->pcontext sample (test-context test)))
-      (define result (run-herbie 'evaluate test #:seed seed #:pcontext pcontext
-                                 #:profile? #f #:timeline-disabled? #t))
-      (define approx (job-result-backend result))
-
-      (eprintf " complete\n")
-      (hasheq 'points approx))))
+      (define hash (sha1 (open-input-string formula-str)))
+      (semaphore-wait (run-evaluate hash formula seed sample))
+      (hash-ref *completed-jobs* hash))))
 
 (define (run-local-error hash formula seed sample)
   (hash-set! *jobs* hash (*timeline*))
