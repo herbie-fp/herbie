@@ -157,7 +157,8 @@
         [(real) (PI E INFINITY NAN)]
         [(real real bool) (== != > < >= <=)]))))
 
-
+(define cost-model 
+  (cost-map #:default-cost 1))
 (define tunable
   (with-terminal-cost ([binary64 1])
     (platform-product
@@ -167,7 +168,7 @@
         [(real real)
          (sind cosd tand sinpi cospi sinh cosh tanh asin acos atan asind acosd atand sec csc cot secd cscd cotd asec acsc acot asecd acscd acotd sech csch coth asinh acosh atanh asech acsch acoth deg2rad rad2deg hypot log log2 log10 log1p exp exp2 exp10 ldexp expm1 abs abs2 sqrt cbrt powermod)]
         [(real real real)
-         (ldexp expm1)]))))
+         (+ - * / ldexp expm1)]))))
 
 (register-platform! 'julia
                     (platform-union boolean-platform

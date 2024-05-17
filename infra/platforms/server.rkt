@@ -101,6 +101,7 @@
            [(mkl) (core->mkl core "foo")]
            [(numpy) (core->numpy core "foo")]
            [(python) (core->python core "foo")]
+           [(julia) (core->julia core "foo")]
            [else (error 'run-server "compile: unsupported language ~a" lang)]))
        (printf "~a\n" (string-replace output "\n" "\\n"))
        (loop)]
