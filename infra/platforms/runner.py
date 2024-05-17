@@ -334,20 +334,34 @@ class Runner(object):
                 # call out to server
                 core_strs = ' '.join(map(lambda c: c.core, uncached))
                 print(f'(improve ({core_strs}) {threads} {self.working_dir}) (exit)', file=server.stdin, flush=True)
-                output = server.stdout.read()
+                _ = server.stdout.read()
 
-                if output != "success":
-                    raise RuntimeError(f'Herbie failed to improve: {output}')
-                
-                with open(self.working_dir.joinpath('results.json'), 'r') as f:
-                    data =  json.load(f)["tests"][0]
-                    core = parse_core(self.herbie_resugar(data["vars"], data["name"], data["prec"], data["pre"], data["spec"], data["output"], platform))
-                    core.cost = float(data["cost-accuracy"][1][0])
-                    core.err = float(data["end"])
-                    core.key = key_dict[core.name]
-                    core.json = data
-                    gen_dict[core.key].append(core)
-                    num_improved += 1
+
+            # if everything went well, Herbie should have created a datafile
+            with open(self.working_dir.joinpath('results.json'), 'r') as f:
+                report = json.load(f)
+
+            # parse each test
+            for test in report['tests']:
+                # extract the important fields
+                vars = test['vars']
+                name = test['name']
+                prec = test['prec']
+                pre = test['pre']
+                spec = test['spec']
+                output = test['output']
+
+                # construct the FPCore
+                core_str = self.herbie_resugar(vars, name, prec, pre, spec, output, platform)
+                core = parse_core(core_str)
+                core.cost = float(test['cost-accuracy'][1][0])
+                core.err = float(test['end'])
+                core.key = key_dict[core.name]
+                core.json = test
+
+                # update
+                gen_dict[core.key].append(core)
+                num_improved += 1
 
         gen_cores = []
         for key in gen_dict:
@@ -358,17 +372,26 @@ class Runner(object):
         self.log(f'generated {num_improved} FPCores with Herbie ({num_cached} cached)')
         return gen_cores
     
-    def herbie_resugar(self, vars : List[str], name: str, precision: str, pre: str, spec: str, output: str, platform: str) -> str:
+    def herbie_resugar(
+        self,
+        vars : List[str],
+        name: str,
+        precision: str,
+        pre: str,
+        spec: str,
+        output: str,
+        platform: str
+    ) -> str:
         with Popen(
-                args=['racket', str(self.herbie_path), "--platform", platform],
-                stdin=PIPE,
-                stdout=PIPE,
-                universal_newlines=True) as server:
+            args=['racket', str(self.herbie_path), "--platform", platform],
+            stdin=PIPE,
+            stdout=PIPE,
+            universal_newlines=True) as server:
 
-                # call out to server
-                print(f'(resugar ({" ".join(vars)}) "{name}" {precision} {pre} {spec} {output}) (exit)', file=server.stdin, flush=True)
-                output = server.stdout.read()
-                return output
+            # call out to server
+            print(f'(resugar ({" ".join(vars)}) "{name}" {precision} {pre} {spec} {output}) (exit)', file=server.stdin, flush=True)
+            output = server.stdout.read()
+            return output
 
     def herbie_pareto(self, input_cores: List[FPCore], cores: List[FPCore]) -> List[Tuple[float, float]]:
         """Runs Herbie's pareto frontier algorithm."""
@@ -506,6 +529,7 @@ class Runner(object):
                 by_key[core.key].append((core, dir, time))
             else:
                 by_key[core.key] = [(core, dir, time)]
+
         report = {
             'cores': [{
                 'input_core': input_core.to_json(),

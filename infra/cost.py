@@ -58,8 +58,6 @@ def run(
         bench_dir = os.path.join(curr_dir, bench_dir)
         # read and sample input cores
         input_cores = runner.herbie_read(path=bench_dir)
-        print(bench_dir)
-        print(len(input_cores))
         samples = runner.herbie_sample(cores=input_cores, py_sample=py_sample)
         samples, input_cores = prune_unsamplable(samples, input_cores)
         check_samples(samples, input_cores) # sanity check!

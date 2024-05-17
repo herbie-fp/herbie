@@ -24,11 +24,13 @@ else
   OUTDIR="$(pwd)/$1"
 fi
 
+  # "hamming_avx avx $BENCH_DIR/hamming 10000 default" \
+  # "physics_avx avx $BENCH_DIR/physics 10000 default"
+
 echo "Running platforms evaluation"
 python3 $INFRA_DIR/platforms-eval.py \
   "$OUTDIR/platforms" $HERBIE_THREADS $THREADS \
-  "hamming_avx avx $BENCH_DIR/hamming 10000 default" \
-  "physics_avx avx $BENCH_DIR/physics 10000 default"
+  "hamming_c c $BENCH_DIR/hamming 10000 default"
 
 # clean up cache and build files
 rm -rf "$OUTDIR/platforms/cache"

@@ -145,7 +145,7 @@
        (define results (get-test-results tests #:threads threads #:seed seed #:profile #f #:dir #f))
        (define info (make-report-info (filter values results) #:seed seed))
        (write-datafile (build-path (symbol->string dir) "results.json") info)
-       (write 'success (current-output-port))
+       (write "" (current-output-port))
        (loop)]
       ; pareto <frontier:list> ...
       [(list 'resugar args ...)
