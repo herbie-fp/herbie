@@ -7,10 +7,10 @@
      (let ((a
             (+
              (pow (sin (/ dphi 2)) 2)
-             (*
+             (* (* (*
               (cos phi1)
-              (cos phi2)
-              (sin (/ dlambda 2))
+              (cos phi2))
+              (sin (/ dlambda 2)))
               (sin (/ dlambda 2))))))
        (let ((c (* 2 (atan2 (sqrt a) (sqrt (- 1 a))))))
          (let ((d (* R c)))
@@ -19,7 +19,7 @@
 (FPCore (R lambda1 lambda2 phi1 phi2)
  :name "Spherical law of cosines"
  (* (acos (+ (* (sin phi1) (sin phi2))
-             (* (cos phi1) (cos phi2) (cos (- lambda1 lambda2))))) R))
+             (* (* (cos phi1) (cos phi2)) (cos (- lambda1 lambda2))))) R))
 
 (FPCore (R lambda1 lambda2 phi1 phi2)
  :name "Equirectangular approximation to distance on a great circle"
@@ -34,7 +34,7 @@
   (* (sin (- lambda1 lambda2)) (cos phi2))
   (-
    (* (cos phi1) (sin phi2))
-   (* (sin phi1) (cos phi2) (cos (- lambda1 lambda2))))))
+   (* (* (sin phi1) (cos phi2)) (cos (- lambda1 lambda2))))))
 
 (FPCore (lambda1 lambda2 phi1 phi2)
  :name "Midpoint on a great circle"
@@ -54,11 +54,11 @@
         (asin
          (+
           (* (sin phi1) (cos delta))
-          (* (cos phi1) (sin delta) (cos theta))))))
+          (* (* (cos phi1) (sin delta)) (cos theta))))))
    (let ((lambda2
           (+
            lambda1
            (atan2
-            (* (sin theta) (sin delta) (cos phi1))
+            (* (* (sin theta) (sin delta)) (cos phi1))
             (- (cos delta) (* (sin phi1) (sin phi2)))))))
      lambda2)))

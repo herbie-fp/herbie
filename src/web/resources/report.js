@@ -106,9 +106,9 @@ const ClientGraph = new Component('#graphs', {
         for (const key in this.points_json.error) {
             const error_type = this.points_json.error[key][0]
             const line = colors[i % colors.length].line
-
+            
             let description
-
+            
             if (error_type === "start") {
                 description = "Initial program"
             } else if (error_type === "end") {
