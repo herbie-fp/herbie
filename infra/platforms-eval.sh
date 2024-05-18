@@ -27,6 +27,12 @@ fi
 echo "Running platforms evaluation"
 
 # Run Hamming evaluation
+# python3 $INFRA_DIR/platforms-eval.py \
+#  <output directory> \
+#  <benchmark path> \
+#  <unique key> \
+#  <herbie threads> \
+#  <threads>
 python3 $INFRA_DIR/platforms-eval.py \
   "$OUTDIR/platforms" \
   "$BENCH_DIR/hamming/" \
@@ -35,7 +41,10 @@ python3 $INFRA_DIR/platforms-eval.py \
   $THREADS
 
 # Plot JSON data
-python3 infra/platforms/plot.py \
+# python3 $INFRA_DIR/platforms/plot.py \
+#  <eval JSON path> \
+#  <output directory>
+python3 $INFRA_DIR/platforms/plot.py \
   $OUTDIR/platforms/results.json \
   $OUTDIR/platforms/
 

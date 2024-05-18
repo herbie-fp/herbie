@@ -69,7 +69,8 @@ def make_runner(
             herbie_path=herbie_path,
             num_inputs=num_inputs,
             num_runs=num_runs,
-            threads=threads
+            threads=threads,
+            key=key
         )
     else:
         raise ValueError(f'Unsupported output platform: {platform}')
