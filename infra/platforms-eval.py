@@ -18,8 +18,8 @@ compare_path = os.path.join(script_dir, 'platforms', 'compare.py')
 # Tuning and improvement
 platforms = [
     'c',
-    'python'
-   # 'avx'
+    'python',
+    'avx'
 ]
 
 # Cross-platform comparison
