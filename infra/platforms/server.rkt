@@ -1,6 +1,9 @@
 #lang racket
 
-(require (only-in fpbench core->c)
+(require (only-in fpbench
+            core->c
+            set-unknown->c!
+            ctx-lookup-prop)
          herbie/accelerator
          herbie/common
          herbie/datafile
@@ -18,6 +21,32 @@
          herbie/web/core2python3-10
          herbie/web/core2avx
          herbie/web/thread-pool)
+
+; Copied from <fpbench>/core2c.rkt
+(define/match (c-type->suffix type)
+  [("int64_t") ""]
+  [("double") ""]
+  [("float") "f"]
+  [("long double") "l"])
+
+; Copied from <fpbench>/core2c.rkt
+(define/match (type->c type)
+  [('binary64) "double"]
+  [('binary32) "float"]
+  [('binary80) "long double"]
+  [('boolean) "int"]
+  [('integer) "int64_t"])
+
+; Patching an old FPBench bug
+(set-unknown->c!
+  (lambda (proc)
+    (lambda (ctx op args)
+      (define args* (map (lambda (arg) (if (string? arg) arg (~a arg))) args))
+      (define type (type->c (ctx-lookup-prop ctx ':precision)))
+      (format "~a~a(~a)"
+              op
+              (c-type->suffix type)
+              (string-join args* ", ")))))
 
 (load-herbie-builtins)
 

@@ -34,7 +34,7 @@ python3 $INFRA_DIR/platforms-eval.py \
   $HERBIE_THREADS \
   $THREADS
 
-# Plot Hamming evaluation
+# Plot JSON data
 python3 infra/platforms/plot.py \
   $OUTDIR/platforms/results.json \
   $OUTDIR/platforms/
