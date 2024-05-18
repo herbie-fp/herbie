@@ -34,6 +34,11 @@ python3 $INFRA_DIR/platforms-eval.py \
   $HERBIE_THREADS \
   $THREADS
 
+# Plot Hamming evaluation
+python3 infra/platforms/plot.py \
+  $OUTDIR/platforms/results.json \
+  $OUTDIR/platforms/
+
 # clean up cache and build files
 rm -rf "$OUTDIR/platforms/cache"
 rm -rf "$OUTDIR/platforms/drivers"

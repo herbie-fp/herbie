@@ -96,7 +96,7 @@ def merge_json(output_dir: str, name: str):
             platform_info = dict()
             for file_path in platform_path.iterdir():
                 if file_path.is_file():
-                    if file_path.name == 'tune.json':
+                    if file_path.name == 'tuning.json':
                         with open(file_path, 'r') as f:
                             platform_info['tune'] = json.load(f)
                     elif file_path.name == 'improve.json':

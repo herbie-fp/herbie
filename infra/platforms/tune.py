@@ -56,6 +56,7 @@ def main():
     cores = runner.synthesize()
     samples = runner.herbie_sample(cores=cores, py_sample=py_sample)
     runner.herbie_compile(cores=cores)
+    runner.herbie_cost(cores=cores)
 
     # make drivers
     driver_dirs = runner.make_driver_dirs(cores=cores)

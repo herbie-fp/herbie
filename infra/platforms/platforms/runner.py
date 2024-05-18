@@ -555,7 +555,7 @@ class Runner(object):
         """Writes tuning data to a JSON file."""
         report = dict()
         for core, time in zip(cores, times):
-            report[core.name] = time
+            report[core.name] = [core.cost, time]
 
         path = self.report_dir.joinpath('tuning.json')
         with open(path, 'w') as f:
