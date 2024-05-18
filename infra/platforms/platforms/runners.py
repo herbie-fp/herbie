@@ -72,4 +72,4 @@ def make_runner(
             threads=threads
         )
     else:
-        raise ValueError(f'Unsupported output platformuage: {platform}')
+        raise ValueError(f'Unsupported output platform: {platform}')

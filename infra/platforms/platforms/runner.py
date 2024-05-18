@@ -185,20 +185,24 @@ class Runner(object):
         self.time_unit = time_unit
 
         self.driver_dir = self.working_dir.joinpath('drivers', self.name)
-        self.report_dir = self.working_dir.joinpath('platform', self.name)
         if key is not None:
-            self.report_dir = self.report_dir.joinpath(key)
+            self.report_dir = self.working_dir.joinpath('output', key, self.name)
+        else:
+            self.report_dir = self.working_dir.joinpath('output', 'default', self.name)
+
         # add empty list of jsons to the class instance
         self.jsons = []
 
         # mutable data
         self.cache = Cache(str(self.working_dir.joinpath('cache')))
         # if the working directories do not exist, create them
+        self.log('working directory at `' + str(self.working_dir) + '`')
+        self.log('report directory at `' + str(self.report_dir) + '`')
+
         if not self.driver_dir.exists():
             self.driver_dir.mkdir(parents=True)
         if not self.report_dir.exists():
             self.report_dir.mkdir(parents=True)
-        self.log('created working directory at `' + str(self.working_dir) + '`')
         # restore cache
         self.cache.restore()
         self.log(f'restored {self.cache.num_cores()} input cores from cache')
@@ -468,12 +472,12 @@ class Runner(object):
                 if len(input_points) == 0:
                     # no inputs
                     samples.append(None)
-                elif len(input_points[0]) == self.num_inputs:
-                    # cached copy has desired number of points
-                    samples.append(sample)
+                elif len(input_points[0]) >= self.num_inputs:
+                    # cached copy has enough points
+                    samples.append(sample[:self.num_inputs])
                     num_cached += 1
                 else:
-                    # cached copy does not have desired number of points
+                    # cached copy does not have enough points
                     samples.append(None)
                     self.cache.clear_core(core.key)
 
