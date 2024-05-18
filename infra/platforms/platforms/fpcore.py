@@ -61,6 +61,17 @@ class FPCore(object):
             'err': self.err,
         }
 
+    def from_json(json: Dict):
+        return FPCore(
+            core=json['core'],
+            key=json['key'],
+            name=json['name'],
+            descr=json['descr'],
+            argc=json['argc'],
+            cost=json['cost'],
+            err=json['err']
+        )
+
 def parse_core(s: str) -> FPCore:
     """Parses a string as an FPCore."""
     core_match = re.match(fpcore_pat, s)

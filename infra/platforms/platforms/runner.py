@@ -531,8 +531,24 @@ class Runner(object):
         Assumes `compile_drivers()` has already been previous called.
         This method must be overriden by every implementation of `Runner`."""
         raise NotImplementedError('virtual method')
-    
+
+    def restore_cores(self) -> List[FPCore]:
+        """Restores platform FPCores from `self.report_dir`.
+        Panics if no JSON file is found."""
+        path = self.report_dir.joinpath('improve.json')
+        with open(path, 'r') as f:
+            report = json.load(f)
+
+        cores = []
+        for cores_json in report['cores']:
+            for core_json in cores_json['platform_cores']:
+                core = FPCore.from_json(core_json['platform_core'])
+                cores.append(core)
+        
+        return cores
+
     def write_tuning_report(self, cores: List[FPCore], times: List[float]) -> None:
+        """Writes tuning data to a JSON file."""
         report = dict()
         for core, time in zip(cores, times):
             report[core.name] = time
@@ -541,7 +557,6 @@ class Runner(object):
         with open(path, 'w') as f:
             json.dump(report, f)
 
-    # TODO: Write return type spec
     def write_improve_report(
         self,
         input_cores: List[FPCore],
@@ -550,6 +565,7 @@ class Runner(object):
         times: List[float],
         frontier: List[Tuple[float, float]]
     ) -> None:
+        """Writes improve data to a JSON file."""
         # group platform cores by input [key]
         by_key = dict()
         for core, dir, time in zip(platform_cores, driver_dirs, times):
@@ -581,11 +597,48 @@ class Runner(object):
         with open(path, 'w') as _file:
             json.dump(report, _file)
 
+    def write_cross_compile_report(
+        self,
+        name: str,
+        input_cores: List[FPCore],
+        foreign_cores: List[FPCore],
+        platform_frontier: List[Tuple[float, float]],
+        foreign_frontier: List[Tuple[float, float]]
+    ) -> None:
+        # group cores by input [key]
+        by_key = dict()
+        for core in foreign_cores:
+            if core.key in by_key:
+                by_key[core.key].append(core)
+            else:
+                by_key[core.key] = [core]
+
+        core_reports = []
+        for input_core in input_cores:
+            output_cores = by_key[input_core.key]
+            core_reports.append({
+                'input_core': input_core.to_json(),
+                'output_cores': list(map(lambda c: c.to_json(), output_cores))
+            })
+
+        report = {
+            'cores': core_reports,
+            'frontier1': platform_frontier,
+            'frontier2': foreign_frontier
+        }
+
+        path = self.report_dir.joinpath(f'cross-compile-{name}.json')
+        with open(path, 'w') as _file:
+            json.dump(report, _file)
+
+        pass
+
     def write_baseline_report(
         self,
         frontier: List[Tuple[float, float]],
         baseline_frontier: List[Tuple[float, float]]
     ) -> None:
+        """Writes baseline data to a JSON file."""
         data = {
             "frontier": frontier,
             "baseline_frontier": baseline_frontier
