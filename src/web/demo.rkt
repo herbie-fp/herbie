@@ -300,11 +300,11 @@
           (eprintf " complete\n")
           (hash-remove! *jobs* hash)
           (semaphore-post sema)]
-         [(list 'cost hash formula sema)
+         [(list 'cost hash formula sema seed)
           (define test (parse-test formula))
           (eprintf "Computing cost of ~a..." formula)
-          (define result (run-herbie 'cost test 
-          #:profile? #f #:timeline-disabled? #t))
+          (define result (run-herbie 'cost test
+          #:seed seed #:profile? #f #:timeline-disabled? #t))
           (hash-set! *completed-jobs* hash result)
           (eprintf " complete\n")
           (hash-remove! *jobs* hash)
@@ -448,11 +448,10 @@
 (define sample-endpoint
   (post-with-json-response
     (lambda (post-data)
-      (define formula-str (hash-ref post-data 'formula))
-      (define formula (read-syntax 'web (open-input-string formula-str)))
+      (define formula (read-syntax 'web (open-input-string 
+       (hash-ref post-data 'formula))))
       (define seed (hash-ref post-data 'seed))
-      (define hash (sha1 (open-input-string 
-       (string-append (symbol->string 'sample) formula-str))))
+      (define hash (sha1 (open-input-string (~s 'sample formula seed))))
       (semaphore-wait (run-sample hash formula seed))
       (define result (hash-ref *completed-jobs* hash))
       (define pctx (job-result-backend result))
@@ -469,13 +468,12 @@
 (define analyze-endpoint
   (post-with-json-response
     (lambda (post-data)
-      (define formula-str (hash-ref post-data 'formula))
-      (define formula (read-syntax 'web (open-input-string formula-str)))
+      (define formula (read-syntax 'web (open-input-string 
+       (hash-ref post-data 'formula))))
       (define sample (hash-ref post-data 'sample))
       (define seed (hash-ref post-data 'seed #f))
       (define test (parse-test formula))
-      (define hash (sha1 (open-input-string 
-       (string-append (symbol->string 'errors) formula-str))))
+      (define hash (sha1 (open-input-string (~s 'errors formula seed sample))))
       (semaphore-wait (run-analyze hash formula seed sample))
       (define result (hash-ref *completed-jobs* hash))
       (define errs (job-result-backend result))
@@ -491,12 +489,11 @@
 (define exacts-endpoint
   (post-with-json-response
     (lambda (post-data)
-      (define formula-str (hash-ref post-data 'formula))
-      (define formula (read-syntax 'web (open-input-string formula-str)))
+      (define formula (read-syntax 'web (open-input-string 
+       (hash-ref post-data 'formula))))
       (define sample (hash-ref post-data 'sample))
       (define seed (hash-ref post-data 'seed #f))
-      (define hash (sha1 (open-input-string 
-       (string-append (symbol->string 'exacts) formula-str))))
+      (define hash (sha1 (open-input-string (~s 'exacts formula seed sample))))
       (semaphore-wait (run-exacts hash formula seed sample))
       (define result (hash-ref *completed-jobs* hash))
       (define exacts (job-result-backend result))
@@ -511,12 +508,12 @@
 (define calculate-endpoint
   (post-with-json-response
     (lambda (post-data)
-      (define formula-str (hash-ref post-data 'formula))
-      (define formula (read-syntax 'web (open-input-string formula-str)))
+      (define formula (read-syntax 'web (open-input-string 
+       (hash-ref post-data 'formula))))
       (define sample (hash-ref post-data 'sample))
       (define seed (hash-ref post-data 'seed #f))
       (define hash (sha1 (open-input-string 
-       (string-append (symbol->string 'evaluate) formula-str))))
+       (~s 'evaluate formula seed sample))))
       (semaphore-wait (run-evaluate hash formula seed sample))
       (define result (hash-ref *completed-jobs* hash))
       (define approx (job-result-backend result))
@@ -531,12 +528,12 @@
 (define local-error-endpoint
   (post-with-json-response
     (lambda (post-data)
-      (define formula-str (hash-ref post-data 'formula))
-      (define formula (read-syntax 'web (open-input-string formula-str)))
+      (define formula (read-syntax 'web (open-input-string 
+       (hash-ref post-data 'formula))))
       (define sample (hash-ref post-data 'sample))
       (define seed (hash-ref post-data 'seed #f))
       (define hash (sha1 (open-input-string 
-       (string-append (symbol->string 'local-error) formula-str))))
+       (~s 'evaluate formula seed sample))))
       (semaphore-wait (run-local-error hash formula seed sample))
       (define result (hash-ref *completed-jobs* hash))
 
@@ -571,12 +568,12 @@
 (define alternatives-endpoint
   (post-with-json-response
     (lambda (post-data)
-      (define formula-str (hash-ref post-data 'formula))
-      (define formula (read-syntax 'web (open-input-string formula-str)))
+      (define formula (read-syntax 'web (open-input-string 
+       (hash-ref post-data 'formula))))
       (define sample (hash-ref post-data 'sample))
       (define seed (hash-ref post-data 'seed #f))   
       (define hash (sha1 (open-input-string 
-       (string-append (symbol->string 'alternatives) formula-str)))) 
+       (~s 'evaluate formula seed sample))))
       (semaphore-wait (run-alternatives hash formula seed sample))
       (define result (hash-ref *completed-jobs* hash))
       (define test (parse-test formula))
@@ -631,10 +628,10 @@
       (eprintf " complete\n")
       (hasheq 'mathjs result))))
 
-(define (run-cost hash formula)
+(define (run-cost hash formula seed)
   (hash-set! *jobs* hash (*timeline*))
   (define sema (make-semaphore))
-  (thread-send *worker-thread* (list 'cost hash formula sema))
+  (thread-send *worker-thread* (list 'cost hash formula sema seed))
   sema)
 
 (define cost-endpoint
@@ -644,8 +641,8 @@
       (define formula (read-syntax 'web (open-input-string formula-str)))
       (define seed (hash-ref post-data 'seed #f))   
       (define hash (sha1 (open-input-string 
-       (string-append (symbol->string 'cost) formula-str))))  
-      (semaphore-wait (run-cost hash formula))
+       (~s 'cost formula seed))))
+      (semaphore-wait (run-cost hash formula seed))
       (define result (hash-ref *completed-jobs* hash))
       (define cost (job-result-backend result))
       (hasheq 'cost cost))))
