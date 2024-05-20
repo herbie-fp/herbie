@@ -322,8 +322,7 @@
           (eprintf "Evaluation job started on ~a..." formula)
           (define result (run-herbie 'evaluate test #:seed seed 
           #:pcontext pcontext #:profile? #f #:timeline-disabled? #t))
-          (define approx (job-result-backend result))
-          (hash-set! *completed-jobs* hash (hasheq 'points approx))
+          (hash-set! *completed-jobs* hash result)
           (eprintf " complete\n")
           (hash-remove! *jobs* hash)
           (semaphore-post sema)]
@@ -538,7 +537,9 @@
       (define hash (sha1 (open-input-string 
        (string-append (symbol->string 'evaluate) formula-str))))
       (semaphore-wait (run-evaluate hash formula seed sample))
-      (hash-ref *completed-jobs* hash))))
+      (define result (hash-ref *completed-jobs* hash))
+      (define approx (job-result-backend result))
+      (hasheq 'points approx))))
 
 (define (run-local-error hash formula seed sample)
   (hash-set! *jobs* hash (*timeline*))
