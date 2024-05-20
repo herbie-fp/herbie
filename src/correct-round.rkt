@@ -69,7 +69,7 @@
          (vector-ref regs b)
          (vector-ref regs c))]
     [(list op args ...)
-     (apply op (map (curryr vector-ref regs) args))]))
+     (apply op (map (curry vector-ref regs) args))]))
 
 (define (progs->batch exprs vars)
   (define icache (reverse vars))

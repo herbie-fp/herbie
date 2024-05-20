@@ -25,10 +25,28 @@ else
 fi
 
 echo "Running platforms evaluation"
+
+# Run Hamming evaluation
+# python3 $INFRA_DIR/platforms-eval.py \
+#  <output directory> \
+#  <benchmark path> \
+#  <unique key> \
+#  <herbie threads> \
+#  <threads>
 python3 $INFRA_DIR/platforms-eval.py \
-  "$OUTDIR/platforms" $HERBIE_THREADS $THREADS \
-  "hamming_avx avx $BENCH_DIR/hamming 10000 default" \
-  "physics_avx avx $BENCH_DIR/physics 10000 default"
+  "$OUTDIR/platforms" \
+  "$BENCH_DIR/hamming/" \
+  hamming \
+  $HERBIE_THREADS \
+  $THREADS
+
+# Plot JSON data
+# python3 $INFRA_DIR/platforms/plot.py \
+#  <eval JSON path> \
+#  <output directory>
+python3 $INFRA_DIR/platforms/plot.py \
+  $OUTDIR/platforms/results.json \
+  $OUTDIR/platforms/
 
 # clean up cache and build files
 rm -rf "$OUTDIR/platforms/cache"

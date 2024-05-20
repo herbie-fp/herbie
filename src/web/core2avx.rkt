@@ -101,7 +101,7 @@
     ['and (format assign out (operator-nary->binary "and" suffix arguments))]
     ['or (format assign out (operator-nary->binary "or" suffix arguments))]
     ['not
-     (format "~a = ((~a) _mm256_xor_~a((__m256i) ~a, _mm256_set1_~a(-1LL)))" out type suffix (first arguments) suffix)]
+     (format "~a = ((~a) _mm256_xor_~a(~a, _mm256_set1_~a(-1LL)))" out type suffix (first arguments) suffix)]
     ['round
      (format "_mm256_round_~a(~a, ~a)"
              suffix

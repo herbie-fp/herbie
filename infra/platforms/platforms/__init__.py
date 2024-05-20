@@ -5,6 +5,7 @@ from . import (
     math,
     mkl,
     runner,
+    runners,
     util
 )
 
@@ -15,5 +16,6 @@ __all__ = [
     'math',
     'mkl',
     'runner',
+    'runners',
     'util'
 ]
