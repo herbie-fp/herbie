@@ -331,12 +331,6 @@
   (rename-file-or-directory tmp-file data-file #t)
   (call-with-output-file html-file #:exists 'replace (curryr make-report-page info #f)))
 
-(define (run-improve hash formula)
-  (hash-set! *jobs* hash (*timeline*))
-  (define sema (make-semaphore))
-  (thread-send *worker-thread* (list 'improve hash formula sema))
-  sema)
-
 (define (already-computed? hash formula)
   (or (hash-has-key? *completed-jobs* hash)
       (and (*demo-output*)
@@ -444,12 +438,6 @@
      (redirect-to (add-prefix (format "~a.~a/graph.html" hash *herbie-commit*)) see-other))
    (url main)))
 
-(define (run-sample hash formula seed)
-  (hash-set! *jobs* hash (*timeline*))
-  (define sema (make-semaphore))
-  (thread-send *worker-thread* (list 'sample hash formula sema seed))
-  sema)
-
 ; /api/sample endpoint: test in console on demo page:
 ;; (await fetch('/api/sample', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x) (- (sqrt (+ x 1))))", seed: 5})})).json()
 (define sample-endpoint
@@ -466,12 +454,6 @@
       (hasheq 'points (pcontext->json pctx 
        (context-repr (test-context test)))))))
 
-(define (run-analyze hash formula seed sample)
-  (hash-set! *jobs* hash (*timeline*))
-  (define sema (make-semaphore))
-  (thread-send *worker-thread* (list 'errors hash formula sema seed sample))
-  sema)
-
 (define analyze-endpoint
   (post-with-json-response
     (lambda (post-data)
@@ -485,12 +467,6 @@
       (define result (hash-ref *completed-jobs* hash))
       (define errs (job-result-backend result))
       (hasheq 'points errs))))
-
-(define (run-exacts hash formula seed sample)
-  (hash-set! *jobs* hash (*timeline*))
-  (define sema (make-semaphore))
-  (thread-send *worker-thread* (list 'exacts hash formula sema seed sample))
-  sema)
 
 ;; (await fetch('/api/exacts', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x) (- (sqrt (+ x 1))))", points: [[1, 1]]})})).json()
 (define exacts-endpoint
@@ -506,12 +482,6 @@
       (define exacts (job-result-backend result))
       (hasheq 'points exacts))))
 
-(define (run-evaluate hash formula seed sample)
-  (hash-set! *jobs* hash (*timeline*))
-  (define sema (make-semaphore))
-  (thread-send *worker-thread* (list 'evaluate hash formula sema seed sample))
-  sema)
-
 (define calculate-endpoint
   (post-with-json-response
     (lambda (post-data)
@@ -525,12 +495,6 @@
       (define result (hash-ref *completed-jobs* hash))
       (define approx (job-result-backend result))
       (hasheq 'points approx))))
-
-(define (run-local-error hash formula seed sample)
-  (hash-set! *jobs* hash (*timeline*))
-  (define sema (make-semaphore))
-  (thread-send *worker-thread* (list 'local-error hash formula sema seed sample))
-  sema)
 
 (define local-error-endpoint
   (post-with-json-response
@@ -566,12 +530,6 @@
         'e (~a expr)
         'avg-error (format-bits (errors-score (first err)))
         'children '())])))
-
-(define (run-alternatives hash formula seed sample)
-  (hash-set! *jobs* hash (*timeline*))
-  (define sema (make-semaphore))
-  (thread-send *worker-thread* (list 'alternatives hash formula sema seed sample))
-  sema)
 
 (define alternatives-endpoint
   (post-with-json-response
@@ -628,12 +586,6 @@
           'derivations derivations
           'splitpoints splitpoints))
 
-(define (run->mathjs hash formula)
-  (hash-set! *jobs* hash (*timeline*))
-  (define sema (make-semaphore))
-  (thread-send *worker-thread* (list 'core->mathjs hash formula sema))
-  sema)
-
 (define ->mathjs-endpoint
   (post-with-json-response
     (lambda (post-data)
@@ -643,12 +595,6 @@
       (semaphore-wait (run->mathjs hash formula))
       (define result (hash-ref *completed-jobs* hash))
       (hasheq 'mathjs result))))
-
-(define (run-cost hash formula seed)
-  (hash-set! *jobs* hash (*timeline*))
-  (define sema (make-semaphore))
-  (thread-send *worker-thread* (list 'cost hash formula sema seed))
-  sema)
 
 (define cost-endpoint
   (post-with-json-response
@@ -662,6 +608,60 @@
       (define result (hash-ref *completed-jobs* hash))
       (define cost (job-result-backend result))
       (hasheq 'cost cost))))
+
+(define (run-improve hash formula)
+  (hash-set! *jobs* hash (*timeline*))
+  (define sema (make-semaphore))
+  (thread-send *worker-thread* (list 'improve hash formula sema))
+  sema)
+
+(define (run-sample hash formula seed)
+  (hash-set! *jobs* hash (*timeline*))
+  (define sema (make-semaphore))
+  (thread-send *worker-thread* (list 'sample hash formula sema seed))
+  sema)
+
+(define (run-analyze hash formula seed sample)
+  (hash-set! *jobs* hash (*timeline*))
+  (define sema (make-semaphore))
+  (thread-send *worker-thread* (list 'errors hash formula sema seed sample))
+  sema)
+
+(define (run-exacts hash formula seed sample)
+  (hash-set! *jobs* hash (*timeline*))
+  (define sema (make-semaphore))
+  (thread-send *worker-thread* (list 'exacts hash formula sema seed sample))
+  sema)
+
+(define (run-evaluate hash formula seed sample)
+  (hash-set! *jobs* hash (*timeline*))
+  (define sema (make-semaphore))
+  (thread-send *worker-thread* (list 'evaluate hash formula sema seed sample))
+  sema)
+
+(define (run-local-error hash formula seed sample)
+  (hash-set! *jobs* hash (*timeline*))
+  (define sema (make-semaphore))
+  (thread-send *worker-thread* (list 'local-error hash formula sema seed sample))
+  sema)
+
+(define (run-alternatives hash formula seed sample)
+  (hash-set! *jobs* hash (*timeline*))
+  (define sema (make-semaphore))
+  (thread-send *worker-thread* (list 'alternatives hash formula sema seed sample))
+  sema)
+
+(define (run->mathjs hash formula)
+  (hash-set! *jobs* hash (*timeline*))
+  (define sema (make-semaphore))
+  (thread-send *worker-thread* (list 'core->mathjs hash formula sema))
+  sema)
+
+(define (run-cost hash formula seed)
+  (hash-set! *jobs* hash (*timeline*))
+  (define sema (make-semaphore))
+  (thread-send *worker-thread* (list 'cost hash formula sema seed))
+  sema)
 
 (define (run-demo #:quiet [quiet? #f] #:output output #:demo? demo? #:prefix prefix #:log log #:port port #:public? public)
   (*demo?* demo?)
