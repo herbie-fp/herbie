@@ -245,9 +245,7 @@
           (eprintf "Sampling job started on ~a..." formula)
           (define result (run-herbie 'sample test #:seed seed 
           #:profile? #f #:timeline-disabled? #t))
-          (define pctx (job-result-backend result))
-          (define result-hashtable (hasheq 'points (pcontext->json pctx (context-repr (test-context test)))))
-          (hash-set! *completed-jobs* hash result-hashtable)
+          (hash-set! *completed-jobs* hash result)
           (eprintf " complete\n")
           (hash-remove! *jobs* hash)
           (semaphore-post sema)]
@@ -459,7 +457,11 @@
       (define hash (sha1 (open-input-string 
        (string-append (symbol->string 'sample) formula-str))))
       (semaphore-wait (run-sample hash formula seed))
-      (hash-ref *completed-jobs* hash))))
+      (define result (hash-ref *completed-jobs* hash))
+      (define pctx (job-result-backend result))
+      (define test (parse-test formula))
+      (hasheq 'points (pcontext->json pctx 
+       (context-repr (test-context test)))))))
 
 (define (run-analyze hash formula seed pcontext sample)
   (hash-set! *jobs* hash (*timeline*))
