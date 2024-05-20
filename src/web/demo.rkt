@@ -577,46 +577,49 @@
        (~s 'evaluate formula seed sample))))
       (semaphore-wait (run-alternatives hash formula seed sample))
       (define result (hash-ref *completed-jobs* hash))
-      (define test (parse-test formula))
-      (define vars (test-vars test))
-      (define repr (test-output-repr test))
-      (match-define (list altns test-pcontext processed-pcontext)
-        (job-result-backend result))
-  
-      (define splitpoints
-        (for/list ([alt altns]) 
-          (for/list ([var vars])
-            (define split-var? (equal? var (regime-var alt)))
-            (if split-var?
-                (for/list ([val (regime-splitpoints alt)])
-                  (real->ordinal (repr->real val repr) repr))
-                '()))))
+      (herbie-result->altnatives-web-result result formula))))
 
-      (define fpcores
-        (for/list ([altn altns])
-          (~a (program->fpcore (alt-expr altn) (test-context test)))))
-  
-      (define histories
-        (for/list ([altn altns])
-          (let ([os (open-output-string)])
-            (parameterize ([current-output-port os])
-              (write-xexpr
-                `(div ([id "history"])
-                  (ol ,@(render-history altn
-                                        processed-pcontext
-                                        test-pcontext
-                                        (test-context test)))))
-              (get-output-string os)))))
-      (define derivations 
-        (for/list ([altn altns])
-                  (render-json altn
-                                        processed-pcontext
-                                        test-pcontext
-                                        (test-context test))))
-      (hasheq 'alternatives fpcores
-              'histories histories
-              'derivations derivations
-              'splitpoints splitpoints))))
+(define (herbie-result->altnatives-web-result result formula)
+  (define test (parse-test formula))
+  (define vars (test-vars test))
+  (define repr (test-output-repr test))
+  (match-define (list altns test-pcontext processed-pcontext)
+    (job-result-backend result))
+
+  (define splitpoints
+    (for/list ([alt altns]) 
+      (for/list ([var vars])
+        (define split-var? (equal? var (regime-var alt)))
+        (if split-var?
+            (for/list ([val (regime-splitpoints alt)])
+              (real->ordinal (repr->real val repr) repr))
+            '()))))
+
+  (define fpcores
+    (for/list ([altn altns])
+      (~a (program->fpcore (alt-expr altn) (test-context test)))))
+
+  (define histories
+    (for/list ([altn altns])
+      (let ([os (open-output-string)])
+        (parameterize ([current-output-port os])
+          (write-xexpr
+            `(div ([id "history"])
+              (ol ,@(render-history altn
+                                    processed-pcontext
+                                    test-pcontext
+                                    (test-context test)))))
+          (get-output-string os)))))
+  (define derivations 
+    (for/list ([altn altns])
+              (render-json altn
+                                    processed-pcontext
+                                    test-pcontext
+                                    (test-context test))))
+  (hasheq 'alternatives fpcores
+          'histories histories
+          'derivations derivations
+          'splitpoints splitpoints))
 
 ;; Should this be threaded? 'core->mathjs for a command/symbol?
 (define ->mathjs-endpoint
