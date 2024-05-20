@@ -1,9 +1,6 @@
 #lang racket
 
-(require (only-in fpbench
-                  core->c
-                  set-unknown->c!
-                  ctx-lookup-prop)
+(require (only-in fpbench core->c)
          herbie/accelerator
          herbie/common
          herbie/datafile
