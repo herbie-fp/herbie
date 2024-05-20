@@ -13,22 +13,34 @@ done
 INFRA_DIR="$(cd -P "$(dirname "$src")" && pwd)"
 BENCH_DIR="$INFRA_DIR"/../bench
 
-# check arguments
+
 if [ -z "$1" ]; then
   echo "Usage: $0 <output_dir>"
   exit 1
+else
+  WORKING_DIR="$1";
 fi
 
-INPUT_FILE="$BENCH_DIR/$1"
 # check arguments
 if [ -z "$2" ]; then
   echo "Usage: $0 <output_dir>"
   exit 1
-else
-  OUT_DIR="$2";
 fi
 
+INPUT_FILE="$BENCH_DIR/$2"
+# check arguments
+if [ -z "$3" ]; then
+  echo "Usage: $0 <output_dir>"
+  exit 1
+else
+  OUT_DIR="$3";
+fi
+
+mkdir -p $WORKING_DIR/
+
 mkdir -p $OUT_DIR/
+
+cd $WORKING_DIR
 
 echo "Cloning Baseline (Herbie 2.0)..."
 
@@ -40,12 +52,12 @@ cd herbie
 
 make install
 
-cd ..
+cd ../..
 
 echo "Running Baseline (Herbie 2.0) on benchmarks..."
-herbie report $INPUT_FILE tmp
 
-mv tmp/results.json $OUT_DIR/
+herbie report $INPUT_FILE $WORKING_DIR/graphs
 
-rm -rf tmp
-rm -rf herbie
+mv $WORKING_DIR/graphs/results.json $OUT_DIR/
+
+rm -rf $WORKING_DIR
