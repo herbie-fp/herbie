@@ -249,10 +249,10 @@
           (eprintf " complete\n")
           (hash-remove! *jobs* hash)
           (semaphore-post sema)]
-         [(list 'errors hash formula sema seed pcontext sample)
+         [(list 'errors hash formula sema seed sample)
           (define test (parse-test formula))
-          (eprintf "Analyze job started on ~a..." formula)
           (define pcontext (json->pcontext sample (test-context test)))
+          (eprintf "Analyze job started on ~a..." formula)
           (define result (run-herbie 'errors test
           #:seed seed #:pcontext pcontext
           #:profile? #f #:timeline-disabled? #t))
@@ -463,10 +463,10 @@
       (hasheq 'points (pcontext->json pctx 
        (context-repr (test-context test)))))))
 
-(define (run-analyze hash formula seed pcontext sample)
+(define (run-analyze hash formula seed sample)
   (hash-set! *jobs* hash (*timeline*))
   (define sema (make-semaphore))
-  (thread-send *worker-thread* (list 'errors hash formula sema seed pcontext sample))
+  (thread-send *worker-thread* (list 'errors hash formula sema seed sample))
   sema)
 
 (define analyze-endpoint
@@ -477,10 +477,9 @@
       (define sample (hash-ref post-data 'sample))
       (define seed (hash-ref post-data 'seed #f))
       (define test (parse-test formula))
-      (define pcontext (json->pcontext sample (test-context test)))
       (define hash (sha1 (open-input-string 
        (string-append (symbol->string 'errors) formula-str))))
-      (semaphore-wait (run-analyze hash formula seed pcontext sample))
+      (semaphore-wait (run-analyze hash formula seed sample))
       (define result (hash-ref *completed-jobs* hash))
       (define errs (job-result-backend result))
       (hasheq 'points errs))))
