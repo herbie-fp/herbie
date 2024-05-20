@@ -262,7 +262,6 @@
           (semaphore-post sema)]
          [(list 'local-error hash formula sema seed sample)
           (define test (parse-test formula))
-          (define expr (prog->fpcore (test-input test) (test-output-repr test)))
           (define pcontext (json->pcontext sample (test-context test)))
           (eprintf "Local error job started on ~a..." formula)
           (define result (run-herbie 'local-error test #:seed seed 
@@ -273,8 +272,6 @@
           (semaphore-post sema)]
          [(list 'alternatives hash formula sema seed sample)
           (define test (parse-test formula))
-          (define vars (test-vars test))
-          (define repr (test-output-repr test))
           (eprintf "Alternatives job started on ~a..." formula)  
           (define pcontext (json->pcontext sample (test-context test)))
           (define result (run-herbie 'alternatives test #:seed seed 
