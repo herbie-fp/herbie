@@ -332,8 +332,7 @@
           (eprintf "Computing cost of ~a..." formula)
           (define result (run-herbie 'cost test 
           #:profile? #f #:timeline-disabled? #t))
-          (define cost (job-result-backend result))
-          (hash-set! *completed-jobs* hash (hasheq 'cost cost))
+          (hash-set! *completed-jobs* hash result)
           (eprintf " complete\n")
           (hash-remove! *jobs* hash)
           (semaphore-post sema)])
@@ -643,7 +642,9 @@
       (define hash (sha1 (open-input-string 
        (string-append (symbol->string 'cost) formula-str))))  
       (semaphore-wait (run-cost hash formula))
-      (hash-ref *completed-jobs* hash))))
+      (define result (hash-ref *completed-jobs* hash))
+      (define cost (job-result-backend result))
+      (hasheq 'cost cost))))
 
 (define (run-demo #:quiet [quiet? #f] #:output output #:demo? demo? #:prefix prefix #:log log #:port port #:public? public)
   (*demo?* demo?)
