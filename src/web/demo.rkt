@@ -541,23 +541,24 @@
       (define test (parse-test formula))
       (define expr (prog->fpcore (test-input test) (test-output-repr test)))
       ;; TODO: potentially unsafe if resugaring changes the AST
-      (define tree
-      (let loop ([expr expr] [err local-error])
-        (match expr
-          [(list op args ...)
-          ;; err => (List (listof Integer) List ...)
-          (hasheq
-            'e (~a op)
-            'avg-error (format-bits (errors-score (first err)))
-            'children (map loop args (rest err)))]
-          [_
-          ;; err => (List (listof Integer))
-          (hasheq
-            'e (~a expr)
-            'avg-error (format-bits (errors-score (first err)))
-            'children '())])))
+      (define ast (local-error->fpcore expr local-error))
+      (hasheq 'tree ast))))
 
-      (hasheq 'tree tree))))
+(define (local-error->fpcore expr local-error)
+  (let loop ([expr expr] [err local-error])
+    (match expr
+      [(list op args ...)
+      ;; err => (List (listof Integer) List ...)
+      (hasheq
+        'e (~a op)
+        'avg-error (format-bits (errors-score (first err)))
+        'children (map loop args (rest err)))]
+      [_
+      ;; err => (List (listof Integer))
+      (hasheq
+        'e (~a expr)
+        'avg-error (format-bits (errors-score (first err)))
+        'children '())])))
 
 (define (run-alternatives hash formula seed sample)
   (hash-set! *jobs* hash (*timeline*))
