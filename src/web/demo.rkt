@@ -270,26 +270,7 @@
           (eprintf "Local error job started on ~a..." formula)
           (define result (run-herbie 'local-error test #:seed seed 
           #:pcontext pcontext #:profile? #f #:timeline-disabled? #t))
-          (define local-error (job-result-backend result))
-          
-          ;; TODO: potentially unsafe if resugaring changes the AST
-          (define tree
-          (let loop ([expr expr] [err local-error])
-            (match expr
-              [(list op args ...)
-              ;; err => (List (listof Integer) List ...)
-              (hasheq
-                'e (~a op)
-                'avg-error (format-bits (errors-score (first err)))
-                'children (map loop args (rest err)))]
-              [_
-              ;; err => (List (listof Integer))
-              (hasheq
-                'e (~a expr)
-                'avg-error (format-bits (errors-score (first err)))
-                'children '())])))
-
-          (hash-set! *completed-jobs* hash (hasheq 'tree tree))
+          (hash-set! *completed-jobs* hash result)
           (eprintf " complete\n")
           (hash-remove! *jobs* hash)
           (semaphore-post sema)]
@@ -558,7 +539,29 @@
       (define hash (sha1 (open-input-string 
        (string-append (symbol->string 'local-error) formula-str))))
       (semaphore-wait (run-local-error hash formula seed sample))
-      (hash-ref *completed-jobs* hash))))
+      (define result (hash-ref *completed-jobs* hash))
+
+      (define local-error (job-result-backend result))
+      (define test (parse-test formula))
+      (define expr (prog->fpcore (test-input test) (test-output-repr test)))
+      ;; TODO: potentially unsafe if resugaring changes the AST
+      (define tree
+      (let loop ([expr expr] [err local-error])
+        (match expr
+          [(list op args ...)
+          ;; err => (List (listof Integer) List ...)
+          (hasheq
+            'e (~a op)
+            'avg-error (format-bits (errors-score (first err)))
+            'children (map loop args (rest err)))]
+          [_
+          ;; err => (List (listof Integer))
+          (hasheq
+            'e (~a expr)
+            'avg-error (format-bits (errors-score (first err)))
+            'children '())])))
+
+      (hasheq 'tree tree))))
 
 (define (run-alternatives hash formula seed sample)
   (hash-set! *jobs* hash (*timeline*))
