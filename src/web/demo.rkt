@@ -258,8 +258,7 @@
           (define result (run-herbie 'errors test
           #:seed seed #:pcontext pcontext
           #:profile? #f #:timeline-disabled? #t))
-          (define errs (job-result-backend result))
-          (hash-set! *completed-jobs* hash (hasheq 'points errs))
+          (hash-set! *completed-jobs* hash result)
           (eprintf " complete\n")
           (hash-remove! *jobs* hash)
           (semaphore-post sema)]
@@ -480,7 +479,9 @@
       (define hash (sha1 (open-input-string 
        (string-append (symbol->string 'errors) formula-str))))
       (semaphore-wait (run-analyze hash formula seed pcontext sample))
-      (hash-ref *completed-jobs* hash))))
+      (define result (hash-ref *completed-jobs* hash))
+      (define errs (job-result-backend result))
+      (hasheq 'points errs))))
 
 (define (run-exacts hash formula seed sample)
   (hash-set! *jobs* hash (*timeline*))
