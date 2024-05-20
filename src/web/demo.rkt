@@ -311,8 +311,7 @@
           (eprintf "Ground truth job started on ~a..." formula)
           (define result (run-herbie 'exacts test #:seed seed 
           #:pcontext pcontext #:profile? #f #:timeline-disabled? #t))
-          (define exacts (job-result-backend result))
-          (hash-set! *completed-jobs* hash (hasheq 'points exacts))
+          (hash-set! *completed-jobs* hash result)
           (eprintf " complete\n")
           (hash-remove! *jobs* hash)
           (semaphore-post sema)]
@@ -519,7 +518,9 @@
       (define hash (sha1 (open-input-string 
        (string-append (symbol->string 'exacts) formula-str))))
       (semaphore-wait (run-exacts hash formula seed sample))
-      (hash-ref *completed-jobs* hash))))
+      (define result (hash-ref *completed-jobs* hash))
+      (define exacts (job-result-backend result))
+      (hasheq 'points exacts))))
 
 (define (run-evaluate hash formula seed sample)
   (hash-set! *jobs* hash (*timeline*))
