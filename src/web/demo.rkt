@@ -299,49 +299,9 @@
           (define repr (test-output-repr test))
           (eprintf "Alternatives job started on ~a..." formula)  
           (define pcontext (json->pcontext sample (test-context test)))
-
           (define result (run-herbie 'alternatives test #:seed seed 
           #:pcontext pcontext #:profile? #f #:timeline-disabled? #t))
-          (match-define (list altns test-pcontext processed-pcontext) (job-result-backend result))
-  
-          (define splitpoints
-            (for/list ([alt altns]) 
-              (for/list ([var vars])
-                (define split-var? (equal? var (regime-var alt)))
-                (if split-var?
-                    (for/list ([val (regime-splitpoints alt)])
-                      (real->ordinal (repr->real val repr) repr))
-                    '()))))
-
-          (define fpcores
-            (for/list ([altn altns])
-              (~a (program->fpcore (alt-expr altn) (test-context test)))))
-      
-          (define histories
-            (for/list ([altn altns])
-              (let ([os (open-output-string)])
-                (parameterize ([current-output-port os])
-                  (write-xexpr
-                    `(div ([id "history"])
-                      (ol ,@(render-history altn
-                                            processed-pcontext
-                                            test-pcontext
-                                            (test-context test)))))
-                  (get-output-string os)))))
-          (define derivations 
-            (for/list ([altn altns])
-                      (render-json altn
-                                            processed-pcontext
-                                            test-pcontext
-                                            (test-context test))))
-
-          (eprintf " complete\n")
-          (define hash-table (hasheq 'alternatives fpcores
-                  'histories histories
-                  'derivations derivations
-                  'splitpoints splitpoints))
-
-          (hash-set! *completed-jobs* hash hash-table)
+          (hash-set! *completed-jobs* hash result)
           (eprintf " complete\n")
           (hash-remove! *jobs* hash)
           (semaphore-post sema)]
@@ -615,7 +575,47 @@
       (define hash (sha1 (open-input-string 
        (string-append (symbol->string 'alternatives) formula-str)))) 
       (semaphore-wait (run-alternatives hash formula seed sample))
-      (hash-ref *completed-jobs* hash))))
+      (define result (hash-ref *completed-jobs* hash))
+      (define test (parse-test formula))
+      (define vars (test-vars test))
+      (define repr (test-output-repr test))
+      (match-define (list altns test-pcontext processed-pcontext)
+        (job-result-backend result))
+  
+      (define splitpoints
+        (for/list ([alt altns]) 
+          (for/list ([var vars])
+            (define split-var? (equal? var (regime-var alt)))
+            (if split-var?
+                (for/list ([val (regime-splitpoints alt)])
+                  (real->ordinal (repr->real val repr) repr))
+                '()))))
+
+      (define fpcores
+        (for/list ([altn altns])
+          (~a (program->fpcore (alt-expr altn) (test-context test)))))
+  
+      (define histories
+        (for/list ([altn altns])
+          (let ([os (open-output-string)])
+            (parameterize ([current-output-port os])
+              (write-xexpr
+                `(div ([id "history"])
+                  (ol ,@(render-history altn
+                                        processed-pcontext
+                                        test-pcontext
+                                        (test-context test)))))
+              (get-output-string os)))))
+      (define derivations 
+        (for/list ([altn altns])
+                  (render-json altn
+                                        processed-pcontext
+                                        test-pcontext
+                                        (test-context test))))
+      (hasheq 'alternatives fpcores
+              'histories histories
+              'derivations derivations
+              'splitpoints splitpoints))))
 
 ;; Should this be threaded? 'core->mathjs for a command/symbol?
 (define ->mathjs-endpoint
