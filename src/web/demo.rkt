@@ -308,6 +308,13 @@
           (hash-set! *completed-jobs* hash result)
           (eprintf " complete\n")
           (hash-remove! *jobs* hash)
+          (semaphore-post sema)]
+         [(list 'core->mathjs hash formula sema)
+          (eprintf "Converting to Math.js ~a..." formula)
+          (define result (core->mathjs (syntax->datum formula)))
+          (hash-set! *completed-jobs* hash result)
+          (eprintf " complete\n")
+          (hash-remove! *jobs* hash)
           (semaphore-post sema)])
        (loop seed)))))
 
@@ -621,15 +628,20 @@
           'derivations derivations
           'splitpoints splitpoints))
 
-;; Should this be threaded? 'core->mathjs for a command/symbol?
+(define (run->mathjs hash formula)
+  (hash-set! *jobs* hash (*timeline*))
+  (define sema (make-semaphore))
+  (thread-send *worker-thread* (list 'core->mathjs hash formula sema))
+  sema)
+
 (define ->mathjs-endpoint
   (post-with-json-response
     (lambda (post-data)
-      (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
-      (eprintf "Converting to Math.js ~a..." formula)
-
-      (define result (core->mathjs (syntax->datum formula)))
-      (eprintf " complete\n")
+      (define formula (read-syntax 'web (open-input-string 
+       (hash-ref post-data 'formula))))
+      (define hash (sha1 (open-input-string (~s 'core->mathjs formula))))
+      (semaphore-wait (run->mathjs hash formula))
+      (define result (hash-ref *completed-jobs* hash))
       (hasheq 'mathjs result))))
 
 (define (run-cost hash formula seed)
