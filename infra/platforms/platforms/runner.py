@@ -228,6 +228,7 @@ class Runner(object):
     def herbie_read(self, path: str) -> List[FPCore]:
         """Reads a benchmark suite from `path` returning all FPCores found."""
         path = Path(path)
+        print(path)
         if not path.exists():
             raise RuntimeError(f'Path does not exist {path}')
         if path.is_file():
@@ -268,7 +269,7 @@ class Runner(object):
                 print(f'(compile {self.lang} {core.core})', file=server.stdin, flush=True)
                 output = server.stdout.readline()
                 core.compiled = output.replace('\\n', '\n').strip()
-                #self.log(core.compiled)
+                self.log(core.compiled)
 
             # terminate the server
             print('(exit)', file=server.stdin, flush=True)

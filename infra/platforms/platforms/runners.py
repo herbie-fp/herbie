@@ -8,6 +8,7 @@ from .c import CRunner
 from .math import MathRunner
 from .mkl import MKLRunner
 from .python import PythonRunner
+from .numpy import NumpyRunner
 
 def make_runner(
     platform: str,
@@ -65,6 +66,15 @@ def make_runner(
         )
     elif platform == 'avx':
         return AVXRunner(
+            working_dir=working_dir,
+            herbie_path=herbie_path,
+            num_inputs=num_inputs,
+            num_runs=num_runs,
+            threads=threads,
+            key=key
+        )
+    elif platform == 'numpy':
+        return NumpyRunner(
             working_dir=working_dir,
             herbie_path=herbie_path,
             num_inputs=num_inputs,

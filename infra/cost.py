@@ -12,7 +12,7 @@ from platforms.c import CRunner
 from platforms.math import MathRunner
 from platforms.mkl import MKLRunner
 from platforms.python import PythonRunner
-from platforms.numpy import NumpyRunner
+from infra.platforms.platforms.numpy import NumpyRunner
 
 # paths
 script_path = os.path.abspath(__file__)

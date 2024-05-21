@@ -108,14 +108,14 @@
   (define prec (ctx-lookup-prop ctx ':precision))
   (define indent (ctx-lookup-extra ctx 'indent))
   (define-values (name-ctx name) (ctx-random-name ctx prec))
-  (printf "~a ~a = ~a\n" indent name (constant->numpy x ctx))
+  (printf "~a~a = ~a\n" indent name (constant->numpy x ctx))
   (values name name-ctx))
 
 (define (visit-constant/numpy vtor x #:ctx ctx)
   (define prec (ctx-lookup-prop ctx ':precision))
   (define indent (ctx-lookup-extra ctx 'indent))
   (define-values (name-ctx name) (ctx-random-name ctx prec))
-  (printf "~a ~a = ~a\n" indent name (constant->numpy x ctx))
+  (printf "~a~a = ~a\n" indent name (constant->numpy x ctx))
   (values name 
           (if (set-member? '(TRUE FALSE) x)
               (ctx-update-props name-ctx (list ':precision 'boolean))

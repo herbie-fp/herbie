@@ -20,6 +20,7 @@ platforms = [
     'c',
     'python',
     'avx'
+    'numpy'
 ]
 
 # Cross-platform comparison
