@@ -5,7 +5,7 @@
          "float.rkt" "syntax/types.rkt" "timeline.rkt" "config.rkt"
          "syntax/sugar.rkt" "ground-truth.rkt")
 
-(require "run-sollya.rkt")
+(require "run-sollya.rkt" math/flonum)
 
 (provide batch-prepare-points
          ival-eval
@@ -123,22 +123,39 @@
 
 ;; Part 3: computing exact values by recomputing at higher precisions
 
-(define (batch-prepare-points fn ctxs sampler)
+(define (batch-prepare-points fn ctxs sampler [fn-sollya #f])
   ;; If we're using the bf fallback, start at the max precision
   (define outcomes (make-hash))
-  
-  (define prog '(FPCore (x eps) :name "2cos" :precision binary64 (- (cos (+ x eps)) (cos x))))
-  (define compiled-sollya (run-sollya prog))
   
   (define-values (points exactss)
     (let loop ([sampled 0] [skipped 0] [points '()] [exactss '()])
       (define pt (sampler))
       (define-values (status final-iter exs) (ival-eval fn ctxs pt))
       
-      (when (not (equal? status 'precondition))
-        (match-define (list internal-time external-time result sollya-status) (compiled-sollya pt))
-        (timeline-push!/unsafe 'outcomes external-time
-                               final-iter (format "~a-sollya" sollya-status) 1))
+      (cond
+        ; Both Rival and Sollya produced valid outcomes
+        [(and fn-sollya (equal? status 'valid))
+         (match-define (list internal-time external-time sollya-exs sollya-status) (fn-sollya pt))
+         (timeline-push!/unsafe 'outcomes external-time
+                                final-iter (format "~a-sollya" sollya-status) 1)
+         (define match (if (and (equal? status 'valid)
+                                (equal? sollya-status 'valid)
+                                (fl>= (last exs) (first sollya-exs))
+                                (fl<= (last exs) (second sollya-exs))
+                                (>= 3 (flonums-between (first sollya-exs) (second sollya-exs))))
+                           #t
+                           #f))
+         (timeline-push!/unsafe 'sollya-eval
+                                pt (~a (last exs)) (~a sollya-exs) (symbol->string status) (symbol->string status) final-iter external-time match)]
+
+        ; Rival has not produced a valid outcome, exs=#f, nothing to compare to Sollya's output, only statuses comparisons
+        [(and fn-sollya (not (equal? status 'valid)))
+         (match-define (list internal-time external-time sollya-exs sollya-status) (fn-sollya pt))
+         (timeline-push!/unsafe 'outcomes external-time
+                                final-iter (format "~a-sollya" sollya-status) 1)
+         (define match (equal? sollya-status status))
+         (timeline-push!/unsafe 'sollya-eval
+                                pt (~a exs) (~a sollya-exs) (symbol->string status) (symbol->string status) final-iter external-time match)])
 
       (when (equal? status 'exit)
         (warn 'ground-truth #:url "faq.html#ground-truth"
@@ -185,7 +202,9 @@
       ;; TODO: Should make-sampler allow multiple contexts?
       (make-sampler (first ctxs) pre fn)))
   (timeline-event! 'sample)
-  (match-define (cons table2 results) (batch-prepare-points fn ctxs sampler))
+  
+  (define fn-sollya (run-sollya (list exprs ctxs)))
+  (match-define (cons table2 results) (batch-prepare-points fn ctxs sampler fn-sollya))
   (define total (apply + (hash-values table2)))
   (when (> (hash-ref table2 'infinite 0.0) (* 0.2 total))
    (warn 'inf-points #:url "faq.html#inf-points"

@@ -2,7 +2,7 @@
 
 ; Issues at 32000 with (λ (B x) ...)
 
-(require math/bigfloat math/flonum)
+(require math/bigfloat math/flonum "syntax/types.rkt")
 
 (provide run-sollya)
 
@@ -17,13 +17,13 @@
 
 (define function->sollya-format
   (make-hash
-   `((pow . "~a ^ ~a")
-     (+ . "~a + ~a")
-     (- . "~a - ~a")
-     (/ . "~a / ~a")
+   `((pow . "(~a ^ ~a)")
+     (+ . "(~a + ~a)")
+     (- . "(~a - ~a)")
+     (/ . "(~a / ~a)")
      (sqrt . "sqrt(~a)")
-     (* . "~a * ~a")
-     (fma . "(~a * ~a) + ~a")       ; no fma impl
+     (* . "(~a * ~a)")
+     (fma . "((~a * ~a) + ~a)")       ; no fma impl
      (hypot . "sqrt(~a^2 + ~a^2)")  ; no hypot impl
      (exp . "exp(~a)")
      (expm1 . "expm1(~a)")
@@ -67,7 +67,7 @@
      ;(and . And)
      ;(or . Or)
      ;(not . Not)
-     (neg . "- ~a")
+     (neg . "(- ~a)")
      (fabs . "abs(~a)"))))
 
 ;; exp2, expm1, 
@@ -78,8 +78,7 @@
     [32 (format "SG(~a)" val)]))
 
 (define (number->sollya num)
-  #;(bigfloat->string num)
-  (number->string num))
+  (format "[~a;~a]" (number->string num) (number->string num)))
 
 (define (expr->sollya expr)
   (match expr
@@ -92,7 +91,7 @@
     [(list op (app expr->sollya args) ...)
      (define sollya-format
        (if (and (equal? op '-) (equal? (length args) 1))
-           "- ~a"
+           "(- ~a)"
            (hash-ref function->sollya-format op)))
      (apply (curry format sollya-format) args)]
     ['PI
@@ -116,13 +115,23 @@
                           (list ':alt _ body)
                           body))
     prog)
-  (*precision* (string->number (string-replace (symbol->string precision) "binary" "")))
-  (format "prec=~a; procedure f(~a) { ~a; };"
-          (*precision*)
-          (string-join (map (lambda (x)
-                              (string-replace (symbol->string x) "-" "")) ; avoid symbol '-' in variables
-                            vars) ", ")
-          (expr->sollya body)))
+  (parameterize ([*precision* (string->number (string-replace (symbol->string precision) "binary" ""))])
+    (format "prec=~a; procedure f(~a) { ~a; };"
+            (*precision*)
+            (string-join (map (lambda (x)
+                                (string-replace (symbol->string x) "-" "")) ; avoid symbol '-' in variables
+                              vars) ", ")
+            (expr->sollya body))))
+
+(define (exprs+ctxs->sollya exprs ctxs)
+  (define vars (context-vars (car ctxs)))
+  (parameterize ([*precision* 64])
+    (format "prec=~a; procedure f(~a) { ~a; };"
+            (*precision*)
+            (string-join (map (lambda (x)
+                                (string-replace (symbol->string x) "-" "")) ; avoid symbol '-' in variables
+                              vars) ", ")
+            (expr->sollya exprs))))
 
 (define (load-points port)
   (define points
@@ -135,7 +144,7 @@
 
 (define (make-sollya prog #:backup [backup #f])
   (define-values (process m-out m-in m-err)
-    (subprocess #f #f #f sollya-path "--flush" "--warnonstderr"))
+    (subprocess #f #f #f sollya-path "--flush"))
 
   (define buffer (make-bytes 65536 0))
 
@@ -143,9 +152,13 @@
     (apply fprintf m-in fmt vs)
     (when backup (apply fprintf backup fmt vs))
     (flush-output m-in))
-
-  (ffprintf "~a\n" (program->sollya prog))
-  (println (program->sollya prog))
+  
+  (ffprintf "~a\n" (if (equal? (length prog) 2)
+                       (exprs+ctxs->sollya (car (first prog)) (second prog))
+                       (program->sollya prog)))
+  (println (if (equal? (length prog) 2)
+               (exprs+ctxs->sollya (car (first prog)) (second prog))
+               (program->sollya prog)))
   
   (let loop ([i 0])
     (define step (read-bytes-avail! buffer m-out i))
@@ -181,7 +194,7 @@
       (define s (bytes->string/latin-1 buffer #f 0 (+ i step)))
       (cond
         [(> (- (current-inexact-milliseconds) start) 2000.0)
-         (eprintf "Killing and restarting Sollya\n")
+         (eprintf "\nKilling and restarting Sollya\n")
          (eprintf "~s\n" s)
          (define-values (process2 m-out2 m-in2 m-err2)
            (make-sollya prog #:backup backup))
@@ -190,18 +203,42 @@
          (set! m-out m-out2)
          (set! m-in m-in2)
          (set! m-err m-err2)
-         (list 2000.0 2000.0 +nan.0 'exit)]
+         (list 2000.0 2000.0 (list (fl +nan.0) (fl +nan.0)) 'exit)]
           
         [(regexp-match #rx"^Warning: the given expression is undefined or numerically unstable\n*" s)
          (let ([dt (- (current-inexact-milliseconds) start)])
            (match-define (list _ result sollya-time)
              (string-split s "\n"))
-           (list dt (seconds->ms sollya-time) +nan.0 'unsamplable))]
-          
-        [(regexp-match #rx"^[-+.e0-9]+\n[-+.e0-9]+\n$" s)
+           (list dt
+                 (seconds->ms sollya-time)
+                 (list (fl +nan.0) (fl +nan.0))
+                 'invalid))]
+        
+        [(regexp-match #rx"^\\[[-+.e0-9]+;[-+.e0-9]+\\]\n[-+.e0-9]+\n$" s)
          (let ([dt (- (current-inexact-milliseconds) start)])
            (match-define (list result sollya-time) (string-split s "\n"))
-           (list dt (seconds->ms sollya-time) (list (bigfloat->flonum (bf result))) 'valid))]
+           (match-define (list lower upper)
+             (string-split (string-replace (string-replace result "[" "") "]" "") ";"))
+           (list dt
+                 (seconds->ms sollya-time)
+                 (list (bigfloat->flonum (bf lower)) (bigfloat->flonum (bf upper)))
+                 'valid))]
+        
+        [(regexp-match #rx"^\\[NaN;NaN\\]\n[-+.e0-9]+\n$" s)
+         (let ([dt (- (current-inexact-milliseconds) start)])
+           (match-define (list result sollya-time) (string-split s "\n"))
+           (list dt
+                 (seconds->ms sollya-time)
+                 (list (fl +nan.0) (fl +nan.0))
+                 'invalid))]
+        
+        [(regexp-match #rx"^\\[-infty;infty\\]\n[-+.e0-9]+\n$" s)
+         (let ([dt (- (current-inexact-milliseconds) start)])
+           (match-define (list result sollya-time) (string-split s "\n"))
+           (list dt
+                 (seconds->ms sollya-time)
+                 (list (fl -inf.0) (fl +inf.0))
+                 'unsamplable))]
         [else
          (loop (+ i step))])))
   compiled-spec)

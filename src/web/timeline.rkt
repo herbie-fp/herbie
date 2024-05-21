@@ -75,6 +75,7 @@
          ,@(dict-call curr (curryr simple-render-phase "Symmetry") 'symmetry)
          ,@(dict-call curr (curryr simple-render-phase "Remove") 'remove-preprocessing)
          ,@(dict-call curr render-phase-outcomes 'outcomes)
+         ,@(dict-call curr render-phase-sollya-eval 'sollya-eval)
          ,@(dict-call curr render-phase-compiler 'compiler)
          ,@(dict-call curr render-phase-mixed-sampling 'mixsample)
          ,@(dict-call curr render-phase-bogosity 'bogosity)
@@ -237,11 +238,31 @@
                    `(td ,(format-percent (hash-ref (car table) sym 0) total)))
                (td ,(~a n))))))))
 
+(define (render-phase-sollya-eval sollya-eval)
+  (define fields
+    '(("Pt" . pt)
+      ("Rival-out" . rival-out)
+      ("Sollya-out" . sollya-out)
+      ("status" . rival-status)
+      ("Sollya status" . sollya-status)
+      ("Rival iter" . rival-iter)
+      ("sollya-time" . sollya-time)
+      ("check" . check)))
+  `((dt "Sollya Eval")
+    (dd (table ([class "times"])
+               (tr ,@(for/list ([(name sym) (in-dict fields)])
+                       `(th ,name)))
+               ,@(for/list ([(n table) (in-dict sollya-eval)])
+                   `(tr
+                     (td ,(~a n))
+                     ,@(for/list ([val (in-list table)])
+                         `(td ,(~a val)))))))))
+
 (define (simple-render-phase info name)
   (if (> (length (first info)) 0)
-  `((dt ,name)
-    (dd ,@(map (lambda (s) `(p ,(~a s))) (first info))))
-  empty))
+      `((dt ,name)
+        (dd ,@(map (lambda (s) `(p ,(~a s))) (first info))))
+      empty))
 
 (define (render-phase-accuracy accuracy oracle baseline name link repr-name)
   (define rows
