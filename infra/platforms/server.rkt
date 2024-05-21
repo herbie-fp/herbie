@@ -26,6 +26,7 @@
 (define (add-literals expr repr)
   (match expr
     [(? number?) (literal expr (representation-name repr))]
+    [(? literal?) expr]
     [(? symbol?) expr]
     [(list 'if cond ift iff)
      (list 'if

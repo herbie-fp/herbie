@@ -12,6 +12,7 @@ tune_path = os.path.join(script_dir, 'platforms', 'tune.py')
 improve_path = os.path.join(script_dir, 'platforms', 'improve.py')
 compare_path = os.path.join(script_dir, 'platforms', 'compare.py')
 baseline_path = os.path.join(script_dir, 'platforms', 'baseline.py')
+merge_path = os.path.join(script_dir, 'platforms', 'merge.py')
 
 #############################
 # Configuration
@@ -104,6 +105,12 @@ def run_cross_compile(
 
 
 def merge_json(output_dir: str, name: str):
+    subprocess.run([
+        'python3', merge_path,
+        '--key', name,
+        output_dir
+    ])
+
     info = dict()
     cross_pat = re.compile('cross-compile-([^.]*).json')
 
@@ -149,22 +156,22 @@ def main():
     num_herbie_threads: int = args.herbie_threads
     num_threads: int = args.threads
 
-    # # run tuning
-    # for platform in platforms:
-    #     run_tuning(
-    #         name=name,
-    #         platform=platform,
-    #         output_dir=output_dir,
-    #         num_threads=num_threads
-    #     )
+    # run tuning
+    for platform in platforms:
+        run_tuning(
+            name=name,
+            platform=platform,
+            output_dir=output_dir,
+            num_threads=num_threads
+        )
 
-    # # run baseline
-    # run_baseline(
-    #     name=name,
-    #     bench_path=bench_path,
-    #     output_dir=output_dir,
-    #     num_herbie_threads=num_herbie_threads
-    # )
+    # run baseline
+    run_baseline(
+        name=name,
+        bench_path=bench_path,
+        output_dir=output_dir,
+        num_herbie_threads=num_herbie_threads
+    )
 
     # run improvement
     for platform in platforms:

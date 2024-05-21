@@ -2,7 +2,6 @@
 
 import argparse
 import os
-import json
 
 from platforms.runners import make_runner
 
@@ -42,7 +41,6 @@ def main():
     output_dir = os.path.join(curr_dir, args['output_dir'])
     
     # load FPCores from platform A
-
     runner1 = make_runner(
         platform=platform1,
         working_dir=output_dir,
@@ -54,19 +52,24 @@ def main():
     )
 
     cores1 = runner1.restore_cores()
-    all_keys = set(map(lambda c: c.key, cores1))
 
     # load FPCores form platform B
     if platform2 == 'baseline':
         baseline_dir = os.path.join(output_dir, 'baseline', key)
         json_path = os.path.join(baseline_dir, 'baseline.json')
+        print(json_path)
         cores2 = runner1.load_json(json_path)
 
         # cores are "keyless", so we need to identify their in-cache keys (somehow)
-        
-
-        
-        raise NotImplementedError
+        key_dict = dict()
+        for core in cores1:
+            key_dict[core.name] = core.key
+    
+        for core in cores2:
+            if core.name in key_dict:
+                core.key = key_dict[core.name]
+            else:
+                print(f'WARN: no key for {core.name} from baseline')
     else:
         runner2 = make_runner(
             platform=platform2,
@@ -81,6 +84,7 @@ def main():
 
     # extract input fpcores based on `cores1`
     input_cores = []
+    all_keys = set(map(lambda c: c.key, cores1))
     for key in all_keys:
         cached = runner1.cache.get_core(key)
         if cached is None:
@@ -103,7 +107,7 @@ def main():
 
     # write report
     runner1.write_cross_compile_report(
-        name=runner2.name,
+        name=platform2,
         input_cores=input_cores,
         foreign_cores=cores2,
         platform_frontier=frontier1,
