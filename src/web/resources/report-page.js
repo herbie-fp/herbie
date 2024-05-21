@@ -417,21 +417,21 @@ function buildTableContents(jsonData, otherJsonData, filterFunction) {
     return rows
 }
 
+function getMinimum(target) {
+    if (target === false) {  
+        return false
+    }
+
+    return target.reduce((minA, current) => {
+        const currentA = current[1];
+        return currentA < minA ? currentA : minA;
+    }, Infinity);
+}
+
 // HACK I kinda hate this split lambda function, Zane
 function buildRow(test, other) {
     var row
-    console.log("test : " + test + "\n")
-    console.log("test.target : " + test.target + "\n")
-
-    var smallestTarget
-    if (test.target === false) {   
-        smallestTarget = test.target
-    } else {
-        smallestTarget = test.target.reduce((minA, current) => {
-            const currentA = current[1];
-            return currentA < minA ? currentA : minA;
-        }, Infinity);
-    }
+    var smallestTarget = getMinimum(test.target)
 
     eitherOr(test, other,
         (function () {
@@ -815,25 +815,8 @@ function makeFilterFunction() {
 
                     // Diff Target Accuracy
                     if (radioState == "targetAccuracy") {
-                        var smallestBase
-                        if (baseData.target === false) {   
-                            smallestBase = baseData.target
-                        } else {
-                            smallestBase = baseData.target.reduce((minA, current) => {
-                                const currentA = current[1];
-                                return currentA < minA ? currentA : minA;
-                            }, Infinity);
-                        }
-
-                        var smallestDiff;
-                        if (diffData.target === false) {
-                            smallestDiff = diffData.target
-                        } else {
-                            smallestDiff = diffData.target.reduce((minA, current) => {
-                                const currentA = current[1];
-                                return currentA < minA ? currentA : minA;
-                            }, Infinity);
-                        }
+                        var smallestBase = getMinimum(baseData.target)
+                        var smallestDiff = getMinimum(diffData.target)
 
                         const t = smallestBase / baseData.bits
                         const o = smallestDiff / diffData.bits
