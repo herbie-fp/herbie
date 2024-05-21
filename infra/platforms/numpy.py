@@ -11,7 +11,7 @@ from .util import double_to_c_str
 # Supported operations for NUMPY
 
 
-unary_ops = ['neg', 'acos', 'acosh', 'asin', 'asinh', 'atan', 'atanh', 'ceil', 'cos', 'cosh', 'exp', 'expm1', 'fabs', 'floor', 'log', 'log10', 'log2', 'log1p', 'sin', 'sinh', 'sqrt', 'tan', 'tanh', 'trunc','recip','rint','square','deg2rad','rad2deg']
+unary_ops = ['neg', 'acos', 'acosh', 'asin', 'asinh', 'atan', 'atanh', 'ceil', 'cos', 'cosh', 'exp', 'expm1', 'fabs', 'floor', 'log', 'log10', 'log2', 'log1p', 'sin', 'sinh', 'sqrt', 'tan', 'tanh', 'trunc','recip','square','deg2rad','rad2deg']
 binary_ops = ['+', '-', '*', '/', 'atan2', 'copysign', 'fmax', 'fmin', 'fmod', 'pow', 'remainder','logaddexp','logaddexp2']
 
 #unary_ops = ['neg', 'acos', 'acosh', 'asin', 'asinh', 'atan', 'atanh', 'ceil', 'cos', 'cosh', 'exp', 'expm1', 'fabs', 'floor', 'log', 'log10', 'log2', 'log1p', 'sin', 'sinh', 'sqrt', 'tan', 'tanh', 'trunc','recip']
@@ -46,11 +46,9 @@ class NumpyRunner(Runner):
             _, sample = self.cache.get_core(core.key)
             input_points, _ = sample
             with open(driver_path, 'w') as f:
-                print('import math', file=f)
                 print('import time', file=f)
                 print('import numpy', file=f)
                 print(f'{core.compiled}', file=f)
-                self.log(core.compiled)
 
                 spoints = []
                 for i, points in enumerate(input_points):
@@ -61,19 +59,19 @@ class NumpyRunner(Runner):
                         else:
                             spoints.append(s)
 
-                    print(f'x{i} = [', file=f)
+                    print(f'x{i} = numpy.array([', file=f)
                     print(',\n'.join(spoints), file=f)
-                    print(']', file=f)
+                    print('])', file=f)
 
                 arg_str = ', '.join(map(lambda i: f'x{i}[j]', range(core.argc)))
                 print('if __name__ == "__main__":', file=f)
                 print(f'\ti = 0', file=f)
                 print(f'\tstart = time.time_ns()', file=f)
+                #print(f'\twhile i < {self.num_inputs}:', file=f)
                 print(f'\twhile i < {self.num_inputs}:', file=f)
                 print(f'\t\ttry:', file=f)
-                print(f'\t\t\tfor j in range(i, {self.num_inputs}):', file=f)
-                print(f'\t\t\t\tfoo({arg_str})', file=f)
-                print(f'\t\t\t\ti += 1', file=f)
+                print(f'\t\t\tfoo()', file=f)
+                print(f'\t\t\ti += 1', file=f)
                 print(f'\t\texcept:', file=f)
                 print(f'\t\t\ti += 1', file=f)
                 print(f'\tend = time.time_ns()', file=f)
@@ -86,6 +84,7 @@ class NumpyRunner(Runner):
         self.log(f'drivers interpreted, skipping compilations')
 
     def run_drivers(self, driver_dirs: List[str]) -> List[float]:
+        print("starting run drivers")
         # run processes sequentially
         times = [[] for _ in driver_dirs]
         for i, driver_dir in enumerate(driver_dirs):

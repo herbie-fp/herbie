@@ -230,23 +230,21 @@ class Runner(object):
         path = Path(path)
         if not path.exists():
             raise RuntimeError(f'Path does not exist {path}')
-        
         if path.is_file():
             with Popen(
                 args=['racket', str(self.herbie_path), "--platform", self.name],
                 stdin=PIPE,
                 stdout=PIPE,
                 universal_newlines=True) as server:
-
                 # call out to server
                 print(f'(read \"{path}\") (exit)', file=server.stdin, flush=True)
                 output = server.stdout.read()
-
+                self.log(output)
             cores = []
             for i, line in enumerate(output.split('\n')):
                 if len(line) > 0:
                     core = parse_core(line.strip())
-                    core.key = sanitize_name(f'file:{str(path)}:{i}')
+                    core.key = sanitize_name(f'file_{str(path)}_{i}')
                     cores.append(core)
             return cores
         else:
@@ -268,7 +266,6 @@ class Runner(object):
             # call out to server
             for core in cores:
                 print(f'(compile {self.lang} {core.core})', file=server.stdin, flush=True)
-                self.log(core.core)
                 output = server.stdout.readline()
                 core.compiled = output.replace('\\n', '\n').strip()
                 #self.log(core.compiled)
