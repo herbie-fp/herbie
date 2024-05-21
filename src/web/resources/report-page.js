@@ -418,7 +418,7 @@ function buildTableContents(jsonData, otherJsonData, filterFunction) {
 }
 
 function getMinimum(target) {
-    if (target === false) {  
+    if (target === false) {
         return false
     }
 
