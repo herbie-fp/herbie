@@ -5,6 +5,8 @@
          "float.rkt" "syntax/types.rkt" "timeline.rkt" "config.rkt"
          "syntax/sugar.rkt" "ground-truth.rkt")
 
+(require "run-sollya.rkt")
+
 (provide batch-prepare-points
          ival-eval
          make-sampler 
@@ -124,12 +126,19 @@
 (define (batch-prepare-points fn ctxs sampler)
   ;; If we're using the bf fallback, start at the max precision
   (define outcomes (make-hash))
-
+  
+  (define prog '(FPCore (x eps) :name "2cos" :precision binary64 (- (cos (+ x eps)) (cos x))))
+  (define compiled-sollya (run-sollya prog))
+  
   (define-values (points exactss)
     (let loop ([sampled 0] [skipped 0] [points '()] [exactss '()])
       (define pt (sampler))
-
-      (define-values (status exs) (ival-eval fn ctxs pt))
+      (define-values (status final-iter exs) (ival-eval fn ctxs pt))
+      
+      (when (not (equal? status 'precondition))
+        (match-define (list internal-time external-time result sollya-status) (compiled-sollya pt))
+        (timeline-push!/unsafe 'outcomes external-time
+                               final-iter (format "~a-sollya" sollya-status) 1))
 
       (when (equal? status 'exit)
         (warn 'ground-truth #:url "faq.html#ground-truth"

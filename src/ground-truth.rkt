@@ -57,7 +57,7 @@
   (define <-bfs
     (for/list ([ctx (in-list ctxs)])
       (representation-bf->repr (context-repr ctx))))
-  (define-values (status final-prec value)
+  (define-values (status final-iter value)
     (let loop ([iter iter])
       (define exs
         (parameterize ([*sampling-iteration* iter]) (apply fn pt)))
@@ -74,8 +74,8 @@
         [else
          (loop iter*)])))
   (timeline-push!/unsafe 'outcomes (- (current-inexact-milliseconds) start)
-                         final-prec (~a status) 1)
-  (values status value))
+                         final-iter (~a status) 1)
+  (values status final-iter value))
 
 ; ENSURE: all contexts have the same list of variables
 (define (eval-progs-real progs ctxs)

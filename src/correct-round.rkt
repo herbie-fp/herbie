@@ -40,13 +40,13 @@
           [precision (in-vector (if first-iter? vstart-precs vprecs))]
           [repeat (in-vector vrepeats)]
           #:unless (and (not first-iter?) repeat))
-      (define timeline-stop!
+      #;(define timeline-stop!
         (timeline-start!/unsafe
          'mixsample (symbol->string (object-name (car instr)))
-         (- precision (remainder precision prec-threshold))))
+         (- precision (remainder precision prec-threshold)))) ; for comparison with sollya it should be turned off
       (parameterize ([bf-precision precision])
         (vector-set! vregs n (apply-instruction instr vregs)))
-      (timeline-stop!))
+      #;(timeline-stop!))
     
     (for/vector #:length rootlen ([root (in-vector rootvec)])
       (vector-ref vregs root)))
