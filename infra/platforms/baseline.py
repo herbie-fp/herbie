@@ -15,19 +15,18 @@ curr_dir = os.getcwd()
 # defaults
 default_seed = 1
 
-def install_herbie(working_dir: Path):
-    install_dir = working_dir.joinpath('herbie')
+def install_herbie(install_dir: Path):
     subprocess.run(['git', 'clone', '--branch', 'v2.0.2', 'https://github.com/herbie-fp/herbie', install_dir])
     subprocess.run(['make', 'install'], cwd=install_dir)
 
-def run_herbie(bench_path: Path, working_dir: Path, threads: int, seed):
+def run_herbie(bench_path: Path, report_dir: Path, threads: int, seed):
     subprocess.run([
         'racket', '-l', 'herbie/herbie',
         'report',
         '--threads', str(threads),
         '--seed', str(seed),
         str(bench_path),
-        str(working_dir)
+        str(report_dir)
     ])
 
 def reinstall_herbie():
@@ -37,7 +36,7 @@ def main():
     parser = argparse.ArgumentParser(description='Herbie baseline eval')
     parser.add_argument('bench_path', help='directory or FPCore for Herbie to run on', type=str)
     parser.add_argument('working_dir', help='directory to emit all working files', type=str)
-    parser.add_argument('json_path', help='path of the stored JSON', type=str)
+    parser.add_argument('--key', help='unique identifier under which to place plots and other output', type=str)
     parser.add_argument('--threads', help='number of Herbie threads', type=int)
     parser.add_argument('--seed', help='random seed to use for Herbie', type=int)
     args = parser.parse_args()
@@ -45,26 +44,38 @@ def main():
     # extract command line arguments
     bench_path = Path(os.path.join(curr_dir, args.bench_path))
     working_dir = Path(os.path.join(curr_dir, args.working_dir))
-    json_path = Path(os.path.join(curr_dir, args.json_path))
+    key: str = args.key
     threads: int = args.threads
     seed: int = args.seed
 
     if seed is None:
         seed = default_seed
 
+    # Handle key
+    working_dir = working_dir.joinpath('baseline')
+    if key is None:
+        working_dir = working_dir.joinpath('default')
+    else:
+        working_dir = working_dir.joinpath(key)
+
     # Create the output directory
     if not working_dir.exists():
         working_dir.mkdir(parents=True)
 
+    # Subdirectories
+    install_dir = working_dir.joinpath('herbie')
+    report_dir = working_dir.joinpath('report')
+
     # Install Herbie
-    install_herbie(working_dir)
+    install_herbie(install_dir)
 
     # Run Herbie on benchmarks
-    run_herbie(bench_path, working_dir, threads, seed)
-    shutil.copy(working_dir.joinpath('results.json'), json_path)
-    shutil.rmtree(working_dir)
+    run_herbie(bench_path, report_dir, threads, seed)
+    shutil.copy(report_dir.joinpath('results.json'), working_dir.joinpath('baseline.json'))
 
-    # Reinstall local Herbie
+    # Reinstall local Herbie and delete directories
+    shutil.rmtree(install_dir)
+    shutil.rmtree(report_dir)
     reinstall_herbie()
 
 

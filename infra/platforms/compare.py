@@ -2,6 +2,7 @@
 
 import argparse
 import os
+import json
 
 from platforms.runners import make_runner
 
@@ -40,7 +41,7 @@ def main():
     platform2 = args['platform2']
     output_dir = os.path.join(curr_dir, args['output_dir'])
     
-    # construct runners
+    # load FPCores from platform A
 
     runner1 = make_runner(
         platform=platform1,
@@ -52,22 +53,33 @@ def main():
         key=key
     )
 
-    runner2 = make_runner(
-        platform=platform2,
-        working_dir=output_dir,
-        herbie_path=herbie_path,
-        num_inputs=num_points,
-        num_runs=num_runs,
-        threads=threads,
-        key=key
-    )
-
-    # restore fpcores
     cores1 = runner1.restore_cores()
-    cores2 = runner2.restore_cores()
+    all_keys = set(map(lambda c: c.key, cores1))
+
+    # load FPCores form platform B
+    if platform2 == 'baseline':
+        baseline_dir = os.path.join(output_dir, 'baseline', key)
+        json_path = os.path.join(baseline_dir, 'baseline.json')
+        cores2 = runner1.load_json(json_path)
+
+        # cores are "keyless", so we need to identify their in-cache keys (somehow)
+        
+
+        
+        raise NotImplementedError
+    else:
+        runner2 = make_runner(
+            platform=platform2,
+            working_dir=output_dir,
+            herbie_path=herbie_path,
+            num_inputs=num_points,
+            num_runs=num_runs,
+            threads=threads,
+            key=key
+        )
+        cores2 = runner2.restore_cores()
 
     # extract input fpcores based on `cores1`
-    all_keys = set(map(lambda c: c.key, cores1))
     input_cores = []
     for key in all_keys:
         cached = runner1.cache.get_core(key)

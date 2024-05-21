@@ -11,6 +11,7 @@ script_dir, _ = os.path.split(script_path)
 tune_path = os.path.join(script_dir, 'platforms', 'tune.py')
 improve_path = os.path.join(script_dir, 'platforms', 'improve.py')
 compare_path = os.path.join(script_dir, 'platforms', 'compare.py')
+baseline_path = os.path.join(script_dir, 'platforms', 'baseline.py')
 
 #############################
 # Configuration
@@ -25,6 +26,8 @@ platforms = [
 # Cross-platform comparison
 #  platform1 <- platform2
 cross_compare = [
+    ('c', 'baseline'),
+    ('python', 'baseline'),
     ('c', 'python')
 ]
 
@@ -49,6 +52,20 @@ def run_tuning(
          output_dir
     ])
     
+def run_baseline(
+    name: str,
+    bench_path: str,
+    output_dir: str,
+    num_herbie_threads: int
+) -> None:
+    subprocess.run([
+        'python3', baseline_path,
+         '--threads', str(num_herbie_threads),
+         '--key', name,
+         bench_path,
+         output_dir,
+    ])
+
 
 def run_improvement(
     name: str,
@@ -132,14 +149,22 @@ def main():
     num_herbie_threads: int = args.herbie_threads
     num_threads: int = args.threads
 
-    # run tuning
-    for platform in platforms:
-        run_tuning(
-            name=name,
-            platform=platform,
-            output_dir=output_dir,
-            num_threads=num_threads
-        )
+    # # run tuning
+    # for platform in platforms:
+    #     run_tuning(
+    #         name=name,
+    #         platform=platform,
+    #         output_dir=output_dir,
+    #         num_threads=num_threads
+    #     )
+
+    # # run baseline
+    # run_baseline(
+    #     name=name,
+    #     bench_path=bench_path,
+    #     output_dir=output_dir,
+    #     num_herbie_threads=num_herbie_threads
+    # )
 
     # run improvement
     for platform in platforms:

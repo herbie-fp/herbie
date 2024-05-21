@@ -108,48 +108,6 @@ def json_test_outputs(test: dict) -> List[Tuple[str, float, float]]:
     
     return outputs
 
-def herbie_json_to_fpcores(path: str, key_dict: dict, herbie_path: str, platform: str) -> List[FPCore]:
-    # read JSON file
-    with open(path, 'r') as f:
-        report = json.load(f)
-
-    # extract relevant fields from report JSON
-    json_cores = []
-    for test in report['tests']:
-        vars = test['vars']
-        name = test['name']
-        prec = test['prec']
-        pre = test['pre']
-        spec = test['spec']
-
-        for expr, cost, err in json_test_outputs(test):
-            json_cores.append((vars, name, prec, pre, spec, expr, cost, err, test))
-
-    # construct FPCores (need to resugar expressions)
-    cores = []
-    with Popen(
-        args=['racket', str(herbie_path), "--platform", platform],
-        stdin=PIPE,
-        stdout=PIPE,
-        universal_newlines=True) as server:
-
-        for vars, name, prec, pre, spec, expr, cost, err, test in json_cores:
-            print(f'(resugar ({" ".join(vars)}) "{name}" {prec} {pre} {spec} {expr})', file=server.stdin, flush=True)
-            core_str = server.stdout.readline()
-
-            core = parse_core(core_str)
-            core.cost = cost
-            core.err = err
-            core.key = key_dict[core.name]
-            core.json = test
-
-            cores.append(core)
-
-        print('(exit)', file=server.stdin, flush=True)
-        _ = server.stdout.readline()
-
-    return cores
-
 
 class Runner(object):
     """Representing a runner for a given platform"""
@@ -224,6 +182,49 @@ class Runner(object):
         for n, op in self.nary_ops:
             cores.append(synthesize1(op, n))
         return cores
+    
+    def load_json(self, path: str) -> List[FPCore]:
+        """Reads a set of FPCores from Herbie JSON report."""
+        # read JSON file
+        with open(path, 'r') as f:
+            report = json.load(f)
+
+        # extract relevant fields from report JSON
+        json_cores = []
+        for test in report['tests']:
+            vars = test['vars']
+            name = test['name']
+            prec = test['prec']
+            pre = test['pre']
+            spec = test['spec']
+
+            for expr, cost, err in json_test_outputs(test):
+                json_cores.append((vars, name, prec, pre, spec, expr, cost, err, test))
+
+        # construct FPCores (need to resugar expressions)
+        cores = []
+        with Popen(
+            args=['racket', str(self.herbie_path)],
+            stdin=PIPE,
+            stdout=PIPE,
+            universal_newlines=True) as server:
+
+            for vars, name, prec, pre, spec, expr, cost, err, test in json_cores:
+                print(f'(resugar ({" ".join(vars)}) "{name}" {prec} {pre} {spec} {expr})', file=server.stdin, flush=True)
+                core_str = server.stdout.readline()
+
+                core = parse_core(core_str)
+                core.cost = cost
+                core.err = err
+                core.json = test
+
+                cores.append(core)
+
+            print('(exit)', file=server.stdin, flush=True)
+            _ = server.stdout.readline()
+
+        return cores
+
     
     def herbie_read(self, path: str) -> List[FPCore]:
         """Reads a benchmark suite from `path` returning all FPCores found."""
@@ -400,8 +401,9 @@ class Runner(object):
 
             # if everything went well, Herbie should have created a datafile
             json_path = self.report_dir.joinpath('herbie.json')
-            impl_cores = herbie_json_to_fpcores(json_path, key_dict, self.herbie_path, platform)
+            impl_cores = self.load_json(json_path)
             for core in impl_cores:
+                core.key = key_dict[core.name]
                 gen_dict[core.key].append(core)
                 num_improved += 1
 

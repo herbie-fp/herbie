@@ -11,6 +11,7 @@
          herbie/points
          herbie/sandbox
          herbie/syntax/read
+         herbie/syntax/syntax
          herbie/syntax/sugar
          herbie/syntax/types
          herbie/web/common
@@ -21,9 +22,23 @@
 
 (load-herbie-builtins)
 
+; For Herbie 2.0 compatability
+(define (add-literals expr repr)
+  (match expr
+    [(? number?) (literal expr (representation-name repr))]
+    [(? symbol?) expr]
+    [(list 'if cond ift iff)
+     (list 'if
+           (add-literals cond (get-representation 'bool))
+           (add-literals ift repr)
+           (add-literals iff repr))]
+    [(list impl args ...)
+     (define itypes (impl-info impl 'itype))
+     (cons impl (map add-literals args itypes))])) 
+
 (define (resugar-core vars name precision pre spec output)
   (define repr (get-representation precision))
-  (define expr* output)
+  (define expr* (add-literals output repr))
   `(FPCore ,vars
      :name ,name
      :precision ,precision

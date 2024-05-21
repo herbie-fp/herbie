@@ -49,5 +49,8 @@ python3 $INFRA_DIR/platforms/plot.py \
   $OUTDIR/platforms/
 
 # clean up cache and build files
-rm -rf "$OUTDIR/platforms/cache"
-rm -rf "$OUTDIR/platforms/drivers"
+if [ -n $RM_CACHE ]; then
+  echo "removing cache and drivers"
+  rm -rf "$OUTDIR/platforms/cache"
+  rm -rf "$OUTDIR/platforms/drivers"
+fi
