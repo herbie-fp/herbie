@@ -211,7 +211,7 @@
           (*demo-output* output)
           (*reeval-pts* reeval)
           (*demo?* demo?)]
-         [(list 'improve hash formula sema)
+         [(list 'improve hash formula sema _)
           (define path (format "~a.~a" hash *herbie-commit*))
           (cond
            [(hash-has-key? *completed-jobs* hash)
@@ -240,7 +240,8 @@
             (eprintf "Job ~a complete\n" hash)
             (hash-remove! *jobs* hash)
             (semaphore-post sema)])]
-         [(list 'sample hash formula sema seed)
+         [(list 'sample hash formula sema args)
+          (define seed (first args))
           (define test (parse-test formula))
           (eprintf "Sampling job started on ~a..." formula)
           (define result (run-herbie 'sample test #:seed seed 
@@ -249,7 +250,9 @@
           (eprintf " complete\n")
           (hash-remove! *jobs* hash)
           (semaphore-post sema)]
-         [(list 'errors hash formula sema seed sample)
+         [(list 'errors hash formula sema args)
+          (define seed (first args))
+          (define sample (second args))
           (define test (parse-test formula))
           (define pcontext (json->pcontext sample (test-context test)))
           (eprintf "Analyze job started on ~a..." formula)
@@ -260,7 +263,9 @@
           (eprintf " complete\n")
           (hash-remove! *jobs* hash)
           (semaphore-post sema)]
-         [(list 'local-error hash formula sema seed sample)
+         [(list 'local-error hash formula sema args)
+          (define seed (first args))
+          (define sample (second args))
           (define test (parse-test formula))
           (define pcontext (json->pcontext sample (test-context test)))
           (eprintf "Local error job started on ~a..." formula)
@@ -270,7 +275,9 @@
           (eprintf " complete\n")
           (hash-remove! *jobs* hash)
           (semaphore-post sema)]
-         [(list 'alternatives hash formula sema seed sample)
+         [(list 'alternatives hash formula sema args)
+          (define seed (first args))
+          (define sample (second args))
           (define test (parse-test formula))
           (eprintf "Alternatives job started on ~a..." formula)  
           (define pcontext (json->pcontext sample (test-context test)))
@@ -280,7 +287,9 @@
           (eprintf " complete\n")
           (hash-remove! *jobs* hash)
           (semaphore-post sema)]
-         [(list 'exacts hash formula sema seed sample)
+         [(list 'exacts hash formula sema args)
+          (define seed (first args))
+          (define sample (second args))
           (define test (parse-test formula))
           (define pcontext (json->pcontext sample (test-context test)))
           (eprintf "Ground truth job started on ~a..." formula)
@@ -290,7 +299,9 @@
           (eprintf " complete\n")
           (hash-remove! *jobs* hash)
           (semaphore-post sema)]
-         [(list 'evaluate hash formula sema seed sample)
+         [(list 'evaluate hash formula sema args)
+          (define seed (first args))
+          (define sample (second args))
           (define test (parse-test formula))
           (define pcontext (json->pcontext sample (test-context test)))
           (eprintf "Evaluation job started on ~a..." formula)
@@ -300,7 +311,8 @@
           (eprintf " complete\n")
           (hash-remove! *jobs* hash)
           (semaphore-post sema)]
-         [(list 'cost hash formula sema seed)
+         [(list 'cost hash formula sema args)
+          (define seed (first args))
           (define test (parse-test formula))
           (eprintf "Computing cost of ~a..." formula)
           (define result (run-herbie 'cost test
@@ -309,7 +321,7 @@
           (eprintf " complete\n")
           (hash-remove! *jobs* hash)
           (semaphore-post sema)]
-         [(list 'core->mathjs hash formula sema)
+         [(list 'core->mathjs hash formula sema _)
           (eprintf "Converting to Math.js ~a..." formula)
           (define result (core->mathjs (syntax->datum formula)))
           (hash-set! *completed-jobs* hash result)
@@ -398,7 +410,7 @@
    req
    (λ (hash formula)
      (unless (already-computed? hash formula)
-       (run-improve hash formula))
+      (run-xxx hash formula 'improve (list)))
      (response/full 201 #"Job started" (current-seconds) #"text/plain"
                     (list (header #"Location" (string->bytes/utf-8 (url check-status hash)))
                           (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
@@ -433,7 +445,7 @@
    req
    (λ (hash formula)
      (unless (already-computed? hash formula)
-       (semaphore-wait (run-improve hash formula)))
+       (semaphore-wait (run-xxx hash formula 'improve (list))))
 
      (redirect-to (add-prefix (format "~a.~a/graph.html" hash *herbie-commit*)) see-other))
    (url main)))
@@ -447,7 +459,7 @@
        (hash-ref post-data 'formula))))
       (define seed (hash-ref post-data 'seed))
       (define hash (sha1 (open-input-string (~s 'sample formula seed))))
-      (semaphore-wait (run-sample hash formula seed))
+      (semaphore-wait (run-xxx hash formula 'sample (list seed)))
       (define result (hash-ref *completed-jobs* hash))
       (define pctx (job-result-backend result))
       (define test (parse-test formula))
@@ -463,7 +475,7 @@
       (define seed (hash-ref post-data 'seed #f))
       (define test (parse-test formula))
       (define hash (sha1 (open-input-string (~s 'errors formula seed sample))))
-      (semaphore-wait (run-analyze hash formula seed sample))
+      (semaphore-wait (run-xxx hash formula 'errors (list seed sample)))
       (define result (hash-ref *completed-jobs* hash))
       (define errs (job-result-backend result))
       (hasheq 'points errs))))
@@ -477,7 +489,7 @@
       (define sample (hash-ref post-data 'sample))
       (define seed (hash-ref post-data 'seed #f))
       (define hash (sha1 (open-input-string (~s 'exacts formula seed sample))))
-      (semaphore-wait (run-exacts hash formula seed sample))
+      (semaphore-wait (run-xxx hash formula 'exacts (list seed sample)))
       (define result (hash-ref *completed-jobs* hash))
       (define exacts (job-result-backend result))
       (hasheq 'points exacts))))
@@ -491,7 +503,7 @@
       (define seed (hash-ref post-data 'seed #f))
       (define hash (sha1 (open-input-string 
        (~s 'evaluate formula seed sample))))
-      (semaphore-wait (run-evaluate hash formula seed sample))
+      (semaphore-wait (run-xxx hash formula 'evaluate (list seed sample)))
       (define result (hash-ref *completed-jobs* hash))
       (define approx (job-result-backend result))
       (hasheq 'points approx))))
@@ -504,8 +516,8 @@
       (define sample (hash-ref post-data 'sample))
       (define seed (hash-ref post-data 'seed #f))
       (define hash (sha1 (open-input-string 
-       (~s 'evaluate formula seed sample))))
-      (semaphore-wait (run-local-error hash formula seed sample))
+       (~s 'local-error formula seed sample))))
+      (semaphore-wait (run-xxx hash formula 'local-error (list seed sample)))
       (define result (hash-ref *completed-jobs* hash))
 
       (define local-error (job-result-backend result))
@@ -540,7 +552,7 @@
       (define seed (hash-ref post-data 'seed #f))   
       (define hash (sha1 (open-input-string 
        (~s 'evaluate formula seed sample))))
-      (semaphore-wait (run-alternatives hash formula seed sample))
+      (semaphore-wait (run-xxx hash formula 'alternatives (list seed sample)))
       (define result (hash-ref *completed-jobs* hash))
       (herbie-result->altnatives-web-result result formula))))
 
@@ -592,7 +604,7 @@
       (define formula (read-syntax 'web (open-input-string 
        (hash-ref post-data 'formula))))
       (define hash (sha1 (open-input-string (~s 'core->mathjs formula))))
-      (semaphore-wait (run->mathjs hash formula))
+      (semaphore-wait (run-xxx hash formula 'core->mathjs (list)))
       (define result (hash-ref *completed-jobs* hash))
       (hasheq 'mathjs result))))
 
@@ -604,63 +616,15 @@
       (define seed (hash-ref post-data 'seed #f))   
       (define hash (sha1 (open-input-string 
        (~s 'cost formula seed))))
-      (semaphore-wait (run-cost hash formula seed))
+      (semaphore-wait (run-xxx hash formula 'cost (list seed)))
       (define result (hash-ref *completed-jobs* hash))
       (define cost (job-result-backend result))
       (hasheq 'cost cost))))
 
-(define (run-improve hash formula)
+(define (run-xxx hash formula symbol args)
   (hash-set! *jobs* hash (*timeline*))
   (define sema (make-semaphore))
-  (thread-send *worker-thread* (list 'improve hash formula sema))
-  sema)
-
-(define (run-sample hash formula seed)
-  (hash-set! *jobs* hash (*timeline*))
-  (define sema (make-semaphore))
-  (thread-send *worker-thread* (list 'sample hash formula sema seed))
-  sema)
-
-(define (run-analyze hash formula seed sample)
-  (hash-set! *jobs* hash (*timeline*))
-  (define sema (make-semaphore))
-  (thread-send *worker-thread* (list 'errors hash formula sema seed sample))
-  sema)
-
-(define (run-exacts hash formula seed sample)
-  (hash-set! *jobs* hash (*timeline*))
-  (define sema (make-semaphore))
-  (thread-send *worker-thread* (list 'exacts hash formula sema seed sample))
-  sema)
-
-(define (run-evaluate hash formula seed sample)
-  (hash-set! *jobs* hash (*timeline*))
-  (define sema (make-semaphore))
-  (thread-send *worker-thread* (list 'evaluate hash formula sema seed sample))
-  sema)
-
-(define (run-local-error hash formula seed sample)
-  (hash-set! *jobs* hash (*timeline*))
-  (define sema (make-semaphore))
-  (thread-send *worker-thread* (list 'local-error hash formula sema seed sample))
-  sema)
-
-(define (run-alternatives hash formula seed sample)
-  (hash-set! *jobs* hash (*timeline*))
-  (define sema (make-semaphore))
-  (thread-send *worker-thread* (list 'alternatives hash formula sema seed sample))
-  sema)
-
-(define (run->mathjs hash formula)
-  (hash-set! *jobs* hash (*timeline*))
-  (define sema (make-semaphore))
-  (thread-send *worker-thread* (list 'core->mathjs hash formula sema))
-  sema)
-
-(define (run-cost hash formula seed)
-  (hash-set! *jobs* hash (*timeline*))
-  (define sema (make-semaphore))
-  (thread-send *worker-thread* (list 'cost hash formula sema seed))
+  (thread-send *worker-thread* (list symbol hash formula sema args))
   sema)
 
 (define (run-demo #:quiet [quiet? #f] #:output output #:demo? demo? #:prefix prefix #:log log #:port port #:public? public)
