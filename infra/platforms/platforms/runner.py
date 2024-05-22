@@ -28,9 +28,13 @@ def sample_to_pcontext(sample):
     return f'({input_str})'
 
 def error1(config: Tuple[FPCore, List, str, str]):
-    core, sample, herbie_path, platform = config
+    core, sample, herbie_path, platform, seed = config
     with Popen(
-            args=['racket', str(herbie_path), "--platform", platform],
+            args=[
+                'racket', str(herbie_path),
+                '--platform', platform,
+                '--seed', str(seed)
+            ],
             stdin=PIPE,
             stdout=PIPE,
             universal_newlines=True) as server:
@@ -45,7 +49,7 @@ def error1(config: Tuple[FPCore, List, str, str]):
     return float(output)
 
 def sample1(config: Tuple[FPCore, int, str, str]) -> Tuple[List[List[float]], List[float]]:
-    core, num_inputs, herbie_path, platform, py_sample = config
+    core, num_inputs, herbie_path, platform, seed, py_sample = config
     if core.argc == 0:
         return ([], [])
     elif core.py_sample or py_sample:
@@ -56,7 +60,11 @@ def sample1(config: Tuple[FPCore, int, str, str]) -> Tuple[List[List[float]], Li
     else:
         # sample using Herbie
         with Popen(
-                args=['racket', str(herbie_path), "--platform", platform],
+                args=[
+                    'racket', str(herbie_path),
+                    '--platform', platform,
+                    '--seed', str(seed)
+                ],
                 stdin=PIPE,
                 stdout=PIPE,
                 universal_newlines=True) as server:
@@ -238,7 +246,11 @@ class Runner(object):
         
         if path.is_file():
             with Popen(
-                args=['racket', str(self.herbie_path), "--platform", self.name],
+                args=[
+                    'racket', str(self.herbie_path),
+                    '--platform', self.name,
+                    '--seed', str(self.seed)
+                ],
                 stdin=PIPE,
                 stdout=PIPE,
                 universal_newlines=True) as server:
@@ -265,7 +277,11 @@ class Runner(object):
         This requires the target language to be supported by the
         \"compile\" command in the Racket script."""
         with Popen(
-            args=['racket', str(self.herbie_path), "--platform", self.name],
+            args=[
+                'racket', str(self.herbie_path),
+                '--platform', self.name,
+                '--seed', str(self.seed)
+            ],
             stdin=PIPE,
             stdout=PIPE,
             universal_newlines=True) as server:
@@ -284,7 +300,11 @@ class Runner(object):
     def herbie_cost(self, cores: List[FPCore]) -> None:
         """Computes the cost of each FPCore, overriding the `cost` variable of each FPCore."""
         with Popen(
-            args=['racket', str(self.herbie_path), "--platform", self.name],
+            args=[
+                'racket', str(self.herbie_path),
+                '--platform', self.name,
+                '--seed', str(self.seed)
+            ],
             stdin=PIPE,
             stdout=PIPE,
             universal_newlines=True) as server:
@@ -305,7 +325,11 @@ class Runner(object):
         represented by this `Runner`. If desugaring fails, the FPCore is removed."""
         desugared = []
         with Popen(
-            args=['racket', str(self.herbie_path), "--platform", self.name],
+            args=[
+                'racket', str(self.herbie_path),
+                '--platform', self.name,
+                '--seed', str(self.seed)
+            ],
             stdin=PIPE,
             stdout=PIPE,
             universal_newlines=True) as server:
@@ -351,7 +375,7 @@ class Runner(object):
         configs = []
         for core in cores:
             _, sample = self.cache.get_core(core.key)
-            configs.append((core, sample, self.herbie_path, self.name))
+            configs.append((core, sample, self.herbie_path, self.name, self.seed))
 
         with mp.Pool(processes=self.threads) as pool:
             errors = pool.map(error1, configs)
@@ -393,7 +417,11 @@ class Runner(object):
         num_improved = 0
         if len(uncached) > 0:
             with Popen(
-                args=['racket', str(self.herbie_path), "--platform", platform],
+                args=[
+                'racket', str(self.herbie_path),
+                '--platform', platform,
+                '--seed', str(self.seed)
+            ],
                 stdin=PIPE,
                 stdout=PIPE,
                 universal_newlines=True) as server:
@@ -432,7 +460,11 @@ class Runner(object):
                 cores_by_group[core.key] = [core]
 
         with Popen(
-            args=['racket', str(self.herbie_path), "--platform", self.name],
+            args=[
+                'racket', str(self.herbie_path),
+                '--platform', self.name,
+                '--seed', str(self.seed)
+            ],
             stdin=PIPE,
             stdout=PIPE,
             universal_newlines=True) as server:
@@ -491,7 +523,7 @@ class Runner(object):
         configs = []
         for sample, core in zip(samples, cores):
             if sample is None:
-                configs.append((core, self.num_inputs, self.herbie_path, self.name, py_sample))
+                configs.append((core, self.num_inputs, self.herbie_path, self.name, self.seed, py_sample))
 
         with mp.Pool(processes=self.threads) as pool:
             gen_samples = pool.map(sample1, configs)

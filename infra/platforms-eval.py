@@ -1,9 +1,6 @@
-from pathlib import Path
 import subprocess
 import argparse
-import json
 import os
-import re
 
 # Paths
 script_path = os.path.abspath(__file__)
