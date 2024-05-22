@@ -388,21 +388,7 @@
    (λ (hash formula)
     (unless (already-computed? hash formula)
     (semaphore-wait (run-xxx hash formula 'improve (list)))
-    (when (*demo-output*)
-      ;; Output results
-      ;; Don't love this, should seed optinal be passed in from the UI?
-      (define seed get-seed)
-      (define result (hash-ref *completed-jobs* hash))
-      (define path (format "~a.~a" hash *herbie-commit*))
-      (make-directory (build-path (*demo-output*) path))
-      (for ([page (all-pages result)])
-        (call-with-output-file (build-path (*demo-output*) path page)
-          (λ (out) 
-            (with-handlers ([exn:fail? (page-error-handler result page out)])
-              (make-page page out result (*demo-output*) #f)))))
-      (update-report result path seed
-        (build-path (*demo-output*) "results.json")
-        (build-path (*demo-output*) "index.html"))))
+    (save-improve-results))
      (response/full 201 #"Job started" (current-seconds) #"text/plain"
                     (list (header #"Location" (string->bytes/utf-8 (url check-status hash)))
                           (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
@@ -438,23 +424,26 @@
    (λ (hash formula)
     (unless (already-computed? hash formula)
       (semaphore-wait (run-xxx hash formula 'improve (list)))
-      (when (*demo-output*)
-        ;; Output results
-        ;; Don't love this, should seed optinal be passed in from the UI?
-        (define seed get-seed)
-        (define result (hash-ref *completed-jobs* hash))
-        (define path (format "~a.~a" hash *herbie-commit*))
-        (make-directory (build-path (*demo-output*) path))
-        (for ([page (all-pages result)])
-          (call-with-output-file (build-path (*demo-output*) path page)
-            (λ (out) 
-              (with-handlers ([exn:fail? (page-error-handler result page out)])
-                (make-page page out result (*demo-output*) #f)))))
-        (update-report result path seed
-          (build-path (*demo-output*) "results.json")
-          (build-path (*demo-output*) "index.html"))))
+      (save-improve-results))
      (redirect-to (add-prefix (format "~a.~a/graph.html" hash *herbie-commit*)) see-other))
    (url main)))
+
+(define (save-improve-results)
+  (when (*demo-output*)
+    ;; Output results
+    ;; Don't love this, should seed optinal be passed in from the UI?
+    (define seed get-seed)
+    (define result (hash-ref *completed-jobs* hash))
+    (define path (format "~a.~a" hash *herbie-commit*))
+    (make-directory (build-path (*demo-output*) path))
+    (for ([page (all-pages result)])
+      (call-with-output-file (build-path (*demo-output*) path page)
+        (λ (out) 
+          (with-handlers ([exn:fail? (page-error-handler result page out)])
+            (make-page page out result (*demo-output*) #f)))))
+    (update-report result path seed
+      (build-path (*demo-output*) "results.json")
+      (build-path (*demo-output*) "index.html"))))
 
 ; /api/sample endpoint: test in console on demo page:
 ;; (await fetch('/api/sample', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x) (- (sqrt (+ x 1))))", seed: 5})})).json()
