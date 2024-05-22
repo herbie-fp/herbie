@@ -288,7 +288,9 @@
       [(regexp-match #rx"^Warning: the given expression is undefined or numerically unstable\n*" s)
        (let ([dt (- (current-inexact-milliseconds) start)])
          (match-define (list _ result sollya-time) (string-split s "\n"))
-         (list dt (seconds->ms sollya-time) (fl +nan.0) 'invalid))]
+         (list dt (seconds->ms sollya-time) result (if (equal? result "NaN")
+                                                       'invalid
+                                                       'unsamplable)))]
 
       ; Valid results
       [(regexp-match #rx"^[-+.e0-9]+\n[-+.e0-9]+\n$" s)
@@ -300,7 +302,7 @@
       [(regexp-match #rx"^NaN\n[-+.e0-9]+\n$" s)
        (let ([dt (- (current-inexact-milliseconds) start)])
          (match-define (list result sollya-time) (string-split s "\n"))
-         (list dt (seconds->ms sollya-time) (fl +nan.0) 'unsamplable))]
+         (list dt (seconds->ms sollya-time) (fl +nan.0) 'invalid))]
 
       ; Infinity
       [(regexp-match #rx"^-?infty\n[-+.e0-9]+\n$" s)
@@ -308,6 +310,6 @@
          (match-define (list result sollya-time) (string-split s "\n"))
          (list dt (seconds->ms sollya-time)
                (if (string-contains? result "-") (fl -inf.0) (fl +inf.0))
-               'unsamplable))]
+               'valid))]
       [else
        (loop (+ i step))])))

@@ -1,16 +1,19 @@
 #lang racket
 
 (require math/bigfloat
+         math/flonum
          rival)
 
 (require "syntax/types.rkt"
          "common.rkt"
-         "compiler.rkt" "timeline.rkt" "config.rkt")
+         "compiler.rkt" "timeline.rkt" "config.rkt"
+         (only-in "errors.rkt" warn))
 
 (provide eval-progs-real
          ground-truth-require-convergence 
          ival-eval
-         make-search-func)
+         make-search-func
+         sollya-eval)
 
 (define ground-truth-require-convergence (make-parameter #t))
 
@@ -88,3 +91,56 @@
     (or exs bad-pt))
   <eval-prog-real>)
 
+
+(define (sollya-eval fn-sollya pt rival-status rival-final-iter rival-exs)
+  (cond
+    ; Rival has produced valid outcomes
+    [(equal? rival-status 'valid)
+         
+     ; Interval evaluation
+     (match-define (list internal-interval-time external-interval-time
+                         (list sollya-lower sollya-upper) sollya-interval-status) (fn-sollya pt #t))
+
+     ; Point evaluation
+     (match-define (list internal-point-time external-point-time sollya-point sollya-point-status) (fn-sollya pt #f))
+
+     (timeline-push!/unsafe 'outcomes (min external-interval-time external-point-time)
+                            rival-final-iter (format "~a-sollya" sollya-point-status) 1)
+         
+     (define match (if (and (equal? sollya-point-status 'valid)
+                            (>= 1 (flonums-between (last rival-exs) sollya-point)))
+                       #t
+                       #f))
+     
+     (unless match
+       (timeline-push!/unsafe 'sollya-eval
+                              pt (~a (last rival-exs)) (~a (list sollya-lower sollya-upper))
+                              (~a sollya-point) (symbol->string rival-status)
+                              (symbol->string sollya-point-status) rival-final-iter
+                              (min external-interval-time external-point-time) match))]
+
+    ; Rival has not produced a valid outcome, rival-exs=#f, nothing to compare to Sollya's output, only statuses comparisons
+    [(not (equal? rival-status 'precondition))
+         
+     ; Interval evaluation
+     (match-define (list internal-interval-time external-interval-time
+                         (list sollya-lower sollya-upper) sollya-interval-status) (fn-sollya pt #t))
+
+     ; Point evaluation
+     (match-define (list internal-point-time external-point-time sollya-point sollya-point-status) (fn-sollya pt #f))
+
+     (timeline-push!/unsafe 'outcomes (min external-interval-time external-point-time)
+                            rival-final-iter (format "~a-sollya" sollya-point-status) 1)
+         
+     (define match (or (equal? sollya-point-status rival-status)
+                       (and (equal? sollya-point-status 'invalid)
+                            (equal? rival-status 'unsamplable))
+                       (and (equal? sollya-point-status 'unsamplable)
+                            (equal? rival-status 'invalid))))
+     
+     (unless match
+       (timeline-push!/unsafe 'sollya-eval
+                              pt (~a rival-exs) (~a (list sollya-lower sollya-upper))
+                              (~a sollya-point) (symbol->string rival-status)
+                              (symbol->string sollya-point-status) rival-final-iter
+                              (min external-interval-time external-point-time) match))]))

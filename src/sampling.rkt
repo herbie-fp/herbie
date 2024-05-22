@@ -5,7 +5,7 @@
          "float.rkt" "syntax/types.rkt" "timeline.rkt" "config.rkt"
          "syntax/sugar.rkt" "ground-truth.rkt")
 
-(require "run-sollya.rkt" math/flonum)
+(require "run-sollya.rkt")
 
 (provide batch-prepare-points
          ival-eval
@@ -131,63 +131,9 @@
     (let loop ([sampled 0] [skipped 0] [points '()] [exactss '()])
       (define pt (sampler))
       (define-values (status final-iter exs) (ival-eval fn ctxs pt))
-      
-      (cond
-        ; Rival has produced valid outcomes
-        [(and fn-sollya (equal? status 'valid))
-         
-         ; Interval evaluation
-         (match-define (list internal-interval-time external-interval-time
-                             (list sollya-lower sollya-upper) sollya-interval-status) (fn-sollya pt #t))
 
-         ; Point evaluation
-         (match-define (list internal-point-time external-point-time sollya-point sollya-point-status) (fn-sollya pt #f))
-         
-         (when (not (equal? sollya-interval-status sollya-point-status))
-           (warn 'ground-truth "Sollya statuses differ!\n\tpt=~a\n\tinterval-status=~a, point-status=~a\n\tinterval=~a, point=~a"
-                   pt sollya-interval-status sollya-point-status (list sollya-lower sollya-upper) sollya-point))
-
-         
-         (timeline-push!/unsafe 'outcomes (min external-interval-time external-point-time)
-                                final-iter (format "~a-sollya" sollya-point-status) 1)
-         
-         (define match (if (and (equal? sollya-point-status 'valid)
-                                (or (and (fl>= (last exs) sollya-lower)
-                                         (fl<= (last exs) sollya-upper)
-                                         (>= 3 (flonums-between sollya-lower sollya-upper)))
-                                    (fl= (last exs) sollya-point)))
-                           #t
-                           #f))
-         (unless match
-           (timeline-push!/unsafe 'sollya-eval
-                                  pt (~a (last exs)) (~a (list sollya-lower sollya-upper))
-                                  (~a sollya-point) (symbol->string status)
-                                  (symbol->string sollya-point-status) final-iter
-                                  (min external-interval-time external-point-time) match))]
-
-        ; Rival has not produced a valid outcome, exs=#f, nothing to compare to Sollya's output, only statuses comparisons
-        [(and fn-sollya (not (equal? status 'precondition)))
-         
-         ; Interval evaluation
-         (match-define (list internal-interval-time external-interval-time
-                             (list sollya-lower sollya-upper) sollya-interval-status) (fn-sollya pt #t))
-
-         ; Point evaluation
-         (match-define (list internal-point-time external-point-time sollya-point sollya-point-status) (fn-sollya pt #f))
-         
-         (when (not (equal? sollya-interval-status sollya-point-status))
-           (warn 'ground-truth "Sollya statuses differ!\n\tpt=~a\n\tinterval-status=~a, point-status=~a\n\tinterval=~a, point=~a"
-                   pt sollya-interval-status sollya-point-status (list sollya-lower sollya-upper) sollya-point))
-
-         (timeline-push!/unsafe 'outcomes (min external-interval-time external-point-time)
-                                final-iter (format "~a-sollya" sollya-point-status) 1)
-         
-         (define match (equal? sollya-point-status status))
-         (timeline-push!/unsafe 'sollya-eval
-                                pt (~a exs) (~a (list sollya-lower sollya-upper))
-                                (~a sollya-point) (symbol->string status)
-                                (symbol->string sollya-point-status) final-iter
-                                (min external-interval-time external-point-time) match)])
+      (when fn-sollya
+        (sollya-eval fn-sollya pt status final-iter exs))
 
       (when (equal? status 'exit)
         (warn 'ground-truth #:url "faq.html#ground-truth"
