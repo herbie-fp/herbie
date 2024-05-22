@@ -242,7 +242,8 @@
   (define fields
     '(("Pt" . pt)
       ("Rival-out" . rival-out)
-      ("Sollya-out" . sollya-out)
+      ("Sollya-interval" . sollya-interval)
+      ("Sollya-point" . sollya-point)
       ("status" . rival-status)
       ("Sollya status" . sollya-status)
       ("Rival iter" . rival-iter)
@@ -418,7 +419,7 @@
 (define (render-phase-outcomes outcomes)
   `((dt "Results")
     (dd (table ([class "times"])
-         ,@(for/list ([rec (in-list (sort outcomes > #:key first))])
+         ,@(for/list ([rec (in-list (sort outcomes > #:key fourth))])
              (match-define (list time precision category count) rec)
              `(tr (td ,(format-time time)) (td ,(~a count) "×")
                   (td ,(~a precision)) (td ,(~a category))))))))

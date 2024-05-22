@@ -175,7 +175,7 @@
 
 (define-timeline method [method])
 (define-timeline mixsample [time +] [function false] [precision false])
-(define-timeline sollya-eval [pt false] [rival-out false] [sollya-out false] [rival-status false ] [sollya-status false] [rival-iter false] [sollya-time false] [check false])
+(define-timeline sollya-eval [pt false] [rival-out false] [sollya-interval false] [sollya-point false] [rival-status false] [sollya-status false] [rival-iter false] [sollya-time false] [check false])
 (define-timeline rules [rule false] [count +])
 (define-timeline times [time +] [input false])
 (define-timeline series [time +] [expr false] [var false] [transform false])
