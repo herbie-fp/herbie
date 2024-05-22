@@ -260,10 +260,16 @@ class Runner(object):
                 output = server.stdout.read()
 
             cores = []
-            for i, line in enumerate(output.split('\n')):
+            for line in output.strip().split('\n'):
                 if len(line) > 0:
-                    core = parse_core(line.strip())
-                    core.key = sanitize_name(f'file:{str(path)}:{i}')
+                    parts = line.strip().split('|')
+                    if len(parts) != 2:
+                        raise ValueError(f'Unexpected result: {line}')
+                    id = parts[0]
+                    core_str = parts[1]
+
+                    core = parse_core(core_str.strip())
+                    core.key = sanitize_name(f'file:{str(path)}:{id}')
                     cores.append(core)
             return cores
         else:

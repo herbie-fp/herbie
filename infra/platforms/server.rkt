@@ -22,6 +22,11 @@
 
 (load-herbie-builtins)
 
+; Copied from <herbie>/syntax/read.rkt
+(define (read-syntax* port name)
+  (parameterize ([read-decimal-as-inexact false])
+    (read-syntax port name)))
+
 ; For Herbie 2.0 compatability
 (define (add-literals expr repr)
   (match expr
@@ -157,9 +162,16 @@
          (match args
            [(list path) path]
            [_ (error 'run-server "read: malformed arguments ~a" args)]))
-       (for ([t (in-list (load-tests path))])
-         (define t* (struct-copy test t [output #f])) ; strip any `:alt` annotation
-         (printf "~a\n" (string-replace (render-fpcore t*) "\n" "")))
+      ; reimplementation of `load-file`
+      (call-with-input-file path
+        (λ (port)
+          (port-count-lines! port)
+          (for ([stx (in-port (curry read-syntax* path) port)]
+                [i (in-naturals)])
+            (with-handlers ([exn:fail? (const (void))])
+              (define t (parse-test stx))
+              (define t* (struct-copy test t [output #f])) ; strip any `:alt` annotation
+              (printf "~a|~a\n" i (string-replace (render-fpcore t*) "\n" ""))))))
        (loop)]
       ; sample <num_points:int> <core:expr>
       [(list 'sample args ...)

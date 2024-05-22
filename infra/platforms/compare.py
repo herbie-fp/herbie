@@ -56,12 +56,12 @@ def main():
     )
 
     cores1 = runner1.restore_cores()
+    all_keys = set(map(lambda c: c.key, cores1))
 
     # load FPCores form platform B
     if platform2 == 'baseline':
         baseline_dir = os.path.join(output_dir, 'baseline', key)
         json_path = os.path.join(baseline_dir, 'baseline.json')
-        print(json_path)
         cores2 = runner1.load_json(json_path)
 
         # cores are "keyless", so we need to identify their in-cache keys (somehow)
@@ -89,7 +89,6 @@ def main():
 
     # extract input fpcores based on `cores1`
     input_cores = []
-    all_keys = set(map(lambda c: c.key, cores1))
     for key in all_keys:
         cached = runner1.cache.get_core(key)
         if cached is None:

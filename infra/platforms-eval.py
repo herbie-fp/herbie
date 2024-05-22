@@ -34,6 +34,7 @@ def run_tuning(
     num_threads: int,
     seed: int
 ) -> None:
+    print(f'Tuning eval for `{platform}`')
     subprocess.run([
         'python3', tune_path,
          '--threads', str(num_threads),
@@ -51,6 +52,7 @@ def run_baseline(
     num_herbie_threads: int,
     seed: int,
 ) -> None:
+    print(f'Baseline eval')
     subprocess.run([
         'python3', baseline_path,
          '--threads', str(num_herbie_threads),
@@ -70,6 +72,7 @@ def run_improvement(
     num_threads: int,
     seed: int
 ) -> None:
+    print(f'Improvement eval for `{platform}`')
     subprocess.run([
         'python3', improve_path, 
         '--threads', str(num_threads),
@@ -90,6 +93,7 @@ def run_cross_compile(
     num_threads: int,
     seed: int
 ) -> None:
+    print(f'Compare eval for `{platform1}` <- `{platform2}`')
     subprocess.run([
         'python3', compare_path, 
         '--threads', str(num_threads),
@@ -127,14 +131,14 @@ def main():
     seed: int = args.seed
 
     # run tuning
-    for platform in platforms:
-        run_tuning(
-            name=name,
-            platform=platform,
-            output_dir=output_dir,
-            num_threads=num_threads,
-            seed=seed
-        )
+    # for platform in platforms:
+    #     run_tuning(
+    #         name=name,
+    #         platform=platform,
+    #         output_dir=output_dir,
+    #         num_threads=num_threads,
+    #         seed=seed
+    #     )
 
     # run baseline
     run_baseline(
