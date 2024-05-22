@@ -85,6 +85,11 @@
     (*platform-name* (string->symbol platform))
     (*active-platform* (get-platform (*platform-name*)))
     (activate-platform! (*active-platform*))]
+   [("--old-cost-model")
+    (
+     "Uses the old naive cost model. [Default: New cost model enabled]"
+    )
+    (*old-cost-function* #t)]
    [("--num-iters") num
     (
      "The number of iterations to use for the main loop. Herbie may find additional improvements

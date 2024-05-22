@@ -12,6 +12,7 @@
          "../syntax/types.rkt"
          "../accelerator.rkt"
          "../common.rkt"
+         "../config.rkt"
          "../errors.rkt"
          "../platform.rkt"
          "../programs.rkt"
@@ -1221,29 +1222,51 @@
 
 ;; Per-node cost function according to the platform
 ;; `rec` takes an id, type, and failure value
+;; Runs old version if specified
 (define (platform-egg-cost-proc regraph cache node type rec)
   (define egg->herbie (regraph-egg->herbie regraph))
   (define node-cost-proc (platform-node-cost-proc (*active-platform*)))
+  (if (*old-cost-function*)
+    (naive-cost-proc node type rec)
+      (match node
+        [(? number?) 0] ; TODO: numbers are free I guess
+        [(? symbol?)
+        (define repr (cdr (hash-ref egg->herbie node)))
+        ((node-cost-proc node repr))]
+        [(list 'if cond ift iff) ; if expression
+        (define cost-proc (node-cost-proc node type))
+        (cost-proc (rec cond (get-representation 'bool) +inf.0)
+                    (rec ift type +inf.0)
+                    (rec iff type +inf.0))]
+        [(list (? impl-exists? impl) args ...) ; impls
+        (define cost-proc (node-cost-proc node type))
+        (define itypes (impl-info impl 'itype))
+        (apply cost-proc
+                (map
+                  (lambda (arg itype)
+                    (rec arg itype +inf.0))
+                  args
+                  itypes))]
+        [(list _ ...) +inf.0]))) ; specs
+
+(define (naive-cost-proc node type rec)
   (match node
-    [(? number?) 0] ; TODO: numbers are free I guess
-    [(? symbol?)
-     (define repr (cdr (hash-ref egg->herbie node)))
-     ((node-cost-proc node repr))]
-    [(list 'if cond ift iff) ; if expression
-     (define cost-proc (node-cost-proc node type))
-     (cost-proc (rec cond (get-representation 'bool) +inf.0)
-                (rec ift type +inf.0)
-                (rec iff type +inf.0))]
-    [(list (? impl-exists? impl) args ...) ; impls
-     (define cost-proc (node-cost-proc node type))
+    [(? number?) 1]
+    [(? symbol?) 1]
+    [(list 'if cond ift iff)
+     (+ 1 (rec cond (get-representation 'bool) 1)
+          (rec ift type 1)
+          (rec iff type 1))]
+    [(list (? impl-exists? impl) args ...)
      (define itypes (impl-info impl 'itype))
-     (apply cost-proc
-            (map
-              (lambda (arg itype)
-                (rec arg itype +inf.0))
-              args
-              itypes))]
-    [(list _ ...) +inf.0])) ; specs
+     (if (equal? impl 'pow)
+      (match args
+       [(list b e)
+        (if (fraction-with-odd-denominator? e)
+            +inf.0
+            (apply + (map (lambda (arg itype) (rec arg itype 1)) args itypes)))])
+      (apply + (map (lambda (arg itype) (rec arg itype 1)) args itypes)))]
+    [(list _ ...) +inf.0]))
 
 ;; Extracts the best expression according to the extractor.
 ;; Result is a single element list.
