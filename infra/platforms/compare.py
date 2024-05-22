@@ -15,11 +15,13 @@ curr_dir = os.getcwd()
 default_num_threads = 1
 default_num_points = 10_000
 default_num_runs = 10
+default_seed = 1
 
 def main():
     parser = argparse.ArgumentParser(description='Herbie cost tuner')
     parser.add_argument('--threads', help='number of threads for compilation [1 by default]', type=int)
     parser.add_argument('--key', help='unique identifier under which to place plots and other output', type=str)
+    parser.add_argument('--seed', help='random seed to use for Herbie', type=int)
     parser.add_argument('platform1', help='platform to evaluate in', type=str)
     parser.add_argument('platform2', help='platform to compare against', type=str)
     parser.add_argument('output_dir', help='directory to emit all working files', type=str)
@@ -35,6 +37,7 @@ def main():
     num_points = default_num_points
     num_runs = default_num_runs
     key = args.get('key', None)
+    seed = args.get('seed', default_seed)
 
     platform1 = args['platform1']
     platform2 = args['platform2']
@@ -48,7 +51,8 @@ def main():
         num_inputs=num_points,
         num_runs=num_runs,
         threads=threads,
-        key=key
+        key=key,
+        seed=seed
     )
 
     cores1 = runner1.restore_cores()
@@ -78,7 +82,8 @@ def main():
             num_inputs=num_points,
             num_runs=num_runs,
             threads=threads,
-            key=key
+            key=key,
+            seed=seed
         )
         cores2 = runner2.restore_cores()
 

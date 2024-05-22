@@ -122,6 +122,7 @@ class Runner(object):
         num_inputs: int = 10_000,
         num_runs: int = 100,
         threads: int = 1,
+        seed: int = 1,
         unary_ops: List[str] = [],
         binary_ops: List[str] = [],
         ternary_ops: List[str] = [],
@@ -141,6 +142,7 @@ class Runner(object):
         self.ternary_ops = ternary_ops
         self.nary_ops = nary_ops
         self.time_unit = time_unit
+        self.seed = seed
 
         key = 'default' if key is None else key
         self.driver_dir = self.working_dir.joinpath('drivers', key, self.name)
@@ -164,7 +166,8 @@ class Runner(object):
         self.cache.restore()
         self.log(f'restored {self.cache.num_cores()} input cores from cache')
         self.log(f'restored {self.cache.num_platform_cores()} platform cores from cache')
-
+        self.log(f'using seed {self.seed}')
+    
     def log(self, msg: str, *args):
         """Logging routine for this runner."""
         print(f'[Runner:{self.name}]:', msg, *args)

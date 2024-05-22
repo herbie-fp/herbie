@@ -46,7 +46,8 @@ function run() {
     $bench \
     $key \
     $HERBIE_THREADS \
-    $THREADS
+    $THREADS \
+    $seed
 
   # Plot JSON data
   # python3 $INFRA_DIR/platforms/plot.py \
@@ -58,7 +59,7 @@ function run() {
 }
 
 # Run configs
-run $BENCH_DIR/hamming hamming 1
+run $BENCH_DIR/hamming hamming 100
 
 # clean up cache and build files
 if [ -n "$RM_CACHE" ]; then

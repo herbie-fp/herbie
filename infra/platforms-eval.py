@@ -20,8 +20,8 @@ merge_path = os.path.join(script_dir, 'platforms', 'merge.py')
 # Tuning and improvement
 platforms = [
     'c',
-    'python',
-    'avx'
+    # 'python',
+    # 'avx'
 ]
 
 # Number of input points
@@ -34,13 +34,15 @@ def run_tuning(
     name: str,
     platform: str,
     output_dir: str,
-    num_threads: int
+    num_threads: int,
+    seed: int
 ) -> None:
     subprocess.run([
         'python3', tune_path,
          '--threads', str(num_threads),
          '--num-points', str(num_tune_points),
          '--key', name,
+         '--seed', str(seed),
          platform,
          output_dir
     ])
@@ -49,12 +51,14 @@ def run_baseline(
     name: str,
     bench_path: str,
     output_dir: str,
-    num_herbie_threads: int
+    num_herbie_threads: int,
+    seed: int,
 ) -> None:
     subprocess.run([
         'python3', baseline_path,
          '--threads', str(num_herbie_threads),
          '--key', name,
+         '--seed', str(seed),
          bench_path,
          output_dir,
     ])
@@ -66,14 +70,16 @@ def run_improvement(
     bench_dir: str,
     output_dir: str,
     num_herbie_threads: int,
-    num_threads: int
+    num_threads: int,
+    seed: int
 ) -> None:
     subprocess.run([
         'python3', improve_path, 
         '--threads', str(num_threads),
         '--num-points', str(num_eval_points),
+        '--herbie-threads', str(num_herbie_threads),
         '--key', name,
-        '--herbie-threads', str(num_herbie_threads), 
+        '--seed', str(seed),
         platform,
         bench_dir,
         output_dir
@@ -84,12 +90,14 @@ def run_cross_compile(
     platform1: str,
     platform2: str,
     output_dir: str,
-    num_threads: int
+    num_threads: int,
+    seed: int
 ) -> None:
     subprocess.run([
         'python3', compare_path, 
         '--threads', str(num_threads),
         '--key', name,
+        '--seed', str(seed),
         platform1,
         platform2,
         output_dir
@@ -111,6 +119,7 @@ def main():
     parser.add_argument('name', help='unique name of run', type=str)
     parser.add_argument('herbie_threads', help='number of Herbie threads', type=int)
     parser.add_argument('threads', help='number of multiprocessing threads', type=int)
+    parser.add_argument('seed', help='Herbie seed', type=int)
     args = parser.parse_args()
 
     output_dir: str = args.output_dir
@@ -118,6 +127,7 @@ def main():
     name: str = args.name
     num_herbie_threads: int = args.herbie_threads
     num_threads: int = args.threads
+    seed: int = args.seed
 
     # run tuning
     for platform in platforms:
@@ -125,15 +135,17 @@ def main():
             name=name,
             platform=platform,
             output_dir=output_dir,
-            num_threads=num_threads
+            num_threads=num_threads,
+            seed=seed
         )
 
-    run baseline
+    # run baseline
     run_baseline(
         name=name,
         bench_path=bench_path,
         output_dir=output_dir,
-        num_herbie_threads=num_herbie_threads
+        num_herbie_threads=num_herbie_threads,
+        seed=seed
     )
 
     # run platform-based improvement
@@ -144,7 +156,8 @@ def main():
             bench_dir=bench_path,
             output_dir=output_dir,
             num_herbie_threads=num_herbie_threads,
-            num_threads=num_threads
+            num_threads=num_threads,
+            seed=seed
         )
 
     # run baseline comparison
@@ -154,7 +167,8 @@ def main():
             platform1=platform,
             platform2='baseline',
             output_dir=output_dir,
-            num_threads=num_threads
+            num_threads=num_threads,
+            seed=seed
         )
 
     # run cross-platform comparison
@@ -166,7 +180,8 @@ def main():
                     platform1=platform1,
                     platform2=platform2,
                     output_dir=output_dir,
-                    num_threads=num_threads
+                    num_threads=num_threads,
+                    seed=seed
                 )
 
     # merge report jsons
