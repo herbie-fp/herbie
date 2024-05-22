@@ -211,7 +211,8 @@
           (*demo-output* output)
           (*reeval-pts* reeval)
           (*demo?* demo?)]
-         [(list 'improve hash formula sema _)
+         [(list 'improve hash formula sema args)
+          (define seed (first args))
           (eprintf "Job ~a started:\n  improve ~a...\n" hash (syntax->datum formula))
           (define result (run-herbie 'improve (parse-test formula) #:seed seed))
           (hash-set! *completed-jobs* hash result)
@@ -375,8 +376,7 @@
        (when (eof-object? formula)
          (raise-herbie-error "no formula specified"))
        (parse-test formula)
-       (define hash (sha1 (open-input-string (~s 'improve formula))))
-       (body hash formula))]
+       (body formula))]
     [_
      (response/error "Demo Error"
                      `(p "You didn't specify a formula (or you specified several). "
@@ -385,14 +385,12 @@
 (define (improve-start req)
   (improve-common
    req
-   (λ (hash formula)
-    (unless (already-computed? hash formula)
-    (semaphore-wait (run-xxx hash formula 'improve (list)))
-    (save-improve-results))
-     (response/full 201 #"Job started" (current-seconds) #"text/plain"
-                    (list (header #"Location" (string->bytes/utf-8 (url check-status hash)))
-                          (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
-                    '()))
+   (λ (formula)
+    (thread-improve-and-save formula)
+    (response/full 201 #"Job started" (current-seconds) #"text/plain"
+      (list (header #"Location" (string->bytes/utf-8 (url check-status hash)))
+            (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
+      '()))
    (url main)))
 
 (define (check-status req hash)
@@ -421,29 +419,32 @@
 (define (improve req)
   (improve-common
    req
-   (λ (hash formula)
-    (unless (already-computed? hash formula)
-      (semaphore-wait (run-xxx hash formula 'improve (list)))
-      (save-improve-results))
-     (redirect-to (add-prefix (format "~a.~a/graph.html" hash *herbie-commit*)) see-other))
+   (λ (formula)
+    (thread-improve-and-save formula)
+    (redirect-to (add-prefix (format "~a.~a/graph.html" hash *herbie-commit*)) see-other))
    (url main)))
 
-(define (save-improve-results)
-  (when (*demo-output*)
-    ;; Output results
-    ;; Don't love this, should seed optinal be passed in from the UI?
-    (define seed get-seed)
-    (define result (hash-ref *completed-jobs* hash))
-    (define path (format "~a.~a" hash *herbie-commit*))
-    (make-directory (build-path (*demo-output*) path))
-    (for ([page (all-pages result)])
-      (call-with-output-file (build-path (*demo-output*) path page)
-        (λ (out) 
-          (with-handlers ([exn:fail? (page-error-handler result page out)])
-            (make-page page out result (*demo-output*) #f)))))
-    (update-report result path seed
-      (build-path (*demo-output*) "results.json")
-      (build-path (*demo-output*) "index.html"))))
+;; Bad name but encapslates shared work of runing the improve command
+;; saving the results to disk
+(define (thread-improve-and-save formula)
+  ;; Should seed optinal be passed in through the req from the UI?
+  (define seed get-seed)
+  (define hash (sha1 (open-input-string (~s 'improve formula seed))))
+  (unless (already-computed? hash formula)
+    (semaphore-wait (run-xxx hash formula 'improve (list seed)))
+    (when (*demo-output*)
+      ;; Output results
+      (define result (hash-ref *completed-jobs* hash))
+      (define path (format "~a.~a" hash *herbie-commit*))
+      (make-directory (build-path (*demo-output*) path))
+      (for ([page (all-pages result)])
+        (call-with-output-file (build-path (*demo-output*) path page)
+          (λ (out) 
+            (with-handlers ([exn:fail? (page-error-handler result page out)])
+              (make-page page out result (*demo-output*) #f)))))
+      (update-report result path seed
+        (build-path (*demo-output*) "results.json")
+        (build-path (*demo-output*) "index.html")))))
 
 ; /api/sample endpoint: test in console on demo page:
 ;; (await fetch('/api/sample', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x) (- (sqrt (+ x 1))))", seed: 5})})).json()
