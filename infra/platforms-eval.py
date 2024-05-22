@@ -20,8 +20,8 @@ merge_path = os.path.join(script_dir, 'platforms', 'merge.py')
 # Tuning and improvement
 platforms = [
     'c',
-    # 'python',
-    # 'avx'
+    'python',
+    'avx'
 ]
 
 # Number of input points
