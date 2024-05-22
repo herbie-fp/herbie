@@ -212,34 +212,12 @@
           (*reeval-pts* reeval)
           (*demo?* demo?)]
          [(list 'improve hash formula sema _)
-          (define path (format "~a.~a" hash *herbie-commit*))
-          (cond
-           [(hash-has-key? *completed-jobs* hash)
-            (semaphore-post sema)]
-           [(and (*demo-output*) (directory-exists? (build-path (*demo-output*) path)))
-            (semaphore-post sema)]
-           [else
-            (eprintf "Job ~a started:\n  improve ~a...\n" hash (syntax->datum formula))
-
-            (define result (run-herbie 'improve (parse-test formula) #:seed seed))
-
-            (hash-set! *completed-jobs* hash result)
-
-            (when (*demo-output*)
-              ;; Output results
-              (make-directory (build-path (*demo-output*) path))
-              (for ([page (all-pages result)])
-                (call-with-output-file (build-path (*demo-output*) path page)
-                  (λ (out) 
-                    (with-handlers ([exn:fail? (page-error-handler result page out)])
-                      (make-page page out result (*demo-output*) #f)))))
-              (update-report result path seed
-                             (build-path (*demo-output*) "results.json")
-                             (build-path (*demo-output*) "index.html")))
-
-            (eprintf "Job ~a complete\n" hash)
-            (hash-remove! *jobs* hash)
-            (semaphore-post sema)])]
+          (eprintf "Job ~a started:\n  improve ~a...\n" hash (syntax->datum formula))
+          (define result (run-herbie 'improve (parse-test formula) #:seed seed))
+          (hash-set! *completed-jobs* hash result)
+          (eprintf "Job ~a complete\n" hash)
+          (hash-remove! *jobs* hash)
+          (semaphore-post sema)]
          [(list 'sample hash formula sema args)
           (define seed (first args))
           (define test (parse-test formula))
@@ -397,8 +375,7 @@
        (when (eof-object? formula)
          (raise-herbie-error "no formula specified"))
        (parse-test formula)
-       (define hash (sha1 (open-input-string 
-        (string-append (symbol->string 'improve) formula-str))))
+       (define hash (sha1 (open-input-string (~s 'improve formula))))
        (body hash formula))]
     [_
      (response/error "Demo Error"
@@ -409,8 +386,23 @@
   (improve-common
    req
    (λ (hash formula)
-     (unless (already-computed? hash formula)
-      (run-xxx hash formula 'improve (list)))
+    (unless (already-computed? hash formula)
+    (semaphore-wait (run-xxx hash formula 'improve (list)))
+    (when (*demo-output*)
+      ;; Output results
+      ;; Don't love this, should seed optinal be passed in from the UI?
+      (define seed get-seed)
+      (define result (hash-ref *completed-jobs* hash))
+      (define path (format "~a.~a" hash *herbie-commit*))
+      (make-directory (build-path (*demo-output*) path))
+      (for ([page (all-pages result)])
+        (call-with-output-file (build-path (*demo-output*) path page)
+          (λ (out) 
+            (with-handlers ([exn:fail? (page-error-handler result page out)])
+              (make-page page out result (*demo-output*) #f)))))
+      (update-report result path seed
+        (build-path (*demo-output*) "results.json")
+        (build-path (*demo-output*) "index.html"))))
      (response/full 201 #"Job started" (current-seconds) #"text/plain"
                     (list (header #"Location" (string->bytes/utf-8 (url check-status hash)))
                           (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
@@ -444,9 +436,23 @@
   (improve-common
    req
    (λ (hash formula)
-     (unless (already-computed? hash formula)
-       (semaphore-wait (run-xxx hash formula 'improve (list))))
-
+    (unless (already-computed? hash formula)
+      (semaphore-wait (run-xxx hash formula 'improve (list)))
+      (when (*demo-output*)
+        ;; Output results
+        ;; Don't love this, should seed optinal be passed in from the UI?
+        (define seed get-seed)
+        (define result (hash-ref *completed-jobs* hash))
+        (define path (format "~a.~a" hash *herbie-commit*))
+        (make-directory (build-path (*demo-output*) path))
+        (for ([page (all-pages result)])
+          (call-with-output-file (build-path (*demo-output*) path page)
+            (λ (out) 
+              (with-handlers ([exn:fail? (page-error-handler result page out)])
+                (make-page page out result (*demo-output*) #f)))))
+        (update-report result path seed
+          (build-path (*demo-output*) "results.json")
+          (build-path (*demo-output*) "index.html"))))
      (redirect-to (add-prefix (format "~a.~a/graph.html" hash *herbie-commit*)) see-other))
    (url main)))
 
