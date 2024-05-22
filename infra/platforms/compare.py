@@ -15,11 +15,13 @@ curr_dir = os.getcwd()
 default_num_threads = 1
 default_num_points = 10_000
 default_num_runs = 10
+default_seed = 1
 
 def main():
     parser = argparse.ArgumentParser(description='Herbie cost tuner')
     parser.add_argument('--threads', help='number of threads for compilation [1 by default]', type=int)
     parser.add_argument('--key', help='unique identifier under which to place plots and other output', type=str)
+    parser.add_argument('--seed', help='random seed to use for Herbie', type=int)
     parser.add_argument('platform1', help='platform to evaluate in', type=str)
     parser.add_argument('platform2', help='platform to compare against', type=str)
     parser.add_argument('output_dir', help='directory to emit all working files', type=str)
@@ -35,13 +37,13 @@ def main():
     num_points = default_num_points
     num_runs = default_num_runs
     key = args.get('key', None)
+    seed = args.get('seed', default_seed)
 
     platform1 = args['platform1']
     platform2 = args['platform2']
     output_dir = os.path.join(curr_dir, args['output_dir'])
     
-    # construct runners
-
+    # load FPCores from platform A
     runner1 = make_runner(
         platform=platform1,
         working_dir=output_dir,
@@ -49,25 +51,43 @@ def main():
         num_inputs=num_points,
         num_runs=num_runs,
         threads=threads,
-        key=key
+        key=key,
+        seed=seed
     )
 
-    runner2 = make_runner(
-        platform=platform2,
-        working_dir=output_dir,
-        herbie_path=herbie_path,
-        num_inputs=num_points,
-        num_runs=num_runs,
-        threads=threads,
-        key=key
-    )
-
-    # restore fpcores
     cores1 = runner1.restore_cores()
-    cores2 = runner2.restore_cores()
+    all_keys = set(map(lambda c: c.key, cores1))
+
+    # load FPCores form platform B
+    if platform2 == 'baseline':
+        baseline_dir = os.path.join(output_dir, 'baseline', key)
+        json_path = os.path.join(baseline_dir, 'baseline.json')
+        cores2 = runner1.load_json(json_path)
+
+        # cores are "keyless", so we need to identify their in-cache keys (somehow)
+        key_dict = dict()
+        for core in cores1:
+            key_dict[core.name] = core.key
+    
+        for core in cores2:
+            if core.name in key_dict:
+                core.key = key_dict[core.name]
+            else:
+                print(f'WARN: no key for {core.name} from baseline')
+    else:
+        runner2 = make_runner(
+            platform=platform2,
+            working_dir=output_dir,
+            herbie_path=herbie_path,
+            num_inputs=num_points,
+            num_runs=num_runs,
+            threads=threads,
+            key=key,
+            seed=seed
+        )
+        cores2 = runner2.restore_cores()
 
     # extract input fpcores based on `cores1`
-    all_keys = set(map(lambda c: c.key, cores1))
     input_cores = []
     for key in all_keys:
         cached = runner1.cache.get_core(key)
@@ -91,7 +111,7 @@ def main():
 
     # write report
     runner1.write_cross_compile_report(
-        name=runner2.name,
+        name=platform2,
         input_cores=input_cores,
         foreign_cores=cores2,
         platform_frontier=frontier1,
