@@ -136,7 +136,7 @@ def merge_json(output_dir: str, name: str):
 
             info[platform_path.name] = platform_info
         
-    output_dir = Path(output_dir).joinpath('results.json')
+    output_dir = platform_path.joinpath('results.json')
     with open(output_dir, 'w') as f:
         json.dump(info, f)
 

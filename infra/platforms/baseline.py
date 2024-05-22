@@ -51,30 +51,33 @@ def main():
     if seed is None:
         seed = default_seed
 
-    # Handle key
-    working_dir = working_dir.joinpath('baseline')
-    if key is None:
-        working_dir = working_dir.joinpath('default')
-    else:
-        working_dir = working_dir.joinpath(key)
+    # Install directory
+    install_dir = working_dir.joinpath('herbie-2.0')
+    if not install_dir.exists():
+        install_dir.mkdir(parents=True)
 
-    # Create the output directory
-    if not working_dir.exists():
-        working_dir.mkdir(parents=True)
+    # Baseline directory
+    key = 'default' if key is None else key
+    baseline_dir = working_dir.joinpath('baseline', key)
+    if not baseline_dir.exists():
+        baseline_dir.mkdir(parents=True)
 
-    # Subdirectories
-    install_dir = working_dir.joinpath('herbie')
-    report_dir = working_dir.joinpath('report')
+    # Subpaths
+    report_dir = baseline_dir.joinpath('report')
+    json_path = baseline_dir.joinpath('baseline.json')
+
+    report_dir = working_dir.joinpath('baseline', key, 'report')
+    if not report_dir.exists():
+        report_dir.mkdir(parents=True)
 
     # Install Herbie
     install_herbie(install_dir)
 
     # Run Herbie on benchmarks
     run_herbie(bench_path, report_dir, threads, seed)
-    shutil.copy(report_dir.joinpath('results.json'), working_dir.joinpath('baseline.json'))
+    shutil.copy(report_dir.joinpath('results.json'), json_path)
 
     # Reinstall local Herbie and delete directories
-    shutil.rmtree(install_dir)
     shutil.rmtree(report_dir)
     reinstall_herbie()
 

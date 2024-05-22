@@ -168,19 +168,21 @@
            [(list num-points core) (values num-points core)]
            [_ (error 'run-server "sample: malformed arguments ~a" args)]))
        (define test (parse-test (datum->syntax #f core)))
-       (parameterize ([*reeval-pts* num-points])
-         (define result (run-herbie 'sample test #:seed seed #:timeline-disabled? #t))
-         (displayln
-           (match (job-result-status result)
-             ['success
-              (define pctx (job-result-backend result))
-              (string-join
-                 (for/list ([(pt gt) (in-pcontext pctx)])
-                   (string-append
-                     (string-join (map ~s pt) " ")
-                     (format ",~s" gt)))
-                 "|")]
-             [_ #f])))
+       (define result
+         (with-handlers ([exn:fail:user:herbie? (lambda _ #f)])
+           (parameterize ([*reeval-pts* num-points])
+             (define result (run-herbie 'sample test #:seed seed #:timeline-disabled? #t))
+             (match (job-result-status result)
+               ['success
+                (define pctx (job-result-backend result))
+                (string-join
+                  (for/list ([(pt gt) (in-pcontext pctx)])
+                    (string-append
+                      (string-join (map ~s pt) " ")
+                      (format ",~s" gt)))
+                   "|")]
+               [_ #f]))))
+       (displayln result)
        (loop)]
       ; exit
       [(list 'exit) (void)]

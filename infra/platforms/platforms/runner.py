@@ -197,9 +197,11 @@ class Runner(object):
             prec = test['prec']
             pre = test['pre']
             spec = test['spec']
+            status = test['status']
 
-            for expr, cost, err in json_test_outputs(test):
-                json_cores.append((vars, name, prec, pre, spec, expr, cost, err, test))
+            if status != 'error' and status != 'timeout':
+                for expr, cost, err in json_test_outputs(test):
+                    json_cores.append((vars, name, prec, pre, spec, expr, cost, err, test))
 
         # construct FPCores (need to resugar expressions)
         cores = []
