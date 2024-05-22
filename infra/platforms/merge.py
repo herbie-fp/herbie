@@ -15,8 +15,8 @@ def merge_json(output_dir: Path, name: str):
     info = dict()
     cross_pat = re.compile('cross-compile-([^.]*).json')
 
-    platforms_path = output_dir.joinpath('output', name)
-    for platform_path in platforms_path.iterdir():
+    output_dir = output_dir.joinpath('output', name)
+    for platform_path in output_dir.iterdir():
         if platform_path.is_dir():
             platform_info = dict()
             for file_path in platform_path.iterdir():

@@ -142,11 +142,9 @@ class Runner(object):
         self.nary_ops = nary_ops
         self.time_unit = time_unit
 
-        self.driver_dir = self.working_dir.joinpath('drivers', self.name)
-        if key is not None:
-            self.report_dir = self.working_dir.joinpath('output', key, self.name)
-        else:
-            self.report_dir = self.working_dir.joinpath('output', 'default', self.name)
+        key = 'default' if key is None else key
+        self.driver_dir = self.working_dir.joinpath('drivers', key, self.name)
+        self.report_dir = self.working_dir.joinpath('output', key, self.name)
 
         # add empty list of jsons to the class instance
         self.jsons = []
@@ -155,12 +153,13 @@ class Runner(object):
         self.cache = Cache(str(self.working_dir.joinpath('cache')))
         # if the working directories do not exist, create them
         self.log('working directory at `' + str(self.working_dir) + '`')
-        self.log('report directory at `' + str(self.report_dir) + '`')
-
         if not self.driver_dir.exists():
             self.driver_dir.mkdir(parents=True)
+
+        self.log('report directory at `' + str(self.report_dir) + '`')
         if not self.report_dir.exists():
             self.report_dir.mkdir(parents=True)
+    
         # restore cache
         self.cache.restore()
         self.log(f'restored {self.cache.num_cores()} input cores from cache')

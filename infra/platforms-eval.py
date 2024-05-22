@@ -24,14 +24,6 @@ platforms = [
     'avx'
 ]
 
-# Cross-platform comparison
-#  platform1 <- platform2
-cross_compare = [
-    ('c', 'baseline'),
-    ('python', 'baseline'),
-    ('c', 'python')
-]
-
 # Number of input points
 num_tune_points = 10_000
 num_eval_points = 10_000
@@ -111,35 +103,6 @@ def merge_json(output_dir: str, name: str):
         output_dir
     ])
 
-    info = dict()
-    cross_pat = re.compile('cross-compile-([^.]*).json')
-
-    platforms_path = Path(output_dir).joinpath('output', name)
-    for platform_path in platforms_path.iterdir():
-        if platform_path.is_dir():
-            platform_info = dict()
-            for file_path in platform_path.iterdir():
-                if file_path.is_file():
-                    if file_path.name == 'tuning.json':
-                        with open(file_path, 'r') as f:
-                            platform_info['tune'] = json.load(f)
-                    elif file_path.name == 'improve.json':
-                        with open(file_path, 'r') as f:
-                            platform_info['improve'] = json.load(f)
-                    elif file_path.name.startswith('cross-compile'):
-                        matches = re.match(cross_pat, file_path.name)
-                        name = matches.group(1)
-                        if 'compare' not in platform_info:
-                            platform_info['compare'] = dict()
-                        with open(file_path, 'r') as f:
-                            platform_info['compare'][name] = json.load(f)
-
-            info[platform_path.name] = platform_info
-        
-    output_dir = platform_path.joinpath('results.json')
-    with open(output_dir, 'w') as f:
-        json.dump(info, f)
-
 
 def main():
     parser = argparse.ArgumentParser(description='Herbie platforms eval')
@@ -165,7 +128,7 @@ def main():
             num_threads=num_threads
         )
 
-    # run baseline
+    run baseline
     run_baseline(
         name=name,
         bench_path=bench_path,
@@ -173,7 +136,7 @@ def main():
         num_herbie_threads=num_herbie_threads
     )
 
-    # run improvement
+    # run platform-based improvement
     for platform in platforms:
         run_improvement(
             name=name,
@@ -184,15 +147,27 @@ def main():
             num_threads=num_threads
         )
 
-    # run cross-platform comparison
-    for platform1, platform2 in cross_compare:
+    # run baseline comparison
+    for platform in platforms:
         run_cross_compile(
             name=name,
-            platform1=platform1,
-            platform2=platform2,
+            platform1=platform,
+            platform2='baseline',
             output_dir=output_dir,
             num_threads=num_threads
         )
+
+    # run cross-platform comparison
+    for platform1 in platforms:
+        for platform2 in platforms:
+            if platform1 != platform2:
+                run_cross_compile(
+                    name=name,
+                    platform1=platform1,
+                    platform2=platform2,
+                    output_dir=output_dir,
+                    num_threads=num_threads
+                )
 
     # merge report jsons
     merge_json(output_dir=output_dir, name=name)
