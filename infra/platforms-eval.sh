@@ -13,7 +13,6 @@ done
 
 INFRA_DIR="$(cd -P "$(dirname "$src")" && pwd)"
 BENCH_DIR="$INFRA_DIR"/../bench
-HERBIE_THREADS=4
 THREADS=4
 
 # check arguments
@@ -24,42 +23,43 @@ else
   OUTDIR="$(pwd)/$1"
 fi
 
+# advise user of execution plan
+if [ -z "$PARALLEL_SEEDS" ]; then
+  echo "Using Herbie concurrency only."
+  PARALLEL_SEEDS=1
+else
+  # support for exporting bash environment to parallel
+  echo "Using multiple concurrent Herbie runs in parallel."
+  echo "Restricting to $PARALLEL_SEEDS parallel concurrent Herbie runs."
+fi
+
 echo "Running platforms evaluation"
 
 function run() {
   bench=$1
-  key_prefix=$2
-  seed=$3
-
-  # "unique" key
-  key="$key_prefix-$seed"
+  key=$2
+  num_runs=$3
 
   # Generate JSON
-  # python3 $INFRA_DIR/platforms-eval.py \
-  #  <output directory> \
-  #  <benchmark path> \
-  #  <unique key> \
-  #  <herbie threads> \
-  #  <threads>
   python3 $INFRA_DIR/platforms-eval.py \
-    "$OUTDIR/platforms" \
+    --key $key \
+    --parallel $PARALLEL_SEEDS \
+    --threads $THREADS \
     $bench \
-    $key \
-    $HERBIE_THREADS \
-    $THREADS \
-    $seed
+    "$OUTDIR/platforms" \
+    $num_runs
 
   # Plot JSON data
   # python3 $INFRA_DIR/platforms/plot.py \
   #  <eval JSON path> \
   #  <output directory>
-  python3 $INFRA_DIR/platforms/plot.py \
-    $OUTDIR/platforms/output/$key/results.json \
-    $OUTDIR/platforms/output/$key
+  # python3 $INFRA_DIR/platforms/plot.py \
+  #   $OUTDIR/platforms/output/$key/results.json \
+  #   $OUTDIR/platforms/output/$key
 }
 
 # Run configs
-run $BENCH_DIR/hamming hamming 100
+run $BENCH_DIR/hamming hamming 4
 
 # clean up cache and build files
 if [ -n "$RM_CACHE" ]; then

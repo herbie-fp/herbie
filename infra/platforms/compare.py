@@ -90,10 +90,9 @@ def main():
     # extract input fpcores based on `cores1`
     input_cores = []
     for key in all_keys:
-        cached = runner1.cache.get_core(key)
-        if cached is None:
+        core = runner1.cache.get_core(key)
+        if core is None:
             raise ValueError(f'no input FPCore cached with {key}')
-        core, _ = cached
         input_cores.append(core)
 
     runner1.herbie_cost(cores=input_cores)

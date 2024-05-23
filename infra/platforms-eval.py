@@ -1,192 +1,74 @@
-import subprocess
 import argparse
 import os
+import multiprocessing as mp
+
+from subprocess import Popen, PIPE, STDOUT
 
 # Paths
 script_path = os.path.abspath(__file__)
 script_dir, _ = os.path.split(script_path)
-tune_path = os.path.join(script_dir, 'platforms', 'tune.py')
-improve_path = os.path.join(script_dir, 'platforms', 'improve.py')
-compare_path = os.path.join(script_dir, 'platforms', 'compare.py')
-baseline_path = os.path.join(script_dir, 'platforms', 'baseline.py')
-merge_path = os.path.join(script_dir, 'platforms', 'merge.py')
+run_path = os.path.join(script_dir, 'platforms', 'run.py')
+curr_dir = os.getcwd()
 
-#############################
-# Configuration
+# Defaults
+default_key = 'default'
+default_num_parallel = 1
+default_num_threads = 1
+default_start_seed = 1
 
-# Tuning and improvement
-platforms = [
-    'c',
-    'python',
-    'avx'
-]
-
-# Number of input points
-num_tune_points = 10_000
-num_eval_points = 10_000
-
-# Runners
-
-def run_tuning(
-    name: str,
-    platform: str,
-    output_dir: str,
-    num_threads: int,
-    seed: int
-) -> None:
-    print(f'Tuning eval for `{platform}`')
-    subprocess.run([
-        'python3', tune_path,
-         '--threads', str(num_threads),
-         '--num-points', str(num_tune_points),
-         '--key', name,
-         '--seed', str(seed),
-         platform,
-         output_dir
-    ])
-    
-def run_baseline(
-    name: str,
+def run_seed(
     bench_path: str,
     output_dir: str,
-    num_herbie_threads: int,
-    seed: int,
-) -> None:
-    print(f'Baseline eval')
-    subprocess.run([
-        'python3', baseline_path,
-         '--threads', str(num_herbie_threads),
-         '--key', name,
-         '--seed', str(seed),
-         bench_path,
-         output_dir,
-    ])
-
-
-def run_improvement(
-    name: str,
-    platform: str,
-    bench_dir: str,
-    output_dir: str,
-    num_herbie_threads: int,
+    key: str,
     num_threads: int,
     seed: int
 ) -> None:
-    print(f'Improvement eval for `{platform}`')
-    subprocess.run([
-        'python3', improve_path, 
-        '--threads', str(num_threads),
-        '--num-points', str(num_eval_points),
-        '--herbie-threads', str(num_herbie_threads),
-        '--key', name,
-        '--seed', str(seed),
-        platform,
-        bench_dir,
-        output_dir
-    ])
+    cmd = [
+        'python3', run_path,
+        bench_path,
+        output_dir,
+        key,
+        str(num_threads),
+        str(num_threads),
+        str(seed)
+    ]
 
-def run_cross_compile(
-    name: str,
-    platform1: str,
-    platform2: str,
-    output_dir: str,
-    num_threads: int,
-    seed: int
-) -> None:
-    print(f'Compare eval for `{platform1}` <- `{platform2}`')
-    subprocess.run([
-        'python3', compare_path, 
-        '--threads', str(num_threads),
-        '--key', name,
-        '--seed', str(seed),
-        platform1,
-        platform2,
-        output_dir
-    ])
-
-
-def merge_json(output_dir: str, name: str):
-    subprocess.run([
-        'python3', merge_path,
-        '--key', name,
-        output_dir
-    ])
+    p = Popen(cmd, stdout=PIPE, stderr=STDOUT)
+    stdout, _ = p.communicate()
+    print(stdout.decode('utf-8').strip(), end='')
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Herbie platforms eval')
-    parser.add_argument('output_dir', help='directory to emit all working files', type=str)
+    parser = argparse.ArgumentParser(description='Parallel evaluation runner')
     parser.add_argument('bench_path', help='path of Herbie benchmarks', type=str)
-    parser.add_argument('name', help='unique name of run', type=str)
-    parser.add_argument('herbie_threads', help='number of Herbie threads', type=int)
-    parser.add_argument('threads', help='number of multiprocessing threads', type=int)
-    parser.add_argument('seed', help='Herbie seed', type=int)
+    parser.add_argument('output_dir', help='directory to emit all working files', type=str)
+    parser.add_argument('num_seeds', help='number of seeds to run', type=int)
+    parser.add_argument('--key', help='unique identifier for run [default: \'default\']', type=str)
+    parser.add_argument('--parallel', help='maximum number of parallel runs [default: 1]', type=int)
+    parser.add_argument('--threads', help='maximum number of threads [default: 1]', type=int)
+    parser.add_argument('--start-seed', help='first seed to run (sequentially) [default: 1]', type=int)
     args = parser.parse_args()
 
-    output_dir: str = args.output_dir
-    bench_path: str = args.bench_path
-    name: str = args.name
-    num_herbie_threads: int = args.herbie_threads
-    num_threads: int = args.threads
-    seed: int = args.seed
+    # extract command line arguments
+    bench_path: str = os.path.join(curr_dir, args.bench_path)
+    output_dir: str = os.path.join(curr_dir, args.output_dir)
+    num_seeds: int = args.num_seeds
+    key: str = args.key or default_key
+    num_parallel: int = args.parallel or default_num_parallel
+    num_threads: int = args.threads or default_num_threads
+    start_seed: int = args.start_seed or default_start_seed
 
-    # run tuning
-    # for platform in platforms:
-    #     run_tuning(
-    #         name=name,
-    #         platform=platform,
-    #         output_dir=output_dir,
-    #         num_threads=num_threads,
-    #         seed=seed
-    #     )
+    # parallel configurations
+    configs = []
+    for seed in range(start_seed, start_seed + num_seeds):
+        configs.append((bench_path, output_dir, f'{key}-{seed}', num_threads, seed))
 
-    # run baseline
-    run_baseline(
-        name=name,
-        bench_path=bench_path,
-        output_dir=output_dir,
-        num_herbie_threads=num_herbie_threads,
-        seed=seed
-    )
-
-    # run platform-based improvement
-    for platform in platforms:
-        run_improvement(
-            name=name,
-            platform=platform,
-            bench_dir=bench_path,
-            output_dir=output_dir,
-            num_herbie_threads=num_herbie_threads,
-            num_threads=num_threads,
-            seed=seed
-        )
-
-    # run baseline comparison
-    for platform in platforms:
-        run_cross_compile(
-            name=name,
-            platform1=platform,
-            platform2='baseline',
-            output_dir=output_dir,
-            num_threads=num_threads,
-            seed=seed
-        )
-
-    # run cross-platform comparison
-    for platform1 in platforms:
-        for platform2 in platforms:
-            if platform1 != platform2:
-                run_cross_compile(
-                    name=name,
-                    platform1=platform1,
-                    platform2=platform2,
-                    output_dir=output_dir,
-                    num_threads=num_threads,
-                    seed=seed
-                )
-
-    # merge report jsons
-    merge_json(output_dir=output_dir, name=name)
+    # run parallel
+    if num_parallel > 1:
+        with mp.Pool(processes=num_parallel) as pool:
+            pool.starmap(run_seed, configs)
+    else:
+        map(run_seed, configs)
 
 
 if __name__ == "__main__":

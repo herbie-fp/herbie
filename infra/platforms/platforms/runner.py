@@ -266,6 +266,7 @@ class Runner(object):
 
                     core = parse_core(core_str.strip())
                     core.key = sanitize_name(f'file:{str(path)}:{id}')
+                    self.cache.put_core(core)
                     cores.append(core)
             return cores
         else:
@@ -621,7 +622,11 @@ class Runner(object):
                 'platform_cores': platform_core_reports
             })
 
-        report = { 'cores': core_reports, 'frontier': frontier }
+        report = {
+            'seed': self.seed,
+            'cores': core_reports,
+            'frontier': frontier
+        }
 
         path = self.report_dir.joinpath('improve.json')
         with open(path, 'w') as _file:
@@ -652,6 +657,7 @@ class Runner(object):
             })
 
         report = {
+            'seed': self.seed,
             'cores': core_reports,
             'frontier1': platform_frontier,
             'frontier2': foreign_frontier
@@ -670,8 +676,9 @@ class Runner(object):
     ) -> None:
         """Writes baseline data to a JSON file."""
         data = {
-            "frontier": frontier,
-            "baseline_frontier": baseline_frontier
+            'seed': self.seed,
+            'frontier': frontier,
+            'baseline_frontier': baseline_frontier
         }
         path = self.report_dir.joinpath("baseline_report.json")
         with open(path, "w") as _file:
