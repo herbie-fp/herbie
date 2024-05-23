@@ -8,9 +8,9 @@ import multiprocessing as mp
 import shutil
 import json
 
-from .cache import Cache, sanitize_name
+from .cache import Cache
 from .fpcore import FPCore, parse_core
-from .util import sample_repr, py_to_racket, racket_to_py
+from .util import sample_repr, py_to_racket, racket_to_py, sanitize_name
 
 def baseline() -> FPCore:
     return FPCore(core='(FPCore () :name "baseline" 0)', key='synth:baseline', name='baseline', argc=0, override=True)
@@ -156,11 +156,10 @@ class Runner(object):
         self.driver_dir = self.working_dir.joinpath('drivers', key, self.name)
         self.report_dir = self.working_dir.joinpath('output', key, self.name)
 
-        # add empty list of jsons to the class instance
+        # mutable data
+        self.cache = Cache(self.working_dir.joinpath('cache'))
         self.jsons = []
 
-        # mutable data
-        self.cache = Cache(str(self.working_dir.joinpath('cache')))
         # if the working directories do not exist, create them
         self.log('working directory at `' + str(self.working_dir) + '`')
         if not self.driver_dir.exists():
@@ -169,13 +168,10 @@ class Runner(object):
         self.log('report directory at `' + str(self.report_dir) + '`')
         if not self.report_dir.exists():
             self.report_dir.mkdir(parents=True)
-    
-        # restore cache
-        self.cache.restore()
-        self.log(f'restored {self.cache.num_cores()} input cores from cache')
-        self.log(f'restored {self.cache.num_platform_cores()} platform cores from cache')
+
         self.log(f'using seed {self.seed}')
-    
+
+
     def log(self, msg: str, *args):
         """Logging routine for this runner."""
         print(f'[Runner:{self.name}]:', msg, *args)
@@ -380,7 +376,9 @@ class Runner(object):
         # assuming all FPCores have names at this point
         configs = []
         for core in cores:
-            _, sample = self.cache.get_core(core.key)
+            sample = self.cache.get_sample(core.key, self.seed)
+            if sample is None:
+                raise ValueError(f'Cannot find cached sample for {core.key}')
             configs.append((core, sample, self.herbie_path, self.name, self.seed))
 
         with mp.Pool(processes=self.threads) as pool:
@@ -402,26 +400,17 @@ class Runner(object):
         if platform is None:
             platform = self.name
 
-        # TODO: embed key in the FPCore so it can be recovered
-        uncached = []
-        num_cached = 0
-        key_dict = dict()
-        gen_dict = dict()
+        # get mapping from name to key
+        name_to_key = dict()
         for core in cores:
-            if core.name in gen_dict:
+            if core.name in name_to_key:
                 raise RuntimeError(f'Duplicate key {core.name}')
-            key_dict[core.name] = core.key
+            name_to_key[core.name] = core.key
 
-            maybe_cached = self.cache.get_platform_core(platform, core.key)
-            if maybe_cached is None:
-                uncached.append(core)
-                gen_dict[core.key] = []
-            else:
-                num_cached += len(maybe_cached)
-                gen_dict[core.key] = maybe_cached  
-
+        # run Herbie
+        gen_cores: List[FPCore] = []
         num_improved = 0
-        if len(uncached) > 0:
+        if len(cores) > 0:
             with Popen(
                 args=[
                 'racket', str(self.herbie_path),
@@ -433,7 +422,7 @@ class Runner(object):
                 universal_newlines=True) as server:
 
                 # call out to server
-                core_strs = ' '.join(map(lambda c: c.core, uncached))
+                core_strs = ' '.join(map(lambda c: c.core, cores))
                 print(f'(improve ({core_strs}) {threads} {self.report_dir}) (exit)', file=server.stdin, flush=True)
                 _ = server.stdout.read()
 
@@ -441,17 +430,11 @@ class Runner(object):
             json_path = self.report_dir.joinpath('herbie.json')
             impl_cores = self.load_json(json_path)
             for core in impl_cores:
-                core.key = key_dict[core.name]
-                gen_dict[core.key].append(core)
+                core.key = name_to_key[core.name]
+                gen_cores.append(core)
                 num_improved += 1
 
-        gen_cores = []
-        for key in gen_dict:
-            cores = gen_dict[key]
-            self.cache.write_platform_core(platform, key, cores)
-            gen_cores += cores
-
-        self.log(f'generated {num_improved} FPCores with Herbie ({num_cached} cached)')
+        self.log(f'generated {len(gen_cores)} FPCores with Herbie')
         return gen_cores
 
 
@@ -507,11 +490,10 @@ class Runner(object):
         samples = []
         num_cached = 0
         for core in cores:
-            maybe_cached = self.cache.get_core(core.key)
-            if maybe_cached is None:
+            sample = self.cache.get_sample(core.key, self.seed)
+            if sample is None:
                 samples.append(None)
             else:
-                _, sample = maybe_cached
                 input_points, _ = sample
                 if len(input_points) == 0:
                     # no inputs
@@ -541,7 +523,7 @@ class Runner(object):
                 samples[i] = gen_samples[0]
                 gen_samples = gen_samples[1:]
                 if samples[i] is not None:
-                    self.cache.write_core(core, samples[i])
+                    self.cache.put_sample(core.key, self.seed, samples[i])
                 else:
                     self.log(f'could not sample {core.name}')
 
