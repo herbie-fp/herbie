@@ -4,7 +4,7 @@
          rival)
 
 (require "syntax/types.rkt"
-         "common.rkt"
+         "common.rkt" "float.rkt"
          "compiler.rkt" "timeline.rkt")
 
 (provide eval-progs-real
@@ -12,43 +12,66 @@
          ival-eval
          make-search-func)
 
+(struct discretization (convert distance))
+
+(define bool-discretization
+  (discretization identity
+                  (lambda (x y) (if (eq? x y) 0 1))))
+
+(define (representation->discretization repr)
+  (discretization
+   (representation-bf->repr repr)
+   (lambda (x y) (- (ulp-difference x y repr) 1))))
+
 (define ground-truth-require-convergence (make-parameter #t))
 
-(define (is-samplable-interval repr interval)
-  (define <-bf (representation-bf->repr repr))
+(define (is-samplable-interval disc interval)
+  (define convert (discretization-convert disc))
+  (define distance (discretization-distance disc))
   (define (close-enough? lo hi)
-    (let ([lo* (<-bf lo)] [hi* (<-bf hi)])
-      (or (equal? lo* hi*) (and (number? lo*) (= lo* hi*)))))
+    (= (distance (convert lo) (convert hi)) 0))
   ((close-enough->ival close-enough?) interval))
 
+(define (rival-compile exprs vars discs)
+  (define fns (compile-specs exprs vars))
+  (define outlen (length exprs))
+  (define (rival-compiled inputs)
+    (define outvec (apply fns inputs))
+    (for/vector #:length outlen ([y (in-vector outvec)] [disc (in-list discs)])
+      (ival-then
+       ; The two `invalid` ones have to go first, because later checks
+       ; can error if the input is erroneous
+       (ival-assert (ival-not (ival-error? y)) 'invalid)
+       ; 'infinte case handle in `ival-eval`
+       (ival-assert
+        (if (ground-truth-require-convergence)
+            (is-samplable-interval disc y)
+            (ival (ival-hi (is-samplable-interval disc y))))
+        'unsamplable)
+       y)))
+  rival-compiled)
 
 ;; Returns a function that maps an ival to a list of ivals
 ;; The first element of that function's output tells you if the input is good
 ;; The other elements of that function's output tell you the output values
 (define (make-search-func pre specs ctxs)
-  (define fns (compile-specs (cons pre specs) (context-vars (car ctxs))))
-  ; inputs can either be intervals or representation values
+  (define vars (context-vars (car ctxs)))
+  (define var-reprs (context-var-reprs (car ctxs)))
+  (define discs (map (compose representation->discretization context-repr) ctxs))
+  (define compiled (rival-compile (cons pre specs) vars (cons bool-discretization discs)))
   (define (compiled-spec . inputs)
+    ; inputs can either be intervals or representation values
     (define inputs*
-      (for/list ([input (in-list inputs)]
-                 [repr (context-var-reprs (car ctxs))])
+      (for/list ([input (in-list inputs)] [repr (in-list var-reprs)])
         (if (ival? input) input (ival ((representation-repr->bf repr) input)))))
-    (define outvec (apply fns inputs*))
+    (define outvec (compiled inputs*))
     (define ival-pre (vector-ref outvec 0))
     (for/list ([y (in-vector outvec 1)] [ctx (in-list ctxs)])
-      (define repr (context-repr ctx))
       (ival-then
        ; The two `invalid` ones have to go first, because later checks
        ; can error if the input is erroneous
-       (ival-assert (ival-not (ival-error? y)) 'invalid)
        (ival-assert (ival-not (ival-error? ival-pre)) 'invalid)
        (ival-assert ival-pre 'precondition)
-       ; 'infinte case handle in `ival-eval`
-       (ival-assert
-        (if (ground-truth-require-convergence)
-            (is-samplable-interval repr y)
-            (ival (ival-hi (is-samplable-interval repr y))))
-        'unsamplable)
        y)))
   compiled-spec)
 
