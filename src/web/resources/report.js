@@ -106,16 +106,15 @@ const ClientGraph = new Component('#graphs', {
         for (const key in this.points_json.error) {
             const error_type = this.points_json.error[key][0]
             const line = colors[i % colors.length].line
-
+            
             let description
-
+            
             if (error_type === "start") {
                 description = "Initial program"
             } else if (error_type === "end") {
                 description = "Most accurate alternative"
             } else {
-                // target is 6 letters
-                description = "Developer Target " + error_type.slice(6)
+                description = "Developer Target " + error_type.slice("target".length)
             }
 
             curr_list.push( Element("label", [
@@ -272,16 +271,18 @@ const CostAccuracy = new Component('#cost-accuracy', {
         for (let test of results_json.tests) {
             if (test.name == this.elt.dataset.benchmarkName) {
                 let [initial_pt, best_pt, rest_pts] = test["cost-accuracy"];
-                let target_pt = test["target"] && [this.elt.dataset.targetCost, test["target"]]
+
+                let target_pts = test["target"]
                 rest_pts = [best_pt].concat(rest_pts)
-                $svg.replaceWith(await this.plot(test, initial_pt, target_pt, rest_pts));
-                $tbody.replaceWith(await this.tbody(test, initial_pt, target_pt, rest_pts));
+
+                $svg.replaceWith(await this.plot(test, initial_pt, target_pts, rest_pts));
+                $tbody.replaceWith(await this.tbody(test, initial_pt, target_pts, rest_pts));
                 break;
             }
         }
     },
 
-    plot: async function(benchmark, initial_pt, target_pt, rest_pts) {
+    plot: async function(benchmark, initial_pt, target_pts, rest_pts) {
         const bits = benchmark["bits"];
 
         // The line differs from rest_pts in two ways:
@@ -314,7 +315,7 @@ const CostAccuracy = new Component('#cost-accuracy', {
                     y: d => 1 - d[1]/bits,
                     stroke: "#d00", symbol: "square", strokeWidth: 2
                 }),
-                target_pt && Plot.dot([target_pt], {
+                target_pts && Plot.dot(target_pts, {
                     x: d => initial_pt[0]/d[0],
                     y: d => 1 - d[1]/bits,
                     stroke: "#080", symbol: "circle", strokeWidth: 2
@@ -331,7 +332,7 @@ const CostAccuracy = new Component('#cost-accuracy', {
         return out
     },
 
-    tbody: async function(benchmark, initial_pt, target_pt, rest_pts) {
+    tbody: async function(benchmark, initial_pt, target_pts, rest_pts) {
         const bits = benchmark["bits"];
         const initial_accuracy = 100*(1 - initial_pt[1]/bits);
 
@@ -357,11 +358,19 @@ const CostAccuracy = new Component('#cost-accuracy', {
                     Element("td", { className: speedup >= 1 ? "better" : "" },
                             speedup.toFixed(1) + "×")
             ])}),
-            target_pt && Element("tr", [
-                Element("th", "Developer target"),
-                Element("td", 100 * (1 - target_pt[1]/bits).toFixed(1) + "%"),
-                Element("td", (initial_pt[0] / target_pt[0]).toFixed(1) + "×"),
-            ]),
+
+            target_pts && target_pts.map((d, i) => {
+                let accuracy = 100*(1 - d[1]/bits);
+                let speedup = initial_pt[0]/d[0];
+                return Element("tr", [
+                    Element("th", 
+                        Element("a", { href: "#target" + (i + 1)},
+                            "Developer Target " + (i + 1))),
+                    Element("td", { className: accuracy >= initial_accuracy ? "better" : "" },
+                            accuracy.toFixed(1) + "%"),
+                    Element("td", { className: speedup >= 1 ? "better" : "" },
+                            speedup.toFixed(1) + "×")
+            ])}),
         ]);
     }
 });
