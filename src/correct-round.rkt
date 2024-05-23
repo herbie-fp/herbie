@@ -139,7 +139,7 @@
 
 ;; Like `compile-specs`, but for a single spec.
 (define (compile-spec spec vars repr)
-  (define core (compile-specs (list spec) vars))
+  (define core (compile-specs (list spec) vars repr))
   (define (compiled-spec . xs) (vector-ref (apply core xs) 0))
   compiled-spec)
 
