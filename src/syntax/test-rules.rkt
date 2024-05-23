@@ -74,14 +74,10 @@
     (for/list ([v (in-list fv)])
       (random-generate (dict-ref itypes v))))
   (define points (build-list (num-test-points) make-point))
-  (define prog1 (compile-prog p1 ctx))
-  (define prog2 (compile-prog p2 ctx))
-  (define ex1 (map (curry apply prog1) points))
-  (define ex2 (map (curry apply prog2) points))
+  (define prog (compile-progs (list p1 p2) ctx))
   (for ([pt points])
     (with-check-info (['point (map list fv pt)])
-      (define v1 (apply prog1 pt))
-      (define v2 (apply prog1 pt))
+      (match-define (vector v1 v2) (apply prog pt))
       (check-equal? v1 v2))))
 
 (module+ main
