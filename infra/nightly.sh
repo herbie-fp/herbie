@@ -33,7 +33,7 @@ RECURSE=1 LOG=1 \
     "$BENCH_DIR" "$OUT_DIR" \
     --profile \
     --seed "$SEED" \
-    --threads "$CORES" \
+    --threads 1 \
     --disable setup:simplify \
     --num-iters 0 \
     $FLAGS
