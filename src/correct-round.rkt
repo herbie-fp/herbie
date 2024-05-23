@@ -138,7 +138,7 @@
   (make-compiler specs vars repr))
 
 ;; Like `compile-specs`, but for a single spec.
-(define (compile-spec spec vars)
+(define (compile-spec spec vars repr)
   (define core (compile-specs (list spec) vars))
   (define (compiled-spec . xs) (vector-ref (apply core xs) 0))
   compiled-spec)

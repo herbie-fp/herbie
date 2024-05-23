@@ -64,7 +64,7 @@
   (define ruleset-name (sym-append name '-accelerator))
   (define define-name (sym-append name '-define))
   (define undefine-name (sym-append name '-undefine))
-  (define ival-fn (compile-spec body vars))
+  (define ival-fn (compile-spec body vars otype))
   (define info (accelerator name itypes otype spec))
   (hash-set! accelerators name info)
   (register-operator! name itypes otype (list (cons 'ival ival-fn)))
