@@ -3,7 +3,7 @@
          (only-in fpbench fpcore? supported-by-lang?
                           core->c core->fortran core->java core->python
                           core->julia core->matlab core->wls core->tex
-                          expr->tex
+                          expr->tex core->js
                           compilers
                           [core-common-subexpr-elim core-cse]
                           *expr-cse-able?*))
@@ -16,7 +16,8 @@
          format-percent doc-url
          fpcore->string
          program->fpcore program->tex render-reproduction js-tex-include
-         core->c core->fortran core->java core->python core->julia core->matlab core->wls core->tex expr->tex)
+         core->c core->fortran core->java core->python core->julia 
+         core->matlab core->wls core->tex expr->tex core->js)
 
 (define (program->fpcore expr ctx #:ident [ident #f])
   (define body (prog->fpcore expr (context-repr ctx)))

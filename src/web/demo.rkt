@@ -571,12 +571,13 @@
         [("matlab") core->matlab]
         [("wls") core->wls]
         [("tex") core->tex]
-        [("expr->tex") expr->tex]
-        [else (lambda (x) (error "Unsupported language"))]))
+        [("expr->tex") expr->tex] ;errors out
+        [("js") core->js]
+        [else (error "Unsupported target language:" target-lang)]))
 
       (eprintf "Lang converter defined...\n")
       ; convert the expression
-      (define converted (lang-converter formula "foo"))
+      (define converted (lang-converter formula "expr"))
       (eprintf "Converted Expression ~a...\n" converted)
       (hasheq 'result converted
               'lang target-lang))))
