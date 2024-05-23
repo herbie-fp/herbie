@@ -5,42 +5,42 @@
   :name "Simplification of discriminant from scale-rotated-ellipse"
   (let* ([θ (* (/ angle 180) PI)]
          [F (* (* b a) (* b (- a)))]
-         [A (/ (+ (pow (* a (sin θ)) 2) (pow (* b (cos θ)) 2))
-                x-scale x-scale)]
-         [B (/ (* 2 (- (pow b 2) (pow a 2)) (sin θ) (cos θ))
-                x-scale y-scale)]
-         [C (/ (+ (pow (* a (cos θ)) 2) (pow (* b (sin θ)) 2))
-                y-scale y-scale)])
-        (- (* B B) (* 4 A C))))
+         [A (/ (/ (+ (pow (* a (sin θ)) 2) (pow (* b (cos θ)) 2))
+                x-scale) x-scale)]
+         [B (/ (/ (* (* (* 2 (- (pow b 2) (pow a 2))) (sin θ)) (cos θ))
+                x-scale) y-scale)]
+         [C (/ (/ (+ (pow (* a (cos θ)) 2) (pow (* b (sin θ)) 2))
+                y-scale) y-scale)])
+        (- (* B B) (* (* 4 A) C))))
 
 
 (FPCore (a b angle x-scale y-scale)
   :name "raw-angle from scale-rotated-ellipse"
   (let* ([θ (* (/ angle 180) PI)]
          [F (* (* b a) (* b (- a)))]
-         [A (/ (+ (pow (* a (sin θ)) 2) (pow (* b (cos θ)) 2))
-                x-scale x-scale)]
-         [B (/ (* 2 (- (pow b 2) (pow a 2)) (sin θ) (cos θ))
-                x-scale y-scale)]
-         [C (/ (+ (pow (* a (cos θ)) 2) (pow (* b (sin θ)) 2))
-                y-scale y-scale)]
+         [A (/ (/ (+ (pow (* a (sin θ)) 2) (pow (* b (cos θ)) 2))
+                x-scale) x-scale)]
+         [B (/ (/ (* (* (* 2 (- (pow b 2) (pow a 2))) (sin θ)) (cos θ))
+                x-scale) y-scale)]
+         [C (/ (/ (+ (pow (* a (cos θ)) 2) (pow (* b (sin θ)) 2))
+                y-scale) y-scale)]
          [B^2-4AC (/ (* 4 F) (pow (* x-scale y-scale) 2))]
-         [q (* 2 B^2-4AC F)]
+         [q (* (* 2 B^2-4AC) F)]
          [r (sqrt (+ (pow (- A C) 2) (pow B 2)))])
-        (* 180 (/ (atan (* (/ (- C A r) B))) PI))))
+        (* 180 (/ (atan (/ (- (- C A) r) B)) PI))))
 
 (FPCore (a b angle x-scale y-scale)
   :name "a from scale-rotated-ellipse"
   (let* ([θ (* (/ angle 180) PI)]
          [F (* (* b a) (* b (- a)))]
-         [A (/ (+ (pow (* a (sin θ)) 2) (pow (* b (cos θ)) 2))
-                x-scale x-scale)]
-         [B (/ (* 2 (- (pow b 2) (pow a 2)) (sin θ) (cos θ))
-                x-scale y-scale)]
-         [C (/ (+ (pow (* a (cos θ)) 2) (pow (* b (sin θ)) 2))
-                y-scale y-scale)]
+         [A (/ (/ (+ (pow (* a (sin θ)) 2) (pow (* b (cos θ)) 2))
+                x-scale) x-scale)]
+         [B (/ (/ (* (* (* 2 (- (pow b 2) (pow a 2))) (sin θ)) (cos θ))
+                x-scale) y-scale)]
+         [C (/ (/ (+ (pow (* a (cos θ)) 2) (pow (* b (sin θ)) 2))
+                y-scale) y-scale)]
          [B^2-4AC (/ (* 4 F) (pow (* x-scale y-scale) 2))]
-         [q (* 2 B^2-4AC F)]
+         [q (* (* 2 B^2-4AC) F)]
          [r (sqrt (+ (pow (- A C) 2) (pow B 2)))])
         (/ (- (sqrt (* q (+ (+ A C) r))))
          B^2-4AC)))
@@ -49,14 +49,14 @@
   :name "b from scale-rotated-ellipse"
   (let* ([θ (* (/ angle 180) PI)]
          [F (* (* b a) (* b (- a)))]
-         [A (/ (+ (pow (* a (sin θ)) 2) (pow (* b (cos θ)) 2))
-                x-scale x-scale)]
-         [B (/ (* 2 (- (pow b 2) (pow a 2)) (sin θ) (cos θ))
-                x-scale y-scale)]
-         [C (/ (+ (pow (* a (cos θ)) 2) (pow (* b (sin θ)) 2))
-                y-scale y-scale)]
+         [A (/ (/ (+ (pow (* a (sin θ)) 2) (pow (* b (cos θ)) 2))
+                x-scale) x-scale)]
+         [B (/ (/ (* (* (* 2 (- (pow b 2) (pow a 2))) (sin θ)) (cos θ))
+                x-scale) y-scale)]
+         [C (/ (/ (+ (pow (* a (cos θ)) 2) (pow (* b (sin θ)) 2))
+                y-scale) y-scale)]
          [B^2-4AC (/ (* 4 F) (pow (* x-scale y-scale) 2))]
-         [q (* 2 B^2-4AC F)]
+         [q (* (* 2 B^2-4AC) F)]
          [r (sqrt (+ (pow (- A C) 2) (pow B 2)))])
         (/ (- (sqrt (* q (- (+ A C) r))))
        B^2-4AC)))
@@ -69,7 +69,7 @@
 
 (FPCore (a b angle)
   :name "ab-angle->ABCF B"
-  (* 2 (- (pow b 2) (pow a 2)) (sin (* PI (/ angle 180))) (cos (* PI (/ angle 180)))))
+  (* (* (* 2 (- (pow b 2) (pow a 2))) (sin (* PI (/ angle 180)))) (cos (* PI (/ angle 180)))))
 
 (FPCore (a b angle)
   :name "ab-angle->ABCF C"
@@ -77,18 +77,18 @@
 
 (FPCore (a b)
   :name "ab-angle->ABCF D"
-  (- (* a a b b)))
+  (- (* (* (* a a) b) b)))
 
 
 (FPCore (A B C)
   :name "ABCF->ab-angle angle"
   (let ([r (sqrt (+ (pow (- A C) 2) (pow B 2)))])
     (* 180
-      (/ (atan (* (/ 1 B) (- C A r))) PI))))
+      (/ (atan (* (/ 1 B) (- (- C A) r))) PI))))
 
 (FPCore (A B C F)
   :name "ABCF->ab-angle a"
-  (let* ([B2-4AC (- (pow B 2) (* 4 A C))]
+  (let* ([B2-4AC (- (pow B 2) (* (* 4 A) C))]
          [q (* 2 (* B2-4AC F))]
          [r (sqrt (+ (pow (- A C) 2) (pow B 2)))])
          (/ (- (sqrt (* q (+ (+ A C) r))))
@@ -97,7 +97,7 @@
 
 (FPCore (A B C F)
   :name "ABCF->ab-angle b"
-  (let* ([B2-4AC (- (pow B 2) (* 4 A C))]
+  (let* ([B2-4AC (- (pow B 2) (* (* 4 A) C))]
          [q (* 2 (* B2-4AC F))]
          [r (sqrt (+ (pow (- A C) 2) (pow B 2)))])
          (/ (- (sqrt (* q (- (+ A C) r))))
@@ -105,11 +105,11 @@
 
 (FPCore (eh ew t )
  :name "Example from Robby"
- (let ([t1 (atan (/ eh ew (tan t)))])
-  (fabs (+ (* ew (sin t) (cos t1)) (* eh (cos t) (sin t1))))))
+ (let ([t1 (atan (/ (/ eh ew) (tan t)))])
+  (fabs (+ (* (* ew (sin t)) (cos t1)) (* (* eh (cos t)) (sin t1))))))
 
 (FPCore (eh ew t)
   :name "Example 2 from Robby"
   (let ([t2 (atan (/ (* (- eh) (tan t)) ew))])
-    (fabs (- (* ew (cos t) (cos t2)) (* eh (sin t) (sin t2))))))
+    (fabs (- (* (* ew (cos t)) (cos t2)) (* (* eh (sin t)) (sin t2))))))
   
