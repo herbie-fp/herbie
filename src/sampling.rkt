@@ -172,9 +172,7 @@
   (timeline-event! 'analyze)
   (define fn (make-search-func pre exprs ctxs))
   (match-define (cons sampler table)
-    (parameterize ([ground-truth-require-convergence #f])
-      ;; TODO: Should make-sampler allow multiple contexts?
-      (make-sampler (first ctxs) pre fn)))
+    (make-sampler (first ctxs) pre fn))
   (timeline-event! 'sample)
   (match-define (cons table2 results) (batch-prepare-points fn ctxs sampler))
   (define total (apply + (hash-values table2)))

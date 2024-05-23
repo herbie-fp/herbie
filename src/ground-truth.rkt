@@ -10,18 +10,14 @@
 (provide eval-progs-real
          ground-truth-require-convergence 
          ival-eval
-         make-search-func)
+         make-search-func
+         rival-analyze)
 
 (struct discretization (convert distance))
 
 (define bool-discretization
   (discretization identity
                   (lambda (x y) (if (eq? x y) 0 1))))
-
-(define (representation->discretization repr)
-  (discretization
-   (representation-bf->repr repr)
-   (lambda (x y) (- (ulp-difference x y repr) 1))))
 
 (define ground-truth-require-convergence (make-parameter #t))
 
@@ -56,30 +52,10 @@
 (struct exn:rival:invalid exn:fail ())
 (struct exn:rival:unsamplable exn:fail ())
 
-;; Returns a function that maps an ival to a list of ivals
-;; The first element of that function's output tells you if the input is good
-;; The other elements of that function's output tell you the output values
-(define (make-search-func pre specs ctxs)
-  (define vars (context-vars (car ctxs)))
-  (define var-reprs (context-var-reprs (car ctxs)))
-  (define discs (map (compose representation->discretization context-repr) ctxs))
-  (define compiled
-    (rival-machine-fn (rival-compile (cons pre specs) vars (cons bool-discretization discs))))
-  (define (compiled-spec . inputs)
-    ; inputs can either be intervals or representation values
-    (define inputs*
-      (for/list ([input (in-list inputs)] [repr (in-list var-reprs)])
-        (if (ival? input) input (ival ((representation-repr->bf repr) input)))))
-    (define outvec (compiled inputs*))
-    (define ival-pre (vector-ref outvec 0))
-    (for/list ([y (in-vector outvec 1)] [ctx (in-list ctxs)])
-      (ival-then
-       ; The two `invalid` ones have to go first, because later checks
-       ; can error if the input is erroneous
-       (ival-assert (ival-not (ival-error? ival-pre)) 'invalid)
-       (ival-assert ival-pre 'precondition)
-       y)))
-  compiled-spec)
+(define (ival-any-error? ivals)
+  (for/fold ([out (ival-error? (vector-ref ivals 0))])
+            ([iv (in-vector ivals 1)])
+    (ival-or (ival-error? iv))))
 
 (define rival-profile-iterations-taken 0)
 
@@ -87,11 +63,11 @@
   (match-define (rival-machine fn discs) machine)
   (let loop ([iter 0])
     (set! rival-profile-iterations-taken iter)
-    (define exs (parameterize ([*sampling-iteration* iter]) (apply fn pt)))
-    (match-define (ival err err?)
-      (for/fold ([out (ival-error? (vector-ref exs 0))])
-                ([ex (in-vector exs)])
-        (ival-or (ival-error? ex))))
+    (define exs
+      (parameterize ([*sampling-iteration* iter]
+                     [ground-truth-require-convergence #t])
+        (fn pt)))
+    (match-define (ival err err?) (ival-any-error? exs))
     (cond
       [err
        (raise (exn:rival:invalid (format "Invalid input ~a" pt) (current-continuation-marks)))]
@@ -104,15 +80,51 @@
       [else
        (loop (+ 1 iter))])))
 
-(define (ival-eval fn ctxs pt [iter 0])
-  (define start (current-inexact-milliseconds))
+(define (rival-analyze machine rect)
+  (match-define (rival-machine fn discs) machine)
+  (define res
+    (parameterize ([*sampling-iteration* 0]
+                   [ground-truth-require-convergence #f]))
+    (fn rect)))
+  (ival-any-error? res))
+
+(define (representation->discretization repr)
+  (discretization
+   (representation-bf->repr repr)
+   (lambda (x y) (- (ulp-difference x y repr) 1))))
+
+;; Returns a function that maps an ival to a list of ivals
+;; The first element of that function's output tells you if the input is good
+;; The other elements of that function's output tell you the output values
+(define (make-search-func pre specs ctxs)
+  (define vars (context-vars (car ctxs)))
+  (define var-reprs (context-var-reprs (car ctxs)))
   (define discs (map (compose representation->discretization context-repr) ctxs))
-  (define machine (rival-machine (compose list->vector fn) discs))
+  (define compiled
+    (rival-machine-fn (rival-compile (cons pre specs) vars (cons bool-discretization discs))))
+  (define outlength (length specs))
+  (define (compiled-spec inputs)
+    (define outvec (compiled inputs))
+    (define ival-pre (vector-ref outvec 0))
+    (for/vector #:length outlength ([y (in-vector outvec 1)] [ctx (in-list ctxs)])
+      (ival-then
+       ; The two `invalid` ones have to go first, because later checks
+       ; can error if the input is erroneous
+       (ival-assert (ival-not (ival-error? ival-pre)) 'invalid)
+       (ival-assert ival-pre 'precondition)
+       y)))
+  (rival-machine compiled-spec discs))
+
+(define (ival-eval machine ctxs pt [iter 0])
+  (define start (current-inexact-milliseconds))
+  (define pt*
+    (for/list ([val (in-list pt)] [repr (in-list (context-var-reprs (car ctxs)))])
+      (ival ((representation-repr->bf repr) val))))
   (define-values (status value)
     (with-handlers
       ([exn:rival:invalid? (lambda (e) (values 'invalid #f))]
        [exn:rival:unsamplable? (lambda (e) (values 'exit #f))])
-      (values 'valid (rival-apply machine pt))))
+      (values 'valid (rival-apply machine pt*))))
   (timeline-push!/unsafe 'outcomes (- (current-inexact-milliseconds) start)
                          rival-profile-iterations-taken (~a status) 1)
   (values status value))
