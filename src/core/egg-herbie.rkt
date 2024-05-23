@@ -1253,9 +1253,9 @@
     [(? number?) 1]
     [(? symbol?) 1]
     [(list 'if cond ift iff)
-     (+ 1 (rec cond (get-representation 'bool) 1)
-          (rec ift type 1)
-          (rec iff type 1))]
+     (+ 1 (rec cond (get-representation 'bool) +inf.0)
+          (rec ift type +inf.0)
+          (rec iff type +inf.0))]
     [(list (? impl-exists? impl) args ...)
      (define itypes (impl-info impl 'itype))
      (if (equal? impl 'pow)
@@ -1263,8 +1263,8 @@
        [(list b e)
         (if (fraction-with-odd-denominator? e)
             +inf.0
-            (apply + (map (lambda (arg itype) (rec arg itype 1)) args itypes)))])
-      (apply + (map (lambda (arg itype) (rec arg itype 1)) args itypes)))]
+            (apply + (map (lambda (arg itype) (rec arg itype +inf.0)) args itypes)))])
+      (apply + (map (lambda (arg itype) (rec arg itype +inf.0)) args itypes)))]
     [(list _ ...) 1]))
 
 ;; Extracts the best expression according to the extractor.
