@@ -158,7 +158,7 @@
   (define start (current-inexact-milliseconds))
   (define pt*
     (for/list ([val (in-list pt)] [repr (in-list (context-var-reprs (car ctxs)))])
-      (ival ((representation-repr->bf repr) val))))
+      ((representation-repr->bf repr) val)))
   (define-values (status value)
     (with-handlers
       ([exn:rival:invalid? (lambda (e) (values 'invalid #f))]

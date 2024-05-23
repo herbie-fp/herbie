@@ -51,9 +51,12 @@
 (define (ival-any-error? ivals)
   (for/fold ([out (ival-error? (vector-ref ivals 0))])
             ([iv (in-vector ivals 1)])
-    (ival-or (ival-error? iv))))
+    (ival-or out (ival-error? iv))))
 
 (define rival-profile-iterations-taken 0)
+
+(define (ival-real x)
+  (ival x))
 
 (define (rival-apply machine pt)
   (match-define (rival-machine fn discs) machine)
@@ -62,7 +65,7 @@
     (define exs
       (parameterize ([*sampling-iteration* iter]
                      [ground-truth-require-convergence #t])
-        (fn pt)))
+        (fn (map ival-real pt))))
     (match-define (ival err err?) (ival-any-error? exs))
     (cond
       [err
@@ -70,7 +73,7 @@
       [(not err?)
        (for/list ([ex (in-vector exs)] [disc (in-list discs)])
          ; We are promised at this point that (distance (convert lo) (convert hi)) = 0 so use lo
-         ((discretization-convert disc) (ival-lo ex)))]
+         ([discretization-convert disc] (ival-lo ex)))]
       [(>= iter (*max-sampling-iterations*))
        (raise (exn:rival:unsamplable (format "Unsamplable input ~a" pt) (current-continuation-marks)))]
       [else
