@@ -40,7 +40,6 @@ function run() {
   key=$2
   num_runs=$3
 
-  # Generate JSON
   python3 $INFRA_DIR/platforms-eval.py \
     --key $key \
     --parallel $PARALLEL_SEEDS \
@@ -48,14 +47,6 @@ function run() {
     $bench \
     "$OUTDIR/platforms" \
     $num_runs
-
-  # Plot JSON data
-  # python3 $INFRA_DIR/platforms/plot.py \
-  #  <eval JSON path> \
-  #  <output directory>
-  # python3 $INFRA_DIR/platforms/plot.py \
-  #   $OUTDIR/platforms/output/$key/results.json \
-  #   $OUTDIR/platforms/output/$key
 }
 
 # Run configs
@@ -64,6 +55,7 @@ run $BENCH_DIR/hamming hamming 4
 # clean up cache and build files
 if [ -n "$RM_CACHE" ]; then
   echo "removing cache and drivers"
+  rm -rf "$OUTDIR/platforms/herbie-2.0"
   rm -rf "$OUTDIR/platforms/cache"
   rm -rf "$OUTDIR/platforms/drivers"
 fi

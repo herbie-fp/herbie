@@ -3,12 +3,14 @@ import os
 import multiprocessing as mp
 
 from subprocess import Popen, PIPE, STDOUT
+import subprocess
 
 # Paths
 script_path = os.path.abspath(__file__)
 script_dir, _ = os.path.split(script_path)
 baseline_path = os.path.join(script_dir, 'platforms', 'baseline.py')
 run_path = os.path.join(script_dir, 'platforms', 'run.py')
+plot_path = os.path.join(script_dir, 'platforms', 'plot.py')
 curr_dir = os.getcwd()
 
 # Defaults
@@ -27,7 +29,7 @@ def run_baseline(
     start_seed: int
 ) -> None:
     print(f'running baseline eval')
-    Popen([
+    subprocess.run([
         'python3', baseline_path,
         '--key', key,
         '--parallel', str(num_parallel),
@@ -37,6 +39,7 @@ def run_baseline(
         output_dir,
         str(num_seeds)
     ])
+
 
 def run_seed(
     bench_path: str,
@@ -59,6 +62,20 @@ def run_seed(
     p = Popen(cmd, stdout=PIPE, stderr=STDOUT)
     stdout, _ = p.communicate()
     print(stdout.decode('utf-8').strip(), end='')
+
+
+def run_plot(
+    output_dir: str,
+    key: str,
+    seed: int,
+) -> None:
+    print(f'plotting per-seed evaluation (seed={seed})')
+    result_dir = os.path.join(output_dir, 'output', key)
+    subprocess.run([
+        'python3', plot_path,
+        os.path.join(result_dir, 'results.json'),
+        result_dir
+    ])
 
 
 def main():
@@ -92,17 +109,29 @@ def main():
         start_seed=start_seed
     )
 
-    # parallel configurations
+    # eval configurations
     configs = []
     for seed in range(start_seed, start_seed + num_seeds):
         configs.append((bench_path, output_dir, f'{key}-{seed}', num_threads, seed))
 
-    # run parallel
+    # run eval in parallel
     if num_parallel > 1:
         with mp.Pool(processes=num_parallel) as pool:
             pool.starmap(run_seed, configs)
     else:
         map(run_seed, configs)
+
+    # plot configurations
+    configs = []
+    for seed in range(start_seed, start_seed + num_seeds):
+        configs.append((output_dir, f'{key}-{seed}', seed))
+
+    # run plotting in parallel
+    if num_parallel > 1:
+        with mp.Pool(processes=num_parallel) as pool:
+            pool.starmap(run_plot, configs)
+    else:
+        map(run_plot, configs)
 
 
 if __name__ == "__main__":
