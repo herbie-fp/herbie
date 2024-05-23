@@ -181,8 +181,10 @@
       (make-sampler (first ctxs) pre fn)))
   (timeline-event! 'sample)
   
-  (define fn-sollya (run-sollya (list exprs ctxs)))
+  (match-define-values (fn-sollya kill-sollya-process) (run-sollya (list exprs ctxs)))
   (match-define (cons table2 results) (batch-prepare-points fn ctxs sampler fn-sollya))
+  (kill-sollya-process)
+  
   (define total (apply + (hash-values table2)))
   (when (> (hash-ref table2 'infinite 0.0) (* 0.2 total))
    (warn 'inf-points #:url "faq.html#inf-points"

@@ -206,7 +206,9 @@
       (set! m-in m-in2)
       (set! m-err m-err2))
     out)
-  compiled-spec)
+  (define (kill-process)
+    (subprocess-kill process true))
+  (values compiled-spec kill-process))
 
 
 (define (parse-sollya-interval buffer m-out start)
