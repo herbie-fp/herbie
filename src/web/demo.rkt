@@ -274,6 +274,10 @@
     (define post-data (cond (post-body (bytes->jsexpr post-body)) (#t #f)))
     (define resp (with-handlers ([exn:fail? (λ (e) (hash 'error (exn->string e)))]) (fn post-data)))
     (if (hash-has-key? resp 'error)
+        (eprintf "Error handling request: ~a\n" (hash-ref resp 'error))
+        (eprintf "")
+    )
+    (if (hash-has-key? resp 'error)
         (response 500
                   #"Bad Request"
                   (current-seconds)
@@ -549,30 +553,31 @@
       (hasheq 'cost cost))))
 
 ; Beginning of translate endpoint -Ben
-(define (translate-endpoint)
+(define translate-endpoint
   (post-with-json-response
     (lambda (post-data)
       ; FPCore formula and target language
-      (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
+      (define formula (read (open-input-string (hash-ref post-data 'formula))))
+      (eprintf "Translating formula: ~a...\n" formula)
       (define target-lang (hash-ref post-data 'lang))
-       ;; Select the appropriate conversion function
-      ; (define lang-converter (case target-lang
-      ;   [("python") core->python]
-      ;   [("c") core->c]
-      ;   [("fortran") core->fortran]
-      ;   [("java") core->java]
-      ;   [("julia") core->julia]
-      ;   [("matlab") core->matlab]
-      ;   [("wls") core->wls]
-      ;   [("tex") core->tex]
-      ;   [("expr->tex") expr->tex]
-      ;   [else (lambda (x) (error "Unsupported language"))]))
-      (displayln "reached 1")
-      (define lang-converter (core->python))
-      (displayln "reached 2")
+      (eprintf "Target language: ~a...\n" target-lang)
+      ; Select the appropriate conversion function
+      (define lang-converter (case target-lang
+        [("python") core->python]
+        [("c") core->c]
+        [("fortran") core->fortran]
+        [("java") core->java]
+        [("julia") core->julia]
+        [("matlab") core->matlab]
+        [("wls") core->wls]
+        [("tex") core->tex]
+        [("expr->tex") expr->tex]
+        [else (lambda (x) (error "Unsupported language"))]))
+
+      (eprintf "Lang converter defined...\n")
       ; convert the expression
-      (define converted (lang-converter formula))
-      (displayln "reached 3")
+      (define converted (lang-converter formula "foo"))
+      (eprintf "Converted Expression ~a...\n" converted)
       (hasheq 'result converted
               'lang target-lang))))
 
