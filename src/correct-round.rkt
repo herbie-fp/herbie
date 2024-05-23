@@ -186,6 +186,8 @@
         [(list 'pow x y)   (list ival-pow x y)]
         [(list 'remainder x y) (list ival-remainder x y)]
 
+        [(list 'fma x y z) (list ival-fma x y z)]
+
         [(list '== x y) (list ival-== x y)]
         [(list '!= x y) (list ival-!= x y)]
         [(list '<= x y) (list ival-<= x y)]
