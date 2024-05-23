@@ -192,8 +192,8 @@
         [(list '!= x y) (list ival-!= x y)]
         [(list '<= x y) (list ival-<= x y)]
         [(list '>= x y) (list ival->= x y)]
-        [(list '< x y)  (list ival-> x y)]
-        [(list '> x y)  (list ival-< x y)]
+        [(list '< x y)  (list ival-< x y)]
+        [(list '> x y)  (list ival-> x y)]
 
         [(list 'not x)   (list ival-not x)]
         [(list 'and x y) (list ival-and x y)]
