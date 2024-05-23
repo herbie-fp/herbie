@@ -7,6 +7,7 @@ from subprocess import Popen, PIPE, STDOUT
 # Paths
 script_path = os.path.abspath(__file__)
 script_dir, _ = os.path.split(script_path)
+baseline_path = os.path.join(script_dir, 'platforms', 'baseline.py')
 run_path = os.path.join(script_dir, 'platforms', 'run.py')
 curr_dir = os.getcwd()
 
@@ -16,6 +17,27 @@ default_num_parallel = 1
 default_num_threads = 1
 default_start_seed = 1
 
+def run_baseline(
+    key: str,
+    bench_path: str,
+    output_dir: str,
+    num_parallel: int,
+    num_threads: int,
+    num_seeds: int,
+    start_seed: int
+) -> None:
+    print(f'running baseline eval')
+    Popen([
+        'python3', baseline_path,
+        '--key', key,
+        '--parallel', str(num_parallel),
+        '--threads', str(num_threads),
+        '--start-seed', str(start_seed),
+        bench_path,
+        output_dir,
+        str(num_seeds)
+    ])
+
 def run_seed(
     bench_path: str,
     output_dir: str,
@@ -23,6 +45,7 @@ def run_seed(
     num_threads: int,
     seed: int
 ) -> None:
+    print(f'running per-seed evaluation (seed={seed})')
     cmd = [
         'python3', run_path,
         bench_path,
@@ -57,6 +80,17 @@ def main():
     num_parallel: int = args.parallel or default_num_parallel
     num_threads: int = args.threads or default_num_threads
     start_seed: int = args.start_seed or default_start_seed
+
+    # baseline evaluation
+    run_baseline(
+        key=key,
+        bench_path=bench_path,
+        output_dir=output_dir,
+        num_parallel=num_parallel,
+        num_threads=num_threads,
+        num_seeds=num_seeds,
+        start_seed=start_seed
+    )
 
     # parallel configurations
     configs = []

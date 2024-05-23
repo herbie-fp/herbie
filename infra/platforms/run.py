@@ -57,11 +57,12 @@ def run_baseline(
     print(f'Baseline eval')
     subprocess.run([
         'python3', baseline_path,
-         '--threads', str(num_herbie_threads),
-         '--key', name,
-         '--seed', str(seed),
-         bench_path,
-         output_dir,
+        '--threads', str(num_herbie_threads),
+        '--key', name,
+        '--seed', str(seed),
+        bench_path,
+        output_dir,
+        '1'
     ])
 
 def run_improvement(
