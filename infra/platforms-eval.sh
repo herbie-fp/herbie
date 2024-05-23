@@ -16,11 +16,12 @@ BENCH_DIR="$INFRA_DIR"/../bench
 THREADS=4
 
 # check arguments
-if [ -z "$1" ]; then
-  echo "Usage: $0 <output_dir>"
+if [ "$#" -ne 2 ]; then
+  echo "Usage: $0 <output_dir> <num_seeds>"
   exit 1
 else
   OUTDIR="$(pwd)/$1"
+  NUM_SEEDS=$2
 fi
 
 # advise user of execution plan
@@ -50,7 +51,7 @@ function run() {
 }
 
 # Run configs
-run $BENCH_DIR/hamming hamming 4
+run $BENCH_DIR/hamming hamming $NUM_SEEDS
 
 # clean up cache and build files
 if [ -n "$RM_CACHE" ]; then
