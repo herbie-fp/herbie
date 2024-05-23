@@ -84,8 +84,8 @@
   (match-define (rival-machine fn discs) machine)
   (define res
     (parameterize ([*sampling-iteration* 0]
-                   [ground-truth-require-convergence #f]))
-    (fn rect)))
+                   [ground-truth-require-convergence #f])
+      (fn rect)))
   (ival-any-error? res))
 
 (define (representation->discretization repr)
