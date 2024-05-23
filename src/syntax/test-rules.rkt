@@ -4,7 +4,7 @@
 (require "../common.rkt" "../compiler.rkt" "../float.rkt"
          "../sampling.rkt" "types.rkt" "../load-plugin.rkt"
          "rules.rkt" (submod "rules.rkt" internals)
-         "sugar.rkt" "../core/egg-herbie.rkt" "../ground-truth.rkt")
+         "sugar.rkt" "../core/egg-herbie.rkt")
 
 (load-herbie-builtins)
 

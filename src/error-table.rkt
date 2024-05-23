@@ -2,7 +2,7 @@
 
 (require racket/set math/bigfloat)
 (require "points.rkt" "syntax/types.rkt" "core/localize.rkt" "common.rkt"
-         "ground-truth.rkt" "syntax/sugar.rkt" "timeline.rkt" "programs.rkt")
+         "sampling.rkt" "syntax/sugar.rkt" "timeline.rkt" "programs.rkt")
 
 (provide actual-errors predicted-errors)
 

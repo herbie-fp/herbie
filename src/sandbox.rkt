@@ -14,7 +14,7 @@
          "datafile.rkt"
          "errors.rkt"
          "float.rkt"
-         "ground-truth.rkt"
+         "sampling.rkt"
          "mainloop.rkt"
          "platform.rkt"
          "points.rkt"

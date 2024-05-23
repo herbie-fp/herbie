@@ -3,10 +3,15 @@
 (require math/bigfloat (only-in math/flonum flonums-between) rival)
 (require (only-in math/private/bigfloat/mpfr mpfr-exp mpfr-sign))
 ;; Faster than bigfloat-exponent and avoids an expensive offset & contract check.
-(require (only-in "common.rkt" *max-mpfr-prec* *sampling-iteration* *max-sampling-iterations* *base-tuning-precision* *ampl-tuning-bits*)
+(require (only-in "common.rkt" *max-mpfr-prec*)
          (only-in "timeline.rkt" timeline-push! timeline-start!/unsafe))
 
-(provide compile-spec compile-specs)
+(provide compile-spec compile-specs *sampling-iteration* *max-sampling-iterations*)
+
+(define *ampl-tuning-bits* (make-parameter 5))
+(define *sampling-iteration* (make-parameter 0))
+(define *base-tuning-precision* (make-parameter 73))
+(define *max-sampling-iterations* (make-parameter 5))
 
 (define (make-progs-interpreter vars ivec rootvec)
   (define rootlen (vector-length rootvec))

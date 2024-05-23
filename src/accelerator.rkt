@@ -6,7 +6,7 @@
 
  "common.rkt"
  "compiler.rkt"
- "ground-truth.rkt"
+ "sampling.rkt"
  (submod "syntax/syntax.rkt" internals)
  (submod "syntax/rules.rkt" internals)
  "syntax/types.rkt")

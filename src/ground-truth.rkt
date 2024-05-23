@@ -1,23 +1,18 @@
 #lang racket
 
-(require math/bigfloat
-         rival)
+(require rival)
 
-(require "syntax/types.rkt"
-         "common.rkt" "float.rkt"
-         "compiler.rkt" "timeline.rkt")
+(require "correct-round.rkt")
 
-(provide eval-progs-real
-         ground-truth-require-convergence 
-         ival-eval
-         make-search-func
-         rival-analyze)
+(provide (struct-out discretization)
+         rival-compile rival-apply rival-analyze
+         (struct-out exn:rival)
+         (struct-out exn:rival:invalid)
+         (struct-out exn:rival:unsamplable)
+         rival-profile-iterations-taken)
+(provide (struct-out rival-machine)) ; This is temporary and we want to get rid of it
 
 (struct discretization (convert distance))
-
-(define bool-discretization
-  (discretization identity
-                  (lambda (x y) (if (eq? x y) 0 1))))
 
 (define ground-truth-require-convergence (make-parameter #t))
 
@@ -49,8 +44,9 @@
        y)))
   (rival-machine rival-compiled discs))
 
-(struct exn:rival:invalid exn:fail ())
-(struct exn:rival:unsamplable exn:fail ())
+(struct exn:rival exn:fail ())
+(struct exn:rival:invalid exn:rival ())
+(struct exn:rival:unsamplable exn:rival ())
 
 (define (ival-any-error? ivals)
   (for/fold ([out (ival-error? (vector-ref ivals 0))])
@@ -87,56 +83,3 @@
                    [ground-truth-require-convergence #f])
       (fn rect)))
   (ival-any-error? res))
-
-(define (representation->discretization repr)
-  (discretization
-   (representation-bf->repr repr)
-   (lambda (x y) (- (ulp-difference x y repr) 1))))
-
-;; Returns a function that maps an ival to a list of ivals
-;; The first element of that function's output tells you if the input is good
-;; The other elements of that function's output tell you the output values
-(define (make-search-func pre specs ctxs)
-  (define vars (context-vars (car ctxs)))
-  (define var-reprs (context-var-reprs (car ctxs)))
-  (define discs (map (compose representation->discretization context-repr) ctxs))
-  (define compiled
-    (rival-machine-fn (rival-compile (cons pre specs) vars (cons bool-discretization discs))))
-  (define outlength (length specs))
-  (define (compiled-spec inputs)
-    (define outvec (compiled inputs))
-    (define ival-pre (vector-ref outvec 0))
-    (for/vector #:length outlength ([y (in-vector outvec 1)] [ctx (in-list ctxs)])
-      (ival-then
-       ; The two `invalid` ones have to go first, because later checks
-       ; can error if the input is erroneous
-       (ival-assert (ival-not (ival-error? ival-pre)) 'invalid)
-       (ival-assert ival-pre 'precondition)
-       y)))
-  (rival-machine compiled-spec discs))
-
-(define (ival-eval machine ctxs pt [iter 0])
-  (define start (current-inexact-milliseconds))
-  (define pt*
-    (for/list ([val (in-list pt)] [repr (in-list (context-var-reprs (car ctxs)))])
-      (ival ((representation-repr->bf repr) val))))
-  (define-values (status value)
-    (with-handlers
-      ([exn:rival:invalid? (lambda (e) (values 'invalid #f))]
-       [exn:rival:unsamplable? (lambda (e) (values 'exit #f))])
-      (values 'valid (rival-apply machine pt*))))
-  (timeline-push!/unsafe 'outcomes (- (current-inexact-milliseconds) start)
-                         rival-profile-iterations-taken (~a status) 1)
-  (values status value))
-
-; ENSURE: all contexts have the same list of variables
-(define (eval-progs-real progs ctxs)
-  (define fn (make-search-func '(TRUE) progs ctxs))
-  (define bad-pt 
-    (for/list ([ctx* (in-list ctxs)])
-      ((representation-bf->repr (context-repr ctx*)) +nan.bf)))
-  (define (<eval-prog-real> . pt)
-    (define-values (result exs) (ival-eval fn ctxs pt))
-    (or exs bad-pt))
-  <eval-prog-real>)
-
