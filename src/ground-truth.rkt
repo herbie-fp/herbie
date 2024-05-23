@@ -32,6 +32,8 @@
     (= (distance (convert lo) (convert hi)) 0))
   ((close-enough->ival close-enough?) interval))
 
+(struct rival-machine (fn discs))
+
 (define (rival-compile exprs vars discs)
   (define fns (compile-specs exprs vars))
   (define outlen (length exprs))
@@ -49,7 +51,10 @@
             (ival (ival-hi (is-samplable-interval disc y))))
         'unsamplable)
        y)))
-  rival-compiled)
+  (rival-machine rival-compiled discs))
+
+(struct exn:rival:invalid exn:fail ())
+(struct exn:rival:unsamplable exn:fail ())
 
 ;; Returns a function that maps an ival to a list of ivals
 ;; The first element of that function's output tells you if the input is good
@@ -58,7 +63,8 @@
   (define vars (context-vars (car ctxs)))
   (define var-reprs (context-var-reprs (car ctxs)))
   (define discs (map (compose representation->discretization context-repr) ctxs))
-  (define compiled (rival-compile (cons pre specs) vars (cons bool-discretization discs)))
+  (define compiled
+    (rival-machine-fn (rival-compile (cons pre specs) vars (cons bool-discretization discs))))
   (define (compiled-spec . inputs)
     ; inputs can either be intervals or representation values
     (define inputs*
@@ -75,29 +81,40 @@
        y)))
   compiled-spec)
 
+(define rival-profile-iterations-taken 0)
+
+(define (rival-apply machine pt)
+  (match-define (rival-machine fn discs) machine)
+  (let loop ([iter 0])
+    (set! rival-profile-iterations-taken iter)
+    (define exs (parameterize ([*sampling-iteration* iter]) (apply fn pt)))
+    (match-define (ival err err?)
+      (for/fold ([out (ival-error? (vector-ref exs 0))])
+                ([ex (in-vector exs)])
+        (ival-or (ival-error? ex))))
+    (cond
+      [err
+       (raise (exn:rival:invalid (format "Invalid input ~a" pt) (current-continuation-marks)))]
+      [(not err?)
+       (for/list ([ex (in-vector exs)] [disc (in-list discs)])
+         ; We are promised at this point that (distance (convert lo) (convert hi)) = 0 so use lo
+         ((discretization-convert disc) (ival-lo ex)))]
+      [(>= iter (*max-sampling-iterations*))
+       (raise (exn:rival:unsamplable (format "Unsamplable input ~a" pt) (current-continuation-marks)))]
+      [else
+       (loop (+ 1 iter))])))
+
 (define (ival-eval fn ctxs pt [iter 0])
   (define start (current-inexact-milliseconds))
-  (define <-bfs
-    (for/list ([ctx (in-list ctxs)])
-      (representation-bf->repr (context-repr ctx))))
-  (define-values (status final-prec value)
-    (let loop ([iter iter])
-      (define exs
-        (parameterize ([*sampling-iteration* iter]) (apply fn pt)))
-      (match-define (ival err err?) (apply ival-or (map ival-error? exs)))
-      (define iter* (+ 1 iter))
-      (cond
-        [err
-         (values err iter #f)]
-        [(not err?)
-         (values 'valid iter
-                 (for/list ([ex exs] [<-bf <-bfs]) (<-bf (ival-lo ex))))]
-        [(> iter* (*max-sampling-iterations*))
-         (values 'exit iter #f)]
-        [else
-         (loop iter*)])))
+  (define discs (map (compose representation->discretization context-repr) ctxs))
+  (define machine (rival-machine (compose list->vector fn) discs))
+  (define-values (status value)
+    (with-handlers
+      ([exn:rival:invalid? (lambda (e) (values 'invalid #f))]
+       [exn:rival:unsamplable? (lambda (e) (values 'exit #f))])
+      (values 'valid (rival-apply machine pt))))
   (timeline-push!/unsafe 'outcomes (- (current-inexact-milliseconds) start)
-                         final-prec (~a status) 1)
+                         rival-profile-iterations-taken (~a status) 1)
   (values status value))
 
 ; ENSURE: all contexts have the same list of variables
