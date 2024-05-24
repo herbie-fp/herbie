@@ -104,7 +104,7 @@
     [(? symbol?)
      (if (equal? expr 'f)
          (error "f can not be a variable")
-         (round-sollya (string-replace (symbol->string expr) "-" "")))]  ; avoid symbol '-' in variables
+         (round-sollya (var-parse expr)))]  ; avoid symbols '.' '-' in variables
     [(? number?)
      (round-sollya expr)]))
 
@@ -121,9 +121,7 @@
   (parameterize ([*precision* (string->number (string-replace (symbol->string precision) "binary" ""))])
     (format "prec=~a; procedure f(~a) { ~a; };"
             (*precision*)
-            (string-join (map (lambda (x)
-                                (string-replace (symbol->string x) "-" "")) ; avoid symbol '-' in variables
-                              vars) ", ")
+            (string-join (map var-parse vars) ", ")
             (expr->sollya body))))
 
 (define (exprs+ctxs->sollya exprs ctxs)
@@ -131,10 +129,14 @@
   (parameterize ([*precision* 64])          ; TODO: replace with repr
     (format "prec=~a; procedure f(~a) { ~a; };"
             (*precision*)
-            (string-join (map (lambda (x)
-                                (string-replace (symbol->string x) "-" "")) ; avoid symbol '-' in variables
-                              vars) ", ")
+            (string-join (map var-parse vars) ", ")
             (expr->sollya exprs))))
+
+(define (var-parse x)
+  (string-replace (string-replace 
+                   (string-replace (symbol->string x) "-" "")
+                   "." "")
+                  "*" "_"))
 
 (define (load-points port)
   (define points
@@ -202,7 +204,7 @@
       ;(printf "killed ~a\n" (subprocess-pid process))
       (define-values (process2 m-out2 m-in2 m-err2)
         (make-sollya prog #:backup backup))
-      (subprocess-kill process #t)
+      (kill-process)
       (set! process process2)
       (set! m-out m-out2)
       (set! m-in m-in2)
@@ -285,6 +287,12 @@
     (define step (read-bytes-avail!* buffer m-out i))
     (define s (bytes->string/latin-1 buffer #f 0 (+ i step)))
     (cond
+      ; Valid results
+      [(regexp-match #rx"^[-+.e0-9]+\n[-+.e0-9]+\n$" s)
+       (let ([dt (- (current-inexact-milliseconds) start)])
+         (match-define (list result sollya-time) (string-split s "\n"))
+         (list dt (seconds->ms sollya-time) (bigfloat->flonum (bf result)) 'valid))]
+      
       ; Timeout
       [(> (- (current-inexact-milliseconds) start) timeout-ms)
        (when (not (equal? s ""))
@@ -299,12 +307,6 @@
          (list dt (seconds->ms sollya-time) result (if (equal? result "NaN")
                                                        'invalid
                                                        'unsamplable)))]
-
-      ; Valid results
-      [(regexp-match #rx"^[-+.e0-9]+\n[-+.e0-9]+\n$" s)
-       (let ([dt (- (current-inexact-milliseconds) start)])
-         (match-define (list result sollya-time) (string-split s "\n"))
-         (list dt (seconds->ms sollya-time) (bigfloat->flonum (bf result)) 'valid))]
 
       ; NaN
       [(regexp-match #rx"^NaN\n[-+.e0-9]+\n$" s)
