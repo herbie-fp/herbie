@@ -225,13 +225,6 @@
     (define step (read-bytes-avail!* buffer m-out i))
     (define s (bytes->string/latin-1 buffer #f 0 (+ i step)))
     (cond
-      [(> (- (current-inexact-milliseconds) start) timeout-ms)
-       (when (not (equal? s ""))
-         (eprintf "\nUnprocessed output from Sollya\n")
-         (eprintf "Stdout: ~s\n" s)
-         (error "crashed"))
-       (list timeout-ms timeout-ms (list (fl +nan.0) (fl +nan.0)) 'exit)]
-      
       [(regexp-match #rx"^Warning: the given expression is undefined or numerically unstable\n*" s)
        (let ([dt (- (current-inexact-milliseconds) start)])
          (match-define (list _ result sollya-time)
@@ -280,6 +273,13 @@
          (list dt (seconds->ms sollya-time)
                (list (fl -inf.0) (bigfloat->flonum (bf upper)))
                'valid))]
+
+      [(> (- (current-inexact-milliseconds) start) timeout-ms)
+       (when (not (equal? s ""))
+         (eprintf "\nUnprocessed output from Sollya\n")
+         (eprintf "Stdout: ~s\n" s)
+         (error "crashed"))
+       (list timeout-ms timeout-ms (list (fl +nan.0) (fl +nan.0)) 'exit)]
       
       [else
        (loop (+ i step))])))
@@ -290,14 +290,6 @@
     (define step (read-bytes-avail!* buffer m-out i))
     (define s (bytes->string/latin-1 buffer #f 0 (+ i step)))
     (cond
-      ; Timeout
-      [(> (- (current-inexact-milliseconds) start) timeout-ms)
-       (when (not (equal? s ""))
-         (eprintf "\nUnprocessed output from Sollya\n")
-         (eprintf "Stdout: ~s\n" s)
-         (error "crashed"))
-       (list timeout-ms timeout-ms (fl +nan.0) 'exit)]
-      
       ; Can not produce results
       [(regexp-match #rx"^Warning: the given expression is undefined or numerically unstable\n*" s)
        (let ([dt (- (current-inexact-milliseconds) start)])
@@ -326,5 +318,12 @@
          (match-define (list result sollya-time) (string-split s "\n"))
          (list dt (seconds->ms sollya-time) (bigfloat->flonum (bf result)) 'valid))]
 
+      ; Timeout
+      [(> (- (current-inexact-milliseconds) start) timeout-ms)
+       (when (not (equal? s ""))
+         (eprintf "\nUnprocessed output from Sollya\n")
+         (eprintf "Stdout: ~s\n" s)
+         (error "crashed"))
+       (list timeout-ms timeout-ms (fl +nan.0) 'exit)]
       [else
        (loop (+ i step))])))
