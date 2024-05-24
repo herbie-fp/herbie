@@ -5,8 +5,7 @@
          "ground-truth.rkt" "syntax/sugar.rkt" "alternative.rkt" "programs.rkt"
          "float.rkt" "config.rkt")
 
-(provide actual-errors predicted-errors make-flow-table calculate-confusion
-         calculate-confusion-maybe)
+(provide predicted-errors)
 
 (define *top-3* (make-parameter #f))
 
