@@ -53,7 +53,30 @@ const localerror = (await (await fetch('http://127.0.0.1:8000/api/localerror', {
 assert.equal(localerror.tree['avg-error'] > 0, true)
 assert.equal(cost.cost > 0, true)
 
+const languageList = ["python", "c", "fortran", "java", "julia", "matlab", "wls", "tex", "js"]
+const FPCoreFormula = '(FPCore (x) (- (sqrt (+ x 1)) (sqrt x)))'
+const actualExpressions = []
+const expectedExpressions = [
+    'def expr(x):\n\treturn math.sqrt((x + 1.0)) - math.sqrt(x)\n', // python
+    'double expr(double x) {\n\treturn sqrt((x + 1.0)) - sqrt(x);\n}\n', // c
+    'real(8) function expr(x)\n    real(8), intent (in) :: x\n    expr = sqrt((x + 1.0d0)) - sqrt(x)\nend function\n', // fortran
+    'public static double expr(double x) {\n\treturn Math.sqrt((x + 1.0)) - Math.sqrt(x);\n}\n', // java
+    'function expr(x)\n\treturn Float64(sqrt(Float64(x + 1.0)) - sqrt(x))\nend\n', // julia
+    'function tmp = expr(x)\n\ttmp = sqrt((x + 1.0)) - sqrt(x);\nend\n', // matlab
+    'expr[x_] := N[(N[Sqrt[N[(x + 1), $MachinePrecision]], $MachinePrecision] - N[Sqrt[x], $MachinePrecision]), $MachinePrecision]\n', // wls
+    '\\mathsf{expr}\\left(x\\right) = \\sqrt{x + 1} - \\sqrt{x}\n', // tex
+    'function expr(x) {\n\treturn Math.sqrt((x + 1.0)) - Math.sqrt(x);\n}\n' // js
+]
 
+for (const language of languageList) {
+    const translatedExpr = 
+        (await (await fetch('http://127.0.0.1:8000/api/translate',
+        { method: 'POST', body: JSON.stringify(
+        { formula: FPCoreFormula, lang: language }) })).json())
 
+    actualExpressions.push(translatedExpr)
+}
 
-// let translatedExpression = (await (await fetch('http://127.0.0.1:8000/api/translate', { method: 'POST', body: JSON.stringify({ formula: '(FPCore (x) (- (sqrt (+ x 1)) (sqrt x)))', lang: "python" }) })).json())
+for (let i = 0; i < expectedExpressions.length; i++) {
+    assert.equal(actualExpressions[i].result, expectedExpressions[i])
+}
