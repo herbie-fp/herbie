@@ -64,7 +64,10 @@
   (define ruleset-name (sym-append name '-accelerator))
   (define define-name (sym-append name '-define))
   (define undefine-name (sym-append name '-undefine))
-  (define ival-fn (compile-spec body vars otype))
+  ; TODO: Terrible hack. Fixing this properly would mean desugaring before
+  ; sampling, but we haven't done that yet.
+  (define dummy-repr (representation #f #f #f #f #f #f #f #f #f))
+  (define ival-fn (compile-spec body vars repr))
   (define info (accelerator name itypes otype spec))
   (hash-set! accelerators name info)
   (register-operator! name itypes otype (list (cons 'ival ival-fn)))
