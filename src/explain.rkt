@@ -631,25 +631,6 @@
                [value (in-list (errors expr pctx ctx))])
       (values key value)))
 
-  #;(define explanations-table
-    (for/list ([(key val) (in-dict explanations-hash)])
-      (define expr (car key))
-      (define expl (cdr key))
-      (define maybe-count (hash-ref maybe-explanations-hash key 0))
-      (define flow-list (make-flow-table oflow-hash uflow-hash expr expl))
-
-      (define test (length (hash-ref expls->points key)))
-
-      (unless (= val test)
-        (eprintf "error: ~a\n" key))
-
-      (list (~a (car expr))
-            (~a expr)
-            (~a expl)
-            val
-            maybe-count
-            flow-list)))
-
   (define explanations-table
     (for/list ([(key val) (in-dict expls->points)]
                #:unless (zero? (length val)))

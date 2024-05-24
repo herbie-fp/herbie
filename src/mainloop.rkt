@@ -4,7 +4,7 @@
  "syntax/rules.rkt" "syntax/sugar.rkt" "syntax/syntax.rkt" "syntax/types.rkt"
  "core/alt-table.rkt" "core/bsearch.rkt" "core/egg-herbie.rkt" "core/localize.rkt"
  "core/regimes.rkt" "core/simplify.rkt" "alternative.rkt" "common.rkt" "float.rkt"
- "conversions.rkt" "error-table.rkt" "patch.rkt" "platform.rkt" "points.rkt"
+ "conversions.rkt" "explain.rkt" "patch.rkt" "platform.rkt" "points.rkt"
  "preprocess.rkt" "programs.rkt" "timeline.rkt" "sampling.rkt" "soundiness.rkt")
 (provide (all-defined-out))
 
