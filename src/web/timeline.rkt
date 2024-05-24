@@ -76,6 +76,7 @@
          ,@(dict-call curr (curryr simple-render-phase "Remove") 'remove-preprocessing)
          ,@(dict-call curr render-phase-outcomes 'outcomes)
          ,@(dict-call curr render-phase-sollya-eval 'sollya-eval)
+         ,@(dict-call curr render-phase-sollya-histograms 'sollya-histograms)
          ,@(dict-call curr render-phase-compiler 'compiler)
          ,@(dict-call curr render-phase-mixed-sampling 'mixsample)
          ,@(dict-call curr render-phase-bogosity 'bogosity)
@@ -237,6 +238,17 @@
                ,@(for/list ([(name sym) (in-dict fields)])
                    `(td ,(format-percent (hash-ref (car table) sym 0) total)))
                (td ,(~a n))))))))
+
+(define (render-phase-sollya-histograms sollya-histograms)
+  (define total-time (apply + sollya-histograms))
+  `((dt "Sollya timings")
+    (summary "Total time spent in Sollya " ,(format-time total-time))
+    (canvas ([id ,(format "calls-~a" 123125531)]
+             [title "Histogram of sollya timings"]))
+    (script "histogram2D(\""
+            ,(format "calls-~a" 123125531) "\", "
+            ,(jsexpr->string sollya-histograms) ", "
+            ,(jsexpr->string (make-list (length sollya-histograms) 1)) ")")))
 
 (define (render-phase-sollya-eval sollya-eval)
   (define fields

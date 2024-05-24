@@ -10,7 +10,7 @@
 ;(require "run-mpfi.rkt")
 
 (define *precision* (make-parameter 32))
-(define timeout-ms 2000.0)
+(define timeout-ms 500.0)
 
 (define (program-body prog)
   (match-define (list (or 'lambda 'λ 'FPCore) (list vars ...) body) prog)
@@ -148,6 +148,7 @@
 (define (make-sollya prog #:backup [backup #f] #:inform [inform #f])
   (define-values (process m-out m-in m-err)
     (subprocess #f #f #f sollya-path "--flush"))
+  ;(printf "created ~a\n" (subprocess-pid process))
 
   (define buffer (make-bytes 65536 0))
 
@@ -198,16 +199,21 @@
                     (parse-sollya-number  buffer m-out start)))
     
     (when (equal? (last out) 'exit)                        ; when Sollya has timed out restart the process
+      ;(printf "killed ~a\n" (subprocess-pid process))
       (define-values (process2 m-out2 m-in2 m-err2)
         (make-sollya prog #:backup backup))
-      (subprocess-kill process true)
+      (subprocess-kill process #t)
       (set! process process2)
       (set! m-out m-out2)
       (set! m-in m-in2)
       (set! m-err m-err2))
     out)
   (define (kill-process)
-    (subprocess-kill process true))
+    ;(printf "killed ~a\n" (subprocess-pid process))
+    (subprocess-kill process #t)
+    (close-output-port m-in)
+    (close-input-port m-out)
+    (close-input-port m-err))
   (values compiled-spec kill-process))
 
 
