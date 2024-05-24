@@ -60,14 +60,13 @@
         'u/u 'u/n 'o/o 'n/o
         'o*u 'u*o 'n*u
         'cancellation))
+(define cond-thres (bf 100))
+(define maybe-cond-thres (bf 32))
 
-(define (predicted-errors expr ctx pctx)
-  (define cond-thres (bf 100))
-  (define maybe-cond-thres (bf 32))
-
-  
+(define (compile-expr expr ctx)
   (define subexprs
     (all-subexpressions-rev expr (context-repr ctx)))
+
   (define subexprs-list (map car subexprs))
   (define spec-list (map prog->spec subexprs-list))
   (define ctx-list
@@ -80,7 +79,28 @@
                               (map context-repr ctx-list))))
 
   (define subexprs-fn (parameterize ([*max-mpfr-prec* 128])
-                        (eval-progs-real spec-list ctx-list))) 
+                        (eval-progs-real spec-list ctx-list)))
+  (values subexprs-list repr-hash subexprs-fn))
+
+(define (predicted-errors expr ctx pctx)
+  
+  ;; (define subexprs
+  ;;   (all-subexpressions-rev expr (context-repr ctx)))
+  ;; (define subexprs-list (map car subexprs))
+  ;; (define spec-list (map prog->spec subexprs-list))
+  ;; (define ctx-list
+  ;;   (for/list ([subexpr (in-list subexprs)])
+  ;;     (struct-copy context ctx [repr (repr-of (car subexpr) ctx)])))
+
+  ;; (define repr-hash
+  ;;   (make-immutable-hash (map cons
+  ;;                             subexprs-list
+  ;;                             (map context-repr ctx-list))))
+
+  ;; (define subexprs-fn (parameterize ([*max-mpfr-prec* 128])
+  ;;                       (eval-progs-real spec-list ctx-list)))
+
+  (define-values (subexprs-list repr-hash subexprs-fn) (compile-expr expr ctx pctx))
   
   (define error-count-hash
     (make-hash (map (lambda (x) (cons x '())) subexprs-list)))
