@@ -11,6 +11,7 @@
          herbie/points
          herbie/sandbox
          herbie/syntax/read
+         herbie/syntax/rules
          herbie/syntax/syntax
          herbie/syntax/sugar
          herbie/syntax/types
@@ -58,6 +59,28 @@
   (define exs (map second pts&exs))
   (mk-pcontext pts exs))
 
+;; Desugars an expression
+(define (desugar-expr expr ctx platform-name)
+  (define platform (get-platform platform-name))
+  (define impls (list->set (platform-impls platform)))
+  (let/ec return
+    (let loop ([expr expr])
+      (match expr
+        [(? literal?) expr]
+        [(? symbol?) expr]
+        [(list 'if cond ift iff)
+         (list 'if (loop cond) (loop ift) (loop iff))]
+        [(list (? (curry set-member? impls) impl) args ...)
+         (cons impl (map loop args))]
+        [(list (? (compose accelerator-exists? impl->operator) impl) args ...)
+         (define repr (impl-info impl 'otype))
+         (define op (impl->operator impl))
+         (define spec (expand-accelerators (prog->spec expr) #:accelerators (list op)))
+         (loop (spec->prog spec (struct-copy context ctx [repr repr])))]
+        [_
+         (eprintf "failed to desugar ~a\n" expr)
+         (return #f)]))))
+
 ;; Replaces any unsupported accelerators in an FPCore
 (define (remove-accelerators core)
   (define op-set (platform-operator-set (*active-platform*)))
@@ -101,19 +124,23 @@
        (define cost (job-result-backend result))
        (printf "~a\n" cost)
        (loop)]
-      ; desugar <core:expr>
+      ; desugar <core:expr> <platform:symbol>
       [(list 'desugar args ...)
-       (define core
+       (define-values (core platform)
          (match args
-           [(list core) core]
+           [(list core platform) (values core platform)]
            [_ (error 'run-server "desugar: malformed arguments ~a" args)]))
-       (define core* (remove-accelerators core))
-       (with-handlers ([exn:fail:user:herbie:syntax?
-                        (lambda (_)
-                          (eprintf "Failed to parse ~a\n" core)
-                          (writeln #f))])
-          (parse-test (datum->syntax #f core*))
-          (writeln core*))
+       (define test (parse-test (datum->syntax #f core)))
+       (define expr* (desugar-expr (test-input test) (test-context test) platform))
+       (cond
+         [expr*
+          (define core
+            `(FPCore ,(test-vars test)
+                     :name ,(test-name test)
+                     ,(prog->fpcore expr* (test-output-repr test))))
+          (writeln core)]
+         [else
+          (writeln #f)])
        (loop)]
       ; error <core> <points>
       [(list 'error args ...)
@@ -144,7 +171,6 @@
        (write-datafile (build-path (symbol->string dir) "herbie.json") info)
        (writeln "" (current-output-port))
        (loop)]
-      ; pareto <frontier:list> ...
       [(list 'resugar args ...)
         (define-values (vars name precision pre spec output)
           (match args
@@ -153,6 +179,7 @@
         (define core (resugar-core vars name precision pre spec output))
         (writeln core (current-output-port))
         (loop)]
+      ; pareto <frontier:list> ...
       [(list 'pareto args ...)
        (define combined (pareto-combine args #:convex? #t))
        (displayln
@@ -201,6 +228,16 @@
                    "|")]
                [_ #f]))))
        (displayln result)
+       (loop)]
+      ; supported <core:exprs>
+      [(list 'supported cores ...)
+       (for ([core (in-list cores)])
+         (write
+           (with-handlers ([exn:fail:user:herbie? (const #f)])
+             (parse-test (datum->syntax #f core))
+             #t))
+         (display " "))
+       (newline)
        (loop)]
       ; exit
       [(list 'exit) (void)]

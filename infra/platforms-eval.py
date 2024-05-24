@@ -119,7 +119,8 @@ def main():
         with mp.Pool(processes=num_parallel) as pool:
             pool.starmap(run_seed, configs)
     else:
-        map(run_seed, configs)
+        for config in configs:
+            run_seed(*config)
 
     # plot configurations
     configs = []
@@ -131,7 +132,8 @@ def main():
         with mp.Pool(processes=num_parallel) as pool:
             pool.starmap(run_plot, configs)
     else:
-        map(run_plot, configs)
+        for config in configs:
+            run_plot(*config)
 
 
 if __name__ == "__main__":

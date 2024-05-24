@@ -99,7 +99,8 @@ def main():
         with mp.Pool(processes=num_parallel) as pool:
             pool.starmap(run_herbie, configs)
     else:
-        map(run_herbie, configs)
+        for config in configs:
+            run_herbie(*config)
 
     # Reinstall local Herbie
     reinstall_herbie()

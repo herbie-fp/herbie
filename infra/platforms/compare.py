@@ -74,6 +74,17 @@ def main():
                 core.key = key_dict[core.name]
             else:
                 print(f'WARN: no key for {core.name} from baseline')
+
+        runner2 = make_runner(
+            platform='c',
+            working_dir=output_dir,
+            herbie_path=herbie_path,
+            num_inputs=num_points,
+            num_runs=num_runs,
+            threads=threads,
+            key=key,
+            seed=seed
+        )
     else:
         runner2 = make_runner(
             platform=platform2,
@@ -95,26 +106,37 @@ def main():
             raise ValueError(f'no input FPCore cached with {key}')
         input_cores.append(core)
 
+    # analyze input cores
     runner1.herbie_cost(cores=input_cores)
     runner1.herbie_error(cores=input_cores)
 
-    # pull `cores2` back into `platform1`
-    cores2 = list(filter(lambda c: c.key in all_keys, cores2)) # filter only relevant fpcores
-    cores2 = runner1.herbie_desugar(input_cores=input_cores, cores=cores2)
-    runner1.herbie_cost(cores=cores2)
-    runner1.herbie_error(cores=cores2)
+    # filter only relevant fpcores
+    cores2 = list(filter(lambda c: c.key in all_keys, cores2))
 
-    # compute frontiers
-    frontier1 = runner1.herbie_pareto(input_cores=input_cores, cores=cores1)
-    frontier2 = runner1.herbie_pareto(input_cores=input_cores, cores=cores2)
+    # run Herbie on all supported cores
+    supported = runner1.herbie_supported(cores=cores2)
+    supported_cores = []
+    for core, s in zip(cores2, supported):
+        if s:
+            supported_cores.append(core)
+
+    runner1.herbie_cost(cores=supported_cores)
+    runner1.herbie_error(cores=supported_cores)
+
+    # run Herbie on desugared cores
+    # pull `cores2` back into `platform1`
+    desugared_cores = runner2.herbie_desugar(input_cores=input_cores, cores=cores2, platform=platform1)
+    runner1.herbie_cost(cores=desugared_cores)
+    runner1.herbie_error(cores=desugared_cores)
+
+    # TODO: resugared cores
 
     # write report
     runner1.write_cross_compile_report(
         name=platform2,
         input_cores=input_cores,
-        foreign_cores=cores2,
-        platform_frontier=frontier1,
-        foreign_frontier=frontier2
+        supported_cores=supported_cores,
+        desugared_cores=desugared_cores,
     )
 
 

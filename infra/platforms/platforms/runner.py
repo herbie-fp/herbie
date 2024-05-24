@@ -239,6 +239,28 @@ class Runner(object):
 
         return cores
 
+    def herbie_supported(self, cores: List[FPCore]) -> List[bool]:
+        """Returns whether an FPCore is supported in the platform."""
+        with Popen(
+            args=['racket', str(self.herbie_path), '--platform', self.name],
+            stdin=PIPE,
+            stdout=PIPE,
+            universal_newlines=True) as server:
+
+            # call out to server
+            core_strs = ' '.join(map(lambda c: str(c.core), cores))
+            print(f'(supported {core_strs}) (exit)', file=server.stdin, flush=True)
+            output = server.stdout.read().strip()
+
+        result = []
+        for v in output.split(' '):
+            if v == '#f':
+                result.append(False)
+            else:
+                result.append(True)
+
+        assert len(cores) == len(result)
+        return result
     
     def herbie_read(self, path: str) -> List[FPCore]:
         """Reads a benchmark suite from `path` returning all FPCores found."""
@@ -329,7 +351,12 @@ class Runner(object):
             _ = server.stdout.readline()
         self.log(f'recomputed cost of {len(cores)} cores')
 
-    def herbie_desugar(self, input_cores: List[FPCore], cores: List[FPCore]) -> List[FPCore]:
+    def herbie_desugar(
+        self,
+        input_cores: List[FPCore],
+        cores: List[FPCore],
+        platform: str
+    ) -> List[FPCore]:
         """Attempts to desugar an FPCore generated in another platform into the platform
         represented by this `Runner`. If desugaring fails, the FPCore is removed."""
         desugared = []
@@ -345,7 +372,7 @@ class Runner(object):
 
             # call out to server
             for core in cores:
-                print(f'(desugar {core.core})', file=server.stdin, flush=True)
+                print(f'(desugar {core.core} {platform})', file=server.stdin, flush=True)
                 output = server.stdout.readline().strip()
                 if output == '#f':
                     print(f'WARN: failed to desugar {core.name}')
@@ -654,38 +681,43 @@ class Runner(object):
         self,
         name: str,
         input_cores: List[FPCore],
-        foreign_cores: List[FPCore],
-        platform_frontier: List[Tuple[float, float]],
-        foreign_frontier: List[Tuple[float, float]]
+        supported_cores: List[FPCore],
+        desugared_cores: List[FPCore]
     ) -> None:
         # group cores by input [key]
-        by_key = dict()
-        for core in foreign_cores:
-            if core.key in by_key:
-                by_key[core.key].append(core)
+        supported_by_key: Dict[str, List[FPCore]] = dict()
+        for core in supported_cores:
+            if core.key in supported_by_key:
+                supported_by_key[core.key].append(core)
             else:
-                by_key[core.key] = [core]
+                supported_by_key[core.key] = [core]
+
+        desugared_by_key: Dict[str, List[FPCore]] = dict()
+        for core in desugared_cores:
+            if core.key in desugared_by_key:
+                desugared_by_key[core.key].append(core)
+            else:
+                desugared_by_key[core.key] = [core]
 
         core_reports = []
         for input_core in input_cores:
-            output_cores = by_key[input_core.key]
+            supported_cores = supported_by_key[input_core.key]
+            desugared_cores = desugared_by_key[input_core.key]
             core_reports.append({
                 'input_core': input_core.to_json(),
-                'output_cores': list(map(lambda c: c.to_json(), output_cores))
+                'supported_cores': list(map(lambda c: c.to_json(), supported_cores)),
+                'desugared_cores': list(map(lambda c: c.to_json(), desugared_cores))
             })
 
         report = {
             'seed': self.seed,
-            'cores': core_reports,
-            'frontier1': platform_frontier,
-            'frontier2': foreign_frontier
+            'cores': core_reports
         }
 
         path = self.report_dir.joinpath(f'cross-compile-{name}.json')
         with open(path, 'w') as _file:
             json.dump(report, _file)
 
-        pass
 
     def write_baseline_report(
         self,
