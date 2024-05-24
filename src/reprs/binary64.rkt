@@ -5,7 +5,8 @@
 (require math/flonum
          math/bigfloat
          ffi/unsafe
-         fpbench)
+         fpbench
+         ffi/unsafe)
 
 (require "runtime/utils.rkt"
          "runtime/libm.rkt")
