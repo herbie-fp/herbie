@@ -67,7 +67,7 @@
   ; TODO: Terrible hack. Fixing this properly would mean desugaring before
   ; sampling, but we haven't done that yet.
   (define dummy-repr (representation #f #f #f #f #f #f #f #f #f))
-  (define ival-fn (compile-spec body vars repr))
+  (define ival-fn (compile-spec body vars dummy-repr))
   (define info (accelerator name itypes otype spec))
   (hash-set! accelerators name info)
   (register-operator! name itypes otype (list (cons 'ival ival-fn)))
