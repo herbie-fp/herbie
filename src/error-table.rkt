@@ -58,7 +58,8 @@
 (define all-explanations
   (list 'uflow-rescue
         'u/u 'u/n 'o/o 'n/o
-        'o*u 'u*o 'n*u))
+        'o*u 'u*o 'n*u
+        'cancellation))
 
 (define (predicted-errors expr ctx pctx)
   (define cond-thres (bf 100))
