@@ -75,13 +75,16 @@
   (define-values (iff* iff-ctx) (visit/ctx vtor iff ift-ctx))
   (define-values (cond* cond-ctx) (visit/ctx vtor cond ctx))
   (define-values (ctx* name) (ctx-random-name iff-ctx prec))
+  (define-values (name-ctx cond-name) (ctx-random-name ctx prec))
+
   ;(define type (type->numpy prec))
   ;(define suffix (precision->suffix prec))
 
   ; TODO maybe add mask array declaration 
+  (printf "~a~a = ~a" indent cond-name cond*)
   (printf "~a~a = numpy.zeros(length)\n" indent name)
-  (printf "~a~a[~a] = numpy.array(~a)[~a]\n" indent name cond* ift* cond*)
-  (printf "~a~a[~~ ~a] = numpy.array(~a)[~~ ~a]\n" indent name cond* iff* cond*)
+  (printf "~a~a[~a] = numpy.array(~a)[~a]\n" indent name cond-name ift* cond-name)
+  (printf "~a~a[~~ ~a] = numpy.array(~a)[~~ ~a]\n" indent name cond-name iff* cond-name)
   (values name ctx*))
 
 (define (visit-op_/numpy vtor op args #:ctx ctx)
@@ -125,8 +128,6 @@
   [visit-if visit-if/numpy]
   [visit-number visit-number/numpy]
 )
-
-
 
 
 (define  core->numpy
