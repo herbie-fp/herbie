@@ -20,10 +20,16 @@
   :alt 
   (! :herbie-platform default
    (* 2 (cos (+ x (/ eps 2))) (sin (/ eps 2))))
+
+  :alt 
+  (! :herbie-platform default
+    (+ (* (sin x) (- (cos eps) 1)) (* (cos x) (sin eps))))
+
+  :alt 
+  (! :herbie-platform default
+    (* (cos (* 0.5 (- eps (* -2 x)))) (sin (* 0.5 eps)) 2))
  
   (- (sin (+ x eps)) (sin x)))
-
-; (< (fabs eps) (fabs x))
 
 
 ; 2cos involves the difference of two cos functions. According to the sum-to-product trigonometric identity,
@@ -34,6 +40,10 @@
  :alt 
  (! :herbie-platform default
   (* -2 (sin (+ x (/ eps 2))) (sin (/ eps 2))))
+
+ :alt 
+ (! :herbie-platform default
+  (pow (cbrt (* -2 (sin (* 0.5 (fma 2.0 x eps))) (sin (* 0.5 eps)) )) 3))
 
  (- (cos (+ x eps)) (cos x)))
 
@@ -50,7 +60,16 @@
  (! :herbie-platform default
   (/ (sin eps) (* (cos x) (cos (+ x eps)))))
 
+ :alt 
+ (! :herbie-platform default
+  (- (/ (+ (tan x) (tan eps)) (- 1 (* (tan x) (tan eps)))) (tan x)))
+
+ :alt 
+ (! :herbie-platform default
+  (+ eps (* eps (tan x) (tan x))))
+
  (- (tan (+ x eps)) (tan x)))
+
 
 ; This is directly taken from the Hamming textbook but this is a direct identity of the trig half identity
 ; for tan, and we completely remove any trace of a subtraction using this, fulfilling our goal.
@@ -74,6 +93,10 @@
  :alt 
  (! :herbie-platform default
   (atan (/ 1 (+ 1 (* N (+ N 1))))))
+ 
+ :alt 
+ (! :herbie-platform default
+  (atan2 1 (fma N (+ 1 N) 1)))
 
  (- (atan (+ N 1)) (atan N)))
 
@@ -92,5 +115,8 @@
  :alt 
  (! :herbie-platform default
   (+ -0.5 (/ (* 9 (* eps eps)) 40) (/ (* -27 (* eps eps eps eps)) 2800) (/ (* 27 (* eps eps eps eps eps eps)) 112000)))
- 
+
+ (! :herbie-platform default
+  (- (* 0.225 x x) 0.5))
+
  (/ (- eps (sin eps)) (- eps (tan eps))))
