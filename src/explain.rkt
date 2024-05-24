@@ -5,7 +5,7 @@
          "ground-truth.rkt" "syntax/sugar.rkt" "alternative.rkt" "programs.rkt"
          "float.rkt" "config.rkt")
 
-(provide predicted-errors)
+(provide explain)
 
 (define *top-3* (make-parameter #f))
 
@@ -730,7 +730,7 @@
           total-confusion-matrix
           freqs))
 
-(define (predicted-errors expr ctx pctx)
+(define (explain expr ctx pctx)
   (define-values (subexprs-list repr-hash subexprs-fn) (compile-expr expr ctx))
   
   (define-values (error-count-hash
