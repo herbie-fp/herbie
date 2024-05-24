@@ -116,6 +116,7 @@
  (! :herbie-platform default
   (+ -0.5 (/ (* 9 (* eps eps)) 40) (/ (* -27 (* eps eps eps eps)) 2800) (/ (* 27 (* eps eps eps eps eps eps)) 112000)))
 
+ :alt
  (! :herbie-platform default
   (- (* 0.225 x x) 0.5))
 
