@@ -28,4 +28,6 @@
       (printf "Matching output expressions\n")]
      [else
       (printf "Output expressions do not match!!\n")
+      (printf "df1 : ~a\n" df1)
+      (printf "df2 : ~a\n" df2)
       (exit 1)])))
