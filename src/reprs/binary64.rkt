@@ -3,7 +3,8 @@
 ;; Builtin double-precision plugin (:precision binary64)
 
 (require math/flonum
-         math/bigfloat)
+         math/bigfloat
+         ffi/unsafe)
 
 (require "runtime/utils.rkt"
          "runtime/libm.rkt")
@@ -110,3 +111,26 @@
   [remove-recip  (recip a)      (/ 1 a)]
   [add-rsqrt     (/ 1 (sqrt a)) (rsqrt a)]
   [remove-rsqrt  (rsqrt a)      (/ 1 (sqrt a))])
+
+(define-accelerator (fast-exp real) real (lambda (x) (exp x)))
+(define-accelerator (fast-sin real) real (lambda (x) (sin x)))
+(define-accelerator (fast-cos real) real (lambda (x) (cos x)))
+(define-accelerator (fast-tan real) real (lambda (x) (tan x)))
+(define-accelerator (fast-tanh real) real (lambda (x) (tanh x)))
+(define-accelerator (fast-log real) real (lambda (x) (log x)))
+(define-accelerator (fast-asin real) real (lambda (x) (asin x)))
+(define-accelerator (fast-acos real) real (lambda (x) (acos x)))
+(define-accelerator (fast-atan real) real (lambda (x) (atan x)))
+;; (define-accelerator (fast-isqrt real) real (lambda (x) (/ 1 (sqrt x))))
+
+(define libvdt "/nix/store/zrs4rbyx0cxhllas4k5h8hdbzgbd11dc-vdt-0.4.4/lib/libvdt" )
+(define-accelerator-impl fast-exp fast-exp.f64 (binary64) binary64 (get-ffi-obj "exp" libvdt (_fun _double -> _double)))
+(define-accelerator-impl fast-sin fast-sin.f64 (binary64) binary64 (get-ffi-obj "sin" libvdt (_fun _double -> _double)))
+(define-accelerator-impl fast-cos fast-cos.f64 (binary64) binary64 (get-ffi-obj "cos" libvdt (_fun _double -> _double)))
+(define-accelerator-impl fast-tan fast-tan.f64 (binary64) binary64 (get-ffi-obj "tan" libvdt (_fun _double -> _double)))
+(define-accelerator-impl fast-tanh fast-tanh.f64 (binary64) binary64 (get-ffi-obj "tanh" libvdt (_fun _double -> _double)))
+(define-accelerator-impl fast-log fast-log.f64 (binary64) binary64 (get-ffi-obj "log" libvdt (_fun _double -> _double)))
+(define-accelerator-impl fast-asin fast-asin.f64 (binary64) binary64 (get-ffi-obj "asin" libvdt (_fun _double -> _double)))
+(define-accelerator-impl fast-acos fast-acos.f64 (binary64) binary64 (get-ffi-obj "acos" libvdt (_fun _double -> _double)))
+(define-accelerator-impl fast-atan fast-atan.f64 (binary64) binary64 (get-ffi-obj "atan" libvdt (_fun _double -> _double)))
+;; (define-accelerator-impl fast-isqrt fast-isqrt.f64 (binary64) binary64 (get-ffi-obj "isqrt" libvdt (_fun _double -> _double)))
