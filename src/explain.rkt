@@ -611,17 +611,10 @@
           oflow-hash
           uflow-hash))
 
-(define (predicted-errors expr ctx pctx)
-  
-  (define-values (subexprs-list repr-hash subexprs-fn) (compile-expr expr ctx))
-  
-  (define-values (error-count-hash
-                  expls->points
-                  maybe-expls->points
-                  oflow-hash
-                  uflow-hash)
-    (predict-errors ctx pctx
-                    subexprs-list repr-hash subexprs-fn))
+(define (generate-timelines expr ctx pctx
+                            error-count-hash
+                            expls->points maybe-expls->points
+                            oflow-hash uflow-hash)
 
   (define tcount-hash (actual-errors expr pctx))
 
@@ -658,7 +651,6 @@
       (define expl (cdr key))
       (define err-count (length val))
       (define maybe-count (length (hash-ref maybe-expls->points key '())))
-      ;;(define maybe-count-old (hash-ref maybe-explanations-hash key 0))
       (define flow-list (make-flow-table oflow-hash uflow-hash expr expl))
       
       (list (~a (car expr))
@@ -675,10 +667,8 @@
     (define expls-points-list (hash->list expls->points))
     (define sorted-list (sort expls-points-list >
                               #:key (lambda (x) (length (rest x)))))
-    (define points-per-expl (hash-values expls->points))
     (define points-per-expl-test (map rest sorted-list))
     (define top-3 (take-top-n points-per-expl-test))
-    ;;(eprintf "[og] ~a\n[new] ~a\n" points-per-expl top-3)
     (define points-err (apply set-union '() top-3))
     (for/hash ([point (in-list points-err)])
       (values point true)))
@@ -733,20 +723,27 @@
                   (lambda (x) (+ 1 x))
                   0))
   
-  #;(eprintf "~a\n\n" freqs)
-
-  #;(for ([(_ freq) (in-dict points->expl)])
-    (hash-update! freqs
-                  freq
-                  (lambda (x) (+ 1 x))
-                  0))
-
   (values fperrors
           sorted-explanations-table
           confusion-matrix
           maybe-confusion-matrix
           total-confusion-matrix
           freqs))
+
+(define (predicted-errors expr ctx pctx)
+  (define-values (subexprs-list repr-hash subexprs-fn) (compile-expr expr ctx))
+  
+  (define-values (error-count-hash
+                  expls->points
+                  maybe-expls->points
+                  oflow-hash
+                  uflow-hash)
+    (predict-errors ctx pctx
+                    subexprs-list repr-hash subexprs-fn))
+  (generate-timelines expr ctx pctx
+                      error-count-hash
+                      expls->points maybe-expls->points
+                      oflow-hash uflow-hash))
 
 (define (flow-list flow-hash expr type)
   (for/list ([(k v) (in-dict (hash-ref flow-hash expr))])
