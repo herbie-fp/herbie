@@ -9,6 +9,7 @@ from .math import MathRunner
 from .mkl import MKLRunner
 from .python import PythonRunner
 from .numpy import NumpyRunner
+from .vdt import VdtRunner
 
 def make_runner(
     platform: str,
@@ -36,6 +37,7 @@ def make_runner(
         return AVXRunner(**kwargs)
     elif platform == 'numpy':
         return NumpyRunner(**kwargs)
-
+    elif platform == 'vdt':
+        return VdtRunner(**kwargs)
     else:
         raise ValueError(f'Unsupported output platform: {platform}')
