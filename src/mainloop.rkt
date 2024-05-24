@@ -392,7 +392,7 @@
   (timeline-push! 'maybe-confusion maybe-confusion-matrix)
 
   (timeline-push! 'total-confusion total-confusion-matrix)
-    (for ([(key val) (in-dict freqs)])
+  (for ([(key val) (in-dict freqs)])
     (timeline-push! 'freqs key val)))
 
 (define (make-regime! alts)
