@@ -1,14 +1,13 @@
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Dict
 from subprocess import Popen, PIPE
 from pathlib import Path
 
 import json
-import matplotlib.pyplot as plt
 import multiprocessing as mp
 import shutil
 import json
 
-from .cache import Cache
+from .cache import Cache, SampleType
 from .fpcore import FPCore, parse_core
 from .util import sample_repr, py_to_racket, racket_to_py, sanitize_name
 
@@ -27,8 +26,13 @@ def sample_to_pcontext(sample):
     input_str = ' '.join(input_strs)
     return f'({input_str})'
 
-def error1(config: Tuple[FPCore, List, str, str]):
-    core, sample, herbie_path, platform, seed = config
+def error1(
+    sample: SampleType,
+    cores: List[FPCore],
+    herbie_path: str,
+    platform: str,
+    seed: int
+) -> List[float]:
     with Popen(
             args=[
                 'racket', str(herbie_path),
@@ -40,13 +44,15 @@ def error1(config: Tuple[FPCore, List, str, str]):
             universal_newlines=True) as server:
         
         pcontext = sample_to_pcontext(sample)
-        print(f'(error {core.core} {pcontext})', file=server.stdin, flush=True)
-        output = server.stdout.readline()
+        core_strs = ' '.join(map(lambda c: str(c.core), cores))
+        print(f'(error {pcontext} {core_strs}) (exit)', file=server.stdin, flush=True)
+        output = server.stdout.read()
 
-        print('(exit)', file=server.stdin, flush=True)
-        _ = server.stdout.read()
+    errs = []
+    for val in output.strip().split(' '):
+        errs.append(float(val))
+    return errs
 
-    return float(output)
 
 def sample1(config: Tuple[FPCore, int, str, str]) -> Tuple[List[List[float]], List[float]]:
     core, num_inputs, herbie_path, platform, seed, py_sample = config
@@ -374,20 +380,32 @@ class Runner(object):
 
     def herbie_error(self, cores: List[FPCore]) -> None:
         """Computes the error of each FPCore, overriding the `error` variable of each FPCore."""
-        # assuming all FPCores have names at this point
-        configs = []
+        # group FPCore by sample and batch evaluate
+        by_key: Dict[str, List[FPCore]] = dict()
         for core in cores:
-            sample = self.cache.get_sample(core.key, self.seed)
+            if core.key not in by_key:
+                by_key[core.key] = []
+            by_key[core.key].append(core)
+
+        # parallel configurations
+        configs = []
+        for key in by_key:
+            sample = self.cache.get_sample(key, self.seed)
             if sample is None:
                 raise ValueError(f'Cannot find cached sample for {core.key}')
-            configs.append((core, sample, self.herbie_path, self.name, self.seed))
+            configs.append((sample, by_key[key], self.herbie_path, self.name, self.seed))
 
-        with mp.Pool(processes=self.threads) as pool:
-            errors = pool.map(error1, configs)
+        if self.threads > 1:
+            with mp.Pool(processes=self.threads) as pool:
+                errss = pool.starmap(error1, configs)
+        else:
+            errss = []
+            for config in configs:
+                errss.append(error1(*config))
 
-        for core, error in zip(cores, errors):
-            core.err = error
-
+        for key, errs in zip(by_key, errss):
+            for core, err in zip(by_key[key], errs):
+                core.err = err
         self.log(f'recomputed errors of {len(cores)} cores')
 
     def herbie_improve(

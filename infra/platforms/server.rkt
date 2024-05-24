@@ -117,14 +117,20 @@
        (loop)]
       ; error <core> <points>
       [(list 'error args ...)
-       (define-values (core points)
+       (define-values (points cores)
          (match args
-           [(list core points) (values core points)]
+           [(list points cores ...) (values points cores)]
            [_ (error 'run-server "error: malformed arguments ~a" args)]))
-       (define test (parse-test (datum->syntax #f core)))
+
        (define pctx (python->pcontext points))
-       (define result (run-herbie 'errors test #:pcontext pctx #:seed seed #:timeline-disabled? #t))
-       (printf "~a\n" (errors-score (map second (job-result-backend result))))
+       (define tests
+         (for/list ([core (in-list cores)])
+           (parse-test (datum->syntax #f core))))
+
+       ; TODO: check that the contexts are the same
+       (define ctx (test-context (first tests)))
+       (define err-lsts (flip-lists (batch-errors (map test-input tests) pctx ctx)))
+       (printf "~a\n" (string-join (map (compose ~a errors-score) err-lsts) " "))
        (loop)]
       ; improve <core> <threads:int> <dir>
       [(list 'improve args ...)
