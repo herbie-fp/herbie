@@ -422,15 +422,7 @@
                (tr (th "number") (th "freq"))
                ,@(for/list ([freq (in-list (sort freqs < #:key first))])
                    (match-define (list key val) freq)
-                   `(tr (td ,(~a key) (td ,(~a val)))
-                        ))
-               
-               ))
-
-    )
-
-
-  )
+                   `(tr (td ,(~a key) (td ,(~a val)))))))))
 
 (define (render-phase-counts alts)
   (match-define (list (list inputs outputs)) alts)
