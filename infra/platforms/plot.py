@@ -7,10 +7,13 @@ import os
 import matplotlib.pyplot as plt
 from pathlib import Path
 
+from platforms.fpcore import FPCore
+from platforms.runners import make_runner
+
 # Paths
 script_path = os.path.abspath(__file__)
 script_dir, _ = os.path.split(script_path)
-
+herbie_path = os.path.join(script_dir, 'server.rkt')
 
 def plot_time(name: str, output_dir: Path, info: dict):
     """Plots Herbie cost estimate vs actual run time"""
@@ -54,11 +57,43 @@ def plot_improve(name: str, output_dir: Path, info):
 def plot_compare(name: str, name2: str, output_dir: Path, info):
     print(f'Plotting compare {name} <- {name2}')
 
-    frontier1_costs, frontier1_errors = zip(*info["frontier1"])
-    frontier2_costs, frontier2_errors = zip(*info["frontier2"])
+    input_cores = []
+    platform_cores = []
+    supported_cores = []
+    desugared_cores = []
 
-    plt.plot(frontier1_costs, frontier1_errors, label=name)
-    plt.plot(frontier2_costs, frontier2_errors, label=name2)
+    for core_info in info['cores']:
+        input_core = FPCore.from_json(core_info['input_core'])
+        platform = map(FPCore.from_json, core_info['platform_cores'])
+        supported = map(FPCore.from_json, core_info['supported_cores'])
+        desugared = map(FPCore.from_json, core_info['desugared_cores'])
+
+        input_cores.append(input_core)
+        platform_cores += platform
+        supported_cores += supported
+        desugared_cores += desugared
+
+    runner = make_runner(
+        platform='c',
+        working_dir=output_dir,
+        herbie_path=herbie_path
+    )
+
+    platform_frontier = runner.herbie_pareto(input_cores=input_cores, cores=platform_cores)
+    platform_costs = list(map(lambda pt: pt[0], platform_frontier))
+    platform_errs = list(map(lambda pt: pt[1], platform_frontier))    
+
+    supported_frontier = runner.herbie_pareto(input_cores=input_cores, cores=supported_cores)
+    supported_costs = list(map(lambda pt: pt[0], supported_frontier))
+    supported_errs = list(map(lambda pt: pt[1], supported_frontier))
+
+    desugared_frontier = runner.herbie_pareto(input_cores=input_cores, cores=desugared_cores)
+    desugared_costs = list(map(lambda pt: pt[0], desugared_frontier))
+    desugared_errs = list(map(lambda pt: pt[1], desugared_frontier))
+
+    plt.plot(platform_costs, platform_errs, label=name)
+    plt.plot(supported_costs, supported_errs, label=f'{name2} (supported)')
+    plt.plot(desugared_costs, desugared_errs, label=f'{name2} (desugared)')
     plt.title('Estimated cost vs. cumulative average error (bits)')
     plt.xlabel('Estimated cost (Herbie)')
     plt.ylabel(f'Cumulative average error')

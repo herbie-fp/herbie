@@ -106,10 +106,6 @@ def main():
             raise ValueError(f'no input FPCore cached with {key}')
         input_cores.append(core)
 
-    # analyze input cores
-    runner1.herbie_cost(cores=input_cores)
-    runner1.herbie_error(cores=input_cores)
-
     # filter only relevant fpcores
     cores2 = list(filter(lambda c: c.key in all_keys, cores2))
 
@@ -120,21 +116,22 @@ def main():
         if s:
             supported_cores.append(core)
 
-    runner1.herbie_cost(cores=supported_cores)
-    runner1.herbie_error(cores=supported_cores)
-
     # run Herbie on desugared cores
     # pull `cores2` back into `platform1`
     desugared_cores = runner2.herbie_desugar(input_cores=input_cores, cores=cores2, platform=platform1)
-    runner1.herbie_cost(cores=desugared_cores)
-    runner1.herbie_error(cores=desugared_cores)
 
     # TODO: resugared cores
+
+    # analyze all cores
+    all_cores = input_cores + supported_cores + desugared_cores
+    runner1.herbie_cost(cores=all_cores)
+    runner1.herbie_error(cores=all_cores)
 
     # write report
     runner1.write_cross_compile_report(
         name=platform2,
         input_cores=input_cores,
+        cores=cores1,
         supported_cores=supported_cores,
         desugared_cores=desugared_cores,
     )

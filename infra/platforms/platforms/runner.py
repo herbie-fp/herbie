@@ -495,11 +495,7 @@ class Runner(object):
                 cores_by_group[core.key] = [core]
 
         with Popen(
-            args=[
-                'racket', str(self.herbie_path),
-                '--platform', self.name,
-                '--seed', str(self.seed)
-            ],
+            args=['racket', str(self.herbie_path)],
             stdin=PIPE,
             stdout=PIPE,
             universal_newlines=True) as server:
@@ -625,9 +621,15 @@ class Runner(object):
 
     def write_tuning_report(self, cores: List[FPCore], times: List[float]) -> None:
         """Writes tuning data to a JSON file."""
-        report = dict()
+        core_to_time = dict()
         for core, time in zip(cores, times):
-            report[core.name] = [core.cost, time]
+            core_to_time[core.name] = [core.cost, time]
+
+        report = {
+            'platform': self.name,
+            'time_unit': self.time_unit,
+            'times': core_to_time
+        }
 
         path = self.report_dir.joinpath('tuning.json')
         with open(path, 'w') as f:
@@ -668,6 +670,8 @@ class Runner(object):
             })
 
         report = {
+            'platform': self.name,
+            'time_unit': self.time_unit,
             'seed': self.seed,
             'cores': core_reports,
             'frontier': frontier
@@ -681,10 +685,17 @@ class Runner(object):
         self,
         name: str,
         input_cores: List[FPCore],
+        cores: List[FPCore],
         supported_cores: List[FPCore],
         desugared_cores: List[FPCore]
     ) -> None:
-        # group cores by input [key]
+        cores_by_key: Dict[str, List[FPCore]] = dict()
+        for core in cores:
+            if core.key in cores_by_key:
+                cores_by_key[core.key].append(core)
+            else:
+                cores_by_key[core.key] = [core]
+        
         supported_by_key: Dict[str, List[FPCore]] = dict()
         for core in supported_cores:
             if core.key in supported_by_key:
@@ -701,15 +712,18 @@ class Runner(object):
 
         core_reports = []
         for input_core in input_cores:
-            supported_cores = supported_by_key[input_core.key]
-            desugared_cores = desugared_by_key[input_core.key]
+            cores = cores_by_key[input_core.key]
+            supported_cores = supported_by_key.get(input_core.key, [])
+            desugared_cores = desugared_by_key.get(input_core.key, [])
             core_reports.append({
                 'input_core': input_core.to_json(),
+                'platform_cores': list(map(lambda c: c.to_json(), cores)),
                 'supported_cores': list(map(lambda c: c.to_json(), supported_cores)),
                 'desugared_cores': list(map(lambda c: c.to_json(), desugared_cores))
             })
 
         report = {
+            'platform': self.name,
             'seed': self.seed,
             'cores': core_reports
         }

@@ -46,7 +46,8 @@ def run_seed(
     output_dir: str,
     key: str,
     num_threads: int,
-    seed: int
+    seed: int,
+    hide_output: bool
 ) -> None:
     print(f'running per-seed evaluation (seed={seed})')
     cmd = [
@@ -59,9 +60,12 @@ def run_seed(
         str(seed)
     ]
 
-    p = Popen(cmd, stdout=PIPE, stderr=STDOUT)
-    stdout, _ = p.communicate()
-    print(stdout.decode('utf-8').strip(), end='')
+    if hide_output:
+        p = Popen(cmd, stdout=PIPE, stderr=STDOUT)
+        stdout, _ = p.communicate()
+        print(stdout.decode('utf-8').strip(), end='')
+    else:
+        subprocess.run(cmd)
 
 
 def run_plot(
@@ -111,8 +115,9 @@ def main():
 
     # eval configurations
     configs = []
+    hide_output = num_parallel > 1
     for seed in range(start_seed, start_seed + num_seeds):
-        configs.append((bench_path, output_dir, f'{key}-{seed}', num_threads, seed))
+        configs.append((bench_path, output_dir, f'{key}-{seed}', num_threads, seed, hide_output))
 
     # run eval in parallel
     if num_parallel > 1:
