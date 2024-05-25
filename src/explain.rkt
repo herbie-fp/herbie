@@ -147,6 +147,9 @@
         (hash-set! flow-hash subexpr new-parent-set))
 
       (match subexpr
+        [(list _ x-ex y-ex z-ex)
+         (update-flow-hash oflow-hash bfinfinite? x-ex y-ex z-ex)
+         (update-flow-hash uflow-hash bfzero? x-ex y-ex z-ex)]
         [(list _ x-ex y-ex)
          (update-flow-hash oflow-hash bfinfinite? x-ex y-ex)
          (update-flow-hash uflow-hash bfzero? x-ex y-ex)]
