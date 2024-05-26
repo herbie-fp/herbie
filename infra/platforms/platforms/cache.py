@@ -47,7 +47,6 @@ class Cache(object):
     def restore(self) -> None:
         # restore input cores
         input_path = self.path.joinpath('input')
-        print(input_path)
         if input_path.exists():
             for core_dir in input_path.iterdir():
                 key = core_dir.name
