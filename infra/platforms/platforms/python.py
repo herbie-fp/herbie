@@ -84,6 +84,8 @@ class PythonRunner(Runner):
         # run processes sequentially
         times = [[] for _ in driver_dirs]
         for i, driver_dir in enumerate(driver_dirs):
+            log_prefix = f'[{i}/{len(driver_dirs)}] '
+            print(log_prefix, end='', flush=True)
             for _ in range(self.num_runs):
                 driver_path = Path(os.path.join(driver_dir, driver_name))
                 p = Popen([target, driver_path], stdout=PIPE)
@@ -94,7 +96,12 @@ class PythonRunner(Runner):
                     raise RuntimeError('Unexpected error when running {out_path}: {output}')
                 times[i].append(float(time.group(1)))
                 print('.', end='', flush=True)
-            print('x', end='', flush=True)
+
+            # Reset terminal
+            print('\r', end='', flush=True)
+            print(' ' * (len(log_prefix) + self.num_runs), end='', flush=True)
+            print('\r', end='', flush=True)
+            
         print()
         
         times = [sum(ts) / len(ts) for ts in times]

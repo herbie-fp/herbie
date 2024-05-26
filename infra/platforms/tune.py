@@ -15,6 +15,7 @@ curr_dir = os.getcwd()
 default_num_threads = 1
 default_num_points = 10_000
 default_num_runs = 10
+default_seed = 1
 
 def main():
     parser = argparse.ArgumentParser(description='Herbie cost tuner')
@@ -23,6 +24,7 @@ def main():
     parser.add_argument('--num-runs', help='number of times to run drivers to obtain an average [100 by default]', type=int)
     parser.add_argument('--py-sample', help='uses a Python based sampling method. Useful for debugging', action='store_const', const=True, default=False)
     parser.add_argument('--key', help='unique identifier under which to place plots and other output', type=str)
+    parser.add_argument('--seed', help='random seed to use for Herbie', type=int)
     parser.add_argument('platform', help='platform to use', type=str)
     parser.add_argument('output_dir', help='directory to emit all working files', type=str)
 
@@ -40,6 +42,7 @@ def main():
     key = args.get('key', None)
     platform = args['platform']
     output_dir = os.path.join(curr_dir, args['output_dir'])
+    seed = args.get('seed', default_seed)
     
     # construct runner
     runner = make_runner(
@@ -49,7 +52,8 @@ def main():
         num_inputs=num_points,
         num_runs=num_runs,
         threads=threads,
-        key=key
+        key=key,
+        seed=seed
     )
 
     # synthesise implementations

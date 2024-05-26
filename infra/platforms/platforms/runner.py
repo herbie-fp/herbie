@@ -28,9 +28,13 @@ def sample_to_pcontext(sample):
     return f'({input_str})'
 
 def error1(config: Tuple[FPCore, List, str, str]):
-    core, sample, herbie_path, platform = config
+    core, sample, herbie_path, platform, seed = config
     with Popen(
-            args=['racket', str(herbie_path), "--platform", platform],
+            args=[
+                'racket', str(herbie_path),
+                '--platform', platform,
+                '--seed', str(seed)
+            ],
             stdin=PIPE,
             stdout=PIPE,
             universal_newlines=True) as server:
@@ -45,7 +49,7 @@ def error1(config: Tuple[FPCore, List, str, str]):
     return float(output)
 
 def sample1(config: Tuple[FPCore, int, str, str]) -> Tuple[List[List[float]], List[float]]:
-    core, num_inputs, herbie_path, platform, py_sample = config
+    core, num_inputs, herbie_path, platform, seed, py_sample = config
     if core.argc == 0:
         return ([], [])
     elif core.py_sample or py_sample:
@@ -56,7 +60,11 @@ def sample1(config: Tuple[FPCore, int, str, str]) -> Tuple[List[List[float]], Li
     else:
         # sample using Herbie
         with Popen(
-                args=['racket', str(herbie_path), "--platform", platform],
+                args=[
+                    'racket', str(herbie_path),
+                    '--platform', platform,
+                    '--seed', str(seed)
+                ],
                 stdin=PIPE,
                 stdout=PIPE,
                 universal_newlines=True) as server:
@@ -108,48 +116,6 @@ def json_test_outputs(test: dict) -> List[Tuple[str, float, float]]:
     
     return outputs
 
-def herbie_json_to_fpcores(path: str, key_dict: dict, herbie_path: str, platform: str) -> List[FPCore]:
-    # read JSON file
-    with open(path, 'r') as f:
-        report = json.load(f)
-
-    # extract relevant fields from report JSON
-    json_cores = []
-    for test in report['tests']:
-        vars = test['vars']
-        name = test['name']
-        prec = test['prec']
-        pre = test['pre']
-        spec = test['spec']
-
-        for expr, cost, err in json_test_outputs(test):
-            json_cores.append((vars, name, prec, pre, spec, expr, cost, err, test))
-
-    # construct FPCores (need to resugar expressions)
-    cores = []
-    with Popen(
-        args=['racket', str(herbie_path), "--platform", platform],
-        stdin=PIPE,
-        stdout=PIPE,
-        universal_newlines=True) as server:
-
-        for vars, name, prec, pre, spec, expr, cost, err, test in json_cores:
-            print(f'(resugar ({" ".join(vars)}) "{name}" {prec} {pre} {spec} {expr})', file=server.stdin, flush=True)
-            core_str = server.stdout.readline()
-
-            core = parse_core(core_str)
-            core.cost = cost
-            core.err = err
-            core.key = key_dict[core.name]
-            core.json = test
-
-            cores.append(core)
-
-        print('(exit)', file=server.stdin, flush=True)
-        _ = server.stdout.readline()
-
-    return cores
-
 
 class Runner(object):
     """Representing a runner for a given platform"""
@@ -164,6 +130,7 @@ class Runner(object):
         num_inputs: int = 10_000,
         num_runs: int = 100,
         threads: int = 1,
+        seed: int = 1,
         unary_ops: List[str] = [],
         binary_ops: List[str] = [],
         ternary_ops: List[str] = [],
@@ -183,12 +150,11 @@ class Runner(object):
         self.ternary_ops = ternary_ops
         self.nary_ops = nary_ops
         self.time_unit = time_unit
+        self.seed = seed
 
-        self.driver_dir = self.working_dir.joinpath('drivers', self.name)
-        if key is not None:
-            self.report_dir = self.working_dir.joinpath('output', key, self.name)
-        else:
-            self.report_dir = self.working_dir.joinpath('output', 'default', self.name)
+        key = 'default' if key is None else key
+        self.driver_dir = self.working_dir.joinpath('drivers', key, self.name)
+        self.report_dir = self.working_dir.joinpath('output', key, self.name)
 
         # add empty list of jsons to the class instance
         self.jsons = []
@@ -197,17 +163,19 @@ class Runner(object):
         self.cache = Cache(str(self.working_dir.joinpath('cache')))
         # if the working directories do not exist, create them
         self.log('working directory at `' + str(self.working_dir) + '`')
-        self.log('report directory at `' + str(self.report_dir) + '`')
-
         if not self.driver_dir.exists():
             self.driver_dir.mkdir(parents=True)
+
+        self.log('report directory at `' + str(self.report_dir) + '`')
         if not self.report_dir.exists():
             self.report_dir.mkdir(parents=True)
+    
         # restore cache
         self.cache.restore()
         self.log(f'restored {self.cache.num_cores()} input cores from cache')
         self.log(f'restored {self.cache.num_platform_cores()} platform cores from cache')
-
+        self.log(f'using seed {self.seed}')
+    
     def log(self, msg: str, *args):
         """Logging routine for this runner."""
         print(f'[Runner:{self.name}]:', msg, *args)
@@ -225,6 +193,51 @@ class Runner(object):
             cores.append(synthesize1(op, n))
         return cores
     
+    def load_json(self, path: str) -> List[FPCore]:
+        """Reads a set of FPCores from Herbie JSON report."""
+        # read JSON file
+        with open(path, 'r') as f:
+            report = json.load(f)
+
+        # extract relevant fields from report JSON
+        json_cores = []
+        for test in report['tests']:
+            vars = test['vars']
+            name = test['name']
+            prec = test['prec']
+            pre = test['pre']
+            spec = test['spec']
+            status = test['status']
+
+            if status != 'error' and status != 'timeout':
+                for expr, cost, err in json_test_outputs(test):
+                    json_cores.append((vars, name, prec, pre, spec, expr, cost, err, test))
+
+        # construct FPCores (need to resugar expressions)
+        cores = []
+        with Popen(
+            args=['racket', str(self.herbie_path)],
+            stdin=PIPE,
+            stdout=PIPE,
+            universal_newlines=True) as server:
+
+            for vars, name, prec, pre, spec, expr, cost, err, test in json_cores:
+                print(f'(resugar ({" ".join(vars)}) "{name}" {prec} {pre} {spec} {expr})', file=server.stdin, flush=True)
+                core_str = server.stdout.readline()
+
+                core = parse_core(core_str)
+                core.cost = cost
+                core.err = err
+                core.json = test
+
+                cores.append(core)
+
+            print('(exit)', file=server.stdin, flush=True)
+            _ = server.stdout.readline()
+
+        return cores
+
+    
     def herbie_read(self, path: str) -> List[FPCore]:
         """Reads a benchmark suite from `path` returning all FPCores found."""
         path = Path(path)
@@ -233,7 +246,11 @@ class Runner(object):
         
         if path.is_file():
             with Popen(
-                args=['racket', str(self.herbie_path), "--platform", self.name],
+                args=[
+                    'racket', str(self.herbie_path),
+                    '--platform', self.name,
+                    '--seed', str(self.seed)
+                ],
                 stdin=PIPE,
                 stdout=PIPE,
                 universal_newlines=True) as server:
@@ -243,10 +260,16 @@ class Runner(object):
                 output = server.stdout.read()
         
             cores = []
-            for i, line in enumerate(output.split('\n')):
+            for line in output.strip().split('\n'):
                 if len(line) > 0:
-                    core = parse_core(line.strip())
-                    core.key = sanitize_name(f'file:{str(path)}:{i}')
+                    parts = line.strip().split('|')
+                    if len(parts) != 2:
+                        raise ValueError(f'Unexpected result: {line}')
+                    id = parts[0]
+                    core_str = parts[1]
+
+                    core = parse_core(core_str.strip())
+                    core.key = sanitize_name(f'file:{str(path)}:{id}')
                     cores.append(core)
             return cores
         else:
@@ -260,7 +283,11 @@ class Runner(object):
         This requires the target language to be supported by the
         \"compile\" command in the Racket script."""
         with Popen(
-            args=['racket', str(self.herbie_path), "--platform", self.name],
+            args=[
+                'racket', str(self.herbie_path),
+                '--platform', self.name,
+                '--seed', str(self.seed)
+            ],
             stdin=PIPE,
             stdout=PIPE,
             universal_newlines=True) as server:
@@ -279,7 +306,11 @@ class Runner(object):
     def herbie_cost(self, cores: List[FPCore]) -> None:
         """Computes the cost of each FPCore, overriding the `cost` variable of each FPCore."""
         with Popen(
-            args=['racket', str(self.herbie_path), "--platform", self.name],
+            args=[
+                'racket', str(self.herbie_path),
+                '--platform', self.name,
+                '--seed', str(self.seed)
+            ],
             stdin=PIPE,
             stdout=PIPE,
             universal_newlines=True) as server:
@@ -300,7 +331,11 @@ class Runner(object):
         represented by this `Runner`. If desugaring fails, the FPCore is removed."""
         desugared = []
         with Popen(
-            args=['racket', str(self.herbie_path), "--platform", self.name],
+            args=[
+                'racket', str(self.herbie_path),
+                '--platform', self.name,
+                '--seed', str(self.seed)
+            ],
             stdin=PIPE,
             stdout=PIPE,
             universal_newlines=True) as server:
@@ -346,7 +381,7 @@ class Runner(object):
         configs = []
         for core in cores:
             _, sample = self.cache.get_core(core.key)
-            configs.append((core, sample, self.herbie_path, self.name))
+            configs.append((core, sample, self.herbie_path, self.name, self.seed))
 
         with mp.Pool(processes=self.threads) as pool:
             errors = pool.map(error1, configs)
@@ -388,7 +423,11 @@ class Runner(object):
         num_improved = 0
         if len(uncached) > 0:
             with Popen(
-                args=['racket', str(self.herbie_path), "--platform", platform],
+                args=[
+                'racket', str(self.herbie_path),
+                '--platform', platform,
+                '--seed', str(self.seed)
+            ],
                 stdin=PIPE,
                 stdout=PIPE,
                 universal_newlines=True) as server:
@@ -400,8 +439,9 @@ class Runner(object):
 
             # if everything went well, Herbie should have created a datafile
             json_path = self.report_dir.joinpath('herbie.json')
-            impl_cores = herbie_json_to_fpcores(json_path, key_dict, self.herbie_path, platform)
+            impl_cores = self.load_json(json_path)
             for core in impl_cores:
+                core.key = key_dict[core.name]
                 gen_dict[core.key].append(core)
                 num_improved += 1
 
@@ -426,7 +466,11 @@ class Runner(object):
                 cores_by_group[core.key] = [core]
 
         with Popen(
-            args=['racket', str(self.herbie_path), "--platform", self.name],
+            args=[
+                'racket', str(self.herbie_path),
+                '--platform', self.name,
+                '--seed', str(self.seed)
+            ],
             stdin=PIPE,
             stdout=PIPE,
             universal_newlines=True) as server:
@@ -485,7 +529,7 @@ class Runner(object):
         configs = []
         for sample, core in zip(samples, cores):
             if sample is None:
-                configs.append((core, self.num_inputs, self.herbie_path, self.name, py_sample))
+                configs.append((core, self.num_inputs, self.herbie_path, self.name, self.seed, py_sample))
 
         with mp.Pool(processes=self.threads) as pool:
             gen_samples = pool.map(sample1, configs)
