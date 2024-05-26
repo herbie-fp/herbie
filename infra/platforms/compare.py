@@ -118,7 +118,7 @@ def main():
 
     # run Herbie on desugared cores
     # pull `cores2` back into `platform1`
-    desugared_cores = runner2.herbie_desugar(input_cores=input_cores, cores=cores2, platform=platform1)
+    desugared_cores = runner2.herbie_desugar(cores=cores2, platform=platform1)
 
     # TODO: resugared cores
 

@@ -56,22 +56,46 @@ def plot_improve(name: str, output_dir: Path, info):
 
 def plot_compare(name: str, name2: str, output_dir: Path, info):
     print(f'Plotting compare {name} <- {name2}')
+    path = output_dir.joinpath(f'{name}-vs-{name2}-pareto.png')
 
     input_cores = []
     platform_cores = []
     supported_cores = []
     desugared_cores = []
 
+    num_platform = 0
+    num_supported = 0
+    num_desugared = 0
+
+    num_platform_impls = 0
+    num_supported_impls = 0
+    num_desugared_impls = 0
+
     for core_info in info['cores']:
         input_core = FPCore.from_json(core_info['input_core'])
-        platform = map(FPCore.from_json, core_info['platform_cores'])
-        supported = map(FPCore.from_json, core_info['supported_cores'])
-        desugared = map(FPCore.from_json, core_info['desugared_cores'])
+        platform = list(map(FPCore.from_json, core_info['platform_cores']))
+        supported = list(map(FPCore.from_json, core_info['supported_cores']))
+        desugared = list(map(FPCore.from_json, core_info['desugared_cores']))
+    
+        any_platform = len(platform) > 0
+        any_supported = len(supported) > 0
+        any_desugared = len(desugared) > 0
 
-        input_cores.append(input_core)
-        platform_cores += platform
-        supported_cores += supported
-        desugared_cores += desugared
+        if any_platform:
+            num_platform += 1
+            num_platform_impls += len(platform)
+        if any_supported:
+            num_supported += 1
+            num_supported_impls += len(supported)
+        if any_desugared:
+            num_desugared += 1
+            num_desugared_impls += len(desugared)
+
+        if any_platform and any_supported and any_desugared:
+            input_cores.append(input_core)
+            platform_cores += platform
+            supported_cores += supported
+            desugared_cores += desugared
 
     runner = make_runner(
         platform='c',
@@ -91,15 +115,39 @@ def plot_compare(name: str, name2: str, output_dir: Path, info):
     desugared_costs = list(map(lambda pt: pt[0], desugared_frontier))
     desugared_errs = list(map(lambda pt: pt[1], desugared_frontier))
 
-    plt.plot(platform_costs, platform_errs, label=name)
-    plt.plot(supported_costs, supported_errs, label=f'{name2} (supported)')
-    plt.plot(desugared_costs, desugared_errs, label=f'{name2} (desugared)')
-    plt.title('Estimated cost vs. cumulative average error (bits)')
-    plt.xlabel('Estimated cost (Herbie)')
-    plt.ylabel(f'Cumulative average error')
-    plt.legend()
+    # Colors
+    platform_color = 'blue'
+    supported_color = 'orange'
+    desugared_color = 'green'
 
-    path = output_dir.joinpath(f'{name}-vs-{name2}-pareto.png')
+    fig, (ax1, ax2, ax3) = plt.subplots(ncols=3, width_ratios=[3, 1, 1])
+    plt.subplots_adjust(bottom=0.2, wspace=0.3)
+    fig.suptitle(f'Comparing {name} and {name2}')
+
+    # Pareto frontiers
+    ax1.set_title('Est. cost vs. cumulative avg. error (bits)', size='medium')
+    ax1.set(xlabel='Estimated cost (Herbie)', ylabel=f'Cumulative average error')
+    ax1.plot(platform_costs, platform_errs, label=f'{name} (Chassis)', color=platform_color)
+    ax1.plot(supported_costs, supported_errs, label=f'{name2} (supported)', color=supported_color)
+    ax1.plot(desugared_costs, desugared_errs, label=f'{name2} (desugared)', color=desugared_color)
+
+    # Implementable FPCores
+    ax2.set_title('# Benchmarks', size='medium')
+    ax2.bar(0, num_platform, color=platform_color)
+    ax2.bar(1, num_supported, color=supported_color)
+    ax2.bar(2, num_desugared, color=desugared_color)
+    ax2.get_xaxis().set_visible(False)
+    ax2.set_ylim(0, num_platform)
+
+    # Number of implementations
+    ax3.set_title('# Implementations', size='medium')
+    ax3.bar(0, num_platform_impls, color=platform_color)
+    ax3.bar(1, num_supported_impls, color=supported_color)
+    ax3.bar(2, num_desugared_impls, color=desugared_color)
+    ax3.get_xaxis().set_visible(False)
+
+    # Legend
+    fig.legend(loc='lower right')
     plt.savefig(str(path))
     plt.close()
 

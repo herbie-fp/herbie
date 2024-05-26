@@ -353,7 +353,6 @@ class Runner(object):
 
     def herbie_desugar(
         self,
-        input_cores: List[FPCore],
         cores: List[FPCore],
         platform: str
     ) -> List[FPCore]:
@@ -388,19 +387,19 @@ class Runner(object):
 
         # we need to check if we dropped any cores for a particular input core
         # if we did, the "best" output core is just the input core
-        cores_by_key = dict()
-        for core in desugared:
-            if core.name is None:
-                raise RuntimeError('FPCore does not have name', core)
-            if core.key in cores_by_key:
-                cores_by_key[core.key].append(core)
-            else:
-                cores_by_key[core.key] = [core]
+        # cores_by_key = dict()
+        # for core in desugared:
+        #     if core.name is None:
+        #         raise RuntimeError('FPCore does not have name', core)
+        #     if core.key in cores_by_key:
+        #         cores_by_key[core.key].append(core)
+        #     else:
+        #         cores_by_key[core.key] = [core]
 
-        for input in input_cores:
-            if input.key not in cores_by_key:
-                print(f'WARN: no output core for {input.key}, restoring input')
-                desugared.append(input)
+        # for input in input_cores:
+        #     if input.key not in cores_by_key:
+        #         print(f'WARN: no output core for {input.key}, restoring input')
+        #         desugared.append(input)
 
         self.log(f'desugared {len(desugared)} cores')
         return desugared
