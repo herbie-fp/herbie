@@ -31,7 +31,7 @@
    [(list 'pow a b) (format "numpy.float_power(~a, ~a)" a b)]
    [(list '- a b) (format "numpy.subtract(~a, ~a)" a b)]
    [(list '- a) (format "numpy.negative(~a)" a)]
-   [(list 'rint a) (format "numpy.rint(~a)" a )] ;shouldn't need
+   [(list 'rint a) (format "numpy.rint(~a)" a )] 
    [(list '> a b) (format "numpy.greater(~a, ~a)" a b)]
    [(list '>= a b) (format "numpy.greater_equal(~a, ~a)" a b)]
    [(list '< a b) (format "numpy.less(~a, ~a)" a b)]
@@ -41,22 +41,23 @@
    [_ (format "numpy.~a(~a)" op (string-join args ", "))]))
 
 (define (constant->numpy x ctx)
+  (define prec (ctx-lookup-prop ctx ':precision))
   (match x
    ['TRUE "True"]
    ['FALSE "False"]
-   ['INFINITY "numpy.ones(length)*numpy.inf"]
-   ['NAN "numpy.ones(length)*numpy.nan"]
-   ['PI "numpy.ones(length)*numpy.pi"]
-   ['E "numpy.ones(length)*numpy.e"]
-   [(? hex?) (format "numpy.ones(length)*~a" (real->double-flonum (hex->racket x)))]
-   [(? number?) (format "numpy.ones(length)*~a" (real->double-flonum x))]
-   [(? symbol?) (format "numpy.ones(length)*~a" x)]))
+   ['INFINITY (format "numpy.ones(length, dtype=~a)*numpy.inf" (type->numpy prec))]
+   ['NAN (format "numpy.ones(length, dtype=~a)*numpy.nan" (type->numpy prec))]
+   ['PI (format "numpy.ones(length, dtype=~a)*numpy.pi" (type->numpy prec))]
+   ['E (format "numpy.ones(length, dtype=~a)*numpy.e" (type->numpy prec))]
+   [(? hex?) (format "numpy.ones(length, dtype=~a)*~a" (type->numpy prec) (real->double-flonum (hex->racket x)))]
+   [(? number?) (format "numpy.ones(length, dtype=~a)*~a" (type->numpy prec) (real->double-flonum x))]
+   [(? symbol?) (format "numpy.ones(length, dtype=~a)*~a" (type->numpy prec) x)]))
 
 (define declaration->numpy
   (case-lambda
    [(var ctx)
     (define prec (ctx-lookup-prop ctx ':precision))
-    (format "~a = ~a" var (match prec ['binary64 "0"] ['boolean "True"]))]
+    (format "~a = ~a" var (match prec ['binary64 "numpy.zeros(length)"] ['binary32 "numpy.zeros(length)"] ['boolean "True"]))]
    [(var val ctx)
     (format "~a = ~a" var val)]))
 
@@ -67,7 +68,6 @@
   (format "def ~a(~a):\n\tlength = ~a.shape\n~a\treturn ~a\n" name
           (string-join args ", ") (if (> (length args) 0) (first args) "numpy.ones(5)") body ret))
 
-
 (define (visit-if/numpy vtor cond ift iff #:ctx ctx)
   (define indent (ctx-lookup-extra ctx 'indent))
   (define prec (ctx-lookup-prop ctx ':precision))
@@ -76,36 +76,11 @@
   (define-values (cond* cond-ctx) (visit/ctx vtor cond ctx))
   (define-values (ctx* name) (ctx-random-name iff-ctx prec))
   (define-values (name-ctx cond-name) (ctx-random-name ctx prec))
-
-  ;(define type (type->numpy prec))
-  ;(define suffix (precision->suffix prec))
-
-  ; TODO maybe add mask array declaration 
-  (printf "~a~a = ~a" indent cond-name cond*)
-  (printf "~a~a = numpy.zeros(length)\n" indent name)
+  (printf "~a~a = ~a\n" indent cond-name cond*)
+  (printf "~a~a = numpy.zeros(length,dtype=~a)\n" indent name (type->numpy prec))
   (printf "~a~a[~a] = numpy.array(~a)[~a]\n" indent name cond-name ift* cond-name)
   (printf "~a~a[~~ ~a] = numpy.array(~a)[~~ ~a]\n" indent name cond-name iff* cond-name)
   (values name ctx*))
-
-(define (visit-op_/numpy vtor op args #:ctx ctx)
-  (match (cons op args)
-    [(list '- x)
-     ;; TODO: Any better way to do this?
-     (visit-op_/numpy vtor '- (list 0 x) #:ctx ctx)]
-    [else
-     (define prec (ctx-lookup-prop ctx ':precision))
-     (define indent (ctx-lookup-extra ctx 'indent))
-     (define-values (name-ctx name) (ctx-random-name ctx prec))
-     (define args*
-       (for/list ([arg args])
-         (define-values (arg* arg-ctx) (visit/ctx vtor arg ctx))
-         arg*))
-     (define ctx*
-       (if (set-member? bool-ops op)
-           (ctx-update-props name-ctx (list ':precision 'boolean))
-           name-ctx))
-     ;(printf "~a~a ~a = ~a;\n" indent (type->numpy prec) name (operator->avx name op args* ctx))
-     (values name ctx*)]))
 
 (define (visit-number/numpy vtor x #:ctx ctx)
   (define prec (ctx-lookup-prop ctx ':precision))
@@ -114,23 +89,17 @@
   (printf "~a~a = ~a\n" indent name (constant->numpy x ctx))
   (values name name-ctx))
 
-(define (visit-constant/numpy vtor x #:ctx ctx)
-  (define prec (ctx-lookup-prop ctx ':precision))
-  (define indent (ctx-lookup-extra ctx 'indent))
-  (define-values (name-ctx name) (ctx-random-name ctx prec))
-  (printf "~a~a = ~a\n" indent name (constant->numpy x ctx))
-  (values name 
-          (if (set-member? '(TRUE FALSE) x)
-              (ctx-update-props name-ctx (list ':precision 'boolean))
-              name-ctx)))
+(define (type->numpy type)
+  (match type
+    ['binary64 "numpy.float64"]
+    ['binary32 "numpy.float32"]))
 
 (define-expr-visitor imperative-visitor numpy-visitor
   [visit-if visit-if/numpy]
   [visit-number visit-number/numpy]
 )
 
-
-(define  core->numpy
+(define core->numpy
   (make-imperative-compiler "numpy"
     #:operator operator->numpy
     #:infix-ops null
@@ -139,8 +108,4 @@
     #:assign assignment->numpy
     #:program program->numpy
     #:visitor numpy-visitor
-    ;#:flags '(colon-instead-of-brace
-    ;          no-parens-around-condition
-
-    ;          boolean-ops-use-name)
     #:reserved numpy-reserved))

@@ -267,7 +267,6 @@ class Runner(object):
                 print(f'(compile {self.lang} {core.core})', file=server.stdin, flush=True)
                 output = server.stdout.readline()
                 core.compiled = output.replace('\\n', '\n').strip()
-                self.log(core.compiled)
 
             # terminate the server
             print('(exit)', file=server.stdin, flush=True)

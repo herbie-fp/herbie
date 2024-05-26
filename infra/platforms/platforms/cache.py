@@ -30,7 +30,7 @@ CacheType = Dict[str, Tuple[FPCore, SampleType]]
 # ...
 
 def sanitize_name(name: str):
-    return name.replace('*', '_times_').replace('+', '_plus_').replace('/', '_divide_').replace('-','_minus_')
+    return name.replace('*', '_times_').replace('+', '_plus_').replace('/', '_:_')
 
 class Cache(object):
     def __init__(self, path: str):
