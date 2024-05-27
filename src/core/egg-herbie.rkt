@@ -1258,14 +1258,14 @@
           (rec iff type +inf.0))]
     [(list (? impl-exists? impl) args ...)
      (define itypes (impl-info impl 'itype))
-     (if (equal? impl 'pow)
+     (if (equal? (impl->operator impl) 'pow)
       (match args
        [(list b e)
         (if (fraction-with-odd-denominator? e)
             +inf.0
-            (apply + (map (lambda (arg itype) (rec arg itype +inf.0)) args itypes)))])
-      (apply + (map (lambda (arg itype) (rec arg itype +inf.0)) args itypes)))]
-    [(list _ ...) 1]))
+            (apply + 1 (map (lambda (arg itype) (rec arg itype +inf.0)) args itypes)))])
+      (apply + 1 (map (lambda (arg itype) (rec arg itype +inf.0)) args itypes)))]
+    [(list _ ...) +inf.0]))
 
 ;; Extracts the best expression according to the extractor.
 ;; Result is a single element list.
