@@ -1261,7 +1261,8 @@
      (if (equal? (impl->operator impl) 'pow)
       (match args
        [(list b e)
-        (if (fraction-with-odd-denominator? e)
+        (define n (vector-ref (regraph-constants regraph) e))
+        (if (fraction-with-odd-denominator? n)
             +inf.0
             (apply + 1 (map (lambda (arg itype) (rec arg itype +inf.0)) args itypes)))])
       (apply + 1 (map (lambda (arg itype) (rec arg itype +inf.0)) args itypes)))]
