@@ -401,7 +401,7 @@
        (make-egg-query progs
                        reprs
                        `((run ,rules ((node . ,(*node-limit*)) (const-fold? . #f))))
-                       #:extractor (typed-egg-extractor platform-egg-cost-proc)))
+                       #:extractor (typed-egg-extractor (if (*old-cost-function*) default-egg-cost-proc platform-egg-cost-proc))))
 
      ; run egg
      (define simplified (map last (simplify-batch egg-query)))

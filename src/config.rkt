@@ -121,6 +121,9 @@
 ;; The platform that Herbie will evaluate with.
 (define *platform-name* (make-parameter 'default))
 
+;; True iff using the old cost function
+(define *old-cost-function* (make-parameter #f))
+
 ;; Plugins loaded locally rather than through Racket.
 (define *loose-plugins* (make-parameter '()))
 

@@ -60,7 +60,7 @@
     (make-egg-query (list spec)
                     (list (context-repr ctx))
                     schedule
-                    #:extractor (typed-egg-extractor platform-egg-cost-proc)))
+                    #:extractor (typed-egg-extractor (if (*old-cost-function*) default-egg-cost-proc platform-egg-cost-proc))))
 
   ; run egg 
   (match-define (list simplified) (simplify-batch egg-query))

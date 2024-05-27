@@ -12,6 +12,7 @@
          "../syntax/types.rkt"
          "../accelerator.rkt"
          "../common.rkt"
+         "../config.rkt"
          "../errors.rkt"
          "../platform.rkt"
          "../programs.rkt"
@@ -23,6 +24,7 @@
          typed-egg-extractor
          default-untyped-egg-cost-proc
          platform-egg-cost-proc
+         default-egg-cost-proc
          make-egg-query
          run-egg
          get-canon-rule-name
@@ -1244,6 +1246,27 @@
               args
               itypes))]
     [(list _ ...) +inf.0])) ; specs
+
+;; Old cost model version
+(define (default-egg-cost-proc regraph cache node type rec)
+  (match node
+    [(? number?) 1]
+    [(? symbol?) 1]
+    [(list 'if cond ift iff)
+     (+ 1 (rec cond (get-representation 'bool) +inf.0)
+          (rec ift type +inf.0)
+          (rec iff type +inf.0))]
+    [(list (? impl-exists? impl) args ...)
+     (define itypes (impl-info impl 'itype))
+     (if (equal? (impl->operator impl) 'pow)
+      (match args
+       [(list b e)
+        (define n (vector-ref (regraph-constants regraph) e))
+        (if (fraction-with-odd-denominator? n)
+            +inf.0
+            (apply + 1 (map (lambda (arg itype) (rec arg itype +inf.0)) args itypes)))])
+      (apply + 1 (map (lambda (arg itype) (rec arg itype +inf.0)) args itypes)))]
+    [(list _ ...) +inf.0]))
 
 ;; Extracts the best expression according to the extractor.
 ;; Result is a single element list.
