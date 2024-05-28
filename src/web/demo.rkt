@@ -269,28 +269,10 @@
              (define result (run-herbie 'local-error test #:seed _seed 
               #:pcontext pcontext #:profile? #f #:timeline-disabled? #t))
              (define local-error (job-result-backend result))
-              
-              ;; TODO: potentially unsafe if resugaring changes the AST
-             (define tree
-              (let loop ([expr expr] [err local-error])
-                (match expr
-                  [(list op args ...)
-                  ;; err => (List (listof Integer) List ...)
-                  (hasheq
-                    'e (~a op)
-                    'avg-error (format-bits (errors-score (first err)))
-                    'children (map loop args (rest err)))]
-                  [_
-                  ;; err => (List (listof Integer))
-                  (hasheq
-                    'e (~a expr)
-                    'avg-error (format-bits (errors-score (first err)))
-                    'children '())])))
-
-              (hash-set! *completed-jobs* _hash (hasheq 'tree tree))
-              (eprintf " complete\n")
-              (hash-remove! *jobs* _hash)
-              (semaphore-post sema)]
+             (hash-set! *completed-jobs* _hash result)
+             (eprintf " complete\n")
+             (hash-remove! *jobs* _hash)
+             (semaphore-post sema)]
             [(list 'alternatives _hash formula sema _seed sample)
              (define test (parse-test formula))
              (define vars (test-vars test))
@@ -591,11 +573,31 @@
       (define formula (read-syntax 'web (open-input-string formula-str)))
       (define sample (hash-ref post-data 'sample))
       (define seed (hash-ref post-data 'seed #f))
-      ;; Should this hash the type of command as well?
-      ;; Conflict if job for local-error and errors of the same formual.
       (define _hash (sha1 (open-input-string formula-str)))
       (semaphore-wait (run-local-error _hash formula seed sample))
-      (hash-ref *completed-jobs* _hash))))
+      (define result (hash-ref *completed-jobs* _hash))
+      (define local-error (job-result-backend result))
+      (define test (parse-test formula))
+      (define expr (prog->fpcore (test-input test) (test-output-repr test)))
+      ;; TODO: potentially unsafe if resugaring changes the AST
+      (define ast (local-error->fpcore expr local-error))
+      (hasheq 'tree ast))))
+
+(define (local-error->fpcore expr local-error)
+  (let loop ([expr expr] [err local-error])
+    (match expr
+      [(list op args ...)
+      ;; err => (List (listof Integer) List ...)
+      (hasheq
+        'e (~a op)
+        'avg-error (format-bits (errors-score (first err)))
+        'children (map loop args (rest err)))]
+      [_
+      ;; err => (List (listof Integer))
+      (hasheq
+        'e (~a expr)
+        'avg-error (format-bits (errors-score (first err)))
+        'children '())])))
 
 (define (run-alternatives _hash formula seed sample)
   (hash-set! *jobs* _hash (*timeline*))
