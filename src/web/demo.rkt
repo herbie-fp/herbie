@@ -240,10 +240,10 @@
             (eprintf "Job ~a complete\n" hash)
             (hash-remove! *jobs* hash)
             (semaphore-post sema)])]
-            [(list 'sample _hash formula sema)
+            [(list 'sample _hash formula sema _seed)
              (define test (parse-test formula))
              (eprintf "Sampling job started on ~a..." formula)
-             (define result (run-herbie 'sample test #:seed seed #:profile? #f #:timeline-disabled? #t))
+             (define result (run-herbie 'sample test #:seed _seed #:profile? #f #:timeline-disabled? #t))
              (hash-set! *completed-jobs* _hash result)
              (eprintf " complete\n")
              (hash-remove! *jobs* _hash)
@@ -375,10 +375,10 @@
      (redirect-to (add-prefix (format "~a.~a/graph.html" hash *herbie-commit*)) see-other))
    (url main)))
 
-(define (run-sample _hash formula)
+(define (run-sample _hash formula _seed)
   (hash-set! *jobs* _hash (*timeline*))
   (define sema (make-semaphore))
-  (thread-send *worker-thread* (list 'sample _hash formula sema))
+  (thread-send *worker-thread* (list 'sample _hash formula sema _seed))
   sema)
 
 ; /api/sample endpoint: test in console on demo page:
@@ -393,8 +393,7 @@
       ;; is it ok to use the seed set in the thread?
       (define _seed (hash-ref post-data 'seed))
       ;; Is this ok because we are multithreaded now?
-      (set-seed! _seed)
-      (semaphore-wait (run-sample _hash formula))
+      (semaphore-wait (run-sample _hash formula _seed))
       (define result (hash-ref *completed-jobs* _hash))
       (define pctx (job-result-backend result))
       (define test (parse-test formula))
