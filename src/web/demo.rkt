@@ -395,7 +395,11 @@
       (define pcontext (json->pcontext sample (test-context test)))
       (define result (run-herbie 'errors test #:seed seed #:pcontext pcontext
                                  #:profile? #f #:timeline-disabled? #t))
-      (define errs (job-result-backend result))
+      (define errs
+        (for/list ([pt&err (job-result-backend result)])
+          (define pt (first pt&err))
+          (define err (second pt&err))
+          (list pt (format-bits (ulps->bits err)))))
 
       (eprintf " complete\n")
       (hasheq 'points errs))))
