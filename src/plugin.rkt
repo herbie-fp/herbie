@@ -5,7 +5,7 @@
          (submod "syntax/syntax.rkt" internals)
          (submod "syntax/rules.rkt" internals)
          (submod "platform.rkt" internals)
-         (submod "accelerator.rkt" internals))
+         "defaccelerator.rkt")
 
 (provide define-type define-representation define-operator-impl
          define-operator define-ruleset define-ruleset*
