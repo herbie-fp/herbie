@@ -240,13 +240,13 @@
             (eprintf "Job ~a complete\n" hash)
             (hash-remove! *jobs* hash)
             (semaphore-post sema)])]
-            [(list 'sample hash formula sema)
+            [(list 'sample _hash formula sema)
              (define test (parse-test formula))
              (eprintf "Sampling job started on ~a..." formula)
              (define result (run-herbie 'sample test #:seed seed #:profile? #f #:timeline-disabled? #t))
-             (hash-set! *completed-jobs* hash result)
+             (hash-set! *completed-jobs* _hash result)
              (eprintf " complete\n")
-             (hash-remove! *jobs* hash)
+             (hash-remove! *jobs* _hash)
             (semaphore-post sema)])
        (loop seed)))))
 
@@ -375,10 +375,10 @@
      (redirect-to (add-prefix (format "~a.~a/graph.html" hash *herbie-commit*)) see-other))
    (url main)))
 
-(define (run-sample hash formula)
-  (hash-set! *jobs* hash (*timeline*))
+(define (run-sample _hash formula)
+  (hash-set! *jobs* _hash (*timeline*))
   (define sema (make-semaphore))
-  (thread-send *worker-thread* (list 'sample hash formula sema))
+  (thread-send *worker-thread* (list 'sample _hash formula sema))
   sema)
 
 ; /api/sample endpoint: test in console on demo page:
@@ -388,14 +388,14 @@
     (lambda (post-data)
       (define formula-str (hash-ref post-data 'formula))
       (define formula (read-syntax 'web (open-input-string formula-str)))
-      (define hash (sha1 (open-input-string formula-str)))
+      (define _hash (sha1 (open-input-string formula-str)))
       ;; Hmm how should I pass seed?
       ;; is it ok to use the seed set in the thread?
-      (define seed (hash-ref post-data 'seed))
+      (define _seed (hash-ref post-data 'seed))
       ;; Is this ok because we are multithreaded now?
-      (set-seed! seed)
-      (semaphore-wait (run-sample hash formula))
-      (define result (hash-ref *completed-jobs* hash))
+      (set-seed! _seed)
+      (semaphore-wait (run-sample _hash formula))
+      (define result (hash-ref *completed-jobs* _hash))
       (define pctx (job-result-backend result))
       (define test (parse-test formula))
       (hasheq 'points (pcontext->json pctx 
