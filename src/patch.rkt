@@ -5,7 +5,7 @@
          "syntax/syntax.rkt"
          "syntax/types.rkt"
          "core/egg-herbie.rkt"
-         "core/matcher.rkt"
+         "core/rr.rkt"
          "core/simplify.rkt"
          "core/taylor.rkt"
          "config.rkt"
@@ -88,7 +88,7 @@
 ;;      operator
 
 (define (taylor-alt altn)
-  (define expr (expand-accelerators (*rules*) (prog->spec (alt-expr altn))))
+  (define expr (expand-accelerators (prog->spec (alt-expr altn))))
   (reap [sow]
     (for* ([var (free-variables expr)] [transform-type transforms-to-try])
       (match-define (list name f finv) transform-type)
