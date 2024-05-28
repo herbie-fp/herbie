@@ -458,7 +458,7 @@
       (define formula-str (hash-ref post-data 'formula))
       (define formula (read-syntax 'web (open-input-string formula-str)))
       (define seed (hash-ref post-data 'seed))
-      (define _hash (sha1 (open-input-string formula-str)))
+      (define _hash (sha1 (open-input-string (~s 'sample formula seed))))
       (semaphore-wait (run-sample _hash formula seed))
       (define result (hash-ref *completed-jobs* _hash))
       (define pctx (job-result-backend result))
@@ -481,7 +481,7 @@
       (define seed (hash-ref post-data 'seed #f))
       (define test (parse-test formula))
       (define pcontext (json->pcontext sample (test-context test)))
-      (define _hash (sha1 (open-input-string formula-str)))
+      (define _hash (sha1 (open-input-string (~s 'errors formula seed sample))))
       (semaphore-wait (run-analyze _hash formula seed pcontext sample))
       (hash-ref *completed-jobs* _hash))))
 
@@ -499,7 +499,7 @@
       (define formula (read-syntax 'web (open-input-string formula-str)))
       (define sample (hash-ref post-data 'sample))
       (define seed (hash-ref post-data 'seed #f))
-      (define _hash (sha1 (open-input-string formula-str)))
+      (define _hash (sha1 (open-input-string (~s 'exacts formula seed sample))))
       (semaphore-wait (run-exacts _hash formula seed sample))
       (hash-ref *completed-jobs* _hash))))
 
@@ -516,7 +516,8 @@
       (define formula (read-syntax 'web (open-input-string formula-str)))
       (define sample (hash-ref post-data 'sample))
       (define seed (hash-ref post-data 'seed #f))
-      (define _hash (sha1 (open-input-string formula-str)))
+      (define _hash (sha1 (open-input-string 
+       (~s 'evaluate formula seed sample))))
       (semaphore-wait (run-evaluate _hash formula seed sample))
       (hash-ref *completed-jobs* _hash))))
 
@@ -533,7 +534,8 @@
       (define formula (read-syntax 'web (open-input-string formula-str)))
       (define sample (hash-ref post-data 'sample))
       (define seed (hash-ref post-data 'seed #f))
-      (define _hash (sha1 (open-input-string formula-str)))
+      (define _hash (sha1 (open-input-string 
+       (~s 'local-error formula seed sample))))
       (semaphore-wait (run-local-error _hash formula seed sample))
       (define result (hash-ref *completed-jobs* _hash))
       (define local-error (job-result-backend result))
@@ -572,7 +574,8 @@
       (define formula (read-syntax 'web (open-input-string formula-str)))
       (define sample (hash-ref post-data 'sample))
       (define seed (hash-ref post-data 'seed #f))    
-      (define _hash (sha1 (open-input-string formula-str)))
+      (define _hash (sha1 (open-input-string 
+       (~s 'evaluate formula seed sample))))
       (semaphore-wait (run-alternatives _hash formula seed sample))
       (define result (hash-ref *completed-jobs* _hash))
       (herbie-result->altnatives-web-result result formula))))
@@ -642,7 +645,8 @@
       (define formula-str (hash-ref post-data 'formula))
       (define formula (read-syntax 'web (open-input-string formula-str)))
       (define seed (hash-ref post-data 'seed #f))  
-      (define _hash (sha1 (open-input-string formula-str)))  
+      (define _hash (sha1 (open-input-string 
+       (~s 'cost formula seed))))
       (semaphore-wait (run-cost _hash formula))
       (hash-ref *completed-jobs* _hash))))
 
