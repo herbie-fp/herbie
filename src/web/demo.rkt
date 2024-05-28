@@ -244,9 +244,7 @@
              (define test (parse-test formula))
              (eprintf "Sampling job started on ~a..." formula)
              (define result (run-herbie 'sample test #:seed seed #:profile? #f #:timeline-disabled? #t))
-             (define pctx (job-result-backend result))
-             (define result-hashtable (hasheq 'points (pcontext->json pctx (context-repr (test-context test)))))
-             (hash-set! *completed-jobs* hash result-hashtable)
+             (hash-set! *completed-jobs* hash result)
              (eprintf " complete\n")
              (hash-remove! *jobs* hash)
             (semaphore-post sema)])
@@ -397,7 +395,11 @@
       ;; Is this ok because we are multithreaded now?
       (set-seed! seed)
       (semaphore-wait (run-sample hash formula))
-      (hash-ref *completed-jobs* hash))))
+      (define result (hash-ref *completed-jobs* hash))
+      (define pctx (job-result-backend result))
+      (define test (parse-test formula))
+      (hasheq 'points (pcontext->json pctx 
+       (context-repr (test-context test)))))))
 
 (define analyze-endpoint
   (post-with-json-response
