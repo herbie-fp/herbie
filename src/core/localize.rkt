@@ -5,7 +5,8 @@
          "../syntax/syntax.rkt" "../alternative.rkt" "../platform.rkt" 
          "simplify.rkt" "egg-herbie.rkt" "../syntax/rules.rkt")
 
-(provide batch-localize-both local-error-as-tree compute-local-errors
+(provide batch-localize-costs batch-localize-errors
+         local-error-as-tree compute-local-errors
          all-subexpressions)
 
 (define (all-subexpressions expr)
@@ -34,43 +35,44 @@
     [('() '())
      '()]))
 
-(define (batch-localize-both exprs ctx)
+(define (batch-localize-costs exprs ctx)
   (define subexprss (map all-subexpressions exprs))
   (define expr->cost  (platform-cost-proc (*active-platform*)))
-
+  
   (define simplifiedss
     (regroup-nested
      subexprss
-     (simplify-batch (make-egg-query (apply append subexprss) (*simplify-rules*)))))
+     (map last
+          (simplify-batch (make-egg-query (apply append subexprss) (*simplify-rules*))))))
 
-  (define errss (compute-local-errors exprs ctx))
-  (define localize-errss
-    (for/list ([expr (in-list exprs)] [errs (in-list errss)])
-      (sort
-       (sort
-        (for/list ([(subexpr err) (in-hash errs)]
-                   #:when (list? subexpr))
-          (cons err subexpr))
-        expr<? #:key cdr)
-       > #:key (compose errors-score car))))
-
-  (define localize-costs
+  (define localize-costss
     (for/list ([subexprs (in-list subexprss)] [simplifieds (in-list simplifiedss)])
       (sort 
        (for/list ([subexpr (in-list subexprs)]
                   [simplified (in-list simplifieds)]
                   #:when (list? subexpr))
          (cons (- (expr->cost subexpr (repr-of subexpr ctx))
-                  (expr->cost (last simplified) (repr-of subexpr ctx)))
+                  (expr->cost simplified (repr-of subexpr ctx)))
                subexpr))
        > #:key car)))
-  (values localize-errss localize-costs))
+
+  localize-costss)
+
+(define (batch-localize-errors exprs ctx)
+  (define subexprss (map all-subexpressions exprs))
+  (define errss (compute-local-errors subexprss ctx))
+
+  (for/list ([expr (in-list exprs)] [errs (in-list errss)])
+    (sort
+     (sort
+      (for/list ([(subexpr err) (in-hash errs)]
+                 #:when (list? subexpr))
+        (cons err subexpr))
+      expr<? #:key cdr)
+     > #:key (compose errors-score car))))
 
 ; Compute local error or each sampled point at each node in `prog`.
-(define (compute-local-errors exprs ctx)
-  (define subexprss
-    (for/list ([expr (in-list exprs)])
-      (all-subexpressions expr)))
+(define (compute-local-errors subexprss ctx)
   (define spec-list
     (for*/list ([subexprs (in-list subexprss)] [subexpr (in-list subexprs)])
       (prog->spec subexpr)))
@@ -113,7 +115,7 @@
 ;; and returns the error information as an S-expr in the
 ;; same shape as `prog`
 (define (local-error-as-tree expr ctx)
-  (define errs (first (compute-local-errors (list expr) ctx)))
+  (define errs (first (compute-local-errors (list (all-subexpressions expr)) ctx)))
   (let loop ([expr expr])
     (match expr
       [(list op args ...) (cons (hash-ref errs expr) (map loop args))]

@@ -50,14 +50,21 @@ var TogglableFlags = new Component("#flag-list", {
     }
 });
 
-const ALL_LINES = [
-    { name: 'start', description: "Initial program",
-      line: { stroke: '#d00' }, dot: { stroke: '#d002'} },
-    { name: 'end', description: "Most accurate alternative",
-      line: { stroke: '#00a' }, dot: { stroke: '#00a2'} },
-    { name: 'target', description: "Developer target",
-      line: { stroke: '#080' }, dot: { stroke: '#0802'}}
-]
+
+// Cicular color wheel representing error values limited to size 10
+const colors = [
+    { line: { stroke: '#d00' }, dot: { stroke: '#d002'} },
+    { line: { stroke: '#00a' }, dot: { stroke: '#00a2'} },
+    { line: { stroke: '#080' }, dot: { stroke: '#0802'} },
+    { line: { stroke: '#0d0' }, dot: { stroke: '#0d02'} },
+    { line: { stroke: '#a00' }, dot: { stroke: '#a002'} },
+    { line: { stroke: '#0a0' }, dot: { stroke: '#0a02'} },
+    { line: { stroke: '#00d' }, dot: { stroke: '#00d2'} },
+    { line: { stroke: '#008' }, dot: { stroke: '#0082'} },
+    { line: { stroke: '#d80' }, dot: { stroke: '#d802'} },
+    { line: { stroke: '#00f' }, dot: { stroke: '#00f2'} },
+    { line: { stroke: '#f00' }, dot: { stroke: '#f002'} }
+];
 
 const ClientGraph = new Component('#graphs', {
     setup: async function() {
@@ -86,21 +93,47 @@ const ClientGraph = new Component('#graphs', {
     },
 
     render_functions: function($elt, selected_var_name, selected_functions) {
-        const all_lines = ALL_LINES.filter(o => this.points_json.error[o.name] != false)
         const toggle = (option, options) => options.includes(option) ? options.filter(o => o != option) : [...options, option]
+
+        // this.points_json.error is a dictionary where keys are indices "1", "2", ..., "n".
+        // The values for each key is broken up into two parts : error_type and actual error values
+        // error_type is the first element in the list value with 1...n being the remianing values
+        // Types of error type is "start", "end", "target1", "target2", ..., "targetm" 
+
+        var curr_list = []
+        let i = 0
+
+        for (const key in this.points_json.error) {
+            const error_type = this.points_json.error[key][0]
+            const line = colors[i % colors.length].line
+            
+            let description
+            
+            if (error_type === "start") {
+                description = "Initial program"
+            } else if (error_type === "end") {
+                description = "Most accurate alternative"
+            } else {
+                description = "Developer Target " + error_type.slice("target".length)
+            }
+
+            curr_list.push( Element("label", [
+                Element("input", {
+                    type: "checkbox",
+                    style: "accent-color: " + line.stroke,
+                    checked: selected_functions.includes(error_type),
+                    onclick: (e) => this.render(selected_var_name, toggle(error_type, selected_functions))
+                }, []),
+                Element("span", { className: "functionDescription" }, [
+                    " ", description]),
+            ]))
+
+            i += 1
+        }
+
         $elt.replaceChildren.apply(
             $elt,
-            all_lines.map(fn => 
-                Element("label", [
-                    Element("input", {
-                        type: "checkbox",
-                        style: "accent-color: " + fn.line.stroke,
-                        checked: selected_functions.includes(fn.name),
-                        onclick: (e) => this.render(selected_var_name, toggle(fn.name, selected_functions))
-                    }, []),
-                    Element("span", { className: "functionDescription" }, [
-                        " ", fn.description]),
-                ])),
+            curr_list,
         );
     },
     
@@ -124,7 +157,15 @@ const ClientGraph = new Component('#graphs', {
     },
 
     plot: async function(varName, function_names) {
-        const functions = ALL_LINES.filter(o => function_names.includes(o.name))
+        const functionMap = new Map()
+
+        for (const key in this.points_json.error) {
+            if (this.points_json.error[key][1] !== false) {
+                // Error type -> Actual Error points
+                functionMap.set(this.points_json.error[key][0], this.points_json.error[key].slice(1))
+            }
+        }
+
         const index = this.all_vars.indexOf(varName)
         // NOTE ticks and splitpoints include all vars, so we must index
         const { bits, points, error, ticks_by_varidx, splitpoints_by_varidx } = this.points_json
@@ -135,10 +176,12 @@ const ClientGraph = new Component('#graphs', {
         const tick_strings = ticks.map(t => t[0])
         const tick_ordinals = ticks.map(t => t[1])
         const tick_0_index = tick_strings.indexOf("0")
+
         const grouped_data = points.map((p, i) => ({
             input: p,
-            error: Object.fromEntries(function_names.map(name => ([name, error[name][i]])))
+            error: Object.fromEntries(function_names.map(name => ([name, functionMap.get(name)[i]])))
         }))
+
         const domain = [Math.min(...tick_ordinals), Math.max(...tick_ordinals)]
 
         let splitpoints = splitpoints_by_varidx[index].map(p => {
@@ -151,7 +194,13 @@ const ClientGraph = new Component('#graphs', {
         }
 
         let marks = []
-        for (let { name, fn, line, dot } of functions) {
+        let i = 0
+        for (let [name, _] of functionMap) {
+            const line = colors[i % colors.length].line
+            const dot = colors[i % colors.length].dot
+
+            i += 1
+
             const key_fn = fn => (a, b) => fn(a) - fn(b)
             const index = this.all_vars.indexOf(varName)
             const data = grouped_data.map(({ input, error }) => ({
@@ -222,16 +271,18 @@ const CostAccuracy = new Component('#cost-accuracy', {
         for (let test of results_json.tests) {
             if (test.name == this.elt.dataset.benchmarkName) {
                 let [initial_pt, best_pt, rest_pts] = test["cost-accuracy"];
-                let target_pt = test["target"] && [this.elt.dataset.targetCost, test["target"]]
+
+                let target_pts = test["target"]
                 rest_pts = [best_pt].concat(rest_pts)
-                $svg.replaceWith(await this.plot(test, initial_pt, target_pt, rest_pts));
-                $tbody.replaceWith(await this.tbody(test, initial_pt, target_pt, rest_pts));
+
+                $svg.replaceWith(await this.plot(test, initial_pt, target_pts, rest_pts));
+                $tbody.replaceWith(await this.tbody(test, initial_pt, target_pts, rest_pts));
                 break;
             }
         }
     },
 
-    plot: async function(benchmark, initial_pt, target_pt, rest_pts) {
+    plot: async function(benchmark, initial_pt, target_pts, rest_pts) {
         const bits = benchmark["bits"];
 
         // The line differs from rest_pts in two ways:
@@ -264,7 +315,7 @@ const CostAccuracy = new Component('#cost-accuracy', {
                     y: d => 1 - d[1]/bits,
                     stroke: "#d00", symbol: "square", strokeWidth: 2
                 }),
-                target_pt && Plot.dot([target_pt], {
+                target_pts && Plot.dot(target_pts, {
                     x: d => initial_pt[0]/d[0],
                     y: d => 1 - d[1]/bits,
                     stroke: "#080", symbol: "circle", strokeWidth: 2
@@ -281,7 +332,7 @@ const CostAccuracy = new Component('#cost-accuracy', {
         return out
     },
 
-    tbody: async function(benchmark, initial_pt, target_pt, rest_pts) {
+    tbody: async function(benchmark, initial_pt, target_pts, rest_pts) {
         const bits = benchmark["bits"];
         const initial_accuracy = 100*(1 - initial_pt[1]/bits);
 
@@ -307,11 +358,19 @@ const CostAccuracy = new Component('#cost-accuracy', {
                     Element("td", { className: speedup >= 1 ? "better" : "" },
                             speedup.toFixed(1) + "×")
             ])}),
-            target_pt && Element("tr", [
-                Element("th", "Developer target"),
-                Element("td", 100 * (1 - target_pt[1]/bits).toFixed(1) + "%"),
-                Element("td", (initial_pt[0] / target_pt[0]).toFixed(1) + "×"),
-            ]),
+
+            target_pts && target_pts.map((d, i) => {
+                let accuracy = 100*(1 - d[1]/bits);
+                let speedup = initial_pt[0]/d[0];
+                return Element("tr", [
+                    Element("th", 
+                        Element("a", { href: "#target" + (i + 1)},
+                            "Developer Target " + (i + 1))),
+                    Element("td", { className: accuracy >= initial_accuracy ? "better" : "" },
+                            accuracy.toFixed(1) + "%"),
+                    Element("td", { className: speedup >= 1 ? "better" : "" },
+                            speedup.toFixed(1) + "×")
+            ])}),
         ]);
     }
 });

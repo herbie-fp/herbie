@@ -4,15 +4,13 @@
 
 (require "correct-round.rkt")
 
-(provide (struct-out discretization)
-         rival-compile rival-apply rival-analyze
+(provide rival-compile rival-apply rival-analyze
          (struct-out exn:rival)
          (struct-out exn:rival:invalid)
          (struct-out exn:rival:unsamplable)
-         rival-profile-iterations-taken)
+         rival-profile-iterations-taken
+         (struct-out discretization))
 (provide (struct-out rival-machine)) ; This is temporary and we want to get rid of it
-
-(struct discretization (convert distance))
 
 (define ground-truth-require-convergence (make-parameter #t))
 
@@ -26,7 +24,7 @@
 (struct rival-machine (fn discs))
 
 (define (rival-compile exprs vars discs)
-  (define fns (compile-specs exprs vars))
+  (define fns (compile-specs exprs vars discs))
   (define outlen (length exprs))
   (define (rival-compiled inputs)
     (define outvec (apply fns inputs))
