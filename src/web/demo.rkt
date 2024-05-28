@@ -201,8 +201,8 @@
    (λ ()
      (let loop ([seed #f])
        (match (thread-receive)
-         [`(init rand ,vec flags ,flag-table num-iters ,iterations points ,points
-                 timeout ,timeout output-dir ,output reeval ,reeval demo? ,demo?)
+        [`(init rand ,vec flags ,flag-table num-iters ,iterations points ,points
+                timeout ,timeout output-dir ,output reeval ,reeval demo? ,demo?)
           (set! seed vec)
           (*flags* flag-table)
           (*num-iterations* iterations)
@@ -211,7 +211,7 @@
           (*demo-output* output)
           (*reeval-pts* reeval)
           (*demo?* demo?)]
-         [(list 'improve hash formula sema)
+        [(list 'improve hash formula sema)
           (define path (format "~a.~a" hash *herbie-commit*))
           (cond
            [(hash-has-key? *completed-jobs* hash)
@@ -240,123 +240,83 @@
             (eprintf "Job ~a complete\n" hash)
             (hash-remove! *jobs* hash)
             (semaphore-post sema)])]
-            [(list 'sample _hash formula sema _seed)
-             (define test (parse-test formula))
-             (eprintf "Sampling job started on ~a..." formula)
-             (define result (run-herbie 'sample test #:seed _seed 
-              #:profile? #f #:timeline-disabled? #t))
-             (hash-set! *completed-jobs* _hash result)
-             (eprintf " complete\n")
-             (hash-remove! *jobs* _hash)
-             (semaphore-post sema)]
-            [(list 'errors _hash formula sema _seed pcontext sample)
-             (define test (parse-test formula))
-             (eprintf "Analyze job started on ~a..." formula)
-             (define pcontext (json->pcontext sample (test-context test)))
-             (define result (run-herbie 'errors test
-              #:seed _seed #:pcontext pcontext
-              #:profile? #f #:timeline-disabled? #t))
-             (define errs (job-result-backend result))
-             (hash-set! *completed-jobs* _hash (hasheq 'points errs))
-             (eprintf " complete\n")
-             (hash-remove! *jobs* _hash)
-             (semaphore-post sema)]
-            [(list 'local-error _hash formula sema _seed sample)
-             (define test (parse-test formula))
-             (define expr (prog->fpcore (test-input test) (test-output-repr test)))
-             (define pcontext (json->pcontext sample (test-context test)))
-             (eprintf "Local error job started on ~a..." formula)
-             (define result (run-herbie 'local-error test #:seed _seed 
-              #:pcontext pcontext #:profile? #f #:timeline-disabled? #t))
-             (define local-error (job-result-backend result))
-             (hash-set! *completed-jobs* _hash result)
-             (eprintf " complete\n")
-             (hash-remove! *jobs* _hash)
-             (semaphore-post sema)]
-            [(list 'alternatives _hash formula sema _seed sample)
-             (define test (parse-test formula))
-             (define vars (test-vars test))
-             (define repr (test-output-repr test))
-             (eprintf "Alternatives job started on ~a..." formula)  
-             (define pcontext (json->pcontext sample (test-context test)))
-
-             (define result (run-herbie 'alternatives test #:seed _seed 
-              #:pcontext pcontext #:profile? #f #:timeline-disabled? #t))
-             (match-define (list altns test-pcontext processed-pcontext) (job-result-backend result))
-      
-              (define splitpoints
-                (for/list ([alt altns]) 
-                  (for/list ([var vars])
-                    (define split-var? (equal? var (regime-var alt)))
-                    (if split-var?
-                        (for/list ([val (regime-splitpoints alt)])
-                          (real->ordinal (repr->real val repr) repr))
-                        '()))))
-
-              (define fpcores
-                (for/list ([altn altns])
-                  (~a (program->fpcore (alt-expr altn) (test-context test)))))
-          
-              (define histories
-                (for/list ([altn altns])
-                  (let ([os (open-output-string)])
-                    (parameterize ([current-output-port os])
-                      (write-xexpr
-                        `(div ([id "history"])
-                          (ol ,@(render-history altn
-                                                processed-pcontext
-                                                test-pcontext
-                                                (test-context test)))))
-                      (get-output-string os)))))
-              (define derivations 
-                (for/list ([altn altns])
-                          (render-json altn
-                                                processed-pcontext
-                                                test-pcontext
-                                                (test-context test))))
-
-              (eprintf " complete\n")
-              (define hash-table (hasheq 'alternatives fpcores
-                      'histories histories
-                      'derivations derivations
-                      'splitpoints splitpoints))
-
-             (hash-set! *completed-jobs* _hash hash-table)
-             (eprintf " complete\n")
-             (hash-remove! *jobs* _hash)
-             (semaphore-post sema)]
-            [(list 'exacts _hash formula sema _seed sample)
-             (define test (parse-test formula))
-             (define pcontext (json->pcontext sample (test-context test)))
-             (eprintf "Ground truth job started on ~a..." formula)
-             (define result (run-herbie 'exacts test #:seed _seed 
-              #:pcontext pcontext #:profile? #f #:timeline-disabled? #t))
-             (define exacts (job-result-backend result))
-             (hash-set! *completed-jobs* _hash (hasheq 'points exacts))
-             (eprintf " complete\n")
-             (hash-remove! *jobs* _hash)
-             (semaphore-post sema)]
-            [(list 'evaluate _hash formula sema _seed sample)
-             (define test (parse-test formula))
-             (define pcontext (json->pcontext sample (test-context test)))
-             (eprintf "Evaluation job started on ~a..." formula)
-             (define result (run-herbie 'evaluate test #:seed _seed 
-              #:pcontext pcontext #:profile? #f #:timeline-disabled? #t))
-             (define approx (job-result-backend result))
-             (hash-set! *completed-jobs* _hash (hasheq 'points approx))
-             (eprintf " complete\n")
-             (hash-remove! *jobs* _hash)
-             (semaphore-post sema)]
-            [(list 'cost _hash formula sema)
-             (define test (parse-test formula))
-             (eprintf "Computing cost of ~a..." formula)
-             (define result (run-herbie 'cost test 
-              #:profile? #f #:timeline-disabled? #t))
-             (define cost (job-result-backend result))
-             (hash-set! *completed-jobs* _hash (hasheq 'cost cost))
-             (eprintf " complete\n")
-             (hash-remove! *jobs* _hash)
-             (semaphore-post sema)])
+        [(list 'sample _hash formula sema _seed)
+          (define test (parse-test formula))
+          (eprintf "Sampling job started on ~a..." formula)
+          (define result (run-herbie 'sample test #:seed _seed 
+          #:profile? #f #:timeline-disabled? #t))
+          (hash-set! *completed-jobs* _hash result)
+          (eprintf " complete\n")
+          (hash-remove! *jobs* _hash)
+          (semaphore-post sema)]
+        [(list 'errors _hash formula sema _seed pcontext sample)
+          (define test (parse-test formula))
+          (eprintf "Analyze job started on ~a..." formula)
+          (define pcontext (json->pcontext sample (test-context test)))
+          (define result (run-herbie 'errors test
+          #:seed _seed #:pcontext pcontext
+          #:profile? #f #:timeline-disabled? #t))
+          (define errs (job-result-backend result))
+          (hash-set! *completed-jobs* _hash (hasheq 'points errs))
+          (eprintf " complete\n")
+          (hash-remove! *jobs* _hash)
+          (semaphore-post sema)]
+        [(list 'local-error _hash formula sema _seed sample)
+          (define test (parse-test formula))
+          (define expr (prog->fpcore (test-input test) (test-output-repr test)))
+          (define pcontext (json->pcontext sample (test-context test)))
+          (eprintf "Local error job started on ~a..." formula)
+          (define result (run-herbie 'local-error test #:seed _seed 
+          #:pcontext pcontext #:profile? #f #:timeline-disabled? #t))
+          (define local-error (job-result-backend result))
+          (hash-set! *completed-jobs* _hash result)
+          (eprintf " complete\n")
+          (hash-remove! *jobs* _hash)
+          (semaphore-post sema)]
+        [(list 'alternatives _hash formula sema _seed sample)
+          (define test (parse-test formula))
+          (define vars (test-vars test))
+          (define repr (test-output-repr test))
+          (eprintf "Alternatives job started on ~a..." formula)  
+          (define pcontext (json->pcontext sample (test-context test)))
+          (define result (run-herbie 'alternatives test #:seed _seed 
+          #:pcontext pcontext #:profile? #f #:timeline-disabled? #t))
+          (hash-set! *completed-jobs* _hash result)
+          (eprintf " complete\n")
+          (hash-remove! *jobs* _hash)
+          (semaphore-post sema)]
+        [(list 'exacts _hash formula sema _seed sample)
+          (define test (parse-test formula))
+          (define pcontext (json->pcontext sample (test-context test)))
+          (eprintf "Ground truth job started on ~a..." formula)
+          (define result (run-herbie 'exacts test #:seed _seed 
+          #:pcontext pcontext #:profile? #f #:timeline-disabled? #t))
+          (define exacts (job-result-backend result))
+          (hash-set! *completed-jobs* _hash (hasheq 'points exacts))
+          (eprintf " complete\n")
+          (hash-remove! *jobs* _hash)
+          (semaphore-post sema)]
+        [(list 'evaluate _hash formula sema _seed sample)
+          (define test (parse-test formula))
+          (define pcontext (json->pcontext sample (test-context test)))
+          (eprintf "Evaluation job started on ~a..." formula)
+          (define result (run-herbie 'evaluate test #:seed _seed 
+          #:pcontext pcontext #:profile? #f #:timeline-disabled? #t))
+          (define approx (job-result-backend result))
+          (hash-set! *completed-jobs* _hash (hasheq 'points approx))
+          (eprintf " complete\n")
+          (hash-remove! *jobs* _hash)
+          (semaphore-post sema)]
+        [(list 'cost _hash formula sema)
+          (define test (parse-test formula))
+          (eprintf "Computing cost of ~a..." formula)
+          (define result (run-herbie 'cost test 
+          #:profile? #f #:timeline-disabled? #t))
+          (define cost (job-result-backend result))
+          (hash-set! *completed-jobs* _hash (hasheq 'cost cost))
+          (eprintf " complete\n")
+          (hash-remove! *jobs* _hash)
+          (semaphore-post sema)])
        (loop seed)))))
 
 (define (update-report result dir seed data-file html-file)
@@ -614,7 +574,50 @@
       (define seed (hash-ref post-data 'seed #f))    
       (define _hash (sha1 (open-input-string formula-str)))
       (semaphore-wait (run-alternatives _hash formula seed sample))
-      (hash-ref *completed-jobs* _hash))))
+      (define result (hash-ref *completed-jobs* _hash))
+      (herbie-result->altnatives-web-result result formula))))
+
+(define (herbie-result->altnatives-web-result result formula)
+  (define test (parse-test formula))
+  (define vars (test-vars test))
+  (define repr (test-output-repr test))
+  (match-define (list altns test-pcontext processed-pcontext)
+    (job-result-backend result))
+
+  (define splitpoints
+    (for/list ([alt altns]) 
+      (for/list ([var vars])
+        (define split-var? (equal? var (regime-var alt)))
+        (if split-var?
+            (for/list ([val (regime-splitpoints alt)])
+              (real->ordinal (repr->real val repr) repr))
+            '()))))
+
+  (define fpcores
+    (for/list ([altn altns])
+      (~a (program->fpcore (alt-expr altn) (test-context test)))))
+
+  (define histories
+    (for/list ([altn altns])
+      (let ([os (open-output-string)])
+        (parameterize ([current-output-port os])
+          (write-xexpr
+            `(div ([id "history"])
+              (ol ,@(render-history altn
+                                    processed-pcontext
+                                    test-pcontext
+                                    (test-context test)))))
+          (get-output-string os)))))
+  (define derivations 
+    (for/list ([altn altns])
+              (render-json altn
+                                    processed-pcontext
+                                    test-pcontext
+                                    (test-context test))))
+  (hasheq 'alternatives fpcores
+          'histories histories
+          'derivations derivations
+          'splitpoints splitpoints))
 
 ;; Should this be threaded? 'core->mathjs for a command/symbol?
 (define ->mathjs-endpoint
