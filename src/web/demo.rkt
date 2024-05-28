@@ -245,9 +245,7 @@
              (eprintf "Sampling job started on ~a..." formula)
              (define result (run-herbie 'sample test #:seed seed 
               #:profile? #f #:timeline-disabled? #t))
-             (define pctx (job-result-backend result))
-             (define result-hashtable (hasheq 'points (pcontext->json pctx (context-repr (test-context test)))))
-             (hash-set! *completed-jobs* hash result-hashtable)
+             (hash-set! *completed-jobs* hash result)
              (eprintf " complete\n")
              (hash-remove! *jobs* hash)
              (semaphore-post sema)]
@@ -504,10 +502,10 @@
      (redirect-to (add-prefix (format "~a.~a/graph.html" hash *herbie-commit*)) see-other))
    (url main)))
 
-(define (run-sample hash formula seed)
-  (hash-set! *jobs* hash (*timeline*))
+(define (run-sample _hash formula _seed)
+  (hash-set! *jobs* _hash (*timeline*))
   (define sema (make-semaphore))
-  (thread-send *worker-thread* (list 'sample hash formula sema seed))
+  (thread-send *worker-thread* (list 'sample _hash formula sema _seed))
   sema)
 
 ; /api/sample endpoint: test in console on demo page:
@@ -518,9 +516,13 @@
       (define formula-str (hash-ref post-data 'formula))
       (define formula (read-syntax 'web (open-input-string formula-str)))
       (define seed (hash-ref post-data 'seed))
-      (define hash (sha1 (open-input-string formula-str)))
-      (semaphore-wait (run-sample hash formula seed))
-      (hash-ref *completed-jobs* hash))))
+      (define _hash (sha1 (open-input-string formula-str)))
+      (semaphore-wait (run-sample _hash formula seed))
+      (define result (hash-ref *completed-jobs* _hash))
+      (define pctx (job-result-backend result))
+      (define test (parse-test formula))
+      (hasheq 'points (pcontext->json pctx 
+       (context-repr (test-context test)))))))
 
 (define (run-analyze hash formula seed pcontext sample)
   (hash-set! *jobs* hash (*timeline*))
