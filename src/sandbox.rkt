@@ -32,7 +32,7 @@
          (struct-out improve-result)
          (struct-out alt-analysis))
 
-(struct job-result (test status time timeline warnings backend))
+(struct job-result (command test status time timeline warnings backend))
 (struct improve-result (preprocess pctxs start target end bogosity))
 (struct alt-analysis (alt train-errors test-errors))
 
@@ -239,7 +239,7 @@
       (timeline-event! 'end)
       (define time (- (current-inexact-milliseconds) start-time))
       (match command 
-        ['improve (job-result test 'failure time (timeline-extract) (warning-log) e)]
+        ['improve (job-result command test 'failure time (timeline-extract) (warning-log) e)]
         [_ (raise e)])))
 
   (define (on-timeout)
@@ -247,7 +247,7 @@
       (timeline-load! timeline)
       (timeline-event! 'end)
       (match command 
-        ['improve (job-result test 'timeout (*timeout*) (timeline-extract) (warning-log) #f)]
+        ['improve (job-result command test 'timeout (*timeout*) (timeline-extract) (warning-log) #f)]
         [_ (error 'run-herbie "command ~a timed out" command)])))
 
   (define (compute-result test)
@@ -274,7 +274,7 @@
             [_ (error 'compute-result "unknown command ~a" command)]))
         (timeline-event! 'end)
         (define time (- (current-inexact-milliseconds) start-time))
-        (job-result test 'success time (timeline-extract) (warning-log) result))))
+        (job-result command test 'success time (timeline-extract) (warning-log) result))))
   
   (define (in-engine _)
     (if profile?
@@ -377,7 +377,7 @@
                   [output (car end-exprs)] [cost-accuracy cost&accuracy]))
 
 (define (get-table-data result link)
-  (match-define (job-result test status time _ _ backend) result)
+  (match-define (job-result command test status time _ _ backend) result)
   (match status
     ['success
      (match backend
@@ -385,7 +385,7 @@
        (build-table-data-success test start targets end backend result link)]
       [else ;; HACK Can fail if incomplete reports are saved in *completed-jobs*
        (dummy-table-row 
-        (job-result test 'incomplete (*timeout*) (timeline-extract) (warning-log) #f)
+        (job-result command test 'incomplete (*timeout*) (timeline-extract) (warning-log) #f)
         "incomplete" link)])]
     ['failure
      (define exn backend)

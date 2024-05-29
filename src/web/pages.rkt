@@ -45,7 +45,7 @@
      (make-points-json result out ctx)]))
 
 (define (get-interactive-js result ctx)
-  (match-define (job-result _ _ _ _ _ 
+  (match-define (job-result _ _ _ _ _ _ 
                  (improve-result _ _ start _ end _)) result)
   (define start-expr (alt-expr (alt-analysis-alt start)))
   (define end-expr (alt-expr (alt-analysis-alt (car end))))
@@ -69,7 +69,7 @@
   (string->number (real->decimal-string (ulps->bits x) 1)))
 
 (define (make-points-json result out repr)
-  (match-define (job-result test _ _ _ _ 
+  (match-define (job-result command test _ _ _ _ 
                  (improve-result _ pctxs start targets end _) ) result)
   (define repr (test-output-repr test))
   (define start-errors (alt-analysis-test-errors start))
