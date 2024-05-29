@@ -608,7 +608,7 @@
 
   (define tcount-hash (actual-errors expr pctx))
 
-  (define repr (repr-of expr context))
+  (define repr (repr-of expr (*context*)))
   (define (values->json vs repr)
     (map (lambda (value) (value->json value repr)) vs))
   
