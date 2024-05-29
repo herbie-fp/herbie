@@ -310,11 +310,8 @@
              (test-output test)
              #f #f #f #f #f (job-result-time result) link '()))
 
-(define (get-table-data result link)
-  (match-define (job-result test status time _ _ backend) result)
-  (match status
-    ['success
-     (match-define (improve-result _ _ start targets end _) backend)
+(define (build-table-data-success test start tragets end backend result link)
+ (match-define (improve-result _ _ start targets end _) backend)
      (define expr-cost (platform-cost-proc (*active-platform*)))
      (define repr (test-output-repr test))
     
@@ -377,7 +374,19 @@
                   [start-est start-train-score] [start start-test-score]
                   [target target-cost-score]
                   [result-est end-est-score] [result end-score]
-                  [output (car end-exprs)] [cost-accuracy cost&accuracy])]
+                  [output (car end-exprs)] [cost-accuracy cost&accuracy]))
+
+(define (get-table-data result link)
+  (match-define (job-result test status time _ _ backend) result)
+  (match status
+    ['success
+     (match backend
+      [(improve-result _ _ start targets end _) 
+       (build-table-data-success test start targets end backend result link)]
+      [else ;; HACK Can fail if incomplete reports are saved in *completed-jobs*
+       (dummy-table-row 
+        (job-result test 'incomplete (*timeout*) (timeline-extract) (warning-log) #f)
+        "incomplete" link)])]
     ['failure
      (define exn backend)
      (define status (if (exn:fail:user:herbie? exn) "error" "crash"))
