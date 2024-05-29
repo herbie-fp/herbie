@@ -9,6 +9,7 @@
          (submod "syntax/rules.rkt" internals))
 
 (provide accelerator?
+         accelerator-exists?
          all-accelerators
          accelerator-info
          expand-accelerators)

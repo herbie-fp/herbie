@@ -39,7 +39,7 @@ class AVXRunner(Runner):
         for core, driver_dir in zip(cores, driver_dirs):
             driver_path = os.path.join(driver_dir, driver_name)
             # pull sample from cache
-            _, sample = self.cache.get_core(core.key)
+            sample = self.cache.get_sample(core.key, self.seed)
             input_points, _ = sample
             with open(driver_path, 'w') as f:
                 print('#include <immintrin.h>', file=f)

@@ -13,20 +13,12 @@ def make_runner(
     platform: str,
     working_dir: str,
     herbie_path: str,
-    num_inputs: int,
-    num_runs: int,
-    threads: int,
-    key: str,
-    seed: int
+    **kwargs
 ) -> Runner:
     kwargs = {
         'working_dir': working_dir,
         'herbie_path': herbie_path,
-        'num_inputs': num_inputs,
-        'num_runs': num_runs,
-        'threads': threads,
-        'key': key,
-        'seed': seed
+        **kwargs
     }
 
     if platform == 'arith':

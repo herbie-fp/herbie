@@ -45,3 +45,6 @@ def py_to_racket(v: float):
             return '+inf.0'
     else:
         return str(v)
+
+def sanitize_name(name: str):
+    return name.replace('*', '_times_').replace('+', '_plus_').replace('/', '_:_')
