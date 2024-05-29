@@ -43,8 +43,8 @@
   (rival-machine rival-compiled discs))
 
 (struct exn:rival exn:fail ())
-(struct exn:rival:invalid exn:rival ())
-(struct exn:rival:unsamplable exn:rival ())
+(struct exn:rival:invalid exn:rival (pt))
+(struct exn:rival:unsamplable exn:rival (pt))
 
 (define (ival-any-error? ivals)
   (for/fold ([out (ival-error? (vector-ref ivals 0))])
@@ -67,13 +67,13 @@
     (match-define (ival err err?) (ival-any-error? exs))
     (cond
       [err
-       (raise (exn:rival:invalid (format "Invalid input ~a" pt) (current-continuation-marks)))]
+       (raise (exn:rival:invalid "Invalid input" (current-continuation-marks) pt))]
       [(not err?)
        (for/list ([ex (in-vector exs)] [disc (in-list discs)])
          ; We are promised at this point that (distance (convert lo) (convert hi)) = 0 so use lo
          ([discretization-convert disc] (ival-lo ex)))]
       [(>= iter (*max-sampling-iterations*))
-       (raise (exn:rival:unsamplable (format "Unsamplable input ~a" pt) (current-continuation-marks)))]
+       (raise (exn:rival:unsamplable "Unsamplable input" (current-continuation-marks) pt))]
       [else
        (loop (+ 1 iter))])))
 
