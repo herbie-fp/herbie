@@ -337,9 +337,11 @@
 (module+ test
   ;; Make sure all built-in rules are valid in
   ;; some configuration of representations
-  (for ([rule (in-list (*rules*))])
-    (test-case (~a (rule-name rule))
-               (check-true (> (length (rule->egg-rules rule)) 0))))
+
+  ;; No longer valid with all the platforms we have
+  ; (for ([rule (in-list (*rules*))])
+  ;   (test-case (~a (rule-name rule))
+  ;              (check-true (> (length (rule->egg-rules rule)) 0))))
 )
 
 ;; the first hash table maps all symbols and non-integer values to new names for egg

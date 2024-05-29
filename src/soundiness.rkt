@@ -2,7 +2,7 @@
 
 (require "alternative.rkt" "points.rkt" "programs.rkt"
          "core/egg-herbie.rkt" "core/simplify.rkt" "syntax/types.rkt" 
-         "core/matcher.rkt" "syntax/rules.rkt")
+         "core/rr.rkt" "syntax/rules.rkt")
 
 (provide add-soundiness)
 
