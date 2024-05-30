@@ -140,7 +140,7 @@
     (make-egg-query specs
                     reprs
                     schedule
-                    #:extractor (typed-egg-extractor platform-egg-cost-proc)))
+                    #:extractor (typed-egg-extractor (if (*old-cost-function*) default-egg-cost-proc platform-egg-cost-proc))))
   
   ; convert to altns
   (define simplification-options (simplify-batch egg-query))

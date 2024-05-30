@@ -89,18 +89,15 @@ def main():
     samples, input_cores = prune_unsamplable(samples, input_cores)
     check_samples(samples, input_cores) # sanity check!
 
-    # analyze input cores
-    runner.herbie_cost(cores=input_cores)
-    runner.herbie_error(cores=input_cores)
-
     # run Herbie improve and get associated sampled points
     cores = runner.herbie_improve(cores=input_cores, threads=herbie_threads)
     samples = runner.herbie_sample(cores=cores, py_sample=py_sample)
     check_samples(samples, cores) # sanity check!
 
-    # analyze output cores
-    runner.herbie_cost(cores=cores)
-    runner.herbie_error(cores=cores)
+    # analyze all FPCores
+    all_cores = input_cores + cores
+    runner.herbie_cost(cores=all_cores)
+    runner.herbie_error(cores=all_cores)
 
     # generate Pareto frontier
     frontier = runner.herbie_pareto(input_cores=input_cores, cores=cores)

@@ -48,7 +48,7 @@
                     reprs
                     schedule
                     #:context ctx
-                    #:extractor (typed-egg-extractor platform-egg-cost-proc)))
+                    #:extractor (typed-egg-extractor (if (*old-cost-function*) default-egg-cost-proc platform-egg-cost-proc))))
   (match-define (cons variantss _) (run-egg e-input #t))
 
   (define out
