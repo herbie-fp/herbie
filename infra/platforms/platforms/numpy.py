@@ -48,8 +48,8 @@ class NumpyRunner(Runner):
             with open(driver_path, 'w') as f:
                 print('import time', file=f)
                 print('import numpy', file=f)
+                print('numpy.seterr(divide=\'ignore\',over=\'ignore\',invalid=\'ignore\')', file=f)
                 print(f'{core.compiled}', file=f)
-
                 spoints = []
                 for i, points in enumerate(input_points):
                     for pt in points:
@@ -58,22 +58,17 @@ class NumpyRunner(Runner):
                             spoints.append('numpy.nan')
                         else:
                             spoints.append(s)
-
                     print(f'x{i} = numpy.array([', file=f)
-                    print(',\n'.join(spoints), file=f)
+                    print(',\n'.join(spoints[:10000]), file=f)
                     print('])', file=f)
 
                 arg_str = ', '.join(map(lambda i: f'x{i}', range(core.argc)))
                 print('if __name__ == "__main__":', file=f)
                 print(f'\ti = 0', file=f)
                 print(f'\tstart = time.time_ns()', file=f)
-                #print(f'\twhile i < {self.num_inputs}:', file=f)
                 print(f'\twhile i < {self.num_inputs}:', file=f)
-                print(f'\t\ttry:', file=f)
-                print(f'\t\t\tfoo({arg_str})', file=f)
-                print(f'\t\t\ti += 1', file=f)
-                print(f'\t\texcept:', file=f)
-                print(f'\t\t\ti += 1', file=f)
+                print(f'\t\tfoo({arg_str})', file=f)
+                print(f'\t\ti += 1', file=f)
                 print(f'\tend = time.time_ns()', file=f)
                 print(f'\tdiff = (10 ** -6) * (end - start)', file=f)
                 print(f'\tprint(f\'{{diff}} ms\')', file=f)

@@ -45,13 +45,13 @@
   (match x
    ['TRUE "True"]
    ['FALSE "False"]
-   ['INFINITY (format "numpy.ones(length, dtype=~a)*numpy.inf" (type->numpy prec))]
-   ['NAN (format "numpy.ones(length, dtype=~a)*numpy.nan" (type->numpy prec))]
-   ['PI (format "numpy.ones(length, dtype=~a)*numpy.pi" (type->numpy prec))]
-   ['E (format "numpy.ones(length, dtype=~a)*numpy.e" (type->numpy prec))]
-   [(? hex?) (format "numpy.ones(length, dtype=~a)*~a" (type->numpy prec) (real->double-flonum (hex->racket x)))]
-   [(? number?) (format "numpy.ones(length, dtype=~a)*~a" (type->numpy prec) (real->double-flonum x))]
-   [(? symbol?) (format "numpy.ones(length, dtype=~a)*~a" (type->numpy prec) x)]))
+   ['INFINITY (format "numpy.full(length, numpy.inf, dtype=~a)"(type->numpy prec))]
+   ['NAN (format "numpy.full(length, numpy.nan, dtype=~a)" (type->numpy prec))]
+   ['PI (format "numpy.full(length, numpy.pi, dtype=~a)" (type->numpy prec))]
+   ['E (format "numpy.full(length, numpy.e, dtype=~a)" (type->numpy prec))]
+   [(? hex?) (format "numpy.full(length, ~a, dtype=~a)" (real->double-flonum (hex->racket x)) (type->numpy prec))]
+   [(? number?) (format "numpy.full(length, ~a, dtype=~a)" (real->double-flonum x) (type->numpy prec))]
+   [(? symbol?) (format "numpy.full(length, ~a, dtype=~a)" x (type->numpy prec))]))
 
 (define declaration->numpy
   (case-lambda
@@ -65,8 +65,8 @@
   (format "~a = ~a" var val))
 
 (define (program->numpy name args arg-ctxs body ret ctx used-vars)
-  (format "def ~a(~a):\n\tlength = ~a.shape\n~a\treturn ~a\n" name
-          (string-join args ", ") (if (> (length args) 0) (first args) "numpy.ones(5)") body ret))
+  (format "def ~a(~a):\n\tlength = ~a\n~a\treturn ~a\n" name
+          (string-join args ", ") (if (> (length args) 0) (format "~a.shape" (first args)) "10000") body ret))
 
 (define (visit-if/numpy vtor cond ift iff #:ctx ctx)
   (define indent (ctx-lookup-extra ctx 'indent))
@@ -77,9 +77,12 @@
   (define-values (ctx* name) (ctx-random-name iff-ctx prec))
   (define-values (name-ctx cond-name) (ctx-random-name ctx prec))
   (printf "~a~a = ~a\n" indent cond-name cond*)
-  (printf "~a~a = numpy.zeros(length,dtype=~a)\n" indent name (type->numpy prec))
+  (printf "~a~a = numpy.array(~a)\n"indent name iff*)
   (printf "~a~a[~a] = numpy.array(~a)[~a]\n" indent name cond-name ift* cond-name)
-  (printf "~a~a[~~ ~a] = numpy.array(~a)[~~ ~a]\n" indent name cond-name iff* cond-name)
+
+  ;(printf "~a~a = numpy.zeros(length,dtype=~a)\n" indent name (type->numpy prec))
+  ;(printf "~a~a[~a] = numpy.array(~a)[~a]\n" indent name cond-name ift* cond-name)
+  ;(printf "~a~a[~~ ~a] = numpy.array(~a)[~~ ~a]\n" indent name cond-name iff* cond-name)
   (values name ctx*))
 
 (define (visit-number/numpy vtor x #:ctx ctx)

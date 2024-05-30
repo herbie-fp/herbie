@@ -18,7 +18,7 @@
   (λ (x y) (log (+ (exp x) (exp y)))))
 
   (define-accelerator (logaddexp2 real real) real
-  (λ (x y) (log2 (+ (exp x) (exp y)))))
+  (λ (x y) (log2 (+ (exp2 x) (exp2 y)))))
 
    (define-accelerator (square real) real
   (λ (x) (* x x)))
