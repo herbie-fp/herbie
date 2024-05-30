@@ -52,7 +52,6 @@
    [("api" "calculate") #:method "post" calculate-endpoint]
    [("api" "cost") #:method "post" cost-endpoint]
    [("api" "mathjs") #:method "post" ->mathjs-endpoint]
-  ;  added endpoint API rule -Ben
    [("api" "translate") #:method "post" translate-endpoint]
    [((hash-arg) (string-arg)) generate-page]
    [("results.json") generate-report]))
@@ -275,7 +274,7 @@
     (define resp (with-handlers ([exn:fail? (λ (e) (hash 'error (exn->string e)))]) (fn post-data)))
     (if (hash-has-key? resp 'error)
         (eprintf "Error handling request: ~a\n" (hash-ref resp 'error))
-        (eprintf "")
+        (eprintf "Success handling request\n")
     )
     (if (hash-has-key? resp 'error)
         (response 500
@@ -552,14 +551,13 @@
       (eprintf " complete\n")
       (hasheq 'cost cost))))
 
-; Beginning of translate endpoint -Ben
 (define translate-endpoint
   (post-with-json-response
     (lambda (post-data)
       ; FPCore formula and target language
       (define formula (read (open-input-string (hash-ref post-data 'formula))))
       (eprintf "Translating formula: ~a...\n" formula)
-      (define target-lang (hash-ref post-data 'lang))
+      (define target-lang (hash-ref post-data 'language))
       (eprintf "Target language: ~a...\n" target-lang)
       ; Select the appropriate conversion function
       (define lang-converter (case target-lang
@@ -576,9 +574,9 @@
 
       ; convert the expression
       (define converted (lang-converter formula "expr"))
-      (eprintf "Converted Expression ~a...\n" converted)
+      (eprintf "Converted Expression: \n~a...\n" converted)
       (hasheq 'result converted
-              'lang target-lang))))
+              'language target-lang))))
 
 (define (run-demo #:quiet [quiet? #f] #:output output #:demo? demo? #:prefix prefix #:log log #:port port #:public? public)
   (*demo?* demo?)

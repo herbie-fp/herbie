@@ -72,7 +72,7 @@ for (const language of languageList) {
     const translatedExpr = 
         (await (await fetch('http://127.0.0.1:8000/api/translate',
         { method: 'POST', body: JSON.stringify(
-        { formula: FPCoreFormula, lang: language }) })).json())
+        { formula: FPCoreFormula, language: language }) })).json())
 
     actualExpressions.push(translatedExpr)
 }
