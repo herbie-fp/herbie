@@ -139,20 +139,7 @@
   (define vars (context-vars (car ctxs)))
   (define var-reprs (context-var-reprs (car ctxs)))
   (define discs (map (compose representation->discretization context-repr) ctxs))
-  (define compiled
-    (rival-machine-fn (rival-compile (cons pre specs) vars (cons bool-discretization discs))))
-  (define outlength (length specs))
-  (define (compiled-spec inputs)
-    (define outvec (compiled inputs))
-    (define ival-pre (vector-ref outvec 0))
-    (for/vector #:length outlength ([y (in-vector outvec 1)] [ctx (in-list ctxs)])
-      (ival-then
-       ; The two `invalid` ones have to go first, because later checks
-       ; can error if the input is erroneous
-       (ival-assert (ival-not (ival-error? ival-pre)) 'invalid)
-       (ival-assert ival-pre 'precondition)
-       y)))
-  (rival-machine compiled-spec discs))
+  (rival-compile (cons `(assert ,pre) specs) vars (cons bool-discretization discs)))
 
 (define (ival-eval machine ctxs pt [iter 0])
   (define start (current-inexact-milliseconds))
@@ -163,7 +150,7 @@
     (with-handlers
       ([exn:rival:invalid? (lambda (e) (values 'invalid #f))]
        [exn:rival:unsamplable? (lambda (e) (values 'exit #f))])
-      (values 'valid (rival-apply machine pt*))))
+      (values 'valid (rest (rival-apply machine pt*))))) ; rest = drop precondition
   (timeline-push!/unsafe 'outcomes (- (current-inexact-milliseconds) start)
                          rival-profile-iterations-taken (~a status) 1)
   (values status value))

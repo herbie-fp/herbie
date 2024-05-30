@@ -209,6 +209,8 @@
 
         [(list 'cast x)  (list identity x)]
 
+        [(list 'assert x)  (list ival-assert x)]
+
         [(list op args ...)
          (error 'compile-specs "Unknown operator ~a" op)])))
 
