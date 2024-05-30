@@ -52,6 +52,7 @@
    [("api" "calculate") #:method "post" calculate-endpoint]
    [("api" "cost") #:method "post" cost-endpoint]
    [("api" "mathjs") #:method "post" ->mathjs-endpoint]
+   [("api" "translate") #:method "post" translate-endpoint]
    [((hash-arg) (string-arg)) generate-page]
    [("results.json") generate-report]))
 
@@ -271,6 +272,10 @@
     (define post-body (request-post-data/raw req))
     (define post-data (cond (post-body (bytes->jsexpr post-body)) (#t #f)))
     (define resp (with-handlers ([exn:fail? (λ (e) (hash 'error (exn->string e)))]) (fn post-data)))
+    (if (hash-has-key? resp 'error)
+        (eprintf "Error handling request: ~a\n" (hash-ref resp 'error))
+        (eprintf "Success handling request\n")
+    )
     (if (hash-has-key? resp 'error)
         (response 500
                   #"Bad Request"
@@ -549,6 +554,33 @@
 
       (eprintf " complete\n")
       (hasheq 'cost cost))))
+
+(define translate-endpoint
+  (post-with-json-response
+    (lambda (post-data)
+      ; FPCore formula and target language
+      (define formula (read (open-input-string (hash-ref post-data 'formula))))
+      (eprintf "Translating formula: ~a...\n" formula)
+      (define target-lang (hash-ref post-data 'language))
+      (eprintf "Target language: ~a...\n" target-lang)
+      ; Select the appropriate conversion function
+      (define lang-converter (case target-lang
+        [("python") core->python]
+        [("c") core->c]
+        [("fortran") core->fortran]
+        [("java") core->java]
+        [("julia") core->julia]
+        [("matlab") core->matlab]
+        [("wls") core->wls]
+        [("tex") core->tex]
+        [("js") core->js]
+        [else (error "Unsupported target language:" target-lang)]))
+
+      ; convert the expression
+      (define converted (lang-converter formula "expr"))
+      (eprintf "Converted Expression: \n~a...\n" converted)
+      (hasheq 'result converted
+              'language target-lang))))
 
 (define (run-demo #:quiet [quiet? #f] #:output output #:demo? demo? #:prefix prefix #:log log #:port port #:public? public)
   (*demo?* demo?)

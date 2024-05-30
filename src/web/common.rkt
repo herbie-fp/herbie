@@ -3,7 +3,7 @@
          (only-in fpbench fpcore? supported-by-lang?
                           core->c core->fortran core->java core->python
                           core->julia core->matlab core->wls core->tex
-                          expr->tex
+                          expr->tex core->js
                           compilers
                           [core-common-subexpr-elim core-cse]
                           *expr-cse-able?*))
@@ -11,11 +11,13 @@
 (require "../common.rkt" "../syntax/read.rkt" "../programs.rkt"
          "../syntax/types.rkt" "../syntax/sugar.rkt" "../syntax/syntax.rkt")
 
-(provide render-menu render-warnings render-large render-comparison
+(provide render-menu render-warnings render-large render-comparison 
          render-program render-bogosity render-help render-fpcore
          render-reproduction format-percent
          program->fpcore program->tex fpcore->string
-         js-tex-include doc-url)
+         js-tex-include doc-url
+         core->c core->fortran core->java core->python core->julia 
+         core->matlab core->wls core->tex expr->tex core->js)
 
 (define (program->fpcore expr ctx #:ident [ident #f])
   (define body (prog->fpcore expr (context-repr ctx)))
