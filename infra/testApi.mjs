@@ -1,9 +1,25 @@
 import { strict as assert } from 'node:assert';  // use strict equality everywhere 
 
-// Future TODO: before this API becomes set in stone/offered publically, we should change the results of these methods to be just the output data rather than duplicating input values.
+// Future TODO: before this API becomes set in stone/offered publicly, we should change the results of these methods to be just the output data rather than duplicating input values.
 
+// Reusable testing data
 const FPCoreFormula = '(FPCore (x) (- (sqrt (+ x 1)) (sqrt x)))'
 const FPCoreFormula2 = '(FPCore (x) (- (sqrt (+ x 1))))'
+const eval_sample = [[[1], -1.4142135623730951]]
+
+// improve-start endpoint
+// TODO
+
+// improve endpoint
+// TODO
+
+// Check status endpoint
+// TODO
+
+// up endpoint
+// TODO
+
+// Sample endpoint
 
 const sample = (await(await fetch('http://127.0.0.1:8000/api/sample', { method: 'POST', body: JSON.stringify({ formula: FPCoreFormula2, seed: 5 }) })).json())
 
@@ -17,6 +33,8 @@ const points2 = sample2.points
 
 assert.deepEqual(points[1], points2[1], `request with seed should always return the same value;\nrequest was (await(await fetch('http://127.0.0.1:8000/api/sample', { method: 'POST', body: JSON.stringify({ formula: ${FPCoreFormula2}, seed: 5 }) })).json())`)
 
+// Analyze endpoint
+
 const errors = (await (await fetch('http://127.0.0.1:8000/api/analyze', { method: 'POST', body: JSON.stringify({ formula: FPCoreFormula, sample: [[[
   14.97651307489794
 ], 0.12711304680349078]] }) })).json()).points  // HACK tiny sample
@@ -25,11 +43,38 @@ assert.deepEqual(errors, [[[14.97651307489794], "2.3"]], `error shouldn't change
   14.97651307489794
 ], 0.12711304680349078]] }) })).json())`)
 
+// Local error endpoint
+
+const localError = (await (await fetch('http://127.0.0.1:8000/api/localerror', { method: 'POST', body: JSON.stringify({ formula: FPCoreFormula, sample: sample2.points }) })).json())
+
+assert.equal(localError.tree['avg-error'] > 0, true)
+
+// Alternatives endpoint
+
 const alternatives = (await (await fetch('http://127.0.0.1:8000/api/alternatives', { method: 'POST', body: JSON.stringify({ formula: FPCoreFormula, sample: [[[
   14.97651307489794
 ], 0.12711304680349078]] }) })).json())  // HACK tiny sample
 
 assert.equal(Array.isArray(alternatives.alternatives), true)
+
+// Exacts endpoint
+
+const exacts = (await (await fetch('http://127.0.0.1:8000/api/exacts', {method: 'POST', body: JSON.stringify({formula: FPCoreFormula2, sample: eval_sample})})).json()).points
+
+assert.deepEqual(exacts, [[[1], -1.4142135623730951]])
+
+// Calculate endpoint
+
+const calculate = (await (await fetch('http://127.0.0.1:8000/api/calculate', {method: 'POST', body: JSON.stringify({formula: FPCoreFormula2, sample: eval_sample})})).json()).points
+
+assert.deepEqual(calculate, [[[1], -1.4142135623730951]])
+
+// Cost endpoint
+
+const cost = (await (await fetch('http://127.0.0.1:8000/api/cost', {method: 'POST', body: JSON.stringify({formula: FPCoreFormula2, sample: eval_sample})})).json())
+assert.equal(cost.cost > 0, true)
+
+// MathJS endpoint
 
 const mathjs = (await (await fetch('http://127.0.0.1:8000/api/mathjs', { 
 	method: 'POST', 
@@ -38,21 +83,7 @@ const mathjs = (await (await fetch('http://127.0.0.1:8000/api/mathjs', {
 
 assert.equal(mathjs, "sqrt(x + 1.0) - sqrt(x)")
 
-const eval_sample = [[[1], -1.4142135623730951]]
-const exacts = (await (await fetch('http://127.0.0.1:8000/api/exacts', {method: 'POST', body: JSON.stringify({formula: FPCoreFormula2, sample: eval_sample})})).json()).points
-
-assert.deepEqual(exacts, [[[1], -1.4142135623730951]])
-
-const calculate = (await (await fetch('http://127.0.0.1:8000/api/calculate', {method: 'POST', body: JSON.stringify({formula: FPCoreFormula2, sample: eval_sample})})).json()).points
-
-assert.deepEqual(calculate, [[[1], -1.4142135623730951]])
-
-const cost = (await (await fetch('http://127.0.0.1:8000/api/cost', {method: 'POST', body: JSON.stringify({formula: FPCoreFormula2, sample: eval_sample})})).json())
-
-const localerror = (await (await fetch('http://127.0.0.1:8000/api/localerror', { method: 'POST', body: JSON.stringify({ formula: FPCoreFormula, sample: sample2.points }) })).json())
-
-assert.equal(localerror.tree['avg-error'] > 0, true)
-assert.equal(cost.cost > 0, true)
+// Translate endpoint
 
 const languageList = ["python", "c", "fortran", "java", "julia", "matlab", "wls", "tex", "js"]
 const actualExpressions = []
@@ -80,3 +111,7 @@ for (const language of languageList) {
 for (let i = 0; i < expectedExpressions.length; i++) {
     assert.equal(actualExpressions[i].result, expectedExpressions[i])
 }
+
+// Results.json endpoint
+
+// TODO
