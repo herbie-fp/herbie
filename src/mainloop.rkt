@@ -364,7 +364,7 @@
   (define expr (alt-expr (car simplified)))
 
   (define-values (fperrors explanations-table confusion-matrix maybe-confusion-matrix total-confusion-matrix freqs)
-    (explain expr context pcontext))
+    (explain expr (*context*) (*pcontext*)))
 
   (for ([fperror (in-list fperrors)])
     (match-define (list expr truth opreds oex upreds uex) fperror)
