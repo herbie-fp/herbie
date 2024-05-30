@@ -45,11 +45,9 @@ assert.deepEqual(exacts, [[[1], -1.4142135623730951]])
 
 const calculate = (await (await fetch('http://127.0.0.1:8000/api/calculate', {method: 'POST', body: JSON.stringify({formula: FPCoreFormula2, sample: eval_sample})})).json()).points
 
-assert.deepEqual(exacts, [[[1], -1.4142135623730951]])
+assert.deepEqual(calculate, [[[1], -1.4142135623730951]])
 
 const cost = (await (await fetch('http://127.0.0.1:8000/api/cost', {method: 'POST', body: JSON.stringify({formula: FPCoreFormula2, sample: eval_sample})})).json())
-
-const sample3 = (await (await fetch('http://127.0.0.1:8000/api/sample', { method: 'POST', body: JSON.stringify({ formula: FPCoreFormula, seed: 5 }) })).json())
 
 const localerror = (await (await fetch('http://127.0.0.1:8000/api/localerror', { method: 'POST', body: JSON.stringify({ formula: FPCoreFormula, sample: sample2.points }) })).json())
 
