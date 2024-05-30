@@ -11,6 +11,7 @@
          herbie/points
          herbie/sandbox
          herbie/syntax/read
+         herbie/syntax/syntax
          herbie/syntax/sugar
          herbie/syntax/types
          herbie/web/common
@@ -23,9 +24,29 @@
 (*warnings-disabled* true)
 (load-herbie-builtins)
 
+; Copied from <herbie>/syntax/read.rkt
+(define (read-syntax* port name)
+  (parameterize ([read-decimal-as-inexact false])
+    (read-syntax port name)))
+
+; For Herbie 2.0 compatability
+(define (add-literals expr repr)
+  (match expr
+    [(? number?) (literal expr (representation-name repr))]
+    [(? literal?) expr]
+    [(? symbol?) expr]
+    [(list 'if cond ift iff)
+     (list 'if
+           (add-literals cond (get-representation 'bool))
+           (add-literals ift repr)
+           (add-literals iff repr))]
+    [(list impl args ...)
+     (define itypes (impl-info impl 'itype))
+     (cons impl (map add-literals args itypes))])) 
+
 (define (resugar-core vars name precision pre spec output)
   (define repr (get-representation precision))
-  (define expr* output)
+  (define expr* (add-literals output repr))
   `(FPCore ,vars
      :name ,name
      :precision ,precision
@@ -144,9 +165,16 @@
          (match args
            [(list path) path]
            [_ (error 'run-server "read: malformed arguments ~a" args)]))
-       (for ([t (in-list (load-tests path))])
-         (define t* (struct-copy test t [output #f])) ; strip any `:alt` annotation
-         (printf "~a\n" (string-replace (render-fpcore t*) "\n" "")))
+      ; reimplementation of `load-file`
+      (call-with-input-file path
+        (λ (port)
+          (port-count-lines! port)
+          (for ([stx (in-port (curry read-syntax* path) port)]
+                [i (in-naturals)])
+            (with-handlers ([exn:fail? (const (void))])
+              (define t (parse-test stx))
+              (define t* (struct-copy test t [output #f])) ; strip any `:alt` annotation
+              (printf "~a|~a\n" i (string-replace (render-fpcore t*) "\n" ""))))))
        (loop)]
       ; sample <num_points:int> <core:expr>
       [(list 'sample args ...)
@@ -155,19 +183,21 @@
            [(list num-points core) (values num-points core)]
            [_ (error 'run-server "sample: malformed arguments ~a" args)]))
        (define test (parse-test (datum->syntax #f core)))
-       (parameterize ([*reeval-pts* num-points])
-         (define result (run-herbie 'sample test #:seed seed #:timeline-disabled? #t))
-         (displayln
-           (match (job-result-status result)
-             ['success
-              (define pctx (job-result-backend result))
-              (string-join
-                 (for/list ([(pt gt) (in-pcontext pctx)])
-                   (string-append
-                     (string-join (map ~s pt) " ")
-                     (format ",~s" gt)))
-                 "|")]
-             [_ #f])))
+       (define result
+         (with-handlers ([exn:fail:user:herbie? (lambda _ #f)])
+           (parameterize ([*reeval-pts* num-points])
+             (define result (run-herbie 'sample test #:seed seed #:timeline-disabled? #t))
+             (match (job-result-status result)
+               ['success
+                (define pctx (job-result-backend result))
+                (string-join
+                  (for/list ([(pt gt) (in-pcontext pctx)])
+                    (string-append
+                      (string-join (map ~s pt) " ")
+                      (format ",~s" gt)))
+                   "|")]
+               [_ #f]))))
+       (displayln result)
        (loop)]
       ; exit
       [(list 'exit) (void)]

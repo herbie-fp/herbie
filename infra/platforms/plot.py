@@ -12,15 +12,19 @@ script_path = os.path.abspath(__file__)
 script_dir, _ = os.path.split(script_path)
 
 
-def plot_tune(name: str, output_dir: Path, info: dict):
+def plot_time(name: str, output_dir: Path, info: dict):
     """Plots Herbie cost estimate vs actual run time"""
-    print(f'Plotting tune {name}')
+    print(f'Plotting time {name}')
 
     costs = []
     times = []
-    for _, (cost, time) in info.items():
-        costs.append(cost)
-        times.append(time)
+    for input_info in info['cores']:
+        for core_info in input_info['platform_cores']:
+            cost = core_info['platform_core']['cost']
+            time = core_info['time']
+
+            costs.append(cost)
+            times.append(time)
     
     plt.figure()
     plt.title("Estimated cost vs. actual run time")
@@ -85,10 +89,9 @@ def main():
     # Iterate over platform data
     for name, platform_info in report.items():
         for field, field_info in platform_info.items():
-            if field == 'tune':
-                plot_tune(name, output_dir, field_info)
-            elif field == 'improve':
+            if field == 'improve':
                 plot_improve(name, output_dir, field_info)
+                plot_time(name, output_dir, field_info)
             elif field == 'compare':
                 for name2, compare_info in field_info.items():
                     plot_compare(name, name2, output_dir, compare_info)

@@ -17,70 +17,33 @@ def make_runner(
     num_inputs: int,
     num_runs: int,
     threads: int,
-    key: str
+    key: str,
+    seed: int
 ) -> Runner:
+    kwargs = {
+        'working_dir': working_dir,
+        'herbie_path': herbie_path,
+        'num_inputs': num_inputs,
+        'num_runs': num_runs,
+        'threads': threads,
+        'key': key,
+        'seed': seed
+    }
+
     if platform == 'arith':
-        return ArithRunner(
-            working_dir=working_dir,
-            herbie_path=herbie_path,
-            num_inputs=num_inputs,
-            num_runs=num_runs,
-            threads=threads,
-            key=key
-        )
+        return ArithRunner(**kwargs)
     elif platform == 'c':
-        return CRunner(
-            working_dir=working_dir,
-            herbie_path=herbie_path,
-            num_inputs=num_inputs,
-            num_runs=num_runs,
-            threads=threads,
-            key=key
-        )
+        return CRunner(**kwargs)
     elif platform == 'math':
-        return MathRunner(
-            working_dir=working_dir,
-            herbie_path=herbie_path,
-            num_inputs=num_inputs,
-            num_runs=num_runs,
-            threads=threads,
-            key=key
-        )
+        return MathRunner(**kwargs)
     elif platform == 'mkl':
-        return MKLRunner(
-            working_dir=working_dir,
-            herbie_path=herbie_path,
-            num_inputs=num_inputs,
-            num_runs=num_runs,
-            threads=threads,
-            key=key
-        )
+        return MKLRunner(**kwargs)
     elif platform == 'python':
-        return PythonRunner(
-            working_dir=working_dir,
-            herbie_path=herbie_path,
-            num_inputs=num_inputs,
-            num_runs=num_runs,
-            threads=threads,
-            key=key
-        )
+        return PythonRunner(**kwargs)
     elif platform == 'avx':
-        return AVXRunner(
-            working_dir=working_dir,
-            herbie_path=herbie_path,
-            num_inputs=num_inputs,
-            num_runs=num_runs,
-            threads=threads,
-            key=key
-        )
+        return AVXRunner(**kwargs)
     elif platform == 'numpy':
-        return NumpyRunner(
-            working_dir=working_dir,
-            herbie_path=herbie_path,
-            num_inputs=num_inputs,
-            num_runs=num_runs,
-            threads=threads,
-            key=key
-        )
+        return NumpyRunner(**kwargs)
+
     else:
         raise ValueError(f'Unsupported output platform: {platform}')

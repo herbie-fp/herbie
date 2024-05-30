@@ -19,6 +19,7 @@ default_num_threads = 1
 default_herbie_threads = 1
 default_num_points = 10_000
 default_num_runs = 10
+default_seed = 1
 
 # Sanity check that samples match the FPCores
 def check_samples(samples: List[List[List[float]]], cores: List[FPCore]):
@@ -47,6 +48,7 @@ def main():
     parser.add_argument('--num-runs', help='number of times to run drivers to obtain an average [100 by default]', type=int)
     parser.add_argument('--py-sample', help='uses a Python based sampling method. Useful for debugging', action='store_const', const=True, default=False)
     parser.add_argument('--key', help='unique identifier under which to place plots and other output', type=str)
+    parser.add_argument('--seed', help='random seed to use for Herbie', type=int)
     parser.add_argument('platform', help='platform to use', type=str)
     parser.add_argument('bench_path', help='directory or FPCore for Herbie to run on', type=str)
     parser.add_argument('output_dir', help='directory to emit all working files', type=str)
@@ -67,6 +69,7 @@ def main():
     platform = args['platform']
     bench_path = os.path.join(curr_dir, args['bench_path'])
     output_dir = os.path.join(curr_dir, args['output_dir'])
+    seed = args.get('seed', default_seed)
     
     # construct runner
     runner = make_runner(
@@ -76,7 +79,8 @@ def main():
         num_inputs=num_points,
         num_runs=num_runs,
         threads=threads,
-        key=key
+        key=key,
+        seed=seed
     )
 
     # read and sample input cores
