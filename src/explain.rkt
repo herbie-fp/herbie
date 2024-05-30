@@ -84,8 +84,7 @@
 
 (define (predict-errors ctx pctx
                         subexprs-list repr-hash subexprs-fn)
-
-(define error-count-hash
+  (define error-count-hash
     (make-hash (map (lambda (x) (cons x '())) subexprs-list)))
   (define uflow-hash (make-hash))
   (define oflow-hash (make-hash)) 
