@@ -36,9 +36,6 @@
 (struct improve-result (preprocess pctxs start target end bogosity))
 (struct alt-analysis (alt train-errors test-errors))
 
-(define *reeval-pts* (make-parameter 8000))
-(define *timeout* (make-parameter (* 1000 60 5/2)))
-
 ;; true if Racket CS <= 8.2
 (define cs-places-workaround?
   (let ([major (string->number (substring (version) 0 1))]
