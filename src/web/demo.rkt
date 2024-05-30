@@ -389,10 +389,7 @@
       (define formula-str (hash-ref post-data 'formula))
       (define formula (read-syntax 'web (open-input-string formula-str)))
       (define _hash (sha1 (open-input-string formula-str)))
-      ;; Hmm how should I pass seed?
-      ;; is it ok to use the seed set in the thread?
       (define _seed (hash-ref post-data 'seed))
-      ;; Is this ok because we are multithreaded now?
       (semaphore-wait (run-sample _hash formula _seed))
       (define result (hash-ref *completed-jobs* _hash))
       (define pctx (job-result-backend result))
