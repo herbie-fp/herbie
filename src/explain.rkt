@@ -2,7 +2,7 @@
 
 (require racket/set math/bigfloat racket/hash)
 (require "points.rkt" "syntax/types.rkt" "core/localize.rkt" "common.rkt"
-         "ground-truth.rkt" "syntax/sugar.rkt" "alternative.rkt" "programs.rkt"
+         "sampling.rkt" "syntax/sugar.rkt" "alternative.rkt" "programs.rkt"
          "float.rkt" "config.rkt")
 
 (provide explain)

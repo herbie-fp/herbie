@@ -6,8 +6,10 @@
          "syntax/sugar.rkt" "ground-truth.rkt")
 
 (provide batch-prepare-points
+         eval-progs-real
          ival-eval
-         make-sampler 
+         make-sampler
+         make-search-func
          sample-points)
 
 ;; Part 1: use FPBench's condition->range-table to create initial hyperrects
@@ -26,8 +28,10 @@
     ['real (ival (bfstep (bf lo) (if lo? 0 1)) (bfstep (bf hi) (if hi? 0 -1)))]
     ['bool (ival #f #t)]))
 
-(module+ test
-  (require rackunit "load-plugin.rkt")
+(module+ test (require rackunit))
+
+#;(module+ test
+  (require  "load-plugin.rkt")
   (load-herbie-builtins)
 
   (check-equal? (precondition->hyperrects
@@ -96,7 +100,7 @@
     (for/list ([lo (in-list los)] [hi (in-list his)] [repr (in-list reprs)])
       ((representation-ordinal->repr repr) (random-integer lo hi)))))
 
-(module+ test
+#;(module+ test
   (define two-point-hyperrects (list (list (ival (bf 0) (bf 0)) (ival (bf 1) (bf 1)))))
   (define repr (get-representation 'binary64))
   (check-true
@@ -118,6 +122,63 @@
    [else
     (timeline-push! 'method "random")
     (cons (λ () (map random-generate reprs)) (hash 'unknown 1.0))]))
+
+(define bool-discretization
+  (discretization identity
+                  (lambda (x y) (if (eq? x y) 0 1))))
+
+(define (representation->discretization repr)
+  (discretization
+   (representation-bf->repr repr)
+   (lambda (x y) (- (ulp-difference x y repr) 1))))
+
+;; Returns a function that maps an ival to a list of ivals
+;; The first element of that function's output tells you if the input is good
+;; The other elements of that function's output tell you the output values
+(define (make-search-func pre specs ctxs)
+  (define vars (context-vars (car ctxs)))
+  (define var-reprs (context-var-reprs (car ctxs)))
+  (define discs (map (compose representation->discretization context-repr) ctxs))
+  (define compiled
+    (rival-machine-fn (rival-compile (cons pre specs) vars (cons bool-discretization discs))))
+  (define outlength (length specs))
+  (define (compiled-spec inputs)
+    (define outvec (compiled inputs))
+    (define ival-pre (vector-ref outvec 0))
+    (for/vector #:length outlength ([y (in-vector outvec 1)] [ctx (in-list ctxs)])
+      (ival-then
+       ; The two `invalid` ones have to go first, because later checks
+       ; can error if the input is erroneous
+       (ival-assert (ival-not (ival-error? ival-pre)) 'invalid)
+       (ival-assert ival-pre 'precondition)
+       y)))
+  (rival-machine compiled-spec discs))
+
+(define (ival-eval machine ctxs pt [iter 0])
+  (define start (current-inexact-milliseconds))
+  (define pt*
+    (for/list ([val (in-list pt)] [repr (in-list (context-var-reprs (car ctxs)))])
+      ((representation-repr->bf repr) val)))
+  (define-values (status value)
+    (with-handlers
+      ([exn:rival:invalid? (lambda (e) (values 'invalid #f))]
+       [exn:rival:unsamplable? (lambda (e) (values 'exit #f))])
+      (values 'valid (rival-apply machine pt*))))
+  (timeline-push!/unsafe 'outcomes (- (current-inexact-milliseconds) start)
+                         rival-profile-iterations-taken (~a status) 1)
+  (values status value))
+
+; ENSURE: all contexts have the same list of variables
+(define (eval-progs-real progs ctxs)
+  (define fn (make-search-func '(TRUE) progs ctxs))
+  (define bad-pt 
+    (for/list ([ctx* (in-list ctxs)])
+      ((representation-bf->repr (context-repr ctx*)) +nan.bf)))
+  (define (<eval-prog-real> . pt)
+    (define-values (result exs) (ival-eval fn ctxs pt))
+    (or exs bad-pt))
+  <eval-prog-real>)
+
 
 ;; Part 3: computing exact values by recomputing at higher precisions
 
@@ -172,9 +233,7 @@
   (timeline-event! 'analyze)
   (define fn (make-search-func pre exprs ctxs))
   (match-define (cons sampler table)
-    (parameterize ([ground-truth-require-convergence #f])
-      ;; TODO: Should make-sampler allow multiple contexts?
-      (make-sampler (first ctxs) pre fn)))
+    (make-sampler (first ctxs) pre fn))
   (timeline-event! 'sample)
   (match-define (cons table2 results) (batch-prepare-points fn ctxs sampler))
   (define total (apply + (hash-values table2)))

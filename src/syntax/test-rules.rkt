@@ -4,7 +4,7 @@
 (require "../accelerator.rkt" "../common.rkt" "../compiler.rkt"
          "../float.rkt" "../sampling.rkt" "types.rkt" "../load-plugin.rkt"
          "rules.rkt" (submod "rules.rkt" internals)
-         "sugar.rkt" "../core/egg-herbie.rkt" "../ground-truth.rkt")
+         "sugar.rkt" "../core/egg-herbie.rkt")
 
 (load-herbie-builtins)
 
@@ -76,12 +76,10 @@
     (for/list ([v (in-list fv)])
       (random-generate (dict-ref itypes v))))
   (define points (build-list (num-test-points) make-point))
-  (define prog1 (compile-prog p1 ctx))
-  (define prog2 (compile-prog p2 ctx))
+  (define prog (compile-progs (list p1 p2) ctx))
   (for ([pt points])
     (with-check-info (['point (map list fv pt)])
-      (define v1 (apply prog1 pt))
-      (define v2 (apply prog2 pt))
+      (match-define (vector v1 v2) (apply prog pt))
       (check-equal? v1 v2))))
 
 (module+ main

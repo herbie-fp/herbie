@@ -3,16 +3,21 @@
 (require math/bigfloat (only-in math/flonum flonums-between) rival)
 (require (only-in math/private/bigfloat/mpfr mpfr-exp mpfr-sign))
 ;; Faster than bigfloat-exponent and avoids an expensive offset & contract check.
-(require (only-in "syntax/syntax.rkt" operator-info)
-         (only-in "common.rkt" *max-mpfr-prec* *sampling-iteration* *max-sampling-iterations* *base-tuning-precision* *ampl-tuning-bits*)
+(require (only-in "common.rkt" *max-mpfr-prec*)
          (only-in "timeline.rkt" timeline-push! timeline-start!/unsafe)
-         (only-in "float.rkt" ulp-difference)
-         (only-in "errors.rkt" warn)
-         "syntax/types.rkt")
+         (only-in "errors.rkt" warn))
 
-(provide compile-spec compile-specs)
+(provide compile-spec compile-specs *sampling-iteration* *max-sampling-iterations*
+         (struct-out discretization))
 
-(define (make-progs-interpreter vars ivec rootvec repr)
+(define *ampl-tuning-bits* (make-parameter 5))
+(define *sampling-iteration* (make-parameter 0))
+(define *base-tuning-precision* (make-parameter 73))
+(define *max-sampling-iterations* (make-parameter 5))
+
+(struct discretization (convert distance))
+
+(define (make-progs-interpreter vars ivec rootvec discs)
   (define rootlen (vector-length rootvec))
   (define iveclen (vector-length ivec))
   (define varc (length vars))
@@ -30,7 +35,7 @@
        'mixsample "backward-pass" (* (*sampling-iteration*) 1000)))
     (define first-iter? (zero? (*sampling-iteration*)))
     (unless first-iter?
-      (backward-pass ivec varc vregs vprecs vstart-precs rootvec rootlen vrepeats repr))
+      (backward-pass ivec varc vregs vprecs vstart-precs rootvec rootlen vrepeats discs))
     (timeline-stop!)
         
     (for ([arg (in-list args)] [n (in-naturals)])
@@ -105,7 +110,19 @@
   (timeline-push! 'compiler (+ varc size) (+ exprc varc))
   (values nodes roots))
 
-(define (make-compiler exprs vars repr)
+(define (ival-infinity)
+  (ival (bfprev +inf.bf) +inf.bf))
+
+(define (ival-nan)
+  ival-illegal)
+
+(define (ival-true)
+  (ival-bool true))
+
+(define (ival-false)
+  (ival-bool false))
+
+(define (make-compiler exprs vars discs)
   (define num-vars (length vars))
   (define-values (nodes roots)
     (progs->batch exprs vars))
@@ -119,12 +136,83 @@
          (if (point-ival? x)
              (list (const x))
              (list (lambda () (real->ival node))))]
-        [(list 'if c y f)
-         (list ival-if c y f)]
-        [(list op args ...)
-         (cons (operator-info op 'ival) args)])))
 
-  (make-progs-interpreter vars instructions roots repr))
+        [(list 'PI)     (list ival-pi)]
+        [(list 'E)      (list ival-e)]
+        [(list 'INFINITY) (list ival-infinity)]
+        [(list 'NAN)    (list ival-nan)]
+        [(list 'TRUE)   (list ival-true)]
+        [(list 'FALSE)  (list ival-false)]
+
+        [(list 'if c y f) (list ival-if c y f)]
+
+        [(list 'neg x)   (list ival-neg x)]
+        [(list 'acos x)  (list ival-acos x)]
+        [(list 'acosh x) (list ival-acosh x)]
+        [(list 'asin x)  (list ival-asin x)]
+        [(list 'asinh x) (list ival-asinh x)]
+        [(list 'atan x)  (list ival-atan x)]
+        [(list 'atanh x) (list ival-atanh x)]
+        [(list 'cbrt x)  (list ival-cbrt x)]
+        [(list 'ceil x)  (list ival-ceil x)]
+        [(list 'cos x)   (list ival-cos x)]
+        [(list 'cosh x)  (list ival-cosh x)]
+        [(list 'erf x)   (list ival-erf x)]
+        [(list 'erfc x)  (list ival-erfc x)]
+        [(list 'exp x)   (list ival-exp x)]
+        [(list 'exp2 x)  (list ival-exp2 x)]
+        [(list 'expm1 x) (list ival-expm1 x)]
+        [(list 'fabs x)  (list ival-fabs x)]
+        [(list 'floor x) (list ival-floor x)]
+        [(list 'lgamma x) (list ival-lgamma x)]
+        [(list 'log x)   (list ival-log x)]
+        [(list 'log10 x) (list ival-log10 x)]
+        [(list 'log1p x) (list ival-log1p x)]
+        [(list 'log2 x)  (list ival-log2 x)]
+        [(list 'logb x)  (list ival-logb x)]
+        [(list 'rint x)  (list ival-rint x)]
+        [(list 'round x) (list ival-round x)]
+        [(list 'sin x)   (list ival-sin x)]
+        [(list 'sinh x)  (list ival-sinh x)]
+        [(list 'sqrt x)  (list ival-sqrt x)]
+        [(list 'tan x)   (list ival-tan x)]
+        [(list 'tanh x)  (list ival-tanh x)]
+        [(list 'tgamma x) (list ival-tgamma x)]
+        [(list 'trunc x) (list ival-trunc x)]
+
+        [(list '+ x y)     (list ival-add x y)]
+        [(list '- x y)     (list ival-sub x y)]
+        [(list '* x y)     (list ival-mult x y)]
+        [(list '/ x y)     (list ival-div x y)]
+        [(list 'atan2 x y) (list ival-atan2 x y)]
+        [(list 'copysign x y) (list ival-copysign x y)]
+        [(list 'hypot x y) (list ival-hypot x y)]
+        [(list 'fdim x y)  (list ival-fdim x y)]
+        [(list 'fmax x y)  (list ival-fmax x y)]
+        [(list 'fmin x y)  (list ival-fmin x y)]
+        [(list 'fmod x y)  (list ival-fmod x y)]
+        [(list 'pow x y)   (list ival-pow x y)]
+        [(list 'remainder x y) (list ival-remainder x y)]
+
+        [(list 'fma x y z) (list ival-fma x y z)]
+
+        [(list '== x y) (list ival-== x y)]
+        [(list '!= x y) (list ival-!= x y)]
+        [(list '<= x y) (list ival-<= x y)]
+        [(list '>= x y) (list ival->= x y)]
+        [(list '< x y)  (list ival-< x y)]
+        [(list '> x y)  (list ival-> x y)]
+
+        [(list 'not x)   (list ival-not x)]
+        [(list 'and x y) (list ival-and x y)]
+        [(list 'or x y)  (list ival-or x y)]
+
+        [(list 'cast x)  (list identity x)]
+
+        [(list op args ...)
+         (error 'compile-specs "Unknown operator ~a" op)])))
+
+  (make-progs-interpreter vars instructions roots discs))
 
 (define (real->ival val)
   (define lo (parameterize ([bf-rounding-mode 'down]) (bf val)))
@@ -134,27 +222,29 @@
 (define (point-ival? x)
   (bf= (ival-lo x) (ival-hi x)))
 
-(define (compile-specs specs vars repr)
-  (make-compiler specs vars repr))
+(define (compile-specs specs vars discs)
+  (make-compiler specs vars discs))
 
 ;; Like `compile-specs`, but for a single spec.
-(define (compile-spec spec vars repr)
-  (define core (compile-specs (list spec) vars repr))
+(define (compile-spec spec vars disc)
+  (define core (compile-specs (list spec) vars disc))
   (define (compiled-spec . xs) (vector-ref (apply core xs) 0))
   compiled-spec)
 
-(define (backward-pass ivec varc vregs vprecs vstart-precs rootvec rootlen vrepeats repr)
+(define (backward-pass ivec varc vregs vprecs vstart-precs rootvec rootlen vrepeats discs)
   (define vprecs-new (make-vector (vector-length ivec) 0))          ; new vprecs vector
   ; Step 1. Adding slack in case of a rounding boundary issue
-  (for/vector #:length rootlen ([root-reg (in-vector rootvec)]
-                                #:when (>= root-reg varc))          ; when root is not a variable
+  (for/vector #:length rootlen
+              ([root-reg (in-vector rootvec)]
+               [disc (in-list discs)]
+               #:when (>= root-reg varc))          ; when root is not a variable
     (when (bigfloat? (ival-lo (vector-ref vregs root-reg)))         ; when root is a real op
       (define result (vector-ref vregs root-reg))
       (when
-          (equal? 2 (ulp-difference  ; the actual ulp distance is 1, but since it over-approximates it is 2
-                     ((representation-bf->repr repr) (ival-lo result))
-                     ((representation-bf->repr repr) (ival-hi result))
-                     repr))
+          ; 1 ulp apart means double rounding issue possible
+          (= 1 ((discretization-distance disc)
+                ((discretization-convert disc) (ival-lo result))
+                ((discretization-convert disc) (ival-hi result))))
         (vector-set! vprecs-new (- root-reg varc) (get-slack)))))
   
   ; Since Step 2 writes into *sampling-iteration* if the max prec was reached - save the iter number for step 3

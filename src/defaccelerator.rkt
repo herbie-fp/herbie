@@ -2,7 +2,7 @@
 
 (require "common.rkt"
          "accelerator.rkt" (submod "accelerator.rkt" internals)
-         "ground-truth.rkt"
+         "sampling.rkt"
          (submod "syntax/syntax.rkt" internals)
          (submod "syntax/rules.rkt" internals)
          "syntax/types.rkt"
