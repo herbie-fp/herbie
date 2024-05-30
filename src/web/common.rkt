@@ -1,5 +1,5 @@
 #lang racket
-(require (only-in xml write-xexpr xexpr?) 
+(require (only-in xml write-xexpr xexpr?)
          (only-in fpbench fpcore? supported-by-lang?
                           core->c core->fortran core->java core->python
                           core->julia core->matlab core->wls core->tex
@@ -11,11 +11,11 @@
 (require "../common.rkt" "../syntax/read.rkt" "../programs.rkt"
          "../syntax/types.rkt" "../syntax/sugar.rkt" "../syntax/syntax.rkt")
 
-(provide render-menu render-warnings render-large render-comparison render-program
-         render-bogosity render-help
-         format-percent doc-url
-         fpcore->string
-         program->fpcore program->tex render-reproduction js-tex-include
+(provide render-menu render-warnings render-large render-comparison 
+         render-program render-bogosity render-help render-fpcore
+         render-reproduction format-percent
+         program->fpcore program->tex fpcore->string
+         js-tex-include doc-url
          core->c core->fortran core->java core->python core->julia 
          core->matlab core->wls core->tex expr->tex core->js)
 

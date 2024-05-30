@@ -12,6 +12,7 @@ clean:
 	raco pkg remove --force --no-docs egg-herbie-linux && echo "Uninstalled old egg-herbie" || :
 	raco pkg remove --force --no-docs egg-herbie-windows && echo "Uninstalled old egg-herbie" || :
 	raco pkg remove --force --no-docs egg-herbie-osx && echo "Uninstalled old egg-herbie" || :
+	raco pkg remove --force --no-docs egg-herbie-macosm1 && echo "Uninstalled old egg-herbie" || :
 
 update:
 	raco pkg install --skip-installed --no-docs --auto --name herbie src/
@@ -23,6 +24,7 @@ egg-herbie:
 	raco pkg remove --force --no-docs egg-herbie-linux && echo "Warning: uninstalling egg-herbie and reinstalling local version" || :
 	raco pkg remove --force --no-docs egg-herbie-windows && echo "Warning: uninstalling egg-herbie and reinstalling local version" || :
 	raco pkg remove --force --no-docs egg-herbie-osx && echo "Warning: uninstalling egg-herbie and reinstalling local version" || :
+	raco pkg remove --force --no-docs egg-herbie-macosm1 && echo "Warning: uninstalling egg-herbie and reinstalling local version" || :
 	raco pkg install ./egg-herbie
 
 distribution: minimal-distribution

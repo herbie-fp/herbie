@@ -124,6 +124,12 @@
 ;; Plugins loaded locally rather than through Racket.
 (define *loose-plugins* (make-parameter '()))
 
+;; Sets the number of total points for Herbie to sample.
+(define *reeval-pts* (make-parameter 8000))
+
+;; Time out for a given run. 2.5 minutes currently.
+(define *timeout* (make-parameter (* 1000 60 5/2)))
+
 ;;; About Herbie:
 
 (define (run-command cmd)

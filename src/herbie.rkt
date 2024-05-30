@@ -62,6 +62,7 @@
 
   (multi-command-line
    #:program "herbie"
+   #:version (format "Herbie ~a" *herbie-version*)
    #:once-each
    [("--timeout") s
     (
