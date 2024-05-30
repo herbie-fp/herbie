@@ -212,19 +212,19 @@
           (*demo-output* output)
           (*reeval-pts* reeval)
           (*demo?* demo?)]
-         [(list 'improve hash formula sema)
-          (define path (format "~a.~a" hash *herbie-commit*))
+         [(list 'improve job-id formula sema)
+          (define path (format "~a.~a" job-id *herbie-commit*))
           (cond
-           [(hash-has-key? *completed-jobs* hash)
+           [(hash-has-key? *completed-jobs* job-id)
             (semaphore-post sema)]
            [(and (*demo-output*) (directory-exists? (build-path (*demo-output*) path)))
             (semaphore-post sema)]
            [else
-            (eprintf "Job ~a started:\n  improve ~a...\n" hash (syntax->datum formula))
+            (eprintf "Improve Job ~a started:\n  improve ~a...\n" job-id (syntax->datum formula))
 
             (define result (run-herbie 'improve (parse-test formula) #:seed seed))
 
-            (hash-set! *completed-jobs* hash result)
+            (hash-set! *completed-jobs* job-id result)
 
             (when (*demo-output*)
               ;; Output results
@@ -238,16 +238,16 @@
                              (build-path (*demo-output*) "results.json")
                              (build-path (*demo-output*) "index.html")))
 
-            (eprintf "Job ~a complete\n" hash)
-            (hash-remove! *jobs* hash)
+            (eprintf "Job ~a complete\n" job-id)
+            (hash-remove! *jobs* job-id)
             (semaphore-post sema)])]
-         [(list 'sample _hash formula sema _seed)
+         [(list 'sample job-id formula sema seed*)
           (define test (parse-test formula))
-          (eprintf "Sampling job started on ~a..." formula)
-          (define result (run-herbie 'sample test #:seed _seed #:profile? #f #:timeline-disabled? #t))
-          (hash-set! *completed-jobs* _hash result)
+          (eprintf "Sampling Job ~a started:\n  sample ~a...\n" job-id (syntax->datum formula))
+          (define result (run-herbie 'sample test #:seed seed* #:profile? #f #:timeline-disabled? #t))
+          (hash-set! *completed-jobs* job-id result)
           (eprintf " complete\n")
-          (hash-remove! *jobs* _hash)
+          (hash-remove! *jobs* job-id)
           (semaphore-post sema)])
        (loop seed)))))
 
@@ -390,10 +390,7 @@
       (define formula-str (hash-ref post-data 'formula))
       (define formula (read-syntax 'web (open-input-string formula-str)))
       (define _hash (sha1 (open-input-string formula-str)))
-      ;; Hmm how should I pass seed?
-      ;; is it ok to use the seed set in the thread?
       (define _seed (hash-ref post-data 'seed))
-      ;; Is this ok because we are multithreaded now?
       (semaphore-wait (run-sample _hash formula _seed))
       (define result (hash-ref *completed-jobs* _hash))
       (define pctx (job-result-backend result))
