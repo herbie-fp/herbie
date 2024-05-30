@@ -1,8 +1,8 @@
 #lang racket
 
 (require rackunit)
-(require "../common.rkt" "../compiler.rkt" "../float.rkt"
-         "../sampling.rkt" "types.rkt" "../load-plugin.rkt"
+(require "../accelerator.rkt" "../common.rkt" "../compiler.rkt"
+         "../float.rkt" "../sampling.rkt" "types.rkt" "../load-plugin.rkt"
          "rules.rkt" (submod "rules.rkt" internals)
          "sugar.rkt" "../core/egg-herbie.rkt")
 
@@ -53,11 +53,13 @@
   (define ctx (context fv repr (map (curry dict-ref itypes) fv)))
 
   (define pre (dict-ref *conditions* name '(TRUE)))
+  (define spec1 (prog->spec p1))
+  (define spec2 (prog->spec p2))
   (match-define (list pts exs1 exs2)
     (parameterize ([*num-points* (num-test-points)] [*max-find-range-depth* 0])
       (cdr (sample-points
             pre
-            (list (prog->spec p1) (prog->spec p2))
+            (list spec1 spec2)
             (list ctx ctx)))))
 
   (for ([pt (in-list pts)] [v1 (in-list exs1)] [v2 (in-list exs2)])

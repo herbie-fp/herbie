@@ -105,8 +105,10 @@
                        " or "))])]
           [else
            ; active implementations were found
-           (error! stx "No implementation for ~a with ~a; found implementations for ~a"
-                   x (format "<~a>" (representation-name type))
+           (error! stx
+                   "No implementation for ~a with ~a; found implementations for ~a"
+                   x
+                   (format "<~a>" (representation-name type))
                    (string-join
                      (for/list ([impl active-impls])
                        (format "<~a>" (representation-name (impl-info impl 'otype))))
@@ -160,7 +162,7 @@
        [op* (impl-info op* 'otype)]
        [else
         (resolve-missing-op! stx '- (list actual-type) error!)
-        #f])]
+        actual-type])]
     [#`(,(? operator-exists? op) #,exprs ...)
      (define actual-types
       (for/list ([arg exprs])

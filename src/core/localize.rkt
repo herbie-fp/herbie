@@ -7,7 +7,7 @@
 
 (provide batch-localize-costs batch-localize-errors
          local-error-as-tree compute-local-errors
-         all-subexpressions)
+         all-subexpressions all-subexpressions-rev)
 
 (define (all-subexpressions expr)
   (remove-duplicates
@@ -23,6 +23,24 @@
                (loop f)]
               [(list op args ...)
                (for ([arg args]) (loop arg))])))))
+
+
+(define (all-subexpressions-rev expr repr)
+  (remove-duplicates (reverse
+                      (reap [sow]
+                            (let loop ([expr expr] [repr repr])
+                              (sow (cons expr repr))
+                              (match expr
+                                [(? literal?) (void)]
+                                [(? variable?) (void)]
+                                [`(if ,c ,t ,f)
+                                 (loop c (get-representation 'bool))
+                                 (loop t repr)
+                                 (loop f repr)]
+                                [(list op args ...)
+                                 (define atypes (impl-info op 'itype))
+                                 (for ([arg args] [atype atypes])
+                                   (loop arg atype))]))))))
 
 (define (regroup-nested inputss outputs)
   (match* (inputss outputs)
@@ -57,6 +75,7 @@
        > #:key car)))
 
   localize-costss)
+
 
 (define (batch-localize-errors exprs ctx)
   (define subexprss (map all-subexpressions exprs))

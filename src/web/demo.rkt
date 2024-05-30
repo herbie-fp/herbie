@@ -70,7 +70,7 @@
 (define (generate-report req)
   (define data
     (for/list ([(k v) (in-hash *completed-jobs*)])
-      (get-table-data v (format "~a.~a" hash *herbie-commit*))))
+      (get-table-data v (format "~a.~a" k *herbie-commit*))))
   (define info (make-report-info data #:seed (get-seed) #:note (if (*demo?*) "Web demo results" "Herbie results")))
   (response 200 #"OK" (current-seconds) #"text"
             (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
@@ -395,7 +395,11 @@
       (define pcontext (json->pcontext sample (test-context test)))
       (define result (run-herbie 'errors test #:seed seed #:pcontext pcontext
                                  #:profile? #f #:timeline-disabled? #t))
-      (define errs (job-result-backend result))
+      (define errs
+        (for/list ([pt&err (job-result-backend result)])
+          (define pt (first pt&err))
+          (define err (second pt&err))
+          (list pt (format-bits (ulps->bits err)))))
 
       (eprintf " complete\n")
       (hasheq 'points errs))))
