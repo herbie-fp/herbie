@@ -282,7 +282,7 @@ class Runner(object):
                 # call out to server
                 print(f'(read \"{path}\") (exit)', file=server.stdin, flush=True)
                 output = server.stdout.read()
-
+        
             cores = []
             for line in output.strip().split('\n'):
                 if len(line) > 0:

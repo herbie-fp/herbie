@@ -8,6 +8,7 @@ from .c import CRunner
 from .math import MathRunner
 from .mkl import MKLRunner
 from .python import PythonRunner
+from .numpy import NumpyRunner
 
 def make_runner(
     platform: str,
@@ -33,5 +34,8 @@ def make_runner(
         return PythonRunner(**kwargs)
     elif platform == 'avx':
         return AVXRunner(**kwargs)
+    elif platform == 'numpy':
+        return NumpyRunner(**kwargs)
+
     else:
         raise ValueError(f'Unsupported output platform: {platform}')
