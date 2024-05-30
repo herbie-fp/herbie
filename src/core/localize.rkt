@@ -73,9 +73,7 @@
                   (expr->cost simplified (repr-of subexpr ctx)))
                subexpr))
        > #:key car)))
-
   localize-costss)
-
 
 (define (batch-localize-errors exprs ctx)
   (define subexprss (map all-subexpressions exprs))
