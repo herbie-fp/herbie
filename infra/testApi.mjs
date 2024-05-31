@@ -7,37 +7,27 @@ const FPCoreFormula = '(FPCore (x) (- (sqrt (+ x 1)) (sqrt x)))'
 const FPCoreFormula2 = '(FPCore (x) (- (sqrt (+ x 1))))'
 const eval_sample = [[[1], -1.4142135623730951]]
 
-const longRunningJob = `(FPCore (w h dX.u dX.v dY.u dY.v maxAniso)
-                          :precision binary32
-                          (let* ((t_0 (* (floor h) dX.v))
-                                (t_1 (* (floor w) dY.u))
-                                (t_2 (* (floor h) dY.v))
-                                (t_3 (* (floor w) dX.u))
-                                (t_4 (fmax (+ (* t_3 t_3) (* t_0 t_0)) (+ (* t_1 t_1) (* t_2 t_2))))
-                                (t_5 (sqrt t_4))
-                                (t_6 (fabs (- (* t_3 t_2) (* t_0 t_1)))))
-                            (log2
-                            (if (> (/ t_4 t_6) (floor maxAniso))
-                              (/ t_5 (floor maxAniso))
-                              (/ t_6 t_5)))))`
+// improve endpoint
+const improveURL = `http://127.0.0.1:8000/improve?formula=${encodeURIComponent(FPCoreFormula2)}`
+const improveResponse = await fetch(improveURL, { method: 'GET' })
+assert.equal(improveResponse.status, 200)
+// This test is a little flaky as the character count of the response is not consistent.
+// const improveHTML = await improveResponse.text()
+// const improveHTMLexpectedCount = 25871
+// assert.equal(improveHTML.length, improveHTMLexpectedCount, `HTML response character count should be ${improveHTMLexpectedCount} unless HTML changes.`)
 
 // improve-start endpoint
-// TODO
+const startURL = `http://127.0.0.1:8000/improve-start?formula=${encodeURIComponent(FPCoreFormula2)}`
+const startResponse = await fetch(startURL, { method: 'POST' })
+assert.equal(startResponse.status, 201)
+const path = startResponse.headers.get("location")
 
-// improve endpoint
-// TODO
-
-/*
-INPROGRESS - ZE
 // Check status endpoint
-const idk = await fetch('http://127.0.0.1:8000/api/improve', { method: 'POST', body: JSON.stringify({ formula: longRunningJob, seed: 5 }) })
-// console.log(await idk)
-const jobID = `idk-yet`
 const checkStatus = await fetch(
-  `http://127.0.0.1:8000/check-status?${jobID}`,
+  `http://127.0.0.1:8000${path}`,
   { method: 'GET' })
-// console.log(checkStatus)
-*/
+assert.equal(checkStatus.status, 201)
+assert.equal(checkStatus.statusText, 'Job complete')
 
 // up endpoint
 const up = await fetch(
@@ -61,7 +51,6 @@ const points2 = sample2.points
 assert.deepEqual(points[1], points2[1], `request with seed should always return the same value;\nrequest was (await(await fetch('http://127.0.0.1:8000/api/sample', { method: 'POST', body: JSON.stringify({ formula: ${FPCoreFormula2}, seed: 5 }) })).json())`)
 
 // Analyze endpoint
-
 const errors = (await (await fetch('http://127.0.0.1:8000/api/analyze', {
   method: 'POST', body: JSON.stringify({
     formula: FPCoreFormula, sample: [[[
@@ -74,8 +63,8 @@ assert.deepEqual(errors, [[[14.97651307489794], "2.3"]], `error shouldn't change
   14.97651307489794
 ], 0.12711304680349078]] }) })).json())`)
 
-// Local error endpoint
 
+// Local error endpoint
 const localError = (await (await fetch('http://127.0.0.1:8000/api/localerror', {
   method: 'POST', body: JSON.stringify({
     formula: FPCoreFormula, sample: sample2.points
@@ -97,7 +86,6 @@ const alternatives = (await (await fetch('http://127.0.0.1:8000/api/alternatives
 assert.equal(Array.isArray(alternatives.alternatives), true)
 
 // Exacts endpoint
-
 const exacts = (await (await fetch('http://127.0.0.1:8000/api/exacts', {
   method: 'POST', body: JSON.stringify({
     formula: FPCoreFormula2, sample: eval_sample
@@ -107,7 +95,6 @@ const exacts = (await (await fetch('http://127.0.0.1:8000/api/exacts', {
 assert.deepEqual(exacts, [[[1], -1.4142135623730951]])
 
 // Calculate endpoint
-
 const calculate = (await (await fetch('http://127.0.0.1:8000/api/calculate', {
   method: 'POST', body: JSON.stringify({
     formula: FPCoreFormula2, sample: eval_sample
