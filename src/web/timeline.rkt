@@ -258,7 +258,6 @@
       ("status" . rival-status)
       ("Sollya status" . sollya-status)
       ("Rival iter" . rival-iter)
-      ("Sollya iter" . sollya-iter)
       ("Sollya time" . sollya-time)))
   `((dt "Sollya Eval")
     (dd (table ([class "times"])

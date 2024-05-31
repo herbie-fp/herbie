@@ -99,7 +99,7 @@
                          (list sollya-lower sollya-upper) sollya-interval-status) (fn-sollya pt #t))
 
      ; Point evaluation
-     (match-define (list internal-point-time external-point-time sollya-point sollya-point-status sollya-iter) (fn-sollya pt #f))
+     (match-define (list internal-point-time external-point-time sollya-point sollya-point-status) (fn-sollya pt #f))
 
      
          
@@ -108,32 +108,28 @@
                        #t
                        #f))
 
-     ; When a point failed - maybe it is a memory issues or something
+     ; When a point failed - maybe it is a memory issue or something
      (when match
        (sleep 0.1)
-       (match-define (list internal-point-time* external-point-time* sollya-point* sollya-point-status* sollya-iter*) (fn-sollya pt #f))
+       (match-define (list internal-point-time* external-point-time* sollya-point* sollya-point-status*) (fn-sollya pt #f))
        (set! match (if (and (equal? sollya-point-status* 'valid)
                             (<= 2 (flonums-between (last rival-exs) sollya-point*)))
                        #t
                        #f))
        (set! sollya-point sollya-point*)
-       (set! external-point-time external-point-time*)
-       (set! sollya-iter sollya-iter*))
+       (set! external-point-time external-point-time*))
              
      (timeline-push!/unsafe 'outcomes external-point-time
-                            (format "~a(rival ~a)" sollya-iter rival-final-iter) (format "~a-sollya" sollya-point-status) 1)
+                            rival-final-iter (format "~a-sollya" sollya-point-status) 1)
      (timeline-push!/unsafe 'outcomes rival-time
-                            (format "~a(rival ~a)" sollya-iter rival-final-iter) (format "~a-rival" rival-status) 1)
+                            rival-final-iter (format "~a-rival" rival-status) 1)
      
      (when match
-       (timeline-push!/unsafe 'sollya-eval
+       #;(timeline-push!/unsafe 'sollya-eval
                               pt (~a (last rival-exs)) (~a sollya-point)
                               (symbol->string rival-status) (symbol->string sollya-point-status)
-                              rival-final-iter sollya-iter
-                              external-point-time)
-       (warn 'ground-truth (format "Sollya didn't converge on: pt=~a, sollya-point=~a, rival-point=~a\n" pt sollya-point (last rival-exs))))
-     
-     (timeline-push!/unsafe 'sollya-histograms external-point-time)]
+                              rival-final-iter external-point-time)
+       (warn 'ground-truth (format "Sollya didn't converge on: pt=~a, sollya-point=~a, rival-point=~a\n" pt sollya-point (last rival-exs))))]
 
     ; Rival has not produced a valid outcome, rival-exs=#f, nothing to compare to Sollya's output, only statuses comparisons
     [(not (equal? rival-status 'precondition))
@@ -143,12 +139,12 @@
                          (list sollya-lower sollya-upper) sollya-interval-status) (fn-sollya pt #t))
 
      ; Point evaluation
-     (match-define (list internal-point-time external-point-time sollya-point sollya-point-status sollya-iter) (fn-sollya pt #f))
+     (match-define (list internal-point-time external-point-time sollya-point sollya-point-status) (fn-sollya pt #f))
 
      (timeline-push!/unsafe 'outcomes external-point-time
-                            (format "~a(rival ~a)" sollya-iter rival-final-iter) (format "~a-sollya" sollya-point-status) 1)
+                            rival-final-iter (format "~a-sollya" sollya-point-status) 1)
      (timeline-push!/unsafe 'outcomes rival-time
-                            (format "~a(rival ~a)" sollya-iter rival-final-iter) (format "~a-rival" rival-status) 1)
+                            rival-final-iter (format "~a-rival" rival-status) 1)
          
      #;(define match (or (equal? sollya-point-status rival-status)
                        (and (equal? sollya-point-status 'invalid)
@@ -161,6 +157,4 @@
                               pt (~a rival-exs) (~a sollya-point)
                               (symbol->string rival-status) (symbol->string sollya-point-status)
                               rival-final-iter sollya-iter
-                              external-point-time))
-     
-     (timeline-push!/unsafe 'sollya-histograms external-point-time)]))
+                              external-point-time))]))

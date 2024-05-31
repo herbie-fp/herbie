@@ -139,8 +139,8 @@
      "." "")
     "*" "_"))
 
-#;(define sollya-path (find-executable-path "sollya"))
-(define sollya-path (find-executable-path "/home/artemya/RA/sollya-8.0/sollya"))
+(define sollya-path (find-executable-path "sollya"))
+#;(define sollya-path (find-executable-path "/home/artemya/RA/sollya-8.0/sollya"))
 
 (define (make-sollya prog #:backup [backup #f] #:inform [inform #f])
   (define-values (process m-out m-in m-err)
@@ -172,8 +172,8 @@
 ; Format: (list interal-time external-time result status)
 (define (run-sollya prog #:backup [backup #f])
   (printf "\nSollya program: ~s\n" (if (equal? (length prog) 2)
-                               (exprs+ctxs->sollya (car (first prog)) (second prog))
-                               (program->sollya prog)))
+                                       (exprs+ctxs->sollya (car (first prog)) (second prog))
+                                       (program->sollya prog)))
   (define-values (process m-out m-in m-err)
     (make-sollya prog #:backup backup #:inform #t))
 
@@ -210,7 +210,7 @@
     (close-input-port m-err))
   (values compiled-spec kill-process))
 
-
+; provides too wide intervals
 (define (parse-sollya-interval buffer m-out start)
   (let loop ([i 0])
     (define step (read-bytes-avail!* buffer m-out i))
@@ -287,45 +287,37 @@
     (define step (read-bytes-avail!* buffer m-out i))
     (define s (bytes->string/latin-1 buffer #f 0 (+ i step)))
     (cond
-      ; Can not produce results
-      [(regexp-match #rx"^Retry: -?[-0-9]\n.*Warning: the given expression is undefined or numerically unstable\n*" s)
+      ; Undefined
+      [(regexp-match #rx"^Warning: the given expression is undefined or numerically unstable\n*" s)
        (let ([dt (- (current-inexact-milliseconds) start)])
          (match-define (list result sollya-time) (take-right (string-split s "\n") 2))
          (list dt (seconds->ms sollya-time) result (if (equal? result "NaN")
                                                        'invalid
-                                                       'unsamplable) 9))]
+                                                       'unsamplable)))]
 
       ; NaN
-      [(regexp-match #rx"^Retry: -?[-0-9]\nNaN\n[-+.e0-9]+\n$" s)
+      [(regexp-match #rx"^NaN\n[-+.e0-9]+\n$" s)
        (let ([dt (- (current-inexact-milliseconds) start)])
-         (match-define (list iter result sollya-time) (string-split s "\n"))
-         (set! iter (string-replace iter "Retry: " ""))
-         (list dt (seconds->ms sollya-time) (fl +nan.0) 'invalid iter))]
+         (match-define (list result sollya-time) (string-split s "\n"))
+         (list dt (seconds->ms sollya-time) (fl +nan.0) 'invalid))]
       
       [(regexp-match #rx"^\\[NaN;NaN\\]\n[-+.e0-9]+\n$" s)
        (let ([dt (- (current-inexact-milliseconds) start)])
          (match-define (list result sollya-time) (string-split s "\n"))
-         (list dt (seconds->ms sollya-time) (fl +nan.0) 'invalid 0))]
+         (list dt (seconds->ms sollya-time) (fl +nan.0) 'invalid))]
 
       ; Infinity
-      [(regexp-match #rx"^Retry: -?[0-9]\n-?infty\n[-+.e0-9]+\n$" s)
+      [(regexp-match #rx"^-?infty\n[-+.e0-9]+\n$" s)
        (let ([dt (- (current-inexact-milliseconds) start)])
-         (match-define (list iter result sollya-time) (string-split s "\n"))
-         (set! iter (string-replace iter "Retry: " ""))
+         (match-define (list result sollya-time) (string-split s "\n"))
          (list dt (seconds->ms sollya-time)
                (if (string-contains? result "-") (fl -inf.0) (fl +inf.0))
-               'valid iter))]
+               'valid))]
 
-      ; Valid results
-      [(regexp-match #rx"Retry: -?[-0-9]\n[-+.e0-9]+\n[-+.e0-9]+\n$" s)
-       (let ([dt (- (current-inexact-milliseconds) start)])
-         (match-define (list iter result sollya-time) (take-right (string-split s "\n") 3))
-         (set! iter (string-replace iter "Retry: " ""))
-         (list dt (seconds->ms sollya-time) (bigfloat->flonum (bf result)) 'valid iter))]
       [(regexp-match #rx"^[-+.e0-9]+\n[-+.e0-9]+\n$" s)
        (let ([dt (- (current-inexact-milliseconds) start)])
          (match-define (list result sollya-time) (string-split s "\n"))
-         (list dt (seconds->ms sollya-time) (bigfloat->flonum (bf result)) 'valid 0))]
+         (list dt (seconds->ms sollya-time) (bigfloat->flonum (bf result)) 'valid))]
 
       ; Timeout
       [(> (- (current-inexact-milliseconds) start) timeout-ms)
@@ -333,6 +325,6 @@
          (eprintf "\nUnprocessed output from Sollya\n")
          (eprintf "Stdout number: ~s\n" s)
          (error "crashed"))
-       (list timeout-ms timeout-ms (fl +nan.0) 'exit 100)]
+       (list timeout-ms timeout-ms (fl +nan.0) 'exit)]
       [else
        (loop (+ i step))])))
