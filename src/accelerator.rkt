@@ -123,16 +123,11 @@
       [(list op args ...) `(,op ,@(map loop args))]
       [expr expr])))
 
-
 (define-accelerator (expm1 real) real (lambda (x) (- (exp x) 1)))
 (define-accelerator (log1p real) real (lambda (x) (log (+ 1 x))))
 (define-accelerator (hypot real real) real (lambda (x y) (sqrt (+ (* x x) (* y y)))))
 (define-accelerator (fma real real real) real (lambda (x y z) (+ (* x y) z)))
 (define-accelerator (erfc real) real (lambda (x) (- 1 (erf x))))
-
-(define-accelerator (fmsub real real real) real (lambda (x y z) (- (* x y) z)))
-(define-accelerator (fnmadd real real real) real (lambda (x y z) (+ (neg (* x y)) z)))
-(define-accelerator (fnmsub real real real) real (lambda (x y z) (- (neg (* x y)) z)))
 
 ; Specialized numerical functions
 (define-ruleset* special-numerical-reduce (numerics simplify)

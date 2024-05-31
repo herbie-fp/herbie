@@ -73,15 +73,15 @@
     [tgamma 1.8825760000000002]
     [trunc 0.46364400000000006]
 
-    [fast-exp 1]
-    [fast-sin 1]
-    [fast-cos 1]
-    [fast-tan 1]
-    [fast-tanh 1]
-    [fast-log 1]
-    [fast-asin 1]
-    [fast-acos 1]
-    [fast-atan 1]
+    ;; [vdt-exp 1]
+    ;; [fast-sin 1]
+    ;; [fast-cos 1]
+    ;; [fast-tan 1]
+    ;; [fast-tanh 1]
+    ;; [fast-log 1]
+    ;; [fast-asin 1]
+    ;; [fast-acos 1]
+    ;; [fast-atan 1]
     ))
 
 (define tunable
@@ -95,8 +95,9 @@
           erf erfc exp exp2 expm1 fabs floor lgamma log log10 log2
           log1p logb rint round sin sinh sqrt tan tanh tgamma trunc
           
-          fast-exp fast-sin fast-cos fast-tan fast-tanh fast-log fast-asin
-          fast-acos fast-atan
+          ;;vdt-exp
+          ;; fast-sin fast-cos fast-tan fast-tanh fast-log fast-asin
+          ;; fast-acos fast-atan
           )]
         [(real real real)
          (+ - * / atan2 copysign fdim fmax fmin fmod hypot pow remainder)]
