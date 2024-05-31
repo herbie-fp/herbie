@@ -75,7 +75,7 @@
 
 (define (round-sollya val)
   (match (*precision*)
-    [60 (format "D(~a)" val)]
+    [64 (format "D(~a)" val)]
     [32 (format "SG(~a)" val)]))
 
 (define (number->interval-sollya num)
@@ -125,8 +125,10 @@
             (expr->sollya body))))
 
 (define (exprs+ctxs->sollya exprs ctxs)
+  (when (equal? 'binary32 (representation-name (context-repr (car ctxs))))
+    (error "binary32 is not implemented in this comparison"))
   (define vars (context-vars (car ctxs)))
-  (parameterize ([*precision* 60])          ; TODO: replace with repr
+  (parameterize ([*precision* 64])
     (format "prec=~a; procedure f(~a) { ~a; };"
             (*precision*)
             (string-join (map var-parse vars) ", ")
