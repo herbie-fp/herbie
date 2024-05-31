@@ -24,6 +24,7 @@
 
 (*warnings-disabled* true)
 (load-herbie-builtins)
+(load-herbie-plugins)
 
 ; Copied from <herbie>/syntax/read.rkt
 (define (read-syntax* port name)

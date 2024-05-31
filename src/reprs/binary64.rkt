@@ -4,7 +4,8 @@
 
 (require math/flonum
          math/bigfloat
-         ffi/unsafe)
+         ffi/unsafe
+         fpbench)
 
 (require "runtime/utils.rkt"
          "runtime/libm.rkt")
@@ -68,9 +69,6 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; accelerators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define-accelerator (recip real) real (λ (x) (/ 1 x)))
-(define-accelerator (rsqrt real) real (λ (x) (/ 1 (sqrt x))))
-      
 (define-libm expm1.f64 (expm1 double double))
 (when expm1.f64
   (define-accelerator-impl expm1 expm1.f64 (binary64) binary64 expm1.f64))
@@ -91,19 +89,28 @@
 (when erfc.f64
   (define-accelerator-impl erfc erfc.f64 (binary64) binary64 erfc.f64))
 
-(define-accelerator-impl fmsub fmsub.f64 (binary64 binary64 binary64) binary64)
-(define-accelerator-impl fnmadd fnmadd.f64 (binary64 binary64 binary64) binary64)
-(define-accelerator-impl fnmsub fnmsub.f64 (binary64 binary64 binary64) binary64)
+(define-accelerator (recip real) real (λ (x) (/ 1 x)))
+(define-accelerator (rsqrt real) real (λ (x) (/ 1 (sqrt x))))
+      
+;; (define-accelerator (fmsub real real real) real (lambda (x y z) (- (* x y) z)))
+;; (define-accelerator (fnmadd real real real) real (lambda (x y z) (+ (neg (* x y)) z)))
+;; (define-accelerator (fnmsub real real real) real (lambda (x y z) (- (neg (* x y)) z)))
 
-(define-operator-impl (recip recip.f64 binary64) binary64
-  [fl (λ (x)
-        (parameterize ([bf-precision 12])
-          (bigfloat->flonum (bf/ 1.bf (bf x)))))])
+;; (define-accelerator-impl fmsub fmsub.f64 (binary64 binary64 binary64) binary64)
+;; (define-accelerator-impl fnmadd fnmadd.f64 (binary64 binary64 binary64) binary64)
+;; (define-accelerator-impl fnmsub fnmsub.f64 (binary64 binary64 binary64) binary64)
 
-(define-operator-impl (rsqrt rsqrt.f64 binary64) binary64
-  [fl (λ (x)
-        (parameterize ([bf-precision 12])
-          (bigfloat->flonum (bf/ 1.bf (bfsqrt (bf x))))))])
+;; (define-accelerator (vdt-exp real) real (lambda (x) (exp x)))
+
+;; (define-operator-impl (recip recip.f64 binary64) binary64
+  ;; [fl (λ (x)
+        ;; (parameterize ([bf-precision 12])
+          ;; (bigfloat->flonum (bf/ 1.bf (bf x)))))])
+;; 
+;; (define-operator-impl (rsqrt rsqrt.f64 binary64) binary64
+  ;; [fl (λ (x)
+        ;; (parameterize ([bf-precision 12])
+          ;; (bigfloat->flonum (bf/ 1.bf (bfsqrt (bf x))))))])
 
 (define-ruleset* reciprocal (arithmetic simplify)
   #:type ([a real])
@@ -112,25 +119,57 @@
   [add-rsqrt     (/ 1 (sqrt a)) (rsqrt a)]
   [remove-rsqrt  (rsqrt a)      (/ 1 (sqrt a))])
 
-(define-accelerator (fast-exp real) real (lambda (x) (exp x)))
-(define-accelerator (fast-sin real) real (lambda (x) (sin x)))
-(define-accelerator (fast-cos real) real (lambda (x) (cos x)))
-(define-accelerator (fast-tan real) real (lambda (x) (tan x)))
-(define-accelerator (fast-tanh real) real (lambda (x) (tanh x)))
-(define-accelerator (fast-log real) real (lambda (x) (log x)))
-(define-accelerator (fast-asin real) real (lambda (x) (asin x)))
-(define-accelerator (fast-acos real) real (lambda (x) (acos x)))
-(define-accelerator (fast-atan real) real (lambda (x) (atan x)))
+;; (define-accelerator (fast-exp real) real (lambda (x) (exp x)))
+;; (define-accelerator (fast-sin real) real (lambda (x) (sin x)))
+;; (define-accelerator (fast-cos real) real (lambda (x) (cos x)))
+;; (define-accelerator (fast-tan real) real (lambda (x) (tan x)))
+;; (define-accelerator (fast-tanh real) real (lambda (x) (tanh x)))
+;; (define-accelerator (fast-log real) real (lambda (x) (log x)))
+;; (define-accelerator (fast-asin real) real (lambda (x) (asin x)))
+;; (define-accelerator (fast-acos real) real (lambda (x) (acos x)))
+;; (define-accelerator (fast-atan real) real (lambda (x) (atan x)))
 ;; (define-accelerator (fast-isqrt real) real (lambda (x) (/ 1 (sqrt x))))
 
-(define libvdt "/nix/store/zrs4rbyx0cxhllas4k5h8hdbzgbd11dc-vdt-0.4.4/lib/libvdt" )
-(define-accelerator-impl fast-exp fast-exp.f64 (binary64) binary64 (get-ffi-obj "exp" libvdt (_fun _double -> _double)))
-(define-accelerator-impl fast-sin fast-sin.f64 (binary64) binary64 (get-ffi-obj "sin" libvdt (_fun _double -> _double)))
-(define-accelerator-impl fast-cos fast-cos.f64 (binary64) binary64 (get-ffi-obj "cos" libvdt (_fun _double -> _double)))
-(define-accelerator-impl fast-tan fast-tan.f64 (binary64) binary64 (get-ffi-obj "tan" libvdt (_fun _double -> _double)))
-(define-accelerator-impl fast-tanh fast-tanh.f64 (binary64) binary64 (get-ffi-obj "tanh" libvdt (_fun _double -> _double)))
-(define-accelerator-impl fast-log fast-log.f64 (binary64) binary64 (get-ffi-obj "log" libvdt (_fun _double -> _double)))
-(define-accelerator-impl fast-asin fast-asin.f64 (binary64) binary64 (get-ffi-obj "asin" libvdt (_fun _double -> _double)))
-(define-accelerator-impl fast-acos fast-acos.f64 (binary64) binary64 (get-ffi-obj "acos" libvdt (_fun _double -> _double)))
-(define-accelerator-impl fast-atan fast-atan.f64 (binary64) binary64 (get-ffi-obj "atan" libvdt (_fun _double -> _double)))
-;; (define-accelerator-impl fast-isqrt fast-isqrt.f64 (binary64) binary64 (get-ffi-obj "isqrt" libvdt (_fun _double -> _double)))
+
+;; (define libvdt "libvdt")
+
+;; (set-c-header!
+;;  (lambda (previous)
+;;    (string-join (previous) "#include <vdtMath.h>\n")))
+
+;; (set-unknown->c!
+;;  (lambda (previous)
+;;    (lambda (context operation arguments)
+;;      (previous
+;;       context
+;;       (match operation
+;;         ['fast-exp 'exp]
+;;         ['fast-sin 'sin]
+;;         ['fast-cos 'cos]
+;;         ['fast-tan 'tan]
+;;         ['fast-tanh 'tanh]
+;;         ['fast-log 'log]
+;;         ['fast-asin 'asin]
+;;         ['fast-acos 'acos]
+;;         ['fast-atan 'atan])
+;;       arguments))))
+
+;; (define-accelerator-impl fast-exp fast-exp.f64 (binary64) binary64 (get-ffi-obj "exp" libvdt (_fun _double -> _double)))
+;; (define-accelerator-impl fast-sin fast-sin.f64 (binary64) binary64 (get-ffi-obj "sin" libvdt (_fun _double -> _double)))
+;; (define-accelerator-impl fast-cos fast-cos.f64 (binary64) binary64 (get-ffi-obj "cos" libvdt (_fun _double -> _double)))
+;; (define-accelerator-impl fast-tan fast-tan.f64 (binary64) binary64 (get-ffi-obj "tan" libvdt (_fun _double -> _double)))
+;; (define-accelerator-impl fast-tanh fast-tanh.f64 (binary64) binary64 (get-ffi-obj "tanh" libvdt (_fun _double -> _double)))
+;; (define-accelerator-impl fast-log fast-log.f64 (binary64) binary64 (get-ffi-obj "log" libvdt (_fun _double -> _double)))
+;; (define-accelerator-impl fast-asin fast-asin.f64 (binary64) binary64 (get-ffi-obj "asin" libvdt (_fun _double -> _double)))
+;; (define-accelerator-impl fast-acos fast-acos.f64 (binary64) binary64 (get-ffi-obj "acos" libvdt (_fun _double -> _double)))
+;; (define-accelerator-impl fast-atan fast-atan.f64 (binary64) binary64 (get-ffi-obj "atan" libvdt (_fun _double -> _double)))
+
+;; (define-accelerator-impl fast-exp fast-exp.f32 (binary32) binary32 (get-ffi-obj "expf" libvdt (_fun _double -> _double)))
+;; (define-accelerator-impl fast-sin fast-sin.f32 (binary32) binary32 (get-ffi-obj "sinf" libvdt (_fun _double -> _double)))
+;; (define-accelerator-impl fast-cos fast-cos.f32 (binary32) binary32 (get-ffi-obj "cosf" libvdt (_fun _double -> _double)))
+;; (define-accelerator-impl fast-tan fast-tan.f32 (binary32) binary32 (get-ffi-obj "tanf" libvdt (_fun _double -> _double)))
+;; (define-accelerator-impl fast-tanh fast-tanh.f32 (binary32) binary32 (get-ffi-obj "tanhf" libvdt (_fun _double -> _double)))
+;; (define-accelerator-impl fast-log fast-log.f32 (binary32) binary32 (get-ffi-obj "logf" libvdt (_fun _double -> _double)))
+;; (define-accelerator-impl fast-asin fast-asin.f32 (binary32) binary32 (get-ffi-obj "asinf" libvdt (_fun _double -> _double)))
+;; (define-accelerator-impl fast-acos fast-acos.f32 (binary32) binary32 (get-ffi-obj "acosf" libvdt (_fun _double -> _double)))
+;; (define-accelerator-impl fast-atan fast-atan.f32 (binary32) binary32 (get-ffi-obj "atanf" libvdt (_fun _double -> _double)))
