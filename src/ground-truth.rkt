@@ -26,7 +26,7 @@
   (define fns (compile-specs exprs vars discs))
   (define outlen (length exprs))
   (define (rival-compiled inputs)
-    (define outvec (apply fns inputs))
+    (define outvec (fns inputs))
     (for/vector #:length outlen ([y (in-vector outvec)] [disc (in-list discs)])
       (ival-then
        ; The two `invalid` ones have to go first, because later checks
@@ -62,7 +62,7 @@
     (define exs
       (parameterize ([*sampling-iteration* iter]
                      [ground-truth-require-convergence #t])
-        (fn (map ival-real pt))))
+        (fn (vector-map ival-real pt))))
     (match-define (ival err err?) (ival-any-error? exs))
     (cond
       [err

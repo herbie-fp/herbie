@@ -29,7 +29,7 @@
 
   (define prec-threshold (exact-floor (/ (*max-mpfr-prec*) 25)))     ; parameter for sampling histogram table
 
-  (define (compiled-spec . args)
+  (define (compiled-spec args)
     (define timeline-stop!
       (timeline-start!/unsafe
        'mixsample "backward-pass" (* (*sampling-iteration*) 1000)))
@@ -38,8 +38,7 @@
       (backward-pass ivec varc vregs vprecs vstart-precs rootvec rootlen vrepeats discs))
     (timeline-stop!)
         
-    (for ([arg (in-list args)] [n (in-naturals)])
-      (vector-set! vregs n arg))
+    (vector-copy! vregs 0 args)
     (for ([instr (in-vector ivec)]
           [n (in-naturals varc)]
           [precision (in-vector (if first-iter? vstart-precs vprecs))]

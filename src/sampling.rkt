@@ -144,7 +144,7 @@
 (define (ival-eval machine ctxs pt [iter 0])
   (define start (current-inexact-milliseconds))
   (define pt*
-    (for/list ([val (in-list pt)] [repr (in-list (context-var-reprs (car ctxs)))])
+    (for/vector ([val (in-list pt)] [repr (in-list (context-var-reprs (car ctxs)))])
       ((representation-repr->bf repr) val)))
   (define-values (status value)
     (with-handlers
