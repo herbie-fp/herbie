@@ -23,10 +23,10 @@
 (struct rival-machine (fn discs))
 
 (define (rival-compile exprs vars discs)
-  (define fns (compile-specs exprs vars discs))
+  (define fn (compile-specs exprs vars discs))
   (define outlen (length exprs))
   (define (rival-compiled inputs)
-    (define outvec (fns inputs))
+    (define outvec (fn inputs))
     (for/vector #:length outlen ([y (in-vector outvec)] [disc (in-list discs)])
       (ival-then
        ; The two `invalid` ones have to go first, because later checks
