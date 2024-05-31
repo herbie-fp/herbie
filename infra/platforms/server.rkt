@@ -20,7 +20,7 @@
          herbie/web/core2avx
          herbie/web/thread-pool)
 
-(load-herbie-builtins)
+(load-herbie-plugins)
 
 ; Copied from <herbie>/syntax/read.rkt
 (define (read-syntax* port name)
