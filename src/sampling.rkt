@@ -130,8 +130,8 @@
   (define-values (points exactss)
     (let loop ([sampled 0] [skipped 0] [points '()] [exactss '()])
       (define pt (sampler))
-      (define-values (status final-iter exs rival-time) (ival-eval fn ctxs pt))
       (collect-garbage 'minor)
+      (define-values (status final-iter exs rival-time) (ival-eval fn ctxs pt))
 
       (when fn-sollya
         (sollya-eval fn-sollya pt status final-iter exs rival-time))
