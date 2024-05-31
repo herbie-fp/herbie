@@ -4,7 +4,6 @@
 
 (require math/flonum
          math/bigfloat
-         ffi/unsafe
          fpbench
          ffi/unsafe)
 
