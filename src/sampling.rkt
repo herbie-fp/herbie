@@ -131,6 +131,7 @@
     (let loop ([sampled 0] [skipped 0] [points '()] [exactss '()])
       (define pt (sampler))
       (define-values (status final-iter exs) (ival-eval fn ctxs pt))
+      (collect-garbage 'minor)
 
       (when fn-sollya
         (sollya-eval fn-sollya pt status final-iter exs))
