@@ -130,11 +130,15 @@
   (define-values (points exactss)
     (let loop ([sampled 0] [skipped 0] [points '()] [exactss '()])
       (define pt (sampler))
+<<<<<<< HEAD
       (define-values (status final-iter exs) (ival-eval fn ctxs pt))
+=======
+      (define-values (status final-iter exs rival-time) (ival-eval fn ctxs pt))
+>>>>>>> ad26eeb9 (recent updates)
       (collect-garbage 'minor)
 
       (when fn-sollya
-        (sollya-eval fn-sollya pt status final-iter exs))
+        (sollya-eval fn-sollya pt status final-iter exs rival-time))
 
       (when (equal? status 'exit)
         (warn 'ground-truth #:url "faq.html#ground-truth"
