@@ -10,7 +10,6 @@
          (struct-out exn:rival:unsamplable)
          rival-profile-iterations-taken
          (struct-out discretization))
-(provide (struct-out rival-machine)) ; This is temporary and we want to get rid of it
 
 (define ground-truth-require-convergence (make-parameter #t))
 
