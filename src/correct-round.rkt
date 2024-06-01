@@ -7,8 +7,8 @@
          (only-in "timeline.rkt" timeline-push! timeline-start!/unsafe)
          (only-in "errors.rkt" warn))
 
-(provide compile-spec compile-specs *sampling-iteration* *max-sampling-iterations*
-         (struct-out discretization))
+(provide rival-machine-full compile-specs (struct-out discretization)
+         *sampling-iteration* *max-sampling-iterations*)
 
 (define *ampl-tuning-bits* (make-parameter 5))
 (define *sampling-iteration* (make-parameter 0))
@@ -70,14 +70,12 @@
     (backward-pass ivec args vregs vprecs vstart-precs rootvec vrepeats discs)
     (timeline-stop!)))
 
-(define (make-progs-interpreter machine)
-  (define (compiled-spec args)
-    (set-rival-machine-iteration! machine (*sampling-iteration*))
-    (rival-machine-adjust machine)
-    (rival-machine-load machine args)
-    (rival-machine-run machine)
-    (rival-machine-return machine))
-  compiled-spec)
+(define (rival-machine-full machine args)
+  (set-rival-machine-iteration! machine (*sampling-iteration*))
+  (rival-machine-adjust machine)
+  (rival-machine-load machine args)
+  (rival-machine-run machine)
+  (rival-machine-return machine))
 
 (define (apply-instruction instr regs)
   ;; By special-casing the 0-3 instruction case,
@@ -143,7 +141,7 @@
 (define (ival-false)
   (ival-bool false))
 
-(define (make-compiler exprs vars discs)
+(define (compile-specs exprs vars discs)
   (define num-vars (length vars))
   (define-values (nodes roots)
     (progs->batch exprs vars))
@@ -242,10 +240,9 @@
   ;; starting precisions for the first, un-tuned iteration
   (define initial-precisions (setup-vstart-precs instructions (length vars)))
 
-  (make-progs-interpreter
-   (rival-machine
-    (list->vector vars) instructions roots (list->vector discs) 0
-    registers repeats precisions initial-precisions)))
+  (rival-machine
+   (list->vector vars) instructions roots (list->vector discs) 0
+   registers repeats precisions initial-precisions))
 
 (define (real->ival val)
   (define lo (parameterize ([bf-rounding-mode 'down]) (bf val)))
@@ -254,15 +251,6 @@
 
 (define (point-ival? x)
   (bf= (ival-lo x) (ival-hi x)))
-
-(define (compile-specs specs vars discs)
-  (make-compiler specs vars discs))
-
-;; Like `compile-specs`, but for a single spec.
-(define (compile-spec spec vars disc)
-  (define core (compile-specs (list spec) vars disc))
-  (define (compiled-spec . xs) (vector-ref (apply core xs) 0))
-  compiled-spec)
 
 (define (backward-pass ivec args vregs vprecs vstart-precs rootvec vrepeats discs)
   (define varc (vector-length args))
