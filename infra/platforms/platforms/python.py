@@ -101,8 +101,6 @@ class PythonRunner(Runner):
             print('\r', end='', flush=True)
             print(' ' * (len(log_prefix) + self.num_runs), end='', flush=True)
             print('\r', end='', flush=True)
-            
-        print()
         
         times = [sum(ts) / len(ts) for ts in times]
         self.log(f'run drivers')

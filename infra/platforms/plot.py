@@ -120,7 +120,7 @@ def plot_compare(name: str, name2: str, output_dir: Path, info):
     supported_color = 'orange'
     desugared_color = 'green'
 
-    fig, (ax1, ax2, ax3) = plt.subplots(ncols=3, width_ratios=[3, 1, 1])
+    fig, (ax1, ax2, ax3) = plt.subplots(ncols=3, gridspec_kw={'width_ratios': [3, 1, 1]})
     plt.subplots_adjust(bottom=0.2, wspace=0.3)
     fig.suptitle(f'Comparing {name} and {name2}')
 

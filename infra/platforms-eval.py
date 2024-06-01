@@ -2,15 +2,22 @@ import argparse
 import os
 import multiprocessing as mp
 
+from typing import List
 from subprocess import Popen, PIPE, STDOUT
 import subprocess
 
 # Paths
 script_path = os.path.abspath(__file__)
 script_dir, _ = os.path.split(script_path)
-baseline_path = os.path.join(script_dir, 'platforms', 'baseline.py')
-run_path = os.path.join(script_dir, 'platforms', 'run.py')
-plot_path = os.path.join(script_dir, 'platforms', 'plot.py')
+platforms_dir = os.path.join(script_dir, 'platforms')
+
+tune_path = os.path.join(platforms_dir, 'tune.py')
+improve_path = os.path.join(platforms_dir, 'improve.py')
+compare_path = os.path.join(platforms_dir, 'compare.py')
+baseline_path = os.path.join(platforms_dir, 'baseline.py')
+merge_path = os.path.join(platforms_dir, 'merge.py')
+plot_path = os.path.join(platforms_dir, 'plot.py')
+
 curr_dir = os.getcwd()
 
 # Defaults
@@ -18,6 +25,69 @@ default_key = 'default'
 default_num_parallel = 1
 default_num_threads = 1
 default_start_seed = 1
+
+#############################
+# Configuration
+
+# Tuning and improvement
+platforms = [
+    # Hardware
+    # 'arith',
+    # 'avx',
+    # 'numpy',
+
+    # Language
+    'c',
+    'python',
+    # 'julia',
+
+    # Library
+    # ???
+    # 'vdt'
+    # 'fdlibm'
+]
+
+# Evals
+evals = [
+    'baseline',
+    'compare',
+    'cost'
+    # ablation
+]
+
+# Number of input points
+num_tune_points = 10_000
+num_eval_points = 10_000
+
+#############################
+# Runner
+
+def run_subprocess(cmd: List[str], hide_output: bool):
+    if hide_output:
+        p = Popen(cmd, stdout=PIPE, stderr=STDOUT)
+        stdout, _ = p.communicate()
+        print(stdout.decode('utf-8').strip(), end='')
+    else:
+        subprocess.run(cmd)
+
+
+def run_tuning(
+    name: str,
+    platform: str,
+    output_dir: str,
+    num_threads: int,
+    seed: int
+) -> None:
+    print(f'Tuning eval for `{platform}`')
+    subprocess.run([
+        'python3', tune_path,
+         '--threads', str(num_threads),
+         '--num-points', str(num_tune_points),
+         '--key', name,
+         '--seed', str(seed),
+         platform,
+         output_dir
+    ])
 
 def run_baseline(
     key: str,
@@ -41,31 +111,67 @@ def run_baseline(
     ])
 
 
-def run_seed(
-    bench_path: str,
+def run_improvement(
+    name: str,
+    platform: str,
+    bench_dir: str,
     output_dir: str,
-    key: str,
+    num_herbie_threads: int,
     num_threads: int,
     seed: int,
     hide_output: bool
 ) -> None:
-    print(f'running per-seed evaluation (seed={seed})')
+    print(f'Improvement eval for `{platform}`')
     cmd = [
-        'python3', run_path,
-        bench_path,
-        output_dir,
-        key,
-        str(num_threads),
-        str(num_threads),
-        str(seed)
+        'python3', improve_path,
+        '--threads', str(num_threads),
+        '--num-points', str(num_eval_points),
+        '--herbie-threads', str(num_herbie_threads),
+        '--key', name,
+        '--seed', str(seed),
+        platform,
+        bench_dir,
+        output_dir
     ]
 
-    if hide_output:
-        p = Popen(cmd, stdout=PIPE, stderr=STDOUT)
-        stdout, _ = p.communicate()
-        print(stdout.decode('utf-8').strip(), end='')
-    else:
-        subprocess.run(cmd)
+    run_subprocess(cmd, hide_output)
+
+
+def run_cross_compile(
+    name: str,
+    platform1: str,
+    platform2: str,
+    output_dir: str,
+    num_threads: int,
+    seed: int,
+    hide_output: bool
+) -> None:
+    print(f'Compare eval for `{platform1}` <- `{platform2}`')
+    cmd = [
+        'python3', compare_path,
+        '--threads', str(num_threads),
+        '--key', name,
+        '--seed', str(seed),
+        platform1,
+        platform2,
+        output_dir
+    ]
+
+    run_subprocess(cmd, hide_output)
+
+
+def run_merge_json(
+    name: str,
+    output_dir: str,
+    hide_output: bool
+):
+    cmd = [
+        'python3', merge_path,
+        '--key', name,
+        output_dir
+    ]
+
+    run_subprocess(cmd, hide_output)
 
 
 def run_plot(
@@ -80,6 +186,63 @@ def run_plot(
         os.path.join(result_dir, 'results.json'),
         result_dir
     ])
+
+def run_seed(
+    bench_path: str,
+    output_dir: str,
+    key: str,
+    num_threads: int,
+    seed: int,
+    hide_output: bool
+) -> None:
+    print(f'running per-seed evaluation (seed={seed})')
+    # run platform-based improvement
+    for platform in platforms:
+        run_improvement(
+            name=key,
+            platform=platform,
+            bench_dir=bench_path,
+            output_dir=output_dir,
+            num_herbie_threads=num_threads,
+            num_threads=num_threads,
+            seed=seed,
+            hide_output=hide_output
+        )
+
+    # run baseline comparison
+    if 'baseline' in evals:
+        for platform in platforms:
+            run_cross_compile(
+                name=key,
+                platform1=platform,
+                platform2='baseline',
+                output_dir=output_dir,
+                num_threads=num_threads,
+                seed=seed,
+                hide_output=hide_output
+            )
+
+    # run cross-platform comparison
+    if 'compare' in evals:
+        for platform1 in platforms:
+            for platform2 in platforms:
+                if platform1 != platform2:
+                    run_cross_compile(
+                        name=key,
+                        platform1=platform1,
+                        platform2=platform2,
+                        output_dir=output_dir,
+                        num_threads=num_threads,
+                        seed=seed,
+                        hide_output=hide_output
+                    )
+
+    # merge report jsons
+    run_merge_json(
+        name=key,
+        output_dir=output_dir,
+        hide_output=hide_output
+    )
 
 
 def main():
@@ -103,21 +266,29 @@ def main():
     start_seed: int = args.start_seed or default_start_seed
 
     # baseline evaluation
-    run_baseline(
-        key=key,
-        bench_path=bench_path,
-        output_dir=output_dir,
-        num_parallel=num_parallel,
-        num_threads=num_threads,
-        num_seeds=num_seeds,
-        start_seed=start_seed
-    )
+    if 'baseline' in evals:
+        run_baseline(
+            key=key,
+            bench_path=bench_path,
+            output_dir=output_dir,
+            num_parallel=num_parallel,
+            num_threads=num_threads,
+            num_seeds=num_seeds,
+            start_seed=start_seed
+        )
 
     # eval configurations
     configs = []
     hide_output = num_parallel > 1
     for seed in range(start_seed, start_seed + num_seeds):
-        configs.append((bench_path, output_dir, f'{key}-{seed}', num_threads, seed, hide_output))
+        configs.append((
+            bench_path,
+            output_dir,
+            f'{key}-{seed}',
+            num_threads,
+            seed,
+            hide_output
+        ))
 
     # run eval in parallel
     if num_parallel > 1:
