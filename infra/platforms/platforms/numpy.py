@@ -39,8 +39,6 @@ class NumpyRunner(Runner):
         )
 
     def make_drivers(self, cores: List[FPCore], driver_dirs: List[str], samples: dict) -> None:
-        self.log(f'starting make_ drivers')
-
         for core, driver_dir in zip(cores, driver_dirs):
             driver_path = os.path.join(driver_dir, driver_name)
             sample = self.cache.get_sample(core.key, self.seed)
@@ -66,7 +64,7 @@ class NumpyRunner(Runner):
                 print('if __name__ == "__main__":', file=f)
                 print(f'\ti = 0', file=f)
                 print(f'\tstart = time.time_ns()', file=f)
-                print(f'\twhile i < {self.num_inputs}:', file=f)
+                print(f'\twhile i < {self.num_runs}:', file=f)
                 print(f'\t\tfoo({arg_str})', file=f)
                 print(f'\t\ti += 1', file=f)
                 print(f'\tend = time.time_ns()', file=f)
@@ -79,7 +77,6 @@ class NumpyRunner(Runner):
         self.log(f'drivers interpreted, skipping compilations')
 
     def run_drivers(self, driver_dirs: List[str]) -> List[float]:
-        print("starting run drivers")
         # run processes sequentially
         times = [[] for _ in driver_dirs]
         for i, driver_dir in enumerate(driver_dirs):

@@ -33,7 +33,7 @@ default_start_seed = 1
 platforms = [
     # Hardware
     # 'arith',
-    # 'avx',
+    'avx',
     # 'numpy',
 
     # Language
@@ -49,7 +49,7 @@ platforms = [
 
 # Evals
 evals = [
-    'baseline',
+    # 'baseline',
     'compare',
     'cost'
     # ablation
