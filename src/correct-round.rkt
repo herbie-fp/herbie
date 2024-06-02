@@ -7,7 +7,8 @@
          (only-in "timeline.rkt" timeline-push! timeline-start!/unsafe)
          (only-in "errors.rkt" warn))
 
-(provide rival-machine-full compile-specs (struct-out discretization)
+(provide rival-machine-load rival-machine-run rival-machine-return rival-machine-adjust
+         compile-specs (struct-out discretization) (struct-out rival-machine)
          *sampling-iteration* *max-sampling-iterations*)
 
 (define *ampl-tuning-bits* (make-parameter 5))
@@ -60,14 +61,11 @@
     (vector-ref vregs root)))
 
 (define (rival-machine-adjust machine)
-  (unless (zero? (rival-machine-iteration machine))
+  (define iter (rival-machine-iteration machine))
+  (unless (zero? iter)
     (define timeline-stop!
-      (timeline-start!/unsafe
-       'mixsample "backward-pass" (* (*sampling-iteration*) 1000)))
-    (match-define
-      (rival-machine args ivec rootvec discs _ vregs vrepeats vprecs vstart-precs)
-      machine)
-    (backward-pass ivec args vregs vprecs vstart-precs rootvec vrepeats discs)
+      (timeline-start!/unsafe 'mixsample "backward-pass" (* iter 1000)))
+    (backward-pass machine)
     (timeline-stop!)))
 
 (define (rival-machine-full machine args)
@@ -252,7 +250,12 @@
 (define (point-ival? x)
   (bf= (ival-lo x) (ival-hi x)))
 
-(define (backward-pass ivec args vregs vprecs vstart-precs rootvec vrepeats discs)
+(define (backward-pass machine)
+  ; Since Step 2 writes into *sampling-iteration* if the max prec was reached - save the iter number for step 3
+  (match-define
+    (rival-machine args ivec rootvec discs current-iter vregs vrepeats vprecs vstart-precs)
+    machine)
+
   (define varc (vector-length args))
   (define rootlen (vector-length rootvec))
   (define vprecs-new (make-vector (vector-length ivec) 0))          ; new vprecs vector
@@ -268,13 +271,10 @@
                 ((discretization-convert disc) (ival-lo result))
                 ((discretization-convert disc) (ival-hi result))))
         (vector-set! vprecs-new (- root-reg varc) (get-slack)))))
-  
-  ; Since Step 2 writes into *sampling-iteration* if the max prec was reached - save the iter number for step 3
-  (define current-iter (*sampling-iteration*))
-  
+
   ; Step 2. Exponents calculation
   (exponents-propogation ivec vregs vprecs-new varc vstart-precs)
-  
+
   ; Step 3. Repeating precisions check
   ; vrepeats[i] = #t if the node has the same precision as an iteration before and children have #t flag as well
   ; vrepeats[i] = #f if the node doesn't have the same precision as an iteration before or at least one child has #f flag
@@ -285,10 +285,10 @@
     (vector-set! vrepeats n (and (<= prec-new prec-old)
                                  (andmap (lambda (x) (or (< x varc) (vector-ref vrepeats (- x varc))))
                                          (rest instr)))))
-  
+
   ; Step 4. Copying new precisions into vprecs
   (vector-copy! vprecs 0 vprecs-new)
-  
+
   ; Step 5. If precisions have not changed but the point didn't converge. A problem exists - add slack to every op
   (when (false? (vector-member #f vrepeats))
     (warn 'ground-truth "Could not converge on a ground truth"

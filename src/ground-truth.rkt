@@ -20,26 +20,29 @@
     (= (distance (convert lo) (convert hi)) 0))
   ((close-enough->ival close-enough?) interval))
 
-(struct rival-machine (fn discs))
+(define (rival-machine-full machine inputs)
+  (set-rival-machine-iteration! machine (*sampling-iteration*))
+  (rival-machine-adjust machine)
+  (rival-machine-load machine inputs)
+  (rival-machine-run machine)
+  (define outvec (rival-machine-return machine))
+  (define outlen (vector-length outvec))
+  (define discs (rival-machine-discs machine))
+  (for/vector #:length outlen ([y (in-vector outvec)] [disc (in-vector discs)])
+    (ival-then
+     ; The two `invalid` ones have to go first, because later checks
+     ; can error if the input is erroneous
+     (ival-assert (ival-not (ival-error? y)) 'invalid)
+     ; 'infinte case handle in `ival-eval`
+     (ival-assert
+      (if (ground-truth-require-convergence)
+          (is-samplable-interval disc y)
+          (ival (ival-hi (is-samplable-interval disc y))))
+      'unsamplable)
+     y)))
 
 (define (rival-compile exprs vars discs)
-  (define machine (compile-specs exprs vars discs))
-  (define outlen (length exprs))
-  (define (rival-compiled inputs)
-    (define outvec (rival-machine-full machine inputs))
-    (for/vector #:length outlen ([y (in-vector outvec)] [disc (in-list discs)])
-      (ival-then
-       ; The two `invalid` ones have to go first, because later checks
-       ; can error if the input is erroneous
-       (ival-assert (ival-not (ival-error? y)) 'invalid)
-       ; 'infinte case handle in `ival-eval`
-       (ival-assert
-        (if (ground-truth-require-convergence)
-            (is-samplable-interval disc y)
-            (ival (ival-hi (is-samplable-interval disc y))))
-        'unsamplable)
-       y)))
-  (rival-machine rival-compiled discs))
+  (compile-specs exprs vars discs))
 
 (struct exn:rival exn:fail ())
 (struct exn:rival:invalid exn:rival (pt))
@@ -56,19 +59,19 @@
   (ival x))
 
 (define (rival-apply machine pt)
-  (match-define (rival-machine fn discs) machine)
+  (define discs (rival-machine-discs machine))
   (let loop ([iter 0])
     (set! rival-profile-iterations-taken iter)
     (define exs
       (parameterize ([*sampling-iteration* iter]
                      [ground-truth-require-convergence #t])
-        (fn (vector-map ival-real pt))))
+        (rival-machine-full machine (vector-map ival-real pt))))
     (match-define (ival err err?) (ival-any-error? exs))
     (cond
       [err
        (raise (exn:rival:invalid "Invalid input" (current-continuation-marks) pt))]
       [(not err?)
-       (for/list ([ex (in-vector exs)] [disc (in-list discs)])
+       (for/list ([ex (in-vector exs)] [disc (in-vector discs)])
          ; We are promised at this point that (distance (convert lo) (convert hi)) = 0 so use lo
          ([discretization-convert disc] (ival-lo ex)))]
       [(>= iter (*max-sampling-iterations*))
@@ -77,9 +80,8 @@
        (loop (+ 1 iter))])))
 
 (define (rival-analyze machine rect)
-  (match-define (rival-machine fn discs) machine)
   (define res
     (parameterize ([*sampling-iteration* 0]
                    [ground-truth-require-convergence #f])
-      (fn rect)))
+      (rival-machine-full machine rect)))
   (ival-any-error? res))
