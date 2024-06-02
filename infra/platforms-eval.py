@@ -38,7 +38,7 @@ platforms = [
 
     # Language
     'c',
-    # 'python',
+    'python',
     # 'julia',
 
     # Library

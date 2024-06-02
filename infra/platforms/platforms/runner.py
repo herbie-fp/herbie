@@ -176,8 +176,8 @@ class Runner(object):
 
         return cores
 
-    def herbie_supported(self, cores: List[FPCore]) -> List[bool]:
-        """Returns whether an FPCore is supported in the platform."""
+    def herbie_supported(self, cores: List[FPCore]) -> List[FPCore]:
+        """Returns the FPCores supported in a platform."""
         with Popen(
             args=['racket', str(self.herbie_path), '--platform', self.name],
             stdin=PIPE,
@@ -189,15 +189,13 @@ class Runner(object):
             print(f'(supported {core_strs}) (exit)', file=server.stdin, flush=True)
             output = server.stdout.read().strip()
 
-        result = []
-        for v in output.split(' '):
-            if v == '#f':
-                result.append(False)
-            else:
-                result.append(True)
-
-        assert len(cores) == len(result)
-        return result
+        supported_cores = []
+        for core, v in zip(cores, output.split(' ')):
+            if v == '#t':
+                supported_cores.append(core)
+            elif v != '#f':
+                raise RuntimeError('Unexpected result:', v)
+        return supported_cores
     
     def herbie_read(self, path: str) -> List[FPCore]:
         """Reads a benchmark suite from `path` returning all FPCores found."""
@@ -205,16 +203,10 @@ class Runner(object):
         if not path.exists():
             raise RuntimeError(f'Path does not exist {path}')
         
-        if path.is_file():
-            cores = shim_read(path, self.name)
-            for core in cores:
-                self.cache.put_core(core)
-            return cores
-        else:
-            cores = []
-            for subdir in path.iterdir():
-                cores += self.herbie_read(str(subdir))
-            return cores
+        cores = shim_read(path, self.name)
+        for core in cores:
+            self.cache.put_core(core)
+        return cores
 
     def herbie_compile(self, cores: List[FPCore]):
         """Compiles each FPCore in `cores` to the target language.
@@ -298,22 +290,6 @@ class Runner(object):
             print('(exit)', file=server.stdin, flush=True)
             _ = server.stdout.readline()
 
-        # we need to check if we dropped any cores for a particular input core
-        # if we did, the "best" output core is just the input core
-        # cores_by_key = dict()
-        # for core in desugared:
-        #     if core.name is None:
-        #         raise RuntimeError('FPCore does not have name', core)
-        #     if core.key in cores_by_key:
-        #         cores_by_key[core.key].append(core)
-        #     else:
-        #         cores_by_key[core.key] = [core]
-
-        # for input in input_cores:
-        #     if input.key not in cores_by_key:
-        #         print(f'WARN: no output core for {input.key}, restoring input')
-        #         desugared.append(input)
-
         self.log(f'desugared {len(desugared)} cores')
         return desugared
 
@@ -394,49 +370,6 @@ class Runner(object):
 
         self.log(f'generated {len(gen_cores)} FPCores with Herbie')
         return gen_cores
-
-
-    def herbie_pareto(self, input_cores: List[FPCore], cores: List[FPCore]) -> List[Tuple[float, float]]:
-        """Runs Herbie's pareto frontier algorithm."""
-        # group FPCore by key
-        cores_by_group = dict()
-        for core in cores:
-            if core.key in cores_by_group:
-                cores_by_group[core.key].append(core)
-            else:
-                cores_by_group[core.key] = [core]
-
-        with Popen(
-            args=['racket', str(self.herbie_path)],
-            stdin=PIPE,
-            stdout=PIPE,
-            universal_newlines=True) as server:
-
-            frontiers = []
-            for key in cores_by_group:
-                group = cores_by_group[key]
-                frontier = ' '.join(list(map(lambda c: f'({c.cost} {c.err})', group)))
-                frontiers.append(f'({frontier})')
-
-            # call out to server
-            args = ' '.join(frontiers)
-            print(f'(pareto {args})', file=server.stdin, flush=True)
-            output = server.stdout.readline()
-
-            # shutdown server
-            print(f'(exit)', file=server.stdin, flush=True)
-            _ = server.stdout.read()
-
-        frontier = []
-        for line in output.split('|'):
-            datum = line.split(' ')
-            if len(datum) != 2:
-                raise RuntimeError('Pareto frontier malformed:', datum)
-            cost, err = float(datum[0]), float(datum[1])
-            frontier.append((cost, err))
-
-        self.log(f'computed Pareto frontier')
-        return frontier
 
     def herbie_sample(self, cores: List[FPCore], py_sample: bool = False) -> List[List[List[float]]]:
         """Runs Herbie's sampler for each FPCore in `self.cores`."""
@@ -521,20 +454,22 @@ class Runner(object):
         This method must be overriden by every implementation of `Runner`."""
         raise NotImplementedError('virtual method')
 
-    def restore_cores(self) -> List[FPCore]:
+    def restore_cores(self) -> Tuple[List[FPCore], List[FPCore]]:
         """Restores platform FPCores from `self.report_dir`.
         Panics if no JSON file is found."""
         path = self.report_dir.joinpath('improve.json')
         with open(path, 'r') as f:
             report = json.load(f)
 
-        cores = []
+        input_cores = []
+        platform_cores = []
         for cores_json in report['cores']:
+            input_cores.append(FPCore.from_json(cores_json['input_core']))
             for core_json in cores_json['platform_cores']:
                 core = FPCore.from_json(core_json['platform_core'])
-                cores.append(core)
+                platform_cores.append(core)
         
-        return cores
+        return (input_cores, platform_cores)
 
     def write_tuning_report(self, cores: List[FPCore], times: List[float]) -> None:
         """Writes tuning data to a JSON file."""
@@ -572,7 +507,7 @@ class Runner(object):
         # generate report fragments
         core_reports = []
         for input_core in input_cores:
-            output_cores = by_key[input_core.key]
+            output_cores = by_key.get(input_core.key, [])
             platform_core_reports = []
             for platform_core, dir, time in output_cores:
                 platform_core_reports.append({
@@ -629,7 +564,7 @@ class Runner(object):
 
         core_reports = []
         for input_core in input_cores:
-            cores = cores_by_key[input_core.key]
+            cores = cores_by_key.get(input_core.key, [])
             supported_cores = supported_by_key.get(input_core.key, [])
             desugared_cores = desugared_by_key.get(input_core.key, [])
             core_reports.append({

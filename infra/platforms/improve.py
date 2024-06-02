@@ -7,6 +7,7 @@ import os
 
 from platforms.fpcore import FPCore
 from platforms.runners import make_runner
+from platforms.shim import shim_pareto, shim_read
 
 # paths
 script_path = os.path.abspath(__file__)
@@ -83,8 +84,11 @@ def main():
         seed=seed
     )
 
-    # read and sample input cores
-    input_cores = runner.herbie_read(path=bench_path)
+    # read input cores
+    all_input_cores = shim_read(path=bench_path)
+
+    # prune and sample
+    input_cores = runner.herbie_supported(cores=all_input_cores)
     samples = runner.herbie_sample(cores=input_cores, py_sample=py_sample)
     samples, input_cores = prune_unsamplable(samples, input_cores)
     check_samples(samples, input_cores) # sanity check!
@@ -93,6 +97,7 @@ def main():
     cores = runner.herbie_improve(cores=input_cores, threads=herbie_threads)
     samples = runner.herbie_sample(cores=cores, py_sample=py_sample)
     check_samples(samples, cores) # sanity check!
+    runner.herbie_compile(cores=cores)
 
     # analyze all FPCores
     all_cores = input_cores + cores
@@ -100,8 +105,7 @@ def main():
     runner.herbie_error(cores=all_cores)
 
     # generate Pareto frontier
-    frontier = runner.herbie_pareto(input_cores=input_cores, cores=cores)
-    runner.herbie_compile(cores=cores)
+    frontier, *_ = shim_pareto(cores)
     
     # run drivers
     driver_dirs = runner.make_driver_dirs(cores=cores)
@@ -110,7 +114,7 @@ def main():
     times = runner.run_drivers(driver_dirs=driver_dirs)
 
     # publish results
-    runner.write_improve_report(input_cores, cores, driver_dirs, times, frontier)
+    runner.write_improve_report(all_input_cores, cores, driver_dirs, times, frontier)
 
 
 if __name__ == "__main__":

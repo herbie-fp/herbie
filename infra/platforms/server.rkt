@@ -83,18 +83,6 @@
          (eprintf "failed to desugar ~a\n" expr)
          (return #f)]))))
 
-;; Replaces any unsupported accelerators in an FPCore
-(define (remove-accelerators core)
-  (define op-set (platform-operator-set (*active-platform*)))
-  (define ops-in-pform (operator-set-operators op-set))
-  (define accels (filter-not (curry set-member? ops-in-pform) (all-accelerators)))
-  (define (remove expr) (expand-accelerators expr #:accelerators accels))
-  (match core
-    [`(FPCore ,id (,vars ...) ,props ... ,expr)
-     `(FPCore ,id ,vars ,@props ,(remove expr))]
-    [`(FPCore (,vars ...) ,props ... ,expr)
-     `(FPCore ,vars ,@props ,(remove expr))]))
-
 ;; Reads commands from stdin and writes results to stdout.
 ;; All output must be on a single line and terminated by a newline.
 (define (run-server seed)
@@ -199,7 +187,6 @@
            [(list path) path]
            [_ (error 'run-server "read: malformed arguments ~a" args)]))
       ; reimplementation of `load-file`
-      (eprintf "hi\n")
       (call-with-input-file path
         (λ (port)
           (port-count-lines! port)
@@ -238,7 +225,7 @@
       [(list 'supported cores ...)
        (for ([core (in-list cores)])
          (write
-           (with-handlers ([exn:fail:user:herbie? (const #f)])
+           (with-handlers ([exn:fail? (const #f)])
              (parse-test (datum->syntax #f core))
              #t))
          (display " "))

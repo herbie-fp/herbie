@@ -55,8 +55,8 @@ def main():
         seed=seed
     )
 
-    cores1 = runner1.restore_cores()
-    all_keys = set(map(lambda c: c.key, cores1))
+    input_cores, cores1 = runner1.restore_cores()
+    all_keys = set(map(lambda c: c.key, input_cores))
 
     # load FPCores form platform B
     if platform2 == 'baseline':
@@ -96,25 +96,14 @@ def main():
             key=key,
             seed=seed
         )
-        cores2 = runner2.restore_cores()
 
-    # extract input fpcores based on `cores1`
-    input_cores = []
-    for key in all_keys:
-        core = runner1.cache.get_core(key)
-        if core is None:
-            raise ValueError(f'no input FPCore cached with {key}')
-        input_cores.append(core)
+        _, cores2 = runner2.restore_cores()
 
     # filter only relevant fpcores
     cores2 = list(filter(lambda c: c.key in all_keys, cores2))
 
     # run Herbie on all supported cores
-    supported = runner1.herbie_supported(cores=cores2)
-    supported_cores = []
-    for core, s in zip(cores2, supported):
-        if s:
-            supported_cores.append(core)
+    supported_cores = runner1.herbie_supported(cores=cores2)
 
     # run Herbie on desugared cores
     # pull `cores2` back into `platform1`
@@ -122,8 +111,8 @@ def main():
 
     # TODO: resugared cores
 
-    # analyze all cores
-    all_cores = input_cores + supported_cores + desugared_cores
+    # analyze all output FPCores
+    all_cores = supported_cores + desugared_cores
     runner1.herbie_cost(cores=all_cores)
     runner1.herbie_error(cores=all_cores)
 

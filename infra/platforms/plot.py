@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 
 from platforms.fpcore import FPCore
-from platforms.runners import make_runner
+from platforms.shim import shim_pareto
 
 # Paths
 script_path = os.path.abspath(__file__)
@@ -68,6 +68,7 @@ def plot_compare1(name: str, name2: str, output_dir: Path, info):
     supported_cores = []
     desugared_cores = []
 
+    num_cores = len(info['cores'])
     num_platform = 0
     num_supported = 0
     num_desugared = 0
@@ -95,23 +96,18 @@ def plot_compare1(name: str, name2: str, output_dir: Path, info):
             supported_cores += supported
             desugared_cores += desugared
 
-    # TODO: herbie_pareto does not actually require runner
-    # refactor to not have to make a runner each time
-    runner = make_runner(
-        platform='c',
-        working_dir=output_dir,
-        herbie_path=herbie_path
+    platform_frontier, supported_frontier, desugared_frontier = shim_pareto(
+        platform_cores,
+        supported_cores,
+        desugared_cores
     )
 
-    platform_frontier = runner.herbie_pareto(input_cores=input_cores, cores=platform_cores)
     platform_costs = list(map(lambda pt: pt[0], platform_frontier))
     platform_errs = list(map(lambda pt: pt[1], platform_frontier))    
 
-    supported_frontier = runner.herbie_pareto(input_cores=input_cores, cores=supported_cores)
     supported_costs = list(map(lambda pt: pt[0], supported_frontier))
     supported_errs = list(map(lambda pt: pt[1], supported_frontier))
 
-    desugared_frontier = runner.herbie_pareto(input_cores=input_cores, cores=desugared_cores)
     desugared_costs = list(map(lambda pt: pt[0], desugared_frontier))
     desugared_errs = list(map(lambda pt: pt[1], desugared_frontier))
 
@@ -121,7 +117,7 @@ def plot_compare1(name: str, name2: str, output_dir: Path, info):
 
     # Pareto frontiers
     ax1.set_title('Est. cost vs. cumulative avg. error (bits)', size='medium')
-    ax1.set(xlabel='Estimated cost (Herbie)', ylabel=f'Cumulative average error')
+    ax1.set(xlabel='Estimated cost (Herbie)', ylabel='Cumulative average error')
     ax1.plot(platform_costs, platform_errs, label=f'{name} (Chassis)', color=platform_color)
     ax1.plot(supported_costs, supported_errs, label=f'{name2} (supported)', color=supported_color)
     ax1.plot(desugared_costs, desugared_errs, label=f'{name2} (desugared)', color=desugared_color)
@@ -133,7 +129,7 @@ def plot_compare1(name: str, name2: str, output_dir: Path, info):
     ax2.bar(1, num_supported, color=supported_color)
     ax2.bar(2, num_desugared, color=desugared_color)
     ax2.get_xaxis().set_visible(False)
-    ax2.set_ylim(0, num_platform)
+    ax2.set_ylim(0, num_cores)
 
     # Number of implementations
     # ax3.set_title('# Implementations', size='medium')
@@ -156,16 +152,8 @@ def plot_compare_all(output_dir: Path, entries):
         if name not in names:
             names.append(name)
 
-    # TODO: herbie_pareto does not actually require runner
-    # refactor to not have to make a runner each time
-    runner = make_runner(
-        platform='c',
-        working_dir=output_dir,
-        herbie_path=herbie_path
-    )
-
     num_platforms = len(names)
-    fig, axs = plt.subplots(ncols=num_platforms, nrows=num_platforms, figsize=((10, 10)))
+    fig, axs = plt.subplots(ncols=num_platforms, nrows=num_platforms, figsize=((8, 8)))
 
     # fig.suptitle('Platform vs. platform comparison')
     fig.supxlabel('Estimated cost (Herbie)')
@@ -196,15 +184,18 @@ def plot_compare_all(output_dir: Path, entries):
                 supported_cores += supported
                 desugared_cores += desugared
 
-        platform_frontier = runner.herbie_pareto(input_cores=input_cores, cores=platform_cores)
-        platform_costs = list(map(lambda pt: pt[0], platform_frontier))
-        platform_errs = list(map(lambda pt: pt[1], platform_frontier))
+        platform_frontier, supported_frontier, desugared_frontier = shim_pareto(
+            platform_cores,
+            supported_cores,
+            desugared_cores
+        )
 
-        supported_frontier = runner.herbie_pareto(input_cores=input_cores, cores=supported_cores)
+        platform_costs = list(map(lambda pt: pt[0], platform_frontier))
+        platform_errs = list(map(lambda pt: pt[1], platform_frontier))    
+
         supported_costs = list(map(lambda pt: pt[0], supported_frontier))
         supported_errs = list(map(lambda pt: pt[1], supported_frontier))
 
-        desugared_frontier = runner.herbie_pareto(input_cores=input_cores, cores=desugared_cores)
         desugared_costs = list(map(lambda pt: pt[0], desugared_frontier))
         desugared_errs = list(map(lambda pt: pt[1], desugared_frontier))
 

@@ -2,8 +2,9 @@
 
 import os
 
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from subprocess import Popen, PIPE
+from pathlib import Path
 
 from .cache import SampleType
 from .fpcore import FPCore, parse_core
@@ -94,23 +95,65 @@ def shim_read(
     path: str,
     platform: Optional[str] = None
 ) -> List[FPCore]:
-    print(path)
-    results = run_server([f'(read \"{path}\")'], platform=platform)
-    output = results[0].strip()
-    print(output)
-
+    path = Path(path)
     cores = []
-    for line in output.split('|'):
-        if len(line) > 0:
-            parts = line.strip().split(']')
-            if len(parts) != 2:
-                raise ValueError(f'Unexpected result: {line}')
+    if path.is_file():
+        results = run_server([f'(read \"{path}\")'], platform=platform)
+        output = results[0].strip()
+        for line in output.split('|'):
+            if len(line) > 0:
+                parts = line.strip().split(']')
+                if len(parts) != 2:
+                    raise ValueError(f'Unexpected result: {line}')
 
-            id = parts[0]
-            core_str = parts[1]
+                id = parts[0]
+                core_str = parts[1]
 
-            core = parse_core(core_str.strip())
-            core.key = sanitize_name(f'file:{str(path)}:{id}')
-            cores.append(core)
+                core = parse_core(core_str.strip())
+                core.key = sanitize_name(f'file:{str(path)}:{id}')
+                cores.append(core)
+    else:
+        for subdir in path.iterdir():
+            cores += shim_read(str(subdir))
 
     return cores
+
+def shim_pareto(*core_groups: List[List[FPCore]]) -> List[List[Tuple[float, float]]]:
+    # build commands
+    cmds = []
+    for cores in core_groups:
+        # group FPCore by key
+        cores_by_group = dict()
+        for core in cores:
+            if core.key in cores_by_group:
+                cores_by_group[core.key].append(core)
+            else:
+                cores_by_group[core.key] = [core]
+
+        # create frontiers
+        frontiers = []
+        for key in cores_by_group:
+            group = cores_by_group[key]
+            frontier = ' '.join(list(map(lambda c: f'({c.cost} {c.err})', group)))
+            frontiers.append(f'({frontier})')
+
+        # add command
+        frontier_strs = ' '.join(frontiers)
+        cmds.append(f'(pareto {frontier_strs})')
+
+    # call server
+    results = run_server(cmds)
+
+    # build output frontiers
+    frontiers = []
+    for result in results:
+        frontier = []
+        for line in result.strip().split('|'):
+            datum = line.split(' ')
+            if len(datum) != 2:
+                raise RuntimeError('Pareto frontier malformed:', datum)
+            cost, err = float(datum[0]), float(datum[1])
+            frontier.append((cost, err))
+        frontiers.append(frontier)
+
+    return frontiers
