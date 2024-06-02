@@ -155,9 +155,14 @@
     (when backup (apply fprintf backup fmt vs))
     (flush-output m-in))
 
-  (ffprintf "~a\n" (if (equal? (length prog) 2)
-                       (exprs+ctxs->sollya (car (first prog)) (second prog))
-                       (program->sollya prog)))
+  (with-handlers ([number? (lambda (e)
+                             (subprocess-kill process #t)
+                             (close-output-port m-in)
+                             (close-input-port m-out)
+                             (close-input-port m-err))])
+    (ffprintf "~a\n" (if (equal? (length prog) 2)
+                         (exprs+ctxs->sollya (car (first prog)) (second prog))
+                         (program->sollya prog))))
   
   (let loop ([i 0])
     (define step (read-bytes-avail! buffer m-out i))
