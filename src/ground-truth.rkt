@@ -4,12 +4,13 @@
 
 (require "correct-round.rkt")
 
-(provide rival-compile rival-apply rival-analyze
+(provide rival-compile rival-apply rival-analyze rival-profile
          (struct-out exn:rival)
          (struct-out exn:rival:invalid)
          (struct-out exn:rival:unsamplable)
-         rival-profile-iterations-taken
-         (struct-out discretization))
+         (struct-out discretization)
+         *rival-max-precision*
+         *rival-max-iterations*)
 
 (define ground-truth-require-convergence (make-parameter #t))
 
@@ -53,7 +54,10 @@
             ([iv (in-vector ivals 1)])
     (ival-or out (ival-error? iv))))
 
-(define rival-profile-iterations-taken 0)
+(define (rival-profile machine param)
+  (match param
+    ['iterations (rival-machine-iteration machine)]
+    ['bumps (rival-machine-bumps machine)]))
 
 (define (ival-real x)
   (ival x))
@@ -61,7 +65,6 @@
 (define (rival-apply machine pt)
   (define discs (rival-machine-discs machine))
   (let loop ([iter 0])
-    (set! rival-profile-iterations-taken iter)
     (define exs
       (parameterize ([*sampling-iteration* iter]
                      [ground-truth-require-convergence #t])
@@ -74,7 +77,7 @@
        (for/list ([ex (in-vector exs)] [disc (in-vector discs)])
          ; We are promised at this point that (distance (convert lo) (convert hi)) = 0 so use lo
          ([discretization-convert disc] (ival-lo ex)))]
-      [(>= iter (*max-sampling-iterations*))
+      [(>= iter (*rival-max-iterations*))
        (raise (exn:rival:unsamplable "Unsamplable input" (current-continuation-marks) pt))]
       [else
        (loop (+ 1 iter))])))

@@ -150,9 +150,15 @@
     (with-handlers
       ([exn:rival:invalid? (lambda (e) (values 'invalid #f))]
        [exn:rival:unsamplable? (lambda (e) (values 'exit #f))])
-      (values 'valid (rest (rival-apply machine pt*))))) ; rest = drop precondition
+      (parameterize ([*rival-max-precision* (*max-mpfr-prec*)]
+                     [*rival-max-iterations* 5])
+        (values 'valid (rest (rival-apply machine pt*)))))) ; rest = drop precondition
+  (when (> (rival-profile machine 'bumps) 0)
+    (warn 'ground-truth "Could not converge on a ground truth"
+          #:extra (for/list ([var (in-list (context-vars (car ctxs)))] [val (in-list pt)])
+                    (format "~a = ~a" var val))))
   (timeline-push!/unsafe 'outcomes (- (current-inexact-milliseconds) start)
-                         rival-profile-iterations-taken (~a status) 1)
+                         (rival-profile machine 'iterations) (~a status) 1)
   (values status value))
 
 ; ENSURE: all contexts have the same list of variables
