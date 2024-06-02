@@ -25,14 +25,13 @@ def plot_time(name: str, output_dir: Path, info: dict):
         for core_info in input_info['platform_cores']:
             cost = core_info['platform_core']['cost']
             time = core_info['time']
-
             costs.append(cost)
             times.append(time)
     
     plt.figure()
     plt.title("Estimated cost vs. actual run time")
     plt.xlabel("Estimated cost (Herbie)")
-    plt.ylabel(f"Run time (???)") # TODO
+    plt.ylabel(f"Run time ({info['time_unit']})")
     plt.scatter(costs, times)
 
     path = output_dir.joinpath(f'{name}-cost-vs-time.png')
