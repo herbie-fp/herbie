@@ -54,7 +54,12 @@ def plot_improve(name: str, output_dir: Path, info):
     plt.savefig(str(path))
     plt.close()
 
-def plot_compare(name: str, name2: str, output_dir: Path, info):
+# Colors
+platform_color = 'blue'
+supported_color = 'orange'
+desugared_color = 'green'
+
+def plot_compare1(name: str, name2: str, output_dir: Path, info):
     print(f'Plotting compare {name} <- {name2}')
     path = output_dir.joinpath(f'{name}-vs-{name2}-pareto.png')
 
@@ -66,10 +71,6 @@ def plot_compare(name: str, name2: str, output_dir: Path, info):
     num_platform = 0
     num_supported = 0
     num_desugared = 0
-
-    num_platform_impls = 0
-    num_supported_impls = 0
-    num_desugared_impls = 0
 
     for core_info in info['cores']:
         input_core = FPCore.from_json(core_info['input_core'])
@@ -83,13 +84,10 @@ def plot_compare(name: str, name2: str, output_dir: Path, info):
 
         if any_platform:
             num_platform += 1
-            num_platform_impls += len(platform)
         if any_supported:
             num_supported += 1
-            num_supported_impls += len(supported)
         if any_desugared:
             num_desugared += 1
-            num_desugared_impls += len(desugared)
 
         if any_platform and any_supported and any_desugared:
             input_cores.append(input_core)
@@ -97,6 +95,8 @@ def plot_compare(name: str, name2: str, output_dir: Path, info):
             supported_cores += supported
             desugared_cores += desugared
 
+    # TODO: herbie_pareto does not actually require runner
+    # refactor to not have to make a runner each time
     runner = make_runner(
         platform='c',
         working_dir=output_dir,
@@ -115,13 +115,8 @@ def plot_compare(name: str, name2: str, output_dir: Path, info):
     desugared_costs = list(map(lambda pt: pt[0], desugared_frontier))
     desugared_errs = list(map(lambda pt: pt[1], desugared_frontier))
 
-    # Colors
-    platform_color = 'blue'
-    supported_color = 'orange'
-    desugared_color = 'green'
-
-    fig, (ax1, ax2, ax3) = plt.subplots(ncols=3, gridspec_kw={'width_ratios': [3, 1, 1]})
-    plt.subplots_adjust(bottom=0.2, wspace=0.3)
+    fig, (ax1, ax2) = plt.subplots(ncols=2, gridspec_kw={'width_ratios': [9, 1]})
+    plt.subplots_adjust(wspace=0.15)
     fig.suptitle(f'Comparing {name} and {name2}')
 
     # Pareto frontiers
@@ -130,9 +125,10 @@ def plot_compare(name: str, name2: str, output_dir: Path, info):
     ax1.plot(platform_costs, platform_errs, label=f'{name} (Chassis)', color=platform_color)
     ax1.plot(supported_costs, supported_errs, label=f'{name2} (supported)', color=supported_color)
     ax1.plot(desugared_costs, desugared_errs, label=f'{name2} (desugared)', color=desugared_color)
+    ax1.legend()
 
     # Implementable FPCores
-    ax2.set_title('# Benchmarks', size='medium')
+    ax2.set_title('#B', size='medium')
     ax2.bar(0, num_platform, color=platform_color)
     ax2.bar(1, num_supported, color=supported_color)
     ax2.bar(2, num_desugared, color=desugared_color)
@@ -140,16 +136,96 @@ def plot_compare(name: str, name2: str, output_dir: Path, info):
     ax2.set_ylim(0, num_platform)
 
     # Number of implementations
-    ax3.set_title('# Implementations', size='medium')
-    ax3.bar(0, num_platform_impls, color=platform_color)
-    ax3.bar(1, num_supported_impls, color=supported_color)
-    ax3.bar(2, num_desugared_impls, color=desugared_color)
-    ax3.get_xaxis().set_visible(False)
+    # ax3.set_title('# Implementations', size='medium')
+    # ax3.bar(0, num_platform_impls, color=platform_color)
+    # ax3.bar(1, num_supported_impls, color=supported_color)
+    # ax3.bar(2, num_desugared_impls, color=desugared_color)
+    # ax3.get_xaxis().set_visible(False)
 
     # Legend
-    fig.legend(loc='lower right')
+    # fig.legend(loc='lower right')
     plt.savefig(str(path))
     plt.close()
+
+def plot_compare_all(output_dir: Path, entries):
+    print(f'Plotting all platform comparison')
+    path = output_dir.joinpath(f'comparison-pareto.png')
+
+    names = []
+    for name, _ , _ in entries:
+        if name not in names:
+            names.append(name)
+
+    # TODO: herbie_pareto does not actually require runner
+    # refactor to not have to make a runner each time
+    runner = make_runner(
+        platform='c',
+        working_dir=output_dir,
+        herbie_path=herbie_path
+    )
+
+    num_platforms = len(names)
+    fig, axs = plt.subplots(ncols=num_platforms, nrows=num_platforms, figsize=((10, 10)))
+
+    # fig.suptitle('Platform vs. platform comparison')
+    fig.supxlabel('Estimated cost (Herbie)')
+    fig.supylabel('Cumulative average error (bits)')
+
+    for name, name2, info in entries:
+        i = names.index(name)
+        j = names.index(name2)
+        ax = axs[i][j]
+
+        input_cores = []
+        platform_cores = []
+        supported_cores = []
+        desugared_cores = []
+        for core_info in info['cores']:
+            input_core = FPCore.from_json(core_info['input_core'])
+            platform = list(map(FPCore.from_json, core_info['platform_cores']))
+            supported = list(map(FPCore.from_json, core_info['supported_cores']))
+            desugared = list(map(FPCore.from_json, core_info['desugared_cores']))
+
+            any_platform = len(platform) > 0
+            any_supported = len(supported) > 0
+            any_desugared = len(desugared) > 0
+
+            if any_platform and any_supported and any_desugared:
+                input_cores.append(input_core)
+                platform_cores += platform
+                supported_cores += supported
+                desugared_cores += desugared
+
+        platform_frontier = runner.herbie_pareto(input_cores=input_cores, cores=platform_cores)
+        platform_costs = list(map(lambda pt: pt[0], platform_frontier))
+        platform_errs = list(map(lambda pt: pt[1], platform_frontier))
+
+        supported_frontier = runner.herbie_pareto(input_cores=input_cores, cores=supported_cores)
+        supported_costs = list(map(lambda pt: pt[0], supported_frontier))
+        supported_errs = list(map(lambda pt: pt[1], supported_frontier))
+
+        desugared_frontier = runner.herbie_pareto(input_cores=input_cores, cores=desugared_cores)
+        desugared_costs = list(map(lambda pt: pt[0], desugared_frontier))
+        desugared_errs = list(map(lambda pt: pt[1], desugared_frontier))
+
+        # Pareto frontiers
+        ax.plot(platform_costs, platform_errs, label=f'{name} (Chassis)', color=platform_color)
+        ax.plot(supported_costs, supported_errs, label=f'{name2} (supported)', color=supported_color)
+        ax.plot(desugared_costs, desugared_errs, label=f'{name2} (desugared)', color=desugared_color)
+
+    # for left side, label platforms
+    # for bottom, label platforms
+    # for diagonal, hide axes
+    for i, name in enumerate(names):
+        axs[i, 0].set(ylabel=name)
+        axs[len(names) - 1, i].set(xlabel=name)
+        axs[i, i].set_yticklabels([])
+        axs[i, i].set_xticklabels([])
+
+    plt.tight_layout()
+    plt.savefig(str(path))
+    plt.close()
+
 
 def main():
     parser = argparse.ArgumentParser(description='Herbie platforms eval')
@@ -170,14 +246,33 @@ def main():
         report = json.load(f)
 
     # Iterate over platform data
+    improve_reports = []
+    baseline_reports = []
+    compare_reports = []
     for name, platform_info in report.items():
         for field, field_info in platform_info.items():
             if field == 'improve':
-                plot_improve(name, output_dir, field_info)
-                plot_time(name, output_dir, field_info)
+                improve_reports.append((name, field_info))
             elif field == 'compare':
                 for name2, compare_info in field_info.items():
-                    plot_compare(name, name2, output_dir, compare_info)
+                    if name2 == 'baseline':
+                        baseline_reports.append((name, compare_info))
+                    else:
+                        compare_reports.append((name, name2, compare_info))
+
+    # Per-platform plot
+    # for name, info in improve_reports:
+    #     plot_improve(name, output_dir, info)
+    #     plot_time(name, output_dir, info)
+
+    # Baseline plot
+    # for name, info in baseline_reports:
+    #     plot_compare1(name, 'baseline', output_dir, info)
+
+    # Comparison plot
+    plot_compare_all(output_dir, compare_reports)
+    # for name, name2, info in compare_reports:
+    #     plot_compare1(name, name2, output_dir, info)
 
 
 if __name__ == "__main__":

@@ -32,9 +32,9 @@ default_start_seed = 1
 # Tuning and improvement
 platforms = [
     # Hardware
-    # 'arith',
+    'arith',
     'avx',
-    # 'numpy',
+    'numpy',
 
     # Language
     'c',
@@ -49,7 +49,7 @@ platforms = [
 
 # Evals
 evals = [
-    # 'baseline',
+    'baseline',
     'compare',
     'cost'
     # ablation
