@@ -7,55 +7,21 @@ import multiprocessing as mp
 import shutil
 import json
 
-from .cache import Cache, SampleType
+from .cache import Cache
 from .fpcore import FPCore, parse_core
-from .util import sample_repr, py_to_racket, racket_to_py, sanitize_name
+from .shim import shim_error, shim_sample, shim_read
+from .util import SampleType, sample_repr, sanitize_name
 
 def baseline() -> FPCore:
     return FPCore(core='(FPCore () :name "baseline" 0)', key='synth:baseline', name='baseline', argc=0, override=True)
-    
-def sample_to_pcontext(sample):
-    points, gts = sample
-    input_strs = []
-    for i, gt in enumerate(gts):
-        pt = []
-        for j, _ in enumerate(points):
-            pt.append(points[j][i])
-        pt_str = ' '.join(map(lambda v: py_to_racket(v), pt))
-        input_strs.append(f'(({pt_str}) {py_to_racket(gt)})')
-    input_str = ' '.join(input_strs)
-    return f'({input_str})'
 
-def error1(
-    sample: SampleType,
-    cores: List[FPCore],
-    herbie_path: str,
+def sample1(
+    core: FPCore,
+    num_inputs: int,
     platform: str,
-    seed: int
-) -> List[float]:
-    with Popen(
-            args=[
-                'racket', str(herbie_path),
-                '--platform', platform,
-                '--seed', str(seed)
-            ],
-            stdin=PIPE,
-            stdout=PIPE,
-            universal_newlines=True) as server:
-        
-        pcontext = sample_to_pcontext(sample)
-        core_strs = ' '.join(map(lambda c: str(c.core), cores))
-        print(f'(error {pcontext} {core_strs}) (exit)', file=server.stdin, flush=True)
-        output = server.stdout.read()
-
-    errs = []
-    for val in output.strip().split(' '):
-        errs.append(float(val))
-    return errs
-
-
-def sample1(config: Tuple[FPCore, int, str, str]) -> Tuple[List[List[float]], List[float]]:
-    core, num_inputs, herbie_path, platform, seed, py_sample = config
+    seed: int,
+    py_sample: bool
+) -> SampleType:
     if core.argc == 0:
         return ([], [])
     elif core.py_sample or py_sample:
@@ -65,36 +31,7 @@ def sample1(config: Tuple[FPCore, int, str, str]) -> Tuple[List[List[float]], Li
         return (inputs, gts)
     else:
         # sample using Herbie
-        with Popen(
-                args=[
-                    'racket', str(herbie_path),
-                    '--platform', platform,
-                    '--seed', str(seed)
-                ],
-                stdin=PIPE,
-                stdout=PIPE,
-                universal_newlines=True) as server:
-            
-            print(f'(sample {num_inputs} {core.core})', file=server.stdin, flush=True)
-            output = server.stdout.readline().strip()
-
-            print('(exit)', file=server.stdin, flush=True)
-            _ = server.stdout.read()
-            if output == '#f':
-                return None
-
-            gts = []
-            points = [[] for _ in range(core.argc)]
-            for input in output.split('|'):
-                parts = input.split(',')
-                if len(parts) != 2:
-                    raise RuntimeError(f'malformed point {input}')
-                
-                for i, val in enumerate(parts[0].split(' ')):
-                    points[i].append(racket_to_py(val.strip()))
-                gts.append(racket_to_py(parts[1].strip()))
-
-            return (points, gts)
+        return shim_sample(core, num_inputs, platform, seed)
 
 def synthesize1(op: str, argc: int) -> FPCore:
     """Creates a single FPCore for an operation with an arity."""
@@ -269,33 +206,9 @@ class Runner(object):
             raise RuntimeError(f'Path does not exist {path}')
         
         if path.is_file():
-            with Popen(
-                args=[
-                    'racket', str(self.herbie_path),
-                    '--platform', self.name,
-                    '--seed', str(self.seed)
-                ],
-                stdin=PIPE,
-                stdout=PIPE,
-                universal_newlines=True) as server:
-
-                # call out to server
-                print(f'(read \"{path}\") (exit)', file=server.stdin, flush=True)
-                output = server.stdout.read()
-        
-            cores = []
-            for line in output.strip().split('\n'):
-                if len(line) > 0:
-                    parts = line.strip().split('|')
-                    if len(parts) != 2:
-                        raise ValueError(f'Unexpected result: {line}')
-                    id = parts[0]
-                    core_str = parts[1]
-
-                    core = parse_core(core_str.strip())
-                    core.key = sanitize_name(f'file:{str(path)}:{id}')
-                    self.cache.put_core(core)
-                    cores.append(core)
+            cores = shim_read(path, self.name)
+            for core in cores:
+                self.cache.put_core(core)
             return cores
         else:
             cores = []
@@ -419,15 +332,15 @@ class Runner(object):
             sample = self.cache.get_sample(key, self.seed)
             if sample is None:
                 raise ValueError(f'Cannot find cached sample for {core.key}')
-            configs.append((sample, by_key[key], self.herbie_path, self.name, self.seed))
+            configs.append((sample, by_key[key], self.name, self.seed))
 
         if self.threads > 1:
             with mp.Pool(processes=self.threads) as pool:
-                errss = pool.starmap(error1, configs)
+                errss = pool.starmap(shim_error, configs)
         else:
             errss = []
             for config in configs:
-                errss.append(error1(*config))
+                errss.append(shim_error(*config))
 
         for key, errs in zip(by_key, errss):
             for core, err in zip(by_key[key], errs):
@@ -552,11 +465,15 @@ class Runner(object):
         configs = []
         for sample, core in zip(samples, cores):
             if sample is None:
-                configs.append((core, self.num_inputs, self.herbie_path, self.name, self.seed, py_sample))
+                configs.append((core, self.num_inputs, self.name, self.seed, py_sample))
 
-        with mp.Pool(processes=self.threads) as pool:
-            gen_samples = pool.map(sample1, configs)
-        self.log(f'sampled {len(gen_samples)} cores ({num_cached} cached)')
+        if self.threads > 1:
+            with mp.Pool(processes=self.threads) as pool:
+                gen_samples = pool.starmap(sample1, configs)
+        else:
+            gen_samples = []
+            for config in configs:
+                gen_samples.append(sample1(*config))
     
         # update `samples`
         for i, (core, sample) in enumerate(zip(cores, samples)):
@@ -568,6 +485,7 @@ class Runner(object):
                 else:
                     self.log(f'could not sample {core.name}')
 
+        self.log(f'sampled {len(gen_samples)} cores ({num_cached} cached)')
         return samples
 
     def make_driver_dirs(self, cores: List[FPCore]) -> List[str]:

@@ -199,6 +199,7 @@
            [(list path) path]
            [_ (error 'run-server "read: malformed arguments ~a" args)]))
       ; reimplementation of `load-file`
+      (eprintf "hi\n")
       (call-with-input-file path
         (λ (port)
           (port-count-lines! port)
@@ -207,7 +208,8 @@
             (with-handlers ([exn:fail? (const (void))])
               (define t (parse-test stx))
               (define t* (struct-copy test t [output #f])) ; strip any `:alt` annotation
-              (printf "~a|~a\n" i (string-replace (render-fpcore t*) "\n" ""))))))
+              (printf "~a]~a|" i (string-replace (render-fpcore t*) "\n" ""))))))
+       (newline)
        (loop)]
       ; sample <num_points:int> <core:expr>
       [(list 'sample args ...)

@@ -261,18 +261,19 @@ def main():
                         compare_reports.append((name, name2, compare_info))
 
     # Per-platform plot
-    # for name, info in improve_reports:
-    #     plot_improve(name, output_dir, info)
-    #     plot_time(name, output_dir, info)
+    for name, info in improve_reports:
+        plot_improve(name, output_dir, info)
+        plot_time(name, output_dir, info)
 
     # Baseline plot
-    # for name, info in baseline_reports:
-    #     plot_compare1(name, 'baseline', output_dir, info)
+    for name, info in baseline_reports:
+        plot_compare1(name, 'baseline', output_dir, info)
 
     # Comparison plot
-    plot_compare_all(output_dir, compare_reports)
-    # for name, name2, info in compare_reports:
-    #     plot_compare1(name, name2, output_dir, info)
+    if compare_reports:
+        plot_compare_all(output_dir, compare_reports)
+        for name, name2, info in compare_reports:
+            plot_compare1(name, name2, output_dir, info)
 
 
 if __name__ == "__main__":

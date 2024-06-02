@@ -1,6 +1,8 @@
 import math, random
 import ctypes
 
+from typing import List
+
 def bv64_to_double(i: int):
     if i < 0 or i >= 2 ** 64:
         raise ValueError('out of bounds', i)
@@ -48,3 +50,17 @@ def py_to_racket(v: float):
 
 def sanitize_name(name: str):
     return name.replace('*', '_times_').replace('+', '_plus_').replace('/', '_:_')
+
+SampleType = List[List[float]]
+
+def sample_to_pcontext(sample: SampleType):
+    points, gts = sample
+    input_strs = []
+    for i, gt in enumerate(gts):
+        pt = []
+        for j, _ in enumerate(points):
+            pt.append(points[j][i])
+        pt_str = ' '.join(map(lambda v: py_to_racket(v), pt))
+        input_strs.append(f'(({pt_str}) {py_to_racket(gt)})')
+    input_str = ' '.join(input_strs)
+    return f'({input_str})'

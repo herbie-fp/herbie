@@ -1,13 +1,10 @@
 from typing import List, Dict, Optional, Tuple
 from pathlib import Path
-import tempfile
 import pickle
 import os
 
 from .fpcore import FPCore, parse_core
-
-SampleType = List[List[float]]
-CacheType = Dict[str, Tuple[FPCore, SampleType]]
+from .util import SampleType
 
 class Cache(object):
     path: Path
