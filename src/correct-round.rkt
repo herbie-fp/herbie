@@ -3,60 +3,93 @@
 (require math/bigfloat (only-in math/flonum flonums-between) rival)
 (require (only-in math/private/bigfloat/mpfr mpfr-exp mpfr-sign))
 ;; Faster than bigfloat-exponent and avoids an expensive offset & contract check.
-(require (only-in "common.rkt" *max-mpfr-prec*)
-         (only-in "timeline.rkt" timeline-push! timeline-start!/unsafe)
-         (only-in "errors.rkt" warn))
 
-(provide compile-spec compile-specs *sampling-iteration* *max-sampling-iterations*
-         (struct-out discretization))
+(provide rival-machine-load rival-machine-run rival-machine-return rival-machine-adjust
+         compile-specs (struct-out discretization) (struct-out rival-machine)
+         *sampling-iteration* *rival-max-precision* *rival-max-iterations*
+         *rival-profile-executions*)
+
+(define *rival-max-precision* (make-parameter 10000))
+(define *rival-max-iterations* (make-parameter 5))
+(define *rival-profile-executions* (make-parameter 1000))
 
 (define *ampl-tuning-bits* (make-parameter 5))
 (define *sampling-iteration* (make-parameter 0))
 (define *base-tuning-precision* (make-parameter 73))
-(define *max-sampling-iterations* (make-parameter 5))
 
 (struct discretization (convert distance))
 
-(define (make-progs-interpreter vars ivec rootvec discs)
-  (define rootlen (vector-length rootvec))
-  (define iveclen (vector-length ivec))
-  (define varc (length vars))
-  (define vreg-count (+ varc iveclen))
-  (define vregs (make-vector vreg-count))
-  (define vrepeats (make-vector iveclen #f))           ; flags whether an op should be evaluated
-  (define vprecs (make-vector iveclen))                ; vector that stores working precisions
-  (define vstart-precs (setup-vstart-precs ivec varc)) ; starting precisions for the tuning mode
+(struct rival-machine
+  (arguments instructions outputs discs
+   registers repeats precisions initial-precisions
+   [iteration #:mutable] [bumps #:mutable]
+   [profile-ptr #:mutable]
+   profile-instruction profile-number profile-time profile-precision))
 
-  (define prec-threshold (exact-floor (/ (*max-mpfr-prec*) 25)))     ; parameter for sampling histogram table
+(define (rival-machine-load machine args)
+  (vector-copy! (rival-machine-registers machine) 0 args)
+  #;(set-rival-machine-iteration! machine 0))
 
-  (define (compiled-spec . args)
-    (define timeline-stop!
-      (timeline-start!/unsafe
-       'mixsample "backward-pass" (* (*sampling-iteration*) 1000)))
-    (define first-iter? (zero? (*sampling-iteration*)))
-    (unless first-iter?
-      (backward-pass ivec varc vregs vprecs vstart-precs rootvec rootlen vrepeats discs))
-    (timeline-stop!)
-        
-    (for ([arg (in-list args)] [n (in-naturals)])
-      (vector-set! vregs n arg))
-    (for ([instr (in-vector ivec)]
-          [n (in-naturals varc)]
-          [precision (in-vector (if first-iter? vstart-precs vprecs))]
-          [repeat (in-vector vrepeats)]
-          #:unless (and (not first-iter?) repeat))
-      (define timeline-stop!
-        (timeline-start!/unsafe
-         'mixsample (symbol->string (object-name (car instr)))
-         (- precision (remainder precision prec-threshold))))
-      (parameterize ([bf-precision precision])
-        (vector-set! vregs n (apply-instruction instr vregs)))
-      (timeline-stop!))
-    
-    (for/vector #:length rootlen ([root (in-vector rootvec)])
-      (vector-ref vregs root)))
-  
-  compiled-spec)
+(define (rival-machine-record machine name number precision time)
+  (define profile-ptr (rival-machine-profile-ptr machine))
+  (define profile-instruction (rival-machine-profile-instruction machine))
+  (when (< profile-ptr (vector-length profile-instruction))
+    (define profile-number (rival-machine-profile-number machine))
+    (define profile-time (rival-machine-profile-time machine))
+    (define profile-precision (rival-machine-profile-precision machine))
+    (vector-set! profile-instruction profile-ptr name)
+    (vector-set! profile-number profile-ptr number)
+    (vector-set! profile-precision profile-ptr precision)
+    (vector-set! profile-time profile-ptr time)
+    (set-rival-machine-profile-ptr! machine (add1 profile-ptr))))
+
+(define (rival-machine-run machine)
+  (define ivec (rival-machine-instructions machine))
+  (define varc (vector-length (rival-machine-arguments machine)))
+  (define precisions
+    (if (zero? (rival-machine-iteration machine))
+        (rival-machine-initial-precisions machine)
+        (rival-machine-precisions machine)))
+  (define repeats (rival-machine-repeats machine))
+  (define vregs (rival-machine-registers machine))
+
+  ; parameter for sampling histogram table
+  (define first-iter? (zero? (rival-machine-iteration machine)))
+
+  (for ([instr (in-vector ivec)]
+        [n (in-naturals varc)]
+        [precision (in-vector precisions)]
+        [repeat (in-vector repeats)]
+        #:unless (and (not first-iter?) repeat))
+    (define start (current-inexact-milliseconds))
+    (parameterize ([bf-precision precision])
+      (vector-set! vregs n (apply-instruction instr vregs)))
+    (define name (object-name (car instr)))
+    (define time (- (current-inexact-milliseconds) start))
+    (rival-machine-record machine name n precision time)))
+
+(define (rival-machine-return machine)
+  (define discs (rival-machine-discs machine))
+  (define vregs (rival-machine-registers machine))
+  (define rootvec (rival-machine-outputs machine))
+  #;(set-rival-machine-iteration! machine (add1 (rival-machine-iteration machine)))
+  (for/vector #:length (vector-length rootvec)
+              ([root (in-vector rootvec)] [disc (in-vector discs)])
+    (vector-ref vregs root)))
+
+(define (rival-machine-adjust machine)
+  (define iter (rival-machine-iteration machine))
+  (unless (zero? iter)
+    (define start (current-inexact-milliseconds))
+    (backward-pass machine)
+    (rival-machine-record machine 'adjust 0 (* iter 1000) (- (current-inexact-milliseconds) start))))
+
+(define (rival-machine-full machine args)
+  (set-rival-machine-iteration! machine (*sampling-iteration*))
+  (rival-machine-adjust machine)
+  (rival-machine-load machine args)
+  (rival-machine-run machine)
+  (rival-machine-return machine))
 
 (define (apply-instruction instr regs)
   ;; By special-casing the 0-3 instruction case,
@@ -85,13 +118,11 @@
      (for/list ([var vars] [i (in-naturals)])
        (cons var i))))
   ; Counts
-  (define size 0)
   (define exprc 0)
   (define varc (length vars))
 
   ; Translates programs into an instruction sequence of operations
   (define (munge prog)
-    (set! size (+ 1 size))
     (define node ; This compiles to the register machine
       (match prog
         [(list op args ...)
@@ -107,7 +138,6 @@
   (define roots (list->vector (map munge exprs)))
   (define nodes (list->vector (reverse icache)))
 
-  (timeline-push! 'compiler (+ varc size) (+ exprc varc))
   (values nodes roots))
 
 (define (ival-infinity)
@@ -122,7 +152,7 @@
 (define (ival-false)
   (ival-bool false))
 
-(define (make-compiler exprs vars discs)
+(define (compile-specs exprs vars discs)
   (define num-vars (length vars))
   (define-values (nodes roots)
     (progs->batch exprs vars))
@@ -214,7 +244,21 @@
         [(list op args ...)
          (error 'compile-specs "Unknown operator ~a" op)])))
 
-  (make-progs-interpreter vars instructions roots discs))
+  (define register-count (+ (length vars) (vector-length instructions)))
+  (define registers (make-vector register-count))
+  (define repeats (make-vector register-count #f)) ; flags whether an op should be evaluated
+  (define precisions (make-vector register-count)) ; vector that stores working precisions
+  ;; starting precisions for the first, un-tuned iteration
+  (define initial-precisions (setup-vstart-precs instructions (length vars)))
+
+  (rival-machine
+   (list->vector vars) instructions roots (list->vector discs)
+   registers repeats precisions initial-precisions
+   0 0 0
+   (make-vector (*rival-profile-executions*))
+   (make-vector (*rival-profile-executions*))
+   (make-vector (*rival-profile-executions*))
+   (make-vector (*rival-profile-executions*))))
 
 (define (real->ival val)
   (define lo (parameterize ([bf-rounding-mode 'down]) (bf val)))
@@ -224,21 +268,25 @@
 (define (point-ival? x)
   (bf= (ival-lo x) (ival-hi x)))
 
-(define (compile-specs specs vars discs)
-  (make-compiler specs vars discs))
+(define (backward-pass machine)
+  ; Since Step 2 writes into *sampling-iteration* if the max prec was reached - save the iter number for step 3
+  (define args (rival-machine-arguments machine))
+  (define ivec (rival-machine-instructions machine))
+  (define rootvec (rival-machine-outputs machine))
+  (define discs (rival-machine-discs machine))
+  (define vregs (rival-machine-registers machine))
+  (define vrepeats (rival-machine-repeats machine))
+  (define vprecs (rival-machine-precisions machine))
+  (define vstart-precs (rival-machine-initial-precisions machine))
+  (define current-iter (rival-machine-iteration machine))
+  (define bumps (rival-machine-bumps machine))
 
-;; Like `compile-specs`, but for a single spec.
-(define (compile-spec spec vars disc)
-  (define core (compile-specs (list spec) vars disc))
-  (define (compiled-spec . xs) (vector-ref (apply core xs) 0))
-  compiled-spec)
-
-(define (backward-pass ivec varc vregs vprecs vstart-precs rootvec rootlen vrepeats discs)
+  (define varc (vector-length args))
+  (define rootlen (vector-length rootvec))
   (define vprecs-new (make-vector (vector-length ivec) 0))          ; new vprecs vector
   ; Step 1. Adding slack in case of a rounding boundary issue
   (for/vector #:length rootlen
-              ([root-reg (in-vector rootvec)]
-               [disc (in-list discs)]
+              ([root-reg (in-vector rootvec)] [disc (in-vector discs)]
                #:when (>= root-reg varc))          ; when root is not a variable
     (when (bigfloat? (ival-lo (vector-ref vregs root-reg)))         ; when root is a real op
       (define result (vector-ref vregs root-reg))
@@ -248,13 +296,10 @@
                 ((discretization-convert disc) (ival-lo result))
                 ((discretization-convert disc) (ival-hi result))))
         (vector-set! vprecs-new (- root-reg varc) (get-slack)))))
-  
-  ; Since Step 2 writes into *sampling-iteration* if the max prec was reached - save the iter number for step 3
-  (define current-iter (*sampling-iteration*))
-  
+
   ; Step 2. Exponents calculation
   (exponents-propogation ivec vregs vprecs-new varc vstart-precs)
-  
+
   ; Step 3. Repeating precisions check
   ; vrepeats[i] = #t if the node has the same precision as an iteration before and children have #t flag as well
   ; vrepeats[i] = #f if the node doesn't have the same precision as an iteration before or at least one child has #f flag
@@ -265,26 +310,23 @@
     (vector-set! vrepeats n (and (<= prec-new prec-old)
                                  (andmap (lambda (x) (or (< x varc) (vector-ref vrepeats (- x varc))))
                                          (rest instr)))))
-  
+
   ; Step 4. Copying new precisions into vprecs
   (vector-copy! vprecs 0 vprecs-new)
-  
+
   ; Step 5. If precisions have not changed but the point didn't converge. A problem exists - add slack to every op
   (when (false? (vector-member #f vrepeats))
-    (warn 'ground-truth "Could not converge on a ground truth"
-              #:extra (for/list ([var (in-vector vregs 0 varc)]
-                                 [n (in-naturals)])
-                        (format "reg~a = ~a" n (ival-lo var))))
+    (set-rival-machine-bumps! (add1 bumps))
     (define slack (get-slack))
     (for ([prec (in-vector vprecs)]
           [n (in-range (vector-length vprecs))])
-      (define prec* (min (*max-mpfr-prec*) (+ prec slack)))
-      (when (equal? prec* (*max-mpfr-prec*)) (*sampling-iteration* (*max-sampling-iterations*)))
+      (define prec* (min (*rival-max-precision*) (+ prec slack)))
+      (when (equal? prec* (*rival-max-precision*)) (*sampling-iteration* (*rival-max-iterations*)))
       (vector-set! vprecs n prec*))))
 
 ; This function goes through ivec and vregs and calculates (+ exponents base-precisions) for each operator in ivec
 ; Roughly speaking:
-;   vprecs-new[i] = min( *max-mpfr-prec* max( *base-tuning-precision* (+ exponents-from-above vstart-precs[i])),
+;   vprecs-new[i] = min( *rival-max-precision* max( *base-tuning-precision* (+ exponents-from-above vstart-precs[i])),
 ;   exponents-from-above = get-exponent(parent)
 (define (exponents-propogation ivec vregs vprecs-new varc vstart-precs)
   (for ([instr (in-vector ivec (- (vector-length ivec) 1) -1 -1)]   ; reversed over ivec
@@ -306,9 +348,9 @@
     (when (equal? op ival-fma)
       (set! final-parent-precision (+ final-parent-precision (first new-exponents))))
     
-    (when (>= final-parent-precision (*max-mpfr-prec*))         ; Early stopping
-      (*sampling-iteration* (*max-sampling-iterations*)))
-    (vector-set! vprecs-new (- n varc) (min final-parent-precision (*max-mpfr-prec*)))
+    (when (>= final-parent-precision (*rival-max-precision*))         ; Early stopping
+      (*sampling-iteration* (*rival-max-iterations*)))
+    (vector-set! vprecs-new (- n varc) (min final-parent-precision (*rival-max-precision*)))
 
     (for ([x (in-list tail-registers)]
           [new-exp (in-list new-exponents)]
