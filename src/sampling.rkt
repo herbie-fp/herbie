@@ -132,6 +132,11 @@
    (representation-bf->repr repr)
    (lambda (x y) (- (ulp-difference x y repr) 1))))
 
+(define (expr-size expr)
+  (if (list? expr)
+      (apply + 1 (map expr-size (cdr expr)))
+      1))
+
 ;; Returns a function that maps an ival to a list of ivals
 ;; The first element of that function's output tells you if the input is good
 ;; The other elements of that function's output tell you the output values
@@ -139,7 +144,11 @@
   (define vars (context-vars (car ctxs)))
   (define var-reprs (context-var-reprs (car ctxs)))
   (define discs (map (compose representation->discretization context-repr) ctxs))
-  (rival-compile (cons `(assert ,pre) specs) vars (cons bool-discretization discs)))
+  (define machine (rival-compile (cons `(assert ,pre) specs) vars (cons bool-discretization discs)))
+  (timeline-push! 'compiler
+                  (apply + 1 (expr-size pre) (map expr-size specs))
+                  (+ (length vars) (rival-profile machine 'instructions)))
+  machine)
 
 (define (ival-eval machine ctxs pt [iter 0])
   (define start (current-inexact-milliseconds))

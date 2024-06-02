@@ -3,7 +3,6 @@
 (require math/bigfloat (only-in math/flonum flonums-between) rival)
 (require (only-in math/private/bigfloat/mpfr mpfr-exp mpfr-sign))
 ;; Faster than bigfloat-exponent and avoids an expensive offset & contract check.
-(require (only-in "timeline.rkt" timeline-push! timeline-start!/unsafe))
 
 (provide rival-machine-load rival-machine-run rival-machine-return rival-machine-adjust
          compile-specs (struct-out discretization) (struct-out rival-machine)
@@ -81,10 +80,9 @@
 (define (rival-machine-adjust machine)
   (define iter (rival-machine-iteration machine))
   (unless (zero? iter)
-    (define timeline-stop!
-      (timeline-start!/unsafe 'mixsample "backward-pass" (* iter 1000)))
+    (define start (current-inexact-milliseconds))
     (backward-pass machine)
-    (timeline-stop!)))
+    (rival-machine-record machine 'adjust 0 (* iter 1000) (- (current-inexact-milliseconds) start))))
 
 (define (rival-machine-full machine args)
   (set-rival-machine-iteration! machine (*sampling-iteration*))
@@ -120,13 +118,11 @@
      (for/list ([var vars] [i (in-naturals)])
        (cons var i))))
   ; Counts
-  (define size 0)
   (define exprc 0)
   (define varc (length vars))
 
   ; Translates programs into an instruction sequence of operations
   (define (munge prog)
-    (set! size (+ 1 size))
     (define node ; This compiles to the register machine
       (match prog
         [(list op args ...)
@@ -142,7 +138,6 @@
   (define roots (list->vector (map munge exprs)))
   (define nodes (list->vector (reverse icache)))
 
-  (timeline-push! 'compiler (+ varc size) (+ exprc varc))
   (values nodes roots))
 
 (define (ival-infinity)
