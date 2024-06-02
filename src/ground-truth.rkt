@@ -4,13 +4,13 @@
 
 (require "correct-round.rkt")
 
-(provide rival-compile rival-apply rival-analyze rival-profile
+(provide rival-compile rival-apply rival-analyze
          (struct-out exn:rival)
          (struct-out exn:rival:invalid)
          (struct-out exn:rival:unsamplable)
          (struct-out discretization)
-         *rival-max-precision*
-         *rival-max-iterations*)
+         *rival-max-precision* *rival-max-iterations*
+         rival-profile (struct-out execution) *rival-profile-executions*)
 
 (define ground-truth-require-convergence (make-parameter #t))
 
@@ -54,10 +54,26 @@
             ([iv (in-vector ivals 1)])
     (ival-or out (ival-error? iv))))
 
+(struct execution (name number precision time) #:prefab)
+
 (define (rival-profile machine param)
   (match param
     ['iterations (rival-machine-iteration machine)]
-    ['bumps (rival-machine-bumps machine)]))
+    ['bumps (rival-machine-bumps machine)]
+    ['executions
+     (define profile-ptr (rival-machine-profile-ptr machine))
+     (define profile-instruction (rival-machine-profile-instruction machine))
+     (define profile-number (rival-machine-profile-number machine))
+     (define profile-time (rival-machine-profile-time machine))
+     (define profile-precision (rival-machine-profile-precision machine))
+     (begin0
+         (for/vector #:length profile-ptr
+                     ([instruction (in-vector profile-instruction 0 profile-ptr)]
+                      [number (in-vector profile-number 0 profile-ptr)]
+                      [precision (in-vector profile-precision 0 profile-ptr)]
+                      [time (in-vector profile-time 0 profile-ptr)])
+           (execution instruction number precision time))
+       (set-rival-machine-profile-ptr! machine 0))]))
 
 (define (ival-real x)
   (ival x))

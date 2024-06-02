@@ -7,10 +7,12 @@
 
 (provide rival-machine-load rival-machine-run rival-machine-return rival-machine-adjust
          compile-specs (struct-out discretization) (struct-out rival-machine)
-         *sampling-iteration* *rival-max-precision* *rival-max-iterations*)
+         *sampling-iteration* *rival-max-precision* *rival-max-iterations*
+         *rival-profile-executions*)
 
 (define *rival-max-precision* (make-parameter 10000))
 (define *rival-max-iterations* (make-parameter 5))
+(define *rival-profile-executions* (make-parameter 1000))
 
 (define *ampl-tuning-bits* (make-parameter 5))
 (define *sampling-iteration* (make-parameter 0))
@@ -21,11 +23,26 @@
 (struct rival-machine
   (arguments instructions outputs discs
    registers repeats precisions initial-precisions
-   [iteration #:mutable] [bumps #:mutable]))
+   [iteration #:mutable] [bumps #:mutable]
+   [profile-ptr #:mutable]
+   profile-instruction profile-number profile-time profile-precision))
 
 (define (rival-machine-load machine args)
   (vector-copy! (rival-machine-registers machine) 0 args)
   #;(set-rival-machine-iteration! machine 0))
+
+(define (rival-machine-record machine name number precision time)
+  (define profile-ptr (rival-machine-profile-ptr machine))
+  (define profile-instruction (rival-machine-profile-instruction machine))
+  (when (< profile-ptr (vector-length profile-instruction))
+    (define profile-number (rival-machine-profile-number machine))
+    (define profile-time (rival-machine-profile-time machine))
+    (define profile-precision (rival-machine-profile-precision machine))
+    (vector-set! profile-instruction profile-ptr name)
+    (vector-set! profile-number profile-ptr number)
+    (vector-set! profile-precision profile-ptr precision)
+    (vector-set! profile-time profile-ptr time)
+    (set-rival-machine-profile-ptr! machine (add1 profile-ptr))))
 
 (define (rival-machine-run machine)
   (define ivec (rival-machine-instructions machine))
@@ -38,7 +55,6 @@
   (define vregs (rival-machine-registers machine))
 
   ; parameter for sampling histogram table
-  (define prec-threshold (exact-floor (/ (*rival-max-precision*) 25)))
   (define first-iter? (zero? (rival-machine-iteration machine)))
 
   (for ([instr (in-vector ivec)]
@@ -46,13 +62,12 @@
         [precision (in-vector precisions)]
         [repeat (in-vector repeats)]
         #:unless (and (not first-iter?) repeat))
-    (define timeline-stop!
-      (timeline-start!/unsafe
-       'mixsample (symbol->string (object-name (car instr)))
-       (- precision (remainder precision prec-threshold))))
+    (define start (current-inexact-milliseconds))
     (parameterize ([bf-precision precision])
       (vector-set! vregs n (apply-instruction instr vregs)))
-    (timeline-stop!)))
+    (define name (object-name (car instr)))
+    (define time (- (current-inexact-milliseconds) start))
+    (rival-machine-record machine name n precision time)))
 
 (define (rival-machine-return machine)
   (define discs (rival-machine-discs machine))
@@ -244,7 +259,11 @@
   (rival-machine
    (list->vector vars) instructions roots (list->vector discs)
    registers repeats precisions initial-precisions
-   0 0))
+   0 0 0
+   (make-vector (*rival-profile-executions*))
+   (make-vector (*rival-profile-executions*))
+   (make-vector (*rival-profile-executions*))
+   (make-vector (*rival-profile-executions*))))
 
 (define (real->ival val)
   (define lo (parameterize ([bf-rounding-mode 'down]) (bf val)))
@@ -256,9 +275,16 @@
 
 (define (backward-pass machine)
   ; Since Step 2 writes into *sampling-iteration* if the max prec was reached - save the iter number for step 3
-  (match-define
-    (rival-machine args ivec rootvec discs vregs vrepeats vprecs vstart-precs current-iter bumps)
-    machine)
+  (define args (rival-machine-arguments machine))
+  (define ivec (rival-machine-instructions machine))
+  (define rootvec (rival-machine-outputs machine))
+  (define discs (rival-machine-discs machine))
+  (define vregs (rival-machine-registers machine))
+  (define vrepeats (rival-machine-repeats machine))
+  (define vprecs (rival-machine-precisions machine))
+  (define vstart-precs (rival-machine-initial-precisions machine))
+  (define current-iter (rival-machine-iteration machine))
+  (define bumps (rival-machine-bumps machine))
 
   (define varc (vector-length args))
   (define rootlen (vector-length rootvec))
