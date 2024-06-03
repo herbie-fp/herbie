@@ -174,7 +174,7 @@
     (define name (symbol->string (execution-name execution)))
     (define precision (- (execution-precision execution)
                          (remainder (execution-precision execution) prec-threshold)))
-    (timeline-push! 'mixsample (execution-time execution) name precision))
+    (timeline-push!/unsafe 'mixsample (execution-time execution) name precision))
   (timeline-push!/unsafe 'outcomes (- (current-inexact-milliseconds) start)
                          (rival-profile machine 'iterations) (~a status) 1)
   (values status value))
