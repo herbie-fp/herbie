@@ -118,12 +118,14 @@
                        #t
                        #f))
        (set! sollya-point sollya-point*)
+       (set! sollya-point-status sollya-point-status*)
        (set! external-point-time external-point-time*))
-             
-     (timeline-push!/unsafe 'outcomes external-point-time
-                            rival-final-iter (format "~a-sollya" sollya-point-status) 1)
-     (timeline-push!/unsafe 'outcomes rival-time
-                            rival-final-iter (format "~a-rival" rival-status) 1)
+
+     (when (equal? sollya-point-status rival-status)
+       (timeline-push!/unsafe 'outcomes external-point-time
+                              rival-final-iter (format "~a-sollya" sollya-point-status) 1)
+       (timeline-push!/unsafe 'outcomes rival-time
+                              rival-final-iter (format "~a-rival" rival-status) 1))
      
      (when match
        #;(timeline-push!/unsafe 'sollya-eval
@@ -140,11 +142,11 @@
                          (list sollya-lower sollya-upper) sollya-interval-status) (fn-sollya pt #t))
 
      ; Point evaluation
-     (match-define (list internal-point-time external-point-time sollya-point sollya-point-status) (fn-sollya pt #f))
+     #;(match-define (list internal-point-time external-point-time sollya-point sollya-point-status) (fn-sollya pt #f))
 
-     (timeline-push!/unsafe 'outcomes external-point-time
+     #;(timeline-push!/unsafe 'outcomes external-point-time
                             rival-final-iter (format "~a-sollya" sollya-point-status) 1)
-     (timeline-push!/unsafe 'outcomes rival-time
+     #;(timeline-push!/unsafe 'outcomes rival-time
                             rival-final-iter (format "~a-rival" rival-status) 1)
          
      #;(define match (or (equal? sollya-point-status rival-status)
