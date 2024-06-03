@@ -16,10 +16,8 @@ script_path = os.path.abspath(__file__)
 script_dir, _ = os.path.split(script_path)
 herbie_path = os.path.join(script_dir, 'server.rkt')
 
-def plot_time(name: str, output_dir: Path, info: dict):
-    """Plots Herbie cost estimate vs actual run time"""
-    print(f'Plotting time {name}')
 
+def platform_cost_time(info):
     costs = []
     times = []
     for input_info in info['cores']:
@@ -29,13 +27,59 @@ def plot_time(name: str, output_dir: Path, info: dict):
             costs.append(cost)
             times.append(time)
     
+    return costs, times
+
+def plot_time(name: str, output_dir: Path, info: dict):
+    """Plots Herbie cost estimate vs actual run time"""
+    print(f'Plotting time {name}')
+
+    costs, times = platform_cost_time(info)
+    
     plt.figure()
     plt.title("Estimated cost vs. actual run time")
-    plt.xlabel("Estimated cost (Herbie)")
+    plt.xlabel("Estimated cost")
     plt.ylabel(f"Run time ({info['time_unit']})")
     plt.scatter(costs, times)
 
     path = output_dir.joinpath(f'{name}-cost-vs-time.png')
+    plt.savefig(str(path))
+    plt.close()
+
+def plot_time_all(output_dir: Path, entries):
+    print(f'Plotting time for all platforms')
+    path = output_dir.joinpath(f'cost-vs-time.png')
+    size = 8
+
+    names = []
+    for name, _ in entries:
+        names.append(name)
+
+    names = sorted(names)
+    num_platforms = len(names)
+    nrows = -(num_platforms // -3) # ceil_div(num_platforms, 3)
+    fig, axs = plt.subplots(ncols=3, nrows=nrows, figsize=((size, size)))
+
+    time_unit = None
+    for _, info in entries:
+        if time_unit is None:
+            time_unit = info['time_unit']
+        elif time_unit != info['time_unit']:
+            raise RuntimeError('Time units do not match')
+
+    fig.supxlabel("Estimated cost")
+    fig.supylabel(f"Run time ({time_unit})")
+
+    for i, (name, info) in enumerate(entries):
+        costs, times = platform_cost_time(info)
+        ax = axs[i // 3, i % 3]
+        ax.scatter(costs, times)
+        ax.set_title(name)
+   
+    for i in range(len(names), 3 * nrows):
+        ax = axs[i // 3, i % 3]
+        fig.delaxes(ax)
+
+    plt.tight_layout()
     plt.savefig(str(path))
     plt.close()
 
@@ -48,7 +92,7 @@ def plot_improve(name: str, output_dir: Path, info):
     plt.figure()
     plt.plot(frontier_costs, frontier_errors, label=name)
     plt.title('Estimated cost vs. cumulative average error (bits)')
-    plt.xlabel('Estimated cost (Herbie)')
+    plt.xlabel('Estimated cost')
     plt.ylabel(f'Cumulative average error')
 
     path = output_dir.joinpath(f'{name}-pareto.png')
@@ -145,7 +189,7 @@ def plot_compare1(name: str, name2: str, output_dir: Path, info):
 
     # Pareto frontiers
     ax1.set_title('Est. cost vs. cumulative avg. error (bits)', size='medium')
-    ax1.set(xlabel='Estimated cost (Herbie)', ylabel='Cumulative average error')
+    ax1.set(xlabel='Estimated cost', ylabel='Cumulative average error')
     ax1.plot(platform_costs, platform_errs, label=f'{name} (Chassis)', color=platform_color)
     ax1.plot(supported_costs, supported_errs, label=f'{name2} (supported)', color=supported_color)
     ax1.plot(desugared_costs, desugared_errs, label=f'{name2} (desugared)', color=desugared_color)
@@ -181,10 +225,10 @@ def plot_baseline_all(output_dir: Path, entries):
     fig, axs = plt.subplots(ncols=3, nrows=nrows, figsize=((size, size)))
 
     if invert:
-        fig.supxlabel('Estimated speedup (Herbie)')
+        fig.supxlabel('Estimated speedup')
         fig.supylabel('Cumulative average accuracy (bits)')
     else:
-        fig.supxlabel('Cumulative estimated cost (Herbie)')
+        fig.supxlabel('Cumulative estimated cost')
         fig.supylabel('Cumulative average eror (bits)')
 
     for i, (name, info) in enumerate(entries):
@@ -244,10 +288,10 @@ def plot_compare_all(output_dir: Path, entries):
 
     # fig.suptitle('Platform vs. platform comparison')
     if invert:
-        fig.supxlabel('Estimated speedup (Herbie)')
+        fig.supxlabel('Estimated speedup')
         fig.supylabel('Cumulative average accuracy (bits)')
     else:
-        fig.supxlabel('Cumulative estimated cost (Herbie)')
+        fig.supxlabel('Cumulative estimated cost')
         fig.supylabel('Cumulative average eror (bits)')
 
     # collect input and platform cores
@@ -367,21 +411,23 @@ def main():
                         compare_reports.append((name, name2, compare_info))
 
     # Per-platform plot
-    for name, info in improve_reports:
-        plot_improve(name, output_dir, info)
-        plot_time(name, output_dir, info)
+    if improve_reports:
+        plot_time_all(output_dir, improve_reports)
+        for name, info in improve_reports:
+            plot_improve(name, output_dir, info)
+            plot_time(name, output_dir, info)
 
     # Baseline plot
-    if baseline_reports:
-        plot_baseline_all(output_dir, baseline_reports)
-        for name, info in baseline_reports:
-            plot_compare1(name, 'baseline', output_dir, info)
+    # if baseline_reports:
+    #     plot_baseline_all(output_dir, baseline_reports)
+    #     for name, info in baseline_reports:
+    #         plot_compare1(name, 'baseline', output_dir, info)
 
     # Comparison plot
-    if compare_reports:
-        plot_compare_all(output_dir, compare_reports)
-        for name, name2, info in compare_reports:
-            plot_compare1(name, name2, output_dir, info)
+    # if compare_reports:
+    #     plot_compare_all(output_dir, compare_reports)
+    #     for name, name2, info in compare_reports:
+    #         plot_compare1(name, name2, output_dir, info)
 
 
 if __name__ == "__main__":
