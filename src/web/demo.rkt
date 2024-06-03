@@ -223,11 +223,11 @@
   (define post-process (third job-info))
   (define job-id (fourth job-info))
   (define sema (fifth job-info))
-  (eprintf "Command: ~a\n" command)
   (match command
     ['sample 
-      (define formula (sixth job-info))
-      (define seed (seventh job-info))
+      (define command-info (sixth job-info))
+      (define formula (second command-info))
+      (define seed (third command-info))
       (define (job) (create-job 'sample job-id sema formula post-process
       #:seed seed #:profile? #f #:timeline-disabled? #t))
       (pre-check job)]
@@ -419,19 +419,15 @@
      (redirect-to (add-prefix (format "~a.~a/graph.html" hash *herbie-commit*)) see-other))
    (url main)))
 
-(define (run-sample job-id formula seed*)
-
-  (define (pre-check work)
-    ; no conditional checks to be done. 
-    (work))
-  (define (post-process result seed*)
-    ; no post processing to be done here.
-    empty)
+(define (run-sample pre-check post-process command)
+  (define job-id (sha1 (open-input-string (~s command))))
   (hash-set! *jobs* job-id (*timeline*))
   (define sema (make-semaphore))
-  (thread-send *worker-thread* (list 'sample pre-check post-process job-id
-  sema formula seed*))
-  sema)
+  (thread-send *worker-thread* 
+   (list 'sample pre-check post-process job-id sema command))
+  (semaphore-wait sema)
+  (define result (hash-ref *completed-jobs* job-id))
+  result)
 
 ; /api/sample endpoint: test in console on demo page:
 ;; (await fetch('/api/sample', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x) (- (sqrt (+ x 1))))", seed: 5})})).json()
@@ -440,10 +436,18 @@
     (lambda (post-data)
       (define formula-str (hash-ref post-data 'formula))
       (define formula (read-syntax 'web (open-input-string formula-str)))
-      (define _hash (sha1 (open-input-string formula-str)))
-      (define _seed (hash-ref post-data 'seed))
-      (semaphore-wait (run-sample _hash formula _seed))
-      (define result (hash-ref *completed-jobs* _hash))
+      (define seed (hash-ref post-data 'seed))
+      (define sample-command (list 'sample formula seed))
+
+      (define (pre-check work)
+        ; no conditional checks to be done. 
+        (work))
+      (define (post-process result seed*)
+        ; no post processing to be done here.
+        empty)
+
+      (define result (run-sample pre-check post-process sample-command))
+    
       (define pctx (job-result-backend result))
       (define test (parse-test formula))
       (hasheq 'points (pcontext->json pctx 
