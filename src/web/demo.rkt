@@ -218,26 +218,25 @@
 
 (define (run-job job-info)
   ;; arguments all jobs have
-  (define command (first job-info))
-  (define pre-check (second job-info))
-  (define post-process (third job-info))
-  (define job-id (fourth job-info))
-  (define sema (fifth job-info))
-  (match command
+  (define pre-check (first job-info))
+  (define post-process (second job-info))
+  (define job-id (third job-info))
+  (define sema (fourth job-info))
+  (define command-info (fifth job-info))
+  (match (herbie-command-type command-info)
     ['sample 
-      (define command-info (sixth job-info))
-      (define formula (second command-info))
-      (define seed (third command-info))
+      (define formula (herbie-command-formula command-info))
+      (define seed (herbie-command-seed command-info))
       (define (job) (create-job 'sample job-id sema formula post-process
       #:seed seed #:profile? #f #:timeline-disabled? #t))
       (pre-check job)]
     ['improve
-      (define formula (sixth job-info))
-      (define seed (seventh job-info))
+      (define formula (herbie-command-formula command-info))
+      (define seed (herbie-command-seed command-info))
       (define (job)
         (create-job 'improve job-id sema formula post-process #:seed seed))
       (pre-check job)]
-    [_ (error 'run-job "unknown command ~a" command)]))
+    [_ (error 'run-job "unknown command ~a" (herbie-command-type command-info))]))
 
 (define (create-job command job-id sema formula post-process #:seed [seed #f] 
  #:pcontext [pcontext #f] #:profile? [profile? #f]
@@ -281,6 +280,8 @@
   (hash-set! *jobs* job-id (*timeline*))
   (define sema (make-semaphore))
 
+  (define improve-command (herbie-command 'improve formula (get-seed)))
+
   ;; pre-check must return a semaphore-post
   (define (pre-check work)
    (define path (format "~a.~a" job-id *herbie-commit*))
@@ -305,8 +306,7 @@
                       (build-path (*demo-output*) "results.json")
                       (build-path (*demo-output*) "index.html"))))
 
-  (thread-send *worker-thread* (list 'improve pre-check run-improve-post-process job-id sema formula
-   (get-seed)))
+  (thread-send *worker-thread* (list pre-check run-improve-post-process job-id sema improve-command))
   sema)
 
 (define (already-computed? hash formula)
@@ -419,12 +419,16 @@
      (redirect-to (add-prefix (format "~a.~a/graph.html" hash *herbie-commit*)) see-other))
    (url main)))
 
-(define (run-sample pre-check post-process command)
+;; Encapsulates the info need to create and process a Herbie command
+;; Type is a symbol to be match on for the type of the command being processed
+(struct herbie-command (type formula seed))
+
+(define (run-command pre-check post-process command)
   (define job-id (sha1 (open-input-string (~s command))))
   (hash-set! *jobs* job-id (*timeline*))
   (define sema (make-semaphore))
   (thread-send *worker-thread* 
-   (list 'sample pre-check post-process job-id sema command))
+   (list pre-check post-process job-id sema command))
   (semaphore-wait sema)
   (define result (hash-ref *completed-jobs* job-id))
   result)
@@ -437,7 +441,7 @@
       (define formula-str (hash-ref post-data 'formula))
       (define formula (read-syntax 'web (open-input-string formula-str)))
       (define seed (hash-ref post-data 'seed))
-      (define sample-command (list 'sample formula seed))
+      (define sample-command (herbie-command 'sample formula seed))
 
       (define (pre-check work)
         ; no conditional checks to be done. 
@@ -446,7 +450,7 @@
         ; no post processing to be done here.
         empty)
 
-      (define result (run-sample pre-check post-process sample-command))
+      (define result (run-command pre-check post-process sample-command))
     
       (define pctx (job-result-backend result))
       (define test (parse-test formula))
