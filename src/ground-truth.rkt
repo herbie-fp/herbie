@@ -76,7 +76,8 @@
          (values 'exit iter #f)]
         [else
          (loop iter*)])))
-  (values status final-iter value (- (current-inexact-milliseconds) start)))
+  (define time (- (current-inexact-milliseconds) start))
+  (values status final-iter value time))
 
 ; ENSURE: all contexts have the same list of variables
 (define (eval-progs-real progs ctxs)

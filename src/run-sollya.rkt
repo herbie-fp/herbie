@@ -9,7 +9,7 @@
 ;(require "./interval-evaluate.rkt")
 ;(require "run-mpfi.rkt")
 
-(define *precision* (make-parameter 32))
+(define *precision* (make-parameter 53))
 (define timeout-ms 5.0)
 
 (define (program-body prog)
@@ -71,12 +71,11 @@
      (neg . "(- ~a)")
      (fabs . "abs(~a)"))))
 
-;; exp2, expm1, 
 
 (define (round-sollya val)
   (match (*precision*)
-    [64 (format "D(~a)" val)]
-    [32 (format "SG(~a)" val)]))
+    [53 (format "D(~a)" val)]
+    [24 (format "SG(~a)" val)]))
 
 (define (number->interval-sollya num)
   (format "[~a;~a]" (number->string num) (number->string num)))
@@ -128,7 +127,7 @@
   (when (equal? 'binary32 (representation-name (context-repr (car ctxs))))
     (error "binary32 is not implemented in this comparison"))
   (define vars (context-vars (car ctxs)))
-  (parameterize ([*precision* 64])
+  (parameterize ([*precision* 53])
     (format "prec=~a; procedure f(~a) { ~a; };"
             (*precision*)
             (string-join (map var-parse vars) ", ")

@@ -132,6 +132,7 @@
       (define pt (sampler))
       (collect-garbage 'minor)
       (define-values (status final-iter exs rival-time) (ival-eval fn ctxs pt))
+      (collect-garbage 'minor)
 
       (when fn-sollya
         (sollya-eval fn-sollya pt status final-iter exs rival-time))
@@ -175,7 +176,7 @@
 
 (define (sample-points pre exprs ctxs)
   (timeline-event! 'analyze)
-  (define fn (make-search-func pre exprs ctxs))
+  (define fn (make-search-func '(TRUE) exprs ctxs))   ; precondition is always TRUE
   (match-define (cons sampler table)
     (parameterize ([ground-truth-require-convergence #f])
       ;; TODO: Should make-sampler allow multiple contexts?
