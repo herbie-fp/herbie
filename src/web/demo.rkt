@@ -213,28 +213,26 @@
           (*reeval-pts* reeval)
           (*demo?* demo?)]
          [(list 'improve job-id formula sema seed* pre-check post-process)
-          ;; work must return a semaphore-post
           (define (work)
-            (print-command-message 'improve job-id (syntax->datum formula))
-            (define result (run-herbie 'improve (parse-test formula) #:seed seed*))
-            (hash-set! *completed-jobs* job-id result)
-            (post-process result seed*)
-            (eprintf "Job ~a complete\n" job-id)
-            (hash-remove! *jobs* job-id)
-            (semaphore-post sema))
+            (create-work 'improve job-id sema formula #:seed seed*))
           ; pass work into the provided pre-checks, if all checks pass work function is called.
           (pre-check work)]
          [(list 'sample job-id formula sema seed* pre-check post-process)
           (define (work)
-            (print-command-message 'sample job-id (syntax->datum formula))
-            (define result (run-herbie 'sample (parse-test formula) #:seed seed* #:profile? #f #:timeline-disabled? #t))
-            (hash-set! *completed-jobs* job-id result)
-            (post-process result seed*)
-            (eprintf "Job ~a complete\n" job-id)
-            (hash-remove! *jobs* job-id)
-            (semaphore-post sema))
+            (create-work 'sample job-id sema formula #:seed seed* #:profile? #f
+             #:timeline-disabled? #t))
           (pre-check work)])
        (loop seed)))))
+
+(define (create-work command job-id sema formula #:seed [seed #f] 
+ #:pcontext [pcontext #f] #:profile? [profile? #f]
+ #:timeline-disabled? [timeline-disabled? #f])         
+  (print-command-message command job-id (syntax->datum formula))     
+  (define result (run-herbie command (parse-test formula) #:seed seed #:pcontext pcontext #:profile? profile? #:timeline-disabled? timeline-disabled?))
+  (hash-set! *completed-jobs* job-id result)
+  (eprintf "Job ~a complete\n" job-id)
+  (hash-remove! *jobs* job-id)
+  (semaphore-post sema))
 
 (define (print-command-message command job-id job-str)
   (define job-label
