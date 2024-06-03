@@ -9,6 +9,7 @@
 
 (provide batch-prepare-points
          ival-eval
+         ival-eval-baseline
          make-sampler 
          sample-points)
 
@@ -123,19 +124,21 @@
 
 ;; Part 3: computing exact values by recomputing at higher precisions
 
-(define (batch-prepare-points fn ctxs sampler [fn-sollya #f])
+(define (batch-prepare-points fn ctxs sampler [fn-sollya #f] [fn-baseline #f])
   ;; If we're using the bf fallback, start at the max precision
   (define outcomes (make-hash))
   
   (define-values (points exactss)
     (let loop ([sampled 0] [skipped 0] [points '()] [exactss '()])
       (define pt (sampler))
-      (collect-garbage 'minor)
+      ;(collect-garbage 'minor)
       (define-values (status final-iter exs rival-time) (ival-eval fn ctxs pt))
+      ;(collect-garbage 'minor)
+      (define-values (status* precision-baseline exs* rival-time*) (ival-eval-baseline fn-baseline ctxs pt))
       (collect-garbage 'minor)
 
       (when fn-sollya
-        (sollya-eval fn-sollya pt status final-iter exs rival-time))
+        (sollya-eval fn-sollya pt status final-iter exs rival-time status* rival-time*))
 
       (when (equal? status 'exit)
         (warn 'ground-truth #:url "faq.html#ground-truth"
@@ -177,6 +180,7 @@
 (define (sample-points pre exprs ctxs)
   (timeline-event! 'analyze)
   (define fn (make-search-func '(TRUE) exprs ctxs))   ; precondition is always TRUE
+  (define fn-baseline (make-search-func-baseline '(TRUE) exprs ctxs))   ; precondition is always TRUE
   (match-define (cons sampler table)
     (parameterize ([ground-truth-require-convergence #f])
       ;; TODO: Should make-sampler allow multiple contexts?
@@ -184,7 +188,7 @@
   (timeline-event! 'sample)
   
   (match-define-values (fn-sollya kill-sollya-process) (run-sollya (list exprs ctxs)))
-  (match-define (cons table2 results) (batch-prepare-points fn ctxs sampler fn-sollya))
+  (match-define (cons table2 results) (batch-prepare-points fn ctxs sampler fn-sollya fn-baseline))
   (kill-sollya-process)
   
   (define total (apply + (hash-values table2)))
