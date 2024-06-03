@@ -217,12 +217,25 @@
             (create-work 'improve job-id sema formula post-process #:seed seed*))
           ; pass work into the provided pre-checks, if all checks pass work function is called.
           (pre-check work)]
-         [(list 'sample job-id formula sema seed* pre-check post-process)
-          (define (work)
-            (create-work 'sample job-id sema formula post-process #:seed seed* #:profile? #f
-             #:timeline-disabled? #t))
-          (pre-check work)])
+         [job-info 
+          (run-job job-info)])
        (loop seed)))))
+
+(define (run-job job-info)
+  (define command (first job-info))
+  (eprintf "Command: ~a\n" command)
+  (match command
+    ['sample 
+      (define pre-check (second job-info))
+      (define post-process (third job-info))
+      (define job-id (fourth job-info))
+      (define sema (fifth job-info))
+      (define formula (sixth job-info))
+      (define seed (seventh job-info))
+      (define (work) (create-work 'sample job-id sema formula post-process
+      #:seed seed #:profile? #f #:timeline-disabled? #t))
+      (pre-check work)]
+    [_ (error 'run-job "unknown command ~a" command)]))
 
 (define (create-work command job-id sema formula post-process #:seed [seed #f] 
  #:pcontext [pcontext #f] #:profile? [profile? #f]
@@ -412,11 +425,10 @@
   (define (post-process result seed*)
     ; no post processing to be done here.
     empty)
-
   (hash-set! *jobs* job-id (*timeline*))
   (define sema (make-semaphore))
-  (thread-send *worker-thread* (list 'sample job-id formula sema seed*
-   pre-check post-process))
+  (thread-send *worker-thread* (list 'sample pre-check post-process job-id
+  sema formula seed*))
   sema)
 
 ; /api/sample endpoint: test in console on demo page:
