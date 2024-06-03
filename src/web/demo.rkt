@@ -216,13 +216,14 @@
           (run-job job-info)])
        (loop seed)))))
 
+(struct herbie-job (id sema pre post command))
+
 (define (run-job job-info)
-  ;; arguments all jobs have
-  (define pre-check (first job-info))
-  (define post-process (second job-info))
-  (define job-id (third job-info))
-  (define sema (fourth job-info))
-  (define command-info (fifth job-info))
+  (define pre-check (herbie-job-pre job-info))
+  (define post-process (herbie-job-post job-info))
+  (define job-id (herbie-job-id job-info))
+  (define sema (herbie-job-sema job-info))
+  (define command-info (herbie-job-command job-info))
   (match (herbie-command-type command-info)
     ['sample 
       (define formula (herbie-command-formula command-info))
@@ -306,7 +307,8 @@
                       (build-path (*demo-output*) "results.json")
                       (build-path (*demo-output*) "index.html"))))
 
-  (thread-send *worker-thread* (list pre-check run-improve-post-process job-id sema improve-command))
+  (define job (herbie-job job-id sema pre-check run-improve-post-process improve-command))
+  (thread-send *worker-thread* job)
   sema)
 
 (define (already-computed? hash formula)
@@ -427,8 +429,8 @@
   (define job-id (sha1 (open-input-string (~s command))))
   (hash-set! *jobs* job-id (*timeline*))
   (define sema (make-semaphore))
-  (thread-send *worker-thread* 
-   (list pre-check post-process job-id sema command))
+  (define job (herbie-job job-id sema pre-check post-process command))
+  (thread-send *worker-thread* job)
   (semaphore-wait sema)
   (define result (hash-ref *completed-jobs* job-id))
   result)
