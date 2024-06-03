@@ -161,7 +161,7 @@
        [exn:rival:unsamplable? (lambda (e) (values 'exit #f))])
       (parameterize ([*rival-max-precision* (*max-mpfr-prec*)]
                      [*rival-max-iterations* 5])
-        (values 'valid (rest (rival-apply machine pt*)))))) ; rest = drop precondition
+        (values 'valid (rest (vector->list (rival-apply machine pt*))))))) ; rest = drop precondition
   (when (> (rival-profile machine 'bumps) 0)
     (warn 'ground-truth "Could not converge on a ground truth"
           #:extra (for/list ([var (in-list (context-vars (car ctxs)))] [val (in-list pt)])

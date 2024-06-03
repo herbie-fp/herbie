@@ -81,6 +81,7 @@
 
 (define (rival-apply machine pt)
   (define discs (rival-machine-discs machine))
+  (set-rival-machine-bumps! machine 0)
   (let loop ([iter 0])
     (define exs
       (parameterize ([*sampling-iteration* iter]
@@ -91,7 +92,7 @@
       [err
        (raise (exn:rival:invalid "Invalid input" (current-continuation-marks) pt))]
       [(not err?)
-       (for/list ([ex (in-vector exs)] [disc (in-vector discs)])
+       (for/vector #:length (vector-length discs) ([ex (in-vector exs)] [disc (in-vector discs)])
          ; We are promised at this point that (distance (convert lo) (convert hi)) = 0 so use lo
          ([discretization-convert disc] (ival-lo ex)))]
       [(>= iter (*rival-max-iterations*))
