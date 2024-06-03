@@ -212,15 +212,15 @@
           (*demo-output* output)
           (*reeval-pts* reeval)
           (*demo?* demo?)]
-         [(list 'improve job-id formula sema pre-check post-process)
+         [(list 'improve job-id formula sema seed* pre-check post-process)
           ;; work must return a semaphore-post
           (define (work)
             (eprintf "Improve Job ~a started:\n  improve ~a...\n" job-id (syntax->datum formula))
             ; pre checks finnished
-            (define result (run-herbie 'improve (parse-test formula) #:seed seed))
+            (define result (run-herbie 'improve (parse-test formula) #:seed seed*))
             (hash-set! *completed-jobs* job-id result)
             ; start post processing
-            (post-process result seed)
+            (post-process result seed*)
             ; end post processing
             (eprintf "Job ~a complete\n" job-id)
             (hash-remove! *jobs* job-id)
@@ -279,8 +279,8 @@
                       (build-path (*demo-output*) "results.json")
                       (build-path (*demo-output*) "index.html"))))
 
-  (thread-send *worker-thread* (list 'improve job-id formula sema
-   pre-check run-improve-post-process))
+  (thread-send *worker-thread* (list 'improve job-id formula sema 
+   (get-seed) pre-check run-improve-post-process))
   sema)
 
 (define (already-computed? hash formula)
