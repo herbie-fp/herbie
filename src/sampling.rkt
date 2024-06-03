@@ -3,7 +3,7 @@
          (only-in fpbench interval range-table-ref condition->range-table [expr? fpcore-expr?]))
 (require "searchreals.rkt" "errors.rkt" "common.rkt"
          "float.rkt" "syntax/types.rkt" "timeline.rkt" "config.rkt"
-         "syntax/sugar.rkt" "ground-truth.rkt")
+         "syntax/sugar.rkt")
 
 (provide batch-prepare-points
          eval-progs-real
