@@ -212,26 +212,22 @@
           (*demo-output* output)
           (*reeval-pts* reeval)
           (*demo?* demo?)]
-         [(list 'improve job-id formula sema post-process)
-         ; pre checks started
-          (define path (format "~a.~a" job-id *herbie-commit*))
-          (cond
-           [(hash-has-key? *completed-jobs* job-id)
-            (semaphore-post sema)]
-           [(and (*demo-output*) (directory-exists? (build-path (*demo-output*) path)))
-            (semaphore-post sema)]
-           [else
+         [(list 'improve job-id formula sema pre-check post-process)
+          ;; work must return a semaphore-post
+          (define (work)
             (eprintf "Improve Job ~a started:\n  improve ~a...\n" job-id (syntax->datum formula))
-          ; pre checks finnished
+            ; pre checks finnished
             (define result (run-herbie 'improve (parse-test formula) #:seed seed))
-
             (hash-set! *completed-jobs* job-id result)
-          ; start post processing
+            ; start post processing
             (post-process result seed)
-          ; end post processing
+            ; end post processing
             (eprintf "Job ~a complete\n" job-id)
             (hash-remove! *jobs* job-id)
-            (semaphore-post sema)])]
+            (semaphore-post sema))
+
+          ; pass work into the provided pre-checks, if all checks pass work function is called.
+          (pre-check work)]
          [(list 'sample job-id formula sema seed*)
           (define test (parse-test formula))
           (eprintf "Sampling Job ~a started:\n  sample ~a...\n" job-id (syntax->datum formula))
@@ -259,6 +255,16 @@
   (hash-set! *jobs* job-id (*timeline*))
   (define sema (make-semaphore))
 
+  ;; pre-check must return a semaphore-post
+  (define (pre-check work)
+   (define path (format "~a.~a" job-id *herbie-commit*))
+   (cond
+    [(hash-has-key? *completed-jobs* job-id)
+      (semaphore-post sema)]
+    [(and (*demo-output*) (directory-exists? (build-path (*demo-output*) path)))
+      (semaphore-post sema)]
+    [else (work)]))
+
   (define (run-improve-post-process result seed)
     (define path (format "~a.~a" job-id *herbie-commit*))
     (when (*demo-output*)
@@ -274,7 +280,7 @@
                       (build-path (*demo-output*) "index.html"))))
 
   (thread-send *worker-thread* (list 'improve job-id formula sema
-   run-improve-post-process))
+   pre-check run-improve-post-process))
   sema)
 
 (define (already-computed? hash formula)
