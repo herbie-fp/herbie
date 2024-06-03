@@ -228,14 +228,16 @@
 
           ; pass work into the provided pre-checks, if all checks pass work function is called.
           (pre-check work)]
-         [(list 'sample job-id formula sema seed*)
-          (define test (parse-test formula))
-          (eprintf "Sampling Job ~a started:\n  sample ~a...\n" job-id (syntax->datum formula))
-          (define result (run-herbie 'sample test #:seed seed* #:profile? #f #:timeline-disabled? #t))
-          (hash-set! *completed-jobs* job-id result)
-          (eprintf " complete\n")
-          (hash-remove! *jobs* job-id)
-          (semaphore-post sema)])
+         [(list 'sample job-id formula sema seed* pre-check post-process)
+          (define (work)
+            (define test (parse-test formula))
+            (eprintf "Sampling Job ~a started:\n  sample ~a...\n" job-id (syntax->datum formula))
+            (define result (run-herbie 'sample test #:seed seed* #:profile? #f #:timeline-disabled? #t))
+            (hash-set! *completed-jobs* job-id result)
+            (eprintf " complete\n")
+            (hash-remove! *jobs* job-id)
+            (semaphore-post sema))
+          (pre-check work)])
        (loop seed)))))
 
 (define (update-report result dir seed data-file html-file)
@@ -393,10 +395,17 @@
      (redirect-to (add-prefix (format "~a.~a/graph.html" hash *herbie-commit*)) see-other))
    (url main)))
 
-(define (run-sample _hash formula _seed)
-  (hash-set! *jobs* _hash (*timeline*))
+(define (run-sample job-id formula seed*)
+
+  (define (pre-check work) 
+    (work))
+  (define (post-process result seed*)
+    (empty))
+
+  (hash-set! *jobs* job-id (*timeline*))
   (define sema (make-semaphore))
-  (thread-send *worker-thread* (list 'sample _hash formula sema _seed))
+  (thread-send *worker-thread* (list 'sample job-id formula sema seed*
+   pre-check post-process))
   sema)
 
 ; /api/sample endpoint: test in console on demo page:
