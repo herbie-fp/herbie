@@ -212,7 +212,8 @@
           (*demo-output* output)
           (*reeval-pts* reeval)
           (*demo?* demo?)]
-         [(list 'improve job-id formula sema)
+         [(list 'improve job-id formula sema post-process)
+         ; pre checks started
           (define path (format "~a.~a" job-id *herbie-commit*))
           (cond
            [(hash-has-key? *completed-jobs* job-id)
@@ -221,23 +222,13 @@
             (semaphore-post sema)]
            [else
             (eprintf "Improve Job ~a started:\n  improve ~a...\n" job-id (syntax->datum formula))
-
+          ; pre checks finnished
             (define result (run-herbie 'improve (parse-test formula) #:seed seed))
 
             (hash-set! *completed-jobs* job-id result)
-
-            (when (*demo-output*)
-              ;; Output results
-              (make-directory (build-path (*demo-output*) path))
-              (for ([page (all-pages result)])
-                (call-with-output-file (build-path (*demo-output*) path page)
-                  (λ (out) 
-                    (with-handlers ([exn:fail? (page-error-handler result page out)])
-                      (make-page page out result (*demo-output*) #f)))))
-              (update-report result path seed
-                             (build-path (*demo-output*) "results.json")
-                             (build-path (*demo-output*) "index.html")))
-
+          ; start post processing
+            (post-process job-id result seed)
+          ; end post processing
             (eprintf "Job ~a complete\n" job-id)
             (hash-remove! *jobs* job-id)
             (semaphore-post sema)])]
@@ -267,8 +258,24 @@
 (define (run-improve hash formula)
   (hash-set! *jobs* hash (*timeline*))
   (define sema (make-semaphore))
-  (thread-send *worker-thread* (list 'improve hash formula sema))
+  (thread-send *worker-thread* (list 'improve hash formula sema
+   run-improve-post-process))
   sema)
+
+(define (run-improve-post-process job-id result seed)
+  (define path (format "~a.~a" job-id *herbie-commit*))
+  (eprintf "Here: ~a\n" result)
+  (when (*demo-output*)
+    ;; Output results
+    (make-directory (build-path (*demo-output*) path))
+    (for ([page (all-pages result)])
+      (call-with-output-file (build-path (*demo-output*) path page)
+        (λ (out) 
+          (with-handlers ([exn:fail? (page-error-handler result page out)])
+            (make-page page out result (*demo-output*) #f)))))
+    (update-report result path seed
+                    (build-path (*demo-output*) "results.json")
+                    (build-path (*demo-output*) "index.html"))))
 
 (define (already-computed? hash formula)
   (or (hash-has-key? *completed-jobs* hash)
