@@ -215,30 +215,40 @@
          [(list 'improve job-id formula sema seed* pre-check post-process)
           ;; work must return a semaphore-post
           (define (work)
-            (eprintf "Improve Job ~a started:\n  improve ~a...\n" job-id (syntax->datum formula))
-            ; pre checks finnished
+            (print-command-message 'improve job-id (syntax->datum formula))
             (define result (run-herbie 'improve (parse-test formula) #:seed seed*))
             (hash-set! *completed-jobs* job-id result)
-            ; start post processing
             (post-process result seed*)
-            ; end post processing
             (eprintf "Job ~a complete\n" job-id)
             (hash-remove! *jobs* job-id)
             (semaphore-post sema))
-
           ; pass work into the provided pre-checks, if all checks pass work function is called.
           (pre-check work)]
          [(list 'sample job-id formula sema seed* pre-check post-process)
           (define (work)
-            (define test (parse-test formula))
-            (eprintf "Sampling Job ~a started:\n  sample ~a...\n" job-id (syntax->datum formula))
-            (define result (run-herbie 'sample test #:seed seed* #:profile? #f #:timeline-disabled? #t))
+            (print-command-message 'sample job-id (syntax->datum formula))
+            (define result (run-herbie 'sample (parse-test formula) #:seed seed* #:profile? #f #:timeline-disabled? #t))
             (hash-set! *completed-jobs* job-id result)
-            (eprintf " complete\n")
+            (post-process result seed*)
+            (eprintf "Job ~a complete\n" job-id)
             (hash-remove! *jobs* job-id)
             (semaphore-post sema))
           (pre-check work)])
        (loop seed)))))
+
+(define (print-command-message command job-id job-str)
+  (define job-label
+    (match command 
+      ['alternatives "Alternatives"]
+      ['evaluate "Evaluation"]
+      ['cost "Computing"]
+      ['errors "Analyze"]
+      ['exacts "Ground truth"]
+      ['improve "Improve"]
+      ['local-error "Local error"]
+      ['sample "Sampling"]
+      [_ (error 'compute-result "unknown command ~a" command)]))
+  (eprintf "~a Job ~a started:\n  ~a ~a...\n" job-label (symbol->string command) job-id job-str))
 
 (define (update-report result dir seed data-file html-file)
   (define link (path-element->string (last (explode-path dir))))
@@ -397,10 +407,12 @@
 
 (define (run-sample job-id formula seed*)
 
-  (define (pre-check work) 
+  (define (pre-check work)
+    ; no conditional checks to be done. 
     (work))
   (define (post-process result seed*)
-    (empty))
+    ; no post processing to be done here.
+    empty)
 
   (hash-set! *jobs* job-id (*timeline*))
   (define sema (make-semaphore))
