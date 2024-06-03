@@ -98,7 +98,7 @@
 [square 112.78157099999999]
 [tan 1182.8334289999998]
 [tanh 175.9177504]
-[trunc 29.736554599999998])) 
+[trunc 29.736554599999998]))
 
 (define tunable
   (with-terminal-cost ([binary64 1])

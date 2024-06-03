@@ -5,6 +5,7 @@ import json
 import os
 
 import matplotlib.pyplot as plt
+from typing import List, Dict
 from pathlib import Path
 
 from platforms.fpcore import FPCore
@@ -54,9 +55,18 @@ def plot_improve(name: str, output_dir: Path, info):
     plt.close()
 
 # Colors
+input_color = 'black'
 platform_color = 'blue'
 supported_color = 'orange'
 desugared_color = 'green'
+
+def core_max_error(core: FPCore) -> int:
+    if core.prec == 'binary64':
+        return 64
+    elif core.prec == 'binary32':
+        return 32
+    else:
+        raise RuntimeError('Unknown precision', core.prec)
 
 def plot_compare1(name: str, name2: str, output_dir: Path, info):
     print(f'Plotting compare {name} <- {name2}')
@@ -101,14 +111,9 @@ def plot_compare1(name: str, name2: str, output_dir: Path, info):
         desugared_cores
     )
 
-    platform_costs = list(map(lambda pt: pt[0], platform_frontier))
-    platform_errs = list(map(lambda pt: pt[1], platform_frontier))    
-
-    supported_costs = list(map(lambda pt: pt[0], supported_frontier))
-    supported_errs = list(map(lambda pt: pt[1], supported_frontier))
-
-    desugared_costs = list(map(lambda pt: pt[0], desugared_frontier))
-    desugared_errs = list(map(lambda pt: pt[1], desugared_frontier))
+    platform_costs, platform_errs = zip(*platform_frontier)
+    supported_costs, supported_errs = zip(*supported_frontier)
+    desugared_costs, desugared_errs = zip(*desugared_frontier)
 
     fig, (ax1, ax2) = plt.subplots(ncols=2, gridspec_kw={'width_ratios': [9, 1]})
     plt.subplots_adjust(wspace=0.15)
@@ -138,7 +143,7 @@ def plot_compare1(name: str, name2: str, output_dir: Path, info):
     # ax3.get_xaxis().set_visible(False)
 
     # Legend
-    # fig.legend(loc='lower right')
+    plt.tight_layout()
     plt.savefig(str(path))
     plt.close()
 
@@ -155,62 +160,110 @@ def plot_compare_all(output_dir: Path, entries):
     fig, axs = plt.subplots(ncols=num_platforms, nrows=num_platforms, figsize=((8, 8)))
 
     # fig.suptitle('Platform vs. platform comparison')
-    fig.supxlabel('Estimated cost (Herbie)')
-    fig.supylabel('Cumulative average error (bits)')
+    fig.supxlabel('Estimated speedup (Herbie)')
+    fig.supylabel('Cumulative average accuracy (bits)')
 
+    # plot diagonal frontiers
+    by_platform: Dict[str, List[FPCore]] = dict()
+    for name, _, info in entries:
+        if name not in by_platform:
+            input_cores = []
+            cores = []
+            for core_info in info['cores']:
+                input_core = FPCore.from_json(core_info['input_core'])
+                platform_cores = list(map(FPCore.from_json, core_info['platform_cores']))
+                if len(platform_cores) > 0:
+                    input_cores.append(input_core)
+                    cores += platform_cores
+
+            max_error = sum(map(lambda c: core_max_error(c), input_cores))
+            input_costs, input_errs = zip(*map(lambda c: (c.cost, c.err), input_cores))
+            input_cost, input_err = sum(input_costs), sum(input_errs)
+            input_speedup, input_accuracy = 1.0, max_error - input_err
+
+            # compute frontier
+            platform_frontier, *_ = shim_pareto(cores)
+            platform_costs, platform_errs = zip(*platform_frontier)
+
+            # transform (cost, err) -> (speedup, accuracy)
+            platform_speedups = list(map(lambda c: input_cost / c, platform_costs))
+            platform_accuracies = list(map(lambda e: max_error - e, platform_errs))
+
+            # plot
+            i = names.index(name)
+            axs[i, i].plot([input_speedup], [input_accuracy], 's', color=input_color)
+            axs[i, i].plot(platform_speedups, platform_accuracies, color=platform_color)
+
+    # plot comparison frontiers
     for name, name2, info in entries:
         i = names.index(name)
         j = names.index(name2)
         ax = axs[i][j]
 
-        input_cores = []
-        platform_cores = []
-        supported_cores = []
-        desugared_cores = []
+        input_cores: List[FPCore] = []
+        platform_cores: List[FPCore] = []
+        supported_cores: List[FPCore] = []
+        desugared_cores: List[FPCore] = []
         for core_info in info['cores']:
             input_core = FPCore.from_json(core_info['input_core'])
             platform = list(map(FPCore.from_json, core_info['platform_cores']))
             supported = list(map(FPCore.from_json, core_info['supported_cores']))
             desugared = list(map(FPCore.from_json, core_info['desugared_cores']))
 
-            any_platform = len(platform) > 0
-            any_supported = len(supported) > 0
-            any_desugared = len(desugared) > 0
-
-            if any_platform and any_supported and any_desugared:
+            if len(platform) > 0 and len(supported) > 0 and len(desugared) > 0:
                 input_cores.append(input_core)
                 platform_cores += platform
                 supported_cores += supported
                 desugared_cores += desugared
 
+        # compute starting point
+        max_error = sum(map(lambda c: core_max_error(c), input_cores))
+        input_costs, input_errs = zip(*map(lambda c: (c.cost, c.err), input_cores))
+        input_cost, input_err = sum(input_costs), sum(input_errs)
+
+        input_speedup = 1.0
+        input_accuracy = max_error - input_err
+
+        # compute frontiers
         platform_frontier, supported_frontier, desugared_frontier = shim_pareto(
             platform_cores,
             supported_cores,
             desugared_cores
         )
 
-        platform_costs = list(map(lambda pt: pt[0], platform_frontier))
-        platform_errs = list(map(lambda pt: pt[1], platform_frontier))    
+        # decompose frontiers
+        platform_costs, platform_errs = zip(*platform_frontier)
+        supported_costs, supported_errs = zip(*supported_frontier)
+        desugared_costs, desugared_errs = zip(*desugared_frontier)
 
-        supported_costs = list(map(lambda pt: pt[0], supported_frontier))
-        supported_errs = list(map(lambda pt: pt[1], supported_frontier))
-
-        desugared_costs = list(map(lambda pt: pt[0], desugared_frontier))
-        desugared_errs = list(map(lambda pt: pt[1], desugared_frontier))
+        # transform (cost, err) -> (speedup, accuracy)
+        platform_speedups = list(map(lambda c: input_cost / c, platform_costs))
+        platform_accuracies = list(map(lambda e: max_error - e, platform_errs))
+        supported_speedups = list(map(lambda c: input_cost / c, supported_costs))
+        supported_accuracies = list(map(lambda e: max_error - e, supported_errs))
+        desugared_speedups = list(map(lambda c: input_cost / c, desugared_costs))
+        desugared_accuracies = list(map(lambda e: max_error - e, desugared_errs))
 
         # Pareto frontiers
-        ax.plot(platform_costs, platform_errs, label=f'{name} (Chassis)', color=platform_color)
-        ax.plot(supported_costs, supported_errs, label=f'{name2} (supported)', color=supported_color)
-        ax.plot(desugared_costs, desugared_errs, label=f'{name2} (desugared)', color=desugared_color)
+        # ax.plot([input_cost], [input_err], 's', color='black')
+        # ax.plot(platform_costs, platform_errs, color=platform_color)
+        # ax.plot(supported_costs, supported_errs, color=supported_color)
+        # ax.plot(desugared_costs, desugared_errs, color=desugared_color)
+        
+        ax.plot([input_speedup], [input_accuracy], 's', color=input_color)
+        ax.plot(platform_speedups, platform_accuracies, color=platform_color)
+        ax.plot(supported_speedups, supported_accuracies, color=supported_color)
+        ax.plot(desugared_speedups, desugared_accuracies, color=desugared_color)
 
-    # for left side, label platforms
-    # for bottom, label platforms
-    # for diagonal, hide axes
-    for i, name in enumerate(names):
-        axs[i, 0].set(ylabel=name)
-        axs[len(names) - 1, i].set(xlabel=name)
-        axs[i, i].set_yticklabels([])
-        axs[i, i].set_xticklabels([])
+    # set labels
+    for i, _ in enumerate(names):
+        axs[0][i].set(xlabel=name)
+        axs[i][len(names) - 1].set(ylabel=name)
+        for j, _ in enumerate(names):
+            axs[i, j].xaxis.set_label_position('top')
+            axs[i, j].yaxis.set_label_position('right')
+            # axs[i, j].xaxis.set_ticks([])
+            # axs[i, j].yaxis.set_ticks([])
 
     plt.tight_layout()
     plt.savefig(str(path))
