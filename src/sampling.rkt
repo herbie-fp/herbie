@@ -30,7 +30,7 @@
 
 (module+ test (require rackunit))
 
-#;(module+ test
+(module+ test
   (require  "load-plugin.rkt")
   (load-herbie-builtins)
 
@@ -100,7 +100,7 @@
     (for/list ([lo (in-list los)] [hi (in-list his)] [repr (in-list reprs)])
       ((representation-ordinal->repr repr) (random-integer lo hi)))))
 
-#;(module+ test
+(module+ test
   (define two-point-hyperrects (list (list (ival (bf 0) (bf 0)) (ival (bf 1) (bf 1)))))
   (define repr (get-representation 'binary64))
   (check-true
