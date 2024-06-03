@@ -212,32 +212,34 @@
           (*demo-output* output)
           (*reeval-pts* reeval)
           (*demo?* demo?)]
-         [(list 'improve job-id formula sema seed* pre-check post-process)
-          (define (work)
-            (create-work 'improve job-id sema formula post-process #:seed seed*))
-          ; pass work into the provided pre-checks, if all checks pass work function is called.
-          (pre-check work)]
          [job-info 
           (run-job job-info)])
        (loop seed)))))
 
 (define (run-job job-info)
+  ;; arguments all jobs have
   (define command (first job-info))
+  (define pre-check (second job-info))
+  (define post-process (third job-info))
+  (define job-id (fourth job-info))
+  (define sema (fifth job-info))
   (eprintf "Command: ~a\n" command)
   (match command
     ['sample 
-      (define pre-check (second job-info))
-      (define post-process (third job-info))
-      (define job-id (fourth job-info))
-      (define sema (fifth job-info))
       (define formula (sixth job-info))
       (define seed (seventh job-info))
-      (define (work) (create-work 'sample job-id sema formula post-process
+      (define (job) (create-job 'sample job-id sema formula post-process
       #:seed seed #:profile? #f #:timeline-disabled? #t))
-      (pre-check work)]
+      (pre-check job)]
+    ['improve
+      (define formula (sixth job-info))
+      (define seed (seventh job-info))
+      (define (job)
+        (create-job 'improve job-id sema formula post-process #:seed seed))
+      (pre-check job)]
     [_ (error 'run-job "unknown command ~a" command)]))
 
-(define (create-work command job-id sema formula post-process #:seed [seed #f] 
+(define (create-job command job-id sema formula post-process #:seed [seed #f] 
  #:pcontext [pcontext #f] #:profile? [profile? #f]
  #:timeline-disabled? [timeline-disabled? #f])         
   (print-command-message command job-id (syntax->datum formula))     
@@ -303,8 +305,8 @@
                       (build-path (*demo-output*) "results.json")
                       (build-path (*demo-output*) "index.html"))))
 
-  (thread-send *worker-thread* (list 'improve job-id formula sema 
-   (get-seed) pre-check run-improve-post-process))
+  (thread-send *worker-thread* (list 'improve pre-check run-improve-post-process job-id sema formula
+   (get-seed)))
   sema)
 
 (define (already-computed? hash formula)
