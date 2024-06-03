@@ -256,7 +256,7 @@ def plot_compare_all(output_dir: Path, entries):
         ax.plot(desugared_speedups, desugared_accuracies, color=desugared_color)
 
     # set labels
-    for i, _ in enumerate(names):
+    for i, name in enumerate(names):
         axs[0][i].set(xlabel=name)
         axs[i][len(names) - 1].set(ylabel=name)
         for j, _ in enumerate(names):
