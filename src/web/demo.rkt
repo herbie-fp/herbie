@@ -227,7 +227,7 @@
 
             (hash-set! *completed-jobs* job-id result)
           ; start post processing
-            (post-process job-id result seed)
+            (post-process result seed)
           ; end post processing
             (eprintf "Job ~a complete\n" job-id)
             (hash-remove! *jobs* job-id)
@@ -255,27 +255,27 @@
   (rename-file-or-directory tmp-file data-file #t)
   (call-with-output-file html-file #:exists 'replace (curryr make-report-page info #f)))
 
-(define (run-improve hash formula)
-  (hash-set! *jobs* hash (*timeline*))
+(define (run-improve job-id formula)
+  (hash-set! *jobs* job-id (*timeline*))
   (define sema (make-semaphore))
-  (thread-send *worker-thread* (list 'improve hash formula sema
+
+  (define (run-improve-post-process result seed)
+    (define path (format "~a.~a" job-id *herbie-commit*))
+    (when (*demo-output*)
+      ;; Output results
+      (make-directory (build-path (*demo-output*) path))
+      (for ([page (all-pages result)])
+        (call-with-output-file (build-path (*demo-output*) path page)
+          (λ (out) 
+            (with-handlers ([exn:fail? (page-error-handler result page out)])
+              (make-page page out result (*demo-output*) #f)))))
+      (update-report result path seed
+                      (build-path (*demo-output*) "results.json")
+                      (build-path (*demo-output*) "index.html"))))
+
+  (thread-send *worker-thread* (list 'improve job-id formula sema
    run-improve-post-process))
   sema)
-
-(define (run-improve-post-process job-id result seed)
-  (define path (format "~a.~a" job-id *herbie-commit*))
-  (eprintf "Here: ~a\n" result)
-  (when (*demo-output*)
-    ;; Output results
-    (make-directory (build-path (*demo-output*) path))
-    (for ([page (all-pages result)])
-      (call-with-output-file (build-path (*demo-output*) path page)
-        (λ (out) 
-          (with-handlers ([exn:fail? (page-error-handler result page out)])
-            (make-page page out result (*demo-output*) #f)))))
-    (update-report result path seed
-                    (build-path (*demo-output*) "results.json")
-                    (build-path (*demo-output*) "index.html"))))
 
 (define (already-computed? hash formula)
   (or (hash-has-key? *completed-jobs* hash)
