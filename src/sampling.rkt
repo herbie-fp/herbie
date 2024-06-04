@@ -159,17 +159,17 @@
     (with-handlers
       ([exn:rival:invalid? (lambda (e) (values 'invalid #f))]
        [exn:rival:unsamplable? (lambda (e) (values 'exit #f))])
-      (parameterize ([*rival-max-precision* (*max-mpfr-prec*)]
-                     [*rival-max-iterations* 5])
+      (parameterize ([*my-rival-max-precision* (*max-mpfr-prec*)]
+                     [*my-rival-max-iterations* 5])
         (values 'valid (rest (vector->list (rival-apply machine pt*))))))) ; rest = drop precondition
   (when (> (rival-profile machine 'bumps) 0)
     (warn 'ground-truth "Could not converge on a ground truth"
           #:extra (for/list ([var (in-list (context-vars (car ctxs)))] [val (in-list pt)])
                     (format "~a = ~a" var val))))
   (define executions (rival-profile machine 'executions))
-  (when (>= (vector-length executions) (*rival-profile-executions*))
+  (when (>= (vector-length executions) (*my-rival-profile-executions*))
     (warn 'profile "Rival profile vector overflowed, profile may not be complete"))
-  (define prec-threshold (exact-floor (/ (*rival-max-precision*) 25)))
+  (define prec-threshold (exact-floor (/ (*max-mpfr-prec*) 25)))
   (for ([execution (in-vector executions)])
     (define name (symbol->string (execution-name execution)))
     (define precision (- (execution-precision execution)

@@ -5,19 +5,19 @@
 ;; Faster than bigfloat-exponent and avoids an expensive offset & contract check.
 
 (provide rival-machine-load rival-machine-run rival-machine-return rival-machine-adjust
-         compile-specs (struct-out discretization) (struct-out rival-machine)
-         *sampling-iteration* *rival-max-precision* *rival-max-iterations*
-         *rival-profile-executions*)
+         compile-specs (struct-out my-discretization) (struct-out rival-machine)
+         *sampling-iteration* *my-rival-max-precision* *my-rival-max-iterations*
+         *my-rival-profile-executions*)
 
-(define *rival-max-precision* (make-parameter 10000))
-(define *rival-max-iterations* (make-parameter 5))
-(define *rival-profile-executions* (make-parameter 1000))
+(define *my-rival-max-precision* (make-parameter 10000))
+(define *my-rival-max-iterations* (make-parameter 5))
+(define *my-rival-profile-executions* (make-parameter 1000))
 
 (define *ampl-tuning-bits* (make-parameter 5))
 (define *sampling-iteration* (make-parameter 0))
 (define *base-tuning-precision* (make-parameter 73))
 
-(struct discretization (convert distance))
+(struct my-discretization (convert distance))
 
 (struct rival-machine
   (arguments instructions outputs discs
@@ -255,10 +255,10 @@
    (list->vector vars) instructions roots (list->vector discs)
    registers repeats precisions initial-precisions
    0 0 0
-   (make-vector (*rival-profile-executions*))
-   (make-vector (*rival-profile-executions*))
-   (make-vector (*rival-profile-executions*))
-   (make-vector (*rival-profile-executions*))))
+   (make-vector (*my-rival-profile-executions*))
+   (make-vector (*my-rival-profile-executions*))
+   (make-vector (*my-rival-profile-executions*))
+   (make-vector (*my-rival-profile-executions*))))
 
 (define (real->ival val)
   (define lo (parameterize ([bf-rounding-mode 'down]) (bf val)))
@@ -292,9 +292,9 @@
       (define result (vector-ref vregs root-reg))
       (when
           ; 1 ulp apart means double rounding issue possible
-          (= 1 ((discretization-distance disc)
-                ((discretization-convert disc) (ival-lo result))
-                ((discretization-convert disc) (ival-hi result))))
+          (= 1 ((my-discretization-distance disc)
+                ((my-discretization-convert disc) (ival-lo result))
+                ((my-discretization-convert disc) (ival-hi result))))
         (vector-set! vprecs-new (- root-reg varc) (get-slack)))))
 
   ; Step 2. Exponents calculation
@@ -320,8 +320,8 @@
     (define slack (get-slack))
     (for ([prec (in-vector vprecs)]
           [n (in-range (vector-length vprecs))])
-      (define prec* (min (*rival-max-precision*) (+ prec slack)))
-      (when (equal? prec* (*rival-max-precision*)) (*sampling-iteration* (*rival-max-iterations*)))
+      (define prec* (min (*my-rival-max-precision*) (+ prec slack)))
+      (when (equal? prec* (*my-rival-max-precision*)) (*sampling-iteration* (*my-rival-max-iterations*)))
       (vector-set! vprecs n prec*))))
 
 ; This function goes through ivec and vregs and calculates (+ exponents base-precisions) for each operator in ivec
@@ -348,9 +348,9 @@
     (when (equal? op ival-fma)
       (set! final-parent-precision (+ final-parent-precision (first new-exponents))))
     
-    (when (>= final-parent-precision (*rival-max-precision*))         ; Early stopping
-      (*sampling-iteration* (*rival-max-iterations*)))
-    (vector-set! vprecs-new (- n varc) (min final-parent-precision (*rival-max-precision*)))
+    (when (>= final-parent-precision (*my-rival-max-precision*))         ; Early stopping
+      (*sampling-iteration* (*my-rival-max-iterations*)))
+    (vector-set! vprecs-new (- n varc) (min final-parent-precision (*my-rival-max-precision*)))
 
     (for ([x (in-list tail-registers)]
           [new-exp (in-list new-exponents)]
