@@ -124,11 +124,11 @@
     (cons (λ () (map random-generate reprs)) (hash 'unknown 1.0))]))
 
 (define bool-discretization
-  (discretization identity
+  (my-discretization identity
                   (lambda (x y) (if (eq? x y) 0 1))))
 
 (define (representation->discretization repr)
-  (discretization
+  (my-discretization
    (representation-bf->repr repr)
    (lambda (x y) (- (ulp-difference x y repr) 1))))
 
