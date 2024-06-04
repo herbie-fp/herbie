@@ -157,8 +157,8 @@
       ((representation-repr->bf repr) val)))
   (define-values (status value)
     (with-handlers
-      ([exn:rival:invalid? (lambda (e) (values 'invalid #f))]
-       [exn:rival:unsamplable? (lambda (e) (values 'exit #f))])
+      ([my-exn:rival:invalid? (lambda (e) (values 'invalid #f))]
+       [my-exn:rival:unsamplable? (lambda (e) (values 'exit #f))])
       (parameterize ([*my-rival-max-precision* (*max-mpfr-prec*)]
                      [*my-rival-max-iterations* 5])
         (values 'valid (rest (vector->list (my-rival-apply machine pt*))))))) ; rest = drop precondition
@@ -171,10 +171,10 @@
     (warn 'profile "Rival profile vector overflowed, profile may not be complete"))
   (define prec-threshold (exact-floor (/ (*max-mpfr-prec*) 25)))
   (for ([execution (in-vector executions)])
-    (define name (symbol->string (execution-name execution)))
-    (define precision (- (execution-precision execution)
-                         (remainder (execution-precision execution) prec-threshold)))
-    (timeline-push!/unsafe 'mixsample (execution-time execution) name precision))
+    (define name (symbol->string (my-execution-name execution)))
+    (define precision (- (my-execution-precision execution)
+                         (remainder (my-execution-precision execution) prec-threshold)))
+    (timeline-push!/unsafe 'mixsample (my-execution-time execution) name precision))
   (timeline-push!/unsafe 'outcomes (- (current-inexact-milliseconds) start)
                          (my-rival-profile machine 'iterations) (~a status) 1)
   (values status value))
