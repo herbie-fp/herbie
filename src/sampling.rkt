@@ -3,7 +3,7 @@
          (only-in fpbench interval range-table-ref condition->range-table [expr? fpcore-expr?]))
 (require "searchreals.rkt" "errors.rkt" "common.rkt"
          "float.rkt" "syntax/types.rkt" "timeline.rkt" "config.rkt"
-         "syntax/sugar.rkt" "ground-truth.rkt")
+         "syntax/sugar.rkt")
 
 (provide batch-prepare-points
          eval-progs-real
@@ -124,11 +124,11 @@
     (cons (λ () (map random-generate reprs)) (hash 'unknown 1.0))]))
 
 (define bool-discretization
-  (my-discretization identity
+  (discretization identity
                   (lambda (x y) (if (eq? x y) 0 1))))
 
 (define (representation->discretization repr)
-  (my-discretization
+  (discretization
    (representation-bf->repr repr)
    (lambda (x y) (- (ulp-difference x y repr) 1))))
 
@@ -144,10 +144,10 @@
   (define vars (context-vars (car ctxs)))
   (define var-reprs (context-var-reprs (car ctxs)))
   (define discs (map (compose representation->discretization context-repr) ctxs))
-  (define machine (my-rival-compile (cons `(assert ,pre) specs) vars (cons bool-discretization discs)))
+  (define machine (rival-compile (cons `(assert ,pre) specs) vars (cons bool-discretization discs)))
   (timeline-push! 'compiler
                   (apply + 1 (expr-size pre) (map expr-size specs))
-                  (+ (length vars) (my-rival-profile machine 'instructions)))
+                  (+ (length vars) (rival-profile machine 'instructions)))
   machine)
 
 (define (ival-eval machine ctxs pt [iter 0])
@@ -157,26 +157,26 @@
       ((representation-repr->bf repr) val)))
   (define-values (status value)
     (with-handlers
-      ([my-exn:rival:invalid? (lambda (e) (values 'invalid #f))]
-       [my-exn:rival:unsamplable? (lambda (e) (values 'exit #f))])
-      (parameterize ([*my-rival-max-precision* (*max-mpfr-prec*)]
-                     [*my-rival-max-iterations* 5])
-        (values 'valid (rest (vector->list (my-rival-apply machine pt*))))))) ; rest = drop precondition
-  (when (> (my-rival-profile machine 'bumps) 0)
+      ([exn:rival:invalid? (lambda (e) (values 'invalid #f))]
+       [exn:rival:unsamplable? (lambda (e) (values 'exit #f))])
+      (parameterize ([*rival-max-precision* (*max-mpfr-prec*)]
+                     [*rival-max-iterations* 5])
+        (values 'valid (rest (vector->list (rival-apply machine pt*))))))) ; rest = drop precondition
+  (when (> (rival-profile machine 'bumps) 0)
     (warn 'ground-truth "Could not converge on a ground truth"
           #:extra (for/list ([var (in-list (context-vars (car ctxs)))] [val (in-list pt)])
                     (format "~a = ~a" var val))))
-  (define executions (my-rival-profile machine 'executions))
-  (when (>= (vector-length executions) (*my-rival-profile-executions*))
+  (define executions (rival-profile machine 'executions))
+  (when (>= (vector-length executions) (*rival-profile-executions*))
     (warn 'profile "Rival profile vector overflowed, profile may not be complete"))
   (define prec-threshold (exact-floor (/ (*max-mpfr-prec*) 25)))
   (for ([execution (in-vector executions)])
-    (define name (symbol->string (my-execution-name execution)))
-    (define precision (- (my-execution-precision execution)
-                         (remainder (my-execution-precision execution) prec-threshold)))
-    (timeline-push!/unsafe 'mixsample (my-execution-time execution) name precision))
+    (define name (symbol->string (execution-name execution)))
+    (define precision (- (execution-precision execution)
+                         (remainder (execution-precision execution) prec-threshold)))
+    (timeline-push!/unsafe 'mixsample (execution-time execution) name precision))
   (timeline-push!/unsafe 'outcomes (- (current-inexact-milliseconds) start)
-                         (my-rival-profile machine 'iterations) (~a status) 1)
+                         (rival-profile machine 'iterations) (~a status) 1)
   (values status value))
 
 ; ENSURE: all contexts have the same list of variables
@@ -194,7 +194,7 @@
 ;; Part 3: computing exact values by recomputing at higher precisions
 
 (define (batch-prepare-points fn ctxs sampler)
-  (my-rival-profile fn 'executions) ; Clear profiling vector
+  (rival-profile fn 'executions) ; Clear profiling vector
   ;; If we're using the bf fallback, start at the max precision
   (define outcomes (make-hash))
 
