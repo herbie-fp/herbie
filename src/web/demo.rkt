@@ -217,6 +217,8 @@
        (loop seed)))))
 
 (struct herbie-job (id sema pre post command))
+(struct job-input (id))
+(struct job-value (result seed id))
 
 (define (run-job job-info)
   (define pre-check (herbie-job-pre job-info))
@@ -230,13 +232,17 @@
       (define seed (herbie-command-seed command-info))
       (define (job) (create-job 'sample job-id sema formula post-process
       #:seed seed #:profile? #f #:timeline-disabled? #t))
-      (pre-check job)]
+      (when (pre-check (job-input job-id))
+        (job))
+      (semaphore-post sema)]
     ['improve
       (define formula (herbie-command-formula command-info))
       (define seed (herbie-command-seed command-info))
       (define (job)
         (create-job 'improve job-id sema formula post-process #:seed seed))
-      (pre-check job)]
+      (when (pre-check (job-input job-id))
+        (job))
+      (semaphore-post sema)]
     [_ (error 'run-job "unknown command ~a" (herbie-command-type command-info))]))
 
 (define (create-job command job-id sema formula post-process #:seed [seed #f] 
@@ -245,10 +251,9 @@
   (print-command-message command job-id (syntax->datum formula))     
   (define result (run-herbie command (parse-test formula) #:seed seed #:pcontext pcontext #:profile? profile? #:timeline-disabled? timeline-disabled?))
   (hash-set! *completed-jobs* job-id result)
-  (post-process result seed)
+  (post-process (job-value result seed job-id))
   (eprintf "Job ~a complete\n" job-id)
-  (hash-remove! *jobs* job-id)
-  (semaphore-post sema))
+  (hash-remove! *jobs* job-id))
 
 (define (print-command-message command job-id job-str)
   (define job-label
@@ -283,33 +288,36 @@
 
   (define improve-command (herbie-command 'improve formula (get-seed)))
 
-  ;; pre-check must return a semaphore-post
-  (define (pre-check work)
-   (define path (format "~a.~a" job-id *herbie-commit*))
-   (cond
-    [(hash-has-key? *completed-jobs* job-id)
-      (semaphore-post sema)]
-    [(and (*demo-output*) (directory-exists? (build-path (*demo-output*) path)))
-      (semaphore-post sema)]
-    [else (work)]))
-
-  (define (run-improve-post-process result seed)
-    (define path (format "~a.~a" job-id *herbie-commit*))
-    (when (*demo-output*)
-      ;; Output results
-      (make-directory (build-path (*demo-output*) path))
-      (for ([page (all-pages result)])
-        (call-with-output-file (build-path (*demo-output*) path page)
-          (λ (out) 
-            (with-handlers ([exn:fail? (page-error-handler result page out)])
-              (make-page page out result (*demo-output*) #f)))))
-      (update-report result path seed
-                      (build-path (*demo-output*) "results.json")
-                      (build-path (*demo-output*) "index.html"))))
-
-  (define job (herbie-job job-id sema pre-check run-improve-post-process improve-command))
+  (define job (herbie-job job-id sema 
+   run-improve-pre-check run-improve-post-process improve-command))
   (thread-send *worker-thread* job)
   sema)
+
+(define (run-improve-pre-check job-input)
+  (define job-id (job-input-id job-input))
+  (define path (format "~a.~a" job-id *herbie-commit*))
+  (cond
+  [(hash-has-key? *completed-jobs* job-id) #f]
+  [(and (*demo-output*) (directory-exists? (build-path (*demo-output*) path)))
+    #f]
+  [else #t]))
+
+(define (run-improve-post-process job-value)
+  (define job-id (job-value-id job-value))
+  (define seed (job-value-seed job-value))
+  (define result (job-value-result job-value))
+  (define path (format "~a.~a" job-id *herbie-commit*))
+  (when (*demo-output*)
+    ;; Output results
+    (make-directory (build-path (*demo-output*) path))
+    (for ([page (all-pages result)])
+      (call-with-output-file (build-path (*demo-output*) path page)
+        (λ (out) 
+          (with-handlers ([exn:fail? (page-error-handler result page out)])
+            (make-page page out result (*demo-output*) #f)))))
+    (update-report result path seed
+                    (build-path (*demo-output*) "results.json")
+                    (build-path (*demo-output*) "index.html"))))
 
 (define (already-computed? hash formula)
   (or (hash-has-key? *completed-jobs* hash)
@@ -425,15 +433,19 @@
 ;; Type is a symbol to be match on for the type of the command being processed
 (struct herbie-command (type formula seed))
 
-(define (run-command pre-check post-process command)
-  (define job-id (sha1 (open-input-string (~s command))))
+(define (compute-job-id cmd)
+  (sha1 (open-input-string (~s cmd))))
+
+(define (run-command pre-check post-process command async)
+  (define job-id (compute-job-id command))
   (hash-set! *jobs* job-id (*timeline*))
   (define sema (make-semaphore))
   (define job (herbie-job job-id sema pre-check post-process command))
   (thread-send *worker-thread* job)
-  (semaphore-wait sema)
-  (define result (hash-ref *completed-jobs* job-id))
-  result)
+  (when (not async)
+    (semaphore-wait sema)
+    (define result (hash-ref *completed-jobs* job-id))
+    result))
 
 ; /api/sample endpoint: test in console on demo page:
 ;; (await fetch('/api/sample', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x) (- (sqrt (+ x 1))))", seed: 5})})).json()
@@ -445,14 +457,14 @@
       (define seed (hash-ref post-data 'seed))
       (define sample-command (herbie-command 'sample formula seed))
 
-      (define (pre-check work)
-        ; no conditional checks to be done. 
-        (work))
-      (define (post-process result seed*)
+      (define (pre-check job-input)
+        ; no conditional checks to be done.
+        #t)
+      (define (post-process job-value)
         ; no post processing to be done here.
         empty)
 
-      (define result (run-command pre-check post-process sample-command))
+      (define result (run-command pre-check post-process sample-command #f))
     
       (define pctx (job-result-backend result))
       (define test (parse-test formula))
