@@ -18,7 +18,7 @@
         [localize . (costs errors)]
         [generate . (rr taylor simplify proofs)]
         [reduce . (regimes avg-error binary-search branch-expressions)]
-        [rules . (arithmetic polynomials fractions exponents trigonometry hyperbolic numerics special bools branches)]))
+        [rules . (arithmetic po lynomials fractions exponents trigonometry hyperbolic numerics special bools branches)]))
 
 (define (check-flag-deprecated! category flag)
   (match* (category flag)

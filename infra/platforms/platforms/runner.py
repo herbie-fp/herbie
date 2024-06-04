@@ -438,6 +438,8 @@ class Runner(object):
         self,
         cores: List[FPCore],
         threads: int = 1,
+        localize: bool = True,
+        old_cost: bool = False,
         platform: Optional[str] = None
     ):
         """Runs Herbie improvement on benchmarks under `path` appending
@@ -468,7 +470,7 @@ class Runner(object):
 
                 # call out to server
                 core_strs = ' '.join(map(lambda c: c.core, cores))
-                print(f'(improve ({core_strs}) {threads} {self.report_dir}) (exit)', file=server.stdin, flush=True)
+                print(f'(improve ({core_strs}) {localize} {old_cost} {threads} {self.report_dir}) (exit)', file=server.stdin, flush=True)
                 _ = server.stdout.read()
 
             # if everything went well, Herbie should have created a datafile

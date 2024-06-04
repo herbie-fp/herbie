@@ -20,6 +20,9 @@ default_herbie_threads = 1
 default_num_points = 10_000
 default_num_runs = 10
 default_seed = 1
+default_ablation = "default"
+
+ablation_map = { "default": (True, False), "nc": (True, True), "nl": (False, False), "ncl": (False, True) }
 
 # Sanity check that samples match the FPCores
 def check_samples(samples: List[List[List[float]]], cores: List[FPCore]):
@@ -48,6 +51,7 @@ def main():
     parser.add_argument('--num-runs', help='number of times to run drivers to obtain an average [100 by default]', type=int)
     parser.add_argument('--py-sample', help='uses a Python based sampling method. Useful for debugging', action='store_const', const=True, default=False)
     parser.add_argument('--key', help='unique identifier under which to place plots and other output', type=str)
+    parser.add_argument('--ablation', help='options: [nc, nl, ncl]', type=str)
     parser.add_argument('--seed', help='random seed to use for Herbie', type=int)
     parser.add_argument('platform', help='platform to use', type=str)
     parser.add_argument('bench_path', help='directory or FPCore for Herbie to run on', type=str)
@@ -66,6 +70,7 @@ def main():
     num_runs = args.get('num_runs', default_num_runs)
     py_sample = args.get('py_sample')
     key = args.get('key', None)
+    ablation = args.get('ablation', default_ablation)
     platform = args['platform']
     bench_path = os.path.join(curr_dir, args['bench_path'])
     output_dir = os.path.join(curr_dir, args['output_dir'])
@@ -90,7 +95,8 @@ def main():
     check_samples(samples, input_cores) # sanity check!
 
     # run Herbie improve and get associated sampled points
-    cores = runner.herbie_improve(cores=input_cores, threads=herbie_threads)
+    localize, old_cost = ablation_map[ablation]
+    cores = runner.herbie_improve(cores=input_cores, threads=herbie_threads, localize=localize, old_cost=old_cost)
     samples = runner.herbie_sample(cores=cores, py_sample=py_sample)
     check_samples(samples, cores) # sanity check!
 

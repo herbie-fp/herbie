@@ -164,10 +164,16 @@
        (loop)]
       ; improve <core> <threads:int> <dir>
       [(list 'improve args ...)
-       (define-values (cores threads dir)
+       (define-values (cores localize old-cost threads dir)
          (match args
-           [(list cores threads dir) (values cores threads dir)]
+           [(list cores localize old-cost threads dir) (values cores localize old-cost threads dir)]
            [_ (error 'run-server "improve: malformed arguments ~a" args)]))
+       (if (equal? localize 'True)
+        (enable-flag! 'localize 'costs)
+        (disable-flag! 'localize 'costs))
+       (if (equal? old-cost 'True)
+        (*old-cost-function* #t)
+        (*old-cost-function* #f))
        (define tests (map (lambda (c) (parse-test (datum->syntax #f c))) cores))
        (define results (get-test-results tests #:threads threads #:seed seed #:profile #f #:dir #f))
        (define info (make-report-info (filter values results) #:seed seed))
