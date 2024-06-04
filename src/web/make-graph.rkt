@@ -50,7 +50,7 @@
    [_ #f]))
 
 (define (make-graph result out output? fpcore? profile?)
-  (match-define (job-result test _ time _ warnings backend) result)
+  (match-define (job-result _ test _ time _ warnings backend) result)
   (define vars (test-vars test))
   (define repr (test-output-repr test))
   (define repr-bits (representation-total-bits repr))
