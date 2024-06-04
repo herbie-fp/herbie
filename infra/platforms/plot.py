@@ -418,16 +418,16 @@ def main():
             plot_time(name, output_dir, info)
 
     # Baseline plot
-    # if baseline_reports:
-    #     plot_baseline_all(output_dir, baseline_reports)
-    #     for name, info in baseline_reports:
-    #         plot_compare1(name, 'baseline', output_dir, info)
+    if baseline_reports:
+        plot_baseline_all(output_dir, baseline_reports)
+        for name, info in baseline_reports:
+            plot_compare1(name, 'baseline', output_dir, info)
 
     # Comparison plot
-    # if compare_reports:
-    #     plot_compare_all(output_dir, compare_reports)
-    #     for name, name2, info in compare_reports:
-    #         plot_compare1(name, name2, output_dir, info)
+    if compare_reports:
+        plot_compare_all(output_dir, compare_reports)
+        for name, name2, info in compare_reports:
+            plot_compare1(name, name2, output_dir, info)
 
 
 if __name__ == "__main__":
