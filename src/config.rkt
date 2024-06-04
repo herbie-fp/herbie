@@ -87,11 +87,13 @@
 (define *max-bsearch-bits* (make-parameter 48))
 
 ;; Maximum MPFR precision allowed during exact evaluation
-(define *max-mpfr-prec* (make-parameter 10000))
+(define *max-mpfr-prec* (make-parameter 27136)) ; 53*512 - which sollya uses as a "stop precision"
+(define *start-prec* (make-parameter 256))
 (define *ampl-tuning-bits* (make-parameter 5))
 (define *sampling-iteration* (make-parameter 0))
 (define *base-tuning-precision* (make-parameter 73))
 (define *max-sampling-iterations* (make-parameter 5))
+(define *sampling-timeout* (make-parameter 5.0))
 
 ;; The maximum size of an egraph
 (define *node-limit* (make-parameter 8000))

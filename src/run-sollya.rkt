@@ -2,7 +2,7 @@
 
 ; Issues at 32000 with (λ (B x) ...)
 
-(require math/bigfloat math/flonum "syntax/types.rkt")
+(require math/bigfloat math/flonum "syntax/types.rkt" "config.rkt")
 
 (provide run-sollya)
 
@@ -10,7 +10,6 @@
 ;(require "run-mpfi.rkt")
 
 (define *precision* (make-parameter 53))
-(define timeout-ms 5.0)
 
 (define (program-body prog)
   (match-define (list (or 'lambda 'λ 'FPCore) (list vars ...) body) prog)
@@ -154,14 +153,9 @@
     (when backup (apply fprintf backup fmt vs))
     (flush-output m-in))
 
-  (with-handlers ([number? (lambda (e)
-                             (subprocess-kill process #t)
-                             (close-output-port m-in)
-                             (close-input-port m-out)
-                             (close-input-port m-err))])
-    (ffprintf "~a\n" (if (equal? (length prog) 2)
-                         (exprs+ctxs->sollya (car (first prog)) (second prog))
-                         (program->sollya prog))))
+  (ffprintf "~a\n" (if (equal? (length prog) 2)
+                       (exprs+ctxs->sollya (car (first prog)) (second prog))
+                       (program->sollya prog)))
   
   (let loop ([i 0])
     (define step (read-bytes-avail! buffer m-out i))
@@ -221,7 +215,7 @@
   (let loop ([i 0])
     (define step (read-bytes-avail!* buffer m-out i))
     (define s (bytes->string/latin-1 buffer #f 0 (+ i step)))
-    (cond
+    (cond 
       [(regexp-match #rx"^Warning: the given expression is undefined or numerically unstable\n*" s)
        (let ([dt (- (current-inexact-milliseconds) start)])
          (match-define (list result sollya-time) (take-right (string-split s "\n") 2))
@@ -276,13 +270,12 @@
          (list dt (seconds->ms sollya-time)
                (list (fl -inf.0) (bigfloat->flonum (bf upper)))
                'valid))]
-
-      [(> (- (current-inexact-milliseconds) start) timeout-ms)
+      [(> (- (current-inexact-milliseconds) start) (*sampling-timeout*))
        (when (not (equal? s ""))
          (eprintf "\nUnprocessed output from Sollya\n")
          (eprintf "Stdout interval: ~s\n" s)
          (error "crashed"))
-       (list timeout-ms timeout-ms (list (fl +nan.0) (fl +nan.0)) 'exit)]
+       (list (*sampling-timeout*) (*sampling-timeout*) (list (fl +nan.0) (fl +nan.0)) 'exit)]
       
       [else
        (loop (+ i step))])))
@@ -326,11 +319,12 @@
          (list dt (seconds->ms sollya-time) (bigfloat->flonum (bf result)) 'valid))]
 
       ; Timeout
-      [(> (- (current-inexact-milliseconds) start) timeout-ms)
+      [(> (- (current-inexact-milliseconds) start) (*sampling-timeout*))
        (when (not (equal? s ""))
          (eprintf "\nUnprocessed output from Sollya\n")
          (eprintf "Stdout number: ~s\n" s)
          (error "crashed"))
-       (list timeout-ms timeout-ms (fl +nan.0) 'exit)]
+       (list (*sampling-timeout*) (*sampling-timeout*) (fl +nan.0) 'exit)]
+
       [else
        (loop (+ i step))])))

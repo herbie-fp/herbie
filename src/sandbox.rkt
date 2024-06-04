@@ -37,7 +37,7 @@
 (struct alt-analysis (alt train-errors test-errors))
 
 (define *reeval-pts* (make-parameter 8000))
-(define *timeout* (make-parameter 500000 #;(* 1000 60 5/2)))
+(define *timeout* (make-parameter (* 1000 60 10) #;(* 1000 60 5/2)))
 
 ;; true if Racket CS <= 8.2
 (define cs-places-workaround?
