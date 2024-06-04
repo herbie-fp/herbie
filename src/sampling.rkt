@@ -194,6 +194,7 @@
 ;; Part 3: computing exact values by recomputing at higher precisions
 
 (define (batch-prepare-points fn ctxs sampler)
+  (rival-profile fn 'executions) ; Clear profiling vector
   ;; If we're using the bf fallback, start at the max precision
   (define outcomes (make-hash))
 
