@@ -306,7 +306,7 @@
                  '()
                  (list (string->bytes/utf-8 (xexpr->string (herbie-page #:title title body))))))
 
-(define (improve-common req body go-back)
+(define (improve-helper req body go-back)
   (match (extract-bindings 'formula (request-bindings req))
     [(list formula-str)
      (define formula
@@ -328,19 +328,58 @@
        (when (eof-object? formula)
          (raise-herbie-error "no formula specified"))
        (parse-test formula)
-       (define hash (sha1 (open-input-string formula-str)))
+       (define hash (sha1 (open-input-string (~s 'improve formula (get-seed)))))
        (body hash formula))]
     [_
      (response/error "Demo Error"
                      `(p "You didn't specify a formula (or you specified several). "
                          "Please " (a ([href ,go-back]) "go back") " and try again."))]))
 
+(define (improve-start-extract post-data)
+  (define form-str (hash-ref post-data 'formula))
+  (define form-seed (hash-ref post-data 'seed))
+  (list form-str form-seed))
+
+(define (improve-start-helper req body go-back)
+  (define post-body (request-post-data/raw req))
+  (define post-data (cond (post-body (bytes->jsexpr post-body)) (#t #f)))
+  (match (improve-start-extract post-data)
+    [(list formula-str seed*)
+     (define formula
+       (with-handlers ([exn:fail? (λ (e) #f)])
+         (read-syntax 'web (open-input-string formula-str))))
+     (unless formula
+      (raise-herbie-error "bad input: did you include special characters like `#`?"))
+     (with-handlers
+         ([exn:fail:user:herbie?
+           (λ (e)
+             (response/error
+              "Demo Error"
+              `(div
+                (h1 "Invalid formula")
+                (pre ,(herbie-error->string e))
+                (p
+                  "Formula must be a valid program using only the supported functions. "
+                  "Please " (a ([href ,go-back]) "go back") " and try again."))))])
+       (when (eof-object? formula)
+         (raise-herbie-error "no formula specified"))
+       (parse-test formula)
+       (define hash (sha1 (open-input-string (~s 'improve formula (get-seed)))))
+       (body hash formula seed*))]
+    [_
+     (response/error "Demo Error"
+                     `(p "You didn't specify a formula (or you specified several). "
+                         "Please " (a ([href ,go-back]) "go back") " and try again."))]))
+
 (define (improve-start req)
-  (improve-common
+  (improve-start-helper
    req
-   (λ (hash formula)
+   (λ (hash formula seed*)
      (unless (already-computed? hash formula)
-       (run-improve hash formula))
+      (define old-seed (get-seed))
+      (set-seed! seed*)
+      (run-improve hash formula)
+      (set-seed! old-seed))
      (response/full 201 #"Job started" (current-seconds) #"text/plain"
                     (list (header #"Location" (string->bytes/utf-8 (url check-status hash)))
                           (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
@@ -371,7 +410,7 @@
                  '()))
 
 (define (improve req)
-  (improve-common
+  (improve-helper
    req
    (λ (hash formula)
      (unless (already-computed? hash formula)
@@ -393,10 +432,10 @@
     (lambda (post-data)
       (define formula-str (hash-ref post-data 'formula))
       (define formula (read-syntax 'web (open-input-string formula-str)))
-      (define _hash (sha1 (open-input-string formula-str)))
-      (define _seed (hash-ref post-data 'seed))
-      (semaphore-wait (run-sample _hash formula _seed))
-      (define result (hash-ref *completed-jobs* _hash))
+      (define seed* (hash-ref post-data 'seed))
+      (define job-id (sha1 (open-input-string (~s 'sample formula seed*))))
+      (semaphore-wait (run-sample job-id formula seed*))
+      (define result (hash-ref *completed-jobs* job-id))
       (define pctx (job-result-backend result))
       (define test (parse-test formula))
       (hasheq 'points (pcontext->json pctx 
