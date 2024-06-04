@@ -23,7 +23,8 @@ class FPCore(object):
         err: Optional[float] = None,
         json: Optional[dict] = None,
         py_sample: bool = False,
-        override: bool = False
+        override: bool = False,
+        ablation: Optional[dict] = None
     ):
         self.core = core
         self.key = key
