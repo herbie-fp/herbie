@@ -38,13 +38,21 @@
    [(list '<= a b) (format "numpy.less_equal(~a, ~a)" a b)]
    [(list '== a b) (format "numpy.equal(~a, ~a)" a b)]
    [(list '!= a b) (format "numpy.not_equal(~a, ~a)" a b)]
+   ;;TODO add variary comparison operators
+   [(list 'not a) (format "numpy.logical_not(~a)" a)]
+   [(list 'and a ...) (format (operator-nary->binary "and" args))]
+   [(list 'or a ...) (format (operator-nary->binary "or" args))]
    [_ (format "numpy.~a(~a)" op (string-join args ", "))]))
+
+  (define (operator-nary->binary name arguments)
+  (for/fold ([l (car arguments)]) ([r (cdr arguments)])
+    (format "numpy.logical_~a(~a, ~a)" name l r)))
 
 (define (constant->numpy x ctx)
   (define prec (ctx-lookup-prop ctx ':precision))
   (match x
-   ['TRUE "True"]
-   ['FALSE "False"]
+   ['TRUE (format "numpy.full(length, True)")]
+   ['FALSE (format "numpy.full(length, False)")]
    ['INFINITY (format "numpy.full(length, numpy.inf, dtype=~a)"(type->numpy prec))]
    ['NAN (format "numpy.full(length, numpy.nan, dtype=~a)" (type->numpy prec))]
    ['PI (format "numpy.full(length, numpy.pi, dtype=~a)" (type->numpy prec))]
@@ -75,14 +83,8 @@
   (define-values (iff* iff-ctx) (visit/ctx vtor iff ift-ctx))
   (define-values (cond* cond-ctx) (visit/ctx vtor cond ctx))
   (define-values (ctx* name) (ctx-random-name iff-ctx prec))
-  (define-values (name-ctx cond-name) (ctx-random-name ctx prec))
-  (printf "~a~a = ~a\n" indent cond-name cond*)
-  (printf "~a~a = numpy.array(~a)\n"indent name iff*)
-  (printf "~a~a[~a] = numpy.array(~a)[~a]\n" indent name cond-name ift* cond-name)
 
-  ;(printf "~a~a = numpy.zeros(length,dtype=~a)\n" indent name (type->numpy prec))
-  ;(printf "~a~a[~a] = numpy.array(~a)[~a]\n" indent name cond-name ift* cond-name)
-  ;(printf "~a~a[~~ ~a] = numpy.array(~a)[~~ ~a]\n" indent name cond-name iff* cond-name)
+  (printf "~a~a = numpy.where(~a,~a,~a)\n" indent name cond* ift* iff*)
   (values name ctx*))
 
 (define (visit-number/numpy vtor x #:ctx ctx)
