@@ -4,19 +4,21 @@
 
 (require "correct-round.rkt")
 
-(provide rival-compile rival-apply rival-analyze
-         (struct-out exn:rival)
-         (struct-out exn:rival:invalid)
-         (struct-out exn:rival:unsamplable)
-         (struct-out discretization)
-         *rival-max-precision* *rival-max-iterations*
-         rival-profile (struct-out execution) *rival-profile-executions*)
+(provide my-rival-compile my-rival-apply my-rival-analyze
+         (struct-out my-discretization)
+         (struct-out my-exn:rival)
+         (struct-out my-exn:rival:invalid)
+         (struct-out my-exn:rival:unsamplable)
+         *my-rival-max-precision*
+         *my-rival-max-iterations*
+         *my-rival-profile-executions*
+         my-rival-profile (struct-out my-execution))
 
 (define ground-truth-require-convergence (make-parameter #t))
 
 (define (is-samplable-interval disc interval)
-  (define convert (discretization-convert disc))
-  (define distance (discretization-distance disc))
+  (define convert (my-discretization-convert disc))
+  (define distance (my-discretization-distance disc))
   (define (close-enough? lo hi)
     (= (distance (convert lo) (convert hi)) 0))
   ((close-enough->ival close-enough?) interval))
@@ -42,21 +44,21 @@
       'unsamplable)
      y)))
 
-(define (rival-compile exprs vars discs)
+(define (my-rival-compile exprs vars discs)
   (compile-specs exprs vars discs))
 
-(struct exn:rival exn:fail ())
-(struct exn:rival:invalid exn:rival (pt))
-(struct exn:rival:unsamplable exn:rival (pt))
+(struct my-exn:rival exn:fail ())
+(struct my-exn:rival:invalid my-exn:rival (pt))
+(struct my-exn:rival:unsamplable my-exn:rival (pt))
 
 (define (ival-any-error? ivals)
   (for/fold ([out (ival-error? (vector-ref ivals 0))])
             ([iv (in-vector ivals 1)])
     (ival-or out (ival-error? iv))))
 
-(struct execution (name number precision time) #:prefab)
+(struct my-execution (name number precision time) #:prefab)
 
-(define (rival-profile machine param)
+(define (my-rival-profile machine param)
   (match param
     ['instructions (vector-length (rival-machine-instructions machine))]
     ['iterations (rival-machine-iteration machine)]
@@ -73,14 +75,15 @@
                       [number (in-vector profile-number 0 profile-ptr)]
                       [precision (in-vector profile-precision 0 profile-ptr)]
                       [time (in-vector profile-time 0 profile-ptr)])
-           (execution instruction number precision time))
+           (my-execution instruction number precision time))
        (set-rival-machine-profile-ptr! machine 0))]))
 
 (define (ival-real x)
   (ival x))
 
-(define (rival-apply machine pt)
+(define (my-rival-apply machine pt)
   (define discs (rival-machine-discs machine))
+  (set-rival-machine-bumps! machine 0)
   (let loop ([iter 0])
     (define exs
       (parameterize ([*sampling-iteration* iter]
@@ -89,17 +92,17 @@
     (match-define (ival err err?) (ival-any-error? exs))
     (cond
       [err
-       (raise (exn:rival:invalid "Invalid input" (current-continuation-marks) pt))]
+       (raise (my-exn:rival:invalid "Invalid input" (current-continuation-marks) pt))]
       [(not err?)
-       (for/list ([ex (in-vector exs)] [disc (in-vector discs)])
+       (for/vector #:length (vector-length discs) ([ex (in-vector exs)] [disc (in-vector discs)])
          ; We are promised at this point that (distance (convert lo) (convert hi)) = 0 so use lo
-         ([discretization-convert disc] (ival-lo ex)))]
+         ([my-discretization-convert disc] (ival-lo ex)))]
       [(>= iter (*rival-max-iterations*))
-       (raise (exn:rival:unsamplable "Unsamplable input" (current-continuation-marks) pt))]
+       (raise (my-exn:rival:unsamplable "Unsamplable input" (current-continuation-marks) pt))]
       [else
        (loop (+ 1 iter))])))
 
-(define (rival-analyze machine rect)
+(define (my-rival-analyze machine rect)
   (define res
     (parameterize ([*sampling-iteration* 0]
                    [ground-truth-require-convergence #f])
