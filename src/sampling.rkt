@@ -124,13 +124,18 @@
     (cons (λ () (map random-generate reprs)) (hash 'unknown 1.0))]))
 
 (define bool-discretization
-  (discretization identity
+  (my-discretization identity
                   (lambda (x y) (if (eq? x y) 0 1))))
 
 (define (representation->discretization repr)
-  (discretization
+  (my-discretization
    (representation-bf->repr repr)
    (lambda (x y) (- (ulp-difference x y repr) 1))))
+
+(define (expr-size expr)
+  (if (list? expr)
+      (apply + 1 (map expr-size (cdr expr)))
+      1))
 
 ;; Returns a function that maps an ival to a list of ivals
 ;; The first element of that function's output tells you if the input is good
@@ -139,33 +144,39 @@
   (define vars (context-vars (car ctxs)))
   (define var-reprs (context-var-reprs (car ctxs)))
   (define discs (map (compose representation->discretization context-repr) ctxs))
-  (define compiled
-    (rival-machine-fn (rival-compile (cons pre specs) vars (cons bool-discretization discs))))
-  (define outlength (length specs))
-  (define (compiled-spec inputs)
-    (define outvec (compiled inputs))
-    (define ival-pre (vector-ref outvec 0))
-    (for/vector #:length outlength ([y (in-vector outvec 1)] [ctx (in-list ctxs)])
-      (ival-then
-       ; The two `invalid` ones have to go first, because later checks
-       ; can error if the input is erroneous
-       (ival-assert (ival-not (ival-error? ival-pre)) 'invalid)
-       (ival-assert ival-pre 'precondition)
-       y)))
-  (rival-machine compiled-spec discs))
+  (define machine (my-rival-compile (cons `(assert ,pre) specs) vars (cons bool-discretization discs)))
+  (timeline-push! 'compiler
+                  (apply + 1 (expr-size pre) (map expr-size specs))
+                  (+ (length vars) (my-rival-profile machine 'instructions)))
+  machine)
 
 (define (ival-eval machine ctxs pt [iter 0])
   (define start (current-inexact-milliseconds))
   (define pt*
-    (for/list ([val (in-list pt)] [repr (in-list (context-var-reprs (car ctxs)))])
+    (for/vector ([val (in-list pt)] [repr (in-list (context-var-reprs (car ctxs)))])
       ((representation-repr->bf repr) val)))
   (define-values (status value)
     (with-handlers
-      ([exn:rival:invalid? (lambda (e) (values 'invalid #f))]
-       [exn:rival:unsamplable? (lambda (e) (values 'exit #f))])
-      (values 'valid (rival-apply machine pt*))))
+      ([my-exn:rival:invalid? (lambda (e) (values 'invalid #f))]
+       [my-exn:rival:unsamplable? (lambda (e) (values 'exit #f))])
+      (parameterize ([*my-rival-max-precision* (*max-mpfr-prec*)]
+                     [*my-rival-max-iterations* 5])
+        (values 'valid (rest (vector->list (my-rival-apply machine pt*))))))) ; rest = drop precondition
+  (when (> (my-rival-profile machine 'bumps) 0)
+    (warn 'ground-truth "Could not converge on a ground truth"
+          #:extra (for/list ([var (in-list (context-vars (car ctxs)))] [val (in-list pt)])
+                    (format "~a = ~a" var val))))
+  (define executions (my-rival-profile machine 'executions))
+  (when (>= (vector-length executions) (*my-rival-profile-executions*))
+    (warn 'profile "Rival profile vector overflowed, profile may not be complete"))
+  (define prec-threshold (exact-floor (/ (*max-mpfr-prec*) 25)))
+  (for ([execution (in-vector executions)])
+    (define name (symbol->string (my-execution-name execution)))
+    (define precision (- (my-execution-precision execution)
+                         (remainder (my-execution-precision execution) prec-threshold)))
+    (timeline-push!/unsafe 'mixsample (my-execution-time execution) name precision))
   (timeline-push!/unsafe 'outcomes (- (current-inexact-milliseconds) start)
-                         rival-profile-iterations-taken (~a status) 1)
+                         (my-rival-profile machine 'iterations) (~a status) 1)
   (values status value))
 
 ; ENSURE: all contexts have the same list of variables
@@ -183,6 +194,7 @@
 ;; Part 3: computing exact values by recomputing at higher precisions
 
 (define (batch-prepare-points fn ctxs sampler)
+  (my-rival-profile fn 'executions) ; Clear profiling vector
   ;; If we're using the bf fallback, start at the max precision
   (define outcomes (make-hash))
 
