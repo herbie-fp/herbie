@@ -32,8 +32,10 @@
 ;; --------------------------------------------------------
 ;; Platform
 
+(define move-cost 0.07134069999999999)
+
 (define boolean-platform
-  (with-terminal-cost ([bool 1])
+  (with-terminal-cost ([bool move-cost])
     (platform
       #:default-cost 1
       #:if-cost 1
@@ -43,10 +45,10 @@
 
 ; non-tunable operations
 (define non-tunable
-  (with-terminal-cost ([binary64 1])
+  (with-terminal-cost ([binary64 move-cost])
     (platform-product
       [([real binary64] [bool bool])
-       (cost-map #:default-cost 1)]
+       (cost-map #:default-cost move-cost)]
       (operator-set
         [(real) (PI E INFINITY NAN)]
         [(real real bool) (== != > < >= <=)]))))
@@ -101,7 +103,7 @@
 [trunc 0.05423589999999999]))
 
 (define tunable
-  (with-terminal-cost ([binary64 1])
+  (with-terminal-cost ([binary64 move-cost])
     (platform-product
       #:optional
       [([real binary64]) cost-model]
