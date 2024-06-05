@@ -37,7 +37,7 @@
 (define boolean-platform
   (with-terminal-cost ([bool move-cost])
     (platform
-      #:default-cost 1
+      #:default-cost move-cost
       #:if-cost 1
       [(bool) (TRUE FALSE)]
       [(bool bool) not]
