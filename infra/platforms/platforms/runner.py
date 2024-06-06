@@ -448,7 +448,7 @@ class Runner(object):
         This method must be overriden by every implementation of `Runner`."""
         raise NotImplementedError('virtual method')
 
-    def run_drivers(self, driver_dirs: List[str]) -> List[float]:
+    def run_drivers(self, cores: List[FPCore], driver_dirs: List[str]) -> List[float]:
         """Runs all drivers for each compiled FPCore.
         Assumes `compile_drivers()` has already been previous called.
         This method must be overriden by every implementation of `Runner`."""

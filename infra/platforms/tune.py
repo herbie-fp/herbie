@@ -68,7 +68,7 @@ def main():
     runner.compile_drivers(driver_dirs=driver_dirs)
 
     # run drivers
-    times = runner.run_drivers(driver_dirs=driver_dirs)
+    times = runner.run_drivers(cores=cores, driver_dirs=driver_dirs)
     runner.write_tuning_report(cores, times)
     runner.print_times(cores, times)
 
