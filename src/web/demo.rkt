@@ -70,8 +70,9 @@
 
 (define (generate-report req)
   (define data
-    (for/list ([(k v) (in-hash *completed-jobs*)])
-      (get-table-data v (format "~a.~a" k *herbie-commit*))))
+    (for/list ([(k v) (in-hash *completed-jobs*)]
+      #:when (equal? (job-result-command v) 'improve))
+       (get-table-data v (format "~a.~a" k *herbie-commit*))))
   (define info (make-report-info data #:seed (get-seed) #:note (if (*demo?*) "Web demo results" "Herbie results")))
   (response 200 #"OK" (current-seconds) #"text"
             (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
