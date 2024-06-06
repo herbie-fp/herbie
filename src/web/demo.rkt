@@ -336,7 +336,7 @@
                      `(p "You didn't specify a formula (or you specified several). "
                          "Please " (a ([href ,go-back]) "go back") " and try again."))]))
 
-(define (improve-start-extract post-data)
+(define (extract-formula-and-seed post-data)
   ;; Maybe pass in context from the request for the error?
   (define form-str (hash-ref post-data 'formula (lambda () (raise-herbie-error "Unable to parse formula from ~a\n" post-data))))
   (define form-seed (hash-ref post-data 'seed (lambda () (raise-herbie-error "Unable to parse seed from ~a\n" post-data))))
@@ -350,7 +350,7 @@
 (define (improve-start-helper req body go-back)
   (define post-body (request-post-data/raw req))
   (define post-data (bytes->jsexpr post-body))
-  (match (improve-start-extract post-data)
+  (match (extract-formula-and-seed post-data)
     [(list formula-str seed*)
      ;; TODO Check that seed is a valid seed?
      (define formula (parse-formula-from-string formula-str))
