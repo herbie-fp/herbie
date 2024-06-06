@@ -337,8 +337,9 @@
                          "Please " (a ([href ,go-back]) "go back") " and try again."))]))
 
 (define (improve-start-extract post-data)
-  (define form-str (hash-ref post-data 'formula))
-  (define form-seed (hash-ref post-data 'seed))
+  ;; Maybe pass in context from the request for the error?
+  (define form-str (hash-ref post-data 'formula (lambda () (raise-herbie-error "Unable to parse formula from ~a\n" post-data))))
+  (define form-seed (hash-ref post-data 'seed (lambda () (raise-herbie-error "Unable to parse seed from ~a\n" post-data))))
   (list form-str form-seed))
 
 (define (improve-start-helper req body go-back)

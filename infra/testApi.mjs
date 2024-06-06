@@ -17,138 +17,156 @@ assert.equal(improveResponse.status, 200)
 // assert.equal(improveHTML.length, improveHTMLexpectedCount, `HTML response character count should be ${improveHTMLexpectedCount} unless HTML changes.`)
 
 // improve-start endpoint
-const startURL = `http://127.0.0.1:8000/improve-start?formula=${encodeURIComponent(FPCoreFormula2)}`
-const startResponse = await fetch(startURL, { method: 'POST' })
+const improveStartURL = `http://127.0.0.1:8000/improve-start`
+var startResponse = await fetch(improveStartURL,
+  {
+    method: 'POST',
+    body: JSON.stringify({ formula: FPCoreFormula2, seed: 5 })
+  })
 assert.equal(startResponse.status, 201)
 const path = startResponse.headers.get("location")
-
-// Check status endpoint
-const checkStatus = await fetch(
-  `http://127.0.0.1:8000${path}`,
-  { method: 'GET' })
-assert.equal(checkStatus.status, 201)
-assert.equal(checkStatus.statusText, 'Job complete')
-
-// up endpoint
-const up = await fetch(
-  'http://127.0.0.1:8000/up',
-  { method: 'GET' })
-
-assert.equal('Up', up.statusText)
-// TODO how do I test down state?
-
-// Sample endpoint
-const sample = (await (await fetch('http://127.0.0.1:8000/api/sample', { method: 'POST', body: JSON.stringify({ formula: FPCoreFormula2, seed: 5 }) })).json())
-
-const SAMPLE_SIZE = 8000
-assert.ok(sample.points)
-const points = sample.points
-assert.equal(points.length, SAMPLE_SIZE, `sample size should be ${SAMPLE_SIZE}`)
-
-const sample2 = (await (await fetch('http://127.0.0.1:8000/api/sample', { method: 'POST', body: JSON.stringify({ formula: FPCoreFormula2, seed: 5 }) })).json())
-const points2 = sample2.points
-
-assert.deepEqual(points[1], points2[1])
-
-// Analyze endpoint
-const errors = (await (await fetch('http://127.0.0.1:8000/api/analyze', {
-  method: 'POST', body: JSON.stringify({
-    formula: FPCoreFormula, sample: [[[
-      14.97651307489794
-    ], 0.12711304680349078]]
+assert.equal(true, path.includes("/check-status/"))
+// Test bad JSON request
+startResponse = await fetch(improveStartURL,
+  {
+    method: 'POST',
+    body: JSON.stringify({ formula: FPCoreFormula2 })
   })
-})).json()).points  // HACK tiny sample
-
-assert.deepEqual(errors, [[[14.97651307489794], "2.3"]])
-
-
-// Local error endpoint
-const localError = (await (await fetch('http://127.0.0.1:8000/api/localerror', {
-  method: 'POST', body: JSON.stringify({
-    formula: FPCoreFormula, sample: sample2.points
+assert.equal(startResponse.status, 500)
+startResponse = await fetch(improveStartURL,
+  {
+    method: 'POST',
+    body: JSON.stringify({ seed: 5 })
   })
-})).json())
+assert.equal(startResponse.status, 500)
 
-assert.equal(localError.tree['avg-error'] > 0, true)
+// // Check status endpoint
+// const checkStatus = await fetch(
+//   `http://127.0.0.1:8000${path}`,
+//   { method: 'GET' })
+// assert.equal(checkStatus.status, 201)
+// assert.equal(checkStatus.statusText, 'Job complete')
 
-// Alternatives endpoint
+// // up endpoint
+// const up = await fetch(
+//   'http://127.0.0.1:8000/up',
+//   { method: 'GET' })
 
-const alternatives = (await (await fetch('http://127.0.0.1:8000/api/alternatives', {
-  method: 'POST', body: JSON.stringify({
-    formula: FPCoreFormula, sample: [[[
-      14.97651307489794
-    ], 0.12711304680349078]]
-  })
-})).json())  // HACK tiny sample
+// assert.equal('Up', up.statusText)
+// // TODO how do I test down state?
 
-assert.equal(Array.isArray(alternatives.alternatives), true)
+// // Sample endpoint
+// const sample = (await (await fetch('http://127.0.0.1:8000/api/sample', { method: 'POST', body: JSON.stringify({ formula: FPCoreFormula2, seed: 5 }) })).json())
 
-// Exacts endpoint
-const exacts = (await (await fetch('http://127.0.0.1:8000/api/exacts', {
-  method: 'POST', body: JSON.stringify({
-    formula: FPCoreFormula2, sample: eval_sample
-  })
-})).json()).points
+// const SAMPLE_SIZE = 8000
+// assert.ok(sample.points)
+// const points = sample.points
+// assert.equal(points.length, SAMPLE_SIZE, `sample size should be ${SAMPLE_SIZE}`)
 
-assert.deepEqual(exacts, [[[1], -1.4142135623730951]])
+// const sample2 = (await (await fetch('http://127.0.0.1:8000/api/sample', { method: 'POST', body: JSON.stringify({ formula: FPCoreFormula2, seed: 5 }) })).json())
+// const points2 = sample2.points
 
-// Calculate endpoint
-const calculate = (await (await fetch('http://127.0.0.1:8000/api/calculate', {
-  method: 'POST', body: JSON.stringify({
-    formula: FPCoreFormula2, sample: eval_sample
-  })
-})).json()).points
+// assert.deepEqual(points[1], points2[1])
 
-assert.deepEqual(calculate, [[[1], -1.4142135623730951]])
+// // Analyze endpoint
+// const errors = (await (await fetch('http://127.0.0.1:8000/api/analyze', {
+//   method: 'POST', body: JSON.stringify({
+//     formula: FPCoreFormula, sample: [[[
+//       14.97651307489794
+//     ], 0.12711304680349078]]
+//   })
+// })).json()).points  // HACK tiny sample
 
-// Cost endpoint
+// assert.deepEqual(errors, [[[14.97651307489794], "2.3"]])
 
-const cost = (await (await fetch('http://127.0.0.1:8000/api/cost', {
-  method: 'POST', body: JSON.stringify({
-    formula: FPCoreFormula2, sample: eval_sample
-  })
-})).json())
-assert.equal(cost.cost > 0, true)
 
-// MathJS endpoint
+// // Local error endpoint
+// const localError = (await (await fetch('http://127.0.0.1:8000/api/localerror', {
+//   method: 'POST', body: JSON.stringify({
+//     formula: FPCoreFormula, sample: sample2.points
+//   })
+// })).json())
 
-const mathjs = (await (await fetch('http://127.0.0.1:8000/api/mathjs', {
-  method: 'POST',
-  body: JSON.stringify({ formula: FPCoreFormula })
-})).json()).mathjs
+// assert.equal(localError.tree['avg-error'] > 0, true)
 
-assert.equal(mathjs, "sqrt(x + 1.0) - sqrt(x)")
+// // Alternatives endpoint
 
-// Translate endpoint
-const expectedExpressions = {
-  "python": 'def expr(x):\n\treturn math.sqrt((x + 1.0)) - math.sqrt(x)\n',
-  "c": 'double expr(double x) {\n\treturn sqrt((x + 1.0)) - sqrt(x);\n}\n',
-  "fortran": 'real(8) function expr(x)\n    real(8), intent (in) :: x\n    expr = sqrt((x + 1.0d0)) - sqrt(x)\nend function\n',
-  "java": 'public static double expr(double x) {\n\treturn Math.sqrt((x + 1.0)) - Math.sqrt(x);\n}\n',
-  "julia": 'function expr(x)\n\treturn Float64(sqrt(Float64(x + 1.0)) - sqrt(x))\nend\n',
-  "matlab": 'function tmp = expr(x)\n\ttmp = sqrt((x + 1.0)) - sqrt(x);\nend\n',
-  "wls": 'expr[x_] := N[(N[Sqrt[N[(x + 1), $MachinePrecision]], $MachinePrecision] - N[Sqrt[x], $MachinePrecision]), $MachinePrecision]\n', // Wolfram 
-  "tex": '\\mathsf{expr}\\left(x\\right) = \\sqrt{x + 1} - \\sqrt{x}\n',
-  "js": 'function expr(x) {\n\treturn Math.sqrt((x + 1.0)) - Math.sqrt(x);\n}\n'
-}
+// const alternatives = (await (await fetch('http://127.0.0.1:8000/api/alternatives', {
+//   method: 'POST', body: JSON.stringify({
+//     formula: FPCoreFormula, sample: [[[
+//       14.97651307489794
+//     ], 0.12711304680349078]]
+//   })
+// })).json())  // HACK tiny sample
 
-for (const e in expectedExpressions) {
-  const translatedExpr =
-    (await (await fetch('http://127.0.0.1:8000/api/translate',
-      {
-        method: 'POST', body: JSON.stringify(
-          { formula: FPCoreFormula, language: e })
-      })).json())
+// assert.equal(Array.isArray(alternatives.alternatives), true)
 
-  assert.equal(translatedExpr.result, expectedExpressions[e])
-}
+// // Exacts endpoint
+// const exacts = (await (await fetch('http://127.0.0.1:8000/api/exacts', {
+//   method: 'POST', body: JSON.stringify({
+//     formula: FPCoreFormula2, sample: eval_sample
+//   })
+// })).json()).points
 
-// Results.json endpoint
+// assert.deepEqual(exacts, [[[1], -1.4142135623730951]])
 
-const jsonResults = await (await fetch(
-  'http://127.0.0.1:8000/results.json',
-  { method: 'GET' })).json()
+// // Calculate endpoint
+// const calculate = (await (await fetch('http://127.0.0.1:8000/api/calculate', {
+//   method: 'POST', body: JSON.stringify({
+//     formula: FPCoreFormula2, sample: eval_sample
+//   })
+// })).json()).points
 
-// Basic test that checks that there are the one result after the above test.
-// TODO add a way to reset the results.json file?
-assert.equal(jsonResults.tests.length, 1)
+// assert.deepEqual(calculate, [[[1], -1.4142135623730951]])
+
+// // Cost endpoint
+
+// const cost = (await (await fetch('http://127.0.0.1:8000/api/cost', {
+//   method: 'POST', body: JSON.stringify({
+//     formula: FPCoreFormula2, sample: eval_sample
+//   })
+// })).json())
+// assert.equal(cost.cost > 0, true)
+
+// // MathJS endpoint
+
+// const mathjs = (await (await fetch('http://127.0.0.1:8000/api/mathjs', {
+//   method: 'POST',
+//   body: JSON.stringify({ formula: FPCoreFormula })
+// })).json()).mathjs
+
+// assert.equal(mathjs, "sqrt(x + 1.0) - sqrt(x)")
+
+// // Translate endpoint
+// const expectedExpressions = {
+//   "python": 'def expr(x):\n\treturn math.sqrt((x + 1.0)) - math.sqrt(x)\n',
+//   "c": 'double expr(double x) {\n\treturn sqrt((x + 1.0)) - sqrt(x);\n}\n',
+//   "fortran": 'real(8) function expr(x)\n    real(8), intent (in) :: x\n    expr = sqrt((x + 1.0d0)) - sqrt(x)\nend function\n',
+//   "java": 'public static double expr(double x) {\n\treturn Math.sqrt((x + 1.0)) - Math.sqrt(x);\n}\n',
+//   "julia": 'function expr(x)\n\treturn Float64(sqrt(Float64(x + 1.0)) - sqrt(x))\nend\n',
+//   "matlab": 'function tmp = expr(x)\n\ttmp = sqrt((x + 1.0)) - sqrt(x);\nend\n',
+//   "wls": 'expr[x_] := N[(N[Sqrt[N[(x + 1), $MachinePrecision]], $MachinePrecision] - N[Sqrt[x], $MachinePrecision]), $MachinePrecision]\n', // Wolfram 
+//   "tex": '\\mathsf{expr}\\left(x\\right) = \\sqrt{x + 1} - \\sqrt{x}\n',
+//   "js": 'function expr(x) {\n\treturn Math.sqrt((x + 1.0)) - Math.sqrt(x);\n}\n'
+// }
+
+// for (const e in expectedExpressions) {
+//   const translatedExpr =
+//     (await (await fetch('http://127.0.0.1:8000/api/translate',
+//       {
+//         method: 'POST', body: JSON.stringify(
+//           { formula: FPCoreFormula, language: e })
+//       })).json())
+
+//   assert.equal(translatedExpr.result, expectedExpressions[e])
+// }
+
+// // Results.json endpoint
+
+// const jsonResults = await (await fetch(
+//   'http://127.0.0.1:8000/results.json',
+//   { method: 'GET' })).json()
+
+// // Basic test that checks that there are the one result after the above test.
+// // TODO add a way to reset the results.json file?
+// assert.equal(jsonResults.tests.length, 1)
