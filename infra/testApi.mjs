@@ -16,157 +16,188 @@ assert.equal(improveResponse.status, 200)
 // const improveHTMLexpectedCount = 25871
 // assert.equal(improveHTML.length, improveHTMLexpectedCount, `HTML response character count should be ${improveHTMLexpectedCount} unless HTML changes.`)
 
+// ----------------------
 // improve-start endpoint
+// ----------------------
 const improveStartURL = `http://127.0.0.1:8000/improve-start`
-var startResponse = await fetch(improveStartURL,
+const test1RSP = await fetch(improveStartURL,
   {
     method: 'POST',
     body: JSON.stringify({ formula: FPCoreFormula2, seed: 5 })
   })
-assert.equal(startResponse.status, 201)
-const path = startResponse.headers.get("location")
+assert.equal(test1RSP.status, 201)
+const path = test1RSP.headers.get("location")
 assert.equal(true, path.includes("/check-status/"))
 // Test bad JSON request
-startResponse = await fetch(improveStartURL,
+const test2RSP = await fetch(improveStartURL,
   {
     method: 'POST',
     body: JSON.stringify({ formula: FPCoreFormula2 })
   })
-assert.equal(startResponse.status, 500)
-startResponse = await fetch(improveStartURL,
+assert.equal(test2RSP.status, 500)
+const test3RSP = await fetch(improveStartURL,
   {
     method: 'POST',
     body: JSON.stringify({ seed: 5 })
   })
-assert.equal(startResponse.status, 500)
+assert.equal(test3RSP.status, 500)
+const invalidFPCore = '(FPCore (x) (- (sqrt (+ x 1)))' // missing one )
+const test4RSP = await fetch(improveStartURL,
+  {
+    method: 'POST',
+    body: JSON.stringify({ formula: invalidFPCore, seed: 69 })
+  })
+assert.equal(test4RSP.status, 500)
 
-// // Check status endpoint
-// const checkStatus = await fetch(
-//   `http://127.0.0.1:8000${path}`,
-//   { method: 'GET' })
-// assert.equal(checkStatus.status, 201)
-// assert.equal(checkStatus.statusText, 'Job complete')
+// ----------------------
+// Check status endpoint
+// ----------------------
+const checkStatus = await fetch(
+  `http://127.0.0.1:8000${path}`,
+  { method: 'GET' })
+assert.equal(checkStatus.status, 201)
+assert.equal(checkStatus.statusText, 'Job complete')
 
-// // up endpoint
-// const up = await fetch(
-//   'http://127.0.0.1:8000/up',
-//   { method: 'GET' })
+// ----------------------
+// up endpoint
+// ----------------------
+const up = await fetch(
+  'http://127.0.0.1:8000/up',
+  { method: 'GET' })
 
-// assert.equal('Up', up.statusText)
-// // TODO how do I test down state?
+assert.equal('Up', up.statusText)
+// TODO how do I test down state?
 
-// // Sample endpoint
-// const sample = (await (await fetch('http://127.0.0.1:8000/api/sample', { method: 'POST', body: JSON.stringify({ formula: FPCoreFormula2, seed: 5 }) })).json())
+// ----------------------
+// Sample endpoint
+// ----------------------
+const sample = (await (await fetch('http://127.0.0.1:8000/api/sample', { method: 'POST', body: JSON.stringify({ formula: FPCoreFormula2, seed: 5 }) })).json())
 
-// const SAMPLE_SIZE = 8000
-// assert.ok(sample.points)
-// const points = sample.points
-// assert.equal(points.length, SAMPLE_SIZE, `sample size should be ${SAMPLE_SIZE}`)
+const SAMPLE_SIZE = 8000
+assert.ok(sample.points)
+const points = sample.points
+assert.equal(points.length, SAMPLE_SIZE, `sample size should be ${SAMPLE_SIZE}`)
 
-// const sample2 = (await (await fetch('http://127.0.0.1:8000/api/sample', { method: 'POST', body: JSON.stringify({ formula: FPCoreFormula2, seed: 5 }) })).json())
-// const points2 = sample2.points
+const sample2 = (await (await fetch('http://127.0.0.1:8000/api/sample', { method: 'POST', body: JSON.stringify({ formula: FPCoreFormula2, seed: 5 }) })).json())
+const points2 = sample2.points
 
-// assert.deepEqual(points[1], points2[1])
-
-// // Analyze endpoint
-// const errors = (await (await fetch('http://127.0.0.1:8000/api/analyze', {
-//   method: 'POST', body: JSON.stringify({
-//     formula: FPCoreFormula, sample: [[[
-//       14.97651307489794
-//     ], 0.12711304680349078]]
-//   })
-// })).json()).points  // HACK tiny sample
-
-// assert.deepEqual(errors, [[[14.97651307489794], "2.3"]])
+assert.deepEqual(points[1], points2[1])
 
 
-// // Local error endpoint
-// const localError = (await (await fetch('http://127.0.0.1:8000/api/localerror', {
-//   method: 'POST', body: JSON.stringify({
-//     formula: FPCoreFormula, sample: sample2.points
-//   })
-// })).json())
+// ----------------------
+// Analyze endpoint
+// ----------------------
+const errors = (await (await fetch('http://127.0.0.1:8000/api/analyze', {
+  method: 'POST', body: JSON.stringify({
+    formula: FPCoreFormula, sample: [[[
+      14.97651307489794
+    ], 0.12711304680349078]]
+  })
+})).json()).points  // HACK tiny sample
 
-// assert.equal(localError.tree['avg-error'] > 0, true)
+assert.deepEqual(errors, [[[14.97651307489794], "2.3"]])
 
-// // Alternatives endpoint
 
-// const alternatives = (await (await fetch('http://127.0.0.1:8000/api/alternatives', {
-//   method: 'POST', body: JSON.stringify({
-//     formula: FPCoreFormula, sample: [[[
-//       14.97651307489794
-//     ], 0.12711304680349078]]
-//   })
-// })).json())  // HACK tiny sample
+// ----------------------
+// Local error endpoint
+// ----------------------
+const localError = (await (await fetch('http://127.0.0.1:8000/api/localerror', {
+  method: 'POST', body: JSON.stringify({
+    formula: FPCoreFormula, sample: sample2.points
+  })
+})).json())
 
-// assert.equal(Array.isArray(alternatives.alternatives), true)
+assert.equal(localError.tree['avg-error'] > 0, true)
 
-// // Exacts endpoint
-// const exacts = (await (await fetch('http://127.0.0.1:8000/api/exacts', {
-//   method: 'POST', body: JSON.stringify({
-//     formula: FPCoreFormula2, sample: eval_sample
-//   })
-// })).json()).points
+// ----------------------
+// Alternatives endpoint
+// ----------------------
+const alternatives = (await (await fetch('http://127.0.0.1:8000/api/alternatives', {
+  method: 'POST', body: JSON.stringify({
+    formula: FPCoreFormula, sample: [[[
+      14.97651307489794
+    ], 0.12711304680349078]]
+  })
+})).json())  // HACK tiny sample
 
-// assert.deepEqual(exacts, [[[1], -1.4142135623730951]])
+assert.equal(Array.isArray(alternatives.alternatives), true)
 
-// // Calculate endpoint
-// const calculate = (await (await fetch('http://127.0.0.1:8000/api/calculate', {
-//   method: 'POST', body: JSON.stringify({
-//     formula: FPCoreFormula2, sample: eval_sample
-//   })
-// })).json()).points
+// ----------------------
+// Exacts endpoint
+// ----------------------
+const exacts = (await (await fetch('http://127.0.0.1:8000/api/exacts', {
+  method: 'POST', body: JSON.stringify({
+    formula: FPCoreFormula2, sample: eval_sample
+  })
+})).json()).points
 
-// assert.deepEqual(calculate, [[[1], -1.4142135623730951]])
+assert.deepEqual(exacts, [[[1], -1.4142135623730951]])
 
-// // Cost endpoint
+// ----------------------
+// Calculate endpoint
+// ----------------------
+const calculate = (await (await fetch('http://127.0.0.1:8000/api/calculate', {
+  method: 'POST', body: JSON.stringify({
+    formula: FPCoreFormula2, sample: eval_sample
+  })
+})).json()).points
 
-// const cost = (await (await fetch('http://127.0.0.1:8000/api/cost', {
-//   method: 'POST', body: JSON.stringify({
-//     formula: FPCoreFormula2, sample: eval_sample
-//   })
-// })).json())
-// assert.equal(cost.cost > 0, true)
+assert.deepEqual(calculate, [[[1], -1.4142135623730951]])
 
-// // MathJS endpoint
+// ----------------------
+// Cost endpoint
+// ----------------------
+const cost = (await (await fetch('http://127.0.0.1:8000/api/cost', {
+  method: 'POST', body: JSON.stringify({
+    formula: FPCoreFormula2, sample: eval_sample
+  })
+})).json())
+assert.equal(cost.cost > 0, true)
 
-// const mathjs = (await (await fetch('http://127.0.0.1:8000/api/mathjs', {
-//   method: 'POST',
-//   body: JSON.stringify({ formula: FPCoreFormula })
-// })).json()).mathjs
 
-// assert.equal(mathjs, "sqrt(x + 1.0) - sqrt(x)")
+// ----------------------
+// MathJS endpoint
+// ----------------------
+const mathjs = (await (await fetch('http://127.0.0.1:8000/api/mathjs', {
+  method: 'POST',
+  body: JSON.stringify({ formula: FPCoreFormula })
+})).json()).mathjs
 
-// // Translate endpoint
-// const expectedExpressions = {
-//   "python": 'def expr(x):\n\treturn math.sqrt((x + 1.0)) - math.sqrt(x)\n',
-//   "c": 'double expr(double x) {\n\treturn sqrt((x + 1.0)) - sqrt(x);\n}\n',
-//   "fortran": 'real(8) function expr(x)\n    real(8), intent (in) :: x\n    expr = sqrt((x + 1.0d0)) - sqrt(x)\nend function\n',
-//   "java": 'public static double expr(double x) {\n\treturn Math.sqrt((x + 1.0)) - Math.sqrt(x);\n}\n',
-//   "julia": 'function expr(x)\n\treturn Float64(sqrt(Float64(x + 1.0)) - sqrt(x))\nend\n',
-//   "matlab": 'function tmp = expr(x)\n\ttmp = sqrt((x + 1.0)) - sqrt(x);\nend\n',
-//   "wls": 'expr[x_] := N[(N[Sqrt[N[(x + 1), $MachinePrecision]], $MachinePrecision] - N[Sqrt[x], $MachinePrecision]), $MachinePrecision]\n', // Wolfram 
-//   "tex": '\\mathsf{expr}\\left(x\\right) = \\sqrt{x + 1} - \\sqrt{x}\n',
-//   "js": 'function expr(x) {\n\treturn Math.sqrt((x + 1.0)) - Math.sqrt(x);\n}\n'
-// }
+assert.equal(mathjs, "sqrt(x + 1.0) - sqrt(x)")
 
-// for (const e in expectedExpressions) {
-//   const translatedExpr =
-//     (await (await fetch('http://127.0.0.1:8000/api/translate',
-//       {
-//         method: 'POST', body: JSON.stringify(
-//           { formula: FPCoreFormula, language: e })
-//       })).json())
+// ----------------------
+// Translate endpoint
+// ----------------------
+const expectedExpressions = {
+  "python": 'def expr(x):\n\treturn math.sqrt((x + 1.0)) - math.sqrt(x)\n',
+  "c": 'double expr(double x) {\n\treturn sqrt((x + 1.0)) - sqrt(x);\n}\n',
+  "fortran": 'real(8) function expr(x)\n    real(8), intent (in) :: x\n    expr = sqrt((x + 1.0d0)) - sqrt(x)\nend function\n',
+  "java": 'public static double expr(double x) {\n\treturn Math.sqrt((x + 1.0)) - Math.sqrt(x);\n}\n',
+  "julia": 'function expr(x)\n\treturn Float64(sqrt(Float64(x + 1.0)) - sqrt(x))\nend\n',
+  "matlab": 'function tmp = expr(x)\n\ttmp = sqrt((x + 1.0)) - sqrt(x);\nend\n',
+  "wls": 'expr[x_] := N[(N[Sqrt[N[(x + 1), $MachinePrecision]], $MachinePrecision] - N[Sqrt[x], $MachinePrecision]), $MachinePrecision]\n', // Wolfram 
+  "tex": '\\mathsf{expr}\\left(x\\right) = \\sqrt{x + 1} - \\sqrt{x}\n',
+  "js": 'function expr(x) {\n\treturn Math.sqrt((x + 1.0)) - Math.sqrt(x);\n}\n'
+}
 
-//   assert.equal(translatedExpr.result, expectedExpressions[e])
-// }
+for (const e in expectedExpressions) {
+  const translatedExpr =
+    (await (await fetch('http://127.0.0.1:8000/api/translate',
+      {
+        method: 'POST', body: JSON.stringify(
+          { formula: FPCoreFormula, language: e })
+      })).json())
 
-// // Results.json endpoint
+  assert.equal(translatedExpr.result, expectedExpressions[e])
+}
 
-// const jsonResults = await (await fetch(
-//   'http://127.0.0.1:8000/results.json',
-//   { method: 'GET' })).json()
+// ----------------------
+// Results.json endpoint
+// ----------------------
+const jsonResults = await (await fetch(
+  'http://127.0.0.1:8000/results.json',
+  { method: 'GET' })).json()
 
-// // Basic test that checks that there are the one result after the above test.
-// // TODO add a way to reset the results.json file?
-// assert.equal(jsonResults.tests.length, 1)
+// Basic test that checks that there are the one result after the above test.
+// TODO add a way to reset the results.json file?
+assert.equal(jsonResults.tests.length, 1)
