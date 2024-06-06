@@ -3,7 +3,7 @@
          (only-in fpbench interval range-table-ref condition->range-table [expr? fpcore-expr?]))
 (require "searchreals.rkt" "errors.rkt" "common.rkt"
          "float.rkt" "syntax/types.rkt" "timeline.rkt" "config.rkt"
-         "syntax/sugar.rkt" "ground-truth.rkt")
+         "syntax/sugar.rkt")
 
 (provide batch-prepare-points
          eval-progs-real
@@ -161,7 +161,7 @@
        [exn:rival:unsamplable? (lambda (e) (values 'exit #f))])
       (parameterize ([*rival-max-precision* (*max-mpfr-prec*)]
                      [*rival-max-iterations* 5])
-        (values 'valid (rest (rival-apply machine pt*)))))) ; rest = drop precondition
+        (values 'valid (rest (vector->list (rival-apply machine pt*))))))) ; rest = drop precondition
   (when (> (rival-profile machine 'bumps) 0)
     (warn 'ground-truth "Could not converge on a ground truth"
           #:extra (for/list ([var (in-list (context-vars (car ctxs)))] [val (in-list pt)])
@@ -169,12 +169,12 @@
   (define executions (rival-profile machine 'executions))
   (when (>= (vector-length executions) (*rival-profile-executions*))
     (warn 'profile "Rival profile vector overflowed, profile may not be complete"))
-  (define prec-threshold (exact-floor (/ (*rival-max-precision*) 25)))
+  (define prec-threshold (exact-floor (/ (*max-mpfr-prec*) 25)))
   (for ([execution (in-vector executions)])
     (define name (symbol->string (execution-name execution)))
     (define precision (- (execution-precision execution)
                          (remainder (execution-precision execution) prec-threshold)))
-    (timeline-push! 'mixsample (execution-time execution) name precision))
+    (timeline-push!/unsafe 'mixsample (execution-time execution) name precision))
   (timeline-push!/unsafe 'outcomes (- (current-inexact-milliseconds) start)
                          (rival-profile machine 'iterations) (~a status) 1)
   (values status value))
@@ -194,6 +194,7 @@
 ;; Part 3: computing exact values by recomputing at higher precisions
 
 (define (batch-prepare-points fn ctxs sampler)
+  (rival-profile fn 'executions) ; Clear profiling vector
   ;; If we're using the bf fallback, start at the max precision
   (define outcomes (make-hash))
 
