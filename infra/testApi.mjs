@@ -7,7 +7,20 @@ const FPCoreFormula = '(FPCore (x) (- (sqrt (+ x 1)) (sqrt x)))'
 const FPCoreFormula2 = '(FPCore (x) (- (sqrt (+ x 1))))'
 const eval_sample = [[[1], -1.4142135623730951]]
 
+// ----------------------
+// improve-demo endpoint
+// ----------------------
+/*
+This endpoint is used for the demo and has unusual POST request. 
+which these test attempt to cover.
+*/
+const improveDemo = `http://127.0.0.1:8000/improve-demo?formula=${encodeURIComponent(FPCoreFormula2)}`
+const demoRSP = await fetch(improveDemo, { method: 'POST' })
+assert.equal(demoRSP.status, 201)
+
+// ----------------------
 // improve endpoint
+// ----------------------
 const improveURL = `http://127.0.0.1:8000/improve?formula=${encodeURIComponent(FPCoreFormula2)}`
 const improveResponse = await fetch(improveURL, { method: 'GET' })
 assert.equal(improveResponse.status, 200)

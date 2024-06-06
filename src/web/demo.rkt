@@ -40,6 +40,9 @@
 (define-values (dispatch url*)
   (dispatch-rules
    [("") main]
+    ;; Hack: `improve-demo` endpoint used to keep demo working as it does a POST request but uses URL paramters.
+    ;; TODO fix demo to use something else.
+   [("improve-demo") #:method "post" improve-demo] 
    [("improve-start") #:method "post" improve-start]
    [("improve") #:method (or "post" "get" "put") improve]
    [("check-status" (string-arg)) check-status]
@@ -129,7 +132,7 @@
     (cond
       [(thread-running? *worker-thread*)
        `(form ([action ,(url improve)] [method "post"] [id "formula"]
-               [data-progress ,(url improve-start)])
+               [data-progress ,(url improve-demo)])
           (textarea ([name "formula"] [autofocus "true"]
                      [placeholder "(FPCore (x) (- (sqrt (+ x 1)) (sqrt x)))"]))
           (input ([name "formula-math"] [placeholder "sqrt(x + 1) - sqrt(x)"]))
@@ -347,6 +350,16 @@
   (raise-herbie-error "Unable to parse formula:~a\nCheck for syntax errors and try again.\n" formula-str))])
   (read-syntax 'web (open-input-string formula-str))))
 
+(define (demo-error go-back e)
+  (response/error
+  "Demo Error"
+  `(div
+    (h1 "Invalid formula")
+    (pre ,(herbie-error->string e))
+    (p
+      "Formula must be a valid program using only the supported functions. "
+      "Please " (a ([href ,go-back]) "go back") " and try again."))))
+
 (define (improve-start-helper req body go-back)
   (define post-body (request-post-data/raw req))
   (define post-data (bytes->jsexpr post-body))
@@ -355,16 +368,7 @@
      ;; TODO Check that seed is a valid seed?
      (define formula (parse-formula-from-string formula-str))
      (with-handlers
-         ([exn:fail:user:herbie?
-           (λ (e)
-             (response/error
-              "Demo Error"
-              `(div
-                (h1 "Invalid formula")
-                (pre ,(herbie-error->string e))
-                (p
-                  "Formula must be a valid program using only the supported functions. "
-                  "Please " (a ([href ,go-back]) "go back") " and try again."))))])
+         ([exn:fail:user:herbie? (curry demo-error go-back)])
        (when (eof-object? formula)
          (raise-herbie-error "no formula specified"))
        (parse-test formula)
@@ -412,6 +416,18 @@
                  (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*))))
                        (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
                  '()))
+
+(define (improve-demo req)
+  (improve-helper
+   req
+   (λ (hash formula)
+     (unless (already-computed? hash formula)
+      (run-improve hash formula))
+     (response/full 201 #"Job started" (current-seconds) #"text/plain"
+                    (list (header #"Location" (string->bytes/utf-8 (url check-status hash)))
+                          (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
+                    '()))
+   (url main)))
 
 (define (improve req)
   (improve-helper
