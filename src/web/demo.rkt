@@ -343,7 +343,7 @@
 
 (define (improve-start-helper req body go-back)
   (define post-body (request-post-data/raw req))
-  (define post-data (cond (post-body (bytes->jsexpr post-body)) (#t #f)))
+  (define post-data (bytes->jsexpr post-body))
   (match (improve-start-extract post-data)
     [(list formula-str seed*)
      (define formula
