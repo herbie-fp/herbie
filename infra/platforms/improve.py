@@ -22,7 +22,7 @@ default_num_runs = 10
 default_seed = 1
 default_ablation = "default"
 
-ablation_map = { "default": (True, False), "nc": (True, True), "nl": (False, False), "ncl": (False, True) }
+ablation_map = { "nc" : (True, True), "nl" : (False, False), "ncl" : (False, True)}
 
 # Sanity check that samples match the FPCores
 def check_samples(samples: List[List[List[float]]], cores: List[FPCore]):
@@ -95,34 +95,59 @@ def main():
     check_samples(samples, input_cores) # sanity check!
 
     # run Herbie improve and get associated sampled points
-    if ablation is None:
-        localize, old_cost = ablation_map[default_ablation]
-        cores = runner.herbie_improve(cores=input_cores, threads=herbie_threads, localize=localize, old_cost=old_cost)
-    else:
-        cores = []
-        for localize, old_cost in ablation_map.values():
-            cores += runner.herbie_improve(cores=input_cores, threads=herbie_threads, localize=localize, old_cost=old_cost)
-
-    samples = runner.herbie_sample(cores=cores, py_sample=py_sample)
-    check_samples(samples, cores) # sanity check!
-
-    # analyze all FPCores
-    all_cores = input_cores + cores
-    runner.herbie_cost(cores=all_cores)
-    runner.herbie_error(cores=all_cores)
+    default = runner.herbie_improve(cores=input_cores, threads=herbie_threads, localize=True, old_cost=False)
+    driver_dirs = runner.make_driver_dirs(cores=default)
+    samples = runner.herbie_sample(cores=default, py_sample=py_sample)
+    check_samples(samples, default) # sanity check!
 
     # generate Pareto frontier
-    frontier = runner.herbie_pareto(input_cores=input_cores, cores=cores)
-    runner.herbie_compile(cores=cores)
-    
-    # run drivers
-    driver_dirs = runner.make_driver_dirs(cores=cores)
-    runner.make_drivers(cores=cores, driver_dirs=driver_dirs, samples=samples)
-    runner.compile_drivers(driver_dirs=driver_dirs)
-    times = runner.run_drivers(driver_dirs=driver_dirs)
+    frontier = runner.herbie_pareto(input_cores=input_cores, cores=default)
+    runner.herbie_compile(cores=default)
 
-    # publish results
-    runner.write_improve_report(input_cores, cores, driver_dirs, times, frontier)
+    # run drivers
+    runner.make_drivers(cores=default, driver_dirs=driver_dirs, samples=samples)
+    runner.compile_drivers(driver_dirs=driver_dirs)
+    default_times = runner.run_drivers(driver_dirs=driver_dirs)
+    all_cores = input_cores + default
+
+    if ablation:
+        ablation_cores = []
+        ablation_times = []
+        ablation_frontiers = []
+        for ablation in ablation_map:
+            localize, cost = ablation_map[ablation]
+
+            # run Herbie improve and get associated sampled points
+            cores = runner.herbie_improve(cores=input_cores, threads=herbie_threads, localize=localize, old_cost=cost)
+            samples = runner.herbie_sample(cores=cores, py_sample=py_sample)
+            check_samples(samples, cores) # sanity check!
+
+            # generate Pareto frontier
+            frontier = runner.herbie_pareto(input_cores=input_cores, cores=cores)
+            ablation_frontiers.append(frontier)
+            runner.herbie_compile(cores=cores)
+
+            # run drivers
+            driver_dirs = runner.make_driver_dirs(cores=cores)
+            runner.make_drivers(cores=cores, driver_dirs=driver_dirs, samples=samples)
+            runner.compile_drivers(driver_dirs=driver_dirs)
+            ablation_times.append(runner.run_drivers(driver_dirs=driver_dirs))
+            
+            # analyze all FPCores
+            all_cores = input_cores + cores
+            runner.herbie_cost(cores=all_cores)
+            runner.herbie_error(cores=all_cores)
+            ablation_cores.append(cores)
+
+        # publish results
+        runner.write_improve_report(input_cores, default, driver_dirs, default_times, frontier, ablation_cores, ablation_times, ablation_frontiers)
+    else:
+        #analyse all FPCores
+        runner.herbie_cost(cores=all_cores)
+        runner.herbie_error(cores=all_cores)
+
+        # publish results
+        runner.write_improve_report(input_cores, default, driver_dirs, default_times, frontier)
 
 
 if __name__ == "__main__":

@@ -642,28 +642,55 @@ class Runner(object):
         platform_cores: List[FPCore],
         driver_dirs: List[str],
         times: List[float],
-        frontier: List[Tuple[float, float]]
+        frontier: List[Tuple[float, float]],
+        ablation_cores: List[List[FPCore]] = None,
+        ablation_times: List[List[float]] = None,
+        ablation_frontiers: List[List[Tuple[float, float]]] = None
     ) -> None:
         """Writes improve data to a JSON file."""
         # group platform cores by input [key]
         by_key = dict()
-        for core, dir, time in zip(platform_cores, driver_dirs, times):
-            if core.key in by_key:
-                by_key[core.key].append((core, dir, time))
-            else:
-                by_key[core.key] = [(core, dir, time)]
+        
+        ablation_core_triples = zip(ablation_cores[0], ablation_cores[1], ablation_cores[2])
+        ablation_time_triples = zip(ablation_times[0], ablation_times[1], ablation_times[2])
+        if ablation_cores is None:
+            for core, dir, time in zip(platform_cores, driver_dirs, times):
+                if core.key in by_key:
+                    by_key[core.key].append((core, dir, time))
+                else:
+                    by_key[core.key] = [(core, dir, time)]
+        else:
+            for core, dir, time, triple in zip(platform_cores, driver_dirs, times, ablation_core_triples):
+                nc, nl, ncl = triple
+                nc_time, nl_time, ncl_time = next(ablation_time_triples)
+                if core.key in by_key:
+                    by_key[core.key].append((core, dir, time, [nc, nl, ncl], [nc_time, nl_time, ncl_time]))
+                else:
+                    by_key[core.key] = [(core, dir, time, [nc, nl, ncl], [nc_time, nl_time, ncl_time])]
 
         # generate report fragments
         core_reports = []
         for input_core in input_cores:
             output_cores = by_key[input_core.key]
             platform_core_reports = []
-            for platform_core, dir, time in output_cores:
-                platform_core_reports.append({
-                    'platform_core': platform_core.to_json(),
-                    'dir': str(dir),
-                    'time': time
-                })
+            if ablation_cores is None:
+                for platform_core, dir, time in output_cores:
+                    platform_core_reports.append({
+                        'platform_core': platform_core.to_json(),
+                        'dir': str(dir),
+                        'time': time,
+                        'ablation-cores': [],
+                        'ablation-times': []
+                    })
+            else:
+                for platform_core, dir, time, a_cores, a_times in output_cores:
+                    platform_core_reports.append({
+                        'platform_core': platform_core.to_json(),
+                        'dir': str(dir),
+                        'time': time,
+                        'ablation-cores': list(map(lambda c: c.to_json(), a_cores)),
+                        'ablation-times': a_times
+                    })
             
             core_reports.append({
                 'input_core': input_core.to_json(),
@@ -675,7 +702,8 @@ class Runner(object):
             'time_unit': self.time_unit,
             'seed': self.seed,
             'cores': core_reports,
-            'frontier': frontier
+            'frontier': frontier,
+            'ablation-frontiers': ablation_frontiers if ablation_frontiers is not None else [],
         }
 
         path = self.report_dir.joinpath('improve.json')
