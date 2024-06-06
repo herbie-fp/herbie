@@ -313,7 +313,7 @@
 (define (improve-from-get-request req body go-back)
   (match (extract-bindings 'formula (request-bindings req))
     [(list formula-str)
-     (define formula (parse-formula-from-string formula-str))
+     (define formula (safely-parse-formula-from-string formula-str))
      (with-handlers
        ([exn:fail:user:herbie? (curry demo-error-1 go-back)])
        (when (eof-object? formula)
@@ -323,13 +323,22 @@
        (body hash formula))]
     [_ (curry demo-error-2 go-back)]))
 
-(define (extract-formula-and-seed post-data)
+(define (safely-extract-formula-and-seed post-data)
  ;; Maybe pass in context from the request for the error?
  (define form-str (hash-ref post-data 'formula (lambda () (raise-herbie-error "Unable to parse formula from ~a\n" post-data))))
  (define form-seed (hash-ref post-data 'seed (lambda () (raise-herbie-error "Unable to parse seed from ~a\n" post-data))))
- (list form-str form-seed))
+ (list (safely-extract-formula post-data) (safely-extract-seed post-data)))
 
-(define (parse-formula-from-string formula-str)
+(define (safely-extract-formula post-data)
+ (hash-ref post-data 'formula (lambda () (raise-herbie-error "Unable to parse formula from ~a\n" post-data))))
+
+(define (safely-extract-seed post-data)
+ (hash-ref post-data 'seed (lambda () (raise-herbie-error "Unable to parse seed from ~a\n" post-data))))
+
+(define (safely-extract-sample post-data)
+ (hash-ref post-data 'sample (lambda () (raise-herbie-error "Unable to parse a sample from ~a\n" post-data))))
+
+(define (safely-parse-formula-from-string formula-str)
  (with-handlers ([exn:fail? (lambda (e) 
   (raise-herbie-error "Unable to parse formula:~a\nCheck for syntax errors and try again.\n" formula-str))])
   (read-syntax 'web (open-input-string formula-str))))
@@ -352,10 +361,10 @@
 (define (improve-from-post-request req body go-back)
   (define post-body (request-post-data/raw req))
   (define post-data (bytes->jsexpr post-body))
-  (match (extract-formula-and-seed post-data)
+  (match (safely-extract-formula-and-seed post-data)
     [(list formula-str seed*)
      ;; TODO Check that seed is a valid seed?
-     (define formula (parse-formula-from-string formula-str))
+     (define formula (safely-parse-formula-from-string formula-str))
      (with-handlers
        ([exn:fail:user:herbie? (curry demo-error-1 go-back)])
        (when (eof-object? formula)
@@ -435,9 +444,8 @@
 (define sample-endpoint
   (post-with-json-response
     (lambda (post-data)
-      (define formula-str (hash-ref post-data 'formula))
-      (define formula (read-syntax 'web (open-input-string formula-str)))
-      (define seed* (hash-ref post-data 'seed))
+      (define formula (safely-parse-formula-from-string (safely-extract-formula post-data)))
+      (define seed* (safely-extract-seed post-data))
       (define job-id (sha1 (open-input-string (~s 'sample formula seed*))))
       (semaphore-wait (run-sample job-id formula seed*))
       (define result (hash-ref *completed-jobs* job-id))
@@ -449,8 +457,8 @@
 (define analyze-endpoint
   (post-with-json-response
     (lambda (post-data)
-      (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
-      (define sample (hash-ref post-data 'sample))
+      (define formula (safely-parse-formula-from-string (safely-extract-formula post-data)))
+      (define sample (safely-extract-sample post-data))
       (define seed (hash-ref post-data 'seed #f))
       (eprintf "Analyze job started on ~a..." formula)
 
@@ -471,8 +479,8 @@
 (define exacts-endpoint 
   (post-with-json-response
     (lambda (post-data)
-      (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
-      (define sample (hash-ref post-data 'sample))
+      (define formula (safely-parse-formula-from-string (safely-extract-formula post-data)))
+      (define sample (safely-extract-sample post-data))
       (define seed (hash-ref post-data 'seed #f))
       (eprintf "Ground truth job started on ~a..." formula)
 
@@ -488,8 +496,8 @@
 (define calculate-endpoint 
   (post-with-json-response
     (lambda (post-data)
-      (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
-      (define sample (hash-ref post-data 'sample))
+      (define formula (safely-parse-formula-from-string (safely-extract-formula post-data)))
+      (define sample (safely-extract-sample post-data))
       (define seed (hash-ref post-data 'seed #f))
       (eprintf "Evaluation job started on ~a..." formula)
 
@@ -505,8 +513,8 @@
 (define local-error-endpoint
   (post-with-json-response
     (lambda (post-data)
-      (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
-      (define sample (hash-ref post-data 'sample))
+      (define formula (safely-parse-formula-from-string (safely-extract-formula post-data)))
+      (define sample (safely-extract-sample post-data))
       (define seed (hash-ref post-data 'seed #f))
       (eprintf "Local error job started on ~a..." formula)
 
@@ -540,8 +548,8 @@
 (define alternatives-endpoint
   (post-with-json-response
     (lambda (post-data)
-      (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
-      (define sample (hash-ref post-data 'sample))
+      (define formula (safely-parse-formula-from-string (safely-extract-formula post-data)))
+      (define sample (safely-extract-sample post-data))
       (define seed (hash-ref post-data 'seed #f))
       (eprintf "Alternatives job started on ~a..." formula)
 
@@ -593,7 +601,7 @@
 (define ->mathjs-endpoint
   (post-with-json-response
     (lambda (post-data)
-      (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
+      (define formula (safely-parse-formula-from-string (safely-extract-formula post-data)))
       (eprintf "Converting to Math.js ~a..." formula)
 
       (define result (core->mathjs (syntax->datum formula)))
@@ -603,7 +611,7 @@
 (define cost-endpoint
   (post-with-json-response
     (lambda (post-data)
-      (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
+      (define formula (safely-parse-formula-from-string (safely-extract-formula post-data)))
       (eprintf "Computing cost of ~a..." formula)
       
       (define test (parse-test formula))
