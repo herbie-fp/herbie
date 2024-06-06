@@ -342,17 +342,18 @@
   (define form-seed (hash-ref post-data 'seed (lambda () (raise-herbie-error "Unable to parse seed from ~a\n" post-data))))
   (list form-str form-seed))
 
+(define (parse-formula-from-string formula-str)
+ (with-handlers ([exn:fail? (lambda (e) 
+  (raise-herbie-error "Unable to parse formula:~a\nCheck for syntax errors and try again.\n" formula-str))])
+  (read-syntax 'web (open-input-string formula-str))))
+
 (define (improve-start-helper req body go-back)
   (define post-body (request-post-data/raw req))
   (define post-data (bytes->jsexpr post-body))
   (match (improve-start-extract post-data)
     [(list formula-str seed*)
-     (define formula
-       (with-handlers ([exn:fail? (lambda (e) 
-        (raise-herbie-error "Unable to parse formula:~a\nCheck for syntax errors and try again.\n" formula-str))])
-         (read-syntax 'web (open-input-string formula-str))))
-     (unless formula
-      (raise-herbie-error "bad input: did you include special characters like `#`?"))
+     ;; TODO Check that seed is a valid seed?
+     (define formula (parse-formula-from-string formula-str))
      (with-handlers
          ([exn:fail:user:herbie?
            (λ (e)
