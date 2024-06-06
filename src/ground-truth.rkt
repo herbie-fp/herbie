@@ -152,7 +152,7 @@
 
      ; Sollya Point evaluation
      (match-define (list internal-point-time external-point-time sollya-point sollya-point-status) (fn-sollya pt #f))
-         
+     
      (define match (if (and (equal? sollya-point-status 'valid)
                             (<= 2 (flonums-between (last rival-exs) sollya-point)))
                        #t
