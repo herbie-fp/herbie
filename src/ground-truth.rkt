@@ -149,10 +149,6 @@
   (cond
     ; Rival has produced valid outcomes
     [(equal? rival-status 'valid)
-         
-     ; Sollya Interval evaluation
-     #;(match-define (list internal-interval-time external-interval-time
-                         (list sollya-lower sollya-upper) sollya-interval-status) (fn-sollya pt #t))
 
      ; Sollya Point evaluation
      (match-define (list internal-point-time external-point-time sollya-point sollya-point-status) (fn-sollya pt #f))
@@ -174,43 +170,59 @@
        (set! sollya-point-status sollya-point-status*)
        (set! external-point-time external-point-time*))
 
-     ; When Sollya succeeded
-     (when (and (< external-point-time (*sampling-timeout*)) (equal? 'valid sollya-point-status))
-       (timeline-push!/unsafe 'outcomes external-point-time
-                              rival-final-iter (format "~a-sollya" sollya-point-status) 1))
-
-     ; When baseline succeeded
-     (when (and (< baseline-time (*sampling-timeout*)) (equal? 'valid baseline-status))
-       (timeline-push!/unsafe 'outcomes baseline-time
-                              rival-final-iter (format "~a-rival-baseline" baseline-status) 1))
-
-     ; When Rival succeeded
-     (when (< rival-time (*sampling-timeout*))
-       (timeline-push!/unsafe 'outcomes rival-time
-                              rival-final-iter (format "~a-rival" rival-status) 1))
+     (cond
+       [(and (equal? 'valid sollya-point-status) (equal? 'valid baseline-status) (equal? rival-status 'valid)
+             (< external-point-time (*sampling-timeout*)) (< baseline-time (*sampling-timeout*)) (< rival-time (*sampling-timeout*)))
+        (timeline-push!/unsafe 'outcomes external-point-time
+                               rival-final-iter (format "~a-sollya" sollya-point-status) 1)
+        (timeline-push!/unsafe 'outcomes baseline-time
+                               rival-final-iter (format "~a-baseline" baseline-status) 1)
+        (timeline-push!/unsafe 'outcomes rival-time
+                               rival-final-iter (format "~a-rival" rival-status) 1)]
+       
+       [(and (equal? 'valid baseline-status) (equal? rival-status 'valid)
+             (< baseline-time (*sampling-timeout*)) (< rival-time (*sampling-timeout*)))
+        (timeline-push!/unsafe 'outcomes baseline-time
+                               rival-final-iter (format "~a-baseline+rival" baseline-status) 1)
+        (timeline-push!/unsafe 'outcomes rival-time
+                               rival-final-iter (format "~a-rival+baseline" rival-status) 1)]
+       
+       [(and (equal? 'valid sollya-point-status) (equal? rival-status 'valid)
+             (< external-point-time (*sampling-timeout*)) (< rival-time (*sampling-timeout*)))
+        (timeline-push!/unsafe 'outcomes external-point-time
+                               rival-final-iter (format "~a-sollya+rival" sollya-point-status) 1)
+        (timeline-push!/unsafe 'outcomes rival-time
+                               rival-final-iter (format "~a-rival+sollya" rival-status) 1)]
+       
+       [(and (equal? rival-status 'valid)
+             (< rival-time (*sampling-timeout*)))
+        (timeline-push!/unsafe 'outcomes rival-time
+                               rival-final-iter (format "~a-rival-only" rival-status) 1)])
      
      (when match
        (warn 'ground-truth (format "Sollya didn't converge on: pt=~a, sollya-point=~a, rival-point=~a\n" pt sollya-point (last rival-exs))))]
 
     ; Rival has exited, rival-exs=#f, nothing to compare to Sollya's output
     [(equal? rival-status 'exit)
-         
-     ; Sollya Interval evaluation
-     #;(match-define (list internal-interval-time external-interval-time
-                         (list sollya-lower sollya-upper) sollya-interval-status) (fn-sollya pt #t))
-
+     
      ; Sollya Point evaluation
      (match-define (list internal-point-time external-point-time sollya-point sollya-point-status) (fn-sollya pt #f))
 
-     ; When Sollya succeeded
-     (when (and (< external-point-time (*sampling-timeout*)) (equal? 'valid sollya-point-status))
-       (timeline-push!/unsafe 'outcomes external-point-time
-                              rival-final-iter (format "~a-sollya" sollya-point-status) 1))
-
-     ; When baseline succeeded
-     (when (and (< baseline-time (*sampling-timeout*)) (equal? 'valid baseline-status))
-       (timeline-push!/unsafe 'outcomes baseline-time
-                              rival-final-iter (format "~a-rival-baseline" baseline-status) 1))
+     (cond
+       [(and (equal? 'valid sollya-point-status) (equal? 'valid baseline-status)
+             (< external-point-time (*sampling-timeout*)) (< baseline-time (*sampling-timeout*)))
+        (timeline-push!/unsafe 'outcomes external-point-time
+                               rival-final-iter (format "~a-sollya+baseline" sollya-point-status) 1)
+        (timeline-push!/unsafe 'outcomes baseline-time
+                               rival-final-iter (format "~a-baseline+sollya" baseline-status) 1)]
+       
+       [(and (equal? 'valid sollya-point-status) (< external-point-time (*sampling-timeout*)))
+        (timeline-push!/unsafe 'outcomes external-point-time
+                               rival-final-iter (format "~a-sollya-only" sollya-point-status) 1)]
+       
+       [(and (equal? 'valid baseline-status) (< baseline-time (*sampling-timeout*)))
+        (timeline-push!/unsafe 'outcomes baseline-time
+                               rival-final-iter (format "~a-baseline-only" baseline-status) 1)])
          
      #;(define match (or (equal? sollya-point-status rival-status)
                        (and (equal? sollya-point-status 'invalid)
