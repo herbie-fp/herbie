@@ -32,7 +32,7 @@
          (struct-out improve-result)
          (struct-out alt-analysis))
 
-(struct job-result (test status time timeline warnings backend))
+(struct job-result (command test status time timeline warnings backend))
 (struct improve-result (preprocess pctxs start target end bogosity))
 (struct alt-analysis (alt train-errors test-errors))
 
@@ -236,7 +236,7 @@
       (timeline-event! 'end)
       (define time (- (current-inexact-milliseconds) start-time))
       (match command 
-        ['improve (job-result test 'failure time (timeline-extract) (warning-log) e)]
+        ['improve (job-result command test 'failure time (timeline-extract) (warning-log) e)]
         [_ (raise e)])))
 
   (define (on-timeout)
@@ -244,7 +244,7 @@
       (timeline-load! timeline)
       (timeline-event! 'end)
       (match command 
-        ['improve (job-result test 'timeout (*timeout*) (timeline-extract) (warning-log) #f)]
+        ['improve (job-result command test 'timeout (*timeout*) (timeline-extract) (warning-log) #f)]
         [_ (error 'run-herbie "command ~a timed out" command)])))
 
   (define (compute-result test)
@@ -271,7 +271,7 @@
             [_ (error 'compute-result "unknown command ~a" command)]))
         (timeline-event! 'end)
         (define time (- (current-inexact-milliseconds) start-time))
-        (job-result test 'success time (timeline-extract) (warning-log) result))))
+        (job-result command test 'success time (timeline-extract) (warning-log) result))))
   
   (define (in-engine _)
     (if profile?
@@ -307,8 +307,11 @@
              (test-output test)
              #f #f #f #f #f (job-result-time result) link '()))
 
-(define (build-table-data-success test start tragets end backend result link)
- (match-define (improve-result _ _ start targets end _) backend)
+(define (get-table-data result link)
+  (match-define (job-result command test status time _ _ backend) result)
+  (match status
+    ['success
+     (match-define (improve-result _ _ start targets end _) backend)
      (define expr-cost (platform-cost-proc (*active-platform*)))
      (define repr (test-output-repr test))
     
@@ -371,19 +374,7 @@
                   [start-est start-train-score] [start start-test-score]
                   [target target-cost-score]
                   [result-est end-est-score] [result end-score]
-                  [output (car end-exprs)] [cost-accuracy cost&accuracy]))
-
-(define (get-table-data result link)
-  (match-define (job-result test status time _ _ backend) result)
-  (match status
-    ['success
-     (match backend
-      [(improve-result _ _ start targets end _) 
-       (build-table-data-success test start targets end backend result link)]
-      [else ;; HACK Can fail if incomplete reports are saved in *completed-jobs*
-       (dummy-table-row 
-        (job-result test 'incomplete (*timeout*) (timeline-extract) (warning-log) #f)
-        "incomplete" link)])]
+                  [output (car end-exprs)] [cost-accuracy cost&accuracy])]
     ['failure
      (define exn backend)
      (define status (if (exn:fail:user:herbie? exn) "error" "crash"))
