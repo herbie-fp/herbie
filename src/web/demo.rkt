@@ -319,25 +319,13 @@
      (unless formula
       (raise-herbie-error "bad input: did you include special characters like `#`?"))
      (with-handlers
-         ([exn:fail:user:herbie?
-           (λ (e)
-             (response/error
-              "Demo Error"
-              `(div
-                (h1 "Invalid formula")
-                (pre ,(herbie-error->string e))
-                (p
-                  "Formula must be a valid program using only the supported functions. "
-                  "Please " (a ([href ,go-back]) "go back") " and try again."))))])
+       ([exn:fail:user:herbie? (curry demo-error-1 go-back)])
        (when (eof-object? formula)
          (raise-herbie-error "no formula specified"))
        (parse-test formula)
        (define hash (sha1 (open-input-string (~s 'improve formula (get-seed)))))
        (body hash formula))]
-    [_
-     (response/error "Demo Error"
-                     `(p "You didn't specify a formula (or you specified several). "
-                         "Please " (a ([href ,go-back]) "go back") " and try again."))]))
+    [_ (curry demo-error-2 go-back)]))
 
 (define (extract-formula-and-seed post-data)
   ;; Maybe pass in context from the request for the error?
@@ -350,7 +338,7 @@
   (raise-herbie-error "Unable to parse formula:~a\nCheck for syntax errors and try again.\n" formula-str))])
   (read-syntax 'web (open-input-string formula-str))))
 
-(define (demo-error go-back e)
+(define (demo-error-1 go-back e)
   (response/error
   "Demo Error"
   `(div
@@ -360,6 +348,11 @@
       "Formula must be a valid program using only the supported functions. "
       "Please " (a ([href ,go-back]) "go back") " and try again."))))
 
+(define (demo-error-2 go-back e)
+  (response/error "Demo Error"
+   `(p "You didn't specify a formula (or you specified several). "
+   "Please " (a ([href ,go-back]) "go back") " and try again.")))
+
 (define (improve-start-helper req body go-back)
   (define post-body (request-post-data/raw req))
   (define post-data (bytes->jsexpr post-body))
@@ -368,16 +361,13 @@
      ;; TODO Check that seed is a valid seed?
      (define formula (parse-formula-from-string formula-str))
      (with-handlers
-         ([exn:fail:user:herbie? (curry demo-error go-back)])
+       ([exn:fail:user:herbie? (curry demo-error-1 go-back)])
        (when (eof-object? formula)
          (raise-herbie-error "no formula specified"))
        (parse-test formula)
        (define hash (sha1 (open-input-string (~s 'improve formula (get-seed)))))
        (body hash formula seed*))]
-    [_
-     (response/error "Demo Error"
-                     `(p "You didn't specify a formula (or you specified several). "
-                         "Please " (a ([href ,go-back]) "go back") " and try again."))]))
+    [_ (curry demo-error-2 go-back)]))
 
 (define (improve-start req)
   (improve-start-helper

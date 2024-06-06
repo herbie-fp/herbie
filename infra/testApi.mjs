@@ -61,6 +61,13 @@ const test4RSP = await fetch(improveStartURL,
     body: JSON.stringify({ formula: invalidFPCore, seed: 69 })
   })
 assert.equal(test4RSP.status, 500)
+// Attempt to test demo-error-2 in demo.rkt but I don't think it's possible to hit that error.
+const test5RSP = await fetch(improveStartURL,
+  {
+    method: 'POST',
+    body: JSON.stringify({})
+  })
+assert.equal(test5RSP.status, 500)
 
 // ----------------------
 // Check status endpoint
