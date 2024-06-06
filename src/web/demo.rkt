@@ -310,14 +310,10 @@
                  '()
                  (list (string->bytes/utf-8 (xexpr->string (herbie-page #:title title body))))))
 
-(define (improve-helper req body go-back)
+(define (improve-from-get-request req body go-back)
   (match (extract-bindings 'formula (request-bindings req))
     [(list formula-str)
-     (define formula
-       (with-handlers ([exn:fail? (λ (e) #f)])
-         (read-syntax 'web (open-input-string formula-str))))
-     (unless formula
-      (raise-herbie-error "bad input: did you include special characters like `#`?"))
+     (define formula (parse-formula-from-string formula-str))
      (with-handlers
        ([exn:fail:user:herbie? (curry demo-error-1 go-back)])
        (when (eof-object? formula)
@@ -328,10 +324,10 @@
     [_ (curry demo-error-2 go-back)]))
 
 (define (extract-formula-and-seed post-data)
-  ;; Maybe pass in context from the request for the error?
-  (define form-str (hash-ref post-data 'formula (lambda () (raise-herbie-error "Unable to parse formula from ~a\n" post-data))))
-  (define form-seed (hash-ref post-data 'seed (lambda () (raise-herbie-error "Unable to parse seed from ~a\n" post-data))))
-  (list form-str form-seed))
+ ;; Maybe pass in context from the request for the error?
+ (define form-str (hash-ref post-data 'formula (lambda () (raise-herbie-error "Unable to parse formula from ~a\n" post-data))))
+ (define form-seed (hash-ref post-data 'seed (lambda () (raise-herbie-error "Unable to parse seed from ~a\n" post-data))))
+ (list form-str form-seed))
 
 (define (parse-formula-from-string formula-str)
  (with-handlers ([exn:fail? (lambda (e) 
@@ -353,7 +349,7 @@
    `(p "You didn't specify a formula (or you specified several). "
    "Please " (a ([href ,go-back]) "go back") " and try again.")))
 
-(define (improve-start-helper req body go-back)
+(define (improve-from-post-request req body go-back)
   (define post-body (request-post-data/raw req))
   (define post-data (bytes->jsexpr post-body))
   (match (extract-formula-and-seed post-data)
@@ -370,7 +366,7 @@
     [_ (curry demo-error-2 go-back)]))
 
 (define (improve-start req)
-  (improve-start-helper
+  (improve-from-post-request
    req
    (λ (hash formula seed*)
      (unless (already-computed? hash formula)
@@ -408,7 +404,7 @@
                  '()))
 
 (define (improve-demo req)
-  (improve-helper
+  (improve-from-get-request
    req
    (λ (hash formula)
      (unless (already-computed? hash formula)
@@ -420,12 +416,11 @@
    (url main)))
 
 (define (improve req)
-  (improve-helper
+  (improve-from-get-request
    req
    (λ (hash formula)
      (unless (already-computed? hash formula)
        (semaphore-wait (run-improve hash formula)))
-
      (redirect-to (add-prefix (format "~a.~a/graph.html" hash *herbie-commit*)) see-other))
    (url main)))
 
