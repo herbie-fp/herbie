@@ -20,14 +20,18 @@
   (define-accelerator (logaddexp2 real real) real
   (λ (x y) (log2 (+ (exp2 x) (exp2 y)))))
 
-   (define-accelerator (square real) real
+  (define-accelerator (square real) real
   (λ (x) (* x x)))
+
+  (define-accelerator (recip real) real 
+  (λ (x) (/ 1 x)))
 
 (define-accelerator-impl logaddexp logaddexp.f64 (binary64 binary64) binary64)
 (define-accelerator-impl logaddexp2 logaddexp2.f64 (binary64 binary64) binary64)
 (define-accelerator-impl square square.f64 (binary64) binary64)
 (define-accelerator-impl rad2deg rad2deg.f64 (binary64) binary64)
 (define-accelerator-impl deg2rad deg2rad.f64 (binary64) binary64)
+(define-accelerator-impl recip recip.64 (binary64) binary64)
 
 ;; --------------------------------------------------------
 ;; Platform

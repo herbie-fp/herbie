@@ -67,7 +67,6 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; accelerators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define-accelerator (recip real) real (λ (x) (/ 1 x)))
 (define-accelerator (rsqrt real) real (λ (x) (/ 1 (sqrt x))))
       
 (define-libm expm1.f64 (expm1 double double))
@@ -94,19 +93,19 @@
 (define-accelerator-impl fnmadd fnmadd.f64 (binary64 binary64 binary64) binary64)
 (define-accelerator-impl fnmsub fnmsub.f64 (binary64 binary64 binary64) binary64)
 
-(define-operator-impl (recip recip.f64 binary64) binary64
-  [fl (λ (x)
-        (parameterize ([bf-precision 12])
-          (bigfloat->flonum (bf/ 1.bf (bf x)))))])
+;(define-operator-impl (recip recip.f64 binary64) binary64
+;  [fl (λ (x)
+;        (parameterize ([bf-precision 12])
+;          (bigfloat->flonum (bf/ 1.bf (bf x)))))])
 
 (define-operator-impl (rsqrt rsqrt.f64 binary64) binary64
   [fl (λ (x)
         (parameterize ([bf-precision 12])
           (bigfloat->flonum (bf/ 1.bf (bfsqrt (bf x))))))])
 
-(define-ruleset* reciprocal (arithmetic simplify)
-  #:type ([a real])
-  [add-recip     (/ 1 a)        (recip a)]
-  [remove-recip  (recip a)      (/ 1 a)]
-  [add-rsqrt     (/ 1 (sqrt a)) (rsqrt a)]
-  [remove-rsqrt  (rsqrt a)      (/ 1 (sqrt a))])
+;(define-ruleset* reciprocal (arithmetic simplify)
+;  #:type ([a real])
+;  [add-recip     (/ 1 a)        (recip a)]
+;  [remove-recip  (recip a)      (/ 1 a)]
+;  [add-rsqrt     (/ 1 (sqrt a)) (rsqrt a)]
+;  [remove-rsqrt  (rsqrt a)      (/ 1 (sqrt a))])

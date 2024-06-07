@@ -17,20 +17,20 @@
    [(list 'logaddexp2 a b) (format "numpy.logaddexp2(~a, ~a)" a b)]
    [(list 'square a) (format "numpy.square(~a)" a)]
    [(list 'asin a) (format "numpy.arcsin(~a)" a)]
-   [(list 'acos a) (format "numpy.arccos(~a)" a )]
-   [(list 'atan a) (format "numpy.arctan(~a)" a )]
-   [(list 'asinh a) (format "numpy.arcsinh(~a)" a )]
-   [(list 'acosh a) (format "numpy.arccosh(~a)" a )]
-   [(list 'atanh a) (format "numpy.arctanh(~a)" a )]
+   [(list 'acos a) (format "numpy.arccos(~a)" a)]
+   [(list 'atan a) (format "numpy.arctan(~a)" a)]
+   [(list 'asinh a) (format "numpy.arcsinh(~a)" a)]
+   [(list 'acosh a) (format "numpy.arccosh(~a)" a)]
+   [(list 'atanh a) (format "numpy.arctanh(~a)" a)]
    [(list 'atan2 a b) (format "numpy.arctan2(~a, ~a)" a b)]
    [(list '+ a b) (format "numpy.add(~a, ~a)" a b)]
-   [(list 'recip a) (format "numpy.reciprocal(~a)" a )]
-   [(list 'neg a) (format "numpy.negative(~a)" a )]
+   [(list 'recip a) (format "numpy.reciprocal(~a)" a)]
+   [(list 'neg a) (format "numpy.negative(~a)" a)]
    [(list '* a b) (format "numpy.multiply(~a, ~a)" a b)]
    [(list '/ a b) (format "numpy.divide(~a, ~a)" a b)]
    [(list 'pow a b) (format "numpy.float_power(~a, ~a)" a b)]
-   [(list '- a b) (format "numpy.subtract(~a, ~a)" a b)]
    [(list '- a) (format "numpy.negative(~a)" a)]
+   [(list '- a b) (format "numpy.subtract(~a, ~a)" a b)]
    [(list 'rint a) (format "numpy.rint(~a)" a )] 
    [(list '> a b) (format "numpy.greater(~a, ~a)" a b)]
    [(list '>= a b) (format "numpy.greater_equal(~a, ~a)" a b)]
@@ -84,7 +84,7 @@
   (define-values (cond* cond-ctx) (visit/ctx vtor cond ctx))
   (define-values (ctx* name) (ctx-random-name iff-ctx prec))
 
-  (printf "~a~a = numpy.where(~a,~a,~a)\n" indent name cond* ift* iff*)
+  (printf "~a~a = numpy.where(~a, ~a, ~a)\n" indent name cond* ift* iff*)
   (values name ctx*))
 
 (define (visit-number/numpy vtor x #:ctx ctx)
