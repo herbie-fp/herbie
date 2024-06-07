@@ -104,7 +104,7 @@
        (if (set-member? bool-ops op)
            (ctx-update-props name-ctx (list ':precision 'boolean))
            name-ctx))
-     (printf "~a~a = ~a;\n" indent name (operator->numpy op args* ctx))
+     (printf "~a~a = ~a\n" indent name (operator->numpy op args* ctx))
      (values name ctx*)]))
 
 
