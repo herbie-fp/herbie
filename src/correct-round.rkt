@@ -530,11 +530,11 @@
 (define (get-slack)
   (match (*sampling-iteration*)
     [0 0]
-    [1 256]
-    [2 512]
-    [3 1024]
-    [4 2048]
-    [5 4096]))
+    [1 1024]
+    [2 1500]
+    [3 2048]
+    [4 4096]
+    [5 8192]))
 
 ; Function sets up vstart-precs vector, where all the precisions
 ; are equal to (+ (*base-tuning-precision*) (* depth (*ampl-tuning-bits*))),
