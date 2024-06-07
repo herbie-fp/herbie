@@ -111,7 +111,7 @@ def main():
     driver_dirs = runner.make_driver_dirs(cores=cores)
     runner.make_drivers(cores=cores, driver_dirs=driver_dirs, samples=samples)
     runner.compile_drivers(driver_dirs=driver_dirs)
-    times = runner.run_drivers(driver_dirs=driver_dirs)
+    times = runner.run_drivers(cores=cores, driver_dirs=driver_dirs)
 
     # publish results
     runner.write_improve_report(all_input_cores, cores, driver_dirs, times, frontier)

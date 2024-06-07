@@ -91,7 +91,7 @@ class MathRunner(Runner):
                 _, _ = p.communicate()
         self.log(f'compiled drivers')
 
-    def run_drivers(self, driver_dirs: List[str]) -> List[float]:
+    def run_drivers(self, cores: List[FPCore], driver_dirs: List[str]) -> List[float]:
         # run processes sequentially
         times = [[] for _ in driver_dirs]
         for i, driver_dir in enumerate(driver_dirs):
@@ -103,6 +103,7 @@ class MathRunner(Runner):
                 output = stdout.decode('utf-8')
                 time = re.match(time_pat, output)
                 if time is None:
+                    self.log("bad core: "+str(cores[i]))
                     raise RuntimeError('Unexpected error when running {out_path}: {output}')
                 times[i].append(float(time.group(1)))
 
