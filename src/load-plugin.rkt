@@ -36,7 +36,7 @@
   (dynamic-require mkl-platform #f)
   (dynamic-require python-platform #f)
   (dynamic-require avx-platform #f)
-   (dynamic-require numpy-platform #f)
+  (dynamic-require numpy-platform #f)
   ;; activate the default platform
   (*active-platform* (get-platform (*platform-name*)))
   (activate-platform! (*active-platform*)))
