@@ -87,27 +87,6 @@
   (printf "~a~a = numpy.where(~a, ~a, ~a)\n" indent name cond* ift* iff*)
   (values name ctx*))
 
-(define (visit-op_/numpy vtor op args #:ctx ctx)
-  (match (cons op args)
-    [(list '- x)
-     ;; TODO: Any better way to do this?
-     (visit-op_/numpy vtor '- (list 0 x) #:ctx ctx)]
-    [else
-     (define prec (ctx-lookup-prop ctx ':precision))
-     (define indent (ctx-lookup-extra ctx 'indent))
-     (define-values (name-ctx name) (ctx-random-name ctx prec))
-     (define args*
-       (for/list ([arg args])
-         (define-values (arg* arg-ctx) (visit/ctx vtor arg ctx))
-         arg*))
-     (define ctx*
-       (if (set-member? bool-ops op)
-           (ctx-update-props name-ctx (list ':precision 'boolean))
-           name-ctx))
-     (printf "~a~a = ~a\n" indent name (operator->numpy op args* ctx))
-     (values name ctx*)]))
-
-
 (define (visit-number/numpy vtor x #:ctx ctx)
   (define prec (ctx-lookup-prop ctx ':precision))
   (define indent (ctx-lookup-extra ctx 'indent))
