@@ -15,7 +15,7 @@
    [(list 'rad2deg a) (format "numpy.rad2deg(~a)" a)]
    [(list 'logaddexp a b) (format "numpy.logaddexp(~a, ~a)" a b)]
    [(list 'logaddexp2 a b) (format "numpy.logaddexp2(~a, ~a)" a b)]
-   ;[(list 'square a) (format "numpy.square(~a)" a)]
+   [(list 'square a) (format "numpy.square(~a)" a)]
    [(list 'asin a) (format "numpy.arcsin(~a)" a)]
    [(list 'acos a) (format "numpy.arccos(~a)" a)]
    [(list 'atan a) (format "numpy.arctan(~a)" a)]
@@ -123,7 +123,6 @@
 (define-expr-visitor imperative-visitor numpy-visitor
   [visit-if visit-if/numpy]
   [visit-number visit-number/numpy]
-  [visit-op visit-op_/numpy]
 )
 
 (define core->numpy
