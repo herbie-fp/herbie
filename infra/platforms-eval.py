@@ -33,8 +33,8 @@ default_start_seed = 1
 platforms = [
     # Hardware
     'arith',
+    'arith-fma'
     'avx',
-    'numpy',
 
     # Language
     'c',
@@ -42,7 +42,7 @@ platforms = [
     # 'julia',
 
     # Library
-    # ???
+    'numpy',
     # 'vdt'
     # 'fdlibm'
 ]
@@ -51,7 +51,6 @@ platforms = [
 evals = [
     'baseline',
     'compare',
-    'cost'
     # ablation
 ]
 

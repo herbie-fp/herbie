@@ -56,7 +56,7 @@ def plot_time_all(output_dir: Path, entries):
 
     names = sorted(names)
     num_platforms = len(names)
-    nrows = -(num_platforms // -3) # ceil_div(num_platforms, 3)
+    nrows = (num_platforms + 2) // 3 # ceil_div(num_platforms, 3)
     fig, axs = plt.subplots(ncols=3, nrows=nrows, figsize=((size, size)))
 
     time_unit = None
@@ -71,12 +71,12 @@ def plot_time_all(output_dir: Path, entries):
 
     for i, (name, info) in enumerate(entries):
         costs, times = platform_cost_time(info)
-        ax = axs[i // 3, i % 3]
+        ax = axs[i // 3, i % 3] if num_platforms > 3 else axs[i]
         ax.scatter(costs, times)
         ax.set_title(name)
    
     for i in range(len(names), 3 * nrows):
-        ax = axs[i // 3, i % 3]
+        ax = axs[i // 3, i % 3] if num_platforms > 3 else axs[i]
         fig.delaxes(ax)
 
     plt.tight_layout()
@@ -221,7 +221,7 @@ def plot_baseline_all(output_dir: Path, entries):
 
     names = sorted(names)
     num_platforms = len(names)
-    nrows = -(num_platforms // -3) # ceil_div(num_platforms, 3)
+    nrows = (num_platforms + 2) // 3 # ceil_div(num_platforms, 3)
     fig, axs = plt.subplots(ncols=3, nrows=nrows, figsize=((size, size)))
 
     if invert:
@@ -248,7 +248,7 @@ def plot_baseline_all(output_dir: Path, entries):
         supported_speedups, supported_accuracies = zip(*supported_frontier2)
         desugared_speedups, desugared_accuracies = zip(*desugared_frontier2)
 
-        ax = axs[i // 3, i % 3]
+        ax = axs[i // 3, i % 3] if num_platforms > 3 else axs[i]
         ax.set_title(name, size='medium')
         if invert:
             ax.plot([input_speedup], [input_accuracy], input_style, color=input_color)
@@ -262,7 +262,7 @@ def plot_baseline_all(output_dir: Path, entries):
             ax.plot(desugared_costs, desugared_errs, desugared_style, color=desugared_color)
 
     for i in range(len(names), 3 * nrows):
-        ax = axs[i // 3, i % 3]
+        ax = axs[i // 3, i % 3] if num_platforms > 3 else axs[i]
         fig.delaxes(ax)
 
     plt.tight_layout()
