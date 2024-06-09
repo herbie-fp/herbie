@@ -12,7 +12,7 @@ unary_ops = ['neg', 'floor', 'sqrt', 'round', 'ceil', 'fabs']
 binary_ops = ['+', '-', '*', '/', 'fmax', 'fmin']
 ternary_ops = ['fma', 'fmsub', 'fnmadd', 'fnmsub']
 
-compiler = 'cc'
+compiler = 'clang'
 c_flags = ['-g', '-O3', '-mavx', '-mfma', '-ffp-contract=off']
 # TODO: What does this do?
 ld_flags = ['-lm']
