@@ -16,6 +16,20 @@ script_path = os.path.abspath(__file__)
 script_dir, _ = os.path.split(script_path)
 herbie_path = os.path.join(script_dir, 'server.rkt')
 
+# Globals
+invert_axes = True # (speedup, accuracy) vs. (cost, error)
+use_time = True # time vs cost
+
+input_color = 'black'
+platform_color = 'blue'
+supported_color = 'orange'
+desugared_color = 'green'
+
+input_style = 's'
+platform_style = '.'
+supported_style = '+'
+desugared_style = 'x'
+
 
 def platform_cost_time(info):
     costs = []
@@ -87,10 +101,16 @@ def plot_improve(name: str, output_dir: Path, info):
     """Platform pareto frontier."""
     print(f'Plotting improve {name}')
 
-    frontier_costs, frontier_errors = zip(*info["frontier"])
+    cores: List[FPCore] = []
+    for core_info in info['cores']:
+        for platform_core_info in core_info['platform_cores']:
+            cores.append(FPCore.from_json(platform_core_info['platform_core']))
+
+    frontier, *_ = shim_pareto(cores, use_time=True)
+    xs, ys = zip(*frontier)
 
     plt.figure()
-    plt.plot(frontier_costs, frontier_errors, label=name)
+    plt.plot(xs, ys, label=name)
     plt.title('Estimated cost vs. cumulative average error (bits)')
     plt.xlabel('Estimated cost')
     plt.ylabel(f'Cumulative average error')
@@ -98,17 +118,6 @@ def plot_improve(name: str, output_dir: Path, info):
     path = output_dir.joinpath(f'{name}-pareto.png')
     plt.savefig(str(path))
     plt.close()
-
-# Colors
-input_color = 'black'
-platform_color = 'blue'
-supported_color = 'orange'
-desugared_color = 'green'
-
-input_style = 's'
-platform_style = '.'
-supported_style = '+'
-desugared_style = 'x'
 
 def core_max_error(core: FPCore) -> int:
     if core.prec == 'binary64':
@@ -212,7 +221,6 @@ def plot_baseline_all(output_dir: Path, entries):
     """Entire baseline comparison (N)."""
     print(f'Plotting all baseline comparison')
     path = output_dir.joinpath(f'baseline-pareto.png')
-    invert = True # (speedup, accuracy) vs. (cost, error)
     size = 8
 
     names = []
@@ -224,7 +232,7 @@ def plot_baseline_all(output_dir: Path, entries):
     nrows = (num_platforms + 2) // 3 # ceil_div(num_platforms, 3)
     fig, axs = plt.subplots(ncols=3, nrows=nrows, figsize=((size, size)))
 
-    if invert:
+    if invert_axes:
         fig.supxlabel('Estimated speedup')
         fig.supylabel('Cumulative average accuracy (bits)')
     else:
@@ -250,7 +258,7 @@ def plot_baseline_all(output_dir: Path, entries):
 
         ax = axs[i // 3, i % 3] if num_platforms > 3 else axs[i]
         ax.set_title(name, size='medium')
-        if invert:
+        if invert_axes:
             ax.plot([input_speedup], [input_accuracy], input_style, color=input_color)
             ax.plot(platform_speedups, platform_accuracies, platform_style, color=platform_color)
             ax.plot(supported_speedups, supported_accuracies, supported_style, color=supported_color)
@@ -274,7 +282,6 @@ def plot_compare_all(output_dir: Path, entries):
     """Entire platform vs. platform comparison (N^2 table)."""
     print(f'Plotting all platform comparison')
     path = output_dir.joinpath(f'comparison-pareto.png')
-    invert = True # (speedup, accuracy) vs. (cost, error)
     size = 12
 
     names = []
@@ -287,7 +294,7 @@ def plot_compare_all(output_dir: Path, entries):
     fig, axs = plt.subplots(ncols=num_platforms, nrows=num_platforms, figsize=((size, size)))
 
     # fig.suptitle('Platform vs. platform comparison')
-    if invert:
+    if invert_axes:
         fig.supxlabel('Estimated speedup')
         fig.supylabel('Cumulative average accuracy (bits)')
     else:
@@ -324,7 +331,7 @@ def plot_compare_all(output_dir: Path, entries):
 
         # plot
         i = names.index(name)
-        if invert:
+        if invert_axes:
             axs[i, i].plot([input_speedup], [input_accuracy], input_style, color=input_color)
             axs[i, i].plot(platform_speedups, platform_accuracies, platform_style, color=platform_color)
         else:
@@ -351,7 +358,7 @@ def plot_compare_all(output_dir: Path, entries):
 
         # Pareto frontiers
         ax = axs[names.index(name), names.index(name2)]
-        if invert:
+        if invert_axes:
             ax.plot([input_speedup], [input_accuracy], input_style, color=input_color)
             ax.plot(platform_speedups, platform_accuracies, platform_style, color=platform_color)
             ax.plot(supported_speedups, supported_accuracies, supported_style, color=supported_color)

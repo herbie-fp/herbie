@@ -101,6 +101,7 @@ class Runner(object):
 
         # mutable data
         self.cache = Cache(self.working_dir.joinpath('cache'))
+        self.num_drivers = 0
         self.jsons = []
 
         # if the working directories do not exist, create them
@@ -427,12 +428,14 @@ class Runner(object):
         Likely a utility function for `make_drivers()`."""
         # Nest the drivers properly
         driver_dirs = []
-        for i, _ in enumerate(cores):
-            subdir = self.driver_dir.joinpath(Path(str(i)))
+        for _ in cores:
+            subdir = self.driver_dir.joinpath(Path(str(self.num_drivers)))
             if subdir.exists():
                 shutil.rmtree(subdir)
             subdir.mkdir()
+
             driver_dirs.append(subdir)
+            self.num_drivers += 1
         self.log(f'prepared driver subdirectories')
         return driver_dirs
 
@@ -491,29 +494,27 @@ class Runner(object):
         self,
         input_cores: List[FPCore],
         platform_cores: List[FPCore],
-        driver_dirs: List[str],
-        times: List[float],
-        frontier: List[Tuple[float, float]]
+        driver_dirs: List[str]
     ) -> None:
         """Writes improve data to a JSON file."""
         # group platform cores by input [key]
         by_key = dict()
-        for core, dir, time in zip(platform_cores, driver_dirs, times):
+        for core, dir in zip(platform_cores, driver_dirs):
             if core.key in by_key:
-                by_key[core.key].append((core, dir, time))
+                by_key[core.key].append((core, dir))
             else:
-                by_key[core.key] = [(core, dir, time)]
+                by_key[core.key] = [(core, dir)]
 
         # generate report fragments
         core_reports = []
         for input_core in input_cores:
             output_cores = by_key.get(input_core.key, [])
             platform_core_reports = []
-            for platform_core, dir, time in output_cores:
+            for platform_core, dir in output_cores:
                 platform_core_reports.append({
                     'platform_core': platform_core.to_json(),
                     'dir': str(dir),
-                    'time': time
+                    'time': platform_core.time
                 })
             
             core_reports.append({
@@ -525,8 +526,7 @@ class Runner(object):
             'platform': self.name,
             'time_unit': self.time_unit,
             'seed': self.seed,
-            'cores': core_reports,
-            'frontier': frontier
+            'cores': core_reports
         }
 
         path = self.report_dir.joinpath('improve.json')

@@ -22,6 +22,7 @@ class FPCore(object):
         compiled: Optional[str] = None,
         cost: Optional[float] = None,
         err: Optional[float] = None,
+        time: Optional[float] = None,
         prec: Optional[str] = None,
         json: Optional[dict] = None,
         py_sample: bool = False,
@@ -36,6 +37,7 @@ class FPCore(object):
         self.cost = cost
         self.err = err
         self.prec = prec
+        self.time = time
         self.json = json
         self.py_sample = py_sample
         self.override = override
@@ -50,6 +52,7 @@ class FPCore(object):
             'compiled=' + repr(self.compiled) + ', ' + \
             'cost=' + repr(self.cost) + ', ' + \
             'err=' + repr(self.err) + ', ' + \
+            'time=' + repr(self.time) + ', ' + \
             'prec=' + repr(self.prec) + ', ' + \
             'py_sample=' + repr(self.py_sample) + ', ' + \
             'override=' + repr(self.override) + ')'
@@ -63,6 +66,7 @@ class FPCore(object):
             'core': self.core,
             'cost': self.cost,
             'err': self.err,
+            'time': self.time,
             'prec': self.prec,
         }
 
@@ -75,6 +79,7 @@ class FPCore(object):
             argc=json['argc'],
             cost=json['cost'],
             err=json['err'],
+            time=json['time'],
             prec=json['prec']
         )
 

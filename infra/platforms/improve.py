@@ -6,6 +6,7 @@ import argparse
 import os
 
 from platforms.fpcore import FPCore
+from platforms.runner import Runner
 from platforms.runners import make_runner
 from platforms.shim import shim_pareto, shim_read
 
@@ -40,6 +41,31 @@ def prune_unsamplable(samples: List[List[List[float]]], cores: List[FPCore]):
             samples2.append(sample)
             cores2.append(core)
     return samples2, cores2
+
+def analyze_cores(runner: Runner, cores: List[FPCore], py_sample: bool = False) -> List[str]:
+    # get sample
+    samples = runner.herbie_sample(cores=cores, py_sample=py_sample)
+    check_samples(samples, cores) # sanity check!
+
+    # compile FPCore
+    runner.herbie_compile(cores=cores)
+
+    # compute estimated cost and error
+    runner.herbie_cost(cores=cores)
+    runner.herbie_error(cores=cores)
+
+    # create drivers and compile
+    driver_dirs = runner.make_driver_dirs(cores=cores)
+    runner.make_drivers(cores=cores, driver_dirs=driver_dirs, samples=samples)
+    runner.compile_drivers(driver_dirs=driver_dirs)
+    
+    # run drivers to get timing
+    times = runner.run_drivers(cores=cores, driver_dirs=driver_dirs)
+    for core, time in zip(cores, times):
+        core.time = time
+    
+    return driver_dirs
+
 
 def main():
     parser = argparse.ArgumentParser(description='Herbie cost tuner')
@@ -87,34 +113,21 @@ def main():
     # read input cores
     all_input_cores = shim_read(path=bench_path)
 
-    # prune and sample
+    # prune and sample input cores
     input_cores = runner.herbie_supported(cores=all_input_cores)
     samples = runner.herbie_sample(cores=input_cores, py_sample=py_sample)
     samples, input_cores = prune_unsamplable(samples, input_cores)
     check_samples(samples, input_cores) # sanity check!
 
-    # run Herbie improve and get associated sampled points
+    # analyze input cores
+    analyze_cores(runner=runner, cores=input_cores, py_sample=py_sample)
+
+    # run Herbie improve and analyze output FPCores
     cores = runner.herbie_improve(cores=input_cores, threads=herbie_threads)
-    samples = runner.herbie_sample(cores=cores, py_sample=py_sample)
-    check_samples(samples, cores) # sanity check!
-    runner.herbie_compile(cores=cores)
-
-    # analyze all FPCores
-    all_cores = input_cores + cores
-    runner.herbie_cost(cores=all_cores)
-    runner.herbie_error(cores=all_cores)
-
-    # generate Pareto frontier
-    frontier, *_ = shim_pareto(cores)
-    
-    # run drivers
-    driver_dirs = runner.make_driver_dirs(cores=cores)
-    runner.make_drivers(cores=cores, driver_dirs=driver_dirs, samples=samples)
-    runner.compile_drivers(driver_dirs=driver_dirs)
-    times = runner.run_drivers(cores=cores, driver_dirs=driver_dirs)
+    driver_dirs = analyze_cores(runner=runner, cores=cores, py_sample=py_sample)
 
     # publish results
-    runner.write_improve_report(all_input_cores, cores, driver_dirs, times, frontier)
+    runner.write_improve_report(all_input_cores, cores, driver_dirs)
 
 
 if __name__ == "__main__":

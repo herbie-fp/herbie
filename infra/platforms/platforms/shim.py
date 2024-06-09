@@ -118,7 +118,7 @@ def shim_read(
 
     return cores
 
-def shim_pareto(*core_groups: List[List[FPCore]]) -> List[List[Tuple[float, float]]]:
+def shim_pareto(*core_groups: List[List[FPCore]], use_time: bool = False) -> List[List[Tuple[float, float]]]:
     # build commands
     cmds = []
     for cores in core_groups:
@@ -134,7 +134,10 @@ def shim_pareto(*core_groups: List[List[FPCore]]) -> List[List[Tuple[float, floa
         frontiers = []
         for key in cores_by_group:
             group = cores_by_group[key]
-            frontier = ' '.join(list(map(lambda c: f'({c.cost} {c.err})', group)))
+            xs = list(map(lambda c: c.cost, group))
+            ys = list(map(lambda c: c.time if use_time else c.err, group))
+
+            frontier = ' '.join(list(map(lambda x, y: f'({x} {y})', xs, ys)))
             frontiers.append(f'({frontier})')
 
         # add command
