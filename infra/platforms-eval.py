@@ -33,7 +33,7 @@ default_start_seed = 1
 platforms = [
     # Hardware
     'arith',
-    'arith-fma'
+    'arith-fma',
     'avx',
 
     # Language

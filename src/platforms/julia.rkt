@@ -142,7 +142,6 @@
 
 (define cost-model 
   (cost-map
-    #:default-cost 1
     [* 0.7701317]
     [+ 0.8566298]
     [- 0.8459957000000001]
