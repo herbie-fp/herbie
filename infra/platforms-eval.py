@@ -49,7 +49,7 @@ platforms = [
 
 # Evals
 evals = [
-    # 'baseline',
+    'baseline',
     'compare',
     # ablation
 ]
