@@ -1,4 +1,5 @@
 import math, random
+import subprocess
 import ctypes
 
 from typing import List
@@ -64,3 +65,14 @@ def sample_to_pcontext(sample: SampleType):
         input_strs.append(f'(({pt_str}) {py_to_racket(gt)})')
     input_str = ' '.join(input_strs)
     return f'({input_str})'
+
+def run_subprocess(
+    cmd: List[str],
+    capture_stdout: bool = False,
+    redirect_stderr: bool = False,
+    check: bool = True
+) -> str:
+    stdout = subprocess.PIPE if capture_stdout else None
+    stderr = subprocess.STDOUT if redirect_stderr else None
+    p = subprocess.run(cmd, stdout=stdout, stderr=stderr, check=check)
+    return p.stdout.decode()

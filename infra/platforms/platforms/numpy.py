@@ -1,12 +1,11 @@
-from subprocess import Popen, PIPE
-from typing import Optional, List
+from typing import List
 from pathlib import Path
 import os
 import re
 
 from .fpcore import FPCore
 from .runner import Runner
-from .util import double_to_c_str
+from .util import double_to_c_str, run_subprocess
 
 # Supported operations for NUMPY
 
@@ -81,9 +80,7 @@ class NumpyRunner(Runner):
             print(log_prefix, end='', flush=True)
             for _ in range(self.num_runs):
                 driver_path = Path(os.path.join(driver_dir, driver_name))
-                p = Popen([target, driver_path], stdout=PIPE)
-                stdout, _ = p.communicate()
-                output = stdout.decode('utf-8')
+                output = run_subprocess([target, driver_path], capture_stdout=True)
                 time = re.match(time_pat, output)
                 if time is None:
                     self.log("bad core: "+str(cores[i]))

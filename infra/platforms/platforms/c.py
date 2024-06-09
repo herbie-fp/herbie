@@ -1,12 +1,12 @@
-from subprocess import Popen, PIPE
-from typing import Optional, List
+from subprocess import Popen, CalledProcessError
+from typing import List
 from pathlib import Path
 import os
 import re
 
 from .fpcore import FPCore
 from .runner import Runner
-from .util import double_to_c_str, chunks
+from .util import double_to_c_str, chunks, run_subprocess
 
 # Support operations in standard C
 unary_ops = ['neg', 'acos', 'acosh', 'asin', 'asinh', 'atan', 'atanh', 'cbrt', 'ceil', 'cos', 'cosh', 'erf', 'erfc', 'exp', 'exp2', 'expm1', 'fabs', 'floor', 'lgamma', 'log', 'log10', 'log2', 'log1p', 'logb', 'rint', 'round', 'sin', 'sinh', 'sqrt', 'tan', 'tanh', 'tgamma', 'trunc']
@@ -80,7 +80,7 @@ class CRunner(Runner):
     def compile_drivers(self, driver_dirs: List[str]) -> None:
         # chunk over threads
         for driver_dirs in chunks(driver_dirs, self.threads):
-            ps = []
+            ps: List[Popen] = []
             # fork subprocesses
             for driver_dir in driver_dirs:
                 driver_path = Path(os.path.join(driver_dir, driver_name))
@@ -89,7 +89,9 @@ class CRunner(Runner):
                 ps.append(p)
             # join processes
             for p in ps:
-                _, _ = p.communicate()
+                rc = p.wait()
+                if rc != 0:
+                    raise CalledProcessError(rc, p.args, p.stdout, p.stderr)
         self.log(f'compiled drivers')
 
     def run_drivers(self, cores: List[FPCore], driver_dirs: List[str]) -> List[float]:
@@ -99,9 +101,7 @@ class CRunner(Runner):
             for _ in range(self.num_runs):
                 driver_path = Path(os.path.join(driver_dir, driver_name))
                 out_path = driver_path.parent.joinpath(driver_path.stem)
-                p = Popen([out_path], stdout=PIPE)
-                stdout, _ = p.communicate()
-                output = stdout.decode('utf-8')
+                output = run_subprocess([out_path], capture_stdout=True)
                 time = re.match(time_pat, output)
                 if time is None:
                     self.log("bad core: "+str(cores[i]))

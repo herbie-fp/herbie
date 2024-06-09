@@ -1,6 +1,3 @@
-from typing import Optional
-
-from .runner import Runner
 from .c import CRunner
 
 unary_ops = ['neg', 'fabs', 'sqrt']

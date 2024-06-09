@@ -3,7 +3,6 @@ import os
 import multiprocessing as mp
 
 from typing import List
-from subprocess import Popen, PIPE, STDOUT
 import subprocess
 
 # Paths
@@ -32,24 +31,24 @@ default_start_seed = 1
 # Tuning and improvement
 platforms = [
     # Hardware
-    'arith',
-    'arith-fma'
-    'avx',
+    # 'arith',
+    # 'arith-fma',
+    # 'avx',
 
     # Language
     'c',
-    'python',
+    # 'python',
     # 'julia',
 
     # Library
-    'numpy',
+    # 'numpy',
     # 'vdt'
     # 'fdlibm'
 ]
 
 # Evals
 evals = [
-    'baseline',
+    # 'baseline',
     'compare',
     # ablation
 ]
@@ -63,12 +62,10 @@ num_eval_points = 10_000
 
 def run_subprocess(cmd: List[str], hide_output: bool):
     if hide_output:
-        p = Popen(cmd, stdout=PIPE, stderr=STDOUT)
-        stdout, _ = p.communicate()
-        print(stdout.decode('utf-8').strip(), end='')
+        p = subprocess.run(cmd, capture_output=True, stdout=subprocess.STDOUT, check=True)
+        print(p.stdout.decode('utf-8').strip(), end='')
     else:
-        subprocess.run(cmd)
-
+        subprocess.run(cmd, check=True)
 
 def run_tuning(
     name: str,

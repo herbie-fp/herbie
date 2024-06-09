@@ -1,14 +1,12 @@
 from pathlib import Path
-from subprocess import Popen, PIPE
-from typing import Optional, List
-import matplotlib.pyplot as plt
-import json
+from subprocess import Popen, CalledProcessError
+from typing import List
 import os
 import re
 
 from .fpcore import FPCore
 from .runner import Runner
-from .util import double_to_c_str, chunks
+from .util import double_to_c_str, chunks, run_subprocess
 
 unary_ops = ['neg', 'floor', 'sqrt', 'round', 'ceil', 'fabs']
 binary_ops = ['+', '-', '*', '/', 'fmax', 'fmin']
@@ -84,7 +82,9 @@ class AVXRunner(Runner):
                 ps.append(p)
             # join processes
             for p in ps:
-                _, _ = p.communicate()
+                rc = p.wait()
+                if rc != 0:
+                    raise CalledProcessError(rc, p.args, p.stdout, p.stderr)
 
         self.log(f'compiled drivers')
 
@@ -95,9 +95,7 @@ class AVXRunner(Runner):
             for _ in range(self.num_runs):
                 driver_path = Path(os.path.join(driver_dir, driver_name))
                 out_path = driver_path.parent.joinpath(driver_path.stem)
-                p = Popen([out_path], stdout=PIPE)
-                stdout, _ = p.communicate()
-                output = stdout.decode('utf-8')
+                output = run_subprocess([out_path], capture_stdout=True)
                 time = re.match(time_pat, output)
                 if time is None:
                     self.log("bad core: "+str(cores[i]))
