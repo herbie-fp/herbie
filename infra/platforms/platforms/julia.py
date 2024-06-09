@@ -2,7 +2,6 @@ from subprocess import Popen, PIPE
 from typing import List
 from pathlib import Path
 import os
-import re
 
 from .fpcore import FPCore
 from .runner import Runner
@@ -10,23 +9,20 @@ from .util import double_to_c_str
 
 # Supported operations for Python
 unary_ops = [
-    'sind', 'cosd', 'tand', 'sinpi', 'cospi', 'sinh', 'cosh', 'tanh', 'asin', 'acos', 'atan',
+    'neg', 'sin', 'cos', 'tan', 'sinpi', 'cospi',
+    'sind', 'cosd', 'tand',  'sinh', 'cosh', 'tanh', 'asin', 'acos', 'atan',
     'asind', 'acosd', 'atand', 'sec', 'csc', 'cot', 'secd', 'cscd', 'cotd', 'asec', 'acsc',
     'acot', 'asecd', 'acscd', 'acotd', 'sech', 'csch', 'coth', 'asinh', 'acosh', 'atanh',
     'asech', 'acsch', 'acoth', 'deg2rad', 'rad2deg', 'log', 'log2', 'log10', 'log1p',
-    'exp', 'exp2', 'exp10', 'expm1', 'fabs', 'abs2', 'sqrt', 'cbrt'
-]
-
-binary_ops = ['+', '-', '*', '/', 'hypot']
+    'exp', 'exp2', 'exp10', 'expm1', 'fabs', 'abs2', 'sqrt', 'cbrt']
+binary_ops = ['+', '-', '*', '/', 'hypot', 'fmin', 'fmax', 'pow']
+ternary_ops = ['fma']
 
 # Julia lang
 target = 'julia'
 target_flags = ['--history-file=no']
 driver_name = 'test.jl'
 time_unit = 'ms'
-
-# Regex patterns
-time_pat = re.compile(f'([-+]?([0-9]+(\.[0-9]+)?|\.[0-9]+)(e[-+]?[0-9]+)?) {time_unit}')
 
 class JuliaRunner(Runner):
     """`Runner` for Julia"""
@@ -37,6 +33,7 @@ class JuliaRunner(Runner):
             lang='julia',
             unary_ops=unary_ops,
             binary_ops=binary_ops,
+            ternary_ops=ternary_ops,
             time_unit='ms',
             **kwargs
         )

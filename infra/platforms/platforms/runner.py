@@ -199,7 +199,9 @@ class Runner(object):
         for core, v in zip(cores, output.split(' ')):
             if v == '#t':
                 supported_cores.append(core)
-            elif v != '#f':
+            elif v == '#f':
+                print(f'WARN: ignoring unsupported {core.core}')
+            else:
                 raise RuntimeError('Unexpected result:', v)
         return supported_cores
     

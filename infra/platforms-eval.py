@@ -32,17 +32,17 @@ default_start_seed = 1
 # Tuning and improvement
 platforms = [
     # Hardware
-    # 'arith',
-    # 'arith-fma'
-    # 'avx',
+    'arith',
+    'arith-fma'
+    'avx',
 
     # Language
-    # 'c',
-    # 'python',
+    'c',
+    'python',
     'julia',
 
     # Library
-    # 'numpy',
+    'numpy',
     # 'vdt'
     # 'fdlibm'
 ]
