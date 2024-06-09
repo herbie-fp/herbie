@@ -101,19 +101,25 @@ def plot_improve(name: str, output_dir: Path, info):
     """Platform pareto frontier."""
     print(f'Plotting improve {name}')
 
+    time_unit = info['time_unit']
+
     cores: List[FPCore] = []
     for core_info in info['cores']:
         for platform_core_info in core_info['platform_cores']:
             cores.append(FPCore.from_json(platform_core_info['platform_core']))
 
-    frontier, *_ = shim_pareto(cores, use_time=True)
+    frontier, *_ = shim_pareto(cores, use_time=use_time)
     xs, ys = zip(*frontier)
 
     plt.figure()
     plt.plot(xs, ys, label=name)
-    plt.title('Estimated cost vs. cumulative average error (bits)')
-    plt.xlabel('Estimated cost')
-    plt.ylabel(f'Cumulative average error')
+
+    xlabel = f'Run time ({time_unit})' if use_time else 'Estimated cost'
+    ylabel = 'Cumulative average error (bits)'
+
+    plt.title(f'{xlabel} vs. {ylabel}')
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
 
     path = output_dir.joinpath(f'{name}-pareto.png')
     plt.savefig(str(path))
@@ -164,7 +170,7 @@ def comparison_frontiers(info):
     transform = lambda pt: (input_cost / pt[0], max_error - pt[1])
 
     # compute (cost, error) frontiers
-    platform_frontier, supported_frontier, desugared_frontier = shim_pareto(platform_cores, supported_cores, desugared_cores)
+    platform_frontier, supported_frontier, desugared_frontier = shim_pareto(platform_cores, supported_cores, desugared_cores, use_time=use_time)
 
     # compute (speedup, accuracy) frontiers
     input_speedup, input_accuracy = transform((input_cost, input_error))
@@ -233,10 +239,10 @@ def plot_baseline_all(output_dir: Path, entries):
     fig, axs = plt.subplots(ncols=3, nrows=nrows, figsize=((size, size)))
 
     if invert_axes:
-        fig.supxlabel('Estimated speedup')
+        fig.supxlabel('Speedup' if use_time else 'Estimated speedup')
         fig.supylabel('Cumulative average accuracy (bits)')
     else:
-        fig.supxlabel('Cumulative estimated cost')
+        fig.supxlabel('Cumulative run time' if use_time else 'Cumulative estimated cost')
         fig.supylabel('Cumulative average eror (bits)')
 
     for i, (name, info) in enumerate(entries):
@@ -295,10 +301,10 @@ def plot_compare_all(output_dir: Path, entries):
 
     # fig.suptitle('Platform vs. platform comparison')
     if invert_axes:
-        fig.supxlabel('Estimated speedup')
+        fig.supxlabel('Speedup' if use_time else 'Estimated speedup')
         fig.supylabel('Cumulative average accuracy (bits)')
     else:
-        fig.supxlabel('Cumulative estimated cost')
+        fig.supxlabel('Cumulative run time' if use_time else 'Cumulative estimated cost')
         fig.supylabel('Cumulative average eror (bits)')
 
     # collect input and platform cores
@@ -316,7 +322,7 @@ def plot_compare_all(output_dir: Path, entries):
             by_platform[name] = (input_cores, platform_cores)
 
     # plot diagonal frontiers
-    platform_frontiers = shim_pareto(*map(lambda n: by_platform[n][1], names))
+    platform_frontiers = shim_pareto(*map(lambda n: by_platform[n][1], names), use_time=use_time)
     for name, frontier in zip(names, platform_frontiers):
         input_cores, _ = by_platform[name]
         max_error = sum(map(lambda c: core_max_error(c), input_cores))
