@@ -49,7 +49,7 @@
       (operator-set
         [(real real) (neg fabs sqrt)]
         [(real real real) (+ - * / fmax fmin)]
-        [(real real real) (fma)]))))
+        [(real real real real) (fma)]))))
 
 (register-platform! 'arith-fma
                     (platform-union boolean-platform

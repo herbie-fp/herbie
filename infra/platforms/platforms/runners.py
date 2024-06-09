@@ -6,10 +6,11 @@ from .arith import ArithRunner
 from .arith_fma import ArithFMARunner
 from .avx import AVXRunner
 from .c import CRunner
+from .julia import JuliaRunner
 from .math import MathRunner
 from .mkl import MKLRunner
-from .python import PythonRunner
 from .numpy import NumpyRunner
+from .python import PythonRunner
 
 def make_runner(
     platform: str,
@@ -39,5 +40,7 @@ def make_runner(
         return AVXRunner(**kwargs)
     elif platform == 'numpy':
         return NumpyRunner(**kwargs)
+    elif platform == 'julia':
+        return JuliaRunner(**kwargs)
     else:
         raise ValueError(f'Unsupported output platform: {platform}')

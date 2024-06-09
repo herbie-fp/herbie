@@ -49,7 +49,7 @@ def py_to_racket(v: float):
         return str(v)
 
 def sanitize_name(name: str):
-    return name.replace('*', '_times_').replace('+', '_plus_').replace('/', '_:_')
+    return name.replace('*', '_times_').replace('+', '_plus_').replace('/', '__')
 
 SampleType = List[List[float]]
 

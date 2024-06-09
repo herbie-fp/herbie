@@ -1,6 +1,6 @@
 #lang racket
 
-(require (only-in fpbench core->c)
+(require (only-in fpbench core->c core->julia)
          herbie/accelerator
          herbie/common
          herbie/datafile
@@ -11,15 +11,14 @@
          herbie/points
          herbie/sandbox
          herbie/syntax/read
-         herbie/syntax/rules
          herbie/syntax/syntax
          herbie/syntax/sugar
          herbie/syntax/types
          herbie/web/common
          herbie/web/core2mkl
-         herbie/web/core2python3-10
          herbie/web/core2avx
          herbie/web/core2numpy
+         herbie/web/core2python3-10
          herbie/web/thread-pool)
 
 (*warnings-disabled* true)
