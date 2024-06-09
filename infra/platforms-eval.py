@@ -36,12 +36,12 @@ platforms = [
     'avx',
 
     # Language
-    'c',
-    'python',
+    # 'c',
+    # 'python',
     # 'julia',
 
     # Library
-    'numpy',
+    # 'numpy',
     # 'vdt'
     # 'fdlibm'
 ]

@@ -514,7 +514,6 @@ class Runner(object):
                 platform_core_reports.append({
                     'platform_core': platform_core.to_json(),
                     'dir': str(dir),
-                    'time': platform_core.time
                 })
             
             core_reports.append({

@@ -3,6 +3,10 @@
 import argparse
 import os
 
+from typing import List
+
+from platforms.fpcore import FPCore
+from platforms.runner import Runner
 from platforms.runners import make_runner
 
 # paths
@@ -16,6 +20,40 @@ default_num_threads = 1
 default_num_points = 10_000
 default_num_runs = 10
 default_seed = 1
+
+# Sanity check that samples match the FPCores
+def check_samples(samples: List[List[List[float]]], cores: List[FPCore]):
+    for sample, core in zip(samples, cores):
+        input_points, _ = sample
+        if len(input_points) != core.argc:
+            raise RuntimeError(f'Sample does not have expected arity: {len(input_points)} != {core.argc} for {core}')
+        if core.key is None:
+            raise RuntimeError(f'Core does not have sample: {core}')
+
+def analyze_cores(runner: Runner, cores: List[FPCore]):
+    # compute estimated cost and error
+    runner.herbie_cost(cores=cores)
+    runner.herbie_error(cores=cores)
+
+def run_cores(runner: Runner, cores: List[FPCore], py_sample: bool = False) -> List[str]:
+    # get sample
+    samples = runner.herbie_sample(cores=cores, py_sample=py_sample)
+    check_samples(samples, cores) # sanity check!
+
+    # compile FPCore
+    runner.herbie_compile(cores=cores)
+
+    # create drivers and compile
+    driver_dirs = runner.make_driver_dirs(cores=cores)
+    runner.make_drivers(cores=cores, driver_dirs=driver_dirs, samples=samples)
+    runner.compile_drivers(driver_dirs=driver_dirs)
+    
+    # run drivers to get timing
+    times = runner.run_drivers(cores=cores, driver_dirs=driver_dirs)
+    for core, time in zip(cores, times):
+        core.time = time
+
+    return driver_dirs
 
 def main():
     parser = argparse.ArgumentParser(description='Herbie cost tuner')
@@ -104,17 +142,15 @@ def main():
 
     # run Herbie on all supported cores
     supported_cores = runner1.herbie_supported(cores=cores2)
+    run_cores(runner1, supported_cores)
 
     # run Herbie on desugared cores
     # pull `cores2` back into `platform1`
     desugared_cores = runner2.herbie_desugar(cores=cores2, platform=platform1)
-
-    # TODO: resugared cores
+    run_cores(runner1, desugared_cores)
 
     # analyze all output FPCores
-    all_cores = supported_cores + desugared_cores
-    runner1.herbie_cost(cores=all_cores)
-    runner1.herbie_error(cores=all_cores)
+    analyze_cores(runner1, supported_cores + desugared_cores)
 
     # write report
     runner1.write_cross_compile_report(

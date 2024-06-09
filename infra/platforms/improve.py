@@ -8,7 +8,7 @@ import os
 from platforms.fpcore import FPCore
 from platforms.runner import Runner
 from platforms.runners import make_runner
-from platforms.shim import shim_pareto, shim_read
+from platforms.shim import shim_read
 
 # paths
 script_path = os.path.abspath(__file__)
@@ -42,17 +42,18 @@ def prune_unsamplable(samples: List[List[List[float]]], cores: List[FPCore]):
             cores2.append(core)
     return samples2, cores2
 
-def analyze_cores(runner: Runner, cores: List[FPCore], py_sample: bool = False) -> List[str]:
+def analyze_cores(runner: Runner, cores: List[FPCore]):
+    # compute estimated cost and error
+    runner.herbie_cost(cores=cores)
+    runner.herbie_error(cores=cores)
+
+def run_cores(runner: Runner, cores: List[FPCore], py_sample: bool = False) -> List[str]:
     # get sample
     samples = runner.herbie_sample(cores=cores, py_sample=py_sample)
     check_samples(samples, cores) # sanity check!
 
     # compile FPCore
     runner.herbie_compile(cores=cores)
-
-    # compute estimated cost and error
-    runner.herbie_cost(cores=cores)
-    runner.herbie_error(cores=cores)
 
     # create drivers and compile
     driver_dirs = runner.make_driver_dirs(cores=cores)
@@ -63,7 +64,7 @@ def analyze_cores(runner: Runner, cores: List[FPCore], py_sample: bool = False) 
     times = runner.run_drivers(cores=cores, driver_dirs=driver_dirs)
     for core, time in zip(cores, times):
         core.time = time
-    
+
     return driver_dirs
 
 
@@ -119,12 +120,13 @@ def main():
     samples, input_cores = prune_unsamplable(samples, input_cores)
     check_samples(samples, input_cores) # sanity check!
 
-    # analyze input cores
-    analyze_cores(runner=runner, cores=input_cores, py_sample=py_sample)
-
-    # run Herbie improve and analyze output FPCores
+    # run Herbie for output cores
     cores = runner.herbie_improve(cores=input_cores, threads=herbie_threads)
-    driver_dirs = analyze_cores(runner=runner, cores=cores, py_sample=py_sample)
+
+    # analyze input and output cores
+    analyze_cores(runner, input_cores + cores)
+    run_cores(runner, input_cores, py_sample)
+    driver_dirs = run_cores(runner, cores, py_sample)
 
     # publish results
     runner.write_improve_report(all_input_cores, cores, driver_dirs)

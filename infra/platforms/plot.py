@@ -36,10 +36,9 @@ def platform_cost_time(info):
     times = []
     for input_info in info['cores']:
         for core_info in input_info['platform_cores']:
-            cost = core_info['platform_core']['cost']
-            time = core_info['time']
-            costs.append(cost)
-            times.append(time)
+            core = FPCore.from_json(core_info['platform_core'])
+            costs.append(core.cost)
+            times.append(core.time)
     
     return costs, times
 
