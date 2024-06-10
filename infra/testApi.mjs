@@ -138,7 +138,7 @@ for (const e in expectedExpressions) {
 // Results.json endpoint
 const jsonResults = await callHerbie("/results.json", { method: 'GET' })
 
-// Basic test that checks that there are the one result after the above test.
+// Basic test that checks that there are the two results after the above test.
 // TODO add a way to reset the results.json file?
 assert.equal(jsonResults.tests.length, 2)
 
