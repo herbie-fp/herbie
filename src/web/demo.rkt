@@ -329,9 +329,7 @@
        (when (eof-object? formula)
          (raise-herbie-error "no formula specified"))
        (parse-test formula)
-       (define job-id (sha1 (open-input-string 
-        (~s 'improve formula (get-seed)))))
-       (body job-id formula))]
+       (body formula))]
     [_
      (response/error "Demo Error"
                      `(p "You didn't specify a formula (or you specified several). "
@@ -340,7 +338,8 @@
 (define (improve-start req)
   (improve-common
    req
-   (λ (job-id formula)
+   (λ (formula)
+     (define job-id (compute-job-id (list 'improve formula (get-seed))))
      (unless (already-computed? job-id formula)
        (run-improve job-id formula))
      (response/full 201 #"Job started" (current-seconds) #"text/plain"
@@ -372,10 +371,14 @@
                        (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
                  '()))
 
+(define (compute-job-id job-info)
+ (sha1 (open-input-string (~s job-info))))
+
 (define (improve req)
   (improve-common
    req
-   (λ (job-id formula)
+   (λ (formula)
+     (define job-id (compute-job-id (list 'improve formula (get-seed))))
      (unless (already-computed? job-id formula)
        (semaphore-wait (run-improve job-id formula)))
 
