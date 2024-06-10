@@ -72,7 +72,7 @@ def run_cores(runner: Runner, cores: List[FPCore], py_sample: bool = False) -> L
 # Clang comparison eval
 
 default_flags = ['-std=gnu11', '-ffp-contract=off']
-opt_flags = ['-O0', '-O1', '-O2', '-O3']
+opt_flags = ['-O0', '-O1', '-O2', '-O3', '-Os', '-Oz']
 fp_flags = [None, '-ffast-math']
 
 def clang_eval(runner: Runner, cores: List[FPCore]):
