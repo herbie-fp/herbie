@@ -268,7 +268,6 @@
  (define sema (make-semaphore))
   (thread-send *worker-thread* (work job sema))
   (when sync-job
-    (eprintf "waiting\n")
    (semaphore-wait sema)))
 
 (define (print-job-message command job-id job-str)
