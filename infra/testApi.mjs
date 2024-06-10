@@ -24,20 +24,16 @@ const startResponse = await callHerbie(`/improve-start`, {
   },
   body: URIencodedBody
 })
-const testResult = startResponse.status == (201 || 202)
+const testResult = (startResponse.status == 201) || (startResponse.status == 202)
 assert.equal(testResult, true)
 const path = startResponse.headers.get("location")
 
 // Check status endpoint
-const checkStatus = await callHerbie(path, { method: 'GET' })
-// Test result depends on how fast Server responds
-if (checkStatus.status == 202) {
-  assert.equal(checkStatus.statusText, 'Job in progress')
-} else if (checkStatus.status == 201) {
-  assert.equal(checkStatus.statusText, 'Job complete')
-} else {
-  assert.fail()
-}
+const checkStatus = await fetch(
+  `http://127.0.0.1:8000${path}`,
+  { method: 'GET' })
+assert.equal(checkStatus.status, 201)
+assert.equal(checkStatus.statusText, 'Job complete')
 
 // up endpoint
 const up = await callHerbie("/up", { method: 'GET' })
