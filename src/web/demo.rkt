@@ -418,7 +418,7 @@
       (define formula-str (hash-ref post-data 'formula))
       (define formula (read-syntax 'web (open-input-string formula-str)))
       (define seed* (hash-ref post-data 'seed))
-      (define job-id (sha1 (open-input-string (~s 'sample formula seed*))))
+      (define job-id (compute-job-id (list 'sample formula seed*)))
       (semaphore-wait (run-sample job-id formula seed*))
       (define result (hash-ref *completed-jobs* job-id))
       (define pctx (job-result-backend result))
