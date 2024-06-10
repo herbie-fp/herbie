@@ -26,15 +26,22 @@ const startResponse = await fetch(startURL, {
   },
   body: URIencodedBody
 })
-assert.equal(startResponse.status, 201)
+const testResult = startResponse.status == (201 || 202)
+assert.equal(testResult, true)
 const path = startResponse.headers.get("location")
 
 // Check status endpoint
 const checkStatus = await fetch(
   `http://127.0.0.1:8000${path}`,
   { method: 'GET' })
-assert.equal(checkStatus.status, 201)
-assert.equal(checkStatus.statusText, 'Job complete')
+// Test result depends on how fast Server responds
+if (checkStatus.status == 202) {
+  assert.equal(checkStatus.statusText, 'Job in progress')
+} else if (checkStatus.status == 201) {
+  assert.equal(checkStatus.statusText, 'Job complete')
+} else {
+  assert.fail()
+}
 
 // up endpoint
 const up = await fetch(
@@ -156,6 +163,6 @@ const jsonResults = await (await fetch(
   'http://127.0.0.1:8000/results.json',
   { method: 'GET' })).json()
 
-// Basic test that checks that there are the one result after the above test.
+// Basic test that checks that there are the two result after the above test.
 // TODO add a way to reset the results.json file?
-assert.equal(jsonResults.tests.length, 1)
+assert.equal(jsonResults.tests.length, 2)
