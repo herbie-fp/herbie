@@ -133,7 +133,7 @@
          [else
           (writeln #f)])
        (loop)]
-      ; error <core> <points>
+      ; error <points> <core>
       [(list 'error args ...)
        (define-values (points cores)
          (match args
@@ -149,6 +149,19 @@
        (define ctx (test-context (first tests)))
        (define err-lsts (flip-lists (batch-errors (map test-input tests) pctx ctx)))
        (printf "~a\n" (string-join (map (compose ~a errors-score) err-lsts) " "))
+       (loop)]
+      ; error2 <points> <inexacts> <precs>
+      [(list 'error2 args ...)
+       (define-values (points inexacts prec)
+         (match args
+           [(list points inexacts prec) (values points inexacts prec)]
+           [_ (error 'run-server "error2: malformed arguments ~a" args)]))
+       (define pctx (python->pcontext points))
+       (define repr (get-representation prec))
+       (printf "~a\n"
+         (errors-score
+           (for/list ([(_ gt) (in-pcontext pctx)] [inexact (in-list inexacts)])
+             (point-error inexact gt repr))))
        (loop)]
       ; improve <core> <threads:int> <dir>
       [(list 'improve args ...)

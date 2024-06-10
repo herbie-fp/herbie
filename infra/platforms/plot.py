@@ -156,20 +156,30 @@ def plot_improve(name: str, output_dir: Path, info):
         xs, ys = zip(*frontier)
 
     if name == 'c' and use_time:
-        for flags, times in info['extra']:
-            input_time = sum(times)
+        exacts = []
+        fasts = []
+        for flags, times, errors in info['extra']:
+            input_time, input_error = sum(times), sum(errors)
             input_x = input_cost / input_time if invert_axes else input_time
-            label = ' '.join(flags)
-            plt.plot([input_x], [input_y], 'x', color=input_color, label=label)
+            input_y = max_error - input_error if invert_axes else input_error
+            if '-ffast-math' in flags:
+                fasts.append((input_x, input_y))
+            else:
+                exacts.append((input_x, input_y))
+
+        exact_xs, exact_ys = zip(*exacts)
+        plt.plot(exact_xs, exact_ys, 'x', color=input_color, label='Clang')
+
+        fast_xs, fast_ys = zip(*fasts)
+        plt.plot(fast_xs, fast_ys, 'x', color=supported_color, label='Clang (fast-math)')
     else:
         plt.plot([input_x], [input_y], input_style, color=input_color)
 
-    plt.plot(xs, ys, platform_style, color=platform_color, label=name)
+    plt.plot(xs, ys, platform_style, color=platform_color, label='Chassis')
     plt.title(f'{xlabel} vs. {ylabel}')
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
-
-
+    plt.legend()
 
     path = output_dir.joinpath(f'{name}-pareto.png')
     plt.savefig(str(path))

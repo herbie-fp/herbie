@@ -9,7 +9,7 @@ from platforms.c import get_cflags, set_cflags
 from platforms.fpcore import FPCore
 from platforms.runner import Runner
 from platforms.runners import make_runner
-from platforms.shim import shim_read
+from platforms.shim import shim_read, shim_error2
 
 # paths
 script_path = os.path.abspath(__file__)
@@ -88,13 +88,21 @@ def clang_eval(runner: Runner, cores: List[FPCore]):
             flags = [opt_flag] if fp_flag is None else [opt_flag, fp_flag]
             set_cflags(flags + default_flags)
             
-            runner.log('running clang eval', flags)
+            runner.log('running clang eval [time]', flags)
             driver_dirs = runner.make_driver_dirs(cores=cores)
             runner.make_drivers(cores=cores, driver_dirs=driver_dirs, samples=samples)
             runner.compile_drivers(driver_dirs=driver_dirs)
             times = runner.run_drivers(cores=cores, driver_dirs=driver_dirs)
 
-            configs.append((flags, times))
+            runner.log('running clang eval [error]', flags)
+            driver_dirs = runner.make_driver_dirs(cores=cores)
+            runner.make_drivers2(cores=cores, driver_dirs=driver_dirs, samples=samples)
+            runner.compile_drivers(driver_dirs=driver_dirs)
+            inexactss = runner.run_drivers2(cores=cores, driver_dirs=driver_dirs)
+            precs = list(map(lambda c: c.prec, cores))
+            errors = shim_error2(samples, inexactss, precs)
+
+            configs.append((flags, times, errors))
 
     set_cflags(old_cflags)
     return configs
