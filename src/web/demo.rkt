@@ -217,8 +217,9 @@
        (loop seed)))))
 
 (define (run-job job-info)
- (match job-info
-  [(list 'improve job-id formula sema)
+ (define sema (work-sema job-info))
+ (match (work-info job-info)
+  [(list 'improve job-id formula)
    (define seed (get-seed))
    (define path (format "~a.~a" job-id *herbie-commit*))
    (cond
@@ -248,7 +249,7 @@
     (eprintf "Job ~a complete\n" job-id)
     (hash-remove! *jobs* job-id)
     (semaphore-post sema)])]
-  [(list 'sample job-id formula sema seed*)
+  [(list 'sample job-id formula seed*)
    (define test (parse-test formula))
    (print-job-message 'sample job-id (syntax->datum formula))
    (define result (run-herbie 'sample test #:seed seed* #:profile? #f #:timeline-disabled? #t))
@@ -256,6 +257,19 @@
    (eprintf "Job ~a complete\n" job-id)
    (hash-remove! *jobs* job-id)
    (semaphore-post sema)]))
+
+; Handles semaphore and async part of a job
+(struct work (info sema))
+
+; Encapsulates semaphores and async part of jobs.
+(define (run-work sync-job job)
+ (define job-id (second job))
+ (hash-set! *jobs* job-id (*timeline*))
+ (define sema (make-semaphore))
+  (thread-send *worker-thread* (work job sema))
+  (when sync-job
+    (eprintf "waiting\n")
+   (semaphore-wait sema)))
 
 (define (print-job-message command job-id job-str)
   (define job-label
@@ -283,12 +297,6 @@
   (write-datafile tmp-file info)
   (rename-file-or-directory tmp-file data-file #t)
   (call-with-output-file html-file #:exists 'replace (curryr make-report-page info #f)))
-
-(define (run-improve job-id formula)
-  (hash-set! *jobs* job-id (*timeline*))
-  (define sema (make-semaphore))
-  (thread-send *worker-thread* (list 'improve job-id formula sema))
-  sema)
 
 (define (already-computed? job-id formula)
   (or (hash-has-key? *completed-jobs* job-id)
@@ -360,7 +368,7 @@
    (λ (formula)
      (define job-id (compute-job-id (list 'improve formula (get-seed))))
      (unless (already-computed? job-id formula)
-       (run-improve job-id formula))
+       (run-work #f (list 'improve job-id formula)))
      (response/full 201 #"Job started" (current-seconds) #"text/plain"
                     (list (header #"Location" (string->bytes/utf-8 (url check-status job-id)))
                           (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
@@ -399,16 +407,9 @@
    (λ (formula)
      (define job-id (compute-job-id (list 'improve formula (get-seed))))
      (unless (already-computed? job-id formula)
-       (semaphore-wait (run-improve job-id formula)))
-
+      (run-work #t (list 'improve job-id formula)))
      (redirect-to (add-prefix (format "~a.~a/graph.html" job-id *herbie-commit*)) see-other))
    (url main)))
-
-(define (run-sample job-id formula _seed)
-  (hash-set! *jobs* job-id (*timeline*))
-  (define sema (make-semaphore))
-  (thread-send *worker-thread* (list 'sample job-id formula sema _seed))
-  sema)
 
 ; /api/sample endpoint: test in console on demo page:
 ;; (await fetch('/api/sample', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x) (- (sqrt (+ x 1))))", seed: 5})})).json()
@@ -419,7 +420,7 @@
       (define formula (read-syntax 'web (open-input-string formula-str)))
       (define seed* (hash-ref post-data 'seed))
       (define job-id (compute-job-id (list 'sample formula seed*)))
-      (semaphore-wait (run-sample job-id formula seed*))
+      (run-work #t (list 'sample job-id formula seed*))
       (define result (hash-ref *completed-jobs* job-id))
       (define pctx (job-result-backend result))
       (define test (parse-test formula))
