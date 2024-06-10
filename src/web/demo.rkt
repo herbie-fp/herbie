@@ -265,16 +265,16 @@
   (rename-file-or-directory tmp-file data-file #t)
   (call-with-output-file html-file #:exists 'replace (curryr make-report-page info #f)))
 
-(define (run-improve hash formula)
-  (hash-set! *jobs* hash (*timeline*))
+(define (run-improve job-id formula)
+  (hash-set! *jobs* job-id (*timeline*))
   (define sema (make-semaphore))
-  (thread-send *worker-thread* (list 'improve hash formula sema))
+  (thread-send *worker-thread* (list 'improve job-id formula sema))
   sema)
 
-(define (already-computed? hash formula)
-  (or (hash-has-key? *completed-jobs* hash)
+(define (already-computed? job-id formula)
+  (or (hash-has-key? *completed-jobs* job-id)
       (and (*demo-output*)
-           (directory-exists? (build-path (*demo-output*) (format "~a.~a" hash *herbie-commit*))))))
+           (directory-exists? (build-path (*demo-output*) (format "~a.~a" job-id *herbie-commit*))))))
 
 (define (post-with-json-response fn)
   (lambda (req)
@@ -329,8 +329,9 @@
        (when (eof-object? formula)
          (raise-herbie-error "no formula specified"))
        (parse-test formula)
-       (define hash (sha1 (open-input-string (~s 'improve formula (get-seed)))))
-       (body hash formula))]
+       (define job-id (sha1 (open-input-string 
+        (~s 'improve formula (get-seed)))))
+       (body job-id formula))]
     [_
      (response/error "Demo Error"
                      `(p "You didn't specify a formula (or you specified several). "
@@ -339,17 +340,17 @@
 (define (improve-start req)
   (improve-common
    req
-   (λ (hash formula)
-     (unless (already-computed? hash formula)
-       (run-improve hash formula))
+   (λ (job-id formula)
+     (unless (already-computed? job-id formula)
+       (run-improve job-id formula))
      (response/full 201 #"Job started" (current-seconds) #"text/plain"
-                    (list (header #"Location" (string->bytes/utf-8 (url check-status hash)))
+                    (list (header #"Location" (string->bytes/utf-8 (url check-status job-id)))
                           (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
                     '()))
    (url main)))
 
-(define (check-status req hash)
-  (match (hash-ref *jobs* hash #f)
+(define (check-status req job-id)
+  (match (hash-ref *jobs* job-id #f)
     [(? box? timeline)
      (response 202 #"Job in progress" (current-seconds) #"text/plain"
                (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
@@ -359,7 +360,7 @@
                                  out)))]
     [#f
      (response/full 201 #"Job complete" (current-seconds) #"text/plain"
-                    (list (header #"Location" (string->bytes/utf-8 (add-prefix (format "~a.~a/graph.html" hash *herbie-commit*))))
+                    (list (header #"Location" (string->bytes/utf-8 (add-prefix (format "~a.~a/graph.html" job-id *herbie-commit*))))
                           (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
                     '())]))
 
@@ -374,17 +375,17 @@
 (define (improve req)
   (improve-common
    req
-   (λ (hash formula)
-     (unless (already-computed? hash formula)
-       (semaphore-wait (run-improve hash formula)))
+   (λ (job-id formula)
+     (unless (already-computed? job-id formula)
+       (semaphore-wait (run-improve job-id formula)))
 
-     (redirect-to (add-prefix (format "~a.~a/graph.html" hash *herbie-commit*)) see-other))
+     (redirect-to (add-prefix (format "~a.~a/graph.html" job-id *herbie-commit*)) see-other))
    (url main)))
 
-(define (run-sample _hash formula _seed)
-  (hash-set! *jobs* _hash (*timeline*))
+(define (run-sample job-id formula _seed)
+  (hash-set! *jobs* job-id (*timeline*))
   (define sema (make-semaphore))
-  (thread-send *worker-thread* (list 'sample _hash formula sema _seed))
+  (thread-send *worker-thread* (list 'sample job-id formula sema _seed))
   sema)
 
 ; /api/sample endpoint: test in console on demo page:
