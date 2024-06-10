@@ -87,11 +87,11 @@
 (define *max-bsearch-bits* (make-parameter 48))
 
 ;; Maximum MPFR precision allowed during exact evaluation
-(define *max-mpfr-prec* (make-parameter 10000)) ; 53*512 - which sollya uses as a "stop precision"
+(define *max-mpfr-prec* (make-parameter (* 53 512))) ; 53*512 - which sollya uses as a "stop precision"
 (define *start-prec* (make-parameter 256))
 (define *ampl-tuning-bits* (make-parameter 5))
 (define *sampling-iteration* (make-parameter 0))
-(define *base-tuning-precision* (make-parameter 73))
+(define *base-tuning-precision* (make-parameter 256))
 (define *max-sampling-iterations* (make-parameter 5))
 (define *sampling-timeout* (make-parameter 20.0))
 
