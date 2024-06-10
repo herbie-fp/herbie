@@ -134,8 +134,8 @@ def shim_pareto(*core_groups: List[List[FPCore]], use_time: bool = False) -> Lis
         frontiers = []
         for key in cores_by_group:
             group = cores_by_group[key]
-            xs = list(map(lambda c: c.cost, group))
-            ys = list(map(lambda c: c.time if use_time else c.err, group))
+            xs = list(map(lambda c: c.time if use_time else c.cost, group))
+            ys = list(map(lambda c: c.err, group))
 
             frontier = ' '.join(list(map(lambda x, y: f'({x} {y})', xs, ys)))
             frontiers.append(f'({frontier})')
