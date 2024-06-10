@@ -213,44 +213,49 @@
           (*demo-output* output)
           (*reeval-pts* reeval)
           (*demo?* demo?)]
-         [(list 'improve job-id formula sema)
-          (define path (format "~a.~a" job-id *herbie-commit*))
-          (cond
-           [(hash-has-key? *completed-jobs* job-id)
-            (semaphore-post sema)]
-           [(and (*demo-output*) (directory-exists? (build-path (*demo-output*) path)))
-            (semaphore-post sema)]
-           [else
-            (print-job-message 'improve job-id (syntax->datum formula))
-
-            (define result (run-herbie 'improve (parse-test formula) #:seed seed))
-
-            (hash-set! *completed-jobs* job-id result)
-
-            (when (*demo-output*)
-              ;; Output results
-              (make-directory (build-path (*demo-output*) path))
-              (for ([page (all-pages result)])
-                (call-with-output-file (build-path (*demo-output*) path page)
-                  (λ (out) 
-                    (with-handlers ([exn:fail? (page-error-handler result page out)])
-                      (make-page page out result (*demo-output*) #f)))))
-              (update-report result path seed
-                             (build-path (*demo-output*) "results.json")
-                             (build-path (*demo-output*) "index.html")))
-
-            (eprintf "Job ~a complete\n" job-id)
-            (hash-remove! *jobs* job-id)
-            (semaphore-post sema)])]
-         [(list 'sample job-id formula sema seed*)
-          (define test (parse-test formula))
-          (print-job-message 'sample job-id (syntax->datum formula))
-          (define result (run-herbie 'sample test #:seed seed* #:profile? #f #:timeline-disabled? #t))
-          (hash-set! *completed-jobs* job-id result)
-          (eprintf "Job ~a complete\n" job-id)
-          (hash-remove! *jobs* job-id)
-          (semaphore-post sema)])
+         [job-info (run-job job-info)])
        (loop seed)))))
+
+(define (run-job job-info)
+ (match job-info
+  [(list 'improve job-id formula sema)
+   (define seed (get-seed))
+   (define path (format "~a.~a" job-id *herbie-commit*))
+   (cond
+    [(hash-has-key? *completed-jobs* job-id)
+    (semaphore-post sema)]
+    [(and (*demo-output*) (directory-exists? (build-path (*demo-output*) path)))
+    (semaphore-post sema)]
+    [else
+    (print-job-message 'improve job-id (syntax->datum formula))
+
+    (define result (run-herbie 'improve (parse-test formula) #:seed seed))
+
+    (hash-set! *completed-jobs* job-id result)
+
+    (when (*demo-output*)
+      ;; Output results
+      (make-directory (build-path (*demo-output*) path))
+      (for ([page (all-pages result)])
+        (call-with-output-file (build-path (*demo-output*) path page)
+          (λ (out) 
+            (with-handlers ([exn:fail? (page-error-handler result page out)])
+              (make-page page out result (*demo-output*) #f)))))
+      (update-report result path seed
+                      (build-path (*demo-output*) "results.json")
+                      (build-path (*demo-output*) "index.html")))
+
+    (eprintf "Job ~a complete\n" job-id)
+    (hash-remove! *jobs* job-id)
+    (semaphore-post sema)])]
+  [(list 'sample job-id formula sema seed*)
+   (define test (parse-test formula))
+   (print-job-message 'sample job-id (syntax->datum formula))
+   (define result (run-herbie 'sample test #:seed seed* #:profile? #f #:timeline-disabled? #t))
+   (hash-set! *completed-jobs* job-id result)
+   (eprintf "Job ~a complete\n" job-id)
+   (hash-remove! *jobs* job-id)
+   (semaphore-post sema)]))
 
 (define (print-job-message command job-id job-str)
   (define job-label
