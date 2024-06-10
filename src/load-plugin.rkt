@@ -18,6 +18,7 @@
 (define-runtime-module-path mkl-platform "platforms/mkl.rkt")
 (define-runtime-module-path python-platform "platforms/python3-10.rkt")
 (define-runtime-module-path avx-platform "platforms/avx.rkt")
+(define-runtime-module-path numpy-platform "platforms/numpy.rkt")
 (define-runtime-module-path vdt-platform "platforms/vdt.rkt")
 
 ; Automatically loads default representations and platforms
@@ -36,6 +37,10 @@
   (dynamic-require mkl-platform #f)
   (dynamic-require python-platform #f)
   (dynamic-require avx-platform #f)
+<<<<<<< HEAD
+=======
+  (dynamic-require numpy-platform #f)
+>>>>>>> dfa6681f (fix mistake)
   (dynamic-require vdt-platform #f)
   ;; activate the default platform
   (*active-platform* (get-platform (*platform-name*)))
