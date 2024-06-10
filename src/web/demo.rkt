@@ -216,40 +216,57 @@
          [job-info (run-job job-info)])
        (loop seed)))))
 
+(struct run-herbie-command 
+ (command formula seed pcontext profile? timeline-disabled?))
+
+(define (wrapper-run-herbie cmd job-id after-job-work)
+  (print-job-message (run-herbie-command-command cmd) job-id (syntax->datum (run-herbie-command-formula cmd)))
+  (define result (run-herbie 
+   (run-herbie-command-command cmd)
+   (parse-test (run-herbie-command-formula cmd))
+   #:seed (run-herbie-command-seed cmd)
+   #:pcontext (run-herbie-command-pcontext cmd)
+   #:profile? (run-herbie-command-profile? cmd)
+   #:timeline-disabled? (run-herbie-command-timeline-disabled? cmd)))
+  (hash-set! *completed-jobs* job-id result)
+  (after-job-work result job-id (run-herbie-command-seed cmd)))
+
+(define (after-improve result job-id seed)
+ (define path (format "~a.~a" job-id *herbie-commit*))
+ (when (*demo-output*)
+    ;; Output results
+    (make-directory (build-path (*demo-output*) path))
+    (for ([page (all-pages result)])
+      (call-with-output-file (build-path (*demo-output*) path page)
+        (λ (out) 
+          (with-handlers ([exn:fail? (page-error-handler result page out)])
+            (make-page page out result (*demo-output*) #f)))))
+    (update-report result path seed
+                    (build-path (*demo-output*) "results.json")
+                    (build-path (*demo-output*) "index.html"))))
+
+; A place holder helper function that should be used when no work needs to be
+; done on the finished result
+(define (default-after result job-id seed) empty)
+
 (define (run-job job-info)
  (define sema (work-sema job-info))
  (define job-id (work-id job-info))
  (define path (format "~a.~a" job-id *herbie-commit*))
- (cond
+ (cond ;; Check caches if job as already been completed
   [(hash-has-key? *completed-jobs* job-id)
   (semaphore-post sema)]
   [(and (*demo-output*) (directory-exists? (build-path (*demo-output*) path)))
   (semaphore-post sema)]
   [else (match (work-info job-info)
     [(list 'improve formula)
-      (define seed (get-seed))
-      (print-job-message 'improve job-id (syntax->datum formula))
-
-      (define result (run-herbie 'improve (parse-test formula) #:seed seed))
-
-      (hash-set! *completed-jobs* job-id result)
-
-      (when (*demo-output*)
-        ;; Output results
-        (make-directory (build-path (*demo-output*) path))
-        (for ([page (all-pages result)])
-          (call-with-output-file (build-path (*demo-output*) path page)
-            (λ (out) 
-              (with-handlers ([exn:fail? (page-error-handler result page out)])
-                (make-page page out result (*demo-output*) #f)))))
-        (update-report result path seed
-                        (build-path (*demo-output*) "results.json")
-                        (build-path (*demo-output*) "index.html")))]
+      (wrapper-run-herbie 
+       (run-herbie-command 'improve formula (get-seed) #f #f #f) 
+       job-id after-improve)]
     [(list 'sample formula seed*)
-      (define test (parse-test formula))
-      (print-job-message 'sample job-id (syntax->datum formula))
-      (define result (run-herbie 'sample test #:seed seed* #:profile? #f #:timeline-disabled? #t))
-      (hash-set! *completed-jobs* job-id result)])])
+      (wrapper-run-herbie 
+       (run-herbie-command 'sample formula seed* #f #f #t) 
+       job-id default-after)])])
  (eprintf "Job ~a complete\n" job-id)
  (hash-remove! *jobs* job-id)
  (semaphore-post sema))
@@ -350,7 +367,8 @@
        (when (eof-object? formula)
          (raise-herbie-error "no formula specified"))
        (parse-test formula)
-       (body formula))]
+       (define job-id (compute-job-id (list 'improve formula (get-seed))))
+       (body job-id formula))]
     [_
      (response/error "Demo Error"
                      `(p "You didn't specify a formula (or you specified several). "
@@ -359,8 +377,7 @@
 (define (improve-start req)
   (improve-common
    req
-   (λ (formula)
-     (define job-id (compute-job-id (list 'improve formula (get-seed))))
+   (λ (job-id formula)
      (unless (already-computed? job-id formula)
        (run-work #f job-id (list 'improve formula)))
      (response/full 201 #"Job started" (current-seconds) #"text/plain"
@@ -398,8 +415,7 @@
 (define (improve req)
   (improve-common
    req
-   (λ (formula)
-     (define job-id (compute-job-id (list 'improve formula (get-seed))))
+   (λ (job-id formula)
      (unless (already-computed? job-id formula)
       (run-work #t job-id (list 'improve formula)))
      (redirect-to (add-prefix (format "~a.~a/graph.html" job-id *herbie-commit*)) see-other))
