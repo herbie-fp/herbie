@@ -221,7 +221,7 @@
            [(and (*demo-output*) (directory-exists? (build-path (*demo-output*) path)))
             (semaphore-post sema)]
            [else
-            (eprintf "Improve Job ~a started:\n  improve ~a...\n" job-id (syntax->datum formula))
+            (print-job-message 'improve job-id (syntax->datum formula))
 
             (define result (run-herbie 'improve (parse-test formula) #:seed seed))
 
@@ -244,13 +244,27 @@
             (semaphore-post sema)])]
          [(list 'sample job-id formula sema seed*)
           (define test (parse-test formula))
-          (eprintf "Sampling Job ~a started:\n  sample ~a...\n" job-id (syntax->datum formula))
+          (print-job-message 'sample job-id (syntax->datum formula))
           (define result (run-herbie 'sample test #:seed seed* #:profile? #f #:timeline-disabled? #t))
           (hash-set! *completed-jobs* job-id result)
-          (eprintf " complete\n")
+          (eprintf "Job ~a complete\n" job-id)
           (hash-remove! *jobs* job-id)
           (semaphore-post sema)])
        (loop seed)))))
+
+(define (print-job-message command job-id job-str)
+  (define job-label
+    (match command 
+      ['alternatives "Alternatives"]
+      ['evaluate "Evaluation"]
+      ['cost "Computing"]
+      ['errors "Analyze"]
+      ['exacts "Ground truth"]
+      ['improve "Improve"]
+      ['local-error "Local error"]
+      ['sample "Sampling"]
+      [_ (error 'compute-result "unknown command ~a" command)]))
+  (eprintf "~a Job ~a started:\n  ~a ~a...\n" job-label (symbol->string command) job-id job-str))
 
 (define (update-report result dir seed data-file html-file)
   (define link (path-element->string (last (explode-path dir))))
