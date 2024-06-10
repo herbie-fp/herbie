@@ -17,8 +17,15 @@ assert.equal(improveResponse.status, 200)
 // assert.equal(improveHTML.length, improveHTMLexpectedCount, `HTML response character count should be ${improveHTMLexpectedCount} unless HTML changes.`)
 
 // improve-start endpoint
-const startURL = `http://127.0.0.1:8000/improve-start?formula=${encodeURIComponent(FPCoreFormula2)}`
-const startResponse = await fetch(startURL, { method: 'POST' })
+const startURL = `http://127.0.0.1:8000/improve-start`
+const URIencodedBody = "formula=" + encodeURIComponent(FPCoreFormula)
+const startResponse = await fetch(startURL, {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/x-www-form-urlencoded',
+  },
+  body: URIencodedBody
+})
 assert.equal(startResponse.status, 201)
 const path = startResponse.headers.get("location")
 
