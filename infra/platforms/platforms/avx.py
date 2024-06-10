@@ -44,7 +44,7 @@ class AVXRunner(Runner):
                 print('#include <stdio.h>', file=f)
                 print('#include <time.h>', file=f)
 
-                print(core.compiled, file=f)
+                print(f'static inline {core.compiled}', file=f)
 
                 for i, points in enumerate(input_points):
                     print(f'const double x{i}[{self.num_inputs}] = {{', file=f)

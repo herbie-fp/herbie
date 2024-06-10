@@ -1,10 +1,11 @@
 """ Runs platform-specific Herbie improvement """
 
-from typing import List
-
 import argparse
 import os
 
+from typing import List, Tuple
+
+from platforms.c import get_cflags, set_cflags
 from platforms.fpcore import FPCore
 from platforms.runner import Runner
 from platforms.runners import make_runner
@@ -67,6 +68,37 @@ def run_cores(runner: Runner, cores: List[FPCore], py_sample: bool = False) -> L
 
     return driver_dirs
 
+#################################################
+# Clang comparison eval
+
+default_flags = ['-std=gnu11', '-ffp-contract=off']
+opt_flags = ['-O0', '-O1', '-O2', '-O3']
+fp_flags = [None, '-ffast-math']
+
+def clang_eval(runner: Runner, cores: List[FPCore]):
+    old_cflags = get_cflags()
+
+    # get sample
+    samples = runner.herbie_sample(cores=cores)
+    check_samples(samples, cores) # sanity check!
+
+    configs: List[Tuple[List[str], List[float]]] = []
+    for opt_flag in opt_flags:
+        for fp_flag in fp_flags:
+            flags = [opt_flag] if fp_flag is None else [opt_flag, fp_flag]
+            set_cflags(flags + default_flags)
+            
+            runner.log('running clang eval', flags)
+            driver_dirs = runner.make_driver_dirs(cores=cores)
+            runner.make_drivers(cores=cores, driver_dirs=driver_dirs, samples=samples)
+            runner.compile_drivers(driver_dirs=driver_dirs)
+            times = runner.run_drivers(cores=cores, driver_dirs=driver_dirs)
+
+            configs.append((flags, times))
+
+    set_cflags(old_cflags)
+    return configs
+
 
 def main():
     parser = argparse.ArgumentParser(description='Herbie cost tuner')
@@ -120,6 +152,13 @@ def main():
     samples, input_cores = prune_unsamplable(samples, input_cores)
     check_samples(samples, input_cores) # sanity check!
 
+    # optionally run clang comparison
+    if platform == 'c':
+        runner.herbie_compile(cores=input_cores)
+        clang_results = clang_eval(runner, input_cores)
+    else:
+        clang_results = None
+
     # run Herbie for output cores
     cores = runner.herbie_improve(cores=input_cores, threads=herbie_threads)
 
@@ -129,7 +168,7 @@ def main():
     driver_dirs = run_cores(runner, cores, py_sample)
 
     # publish results
-    runner.write_improve_report(all_input_cores, cores, driver_dirs)
+    runner.write_improve_report(all_input_cores, cores, driver_dirs, clang_results)
 
 
 if __name__ == "__main__":

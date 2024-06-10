@@ -494,7 +494,8 @@ class Runner(object):
         self,
         input_cores: List[FPCore],
         platform_cores: List[FPCore],
-        driver_dirs: List[str]
+        driver_dirs: List[str],
+        extra
     ) -> None:
         """Writes improve data to a JSON file."""
         # group platform cores by input [key]
@@ -525,7 +526,8 @@ class Runner(object):
             'platform': self.name,
             'time_unit': self.time_unit,
             'seed': self.seed,
-            'cores': core_reports
+            'cores': core_reports,
+            'extra': extra
         }
 
         path = self.report_dir.joinpath('improve.json')

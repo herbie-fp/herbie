@@ -16,10 +16,17 @@ ternary_ops = ['fma']
 # C lang
 target_lang = 'c'
 compiler = 'clang'
-c_flags = ['-O3', '-ffp-contract=off']
+c_flags = ['-std=gnu11', '-ffp-contract=off', '-O3']
 ld_flags = ['-lm']
 driver_name = 'main.c'
 time_unit = 'ms'
+
+def get_cflags():
+    return c_flags
+
+def set_cflags(flags: List[str]):
+    global c_flags
+    c_flags = flags
 
 # Regex patterns
 time_pat = re.compile(f'([-+]?([0-9]+(\.[0-9]+)?|\.[0-9]+)(e[-+]?[0-9]+)?) {time_unit}')
@@ -51,7 +58,7 @@ class CRunner(Runner):
                 print('#define TRUE 1', file=f)
                 print('#define FALSE 0', file=f)
 
-                print(f'inline {core.compiled}', file=f)
+                print(f'static inline {core.compiled}', file=f)
 
                 for i, points in enumerate(input_points):
                     print(f'const double x{i}[{self.num_inputs}] = {{', file=f)
