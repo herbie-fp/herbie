@@ -461,6 +461,11 @@
       (hasheq 'points (pcontext->json pctx 
        (context-repr (test-context test)))))))
 
+(define (process-command command post-processing)
+  (define job-id (compute-job-id command))
+  (run-work #t job-id command)
+  (post-processing (hash-ref *completed-jobs* job-id)))
+
 (define analyze-endpoint
   (post-with-json-response
     (lambda (post-data)
@@ -470,15 +475,16 @@
       (define seed (hash-ref post-data 'seed #f))
       (define pcontext (json->pcontext sample 
        (test-context (parse-test formula))))     
-      (define command (list 'errors formula seed pcontext))      
-      (define job-id (compute-job-id command))
-      (run-work #t job-id command)
-      (define errs
-        (for/list ([pt&err (job-result-backend (hash-ref *completed-jobs* job-id))])
-          (define pt (first pt&err))
-          (define err (second pt&err))
-          (list pt (format-bits (ulps->bits err)))))
-      (hasheq 'points errs))))
+      (define command (list 'errors formula seed pcontext))
+      (process-command command post-analyze))))
+
+(define (post-analyze result)
+  (define errs
+    (for/list ([pt&err (job-result-backend result)])
+      (define pt (first pt&err))
+      (define err (second pt&err))
+      (list pt (format-bits (ulps->bits err)))))
+  (hasheq 'points errs))
 
 ;; (await fetch('/api/exacts', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x) (- (sqrt (+ x 1))))", points: [[1, 1]]})})).json()
 (define exacts-endpoint 
@@ -487,15 +493,14 @@
       (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
       (define sample (hash-ref post-data 'sample))
       (define seed (hash-ref post-data 'seed #f))
-      (eprintf "Ground truth job started on ~a..." formula)
-
       (define test (parse-test formula))
       (define pcontext (json->pcontext sample (test-context test)))
       (define command (list 'exacts formula seed pcontext))
-      (define job-id (compute-job-id command))
-      (run-work #t job-id command)
-      (define exacts (job-result-backend (hash-ref *completed-jobs* job-id)))
-      (hasheq 'points exacts))))
+      (process-command command post-exacts))))
+
+(define (post-exacts result)
+  (define exacts (job-result-backend result))
+  (hasheq 'points exacts))
 
 (define calculate-endpoint 
   (post-with-json-response
@@ -503,15 +508,14 @@
       (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
       (define sample (hash-ref post-data 'sample))
       (define seed (hash-ref post-data 'seed #f))
-      (eprintf "Evaluation job started on ~a..." formula)
-
       (define test (parse-test formula))
       (define pcontext (json->pcontext sample (test-context test)))
       (define command (list 'evaluate formula seed pcontext))
-      (define job-id (compute-job-id command))
-      (run-work #t job-id command)
-      (define approx (job-result-backend (hash-ref *completed-jobs* job-id)))
-      (hasheq 'points approx))))
+      (process-command command post-calculate))))
+
+(define (post-calculate result)
+  (define approx (job-result-backend result))
+  (hasheq 'points approx))
 
 (define local-error-endpoint
   (post-with-json-response
@@ -519,34 +523,31 @@
       (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
       (define sample (hash-ref post-data 'sample))
       (define seed (hash-ref post-data 'seed #f))
-      (eprintf "Local error job started on ~a..." formula)
-
       (define test (parse-test formula))
       (define expr (prog->fpcore (test-input test) (test-output-repr test)))
       (define pcontext (json->pcontext sample (test-context test)))
       (define command (list 'local-error formula seed pcontext))
-      (define job-id (compute-job-id command))
-      (run-work #t job-id command)
-      (define local-error (job-result-backend 
-       (hash-ref *completed-jobs* job-id)))
-      
-      ;; TODO: potentially unsafe if resugaring changes the AST
-      (define tree
-        (let loop ([expr expr] [err local-error])
-          (match expr
-            [(list op args ...)
-             ;; err => (List (listof Integer) List ...)
-             (hasheq
-              'e (~a op)
-              'avg-error (format-bits (errors-score (first err)))
-              'children (map loop args (rest err)))]
-            [_
-             ;; err => (List (listof Integer))
-             (hasheq
-              'e (~a expr)
-              'avg-error (format-bits (errors-score (first err)))
-              'children '())])))
-      (hasheq 'tree tree))))
+      (process-command command (curry post-local-error expr)))))
+
+(define (post-local-error expr result)
+  (define local-error (job-result-backend result))
+  ;; TODO: potentially unsafe if resugaring changes the AST
+  (define tree
+    (let loop ([expr expr] [err local-error])
+      (match expr
+        [(list op args ...)
+          ;; err => (List (listof Integer) List ...)
+          (hasheq
+          'e (~a op)
+          'avg-error (format-bits (errors-score (first err)))
+          'children (map loop args (rest err)))]
+        [_
+          ;; err => (List (listof Integer))
+          (hasheq
+          'e (~a expr)
+          'avg-error (format-bits (errors-score (first err)))
+          'children '())])))
+  (hasheq 'tree tree))
 
 (define alternatives-endpoint
   (post-with-json-response
@@ -554,17 +555,16 @@
       (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
       (define sample (hash-ref post-data 'sample))
       (define seed (hash-ref post-data 'seed #f))
-      (eprintf "Alternatives job started on ~a..." formula)
-
       (define test (parse-test formula))
       (define vars (test-vars test))
       (define repr (test-output-repr test))
       (define pcontext (json->pcontext sample (test-context test)))
       (define command (list 'alternatives formula seed pcontext))
-      (define job-id (compute-job-id command))
-      (run-work #t job-id command)
-      (match-define (list altns test-pcontext processed-pcontext) (job-result-backend (hash-ref *completed-jobs* job-id)))
-      
+      (process-command command (curry post-alternatives vars repr test)))))
+
+(define (post-alternatives vars repr test result)
+  (match-define 
+   (list altns test-pcontext processed-pcontext) (job-result-backend result))
       (define splitpoints
         (for/list ([alt altns]) 
           (for/list ([var vars])
@@ -598,7 +598,7 @@
       (hasheq 'alternatives fpcores
               'histories histories
               'derivations derivations
-              'splitpoints splitpoints))))
+              'splitpoints splitpoints))
 
 (define ->mathjs-endpoint
   (post-with-json-response
@@ -613,14 +613,13 @@
   (post-with-json-response
     (lambda (post-data)
       (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
-      (eprintf "Computing cost of ~a..." formula)
-      
       (define test (parse-test formula))
       (define command (list 'cost formula))
-      (define job-id (compute-job-id command))
-      (run-work #t job-id command)
-      (define cost (job-result-backend (hash-ref *completed-jobs* job-id)))
-      (hasheq 'cost cost))))
+      (process-command command post-cost))))
+
+(define (post-cost result)
+  (define cost (job-result-backend result))
+  (hasheq 'cost cost))
 
 (define translate-endpoint
   (post-with-json-response
