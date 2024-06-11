@@ -55,8 +55,8 @@ class PythonRunner(Runner):
                 print('import time', file=f)
                 print(f'{core.compiled}', file=f)
     
-                spoints = []
                 for i, points in enumerate(input_points):
+                    spoints = []
                     for pt in points:
                         s = double_to_c_str(pt)
                         if s == 'NAN':
@@ -98,9 +98,9 @@ class PythonRunner(Runner):
                 print('import math', file=f)
                 print('import time', file=f)
                 print(f'{core.compiled}', file=f)
-    
-                spoints = []
+
                 for i, points in enumerate(input_points):
+                    spoints = []
                     for pt in points:
                         s = double_to_c_str(pt)
                         if s == 'NAN':
@@ -155,7 +155,7 @@ class PythonRunner(Runner):
 
             # Reset terminal
             print('\r', end='', flush=True)
-            print(' ' * (len(log_prefix) + self.num_runs), end='', flush=True)
+            print(' ' * (len(log_prefix)), end='', flush=True)
             print('\r', end='', flush=True)
         
         times = [sum(ts) / len(ts) for ts in times]

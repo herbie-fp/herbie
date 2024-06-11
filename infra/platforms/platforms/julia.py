@@ -56,8 +56,8 @@ class JuliaRunner(Runner):
             with open(driver_path, 'w') as f:
                 print(f'{core.compiled}', file=f)
 
-                spoints = []
                 for i, points in enumerate(input_points):
+                    spoints = []
                     for pt in points:
                         s = double_to_c_str(pt)
                         if s == 'NAN':
@@ -109,8 +109,8 @@ class JuliaRunner(Runner):
                 print(f'# points {num_inputs}', file=f)
                 print(f'{core.compiled}', file=f)
 
-                spoints = []
                 for i, points in enumerate(input_points):
+                    spoints = []
                     for pt in points:
                         s = double_to_c_str(pt)
                         if s == 'NAN':
