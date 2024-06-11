@@ -9,7 +9,7 @@ from .runner import Runner
 from .util import double_to_c_str, run_subprocess
 
 # Supported operations for Python
-unary_ops = ['neg', 'acos', 'acosh', 'asin', 'asinh', 'atan', 'atanh', 'ceil', 'cos', 'cosh', 'erf', 'erfc', 'exp', 'expm1', 'fabs', 'floor', 'lgamma', 'log', 'log10', 'log2', 'log1p', 'sin', 'sinh', 'sqrt', 'tan', 'tanh', 'tgamma', 'trunc']
+unary_ops = ['neg', 'acos', 'acosh', 'asin', 'asinh', 'atan', 'atanh', 'ceil', 'cos', 'cosh', 'erf', 'erfc', 'exp', 'expm1', 'fabs', 'floor', 'log', 'log10', 'log2', 'log1p', 'sin', 'sinh', 'sqrt', 'tan', 'tanh', 'trunc']
 binary_ops = ['+', '-', '*', '/', 'atan2', 'copysign', 'fmax', 'fmin', 'fmod', 'hypot', 'pow', 'remainder']
 ternary_ops = []
 nary_ops = [(3, 'sum3'), (4, 'sum4')]
@@ -90,7 +90,7 @@ class PythonRunner(Runner):
             
             input_points = list(zip(*pruned_by_points))
             num_inputs = len(pruned_by_points)
-            self.log(f'kept {num_inputs}/{len(by_points)} sampled points')
+            self.log(f'kept {num_inputs}/{len(by_points)} sampled points for {core.name}')
 
             # create actual driver using pruned points
             with open(driver_path, 'w') as f:
@@ -114,12 +114,13 @@ class PythonRunner(Runner):
     
                 arg_str = ', '.join(map(lambda i: f'x{i}[i]', range(core.argc)))
                 print('if __name__ == "__main__":', file=f)
-                print(f'\tstart = time.time_ns()', file=f)
-                print(f'\tfor i in range(0, {num_inputs}):', file=f)
-                print(f'\t\tfoo({arg_str})', file=f)
-                print(f'\tend = time.time_ns()', file=f)
-                print(f'\tdiff = (10 ** -6) * (end - start)', file=f)
-                print(f'\tprint(f\'{{diff}} ms\')', file=f)
+                print(f'\tfor _ in range({self.num_runs}):', file=f)
+                print(f'\t\tstart = time.time_ns()', file=f)
+                print(f'\t\tfor i in range(0, {num_inputs}):', file=f)
+                print(f'\t\t\tfoo({arg_str})', file=f)
+                print(f'\t\tend = time.time_ns()', file=f)
+                print(f'\t\tdiff = (10 ** -6) * (end - start)', file=f)
+                print(f'\t\tprint(f\'{{diff}} ms\')', file=f)
 
         self.log(f'created drivers')
     
@@ -138,19 +139,19 @@ class PythonRunner(Runner):
         # run processes sequentially
         times = [[] for _ in driver_dirs]
         for i, driver_dir in enumerate(driver_dirs):
+            driver_path = Path(os.path.join(driver_dir, driver_name))
             log_prefix = f'[{i}/{len(driver_dirs)}] '
             print(log_prefix, end='', flush=True)
-            for _ in range(self.num_runs):
-                driver_path = Path(os.path.join(driver_dir, driver_name))
-                output = run_subprocess([target, driver_path], capture_stdout=True)
-                time = re.match(time_pat, output)
+
+            output = run_subprocess([target, driver_path], capture_stdout=True)
+            for line in output.strip().split('\n'):
+                time = re.match(time_pat, line)
                 if time is None:
-                    self.log("bad core: "+str(cores[i]))
-                    raise RuntimeError('Unexpected error when running {out_path}: {output}')
+                    self.log("bad core: " + str(cores[i]))
+                    raise RuntimeError(f'Unexpected error when running {driver_path}: {output}')
                 
                 time = float(time.group(1))
                 times[i].append(time * (self.num_inputs / num_pointss[i]))
-                print('.', end='', flush=True)
 
             # Reset terminal
             print('\r', end='', flush=True)

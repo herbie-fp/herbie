@@ -23,80 +23,80 @@
 ;; --------------------------------------------------------
 ;; Platform
 
+(define move-cost 0.9895935999999999)
+
 (define boolean-platform
-  (with-terminal-cost ([bool 1])
+  (with-terminal-cost ([bool move-cost])
     (platform
-      #:default-cost 1
-      #:if-cost 1
+      #:default-cost move-cost
+      #:if-cost move-cost
       [(bool) (TRUE FALSE)]
       [(bool bool) not]
       [(bool bool bool) (and or)])))
 
 ; non-tunable operations
 (define non-tunable
-  (with-terminal-cost ([binary64 1])
+  (with-terminal-cost ([binary64 move-cost])
     (platform-product
       [([real binary64] [bool bool])
-       (cost-map #:default-cost 1)]
+       (cost-map #:default-cost move-cost)]
       (operator-set
         [(real) (PI E INFINITY NAN)]
         [(real real bool) (== != > < >= <=)]))))
 
 (define cost-model
   (cost-map
-   [* 2.013928]
-[+ 1.8056880000000004]
-[- 2.0186759999999997]
-[/ 1.836332]
-[acos 2.021984]
-[acosh 2.13014]
-[asin 1.9804719999999998]
-[asinh 2.2921]
-[atan 2.14085204]
-[atan2 2.720068]
-[atanh 1.9331639999999999]
-[ceil 2.63332]
-[copysign 2.382024]
-[cos 2.41401596]
-[cosh 4.26983204]
-[erf 2.104264]
-[erfc 2.059636]
-[exp 3.3930520400000006]
-[expm1 3.324224039999999]
-[fabs 1.94423604]
-[floor 2.7368439999999996]
-[fmax 2.8649360399999995]
-[fmin 2.97901188]
-[fmod 2.4950959999999998]
-[hypot 2.67242404]
-[lgamma 1366.1577325199999]
-[log 2.450068]
-[log10 2.2717000400000003]
-[log1p 2.23565996]
-[log2 2.0437640400000006]
-[neg 1.5017679999999998]
-[pow 5.745251919999999]
-[remainder 2.47294]
-[sin 2.42194008]
-[sinh 4.2463839199999995]
-[sqrt 1.96596]
-[sum3 11.11731212]
-[sum4 13.000808079999997]
-[tan 2.6245920000000007]
-[tanh 2.101672]
-[tgamma 2698.346980519999]
-[trunc 2.6800839999999995]))
+[* 1.3441783]
+[+ 1.5563147000000002]
+[- 1.7573510999999997]
+[/ 1.7066119]
+[acos 1.3864778999999998]
+[acosh 1.7386883999999998]
+[asin 1.4829444]
+[asinh 1.6486083999999999]
+[atan 1.7908312]
+[atan2 2.6143697999999995]
+[atanh 1.9228424999999998]
+[ceil 2.4536937]
+[copysign 1.8931493999999998]
+[cos 2.0010757000000003]
+[cosh 1.414769456394212]
+[erf 1.8429090000000001]
+[erfc 1.6693044999999997]
+[exp 1.5050774227760835]
+[expm1 1.3489543512043511]
+[fabs 1.4383168999999998]
+[floor 2.3315106]
+[fmax 2.3143651999999997]
+[fmin 2.5583871]
+[fmod 1.7819245000000001]
+[hypot 2.2010568]
+[log 1.7538747999999997]
+[log10 1.6616018999999997]
+[log1p 1.8074973000000003]
+[log2 1.4853409999999998]
+[neg 1.2910733]
+[pow 2.410625827150592]
+[remainder 1.8637451999999999]
+[sin 2.1324005999999995]
+[sinh 1.7532248728979272]
+[sqrt 1.6099431]
+[sum3 2.871507607607608]
+[sum4 3.7123581940134143]
+[tan 2.2786129]
+[tanh 1.6602894000000004]
+[trunc 2.5274514]))
 
 (define tunable
-  (with-terminal-cost ([binary64 1])
+  (with-terminal-cost ([binary64 move-cost])
     (platform-product
       #:optional
       [([real binary64]) cost-model]
       (operator-set
         [(real real)
          (neg acos acosh asin asinh atan atanh ceil cos cosh
-          erf erfc exp expm1 fabs floor lgamma log log10 log2
-          log1p sin sinh sqrt tan tanh tgamma trunc)]
+          erf erfc exp expm1 fabs floor log log10 log2
+          log1p sin sinh sqrt tan tanh trunc)]
         [(real real real)
          (+ - * / atan2 copysign fmax fmin fmod hypot pow remainder)]
         [(real real real real) sum3]
