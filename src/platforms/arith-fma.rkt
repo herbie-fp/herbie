@@ -44,7 +44,6 @@
 (define tunable
   (with-terminal-cost ([binary64 fl-move-cost])
     (platform-product
-      #:optional
       [([real binary64]) cost-model]
       (operator-set
         [(real real) (neg fabs sqrt)]

@@ -3,6 +3,7 @@ from pathlib import Path
 import os
 import re
 
+from .cache import SampleType
 from .fpcore import FPCore
 from .runner import Runner
 from .util import double_to_c_str, run_subprocess
@@ -20,6 +21,7 @@ time_unit = 'ms'
 
 # Regex patterns
 time_pat = re.compile(f'([-+]?([0-9]+(\.[0-9]+)?|\.[0-9]+)(e[-+]?[0-9]+)?) {time_unit}')
+points_pat = re.compile('# points ([0-9]+)')
 
 class PythonRunner(Runner):
     """`Runner` for Python 3.10"""
@@ -36,16 +38,23 @@ class PythonRunner(Runner):
             **kwargs
         )
 
+
     def make_drivers(self, cores: List[FPCore], driver_dirs: List[str], samples: dict) -> None:
-        for core, driver_dir in zip(cores, driver_dirs):
+        # extract samples
+        samples = []
+        for core in cores:
+            samples.append(self.cache.get_sample(core.key, self.seed))
+
+        # create a temporary driver to eliminate exception points
+        for core, driver_dir, sample in zip(cores, driver_dirs, samples):
             driver_path = os.path.join(driver_dir, driver_name)
-            sample = self.cache.get_sample(core.key, self.seed)
             input_points, _ = sample
+            num_inputs = self.num_inputs
             with open(driver_path, 'w') as f:
                 print('import math', file=f)
                 print('import time', file=f)
                 print(f'{core.compiled}', file=f)
-
+    
                 spoints = []
                 for i, points in enumerate(input_points):
                     for pt in points:
@@ -54,22 +63,60 @@ class PythonRunner(Runner):
                             spoints.append('math.nan')
                         else:
                             spoints.append(s)
-
+    
                     print(f'x{i} = [', file=f)
                     print(',\n'.join(spoints), file=f)
                     print(']', file=f)
-
-                arg_str = ', '.join(map(lambda i: f'x{i}[j]', range(core.argc)))
+            
+                arg_str = ', '.join(map(lambda i: f'x{i}[i]', range(core.argc)))
                 print('if __name__ == "__main__":', file=f)
-                print(f'\ti = 0', file=f)
-                print(f'\tstart = time.time_ns()', file=f)
-                print(f'\twhile i < {self.num_inputs}:', file=f)
+                print(f'\tfor i in range(0, {num_inputs}):', file=f)
                 print(f'\t\ttry:', file=f)
-                print(f'\t\t\tfor j in range(i, {self.num_inputs}):', file=f)
-                print(f'\t\t\t\tfoo({arg_str})', file=f)
-                print(f'\t\t\t\ti += 1', file=f)
+                print(f'\t\t\tfoo({arg_str})', file=f)
+                print(f'\t\t\tprint(\'1 \', end=\'\')', file=f)
                 print(f'\t\texcept:', file=f)
-                print(f'\t\t\ti += 1', file=f)
+                print(f'\t\t\tprint(\'0 \', end=\'\')', file=f)
+
+            # run temporary driver
+            output = run_subprocess([target, driver_path], capture_stdout=True)
+            no_excepts = list(map(lambda s: s == '1', output.strip().split()))
+
+            # prune points that cause exceptions
+            by_points = list(zip(*input_points))
+            pruned_by_points = []
+            for pt, no_except in zip(by_points, no_excepts):
+                if no_except:
+                    pruned_by_points.append(pt)
+            
+            input_points = list(zip(*pruned_by_points))
+            num_inputs = len(pruned_by_points)
+            self.log(f'kept {num_inputs}/{len(by_points)} sampled points')
+
+            # create actual driver using pruned points
+            with open(driver_path, 'w') as f:
+                print(f'# points {num_inputs}', file=f)
+                print('import math', file=f)
+                print('import time', file=f)
+                print(f'{core.compiled}', file=f)
+    
+                spoints = []
+                for i, points in enumerate(input_points):
+                    for pt in points:
+                        s = double_to_c_str(pt)
+                        if s == 'NAN':
+                            spoints.append('math.nan')
+                        else:
+                            spoints.append(s)
+    
+                    print(f'x{i} = [', file=f)
+                    print(',\n'.join(spoints), file=f)
+                    print(']', file=f)
+    
+                arg_str = ', '.join(map(lambda i: f'x{i}[i]', range(core.argc)))
+                print('if __name__ == "__main__":', file=f)
+                print(f'\tstart = time.time_ns()', file=f)
+                print(f'\tfor i in range(0, {num_inputs}):', file=f)
+                print(f'\t\tfoo({arg_str})', file=f)
                 print(f'\tend = time.time_ns()', file=f)
                 print(f'\tdiff = (10 ** -6) * (end - start)', file=f)
                 print(f'\tprint(f\'{{diff}} ms\')', file=f)
@@ -80,6 +127,14 @@ class PythonRunner(Runner):
         self.log(f'drivers interpreted, skipping compilations')
 
     def run_drivers(self, cores: List[FPCore], driver_dirs: List[str]) -> List[float]:
+        # read number of points back in
+        num_pointss = []
+        for driver_dir in driver_dirs:
+            driver_path = Path(os.path.join(driver_dir, driver_name))
+            with open(driver_path, 'r') as f:
+                matches = re.match(points_pat, f.readline())
+                num_pointss.append(int(matches.group(1)))
+
         # run processes sequentially
         times = [[] for _ in driver_dirs]
         for i, driver_dir in enumerate(driver_dirs):
@@ -92,7 +147,9 @@ class PythonRunner(Runner):
                 if time is None:
                     self.log("bad core: "+str(cores[i]))
                     raise RuntimeError('Unexpected error when running {out_path}: {output}')
-                times[i].append(float(time.group(1)))
+                
+                time = float(time.group(1))
+                times[i].append(time * (self.num_inputs / num_pointss[i]))
                 print('.', end='', flush=True)
 
             # Reset terminal
