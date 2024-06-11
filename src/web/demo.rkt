@@ -258,51 +258,51 @@
   (semaphore-post sema)]
   [(and (*demo-output*) (directory-exists? (build-path (*demo-output*) path)))
   (semaphore-post sema)]
-  [else (match (work-info job-info)
+  [else (match (work-job job-info)
     [(list 'improve formula)
       (wrapper-run-herbie 
        (run-herbie-command 'improve formula (get-seed) #f #f #f) 
-       job-id after-improve)]
+       job-id (work-after job-info))]
     [(list 'sample formula seed*)
       (wrapper-run-herbie 
        (run-herbie-command 'sample formula seed* #f #f #t) 
-       job-id default-after)]
+       job-id (work-after job-info))]
     [(list 'errors formula seed* pcontext)
       (wrapper-run-herbie 
        (run-herbie-command 'errors formula seed* pcontext #f #t) 
-       job-id default-after)]
+       job-id (work-after job-info))]
     [(list 'exacts formula seed* pcontext)
       (wrapper-run-herbie 
        (run-herbie-command 'exacts formula seed* pcontext #f #t) 
-       job-id default-after)]
+       job-id (work-after job-info))]
     [(list 'evaluate formula seed* pcontext)
       (wrapper-run-herbie 
        (run-herbie-command 'evaluate formula seed* pcontext #f #t) 
-       job-id default-after)]
+       job-id (work-after job-info))]
     [(list 'local-error formula seed* pcontext)
       (wrapper-run-herbie 
        (run-herbie-command 'local-error formula seed* pcontext #f #t) 
-       job-id default-after)]
+       job-id (work-after job-info))]
     [(list 'alternatives formula seed* pcontext)
       (wrapper-run-herbie 
        (run-herbie-command 'alternatives formula seed* pcontext #f #t) 
-       job-id default-after)]
+       job-id (work-after job-info))]
     [(list 'cost formula)
       (wrapper-run-herbie 
        (run-herbie-command 'cost formula #f #f #f #t) 
-       job-id default-after)])])
+       job-id (work-after job-info))])])
  (eprintf "Job ~a complete\n" job-id)
  (hash-remove! *jobs* job-id)
  (semaphore-post sema))
 
 ; Handles semaphore and async part of a job
-(struct work (id info sema))
+(struct work (id job sema after))
 
 ; Encapsulates semaphores and async part of jobs.
-(define (run-work sync-job job-id job)
+(define (run-work sync-job job-id job after)
  (hash-set! *jobs* job-id (*timeline*))
  (define sema (make-semaphore))
-  (thread-send *worker-thread* (work job-id job sema))
+  (thread-send *worker-thread* (work job-id job sema after))
   (when sync-job
    (semaphore-wait sema)))
 
@@ -403,7 +403,7 @@
    req
    (λ (job-id formula)
      (unless (already-computed? job-id formula)
-       (run-work #f job-id (list 'improve formula)))
+       (run-work #f job-id (list 'improve formula) after-improve))
      (response/full 201 #"Job started" (current-seconds) #"text/plain"
                     (list (header #"Location" (string->bytes/utf-8 (url check-status job-id)))
                           (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
@@ -441,7 +441,7 @@
    req
    (λ (job-id formula)
      (unless (already-computed? job-id formula)
-      (run-work #t job-id (list 'improve formula)))
+      (run-work #t job-id (list 'improve formula) default-after))
      (redirect-to (add-prefix (format "~a.~a/graph.html" job-id *herbie-commit*)) see-other))
    (url main)))
 
@@ -454,7 +454,7 @@
       (define formula (read-syntax 'web (open-input-string formula-str)))
       (define seed* (hash-ref post-data 'seed))
       (define job-id (compute-job-id (list 'sample formula seed*)))
-      (run-work #t job-id (list 'sample formula seed*))
+      (run-work #t job-id (list 'sample formula seed*) default-after)
       (define result (hash-ref *completed-jobs* job-id))
       (define pctx (job-result-backend result))
       (define test (parse-test formula))
@@ -463,7 +463,7 @@
 
 (define (process-command command post-processing)
   (define job-id (compute-job-id command))
-  (run-work #t job-id command)
+  (run-work #t job-id command default-after)
   (post-processing (hash-ref *completed-jobs* job-id)))
 
 (define analyze-endpoint
