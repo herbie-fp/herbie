@@ -79,7 +79,6 @@
   [fl (λ (x)
         (parameterize ([bf-precision 12])
           (bigfloat->flonum (bf/ 1.bf (bfsqrt (bf x))))))])
-
 (define-libm expm1.f32 (expm1f float float))
 (when expm1.f32
   (define-accelerator-impl expm1 expm1.f32 (binary32) binary32 expm1.f32))

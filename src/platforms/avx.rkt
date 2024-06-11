@@ -49,8 +49,7 @@
      [([real binary64]) cost-model]
      (operator-set
       [(real real)
-       (neg floor sqrt round ceil fabs
-            )]
+       (neg floor sqrt round ceil fabs)]
       [(real real real)
        (+ - * fmax fmin)]
       [(real real real real)

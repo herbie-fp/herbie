@@ -67,6 +67,9 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; accelerators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(define-accelerator (recip real) real (λ (x) (/ 1 x)))
+(define-accelerator (rsqrt real) real (λ (x) (/ 1 (sqrt x))))
+
 (define-libm expm1.f64 (expm1 double double))
 (when expm1.f64
   (define-accelerator-impl expm1 expm1.f64 (binary64) binary64 expm1.f64))
@@ -86,9 +89,6 @@
 (define-libm erfc.f64 (erfc double double))
 (when erfc.f64
   (define-accelerator-impl erfc erfc.f64 (binary64) binary64 erfc.f64))
-      
-(define-accelerator (recip real) real (λ (x) (/ 1 x)))
-(define-accelerator (rsqrt real) real (λ (x) (/ 1 (sqrt x))))
 
 (define-accelerator-impl fmsub fmsub.f64 (binary64 binary64 binary64) binary64)
 (define-accelerator-impl fnmadd fnmadd.f64 (binary64 binary64 binary64) binary64)
