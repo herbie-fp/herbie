@@ -13,7 +13,13 @@ from .shim import shim_error, shim_sample, shim_read
 from .util import SampleType, sample_repr, sanitize_name
 
 def baseline() -> FPCore:
-    return FPCore(core='(FPCore () :name "baseline" 0)', key='synth:baseline', name='baseline', argc=0, override=True)
+    return FPCore(
+        core='(FPCore (x) :name "baseline" x)',
+        key='synth__baseline',
+        name='baseline',
+        argc=1,
+        override=True
+    )
 
 def sample1(
     core: FPCore,
@@ -36,7 +42,7 @@ def sample1(
 def synthesize1(op: str, argc: int) -> FPCore:
     """Creates a single FPCore for an operation with an arity."""
     op_ = '-' if op == 'neg' else op
-    key = sanitize_name(f'synth:{op}')
+    key = sanitize_name(f'synth__{op}')
     vars = [f'x{i}' for i in range(argc)]
     arg_str = ' '.join(vars)
     app_str = '(' + ' '.join([op_] + vars) + ')'
@@ -194,7 +200,9 @@ class Runner(object):
         for core, v in zip(cores, output.split(' ')):
             if v == '#t':
                 supported_cores.append(core)
-            elif v != '#f':
+            elif v == '#f':
+                print(f'WARN: ignoring unsupported {core.core}')
+            else:
                 raise RuntimeError('Unexpected result:', v)
         return supported_cores
     
@@ -494,7 +502,8 @@ class Runner(object):
         self,
         input_cores: List[FPCore],
         platform_cores: List[FPCore],
-        driver_dirs: List[str]
+        driver_dirs: List[str],
+        extra
     ) -> None:
         """Writes improve data to a JSON file."""
         # group platform cores by input [key]
@@ -525,7 +534,8 @@ class Runner(object):
             'platform': self.name,
             'time_unit': self.time_unit,
             'seed': self.seed,
-            'cores': core_reports
+            'cores': core_reports,
+            'extra': extra
         }
 
         path = self.report_dir.joinpath('improve.json')

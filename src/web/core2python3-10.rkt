@@ -11,8 +11,8 @@
 
 (define (operator->python op args ctx)
   (match (cons op args)
-   [(list 'sum3 a b c) (format "fsum([~a, ~a, ~a])" a b c)]
-   [(list 'sum4 a b c d) (format "fsum([~a, ~a, ~a, ~a])" a b c d)]
+   [(list 'sum3 a b c) (format "math.fsum([~a, ~a, ~a])" a b c)]
+   [(list 'sum4 a b c d) (format "math.fsum([~a, ~a, ~a, ~a])" a b c d)]
    [(list 'fmax a b) (format "max(~a, ~a)" a b)]
    [(list 'fmin a b) (format "min(~a, ~a)" a b)]
    [(list 'tgamma a) (format "math.gamma(~a)" a)]

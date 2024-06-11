@@ -180,7 +180,7 @@
            (define ireprs (map get-representation itypes))
            (with-cond-handlers optional?
                                ([exn:fail:user:herbie:missing?
-                                 (λ (_) (set-add! missing `(op ,name ,@itypes , otype)))])
+                                 (λ (_) (set-add! missing `(,name ,@itypes , otype)))])
              (let ([impl (apply get-parametric-operator name ireprs #:all? #t)])
                (hash-set! costs impl cost)
                (sow impl)))]))))

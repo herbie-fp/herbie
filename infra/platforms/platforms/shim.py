@@ -8,7 +8,7 @@ from pathlib import Path
 
 from .cache import SampleType
 from .fpcore import FPCore, parse_core
-from .util import sample_to_pcontext, racket_to_py, sanitize_name
+from .util import sample_to_pcontext, py_to_racket, racket_to_py, sanitize_name
 
 # paths
 script_path = os.path.abspath(__file__)
@@ -134,8 +134,8 @@ def shim_pareto(*core_groups: List[List[FPCore]], use_time: bool = False) -> Lis
         frontiers = []
         for key in cores_by_group:
             group = cores_by_group[key]
-            xs = list(map(lambda c: c.cost, group))
-            ys = list(map(lambda c: c.time if use_time else c.err, group))
+            xs = list(map(lambda c: c.time if use_time else c.cost, group))
+            ys = list(map(lambda c: c.err, group))
 
             frontier = ' '.join(list(map(lambda x, y: f'({x} {y})', xs, ys)))
             frontiers.append(f'({frontier})')
@@ -160,3 +160,22 @@ def shim_pareto(*core_groups: List[List[FPCore]], use_time: bool = False) -> Lis
         frontiers.append(frontier)
 
     return frontiers
+
+def shim_error2(
+    samples: List[SampleType],
+    inexactss: List[List[float]],
+    precs: List[str]
+) -> float:
+
+    # build commands
+    cmds = []
+    for sample, inexacts, prec in zip(samples, inexactss, precs):
+        pcontext = sample_to_pcontext(sample)
+        inexact_str = ' '.join(map(py_to_racket, inexacts))
+        cmds.append(f'(error2 {pcontext} ({inexact_str}) {prec})')
+
+    # call server
+    results = run_server(cmds)
+
+    # parse results
+    return list(map(lambda r: float(r.strip()), results))

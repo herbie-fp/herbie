@@ -30,6 +30,24 @@ platform_style = '.'
 supported_style = '+'
 desugared_style = 'x'
 
+#######################################
+# Utils
+
+def core_max_error(core: FPCore) -> int:
+    if core.prec == 'binary64':
+        return 64
+    elif core.prec == 'binary32':
+        return 32
+    else:
+        raise RuntimeError('Unknown precision', core.prec)
+    
+def flip_point(input_cost: float, max_error: float, pt: Tuple[float, float]):
+    """Transforms `(cost, error)` points into `(speedup, accuracy)` points."""
+    cost, error = pt
+    return (input_cost / cost, max_error - error)
+
+#######################################
+# Cost vs. Time
 
 def platform_cost_time(info):
     costs = []
@@ -39,7 +57,6 @@ def platform_cost_time(info):
             core = FPCore.from_json(core_info['platform_core'])
             costs.append(core.cost)
             times.append(core.time)
-    
     return costs, times
 
 def plot_time(name: str, output_dir: Path, info: dict):
@@ -96,41 +113,82 @@ def plot_time_all(output_dir: Path, entries):
     plt.savefig(str(path))
     plt.close()
 
+#######################################
+# Platform-pareto frontier
+
 def plot_improve(name: str, output_dir: Path, info):
     """Platform pareto frontier."""
     print(f'Plotting improve {name}')
 
+    input_cores: List[FPCore] = []
+    platform_cores: List[FPCore] = []
+    for core_info in info['cores']:
+        core_infos = core_info['platform_cores']
+        if len(core_infos) > 0:
+            input_cores.append(FPCore.from_json(core_info['input_core']))
+            for platform_core_info in core_infos:
+                platform_cores.append(FPCore.from_json(platform_core_info['platform_core']))
     time_unit = info['time_unit']
 
-    cores: List[FPCore] = []
-    for core_info in info['cores']:
-        for platform_core_info in core_info['platform_cores']:
-            cores.append(FPCore.from_json(platform_core_info['platform_core']))
+    # compute starting point
+    max_error = sum(map(lambda c: core_max_error(c), input_cores))
+    input_costs, input_errs = zip(*map(lambda c: (c.time if use_time else c.cost, c.err), input_cores))
+    input_cost, input_error = sum(input_costs), sum(input_errs)
+    flip = lambda pt: flip_point(input_cost, max_error, pt)
 
-    frontier, *_ = shim_pareto(cores, use_time=use_time)
+    frontier, *_ = shim_pareto(platform_cores, use_time=use_time)
     xs, ys = zip(*frontier)
 
+    # compute (speedup, accuracy) frontiers
+    input_speedup, input_accuracy = flip((input_cost, input_error))
+    frontier2 = list(map(flip, frontier))
+    
     plt.figure()
-    plt.plot(xs, ys, label=name)
+    if invert_axes:
+        xlabel = f'Speedup' if use_time else 'Estimated speedup'
+        ylabel = 'Cumulative average accuracy (bits)'
+        input_x, input_y = input_speedup, input_accuracy
+        xs, ys = zip(*frontier2)
+    else:
+        xlabel = f'Run time ({time_unit})' if use_time else 'Estimated cost'
+        ylabel = 'Cumulative average error (bits)'
+        input_x, input_y = input_cost, input_error
+        xs, ys = zip(*frontier)
 
-    xlabel = f'Run time ({time_unit})' if use_time else 'Estimated cost'
-    ylabel = 'Cumulative average error (bits)'
+    if name == 'c' and use_time:
+        exacts = []
+        fasts = []
+        for flags, times, errors in info['extra']:
+            input_time, input_error = sum(times), sum(errors)
+            input_speedup, input_accuracy = flip((input_time, input_error))
 
+            input_x = input_speedup if invert_axes else input_time
+            input_y = input_accuracy if invert_axes else input_error
+            if '-ffast-math' in flags:
+                fasts.append((input_x, input_y))
+            else:
+                exacts.append((input_x, input_y))
+
+        exact_xs, exact_ys = zip(*exacts)
+        plt.plot(exact_xs, exact_ys, 'x', color=input_color, label='Clang')
+
+        fast_xs, fast_ys = zip(*fasts)
+        plt.plot(fast_xs, fast_ys, 'x', color=supported_color, label='Clang (fast-math)')
+    else:
+        plt.plot([input_x], [input_y], input_style, color=input_color)
+
+    plt.plot(xs, ys, platform_style, color=platform_color, label='Chassis')
     plt.title(f'{xlabel} vs. {ylabel}')
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
+    plt.legend()
 
     path = output_dir.joinpath(f'{name}-pareto.png')
     plt.savefig(str(path))
     plt.close()
 
-def core_max_error(core: FPCore) -> int:
-    if core.prec == 'binary64':
-        return 64
-    elif core.prec == 'binary32':
-        return 32
-    else:
-        raise RuntimeError('Unknown precision', core.prec)
+#######################################
+# Comparison plots
 
 def comparison_frontiers(info):
     num_input = 0
@@ -164,18 +222,19 @@ def comparison_frontiers(info):
 
     # compute starting point
     max_error = sum(map(lambda c: core_max_error(c), input_cores))
-    input_costs, input_errs = zip(*map(lambda c: (c.cost, c.err), input_cores))
+    input_costs, input_errs = zip(*map(lambda c: (c.time if use_time else c.cost, c.err), input_cores))
     input_cost, input_error = sum(input_costs), sum(input_errs)
-    transform = lambda pt: (input_cost / pt[0], max_error - pt[1])
+    flip = lambda pt: flip_point(input_cost, max_error, pt)
 
     # compute (cost, error) frontiers
-    platform_frontier, supported_frontier, desugared_frontier = shim_pareto(platform_cores, supported_cores, desugared_cores, use_time=use_time)
+    platform_frontier, supported_frontier, desugared_frontier = \
+        shim_pareto(platform_cores, supported_cores, desugared_cores, use_time=use_time)
 
     # compute (speedup, accuracy) frontiers
-    input_speedup, input_accuracy = transform((input_cost, input_error))
-    platform_frontier2 = list(map(transform, platform_frontier))
-    supported_frontier2 = list(map(transform, supported_frontier))
-    desugared_frontier2 = list(map(transform, desugared_frontier))
+    input_speedup, input_accuracy = flip((input_cost, input_error))
+    platform_frontier2 = list(map(flip, platform_frontier))
+    supported_frontier2 = list(map(flip, supported_frontier))
+    desugared_frontier2 = list(map(flip, desugared_frontier))
 
     return (input_cost, input_error), (input_speedup, input_accuracy), num_input, \
         platform_frontier, platform_frontier2, num_platform, \
@@ -269,7 +328,7 @@ def plot_baseline_all(output_dir: Path, entries):
             ax.plot(supported_speedups, supported_accuracies, supported_style, color=supported_color)
             ax.plot(desugared_speedups, desugared_accuracies, desugared_style, color=desugared_color)
         else:
-            ax.plot([input_cost], [input_err], input_style, color='black')
+            ax.plot([input_cost], [input_err], input_style, color=input_color)
             ax.plot(platform_costs, platform_errs, platform_style, color=platform_color)
             ax.plot(supported_costs, supported_errs, supported_style, color=supported_color)
             ax.plot(desugared_costs, desugared_errs, desugared_style, color=desugared_color)
@@ -325,7 +384,7 @@ def plot_compare_all(output_dir: Path, entries):
     for name, frontier in zip(names, platform_frontiers):
         input_cores, _ = by_platform[name]
         max_error = sum(map(lambda c: core_max_error(c), input_cores))
-        input_costs, input_errs = zip(*map(lambda c: (c.cost, c.err), input_cores))
+        input_costs, input_errs = zip(*map(lambda c: (c.time if use_time else c.cost, c.err), input_cores))
         input_cost, input_err = sum(input_costs), sum(input_errs)
         input_speedup, input_accuracy = 1.0, max_error - input_err
 

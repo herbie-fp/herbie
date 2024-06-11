@@ -13,8 +13,7 @@ binary_ops = ['+', '-', '*', '/', 'fmax', 'fmin']
 ternary_ops = ['fma', 'fmsub', 'fnmadd', 'fnmsub']
 
 compiler = 'clang'
-c_flags = ['-g', '-O3', '-mavx', '-mfma', '-ffp-contract=off']
-# TODO: What does this do?
+c_flags = ['-std=gnu11', '-ffp-contract=off', '-O2', '-mavx', '-mfma']
 ld_flags = ['-lm']
 driver_name = 'main.c'
 time_unit = 'ms'
@@ -44,9 +43,10 @@ class AVXRunner(Runner):
                 print('#include <stdio.h>', file=f)
                 print('#include <time.h>', file=f)
 
-                print(core.compiled, file=f)
+                print(f'static inline {core.compiled}', file=f)
 
                 for i, points in enumerate(input_points):
+                    print(f'__attribute__((aligned(32)))', file=f)
                     print(f'const double x{i}[{self.num_inputs}] = {{', file=f)
                     print(',\n'.join(map(double_to_c_str, points)), file=f)
                     print('};', file=f)

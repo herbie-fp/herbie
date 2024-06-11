@@ -1,6 +1,6 @@
 #lang racket
 
-(require (only-in fpbench core->c)
+(require (only-in fpbench core->c core->julia)
          herbie/accelerator
          herbie/common
          herbie/datafile
@@ -11,15 +11,14 @@
          herbie/points
          herbie/sandbox
          herbie/syntax/read
-         herbie/syntax/rules
          herbie/syntax/syntax
          herbie/syntax/sugar
          herbie/syntax/types
          herbie/web/common
          herbie/web/core2mkl
-         herbie/web/core2python3-10
          herbie/web/core2avx
          herbie/web/core2numpy
+         herbie/web/core2python3-10
          herbie/web/thread-pool)
 
 (*warnings-disabled* true)
@@ -102,6 +101,7 @@
            [(mkl) (core->mkl core "foo")]
            [(numpy) (core->numpy core "foo")]
            [(python) (core->python core "foo")]
+           [(julia) (core->julia core "foo")]
            [else (error 'run-server "compile: unsupported language ~a" lang)]))
        (printf "~a\n" (string-replace output "\n" "\\n"))
        (loop)]
@@ -134,7 +134,7 @@
          [else
           (writeln #f)])
        (loop)]
-      ; error <core> <points>
+      ; error <points> <core>
       [(list 'error args ...)
        (define-values (points cores)
          (match args
@@ -150,6 +150,19 @@
        (define ctx (test-context (first tests)))
        (define err-lsts (flip-lists (batch-errors (map test-input tests) pctx ctx)))
        (printf "~a\n" (string-join (map (compose ~a errors-score) err-lsts) " "))
+       (loop)]
+      ; error2 <points> <inexacts> <precs>
+      [(list 'error2 args ...)
+       (define-values (points inexacts prec)
+         (match args
+           [(list points inexacts prec) (values points inexacts prec)]
+           [_ (error 'run-server "error2: malformed arguments ~a" args)]))
+       (define pctx (python->pcontext points))
+       (define repr (get-representation prec))
+       (printf "~a\n"
+         (errors-score
+           (for/list ([(_ gt) (in-pcontext pctx)] [inexact (in-list inexacts)])
+             (point-error inexact gt repr))))
        (loop)]
       ; improve <core> <threads:int> <dir>
       [(list 'improve args ...)

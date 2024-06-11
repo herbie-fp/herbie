@@ -16,10 +16,17 @@ ternary_ops = ['fma']
 # C lang
 target_lang = 'c'
 compiler = 'clang'
-c_flags = ['-O3', '-ffp-contract=off']
+c_flags = ['-std=gnu11', '-ffp-contract=off', '-O2']
 ld_flags = ['-lm']
 driver_name = 'main.c'
 time_unit = 'ms'
+
+def get_cflags():
+    return c_flags
+
+def set_cflags(flags: List[str]):
+    global c_flags
+    c_flags = flags
 
 # Regex patterns
 time_pat = re.compile(f'([-+]?([0-9]+(\.[0-9]+)?|\.[0-9]+)(e[-+]?[0-9]+)?) {time_unit}')
@@ -51,7 +58,7 @@ class CRunner(Runner):
                 print('#define TRUE 1', file=f)
                 print('#define FALSE 0', file=f)
 
-                print(f'inline {core.compiled}', file=f)
+                print(f'static inline {core.compiled}', file=f)
 
                 for i, points in enumerate(input_points):
                     print(f'const double x{i}[{self.num_inputs}] = {{', file=f)
@@ -111,3 +118,57 @@ class CRunner(Runner):
         times = [sum(ts) / len(ts) for ts in times]
         self.log(f'run drivers')
         return times
+    
+    ### FOLLOWING CODE is for clang eval ###
+
+    def make_drivers2(self, cores: List[FPCore], driver_dirs: List[str], samples: dict) -> None:
+        for core, driver_dir in zip(cores, driver_dirs):
+            driver_path = os.path.join(driver_dir, driver_name)
+            # pull sample from cache
+            sample = self.cache.get_sample(core.key, self.seed)
+            input_points, _ = sample
+            with open(driver_path, 'w') as f:
+                print('#include <math.h>', file=f)
+                print('#include <stdio.h>', file=f)
+                print('#include <stdlib.h>', file=f)
+                print('#include <time.h>', file=f)
+                print('#define TRUE 1', file=f)
+                print('#define FALSE 0', file=f)
+
+                print(f'static inline {core.compiled}', file=f)
+
+                for i, points in enumerate(input_points):
+                    print(f'const double x{i}[{self.num_inputs}] = {{', file=f)
+                    print(',\n'.join(map(double_to_c_str, points)), file=f)
+                    print('};', file=f)
+
+                print('int main() {', file=f)
+                print(f'struct timespec ts1, ts2;', file=f)
+                print(f'volatile double res;', file=f)
+                print(f'clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &ts1);', file=f)
+
+                arg_str = ', '.join(map(lambda i: f'x{i}[i]', range(core.argc)))
+                app_str =  f'foo({arg_str})'
+                print(f'for (long i = 0; i < {self.num_inputs}; i++) {{', file=f)
+                print(f'  res = {app_str};', file=f)
+                print(f'  printf("%.17g ", res);', file=f)
+                print('}', file=f)
+
+                print(f'clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &ts2);', file=f)
+                print(f'double diff = (1000.0 * ts2.tv_sec + 1e-6 * ts2.tv_nsec) - (1000.0 * ts1.tv_sec + 1e-6 * ts1.tv_nsec);', file=f)
+                print('  return 0;', file=f)
+                print('}', file=f)
+
+        self.log(f'created drivers')
+
+    def run_drivers2(self, cores: List[FPCore], driver_dirs: List[str]) -> List[List[float]]:
+        # run processes sequentially
+        errors = []
+        for i, driver_dir in enumerate(driver_dirs):
+            driver_path = Path(os.path.join(driver_dir, driver_name))
+            out_path = driver_path.parent.joinpath(driver_path.stem)
+            output = run_subprocess([out_path], capture_stdout=True)
+            errors.append(list(map(float, output.strip().split(' '))))
+
+        self.log(f'run drivers')
+        return errors

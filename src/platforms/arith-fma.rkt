@@ -44,12 +44,11 @@
 (define tunable
   (with-terminal-cost ([binary64 fl-move-cost])
     (platform-product
-      #:optional
       [([real binary64]) cost-model]
       (operator-set
         [(real real) (neg fabs sqrt)]
         [(real real real) (+ - * / fmax fmin)]
-        [(real real real) (fma)]))))
+        [(real real real real) (fma)]))))
 
 (register-platform! 'arith-fma
                     (platform-union boolean-platform
