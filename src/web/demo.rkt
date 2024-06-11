@@ -266,6 +266,10 @@
     [(list 'sample formula seed*)
       (wrapper-run-herbie 
        (run-herbie-command 'sample formula seed* #f #f #t) 
+       job-id default-after)]
+    [(list 'errors formula seed* pcontext)
+      (wrapper-run-herbie 
+       (run-herbie-command 'errors formula seed* pcontext #f #t) 
        job-id default-after)])])
  (eprintf "Job ~a complete\n" job-id)
  (hash-remove! *jobs* job-id)
@@ -440,17 +444,16 @@
 (define analyze-endpoint
   (post-with-json-response
     (lambda (post-data)
-      (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
+      (define formula-str (hash-ref post-data 'formula))
+      (define formula (read-syntax 'web (open-input-string formula-str)))
       (define sample (hash-ref post-data 'sample))
       (define seed (hash-ref post-data 'seed #f))
-      (eprintf "Analyze job started on ~a..." formula)
-
-      (define test (parse-test formula))
-      (define pcontext (json->pcontext sample (test-context test)))
-      (define result (run-herbie 'errors test #:seed seed #:pcontext pcontext
-                                 #:profile? #f #:timeline-disabled? #t))
+      (define pcontext (json->pcontext sample 
+       (test-context (parse-test formula))))           
+      (define job-id (compute-job-id (list 'errors formula seed pcontext)))
+      (run-work #t job-id (list 'errors formula seed pcontext))
       (define errs
-        (for/list ([pt&err (job-result-backend result)])
+        (for/list ([pt&err (job-result-backend (hash-ref *completed-jobs* job-id))])
           (define pt (first pt&err))
           (define err (second pt&err))
           (list pt (format-bits (ulps->bits err)))))
