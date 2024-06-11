@@ -160,8 +160,10 @@ def plot_improve(name: str, output_dir: Path, info):
         fasts = []
         for flags, times, errors in info['extra']:
             input_time, input_error = sum(times), sum(errors)
-            input_x = input_cost / input_time if invert_axes else input_time
-            input_y = max_error - input_error if invert_axes else input_error
+            input_speedup, input_accuracy = flip((input_time, input_error))
+
+            input_x = input_speedup if invert_axes else input_time
+            input_y = input_accuracy if invert_axes else input_error
             if '-ffast-math' in flags:
                 fasts.append((input_x, input_y))
             else:

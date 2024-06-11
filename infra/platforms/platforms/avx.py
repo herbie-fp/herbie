@@ -46,6 +46,7 @@ class AVXRunner(Runner):
                 print(f'static inline {core.compiled}', file=f)
 
                 for i, points in enumerate(input_points):
+                    print(f'__attribute__((aligned(32)))', file=f)
                     print(f'const double x{i}[{self.num_inputs}] = {{', file=f)
                     print(',\n'.join(map(double_to_c_str, points)), file=f)
                     print('};', file=f)
