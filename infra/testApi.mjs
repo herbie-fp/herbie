@@ -29,9 +29,7 @@ assert.equal(testResult, true)
 const path = startResponse.headers.get("location")
 
 // Check status endpoint
-const checkStatus = await fetch(
-  `http://127.0.0.1:8000${path}`,
-  { method: 'GET' })
+const checkStatus = await callHerbie(path, { method: 'GET' })
 assert.equal(checkStatus.status, 201)
 assert.equal(checkStatus.statusText, 'Job complete')
 
@@ -140,7 +138,7 @@ for (const e in expectedExpressions) {
 // Results.json endpoint
 const jsonResults = await callHerbie("/results.json", { method: 'GET' })
 
-// Basic test that checks that there are the two results after the above test.
+// Basic test that checks that there are the one result after the above test.
 // TODO add a way to reset the results.json file?
 assert.equal(jsonResults.tests.length, 2)
 
