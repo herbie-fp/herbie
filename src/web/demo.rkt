@@ -274,6 +274,10 @@
     [(list 'exacts formula seed* pcontext)
       (wrapper-run-herbie 
        (run-herbie-command 'exacts formula seed* pcontext #f #t) 
+       job-id default-after)]
+    [(list 'evaluate formula seed* pcontext)
+      (wrapper-run-herbie 
+       (run-herbie-command 'exacts formula seed* pcontext #f #t) 
        job-id default-after)])])
  (eprintf "Job ~a complete\n" job-id)
  (hash-remove! *jobs* job-id)
@@ -491,11 +495,10 @@
 
       (define test (parse-test formula))
       (define pcontext (json->pcontext sample (test-context test)))
-      (define result (run-herbie 'evaluate test #:seed seed #:pcontext pcontext
-                                 #:profile? #f #:timeline-disabled? #t))
-      (define approx (job-result-backend result))
-
-      (eprintf " complete\n")
+      (define command (list 'evaluate formula seed pcontext))
+      (define job-id (compute-job-id command))
+      (run-work #t job-id command)
+      (define approx (job-result-backend (hash-ref *completed-jobs* job-id)))
       (hasheq 'points approx))))
 
 (define local-error-endpoint
