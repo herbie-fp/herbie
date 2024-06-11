@@ -286,6 +286,10 @@
     [(list 'alternatives formula seed* pcontext)
       (wrapper-run-herbie 
        (run-herbie-command 'alternatives formula seed* pcontext #f #t) 
+       job-id default-after)]
+    [(list 'cost formula)
+      (wrapper-run-herbie 
+       (run-herbie-command 'cost formula #f #f #f #t) 
        job-id default-after)])])
  (eprintf "Job ~a complete\n" job-id)
  (hash-remove! *jobs* job-id)
@@ -542,8 +546,6 @@
               'e (~a expr)
               'avg-error (format-bits (errors-score (first err)))
               'children '())])))
-
-      (eprintf " complete\n")
       (hasheq 'tree tree))))
 
 (define alternatives-endpoint
@@ -593,8 +595,6 @@
                                         processed-pcontext
                                         test-pcontext
                                         (test-context test))))
-
-      (eprintf " complete\n")
       (hasheq 'alternatives fpcores
               'histories histories
               'derivations derivations
@@ -607,7 +607,6 @@
       (eprintf "Converting to Math.js ~a..." formula)
 
       (define result (core->mathjs (syntax->datum formula)))
-      (eprintf " complete\n")
       (hasheq 'mathjs result))))
 
 (define cost-endpoint
@@ -617,10 +616,10 @@
       (eprintf "Computing cost of ~a..." formula)
       
       (define test (parse-test formula))
-      (define result (run-herbie 'cost test #:profile? #f #:timeline-disabled? #t))
-      (define cost (job-result-backend result))
-
-      (eprintf " complete\n")
+      (define command (list 'cost formula))
+      (define job-id (compute-job-id command))
+      (run-work #t job-id command)
+      (define cost (job-result-backend (hash-ref *completed-jobs* job-id)))
       (hasheq 'cost cost))))
 
 (define translate-endpoint
