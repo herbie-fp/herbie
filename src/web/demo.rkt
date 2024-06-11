@@ -282,6 +282,10 @@
     [(list 'local-error formula seed* pcontext)
       (wrapper-run-herbie 
        (run-herbie-command 'local-error formula seed* pcontext #f #t) 
+       job-id default-after)]
+    [(list 'alternatives formula seed* pcontext)
+      (wrapper-run-herbie 
+       (run-herbie-command 'alternatives formula seed* pcontext #f #t) 
        job-id default-after)])])
  (eprintf "Job ~a complete\n" job-id)
  (hash-remove! *jobs* job-id)
@@ -554,9 +558,10 @@
       (define vars (test-vars test))
       (define repr (test-output-repr test))
       (define pcontext (json->pcontext sample (test-context test)))
-      (define result (run-herbie 'alternatives test #:seed seed #:pcontext pcontext
-                                 #:profile? #f #:timeline-disabled? #t))
-      (match-define (list altns test-pcontext processed-pcontext) (job-result-backend result))
+      (define command (list 'alternatives formula seed pcontext))
+      (define job-id (compute-job-id command))
+      (run-work #t job-id command)
+      (match-define (list altns test-pcontext processed-pcontext) (job-result-backend (hash-ref *completed-jobs* job-id)))
       
       (define splitpoints
         (for/list ([alt altns]) 
