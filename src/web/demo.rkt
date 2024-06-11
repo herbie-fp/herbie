@@ -277,7 +277,11 @@
        job-id default-after)]
     [(list 'evaluate formula seed* pcontext)
       (wrapper-run-herbie 
-       (run-herbie-command 'exacts formula seed* pcontext #f #t) 
+       (run-herbie-command 'evaluate formula seed* pcontext #f #t) 
+       job-id default-after)]
+    [(list 'local-error formula seed* pcontext)
+      (wrapper-run-herbie 
+       (run-herbie-command 'local-error formula seed* pcontext #f #t) 
        job-id default-after)])])
  (eprintf "Job ~a complete\n" job-id)
  (hash-remove! *jobs* job-id)
@@ -512,9 +516,11 @@
       (define test (parse-test formula))
       (define expr (prog->fpcore (test-input test) (test-output-repr test)))
       (define pcontext (json->pcontext sample (test-context test)))
-      (define result (run-herbie 'local-error test #:seed seed #:pcontext pcontext
-                                 #:profile? #f #:timeline-disabled? #t))
-      (define local-error (job-result-backend result))
+      (define command (list 'local-error formula seed pcontext))
+      (define job-id (compute-job-id command))
+      (run-work #t job-id command)
+      (define local-error (job-result-backend 
+       (hash-ref *completed-jobs* job-id)))
       
       ;; TODO: potentially unsafe if resugaring changes the AST
       (define tree
