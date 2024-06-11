@@ -24,7 +24,8 @@ const startResponse = await callHerbie(`/improve-start`, {
   },
   body: URIencodedBody
 })
-const testResult = (startResponse.status == 201) || (startResponse.status == 202)
+const testResult = (startResponse.status == 201) ||
+  (startResponse.status == 202)
 assert.equal(testResult, true)
 const path = startResponse.headers.get("location")
 
