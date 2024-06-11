@@ -35,6 +35,7 @@ else
 fi
 
 echo "Running platforms evaluation"
+date
 
 function run() {
   bench=$1
@@ -52,6 +53,11 @@ function run() {
 
 # Run configs
 run $BENCH_DIR/hamming hamming $NUM_SEEDS
+# run $BENCH_DIR/libraries libraries $NUM_SEEDS
+# run $BENCH_DIR/mathematics mathematics $NUM_SEEDS
+
+echo "Finished platforms evaluation"
+date
 
 # clean up cache and build files
 if [ -n "$RM_CACHE" ]; then

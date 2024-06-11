@@ -1,22 +1,19 @@
 from pathlib import Path
-from subprocess import Popen, PIPE
-from typing import Optional, List
-import matplotlib.pyplot as plt
-import json
+from subprocess import Popen, CalledProcessError
+from typing import List
 import os
 import re
 
 from .fpcore import FPCore
 from .runner import Runner
-from .util import double_to_c_str, chunks
+from .util import double_to_c_str, chunks, run_subprocess
 
 unary_ops = ['neg', 'floor', 'sqrt', 'round', 'ceil', 'fabs']
 binary_ops = ['+', '-', '*', '/', 'fmax', 'fmin']
 ternary_ops = ['fma', 'fmsub', 'fnmadd', 'fnmsub']
 
-compiler = 'cc'
-c_flags = ['-g', '-O3', '-mavx', '-mfma', '-ffp-contract=off']
-# TODO: What does this do?
+compiler = 'clang'
+c_flags = ['-std=gnu11', '-ffp-contract=off', '-O2', '-mavx', '-mfma']
 ld_flags = ['-lm']
 driver_name = 'main.c'
 time_unit = 'ms'
@@ -46,9 +43,10 @@ class AVXRunner(Runner):
                 print('#include <stdio.h>', file=f)
                 print('#include <time.h>', file=f)
 
-                print(core.compiled, file=f)
+                print(f'static inline {core.compiled}', file=f)
 
                 for i, points in enumerate(input_points):
+                    print(f'__attribute__((aligned(32)))', file=f)
                     print(f'const double x{i}[{self.num_inputs}] = {{', file=f)
                     print(',\n'.join(map(double_to_c_str, points)), file=f)
                     print('};', file=f)
@@ -84,22 +82,23 @@ class AVXRunner(Runner):
                 ps.append(p)
             # join processes
             for p in ps:
-                _, _ = p.communicate()
+                rc = p.wait()
+                if rc != 0:
+                    raise CalledProcessError(rc, p.args, p.stdout, p.stderr)
 
         self.log(f'compiled drivers')
 
-    def run_drivers(self, driver_dirs: List[str]) -> List[float]:
+    def run_drivers(self, cores: List[FPCore], driver_dirs: List[str]) -> List[float]:
         # run processes sequentially
         times = [[] for _ in driver_dirs]
         for i, driver_dir in enumerate(driver_dirs):
             for _ in range(self.num_runs):
                 driver_path = Path(os.path.join(driver_dir, driver_name))
                 out_path = driver_path.parent.joinpath(driver_path.stem)
-                p = Popen([out_path], stdout=PIPE)
-                stdout, _ = p.communicate()
-                output = stdout.decode('utf-8')
+                output = run_subprocess([out_path], capture_stdout=True)
                 time = re.match(time_pat, output)
                 if time is None:
+                    self.log("bad core: "+str(cores[i]))
                     raise RuntimeError('Unexpected error when running {out_path}: {output}')
                 times[i].append(float(time.group(1)))
 

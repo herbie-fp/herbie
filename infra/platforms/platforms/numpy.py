@@ -1,21 +1,17 @@
-from subprocess import Popen, PIPE
-from typing import Optional, List
+from typing import List
 from pathlib import Path
 import os
 import re
 
 from .fpcore import FPCore
 from .runner import Runner
-from .util import double_to_c_str
+from .util import double_to_c_str, run_subprocess
 
 # Supported operations for NUMPY
 
 
 unary_ops = ['neg', 'acos', 'acosh', 'asin', 'asinh', 'atan', 'atanh', 'ceil', 'cos', 'cosh', 'exp', 'expm1', 'fabs', 'floor', 'log', 'log10', 'log2', 'log1p', 'sin', 'sinh', 'sqrt', 'tan', 'tanh', 'trunc','recip','square','deg2rad','rad2deg','rint','round','exp2','cbrt']
 binary_ops = ['+', '-', '*', '/', 'atan2', 'copysign', 'fmax', 'fmin', 'fmod', 'pow', 'remainder','logaddexp','logaddexp2','hypot']
-
-#unary_ops = ['neg', 'acos', 'acosh', 'asin', 'asinh', 'atan', 'atanh', 'ceil', 'cos', 'cosh', 'exp', 'expm1', 'fabs', 'floor', 'log', 'log10', 'log2', 'log1p', 'sin', 'sinh', 'sqrt', 'tan', 'tanh', 'trunc','recip']
-#binary_ops = ['+', '-', '*', '/', 'atan2', 'copysign', 'fmax', 'fmin', 'fmod', 'pow', 'remainder']
 
 # Numpy lang
 target = 'python3'
@@ -76,7 +72,7 @@ class NumpyRunner(Runner):
     def compile_drivers(self, driver_dirs: List[str]) -> None:
         self.log(f'drivers interpreted, skipping compilations')
 
-    def run_drivers(self, driver_dirs: List[str]) -> List[float]:
+    def run_drivers(self, cores: List[FPCore], driver_dirs: List[str]) -> List[float]:
         # run processes sequentially
         times = [[] for _ in driver_dirs]
         for i, driver_dir in enumerate(driver_dirs):
@@ -84,11 +80,10 @@ class NumpyRunner(Runner):
             print(log_prefix, end='', flush=True)
             for _ in range(self.num_runs):
                 driver_path = Path(os.path.join(driver_dir, driver_name))
-                p = Popen([target, driver_path], stdout=PIPE)
-                stdout, _ = p.communicate()
-                output = stdout.decode('utf-8')
+                output = run_subprocess([target, driver_path], capture_stdout=True)
                 time = re.match(time_pat, output)
                 if time is None:
+                    self.log("bad core: "+str(cores[i]))
                     raise RuntimeError('Unexpected error when running {out_path}: {output}')
                 times[i].append(float(time.group(1)))
                 print('.', end='', flush=True)

@@ -7,6 +7,7 @@ fpcore_pat = re.compile('\(FPCore \(([^\(\)]*)\)')
 named_fpcore_pat = re.compile('\(FPCore [^\s]+ \(([^\(\)]*)\)')
 fpcore_prop_name_pat = re.compile('^.*:name "([^\"]*)"')
 fpcore_prop_descr_pat = re.compile('^.*:description "([^\"]*)"')
+fpcore_prop_prec_pat = re.compile('^.*:precision ([^:\(\)]*)')
 
 class FPCore(object):
     """Python representation of an FPCore"""
@@ -21,6 +22,8 @@ class FPCore(object):
         compiled: Optional[str] = None,
         cost: Optional[float] = None,
         err: Optional[float] = None,
+        time: Optional[float] = None,
+        prec: Optional[str] = None,
         json: Optional[dict] = None,
         py_sample: bool = False,
         override: bool = False,
@@ -34,6 +37,8 @@ class FPCore(object):
         self.compiled = compiled
         self.cost = cost
         self.err = err
+        self.prec = prec
+        self.time = time
         self.json = json
         self.py_sample = py_sample
         self.override = override
@@ -48,6 +53,8 @@ class FPCore(object):
             'compiled=' + repr(self.compiled) + ', ' + \
             'cost=' + repr(self.cost) + ', ' + \
             'err=' + repr(self.err) + ', ' + \
+            'time=' + repr(self.time) + ', ' + \
+            'prec=' + repr(self.prec) + ', ' + \
             'py_sample=' + repr(self.py_sample) + ', ' + \
             'override=' + repr(self.override) + ')'
 
@@ -60,6 +67,8 @@ class FPCore(object):
             'core': self.core,
             'cost': self.cost,
             'err': self.err,
+            'time': self.time,
+            'prec': self.prec,
         }
 
     def from_json(json: Dict):
@@ -70,7 +79,9 @@ class FPCore(object):
             descr=json['descr'],
             argc=json['argc'],
             cost=json['cost'],
-            err=json['err']
+            err=json['err'],
+            time=json['time'],
+            prec=json['prec']
         )
 
 def parse_core(s: str) -> FPCore:
@@ -89,4 +100,8 @@ def parse_core(s: str) -> FPCore:
     # optionally extract description
     descr_match = re.match(fpcore_prop_descr_pat, s)
     descr = None if descr_match is None else descr_match.group(1).strip()
-    return FPCore(core=s, name=name, descr=descr, argc=argc)
+    # optionally extract precision
+    prec_match = re.match(fpcore_prop_prec_pat, s)
+    prec = None if prec_match is None else prec_match.group(1).strip()
+    # return FPCore
+    return FPCore(core=s, name=name, descr=descr, argc=argc, prec=prec)

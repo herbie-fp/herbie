@@ -7,55 +7,27 @@ import multiprocessing as mp
 import shutil
 import json
 
-from .cache import Cache, SampleType
+from .cache import Cache
 from .fpcore import FPCore, parse_core
-from .util import sample_repr, py_to_racket, racket_to_py, sanitize_name
+from .shim import shim_error, shim_sample, shim_read
+from .util import SampleType, sample_repr, sanitize_name
 
 def baseline() -> FPCore:
-    return FPCore(core='(FPCore () :name "baseline" 0)', key='synth:baseline', name='baseline', argc=0, override=True)
-    
-def sample_to_pcontext(sample):
-    points, gts = sample
-    input_strs = []
-    for i, gt in enumerate(gts):
-        pt = []
-        for j, _ in enumerate(points):
-            pt.append(points[j][i])
-        pt_str = ' '.join(map(lambda v: py_to_racket(v), pt))
-        input_strs.append(f'(({pt_str}) {py_to_racket(gt)})')
-    input_str = ' '.join(input_strs)
-    return f'({input_str})'
+    return FPCore(
+        core='(FPCore (x) :name "baseline" x)',
+        key='synth__baseline',
+        name='baseline',
+        argc=1,
+        override=True
+    )
 
-def error1(
-    sample: SampleType,
-    cores: List[FPCore],
-    herbie_path: str,
+def sample1(
+    core: FPCore,
+    num_inputs: int,
     platform: str,
-    seed: int
-) -> List[float]:
-    with Popen(
-            args=[
-                'racket', str(herbie_path),
-                '--platform', platform,
-                '--seed', str(seed)
-            ],
-            stdin=PIPE,
-            stdout=PIPE,
-            universal_newlines=True) as server:
-        
-        pcontext = sample_to_pcontext(sample)
-        core_strs = ' '.join(map(lambda c: str(c.core), cores))
-        print(f'(error {pcontext} {core_strs}) (exit)', file=server.stdin, flush=True)
-        output = server.stdout.read()
-
-    errs = []
-    for val in output.strip().split(' '):
-        errs.append(float(val))
-    return errs
-
-
-def sample1(config: Tuple[FPCore, int, str, str]) -> Tuple[List[List[float]], List[float]]:
-    core, num_inputs, herbie_path, platform, seed, py_sample = config
+    seed: int,
+    py_sample: bool
+) -> SampleType:
     if core.argc == 0:
         return ([], [])
     elif core.py_sample or py_sample:
@@ -65,41 +37,12 @@ def sample1(config: Tuple[FPCore, int, str, str]) -> Tuple[List[List[float]], Li
         return (inputs, gts)
     else:
         # sample using Herbie
-        with Popen(
-                args=[
-                    'racket', str(herbie_path),
-                    '--platform', platform,
-                    '--seed', str(seed)
-                ],
-                stdin=PIPE,
-                stdout=PIPE,
-                universal_newlines=True) as server:
-            
-            print(f'(sample {num_inputs} {core.core})', file=server.stdin, flush=True)
-            output = server.stdout.readline().strip()
-
-            print('(exit)', file=server.stdin, flush=True)
-            _ = server.stdout.read()
-            if output == '#f':
-                return None
-
-            gts = []
-            points = [[] for _ in range(core.argc)]
-            for input in output.split('|'):
-                parts = input.split(',')
-                if len(parts) != 2:
-                    raise RuntimeError(f'malformed point {input}')
-                
-                for i, val in enumerate(parts[0].split(' ')):
-                    points[i].append(racket_to_py(val.strip()))
-                gts.append(racket_to_py(parts[1].strip()))
-
-            return (points, gts)
+        return shim_sample(core, num_inputs, platform, seed)
 
 def synthesize1(op: str, argc: int) -> FPCore:
     """Creates a single FPCore for an operation with an arity."""
     op_ = '-' if op == 'neg' else op
-    key = sanitize_name(f'synth:{op}')
+    key = sanitize_name(f'synth__{op}')
     vars = [f'x{i}' for i in range(argc)]
     arg_str = ' '.join(vars)
     app_str = '(' + ' '.join([op_] + vars) + ')'
@@ -164,6 +107,7 @@ class Runner(object):
 
         # mutable data
         self.cache = Cache(self.working_dir.joinpath('cache'))
+        self.num_drivers = 0
         self.jsons = []
 
         # if the working directories do not exist, create them
@@ -239,8 +183,8 @@ class Runner(object):
 
         return cores
 
-    def herbie_supported(self, cores: List[FPCore]) -> List[bool]:
-        """Returns whether an FPCore is supported in the platform."""
+    def herbie_supported(self, cores: List[FPCore]) -> List[FPCore]:
+        """Returns the FPCores supported in a platform."""
         with Popen(
             args=['racket', str(self.herbie_path), '--platform', self.name],
             stdin=PIPE,
@@ -252,15 +196,15 @@ class Runner(object):
             print(f'(supported {core_strs}) (exit)', file=server.stdin, flush=True)
             output = server.stdout.read().strip()
 
-        result = []
-        for v in output.split(' '):
-            if v == '#f':
-                result.append(False)
+        supported_cores = []
+        for core, v in zip(cores, output.split(' ')):
+            if v == '#t':
+                supported_cores.append(core)
+            elif v == '#f':
+                print(f'WARN: ignoring unsupported {core.core}')
             else:
-                result.append(True)
-
-        assert len(cores) == len(result)
-        return result
+                raise RuntimeError('Unexpected result:', v)
+        return supported_cores
     
     def herbie_read(self, path: str) -> List[FPCore]:
         """Reads a benchmark suite from `path` returning all FPCores found."""
@@ -268,40 +212,10 @@ class Runner(object):
         if not path.exists():
             raise RuntimeError(f'Path does not exist {path}')
         
-        if path.is_file():
-            with Popen(
-                args=[
-                    'racket', str(self.herbie_path),
-                    '--platform', self.name,
-                    '--seed', str(self.seed)
-                ],
-                stdin=PIPE,
-                stdout=PIPE,
-                universal_newlines=True) as server:
-
-                # call out to server
-                print(f'(read \"{path}\") (exit)', file=server.stdin, flush=True)
-                output = server.stdout.read()
-        
-            cores = []
-            for line in output.strip().split('\n'):
-                if len(line) > 0:
-                    parts = line.strip().split('|')
-                    if len(parts) != 2:
-                        raise ValueError(f'Unexpected result: {line}')
-                    id = parts[0]
-                    core_str = parts[1]
-
-                    core = parse_core(core_str.strip())
-                    core.key = sanitize_name(f'file:{str(path)}:{id}')
-                    self.cache.put_core(core)
-                    cores.append(core)
-            return cores
-        else:
-            cores = []
-            for subdir in path.iterdir():
-                cores += self.herbie_read(str(subdir))
-            return cores
+        cores = shim_read(path, self.name)
+        for core in cores:
+            self.cache.put_core(core)
+        return cores
 
     def herbie_compile(self, cores: List[FPCore]):
         """Compiles each FPCore in `cores` to the target language.
@@ -385,22 +299,6 @@ class Runner(object):
             print('(exit)', file=server.stdin, flush=True)
             _ = server.stdout.readline()
 
-        # we need to check if we dropped any cores for a particular input core
-        # if we did, the "best" output core is just the input core
-        # cores_by_key = dict()
-        # for core in desugared:
-        #     if core.name is None:
-        #         raise RuntimeError('FPCore does not have name', core)
-        #     if core.key in cores_by_key:
-        #         cores_by_key[core.key].append(core)
-        #     else:
-        #         cores_by_key[core.key] = [core]
-
-        # for input in input_cores:
-        #     if input.key not in cores_by_key:
-        #         print(f'WARN: no output core for {input.key}, restoring input')
-        #         desugared.append(input)
-
         self.log(f'desugared {len(desugared)} cores')
         return desugared
 
@@ -419,15 +317,15 @@ class Runner(object):
             sample = self.cache.get_sample(key, self.seed)
             if sample is None:
                 raise ValueError(f'Cannot find cached sample for {core.key}')
-            configs.append((sample, by_key[key], self.herbie_path, self.name, self.seed))
+            configs.append((sample, by_key[key], self.name, self.seed))
 
         if self.threads > 1:
             with mp.Pool(processes=self.threads) as pool:
-                errss = pool.starmap(error1, configs)
+                errss = pool.starmap(shim_error, configs)
         else:
             errss = []
             for config in configs:
-                errss.append(error1(*config))
+                errss.append(shim_error(*config))
 
         for key, errs in zip(by_key, errss):
             for core, err in zip(by_key[key], errs):
@@ -484,49 +382,6 @@ class Runner(object):
         self.log(f'generated {len(gen_cores)} FPCores with Herbie')
         return gen_cores
 
-
-    def herbie_pareto(self, input_cores: List[FPCore], cores: List[FPCore]) -> List[Tuple[float, float]]:
-        """Runs Herbie's pareto frontier algorithm."""
-        # group FPCore by key
-        cores_by_group = dict()
-        for core in cores:
-            if core.key in cores_by_group:
-                cores_by_group[core.key].append(core)
-            else:
-                cores_by_group[core.key] = [core]
-
-        with Popen(
-            args=['racket', str(self.herbie_path)],
-            stdin=PIPE,
-            stdout=PIPE,
-            universal_newlines=True) as server:
-
-            frontiers = []
-            for key in cores_by_group:
-                group = cores_by_group[key]
-                frontier = ' '.join(list(map(lambda c: f'({c.cost} {c.err})', group)))
-                frontiers.append(f'({frontier})')
-
-            # call out to server
-            args = ' '.join(frontiers)
-            print(f'(pareto {args})', file=server.stdin, flush=True)
-            output = server.stdout.readline()
-
-            # shutdown server
-            print(f'(exit)', file=server.stdin, flush=True)
-            _ = server.stdout.read()
-
-        frontier = []
-        for line in output.split('|'):
-            datum = line.split(' ')
-            if len(datum) != 2:
-                raise RuntimeError('Pareto frontier malformed:', datum)
-            cost, err = float(datum[0]), float(datum[1])
-            frontier.append((cost, err))
-
-        self.log(f'computed Pareto frontier')
-        return frontier
-
     def herbie_sample(self, cores: List[FPCore], py_sample: bool = False) -> List[List[List[float]]]:
         """Runs Herbie's sampler for each FPCore in `self.cores`."""
         # check cache first
@@ -554,11 +409,15 @@ class Runner(object):
         configs = []
         for sample, core in zip(samples, cores):
             if sample is None:
-                configs.append((core, self.num_inputs, self.herbie_path, self.name, self.seed, py_sample))
+                configs.append((core, self.num_inputs, self.name, self.seed, py_sample))
 
-        with mp.Pool(processes=self.threads) as pool:
-            gen_samples = pool.map(sample1, configs)
-        self.log(f'sampled {len(gen_samples)} cores ({num_cached} cached)')
+        if self.threads > 1:
+            with mp.Pool(processes=self.threads) as pool:
+                gen_samples = pool.starmap(sample1, configs)
+        else:
+            gen_samples = []
+            for config in configs:
+                gen_samples.append(sample1(*config))
     
         # update `samples`
         for i, (core, sample) in enumerate(zip(cores, samples)):
@@ -570,6 +429,7 @@ class Runner(object):
                 else:
                     self.log(f'could not sample {core.name}')
 
+        self.log(f'sampled {len(gen_samples)} cores ({num_cached} cached)')
         return samples
 
     def make_driver_dirs(self, cores: List[FPCore]) -> List[str]:
@@ -578,12 +438,14 @@ class Runner(object):
         Likely a utility function for `make_drivers()`."""
         # Nest the drivers properly
         driver_dirs = []
-        for i, _ in enumerate(cores):
-            subdir = self.driver_dir.joinpath(Path(str(i)))
+        for _ in cores:
+            subdir = self.driver_dir.joinpath(Path(str(self.num_drivers)))
             if subdir.exists():
                 shutil.rmtree(subdir)
             subdir.mkdir()
+
             driver_dirs.append(subdir)
+            self.num_drivers += 1
         self.log(f'prepared driver subdirectories')
         return driver_dirs
 
@@ -599,26 +461,28 @@ class Runner(object):
         This method must be overriden by every implementation of `Runner`."""
         raise NotImplementedError('virtual method')
 
-    def run_drivers(self, driver_dirs: List[str]) -> List[float]:
+    def run_drivers(self, cores: List[FPCore], driver_dirs: List[str]) -> List[float]:
         """Runs all drivers for each compiled FPCore.
         Assumes `compile_drivers()` has already been previous called.
         This method must be overriden by every implementation of `Runner`."""
         raise NotImplementedError('virtual method')
 
-    def restore_cores(self) -> List[FPCore]:
+    def restore_cores(self) -> Tuple[List[FPCore], List[FPCore]]:
         """Restores platform FPCores from `self.report_dir`.
         Panics if no JSON file is found."""
         path = self.report_dir.joinpath('improve.json')
         with open(path, 'r') as f:
             report = json.load(f)
 
-        cores = []
+        input_cores = []
+        platform_cores = []
         for cores_json in report['cores']:
+            input_cores.append(FPCore.from_json(cores_json['input_core']))
             for core_json in cores_json['platform_cores']:
                 core = FPCore.from_json(core_json['platform_core'])
-                cores.append(core)
+                platform_cores.append(core)
         
-        return cores
+        return (input_cores, platform_cores)
 
     def write_tuning_report(self, cores: List[FPCore], times: List[float]) -> None:
         """Writes tuning data to a JSON file."""
@@ -641,55 +505,46 @@ class Runner(object):
         input_cores: List[FPCore],
         platform_cores: List[FPCore],
         driver_dirs: List[str],
-        times: List[float],
-        frontier: List[Tuple[float, float]],
         ablation_cores: List[List[FPCore]] = None,
-        ablation_times: List[List[float]] = None,
-        ablation_frontiers: List[List[Tuple[float, float]]] = None
+        extra
     ) -> None:
         """Writes improve data to a JSON file."""
         # group platform cores by input [key]
         by_key = dict()
-        
         ablation_core_triples = zip(ablation_cores[0], ablation_cores[1], ablation_cores[2])
-        ablation_time_triples = zip(ablation_times[0], ablation_times[1], ablation_times[2])
         if ablation_cores is None:
-            for core, dir, time in zip(platform_cores, driver_dirs, times):
+            for core, dir in zip(platform_cores, driver_dirs):
                 if core.key in by_key:
-                    by_key[core.key].append((core, dir, time))
+                    by_key[core.key].append((core, dir))
                 else:
-                    by_key[core.key] = [(core, dir, time)]
+                    by_key[core.key] = [(core, dir)]
         else:
-            for core, dir, time, triple in zip(platform_cores, driver_dirs, times, ablation_core_triples):
+            for core, dir, triple in zip(platform_cores, driver_dirs, ablation_core_triples):
                 nc, nl, ncl = triple
-                nc_time, nl_time, ncl_time = next(ablation_time_triples)
                 if core.key in by_key:
-                    by_key[core.key].append((core, dir, time, [nc, nl, ncl], [nc_time, nl_time, ncl_time]))
+                    by_key[core.key].append((core, dir, [nc, nl, ncl]))
                 else:
-                    by_key[core.key] = [(core, dir, time, [nc, nl, ncl], [nc_time, nl_time, ncl_time])]
+                    by_key[core.key] = [(core, dir, [nc, nl, ncl])]
 
         # generate report fragments
         core_reports = []
         for input_core in input_cores:
-            output_cores = by_key[input_core.key]
+            output_cores = by_key.get(input_core.key, [])
             platform_core_reports = []
+
             if ablation_cores is None:
-                for platform_core, dir, time in output_cores:
+                for platform_core, dir in output_cores:
                     platform_core_reports.append({
                         'platform_core': platform_core.to_json(),
                         'dir': str(dir),
-                        'time': time,
-                        'ablation-cores': [],
-                        'ablation-times': []
+                        'ablation-cores': []
                     })
             else:
-                for platform_core, dir, time, a_cores, a_times in output_cores:
+                for platform_core, dir, a_cores in output_cores:
                     platform_core_reports.append({
                         'platform_core': platform_core.to_json(),
                         'dir': str(dir),
-                        'time': time,
                         'ablation-cores': list(map(lambda c: c.to_json(), a_cores)),
-                        'ablation-times': a_times
                     })
             
             core_reports.append({
@@ -702,8 +557,7 @@ class Runner(object):
             'time_unit': self.time_unit,
             'seed': self.seed,
             'cores': core_reports,
-            'frontier': frontier,
-            'ablation-frontiers': ablation_frontiers if ablation_frontiers is not None else [],
+            'extra': extra
         }
 
         path = self.report_dir.joinpath('improve.json')
@@ -741,7 +595,7 @@ class Runner(object):
 
         core_reports = []
         for input_core in input_cores:
-            cores = cores_by_key[input_core.key]
+            cores = cores_by_key.get(input_core.key, [])
             supported_cores = supported_by_key.get(input_core.key, [])
             desugared_cores = desugared_by_key.get(input_core.key, [])
             core_reports.append({

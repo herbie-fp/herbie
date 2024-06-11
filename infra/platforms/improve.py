@@ -1,12 +1,15 @@
 """ Runs platform-specific Herbie improvement """
 
-from typing import List
-
 import argparse
 import os
 
+from typing import List, Tuple
+
+from platforms.c import get_cflags, set_cflags
 from platforms.fpcore import FPCore
+from platforms.runner import Runner
 from platforms.runners import make_runner
+from platforms.shim import shim_read, shim_error2
 
 # paths
 script_path = os.path.abspath(__file__)
@@ -42,6 +45,71 @@ def prune_unsamplable(samples: List[List[List[float]]], cores: List[FPCore]):
             samples2.append(sample)
             cores2.append(core)
     return samples2, cores2
+
+def analyze_cores(runner: Runner, cores: List[FPCore]):
+    # compute estimated cost and error
+    runner.herbie_cost(cores=cores)
+    runner.herbie_error(cores=cores)
+
+def run_cores(runner: Runner, cores: List[FPCore], py_sample: bool = False) -> List[str]:
+    # get sample
+    samples = runner.herbie_sample(cores=cores, py_sample=py_sample)
+    check_samples(samples, cores) # sanity check!
+
+    # compile FPCore
+    runner.herbie_compile(cores=cores)
+
+    # create drivers and compile
+    driver_dirs = runner.make_driver_dirs(cores=cores)
+    runner.make_drivers(cores=cores, driver_dirs=driver_dirs, samples=samples)
+    runner.compile_drivers(driver_dirs=driver_dirs)
+    
+    # run drivers to get timing
+    times = runner.run_drivers(cores=cores, driver_dirs=driver_dirs)
+    for core, time in zip(cores, times):
+        core.time = time
+
+    return driver_dirs
+
+#################################################
+# Clang comparison eval
+
+default_flags = ['-std=gnu11', '-ffp-contract=off']
+opt_flags = ['-O0', '-O1', '-O2', '-O3', '-Os', '-Oz']
+fp_flags = [None, '-ffast-math']
+
+def clang_eval(runner: Runner, cores: List[FPCore]):
+    old_cflags = get_cflags()
+
+    # get sample
+    samples = runner.herbie_sample(cores=cores)
+    check_samples(samples, cores) # sanity check!
+
+    configs: List[Tuple[List[str], List[float]]] = []
+    for opt_flag in opt_flags:
+        for fp_flag in fp_flags:
+            flags = [opt_flag] if fp_flag is None else [opt_flag, fp_flag]
+            set_cflags(flags + default_flags)
+            
+            runner.log('running clang eval [time]', flags)
+            driver_dirs = runner.make_driver_dirs(cores=cores)
+            runner.make_drivers(cores=cores, driver_dirs=driver_dirs, samples=samples)
+            runner.compile_drivers(driver_dirs=driver_dirs)
+            times = runner.run_drivers(cores=cores, driver_dirs=driver_dirs)
+
+            runner.log('running clang eval [error]', flags)
+            driver_dirs = runner.make_driver_dirs(cores=cores)
+            runner.make_drivers2(cores=cores, driver_dirs=driver_dirs, samples=samples)
+            runner.compile_drivers(driver_dirs=driver_dirs)
+            inexactss = runner.run_drivers2(cores=cores, driver_dirs=driver_dirs)
+            precs = list(map(lambda c: c.prec, cores))
+            errors = shim_error2(samples, inexactss, precs)
+
+            configs.append((flags, times, errors))
+
+    set_cflags(old_cflags)
+    return configs
+
 
 def main():
     parser = argparse.ArgumentParser(description='Herbie cost tuner')
@@ -88,27 +156,28 @@ def main():
         seed=seed
     )
 
-    # read and sample input cores
-    input_cores = runner.herbie_read(path=bench_path)
-    samples = runner.herbie_sample(cores=input_cores, py_sample=py_sample)
-    samples, input_cores = prune_unsamplable(samples, input_cores)
-    check_samples(samples, input_cores) # sanity check!
+    # read input cores
+    all_input_cores = shim_read(path=bench_path)
 
-    # run Herbie improve and get associated sampled points
-    default = runner.herbie_improve(cores=input_cores, threads=herbie_threads, localize=True, old_cost=False)
-    driver_dirs = runner.make_driver_dirs(cores=default)
+    # prune and sample input cores
+    default = runner.herbie_supported(cores=all_input_cores)
     samples = runner.herbie_sample(cores=default, py_sample=py_sample)
+    samples, default = prune_unsamplable(samples, input_cores)
     check_samples(samples, default) # sanity check!
+    
+    # optionally run clang comparison
+    if platform == 'c':
+        runner.herbie_compile(cores=input_cores)
+        clang_results = clang_eval(runner, input_cores)
+    else:
+        clang_results = None
 
-    # generate Pareto frontier
-    frontier = runner.herbie_pareto(input_cores=input_cores, cores=default)
-    runner.herbie_compile(cores=default)
+    # run Herbie for output cores
+    cores = runner.herbie_improve(cores=input_cores, threads=herbie_threads, localize=True, old_cost=False)
 
-    # run drivers
-    runner.make_drivers(cores=default, driver_dirs=driver_dirs, samples=samples)
-    runner.compile_drivers(driver_dirs=driver_dirs)
-    default_times = runner.run_drivers(driver_dirs=driver_dirs)
-    all_cores = input_cores + default
+    analyze_cores(runner, input_cores + cores)
+    run_cores(runner, input_cores, py_sample)
+    driver_dirs = run_cores(runner, cores, py_sample)
 
     if ablation:
         ablation_cores = []
@@ -119,35 +188,17 @@ def main():
 
             # run Herbie improve and get associated sampled points
             cores = runner.herbie_improve(cores=input_cores, threads=herbie_threads, localize=localize, old_cost=cost)
-            samples = runner.herbie_sample(cores=cores, py_sample=py_sample)
-            check_samples(samples, cores) # sanity check!
-
-            # generate Pareto frontier
-            frontier = runner.herbie_pareto(input_cores=input_cores, cores=cores)
-            ablation_frontiers.append(frontier)
-            runner.herbie_compile(cores=cores)
-
-            # run drivers
-            driver_dirs = runner.make_driver_dirs(cores=cores)
-            runner.make_drivers(cores=cores, driver_dirs=driver_dirs, samples=samples)
-            runner.compile_drivers(driver_dirs=driver_dirs)
-            ablation_times.append(runner.run_drivers(driver_dirs=driver_dirs))
-            
-            # analyze all FPCores
-            all_cores = input_cores + cores
-            runner.herbie_cost(cores=all_cores)
-            runner.herbie_error(cores=all_cores)
+            analyze_cores(runner, input_cores + cores)
+            run_cores(runner, input_cores, py_sample)
+            driver_dirs = run_cores(runner, cores, py_sample)
             ablation_cores.append(cores)
 
         # publish results
-        runner.write_improve_report(input_cores, default, driver_dirs, default_times, frontier, ablation_cores, ablation_times, ablation_frontiers)
+        runner.write_improve_report(all_input_cores, cores, driver_dirs, clang_results, ablation_cores)
     else:
-        #analyse all FPCores
-        runner.herbie_cost(cores=all_cores)
-        runner.herbie_error(cores=all_cores)
-
         # publish results
-        runner.write_improve_report(input_cores, default, driver_dirs, default_times, frontier)
+        runner.write_improve_report(all_input_cores, cores, driver_dirs, clang_results)
+    
 
 
 if __name__ == "__main__":

@@ -36,12 +36,19 @@
     `((run ,rules ((node . ,(*node-limit*))))
       (run ,lowering-rules ((iteration . 1) (scheduler . simple)))))
 
+  ; extractor
+  (define extractor
+    (typed-egg-extractor
+      (if (*old-cost-function*)
+          default-egg-cost-proc
+          platform-egg-cost-proc)))
+
   ; egg runner
   (define egg-query
     (make-egg-query specs
                     reprs
                     schedule
-                    #:extractor (typed-egg-extractor (if (*old-cost-function*) default-egg-cost-proc platform-egg-cost-proc))))
+                    #:extractor extractor))
   
   ; run egg
   (define simplifiedss
@@ -49,17 +56,40 @@
       subexprss
       (map last (simplify-batch egg-query))))
 
-  (define expr->cost (platform-cost-proc (*active-platform*)))
+  ; build map from starting expr to simplest
+  (define expr->simplest (make-hash))
+  (for ([subexprs (in-list subexprss)]
+        [simplifieds (in-list simplifiedss)] #:when #t
+        [subexpr (in-list subexprs)]
+        [simplified (in-list simplifieds)])
+    (hash-set! expr->simplest subexpr simplified))
+  
+  ; platform-based expression cost
+  (define cost-proc (platform-cost-proc (*active-platform*)))
+  (define (expr->cost expr)
+    (cost-proc expr (repr-of expr ctx)))
+
+  ; rank subexpressions by cost opportunity
   (define localize-costss
-    (for/list ([subexprs (in-list subexprss)] [simplifieds (in-list simplifiedss)])
-      (sort 
-       (for/list ([subexpr (in-list subexprs)]
-                  [simplified (in-list simplifieds)]
-                  #:when (list? subexpr))
-         (cons (- (expr->cost subexpr (repr-of subexpr ctx))
-                  (expr->cost simplified (repr-of subexpr ctx)))
-               subexpr))
-       > #:key car)))
+    (for/list ([subexprs (in-list subexprss)])
+      (sort
+        (for/list ([subexpr (in-list subexprs)] #:when (list? subexpr))
+          ; start and end cost of roots
+          (define start-cost (expr->cost subexpr))
+          (define best-cost (expr->cost (hash-ref expr->simplest subexpr)))
+          ; start and end cost of children
+          (match-define (list _ children ...) subexpr)
+          (define start-child-costs
+            (map expr->cost children))
+          (define best-child-costs
+            (for/list ([child (in-list children)])
+              (expr->cost (hash-ref expr->simplest child))))
+          ; compute cost opportunity
+          (define cost-opportunity
+            (- (apply - start-cost start-child-costs)
+               (apply - best-cost best-child-costs)))
+          (cons cost-opportunity subexpr))
+        > #:key car)))
 
   localize-costss)
 

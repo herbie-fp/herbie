@@ -1,6 +1,6 @@
 #lang racket
 
-;;; Arithmetic in platform
+;;; Arithmetic in platform + FMA
 
 (require "../plugin.rkt")
 
@@ -34,6 +34,7 @@
     [- 0.15163999999999997]
     [/ 0.26615199999999994]
     [fabs 0.10161999999999997]
+    [fma 0.3366239999999999]
     [fmax 0.3106]
     [fmin 0.289256]
     [neg 0.09659199999999998]
@@ -47,9 +48,10 @@
       [([real binary64]) cost-model]
       (operator-set
         [(real real) (neg fabs sqrt)]
-        [(real real real) (+ - * / fmax fmin)]))))
+        [(real real real) (+ - * / fmax fmin)]
+        [(real real real real) (fma)]))))
 
-(register-platform! 'arith
+(register-platform! 'arith-fma
                     (platform-union boolean-platform
                                     non-tunable
                                     tunable))

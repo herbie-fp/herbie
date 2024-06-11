@@ -5,115 +5,256 @@ import json
 import os
 
 import matplotlib.pyplot as plt
+from typing import Dict, List, Tuple
 from pathlib import Path
 
 from platforms.fpcore import FPCore
-from platforms.runners import make_runner
+from platforms.shim import shim_pareto
 
 # Paths
 script_path = os.path.abspath(__file__)
 script_dir, _ = os.path.split(script_path)
 herbie_path = os.path.join(script_dir, 'server.rkt')
 
-def plot_time(name: str, output_dir: Path, info: dict):
-    """Plots Herbie cost estimate vs actual run time"""
-    print(f'Plotting time {name}')
+# Globals
+invert_axes = True # (speedup, accuracy) vs. (cost, error)
+use_time = True # time vs cost
 
+input_color = 'black'
+platform_color = 'blue'
+supported_color = 'orange'
+desugared_color = 'green'
+
+input_style = 's'
+platform_style = '.'
+supported_style = '+'
+desugared_style = 'x'
+
+#######################################
+# Utils
+
+def core_max_error(core: FPCore) -> int:
+    if core.prec == 'binary64':
+        return 64
+    elif core.prec == 'binary32':
+        return 32
+    else:
+        raise RuntimeError('Unknown precision', core.prec)
+    
+def flip_point(input_cost: float, max_error: float, pt: Tuple[float, float]):
+    """Transforms `(cost, error)` points into `(speedup, accuracy)` points."""
+    cost, error = pt
+    return (input_cost / cost, max_error - error)
+
+#######################################
+# Cost vs. Time
+
+def platform_cost_time(info):
     costs = []
     times = []
     for input_info in info['cores']:
         for core_info in input_info['platform_cores']:
-            cost = core_info['platform_core']['cost']
-            time = core_info['time']
+            core = FPCore.from_json(core_info['platform_core'])
+            costs.append(core.cost)
+            times.append(core.time)
+    return costs, times
 
-            costs.append(cost)
-            times.append(time)
+def plot_time(name: str, output_dir: Path, info: dict):
+    """Plots Herbie cost estimate vs actual run time"""
+    print(f'Plotting time {name}')
+
+    costs, times = platform_cost_time(info)
     
     plt.figure()
     plt.title("Estimated cost vs. actual run time")
-    plt.xlabel("Estimated cost (Herbie)")
-    plt.ylabel(f"Run time (???)") # TODO
+    plt.xlabel("Estimated cost")
+    plt.ylabel(f"Run time ({info['time_unit']})")
     plt.scatter(costs, times)
 
     path = output_dir.joinpath(f'{name}-cost-vs-time.png')
     plt.savefig(str(path))
     plt.close()
 
+def plot_time_all(output_dir: Path, entries):
+    print(f'Plotting time for all platforms')
+    path = output_dir.joinpath(f'cost-vs-time.png')
+    size = 8
+
+    names = []
+    for name, _ in entries:
+        names.append(name)
+
+    names = sorted(names)
+    num_platforms = len(names)
+    nrows = (num_platforms + 2) // 3 # ceil_div(num_platforms, 3)
+    fig, axs = plt.subplots(ncols=3, nrows=nrows, figsize=((size, size)))
+
+    time_unit = None
+    for _, info in entries:
+        if time_unit is None:
+            time_unit = info['time_unit']
+        elif time_unit != info['time_unit']:
+            raise RuntimeError('Time units do not match')
+
+    fig.supxlabel("Estimated cost")
+    fig.supylabel(f"Run time ({time_unit})")
+
+    for i, (name, info) in enumerate(entries):
+        costs, times = platform_cost_time(info)
+        ax = axs[i // 3, i % 3] if num_platforms > 3 else axs[i]
+        ax.scatter(costs, times)
+        ax.set_title(name)
+   
+    for i in range(len(names), 3 * nrows):
+        ax = axs[i // 3, i % 3] if num_platforms > 3 else axs[i]
+        fig.delaxes(ax)
+
+    plt.tight_layout()
+    plt.savefig(str(path))
+    plt.close()
+
+#######################################
+# Platform-pareto frontier
+
 def plot_improve(name: str, output_dir: Path, info):
+    """Platform pareto frontier."""
     print(f'Plotting improve {name}')
 
-    frontier_costs, frontier_errors = zip(*info["frontier"])
+    input_cores: List[FPCore] = []
+    platform_cores: List[FPCore] = []
+    for core_info in info['cores']:
+        core_infos = core_info['platform_cores']
+        if len(core_infos) > 0:
+            input_cores.append(FPCore.from_json(core_info['input_core']))
+            for platform_core_info in core_infos:
+                platform_cores.append(FPCore.from_json(platform_core_info['platform_core']))
+    time_unit = info['time_unit']
 
+    # compute starting point
+    max_error = sum(map(lambda c: core_max_error(c), input_cores))
+    input_costs, input_errs = zip(*map(lambda c: (c.time if use_time else c.cost, c.err), input_cores))
+    input_cost, input_error = sum(input_costs), sum(input_errs)
+    flip = lambda pt: flip_point(input_cost, max_error, pt)
+
+    frontier, *_ = shim_pareto(platform_cores, use_time=use_time)
+    xs, ys = zip(*frontier)
+
+    # compute (speedup, accuracy) frontiers
+    input_speedup, input_accuracy = flip((input_cost, input_error))
+    frontier2 = list(map(flip, frontier))
+    
     plt.figure()
-    plt.plot(frontier_costs, frontier_errors, label=name)
-    plt.title('Estimated cost vs. cumulative average error (bits)')
-    plt.xlabel('Estimated cost (Herbie)')
-    plt.ylabel(f'Cumulative average error')
+    if invert_axes:
+        xlabel = f'Speedup' if use_time else 'Estimated speedup'
+        ylabel = 'Cumulative average accuracy (bits)'
+        input_x, input_y = input_speedup, input_accuracy
+        xs, ys = zip(*frontier2)
+    else:
+        xlabel = f'Run time ({time_unit})' if use_time else 'Estimated cost'
+        ylabel = 'Cumulative average error (bits)'
+        input_x, input_y = input_cost, input_error
+        xs, ys = zip(*frontier)
+
+    if name == 'c' and use_time:
+        exacts = []
+        fasts = []
+        for flags, times, errors in info['extra']:
+            input_time, input_error = sum(times), sum(errors)
+            input_speedup, input_accuracy = flip((input_time, input_error))
+
+            input_x = input_speedup if invert_axes else input_time
+            input_y = input_accuracy if invert_axes else input_error
+            if '-ffast-math' in flags:
+                fasts.append((input_x, input_y))
+            else:
+                exacts.append((input_x, input_y))
+
+        exact_xs, exact_ys = zip(*exacts)
+        plt.plot(exact_xs, exact_ys, 'x', color=input_color, label='Clang')
+
+        fast_xs, fast_ys = zip(*fasts)
+        plt.plot(fast_xs, fast_ys, 'x', color=supported_color, label='Clang (fast-math)')
+    else:
+        plt.plot([input_x], [input_y], input_style, color=input_color)
+
+    plt.plot(xs, ys, platform_style, color=platform_color, label='Chassis')
+    plt.title(f'{xlabel} vs. {ylabel}')
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.legend()
 
     path = output_dir.joinpath(f'{name}-pareto.png')
     plt.savefig(str(path))
     plt.close()
 
-# Colors
-platform_color = 'blue'
-supported_color = 'orange'
-desugared_color = 'green'
+#######################################
+# Comparison plots
 
-def plot_compare1(name: str, name2: str, output_dir: Path, info):
-    print(f'Plotting compare {name} <- {name2}')
-    path = output_dir.joinpath(f'{name}-vs-{name2}-pareto.png')
-
-    input_cores = []
-    platform_cores = []
-    supported_cores = []
-    desugared_cores = []
-
+def comparison_frontiers(info):
+    num_input = 0
     num_platform = 0
     num_supported = 0
     num_desugared = 0
 
+    input_cores: List[FPCore] = []
+    platform_cores: List[FPCore] = []
+    supported_cores: List[FPCore] = []
+    desugared_cores: List[FPCore] = []
     for core_info in info['cores']:
         input_core = FPCore.from_json(core_info['input_core'])
         platform = list(map(FPCore.from_json, core_info['platform_cores']))
         supported = list(map(FPCore.from_json, core_info['supported_cores']))
         desugared = list(map(FPCore.from_json, core_info['desugared_cores']))
-    
-        any_platform = len(platform) > 0
-        any_supported = len(supported) > 0
-        any_desugared = len(desugared) > 0
 
-        if any_platform:
+        num_input += 1
+        if platform:
             num_platform += 1
-        if any_supported:
+        elif supported:
             num_supported += 1
-        if any_desugared:
+        elif desugared:
             num_desugared += 1
 
-        if any_platform and any_supported and any_desugared:
+        if platform and supported and desugared:
             input_cores.append(input_core)
             platform_cores += platform
             supported_cores += supported
             desugared_cores += desugared
 
-    # TODO: herbie_pareto does not actually require runner
-    # refactor to not have to make a runner each time
-    runner = make_runner(
-        platform='c',
-        working_dir=output_dir,
-        herbie_path=herbie_path
-    )
+    # compute starting point
+    max_error = sum(map(lambda c: core_max_error(c), input_cores))
+    input_costs, input_errs = zip(*map(lambda c: (c.time if use_time else c.cost, c.err), input_cores))
+    input_cost, input_error = sum(input_costs), sum(input_errs)
+    flip = lambda pt: flip_point(input_cost, max_error, pt)
 
-    platform_frontier = runner.herbie_pareto(input_cores=input_cores, cores=platform_cores)
-    platform_costs = list(map(lambda pt: pt[0], platform_frontier))
-    platform_errs = list(map(lambda pt: pt[1], platform_frontier))    
+    # compute (cost, error) frontiers
+    platform_frontier, supported_frontier, desugared_frontier = \
+        shim_pareto(platform_cores, supported_cores, desugared_cores, use_time=use_time)
 
-    supported_frontier = runner.herbie_pareto(input_cores=input_cores, cores=supported_cores)
-    supported_costs = list(map(lambda pt: pt[0], supported_frontier))
-    supported_errs = list(map(lambda pt: pt[1], supported_frontier))
+    # compute (speedup, accuracy) frontiers
+    input_speedup, input_accuracy = flip((input_cost, input_error))
+    platform_frontier2 = list(map(flip, platform_frontier))
+    supported_frontier2 = list(map(flip, supported_frontier))
+    desugared_frontier2 = list(map(flip, desugared_frontier))
 
-    desugared_frontier = runner.herbie_pareto(input_cores=input_cores, cores=desugared_cores)
-    desugared_costs = list(map(lambda pt: pt[0], desugared_frontier))
-    desugared_errs = list(map(lambda pt: pt[1], desugared_frontier))
+    return (input_cost, input_error), (input_speedup, input_accuracy), num_input, \
+        platform_frontier, platform_frontier2, num_platform, \
+        supported_frontier, supported_frontier2, num_supported, \
+        desugared_frontier, desugared_frontier2, num_desugared
+
+def plot_compare1(name: str, name2: str, output_dir: Path, info):
+    """Single platform vs. platform comparison"""
+    print(f'Plotting compare {name} <- {name2}')
+    path = output_dir.joinpath(f'{name}-vs-{name2}-pareto.png')
+
+    input_pt, _, num_input, \
+        platform_frontier, _, num_platform, \
+        supported_frontier, _, num_supported, \
+        desugared_frontier, _, num_desugared = comparison_frontiers(info)
+
+    input_cost, input_error = input_pt
+    platform_costs, platform_errs = zip(*platform_frontier)
+    supported_costs, supported_errs = zip(*supported_frontier)
+    desugared_costs, desugared_errs = zip(*desugared_frontier)
 
     fig, (ax1, ax2) = plt.subplots(ncols=2, gridspec_kw={'width_ratios': [9, 1]})
     plt.subplots_adjust(wspace=0.15)
@@ -121,7 +262,7 @@ def plot_compare1(name: str, name2: str, output_dir: Path, info):
 
     # Pareto frontiers
     ax1.set_title('Est. cost vs. cumulative avg. error (bits)', size='medium')
-    ax1.set(xlabel='Estimated cost (Herbie)', ylabel=f'Cumulative average error')
+    ax1.set(xlabel='Estimated cost', ylabel='Cumulative average error')
     ax1.plot(platform_costs, platform_errs, label=f'{name} (Chassis)', color=platform_color)
     ax1.plot(supported_costs, supported_errs, label=f'{name2} (supported)', color=supported_color)
     ax1.plot(desugared_costs, desugared_errs, label=f'{name2} (desugared)', color=desugared_color)
@@ -133,94 +274,174 @@ def plot_compare1(name: str, name2: str, output_dir: Path, info):
     ax2.bar(1, num_supported, color=supported_color)
     ax2.bar(2, num_desugared, color=desugared_color)
     ax2.get_xaxis().set_visible(False)
-    ax2.set_ylim(0, num_platform)
-
-    # Number of implementations
-    # ax3.set_title('# Implementations', size='medium')
-    # ax3.bar(0, num_platform_impls, color=platform_color)
-    # ax3.bar(1, num_supported_impls, color=supported_color)
-    # ax3.bar(2, num_desugared_impls, color=desugared_color)
-    # ax3.get_xaxis().set_visible(False)
+    ax2.set_ylim(0, num_input)
 
     # Legend
-    # fig.legend(loc='lower right')
+    plt.tight_layout()
     plt.savefig(str(path))
     plt.close()
 
+def plot_baseline_all(output_dir: Path, entries):
+    """Entire baseline comparison (N)."""
+    print(f'Plotting all baseline comparison')
+    path = output_dir.joinpath(f'baseline-pareto.png')
+    size = 8
+
+    names = []
+    for name, _ in entries:
+        names.append(name)
+
+    names = sorted(names)
+    num_platforms = len(names)
+    nrows = (num_platforms + 2) // 3 # ceil_div(num_platforms, 3)
+    fig, axs = plt.subplots(ncols=3, nrows=nrows, figsize=((size, size)))
+
+    if invert_axes:
+        fig.supxlabel('Speedup' if use_time else 'Estimated speedup')
+        fig.supylabel('Cumulative average accuracy (bits)')
+    else:
+        fig.supxlabel('Cumulative run time' if use_time else 'Cumulative estimated cost')
+        fig.supylabel('Cumulative average eror (bits)')
+
+    for i, (name, info) in enumerate(entries):
+        input_pt, input_pt2, num_input, \
+            platform_frontier, platform_frontier2, num_platform, \
+            supported_frontier, supported_frontier2, num_supported, \
+            desugared_frontier, desugared_frontier2, num_desugared = comparison_frontiers(info)
+
+        # decompose frontiers
+        input_cost, input_err = input_pt
+        platform_costs, platform_errs = zip(*platform_frontier)
+        supported_costs, supported_errs = zip(*supported_frontier)
+        desugared_costs, desugared_errs = zip(*desugared_frontier)
+
+        input_speedup, input_accuracy = input_pt2
+        platform_speedups, platform_accuracies = zip(*platform_frontier2)
+        supported_speedups, supported_accuracies = zip(*supported_frontier2)
+        desugared_speedups, desugared_accuracies = zip(*desugared_frontier2)
+
+        ax = axs[i // 3, i % 3] if num_platforms > 3 else axs[i]
+        ax.set_title(name, size='medium')
+        if invert_axes:
+            ax.plot([input_speedup], [input_accuracy], input_style, color=input_color)
+            ax.plot(platform_speedups, platform_accuracies, platform_style, color=platform_color)
+            ax.plot(supported_speedups, supported_accuracies, supported_style, color=supported_color)
+            ax.plot(desugared_speedups, desugared_accuracies, desugared_style, color=desugared_color)
+        else:
+            ax.plot([input_cost], [input_err], input_style, color=input_color)
+            ax.plot(platform_costs, platform_errs, platform_style, color=platform_color)
+            ax.plot(supported_costs, supported_errs, supported_style, color=supported_color)
+            ax.plot(desugared_costs, desugared_errs, desugared_style, color=desugared_color)
+
+    for i in range(len(names), 3 * nrows):
+        ax = axs[i // 3, i % 3] if num_platforms > 3 else axs[i]
+        fig.delaxes(ax)
+
+    plt.tight_layout()
+    plt.savefig(str(path))
+    plt.close()
+
+
 def plot_compare_all(output_dir: Path, entries):
+    """Entire platform vs. platform comparison (N^2 table)."""
     print(f'Plotting all platform comparison')
     path = output_dir.joinpath(f'comparison-pareto.png')
+    size = 12
 
     names = []
     for name, _ , _ in entries:
         if name not in names:
             names.append(name)
 
-    # TODO: herbie_pareto does not actually require runner
-    # refactor to not have to make a runner each time
-    runner = make_runner(
-        platform='c',
-        working_dir=output_dir,
-        herbie_path=herbie_path
-    )
-
+    names = sorted(names)
     num_platforms = len(names)
-    fig, axs = plt.subplots(ncols=num_platforms, nrows=num_platforms, figsize=((10, 10)))
+    fig, axs = plt.subplots(ncols=num_platforms, nrows=num_platforms, figsize=((size, size)))
 
     # fig.suptitle('Platform vs. platform comparison')
-    fig.supxlabel('Estimated cost (Herbie)')
-    fig.supylabel('Cumulative average error (bits)')
+    if invert_axes:
+        fig.supxlabel('Speedup' if use_time else 'Estimated speedup')
+        fig.supylabel('Cumulative average accuracy (bits)')
+    else:
+        fig.supxlabel('Cumulative run time' if use_time else 'Cumulative estimated cost')
+        fig.supylabel('Cumulative average eror (bits)')
 
-    for name, name2, info in entries:
+    # collect input and platform cores
+    by_platform: Dict[str, Tuple[List[FPCore], List[FPCore]]] = dict()
+    for name, _, info in entries:
+        if name not in by_platform:
+            input_cores = []
+            platform_cores = []
+            for core_info in info['cores']:
+                input_core = FPCore.from_json(core_info['input_core'])
+                cores = list(map(FPCore.from_json, core_info['platform_cores']))
+                if len(cores) > 0:
+                    input_cores.append(input_core)
+                    platform_cores += cores
+            by_platform[name] = (input_cores, platform_cores)
+
+    # plot diagonal frontiers
+    platform_frontiers = shim_pareto(*map(lambda n: by_platform[n][1], names), use_time=use_time)
+    for name, frontier in zip(names, platform_frontiers):
+        input_cores, _ = by_platform[name]
+        max_error = sum(map(lambda c: core_max_error(c), input_cores))
+        input_costs, input_errs = zip(*map(lambda c: (c.time if use_time else c.cost, c.err), input_cores))
+        input_cost, input_err = sum(input_costs), sum(input_errs)
+        input_speedup, input_accuracy = 1.0, max_error - input_err
+
+        # transform (cost, err) -> (speedup, accuracy)
+        platform_costs, platform_errs = zip(*frontier)
+        platform_speedups = list(map(lambda c: input_cost / c, platform_costs))
+        platform_accuracies = list(map(lambda e: max_error - e, platform_errs))
+
+        # plot
         i = names.index(name)
-        j = names.index(name2)
-        ax = axs[i][j]
+        if invert_axes:
+            axs[i, i].plot([input_speedup], [input_accuracy], input_style, color=input_color)
+            axs[i, i].plot(platform_speedups, platform_accuracies, platform_style, color=platform_color)
+        else:
+            axs[i, i].plot([input_cost], [input_err], input_style, color=input_color)
+            axs[i, i].plot(platform_costs, platform_errs, platform_style, color=platform_color)
 
-        input_cores = []
-        platform_cores = []
-        supported_cores = []
-        desugared_cores = []
-        for core_info in info['cores']:
-            input_core = FPCore.from_json(core_info['input_core'])
-            platform = list(map(FPCore.from_json, core_info['platform_cores']))
-            supported = list(map(FPCore.from_json, core_info['supported_cores']))
-            desugared = list(map(FPCore.from_json, core_info['desugared_cores']))
+    # plot comparison frontiers
+    for name, name2, info in entries:
+        input_pt, input_pt2, num_input, \
+            platform_frontier, platform_frontier2, num_platform, \
+            supported_frontier, supported_frontier2, num_supported, \
+            desugared_frontier, desugared_frontier2, num_desugared = comparison_frontiers(info)
 
-            any_platform = len(platform) > 0
-            any_supported = len(supported) > 0
-            any_desugared = len(desugared) > 0
+        # decompose frontiers
+        input_cost, input_err = input_pt
+        platform_costs, platform_errs = zip(*platform_frontier)
+        supported_costs, supported_errs = zip(*supported_frontier)
+        desugared_costs, desugared_errs = zip(*desugared_frontier)
 
-            if any_platform and any_supported and any_desugared:
-                input_cores.append(input_core)
-                platform_cores += platform
-                supported_cores += supported
-                desugared_cores += desugared
-
-        platform_frontier = runner.herbie_pareto(input_cores=input_cores, cores=platform_cores)
-        platform_costs = list(map(lambda pt: pt[0], platform_frontier))
-        platform_errs = list(map(lambda pt: pt[1], platform_frontier))
-
-        supported_frontier = runner.herbie_pareto(input_cores=input_cores, cores=supported_cores)
-        supported_costs = list(map(lambda pt: pt[0], supported_frontier))
-        supported_errs = list(map(lambda pt: pt[1], supported_frontier))
-
-        desugared_frontier = runner.herbie_pareto(input_cores=input_cores, cores=desugared_cores)
-        desugared_costs = list(map(lambda pt: pt[0], desugared_frontier))
-        desugared_errs = list(map(lambda pt: pt[1], desugared_frontier))
+        input_speedup, input_accuracy = input_pt2
+        platform_speedups, platform_accuracies = zip(*platform_frontier2)
+        supported_speedups, supported_accuracies = zip(*supported_frontier2)
+        desugared_speedups, desugared_accuracies = zip(*desugared_frontier2)
 
         # Pareto frontiers
-        ax.plot(platform_costs, platform_errs, label=f'{name} (Chassis)', color=platform_color)
-        ax.plot(supported_costs, supported_errs, label=f'{name2} (supported)', color=supported_color)
-        ax.plot(desugared_costs, desugared_errs, label=f'{name2} (desugared)', color=desugared_color)
+        ax = axs[names.index(name), names.index(name2)]
+        if invert_axes:
+            ax.plot([input_speedup], [input_accuracy], input_style, color=input_color)
+            ax.plot(platform_speedups, platform_accuracies, platform_style, color=platform_color)
+            ax.plot(supported_speedups, supported_accuracies, supported_style, color=supported_color)
+            ax.plot(desugared_speedups, desugared_accuracies, desugared_style, color=desugared_color)
+        else:
+            ax.plot([input_cost], [input_err], input_style, color='black')
+            ax.plot(platform_costs, platform_errs, platform_style, color=platform_color)
+            ax.plot(supported_costs, supported_errs, supported_style, color=supported_color)
+            ax.plot(desugared_costs, desugared_errs, desugared_style, color=desugared_color)
 
-    # for left side, label platforms
-    # for bottom, label platforms
-    # for diagonal, hide axes
+    # set labels
     for i, name in enumerate(names):
-        axs[i, 0].set(ylabel=name)
-        axs[len(names) - 1, i].set(xlabel=name)
-        axs[i, i].set_yticklabels([])
-        axs[i, i].set_xticklabels([])
+        axs[0][i].set(xlabel=name)
+        axs[i][len(names) - 1].set(ylabel=name)
+        for j, _ in enumerate(names):
+            axs[i, j].xaxis.set_label_position('top')
+            axs[i, j].yaxis.set_label_position('right')
+            axs[i, j].xaxis.set_ticks([])
+            axs[i, j].yaxis.set_ticks([])
 
     plt.tight_layout()
     plt.savefig(str(path))
@@ -261,18 +482,23 @@ def main():
                         compare_reports.append((name, name2, compare_info))
 
     # Per-platform plot
-    # for name, info in improve_reports:
-    #     plot_improve(name, output_dir, info)
-    #     plot_time(name, output_dir, info)
+    if improve_reports:
+        plot_time_all(output_dir, improve_reports)
+        for name, info in improve_reports:
+            plot_improve(name, output_dir, info)
+            plot_time(name, output_dir, info)
 
     # Baseline plot
-    # for name, info in baseline_reports:
-    #     plot_compare1(name, 'baseline', output_dir, info)
+    if baseline_reports:
+        plot_baseline_all(output_dir, baseline_reports)
+        for name, info in baseline_reports:
+            plot_compare1(name, 'baseline', output_dir, info)
 
     # Comparison plot
-    plot_compare_all(output_dir, compare_reports)
-    # for name, name2, info in compare_reports:
-    #     plot_compare1(name, name2, output_dir, info)
+    if compare_reports:
+        plot_compare_all(output_dir, compare_reports)
+        for name, name2, info in compare_reports:
+            plot_compare1(name, name2, output_dir, info)
 
 
 if __name__ == "__main__":

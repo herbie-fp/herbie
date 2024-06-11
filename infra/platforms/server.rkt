@@ -1,6 +1,6 @@
 #lang racket
 
-(require (only-in fpbench core->c)
+(require (only-in fpbench core->c core->julia)
          herbie/accelerator
          herbie/common
          herbie/datafile
@@ -11,15 +11,14 @@
          herbie/points
          herbie/sandbox
          herbie/syntax/read
-         herbie/syntax/rules
          herbie/syntax/syntax
          herbie/syntax/sugar
          herbie/syntax/types
          herbie/web/common
          herbie/web/core2mkl
-         herbie/web/core2python3-10
          herbie/web/core2avx
          herbie/web/core2numpy
+         herbie/web/core2python3-10
          herbie/web/thread-pool)
 
 (*warnings-disabled* true)
@@ -83,18 +82,6 @@
          (eprintf "failed to desugar ~a\n" expr)
          (return #f)]))))
 
-;; Replaces any unsupported accelerators in an FPCore
-(define (remove-accelerators core)
-  (define op-set (platform-operator-set (*active-platform*)))
-  (define ops-in-pform (operator-set-operators op-set))
-  (define accels (filter-not (curry set-member? ops-in-pform) (all-accelerators)))
-  (define (remove expr) (expand-accelerators expr #:accelerators accels))
-  (match core
-    [`(FPCore ,id (,vars ...) ,props ... ,expr)
-     `(FPCore ,id ,vars ,@props ,(remove expr))]
-    [`(FPCore (,vars ...) ,props ... ,expr)
-     `(FPCore ,vars ,@props ,(remove expr))]))
-
 ;; Reads commands from stdin and writes results to stdout.
 ;; All output must be on a single line and terminated by a newline.
 (define (run-server seed)
@@ -113,6 +100,7 @@
            [(mkl) (core->mkl core "foo")]
            [(numpy) (core->numpy core "foo")]
            [(python) (core->python core "foo")]
+           [(julia) (core->julia core "foo")]
            [else (error 'run-server "compile: unsupported language ~a" lang)]))
        (printf "~a\n" (string-replace output "\n" "\\n"))
        (loop)]
@@ -145,7 +133,7 @@
          [else
           (writeln #f)])
        (loop)]
-      ; error <core> <points>
+      ; error <points> <core>
       [(list 'error args ...)
        (define-values (points cores)
          (match args
@@ -161,6 +149,19 @@
        (define ctx (test-context (first tests)))
        (define err-lsts (flip-lists (batch-errors (map test-input tests) pctx ctx)))
        (printf "~a\n" (string-join (map (compose ~a errors-score) err-lsts) " "))
+       (loop)]
+      ; error2 <points> <inexacts> <precs>
+      [(list 'error2 args ...)
+       (define-values (points inexacts prec)
+         (match args
+           [(list points inexacts prec) (values points inexacts prec)]
+           [_ (error 'run-server "error2: malformed arguments ~a" args)]))
+       (define pctx (python->pcontext points))
+       (define repr (get-representation prec))
+       (printf "~a\n"
+         (errors-score
+           (for/list ([(_ gt) (in-pcontext pctx)] [inexact (in-list inexacts)])
+             (point-error inexact gt repr))))
        (loop)]
       ; improve <core> <threads:int> <dir>
       [(list 'improve args ...)
@@ -213,7 +214,8 @@
             (with-handlers ([exn:fail? (const (void))])
               (define t (parse-test stx))
               (define t* (struct-copy test t [output #f])) ; strip any `:alt` annotation
-              (printf "~a|~a\n" i (string-replace (render-fpcore t*) "\n" ""))))))
+              (printf "~a]~a|" i (string-replace (render-fpcore t*) "\n" ""))))))
+       (newline)
        (loop)]
       ; sample <num_points:int> <core:expr>
       [(list 'sample args ...)
@@ -242,7 +244,7 @@
       [(list 'supported cores ...)
        (for ([core (in-list cores)])
          (write
-           (with-handlers ([exn:fail:user:herbie? (const #f)])
+           (with-handlers ([exn:fail? (const #f)])
              (parse-test (datum->syntax #f core))
              #t))
          (display " "))

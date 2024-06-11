@@ -1,37 +1,39 @@
+from subprocess import Popen, PIPE
 from typing import List
 from pathlib import Path
 import os
-import re
 
 from .fpcore import FPCore
 from .runner import Runner
-from .util import double_to_c_str, run_subprocess
+from .util import double_to_c_str
 
 # Supported operations for Python
-unary_ops = ['neg', 'acos', 'acosh', 'asin', 'asinh', 'atan', 'atanh', 'ceil', 'cos', 'cosh', 'erf', 'erfc', 'exp', 'expm1', 'fabs', 'floor', 'lgamma', 'log', 'log10', 'log2', 'log1p', 'sin', 'sinh', 'sqrt', 'tan', 'tanh', 'tgamma', 'trunc']
-binary_ops = ['+', '-', '*', '/', 'atan2', 'copysign', 'fmax', 'fmin', 'fmod', 'hypot', 'pow', 'remainder']
-ternary_ops = []
-nary_ops = [(3, 'sum3'), (4, 'sum4')]
+unary_ops = [
+    'neg', 'sin', 'cos', 'tan', 'sinpi', 'cospi',
+    'sind', 'cosd', 'tand',  'sinh', 'cosh', 'tanh', 'asin', 'acos', 'atan',
+    'asind', 'acosd', 'atand', 'sec', 'csc', 'cot', 'secd', 'cscd', 'cotd', 'asec', 'acsc',
+    'acot', 'asecd', 'acscd', 'acotd', 'sech', 'csch', 'coth', 'asinh', 'acosh', 'atanh',
+    'asech', 'acsch', 'acoth', 'deg2rad', 'rad2deg', 'log', 'log2', 'log10', 'log1p',
+    'exp', 'exp2', 'exp10', 'expm1', 'fabs', 'abs2', 'sqrt', 'cbrt']
+binary_ops = ['+', '-', '*', '/', 'hypot', 'fmin', 'fmax', 'pow']
+ternary_ops = ['fma']
 
-# Pyton lang
-target = 'python3'
-driver_name = 'main.py'
+# Julia lang
+target = 'julia'
+target_flags = ['--history-file=no']
+driver_name = 'test.jl'
 time_unit = 'ms'
 
-# Regex patterns
-time_pat = re.compile(f'([-+]?([0-9]+(\.[0-9]+)?|\.[0-9]+)(e[-+]?[0-9]+)?) {time_unit}')
-
-class PythonRunner(Runner):
-    """`Runner` for Python 3.10"""
+class JuliaRunner(Runner):
+    """`Runner` for Julia"""
     
     def __init__(self, **kwargs):
         super().__init__(
-            name='python',
-            lang='python',
+            name='julia',
+            lang='julia',
             unary_ops=unary_ops,
             binary_ops=binary_ops,
             ternary_ops=ternary_ops,
-            nary_ops=nary_ops,
             time_unit='ms',
             **kwargs
         )
@@ -42,8 +44,6 @@ class PythonRunner(Runner):
             sample = self.cache.get_sample(core.key, self.seed)
             input_points, _ = sample
             with open(driver_path, 'w') as f:
-                print('import math', file=f)
-                print('import time', file=f)
                 print(f'{core.compiled}', file=f)
 
                 spoints = []
@@ -59,20 +59,27 @@ class PythonRunner(Runner):
                     print(',\n'.join(spoints), file=f)
                     print(']', file=f)
 
-                arg_str = ', '.join(map(lambda i: f'x{i}[j]', range(core.argc)))
-                print('if __name__ == "__main__":', file=f)
-                print(f'\ti = 0', file=f)
-                print(f'\tstart = time.time_ns()', file=f)
-                print(f'\twhile i < {self.num_inputs}:', file=f)
-                print(f'\t\ttry:', file=f)
-                print(f'\t\t\tfor j in range(i, {self.num_inputs}):', file=f)
-                print(f'\t\t\t\tfoo({arg_str})', file=f)
-                print(f'\t\t\t\ti += 1', file=f)
-                print(f'\t\texcept:', file=f)
-                print(f'\t\t\ti += 1', file=f)
-                print(f'\tend = time.time_ns()', file=f)
-                print(f'\tdiff = (10 ** -6) * (end - start)', file=f)
-                print(f'\tprint(f\'{{diff}} ms\')', file=f)
+                arg_str = ', '.join(map(lambda i: f'x{i}[i]', range(core.argc)))
+                arg0_str = ', '.join(map(lambda i: f'x{i}[1]', range(core.argc)))
+                
+                print(f'function main()', file=f)
+                print(f'\tv = 0', file=f)
+                print(f'\tt0 = time_ns()', file=f)
+                print(f'\tfor i = 1:{self.num_inputs}', file=f)
+                print(f'\t\ttry', file=f)
+                print(f'\t\t\tv = foo({arg_str})', file=f)
+                print('\t\tcatch', file=f)
+                print('\t\tend', file=f)
+                print('\tend', file=f)
+                print('\tt1 = time_ns()', file=f)
+                print('\tprintln(t1 - t0)', file=f)
+                print('end', file=f)
+
+                print(f'try', file=f)
+                print(f'\tfoo({arg0_str})', file=f) # pre-compile
+                print(f'catch', file=f)
+                print(f'end', file=f)
+                print('main()', file=f)
 
         self.log(f'created drivers')
     
@@ -85,14 +92,14 @@ class PythonRunner(Runner):
         for i, driver_dir in enumerate(driver_dirs):
             log_prefix = f'[{i}/{len(driver_dirs)}] '
             print(log_prefix, end='', flush=True)
+
             for _ in range(self.num_runs):
                 driver_path = Path(os.path.join(driver_dir, driver_name))
-                output = run_subprocess([target, driver_path], capture_stdout=True)
-                time = re.match(time_pat, output)
-                if time is None:
-                    self.log("bad core: "+str(cores[i]))
-                    raise RuntimeError('Unexpected error when running {out_path}: {output}')
-                times[i].append(float(time.group(1)))
+                p = Popen([target] + target_flags + ['--', driver_path], stdout=PIPE)
+                stdout, _ = p.communicate()
+                output = stdout.decode('utf-8').strip()
+                time_ns = float(output)
+                times[i].append(time_ns / 1e6)
                 print('.', end='', flush=True)
 
             # Reset terminal
