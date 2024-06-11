@@ -210,6 +210,12 @@
                                            (vector-ref vstart-precs (- n varc)))
                                         (*base-tuning-precision*)))
 
+    #;(printf "op=~a, prec=~a, exps-from-above=~a, new-exponents=~a\n"
+              (object-name op)
+              final-parent-precision
+              exps-from-above
+              new-exponents)
+
     ; This case is weird. if we have a cancellation in fma -> ival-mult in fma should be in higher precision
     (when (equal? op ival-fma)
       (set! final-parent-precision (+ final-parent-precision (first new-exponents))))
@@ -222,8 +228,9 @@
           [new-exp (in-list new-exponents)]
           #:when (>= x varc)) ; when tail register is not a variable
       ; check whether this op already has a precision that is higher
-      (when (> (+ exps-from-above new-exp) (vector-ref vprecs-new (- x varc)))
-        (vector-set! vprecs-new (- x varc) (+ exps-from-above new-exp))))))
+      (when (or (> (+ exps-from-above new-exp) (vector-ref vprecs-new (- x varc))))
+        (vector-set! vprecs-new (- x varc) (+ exps-from-above new-exp)))))
+  #;(printf "\n"))
 
 (define (ival-max-log2-approx x)
   (max (log2-approx (ival-hi x)) (log2-approx (ival-lo x))))

@@ -133,6 +133,9 @@
          (values 'exit precision #f)]
         [else
          (loop precision*)])))
+  #;(when (and (equal? 1 rival-final-iter) (equal? final-prec 512))
+    (println "--------------")
+    (sleep 5))
   (timeline-push!/unsafe 'outcomes (- (current-inexact-milliseconds) start)
                          rival-final-iter (format "~a-baseline" status) 1)
   (values status final-prec value))
