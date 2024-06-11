@@ -13,7 +13,6 @@ from .numpy import NumpyRunner
 from .vdt import VdtRunner
 from .python import PythonRunner
 
-
 def make_runner(
     platform: str,
     working_dir: str,
@@ -46,6 +45,5 @@ def make_runner(
         return VdtRunner(**kwargs)
     elif platform == 'julia':
         return JuliaRunner(**kwargs)
-
     else:
         raise ValueError(f'Unsupported output platform: {platform}')

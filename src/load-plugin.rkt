@@ -12,6 +12,7 @@
 
 ;; Builtin platforms
 (define-runtime-module-path arith-platform "platforms/arith.rkt")
+(define-runtime-module-path arith-fma-platform "platforms/arith-fma.rkt")
 (define-runtime-module-path c-platform "platforms/libm.rkt")
 (define-runtime-module-path default-platform "platforms/default.rkt")
 (define-runtime-module-path math-platform "platforms/math.rkt")
@@ -32,6 +33,7 @@
   (dynamic-require fallback-plugin #f)
   ;; Load all platforms
   (dynamic-require arith-platform #f)
+  (dynamic-require arith-fma-platform #f)
   (dynamic-require c-platform #f)
   (dynamic-require default-platform #f)
   (dynamic-require math-platform #f)
@@ -41,7 +43,6 @@
   (dynamic-require numpy-platform #f)
   (dynamic-require vdt-platform #f)
   (dynamic-require julia-platform #f)
-
   ;; activate the default platform
   (*active-platform* (get-platform (*platform-name*)))
   (activate-platform! (*active-platform*)))

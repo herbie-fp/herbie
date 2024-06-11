@@ -69,6 +69,7 @@
 (define-operator-impl (cast binary32->binary64 binary32) binary64
   [fl identity])
 
+
 (define-operator-impl (recip recip.f32 binary32) binary32
   [fl (λ (x)
         (parameterize ([bf-precision 12])

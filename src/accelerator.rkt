@@ -123,6 +123,7 @@
       [(list op args ...) `(,op ,@(map loop args))]
       [expr expr])))
 
+
 (define-accelerator (expm1 real) real (lambda (x) (- (exp x) 1)))
 (define-accelerator (log1p real) real (lambda (x) (log (+ 1 x))))
 (define-accelerator (hypot real real) real (lambda (x y) (sqrt (+ (* x x) (* y y)))))

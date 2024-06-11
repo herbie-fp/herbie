@@ -86,10 +86,10 @@
 (define-libm erfc.f64 (erfc double double))
 (when erfc.f64
   (define-accelerator-impl erfc erfc.f64 (binary64) binary64 erfc.f64))
-
+      
 (define-accelerator (recip real) real (λ (x) (/ 1 x)))
 (define-accelerator (rsqrt real) real (λ (x) (/ 1 (sqrt x))))
-      
+
 (define-accelerator-impl fmsub fmsub.f64 (binary64 binary64 binary64) binary64)
 (define-accelerator-impl fnmadd fnmadd.f64 (binary64 binary64 binary64) binary64)
 (define-accelerator-impl fnmsub fnmsub.f64 (binary64 binary64 binary64) binary64)

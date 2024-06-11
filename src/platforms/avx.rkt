@@ -54,9 +54,7 @@
       [(real real real)
        (+ - * fmax fmin)]
       [(real real real real)
-       (fma fmsub fnmadd fnmsub
-        )
-       ]))))
+       (fma fmsub fnmadd fnmsub)]))))
 
 (define tunable-single-precision
   (with-terminal-cost ([binary32 move-cost])
