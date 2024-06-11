@@ -26,7 +26,8 @@ const startResponse = await fetch(startURL, {
   },
   body: URIencodedBody
 })
-const testResult = startResponse.status == (201 || 202)
+const testResult = (startResponse.status == 201) ||
+  (startResponse.status == 202)
 assert.equal(testResult, true)
 const path = startResponse.headers.get("location")
 
@@ -163,6 +164,6 @@ const jsonResults = await (await fetch(
   'http://127.0.0.1:8000/results.json',
   { method: 'GET' })).json()
 
-// Basic test that checks that there are the two result after the above test.
+// Basic test that checks that there are the two results after the above test.
 // TODO add a way to reset the results.json file?
 assert.equal(jsonResults.tests.length, 2)
