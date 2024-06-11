@@ -495,10 +495,11 @@
 
       (define test (parse-test formula))
       (define pcontext (json->pcontext sample (test-context test)))
-      (define command (list 'exacts formula seed pcontext))
-      (define job-id (compute-job-id command))
-      (run-work #:sync? #t command)
-      (define exacts (job-result-backend (hash-ref *completed-jobs* job-id)))
+      (define result (run-herbie 'exacts test #:seed seed #:pcontext pcontext
+                                 #:profile? #f #:timeline-disabled? #t))
+      (define exacts (job-result-backend result))
+
+      (eprintf " complete\n")
       (hasheq 'points exacts))))
 
 (define calculate-endpoint 
