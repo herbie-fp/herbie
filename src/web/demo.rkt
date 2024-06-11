@@ -270,6 +270,10 @@
     [(list 'errors formula seed* pcontext)
       (wrapper-run-herbie 
        (run-herbie-command 'errors formula seed* pcontext #f #t) 
+       job-id default-after)]
+    [(list 'exacts formula seed* pcontext)
+      (wrapper-run-herbie 
+       (run-herbie-command 'exacts formula seed* pcontext #f #t) 
        job-id default-after)])])
  (eprintf "Job ~a complete\n" job-id)
  (hash-remove! *jobs* job-id)
@@ -449,16 +453,15 @@
       (define sample (hash-ref post-data 'sample))
       (define seed (hash-ref post-data 'seed #f))
       (define pcontext (json->pcontext sample 
-       (test-context (parse-test formula))))           
-      (define job-id (compute-job-id (list 'errors formula seed pcontext)))
-      (run-work #t job-id (list 'errors formula seed pcontext))
+       (test-context (parse-test formula))))     
+      (define command (list 'errors formula seed pcontext))      
+      (define job-id (compute-job-id command))
+      (run-work #t job-id command)
       (define errs
         (for/list ([pt&err (job-result-backend (hash-ref *completed-jobs* job-id))])
           (define pt (first pt&err))
           (define err (second pt&err))
           (list pt (format-bits (ulps->bits err)))))
-
-      (eprintf " complete\n")
       (hasheq 'points errs))))
 
 ;; (await fetch('/api/exacts', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x) (- (sqrt (+ x 1))))", points: [[1, 1]]})})).json()
@@ -472,11 +475,10 @@
 
       (define test (parse-test formula))
       (define pcontext (json->pcontext sample (test-context test)))
-      (define result (run-herbie 'exacts test #:seed seed #:pcontext pcontext
-                                 #:profile? #f #:timeline-disabled? #t))
-      (define exacts (job-result-backend result))
-
-      (eprintf " complete\n")
+      (define command (list 'exacts formula seed pcontext))
+      (define job-id (compute-job-id command))
+      (run-work #t job-id command)
+      (define exacts (job-result-backend (hash-ref *completed-jobs* job-id)))
       (hasheq 'points exacts))))
 
 (define calculate-endpoint 
