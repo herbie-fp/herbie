@@ -102,4 +102,3 @@
 (define-accelerator-impl fmsub fmsub.f32 (binary32 binary32 binary32) binary32)
 (define-accelerator-impl fnmadd fnmadd.f32 (binary32 binary32 binary32) binary32)
 (define-accelerator-impl fnmsub fnmsub.f32 (binary32 binary32 binary32) binary32)
-

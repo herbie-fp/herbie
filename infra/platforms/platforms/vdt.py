@@ -16,7 +16,7 @@ ternary_ops = ['fma']
 # C lang
 target_lang = 'c'
 compiler = 'clang'
-c_flags = ['-I/home/jonasregehr/include','-O3','-ffp-contract=off']
+c_flags = ['-lvdt','-O3','-ffp-contract=off']
 ld_flags = ['-lm']
 driver_name = 'main.cpp'
 time_unit = 'ms'

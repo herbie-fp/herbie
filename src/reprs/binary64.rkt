@@ -3,9 +3,7 @@
 ;; Builtin double-precision plugin (:precision binary64)
 
 (require math/flonum
-         math/bigfloat
-         fpbench
-         ffi/unsafe)
+         math/bigfloat)
 
 (require "runtime/utils.rkt"
          "runtime/libm.rkt")
@@ -92,15 +90,9 @@
 (define-accelerator (recip real) real (λ (x) (/ 1 x)))
 (define-accelerator (rsqrt real) real (λ (x) (/ 1 (sqrt x))))
       
-(define-accelerator (fmsub real real real) real (lambda (x y z) (- (* x y) z)))
-(define-accelerator (fnmadd real real real) real (lambda (x y z) (+ (neg (* x y)) z)))
-(define-accelerator (fnmsub real real real) real (lambda (x y z) (- (neg (* x y)) z)))
-
 (define-accelerator-impl fmsub fmsub.f64 (binary64 binary64 binary64) binary64)
 (define-accelerator-impl fnmadd fnmadd.f64 (binary64 binary64 binary64) binary64)
 (define-accelerator-impl fnmsub fnmsub.f64 (binary64 binary64 binary64) binary64)
-
-(define-accelerator (vdt-exp real) real (lambda (x) (exp x)))
 
 (define-operator-impl (recip recip.f64 binary64) binary64
   [fl (λ (x)

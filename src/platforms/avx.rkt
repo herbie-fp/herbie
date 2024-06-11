@@ -35,7 +35,7 @@
 (define cost-model
   (cost-map
    [(* + -) 4]
-   [(fmsub fnmadd fnmsub fma recip rsqrt) 4]
+   [(fmsub fnmadd fnmsub fma) 4]
    [(fmax fmin) 4]
    [fabs 8] ;; cost for _mm256_set1_ps plus _mm256_andnot_ps
    [neg 11] ;; cost for _mm_sub_ps(_mm_set1_ps(0.0), v);
@@ -50,13 +50,11 @@
      (operator-set
       [(real real)
        (neg floor sqrt round ceil fabs
-            recip rsqrt
             )]
       [(real real real)
        (+ - * fmax fmin)]
       [(real real real real)
-       (fma
-        ;; fmsub fnmadd fnmsub
+       (fma fmsub fnmadd fnmsub
         )
        ]))))
 
