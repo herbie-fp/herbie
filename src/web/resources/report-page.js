@@ -153,7 +153,7 @@ function plotPareto(jsonData) {
 // ------ Global State Start ----------
 // -------------------------------------------------
 
-const renames = {
+const filterNames = {
     "imp-start": "Improved start",
     "apx-start": "Approximate start",
     "uni-start": "Regressed from start",
@@ -168,31 +168,6 @@ const renames = {
     "timeout": "Timeout",
     "crash": "Crash",
 }
-
-// Flag for filtering if out diffs that are under the tolerance
-var hideDirtyEqual = true
-
-const radioStates = {
-    output: { title: "Output Expression", tolerance: false, },
-    startAcc: { title: "Input Accuracy", tolerance: "%", },
-    endAcc: { title: "Output Accuracy", tolerance: "%", },
-    targetAcc: { title: "Target Accuracy", tolerance: "%", },
-    time: { title: "Running Time", tolerance: "s", },
-}
-let radioState = null;
-var filterTolerance = 1
-
-var filterDetailsState = false
-
-var topLevelState = {
-    "improved": true,
-    "unchanged": true,
-    "regressed": true,
-}
-
-var selectedBenchmarkIndex = -1
-var benchMarks = []
-
 var filterState = {
     "imp-start": true,
     "ex-start": true,
@@ -208,7 +183,45 @@ var filterState = {
     "crash": true,
     "error": true,
 }
-var hideShowCompareDetails = false
+
+const filterGroups = {
+    improved: [
+        "ex-start", "eq-start", "eq-target",
+        "imp-start", "gt-target", "gt-start",
+    ],
+    unchanged: [
+        "lt-target", "apx-start", "error",
+    ],
+    regressed: [
+        "uni-start", "lt-start", "timeout", "crash",
+    ],
+}
+var filterGroupState = {
+    "improved": true,
+    "unchanged": true,
+    "regressed": true,
+}
+
+const radioStates = {
+    output: { title: "Output Expression", tolerance: false, },
+    startAcc: { title: "Input Accuracy", tolerance: "%", },
+    endAcc: { title: "Output Accuracy", tolerance: "%", },
+    targetAcc: { title: "Target Accuracy", tolerance: "%", },
+    time: { title: "Running Time", tolerance: "s", },
+}
+let radioState = null;
+
+// Controlling the diff process
+var filterTolerance = 1;
+var hideDirtyEqual = true
+
+// Collapsable <details> elements
+var showFilterDetails = false;
+var showCompareDetails = false;
+
+
+var selectedBenchmarkIndex = -1
+var benchMarks = []
 
 var sortState = {
     key: "test",
@@ -607,7 +620,7 @@ function buildControls(jsonData, diffCount) {
 
     const toleranceInputField = showTolerance(jsonData)
 
-    var summary = Element("details", { open: hideShowCompareDetails }, [
+    var summary = Element("details", { open: showCompareDetails }, [
         Element("summary", {}, [
             Element("h2", {}, ["Diff"]),
             toleranceInputField,
@@ -618,7 +631,7 @@ function buildControls(jsonData, diffCount) {
     ])
 
     summary.addEventListener("toggle", (e) => {
-        hideShowCompareDetails = summary.open;
+        showCompareDetails = summary.open;
     });
 
     return Element("div", { classList: "report-details" }, [
@@ -629,11 +642,11 @@ function buildControls(jsonData, diffCount) {
 }
 
 function buildFilterGroup(jsonData, name, childStateNames) {
-    let title = name[0].toUpperCase() + name.slice(1);
-    let label = buildCheckboxLabel(name, title, topLevelState[name]);
+    let subFilters = filterGroups[name];
+    let label = buildCheckboxLabel(name, toTitleCase(name), filterGroupState[name]);
     label.addEventListener("click", (e) => {
-        topLevelState[name] = e.target.checked;
-        for (let filterName of childStateNames) {
+        filterGroupState[name] = e.target.checked;
+        for (let filterName of subFilters) {
             filterState[filterName] = e.target.checked;
         }
         update(jsonData);
@@ -651,7 +664,7 @@ function buildFiltersElement(jsonData) {
 
     var filterButtons = []
     for (let f in filterState) {
-        const name = `${renames[f]} (${testTypeCounts[f] ? testTypeCounts[f] : "0"})`
+        const name = `${filterNames[f]} (${testTypeCounts[f] ? testTypeCounts[f] : "0"})`
         const button = buildCheckboxLabel(f + " sub-filter", name, filterState[f])
         button.addEventListener("click", () => {
             filterState[f] = button.querySelector("input").checked
@@ -693,27 +706,20 @@ function buildFiltersElement(jsonData) {
         update(resultsJsonData)
     })
 
-    let improvedButton = buildFilterGroup(jsonData, "improved", [
-        "ex-start", "eq-start", "eq-target",
-        "imp-start", "gt-target", "gt-start",
-    ]);
-    let unchangedButton = buildFilterGroup(jsonData, "unchanged", [
-        "lt-target", "apx-start", "error",
-    ]);
-    let regressedButton = buildFilterGroup(jsonData, "regressed", [
-        "uni-start", "lt-start", "timeout", "crash",
-    ]);
+    let groupButtons = [];
+    for (let i in filterGroupState) {
+        groupButtons.push(buildFilterGroup(jsonData, i));
+    }
 
-    const filters = Element("details", { id: "filters", open: filterDetailsState }, [
+    const filters = Element("details", { id: "filters", open: showFilterDetails }, [
         Element("summary", {}, [
             Element("h2", {}, "Filters"),
-            improvedButton, unchangedButton, regressedButton,
-            " ", dropDown,
+            groupButtons, " ", dropDown,
         ]),
         filterButtons,
     ]);
     filters.addEventListener("toggle", (e) => {
-        filterDetailsState = filters.open;
+        showFilterDetails = filters.open;
     });
     return filters;
 }
