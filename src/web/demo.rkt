@@ -255,9 +255,9 @@
  (define path (format "~a.~a" job-id *herbie-commit*))
  (cond ;; Check caches if job as already been completed
   [(hash-has-key? *completed-jobs* job-id)
-  (semaphore-post sema)]
+   (semaphore-post sema)]
   [(and (*demo-output*) (directory-exists? (build-path (*demo-output*) path)))
-  (semaphore-post sema)]
+   (semaphore-post sema)]
   [else (wrapper-run-herbie (work-job job-info) job-id (work-after job-info))])
  (eprintf "Job ~a complete\n" job-id)
  (hash-remove! *jobs* job-id)
@@ -267,11 +267,12 @@
 (struct work (id job sema after))
 
 ; Encapsulates semaphores and async part of jobs.
-(define (run-work sync-job job-id job after)
+(define (run-work #:sync? [sync-job? #f] job after)
+ (define job-id (compute-job-id job))
  (hash-set! *jobs* job-id (*timeline*))
  (define sema (make-semaphore))
   (thread-send *worker-thread* (work job-id job sema after))
-  (when sync-job
+  (when sync-job?
    (semaphore-wait sema)))
 
 (define (print-job-message command job-id job-str)
@@ -372,7 +373,7 @@
    req
    (λ (job-id command formula)
      (unless (already-computed? job-id formula)
-       (run-work #f job-id command after-improve))
+      (run-work #:sync? #f command after-improve))
      (response/full 201 #"Job started" (current-seconds) #"text/plain"
                     (list (header #"Location" (string->bytes/utf-8 (url check-status job-id)))
                           (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
@@ -410,7 +411,7 @@
    req
    (λ (job-id command formula)
      (unless (already-computed? job-id formula)
-      (run-work #t job-id command default-after))
+      (run-work #:sync? #t command after-improve))
      (redirect-to (add-prefix (format "~a.~a/graph.html" job-id *herbie-commit*)) see-other))
    (url main)))
 
@@ -433,7 +434,7 @@
 
 (define (process-command command post-processing)
   (define job-id (compute-job-id command))
-  (run-work #t job-id command default-after)
+  (run-work #:sync? #t command default-after)
   (post-processing (hash-ref *completed-jobs* job-id)))
 
 (define analyze-endpoint
