@@ -239,16 +239,16 @@ function showTolerance(jsonData, show) {
     const urlInput = Element("input", {
         id: "compare-input", value: compareAgainstURL,
         placeholder: "URL to other json file"
-    }, [])
+    }, []);
 
     var unitText = radioStates[radioState]?.tolerance;
-    const submitButton = Element("button", "Update")
+
+    const submitButton = Element("button", "Compute Diff")
     submitButton.addEventListener("click", async (e) => {
         e.preventDefault();
         compareAgainstURL = urlInput.value;
-        filterTolerance = toleranceInputField.value;
         radioState = radioState ?? "endAcc";
-        update(jsonData)
+        fetchAndUpdate(jsonData);
     });
 
     if (unitText) {
@@ -256,6 +256,10 @@ function showTolerance(jsonData, show) {
             id: `toleranceID`, value: filterTolerance,
             size: 10, style: "text-align:right;",
         }, []);
+        toleranceInputField.addEventListener("keydown", (e) => {
+            filterTolerance = toleranceInputField.value;
+            update();
+        });
         return [urlInput, " Hiding: ±", toleranceInputfield, unitText, " ", submitButton];
     } else {
         return [urlInput, " ", submitButton];
@@ -612,13 +616,10 @@ function buildControls(jsonData, diffCount) {
             buildCompareForm(jsonData),
         ]),
     ])
-    // GRR this events are annoying
-    summary.addEventListener("click", async (e) => {
-        if (e.target.nodeName == "SUMMARY") {
-            hideShowCompareDetails = !hideShowCompareDetails
-            await fetchAndUpdate(jsonData, compareAgainstURL)
-        }
-    })
+
+    summary.addEventListener("toggle", (e) => {
+        hideShowCompareDetails = summary.open;
+    });
 
     return Element("div", { classList: "report-details" }, [
         displayingDiv,
