@@ -186,8 +186,8 @@ var filterDetailsState = false
 
 var topLevelState = {
     "improved": true,
+    "unchanged": true,
     "regressed": true,
-    "pre-processed": false
 }
 
 var selectedBenchmarkIndex = -1
@@ -678,45 +678,42 @@ function buildFiltersElement(jsonData) {
         update(resultsJsonData)
     })
 
-    function setupGroup(name, childStateNames, parent) {
-        parent.addEventListener("click", (e) => {
-            if (e.target.nodeName == "INPUT") {
-                topLevelState[name] = e.target.checked
-                for (let i in childStateNames) {
-                    filterState[childStateNames[i]] = e.target.checked
-                }
-                update(jsonData)
+    function setupGroup(name, childStateNames) {
+        let title = name[0].toUpperCase() + name.slice(1);
+        let label = buildCheckboxLabel(name, title, topLevelState[name]);
+        label.addEventListener("click", (e) => {
+            topLevelState[name] = e.target.checked;
+            for (let i in childStateNames) {
+                filterState[childStateNames[i]] = e.target.checked;
             }
-        })
+            update(jsonData);
+        });
+        return label;
     }
 
-    const regressedTags = ["uni-start", "lt-target", "lt-start",
-        "apx-start", "timeout", "crash", "error"]
-    const improvedTags = ["imp-start", "ex-start", "eq-start", "eq-target",
-        "gt-target", "gt-start"]
-
-    const improvedButton = buildCheckboxLabel("improved", "Improved", topLevelState["improved"])
-    const regressedButton = buildCheckboxLabel("regressed", "Regressed", topLevelState["regressed"])
-
-    setupGroup("improved", improvedTags, improvedButton)
-    setupGroup("regressed", regressedTags, regressedButton)
-
-    const preProcessed = buildCheckboxLabel("pre-processed", "PreProcessed", topLevelState["pre-processed"])
-    preProcessed.addEventListener("click", (e) => {
-        topLevelState["pre-processed"] = !topLevelState["pre-processed"]
-        update(jsonData)
-    })
+    let improvedButton = setupGroup("improved", [
+        "ex-start", "eq-start", "eq-target",
+        "imp-start", "gt-target", "gt-start",
+    ]);
+    let unchangedButton = setupGroup("unchanged", [
+        "lt-target", "apx-start", "error",
+    ]);
+    let regressedButton = setupGroup("regressed", [
+        "uni-start", "lt-start", "timeout", "crash",
+    ]);
 
     const filters = Element("details", { id: "filters", open: filterDetailsState }, [
         Element("summary", {}, [
-            Element("h2", {}, "Filters"), improvedButton, regressedButton, preProcessed, dropDown]), [
-            filterButtons]])
-    filters.addEventListener("click", (e) => {
-        if (e.target.nodeName == "SUMMARY") {
-            filterDetailsState = !filterDetailsState
-        }
-    })
-    return filters
+            Element("h2", {}, "Filters"),
+            improvedButton, unchangedButton, regressedButton,
+            dropDown
+        ]),
+        filterButtons,
+    ]);
+    filters.addEventListener("toggle", (e) => {
+        filterDetailsState = filters.open;
+    });
+    return filters;
 }
 
 function eitherOr(baselineRow, diffRow, singleFunction, pairFunctions) {
@@ -737,92 +734,74 @@ function update(jsonData, otherJsonData) {
     bodyNode = newBody
 }
 
-function filterPreProcess(baseData) {
-    if (topLevelState["pre-processed"]) {
-        if (baseData.preprocess.length > 2) {
-            return true
-        } else {
-            return false
-        }
-    } else {
-        return true
-    }
-}
-
 function makeFilterFunction() {
     return function filterFunction(baseData, diffData) {
         var returnValue = true
 
-        eitherOr(baseData, diffData,
-            (function () {
-                returnValue = returnValue && filterPreProcess(baseData)
-            }),
-            (function () {
-                returnValue = returnValue && filterPreProcess(baseData)
-                // Section to hide diffs that are below the provided tolerance
-                if (hideDirtyEqual) {
-                    // Diff Start Accuracy
-                    if (radioState == "output") {
-                        if (baseData.output != diffData.output) {
-                            returnValue = returnValue && false;
-                        }
-                        const t = baseData.start / baseData.bits
-                        const o = diffData.start / diffData.bits
-                        const op = calculatePercent(o)
-                        const tp = calculatePercent(t)
-                        var diff = op - tp
-                        if (Math.abs((diff).toFixed(1)) <= filterTolerance) {
-                            returnValue = returnValue && false;
-                        }
-                    }
-                    // Diff Start Accuracy
-                    if (radioState == "startAccuracy") {
-                        const t = baseData.start / baseData.bits
-                        const o = diffData.start / diffData.bits
-                        const op = calculatePercent(o)
-                        const tp = calculatePercent(t)
-                        var diff = op - tp
-                        if (Math.abs((diff).toFixed(1)) <= filterTolerance) {
-                            returnValue = returnValue && false
-                        }
-                    }
-
-                    // Diff Result Accuracy
-                    if (radioState == "resultAccuracy") {
-                        const t = baseData.end / baseData.bits
-                        const o = diffData.end / diffData.bits
-                        const op = calculatePercent(o)
-                        const tp = calculatePercent(t)
-                        var diff = op - tp
-                        if (Math.abs((diff).toFixed(1)) <= filterTolerance) {
-                            returnValue = returnValue && false
-                        }
-                    }
-
-                    // Diff Target Accuracy
-                    if (radioState == "targetAccuracy") {
-                        var smallestBase = getMinimum(baseData.target)
-                        var smallestDiff = getMinimum(diffData.target)
-
-                        const t = smallestBase / baseData.bits
-                        const o = smallestDiff / diffData.bits
-                        const op = calculatePercent(o)
-                        const tp = calculatePercent(t)
-                        var diff = op - tp
-                        if (Math.abs((diff).toFixed(1)) <= filterTolerance) {
-                            returnValue = returnValue && false
-                        }
-                    }
-
-                    // Diff Time
-                    if (radioState == "time") {
-                        var timeDiff = baseData.time - diffData.time
-                        if (Math.abs(timeDiff) < (filterTolerance * 1000)) {
-                            returnValue = returnValue && false
-                        }
-                    }
+        // Section to hide diffs that are below the provided tolerance
+        if (hideDirtyEqual) {
+            // Diff Start Accuracy
+            if (radioState == "output") {
+                if (baseData.output != diffData.output) {
+                    returnValue = returnValue && false;
                 }
-            }))
+                const t = baseData.start / baseData.bits
+                const o = diffData.start / diffData.bits
+                const op = calculatePercent(o)
+                const tp = calculatePercent(t)
+                var diff = op - tp
+                if (Math.abs((diff).toFixed(1)) <= filterTolerance) {
+                    returnValue = returnValue && false;
+                }
+            }
+            // Diff Start Accuracy
+            if (radioState == "startAcc") {
+                const t = baseData.start / baseData.bits
+                const o = diffData.start / diffData.bits
+                const op = calculatePercent(o)
+                const tp = calculatePercent(t)
+                var diff = op - tp
+                if (Math.abs((diff).toFixed(1)) <= filterTolerance) {
+                    returnValue = returnValue && false
+                }
+            }
+            
+            // Diff Result Accuracy
+            if (radioState == "endAcc") {
+                const t = baseData.end / baseData.bits
+                const o = diffData.end / diffData.bits
+                const op = calculatePercent(o)
+                const tp = calculatePercent(t)
+                var diff = op - tp
+                if (Math.abs((diff).toFixed(1)) <= filterTolerance) {
+                    returnValue = returnValue && false
+                }
+            }
+
+            // Diff Target Accuracy
+            if (radioState == "targetAcc") {
+                var smallestBase = getMinimum(baseData.target)
+                var smallestDiff = getMinimum(diffData.target)
+                
+                const t = smallestBase / baseData.bits
+                const o = smallestDiff / diffData.bits
+                const op = calculatePercent(o)
+                const tp = calculatePercent(t)
+                var diff = op - tp
+                if (Math.abs((diff).toFixed(1)) <= filterTolerance) {
+                    returnValue = returnValue && false
+                }
+            }
+
+            // Diff Time
+            if (radioState == "time") {
+                var timeDiff = baseData.time - diffData.time
+                if (Math.abs(timeDiff) < (filterTolerance * 1000)) {
+                    returnValue = returnValue && false
+                }
+            }
+        }
+
         const linkComponents = baseData.link.split("/")
         // guard statement
         if (selectedBenchmarkIndex != -1 && linkComponents.length > 1) {
