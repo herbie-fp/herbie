@@ -628,6 +628,19 @@ function buildControls(jsonData, diffCount) {
     ])
 }
 
+function buildFilterGroup(jsonData, name, childStateNames) {
+    let title = name[0].toUpperCase() + name.slice(1);
+    let label = buildCheckboxLabel(name, title, topLevelState[name]);
+    label.addEventListener("click", (e) => {
+        topLevelState[name] = e.target.checked;
+        for (let filterName of childStateNames) {
+            filterState[filterName] = e.target.checked;
+        }
+        update(jsonData);
+    });
+    return label;
+}
+
 function buildFiltersElement(jsonData) {
     var testTypeCounts = {}
     for (let test of jsonData.tests) {
@@ -680,27 +693,14 @@ function buildFiltersElement(jsonData) {
         update(resultsJsonData)
     })
 
-    function setupGroup(name, childStateNames) {
-        let title = name[0].toUpperCase() + name.slice(1);
-        let label = buildCheckboxLabel(name, title, topLevelState[name]);
-        label.addEventListener("click", (e) => {
-            topLevelState[name] = e.target.checked;
-            for (let i in childStateNames) {
-                filterState[childStateNames[i]] = e.target.checked;
-            }
-            update(jsonData);
-        });
-        return label;
-    }
-
-    let improvedButton = setupGroup("improved", [
+    let improvedButton = buildFilterGroup(jsonData, "improved", [
         "ex-start", "eq-start", "eq-target",
         "imp-start", "gt-target", "gt-start",
     ]);
-    let unchangedButton = setupGroup("unchanged", [
+    let unchangedButton = buildFilterGroup(jsonData, "unchanged", [
         "lt-target", "apx-start", "error",
     ]);
-    let regressedButton = setupGroup("regressed", [
+    let regressedButton = buildFilterGroup(jsonData, "regressed", [
         "uni-start", "lt-start", "timeout", "crash",
     ]);
 
