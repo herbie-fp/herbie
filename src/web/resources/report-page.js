@@ -235,10 +235,11 @@ var sortState = {
 function buildCheckboxLabel(classes, text, boolState) {
     return Element("label", { classList: classes }, [
         Element("input", { type: "checkbox", checked: boolState }, []),
-        text])
+        text,
+    ]);
 }
 
-function showTolerance(jsonData, show) {
+function buildDiffLine(jsonData, show) {
     const urlInput = Element("input", {
         id: "compare-input", value: compareAgainstURL,
         placeholder: "URL to other json file"
@@ -599,40 +600,36 @@ function buildRow(test, other) {
     return row
 }
 
-function buildControls(jsonData, diffCount) {
-    const showing = diffCount
-    const outOf = jsonData.tests.length
-    // TODO if branches, or seeds are different
-    let resultsDate = new Date(resultsJsonData.date * 1000)
-    const resultDayString = `${resultsDate.getFullYear()}/${resultsDate.getMonth() + 1}/${resultsDate.getDay()}`
-    let branchName = `${resultsJsonData.branch}`
-    var displayingDiv = Element("div", {}, [
-        `Displaying ${showing}/${outOf} benchmarks `,
-        `on `, Element("code", {}, branchName),
-        otherJsonData && [
-            `, compared with baseline `, Element("code", {}, otherJsonData.branch),
-        ]])
-
-    const toleranceInputField = showTolerance(jsonData)
-
+function buildDiffControls(jsonData) {
     var summary = Element("details", { open: showCompareDetails }, [
         Element("summary", {}, [
             Element("h2", {}, ["Diff"]),
-            toleranceInputField,
+            buildDiffLine(jsonData),
         ]),
-        Element("div", {}, [
-            buildCompareForm(jsonData),
-        ]),
+        buildCompareForm(jsonData),
     ])
 
     summary.addEventListener("toggle", (e) => {
         showCompareDetails = summary.open;
     });
 
+    return summary;
+}
+
+function buildControls(jsonData, diffCount) {
+    const showing = diffCount + "/" + jsonData.tests.length;
+    var displayingDiv = Element("div", [
+        "Displaying " + showing + " benchmarks",
+        " on ", Element("code", resultsJsonData.branch),
+        otherJsonData && [
+            ", compared with baseline ", Element("code", otherJsonData.branch),
+        ],
+    ])
+
     return Element("div", { classList: "report-details" }, [
         displayingDiv,
-        summary,
-        buildFiltersElement(jsonData)
+        buildDiffControls(jsonData),
+        buildFilterControls(jsonData),
     ])
 }
 
@@ -649,7 +646,7 @@ function buildFilterGroup(jsonData, name, childStateNames) {
     return label;
 }
 
-function buildFiltersElement(jsonData) {
+function buildFilterControls(jsonData) {
     var testTypeCounts = {}
     for (let test of jsonData.tests) {
         testTypeCounts[test.status] == null ?
