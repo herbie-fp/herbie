@@ -250,25 +250,24 @@
 (define (default-after result job-id seed) empty)
 
 (define (run-job job-info)
- (define sema (work-sema job-info))
- (define job-id (work-id job-info))
- (define path (format "~a.~a" job-id *herbie-commit*))
+ (match-define (work id info sema) job-info)
+ (define path (format "~a.~a" id *herbie-commit*))
  (cond ;; Check caches if job as already been completed
-  [(hash-has-key? *completed-jobs* job-id)
+  [(hash-has-key? *completed-jobs* id)
    (semaphore-post sema)]
   [(and (*demo-output*) (directory-exists? (build-path (*demo-output*) path)))
    (semaphore-post sema)]
-  [else (match (work-info job-info)
+  [else (match info
    [(list 'improve formula)
     (wrapper-run-herbie 
      (run-herbie-command 'improve formula (get-seed) #f #f #f) 
-      job-id after-improve)]
+      id after-improve)]
     [(list 'sample formula seed*)
      (wrapper-run-herbie 
       (run-herbie-command 'sample formula seed* #f #f #t) 
-       job-id default-after)])])
- (eprintf "Job ~a complete\n" job-id)
- (hash-remove! *jobs* job-id)
+       id default-after)])])
+ (eprintf "Job ~a complete\n" id)
+ (hash-remove! *jobs* id)
  (semaphore-post sema))
 
 ; Handles semaphore and async part of a job
