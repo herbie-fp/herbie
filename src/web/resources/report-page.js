@@ -172,17 +172,14 @@ const renames = {
 // Flag for filtering if out diffs that are under the tolerance
 var hideDirtyEqual = true
 
-// State for Forum radio buttons
-// Why no some Types :(
-// null | 'output' | 'startAccuracy' | 'resultAccuracy' | 'targetAccuracy' | 'time'
+const radioStates = {
+    output: { title: "Output Expression", tolerance: false, },
+    startAcc: { title: "Input Accuracy", tolerance: "%", },
+    endAcc: { title: "Output Accuracy", tolerance: "%", },
+    targetAcc: { title: "Target Accuracy", tolerance: "%", },
+    time: { title: "Running Time", tolerance: "s", },
+}
 let radioState = null;
-const radioStates = [
-    "output",
-    "startAccuracy",
-    "resultAccuracy",
-    "targetAccuracy",
-    "time"
-]
 var filterTolerance = 1
 
 var filterDetailsState = false
@@ -239,62 +236,59 @@ function buildCheckboxLabel(classes, text, boolState) {
 }
 
 function showTolerance(jsonData, show) {
-    const toleranceInputField = Element("input", {
-        id: `toleranceID`, value: filterTolerance, size: 10, style: "text-align:right;",
+    const urlInput = Element("input", {
+        id: "compare-input", value: compareAgainstURL,
+        placeholder: "URL to other json file"
     }, [])
-    const hidingText = Element("text", {}, [" Hiding: ±"])
 
-    var unitText
-    if (radioState == "time") {
-        unitText = Element("text", {}, ["s"])
-    } else {
-        unitText = Element("text", {}, ["%"])
-    }
-    const submitButton = Element("input", { type: "submit", value: "Update" }, [])
+    var unitText = radioStates[radioState]?.tolerance;
+    const submitButton = Element("button", "Update")
     submitButton.addEventListener("click", async (e) => {
         e.preventDefault();
-        compareAgainstURL = e.target.parentNode.querySelector("#compare-input").value
-        filterTolerance = toleranceInputField.value
-        radioState = "resultAccuracy";
-        fetchAndUpdate(jsonData)
-    })
-    toleranceInputField.style.display = show ? "inline" : "none"
-    hidingText.style.display = show ? "inline" : "none"
-    unitText.style.display = show ? "inline" : "none"
-    return [hidingText, toleranceInputField, unitText, submitButton]
-}
+        compareAgainstURL = urlInput.value;
+        filterTolerance = toleranceInputField.value;
+        radioState = radioState ?? "endAcc";
+        update(jsonData)
+    });
 
-function buildRadioLabel(jsonData, title, state, name) {
-    const output = Element("input", {
-        name: name, id: "compare-" + state, type: "radio",
-        checked: radioState == state,
-    }, []);
-    output.addEventListener("click", async (e) => {
-        radioState = state;
-        await fetchAndUpdate(jsonData);
-    })
-    return Element("label", [output, title]);
+    if (unitText) {
+        const toleranceInputField = Element("input", {
+            id: `toleranceID`, value: filterTolerance,
+            size: 10, style: "text-align:right;",
+        }, []);
+        return [urlInput, " Hiding: ±", toleranceInputfield, unitText, " ", submitButton];
+    } else {
+        return [urlInput, " ", submitButton];
+    }
 }
 
 function buildCompareForm(jsonData) {
-
     const formName = "compare-form"
 
-    const output = buildRadioLabel(jsonData, "Output", "output", formName);
-    const startAccuracy = buildRadioLabel(jsonData, "Start Accuracy", "startAccuracy", formName);
-    const resultAccuracy = buildRadioLabel(jsonData, "Result Accuracy", "resultAccuracy", formName);
-    const targetAccuracy = buildRadioLabel(jsonData, "Target Accuracy", "targetAccuracy", formName);
-    const time = buildRadioLabel(jsonData, "Time", "time", formName);
+    let radioButtons = [];
+    for (let [i, stateInfo] of Object.entries(radioStates)) {
+        let stateInfo = radioStates[i]
+        let radioElt = Element("input", {
+            name: formName, id: "compare-" + i,
+            type: "radio",
+            checked: radioState == i,
+        }, []);
+        radioElt.addEventListener("click", (e) => {
+            radioState = i;
+            update(jsonData);
+        });
 
-    const showEqual = buildCheckboxLabel("show-equal", "show equal", !hideDirtyEqual)
-    showEqual.addEventListener("click", (e) => {
+        let labelElt = Element("label", [radioElt, stateInfo.title]);
+        radioButtons.push(labelElt);
+    }
+
+    const hideEqual = buildCheckboxLabel("hide-equal", "Hide equal", hideDirtyEqual)
+    hideEqual.addEventListener("click", (e) => {
         hideDirtyEqual = !hideDirtyEqual
         update(jsonData)
     })
 
-    const form = Element("form", {},
-        [output, startAccuracy, resultAccuracy, targetAccuracy, time, " ", showEqual]);
-    return form;
+    return Element("form", {}, [radioButtons, " ", hideEqual]);
 }
 
 function buildBody(jsonData, otherJsonData, filterFunction) {
@@ -538,9 +532,9 @@ function buildRow(test, other) {
             const targetAccuracy = targetAccuracyTD(test)
             const time = timeTD(test)
 
-            var tdStartAccuracy = radioState == "startAccuracy" ? startAccuracy.td : Element("td", {}, [formatAccuracy(test.start / test.bits)])
-            var tdResultAccuracy = radioState == "resultAccuracy" ? resultAccuracy.td : Element("td", {}, [formatAccuracy(test.end / test.bits)])
-            var tdTargetAccuracy = radioState == "targetAccuracy" ? targetAccuracy.td : Element("td", {}, [formatAccuracy(smallestTarget / test.bits)])
+            var tdStartAccuracy = radioState == "startAcc" ? startAccuracy.td : Element("td", {}, [formatAccuracy(test.start / test.bits)])
+            var tdResultAccuracy = radioState == "endAcc" ? resultAccuracy.td : Element("td", {}, [formatAccuracy(test.end / test.bits)])
+            var tdTargetAccuracy = radioState == "targetAcc" ? targetAccuracy.td : Element("td", {}, [formatAccuracy(smallestTarget / test.bits)])
             const tdTime = radioState == "time" ? time.td : Element("td", {}, [formatTime(test.time)])
 
             var testTile = ""
@@ -606,24 +600,11 @@ function buildControls(jsonData, diffCount) {
             `, compared with baseline `, Element("code", {}, otherJsonData.branch),
         ]])
 
-    const input = Element("input", {
-        id: "compare-input", value: compareAgainstURL,
-        placeholder: "URL to other json file"
-    }, [])
+    const toleranceInputField = showTolerance(jsonData)
 
-    var showToleranceBool = false
-    if (radioState == "time" ||
-        radioState == "targetAccuracy" ||
-        radioState == "resultAccuracy" ||
-        radioState == "startAccuracy") {
-        showToleranceBool = true
-    }
-
-    const toleranceInputField = showTolerance(jsonData, showToleranceBool)
     var summary = Element("details", { open: hideShowCompareDetails }, [
         Element("summary", {}, [
             Element("h2", {}, ["Diff"]),
-            input,
             toleranceInputField,
         ]),
         Element("div", {}, [
@@ -659,7 +640,6 @@ function buildFiltersElement(jsonData) {
         const button = buildCheckboxLabel(f + " sub-filter", name, filterState[f])
         button.addEventListener("click", () => {
             filterState[f] = button.querySelector("input").checked
-            filterDetailsState = true
             update(resultsJsonData)
         })
         filterButtons.push(button)
