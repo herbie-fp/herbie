@@ -250,15 +250,14 @@
 (define (default-after result job-id seed) empty)
 
 (define (run-job job-info)
- (define sema (work-sema job-info))
- (define job-id (work-id job-info))
+ (match-define (work job-id info sema after) job-info)
  (define path (format "~a.~a" job-id *herbie-commit*))
  (cond ;; Check caches if job as already been completed
   [(hash-has-key? *completed-jobs* job-id)
    (semaphore-post sema)]
   [(and (*demo-output*) (directory-exists? (build-path (*demo-output*) path)))
    (semaphore-post sema)]
-  [else (wrapper-run-herbie (work-job job-info) job-id (work-after job-info))])
+  [else (wrapper-run-herbie info job-id after)])
  (eprintf "Job ~a complete\n" job-id)
  (hash-remove! *jobs* job-id)
  (semaphore-post sema))
