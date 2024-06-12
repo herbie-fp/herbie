@@ -162,39 +162,38 @@ def main():
     # prune and sample input cores
     default = runner.herbie_supported(cores=all_input_cores)
     samples = runner.herbie_sample(cores=default, py_sample=py_sample)
-    samples, default = prune_unsamplable(samples, input_cores)
+    samples, default = prune_unsamplable(samples, default)
     check_samples(samples, default) # sanity check!
     
     # optionally run clang comparison
     if platform == 'c':
-        runner.herbie_compile(cores=input_cores)
-        clang_results = clang_eval(runner, input_cores)
+        runner.herbie_compile(cores=default)
+        clang_results = clang_eval(runner, default)
     else:
         clang_results = None
 
     # run Herbie for output cores
-    cores = runner.herbie_improve(cores=input_cores, threads=herbie_threads, localize=True, old_cost=False)
+    cores = runner.herbie_improve(cores=default, threads=herbie_threads, localize=True, old_cost=False)
 
-    analyze_cores(runner, input_cores + cores)
-    run_cores(runner, input_cores, py_sample)
+    analyze_cores(runner, default + cores)
+    run_cores(runner, default, py_sample)
     driver_dirs = run_cores(runner, cores, py_sample)
 
     if ablation:
         ablation_cores = []
-        ablation_times = []
-        ablation_frontiers = []
+        ablation_dirs = []
         for ablation in ablation_map:
             localize, cost = ablation_map[ablation]
-
             # run Herbie improve and get associated sampled points
-            cores = runner.herbie_improve(cores=input_cores, threads=herbie_threads, localize=localize, old_cost=cost)
-            analyze_cores(runner, input_cores + cores)
-            run_cores(runner, input_cores, py_sample)
-            driver_dirs = run_cores(runner, cores, py_sample)
-            ablation_cores.append(cores)
+            temp = runner.herbie_improve(cores=default, threads=herbie_threads, localize=localize, old_cost=cost)
+            analyze_cores(runner, default + temp)
+            run_cores(runner, default, py_sample)
+            ablation_dir = run_cores(runner, temp, py_sample)
+            ablation_cores.append(temp)
+            ablation_dirs.append(ablation_dir)
 
         # publish results
-        runner.write_improve_report(all_input_cores, cores, driver_dirs, clang_results, ablation_cores)
+        runner.write_improve_report(all_input_cores, cores, driver_dirs, clang_results, ablation_cores, ablation_dirs)
     else:
         # publish results
         runner.write_improve_report(all_input_cores, cores, driver_dirs, clang_results)

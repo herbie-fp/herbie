@@ -505,13 +505,13 @@ class Runner(object):
         input_cores: List[FPCore],
         platform_cores: List[FPCore],
         driver_dirs: List[str],
+        extra,
         ablation_cores: List[List[FPCore]] = None,
-        extra
+        ablation_dirs: List[str] = None
     ) -> None:
         """Writes improve data to a JSON file."""
         # group platform cores by input [key]
         by_key = dict()
-        ablation_core_triples = zip(ablation_cores[0], ablation_cores[1], ablation_cores[2])
         if ablation_cores is None:
             for core, dir in zip(platform_cores, driver_dirs):
                 if core.key in by_key:
@@ -519,12 +519,15 @@ class Runner(object):
                 else:
                     by_key[core.key] = [(core, dir)]
         else:
-            for core, dir, triple in zip(platform_cores, driver_dirs, ablation_core_triples):
+            ablation_core_triples = zip(ablation_cores[0], ablation_cores[1], ablation_cores[2])
+            ablation_dir_triples = zip(ablation_dirs[0], ablation_dirs[1], ablation_dirs[2])
+            for core, dir, triple, dir_triple in zip(platform_cores, driver_dirs, ablation_core_triples, ablation_dir_triples):
                 nc, nl, ncl = triple
+                nc_dir, nl_dir, ncl_dir = dir_triple
                 if core.key in by_key:
-                    by_key[core.key].append((core, dir, [nc, nl, ncl]))
+                    by_key[core.key].append((core, dir, [nc, nl, ncl], [nc_dir, nl_dir, ncl_dir]))
                 else:
-                    by_key[core.key] = [(core, dir, [nc, nl, ncl])]
+                    by_key[core.key] = [(core, dir, [nc, nl, ncl], [nc_dir, nl_dir, ncl_dir])]
 
         # generate report fragments
         core_reports = []
@@ -540,11 +543,12 @@ class Runner(object):
                         'ablation-cores': []
                     })
             else:
-                for platform_core, dir, a_cores in output_cores:
+                for platform_core, dir, a_cores, a_dirs in output_cores:
                     platform_core_reports.append({
                         'platform_core': platform_core.to_json(),
                         'dir': str(dir),
                         'ablation-cores': list(map(lambda c: c.to_json(), a_cores)),
+                        'ablation-dirs': list(map(lambda d: str(d), a_dirs))
                     })
             
             core_reports.append({
