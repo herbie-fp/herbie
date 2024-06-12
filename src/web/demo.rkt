@@ -265,10 +265,10 @@
     [(list 'sample formula seed*)
      (wrapper-run-herbie 
       (run-herbie-command 'sample formula seed* #f #f #t) 
-       id default-after)])])
- (eprintf "Job ~a complete\n" id)
- (hash-remove! *jobs* id)
- (semaphore-post sema))
+       id default-after)])
+   (eprintf "Job ~a complete\n" id)
+   (hash-remove! *jobs* id)
+   (semaphore-post sema)]))
 
 ; Handles semaphore and async part of a job
 (struct work (id info sema))
