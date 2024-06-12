@@ -179,3 +179,8 @@ def shim_error2(
 
     # parse results
     return list(map(lambda r: float(r.strip()), results))
+
+def shim_expr(cores: List[FPCore], platform: str) -> List[str]:
+    cmds = list(map(lambda c: f'(expr {c.core})', cores))
+    results = run_server(cmds, platform=platform)
+    return list(map(lambda r: r.strip(), results))

@@ -163,6 +163,15 @@
            (for/list ([(_ gt) (in-pcontext pctx)] [inexact (in-list inexacts)])
              (point-error inexact gt repr))))
        (loop)]
+      ; expr <core>
+      [(list 'expr args ...)
+       (define core
+         (match args
+           [(list core) core]
+           [_ (error 'run-server "expr: malformed arguments ~a" args)]))
+       (define test (parse-test (datum->syntax #f core)))
+       (printf "~a\n" (prog->fpcore (test-input test)(test-context test)))
+       (loop)]
       ; improve <core> <threads:int> <dir>
       [(list 'improve args ...)
        (define-values (cores threads dir)
