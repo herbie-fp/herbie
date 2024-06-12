@@ -291,14 +291,14 @@
          (tbody
           ,@(for/list ([type '(new fresh picked done)])
               `(tr (th ,(string-titlecase (~a type)))
-                   (td ,(~a (altnum type 0)))
-                   (td ,(~a (altnum type 1)))
-                   (td ,(~a (altnum type))))))
+                   (td ,(~r (altnum type 0) #:group-sep " "))
+                   (td ,(~r (altnum type 1) #:group-sep " "))
+                   (td ,(~r (altnum type) #:group-sep " ")))))
          (tfoot
           (tr (th "Total")
-              (td ,(~a (apply + (map (curryr altnum 0) '(new fresh picked done)))))
-              (td ,(~a (apply + (map (curryr altnum 1) '(new fresh picked done)))))
-              (td ,(~a (apply + (map altnum '(new fresh picked done)))))))))))
+              (td ,(~r (apply + (map (curryr altnum 0) '(new fresh picked done))) #:group-sep " "))
+              (td ,(~r (apply + (map (curryr altnum 1) '(new fresh picked done))) #:group-sep " "))
+              (td ,(~r (apply + (map altnum '(new fresh picked done))) #:group-sep " "))))))))
 
 (define (render-phase-error min-error-table)
   (match-define (list min-error repr-name) (car min-error-table))
