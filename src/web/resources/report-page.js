@@ -398,7 +398,13 @@ function compareTests(l, r) {
     if (sortState.key == "name") {
         cmp = l.name.localeCompare(r.name);
     } else {
-        cmp = l[sortState.key] - r[sortState.key];
+        if (l[sortState.key] === false) {
+            cmp = 1;
+        } else if (r[sortState.key] === false) {
+            cmp = -1;
+        } else {
+            cmp = l[sortState.key] - r[sortState.key];
+        }
     }
     if (sortState.dir) cmp = -cmp;
     return cmp;
