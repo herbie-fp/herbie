@@ -257,10 +257,10 @@
    (semaphore-post sema)]
   [(and (*demo-output*) (directory-exists? (build-path (*demo-output*) path)))
    (semaphore-post sema)]
-  [else (wrapper-run-herbie info job-id after)])
- (eprintf "Job ~a complete\n" job-id)
- (hash-remove! *jobs* job-id)
- (semaphore-post sema))
+  [else (wrapper-run-herbie info job-id after)
+   (eprintf "Job ~a complete\n" job-id)
+   (hash-remove! *jobs* job-id)
+   (semaphore-post sema)]))
 
 ; Handles semaphore and async part of a job
 (struct work (id job sema after))
