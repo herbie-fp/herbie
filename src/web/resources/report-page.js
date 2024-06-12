@@ -228,16 +228,6 @@ var sortState = {
     dir: true, // true = ascending, false = descending
 }
 
-// if the state changed return true
-function setSort(inputSelection) {
-    if (inputSelection == sortState.key) {
-        sortState.dir = !sortState.dir;
-    } else {
-        sortState.key = inputSelection;
-        sortState.dir = true;
-    }
-}
-
 // -------------------------------------------------
 // ------ Global State End ----------
 // -------------------------------------------------
@@ -383,7 +373,12 @@ function buildBody(jsonData, otherJsonData) {
             help && Element("span", { classList: "help-button", title: help }, ["?"]),
         ]);
         textElement.addEventListener("click", (e) => {
-            setSort(stringName);
+            if (stringName == sortState.key) {
+                sortState.dir = !sortState.dir;
+            } else {
+                sortState.key = stringName;
+                sortState.dir = true;
+            }
             update(jsonData);
         })
         return textElement
