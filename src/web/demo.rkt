@@ -255,14 +255,14 @@
  (define path (format "~a.~a" job-id *herbie-commit*))
  (cond ;; Check caches if job as already been completed
   [(hash-has-key? *completed-jobs* job-id)
-  (semaphore-post sema)]
+   (semaphore-post sema)]
   [(and (*demo-output*) (directory-exists? (build-path (*demo-output*) path)))
-  (semaphore-post sema)]
+   (semaphore-post sema)]
   [else (match (work-info job-info)
-    [(list 'improve formula)
-      (wrapper-run-herbie 
-       (run-herbie-command 'improve formula (get-seed) #f #f #f) 
-       job-id after-improve)]
+   [(list 'improve formula)
+    (wrapper-run-herbie 
+     (run-herbie-command 'improve formula (get-seed) #f #f #f) 
+      job-id after-improve)]
     [(list 'sample formula seed*)
       (wrapper-run-herbie 
        (run-herbie-command 'sample formula seed* #f #f #t) 
@@ -290,21 +290,22 @@
     [(list 'cost formula)
       (wrapper-run-herbie 
        (run-herbie-command 'cost formula #f #f #f #t) 
-       job-id default-after)])])
- (eprintf "Job ~a complete\n" job-id)
- (hash-remove! *jobs* job-id)
- (semaphore-post sema))
+       job-id default-after)])
+   (eprintf "Job ~a complete\n" job-id)
+   (hash-remove! *jobs* job-id)
+   (semaphore-post sema)]))
 
 ; Handles semaphore and async part of a job
 (struct work (id info sema))
 
 ; Encapsulates semaphores and async part of jobs.
-(define (run-work sync-job job-id job)
+(define (run-work #:sync? [sync-job? #t] job)
+ (define job-id (compute-job-id job))
  (hash-set! *jobs* job-id (*timeline*))
  (define sema (make-semaphore))
   (thread-send *worker-thread* (work job-id job sema))
-  (when sync-job
-   (semaphore-wait sema)))
+ (when sync-job?
+  (semaphore-wait sema)))
 
 (define (print-job-message command job-id job-str)
   (define job-label
@@ -391,8 +392,7 @@
        (when (eof-object? formula)
          (raise-herbie-error "no formula specified"))
        (parse-test formula)
-       (define job-id (compute-job-id (list 'improve formula (get-seed))))
-       (body job-id formula))]
+       (body formula))]
     [_
      (response/error "Demo Error"
                      `(p "You didn't specify a formula (or you specified several). "
@@ -401,9 +401,11 @@
 (define (improve-start req)
   (improve-common
    req
-   (λ (job-id formula)
+   (λ (formula)
+     (define job (list 'improve formula))
+     (define job-id (compute-job-id job))
      (unless (already-computed? job-id formula)
-       (run-work #f job-id (list 'improve formula)))
+      (run-work #:sync? #f job))
      (response/full 201 #"Job started" (current-seconds) #"text/plain"
                     (list (header #"Location" (string->bytes/utf-8 (url check-status job-id)))
                           (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
@@ -439,9 +441,11 @@
 (define (improve req)
   (improve-common
    req
-   (λ (job-id formula)
+   (λ (formula)
+     (define job (list 'improve formula))
+     (define job-id (compute-job-id job))
      (unless (already-computed? job-id formula)
-      (run-work #t job-id (list 'improve formula)))
+      (run-work #:sync? #t job))
      (redirect-to (add-prefix (format "~a.~a/graph.html" job-id *herbie-commit*)) see-other))
    (url main)))
 
@@ -453,8 +457,9 @@
       (define formula-str (hash-ref post-data 'formula))
       (define formula (read-syntax 'web (open-input-string formula-str)))
       (define seed* (hash-ref post-data 'seed))
-      (define job-id (compute-job-id (list 'sample formula seed*)))
-      (run-work #t job-id (list 'sample formula seed*))
+      (define command (list 'sample formula seed*))
+      (define job-id (compute-job-id command))
+      (run-work #:sync? #t command)
       (define result (hash-ref *completed-jobs* job-id))
       (define pctx (job-result-backend result))
       (define test (parse-test formula))
@@ -472,7 +477,7 @@
        (test-context (parse-test formula))))     
       (define command (list 'errors formula seed pcontext))      
       (define job-id (compute-job-id command))
-      (run-work #t job-id command)
+      (run-work #:sync? #t command)
       (define errs
         (for/list ([pt&err (job-result-backend (hash-ref *completed-jobs* job-id))])
           (define pt (first pt&err))
@@ -493,7 +498,7 @@
       (define pcontext (json->pcontext sample (test-context test)))
       (define command (list 'exacts formula seed pcontext))
       (define job-id (compute-job-id command))
-      (run-work #t job-id command)
+      (run-work #:sync? #t command)
       (define exacts (job-result-backend (hash-ref *completed-jobs* job-id)))
       (hasheq 'points exacts))))
 
@@ -509,7 +514,7 @@
       (define pcontext (json->pcontext sample (test-context test)))
       (define command (list 'evaluate formula seed pcontext))
       (define job-id (compute-job-id command))
-      (run-work #t job-id command)
+      (run-work #:sync? #t command)
       (define approx (job-result-backend (hash-ref *completed-jobs* job-id)))
       (hasheq 'points approx))))
 
@@ -526,7 +531,7 @@
       (define pcontext (json->pcontext sample (test-context test)))
       (define command (list 'local-error formula seed pcontext))
       (define job-id (compute-job-id command))
-      (run-work #t job-id command)
+      (run-work #:sync? #t command)
       (define local-error (job-result-backend 
        (hash-ref *completed-jobs* job-id)))
       
@@ -562,7 +567,7 @@
       (define pcontext (json->pcontext sample (test-context test)))
       (define command (list 'alternatives formula seed pcontext))
       (define job-id (compute-job-id command))
-      (run-work #t job-id command)
+      (run-work #:sync? #t command)
       (match-define (list altns test-pcontext processed-pcontext) (job-result-backend (hash-ref *completed-jobs* job-id)))
       
       (define splitpoints
@@ -618,7 +623,7 @@
       (define test (parse-test formula))
       (define command (list 'cost formula))
       (define job-id (compute-job-id command))
-      (run-work #t job-id command)
+      (run-work #:sync? #t command)
       (define cost (job-result-backend (hash-ref *completed-jobs* job-id)))
       (hasheq 'cost cost))))
 
