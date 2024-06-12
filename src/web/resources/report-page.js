@@ -291,7 +291,8 @@ function buildCompareForm(jsonData) {
     return Element("form", {}, [radioButtons, " ", hideEqual]);
 }
 
-function buildBody(jsonData, otherJsonData, filterFunction) {
+function buildBody(jsonData, otherJsonData) {
+    let filterFunction = makeFilterFunction();
 
     function hasNote(note) {
         return (note ? toTitleCase(note) + " " : "") + "Results"
@@ -706,7 +707,7 @@ function buildFiltersElement(jsonData) {
         Element("summary", {}, [
             Element("h2", {}, "Filters"),
             improvedButton, unchangedButton, regressedButton,
-            dropDown
+            " ", dropDown,
         ]),
         filterButtons,
     ]);
@@ -727,11 +728,8 @@ function eitherOr(baselineRow, diffRow, singleFunction, pairFunctions) {
 
 function update(jsonData, otherJsonData) {
     // capture current global filter state
-    const currentFilterFunction = makeFilterFunction()
-
-    const newBody = Element("body", {}, buildBody(jsonData, otherJsonData, currentFilterFunction))
-    htmlNode.replaceChild(newBody, bodyNode)
-    bodyNode = newBody
+    let bodyNode = document.querySelector("body");
+    bodyNode.replaceChildren.apply(bodyNode, buildBody(jsonData, otherJsonData));
 }
 
 function makeFilterFunction() {
@@ -806,31 +804,27 @@ function makeFilterFunction() {
         // guard statement
         if (selectedBenchmarkIndex != -1 && linkComponents.length > 1) {
             // defensive lowerCase
-            const left = benchMarks[selectedBenchmarkIndex].toLowerCase()
-            const right = linkComponents[0].toLowerCase()
-            if (left == right) {
-                returnValue = returnValue && true
-            } else {
+            const left = benchMarks[selectedBenchmarkIndex];
+            const right = linkComponents[0]
+            if (left.toLowerCase() != right.toLowerCase()) {
                 return false
             }
         }
-        if (filterState[baseData.status]) {
-            returnValue = returnValue && true
-        } else {
+
+        if (!filterState[baseData.status]) {
             return false
         }
+
         return returnValue
     }
 }
 
 async function fetchAndUpdate(jsonData) {
-    if (compareAgainstURL.length > 0) {
+    if (compareAgainstURL) {
         // Could also split string on / and check if the last component = "results.json"
         var url = compareAgainstURL
-        let lastChar = compareAgainstURL.slice(url.length - 1, url.length)
-        if (lastChar == "/") {
-            url = url + "results.json"
-        }
+        if (url.endsWith("/")) url += "results.json"
+
         let response = await fetch(url, {
             headers: { "content-type": "text/plain" },
             method: "GET",
@@ -876,6 +870,7 @@ function storeBenchmarks(tests) {
     for (let b in tempDir) {
         benchMarks.push(b)
     }
+    update(resultsJsonData, otherJsonData);
 }
 
 const htmlNode = document.querySelector("html")
@@ -887,4 +882,3 @@ var otherJsonData = null
 var resultsJsonData = null
 
 await getResultsJson()
-update(resultsJsonData, otherJsonData)
