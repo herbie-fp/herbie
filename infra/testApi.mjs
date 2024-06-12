@@ -149,15 +149,13 @@ const jsonResults = await callHerbie("/results.json", { method: 'GET' })
 assert.equal(jsonResults.tests.length, 2)
 
 async function callHerbie(endPoint, body) {
-  const splits = endPoint.split("?")
-  const slash = endPoint.split("/")
-  const rsp = await fetch(
-    `http://127.0.0.1:8000${endPoint}`,
-    body)
-  if (splits[0] == "/improve" ||
-    splits[0] == "/improve-start" ||
-    slash[1] == "check-status" ||
-    slash[1] == "up") {
+  const url = new URL(`http://127.0.0.1:8000${endPoint}`)
+  const pathname = url.pathname
+  const rsp = await fetch(url, body)
+  if (pathname == "/improve" ||
+    pathname == "/improve-start" ||
+    pathname.includes("check-status") ||
+    pathname == "/up") {
     return rsp
   } else {
     return rsp.json()
