@@ -93,13 +93,3 @@
 (define-accelerator-impl fmsub fmsub.f64 (binary64 binary64 binary64) binary64)
 (define-accelerator-impl fnmadd fnmadd.f64 (binary64 binary64 binary64) binary64)
 (define-accelerator-impl fnmsub fnmsub.f64 (binary64 binary64 binary64) binary64)
-
-(define-operator-impl (recip recip.f64 binary64) binary64
-  [fl (λ (x)
-        (parameterize ([bf-precision 12])
-          (bigfloat->flonum (bf/ 1.bf (bf x)))))])
-
-(define-operator-impl (rsqrt rsqrt.f64 binary64) binary64
-  [fl (λ (x)
-        (parameterize ([bf-precision 12])
-          (bigfloat->flonum (bf/ 1.bf (bfsqrt (bf x))))))])

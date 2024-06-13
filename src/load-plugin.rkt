@@ -39,13 +39,8 @@
   (dynamic-require math-platform #f)
   (dynamic-require mkl-platform #f)
   (dynamic-require python-platform #f)
-  (dynamic-require avx-platform #f)
   (dynamic-require numpy-platform #f)
-  (dynamic-require vdt-platform #f)
-  (dynamic-require julia-platform #f)
-  ;; activate the default platform
-  (*active-platform* (get-platform (*platform-name*)))
-  (activate-platform! (*active-platform*)))
+  (dynamic-require julia-platform #f))
 
 (define (load-herbie-plugins)
   (load-herbie-builtins)
@@ -61,8 +56,10 @@
   ; load in "loose" plugins
   (for ([path (in-list (*loose-plugins*))]) 
     (dynamic-require path #f))
+  ; activate platforms requiring plugins
+  (dynamic-require avx-platform #f)
+  (dynamic-require vdt-platform #f)
   ; activate the actual requred platform
-  ; (eprintf "activating platform `~a`\n" (*platform-name*))
   (*active-platform* (get-platform (*platform-name*)))
   (activate-platform! (*active-platform*)))
 

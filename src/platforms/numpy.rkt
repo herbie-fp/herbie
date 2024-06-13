@@ -23,6 +23,7 @@
   (define-accelerator (square real) real
   (λ (x) (* x x)))
 
+(define-accelerator-impl recip rcp.f64 (binary64) binary64)
 (define-accelerator-impl logaddexp logaddexp.f64 (binary64 binary64) binary64)
 (define-accelerator-impl logaddexp2 logaddexp2.f64 (binary64 binary64) binary64)
 (define-accelerator-impl square square.f64 (binary64) binary64)

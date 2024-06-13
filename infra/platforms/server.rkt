@@ -22,7 +22,9 @@
          herbie/web/thread-pool)
 
 (*warnings-disabled* true)
-(load-herbie-builtins)
+(with-handlers ([exn? (lambda (e) (eprintf "plugin loading failed ~a" e))])
+  (parameterize ([current-error-port (open-output-nowhere)]) ; hide output
+    (load-herbie-plugins)))
 
 ; Copied from <herbie>/syntax/read.rkt
 (define (read-syntax* port name)

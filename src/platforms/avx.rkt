@@ -28,7 +28,8 @@
 
 (define cost-model-single
   (cost-map
-    [recip 4]
+    [avx-recip 4]
+    [avx-rsqrt 4]
     [/ 11]))
 
 (define cost-model-double
@@ -63,7 +64,7 @@
     (platform-product
      [([real binary32]) cost-model-single]
      (operator-set
-       [(real real) (recip)]
+       [(real real) (avx-recip avx-rsqrt)]
        [(real real real) (/)]))))
 
 (define tunable-double-precision
