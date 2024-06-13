@@ -10,6 +10,7 @@ from .julia import JuliaRunner
 from .math import MathRunner
 from .mkl import MKLRunner
 from .numpy import NumpyRunner
+from .vdt import VdtRunner
 from .python import PythonRunner
 
 def make_runner(
@@ -40,6 +41,8 @@ def make_runner(
         return AVXRunner(**kwargs)
     elif platform == 'numpy':
         return NumpyRunner(**kwargs)
+    elif platform == 'vdt':
+        return VdtRunner(**kwargs)
     elif platform == 'julia':
         return JuliaRunner(**kwargs)
     else:

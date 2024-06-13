@@ -42,14 +42,14 @@ platforms = [
 
     # Library
     'numpy',
-    # 'vdt'
+    'vdt'
     # 'fdlibm'
 ]
 
 # Evals
 evals = [
     'baseline',
-    'compare',
+    #'compare',
     # ablation
 ]
 
