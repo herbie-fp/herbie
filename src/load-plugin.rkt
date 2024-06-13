@@ -22,6 +22,7 @@
 (define-runtime-module-path avx-platform "platforms/avx.rkt")
 (define-runtime-module-path numpy-platform "platforms/numpy.rkt")
 (define-runtime-module-path vdt-platform "platforms/vdt.rkt")
+(define-runtime-module-path fdlibm-platform "platforms/fdlibm.rkt")
 
 ; Automatically loads default representations and platforms
 (define (load-herbie-builtins)
@@ -59,6 +60,7 @@
   ; activate platforms requiring plugins
   (dynamic-require avx-platform #f)
   (dynamic-require vdt-platform #f)
+  (dynamic-require fdlibm-platform #f)
   ; activate the actual requred platform
   (*active-platform* (get-platform (*platform-name*)))
   (activate-platform! (*active-platform*)))

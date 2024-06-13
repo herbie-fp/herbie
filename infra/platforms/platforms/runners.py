@@ -12,6 +12,7 @@ from .mkl import MKLRunner
 from .numpy import NumpyRunner
 from .vdt import VdtRunner
 from .python import PythonRunner
+from .fdlibm import FdlibmRunner
 
 def make_runner(
     platform: str,
@@ -45,5 +46,7 @@ def make_runner(
         return VdtRunner(**kwargs)
     elif platform == 'julia':
         return JuliaRunner(**kwargs)
+    elif platform == 'fdlibm':
+        return FdlibmRunner(**kwargs)
     else:
         raise ValueError(f'Unsupported output platform: {platform}')

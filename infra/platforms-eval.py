@@ -43,7 +43,7 @@ platforms = [
     # Library
     'numpy',
     'vdt'
-    # 'fdlibm'
+    'fdlibm'
 ]
 
 # Evals
