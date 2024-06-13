@@ -42,7 +42,7 @@ platforms = [
 
     # Library
     'numpy',
-    # 'vdt'
+    'vdt'
     # 'fdlibm'
 ]
 
