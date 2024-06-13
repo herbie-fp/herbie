@@ -103,10 +103,3 @@
   [fl (λ (x)
         (parameterize ([bf-precision 12])
           (bigfloat->flonum (bf/ 1.bf (bfsqrt (bf x))))))])
-
-(define-ruleset* reciprocal (arithmetic simplify)
-  #:type ([a real])
-  [add-recip     (/ 1 a)        (recip a)]
-  [remove-recip  (recip a)      (/ 1 a)]
-  [add-rsqrt     (/ 1 (sqrt a)) (rsqrt a)]
-  [remove-rsqrt  (rsqrt a)      (/ 1 (sqrt a))])

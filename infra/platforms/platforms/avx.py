@@ -42,6 +42,7 @@ class AVXRunner(Runner):
                 print('#include <immintrin.h>', file=f)
                 print('#include <stdio.h>', file=f)
                 print('#include <time.h>', file=f)
+                print('#include <math.h>', file=f)
 
                 print(f'static inline {core.compiled}', file=f)
 

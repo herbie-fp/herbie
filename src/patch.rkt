@@ -170,10 +170,19 @@
       (define spec (expand-accelerators (prog->spec expr)))
       (alt spec (list 'patch expr repr) '() '())))
   ; Core
-  (define approximations (run-taylor start-altns reprs))
-  (define altns
-    (append
-      (run-rr (map cons start-altns reprs))
-      (run-simplify approximations)))
+  (define approximations
+    (if (flag-set? 'generate 'taylor)
+        (run-taylor start-altns reprs)
+        '()))
+  (define rewritten
+    (if (flag-set? 'generate 'rr)
+        (run-rr (map cons start-altns reprs))
+        '()))
+  (define simplified
+    (if (flag-set? 'generate 'simplify)
+        (run-simplify approximations)
+        approximations))
+
+  (define altns (append rewritten simplified))
   ;; Uncaching
   altns)

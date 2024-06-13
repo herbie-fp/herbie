@@ -128,23 +128,23 @@
          ['fnmsub "fnmsub"]))
      (format "_mm256_~a_~a(~a)" name suffix (string-join arguments ", "))]))
 
-(define (constant->avx variable context)
+(define (constant->avx expr context)
   (define precision (ctx-lookup-prop context ':precision))
   (define c-type (type->c precision))
   (format
    "_mm256_set1_~a(~a)"
    (precision->suffix precision)
-   (match variable
-     [(or 'TRUE 'FALSE (? hex?)) (~a variable)]
+   (match expr
+     [(or 'TRUE 'FALSE (? hex?)) (~a expr)]
      [(or 'M_1_PI 'M_2_PI 'M_2_SQRTPI 'INFINITY 'NAN)
-      (format "((~a) ~a)" c-type variable)]
-     [(? symbol?) (format "((~a) M_~a")]
+      (format "((~a) ~a)" c-type expr)]
+     [(? symbol?) (format "((~a) M_~a)" c-type expr)]
      [(? number?)
       (define c-type-suffix (c-type->suffix c-type))
       (match c-type
-        ["int64_t" (~a (inexact->exact variable))]
-        ["long double" (format "~a~a" (binary80->string variable) c-type-suffix)]
-        [_ (format "~a~a" (real->double-flonum variable) (c-type->suffix c-type))])])))
+        ["int64_t" (~a (inexact->exact expr))]
+        ["long double" (format "~a~a" (binary80->string expr) c-type-suffix)]
+        [_ (format "~a~a" (real->double-flonum expr) (c-type->suffix c-type))])])))
 
 (define (operator-nary->binary name suffix arguments)
   (for/fold ([l (car arguments)]) ([r (cdr arguments)])

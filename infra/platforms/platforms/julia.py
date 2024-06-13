@@ -16,12 +16,12 @@ unary_ops = [
     'acot', 'asecd', 'acscd', 'acotd', 'sech', 'csch', 'coth', 'asinh', 'acosh', 'atanh',
     'asech', 'acsch', 'acoth', 'deg2rad', 'rad2deg', 'log', 'log2', 'log10', 'log1p',
     'exp', 'exp2', 'exp10', 'expm1', 'fabs', 'abs2', 'sqrt', 'cbrt']
-binary_ops = ['+', '-', '*', '/', 'hypot', 'fmin', 'fmax', 'pow']
+binary_ops = ['+', '-', '*', '/', 'hypot', 'fmin', 'fmax', 'pow', 'copysign']
 ternary_ops = ['fma']
 
 # Julia lang
 target = 'julia'
-target_flags = ['--history-file=no', '--compile=min', '-O0']
+target_flags = ['-g0', '--history-file=no']
 driver_name = 'test.jl'
 time_unit = 'ms'
 

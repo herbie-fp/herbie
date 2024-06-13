@@ -38,6 +38,7 @@ def main():
 
     for input_core, by_platform in by_input.values():
         print(f'{input_core.name}:')
+        print(f'  {input_core.core}')
         for platform, cores in by_platform.items():
             print(f'  {platform}')
             exprs = shim_expr(cores, platform)
