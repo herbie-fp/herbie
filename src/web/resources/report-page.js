@@ -264,7 +264,7 @@ function buildDiffLine(jsonData, show) {
             filterTolerance = toleranceInputField.value;
             update();
         });
-        return [urlInput, " Hiding: ±", toleranceInputfield, unitText, " ", submitButton];
+        return [urlInput, " Hiding: ±", toleranceInputField, unitText, " ", submitButton];
     } else {
         return [urlInput, " ", submitButton];
     }
