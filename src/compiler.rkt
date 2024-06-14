@@ -2,10 +2,10 @@
 
 (require math/bigfloat math/flonum rival)
 ;; Faster than bigfloat-exponent and avoids an expensive offset & contract check.
-(require "syntax/syntax.rkt" "syntax/types.rkt" "correct-round.rkt"
+(require "syntax/syntax.rkt" "syntax/types.rkt"
          "common.rkt" "timeline.rkt" "float.rkt" "config.rkt")
 
-(provide compile-progs compile-prog compile-specs compile-spec)
+(provide compile-progs compile-prog)
 
 ;; Interpreter taking a narrow IR
 ;; ```
@@ -47,7 +47,7 @@
          (vector-ref regs b)
          (vector-ref regs c))]
     [(list op args ...)
-     (apply op (map (curryr vector-ref regs) args))]))
+     (apply op (map (curry vector-ref regs) args))]))
 
 (define (if-proc c a b)
   (if c a b))

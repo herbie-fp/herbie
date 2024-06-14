@@ -39,8 +39,7 @@
   (define reprs (context-var-reprs ctx))
   (define-values (true* false* other*)
     (for/fold ([true* true] [false* false] [other* '()]) ([rect (in-list other)])
-      (define res (parameterize ([*sampling-iteration* 0]) (apply ival-fn rect)))
-      (match-define (ival err err?) (apply ival-or (map ival-error? res)))
+      (match-define (ival err err?) (rival-analyze ival-fn (list->vector rect)))
       (when (eq? err 'unsamplable)
         (warn 'ground-truth #:url "faq.html#ground-truth"
               "could not determine a ground truth"

@@ -62,6 +62,11 @@
          ,@(dict-call curr render-phase-error 'min-error)
          ,@(dict-call curr render-phase-rules 'rules)
          ,@(dict-call curr render-phase-fperrors 'fperrors)
+         ,@(dict-call curr render-phase-explanations 'explanations)
+         ,@(dict-call curr render-phase-confusion 'confusion)
+         ,@(dict-call curr render-phase-maybe-confusion 'maybe-confusion)
+         ,@(dict-call curr render-phase-freqs 'freqs)
+         ,@(dict-call curr render-phase-total-confusion 'total-confusion)
          ,@(dict-call curr render-phase-egraph 'egraph)
          ,@(dict-call curr render-phase-stop 'stop)
          ,@(dict-call curr render-phase-counts 'count)
@@ -329,6 +334,95 @@
                          (td ,(if expr
                                   `(code ,expr)
                                   "No Errors")))))))))
+
+(define (render-phase-explanations explanations)
+  `((dt "Explanations")
+    (dd (details
+         (summary "Click to see full explanations table")
+         (table ([class "times"])
+                (thead (tr (th "Operator") (th "Subexpression") (th "Explanation") (th "Count")))
+                ,@(append* (for/list ([rec (in-list (sort explanations > #:key fourth))])
+                             (match-define (list op expr expl cnt mcnt flows) rec)
+
+                             (append (list `(tr (td (code ,(~a op)))
+                                                (td (code ,(~a expr)))
+                                                (td (b ,(~a expl)))
+                                                (td ,(~a cnt))
+                                                (td ,(~a mcnt))))
+
+                                     (for/list ([flow (in-list (or flows '()))])
+                                       (match-define (list ex type v) flow)
+                                       `(tr (td "↳")
+                                            (td (code ,(~a ex)))
+                                            (td ,type)
+                                            (td ,(~a v))))))))))))
+
+(define (render-phase-confusion confusion-matrix)
+  (match-define (list (list true-pos false-neg
+                            false-pos true-neg)) confusion-matrix)
+  `((dt "Confusion")
+    (dd (table ([class "times"])
+               (tr (th "") (th "Predicted +") (th "Predicted -"))
+               (tr (th "+") (td ,(~a true-pos)) (td ,(~a false-neg)))
+               (tr (th "-") (td ,(~a false-pos)) (td ,(~a true-neg)))))
+    (dt "Precision")
+    (dd ,(if (= true-pos false-pos 0)
+             "0/0"
+             (~a (exact->inexact (/ true-pos
+                                    (+ true-pos false-pos))))))
+    (dt "Recall")
+    (dd ,(if (= true-pos false-neg 0)
+             "0/0"
+             (~a (exact->inexact (/ true-pos
+                                    (+ true-pos false-neg))))))))
+
+(define (render-phase-maybe-confusion confusion-matrix)
+  (match-define (list (list true-pos true-maybe false-neg
+                            false-pos false-maybe true-neg)) confusion-matrix)
+  `((dt "Confusion?")
+    (dd (table ([class "times"])
+               (tr (th "") (th "Predicted +") (th "Predicted Maybe") (th  "Predicted -"))
+               (tr (th "+") (td ,(~a true-pos)) (td ,(~a true-maybe)) (td ,(~a false-neg)))
+               (tr (th "-") (td ,(~a false-pos)) (td ,(~a false-maybe)) (td ,(~a true-neg)))))
+    (dt "Precision?")
+    (dd ,(if (= true-pos true-maybe false-pos false-maybe 0)
+             "0/0"
+             (~a (exact->inexact (/ (+ true-pos true-maybe)
+                                    (+ true-pos true-maybe
+                                       false-pos false-maybe))))))
+    (dt "Recall?")
+    (dd ,(if (= true-pos true-maybe false-neg 0)
+             "0/0"
+             (~a (exact->inexact (/ (+ true-pos true-maybe)
+                                    (+ true-pos true-maybe false-neg))))))))
+
+(define (render-phase-total-confusion confusion-matrix)
+  (match-define (list (list true-pos true-maybe false-neg
+                            false-pos false-maybe true-neg)) confusion-matrix)
+  `((dt "Total Confusion?")
+    (dd (table ([class "times"])
+               (tr (th "") (th "Predicted +") (th "Predicted Maybe") (th  "Predicted -"))
+               (tr (th "+") (td ,(~a true-pos)) (td ,(~a true-maybe)) (td ,(~a false-neg)))
+               (tr (th "-") (td ,(~a false-pos)) (td ,(~a false-maybe)) (td ,(~a true-neg)))))
+    (dt "Precision?")
+    (dd ,(if (= true-pos true-maybe false-pos false-maybe 0)
+             "0/0"
+             (~a (exact->inexact (/ (+ true-pos true-maybe)
+                                    (+ true-pos true-maybe
+                                       false-pos false-maybe))))))
+    (dt "Recall?")
+    (dd ,(if (= true-pos true-maybe false-neg 0)
+             "0/0"
+             (~a (exact->inexact (/ (+ true-pos true-maybe)
+                                    (+ true-pos true-maybe false-neg))))))))
+
+(define (render-phase-freqs freqs)
+  `((dt "Freqs")
+    (dd "test" (table ([class "times"])
+               (tr (th "number") (th "freq"))
+               ,@(for/list ([freq (in-list (sort freqs < #:key first))])
+                   (match-define (list key val) freq)
+                   `(tr (td ,(~a key) (td ,(~a val)))))))))
 
 (define (render-phase-counts alts)
   (match-define (list (list inputs outputs)) alts)

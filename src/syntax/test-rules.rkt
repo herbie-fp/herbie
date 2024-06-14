@@ -1,10 +1,10 @@
 #lang racket
 
 (require rackunit)
-(require "../common.rkt" "../compiler.rkt" "../float.rkt"
-         "../sampling.rkt" "types.rkt" "../load-plugin.rkt"
+(require "../accelerator.rkt" "../common.rkt" "../compiler.rkt"
+         "../float.rkt" "../sampling.rkt" "types.rkt" "../load-plugin.rkt"
          "rules.rkt" (submod "rules.rkt" internals)
-         "sugar.rkt" "../core/egg-herbie.rkt" "../ground-truth.rkt")
+         "sugar.rkt" "../core/egg-herbie.rkt")
 
 (load-herbie-builtins)
 
@@ -53,11 +53,13 @@
   (define ctx (context fv repr (map (curry dict-ref itypes) fv)))
 
   (define pre (dict-ref *conditions* name '(TRUE)))
+  (define spec1 (prog->spec p1))
+  (define spec2 (prog->spec p2))
   (match-define (list pts exs1 exs2)
     (parameterize ([*num-points* (num-test-points)] [*max-find-range-depth* 0])
       (cdr (sample-points
             pre
-            (list (prog->spec p1) (prog->spec p2))
+            (list spec1 spec2)
             (list ctx ctx)))))
 
   (for ([pt (in-list pts)] [v1 (in-list exs1)] [v2 (in-list exs2)])
@@ -74,14 +76,10 @@
     (for/list ([v (in-list fv)])
       (random-generate (dict-ref itypes v))))
   (define points (build-list (num-test-points) make-point))
-  (define prog1 (compile-prog p1 ctx))
-  (define prog2 (compile-prog p2 ctx))
-  (define ex1 (map (curry apply prog1) points))
-  (define ex2 (map (curry apply prog2) points))
+  (define prog (compile-progs (list p1 p2) ctx))
   (for ([pt points])
     (with-check-info (['point (map list fv pt)])
-      (define v1 (apply prog1 pt))
-      (define v2 (apply prog1 pt))
+      (match-define (vector v1 v2) (apply prog pt))
       (check-equal? v1 v2))))
 
 (module+ main
