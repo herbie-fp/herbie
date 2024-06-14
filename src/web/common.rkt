@@ -319,7 +319,7 @@
   (string-append
    (if (zero? den)
        (cond [(positive? num) "+∞"] [(zero? num) "0"] [(negative? num) "-∞"])
-       (~r (* (/ num den) 100) #:precision 1))
+       (~r (* (/ num den) 100) #:precision '(= 1)))
    "%"))
 
 (define (render-bogosity domain-info)

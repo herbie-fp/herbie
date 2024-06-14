@@ -51,7 +51,7 @@
   (match-define (dict 'time time 'type type) curr)
 
   `(div ([class ,(format "timeline-block timeline-~a" type)] [id ,(format "timeline~a" n)])
-        (h3 ,(~a type)
+        (h3 (a ([href ,(format "#timeline~a" n)]) ,(~a type))
             (span ([class "time"])
                   ,(format-time time) " (" ,(format-percent time total-time) ")"))
         (dl
@@ -96,8 +96,8 @@
 (define (render-phase-algorithm algorithm)
   `((dt "Algorithm")
     (dd (table ([class "times"])
-               ,@(for/list ([alg (group-by identity algorithm)])
-                   `(tr (td ,(~a (length alg)) "×") (td ,(~a (car alg)))))))))
+               ,@(for/list ([alg (in-list (sort (group-by identity algorithm) > #:key length))])
+                   `(tr (td ,(~r (length alg) #:group-sep " ") "×") (td ,(~a (car alg)))))))))
 
 (define (render-phase-bogosity bogosity)
   (match-define (list domain-info) bogosity)
@@ -170,12 +170,12 @@
               `(tr (td ,(~a iter)) (td ,(~a nodes)) (td ,(~a cost))))))))
 
 (define (render-phase-stop data)
-  (match-define (list (list reasons counts) ...) data)
+  (match-define (list (list reasons counts) ...) (sort data > #:key second))
   `((dt "Stop Event")
     (dd
       (table ([class "times"])
         ,@(for/list ([reason reasons] [count counts])
-          `(tr (td ,(~a count) "×")
+          `(tr (td ,(~r count #:group-sep " ") "×")
                (td ,(~a reason))))))))
 
 (define (format-percent num den)
@@ -291,14 +291,14 @@
          (tbody
           ,@(for/list ([type '(new fresh picked done)])
               `(tr (th ,(string-titlecase (~a type)))
-                   (td ,(~a (altnum type 0)))
-                   (td ,(~a (altnum type 1)))
-                   (td ,(~a (altnum type))))))
+                   (td ,(~r (altnum type 0) #:group-sep " "))
+                   (td ,(~r (altnum type 1) #:group-sep " "))
+                   (td ,(~r (altnum type) #:group-sep " ")))))
          (tfoot
           (tr (th "Total")
-              (td ,(~a (apply + (map (curryr altnum 0) '(new fresh picked done)))))
-              (td ,(~a (apply + (map (curryr altnum 1) '(new fresh picked done)))))
-              (td ,(~a (apply + (map altnum '(new fresh picked done)))))))))))
+              (td ,(~r (apply + (map (curryr altnum 0) '(new fresh picked done))) #:group-sep " "))
+              (td ,(~r (apply + (map (curryr altnum 1) '(new fresh picked done))) #:group-sep " "))
+              (td ,(~r (apply + (map altnum '(new fresh picked done))) #:group-sep " "))))))))
 
 (define (render-phase-error min-error-table)
   (match-define (list min-error repr-name) (car min-error-table))
@@ -311,7 +311,7 @@
     (dd (table ([class "times"])
           ,@(for/list ([rec (in-list (sort rules > #:key second))] [_ (in-range 5)])
               (match-define (list rule count) rec)
-              `(tr (td ,(~a count) "×")
+              `(tr (td ,(~r count #:group-sep " ") "×")
                    (td (code ,(~a rule) " "))))))))
 
 (define (render-phase-fperrors fperrors)
@@ -426,7 +426,7 @@
 
 (define (render-phase-counts alts)
   (match-define (list (list inputs outputs)) alts)
-  `((dt "Counts") (dd ,(~a inputs) " → " ,(~a outputs))))
+  `((dt "Counts") (dd ,(~r inputs #:group-sep " ") " → " ,(~r outputs #:group-sep " "))))
 
 (define (render-phase-alts alts)
   `((dt "Alt Table")
@@ -447,7 +447,7 @@
 
 (define (render-phase-times n times)
   `((dt "Calls")
-    (dd (p ,(~a (length times)) " calls:")
+    (dd (p ,(~r (length times) #:group-sep " ") " calls:")
         (canvas ([id ,(format "calls-~a" n)]
                  [title "Weighted histogram; height corresponds to percentage of runtime in that bucket."]))
         (script "histogram(\"" ,(format "calls-~a" n) "\", " ,(jsexpr->string (map first times)) ")")
@@ -474,7 +474,7 @@
   (define size (apply + sizes))
   (define compiled (apply + compileds))
   `((dt "Compiler")
-    (dd (p "Compiled " ,(~a size) " to " ,(~a compiled) " computations "
+    (dd (p "Compiled " ,(~r size #:group-sep " ") " to " ,(~r compiled #:group-sep " ") " computations "
            "(" ,(format-percent (- size compiled) size) " saved)"))))
 
 (define (render-phase-branches branches)
@@ -489,11 +489,11 @@
                   (td (code ,expr))))))))
 
 (define (render-phase-outcomes outcomes)
-  `((dt "Results")
+  `((dt "Samples")
     (dd (table ([class "times"])
          ,@(for/list ([rec (in-list (sort outcomes > #:key first))])
              (match-define (list time precision category count) rec)
-             `(tr (td ,(format-time time)) (td ,(~a count) "×")
+             `(tr (td ,(format-time time)) (td ,(~r count #:group-sep " ") "×")
                   (td ,(~a precision)) (td ,(~a category))))))))
 
 (define (render-phase-inputs inputs outputs)
