@@ -58,13 +58,27 @@
 
 (define (generate-page req results page)
   (match-define result results)
+  (define path (string-split (url->string (request-uri req)) "/"))
   (cond
    [(set-member? (all-pages result) page)
+    ;; Write page contents to disk
+    (when (*demo-output*)
+      (make-directory (build-path (*demo-output*) path))
+      (for ([page (all-pages result)])
+        (call-with-output-file (build-path (*demo-output*) path page)
+          (λ (out) 
+            (with-handlers ([exn:fail? (page-error-handler result page out)])
+              (make-page page out result (*demo-output*) #f)))))
+      (update-report result path (get-seed)
+                      (build-path (*demo-output*) "results.json")
+                      (build-path (*demo-output*) "index.html")))
     (response 200 #"OK" (current-seconds) #"text"
               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
               (λ (out)
                 (with-handlers ([exn:fail? (page-error-handler result page out)])
-                  (make-page page out result (*demo-output*) #f))))]
+                (define web-page-out 
+                 (make-page page out result (*demo-output*) #f))
+                web-page-out)))]
    [else
     (next-dispatcher)]))
 
