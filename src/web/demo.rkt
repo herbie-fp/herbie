@@ -233,7 +233,7 @@
 (struct run-herbie-command 
  (command formula seed pcontext profile? timeline-disabled?) #:transparent)
 
-(define (wrapper-run-herbie cmd job-id after-job-work)
+(define (wrapper-run-herbie cmd job-id)
   (print-job-message (run-herbie-command-command cmd) job-id (syntax->datum (run-herbie-command-formula cmd)))
   (define result (run-herbie 
    (run-herbie-command-command cmd)
@@ -242,49 +242,30 @@
    #:pcontext (run-herbie-command-pcontext cmd)
    #:profile? (run-herbie-command-profile? cmd)
    #:timeline-disabled? (run-herbie-command-timeline-disabled? cmd)))
-  (hash-set! *completed-jobs* job-id result)
-  (after-job-work result job-id (run-herbie-command-seed cmd)))
-
-(define (after-improve result job-id seed)
- (define path (format "~a.~a" job-id *herbie-commit*))
- (when (*demo-output*)
-    ;; Output results
-    (make-directory (build-path (*demo-output*) path))
-    (for ([page (all-pages result)])
-      (call-with-output-file (build-path (*demo-output*) path page)
-        (λ (out) 
-          (with-handlers ([exn:fail? (page-error-handler result page out)])
-            (make-page page out result (*demo-output*) #f)))))
-    (update-report result path seed
-                    (build-path (*demo-output*) "results.json")
-                    (build-path (*demo-output*) "index.html"))))
-
-; A place holder helper function that should be used when no work needs to be
-; done on the finished result
-(define (default-after result job-id seed) empty)
+  (hash-set! *completed-jobs* job-id result))
 
 (define (run-job job-info)
- (match-define (work job-id info sema after) job-info)
+ (match-define (work job-id info sema) job-info)
  (define path (format "~a.~a" job-id *herbie-commit*))
  (cond ;; Check caches if job as already been completed
   [(hash-has-key? *completed-jobs* job-id)
    (semaphore-post sema)]
   [(and (*demo-output*) (directory-exists? (build-path (*demo-output*) path)))
    (semaphore-post sema)]
-  [else (wrapper-run-herbie info job-id after)
+  [else (wrapper-run-herbie info job-id)
    (eprintf "Job ~a complete\n" job-id)
    (hash-remove! *jobs* job-id)
    (semaphore-post sema)]))
 
 ; Handles semaphore and async part of a job
-(struct work (id job sema after))
+(struct work (id job sema))
 
 ; Encapsulates semaphores and async part of jobs.
-(define (run-work #:sync? [sync-job? #f] job after)
+(define (run-work #:sync? [sync-job? #f] job)
  (define job-id (compute-job-id job))
  (hash-set! *jobs* job-id (*timeline*))
  (define sema (make-semaphore))
-  (thread-send *worker-thread* (work job-id job sema after))
+  (thread-send *worker-thread* (work job-id job sema))
   (when sync-job?
    (semaphore-wait sema)))
 
@@ -386,7 +367,7 @@
    req
    (λ (job-id command formula)
      (unless (already-computed? job-id formula)
-      (run-work #:sync? #f command after-improve))
+      (run-work #:sync? #f command))
      (response/full 201 #"Job started" (current-seconds) #"text/plain"
                     (list (header #"Location" (string->bytes/utf-8 (url check-status job-id)))
                           (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
@@ -424,7 +405,7 @@
    req
    (λ (job-id command formula)
      (unless (already-computed? job-id formula)
-      (run-work #:sync? #t command after-improve))
+      (run-work #:sync? #t command))
      (redirect-to (add-prefix (format "~a.~a/graph.html" job-id *herbie-commit*)) see-other))
    (url main)))
 
@@ -447,7 +428,7 @@
 
 (define (process-command command post-processing)
   (define job-id (compute-job-id command))
-  (run-work #:sync? #t command default-after)
+  (run-work #:sync? #t command)
   (post-processing (hash-ref *completed-jobs* job-id)))
 
 (define analyze-endpoint
