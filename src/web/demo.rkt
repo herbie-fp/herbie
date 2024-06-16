@@ -437,10 +437,10 @@
       (define command (run-herbie-command 'errors formula seed pcontext #f #t))
       (define result (run-work #:sync? #t command))
       (define errs
-       (for/list ([pt&err (job-result-backend result)])
-        (define pt (first pt&err))
-        (define err (second pt&err))
-        (list pt (format-bits (ulps->bits err)))))
+        (for/list ([pt&err (job-result-backend result)])
+          (define pt (first pt&err))
+          (define err (second pt&err))
+          (list pt (format-bits (ulps->bits err)))))
       (hasheq 'points errs))))
 
 ;; (await fetch('/api/exacts', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x) (- (sqrt (+ x 1))))", points: [[1, 1]]})})).json()
@@ -486,14 +486,14 @@
         (let loop ([expr expr] [err local-error])
           (match expr
             [(list op args ...)
-              ;; err => (List (listof Integer) List ...)
-              (hasheq
+             ;; err => (List (listof Integer) List ...)
+             (hasheq
               'e (~a op)
               'avg-error (format-bits (errors-score (first err)))
               'children (map loop args (rest err)))]
             [_
-              ;; err => (List (listof Integer))
-              (hasheq
+             ;; err => (List (listof Integer))
+             (hasheq
               'e (~a expr)
               'avg-error (format-bits (errors-score (first err)))
               'children '())])))
