@@ -230,7 +230,7 @@
            [_ (error 'run-server "sample: malformed arguments ~a" args)]))
        (define test (parse-test (datum->syntax #f core)))
        (define result
-         (with-handlers ([exn:fail:user:herbie? (lambda _ #f)])
+         (with-handlers ([exn:fail? (lambda _ #f)])
            (parameterize ([*reeval-pts* num-points])
              (define result (run-herbie 'sample test #:seed seed #:timeline-disabled? #t))
              (match (job-result-status result)

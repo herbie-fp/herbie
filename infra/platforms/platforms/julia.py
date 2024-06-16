@@ -161,17 +161,19 @@ class JuliaRunner(Runner):
             driver_path = Path(os.path.join(driver_dir, driver_name))
             log_prefix = f'[{i}/{len(driver_dirs)}]'
             print(log_prefix, end='', flush=True)
-    
-            output = run_subprocess([target] + target_flags + ['--', driver_path], capture_stdout=True)  
-            for time_str in output.strip().split('\n'):
-                time = float(time_str) / 1e6
-                times[i].append(time * (self.num_inputs / num_pointss[i]))
+
+            # guard against no sampled points
+            if num_pointss[i] > 0:
+                output = run_subprocess([target] + target_flags + ['--', driver_path], capture_stdout=True)  
+                for time_str in output.strip().split('\n'):
+                    time = float(time_str) / 1e6
+                    times[i].append(time * (self.num_inputs / num_pointss[i]))
 
             # Reset terminal
             print('\r', end='', flush=True)
             print(' ' * (len(log_prefix)), end='', flush=True)
             print('\r', end='', flush=True)
         
-        times = [sum(ts) / len(ts) for ts in times]
+        times = [None if ts == [] else sum(ts) / len(ts) for ts in times]
         self.log(f'run drivers')
         return times

@@ -3,7 +3,7 @@
 import argparse
 import os
 
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 
 from platforms.c import get_cflags, set_cflags
 from platforms.fpcore import FPCore
@@ -43,12 +43,22 @@ def prune_unsamplable(samples: List[List[List[float]]], cores: List[FPCore]):
             cores2.append(core)
     return samples2, cores2
 
+def assert_drivers_ran(cores: List[FPCore], times: List[Optional[float]]):
+    for core, time in zip(cores, times):
+        if time is None:
+            raise RuntimeError(f'Failed to get timing data for {core.core}')
+
 def analyze_cores(runner: Runner, cores: List[FPCore]):
     # compute estimated cost and error
     runner.herbie_cost(cores=cores)
     runner.herbie_error(cores=cores)
 
-def run_cores(runner: Runner, cores: List[FPCore], py_sample: bool = False) -> List[str]:
+def run_cores(
+    runner: Runner,
+    cores: List[FPCore],
+    py_sample: bool = False,
+    must_run: bool = True
+) -> List[str]:
     # get sample
     samples = runner.herbie_sample(cores=cores, py_sample=py_sample)
     check_samples(samples, cores) # sanity check!
@@ -65,6 +75,10 @@ def run_cores(runner: Runner, cores: List[FPCore], py_sample: bool = False) -> L
     times = runner.run_drivers(cores=cores, driver_dirs=driver_dirs)
     for core, time in zip(cores, times):
         core.time = time
+
+    # optionally check that all drivers ran
+    if must_run:
+        assert_drivers_ran(cores, times)
 
     return driver_dirs
 
@@ -93,6 +107,7 @@ def clang_eval(runner: Runner, cores: List[FPCore]):
             runner.make_drivers(cores=cores, driver_dirs=driver_dirs, samples=samples)
             runner.compile_drivers(driver_dirs=driver_dirs)
             times = runner.run_drivers(cores=cores, driver_dirs=driver_dirs)
+            assert_drivers_ran(cores, times)
 
             runner.log('running clang eval [error]', flags)
             driver_dirs = runner.make_driver_dirs(cores=cores)
@@ -173,10 +188,23 @@ def main():
     # analyze input and output cores
     analyze_cores(runner, input_cores + cores)
     run_cores(runner, input_cores, py_sample)
-    driver_dirs = run_cores(runner, cores, py_sample)
+    driver_dirs = run_cores(runner, cores, py_sample, must_run=False)
+
+    # handle any failed drivers
+    pruned_cores = []
+    pruned_driver_dirs = []
+    for core, driver_dir in zip(cores, driver_dirs):
+        if core.time is not None:
+            pruned_cores.append(core)
+            pruned_driver_dirs.append(driver_dir)
 
     # publish results
-    runner.write_improve_report(all_input_cores, cores, driver_dirs, clang_results)
+    runner.write_improve_report(
+        all_input_cores,
+        pruned_cores,
+        pruned_driver_dirs,
+        clang_results
+    )
 
 
 if __name__ == "__main__":

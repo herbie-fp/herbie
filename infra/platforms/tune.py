@@ -1,8 +1,10 @@
 """ Runs cost tuning for a given platform """
 
+from typing import List, Optional
 import argparse
 import os
 
+from platforms.fpcore import FPCore
 from platforms.runners import make_runner
 
 # paths
@@ -16,6 +18,11 @@ default_num_threads = 1
 default_num_points = 10_000
 default_num_runs = 10
 default_seed = 1
+
+def assert_drivers_ran(cores: List[FPCore], times: List[Optional[float]]):
+    for core, time in zip(cores, times):
+        if time is None:
+            raise RuntimeError(f'Failed to get timing data for {core.core}')
 
 def main():
     parser = argparse.ArgumentParser(description='Herbie cost tuner')
@@ -69,6 +76,9 @@ def main():
 
     # run drivers
     times = runner.run_drivers(cores=cores, driver_dirs=driver_dirs)
+    assert_drivers_ran(times, times)
+
+    # create report
     runner.write_tuning_report(cores, times)
     runner.print_times(cores, times)
 

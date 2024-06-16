@@ -127,7 +127,7 @@ class PythonRunner(Runner):
     def compile_drivers(self, driver_dirs: List[str]) -> None:
         self.log(f'drivers interpreted, skipping compilations')
 
-    def run_drivers(self, cores: List[FPCore], driver_dirs: List[str]) -> List[float]:
+    def run_drivers(self, cores: List[FPCore], driver_dirs: List[str]):
         # read number of points back in
         num_pointss = []
         for driver_dir in driver_dirs:
@@ -143,21 +143,23 @@ class PythonRunner(Runner):
             log_prefix = f'[{i}/{len(driver_dirs)}] '
             print(log_prefix, end='', flush=True)
 
-            output = run_subprocess([target, driver_path], capture_stdout=True)
-            for line in output.strip().split('\n'):
-                time = re.match(time_pat, line)
-                if time is None:
-                    self.log("bad core: " + str(cores[i]))
-                    raise RuntimeError(f'Unexpected error when running {driver_path}: {output}')
-                
-                time = float(time.group(1))
-                times[i].append(time * (self.num_inputs / num_pointss[i]))
+            # guard against no sampled points
+            if num_pointss[i] > 0:
+                output = run_subprocess([target, driver_path], capture_stdout=True)
+                for line in output.strip().split('\n'):
+                    time = re.match(time_pat, line)
+                    if time is None:
+                        self.log("bad core: " + str(cores[i]))
+                        raise RuntimeError(f'Unexpected error when running {driver_path}: {output}')
+                    
+                    time = float(time.group(1))
+                    times[i].append(time * (self.num_inputs / num_pointss[i]))
 
             # Reset terminal
             print('\r', end='', flush=True)
             print(' ' * (len(log_prefix)), end='', flush=True)
             print('\r', end='', flush=True)
         
-        times = [sum(ts) / len(ts) for ts in times]
+        times = [None if ts == [] else sum(ts) / len(ts) for ts in times]
         self.log(f'run drivers')
         return times

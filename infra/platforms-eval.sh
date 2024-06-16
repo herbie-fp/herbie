@@ -14,6 +14,7 @@ done
 INFRA_DIR="$(cd -P "$(dirname "$src")" && pwd)"
 BENCH_DIR="$INFRA_DIR"/../bench
 THREADS=4
+DEFAULT_START_SEED=1
 
 # check arguments
 if [ "$#" -ne 2 ]; then
@@ -34,6 +35,14 @@ else
   echo "Restricting to $PARALLEL_SEEDS parallel concurrent Herbie runs."
 fi
 
+# check for start seed
+if [ -z "$START_SEED" ]; then
+  START_SEED=$DEFAULT_START_SEED
+  echo "Start seed not specified. Starting at seed $START_SEED"
+else
+  echo "Starting at seed $START_SEED"
+fi
+
 echo "Running platforms evaluation"
 date
 
@@ -46,15 +55,16 @@ function run() {
     --key $key \
     --parallel $PARALLEL_SEEDS \
     --threads $THREADS \
+    --start-seed $START_SEED \
     $bench \
     "$OUTDIR/platforms" \
     $num_runs
 }
 
 # Run configs
-run $BENCH_DIR/hamming hamming $NUM_SEEDS
+# run $BENCH_DIR/hamming hamming $NUM_SEEDS
 # run $BENCH_DIR/libraries libraries $NUM_SEEDS
-# run $BENCH_DIR/mathematics mathematics $NUM_SEEDS
+run $BENCH_DIR/mathematics mathematics $NUM_SEEDS
 
 echo "Finished platforms evaluation"
 date

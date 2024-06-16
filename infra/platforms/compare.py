@@ -49,6 +49,7 @@ def run_cores(runner: Runner, cores: List[FPCore], py_sample: bool = False) -> L
     runner.compile_drivers(driver_dirs=driver_dirs)
     
     # run drivers to get timing
+    # TODO: operation is partial
     times = runner.run_drivers(cores=cores, driver_dirs=driver_dirs)
     for core, time in zip(cores, times):
         core.time = time
