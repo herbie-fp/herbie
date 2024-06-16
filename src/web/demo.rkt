@@ -267,7 +267,8 @@
  (define sema (make-semaphore))
   (thread-send *worker-thread* (work job-id job sema))
   (when sync-job?
-   (semaphore-wait sema)))
+   (semaphore-wait sema)
+   (hash-ref *completed-jobs* job-id)))
 
 (define (print-job-message command job-id job-str)
   (define job-label
@@ -419,17 +420,10 @@
       (define seed* (hash-ref post-data 'seed))
       (define command (run-herbie-command 'sample formula seed* #f #f #t))
       (define test (parse-test formula))
-      (process-command command (curry post-sample test)))))
-
-(define (post-sample test result)
-  (define pctx (job-result-backend result))
-  (define repr (context-repr (test-context test)))
-  (hasheq 'points (pcontext->json pctx repr)))
-
-(define (process-command command post-processing)
-  (define job-id (compute-job-id command))
-  (run-work #:sync? #t command)
-  (post-processing (hash-ref *completed-jobs* job-id)))
+      (define result (run-work #:sync? #t command))
+      (define pctx (job-result-backend result))
+      (define repr (context-repr (test-context test)))
+      (hasheq 'points (pcontext->json pctx repr)))))
 
 (define analyze-endpoint
   (post-with-json-response
@@ -441,15 +435,13 @@
       (define pcontext (json->pcontext sample 
        (test-context (parse-test formula))))     
       (define command (run-herbie-command 'errors formula seed pcontext #f #t))
-      (process-command command post-analyze))))
-
-(define (post-analyze result)
-  (define errs
-    (for/list ([pt&err (job-result-backend result)])
-      (define pt (first pt&err))
-      (define err (second pt&err))
-      (list pt (format-bits (ulps->bits err)))))
-  (hasheq 'points errs))
+      (define result (run-work #:sync? #t command))
+      (define errs
+       (for/list ([pt&err (job-result-backend result)])
+        (define pt (first pt&err))
+        (define err (second pt&err))
+        (list pt (format-bits (ulps->bits err)))))
+      (hasheq 'points errs))))
 
 ;; (await fetch('/api/exacts', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x) (- (sqrt (+ x 1))))", points: [[1, 1]]})})).json()
 (define exacts-endpoint 
@@ -461,11 +453,8 @@
       (define test (parse-test formula))
       (define pcontext (json->pcontext sample (test-context test)))
       (define command (run-herbie-command 'exacts formula seed pcontext #f #t))
-      (process-command command post-exacts))))
-
-(define (post-exacts result)
-  (define exacts (job-result-backend result))
-  (hasheq 'points exacts))
+      (define result (run-work #:sync? #t command))
+      (hasheq 'points (job-result-backend result)))))
 
 (define calculate-endpoint 
   (post-with-json-response
@@ -476,11 +465,9 @@
       (define test (parse-test formula))
       (define pcontext (json->pcontext sample (test-context test)))
       (define command (run-herbie-command 'evaluate formula seed pcontext #f #t))
-      (process-command command post-calculate))))
-
-(define (post-calculate result)
-  (define approx (job-result-backend result))
-  (hasheq 'points approx))
+      (define result (run-work #:sync? #t command))
+      (define approx (job-result-backend result))
+      (hasheq 'points approx))))
 
 (define local-error-endpoint
   (post-with-json-response
@@ -492,27 +479,25 @@
       (define expr (prog->fpcore (test-input test) (test-output-repr test)))
       (define pcontext (json->pcontext sample (test-context test)))
       (define command (run-herbie-command 'local-error formula seed pcontext #f #t))
-      (process-command command (curry post-local-error expr)))))
-
-(define (post-local-error expr result)
-  (define local-error (job-result-backend result))
-  ;; TODO: potentially unsafe if resugaring changes the AST
-  (define tree
-    (let loop ([expr expr] [err local-error])
-      (match expr
-        [(list op args ...)
-          ;; err => (List (listof Integer) List ...)
-          (hasheq
-          'e (~a op)
-          'avg-error (format-bits (errors-score (first err)))
-          'children (map loop args (rest err)))]
-        [_
-          ;; err => (List (listof Integer))
-          (hasheq
-          'e (~a expr)
-          'avg-error (format-bits (errors-score (first err)))
-          'children '())])))
-  (hasheq 'tree tree))
+      (define result (run-work #:sync? #t command))
+      (define local-error (job-result-backend result))
+      ;; TODO: potentially unsafe if resugaring changes the AST
+      (define tree
+        (let loop ([expr expr] [err local-error])
+          (match expr
+            [(list op args ...)
+              ;; err => (List (listof Integer) List ...)
+              (hasheq
+              'e (~a op)
+              'avg-error (format-bits (errors-score (first err)))
+              'children (map loop args (rest err)))]
+            [_
+              ;; err => (List (listof Integer))
+              (hasheq
+              'e (~a expr)
+              'avg-error (format-bits (errors-score (first err)))
+              'children '())])))
+      (hasheq 'tree tree))))
 
 (define alternatives-endpoint
   (post-with-json-response
@@ -525,45 +510,43 @@
       (define repr (test-output-repr test))
       (define pcontext (json->pcontext sample (test-context test)))
       (define command (run-herbie-command 'alternatives formula seed pcontext #f #t))
-      (process-command command (curry post-alternatives vars repr test)))))
+      (define result (run-work #:sync? #t command))
+      (match-define 
+       (list altns test-pcontext processed-pcontext) (job-result-backend result))
+            (define splitpoints
+              (for/list ([alt altns]) 
+                (for/list ([var vars])
+                  (define split-var? (equal? var (regime-var alt)))
+                  (if split-var?
+                      (for/list ([val (regime-splitpoints alt)])
+                        (real->ordinal (repr->real val repr) repr))
+                      '()))))
 
-(define (post-alternatives vars repr test result)
-  (match-define 
-   (list altns test-pcontext processed-pcontext) (job-result-backend result))
-      (define splitpoints
-        (for/list ([alt altns]) 
-          (for/list ([var vars])
-            (define split-var? (equal? var (regime-var alt)))
-            (if split-var?
-                (for/list ([val (regime-splitpoints alt)])
-                  (real->ordinal (repr->real val repr) repr))
-                '()))))
-
-      (define fpcores
-        (for/list ([altn altns])
-          (~a (program->fpcore (alt-expr altn) (test-context test)))))
-  
-      (define histories
-        (for/list ([altn altns])
-          (let ([os (open-output-string)])
-            (parameterize ([current-output-port os])
-              (write-xexpr
-                `(div ([id "history"])
-                  (ol ,@(render-history altn
-                                        processed-pcontext
-                                        test-pcontext
-                                        (test-context test)))))
-              (get-output-string os)))))
-      (define derivations 
-        (for/list ([altn altns])
-                  (render-json altn
-                                        processed-pcontext
-                                        test-pcontext
-                                        (test-context test))))
-      (hasheq 'alternatives fpcores
-              'histories histories
-              'derivations derivations
-              'splitpoints splitpoints))
+            (define fpcores
+              (for/list ([altn altns])
+                (~a (program->fpcore (alt-expr altn) (test-context test)))))
+        
+            (define histories
+              (for/list ([altn altns])
+                (let ([os (open-output-string)])
+                  (parameterize ([current-output-port os])
+                    (write-xexpr
+                      `(div ([id "history"])
+                        (ol ,@(render-history altn
+                                              processed-pcontext
+                                              test-pcontext
+                                              (test-context test)))))
+                    (get-output-string os)))))
+            (define derivations 
+              (for/list ([altn altns])
+                        (render-json altn
+                                              processed-pcontext
+                                              test-pcontext
+                                              (test-context test))))
+            (hasheq 'alternatives fpcores
+                    'histories histories
+                    'derivations derivations
+                    'splitpoints splitpoints))))
 
 (define ->mathjs-endpoint
   (post-with-json-response
@@ -580,11 +563,9 @@
       (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
       (define test (parse-test formula))
       (define command (run-herbie-command 'cost formula #f #f #f #t))
-      (process-command command post-cost))))
-
-(define (post-cost result)
-  (define cost (job-result-backend result))
-  (hasheq 'cost cost))
+      (define result (run-work #:sync? #t command))
+      (define cost (job-result-backend result))
+      (hasheq 'cost cost))))
 
 (define translate-endpoint
   (post-with-json-response
