@@ -78,7 +78,7 @@
   (hash-set! out 'unknown (exact->inexact (/ other-weight denom)))
   (for ([(reason rect) (in-dict false)])
     (define weight (exact->inexact (/ (hyperrect-weight rect reprs) denom)))
-    (hash-update! out reason (curry + weight) 0))
+    (hash-update! out (or reason 'invalid) (curry + weight) 0))
   (define total (apply + (hash-values out)))
   (hash-update! out 'precondition (curry + (- 1 total)) 0)
   (make-immutable-hash (hash->list out)))
