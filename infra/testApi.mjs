@@ -47,6 +47,7 @@ if (checkStatus.status == 202) {
 const up = await fetch(
   'http://127.0.0.1:8000/up',
   { method: 'GET' })
+
 assert.equal('Up', up.statusText)
 // TODO how do I test down state?
 
@@ -71,6 +72,7 @@ const errors = (await (await fetch('http://127.0.0.1:8000/api/analyze', {
     ], 0.12711304680349078]]
   })
 })).json()).points  // HACK tiny sample
+
 
 assert.deepEqual(errors, [[[14.97651307489794], "2.3"]])
 
@@ -146,16 +148,17 @@ const expectedExpressions = {
 
 for (const e in expectedExpressions) {
   const translatedExpr =
-  (await (await fetch('http://127.0.0.1:8000/api/translate',
-    {
-      method: 'POST', body: JSON.stringify(
-        { formula: FPCoreFormula, language: e })
-    })).json())
+    (await (await fetch('http://127.0.0.1:8000/api/translate',
+      {
+        method: 'POST', body: JSON.stringify(
+          { formula: FPCoreFormula, language: e })
+      })).json())
 
   assert.equal(translatedExpr.result, expectedExpressions[e])
 }
 
 // Results.json endpoint
+
 const jsonResults = await (await fetch(
   'http://127.0.0.1:8000/results.json',
   { method: 'GET' })).json()
