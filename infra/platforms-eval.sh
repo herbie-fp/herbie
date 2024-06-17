@@ -62,7 +62,7 @@ function run() {
 }
 
 # Run configs
-# run $BENCH_DIR/hamming hamming $NUM_SEEDS
+run $BENCH_DIR/hamming hamming $NUM_SEEDS
 run $BENCH_DIR/mathematics mathematics $NUM_SEEDS
 
 echo "Finished platforms evaluation"

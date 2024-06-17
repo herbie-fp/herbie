@@ -96,11 +96,11 @@ class Cache(object):
                     self.samples[key] = dict()
                 self.samples[key][seed] = sample
                 return sample
-
         return None
-
 
     def clear_core(self, key: str):
         """Eliminates a key from the cache."""
-        del self.cores[key]
-        del self.samples[key]
+        if key in self.cores:
+            del self.cores[key]
+        if key in self.samples:
+            del self.samples[key]

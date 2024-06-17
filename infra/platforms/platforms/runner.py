@@ -47,7 +47,7 @@ def synthesize1(op: str, argc: int) -> FPCore:
     arg_str = ' '.join(vars)
     app_str = '(' + ' '.join([op_] + vars) + ')'
     core = f'(FPCore ({arg_str}) :name "{op}" {app_str})'
-    py_sample = op == 'lgamma' or op == 'tgamma'  # Rival struggles with these
+    py_sample = op == 'lgamma' or op == 'tgamma' or op == 'log1pmd'  # Rival struggles with these
     return FPCore(core, key=key, name=op, argc=argc, py_sample=py_sample)
 
 def json_test_outputs(test: dict) -> List[Tuple[str, float, float]]:
@@ -383,51 +383,43 @@ class Runner(object):
     def herbie_sample(self, cores: List[FPCore], py_sample: bool = False) -> List[List[List[float]]]:
         """Runs Herbie's sampler for each FPCore in `self.cores`."""
         # check cache first
-        samples = []
         num_cached = 0
+        unsampled: List[Tuple[FPCore]] = []
         for core in cores:
             sample = self.cache.get_sample(core.key, self.seed)
-            if sample is None:
-                samples.append(None)
-            else:
+            if sample is not None:
                 input_points, _ = sample
-                if len(input_points) == 0:
-                    # no inputs
-                    samples.append(None)
-                elif len(input_points[0]) >= self.num_inputs:
-                    # cached copy has enough points
-                    samples.append(sample[:self.num_inputs])
+                if len(input_points[0]) >= self.num_inputs:
+                    # sample has enough points
                     num_cached += 1
-                else:
-                    # cached copy does not have enough points
-                    samples.append(None)
-                    self.cache.clear_core(core.key)
+                    continue
+            unsampled.append(core)
+
 
         # run sampling for un-cached ones
-        configs = []
-        for sample, core in zip(samples, cores):
-            if sample is None:
-                configs.append((core, self.num_inputs, self.name, self.seed, py_sample))
-
         if self.threads > 1:
+            configs = []
+            for core in unsampled:
+                configs.append((core, self.num_inputs, self.name, self.seed, py_sample))
             with mp.Pool(processes=self.threads) as pool:
-                gen_samples = pool.starmap(sample1, configs)
+                samples = pool.starmap(sample1, configs)
         else:
-            gen_samples = []
-            for config in configs:
-                gen_samples.append(sample1(*config))
-    
-        # update `samples`
-        for i, (core, sample) in enumerate(zip(cores, samples)):
-            if sample is None:
-                samples[i] = gen_samples[0]
-                gen_samples = gen_samples[1:]
-                if samples[i] is not None:
-                    self.cache.put_sample(core.key, self.seed, samples[i])
-                else:
-                    self.log(f'could not sample {core.name}')
+            samples = []
+            for core in unsampled:
+                sample = sample1(core, self.num_inputs, self.name, self.seed, py_sample)
+                samples.append(sample)
 
-        self.log(f'sampled {len(gen_samples)} cores ({num_cached} cached)')
+        # write to cache
+        for core, sample in zip(unsampled, samples):
+            self.cache.put_sample(core.key, self.seed, sample)
+
+        # fetch all samples from cache
+        samples = []
+        for core in cores:
+            sample = self.cache.get_sample(core.key, self.seed)
+            samples.append(sample[:self.num_inputs])
+
+        self.log(f'sampled {len(samples)} cores ({num_cached} cached)')
         return samples
 
     def make_driver_dirs(self, cores: List[FPCore]) -> List[str]:
