@@ -73,8 +73,8 @@ const errors = (await (await fetch('http://127.0.0.1:8000/api/analyze', {
   })
 })).json()).points  // HACK tiny sample
 
-
 assert.deepEqual(errors, [[[14.97651307489794], "2.3"]])
+
 
 // Local error endpoint
 const localError = (await (await fetch('http://127.0.0.1:8000/api/localerror', {
