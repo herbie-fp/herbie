@@ -52,7 +52,7 @@ class VdtRunner(Runner):
                 print('#define TRUE 1', file=f)
                 print('#define FALSE 0', file=f)
 
-                print(f'inline {core.compiled}', file=f)
+                print(f'static inline {core.compiled}', file=f)
 
                 for i, points in enumerate(input_points):
                     print(f'const double x{i}[{self.num_inputs}] = {{', file=f)

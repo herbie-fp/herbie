@@ -30,6 +30,13 @@ platform_style = '.'
 supported_style = '+'
 desugared_style = 'x'
 
+# preferred order
+order = [
+    'arith', 'arith-fma', 'avx',
+    'c', 'julia', 'python',
+    'vdt', 'fdlibm', 'numpy'
+]
+
 #######################################
 # Utils
 
@@ -71,13 +78,13 @@ def plot_time(name: str, output_dir: Path, info: dict):
     plt.ylabel(f"Run time ({info['time_unit']})")
     plt.scatter(costs, times)
 
-    path = output_dir.joinpath(f'{name}-cost-vs-time.png')
+    path = output_dir.joinpath(f'{name}-cost-vs-time.pdf')
     plt.savefig(str(path))
     plt.close()
 
 def plot_time_all(output_dir: Path, entries):
     print(f'Plotting time for all platforms')
-    path = output_dir.joinpath(f'cost-vs-time.png')
+    path = output_dir.joinpath(f'cost-vs-time.pdf')
     size = 8
 
     names = []
@@ -119,6 +126,7 @@ def plot_time_all(output_dir: Path, entries):
 def plot_improve(name: str, output_dir: Path, info):
     """Platform pareto frontier."""
     print(f'Plotting improve {name}')
+    size = 5
 
     input_cores: List[FPCore] = []
     platform_cores: List[FPCore] = []
@@ -143,7 +151,7 @@ def plot_improve(name: str, output_dir: Path, info):
     input_speedup, input_accuracy = flip((input_cost, input_error))
     frontier2 = list(map(flip, frontier))
     
-    plt.figure()
+    plt.figure(figsize=(size, size))
     if invert_axes:
         xlabel = f'Speedup' if use_time else 'Estimated speedup'
         ylabel = 'Cumulative average accuracy (bits)'
@@ -178,12 +186,15 @@ def plot_improve(name: str, output_dir: Path, info):
         plt.plot([input_x], [input_y], input_style, color=input_color)
 
     plt.plot(xs, ys, platform_style, color=platform_color, label='Chassis')
-    plt.title(f'{xlabel} vs. {ylabel}')
-    plt.xlabel(xlabel)
-    plt.ylabel(ylabel)
+    #plt.title(f'{xlabel} vs. {ylabel}')
+    plt.xlabel(xlabel, fontsize=12)
+    plt.ylabel(ylabel, fontsize=12)
+    plt.xticks(fontsize=10)
+    plt.yticks(fontsize=10)
     plt.legend()
+    plt.tight_layout()
 
-    path = output_dir.joinpath(f'{name}-pareto.png')
+    path = output_dir.joinpath(f'{name}-pareto.pdf')
     plt.savefig(str(path))
     plt.close()
 
@@ -244,7 +255,7 @@ def comparison_frontiers(info):
 def plot_compare1(name: str, name2: str, output_dir: Path, info):
     """Single platform vs. platform comparison"""
     print(f'Plotting compare {name} <- {name2}')
-    path = output_dir.joinpath(f'{name}-vs-{name2}-pareto.png')
+    path = output_dir.joinpath(f'{name}-vs-{name2}-pareto.pdf')
 
     input_pt, _, num_input, \
         platform_frontier, _, num_platform, \
@@ -284,7 +295,7 @@ def plot_compare1(name: str, name2: str, output_dir: Path, info):
 def plot_baseline_all(output_dir: Path, entries):
     """Entire baseline comparison (N)."""
     print(f'Plotting all baseline comparison')
-    path = output_dir.joinpath(f'baseline-pareto.png')
+    path = output_dir.joinpath(f'baseline-pareto.pdf')
     size = 8
 
     names = []
@@ -345,7 +356,7 @@ def plot_baseline_all(output_dir: Path, entries):
 def plot_compare_all(output_dir: Path, entries):
     """Entire platform vs. platform comparison (N^2 table)."""
     print(f'Plotting all platform comparison')
-    path = output_dir.joinpath(f'comparison-pareto.png')
+    path = output_dir.joinpath(f'comparison-pareto.pdf')
     size = 12
 
     names = []
@@ -470,7 +481,10 @@ def main():
     improve_reports = []
     baseline_reports = []
     compare_reports = []
-    for name, platform_info in report.items():
+
+    sorted_keys = sorted(report.keys(), key=lambda k: order.index(k))
+    for name in sorted_keys:
+        platform_info = report[name]
         for field, field_info in platform_info.items():
             if field == 'improve':
                 improve_reports.append((name, field_info))
