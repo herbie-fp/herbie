@@ -25,6 +25,7 @@
 
 ; (< (fabs eps) (fabs x))
 
+
 ; 2cos involves the difference of two cos functions. According to the sum-to-product trigonometric identity,
 ; the target for this benchmark can apply the identity (- (cos x) (cos y)) = (* 2 (sin (/ (+ x y) 2)) (sin (/ (- x y) 2)))
 (FPCore (x eps)

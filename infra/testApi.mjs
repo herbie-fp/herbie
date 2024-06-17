@@ -165,4 +165,4 @@ const jsonResults = await (await fetch(
 
 // Basic test that checks that there are the two result after the above test.
 // TODO add a way to reset the results.json file?
-assert.equal(jsonResults.tests.length, 2)
+assert.equal(jsonResults.tests.length, 2) 
