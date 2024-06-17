@@ -411,13 +411,17 @@ class Runner(object):
 
         # write to cache
         for core, sample in zip(unsampled, samples):
-            self.cache.put_sample(core.key, self.seed, sample)
+            if sample is not None:
+                self.cache.put_sample(core.key, self.seed, sample)
 
         # fetch all samples from cache
         samples = []
         for core in cores:
             sample = self.cache.get_sample(core.key, self.seed)
-            samples.append(sample[:self.num_inputs])
+            if sample is None:
+                samples.append(None)
+            else:
+                samples.append(sample[:self.num_inputs])
 
         self.log(f'sampled {len(samples)} cores ({num_cached} cached)')
         return samples
