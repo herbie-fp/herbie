@@ -8,28 +8,32 @@ const FPCoreFormula2 = '(FPCore (x) (- (sqrt (+ x 1))))'
 const eval_sample = [[[1], -1.4142135623730951]]
 
 // improve endpoint
-const improveURL = await callHerbie(`/improve?formula=${encodeURIComponent(FPCoreFormula2)}`, { method: 'GET' })
-assert.equal(improveURL.status, 200)
+const improveURL = `http://127.0.0.1:8000/improve?formula=${encodeURIComponent(FPCoreFormula2)}`
+const improveResponse = await fetch(improveURL, { method: 'GET' })
+assert.equal(improveResponse.status, 200)
 // This test is a little flaky as the character count of the response is not consistent.
 // const improveHTML = await improveResponse.text()
 // const improveHTMLexpectedCount = 25871
 // assert.equal(improveHTML.length, improveHTMLexpectedCount, `HTML response character count should be ${improveHTMLexpectedCount} unless HTML changes.`)
 
 // improve-start endpoint
+const startURL = `http://127.0.0.1:8000/improve-start`
 const URIencodedBody = "formula=" + encodeURIComponent(FPCoreFormula)
-const startResponse = await callHerbie(`/improve-start`, {
+const startResponse = await fetch(startURL, {
   method: 'POST',
   headers: {
     'Content-Type': 'application/x-www-form-urlencoded',
   },
   body: URIencodedBody
 })
-const testResult = (startResponse.status == 201 || startResponse.status == 202)
+const testResult = startResponse.status == (201 || 202)
 assert.equal(testResult, true)
 const path = startResponse.headers.get("location")
 
 // Check status endpoint
-const checkStatus = await callHerbie(path, { method: 'GET' })
+const checkStatus = await fetch(
+  `http://127.0.0.1:8000${path}`,
+  { method: 'GET' })
 // Test result depends on how fast Server responds
 if (checkStatus.status == 202) {
   assert.equal(checkStatus.statusText, 'Job in progress')
@@ -40,84 +44,92 @@ if (checkStatus.status == 202) {
 }
 
 // up endpoint
-const up = await callHerbie("/up", { method: 'GET' })
+const up = await fetch(
+  'http://127.0.0.1:8000/up',
+  { method: 'GET' })
 assert.equal('Up', up.statusText)
 // TODO how do I test down state?
 
 // Sample endpoint
-const sample = await callHerbie("/api/sample", { method: 'POST', body: JSON.stringify({ formula: FPCoreFormula2, seed: 5 }) })
+const sample = (await (await fetch('http://127.0.0.1:8000/api/sample', { method: 'POST', body: JSON.stringify({ formula: FPCoreFormula2, seed: 5 }) })).json())
 
 const SAMPLE_SIZE = 8000
 assert.ok(sample.points)
 const points = sample.points
 assert.equal(points.length, SAMPLE_SIZE, `sample size should be ${SAMPLE_SIZE}`)
 
-const sample2 = await callHerbie("/api/sample", { method: 'POST', body: JSON.stringify({ formula: FPCoreFormula2, seed: 5 }) })
+const sample2 = (await (await fetch('http://127.0.0.1:8000/api/sample', { method: 'POST', body: JSON.stringify({ formula: FPCoreFormula2, seed: 5 }) })).json())
 const points2 = sample2.points
 
 assert.deepEqual(points[1], points2[1])
 
 // Analyze endpoint
-const errors = await callHerbie("/api/analyze", {
+const errors = (await (await fetch('http://127.0.0.1:8000/api/analyze', {
   method: 'POST', body: JSON.stringify({
     formula: FPCoreFormula, sample: [[[
       14.97651307489794
     ], 0.12711304680349078]]
   })
-})
-assert.deepEqual(errors.points, [[[14.97651307489794], "2.3"]])
+})).json()).points  // HACK tiny sample
+
+assert.deepEqual(errors, [[[14.97651307489794], "2.3"]])
 
 // Local error endpoint
-const localError = await callHerbie("/api/localerror", {
+const localError = (await (await fetch('http://127.0.0.1:8000/api/localerror', {
   method: 'POST', body: JSON.stringify({
     formula: FPCoreFormula, sample: sample2.points
   })
-})
+})).json())
 
 assert.equal(localError.tree['avg-error'] > 0, true)
 
 // Alternatives endpoint
 
-const alternatives = await callHerbie("/api/alternatives", {
+const alternatives = (await (await fetch('http://127.0.0.1:8000/api/alternatives', {
   method: 'POST', body: JSON.stringify({
     formula: FPCoreFormula, sample: [[[
       14.97651307489794
     ], 0.12711304680349078]]
   })
-})
+})).json())  // HACK tiny sample
+
 assert.equal(Array.isArray(alternatives.alternatives), true)
 
 // Exacts endpoint
-const exacts = await callHerbie("/api/exacts", {
+const exacts = (await (await fetch('http://127.0.0.1:8000/api/exacts', {
   method: 'POST', body: JSON.stringify({
     formula: FPCoreFormula2, sample: eval_sample
   })
-})
-assert.deepEqual(exacts.points, [[[1], -1.4142135623730951]])
+})).json()).points
+
+assert.deepEqual(exacts, [[[1], -1.4142135623730951]])
 
 // Calculate endpoint
-const calculate = await callHerbie("/api/calculate", {
+const calculate = (await (await fetch('http://127.0.0.1:8000/api/calculate', {
   method: 'POST', body: JSON.stringify({
     formula: FPCoreFormula2, sample: eval_sample
   })
-})
+})).json()).points
 
-assert.deepEqual(calculate.points, [[[1], -1.4142135623730951]])
+assert.deepEqual(calculate, [[[1], -1.4142135623730951]])
 
 // Cost endpoint
-const cost = await callHerbie("/api/cost", {
+
+const cost = (await (await fetch('http://127.0.0.1:8000/api/cost', {
   method: 'POST', body: JSON.stringify({
     formula: FPCoreFormula2, sample: eval_sample
   })
-})
+})).json())
 assert.equal(cost.cost > 0, true)
 
-// // MathJS endpoint
-const mathjs = await callHerbie("/api/mathjs", {
+// MathJS endpoint
+
+const mathjs = (await (await fetch('http://127.0.0.1:8000/api/mathjs', {
   method: 'POST',
   body: JSON.stringify({ formula: FPCoreFormula })
-})
-assert.equal(mathjs.mathjs, "sqrt(x + 1.0) - sqrt(x)")
+})).json()).mathjs
+
+assert.equal(mathjs, "sqrt(x + 1.0) - sqrt(x)")
 
 // Translate endpoint
 const expectedExpressions = {
@@ -133,31 +145,21 @@ const expectedExpressions = {
 }
 
 for (const e in expectedExpressions) {
-  const translatedExpr = await callHerbie("/api/translate", {
-    method: 'POST', body: JSON.stringify(
-      { formula: FPCoreFormula, language: e })
-  })
+  const translatedExpr =
+  (await (await fetch('http://127.0.0.1:8000/api/translate',
+    {
+      method: 'POST', body: JSON.stringify(
+        { formula: FPCoreFormula, language: e })
+    })).json())
 
   assert.equal(translatedExpr.result, expectedExpressions[e])
 }
 
 // Results.json endpoint
-const jsonResults = await callHerbie("/results.json", { method: 'GET' })
+const jsonResults = await (await fetch(
+  'http://127.0.0.1:8000/results.json',
+  { method: 'GET' })).json()
 
-// Basic test that checks that there are the two results after the above test.
+// Basic test that checks that there are the two result after the above test.
 // TODO add a way to reset the results.json file?
 assert.equal(jsonResults.tests.length, 2)
-
-async function callHerbie(endPoint, body) {
-  const url = new URL(`http://127.0.0.1:8000${endPoint}`)
-  const pathname = url.pathname
-  const rsp = await fetch(url, body)
-  if (pathname == "/improve" ||
-    pathname == "/improve-start" ||
-    pathname.includes("check-status") ||
-    pathname == "/up") {
-    return rsp
-  } else {
-    return rsp.json()
-  }
-}
