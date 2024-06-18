@@ -261,7 +261,7 @@
 (struct work (id job sema))
 
 ; Encapsulates semaphores and async part of jobs.
-(define (run-work #:sync? [sync-job? #f] job)
+(define (run-work #:sync? [sync-job? #t] job)
  (define job-id (compute-job-id job))
  (hash-set! *jobs* job-id (*timeline*))
  (define sema (make-semaphore))
