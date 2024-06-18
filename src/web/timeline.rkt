@@ -55,6 +55,7 @@
             (span ([class "time"])
                   ,(format-time time) " (" ,(format-percent time total-time) ")"))
         (dl
+         ,@(dict-call curr render-phase-memory 'memory)
          ,@(dict-call curr render-phase-algorithm 'method)
          ,@(dict-call curr render-phase-locations 'locations)
          ,@(dict-call curr render-phase-accuracy 'accuracy 'oracle 'baseline 'name 'link 'repr)
@@ -299,6 +300,12 @@
               (td ,(~r (apply + (map (curryr altnum 0) '(new fresh picked done))) #:group-sep " "))
               (td ,(~r (apply + (map (curryr altnum 1) '(new fresh picked done))) #:group-sep " "))
               (td ,(~r (apply + (map altnum '(new fresh picked done))) #:group-sep " "))))))))
+
+(define (render-phase-memory mem)
+  (match-define (list live alloc) (car mem))
+  `((dt "Memory")
+    (dd ,(~r (/ live (expt 2 20)) #:group-sep " " #:precision '(= 1)) "MiB live, "
+        ,(~r (/ alloc (expt 2 20)) #:group-sep " " #:precision '(= 1)) "MiB allocated")))
 
 (define (render-phase-error min-error-table)
   (match-define (list min-error repr-name) (car min-error-table))
