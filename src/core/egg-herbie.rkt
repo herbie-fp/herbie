@@ -379,8 +379,7 @@
         (for/list ([id node-ids] [expr (egraph-query-exprs input)])
           (egraph-get-variants egg-graph id expr ctx))
         (for/list ([id node-ids])
-          (for/list ([iter (in-range (length iter-data))])
-            (egraph-get-simplest egg-graph id iter ctx)))))
+          (egraph-get-simplest egg-graph id (- (length iter-data) 1) ctx))))
   
   (define proofs
     (for/list ([proof-input (in-list proof-inputs)])
