@@ -62,8 +62,9 @@ function run() {
 }
 
 # Run configs
-# run $BENCH_DIR/hamming hamming $NUM_SEEDS
+run $BENCH_DIR/hamming hamming $NUM_SEEDS
 run $BENCH_DIR/mathematics mathematics $NUM_SEEDS
+python3 $INFRA_DIR/platforms/cross-plot.py "$OUTDIR/platforms/output"
 
 echo "Finished platforms evaluation"
 date
