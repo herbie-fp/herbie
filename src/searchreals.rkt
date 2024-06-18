@@ -53,7 +53,7 @@
                 (format "~a = ~a" var val))))
       (cond
        [err
-        (values true* (cons (cons err rect) false*) other*)]
+        (values true* (cons rect false*) other*)]
        [(not err?)
         (values (cons rect true*) false* other*)]
        [else
@@ -72,13 +72,12 @@
   (define reprs (context-var-reprs ctx))
   (define denom (total-weight reprs))
   (define true-weight (apply + (map (curryr hyperrect-weight reprs) true)))
+  (define false-weight (apply + (map (curryr hyperrect-weight reprs) false)))
   (define other-weight (apply + (map (curryr hyperrect-weight reprs) other)))
   (define out (make-hash))
   (hash-set! out 'valid (exact->inexact (/ true-weight denom)))
   (hash-set! out 'unknown (exact->inexact (/ other-weight denom)))
-  (for ([(reason rect) (in-dict false)])
-    (define weight (exact->inexact (/ (hyperrect-weight rect reprs) denom)))
-    (hash-update! out reason (curry + weight) 0))
+  (hash-set! out 'invalid (exact->inexact (/ false-weight denom)))
   (define total (apply + (hash-values out)))
   (hash-update! out 'precondition (curry + (- 1 total)) 0)
   (make-immutable-hash (hash->list out)))
