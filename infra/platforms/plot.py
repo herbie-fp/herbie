@@ -5,6 +5,7 @@ import json
 import os
 
 import matplotlib.pyplot as plt
+from scipy.stats import spearmanr
 from typing import Dict, List, Tuple
 from pathlib import Path
 
@@ -36,6 +37,9 @@ order = [
     'c', 'julia', 'python',
     'vdt', 'fdlibm', 'numpy'
 ]
+
+# plot extensions
+plt_exts = ['png', 'pdf']
 
 #######################################
 # Utils
@@ -78,13 +82,12 @@ def plot_time(name: str, output_dir: Path, info: dict):
     plt.ylabel(f"Run time ({info['time_unit']})")
     plt.scatter(costs, times)
 
-    path = output_dir.joinpath(f'{name}-cost-vs-time.pdf')
-    plt.savefig(str(path))
+    for ext in plt_exts:
+        plt.savefig(output_dir.joinpath(f'{name}-cost-vs-time.{ext}'))
     plt.close()
 
 def plot_time_all(output_dir: Path, entries):
     print(f'Plotting time for all platforms')
-    path = output_dir.joinpath(f'cost-vs-time.pdf')
     size = 8
 
     names = []
@@ -111,13 +114,15 @@ def plot_time_all(output_dir: Path, entries):
         ax = axs[i // 3, i % 3] if num_platforms > 3 else axs[i]
         ax.scatter(costs, times)
         ax.set_title(name)
+        print('spearman rho:', spearmanr(costs, times))
    
     for i in range(len(names), 3 * nrows):
         ax = axs[i // 3, i % 3] if num_platforms > 3 else axs[i]
         fig.delaxes(ax)
 
     plt.tight_layout()
-    plt.savefig(str(path))
+    for ext in plt_exts:
+        plt.savefig(output_dir.joinpath(f'cost-vs-time.{ext}'))
     plt.close()
 
 #######################################
@@ -194,8 +199,8 @@ def plot_improve(name: str, output_dir: Path, info):
     plt.legend()
     plt.tight_layout()
 
-    path = output_dir.joinpath(f'{name}-pareto.pdf')
-    plt.savefig(str(path))
+    for ext in plt_exts:
+        plt.savefig(output_dir.joinpath(f'{name}-pareto.{ext}'))
     plt.close()
 
 #######################################
@@ -255,7 +260,6 @@ def comparison_frontiers(info):
 def plot_compare1(name: str, name2: str, output_dir: Path, info):
     """Single platform vs. platform comparison"""
     print(f'Plotting compare {name} <- {name2}')
-    path = output_dir.joinpath(f'{name}-vs-{name2}-pareto.pdf')
 
     input_pt, _, num_input, \
         platform_frontier, _, num_platform, \
@@ -289,13 +293,13 @@ def plot_compare1(name: str, name2: str, output_dir: Path, info):
 
     # Legend
     plt.tight_layout()
-    plt.savefig(str(path))
+    for ext in plt_exts:
+        plt.savefig(output_dir.joinpath(f'{name}-vs-{name2}-pareto.{ext}'))
     plt.close()
 
 def plot_baseline_all(output_dir: Path, entries):
     """Entire baseline comparison (N)."""
     print(f'Plotting all baseline comparison')
-    path = output_dir.joinpath(f'baseline-pareto.pdf')
     size = 8
 
     names = []
@@ -349,14 +353,14 @@ def plot_baseline_all(output_dir: Path, entries):
         fig.delaxes(ax)
 
     plt.tight_layout()
-    plt.savefig(str(path))
+    for ext in plt_exts:
+        plt.savefig(output_dir.joinpath(f'baseline-pareto.{ext}'))
     plt.close()
 
 
 def plot_compare_all(output_dir: Path, entries):
     """Entire platform vs. platform comparison (N^2 table)."""
     print(f'Plotting all platform comparison')
-    path = output_dir.joinpath(f'comparison-pareto.pdf')
     size = 12
 
     names = []
@@ -455,7 +459,8 @@ def plot_compare_all(output_dir: Path, entries):
             axs[i, j].yaxis.set_ticks([])
 
     plt.tight_layout()
-    plt.savefig(str(path))
+    for ext in plt_exts:
+        plt.savefig(output_dir.joinpath(f'comparison-pareto.{ext}'))
     plt.close()
 
 
