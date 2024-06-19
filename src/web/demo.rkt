@@ -76,9 +76,7 @@
               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
               (λ (out)
                 (with-handlers ([exn:fail? (page-error-handler result page out)])
-                (define web-page-out 
-                 (make-page page out result (*demo-output*) #f))
-                web-page-out)))]
+                (make-page page out result (*demo-output*) #f))))]
    [else
     (next-dispatcher)]))
 
@@ -242,7 +240,8 @@
    #:pcontext (run-herbie-command-pcontext cmd)
    #:profile? (run-herbie-command-profile? cmd)
    #:timeline-disabled? (run-herbie-command-timeline-disabled? cmd)))
-  (hash-set! *completed-jobs* job-id result))
+  (hash-set! *completed-jobs* job-id result)
+  (eprintf "Job ~a complete\n" job-id))
 
 (define (run-job job-info)
  (match-define (work job-id info sema) job-info)
@@ -253,7 +252,6 @@
   [(and (*demo-output*) (directory-exists? (build-path (*demo-output*) path)))
    (semaphore-post sema)]
   [else (wrapper-run-herbie info job-id)
-   (eprintf "Job ~a complete\n" job-id)
    (hash-remove! *jobs* job-id)
    (semaphore-post sema)]))
 
@@ -406,7 +404,7 @@
    req
    (λ (job-id command formula)
      (unless (already-computed? job-id formula)
-      (run-work #:sync? #t command))
+      (run-work command))
      (redirect-to (add-prefix (format "~a.~a/graph.html" job-id *herbie-commit*)) see-other))
    (url main)))
 
@@ -420,7 +418,7 @@
       (define seed* (hash-ref post-data 'seed))
       (define command (run-herbie-command 'sample formula seed* #f #f #t))
       (define test (parse-test formula))
-      (define result (run-work #:sync? #t command))
+      (define result (run-work command))
       (define pctx (job-result-backend result))
       (define repr (context-repr (test-context test)))
       (hasheq 'points (pcontext->json pctx repr)))))
@@ -435,7 +433,7 @@
       (define pcontext (json->pcontext sample 
        (test-context (parse-test formula))))     
       (define command (run-herbie-command 'errors formula seed pcontext #f #t))
-      (define result (run-work #:sync? #t command))
+      (define result (run-work command))
       (define errs
         (for/list ([pt&err (job-result-backend result)])
           (define pt (first pt&err))
@@ -453,7 +451,7 @@
       (define test (parse-test formula))
       (define pcontext (json->pcontext sample (test-context test)))
       (define command (run-herbie-command 'exacts formula seed pcontext #f #t))
-      (define result (run-work #:sync? #t command))
+      (define result (run-work command))
       (hasheq 'points (job-result-backend result)))))
 
 (define calculate-endpoint 
@@ -465,7 +463,7 @@
       (define test (parse-test formula))
       (define pcontext (json->pcontext sample (test-context test)))
       (define command (run-herbie-command 'evaluate formula seed pcontext #f #t))
-      (define result (run-work #:sync? #t command))
+      (define result (run-work command))
       (define approx (job-result-backend result))
       (hasheq 'points approx))))
 
@@ -479,7 +477,7 @@
       (define expr (prog->fpcore (test-input test) (test-output-repr test)))
       (define pcontext (json->pcontext sample (test-context test)))
       (define command (run-herbie-command 'local-error formula seed pcontext #f #t))
-      (define result (run-work #:sync? #t command))
+      (define result (run-work command))
       (define local-error (job-result-backend result))
       ;; TODO: potentially unsafe if resugaring changes the AST
       (define tree
@@ -509,44 +507,45 @@
       (define vars (test-vars test))
       (define repr (test-output-repr test))
       (define pcontext (json->pcontext sample (test-context test)))
-      (define command (run-herbie-command 'alternatives formula seed pcontext #f #t))
-      (define result (run-work #:sync? #t command))
-      (match-define 
-       (list altns test-pcontext processed-pcontext) (job-result-backend result))
-            (define splitpoints
-              (for/list ([alt altns]) 
-                (for/list ([var vars])
-                  (define split-var? (equal? var (regime-var alt)))
-                  (if split-var?
-                      (for/list ([val (regime-splitpoints alt)])
-                        (real->ordinal (repr->real val repr) repr))
-                      '()))))
+      (define command 
+       (run-herbie-command 'alternatives formula seed pcontext #f #t))
+      (define result (run-work command))
+      (match-define (list altns test-pcontext processed-pcontext) 
+       (job-result-backend result))
+      (define splitpoints
+        (for/list ([alt altns]) 
+          (for/list ([var vars])
+            (define split-var? (equal? var (regime-var alt)))
+            (if split-var?
+                (for/list ([val (regime-splitpoints alt)])
+                  (real->ordinal (repr->real val repr) repr))
+                '()))))
 
-            (define fpcores
-              (for/list ([altn altns])
-                (~a (program->fpcore (alt-expr altn) (test-context test)))))
-        
-            (define histories
-              (for/list ([altn altns])
-                (let ([os (open-output-string)])
-                  (parameterize ([current-output-port os])
-                    (write-xexpr
-                      `(div ([id "history"])
-                        (ol ,@(render-history altn
-                                              processed-pcontext
-                                              test-pcontext
-                                              (test-context test)))))
-                    (get-output-string os)))))
-            (define derivations 
-              (for/list ([altn altns])
-                        (render-json altn
-                                              processed-pcontext
-                                              test-pcontext
-                                              (test-context test))))
-            (hasheq 'alternatives fpcores
-                    'histories histories
-                    'derivations derivations
-                    'splitpoints splitpoints))))
+      (define fpcores
+        (for/list ([altn altns])
+          (~a (program->fpcore (alt-expr altn) (test-context test)))))
+  
+      (define histories
+        (for/list ([altn altns])
+          (let ([os (open-output-string)])
+            (parameterize ([current-output-port os])
+              (write-xexpr
+                `(div ([id "history"])
+                  (ol ,@(render-history altn
+                                        processed-pcontext
+                                        test-pcontext
+                                        (test-context test)))))
+              (get-output-string os)))))
+      (define derivations 
+        (for/list ([altn altns])
+                  (render-json altn
+                                        processed-pcontext
+                                        test-pcontext
+                                        (test-context test))))
+      (hasheq 'alternatives fpcores
+              'histories histories
+              'derivations derivations
+              'splitpoints splitpoints))))
 
 (define ->mathjs-endpoint
   (post-with-json-response
@@ -563,7 +562,7 @@
       (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
       (define test (parse-test formula))
       (define command (run-herbie-command 'cost formula #f #f #f #t))
-      (define result (run-work #:sync? #t command))
+      (define result (run-work command))
       (define cost (job-result-backend result))
       (hasheq 'cost cost))))
 
