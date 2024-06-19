@@ -56,6 +56,42 @@
    [((hash-arg) (string-arg)) generate-page]
    [("results.json") generate-report]))
 
+#| 
+Job Server Public API section
+
+This section just servers as a place for us to create the API's but give a
+|#
+
+;; Job object, What herbie excepts as input for a new job.
+(struct public-job (type #| TODO add remaining feilds |#))
+
+;; Creates a job object to be passed to start-job server.
+(define (create-job type)
+  (public-job type))
+
+(define (start-job job)
+  #| call run job? |#
+  (eprintf "starting job\n")
+  ; return job-id
+  (compute-job-id job))
+
+(define (wait-for-job job-id)
+  #| Where should we store job ids
+  How does access control in Racket work?
+  |#
+  (eprintf "Waiting for job\n")
+
+  (eprintf "Job finished\n"))
+
+(define (is-job-finished job-id)
+  #| Check for job status
+  What is the job states?
+  - created
+  - running
+  - finished |#
+  #f)
+;; End Job Server API section
+
 (define (generate-page req results page)
   (match-define result results)
   (define path (string-split (url->string (request-uri req)) "/"))
