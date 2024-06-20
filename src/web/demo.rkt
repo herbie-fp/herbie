@@ -106,7 +106,7 @@ Not ready for this API yet as i'm not sure how syncing with this abstraction wil
 ; Private globals
 ; TODO I'm sure these can encapslated some how.
 (define *completed-jobs* (make-hash))
-(define *jobs* (make-hash)) ; id's, do I need this as the id's are the keys of the other two dictionaries
+(define *job-status* (make-hash))
 (define *job-semma* (make-hash))
 ;; End Job Server section
 
@@ -127,7 +127,7 @@ Not ready for this API yet as i'm not sure how syncing with this abstraction wil
                       (build-path (*demo-output*) "results.json")
                       (build-path (*demo-output*) "index.html")))
     (response 200 #"OK" (current-seconds) #"text"
-              (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
+              (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *job-status*)))))
               (λ (out)
                 (with-handlers ([exn:fail? (page-error-handler result page out)])
                 (make-page page out result (*demo-output*) #f))))]
@@ -141,7 +141,7 @@ Not ready for this API yet as i'm not sure how syncing with this abstraction wil
        (get-table-data v (format "~a.~a" k *herbie-commit*))))
   (define info (make-report-info data #:seed (get-seed) #:note (if (*demo?*) "Web demo results" "Herbie results")))
   (response 200 #"OK" (current-seconds) #"text"
-            (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
+            (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *job-status*)))))
             (λ (out) (write-datafile out info))))
 
 (define url (compose add-prefix url*))
@@ -181,7 +181,7 @@ Not ready for this API yet as i'm not sure how syncing with this abstraction wil
     (make-directory (*demo-output*)))
 
   (response/xexpr
-   #:headers (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
+   #:headers (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *job-status*)))))
    (herbie-page
     #:title (if (*demo?*) "Herbie web demo" "Herbie")
     #:show-title (*demo?*)
@@ -223,7 +223,7 @@ Not ready for this API yet as i'm not sure how syncing with this abstraction wil
 
     (if (*demo?*)
         `(p "To handle the high volume of requests, web requests are queued; "
-            "there are " (span ([id "num-jobs"]) ,(~a (hash-count *jobs*))) " jobs in the queue right now. "
+            "there are " (span ([id "num-jobs"]) ,(~a (hash-count *job-status*))) " jobs in the queue right now. "
             "Web demo requests may also time out and cap the number of improvement iterations. "
             "To avoid these limitations, " (a ([href "/doc/latest/installing.html"]) "install Herbie")
             " on your own computer.")
@@ -300,7 +300,7 @@ Not ready for this API yet as i'm not sure how syncing with this abstraction wil
   [(and (*demo-output*) (directory-exists? (build-path (*demo-output*) path)))
    (semaphore-post sema)]
   [else (wrapper-run-herbie info job-id)
-   (hash-remove! *jobs* job-id)
+   (hash-remove! *job-status* job-id)
    (semaphore-post sema)])
  (hash-remove! *job-semma* job-id))
 
@@ -308,18 +308,9 @@ Not ready for this API yet as i'm not sure how syncing with this abstraction wil
 (struct work (id job sema))
 
 ; Encapsulates semaphores and async part of jobs.
-(define (run-work #:sync? [sync-job? #t] job)
- (define job-id (compute-job-id job))
- (hash-set! *jobs* job-id (*timeline*))
- (define sema (make-semaphore))
-  (thread-send *worker-thread* (work job-id job sema))
-  (when sync-job?
-   (semaphore-wait sema)
-   (hash-ref *completed-jobs* job-id)))
-
 (define (start-work job)
  (define job-id (compute-job-id job))
- (hash-set! *jobs* job-id (*timeline*))
+ (hash-set! *job-status* job-id (*timeline*))
  (define sema (make-semaphore))
  (hash-set! *job-semma* job-id sema)
  (thread-send *worker-thread* (work job-id job sema))
@@ -352,7 +343,7 @@ Not ready for this API yet as i'm not sure how syncing with this abstraction wil
   (rename-file-or-directory tmp-file data-file #t)
   (call-with-output-file html-file #:exists 'replace (curryr make-report-page info #f)))
 
-(define (already-computed? job-id formula)
+(define (already-computed? job-id)
   (or (hash-has-key? *completed-jobs* job-id)
       (and (*demo-output*)
            (directory-exists? (build-path (*demo-output*) (format "~a.~a" job-id *herbie-commit*))))))
@@ -411,8 +402,7 @@ Not ready for this API yet as i'm not sure how syncing with this abstraction wil
          (raise-herbie-error "no formula specified"))
        (parse-test formula)
        (define command (run-herbie-command 'improve formula (get-seed) #f #f #f))
-       (define job-id (compute-job-id command))
-       (body job-id command formula))]
+       (body command))]
     [_
      (response/error "Demo Error"
                      `(p "You didn't specify a formula (or you specified several). "
@@ -421,20 +411,19 @@ Not ready for this API yet as i'm not sure how syncing with this abstraction wil
 (define (improve-start req)
   (improve-common
    req
-   (λ (job-id command formula)
-     (unless (already-computed? job-id formula)
-      (start-job command))
+   (λ (command)
+     (define job-id (start-job command))
      (response/full 201 #"Job started" (current-seconds) #"text/plain"
                     (list (header #"Location" (string->bytes/utf-8 (url check-status job-id)))
-                          (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
+                          (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *job-status*)))))
                     '()))
    (url main)))
 
 (define (check-status req job-id)
-  (match (hash-ref *jobs* job-id #f)
+  (match (hash-ref *job-status* job-id #f)
     [(? box? timeline)
      (response 202 #"Job in progress" (current-seconds) #"text/plain"
-               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
+               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *job-status*)))))
                (λ (out) (display (apply string-append
                                         (for/list ([entry (reverse (unbox timeline))])
                                           (format "Doing ~a\n" (hash-ref entry 'type))))
@@ -442,14 +431,14 @@ Not ready for this API yet as i'm not sure how syncing with this abstraction wil
     [#f
      (response/full 201 #"Job complete" (current-seconds) #"text/plain"
                     (list (header #"Location" (string->bytes/utf-8 (add-prefix (format "~a.~a/graph.html" job-id *herbie-commit*))))
-                          (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
+                          (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *job-status*)))))
                     '())]))
 
 (define (check-up req)
   (response/full (if (thread-running? *worker-thread*) 200 500)
                  (if (thread-running? *worker-thread*) #"Up" #"Down")
                  (current-seconds) #"text/plain"
-                 (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*))))
+                 (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *job-status*))))
                        (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
                  '()))
 
@@ -459,10 +448,9 @@ Not ready for this API yet as i'm not sure how syncing with this abstraction wil
 (define (improve req)
   (improve-common
    req
-   (λ (job-id command formula)
-     (unless (already-computed? job-id formula)
-      (start-job command)
-      (wait-for-job job-id))
+   (λ (command)
+     (define job-id (start-job command))
+     (wait-for-job job-id)
      (redirect-to (add-prefix (format "~a.~a/graph.html" job-id *herbie-commit*)) see-other))
    (url main)))
 
