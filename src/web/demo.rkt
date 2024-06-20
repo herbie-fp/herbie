@@ -69,7 +69,7 @@ This section just servers as a place for us to create the API's but give a
 (struct run-herbie-command 
  (command formula seed pcontext profile? timeline-disabled?) #:transparent)
 
-;; Creates a job object to be passed to start-job server.
+;; Creates a command object to be passed to start-job server.
 ;; TODO contract?
 (define (create-job command formula 
                     #:seed [seed #f] 
@@ -78,8 +78,9 @@ This section just servers as a place for us to create the API's but give a
                     #:timeline-disabled? [timeline-disabled? #f])
   (run-herbie-command command formula seed pcontext profile? timeline-disabled?))
 
-(define (start-job job)
-  (start-work job))
+;; Starts a job for a given command object
+(define (start-job command)
+  (start-work command))
 #| 
 Not ready for this API yet as i'm not sure how syncing with this abstraction will work. I could try using semaphores as the current server does.
 |#
@@ -300,7 +301,8 @@ Not ready for this API yet as i'm not sure how syncing with this abstraction wil
    (semaphore-post sema)]
   [else (wrapper-run-herbie info job-id)
    (hash-remove! *jobs* job-id)
-   (semaphore-post sema)]))
+   (semaphore-post sema)])
+ (hash-remove! *job-semma* job-id))
 
 ; Handles semaphore and async part of a job
 (struct work (id job sema))
@@ -421,7 +423,7 @@ Not ready for this API yet as i'm not sure how syncing with this abstraction wil
    req
    (λ (job-id command formula)
      (unless (already-computed? job-id formula)
-      (run-work #:sync? #f command))
+      (start-job command))
      (response/full 201 #"Job started" (current-seconds) #"text/plain"
                     (list (header #"Location" (string->bytes/utf-8 (url check-status job-id)))
                           (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
@@ -459,7 +461,8 @@ Not ready for this API yet as i'm not sure how syncing with this abstraction wil
    req
    (λ (job-id command formula)
      (unless (already-computed? job-id formula)
-      (run-work command))
+      (start-job command)
+      (wait-for-job job-id))
      (redirect-to (add-prefix (format "~a.~a/graph.html" job-id *herbie-commit*)) see-other))
    (url main)))
 
@@ -471,8 +474,8 @@ Not ready for this API yet as i'm not sure how syncing with this abstraction wil
       (define formula-str (hash-ref post-data 'formula))
       (define formula (read-syntax 'web (open-input-string formula-str)))
       (define seed* (hash-ref post-data 'seed))
-      (define job (create-job 'sample formula #:seed seed* #:pcontext #f #:profile? #f #:timeline-disabled? #t))
-      (define id (start-job job))
+      (define command (create-job 'sample formula #:seed seed* #:pcontext #f #:profile? #f #:timeline-disabled? #t))
+      (define id (start-job command))
       (define result (wait-for-job id))
       (define test (parse-test formula))
       (define pctx (job-result-backend result))
@@ -489,7 +492,8 @@ Not ready for this API yet as i'm not sure how syncing with this abstraction wil
       (define pcontext (json->pcontext sample 
        (test-context (parse-test formula))))     
       (define command (run-herbie-command 'errors formula seed pcontext #f #t))
-      (define result (run-work command))
+      (define id (start-job command))
+      (define result (wait-for-job id))
       (define errs
         (for/list ([pt&err (job-result-backend result)])
           (define pt (first pt&err))
@@ -507,7 +511,8 @@ Not ready for this API yet as i'm not sure how syncing with this abstraction wil
       (define test (parse-test formula))
       (define pcontext (json->pcontext sample (test-context test)))
       (define command (run-herbie-command 'exacts formula seed pcontext #f #t))
-      (define result (run-work command))
+      (define id (start-job command))
+      (define result (wait-for-job id))
       (hasheq 'points (job-result-backend result)))))
 
 (define calculate-endpoint 
@@ -519,7 +524,8 @@ Not ready for this API yet as i'm not sure how syncing with this abstraction wil
       (define test (parse-test formula))
       (define pcontext (json->pcontext sample (test-context test)))
       (define command (run-herbie-command 'evaluate formula seed pcontext #f #t))
-      (define result (run-work command))
+      (define id (start-job command))
+      (define result (wait-for-job id))
       (define approx (job-result-backend result))
       (hasheq 'points approx))))
 
@@ -533,7 +539,8 @@ Not ready for this API yet as i'm not sure how syncing with this abstraction wil
       (define expr (prog->fpcore (test-input test) (test-output-repr test)))
       (define pcontext (json->pcontext sample (test-context test)))
       (define command (run-herbie-command 'local-error formula seed pcontext #f #t))
-      (define result (run-work command))
+      (define id (start-job command))
+      (define result (wait-for-job id))
       (define local-error (job-result-backend result))
       ;; TODO: potentially unsafe if resugaring changes the AST
       (define tree
@@ -565,7 +572,8 @@ Not ready for this API yet as i'm not sure how syncing with this abstraction wil
       (define pcontext (json->pcontext sample (test-context test)))
       (define command 
        (run-herbie-command 'alternatives formula seed pcontext #f #t))
-      (define result (run-work command))
+      (define id (start-job command))
+      (define result (wait-for-job id))
       (match-define (list altns test-pcontext processed-pcontext) 
        (job-result-backend result))
       (define splitpoints
@@ -618,7 +626,8 @@ Not ready for this API yet as i'm not sure how syncing with this abstraction wil
       (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
       (define test (parse-test formula))
       (define command (run-herbie-command 'cost formula #f #f #f #t))
-      (define result (run-work command))
+      (define id (start-job command))
+      (define result (wait-for-job id))
       (define cost (job-result-backend result))
       (hasheq 'cost cost))))
 
