@@ -92,16 +92,11 @@ Not ready for this API yet as i'm not sure how syncing with this abstraction wil
   (define sema (hash-ref *job-semma* job-id))
   (semaphore-wait sema)
   (hash-remove! *job-semma* job-id)
-  (eprintf "Job finished\n")
   (hash-ref *completed-jobs* job-id))
 
 (define (is-job-finished job-id)
-  #| Check for job status
-  What is the job states?
-  - 'created
-  - 'running
-  - 'finished |#
-  #f)
+#| Not really sure what this should return yet. s|#
+ (hash-ref *job-status* job-id #f))
 
 ; Private globals
 ; TODO I'm sure these can encapslated some how.
@@ -420,7 +415,7 @@ Not ready for this API yet as i'm not sure how syncing with this abstraction wil
    (url main)))
 
 (define (check-status req job-id)
-  (match (hash-ref *job-status* job-id #f)
+  (match (is-job-finished job-id)
     [(? box? timeline)
      (response 202 #"Job in progress" (current-seconds) #"text/plain"
                (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *job-status*)))))
