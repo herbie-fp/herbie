@@ -63,34 +63,51 @@ This section just servers as a place for us to create the API's but give a
 |#
 
 ;; Job object, What herbie excepts as input for a new job.
-(struct public-job (type #| TODO add remaining feilds |#))
+(provide create-job start-job wait-for-job is-job-finished)
+
+;; TODO rename to herbie-command
+(struct run-herbie-command 
+ (command formula seed pcontext profile? timeline-disabled?) #:transparent)
 
 ;; Creates a job object to be passed to start-job server.
-(define (create-job type)
-  (public-job type))
+;; TODO contract?
+(define (create-job command formula 
+                    #:seed [seed #f] 
+                    #:pcontext [pcontext #f]
+                    #:profile? [profile? #f]
+                    #:timeline-disabled? [timeline-disabled? #f])
+  (run-herbie-command command formula seed pcontext profile? timeline-disabled?))
 
 (define (start-job job)
-  #| call run job? |#
-  (eprintf "starting job\n")
-  ; return job-id
-  (compute-job-id job))
-
+  (start-work job))
+#| 
+Not ready for this API yet as i'm not sure how syncing with this abstraction will work. I could try using semaphores as the current server does.
+|#
 (define (wait-for-job job-id)
   #| Where should we store job ids
   How does access control in Racket work?
   |#
   (eprintf "Waiting for job\n")
-
-  (eprintf "Job finished\n"))
+  (define sema (hash-ref *job-semma* job-id))
+  (semaphore-wait sema)
+  (hash-remove! *job-semma* job-id)
+  (eprintf "Job finished\n")
+  (hash-ref *completed-jobs* job-id))
 
 (define (is-job-finished job-id)
   #| Check for job status
   What is the job states?
-  - created
-  - running
-  - finished |#
+  - 'created
+  - 'running
+  - 'finished |#
   #f)
-;; End Job Server API section
+
+; Private globals
+; TODO I'm sure these can encapslated some how.
+(define *completed-jobs* (make-hash))
+(define *jobs* (make-hash)) ; id's, do I need this as the id's are the keys of the other two dictionaries
+(define *job-semma* (make-hash))
+;; End Job Server section
 
 (define (generate-page req results page)
   (match-define result results)
@@ -243,9 +260,6 @@ This section just servers as a place for us to create the API's but give a
            [else
             `("all formulas submitted here are " (a ([href "./index.html"]) "logged") ".")])))))
 
-(define *completed-jobs* (make-hash))
-(define *jobs* (make-hash))
-
 (define *worker-thread*
   (thread
    (λ ()
@@ -263,9 +277,6 @@ This section just servers as a place for us to create the API's but give a
           (*demo?* demo?)]
          [job-info (run-job job-info)])
        (loop seed)))))
-
-(struct run-herbie-command 
- (command formula seed pcontext profile? timeline-disabled?) #:transparent)
 
 (define (wrapper-run-herbie cmd job-id)
   (print-job-message (run-herbie-command-command cmd) job-id (syntax->datum (run-herbie-command-formula cmd)))
@@ -303,6 +314,14 @@ This section just servers as a place for us to create the API's but give a
   (when sync-job?
    (semaphore-wait sema)
    (hash-ref *completed-jobs* job-id)))
+
+(define (start-work job)
+ (define job-id (compute-job-id job))
+ (hash-set! *jobs* job-id (*timeline*))
+ (define sema (make-semaphore))
+ (hash-set! *job-semma* job-id sema)
+ (thread-send *worker-thread* (work job-id job sema))
+ job-id)
 
 (define (print-job-message command job-id job-str)
   (define job-label
@@ -452,9 +471,10 @@ This section just servers as a place for us to create the API's but give a
       (define formula-str (hash-ref post-data 'formula))
       (define formula (read-syntax 'web (open-input-string formula-str)))
       (define seed* (hash-ref post-data 'seed))
-      (define command (run-herbie-command 'sample formula seed* #f #f #t))
+      (define job (create-job 'sample formula #:seed seed* #:pcontext #f #:profile? #f #:timeline-disabled? #t))
+      (define id (start-job job))
+      (define result (wait-for-job id))
       (define test (parse-test formula))
-      (define result (run-work command))
       (define pctx (job-result-backend result))
       (define repr (context-repr (test-context test)))
       (hasheq 'points (pcontext->json pctx repr)))))
