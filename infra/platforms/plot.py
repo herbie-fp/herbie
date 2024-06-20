@@ -131,7 +131,7 @@ def plot_time_all(output_dir: Path, entries):
 def plot_improve(name: str, output_dir: Path, info):
     """Platform pareto frontier."""
     print(f'Plotting improve {name}')
-    size = 5
+    size = 4.5
 
     input_cores: List[FPCore] = []
     platform_cores: List[FPCore] = []
@@ -196,7 +196,6 @@ def plot_improve(name: str, output_dir: Path, info):
     plt.ylabel(ylabel, fontsize=12)
     plt.xticks(fontsize=10)
     plt.yticks(fontsize=10)
-    plt.legend()
     plt.tight_layout()
 
     for ext in plt_exts:
