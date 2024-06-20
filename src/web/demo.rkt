@@ -18,14 +18,13 @@
 
 (provide run-demo)
 
-(define *demo?* (make-parameter false))
 (define *demo-prefix* (make-parameter "/"))
-(define *demo-output* (make-parameter false))
 (define *demo-log* (make-parameter false))
 
 (define (add-prefix url)
   (string-replace (string-append (*demo-prefix*) url) "//" "/"))
 
+; TODO replace (hash-has-key? *completed-jobs* ..
 (define-coercion-match-expander hash-arg/m
   (λ (x)
     (and (not (*demo-output*))
@@ -63,7 +62,6 @@ This section just servers as a place for us to create the API's but give a
 |#
 
 ;; Job object, What herbie excepts as input for a new job.
-(provide create-job start-job wait-for-job is-job-finished)
 
 ;; TODO rename to herbie-command
 (struct run-herbie-command 
@@ -94,6 +92,9 @@ Not ready for this API yet as i'm not sure how syncing with this abstraction wil
   (hash-remove! *job-semma* job-id)
   (hash-ref *completed-jobs* job-id))
 
+(define (get-finnished-jobs)
+ (in-hash *completed-jobs*))
+
 (define (is-job-finished job-id)
 #| Not really sure what this should return yet. s|#
  (hash-ref *job-status* job-id #f))
@@ -106,6 +107,12 @@ Not ready for this API yet as i'm not sure how syncing with this abstraction wil
 (define (is-server-up)
  (thread-running? *worker-thread*))
 
+(define (compute-job-id job-info)
+ (sha1 (open-input-string (~s job-info))))
+
+; public but not sure how to make private yet
+(define *demo-output* (make-parameter false))
+(define *demo?* (make-parameter false))
 ;; Private 
 ; globals
 ; TODO I'm sure these can encapslated some how.
@@ -216,6 +223,7 @@ Not ready for this API yet as i'm not sure how syncing with this abstraction wil
 
 (define (generate-report req)
   (define data
+    ; TODO replace (in-hash *completed-jobs*)
     (for/list ([(k v) (in-hash *completed-jobs*)]
       #:when (equal? (job-result-command v) 'improve))
        (get-table-data v (format "~a.~a" k *herbie-commit*))))
@@ -447,9 +455,6 @@ Not ready for this API yet as i'm not sure how syncing with this abstraction wil
                  (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count))))
                        (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
                  '()))
-
-(define (compute-job-id job-info)
- (sha1 (open-input-string (~s job-info))))
 
 (define (improve req)
   (improve-common
