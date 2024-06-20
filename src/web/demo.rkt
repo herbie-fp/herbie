@@ -58,13 +58,25 @@
 
 (define (generate-page req results page)
   (match-define result results)
+  (define path (string-split (url->string (request-uri req)) "/"))
   (cond
    [(set-member? (all-pages result) page)
+    ;; Write page contents to disk
+    (when (*demo-output*)
+      (make-directory (build-path (*demo-output*) path))
+      (for ([page (all-pages result)])
+        (call-with-output-file (build-path (*demo-output*) path page)
+          (λ (out) 
+            (with-handlers ([exn:fail? (page-error-handler result page out)])
+              (make-page page out result (*demo-output*) #f)))))
+      (update-report result path (get-seed)
+                      (build-path (*demo-output*) "results.json")
+                      (build-path (*demo-output*) "index.html")))
     (response 200 #"OK" (current-seconds) #"text"
               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
               (λ (out)
                 (with-handlers ([exn:fail? (page-error-handler result page out)])
-                  (make-page page out result (*demo-output*) #f))))]
+                (make-page page out result (*demo-output*) #f))))]
    [else
     (next-dispatcher)]))
 
@@ -217,9 +229,9 @@
        (loop seed)))))
 
 (struct run-herbie-command 
- (command formula seed pcontext profile? timeline-disabled?))
+ (command formula seed pcontext profile? timeline-disabled?) #:transparent)
 
-(define (wrapper-run-herbie cmd job-id after-job-work)
+(define (wrapper-run-herbie cmd job-id)
   (print-job-message (run-herbie-command-command cmd) job-id (syntax->datum (run-herbie-command-formula cmd)))
   (define result (run-herbie 
    (run-herbie-command-command cmd)
@@ -229,25 +241,7 @@
    #:profile? (run-herbie-command-profile? cmd)
    #:timeline-disabled? (run-herbie-command-timeline-disabled? cmd)))
   (hash-set! *completed-jobs* job-id result)
-  (after-job-work result job-id (run-herbie-command-seed cmd)))
-
-(define (after-improve result job-id seed)
- (define path (format "~a.~a" job-id *herbie-commit*))
- (when (*demo-output*)
-    ;; Output results
-    (make-directory (build-path (*demo-output*) path))
-    (for ([page (all-pages result)])
-      (call-with-output-file (build-path (*demo-output*) path page)
-        (λ (out) 
-          (with-handlers ([exn:fail? (page-error-handler result page out)])
-            (make-page page out result (*demo-output*) #f)))))
-    (update-report result path seed
-                    (build-path (*demo-output*) "results.json")
-                    (build-path (*demo-output*) "index.html"))))
-
-; A place holder helper function that should be used when no work needs to be
-; done on the finished result
-(define (default-after result job-id seed) empty)
+  (eprintf "Job ~a complete\n" job-id))
 
 (define (run-job job-info)
  (match-define (work job-id info sema) job-info)
@@ -257,45 +251,12 @@
    (semaphore-post sema)]
   [(and (*demo-output*) (directory-exists? (build-path (*demo-output*) path)))
    (semaphore-post sema)]
-  [else (match info
-   [(list 'improve formula)
-    (wrapper-run-herbie 
-     (run-herbie-command 'improve formula (get-seed) #f #f #f) 
-      job-id after-improve)]
-   [(list 'sample formula seed*)
-    (wrapper-run-herbie 
-     (run-herbie-command 'sample formula seed* #f #f #t) 
-      job-id default-after)]
-   [(list 'errors formula seed* pcontext)
-    (wrapper-run-herbie 
-     (run-herbie-command 'errors formula seed* pcontext #f #t) 
-      job-id default-after)]
-   [(list 'exacts formula seed* pcontext)
-    (wrapper-run-herbie 
-     (run-herbie-command 'exacts formula seed* pcontext #f #t) 
-      job-id default-after)]
-   [(list 'evaluate formula seed* pcontext)
-    (wrapper-run-herbie 
-     (run-herbie-command 'evaluate formula seed* pcontext #f #t) 
-      job-id default-after)]
-   [(list 'local-error formula seed* pcontext)
-    (wrapper-run-herbie 
-     (run-herbie-command 'local-error formula seed* pcontext #f #t) 
-      job-id default-after)]
-   [(list 'alternatives formula seed* pcontext)
-    (wrapper-run-herbie 
-     (run-herbie-command 'alternatives formula seed* pcontext #f #t) 
-      job-id default-after)]
-   [(list 'cost formula)
-    (wrapper-run-herbie 
-     (run-herbie-command 'cost formula #f #f #f #t) 
-      job-id default-after)])
-   (eprintf "Job ~a complete\n" job-id)
+  [else (wrapper-run-herbie info job-id)
    (hash-remove! *jobs* job-id)
    (semaphore-post sema)]))
 
 ; Handles semaphore and async part of a job
-(struct work (id info sema))
+(struct work (id job sema))
 
 ; Encapsulates semaphores and async part of jobs.
 (define (run-work #:sync? [sync-job? #t] job)
@@ -303,8 +264,9 @@
  (hash-set! *jobs* job-id (*timeline*))
  (define sema (make-semaphore))
   (thread-send *worker-thread* (work job-id job sema))
- (when sync-job?
-  (semaphore-wait sema)))
+  (when sync-job?
+   (semaphore-wait sema)
+   (hash-ref *completed-jobs* job-id)))
 
 (define (print-job-message command job-id job-str)
   (define job-label
@@ -391,7 +353,9 @@
        (when (eof-object? formula)
          (raise-herbie-error "no formula specified"))
        (parse-test formula)
-       (body formula))]
+       (define command (run-herbie-command 'improve formula (get-seed) #f #f #f))
+       (define job-id (compute-job-id command))
+       (body job-id command formula))]
     [_
      (response/error "Demo Error"
                      `(p "You didn't specify a formula (or you specified several). "
@@ -400,11 +364,9 @@
 (define (improve-start req)
   (improve-common
    req
-   (λ (formula)
-     (define job (list 'improve formula))
-     (define job-id (compute-job-id job))
+   (λ (job-id command formula)
      (unless (already-computed? job-id formula)
-      (run-work #:sync? #f job))
+      (run-work #:sync? #f command))
      (response/full 201 #"Job started" (current-seconds) #"text/plain"
                     (list (header #"Location" (string->bytes/utf-8 (url check-status job-id)))
                           (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *jobs*)))))
@@ -440,11 +402,9 @@
 (define (improve req)
   (improve-common
    req
-   (λ (formula)
-     (define job (list 'improve formula))
-     (define job-id (compute-job-id job))
+   (λ (job-id command formula)
      (unless (already-computed? job-id formula)
-      (run-work #:sync? #t job))
+      (run-work command))
      (redirect-to (add-prefix (format "~a.~a/graph.html" job-id *herbie-commit*)) see-other))
    (url main)))
 
@@ -456,14 +416,12 @@
       (define formula-str (hash-ref post-data 'formula))
       (define formula (read-syntax 'web (open-input-string formula-str)))
       (define seed* (hash-ref post-data 'seed))
-      (define command (list 'sample formula seed*))
-      (define job-id (compute-job-id command))
-      (run-work #:sync? #t command)
-      (define result (hash-ref *completed-jobs* job-id))
-      (define pctx (job-result-backend result))
+      (define command (run-herbie-command 'sample formula seed* #f #f #t))
       (define test (parse-test formula))
-      (hasheq 'points (pcontext->json pctx 
-       (context-repr (test-context test)))))))
+      (define result (run-work command))
+      (define pctx (job-result-backend result))
+      (define repr (context-repr (test-context test)))
+      (hasheq 'points (pcontext->json pctx repr)))))
 
 (define analyze-endpoint
   (post-with-json-response
@@ -474,11 +432,10 @@
       (define seed (hash-ref post-data 'seed #f))
       (define pcontext (json->pcontext sample 
        (test-context (parse-test formula))))     
-      (define command (list 'errors formula seed pcontext))      
-      (define job-id (compute-job-id command))
-      (run-work #:sync? #t command)
+      (define command (run-herbie-command 'errors formula seed pcontext #f #t))
+      (define result (run-work command))
       (define errs
-        (for/list ([pt&err (job-result-backend (hash-ref *completed-jobs* job-id))])
+        (for/list ([pt&err (job-result-backend result)])
           (define pt (first pt&err))
           (define err (second pt&err))
           (list pt (format-bits (ulps->bits err)))))
@@ -491,16 +448,11 @@
       (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
       (define sample (hash-ref post-data 'sample))
       (define seed (hash-ref post-data 'seed #f))
-      (eprintf "Ground truth job started on ~a..." formula)
-
       (define test (parse-test formula))
       (define pcontext (json->pcontext sample (test-context test)))
-      (define result (run-herbie 'exacts test #:seed seed #:pcontext pcontext
-                                 #:profile? #f #:timeline-disabled? #t))
-      (define exacts (job-result-backend result))
-
-      (eprintf " complete\n")
-      (hasheq 'points exacts))))
+      (define command (run-herbie-command 'exacts formula seed pcontext #f #t))
+      (define result (run-work command))
+      (hasheq 'points (job-result-backend result)))))
 
 (define calculate-endpoint 
   (post-with-json-response
@@ -508,14 +460,11 @@
       (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
       (define sample (hash-ref post-data 'sample))
       (define seed (hash-ref post-data 'seed #f))
-      (eprintf "Evaluation job started on ~a..." formula)
-
       (define test (parse-test formula))
       (define pcontext (json->pcontext sample (test-context test)))
-      (define command (list 'evaluate formula seed pcontext))
-      (define job-id (compute-job-id command))
-      (run-work #:sync? #t command)
-      (define approx (job-result-backend (hash-ref *completed-jobs* job-id)))
+      (define command (run-herbie-command 'evaluate formula seed pcontext #f #t))
+      (define result (run-work command))
+      (define approx (job-result-backend result))
       (hasheq 'points approx))))
 
 (define local-error-endpoint
@@ -524,17 +473,12 @@
       (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
       (define sample (hash-ref post-data 'sample))
       (define seed (hash-ref post-data 'seed #f))
-      (eprintf "Local error job started on ~a..." formula)
-
       (define test (parse-test formula))
       (define expr (prog->fpcore (test-input test) (test-output-repr test)))
       (define pcontext (json->pcontext sample (test-context test)))
-      (define command (list 'local-error formula seed pcontext))
-      (define job-id (compute-job-id command))
-      (run-work #:sync? #t command)
-      (define local-error (job-result-backend 
-       (hash-ref *completed-jobs* job-id)))
-      
+      (define command (run-herbie-command 'local-error formula seed pcontext #f #t))
+      (define result (run-work command))
+      (define local-error (job-result-backend result))
       ;; TODO: potentially unsafe if resugaring changes the AST
       (define tree
         (let loop ([expr expr] [err local-error])
@@ -559,17 +503,15 @@
       (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
       (define sample (hash-ref post-data 'sample))
       (define seed (hash-ref post-data 'seed #f))
-      (eprintf "Alternatives job started on ~a..." formula)
-
       (define test (parse-test formula))
       (define vars (test-vars test))
       (define repr (test-output-repr test))
       (define pcontext (json->pcontext sample (test-context test)))
-      (define command (list 'alternatives formula seed pcontext))
-      (define job-id (compute-job-id command))
-      (run-work #:sync? #t command)
-      (match-define (list altns test-pcontext processed-pcontext) (job-result-backend (hash-ref *completed-jobs* job-id)))
-      
+      (define command 
+       (run-herbie-command 'alternatives formula seed pcontext #f #t))
+      (define result (run-work command))
+      (match-define (list altns test-pcontext processed-pcontext) 
+       (job-result-backend result))
       (define splitpoints
         (for/list ([alt altns]) 
           (for/list ([var vars])
@@ -618,13 +560,10 @@
   (post-with-json-response
     (lambda (post-data)
       (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
-      (eprintf "Computing cost of ~a..." formula)
-      
       (define test (parse-test formula))
-      (define command (list 'cost formula))
-      (define job-id (compute-job-id command))
-      (run-work #:sync? #t command)
-      (define cost (job-result-backend (hash-ref *completed-jobs* job-id)))
+      (define command (run-herbie-command 'cost formula #f #f #f #t))
+      (define result (run-work command))
+      (define cost (job-result-backend result))
       (hasheq 'cost cost))))
 
 (define translate-endpoint
