@@ -98,11 +98,96 @@ Not ready for this API yet as i'm not sure how syncing with this abstraction wil
 #| Not really sure what this should return yet. s|#
  (hash-ref *job-status* job-id #f))
 
-; Private globals
+(define (job-count)
+ (hash-count *job-status*))
+
+(define (start-job-server config)
+ (thread-send *worker-thread* config))
+(define (is-server-up)
+ (thread-running? *worker-thread*))
+
+;; Private 
+; globals
 ; TODO I'm sure these can encapslated some how.
 (define *completed-jobs* (make-hash))
 (define *job-status* (make-hash))
 (define *job-semma* (make-hash))
+
+;; Helpers 
+; Handles semaphore and async part of a job
+(struct work (id job sema))
+
+; Encapsulates semaphores and async part of jobs.
+(define (start-work job)
+ (define job-id (compute-job-id job))
+ (hash-set! *job-status* job-id (*timeline*))
+ (define sema (make-semaphore))
+ (hash-set! *job-semma* job-id sema)
+ (thread-send *worker-thread* (work job-id job sema))
+ job-id)
+
+(define *worker-thread*
+ (thread
+  (λ ()
+    (let loop ([seed #f])
+      (match (thread-receive)
+        [`(init rand ,vec flags ,flag-table num-iters ,iterations points ,points
+                timeout ,timeout output-dir ,output reeval ,reeval demo? ,demo?)
+        (set! seed vec)
+        (*flags* flag-table)
+        (*num-iterations* iterations)
+        (*num-points* points)
+        (*timeout* timeout)
+        (*demo-output* output)
+        (*reeval-pts* reeval)
+        (*demo?* demo?)]
+        [job-info (run-job job-info)])
+      (loop seed)))))
+
+(define (run-job job-info)
+ (match-define (work job-id info sema) job-info)
+ (define path (format "~a.~a" job-id *herbie-commit*))
+ (cond ;; Check caches if job as already been completed
+  [(hash-has-key? *completed-jobs* job-id)
+   (semaphore-post sema)]
+  [(and (*demo-output*) (directory-exists? (build-path (*demo-output*) path)))
+   (semaphore-post sema)]
+  [else (wrapper-run-herbie info job-id)
+   (hash-remove! *job-status* job-id)
+   (semaphore-post sema)])
+ (hash-remove! *job-semma* job-id))
+
+(define (wrapper-run-herbie cmd job-id)
+  (print-job-message (run-herbie-command-command cmd) job-id (syntax->datum (run-herbie-command-formula cmd)))
+  (define result (run-herbie 
+   (run-herbie-command-command cmd)
+   (parse-test (run-herbie-command-formula cmd))
+   #:seed (run-herbie-command-seed cmd)
+   #:pcontext (run-herbie-command-pcontext cmd)
+   #:profile? (run-herbie-command-profile? cmd)
+   #:timeline-disabled? (run-herbie-command-timeline-disabled? cmd)))
+  (hash-set! *completed-jobs* job-id result)
+  (eprintf "Job ~a complete\n" job-id))
+
+(define (print-job-message command job-id job-str)
+  (define job-label
+    (match command 
+      ['alternatives "Alternatives"]
+      ['evaluate "Evaluation"]
+      ['cost "Computing"]
+      ['errors "Analyze"]
+      ['exacts "Ground truth"]
+      ['improve "Improve"]
+      ['local-error "Local error"]
+      ['sample "Sampling"]
+      [_ (error 'compute-result "unknown command ~a" command)]))
+  (eprintf "~a Job ~a started:\n  ~a ~a...\n" job-label (symbol->string command) job-id job-str))
+
+(define (already-computed? job-id)
+  (or (hash-has-key? *completed-jobs* job-id)
+      (and (*demo-output*)
+           (directory-exists? (build-path (*demo-output*) (format "~a.~a" job-id *herbie-commit*))))))
+
 ;; End Job Server section
 
 (define (generate-page req results page)
@@ -122,7 +207,7 @@ Not ready for this API yet as i'm not sure how syncing with this abstraction wil
                       (build-path (*demo-output*) "results.json")
                       (build-path (*demo-output*) "index.html")))
     (response 200 #"OK" (current-seconds) #"text"
-              (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *job-status*)))))
+              (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count)))))
               (λ (out)
                 (with-handlers ([exn:fail? (page-error-handler result page out)])
                 (make-page page out result (*demo-output*) #f))))]
@@ -136,7 +221,7 @@ Not ready for this API yet as i'm not sure how syncing with this abstraction wil
        (get-table-data v (format "~a.~a" k *herbie-commit*))))
   (define info (make-report-info data #:seed (get-seed) #:note (if (*demo?*) "Web demo results" "Herbie results")))
   (response 200 #"OK" (current-seconds) #"text"
-            (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *job-status*)))))
+            (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count)))))
             (λ (out) (write-datafile out info))))
 
 (define url (compose add-prefix url*))
@@ -176,7 +261,7 @@ Not ready for this API yet as i'm not sure how syncing with this abstraction wil
     (make-directory (*demo-output*)))
 
   (response/xexpr
-   #:headers (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *job-status*)))))
+   #:headers (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count)))))
    (herbie-page
     #:title (if (*demo?*) "Herbie web demo" "Herbie")
     #:show-title (*demo?*)
@@ -188,7 +273,7 @@ Not ready for this API yet as i'm not sure how syncing with this abstraction wil
        (a ([id "use-fpcore"]) "Use FPCore")
        )
     (cond
-      [(thread-running? *worker-thread*)
+      [(is-server-up)
        `(form ([action ,(url improve)] [method "post"] [id "formula"]
                [data-progress ,(url improve-start)])
           (textarea ([name "formula"] [autofocus "true"]
@@ -218,7 +303,7 @@ Not ready for this API yet as i'm not sure how syncing with this abstraction wil
 
     (if (*demo?*)
         `(p "To handle the high volume of requests, web requests are queued; "
-            "there are " (span ([id "num-jobs"]) ,(~a (hash-count *job-status*))) " jobs in the queue right now. "
+            "there are " (span ([id "num-jobs"]) ,(~a (job-count))) " jobs in the queue right now. "
             "Web demo requests may also time out and cap the number of improvement iterations. "
             "To avoid these limitations, " (a ([href "/doc/latest/installing.html"]) "install Herbie")
             " on your own computer.")
@@ -256,75 +341,6 @@ Not ready for this API yet as i'm not sure how syncing with this abstraction wil
            [else
             `("all formulas submitted here are " (a ([href "./index.html"]) "logged") ".")])))))
 
-(define *worker-thread*
-  (thread
-   (λ ()
-     (let loop ([seed #f])
-       (match (thread-receive)
-         [`(init rand ,vec flags ,flag-table num-iters ,iterations points ,points
-                 timeout ,timeout output-dir ,output reeval ,reeval demo? ,demo?)
-          (set! seed vec)
-          (*flags* flag-table)
-          (*num-iterations* iterations)
-          (*num-points* points)
-          (*timeout* timeout)
-          (*demo-output* output)
-          (*reeval-pts* reeval)
-          (*demo?* demo?)]
-         [job-info (run-job job-info)])
-       (loop seed)))))
-
-(define (wrapper-run-herbie cmd job-id)
-  (print-job-message (run-herbie-command-command cmd) job-id (syntax->datum (run-herbie-command-formula cmd)))
-  (define result (run-herbie 
-   (run-herbie-command-command cmd)
-   (parse-test (run-herbie-command-formula cmd))
-   #:seed (run-herbie-command-seed cmd)
-   #:pcontext (run-herbie-command-pcontext cmd)
-   #:profile? (run-herbie-command-profile? cmd)
-   #:timeline-disabled? (run-herbie-command-timeline-disabled? cmd)))
-  (hash-set! *completed-jobs* job-id result)
-  (eprintf "Job ~a complete\n" job-id))
-
-(define (run-job job-info)
- (match-define (work job-id info sema) job-info)
- (define path (format "~a.~a" job-id *herbie-commit*))
- (cond ;; Check caches if job as already been completed
-  [(hash-has-key? *completed-jobs* job-id)
-   (semaphore-post sema)]
-  [(and (*demo-output*) (directory-exists? (build-path (*demo-output*) path)))
-   (semaphore-post sema)]
-  [else (wrapper-run-herbie info job-id)
-   (hash-remove! *job-status* job-id)
-   (semaphore-post sema)])
- (hash-remove! *job-semma* job-id))
-
-; Handles semaphore and async part of a job
-(struct work (id job sema))
-
-; Encapsulates semaphores and async part of jobs.
-(define (start-work job)
- (define job-id (compute-job-id job))
- (hash-set! *job-status* job-id (*timeline*))
- (define sema (make-semaphore))
- (hash-set! *job-semma* job-id sema)
- (thread-send *worker-thread* (work job-id job sema))
- job-id)
-
-(define (print-job-message command job-id job-str)
-  (define job-label
-    (match command 
-      ['alternatives "Alternatives"]
-      ['evaluate "Evaluation"]
-      ['cost "Computing"]
-      ['errors "Analyze"]
-      ['exacts "Ground truth"]
-      ['improve "Improve"]
-      ['local-error "Local error"]
-      ['sample "Sampling"]
-      [_ (error 'compute-result "unknown command ~a" command)]))
-  (eprintf "~a Job ~a started:\n  ~a ~a...\n" job-label (symbol->string command) job-id job-str))
-
 (define (update-report result dir seed data-file html-file)
   (define link (path-element->string (last (explode-path dir))))
   (define data (get-table-data result link))
@@ -337,11 +353,6 @@ Not ready for this API yet as i'm not sure how syncing with this abstraction wil
   (write-datafile tmp-file info)
   (rename-file-or-directory tmp-file data-file #t)
   (call-with-output-file html-file #:exists 'replace (curryr make-report-page info #f)))
-
-(define (already-computed? job-id)
-  (or (hash-has-key? *completed-jobs* job-id)
-      (and (*demo-output*)
-           (directory-exists? (build-path (*demo-output*) (format "~a.~a" job-id *herbie-commit*))))))
 
 (define (post-with-json-response fn)
   (lambda (req)
@@ -410,7 +421,7 @@ Not ready for this API yet as i'm not sure how syncing with this abstraction wil
      (define job-id (start-job command))
      (response/full 201 #"Job started" (current-seconds) #"text/plain"
                     (list (header #"Location" (string->bytes/utf-8 (url check-status job-id)))
-                          (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *job-status*)))))
+                          (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count)))))
                     '()))
    (url main)))
 
@@ -418,7 +429,7 @@ Not ready for this API yet as i'm not sure how syncing with this abstraction wil
   (match (is-job-finished job-id)
     [(? box? timeline)
      (response 202 #"Job in progress" (current-seconds) #"text/plain"
-               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *job-status*)))))
+               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count)))))
                (λ (out) (display (apply string-append
                                         (for/list ([entry (reverse (unbox timeline))])
                                           (format "Doing ~a\n" (hash-ref entry 'type))))
@@ -426,14 +437,14 @@ Not ready for this API yet as i'm not sure how syncing with this abstraction wil
     [#f
      (response/full 201 #"Job complete" (current-seconds) #"text/plain"
                     (list (header #"Location" (string->bytes/utf-8 (add-prefix (format "~a.~a/graph.html" job-id *herbie-commit*))))
-                          (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *job-status*)))))
+                          (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count)))))
                     '())]))
 
 (define (check-up req)
-  (response/full (if (thread-running? *worker-thread*) 200 500)
-                 (if (thread-running? *worker-thread*) #"Up" #"Down")
+  (response/full (if (is-server-up) 200 500)
+                 (if (is-server-up) #"Up" #"Down")
                  (current-seconds) #"text/plain"
-                 (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (hash-count *job-status*))))
+                 (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count))))
                        (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
                  '()))
 
@@ -650,7 +661,7 @@ Not ready for this API yet as i'm not sure how syncing with this abstraction wil
   (define config
     `(init rand ,(get-seed) flags ,(*flags*) num-iters ,(*num-iterations*) points ,(*num-points*)
            timeout ,(*timeout*) output-dir ,(*demo-output*) reeval ,(*reeval-pts*) demo? ,(*demo?*)))
-  (thread-send *worker-thread* config)
+  (start-job-server config)
 
   (eprintf "Herbie ~a with seed ~a\n" *herbie-version* (get-seed))
   (eprintf "Find help on https://herbie.uwplse.org/, exit with Ctrl-C\n")
