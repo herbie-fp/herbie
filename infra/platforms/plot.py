@@ -24,7 +24,7 @@ use_time = True # time vs cost
 input_color = 'black'
 platform_color = 'blue'
 supported_color = 'orange'
-desugared_color = 'green'
+desugared_color = 'magenta'
 
 input_style = 's'
 platform_style = '.'
@@ -159,12 +159,12 @@ def plot_improve(name: str, output_dir: Path, info):
     plt.figure(figsize=(size, size))
     if invert_axes:
         xlabel = f'Speedup' if use_time else 'Estimated speedup'
-        ylabel = 'Cumulative average accuracy (bits)'
+        ylabel = 'Sum of accuracy log2(ULP)'
         input_x, input_y = input_speedup, input_accuracy
         xs, ys = zip(*frontier2)
     else:
         xlabel = f'Run time ({time_unit})' if use_time else 'Estimated cost'
-        ylabel = 'Cumulative average error (bits)'
+        ylabel = 'Sum of error log2(ULP)'
         input_x, input_y = input_cost, input_error
         xs, ys = zip(*frontier)
 
@@ -275,7 +275,7 @@ def plot_compare1(name: str, name2: str, output_dir: Path, info):
     fig.suptitle(f'Comparing {name} and {name2}')
 
     # Pareto frontiers
-    ax1.set_title('Est. cost vs. cumulative avg. error (bits)', size='medium')
+    ax1.set_title('Est. cost vs. cumulative avg. error log2(ULP)', size='medium')
     ax1.set(xlabel='Estimated cost', ylabel='Cumulative average error')
     ax1.plot(platform_costs, platform_errs, label=f'{name} (Chassis)', color=platform_color)
     ax1.plot(supported_costs, supported_errs, label=f'{name2} (supported)', color=supported_color)
@@ -312,10 +312,10 @@ def plot_baseline_all(output_dir: Path, entries):
 
     if invert_axes:
         fig.supxlabel('Speedup' if use_time else 'Estimated speedup')
-        fig.supylabel('Cumulative average accuracy (bits)')
+        fig.supylabel('Cumulative average accuracy log2(ULP)')
     else:
         fig.supxlabel('Cumulative run time' if use_time else 'Cumulative estimated cost')
-        fig.supylabel('Cumulative average eror (bits)')
+        fig.supylabel('Cumulative average eror log2(ULP)')
 
     for i, (name, info) in enumerate(entries):
         input_pt, input_pt2, num_input, \
@@ -374,10 +374,10 @@ def plot_compare_all(output_dir: Path, entries):
     # fig.suptitle('Platform vs. platform comparison')
     if invert_axes:
         fig.supxlabel('Speedup' if use_time else 'Estimated speedup')
-        fig.supylabel('Cumulative average accuracy (bits)')
+        fig.supylabel('Cumulative average accuracy log2(ULP)')
     else:
         fig.supxlabel('Cumulative run time' if use_time else 'Cumulative estimated cost')
-        fig.supylabel('Cumulative average eror (bits)')
+        fig.supylabel('Cumulative average eror log2(ULP)')
 
     # collect input and platform cores
     by_platform: Dict[str, Tuple[List[FPCore], List[FPCore]]] = dict()

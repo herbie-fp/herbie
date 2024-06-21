@@ -1,6 +1,7 @@
 """Plots cross-benchmark evaluation data"""
 
 import matplotlib.pyplot as plt
+from matplotlib.ticker import FormatStrFormatter
 from scipy.stats import spearmanr
 
 from typing import List, Tuple
@@ -18,13 +19,13 @@ use_time = True # time vs cost
 
 input_color = 'black'
 platform_color = 'blue'
-supported_color = 'orange'
-desugared_color = 'green'
+supported_color = 'gray'
+desugared_color = 'orange'
 
 input_style = 's'
 platform_style = '.'
 supported_style = '+'
-desugared_style = 'x'
+desugared_style = '.'
 
 # preferred order
 order = [
@@ -32,6 +33,19 @@ order = [
     'c', 'julia', 'python',
     'vdt', 'fdlibm', 'numpy'
 ]
+
+# preferred name
+display_names = {
+    'arith': 'Arith',
+    'arith-fma': 'Arith+FMA',
+    'avx': 'AVX',
+    'c': 'C',
+    'julia': 'Julia',
+    'python': 'Python',
+    'vdt': 'vdt',
+    'fdlibm': 'fdlibm',
+    'numpy': 'NumPy'
+}
 
 # plot extensions
 plt_exts = ['png', 'pdf']
@@ -94,7 +108,7 @@ def plot_time_all(output_dir: Path, entries):
         costs, times = platform_cost_time(info)
         ax = axs[i // 3, i % 3] if num_platforms > 3 else axs[i]
         ax.scatter(costs, times)
-        ax.set_title(name)
+        ax.set_title(display_names[name])
 
         rho = spearmanr(costs, times).statistic
         if rho < min_rho:
@@ -169,11 +183,6 @@ def comparison_frontiers(info):
         desugared_frontier, desugared_frontier2, num_desugared
 
 def comparison_frontiers2(info):
-    num_input = 0
-    num_platform = 0
-    num_supported = 0
-    num_desugared = 0
-
     input_cores: List[FPCore] = []
     platform_cores: List[FPCore] = []
     supported_cores: List[FPCore] = []
@@ -183,14 +192,6 @@ def comparison_frontiers2(info):
         platform = list(map(FPCore.from_json, core_info['platform_cores']))
         supported = list(map(FPCore.from_json, core_info['supported_cores']))
         desugared = list(map(FPCore.from_json, core_info['desugared_cores']))
-
-        num_input += 1
-        if platform:
-            num_platform += 1
-        elif supported:
-            num_supported += 1
-        elif desugared:
-            num_desugared += 1
 
         if platform and supported and desugared:
             input_cores.append(input_core)
@@ -240,7 +241,8 @@ def normalize(pts: List[Tuple[float, float]], pts2: List[Tuple[float, float]]):
         else:
             # x is not the same
             # apply linear interpolation
-            y = (before[1] + after[1]) / 2
+            m = (before[1] - after[1]) / (before[0] - after[0])
+            y = m * (pt[0] - before[0]) + before[1]
             norm_pts.append((pt[0], y / pt[1]))
 
     return norm_pts
@@ -261,10 +263,10 @@ def plot_baseline_all(output_dir: Path, entries):
 
     if invert_axes:
         fig.supxlabel('Speedup' if use_time else 'Estimated speedup')
-        fig.supylabel('Cumulative average accuracy (bits)')
+        fig.supylabel('Sum of accuracy log2(ULP)')
     else:
         fig.supxlabel('Cumulative run time' if use_time else 'Cumulative estimated cost')
-        fig.supylabel('Cumulative average eror (bits)')
+        fig.supylabel('Sum of eror log2(ULP)')
 
     for i, (name, info) in enumerate(entries):
         input_pt, input_pt2, num_input, \
@@ -285,7 +287,7 @@ def plot_baseline_all(output_dir: Path, entries):
             desugared_xs, desugared_ys = zip(*desugared_frontier)
 
         ax = axs[i // 3, i % 3] if num_platforms > 3 else axs[i]
-        ax.set_title(name, size='medium')
+        ax.set_title(display_names[name], size='medium')
         ax.plot([input_x], [input_y], input_style, color=input_color)
         ax.plot(platform_xs, platform_ys, platform_style, color=platform_color)
         ax.plot(supported_xs, supported_ys, supported_style, color=supported_color)
@@ -303,7 +305,7 @@ def plot_baseline_all(output_dir: Path, entries):
     # second mode
     if invert_axes and use_time:
         fig, axs = plt.subplots(ncols=3, nrows=nrows, figsize=((size, size)))
-        fig.supxlabel('Cumulative average accuracy (bits)')
+        fig.supxlabel('Sum of accuracy log2(ULP)')
         fig.supylabel('Speedup')
     
         for i, (name, info) in enumerate(entries):
@@ -320,10 +322,11 @@ def plot_baseline_all(output_dir: Path, entries):
             supported_frontier.sort(key=lambda pt: pt[0])
             desugared_frontier.sort(key=lambda pt: pt[0])
 
-            input_pt = normalize([input_pt], desugared_frontier)[0]
-            platform_frontier = normalize(platform_frontier, desugared_frontier)
-            supported_frontier = normalize(supported_frontier, desugared_frontier)
-            desugared_frontier = normalize(desugared_frontier, desugared_frontier)
+            relative_frontier = supported_frontier
+            input_pt = normalize([input_pt], relative_frontier)[0]
+            platform_frontier = normalize(platform_frontier, relative_frontier)
+            supported_frontier = normalize(supported_frontier, relative_frontier)
+            desugared_frontier = normalize(desugared_frontier, relative_frontier)
 
             # decompose frontiers
             input_x, input_y = input_pt
@@ -333,16 +336,28 @@ def plot_baseline_all(output_dir: Path, entries):
 
             # plot
             ax = axs[i // 3, i % 3] if num_platforms > 3 else axs[i]
-            ax.set_title(name, size='medium')
+            ax.set_title(display_names[name], size='medium')
             ax.plot([input_x], [input_y], input_style, color=input_color)
             ax.plot(platform_xs, platform_ys, platform_style, color=platform_color)
-            ax.plot(supported_xs, supported_ys, supported_style, color=supported_color)
             ax.plot(desugared_xs, desugared_ys, desugared_style, color=desugared_color)
+            ax.plot(supported_xs, supported_ys, supported_style, color=supported_color)
+
+            # axis formatting
+            ax.yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
+            if max(map(lambda pt: pt[1], platform_frontier)) > 2:
+                ax.set(ylim=(0, 4))
+            else:
+                ax.set(ylim=(0, 2))
+
+            # line
+            xmin = min(map(lambda pt: pt[0], platform_frontier + supported_frontier + desugared_frontier))
+            xmax = max(map(lambda pt: pt[0], platform_frontier + supported_frontier + desugared_frontier))
+            ax.hlines(y=1, xmin=xmin, xmax=xmax, color='gray', linestyle='--')
 
         for i in range(len(names), 3 * nrows):
             ax = axs[i // 3, i % 3] if num_platforms > 3 else axs[i]
             fig.delaxes(ax)
-
+        
         plt.tight_layout()
         for ext in plt_exts:
             plt.savefig(output_dir.joinpath(f'baseline-pareto2.{ext}'))
