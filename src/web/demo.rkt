@@ -64,7 +64,7 @@ This section just servers as a place for us to create the API's but give a
 ;; Job object, What herbie excepts as input for a new job.
 
 ;; TODO rename to herbie-command
-(struct run-herbie-command 
+(struct herbie-command 
  (command formula seed pcontext profile? timeline-disabled?) #:transparent)
 
 ;; Creates a command object to be passed to start-job server.
@@ -74,7 +74,7 @@ This section just servers as a place for us to create the API's but give a
                     #:pcontext [pcontext #f]
                     #:profile? [profile? #f]
                     #:timeline-disabled? [timeline-disabled? #f])
-  (run-herbie-command command formula seed pcontext profile? timeline-disabled?))
+  (herbie-command command formula seed pcontext profile? timeline-disabled?))
 
 ;; Starts a job for a given command object
 (define (start-job command)
@@ -165,14 +165,14 @@ Not ready for this API yet as i'm not sure how syncing with this abstraction wil
  (hash-remove! *job-semma* job-id))
 
 (define (wrapper-run-herbie cmd job-id)
-  (print-job-message (run-herbie-command-command cmd) job-id (syntax->datum (run-herbie-command-formula cmd)))
+  (print-job-message (herbie-command-command cmd) job-id (syntax->datum (herbie-command-formula cmd)))
   (define result (run-herbie 
-   (run-herbie-command-command cmd)
-   (parse-test (run-herbie-command-formula cmd))
-   #:seed (run-herbie-command-seed cmd)
-   #:pcontext (run-herbie-command-pcontext cmd)
-   #:profile? (run-herbie-command-profile? cmd)
-   #:timeline-disabled? (run-herbie-command-timeline-disabled? cmd)))
+   (herbie-command-command cmd)
+   (parse-test (herbie-command-formula cmd))
+   #:seed (herbie-command-seed cmd)
+   #:pcontext (herbie-command-pcontext cmd)
+   #:profile? (herbie-command-profile? cmd)
+   #:timeline-disabled? (herbie-command-timeline-disabled? cmd)))
   (hash-set! *completed-jobs* job-id result)
   (eprintf "Job ~a complete\n" job-id))
 
@@ -415,7 +415,7 @@ Not ready for this API yet as i'm not sure how syncing with this abstraction wil
        (when (eof-object? formula)
          (raise-herbie-error "no formula specified"))
        (parse-test formula)
-       (define command (run-herbie-command 'improve formula (get-seed) #f #f #f))
+       (define command (create-job 'improve formula #:seed (get-seed) #:pcontext #f #:profile? #f #:timeline-disabled? #f))
        (body command))]
     [_
      (response/error "Demo Error"
@@ -490,7 +490,7 @@ Not ready for this API yet as i'm not sure how syncing with this abstraction wil
       (define seed (hash-ref post-data 'seed #f))
       (define pcontext (json->pcontext sample 
        (test-context (parse-test formula))))     
-      (define command (run-herbie-command 'errors formula seed pcontext #f #t))
+      (define command (create-job 'errors formula #:seed seed #:pcontext pcontext #:profile? #f #:timeline-disabled? #t))
       (define id (start-job command))
       (define result (wait-for-job id))
       (define errs
@@ -509,7 +509,7 @@ Not ready for this API yet as i'm not sure how syncing with this abstraction wil
       (define seed (hash-ref post-data 'seed #f))
       (define test (parse-test formula))
       (define pcontext (json->pcontext sample (test-context test)))
-      (define command (run-herbie-command 'exacts formula seed pcontext #f #t))
+      (define command (create-job 'exacts formula #:seed seed #:pcontext pcontext #:profile? #f #:timeline-disabled? #t))
       (define id (start-job command))
       (define result (wait-for-job id))
       (hasheq 'points (job-result-backend result)))))
@@ -522,7 +522,7 @@ Not ready for this API yet as i'm not sure how syncing with this abstraction wil
       (define seed (hash-ref post-data 'seed #f))
       (define test (parse-test formula))
       (define pcontext (json->pcontext sample (test-context test)))
-      (define command (run-herbie-command 'evaluate formula seed pcontext #f #t))
+      (define command (create-job 'evaluate formula #:seed seed #:pcontext pcontext #:profile? #f #:timeline-disabled? #t))
       (define id (start-job command))
       (define result (wait-for-job id))
       (define approx (job-result-backend result))
@@ -537,7 +537,7 @@ Not ready for this API yet as i'm not sure how syncing with this abstraction wil
       (define test (parse-test formula))
       (define expr (prog->fpcore (test-input test) (test-output-repr test)))
       (define pcontext (json->pcontext sample (test-context test)))
-      (define command (run-herbie-command 'local-error formula seed pcontext #f #t))
+      (define command (create-job 'local-error formula #:seed seed #:pcontext pcontext #:profile? #f #:timeline-disabled? #t))
       (define id (start-job command))
       (define result (wait-for-job id))
       (define local-error (job-result-backend result))
@@ -570,7 +570,7 @@ Not ready for this API yet as i'm not sure how syncing with this abstraction wil
       (define repr (test-output-repr test))
       (define pcontext (json->pcontext sample (test-context test)))
       (define command 
-       (run-herbie-command 'alternatives formula seed pcontext #f #t))
+       (create-job 'alternatives formula #:seed seed #:pcontext pcontext #:profile? #f #:timeline-disabled? #t))
       (define id (start-job command))
       (define result (wait-for-job id))
       (match-define (list altns test-pcontext processed-pcontext) 
@@ -624,7 +624,8 @@ Not ready for this API yet as i'm not sure how syncing with this abstraction wil
     (lambda (post-data)
       (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
       (define test (parse-test formula))
-      (define command (run-herbie-command 'cost formula #f #f #f #t))
+      (define command 
+       (create-job 'cost formula #:seed #f #:pcontext #f #:profile? #f #:timeline-disabled? #t))
       (define id (start-job command))
       (define result (wait-for-job id))
       (define cost (job-result-backend result))
