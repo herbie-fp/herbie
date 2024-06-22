@@ -26,17 +26,6 @@
 (define (add-prefix url)
   (string-replace (string-append (*demo-prefix*) url) "//" "/"))
 
-(define-coercion-match-expander hash-arg/m
-  (λ (x)
-    (and (not (*demo-output*))
-         (let ([m (regexp-match #rx"^([0-9a-f]+)\\.[0-9a-f.]+" x)])
-           (and m (hash-has-key? *completed-jobs* (second m))))))
-  (λ (x)
-    (let ([m (regexp-match #rx"^([0-9a-f]+)\\.[0-9a-f.]+" x)])
-      (hash-ref *completed-jobs* (if m (second m) x)))))
-
-(define-bidi-match-expander hash-arg hash-arg/m hash-arg/m)
-
 (define-values (dispatch url*)
   (dispatch-rules
    [("") main]
