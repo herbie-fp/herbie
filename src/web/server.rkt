@@ -17,7 +17,7 @@
 (require (submod "../timeline.rkt" debug))
 
 
-(provide helper helper2 helper3 job-done? job-count is-server-up create-job start-job is-job-finished wait-for-job start-job-server)
+(provide helper helper2 helper3 job-count is-server-up create-job start-job is-job-finished wait-for-job start-job-server)
 #| 
 Job Server Public API section
 
@@ -26,7 +26,6 @@ This section just servers as a place for us to create the API's but give a
 
 ;; Job object, What herbie excepts as input for a new job.
 
-;; TODO rename to herbie-command
 (struct herbie-command 
  (command formula seed pcontext profile? timeline-disabled?) #:transparent)
 
@@ -39,7 +38,15 @@ This section just servers as a place for us to create the API's but give a
                     #:timeline-disabled? [timeline-disabled? #f])
   (herbie-command command formula seed pcontext profile? timeline-disabled?))
 
-;; Starts a job for a given command object
+;; Starts a job for a given command object|
+#|
+(define (start-job command)
+ (define id (compute-job-id command))
+ (unless already-computed? id
+  (eprintf "Job ~a not cached" id)
+  (start-work command))
+ id)
+|#
 (define (start-job command)
   (start-work command))
 #| 
@@ -63,6 +70,7 @@ Not ready for this API yet as i'm not sure how syncing with this abstraction wil
  (hash-count *job-status*))
 
 (define (start-job-server config global-demo global-output)
+ ;; Pass along local global values
  (set! *demo?* global-demo)
  (set! *demo-output* global-output)
  (thread-send *worker-thread* config))
@@ -70,12 +78,19 @@ Not ready for this API yet as i'm not sure how syncing with this abstraction wil
  (thread-running? *worker-thread*))
 
 ; Helers to isolated *completed-jobs*
-(define (helper what-ever) 
- (hash-has-key? *completed-jobs* what-ever))
-(define (helper2 what-ever) 
- (hash-ref *completed-jobs* what-ever))
+(define (helper id) 
+ (hash-has-key? *completed-jobs* id))
+
+; TODO remove this as it returns the job outside it's scope
+(define (helper2 id) 
+ (hash-ref *completed-jobs* id))
 (define (helper3)
   (in-hash *completed-jobs*))
+
+(define (already-computed? job-id)
+  (or (hash-has-key? *completed-jobs* job-id)
+      (and (*demo-output*)
+           (directory-exists? (build-path (*demo-output*) (format "~a.~a" job-id *herbie-commit*))))))
 
 (define (compute-job-id job-info)
  (sha1 (open-input-string (~s job-info))))
@@ -125,10 +140,10 @@ Not ready for this API yet as i'm not sure how syncing with this abstraction wil
  (match-define (work job-id info sema) job-info)
  (define path (format "~a.~a" job-id *herbie-commit*))
  (cond ;; Check caches if job as already been completed
-  ; [(hash-has-key? *completed-jobs* job-id)
-  ;  (semaphore-post sema)]
-  ; [(and (*demo-output*) (directory-exists? (build-path (*demo-output*) path)))
-  ;  (semaphore-post sema)]
+  [(hash-has-key? *completed-jobs* job-id)
+   (semaphore-post sema)]
+  [(and (*demo-output*) (directory-exists? (build-path (*demo-output*) path)))
+   (semaphore-post sema)]
   [else (wrapper-run-herbie info job-id)
    (hash-remove! *job-status* job-id)
    (semaphore-post sema)])
@@ -159,8 +174,3 @@ Not ready for this API yet as i'm not sure how syncing with this abstraction wil
       ['sample "Sampling"]
       [_ (error 'compute-result "unknown command ~a" command)]))
   (eprintf "~a Job ~a started:\n  ~a ~a...\n" job-label (symbol->string command) job-id job-str))
-
-(define (job-done? job-id)
-  (hash-has-key? *completed-jobs* job-id))
-
-;; End Job Server section

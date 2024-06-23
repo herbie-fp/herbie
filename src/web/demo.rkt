@@ -18,10 +18,10 @@
 
 (provide run-demo)
 
-(define *demo-prefix* (make-parameter "/"))
-(define *demo-log* (make-parameter false))
 (define *demo?* (make-parameter false))
+(define *demo-prefix* (make-parameter "/"))
 (define *demo-output* (make-parameter false))
+(define *demo-log* (make-parameter false))
 
 (define (add-prefix url)
   (string-replace (string-append (*demo-prefix*) url) "//" "/"))
@@ -55,13 +55,6 @@
    [("api" "translate") #:method "post" translate-endpoint]
    [((hash-arg) (string-arg)) generate-page]
    [("results.json") generate-report]))
-
-
-;; TODO figure out what to do with *demo-output*
-(define (already-computed? job-id)
-  (or (job-done? job-id)
-      (and (*demo-output*)
-           (directory-exists? (build-path (*demo-output*) (format "~a.~a" job-id *herbie-commit*))))))
 
 (define (generate-page req results page)
   (match-define result results)
