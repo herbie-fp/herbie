@@ -17,7 +17,7 @@
 (require (submod "../timeline.rkt" debug))
 
 
-(provide helper helper2 helper3 job-count is-server-up create-job start-job is-job-finished wait-for-job start-job-server)
+(provide completed-job? remove-me remove-me2 job-count is-server-up create-job start-job is-job-finished wait-for-job start-job-server)
 #| 
 Job Server Public API section
 
@@ -40,6 +40,7 @@ This section just servers as a place for us to create the API's but give a
 
 ;; Starts a job for a given command object|
 #|
+TODO re-enable chaching
 (define (start-job command)
  (define id (compute-job-id command))
  (unless already-computed? id
@@ -78,13 +79,13 @@ Not ready for this API yet as i'm not sure how syncing with this abstraction wil
  (thread-running? *worker-thread*))
 
 ; Helers to isolated *completed-jobs*
-(define (helper id) 
+(define (completed-job? id) 
  (hash-has-key? *completed-jobs* id))
 
 ; TODO remove this as it returns the job outside it's scope
-(define (helper2 id) 
+(define (remove-me id) 
  (hash-ref *completed-jobs* id))
-(define (helper3)
+(define (remove-me2)
   (in-hash *completed-jobs*))
 
 (define (already-computed? job-id)

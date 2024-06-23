@@ -30,10 +30,10 @@
   (λ (x)
     (and (not (*demo-output*))
          (let ([m (regexp-match #rx"^([0-9a-f]+)\\.[0-9a-f.]+" x)])
-           (and m (helper (second m))))))
+           (and m (completed-job? (second m))))))
   (λ (x)
     (let ([m (regexp-match #rx"^([0-9a-f]+)\\.[0-9a-f.]+" x)])
-      (helper2 (if m (second m) x)))))
+      (remove-me (if m (second m) x)))))
 
 (define-bidi-match-expander hash-arg hash-arg/m hash-arg/m)
 
@@ -82,7 +82,7 @@
 
 (define (generate-report req)
   (define data
-    (for/list ([(k v) (helper3)]
+    (for/list ([(k v) (remove-me2)]
       #:when (equal? (job-result-command v) 'improve))
        (get-table-data v (format "~a.~a" k *herbie-commit*))))
   (define info (make-report-info data #:seed (get-seed) #:note (if (*demo?*) "Web demo results" "Herbie results")))
