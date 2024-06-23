@@ -17,7 +17,8 @@
 (require (submod "../timeline.rkt" debug))
 
 
-(provide completed-job? remove-me remove-me2 job-count is-server-up create-job start-job is-job-finished wait-for-job start-job-server)
+(provide completed-job? get-results-for get-improve-job-data job-count is-server-up
+create-job start-job is-job-finished wait-for-job start-job-server)
 #| 
 Job Server Public API section
 
@@ -50,13 +51,13 @@ TODO re-enable chaching
 |#
 (define (start-job command)
   (start-work command))
-#| 
-Not ready for this API yet as i'm not sure how syncing with this abstraction will work. I could try using semaphores as the current server does.
-|#
+ 
+(define (already-computed? job-id)
+  (or (hash-has-key? *completed-jobs* job-id)
+      (and (*demo-output*)
+           (directory-exists? (build-path (*demo-output*) (format "~a.~a" job-id *herbie-commit*))))))
+
 (define (wait-for-job job-id)
-  #| Where should we store job ids
-  How does access control in Racket work?
-  |#
   (eprintf "Waiting for job\n")
   (define sema (hash-ref *job-semma* job-id))
   (semaphore-wait sema)
@@ -82,16 +83,13 @@ Not ready for this API yet as i'm not sure how syncing with this abstraction wil
 (define (completed-job? id) 
  (hash-has-key? *completed-jobs* id))
 
-; TODO remove this as it returns the job outside it's scope
-(define (remove-me id) 
+(define (get-results-for id) 
  (hash-ref *completed-jobs* id))
-(define (remove-me2)
-  (in-hash *completed-jobs*))
 
-(define (already-computed? job-id)
-  (or (hash-has-key? *completed-jobs* job-id)
-      (and (*demo-output*)
-           (directory-exists? (build-path (*demo-output*) (format "~a.~a" job-id *herbie-commit*))))))
+(define (get-improve-job-data)
+ (for/list ([(k v) (in-hash *completed-jobs*)]
+     #:when (equal? (job-result-command v) 'improve))
+      (get-table-data v (format "~a.~a" k *herbie-commit*))))
 
 (define (compute-job-id job-info)
  (sha1 (open-input-string (~s job-info))))

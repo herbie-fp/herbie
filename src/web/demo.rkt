@@ -33,7 +33,7 @@
            (and m (completed-job? (second m))))))
   (λ (x)
     (let ([m (regexp-match #rx"^([0-9a-f]+)\\.[0-9a-f.]+" x)])
-      (remove-me (if m (second m) x)))))
+      (get-results-for (if m (second m) x)))))
 
 (define-bidi-match-expander hash-arg hash-arg/m hash-arg/m)
 
@@ -81,11 +81,7 @@
     (next-dispatcher)]))
 
 (define (generate-report req)
-  (define data
-    (for/list ([(k v) (remove-me2)]
-      #:when (equal? (job-result-command v) 'improve))
-       (get-table-data v (format "~a.~a" k *herbie-commit*))))
-  (define info (make-report-info data #:seed (get-seed) #:note (if (*demo?*) "Web demo results" "Herbie results")))
+  (define info (make-report-info (get-improve-job-data) #:seed (get-seed) #:note (if (*demo?*) "Web demo results" "Herbie results")))
   (response 200 #"OK" (current-seconds) #"text"
             (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count)))))
             (λ (out) (write-datafile out info))))
