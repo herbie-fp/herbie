@@ -24,15 +24,14 @@
 (define (add-prefix url)
   (string-replace (string-append (*demo-prefix*) url) "//" "/"))
 
-; TODO replace (hash-has-key? *completed-jobs* ..
 (define-coercion-match-expander hash-arg/m
   (λ (x)
     (and (not (*demo-output*))
          (let ([m (regexp-match #rx"^([0-9a-f]+)\\.[0-9a-f.]+" x)])
-           (and m (hash-has-key? *completed-jobs* (second m))))))
+           (and m (helper (second m))))))
   (λ (x)
     (let ([m (regexp-match #rx"^([0-9a-f]+)\\.[0-9a-f.]+" x)])
-      (hash-ref *completed-jobs* (if m (second m) x)))))
+      (helper2 (if m (second m) x)))))
 
 (define-bidi-match-expander hash-arg hash-arg/m hash-arg/m)
 
@@ -92,9 +91,6 @@ Not ready for this API yet as i'm not sure how syncing with this abstraction wil
   (hash-remove! *job-semma* job-id)
   (hash-ref *completed-jobs* job-id))
 
-(define (get-finnished-jobs)
- (in-hash *completed-jobs*))
-
 (define (is-job-finished job-id)
 #| Not really sure what this should return yet. s|#
  (hash-ref *job-status* job-id #f))
@@ -106,6 +102,14 @@ Not ready for this API yet as i'm not sure how syncing with this abstraction wil
  (thread-send *worker-thread* config))
 (define (is-server-up)
  (thread-running? *worker-thread*))
+
+; Helers to isolated *completed-jobs*
+(define (helper what-ever) 
+ (hash-has-key? *completed-jobs* what-ever))
+(define (helper2 what-ever) 
+ (hash-ref *completed-jobs* what-ever))
+(define (helper3)
+  (in-hash *completed-jobs*))
 
 (define (compute-job-id job-info)
  (sha1 (open-input-string (~s job-info))))
@@ -190,12 +194,16 @@ Not ready for this API yet as i'm not sure how syncing with this abstraction wil
       [_ (error 'compute-result "unknown command ~a" command)]))
   (eprintf "~a Job ~a started:\n  ~a ~a...\n" job-label (symbol->string command) job-id job-str))
 
-(define (already-computed? job-id)
-  (or (hash-has-key? *completed-jobs* job-id)
-      (and (*demo-output*)
-           (directory-exists? (build-path (*demo-output*) (format "~a.~a" job-id *herbie-commit*))))))
+(define (job-done? job-id)
+  (hash-has-key? *completed-jobs* job-id))
 
 ;; End Job Server section
+
+;; TODO figure out what to do with *demo-output*
+(define (already-computed? job-id)
+  (or (job-done? job-id)
+      (and (*demo-output*)
+           (directory-exists? (build-path (*demo-output*) (format "~a.~a" job-id *herbie-commit*))))))
 
 (define (generate-page req results page)
   (match-define result results)
@@ -223,8 +231,7 @@ Not ready for this API yet as i'm not sure how syncing with this abstraction wil
 
 (define (generate-report req)
   (define data
-    ; TODO replace with (in-hash *completed-jobs*)
-    (for/list ([(k v) (in-hash *completed-jobs*)]
+    (for/list ([(k v) (helper3)]
       #:when (equal? (job-result-command v) 'improve))
        (get-table-data v (format "~a.~a" k *herbie-commit*))))
   (define info (make-report-info data #:seed (get-seed) #:note (if (*demo?*) "Web demo results" "Herbie results")))
