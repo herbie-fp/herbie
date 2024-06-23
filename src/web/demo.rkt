@@ -98,7 +98,9 @@ Not ready for this API yet as i'm not sure how syncing with this abstraction wil
 (define (job-count)
  (hash-count *job-status*))
 
-(define (start-job-server config)
+(define (start-job-server config global-demo global-output)
+ (set! *demo?* global-demo)
+ (set! *demo-output* global-output)
  (thread-send *worker-thread* config))
 (define (is-server-up)
  (thread-running? *worker-thread*))
@@ -115,8 +117,8 @@ Not ready for this API yet as i'm not sure how syncing with this abstraction wil
  (sha1 (open-input-string (~s job-info))))
 
 ; public but not sure how to make private yet
-(define *demo-output* (make-parameter false))
 (define *demo?* (make-parameter false))
+(define *demo-output* (make-parameter false))
 ;; Private 
 ; globals
 ; TODO I'm sure these can encapslated some how.
@@ -159,10 +161,10 @@ Not ready for this API yet as i'm not sure how syncing with this abstraction wil
  (match-define (work job-id info sema) job-info)
  (define path (format "~a.~a" job-id *herbie-commit*))
  (cond ;; Check caches if job as already been completed
-  [(hash-has-key? *completed-jobs* job-id)
-   (semaphore-post sema)]
-  [(and (*demo-output*) (directory-exists? (build-path (*demo-output*) path)))
-   (semaphore-post sema)]
+  ; [(hash-has-key? *completed-jobs* job-id)
+  ;  (semaphore-post sema)]
+  ; [(and (*demo-output*) (directory-exists? (build-path (*demo-output*) path)))
+  ;  (semaphore-post sema)]
   [else (wrapper-run-herbie info job-id)
    (hash-remove! *job-status* job-id)
    (semaphore-post sema)])
@@ -674,7 +676,7 @@ Not ready for this API yet as i'm not sure how syncing with this abstraction wil
   (define config
     `(init rand ,(get-seed) flags ,(*flags*) num-iters ,(*num-iterations*) points ,(*num-points*)
            timeout ,(*timeout*) output-dir ,(*demo-output*) reeval ,(*reeval-pts*) demo? ,(*demo?*)))
-  (start-job-server config)
+  (start-job-server config *demo?* *demo-output* )
 
   (eprintf "Herbie ~a with seed ~a\n" *herbie-version* (get-seed))
   (eprintf "Find help on https://herbie.uwplse.org/, exit with Ctrl-C\n")
