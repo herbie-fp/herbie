@@ -16,19 +16,30 @@
          "common.rkt" "core2mathjs.rkt" "history.rkt" "plot.rkt")
 (require (submod "../timeline.rkt" debug))
 
+(provide completed-job? get-results-for get-improve-job-data job-count
+ is-server-up create-job start-job is-job-finished wait-for-job
+ start-job-server)
 
-(provide completed-job? get-results-for get-improve-job-data job-count is-server-up
-create-job start-job is-job-finished wait-for-job start-job-server)
-#| 
-Job Server Public API section
+#| Job Server Public API section |#
 
-This section just servers as a place for us to create the API's but give a
-|#
+; Helers to isolated *completed-jobs*
+(define (completed-job? id) 
+ (hash-has-key? *completed-jobs* id))
 
-;; Job object, What herbie excepts as input for a new job.
+(define (get-results-for id) 
+ (hash-ref *completed-jobs* id))
 
-(struct herbie-command 
- (command formula seed pcontext profile? timeline-disabled?) #:transparent)
+; I don't like how specific this function is but it keeps the API boundary.
+(define (get-improve-job-data)
+ (for/list ([(k v) (in-hash *completed-jobs*)]
+     #:when (equal? (job-result-command v) 'improve))
+      (get-table-data v (format "~a.~a" k *herbie-commit*))))
+
+(define (job-count)
+ (hash-count *job-status*))
+
+(define (is-server-up)
+ (thread-running? *worker-thread*))
 
 ;; Creates a command object to be passed to start-job server.
 ;; TODO contract?
@@ -40,73 +51,54 @@ This section just servers as a place for us to create the API's but give a
   (herbie-command command formula seed pcontext profile? timeline-disabled?))
 
 ;; Starts a job for a given command object|
-#|
-TODO re-enable chaching
 (define (start-job command)
- (define id (compute-job-id command))
- (unless already-computed? id
-  (eprintf "Job ~a not cached" id)
-  (start-work command))
- id)
-|#
-(define (start-job command)
-  (start-work command))
- 
-(define (already-computed? job-id)
-  (or (hash-has-key? *completed-jobs* job-id)
-      (and (*demo-output*)
-           (directory-exists? (build-path (*demo-output*) (format "~a.~a" job-id *herbie-commit*))))))
-
-(define (wait-for-job job-id)
-  (eprintf "Waiting for job\n")
-  (define sema (hash-ref *job-semma* job-id))
-  (semaphore-wait sema)
-  (hash-remove! *job-semma* job-id)
-  (hash-ref *completed-jobs* job-id))
+ (define job-id (compute-job-id command))
+ (if (already-computed? job-id) job-id (start-work command)))
 
 (define (is-job-finished job-id)
-#| Not really sure what this should return yet. s|#
  (hash-ref *job-status* job-id #f))
 
-(define (job-count)
- (hash-count *job-status*))
+(define (wait-for-job job-id)
+ (if (already-computed? job-id) 
+  (hash-ref *completed-jobs* job-id) 
+  (internal-wait-for-job job-id)))
 
 (define (start-job-server config global-demo global-output)
  ;; Pass along local global values
+ ;; TODO can I pull these out of config or not need ot pass them along.
  (set! *demo?* global-demo)
  (set! *demo-output* global-output)
  (thread-send *worker-thread* config))
-(define (is-server-up)
- (thread-running? *worker-thread*))
 
-; Helers to isolated *completed-jobs*
-(define (completed-job? id) 
- (hash-has-key? *completed-jobs* id))
+#| End Job Server Public API section |#
 
-(define (get-results-for id) 
- (hash-ref *completed-jobs* id))
-
-(define (get-improve-job-data)
- (for/list ([(k v) (in-hash *completed-jobs*)]
-     #:when (equal? (job-result-command v) 'improve))
-      (get-table-data v (format "~a.~a" k *herbie-commit*))))
-
-(define (compute-job-id job-info)
- (sha1 (open-input-string (~s job-info))))
-
-; public but not sure how to make private yet
+;; Job object, What herbie excepts as input for a new job.
+(struct herbie-command 
+ (command formula seed pcontext profile? timeline-disabled?) #:transparent)
+ 
+; Private globals
+; TODO I'm sure these can encapslated some how.
 (define *demo?* (make-parameter false))
 (define *demo-output* (make-parameter false))
-;; Private 
-; globals
-; TODO I'm sure these can encapslated some how.
 (define *completed-jobs* (make-hash))
 (define *job-status* (make-hash))
 (define *job-semma* (make-hash))
 
-;; Helpers 
-; Handles semaphore and async part of a job
-(struct work (id job sema))
+(define (already-computed? job-id)
+ (or (hash-has-key? *completed-jobs* job-id)
+     (and (*demo-output*)
+          (directory-exists? (build-path (*demo-output*) 
+           (format "~a.~a" job-id *herbie-commit*))))))
+
+(define (internal-wait-for-job job-id)
+ (eprintf "Waiting for job\n")
+ (define sema (hash-ref *job-semma* job-id))
+ (semaphore-wait sema)
+ (hash-remove! *job-semma* job-id)
+ (hash-ref *completed-jobs* job-id))
+
+(define (compute-job-id job-info)
+ (sha1 (open-input-string (~s job-info))))
 
 ; Encapsulates semaphores and async part of jobs.
 (define (start-work job)
@@ -117,23 +109,8 @@ TODO re-enable chaching
  (thread-send *worker-thread* (work job-id job sema))
  job-id)
 
-(define *worker-thread*
- (thread
-  (λ ()
-    (let loop ([seed #f])
-      (match (thread-receive)
-        [`(init rand ,vec flags ,flag-table num-iters ,iterations points ,points
-                timeout ,timeout output-dir ,output reeval ,reeval demo? ,demo?)
-        (set! seed vec)
-        (*flags* flag-table)
-        (*num-iterations* iterations)
-        (*num-points* points)
-        (*timeout* timeout)
-        (*demo-output* output)
-        (*reeval-pts* reeval)
-        (*demo?* demo?)]
-        [job-info (run-job job-info)])
-      (loop seed)))))
+; Handles semaphore and async part of a job
+(struct work (id job sema))
 
 (define (run-job job-info)
  (match-define (work job-id info sema) job-info)
@@ -149,27 +126,47 @@ TODO re-enable chaching
  (hash-remove! *job-semma* job-id))
 
 (define (wrapper-run-herbie cmd job-id)
-  (print-job-message (herbie-command-command cmd) job-id (syntax->datum (herbie-command-formula cmd)))
-  (define result (run-herbie 
-   (herbie-command-command cmd)
-   (parse-test (herbie-command-formula cmd))
-   #:seed (herbie-command-seed cmd)
-   #:pcontext (herbie-command-pcontext cmd)
-   #:profile? (herbie-command-profile? cmd)
-   #:timeline-disabled? (herbie-command-timeline-disabled? cmd)))
-  (hash-set! *completed-jobs* job-id result)
-  (eprintf "Job ~a complete\n" job-id))
+ (print-job-message (herbie-command-command cmd) job-id 
+  (syntax->datum (herbie-command-formula cmd)))
+ (define result (run-herbie 
+  (herbie-command-command cmd)
+  (parse-test (herbie-command-formula cmd))
+  #:seed (herbie-command-seed cmd)
+  #:pcontext (herbie-command-pcontext cmd)
+  #:profile? (herbie-command-profile? cmd)
+  #:timeline-disabled? (herbie-command-timeline-disabled? cmd)))
+ (hash-set! *completed-jobs* job-id result)
+ (eprintf "Job ~a complete\n" job-id))
 
 (define (print-job-message command job-id job-str)
-  (define job-label
-    (match command 
-      ['alternatives "Alternatives"]
-      ['evaluate "Evaluation"]
-      ['cost "Computing"]
-      ['errors "Analyze"]
-      ['exacts "Ground truth"]
-      ['improve "Improve"]
-      ['local-error "Local error"]
-      ['sample "Sampling"]
-      [_ (error 'compute-result "unknown command ~a" command)]))
-  (eprintf "~a Job ~a started:\n  ~a ~a...\n" job-label (symbol->string command) job-id job-str))
+ (define job-label
+  (match command 
+   ['alternatives "Alternatives"]
+   ['evaluate "Evaluation"]
+   ['cost "Computing"]
+   ['errors "Analyze"]
+   ['exacts "Ground truth"]
+   ['improve "Improve"]
+   ['local-error "Local error"]
+   ['sample "Sampling"]
+   [_ (error 'compute-result "unknown command ~a" command)]))
+ (eprintf "~a Job ~a started:\n  ~a ~a...\n" job-label 
+  (symbol->string command) job-id job-str))
+
+(define *worker-thread*
+ (thread
+  (λ ()
+   (let loop ([seed #f])
+    (match (thread-receive)
+     [`(init rand ,vec flags ,flag-table num-iters ,iterations points ,points
+        timeout ,timeout output-dir ,output reeval ,reeval demo? ,demo?)
+       (set! seed vec)
+       (*flags* flag-table)
+       (*num-iterations* iterations)
+       (*num-points* points)
+       (*timeout* timeout)
+       (*demo-output* output)
+       (*reeval-pts* reeval)
+       (*demo?* demo?)]
+     [job-info (run-job job-info)])
+    (loop seed)))))
