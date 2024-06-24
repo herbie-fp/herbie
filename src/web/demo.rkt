@@ -9,12 +9,10 @@
          web-server/managers/none)
 
 (require "../common.rkt" "../config.rkt" "../syntax/read.rkt" "../errors.rkt")
-(require "../syntax/syntax-check.rkt" "../syntax/type-check.rkt" "../syntax/types.rkt"
-         "../syntax/sugar.rkt" "../alternative.rkt" "../points.rkt"
-         "../programs.rkt" "../sandbox.rkt" "../float.rkt")
+(require "../syntax/types.rkt"
+         "../syntax/sugar.rkt" "../alternative.rkt" "../points.rkt" "../sandbox.rkt" "../float.rkt")
 (require "../datafile.rkt" "pages.rkt" "make-report.rkt"
          "common.rkt" "core2mathjs.rkt" "history.rkt" "plot.rkt" "server.rkt")
-(require (submod "../timeline.rkt" debug))
 
 (provide run-demo)
 
