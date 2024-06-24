@@ -18,13 +18,13 @@ invert_axes = True # (speedup, accuracy) vs. (cost, error)
 use_time = True # time vs cost
 
 input_color = 'black'
-platform_color = 'blue'
-supported_color = 'gray'
-desugared_color = 'orange'
+platform_color = '#0072B2'
+supported_color = '#009E73'
+desugared_color = '#D55E00'
 
 input_style = 's'
 platform_style = '.'
-supported_style = '+'
+supported_style = '.'
 desugared_style = '.'
 
 # preferred order
@@ -107,7 +107,7 @@ def plot_time_all(output_dir: Path, entries):
     for i, (name, info) in enumerate(entries):
         costs, times = platform_cost_time(info)
         ax = axs[i // 3, i % 3] if num_platforms > 3 else axs[i]
-        ax.scatter(costs, times)
+        ax.scatter(costs, times, color=platform_color)
         ax.set_title(display_names[name])
 
         rho = spearmanr(costs, times).statistic
@@ -322,7 +322,11 @@ def plot_baseline_all(output_dir: Path, entries):
             supported_frontier.sort(key=lambda pt: pt[0])
             desugared_frontier.sort(key=lambda pt: pt[0])
 
-            relative_frontier = supported_frontier
+            platform_max = max(map(lambda pt: pt[0], platform_frontier))
+            desugared_max = max(map(lambda pt: pt[0], desugared_frontier))
+            print(f'{name} {platform_max / desugared_max}')
+
+            relative_frontier = desugared_frontier
             input_pt = normalize([input_pt], relative_frontier)[0]
             platform_frontier = normalize(platform_frontier, relative_frontier)
             supported_frontier = normalize(supported_frontier, relative_frontier)
@@ -339,8 +343,8 @@ def plot_baseline_all(output_dir: Path, entries):
             ax.set_title(display_names[name], size='medium')
             ax.plot([input_x], [input_y], input_style, color=input_color)
             ax.plot(platform_xs, platform_ys, platform_style, color=platform_color)
-            ax.plot(desugared_xs, desugared_ys, desugared_style, color=desugared_color)
             ax.plot(supported_xs, supported_ys, supported_style, color=supported_color)
+            ax.plot(desugared_xs, desugared_ys, desugared_style, color=desugared_color)
 
             # axis formatting
             ax.yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
@@ -352,7 +356,7 @@ def plot_baseline_all(output_dir: Path, entries):
             # line
             xmin = min(map(lambda pt: pt[0], platform_frontier + supported_frontier + desugared_frontier))
             xmax = max(map(lambda pt: pt[0], platform_frontier + supported_frontier + desugared_frontier))
-            ax.hlines(y=1, xmin=xmin, xmax=xmax, color='gray', linestyle='--')
+            #ax.hlines(y=1, xmin=xmin, xmax=xmax, color='gray', linestyle='--')
 
         for i in range(len(names), 3 * nrows):
             ax = axs[i // 3, i % 3] if num_platforms > 3 else axs[i]

@@ -22,9 +22,9 @@ invert_axes = True # (speedup, accuracy) vs. (cost, error)
 use_time = True # time vs cost
 
 input_color = 'black'
-platform_color = 'blue'
-supported_color = 'orange'
-desugared_color = 'magenta'
+platform_color = '#0072B2'
+supported_color = '#009E73'
+desugared_color = '#D55E00'
 
 input_style = 's'
 platform_style = '.'
@@ -132,6 +132,7 @@ def plot_improve(name: str, output_dir: Path, info):
     """Platform pareto frontier."""
     print(f'Plotting improve {name}')
     size = 4.5
+    plt.figure(figsize=(size, size))
 
     input_cores: List[FPCore] = []
     platform_cores: List[FPCore] = []
@@ -142,39 +143,25 @@ def plot_improve(name: str, output_dir: Path, info):
             for platform_core_info in core_infos:
                 platform_cores.append(FPCore.from_json(platform_core_info['platform_core']))
     time_unit = info['time_unit']
-
+    
     # compute starting point
     max_error = sum(map(lambda c: core_max_error(c), input_cores))
-    input_costs, input_errs = zip(*map(lambda c: (c.time if use_time else c.cost, c.err), input_cores))
-    input_cost, input_error = sum(input_costs), sum(input_errs)
-    flip = lambda pt: flip_point(input_cost, max_error, pt)
-
-    frontier, *_ = shim_pareto(platform_cores, use_time=use_time)
-    xs, ys = zip(*frontier)
-
-    # compute (speedup, accuracy) frontiers
-    input_speedup, input_accuracy = flip((input_cost, input_error))
-    frontier2 = list(map(flip, frontier))
-    
-    plt.figure(figsize=(size, size))
-    if invert_axes:
-        xlabel = f'Speedup' if use_time else 'Estimated speedup'
-        ylabel = 'Sum of accuracy log2(ULP)'
-        input_x, input_y = input_speedup, input_accuracy
-        xs, ys = zip(*frontier2)
-    else:
-        xlabel = f'Run time ({time_unit})' if use_time else 'Estimated cost'
-        ylabel = 'Sum of error log2(ULP)'
-        input_x, input_y = input_cost, input_error
-        xs, ys = zip(*frontier)
-
     if name == 'c' and use_time:
+        o0_time = None
+        for flags, times, errors in info['extra']:
+            if '-O0' in flags and '-ffast-math' not in flags:
+                o0_time = sum(times)
+                break
+
+        if o0_time is None:
+            raise RuntimeError('Could not find baseline configuration: -O0')
+        flip = lambda pt: flip_point(o0_time, max_error, pt)
+
         exacts = []
         fasts = []
         for flags, times, errors in info['extra']:
             input_time, input_error = sum(times), sum(errors)
             input_speedup, input_accuracy = flip((input_time, input_error))
-
             input_x = input_speedup if invert_axes else input_time
             input_y = input_accuracy if invert_axes else input_error
             if '-ffast-math' in flags:
@@ -183,15 +170,35 @@ def plot_improve(name: str, output_dir: Path, info):
                 exacts.append((input_x, input_y))
 
         exact_xs, exact_ys = zip(*exacts)
-        plt.plot(exact_xs, exact_ys, 'x', color=input_color, label='Clang')
+        plt.plot(exact_xs, exact_ys, 'X', color=input_color, label='Clang')
 
         fast_xs, fast_ys = zip(*fasts)
-        plt.plot(fast_xs, fast_ys, 'x', color=supported_color, label='Clang (fast-math)')
+        plt.plot(fast_xs, fast_ys, 'P', color=desugared_color, label='Clang (fast-math)')
     else:
-        plt.plot([input_x], [input_y], input_style, color=input_color)
+        input_costs, input_errs = zip(*map(lambda c: (c.time if use_time else c.cost, c.err), input_cores))
+        input_cost, input_error = sum(input_costs), sum(input_errs)
+        flip = lambda pt: flip_point(input_cost, max_error, pt)
+        input_speedup, input_accuracy = flip((input_cost, input_error))
+
+        if invert_axes:
+            plt.plot([input_speedup], [input_accuracy], input_style, color=input_color)
+        else:
+            plt.plot([input_cost], [input_error], input_style, color=input_color)
+
+    # compute (speedup, accuracy) frontiers
+    frontier, *_ = shim_pareto(platform_cores, use_time=use_time)
+    frontier2 = list(map(flip, frontier))
+    
+    if invert_axes:
+        xlabel = f'Speedup' if use_time else 'Estimated speedup'
+        ylabel = 'Sum of accuracy log2(ULP)'
+        xs, ys = zip(*frontier2)
+    else:
+        xlabel = f'Run time ({time_unit})' if use_time else 'Estimated cost'
+        ylabel = 'Sum of error log2(ULP)'
+        xs, ys = zip(*frontier)
 
     plt.plot(xs, ys, platform_style, color=platform_color, label='Chassis')
-    #plt.title(f'{xlabel} vs. {ylabel}')
     plt.xlabel(xlabel, fontsize=12)
     plt.ylabel(ylabel, fontsize=12)
     plt.xticks(fontsize=10)
