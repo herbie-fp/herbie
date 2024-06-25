@@ -159,20 +159,19 @@
     (define alts (map make-alt (list '(fmin.f64 x 1) '(fmax.f64 x 1))))
     (define err-lsts `((,(expt 2 53) 1) (1 ,(expt 2 53))))
 
-    (define (test-regimes expr goal)
-      (check (lambda (x y) (equal? (map si-cidx (option-split-indices x)) y))
-             (option-on-expr alts err-lsts (spec->prog expr ctx) ctx)
-             goal))
+    (define-simple-check (check-regimes expr goal)
+      (define opt (option-on-expr alts err-lsts (spec->prog expr ctx) ctx))
+      (equal? (map si-cidx (option-split-indices opt)) goal))
 
     ;; This is a basic sanity test
-    (test-regimes 'x '(1 0))
+    (check-regimes 'x '(1 0))
 
     ;; This test ensures we handle equal points correctly. All points
     ;; are equal along the `1` axis, so we should only get one
     ;; splitpoint (the second, since it is better at the further point).
-    (test-regimes '1 '(0))
+    (check-regimes '1 '(0))
 
-    (test-regimes '(if (== x 0.5) 1 NAN) '(1 0))))
+    (check-regimes '(if (== x 0.5) 1 NAN) '(1 0))))
 
 ;; Struct representing a candidate set of splitpoints that we are considering.
 ;; cost = The total error in the region to the left of our rightmost splitpoint
@@ -230,7 +229,8 @@
 
      (when (fl< alt-error-sum current-alt-error)
        (set! current-alt-error alt-error-sum)
-       (set! current-alt-idx alt-idx))
+       (set! current-alt-idx alt-idx)
+       (set! current-prev-idx number-of-points))
 
      ;; Loop over the points up to our current point
      (for ([prev-split-idx (in-range 0 point-idx)]
