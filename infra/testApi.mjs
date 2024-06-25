@@ -15,6 +15,10 @@ assert.equal(improveURL.status, 200)
 // const improveHTMLexpectedCount = 25871
 // assert.equal(improveHTML.length, improveHTMLexpectedCount, `HTML response character count should be ${improveHTMLexpectedCount} unless HTML changes.`)
 
+// timeline
+const timeline = await callHerbie(`/timeline?formula=${encodeURIComponent(FPCoreFormula2)}`, { method: 'GET' })
+console.log(timeline)
+
 // improve-start endpoint
 const URIencodedBody = "formula=" + encodeURIComponent(FPCoreFormula)
 const startResponse = await callHerbie(`/improve-start`, {
