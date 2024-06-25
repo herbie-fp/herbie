@@ -105,7 +105,9 @@
                          (critical-subexpression? expr subexpr)))
     subexpr))
 
-(define memo-table (make-hash))
+(define-resetter *memo-table*
+  (lambda () (make-hash))
+  (lambda () (make-hash)))
 
 (define (option-on-expr alts err-lsts expr ctx)
   (define repr (repr-of expr ctx))
@@ -128,11 +130,11 @@
                                (</total prev val repr))))
   (define pareto-split-indices
     (cond
-      [(hash-has-key? memo-table expr)
-       (take (hash-ref memo-table expr) (length alts))]
+      [(hash-has-key? (*memo-table*) expr)
+       (take (hash-ref (*memo-table*) expr) (length alts))]
       [else
        (err-lsts->split-indices bit-err-lsts* can-split?)]))
-  (hash-set! memo-table expr pareto-split-indices)
+  (hash-set! (*memo-table*) expr pareto-split-indices)
   
   (define split-indices (last pareto-split-indices))
   (define out (option split-indices alts pts* expr (pick-errors split-indices pts* err-lsts* repr)))
