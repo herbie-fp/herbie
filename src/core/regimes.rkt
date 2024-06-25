@@ -147,10 +147,9 @@
     (define alts (map make-alt (list '(fmin.f64 x 1) '(fmax.f64 x 1))))
     (define err-lsts `((,(expt 2 53) 1) (1 ,(expt 2 53))))
 
-    (define (test-regimes expr goal)
-      (check (lambda (x y) (equal? (map si-cidx (option-split-indices x)) y))
-             (option-on-expr alts err-lsts (spec->prog expr ctx) ctx)
-             goal))
+    (define-simple-check (test-regimes expr goal)
+      (define opt (option-on-expr alts err-lsts (spec->prog expr ctx) ctx))
+      (equal? (map si-cidx (option-split-indices opt)) goal))
 
     ;; This is a basic sanity test
     (test-regimes 'x '(1 0))
@@ -215,66 +214,41 @@
   ;; Vectors are now filled with starting data. Beginning main loop of the
   ;; regimes algorithm.
  
-  ;; Vectors used to determine if our current alt is better than our running
-  ;; best alt.
-  (define best-alt-idxs (make-vector number-of-points))
-  (define best-alt-costs (make-flvector number-of-points))
-
   (for ([point-idx (in-range 0 number-of-points)]
         [current-alt-error (in-flvector result-error-sums)]
         [current-alt-idx (in-vector result-alt-idxs)]
         [current-prev-idx (in-vector result-prev-idxs)])
-   ;; Set and fill temporary vectors with starting data
-   ;; #f for best index and positive infinite for best cost
-   (vector-fill! best-alt-idxs #f)
-   (set! best-alt-costs (make-flvector number-of-points +inf.0))
 
    ;; For each alt loop over its vector of errors
    (for ([alt-idx (in-naturals)] [alt-error-sums (in-vector flvec-psums)])
     ;; Loop over the points up to our current point
     (for ([prev-split-idx (in-range 0 point-idx)]
           [prev-alt-error-sum (in-flvector alt-error-sums)]
-          [best-alt-idx (in-vector best-alt-idxs)]
-          [best-alt-cost (in-flvector best-alt-costs)]
+          [r-error-sum (in-flvector result-error-sums)]
           [can-split (in-vector can-split-vec 1)]
-          #:when can-split)
-     ;; Check if we can add a split point
-      ;; compute the difference between the current error-sum and previous
-      (let ([current-error (fl- (flvector-ref alt-error-sums point-idx)
-                                prev-alt-error-sum)])
-       ;; if we have not set the best alt yet or
-       ;; the current alt-error-sum is less then previous
-       (when (or (not best-alt-idx) (fl< current-error best-alt-cost))
-        ;; update best cost and best index
-        (flvector-set! best-alt-costs prev-split-idx current-error)
-        (vector-set! best-alt-idxs prev-split-idx alt-idx)))))
-   ;; We have now have the index of the best alt and its error up to our 
-   ;; current point-idx.
-   ;; Now we compare against our current best saved in the 3 vectors above
-   (for ([prev-split-idx (in-range 0 point-idx)]
-         [r-error-sum (in-flvector result-error-sums)]
-         [best-alt-idx (in-vector best-alt-idxs)]
-         [best-alt-cost (in-flvector best-alt-costs)]
-         [can-split (in-vector can-split-vec 1)]
-         #:when can-split)
-     ;; Re compute the error sum for a potential better alt
-     (define alt-error-sum (fl+ r-error-sum best-alt-cost min-weight))
-     ;; Check if the new alt-error-sum is better then the current
-     (define set-cond
-      ;; give benefit to previous best alt
-      (cond [(fl< alt-error-sum current-alt-error) #t]
-            ;; Tie breaker if error are the same favor first alt
-            [(and (fl= alt-error-sum current-alt-error)
-                  (> current-alt-idx best-alt-idx)) #t]
-            ;; Tie breaker for if error and alt is the same
-            [(and (fl= alt-error-sum current-alt-error)
-                  (= current-alt-idx best-alt-idx)
-                  (> current-prev-idx prev-split-idx)) #t]
-            [else #f]))
+          #:when can-split) ; Check if we can add a split point
+
+      ;; Compute the difference between the current error-sum and previous
+      (define best-alt-cost (fl- (flvector-ref alt-error-sums point-idx)
+                                 prev-alt-error-sum))
+      ;; Re compute the error sum for a potential better alt
+      (define alt-error-sum (fl+ r-error-sum best-alt-cost min-weight))
+      ;; Check if the new alt-error-sum is better then the current
+      (define set-cond
+        ;; give benefit to previous best alt
+        (cond [(fl< alt-error-sum current-alt-error) #t]
+              ;; Tie breaker if error are the same favor first alt
+              [(and (fl= alt-error-sum current-alt-error)
+                    (> current-alt-idx alt-idx)) #t]
+              ;; Tie breaker for if error and alt is the same
+              [(and (fl= alt-error-sum current-alt-error)
+                    (= current-alt-idx alt-idx)
+                    (> current-prev-idx prev-split-idx)) #t]
+              [else #f]))
       (when set-cond
-       (set! current-alt-error alt-error-sum)
-       (set! current-alt-idx best-alt-idx)
-       (set! current-prev-idx prev-split-idx)))
+        (set! current-alt-error alt-error-sum)
+        (set! current-alt-idx alt-idx)
+        (set! current-prev-idx prev-split-idx))))
    (flvector-set! result-error-sums point-idx current-alt-error)
    (vector-set! result-alt-idxs point-idx current-alt-idx)
    (vector-set! result-prev-idxs point-idx current-prev-idx))
