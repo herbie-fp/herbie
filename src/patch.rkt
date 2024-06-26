@@ -94,6 +94,7 @@
       (match-define (list name f finv) transform-type)
       (define timeline-stop! (timeline-start! 'series (~a expr) (~a var) (~a name)))
       (define genexpr (approximate expr var #:transform (cons f finv)))
+      (genexpr) ; Drop the zeroth-order option, which loses a variable
       (for ([_ (in-range (*taylor-order-limit*))])
         (define replace
           (with-handlers ([exn:fail:user:herbie:missing? (const #f)])
