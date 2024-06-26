@@ -765,7 +765,7 @@ function showGetJsonError(error) {
                     : "python3 -m http.server -d " + page_location + " 8123"
             ]),
             Element("p", [
-                "an then navigating to ",
+                "and then navigating to ",
                 Element("a", {
                     href: "http://localhost:8123/" + page_name,
                 }, Element("kbd", "http://localhost:8123/" + page_name)),
