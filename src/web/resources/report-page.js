@@ -880,4 +880,4 @@ var diffAgainstFields = {}
 var otherJsonData = null
 var resultsJsonData = null
 
-await getResultsJson()
+getResultsJson()
