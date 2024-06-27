@@ -177,7 +177,8 @@
         (resolve-missing-op! stx op actual-types error!)
         type])]
     [#`(,(? (curry hash-has-key? (*functions*)) fname) #,exprs ...)
-     (match-define (list vars repr _) (hash-ref (*functions*) fname))
+     (match-define (list vars prec _) (hash-ref (*functions*) fname))
+     (define repr (get-representation prec))
      (define actual-types (for/list ([arg exprs]) (expression->type arg env type error!)))
      (define expected (map (const repr) vars))
      (if (andmap equal? actual-types expected)
