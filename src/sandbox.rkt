@@ -21,6 +21,7 @@
          "preprocess.rkt"
          "profile.rkt"
          "timeline.rkt"
+         "explain.rkt"
          (submod "timeline.rkt" debug))
 
 (provide run-herbie
@@ -143,6 +144,39 @@
   (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext))
   (*pcontext* test-pcontext)
   (local-error-as-tree (test-input test) (*context*)))
+
+#;(define (explain expr ctx pctx)
+  (define-values (subexprs-list repr-hash subexprs-fn) (compile-expr expr ctx))
+  
+  (define-values (error-count-hash
+                  expls->points
+                  maybe-expls->points
+                  oflow-hash
+                  uflow-hash)
+    (predict-errors ctx pctx
+                    subexprs-list repr-hash subexprs-fn))
+  (generate-timelines expr ctx pctx
+                      error-count-hash
+                      expls->points maybe-expls->points
+                      oflow-hash uflow-hash))
+
+(define (get-explanations test pcontext)
+  (unless pcontext
+    (error 'explain "cannot run without a pcontext"))
+
+  (define-values (train-pcontext test-pcontext)
+    (partition-pcontext pcontext))
+  (*pcontext* test-pcontext)
+  (define-values (subexprs-list repr-hash subexprs-fn)
+    (compile-expr (test-input test) (*context*)))
+  (define-values (error-count-hash
+                  expls->points
+                  maybe-expls->points
+                  oflow-hash
+                  uflow-hash)
+    (predict-errors (*context*) (*pcontext*)
+                    subexprs-list repr-hash subexprs-fn))
+  (gen-expls-table expls->points maybe-expls->points oflow-hash uflow-hash))
 
 ;; TODO: What in the timeline needs fixing with these changes?
 
@@ -270,6 +304,7 @@
             ['exacts (get-exacts test pcontext)]
             ['improve (get-alternatives/report test)]
             ['local-error (get-local-error test pcontext)]
+            ['explain (get-explanations test pcontext)]
             ['sample (get-sample test)]
             [_ (error 'compute-result "unknown command ~a" command)]))
         (timeline-event! 'end)
