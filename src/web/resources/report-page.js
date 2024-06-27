@@ -926,13 +926,8 @@ function storeBenchmarks(tests) {
             tempAllWarnings[warning] = warning
         }
     }
-    for (let b in tempDir) {
-        benchMarks.push(b)
-    }
-    allWarnings = [];
-    for (let b in tempAllWarnings) {
-        allWarnings.push(b)
-    }
+    benchMarks = Object.keys(tempDir);
+    allWarnings = Object.keys(tempAllWarnings);
     update(resultsJsonData, otherJsonData);
 }
 
