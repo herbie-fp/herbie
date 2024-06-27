@@ -223,6 +223,9 @@ var showCompareDetails = false;
 var selectedBenchmarkIndex = -1
 var benchMarks = []
 
+var filterByWarning = -1;
+var allWarnings = []
+
 var sortState = {
     key: "test",
     dir: true, // true = ascending, false = descending
@@ -665,14 +668,23 @@ function buildFilterControls(jsonData) {
         filterButtons.push(button)
     }
 
-    const defaultName = "Filter by suite"
     const dropDown = Element("select", [
-        Element("option", { value: -1, selected: selectedBenchmarkIndex === -1 }, [defaultName]),
+        Element("option", { value: -1, selected: selectedBenchmarkIndex === -1 }, ["Filter by suite"]),
         benchMarks.map((suite, i) => 
             Element("option", { value: i, selected: selectedBenchmarkIndex == i }, [toTitleCase(suite)]))
     ]);
     dropDown.addEventListener("input", (e) => {
         selectedBenchmarkIndex = + (dropDown.value ?? "-1");
+        update(resultsJsonData);
+    });
+
+    const dropDown2 = Element("select", [
+        Element("option", { value: -1, selected: filterByWarning === -1 }, ["Filter to warning"]),
+        allWarnings.map((name) => 
+            Element("option", { value: name, selected: filterByWarning == name }, [name]))
+    ]);
+    dropDown2.addEventListener("input", (e) => {
+        filterByWarning = dropDown2.value ?? -1;
         update(resultsJsonData);
     });
 
@@ -684,7 +696,7 @@ function buildFilterControls(jsonData) {
     const filters = Element("details", { id: "filters", open: showFilterDetails }, [
         Element("summary", {}, [
             Element("h2", {}, "Filters"),
-            groupButtons, " ", dropDown,
+            groupButtons, " ", dropDown, " ", dropDown2,
         ]),
         filterButtons,
     ]);
@@ -845,6 +857,12 @@ function makeFilterFunction() {
             }
         }
 
+        if (filterByWarning != -1) {
+            if (baseData.warnings.indexOf(filterByWarning) === -1) {
+                return false
+            }
+        }
+
         if (!filterState[baseData.status]) {
             return false
         }
@@ -898,14 +916,22 @@ async function getResultsJson() {
 
 function storeBenchmarks(tests) {
     var tempDir = {}
+    var tempAllWarnings = {}
     for (let test of tests) {
         const linkComponents = test.link.split("/")
         if (linkComponents.length > 1) {
             tempDir[linkComponents[0]] = linkComponents[0]
         }
+        for (let warning of test.warnings)  {
+            tempAllWarnings[warning] = warning
+        }
     }
     for (let b in tempDir) {
         benchMarks.push(b)
+    }
+    allWarnings = [];
+    for (let b in tempAllWarnings) {
+        allWarnings.push(b)
     }
     update(resultsJsonData, otherJsonData);
 }
