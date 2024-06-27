@@ -731,6 +731,63 @@ function update(jsonData, otherJsonData) {
     bodyNode.replaceChildren.apply(bodyNode, buildBody(jsonData, otherJsonData));
 }
 
+function showGetJsonError(error) {
+    const header = Element("header", {}, [
+        Element("h1", {}, "Error loading results"),
+        Element("img", { src: "logo-car.png" }, []),
+        Element("nav", {}, [
+            Element("ul", {}, [Element("li", {}, [Element("a", { href: "timeline.html" }, ["Metrics"])])])
+        ]),
+    ])
+
+    let is_windows = navigator.userAgent.indexOf("Windows") !== -1;
+    let page_name = window.location.pathname.split("/").at(-1);
+    let page_location;
+    if (is_windows) {
+        page_location = window.location.pathname.split("/").slice(1, -1).join("\\");
+    } else {
+        page_location = window.location.pathname.split("/").slice(0, -1).join("/");
+    }
+
+    let reason;
+    if (window.location.protocol == "file:") {
+        reason = [
+            Element("p", [
+                "Modern browsers prevent access over ",
+                Element("code", "file://"), " URLs, which Herbie requires.",
+            ]),
+            Element("p", [
+                "You can work around this by starting a local server, like so:"
+            ]),
+            Element("pre", [
+                is_windows // Python on windows is usually called python, not python3
+                    ? "python -m http.server -d " + page_location + " 8123"
+                    : "python3 -m http.server -d " + page_location + " 8123"
+            ]),
+            Element("p", [
+                "and then navigating to ",
+                Element("a", {
+                    href: "http://localhost:8123/" + page_name,
+                }, Element("kbd", "http://localhost:8123/" + page_name)),
+            ]),
+        ];
+    }
+    
+    const message = Element("section", {className: "error"}, [
+        Element("h2", "Could not load results"),
+        reason,
+    ]);
+
+    let body = [header, message];
+
+    let bodyNode = document.querySelector("body");
+    if (bodyNode) {
+        bodyNode.replaceChildren.apply(bodyNode, body);
+    } else {
+        document.addEventListener("DOMContentLoaded", () => showGetJsonError(error));
+    }
+}
+
 function makeFilterFunction() {
     return function filterFunction(baseData, diffData) {
         var returnValue = true
@@ -848,11 +905,14 @@ async function fetchAndUpdate(jsonData) {
 
 async function getResultsJson() {
     if (resultsJsonData == null) {
-        let response = await fetch("results.json", {
-            headers: { "content-type": "text/plain" },
-            method: "GET",
-            mode: "cors",
-        });
+        let response;
+        try {
+            response = await fetch("results.json", {
+                headers: { "content-type": "application/json" },
+            });
+        } catch (err) {
+            return showGetJsonError(err);
+        }
         resultsJsonData = (await response.json());
         storeBenchmarks(resultsJsonData.tests)
     }
@@ -880,4 +940,4 @@ var diffAgainstFields = {}
 var otherJsonData = null
 var resultsJsonData = null
 
-await getResultsJson()
+getResultsJson()
