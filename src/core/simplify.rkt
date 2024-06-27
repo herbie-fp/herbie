@@ -20,7 +20,7 @@
 
   (define out
     (for/list ([result results] [expr (egraph-query-exprs input)])
-      (remove-duplicates (cons expr result))))
+      (remove-duplicates (cons expr (list result)))))
   (timeline-push! 'outputs (map ~a (apply append out)))
     
   out)
