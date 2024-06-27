@@ -189,7 +189,7 @@
                                       (parse-string cs)
                                       (map (curry map parse-string) cs)))
                                 vars
-                                (map string->symbol (get 'warnings '()))
+                                (map string->symbol (hash-ref test 'warnings '()))
                                 (parse-string (get 'input)) (parse-string (get 'output))
                                 (parse-string (hash-ref test 'spec "#f"))
                                 (parse-string (hash-ref test 'target-prog "#f"))
