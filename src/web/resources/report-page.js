@@ -220,10 +220,10 @@ var showFilterDetails = false;
 var showCompareDetails = false;
 
 
-var selectedBenchmarkIndex = -1
-var benchMarks = []
+var filterBySuite = ""
+var allSuites = []
 
-var filterByWarning = -1;
+var filterByWarning = ""
 var allWarnings = []
 
 var sortState = {
@@ -669,22 +669,22 @@ function buildFilterControls(jsonData) {
     }
 
     const dropDown = Element("select", [
-        Element("option", { value: -1, selected: selectedBenchmarkIndex === -1 }, ["Filter by suite"]),
-        benchMarks.map((suite, i) => 
-            Element("option", { value: i, selected: selectedBenchmarkIndex == i }, [toTitleCase(suite)]))
+        Element("option", { value: "", selected: !filterBySuite }, ["Filter by suite"]),
+        allSuites.map((suite, i) => 
+            Element("option", { value: suite, selected: filterBySuite == suite }, [toTitleCase(suite)]))
     ]);
     dropDown.addEventListener("input", (e) => {
-        selectedBenchmarkIndex = + (dropDown.value ?? "-1");
+        filterBySuite = dropDown.value ?? "";
         update(resultsJsonData);
     });
 
     const dropDown2 = Element("select", [
-        Element("option", { value: -1, selected: filterByWarning === -1 }, ["Filter to warning"]),
+        Element("option", { value: "", selected: !filterByWarning }, ["Filter to warning"]),
         allWarnings.map((name) => 
             Element("option", { value: name, selected: filterByWarning == name }, [name]))
     ]);
     dropDown2.addEventListener("input", (e) => {
-        filterByWarning = dropDown2.value ?? -1;
+        filterByWarning = dropDown2.value ?? "";
         update(resultsJsonData);
     });
 
@@ -848,19 +848,17 @@ function makeFilterFunction() {
 
         const linkComponents = baseData.link.split("/")
         // guard statement
-        if (selectedBenchmarkIndex != -1 && linkComponents.length > 1) {
+        if (filterBySuite && linkComponents.length > 1) {
             // defensive lowerCase
-            const left = benchMarks[selectedBenchmarkIndex];
+            const left = filterBySuite;
             const right = linkComponents[0]
             if (left.toLowerCase() != right.toLowerCase()) {
                 return false
             }
         }
 
-        if (filterByWarning != -1) {
-            if (baseData.warnings.indexOf(filterByWarning) === -1) {
-                return false
-            }
+        if (filterByWarning && baseData.warnings.indexOf(filterByWarning) === -1) {
+            return false
         }
 
         if (!filterState[baseData.status]) {
@@ -926,7 +924,7 @@ function storeBenchmarks(tests) {
             tempAllWarnings[warning] = warning
         }
     }
-    benchMarks = Object.keys(tempDir);
+    allSuites = Object.keys(tempDir);
     allWarnings = Object.keys(tempAllWarnings);
     update(resultsJsonData, otherJsonData);
 }
