@@ -665,38 +665,16 @@ function buildFilterControls(jsonData) {
         filterButtons.push(button)
     }
 
-    var dropDownElements = []
-    const defaultName = "All Benchmarks"
-    if (selectedBenchmarkIndex == -1) {
-        dropDownElements = [Element("option", { selected: true }, [defaultName])]
-        for (let i in benchMarks) {
-            const name = toTitleCase(benchMarks[i])
-            dropDownElements.push(Element("option", {}, [name]))
-        }
-    } else {
-        dropDownElements = [Element("option", {}, [defaultName])]
-        for (let i in benchMarks) {
-            const name = toTitleCase(benchMarks[i])
-            if (selectedBenchmarkIndex == i) {
-                dropDownElements.push(Element("option", { selected: true }, [name]))
-            } else {
-                dropDownElements.push(Element("option", {}, [name]))
-            }
-        }
-    }
-
-    const dropDown = Element("select", { id: "dropdown" }, dropDownElements)
+    const defaultName = "Filter by suite"
+    const dropDown = Element("select", [
+        Element("option", { value: -1, selected: selectedBenchmarkIndex === -1 }, [defaultName]),
+        benchMarks.map((suite, i) => 
+            Element("option", { value: i, selected: selectedBenchmarkIndex == i }, [toTitleCase(suite)]))
+    ]);
     dropDown.addEventListener("input", (e) => {
-        const selected = e.target.selectedOptions[0].value
-        for (let i in benchMarks) {
-            if (selected != undefined) {
-                if (benchMarks[i].toLowerCase() == selected.toLowerCase()) {
-                    selectedBenchmarkIndex = i
-                }
-            }
-        }
-        update(resultsJsonData)
-    })
+        selectedBenchmarkIndex = + (dropDown.value ?? "-1");
+        update(resultsJsonData);
+    });
 
     let groupButtons = [];
     for (let i in filterGroupState) {
