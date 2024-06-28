@@ -220,8 +220,11 @@ var showFilterDetails = false;
 var showCompareDetails = false;
 
 
-var selectedBenchmarkIndex = -1
-var benchMarks = []
+var filterBySuite = ""
+var allSuites = []
+
+var filterByWarning = ""
+var allWarnings = []
 
 var sortState = {
     key: "test",
@@ -665,38 +668,25 @@ function buildFilterControls(jsonData) {
         filterButtons.push(button)
     }
 
-    var dropDownElements = []
-    const defaultName = "All Benchmarks"
-    if (selectedBenchmarkIndex == -1) {
-        dropDownElements = [Element("option", { selected: true }, [defaultName])]
-        for (let i in benchMarks) {
-            const name = toTitleCase(benchMarks[i])
-            dropDownElements.push(Element("option", {}, [name]))
-        }
-    } else {
-        dropDownElements = [Element("option", {}, [defaultName])]
-        for (let i in benchMarks) {
-            const name = toTitleCase(benchMarks[i])
-            if (selectedBenchmarkIndex == i) {
-                dropDownElements.push(Element("option", { selected: true }, [name]))
-            } else {
-                dropDownElements.push(Element("option", {}, [name]))
-            }
-        }
-    }
-
-    const dropDown = Element("select", { id: "dropdown" }, dropDownElements)
+    const dropDown = Element("select", [
+        Element("option", { value: "", selected: !filterBySuite }, ["Filter by suite"]),
+        allSuites.map((suite, i) => 
+            Element("option", { value: suite, selected: filterBySuite == suite }, [toTitleCase(suite)]))
+    ]);
     dropDown.addEventListener("input", (e) => {
-        const selected = e.target.selectedOptions[0].value
-        for (let i in benchMarks) {
-            if (selected != undefined) {
-                if (benchMarks[i].toLowerCase() == selected.toLowerCase()) {
-                    selectedBenchmarkIndex = i
-                }
-            }
-        }
-        update(resultsJsonData)
-    })
+        filterBySuite = dropDown.value ?? "";
+        update(resultsJsonData);
+    });
+
+    const dropDown2 = Element("select", [
+        Element("option", { value: "", selected: !filterByWarning }, ["Filter to warning"]),
+        allWarnings.map((name) => 
+            Element("option", { value: name, selected: filterByWarning == name }, [name]))
+    ]);
+    dropDown2.addEventListener("input", (e) => {
+        filterByWarning = dropDown2.value ?? "";
+        update(resultsJsonData);
+    });
 
     let groupButtons = [];
     for (let i in filterGroupState) {
@@ -706,7 +696,7 @@ function buildFilterControls(jsonData) {
     const filters = Element("details", { id: "filters", open: showFilterDetails }, [
         Element("summary", {}, [
             Element("h2", {}, "Filters"),
-            groupButtons, " ", dropDown,
+            groupButtons, " ", dropDown, " ", dropDown2,
         ]),
         filterButtons,
     ]);
@@ -858,13 +848,17 @@ function makeFilterFunction() {
 
         const linkComponents = baseData.link.split("/")
         // guard statement
-        if (selectedBenchmarkIndex != -1 && linkComponents.length > 1) {
+        if (filterBySuite && linkComponents.length > 1) {
             // defensive lowerCase
-            const left = benchMarks[selectedBenchmarkIndex];
+            const left = filterBySuite;
             const right = linkComponents[0]
             if (left.toLowerCase() != right.toLowerCase()) {
                 return false
             }
+        }
+
+        if (filterByWarning && baseData.warnings.indexOf(filterByWarning) === -1) {
+            return false
         }
 
         if (!filterState[baseData.status]) {
@@ -920,15 +914,18 @@ async function getResultsJson() {
 
 function storeBenchmarks(tests) {
     var tempDir = {}
+    var tempAllWarnings = {}
     for (let test of tests) {
         const linkComponents = test.link.split("/")
         if (linkComponents.length > 1) {
             tempDir[linkComponents[0]] = linkComponents[0]
         }
+        for (let warning of test.warnings)  {
+            tempAllWarnings[warning] = warning
+        }
     }
-    for (let b in tempDir) {
-        benchMarks.push(b)
-    }
+    allSuites = Object.keys(tempDir);
+    allWarnings = Object.keys(tempAllWarnings);
     update(resultsJsonData, otherJsonData);
 }
 

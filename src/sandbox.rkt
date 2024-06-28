@@ -301,6 +301,7 @@
              (representation-name repr)
              (map (curry map representation-name) (test-conversions test))
              (test-vars test)
+             (map car (job-result-warnings result))
              (prog->fpcore (test-input test) repr) 
              #f
              (prog->fpcore (test-spec test) repr)
@@ -403,6 +404,9 @@
      ,@(if (table-row-target row)
            `(:herbie-error-target ([,(*reeval-pts*) ,(table-row-target row)]))
            '())
+     ,@(if (empty? (table-row-warnings row))
+           '()
+           `(:herbie-warnings ,(table-row-warnings row)))
      :name ,(table-row-name row)
      ,@(if descr `(:description ,(~a descr)) '())
      :precision ,(table-row-precision row)
