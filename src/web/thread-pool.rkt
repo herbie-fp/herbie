@@ -2,7 +2,7 @@
 
 (require racket/place)
 (require "../common.rkt" "../sandbox.rkt" "../load-plugin.rkt" "pages.rkt"
-         "../syntax/read.rkt" "../syntax/types.rkt" "../datafile.rkt")
+         "../syntax/read.rkt" "../syntax/syntax.rkt" "../syntax/types.rkt" "../datafile.rkt")
 
 (provide get-test-results)
 
@@ -51,7 +51,7 @@
 (define (make-worker seed profile? dir)
   (place/context* ch
     #:parameters (*flags* *num-iterations* *num-points* *timeout* *reeval-pts* *node-limit*
-                  *max-find-range-depth* *pareto-mode* *platform-name* *loose-plugins*)
+                  *max-find-range-depth* *pareto-mode* *platform-name* *loose-plugins* *functions*)
     (parameterize ([current-error-port (open-output-nowhere)]) ; hide output
       (load-herbie-plugins))
     (for ([_ (in-naturals)])
