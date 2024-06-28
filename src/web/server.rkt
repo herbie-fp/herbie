@@ -71,7 +71,7 @@
 (define *demo-output* (make-parameter false))
 (define *completed-jobs* (make-hash))
 (define *job-status* (make-hash))
-(define *job-semma* (make-hash))
+(define *job-sema* (make-hash))
 
 (define (already-computed? job-id)
  (or (hash-has-key? *completed-jobs* job-id)
@@ -81,9 +81,9 @@
 
 (define (internal-wait-for-job job-id)
  (eprintf "Waiting for job\n")
- (define sema (hash-ref *job-semma* job-id))
+ (define sema (hash-ref *job-sema* job-id))
  (semaphore-wait sema)
- (hash-remove! *job-semma* job-id)
+ (hash-remove! *job-sema* job-id)
  (hash-ref *completed-jobs* job-id))
 
 (define (compute-job-id job-info)
@@ -94,7 +94,7 @@
  (define job-id (compute-job-id job))
  (hash-set! *job-status* job-id (*timeline*))
  (define sema (make-semaphore))
- (hash-set! *job-semma* job-id sema)
+ (hash-set! *job-sema* job-id sema)
  (thread-send *worker-thread* (work job-id job sema))
  job-id)
 
@@ -112,7 +112,7 @@
   [else (wrapper-run-herbie info job-id)
    (hash-remove! *job-status* job-id)
    (semaphore-post sema)])
- (hash-remove! *job-semma* job-id))
+ (hash-remove! *job-sema* job-id))
 
 (define (wrapper-run-herbie cmd job-id)
  (print-job-message (herbie-command-command cmd) job-id 
