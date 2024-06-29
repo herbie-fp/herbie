@@ -319,8 +319,8 @@
    (url main)))
 
 (define (get-timeline req job-id)
-  (match (is-job-finished job-id)
-    [(? box? timeline)
+  (match (get-results-for job-id)
+    [(job-result command test status time timeline warnings backend)
      (response 202 #"Job in progress" (current-seconds) #"text/plain"
                (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count)))))
                (λ (out) (display (apply string-append
