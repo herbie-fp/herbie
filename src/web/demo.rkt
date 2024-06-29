@@ -320,18 +320,18 @@
 
 (define (get-timeline req job-id)
   (match (get-results-for job-id)
-    [(job-result command test status time timeline warnings backend)
+    [timeline
      (response 202 #"Job in progress" (current-seconds) #"text/plain"
                (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count)))))
-               (λ (out) (display (apply string-append
-                                        (for/list ([entry (reverse (unbox timeline))])
-                                          (format "Doing ~a\n" (hash-ref entry 'type))))
-                                 out)))]
+               (λ (out) (write-json (timeline->json timeline) out)))]
     [#f
      (response/full 201 #"Job complete" (current-seconds) #"text/plain"
                     (list (header #"Location" (string->bytes/utf-8 (add-prefix (format "~a.~a/graph.html" job-id *herbie-commit*))))
                           (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count)))))
                     '())]))
+
+(define (timeline->json timeline)
+  (hasheq 'timline "Zane was here"))
 
 ; /api/sample endpoint: test in console on demo page:
 ;; (await fetch('/api/sample', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x) (- (sqrt (+ x 1))))", seed: 5})})).json()
