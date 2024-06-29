@@ -143,19 +143,19 @@
   (symbol->string command) job-id job-str))
 
 (define *worker-thread*
- (thread
-  (λ ()
-   (let loop ([seed #f])
-    (match (thread-receive)
-     [`(init rand ,vec flags ,flag-table num-iters ,iterations points ,points
-        timeout ,timeout output-dir ,output reeval ,reeval demo? ,demo?)
-       (set! seed vec)
-       (*flags* flag-table)
-       (*num-iterations* iterations)
-       (*num-points* points)
-       (*timeout* timeout)
-       (*demo-output* output)
-       (*reeval-pts* reeval)
-       (*demo?* demo?)]
-     [job-info (run-job job-info)])
-    (loop seed)))))
+   (thread
+    (λ ()
+      (let loop ([seed #f])
+        (match (thread-receive)
+          [`(init rand ,vec flags ,flag-table num-iters ,iterations points ,points
+                  timeout ,timeout output-dir ,output reeval ,reeval demo? ,demo?)
+           (set! seed vec)
+           (*flags* flag-table)
+           (*num-iterations* iterations)
+           (*num-points* points)
+           (*timeout* timeout)
+           (*demo-output* output)
+           (*reeval-pts* reeval)
+           (*demo?* demo?)]
+          [job-info (run-job job-info)])
+        (loop seed)))))
