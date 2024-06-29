@@ -19,7 +19,7 @@ const jobID = redirect[3].split(".")[0]
 
 // timeline
 const timeline = await callHerbie(`/timeline/${jobID}`, { method: 'GET' })
-console.log(timeline)
+assert.equal(timeline.length > 0, true) // Bad test but better then no test.
 
 // improve-start endpoint
 const URIencodedBody = "formula=" + encodeURIComponent(FPCoreFormula)
