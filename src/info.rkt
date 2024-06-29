@@ -21,7 +21,7 @@
     "rackunit-lib"
     "web-server-lib"
     ("egg-herbie" #:version "2.0")
-    ("rival" #:version "1.7")
+    ("rival" #:version "2.0")
     ("fpbench" #:version "2.0.3")))
 
 (define build-deps
