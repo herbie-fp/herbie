@@ -18,8 +18,14 @@ const jobID = redirect[3].split(".")[0]
 // assert.equal(improveHTML.length, improveHTMLexpectedCount, `HTML response character count should be ${improveHTMLexpectedCount} unless HTML changes.`)
 
 // timeline
-const timeline = await callHerbie(`/timeline/${jobID}`, { method: 'GET' })
-assert.equal(timeline.length > 0, true) // Bad test but better then no test.
+const timelineRSP = await callHerbie(`/timeline/${jobID}`, { method: 'GET' })
+assert.equal(timelineRSP.status, 201)
+const timeline = await timelineRSP.json()
+assert.equal(timeline.length > 0, true)
+
+// Test with a likely missing job-id
+const badTimelineRSP = await callHerbie(`/timeline/42069`, { method: 'GET' })
+assert.equal(badTimelineRSP.status, 404)
 
 // improve-start endpoint
 const URIencodedBody = "formula=" + encodeURIComponent(FPCoreFormula)
@@ -161,6 +167,7 @@ async function callHerbie(endPoint, body) {
   if (pathname == "/improve" ||
     pathname == "/improve-start" ||
     pathname.includes("check-status") ||
+    pathname.includes("timeline") ||
     pathname == "/up") {
     return rsp
   } else {

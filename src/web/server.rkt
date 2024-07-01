@@ -15,8 +15,9 @@
 (define (completed-job? id) 
   (hash-has-key? *completed-jobs* id))
 
+; Returns #f is now job exsist for the given job-id
 (define (get-results-for id) 
-  (hash-ref *completed-jobs* id))
+  (hash-ref *completed-jobs* id #f))
 
 ; I don't like how specific this function is but it keeps the API boundary.
 (define (get-improve-job-data)
