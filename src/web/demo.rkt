@@ -324,6 +324,7 @@
     (lambda (post-data)
       (define formula-str (hash-ref post-data 'formula))
       (define formula (read-syntax 'web (open-input-string formula-str)))
+      (eprintf "~a\n" (place-message-allowed? formula))
       (define seed* (hash-ref post-data 'seed))
       (define command (create-job 'sample formula #:seed seed* #:pcontext #f #:profile? #f #:timeline-disabled? #t))
       (define id (start-job command))
