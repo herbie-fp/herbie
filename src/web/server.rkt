@@ -43,6 +43,7 @@
 
 ;; Starts a job for a given command object
 (define (start-job command)
+ (work-on command)
  (define job-id (compute-job-id command))
  (if (already-computed? job-id) job-id (start-work command)))
 
@@ -57,6 +58,8 @@
 (define (start-job-server config global-demo global-output)
  ;; Pass along local global values
  ;; TODO can I pull these out of config or not need ot pass them along.
+ (build-worker-pool 4)
+ (eprintf "workers: ~a\n" *ready-workers*)
  (set! *demo?* global-demo)
  (set! *demo-output* global-output)
  (thread-send *worker-thread* config))
@@ -163,6 +166,26 @@
     (loop seed)))))
 
 
+(define *ready-workers* (list))
+(define *working-workers* (list))
+
+(define (work-on command)
+  (eprintf "working on: ~a\n" command)
+  ;; Pop off 1st ready worker
+  (eprintf "~a\n" (length *ready-workers*))
+  (define worker (first *ready-workers*))
+  (set! *ready-workers* (cdr *ready-workers*))
+  (set! *working-workers* (cons *working-workers* worker))
+  ;; Send work to worker
+  (place-channel-put worker "Hello"))
+
+(define (build-worker-pool number-of-workers)
+  (define workers
+    (for/list ([wid (in-range number-of-workers)])
+      (make-worker)))
+  (for/list ([worker workers])
+    (place-dead-evt worker))
+  (set! *ready-workers* workers))
 
 (define (run-workers progs threads #:seed seed #:profile profile? #:dir dir)
   (define workers
@@ -176,7 +199,6 @@
     (for/list ([id (in-naturals)] [prog progs])
       (list id prog)))
 
-  (eprintf "Starting ~a Herbie workers on ~a problems (seed: ~a)...\n" threads (length progs) seed)
   (for ([worker workers])
     (place-channel-put worker `(apply ,worker ,@(car work)))
     (set! work (cdr work)))
@@ -194,7 +216,7 @@
              (place-channel-put more `(apply ,more ,@(car work)))
              (set! work (cdr work)))
            (define out* (cons (cons id tr) out))
-           (print-test-result (length out*) (length progs) tr)
+
            (if (= (length out*) (length progs))
                out*
                (loop out*))]
@@ -203,19 +225,17 @@
   (for-each place-kill workers)
   (map cdr (sort outs < #:key car)))
 
-(define (make-worker seed profile? dir)
+(define (make-worker)
   (place/context* ch
     #:parameters (*flags* *num-iterations* *num-points* *timeout* *reeval-pts* *node-limit*
                   *max-find-range-depth* *pareto-mode* *platform-name* *loose-plugins*)
     (parameterize ([current-error-port (open-output-nowhere)]) ; hide output
       (load-herbie-plugins))
     (for ([_ (in-naturals)])
-      (match-define (list 'apply self id test) (place-channel-get ch))
-      (define result (run-test id test #:seed seed #:profile profile? #:dir dir))
-      (place-channel-put ch `(done ,id ,self ,result)))))
-
-(define (print-test-result i n data)
-  (eprintf "HERE\n"))
+      (place-channel-get ch)
+      (define result "MAKE WORKER HERE")
+      (eprintf "~a\n" result)
+      (place-channel-put ch result))))
 
 (define-syntax (place/context* stx)
   (syntax-case stx ()
@@ -223,39 +243,3 @@
      (with-syntax ([(fresh ...) (generate-temporaries #'(params ...))])
        #'(let ([fresh (params)] ...)
            (place/context name (parameterize ([params fresh] ...) body ...))))]))
-
-
-(define (run-test index test #:seed seed #:profile profile? #:dir dir)
-  (cond
-   [dir
-    (define dirname (graph-folder-path (test-name test) index))
-    (define rdir  (build-path dir dirname))
-    (when (not (directory-exists? rdir)) (make-directory rdir))
-
-    (define result
-      (cond
-       [profile?
-        (call-with-output-file
-          (build-path rdir "profile.json") #:exists 'replace
-          (λ (pp) (run-herbie 'improve test #:seed seed #:profile? pp)))]
-       [else
-        (run-herbie test 'improve #:seed seed)]))
-
-    (set-seed! seed)
-    (define error? #f)
-    (for ([page (all-pages result)])
-      (call-with-output-file (build-path rdir page)
-        #:exists 'replace
-        (λ (out)
-          (with-handlers ([exn:fail? (λ (e) ((page-error-handler result page out) e) (set! error? #t))])
-            (make-page page out result #t profile?)))))
-
-    (define out (get-table-data result dirname))
-    (if error? (struct-copy table-row out [status "crash"]) out)]
-   [else
-    (define result (run-herbie 'improve test #:seed seed))
-    (get-table-data result "")]))
-
-(define (graph-folder-path tname index)
-  (define replaced (string-replace tname #px"\\W+" ""))
-  (format "~a-~a" index (substring replaced 0 (min (string-length replaced) 50))))
