@@ -41,6 +41,7 @@
    [("improve-start") #:method "post" improve-start]
    [("improve") #:method (or "post" "get" "put") improve]
    [("check-status" (string-arg)) check-status]
+   [("timeline" (string-arg)) get-timeline]
    [("up") check-up]
    [("api" "sample") #:method "post" sample-endpoint]
    [("api" "analyze") #:method "post" analyze-endpoint]
@@ -316,6 +317,18 @@
      (wait-for-job job-id)
      (redirect-to (add-prefix (format "~a.~a/graph.html" job-id *herbie-commit*)) see-other))
    (url main)))
+
+(define (get-timeline req job-id)
+  (match (get-results-for job-id)
+    [job-result
+     (response 202 #"Job in progress" (current-seconds) #"text/plain"
+               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count)))))
+               (λ (out) (write-json (job-result-timeline job-result) out)))]
+    [#f
+     (response/full 201 #"Job complete" (current-seconds) #"text/plain"
+                    (list (header #"Location" (string->bytes/utf-8 (add-prefix (format "~a.~a/graph.html" job-id *herbie-commit*))))
+                          (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count)))))
+                    '())]))
 
 ; /api/sample endpoint: test in console on demo page:
 ;; (await fetch('/api/sample', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x) (- (sqrt (+ x 1))))", seed: 5})})).json()
