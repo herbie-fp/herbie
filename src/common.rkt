@@ -4,7 +4,7 @@
 (require "config.rkt" "syntax/types.rkt")
 (module+ test (require rackunit))
 
-(provide reap for/count
+(provide reap
          flip-lists drop-at find-duplicates partial-sums
          argmins argmaxs set-disjoint? subsequence? list-set* disjoint-set
          disjoint-set-find! disjoint-set-union! get-seed set-seed!
@@ -25,14 +25,6 @@
     (let ([sows (cdr sows)] ...)
       body ...)
     (values (reverse ((car sows))) ...)))
-
-(define-syntax for/count
-  (syntax-rules ()
-    [(_ (for-clause ...) body ...)
-     (for/fold ([count 0]) (for-clause ...)
-       (if (begin body ...)
-           (add1 count)
-           count))]))
 
 ;; Single precision numbers
 

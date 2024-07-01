@@ -409,11 +409,16 @@
      (define rules (platform-impl-rules (*fp-safe-simplify-rules*)))
 
      ; egg runner
+     (define extractor
+      (typed-egg-extractor
+        (if (*egraph-platform-cost*)
+            platform-egg-cost-proc
+            default-egg-cost-proc)))
      (define egg-query
        (make-egg-query progs
                        reprs
                        `((run ,rules ((node . ,(*node-limit*)) (const-fold? . #f))))
-                       #:extractor (typed-egg-extractor (if (*old-cost-function*) default-egg-cost-proc platform-egg-cost-proc))))
+                       #:extractor extractor))
 
      ; run egg
      (define simplified (map last (simplify-batch egg-query)))

@@ -38,10 +38,10 @@
 
   ; extractor
   (define extractor
-    (typed-egg-extractor
-      (if (*old-cost-function*)
-          default-egg-cost-proc
-          platform-egg-cost-proc)))
+      (typed-egg-extractor
+        (if (*egraph-platform-cost*)
+            platform-egg-cost-proc
+            default-egg-cost-proc)))
 
   ; egg runner
   (define egg-query

@@ -43,12 +43,17 @@
 (define (rewrite-expressions exprs reprs schedule ctx)
   (timeline-push! 'method "batch-egg-rewrite")
   (timeline-push! 'inputs (map ~a exprs))
+  (define extractor
+      (typed-egg-extractor
+        (if (*egraph-platform-cost*)
+            platform-egg-cost-proc
+            default-egg-cost-proc)))
   (define e-input
     (make-egg-query exprs
                     reprs
                     schedule
                     #:context ctx
-                    #:extractor (typed-egg-extractor (if (*old-cost-function*) default-egg-cost-proc platform-egg-cost-proc))))
+                    #:extractor extractor))
   (match-define (cons variantss _) (run-egg e-input #t))
 
   (define out

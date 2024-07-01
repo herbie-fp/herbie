@@ -118,7 +118,7 @@
 (define *platform-name* (make-parameter 'default))
 
 ;; True iff using the old cost function
-(define *old-cost-function* (make-parameter #f))
+(define *egraph-platform-cost* (make-parameter #f))
 
 ;; Plugins loaded locally rather than through Racket.
 (define *loose-plugins* (make-parameter '()))

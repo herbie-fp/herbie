@@ -37,8 +37,5 @@ RECURSE=1 LOG=1 \
     --threads "$CORES" \
     $FLAGS
 
-# run platforms eval
-RM_CACHE=1 bash "$INFRA_DIR"/platforms-eval.sh "$OUT_DIR" 1
-
 # upload
 bash $INFRA_DIR/publish.sh upload "$OUT_DIR"

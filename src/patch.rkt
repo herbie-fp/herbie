@@ -136,11 +136,16 @@
 
   ; egg runner
   (define specs (map alt-expr altns))
+  (define extractor
+      (typed-egg-extractor
+        (if (*egraph-platform-cost*)
+            platform-egg-cost-proc
+            default-egg-cost-proc)))
   (define egg-query
     (make-egg-query specs
                     reprs
                     schedule
-                    #:extractor (typed-egg-extractor (if (*old-cost-function*) default-egg-cost-proc platform-egg-cost-proc))))
+                    #:extractor extractor))
   
   ; convert to altns
   (define simplification-options (simplify-batch egg-query))

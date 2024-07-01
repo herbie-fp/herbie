@@ -56,11 +56,16 @@
 
   ; egg query
   (define spec (expand-accelerators (prog->spec init)))
+  (define extractor
+      (typed-egg-extractor
+        (if (*egraph-platform-cost*)
+            platform-egg-cost-proc
+            default-egg-cost-proc)))
   (define egg-query
     (make-egg-query (list spec)
                     (list (context-repr ctx))
                     schedule
-                    #:extractor (typed-egg-extractor (if (*old-cost-function*) default-egg-cost-proc platform-egg-cost-proc))))
+                    #:extractor extractor))
 
   ; run egg 
   (match-define (list simplified) (simplify-batch egg-query))
