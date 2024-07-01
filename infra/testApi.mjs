@@ -8,12 +8,18 @@ const FPCoreFormula2 = '(FPCore (x) (- (sqrt (+ x 1))))'
 const eval_sample = [[[1], -1.4142135623730951]]
 
 // improve endpoint
-const improveURL = await callHerbie(`/improve?formula=${encodeURIComponent(FPCoreFormula2)}`, { method: 'GET' })
-assert.equal(improveURL.status, 200)
+const improveResponse = await callHerbie(`/improve?formula=${encodeURIComponent(FPCoreFormula2)}`, { method: 'GET' })
+assert.equal(improveResponse.status, 200)
+let redirect = improveResponse.url.split("/")
+const jobID = redirect[3].split(".")[0]
 // This test is a little flaky as the character count of the response is not consistent.
 // const improveHTML = await improveResponse.text()
 // const improveHTMLexpectedCount = 25871
 // assert.equal(improveHTML.length, improveHTMLexpectedCount, `HTML response character count should be ${improveHTMLexpectedCount} unless HTML changes.`)
+
+// timeline
+const timeline = await callHerbie(`/timeline/${jobID}`, { method: 'GET' })
+assert.equal(timeline.length > 0, true) // Bad test but better then no test.
 
 // improve-start endpoint
 const URIencodedBody = "formula=" + encodeURIComponent(FPCoreFormula)
