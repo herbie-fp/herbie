@@ -24,8 +24,8 @@ desugared_color = '#D55E00'
 
 input_style = 's'
 platform_style = '.'
-supported_style = '.'
-desugared_style = '.'
+supported_style = '2'
+desugared_style = '_'
 
 # preferred order
 order = [
@@ -322,9 +322,8 @@ def plot_baseline_all(output_dir: Path, entries):
             supported_frontier.sort(key=lambda pt: pt[0])
             desugared_frontier.sort(key=lambda pt: pt[0])
 
-            platform_max = max(map(lambda pt: pt[0], platform_frontier))
-            desugared_max = max(map(lambda pt: pt[0], desugared_frontier))
-            print(f'{name} {platform_max / desugared_max}')
+            # platform_max = max(map(lambda pt: pt[0], platform_frontier))
+            # desugared_max = max(map(lambda pt: pt[0], desugared_frontier))
 
             relative_frontier = desugared_frontier
             input_pt = normalize([input_pt], relative_frontier)[0]
@@ -343,19 +342,31 @@ def plot_baseline_all(output_dir: Path, entries):
             ax.set_title(display_names[name], size='medium')
             ax.plot([input_x], [input_y], input_style, color=input_color)
             ax.plot(platform_xs, platform_ys, platform_style, color=platform_color)
-            ax.plot(supported_xs, supported_ys, supported_style, color=supported_color)
+            ax.plot(supported_xs, supported_ys, supported_style, color=supported_color, mfc='none')
             ax.plot(desugared_xs, desugared_ys, desugared_style, color=desugared_color)
 
-            # axis formatting
+            # y-axis formatting
             ax.yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
-            if max(map(lambda pt: pt[1], platform_frontier)) > 2:
+            ymax = max(map(lambda pt: pt[1], platform_frontier))
+            print(name, ymax)
+            if ymax > 2:
                 ax.set(ylim=(0, 4))
-            else:
+            elif ymax > 1.25:
                 ax.set(ylim=(0, 2))
+            else:
+                ax.set(ylim=(0, 1.5))
 
-            # line
-            xmin = min(map(lambda pt: pt[0], platform_frontier + supported_frontier + desugared_frontier))
-            xmax = max(map(lambda pt: pt[0], platform_frontier + supported_frontier + desugared_frontier))
+            # x-axis formatting
+            # WARN: hard coded
+            # if name in ['arith', 'arith-fma', 'avx']:
+            #     ax.set(xlim=(500, 1000))
+            # else:
+            #     ax.set(xlim=(1350, 2800))
+
+            # xmin = min(map(lambda pt: pt[0], platform_frontier + supported_frontier + desugared_frontier))
+            # xmax = max(map(lambda pt: pt[0], platform_frontier + supported_frontier + desugared_frontier))
+            # print(name, xmin, xmax)
+
             #ax.hlines(y=1, xmin=xmin, xmax=xmax, color='gray', linestyle='--')
 
         for i in range(len(names), 3 * nrows):

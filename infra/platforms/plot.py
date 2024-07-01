@@ -198,6 +198,14 @@ def plot_improve(name: str, output_dir: Path, info):
         ylabel = 'Sum of error log2(ULP)'
         xs, ys = zip(*frontier)
 
+    # plt.title('NMSE')
+    # plt.xticks([0, 2, 4, 6, 8, 10, 12])
+    
+    # plt.title('Math')
+    # plt.xticks([0, 3, 6, 9, 12, 15, 18])
+    # plt.xlim((0, 19))
+
+
     plt.plot(xs, ys, platform_style, color=platform_color, label='Chassis')
     plt.xlabel(xlabel, fontsize=12)
     plt.ylabel(ylabel, fontsize=12)
