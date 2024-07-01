@@ -11,18 +11,9 @@
 (define-runtime-module-path fallback-plugin "reprs/fallback.rkt")
 
 ;; Builtin platforms
-(define-runtime-module-path arith-platform "platforms/arith.rkt")
-(define-runtime-module-path arith-fma-platform "platforms/arith-fma.rkt")
 (define-runtime-module-path c-platform "platforms/libm.rkt")
 (define-runtime-module-path default-platform "platforms/default.rkt")
 (define-runtime-module-path math-platform "platforms/math.rkt")
-(define-runtime-module-path mkl-platform "platforms/mkl.rkt")
-(define-runtime-module-path python-platform "platforms/python3-10.rkt")
-(define-runtime-module-path julia-platform "platforms/julia.rkt")
-(define-runtime-module-path avx-platform "platforms/avx.rkt")
-(define-runtime-module-path numpy-platform "platforms/numpy.rkt")
-(define-runtime-module-path vdt-platform "platforms/vdt.rkt")
-(define-runtime-module-path fdlibm-platform "platforms/fdlibm.rkt")
 
 ; Automatically loads default representations and platforms
 (define (load-herbie-builtins)
@@ -33,15 +24,9 @@
   (dynamic-require binary32-plugin #f)
   (dynamic-require fallback-plugin #f)
   ;; Load all platforms
-  (dynamic-require arith-platform #f)
-  (dynamic-require arith-fma-platform #f)
   (dynamic-require c-platform #f)
   (dynamic-require default-platform #f)
   (dynamic-require math-platform #f)
-  (dynamic-require mkl-platform #f)
-  (dynamic-require python-platform #f)
-  (dynamic-require numpy-platform #f)
-  (dynamic-require julia-platform #f)
   ; activate the required platform
   (*active-platform* (get-platform (*platform-name*)))
   (activate-platform! (*active-platform*)))
@@ -60,10 +45,6 @@
   ; load in "loose" plugins
   (for ([path (in-list (*loose-plugins*))]) 
     (dynamic-require path #f))
-  ; activate platforms requiring plugins
-  (dynamic-require avx-platform #f)
-  (dynamic-require vdt-platform #f)
-  (dynamic-require fdlibm-platform #f)
   ; activate the actual requred platform
   (*active-platform* (get-platform (*platform-name*)))
   (activate-platform! (*active-platform*)))
