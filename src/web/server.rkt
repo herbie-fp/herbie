@@ -44,7 +44,7 @@
 
 ;; Starts a job for a given command object
 (define (start-job command)
- (work-on command)
+;  (work-on command)
  (define job-id (compute-job-id command))
  (if (already-computed? job-id) job-id (start-work command)))
 
@@ -178,7 +178,7 @@
   (set! *ready-workers* (cdr *ready-workers*))
   (set! *working-workers* (cons *working-workers* worker))
   ;; Send work to worker
-  (place-channel-put worker "Hello"))
+  (place-channel-put worker `(apply ,worker ,command)))
 
 (define (build-worker-pool number-of-workers)
   (define workers
@@ -188,44 +188,6 @@
     (place-dead-evt worker))
   (set! *ready-workers* workers))
 
-(define (run-workers progs threads #:seed seed #:profile profile? #:dir dir)
-  (define workers
-    (for/list ([wid (in-range threads)])
-      (make-worker seed profile? dir)))
-  (define workers-dead
-    (for/list ([worker workers])
-      (place-dead-evt worker)))
-
-  (define work
-    (for/list ([id (in-naturals)] [prog progs])
-      (list id prog)))
-
-  (for ([worker workers])
-    (place-channel-put worker `(apply ,worker ,@(car work)))
-    (set! work (cdr work)))
-
-  (define outs
-    (let loop ([out '()])
-      (with-handlers ([exn:break?
-                       (λ (_)
-                         (eprintf "Terminating after ~a problem~a!\n"
-                                  (length out) (if (= (length out) 1) ""  "s"))
-                         out)])
-        (match (apply sync (append workers workers-dead))
-          [`(done ,id ,more ,tr)
-           (when (not (null? work))
-             (place-channel-put more `(apply ,more ,@(car work)))
-             (set! work (cdr work)))
-           (define out* (cons (cons id tr) out))
-
-           (if (= (length out*) (length progs))
-               out*
-               (loop out*))]
-          [(? evt?) ; In this case it is a place-dead-event
-           (error "Thread crashed. Unrecoverable. Terminating immediately.")]))))
-  (for-each place-kill workers)
-  (map cdr (sort outs < #:key car)))
-
 (define (make-worker)
   (place/context* ch
     #:parameters (*flags* *num-iterations* *num-points* *timeout* *reeval-pts* *node-limit*
@@ -233,9 +195,9 @@
     (parameterize ([current-error-port (open-output-nowhere)]) ; hide output
       (load-herbie-plugins))
     (for ([_ (in-naturals)])
-      (place-channel-get ch)
+      (match-define (list 'apply self command) (place-channel-get ch))
       (define result "MAKE WORKER HERE")
-      (eprintf "~a\n" result)
+      (eprintf "[~a] working on: ~a\n" self command)
       (place-channel-put ch result))))
 
 (define-syntax (place/context* stx)
