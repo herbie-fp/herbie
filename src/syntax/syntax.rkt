@@ -378,13 +378,11 @@
        (or (not (hash-has-key? operator-impls var))
            (not (null? (operator-impl-itype (hash-ref operator-impls var)))))))
 
-;; name -> (vars prec body)
+;; name -> (vars repr body)	;; name -> (vars prec body)
 (define *functions* (make-parameter (make-hasheq)))
 
-;; Adds a function definition.
-;; Using representation name rather than representation since we must serialize
-(define (register-function! name args prec body)
-  (hash-set! (*functions*) name (list args prec body)))
+(define (register-function! name args repr body)	;; Adds a function definition.
+  (hash-set! (*functions*) name (list args repr body)))
 
 (define (all-operators)
   (sort (hash-keys operators) symbol<?))

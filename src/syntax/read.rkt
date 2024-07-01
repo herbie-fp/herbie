@@ -1,7 +1,7 @@
 #lang racket
 
-(require "../common.rkt" "../conversions.rkt" "../errors.rkt"
-         "../programs.rkt" "types.rkt" "syntax.rkt" "../platform.rkt"
+(require "../common.rkt" "../errors.rkt" "../programs.rkt"
+         "types.rkt" "syntax.rkt" "../platform.rkt"
          "syntax-check.rkt" "type-check.rkt" "sugar.rkt"
          "../load-plugin.rkt")
 
@@ -10,7 +10,7 @@
          load-tests parse-test)
 
 (struct test (name identifier vars input output expected spec pre
-              preprocess output-repr-name var-repr-names functions) #:prefab)
+              preprocess output-repr-name var-repr-names) #:prefab)
 
 (define (test-output-repr test)
   (get-representation (test-output-repr-name test)))
@@ -148,8 +148,7 @@
   (define ctx (context arg-names default-repr var-reprs))
 
   ;; Named fpcores need to be added to function table
-  (when func-name
-    (register-function! func-name args (representation-name default-repr) body))
+  (when func-name (register-function! func-name args default-prec body))
 
   ;; Try props first, then identifier, else the expression itself
   (define name
@@ -187,8 +186,8 @@
         pre*
         (dict-ref prop-dict ':herbie-preprocess empty)
         (representation-name default-repr)
-        (for/list ([var arg-names] [repr var-reprs]) (cons var (representation-name repr)))
-        (hash->list (*functions*))))
+        (for/list ([var arg-names] [repr var-reprs])
+          (cons var (representation-name repr)))))
 
 (define (check-unused-variables vars precondition expr)
   ;; Fun story: you might want variables in the precondition that
@@ -219,24 +218,12 @@
   (for/list ([test (in-port (curry our-read-syntax "stdin") (current-input-port))])
     (parse-test test)))
 
-;; Old benchmark loading code
-;(define (load-file file)
-;  (call-with-input-file file
-;    (λ (port)
-;      (port-count-lines! port)
-;      (for/list ([test (in-port (curry our-read-syntax file) port)])
-;        (parse-test test)))))
-
-;; New hack that ignores benchmarks with bad operations
 (define (load-file file)
-  (call-with-input-file file
-    (λ (port)
-      (port-count-lines! port)
-      (filter
-      identity
-      (for/list ([test (in-port (curry our-read-syntax file) port)])
-        (with-handlers ([exn:fail? (const #f)])
-          (parse-test test)))))))
+ (call-with-input-file file
+   (λ (port)
+     (port-count-lines! port)
+     (for/list ([test (in-port (curry our-read-syntax file) port)])
+       (parse-test test)))))
 
 (define (load-directory dir)
   (apply append

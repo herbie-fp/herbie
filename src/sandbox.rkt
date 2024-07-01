@@ -254,7 +254,6 @@
       (define start-time (current-inexact-milliseconds))
       (rollback-improve!)
       (*context* (test-context test))
-      (*functions* (make-hasheq (test-functions test)))
       (*active-platform* (get-platform (*platform-name*)))
       (activate-platform! (*active-platform*))
       (set! timeline (*timeline*))
@@ -412,12 +411,7 @@
      :name ,(table-row-name row)
      ,@(if descr `(:description ,(~a descr)) '())
      :precision ,(table-row-precision row)
-     :herbie-conversions ,(table-row-conversions row)
      ,@(if (eq? (table-row-pre row) 'TRUE) '() `(:pre ,(table-row-pre row)))
      ,@(if (equal? (table-row-preprocess row) empty) '() `(:herbie-preprocess ,(table-row-preprocess row)))
-<<<<<<< HEAD
      ,@(if (table-row-target-prog row) `(:alt ,(table-row-target-prog row)) '())
-=======
-     ,@(if (table-row-target-prog row) `(:herbie-target ,(table-row-target-prog row)) '())
->>>>>>> origin/main
      ,(prog->fpcore expr* repr)))
