@@ -426,12 +426,12 @@
 
 (define-ruleset* pow-reduce-fp-safe (exponents simplify fp-safe sound)
   #:type ([a real])
-  [unpow1         (pow a 1)                  a]
-  [pow-base-1     (pow 1 a)                  1])
+  [unpow1         (pow a 1)                  a])
 
 (define-ruleset* pow-reduce-fp-safe-nan (exponents simplify fp-safe-nan sound)
   #:type ([a real])
-  [unpow0         (pow a 0)                  1])
+  [unpow0         (pow a 0)                  1]
+  [pow-base-1     (pow 1 a)                  1])
 
 (define-ruleset* pow-expand-fp-safe (exponents fp-safe sound)
   #:type ([a real])

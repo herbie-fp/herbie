@@ -1,9 +1,9 @@
 #lang racket
 
-(require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt"
-         "../ground-truth.rkt" "../syntax/types.rkt" "../syntax/sugar.rkt"
-         "../syntax/syntax.rkt" "../accelerator.rkt" "../platform.rkt"
-         "simplify.rkt" "egg-herbie.rkt" "../syntax/rules.rkt")
+(require "../syntax/sugar.rkt" "../syntax/syntax.rkt" "../syntax/types.rkt"
+         "../syntax/rules.rkt" "../accelerator.rkt" "../common.rkt" "../float.rkt"
+         "../platform.rkt" "../points.rkt" "../programs.rkt" "../sampling.rkt"
+         "simplify.rkt" "egg-herbie.rkt")
 
 (provide batch-localize-costs
          batch-localize-errors

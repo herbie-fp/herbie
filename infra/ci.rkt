@@ -37,7 +37,7 @@
           (override-test-precision the-test (*precision*))
           the-test))
     (define result (run-herbie 'improve the-test* #:seed seed))
-    (match-define (job-result test status time timeline warnings backend) result)
+    (match-define (job-result _ test status time timeline warnings backend) result)
     (match status
       ['success
        (match-define 

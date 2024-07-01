@@ -35,14 +35,17 @@
     (hash-update! (car (unbox (*timeline*))) *timeline-active-key*
                   (curry append *timeline-active-value*) '())
     (set! *timeline-active-key* #f))
-  
+
   (unless (*timeline-disabled*)
     (when (pair? (unbox (*timeline*)))
       (for ([key (in-list always-compact)]
             #:when (hash-has-key? (car (unbox (*timeline*))) key))
         (timeline-compact! key)))
+    (define live-memory (current-memory-use #f))
+    (define alloc-memory (current-memory-use 'cumulative))
     (define b (make-hasheq (list (cons 'type (~a type))
-                                 (cons 'time (current-inexact-milliseconds)))))
+                                 (cons 'time (current-inexact-milliseconds))
+                                 (cons 'memory (list (list live-memory alloc-memory))))))
     (set-box! (*timeline*) (cons b (unbox (*timeline*))))))
 
 (define (timeline-push! key . values)
@@ -100,6 +103,9 @@
 (define (timeline-load! value)
   (*timeline* value))
 
+(define (diff-memory-records v1 v2)
+  (list (list (- (caar v1) (caar v2)) (- (cadar v1) (cadar v2)))))
+
 (define (timeline-extract)
   (when *timeline-1st-timer* (*timeline-1st-timer*))
   (when *timeline-2nd-timer* (*timeline-2nd-timer*))
@@ -108,11 +114,15 @@
                   (curry append *timeline-active-value*) '())
     (set! *timeline-active-key* #f))
   (for ([end! (set->list *timeline-timers*)]) (end!))
-  (define end (hasheq 'time (current-inexact-milliseconds)))
+  (define end
+    (hasheq 'time (current-inexact-milliseconds)
+            'memory (list (list (current-memory-use #f)
+                                (current-memory-use 'cumulative)))))
   (reverse
    (for/list ([evt (unbox (*timeline*))] [next (cons end (unbox (*timeline*)))])
      (define evt* (hash-copy evt))
      (hash-update! evt* 'time (λ (v) (- (hash-ref next 'time) v)))
+     (hash-update! evt* 'memory (λ (v) (diff-memory-records (hash-ref next 'memory) v)))
      evt*)))
 
 (define (timeline-relink link timeline)
@@ -173,6 +183,7 @@
 (define-timeline type #:custom (λ (a b) a))
 (define-timeline time #:custom +)
 
+(define-timeline memory [live +] [alloc +])
 (define-timeline method [method])
 (define-timeline mixsample [time +] [function false] [precision false])
 (define-timeline rules [rule false] [count +])
@@ -198,6 +209,11 @@
 (define-timeline egraph #:unmergable)
 (define-timeline stop [reason false] [count +])
 (define-timeline branch #:unmergable)
+(define-timeline explanations [op false] [expr (const #f)] [expl false] [count +] [mcount +] [flows (const #f)])
+(define-timeline confusion #:custom (λ (x y) (list (map + (car x) (car y)))))
+(define-timeline total-confusion #:custom (λ (x y) (list (map + (car x) (car y)))))
+(define-timeline maybe-confusion #:custom (λ (x y) (list (map + (car x) (car y)))))
+(define-timeline freqs [key false] [val +])
 
 (define (timeline-merge . timelines)
   ;; The timelines in this case are JSON objects, as above

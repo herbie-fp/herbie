@@ -3,10 +3,9 @@
 (require
  "syntax/rules.rkt" "syntax/sugar.rkt" "syntax/syntax.rkt" "syntax/types.rkt"
  "core/alt-table.rkt" "core/bsearch.rkt" "core/egg-herbie.rkt" "core/localize.rkt"
- "core/regimes.rkt" "core/simplify.rkt" "accelerator.rkt" "alternative.rkt"
- "common.rkt" "float.rkt" "conversions.rkt" "error-table.rkt" "patch.rkt"
- "platform.rkt" "points.rkt" "preprocess.rkt" "programs.rkt" "timeline.rkt"
- "sampling.rkt" "soundiness.rkt")
+ "core/regimes.rkt" "core/simplify.rkt" "alternative.rkt" "common.rkt" "float.rkt"
+ "conversions.rkt" "explain.rkt" "patch.rkt" "platform.rkt" "points.rkt"
+ "preprocess.rkt" "programs.rkt" "timeline.rkt" "sampling.rkt" "soundiness.rkt")
 (provide (all-defined-out))
 
 ;; I'm going to use some global state here to make the shell more
@@ -62,7 +61,7 @@
 
 (define (mutate! simplified context pcontext iterations)
   (*pcontext* pcontext)
-  (explain! simplified)
+  (explain! simplified context pcontext)
   (initialize-alt-table! simplified context pcontext)
   (for ([iteration (in-range iterations)] #:break (atab-completed? (^table^)))
     (run-iter!))
@@ -348,28 +347,41 @@
   (timeline-event! 'prune)
   (^table^ (atab-add-altns table simplified* errss costs)))
 
-(define (explain! simplified)
+(define (explain! simplified context pcontext)
   (timeline-event! 'explain)
   (define expr (alt-expr (car simplified)))
-  (define repr (repr-of expr (*context*)))
-  (define (values->json vs repr)
-    (map (lambda (value) (value->json value repr)) vs))
-  (define tcount-hash (actual-errors (alt-expr (car simplified)) (*pcontext*)))
-  (define pcount-hash (predicted-errors (alt-expr (car simplified)) (*context*) (*pcontext*)))
 
-  (for ([(subexpr pset) (in-dict pcount-hash)])
-    (define tset (hash-ref tcount-hash subexpr '()))
-    (define opred (set-subtract pset tset))
-    (define upred (set-subtract tset pset))
+  (define-values (fperrors explanations-table confusion-matrix maybe-confusion-matrix total-confusion-matrix freqs)
+    (explain expr (*context*) (*pcontext*)))
+
+  (for ([fperror (in-list fperrors)])
+    (match-define (list expr truth opreds oex upreds uex) fperror)
     (timeline-push! 'fperrors
-                    (~a subexpr)
-                    (length tset)
-                    (length opred)
-                    (and (not (empty? opred)) (values->json (first opred)
-                                                            repr))
-                    (length upred)
-                    (and (not (empty? upred)) (values->json (first upred)
-                                                            repr)))))
+                    expr
+                    truth
+                    opreds
+                    oex
+                    upreds
+                    uex))
+
+  (for ([explanation (in-list explanations-table)])
+    (match-define (list op expr expl val maybe-count flow-list) explanation)
+    (timeline-push! 'explanations
+                    op
+                    expr
+                    expl
+                    val
+                    maybe-count
+                    flow-list))
+  
+  (timeline-push! 'confusion confusion-matrix)
+  
+
+  (timeline-push! 'maybe-confusion maybe-confusion-matrix)
+
+  (timeline-push! 'total-confusion total-confusion-matrix)
+  (for ([(key val) (in-dict freqs)])
+    (timeline-push! 'freqs key val)))
 
 (define (make-regime! alts)
   (define ctx (*context*))

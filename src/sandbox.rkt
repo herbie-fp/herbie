@@ -15,7 +15,7 @@
          "datafile.rkt"
          "errors.rkt"
          "float.rkt"
-         "ground-truth.rkt"
+         "sampling.rkt"
          "mainloop.rkt"
          "platform.rkt"
          "points.rkt"
@@ -33,12 +33,9 @@
          (struct-out improve-result)
          (struct-out alt-analysis))
 
-(struct job-result (test status time timeline warnings backend))
+(struct job-result (command test status time timeline warnings backend))
 (struct improve-result (preprocess pctxs start target end bogosity))
 (struct alt-analysis (alt train-errors test-errors))
-
-(define *reeval-pts* (make-parameter 8000))
-(define *timeout* (make-parameter (* 1000 60 5/2)))
 
 ;; true if Racket CS <= 8.2
 (define cs-places-workaround?
@@ -50,7 +47,7 @@
         (and (= major 8) (= minor 2) (zero? (string-length rest))))))
 
 ;; Partitions a joint pcontext into a training and testing set
-(define (partition-pcontext joint-pcontext ctx)
+(define (partition-pcontext joint-pcontext)
   (define num-points (pcontext-length joint-pcontext))
   (cond
     [(= num-points (+ (*num-points*) (*reeval-pts*)))
@@ -98,7 +95,7 @@
   (unless pcontext
     (error 'get-errors "cannnot run without a pcontext"))
 
-  (define-values (_ test-pcontext) (partition-pcontext pcontext (*context*)))
+  (define-values (_ test-pcontext) (partition-pcontext pcontext))
   (define errs (errors (test-input test) test-pcontext (*context*)))
   (for/list ([(pt _) (in-pcontext test-pcontext)] [err (in-list errs)])
     (list pt err)))
@@ -112,9 +109,10 @@
     (error 'get-exacts "cannnot run without a pcontext"))
   (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext (*context*)))
   (define-values (pts _) (pcontext->lists test-pcontext))
-  (define fn (eval-progs-real 
-              (list (prog->spec (test-input test)))
-              (list (*context*))))
+  (define fn
+    (eval-progs-real 
+      (list (prog->spec (test-input test)))
+      (list (*context*))))
   (for/list ([pt pts])
     (list pt (car (apply fn pt)))))
 
@@ -124,7 +122,7 @@
   (unless pcontext
     (error 'get-calculation "cannnot run without a pcontext"))
 
-  (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext (*context*)))
+  (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext))
   (define-values (pts _) (pcontext->lists test-pcontext))
 
   (define fn (compile-prog (test-input test) (test-context test)))
@@ -140,7 +138,7 @@
   (unless pcontext
     (error 'get-local-error "cannnot run without a pcontext"))
 
-  (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext (*context*)))
+  (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext))
   (*pcontext* test-pcontext)
   (local-error-as-tree (test-input test) (*context*)))
 
@@ -155,7 +153,7 @@
   (unless pcontext
     (error 'get-alternatives "cannnot run without a pcontext"))
 
-  (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext context))
+  (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext))
   ;; TODO: Ignoring all user-provided preprocessing right now
   (define-values (alternatives preprocessing)
     (run-improve! (test-input test) (test-spec test) (*context*) train-pcontext))
@@ -197,20 +195,13 @@
   
   ;; optionally compute error/cost for input expression
   (define target-alt-data
-    (cond
-      [(test-output test)
-        (define target-train-errs-list '())
-        (define target-test-errs-list '())
+    ;; When in platform, evaluate error
+    (for/list ([(expr is-valid?) (in-dict (test-output test))] #:when is-valid?)
+      (define target-expr (fpcore->prog expr ctx))
+      (define target-train-errs (errors target-expr train-pcontext ctx))
+      (define target-test-errs (errors target-expr test-pcontext* ctx))
 
-        ;; When in platform, evaluate error
-        (for/list ([(expr is-valid?) (in-dict (test-output test))] #:when is-valid?)
-          (define target-expr (fpcore->prog expr ctx))
-          (define target-train-errs (errors target-expr train-pcontext ctx))
-          (define target-test-errs (errors target-expr test-pcontext* ctx))
-
-          (alt-analysis (make-alt target-expr) target-train-errs target-test-errs))]
-
-      [else #f]))
+      (alt-analysis (make-alt target-expr) target-train-errs target-test-errs)))
 
   ;; compute error/cost for output expression
   (define end-exprs (map alt-expr end-alts))
@@ -246,7 +237,7 @@
       (timeline-event! 'end)
       (define time (- (current-inexact-milliseconds) start-time))
       (match command 
-        ['improve (job-result test 'failure time (timeline-extract) (warning-log) e)]
+        ['improve (job-result command test 'failure time (timeline-extract) (warning-log) e)]
         [_ (raise e)])))
 
   (define (on-timeout)
@@ -254,7 +245,7 @@
       (timeline-load! timeline)
       (timeline-event! 'end)
       (match command 
-        ['improve (job-result test 'timeout (*timeout*) (timeline-extract) (warning-log) #f)]
+        ['improve (job-result command test 'timeout (*timeout*) (timeline-extract) (warning-log) #f)]
         [_ (error 'run-herbie "command ~a timed out" command)])))
 
   (define (compute-result test)
@@ -282,7 +273,7 @@
             [_ (error 'compute-result "unknown command ~a" command)]))
         (timeline-event! 'end)
         (define time (- (current-inexact-milliseconds) start-time))
-        (job-result test 'success time (timeline-extract) (warning-log) result))))
+        (job-result command test 'success time (timeline-extract) (warning-log) result))))
   
   (define (in-engine _)
     (if profile?
@@ -312,6 +303,7 @@
              (representation-name repr)
              '() ; TODO: eliminate field
              (test-vars test)
+             (map car (job-result-warnings result))
              (prog->fpcore (test-input test) repr) 
              #f
              (prog->fpcore (test-spec test) repr)
@@ -319,7 +311,7 @@
              #f #f #f #f #f (job-result-time result) link '()))
 
 (define (get-table-data result link)
-  (match-define (job-result test status time _ _ backend) result)
+  (match-define (job-result command test status time _ _ backend) result)
   (match status
     ['success
      (match-define (improve-result _ _ start targets end _) backend)
@@ -333,16 +325,20 @@
      (define start-test-score (errors-score start-test-errs))
      (define start-cost (expr-cost start-expr repr))
 
-     ;; From all the targets, pick the lowest cost target
-     (define target
-      ; If the list is empty, return false
-      (if (empty? targets)
-        #f
-        (argmin (lambda (target) (alt-cost (alt-analysis-alt target) repr)) targets)))
+     (define target-cost-score
+       (for/list ([target targets])
+         (define target-expr (alt-expr (alt-analysis-alt target)))
+         (define tar-cost (expr-cost target-expr repr))
+         (define tar-score (errors-score (alt-analysis-test-errors target)))
 
-     ; target analysis for comparison
-     (define target-score (and target (errors-score (alt-analysis-test-errors target))))
-     
+         (list tar-cost tar-score)))
+
+     ; Important to calculate value of status 
+     (define best-score 
+       (if (null? target-cost-score)
+         target-cost-score
+         (apply min (map second target-cost-score))))
+   
      ; analysis of output expressions
      (define-values (end-exprs end-train-scores end-test-scores end-costs)
        (for/lists (l1 l2 l3 l4) ([result end])
@@ -362,13 +358,15 @@
      (define end-est-score (car end-train-scores))
      (define end-score (car end-test-scores))
      (define status
-       (if target-score
-           (cond
-            [(< end-score (- target-score fuzz)) "gt-target"]
-            [(< end-score (+ target-score fuzz)) "eq-target"]
-            [(> end-score (+ start-test-score fuzz)) "lt-start"]
-            [(> end-score (- start-test-score fuzz)) "eq-start"]
-            [(> end-score (+ target-score fuzz)) "lt-target"])
+       (if (not (null? best-score))
+          (begin 
+            (cond
+              [(< end-score (- best-score fuzz)) "gt-target"]
+              [(< end-score (+ best-score fuzz)) "eq-target"]
+              [(> end-score (+ start-test-score fuzz)) "lt-start"]
+              [(> end-score (- start-test-score fuzz)) "eq-start"]
+              [(> end-score (+ best-score fuzz)) "lt-target"]))
+
            (cond
             [(and (< start-test-score 1) (< end-score (+ start-test-score 1))) "ex-start"]
             [(< end-score (- start-test-score 1)) "imp-start"]
@@ -377,7 +375,7 @@
 
      (struct-copy table-row (dummy-table-row result status link)
                   [start-est start-train-score] [start start-test-score]
-                  [target target-score]
+                  [target target-cost-score]
                   [result-est end-est-score] [result end-score]
                   [output (car end-exprs)] [cost-accuracy cost&accuracy])]
     ['failure
@@ -408,11 +406,18 @@
      ,@(if (table-row-target row)
            `(:herbie-error-target ([,(*reeval-pts*) ,(table-row-target row)]))
            '())
+     ,@(if (empty? (table-row-warnings row))
+           '()
+           `(:herbie-warnings ,(table-row-warnings row)))
      :name ,(table-row-name row)
      ,@(if descr `(:description ,(~a descr)) '())
      :precision ,(table-row-precision row)
      :herbie-conversions ,(table-row-conversions row)
      ,@(if (eq? (table-row-pre row) 'TRUE) '() `(:pre ,(table-row-pre row)))
      ,@(if (equal? (table-row-preprocess row) empty) '() `(:herbie-preprocess ,(table-row-preprocess row)))
+<<<<<<< HEAD
      ,@(if (table-row-target-prog row) `(:alt ,(table-row-target-prog row)) '())
+=======
+     ,@(if (table-row-target-prog row) `(:herbie-target ,(table-row-target-prog row)) '())
+>>>>>>> origin/main
      ,(prog->fpcore expr* repr)))

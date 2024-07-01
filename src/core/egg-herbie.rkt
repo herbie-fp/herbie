@@ -10,9 +10,9 @@
          "../syntax/sugar.rkt"
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
-         "../accelerator.rkt"
          "../common.rkt"
          "../config.rkt"
+         "../accelerator.rkt"
          "../errors.rkt"
          "../platform.rkt"
          "../programs.rkt"
@@ -460,7 +460,7 @@
 ;; Spec contains no accelerators
 (define (spec-has-accelerator? spec)
   (match spec
-    [(list (? accelerator?) _ ...) #t]
+    [(list (? accelerator-exists?) _ ...) #t]
     [(list _ args ...) (ormap spec-has-accelerator? args)]
     [_ #f]))
 
@@ -488,7 +488,7 @@
                  (define itypes (operator-info op 'itype))
                  (define otype (operator-info op 'otype))
                  (cond
-                   [(accelerator? op)
+                   [(accelerator-exists? op)
                     ; accelerator lowering
                     (define vars (accelerator-info op 'vars))
                     (rule (sym-append 'accelerator-lowering- impl)

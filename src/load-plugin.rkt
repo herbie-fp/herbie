@@ -41,7 +41,10 @@
   (dynamic-require mkl-platform #f)
   (dynamic-require python-platform #f)
   (dynamic-require numpy-platform #f)
-  (dynamic-require julia-platform #f))
+  (dynamic-require julia-platform #f)
+  ; activate the required platform
+  (*active-platform* (get-platform (*platform-name*)))
+  (activate-platform! (*active-platform*)))
 
 (define (load-herbie-plugins)
   (load-herbie-builtins)

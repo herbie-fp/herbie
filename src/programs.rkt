@@ -41,8 +41,8 @@
      [(list elems ...) (ormap loop elems)]
      [term (pred term)])))
 
-(define (all-subexpressions expr)
-  (remove-duplicates
+(define (all-subexpressions expr #:reverse? [reverse? #f])
+  (define subexprs
     (reap [sow]
           (let loop ([expr expr])
             (sow expr)
@@ -54,8 +54,11 @@
                (loop c)
                (loop t)
                (loop f)]
-              [(list op args ...)
-               (for ([arg args]) (loop arg))])))))
+              [(list _ args ...)
+               (for ([arg args]) (loop arg))]))))
+  (remove-duplicates
+    (if reverse? (reverse subexprs) subexprs)))
+
 
 (define (ops-in-expr expr)
   (remove-duplicates

@@ -267,13 +267,13 @@
   (require rackunit "../load-plugin.rkt")
   (load-herbie-builtins)
 
-  (define repr (get-representation 'binary64))
+  (define precision 'binary64)
   (define ctx (make-debug-context '(x y z a)))
 
   ;; inlining
 
   ;; Test classic quadp and quadm examples
-  (register-function! 'discr (list 'a 'b 'c) repr `(sqrt (- (* b b) (* a c))))
+  (register-function! 'discr (list 'a 'b 'c) precision `(sqrt (- (* b b) (* a c))))
   (define quadp `(/ (+ (- y) (discr x y z)) x))
   (define quadm `(/ (- (- y) (discr x y z)) x))
   (check-equal? (fpcore->prog quadp ctx)
@@ -282,8 +282,8 @@
                 '(/.f64 (-.f64 (neg.f64 y) (sqrt.f64 (-.f64 (*.f64 y y) (*.f64 x z)))) x))
 
   ;; x^5 = x^3 * x^2
-  (register-function! 'sqr (list 'x) repr '(* x x))
-  (register-function! 'cube (list 'x) repr '(* x x x))
+  (register-function! 'sqr (list 'x) precision '(* x x))
+  (register-function! 'cube (list 'x) precision '(* x x x))
   (define fifth '(* (cube a) (sqr a)))
   (check-equal? (fpcore->prog fifth ctx)
                 '(*.f64 (*.f64 (*.f64 a a) a) (*.f64 a a)))
