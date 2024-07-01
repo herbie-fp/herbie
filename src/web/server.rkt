@@ -34,12 +34,12 @@
 
 ;; Creates a command object to be passed to start-job server.
 ;; TODO contract?
-(define (create-job command formula 
+(define (create-job command test 
                     #:seed [seed #f] 
                     #:pcontext [pcontext #f]
                     #:profile? [profile? #f]
                     #:timeline-disabled? [timeline-disabled? #f])
-  (herbie-command command formula seed pcontext profile? timeline-disabled?))
+  (herbie-command command test seed pcontext profile? timeline-disabled?))
 
 ;; Starts a job for a given command object
 (define (start-job command)
@@ -68,7 +68,7 @@
 
 ;; Job object, What herbie excepts as input for a new job.
 (struct herbie-command 
-  (command formula seed pcontext profile? timeline-disabled?) #:transparent)
+  (command test seed pcontext profile? timeline-disabled?) #:transparent)
  
 ; Private globals
 ; TODO I'm sure these can encapslated some how.
@@ -121,10 +121,10 @@
 
 (define (wrapper-run-herbie cmd job-id)
   (print-job-message (herbie-command-command cmd) job-id 
-    (syntax->datum (herbie-command-formula cmd)))
+    (herbie-command-test cmd))
   (define result (run-herbie 
     (herbie-command-command cmd)
-    (parse-test (herbie-command-formula cmd))
+    (herbie-command-test cmd)
     #:seed (herbie-command-seed cmd)
     #:pcontext (herbie-command-pcontext cmd)
     #:profile? (herbie-command-profile? cmd)
