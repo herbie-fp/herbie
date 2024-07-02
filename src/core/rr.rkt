@@ -49,7 +49,7 @@
             platform-egg-cost-proc
             default-egg-cost-proc)))
   (define e-input
-    (make-egg-query exprs
+    (make-egg-runner exprs
                     reprs
                     schedule
                     #:context ctx

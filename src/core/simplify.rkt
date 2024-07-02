@@ -12,17 +12,17 @@
 ;; for each expression, returns a list of simplified versions corresponding to egraph iterations
 ;; the last expression is the simplest unless something went wrong due to unsoundness
 ;; if the input specifies proofs, it instead returns proofs for these expressions
-(define/contract (simplify-batch input)
-  (-> egg-runner? (listof (listof expr?)))
+(define/contract (simplify-batch input extractor)
+  (-> egg-runner? procedure? (listof (listof expr?)))
   (timeline-push! 'inputs (map ~a (egg-runner-exprs input)))
   (timeline-push! 'method "egg-herbie")
-  (match-define (cons results _) (run-egg input #f))
 
+  (define simplifieds (run-egg input (cons 'single extractor)))
   (define out
-    (for/list ([result results] [expr (egg-runner-exprs input)])
-      (remove-duplicates (cons expr result))))
+    (for/list ([simplified simplifieds] [expr (egg-runner-exprs input)])
+      (remove-duplicates (cons expr simplified))))
+
   (timeline-push! 'outputs (map ~a (apply append out)))
-    
   out)
 
 (module+ test
@@ -42,7 +42,7 @@
   
   (define (test-simplify . args)
     (define egg-query
-      (make-egg-query args
+      (make-egg-runner args
                       (map (lambda (_) 'real) args)
                       `((run ,(*simplify-rules*) ((node . ,(*node-limit*)))))))
     (map last (simplify-batch egg-query)))

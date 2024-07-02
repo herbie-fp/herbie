@@ -142,7 +142,7 @@
             platform-egg-cost-proc
             default-egg-cost-proc)))
   (define egg-query
-    (make-egg-query specs
+    (make-egg-runner specs
                     reprs
                     schedule
                     #:extractor extractor))

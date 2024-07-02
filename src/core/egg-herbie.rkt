@@ -19,13 +19,12 @@
          "../timeline.rkt" )
 
 (provide (struct-out egg-runner)
-         (struct-out regraph)
          untyped-egg-extractor
          typed-egg-extractor
          default-untyped-egg-cost-proc
          platform-egg-cost-proc
          default-egg-cost-proc
-         make-egg-query
+         make-egg-runner
          run-egg
          get-canon-rule-name
          remove-rewrites
@@ -1275,27 +1274,6 @@
 ;; A mini-interpreter for egraph "schedules" including running egg,
 ;; pruning certain kinds of nodes, extracting expressions, etc.
 
-(define (verify-schedule! schedule)
-  (define (oops! fmt . args)
-    (apply error 'verify-schedule! fmt args))
-  (for ([instr (in-list schedule)])
-    (match instr
-      [(list 'run rules params)
-       ;; `run` instruction
-       (unless (and (list? rules) (andmap rule? rules))
-         (oops! "expected list of rules: `~a`" rules))
-       (for ([param (in-list params)])
-         (match param
-           [(cons 'node (? nonnegative-integer?)) (void)]
-           [(cons 'iteration (? nonnegative-integer?)) (void)]
-           [(cons 'const-fold? (? boolean?)) (void)]
-           [(cons 'scheduler mode)
-            (unless (set-member? '(simple backoff) mode)
-              (oops! "in instruction `~a`, unknown scheduler `~a`" instr mode))]
-           [_ (oops! "in instruction `~a`, unknown parameter `~a`" instr param)]))]
-      [(list 'convert) (void)]
-      [_ (oops! "unknown instruction `~a`" instr)])))
-
 ;; Runs rules over the egraph with the given egg parameters.
 ;; Invariant: the returned egraph is never unsound
 (define (egraph-run-rules egg-graph0 egg-rules params)  
@@ -1342,7 +1320,7 @@
   (define-values (egg-graph regraph)
     (for/fold ([egg-graph egg-graph0] [regraph #f]) ([instr (in-list schedule)])
       (match instr
-        [(list 'run rules params)
+        [(cons rules params)
          ;; `run` instruction
          (when regraph
            (oops! 'run "requires a Rust egraph (was this run after a `convert` instruction?)"))
@@ -1366,11 +1344,6 @@
            (hash-update! rule-apps canon-name (curry + count) count))
 
          (values egg-graph* regraph)]
-        [(list 'convert)
-         ; `convert` instruction
-         (when regraph
-           (oops! 'convert "requires a Rust egraph (was this run after a `convert` instruction?)"))
-         (values egg-graph (make-regraph egg-graph))]
         [_ (error 'egraph-run-schedule "unimplemented: ~a" instr)])))
 
   ; report rule statistics
@@ -1391,63 +1364,96 @@
 ;;  - `make-egg-runner`: creates a struct that describes a _reproducible_ egg instance
 ;;  - `run-egg`: takes an egg runner and performs an extraction (exprs or proof)
 
-;; Herbie's version of an egg runner
+;; Herbie's version of an egg runner.
 ;; Defines parameters for running rewrite rules with egg
-(struct egg-runner (exprs reprs schedule ctx extractor)
-                     #:transparent ; for equality
-                     #:methods gen:custom-write ; for abbreviated printing
-                     [(define (write-proc alt port mode)
-                        (fprintf port "#<egg-runner>"))])
-
-;; Fallback extractor if none is specified
-(define default-egg-extractor
-  (untyped-egg-extractor default-untyped-egg-cost-proc))
+(struct egg-runner (exprs reprs schedule ctx)
+                    #:transparent ; for equality
+                    #:methods gen:custom-write ; for abbreviated printing
+                    [(define (write-proc alt port mode)
+                       (fprintf port "#<egg-runner>"))])
 
 ;; Constructs an egg runner.
-(define (make-egg-query exprs
-                        reprs
-                        schedule
-                        #:context [ctx (*context*)]
-                        #:extractor [extractor #f])
-  (verify-schedule! schedule)
-  (egg-runner exprs
-                reprs
-                schedule
-                ctx
-                (or extractor default-egg-extractor)))
+;;
+;; The schedule is a list of pairs specifying
+;;  - a list of rules
+;;  - scheduling parameters:
+;;     - node limit: `(node . <number>)`
+;;     - iteration limit: `(iteration . <number>)`
+;;     - constant fold: `(const-fold? . <boolean>)`
+;;     - scheduler: `(scheduler . <name>)`
+;;        - `simple`: run all rules without banning
+;;        - `backoff`: ban rules if the fire too much 
+(define (make-egg-runner exprs
+                         reprs
+                         schedule
+                         #:context [ctx (*context*)])
+  (define (oops! fmt . args)
+    (apply error 'verify-schedule! fmt args))
+  ; verify the schedule
+  (for ([instr (in-list schedule)])
+    (match instr
+      [(cons rules params)
+       ;; `run` instruction
+       (unless (and (list? rules) (andmap rule? rules))
+         (oops! "expected list of rules: `~a`" rules))
+       (for ([param (in-list params)])
+         (match param
+           [(cons 'node (? nonnegative-integer?)) (void)]
+           [(cons 'iteration (? nonnegative-integer?)) (void)]
+           [(cons 'const-fold? (? boolean?)) (void)]
+           [(cons 'scheduler mode)
+            (unless (set-member? '(simple backoff) mode)
+              (oops! "in instruction `~a`, unknown scheduler `~a`" instr mode))]
+           [_ (oops! "in instruction `~a`, unknown parameter `~a`" instr param)]))]
+      [_ (oops! "expected `(<rules> . <params>)`, got `~a`" instr)]))
+  ; make the runner
+  (egg-runner exprs reprs schedule ctx))
 
 ;; Runs egg using an egg runner.
-(define (run-egg input variants? #:proof-inputs [proof-inputs '()])
-  ;; Run egg and extract iteration data
-  (define ctx (egg-runner-ctx input))
+;;
+;; Argument `cmd` specifies what to get from the e-graph:
+;;  - single extraction: `(single . <extractor>)`
+;;  - multi extraction: `(multi . <extractor>)`
+;;  - proofs: `(proofs . ((<start> . <end>) ...))`
+(define (run-egg runner cmd)
+  ;; Run egg using runner
+  (define ctx (egg-runner-ctx runner))
   (define-values (node-ids egg-graph regraph)
-    (egraph-run-schedule (egg-runner-exprs input)
-                         (egg-runner-schedule input)
+    (egraph-run-schedule (egg-runner-exprs runner)
+                         (egg-runner-schedule runner)
                          ctx))
-  ;; Compute eclass/enode cost in the graph
-  (define extractor (egg-runner-extractor input))
-  (define extract-id (extractor regraph))
-  (define reprs (egg-runner-reprs input))
-  ;; Extract the expressions
-  (define extract-proc
-    (if variants?
-        regraph-extract-variants
-        regraph-extract-best))
-  (define rewritten
-    (for/list ([id node-ids] [repr (in-list reprs)])
-      (extract-proc regraph extract-id id repr)))
-  ;; Extract the proof based on a pair (start, end) expressions.
-  (define proofs
-    (for/list ([proof-input (in-list proof-inputs)])
-      (match-define (cons start end) proof-input)
-      (unless (egraph-is-equal egg-graph start end ctx)
-        (error "Cannot get proof: start and end are not equal.\n start: ~a \n end: ~a" start end))
+  ; Perform extraction
+  (match cmd
+    [`(single . ,extractor)
+     (define extract-id (extractor regraph))
+     (define reprs (egg-runner-reprs runner))
+     (for/list ([id (in-list node-ids)] [repr (in-list reprs)])
+       (regraph-extract-best regraph extract-id id repr))]
+    [_ (error 'run-egg "unimplemented ~a\n" cmd)]))
+  ; ;; Compute eclass/enode cost in the graph
+  ; (define extractor default-egg-extractor)
+  ; (define extract-id (extractor regraph))
+  ; (define reprs (egg-runner-reprs runner))
+  ; ;; Extract the expressions
+  ; (define extract-proc
+  ;   (if variants?
+  ;       regraph-extract-variants
+  ;       regraph-extract-best))
+  ; (define rewritten
+  ;   (for/list ([id node-ids] [repr (in-list reprs)])
+  ;     (extract-proc regraph extract-id id repr)))
+  ; ;; Extract the proof based on a pair (start, end) expressions.
+  ; (define proofs
+  ;   (for/list ([proof-input (in-list proof-inputs)])
+  ;     (match-define (cons start end) proof-input)
+  ;     (unless (egraph-is-equal egg-graph start end ctx)
+  ;       (error "Cannot get proof: start and end are not equal.\n start: ~a \n end: ~a" start end))
 
-      (define proof (egraph-get-proof egg-graph start end ctx))
-      (when (null? proof)
-        (error (format "Failed to produce proof for ~a to ~a" start end)))
-      proof))
-  ;; Return extracted expressions and the proof
-  (cons rewritten proofs))
+  ;     (define proof (egraph-get-proof egg-graph start end ctx))
+  ;     (when (null? proof)
+  ;       (error (format "Failed to produce proof for ~a to ~a" start end)))
+  ;     proof))
+  ; ;; Return extracted expressions and the proof
+  ; (cons rewritten proofs))
 
 

@@ -415,7 +415,7 @@
             platform-egg-cost-proc
             default-egg-cost-proc)))
      (define egg-query
-       (make-egg-query progs
+       (make-egg-runner progs
                        reprs
                        `((run ,rules ((node . ,(*node-limit*)) (const-fold? . #f))))
                        #:extractor extractor))
