@@ -1,46 +1,14 @@
 #lang racket
 
-(require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt"
-         "../sampling.rkt" "../syntax/types.rkt" "../syntax/sugar.rkt"
-         "../syntax/syntax.rkt" "../alternative.rkt" "../platform.rkt" 
-         "simplify.rkt" "egg-herbie.rkt" "../syntax/rules.rkt")
+(require "../syntax/sugar.rkt" "../syntax/syntax.rkt" "../syntax/types.rkt"
+         "../syntax/rules.rkt" "../accelerator.rkt" "../common.rkt" "../float.rkt"
+         "../platform.rkt" "../points.rkt" "../programs.rkt" "../sampling.rkt"
+         "simplify.rkt" "egg-herbie.rkt")
 
-(provide batch-localize-costs batch-localize-errors
-         local-error-as-tree compute-local-errors
-         all-subexpressions all-subexpressions-rev)
-
-(define (all-subexpressions expr)
-  (remove-duplicates
-    (reap [sow]
-          (let loop ([expr expr])
-            (sow expr)
-            (match expr
-              [(? literal?) (void)]
-              [(? variable?) (void)]
-              [`(if ,c ,t ,f)
-               (loop c)
-               (loop t)
-               (loop f)]
-              [(list op args ...)
-               (for ([arg args]) (loop arg))])))))
-
-
-(define (all-subexpressions-rev expr repr)
-  (remove-duplicates (reverse
-                      (reap [sow]
-                            (let loop ([expr expr] [repr repr])
-                              (sow (cons expr repr))
-                              (match expr
-                                [(? literal?) (void)]
-                                [(? variable?) (void)]
-                                [`(if ,c ,t ,f)
-                                 (loop c (get-representation 'bool))
-                                 (loop t repr)
-                                 (loop f repr)]
-                                [(list op args ...)
-                                 (define atypes (impl-info op 'itype))
-                                 (for ([arg args] [atype atypes])
-                                   (loop arg atype))]))))))
+(provide batch-localize-costs
+         batch-localize-errors
+         compute-local-errors
+         local-error-as-tree)
 
 (define (regroup-nested inputss outputs)
   (match* (inputss outputs)
@@ -55,24 +23,74 @@
 
 (define (batch-localize-costs exprs ctx)
   (define subexprss (map all-subexpressions exprs))
-  (define expr->cost  (platform-cost-proc (*active-platform*)))
+  (define progs (apply append subexprss))
+
+  ; inputs to egg
+  (define specs (map (lambda (e) (expand-accelerators (prog->spec e))) progs))
+  (define reprs (map (lambda (prog) (repr-of prog ctx)) progs))
+  (define rules (real-rules (*simplify-rules*)))
+  (define lowering-rules (platform-lowering-rules))
+
+  ; egg schedule (2-phases for real rewrites and implementation selection)
+  (define schedule
+    `((run ,rules ((node . ,(*node-limit*))))
+      (run ,lowering-rules ((iteration . 1) (scheduler . simple)))))
+
+  ; extractor
+  (define extractor
+      (typed-egg-extractor
+        (if (*egraph-platform-cost*)
+            platform-egg-cost-proc
+            default-egg-cost-proc)))
+
+  ; egg runner
+  (define egg-query
+    (make-egg-query specs
+                    reprs
+                    schedule
+                    #:extractor extractor))
   
+  ; run egg
   (define simplifiedss
     (regroup-nested
-     subexprss
-     (map last
-          (simplify-batch (make-egg-query (apply append subexprss) (*simplify-rules*))))))
+      subexprss
+      (map last (simplify-batch egg-query))))
 
+  ; build map from starting expr to simplest
+  (define expr->simplest (make-hash))
+  (for ([subexprs (in-list subexprss)]
+        [simplifieds (in-list simplifiedss)] #:when #t
+        [subexpr (in-list subexprs)]
+        [simplified (in-list simplifieds)])
+    (hash-set! expr->simplest subexpr simplified))
+  
+  ; platform-based expression cost
+  (define cost-proc (platform-cost-proc (*active-platform*)))
+  (define (expr->cost expr)
+    (cost-proc expr (repr-of expr ctx)))
+
+  ; rank subexpressions by cost opportunity
   (define localize-costss
-    (for/list ([subexprs (in-list subexprss)] [simplifieds (in-list simplifiedss)])
-      (sort 
-       (for/list ([subexpr (in-list subexprs)]
-                  [simplified (in-list simplifieds)]
-                  #:when (list? subexpr))
-         (cons (- (expr->cost subexpr (repr-of subexpr ctx))
-                  (expr->cost simplified (repr-of subexpr ctx)))
-               subexpr))
-       > #:key car)))
+    (for/list ([subexprs (in-list subexprss)])
+      (sort
+        (for/list ([subexpr (in-list subexprs)] #:when (list? subexpr))
+          ; start and end cost of roots
+          (define start-cost (expr->cost subexpr))
+          (define best-cost (expr->cost (hash-ref expr->simplest subexpr)))
+          ; start and end cost of children
+          (match-define (list _ children ...) subexpr)
+          (define start-child-costs
+            (map expr->cost children))
+          (define best-child-costs
+            (for/list ([child (in-list children)])
+              (expr->cost (hash-ref expr->simplest child))))
+          ; compute cost opportunity
+          (define cost-opportunity
+            (- (apply - start-cost start-child-costs)
+               (apply - best-cost best-child-costs)))
+          (cons cost-opportunity subexpr))
+        > #:key car)))
+
   localize-costss)
 
 (define (batch-localize-errors exprs ctx)

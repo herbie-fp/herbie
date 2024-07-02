@@ -6,6 +6,7 @@
 
 (require "syntax/read.rkt"
          "syntax/sugar.rkt"
+         "syntax/syntax.rkt"
          "syntax/types.rkt"
          "core/localize.rkt"
          "alternative.rkt"
@@ -106,12 +107,12 @@
 (define (get-exacts test pcontext)
   (unless pcontext
     (error 'get-exacts "cannnot run without a pcontext"))
-  (define repr (test-output-repr test))
   (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext))
   (define-values (pts _) (pcontext->lists test-pcontext))
-  (define fn (eval-progs-real 
-              (list (prog->spec (test-input test)))
-              (list (*context*))))
+  (define fn
+    (eval-progs-real 
+      (list (prog->spec (test-input test)))
+      (list (*context*))))
   (for/list ([pt pts])
     (list pt (car (apply fn pt)))))
 
@@ -299,7 +300,7 @@
              (prog->fpcore (test-pre test) repr)
              preprocess
              (representation-name repr)
-             (map (curry map representation-name) (test-conversions test))
+             '() ; TODO: eliminate field
              (test-vars test)
              (map car (job-result-warnings result))
              (prog->fpcore (test-input test) repr) 
@@ -410,8 +411,7 @@
      :name ,(table-row-name row)
      ,@(if descr `(:description ,(~a descr)) '())
      :precision ,(table-row-precision row)
-     :herbie-conversions ,(table-row-conversions row)
      ,@(if (eq? (table-row-pre row) 'TRUE) '() `(:pre ,(table-row-pre row)))
      ,@(if (equal? (table-row-preprocess row) empty) '() `(:herbie-preprocess ,(table-row-preprocess row)))
-     ,@(if (table-row-target-prog row) `(:herbie-target ,(table-row-target-prog row)) '())
+     ,@(if (table-row-target-prog row) `(:alt ,(table-row-target-prog row)) '())
      ,(prog->fpcore expr* repr)))

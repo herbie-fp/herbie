@@ -2,7 +2,7 @@
 
 pub mod math;
 
-use egg::{Extractor, Id, Language, StopReason, Symbol};
+use egg::{BackoffScheduler, Extractor, Id, Language, SimpleScheduler, StopReason, Symbol};
 use indexmap::IndexMap;
 use libc::c_void;
 use math::*;
@@ -11,7 +11,6 @@ use std::cmp::min;
 use std::ffi::{CStr, CString};
 use std::mem::{self, ManuallyDrop};
 use std::os::raw::c_char;
-use std::thread;
 use std::time::Duration;
 use std::{slice, sync::atomic::Ordering};
 
@@ -20,8 +19,6 @@ pub struct Context {
     runner: Runner,
     rules: Vec<Rewrite>,
 }
-
-const PROOF_BANDAID_STACK_SIZE: usize = 128 * 2usize.pow(20); // 128 MiB
 
 // I had to add $(rustc --print sysroot)/lib to LD_LIBRARY_PATH to get linking to work after installing rust with rustup
 #[no_mangle]
@@ -84,6 +81,25 @@ pub unsafe extern "C" fn egraph_add_expr(ptr: *mut Context, expr: *const c_char)
     id
 }
 
+#[no_mangle]
+pub unsafe extern "C" fn egraph_copy(ptr: *mut Context) -> *mut Context {
+    // Safety: `ptr` was box allocated by `egraph_create`
+    let context = Box::from_raw(ptr);
+    let mut runner = Runner::new(Default::default())
+        .with_explanations_enabled()
+        .with_egraph(context.runner.egraph.clone());
+    runner.roots = context.runner.roots.clone();
+    runner.egraph.rebuild();
+
+    mem::forget(context);
+
+    Box::into_raw(Box::new(Context {
+        iteration: 0,
+        rules: vec![],
+        runner,
+    }))
+}
+
 unsafe fn ptr_to_string(ptr: *const c_char) -> String {
     let bytes = CStr::from_ptr(ptr).to_bytes();
     String::from_utf8(bytes.to_vec()).unwrap()
@@ -100,7 +116,7 @@ unsafe fn ffirule_to_tuple(rule_ptr: *mut FFIRule) -> (String, String, String) {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn egraph_run_with_iter_limit(
+pub unsafe extern "C" fn egraph_run(
     ptr: *mut Context,
     rules_array_ptr: *const *mut FFIRule,
     rules_array_length: u32,
@@ -108,6 +124,7 @@ pub unsafe extern "C" fn egraph_run_with_iter_limit(
     iterations_ptr: *mut *mut c_void,
     iter_limit: u32,
     node_limit: u32,
+    simple_scheduler: bool,
     is_constant_folding_enabled: bool,
 ) -> *const EGraphIter {
     // Safety: `ptr` was box allocated by `egraph_create`
@@ -131,6 +148,12 @@ pub unsafe extern "C" fn egraph_run_with_iter_limit(
         context.rules = rules;
 
         context.runner.egraph.analysis.constant_fold = is_constant_folding_enabled;
+        context.runner = if simple_scheduler {
+            context.runner.with_scheduler(SimpleScheduler)
+        } else {
+            context.runner.with_scheduler(BackoffScheduler::default())
+        };
+
         context.runner = context
             .runner
             .with_node_limit(node_limit as usize)
@@ -166,28 +189,6 @@ pub unsafe extern "C" fn egraph_run_with_iter_limit(
     mem::forget(context);
 
     iterations_data
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn egraph_run(
-    ptr: *mut Context,
-    rules_array_ptr: *const *mut FFIRule,
-    rules_array_length: u32,
-    iterations_length: *mut u32,
-    iterations_ptr: *mut *mut c_void,
-    node_limit: u32,
-    is_constant_folding_enabled: bool,
-) -> *const EGraphIter {
-    egraph_run_with_iter_limit(
-        ptr,
-        rules_array_ptr,
-        rules_array_length,
-        iterations_length,
-        iterations_ptr,
-        u32::MAX,
-        node_limit,
-        is_constant_folding_enabled,
-    )
 }
 
 #[no_mangle]
@@ -227,6 +228,42 @@ fn find_extracted(runner: &Runner, id: u32, iter: u32) -> &Extracted {
 }
 
 #[no_mangle]
+pub unsafe extern "C" fn egraph_find(ptr: *mut Context, id: usize) -> u32 {
+    let context = ManuallyDrop::new(Box::from_raw(ptr));
+    let node_id = Id::from(id);
+    let canon_id = context.runner.egraph.find(node_id);
+    usize::from(canon_id) as u32
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn egraph_serialize(ptr: *mut Context) -> *const c_char {
+    // Safety: `ptr` was box allocated by `egraph_create`
+    let context = ManuallyDrop::new(Box::from_raw(ptr));
+    // Iterate through the eclasses and print each eclass
+    let mut s = String::from("(");
+    for c in context.runner.egraph.classes() {
+        s.push_str(&format!("({}", c.id));
+        for node in &c.nodes {
+            if matches!(node, Math::Symbol(_) | Math::Constant(_)) {
+                s.push_str(&format!(" {}", node));
+            } else {
+                s.push_str(&format!("({}", node));
+                for c in node.children() {
+                    s.push_str(&format!(" {}", c));
+                }
+                s.push(')');
+            }
+        }
+
+        s.push(')');
+    }
+    s.push(')');
+
+    let c_string = ManuallyDrop::new(CString::new(s).unwrap());
+    c_string.as_ptr()
+}
+
+#[no_mangle]
 pub unsafe extern "C" fn egraph_get_simplest(
     ptr: *mut Context,
     node_id: u32,
@@ -252,23 +289,14 @@ pub unsafe extern "C" fn egraph_get_proof(
     let egraph = &mut context.runner.egraph;
     let expr_rec = CStr::from_ptr(expr).to_str().unwrap().parse().unwrap();
     let goal_rec = CStr::from_ptr(goal).to_str().unwrap().parse().unwrap();
-    let thread = thread::Builder::new().stack_size(PROOF_BANDAID_STACK_SIZE);
 
-    // *Java programmers hate him! Prevent stack overflows with this one weird trick!*
-    let string = thread::scope(|scope| {
-        thread
-            .spawn_scoped(scope, move || {
-                egraph
-                    .explain_equivalence(&expr_rec, &goal_rec)
-                    .get_string_with_let()
-                    .replace('\n', "")
-            })
-            .unwrap()
-            .join()
-            .unwrap()
-    });
+    // extract the proof as a tree
+    let string = egraph
+        .explain_equivalence(&expr_rec, &goal_rec)
+        .get_string_with_let()
+        .replace('\n', " ");
+
     let c_string = ManuallyDrop::new(CString::new(string).unwrap());
-
     c_string.as_ptr()
 }
 

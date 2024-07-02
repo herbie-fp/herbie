@@ -2,9 +2,11 @@
 
 ;; Builtin double-precision plugin (:precision binary64)
 
-(require math/flonum math/bigfloat)
-(require ffi/unsafe)
-(require "runtime/utils.rkt" "runtime/libm.rkt")
+(require math/flonum
+         math/bigfloat)
+
+(require "runtime/utils.rkt"
+         "runtime/libm.rkt")
 
 ;; Do not run this file with `raco test`
 (module test racket/base)
@@ -49,7 +51,9 @@
 
 (define-libm-impls/binary64
   [(binary64 binary64)
-   (acos acosh asin asinh atan atanh cbrt ceil cos cosh erf exp exp2 fabs floor lgamma log log10 log2 logb rint round sin sinh sqrt tan tanh tgamma trunc)]
+   (acos acosh asin asinh atan atanh cbrt ceil cos cosh erf exp exp2
+    fabs floor lgamma log log10 log2 logb rint round sin sinh sqrt
+    tan tanh tgamma trunc)]
   [(binary64 binary64 binary64)
    (atan2 copysign fdim fmax fmin fmod pow remainder)])
 
@@ -60,6 +64,8 @@
   [> >.f64 >]
   [<= <=.f64 <=]
   [>= >=.f64 >=])
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;; accelerators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define-libm expm1.f64 (expm1 double double))
 (when expm1.f64

@@ -1,16 +1,16 @@
 #lang racket
 
-(require "syntax/syntax.rkt" "syntax/types.rkt")
+(require "syntax/syntax.rkt"
+         "syntax/types.rkt"
+         "common.rkt")
 
 (provide expr? expr-contains? expr<?
+         all-subexpressions ops-in-expr
+         impl-prog?
          type-of repr-of
          location-do location-get
          eval-application
          free-variables replace-expression replace-vars)
-
-(module+ test
-  (require rackunit "load-plugin.rkt")
-  (load-herbie-plugins))
 
 (define expr? (or/c list? symbol? boolean? real? literal?))
 
@@ -40,6 +40,48 @@
     (match expr
      [(list elems ...) (ormap loop elems)]
      [term (pred term)])))
+
+(define (all-subexpressions expr #:reverse? [reverse? #f])
+  (define subexprs
+    (reap [sow]
+          (let loop ([expr expr])
+            (sow expr)
+            (match expr
+              [(? number?) (void)]
+              [(? literal?) (void)]
+              [(? variable?) (void)]
+              [`(if ,c ,t ,f)
+               (loop c)
+               (loop t)
+               (loop f)]
+              [(list _ args ...)
+               (for ([arg args]) (loop arg))]))))
+  (remove-duplicates
+    (if reverse? (reverse subexprs) subexprs)))
+
+
+(define (ops-in-expr expr)
+  (remove-duplicates
+    (filter-map
+      (lambda (e) (and (pair? e) (first e)))
+      (all-subexpressions expr))))
+
+;; Returns `#t` if program is a program of operator implementations.
+(define (impl-prog? expr)
+  (let/ec return
+    (let loop ([expr expr])
+      (match expr
+        [(? literal?) (void)]
+        [(? number?) (return #f)]
+        [(? symbol?) (void)]
+        [(list 'if cond ift iff)
+         (loop cond)
+         (loop ift)
+         (loop iff)]
+        [(list (? impl-exists?) args ...)
+         (for-each loop args)]
+        [(list _ ...) (return #f)]))
+    #t))
 
 ;; Total order on expressions
 
@@ -153,6 +195,8 @@
     [_ #f]))
 
 (module+ test
+  (require rackunit)
+
   (check-equal? (eval-application '+ 1 1) 2)
   (check-equal? (eval-application '+) 0)
   (check-equal? (eval-application '/ 1 0) #f) ; Not valid

@@ -1,43 +1,33 @@
 #lang racket
 
-(require "common.rkt"
-         "accelerator.rkt" (submod "accelerator.rkt" internals)
-         "sampling.rkt"
+(require "syntax/types.rkt"
          (submod "syntax/syntax.rkt" internals)
          (submod "syntax/rules.rkt" internals)
-         "syntax/types.rkt"
-         "core/matcher.rkt")
+         "accelerator.rkt"
+         (submod "accelerator.rkt" internals)
+         "common.rkt"
+         "sampling.rkt")
 
 (provide register-accelerator!
          register-accelerator-impl!
          define-accelerator
          define-accelerator-impl)
 
-;; Adds an accelerator to the table.
-(define (register-accelerator! name itypes otype spec)
-  (match-define (list (or 'λ 'lambda) (list vars ...) body) spec)
-  (for/fold ([ids '()]) ([var (in-list vars)])
-    (if (member var ids)
-        (error 'register-accelerator!
-               "duplicate variable for ~a: ~a"
-               name var)
-        (cons var ids))) 
-  (unless (= (length vars) (length itypes))
-    (error 'register-accelerator!
-           "implementation does not have expected arity: ~a ~a"
-           (length vars)
-           (length itypes)))
-  (define ruleset-name (sym-append name '-accelerator))
-  (define define-name (sym-append name '-define))
-  (define undefine-name (sym-append name '-undefine))
-  (define info (accelerator name itypes otype spec))
+(define (register-accelerator! name itypes otype form [ival-impl #f])
+  (match-define (list (or 'λ 'lambda) (list vars ...) body) form)
+  (define ruleset-name (sym-append name '- 'accelerator))
+  (define define-name (sym-append name '- 'define))
+  (define undefine-name (sym-append name '- 'undefine))
+  (define info (accelerator name vars body itypes otype))
+  (define impl-fn ival-impl) ; TODO
   (hash-set! accelerators name info)
-  (register-operator! name itypes otype (list (cons 'ival #f)))
+  (register-operator! name itypes otype (list (cons 'ival impl-fn)))
+  ;; TODO: Are the groups right now?
   (register-ruleset*! ruleset-name
-                      (list 'numerics 'simplify)
-                      (map cons vars itypes)
-                      (list (list define-name body (cons name vars))
-                            (list undefine-name (cons name vars) body))))
+                     '(numerics simplify)
+                     (map cons vars itypes)
+                     `((,define-name ,body (,name ,@vars))
+                       (,undefine-name (,name ,@vars) ,body))))
 
 (define-syntax define-accelerator
   (syntax-rules ()
@@ -51,12 +41,16 @@
                                     #:impl [impl #f])
   (unless (accelerator-exists? op)
     (error 'register-accelerator-impl "must be an accelerator ~a" op))
-  (match-define (accelerator _ _ _ spec) (hash-ref accelerators op))
-  (match-define (list (or 'λ 'lambda) (list vars ...) body) spec)
+  (match-define (accelerator _ vars body _ _) (hash-ref accelerators op))
+  (unless (= (length vars) (length itypes))
+    (error 'register-accelerator-impl!
+           "implementation does not have expected arity: ~a ~a"
+           (length vars)
+           (length itypes)))
   (define ctx (context vars otype itypes))
   (define impl-fn
     (or impl
-        (let ([fn (eval-progs-real (list body) (list ctx))])
+        (let ([fn (eval-progs-real (list (expand-accelerators body)) (list ctx))])
           (λ args (first (apply fn args))))))
   (register-operator-impl! op
                            name
@@ -82,10 +76,6 @@
 (define-accelerator (hypot real real) real (lambda (x y) (sqrt (+ (* x x) (* y y)))))
 (define-accelerator (fma real real real) real (lambda (x y z) (+ (* x y) z)))
 (define-accelerator (erfc real) real (lambda (x) (- 1 (erf x))))
-
-(define-accelerator (fmsub real real real) real (lambda (x y z) (- (* x y) z)))
-(define-accelerator (fnmadd real real real) real (lambda (x y z) (+ (neg (* x y)) z)))
-(define-accelerator (fnmsub real real real) real (lambda (x y z) (- (neg (* x y)) z)))
 
 ; Specialized numerical functions
 (define-ruleset* special-numerical-reduce (numerics simplify)

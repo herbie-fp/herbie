@@ -22,6 +22,7 @@ BENCH_DIR="$INFRA_DIR"/../bench
 # check arguments
 if [ -z "$1" ]; then
   echo "Usage: $0 <output_dir>"
+  exit 1
 else
   OUT_DIR="$1"; shift
   FLAGS="$@"

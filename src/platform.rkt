@@ -11,7 +11,7 @@
 
 (provide
   platform get-platform *active-platform* activate-platform!
-  extract-platform-name list->dict
+  extract-platform-name
   ;; Platform API
   (contract-out
     ;; Operator sets
@@ -31,6 +31,7 @@
     ; Cost model
     [platform-impl-cost (-> platform? any/c any/c)]
     [platform-repr-cost (-> platform? any/c any/c)]
+    [platform-node-cost-proc (-> platform? procedure?)]
     [platform-cost-proc (-> platform? procedure?)]))
 
 (module+ internals
@@ -179,7 +180,7 @@
            (define ireprs (map get-representation itypes))
            (with-cond-handlers optional?
                                ([exn:fail:user:herbie:missing?
-                                 (λ (_) (set-add! missing `(op ,name ,@itypes , otype)))])
+                                 (λ (_) (set-add! missing `(,name ,@itypes , otype)))])
              (let ([impl (apply get-parametric-operator name ireprs #:all? #t)])
                (hash-set! costs impl cost)
                (sow impl)))]))))
@@ -209,6 +210,13 @@
 ;; Empty platform description
 (define (make-platform-info)
   (platform-info #f #f #f '() '()))
+
+;; Parse if cost syntax
+(define (platform/parse-if-cost stx)
+  (syntax-case stx (max sum)
+    [(max x) #'(list 'max x)]
+    [(sum x) #'(list 'sum x)]
+    [x #'(list 'max x)]))
 
 ;; Parse conversion signatures into a list of implementation table
 (define (platform/parse-convs oops! default-cost default-cost-id conv-sigs)
@@ -277,7 +285,9 @@
 ;;   (platform
 ;;     #:conversions ([binary64 binary32] ...)  ; conversions
 ;;     #:default-cost 1                         ; default cost per impl
-;;     #:if-cost 1                              ; cost of an implementation
+;;     #:if-cost 1                              ; cost of an if branch (using max strategy)
+;;     #:if-cost (max 1)                        ; cost of an if branch (using max strategy)
+;;     #:if-cost (sum 1)                        ; cost of an if branch (using sum strategy)
 ;;     [(bool) (TRUE FALSE)]                    ; constant (0-ary functions)
 ;;     [(bool bool) (not)]                      ; 1-ary function: bool -> bool
 ;;     [(bool bool bool) (and or)]              ; 2-ary function: bool -> bool -> bool
@@ -322,7 +332,7 @@
          [(#:if-cost cost rest ...)
           (loop #'(rest ...)
                 (struct-copy platform-info info
-                  [if-cost #'cost]))]
+                  [if-cost (platform/parse-if-cost #'cost)]))]
          [(#:if-cost)
           (oops! "expected value after keyword `#:if-cost`" stx)]
          [(#:conversions (cs ...) rest ...)
@@ -395,22 +405,23 @@
 
 ;; Merger for costs.
 (define (merge-cost pform-costs key #:optional? [optional? #f])
-  (define costs
-    (for/list ([pform-cost (in-list pform-costs)])
-      (hash-ref pform-cost key #f)))
-  (match (remove-duplicates (filter identity costs))
-    [(list c1 c2 cs ...)
-     (error 'merge-costs
-            "mismatch when combining cost model ~a ~a"
-            key (list* c1 c2 cs))]
-    [(list c1)
-     c1]
-    [(list)
-     (unless optional?
-       (error 'merge-costs
-              "cannot find cost for implementation ~a"
-              key))
-     #f]))
+  (define costs (map (lambda (h) (hash-ref h key #f)) pform-costs))
+  (match-define (list c0 cs ...) costs)
+  (define cost
+    (for/fold ([c0 c0]) ([c1 (in-list cs)])
+      (match* (c0 c1)
+        [(#f _) c1]
+        [(_ #f) c0]
+        [(c c) c]
+        [(_ _)
+         (error 'merge-costs
+                "mismatch when combining cost model ~a ~a"
+                key costs)])))
+  (unless (or cost optional?)
+    (error 'merge-costs
+           "cannot find cost for implementation ~a"
+           key))
+  cost)
 
 ;; Set operations on platforms.
 (define ((make-set-operation merge-impls) p1 . ps)
@@ -746,34 +757,52 @@
             (lambda ()
               (error 'platform-repr-cost "no cost for repr ~a" repr))))
 
+; Cost model of a single node by a platform.
+; Returns a procedure that must be called with the costs of the children.
+(define (platform-node-cost-proc pform)
+  (λ (expr repr)
+    (match expr
+      [(? literal?) (lambda () (platform-repr-cost pform repr))]
+      [(? symbol?) (lambda () (platform-repr-cost pform repr))]
+      [(list 'if _ _ _)
+       (define if-cost (platform-impl-cost pform 'if))
+       (lambda (cond-cost ift-cost iff-cost)
+         (match if-cost
+           [`(max ,n) (+ n cond-cost (max ift-cost iff-cost))]
+           [`(sum ,n) (+ n cond-cost ift-cost iff-cost)]))]
+      [(list impl args ...)
+       (define impl-cost (platform-impl-cost pform impl))
+       (lambda itype-costs
+         (unless (= (length itype-costs) (length args))
+           (error 'platform-node-cost-proc
+                  "arity mismatch, expected ~a arguments"
+                  (length args)))
+         (apply + impl-cost itype-costs))])))
+
 ; Cost model parameterized by a platform.
 (define (platform-cost-proc pform)
+  (define bool-repr (get-representation 'bool))
+  (define node-cost-proc (platform-node-cost-proc pform))
   (λ (expr repr)
     (let loop ([expr expr] [repr repr])
       (match expr
+        [(? literal?) ((node-cost-proc expr repr))]
+        [(? symbol?) ((node-cost-proc expr repr))]
         [(list 'if cond ift iff)
-         (+ (platform-impl-cost pform 'if)
-            (loop cond (get-representation 'bool))
-            (max (loop ift repr) (loop iff repr)))]
+         (define cost-proc (node-cost-proc expr repr))
+         (cost-proc (loop cond bool-repr)
+                    (loop ift repr)
+                    (loop iff repr))]
         [(list impl args ...)
+         (define cost-proc (node-cost-proc expr repr))
          (define itypes (impl-info impl 'itype))
-         (apply + (platform-impl-cost pform impl) (map loop args itypes))]
-        [_
-         (platform-repr-cost pform repr)]))))
+         (apply cost-proc (map loop args itypes))]))))
 
-(define (extract-platform-name value)
-  (match value
-      [`(! ,props ... ,body)
-        (let* ((prop-dict (list->dict props))
-               (contains-herbie-plat? (assoc ':herbie-platform prop-dict)))
-          (and contains-herbie-plat? (cdr contains-herbie-plat?)))]
-      [else #f]))
 
-(define (list->dict lst)
-  (define (dict-helper lst acc)
-    (if (null? lst)
-        acc
-        (let ((prop-name (car lst))
-              (prop-value (cadr lst)))
-            (dict-helper (cddr lst) (cons (cons prop-name prop-value) acc)))))
-  (dict-helper lst '()))
+(define (extract-platform-name annotation)
+  (match-define (list '! props ...) annotation)
+  (let loop ([props props])
+    (match props
+      [(list ':herbie-platform name _ ...) name]
+      [(list _ _ rest ...) (loop rest)]
+      [(list) #f])))
