@@ -235,7 +235,9 @@
                   #"OK"
                   (current-seconds)
                   APPLICATION/JSON-MIME-TYPE
-                  (list (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
+                  (list 
+                   (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*"))
+                   (header #"Herbie-job-id" (string->bytes/utf-8 (hash-ref resp 'job-id "-1"))))
                   (λ (op) (write-json resp op))))))
 
 (define (response/error title body)
@@ -282,7 +284,8 @@
      (define job-id (start-job command))
      (response/full 201 #"Job started" (current-seconds) #"text/plain"
                     (list (header #"Location" (string->bytes/utf-8 (url check-status job-id)))
-                          (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count)))))
+                          (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count))))
+                          (header #"Herbie-job-id" (string->bytes/utf-8 job-id)))
                     '()))
    (url main)))
 
@@ -298,7 +301,8 @@
     [#f
      (response/full 201 #"Job complete" (current-seconds) #"text/plain"
                     (list (header #"Location" (string->bytes/utf-8 (add-prefix (format "~a.~a/graph.html" job-id *herbie-commit*))))
-                          (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count)))))
+                          (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count))))
+                          (header #"Herbie-job-id" (string->bytes/utf-8 job-id)))
                     '())]))
 
 (define (check-up req)
@@ -322,11 +326,15 @@
   (match (get-results-for job-id)
     [#f
      (response 404 #"Job Not Found" (current-seconds) #"text/plain"
-               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count)))))
+               (list 
+                (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count))))
+                (header #"Herbie-job-id" (string->bytes/utf-8 job-id)))
                (λ (out) `()))]
     [job-result
      (response 201 #"Job complete" (current-seconds) #"text/plain"
-                    (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count)))))
+                    (list 
+                     (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count))))
+                     (header #"Herbie-job-id" (string->bytes/utf-8 job-id)))
                     (λ (out) (write-json (job-result-timeline job-result) out)))]))
 
 ; /api/sample endpoint: test in console on demo page:
@@ -343,7 +351,7 @@
       (define result (wait-for-job id))
       (define pctx (job-result-backend result))
       (define repr (context-repr (test-context test)))
-      (hasheq 'points (pcontext->json pctx repr)))))
+      (hasheq 'points (pcontext->json pctx repr) 'job-id id))))
 
 (define analyze-endpoint
   (post-with-json-response
@@ -363,7 +371,7 @@
           (define pt (first pt&err))
           (define err (second pt&err))
           (list pt (format-bits (ulps->bits err)))))
-      (hasheq 'points errs))))
+      (hasheq 'points errs 'job-id id))))
 
 ;; (await fetch('/api/exacts', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x) (- (sqrt (+ x 1))))", points: [[1, 1]]})})).json()
 (define exacts-endpoint 
@@ -377,7 +385,7 @@
       (define command (create-job 'exacts test #:seed seed #:pcontext pcontext #:profile? #f #:timeline-disabled? #t))
       (define id (start-job command))
       (define result (wait-for-job id))
-      (hasheq 'points (job-result-backend result)))))
+      (hasheq 'points (job-result-backend result) 'job-id id))))
 
 (define calculate-endpoint 
   (post-with-json-response
@@ -391,7 +399,7 @@
       (define id (start-job command))
       (define result (wait-for-job id))
       (define approx (job-result-backend result))
-      (hasheq 'points approx))))
+      (hasheq 'points approx 'job-id id))))
 
 (define local-error-endpoint
   (post-with-json-response
@@ -422,7 +430,7 @@
               'e (~a expr)
               'avg-error (format-bits (errors-score (first err)))
               'children '())])))
-      (hasheq 'tree tree))))
+      (hasheq 'tree tree 'job-id id))))
 
 (define alternatives-endpoint
   (post-with-json-response
@@ -473,7 +481,8 @@
       (hasheq 'alternatives fpcores
               'histories histories
               'derivations derivations
-              'splitpoints splitpoints))))
+              'splitpoints splitpoints
+              'job-id id))))
 
 (define ->mathjs-endpoint
   (post-with-json-response
@@ -494,7 +503,7 @@
       (define id (start-job command))
       (define result (wait-for-job id))
       (define cost (job-result-backend result))
-      (hasheq 'cost cost))))
+      (hasheq 'cost cost 'job-id id))))
 
 (define translate-endpoint
   (post-with-json-response
@@ -521,7 +530,8 @@
       (define converted (lang-converter formula "expr"))
       (eprintf "Converted Expression: \n~a...\n" converted)
       (hasheq 'result converted
-              'language target-lang))))
+              'language target-lang
+              'job-id "-1" #| todo real id|# ))))
 
 (define (run-demo #:quiet [quiet? #f] #:output output #:demo? demo? #:prefix prefix #:log log #:port port #:public? public)
   (*demo?* demo?)
