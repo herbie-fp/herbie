@@ -49,17 +49,6 @@ else
   echo "Restricting to $PARALLEL_SEEDS parallel concurrent Herbie runs."
 fi
 
-# advise user of single/multi-objective optimization
-if [ -z "$PARETO_ITERS" ]; then
-  echo "Using single-objective optimization"
-elif [ "$PARETO_ITERS" == "yes" ]; then
-  PARETO_ITERS=4
-  echo "Using multi-objective optimization with $PARETO_ITERS iters (default)"
-else
-  echo "Using multi-objective optimization with $PARETO_ITERS iters"
-fi
-
-
 #
 #   SAMPLE SEEDS
 #
@@ -75,23 +64,12 @@ function do_seed {
   seed_output="$output/$(printf "%03d" "$seed")"
   mkdir -p "$seed_output"
 
-  if [ -z "$PARETO_ITERS" ]; then
-    racket "$HERBIE/src/herbie.rkt" report \
-      --threads $THREADS \
-      --seed "$seed" \
-      $HERBIE_FLAGS \
-      "$HERBIE/$BENCH" \
-      "$seed_output"
-  else
-    racket "$HERBIE/src/herbie.rkt" report \
-      --threads $THREADS \
-      --seed "$seed" \
-      --num-iters "$PARETO_ITERS" \
-      --pareto \
-      $HERBIE_FLAGS \
-      "$HERBIE/$BENCH" \
-      "$seed_output"
-  fi
+  racket "$HERBIE/src/herbie.rkt" report \
+    --threads $THREADS \
+    --seed "$seed" \
+    $HERBIE_FLAGS \
+    "$HERBIE/$BENCH" \
+    "$seed_output"
 }
 
 # sample herbie behavior
