@@ -403,25 +403,26 @@
   (cond
     [(flag-set? 'generate 'simplify)
      (timeline-event! 'simplify)
-
+    
      (define progs (map alt-expr alts))
      (define reprs (map (lambda (prog) (repr-of prog (*context*))) progs))
      (define rules (platform-impl-rules (*fp-safe-simplify-rules*)))
 
      ; egg runner
-     (define extractor
-      (typed-egg-extractor
-        (if (*egraph-platform-cost*)
-            platform-egg-cost-proc
-            default-egg-cost-proc)))
-     (define egg-query
-       (make-egg-runner progs
+     (define runner
+      (make-egg-runner progs
                        reprs
-                       `((run ,rules ((node . ,(*node-limit*)) (const-fold? . #f))))
-                       #:extractor extractor))
+                       `((,rules . ((node . ,(*node-limit*)) (const-fold? . #f))))))
 
      ; run egg
-     (define simplified (map last (simplify-batch egg-query)))
+     (define simplified
+       (map last
+            (simplify-batch
+              runner
+              (typed-egg-extractor
+                (if (*egraph-platform-cost*)
+                    platform-egg-cost-proc
+                    default-egg-cost-proc)))))
 
      ; de-duplication
      (remove-duplicates

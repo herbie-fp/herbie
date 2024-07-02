@@ -99,8 +99,8 @@
 
   ; egg schedule (2-phases for real rewrites and implementation selection)
   (define schedule
-    `((run ,rules ((node . ,(*node-limit*))))
-      (run ,lowering-rules ((iteration . 1) (scheduler . simple)))))
+    `((,rules . ((node . ,(*node-limit*))))
+      (,lowering-rules . ((iteration . 1) (scheduler . simple)))))
   
   ; run egg
   (define specs (map alt-expr altns))
@@ -129,33 +129,31 @@
   (define rules (real-rules (*simplify-rules*)))
   (define lowering-rules (platform-lowering-rules))
 
-  ; egg schedule (2-phases for real rewrites and implementation selection)
-  (define schedule
-    `((run ,rules ((node . ,(*node-limit*))))
-      (run ,lowering-rules ((iteration . 1) (scheduler . simple)))))
+  ; egg runner (2-phases for real rewrites and implementation selection)
+  (define runner
+    (make-egg-runner
+      (map alt-expr altns)
+      reprs
+      `((,rules . ((node . ,(*node-limit*))))
+        (,lowering-rules . ((iteration . 1) (scheduler . simple))))))
 
-  ; egg runner
-  (define specs (map alt-expr altns))
-  (define extractor
+  ; run egg
+  (define simplification-options
+    (simplify-batch
+      runner
       (typed-egg-extractor
         (if (*egraph-platform-cost*)
             platform-egg-cost-proc
-            default-egg-cost-proc)))
-  (define egg-query
-    (make-egg-runner specs
-                    reprs
-                    schedule
-                    #:extractor extractor))
+            default-egg-cost-proc))))
   
   ; convert to altns
-  (define simplification-options (simplify-batch egg-query))
   (define simplified
     (reap [sow]
       (for ([altn (in-list altns)] [repr (in-list reprs)]
             [outputs (in-list simplification-options)] #:when #t
             [output (in-list outputs)])
         (when (impl-well-typed? output repr)
-          (sow (alt output `(simplify ,egg-query #f #f) (list altn) '()))))))
+          (sow (alt output `(simplify ,runner #f #f) (list altn) '()))))))
   
   (timeline-push! 'count (length altns) (length simplified))
   simplified)

@@ -1425,35 +1425,29 @@
   ; Perform extraction
   (match cmd
     [`(single . ,extractor)
+     ; single expression extraction
      (define extract-id (extractor regraph))
      (define reprs (egg-runner-reprs runner))
      (for/list ([id (in-list node-ids)] [repr (in-list reprs)])
        (regraph-extract-best regraph extract-id id repr))]
-    [_ (error 'run-egg "unimplemented ~a\n" cmd)]))
-  ; ;; Compute eclass/enode cost in the graph
-  ; (define extractor default-egg-extractor)
-  ; (define extract-id (extractor regraph))
-  ; (define reprs (egg-runner-reprs runner))
-  ; ;; Extract the expressions
-  ; (define extract-proc
-  ;   (if variants?
-  ;       regraph-extract-variants
-  ;       regraph-extract-best))
-  ; (define rewritten
-  ;   (for/list ([id node-ids] [repr (in-list reprs)])
-  ;     (extract-proc regraph extract-id id repr)))
-  ; ;; Extract the proof based on a pair (start, end) expressions.
-  ; (define proofs
-  ;   (for/list ([proof-input (in-list proof-inputs)])
-  ;     (match-define (cons start end) proof-input)
-  ;     (unless (egraph-is-equal egg-graph start end ctx)
-  ;       (error "Cannot get proof: start and end are not equal.\n start: ~a \n end: ~a" start end))
-
-  ;     (define proof (egraph-get-proof egg-graph start end ctx))
-  ;     (when (null? proof)
-  ;       (error (format "Failed to produce proof for ~a to ~a" start end)))
-  ;     proof))
-  ; ;; Return extracted expressions and the proof
-  ; (cons rewritten proofs))
-
-
+    [`(multi . ,extractor)
+     ; multi expression extraction
+     (define extract-id (extractor regraph))
+     (define reprs (egg-runner-reprs runner))
+     (for/list ([id (in-list node-ids)] [repr (in-list reprs)])
+       (regraph-extract-variants regraph extract-id id repr))]
+    [`(proofs . ((,start-exprs . ,end-exprs) ...))
+     ; proof extraction
+     (for/list ([start (in-list start-exprs)]
+                [end (in-list end-exprs)])
+       (unless (egraph-is-equal egg-graph start end ctx)
+         (error 'run-egg
+                "cannot find proof; start and end are not equal.\n start: ~a \n end: ~a"
+                start end))
+        (define proof (egraph-get-proof egg-graph start end ctx))
+        (when (null? proof)
+          (error 'run-egg
+                 "proof extraction failed between`~a` and `~a`"
+                 start end))
+        proof)]
+    [_ (error 'run-egg "unknown command `~a`\n" cmd)]))

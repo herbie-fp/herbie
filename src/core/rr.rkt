@@ -43,23 +43,20 @@
 (define (rewrite-expressions exprs reprs schedule ctx)
   (timeline-push! 'method "batch-egg-rewrite")
   (timeline-push! 'inputs (map ~a exprs))
+
   (define extractor
-      (typed-egg-extractor
-        (if (*egraph-platform-cost*)
-            platform-egg-cost-proc
-            default-egg-cost-proc)))
-  (define e-input
-    (make-egg-runner exprs
-                    reprs
-                    schedule
-                    #:context ctx
-                    #:extractor extractor))
-  (match-define (cons variantss _) (run-egg e-input #t))
+    (typed-egg-extractor
+      (if (*egraph-platform-cost*)
+          platform-egg-cost-proc
+          default-egg-cost-proc)))
+
+  (define runner (make-egg-runner exprs reprs schedule #:context ctx))
+  (define variantss (run-egg runner `(multi . ,extractor)))
 
   (define out
     (for/list ([variants variantss])
       (for/list ([variant (remove-duplicates variants)])
-          (list variant e-input))))
+          (list variant runner))))
 
   (timeline-push! 'outputs (map ~a (apply append variantss)))
   out)
