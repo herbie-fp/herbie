@@ -13,13 +13,13 @@
 ;; the last expression is the simplest unless something went wrong due to unsoundness
 ;; if the input specifies proofs, it instead returns proofs for these expressions
 (define/contract (simplify-batch input)
-  (-> egraph-query? (listof (listof expr?)))
-  (timeline-push! 'inputs (map ~a (egraph-query-exprs input)))
+  (-> egg-runner? (listof (listof expr?)))
+  (timeline-push! 'inputs (map ~a (egg-runner-exprs input)))
   (timeline-push! 'method "egg-herbie")
   (match-define (cons results _) (run-egg input #f))
 
   (define out
-    (for/list ([result results] [expr (egraph-query-exprs input)])
+    (for/list ([result results] [expr (egg-runner-exprs input)])
       (remove-duplicates (cons expr result))))
   (timeline-push! 'outputs (map ~a (apply append out)))
     

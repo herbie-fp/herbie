@@ -79,7 +79,7 @@
   (define (build! altn)
     (match altn
       ; recursive rewrite using egg (spec -> impl)
-      [(alt expr `(rr ,loc ,(? egraph-query? e-input) #f #f) `(,prev) _)
+      [(alt expr `(rr ,loc ,(? egg-runner? e-input) #f #f) `(,prev) _)
        (define start-expr (location-get loc (alt-expr prev)))
        (define start-expr* (expand-accelerators (prog->spec start-expr)))
        (define end-expr (location-get loc expr))
@@ -88,7 +88,7 @@
        (hash-update! query->rws e-input (lambda (rws) (set-add rws rewrite)) '())]
       
       ; simplify using egg (spec -> impl)
-      [(alt expr `(simplify ,loc ,(? egraph-query? e-input) #f #f) `(,prev) _)
+      [(alt expr `(simplify ,loc ,(? egg-runner? e-input) #f #f) `(,prev) _)
        (define start-expr (location-get loc (alt-expr prev)))
        (define end-expr (location-get loc expr))
 
@@ -127,7 +127,7 @@
 (define (add-soundiness-to altn pcontext ctx alt->proof)
   (match altn
     ; recursive rewrite using egg
-    [(alt expr `(rr ,loc ,(? egraph-query? e-input) #f #f) `(,prev) _)
+    [(alt expr `(rr ,loc ,(? egg-runner? e-input) #f #f) `(,prev) _)
      (match-define (cons proof* errs)
        (canonicalize-proof (alt-expr altn) (alt->proof altn) loc pcontext ctx))
      (alt expr `(rr ,loc ,e-input ,proof* ,errs) `(,prev) '())]
@@ -141,7 +141,7 @@
      (alt expr `(rr ,loc ,input ,proof ,errs) `(,prev) '())]
     
     ; simplify using egg
-    [(alt expr `(simplify ,loc ,(? egraph-query? e-input) #f #f) `(,prev) _)
+    [(alt expr `(simplify ,loc ,(? egg-runner? e-input) #f #f) `(,prev) _)
      (match-define (cons proof* errs)
        (canonicalize-proof (alt-expr altn) (alt->proof altn) loc pcontext ctx))
      (alt expr `(simplify ,loc ,e-input ,proof* ,errs) `(,prev) '())]

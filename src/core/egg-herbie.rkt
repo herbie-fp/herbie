@@ -18,7 +18,7 @@
          "../programs.rkt"
          "../timeline.rkt" )
 
-(provide (struct-out egraph-query)
+(provide (struct-out egg-runner)
          (struct-out regraph)
          untyped-egg-extractor
          typed-egg-extractor
@@ -1388,16 +1388,16 @@
 ;; Public API
 ;;
 ;; Most calls to egg should be done through this interface.
-;;  - `make-egg-query` creates a struct that describes a _reproducible_ egg instance
-;;  - `run-egg` actually runs egg and extracts expressions and possibly proofs
+;;  - `make-egg-runner`: creates a struct that describes a _reproducible_ egg instance
+;;  - `run-egg`: takes an egg runner and performs an extraction (exprs or proof)
 
 ;; Herbie's version of an egg runner
 ;; Defines parameters for running rewrite rules with egg
-(struct egraph-query (exprs reprs schedule ctx extractor)
+(struct egg-runner (exprs reprs schedule ctx extractor)
                      #:transparent ; for equality
                      #:methods gen:custom-write ; for abbreviated printing
                      [(define (write-proc alt port mode)
-                        (fprintf port "#<egraph-query>"))])
+                        (fprintf port "#<egg-runner>"))])
 
 ;; Fallback extractor if none is specified
 (define default-egg-extractor
@@ -1410,7 +1410,7 @@
                         #:context [ctx (*context*)]
                         #:extractor [extractor #f])
   (verify-schedule! schedule)
-  (egraph-query exprs
+  (egg-runner exprs
                 reprs
                 schedule
                 ctx
@@ -1419,15 +1419,15 @@
 ;; Runs egg using an egg runner.
 (define (run-egg input variants? #:proof-inputs [proof-inputs '()])
   ;; Run egg and extract iteration data
-  (define ctx (egraph-query-ctx input))
+  (define ctx (egg-runner-ctx input))
   (define-values (node-ids egg-graph regraph)
-    (egraph-run-schedule (egraph-query-exprs input)
-                         (egraph-query-schedule input)
+    (egraph-run-schedule (egg-runner-exprs input)
+                         (egg-runner-schedule input)
                          ctx))
   ;; Compute eclass/enode cost in the graph
-  (define extractor (egraph-query-extractor input))
+  (define extractor (egg-runner-extractor input))
   (define extract-id (extractor regraph))
-  (define reprs (egraph-query-reprs input))
+  (define reprs (egg-runner-reprs input))
   ;; Extract the expressions
   (define extract-proc
     (if variants?
