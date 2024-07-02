@@ -1306,56 +1306,45 @@
        (values egg-graph iteration-data)])))
 
 (define (egraph-run-schedule exprs schedule ctx)
-  (define (oops! command why)
-    (error 'egraph-run-schedule "~a: ~a" command why))
-
   ; prepare the egraph
   (define egg-graph0 (make-egraph))
-  (define node-ids
+  (define root-ids
     (for/list ([expr (in-list exprs)])
       (egraph-add-expr egg-graph0 expr ctx)))
   
   ; run the schedule
   (define rule-apps (make-hash))
-  (define-values (egg-graph regraph)
-    (for/fold ([egg-graph egg-graph0] [regraph #f]) ([instr (in-list schedule)])
-      (match instr
-        [(cons rules params)
-         ;; `run` instruction
-         (when regraph
-           (oops! 'run "requires a Rust egraph (was this run after a `convert` instruction?)"))
+  (define egg-graph
+    (for/fold ([egg-graph egg-graph0]) ([instr (in-list schedule)])
+      (match-define (cons rules params) instr)
+      ; run rules in the egraph
+      (define egg-rules (expand-rules rules))
+      (define-values (egg-graph* iteration-data) (egraph-run-rules egg-graph egg-rules params))
 
-         ; run rules in the egraph
-         (define egg-rules (expand-rules rules))
-         (define-values (egg-graph* iteration-data) (egraph-run-rules egg-graph egg-rules params))
- 
-         ; get cost statistics
-         (for/fold ([time 0]) ([iter (in-list iteration-data)] [i (in-naturals)])
-           (define cnt (iteration-data-num-nodes iter))
-           (define cost (apply + (map (λ (node-id) (egraph-get-cost egg-graph* node-id i)) node-ids)))
-           (define new-time (+ time (iteration-data-time iter)))
-           (timeline-push! 'egraph i cnt cost new-time)
-           new-time)
-       
-         ;; get rule statistics
-         (for ([(egg-rule ffi-rule) (in-dict egg-rules)])
-           (define count (egraph-get-times-applied egg-graph* ffi-rule))
-           (define canon-name (hash-ref (*canon-names*) (rule-name egg-rule)))
-           (hash-update! rule-apps canon-name (curry + count) count))
+      ; get cost statistics
+      (for/fold ([time 0]) ([iter (in-list iteration-data)] [i (in-naturals)])
+        (define cnt (iteration-data-num-nodes iter))
+        (define cost (apply + (map (λ (id) (egraph-get-cost egg-graph* id i)) root-ids)))
+        (define new-time (+ time (iteration-data-time iter)))
+        (timeline-push! 'egraph i cnt cost new-time)
+        new-time)
+    
+      ;; get rule statistics
+      (for ([(egg-rule ffi-rule) (in-dict egg-rules)])
+        (define count (egraph-get-times-applied egg-graph* ffi-rule))
+        (define canon-name (hash-ref (*canon-names*) (rule-name egg-rule)))
+        (hash-update! rule-apps canon-name (curry + count) count))
 
-         (values egg-graph* regraph)]
-        [_ (error 'egraph-run-schedule "unimplemented: ~a" instr)])))
+      egg-graph*))
 
   ; report rule statistics
   (for ([(name count) (in-hash rule-apps)])
     (when (> count 0)
       (timeline-push! 'rules (~a name) count)))
   ; root eclasses may have changed
-  (define node-ids* 
-    (for/list ([id (in-list node-ids)])
-      (egraph-find egg-graph id)))
+  (define root-ids* (map (lambda (id) (egraph-find egg-graph id)) root-ids))
   ; return what we need
-  (values node-ids* egg-graph (or regraph (make-regraph egg-graph))))
+  (values root-ids* egg-graph))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Public API
@@ -1418,7 +1407,7 @@
 (define (run-egg runner cmd)
   ;; Run egg using runner
   (define ctx (egg-runner-ctx runner))
-  (define-values (node-ids egg-graph regraph)
+  (define-values (root-ids egg-graph)
     (egraph-run-schedule (egg-runner-exprs runner)
                          (egg-runner-schedule runner)
                          ctx))
@@ -1426,15 +1415,17 @@
   (match cmd
     [`(single . ,extractor)
      ; single expression extraction
+     (define regraph (make-regraph egg-graph))
      (define extract-id (extractor regraph))
      (define reprs (egg-runner-reprs runner))
-     (for/list ([id (in-list node-ids)] [repr (in-list reprs)])
+     (for/list ([id (in-list root-ids)] [repr (in-list reprs)])
        (regraph-extract-best regraph extract-id id repr))]
     [`(multi . ,extractor)
      ; multi expression extraction
+     (define regraph (make-regraph egg-graph))
      (define extract-id (extractor regraph))
      (define reprs (egg-runner-reprs runner))
-     (for/list ([id (in-list node-ids)] [repr (in-list reprs)])
+     (for/list ([id (in-list root-ids)] [repr (in-list reprs)])
        (regraph-extract-variants regraph extract-id id repr))]
     [`(proofs . ((,start-exprs . ,end-exprs) ...))
      ; proof extraction
