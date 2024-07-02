@@ -235,9 +235,11 @@
                   #"OK"
                   (current-seconds)
                   APPLICATION/JSON-MIME-TYPE
-                  (list 
-                   (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*"))
-                   (header #"Herbie-job-id" (string->bytes/utf-8 (hash-ref resp 'job-id "-1"))))
+                  (if (hash-has-key? resp 'job-id)
+                    (list 
+                      (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*"))
+                      (header #"Herbie-job-id" (string->bytes/utf-8 (hash-ref resp 'job-id))))
+                    (list (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*"))))
                   (λ (op) (write-json resp op))))))
 
 (define (response/error title body)
@@ -503,7 +505,8 @@
       (define id (start-job command))
       (define result (wait-for-job id))
       (define cost (job-result-backend result))
-      (hasheq 'cost cost 'job-id id))))
+      (hasheq 'cost cost 
+              'job-id id))))
 
 (define translate-endpoint
   (post-with-json-response
@@ -530,8 +533,7 @@
       (define converted (lang-converter formula "expr"))
       (eprintf "Converted Expression: \n~a...\n" converted)
       (hasheq 'result converted
-              'language target-lang
-              'job-id "-1" #| todo real id|# ))))
+              'language target-lang))))
 
 (define (run-demo #:quiet [quiet? #f] #:output output #:demo? demo? #:prefix prefix #:log log #:port port #:public? public)
   (*demo?* demo?)
