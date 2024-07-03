@@ -2,8 +2,9 @@
 
 (require openssl/sha1)
 
-(require "../sandbox.rkt" "../config.rkt" "../syntax/read.rkt")
+(require "../sandbox.rkt" "../load-plugin.rkt" "../common.rkt")
 (require (submod "../timeline.rkt" debug))
+(require racket/place)
 
 (provide completed-job? get-results-for get-improve-job-data job-count
   is-server-up create-job start-job is-job-finished wait-for-job
@@ -40,10 +41,11 @@
                     #:timeline-disabled? [timeline-disabled? #f])
   (herbie-command command test seed pcontext profile? timeline-disabled?))
 
-;; Starts a job for a given command object|
+;; Starts a job for a given command object
 (define (start-job command)
-  (define job-id (compute-job-id command))
-  (if (already-computed? job-id) job-id (start-work command)))
+ (define job-id (compute-job-id command))
+ (eprintf "~a : ~a\n" job-id (place-message-allowed? command))
+ (if (already-computed? job-id) job-id (start-work command)))
 
 (define (is-job-finished job-id)
   (hash-ref *job-status* job-id #f))
@@ -54,17 +56,19 @@
       (internal-wait-for-job job-id)))
 
 (define (start-job-server config global-demo global-output)
-  ;; Pass along local global values
-  ;; TODO can I pull these out of config or not need ot pass them along.
-  (set! *demo?* global-demo)
-  (set! *demo-output* global-output)
-  (thread-send *worker-thread* config))
+ ;; Pass along local global values
+ ;; TODO can I pull these out of config or not need ot pass them along.
+;  (build-worker-pool 4)
+;  (eprintf "workers: ~a\n" *ready-workers*)
+ (set! *demo?* global-demo)
+ (set! *demo-output* global-output)
+ (thread-send *worker-thread* config))
 
 #| End Job Server Public API section |#
 
 ;; Job object, What herbie excepts as input for a new job.
 (struct herbie-command 
-  (command test seed pcontext profile? timeline-disabled?) #:transparent)
+  (command test seed pcontext profile? timeline-disabled?) #:prefab)
  
 ; Private globals
 ; TODO I'm sure these can encapslated some how.
@@ -160,3 +164,44 @@
            (*demo?* demo?)]
           [job-info (run-job job-info)])
         (loop seed)))))
+
+
+(define *ready-workers* (list))
+(define *working-workers* (list))
+
+(define (work-on command)
+  (eprintf "working on: ~a\n" command)
+  ;; Pop off 1st ready worker
+  (eprintf "~a\n" (length *ready-workers*))
+  (define worker (first *ready-workers*))
+  (set! *ready-workers* (cdr *ready-workers*))
+  (set! *working-workers* (cons *working-workers* worker))
+  ;; Send work to worker
+  (place-channel-put worker `(apply ,worker ,command)))
+
+(define (build-worker-pool number-of-workers)
+  (define workers
+    (for/list ([wid (in-range number-of-workers)])
+      (make-worker)))
+  (for/list ([worker workers])
+    (place-dead-evt worker))
+  (set! *ready-workers* workers))
+
+(define (make-worker)
+  (place/context* ch
+    #:parameters (*flags* *num-iterations* *num-points* *timeout* *reeval-pts* *node-limit*
+                  *max-find-range-depth* *pareto-mode* *platform-name* *loose-plugins*)
+    (parameterize ([current-error-port (open-output-nowhere)]) ; hide output
+      (load-herbie-plugins))
+    (for ([_ (in-naturals)])
+      (match-define (list 'apply self command) (place-channel-get ch))
+      (define result "MAKE WORKER HERE")
+      (eprintf "[~a] working on: ~a\n" self command)
+      (place-channel-put ch result))))
+
+(define-syntax (place/context* stx)
+  (syntax-case stx ()
+    [(_ name #:parameters (params ...) body ...)
+     (with-syntax ([(fresh ...) (generate-temporaries #'(params ...))])
+       #'(let ([fresh (params)] ...)
+           (place/context name (parameterize ([params fresh] ...) body ...))))]))
