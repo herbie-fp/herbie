@@ -12,14 +12,14 @@
 ;; for each expression, returns a list of simplified versions corresponding to egraph iterations
 ;; the last expression is the simplest unless something went wrong due to unsoundness
 ;; if the input specifies proofs, it instead returns proofs for these expressions
-(define/contract (simplify-batch input extractor)
+(define/contract (simplify-batch runner extractor)
   (-> egg-runner? procedure? (listof (listof expr?)))
-  (timeline-push! 'inputs (map ~a (egg-runner-exprs input)))
+  (timeline-push! 'inputs (map ~a (egg-runner-exprs runner)))
   (timeline-push! 'method "egg-herbie")
 
-  (define simplifieds (run-egg input (cons 'single extractor)))
+  (define simplifieds (run-egg runner (cons 'single extractor)))
   (define out
-    (for/list ([simplified simplifieds] [expr (egg-runner-exprs input)])
+    (for/list ([simplified simplifieds] [expr (egg-runner-exprs runner)])
       (remove-duplicates (cons expr simplified))))
 
   (timeline-push! 'outputs (map ~a (apply append out)))
@@ -41,11 +41,12 @@
      (string-append "Rule failed: " (symbol->string (rule-name rule)))))
   
   (define (test-simplify . args)
-    (define egg-query
+    (define runner
       (make-egg-runner args
                       (map (lambda (_) 'real) args)
-                      `((run ,(*simplify-rules*) ((node . ,(*node-limit*)))))))
-    (map last (simplify-batch egg-query)))
+                      `((,(*simplify-rules*) . ((node . ,(*node-limit*)))))))
+    (define extractor (untyped-egg-extractor default-untyped-egg-cost-proc))
+    (map last (simplify-batch runner extractor)))
 
   (define test-exprs
     '((1 . 1)
