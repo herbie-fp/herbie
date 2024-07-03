@@ -894,7 +894,7 @@
       [(#f _) ty2]
       [(_ #f) ty1]
       [((list 'or tys1 ...) (list 'or tys2 ...))
-       (cons 'or (remove-duplicates tys1 tys2))]
+       (cons 'or (remove-duplicates (append tys1 tys2)))]
       [((list 'or tys1 ...) _)
        (if (member ty2 tys1) ty1 (list* 'or ty2 tys1))]
       [(_ (list 'or tys2 ...))
