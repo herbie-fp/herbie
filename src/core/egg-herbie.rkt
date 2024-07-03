@@ -600,26 +600,20 @@
 
 ;; Constructs a Racket egraph from an S-expr representation.
 (define (sexpr->regraph egraph egg->herbie)
-  ; reserve the next eclass
-  (define canon (make-hash))
-  (define counter 0)
-  ; lookup the canonical eclass or reserve the next new eclass
-  (define (resolve-id id)
-    (hash-ref! canon id
-                (lambda ()
-                  (define id* counter)
-                  (hash-set! canon id id*)
-                  (set! counter (add1 counter))
-                  id*)))
-  ; iterate through eclasses and fill data
+  ; total number of e-classes
   (define n (length egraph))
-  (define eclasses (make-vector n '()))
+  ; canonicalize all e-class ids to [0, n)
+  (define canon (make-hash))
+  (define (canon-id id)
+    (hash-ref! canon id (lambda () (hash-count canon))))
+  ; iterate through eclasses and fill data
+  (define eclasses (make-vector n #f))
   (define has-leaf? (make-vector n #f))
   (define constants (make-vector n #f))
   (for ([eclass (in-list egraph)])
     (match-define (cons egg-id egg-nodes) eclass)
-    (define id (resolve-id egg-id))
-    (define node
+    (define id (canon-id egg-id))
+    (define nodes
       (for/vector #:length (length egg-nodes)
                   ([egg-node (in-list egg-nodes)])
         (match egg-node
@@ -635,9 +629,9 @@
           [(list op child-ids ...)
            (when (null? child-ids)
              (vector-set! has-leaf? id #t))
-           (cons op (map resolve-id child-ids))]
+           (cons op (map canon-id child-ids))]
           [_ (error 'sexpr->regraph "malformed enode: ~a" egg-node)])))
-    (vector-set! eclasses id node))
+    (vector-set! eclasses id nodes))
 
   ; collect with wrapper
   (regraph eclasses canon has-leaf? constants egg->herbie))
@@ -920,7 +914,7 @@
 (define (regraph-eclass-types egraph)
   (define egg->herbie (regraph-egg->herbie egraph))
 
-  (define (node-type analysis node)
+  (define (node->type analysis node)
     (match node
       [(? number?) #t]
       [(? symbol?)
@@ -943,23 +937,17 @@
 
   ;; Type analysis
   (define (eclass-set-type! analysis changed?-vec iter eclass id)
-    (define ty
-      (if (= iter 0)
-          ; first iteration: only run analysis on leaves
-          (for/fold ([ty #f])
-                    ([node (in-vector eclass)]
-                     #:unless (node-has-children? node))
-            (type/union ty (node-type analysis node)))
-          ; other iterations: run only on non-leaves with updated children
-          (for/fold ([ty (vector-ref analysis id)])
-                    ([node (in-vector eclass)]
-                     #:when (and (node-has-children? node)
-                                 (ormap (lambda (id) (vector-ref changed?-vec id)) (cdr node))
-                                 (andmap (lambda (id) (vector-ref analysis id)) (cdr node))))
-            (type/union ty (node-type analysis node)))))
-    (define changed? (not (type/equal? ty (vector-ref analysis id))))
-    (vector-set! analysis id ty)
-    changed?)
+    (define ty (vector-ref analysis id))
+    (define ty*
+      (for/fold ([ty ty])
+                ([node (in-vector eclass)]
+                 #:when (if (node-has-children? node)
+                            (and (ormap (lambda (id) (vector-ref changed?-vec id)) (cdr node))
+                                 (andmap (lambda (id) (vector-ref analysis id)) (cdr node)))
+                            (= iter 0)))
+        (type/union ty (node->type analysis node))))
+    (vector-set! analysis id ty*)
+    (not (type/equal? ty ty*)))
 
   (regraph-analyze egraph eclass-set-type!))
 
