@@ -238,7 +238,7 @@
                   (filter values
                     (list
                       (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*"))
-                      (and (hash-has-key? resp 'job-id) (header #"X-Herbie-job-id" (string->bytes/utf-8 (hash-ref resp 'job-id))))))
+                      (and (hash-has-key? resp 'job-id) (header #"X-Herbie-Job-ID" (string->bytes/utf-8 (hash-ref resp 'job-id))))))
                   (λ (op) (write-json resp op))))))
 
 (define (response/error title body)
@@ -286,7 +286,7 @@
      (response/full 201 #"Job started" (current-seconds) #"text/plain"
                     (list (header #"Location" (string->bytes/utf-8 (url check-status job-id)))
                           (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count))))
-                          (header #"X-Herbie-job-id" (string->bytes/utf-8 job-id)))
+                          (header #"X-Herbie-Job-ID" (string->bytes/utf-8 job-id)))
                     '()))
    (url main)))
 
@@ -303,7 +303,7 @@
      (response/full 201 #"Job complete" (current-seconds) #"text/plain"
                     (list (header #"Location" (string->bytes/utf-8 (add-prefix (format "~a.~a/graph.html" job-id *herbie-commit*))))
                           (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count))))
-                          (header #"X-Herbie-job-id" (string->bytes/utf-8 job-id)))
+                          (header #"X-Herbie-Job-ID" (string->bytes/utf-8 job-id)))
                     '())]))
 
 (define (check-up req)
@@ -329,13 +329,13 @@
      (response 404 #"Job Not Found" (current-seconds) #"text/plain"
                (list 
                 (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count))))
-                (header #"X-Herbie-job-id" (string->bytes/utf-8 job-id)))
+                (header #"X-Herbie-Job-ID" (string->bytes/utf-8 job-id)))
                (λ (out) `()))]
     [job-result
      (response 201 #"Job complete" (current-seconds) #"text/plain"
                     (list 
                      (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count))))
-                     (header #"X-Herbie-job-id" (string->bytes/utf-8 job-id)))
+                     (header #"X-Herbie-Job-ID" (string->bytes/utf-8 job-id)))
                     (λ (out) (write-json (job-result-timeline job-result) out)))]))
 
 ; /api/sample endpoint: test in console on demo page:
