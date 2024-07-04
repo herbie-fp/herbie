@@ -460,7 +460,7 @@
 ;; Spec contains no accelerators
 (define (spec-has-accelerator? spec)
   (match spec
-    [(list (? accelerator-exists?) _ ...) #t]
+    [(list (? operator-accelerator?) _ ...) #t]
     [(list _ args ...) (ormap spec-has-accelerator? args)]
     [_ #f]))
 
@@ -488,14 +488,12 @@
                  (define itypes (operator-info op 'itype))
                  (define otype (operator-info op 'otype))
                  (cond
-                   [(accelerator-exists? op)
+                   [(operator-accelerator? op)
                     ; accelerator lowering
-                    (define vars (accelerator-info op 'vars))
-                    (rule (sym-append 'accelerator-lowering- impl)
-                          (accelerator-info op 'body)
-                          (cons impl (accelerator-info op 'vars))
-                          (map cons vars itypes)
-                          otype)]
+                    (define name (sym-append 'accelerator-lowering- impl))
+                    (define spec (operator-info op 'spec))
+                    (match-define `(,(or 'lambda 'λ) (,vars ...) ,body) spec)
+                    (rule name body (cons impl vars) (map cons vars itypes) otype)]
                    [else
                     ; direct lowering
                     (define vars (map (lambda (_) (gensym)) itypes))

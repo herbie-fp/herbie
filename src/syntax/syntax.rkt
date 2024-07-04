@@ -6,9 +6,9 @@
 (provide (rename-out [operator-or-impl? operator?])
          (struct-out literal)
          variable? constant-operator?
-         operator-exists? operator-deprecated? impl-exists?
-         operator-info impl-info 
-         impl->operator all-operators all-constants operator-all-impls
+         operator-exists? operator-deprecated? operator-accelerator?
+         operator-info all-operators all-constants all-accelerators
+         impl-exists? impl-info impl->operator operator-all-impls
          operator-active-impls activate-operator-impl! clear-active-operator-impls!
          *functions* register-function!
          get-parametric-operator get-parametric-constant
@@ -23,23 +23,23 @@
            register-conversion-generator!
            variable?))
 
-(struct literal (value precision) #:prefab)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Real operators
+;; Pure mathematical operations
 
-;; Real operator: a pure mathematical operator specified by
-;;  - (unique) name
+;; A real operator requires
+;;  - a (unique) name
 ;;  - input and output types
-;;  - "bigfloat" implementation (legacy high-precision)
-;;  - Rival implementation (ground truth)
-;;  - Deprecated?
-;; For any tuple of representations implementing the input
-;; and output types, an operator implementation may be
-;; specified for a particular operator
-(struct operator (name itype otype ival deprecated))
+;;  - exactly one of:
+;;     - a Rival interval implementation
+;;     - a specification ["accelerator"]
+;;  - deprectated? flag [#f by default]
+;; Operator implementations _implement_ a real operator
+;; for a particular set of input and output representations.
+(struct operator (name itype otype ival spec deprecated))
 
-;; Real operator table and a mapping from operator to its various implementations.
-;; Real operators are global and are never removed.
+;; All real operators
 (define operators (make-hasheq))
-(define operators-to-impls (make-hasheq))
 
 ;; Checks if an operator has been registered.
 (define (operator-exists? op)
@@ -49,18 +49,46 @@
 (define (operator-deprecated? op)
   (operator-deprecated (hash-ref operators op)))
 
+;; Checks if an operator is an ``accelerator``.
+(define (operator-accelerator? op)
+  (and (hash-has-key? operators op)
+       (operator-spec (hash-ref operators op))))
+
+;; Returns all operators.
+(define (all-operators)
+  (sort (hash-keys operators) symbol<?))
+
+;; Returns all constant operators (operators with no arguments).
+(define (all-constants)
+  (sort
+    (for/list ([(name rec) (in-hash operators)]
+               #:when (null? (operator-itype rec)))
+      name)
+    symbol<?))
+
+;; Returns all ``accelerator`` operators
+(define (all-accelerators)
+  (sort
+    (for/list ([(name rec) (in-hash operators)]
+               #:when (operator-spec rec))
+      name)
+    symbol<?))
+
 ;; Looks up a property `field` of an real operator `op`.
 ;; Panics if the operator is not found.
 (define/contract (operator-info op field)
-  (-> symbol? (or/c 'itype 'otype 'fl 'ival) any/c)
+  (-> symbol? (or/c 'itype 'otype 'ival 'spec) any/c)
   (unless (hash-has-key? operators op)
     (error 'operator-info "Unknown operator ~a" op))
-  (define accessor
-    (match field
-      ['itype operator-itype]
-      ['otype operator-otype]
-      ['ival operator-ival]))
-  (accessor (hash-ref operators op)))
+  (define info (hash-ref operators op))
+  (case field
+    [(itype) (operator-itype info)]
+    [(otype) (operator-otype info)]
+    [(ival) (operator-ival info)]
+    [(spec) (operator-spec info)]))
+
+;; Map from operator to its implementations
+(define operators-to-impls (make-hasheq))
 
 ;; All implementations of an operator `op`.
 ;; Panics if the operator is not found.
@@ -71,21 +99,27 @@
 
 ;; Registers an operator with an attribute mapping.
 ;; Panics if an operator with name `name` has already been registered.
-;; By default, the input types are specified by `itypes`,
-;; the output type is specified by `otype`, and the operator is not
-;; deprected, but `attrib-dict` can override these properties.
+;; By default, the input types are specified by `itypes`, the output type
+;; is specified by `otype`, and the operator is not deprecated; but
+;; `attrib-dict` can override these properties.
 (define (register-operator! name itypes otype attrib-dict)
   (when (hash-has-key? operators name)
     (error 'register-operator! "operator already registered: ~a" name))
-  (define attribs
-    (hash 'itype (dict-ref attrib-dict 'itype itypes)
-          'otype (dict-ref attrib-dict 'otype otype)
-          'deprecated (dict-ref attrib-dict 'deprected #f)
-          'ival (dict-ref attrib-dict 'ival
-                          (λ () (error 'register-operator! "missing interval impl for ~a" name)))))
-  (define field-names '(itype otype ival deprecated))
-  (define table-entry (apply operator name (map (curry hash-ref attribs) field-names)))
-  (hash-set! operators name table-entry)
+  ; extract relevant fields
+  (define itypes* (dict-ref attrib-dict 'itype itypes))
+  (define otype* (dict-ref attrib-dict 'otype otype))
+  (define ival-fn (dict-ref attrib-dict 'ival #f))
+  (define spec (dict-ref attrib-dict 'spec #f))
+  (define deprecated? (dict-ref attrib-dict 'deprecated #f))
+  ; check we have the required fields
+  (match* (ival-fn spec)
+    [(#f #f) (error 'register-operator! "no interval implementation or spec for `~a`" name)]
+    [(_ #f) (void)]
+    [(#f _) (void)]
+    [(_ _) (error 'register-operator! "both interval implementation and spec for `~a` given" name)])
+  ; update tables
+  (define info (operator name itypes* otype* ival-fn spec deprecated?))
+  (hash-set! operators name info)
   (hash-set! operators-to-impls name '()))
 
 (define-syntax-rule (define-operator (name itypes ...) otype [key value] ...)
@@ -204,7 +238,26 @@
 (define-operator (cast real) real
   [ival identity])
 
+;; Accelerators
+
+(define-operator (expm1 real) real
+  [spec '(lambda (x) (- (exp x) 1))])
+
+(define-operator (log1p real) real
+  [spec '(lambda (x) (log (+ 1 x)))])
+
+(define-operator (hypot real real) real
+  [spec '(lambda (x y) (sqrt (+ (* x x) (* y y))))])
+
+(define-operator (fma real real real) real
+  [spec '(lambda (x y z) (+ (* x y) z))])
+
+(define-operator (erfc real) real
+  [spec '(lambda (x) (- 1 (erf x)))])
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Operator implementations
+;; Floating-point operations that approximate mathematical operations
 
 ;; Operator implementations
 ;; An "operator implementation" implements a mathematical operator for
@@ -378,16 +431,13 @@
        (or (not (hash-has-key? operator-impls var))
            (not (null? (operator-impl-itype (hash-ref operator-impls var)))))))
 
+
+;; Floating-point expressions require that number
+;; be rounded to a particular precision.
+(struct literal (value precision) #:prefab)
+
 ;; name -> (vars repr body)	;; name -> (vars prec body)
 (define *functions* (make-parameter (make-hasheq)))
 
 (define (register-function! name args repr body)	;; Adds a function definition.
   (hash-set! (*functions*) name (list args repr body)))
-
-(define (all-operators)
-  (sort (hash-keys operators) symbol<?))
-
-(define (all-constants)
-  (for/list ([(name rec) (in-hash operators)]
-             #:when (= (length (operator-itype rec)) 0))
-    name))
