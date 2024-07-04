@@ -57,14 +57,20 @@ assert.equal('Up', up.statusText)
 // TODO how do I test down state?
 
 // Sample endpoint
-const sample = await callHerbie("/api/sample", { method: 'POST', body: JSON.stringify({ formula: FPCoreFormula2, seed: 5 }) })
+const sampleRSP = await callHerbie("/api/sample", { method: 'POST', body: JSON.stringify({ formula: FPCoreFormula2, seed: 5 }) })
+const jid = sampleRSP.headers.get("x-herbie-job-id")
+assert.notEqual(jid, null)
 
+const sample = await sampleRSP.json()
 const SAMPLE_SIZE = 8000
 assert.ok(sample.points)
 const points = sample.points
 assert.equal(points.length, SAMPLE_SIZE, `sample size should be ${SAMPLE_SIZE}`)
 
-const sample2 = await callHerbie("/api/sample", { method: 'POST', body: JSON.stringify({ formula: FPCoreFormula2, seed: 5 }) })
+const sample2RPS = await callHerbie("/api/sample", { method: 'POST', body: JSON.stringify({ formula: FPCoreFormula2, seed: 5 }) })
+const jid2 = sample2RPS.headers.get("x-herbie-job-id")
+assert.notEqual(jid2, null)
+const sample2 = await sample2RPS.json()
 const points2 = sample2.points
 
 assert.deepEqual(points[1], points2[1])
@@ -168,6 +174,7 @@ async function callHerbie(endPoint, body) {
     pathname == "/improve-start" ||
     pathname.includes("check-status") ||
     pathname.includes("timeline") ||
+    pathname.includes("sample") ||
     pathname == "/up") {
     return rsp
   } else {
