@@ -43,9 +43,8 @@
 
 ;; Starts a job for a given command object
 (define (start-job command)
- (define job-id (compute-job-id command))
- (eprintf "~a : ~a\n" job-id (place-message-allowed? command))
- (if (already-computed? job-id) job-id (start-work command)))
+  (define job-id (compute-job-id command))
+  (if (already-computed? job-id) job-id (start-work command)))
 
 (define (is-job-finished job-id)
   (hash-ref *job-status* job-id #f))
@@ -56,13 +55,12 @@
       (internal-wait-for-job job-id)))
 
 (define (start-job-server config global-demo global-output)
- ;; Pass along local global values
- ;; TODO can I pull these out of config or not need ot pass them along.
-;  (build-worker-pool 4)
-;  (eprintf "workers: ~a\n" *ready-workers*)
- (set! *demo?* global-demo)
- (set! *demo-output* global-output)
- (thread-send *worker-thread* config))
+  ;; Pass along local global values
+  ;; TODO can I pull these out of config or not need ot pass them along.
+  (build-worker-pool 4)
+  (set! *demo?* global-demo)
+  (set! *demo-output* global-output)
+  (thread-send *worker-thread* config))
 
 #| End Job Server Public API section |#
 
@@ -100,7 +98,8 @@
   (hash-set! *job-status* job-id (*timeline*))
   (define sema (make-semaphore))
   (hash-set! *job-sema* job-id sema)
-  (thread-send *worker-thread* (work job-id job sema))
+  (work-on (work job-id job sema))
+  ; (thread-send *worker-thread* (work job-id job sema))
   job-id)
 
 ; Handles semaphore and async part of a job
@@ -167,17 +166,32 @@
 
 
 (define *ready-workers* (list))
-(define *working-workers* (list))
 
-(define (work-on command)
-  (eprintf "working on: ~a\n" command)
+#| 
+Not sure if I need semeaphores...
+
+At a high level I think I need to make the worker pool and send work to the 
+worker using put which is none blocking. Though how do I get a notice when 
+something is done?
+
+Maybe I need to do something like run-workers as the start server, But how do I
+add more work to this pool. As it's current version has all the work up front.
+
+I guess I could make work a local global and try the same loop. Just appeneding
+work as I go. Though i'm not really sure how to get work out of the loop or
+again sginal that work is complete. Do I need a manager place that manages all
+these signals.
+|#
+(define (work-on new-work)
+  (match-define (work job-id job sema) new-work)
   ;; Pop off 1st ready worker
-  (eprintf "~a\n" (length *ready-workers*))
   (define worker (first *ready-workers*))
   (set! *ready-workers* (cdr *ready-workers*))
-  (set! *working-workers* (cons *working-workers* worker))
   ;; Send work to worker
-  (place-channel-put worker `(apply ,worker ,command)))
+  (place-channel-put worker `(apply ,worker ,job, job-id))
+  (define result (place-channel-get worker))
+  (semaphore-post sema)
+  (eprintf "[~a]DONE: ~a\n" job-id result))
 
 (define (build-worker-pool number-of-workers)
   (define workers
@@ -194,10 +208,11 @@
     (parameterize ([current-error-port (open-output-nowhere)]) ; hide output
       (load-herbie-plugins))
     (for ([_ (in-naturals)])
-      (match-define (list 'apply self command) (place-channel-get ch))
-      (define result "MAKE WORKER HERE")
-      (eprintf "[~a] working on: ~a\n" self command)
-      (place-channel-put ch result))))
+      (match-define (list 'apply self command id) (place-channel-get ch))
+      (eprintf "Job [~a] being worked on.\n" id)
+      (wrapper-run-herbie command id)
+      (eprintf "~a\n" (get-results-for id))
+      (place-channel-put ch id))))
 
 (define-syntax (place/context* stx)
   (syntax-case stx ()
