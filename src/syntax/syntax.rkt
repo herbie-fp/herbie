@@ -49,7 +49,7 @@
 (define (operator-deprecated? op)
   (operator-deprecated (hash-ref operators op)))
 
-;; Checks if an operator is an ``accelerator``.
+;; Checks if an operator is an "accelerator".
 (define (operator-accelerator? op)
   (and (hash-has-key? operators op)
        (operator-spec (hash-ref operators op))))
@@ -66,7 +66,7 @@
       name)
     symbol<?))
 
-;; Returns all ``accelerator`` operators
+;; Returns all "accelerator" operators
 (define (all-accelerators)
   (sort
     (for/list ([(name rec) (in-hash operators)]
@@ -97,6 +97,83 @@
     (error 'operator-info "Unknown operator ~a" op))
   (hash-ref operators-to-impls op))
 
+;; Checks an "accelerator" specification
+(define (check-accelerator-spec! name itypes otype spec)
+  (eprintf "checking `~a`: `~a`\n" name spec)
+  (define-values (vars body)
+    (match spec
+      [`(,(or 'lambda 'λ) (,vars ...) ,spec)
+       (for ([var (in-list vars)])
+         (unless (symbol? var)
+           (error 'register-operator!
+                  "`~a`: expected symbol `~a` in `~a`"
+                  name var spec)))
+       (values vars spec)]
+      [_ (error 'register-operator!
+                "`~a`: malformed specification `~a`, expected `(lambda <vars> <expr>)`"
+                name spec)]))
+
+  (define expect-argc (length itypes))
+  (define actual-argc (length vars))
+  (unless (= expect-argc actual-argc)
+    (error 'register-operator!
+           "`~a`: arity mismatch; expected ~a, got ~a"
+           name expect-argc actual-argc))
+
+  (define env (map cons vars itypes))
+  (define actual-ty
+    (let check ([expr body])
+      (match expr
+        [(? number?) 'real]
+        [(? symbol?)
+         (cond [(assq expr env) => cdr]
+               [else (error 'register-operator!
+                            "`~a`: unbound variable `~a` in `~a`"
+                            name expr spec)])]
+        [`(,op ,args ...)
+         (unless (operator-exists? op)
+           (error 'register-operator!
+                  "`~a`: expected operator `~a` in `~a`"
+                  name op spec))
+         (define itypes (operator-info op 'itype))
+         (for ([arg (in-list args)] [itype (in-list itypes)])
+           (define arg-ty (check arg))
+           (unless (equal? itype arg-ty)
+             (error 'register-operator!
+                    "`~a`: expression `~a` has type `~a`, expected `~a`"
+                    name arg arg-ty itype)))
+          (operator-info op 'otype)])))
+
+  (unless (equal? actual-ty otype)
+    (error 'register-operator
+           "`~a`: expression `~a` has type `~a`, expected `~a`"
+          name body actual-ty otype)))
+
+;; Applies a substitution.
+;; Similarly implemented with `replace-vars` in `programs.rkt`
+;; but duplicated to break dependency cycle.
+(define (replace-vars expr env)
+  (let loop ([expr expr])
+    (match expr
+      [(? number?) expr]
+      [(? symbol?) (cdr (assq expr env))]
+      [`(,op ,args ...) `(,op ,@(map loop args))])))
+
+;; Expands an "accelerator" specification.
+;; Any nested accelerator is unfolded into its definition.
+(define (expand-accelerator-spec spec)
+  (let loop ([expr spec])
+    (match expr
+      [(? number?) expr]
+      [(? symbol?) expr]
+      [`(,(? operator-accelerator? op) ,args ...)
+       (define spec (operator-info op 'spec))
+       (match-define `(,(or 'lambda 'λ) (,vars ...) ,body) spec)
+       (define env (map cons vars (map loop args)))
+       (replace-vars body env)]
+      [`(,op ,args ...)
+       `(,op ,@(map loop args))])))
+
 ;; Registers an operator with an attribute mapping.
 ;; Panics if an operator with name `name` has already been registered.
 ;; By default, the input types are specified by `itypes`, the output type
@@ -115,7 +192,9 @@
   (match* (ival-fn spec)
     [(#f #f) (error 'register-operator! "no interval implementation or spec for `~a`" name)]
     [(_ #f) (void)]
-    [(#f _) (void)]
+    [(#f _)
+     (check-accelerator-spec! name itypes otype spec)
+     (set! spec (expand-accelerator-spec spec))]
     [(_ _) (error 'register-operator! "both interval implementation and spec for `~a` given" name)])
   ; update tables
   (define info (operator name itypes* otype* ival-fn spec deprecated?))
@@ -254,6 +333,9 @@
 
 (define-operator (erfc real) real
   [spec '(lambda (x) (- 1 (erf x)))])
+
+(define-operator (log1pmd real) real
+  [spec '(lambda (x) (- (log1p x) (log1p (neg x))))])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Operator implementations
