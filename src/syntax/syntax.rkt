@@ -340,9 +340,6 @@
 (define-operator (erfc real) real
   [spec '(lambda (x) (- 1 (erf x)))])
 
-(define-operator (log1pmd real) real
-  [spec '(lambda (x) (- (log1p x) (log1p (neg x))))])
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Operator implementations
 ;; Floating-point operations that approximate mathematical operations
@@ -398,7 +395,6 @@
 ;; Clears the table of active implementations.
 (define (clear-active-operator-impls!)
   (set-clear! active-operator-impls))
-
 
 ;; Registers an operator implementation `name` or real operator `op`.
 ;; The input and output representations must satisfy the types
