@@ -1,7 +1,7 @@
 #lang racket
 
 (require math/bigfloat rival)
-(require "../errors.rkt" "types.rkt")
+(require "../errors.rkt" "../float.rkt" "types.rkt")
 
 (provide (rename-out [operator-or-impl? operator?])
          (struct-out literal)
@@ -150,8 +150,7 @@
           name body actual-ty otype)))
 
 ;; Applies a substitution.
-;; Similarly implemented with `replace-vars` in `programs.rkt`
-;; but duplicated to break dependency cycle.
+;; Slightly different than `replace-vars` in `programs.rkt`.
 (define (replace-vars expr env)
   (let loop ([expr expr])
     (match expr
@@ -173,6 +172,24 @@
        (replace-vars body env)]
       [`(,op ,args ...)
        `(,op ,@(map loop args))])))
+
+;; Rival discretization for a representation.
+(define (repr->discretization repr)
+  (discretization
+   (representation-bf->repr repr)
+   (lambda (x y) (- (ulp-difference x y repr) 1))))
+
+;; Given a specification and output representatation,
+;; creates a Rival machine for real evaluation.
+(define (spec->machine spec repr)
+  (match-define `(,(or 'lambda 'λ) (,vars ...) ,body) spec)
+  (rival-compile (list body) vars (list (repr->discretization repr))))
+
+;; Runs a Rival machine for a single point.
+;; This is a stripped down version of `ival-eval`.
+(define (run-machine machine pt ctx)
+  (match-define (context _ orepr irepr) ctx)
+  (void))
 
 ;; Registers an operator with an attribute mapping.
 ;; Panics if an operator with name `name` has already been registered.
@@ -393,25 +410,47 @@
 (define (clear-active-operator-impls!)
   (set-clear! active-operator-impls))
 
+
 ;; Registers an operator implementation `name` or real operator `op`.
 ;; The input and output representations must satisfy the types
 ;; specified by the `itype` and `otype` fields for `op`.
-(define (register-operator-impl! operator name areprs rrepr attrib-dict)
-  ; Ideally we check for uniqueness, but the loading code may fire multiple times
-  ; (unless (hash-has-key? operator-impls name)
-  ;   (error 'register-operator-impl! "implementation already registered ~a" name))
-  (define op (hash-ref operators operator))
-  (define fl-fun (dict-ref attrib-dict 'fl))
+(define (register-operator-impl! op name ireprs orepr attrib-dict)
+  (define op-info (hash-ref operators op
+                            (lambda () (raise-herbie-missing-error
+                                         "Cannot register `~a`, operator `~a` does not exist"
+                                         name op))))
+  ;; Type check all operators except if
+  (unless (equal? op 'if)
+    (define itypes (operator-itype op-info))
+    (define otype (operator-otype op-info))
+    (define expect-arity (length itypes))
+    (define actual-arity (length ireprs))
+    (unless (= expect-arity actual-arity)
+      (raise-herbie-missing-error
+        "Cannot register `~a` as an implementation of `~a`: expected ~a arguments, got ~a"
+        name op expect-arity actual-arity))
+    (for ([repr (in-list (cons orepr ireprs))] [type (in-list (cons otype itypes))])
+      (unless (equal? (representation-type repr) type)
+        "Cannot register `~a` as implementation of `~a`: ~a is not a representation of ~a"
+        name op repr type)))
 
-  (unless (equal? operator 'if) ;; Type check all operators except if
-    (for ([arepr (cons rrepr areprs)]
-          [itype (cons (operator-otype op) (operator-itype op))])
-      (unless (equal? (representation-type arepr) itype)
-        (raise-herbie-missing-error
-          "Cannot register ~a as implementation of ~a: ~a is not a representation of ~a"
-          name operator (representation-name rrepr) (operator-otype op)))))
+  ;; Get floating-point implementation
+  (define fl-proc
+    (cond
+      [(assoc 'fl attrib-dict) => cdr] ; user-provided implementation
+      [(operator-accelerator? op) ; Rival-synthesized accelerator implementation
+       (define spec (operator-spec op-info))
+       (match-define `(,(or 'lambda 'λ) ,vars _) spec)
+       (define machine (spec->machine spec orepr))
+       (define ctx (context vars orepr ireprs))
+       (lambda pt
+         (define-values (_ exs) (run-machine machine pt ctx))
+         (or (first exs) ((representation-bf->repr orepr) +nan.bf)))]
+      [else
+       (error 'register-operator-impl! "unimplemented")]))
 
-  (define impl (operator-impl name op areprs rrepr fl-fun))
+  ; update tables
+  (define impl (operator-impl name op ireprs orepr fl-proc))
   (hash-set! operator-impls name impl)
   (hash-update! operators-to-impls operator (curry cons name)))
 

@@ -69,22 +69,23 @@
 (define-operator-impl (cast binary32->binary64 binary32) binary64
   [fl identity])
 
-(define-libm expm1.f32 (expm1f float float))
-(when expm1.f32
-  (define-accelerator-impl expm1 expm1.f32 (binary32) binary32 expm1.f32))
+; (define-libm expm1 (expm1f float float))
+; (when expm1
+;   (define-operator-impl (expm1 expm1.f32 binary32) binary32
+;     [fl expm1]))
 
-(define-libm log1p.f32 (log1pf float float))
-(when log1p.f32
-  (define-accelerator-impl log1p log1p.f32 (binary32) binary32 log1p.f32))
+; (define-libm log1p.f32 (log1pf float float))
+; (when log1p.f32
+;   (define-accelerator-impl log1p log1p.f32 (binary32) binary32 log1p.f32))
 
-(define-libm hypot.f32 (hypotf float float float))
-(when hypot.f32
-  (define-accelerator-impl hypot hypot.f32 (binary32 binary32) binary32 hypot.f32))
+; (define-libm hypot.f32 (hypotf float float float))
+; (when hypot.f32
+;   (define-accelerator-impl hypot hypot.f32 (binary32 binary32) binary32 hypot.f32))
 
-(define-libm fma.f32 (fmaf float float float float))
-(when fma.f32
-  (define-accelerator-impl fma fma.f32 (binary32 binary32 binary32) binary32 fma.f32))
+; (define-libm fma.f32 (fmaf float float float float))
+; (when fma.f32
+;   (define-accelerator-impl fma fma.f32 (binary32 binary32 binary32) binary32 fma.f32))
 
-(define-libm erfc.f32 (erfcf float float))
-(when erfc.f32
-  (define-accelerator-impl erfc erfc.f32 (binary32) binary32 erfc.f32))
+; (define-libm erfc.f32 (erfcf float float))
+; (when erfc.f32
+;   (define-accelerator-impl erfc erfc.f32 (binary32) binary32 erfc.f32))
