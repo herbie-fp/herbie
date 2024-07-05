@@ -50,13 +50,13 @@
   (hash-ref *job-status* job-id #f))
 
 (define (wait-for-job job-id)
+  ; (if (already-computed? job-id) 
   (eprintf "waiting for job: ~a\n" job-id)
   (define job-channel (hash-ref *inprogress* job-id))
-  (define result (place-channel-get job-channel))
+  (define id (place-channel-get job-channel))
+  (eprintf "job completed: ~a\n" *completed-jobs*)
+  (define result (hash-ref *completed-jobs* id))
   result)
-  ; (if (already-computed? job-id) 
-  ;     (hash-ref *inprogress* job-id) 
-  ;     ))
 
 (define (start-job-server config global-demo global-output)
   ;; Pass along local global values
@@ -150,11 +150,8 @@
       (match-define (list 'apply self command id) (place-channel-get ch))
       (eprintf "Job [~a] being worked on.\n" id)
       (define job-result (wrapper-run-herbie command id))
-      (define backend (job-result-backend job-result))
-      (define end (improve-result-end backend))
-      (eprintf "can't send: ~a\n" (place-message-allowed? end))
-      ; (eprintf "data: ~a\n" (job-result-backend job-result))
-      (place-channel-put ch job-result))))
+      (hash-set! *completed-jobs* id job-result)
+      (place-channel-put ch id))))
 
 (define-syntax (place/context* stx)
   (syntax-case stx ()
