@@ -1,6 +1,9 @@
 #lang racket
+
 (require math/bigfloat rival)
-(require "syntax/types.rkt" "timeline.rkt" "errors.rkt" "pretty-print.rkt" "float.rkt" "config.rkt")
+
+(require "syntax/types.rkt" "core/rival.rkt" "timeline.rkt" "errors.rkt"
+         "pretty-print.rkt" "float.rkt")
 
 (provide find-intervals hyperrect-weight)
 
@@ -34,12 +37,12 @@
   (and (bf>= lower lo) (bf<= higher hi) ; False if lo and hi were already close together
        (cons lower higher)))
 
-(define (search-step ival-fn space ctx split-var)
+(define (search-step evaluator space ctx split-var)
   (match-define (search-space true false other) space)
   (define reprs (context-var-reprs ctx))
   (define-values (true* false* other*)
     (for/fold ([true* true] [false* false] [other* '()]) ([rect (in-list other)])
-      (match-define (ival err err?) (rival-analyze ival-fn (list->vector rect)))
+      (match-define (ival err err?) (real-evaluator-unsamplable? evaluator))
       (when (eq? err 'unsamplable)
         (warn 'ground-truth #:url "faq.html#ground-truth"
               "could not determine a ground truth"
@@ -82,7 +85,7 @@
   (hash-update! out 'precondition (curry + (- 1 total)) 0)
   (make-immutable-hash (hash->list out)))
 
-(define (find-intervals ival-fn rects #:ctx ctx #:fuel [depth 128])
+(define (find-intervals evaluator rects #:ctx ctx #:fuel [depth 128])
   (if (or (null? rects) (null? (first rects)))
       (map (curryr cons 'other) rects)
       (let loop ([space (apply make-search-space rects)] [n 0])
@@ -95,5 +98,5 @@
             (cons
              (append (search-space-true space) (search-space-other space))
              (make-sampling-table ctx true false other))
-            (loop (search-step ival-fn space ctx n*) (+ n 1))))))
+            (loop (search-step evaluator space ctx n*) (+ n 1))))))
 

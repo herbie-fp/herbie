@@ -1,10 +1,9 @@
-;; A narrow shim for Rival operations.
+;; A narrow shim for Rival.
 ;; The main abstraction is the Rival "machine" which performs
-;; real evaluation for a set of expressions.
+;; real evaluation for multiple expressions on a point.
 ;;
-;; Ensure this file has minimal dependencies since
-;; `<herbie>/syntax/syntax.rkt` requires it to synthesize
-;; floating-point implementations!
+;; Ensure this file has minimal dependencies since `<herbie>/syntax/syntax.rkt`
+;; requires the file to synthesize floating-point implementations!
 ;;
 
 #lang racket
@@ -20,7 +19,9 @@
 (provide real-evaluator?
          real-evaluator-ctx
          make-real-evaluator
-         run-real-evaluator)
+         run-real-evaluator
+         real-evaluator-clear!
+         real-evaluator-unsamplable?)
 
 (define (expr-size expr)
   (if (list? expr)
@@ -35,7 +36,7 @@
 ;; Herbie's wrapper around the Rival machine abstraction.
 (struct real-evaluator (machine ctx))
 
-;; Creates a Rival machine from a set of specifications and a context.
+;; Creates a Rival machine from a list of specifications and a context.
 ;; A precondition can optionally be provided.
 (define (make-real-evaluator specs ctx #:pre [pre '(TRUE)])
   (match-define (context vars repr _) ctx)
@@ -77,3 +78,16 @@
   (timeline-push!/unsafe 'outcomes (- (current-inexact-milliseconds) start)
                          (rival-profile machine 'iterations) (~a status) 1)
   (values status value))
+
+;; Clears profiling data.
+(define (real-evaluator-clear! evaluator)
+  (match-define (real-evaluator machine _) evaluator)
+  (rival-profile machine 'executions)
+  (void))
+
+;; Returns whether the machine is guaranteed to raise an exception
+;; for the given inputs range. The result is an interval representing
+;; how certain the result is: no, maybe, yes.
+(define (real-evaluator-unsamplable? evaluator input-ranges)
+  (match-define (real-evaluator machine _) evaluator)
+  (rival-analyze machine input-ranges))

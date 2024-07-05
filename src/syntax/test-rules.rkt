@@ -4,7 +4,7 @@
 (require "../accelerator.rkt" "../common.rkt" "../compiler.rkt"
          "../float.rkt" "../sampling.rkt" "types.rkt" "../load-plugin.rkt"
          "rules.rkt" (submod "rules.rkt" internals)
-         "sugar.rkt" "../core/egg-herbie.rkt")
+         "sugar.rkt" "../core/egg-herbie.rkt" "../core/rival.rkt")
 
 (load-herbie-builtins)
 
@@ -37,12 +37,11 @@
                    [*max-find-range-depth* 0])
       (cdr (sample-points '(TRUE) (list (prog->spec p1)) (list ctx)))))
 
-  (define fn (make-search-func '(TRUE) (list (prog->spec p2)) (list ctx)))
-
+  (define evaluator (make-real-evaluator (list (prog->spec p2)) ctx))
   (for ([pt (in-list pts)] [v1 (in-list exs)])
     (with-check-info* (map make-check-info fv pt)
       (λ ()
-        (define-values (status v2) (ival-eval fn (list ctx) pt))
+        (define-values (status v2) (run-real-evaluator evaluator pt))
         (with-check-info (['lhs v1] ['rhs v2] ['status status])
           (when (and (real? v2) (nan? v2) (not (set-member? '(exit unsamplable) status)))
             (fail "Right hand side returns NaN")))))))
