@@ -34,7 +34,7 @@
    (lambda (x y) (- (ulp-difference x y repr) 1))))
 
 ;; Herbie's wrapper around the Rival machine abstraction.
-(struct real-evaluator (machine ctx))
+(struct real-evaluator (pre specs ctx machine))
 
 ;; Creates a Rival machine from a list of specifications and a context.
 ;; A precondition can optionally be provided.
@@ -46,11 +46,11 @@
   (timeline-push! 'compiler
                   (apply + 1 (expr-size pre) (map expr-size specs))
                   (+ (length vars) (rival-profile machine 'instructions)))
-  (real-evaluator machine ctx))
+  (real-evaluator pre specs ctx machine))
 
 ;; Runs a Rival machine on an input point.
 (define (run-real-evaluator evaluator pt)
-  (match-define (real-evaluator machine ctx) evaluator)
+  (match-define (real-evaluator _ _ ctx machine) evaluator)
   (define start (current-inexact-milliseconds))
   (define pt*
     (for/vector ([val (in-list pt)] [repr (in-list (context-var-reprs ctx))])
@@ -81,13 +81,11 @@
 
 ;; Clears profiling data.
 (define (real-evaluator-clear! evaluator)
-  (match-define (real-evaluator machine _) evaluator)
-  (rival-profile machine 'executions)
+  (rival-profile (real-evaluator-machine evaluator) 'executions)
   (void))
 
 ;; Returns whether the machine is guaranteed to raise an exception
 ;; for the given inputs range. The result is an interval representing
 ;; how certain the result is: no, maybe, yes.
 (define (real-evaluator-unsamplable? evaluator input-ranges)
-  (match-define (real-evaluator machine _) evaluator)
-  (rival-analyze machine input-ranges))
+  (rival-analyze (real-evaluator-machine evaluator) input-ranges))
