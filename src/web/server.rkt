@@ -29,8 +29,8 @@
 (define (job-count)
   (hash-count *job-status*))
 
-(define (is-server-up)
-  (thread-running? *worker-thread*))
+; Not sure this makes sense anymore.
+(define (is-server-up) #t)
 
 ;; Creates a command object to be passed to start-job server.
 ;; TODO contract?
@@ -44,23 +44,26 @@
 ;; Starts a job for a given command object
 (define (start-job command)
   (define job-id (compute-job-id command))
-  (if (already-computed? job-id) job-id (start-work command)))
+  (if (already-computed? job-id) job-id (work-on command)))
 
 (define (is-job-finished job-id)
   (hash-ref *job-status* job-id #f))
 
 (define (wait-for-job job-id)
-  (if (already-computed? job-id) 
-      (hash-ref *completed-jobs* job-id) 
-      (internal-wait-for-job job-id)))
+  (eprintf "waiting for job: ~a\n" job-id)
+  (define job-channel (hash-ref *inprogress* job-id))
+  (define result (place-channel-get job-channel))
+  result)
+  ; (if (already-computed? job-id) 
+  ;     (hash-ref *inprogress* job-id) 
+  ;     ))
 
 (define (start-job-server config global-demo global-output)
   ;; Pass along local global values
   ;; TODO can I pull these out of config or not need ot pass them along.
   (build-worker-pool 4)
   (set! *demo?* global-demo)
-  (set! *demo-output* global-output)
-  (thread-send *worker-thread* config))
+  (set! *demo-output* global-output))
 
 #| End Job Server Public API section |#
 
@@ -74,7 +77,9 @@
 (define *demo-output* (make-parameter false))
 (define *completed-jobs* (make-hash))
 (define *job-status* (make-hash))
-(define *job-sema* (make-hash))
+
+;; place channels in progress. "workers"
+(define *inprogress* (make-hash))
 
 (define (already-computed? job-id)
  (or (hash-has-key? *completed-jobs* job-id)
@@ -82,41 +87,8 @@
           (directory-exists? (build-path (*demo-output*) 
           (format "~a.~a" job-id *herbie-commit*))))))
 
-(define (internal-wait-for-job job-id)
-  (eprintf "Waiting for job\n")
-  (define sema (hash-ref *job-sema* job-id))
-  (semaphore-wait sema)
-  (hash-remove! *job-sema* job-id)
-  (hash-ref *completed-jobs* job-id))
-
 (define (compute-job-id job-info)
   (sha1 (open-input-string (~s job-info))))
-
-; Encapsulates semaphores and async part of jobs.
-(define (start-work job)
-  (define job-id (compute-job-id job))
-  (hash-set! *job-status* job-id (*timeline*))
-  (define sema (make-semaphore))
-  (hash-set! *job-sema* job-id sema)
-  (work-on (work job-id job sema))
-  ; (thread-send *worker-thread* (work job-id job sema))
-  job-id)
-
-; Handles semaphore and async part of a job
-(struct work (id job sema))
-
-(define (run-job job-info)
-  (match-define (work job-id info sema) job-info)
-  (define path (format "~a.~a" job-id *herbie-commit*))
-  (cond ;; Check caches if job as already been completed
-   [(hash-has-key? *completed-jobs* job-id)
-    (semaphore-post sema)]
-   [(and (*demo-output*) (directory-exists? (build-path (*demo-output*) path)))
-    (semaphore-post sema)]
-   [else (wrapper-run-herbie info job-id)
-    (hash-remove! *job-status* job-id)
-    (semaphore-post sema)])
-  (hash-remove! *job-sema* job-id))
 
 (define (wrapper-run-herbie cmd job-id)
   (print-job-message (herbie-command-command cmd) job-id 
@@ -129,7 +101,8 @@
     #:profile? (herbie-command-profile? cmd)
     #:timeline-disabled? (herbie-command-timeline-disabled? cmd)))
   (hash-set! *completed-jobs* job-id result)
-  (eprintf "Job ~a complete\n" job-id))
+  (eprintf "Job ~a complete\n" job-id)
+  result)
 
 (define (print-job-message command job-id job-str)
   (define job-label
@@ -146,52 +119,18 @@
   (eprintf "~a Job ~a started:\n  ~a ~a...\n" job-label 
     (symbol->string command) job-id job-str))
 
-(define *worker-thread*
-   (thread
-    (λ ()
-      (let loop ([seed #f])
-        (match (thread-receive)
-          [`(init rand ,vec flags ,flag-table num-iters ,iterations points ,points
-                  timeout ,timeout output-dir ,output reeval ,reeval demo? ,demo?)
-           (set! seed vec)
-           (*flags* flag-table)
-           (*num-iterations* iterations)
-           (*num-points* points)
-           (*timeout* timeout)
-           (*demo-output* output)
-           (*reeval-pts* reeval)
-           (*demo?* demo?)]
-          [job-info (run-job job-info)])
-        (loop seed)))))
-
-
 (define *ready-workers* (list))
 
-#| 
-Not sure if I need semeaphores...
-
-At a high level I think I need to make the worker pool and send work to the 
-worker using put which is none blocking. Though how do I get a notice when 
-something is done?
-
-Maybe I need to do something like run-workers as the start server, But how do I
-add more work to this pool. As it's current version has all the work up front.
-
-I guess I could make work a local global and try the same loop. Just appeneding
-work as I go. Though i'm not really sure how to get work out of the loop or
-again sginal that work is complete. Do I need a manager place that manages all
-these signals.
-|#
-(define (work-on new-work)
-  (match-define (work job-id job sema) new-work)
+(define (work-on command)
+  (define job-id (compute-job-id command))
   ;; Pop off 1st ready worker
   (define worker (first *ready-workers*))
   (set! *ready-workers* (cdr *ready-workers*))
   ;; Send work to worker
-  (place-channel-put worker `(apply ,worker ,job, job-id))
-  (define result (place-channel-get worker))
-  (semaphore-post sema)
-  (eprintf "[~a]DONE: ~a\n" job-id result))
+  (place-channel-put worker `(apply ,worker ,command, job-id))
+  (hash-set! *inprogress* job-id worker)
+  (eprintf "Work started: ~a\n" job-id)
+  job-id)
 
 (define (build-worker-pool number-of-workers)
   (define workers
@@ -210,9 +149,12 @@ these signals.
     (for ([_ (in-naturals)])
       (match-define (list 'apply self command id) (place-channel-get ch))
       (eprintf "Job [~a] being worked on.\n" id)
-      (wrapper-run-herbie command id)
-      (eprintf "~a\n" (get-results-for id))
-      (place-channel-put ch id))))
+      (define job-result (wrapper-run-herbie command id))
+      (define backend (job-result-backend job-result))
+      (define end (improve-result-end backend))
+      (eprintf "can't send: ~a\n" (place-message-allowed? end))
+      ; (eprintf "data: ~a\n" (job-result-backend job-result))
+      (place-channel-put ch job-result))))
 
 (define-syntax (place/context* stx)
   (syntax-case stx ()
