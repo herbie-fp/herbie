@@ -1,7 +1,7 @@
 #lang racket
 
 (require math/bigfloat rival)
-(require "../errors.rkt" "../float.rkt" "types.rkt")
+(require "../errors.rkt" "../core/rival.rkt" "types.rkt")
 
 (provide (rename-out [operator-or-impl? operator?])
          (struct-out literal)
@@ -173,23 +173,12 @@
       [`(,op ,args ...)
        `(,op ,@(map loop args))])))
 
-;; Rival discretization for a representation.
-(define (repr->discretization repr)
-  (discretization
-   (representation-bf->repr repr)
-   (lambda (x y) (- (ulp-difference x y repr) 1))))
-
 ;; Given a specification and output representatation,
 ;; creates a Rival machine for real evaluation.
-(define (spec->machine spec repr)
+(define (spec->real-evaluator spec ireprs orepr)
   (match-define `(,(or 'lambda 'λ) (,vars ...) ,body) spec)
-  (rival-compile (list body) vars (list (repr->discretization repr))))
-
-;; Runs a Rival machine for a single point.
-;; This is a stripped down version of `ival-eval`.
-(define (run-machine machine pt ctx)
-  (match-define (context _ orepr irepr) ctx)
-  (void))
+  (define ctx (context vars orepr ireprs))
+  (make-real-evaluator (list body) ctx))
 
 ;; Registers an operator with an attribute mapping.
 ;; Panics if an operator with name `name` has already been registered.
@@ -439,21 +428,23 @@
     (cond
       [(assoc 'fl attrib-dict) => cdr] ; user-provided implementation
       [(operator-accelerator? op) ; Rival-synthesized accelerator implementation
-       (define spec (operator-spec op-info))
-       (match-define `(,(or 'lambda 'λ) ,vars _) spec)
-       (define machine (spec->machine spec orepr))
-       (define ctx (context vars orepr ireprs))
+       (define evaluator (spec->real-evaluator (operator-spec op-info) ireprs orepr))
+       (define fail ((representation-bf->repr orepr) +nan.bf))
        (lambda pt
-         (define-values (_ exs) (run-machine machine pt ctx))
-         (or (first exs) ((representation-bf->repr orepr) +nan.bf)))]
-      [else
-       (error 'register-operator-impl! "unimplemented")]))
+         (define-values (_ exs) (run-real-evaluator evaluator pt))
+         (if exs (first exs) fail))]
+      [else ; Rival-synthesized operator implementation
+       (define vars (build-list (length ireprs) (curry string->symbol "x~a")))
+       (define evaluator (make-real-evaluator `(,name ,@vars) (context vars orepr ireprs)))
+       (define fail ((representation-bf->repr orepr) +nan.bf))
+       (lambda pt
+         (define-values (_ exs) (run-real-evaluator evaluator pt))
+         (if exs (first exs) fail))]))
 
   ; update tables
-  (define impl (operator-impl name op ireprs orepr fl-proc))
+  (define impl (operator-impl name op-info ireprs orepr fl-proc))
   (hash-set! operator-impls name impl)
-  (hash-update! operators-to-impls operator (curry cons name)))
-
+  (hash-update! operators-to-impls op (curry cons name)))
 
 (define-syntax-rule (define-operator-impl (operator name atypes ...) rtype [key value] ...)
   (register-operator-impl! 'operator 'name

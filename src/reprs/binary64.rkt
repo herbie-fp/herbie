@@ -67,12 +67,11 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; accelerators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define-libm expm1 (expm1 double double))
-(when expm1
-  (define-operator-impl (expm1 expm1.f64 binary64) binary64
-    [fl expm1]))
-
-(define-operator-impl (fma binary64 binary64 binary64) binary64)
+(define-operator-impl (expm1 expm1.f64 binary64) binary64)
+(define-operator-impl (log1p log1p.f64 binary64) binary64)
+(define-operator-impl (erfc erfc.f64 binary64) binary64)
+(define-operator-impl (hypot hypot.f64 binary64 binary64) binary64)
+(define-operator-impl (fma fma.f64 binary64 binary64 binary64) binary64)
 
 ; (define-libm expm1.f64 (expm1 double double))
 ; (when expm1.f64
