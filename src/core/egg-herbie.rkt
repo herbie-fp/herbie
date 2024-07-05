@@ -595,8 +595,9 @@
 ;; - canon: map from egraph id to vector index
 ;; - has-leaf?: map from vector index to if the eclass contains a leaf
 ;; - constants: map from vector index to if the eclass contains a constant
+;; - parents: parent e-classes of each e-class
 ;; - egg->herbie: data to translate egg IR to herbie IR
-(struct regraph (eclasses canon has-leaf? constants egg->herbie))
+(struct regraph (eclasses canon has-leaf? constants parents egg->herbie))
 
 ;; Constructs a Racket egraph from an S-expr representation.
 (define (sexpr->regraph egraph egg->herbie)
@@ -610,6 +611,7 @@
   (define eclasses (make-vector n #f))
   (define has-leaf? (make-vector n #f))
   (define constants (make-vector n #f))
+  (define parents (make-vector n '()))
   (for ([eclass (in-list egraph)])
     (match-define (cons egg-id egg-nodes) eclass)
     (define id (canon-id egg-id))
@@ -626,15 +628,28 @@
            (if (hash-has-key? egg->herbie egg-node)
                egg-node             ; variable
                (list egg-node))]    ; constant
-          [(list op child-ids ...)
-           (when (null? child-ids)
-             (vector-set! has-leaf? id #t))
-           (cons op (map canon-id child-ids))]
+          [(list op child-ids ...) ; application
+           (cond
+             [(null? child-ids) ; application is a constant function
+              (vector-set! has-leaf? id #t)
+              (list op)]
+             [else
+              (define child-ids* (map canon-id child-ids))
+              (for ([child-id (in-list child-ids*)]) ; update parent-child relation
+                (vector-set! parents child-id (cons id (vector-ref parents child-id))))
+              (cons op child-ids*)])]
           [_ (error 'sexpr->regraph "malformed enode: ~a" egg-node)])))
     (vector-set! eclasses id nodes))
 
+  ; dedup parent-child relation and convert to vector
+  (for ([id (in-range n)])
+    (vector-set! parents id 
+                 (list->vector
+                   (remove-duplicates
+                     (vector-ref parents id)))))
+
   ; collect with wrapper
-  (regraph eclasses canon has-leaf? constants egg->herbie))
+  (regraph eclasses canon has-leaf? constants parents egg->herbie))
 
 ;; Constructs a Racket egraph from an S-expr representation of
 ;; an egraph and data to translate egg IR to herbie IR.
@@ -647,29 +662,6 @@
 ;; Nullary operators have no children!
 (define (node-has-children? node)
   (and (pair? node) (pair? (cdr node))))
-
-;; Computes the parent relation of each eclass.
-(define (regraph-parents regraph)
-  (define eclasses (regraph-eclasses regraph))
-  (define n (vector-length eclasses))
-
-  ; build parent-child relation by iterating through eclasses
-  (define parents (make-vector n '()))
-  (for ([id (in-range n)])
-    (define eclass (vector-ref eclasses id))
-    (for ([node (in-vector eclass)] #:when (node-has-children? node))
-      (for ([child-id (in-list (cdr node))])
-        (vector-set! parents
-                     child-id
-                     (cons id (vector-ref parents child-id))))))
-  
-  ; for each eclass, dedup parents and convert to vector
-  (for ([id (in-range n)])
-    (vector-set! parents id
-                 (list->vector
-                   (remove-duplicates
-                     (vector-ref parents id)))))
-  parents)
 
 ;; Computes an analysis for each eclass.
 ;; Takes a regraph and an procedure taking the analysis, an eclass, and
@@ -696,8 +688,9 @@
       (define eclass (vector-ref eclasses id))
       (when (eclass-proc analysis changed?-vec iter eclass id)
         ; eclass analysis was updated: need to revisit the parents
+        (define parent-ids (vector-ref parents id))
         (vector-set! changed?-vec* id #t)
-        (for ([parent-id (in-vector (vector-ref parents id))])
+        (for ([parent-id (in-vector parent-ids)])
           (vector-set! dirty?-vec* parent-id #t)
           (set! dirty? #t))))
     ; if dirty, analysis has not converged so loop
@@ -706,7 +699,7 @@
       (set! changed?-vec changed?-vec*) ; update eclasses that have changed
       (sweep! (add1 iter))))
   
-  ; Invariant: all eclasses have an associated cost! 
+  ; Invariant: all eclasses have an analysis
   (for ([id (in-range n)])
     (unless (vector-ref analysis id)
       (error 'regraph-analyze
@@ -939,13 +932,17 @@
   (define (eclass-set-type! analysis changed?-vec iter eclass id)
     (define ty (vector-ref analysis id))
     (define ty*
-      (for/fold ([ty ty])
-                ([node (in-vector eclass)]
-                 #:when (if (node-has-children? node)
-                            (and (ormap (lambda (id) (vector-ref changed?-vec id)) (cdr node))
-                                 (andmap (lambda (id) (vector-ref analysis id)) (cdr node)))
-                            (= iter 0)))
-        (type/union ty (node->type analysis node))))
+      (if (= iter 0)
+          ; first iteration: only run analysis on leaves
+          (for/fold ([ty ty]) ([node (in-vector eclass)]
+                               #:unless (node-has-children? node))
+            (type/union ty (node->type analysis node)))
+          ; other iterations: run only on non-leaves with updated children
+          (for/fold ([ty ty]) ([node (in-vector eclass)]
+                               #:when (and (node-has-children? node)
+                                           (ormap (lambda (id) (vector-ref changed?-vec id)) (cdr node))
+                                           (andmap (lambda (id) (vector-ref analysis id)) (cdr node))))
+              (type/union ty (node->type analysis node)))))
     (vector-set! analysis id ty*)
     (not (type/equal? ty ty*)))
 
