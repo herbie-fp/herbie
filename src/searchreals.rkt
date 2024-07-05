@@ -42,7 +42,7 @@
   (define reprs (context-var-reprs ctx))
   (define-values (true* false* other*)
     (for/fold ([true* true] [false* false] [other* '()]) ([rect (in-list other)])
-      (match-define (ival err err?) (real-evaluator-unsamplable? evaluator))
+      (match-define (ival err err?) (real-evaluator-unsamplable? evaluator (list->vector rect)))
       (when (eq? err 'unsamplable)
         (warn 'ground-truth #:url "faq.html#ground-truth"
               "could not determine a ground truth"

@@ -1,7 +1,7 @@
 #lang racket
 
 (require "../syntax/sugar.rkt" "../syntax/syntax.rkt" "../syntax/types.rkt"
-         "../syntax/rules.rkt" "../accelerator.rkt" "../common.rkt" "../float.rkt"
+         "../syntax/rules.rkt" "../common.rkt" "../float.rkt"
          "../platform.rkt" "../points.rkt" "../programs.rkt" "../sampling.rkt"
          "simplify.rkt" "egg-herbie.rkt")
 

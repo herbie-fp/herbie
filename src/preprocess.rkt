@@ -2,7 +2,7 @@
 
 (require "core/egg-herbie.rkt" "core/simplify.rkt"
          "syntax/rules.rkt" "syntax/syntax.rkt" "syntax/sugar.rkt"
-         "syntax/types.rkt" "alternative.rkt" "accelerator.rkt" "common.rkt"
+         "syntax/types.rkt" "alternative.rkt" "common.rkt"
          "errors.rkt" "programs.rkt" "points.rkt" "timeline.rkt" "float.rkt")
 
 (provide find-preprocessing preprocess-pcontext remove-unnecessary-preprocessing)

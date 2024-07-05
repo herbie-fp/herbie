@@ -12,7 +12,6 @@
          "../syntax/types.rkt"
          "../common.rkt"
          "../config.rkt"
-         "../accelerator.rkt"
          "../errors.rkt"
          "../platform.rkt"
          "../programs.rkt"

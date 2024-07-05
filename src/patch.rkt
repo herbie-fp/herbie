@@ -8,7 +8,6 @@
          "core/rr.rkt"
          "core/simplify.rkt"
          "core/taylor.rkt"
-         "accelerator.rkt"
          "alternative.rkt"
          "common.rkt"
          "platform.rkt"

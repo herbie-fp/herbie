@@ -3,7 +3,9 @@
 (require math/bigfloat rival)
 (require "../errors.rkt" "../core/rival.rkt" "types.rkt")
 
-(provide (rename-out [operator-or-impl? operator?])
+(provide (rename-out
+           [operator-or-impl? operator?]
+           [expand-accelerator-spec expand-accelerators])
          (struct-out literal)
          variable? constant-operator?
          operator-exists? operator-deprecated? operator-accelerator?
@@ -33,7 +35,7 @@
 ;;  - exactly one of:
 ;;     - a Rival interval implementation
 ;;     - a specification ["accelerator"]
-;;  - deprectated? flag [#f by default]
+;;  - deprecated? flag [#f by default]
 ;; Operator implementations _implement_ a real operator
 ;; for a particular set of input and output representations.
 (struct operator (name itype otype ival spec deprecated))
@@ -60,19 +62,17 @@
 
 ;; Returns all constant operators (operators with no arguments).
 (define (all-constants)
-  (sort
-    (for/list ([(name rec) (in-hash operators)]
-               #:when (null? (operator-itype rec)))
-      name)
-    symbol<?))
+  (sort (for/list ([(name rec) (in-hash operators)]
+                   #:when (null? (operator-itype rec)))
+          name)
+        symbol<?))
 
 ;; Returns all "accelerator" operators
 (define (all-accelerators)
-  (sort
-    (for/list ([(name rec) (in-hash operators)]
-               #:when (operator-spec rec))
-      name)
-    symbol<?))
+  (sort (for/list ([(name rec) (in-hash operators)]
+                   #:when (operator-spec rec))
+          name)
+        symbol<?))
 
 ;; Looks up a property `field` of an real operator `op`.
 ;; Panics if the operator is not found.
@@ -99,15 +99,12 @@
 
 ;; Checks an "accelerator" specification
 (define (check-accelerator-spec! name itypes otype spec)
-  (eprintf "checking `~a`: `~a`\n" name spec)
   (define-values (vars body)
     (match spec
       [`(,(or 'lambda 'λ) (,vars ...) ,spec)
        (for ([var (in-list vars)])
          (unless (symbol? var)
-           (error 'register-operator!
-                  "`~a`: expected symbol `~a` in `~a`"
-                  name var spec)))
+           (error 'register-operator! "`~a`: expected symbol `~a` in `~a`" name var spec)))
        (values vars spec)]
       [_ (error 'register-operator!
                 "`~a`: malformed specification `~a`, expected `(lambda <vars> <expr>)`"
@@ -126,15 +123,12 @@
       (match expr
         [(? number?) 'real]
         [(? symbol?)
-         (cond [(assq expr env) => cdr]
-               [else (error 'register-operator!
-                            "`~a`: unbound variable `~a` in `~a`"
-                            name expr spec)])]
+         (cond
+           [(assq expr env) => cdr]
+           [else (error 'register-operator! "`~a`: unbound variable `~a` in `~a`" name expr spec)])]
         [`(,op ,args ...)
          (unless (operator-exists? op)
-           (error 'register-operator!
-                  "`~a`: expected operator `~a` in `~a`"
-                  name op spec))
+           (error 'register-operator! "`~a`: expected operator `~a` in `~a`" name op spec))
          (define itypes (operator-info op 'itype))
          (for ([arg (in-list args)] [itype (in-list itypes)])
            (define arg-ty (check arg))
@@ -172,13 +166,6 @@
        (replace-vars body env)]
       [`(,op ,args ...)
        `(,op ,@(map loop args))])))
-
-;; Given a specification and output representatation,
-;; creates a Rival machine for real evaluation.
-(define (spec->real-evaluator spec ireprs orepr)
-  (match-define `(,(or 'lambda 'λ) (,vars ...) ,body) spec)
-  (define ctx (context vars orepr ireprs))
-  (make-real-evaluator (list body) ctx))
 
 ;; Registers an operator with an attribute mapping.
 ;; Panics if an operator with name `name` has already been registered.
@@ -424,14 +411,15 @@
     (cond
       [(assoc 'fl attrib-dict) => cdr] ; user-provided implementation
       [(operator-accelerator? op) ; Rival-synthesized accelerator implementation
-       (define evaluator (spec->real-evaluator (operator-spec op-info) ireprs orepr))
+       (match-define `(,(or 'lambda 'λ) (,vars ...) ,body) (operator-spec op-info))
+       (define evaluator (make-real-evaluator (list body) (context vars orepr ireprs)))
        (define fail ((representation-bf->repr orepr) +nan.bf))
        (lambda pt
          (define-values (_ exs) (run-real-evaluator evaluator pt))
          (if exs (first exs) fail))]
       [else ; Rival-synthesized operator implementation
        (define vars (build-list (length ireprs) (curry string->symbol "x~a")))
-       (define evaluator (make-real-evaluator `(,name ,@vars) (context vars orepr ireprs)))
+       (define evaluator (make-real-evaluator (list `(,name ,@vars)) (context vars orepr ireprs)))
        (define fail ((representation-bf->repr orepr) +nan.bf))
        (lambda pt
          (define-values (_ exs) (run-real-evaluator evaluator pt))
