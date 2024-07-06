@@ -53,9 +53,8 @@
   ; (if (already-computed? job-id) 
   (eprintf "waiting for job: ~a\n" job-id)
   (define job-channel (hash-ref *inprogress* job-id))
-  (define id (place-channel-get job-channel))
-  (eprintf "job completed: ~a\n" *completed-jobs*)
-  (define result (hash-ref *completed-jobs* id))
+  (define result (place-channel-get job-channel))
+  (hash-set! *completed-jobs* job-id result)
   result)
 
 (define (start-job-server config global-demo global-output)
@@ -100,7 +99,6 @@
     #:pcontext (herbie-command-pcontext cmd)
     #:profile? (herbie-command-profile? cmd)
     #:timeline-disabled? (herbie-command-timeline-disabled? cmd)))
-  (hash-set! *completed-jobs* job-id result)
   (eprintf "Job ~a complete\n" job-id)
   result)
 
@@ -149,9 +147,20 @@
     (for ([_ (in-naturals)])
       (match-define (list 'apply self command id) (place-channel-get ch))
       (eprintf "Job [~a] being worked on.\n" id)
-      (define job-result (wrapper-run-herbie command id))
-      (hash-set! *completed-jobs* id job-result)
-      (place-channel-put ch id))))
+      (define herbie-result (wrapper-run-herbie command id))
+      (match-define (job-result kind test status time _ _ backend) herbie-result)
+      (define out-result #f)
+      (match kind 
+        ['alternatives empty]
+        ['evaluate empty]
+        ['cost empty]
+        ['errors empty]
+        ['exacts empty]
+        ['improve (set! out-result (get-table-data herbie-result ""))]
+        ['local-error empty]
+        ['sample empty]
+        [_ (error 'compute-result "unknown command ~a" kind)])
+      (place-channel-put ch out-result))))
 
 (define-syntax (place/context* stx)
   (syntax-case stx ()

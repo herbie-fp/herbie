@@ -59,15 +59,15 @@
   (match-define result results)
   (define path (string-split (url->string (request-uri req)) "/"))
   (cond
-   [(set-member? (all-pages result) page)
+   [(set-member? (all-pages-modified result) page)
     ;; Write page contents to disk
     (when (*demo-output*)
       (make-directory (build-path (*demo-output*) path))
-      (for ([page (all-pages result)])
+      (for ([page (all-pages-modified result)])
         (call-with-output-file (build-path (*demo-output*) path page)
           (λ (out) 
             (with-handlers ([exn:fail? (page-error-handler result page out)])
-              (make-page page out result (*demo-output*) #f)))))
+              (make-page-modifed page out result (*demo-output*) #f)))))
       (update-report result path (get-seed)
                       (build-path (*demo-output*) "results.json")
                       (build-path (*demo-output*) "index.html")))
@@ -75,7 +75,7 @@
               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count)))))
               (λ (out)
                 (with-handlers ([exn:fail? (page-error-handler result page out)])
-                (make-page page out result (*demo-output*) #f))))]
+                (make-page-modifed page out result (*demo-output*) #f))))]
    [else
     (next-dispatcher)]))
 
@@ -319,7 +319,8 @@
    req
    (λ (command)
      (define job-id (start-job command))
-     (wait-for-job job-id)
+     (define result (wait-for-job job-id))
+     (eprintf "improve: ~a\n" result)
      (redirect-to (add-prefix (format "~a.~a/graph.html" job-id *herbie-commit*)) see-other))
    (url main)))
 

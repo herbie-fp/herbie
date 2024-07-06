@@ -2,12 +2,18 @@
 
 (require json (only-in fpbench fpcore? supported-by-lang? core->js js-header))
 (require "../syntax/read.rkt" "../syntax/sugar.rkt" "../syntax/syntax.rkt" "../syntax/types.rkt"
-         "../alternative.rkt" "../float.rkt" "../points.rkt" "../sandbox.rkt"
+         "../alternative.rkt" "../float.rkt" "../points.rkt" "../sandbox.rkt" "../datafile.rkt"
          "common.rkt" "timeline.rkt" "plot.rkt" "make-graph.rkt" "traceback.rkt")
-(provide all-pages make-page page-error-handler)
+(provide all-pages all-pages-modified make-page make-page-modifed page-error-handler)
 
 (define (unique-values pts idx)
   (length (remove-duplicates (map (curryr list-ref idx) pts))))
+
+(define (all-pages-modified result)
+  (define good? (eq? (table-row-status result) 'success))
+  (define default-pages '("graph.html" "timeline.html" "timeline.json"))
+  (define success-pages '("interactive.js" "points.json"))
+  (append default-pages (if good? success-pages empty)))
 
 (define (all-pages result)
   (define good? (eq? (job-result-status result) 'success))
@@ -23,6 +29,30 @@
     (display "<!doctype html><pre>" out)
     ((error-display-handler) (exn-message e) e)
     (display "</pre>" out)))
+
+#| 
+Well I know I need to to pass the needed result data to generate a page from table row. Which I don't think is enough I might make a new type. and just add the data I need to generate the same data. This is kinda annoying but I guess it's all part of the plan.
+|#
+(define (make-page-modifed page out result output? profile?)
+  (eprintf "result: ~a\n" result)
+  (define test (job-result-test result))
+  (define status (job-result-status result))
+  (define ctx (test-context test))
+  (match page
+    ["graph.html"
+     (match status
+       ['success (make-graph result out output? (get-interactive-js result ctx) profile?)]
+       ['timeout (make-traceback result out profile?)]
+       ['failure (make-traceback result out profile?)]
+       [_ (error 'make-page "unknown result type ~a" status)])]
+    ["interactive.js"
+     (make-interactive-js result out ctx)]
+    ["timeline.html"
+     (make-timeline (test-name test) (job-result-timeline result) out #:path "..")]
+    ["timeline.json"
+     (write-json (job-result-timeline result) out)]
+    ["points.json"
+     (make-points-json result out ctx)]))
 
 (define (make-page page out result output? profile?)
   (define test (job-result-test result))
