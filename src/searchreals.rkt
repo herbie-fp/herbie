@@ -38,7 +38,8 @@
        (cons lower higher)))
 
 (define (search-step evaluator space split-var)
-  (match-define (real-evaluator _ vars reprs _ _) evaluator)
+  (define vars (real-evaluator-vars evaluator))
+  (define reprs (real-evaluator-var-reprs evaluator))
   (match-define (search-space true false other) space)
   (define-values (true* false* other*)
     (for/fold ([true* true] [false* false] [other* '()]) ([rect (in-list other)])

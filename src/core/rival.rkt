@@ -1,6 +1,5 @@
-;; A narrow shim for Rival.
-;; The main abstraction is the Rival "machine" which performs
-;; real evaluation for multiple expressions on a point.
+;; A narrow shim for Rival's "machine" abstraction.
+;; A Rival "machine" performs real evaluation for multiple expressions on a point.
 ;;
 ;; Ensure this file has minimal dependencies since `<herbie>/syntax/syntax.rkt`
 ;; requires the file to synthesize floating-point implementations!
@@ -33,23 +32,33 @@
    (lambda (x y) (- (ulp-difference x y repr) 1))))
 
 ;; Herbie's wrapper around the Rival machine abstraction.
-(struct real-evaluator (pre vars var-reprs reprs machine))
+(struct real-evaluator (pre vars var-reprs exprs reprs machine))
 
 ;; Creates a Rival machine.
 ;; Requires the input variables and representations, a list of expressions,
 ;; their expected output representations, and an optional precondition.
 (define (make-real-evaluator vars var-reprs specs reprs #:pre [pre '(TRUE)])
+  (unless (= (length vars) (length var-reprs))
+    (error 'make-real-evaluator 
+           "number of variables `~a` and reprs `~a` don't match"
+           vars var-reprs))
+
+  (unless (= (length specs) (length reprs))
+    (error 'make-real-evaluator 
+           "number of expressions `~a` and reprs `~a` don't match"
+           specs reprs))
+
   (define exprs (cons `(assert ,pre) specs))
   (define discs (cons boolean-discretization (map repr->discretization reprs)))
   (define machine (rival-compile exprs vars discs))
   (timeline-push! 'compiler
                   (apply + 1 (expr-size pre) (map expr-size specs))
                   (+ (length vars) (rival-profile machine 'instructions)))
-  (real-evaluator pre vars var-reprs reprs machine))
+  (real-evaluator pre vars var-reprs specs reprs machine))
 
 ;; Runs a Rival machine on an input point.
 (define (run-real-evaluator evaluator pt)
-  (match-define (real-evaluator _ vars var-reprs _ machine) evaluator)
+  (match-define (real-evaluator _ vars var-reprs _ _ machine) evaluator)
   (define start (current-inexact-milliseconds))
   (define pt*
     (for/vector #:length (length vars)

@@ -106,11 +106,11 @@
            ((make-hyperrect-sampler two-point-hyperrects (list repr repr))))))
 
 (define (make-sampler evaluator)
-  (match-define (real-evaluator pre vars var-reprs reprs _) evaluator)
+  (match-define (real-evaluator pre vars var-reprs _ reprs _) evaluator)
   (cond
    [(and (flag-set? 'setup 'search)
          (not (empty? var-reprs))
-         (for/and ([repr (in-list (compose var-reprs reprs))])
+         (for/and ([repr (in-list (append var-reprs reprs))])
            (equal? (representation-type repr) 'real)))
     (timeline-push! 'method "search")
     (define hyperrects-analysis (precondition->hyperrects pre vars var-reprs))
@@ -118,10 +118,10 @@
       (find-intervals evaluator
                       hyperrects-analysis
                       #:fuel (*max-find-range-depth*)))
-    (cons (make-hyperrect-sampler hyperrects reprs) sampling-table)]
+    (cons (make-hyperrect-sampler hyperrects var-reprs) sampling-table)]
    [else
     (timeline-push! 'method "random")
-    (cons (λ () (map random-generate reprs)) (hash 'unknown 1.0))]))
+    (cons (λ () (map random-generate var-reprs)) (hash 'unknown 1.0))]))
 
 (define (assert-contexts-unified! proc-name exprs ctxs)
   (unless (= (length exprs) (length ctxs))
@@ -210,7 +210,8 @@
     (make-real-evaluator (context-vars (car ctxs))
                          (context-var-reprs (car ctxs))
                          exprs
-                         (map context-repr ctxs)))
+                         (map context-repr ctxs)
+                         #:pre pre))
   (match-define (cons sampler table) (make-sampler evaluator))
   (timeline-event! 'sample)
   (match-define (cons table2 results) (batch-prepare-points evaluator sampler))
