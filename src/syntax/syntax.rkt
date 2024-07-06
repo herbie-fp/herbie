@@ -412,14 +412,14 @@
       [(assoc 'fl attrib-dict) => cdr] ; user-provided implementation
       [(operator-accelerator? op) ; Rival-synthesized accelerator implementation
        (match-define `(,(or 'lambda 'λ) (,vars ...) ,body) (operator-spec op-info))
-       (define evaluator (make-real-evaluator (list body) (context vars orepr ireprs)))
+       (define evaluator (make-real-evaluator vars ireprs (list body) orepr))
        (define fail ((representation-bf->repr orepr) +nan.bf))
        (lambda pt
          (define-values (_ exs) (run-real-evaluator evaluator pt))
          (if exs (first exs) fail))]
       [else ; Rival-synthesized operator implementation
        (define vars (build-list (length ireprs) (curry string->symbol "x~a")))
-       (define evaluator (make-real-evaluator (list `(,name ,@vars)) (context vars orepr ireprs)))
+       (define evaluator (make-real-evaluator vars ireprs (list `(,name ,@vars)) orepr))
        (define fail ((representation-bf->repr orepr) +nan.bf))
        (lambda pt
          (define-values (_ exs) (run-real-evaluator evaluator pt))

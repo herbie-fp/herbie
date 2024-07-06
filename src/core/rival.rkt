@@ -16,8 +16,7 @@
          "../float.rkt"
          "../timeline.rkt")
 
-(provide real-evaluator?
-         real-evaluator-ctx
+(provide (struct-out real-evaluator)
          make-real-evaluator
          run-real-evaluator
          real-evaluator-clear!
@@ -34,26 +33,27 @@
    (lambda (x y) (- (ulp-difference x y repr) 1))))
 
 ;; Herbie's wrapper around the Rival machine abstraction.
-(struct real-evaluator (pre specs ctx machine))
+(struct real-evaluator (pre vars var-reprs reprs machine))
 
-;; Creates a Rival machine from a list of specifications and a context.
-;; A precondition can optionally be provided.
-(define (make-real-evaluator specs ctx #:pre [pre '(TRUE)])
-  (match-define (context vars repr _) ctx)
+;; Creates a Rival machine.
+;; Requires the input variables and representations, a list of expressions,
+;; their expected output representations, and an optional precondition.
+(define (make-real-evaluator vars var-reprs specs reprs #:pre [pre '(TRUE)])
   (define exprs (cons `(assert ,pre) specs))
-  (define discs (cons boolean-discretization (map (const (repr->discretization repr)) specs)))
+  (define discs (cons boolean-discretization (map repr->discretization reprs)))
   (define machine (rival-compile exprs vars discs))
   (timeline-push! 'compiler
                   (apply + 1 (expr-size pre) (map expr-size specs))
                   (+ (length vars) (rival-profile machine 'instructions)))
-  (real-evaluator pre specs ctx machine))
+  (real-evaluator pre vars var-reprs reprs machine))
 
 ;; Runs a Rival machine on an input point.
 (define (run-real-evaluator evaluator pt)
-  (match-define (real-evaluator _ _ ctx machine) evaluator)
+  (match-define (real-evaluator _ vars var-reprs _ machine) evaluator)
   (define start (current-inexact-milliseconds))
   (define pt*
-    (for/vector ([val (in-list pt)] [repr (in-list (context-var-reprs ctx))])
+    (for/vector #:length (length vars)
+                ([val (in-list pt)] [repr (in-list var-reprs)])
       ((representation-repr->bf repr) val)))
   (define-values (status value)
     (with-handlers
@@ -64,7 +64,7 @@
         (values 'valid (rest (vector->list (rival-apply machine pt*))))))) ; rest = drop precondition
   (when (> (rival-profile machine 'bumps) 0)
     (warn 'ground-truth "Could not converge on a ground truth"
-          #:extra (for/list ([var (in-list (context-vars ctx))] [val (in-list pt)])
+          #:extra (for/list ([var (in-list vars)] [val (in-list pt)])
                     (format "~a = ~a" var val))))
   (define executions (rival-profile machine 'executions))
   (when (>= (vector-length executions) (*rival-profile-executions*))
