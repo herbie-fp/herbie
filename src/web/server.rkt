@@ -168,44 +168,50 @@
   (define backend (job-result-backend result))
   (define job-time (job-result-time result))
   (define warnings (job-result-warnings result))
+  (define timeline (job-result-timeline result))
 
   (define repr (test-output-repr test)) 
+  (define backend-hash (backend-improve-result-hash-table backend repr))
+
   (hasheq 'status (job-result-status result)
           'test test
           'ctx ctx
           'time job-time
           'warnings warnings
-          'backend (improve-result-hash-table backend repr)))
+          'timeline timeline
+          'backend backend-hash))
 
 (define (end-hash end repr)
   (define-values (end-alts end-errors end-costs)
     (for/lists (l1 l2 l3) ([analysis end])
       (match-define (alt-analysis alt _ test-errs) analysis)
       (values alt test-errs (alt-cost alt repr))))
-  (hasheq 'end-alts (alts-hash end-alts)
+  (define sendable-alts (alts-hash end-alts))
+  (hasheq 'end-alts sendable-alts
           'end-errors end-errors
           'end-costs end-costs))
 
 (define (alts-hash end-alts)
-  (hasheq 'alts 
+  (hasheq 'alts
     (for/list ([alt end-alts])
       (alt-hash alt))))
 
 (define (alt-hash alt)
+  (define prevs (alts-hash (alt-prevs alt)))
+
   (hasheq 'expr (alt-expr alt)
           'event (alt-event alt)
-          'prevs (prev-alt-hash (alt-prevs alt))
+          'prevs prevs
           'preprocessing (alt-preprocessing alt)))
 
-(define (prev-alt-hash alt)
-  (hasheq 'prevs (alts-hash alt)))
+(define (backend-improve-result-hash-table backend repr)
+  (define end-hash-table (end-hash (improve-result-end backend) repr))
 
-(define (improve-result-hash-table backend repr)
   (hasheq 'preprocessing (improve-result-preprocess backend)
           'pctxs (improve-result-pctxs backend)
           'start (improve-result-start backend)
           'target (improve-result-target backend)
-          'end (improve-result-end (end-hash backend repr))
+          'end end-hash-table
           'bogosity (improve-result-bogosity backend)))
 
 (define (ctx-hash-table ctx)

@@ -55,27 +55,26 @@
    [((hash-arg) (string-arg)) generate-page]
    [("results.json") generate-report]))
 
-(define (generate-page req results page)
-  (match-define result results)
+(define (generate-page req result-hash page)
   (define path (string-split (url->string (request-uri req)) "/"))
   (cond
-   [(set-member? (all-pages-modified result) page)
+   [(set-member? (all-pages-modified result-hash) page)
     ;; Write page contents to disk
     (when (*demo-output*)
       (make-directory (build-path (*demo-output*) path))
-      (for ([page (all-pages-modified result)])
+      (for ([page (all-pages-modified result-hash)])
         (call-with-output-file (build-path (*demo-output*) path page)
           (λ (out) 
-            (with-handlers ([exn:fail? (page-error-handler result page out)])
-              (make-page-modifed page out result (*demo-output*) #f)))))
-      (update-report result path (get-seed)
+            (with-handlers ([exn:fail? (page-error-handler-modified result-hash page out)])
+              (make-page-modifed page out result-hash (*demo-output*) #f)))))
+      (update-report-modified result-hash path (get-seed)
                       (build-path (*demo-output*) "results.json")
                       (build-path (*demo-output*) "index.html")))
     (response 200 #"OK" (current-seconds) #"text"
               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count)))))
               (λ (out)
-                (with-handlers ([exn:fail? (page-error-handler result page out)])
-                (make-page-modifed page out result (*demo-output*) #f))))]
+                (with-handlers ([exn:fail? (page-error-handler-modified result-hash page out)])
+                (make-page-modifed page out result-hash (*demo-output*) #f))))]
    [else
     (next-dispatcher)]))
 
@@ -215,6 +214,20 @@
   (rename-file-or-directory tmp-file data-file #t)
   (call-with-output-file html-file #:exists 'replace (curryr make-report-page info #f)))
 
+(define (update-report-modified result-hash dir seed data-file html-file)
+  ; (define link (path-element->string (last (explode-path dir))))
+  ; (define data (get-table-data result link))
+  ; (define info
+  ;   (if (file-exists? data-file)
+  ;       (let ([info (read-datafile data-file)])
+  ;         (struct-copy report-info info [tests (cons data (report-info-tests info))]))
+  ;       (make-report-info (list data) #:seed seed #:note (if (*demo?*) "Web demo results" ""))))
+  ; (define tmp-file (build-path (*demo-output*) "results.tmp"))
+  ; (write-datafile tmp-file info)
+  ; (rename-file-or-directory tmp-file data-file #t)
+  ; (call-with-output-file html-file #:exists 'replace (curryr make-report-page info #f))
+  empty)
+
 (define (post-with-json-response fn)
   (lambda (req)
     (define post-body (request-post-data/raw req))
@@ -320,7 +333,6 @@
    (λ (command)
      (define job-id (start-job command))
      (define result (wait-for-job job-id))
-     (eprintf "improve: ~a\n" result)
      (redirect-to (add-prefix (format "~a.~a/graph.html" job-id *herbie-commit*)) see-other))
    (url main)))
 

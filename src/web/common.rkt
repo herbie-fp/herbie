@@ -14,10 +14,18 @@
 (provide render-menu render-warnings render-large render-comparison 
          render-program render-bogosity render-help render-fpcore
          render-reproduction format-percent
-         program->fpcore program->tex fpcore->string
+         program->fpcore 
+         program->fpcore-modified
+         program->tex fpcore->string
          js-tex-include doc-url
          core->c core->fortran core->java core->python core->julia 
          core->matlab core->wls core->tex expr->tex core->js)
+
+(define (program->fpcore-modified expr context-vars context-repr #:ident [ident #f])
+  (define body (prog->fpcore expr context-repr))
+  (if ident
+      (list 'FPCore ident context-vars body)
+      (list 'FPCore context-vars body)))
 
 (define (program->fpcore expr ctx #:ident [ident #f])
   (define body (prog->fpcore expr (context-repr ctx)))
