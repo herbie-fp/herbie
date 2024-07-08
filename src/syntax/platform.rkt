@@ -6,8 +6,7 @@
          "../utils/errors.rkt"
          "../core/rules.rkt"
          "syntax.rkt"
-         "types.rkt"
-         (submod "syntax.rkt" internals))
+         "types.rkt")
 
 (provide platform
          get-platform
@@ -101,23 +100,6 @@
   (define repr-name (representation-name repr))
   (string->symbol (string-replace* (~a repr-name) replace-table)))
 
-;; Loading conversion-related implementations for `repr1 => repr2`.
-(define (get-conversion-impls irepr orepr)
-  (define impl (or (get-repr-conv irepr orepr #:all? #t) (generate-conversion-impl irepr orepr)))
-  (unless impl
-    (error 'load-conversion-impls!
-           "could not generate conversion ~a => ~a"
-           (format "<~a>" (representation-name irepr))
-           (format "<~a>" (representation-name orepr))))
-  (define rw-impl (get-rewrite-operator orepr #:all? #t))
-  (unless rw-impl
-    ; need to make a "precision rewrite" operator
-    ; (only if we did not generate it before)
-    (define rewrite-name (sym-append '<- (repr->symbol orepr)))
-    (register-operator-impl! 'convert rewrite-name (list orepr) orepr (list (cons 'fl identity)))
-    (set! rw-impl (get-rewrite-operator orepr #:all? #t)))
-  (list impl rw-impl))
-
 ;; Optional error handler based on a value `optional?`.
 (define-syntax-rule (with-cond-handlers optional? ([pred handle] ...) body ...)
   (if optional?
@@ -151,20 +133,21 @@
   (define costs (make-hash))
   (define convs
     (reap [sow]
-          (for ([impl-sig (in-list pform)])
-            (match-define (list op tsig cost) impl-sig)
-            (match* (op tsig)
-              [('cast `(,itype ,otype))
-               (define irepr (get-representation itype))
-               (define orepr (get-representation otype))
-               (with-cond-handlers optional?
-                                   ([exn:fail:user:herbie:missing?
-                                     (λ (_) (set-add! missing (list 'cast itype otype)))])
-                                   (for ([impl (in-list (get-conversion-impls irepr orepr))])
-                                     (hash-set! costs impl cost)
-                                     (sow impl)))]
-              [('cast _) (error 'make-platform "unexpected type signature for `cast` ~a" tsig)]
-              [(_ _) (void)]))))
+      (for ([impl-sig (in-list pform)])
+        (match-define (list op tsig cost) impl-sig)
+        (match* (op tsig)
+          [('cast `(,itype ,otype))
+           (define irepr (get-representation itype))
+           (define orepr (get-representation otype))
+           (cond
+             [(get-cast-impl irepr orepr) =>
+              (lambda (impl)
+                (hash-set! costs impl cost)
+                (sow impl))]
+             [else (set-add! missing (list 'cast itype otype))])]
+          [('cast _)
+           (error 'make-platform "unexpected type signature for `cast` ~a" tsig)]
+          [(_ _) (void)]))))
   ; load the operator implementations
   (define impls
     (reap [sow]
