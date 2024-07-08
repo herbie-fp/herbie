@@ -157,6 +157,7 @@
   (define outcomes (make-hash))
   (define vars (real-evaluator-vars evaluator))
   (define var-reprs (real-evaluator-var-reprs evaluator))
+  (define reprs (real-evaluator-reprs evaluator))
 
   (real-evaluator-clear! evaluator) ; Clear profiling vector
   (define-values (points exactss)
@@ -164,16 +165,16 @@
       (define pt (sampler))
 
       (define-values (status exs) (run-real-evaluator evaluator pt))
-      (when (equal? status 'exit)
-        (warn 'ground-truth #:url "faq.html#ground-truth"
-              "could not determine a ground truth"
-              #:extra (for/list ([var vars] [val pt])
-                        (format "~a = ~a" var val))))
-
-      (when (equal? status 'valid)
-        (for ([ex (in-list exs)])
-          (when (and (flonum? ex) (infinite? ex))
-            (set! status 'infinite))))
+      (case status
+        [(exit)
+         (warn 'ground-truth #:url "faq.html#ground-truth"
+               "could not determine a ground truth"
+               #:extra (for/list ([var vars] [val pt])
+                         (format "~a = ~a" var val)))]
+        [(valid)
+         (for ([ex (in-list exs)] [repr (in-list reprs)])
+           (when (bfinfinite? ((representation-repr->bf repr) ex))
+             (set! status 'infinite)))])
 
       (hash-update! outcomes status (curry + 1) 0)
 
