@@ -2,7 +2,7 @@
 
 (require openssl/sha1)
 
-(require "../sandbox.rkt" "../load-plugin.rkt" "../common.rkt" "../syntax/read.rkt" "../syntax/types.rkt" "../float.rkt" "../alternative.rkt")
+(require "../sandbox.rkt" "../load-plugin.rkt" "../common.rkt" "../syntax/read.rkt" "../syntax/types.rkt" "../float.rkt" "../alternative.rkt" "history.rkt" "../preprocess.rkt")
 (require (submod "../timeline.rkt" debug))
 (require racket/place)
 
@@ -171,7 +171,8 @@
   (define timeline (job-result-timeline result))
 
   (define repr (test-output-repr test)) 
-  (define backend-hash (backend-improve-result-hash-table backend repr))
+  
+  (define backend-hash (backend-improve-result-hash-table backend repr test))
 
   (hasheq 'status (job-result-status result)
           'test test
@@ -181,20 +182,20 @@
           'timeline timeline
           'backend backend-hash))
 
-(define (end-hash end repr)
+(define (end-hash end repr processed-pcontext test-pcontext test)
   (define-values (end-alts end-errors end-costs)
     (for/lists (l1 l2 l3) ([analysis end])
       (match-define (alt-analysis alt _ test-errs) analysis)
       (values alt test-errs (alt-cost alt repr))))
-  (define sendable-alts (alts-hash end-alts))
+  (define sendable-alts (alts-hash end-alts processed-pcontext test-pcontext test))
   (hasheq 'end-alts sendable-alts
           'end-errors end-errors
           'end-costs end-costs))
 
-(define (alts-hash end-alts)
+(define (alts-hash end-alts processed-pcontext test-pcontext test)
   (hasheq 'alts
     (for/list ([alt end-alts])
-      (alt-hash alt))))
+      (render-json alt processed-pcontext test-pcontext (test-context test)))))
 
 (define (alt-hash alt)
   (define prevs (alts-hash (alt-prevs alt)))
@@ -204,11 +205,17 @@
           'prevs prevs
           'preprocessing (alt-preprocessing alt)))
 
-(define (backend-improve-result-hash-table backend repr)
-  (define end-hash-table (end-hash (improve-result-end backend) repr))
+(define (backend-improve-result-hash-table backend repr test)
+  (define pcontext (improve-result-pctxs backend))
+  (eprintf "~a\n" pcontext)
+  (define preprocessing (improve-result-preprocess backend))
+  (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext))
+  (define test-pcontext* (preprocess-pcontext (*context*) test-pcontext preprocessing))
 
-  (hasheq 'preprocessing (improve-result-preprocess backend)
-          'pctxs (improve-result-pctxs backend)
+  (define end-hash-table (end-hash (improve-result-end backend) repr test-pcontext* test-pcontext test))
+
+  (hasheq 'preprocessing preprocessing
+          'pctxs pcontext
           'start (improve-result-start backend)
           'target (improve-result-target backend)
           'end end-hash-table

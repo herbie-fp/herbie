@@ -26,6 +26,7 @@
 (provide run-herbie
          get-table-data
          unparse-result
+         partition-pcontext
          *reeval-pts*
          *timeout*
          (struct-out job-result)
