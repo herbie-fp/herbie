@@ -2,7 +2,7 @@
 
 (require openssl/sha1)
 
-(require "../sandbox.rkt" "../load-plugin.rkt" "../common.rkt")
+(require "../sandbox.rkt" "../load-plugin.rkt" "../common.rkt" "../syntax/read.rkt" "../syntax/types.rkt" "../float.rkt" "../alternative.rkt")
 (require (submod "../timeline.rkt" debug))
 (require racket/place)
 
@@ -156,11 +156,65 @@
         ['cost empty]
         ['errors empty]
         ['exacts empty]
-        ['improve (set! out-result (get-table-data herbie-result ""))]
+        ['improve (set! out-result (improve-result-hash herbie-result))]
         ['local-error empty]
         ['sample empty]
         [_ (error 'compute-result "unknown command ~a" kind)])
       (place-channel-put ch out-result))))
+
+(define (improve-result-hash result)
+  (define test (job-result-test result))
+  (define ctx (ctx-hash-table (test-context test)))
+  (define backend (job-result-backend result))
+  (define job-time (job-result-time result))
+  (define warnings (job-result-warnings result))
+
+  (define repr (test-output-repr test)) 
+  (hasheq 'status (job-result-status result)
+          'test test
+          'ctx ctx
+          'time job-time
+          'warnings warnings
+          'backend (improve-result-hash-table backend repr)))
+
+(define (end-hash end repr)
+  (define-values (end-alts end-errors end-costs)
+    (for/lists (l1 l2 l3) ([analysis end])
+      (match-define (alt-analysis alt _ test-errs) analysis)
+      (values alt test-errs (alt-cost alt repr))))
+  (hasheq 'end-alts (alts-hash end-alts)
+          'end-errors end-errors
+          'end-costs end-costs))
+
+(define (alts-hash end-alts)
+  (hasheq 'alts 
+    (for/list ([alt end-alts])
+      (alt-hash alt))))
+
+(define (alt-hash alt)
+  (hasheq 'expr (alt-expr alt)
+          'event (alt-event alt)
+          'prevs (prev-alt-hash (alt-prevs alt))
+          'preprocessing (alt-preprocessing alt)))
+
+(define (prev-alt-hash alt)
+  (hasheq 'prevs (alts-hash alt)))
+
+(define (improve-result-hash-table backend repr)
+  (hasheq 'preprocessing (improve-result-preprocess backend)
+          'pctxs (improve-result-pctxs backend)
+          'start (improve-result-start backend)
+          'target (improve-result-target backend)
+          'end (improve-result-end (end-hash backend repr))
+          'bogosity (improve-result-bogosity backend)))
+
+(define (ctx-hash-table ctx)
+  (hasheq 'vars (context-vars ctx)
+          'repr (repr-hash-table (context-repr ctx))))
+
+(define (repr-hash-table repr)
+  (hasheq 'name (representation-name repr)
+          'type (representation-type repr)))
 
 (define-syntax (place/context* stx)
   (syntax-case stx ()

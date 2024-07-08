@@ -10,7 +10,7 @@
   (length (remove-duplicates (map (curryr list-ref idx) pts))))
 
 (define (all-pages-modified result)
-  (define good? (eq? (table-row-status result) 'success))
+  (define good? (eq? (hash-ref result 'status) 'success))
   (define default-pages '("graph.html" "timeline.html" "timeline.json"))
   (define success-pages '("interactive.js" "points.json"))
   (append default-pages (if good? success-pages empty)))
@@ -35,13 +35,13 @@ Well I know I need to to pass the needed result data to generate a page from tab
 |#
 (define (make-page-modifed page out result output? profile?)
   (eprintf "result: ~a\n" result)
-  (define test (job-result-test result))
-  (define status (job-result-status result))
-  (define ctx (test-context test))
+  (define test (hash-ref 'test result))
+  (define status (hash-ref 'status result))
+  (define ctx (hash-ref 'ctx result))
   (match page
     ["graph.html"
      (match status
-       ['success (make-graph result out output? (get-interactive-js result ctx) profile?)]
+       ['success (make-graph-modified result out output? (get-interactive-js result ctx) profile?)]
        ['timeout (make-traceback result out profile?)]
        ['failure (make-traceback result out profile?)]
        [_ (error 'make-page "unknown result type ~a" status)])]
