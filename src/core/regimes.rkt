@@ -24,6 +24,7 @@
 
 (define (pareto-regimes sorted ctx)
   (define err-lsts (flip-lists (batch-errors (map alt-expr sorted) (*pcontext*) ctx)))
+  (define branches (exprs-to-branch-on sorted ctx))
   (let loop ([alts sorted] [errs (hash)] [err-lsts err-lsts])
     (cond
      [(null? alts) '()]
@@ -32,17 +33,17 @@
       '()]
      [else
       (define-values (opt new-errs) 
-        (infer-splitpoints alts err-lsts #:errs errs ctx))
+        (infer-splitpoints alts err-lsts #:errs errs ctx branches))
       (define high (si-cidx (argmax (λ (x) (si-cidx x)) (option-split-indices opt))))
       (cons opt (loop (take alts high) new-errs (take err-lsts high)))])))
 
 ;; `infer-splitpoints` and `combine-alts` are split so the mainloop
 ;; can insert a timeline break between them.
 
-(define (infer-splitpoints alts err-lsts* #:errs [cerrs (hash)] ctx)
+(define (infer-splitpoints alts err-lsts* #:errs [cerrs (hash)] ctx branches)
   (define branch-exprs
     (if (flag-set? 'reduce 'branch-expressions)
-        (exprs-to-branch-on alts ctx)
+        branches
         (context-vars ctx)))
   (timeline-event! 'regimes)
   (timeline-push! 'inputs (map (compose ~a alt-expr) alts))
