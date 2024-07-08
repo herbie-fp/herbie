@@ -24,7 +24,8 @@
 
 (define (pareto-regimes sorted ctx)
   (define err-lsts (flip-lists (batch-errors (map alt-expr sorted) (*pcontext*) ctx)))
-  (define branches (exprs-to-branch-on sorted ctx))
+  (define branches (if (null? sorted) '()
+  (exprs-to-branch-on sorted ctx)))
   (let loop ([alts sorted] [errs (hash)] [err-lsts err-lsts])
     (cond
      [(null? alts) '()]
