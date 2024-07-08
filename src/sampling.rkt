@@ -123,7 +123,7 @@
     (timeline-push! 'method "random")
     (cons (λ () (map random-generate var-reprs)) (hash 'unknown 1.0))]))
 
-(define (assert-contexts-unified! proc-name exprs ctxs)
+(define (unify-contexts! proc-name exprs ctxs)
   (unless (= (length exprs) (length ctxs))
     (error proc-name
            "number of expressions and contexts are different: ~a and ~a"
@@ -134,16 +134,14 @@
   (for ([ctx* (in-list (cdr ctxs))])
     (unless (and (equal? (context-vars ctx) (context-vars ctx*))
                  (equal? (context-var-reprs ctx) (context-var-reprs ctx*)))
-      (error proc-name "contexts don't have matching variables/representations ~a" ctxs))))
+      (error proc-name "contexts don't have matching variables/representations ~a" ctxs)))
+  (values (context-vars ctx) (context-var-reprs ctx)))
 
 ;; Returns an evaluator for a list of expressions.
 (define (eval-progs-real specs ctxs)
-  (assert-contexts-unified! 'eval-progs-real specs ctxs)
-  (define evaluator
-    (make-real-evaluator (context-vars (car ctxs))
-                         (context-var-reprs (car ctxs))
-                         specs
-                         (map context-repr ctxs)))
+  (define-values (vars var-reprs) (unify-contexts! 'eval-progs-real specs ctxs))
+  (define reprs (map context-repr ctxs))
+  (define evaluator (make-real-evaluator vars var-reprs specs reprs))
   (define bad-pt 
     (for/list ([ctx* (in-list ctxs)])
       ((representation-bf->repr (context-repr ctx*)) +nan.bf)))
@@ -152,7 +150,7 @@
     (or exs bad-pt))
   <eval-prog-real>)
 
-;; Part 3: computing exact values by recomputing at higher precisions
+;; Part 3: compute exact values using Rival's algorithm
 
 (define (batch-prepare-points evaluator sampler)
   ;; If we're using the bf fallback, start at the max precision
@@ -204,14 +202,10 @@
     (hash-set t1 k (+ (hash-ref t1 k 0) (* (/ v t2-total) t1-base)))))
 
 (define (sample-points pre exprs ctxs)
-  (timeline-event! 'analyze) 
-  (assert-contexts-unified! 'sample-points exprs ctxs)
-  (define evaluator
-    (make-real-evaluator (context-vars (car ctxs))
-                         (context-var-reprs (car ctxs))
-                         exprs
-                         (map context-repr ctxs)
-                         #:pre pre))
+  (timeline-event! 'analyze)
+  (define-values (vars var-reprs) (unify-contexts! 'sample-points exprs ctxs))
+  (define reprs (map context-repr ctxs))
+  (define evaluator (make-real-evaluator vars var-reprs exprs reprs #:pre pre))
   (match-define (cons sampler table) (make-sampler evaluator))
   (timeline-event! 'sample)
   (match-define (cons table2 results) (batch-prepare-points evaluator sampler))
