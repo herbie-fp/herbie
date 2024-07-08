@@ -81,6 +81,18 @@
       (core->tex core #:loc (and loc (cons 2 loc)) #:color "blue")
       "ERROR"))
 
+(define (mixed->fpcore expr ctx)
+  (define expr*
+    (let loop ([expr expr])
+      (match expr
+        [(? symbol?) expr]
+        [(? number?) expr]
+        [(? literal?) (literal-value expr)]
+        [`(if ,cond ,ift ,iff) `(if ,(loop cond) ,(loop ift) ,(loop ift))]
+        [`(,(? impl-exists? impl) ,args ...) `(,(impl->operator impl) ,@(map loop args))]
+        [`(,op ,args ...) `(,op ,@(map loop args))])))
+  `(FPCore ,(context-vars ctx) ,expr*))
+
 ;; HTML renderer for derivations
 (define/contract (render-history altn pcontext pcontext2 ctx)
   (-> alt? pcontext? pcontext? context? (listof xexpr?))
@@ -120,12 +132,13 @@
        (li ([class "event"]) "Recombined " ,(~a (length prevs)) " regimes into one program."))]
 
     [(alt prog `(taylor ,loc ,pt ,var) `(,prev) _)
+     (define core (mixed->fpcore prog ctx))
      `(,@(render-history prev pcontext pcontext2 ctx)
        (li (p "Taylor expanded in " ,(~a var)
               " around " ,(~a pt))
            (div ([class "math"])
              "\\[\\leadsto "
-             ,(expr->tex prog ctx #:loc loc)
+             ,(core->tex core #:loc (and loc (cons 2 loc)) #:color "blue")
              "\\]")))]
 
     [(alt prog `(simplify ,loc ,input ,proof ,soundiness) `(,prev) _)
@@ -169,16 +182,21 @@
      (ol
       ,@(for/list ([step proof] [sound soundiness])
           (define-values (dir rule loc expr) (splice-proof-step step))
-          (define err
-            (if (impl-prog? expr)
-                (format-accuracy
-                  (errors-score (errors expr pcontext ctx))
-                  (representation-total-bits (context-repr ctx))
-                  #:unit "%")
-                "N/A"))
+          ;; need to handle mixed real/float expressions
+          (define-values (err prog)
+            (cond
+              [(impl-prog? expr) ; impl program?
+               (values
+                 (format-accuracy
+                   (errors-score (errors expr pcontext ctx))
+                   (representation-total-bits (context-repr ctx)))
+                  (program->fpcore expr ctx))]
+              [else
+               (values "N/A" (mixed->fpcore expr ctx))]))
+          ;; soundiness
           (define num-increase (if sound (first sound) "N/A"))
           (define num-decrease (if sound (second sound) "N/A"))
-
+          ; the proof
           (if (equal? dir 'Goal)
               ""
               `(li ,(let ([dir (match dir ['Rewrite<= "right to left"] ['Rewrite=> "left to right"])]
@@ -188,11 +206,9 @@
                           (span ([class "error"] [title ,tag]) ,err)))
                    (div ([class "math"])
                         "\\[\\leadsto "
-                        ,(expr->tex expr ctx #:loc (cons 2 loc))
+                        ,(core->tex prog #:loc (and loc (cons 2 loc)) #:color "blue")
                         "\\]"))))))))
 
-; TODO: needs review by Odyssey team
-; no idea how to integrate proofs
 (define (render-json altn pcontext pcontext2 ctx)
   (define repr (context-repr ctx))
   (define-values (err err2)
