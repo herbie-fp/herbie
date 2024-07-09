@@ -157,7 +157,7 @@
 (define (egraph-find egraph-data id)
   (egraph_find (egraph-data-egraph-pointer egraph-data) id))
 
-(define (egraph-is-equal egraph-data expr goal ctx)
+(define (egraph-expr-equal? egraph-data expr goal ctx)
   (define egg-expr (~a (expr->egg-expr expr egraph-data ctx)))
   (define egg-goal (~a (expr->egg-expr goal egraph-data ctx)))
   (egraph_is_equal (egraph-data-egraph-pointer egraph-data) egg-expr egg-goal))
@@ -1312,30 +1312,33 @@
     (egraph-run-schedule (egg-runner-exprs runner) (egg-runner-schedule runner) ctx))
   ; Perform extraction
   (match cmd
-    [`(single . ,extractor)
-     ; single expression extraction
+    [`(single . ,extractor) ; single expression extraction
      (define regraph (make-regraph egg-graph))
      (define extract-id (extractor regraph))
      (define reprs (egg-runner-reprs runner))
      (for/list ([id (in-list root-ids)] [repr (in-list reprs)])
        (regraph-extract-best regraph extract-id id repr))]
-    [`(multi . ,extractor)
-     ; multi expression extraction
+    [`(multi . ,extractor) ; multi expression extraction
      (define regraph (make-regraph egg-graph))
      (define extract-id (extractor regraph))
      (define reprs (egg-runner-reprs runner))
      (for/list ([id (in-list root-ids)] [repr (in-list reprs)])
        (regraph-extract-variants regraph extract-id id repr))]
-    [`(proofs . ((,start-exprs . ,end-exprs) ...))
-     ; proof extraction
-     (for/list ([start (in-list start-exprs)] [end (in-list end-exprs)])
-       (unless (egraph-is-equal egg-graph start end ctx)
+    [`(proofs . ((,start-exprs . ,end-exprs) ...)) ; proof extraction
+     (for/list ([start (in-list start-exprs)]
+                [end (in-list end-exprs)])
+       (unless (egraph-expr-equal? egg-graph start end ctx)
          (error 'run-egg
                 "cannot find proof; start and end are not equal.\n start: ~a \n end: ~a"
-                start
-                end))
-       (define proof (egraph-get-proof egg-graph start end ctx))
-       (when (null? proof)
-         (error 'run-egg "proof extraction failed between`~a` and `~a`" start end))
-       proof)]
+                start end))
+        (define proof (egraph-get-proof egg-graph start end ctx))
+        (when (null? proof)
+          (error 'run-egg
+                 "proof extraction failed between`~a` and `~a`"
+                 start end))
+        proof)]
+    [`(equal? . ((,start-exprs . ,end-exprs) ...)) ; term equality?
+     (for/list ([start (in-list start-exprs)]
+                [end (in-list end-exprs)])
+       (egraph-expr-equal? egg-graph start end ctx))]
     [_ (error 'run-egg "unknown command `~a`\n" cmd)]))
