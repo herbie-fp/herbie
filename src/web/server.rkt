@@ -182,37 +182,10 @@
           'timeline timeline
           'backend backend-hash))
 
-(define (end-hash end repr processed-pcontext test-pcontext test)
-  (define-values (end-alts end-errors end-costs)
-    (for/lists (l1 l2 l3) ([analysis end])
-      (match-define (alt-analysis alt _ test-errs) analysis)
-      (values alt test-errs (alt-cost alt repr))))
-  (define sendable-alts (alts-hash end-alts processed-pcontext test-pcontext test))
-  (hasheq 'end-alts sendable-alts
-          'end-errors end-errors
-          'end-costs end-costs))
-
-(define (alts-hash end-alts processed-pcontext test-pcontext test)
-  (hasheq 'alts
-    (for/list ([alt end-alts])
-      (render-json alt processed-pcontext test-pcontext (test-context test)))))
-
-(define (alt-hash alt)
-  (define prevs (alts-hash (alt-prevs alt)))
-
-  (hasheq 'expr (alt-expr alt)
-          'event (alt-event alt)
-          'prevs prevs
-          'preprocessing (alt-preprocessing alt)))
-
 (define (backend-improve-result-hash-table backend repr test)
   (define pcontext (improve-result-pctxs backend))
-  (eprintf "~a\n" pcontext)
   (define preprocessing (improve-result-preprocess backend))
-  (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext))
-  (define test-pcontext* (preprocess-pcontext (*context*) test-pcontext preprocessing))
-
-  (define end-hash-table (end-hash (improve-result-end backend) repr test-pcontext* test-pcontext test))
+  (define end-hash-table (end-hash (improve-result-end backend) repr preprocessing pcontext test))
 
   (hasheq 'preprocessing preprocessing
           'pctxs pcontext
@@ -220,6 +193,23 @@
           'target (improve-result-target backend)
           'end end-hash-table
           'bogosity (improve-result-bogosity backend)))
+
+(define (end-hash end repr preprocessing pcontexts test)
+  (define-values (processed test-pctx)
+    (for/lists (l1 l2) ([pctx pcontexts])
+    (define-values (train-pcontext test-pcontext) (partition-pcontext pctx))
+    (values 
+      (preprocess-pcontext (*context*) test-pcontext preprocessing) test-pcontext)))
+  (define-values (end-alts end-errors end-costs)
+    (for/lists (l1 l2 l3) ([analysis end])
+      (match-define (alt-analysis alt _ test-errs) analysis)
+      (values alt test-errs (alt-cost alt repr))))
+  (define sendable-alts 
+    (for/list ([alt end-alts] [ppctx processed] [tpctx test-pctx])
+      (render-json alt ppctx tpctx (test-context test))))
+  (hasheq 'end-alts sendable-alts
+          'end-errors end-errors
+          'end-costs end-costs))
 
 (define (ctx-hash-table ctx)
   (hasheq 'vars (context-vars ctx)

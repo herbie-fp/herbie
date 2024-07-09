@@ -79,7 +79,6 @@ make-graph-modified)
   (define list-target-cost
     (for/list ([target targets])
       (alt-cost (alt-analysis-alt target) repr)))
-
   (define end-alts (hash-ref (hash-ref end 'end-alts) 'alts))
   (define end-errors (hash-ref end 'end-errors))
   (define end-costs (hash-ref end 'end-costs))
