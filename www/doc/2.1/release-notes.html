@@ -8,6 +8,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     .showcase { margin: 1em 0; }
+    .showcase.side-by-side { display: flex; gap: 1em; }
+    .showcase.side-by-side :nth-child(1) { width: 60%; }
+    .showcase.side-by-side :nth-child(2) { flex-grow: 1; hyphens: auto; }
     #team {
         display: block; box-sizing: border-box; width: 100%;
         border-radius: 2em; border: 3px solid black;
@@ -49,12 +52,18 @@
 
   <h2>Faster Generated Code</h2>
 
-  <figure class="showcase">
-    <img src="report-cost-accuracy.png"
-         alt="The Accuracy vs Speed section of a Herbie report, which has an accuracy vs speedup Pareto plot on the left and a tabular view of the accuracy and speed of each of Herbie's alternatives on the right.">
+  <figure class="showcase side-by-side">
+    <img src="localize-comparison.png"
+         alt="A comparison of speed-accuracy curves for Herbie 2.0 and
+         2.1, showing much faster low-accuracy code in Herbie 2.1.">
     <figcaption>
-      Herbie 2.0 and 2.1 speed-accuracy curves, showing that Herbie
-      2.1 generates much faster code, especially at low accuracy levels.
+      Herbie 2.0 (green) and 2.1 (blue) speed-accuracy curves on the
+      Hamming test suite, showing that Herbie 2.1 generates much
+      faster code, especially at low accuracy levels. The impact is
+      due to both typed extraction (described on the plot as
+      egg-serialize) and the cost opportunity heuristic (described on
+      the plot as cost localization). The orange curve shows that both
+      components are necessary to achieve the best results.
     </figcaption>
   </figure>
 
@@ -94,14 +103,36 @@
   <h2>Faster Sampling</h2>
   
   <figure class="showcase">
-    <img src="report-large.png" alt="The metrics shown at the top of each Herbie report: percentage accurate, time, alternatives, and speedup.">
+    <style>
+      #prectune thead th[colspan] { text-align: center; }
+      #prectune { width: 100%; }
+      #prectune tbody th, #prectune tfoot th { text-align: left; }
+      #prectune tr :nth-child(1n+2) { text-align: right; }
+    </style>
+    <table id="prectune">
+      <thead>
+        <tr><th><th colspan=2>Iteration 0<th colspan=2>Iteration 1<th colspan=2>Iteration 2
+        <tr><th>Operation<th>Precision<th>Time (µs)<th>Precision<th>Time (µs)<th>Precision<th>Time (µs)
+      </thead>
+      <tbody>
+        <tr><th>Tuning<td><td><td><td>22.9<td><td>21.0</tr>
+        <tr><th><code>cos</code><td>78<td>75.9<td>592<td>98.9<td>1695<td>173.1</tr>
+        <tr><th><code>add</code><td>83<td>11.0<td>2107<td>10.0<td>2698<td>11.0</tr>
+        <tr><th><code>cos</code><td>78<td>8.1<td>593<td>99.1<td>1695<td>176.0</tr>
+        <tr><th><code>sub</code><td>73<td>10.0<td>73<td>10.0<td>73<td>11.0</tr>
+      </tbody>
+      <tfoot>
+        <tr><th>Total<td><td>105.0<td><td>241.0<td><td>392.1</tr>
+      </tfoot>
+    </table>
     <figcaption>
-      A precision-tuned execution of the expression <code>XXX</code>.
-      Each row of the table represents one mathematical operation,
-      while the pairs of columns describe iterations until the
-      correctly-rounded result is computed. Note that the "precision"
-      columns are not uniform: each operation's precision is chosen
-      independently.
+      A precision-tuned execution of <code>cos(x) - cos(x + ɛ)</code>
+      when <code>x = 10<sup>300</sup></code> and <code>ɛ =
+      10<sup>-300</sup></code>. Each row of the table represents one
+      mathematical operation (or the time spent precision-tuning), and
+      each pair of columns describes one iteration precision and
+      execution time for that operation. Each operation's precision is
+      chosen independently, so the precision column is not uniform.
     </figcaption>
   </figure>
 
@@ -129,16 +160,16 @@
       types (<a href="https://github.com/herbie-fp/herbie/pull/748">#748</a>),
       and algorithms (<a href="https://github.com/herbie-fp/herbie/pull/772">#772</a>),
       which together lead to a 2–3× speed up to regimes.</li>
-    <li>Random number generation saw a small speed up
-      (<a href="https://github.com/herbie-fp/herbie/pull/792">#792</a>).</li>
-    <li>Analysis capped an exponential blow-up that occurred for some preconditions
-      (<a href="https://github.com/herbie-fp/herbie/pull/762">#762</a>).</li>
     <li>The floating-point program interpreter was rewritten and sped up
       (<a href="https://github.com/herbie-fp/herbie/pull/766">#766</a>).</li>
-    <li>An accidentally-quadratic lookup in pruning was found and fixed
-      (<a href="https://github.com/herbie-fp/herbie/pull/781">#781</a>).</li>
     <li>Batching sped up derivation generation significantly
       (<a href="https://github.com/herbie-fp/herbie/pull/736">#736</a>.)</li>
+    <li>An accidentally-quadratic lookup in pruning was found and fixed
+      (<a href="https://github.com/herbie-fp/herbie/pull/781">#781</a>).</li>
+    <li>Analysis capped an exponential blow-up that occurred for some preconditions
+      (<a href="https://github.com/herbie-fp/herbie/pull/762">#762</a>).</li>
+    <li>Random number generation saw a small speed up
+      (<a href="https://github.com/herbie-fp/herbie/pull/792">#792</a>).</li>
   </ul>
   
   <p>So how much faster is Herbie now? Not that much actually... but
@@ -149,10 +180,19 @@
   <h2>New Features: Platforms and Explanations</h2>
 
   <figure class="showcase">
-    <img src="report-alternative-derivation.png" alt="The derivation section shown for each alternative produced by Herbie, which show step by step how the initial program was transformed into the alternative.">
+    <pre>(define-accelerator (sind real) real
+  (λ (x) (sin (* x (/ (PI) 180)))))
+(define-accelerator (cosd real) real
+  (λ (x) (cos (* x (/ (PI) 180)))))
+(define-accelerator (tand real) real
+  (λ (x) (tan (* x (/ (PI) 180)))))</pre>
     <figcaption>
-      A Herbie "platform" for the Julia language, describing special
-      library functions like <code>cosd</code> and <code>abs2</code>.
+      A snippet from the Herbie "platform" for
+      the <a href="https://julialang.org/">Julia language</a>,
+      describing special library functions <code>cosd</code>,
+      <code>sind</code>, and <code>tand</code>, which Julia provides.
+      When using this platform, Herbie will use these functions in its
+      generated code.
     </figcaption>
   </figure>
 
@@ -214,7 +254,8 @@
     <li>Friends at Intel contributed benchmarks from the DirectX specification
       (<a href="https://github.com/herbie-fp/herbie/pull/655">#656</a>).</li>
     <li>Caching has sped up Herbie's continuous integration
-      (<a href="https://github.com/herbie-fp/herbie/pull/663">#663</a>).<li>
+      (<a href="https://github.com/herbie-fp/herbie/pull/663">#663</a>).</li>
+  </ul>
 
   <h2>Other improvements</h2>
   <ul>
