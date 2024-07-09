@@ -1325,8 +1325,7 @@
      (for/list ([id (in-list root-ids)] [repr (in-list reprs)])
        (regraph-extract-variants regraph extract-id id repr))]
     [`(proofs . ((,start-exprs . ,end-exprs) ...)) ; proof extraction
-     (for/list ([start (in-list start-exprs)]
-                [end (in-list end-exprs)])
+     (for/list ([start (in-list start-exprs)] [end (in-list end-exprs)])
        (unless (egraph-expr-equal? egg-graph start end ctx)
          (error 'run-egg
                 "cannot find proof; start and end are not equal.\n start: ~a \n end: ~a"
@@ -1338,7 +1337,6 @@
                  start end))
         proof)]
     [`(equal? . ((,start-exprs . ,end-exprs) ...)) ; term equality?
-     (for/list ([start (in-list start-exprs)]
-                [end (in-list end-exprs)])
+     (for/list ([start (in-list start-exprs)] [end (in-list end-exprs)])
        (egraph-expr-equal? egg-graph start end ctx))]
     [_ (error 'run-egg "unknown command `~a`\n" cmd)]))
