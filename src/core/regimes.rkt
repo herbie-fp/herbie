@@ -34,14 +34,14 @@
       '()]
      [else
       (define-values (opt new-errs) 
-        (infer-splitpoints alts err-lsts #:errs errs ctx branches))
+        (infer-splitpoints branches alts err-lsts #:errs errs ctx ))
       (define high (si-cidx (argmax (λ (x) (si-cidx x)) (option-split-indices opt))))
       (cons opt (loop (take alts high) new-errs (take err-lsts high)))])))
 
 ;; `infer-splitpoints` and `combine-alts` are split so the mainloop
 ;; can insert a timeline break between them.
 
-(define (infer-splitpoints alts err-lsts* #:errs [cerrs (hash)] ctx branches)
+(define (infer-splitpoints branches alts err-lsts* #:errs [cerrs (hash)] ctx )
   (define branch-exprs
     (if (flag-set? 'reduce 'branch-expressions)
         branches
