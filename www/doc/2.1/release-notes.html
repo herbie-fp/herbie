@@ -215,10 +215,29 @@
   <h2>Sister Projects</h2>
   
   <p>
-    The <a href="https://github.com/herbie-fp/odyssey">Odyssey
-    numerics workbench</a> is releasing version XXX today, featuring
-    XXX.
+    The <a href="https://github.com/herbie-fp/odyssey">Odyssey numerics 
+      workbench</a> is releasing version 1.1 today, featuring FPTaylor 
+      support and expression export. Odyssey and supporting tools like 
+      Herbie and FPTaylor can be installed and run locally through the 
+      <a href="https://marketplace.visualstudio.com/items?itemName=herbie-fp.odyssey-fp">
+      Odyssey VSCode extension</a>. New features include:
   </p>
+  
+  <ul>
+    <li>Support for using FPTaylor to compute sound error bounds in
+    Odyssey. Select "FPTaylor Analysis" from the tool dropdown for an
+    expression. This is a part of a larger effort to combine different
+    floating point tools as parts of an analysis.</li>
+    <li>Odyssey now supports exporting expressions to different
+    languages using the new "Expression Export" tool.</li>
+    <li>Herbie has been updated with an HTTP API endpoint to support
+    Odyssey's expression export. Herbie's HTTP API endpoints are
+    documented <a href="https://herbie.uwplse.org/doc/2.1/api-endpoints.html">here</a>.</li>
+    <li>Like the Herbie demo, Odyssey now shows the percent accuracy
+    of expressions, rather than bits of error.</li>
+    <li>The layout of the Odyssey interface has been updated and will
+    continue to see rolling updates.</li>
+  </ul>
   
   <p>
     The <a href="https://github.com/herbie-fp/rival">Rival
