@@ -79,7 +79,7 @@ make-graph-modified)
   (define list-target-cost
     (for/list ([target targets])
       (alt-cost (alt-analysis-alt target) repr)))
-  (define end-alts (hash-ref (hash-ref end 'end-alts) 'alts))
+  (define end-alts (hash-ref end 'end-alts))
   (define end-errors (hash-ref end 'end-errors))
   (define end-costs (hash-ref end 'end-costs))
 
@@ -201,6 +201,7 @@ make-graph-modified)
                    ,body))
 
       ,@(for/list ([i (in-naturals 1)] [alt-c end-alts] [errs end-errors] [cost end-costs])
+          (eprintf "\nalt-c:~a\n" alt-c) ;; Ok where is everything in the JSON.
           (define new-alt (alt (hash-ref alt-c 'expr) (hash-ref alt-c 'event) (list) (hash-ref alt-c 'preprocessing)))
           (eprintf "new-alt: ~a\n" new-alt)
           (define-values (dropdown body)
