@@ -173,7 +173,9 @@
                          (format "~a = ~a" var val)))]
         [(valid)
          (for ([ex (in-list exs)] [repr (in-list reprs)])
-           (when (bfinfinite? ((representation-repr->bf repr) ex))
+           ; The `bool` representation does not produce bigfloats
+           (define maybe-bf ((representation-repr->bf repr) ex))
+           (when (and (bigfloat? maybe-bf) (bfinfinite? maybe-bf))
              (set! status 'infinite)))])
 
       (hash-update! outcomes status (curry + 1) 0)
