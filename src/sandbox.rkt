@@ -164,19 +164,12 @@
   (unless pcontext
     (error 'explain "cannot run without a pcontext"))
 
-  (define-values (train-pcontext test-pcontext)
-    (partition-pcontext pcontext))
+  (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext))
   (*pcontext* test-pcontext)
-  (define-values (subexprs-list repr-hash subexprs-fn)
-    (compile-expr (test-input test) (*context*)))
-  (define-values (error-count-hash
-                  expls->points
-                  maybe-expls->points
-                  oflow-hash
-                  uflow-hash)
-    (predict-errors (*context*) (*pcontext*)
-                    subexprs-list repr-hash subexprs-fn))
-  (gen-expls-table expls->points maybe-expls->points oflow-hash uflow-hash))
+  (define-values (fperrors sorted-explanations-table confusion-matrix maybe-confusion-matrix total-confusion-matrix freqs)
+    (explain (test-input test)(*context*)(*pcontext*)))
+
+  sorted-explanations-table)
 
 ;; TODO: What in the timeline needs fixing with these changes?
 
@@ -304,7 +297,7 @@
             ['exacts (get-exacts test pcontext)]
             ['improve (get-alternatives/report test)]
             ['local-error (get-local-error test pcontext)]
-            ['explain (get-explanations test pcontext)]
+            ['explanations (get-explanations test pcontext)]
             ['sample (get-sample test)]
             [_ (error 'compute-result "unknown command ~a" command)]))
         (timeline-event! 'end)

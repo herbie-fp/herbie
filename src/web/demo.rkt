@@ -47,6 +47,7 @@
    [("api" "sample") #:method "post" sample-endpoint]
    [("api" "analyze") #:method "post" analyze-endpoint]
    [("api" "localerror") #:method "post" local-error-endpoint]
+   [("api" "explanations") #:method "post" explanations-endpoint]
    [("api" "alternatives") #:method "post" alternatives-endpoint]
    [("api" "exacts") #:method "post" exacts-endpoint]
    [("api" "calculate") #:method "post" calculate-endpoint]
@@ -473,6 +474,26 @@
 
       (eprintf " complete\n")
       (hasheq 'tree tree))))
+
+
+(define explanations-endpoint
+  (post-with-json-response
+    (lambda (post-data)
+      (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
+      (define sample (hash-ref post-data 'sample))
+      (define seed (hash-ref post-data 'seed #f))
+      (eprintf "Explanations job started on ~a..." formula)
+
+      (define test (parse-test formula))
+      (define expr (prog->fpcore (test-input test) (test-output-repr test)))
+      (define pcontext (json->pcontext sample (test-context test)))
+      (define result (run-herbie 'explanations test #:seed seed #:pcontext pcontext
+                                 #:profile? #f #:timeline-disabled? #t))
+      (define explanations (job-result-backend result))
+      
+      (eprintf " complete\n")
+      (hasheq 'explanation explanations))))
+
 
 (define alternatives-endpoint
   (post-with-json-response
