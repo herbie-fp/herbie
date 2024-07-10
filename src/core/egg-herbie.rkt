@@ -18,14 +18,13 @@
          "../programs.rkt"
          "../timeline.rkt" )
 
-(provide (struct-out egraph-query)
-         (struct-out regraph)
+(provide (struct-out egg-runner)
          untyped-egg-extractor
          typed-egg-extractor
          default-untyped-egg-cost-proc
          platform-egg-cost-proc
          default-egg-cost-proc
-         make-egg-query
+         make-egg-runner
          run-egg
          get-canon-rule-name
          remove-rewrites
@@ -596,31 +595,27 @@
 ;; - canon: map from egraph id to vector index
 ;; - has-leaf?: map from vector index to if the eclass contains a leaf
 ;; - constants: map from vector index to if the eclass contains a constant
+;; - parents: parent e-classes of each e-class
 ;; - egg->herbie: data to translate egg IR to herbie IR
-(struct regraph (eclasses canon has-leaf? constants egg->herbie))
+(struct regraph (eclasses canon has-leaf? constants parents egg->herbie))
 
 ;; Constructs a Racket egraph from an S-expr representation.
 (define (sexpr->regraph egraph egg->herbie)
-  ; reserve the next eclass
-  (define canon (make-hash))
-  (define counter 0)
-  ; lookup the canonical eclass or reserve the next new eclass
-  (define (resolve-id id)
-    (hash-ref! canon id
-                (lambda ()
-                  (define id* counter)
-                  (hash-set! canon id id*)
-                  (set! counter (add1 counter))
-                  id*)))
-  ; iterate through eclasses and fill data
+  ; total number of e-classes
   (define n (length egraph))
-  (define eclasses (make-vector n '()))
+  ; canonicalize all e-class ids to [0, n)
+  (define canon (make-hash))
+  (define (canon-id id)
+    (hash-ref! canon id (lambda () (hash-count canon))))
+  ; iterate through eclasses and fill data
+  (define eclasses (make-vector n #f))
   (define has-leaf? (make-vector n #f))
   (define constants (make-vector n #f))
+  (define parents (make-vector n '()))
   (for ([eclass (in-list egraph)])
     (match-define (cons egg-id egg-nodes) eclass)
-    (define id (resolve-id egg-id))
-    (define node
+    (define id (canon-id egg-id))
+    (define nodes
       (for/vector #:length (length egg-nodes)
                   ([egg-node (in-list egg-nodes)])
         (match egg-node
@@ -633,15 +628,28 @@
            (if (hash-has-key? egg->herbie egg-node)
                egg-node             ; variable
                (list egg-node))]    ; constant
-          [(list op child-ids ...)
-           (when (null? child-ids)
-             (vector-set! has-leaf? id #t))
-           (cons op (map resolve-id child-ids))]
+          [(list op child-ids ...) ; application
+           (cond
+             [(null? child-ids) ; application is a constant function
+              (vector-set! has-leaf? id #t)
+              (list op)]
+             [else
+              (define child-ids* (map canon-id child-ids))
+              (for ([child-id (in-list child-ids*)]) ; update parent-child relation
+                (vector-set! parents child-id (cons id (vector-ref parents child-id))))
+              (cons op child-ids*)])]
           [_ (error 'sexpr->regraph "malformed enode: ~a" egg-node)])))
-    (vector-set! eclasses id node))
+    (vector-set! eclasses id nodes))
+
+  ; dedup parent-child relation and convert to vector
+  (for ([id (in-range n)])
+    (vector-set! parents id 
+                 (list->vector
+                   (remove-duplicates
+                     (vector-ref parents id)))))
 
   ; collect with wrapper
-  (regraph eclasses canon has-leaf? constants egg->herbie))
+  (regraph eclasses canon has-leaf? constants parents egg->herbie))
 
 ;; Constructs a Racket egraph from an S-expr representation of
 ;; an egraph and data to translate egg IR to herbie IR.
@@ -654,29 +662,6 @@
 ;; Nullary operators have no children!
 (define (node-has-children? node)
   (and (pair? node) (pair? (cdr node))))
-
-;; Computes the parent relation of each eclass.
-(define (regraph-parents regraph)
-  (define eclasses (regraph-eclasses regraph))
-  (define n (vector-length eclasses))
-
-  ; build parent-child relation by iterating through eclasses
-  (define parents (make-vector n '()))
-  (for ([id (in-range n)])
-    (define eclass (vector-ref eclasses id))
-    (for ([node (in-vector eclass)] #:when (node-has-children? node))
-      (for ([child-id (in-list (cdr node))])
-        (vector-set! parents
-                     child-id
-                     (cons id (vector-ref parents child-id))))))
-  
-  ; for each eclass, dedup parents and convert to vector
-  (for ([id (in-range n)])
-    (vector-set! parents id
-                 (list->vector
-                   (remove-duplicates
-                     (vector-ref parents id)))))
-  parents)
 
 ;; Computes an analysis for each eclass.
 ;; Takes a regraph and an procedure taking the analysis, an eclass, and
@@ -703,8 +688,9 @@
       (define eclass (vector-ref eclasses id))
       (when (eclass-proc analysis changed?-vec iter eclass id)
         ; eclass analysis was updated: need to revisit the parents
+        (define parent-ids (vector-ref parents id))
         (vector-set! changed?-vec* id #t)
-        (for ([parent-id (in-vector (vector-ref parents id))])
+        (for ([parent-id (in-vector parent-ids)])
           (vector-set! dirty?-vec* parent-id #t)
           (set! dirty? #t))))
     ; if dirty, analysis has not converged so loop
@@ -713,7 +699,7 @@
       (set! changed?-vec changed?-vec*) ; update eclasses that have changed
       (sweep! (add1 iter))))
   
-  ; Invariant: all eclasses have an associated cost! 
+  ; Invariant: all eclasses have an analysis
   (for ([id (in-range n)])
     (unless (vector-ref analysis id)
       (error 'regraph-analyze
@@ -921,7 +907,7 @@
 (define (regraph-eclass-types egraph)
   (define egg->herbie (regraph-egg->herbie egraph))
 
-  (define (node-type analysis node)
+  (define (node->type analysis node)
     (match node
       [(? number?) #t]
       [(? symbol?)
@@ -944,23 +930,21 @@
 
   ;; Type analysis
   (define (eclass-set-type! analysis changed?-vec iter eclass id)
-    (define ty
+    (define ty (vector-ref analysis id))
+    (define ty*
       (if (= iter 0)
           ; first iteration: only run analysis on leaves
-          (for/fold ([ty #f])
-                    ([node (in-vector eclass)]
-                     #:unless (node-has-children? node))
-            (type/union ty (node-type analysis node)))
+          (for/fold ([ty ty]) ([node (in-vector eclass)]
+                               #:unless (node-has-children? node))
+            (type/union ty (node->type analysis node)))
           ; other iterations: run only on non-leaves with updated children
-          (for/fold ([ty (vector-ref analysis id)])
-                    ([node (in-vector eclass)]
-                     #:when (and (node-has-children? node)
-                                 (ormap (lambda (id) (vector-ref changed?-vec id)) (cdr node))
-                                 (andmap (lambda (id) (vector-ref analysis id)) (cdr node))))
-            (type/union ty (node-type analysis node)))))
-    (define changed? (not (type/equal? ty (vector-ref analysis id))))
-    (vector-set! analysis id ty)
-    changed?)
+          (for/fold ([ty ty]) ([node (in-vector eclass)]
+                               #:when (and (node-has-children? node)
+                                           (ormap (lambda (id) (vector-ref changed?-vec id)) (cdr node))
+                                           (andmap (lambda (id) (vector-ref analysis id)) (cdr node))))
+              (type/union ty (node->type analysis node)))))
+    (vector-set! analysis id ty*)
+    (not (type/equal? ty ty*)))
 
   (regraph-analyze egraph eclass-set-type!))
 
@@ -1275,27 +1259,6 @@
 ;; A mini-interpreter for egraph "schedules" including running egg,
 ;; pruning certain kinds of nodes, extracting expressions, etc.
 
-(define (verify-schedule! schedule)
-  (define (oops! fmt . args)
-    (apply error 'verify-schedule! fmt args))
-  (for ([instr (in-list schedule)])
-    (match instr
-      [(list 'run rules params)
-       ;; `run` instruction
-       (unless (and (list? rules) (andmap rule? rules))
-         (oops! "expected list of rules: `~a`" rules))
-       (for ([param (in-list params)])
-         (match param
-           [(cons 'node (? nonnegative-integer?)) (void)]
-           [(cons 'iteration (? nonnegative-integer?)) (void)]
-           [(cons 'const-fold? (? boolean?)) (void)]
-           [(cons 'scheduler mode)
-            (unless (set-member? '(simple backoff) mode)
-              (oops! "in instruction `~a`, unknown scheduler `~a`" instr mode))]
-           [_ (oops! "in instruction `~a`, unknown parameter `~a`" instr param)]))]
-      [(list 'convert) (void)]
-      [_ (oops! "unknown instruction `~a`" instr)])))
-
 ;; Runs rules over the egraph with the given egg parameters.
 ;; Invariant: the returned egraph is never unsound
 (define (egraph-run-rules egg-graph0 egg-rules params)  
@@ -1328,126 +1291,139 @@
        (values egg-graph iteration-data)])))
 
 (define (egraph-run-schedule exprs schedule ctx)
-  (define (oops! command why)
-    (error 'egraph-run-schedule "~a: ~a" command why))
-
   ; prepare the egraph
   (define egg-graph0 (make-egraph))
-  (define node-ids
+  (define root-ids
     (for/list ([expr (in-list exprs)])
       (egraph-add-expr egg-graph0 expr ctx)))
   
   ; run the schedule
   (define rule-apps (make-hash))
-  (define-values (egg-graph regraph)
-    (for/fold ([egg-graph egg-graph0] [regraph #f]) ([instr (in-list schedule)])
-      (match instr
-        [(list 'run rules params)
-         ;; `run` instruction
-         (when regraph
-           (oops! 'run "requires a Rust egraph (was this run after a `convert` instruction?)"))
+  (define egg-graph
+    (for/fold ([egg-graph egg-graph0]) ([instr (in-list schedule)])
+      (match-define (cons rules params) instr)
+      ; run rules in the egraph
+      (define egg-rules (expand-rules rules))
+      (define-values (egg-graph* iteration-data) (egraph-run-rules egg-graph egg-rules params))
 
-         ; run rules in the egraph
-         (define egg-rules (expand-rules rules))
-         (define-values (egg-graph* iteration-data) (egraph-run-rules egg-graph egg-rules params))
- 
-         ; get cost statistics
-         (for/fold ([time 0]) ([iter (in-list iteration-data)] [i (in-naturals)])
-           (define cnt (iteration-data-num-nodes iter))
-           (define cost (apply + (map (λ (node-id) (egraph-get-cost egg-graph* node-id i)) node-ids)))
-           (define new-time (+ time (iteration-data-time iter)))
-           (timeline-push! 'egraph i cnt cost new-time)
-           new-time)
-       
-         ;; get rule statistics
-         (for ([(egg-rule ffi-rule) (in-dict egg-rules)])
-           (define count (egraph-get-times-applied egg-graph* ffi-rule))
-           (define canon-name (hash-ref (*canon-names*) (rule-name egg-rule)))
-           (hash-update! rule-apps canon-name (curry + count) count))
+      ; get cost statistics
+      (for/fold ([time 0]) ([iter (in-list iteration-data)] [i (in-naturals)])
+        (define cnt (iteration-data-num-nodes iter))
+        (define cost (apply + (map (λ (id) (egraph-get-cost egg-graph* id i)) root-ids)))
+        (define new-time (+ time (iteration-data-time iter)))
+        (timeline-push! 'egraph i cnt cost new-time)
+        new-time)
+    
+      ;; get rule statistics
+      (for ([(egg-rule ffi-rule) (in-dict egg-rules)])
+        (define count (egraph-get-times-applied egg-graph* ffi-rule))
+        (define canon-name (hash-ref (*canon-names*) (rule-name egg-rule)))
+        (hash-update! rule-apps canon-name (curry + count) count))
 
-         (values egg-graph* regraph)]
-        [(list 'convert)
-         ; `convert` instruction
-         (when regraph
-           (oops! 'convert "requires a Rust egraph (was this run after a `convert` instruction?)"))
-         (values egg-graph (make-regraph egg-graph))]
-        [_ (error 'egraph-run-schedule "unimplemented: ~a" instr)])))
+      egg-graph*))
 
   ; report rule statistics
   (for ([(name count) (in-hash rule-apps)])
     (when (> count 0)
       (timeline-push! 'rules (~a name) count)))
   ; root eclasses may have changed
-  (define node-ids* 
-    (for/list ([id (in-list node-ids)])
-      (egraph-find egg-graph id)))
+  (define root-ids* (map (lambda (id) (egraph-find egg-graph id)) root-ids))
   ; return what we need
-  (values node-ids* egg-graph (or regraph (make-regraph egg-graph))))
+  (values root-ids* egg-graph))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Public API
 ;;
 ;; Most calls to egg should be done through this interface.
-;;  - `make-egg-query` creates a struct that describes a _reproducible_ egg instance
-;;  - `run-egg` actually runs egg and extracts expressions and possibly proofs
+;;  - `make-egg-runner`: creates a struct that describes a _reproducible_ egg instance
+;;  - `run-egg`: takes an egg runner and performs an extraction (exprs or proof)
 
-;; Herbie's version of an egg runner
+;; Herbie's version of an egg runner.
 ;; Defines parameters for running rewrite rules with egg
-(struct egraph-query (exprs reprs schedule ctx extractor)
-                     #:transparent ; for equality
-                     #:methods gen:custom-write ; for abbreviated printing
-                     [(define (write-proc alt port mode)
-                        (fprintf port "#<egraph-query>"))])
-
-;; Fallback extractor if none is specified
-(define default-egg-extractor
-  (untyped-egg-extractor default-untyped-egg-cost-proc))
+(struct egg-runner (exprs reprs schedule ctx)
+                    #:transparent ; for equality
+                    #:methods gen:custom-write ; for abbreviated printing
+                    [(define (write-proc alt port mode)
+                       (fprintf port "#<egg-runner>"))])
 
 ;; Constructs an egg runner.
-(define (make-egg-query exprs
-                        reprs
-                        schedule
-                        #:context [ctx (*context*)]
-                        #:extractor [extractor #f])
-  (verify-schedule! schedule)
-  (egraph-query exprs
-                reprs
-                schedule
-                ctx
-                (or extractor default-egg-extractor)))
+;;
+;; The schedule is a list of pairs specifying
+;;  - a list of rules
+;;  - scheduling parameters:
+;;     - node limit: `(node . <number>)`
+;;     - iteration limit: `(iteration . <number>)`
+;;     - constant fold: `(const-fold? . <boolean>)`
+;;     - scheduler: `(scheduler . <name>)`
+;;        - `simple`: run all rules without banning
+;;        - `backoff`: ban rules if the fire too much 
+(define (make-egg-runner exprs
+                         reprs
+                         schedule
+                         #:context [ctx (*context*)])
+  (define (oops! fmt . args)
+    (apply error 'verify-schedule! fmt args))
+  ; verify the schedule
+  (for ([instr (in-list schedule)])
+    (match instr
+      [(cons rules params)
+       ;; `run` instruction
+       (unless (and (list? rules) (andmap rule? rules))
+         (oops! "expected list of rules: `~a`" rules))
+       (for ([param (in-list params)])
+         (match param
+           [(cons 'node (? nonnegative-integer?)) (void)]
+           [(cons 'iteration (? nonnegative-integer?)) (void)]
+           [(cons 'const-fold? (? boolean?)) (void)]
+           [(cons 'scheduler mode)
+            (unless (set-member? '(simple backoff) mode)
+              (oops! "in instruction `~a`, unknown scheduler `~a`" instr mode))]
+           [_ (oops! "in instruction `~a`, unknown parameter `~a`" instr param)]))]
+      [_ (oops! "expected `(<rules> . <params>)`, got `~a`" instr)]))
+  ; make the runner
+  (egg-runner exprs reprs schedule ctx))
 
 ;; Runs egg using an egg runner.
-(define (run-egg input variants? #:proof-inputs [proof-inputs '()])
-  ;; Run egg and extract iteration data
-  (define ctx (egraph-query-ctx input))
-  (define-values (node-ids egg-graph regraph)
-    (egraph-run-schedule (egraph-query-exprs input)
-                         (egraph-query-schedule input)
+;;
+;; Argument `cmd` specifies what to get from the e-graph:
+;;  - single extraction: `(single . <extractor>)`
+;;  - multi extraction: `(multi . <extractor>)`
+;;  - proofs: `(proofs . ((<start> . <end>) ...))`
+(define (run-egg runner cmd)
+  ;; Run egg using runner
+  (define ctx (egg-runner-ctx runner))
+  (define-values (root-ids egg-graph)
+    (egraph-run-schedule (egg-runner-exprs runner)
+                         (egg-runner-schedule runner)
                          ctx))
-  ;; Compute eclass/enode cost in the graph
-  (define extractor (egraph-query-extractor input))
-  (define extract-id (extractor regraph))
-  (define reprs (egraph-query-reprs input))
-  ;; Extract the expressions
-  (define extract-proc
-    (if variants?
-        regraph-extract-variants
-        regraph-extract-best))
-  (define rewritten
-    (for/list ([id node-ids] [repr (in-list reprs)])
-      (extract-proc regraph extract-id id repr)))
-  ;; Extract the proof based on a pair (start, end) expressions.
-  (define proofs
-    (for/list ([proof-input (in-list proof-inputs)])
-      (match-define (cons start end) proof-input)
-      (unless (egraph-is-equal egg-graph start end ctx)
-        (error "Cannot get proof: start and end are not equal.\n start: ~a \n end: ~a" start end))
-
-      (define proof (egraph-get-proof egg-graph start end ctx))
-      (when (null? proof)
-        (error (format "Failed to produce proof for ~a to ~a" start end)))
-      proof))
-  ;; Return extracted expressions and the proof
-  (cons rewritten proofs))
-
-
+  ; Perform extraction
+  (match cmd
+    [`(single . ,extractor)
+     ; single expression extraction
+     (define regraph (make-regraph egg-graph))
+     (define extract-id (extractor regraph))
+     (define reprs (egg-runner-reprs runner))
+     (for/list ([id (in-list root-ids)] [repr (in-list reprs)])
+       (regraph-extract-best regraph extract-id id repr))]
+    [`(multi . ,extractor)
+     ; multi expression extraction
+     (define regraph (make-regraph egg-graph))
+     (define extract-id (extractor regraph))
+     (define reprs (egg-runner-reprs runner))
+     (for/list ([id (in-list root-ids)] [repr (in-list reprs)])
+       (regraph-extract-variants regraph extract-id id repr))]
+    [`(proofs . ((,start-exprs . ,end-exprs) ...))
+     ; proof extraction
+     (for/list ([start (in-list start-exprs)]
+                [end (in-list end-exprs)])
+       (unless (egraph-is-equal egg-graph start end ctx)
+         (error 'run-egg
+                "cannot find proof; start and end are not equal.\n start: ~a \n end: ~a"
+                start end))
+        (define proof (egraph-get-proof egg-graph start end ctx))
+        (when (null? proof)
+          (error 'run-egg
+                 "proof extraction failed between`~a` and `~a`"
+                 start end))
+        proof)]
+    [_ (error 'run-egg "unknown command `~a`\n" cmd)]))
