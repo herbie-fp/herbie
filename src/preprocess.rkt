@@ -51,31 +51,31 @@
 
   ; egg schedule (2-phases for real rewrites and implementation selection)
   (define schedule
-    `((run ,rules ((node . ,(*node-limit*))))
-      (run ,lowering-rules ((iteration . 1) (scheduler . simple)))))
+    `((,rules . ((node . ,(*node-limit*))))
+      (,lowering-rules . ((iteration . 1) (scheduler . simple)))))
 
   ; egg query
   (define spec (expand-accelerators (prog->spec init)))
-  (define extractor
+  (define runner
+    (make-egg-runner (list spec)
+                     (list (context-repr ctx))
+                     schedule))
+
+  ; run egg
+  (define simplified
+    (simplify-batch
+      runner
       (typed-egg-extractor
         (if (*egraph-platform-cost*)
             platform-egg-cost-proc
-            default-egg-cost-proc)))
-  (define egg-query
-    (make-egg-query (list spec)
-                    (list (context-repr ctx))
-                    schedule
-                    #:extractor extractor))
-
-  ; run egg 
-  (match-define (list simplified) (simplify-batch egg-query))
+            default-egg-cost-proc))))
 
   ; alternatives
   (define start-alt (make-alt init))
   (cons start-alt
         (remove-duplicates
           (for/list ([expr (rest simplified)])
-            (alt expr `(simplify () ,egg-query #f #f) (list start-alt) '()))
+            (alt expr `(simplify () ,runner #f #f) (list start-alt) '()))
           alt-equal?)))
 
 
@@ -95,15 +95,16 @@
                   odd-identities
                   swap-identities)))
 
-  ;; egg query
+  ;; make runner
   (define rules (real-rules (*simplify-rules*)))
-  (define egg-query
-    (make-egg-query exprs
-                    (map (lambda (_) (context-repr ctx)) exprs)
-                    `((run ,rules ((node . ,(*node-limit*)))))))
+  (define runner
+    (make-egg-runner exprs
+                     (map (lambda (_) (context-repr ctx)) exprs)
+                     `((,rules . ((node . ,(*node-limit*)))))))
 
-  ;; run egg to extract simplest
-  (define exprs* (simplify-batch egg-query))
+  ; run egg
+  (define extractor (untyped-egg-extractor default-untyped-egg-cost-proc))
+  (define exprs* (simplify-batch runner extractor))
   (define spec** (last (first exprs*)))
   (define evens (map last (take (drop exprs* 1) (length even-identities))))
   (define odds (map last (take (drop exprs* (+ 1 (length even-identities))) (length odd-identities))))
