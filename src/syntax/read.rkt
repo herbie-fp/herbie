@@ -1,15 +1,16 @@
 #lang racket
 
-(require "../common.rkt" "../conversions.rkt" "../errors.rkt"
-         "../programs.rkt" "types.rkt" "syntax.rkt" "../platform.rkt"
-         "syntax-check.rkt" "type-check.rkt" "sugar.rkt")
+(require "../common.rkt" "../errors.rkt" "../programs.rkt"
+         "types.rkt" "syntax.rkt" "../platform.rkt"
+         "syntax-check.rkt" "type-check.rkt" "sugar.rkt"
+         "../load-plugin.rkt")
 
 (provide (struct-out test)
-         test-context test-output-repr test-conversions
+         test-context test-output-repr
          load-tests parse-test)
 
 (struct test (name identifier vars input output expected spec pre
-              preprocess output-repr-name var-repr-names conversion-syntax) #:prefab)
+              preprocess output-repr-name var-repr-names) #:prefab)
 
 (define (test-output-repr test)
   (get-representation (test-output-repr-name test)))
@@ -21,9 +22,6 @@
     (for/list ([var vars])
       (get-representation (dict-ref (test-var-repr-names test) var))))
   (context (test-vars test) output-repr var-reprs))
-
-(define (test-conversions test)
-  (map (curry map get-representation) (test-conversion-syntax test)))
 
 ;; Unfortunately copied from `src/syntax/sugar.rkt`
 (define (expand stx)
@@ -188,8 +186,8 @@
         pre*
         (dict-ref prop-dict ':herbie-preprocess empty)
         (representation-name default-repr)
-        (for/list ([var arg-names] [repr var-reprs]) (cons var (representation-name repr)))
-        '()))
+        (for/list ([var arg-names] [repr var-reprs])
+          (cons var (representation-name repr)))))
 
 (define (check-unused-variables vars precondition expr)
   ;; Fun story: you might want variables in the precondition that
@@ -221,11 +219,11 @@
     (parse-test test)))
 
 (define (load-file file)
-  (call-with-input-file file
-    (λ (port)
-      (port-count-lines! port)
-      (for/list ([test (in-port (curry our-read-syntax file) port)])
-        (parse-test test)))))
+ (call-with-input-file file
+   (λ (port)
+     (port-count-lines! port)
+     (for/list ([test (in-port (curry our-read-syntax file) port)])
+       (parse-test test)))))
 
 (define (load-directory dir)
   (apply append

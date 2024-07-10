@@ -11,18 +11,23 @@
 (define-runtime-module-path fallback-plugin "reprs/fallback.rkt")
 
 ;; Builtin platforms
+(define-runtime-module-path c-platform "platforms/libm.rkt")
 (define-runtime-module-path default-platform "platforms/default.rkt")
+(define-runtime-module-path math-platform "platforms/math.rkt")
 
 ; Automatically loads default representations and platforms
 (define (load-herbie-builtins)
-  ;; Load in all the files
+  ;; Load in all plugins
   ;; Warning: the order here is important!
   (dynamic-require bool-plugin #f)
   (dynamic-require binary64-plugin #f)
   (dynamic-require binary32-plugin #f)
   (dynamic-require fallback-plugin #f)
+  ;; Load all platforms
+  (dynamic-require c-platform #f)
   (dynamic-require default-platform #f)
-  ;; activate the default platform
+  (dynamic-require math-platform #f)
+  ; activate the required platform
   (*active-platform* (get-platform (*platform-name*)))
   (activate-platform! (*active-platform*)))
 
@@ -41,7 +46,6 @@
   (for ([path (in-list (*loose-plugins*))]) 
     (dynamic-require path #f))
   ; activate the actual requred platform
-  ; (eprintf "activating platform `~a`\n" (*platform-name*))
   (*active-platform* (get-platform (*platform-name*)))
   (activate-platform! (*active-platform*)))
 

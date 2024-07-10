@@ -1,8 +1,11 @@
 #lang racket
 
-(require "../syntax/syntax.rkt")
+(require "../syntax/syntax.rkt"
+         "../syntax/rules.rkt")
 
-(provide pattern-match pattern-substitute)
+(provide pattern-match
+         pattern-substitute
+         rule-apply)
 
 ;; Pattern matching utility functions
 ;;
@@ -47,3 +50,10 @@
    [(list phead pargs ...)
     (cons phead (map (curryr pattern-substitute bindings) pargs))]))
 
+;; Rule applying
+
+(define (rule-apply rule expr)
+  (let ([bindings (pattern-match (rule-input rule) expr)])
+    (if bindings
+        (cons (pattern-substitute (rule-output rule) bindings) bindings)
+        #f)))

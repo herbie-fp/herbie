@@ -52,9 +52,9 @@
   (define demo-port 8000)
   (define demo-public #f)
 
+
   (define threads #f)
   (define report-note #f)
-
   (define timeout-set? #f)
 
   (define seed (random 1 (expt 2 31)))
@@ -83,7 +83,6 @@
       "The platform to use during improvement"
       "[Default: default]"
     )
-    ; first try looking for a matching file
     (*platform-name* (string->symbol platform))
     (*active-platform* (get-platform (*platform-name*)))
     (activate-platform! (*active-platform*))]

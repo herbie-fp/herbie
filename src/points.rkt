@@ -5,7 +5,7 @@
 (provide *pcontext* in-pcontext mk-pcontext for/pcontext
          pcontext? pcontext->lists json->pcontext pcontext->json
          split-pcontext join-pcontext pcontext-length
-         errors batch-errors errors-score)
+         errors batch-errors errors-score point-error)
 
 ;; pcontexts are Herbie's standard data structure for storing
 ;; ground-truth information. They contain 1) a set of sampled input

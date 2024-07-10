@@ -3,7 +3,6 @@
 ;; Builtin single-precision plugin (:precision binary32)
 
 (require math/bigfloat)
-(require ffi/unsafe)
 (require "runtime/float32.rkt" "runtime/utils.rkt" "runtime/libm.rkt")
 
 ;; Do not run this file with `raco test`
@@ -50,7 +49,9 @@
 
 (define-libm-impls/binary32
   [(binary32 binary32)
-   (acos acosh asin asinh atan atanh cbrt ceil cos cosh erf exp exp2 fabs floor lgamma log log10 log2 logb rint round sin sinh sqrt tan tanh tgamma trunc)]
+   (acos acosh asin asinh atan atanh cbrt ceil cos cosh erf exp exp2
+    fabs floor lgamma log log10 log2 logb rint round sin sinh sqrt
+    tan tanh tgamma trunc)]
   [(binary32 binary32 binary32)
    (atan2 copysign fdim fmax fmin fmod pow remainder)])
 

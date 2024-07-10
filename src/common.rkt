@@ -26,6 +26,8 @@
       body ...)
     (values (reverse ((car sows))) ...)))
 
+;; Single precision numbers
+
 (define cast-single
   (let ([flsingle identity])
     (local-require racket/flonum)

@@ -1,45 +1,54 @@
 #lang racket
 
-(require "common.rkt" "syntax/types.rkt" "core/matcher.rkt")
+(require "core/matcher.rkt")
 
-(provide accelerator-exists? all-accelerators expand-accelerators)
-
-(module+ internals (provide (struct-out accelerator) accelerators))
-
-;;
-;;  Accelerator operators
-;;
+(provide accelerator-exists?
+         all-accelerators
+         accelerator-info
+         expand-accelerators)
+  
+(module+ internals
+  (provide (struct-out accelerator)
+           accelerators))
 
 ;; An "accelerator" operator
-;;
-;; Each operator is just a composition of existing operators defined by
-;;  - a (unique) name
-;;  - input and output types
-;;  - a definition as an S-expr
-(struct accelerator (name itypes otype spec))
+;; A composition of existing Herbie operators
+(struct accelerator (name vars body itypes otype))
 
-;; Accelerators known to Herbie at runtime
-(define accelerators (make-hasheq))
+;; Table of accelerator operators
+(define accelerators (make-hash))
 
-;; Is the operator an accelerator?
-(define (accelerator-exists? x)
-  (hash-has-key? accelerators x))
+;; Key in the accelerator table
+(define (accelerator-exists? op)
+  (hash-has-key? accelerators op))
 
-;; The list of accelerators as a list.
+;; All keys in the accelerator table
 (define (all-accelerators)
   (hash-keys accelerators))
 
-;; LHS and RHS patterns of a rewrite rules to apply and undo
-;; an accelerator definition.
-(define (accelerator-patterns acc)
-  (match-define (list (or 'lambda 'λ) (list vars ...) body) (accelerator-spec acc))
-  (values (cons (accelerator-name acc) vars) body))
+;; LHS and RHS patterns of a rewrite rules to apply and
+;; undo an accelerator definition.
+(define (accelerator-patterns op)
+  (match-define (accelerator name vars body _ _) (hash-ref accelerators op))
+  (values `(,name ,@vars) body))
+
+;; Fields of an accelerator
+(define/contract (accelerator-info op field)
+  (-> symbol? (or/c 'itype 'otype 'body 'vars) any/c)
+  (unless (hash-has-key? accelerators op)
+    (error 'accelerator-info "Unknown accelerator ~a" op))
+  (define accessor
+    (match field
+      ['vars accelerator-vars]
+      ['body accelerator-body]
+      ['itype accelerator-itypes]
+      ['otype accelerator-otype]))
+  (accessor (hash-ref accelerators op)))
 
 (define (expand-accelerators expr #:accelerators [ops (all-accelerators)])
   (define (expand expr)
     (for/fold ([expr expr]) ([op (in-list ops)])
-      (define info (hash-ref accelerators op))
-      (define-values (lhs rhs) (accelerator-patterns info))
+      (define-values (lhs rhs) (accelerator-patterns op))
       (define bindings (pattern-match lhs expr))
       (if bindings (pattern-substitute rhs bindings) expr)))
   (let loop ([expr expr])
