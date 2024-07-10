@@ -135,13 +135,13 @@
     (unless (and (equal? (context-vars ctx) (context-vars ctx*))
                  (equal? (context-var-reprs ctx) (context-var-reprs ctx*)))
       (error proc-name "contexts don't have matching variables/representations ~a" ctxs)))
-  (values (context-vars ctx) (context-var-reprs ctx)))
+  ctx)
 
 ;; Returns an evaluator for a list of expressions.
 (define (eval-progs-real specs ctxs)
-  (define-values (vars var-reprs) (unify-contexts! 'eval-progs-real specs ctxs))
-  (define reprs (map context-repr ctxs))
-  (define evaluator (make-real-evaluator vars var-reprs specs reprs))
+  (define ctx (unify-contexts! 'eval-progs-real specs ctxs))
+  (define specs&reprs (map (lambda (e ctx) (cons e (context-repr ctx))) specs ctxs))
+  (define evaluator (make-real-evaluator ctx specs&reprs))
   (define bad-pt 
     (for/list ([ctx* (in-list ctxs)])
       ((representation-bf->repr (context-repr ctx*)) +nan.bf)))
@@ -204,11 +204,11 @@
       ([(k v) (in-hash t2)])
     (hash-set t1 k (+ (hash-ref t1 k 0) (* (/ v t2-total) t1-base)))))
 
-(define (sample-points pre exprs ctxs)
+(define (sample-points pre specs ctxs)
   (timeline-event! 'analyze)
-  (define-values (vars var-reprs) (unify-contexts! 'sample-points exprs ctxs))
-  (define reprs (map context-repr ctxs))
-  (define evaluator (make-real-evaluator vars var-reprs exprs reprs #:pre pre))
+  (define ctx (unify-contexts! 'sample-points specs ctxs))
+  (define specs&reprs (map (lambda (e ctx) (cons e (context-repr ctx))) specs ctxs))
+  (define evaluator (make-real-evaluator ctx specs&reprs #:pre pre))
   (match-define (cons sampler table) (make-sampler evaluator))
   (timeline-event! 'sample)
   (match-define (cons table2 results) (batch-prepare-points evaluator sampler))

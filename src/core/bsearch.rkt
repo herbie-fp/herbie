@@ -103,10 +103,7 @@
   ; Not totally clear if this should actually use the precondition
   (define start-evaluator
     (and start-prog
-         (make-real-evaluator (context-vars ctx*)
-                              (context-var-reprs ctx*)
-                              (list (prog->spec start-prog))
-                              (list (context-repr ctx*)))))
+         (make-real-evaluator ctx* (list (cons (prog->spec start-prog) (context-repr ctx*))))))
 
   (define (find-split expr1 expr2 v1 v2)
     (define (pred v)

@@ -26,25 +26,7 @@
            variable?))
 
 (module+ test
-  (require rackunit math/flonum math/bigfloat)
-  (require (submod "types.rkt" internals))
-
-  (define (shift bits fn)
-    (define shift-val (expt 2 bits))
-    (λ (x) (fn (- x shift-val))))
-  
-  (define (unshift bits fn)
-    (define shift-val (expt 2 bits))
-    (λ (x) (+ (fn x) shift-val)))
-
-  ; for testing: also in <herbie>/reprs/binary64.rkt
-  (define-representation (binary64 real flonum?)
-     bigfloat->flonum
-     bf
-     (shift 63 ordinal->flonum)
-     (unshift 63 flonum->ordinal)
-     64
-     (conjoin number? nan?)))
+  (require rackunit))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Real operators
@@ -413,24 +395,26 @@
 ;; The input and output representations must satisfy the types
 ;; specified by the `itype` and `otype` fields for `op`.
 (define (register-operator-impl! op name ireprs orepr attrib-dict)
-  (define op-info (hash-ref operators op
-                            (lambda () (raise-herbie-missing-error
-                                         "Cannot register `~a`, operator `~a` does not exist"
-                                         name op))))
-  ;; Type check all operators except if
-  (unless (equal? op 'if)
-    (define itypes (operator-itype op-info))
-    (define otype (operator-otype op-info))
-    (define expect-arity (length itypes))
-    (define actual-arity (length ireprs))
-    (unless (= expect-arity actual-arity)
-      (raise-herbie-missing-error
-        "Cannot register `~a` as an implementation of `~a`: expected ~a arguments, got ~a"
-        name op expect-arity actual-arity))
-    (for ([repr (in-list (cons orepr ireprs))] [type (in-list (cons otype itypes))])
-      (unless (equal? (representation-type repr) type)
-        "Cannot register `~a` as implementation of `~a`: ~a is not a representation of ~a"
-        name op repr type)))
+  (define op-info
+    (hash-ref operators op
+              (lambda ()
+                (raise-herbie-missing-error
+                  "Cannot register `~a`, operator `~a` does not exist"
+                  name op))))
+
+  ; check arity and types
+  (define itypes (operator-itype op-info))
+  (define otype (operator-otype op-info))
+  (define expect-arity (length itypes))
+  (define actual-arity (length ireprs))
+  (unless (= expect-arity actual-arity)
+    (raise-herbie-missing-error
+      "Cannot register `~a` as an implementation of `~a`: expected ~a arguments, got ~a"
+      name op expect-arity actual-arity))
+  (for ([repr (in-list (cons orepr ireprs))] [type (in-list (cons otype itypes))])
+    (unless (equal? (representation-type repr) type)
+      "Cannot register `~a` as implementation of `~a`: ~a is not a representation of ~a"
+      name op repr type))
 
   ;; Get floating-point implementation
   (define fl-proc
@@ -438,14 +422,16 @@
       [(assoc 'fl attrib-dict) => cdr] ; user-provided implementation
       [(operator-accelerator? op) ; Rival-synthesized accelerator implementation
        (match-define `(,(or 'lambda 'λ) (,vars ...) ,body) (operator-spec op-info))
-       (define evaluator (make-real-evaluator vars ireprs (list body) (list orepr)))
+       (define ctx (context vars orepr ireprs))
+       (define evaluator (make-real-evaluator ctx `((,body . ,orepr))))
        (define fail ((representation-bf->repr orepr) +nan.bf))
        (lambda pt
          (define-values (_ exs) (run-real-evaluator evaluator pt))
          (if exs (first exs) fail))]
       [else ; Rival-synthesized operator implementation
        (define vars (build-list (length ireprs) (lambda (i) (string->symbol (format "x~a" i)))))
-       (define evaluator (make-real-evaluator vars ireprs (list `(,op ,@vars)) (list orepr)))
+       (define ctx (context vars orepr ireprs))
+       (define evaluator (make-real-evaluator ctx `(((,op ,@vars) . ,orepr))))
        (define fail ((representation-bf->repr orepr) +nan.bf))
        (lambda pt
          (define-values (_ exs) (run-real-evaluator evaluator pt))
@@ -489,6 +475,25 @@
       name (format "<~a>" (representation-name repr)))))
 
 (module+ test
+  (require math/flonum math/bigfloat (submod "types.rkt" internals))
+
+  (define (shift bits fn)
+    (define shift-val (expt 2 bits))
+    (λ (x) (fn (- x shift-val))))
+  
+  (define (unshift bits fn)
+    (define shift-val (expt 2 bits))
+    (λ (x) (+ (fn x) shift-val)))
+
+  ; for testing: also in <herbie>/reprs/binary64.rkt
+  (define-representation (binary64 real flonum?)
+     bigfloat->flonum
+     bf
+     (shift 63 ordinal->flonum)
+     (unshift 63 flonum->ordinal)
+     64
+     (conjoin number? nan?))
+
   ; correctly-rounded log1pmd(x) for binary64
   (define-operator-impl (log1pmd log1pmd.f64 binary64) binary64)
   ; correctly-rounded sin(x) for binary64

@@ -35,25 +35,22 @@
 (struct real-evaluator (pre vars var-reprs exprs reprs machine))
 
 ;; Creates a Rival machine.
-;; Requires the input variables and representations, a list of expressions,
-;; their expected output representations, and an optional precondition.
-(define (make-real-evaluator vars var-reprs specs reprs #:pre [pre '(TRUE)])
-  (unless (= (length vars) (length var-reprs))
-    (error 'make-real-evaluator 
-           "number of variables `~a` and reprs `~a` don't match"
-           vars var-reprs))
-
-  (unless (= (length specs) (length reprs))
-    (error 'make-real-evaluator 
-           "number of expressions `~a` and reprs `~a` don't match"
-           specs reprs))
-
+;; Requires a context for the input variables and their representations,
+;; and an association list of expressions and their output representations.
+;; Optionally, takes a precondition.
+(define (make-real-evaluator ctx specs&reprs #:pre [pre '(TRUE)])
+  (define vars (context-vars ctx))
+  (define var-reprs (context-var-reprs ctx))
+  (define specs (map car specs&reprs))
+  (define reprs (map cdr specs&reprs))
+  ; create the machine
   (define exprs (cons `(assert ,pre) specs))
   (define discs (cons boolean-discretization (map repr->discretization reprs)))
   (define machine (rival-compile exprs vars discs))
   (timeline-push! 'compiler
                   (apply + 1 (expr-size pre) (map expr-size specs))
                   (+ (length vars) (rival-profile machine 'instructions)))
+  ; wrap it with useful information for Herbie
   (real-evaluator pre vars var-reprs specs reprs machine))
 
 ;; Runs a Rival machine on an input point.

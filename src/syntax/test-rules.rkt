@@ -38,7 +38,7 @@
                    [*max-find-range-depth* 0])
       (cdr (sample-points '(TRUE) (list (prog->spec p1)) (list ctx)))))
 
-  (define evaluator (make-real-evaluator vars itypes (list (prog->spec p2)) (list repr)))
+  (define evaluator (make-real-evaluator ctx `((,(prog->spec p2) . ,repr))))
   (for ([pt (in-list pts)] [v1 (in-list exs)])
     (with-check-info* (map make-check-info vars pt)
       (λ ()
