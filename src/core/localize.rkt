@@ -31,30 +31,25 @@
   (define rules (real-rules (*simplify-rules*)))
   (define lowering-rules (platform-lowering-rules))
 
-  ; egg schedule (2-phases for real rewrites and implementation selection)
-  (define schedule
-    `((run ,rules ((node . ,(*node-limit*))))
-      (run ,lowering-rules ((iteration . 1) (scheduler . simple)))))
+  ; egg runner (2-phases for real rewrites and implementation selection)
+  (define runner
+    (make-egg-runner
+      specs
+      reprs
+      `((,rules . ((node . ,(*node-limit*))))
+        (,lowering-rules . ((iteration . 1) (scheduler . simple))))))
 
-  ; extractor
-  (define extractor
+  ; run egg
+  (define simplified
+    (simplify-batch
+      runner
       (typed-egg-extractor
         (if (*egraph-platform-cost*)
             platform-egg-cost-proc
-            default-egg-cost-proc)))
-
-  ; egg runner
-  (define egg-query
-    (make-egg-query specs
-                    reprs
-                    schedule
-                    #:extractor extractor))
+            default-egg-cost-proc))))
   
   ; run egg
-  (define simplifiedss
-    (regroup-nested
-      subexprss
-      (map last (simplify-batch egg-query))))
+  (define simplifiedss (regroup-nested subexprss (map last simplified)))
 
   ; build map from starting expr to simplest
   (define expr->simplest (make-hash))
