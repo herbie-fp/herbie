@@ -25,6 +25,27 @@
            register-conversion-generator!
            variable?))
 
+(module+ test
+  (require rackunit math/flonum math/bigfloat)
+  (require (submod "types.rkt" internals))
+
+  (define (shift bits fn)
+    (define shift-val (expt 2 bits))
+    (λ (x) (fn (- x shift-val))))
+  
+  (define (unshift bits fn)
+    (define shift-val (expt 2 bits))
+    (λ (x) (+ (fn x) shift-val)))
+
+  ; for testing: also in <herbie>/reprs/binary64.rkt
+  (define-representation (binary64 real flonum?)
+     bigfloat->flonum
+     bf
+     (shift 63 ordinal->flonum)
+     (unshift 63 flonum->ordinal)
+     64
+     (conjoin number? nan?)))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Real operators
 ;; Pure mathematical operations
@@ -327,6 +348,11 @@
 (define-operator (erfc real) real
   [spec '(lambda (x) (- 1 (erf x)))])
 
+(module+ test
+  ; log1pmd(x) = log1p(x) - log1p(-x)
+  (define-operator (log1pmd real) real
+    [spec '(lambda (x) (- (log1p x) (log1p (neg x))))]))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Operator implementations
 ;; Floating-point operations that approximate mathematical operations
@@ -412,14 +438,14 @@
       [(assoc 'fl attrib-dict) => cdr] ; user-provided implementation
       [(operator-accelerator? op) ; Rival-synthesized accelerator implementation
        (match-define `(,(or 'lambda 'λ) (,vars ...) ,body) (operator-spec op-info))
-       (define evaluator (make-real-evaluator vars ireprs (list body) orepr))
+       (define evaluator (make-real-evaluator vars ireprs (list body) (list orepr)))
        (define fail ((representation-bf->repr orepr) +nan.bf))
        (lambda pt
          (define-values (_ exs) (run-real-evaluator evaluator pt))
          (if exs (first exs) fail))]
       [else ; Rival-synthesized operator implementation
-       (define vars (build-list (length ireprs) (curry string->symbol "x~a")))
-       (define evaluator (make-real-evaluator vars ireprs (list `(,name ,@vars)) orepr))
+       (define vars (build-list (length ireprs) (lambda (i) (string->symbol (format "x~a" i)))))
+       (define evaluator (make-real-evaluator vars ireprs (list `(,op ,@vars)) (list orepr)))
        (define fail ((representation-bf->repr orepr) +nan.bf))
        (lambda pt
          (define-values (_ exs) (run-real-evaluator evaluator pt))
@@ -461,6 +487,24 @@
     (raise-herbie-missing-error
       "Could not find constant implementation for ~a with ~a"
       name (format "<~a>" (representation-name repr)))))
+
+(module+ test
+  ; correctly-rounded log1pmd(x) for binary64
+  (define-operator-impl (log1pmd log1pmd.f64 binary64) binary64)
+  ; correctly-rounded sin(x) for binary64
+  (define-operator-impl (sin sin.acc.f64 binary64) binary64)
+
+  (define log1pmd-proc (impl-info 'log1pmd.f64 'fl))
+  (define log1pmd-vals '((0.0 . 0.0) (0.5 . 1.0986122886681098) (-0.5 . -1.0986122886681098)))
+  (for ([(pt out) (in-dict log1pmd-vals)])
+    (check-equal? (log1pmd-proc pt) out (format "log1pmd(~a) = ~a" pt out)))
+
+  (define sin-proc (impl-info 'sin.acc.f64 'fl))
+  (define sin-vals '((0.0 . 0.0) (1.0 . 0.8414709848078965) (-1.0 . -0.8414709848078965)))
+  (for ([(pt out) (in-dict sin-vals)])
+    (check-equal? (sin-proc pt) out (format "sin(~a) = ~a" pt out)))
+
+  (void))
 
 ;; Casts and precision changes
 
