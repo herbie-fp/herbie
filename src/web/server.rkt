@@ -5,6 +5,7 @@
 (require "../sandbox.rkt" "../load-plugin.rkt" "../common.rkt" "../syntax/read.rkt" "../syntax/types.rkt" "../float.rkt" "../alternative.rkt" "history.rkt" "../preprocess.rkt")
 (require (submod "../timeline.rkt" debug))
 (require racket/place)
+(require json)
 
 (provide completed-job? get-results-for get-improve-job-data job-count
   is-server-up create-job start-job is-job-finished wait-for-job
@@ -207,6 +208,10 @@
   (define sendable-alts 
     (for/list ([alt end-alts] [ppctx processed] [tpctx test-pctx])
       (render-json alt ppctx tpctx (test-context test))))
+  ; (define some-file "./log.json")
+  ; (define out (open-output-file some-file #:exists 'replace))
+  ; (write-json sendable-alts out)
+  ; (close-output-port out)
   (hasheq 'end-alts sendable-alts
           'end-errors end-errors
           'end-costs end-costs))

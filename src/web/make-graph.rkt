@@ -202,23 +202,27 @@ make-graph-modified)
 
       ,@(for/list ([i (in-naturals 1)] [alt-c end-alts] [errs end-errors] [cost end-costs])
           (eprintf "\nalt-c:~a\n" alt-c) ;; Ok where is everything in the JSON.
-          (define new-alt (alt (hash-ref alt-c 'expr) (hash-ref alt-c 'event) (list) (hash-ref alt-c 'preprocessing)))
-          (eprintf "new-alt: ~a\n" new-alt)
-          (define-values (dropdown body)
-            (render-program (hash-ref alt-c 'expr) ctx #:ident identifier #:instructions preprocessing))
-          `(section ([id ,(format "alternative~a" i)] [class "programs"])
-            (h2 "Alternative " ,(~a i)
-                ": "
-                (span ([class "subhead"])
-                  (data ,(format-accuracy (errors-score errs) repr-bits #:unit "%")) " accurate, "
-                  (data ,(~r (/ (alt-cost start-alt repr) cost) #:precision '(= 1)) "×") " speedup")
-                ,dropdown
-                ,(render-help "report.html#alternatives"))
-            ,body
-            (details
-             (summary "Derivation")
-             (ol ([class "history"])
-                 ,@(render-history new-alt train-pctx test-pctx ctx)))))
+          (eprintf "error: ~a\n" (hash-ref alt-c 'error))
+          (eprintf "preprocessing ~a\n" (hash-ref alt-c 'preprocessing))
+          ; (eprintf "prev ~a\n" (hash-ref alt-c 'prev))
+          (eprintf "type ~a\n" (hash-ref alt-c 'type))
+          (eprintf "program ~a\n" (hash-ref alt-c 'program))
+          ; (define-values (dropdown body)
+          ;   (render-program (hash-ref alt-c 'expr) ctx #:ident identifier #:instructions preprocessing))
+          ; `(section ([id ,(format "alternative~a" i)] [class "programs"])
+          ;   (h2 "Alternative " ,(~a i)
+          ;       ": "
+          ;       (span ([class "subhead"])
+          ;         (data ,(format-accuracy (errors-score errs) repr-bits #:unit "%")) " accurate, "
+          ;         (data ,(~r (/ (alt-cost start-alt repr) cost) #:precision '(= 1)) "×") " speedup")
+          ;       ,dropdown
+          ;       ,(render-help "report.html#alternatives"))
+          ;   ,body
+          ;   (details
+          ;    (summary "Derivation")
+          ;    (ol ([class "history"])
+          ;        ,@(render-history new-alt train-pctx test-pctx ctx))))
+          "")
 
 
       ,@(for/list ([i (in-naturals 1)] [target (in-list targets)] [target-error (in-list list-target-error)] [target-cost (in-list list-target-cost)])
