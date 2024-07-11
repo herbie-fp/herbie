@@ -2,7 +2,6 @@
 
 ;;; The default platform:
 ;;; C/C++ on Linux with a full libm
-;;; Cost model from Pherbie (ARITH '21)
 
 (require "../plugin.rkt")
 
@@ -16,26 +15,30 @@
       [(bool bool) not]
       [(bool bool bool) (and or)])))
 
-; machine floating-point operations (without conversions)
+;; machine floating-point operations
 (define machine-platform
   (with-terminal-cost ([binary64 64] [binary32 32])
-    (let ([rel-costs (cost-map
-                        [(PI E INFINITY NAN) 1]
-                        [(neg + - * /) 1]
-                        [(== != > < >= <=) 3])])
+    (let ([rel-costs (cost-map [(PI E INFINITY NAN) 1]
+                               [(neg + -) 2]
+                               [(*) 4]
+                               [(/) 10]
+                               [(== != > < >= <=) 4])])
       (platform-product
         [([real binary64] [bool bool]) (cost-map-scale 64 rel-costs)]
         [([real binary32] [bool bool]) (cost-map-scale 32 rel-costs)]
         (operator-set
           [(real) (PI E INFINITY NAN)]
-          [(real real) neg]
+          [(real real) (neg)]
           [(real real real) (+ - * /)]
           [(real real bool) (== != > < >= <=)])))))
 
-; libm operations
+
+;; libm operations
 (define libm-platform
   (with-terminal-cost ([binary64 64] [binary32 32])
-    (let ([rel-costs (cost-map #:default-cost 100)])
+    (let ([rel-costs (cost-map #:default-cost 100
+                               [(fabs) 2]
+                               [(sqrt) 10])])
       (platform-product #:optional
         [([real binary64]) (cost-map-scale 64 rel-costs)]
         [([real binary32]) (cost-map-scale 32 rel-costs)] 
@@ -47,19 +50,17 @@
           [(real real real)
            (atan2 copysign fdim fmax fmin fmod pow remainder)])))))
 
+;; accelerator operations (minus fma)
 (define accelerator-platform
   (with-terminal-cost ([binary64 64] [binary32 32])
-    (let ([relative-costs (cost-map #:default-cost 100)])
+    (let ([relative-costs (cost-map #:default-cost 100 [(fma) 4])])
       (platform-product #:optional
         [([real binary64]) (cost-map-scale 64 relative-costs)]
         [([real binary32]) (cost-map-scale 32 relative-costs)]
         (operator-set
-         [(real real)
-          (erfc expm1 log1p)]
-         [(real real real)
-          (hypot)]
-         [(real real real real)
-          (fma)])))))
+          [(real real) (erfc expm1 log1p)]
+          [(real real real) (hypot)]
+          [(real real real real) (fma)])))))
 
 ; compose platforms
 
