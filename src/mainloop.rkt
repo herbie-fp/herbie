@@ -125,17 +125,6 @@
   (^table^ #f)
   (void))
 
-(define (run-improve vars prog iters
-                     #:precondition [precondition #f]
-                     #:preprocess [preprocess empty]
-                     #:precision [precision 'binary64]
-                     #:specification [specification #f])
-  (rollback-improve!)
-  (define repr (get-representation precision))
-
-  (define original-points (setup-context! vars (prog->spec (or specification prog)) (prog->spec precondition) repr))
-  (run-improve! iters prog specification preprocess original-points repr))
-
 ;; The rest of the file is various helper / glue functions used by
 ;; Herbie. These often wrap other Herbie components, but add logging
 ;; and timeline data.
