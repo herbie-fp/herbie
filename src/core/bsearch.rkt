@@ -108,14 +108,15 @@
   (define cache (make-hash))
   (define (cache-put! key value)
           (hash-set! cache key value))
+  ;; Function to clear the cache
+
   (define (cache-get key pctx)
           (define value (hash-ref cache key #f))
           (if (eq? value #f) 
               (begin 
                 (set! value (errors-score (errors key pctx ctx*)))
-                (cache-put! key value)
-                (displayln " miss"))
-              (displayln " hit"))
+                (cache-put! key value))
+                (void))
           value) 
 
   (define (find-split expr1 expr2 v1 v2)  
@@ -127,6 +128,7 @@
       (define acc2 (cache-get expr2 pctx))
       (- acc1 acc2))
     (define-values (p1 p2) (binary-search-floats pred v1 v2 repr))
+    (hash-clear! cache)
     (left-point p1 p2))
 
   (define (left-point p1 p2)
