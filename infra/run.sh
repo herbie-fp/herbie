@@ -32,6 +32,7 @@ function output_error {
   "points": -1, "iterations": -1, "bit_width": -1,
   "note": "$NAME", "crash": true, "tests": [] }
 EOF
+  exit 1
 }
 
 # actual runner

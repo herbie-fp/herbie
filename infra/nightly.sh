@@ -38,4 +38,7 @@ RECURSE=1 LOG=1 \
     $FLAGS
 
 # upload
-bash $INFRA_DIR/publish.sh upload "$OUT_DIR"
+if [ "$?" -eq 0 ]; then
+  bash $INFRA_DIR/publish.sh upload "$OUT_DIR"
+fi
+
