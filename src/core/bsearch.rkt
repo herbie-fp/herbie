@@ -105,13 +105,26 @@
     (and start-prog 
       (make-search-func '(TRUE) (list (prog->spec start-prog)) (cons ctx* `()))))
 
-  (define (find-split expr1 expr2 v1 v2)
+  (define cache (make-hash))
+  (define (cache-put! key value)
+          (hash-set! cache key value))
+  (define (cache-get key pctx)
+          (define value (hash-ref cache key #f))
+          (if (eq? value #f) 
+              (begin 
+                (set! value (errors-score (errors key pctx ctx*)))
+                (cache-put! key value)
+                (displayln " miss"))
+              (displayln " hit"))
+          value) 
+
+  (define (find-split expr1 expr2 v1 v2)  
     (define (pred v)
       (define pctx
         (parameterize ([*num-points* (*binary-search-test-points*)])
           (prepend-argument start-fn v (*pcontext*) ctx*)))
-      (define acc1 (errors-score (errors expr1 pctx ctx*)))
-      (define acc2 (errors-score (errors expr2 pctx ctx*)))
+      (define acc1 (cache-get expr1 pctx))
+      (define acc2 (cache-get expr2 pctx))
       (- acc1 acc2))
     (define-values (p1 p2) (binary-search-floats pred v1 v2 repr))
     (left-point p1 p2))
