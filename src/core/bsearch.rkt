@@ -51,6 +51,7 @@
 
 ;; Invariant: (pred p1) and (not (pred p2))
 (define (binary-search-floats pred p1 p2 repr)
+  
   (cond
    [(<= (ulps->bits (ulp-difference p1 p2 repr)) (*max-bsearch-bits*))
     (timeline-push! 'stop "narrow-enough" 1)
@@ -71,7 +72,8 @@
      ;; cmp = 0 usually means sampling failed, so we give up
      [else
       (timeline-push! 'stop "predicate-same" 1)
-      (values p1 p2)])]))
+      (values p1 p2)])])
+      )
 
 (define (extract-subexpression expr var pattern ctx)
   (define body* (replace-expression expr pattern var))
@@ -108,9 +110,8 @@
   (define cache (make-hash))
   (define (cache-put! key value)
           (hash-set! cache key value))
-  ;; Function to clear the cache
-
-  (define (cache-get key pctx)
+          
+  (define (cache-get-expr key pctx)
           (define value (hash-ref cache key #f))
           (if (eq? value #f) 
               (begin 
@@ -119,15 +120,27 @@
                 (void))
           value) 
 
+  (define (cache-get-pair pred v1 v2 repr)
+          (define key (string-append (number->string v1) (number->string v2)))
+          (define pair (hash-ref cache key #f))
+          (if (eq? pair #f) 
+                (cache-put! key (let-values ([(p1 p2) (binary-search-floats pred v1 v2 repr)])
+                                             (cons p1 p2)))
+                (void))
+          (hash-ref cache key #f))
+ 
+
+
   (define (find-split expr1 expr2 v1 v2)  
     (define (pred v)
       (define pctx
         (parameterize ([*num-points* (*binary-search-test-points*)])
           (prepend-argument start-fn v (*pcontext*) ctx*)))
-      (define acc1 (cache-get expr1 pctx))
-      (define acc2 (cache-get expr2 pctx))
+      (define acc1 (cache-get-expr expr1 pctx))
+      (define acc2 (cache-get-expr expr2 pctx))
       (- acc1 acc2))
-    (define-values (p1 p2) (binary-search-floats pred v1 v2 repr))
+    (define-values (p1 p2) (let ((pair (cache-get-pair pred v1 v2 repr)))
+                                (values (car pair) (cdr pair))))
     (hash-clear! cache)
     (left-point p1 p2))
 
