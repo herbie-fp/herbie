@@ -87,6 +87,20 @@
   (define (new-sampler) (cons val (random-ref pts)))
   (apply mk-pcontext (cdr (batch-prepare-points fn (list ctx) new-sampler))))
 
+(define cache (make-hash))
+(define (cache-put! key value)
+        (hash-set! cache key value))
+(define (cache-get-prepend v expr macro)
+        (define key (cons expr v))
+        (define value (hash-ref cache key #f))
+        (if (eq? value #f) 
+            (begin 
+              (set! value (macro v))
+              (cache-put! key value))
+              (displayln "Cache Hit"))
+        value) 
+
+
 ;; Accepts a list of sindices in one indexed form and returns the
 ;; proper splitpoints in float form. A crucial constraint is that the
 ;; float form always come from the range [f(idx1), f(idx2)). If the
@@ -107,10 +121,9 @@
     (and start-prog 
       (make-search-func '(TRUE) (list (prog->spec start-prog)) (cons ctx* `()))))
 
-  (define cache (make-hash))
-  (define (cache-put! key value)
-          (hash-set! cache key value))
-          
+  (define (prepend-macro v) (prepend-argument start-fn v (*pcontext*) ctx*))
+
+  #|          
   (define (cache-get-expr key pctx)
           (define value (hash-ref cache key #f))
           (if (eq? value #f) 
@@ -119,28 +132,18 @@
                 (cache-put! key value))
                 (void))
           value) 
-
-  (define (cache-get-pair pred v1 v2 repr)
-          (define key (string-append (number->string v1) (number->string v2)))
-          (define pair (hash-ref cache key #f))
-          (if (eq? pair #f) 
-                (cache-put! key (let-values ([(p1 p2) (binary-search-floats pred v1 v2 repr)])
-                                             (cons p1 p2)))
-                (void))
-          (hash-ref cache key #f))
- 
+  |#
 
 
   (define (find-split expr1 expr2 v1 v2)  
     (define (pred v)
       (define pctx
         (parameterize ([*num-points* (*binary-search-test-points*)])
-          (prepend-argument start-fn v (*pcontext*) ctx*)))
-      (define acc1 (cache-get-expr expr1 pctx))
-      (define acc2 (cache-get-expr expr2 pctx))
+                      (cache-get-prepend v expr prepend-macro)))
+      (define acc1 (errors-score (errors expr1 pctx ctx*)))
+      (define acc2 (errors-score (errors expr2 pctx ctx*)))
       (- acc1 acc2))
-    (define-values (p1 p2) (let ((pair (cache-get-pair pred v1 v2 repr)))
-                                (values (car pair) (cdr pair))))
+    (define-values (p1 p2) (binary-search-floats pred v1 v2 repr))
     (hash-clear! cache)
     (left-point p1 p2))
 
