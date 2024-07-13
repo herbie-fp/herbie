@@ -33,6 +33,7 @@
 ;; Calculate the initial cost and accuracy and the rescaled and combined Pareto
 ;; frontier for the given `tests` and return these as a list.
 (define (merged-cost-accuracy tests)
+  (eprintf "merged-cost-accuracy: ~a\n" tests)
   (define tests-length (length tests))
   (define cost-accuracies (map table-row-cost-accuracy tests))
   (define maximum-accuracy

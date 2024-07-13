@@ -47,6 +47,11 @@ Well I know I need to to pass the needed result data to generate a page from tab
   (define test (hash-ref result-hash 'test))
   (define status (hash-ref result-hash 'status))
   (define ctx (hash-ref result-hash 'ctx))
+  (define backend (hash-ref result-hash 'backend))
+  (define pctxs (hash-ref backend 'pctxs))
+  (define start (hash-ref backend 'start))
+  (define target (hash-ref backend 'target))
+  (define end (hash-ref backend 'end))
   (match page
     ["graph.html"
      (match status
@@ -62,7 +67,7 @@ Well I know I need to to pass the needed result data to generate a page from tab
     ["timeline.json"
      (write-json (hash-ref result-hash 'timeline) out)]
     ["points.json"
-     (make-points-json-modifed result-hash out ctx)]))
+     (make-points-json-modifed test pctxs start target end out ctx)]))
 
 ; (define (make-page page out result output? profile?)
 ;   (define test (job-result-test result))
@@ -213,15 +218,14 @@ Well I know I need to to pass the needed result data to generate a page from tab
 
 
 
-(define (make-points-json-modifed result out repr)
-  (match-define (job-result _ test _ _ _ _ 
-                 (improve-result _ pctxs start targets end _) ) result)
+(define (make-points-json-modifed test pctxs start targets end out repr)
+  (eprintf "make-points-json-modifed\n")
   (define repr (test-output-repr test))
   (define start-errors (alt-analysis-test-errors start))
 
   (define target-errors (map alt-analysis-test-errors targets))
 
-  (define end-errors (map alt-analysis-test-errors end))
+  (define end-errors (hash-ref end 'end-errors))
   (define-values (newpoints _) (pcontext->lists (second pctxs)))
 
   ; Immediately convert points to reals to handle posits
@@ -262,15 +266,6 @@ Well I know I need to to pass the needed result data to generate a page from tab
                 (string-replace (~r val #:notation 'exponential #:precision 0) "1e" "e")))
           (list tick-str (real->ordinal val repr))))))
 
-  (define end-alt (alt-analysis-alt (car end)))
-  (define splitpoints 
-    (for/list ([var vars]) 
-      (define split-var? (equal? var (regime-var end-alt)))
-      (if split-var?
-          (for/list ([val (regime-splitpoints end-alt)])
-            (real->ordinal (repr->real val repr) repr))
-          '())))
-
   ; NOTE ordinals *should* be passed as strings so we can detect truncation if
   ;   necessary, but this isn't implemented yet. 
   ; Fields:
@@ -283,6 +278,7 @@ Well I know I need to to pass the needed result data to generate a page from tab
   ;          bits of error for the output on each point
   ;   ticks: array of size n where each entry is 13 or so tick values as [ordinal, string] pairs
   ;   splitpoints: array with the ordinal splitpoints
+  (define splitpoints (list empty)) ; TODO figure out splitpoints
   (define json-obj `#hasheq(
     (bits . ,bits)
     (vars . ,(map symbol->string vars))
