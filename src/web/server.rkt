@@ -47,6 +47,7 @@
   (define job-id (compute-job-id command))
   (if (already-computed? job-id) job-id (work-on command)))
 
+;; Used by check-status to poll the current status of a job.
 (define (is-job-finished job-id)
   (hash-ref *job-status* job-id #f))
 
@@ -124,6 +125,7 @@
   (define job-id (compute-job-id command))
   ;; Pop off 1st ready worker
   (define worker (first *ready-workers*))
+  (hash-set! *job-status* job-id (*timeline*))
   (set! *ready-workers* (cdr *ready-workers*))
   ;; Send work to worker
   (place-channel-put worker `(apply ,worker ,command, job-id))
@@ -208,7 +210,7 @@
   (define sendable-alts 
     (for/list ([alt end-alts] [ppctx processed] [tpctx test-pctx])
       (render-json alt ppctx tpctx (test-context test))))
-  ; (define some-file "./log.json")
+  ; (define some-file "./zane/log.json")
   ; (define out (open-output-file some-file #:exists 'replace))
   ; (write-json sendable-alts out)
   ; (close-output-port out)
