@@ -225,10 +225,6 @@
   (define sendable-alts 
     (for/list ([alt end-alts] [ppctx processed] [tpctx test-pctx])
       (render-json alt ppctx tpctx (test-context test))))
-  ; (define some-file "./zane/log.json")
-  ; (define out (open-output-file some-file #:exists 'replace))
-  ; (write-json sendable-alts out)
-  ; (close-output-port out)
   (hasheq 'end-alts sendable-alts
           'end-errors end-errors
           'end-costs end-costs))
