@@ -49,7 +49,14 @@
 
 ;; Used by check-status to poll the current status of a job.
 (define (is-job-finished job-id)
-  (hash-ref *job-status* job-id #f))
+  (define result #f)
+  (define maybe-channel (hash-ref *inprogress* job-id #f))
+  ;; TODO handle #f case
+  (eprintf "sending check")
+  (place-channel-put maybe-channel (list 'check job-id))
+  (set! result (place-channel-get maybe-channel))
+  (eprintf "status found: ~a\n" result)
+  result)
 
 (define (wait-for-job job-id)
   ; (if (already-computed? job-id) 
@@ -125,7 +132,6 @@
   (define job-id (compute-job-id command))
   ;; Pop off 1st ready worker
   (define worker (first *ready-workers*))
-  (hash-set! *job-status* job-id (*timeline*))
   (set! *ready-workers* (cdr *ready-workers*))
   ;; Send work to worker
   (place-channel-put worker `(apply ,worker ,command, job-id))
@@ -148,22 +154,27 @@
     (parameterize ([current-error-port (open-output-nowhere)]) ; hide output
       (load-herbie-plugins))
     (for ([_ (in-naturals)])
-      (match-define (list 'apply self command id) (place-channel-get ch))
-      (eprintf "Job [~a] being worked on.\n" id)
-      (define herbie-result (wrapper-run-herbie command id))
-      (match-define (job-result kind test status time _ _ backend) herbie-result)
-      (define out-result #f)
-      (match kind 
-        ['alternatives empty]
-        ['evaluate empty]
-        ['cost empty]
-        ['errors empty]
-        ['exacts empty]
-        ['improve (set! out-result (improve-result-hash herbie-result))]
-        ['local-error empty]
-        ['sample empty]
-        [_ (error 'compute-result "unknown command ~a" kind)])
-      (place-channel-put ch out-result))))
+      (match (place-channel-get ch)
+        [(list 'apply self command id) 
+          (hash-set! *job-status* id (*timeline*))
+          (eprintf "Job [~a] being worked on.\n" id)
+          (define herbie-result (wrapper-run-herbie command id))
+          (match-define (job-result kind test status time _ _ backend) herbie-result)
+          (define out-result #f)
+          (match kind 
+            ['alternatives empty]
+            ['evaluate empty]
+            ['cost empty]
+            ['errors empty]
+            ['exacts empty]
+            ['improve (set! out-result (improve-result-hash herbie-result))]
+            ['local-error empty]
+            ['sample empty]
+            [_ (error 'compute-result "unknown command ~a" kind)])
+          (place-channel-put ch out-result)]
+       [(list 'check id) 
+        (eprintf "checking ~a\n" id)
+        (hash-ref *job-status* id #f)]))))
 
 (define (improve-result-hash result)
   (define test (job-result-test result))
@@ -210,10 +221,10 @@
   (define sendable-alts 
     (for/list ([alt end-alts] [ppctx processed] [tpctx test-pctx])
       (render-json alt ppctx tpctx (test-context test))))
-  ; (define some-file "./zane/log.json")
-  ; (define out (open-output-file some-file #:exists 'replace))
-  ; (write-json sendable-alts out)
-  ; (close-output-port out)
+  (define some-file "./zane/log.json")
+  (define out (open-output-file some-file #:exists 'replace))
+  (write-json sendable-alts out)
+  (close-output-port out)
   (hasheq 'end-alts sendable-alts
           'end-errors end-errors
           'end-costs end-costs))

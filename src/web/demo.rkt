@@ -304,9 +304,10 @@
    (url main)))
 
 (define (check-status req job-id)
-  (match (is-job-finished job-id)
-    [(? box? timeline)
-     (define str (for/list ([entry (reverse (unbox timeline))])
+  (define r (is-job-finished job-id))
+  (match r
+    [(? hash? data-blob)
+     (define str (for/list ([entry (reverse (hash-ref data-blob 'timeline))])
                             (format "Doing ~a\n" (hash-ref entry 'type))))
      (eprintf "check-status: ~a\n" str) ;; Not reading updates from places.
      (response 202 #"Job in progress" (current-seconds) #"text/plain"
