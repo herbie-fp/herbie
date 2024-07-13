@@ -201,7 +201,7 @@ make-graph-modified)
                    ,body))
 
       ,@(for/list ([i (in-naturals 1)] [alt-c end-alts] [errs end-errors] [cost end-costs])
-          (eprintf "\nalt-c:~a\n" alt-c) ;; Ok where is everything in the JSON.
+          ; (eprintf "\nalt-c:~a\n" alt-c) ;; Ok where is everything in the JSON.
           (eprintf "error: ~a\n" (hash-ref alt-c 'error))
           (eprintf "preprocessing ~a\n" (hash-ref alt-c 'preprocessing))
           ; (eprintf "prev ~a\n" (hash-ref alt-c 'prev))

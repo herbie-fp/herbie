@@ -7,7 +7,7 @@
 (require racket/place)
 (require json)
 
-(provide completed-job? get-results-for get-improve-job-data job-count
+(provide completed-job? get-results-for job-count
   is-server-up create-job start-job is-job-finished wait-for-job
   start-job-server)
 
@@ -20,12 +20,6 @@
 ; Returns #f is now job exsist for the given job-id
 (define (get-results-for id) 
   (hash-ref *completed-jobs* id #f))
-
-; I don't like how specific this function is but it keeps the API boundary.
-(define (get-improve-job-data)
-  (for/list ([(k v) (in-hash *completed-jobs*)]
-    #:when (equal? (job-result-command v) 'improve))
-    (get-table-data v (format "~a.~a" k *herbie-commit*))))
 
 (define (job-count)
   (hash-count *job-status*))

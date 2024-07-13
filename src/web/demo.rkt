@@ -81,7 +81,13 @@
 
 (define (generate-report req)
   (eprintf "generate-report\n")
-  (define info (make-report-info (get-improve-job-data) #:seed (get-seed) #:note (if (*demo?*) "Web demo results" "Herbie results")))
+  (define url #f)
+  (for ([header (request-headers req)])
+    (when (equal? (car header) 'referer)
+      (set! url (cdr header))))
+  (define job-id (first (string-split (fourth (string-split url "/")) ".")))
+  (define result (get-results-for job-id))
+  (define info (make-report-info (hash-ref result 'test) #:seed (get-seed) #:note (if (*demo?*) "Web demo results" "Herbie results")))
   (response 200 #"OK" (current-seconds) #"text"
             (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count)))))
             (λ (out) (write-datafile out info))))
