@@ -61,6 +61,7 @@
   (match (place-channel-get maybe-channel)
   [(list 'done data) 
     (hash-remove! *inprogress* job-id)
+    (hash-set! *completed-jobs* job-id data)
     data]
   [(list 'inprogress data) data]))
 

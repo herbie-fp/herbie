@@ -56,6 +56,7 @@
    [("results.json") generate-report]))
 
 (define (generate-page req result-hash page)
+  (eprintf "generate-page\n")
   (define path (string-split (url->string (request-uri req)) "/"))
   (cond
    [(set-member? (all-pages-modified result-hash) page)
@@ -79,6 +80,7 @@
     (next-dispatcher)]))
 
 (define (generate-report req)
+  (eprintf "generate-report\n")
   (define info (make-report-info (get-improve-job-data) #:seed (get-seed) #:note (if (*demo?*) "Web demo results" "Herbie results")))
   (response 200 #"OK" (current-seconds) #"text"
             (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count)))))
@@ -215,6 +217,7 @@
   (call-with-output-file html-file #:exists 'replace (curryr make-report-page info #f)))
 
 (define (update-report-modified result-hash dir seed data-file html-file)
+  (eprintf "update-report-modified: NOT FINNISHED\n")
   ; (define link (path-element->string (last (explode-path dir))))
   ; (define data (get-table-data result link))
   ; (define info
