@@ -51,6 +51,7 @@
 (define (is-job-finished job-id)
   (define result #f)
   (define maybe-channel (hash-ref *inprogress* job-id #f))
+  (eprintf "chanel:~a \n" maybe-channel)
   ;; TODO handle #f case
   (eprintf "sending check")
   (place-channel-put maybe-channel (list 'check job-id))
@@ -159,18 +160,19 @@
           (hash-set! *job-status* id (*timeline*))
           (eprintf "Job [~a] being worked on.\n" id)
           (define herbie-result (wrapper-run-herbie command id))
-          (match-define (job-result kind test status time _ _ backend) herbie-result)
-          (define out-result #f)
-          (match kind 
-            ['alternatives empty]
-            ['evaluate empty]
-            ['cost empty]
-            ['errors empty]
-            ['exacts empty]
-            ['improve (set! out-result (improve-result-hash herbie-result))]
-            ['local-error empty]
-            ['sample empty]
-            [_ (error 'compute-result "unknown command ~a" kind)])
+          (match-define 
+            (job-result kind test status time _ _ backend) herbie-result)
+          (define out-result
+            (match kind 
+              ['alternatives #f]
+              ['evaluate #f]
+              ['cost #f]
+              ['errors #f]
+              ['exacts #f]
+              ['improve (improve-result-hash herbie-result)]
+              ['local-error #f]
+              ['sample #f]
+              [_ (error 'compute-result "unknown command ~a" kind)]))
           (place-channel-put ch out-result)]
        [(list 'check id) 
         (eprintf "checking ~a\n" id)
@@ -221,10 +223,10 @@
   (define sendable-alts 
     (for/list ([alt end-alts] [ppctx processed] [tpctx test-pctx])
       (render-json alt ppctx tpctx (test-context test))))
-  (define some-file "./zane/log.json")
-  (define out (open-output-file some-file #:exists 'replace))
-  (write-json sendable-alts out)
-  (close-output-port out)
+  ; (define some-file "./zane/log.json")
+  ; (define out (open-output-file some-file #:exists 'replace))
+  ; (write-json sendable-alts out)
+  ; (close-output-port out)
   (hasheq 'end-alts sendable-alts
           'end-errors end-errors
           'end-costs end-costs))
