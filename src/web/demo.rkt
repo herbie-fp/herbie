@@ -309,13 +309,13 @@
     [(? hash? data-blob)
      (define str (for/list ([entry (reverse (hash-ref data-blob 'timeline))])
                             (format "Doing ~a\n" (hash-ref entry 'type))))
-     (eprintf "check-status: ~a\n" str) ;; Not reading updates from places.
      (response 202 #"Job in progress" (current-seconds) #"text/plain"
                (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count)))))
                (λ (out) (display (apply string-append
                                         str)
                                  out)))]
     [#f ;; This doesn't seem always correct..
+     (eprintf "JOB complete\n")
      (response/full 201 #"Job complete" (current-seconds) #"text/plain"
                     (list (header #"Location" (string->bytes/utf-8 (add-prefix (format "~a.~a/graph.html" job-id *herbie-commit*))))
                           (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count))))

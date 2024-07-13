@@ -49,15 +49,20 @@
 
 ;; Used by check-status to poll the current status of a job.
 (define (is-job-finished job-id)
-  (define result #f)
   (define maybe-channel (hash-ref *inprogress* job-id #f))
-  (eprintf "chanel:~a \n" maybe-channel)
-  ;; TODO handle #f case
-  (eprintf "sending check")
+  ;; TODO handle #f case for maybe-channel
+  (if (equal? maybe-channel #f)
+    #f
+    (get-job-data maybe-channel job-id)))
+
+(define (get-job-data maybe-channel job-id)
+  (eprintf "sending check\n")
   (place-channel-put maybe-channel (list 'check job-id))
-  (set! result (place-channel-get maybe-channel))
-  (eprintf "status found: ~a\n" result)
-  result)
+  (match (place-channel-get maybe-channel)
+  [(list 'done data) 
+    (hash-remove! *inprogress* job-id)
+    data]
+  [(list 'inprogress data) data]))
 
 (define (wait-for-job job-id)
   ; (if (already-computed? job-id) 
@@ -173,10 +178,12 @@
               ['local-error #f]
               ['sample #f]
               [_ (error 'compute-result "unknown command ~a" kind)]))
-          (place-channel-put ch out-result)]
+          (hash-set! *job-status* id #f)
+          (place-channel-put ch (list 'done out-result))]
        [(list 'check id) 
         (eprintf "checking ~a\n" id)
-        (hash-ref *job-status* id #f)]))))
+        (place-channel-put ch 
+          (list 'done (list 'inprogress (hash-ref *job-status* id #f))))]))))
 
 (define (improve-result-hash result)
   (define test (job-result-test result))
