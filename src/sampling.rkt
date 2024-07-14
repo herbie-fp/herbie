@@ -123,10 +123,6 @@
     (timeline-push! 'method "random")
     (cons (λ () (map random-generate reprs)) (hash 'unknown 1.0))]))
 
-(define bool-discretization
-  (discretization identity
-                  (lambda (x y) (if (eq? x y) 0 1))))
-
 (define (representation->discretization repr)
   (discretization
    (representation-total-bits repr)
@@ -145,7 +141,7 @@
   (define vars (context-vars (car ctxs)))
   (define var-reprs (context-var-reprs (car ctxs)))
   (define discs (map (compose representation->discretization context-repr) ctxs))
-  (define machine (rival-compile (cons `(assert ,pre) specs) vars (cons bool-discretization discs)))
+  (define machine (rival-compile (cons `(assert ,pre) specs) vars (cons boolean-discretization discs)))
   (timeline-push! 'compiler
                   (apply + 1 (expr-size pre) (map expr-size specs))
                   (+ (length vars) (rival-profile machine 'instructions)))
