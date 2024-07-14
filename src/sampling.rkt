@@ -129,6 +129,7 @@
 
 (define (representation->discretization repr)
   (discretization
+   (representation-total-bits repr)
    (representation-bf->repr repr)
    (lambda (x y) (- (ulp-difference x y repr) 1))))
 
