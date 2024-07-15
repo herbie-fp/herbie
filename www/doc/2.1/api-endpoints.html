@@ -31,9 +31,8 @@
     otherwise specified. A typical example of sending a POST request
     to a running Herbie server is:</p>
 
-    <pre class="shell">curl -X POST -d \
-  '{"formula": "(FPCore (x) (- (sqrt (+ x 1))))",\
-    "seed": 5})}' \
+    <pre class="shell">curl -d \
+  '{"formula": "(FPCore (x) (- (sqrt (+ x 1))))", "seed": 5}' \
   -H 'Content-Type: application/json' \
   http://127.0.0.1:8000/api/sample
     </pre>
@@ -46,15 +45,15 @@
     <p>Request:</p>
 
     <pre>{
-        formula: &lt;FPCore expression&gt;,
-        seed: &lt;random seed for point generation&gt;
-      }</pre>
+    formula: &lt;FPCore expression&gt;,
+    seed: &lt;random seed for point generation&gt;
+}</pre>
 
     <p>Response:</p>
 
     <pre>{
-        points: [[point, exact], ... ]
-      }</pre>
+    points: [[point, exact], ... ]
+}</pre>
     </details>
 
     <p>The <code>sample</code> endpoint allows the user to request a
@@ -78,15 +77,15 @@
     <p>Request:</p>
 
     <pre>{
-        formula: &lt;FPCore expression&gt;,
-        sample: [point, ... ]
-      }</pre>
+    formula: &lt;FPCore expression&gt;,
+    sample: [point, ... ]
+}</pre>
 
     <p>Response:</p>
 
     <pre>{
-        points: [[point, exact], ... ]
-      }</pre>
+    points: [[point, exact], ... ]
+}</pre>
     </details>
 
     <p>The <code>exacts</code> endpoint allows the user to request the
@@ -114,15 +113,15 @@
     <p>Request:</p>
 
     <pre>{
-        formula: &lt;FPCore expression&gt;,
-        sample: [point ... ]
-      }</pre>
+    formula: &lt;FPCore expression&gt;,
+    sample: [point ... ]
+}</pre>
 
     <p>Response:</p>
 
     <pre>{
-        points: [[point, exact], ... ]
-      }</pre>
+    points: [[point, exact], ... ]
+}</pre>
     </details>
 
     <p>The <code>calculate</code> endpoint allows the user to request
@@ -224,7 +223,7 @@
     <p>The <code>mathjs</code> endpoint allows the user to translate
     FPCore expressions into mathjs expressions.</p>
 
-    <h2 id="localerror">/api/local-error</h2>
+    <h2 id="localerror">/api/localerror</h2>
     <!--TODO--> Forthcoming.
 
 
