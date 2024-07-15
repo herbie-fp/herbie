@@ -388,7 +388,7 @@
 
 (define (unparse-result row #:expr [expr #f] #:description [descr #f])
   (define repr (get-representation (table-row-precision row)))
-  (define expr* (or expr (table-row-output row)))
+  (define expr* (or expr (table-row-output row) (table-row-input row)))
   (define top
     (if (table-row-identifier row)
         (list (table-row-identifier row) (table-row-vars row))
