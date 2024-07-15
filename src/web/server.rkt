@@ -225,11 +225,11 @@
   (define sendable-alts 
     (for/list ([alt end-alts] [ppctx processed] [tpctx test-pctx])
       (render-json alt ppctx tpctx (test-context test))))
-  ; (define alts-histories 
-  ;   (for/list ([alt end-alts] [ppctx processed] [tpctx test-pctx])
-  ;     (render-history alt ppctx tpctx (test-context test))))
+  (define alts-histories 
+    (for/list ([alt end-alts] [ppctx processed] [tpctx test-pctx])
+      (render-history alt ppctx tpctx (test-context test))))
   (hasheq 'end-alts sendable-alts
-          ; 'end-histories alts-histories
+          'end-histories alts-histories
           'end-errors end-errors
           'end-costs end-costs))
 

@@ -81,7 +81,7 @@ make-graph-modified)
   (define end-alts (hash-ref end 'end-alts))
   (define end-errors (hash-ref end 'end-errors))
   (define end-costs (hash-ref end 'end-costs))
-  ; (define alts-histories (hash-ref end 'end-histories))
+  (define alts-histories (hash-ref end 'end-histories))
 
   (define speedup
     (let ([better
@@ -200,8 +200,7 @@ make-graph-modified)
                        ,(render-help "report.html#alternatives"))
                    ,body))
 
-      ,@(for/list ([i (in-naturals 1)] [alt-c end-alts] 
-      ; [hist alts-histories]
+      ,@(for/list ([i (in-naturals 1)] [alt-c end-alts] [hist alts-histories]
                    [errs end-errors]   [cost end-costs])
           (define syn (read-syntax 'web (open-input-string (hash-ref alt-c 'program))))
           (define test (parse-test syn))
@@ -219,8 +218,7 @@ make-graph-modified)
             (details
              (summary "Derivation")
              (ol ([class "history"])
-                ;  ,@(render-history alt-c train-pctx test-pctx ctx)
-                 "Zane was here"))))
+                ,@hist))))
 
 
       ,@(for/list ([i (in-naturals 1)] [target (in-list targets)] [target-error (in-list list-target-error)] [target-cost (in-list list-target-cost)])
