@@ -39,16 +39,11 @@
   surprises that so often occur with floating point arithmetic.
   Visit <a href="../..">the main page</a> to learn more about Herbie.</p>
   
-  <p><b>OOPSLA, ASPLOS, and POPL Reviewers</b>, please do not read
-  further, because some of the work described below is submitted for
-  publication to these venues.</p>
+  <p class="warning"><b>OOPSLA, ASPLOS, and POPL Reviewers</b>, please
+  do not read further, because some of the work described below is
+  submitted for publication to these venues.</p>
 
   <img src="team.png" id="team" alt="The Herbie 2.1 team at UW and U of U" />
-
-  <p><b>Join us!</b> Join the Herbie developers on the
-  <a href="https://fpbench.org">FPBench</a> Slack, at the monthly
-  <a href="https://fpbench.org/community-meetings.html">FPBench community meetings</a>,
-  and at <a href="https://fpbench.org/talks/fptalks24.html">FPTalks 2024</a>.
 
   <h2>Faster Generated Code</h2>
 
@@ -61,8 +56,8 @@
       Hamming test suite, showing that Herbie 2.1 generates much
       faster code, especially at low accuracy levels. The impact is
       due to both typed extraction (described on the plot as
-      egg-serialize) and the cost opportunity heuristic (described on
-      the plot as cost localization). The orange curve shows that both
+      <q>egg-serialize</q>) and the cost opportunity heuristic (described on
+      the plot as <q>cost localization</q>). The orange curve shows that both
       components are necessary to achieve the best results.
     </figcaption>
   </figure>
@@ -71,19 +66,17 @@
   Last year, <a href="../2.0/release-notes.html">Herbie 2.0</a>
   released <i>pareto mode</i>, in which Herbie generates multiple
   expressions with different speeds and accuracies. Herbie 2.1 now
-  makes Herbie's generated code, especially at the highest performance
-  levels, dramatically better.
-  </p>
-
-  <p>Some features that contribute to these improvements:</p>
+  makes Herbie's generated code, especially at the
+  highest-performance/lowest-accuracy level, dramatically better.
+  Some features that contribute to these improvements:</p>
 
   <ul>
-    <li>With type-based extraction (<a href="#">#XXX</a>) Herbie
+    <li>With type-based extraction (<a href="https://github.com/herbie-fp/herbie/pull/875">#875</a>, <a href="https://github.com/herbie-fp/herbie/pull/883">#883</a>, and <a href="https://github.com/herbie-fp/herbie/pull/887">#887</a>) Herbie
     considers performance optimizations like precision tuning at the
     same time as it considers rewrites, instead of considering each
     separately.</li>
 
-    <li>A new cost-opportunity heuristics
+    <li>A new cost-opportunity heuristic
       (<a href="https://github.com/herbie-fp/herbie/pull/746">#746</a>)
       allows Herbie to focus on parts of the program that can be sped up,
       generating faster low-accuracy code.</li>
@@ -100,7 +93,11 @@
     this means faster and more accurate polynomial approximations.</li>
   </ul>
 
-  <h2>Faster Sampling</h2>
+  <p>While Herbie's generated results are much better, these changes
+  alone would make Herbie more than twice as slow. This leads to the
+  second category of changes.</p>
+
+  <h2>Faster Herbie Kernel</h2>
   
   <figure class="showcase">
     <style>
@@ -137,21 +134,21 @@
   </figure>
 
   <p>
-  Nearly every part of Herbie has been sped up, often significantly.
-  But the most significant is clearly a complete rewrite of Herbie's
-  sampling system, which uses high-precision interval arithmetic to
-  determine the <i>correct</i> value for a given expression. Herbie
-  2.1 now uses precision tuning to reduce the time and memory costs of
-  sampling. The overall speed-up is approximately 40%, with the
-  biggest impacts to the largest and slowest expressions.
-  </p>
+  Nearly every part of Herbie has been sped up, often significantly,
+  meaning that Herbie 2.1 overall&mdash;despite the much faster
+  generated code&mdash;is only 20% or so slower than Herbie 2.0.</p>
 
   <p>
-  Herbie's new sampling code now lives in the
-  the <a href="https://docs.racket-lang.org/rival/index.html">Rival
-  package</a> where it can be used by other projects. Other
-  sped-up phases include:
+  The most challenging improvement is a complete rewrite of Herbie's
+  real evaluation system, Rival. Herbie 2.1 uses precision tuning to
+  reduce the time and memory costs by approximately 40%, with the
+  biggest impacts to the largest and slowest expressions. Moreover,
+  Rival has
+  been <a href="https://docs.racket-lang.org/rival/index.html">packaged</a>
+  for use in other projects.
   </p>
+
+  <p>Other optimizations to Herbie include:</p>
 
   <ul>
     <li>Regimes saw a series of improvements, including to
@@ -171,10 +168,6 @@
     <li>Random number generation saw a small speed up
       (<a href="https://github.com/herbie-fp/herbie/pull/792">#792</a>).</li>
   </ul>
-  
-  <p>So how much faster is Herbie now? Not that much actually... but
-  that's because speeding up the Herbie kernel made possible the
-  improvements to the generated code described above.</p>
       
 
   <h2>New Features: Platforms and Explanations</h2>
@@ -199,18 +192,17 @@
   <p>Two new features are in development and available in an
   undocumented <i>alpha</i> state in this release: platforms and explanations.</p>
 
-  <p>Platforms describe the specific floating-point operations
-  available in on specific hardware or in a specific programming
-  language or library. Herbie can then optimize a floating-point
-  expression to these specific operations. This allows Herbie to
-  generate faster and more accurate code. We hope to clean up the
-  platforms code and release it for real in Herbie 2.2.</p>
+  <p>Platforms allow Herbie to generate code specific
+  to a given programming language, library, or hardware platform.
+  Herbie can use platform-specific operators, cost models,
+  and compilation styles, which leads to faster and more accurate
+  code. We hope to clean up the platforms code and release it for real
+  in Herbie 2.2.</p>
 
   <p>Explanations describe what floating-point errors Herbie found and
   what inputs they occur for. This should make Herbie easier to
   understand and a more valuable tool for learning about
   floating-point error.</p>
-    
 
   <h2>Sister Projects</h2>
   
@@ -248,7 +240,7 @@
     profiling system.
   </p>
 
-  <h2>Development Improvmeents</h2>
+  <h2>Development Improvements</h2>
   <ul>
     <li>Herbie now supports the FPCore <code>:alt</code> field,
       including multiple alternative expressions
