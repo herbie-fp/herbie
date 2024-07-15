@@ -1039,9 +1039,11 @@
       (define node-types (vector-ref eclass-types id))
       (for/vector #:length (vector-length eclass) ([ty (in-vector node-types)])
         (match ty
-          [(list 'or tys ...) (map (lambda (_) (box #f)) tys)]
-          [_ (box #f)]))))
-
+          [(list 'or tys ...) (map (lambda (ty) (and (representation? ty) (box #f))) tys)]
+          [(? representation?) (box #f)]
+          [(? type-name?) #f]
+          [#f #f]))))
+  
   (define (slow-node-ready? node type)
     (match node
       [(list 'if cond ift iff)
