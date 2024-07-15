@@ -295,7 +295,8 @@
     [(? box? timeline)
      (response 202 #"Job in progress" (current-seconds) #"text/plain"
                (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count)
-                     (header "Access-Control-Allow-Origin" "*")))))
+                     (header #"Access-Control-Allow-Origin" 
+                      (string->bytes/utf-8 "*"))))))
                (λ (out) (display (apply string-append
                                         (for/list ([entry (reverse (unbox timeline))])
                                           (format "Doing ~a\n" (hash-ref entry 'type))))
@@ -303,7 +304,8 @@
     [#f
      (response/full 201 #"Job complete" (current-seconds) #"text/plain"
                     (list (header #"Location" (string->bytes/utf-8 (add-prefix (format "~a.~a/graph.html" job-id *herbie-commit*))))
-                          (header "Access-Control-Allow-Origin" "*")
+                          (header #"Access-Control-Allow-Origin"
+                            (string->bytes/utf-8 "*"))
                           (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count))))
                           (header #"X-Herbie-Job-ID" (string->bytes/utf-8 job-id)))
                     '())]))
