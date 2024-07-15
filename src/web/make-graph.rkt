@@ -3,7 +3,6 @@
 (require (only-in xml write-xexpr xexpr?) 
          (only-in fpbench core->tex *expr-cse-able?*
                           [core-common-subexpr-elim core-cse]))
-
 (require "../common.rkt" "../points.rkt" "../float.rkt" "../programs.rkt"
          "../alternative.rkt" "../syntax/types.rkt"
          "../syntax/read.rkt" "../core/bsearch.rkt" "../sandbox.rkt"
@@ -82,6 +81,7 @@ make-graph-modified)
   (define end-alts (hash-ref end 'end-alts))
   (define end-errors (hash-ref end 'end-errors))
   (define end-costs (hash-ref end 'end-costs))
+  ; (define alts-histories (hash-ref end 'end-histories))
 
   (define speedup
     (let ([better
@@ -200,29 +200,27 @@ make-graph-modified)
                        ,(render-help "report.html#alternatives"))
                    ,body))
 
-      ,@(for/list ([i (in-naturals 1)] [alt-c end-alts] [errs end-errors] [cost end-costs])
-          ; (eprintf "\nalt-c:~a\n" alt-c) ;; Ok where is everything in the JSON.
-          (eprintf "error: ~a\n" (hash-ref alt-c 'error))
-          (eprintf "preprocessing ~a\n" (hash-ref alt-c 'preprocessing))
-          ; (eprintf "prev ~a\n" (hash-ref alt-c 'prev))
-          (eprintf "type ~a\n" (hash-ref alt-c 'type))
-          (eprintf "program ~a\n" (hash-ref alt-c 'program))
-          ; (define-values (dropdown body)
-          ;   (render-program (hash-ref alt-c 'expr) ctx #:ident identifier #:instructions preprocessing))
-          ; `(section ([id ,(format "alternative~a" i)] [class "programs"])
-          ;   (h2 "Alternative " ,(~a i)
-          ;       ": "
-          ;       (span ([class "subhead"])
-          ;         (data ,(format-accuracy (errors-score errs) repr-bits #:unit "%")) " accurate, "
-          ;         (data ,(~r (/ (alt-cost start-alt repr) cost) #:precision '(= 1)) "×") " speedup")
-          ;       ,dropdown
-          ;       ,(render-help "report.html#alternatives"))
-          ;   ,body
-          ;   (details
-          ;    (summary "Derivation")
-          ;    (ol ([class "history"])
-          ;        ,@(render-history new-alt train-pctx test-pctx ctx))))
-          "Zane was here")
+      ,@(for/list ([i (in-naturals 1)] [alt-c end-alts] 
+      ; [hist alts-histories]
+                   [errs end-errors]   [cost end-costs])
+          (define syn (read-syntax 'web (open-input-string (hash-ref alt-c 'program))))
+          (define test (parse-test syn))
+          (define-values (dropdown body*)
+            (render-program (test-input test) ctx #:ident identifier #:instructions preprocessing))
+          `(section ([id ,(format "alternative~a" i)] [class "programs"])
+            (h2 "Alternative " ,(~a i)
+                ": "
+                (span ([class "subhead"])
+                  (data ,(format-accuracy (errors-score errs) repr-bits #:unit "%")) " accurate, "
+                  (data ,(~r (/ (alt-cost start-alt repr) cost) #:precision '(= 1)) "×") " speedup")
+                ,dropdown
+                ,(render-help "report.html#alternatives"))
+            ,body*
+            (details
+             (summary "Derivation")
+             (ol ([class "history"])
+                ;  ,@(render-history alt-c train-pctx test-pctx ctx)
+                 "Zane was here"))))
 
 
       ,@(for/list ([i (in-naturals 1)] [target (in-list targets)] [target-error (in-list list-target-error)] [target-cost (in-list list-target-cost)])
