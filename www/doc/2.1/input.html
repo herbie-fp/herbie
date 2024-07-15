@@ -95,8 +95,7 @@
   </dl>
 
   <p>Herbie also supports the constants <code>PI</code>
-  and <code>E</code>. The arithmetic operators associate to the left,
-  and <code>-</code> is used for both subtraction and negation.</p>
+  and <code>E</code>. Use <code>-</code> for both subtraction and negation.</p>
 
   <p>Herbie links against your computer's <code>libm</code> to
   evaluate these functions. So, each function has the same behavior in
@@ -228,12 +227,18 @@
   Herbie will be able to add conversions between single- and
   double-precision floating-point.</p>
 
-  <h2 id="properties">Miscellaneous Properties</h2>
+  <h2 id="properties">Miscellaneous Input Properties</h2>
 
   <p>Herbie uses the <code>:name</code> property to name FPCores in
   its UI. Its value ought to be a string.</p>
 
-  <p>Herbie's output provide additional information in custom
+  <p>Herbie allows <code>:alt</code> properties to specify additional
+  "developer targets"; these might be other alternatives you've tried
+  that you want to compare against.</p>
+
+  <h2 id="output-properties">Additional Output Metadata</h2>
+
+  <p>Herbie's output provides additional information in custom
   properties:</p>
 
   <dl class="function-list">
@@ -249,9 +254,9 @@
     <dd>The computed average error of the output program, similar to <code>:herbie-error-input</code>.</dd>
   </dl>
 
-  <p>Herbie's benchmark suite also uses properties such
-  as <code>:herbie-target</code> for continuous integration, but these
-  are not officially supported and their use is discouraged.</p>
+  <p>Herbie's benchmark suite also uses properties for continuous
+  integration, but these are not officially supported and their use is
+  discouraged.</p>
   
 </body>
 </html>
