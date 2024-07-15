@@ -906,10 +906,15 @@
 ;; Computes the set of extractable types for each eclass.
 (define (regraph-eclass-types egraph)
   (define egg->herbie (regraph-egg->herbie egraph))
+  (define reprs (platform-reprs (*active-platform*)))
 
   (define (node->type analysis node)
     (match node
-      [(? number?) #t]
+      [(? number?)
+       ; NOTE: a number by itself is untyped, but we can constrain
+       ; the type of the number by the platform
+       (for/fold ([ty #f]) ([repr (in-list reprs)] #:when (eq? (representation-type repr) 'real))
+         (type/union ty repr (representation-type repr)))]
       [(? symbol?)
        (define repr (cdr (hash-ref egg->herbie node)))
        (type/union repr (representation-type repr))]
@@ -957,9 +962,14 @@
 
   ; Compute the extractable types
   (define eclass-types (regraph-eclass-types regraph))
+  (define reprs (platform-reprs (*active-platform*)))
   (define (node->type node)
     (match node
-      [(? number?) #t]
+      [(? number?)
+       ; NOTE: a number by itself is untyped, but we can constrain
+       ; the type of the number by the platform
+       (for/fold ([ty #f]) ([repr (in-list reprs)] #:when (eq? (representation-type repr) 'real))
+         (type/union ty repr (representation-type repr)))]
       [(? symbol?)
        (define repr (cdr (hash-ref egg->herbie node)))
        (type/union repr (representation-type repr))]
@@ -994,12 +1004,14 @@
     (for/vector #:length n ([id (in-range n)])
       (define table (make-hash))
       (define node-types (vector-ref eclass-types id))
-      (for ([ty (in-vector node-types)] #:when ty)
+      (for ([ty (in-vector node-types)])
         (match ty
           [(list 'or tys ...)
-           (for ([ty (in-list tys)])
+           (for ([ty (in-list tys)] #:when (representation? ty))
              (hash-set! table ty #f))]
-          [_ (hash-set! table ty #f)]))
+          [(? representation?) (hash-set! table ty #f)]
+          [(? type-name?) (void)]
+          [#f (void)]))
       table))
 
   ; Checks if eclass has a cost
@@ -1098,23 +1110,19 @@
     ; Iterate over the nodes
     (for ([node (in-vector eclass)]
           [ty (in-vector node-types)]
-          [ready? (in-vector ready?/node)]
-          #:when ty)
+          [ready? (in-vector ready?/node)])
       (match ty
         [(list 'or tys ...) ; node is a union type (only for some `if` nodes)
          (for ([ty (in-list tys)] [ready? (in-list ready?)])
-           (when (node-requires-update? node)
+           (when (and (representation? ty) (node-requires-update? node))
              (define new-cost (node-cost node ty ready?))
              (update-cost! ty new-cost node)))]
-        [#t ; node is untyped (constant)
+        [(? representation?) ; node has a specific reprsentation
          (when (node-requires-update? node)
            (define new-cost (node-cost node ty ready?))
-           (for ([ty (in-list (hash-keys eclass-costs))])
-             (update-cost! ty new-cost node)))]
-        [_ ; node has a specific type
-         (when (node-requires-update? node)
-           (define new-cost (node-cost node ty ready?))
-           (update-cost! ty new-cost node))]))
+           (update-cost! ty new-cost node))]
+        [(? type-name?) (void)] ; type
+        [#f (void)])) ; no type
 
     updated?)
 
@@ -1157,8 +1165,9 @@
   (define egg->herbie (regraph-egg->herbie regraph))
   (define node-cost-proc (platform-node-cost-proc (*active-platform*)))
   (match node
-    [(? number?) 0] ; TODO: numbers are free I guess
-    [(? symbol?)
+    [(? number? n) ; numbers (repr is unused) 
+     ((node-cost-proc (literal n type) type))]
+    [(? symbol?) ; variables (`egg->herbie` has the repr)
      (define repr (cdr (hash-ref egg->herbie node)))
      ((node-cost-proc node repr))]
     [(list 'if cond ift iff) ; if expression
