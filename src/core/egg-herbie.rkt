@@ -847,7 +847,6 @@
 ;;       - a default failure value
 ;;
 ;; Types are represented as one of the following:
-;;  - #t: top type (type of numbers)
 ;;  - (or <type> ..+) union of types
 ;;  - <representation>: representation type
 ;;  - <type-name>: type-name type
@@ -866,7 +865,6 @@
 (define (subtype? ty1 ty2)
   (match* (ty1 ty2)
     [(_ #f) #f]
-    [(_ #t) #t]
     [((list 'or tys1 ...) (list 'or tys2 ...)) (andmap (lambda (ty) (member ty tys2)) tys1)]
     [(_ (list 'or tys2 ...)) (member ty1 tys2)]
     [(_ _) (equal? ty1 ty2)]))
@@ -875,8 +873,6 @@
 (define (type/union ty1 . tys)
   (for/fold ([ty1 ty1]) ([ty2 (in-list tys)])
     (match* (ty1 ty2)
-      [(#t _) #t]
-      [(_ #t) #t]
       [(#f _) ty2]
       [(_ #f) ty1]
       [((list 'or tys1 ...) (list 'or tys2 ...))
@@ -891,8 +887,6 @@
 ;; Applying the intersection operation over types
 (define (type/intersect ty1 ty2)
   (match* (ty1 ty2)
-    [(_ #t) ty1]
-    [(#t _) ty2]
     [((list 'or tys1 ...) (list 'or tys2 ...))
      (match (for/fold ([tys '()]) ([ty (in-list tys1)] #:when (member ty tys2))
               (cons ty tys))
@@ -1016,35 +1010,24 @@
 
   ; Checks if eclass has a cost
   (define (eclass-has-cost? id type)
-    (define c (vector-ref costs id))
-    (cond
-      [(hash-has-key? c type) (hash-ref c type)] ; typed choice has cost
-      [(hash-has-key? c #t) (hash-ref c #t)] ; untyped choice has cost (constants)
-      [else #t])) ; no choice but we can compute cost with failure value
+    (define eclass-costs (vector-ref costs id))
+    (hash-ref eclass-costs type #f))
 
   ; Unsafe lookup of eclass cost
   (define (unsafe-eclass-cost id type failure)
-    (define cost (vector-ref costs id))
+    (define eclass-costs (vector-ref costs id))
     (cond
-      [(hash-has-key? cost type) 
-       (define cost* (hash-ref cost type)) ; (cost . node) or #f
-       (and cost* (car cost*))]
-      [(hash-has-key? cost #t) ; type `#t` is always a valid choice
-       (define cost* (hash-ref cost #t))  ; (cost . node) or #f
-       (and cost* (car cost*))]
+      [(hash-ref eclass-costs type #f) => ; (cost . node) or #f
+       (lambda (cost) (and cost (car cost)))]
       [else failure]))
 
   ; Unsafe lookup of best eclass node.
   ; Returns `#f` if no best eclass exists.
   (define (unsafe-best-node id type)
-    (define cost (vector-ref costs id))
+    (define eclass-costs (vector-ref costs id))
     (cond
-      [(hash-has-key? cost type)
-       (define cost* (hash-ref cost type)) ; (cost . node) or #f
-       (and cost* (cdr cost*))]
-      [(hash-has-key? cost #t) ; type `#t` is always a valid choice
-       (define cost* (hash-ref cost #t))  ; (cost . node) or #f
-       (and cost* (cdr cost*))]
+      [(hash-ref eclass-costs type #f) => ; (cost . node) or #f
+       (lambda (cost) (and cost (cdr cost)))]
       [else #f]))
 
   ; We cache whether it is safe to apply the cost function on a given node
