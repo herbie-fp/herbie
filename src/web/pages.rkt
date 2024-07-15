@@ -4,7 +4,7 @@
 (require "../syntax/read.rkt" "../syntax/sugar.rkt" "../syntax/syntax.rkt" "../syntax/types.rkt"
          "../alternative.rkt" "../float.rkt" "../points.rkt" "../sandbox.rkt" "../datafile.rkt"
          "common.rkt" "timeline.rkt" "plot.rkt" "make-graph.rkt" "traceback.rkt")
-(provide all-pages all-pages-modified
+(provide all-pages all-pages-modified make-page
 make-page-modifed page-error-handler page-error-handler-modified)
 
 (define (unique-values pts idx)
@@ -69,25 +69,25 @@ Well I know I need to to pass the needed result data to generate a page from tab
     ["points.json"
      (make-points-json-modifed test pctxs start target end out ctx)]))
 
-; (define (make-page page out result output? profile?)
-;   (define test (job-result-test result))
-;   (define status (job-result-status result))
-;   (define ctx (test-context test))
-;   (match page
-;     ["graph.html"
-;      (match status
-;        ['success (make-graph result out output? (get-interactive-js result ctx) profile?)]
-;        ['timeout (make-traceback result out profile?)]
-;        ['failure (make-traceback result out profile?)]
-;        [_ (error 'make-page "unknown result type ~a" status)])]
-;     ["interactive.js"
-;      (make-interactive-js result out ctx)]
-;     ["timeline.html"
-;      (make-timeline (test-name test) (job-result-timeline result) out #:path "..")]
-;     ["timeline.json"
-;      (write-json (job-result-timeline result) out)]
-;     ["points.json"
-;      (make-points-json result out ctx)]))
+(define (make-page page out result output? profile?)
+  (define test (job-result-test result))
+  (define status (job-result-status result))
+  (define ctx (test-context test))
+  (match page
+    ["graph.html"
+     (match status
+       ['success (make-graph result out output? (get-interactive-js result ctx) profile?)]
+       ['timeout (make-traceback result out profile?)]
+       ['failure (make-traceback result out profile?)]
+       [_ (error 'make-page "unknown result type ~a" status)])]
+    ["interactive.js"
+     (make-interactive-js result out ctx)]
+    ["timeline.html"
+     (make-timeline (test-name test) (job-result-timeline result) out #:path "..")]
+    ["timeline.json"
+     (write-json (job-result-timeline result) out)]
+    ["points.json"
+     (make-points-json result out ctx)]))
 
 (define (get-interactive-js-modified result-hash ctx)
   (eprintf "get-interactive-js-modified\n")
