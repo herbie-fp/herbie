@@ -281,19 +281,30 @@
 
   (*context* (make-debug-context '(x a b c r)))
   (define extended-expr-list
-    (list '(/ (- (exp x) (exp (- x))) 2)
-          '(/ (+ (- b) (sqrt (- (* b b) (* (* 3 a) c)))) (* 3 a))
-          '(/ (+ (- b) (sqrt (- (* b b) (* (* 3 a) c))))
-              (* 3 a)) ;; duplicated to make sure it would still work
-          '(* r 30)
-          '(* 23/54 r)
-          '(+ 3/2 1.4)))
+    (list
+      ; specifications
+      '(/ (- (exp x) (exp (neg x))) 2)
+      '(/ (+ (neg b) (sqrt (- (* b b) (* (* 3 a) c)))) (* 3 a))
+      '(/ (+ (neg b) (sqrt (- (* b b) (* (* 3 a) c)))) (* 3 a))
+      '(* r 30)
+      '(* 23/54 r)
+      '(+ 3/2 1.4)
+      ; implementations
+      `(/.f64 (-.f64 (exp.f64 x) (exp.f64 (neg.f64 x))) ,(literal 2 'binary64))
+      `(/.f64 (+.f64 (neg.f64 b)
+                     (sqrt.f64 (-.f64 (*.f64 b b) (*.f64 (*.f64 ,(literal 3 'binary64) a) c))))
+              (*.f64 ,(literal 3 'binary64) a))
+      `(/.f64 (+.f64 (neg.f64 b) 
+                     (sqrt.f64 (-.f64 (*.f64 b b) (*.f64 (*.f64 ,(literal 3 'binary64) a) c))))
+              (*.f64 ,(literal 3 'binary64) a))
+      `(*.f64 r ,(literal 30 'binary64))
+      `(*.f64 ,(literal 23/54 'binary64) r)
+      `(+.f64 ,(literal 3/2 'binary64) ,(literal 1.4 'binary64))))
 
   (let ([egg-graph (make-egraph)])
     (for ([expr extended-expr-list])
-      (define expr* (spec->prog expr (*context*)))
-      (define egg-expr (expr->egg-expr expr* egg-graph (*context*)))
-      (check-equal? (egg-expr->expr (~a egg-expr) egg-graph (context-repr (*context*))) expr*))))
+      (define egg-expr (expr->egg-expr expr egg-graph (*context*)))
+      (check-equal? (egg-expr->expr (~a egg-expr) egg-graph (context-repr (*context*))) expr))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Proofs

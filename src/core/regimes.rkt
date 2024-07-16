@@ -164,7 +164,7 @@
 
     (define (test-regimes expr goal)
       (check (lambda (x y) (equal? (map si-cidx (option-split-indices x)) y))
-             (option-on-expr alts err-lsts (spec->prog expr ctx) ctx)
+             (option-on-expr alts err-lsts expr ctx)
              goal))
 
     ;; This is a basic sanity test
@@ -173,9 +173,9 @@
     ;; This test ensures we handle equal points correctly. All points
     ;; are equal along the `1` axis, so we should only get one
     ;; splitpoint (the second, since it is better at the further point).
-    (test-regimes '1 '(0))
+    (test-regimes (literal 1 'binary64) '(0))
 
-    (test-regimes '(if (== x 0.5) 1 NAN) '(1 0))))
+    (test-regimes `(if (==.f64 x ,(literal 0.5 'binary64)) ,(literal 1 'binary64) (NAN.f64)) '(1 0))))
 
 ;; Struct representing a candidate set of splitpoints that we are considering.
 ;; cost = The total error in the region to the left of our rightmost splitpoint
