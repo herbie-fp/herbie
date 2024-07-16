@@ -28,8 +28,9 @@
 
 (define (repr->discretization repr)
   (discretization
-   (representation-bf->repr repr)
-   (lambda (x y) (- (ulp-difference x y repr) 1))))
+    (representation-total-bits repr)
+    (representation-bf->repr repr)
+    (lambda (x y) (- (ulp-difference x y repr) 1))))
 
 ;; Herbie's wrapper around the Rival machine abstraction.
 (struct real-evaluator (pre vars var-reprs exprs reprs machine))
