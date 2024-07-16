@@ -12,6 +12,7 @@
          *active-platform*
          activate-platform!
          extract-platform-name
+         platform-lifting-rules
          platform-lowering-rules
          ;; Platform API
          ;; Operator sets
@@ -675,12 +676,43 @@
       [(list _ _ rest ...) (loop rest)]
       [(list) #f])))
 
-;; Rules from spec to impl
-;; These are fixed for a a particular platform
+;; Rules from impl to spec (fixed for a particular platform)
+(define-resetter *lifting-rules*
+  (λ () (make-hash))
+  (λ () (make-hash)))
+
+;; Rules from spec to impl (fixed for a particular platform)
 (define-resetter *lowering-rules*
   (λ () (make-hash))
   (λ () (make-hash)))
 
+;; Synthesizes the LHS and RHS of lifting/lowering rules.
+(define (impl->rule-parts impl)
+  (define op (impl->operator impl))
+  (cond
+    [(operator-accelerator? op)
+     (define spec (operator-info op 'spec))
+     (match-define `(,(or 'lambda 'λ) (,vars ...) ,body) spec)
+     (values vars body (cons impl vars))]
+    [else
+     (define itypes (operator-info op 'itype))
+     (define vars (map (lambda (_) (gensym)) itypes))
+     (values vars (cons op vars) (cons impl vars))]))
+
+;; Synthesizes lifting rules for a given platform.
+(define (platform-lifting-rules [pform (*active-platform*)])
+  (define impls (platform-impls pform))
+  (for/list ([impl (in-list impls)])
+    (hash-ref! (*lifting-rules*)
+               (cons impl pform)
+               (lambda ()
+                 (define name (sym-append 'lift- impl))
+                 (define itypes (impl-info impl 'itype))
+                 (define otype (impl-info impl 'otype))
+                 (define-values (vars spec-expr impl-expr) (impl->rule-parts impl))
+                 (rule name impl-expr spec-expr (map cons vars itypes) otype)))))
+
+;; Synthesizes lowering rules for a given platform.
 (define (platform-lowering-rules [pform (*active-platform*)])
   (define impls (platform-impls pform))
   (for/list ([impl (in-list impls)])
@@ -688,20 +720,8 @@
                (cons impl pform)
                (lambda ()
                  (define op (impl->operator impl))
+                 (define name (sym-append 'lower- impl))
                  (define itypes (operator-info op 'itype))
                  (define otype (operator-info op 'otype))
-                 (cond
-                   [(operator-accelerator? op)
-                    ; accelerator lowering
-                    (define name (sym-append 'accelerator-lowering- impl))
-                    (define spec (operator-info op 'spec))
-                    (match-define `(,(or 'lambda 'λ) (,vars ...) ,body) spec)
-                    (rule name body (cons impl vars) (map cons vars itypes) otype)]
-                   [else
-                    ; direct lowering
-                    (define vars (map (lambda (_) (gensym)) itypes))
-                    (rule (sym-append op '-lowering- impl)
-                          (cons op vars)
-                          (cons impl vars)
-                          (map cons vars itypes)
-                          otype)])))))
+                 (define-values (vars spec-expr impl-expr) (impl->rule-parts impl))
+                 (rule name spec-expr impl-expr (map cons vars itypes) otype)))))

@@ -31,17 +31,19 @@
   (define progs (apply append subexprss))
 
   ; inputs to egg
-  (define specs (map (lambda (e) (expand-accelerators (prog->spec e))) progs))
   (define reprs (map (lambda (prog) (repr-of prog ctx)) progs))
   (define rules (real-rules (*simplify-rules*)))
+  (define lifting-rules (platform-lifting-rules))
   (define lowering-rules (platform-lowering-rules))
 
   ; egg runner (2-phases for real rewrites and implementation selection)
   (define runner
-    (make-egg-runner specs
-                     reprs
-                     `((,rules . ((node . ,(*node-limit*))))
-                       (,lowering-rules . ((iteration . 1) (scheduler . simple))))))
+    (make-egg-runner
+      progs
+      reprs
+      `((,lifting-rules . ((iteration . 1) (scheduler . simple)))
+       (,rules . ((node . ,(*node-limit*))))
+       (,lowering-rules . ((iteration . 1) (scheduler . simple))))))
 
   ; run egg
   (define simplified
