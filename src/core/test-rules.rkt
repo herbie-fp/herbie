@@ -35,6 +35,8 @@
                                   [sqrt-pow1_binary64 . (>= x 0)]
                                   [sqrt-pow1_binary32 . (>= x 0)]))
 
+(define (rule->impl-rules rule) '())
+
 (define (check-rule-sound test-rule)
   (match-define (rule name p1 p2 env repr) test-rule)
   (define vars (map car env))

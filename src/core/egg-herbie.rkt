@@ -16,7 +16,6 @@
 (require "rules.rkt"
          "programs.rkt"
          "../syntax/platform.rkt"
-         "../syntax/sugar.rkt"
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
          "../utils/common.rkt"
@@ -32,8 +31,7 @@
          make-egg-runner
          run-egg
          get-canon-rule-name
-         remove-rewrites
-         rule->impl-rules)
+         remove-rewrites)
 
 (module+ test
   (require rackunit)
@@ -432,19 +430,6 @@
                            (hash-set! (*canon-names*) name (rule-name rule))
                            (cons egg-rule (make-ffi-rule egg-rule))))))
           (for-each sow egg&ffi-rules))))
-
-(define (rule->impl-rules rule) '())
-
-; TODO: restore these rules
-;; For backwards compatability in unit tests
-; (define (rule->impl-rules rule)
-;   (platform-impl-rules (list rule) #:expansive? #t))
-
-; (module+ test
-;   ; Check that all builtin rules are instantiated at least once
-;   ; in the default platform
-;   (for ([rule (in-list (*rules*))])
-;     (> (length (rule->impl-rules rule)) 0)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Racket egraph

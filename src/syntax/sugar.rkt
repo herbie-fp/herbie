@@ -170,7 +170,7 @@
         [`(,(? constant-operator? x))
          (define cnst (get-parametric-constant x (context-repr ctx)))
          (values (list cnst) (impl-info cnst 'otype))]
-        [(list 'neg arg)
+        [(list 'neg arg) ; non-standard but useful
          (define-values (arg* atype) (loop arg ctx))
          (define op* (get-parametric-operator 'neg atype))
          (values (list op* arg*) (impl-info op* 'otype))]
