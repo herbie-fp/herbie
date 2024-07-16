@@ -197,8 +197,24 @@
   (hash-set! operators name info)
   (hash-set! operators-to-impls name '()))
 
-(define-syntax-rule (define-operator (name itypes ...) otype [key value] ...)
-  (register-operator! 'name '(itypes ...) 'otype (list (cons 'key value) ...)))
+;; Syntactic form for `register-operator!`.
+;; Special translations for 
+(define-syntax (define-operator stx)
+  (define (bad! why [what #f])
+    (raise-syntax-error 'define-operator why stx what))
+  
+  (define (attribute-val key val)
+    (syntax-case key (spec)
+      [spec (with-syntax ([val val]) (syntax 'val))]
+      [_ val]))
+
+  (syntax-case stx ()
+    [(_ (id itype ...) otype [key val] ...)
+     (let ([id #'id] [keys (syntax->list #'(key ...))] [vals (syntax->list #'(val ...))])
+       (unless (identifier? id)
+         (bad! "expected identifier" id))
+       (with-syntax ([id id] [(val ...) (map attribute-val keys vals)])
+         #'(register-operator! 'id '(itype ...) 'otype (list (cons 'key val) ...))))]))
 
 (define-syntax-rule (define-1ary-real-operator name ival-impl)
   (define-operator (name real) real [ival ival-impl]))
@@ -316,24 +332,24 @@
 ;; Accelerators
 
 (define-operator (expm1 real) real
-  [spec '(lambda (x) (- (exp x) 1))])
+  [spec (lambda (x) (- (exp x) 1))])
 
 (define-operator (log1p real) real
-  [spec '(lambda (x) (log (+ 1 x)))])
+  [spec (lambda (x) (log (+ 1 x)))])
 
 (define-operator (hypot real real) real
-  [spec '(lambda (x y) (sqrt (+ (* x x) (* y y))))])
+  [spec (lambda (x y) (sqrt (+ (* x x) (* y y))))])
 
 (define-operator (fma real real real) real
-  [spec '(lambda (x y z) (+ (* x y) z))])
+  [spec (lambda (x y z) (+ (* x y) z))])
 
 (define-operator (erfc real) real
-  [spec '(lambda (x) (- 1 (erf x)))])
+  [spec (lambda (x) (- 1 (erf x)))])
 
 (module+ test
   ; log1pmd(x) = log1p(x) - log1p(-x)
   (define-operator (log1pmd real) real
-    [spec '(lambda (x) (- (log1p x) (log1p (neg x))))]))
+    [spec (lambda (x) (- (log1p x) (log1p (neg x))))]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Operator implementations
