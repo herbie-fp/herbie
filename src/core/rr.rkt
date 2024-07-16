@@ -64,7 +64,7 @@
   (load-herbie-builtins)
   (*context* (make-debug-context '(x)))
 
-  (define rules (real-rules (*rules*) #:expansive? #t))
+  (define rules (real-rules (*rules*)))
 
   (let ([chngs (rewrite-once '(+ x x) (*context*) #:rules rules)])
     (check-equal? (length chngs) 13 (format "rewrites ~a" chngs)))

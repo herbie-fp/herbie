@@ -1,10 +1,12 @@
 #lang racket
 
-(require "../utils/errors.rkt")
+(require "../utils/common.rkt"
+         "../utils/errors.rkt")
 
 (provide type-name?
          (struct-out representation)
          get-representation
+         repr->symbol
          (struct-out context)
          *context*
          context-extend
@@ -38,6 +40,12 @@
      (fprintf port "#<representation ~a>" (representation-name repr)))])
 
 (define representations (hash))
+
+;; Representation name sanitizer
+(define (repr->symbol repr)
+  (define replace-table `((" " . "_") ("(" . "") (")" . "")))
+  (define repr-name (representation-name repr))
+  (string->symbol (string-replace* (~a repr-name) replace-table)))
 
 ;; Repr / operator generation
 ;; Some plugins might define 'parameterized' reprs (e.g. fixed point with
