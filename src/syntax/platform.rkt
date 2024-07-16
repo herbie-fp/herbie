@@ -11,7 +11,6 @@
          get-platform
          *active-platform*
          activate-platform!
-         extract-platform-name
          platform-lifting-rules
          platform-lowering-rules
          ;; Platform API
@@ -667,14 +666,6 @@
          (define cost-proc (node-cost-proc expr repr))
          (define itypes (impl-info impl 'itype))
          (apply cost-proc (map loop args itypes))]))))
-
-(define (extract-platform-name annotation)
-  (match-define (list '! props ...) annotation)
-  (let loop ([props props])
-    (match props
-      [(list ':herbie-platform name _ ...) name]
-      [(list _ _ rest ...) (loop rest)]
-      [(list) #f])))
 
 ;; Rules from impl to spec (fixed for a particular platform)
 (define-resetter *lifting-rules*
