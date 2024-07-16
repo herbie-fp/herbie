@@ -392,37 +392,46 @@
      (define opts (pareto-regimes (sort alts < #:key (curryr alt-cost repr)) ctx))
      (for/list ([opt (in-list opts)])
        (combine-alts opt ctx))]
-    [else (list (argmin score-alt alts))]))
+    [else
+     (list (argmin score-alt alts))]))
+
+(define (final-simplify! alts)
+  alts)
 
 ; TODO: restore final simplify
-(define (final-simplify! alts)
-  (cond
-    [(flag-set? 'generate 'simplify)
-     (timeline-event! 'simplify)
+; (define (final-simplify! alts)
+;   (cond
+;     [(flag-set? 'generate 'simplify)
+;      (timeline-event! 'simplify)
+    
+;      (define progs (map alt-expr alts))
+;      (define reprs (map (lambda (prog) (repr-of prog (*context*))) progs))
+;      (define rules (platform-impl-rules (*fp-safe-simplify-rules*)))
 
-     (define progs (map alt-expr alts))
-     (define reprs (map (lambda (prog) (repr-of prog (*context*))) progs))
-     (define rules (platform-impl-rules (*fp-safe-simplify-rules*)))
+;      ; egg runner
+;      (define runner
+;       (make-egg-runner progs
+;                        reprs
+;                        `((,rules . ((node . ,(*node-limit*)) (const-fold? . #f))))))
 
-     ; egg runner
-     (define runner
-       (make-egg-runner progs reprs `((,rules . ((node . ,(*node-limit*)) (const-fold? . #f))))))
+;      ; run egg
+;      (define simplified
+;        (map last
+;             (simplify-batch
+;               runner
+;               (typed-egg-extractor
+;                 (if (*egraph-platform-cost*)
+;                     platform-egg-cost-proc
+;                     default-egg-cost-proc)))))
 
-     ; run egg
-     (define simplified
-       (map last
-            (simplify-batch runner
-                            (typed-egg-extractor (if (*egraph-platform-cost*)
-                                                     platform-egg-cost-proc
-                                                     default-egg-cost-proc)))))
-
-     ; de-duplication
-     (remove-duplicates (for/list ([altn (in-list alts)] [prog (in-list simplified)])
-                          (if (equal? (alt-expr altn) prog)
-                              altn
-                              (alt prog 'final-simplify (list altn) (alt-preprocessing altn))))
-                        alt-equal?)]
-    [else alts]))
+;      ; de-duplication
+;      (remove-duplicates
+;         (for/list ([altn (in-list alts)] [prog (in-list simplified)])
+;           (if (equal? (alt-expr altn) prog)
+;               altn
+;               (alt prog 'final-simplify (list altn) (alt-preprocessing altn))))
+;         alt-equal?)]
+;     [else alts]))
 
 (define (add-soundness! alts)
   (cond

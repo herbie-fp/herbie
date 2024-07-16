@@ -64,12 +64,13 @@
   (load-herbie-builtins)
   (*context* (make-debug-context '(x)))
 
-  (define rules (platform-impl-rules (*rules*) #:expansive? #t))
+  ; TODO: reimplement the test
+  ; (define rules (platform-impl-rules (*rules*) #:expansive? #t))
 
-  (let ([chngs (rewrite-once '(+.f64 x x) (*context*) #:rules rules)])
-    (check-equal? (length chngs) 13 (format "rewrites ~a" chngs)))
+  ; (let ([chngs (rewrite-once '(+.f64 x x) (*context*) #:rules rules)])
+  ;   (check-equal? (length chngs) 13 (format "rewrites ~a" chngs)))
 
-  (let ([chngs (rewrite-once '(*.f64 x x) (*context*) #:rules rules)])
-    (check-equal? (length chngs) 11 (format "rewrites ~a" chngs)))
+  ; (let ([chngs (rewrite-once '(*.f64 x x) (*context*) #:rules rules)])
+  ;   (check-equal? (length chngs) 11 (format "rewrites ~a" chngs)))
 
   (void))

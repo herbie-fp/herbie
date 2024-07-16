@@ -12,6 +12,7 @@
          *active-platform*
          activate-platform!
          extract-platform-name
+         platform-lowering-rules
          ;; Platform API
          ;; Operator sets
          (contract-out [operator-set? (-> any/c boolean?)]
@@ -673,3 +674,34 @@
       [(list ':herbie-platform name _ ...) name]
       [(list _ _ rest ...) (loop rest)]
       [(list) #f])))
+
+;; Rules from spec to impl
+;; These are fixed for a a particular platform
+(define-resetter *lowering-rules*
+  (λ () (make-hash))
+  (λ () (make-hash)))
+
+(define (platform-lowering-rules [pform (*active-platform*)])
+  (define impls (platform-impls pform))
+  (for/list ([impl (in-list impls)])
+    (hash-ref! (*lowering-rules*)
+               (cons impl pform)
+               (lambda ()
+                 (define op (impl->operator impl))
+                 (define itypes (operator-info op 'itype))
+                 (define otype (operator-info op 'otype))
+                 (cond
+                   [(operator-accelerator? op)
+                    ; accelerator lowering
+                    (define name (sym-append 'accelerator-lowering- impl))
+                    (define spec (operator-info op 'spec))
+                    (match-define `(,(or 'lambda 'λ) (,vars ...) ,body) spec)
+                    (rule name body (cons impl vars) (map cons vars itypes) otype)]
+                   [else
+                    ; direct lowering
+                    (define vars (map (lambda (_) (gensym)) itypes))
+                    (rule (sym-append op '-lowering- impl)
+                          (cons op vars)
+                          (cons impl vars)
+                          (map cons vars itypes)
+                          otype)])))))

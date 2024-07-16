@@ -3,6 +3,7 @@
 (require "egg-herbie.rkt"
          "simplify.rkt"
          "rules.rkt"
+         "../syntax/platform.rkt"
          "../syntax/syntax.rkt"
          "../syntax/sugar.rkt"
          "../syntax/types.rkt"

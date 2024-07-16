@@ -11,7 +11,8 @@
 (provide *rules*
          *simplify-rules*
          *fp-safe-simplify-rules*
-         (struct-out rule))
+         (struct-out rule)
+         real-rules)
 
 (module+ internals
   (provide define-ruleset
@@ -101,9 +102,26 @@
                      (filter rule-ops-supported? rules))
             (for ([rule (in-list rules)])
               (sow rule))))))
+
+;; Spec contains no accelerators
+(define (spec-has-accelerator? spec)
+  (match spec
+    [(list (? operator-accelerator?) _ ...) #t]
+    [(list _ args ...) (ormap spec-has-accelerator? args)]
+    [_ #f]))
+
+(define (real-rules rules)
+  (filter-not
+    (lambda (rule)
+      (or (representation? (rule-otype rule))
+          (spec-has-accelerator? (rule-input rule))
+          (spec-has-accelerator? (rule-output rule))))
+    rules))
+  
 ;;
 ;;  Rule loading
 ;;
+
 
 (define ((type/repr-of-rule op-info name) input output ctx)
   (let loop ([input input] [output output])
