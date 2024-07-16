@@ -23,12 +23,14 @@
   <p>This page contains systems diagrams for Herbie.</p>
 
   <figure>
-    <img width="100%" src="system-1.6.png" alt="System diagram of Herbie" />
+    <img width="100%" src="system-2.1.png" alt="System diagram of Herbie" />
     <figcaption>
     High-level system diagram of Herbie. It highlights Herbie's core architecture,
       external libraries, and user interactions.
-    Basic flow: Herbie passes user input (expression, precondition, etc.) to the
-      mainloop (scheduler) which alternates between generate and test phases multiple times,
+    Basic flow: Herbie passes user input (expression, precondition, etc.) to
+      a sampler which generates points on which Herbie can evaluate
+      any candidate expression's error.
+    The mainloop (scheduler) then alternates between generate and test phases,
       maintaining and improving a set of accurate expressions at each iteration.
     Once the generate-and-test phase is complete, Herbie extracts either
       one or many output expressions using an algorithm called regime inference.
