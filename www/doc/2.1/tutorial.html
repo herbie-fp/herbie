@@ -36,7 +36,11 @@
 
   <p>Start Herbie with:</p>
 
-  <pre class="shell">herbie web</pre>
+  <pre class="shell">racket -l herbie web</pre>
+  
+  <p>Alternatively, if you added <code>herbie</code> to the path, you
+  can always replace <code>racket -l herbie</code> with
+  just <code>herbie</code>.</p>
 
   <p>
     After a brief wait, your web browser should open and show you
@@ -80,7 +84,7 @@
   <p>
     Here, you can see that Herbie's most accurate alternative has an
     accuracy of 99.7%, much better than the initial program's 53.2%,
-    and that in total Herbie found 5 alternative. One of those
+    and that in total Herbie found 5 alternatives. One of those
     alternatives is both more accurate than the original expression
     and also 1.9&times; faster. The <a href="report.html">rest of the
     result page</a> shows each of these alternatives, including
@@ -94,9 +98,9 @@
   <p>
     You can use Herbie on expressions from source code, mathematical
     models, or debugging tools. But most users use Herbie as they
-    write code, passing any complex floating-point tool to Herbie as
-    they go. Herbie has <a href="options.html">options</a> to log all
-    the expressions you enter so that you can refer to them later.
+    write code, asking it about any complex floating-point expression
+    they write. Herbie has <a href="options.html">options</a> to log
+    all the expressions you enter so that you can refer to them later.
   </p>
 
   <p>But to keep the tutorial focused, let's suppose you're instead
@@ -116,7 +120,7 @@
   <h2>Finding the problematic expression</h2>
 
   <p>
-    In most programs, there's a small core that does the mathematical
+    In most programs, there's a small kernel that does the mathematical
     computations, while the rest of the program sets up parameters,
     handles control flow, visualizes or prints results, and so on. The
     mathematical core is what Herbie will be interested in.
@@ -126,18 +130,16 @@
     For our example, let's start
     in <a href="https://github.com/josdejong/mathjs/tree/master/lib/function"><code>lib/function/</code></a>.
     This directory contains many subdirectories; each file in each
-    subdirectory defines a collection of mathematical functions. The
-    bug we're interested in is about complex square root, which is
-    defined in
+    subdirectory defines a collection of mathematical functions. We're
+    interested in the complex square root function, which is defined in
     <a href="https://github.com/josdejong/mathjs/blob/da306e26ed34272db44e35f07a3b015c0155d99a/lib/function/arithmetic/sqrt.js"><code>arithmetic/sqrt.js</code></a>.
   </p>
 
   <p>
-    This file handles argument checks, five different number types,
-    and error handling, for both real and complex square roots. None
-    of that is of interest to Herbie; we want to extract just the
-    mathematical core. So skip down to the <code>isComplex(x)</code>
-    case:
+    This file handles argument checks, different types, and error
+    handling, for both real and complex square roots. None of that is
+    of interest to Herbie; we want to extract just the mathematical
+    core. So skip down to the <code>isComplex(x)</code> case:
   </p>
 
   <pre>var r = Math.sqrt(x.re * x.re + x.im * x.im);
@@ -193,9 +195,10 @@ else {
     <img width="100%" src="range-input-2.png" alt="Restricting the input range to xim >= 0." />
   </figure>
   
-  This asks Herbie to consider only non-negative
-  values of <code>xim</code> when improving the accuracy of this
-  expression.</p>
+  This asks Herbie to consider only non-negative values
+  of <code>xim</code> when improving the accuracy of this expression.
+  The number <code>1.79e308</code> is approximately the largest
+  double-precision number, and will auto-complete.</p>
   
   <h2>Herbie's results</h2>
 
@@ -282,7 +285,8 @@ else {
   alternative.</p>
 
   <pre>
-// Herbie version of 0.5 * sqrt(2.0 * (sqrt(xre*xre + xim*xim) + xre))
+// Herbie 2.1 for:
+//   0.5 * sqrt(2.0 * (sqrt(xre*xre + xim*xim) + xre))
 var r = Math.hypot(x.re, x.im);
 var re;
 if (xre + r <= 0) {

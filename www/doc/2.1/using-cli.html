@@ -32,8 +32,8 @@
     the Herbie shell with this command:
   </p>
 
-  <pre class="shell">herbie shell
-Herbie 2.0 with seed 2098242187
+  <pre class="shell">racket -l herbie shell
+Herbie 2.1 with seed 2098242187
 Find help on https://herbie.uwplse.org/, exit with Ctrl-D
 <strong>herbie&gt;</strong> </pre>
 
@@ -67,7 +67,7 @@ Find help on https://herbie.uwplse.org/, exit with Ctrl-D
     This mode is intended for use by scripts.
   </p>
 
-  <pre class="shell">herbie improve bench/tutorial.fpcore out.fpcore
+  <pre class="shell">racket -l herbie improve bench/tutorial.fpcore out.fpcore
 Starting Herbie on 3 problems (seed: 1551571787)...
   1/3	[   0.882s]   30→ 0	Cancel like terms
 Warning: 24.7% of points produce a very large (infinite) output.

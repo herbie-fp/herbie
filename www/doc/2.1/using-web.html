@@ -36,13 +36,13 @@
     shell with this command:
   </p>
 
-  <pre class="shell">herbie web</pre>
+  <pre class="shell">racket -l herbie web</pre>
 
   <p>After a few seconds, the web shell will rev up and direct your
   browser to Herbie:</p>
   
-  <pre class="shell">herbie web
-Herbie 2.0 with seed 1003430182
+  <pre class="shell">racket -l herbie web
+Herbie 2.1 with seed 1003430182
 Find help on https://herbie.uwplse.org/, exit with Ctrl-C
 Your Web application is running at http://localhost:8000/.
 Stop this program at any time to terminate the Web Server.</pre>
@@ -75,7 +75,7 @@ Stop this program at any time to terminate the Web Server.</pre>
   <p>A <a href="report.html">report</a> can also be generated directly
   from a file of input expressions in <a href="input.html">FPCore format</a>:</p>
   
-  <pre class="shell">herbie report bench/tutorial.fpcore output/ 
+  <pre class="shell">racket -l herbie report bench/tutorial.fpcore output/ 
 Starting Herbie on 3 problems (seed: 770126425)...
 Warning: 25.0% of points produce a very large (infinite) output. 
 You may want to add a precondition.
@@ -86,7 +86,7 @@ more.
   3/3   [   0.353s]   30→ 0     Cancel like terms</pre>
 
   <p>
-    This command asks generates a report from the input expressions
+    This command generates a report from the input expressions
     in <code>bench/tutorial.fpcore</code> and saves the report in the
     directory <code>output/</code>. It's best if that directory
     doesn't exist before running this command, because otherwise
@@ -100,11 +100,18 @@ more.
   </p>
 
   <p>
-    Once generated, open <code>output/index.html</code> in your
-    favorite browser (but see <a href="faq.html">the FAQ</a> if you're
-    using Chrome). That page summarizes Herbie's results for all
-    expression in your input file, and you can click on individual
-    expressions to see their report.
+    The report Herbie generates is in HTML format so you'll need to
+    start a web server. If you have Python installed, that's
+    particularly convenient:
+  </p>
+
+  <pre class="shell">python3 -m http.server -d output</pre>
+
+  <p>
+    Then go to <a href="http://localhost:8000/">localhost:8000</a> in
+    your favorite browser. The report summarizes Herbie's results for
+    all expression in your input file, and you can click on individual
+    expressions to see Herbie's output for them.
   </p>
 
   <p>Batch report generation is the most informative way to run Herbie
