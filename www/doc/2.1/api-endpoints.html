@@ -223,9 +223,6 @@
     <p>The <code>mathjs</code> endpoint allows the user to translate
     FPCore expressions into mathjs expressions.</p>
 
-    <h2 id="localerror">/api/localerror</h2>
-    <!--TODO--> Forthcoming.
-
 
     <h2 id="cost">/api/cost</h2>
 
@@ -343,6 +340,15 @@
     <p>Currently supported languages are: <code>python</code>, <code>c</code>,
     <code>fortran</code>, <code>java</code>, <code>julia</code>, <code>matlab</code>,
     <code>wls</code>, <code>tex</code>, and <code>js</code>.</p>
-
+  <h2>⚠️ Beta endpoints</h2>
+    <p>The endpoints below are currently a work in progress.</p>
+  <h2 id="localerror">/api/localerror</h2>
+    <!--TODO--> Forthcoming.
+  <h2 id="timeline">/api/timeline/{job-id}</h2>
+  <p>Retrieves the <code>timeline</code> data for a given API call. You may find the job id in either the json response or in the headers of the HTTP response for of the endpoints in Herbie.</p>
+  <p>The timeline is an exception to the others in that it uses a GET request. Below is a sample of what the request might look like. You may consult the `/infra/testApi.mjs` file for current examples of how to use this API.</p>
+  <pre class="shell">curl -d \
+  http://127.0.0.1:8000/api/timeline/dafc8e968ccb5ad9dd94220c70c230345cd43059
+      </pre>
   </body>
 </html>
