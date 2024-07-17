@@ -145,20 +145,6 @@
   (*pcontext* test-pcontext)
   (local-error-as-tree (test-input test) (*context*)))
 
-#;(define (explain expr ctx pctx)
-  (define-values (subexprs-list repr-hash subexprs-fn) (compile-expr expr ctx))
-  
-  (define-values (error-count-hash
-                  expls->points
-                  maybe-expls->points
-                  oflow-hash
-                  uflow-hash)
-    (predict-errors ctx pctx
-                    subexprs-list repr-hash subexprs-fn))
-  (generate-timelines expr ctx pctx
-                      error-count-hash
-                      expls->points maybe-expls->points
-                      oflow-hash uflow-hash))
 
 (define (get-explanations test pcontext)
   (unless pcontext

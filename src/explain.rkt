@@ -5,7 +5,7 @@
          "ground-truth.rkt" "syntax/sugar.rkt" "alternative.rkt" "programs.rkt"
          "float.rkt" "config.rkt")
 
-(provide explain compile-expr predict-errors gen-expls-table)
+(provide explain)
 
 (define *top-3* (make-parameter #f))
 
@@ -106,9 +106,8 @@
           (hash-update! maybe-expls->points
                         key (lambda (x) (set-remove x pt))))))
     
-    (define (mark-erroneous! expr expl)
-      (hash-update! error-count-hash expr (lambda (x) (set-add x pt)))
-      (hash-update! expls->points (cons expr expl) (lambda (x) (set-add x pt))  '()))
+  
+    
     
     (define (mark-maybe! expr [expl 'sensitivity])
       (hash-update! maybe-expls->points
@@ -834,21 +833,3 @@
   (list true-pos true-maybe false-neg
         false-pos false-maybe true-neg))
 
-(define (gen-expls-table expls->points maybe-expls->points oflow-hash uflow-hash)
-  (define explanations-table
-    (for/list ([(key val) (in-dict expls->points)]
-               #:unless (zero? (length val)))
-      (define expr (car key))
-      (define expl (cdr key))
-      (define err-count (length val))
-      (define maybe-count (length (hash-ref maybe-expls->points key '())))
-      (define flow-list (make-flow-table oflow-hash uflow-hash expr expl))
-
-      (list (~a (car expr))
-            (~a expr)
-            (~a expl)
-            err-count
-            maybe-count
-            flow-list)))
-  
-  (sort explanations-table > #:key fourth))
