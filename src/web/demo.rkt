@@ -82,10 +82,14 @@
     (next-dispatcher)]))
 
 (define (generate-report req)
-  (define info (make-report-info (get-improve-job-data) #:seed (get-seed) #:note (if (*demo?*) "Web demo results" "Herbie results")))
-  (response 200 #"OK" (current-seconds) #"text"
-            (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count)))))
-            (λ (out) (write-datafile out info))))
+  (cond
+    [(and (*demo-output*) (file-exists? (build-path (*demo-output*) "results.json")))
+     (next-dispatcher)]
+    [else
+     (define info (make-report-info (get-improve-job-data) #:seed (get-seed) #:note (if (*demo?*) "Web demo results" "Herbie results")))
+     (response 200 #"OK" (current-seconds) #"text"
+               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count)))))
+               (λ (out) (write-datafile out info)))]))
 
 (define url (compose add-prefix url*))
 
