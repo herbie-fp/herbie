@@ -37,65 +37,8 @@
                                   [sqrt-pow1_binary64 . (>= x 0)]
                                   [sqrt-pow1_binary32 . (>= x 0)]))
 
-;; Computes the product of all possible representation assignments to types.
-(define (type-combinations types reprs)
-  (reap [sow]
-    (let loop ([types types] [assigns '()])
-      (match types
-        [(? null?) (sow assigns)]
-        [(list type rest ...)
-         (for ([repr (in-list reprs)])
-           (when (equal? (representation-type repr) type)
-             (loop rest (cons (cons type repr) assigns))))]))))
-
-;; Instantiates rules from implementation to implementation in the platform.
-;; If a rule is over implementations, filters by supported implementations.
-;; If a rule is over real operators, instantiates for every possible output type.
-;; By default, expansive rules will be ignored (causes issues in egg)
-(define (rule->impl-rules ru)
-  (define reprs (platform-reprs (*active-platform*)))
-  (define impls (list->set (platform-impls (*active-platform*))))
-  (match-define (rule name input output itypes otype) ru)
-  (reap [sow]
-    (cond
-      [(representation? otype) ; rule over representation
-       (when (andmap
-               (curry set-member? impls)
-               (filter-not
-                 (curry eq? 'if)
-                 (append (ops-in-expr input) (ops-in-expr output))))
-         (sow ru))]
-      [else
-       ; rule over types need to be instantiated for every representation
-       ; some operator implementations may not exist
-       (define types (remove-duplicates (cons otype (map cdr itypes))))
-       (for ([tsubst (in-list (type-combinations types reprs))])
-          ;; Strange corner case:
-          ;; Rules containing comparators cause desugaring to misbehave.
-          ;; The reported output type is bool but then desugaring
-          ;; thinks there will be a cast somewhere
-          (define otype* (dict-ref tsubst otype))
-          (define sugar-otype
-            (if (equal? otype 'bool)
-                (dict-ref tsubst 'real (get-representation 'bool))
-                otype*))
-
-         (define itypes* (map (λ (p) (cons (car p) (dict-ref tsubst (cdr p)))) itypes))
-         (define sugar-ctx (context (map car itypes) sugar-otype (map cdr itypes*)))
-
-         ;; The easier way to tell if every operator is supported
-         ;; in a given representation is to just try to desguar
-         ;; the expression and catch any errors.
-         (with-handlers ([exn:fail:user:herbie:missing? (const (void))])
-           (define name* (sym-append name '_ (repr->symbol sugar-otype)))
-           (define input* (fpcore->prog input sugar-ctx))
-           (define output* (fpcore->prog output sugar-ctx))
-           (when (andmap
-                   (curry set-member? impls)
-                   (filter-not
-                     (curry eq? 'if)
-                     (append (ops-in-expr input*) (ops-in-expr output*))))
-             (sow (rule name* input* output* itypes* otype*)))))])))
+(define (rule->impl-rules rule)
+  (platform-impl-rules (list rule)))
 
 (define (check-rule-sound test-rule)
   (match-define (rule name p1 p2 env repr) test-rule)

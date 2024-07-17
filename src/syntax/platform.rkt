@@ -4,6 +4,8 @@
 
 (require "../utils/common.rkt"
          "../utils/errors.rkt"
+         "../core/programs.rkt"
+         "../core/rules.rkt"
          "syntax.rkt"
          "types.rkt")
 
@@ -13,6 +15,7 @@
          activate-platform!
          platform-lifting-rules
          platform-lowering-rules
+         platform-impl-rules
          ;; Platform API
          ;; Operator sets
          (contract-out [operator-set? (-> any/c boolean?)]
@@ -716,3 +719,74 @@
                  (define otype (operator-info op 'otype))
                  (define-values (vars spec-expr impl-expr) (impl->rule-parts impl))
                  (rule name spec-expr impl-expr (map cons vars itypes) otype)))))
+
+;; All possible assignments of implementations.
+(define (impl-combinations ops impls)
+  (reap [sow]
+    (let loop ([ops ops] [assigns '()])
+      (match ops
+        [(? null?) (sow assigns)]
+        [(list 'if rest ...) (loop rest assigns)]
+        [(list (? (curryr assq assigns)) rest ...) (loop rest assigns)]
+        [(list op rest ...)
+         (for ([impl (operator-all-impls op)])
+           (when (set-member? impls impl)
+             (loop rest (cons (cons op impl) assigns))))]))))
+
+;; Attempts to lower a specification to an expression using
+;; a precomputed assignment of operator implementations.
+;; Fails if the result is not well-typed.
+(define (try-lower expr repr op->impl)
+  (let/ec return
+    (define env '())
+    (define expr*
+      (let loop ([expr expr] [repr repr])
+        (match expr
+          [(? symbol? x) ; variable
+           (match (dict-ref env x #f)
+             [#f (set! env (cons (cons x repr) env))]
+             [(? (curry equal? repr)) (return #f env)]
+             [_ (void)])
+           x]
+          [(? number? n) ; number
+           (literal n (representation-name repr))]
+          [(list 'if cond ift iff) ; if expression
+           (list 'if
+                 (loop cond (get-representation 'bool))
+                 (loop ift repr)
+                 (loop iff repr))]
+          [(list op args ...) ; application
+           (define impl (dict-ref op->impl op))
+           (unless (equal? (impl-info impl 'otype) repr)
+             (return #f env))
+           (cons impl (map loop args (impl-info impl 'itype)))])))
+    (define ctx (context (map car env) repr (map cdr env)))
+    (unless (equal? (repr-of expr* ctx) repr) (return #f env))
+    (values expr* (sort env symbol<? #:key car))))
+
+;; Synthesizes impl-to-impl rules for a given platform.
+;; If a rule is over implementations, filters by supported implementations.
+;; If a rule is over real operators, instantiates for every
+;; possible implementation assignment.
+(define (platform-impl-rules rules [pform (*active-platform*)])
+  (define impls (list->seteq (platform-impls pform)))
+  (reap [sow]
+    (for ([ru (in-list rules)])
+      (match-define (rule name input output _ otype) ru)
+      (cond
+        [(representation? otype) ; rule over representation
+         (define ops (append (ops-in-expr input) (ops-in-expr output)))
+         (when (andmap (lambda (op) (or (eq? op 'if) (set-member? impls op))) ops)
+           (sow ru))]
+        [else ; rules over types
+         (define ops (append (ops-in-expr input) (ops-in-expr output)))
+         (define isubsts (impl-combinations ops impls))
+         (for* ([isubst (in-list isubsts)]
+                [repr (in-list (platform-reprs pform))]
+                #:when (equal? (representation-type repr) otype))
+           (define-values (input* ienv) (try-lower input repr isubst))
+           (define-values (output* oenv) (try-lower output repr isubst))
+           (when (and input* output* (equal? ienv oenv))
+             (define name* (sym-append name '_ (repr->symbol repr)))
+             (sow (rule name* input* output* ienv repr))))]))))
+         

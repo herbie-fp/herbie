@@ -399,18 +399,14 @@
   (cond
     [(flag-set? 'generate 'simplify)
      (timeline-event! 'simplify)
-     
-     (define exprs (map alt-expr alts))
-     (define reprs (map (lambda (expr) (repr-of expr (*context*))) exprs))
 
      ; egg schedule (only mathematical rewrites)
-     (define rules (real-rules (*rules*)))
-     (define lifting-rules (platform-lifting-rules))
-     (define schedule
-       `((,lifting-rules . ((iteration . 1) (scheduler . simple)))
-         (,rules . ((node . ,(*node-limit*)) (const-fold? . #f)))))
+     (define rules (platform-impl-rules (*fp-safe-simplify-rules*)))
+     (define schedule `((,rules . ((node . ,(*node-limit*)) (const-fold? . #f)))))
 
      ; egg runner
+     (define exprs (map alt-expr alts))
+     (define reprs (map (lambda (expr) (repr-of expr (*context*))) exprs))
      (define runner (make-egg-runner exprs reprs schedule))
 
      ; run egg
