@@ -3,11 +3,13 @@
          (only-in fpbench interval range-table-ref condition->range-table [expr? fpcore-expr?]))
 (require "searchreals.rkt" "errors.rkt" "common.rkt"
          "float.rkt" "syntax/types.rkt" "timeline.rkt" "config.rkt"
-         "syntax/sugar.rkt" "ground-truth.rkt")
+         "syntax/sugar.rkt")
 
 (provide batch-prepare-points
+         eval-progs-real
          ival-eval
-         make-sampler 
+         make-sampler
+         make-search-func
          sample-points)
 
 ;; Part 1: use FPBench's condition->range-table to create initial hyperrects
@@ -26,8 +28,10 @@
     ['real (ival (bfstep (bf lo) (if lo? 0 1)) (bfstep (bf hi) (if hi? 0 -1)))]
     ['bool (ival #f #t)]))
 
-(module+ test
-  (require rackunit "load-plugin.rkt")
+(module+ test (require rackunit))
+
+#;(module+ test
+  (require  "load-plugin.rkt")
   (load-herbie-builtins)
 
   (check-equal? (precondition->hyperrects
@@ -96,7 +100,7 @@
     (for/list ([lo (in-list los)] [hi (in-list his)] [repr (in-list reprs)])
       ((representation-ordinal->repr repr) (random-integer lo hi)))))
 
-(module+ test
+#;(module+ test
   (define two-point-hyperrects (list (list (ival (bf 0) (bf 0)) (ival (bf 1) (bf 1)))))
   (define repr (get-representation 'binary64))
   (check-true
@@ -119,9 +123,75 @@
     (timeline-push! 'method "random")
     (cons (λ () (map random-generate reprs)) (hash 'unknown 1.0))]))
 
+(define (representation->discretization repr)
+  (discretization
+   (representation-total-bits repr)
+   (representation-bf->repr repr)
+   (lambda (x y) (- (ulp-difference x y repr) 1))))
+
+(define (expr-size expr)
+  (if (list? expr)
+      (apply + 1 (map expr-size (cdr expr)))
+      1))
+
+;; Returns a function that maps an ival to a list of ivals
+;; The first element of that function's output tells you if the input is good
+;; The other elements of that function's output tell you the output values
+(define (make-search-func pre specs ctxs)
+  (define vars (context-vars (car ctxs)))
+  (define var-reprs (context-var-reprs (car ctxs)))
+  (define discs (map (compose representation->discretization context-repr) ctxs))
+  (define machine (rival-compile (cons `(assert ,pre) specs) vars (cons boolean-discretization discs)))
+  (timeline-push! 'compiler
+                  (apply + 1 (expr-size pre) (map expr-size specs))
+                  (+ (length vars) (rival-profile machine 'instructions)))
+  machine)
+
+(define (ival-eval machine ctxs pt [iter 0])
+  (define start (current-inexact-milliseconds))
+  (define pt*
+    (for/vector ([val (in-list pt)] [repr (in-list (context-var-reprs (car ctxs)))])
+      ((representation-repr->bf repr) val)))
+  (define-values (status value)
+    (with-handlers
+      ([exn:rival:invalid? (lambda (e) (values 'invalid #f))]
+       [exn:rival:unsamplable? (lambda (e) (values 'exit #f))])
+      (parameterize ([*rival-max-precision* (*max-mpfr-prec*)]
+                     [*rival-max-iterations* 5])
+        (values 'valid (rest (vector->list (rival-apply machine pt*))))))) ; rest = drop precondition
+  (when (> (rival-profile machine 'bumps) 0)
+    (warn 'ground-truth "Could not converge on a ground truth"
+          #:extra (for/list ([var (in-list (context-vars (car ctxs)))] [val (in-list pt)])
+                    (format "~a = ~a" var val))))
+  (define executions (rival-profile machine 'executions))
+  (when (>= (vector-length executions) (*rival-profile-executions*))
+    (warn 'profile "Rival profile vector overflowed, profile may not be complete"))
+  (define prec-threshold (exact-floor (/ (*max-mpfr-prec*) 25)))
+  (for ([execution (in-vector executions)])
+    (define name (symbol->string (execution-name execution)))
+    (define precision (- (execution-precision execution)
+                         (remainder (execution-precision execution) prec-threshold)))
+    (timeline-push!/unsafe 'mixsample (execution-time execution) name precision))
+  (timeline-push!/unsafe 'outcomes (- (current-inexact-milliseconds) start)
+                         (rival-profile machine 'iterations) (~a status) 1)
+  (values status value))
+
+; ENSURE: all contexts have the same list of variables
+(define (eval-progs-real progs ctxs)
+  (define fn (make-search-func '(TRUE) progs ctxs))
+  (define bad-pt 
+    (for/list ([ctx* (in-list ctxs)])
+      ((representation-bf->repr (context-repr ctx*)) +nan.bf)))
+  (define (<eval-prog-real> . pt)
+    (define-values (result exs) (ival-eval fn ctxs pt))
+    (or exs bad-pt))
+  <eval-prog-real>)
+
+
 ;; Part 3: computing exact values by recomputing at higher precisions
 
 (define (batch-prepare-points fn ctxs sampler)
+  (rival-profile fn 'executions) ; Clear profiling vector
   ;; If we're using the bf fallback, start at the max precision
   (define outcomes (make-hash))
 
@@ -172,9 +242,7 @@
   (timeline-event! 'analyze)
   (define fn (make-search-func pre exprs ctxs))
   (match-define (cons sampler table)
-    (parameterize ([ground-truth-require-convergence #f])
-      ;; TODO: Should make-sampler allow multiple contexts?
-      (make-sampler (first ctxs) pre fn)))
+    (make-sampler (first ctxs) pre fn))
   (timeline-event! 'sample)
   (match-define (cons table2 results) (batch-prepare-points fn ctxs sampler))
   (define total (apply + (hash-values table2)))

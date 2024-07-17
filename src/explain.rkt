@@ -2,7 +2,7 @@
 
 (require racket/set math/bigfloat racket/hash)
 (require "points.rkt" "syntax/types.rkt" "core/localize.rkt" "common.rkt"
-         "ground-truth.rkt" "syntax/sugar.rkt" "alternative.rkt" "programs.rkt"
+         "sampling.rkt" "syntax/sugar.rkt" "alternative.rkt" "programs.rkt"
          "float.rkt" "config.rkt")
 
 (provide explain)
@@ -64,28 +64,28 @@
 (define maybe-cond-thres (bf 32))
 
 (define (compile-expr expr ctx)
-  (define subexprs
-    (all-subexpressions-rev expr (context-repr ctx)))
-
-  (define subexprs-list (map car subexprs))
-  (define spec-list (map prog->spec subexprs-list))
-  (define ctx-list
+  (define subexprs (all-subexpressions expr #:reverse? #t))
+  (define spec-list (map prog->spec subexprs))
+  (define ctxs
     (for/list ([subexpr (in-list subexprs)])
-      (struct-copy context ctx [repr (repr-of (car subexpr) ctx)])))
+      (struct-copy context ctx
+                   [repr (repr-of subexpr ctx)])))
 
   (define repr-hash
-    (make-immutable-hash (map cons
-                              subexprs-list
-                              (map context-repr ctx-list))))
+    (make-immutable-hash
+      (map
+        (lambda (e ctx) (cons e (context-repr ctx)))
+        subexprs
+        ctxs)))
 
-  (define subexprs-fn (parameterize ([*max-mpfr-prec* 128])
-                        (eval-progs-real spec-list ctx-list)))
-  (values subexprs-list repr-hash subexprs-fn))
+  (define subexprs-fn
+    (parameterize ([*max-mpfr-prec* 128])
+      (eval-progs-real spec-list ctxs)))
+  (values subexprs repr-hash subexprs-fn))
 
 (define (predict-errors ctx pctx
                         subexprs-list repr-hash subexprs-fn)
-
-(define error-count-hash
+  (define error-count-hash
     (make-hash (map (lambda (x) (cons x '())) subexprs-list)))
   (define uflow-hash (make-hash))
   (define oflow-hash (make-hash)) 
@@ -95,8 +95,8 @@
   
   (for ([(pt _) (in-pcontext pctx)])
     (define (silence expr)
-      (define subexprs-list (map car (all-subexpressions-rev expr (context-repr ctx))))
-      (for* ([subexpr (in-list subexprs-list)]
+      (define subexprs (all-subexpressions expr #:reverse? #t))
+      (for* ([subexpr (in-list subexprs)]
              #:when (list? subexpr)
              [expl (in-list all-explanations)])
         (define key (cons subexpr expl))
@@ -622,7 +622,7 @@
 
   (define tcount-hash (actual-errors expr pctx))
 
-  (define repr (repr-of expr context))
+  (define repr (repr-of expr (*context*)))
   (define (values->json vs repr)
     (map (lambda (value) (value->json value repr)) vs))
   

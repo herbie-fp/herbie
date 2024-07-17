@@ -1,15 +1,16 @@
 #lang racket
 
-(require "../common.rkt" "../conversions.rkt" "../errors.rkt"
-         "../programs.rkt" "types.rkt" "syntax.rkt" "../platform.rkt"
-         "syntax-check.rkt" "type-check.rkt" "sugar.rkt")
+(require "../common.rkt" "../errors.rkt" "../programs.rkt"
+         "types.rkt" "syntax.rkt" "../platform.rkt"
+         "syntax-check.rkt" "type-check.rkt" "sugar.rkt"
+         "../load-plugin.rkt")
 
 (provide (struct-out test)
-         test-context test-output-repr test-conversions
+         test-context test-output-repr
          load-tests parse-test)
 
 (struct test (name identifier vars input output expected spec pre
-              preprocess output-repr-name var-repr-names conversion-syntax) #:prefab)
+              preprocess output-repr-name var-repr-names) #:prefab)
 
 (define (test-output-repr test)
   (get-representation (test-output-repr-name test)))
@@ -21,9 +22,6 @@
     (for/list ([var vars])
       (get-representation (dict-ref (test-var-repr-names test) var))))
   (context (test-vars test) output-repr var-reprs))
-
-(define (test-conversions test)
-  (map (curry map get-representation) (test-conversion-syntax test)))
 
 ;; Unfortunately copied from `src/syntax/sugar.rkt`
 (define (expand stx)
@@ -150,7 +148,7 @@
   (define ctx (context arg-names default-repr var-reprs))
 
   ;; Named fpcores need to be added to function table
-  (when func-name (register-function! func-name args default-repr body))
+  (when func-name (register-function! func-name args default-prec body))
 
   ;; Try props first, then identifier, else the expression itself
   (define name
@@ -188,8 +186,8 @@
         pre*
         (dict-ref prop-dict ':herbie-preprocess empty)
         (representation-name default-repr)
-        (for/list ([var arg-names] [repr var-reprs]) (cons var (representation-name repr)))
-        '()))
+        (for/list ([var arg-names] [repr var-reprs])
+          (cons var (representation-name repr)))))
 
 (define (check-unused-variables vars precondition expr)
   ;; Fun story: you might want variables in the precondition that
@@ -221,11 +219,11 @@
     (parse-test test)))
 
 (define (load-file file)
-  (call-with-input-file file
-    (λ (port)
-      (port-count-lines! port)
-      (for/list ([test (in-port (curry our-read-syntax file) port)])
-        (parse-test test)))))
+ (call-with-input-file file
+   (λ (port)
+     (port-count-lines! port)
+     (for/list ([test (in-port (curry our-read-syntax file) port)])
+       (parse-test test)))))
 
 (define (load-directory dir)
   (apply append
@@ -256,13 +254,13 @@
   (require rackunit "../load-plugin.rkt")
   (load-herbie-builtins)
 
-  (define repr (get-representation 'binary64))
+  (define precision 'binary64)
   (define ctx (make-debug-context '(x y z a)))
 
   ;; inlining
 
   ;; Test classic quadp and quadm examples
-  (register-function! 'discr (list 'a 'b 'c) repr `(sqrt (- (* b b) (* a c))))
+  (register-function! 'discr (list 'a 'b 'c) precision `(sqrt (- (* b b) (* a c))))
   (define quadp `(/ (+ (- y) (discr x y z)) x))
   (define quadm `(/ (- (- y) (discr x y z)) x))
   (check-equal? (fpcore->prog quadp ctx)
@@ -271,8 +269,8 @@
                 '(/.f64 (-.f64 (neg.f64 y) (sqrt.f64 (-.f64 (*.f64 y y) (*.f64 x z)))) x))
 
   ;; x^5 = x^3 * x^2
-  (register-function! 'sqr (list 'x) repr '(* x x))
-  (register-function! 'cube (list 'x) repr '(* x x x))
+  (register-function! 'sqr (list 'x) precision '(* x x))
+  (register-function! 'cube (list 'x) precision '(* x x x))
   (define fifth '(* (cube a) (sqr a)))
   (check-equal? (fpcore->prog fifth ctx)
                 '(*.f64 (*.f64 (*.f64 a a) a) (*.f64 a a)))

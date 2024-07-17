@@ -295,5 +295,55 @@
     The contents of the points do not matter as long as they are
     in the correct format as mentioned above.</p>
 
+    <!-- Translate Endpoint -->
+
+    <h2 id="translate">/api/translate</h2>
+
+    <details>
+    <summary>Example inputs & outputs</summary>
+
+    <p>Request:</p>
+
+  <pre>{
+    formula: &lt;FPCore expression&gt;,
+    language: "language"
+}</pre>
+
+    <p>Response:</p>
+
+  <pre>{
+    result: "translated expression"
+}</pre>
+
+    <p><b>Specific Example: sqrt(x+1)-sqrt(x)</b></p>
+
+    <p>Request:</p>
+
+  <pre>{
+    formula: &lt;(FPCore (x) (- (sqrt (+ x 1)) (sqrt x)))&gt;,
+    language: "python"
+}</pre>
+
+    <p>Response:</p>
+
+  <pre>{
+    result: "def expr(x): return math.sqrt((x + 1.0)) - math.sqrt(x)"
+}</pre>
+
+    </details>
+
+    <p>The <code>translate</code> endpoint allows users to translate
+    FPCore expressions into equivalent expressions in various programming
+    languages.</p>
+
+    <p>Given an FPCore expression and a target language, this endpoint
+      returns the translated expression in the specified language.
+      The language parameter should be a string representing the desired
+      programming language. The response includes the translated expression.</p>
+
+    <p>Currently supported languages are: <code>python</code>, <code>c</code>,
+    <code>fortran</code>, <code>java</code>, <code>julia</code>, <code>matlab</code>,
+    <code>wls</code>, <code>tex</code>, and <code>js</code>.</p>
+
   </body>
 </html>

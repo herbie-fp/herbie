@@ -88,10 +88,6 @@
 
 ;; Maximum MPFR precision allowed during exact evaluation
 (define *max-mpfr-prec* (make-parameter 10000))
-(define *ampl-tuning-bits* (make-parameter 5))
-(define *sampling-iteration* (make-parameter 0))
-(define *base-tuning-precision* (make-parameter 73))
-(define *max-sampling-iterations* (make-parameter 5))
 
 ;; The maximum size of an egraph
 (define *node-limit* (make-parameter 8000))
@@ -121,8 +117,17 @@
 ;; The platform that Herbie will evaluate with.
 (define *platform-name* (make-parameter 'default))
 
+;; True iff using the old cost function
+(define *egraph-platform-cost* (make-parameter #t))
+
 ;; Plugins loaded locally rather than through Racket.
 (define *loose-plugins* (make-parameter '()))
+
+;; Sets the number of total points for Herbie to sample.
+(define *reeval-pts* (make-parameter 8000))
+
+;; Time out for a given run. 2.5 minutes currently.
+(define *timeout* (make-parameter (* 1000 60 5/2)))
 
 ;;; About Herbie:
 
@@ -137,7 +142,7 @@
           (if (equal? out "") default out))
       default))
 
-(define *herbie-version* "2.0")
+(define *herbie-version* "2.1")
 
 (define *hostname* (run-command "hostname"))
 

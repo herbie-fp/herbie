@@ -4,14 +4,14 @@
 
 # Build image
 # Builds output under /herbie/egg-herbie
-FROM rust:1.61.0 as egg-herbie-builder
+FROM --platform=linux/amd64 rust:1.61.0 AS egg-herbie-builder
 WORKDIR /herbie
 COPY egg-herbie egg-herbie
 RUN cargo build --release --manifest-path=egg-herbie/Cargo.toml
 
 # Production image
-FROM racket/racket:8.9-full AS production
-MAINTAINER Pavel Panchekha <me@pavpanchekha.com>
+FROM --platform=linux/amd64 racket/racket:8.13-full AS production
+LABEL maintainer="Pavel Panchekha <me@pavpanchekha.com>"
 COPY --from=egg-herbie-builder /herbie/egg-herbie /src/egg-herbie
 RUN raco pkg install /src/egg-herbie
 COPY src /src/herbie

@@ -4,10 +4,14 @@
 
 (define-syntax (multi-command-line stx)
   (syntax-parse stx
-   [(_ #:program big-name args ... #:subcommands [name:id help:str subargs ...] ... #:args else-subargs body)
+   [(_ #:program big-name #:version version args ... #:subcommands [name:id help:str subargs ...] ... #:args else-subargs body)
     #`(let ([true-name big-name])
         (command-line
          #:program true-name
+         #:multi
+         [("-v" "--version") ("Print the version and exit")
+          (printf "~a\n" version)
+          (exit)]
          #:usage-help
          "This command has subcommands:"
          #,@(for/list ([name (syntax->list #'(name ...))] [help (syntax->list #'(help ...))])

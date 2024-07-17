@@ -4,6 +4,7 @@
 
 (require "../common.rkt"
          "../errors.rkt"
+         "../programs.rkt"
          "syntax.rkt"
          "types.rkt")
 
@@ -57,31 +58,14 @@
 ;; simplify - subset of `all` that has the `simplify` tag
 ;; fp-safe-simplify - subset of `simplify` that has `fp-safe` tag
 
-;; Extracts all subexpressions of the form `(op args ...)`
-;; excluding any `if` expressions.
-(define (all-subexpressions expr)
-  (remove-duplicates
-    (reap [sow]
-          (let loop ([expr expr])
-            (match expr
-              [(? number?) (void)]
-              [(? variable?) (void)]
-              [(list 'if cond ift iff)
-               (loop cond)
-               (loop ift)
-               (loop iff)]
-              [(list _ args ...)
-               (sow expr)
-               (for-each loop args)])))))
-
-;; Extracts all operations in an expression.
-(define (ops-in-expr expr)
-  (remove-duplicates (map first (all-subexpressions expr))))
-
 ;; TODO: rewrite should ideally be mathematical,
 ;; why are we using implementations?
 (define (rule-ops-supported? rule)
-  (andmap impl-exists? (ops-in-expr (rule-output rule))))
+  (andmap
+    impl-exists?
+    (filter-not
+      (curry eq? 'if)
+      (ops-in-expr (rule-output rule)))))
 
 (define (*rules*)
   (reap [sow]
@@ -442,12 +426,12 @@
 
 (define-ruleset* pow-reduce-fp-safe (exponents simplify fp-safe sound)
   #:type ([a real])
-  [unpow1         (pow a 1)                  a]
-  [pow-base-1     (pow 1 a)                  1])
+  [unpow1         (pow a 1)                  a])
 
 (define-ruleset* pow-reduce-fp-safe-nan (exponents simplify fp-safe-nan sound)
   #:type ([a real])
-  [unpow0         (pow a 0)                  1])
+  [unpow0         (pow a 0)                  1]
+  [pow-base-1     (pow 1 a)                  1])
 
 (define-ruleset* pow-expand-fp-safe (exponents fp-safe sound)
   #:type ([a real])

@@ -12,21 +12,21 @@
 ;; for each expression, returns a list of simplified versions corresponding to egraph iterations
 ;; the last expression is the simplest unless something went wrong due to unsoundness
 ;; if the input specifies proofs, it instead returns proofs for these expressions
-(define/contract (simplify-batch input)
-  (-> egraph-query? (listof (listof expr?)))
-  (timeline-push! 'inputs (map ~a (egraph-query-exprs input)))
+(define/contract (simplify-batch runner extractor)
+  (-> egg-runner? procedure? (listof (listof expr?)))
+  (timeline-push! 'inputs (map ~a (egg-runner-exprs runner)))
   (timeline-push! 'method "egg-herbie")
-  (match-define (cons results _) (run-egg input #f))
 
+  (define simplifieds (run-egg runner (cons 'single extractor)))
   (define out
-    (for/list ([result results] [expr (egraph-query-exprs input)])
-      (remove-duplicates (cons expr result))))
+    (for/list ([simplified simplifieds] [expr (egg-runner-exprs runner)])
+      (remove-duplicates (cons expr simplified))))
+
   (timeline-push! 'outputs (map ~a (apply append out)))
-    
   out)
 
 (module+ test
-  (require "../syntax/types.rkt" "../syntax/rules.rkt" "../syntax/sugar.rkt")
+  (require "../syntax/types.rkt" "../syntax/rules.rkt")
 
   ;; set parameters
   (define vars '(x a b c))
@@ -41,7 +41,12 @@
      (string-append "Rule failed: " (symbol->string (rule-name rule)))))
   
   (define (test-simplify . args)
-    (map prog->spec (map last (simplify-batch (make-egg-query (map (curryr spec->prog (*context*)) args) (*simplify-rules*))))))
+    (define runner
+      (make-egg-runner args
+                      (map (lambda (_) 'real) args)
+                      `((,(*simplify-rules*) . ((node . ,(*node-limit*)))))))
+    (define extractor (untyped-egg-extractor default-untyped-egg-cost-proc))
+    (map last (simplify-batch runner extractor)))
 
   (define test-exprs
     '((1 . 1)

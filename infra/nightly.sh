@@ -22,6 +22,7 @@ BENCH_DIR="$INFRA_DIR"/../bench
 # check arguments
 if [ -z "$1" ]; then
   echo "Usage: $0 <output_dir>"
+  exit 1
 else
   OUT_DIR="$1"; shift
   FLAGS="$@"
@@ -37,4 +38,7 @@ RECURSE=1 LOG=1 \
     $FLAGS
 
 # upload
-bash $INFRA_DIR/publish.sh upload "$OUT_DIR"
+if [ "$?" -eq 0 ]; then
+  bash $INFRA_DIR/publish.sh upload "$OUT_DIR"
+fi
+

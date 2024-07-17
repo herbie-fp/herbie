@@ -6,6 +6,7 @@
 
 (require "syntax/read.rkt"
          "syntax/sugar.rkt"
+         "syntax/syntax.rkt"
          "syntax/types.rkt"
          "core/localize.rkt"
          "alternative.rkt"
@@ -14,7 +15,7 @@
          "datafile.rkt"
          "errors.rkt"
          "float.rkt"
-         "ground-truth.rkt"
+         "sampling.rkt"
          "mainloop.rkt"
          "platform.rkt"
          "points.rkt"
@@ -33,12 +34,9 @@
          (struct-out improve-result)
          (struct-out alt-analysis))
 
-(struct job-result (test status time timeline warnings backend))
+(struct job-result (command test status time timeline warnings backend))
 (struct improve-result (preprocess pctxs start target end bogosity))
 (struct alt-analysis (alt train-errors test-errors))
-
-(define *reeval-pts* (make-parameter 8000))
-(define *timeout* (make-parameter (* 1000 60 5/2)))
 
 ;; true if Racket CS <= 8.2
 (define cs-places-workaround?
@@ -110,12 +108,12 @@
 (define (get-exacts test pcontext)
   (unless pcontext
     (error 'get-exacts "cannnot run without a pcontext"))
-  (define repr (test-output-repr test))
   (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext))
   (define-values (pts _) (pcontext->lists test-pcontext))
-  (define fn (eval-progs-real 
-              (list (prog->spec (test-input test)))
-              (list (*context*))))
+  (define fn
+    (eval-progs-real 
+      (list (prog->spec (test-input test)))
+      (list (*context*))))
   (for/list ([pt pts])
     (list pt (car (apply fn pt)))))
 
@@ -252,7 +250,7 @@
       (timeline-event! 'end)
       (define time (- (current-inexact-milliseconds) start-time))
       (match command 
-        ['improve (job-result test 'failure time (timeline-extract) (warning-log) e)]
+        ['improve (job-result command test 'failure time (timeline-extract) (warning-log) e)]
         [_ (raise e)])))
 
   (define (on-timeout)
@@ -260,7 +258,7 @@
       (timeline-load! timeline)
       (timeline-event! 'end)
       (match command 
-        ['improve (job-result test 'timeout (*timeout*) (timeline-extract) (warning-log) #f)]
+        ['improve (job-result command test 'timeout (*timeout*) (timeline-extract) (warning-log) #f)]
         [_ (error 'run-herbie "command ~a timed out" command)])))
 
   (define (compute-result test)
@@ -288,7 +286,7 @@
             [_ (error 'compute-result "unknown command ~a" command)]))
         (timeline-event! 'end)
         (define time (- (current-inexact-milliseconds) start-time))
-        (job-result test 'success time (timeline-extract) (warning-log) result))))
+        (job-result command test 'success time (timeline-extract) (warning-log) result))))
   
   (define (in-engine _)
     (if profile?
@@ -316,8 +314,9 @@
              (prog->fpcore (test-pre test) repr)
              preprocess
              (representation-name repr)
-             (map (curry map representation-name) (test-conversions test))
+             '() ; TODO: eliminate field
              (test-vars test)
+             (map car (job-result-warnings result))
              (prog->fpcore (test-input test) repr) 
              #f
              (prog->fpcore (test-spec test) repr)
@@ -325,7 +324,7 @@
              #f #f #f #f #f (job-result-time result) link '()))
 
 (define (get-table-data result link)
-  (match-define (job-result test status time _ _ backend) result)
+  (match-define (job-result command test status time _ _ backend) result)
   (match status
     ['success
      (match-define (improve-result _ _ start targets end _) backend)
@@ -403,7 +402,7 @@
 
 (define (unparse-result row #:expr [expr #f] #:description [descr #f])
   (define repr (get-representation (table-row-precision row)))
-  (define expr* (or expr (table-row-output row)))
+  (define expr* (or expr (table-row-output row) (table-row-input row)))
   (define top
     (if (table-row-identifier row)
         (list (table-row-identifier row) (table-row-vars row))
@@ -417,14 +416,20 @@
      :herbie-error-output
      ([,(*num-points*) ,(table-row-result-est row)]
       [,(*reeval-pts*) ,(table-row-result row)])
-     ,@(if (table-row-target row)
-           `(:herbie-error-target ([,(*reeval-pts*) ,(table-row-target row)]))
-           '())
+     ,@(append
+        (for/list ([rec (in-list (table-row-target row))])
+          (match-define (list cost score) rec)
+          `(:herbie-error-target ([,(*reeval-pts*) ,(table-row-target row)]))))
+     ,@(if (empty? (table-row-warnings row))
+           '()
+           `(:herbie-warnings ,(table-row-warnings row)))
      :name ,(table-row-name row)
      ,@(if descr `(:description ,(~a descr)) '())
      :precision ,(table-row-precision row)
-     :herbie-conversions ,(table-row-conversions row)
      ,@(if (eq? (table-row-pre row) 'TRUE) '() `(:pre ,(table-row-pre row)))
      ,@(if (equal? (table-row-preprocess row) empty) '() `(:herbie-preprocess ,(table-row-preprocess row)))
-     ,@(if (table-row-target-prog row) `(:herbie-target ,(table-row-target-prog row)) '())
+     ,@(append
+        (for/list ([(target enabled?) (in-dict (table-row-target-prog row))]
+                   #:when enabled?)
+          `(:alt ,target)))
      ,(prog->fpcore expr* repr)))

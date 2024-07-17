@@ -23,3 +23,6 @@ odyssey
 *.zo
 *.dep
 herbie-compiled/
+
+# Python
+.env/

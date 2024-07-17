@@ -10,7 +10,7 @@
 
 
 (struct table-row
-  (name identifier status pre preprocess precision conversions vars
+  (name identifier status pre preprocess precision conversions vars warnings
         input output spec target-prog start result target
         start-est result-est time link cost-accuracy) #:prefab)
 
@@ -84,7 +84,7 @@
 (define (write-datafile file info)
   (define (simplify-test test)
     (match test
-      [(table-row name identifier status pre preprocess prec conversions vars
+      [(table-row name identifier status pre preprocess prec conversions vars warnings
                   input output spec target-prog
                   start-bits end-bits target-bits start-est end-est
                   time link cost-accuracy)
@@ -112,6 +112,7 @@
           (start-est . ,start-est)
           (end-est . ,end-est)
           (vars . ,(if vars (map symbol->string vars) #f))
+          (warnings . ,(map ~s warnings))
           (input . ,(~s input))
           (output . ,(~s output))
           (spec . ,(~s spec))
@@ -187,7 +188,9 @@
                                   (if (string? cs)
                                       (parse-string cs)
                                       (map (curry map parse-string) cs)))
-                                vars (parse-string (get 'input)) (parse-string (get 'output))
+                                vars
+                                (map string->symbol (hash-ref test 'warnings '()))
+                                (parse-string (get 'input)) (parse-string (get 'output))
                                 (parse-string (hash-ref test 'spec "#f"))
                                 (parse-string (hash-ref test 'target-prog "#f"))
                                 (get 'start) (get 'end) (get 'target)

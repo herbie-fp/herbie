@@ -15,17 +15,14 @@
 ;; extending, make sure this never gets too complicated to fit in your
 ;; head at once, because then global state is going to mess you up.
 
-(struct shellstate (table next-alts locs lowlocs patched) #:mutable)
+(struct shellstate (table next-alts locs patched) #:mutable)
 (define-resetter ^shell-state^
-  (λ () (shellstate #f #f #f #f #f))
-  (λ () (shellstate #f #f #f #f #f)))
+  (λ () (shellstate #f #f #f #f))
+  (λ () (shellstate #f #f #f #f)))
 
 (define (^locs^ [newval 'none])
   (when (not (equal? newval 'none)) (set-shellstate-locs! (^shell-state^) newval))
   (shellstate-locs (^shell-state^)))
-(define (^lowlocs^ [newval 'none])
-  (when (not (equal? newval 'none)) (set-shellstate-lowlocs! (^shell-state^) newval))
-  (shellstate-lowlocs (^shell-state^)))
 (define (^table^ [newval 'none])
   (when (not (equal? newval 'none))  (set-shellstate-table! (^shell-state^) newval))
   (shellstate-table (^shell-state^)))
@@ -77,7 +74,7 @@
 
   (choose-alts!)
   (localize!)
-  (reconstruct! (patch-table-run (^locs^) (^lowlocs^)))
+  (reconstruct! (patch-table-run (^locs^)))
   (finalize-iter!))
 
 (define (extract!)
@@ -127,17 +124,6 @@
   (reset!)
   (^table^ #f)
   (void))
-
-(define (run-improve vars prog iters
-                     #:precondition [precondition #f]
-                     #:preprocess [preprocess empty]
-                     #:precision [precision 'binary64]
-                     #:specification [specification #f])
-  (rollback-improve!)
-  (define repr (get-representation precision))
-
-  (define original-points (setup-context! vars (prog->spec (or specification prog)) (prog->spec precondition) repr))
-  (run-improve! iters prog specification preprocess original-points repr))
 
 ;; The rest of the file is various helper / glue functions used by
 ;; Herbie. These often wrap other Herbie components, but add logging
@@ -213,7 +199,7 @@
       (for/list ([loc-costs (in-list loc-costss)]
                  #:when true
                  [(cost-diff expr) (in-dict loc-costs)]
-                 [i (in-range (*localize-expressions-limit*))])
+                 [_ (in-range (*localize-expressions-limit*))])
         (timeline-push! 'locations (~a expr) "cost-diff" cost-diff
                         (not (patch-table-has-expr? expr))
                         (~a (representation-name repr)))
@@ -228,7 +214,7 @@
       (for/list ([loc-errs (in-list loc-errss)]
                  #:when true
                  [(err expr) (in-dict loc-errs)]
-                 [i (in-range (*localize-expressions-limit*))])
+                 [_ (in-range (*localize-expressions-limit*))])
         (timeline-push! 'locations (~a expr) "accuracy" (errors-score err)
                         (not (patch-table-has-expr? expr))
                         (~a (representation-name repr)))
@@ -236,66 +222,58 @@
     (set! localized-exprs (remove-duplicates (append localized-exprs error-localized))))
 
   (^locs^ localized-exprs)
-  (^lowlocs^ '())
   (void))
-
 
 
 ;; Returns the locations of `subexpr` within `expr`
 (define (get-locations expr subexpr)
-  (let loop ([expr expr] [loc '()])
-    (match expr
-      [(== subexpr)
-       (list (reverse loc))]
-      [(list op args ...)
-       (apply
-        append
-        (for/list ([arg (in-list args)] [i (in-naturals 1)])
-          (loop arg (cons i loc))))]
-      [_
-       (list)])))
+  (reap [sow]
+    (let loop ([expr expr] [loc '()])
+      (match expr
+        [(== subexpr) (sow (reverse loc))]
+        [(list _ args ...)
+         (for ([arg (in-list args)] [i (in-naturals 1)])
+           (loop arg (cons i loc)))]
+        [_ (void)]))))
 
 ;; Converts a patch to full alt with valid history
 (define (reconstruct! alts)
   ;; extracts the base expression of a patch
   (define (get-starting-expr altn)
-    (match (alt-event altn)
-     ['(patch) (alt-expr altn)]
-     [_
-      (if (null? (alt-prevs altn))
-          #f
-          (get-starting-expr (first (alt-prevs altn))))]))
+    (match* ((alt-event altn) (alt-prevs altn))
+      [((list 'patch expr _) _) expr]
+      [(_ (list prev)) (get-starting-expr prev)]
+      [(_ _) (error 'get-starting-spec "unexpected: ~a" altn)]))
 
   ;; takes a patch and converts it to a full alt
   (define (reconstruct-alt altn loc0 orig)
     (let loop ([altn altn])
       (match-define (alt _ event prevs _) altn)
-      (cond
-       [(equal? event '(patch)) orig]
-       [else
-        (define event*
-          ;; The 2 at the start of locs is left over from when we
-          ;; differentiated between "programs" with a λ term and
-          ;; "expressions" without
-          (match event
-           [(list 'taylor '() name var)
-            (list 'taylor loc0 name var)]
-           [(list 'rr '() input proof soundiness)
-            (list 'rr loc0 input proof soundiness)]
-           [(list 'simplify '() input proof soundiness)
-            (list 'simplify loc0 input proof soundiness)]))
-        (define expr* (location-do loc0 (alt-expr orig) (const (alt-expr altn))))
-        (alt expr* event* (list (loop (first prevs))) (alt-preprocessing orig))])))
-  
+      (match event
+        [(list 'patch _ _) orig]
+        [_
+         (define event*
+           (match event
+             [(list 'taylor name var)
+              (list 'taylor loc0 name var)]
+             [(list 'rr input proof soundiness)
+              (list 'rr loc0 input proof soundiness)]
+             [(list 'simplify input proof soundiness)
+              (list 'simplify loc0 input proof soundiness)]))
+         (define expr* (location-do loc0 (alt-expr orig) (const (alt-expr altn))))
+         (alt expr* event* (list (loop (first prevs))) (alt-preprocessing orig))])))
+
   (^patched^
-   (reap [sow]
-     (for ([altn (in-list alts)]) ;; does not have preproc
-       (define expr0 (get-starting-expr altn))
-       (if expr0     ; if expr0 is #f, altn is a full alt (probably iter 0 simplify)
-           (for* ([alt0 (in-list (^next-alts^))]
-                 [loc (in-list (get-locations (alt-expr alt0) expr0))])
-             (sow (reconstruct-alt altn loc alt0)))
-           (sow altn)))))
+    (reap [sow]
+      (for ([altn (in-list alts)]) ;; does not have preproc
+        (define start-expr (get-starting-expr altn))
+        (if start-expr
+            (for ([full-altn (in-list (^next-alts^))])
+              (define expr (alt-expr full-altn))
+              (for ([loc (in-list (get-locations expr start-expr))])
+                (sow (reconstruct-alt altn loc full-altn))))
+            ; altn is a full alt (probably iter 0 simplify)
+            (sow altn)))))
 
   (void))
 
@@ -338,13 +316,12 @@
 (define (finish-iter!)
   (unless (^next-alts^) (choose-alts!))
   (unless (^locs^) (localize!))
-  (reconstruct! (patch-table-run (^locs^) (^lowlocs^)))
+  (reconstruct! (patch-table-run (^locs^)))
   (finalize-iter!)
   (void))
 
 (define (rollback-iter!)
   (^locs^ #f)
-  (^lowlocs^ #f)
   (^next-alts^ #f)
   (^patched^ #f)
   (void))
@@ -364,7 +341,7 @@
   (define expr (alt-expr (car simplified)))
 
   (define-values (fperrors explanations-table confusion-matrix maybe-confusion-matrix total-confusion-matrix freqs)
-    (explain expr context pcontext))
+    (explain expr (*context*) (*pcontext*)))
 
   (for ([fperror (in-list fperrors)])
     (match-define (list expr truth opreds oex upreds uex) fperror)
@@ -409,23 +386,41 @@
     [else
      (list (argmin score-alt alts))]))
 
+
+; TODO: restore final simplify
 (define (final-simplify! alts)
   (cond
     [(flag-set? 'generate 'simplify)
      (timeline-event! 'simplify)
+    
+     (define progs (map alt-expr alts))
+     (define reprs (map (lambda (prog) (repr-of prog (*context*))) progs))
+     (define rules (platform-impl-rules (*fp-safe-simplify-rules*)))
 
-     (define input-progs (map alt-expr alts))
-     (define egg-query (make-egg-query input-progs (*fp-safe-simplify-rules*) #:const-folding? #f))
-     (define simplified (map last (simplify-batch egg-query)))
+     ; egg runner
+     (define runner
+      (make-egg-runner progs
+                       reprs
+                       `((,rules . ((node . ,(*node-limit*)) (const-fold? . #f))))))
 
+     ; run egg
+     (define simplified
+       (map last
+            (simplify-batch
+              runner
+              (typed-egg-extractor
+                (if (*egraph-platform-cost*)
+                    platform-egg-cost-proc
+                    default-egg-cost-proc)))))
+
+     ; de-duplication
      (remove-duplicates
-      (for/list ([altn (in-list alts)] [prog (in-list simplified)])
-        (if (equal? (alt-expr altn) prog)
-            altn
-            (alt prog 'final-simplify (list altn) (alt-preprocessing altn))))
-      alt-equal?)]
-    [else
-     alts]))
+        (for/list ([altn (in-list alts)] [prog (in-list simplified)])
+          (if (equal? (alt-expr altn) prog)
+              altn
+              (alt prog 'final-simplify (list altn) (alt-preprocessing altn))))
+        alt-equal?)]
+    [else alts]))
 
 (define (add-soundness! alts)
   (cond
