@@ -844,7 +844,6 @@
 ;;       - a default failure value
 ;;
 ;; Types are represented as one of the following:
-;;  - #t: top type (type of numbers)
 ;;  - (or <type> ..+) union of types
 ;;  - <representation>: representation type
 ;;  - <type-name>: type-name type
@@ -863,7 +862,6 @@
 (define (subtype? ty1 ty2)
   (match* (ty1 ty2)
     [(_ #f) #f]
-    [(_ #t) #t]
     [((list 'or tys1 ...) (list 'or tys2 ...)) (andmap (lambda (ty) (member ty tys2)) tys1)]
     [(_ (list 'or tys2 ...)) (member ty1 tys2)]
     [(_ _) (equal? ty1 ty2)]))
@@ -872,8 +870,6 @@
 (define (type/union ty1 . tys)
   (for/fold ([ty1 ty1]) ([ty2 (in-list tys)])
     (match* (ty1 ty2)
-      [(#t _) #t]
-      [(_ #t) #t]
       [(#f _) ty2]
       [(_ #f) ty1]
       [((list 'or tys1 ...) (list 'or tys2 ...))
@@ -888,8 +884,6 @@
 ;; Applying the intersection operation over types
 (define (type/intersect ty1 ty2)
   (match* (ty1 ty2)
-    [(_ #t) ty1]
-    [(#t _) ty2]
     [((list 'or tys1 ...) (list 'or tys2 ...))
      (match (for/fold ([tys '()]) ([ty (in-list tys1)] #:when (member ty tys2))
               (cons ty tys))
@@ -903,10 +897,15 @@
 ;; Computes the set of extractable types for each eclass.
 (define (regraph-eclass-types egraph)
   (define egg->herbie (regraph-egg->herbie egraph))
+  (define reprs (platform-reprs (*active-platform*)))
 
   (define (node->type analysis node)
     (match node
-      [(? number?) #t]
+      [(? number?)
+       ; NOTE: a number by itself is untyped, but we can constrain
+       ; the type of the number by the platform
+       (for/fold ([ty #f]) ([repr (in-list reprs)] #:when (eq? (representation-type repr) 'real))
+         (type/union ty repr (representation-type repr)))]
       [(? symbol?)
        (define repr (cdr (hash-ref egg->herbie node)))
        (type/union repr (representation-type repr))]
@@ -954,9 +953,14 @@
 
   ; Compute the extractable types
   (define eclass-types (regraph-eclass-types regraph))
+  (define reprs (platform-reprs (*active-platform*)))
   (define (node->type node)
     (match node
-      [(? number?) #t]
+      [(? number?)
+       ; NOTE: a number by itself is untyped, but we can constrain
+       ; the type of the number by the platform
+       (for/fold ([ty #f]) ([repr (in-list reprs)] #:when (eq? (representation-type repr) 'real))
+         (type/union ty repr (representation-type repr)))]
       [(? symbol?)
        (define repr (cdr (hash-ref egg->herbie node)))
        (type/union repr (representation-type repr))]
@@ -991,45 +995,36 @@
     (for/vector #:length n ([id (in-range n)])
       (define table (make-hash))
       (define node-types (vector-ref eclass-types id))
-      (for ([ty (in-vector node-types)] #:when ty)
+      (for ([ty (in-vector node-types)])
         (match ty
           [(list 'or tys ...)
-           (for ([ty (in-list tys)])
+           (for ([ty (in-list tys)] #:when (representation? ty))
              (hash-set! table ty #f))]
-          [_ (hash-set! table ty #f)]))
+          [(? representation?) (hash-set! table ty #f)]
+          [(? type-name?) (void)]
+          [#f (void)]))
       table))
 
   ; Checks if eclass has a cost
   (define (eclass-has-cost? id type)
-    (define c (vector-ref costs id))
-    (cond
-      [(hash-has-key? c type) (hash-ref c type)] ; typed choice has cost
-      [(hash-has-key? c #t) (hash-ref c #t)] ; untyped choice has cost (constants)
-      [else #t])) ; no choice but we can compute cost with failure value
+    (define eclass-costs (vector-ref costs id))
+    (hash-ref eclass-costs type #f))
 
   ; Unsafe lookup of eclass cost
   (define (unsafe-eclass-cost id type failure)
-    (define cost (vector-ref costs id))
+    (define eclass-costs (vector-ref costs id))
     (cond
-      [(hash-has-key? cost type) 
-       (define cost* (hash-ref cost type)) ; (cost . node) or #f
-       (and cost* (car cost*))]
-      [(hash-has-key? cost #t) ; type `#t` is always a valid choice
-       (define cost* (hash-ref cost #t))  ; (cost . node) or #f
-       (and cost* (car cost*))]
+      [(hash-ref eclass-costs type #f) => ; (cost . node) or #f
+       (lambda (cost) (and cost (car cost)))]
       [else failure]))
 
   ; Unsafe lookup of best eclass node.
   ; Returns `#f` if no best eclass exists.
   (define (unsafe-best-node id type)
-    (define cost (vector-ref costs id))
+    (define eclass-costs (vector-ref costs id))
     (cond
-      [(hash-has-key? cost type)
-       (define cost* (hash-ref cost type)) ; (cost . node) or #f
-       (and cost* (cdr cost*))]
-      [(hash-has-key? cost #t) ; type `#t` is always a valid choice
-       (define cost* (hash-ref cost #t))  ; (cost . node) or #f
-       (and cost* (cdr cost*))]
+      [(hash-ref eclass-costs type #f) => ; (cost . node) or #f
+       (lambda (cost) (and cost (cdr cost)))]
       [else #f]))
 
   ; We cache whether it is safe to apply the cost function on a given node
@@ -1041,9 +1036,11 @@
       (define node-types (vector-ref eclass-types id))
       (for/vector #:length (vector-length eclass) ([ty (in-vector node-types)])
         (match ty
-          [(list 'or tys ...) (map (lambda (_) (box #f)) tys)]
-          [_ (box #f)]))))
-
+          [(list 'or tys ...) (map (lambda (ty) (and (representation? ty) (box #f))) tys)]
+          [(? representation?) (box #f)]
+          [(? type-name?) #f]
+          [#f #f]))))
+  
   (define (slow-node-ready? node type)
     (match node
       [(list 'if cond ift iff)
@@ -1095,23 +1092,19 @@
     ; Iterate over the nodes
     (for ([node (in-vector eclass)]
           [ty (in-vector node-types)]
-          [ready? (in-vector ready?/node)]
-          #:when ty)
+          [ready? (in-vector ready?/node)])
       (match ty
         [(list 'or tys ...) ; node is a union type (only for some `if` nodes)
          (for ([ty (in-list tys)] [ready? (in-list ready?)])
-           (when (node-requires-update? node)
+           (when (and (representation? ty) (node-requires-update? node))
              (define new-cost (node-cost node ty ready?))
              (update-cost! ty new-cost node)))]
-        [#t ; node is untyped (constant)
+        [(? representation?) ; node has a specific reprsentation
          (when (node-requires-update? node)
            (define new-cost (node-cost node ty ready?))
-           (for ([ty (in-list (hash-keys eclass-costs))])
-             (update-cost! ty new-cost node)))]
-        [_ ; node has a specific type
-         (when (node-requires-update? node)
-           (define new-cost (node-cost node ty ready?))
-           (update-cost! ty new-cost node))]))
+           (update-cost! ty new-cost node))]
+        [(? type-name?) (void)] ; type
+        [#f (void)])) ; no type
 
     updated?)
 
@@ -1154,8 +1147,9 @@
   (define egg->herbie (regraph-egg->herbie regraph))
   (define node-cost-proc (platform-node-cost-proc (*active-platform*)))
   (match node
-    [(? number?) 0] ; TODO: numbers are free I guess
-    [(? symbol?)
+    [(? number? n) ; numbers (repr is unused) 
+     ((node-cost-proc (literal n type) type))]
+    [(? symbol?) ; variables (`egg->herbie` has the repr)
      (define repr (cdr (hash-ref egg->herbie node)))
      ((node-cost-proc node repr))]
     [(list 'if cond ift iff) ; if expression

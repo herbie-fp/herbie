@@ -26,9 +26,12 @@
 
 (define-coercion-match-expander hash-arg/m
   (λ (x)
-    (and (not (*demo-output*))
-         (let ([m (regexp-match #rx"^([0-9a-f]+)\\.[0-9a-f.]+" x)])
-           (and m (completed-job? (second m))))))
+    (cond
+      [(*demo-output*)
+       (not (directory-exists? (build-path (*demo-output*) x)))]
+      [else
+       (let ([m (regexp-match #rx"^([0-9a-f]+)\\.[0-9a-f.]+" x)])
+         (and m (completed-job? (second m))))]))
   (λ (x)
     (let ([m (regexp-match #rx"^([0-9a-f]+)\\.[0-9a-f.]+" x)])
       (get-results-for (if m (second m) x)))))
@@ -55,9 +58,8 @@
    [((hash-arg) (string-arg)) generate-page]
    [("results.json") generate-report]))
 
-(define (generate-page req results page)
-  (match-define result results)
-  (define path (string-split (url->string (request-uri req)) "/"))
+(define (generate-page req result page)
+  (define path (first (string-split (url->string (request-uri req)) "/")))
   (cond
    [(set-member? (all-pages result) page)
     ;; Write page contents to disk
@@ -80,10 +82,14 @@
     (next-dispatcher)]))
 
 (define (generate-report req)
-  (define info (make-report-info (get-improve-job-data) #:seed (get-seed) #:note (if (*demo?*) "Web demo results" "Herbie results")))
-  (response 200 #"OK" (current-seconds) #"text"
-            (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count)))))
-            (λ (out) (write-datafile out info))))
+  (cond
+    [(and (*demo-output*) (file-exists? (build-path (*demo-output*) "results.json")))
+     (next-dispatcher)]
+    [else
+     (define info (make-report-info (get-improve-job-data) #:seed (get-seed) #:note (if (*demo?*) "Web demo results" "Herbie results")))
+     (response 200 #"OK" (current-seconds) #"text"
+               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count)))))
+               (λ (out) (write-datafile out info)))]))
 
 (define url (compose add-prefix url*))
 
@@ -238,7 +244,7 @@
                   (filter values
                     (list
                       (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*"))
-                      (and (hash-has-key? resp 'job-id) (header #"X-Herbie-Job-ID" (string->bytes/utf-8 (hash-ref resp 'job-id))))))
+                      (and (hash-has-key? resp 'job) (header #"X-Herbie-Job-ID" (string->bytes/utf-8 (hash-ref resp 'job))))))
                   (λ (op) (write-json resp op))))))
 
 (define (response/error title body)
@@ -352,7 +358,7 @@
       (define result (wait-for-job id))
       (define pctx (job-result-backend result))
       (define repr (context-repr (test-context test)))
-      (hasheq 'points (pcontext->json pctx repr) 'job-id id))))
+      (hasheq 'points (pcontext->json pctx repr) 'job id))))
 
 (define analyze-endpoint
   (post-with-json-response
@@ -372,7 +378,7 @@
           (define pt (first pt&err))
           (define err (second pt&err))
           (list pt (format-bits (ulps->bits err)))))
-      (hasheq 'points errs 'job-id id))))
+      (hasheq 'points errs 'job id))))
 
 ;; (await fetch('/api/exacts', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x) (- (sqrt (+ x 1))))", points: [[1, 1]]})})).json()
 (define exacts-endpoint 
@@ -386,7 +392,7 @@
       (define command (create-job 'exacts test #:seed seed #:pcontext pcontext #:profile? #f #:timeline-disabled? #t))
       (define id (start-job command))
       (define result (wait-for-job id))
-      (hasheq 'points (job-result-backend result) 'job-id id))))
+      (hasheq 'points (job-result-backend result) 'job id))))
 
 (define calculate-endpoint 
   (post-with-json-response
@@ -400,7 +406,7 @@
       (define id (start-job command))
       (define result (wait-for-job id))
       (define approx (job-result-backend result))
-      (hasheq 'points approx 'job-id id))))
+      (hasheq 'points approx 'job id))))
 
 (define local-error-endpoint
   (post-with-json-response
@@ -431,7 +437,7 @@
               'e (~a expr)
               'avg-error (format-bits (errors-score (first err)))
               'children '())])))
-      (hasheq 'tree tree 'job-id id))))
+      (hasheq 'tree tree 'job id))))
 
 (define alternatives-endpoint
   (post-with-json-response
@@ -483,7 +489,7 @@
               'histories histories
               'derivations derivations
               'splitpoints splitpoints
-              'job-id id))))
+              'job id))))
 
 (define ->mathjs-endpoint
   (post-with-json-response
@@ -505,7 +511,7 @@
       (define result (wait-for-job id))
       (define cost (job-result-backend result))
       (hasheq 'cost cost 
-              'job-id id))))
+              'jod id))))
 
 (define translate-endpoint
   (post-with-json-response
@@ -545,8 +551,9 @@
            timeout ,(*timeout*) output-dir ,(*demo-output*) reeval ,(*reeval-pts*) demo? ,(*demo?*)))
   (start-job-server config *demo?* *demo-output* )
 
-  (eprintf "Herbie ~a with seed ~a\n" *herbie-version* (get-seed))
-  (eprintf "Find help on https://herbie.uwplse.org/, exit with Ctrl-C\n")
+  (unless quiet?
+    (eprintf "Herbie ~a with seed ~a\n" *herbie-version* (get-seed))
+    (eprintf "Find help on https://herbie.uwplse.org/, exit with Ctrl-C\n"))
 
   (serve/servlet
    dispatch
@@ -557,7 +564,7 @@
 
    #:command-line? true
    #:launch-browser? (not quiet?)
-   #:banner? true
+   #:banner? (not quiet?)
    #:servlets-root (web-resource)
    #:server-root-path (web-resource)
    #:servlet-path "/"

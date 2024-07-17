@@ -1,6 +1,6 @@
 <!doctype html>
 <meta charset="utf-8" />
-<title>Herbie Input Format</title>
+<title>What is Error?</title>
 <link rel='stylesheet' type='text/css' href='../../main.css'>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <script type="text/javascript" src="toc.js"></script>
@@ -141,7 +141,9 @@ dive into each requirement.</p>
     1e9) (exp 1e9))</code>, which divides two identical but gargantuan
     numbers, does have an exact real-number answer (one), but Herbie
     can't compute that exact answer because the intermediate steps are
-    too large. This input is also invalid.</li>
+    too large. This input is also invalid, but you'll
+    get <a href="faq.html#ground-truth">a warning</a> if this
+    happens.</li>
 </ol>
 
 <p>Herbie's percentage accuracy metric only averages over valid
@@ -150,6 +152,16 @@ which points are valid, and that can change the percentage accuracy
 reported by Herbie. This is useful: if you know there's a rare error,
 but Herbie thinks error is low, you can change your precondition to
 focus on the points of interest.</p>
+
+<p>Some inputs are valid in surprising ways. For example, consider the
+expression <code>(exp x)</code> for <code>x = 1e100</code>. The true
+real-number result is a very large but finite number; but that real
+number, whatever it is, rounds to infinity in double-precision
+floating point. Herbie does consider this input valid, but infinite
+values are a little odd in floating-point so you might find this
+surprising. For this reason, Herbie
+issues <a href="faq.html#inf-points">a warning</a> if too many outputs
+are infinite.</p>
 
 <h2>Sampling inputs</h2>
 
@@ -162,7 +174,7 @@ uniformly distributed.</p>
 2 as there are between one and one half, because floating-point values
 use an exponential encoding. But that means that if you're looking at
 a computation where the input comes from the interval <kbd>[0.5,
-2]</kbd>, Herbie will weight the first third of that range twice as
+2]</kbd>, Herbie will weigh the first third of that range twice as
 high as the other two thirds.</p>
 
 <p>This can produce unintuitive results, especially for intervals that

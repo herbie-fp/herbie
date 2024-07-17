@@ -402,9 +402,10 @@
      :herbie-error-output
      ([,(*num-points*) ,(table-row-result-est row)]
       [,(*reeval-pts*) ,(table-row-result row)])
-     ,@(if (table-row-target row)
-           `(:herbie-error-target ([,(*reeval-pts*) ,(table-row-target row)]))
-           '())
+     ,@(append
+        (for/list ([rec (in-list (table-row-target row))])
+          (match-define (list cost score) rec)
+          `(:herbie-error-target ([,(*reeval-pts*) ,(table-row-target row)]))))
      ,@(if (empty? (table-row-warnings row))
            '()
            `(:herbie-warnings ,(table-row-warnings row)))
@@ -413,5 +414,8 @@
      :precision ,(table-row-precision row)
      ,@(if (eq? (table-row-pre row) 'TRUE) '() `(:pre ,(table-row-pre row)))
      ,@(if (equal? (table-row-preprocess row) empty) '() `(:herbie-preprocess ,(table-row-preprocess row)))
-     ,@(if (table-row-target-prog row) `(:alt ,(table-row-target-prog row)) '())
+     ,@(append
+        (for/list ([(target enabled?) (in-dict (table-row-target-prog row))]
+                   #:when enabled?)
+          `(:alt ,target)))
      ,(prog->fpcore expr* repr)))

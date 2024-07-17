@@ -31,9 +31,8 @@
     otherwise specified. A typical example of sending a POST request
     to a running Herbie server is:</p>
 
-    <pre class="shell">curl -X POST -d \
-  '{"formula": "(FPCore (x) (- (sqrt (+ x 1))))",\
-    "seed": 5})}' \
+    <pre class="shell">curl -d \
+  '{"formula": "(FPCore (x) (- (sqrt (+ x 1))))", "seed": 5}' \
   -H 'Content-Type: application/json' \
   http://127.0.0.1:8000/api/sample
     </pre>
@@ -46,15 +45,15 @@
     <p>Request:</p>
 
     <pre>{
-        formula: &lt;FPCore expression&gt;,
-        seed: &lt;random seed for point generation&gt;
-      }</pre>
+    formula: &lt;FPCore expression&gt;,
+    seed: &lt;random seed for point generation&gt;
+}</pre>
 
     <p>Response:</p>
 
     <pre>{
-        points: [[point, exact], ... ]
-      }</pre>
+    points: [[point, exact], ... ]
+}</pre>
     </details>
 
     <p>The <code>sample</code> endpoint allows the user to request a
@@ -78,15 +77,15 @@
     <p>Request:</p>
 
     <pre>{
-        formula: &lt;FPCore expression&gt;,
-        sample: [point, ... ]
-      }</pre>
+    formula: &lt;FPCore expression&gt;,
+    sample: [point, ... ]
+}</pre>
 
     <p>Response:</p>
 
     <pre>{
-        points: [[point, exact], ... ]
-      }</pre>
+    points: [[point, exact], ... ]
+}</pre>
     </details>
 
     <p>The <code>exacts</code> endpoint allows the user to request the
@@ -114,15 +113,15 @@
     <p>Request:</p>
 
     <pre>{
-        formula: &lt;FPCore expression&gt;,
-        sample: [point ... ]
-      }</pre>
+    formula: &lt;FPCore expression&gt;,
+    sample: [point ... ]
+}</pre>
 
     <p>Response:</p>
 
     <pre>{
-        points: [[point, exact], ... ]
-      }</pre>
+    points: [[point, exact], ... ]
+}</pre>
     </details>
 
     <p>The <code>calculate</code> endpoint allows the user to request
@@ -223,9 +222,6 @@
 
     <p>The <code>mathjs</code> endpoint allows the user to translate
     FPCore expressions into mathjs expressions.</p>
-
-    <h2 id="localerror">/api/local-error</h2>
-    <!--TODO--> Forthcoming.
 
 
     <h2 id="cost">/api/cost</h2>
@@ -344,6 +340,15 @@
     <p>Currently supported languages are: <code>python</code>, <code>c</code>,
     <code>fortran</code>, <code>java</code>, <code>julia</code>, <code>matlab</code>,
     <code>wls</code>, <code>tex</code>, and <code>js</code>.</p>
-
+  <h2>⚠️ Beta endpoints</h2>
+    <p>The endpoints below are currently a work in progress.</p>
+  <h2 id="localerror">/api/localerror</h2>
+    <!--TODO--> Forthcoming.
+  <h2 id="timeline">/api/timeline/{job-id}</h2>
+  <p>Retrieves the <code>timeline</code> data for a given API call. You may find the job id in either the JSON response or in the headers of the HTTP response for of the endpoints in Herbie.</p>
+  <p>The timeline is an exception to the others in that it uses a GET request. Below is a sample of what the request might look like. You may consult the <code>/infra/testApi.mjs</code> file for current examples of how to use this API.</p>
+  <pre class="shell">curl -X GET \
+  http://127.0.0.1:8000/api/timeline/0b95161a77fc3e29376bbb013d96c2827e2a1cd7
+      </pre>
   </body>
 </html>
