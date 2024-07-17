@@ -26,9 +26,12 @@
 
 (define-coercion-match-expander hash-arg/m
   (λ (x)
-    (and (not (*demo-output*))
-         (let ([m (regexp-match #rx"^([0-9a-f]+)\\.[0-9a-f.]+" x)])
-           (and m (completed-job? (second m))))))
+    (cond
+      [(*demo-output*)
+       (not (directory-exists? (build-path (*demo-output*) x)))]
+      [else
+       (let ([m (regexp-match #rx"^([0-9a-f]+)\\.[0-9a-f.]+" x)])
+         (and m (completed-job? (second m))))]))
   (λ (x)
     (let ([m (regexp-match #rx"^([0-9a-f]+)\\.[0-9a-f.]+" x)])
       (get-results-for (if m (second m) x)))))
@@ -55,9 +58,8 @@
    [((hash-arg) (string-arg)) generate-page]
    [("results.json") generate-report]))
 
-(define (generate-page req results page)
-  (match-define result results)
-  (define path (string-split (url->string (request-uri req)) "/"))
+(define (generate-page req result page)
+  (define path (first (string-split (url->string (request-uri req)) "/")))
   (cond
    [(set-member? (all-pages result) page)
     ;; Write page contents to disk
