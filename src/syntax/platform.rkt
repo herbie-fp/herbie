@@ -4,7 +4,6 @@
 
 (require "../utils/common.rkt"
          "../utils/errors.rkt"
-         "../core/rules.rkt"
          "syntax.rkt"
          "types.rkt")
 
@@ -22,8 +21,7 @@
                        [platform-name (-> platform? any/c)]
                        [platform-reprs (-> platform? (listof representation?))]
                        [platform-impls (-> platform? (listof symbol?))]
-                       [platform-conversions (-> platform? (listof symbol?))]
-                       [platform-reprchange-rules (-> platform? (listof rule?))]
+                       [platform-casts (-> platform? (listof symbol?))]
                        [platform-union (-> platform? platform? ... platform?)]
                        [platform-intersect (-> platform? platform? ... platform?)]
                        [platform-subtract (-> platform? platform? ... platform?)]
@@ -93,12 +91,6 @@
   (when (hash-has-key? platforms name)
     (error 'register-platform! "platform already registered ~a" name))
   (hash-set! platforms name (struct-copy $platform pform [name name])))
-
-;; Representation name sanitizer
-(define (repr->symbol repr)
-  (define replace-table `((" " . "_") ("(" . "") (")" . "")))
-  (define repr-name (representation-name repr))
-  (string->symbol (string-replace* (~a repr-name) replace-table)))
 
 ;; Optional error handler based on a value `optional?`.
 (define-syntax-rule (with-cond-handlers optional? ([pred handle] ...) body ...)
@@ -318,56 +310,12 @@
            (struct-copy platform-info info [impls (cons #'impl-sig (platform-info-impls info))]))]
          [_ (oops! "bad syntax")]))]))
 
-;; Representation conversions in a platform.
-(define (platform-conversions pform)
+;; Casts between representations in a platform.
+(define (platform-casts pform)
   (reap [sow]
         (for ([impl (in-list (platform-impls pform))])
           (when (eq? (impl->operator impl) 'cast)
             (sow impl)))))
-
-;; The "precision change" rules valid for a platform
-(define (platform-reprchange-rules pform)
-  ; conversion signatures
-  (define as-set (mutable-set))
-  (define convs
-    (reap [sow]
-          (for ([impl (platform-conversions pform)])
-            (match-define (list irepr) (impl-info impl 'itype))
-            (define orepr (impl-info impl 'otype))
-            (unless (or (set-member? as-set (cons irepr orepr))
-                        (set-member? as-set (cons orepr irepr)))
-              (set-add! as-set (cons irepr orepr))
-              (sow (cons irepr orepr))))))
-
-  ; precision rule generator
-  (define (make-precision-rewrite irepr orepr)
-    (define irepr-sym (repr->symbol irepr))
-    (define orepr-sym (repr->symbol orepr))
-    (define conv (sym-append irepr-sym '-> orepr-sym))
-    (define change (sym-append '<- irepr-sym))
-    (define rewrite-name (sym-append 'rewrite- orepr-sym '/ irepr-sym))
-    (rule rewrite-name 'a `(,conv (,change a)) `((a . ,irepr)) orepr))
-
-  ; for each conversion, enable precision rewrite
-  (define prec-rules
-    (for/fold ([rules '()]) ([(irepr orepr) (in-dict convs)])
-      (list* (make-precision-rewrite irepr orepr) (make-precision-rewrite orepr irepr) rules)))
-
-  ; for each conversion, enable a precision simplification
-  (define prec-simplifiers
-    (for/fold ([rules '()]) ([(irepr orepr) (in-dict convs)])
-      (define irepr-sym (repr->symbol irepr))
-      (define orepr-sym (repr->symbol orepr))
-      (define conv1 (sym-append irepr-sym '-> orepr-sym))
-      (define conv2 (sym-append orepr-sym '-> irepr-sym))
-      (define rw-name1 (sym-append 'rewrite- orepr-sym '/ irepr-sym '-simplify))
-      (define rw-name2 (sym-append 'rewrite- irepr-sym '/ orepr-sym '-simplify))
-      ; rules
-      (define simplify1 (rule rw-name1 'a `(,conv1 (,conv2 a)) `((a . ,orepr)) orepr))
-      (define simplify2 (rule rw-name2 'a `(,conv2 (,conv1 a)) `((a . ,irepr)) irepr))
-      (list* simplify1 simplify2 rules)))
-
-  (append prec-rules prec-simplifiers))
 
 ;; Merger for costs.
 (define (merge-cost pform-costs key #:optional? [optional? #f])
