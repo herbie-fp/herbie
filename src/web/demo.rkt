@@ -11,7 +11,7 @@
 (require "../common.rkt" "../config.rkt" "../syntax/read.rkt" "../errors.rkt")
 (require "../syntax/types.rkt"
          "../syntax/sugar.rkt" "../alternative.rkt" "../points.rkt" "../sandbox.rkt" "../float.rkt")
-(require "../datafile.rkt" "pages.rkt" "make-report.rkt"
+(require "../datafile.rkt" "pages.rkt"
          "common.rkt" "core2mathjs.rkt" "history.rkt" "plot.rkt" "server.rkt")
 
 (provide run-demo)
@@ -57,20 +57,8 @@
 
 (define (generate-page req results page)
   (match-define result results)
-  (define path (string-split (url->string (request-uri req)) "/"))
   (cond
    [(set-member? (all-pages result) page)
-    ;; Write page contents to disk
-    (when (*demo-output*)
-      (make-directory (build-path (*demo-output*) path))
-      (for ([page (all-pages result)])
-        (call-with-output-file (build-path (*demo-output*) path page)
-          (λ (out) 
-            (with-handlers ([exn:fail? (page-error-handler result page out)])
-              (make-page page out result (*demo-output*) #f)))))
-      (update-report result path (get-seed)
-                      (build-path (*demo-output*) "results.json")
-                      (build-path (*demo-output*) "index.html")))
     (response 200 #"OK" (current-seconds) #"text"
               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count)))))
               (λ (out)
@@ -80,10 +68,17 @@
     (next-dispatcher)]))
 
 (define (generate-report req)
-  (define info (make-report-info (get-improve-job-data) #:seed (get-seed) #:note (if (*demo?*) "Web demo results" "Herbie results")))
-  (response 200 #"OK" (current-seconds) #"text"
+  (cond 
+    [(string? (*demo-output*)) ;; JSON is cached read form disk and send 
+      (define file-contents
+        (port->string (open-input-file (build-path (*demo-output*) "results.json")) #:close? #t))
+      (response 200 #"OK" (current-seconds) #"text"
             (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count)))))
-            (λ (out) (write-datafile out info))))
+            (λ (out) (write-string file-contents out)))]
+    [else ;; geneate json report
+      (response 200 #"OK" (current-seconds) #"text"
+            (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count)))))
+            (λ (out) (write-datafile out (make-report-info (get-improve-job-data) #:seed (get-seed) #:note (if (*demo?*) "Web demo results" "Herbie results")))))]))
 
 (define url (compose add-prefix url*))
 
@@ -201,19 +196,6 @@
               (a ([href "./index.html"])" See what formulas other users submitted."))]
            [else
             `("all formulas submitted here are " (a ([href "./index.html"]) "logged") ".")])))))
-
-(define (update-report result dir seed data-file html-file)
-  (define link (path-element->string (last (explode-path dir))))
-  (define data (get-table-data result link))
-  (define info
-    (if (file-exists? data-file)
-        (let ([info (read-datafile data-file)])
-          (struct-copy report-info info [tests (cons data (report-info-tests info))]))
-        (make-report-info (list data) #:seed seed #:note (if (*demo?*) "Web demo results" ""))))
-  (define tmp-file (build-path (*demo-output*) "results.tmp"))
-  (write-datafile tmp-file info)
-  (rename-file-or-directory tmp-file data-file #t)
-  (call-with-output-file html-file #:exists 'replace (curryr make-report-page info #f)))
 
 (define (post-with-json-response fn)
   (lambda (req)

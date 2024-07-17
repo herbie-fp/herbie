@@ -2,7 +2,7 @@
 
 (require openssl/sha1)
 
-(require "../sandbox.rkt" "../config.rkt" "../syntax/read.rkt")
+(require "../sandbox.rkt" "../config.rkt" "../web/pages.rkt" "../datafile.rkt" "../web/make-report.rkt")
 (require (submod "../timeline.rkt" debug))
 
 (provide completed-job? get-results-for get-improve-job-data job-count
@@ -11,9 +11,9 @@
 
 #| Job Server Public API section |#
 
-; Helers to isolated *completed-jobs*
+; Public check if the job id is completed or not.
 (define (completed-job? id) 
-  (hash-has-key? *completed-jobs* id))
+  (already-computed? id))
 
 ; Returns #f is now job exsist for the given job-id
 (define (get-results-for id) 
@@ -74,6 +74,7 @@
 (define *job-status* (make-hash))
 (define *job-sema* (make-hash))
 
+; Check if the job is completed or saved on disk.
 (define (already-computed? job-id)
  (or (hash-has-key? *completed-jobs* job-id)
      (and (*demo-output*)
@@ -116,17 +117,46 @@
   (hash-remove! *job-sema* job-id))
 
 (define (wrapper-run-herbie cmd job-id)
+  (define seed (herbie-command-seed cmd))
   (print-job-message (herbie-command-command cmd) job-id 
     (herbie-command-test cmd))
   (define result (run-herbie 
     (herbie-command-command cmd)
     (herbie-command-test cmd)
-    #:seed (herbie-command-seed cmd)
+    #:seed seed
     #:pcontext (herbie-command-pcontext cmd)
     #:profile? (herbie-command-profile? cmd)
     #:timeline-disabled? (herbie-command-timeline-disabled? cmd)))
   (hash-set! *completed-jobs* job-id result)
+  (when (*demo-output*)
+    ;; Saving to disk enabled, Write page contents to disk
+    (define path (format "~a.~a" job-id *herbie-commit*))
+    (define dir (build-path (*demo-output*) path))
+    (when (not (directory-exists? dir))
+      (make-directory dir))
+    (for ([page (all-pages result)])
+      (call-with-output-file (build-path (*demo-output*) path page)
+        (λ (out) 
+          (with-handlers ([exn:fail? (page-error-handler result page out)])
+            (make-page page out result (*demo-output*) #f)))))
+    (update-report result path seed
+      (build-path (*demo-output*) "results.json")
+      (build-path (*demo-output*) "index.html")))
   (eprintf "Job ~a complete\n" job-id))
+
+(define (update-report result dir seed data-file html-file)
+  (define link (path-element->string (last (explode-path dir))))
+  (define data (get-table-data result link))
+  (define info
+    (if (file-exists? data-file)
+        (let ([info (read-datafile data-file)])
+          (eprintf "info: ~a\n" info)
+          (struct-copy report-info info [tests (cons data (report-info-tests info))]))
+        (make-report-info (list data) #:seed seed #:note (if (*demo?*) "Web demo results" ""))))
+  (define tmp-file (build-path (*demo-output*) "results.tmp"))
+  (write-datafile tmp-file info)
+  (rename-file-or-directory tmp-file data-file #t)
+  (call-with-output-file html-file #:exists 'replace (curryr make-report-page info #f)))
 
 (define (print-job-message command job-id job-str)
   (define job-label
