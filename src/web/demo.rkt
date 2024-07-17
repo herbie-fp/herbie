@@ -238,7 +238,7 @@
                   (filter values
                     (list
                       (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*"))
-                      (and (hash-has-key? resp 'job-id) (header #"X-Herbie-Job-ID" (string->bytes/utf-8 (hash-ref resp 'job-id))))))
+                      (and (hash-has-key? resp 'job) (header #"X-Herbie-Job-ID" (string->bytes/utf-8 (hash-ref resp 'job))))))
                   (λ (op) (write-json resp op))))))
 
 (define (response/error title body)
@@ -352,7 +352,7 @@
       (define result (wait-for-job id))
       (define pctx (job-result-backend result))
       (define repr (context-repr (test-context test)))
-      (hasheq 'points (pcontext->json pctx repr) 'job-id id))))
+      (hasheq 'points (pcontext->json pctx repr) 'job id))))
 
 (define analyze-endpoint
   (post-with-json-response
@@ -372,7 +372,7 @@
           (define pt (first pt&err))
           (define err (second pt&err))
           (list pt (format-bits (ulps->bits err)))))
-      (hasheq 'points errs 'job-id id))))
+      (hasheq 'points errs 'job id))))
 
 ;; (await fetch('/api/exacts', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x) (- (sqrt (+ x 1))))", points: [[1, 1]]})})).json()
 (define exacts-endpoint 
@@ -386,7 +386,7 @@
       (define command (create-job 'exacts test #:seed seed #:pcontext pcontext #:profile? #f #:timeline-disabled? #t))
       (define id (start-job command))
       (define result (wait-for-job id))
-      (hasheq 'points (job-result-backend result) 'job-id id))))
+      (hasheq 'points (job-result-backend result) 'job id))))
 
 (define calculate-endpoint 
   (post-with-json-response
@@ -400,7 +400,7 @@
       (define id (start-job command))
       (define result (wait-for-job id))
       (define approx (job-result-backend result))
-      (hasheq 'points approx 'job-id id))))
+      (hasheq 'points approx 'job id))))
 
 (define local-error-endpoint
   (post-with-json-response
@@ -431,7 +431,7 @@
               'e (~a expr)
               'avg-error (format-bits (errors-score (first err)))
               'children '())])))
-      (hasheq 'tree tree 'job-id id))))
+      (hasheq 'tree tree 'job id))))
 
 (define alternatives-endpoint
   (post-with-json-response
@@ -483,7 +483,7 @@
               'histories histories
               'derivations derivations
               'splitpoints splitpoints
-              'job-id id))))
+              'job id))))
 
 (define ->mathjs-endpoint
   (post-with-json-response
@@ -505,7 +505,7 @@
       (define result (wait-for-job id))
       (define cost (job-result-backend result))
       (hasheq 'cost cost 
-              'job-id id))))
+              'jod id))))
 
 (define translate-endpoint
   (post-with-json-response
