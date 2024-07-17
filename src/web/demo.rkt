@@ -26,9 +26,12 @@
 
 (define-coercion-match-expander hash-arg/m
   (λ (x)
-    (and (not (*demo-output*))
-         (let ([m (regexp-match #rx"^([0-9a-f]+)\\.[0-9a-f.]+" x)])
-           (and m (completed-job? (second m))))))
+    (cond
+      [(*demo-output*)
+       (not (directory-exists? (build-path (*demo-output*) x)))]
+      [else
+       (let ([m (regexp-match #rx"^([0-9a-f]+)\\.[0-9a-f.]+" x)])
+         (and m (completed-job? (second m))))]))
   (λ (x)
     (let ([m (regexp-match #rx"^([0-9a-f]+)\\.[0-9a-f.]+" x)])
       (get-results-for (if m (second m) x)))))
@@ -55,9 +58,8 @@
    [((hash-arg) (string-arg)) generate-page]
    [("results.json") generate-report]))
 
-(define (generate-page req results page)
-  (match-define result results)
-  (define path (string-split (url->string (request-uri req)) "/"))
+(define (generate-page req result page)
+  (define path (first (string-split (url->string (request-uri req)) "/")))
   (cond
    [(set-member? (all-pages result) page)
     ;; Write page contents to disk
@@ -80,10 +82,14 @@
     (next-dispatcher)]))
 
 (define (generate-report req)
-  (define info (make-report-info (get-improve-job-data) #:seed (get-seed) #:note (if (*demo?*) "Web demo results" "Herbie results")))
-  (response 200 #"OK" (current-seconds) #"text"
-            (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count)))))
-            (λ (out) (write-datafile out info))))
+  (cond
+    [(and (*demo-output*) (file-exists? (build-path (*demo-output*) "results.json")))
+     (next-dispatcher)]
+    [else
+     (define info (make-report-info (get-improve-job-data) #:seed (get-seed) #:note (if (*demo?*) "Web demo results" "Herbie results")))
+     (response 200 #"OK" (current-seconds) #"text"
+               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count)))))
+               (λ (out) (write-datafile out info)))]))
 
 (define url (compose add-prefix url*))
 
