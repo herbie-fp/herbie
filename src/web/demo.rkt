@@ -549,8 +549,9 @@
            timeout ,(*timeout*) output-dir ,(*demo-output*) reeval ,(*reeval-pts*) demo? ,(*demo?*)))
   (start-job-server config *demo?* *demo-output* )
 
-  (eprintf "Herbie ~a with seed ~a\n" *herbie-version* (get-seed))
-  (eprintf "Find help on https://herbie.uwplse.org/, exit with Ctrl-C\n")
+  (unless quiet?
+    (eprintf "Herbie ~a with seed ~a\n" *herbie-version* (get-seed))
+    (eprintf "Find help on https://herbie.uwplse.org/, exit with Ctrl-C\n"))
 
   (serve/servlet
    dispatch
@@ -561,7 +562,7 @@
 
    #:command-line? true
    #:launch-browser? (not quiet?)
-   #:banner? true
+   #:banner? (not quiet?)
    #:servlets-root (web-resource)
    #:server-root-path (web-resource)
    #:servlet-path "/"
