@@ -106,7 +106,9 @@
           (hash-update! maybe-expls->points
                         key (lambda (x) (set-remove x pt))))))
     
-  
+   (define (mark-erroneous! expr expl)
+      (hash-update! error-count-hash expr (lambda (x) (set-add x pt)))
+      (hash-update! expls->points (cons expr expl) (lambda (x) (set-add x pt)) '()))
     
     
     (define (mark-maybe! expr [expl 'sensitivity])
