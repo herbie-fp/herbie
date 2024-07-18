@@ -11,9 +11,7 @@
 
 (define (rule-apply rule expr)
   (let ([bindings (pattern-match (rule-input rule) expr)])
-    (if bindings
-        (cons (pattern-substitute (rule-output rule) bindings) bindings)
-        #f)))
+    (if bindings (cons (pattern-substitute (rule-output rule) bindings) bindings) #f)))
 
 ;;
 ;;  Non-recursive rewriter
@@ -26,14 +24,15 @@
   (define expr-repr (repr-of expr ctx))
   (define changelists
     (reap [sow]
-      (for ([rule rules] #:when (equal? expr-repr (rule-otype rule)))
-        (let* ([result (rule-apply rule expr)])
-          (when result
-            (hash-update! rule-apps (rule-name rule) add1 0)
-            (sow (list (car result) rule)))))))
+          (for ([rule rules] #:when (equal? expr-repr (rule-otype rule)))
+            (let* ([result (rule-apply rule expr)])
+              (when result
+                (hash-update! rule-apps (rule-name rule) add1 0)
+                (sow (list (car result) rule)))))))
   ;; rule statistics
   (for ([(name count) (in-hash rule-apps)])
-    (when (> count 0) (timeline-push! 'rules (~a name) count)))
+    (when (> count 0)
+      (timeline-push! 'rules (~a name) count)))
   changelists)
 
 ;;
@@ -45,10 +44,7 @@
   (timeline-push! 'inputs (map ~a exprs))
 
   (define extractor
-    (typed-egg-extractor
-      (if (*egraph-platform-cost*)
-          platform-egg-cost-proc
-          default-egg-cost-proc)))
+    (typed-egg-extractor (if (*egraph-platform-cost*) platform-egg-cost-proc default-egg-cost-proc)))
 
   (define runner (make-egg-runner exprs reprs schedule #:context ctx))
   (define variantss (run-egg runner `(multi . ,extractor)))
@@ -56,15 +52,15 @@
   (define out
     (for/list ([variants variantss])
       (for/list ([variant (remove-duplicates variants)])
-          (list variant runner))))
+        (list variant runner))))
 
   (timeline-push! 'outputs (map ~a (apply append variantss)))
   out)
-  
 
 (module+ test
   (require rackunit)
-  (require "../syntax/types.rkt" "../syntax/load-plugin.rkt")
+  (require "../syntax/types.rkt"
+           "../syntax/load-plugin.rkt")
   (load-herbie-builtins)
   (*context* (make-debug-context '(x)))
 

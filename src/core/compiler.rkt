@@ -1,11 +1,18 @@
 #lang racket
 
-(require math/bigfloat math/flonum rival)
+(require math/bigfloat
+         math/flonum
+         rival)
 ;; Faster than bigfloat-exponent and avoids an expensive offset & contract check.
-(require "../syntax/syntax.rkt" "../syntax/types.rkt"
-         "../utils/common.rkt" "../utils/timeline.rkt" "../utils/float.rkt" "../config.rkt")
+(require "../syntax/syntax.rkt"
+         "../syntax/types.rkt"
+         "../utils/common.rkt"
+         "../utils/timeline.rkt"
+         "../utils/float.rkt"
+         "../config.rkt")
 
-(provide compile-progs compile-prog)
+(provide compile-progs
+         compile-prog)
 
 ;; Interpreter taking a narrow IR
 ;; ```
@@ -25,7 +32,8 @@
       (vector-set! vregs n arg))
     (for ([instr (in-vector ivec)] [n (in-naturals varc)])
       (vector-set! vregs n (apply-instruction instr vregs)))
-    (for/vector #:length rootlen ([root (in-vector rootvec)])
+    (for/vector #:length rootlen
+                ([root (in-vector rootvec)])
       (vector-ref vregs root)))
   compiled-prog)
 
@@ -37,17 +45,10 @@
   ;; becomes the fastest option.
   (match instr
     [(list op) (op)]
-    [(list op a)
-     (op (vector-ref regs a))]
-    [(list op a b)
-     (op (vector-ref regs a)
-         (vector-ref regs b))]
-    [(list op a b c)
-     (op (vector-ref regs a)
-         (vector-ref regs b)
-         (vector-ref regs c))]
-    [(list op args ...)
-     (apply op (map (curry vector-ref regs) args))]))
+    [(list op a) (op (vector-ref regs a))]
+    [(list op a b) (op (vector-ref regs a) (vector-ref regs b))]
+    [(list op a b c) (op (vector-ref regs a) (vector-ref regs b) (vector-ref regs c))]
+    [(list op args ...) (apply op (map (curry vector-ref regs) args))]))
 
 (define (if-proc c a b)
   (if c a b))
@@ -55,9 +56,8 @@
 (define (progs->batch exprs vars)
   (define icache (reverse vars))
   (define exprhash
-    (make-hash
-     (for/list ([var vars] [i (in-naturals)])
-       (cons var i))))
+    (make-hash (for/list ([var vars] [i (in-naturals)])
+                 (cons var i))))
   ; Counts
   (define size 0)
   (define exprc 0)
@@ -68,11 +68,10 @@
     (set! size (+ 1 size))
     (define node ; This compiles to the register machine
       (match prog
-        [(list op args ...)
-         (cons op (map munge args))]
-        [_
-         prog]))
-    (hash-ref! exprhash node
+        [(list op args ...) (cons op (map munge args))]
+        [_ prog]))
+    (hash-ref! exprhash
+               node
                (lambda ()
                  (begin0 (+ exprc varc) ; store in cache, update exprs, exprc
                    (set! exprc (+ 1 exprc))
@@ -88,19 +87,15 @@
 ;; Requires some hooks to complete the translation.
 (define (make-compiler exprs vars)
   (define num-vars (length vars))
-  (define-values (nodes roots)
-    (progs->batch exprs vars))
+  (define-values (nodes roots) (progs->batch exprs vars))
 
   (define instructions
     (for/vector #:length (- (vector-length nodes) num-vars)
                 ([node (in-vector nodes num-vars)])
       (match node
-        [(literal value (app get-representation repr))
-         (list (const (real->repr value repr)))]
-        [(list 'if c t f)
-         (list if-proc c t f)]
-        [(list op args ...)
-         (cons (impl-info op 'fl) args)])))
+        [(literal value (app get-representation repr)) (list (const (real->repr value repr)))]
+        [(list 'if c t f) (list if-proc c t f)]
+        [(list op args ...) (cons (impl-info op 'fl) args)])))
 
   (make-progs-interpreter vars instructions roots))
 
@@ -113,5 +108,6 @@
 ;; Like `compile-progs`, but a single prog.
 (define (compile-prog expr ctx)
   (define core (compile-progs (list expr) ctx))
-  (define (compiled-prog . xs) (vector-ref (apply core xs) 0))
+  (define (compiled-prog . xs)
+    (vector-ref (apply core xs) 0))
   compiled-prog)

@@ -1,8 +1,15 @@
 #lang racket
-(require math/bigfloat rival)
-(require "../syntax/types.rkt" "../utils/timeline.rkt" "../utils/errors.rkt" "../utils/pretty-print.rkt" "../utils/float.rkt" "../config.rkt")
+(require math/bigfloat
+         rival)
+(require "../syntax/types.rkt"
+         "../utils/timeline.rkt"
+         "../utils/errors.rkt"
+         "../utils/pretty-print.rkt"
+         "../utils/float.rkt"
+         "../config.rkt")
 
-(provide find-intervals hyperrect-weight)
+(provide find-intervals
+         hyperrect-weight)
 
 (struct search-space (true false other))
 
@@ -10,18 +17,18 @@
   (search-space '() '() ranges))
 
 (define (repr-round repr dir point)
-  ((representation-repr->bf repr)
-   (parameterize ([bf-rounding-mode dir])
-     ((representation-bf->repr repr) point))))
+  ((representation-repr->bf repr) (parameterize ([bf-rounding-mode dir])
+                                    ((representation-bf->repr repr) point))))
 
 (define (total-weight reprs)
   (expt 2 (apply + (map representation-total-bits reprs))))
 
 (define (hyperrect-weight hyperrect reprs)
-  (apply * (for/list ([interval (in-list hyperrect)] [repr (in-list reprs)])
-             (define ->ordinal (compose (representation-repr->ordinal repr)
-                                        (representation-bf->repr repr)))
-             (+ 1 (- (->ordinal (ival-hi interval)) (->ordinal (ival-lo interval)))))))
+  (apply *
+         (for/list ([interval (in-list hyperrect)] [repr (in-list reprs)])
+           (define ->ordinal
+             (compose (representation-repr->ordinal repr) (representation-bf->repr repr)))
+           (+ 1 (- (->ordinal (ival-hi interval)) (->ordinal (ival-lo interval)))))))
 
 (define (midpoint repr lo hi)
   ; Midpoint is taken in repr-space, but values are stored in bf
@@ -31,7 +38,8 @@
   (define lower (<-ordinal (floor (/ (+ (->ordinal hi) (->ordinal lo)) 2))))
   (define higher (repr-round repr 'up (bfnext lower))) ; repr-next
 
-  (and (bf>= lower lo) (bf<= higher hi) ; False if lo and hi were already close together
+  (and (bf>= lower lo)
+       (bf<= higher hi) ; False if lo and hi were already close together
        (cons lower higher)))
 
 (define (search-step ival-fn space ctx split-var)
@@ -41,31 +49,27 @@
     (for/fold ([true* true] [false* false] [other* '()]) ([rect (in-list other)])
       (match-define (ival err err?) (rival-analyze ival-fn (list->vector rect)))
       (when (eq? err 'unsamplable)
-        (warn 'ground-truth #:url "faq.html#ground-truth"
+        (warn 'ground-truth
+              #:url "faq.html#ground-truth"
               "could not determine a ground truth"
-              #:extra
-              (for/list ([var (context-vars ctx)] [repr reprs] [ival rect])
-                (define val
-                  (value->string
-                   ((representation-bf->repr repr)
-                    (bigfloat-pick-point (ival-lo ival) (ival-hi ival)))
-                   repr))
-                (format "~a = ~a" var val))))
+              #:extra (for/list ([var (context-vars ctx)] [repr reprs] [ival rect])
+                        (define val
+                          (value->string ((representation-bf->repr repr)
+                                          (bigfloat-pick-point (ival-lo ival) (ival-hi ival)))
+                                         repr))
+                        (format "~a = ~a" var val))))
       (cond
-       [err
-        (values true* (cons rect false*) other*)]
-       [(not err?)
-        (values (cons rect true*) false* other*)]
-       [else
-        (define range (list-ref rect split-var))
-        (define repr (list-ref reprs split-var))
-        (match (midpoint repr (ival-lo range) (ival-hi range))
-          [(cons midleft midright)
-           (define rect-lo (list-set rect split-var (ival (ival-lo range) midleft)))
-           (define rect-hi (list-set rect split-var (ival midright (ival-hi range))))
-           (values true* false* (list* rect-lo rect-hi other*))]
-          [#f
-           (values true* false* (cons rect other*))])])))
+        [err (values true* (cons rect false*) other*)]
+        [(not err?) (values (cons rect true*) false* other*)]
+        [else
+         (define range (list-ref rect split-var))
+         (define repr (list-ref reprs split-var))
+         (match (midpoint repr (ival-lo range) (ival-hi range))
+           [(cons midleft midright)
+            (define rect-lo (list-set rect split-var (ival (ival-lo range) midleft)))
+            (define rect-hi (list-set rect split-var (ival midright (ival-hi range))))
+            (values true* false* (list* rect-lo rect-hi other*))]
+           [#f (values true* false* (cons rect other*))])])))
   (search-space true* false* other*))
 
 (define (make-sampling-table ctx true false other)
@@ -90,10 +94,7 @@
         (timeline-push! 'sampling n (make-sampling-table ctx true false other))
 
         (define n* (remainder n (length (first rects))))
-        (if (or (>= n depth) (empty? (search-space-other space))
-                (>= (length other) (expt 2 depth)))
-            (cons
-             (append (search-space-true space) (search-space-other space))
-             (make-sampling-table ctx true false other))
+        (if (or (>= n depth) (empty? (search-space-other space)) (>= (length other) (expt 2 depth)))
+            (cons (append (search-space-true space) (search-space-other space))
+                  (make-sampling-table ctx true false other))
             (loop (search-step ival-fn space ctx n*) (+ n 1))))))
-

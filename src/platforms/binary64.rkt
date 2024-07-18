@@ -9,25 +9,26 @@
          "runtime/libm.rkt")
 
 ;; Do not run this file with `raco test`
-(module test racket/base)
+(module test racket/base
+  )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; representation ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define-representation (binary64 real flonum?)
-  bigfloat->flonum
-  bf
-  (shift 63 ordinal->flonum)
-  (unshift 63 flonum->ordinal)
-  64
-  (conjoin number? nan?))
+                       bigfloat->flonum
+                       bf
+                       (shift 63 ordinal->flonum)
+                       (unshift 63 flonum->ordinal)
+                       64
+                       (conjoin number? nan?))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; constants ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define-constants binary64
-  [PI PI.f64 pi]
-  [E E.f64 (exp 1.0)]
-  [INFINITY INFINITY.f64 +inf.0]
-  [NAN NAN.f64 +nan.0])
+                  [PI PI.f64 pi]
+                  [E E.f64 (exp 1.0)]
+                  [INFINITY INFINITY.f64 +inf.0]
+                  [NAN NAN.f64 +nan.0])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; operators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -38,10 +39,12 @@
        #'(define-libm-impl op (op impl itype ...) otype [key value] ...))]))
 
 (define-syntax-rule (define-libm-impls/binary64* (itype ... otype) name ...)
-  (begin (define-libm-impl/binary64 name (itype ...) otype) ...))
+  (begin
+    (define-libm-impl/binary64 name (itype ...) otype) ...))
 
 (define-syntax-rule (define-libm-impls/binary64 [(itype ... otype) (name ...)] ...)
-  (begin (define-libm-impls/binary64* (itype ... otype) name ...) ...))
+  (begin
+    (define-libm-impls/binary64* (itype ... otype) name ...) ...))
 
 (define-operator-impl (neg neg.f64 binary64) binary64 [fl -])
 (define-operator-impl (+ +.f64 binary64 binary64) binary64 [fl +])
@@ -49,21 +52,45 @@
 (define-operator-impl (* *.f64 binary64 binary64) binary64 [fl *])
 (define-operator-impl (/ /.f64 binary64 binary64) binary64 [fl /])
 
-(define-libm-impls/binary64
-  [(binary64 binary64)
-   (acos acosh asin asinh atan atanh cbrt ceil cos cosh erf exp exp2
-    fabs floor lgamma log log10 log2 logb rint round sin sinh sqrt
-    tan tanh tgamma trunc)]
-  [(binary64 binary64 binary64)
-   (atan2 copysign fdim fmax fmin fmod pow remainder)])
+(define-libm-impls/binary64 [(binary64 binary64)
+                             (acos acosh
+                                   asin
+                                   asinh
+                                   atan
+                                   atanh
+                                   cbrt
+                                   ceil
+                                   cos
+                                   cosh
+                                   erf
+                                   exp
+                                   exp2
+                                   fabs
+                                   floor
+                                   lgamma
+                                   log
+                                   log10
+                                   log2
+                                   logb
+                                   rint
+                                   round
+                                   sin
+                                   sinh
+                                   sqrt
+                                   tan
+                                   tanh
+                                   tgamma
+                                   trunc)]
+                            [(binary64 binary64 binary64)
+                             (atan2 copysign fdim fmax fmin fmod pow remainder)])
 
 (define-comparator-impls binary64
-  [== ==.f64 =]
-  [!= !=.f64 (negate =)]
-  [< <.f64 <]
-  [> >.f64 >]
-  [<= <=.f64 <=]
-  [>= >=.f64 >=])
+                         [== ==.f64 =]
+                         [!= !=.f64 (negate =)]
+                         [< <.f64 <]
+                         [> >.f64 >]
+                         [<= <=.f64 <=]
+                         [>= >=.f64 >=])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; accelerators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

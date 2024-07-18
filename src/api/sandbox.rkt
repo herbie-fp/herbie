@@ -41,7 +41,7 @@
 (define cs-places-workaround?
   (let ([major (string->number (substring (version) 0 1))]
         [minor (string->number (substring (version) 2 3))]
-        [rest  (substring (version) 3)])
+        [rest (substring (version) 3)])
     (or (< major 8)
         (and (= major 8) (< minor 2))
         (and (= major 8) (= minor 2) (zero? (string-length rest))))))
@@ -83,8 +83,7 @@
                       (prog->spec (test-pre test))
                       repr)))
 
-  (define-values (_ test-pcontext)
-    (split-pcontext joint-pcontext (*num-points*) (*reeval-pts*)))
+  (define-values (_ test-pcontext) (split-pcontext joint-pcontext (*num-points*) (*reeval-pts*)))
   test-pcontext)
 
 ;; Given a test and a sample of points, computes the error at each point.
@@ -109,10 +108,7 @@
     (error 'get-exacts "cannnot run without a pcontext"))
   (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext))
   (define-values (pts _) (pcontext->lists test-pcontext))
-  (define fn
-    (eval-progs-real 
-      (list (prog->spec (test-input test)))
-      (list (*context*))))
+  (define fn (eval-progs-real (list (prog->spec (test-input test))) (list (*context*))))
   (for/list ([pt pts])
     (list pt (car (apply fn pt)))))
 
@@ -157,9 +153,9 @@
   ;; TODO: Ignoring all user-provided preprocessing right now
   (define-values (alternatives preprocessing)
     (run-improve! (test-input test) (test-spec test) (*context*) train-pcontext))
-  (define test-pcontext*
-    (preprocess-pcontext (*context*) test-pcontext preprocessing))
-  (when seed (set-seed! seed))
+  (define test-pcontext* (preprocess-pcontext (*context*) test-pcontext preprocessing))
+  (when seed
+    (set-seed! seed))
   (list alternatives test-pcontext test-pcontext*))
 
 ;; Improvement backend for generating reports
@@ -167,7 +163,7 @@
 (define (get-alternatives/report test)
   (define seed (get-seed))
   (random) ;; Child process uses deterministic but different seed from evaluator
-  
+
   (define repr (test-output-repr test))
   (define ctx (test-context test))
   (match-define (cons domain-stats joint-pcontext)
@@ -182,17 +178,17 @@
   ;; TODO: Ignoring all user-provided preprocessing right now
   (define-values (end-alts preprocessing)
     (run-improve! (test-input test) (test-spec test) (*context*) train-pcontext))
-  (define test-pcontext*
-    (preprocess-pcontext ctx test-pcontext preprocessing))
-  (when seed (set-seed! seed))
-  
+  (define test-pcontext* (preprocess-pcontext ctx test-pcontext preprocessing))
+  (when seed
+    (set-seed! seed))
+
   ;; compute error/cost for input expression
   (define start-expr (test-input test))
   (define start-alt (make-alt start-expr))
   (define start-train-errs (errors start-expr train-pcontext ctx))
   (define start-test-errs (errors start-expr test-pcontext* ctx))
   (define start-alt-data (alt-analysis start-alt start-train-errs start-test-errs))
-  
+
   ;; optionally compute error/cost for input expression
   (define target-alt-data
     ;; When in platform, evaluate error
@@ -220,7 +216,8 @@
 ;;  Public interface
 ;;
 
-(define (run-herbie command test
+(define (run-herbie command
+                    test
                     #:seed [seed #f]
                     #:pcontext [pcontext #f]
                     #:profile? [profile? #f]
@@ -236,7 +233,7 @@
     (parameterize ([*timeline-disabled* timeline-disabled?])
       (timeline-event! 'end)
       (define time (- (current-inexact-milliseconds) start-time))
-      (match command 
+      (match command
         ['improve (job-result command test 'failure time (timeline-extract) (warning-log) e)]
         [_ (raise e)])))
 
@@ -244,23 +241,23 @@
     (parameterize ([*timeline-disabled* timeline-disabled?])
       (timeline-load! timeline)
       (timeline-event! 'end)
-      (match command 
+      (match command
         ['improve (job-result command test 'timeout (*timeout*) (timeline-extract) (warning-log) #f)]
         [_ (error 'run-herbie "command ~a timed out" command)])))
 
   (define (compute-result test)
-    (parameterize ([*timeline-disabled* timeline-disabled?]
-                   [*warnings-disabled* false])
+    (parameterize ([*timeline-disabled* timeline-disabled?] [*warnings-disabled* false])
       (define start-time (current-inexact-milliseconds))
       (rollback-improve!)
       (*context* (test-context test))
       (*active-platform* (get-platform (*platform-name*)))
       (activate-platform! (*active-platform*))
       (set! timeline (*timeline*))
-      (when seed (set-seed! seed))
+      (when seed
+        (set-seed! seed))
       (with-handlers ([exn? (curry on-exception start-time)])
         (define result
-          (match command 
+          (match command
             ['alternatives (get-alternatives test pcontext seed)]
             ['evaluate (get-calculation test pcontext)]
             ['cost (get-cost test)]
@@ -273,41 +270,47 @@
         (timeline-event! 'end)
         (define time (- (current-inexact-milliseconds) start-time))
         (job-result command test 'success time (timeline-extract) (warning-log) result))))
-  
+
   (define (in-engine _)
     (if profile?
-        (profile-thunk
-         (λ () (compute-result test))
-         #:order 'total
-         #:delay 0.001
-         #:render (λ (p order) (write-json (profile->json p) profile?)))
+        (profile-thunk (λ () (compute-result test))
+                       #:order 'total
+                       #:delay 0.001
+                       #:render (λ (p order) (write-json (profile->json p) profile?)))
         (compute-result test)))
 
   ;; Branch on whether or not we should run inside an engine
   (define eng (engine in-engine))
-  (if (engine-run (*timeout*) eng)
-      (engine-result eng)
-      (on-timeout)))
+  (if (engine-run (*timeout*) eng) (engine-result eng) (on-timeout)))
 
 (define (dummy-table-row result status link)
   (define test (job-result-test result))
   (define repr (test-output-repr test))
   (define preprocess
     (if (eq? (job-result-status result) 'success)
-             (improve-result-preprocess (job-result-backend result))
-             (test-preprocess test)))
-  (table-row (test-name test) (test-identifier test) status
+        (improve-result-preprocess (job-result-backend result))
+        (test-preprocess test)))
+  (table-row (test-name test)
+             (test-identifier test)
+             status
              (prog->fpcore (test-pre test) repr)
              preprocess
              (representation-name repr)
              '() ; TODO: eliminate field
              (test-vars test)
              (map car (job-result-warnings result))
-             (prog->fpcore (test-input test) repr) 
+             (prog->fpcore (test-input test) repr)
              #f
              (prog->fpcore (test-spec test) repr)
              (test-output test)
-             #f #f #f #f #f (job-result-time result) link '()))
+             #f
+             #f
+             #f
+             #f
+             #f
+             (job-result-time result)
+             link
+             '()))
 
 (define (get-table-data result link)
   (match-define (job-result command test status time _ _ backend) result)
@@ -316,7 +319,7 @@
      (match-define (improve-result _ _ start targets end _) backend)
      (define expr-cost (platform-cost-proc (*active-platform*)))
      (define repr (test-output-repr test))
-    
+
      ; starting expr analysis
      (match-define (alt-analysis start-alt start-train-errs start-test-errs) start)
      (define start-expr (alt-expr start-alt))
@@ -332,59 +335,60 @@
 
          (list tar-cost tar-score)))
 
-     ; Important to calculate value of status 
-     (define best-score 
-       (if (null? target-cost-score)
-         target-cost-score
-         (apply min (map second target-cost-score))))
-   
+     ; Important to calculate value of status
+     (define best-score
+       (if (null? target-cost-score) target-cost-score (apply min (map second target-cost-score))))
+
      ; analysis of output expressions
      (define-values (end-exprs end-train-scores end-test-scores end-costs)
-       (for/lists (l1 l2 l3 l4) ([result end])
-         (match-define (alt-analysis alt train-errors test-errors) result)
-         (values (alt-expr alt)
-                 (errors-score train-errors)
-                 (errors-score test-errors)
-                 (expr-cost (alt-expr alt) repr))))
+       (for/lists (l1 l2 l3 l4)
+                  ([result end])
+                  (match-define (alt-analysis alt train-errors test-errors) result)
+                  (values (alt-expr alt)
+                          (errors-score train-errors)
+                          (errors-score test-errors)
+                          (expr-cost (alt-expr alt) repr))))
 
      ; terribly formatted pareto-optimal frontier
      (define cost&accuracy
        (list (list start-cost start-test-score)
              (list (car end-costs) (car end-test-scores))
              (map list (cdr end-costs) (cdr end-test-scores) (cdr end-exprs))))
- 
+
      (define fuzz 0.1)
      (define end-est-score (car end-train-scores))
      (define end-score (car end-test-scores))
      (define status
        (if (not (null? best-score))
-          (begin 
-            (cond
-              [(< end-score (- best-score fuzz)) "gt-target"]
-              [(< end-score (+ best-score fuzz)) "eq-target"]
-              [(> end-score (+ start-test-score fuzz)) "lt-start"]
-              [(> end-score (- start-test-score fuzz)) "eq-start"]
-              [(> end-score (+ best-score fuzz)) "lt-target"]))
+           (begin
+             (cond
+               [(< end-score (- best-score fuzz)) "gt-target"]
+               [(< end-score (+ best-score fuzz)) "eq-target"]
+               [(> end-score (+ start-test-score fuzz)) "lt-start"]
+               [(> end-score (- start-test-score fuzz)) "eq-start"]
+               [(> end-score (+ best-score fuzz)) "lt-target"]))
 
            (cond
-            [(and (< start-test-score 1) (< end-score (+ start-test-score 1))) "ex-start"]
-            [(< end-score (- start-test-score 1)) "imp-start"]
-            [(< end-score (+ start-test-score fuzz)) "apx-start"]
-            [else "uni-start"])))
+             [(and (< start-test-score 1) (< end-score (+ start-test-score 1))) "ex-start"]
+             [(< end-score (- start-test-score 1)) "imp-start"]
+             [(< end-score (+ start-test-score fuzz)) "apx-start"]
+             [else "uni-start"])))
 
-     (struct-copy table-row (dummy-table-row result status link)
-                  [start-est start-train-score] [start start-test-score]
+     (struct-copy table-row
+                  (dummy-table-row result status link)
+                  [start-est start-train-score]
+                  [start start-test-score]
                   [target target-cost-score]
-                  [result-est end-est-score] [result end-score]
-                  [output (car end-exprs)] [cost-accuracy cost&accuracy])]
+                  [result-est end-est-score]
+                  [result end-score]
+                  [output (car end-exprs)]
+                  [cost-accuracy cost&accuracy])]
     ['failure
      (define exn backend)
      (define status (if (exn:fail:user:herbie? exn) "error" "crash"))
      (dummy-table-row result status link)]
-    ['timeout
-     (dummy-table-row result "timeout" link)]
-    [_
-     (error 'get-table-data "unknown result type ~a"status)]))
+    ['timeout (dummy-table-row result "timeout" link)]
+    [_ (error 'get-table-data "unknown result type ~a" status)]))
 
 (define (unparse-result row #:expr [expr #f] #:description [descr #f])
   (define repr (get-representation (table-row-precision row)))
@@ -394,28 +398,28 @@
         (list (table-row-identifier row) (table-row-vars row))
         (list (table-row-vars row))))
   `(FPCore ,@top
-     :herbie-status ,(string->symbol (table-row-status row))
-     :herbie-time ,(table-row-time row)
-     :herbie-error-input 
-     ([,(*num-points*) ,(table-row-start-est row)]
-      [,(*reeval-pts*) ,(table-row-start row)])
-     :herbie-error-output
-     ([,(*num-points*) ,(table-row-result-est row)]
-      [,(*reeval-pts*) ,(table-row-result row)])
-     ,@(append
-        (for/list ([rec (in-list (table-row-target row))])
-          (match-define (list cost score) rec)
-          `(:herbie-error-target ([,(*reeval-pts*) ,(table-row-target row)]))))
-     ,@(if (empty? (table-row-warnings row))
-           '()
-           `(:herbie-warnings ,(table-row-warnings row)))
-     :name ,(table-row-name row)
-     ,@(if descr `(:description ,(~a descr)) '())
-     :precision ,(table-row-precision row)
-     ,@(if (eq? (table-row-pre row) 'TRUE) '() `(:pre ,(table-row-pre row)))
-     ,@(if (equal? (table-row-preprocess row) empty) '() `(:herbie-preprocess ,(table-row-preprocess row)))
-     ,@(append
-        (for/list ([(target enabled?) (in-dict (table-row-target-prog row))]
-                   #:when enabled?)
-          `(:alt ,target)))
-     ,(prog->fpcore expr* repr)))
+           :herbie-status
+           ,(string->symbol (table-row-status row))
+           :herbie-time
+           ,(table-row-time row)
+           :herbie-error-input
+           ([,(*num-points*) ,(table-row-start-est row)] [,(*reeval-pts*) ,(table-row-start row)])
+           :herbie-error-output
+           ([,(*num-points*) ,(table-row-result-est row)] [,(*reeval-pts*) ,(table-row-result row)])
+           ,@(append (for/list ([rec (in-list (table-row-target row))])
+                       (match-define (list cost score) rec)
+                       `(:herbie-error-target ([,(*reeval-pts*) ,(table-row-target row)]))))
+           ,@(if (empty? (table-row-warnings row)) '() `(:herbie-warnings ,(table-row-warnings row)))
+           :name
+           ,(table-row-name row)
+           ,@(if descr `(:description ,(~a descr)) '())
+           :precision
+           ,(table-row-precision row)
+           ,@(if (eq? (table-row-pre row) 'TRUE) '() `(:pre ,(table-row-pre row)))
+           ,@(if (equal? (table-row-preprocess row) empty)
+                 '()
+                 `(:herbie-preprocess ,(table-row-preprocess row)))
+           ,@(append (for/list ([(target enabled?) (in-dict (table-row-target-prog row))]
+                                #:when enabled?)
+                       `(:alt ,target)))
+           ,(prog->fpcore expr* repr)))

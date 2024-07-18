@@ -1,11 +1,16 @@
 #lang racket
-(require setup/getinfo racket/runtime-path)
-(require "../config.rkt" "platform.rkt" "types.rkt")
+(require setup/getinfo
+         racket/runtime-path)
+(require "../config.rkt"
+         "platform.rkt"
+         "types.rkt")
 
-(provide load-herbie-builtins load-herbie-plugins make-debug-context)
+(provide load-herbie-builtins
+         load-herbie-plugins
+         make-debug-context)
 
 ;; Builtin plugins
-(define-runtime-module-path bool-plugin     "../platforms/bool.rkt")
+(define-runtime-module-path bool-plugin "../platforms/bool.rkt")
 (define-runtime-module-path binary32-plugin "../platforms/binary32.rkt")
 (define-runtime-module-path binary64-plugin "../platforms/binary64.rkt")
 (define-runtime-module-path fallback-plugin "../platforms/fallback.rkt")
@@ -43,7 +48,7 @@
       (with-handlers ([exn:fail:filesystem:missing-module? void])
         (dynamic-require value #f))))
   ; load in "loose" plugins
-  (for ([path (in-list (*loose-plugins*))]) 
+  (for ([path (in-list (*loose-plugins*))])
     (dynamic-require path #f))
   ; activate the actual requred platform
   (*active-platform* (get-platform (*platform-name*)))

@@ -16,18 +16,17 @@
                       (field-equal? table-row-identifier t1 t2)
                       (field-equal? table-row-output t1 t2)
                       (field-equal? table-row-cost-accuracy t1 t2)))
-               tests1 tests2)))
+               tests1
+               tests2)))
 
 (module+ main
-  (command-line
-   #:args (outdir1 outdir2)
-   (define df1 (read-datafile (build-path outdir1 "results.json")))
-   (define df2 (read-datafile (build-path outdir2 "results.json")))
-   (cond
-     [(datafile-tests-equal? df1 df2)
-      (printf "Matching output expressions\n")]
-     [else
-      (printf "Output expressions do not match!!\n")
-      (printf " datafile1: ~a\n" df1)
-      (printf " datafile1: ~a\n" df2)
-      (exit 1)])))
+  (command-line #:args (outdir1 outdir2)
+                (define df1 (read-datafile (build-path outdir1 "results.json")))
+                (define df2 (read-datafile (build-path outdir2 "results.json")))
+                (cond
+                  [(datafile-tests-equal? df1 df2) (printf "Matching output expressions\n")]
+                  [else
+                   (printf "Output expressions do not match!!\n")
+                   (printf " datafile1: ~a\n" df1)
+                   (printf " datafile1: ~a\n" df2)
+                   (exit 1)])))

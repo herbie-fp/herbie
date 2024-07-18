@@ -6,7 +6,7 @@
          all-accelerators
          accelerator-info
          expand-accelerators)
-  
+
 (module+ internals
   (provide (struct-out accelerator)
            accelerators))

@@ -24,21 +24,15 @@
   (register-operator! name itypes otype (list (cons 'ival impl-fn)))
   ;; TODO: Are the groups right now?
   (register-ruleset*! ruleset-name
-                     '(numerics simplify)
-                     (map cons vars itypes)
-                     `((,define-name ,body (,name ,@vars))
-                       (,undefine-name (,name ,@vars) ,body))))
+                      '(numerics simplify)
+                      (map cons vars itypes)
+                      `((,define-name ,body (,name ,@vars)) (,undefine-name (,name ,@vars) ,body))))
 
 (define-syntax define-accelerator
   (syntax-rules ()
-    [(_ (name itypes ...) otype impl)
-     (register-accelerator! 'name (list 'itypes ...) 'otype 'impl)]))
+    [(_ (name itypes ...) otype impl) (register-accelerator! 'name (list 'itypes ...) 'otype 'impl)]))
 
-(define (register-accelerator-impl! op
-                                    name
-                                    itypes
-                                    otype
-                                    #:impl [impl #f])
+(define (register-accelerator-impl! op name itypes otype #:impl [impl #f])
   (unless (accelerator-exists? op)
     (error 'register-accelerator-impl "must be an accelerator ~a" op))
   (match-define (accelerator _ vars body _ _) (hash-ref accelerators op))
@@ -52,24 +46,21 @@
     (or impl
         (let ([fn (eval-progs-real (list (expand-accelerators body)) (list ctx))])
           (λ args (first (apply fn args))))))
-  (register-operator-impl! op
-                           name
-                           itypes
-                           otype
-                           (list (cons 'fl impl-fn))))
+  (register-operator-impl! op name itypes otype (list (cons 'fl impl-fn))))
 
 (define-syntax define-accelerator-impl
   (syntax-rules ()
     [(_ operator name (itypes ...) otype)
-     (register-accelerator-impl! 'operator 'name
+     (register-accelerator-impl! 'operator
+                                 'name
                                  (list (get-representation 'itypes) ...)
                                  (get-representation 'otype))]
     [(_ operator name (itypes ...) otype implementation)
-     (register-accelerator-impl! 'operator 'name
+     (register-accelerator-impl! 'operator
+                                 'name
                                  (list (get-representation 'itypes) ...)
                                  (get-representation 'otype)
                                  #:impl implementation)]))
-
 
 (define-accelerator (expm1 real) real (lambda (x) (- (exp x) 1)))
 (define-accelerator (log1p real) real (lambda (x) (log (+ 1 x))))
@@ -78,29 +69,28 @@
 (define-accelerator (erfc real) real (lambda (x) (- 1 (erf x))))
 
 ; Specialized numerical functions
-(define-ruleset* special-numerical-reduce (numerics simplify)
-  #:type ([x real] [y real] [z real])
-  [log1p-expm1 (log1p (expm1 x))          x]
-  [hypot-1-def (sqrt (+ 1 (* y y)))       (hypot 1 y)]
-  [fmm-def     (- (* x y) z)              (fma x y (neg z))]
-  [fmm-undef   (fma x y (neg z))          (- (* x y) z)])
+(define-ruleset* special-numerical-reduce
+                 (numerics simplify)
+                 #:type ([x real] [y real] [z real])
+                 [log1p-expm1 (log1p (expm1 x)) x]
+                 [hypot-1-def (sqrt (+ 1 (* y y))) (hypot 1 y)]
+                 [fmm-def (- (* x y) z) (fma x y (neg z))]
+                 [fmm-undef (fma x y (neg z)) (- (* x y) z)])
 
-(define-ruleset* special-numerical-expand (numerics)
-  #:type ([x real] [y real])
-  [log1p-expm1-u x              (log1p (expm1 x))]
-  [expm1-log1p-u x              (expm1 (log1p x))])
+(define-ruleset* special-numerical-expand
+                 (numerics)
+                 #:type ([x real] [y real])
+                 [log1p-expm1-u x (log1p (expm1 x))]
+                 [expm1-log1p-u x (expm1 (log1p x))])
 
-(define-ruleset* erf-rules (special simplify)
-  #:type ([x real])
-  [erf-odd          (erf (neg x))        (neg (erf x))])
+(define-ruleset* erf-rules (special simplify) #:type ([x real]) [erf-odd (erf (neg x)) (neg (erf x))])
 
-(define-ruleset* numerics-papers (numerics)
-  #:type ([a real] [b real] [c real] [d real])
-  ;  "Further Analysis of Kahan's Algorithm for
-  ;   the Accurate Computation of 2x2 Determinants"
-  ;  Jeannerod et al., Mathematics of Computation, 2013
-  ;
-  ;  a * b - c * d  ===> fma(a, b, -(d * c)) + fma(-d, c, d * c)
-  [prod-diff    (- (* a b) (* c d))
-                (+ (fma a b (neg (* d c)))
-                   (fma (neg d) c (* d c)))])
+(define-ruleset* numerics-papers
+                 (numerics)
+                 #:type ([a real] [b real] [c real] [d real])
+                 ;  "Further Analysis of Kahan's Algorithm for
+                 ;   the Accurate Computation of 2x2 Determinants"
+                 ;  Jeannerod et al., Mathematics of Computation, 2013
+                 ;
+                 ;  a * b - c * d  ===> fma(a, b, -(d * c)) + fma(-d, c, d * c)
+                 [prod-diff (- (* a b) (* c d)) (+ (fma a b (neg (* d c))) (fma (neg d) c (* d c)))])

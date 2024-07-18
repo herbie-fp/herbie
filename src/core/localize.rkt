@@ -1,9 +1,18 @@
 #lang racket
 
-(require "../syntax/sugar.rkt" "../syntax/syntax.rkt" "../syntax/types.rkt"
-         "rules.rkt" "../syntax/accelerator.rkt" "../utils/common.rkt" "../utils/float.rkt"
-         "../syntax/platform.rkt" "points.rkt" "programs.rkt" "sampling.rkt"
-         "simplify.rkt" "egg-herbie.rkt")
+(require "../syntax/sugar.rkt"
+         "../syntax/syntax.rkt"
+         "../syntax/types.rkt"
+         "rules.rkt"
+         "../syntax/accelerator.rkt"
+         "../utils/common.rkt"
+         "../utils/float.rkt"
+         "../syntax/platform.rkt"
+         "points.rkt"
+         "programs.rkt"
+         "sampling.rkt"
+         "simplify.rkt"
+         "egg-herbie.rkt")
 
 (provide batch-localize-costs
          batch-localize-errors
@@ -12,14 +21,11 @@
 
 (define (regroup-nested inputss outputs)
   (match* (inputss outputs)
-    [((cons (cons fhead ftail) rest)
-      (cons head tail))
+    [((cons (cons fhead ftail) rest) (cons head tail))
      (match-define (cons fout out) (regroup-nested (cons ftail rest) tail))
      (cons (cons head fout) out)]
-    [((cons '() rest) outputs)
-     (cons '() (regroup-nested rest outputs))]
-    [('() '())
-     '()]))
+    [((cons '() rest) outputs) (cons '() (regroup-nested rest outputs))]
+    [('() '()) '()]))
 
 (define (batch-localize-costs exprs ctx)
   (define subexprss (map all-subexpressions exprs))
@@ -33,32 +39,29 @@
 
   ; egg runner (2-phases for real rewrites and implementation selection)
   (define runner
-    (make-egg-runner
-      specs
-      reprs
-      `((,rules . ((node . ,(*node-limit*))))
-        (,lowering-rules . ((iteration . 1) (scheduler . simple))))))
+    (make-egg-runner specs
+                     reprs
+                     `((,rules . ((node . ,(*node-limit*))))
+                       (,lowering-rules . ((iteration . 1) (scheduler . simple))))))
 
   ; run egg
   (define simplified
-    (simplify-batch
-      runner
-      (typed-egg-extractor
-        (if (*egraph-platform-cost*)
-            platform-egg-cost-proc
-            default-egg-cost-proc))))
-  
+    (simplify-batch runner
+                    (typed-egg-extractor
+                     (if (*egraph-platform-cost*) platform-egg-cost-proc default-egg-cost-proc))))
+
   ; run egg
   (define simplifiedss (regroup-nested subexprss (map last simplified)))
 
   ; build map from starting expr to simplest
   (define expr->simplest (make-hash))
   (for ([subexprs (in-list subexprss)]
-        [simplifieds (in-list simplifiedss)] #:when #t
+        [simplifieds (in-list simplifiedss)]
+        #:when #t
         [subexpr (in-list subexprs)]
         [simplified (in-list simplifieds)])
     (hash-set! expr->simplest subexpr simplified))
-  
+
   ; platform-based expression cost
   (define cost-proc (platform-cost-proc (*active-platform*)))
   (define (expr->cost expr)
@@ -67,24 +70,22 @@
   ; rank subexpressions by cost opportunity
   (define localize-costss
     (for/list ([subexprs (in-list subexprss)])
-      (sort
-        (for/list ([subexpr (in-list subexprs)] #:when (list? subexpr))
-          ; start and end cost of roots
-          (define start-cost (expr->cost subexpr))
-          (define best-cost (expr->cost (hash-ref expr->simplest subexpr)))
-          ; start and end cost of children
-          (match-define (list _ children ...) subexpr)
-          (define start-child-costs
-            (map expr->cost children))
-          (define best-child-costs
-            (for/list ([child (in-list children)])
-              (expr->cost (hash-ref expr->simplest child))))
-          ; compute cost opportunity
-          (define cost-opportunity
-            (- (apply - start-cost start-child-costs)
-               (apply - best-cost best-child-costs)))
-          (cons cost-opportunity subexpr))
-        > #:key car)))
+      (sort (for/list ([subexpr (in-list subexprs)] #:when (list? subexpr))
+              ; start and end cost of roots
+              (define start-cost (expr->cost subexpr))
+              (define best-cost (expr->cost (hash-ref expr->simplest subexpr)))
+              ; start and end cost of children
+              (match-define (list _ children ...) subexpr)
+              (define start-child-costs (map expr->cost children))
+              (define best-child-costs
+                (for/list ([child (in-list children)])
+                  (expr->cost (hash-ref expr->simplest child))))
+              ; compute cost opportunity
+              (define cost-opportunity
+                (- (apply - start-cost start-child-costs) (apply - best-cost best-child-costs)))
+              (cons cost-opportunity subexpr))
+            >
+            #:key car)))
 
   localize-costss)
 
@@ -93,13 +94,12 @@
   (define errss (compute-local-errors subexprss ctx))
 
   (for/list ([expr (in-list exprs)] [errs (in-list errss)])
-    (sort
-     (sort
-      (for/list ([(subexpr err) (in-hash errs)]
-                 #:when (list? subexpr))
-        (cons err subexpr))
-      expr<? #:key cdr)
-     > #:key (compose errors-score car))))
+    (sort (sort (for/list ([(subexpr err) (in-hash errs)] #:when (list? subexpr))
+                  (cons err subexpr))
+                expr<?
+                #:key cdr)
+          >
+          #:key (compose errors-score car))))
 
 ; Compute local error or each sampled point at each node in `prog`.
 (define (compute-local-errors subexprss ctx)
@@ -114,14 +114,12 @@
 
   ; Mutable error hack, this is bad
   (define errs
-    (make-hash
-     (for*/list ([subexprs (in-list subexprss)] [subexpr (in-list subexprs)])
-       (cons subexpr '()))))
+    (make-hash (for*/list ([subexprs (in-list subexprss)] [subexpr (in-list subexprs)])
+                 (cons subexpr '()))))
 
   (for ([(pt ex) (in-pcontext (*pcontext*))])
     (define exacts (apply subexprs-fn pt))
-    (define exacts-hash
-      (make-immutable-hash (map cons (apply append subexprss) exacts)))
+    (define exacts-hash (make-immutable-hash (map cons (apply append subexprss) exacts)))
     (for* ([subexprs (in-list subexprss)] [expr (in-list subexprs)])
       (define err
         (match expr

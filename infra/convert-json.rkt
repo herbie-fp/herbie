@@ -24,7 +24,8 @@
   (define vars (map string->symbol (hash-ref test 'vars (λ () (map ~a (free-variables expr))))))
   (define spec (fix-expr (call-with-input-string (hash-ref test 'spec (~s expr)) read) pre-fpcore?))
   (define pre (fix-expr (call-with-input-string (hash-ref test 'pre "TRUE") read) pre-fpcore?))
-  `(FPCore ,vars
+  `(FPCore
+    ,vars
     ,@(if (hash-has-key? test 'name) (list ':name (hash-ref test 'name)) '())
     ,@(if (not (equal? pre "TRUE")) (list ':pre pre) '())
     ,@(if (not (equal? spec expr)) (list ':spec spec) '())
@@ -44,11 +45,8 @@
 
 (module+ main
   (define pre-fpcore? #f)
-  (command-line 
-   #:program "convert-json"
-   #:once-each
-   [("--pre-fpcore") "The demo file dates from before Herbie 1.0"
-    (set! pre-fpcore? #t)]
-   #:args json-files
-   (convert-files json-files pre-fpcore?)))
-
+  (command-line #:program "convert-json"
+                #:once-each
+                [("--pre-fpcore") "The demo file dates from before Herbie 1.0" (set! pre-fpcore? #t)]
+                #:args json-files
+                (convert-files json-files pre-fpcore?)))

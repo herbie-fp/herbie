@@ -7,7 +7,8 @@
 (require ffi/unsafe)
 (require "utils.rkt")
 
-(provide define-libm define-libm-impl)
+(provide define-libm
+         define-libm-impl)
 
 ;; Looks up a function `name` with type signature `itype -> ... -> otype`
 ;; in the system libm and binds to `id` the FFI function or `#f` if
@@ -50,7 +51,7 @@
       [integer #'integer]
       [_ (oops! "unknown type" repr)]))
   (syntax-case stx ()
-    [(_  cname (id name itype ...) otype attrib ...)
+    [(_ cname (id name itype ...) otype attrib ...)
      (begin
        (unless (identifier? #'cname)
          (oops! "expected identifier" #'cname))
@@ -62,5 +63,5 @@
                      [cotype (repr->type #'otype)])
          #'(begin
              (define-libm proc (cname citype ... cotype))
-             (when proc (define-operator-impl (id name itype ...) otype
-                [fl proc] attrib ...)))))]))
+             (when proc
+               (define-operator-impl (id name itype ...) otype [fl proc] attrib ...)))))]))

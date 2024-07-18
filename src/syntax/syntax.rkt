@@ -1,21 +1,37 @@
 #lang racket
 
-(require math/bigfloat rival)
-(require "../utils/errors.rkt" "types.rkt")
+(require math/bigfloat
+         rival)
+(require "../utils/errors.rkt"
+         "types.rkt")
 
 (provide (rename-out [operator-or-impl? operator?])
          (struct-out literal)
-         variable? constant-operator?
-         operator-exists? operator-deprecated? impl-exists?
-         operator-info impl-info 
-         impl->operator all-operators all-constants operator-all-impls
-         operator-active-impls activate-operator-impl! clear-active-operator-impls!
-         *functions* register-function!
-         get-parametric-operator get-parametric-constant
-         generate-conversion-impl repr-conv? rewrite-repr-op?
-         get-repr-conv get-rewrite-operator)
+         variable?
+         constant-operator?
+         operator-exists?
+         operator-deprecated?
+         impl-exists?
+         operator-info
+         impl-info
+         impl->operator
+         all-operators
+         all-constants
+         operator-all-impls
+         operator-active-impls
+         activate-operator-impl!
+         clear-active-operator-impls!
+         *functions*
+         register-function!
+         get-parametric-operator
+         get-parametric-constant
+         generate-conversion-impl
+         repr-conv?
+         rewrite-repr-op?
+         get-repr-conv
+         get-rewrite-operator)
 
-(module+ internals 
+(module+ internals
   (provide define-operator-impl
            register-operator-impl!
            define-operator
@@ -78,11 +94,16 @@
   (when (hash-has-key? operators name)
     (error 'register-operator! "operator already registered: ~a" name))
   (define attribs
-    (hash 'itype (dict-ref attrib-dict 'itype itypes)
-          'otype (dict-ref attrib-dict 'otype otype)
-          'deprecated (dict-ref attrib-dict 'deprected #f)
-          'ival (dict-ref attrib-dict 'ival
-                          (λ () (error 'register-operator! "missing interval impl for ~a" name)))))
+    (hash 'itype
+          (dict-ref attrib-dict 'itype itypes)
+          'otype
+          (dict-ref attrib-dict 'otype otype)
+          'deprecated
+          (dict-ref attrib-dict 'deprected #f)
+          'ival
+          (dict-ref attrib-dict
+                    'ival
+                    (λ () (error 'register-operator! "missing interval impl for ~a" name)))))
   (define field-names '(itype otype ival deprecated))
   (define table-entry (apply operator name (map (curry hash-ref attribs) field-names)))
   (hash-set! operators name table-entry)
@@ -98,111 +119,94 @@
   (define-operator (name real real) real [ival ival-impl]))
 
 (define-syntax-rule (define-1ary-real-operators [name ival-impl] ...)
-  (begin (define-1ary-real-operator name ival-impl) ...))
+  (begin
+    (define-1ary-real-operator name ival-impl) ...))
 
 (define-syntax-rule (define-2ary-real-operators [name ival-impl] ...)
-  (begin (define-2ary-real-operator name ival-impl) ...))
+  (begin
+    (define-2ary-real-operator name ival-impl) ...))
 
-(define-1ary-real-operators
-  [neg ival-neg]
-  [acos ival-acos]
-  [acosh ival-acosh]
-  [asin ival-asin]
-  [asinh ival-asinh]
-  [atan ival-atan]
-  [atanh ival-atanh]
-  [cbrt ival-cbrt]
-  [ceil ival-ceil]
-  [cos ival-cos]
-  [cosh ival-cosh]
-  [erf ival-erf]
-  [exp ival-exp]
-  [exp2 ival-exp2]
-  [fabs ival-fabs]
-  [floor ival-floor]
-  [lgamma ival-lgamma]
-  [log ival-log]
-  [log10 ival-log10]
-  [log2 ival-log2]
-  [logb ival-logb]
-  [rint ival-rint]
-  [round ival-round]
-  [sin ival-sin]
-  [sinh ival-sinh]
-  [sqrt ival-sqrt]
-  [tan ival-tan]
-  [tanh ival-tanh]
-  [tgamma ival-tgamma]
-  [trunc ival-trunc])
+(define-1ary-real-operators [neg ival-neg]
+                            [acos ival-acos]
+                            [acosh ival-acosh]
+                            [asin ival-asin]
+                            [asinh ival-asinh]
+                            [atan ival-atan]
+                            [atanh ival-atanh]
+                            [cbrt ival-cbrt]
+                            [ceil ival-ceil]
+                            [cos ival-cos]
+                            [cosh ival-cosh]
+                            [erf ival-erf]
+                            [exp ival-exp]
+                            [exp2 ival-exp2]
+                            [fabs ival-fabs]
+                            [floor ival-floor]
+                            [lgamma ival-lgamma]
+                            [log ival-log]
+                            [log10 ival-log10]
+                            [log2 ival-log2]
+                            [logb ival-logb]
+                            [rint ival-rint]
+                            [round ival-round]
+                            [sin ival-sin]
+                            [sinh ival-sinh]
+                            [sqrt ival-sqrt]
+                            [tan ival-tan]
+                            [tanh ival-tanh]
+                            [tgamma ival-tgamma]
+                            [trunc ival-trunc])
 
-(define-2ary-real-operators
-  [+ ival-add]
-  [- ival-sub]
-  [* ival-mult]
-  [/ ival-div]
-  [atan2 ival-atan2]
-  [copysign ival-copysign]
-  [fdim ival-fdim]
-  [fmax ival-fmax]
-  [fmin ival-fmin]
-  [fmod ival-fmod]
-  [pow ival-pow]
-  [remainder ival-remainder])
+(define-2ary-real-operators [+ ival-add]
+                            [- ival-sub]
+                            [* ival-mult]
+                            [/ ival-div]
+                            [atan2 ival-atan2]
+                            [copysign ival-copysign]
+                            [fdim ival-fdim]
+                            [fmax ival-fmax]
+                            [fmin ival-fmin]
+                            [fmod ival-fmod]
+                            [pow ival-pow]
+                            [remainder ival-remainder])
 
-(define-operator (== real real) bool
-  [ival ival-==])
+(define-operator (== real real) bool [ival ival-==])
 
-(define-operator (!= real real) bool
-  [ival ival-!=])
+(define-operator (!= real real) bool [ival ival-!=])
 
-(define-operator (< real real) bool
-  [ival ival-<])
+(define-operator (< real real) bool [ival ival-<])
 
-(define-operator (> real real) bool
-  [ival ival->])
+(define-operator (> real real) bool [ival ival->])
 
-(define-operator (<= real real) bool
-  [ival ival-<=])
+(define-operator (<= real real) bool [ival ival-<=])
 
-(define-operator (>= real real) bool
-  [ival ival->=])
+(define-operator (>= real real) bool [ival ival->=])
 
 ;; logical operators ;;
 
-(define-operator (not bool) bool
-   [ival ival-not])
+(define-operator (not bool) bool [ival ival-not])
 
-(define-operator (and bool bool) bool
-   [ival ival-and])
+(define-operator (and bool bool) bool [ival ival-and])
 
-(define-operator (or bool bool) bool
-   [ival ival-or])
+(define-operator (or bool bool) bool [ival ival-or])
 
-(define-operator (PI) real
-  [ival ival-pi])
+(define-operator (PI) real [ival ival-pi])
 
-(define-operator (E) real
-  [ival ival-e])
+(define-operator (E) real [ival ival-e])
 
-(define-operator (INFINITY) real
-  [ival (λ () (ival (bfprev +inf.bf) +inf.bf))])
+(define-operator (INFINITY) real [ival (λ () (ival (bfprev +inf.bf) +inf.bf))])
 
-(define-operator (NAN) real
-  [ival (λ () ival-illegal)])
+(define-operator (NAN) real [ival (λ () ival-illegal)])
 
-(define-operator (TRUE) bool
-  [ival (const (ival-bool true))])
+(define-operator (TRUE) bool [ival (const (ival-bool true))])
 
-(define-operator (FALSE) bool
-  [ival (const (ival-bool false))])
+(define-operator (FALSE) bool [ival (const (ival-bool false))])
 
 ;; Conversions
 
-(define-operator (convert real) real
-  [ival identity])
+(define-operator (convert real) real [ival identity])
 
-(define-operator (cast real) real
-  [ival identity])
+(define-operator (cast real) real [ival identity])
 
 ;; Operator implementations
 
@@ -236,8 +240,7 @@
 
 ;; Like `operator-all-impls`, but filters for only active implementations.
 (define (operator-active-impls name)
-  (filter (curry set-member? active-operator-impls)
-          (operator-all-impls name)))
+  (filter (curry set-member? active-operator-impls) (operator-all-impls name)))
 
 ;; Looks up the name of an operator corresponding to an implementation `name`.
 ;; Panics if the operator is not found.
@@ -269,20 +272,22 @@
   (define fl-fun (dict-ref attrib-dict 'fl))
 
   (unless (equal? operator 'if) ;; Type check all operators except if
-    (for ([arepr (cons rrepr areprs)]
-          [itype (cons (operator-otype op) (operator-itype op))])
+    (for ([arepr (cons rrepr areprs)] [itype (cons (operator-otype op) (operator-itype op))])
       (unless (equal? (representation-type arepr) itype)
         (raise-herbie-missing-error
-          "Cannot register ~a as implementation of ~a: ~a is not a representation of ~a"
-          name operator (representation-name rrepr) (operator-otype op)))))
+         "Cannot register ~a as implementation of ~a: ~a is not a representation of ~a"
+         name
+         operator
+         (representation-name rrepr)
+         (operator-otype op)))))
 
   (define impl (operator-impl name op areprs rrepr fl-fun))
   (hash-set! operator-impls name impl)
   (hash-update! operators-to-impls operator (curry cons name)))
 
-
 (define-syntax-rule (define-operator-impl (operator name atypes ...) rtype [key value] ...)
-  (register-operator-impl! 'operator 'name
+  (register-operator-impl! 'operator
+                           'name
                            (list (get-representation 'atypes) ...)
                            (get-representation 'rtype)
                            (list (cons 'key value) ...)))
@@ -292,12 +297,12 @@
 (define (get-parametric-operator #:all? [all? #f] name . ireprs)
   (define get-impls (if all? operator-all-impls operator-active-impls))
   (let/ec k
-    (for/first ([impl (get-impls name)]
-                #:when (equal? (impl-info impl 'itype) ireprs))
-      (k impl))
-    (raise-herbie-missing-error
-      "Could not find operator implementation for ~a with ~a"
-      name (string-join (map (λ (r) (format "<~a>" (representation-name r))) ireprs) " "))))
+          (for/first ([impl (get-impls name)] #:when (equal? (impl-info impl 'itype) ireprs))
+            (k impl))
+          (raise-herbie-missing-error
+           "Could not find operator implementation for ~a with ~a"
+           name
+           (string-join (map (λ (r) (format "<~a>" (representation-name r))) ireprs) " "))))
 
 ;; Among active implementations, looks up an implementation of
 ;; a constant (nullary operator) with the operator name `name`
@@ -305,13 +310,13 @@
 (define (get-parametric-constant name repr #:all? [all? #f])
   (define get-impls (if all? operator-all-impls operator-active-impls))
   (let/ec k
-    (for ([impl (get-impls name)])
-      (define rtype (impl-info impl 'otype))
-      (when (or (equal? rtype repr) (equal? (representation-type rtype) 'bool))
-        (k impl)))
-    (raise-herbie-missing-error
-      "Could not find constant implementation for ~a with ~a"
-      name (format "<~a>" (representation-name repr)))))
+          (for ([impl (get-impls name)])
+            (define rtype (impl-info impl 'otype))
+            (when (or (equal? rtype repr) (equal? (representation-type rtype) 'bool))
+              (k impl)))
+          (raise-herbie-missing-error "Could not find constant implementation for ~a with ~a"
+                                      name
+                                      (format "<~a>" (representation-name repr)))))
 
 ;; Casts and precision changes
 
@@ -324,15 +329,12 @@
 (define (get-repr-conv irepr orepr #:all? [all? #f])
   (define get-impls (if all? operator-all-impls operator-active-impls))
   (for/or ([name (get-impls 'cast)])
-    (and (equal? (impl-info name 'otype) orepr)
-         (equal? (first (impl-info name 'itype)) irepr)
-         name)))
+    (and (equal? (impl-info name 'otype) orepr) (equal? (first (impl-info name 'itype)) irepr) name)))
 
 (define (get-rewrite-operator repr #:all? [all? #f])
   (define get-impls (if all? operator-all-impls operator-active-impls))
   (for/or ([name (get-impls 'convert)])
-    (and (equal? (impl-info name 'itype) (list repr))
-         name)))
+    (and (equal? (impl-info name 'itype) (list repr)) name)))
 
 ; Similar to representation generators, conversion generators
 ; allow Herbie to query plugins for optimized implementations
@@ -351,7 +353,7 @@
     [maybe-impl maybe-impl]
     [else
      (for/first ([gen conversion-generators])
-        (gen (representation-name irepr) (representation-name orepr)))
+       (gen (representation-name irepr) (representation-name orepr)))
      (get-repr-conv irepr orepr)]))
 
 ;; Expression predicates ;;
@@ -360,14 +362,13 @@
   (hash-has-key? operator-impls op))
 
 (define (operator-or-impl? op)
-  (and (symbol? op) (not (equal? op 'if))
-       (or (hash-has-key? operators op)
-           (hash-has-key? operator-impls op))))
+  (and (symbol? op)
+       (not (equal? op 'if))
+       (or (hash-has-key? operators op) (hash-has-key? operator-impls op))))
 
 (define (constant-operator? op)
   (and (symbol? op)
-       (or (and (hash-has-key? operators op)
-                (null? (operator-itype (hash-ref operators op))))
+       (or (and (hash-has-key? operators op) (null? (operator-itype (hash-ref operators op))))
            (and (hash-has-key? operator-impls op)
                 (null? (operator-impl-itype (hash-ref operator-impls op)))))))
 
@@ -381,13 +382,12 @@
 ;; name -> (vars repr body)	;; name -> (vars prec body)
 (define *functions* (make-parameter (make-hasheq)))
 
-(define (register-function! name args repr body)	;; Adds a function definition.
+(define (register-function! name args repr body) ;; Adds a function definition.
   (hash-set! (*functions*) name (list args repr body)))
 
 (define (all-operators)
   (sort (hash-keys operators) symbol<?))
 
 (define (all-constants)
-  (for/list ([(name rec) (in-hash operators)]
-             #:when (= (length (operator-itype rec)) 0))
+  (for/list ([(name rec) (in-hash operators)] #:when (= (length (operator-itype rec)) 0))
     name))

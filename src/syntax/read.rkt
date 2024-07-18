@@ -1,16 +1,34 @@
 #lang racket
 
-(require "../utils/common.rkt" "../utils/errors.rkt" "../core/programs.rkt"
-         "types.rkt" "syntax.rkt" "platform.rkt"
-         "syntax-check.rkt" "type-check.rkt" "sugar.rkt"
+(require "../utils/common.rkt"
+         "../utils/errors.rkt"
+         "../core/programs.rkt"
+         "types.rkt"
+         "syntax.rkt"
+         "platform.rkt"
+         "syntax-check.rkt"
+         "type-check.rkt"
+         "sugar.rkt"
          "load-plugin.rkt")
 
 (provide (struct-out test)
-         test-context test-output-repr
-         load-tests parse-test)
+         test-context
+         test-output-repr
+         load-tests
+         parse-test)
 
-(struct test (name identifier vars input output expected spec pre
-              preprocess output-repr-name var-repr-names) #:prefab)
+(struct test
+        (name identifier
+              vars
+              input
+              output
+              expected
+              spec
+              pre
+              preprocess
+              output-repr-name
+              var-repr-names)
+  #:prefab)
 
 (define (test-output-repr test)
   (get-representation (test-output-repr-name test)))
@@ -27,48 +45,48 @@
 (define (expand stx)
   (match stx
     ; expand let statements
-    [#`(let* ((#,vars #,vals) ...) #,body)
+    [#`(let* ([#,vars #,vals] ...) #,body)
      (datum->syntax #f
-       (list 'let*
-             (for/list ([var (in-list vars)] [val (in-list vals)])
-                (list var (expand val)))
-             (expand body))
-       stx)]
-    [#`(let ((#,vars #,vals) ...) #,body)
+                    (list 'let*
+                          (for/list ([var (in-list vars)] [val (in-list vals)])
+                            (list var (expand val)))
+                          (expand body))
+                    stx)]
+    [#`(let ([#,vars #,vals] ...) #,body)
      (datum->syntax #f
-       (list 'let
-             (for/list ([var (in-list vars)] [val (in-list vals)])
-                (list var (expand val)))
-             (expand body))
-       stx)]
+                    (list 'let
+                          (for/list ([var (in-list vars)] [val (in-list vals)])
+                            (list var (expand val)))
+                          (expand body))
+                    stx)]
     ; special nullary operators
     [#`(,(or 'and 'or)) (datum->syntax #f 'TRUE stx)]
-    [#`(+) 
-      (warn 'nullary-operator "+ is deprecated as a nullary operator")
-      (datum->syntax #f 0 stx)]
+    [#`(+)
+     (warn 'nullary-operator "+ is deprecated as a nullary operator")
+     (datum->syntax #f 0 stx)]
     [#`(*)
-      (warn 'nullary-operator "* is deprecated as a nullary operator")
-      (datum->syntax #f 1 stx)]
+     (warn 'nullary-operator "* is deprecated as a nullary operator")
+     (datum->syntax #f 1 stx)]
     ; special unary operators
     [#`(,(or 'and 'or) #,a) (expand a)]
     ; deprecated unary operators
     [#`(,(and (or '+ '*) op) #,a)
-      (warn 'unary-operator "~a is deprecated as a unary operator" op) 
-      (expand a)]
-    [#`(/ #,a) 
-      (warn 'unary-operator "/ is deprecated as a unary operator") 
-      (datum->syntax #f (list '/ 1 (expand a)) stx)]
+     (warn 'unary-operator "~a is deprecated as a unary operator" op)
+     (expand a)]
+    [#`(/ #,a)
+     (warn 'unary-operator "/ is deprecated as a unary operator")
+     (datum->syntax #f (list '/ 1 (expand a)) stx)]
     ; binary operators
     [#`(,(and (or '+ '- '* '/ 'or) op) #,arg1 #,arg2)
      (datum->syntax #f (list op (expand arg1) (expand arg2)) stx)]
     ; variary operators
     [#`(,(and (or '+ '- '* '/ 'or) op) #,arg1 #,arg2 #,rest ...)
-     (unless (null? rest) (warn 'variary-operator "~a is deprecated as a variary operator" op))
+     (unless (null? rest)
+       (warn 'variary-operator "~a is deprecated as a variary operator" op))
      (define prev (datum->syntax #f (list op (expand arg1) (expand arg2)) stx))
      (let loop ([prev prev] [rest rest])
        (match rest
-         [(list)
-          prev]
+         [(list) prev]
          [(list next rest ...)
           (define prev* (datum->syntax #f (list op prev (expand next)) next))
           (loop prev* rest)]))]
@@ -76,42 +94,31 @@
      (define args* (map expand args))
      (define out
        (for/fold ([out #f]) ([term args*] [next (cdr args*)])
-         (datum->syntax #f
-           (if out
-               (list 'and out (list op term next))
-               (list op term next))
-           term)))
+         (datum->syntax #f (if out (list 'and out (list op term next)) (list op term next)) term)))
      (or out (datum->syntax #f 'TRUE stx))]
     [#`(!= #,args ...)
      (define args* (map expand args))
      (define out
        (for/fold ([out #f])
-                 ([term args*] [i (in-naturals)] #:when #t
-                  [term2 args*] [j (in-naturals)] #:when (< i j))
-          (datum->syntax #f
-            (if out
-               (list 'and out (list '!= term term2))
-               (list '!= term term2))
-            stx)))
+                 ([term args*]
+                  [i (in-naturals)]
+                  #:when #t
+                  [term2 args*]
+                  [j (in-naturals)]
+                  #:when (< i j))
+         (datum->syntax #f (if out (list 'and out (list '!= term term2)) (list '!= term term2)) stx)))
      (or out (datum->syntax #f 'TRUE stx))]
     ; other operators
-    [#`(#,op #,args ...)
-     (datum->syntax #f (cons op (map expand args)) stx)]
+    [#`(#,op #,args ...) (datum->syntax #f (cons op (map expand args)) stx)]
     ; numbers, variables
     [_ stx]))
 
 (define (expand-core stx)
   (match stx
-   [#`(FPCore #,name (#,vars ...) #,props ... #,body)
-    (datum->syntax #f
-      (append (list 'FPCore name vars) props
-              (list (expand body)))
-      stx)]
-   [#`(FPCore (#,vars ...) #,props ... #,body)
-    (datum->syntax #f
-      (append (list 'FPCore vars) props
-              (list (expand body)))
-      stx)]))
+    [#`(FPCore #,name (#,vars ...) #,props ... #,body)
+     (datum->syntax #f (append (list 'FPCore name vars) props (list (expand body))) stx)]
+    [#`(FPCore (#,vars ...) #,props ... #,body)
+     (datum->syntax #f (append (list 'FPCore vars) props (list (expand body))) stx)]))
 
 (define (parse-test stx)
   (assert-program! stx)
@@ -119,18 +126,15 @@
   (assert-program-typed! stx*)
   (define-values (func-name args props body)
     (match (syntax->datum stx*)
-     [(list 'FPCore name (list args ...) props ... body)
-      (values name args props body)]
-     [(list 'FPCore (list args ...) props ... body)
-      (values #f args props body)]))
+      [(list 'FPCore name (list args ...) props ... body) (values name args props body)]
+      [(list 'FPCore (list args ...) props ... body) (values #f args props body)]))
 
   ;; TODO(interface): Currently, this code doesn't fire because annotations aren't
   ;; allowed for variables because of the syntax checker yet. This should run correctly
   ;; once the syntax checker is updated to the FPBench 1.1 standard.
-  (define arg-names (for/list ([arg args])
-                      (if (list? arg)
-                        (last arg)
-                        arg)))
+  (define arg-names
+    (for/list ([arg args])
+      (if (list? arg) (last arg) arg)))
 
   (define prop-dict
     (let loop ([props props])
@@ -140,7 +144,7 @@
 
   (define default-prec (dict-ref prop-dict ':precision (*default-precision*)))
   (define default-repr (get-representation default-prec))
-  (define var-reprs 
+  (define var-reprs
     (for/list ([arg args] [arg-name arg-names])
       (if (and (list? arg) (set-member? args ':precision))
           (get-representation (cadr (member ':precision args)))
@@ -148,13 +152,11 @@
   (define ctx (context arg-names default-repr var-reprs))
 
   ;; Named fpcores need to be added to function table
-  (when func-name (register-function! func-name args default-prec body))
+  (when func-name
+    (register-function! func-name args default-prec body))
 
   ;; Try props first, then identifier, else the expression itself
-  (define name
-    (or (dict-ref prop-dict ':name #f)
-        func-name
-        body))
+  (define name (or (dict-ref prop-dict ':name #f) func-name body))
 
   ;; inline and desugar
   (define body* (fpcore->prog body ctx))
@@ -162,15 +164,15 @@
 
   (define targets
     (for/list ([(key val) (in-dict prop-dict)] #:when (eq? key ':alt))
-      (match (extract-platform-name val)  ; plat-name is symbol or #f
+      (match (extract-platform-name val) ; plat-name is symbol or #f
         ; If plat-name extracted, check if name matches
         [(? symbol? plat-name) (cons val (equal? plat-name (*platform-name*)))]
         ; try to lower
         [#f
-          (with-handlers ([exn:fail:user:herbie:missing? (lambda (e) (cons val #f))])
-            ; Testing if error thrown
-            (spec->prog val ctx)
-            (cons val #t))])))
+         (with-handlers ([exn:fail:user:herbie:missing? (lambda (e) (cons val #f))])
+           ; Testing if error thrown
+           (spec->prog val ctx)
+           (cons val #t))])))
 
   (define spec (fpcore->prog (dict-ref prop-dict ':spec body) ctx))
   (check-unused-variables arg-names body* pre*)
@@ -200,7 +202,8 @@
     (define unused (set-subtract vars used))
     (warn 'unused-variable
           #:url "faq.html#unused-variable"
-          "unused ~a ~a" (if (equal? (set-count unused) 1) "variable" "variables")
+          "unused ~a ~a"
+          (if (equal? (set-count unused) 1) "variable" "variables")
           (string-join (map ~a unused) ", "))))
 
 (define (check-weird-variables vars)
@@ -208,7 +211,9 @@
     (when (string-ci=? (symbol->string var) (symbol->string const))
       (warn 'strange-variable
             #:url "faq.html#strange-variable"
-            "unusual variable ~a; did you mean ~a?" var const))))
+            "unusual variable ~a; did you mean ~a?"
+            var
+            const))))
 
 (define (our-read-syntax port name)
   (parameterize ([read-decimal-as-inexact false])
@@ -219,11 +224,11 @@
     (parse-test test)))
 
 (define (load-file file)
- (call-with-input-file file
-   (λ (port)
-     (port-count-lines! port)
-     (for/list ([test (in-port (curry our-read-syntax file) port)])
-       (parse-test test)))))
+  (call-with-input-file file
+                        (λ (port)
+                          (port-count-lines! port)
+                          (for/list ([test (in-port (curry our-read-syntax file) port)])
+                            (parse-test test)))))
 
 (define (load-directory dir)
   (apply append
@@ -236,12 +241,9 @@
   (define path* (if (string? path) (string->path path) path))
   (define out
     (cond
-     [(equal? path "-")
-      (load-stdin)]
-     [(directory-exists? path*)
-      (load-directory path*)]
-     [else
-      (load-file path*)]))
+      [(equal? path "-") (load-stdin)]
+      [(directory-exists? path*) (load-directory path*)]
+      [else (load-file path*)]))
   (define duplicates (find-duplicates (map test-name out)))
   (unless (null? duplicates)
     (warn 'duplicate-names
@@ -251,7 +253,8 @@
   out)
 
 (module+ test
-  (require rackunit "load-plugin.rkt")
+  (require rackunit
+           "load-plugin.rkt")
   (load-herbie-builtins)
 
   (define precision 'binary64)
@@ -272,8 +275,7 @@
   (register-function! 'sqr (list 'x) precision '(* x x))
   (register-function! 'cube (list 'x) precision '(* x x x))
   (define fifth '(* (cube a) (sqr a)))
-  (check-equal? (fpcore->prog fifth ctx)
-                '(*.f64 (*.f64 (*.f64 a a) a) (*.f64 a a)))
+  (check-equal? (fpcore->prog fifth ctx) '(*.f64 (*.f64 (*.f64 a a) a) (*.f64 a a)))
 
   ;; casting edge cases
   (check-equal? (fpcore->prog `(cast x) ctx) 'x)
