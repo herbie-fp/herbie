@@ -102,49 +102,54 @@
 
 ;; Checks an "accelerator" specification
 (define (check-accelerator-spec! name itypes otype spec)
+  (define (bad! fmt . args)
+    (error name "~a in `~a`" (apply format fmt args) spec))
+
+  (define (type-error! expr actual-ty expect-ty)
+    (bad! "expression `~a` has type `~a`, expected `~a`" expr actual-ty expect-ty))
+
   (define-values (vars body)
     (match spec
       [`(,(or 'lambda 'λ) (,vars ...) ,spec)
        (for ([var (in-list vars)])
          (unless (symbol? var)
-           (error 'register-operator! "`~a`: expected symbol `~a` in `~a`" name var spec)))
+           (bad! "expected symbol `~a` in `~a`" var spec)))
        (values vars spec)]
-      [_ (error 'register-operator!
-                "`~a`: malformed specification `~a`, expected `(lambda <vars> <expr>)`"
-                name spec)]))
+      [_ (bad! "malformed specification, expected `(lambda <vars> <expr>)`")]))
 
-  (define expect-argc (length itypes))
-  (define actual-argc (length vars))
-  (unless (= expect-argc actual-argc)
-    (error 'register-operator!
-           "`~a`: arity mismatch; expected ~a, got ~a"
-           name expect-argc actual-argc))
+  (unless (= (length itypes) (length vars))
+    (bad! "arity mismatch; expected ~a, got ~a" (length itypes) (length vars)))
 
   (define env (map cons vars itypes))
   (define actual-ty
-    (let check ([expr body])
+    (let type-of ([expr body])
       (match expr
         [(? number?) 'real]
         [(? symbol?)
-         (cond
-           [(assq expr env) => cdr]
-           [else (error 'register-operator! "`~a`: unbound variable `~a` in `~a`" name expr spec)])]
+         (cond [(assq expr env) => cdr]
+               [else (bad! "unbound variable `~a`" expr)])]
+        [`(if ,cond ,ift ,iff)
+          (define cond-ty (type-of cond))
+          (unless (equal? cond-ty 'bool)
+            (type-error! cond cond-ty 'bool))
+          (define ift-ty (type-of ift))
+          (define iff-ty (type-of iff))
+          (unless (equal? ift-ty iff-ty)
+            (type-error! iff iff-ty ift-ty))
+          ift-ty]
         [`(,op ,args ...)
          (unless (operator-exists? op)
-           (error 'register-operator! "`~a`: expected operator `~a` in `~a`" name op spec))
+           (bad! "expected operator at `~a`, got `~a` in `~a`" expr op))
          (define itypes (operator-info op 'itype))
          (for ([arg (in-list args)] [itype (in-list itypes)])
-           (define arg-ty (check arg))
+           (define arg-ty (type-of arg))
            (unless (equal? itype arg-ty)
-             (error 'register-operator!
-                    "`~a`: expression `~a` has type `~a`, expected `~a`"
-                    name arg arg-ty itype)))
-          (operator-info op 'otype)])))
+             (type-error! arg arg-ty itype)))
+         (operator-info op 'otype)]
+        [_ (bad! "expected an expression, got `~a`" expr)])))
 
   (unless (equal? actual-ty otype)
-    (error 'register-operator
-           "`~a`: expression `~a` has type `~a`, expected `~a`"
-          name body actual-ty otype)))
+    (type-error! body actual-ty otype)))
 
 ;; Applies a substitution.
 ;; Slightly different than `replace-vars` in `programs.rkt`.
