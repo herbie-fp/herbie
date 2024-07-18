@@ -142,7 +142,7 @@
           (if (equal? out "") default out))
       default))
 
-(define *herbie-version* "2.1")
+(define *herbie-version* "2.2")
 
 (define *hostname* (run-command "hostname"))
 
