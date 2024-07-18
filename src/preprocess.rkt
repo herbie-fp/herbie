@@ -1,11 +1,22 @@
 #lang racket
 
-(require "core/egg-herbie.rkt" "core/simplify.rkt"
-         "syntax/rules.rkt" "syntax/syntax.rkt" "syntax/sugar.rkt"
-         "syntax/types.rkt" "alternative.rkt" "common.rkt"
-         "errors.rkt" "programs.rkt" "points.rkt" "timeline.rkt" "float.rkt")
+(require "core/egg-herbie.rkt"
+         "core/simplify.rkt"
+         "syntax/rules.rkt"
+         "syntax/syntax.rkt"
+         "syntax/sugar.rkt"
+         "syntax/types.rkt"
+         "alternative.rkt"
+         "common.rkt"
+         "errors.rkt"
+         "programs.rkt"
+         "points.rkt"
+         "timeline.rkt"
+         "float.rkt")
 
-(provide find-preprocessing preprocess-pcontext remove-unnecessary-preprocessing)
+(provide find-preprocessing
+         preprocess-pcontext
+         remove-unnecessary-preprocessing)
 
 (define (has-fabs-neg-impls? repr)
   (with-handlers ([exn:fail:user:herbie? (const #f)])
@@ -22,27 +33,24 @@
 ;; Requires `neg` and `fabs` operator implementations.
 (define (make-even-identities spec ctx)
   (reap [sow]
-    (for ([var (in-list (context-vars ctx))]
-          [repr (in-list (context-var-reprs ctx))])
-      (when (has-fabs-neg-impls? repr)
-        (sow (replace-vars `((,var . (neg ,var))) spec))))))
+        (for ([var (in-list (context-vars ctx))] [repr (in-list (context-var-reprs ctx))])
+          (when (has-fabs-neg-impls? repr)
+            (sow (replace-vars `((,var . (neg ,var))) spec))))))
 
 ;; The odd identities: f(x) = -f(-x)
 ;; Requires `neg` and `fabs` operator implementations.
 (define (make-odd-identities spec ctx)
   (reap [sow]
-    (for ([var (in-list (context-vars ctx))]
-          [repr (in-list (context-var-reprs ctx))])
-      (when (and (has-fabs-neg-impls? repr)
-                 (has-copysign-impl? repr))
-        (sow (replace-vars `((,var . (neg ,var))) `(neg ,spec)))))))
+        (for ([var (in-list (context-vars ctx))] [repr (in-list (context-var-reprs ctx))])
+          (when (and (has-fabs-neg-impls? repr) (has-copysign-impl? repr))
+            (sow (replace-vars `((,var . (neg ,var))) `(neg ,spec)))))))
 
 ;; Swap identities: f(a, b) = f(b, a)
 (define (make-swap-identities spec ctx)
   (define pairs (combinations (context-vars ctx) 2))
-    (for/list ([pair (in-list pairs)])
-      (match-define (list a b) pair)
-      (replace-vars `((,a . ,b) (,b . ,a)) spec)))
+  (for/list ([pair (in-list pairs)])
+    (match-define (list a b) pair)
+    (replace-vars `((,a . ,b) (,b . ,a)) spec)))
 
 ;; Initial simplify
 (define (initial-simplify init ctx)
@@ -51,33 +59,25 @@
 
   ; egg schedule (2-phases for real rewrites and implementation selection)
   (define schedule
-    `((,rules . ((node . ,(*node-limit*))))
-      (,lowering-rules . ((iteration . 1) (scheduler . simple)))))
+    `((,rules . ((node . ,(*node-limit*)))) (,lowering-rules . ((iteration . 1) (scheduler .
+                                                                                           simple)))))
 
   ; egg query
   (define spec (expand-accelerators (prog->spec init)))
-  (define runner
-    (make-egg-runner (list spec)
-                     (list (context-repr ctx))
-                     schedule))
+  (define runner (make-egg-runner (list spec) (list (context-repr ctx)) schedule))
 
   ; run egg
   (define simplified
-    (simplify-batch
-      runner
-      (typed-egg-extractor
-        (if (*egraph-platform-cost*)
-            platform-egg-cost-proc
-            default-egg-cost-proc))))
+    (simplify-batch runner
+                    (typed-egg-extractor
+                     (if (*egraph-platform-cost*) platform-egg-cost-proc default-egg-cost-proc))))
 
   ; alternatives
   (define start-alt (make-alt init))
   (cons start-alt
-        (remove-duplicates
-          (for/list ([expr (rest simplified)])
-            (alt expr `(simplify () ,runner #f #f) (list start-alt) '()))
-          alt-equal?)))
-
+        (remove-duplicates (for/list ([expr (rest simplified)])
+                             (alt expr `(simplify () ,runner #f #f) (list start-alt) '()))
+                           alt-equal?)))
 
 ;; See https://pavpanchekha.com/blog/symmetric-expressions.html
 (define (find-preprocessing init spec ctx)
@@ -89,11 +89,7 @@
   (define swap-identities (make-swap-identities spec* ctx))
 
   ;; expressions
-  (define exprs
-    (cons spec*
-          (append even-identities
-                  odd-identities
-                  swap-identities)))
+  (define exprs (cons spec* (append even-identities odd-identities swap-identities)))
 
   ;; make runner
   (define rules (real-rules (*simplify-rules*)))
@@ -113,37 +109,29 @@
   (define pairs (combinations (context-vars ctx) 2))
   (define components
     (connected-components
-      (context-vars ctx)
-      (for/list ([pair (in-list pairs)]
-                 [swap (in-list swaps)]
-                 #:when (equal? spec** swap))
-        pair)))
+     (context-vars ctx)
+     (for/list ([pair (in-list pairs)] [swap (in-list swaps)] #:when (equal? spec** swap))
+       pair)))
 
   ; instructions (TODO: `equal?` should be an egraph query)
   (define abs-instrs
-    (for/list ([var (in-list (context-vars ctx))]
-               [even (in-list evens)]
-               #:when (equal? spec** even))
+    (for/list ([var (in-list (context-vars ctx))] [even (in-list evens)] #:when (equal? spec** even))
       (list 'abs var)))
   (define negabs-instrs
-    (for/list ([var (in-list (context-vars ctx))]
-               [odd (in-list odds)]
-               #:when (equal? spec** odd))
+    (for/list ([var (in-list (context-vars ctx))] [odd (in-list odds)] #:when (equal? spec** odd))
       (list 'negabs var)))
   (define sort-instrs
-    (for/list ([component (in-list components)]
-               #:when (> (length component) 1))
+    (for/list ([component (in-list components)] #:when (> (length component) 1))
       (cons 'sort component)))
-  
+
   (define instrs (append abs-instrs negabs-instrs sort-instrs))
   (define start-alts
     (if (flag-set? 'setup 'simplify)
         (for/list ([altn (initial-simplify init ctx)])
           (alt-add-preprocessing altn instrs))
         (list (make-alt-preprocessing init instrs))))
-  
-  (values start-alts instrs))
 
+  (values start-alts instrs))
 
 (define (connected-components variables swaps)
   (define components (disjoint-set (length variables)))
@@ -152,16 +140,14 @@
     (disjoint-set-union! components
                          (disjoint-set-find! components (index-of variables a))
                          (disjoint-set-find! components (index-of variables b))))
-  (group-by
-   (compose (curry disjoint-set-find! components) (curry index-of variables))
-   variables))
+  (group-by (compose (curry disjoint-set-find! components) (curry index-of variables)) variables))
 
 (define (preprocess-pcontext context pcontext preprocessing)
   (define preprocess
-    (apply compose (map
-                    (curry instruction->operator context)
-                    ;; Function composition applies the rightmost function first
-                    (reverse preprocessing))))
+    (apply compose
+           (map (curry instruction->operator context)
+                ;; Function composition applies the rightmost function first
+                (reverse preprocessing))))
   (for/pcontext ([(x y) pcontext]) (preprocess x y)))
 
 (define (instruction->operator context instruction)
@@ -170,46 +156,40 @@
   (match instruction
     [(list 'sort component ...)
      (unless (subsequence? component variables)
-       (error 'instruction->operator
-              "component should always be a subsequence of variables"))
+       (error 'instruction->operator "component should always be a subsequence of variables"))
      (define indices (indexes-where variables (curryr member component)))
      (lambda (x y)
-       (let* ([subsequence (map (curry list-ref x) indices)]
-              [sorted (sort* subsequence)])
+       (let* ([subsequence (map (curry list-ref x) indices)] [sorted (sort* subsequence)])
          (values (list-set* x indices sorted) y)))]
     [(list 'abs variable)
      (define index (index-of variables variable))
-     (define abs (impl-info
-                  (get-parametric-operator
-                   'fabs
-                   (list-ref (context-var-reprs context) index))
-                  'fl))
+     (define abs
+       (impl-info (get-parametric-operator 'fabs (list-ref (context-var-reprs context) index)) 'fl))
      (lambda (x y) (values (list-update x index abs) y))]
     [(list 'negabs variable)
      (define index (index-of variables variable))
      (define negate-variable
        (impl-info (get-parametric-operator 'neg (list-ref (context-var-reprs context) index)) 'fl))
-     (define negate-expression
-       (impl-info (get-parametric-operator 'neg (context-repr context)) 'fl))
+     (define negate-expression (impl-info (get-parametric-operator 'neg (context-repr context)) 'fl))
      (lambda (x y)
        ;; Negation is involutive, i.e. it is its own inverse, so t^1(y') = -y'
        (if (negative? (repr->real (list-ref x index) (context-repr context)))
-           (values
-             (list-update x index negate-variable)
-             (negate-expression y))
+           (values (list-update x index negate-variable) (negate-expression y))
            (values x y)))]))
 
 ; until fixed point, iterate through preprocessing attempting to drop preprocessing with no effect on error
-(define (remove-unnecessary-preprocessing expression context pcontext preprocessing #:removed [removed empty])
+(define (remove-unnecessary-preprocessing expression
+                                          context
+                                          pcontext
+                                          preprocessing
+                                          #:removed [removed empty])
   (define-values (result newly-removed)
     (let loop ([preprocessing preprocessing] [i 0] [removed removed])
       (cond
-        [(>= i (length preprocessing))
-         (values preprocessing removed)]
+        [(>= i (length preprocessing)) (values preprocessing removed)]
         [(preprocessing-<=? expression context pcontext (drop-at preprocessing i) preprocessing)
          (loop (drop-at preprocessing i) i (cons (list-ref preprocessing i) removed))]
-        [else
-         (loop preprocessing (+ i 1) removed)])))
+        [else (loop preprocessing (+ i 1) removed)])))
   (cond
     [(< (length result) (length preprocessing))
      (remove-unnecessary-preprocessing expression context pcontext result #:removed newly-removed)]

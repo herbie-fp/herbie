@@ -9,37 +9,46 @@
          "syntax/types.rkt"
          (submod "syntax/syntax.rkt" internals))
 
-(provide
-  platform get-platform *active-platform* activate-platform!
-  extract-platform-name
-  ;; Platform API
-  (contract-out
-    ;; Operator sets
-    [operator-set? (-> any/c boolean?)]
-    [operator-set-operators (-> operator-set? (listof symbol?))]
-    ;; Platforms
-    [platform? (-> any/c boolean?)]
-    [platform-name (-> platform? any/c)]
-    [platform-reprs (-> platform? (listof representation?))]
-    [platform-impls (-> platform? (listof symbol?))]
-    [platform-conversions (-> platform? (listof symbol?))]
-    [platform-reprchange-rules (-> platform? (listof rule?))]
-    [platform-union (-> platform? platform? ... platform?)]
-    [platform-intersect (-> platform? platform? ... platform?)]
-    [platform-subtract (-> platform? platform? ... platform?)]
-    [platform-operator-set (-> platform? operator-set?)]
-    ; Cost model
-    [platform-impl-cost (-> platform? any/c any/c)]
-    [platform-repr-cost (-> platform? any/c any/c)]
-    [platform-node-cost-proc (-> platform? procedure?)]
-    [platform-cost-proc (-> platform? procedure?)]))
+(provide platform
+         get-platform
+         *active-platform*
+         activate-platform!
+         extract-platform-name
+         ;; Platform API
+         ;; Operator sets
+         (contract-out [operator-set? (-> any/c boolean?)]
+                       [operator-set-operators (-> operator-set? (listof symbol?))]
+                       ;; Platforms
+                       [platform? (-> any/c boolean?)]
+                       [platform-name (-> platform? any/c)]
+                       [platform-reprs (-> platform? (listof representation?))]
+                       [platform-impls (-> platform? (listof symbol?))]
+                       [platform-conversions (-> platform? (listof symbol?))]
+                       [platform-reprchange-rules (-> platform? (listof rule?))]
+                       [platform-union (-> platform? platform? ... platform?)]
+                       [platform-intersect (-> platform? platform? ... platform?)]
+                       [platform-subtract (-> platform? platform? ... platform?)]
+                       [platform-operator-set (-> platform? operator-set?)]
+                       ; Cost model
+                       [platform-impl-cost (-> platform? any/c any/c)]
+                       [platform-repr-cost (-> platform? any/c any/c)]
+                       [platform-node-cost-proc (-> platform? procedure?)]
+                       [platform-cost-proc (-> platform? procedure?)]))
 
 (module+ internals
-  (provide platform get-platform register-platform!
-           platform-product platform-union platform-intersect
-           platform-subtract platform-filter
-           operator-set platform-operator-set
-           with-terminal-cost cost-map cost-map-scale))
+  (provide platform
+           get-platform
+           register-platform!
+           platform-product
+           platform-union
+           platform-intersect
+           platform-subtract
+           platform-filter
+           operator-set
+           platform-operator-set
+           with-terminal-cost
+           cost-map
+           cost-map-scale))
 
 ;;; Platforms describe a set of representations, operator, and constants
 ;;; Herbie should use during its improvement loop. Platforms are just
@@ -70,7 +79,8 @@
 ;; Panics if no platform is found.
 (define (get-platform name)
   (or (hash-ref platforms name #f)
-      (raise-herbie-error "unknown platform `~a`, found (~a)" name
+      (raise-herbie-error "unknown platform `~a`, found (~a)"
+                          name
                           (string-join (map ~a (hash-keys platforms)) ", "))))
 
 ;; Loads a platform.
@@ -93,9 +103,7 @@
 
 ;; Loading conversion-related implementations for `repr1 => repr2`.
 (define (get-conversion-impls irepr orepr)
-  (define impl
-    (or (get-repr-conv irepr orepr #:all? #t)
-        (generate-conversion-impl irepr orepr)))
+  (define impl (or (get-repr-conv irepr orepr #:all? #t) (generate-conversion-impl irepr orepr)))
   (unless impl
     (error 'load-conversion-impls!
            "could not generate conversion ~a => ~a"
@@ -106,19 +114,18 @@
     ; need to make a "precision rewrite" operator
     ; (only if we did not generate it before)
     (define rewrite-name (sym-append '<- (repr->symbol orepr)))
-    (register-operator-impl! 'convert
-                             rewrite-name
-                             (list orepr) 
-                             orepr
-                             (list (cons 'fl identity)))
+    (register-operator-impl! 'convert rewrite-name (list orepr) orepr (list (cons 'fl identity)))
     (set! rw-impl (get-rewrite-operator orepr #:all? #t)))
   (list impl rw-impl))
 
 ;; Optional error handler based on a value `optional?`.
 (define-syntax-rule (with-cond-handlers optional? ([pred handle] ...) body ...)
   (if optional?
-      (with-handlers ([pred handle] ...) (begin body ...))
-      (begin body ...)))
+      (with-handlers ([pred handle] ...)
+        (begin
+          body ...))
+      (begin
+        body ...)))
 
 ;; Constructor procedure for platforms.
 ;; The platform is described by a list of operator implementations.
@@ -128,157 +135,148 @@
 ;; Verifies that a platform is well-formed and the platform will be
 ;; supported by Herbie's runtime. A platform specified by `optional?`
 ;; may discard any implementations it fails to find in the Racket runtime.
-(define (make-platform pform
-                       #:optional? [optional? #f]
-                       #:if-cost [if-cost #f])
+(define (make-platform pform #:optional? [optional? #f] #:if-cost [if-cost #f])
   ; load the representations
   (define unique-reprs (mutable-set))
   (define reprs
     (reap [sow]
-      (for ([impl-sig (in-list pform)])
-        (match-define (list _ tsig _) impl-sig)
-        (for ([repr-name (in-list tsig)])
-          (unless (set-member? unique-reprs repr-name)
-            (set-add! unique-reprs repr-name)
-            (sow (get-representation repr-name)))))))
+          (for ([impl-sig (in-list pform)])
+            (match-define (list _ tsig _) impl-sig)
+            (for ([repr-name (in-list tsig)])
+              (unless (set-member? unique-reprs repr-name)
+                (set-add! unique-reprs repr-name)
+                (sow (get-representation repr-name)))))))
   ; load the conversions
   (define missing (mutable-set))
   (define costs (make-hash))
   (define convs
     (reap [sow]
-      (for ([impl-sig (in-list pform)])
-        (match-define (list op tsig cost) impl-sig)
-        (match* (op tsig)
-          [('cast `(,itype ,otype))
-           (define irepr (get-representation itype))
-           (define orepr (get-representation otype))
-           (with-cond-handlers optional?
-                               ([exn:fail:user:herbie:missing?
-                                 (λ (_) (set-add! missing (list 'cast itype otype)))])
-             (for ([impl (in-list (get-conversion-impls irepr orepr))])
-               (hash-set! costs impl cost)
-               (sow impl)))]
-          [('cast _)
-           (error 'make-platform "unexpected type signature for `cast` ~a" tsig)]
-          [(_ _) (void)]))))
+          (for ([impl-sig (in-list pform)])
+            (match-define (list op tsig cost) impl-sig)
+            (match* (op tsig)
+              [('cast `(,itype ,otype))
+               (define irepr (get-representation itype))
+               (define orepr (get-representation otype))
+               (with-cond-handlers optional?
+                                   ([exn:fail:user:herbie:missing?
+                                     (λ (_) (set-add! missing (list 'cast itype otype)))])
+                                   (for ([impl (in-list (get-conversion-impls irepr orepr))])
+                                     (hash-set! costs impl cost)
+                                     (sow impl)))]
+              [('cast _) (error 'make-platform "unexpected type signature for `cast` ~a" tsig)]
+              [(_ _) (void)]))))
   ; load the operator implementations
   (define impls
     (reap [sow]
-      (for ([impl-sig (in-list pform)])
-      (match-define (list name tsig cost) impl-sig)
-        (match* (name tsig)
-          [('cast _) (void)] ; casts
-          [(_ `(,otype)) ; constants
-           (define orepr (get-representation otype))
-           (with-cond-handlers optional?
-                               ([exn:fail:user:herbie:missing?
-                                 (λ (_) (set-add! missing (list name otype)))])
-             (let ([impl (get-parametric-constant name orepr #:all? #t)])
-               (hash-set! costs impl cost)
-               (sow impl)))]
-          [(_ `(,itypes ... ,otype)) ; operators
-           (define ireprs (map get-representation itypes))
-           (with-cond-handlers optional?
-                               ([exn:fail:user:herbie:missing?
-                                 (λ (_) (set-add! missing `(,name ,@itypes , otype)))])
-             (let ([impl (apply get-parametric-operator name ireprs #:all? #t)])
-               (hash-set! costs impl cost)
-               (sow impl)))]))))
+          (for ([impl-sig (in-list pform)])
+            (match-define (list name tsig cost) impl-sig)
+            (match* (name tsig)
+              [('cast _) (void)] ; casts
+              [(_ `(,otype)) ; constants
+               (define orepr (get-representation otype))
+               (with-cond-handlers optional?
+                                   ([exn:fail:user:herbie:missing?
+                                     (λ (_) (set-add! missing (list name otype)))])
+                                   (let ([impl (get-parametric-constant name orepr #:all? #t)])
+                                     (hash-set! costs impl cost)
+                                     (sow impl)))]
+              [(_ `(,itypes ... ,otype)) ; operators
+               (define ireprs (map get-representation itypes))
+               (with-cond-handlers optional?
+                                   ([exn:fail:user:herbie:missing?
+                                     (λ (_) (set-add! missing `(,name ,@itypes ,otype)))])
+                                   (let ([impl (apply get-parametric-operator name ireprs #:all? #t)])
+                                     (hash-set! costs impl cost)
+                                     (sow impl)))]))))
   ; set cost of `if`
-  (when if-cost (hash-set! costs 'if if-cost))
+  (when if-cost
+    (hash-set! costs 'if if-cost))
   ; emit warnings if need be
   (unless (set-empty? missing)
     (warn 'platform
           "platform has missing optional implementations: ~a"
-          (string-join
-            (for/list ([m (in-set missing)])
-              (match-define (list name itypes ... otype) m)
-              (format "(~a ~a)" name `(,@itypes ,otype)))
-            " ")))
+          (string-join (for/list ([m (in-set missing)])
+                         (match-define (list name itypes ... otype) m)
+                         (format "(~a ~a)" name `(,@itypes ,otype)))
+                       " ")))
   ; make the platform
-  (create-platform #f
-                   reprs
-                   (append convs impls)
-                   (make-immutable-hash (hash->list costs))
-                   (hash)))
+  (create-platform #f reprs (append convs impls) (make-immutable-hash (hash->list costs)) (hash)))
 
 (begin-for-syntax
 
-;; Macro-time platform description
-(struct platform-info (optional? default-cost if-cost convs impls))
+  ;; Macro-time platform description
+  (struct platform-info (optional? default-cost if-cost convs impls))
 
-;; Empty platform description
-(define (make-platform-info)
-  (platform-info #f #f #f '() '()))
+  ;; Empty platform description
+  (define (make-platform-info)
+    (platform-info #f #f #f '() '()))
 
-;; Parse if cost syntax
-(define (platform/parse-if-cost stx)
-  (syntax-case stx (max sum)
-    [(max x) #'(list 'max x)]
-    [(sum x) #'(list 'sum x)]
-    [x #'(list 'max x)]))
+  ;; Parse if cost syntax
+  (define (platform/parse-if-cost stx)
+    (syntax-case stx (max sum)
+      [(max x) #'(list 'max x)]
+      [(sum x) #'(list 'sum x)]
+      [x #'(list 'max x)]))
 
-;; Parse conversion signatures into a list of implementation table
-(define (platform/parse-convs oops! default-cost default-cost-id conv-sigs)
-  (for/fold ([impls '()]) ([conv (in-list conv-sigs)])
-    (syntax-case conv ()
-      [(in out)
-       (let ([in #'in] [out #'out])
-         (unless default-cost
-          (oops! "`#:default-cost` required with `#:conversions`" conv))
-          (with-syntax ([default-cost-id default-cost-id] [in in] [out out])
-            (list* #'(list 'cast '(in out) default-cost-id)
-                   #'(list 'cast '(out in) default-cost-id)
-                   impls)))]
-      [_ (oops! "malformed conversion clause" conv)])))
+  ;; Parse conversion signatures into a list of implementation table
+  (define (platform/parse-convs oops! default-cost default-cost-id conv-sigs)
+    (for/fold ([impls '()]) ([conv (in-list conv-sigs)])
+      (syntax-case conv ()
+        [(in out)
+         (let ([in #'in] [out #'out])
+           (unless default-cost
+             (oops! "`#:default-cost` required with `#:conversions`" conv))
+           (with-syntax ([default-cost-id default-cost-id] [in in] [out out])
+             (list* #'(list 'cast '(in out) default-cost-id)
+                    #'(list 'cast '(out in) default-cost-id)
+                    impls)))]
+        [_ (oops! "malformed conversion clause" conv)])))
 
-;; Parse implementation signatures into an implementation table
-(define (platform/parse-impls oops! default-cost default-cost-id impl-sigs)
-  (let loop ([impl-sigs impl-sigs] [impls '()])
-    (match impl-sigs
-      ['() impls]
-      [(list impl-sig rest ...)
-       (syntax-case impl-sig ()
-         [((itype ... otype) (op ...) cost)
-          ; multiple implementations with same type sig and cost
-          (loop (for/fold ([impl-sigs rest]) ([op (syntax->list #'(op ...))])
-                  (let ([impl-sig (with-syntax ([op op])
-                                    #'((itype ... otype) op cost))])
-                    (cons impl-sig impl-sigs)))
-                impls)]
-         [((itype ... otype) (op ...))
-          ; multiple implementations with same type sig and cost
-          (loop (for/fold ([impl-sigs rest]) ([op (syntax->list #'(op ...))])
-                  (let ([impl-sig (with-syntax ([op op])
-                                    #'((itype ... otype) op))])
-                    (cons impl-sig impl-sigs)))
-                impls)]
-         [((itype ... otype) op cost)
-          ; single implementation with type sig and cost
-          (let ([op #'op])
-            (unless (identifier? op)
-              (oops! "expected an identifier" op))
-            (define impl
-              (with-syntax ([op op])
-                #'(list 'op '(itype ... otype) cost)))
-            (loop rest (cons impl impls)))]
-         [((itype ... otype) op)
-          ; single implementation with default cost
-          (let ([op #'op])
-            (unless (identifier? op)
-              (oops! "expected an identifier" op))
-            (unless default-cost
-              (oops! "#:default-cost required for" impl-sig))
-            (define impl
-              (with-syntax ([op op] [cost default-cost-id])
-                #'(list 'op '(itype ... otype) cost)))
-            (loop rest (cons impl impls)))]
-         [_ (oops! "malformed implementation signature" impl-sig)])])))
-            
-)
+  ;; Parse implementation signatures into an implementation table
+  (define (platform/parse-impls oops! default-cost default-cost-id impl-sigs)
+    (let loop ([impl-sigs impl-sigs] [impls '()])
+      (match impl-sigs
+        ['() impls]
+        [(list impl-sig rest ...)
+         (syntax-case impl-sig ()
+           [((itype ... otype) (op ...) cost)
+            ; multiple implementations with same type sig and cost
+            (loop (for/fold ([impl-sigs rest]) ([op (syntax->list #'(op ...))])
+                    (let ([impl-sig (with-syntax ([op op])
+                                      #'((itype ... otype) op cost))])
+                      (cons impl-sig impl-sigs)))
+                  impls)]
+           [((itype ... otype) (op ...))
+            ; multiple implementations with same type sig and cost
+            (loop (for/fold ([impl-sigs rest]) ([op (syntax->list #'(op ...))])
+                    (let ([impl-sig (with-syntax ([op op])
+                                      #'((itype ... otype) op))])
+                      (cons impl-sig impl-sigs)))
+                  impls)]
+           [((itype ... otype) op cost)
+            ; single implementation with type sig and cost
+            (let ([op #'op])
+              (unless (identifier? op)
+                (oops! "expected an identifier" op))
+              (define impl
+                (with-syntax ([op op])
+                  #'(list 'op '(itype ... otype) cost)))
+              (loop rest (cons impl impls)))]
+           [((itype ... otype) op)
+            ; single implementation with default cost
+            (let ([op #'op])
+              (unless (identifier? op)
+                (oops! "expected an identifier" op))
+              (unless default-cost
+                (oops! "#:default-cost required for" impl-sig))
+              (define impl
+                (with-syntax ([op op] [cost default-cost-id])
+                  #'(list 'op '(itype ... otype) cost)))
+              (loop rest (cons impl impls)))]
+           [_ (oops! "malformed implementation signature" impl-sig)])]))))
 
 ;; Macro version of `make-platform`
-;; 
+;;
 ;; Example usage:
 ;; ```
 ;; (define default
@@ -314,48 +312,35 @@
                           [default-cost default-cost]
                           [if-cost if-cost]
                           [optional? optional?])
-              #'(let ([default-cost-id default-cost]
-                      [if-cost-id if-cost])
-                  (make-platform (list impl-sigs ...)
-                                #:optional? optional?
-                                #:if-cost if-cost))))]
-         [(#:optional rest ...)
-          (loop #'(rest ...)
-                (struct-copy platform-info info
-                  [optional? #t]))]
+              #'(let ([default-cost-id default-cost] [if-cost-id if-cost])
+                  (make-platform (list impl-sigs ...) #:optional? optional? #:if-cost if-cost))))]
+         [(#:optional rest ...) (loop #'(rest ...) (struct-copy platform-info info [optional? #t]))]
          [(#:default-cost cost rest ...)
-          (loop #'(rest ...)
-                (struct-copy platform-info info
-                  [default-cost #'cost]))]
-         [(#:default-cost)
-          (oops! "expected value after keyword `#:default-cost`" stx)]
+          (loop #'(rest ...) (struct-copy platform-info info [default-cost #'cost]))]
+         [(#:default-cost) (oops! "expected value after keyword `#:default-cost`" stx)]
          [(#:if-cost cost rest ...)
           (loop #'(rest ...)
-                (struct-copy platform-info info
-                  [if-cost (platform/parse-if-cost #'cost)]))]
-         [(#:if-cost)
-          (oops! "expected value after keyword `#:if-cost`" stx)]
+                (struct-copy platform-info info [if-cost (platform/parse-if-cost #'cost)]))]
+         [(#:if-cost) (oops! "expected value after keyword `#:if-cost`" stx)]
          [(#:conversions (cs ...) rest ...)
           (loop #'(rest ...)
-                (struct-copy platform-info info
-                  [convs (append (syntax->list #'(cs ...))
-                                 (platform-info-convs info))]))]
-         [(#:conversions bad _ ...)
-          (oops! "expected a conversion list" #'bad)]
-         [(#:conversions)
-          (oops! "expected conversion list after keyword `#:conversions`" stx)]
+                (struct-copy platform-info
+                             info
+                             [convs (append (syntax->list #'(cs ...)) (platform-info-convs info))]))]
+         [(#:conversions bad _ ...) (oops! "expected a conversion list" #'bad)]
+         [(#:conversions) (oops! "expected conversion list after keyword `#:conversions`" stx)]
          [(impl-sig rest ...)
-          (loop #'(rest ...)
-                (struct-copy platform-info info
-                  [impls (cons #'impl-sig (platform-info-impls info))]))]
+          (loop
+           #'(rest ...)
+           (struct-copy platform-info info [impls (cons #'impl-sig (platform-info-impls info))]))]
          [_ (oops! "bad syntax")]))]))
 
 ;; Representation conversions in a platform.
 (define (platform-conversions pform)
   (reap [sow]
-    (for ([impl (in-list (platform-impls pform))])
-      (when (eq? (impl->operator impl) 'cast)
-        (sow impl)))))
+        (for ([impl (in-list (platform-impls pform))])
+          (when (eq? (impl->operator impl) 'cast)
+            (sow impl)))))
 
 ;; The "precision change" rules valid for a platform
 (define (platform-reprchange-rules pform)
@@ -363,13 +348,13 @@
   (define as-set (mutable-set))
   (define convs
     (reap [sow]
-      (for ([impl (platform-conversions pform)])
-        (match-define (list irepr) (impl-info impl 'itype))
-        (define orepr (impl-info impl 'otype))
-        (unless (or (set-member? as-set (cons irepr orepr))
-                    (set-member? as-set (cons orepr irepr)))
-          (set-add! as-set (cons irepr orepr))
-          (sow (cons irepr orepr))))))
+          (for ([impl (platform-conversions pform)])
+            (match-define (list irepr) (impl-info impl 'itype))
+            (define orepr (impl-info impl 'otype))
+            (unless (or (set-member? as-set (cons irepr orepr))
+                        (set-member? as-set (cons orepr irepr)))
+              (set-add! as-set (cons irepr orepr))
+              (sow (cons irepr orepr))))))
 
   ; precision rule generator
   (define (make-precision-rewrite irepr orepr)
@@ -383,9 +368,7 @@
   ; for each conversion, enable precision rewrite
   (define prec-rules
     (for/fold ([rules '()]) ([(irepr orepr) (in-dict convs)])
-      (list* (make-precision-rewrite irepr orepr)
-             (make-precision-rewrite orepr irepr)
-             rules)))
+      (list* (make-precision-rewrite irepr orepr) (make-precision-rewrite orepr irepr) rules)))
 
   ; for each conversion, enable a precision simplification
   (define prec-simplifiers
@@ -413,14 +396,9 @@
         [(#f _) c1]
         [(_ #f) c0]
         [(c c) c]
-        [(_ _)
-         (error 'merge-costs
-                "mismatch when combining cost model ~a ~a"
-                key costs)])))
+        [(_ _) (error 'merge-costs "mismatch when combining cost model ~a ~a" key costs)])))
   (unless (or cost optional?)
-    (error 'merge-costs
-           "cannot find cost for implementation ~a"
-           key))
+    (error 'merge-costs "cannot find cost for implementation ~a" key))
   cost)
 
 ;; Set operations on platforms.
@@ -429,11 +407,8 @@
   (define impls (apply merge-impls (map platform-impls (cons p1 ps))))
   ; valid representations are based on impls
   (define reprs
-    (remove-duplicates
-      (for/fold ([reprs '()]) ([impl (in-list impls)])
-        (append (cons (impl-info impl 'otype)
-                      (impl-info impl 'itype))
-                reprs))))
+    (remove-duplicates (for/fold ([reprs '()]) ([impl (in-list impls)])
+                         (append (cons (impl-info impl 'otype) (impl-info impl 'itype)) reprs))))
   ; impl costs are based on impls
   (define pform-impl-costs (map platform-impl-costs (cons p1 ps)))
   (define impl-costs
@@ -454,37 +429,31 @@
 
 ;; Set union for platforms.
 ;; Use list operations for deterministic ordering.
-(define platform-union
-  (make-set-operation
-    (λ (rs . rss)
-      (remove-duplicates (apply append rs rss)))))
+(define platform-union (make-set-operation (λ (rs . rss) (remove-duplicates (apply append rs rss)))))
 
 ;; Set intersection for platforms.
 ;; Use list operations for deterministic ordering.
 (define platform-intersect
-  (make-set-operation
-    (λ (rs . rss)
-      (for/fold ([rs rs]) ([rs0 (in-list rss)])
-        (filter (curry set-member? (list->set rs0)) rs)))))
+  (make-set-operation (λ (rs . rss)
+                        (for/fold ([rs rs]) ([rs0 (in-list rss)])
+                          (filter (curry set-member? (list->set rs0)) rs)))))
 
 ;; Set subtract for platforms.
-;; Use list operations for deterministic ordering.       
+;; Use list operations for deterministic ordering.
 (define platform-subtract
-  (make-set-operation
-    (λ (rs . rss)
-      (for/fold ([rs rs]) ([rs0 (in-list rss)])
-        (filter-not (curry set-member? (list->set rs0)) rs)))))
+  (make-set-operation (λ (rs . rss)
+                        (for/fold ([rs rs]) ([rs0 (in-list rss)])
+                          (filter-not (curry set-member? (list->set rs0)) rs)))))
 
 ;; Coarse-grained filters on platforms.
 (define ((make-platform-filter repr-supported? op-supported?) pform)
   (define reprs* (filter repr-supported? (platform-reprs pform)))
   (define impls*
-    (filter
-      (λ (impl)
-        (and (op-supported? (impl->operator impl))
-             (repr-supported? (impl-info impl 'otype))
-             (andmap repr-supported? (impl-info impl 'itype))))
-      (platform-impls pform)))
+    (filter (λ (impl)
+              (and (op-supported? (impl->operator impl))
+                   (repr-supported? (impl-info impl 'otype))
+                   (andmap repr-supported? (impl-info impl 'itype))))
+            (platform-impls pform)))
   (create-platform #f reprs* impls*))
 
 ;; Macro version of `make-platform-filter`.
@@ -493,15 +462,11 @@
     (raise-syntax-error 'platform why stx sub-stx))
   (syntax-case stx ()
     [(_ cs ... pform)
-     (let loop ([clauses (syntax->list #'(cs ...))]
-                [repr-filter #f]
-                [op-filter #f])
+     (let loop ([clauses (syntax->list #'(cs ...))] [repr-filter #f] [op-filter #f])
        (syntax-case clauses ()
          [()
           (with-syntax ([repr-filter repr-filter] [op-filter op-filter])
-            #'((make-platform-filter (or repr-filter (const #t))
-                                     (or op-filter (const #t)))
-                                     pform))]
+            #'((make-platform-filter (or repr-filter (const #t)) (or op-filter (const #t))) pform))]
          [(#:representations [reprs ...] rest ...)
           (begin
             (when repr-filter
@@ -535,19 +500,15 @@
               (oops! "cannot set both #:operators and #:not-operators"))
             (loop #'(rest ...)
                   repr-filter
-                  #'(lambda (r) 
+                  #'(lambda (r)
                       (define ops* '(ops ...))
                       (not (set-member? (list->set '(ops ...)) r)))))]
-         [_
-          (oops! "bad syntax")]))]
-    [_
-     (oops! "bad syntax" stx)]))
+         [_ (oops! "bad syntax")]))]
+    [_ (oops! "bad syntax" stx)]))
 
 ;; Set of operators: operators are just names with a type signature.
 ;; Platforms may be instantiated from operator sets using `platform-product`.
-(struct operator-set (ops)
-  #:name $operator-set
-  #:constructor-name make-operator-set)
+(struct operator-set (ops) #:name $operator-set #:constructor-name make-operator-set)
 
 ;; Constructs an operator set.
 (define-syntax (operator-set stx)
@@ -563,10 +524,11 @@
          (syntax-case (car clauses) ()
            [((itype ... otype) (op ...))
             ; multiple operators with same type signature and default cost
-            (loop (for/fold ([clauses (cdr clauses)])
-                            ([o (in-list (syntax->datum #'(op ...)))])
-                      (define cl (with-syntax ([op o]) #'((itype ... otype) op)))
-                      (cons cl clauses))
+            (loop (for/fold ([clauses (cdr clauses)]) ([o (in-list (syntax->datum #'(op ...)))])
+                    (define cl
+                      (with-syntax ([op o])
+                        #'((itype ... otype) op)))
+                    (cons cl clauses))
                   op-data)]
            [((itype ... otype) op)
             ; single operator
@@ -574,34 +536,26 @@
               (unless (identifier? #'op)
                 (oops! "expected an identifier" #'op))
               (loop (cdr clauses) (cons (cons #'op tsig) op-data)))]
-           [((_ ... _) bad)
-            (oops! "expected a list of operators" #'bad)]
-           [(bad (_ ...))
-            (oops! "expected a type signature" #'bad)]
-           [(_ _)
-            (oops! "malformed entry" (car clauses))]
-           [_
-            (oops! "expected [<signature> <ops>]" (car clauses))])])))
+           [((_ ... _) bad) (oops! "expected a list of operators" #'bad)]
+           [(bad (_ ...)) (oops! "expected a type signature" #'bad)]
+           [(_ _) (oops! "malformed entry" (car clauses))]
+           [_ (oops! "expected [<signature> <ops>]" (car clauses))])])))
   (syntax-case stx ()
-    [(_ es ...)
-     (go (syntax->list #'(es ...)))]
-    [_
-     (oops! "bad syntax" stx)]))
+    [(_ es ...) (go (syntax->list #'(es ...)))]
+    [_ (oops! "bad syntax" stx)]))
 
 ;; Projection of a platform to an operator set.
 (define (platform-operator-set pform)
   (define unique (mutable-set))
-  (make-operator-set
-    (for/fold ([ops '()]) ([impl (platform-impls pform)])
-      (define op (impl->operator impl))
-      (cond
-        [(set-member? unique op)
-         ops]
-        [else
-         (define itypes (operator-info op 'itype))
-         (define otype (operator-info op 'otype))
-         (set-add! unique op)
-         (cons `(,op ,@itypes ,otype) ops)]))))
+  (make-operator-set (for/fold ([ops '()]) ([impl (platform-impls pform)])
+                       (define op (impl->operator impl))
+                       (cond
+                         [(set-member? unique op) ops]
+                         [else
+                          (define itypes (operator-info op 'itype))
+                          (define otype (operator-info op 'otype))
+                          (set-add! unique op)
+                          (cons `(,op ,@itypes ,otype) ops)]))))
 
 ;; List of operator names in an operator set.
 (define (operator-set-operators oset)
@@ -610,35 +564,35 @@
     name))
 
 ;; Cost map for operators.
-(struct cost-map (costs default)
-  #:name $cost-map
-  #:constructor-name make-cost-map)
+(struct cost-map (costs default) #:name $cost-map #:constructor-name make-cost-map)
 
 (begin-for-syntax
 
-;; Parses cost-map clauses into a table of costs
-(define (cost-map/parse oops! clauses)
-  (let loop ([clauses clauses] [costs '()])
-    (match clauses
-      ['() costs]
-      [(list clause rest ...)
-       (syntax-case clause ()
-         [((op ...) cost)
-          ; multiple ops with same cost
-          (loop (for/fold ([clauses rest]) ([op (syntax->list #'(op ...))])
-                  (define clause (with-syntax ([op op]) #'(op cost)))
-                  (cons clause clauses))
-                costs)]
-         [(op cost)
-          ; single op with cost
-          (let ([op #'op])
-            (unless (identifier? op)
-              (oops! "expected identifier" op))
-            (define entry (with-syntax ([op op]) #'(cons 'op cost)))
-            (loop rest (cons entry costs)))]
-         [_ (oops! "malformed cost clause" clause)])])))
-
-)
+  ;; Parses cost-map clauses into a table of costs
+  (define (cost-map/parse oops! clauses)
+    (let loop ([clauses clauses] [costs '()])
+      (match clauses
+        ['() costs]
+        [(list clause rest ...)
+         (syntax-case clause ()
+           [((op ...) cost)
+            ; multiple ops with same cost
+            (loop (for/fold ([clauses rest]) ([op (syntax->list #'(op ...))])
+                    (define clause
+                      (with-syntax ([op op])
+                        #'(op cost)))
+                    (cons clause clauses))
+                  costs)]
+           [(op cost)
+            ; single op with cost
+            (let ([op #'op])
+              (unless (identifier? op)
+                (oops! "expected identifier" op))
+              (define entry
+                (with-syntax ([op op])
+                  #'(cons 'op cost)))
+              (loop rest (cons entry costs)))]
+           [_ (oops! "malformed cost clause" clause)])]))))
 
 ;; Constructs a cost map.
 ;; ```
@@ -652,18 +606,14 @@
     (raise-syntax-error 'cost-map why stx sub-stx))
   (define (go clauses default-cost)
     (define costs (cost-map/parse oops! clauses))
-    (with-syntax ([(costs ...) costs]
-                  [default-cost-id (gensym)]
-                  [default-cost default-cost])
+    (with-syntax ([(costs ...) costs] [default-cost-id (gensym)] [default-cost default-cost])
       #'(let ([default-cost-id default-cost])
           (make-cost-map (for/hash ([(op cost) (in-dict (list costs ...))])
-                            (values op cost))
+                           (values op cost))
                          default-cost-id))))
   (syntax-case stx ()
-    [(_ #:default-cost cost cl ...)
-     (go (syntax->list #'(cl ...)) #'cost)]
-    [(_ #:default-cost)
-     (oops! "missing cost after `#:default-cost`")]
+    [(_ #:default-cost cost cl ...) (go (syntax->list #'(cl ...)) #'cost)]
+    [(_ #:default-cost) (oops! "missing cost after `#:default-cost`")]
     [(_ cl ...) (go (syntax->list #'(cl ...)) #f)]
     [_ (oops! "bad syntax")]))
 
@@ -671,8 +621,7 @@
 (define (cost-map-scale s cm)
   (make-cost-map (for/hash ([(id c) (in-hash (cost-map-costs cm))])
                    (values id (* s c)))
-                 (and (cost-map-default cm)
-                      (* s (cost-map-default cm)))))
+                 (and (cost-map-default cm) (* s (cost-map-default cm)))))
 
 ;; Procedure layer for `platform-product` macro.
 ;; Produces the actual platform.
@@ -686,24 +635,22 @@
           (match-define (list op itypes ... otype) entry)
           (define ireprs (map (curry dict-ref type-dict) itypes))
           (define orepr (dict-ref type-dict otype))
-          (define cost (or (hash-ref op->cost op #f)
-                           (cost-map-default costs)
-                           (error 'make-platform-product "unknown cost for `~a`" op)))
+          (define cost
+            (or (hash-ref op->cost op #f)
+                (cost-map-default costs)
+                (error 'make-platform-product "unknown cost for `~a`" op)))
           `(,op (,@ireprs ,orepr) ,cost)))
       (make-platform impls #:optional? optional?)))
   (apply platform-union pforms))
 
 (begin-for-syntax
 
-(define (platform-product/parse oops! clauses)
-  (for/list ([clause (in-list clauses)])
-    (syntax-case clause ()
-      [(((type repr) ...) cost-map)
-       #'(let ([t cost-map]) (list '((type . repr) ...) t))]
-      [(bad _) (oops! "malformed type assignment" #'bad)]
-      [_ (oops! "malformed clause" clause)])))
-
-)
+  (define (platform-product/parse oops! clauses)
+    (for/list ([clause (in-list clauses)])
+      (syntax-case clause ()
+        [(((type repr) ...) cost-map) #'(let ([t cost-map]) (list '((type . repr) ...) t))]
+        [(bad _) (oops! "malformed type assignment" #'bad)]
+        [_ (oops! "malformed clause" clause)]))))
 
 ;; Specialized "product" construction of a platform.
 ;; Given an operator set, instantiate a set of platform implementations
@@ -721,9 +668,7 @@
     (with-syntax ([(clauses ...) (platform-product/parse oops! clauses)]
                   [operator-set oset]
                   [optional? optional?])
-      #'(make-platform-product (list clauses ...)
-                               operator-set
-                               #:optional? optional?)))
+      #'(make-platform-product (list clauses ...) operator-set #:optional? optional?)))
   (syntax-case stx ()
     [(_ #:optional cl ... oset) (go (syntax->list #'(cl ...)) #'oset #t)]
     [(_ cl ... oset) (go (syntax->list #'(cl ...)) #'oset #f)]
@@ -735,27 +680,23 @@
 (define-syntax with-terminal-cost
   (syntax-rules ()
     [(_ ([reprs costs] ...) pform-expr)
-     (for/fold ([pform pform-expr])
-               ([repr (list 'reprs ...)]
-                [cost (list costs ...)])
-       (struct-copy $platform pform
-         [repr-costs (hash-set (platform-repr-costs pform)
-                               (get-representation repr)
-                               cost)]))]))
+     (for/fold ([pform pform-expr]) ([repr (list 'reprs ...)] [cost (list costs ...)])
+       (struct-copy $platform
+                    pform
+                    [repr-costs
+                     (hash-set (platform-repr-costs pform) (get-representation repr) cost)]))]))
 
 ; Implementation cost in a platform.
 (define (platform-impl-cost pform impl)
   (hash-ref (platform-impl-costs pform)
             impl
-            (lambda ()
-              (error 'platform-impl-cost "no cost for impl '~a" impl))))
+            (lambda () (error 'platform-impl-cost "no cost for impl '~a" impl))))
 
 ; Representation (terminal) cost in a platform.
 (define (platform-repr-cost pform repr)
   (hash-ref (platform-repr-costs pform)
             repr
-            (lambda ()
-              (error 'platform-repr-cost "no cost for repr ~a" repr))))
+            (lambda () (error 'platform-repr-cost "no cost for repr ~a" repr))))
 
 ; Cost model of a single node by a platform.
 ; Returns a procedure that must be called with the costs of the children.
@@ -774,9 +715,7 @@
        (define impl-cost (platform-impl-cost pform impl))
        (lambda itype-costs
          (unless (= (length itype-costs) (length args))
-           (error 'platform-node-cost-proc
-                  "arity mismatch, expected ~a arguments"
-                  (length args)))
+           (error 'platform-node-cost-proc "arity mismatch, expected ~a arguments" (length args)))
          (apply + impl-cost itype-costs))])))
 
 ; Cost model parameterized by a platform.
@@ -790,14 +729,11 @@
         [(? symbol?) ((node-cost-proc expr repr))]
         [(list 'if cond ift iff)
          (define cost-proc (node-cost-proc expr repr))
-         (cost-proc (loop cond bool-repr)
-                    (loop ift repr)
-                    (loop iff repr))]
+         (cost-proc (loop cond bool-repr) (loop ift repr) (loop iff repr))]
         [(list impl args ...)
          (define cost-proc (node-cost-proc expr repr))
          (define itypes (impl-info impl 'itype))
          (apply cost-proc (map loop args itypes))]))))
-
 
 (define (extract-platform-name annotation)
   (match-define (list '! props ...) annotation)

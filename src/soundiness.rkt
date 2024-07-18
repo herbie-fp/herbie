@@ -12,19 +12,16 @@
 
 (define (canonicalize-rewrite proof)
   (match proof
-    [`(Rewrite=> ,rule ,something)
-     (list 'Rewrite=> (get-canon-rule-name rule rule) something)]
-    [`(Rewrite<= ,rule ,something)
-     (list 'Rewrite<= (get-canon-rule-name rule rule) something)]
-    [(list _ ...)
-     (map canonicalize-rewrite proof)]
+    [`(Rewrite=> ,rule ,something) (list 'Rewrite=> (get-canon-rule-name rule rule) something)]
+    [`(Rewrite<= ,rule ,something) (list 'Rewrite<= (get-canon-rule-name rule rule) something)]
+    [(list _ ...) (map canonicalize-rewrite proof)]
     [_ proof]))
 
 (define (get-proof-errors proof pcontext ctx)
   (define proof-exprs (map remove-rewrites proof))
   (define proof-progs (filter impl-prog? proof-exprs))
   (define errss (batch-errors proof-progs pcontext ctx))
-  
+
   (define prog->errs
     (for/hash ([prog (in-list proof-progs)] [errs (in-list errss)])
       (values prog errs)))
@@ -38,9 +35,8 @@
           (for/list ([prev proof-errors] [current (rest proof-errors)])
             (and prev
                  current
-                 (list
-                   (count > current prev) ; num points where error increased
-                   (count < current prev)))))) ; num points where error decreased
+                 (list (count > current prev) ; num points where error increased
+                       (count < current prev)))))) ; num points where error decreased
 
   proof-diffs)
 
@@ -52,11 +48,9 @@
      (define proof*
        (for/list ([step (in-list proof)])
          (location-do loc prog (const (canonicalize-rewrite step)))))
-     (define errors
-       (get-proof-errors proof* pcontext ctx))
+     (define errors (get-proof-errors proof* pcontext ctx))
      (cons proof* errors)]
-    [else
-     (cons #f #f)]))
+    [else (cons #f #f)]))
 
 ;; Computes a `equal?`-based hash table key for an alternative
 (define (altn->key altn)
@@ -65,8 +59,7 @@
      (list expr (list 'rr loc method) (map alt-expr prevs))]
     [(alt expr `(simplify ,loc ,method ,_ ,_) prevs _)
      (list expr (list 'simplify loc method) (map alt-expr prevs))]
-    [_
-     (error 'altn->key "unimplemented ~a" altn)]))
+    [_ (error 'altn->key "unimplemented ~a" altn)]))
 
 ;; Creates two tables:
 ;;  - map from alternative to a pair (e, l ~> r) where `e` is an `egg-runner`
@@ -86,7 +79,7 @@
        (define rewrite (cons start-expr* end-expr))
        (hash-set! alt->query&rws (altn->key altn) (cons runner rewrite))
        (hash-update! query->rws runner (lambda (rws) (set-add rws rewrite)) '())]
-      
+
       ; simplify using egg (spec -> impl)
       [(alt expr `(simplify ,loc ,(? egg-runner? runner) #f #f) `(,prev) _)
        (define start-expr (location-get loc (alt-expr prev)))
@@ -94,7 +87,7 @@
 
        (define start-expr*
          (match (alt-event prev)
-           [(list 'taylor _ ...) start-expr]  ; input was inserted as-is
+           [(list 'taylor _ ...) start-expr] ; input was inserted as-is
            [_ (expand-accelerators (prog->spec start-expr))]))
        (define rewrite (cons start-expr* end-expr))
 
@@ -103,7 +96,7 @@
 
       ; everything else
       [_ (void)])
-    
+
     altn)
 
   ; build the table
@@ -134,18 +127,16 @@
 
     ; recursive rewrite using rewrite-once
     [(alt expr `(rr ,loc ,(? rule? input) #f #f) `(,prev) _)
-     (define proof
-       (list (alt-expr prev)
-             (list 'Rewrite=> (rule-name input) (alt-expr altn))))
+     (define proof (list (alt-expr prev) (list 'Rewrite=> (rule-name input) (alt-expr altn))))
      (define errs (get-proof-errors proof pcontext ctx))
      (alt expr `(rr ,loc ,input ,proof ,errs) `(,prev) '())]
-    
+
     ; simplify using egg
     [(alt expr `(simplify ,loc ,(? egg-runner? runner) #f #f) `(,prev) _)
      (match-define (cons proof* errs)
        (canonicalize-proof (alt-expr altn) (alt->proof altn) loc pcontext ctx))
      (alt expr `(simplify ,loc ,runner ,proof* ,errs) `(,prev) '())]
-    
+
     ; everything else
     [_ altn]))
 

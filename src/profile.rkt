@@ -1,6 +1,8 @@
 #lang racket
 (require profile/analyzer)
-(provide profile-merge profile->json json->profile)
+(provide profile-merge
+         profile->json
+         json->profile)
 
 (define (profile-merge . ps)
   (define nodes (make-hash))
@@ -10,7 +12,8 @@
     (hash-set! nodes (node-loc n) (node (node-id n) (node-src n) '() 0 0 '() '())))
   (for* ([p ps] [node (profile-nodes p)])
     (profile-add nodes node))
-  (for ([p ps]) (profile-add nodes (profile-*-node p)))
+  (for ([p ps])
+    (profile-add nodes (profile-*-node p)))
   (hash-remove! nodes (cons #f #f))
   (profile (apply + (map profile-total-time ps))
            (apply + (map profile-cpu-time ps))
@@ -31,8 +34,8 @@
     (define caller* (translate table (edge-caller e)))
     (match (findf (λ (e2) (eq? (edge-caller e2) caller*)) (node-callers node*))
       [#f
-         (define e* (struct-copy edge e [caller caller*] [callee node*]))
-         (set-node-callers! node* (cons e* (node-callers node*)))]
+       (define e* (struct-copy edge e [caller caller*] [callee node*]))
+       (set-node-callers! node* (cons e* (node-callers node*)))]
       [e*
        (set-edge-total! e* (+ (edge-total e) (edge-total e*)))
        (set-edge-caller-time! e* (+ (edge-caller-time e) (edge-caller-time e*)))
@@ -66,32 +69,47 @@
     (for/hash ([node (in-list nodes)])
       (values (node-loc node) node)))
 
-  (hash 'total_time (exact->inexact (profile-total-time p))
-        'cpu_time (exact->inexact (profile-cpu-time p))
-        'sample_number (profile-sample-number p)
+  (hash 'total_time
+        (exact->inexact (profile-total-time p))
+        'cpu_time
+        (exact->inexact (profile-cpu-time p))
+        'sample_number
+        (profile-sample-number p)
         'thread_times
         (for/list ([(id time) (in-dict (profile-thread-times p))])
           (hash 'id id 'time (exact->inexact time)))
         'nodes
         (for/list ([node nodes])
-          (hash 'id (and (node-id node) (~a (node-id node)))
-                'src (and (node-src node) (srcloc->string (node-src node)))
-                'thread_ids (node-thread-ids node)
-                'total (exact->inexact (node-total node))
-                'self (exact->inexact (node-self node))
-                'callers (map (curry edge->json loc-hash) (node-callers node))
-                'callees (map (curry edge->json loc-hash) (node-callees node))))))
+          (hash 'id
+                (and (node-id node) (~a (node-id node)))
+                'src
+                (and (node-src node) (srcloc->string (node-src node)))
+                'thread_ids
+                (node-thread-ids node)
+                'total
+                (exact->inexact (node-total node))
+                'self
+                (exact->inexact (node-self node))
+                'callers
+                (map (curry edge->json loc-hash) (node-callers node))
+                'callees
+                (map (curry edge->json loc-hash) (node-callees node))))))
 
 (define (edge->json loc-hash edge)
-  (hash 'total (exact->inexact (edge-total edge))
-        'caller (hash-ref loc-hash (node-loc (edge-caller edge)))
-        'caller_time (exact->inexact (edge-caller-time edge))
-        'callee (hash-ref loc-hash (node-loc (edge-callee edge)))
-        'callee_time (exact->inexact (edge-callee-time edge))))
+  (hash 'total
+        (exact->inexact (edge-total edge))
+        'caller
+        (hash-ref loc-hash (node-loc (edge-caller edge)))
+        'caller_time
+        (exact->inexact (edge-caller-time edge))
+        'callee
+        (hash-ref loc-hash (node-loc (edge-callee edge)))
+        'callee_time
+        (exact->inexact (edge-callee-time edge))))
 
 (define (string->srcloc s)
   (match-define (list path-parts ... (app string->number line) (app string->number col))
-                (string-split s ":" #:trim? #f))
+    (string-split s ":" #:trim? #f))
   (define path (string->path (string-join path-parts ":")))
   (srcloc path line (and line col) #f #f))
 
@@ -103,22 +121,23 @@
             (hash-ref n 'thread_ids)
             (hash-ref n 'total)
             (hash-ref n 'self)
-            '() '())))
+            '()
+            '())))
   (for ([n (in-list (hash-ref j 'nodes))] [n* (in-vector nodes)])
     (set-node-callees! n*
-     (for/list ([e (hash-ref n 'callees)])
-       (edge (hash-ref e 'total)
-             (vector-ref nodes (hash-ref e 'caller))
-             (hash-ref e 'caller_time)
-             (vector-ref nodes (hash-ref e 'callee))
-             (hash-ref e 'callee_time))))
+                       (for/list ([e (hash-ref n 'callees)])
+                         (edge (hash-ref e 'total)
+                               (vector-ref nodes (hash-ref e 'caller))
+                               (hash-ref e 'caller_time)
+                               (vector-ref nodes (hash-ref e 'callee))
+                               (hash-ref e 'callee_time))))
     (set-node-callers! n*
-     (for/list ([e (hash-ref n 'callers)])
-       (edge (hash-ref e 'total)
-             (vector-ref nodes (hash-ref e 'caller))
-             (hash-ref e 'caller_time)
-             (vector-ref nodes (hash-ref e 'callee))
-             (hash-ref e 'callee_time)))))
+                       (for/list ([e (hash-ref n 'callers)])
+                         (edge (hash-ref e 'total)
+                               (vector-ref nodes (hash-ref e 'caller))
+                               (hash-ref e 'caller_time)
+                               (vector-ref nodes (hash-ref e 'callee))
+                               (hash-ref e 'callee_time)))))
   (profile (hash-ref j 'total_time)
            (hash-ref j 'cpu_time)
            (hash-ref j 'sample_number)
@@ -128,7 +147,6 @@
            (vector-ref nodes 0)))
 
 (module+ main
-  (require profile/render-text json)
-  (command-line
-   #:args (file)
-   (render (json->profile (call-with-input-file file read-json)) 'total)))
+  (require profile/render-text
+           json)
+  (command-line #:args (file) (render (json->profile (call-with-input-file file read-json)) 'total)))

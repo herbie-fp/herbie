@@ -1,5 +1,9 @@
 #lang racket
-(require "datafile.rkt" "web/thread-pool.rkt" "syntax/read.rkt" "common.rkt" "sandbox.rkt")
+(require "datafile.rkt"
+         "web/thread-pool.rkt"
+         "syntax/read.rkt"
+         "common.rkt"
+         "sandbox.rkt")
 (provide run-improve)
 
 (define (print-outputs tests results p #:seed [seed #f])
@@ -31,4 +35,6 @@
 
   (if (equal? output "-")
       (print-outputs tests results (current-output-port) #:seed seed)
-      (call-with-output-file output #:exists 'replace (λ (p) (print-outputs tests results p #:seed seed)))))
+      (call-with-output-file output
+                             #:exists 'replace
+                             (λ (p) (print-outputs tests results p #:seed seed)))))

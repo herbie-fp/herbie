@@ -15,17 +15,15 @@
 ;; Dependencies
 
 (define deps
-  '(("base" #:version "8.0")
-    "math-lib"
-    "profile-lib"
-    "rackunit-lib"
-    "web-server-lib"
-    ("egg-herbie" #:version "2.0")
-    ("rival" #:version "2.0")
-    ("fpbench" #:version "2.0.3")))
+  '(("base" #:version "8.0") "math-lib"
+                             "profile-lib"
+                             "rackunit-lib"
+                             "web-server-lib"
+                             ("egg-herbie" #:version "2.0")
+                             ("rival" #:version "2.0")
+                             ("fpbench" #:version "2.0.3")))
 
-(define build-deps
-  '("rackunit-lib"))
+(define build-deps '("rackunit-lib"))
 
 (define test-omit-paths
   (if (getenv "PLT_PKG_BUILD_SERVICE")
