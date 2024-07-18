@@ -1,7 +1,7 @@
 #lang racket
 
 (require "../syntax/syntax.rkt"
-         "../syntax/rules.rkt")
+         "rules.rkt")
 
 (provide pattern-match
          pattern-substitute

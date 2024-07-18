@@ -1,15 +1,15 @@
 #lang racket
 
 (require math/bigfloat racket/random)
-(require "../common.rkt" "../alternative.rkt" "../timeline.rkt" "../errors.rkt"
+(require "../utils/common.rkt" "../utils/alternative.rkt" "../utils/timeline.rkt" "../utils/errors.rkt"
          "../syntax/types.rkt" "../syntax/sugar.rkt" "../syntax/syntax.rkt"
-         "../compiler.rkt" "../programs.rkt" "../points.rkt" "regimes.rkt"
-         "../float.rkt" "../pretty-print.rkt" "../sampling.rkt")
+         "compiler.rkt" "programs.rkt" "points.rkt" "regimes.rkt"
+         "../utils/float.rkt" "../utils/pretty-print.rkt" "sampling.rkt")
 
 (provide combine-alts (struct-out sp) splitpoints->point-preds)
 
 (module+ test
-  (require rackunit "../load-plugin.rkt")
+  (require rackunit "../syntax/load-plugin.rkt")
   (load-herbie-builtins))
 
 ;; A splitpoint (sp a b pt) means we should use alt a if b < pt

@@ -1,7 +1,7 @@
 #lang racket
 
 (require syntax/id-set)
-(require "../common.rkt" "../errors.rkt" "types.rkt" "syntax.rkt")
+(require "../utils/common.rkt" "../utils/errors.rkt" "types.rkt" "syntax.rkt")
 (provide assert-program!)
 
 (define (check-expression* stx vars error! deprecated-ops)
@@ -170,7 +170,7 @@
 
 ;; testing FPCore format
 (module+ test
-  (require rackunit "../load-plugin.rkt")
+  (require rackunit "load-plugin.rkt")
   (load-herbie-builtins)
 
   (define (get-errs stx)

@@ -1,6 +1,6 @@
 #lang racket
 
-(require "../errors.rkt" "types.rkt" "syntax.rkt")
+(require "../utils/errors.rkt" "types.rkt" "syntax.rkt")
 (provide fpcore->prog prog->fpcore prog->spec spec->prog)
 
 ;; Herbie uses various IRs.

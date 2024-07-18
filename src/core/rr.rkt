@@ -1,9 +1,9 @@
 #lang racket
 
-(require "../common.rkt"
-         "../programs.rkt"
-         "../timeline.rkt"
-         "../syntax/rules.rkt"
+(require "../utils/common.rkt"
+         "programs.rkt"
+         "../utils/timeline.rkt"
+         "rules.rkt"
          "egg-herbie.rkt"
          "matcher.rkt")
 
@@ -64,7 +64,7 @@
 
 (module+ test
   (require rackunit)
-  (require "../syntax/types.rkt" "../load-plugin.rkt")
+  (require "../syntax/types.rkt" "../syntax/load-plugin.rkt")
   (load-herbie-builtins)
   (*context* (make-debug-context '(x)))
 

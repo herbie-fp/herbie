@@ -1,7 +1,7 @@
 #lang racket
 
 (require (only-in xml write-xexpr) json)
-(require racket/date "../src/common.rkt" "../src/datafile.rkt")
+(require racket/date "../src/utils/common.rkt" "../src/api/datafile.rkt")
 (provide directory-jsons)
 
 (define (directory-jsons dir)

@@ -1,7 +1,7 @@
 #lang racket
 
 (require math/bigfloat rival)
-(require "../errors.rkt" "types.rkt")
+(require "../utils/errors.rkt" "types.rkt")
 
 (provide (rename-out [operator-or-impl? operator?])
          (struct-out literal)

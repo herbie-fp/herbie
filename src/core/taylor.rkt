@@ -1,7 +1,7 @@
 #lang racket
 
 (require math/number-theory)
-(require "../common.rkt" "../programs.rkt" "reduce.rkt" "../syntax/syntax.rkt")
+(require "../utils/common.rkt" "programs.rkt" "reduce.rkt" "../syntax/syntax.rkt")
 (provide approximate)
 
 (define (approximate expr var #:transform [tform (cons identity identity)] #:iters [iters 5])
@@ -507,7 +507,7 @@
                 (series n)))))
 
 (module+ test
-  (require rackunit "../syntax/types.rkt" "../load-plugin.rkt")
+  (require rackunit "../syntax/types.rkt" "../syntax/load-plugin.rkt")
   (check-pred exact-integer? (car (taylor 'x '(pow x 1.0)))))
 
 (module+ test

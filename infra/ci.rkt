@@ -1,8 +1,8 @@
 #lang racket
 
-(require "../src/common.rkt" "../src/points.rkt" "../src/load-plugin.rkt"
-         "../src/alternative.rkt" "../src/sandbox.rkt" "../src/syntax/read.rkt"
-         "../src/syntax/types.rkt" "../src/platform.rkt")
+(require "../src/utils/common.rkt" "../src/core/points.rkt" "../src/syntax/load-plugin.rkt"
+         "../src/utils/alternative.rkt" "../src/api/sandbox.rkt" "../src/syntax/read.rkt"
+         "../src/syntax/types.rkt" "../src/syntax/platform.rkt")
 
 (define *precision* (make-parameter #f))
 

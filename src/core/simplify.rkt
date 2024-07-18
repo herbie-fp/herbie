@@ -1,12 +1,12 @@
 #lang racket
 
-(require "../common.rkt" "../programs.rkt" "../timeline.rkt" "../errors.rkt"
-         "../syntax/rules.rkt" "../alternative.rkt" "egg-herbie.rkt")
+(require "../utils/common.rkt" "programs.rkt" "../utils/timeline.rkt" "../utils/errors.rkt"
+         "rules.rkt" "../utils/alternative.rkt" "egg-herbie.rkt")
 
 (provide simplify-batch)
 
 (module+ test
-  (require rackunit "../load-plugin.rkt")
+  (require rackunit "../syntax/load-plugin.rkt")
   (load-herbie-plugins))
 
 ;; for each expression, returns a list of simplified versions corresponding to egraph iterations
@@ -26,7 +26,7 @@
   out)
 
 (module+ test
-  (require "../syntax/types.rkt" "../syntax/rules.rkt")
+  (require "../syntax/types.rkt" "rules.rkt")
 
   ;; set parameters
   (define vars '(x a b c))

@@ -1,9 +1,9 @@
 #lang racket
 
-(require "../common.rkt" "../errors.rkt" "../programs.rkt"
-         "types.rkt" "syntax.rkt" "../platform.rkt"
+(require "../utils/common.rkt" "../utils/errors.rkt" "../core/programs.rkt"
+         "types.rkt" "syntax.rkt" "platform.rkt"
          "syntax-check.rkt" "type-check.rkt" "sugar.rkt"
-         "../load-plugin.rkt")
+         "load-plugin.rkt")
 
 (provide (struct-out test)
          test-context test-output-repr
@@ -251,7 +251,7 @@
   out)
 
 (module+ test
-  (require rackunit "../load-plugin.rkt")
+  (require rackunit "load-plugin.rkt")
   (load-herbie-builtins)
 
   (define precision 'binary64)

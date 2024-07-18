@@ -1,8 +1,8 @@
 #lang racket
 
 (require "../syntax/sugar.rkt" "../syntax/syntax.rkt" "../syntax/types.rkt"
-         "../syntax/rules.rkt" "../accelerator.rkt" "../common.rkt" "../float.rkt"
-         "../platform.rkt" "../points.rkt" "../programs.rkt" "../sampling.rkt"
+         "rules.rkt" "../syntax/accelerator.rkt" "../utils/common.rkt" "../utils/float.rkt"
+         "../syntax/platform.rkt" "points.rkt" "programs.rkt" "sampling.rkt"
          "simplify.rkt" "egg-herbie.rkt")
 
 (provide batch-localize-costs

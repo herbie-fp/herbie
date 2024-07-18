@@ -1,13 +1,13 @@
 #lang racket
 
-(require "../common.rkt" "../alternative.rkt" "../programs.rkt" "../timeline.rkt"
-         "../syntax/types.rkt" "../errors.rkt" "../points.rkt" "../float.rkt"
-         "../compiler.rkt")
+(require "../utils/common.rkt" "../utils/alternative.rkt" "programs.rkt" "../utils/timeline.rkt"
+         "../syntax/types.rkt" "../utils/errors.rkt" "points.rkt" "../utils/float.rkt"
+         "compiler.rkt")
 (require math/flonum)
 (provide pareto-regimes (struct-out option) (struct-out si))
 
 (module+ test
-  (require rackunit "../load-plugin.rkt" "../syntax/syntax.rkt" "../syntax/sugar.rkt")
+  (require rackunit "../syntax/load-plugin.rkt" "../syntax/syntax.rkt" "../syntax/sugar.rkt")
   (load-herbie-builtins))
 
 (struct option (split-indices alts pts expr errors) #:transparent

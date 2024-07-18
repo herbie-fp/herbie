@@ -1,6 +1,6 @@
 #lang racket
 
-(require "../src/datafile.rkt")
+(require "../src/api/datafile.rkt")
 
 (define (field-equal? access t1 t2)
   (equal? (access t1) (access t2)))

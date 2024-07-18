@@ -1,6 +1,6 @@
 #lang racket
 
-(require "../common.rkt" "../errors.rkt" "types.rkt" "syntax.rkt")
+(require "../utils/common.rkt" "../utils/errors.rkt" "types.rkt" "syntax.rkt")
 (provide assert-program-typed!)
 
 (define (assert-program-typed! stx)
@@ -191,7 +191,7 @@
 
 (module+ test
   (require rackunit)
-  (require "../load-plugin.rkt")
+  (require "load-plugin.rkt")
   (load-herbie-builtins)
 
   (define (fail stx msg . args)

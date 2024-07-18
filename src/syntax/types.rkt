@@ -1,6 +1,6 @@
 #lang racket
 
-(require "../errors.rkt")
+(require "../utils/errors.rkt")
 
 (provide type-name? (struct-out representation) get-representation
          (struct-out context) *context* context-extend context-lookup)

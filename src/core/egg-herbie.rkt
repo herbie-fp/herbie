@@ -6,17 +6,17 @@
           _byte _pointer _string/utf-8
           register-finalizer))
 
-(require "../syntax/rules.rkt"
+(require "rules.rkt"
          "../syntax/sugar.rkt"
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
-         "../common.rkt"
+         "../utils/common.rkt"
          "../config.rkt"
-         "../accelerator.rkt"
-         "../errors.rkt"
-         "../platform.rkt"
-         "../programs.rkt"
-         "../timeline.rkt" )
+         "../syntax/accelerator.rkt"
+         "../utils/errors.rkt"
+         "../syntax/platform.rkt"
+         "programs.rkt"
+         "../utils/timeline.rkt" )
 
 (provide (struct-out egg-runner)
          untyped-egg-extractor
@@ -35,7 +35,7 @@
 
 (module+ test
   (require rackunit)
-  (require "../load-plugin.rkt")
+  (require "../syntax/load-plugin.rkt")
   (load-herbie-builtins))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
