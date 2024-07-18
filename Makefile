@@ -52,6 +52,10 @@ start-server:
 		--demo --public --prefix /demo/ --port 4053 --save-session www/demo/ \
 		--log infra/server.log --quiet 2>&1
 
+hooks:
+	echo "#!/bin/sh" >.git/hooks/pre-commit
+	echo "raco fmt -i \$$(find . -name '*.rkt')" >>.git/hooks/pre-commit
+
 # This rule is run by herbie.uwplse.org on every commit to Github.
 # It does not restart the demo server, but it does pull new static content
 deploy:
