@@ -25,8 +25,12 @@ jobs:
       - name: "Install dependencies"
         run: make install
 
+      - name: "Test raco fmt compliance"
+        run: raco fmt -i **/*.rkt && git diff --exit-code
+
       # Run the Herbie unit tests
-      - run: raco test src/ infra/ egg-herbie/
+      - name: "Run Herbie unit tests"
+        run: raco test src/ infra/ egg-herbie/
 
       # Test the egg-herbie Rust code
       - run: cd egg-herbie && cargo clippy --tests
