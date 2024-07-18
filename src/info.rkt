@@ -10,7 +10,7 @@
 ;; The `herbie` command-line tool
 
 (define racket-launcher-names '("herbie"))
-(define racket-launcher-libraries '("herbie.rkt"))
+(define racket-launcher-libraries '("main.rkt"))
 
 ;; Dependencies
 
