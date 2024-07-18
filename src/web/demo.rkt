@@ -339,13 +339,15 @@
      (response 404 #"Job Not Found" (current-seconds) #"text/plain"
                (list 
                 (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count))))
-                (header #"X-Herbie-Job-ID" (string->bytes/utf-8 job-id)))
+                (header #"X-Herbie-Job-ID" (string->bytes/utf-8 job-id))
+                (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
                (λ (out) `()))]
     [job-result
      (response 201 #"Job complete" (current-seconds) #"text/plain"
                     (list 
                      (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count))))
-                     (header #"X-Herbie-Job-ID" (string->bytes/utf-8 job-id)))
+                     (header #"X-Herbie-Job-ID" (string->bytes/utf-8 job-id))
+                     (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
                     (λ (out) (write-json (job-result-timeline job-result) out)))]))
 
 ; /api/sample endpoint: test in console on demo page:
