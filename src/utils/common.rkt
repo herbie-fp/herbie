@@ -263,7 +263,7 @@
       [(and (> r 0) sign) (format "+~a" val)]
       [else (format "~a" val)])]))
 
-(define-runtime-path web-resource-path "web/resources/")
+(define-runtime-path web-resource-path "reports/resources/")
 
 (define (web-resource [name #f])
   (if name
