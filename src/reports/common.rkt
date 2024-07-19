@@ -51,7 +51,7 @@
          core->js)
 
 (define (program->fpcore expr ctx #:ident [ident #f])
-  (define body (prog->fpcore expr (context-repr ctx)))
+  (define body (prog->fpcore expr))
   (if ident (list 'FPCore ident (context-vars ctx) body) (list 'FPCore (context-vars ctx) body)))
 
 (define (fpcore-add-props core props)
@@ -271,7 +271,7 @@
                `(div ([id "precondition"])
                      (div ((class "program math"))
                           "\\["
-                          ,(expr->tex (prog->fpcore precondition output-repr))
+                          ,(expr->tex (prog->fpcore precondition))
                           "\\]")))
           (div ((class "implementation") [data-language "Math"])
                (div ((class "program math")) "\\[" ,math-out "\\]"))
@@ -302,7 +302,7 @@
                              (format "  :precision ~s" (representation-name (test-output-repr test)))
                              (if (equal? (test-pre test) '(TRUE))
                                  #f
-                                 (format "  :pre ~a" (prog->fpcore (test-pre test) output-repr)))
+                                 (format "  :pre ~a" (prog->fpcore (test-pre test))))
                              (if (equal? (test-expected test) #t)
                                  #f
                                  (format "  :herbie-expected ~a" (test-expected test)))
@@ -313,7 +313,7 @@
                                                               (format "  :alt\n  ~a\n" (car exp)))
                                                             (test-output test))
                                                        "\n")))
-                             (format "  ~a)" (prog->fpcore (test-input test) output-repr))))
+                             (format "  ~a)" (prog->fpcore (test-input test)))))
                "\n"))
 
 (define (format-percent num den)

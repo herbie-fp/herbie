@@ -1,8 +1,8 @@
 #lang racket
 
-(require "../utils/errors.rkt"
-         "types.rkt"
+(require "types.rkt"
          "syntax.rkt")
+
 (provide fpcore->prog
          prog->fpcore
          prog->spec)

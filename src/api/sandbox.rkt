@@ -6,7 +6,6 @@
 
 (require "../syntax/read.rkt"
          "../syntax/sugar.rkt"
-         "../syntax/syntax.rkt"
          "../syntax/types.rkt"
          "../core/localize.rkt"
          "../utils/alternative.rkt"
@@ -293,15 +292,15 @@
   (table-row (test-name test)
              (test-identifier test)
              status
-             (prog->fpcore (test-pre test) repr)
+             (prog->fpcore (test-pre test))
              preprocess
              (representation-name repr)
              '() ; TODO: eliminate field
              (test-vars test)
              (map car (job-result-warnings result))
-             (prog->fpcore (test-input test) repr)
+             (prog->fpcore (test-input test))
              #f
-             (prog->fpcore (test-spec test) repr)
+             (prog->fpcore (test-spec test))
              (test-output test)
              #f
              #f
@@ -422,4 +421,4 @@
            ,@(append (for/list ([(target enabled?) (in-dict (table-row-target-prog row))]
                                 #:when enabled?)
                        `(:alt ,target)))
-           ,(prog->fpcore expr* repr)))
+           ,(prog->fpcore expr*)))
