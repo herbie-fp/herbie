@@ -26,12 +26,12 @@
 
 (define-coercion-match-expander hash-arg/m
   (λ (x)
-    (cond
-      [(*demo-output*)
-       (not (directory-exists? (build-path (*demo-output*) x)))]
-      [else
-       (let ([m (regexp-match #rx"^([0-9a-f]+)\\.[0-9a-f.]+" x)])
-         (and m (completed-job? (second m))))]))
+    (and
+     (not
+      (and (*demo-output*) ; If we've already saved to disk, skip this job
+           (directory-exists? (build-path (*demo-output*) x))))
+     (let ([m (regexp-match #rx"^([0-9a-f]+)\\.[0-9a-f.]+" x)])
+       (and m (completed-job? (second m))))))
   (λ (x)
     (let ([m (regexp-match #rx"^([0-9a-f]+)\\.[0-9a-f.]+" x)])
       (get-results-for (if m (second m) x)))))
