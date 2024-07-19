@@ -9,6 +9,7 @@
          expr<?
          all-subexpressions
          ops-in-expr
+         spec-prog?
          impl-prog?
          repr-of
          location-do
@@ -57,21 +58,24 @@
 (define (ops-in-expr expr)
   (remove-duplicates (filter-map (lambda (e) (and (pair? e) (first e))) (all-subexpressions expr))))
 
-;; Returns `#t` if program is a program of operator implementations.
+;; Is the expression in LSpec (real expressions)?
+(define (spec-prog? expr)
+  (match expr
+    [(? symbol?) #t]
+    [(? number?) #t]
+    [(list 'if cond ift iff)
+     (and (spec-prog? cond) (spec-prog? ift) (spec-prog? iff))]
+    [(list (? operator-exists?) args ...) (andmap spec-prog? args)]))
+
+;; Is the expression in LImpl (floating-point implementations)?
 (define (impl-prog? expr)
-  (let/ec return
-          (let loop ([expr expr])
-            (match expr
-              [(? literal?) (void)]
-              [(? number?) (return #f)]
-              [(? symbol?) (void)]
-              [(list 'if cond ift iff)
-               (loop cond)
-               (loop ift)
-               (loop iff)]
-              [(list (? impl-exists?) args ...) (for-each loop args)]
-              [(list _ ...) (return #f)]))
-          #t))
+  (match expr
+    [(? symbol?) #t]
+    [(? literal?) #t]
+    [(approx spec impl) (and (spec-prog? spec) (impl-prog? impl))]
+    [(list 'if cond ift iff)
+     (and (impl-prog? cond) (impl-prog? ift) (impl-prog? iff))]
+    [(list (? impl-exists?) args ...) (andmap impl-prog? args)]))
 
 ;; Total order on expressions
 
