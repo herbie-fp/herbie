@@ -1,7 +1,7 @@
 #lang racket
 
 (require json)
-(require "../src/programs.rkt")
+(require "../src/core/programs.rkt")
 
 (define op-map (make-hash `((expt . pow) (sqr . exp2) (abs . fabs))))
 

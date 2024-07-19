@@ -9,11 +9,11 @@
 
 (require rival)
 
-(require "../syntax/types.rkt"
-         "../config.rkt"
-         "../errors.rkt"
-         "../float.rkt"
-         "../timeline.rkt")
+(require "../config.rkt"
+         "../syntax/types.rkt"
+         "../utils/errors.rkt"
+         "../utils/float.rkt"
+         "../utils/timeline.rkt")
 
 (provide (struct-out real-evaluator)
          make-real-evaluator

@@ -1,21 +1,29 @@
 #lang racket
 
-(require "../errors.rkt")
+(require "../utils/errors.rkt")
 
-(provide type-name? (struct-out representation) get-representation
-         (struct-out context) *context* context-extend context-lookup)
+(provide type-name?
+         (struct-out representation)
+         get-representation
+         (struct-out context)
+         *context*
+         context-extend
+         context-lookup)
 
 (module+ internals
-  (provide define-type define-representation
-           register-generator! register-representation! register-representation-alias!))
+  (provide define-type
+           define-representation
+           register-generator!
+           register-representation!
+           register-representation-alias!))
 
 ;; Types
 
 (define type-dict (make-hasheq))
-(define (type-name? x) (hash-has-key? type-dict x))
+(define (type-name? x)
+  (hash-has-key? type-dict x))
 
-(define-syntax-rule (define-type name _ ...)
-  (hash-set! type-dict 'name #t))
+(define-syntax-rule (define-type name _ ...) (hash-set! type-dict 'name #t))
 
 (define-type real)
 (define-type bool)
@@ -23,9 +31,7 @@
 ;; Representations
 
 (struct representation
-  (name type repr?
-   bf->repr repr->bf ordinal->repr repr->ordinal
-   total-bits special-value?)
+        (name type repr? bf->repr repr->bf ordinal->repr repr->ordinal total-bits special-value?)
   #:transparent
   #:methods gen:custom-write
   [(define (write-proc repr port mode)
@@ -37,7 +43,7 @@
 ;; Some plugins might define 'parameterized' reprs (e.g. fixed point with
 ;; m integer and n fractional bits). Since defining an infinite number of reprs
 ;; is impossible, Herbie stores a list of 'repr generators' to query if it comes
-;; across a repr that is not known at the time. 
+;; across a repr that is not known at the time.
 
 ;; Generators take one argument, a repr name, and returns true if knows what the
 ;; repr is and has generated that repr and its operators, and false otherwise
@@ -54,14 +60,13 @@
   (or (hash-has-key? representations repr-name)
       (for/or ([proc repr-generators])
         ;; Check if a user accidently created an infinite loop in their plugin!
-        (when (and (eq? proc (*current-generator*))
-                   (not (hash-has-key? representations repr-name)))
-          (raise-herbie-error 
-            (string-append
-              "Tried to generate `~a` representation while generating the same representation. "
-              "Check your plugin to make sure you register your representation(s) "
-              "before calling `get-representation`!")
-            repr-name))
+        (when (and (eq? proc (*current-generator*)) (not (hash-has-key? representations repr-name)))
+          (raise-herbie-error
+           (string-append
+            "Tried to generate `~a` representation while generating the same representation. "
+            "Check your plugin to make sure you register your representation(s) "
+            "before calling `get-representation`!")
+           repr-name))
         (parameterize ([*current-generator* proc])
           (proc repr-name)))))
 
@@ -70,7 +75,8 @@
 (define (get-representation name)
   (or (hash-ref representations name #f)
       (and (generate-repr name) (hash-ref representations name #f))
-      (raise-herbie-error "Could not find support for ~a representation: ~a" name
+      (raise-herbie-error "Could not find support for ~a representation: ~a"
+                          name
                           (string-join (map ~s (hash-keys representations)) ", "))))
 
 ;; Registers a representation that can be invoked with ':precision <name>'.
@@ -103,7 +109,8 @@
 (define *context* (make-parameter #f))
 
 (define (context-extend ctx var repr)
-  (struct-copy context ctx
+  (struct-copy context
+               ctx
                [vars (cons var (context-vars ctx))]
                [var-reprs (cons repr (context-var-reprs ctx))]))
 

@@ -1,7 +1,7 @@
 #lang racket
 
 (require json)
-(require "../src/programs.rkt")
+(require "../src/core/programs.rkt")
 
 (define (fix-expr expr pre-fpcore?)
   (let loop ([expr expr])

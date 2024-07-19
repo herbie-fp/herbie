@@ -25,8 +25,12 @@ jobs:
       - name: "Install dependencies"
         run: make install
 
+      - name: "Test raco fmt compliance"
+        run: raco fmt -i **/*.rkt && git diff --exit-code
+
       # Run the Herbie unit tests
-      - run: raco test src/ infra/ egg-herbie/
+      - name: "Run Herbie unit tests"
+        run: raco test src/ infra/ egg-herbie/
 
       # Test the egg-herbie Rust code
       - run: cd egg-herbie && cargo clippy --tests
@@ -37,7 +41,7 @@ jobs:
 
       # Test the API
       - name: "Start server"
-        run: racket src/herbie.rkt web --port 8000 &
+        run: racket -l herbie web --port 8000 &
       - name: "Wait for server startup"
         run: while ! nc -z localhost 8000; do sleep 0.1; done
       - uses: actions/setup-node@v4

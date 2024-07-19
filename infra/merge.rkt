@@ -1,12 +1,12 @@
 #lang racket
 (require json)
-(require "../src/common.rkt"
-         "../src/timeline.rkt"
-         "../src/profile.rkt"
-         "../src/datafile.rkt"
-         "../src/web/timeline.rkt"
-         "../src/web/make-report.rkt"
-         "../src/load-plugin.rkt")
+(require "../src/utils/common.rkt"
+         "../src/utils/timeline.rkt"
+         "../src/utils/profile.rkt"
+         "../src/api/datafile.rkt"
+         "../src/reports/timeline.rkt"
+         "../src/reports/make-report.rkt"
+         "../src/syntax/load-plugin.rkt")
 
 (define (merge-timelines outdir . dirs)
   (define tls

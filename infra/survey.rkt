@@ -1,7 +1,7 @@
 #lang racket
 (require json
          xml)
-(require "../src/datafile.rkt")
+(require "../src/api/datafile.rkt")
 
 (define metrics
   (list `(start . ,table-row-start) `(end . ,table-row-result) `(time . ,table-row-time)))
