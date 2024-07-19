@@ -133,7 +133,7 @@
       [(list key) (error 'props->dict "unmatched key" key)]
       [(list) dict])))
 
-;; Translates an FPCore to an ImplProg.
+;; Translates from FPCore to an LImpl
 (define (fpcore->prog prog ctx)
   (define-values (expr* _)
     (let loop ([expr (expand-expr prog)] [ctx ctx])
@@ -150,20 +150,17 @@
          (define-values (iff* iff-repr) (loop iff ctx))
          (values `(if ,cond* ,ift* ,iff*) ift-repr)]
         [`(! ,props ... ,body)
-         (define ctx*
-           (match (dict-ref (props->dict props) ':props #f)
-             [#f ctx]
-             [prec (struct-copy context ctx [repr (get-representation prec)])]))
-         (loop body ctx*)]
+         (define props* (props->dict props))
+         (loop body
+               (match (dict-ref props* ':precision #f)
+                 [#f ctx]
+                 [prec (struct-copy context ctx [repr (get-representation prec)])]))]
         [`(cast ,body)
          (define repr (context-repr ctx))
          (define-values (body* repr*) (loop body ctx))
-         (cond
-           ; cast is redundant
-           [(equal? repr repr*) (values body* repr)]
-           [else
-            (define cast (get-cast-impl repr* repr))
-            (values (list cast body*) repr)])]
+         (if (equal? repr* repr) ; check if cast is redundant
+             (values body* repr)
+             (values (list (get-cast-impl repr* repr) body*) repr))]
         [`(,(? constant-operator? x))
          (define cnst (get-parametric-constant x (context-repr ctx)))
          (values (list cnst) (impl-info cnst 'otype))]
@@ -176,19 +173,7 @@
          ;; Match guaranteed to succeed because we ran type-check first
          (define op* (apply get-parametric-operator op atypes))
          (values (cons op* args*) (impl-info op* 'otype))]
-        [(? variable?)
-         (define vrepr (context-lookup ctx expr))
-         (define repr (context-repr ctx))
-         (cond
-           [(equal? (representation-type vrepr) 'bool) (values expr vrepr)]
-           [(equal? vrepr repr) (values expr repr)]
-           [else
-            (define cast (get-cast-impl vrepr repr))
-            (unless cast
-              (raise-herbie-missing-error "conversion does not exist: ~a -> ~a"
-                                          (representation-name vrepr)
-                                          (representation-name repr)))
-            (values (list cast expr) repr)])]
+        [(? variable?) (values expr (context-lookup ctx expr))]
         [(? number?)
          (define prec (representation-name (context-repr ctx)))
          (define num
@@ -196,45 +181,37 @@
              [(or +inf.0 -inf.0 +nan.0) expr]
              [(? exact?) expr]
              [_ (inexact->exact expr)]))
-         (values (literal num prec) (context-repr ctx))]
-        [(? boolean?) (values expr (get-representation 'bool))])))
+         (values (literal num prec) (context-repr ctx))])))
   expr*)
 
-;; Translates an ImplProg to an FPCore.
-(define (prog->fpcore prog repr)
-  (let loop ([expr prog])
-    (match expr
-      [`(if ,cond ,ift ,iff) `(if ,(loop cond) ,(loop ift) ,(loop iff))]
-      [`(,(? cast-impl? impl) ,body)
-       (match-define (list irepr) (impl-info impl 'itype))
-       (define body* (prog->fpcore body irepr))
-       (cond
-         [(list? body*) `(cast (! :precision ,(representation-name irepr) ,body*))]
-         [else body*])] ; constants and variables should not have casts
-      [`(,impl) (impl->operator impl)]
-      [`(,impl ,args ...)
-       (define op (impl->operator impl))
-       (define args* (map prog->fpcore args (impl-info impl 'itype)))
-       (match (cons op args*)
-         [`(neg ,arg) `(- ,arg)]
-         [expr expr])]
-      [(? variable?) expr]
-      [(? literal?)
-       (match (literal-value expr)
-         [-inf.0 '(- INFINITY)]
-         [+inf.0 'INFINITY]
-         [+nan.0 'NAN]
-         [v
-          (if (set-member? '(binary64 binary32) (literal-precision expr)) (exact->inexact v) v)])])))
-
-;; Translates an ImplProg to a Spec.
-(define (prog->spec expr)
+;; Translates from LImpl to an FPCore.
+(define (prog->fpcore expr)
   (match expr
-    [`(if ,cond ,ift ,iff) `(if ,(prog->spec cond) ,(prog->spec ift) ,(prog->spec iff))]
-    [`(,(? cast-impl? impl) ,body) `(,impl ,(prog->spec body))]
+    [`(if ,cond ,ift ,iff) `(if ,(prog->fpcore cond) ,(prog->fpcore ift) ,(prog->fpcore iff))]
+    [`(,(? cast-impl? impl) ,body)
+     (define prec (representation-name (impl-info impl 'otype)))
+     `(! :precision ,prec (cast ,(prog->fpcore body)))]
+    [`(,impl) (impl->operator impl)]
     [`(,impl ,args ...)
      (define op (impl->operator impl))
-     (define args* (map prog->spec args))
-     `(,op ,@args*)]
+     (define args* (map prog->fpcore args))
+     (match (cons op args*)
+       [`(neg ,arg) `(- ,arg)]
+       [expr expr])]
     [(? variable?) expr]
-    [(? literal?) (literal-value expr)]))
+    [(? literal?)
+     (match (literal-value expr)
+       [-inf.0 '(- INFINITY)]
+       [+inf.0 'INFINITY]
+       [+nan.0 'NAN]
+       [v (if (set-member? '(binary64 binary32) (literal-precision expr)) (exact->inexact v) v)])]))
+
+;; Translates an LImpl to a LSpec.
+(define (prog->spec expr)
+  (expand-accelerators
+   (match expr
+     [`(if ,cond ,ift ,iff) `(if ,(prog->spec cond) ,(prog->spec ift) ,(prog->spec iff))]
+     [`(,(? cast-impl? impl) ,body) `(,impl ,(prog->spec body))]
+     [`(,impl ,args ...) `(,(impl->operator impl) ,@(map prog->spec args))]
+     [(? variable?) expr]
+     [(? literal?) (literal-value expr)])))
