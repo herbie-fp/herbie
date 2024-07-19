@@ -17,7 +17,7 @@
 ;; - operators denote real computations while rounding contexts decide format
 ;;
 ;;  <FPCore> ::= (FPCore (<var> ...) <props> ... <expr>)
-;;             | (FPCore <name> (<var> ...) <props> ... <expr>)
+;;             | (FPCore <id> (<var> ...) <props> ... <expr>)
 ;;
 ;;  <expr>   ::= (let ([<id> <expr>] ...) <expr>)
 ;;             | (let* ([<id> <expr>] ...) <expr>)
@@ -42,7 +42,7 @@
 ;; <expr> ::= (if <expr> <expr> <expr>)
 ;;        ::= (<impl> <expr> ...)
 ;;        ::= (literal <number> <repr>)
-;;        ::= <var>
+;;        ::= <id>
 ;;
 ;; Every operator has a type signature where types are representations.
 ;; In practice, most operator implemenetations have uniform representations but
@@ -61,7 +61,7 @@
 ;; <expr> ::= (if <expr> <expr> <expr>)
 ;;        ::= (<op> <expr> ...)
 ;;        ::= <number>
-;;        ::= <var>
+;;        ::= <id>
 ;;
 
 ;; Expression pre-processing for normalizing expressions.
