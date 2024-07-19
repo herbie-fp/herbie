@@ -737,7 +737,7 @@
 ;; a precomputed assignment of operator implementations.
 ;; Fails if the result is not well-typed.
 (define (try-lower expr repr op->impl)
-  (let/ec return
+  (let/ec k
     (define env '())
     (define expr*
       (let loop ([expr expr] [repr repr])
@@ -745,7 +745,7 @@
           [(? symbol? x) ; variable
            (match (dict-ref env x #f)
              [#f (set! env (cons (cons x repr) env))]
-             [(? (curry equal? repr)) (return #f env)]
+             [(? (curry equal? repr)) (k #f env)]
              [_ (void)])
            x]
           [(? number? n) ; number
@@ -757,12 +757,20 @@
                  (loop iff repr))]
           [(list op args ...) ; application
            (define impl (dict-ref op->impl op))
-           (unless (equal? (impl-info impl 'otype) repr)
-             (return #f env))
+           (unless (equal? (impl-info impl 'otype) repr) (k #f env))
            (cons impl (map loop args (impl-info impl 'itype)))])))
     (define ctx (context (map car env) repr (map cdr env)))
-    (unless (equal? (repr-of expr* ctx) repr) (return #f env))
-    (values expr* (sort env symbol<? #:key car))))
+    (values (and (equal? (repr-of expr* ctx) repr) expr*) env)))
+
+;; Merges two variable -> value mappings.
+;; If any mapping disagrees, the result is `#f`.
+(define (merge-envs env1 env2)
+  (let/ec k
+    (for/fold ([env env1]) ([(x ty) (in-dict env2)])
+      (match (dict-ref env x #f)
+        [#f (cons (cons x ty) env)]
+        [(? (curry equal? ty)) env]
+        [_ (k #f)]))))
 
 ;; Synthesizes impl-to-impl rules for a given platform.
 ;; If a rule is over implementations, filters by supported implementations.
@@ -786,7 +794,9 @@
                 #:when (equal? (representation-type repr) otype))
            (define-values (input* ienv) (try-lower input repr isubst))
            (define-values (output* oenv) (try-lower output repr isubst))
-           (when (and input* output* (equal? ienv oenv))
-             (define name* (sym-append name '_ (repr->symbol repr)))
-             (sow (rule name* input* output* ienv repr))))]))))
+           (when (and input* output*)
+             (define itypes* (merge-envs ienv oenv))
+             (when itypes*
+               (define name* (sym-append name '_ (repr->symbol repr)))
+               (sow (rule name* input* output* itypes* repr)))))]))))
          
