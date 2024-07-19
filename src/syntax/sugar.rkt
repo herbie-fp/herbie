@@ -7,64 +7,61 @@
          prog->fpcore
          prog->spec)
 
-;; Herbie uses various IRs.
-;; All IRs are S-expressions with symbolic operators, variables and numbers.
+;; Herbie uses three expression languages.
+;; All formats are S-expressions with variables, numbers, and applications.
 ;;
-;; ## FPCore (with a couple modifications) ##
+;; FPCore: the input/output language
 ;;
-;; - input language, loopless, with bindings, lightly annotated
-;; - operators denote real computations
-;; - rounding context (in addition to variable context) decides format at node
+;; - standardized interchange format with other tools
+;; - using loopless, tensorless subset
+;; - operators denote real computations while rounding contexts decide format
 ;;
 ;;  <FPCore> ::= (FPCore (<var> ...) <props> ... <expr>)
-;;           ::= (FPCore <name> (<var> ...) <props> ... <expr>)
-;;  <expr>   ::= (let ([<var> <expr>] ...) <expr>)
-;;           ::= (let* ([<var> <expr>] ...) <expr>)
-;;           ::= (if <expr> <expr> <expr>
-;;           ::= (! <props> ... <expr>)
-;;           ::= (<op> <expr> ...)
-;;           ::= <var>
-;;           ::= <number>
+;;             | (FPCore <name> (<var> ...) <props> ... <expr>)
 ;;
-;; To propagate types through an FPCore, the types of the rounding context and
-;; variables must be known. Variable types propagate up and rounding contexts
-;; propagate down (modified only by !)
+;;  <expr>   ::= (let ([<id> <expr>] ...) <expr>)
+;;             | (let* ([<id> <expr>] ...) <expr>)
+;;             | (if <expr> <expr> <expr>
+;;             | (cast <expr>)
+;;             | (! <props> ... <expr>)
+;;             | (<op> <expr> ...)
+;;             | <number>
+;;             | <id>
 ;;
-;; ## ImplProg ##
+;;  <var>    ::= <id>
+;;             | (! <props> ... <expr>)
 ;;
-;; - internal language, floating-point programs
-;; - rounding context from FPCore embedded in operators (called implementations)
+;; LImpl: the language of floating-point expressions
+;;
+;; - internal language, describes floating-point expressions
+;; - unary minus represented by `neg`
+;; - every operator is rounded
 ;; - let expressions are inlined
+;; - numbers are rounded to a particular format
 ;;
 ;; <expr> ::= (if <expr> <expr> <expr>)
 ;;        ::= (<impl> <expr> ...)
+;;        ::= (literal <number> <repr>)
 ;;        ::= <var>
-;;        ::= (literal <number> <repr-name>)
 ;;
-;; Every (operator) implementation has a type signature taking inputs each
-;; with a given number format producing an output of a possibly different
-;; number format. In practice, most operator implemenetations have uniform
-;; precision with only casts being multi-precision.
+;; Every operator has a type signature where types are representations.
+;; In practice, most operator implemenetations have uniform representations but
+;; operations like casts are multi-format.
 ;;
-;; ## Spec ##
+;; LSpec: the language of mathematical formula
 ;;
-;; - internal language, (almost) real-number programs
+;; - internal language, describes real-number formula
+;; - unary minus represented by `neg`
+;; - every operator is a real-number operation
+;; - every operator is atomic (cannot be decomposed into simpler operations)
 ;; - let expressions are inlined
-;; - almost like FPCore exception
-;;   (i) unary negation is `neg`
-;;   (ii) casts are left as-is
+;; - casts are mapped to the identity operation
+;; - numbers are formatless
 ;;
 ;; <expr> ::= (if <expr> <expr> <expr>)
 ;;        ::= (<op> <expr> ...)
-;;        ::= <var>
 ;;        ::= <number>
-;;
-;; Every operator takes real numbers and produces a real number output.
-;; Ideally, a specification would be an FPCore with its rounding
-;; annotations completely stripped, but this conversion would be irreversible
-;; for multi-precision expressions due to the removal of casts.
-;; These issues exist for historical reasons and should be removed from Herbie.
-;; Unfortunately, removing it will require refactoring core algorithms.
+;;        ::= <var>
 ;;
 
 ;; Expression pre-processing for normalizing expressions.
