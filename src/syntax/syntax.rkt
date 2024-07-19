@@ -28,11 +28,9 @@
          register-function!
          get-parametric-operator
          get-parametric-constant
-         generate-conversion-impl
-         repr-conv?
-         rewrite-repr-op?
-         get-repr-conv
-         get-rewrite-operator)
+         get-cast-impl
+         generate-cast-impl
+         cast-impl?)
 
 (module+ internals
   (provide define-operator-impl
@@ -331,8 +329,6 @@
 
 ;; Conversions
 
-(define-operator (convert real) real [ival identity])
-
 (define-operator (cast real) real [ival identity])
 
 ;; Accelerators
@@ -539,21 +535,13 @@
 
 ;; Casts and precision changes
 
-(define (repr-conv? expr)
-  (and (symbol? expr) (set-member? (operator-all-impls 'cast) expr)))
+(define (cast-impl? x)
+  (and (symbol? x) (set-member? (operator-all-impls 'cast) x)))
 
-(define (rewrite-repr-op? expr)
-  (and (symbol? expr) (set-member? (operator-all-impls 'convert) expr)))
-
-(define (get-repr-conv irepr orepr #:all? [all? #f])
+(define (get-cast-impl irepr orepr #:all? [all? #f])
   (define get-impls (if all? operator-all-impls operator-active-impls))
   (for/or ([name (get-impls 'cast)])
     (and (equal? (impl-info name 'otype) orepr) (equal? (first (impl-info name 'itype)) irepr) name)))
-
-(define (get-rewrite-operator repr #:all? [all? #f])
-  (define get-impls (if all? operator-all-impls operator-active-impls))
-  (for/or ([name (get-impls 'convert)])
-    (and (equal? (impl-info name 'itype) (list repr)) name)))
 
 ; Similar to representation generators, conversion generators
 ; allow Herbie to query plugins for optimized implementations
@@ -566,14 +554,12 @@
   (unless (set-member? conversion-generators proc)
     (set! conversion-generators (cons proc conversion-generators))))
 
-(define (generate-conversion-impl irepr orepr)
-  (define maybe-impl (get-repr-conv irepr orepr))
-  (cond
-    [maybe-impl maybe-impl]
-    [else
-     (for/first ([gen conversion-generators])
-       (gen (representation-name irepr) (representation-name orepr)))
-     (get-repr-conv irepr orepr)]))
+(define (generate-cast-impl irepr orepr)
+  (match (get-cast-impl irepr orepr)
+    [#f
+     (for/first ([gen (in-list conversion-generators)])
+       (gen (representation-name irepr) (representation-name orepr)))]
+    [impl impl]))
 
 ;; Expression predicates ;;
 

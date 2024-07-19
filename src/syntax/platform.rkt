@@ -4,10 +4,8 @@
 
 (require "../utils/common.rkt"
          "../utils/errors.rkt"
-         "../core/rules.rkt"
          "syntax.rkt"
-         "types.rkt"
-         (submod "syntax.rkt" internals))
+         "types.rkt")
 
 (provide platform
          get-platform
@@ -23,8 +21,7 @@
                        [platform-name (-> platform? any/c)]
                        [platform-reprs (-> platform? (listof representation?))]
                        [platform-impls (-> platform? (listof symbol?))]
-                       [platform-conversions (-> platform? (listof symbol?))]
-                       [platform-reprchange-rules (-> platform? (listof rule?))]
+                       [platform-casts (-> platform? (listof symbol?))]
                        [platform-union (-> platform? platform? ... platform?)]
                        [platform-intersect (-> platform? platform? ... platform?)]
                        [platform-subtract (-> platform? platform? ... platform?)]
@@ -95,29 +92,6 @@
     (error 'register-platform! "platform already registered ~a" name))
   (hash-set! platforms name (struct-copy $platform pform [name name])))
 
-;; Representation name sanitizer
-(define (repr->symbol repr)
-  (define replace-table `((" " . "_") ("(" . "") (")" . "")))
-  (define repr-name (representation-name repr))
-  (string->symbol (string-replace* (~a repr-name) replace-table)))
-
-;; Loading conversion-related implementations for `repr1 => repr2`.
-(define (get-conversion-impls irepr orepr)
-  (define impl (or (get-repr-conv irepr orepr #:all? #t) (generate-conversion-impl irepr orepr)))
-  (unless impl
-    (error 'load-conversion-impls!
-           "could not generate conversion ~a => ~a"
-           (format "<~a>" (representation-name irepr))
-           (format "<~a>" (representation-name orepr))))
-  (define rw-impl (get-rewrite-operator orepr #:all? #t))
-  (unless rw-impl
-    ; need to make a "precision rewrite" operator
-    ; (only if we did not generate it before)
-    (define rewrite-name (sym-append '<- (repr->symbol orepr)))
-    (register-operator-impl! 'convert rewrite-name (list orepr) orepr (list (cons 'fl identity)))
-    (set! rw-impl (get-rewrite-operator orepr #:all? #t)))
-  (list impl rw-impl))
-
 ;; Optional error handler based on a value `optional?`.
 (define-syntax-rule (with-cond-handlers optional? ([pred handle] ...) body ...)
   (if optional?
@@ -151,20 +125,21 @@
   (define costs (make-hash))
   (define convs
     (reap [sow]
-          (for ([impl-sig (in-list pform)])
-            (match-define (list op tsig cost) impl-sig)
-            (match* (op tsig)
-              [('cast `(,itype ,otype))
-               (define irepr (get-representation itype))
-               (define orepr (get-representation otype))
-               (with-cond-handlers optional?
-                                   ([exn:fail:user:herbie:missing?
-                                     (λ (_) (set-add! missing (list 'cast itype otype)))])
-                                   (for ([impl (in-list (get-conversion-impls irepr orepr))])
-                                     (hash-set! costs impl cost)
-                                     (sow impl)))]
-              [('cast _) (error 'make-platform "unexpected type signature for `cast` ~a" tsig)]
-              [(_ _) (void)]))))
+      (for ([impl-sig (in-list pform)])
+        (match-define (list op tsig cost) impl-sig)
+        (match* (op tsig)
+          [('cast `(,itype ,otype))
+           (define irepr (get-representation itype))
+           (define orepr (get-representation otype))
+           (cond
+             [(get-cast-impl irepr orepr) =>
+              (lambda (impl)
+                (hash-set! costs impl cost)
+                (sow impl))]
+             [else (set-add! missing (list 'cast itype otype))])]
+          [('cast _)
+           (error 'make-platform "unexpected type signature for `cast` ~a" tsig)]
+          [(_ _) (void)]))))
   ; load the operator implementations
   (define impls
     (reap [sow]
@@ -335,56 +310,12 @@
            (struct-copy platform-info info [impls (cons #'impl-sig (platform-info-impls info))]))]
          [_ (oops! "bad syntax")]))]))
 
-;; Representation conversions in a platform.
-(define (platform-conversions pform)
+;; Casts between representations in a platform.
+(define (platform-casts pform)
   (reap [sow]
         (for ([impl (in-list (platform-impls pform))])
           (when (eq? (impl->operator impl) 'cast)
             (sow impl)))))
-
-;; The "precision change" rules valid for a platform
-(define (platform-reprchange-rules pform)
-  ; conversion signatures
-  (define as-set (mutable-set))
-  (define convs
-    (reap [sow]
-          (for ([impl (platform-conversions pform)])
-            (match-define (list irepr) (impl-info impl 'itype))
-            (define orepr (impl-info impl 'otype))
-            (unless (or (set-member? as-set (cons irepr orepr))
-                        (set-member? as-set (cons orepr irepr)))
-              (set-add! as-set (cons irepr orepr))
-              (sow (cons irepr orepr))))))
-
-  ; precision rule generator
-  (define (make-precision-rewrite irepr orepr)
-    (define irepr-sym (repr->symbol irepr))
-    (define orepr-sym (repr->symbol orepr))
-    (define conv (sym-append irepr-sym '-> orepr-sym))
-    (define change (sym-append '<- irepr-sym))
-    (define rewrite-name (sym-append 'rewrite- orepr-sym '/ irepr-sym))
-    (rule rewrite-name 'a `(,conv (,change a)) `((a . ,irepr)) orepr))
-
-  ; for each conversion, enable precision rewrite
-  (define prec-rules
-    (for/fold ([rules '()]) ([(irepr orepr) (in-dict convs)])
-      (list* (make-precision-rewrite irepr orepr) (make-precision-rewrite orepr irepr) rules)))
-
-  ; for each conversion, enable a precision simplification
-  (define prec-simplifiers
-    (for/fold ([rules '()]) ([(irepr orepr) (in-dict convs)])
-      (define irepr-sym (repr->symbol irepr))
-      (define orepr-sym (repr->symbol orepr))
-      (define conv1 (sym-append irepr-sym '-> orepr-sym))
-      (define conv2 (sym-append orepr-sym '-> irepr-sym))
-      (define rw-name1 (sym-append 'rewrite- orepr-sym '/ irepr-sym '-simplify))
-      (define rw-name2 (sym-append 'rewrite- irepr-sym '/ orepr-sym '-simplify))
-      ; rules
-      (define simplify1 (rule rw-name1 'a `(,conv1 (,conv2 a)) `((a . ,orepr)) orepr))
-      (define simplify2 (rule rw-name2 'a `(,conv2 (,conv1 a)) `((a . ,irepr)) irepr))
-      (list* simplify1 simplify2 rules)))
-
-  (append prec-rules prec-simplifiers))
 
 ;; Merger for costs.
 (define (merge-cost pform-costs key #:optional? [optional? #f])

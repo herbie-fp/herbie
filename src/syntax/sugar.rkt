@@ -40,7 +40,7 @@
 ;; <expr> ::= (if <expr> <expr> <expr>)
 ;;        ::= (<impl> <expr> ...)
 ;;        ::= <var>
-;;        ::= <number>
+;;        ::= (literal <number> <repr-name>)
 ;;
 ;; Every (operator) implementation has a type signature taking inputs each
 ;; with a given number format producing an output of a possibly different
@@ -177,8 +177,8 @@
            ; cast is redundant
            [(equal? repr repr*) (values body* repr)]
            [else
-            (define conv (get-repr-conv repr* repr))
-            (values (list conv body*) repr)])]
+            (define cast (get-cast-impl repr* repr))
+            (values (list cast body*) repr)])]
         [`(,(? constant-operator? x))
          (define cnst (get-parametric-constant x (context-repr ctx)))
          (values (list cnst) (impl-info cnst 'otype))]
@@ -198,12 +198,12 @@
            [(equal? (representation-type vrepr) 'bool) (values expr vrepr)]
            [(equal? vrepr repr) (values expr repr)]
            [else
-            (define conv (get-repr-conv vrepr repr))
-            (unless conv
+            (define cast (get-cast-impl vrepr repr))
+            (unless cast
               (raise-herbie-missing-error "conversion does not exist: ~a -> ~a"
                                           (representation-name vrepr)
                                           (representation-name repr)))
-            (values (list conv expr) repr)])]
+            (values (list cast expr) repr)])]
         [(? number?)
          (define prec (representation-name (context-repr ctx)))
          (define num
@@ -219,8 +219,9 @@
 (define (prog->fpcore prog repr)
   (let loop ([expr prog])
     (match expr
-      [`(if ,cond ,ift ,iff) `(if ,(loop cond) ,(loop ift) ,(loop iff))]
-      [`(,(? repr-conv? impl) ,body)
+      [`(if ,cond ,ift ,iff)
+       `(if ,(loop cond) ,(loop ift) ,(loop iff))]
+      [`(,(? cast-impl? impl) ,body)
        (match-define (list irepr) (impl-info impl 'itype))
        (define body* (prog->fpcore body irepr))
        (cond
@@ -245,9 +246,10 @@
 ;; Translates an ImplProg to a Spec.
 (define (prog->spec expr)
   (match expr
-    [`(if ,cond ,ift ,iff) `(if ,(prog->spec cond) ,(prog->spec ift) ,(prog->spec iff))]
-    [`(,(? repr-conv? impl) ,body) `(,impl ,(prog->spec body))]
-    [`(,(? rewrite-repr-op? impl) ,body) `(,impl ,(prog->spec body))]
+    [`(if ,cond ,ift ,iff)
+     `(if ,(prog->spec cond) ,(prog->spec ift) ,(prog->spec iff))]
+    [`(,(? cast-impl? impl) ,body)
+     `(,impl ,(prog->spec body))]
     [`(,impl ,args ...)
      (define op (impl->operator impl))
      (define args* (map prog->spec args))
@@ -279,8 +281,8 @@
            ; cast is redundant
            [(equal? repr repr*) (values body* repr)]
            [else
-            (define conv (get-repr-conv repr* repr))
-            (values (list conv body*) repr)])]
+            (define cast (get-cast-impl repr* repr))
+            (values (list cast body*) repr)])]
         [`(,(? constant-operator? x))
          (define cnst (get-parametric-constant x (context-repr ctx)))
          (values (list cnst) (impl-info cnst 'otype))]
@@ -288,14 +290,11 @@
          (define-values (arg* atype) (loop arg ctx))
          (define op* (get-parametric-operator 'neg atype))
          (values (list op* arg*) (impl-info op* 'otype))]
-        [`(,(? repr-conv? impl) ,body)
-         ; this case is supported here but not by fpcore->prog
+        [`(,(? cast-impl? impl) ,body)
+        ; this case is supported here but not by fpcore->prog
          (match-define (list irepr) (impl-info impl 'itype))
          (define-values (body* _) (loop body (struct-copy context ctx [repr irepr])))
          (values `(,impl ,body*) (impl-info impl 'otype))]
-        [`(,(? rewrite-repr-op? impl) ,body)
-         (define-values (body* repr*) (loop body ctx))
-         (values `(,impl ,body*) repr*)]
         [`(,op ,args ...)
          (define-values (args* atypes) (for/lists (args* atypes) ([arg args]) (loop arg ctx)))
          ;; Match guaranteed to succeed because we ran type-check first
@@ -308,12 +307,12 @@
            [(equal? (representation-type vrepr) 'bool) (values expr vrepr)]
            [(equal? vrepr repr) (values expr repr)]
            [else
-            (define conv (get-repr-conv vrepr repr))
-            (unless conv
+            (define cast (get-cast-impl vrepr repr))
+            (unless cast
               (raise-herbie-missing-error "conversion does not exist: ~a -> ~a"
                                           (representation-name vrepr)
                                           (representation-name repr)))
-            (values (list conv expr) repr)])]
+            (values (list cast expr) repr)])]
         [(? number?)
          (define prec (representation-name (context-repr ctx)))
          (define num
