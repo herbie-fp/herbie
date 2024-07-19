@@ -226,6 +226,7 @@
     (define post-body (request-post-data/raw req))
     (define post-data (cond (post-body (bytes->jsexpr post-body)) (#t #f)))
     (define resp (with-handlers ([exn:fail? (λ (e) (hash 'error (exn->string e)))]) (fn post-data)))
+    (eprintf "~a\n" resp)
     (if (hash-has-key? resp 'error)
         (eprintf "Error handling request: ~a\n" (hash-ref resp 'error))
         (eprintf "Success handling request\n")
@@ -495,8 +496,8 @@
               'histories histories
               'derivations derivations
               'splitpoints splitpoints
-              'job id)
-              'commit *herbie-commit*)))
+              'job id
+              'commit *herbie-commit*))))
 
 (define ->mathjs-endpoint
   (post-with-json-response
