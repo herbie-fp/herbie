@@ -387,7 +387,8 @@
                (current-seconds)
                #"text/plain"
                (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count))))
-                     (header #"X-Herbie-Job-ID" (string->bytes/utf-8 job-id)))
+                     (header #"X-Herbie-Job-ID" (string->bytes/utf-8 job-id))
+                     (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
                (λ (out) `()))]
     [job-result
      (response 201
@@ -395,7 +396,8 @@
                (current-seconds)
                #"text/plain"
                (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count))))
-                     (header #"X-Herbie-Job-ID" (string->bytes/utf-8 job-id)))
+                     (header #"X-Herbie-Job-ID" (string->bytes/utf-8 job-id))
+                     (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
                (λ (out) (write-json (job-result-timeline job-result) out)))]))
 
 ; /api/sample endpoint: test in console on demo page:
@@ -413,7 +415,7 @@
      (define result (wait-for-job id))
      (define pctx (job-result-backend result))
      (define repr (context-repr (test-context test)))
-     (hasheq 'points (pcontext->json pctx repr) 'job id))))
+     (hasheq 'points (pcontext->json pctx repr) 'job id 'commit *herbie-commit*))))
 
 (define analyze-endpoint
   (post-with-json-response (lambda (post-data)
@@ -437,27 +439,27 @@
                                  (define pt (first pt&err))
                                  (define err (second pt&err))
                                  (list pt (format-bits (ulps->bits err)))))
-                             (hasheq 'points errs 'job id))))
+                             (hasheq 'points errs 'job id 'commit *herbie-commit*))))
 
 ;; (await fetch('/api/exacts', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x) (- (sqrt (+ x 1))))", points: [[1, 1]]})})).json()
 (define exacts-endpoint
-  (post-with-json-response (lambda (post-data)
-                             (define formula
-                               (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
-                             (define sample (hash-ref post-data 'sample))
-                             (define seed (hash-ref post-data 'seed #f))
-                             (define test (parse-test formula))
-                             (define pcontext (json->pcontext sample (test-context test)))
-                             (define command
-                               (create-job 'exacts
-                                           test
-                                           #:seed seed
-                                           #:pcontext pcontext
-                                           #:profile? #f
-                                           #:timeline-disabled? #t))
-                             (define id (start-job command))
-                             (define result (wait-for-job id))
-                             (hasheq 'points (job-result-backend result) 'job id))))
+  (post-with-json-response
+   (lambda (post-data)
+     (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
+     (define sample (hash-ref post-data 'sample))
+     (define seed (hash-ref post-data 'seed #f))
+     (define test (parse-test formula))
+     (define pcontext (json->pcontext sample (test-context test)))
+     (define command
+       (create-job 'exacts
+                   test
+                   #:seed seed
+                   #:pcontext pcontext
+                   #:profile? #f
+                   #:timeline-disabled? #t))
+     (define id (start-job command))
+     (define result (wait-for-job id))
+     (hasheq 'points (job-result-backend result) 'job id 'commit *herbie-commit*))))
 
 (define calculate-endpoint
   (post-with-json-response (lambda (post-data)
@@ -477,7 +479,7 @@
                              (define id (start-job command))
                              (define result (wait-for-job id))
                              (define approx (job-result-backend result))
-                             (hasheq 'points approx 'job id))))
+                             (hasheq 'points approx 'job id 'commit *herbie-commit*))))
 
 (define local-error-endpoint
   (post-with-json-response (lambda (post-data)
@@ -518,7 +520,7 @@
                                             (format-bits (errors-score (first err)))
                                             'children
                                             '())])))
-                             (hasheq 'tree tree 'job id))))
+                             (hasheq 'tree tree 'job id 'commit *herbie-commit*))))
 
 (define alternatives-endpoint
   (post-with-json-response
@@ -574,7 +576,9 @@
              'splitpoints
              splitpoints
              'job
-             id))))
+             id
+             'commit
+             *herbie-commit*))))
 
 (define ->mathjs-endpoint
   (post-with-json-response (lambda (post-data)
@@ -595,7 +599,7 @@
      (define id (start-job command))
      (define result (wait-for-job id))
      (define cost (job-result-backend result))
-     (hasheq 'cost cost 'jod id))))
+     (hasheq 'cost cost 'jod id 'commit *herbie-commit*))))
 
 (define translate-endpoint
   (post-with-json-response (lambda (post-data)
