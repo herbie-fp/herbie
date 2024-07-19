@@ -48,7 +48,7 @@ function run {
   fi
 
   rm -rf "$OUTDIR/$name"
-  racket -y "src/herbie.rkt" report \
+  racket -y "src/main.rkt" report \
     --note "$name" \
     "$@" \
     "$bench" "$OUTDIR/$name" \

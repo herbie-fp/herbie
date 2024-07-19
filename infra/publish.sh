@@ -16,7 +16,7 @@ upload () {
     nightly-results publish --name index.cache index.cache
     nightly-results publish --name index.html index.html
     nightly-results publish --name index.css infra/index.css
-    nightly-results publish --name report.js src/web/resources/report.js
+    nightly-results publish --name report.js src/reports/resources/report.js
     nightly-results publish --name regression-chart.js infra/regression-chart.js
 
     find "$DIR" -name "timeline.html" -exec gzip -f {} \;
@@ -31,7 +31,7 @@ index () {
     nightly-results publish --name index.cache index.cache
     nightly-results publish --name index.html index.html
     nightly-results publish --name index.css infra/index.css
-    nightly-results publish --name report.js src/web/resources/report.js
+    nightly-results publish --name report.js src/reports/resources/report.js
     nightly-results publish --name regression-chart.js infra/regression-chart.js
 }
 
@@ -43,7 +43,7 @@ reindex () {
     find "$DIR" -name "results.json.gz" -exec gunzip -f {} \;
     racket -y infra/make-index.rkt "$DIR"
     rsync index.cache "$RHOST:$RHOSTDIR/index.cache"
-    rsync "index.html" "infra/index.css" "infra/regression-chart.js" "src/web/resources/report.js" \
+    rsync "index.html" "infra/index.css" "infra/regression-chart.js" "src/reports/resources/report.js" \
           "$RHOST:$RHOSTDIR/"
     ssh "$RHOST" chgrp uwplse "$RHOSTDIR/{index.html,index.css,report.js,regression-chart.js}"
     rm index.html

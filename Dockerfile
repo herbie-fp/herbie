@@ -16,7 +16,7 @@ COPY --from=egg-herbie-builder /herbie/egg-herbie /src/egg-herbie
 RUN raco pkg install /src/egg-herbie
 COPY src /src/herbie
 RUN raco pkg install --auto /src/herbie
-ENTRYPOINT ["racket", "/src/herbie/herbie.rkt"]
+ENTRYPOINT ["racket", "/src/herbie/main.rkt"]
 EXPOSE 80
 # NOTE --public allows the Docker host to interact with the demo,
 # typical users shouldn't need to use it.

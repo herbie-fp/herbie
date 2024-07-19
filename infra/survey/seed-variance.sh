@@ -64,7 +64,7 @@ function do_seed {
   seed_output="$output/$(printf "%03d" "$seed")"
   mkdir -p "$seed_output"
 
-  racket "$HERBIE/src/herbie.rkt" report \
+  racket -y "$HERBIE/src/main.rkt" report \
     --threads $THREADS \
     --seed "$seed" \
     $HERBIE_FLAGS \
