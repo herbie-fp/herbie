@@ -13,7 +13,6 @@
          "../utils/alternative.rkt"
          "../utils/common.rkt"
          "../utils/float.rkt"
-         "../syntax/conversions.rkt"
          "explain.rkt"
          "patch.rkt"
          "../syntax/platform.rkt"
@@ -151,20 +150,6 @@
 ;; The rest of the file is various helper / glue functions used by
 ;; Herbie. These often wrap other Herbie components, but add logging
 ;; and timeline data.
-
-;; Iteration 0 alts (original alt in every repr, constant alts, etc.)
-(define (starting-alts altn ctx)
-  (define starting-exprs
-    (reap [sow]
-          (for ([conv (platform-conversions (*active-platform*))])
-            (match-define (list itype) (impl-info conv 'itype))
-            (when (equal? itype (context-repr ctx))
-              (define otype (impl-info conv 'otype))
-              (define expr* (list (get-rewrite-operator otype) (alt-expr altn)))
-              (define body* (apply-repr-change-expr expr* ctx))
-              (when body*
-                (sow body*))))))
-  (map make-alt starting-exprs))
 
 (define (score-alt alt)
   (errors-score (errors (alt-expr alt) (*pcontext*) (*context*))))
@@ -362,11 +347,10 @@
   (match-define (cons initial simplified) alternatives)
   (*start-prog* (alt-expr initial))
   (define table (make-alt-table pcontext initial context))
-  (define simplified* (append (append-map (curryr starting-alts context) simplified) simplified))
   (timeline-event! 'eval)
-  (define-values (errss costs) (atab-eval-altns table simplified* context))
+  (define-values (errss costs) (atab-eval-altns table simplified context))
   (timeline-event! 'prune)
-  (^table^ (atab-add-altns table simplified* errss costs)))
+  (^table^ (atab-add-altns table simplified errss costs)))
 
 (define (explain! simplified context pcontext)
   (timeline-event! 'explain)

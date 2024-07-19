@@ -20,9 +20,9 @@
   (match expr
     [(? number?) expr]
     [(? symbol?) expr]
-    ; conversion (e.g. posit16->f64)
-    [(list (? repr-conv? op) body) (list op (simplify body))]
-    [`(,(and (or '+ '- '*) op) ,args ...) ; v-ary
+    [(list (? cast-impl? op) body) ; conversion (e.g. posit16->f64)
+     (list op (simplify body))]
+    [`(,(and (or '+ '- '*) op) ,args ...) ; v-ary 
      (define args* (map simplify args))
      (define val (apply eval-application op args*))
      (or val (simplify-node (list* op args*)))]
