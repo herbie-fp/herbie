@@ -59,27 +59,28 @@
    [("results.json") generate-report]))
 
 (define (generate-page req result page)
-  (define path (first (string-split (url->string (request-uri req)) "/")))
-  (cond
-   [(set-member? (all-pages result) page)
-    ;; Write page contents to disk
-    (when (*demo-output*)
-      (make-directory (build-path (*demo-output*) path))
-      (for ([page (all-pages result)])
-        (call-with-output-file (build-path (*demo-output*) path page)
-          (λ (out) 
-            (with-handlers ([exn:fail? (page-error-handler result page out)])
-              (make-page page out result (*demo-output*) #f)))))
-      (update-report result path (get-seed)
-                      (build-path (*demo-output*) "results.json")
-                      (build-path (*demo-output*) "index.html")))
-    (response 200 #"OK" (current-seconds) #"text"
-              (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count)))))
-              (λ (out)
-                (with-handlers ([exn:fail? (page-error-handler result page out)])
-                (make-page page out result (*demo-output*) #f))))]
-   [else
-    (next-dispatcher)]))
+  (if (job-result? result)
+   (cond
+    [(set-member? (all-pages result) page)
+      (define path (first (string-split (url->string (request-uri req)) "/")))
+      (when (*demo-output*)
+        (make-directory (build-path (*demo-output*) path))
+        (for ([page (all-pages result)])
+          (call-with-output-file (build-path (*demo-output*) path page)
+            (λ (out) 
+              (with-handlers ([exn:fail? (page-error-handler result page out)])
+                (make-page page out result (*demo-output*) #f)))))
+        (update-report result path (get-seed)
+                        (build-path (*demo-output*) "results.json")
+                        (build-path (*demo-output*) "index.html")))
+      (response 200 #"OK" (current-seconds) #"text"
+                (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count)))))
+                (λ (out)
+                  (with-handlers ([exn:fail? (page-error-handler result page out)])
+                  (make-page page out result (*demo-output*) #f))))]
+    [else
+      (next-dispatcher)])
+   (next-dispatcher)))
 
 (define (generate-report req)
   (cond
