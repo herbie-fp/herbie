@@ -266,18 +266,15 @@
                  `(option ,lang))))
 
   (define body
-    `(div ,(if (equal? precondition '(TRUE))
-               ""
-               `(div ([id "precondition"])
-                     (div ((class "program math"))
-                          "\\["
-                          ,(expr->tex (prog->fpcore precondition))
-                          "\\]")))
-          (div ((class "implementation") [data-language "Math"])
-               (div ((class "program math")) "\\[" ,math-out "\\]"))
-          ,@(for/list ([(lang out) (in-dict versions)])
-              `(div ((class "implementation") [data-language ,lang])
-                    (pre ((class "program")) ,out)))))
+    `(div
+      ,(if (equal? precondition '(TRUE))
+           ""
+           `(div ([id "precondition"])
+                 (div ((class "program math")) "\\[" ,(expr->tex (prog->fpcore precondition)) "\\]")))
+      (div ((class "implementation") [data-language "Math"])
+           (div ((class "program math")) "\\[" ,math-out "\\]"))
+      ,@(for/list ([(lang out) (in-dict versions)])
+          `(div ((class "implementation") [data-language ,lang]) (pre ((class "program")) ,out)))))
 
   (values dropdown body))
 
@@ -294,27 +291,25 @@
 (define/contract (render-fpcore test)
   (-> test? string?)
   (define output-repr (test-output-repr test))
-  (string-join (filter identity
-                       (list (if (test-identifier test)
-                                 (format "(FPCore ~a ~a" (test-identifier test) (test-vars test))
-                                 (format "(FPCore ~a" (test-vars test)))
-                             (format "  :name ~s" (test-name test))
-                             (format "  :precision ~s" (representation-name (test-output-repr test)))
-                             (if (equal? (test-pre test) '(TRUE))
-                                 #f
-                                 (format "  :pre ~a" (prog->fpcore (test-pre test))))
-                             (if (equal? (test-expected test) #t)
-                                 #f
-                                 (format "  :herbie-expected ~a" (test-expected test)))
-                             (and (test-output test)
-                                  (not (null? (test-output test)))
-                                  (format "\n~a"
-                                          (string-join (map (lambda (exp)
-                                                              (format "  :alt\n  ~a\n" (car exp)))
-                                                            (test-output test))
-                                                       "\n")))
-                             (format "  ~a)" (prog->fpcore (test-input test)))))
-               "\n"))
+  (string-join
+   (filter
+    identity
+    (list
+     (if (test-identifier test)
+         (format "(FPCore ~a ~a" (test-identifier test) (test-vars test))
+         (format "(FPCore ~a" (test-vars test)))
+     (format "  :name ~s" (test-name test))
+     (format "  :precision ~s" (representation-name (test-output-repr test)))
+     (if (equal? (test-pre test) '(TRUE)) #f (format "  :pre ~a" (prog->fpcore (test-pre test))))
+     (if (equal? (test-expected test) #t) #f (format "  :herbie-expected ~a" (test-expected test)))
+     (and (test-output test)
+          (not (null? (test-output test)))
+          (format "\n~a"
+                  (string-join (map (lambda (exp) (format "  :alt\n  ~a\n" (car exp)))
+                                    (test-output test))
+                               "\n")))
+     (format "  ~a)" (prog->fpcore (test-input test)))))
+   "\n"))
 
 (define (format-percent num den)
   (string-append (if (zero? den)
