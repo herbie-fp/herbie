@@ -26,6 +26,7 @@
 
 (provide run-herbie
          get-table-data
+         partition-pcontext
          unparse-result
          *reeval-pts*
          *timeout*
@@ -33,9 +34,9 @@
          (struct-out improve-result)
          (struct-out alt-analysis))
 
-(struct job-result (command test status time timeline warnings backend))
-(struct improve-result (preprocess pctxs start target end bogosity))
-(struct alt-analysis (alt train-errors test-errors))
+(struct job-result (command test status time timeline warnings backend) #:prefab)
+(struct improve-result (preprocess pctxs start target end bogosity) #:prefab)
+(struct alt-analysis (alt train-errors test-errors) #:prefab)
 
 ;; true if Racket CS <= 8.2
 (define cs-places-workaround?

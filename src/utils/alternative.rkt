@@ -21,9 +21,7 @@
 ;; They are a labeled linked list of changes.
 
 (struct alt (expr event prevs preprocessing)
-  #:methods gen:custom-write
-  [(define (write-proc alt port mode)
-     (fprintf port "#<alt ~a>" (alt-expr alt)))])
+  #:prefab)
 
 (define (make-alt expr)
   (alt expr 'start '() '()))

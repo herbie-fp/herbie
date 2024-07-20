@@ -35,6 +35,7 @@
          render-reproduction
          format-percent
          program->fpcore
+         program->fpcore-modified
          program->tex
          fpcore->string
          js-tex-include
@@ -53,6 +54,12 @@
 (define (program->fpcore expr ctx #:ident [ident #f])
   (define body (prog->fpcore expr (context-repr ctx)))
   (if ident (list 'FPCore ident (context-vars ctx) body) (list 'FPCore (context-vars ctx) body)))
+
+(define (program->fpcore-modified expr context-vars context-repr #:ident [ident #f])
+   (define body (prog->fpcore expr context-repr))
+   (if ident
+       (list 'FPCore ident context-vars body)
+       (list 'FPCore context-vars body)))
 
 (define (fpcore-add-props core props)
   (match core

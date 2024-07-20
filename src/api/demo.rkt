@@ -73,19 +73,20 @@
                   [((hash-arg) (string-arg)) generate-page]
                   [("results.json") generate-report]))
 
-(define (generate-page req result page)
+(define (generate-page req result-hash page)
+  (eprintf "generate-page\n")
   (define path (first (string-split (url->string (request-uri req)) "/")))
   (cond
-    [(set-member? (all-pages result) page)
+    [(set-member? (all-pages-modified result-hash) page)
      ;; Write page contents to disk
      (when (*demo-output*)
        (make-directory (build-path (*demo-output*) path))
-       (for ([page (all-pages result)])
+       (for ([page (all-pages-modified result-hash)])
          (call-with-output-file (build-path (*demo-output*) path page)
                                 (λ (out)
-                                  (with-handlers ([exn:fail? (page-error-handler result page out)])
-                                    (make-page page out result (*demo-output*) #f)))))
-       (update-report result
+                                  (with-handlers ([exn:fail? (page-error-handler-modified result-hash page out)])
+                                    (make-page-modified page out result-hash (*demo-output*) #f)))))
+       (update-report-modified result-hash
                       path
                       (get-seed)
                       (build-path (*demo-output*) "results.json")
@@ -96,25 +97,32 @@
                #"text"
                (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count)))))
                (λ (out)
-                 (with-handlers ([exn:fail? (page-error-handler result page out)])
-                   (make-page page out result (*demo-output*) #f))))]
+                 (with-handlers ([exn:fail? (page-error-handler-modified result-hash page out)])
+                   (make-page-modified page out result-hash (*demo-output*) #f))))]
     [else (next-dispatcher)]))
 
 (define (generate-report req)
+  (eprintf "generate-report\n")
+  (define url #f)
+   (for ([header (request-headers req)])
+     (when (equal? (car header) 'referer)
+       (set! url (cdr header))))
+   (define job-id (first (string-split (fourth (string-split url "/")) ".")))
+   (define result (get-results-for job-id))
   (cond
     [(and (*demo-output*) (file-exists? (build-path (*demo-output*) "results.json")))
      (next-dispatcher)]
     [else
-     (define info
-       (make-report-info (get-improve-job-data)
-                         #:seed (get-seed)
-                         #:note (if (*demo?*) "Web demo results" "Herbie results")))
+    ;  (define info
+    ;    (make-report-info (get-improve-job-data)
+    ;                      #:seed (get-seed)
+    ;                      #:note (if (*demo?*) "Web demo results" "Herbie results")))
      (response 200
                #"OK"
                (current-seconds)
                #"text"
                (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count)))))
-               (λ (out) (write-datafile out info)))]))
+               (λ (out) result))]))
 
 (define url (compose add-prefix url*))
 
@@ -245,6 +253,22 @@
   (rename-file-or-directory tmp-file data-file #t)
   (call-with-output-file html-file #:exists 'replace (curryr make-report-page info #f)))
 
+
+ (define (update-report-modified result-hash dir seed data-file html-file)
+   (eprintf "update-report-modified: NOT FINNISHED\n")
+   ; (define link (path-element->string (last (explode-path dir))))
+   ; (define data (get-table-data result link))
+   ; (define info
+   ;   (if (file-exists? data-file)
+   ;       (let ([info (read-datafile data-file)])
+   ;         (struct-copy report-info info [tests (cons data (report-info-tests info))]))
+   ;       (make-report-info (list data) #:seed seed #:note (if (*demo?*) "Web demo results" ""))))
+   ; (define tmp-file (build-path (*demo-output*) "results.tmp"))
+   ; (write-datafile tmp-file info)
+   ; (rename-file-or-directory tmp-file data-file #t)
+   ; (call-with-output-file html-file #:exists 'replace (curryr make-report-page info #f))
+   empty)
+
 (define (post-with-json-response fn)
   (lambda (req)
     (define post-body (request-post-data/raw req))
@@ -337,19 +361,21 @@
    (url main)))
 
 (define (check-status req job-id)
-  (match (is-job-finished job-id)
-    [(? box? timeline)
+  (define r (is-job-finished job-id))
+   (match r
+     [(? hash? data-blob)
+      (define str (for/list ([entry (reverse (hash-ref data-blob 'timeline))])
+                             (format "Doing ~a\n" (hash-ref entry 'type))))
      (response 202
                #"Job in progress"
                (current-seconds)
                #"text/plain"
                (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count)))))
                (λ (out)
-                 (display (apply string-append
-                                 (for/list ([entry (reverse (unbox timeline))])
-                                   (format "Doing ~a\n" (hash-ref entry 'type))))
+                 (display (apply string-append str)
                           out)))]
     [#f
+      (eprintf "JOB complete\n")
      (response/full 201
                     #"Job complete"
                     (current-seconds)
@@ -374,7 +400,7 @@
   (improve-common req
                   (λ (command)
                     (define job-id (start-job command))
-                    (wait-for-job job-id)
+                    (define result (wait-for-job job-id))
                     (redirect-to (add-prefix (format "~a.~a/graph.html" job-id *herbie-commit*))
                                  see-other))
                   (url main)))
