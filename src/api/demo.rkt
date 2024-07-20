@@ -415,7 +415,7 @@
      (define result (wait-for-job id))
      (define pctx (job-result-backend result))
      (define repr (context-repr (test-context test)))
-     (hasheq 'points (pcontext->json pctx repr) 'job id 'path (format "~a.~a" id *herbie-commit*)))))
+     (hasheq 'points (pcontext->json pctx repr) 'job id 'path (make-path id)))))
 
 (define analyze-endpoint
   (post-with-json-response (lambda (post-data)
@@ -439,7 +439,7 @@
                                  (define pt (first pt&err))
                                  (define err (second pt&err))
                                  (list pt (format-bits (ulps->bits err)))))
-                             (hasheq 'points errs 'job id 'path (format "~a.~a" id *herbie-commit*)))))
+                             (hasheq 'points errs 'job id 'path (make-path id)))))
 
 ;; (await fetch('/api/exacts', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x) (- (sqrt (+ x 1))))", points: [[1, 1]]})})).json()
 (define exacts-endpoint
@@ -459,7 +459,7 @@
                    #:timeline-disabled? #t))
      (define id (start-job command))
      (define result (wait-for-job id))
-     (hasheq 'points (job-result-backend result) 'job id 'path (format "~a.~a" id *herbie-commit*)))))
+     (hasheq 'points (job-result-backend result) 'job id 'path (make-path id)))))
 
 (define calculate-endpoint
   (post-with-json-response (lambda (post-data)
@@ -479,7 +479,7 @@
                              (define id (start-job command))
                              (define result (wait-for-job id))
                              (define approx (job-result-backend result))
-                             (hasheq 'points approx 'job id 'path (format "~a.~a" id *herbie-commit*)))))
+                             (hasheq 'points approx 'job id 'path (make-path id)))))
 
 (define local-error-endpoint
   (post-with-json-response (lambda (post-data)
@@ -520,7 +520,7 @@
                                             (format-bits (errors-score (first err)))
                                             'children
                                             '())])))
-                             (hasheq 'tree tree 'job id 'path (format "~a.~a" id *herbie-commit*)))))
+                             (hasheq 'tree tree 'job id 'path (make-path id)))))
 
 (define alternatives-endpoint
   (post-with-json-response
@@ -577,7 +577,7 @@
              splitpoints
              'job
              id
-             'path (format "~a.~a" id *herbie-commit*)))))
+             'path (make-path id)))))
 
 (define ->mathjs-endpoint
   (post-with-json-response (lambda (post-data)
@@ -598,7 +598,7 @@
      (define id (start-job command))
      (define result (wait-for-job id))
      (define cost (job-result-backend result))
-     (hasheq 'cost cost 'jod id 'path (format "~a.~a" id *herbie-commit*)))))
+     (hasheq 'cost cost 'jod id 'path (make-path id)))))
 
 (define translate-endpoint
   (post-with-json-response (lambda (post-data)

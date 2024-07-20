@@ -1,5 +1,4 @@
 import { strict as assert } from 'node:assert';  // use strict equality everywhere 
-import { time } from 'node:console';
 
 // Future TODO: before this API becomes set in stone/offered publicly, we should change the results of these methods to be just the output data rather than duplicating input values.
 
@@ -64,8 +63,9 @@ assert.notEqual(jid, null)
 
 const sample = await sampleRSP.json()
 
+// Test for job id and path, these could be better
 assert.equal(sample.job.length > 0, true)
-assert.equal(sample.path.length > 0, true)
+assert.equal(sample.path.includes("."), true)
 
 const SAMPLE_SIZE = 8000
 assert.ok(sample.points)
