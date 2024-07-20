@@ -232,6 +232,11 @@
   (define sendable-alts 
     (for/list ([alt end-alts] [ppctx processed] [tpctx test-pctx])
       (render-json alt ppctx tpctx (test-context test))))
+  (define alt (hash-ref (first sendable-alts) 'program))
+  (eprintf "alt:~a\n" alt)
+  (define syn (read-syntax 'web (open-input-string alt)))
+  (define t (parse-test syn))
+  (eprintf "SEND:~a\n" t)
   (define alts-histories 
     (for/list ([alt end-alts] [ppctx processed] [tpctx test-pctx])
       (render-history alt ppctx tpctx (test-context test))))
