@@ -62,10 +62,7 @@ const jid = sampleRSP.headers.get("x-herbie-job-id")
 assert.notEqual(jid, null)
 
 const sample = await sampleRSP.json()
-
-// Test for job id and path, these could be better
-assert.equal(sample.job.length > 0, true)
-assert.equal(sample.path.includes("."), true)
+assertIdAndPath(sample)
 
 const SAMPLE_SIZE = 8000
 assert.ok(sample.points)
@@ -77,7 +74,7 @@ const jid2 = sample2RPS.headers.get("x-herbie-job-id")
 assert.notEqual(jid2, null)
 const sample2 = await sample2RPS.json()
 const points2 = sample2.points
-
+assertIdAndPath(sample2)
 assert.deepEqual(points[1], points2[1])
 
 // Analyze endpoint
@@ -88,6 +85,7 @@ const errors = await callHerbie("/api/analyze", {
     ], 0.12711304680349078]]
   })
 })
+assertIdAndPath(errors)
 assert.deepEqual(errors.points, [[[14.97651307489794], "2.3"]])
 
 // Local error endpoint
@@ -96,7 +94,7 @@ const localError = await callHerbie("/api/localerror", {
     formula: FPCoreFormula, sample: sample2.points
   })
 })
-
+assertIdAndPath(localError)
 assert.equal(localError.tree['avg-error'] > 0, true)
 
 // Alternatives endpoint
@@ -108,6 +106,7 @@ const alternatives = await callHerbie("/api/alternatives", {
     ], 0.12711304680349078]]
   })
 })
+assertIdAndPath(alternatives)
 assert.equal(Array.isArray(alternatives.alternatives), true)
 
 // Exacts endpoint
@@ -116,6 +115,7 @@ const exacts = await callHerbie("/api/exacts", {
     formula: FPCoreFormula2, sample: eval_sample
   })
 })
+assertIdAndPath(exacts)
 assert.deepEqual(exacts.points, [[[1], -1.4142135623730951]])
 
 // Calculate endpoint
@@ -124,7 +124,7 @@ const calculate = await callHerbie("/api/calculate", {
     formula: FPCoreFormula2, sample: eval_sample
   })
 })
-
+assertIdAndPath(calculate)
 assert.deepEqual(calculate.points, [[[1], -1.4142135623730951]])
 
 // Cost endpoint
@@ -133,6 +133,7 @@ const cost = await callHerbie("/api/cost", {
     formula: FPCoreFormula2, sample: eval_sample
   })
 })
+assertIdAndPath(cost)
 assert.equal(cost.cost > 0, true)
 
 // // MathJS endpoint
@@ -185,4 +186,9 @@ async function callHerbie(endPoint, body) {
   } else {
     return rsp.json()
   }
+}
+
+function assertIdAndPath(json) {
+  assert.equal(json.job.length > 0, true)
+  assert.equal(json.path.includes("."), true)
 }

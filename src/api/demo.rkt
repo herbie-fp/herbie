@@ -598,7 +598,7 @@
      (define id (start-job command))
      (define result (wait-for-job id))
      (define cost (job-result-backend result))
-     (hasheq 'cost cost 'jod id 'path (make-path id)))))
+     (hasheq 'cost cost 'job id 'path (make-path id)))))
 
 (define translate-endpoint
   (post-with-json-response (lambda (post-data)
