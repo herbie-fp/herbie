@@ -55,9 +55,9 @@ start-server:
 
 hooks:
 	echo "#!/bin/sh" >.git/hooks/pre-commit
-	echo "raco fmt -i \$$(find . -name '*.rkt')" >>.git/hooks/pre-commit
+	echo "make fmt" >>.git/hooks/pre-commit
 
-format:
+fmt:
 	raco fmt -i $(shell find . -name '*.rkt')
 
 # This rule is run by herbie.uwplse.org on every commit to Github.
