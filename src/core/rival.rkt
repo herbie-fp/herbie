@@ -16,10 +16,19 @@
          "../utils/timeline.rkt")
 
 (provide (struct-out real-compiler)
-         make-real-compiler
-         real-apply
-         real-compiler-clear!
-         (contract-out [real-compiler-analyze (-> real-compiler? (vectorof ival?) ival?)]))
+         (contract-out [make-real-compiler
+                        (->* ((listof any/c) unified-contexts?) (#:pre any/c) real-compiler?)]
+                       [real-apply (-> real-compiler? list? (values symbol? any/c))]
+                       [real-compiler-clear! (-> real-compiler-clear! void?)]
+                       [real-compiler-analyze (-> real-compiler? (vectorof ival?) ival?)]))
+
+(define (unified-contexts? ctxs)
+  (and ((non-empty-listof context?) ctxs)
+       (let ([ctx0 (car ctxs)])
+         (for/and ([ctx (in-list (cdr ctxs))])
+           (and (equal? (context-vars ctx0) (context-vars ctx))
+                (for/and ([var (in-list (context-vars ctx0))])
+                  (equal? (context-lookup ctx0 var) (context-lookup ctx var))))))))
 
 (define (expr-size expr)
   (if (list? expr) (apply + 1 (map expr-size (cdr expr))) 1))
@@ -36,11 +45,10 @@
 ;; Takes a context to encode input variables and their representations,
 ;; a list of expressions, and a list of output representations
 ;; for each expression. Optionally, takes a precondition.
-(define (make-real-compiler ctx specs&reprs #:pre [pre '(TRUE)])
-  (define vars (context-vars ctx))
-  (define var-reprs (context-var-reprs ctx))
-  (define specs (map car specs&reprs))
-  (define reprs (map cdr specs&reprs))
+(define (make-real-compiler specs ctxs #:pre [pre '(TRUE)])
+  (define vars (context-vars (first ctxs)))
+  (define var-reprs (context-var-reprs (first ctxs)))
+  (define reprs (map context-repr ctxs))
   ; create the machine
   (define exprs (cons `(assert ,pre) specs))
   (define discs (cons boolean-discretization (map repr->discretization reprs)))

@@ -2,7 +2,8 @@
 
 (require math/bigfloat
          rival)
-(require "../utils/errors.rkt"
+(require "../utils/common.rkt"
+         "../utils/errors.rkt"
          "../core/rival.rkt"
          "types.rkt")
 
@@ -433,6 +434,17 @@
       repr
       type))
 
+  ;; Synthesizes a correctly-rounded floating-point implemenation
+  (define (synth-fl-impl name vars spec)
+    (define ctx (context vars orepr ireprs))
+    (define compiler (make-real-compiler (list spec) (list ctx)))
+    (define fail ((representation-bf->repr orepr) +nan.bf))
+    (procedure-rename
+      (lambda pt
+        (define-values (_ exs) (real-apply compiler pt))
+        (if exs (first exs) fail))
+      (sym-append 'synth: name)))
+
   ;; Get floating-point implementation
   (define fl-proc
     (cond
@@ -441,20 +453,10 @@
        cdr] ; user-provided implementation
       [(operator-accelerator? op) ; Rival-synthesized accelerator implementation
        (match-define `(,(or 'lambda 'λ) (,vars ...) ,body) (operator-spec op-info))
-       (define ctx (context vars orepr ireprs))
-       (define evaluator (make-real-compiler ctx `((,body . ,orepr))))
-       (define fail ((representation-bf->repr orepr) +nan.bf))
-       (lambda pt
-         (define-values (_ exs) (real-apply evaluator pt))
-         (if exs (first exs) fail))]
+       (synth-fl-impl name vars body)]
       [else ; Rival-synthesized operator implementation
        (define vars (build-list (length ireprs) (lambda (i) (string->symbol (format "x~a" i)))))
-       (define ctx (context vars orepr ireprs))
-       (define evaluator (make-real-compiler ctx `(((,op ,@vars) . ,orepr))))
-       (define fail ((representation-bf->repr orepr) +nan.bf))
-       (lambda pt
-         (define-values (_ exs) (real-apply evaluator pt))
-         (if exs (first exs) fail))]))
+       (synth-fl-impl name vars `(,op ,@vars))]))
 
   ; update tables
   (define impl (operator-impl name op-info ireprs orepr fl-proc))
