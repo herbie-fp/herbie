@@ -6,14 +6,17 @@
 (require "sandbox.rkt"
          "../config.rkt"
          "../core/preprocess.rkt"
+         "../core/points.rkt"
          "../reports/history.rkt"
          "../reports/plot.rkt"
          "../reports/common.rkt"
          "../syntax/types.rkt"
          "../syntax/read.rkt"
+         "../syntax/sugar.rkt"
          "../syntax/load-plugin.rkt"
          "../syntax/platform.rkt"
          "../utils/alternative.rkt"
+         "../utils/common.rkt"
          "../utils/float.rkt")
 (require (submod "../utils/timeline.rkt" debug))
 
@@ -77,7 +80,7 @@
       (internal-wait-for-job job-id)))
 
 (define (start-job-server config global-demo global-output)
-  (build-worker-pool 4)
+  (build-worker-pool 8)
   ;; Pass along local global values
   ;; TODO can I pull these out of config or not need ot pass them along.
   (set! *demo?* global-demo)
@@ -152,17 +155,49 @@
             ['alternatives (make-alternatives-result herbie-result test id)]
             ['evaluate (make-calculate-result herbie-result id)]
             ['cost (make-cost-result herbie-result id)]
-            ['errors #f]
+            ['errors (make-error-result herbie-result id)]
             ['exacts (make-exacts-result herbie-result id)]
             ['improve (make-improve-result herbie-result)]
-            ['local-error #f]
-            ['sample #f]
+            ['local-error (make-local-error-result herbie-result id test)]
+            ['sample (make-sample-result herbie-result id test)]
             [_ (error 'compute-result "unknown command ~a" kind)]))
         (hash-set! *job-status* id #f)
         (place-channel-put ch (list 'done out-result))]
        [(list 'check id)
         (eprintf "checking ~a\n" id)
         (place-channel-put ch (list 'done (list 'inprogress (hash-ref *job-status* id #f))))]))))
+
+(define (make-local-error-result herbie-result id test)
+  (define expr (prog->fpcore (test-input test) (test-output-repr test)))
+  (define local-error (job-result-backend herbie-result))
+  ;; TODO: potentially unsafe if resugaring changes the AST
+  (define tree
+    (let loop ([expr expr] [err local-error])
+      (match expr
+        [(list op args ...)
+         ;; err => (List (listof Integer) List ...)
+         (hasheq 'e
+                 (~a op)
+                 'avg-error
+                 (format-bits (errors-score (first err)))
+                 'children
+                 (map loop args (rest err)))]
+        ;; err => (List (listof Integer))
+        [_ (hasheq 'e (~a expr) 'avg-error (format-bits (errors-score (first err))) 'children '())])))
+  (hasheq 'tree tree 'job id 'path (make-path id)))
+
+(define (make-sample-result herbie-result id test)
+  (define pctx (job-result-backend herbie-result))
+  (define repr (context-repr (test-context test)))
+  (hasheq 'points (pcontext->json pctx repr) 'job id 'path (make-path id)))
+
+(define (make-error-result herbie-result id)
+  (define errs
+    (for/list ([pt&err (job-result-backend herbie-result)])
+      (define pt (first pt&err))
+      (define err (second pt&err))
+      (list pt (format-bits (ulps->bits err)))))
+  (hasheq 'points errs 'job id 'path (make-path id)))
 
 (define (make-exacts-result herbie-result id)
   (hasheq 'points (job-result-backend herbie-result) 'job id 'path (make-path id)))
