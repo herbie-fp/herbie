@@ -10,6 +10,7 @@
          variable?
          constant-operator?
          operator-exists?
+         operators
          operator-deprecated?
          impl-exists?
          operator-info
@@ -369,6 +370,7 @@
 (define *functions* (make-parameter (make-hasheq)))
 
 (define (register-function! name args repr body) ;; Adds a function definition.
+  (eprintf "register-function!: ~a ~a ~a ~a\n" name args repr body)
   (hash-set! (*functions*) name (list args repr body)))
 
 (define (all-operators)

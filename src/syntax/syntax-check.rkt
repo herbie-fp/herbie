@@ -3,11 +3,19 @@
 (require syntax/id-set)
 (require "../utils/common.rkt"
          "../utils/errors.rkt"
+         "load-plugin.rkt"
          "types.rkt"
          "syntax.rkt")
 (provide assert-program!)
 
 (define (check-expression* stx vars error! deprecated-ops)
+  ; (eprintf "check-expression*\n")
+  ; (eprintf "~a\n" *functions*)
+  ; (eprintf "~a\n" stx)
+  ; (eprintf "~a\n" vars)
+  ; (eprintf "~a\n" error!)
+  ; (eprintf "~a\n" deprecated-ops)
+  ; (eprintf "check-expression*\n")
   (let loop ([stx stx] [vars vars])
     (match stx
       [#`,(? number?) (void)]
@@ -65,6 +73,8 @@
          (loop arg vars))]
       [#`(#,f-syntax #,args ...)
        (define f (syntax->datum f-syntax))
+       (eprintf "*functions*: ~a\n" (*functions*))
+       (eprintf "operators: ~a\n" operators)
        (cond
          [(operator-exists? f)
           (define arity (length (operator-info f 'itype)))

@@ -8,6 +8,7 @@
          "../syntax/read.rkt"
          "../reports/history.rkt"
          "../syntax/load-plugin.rkt"
+         "../syntax/platform.rkt"
          "../core/preprocess.rkt"
          "../utils/alternative.rkt")
 (require (submod "../utils/timeline.rkt" debug))
@@ -166,41 +167,55 @@
   (define warnings (job-result-warnings result))
   (define timeline (job-result-timeline result))
 
-  (define repr (test-output-repr test)) 
-  
+  (define repr (test-output-repr test))
+
   (define backend-hash (backend-improve-result-hash-table backend repr test))
 
-  (hasheq 'status (job-result-status result)
-          'test test
-          'ctx ctx
-          'time job-time
-          'warnings warnings
-          'timeline timeline
-          'backend backend-hash))
+  (hasheq 'status
+          (job-result-status result)
+          'test
+          test
+          'ctx
+          ctx
+          'time
+          job-time
+          'warnings
+          warnings
+          'timeline
+          timeline
+          'backend
+          backend-hash))
 
 (define (backend-improve-result-hash-table backend repr test)
   (define pcontext (improve-result-pctxs backend))
   (define preprocessing (improve-result-preprocess backend))
   (define end-hash-table (end-hash (improve-result-end backend) repr preprocessing pcontext test))
 
-  (hasheq 'preprocessing preprocessing
-          'pctxs pcontext
-          'start (improve-result-start backend)
-          'target (improve-result-target backend)
-          'end end-hash-table
-          'bogosity (improve-result-bogosity backend)))
+  (hasheq 'preprocessing
+          preprocessing
+          'pctxs
+          pcontext
+          'start
+          (improve-result-start backend)
+          'target
+          (improve-result-target backend)
+          'end
+          end-hash-table
+          'bogosity
+          (improve-result-bogosity backend)))
 
 (define (end-hash end repr preprocessing pcontexts test)
   (define-values (processed test-pctx)
-    (for/lists (l1 l2) ([pctx pcontexts])
-    (define-values (train-pcontext test-pcontext) (partition-pcontext pctx))
-    (values 
-      (preprocess-pcontext (*context*) test-pcontext preprocessing) test-pcontext)))
+    (for/lists (l1 l2)
+               ([pctx pcontexts])
+               (define-values (train-pcontext test-pcontext) (partition-pcontext pctx))
+               (values (preprocess-pcontext (*context*) test-pcontext preprocessing) test-pcontext)))
   (define-values (end-alts end-errors end-costs)
-    (for/lists (l1 l2 l3) ([analysis end])
-      (match-define (alt-analysis alt _ test-errs) analysis)
-      (values alt test-errs (alt-cost alt repr))))
-  (define sendable-alts 
+    (for/lists (l1 l2 l3)
+               ([analysis end])
+               (match-define (alt-analysis alt _ test-errs) analysis)
+               (values alt test-errs (alt-cost alt repr))))
+  (define sendable-alts
     (for/list ([alt end-alts] [ppctx processed] [tpctx test-pctx])
       (render-json alt ppctx tpctx (test-context test))))
   (define alt (hash-ref (first sendable-alts) 'program))
@@ -208,21 +223,23 @@
   (define syn (read-syntax 'web (open-input-string alt)))
   (define t (parse-test syn))
   (eprintf "SEND:~a\n" t)
-  (define alts-histories 
+  (define alts-histories
     (for/list ([alt end-alts] [ppctx processed] [tpctx test-pctx])
       (render-history alt ppctx tpctx (test-context test))))
-  (hasheq 'end-alts sendable-alts
-          'end-histories alts-histories
-          'end-errors end-errors
-          'end-costs end-costs))
+  (hasheq 'end-alts
+          sendable-alts
+          'end-histories
+          alts-histories
+          'end-errors
+          end-errors
+          'end-costs
+          end-costs))
 
 (define (ctx-hash-table ctx)
-  (hasheq 'vars (context-vars ctx)
-          'repr (repr-hash-table (context-repr ctx))))
+  (hasheq 'vars (context-vars ctx) 'repr (repr-hash-table (context-repr ctx))))
 
 (define (repr-hash-table repr)
-  (hasheq 'name (representation-name repr)
-          'type (representation-type repr)))
+  (hasheq 'name (representation-name repr) 'type (representation-type repr)))
 
 (define (already-computed? job-id)
   (or (hash-has-key? *completed-jobs* job-id)
