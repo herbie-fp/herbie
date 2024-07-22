@@ -36,7 +36,7 @@
 
 (struct job-result (command test status time timeline warnings backend))
 (struct improve-result (preprocess pctxs start target end bogosity))
-(struct alt-analysis (alt train-errors test-errors))
+(struct alt-analysis (alt train-errors test-errors) #:prefab)
 
 ;; true if Racket CS <= 8.2
 (define cs-places-workaround?

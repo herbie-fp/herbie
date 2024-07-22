@@ -157,8 +157,8 @@
             ['cost (make-cost-result herbie-result id)]
             ['errors (make-error-result herbie-result id)]
             ['exacts (make-exacts-result herbie-result id)]
-            ['improve (make-improve-result herbie-result)]
-            ['local-error (make-local-error-result herbie-result id test)]
+            ['improve (make-improve-result herbie-result test id)]
+            ['local-error (make-local-error-result herbie-result test id)]
             ['sample (make-sample-result herbie-result id test)]
             [_ (error 'compute-result "unknown command ~a" kind)]))
         (hash-set! *job-status* id #f)
@@ -167,7 +167,7 @@
         (eprintf "checking ~a\n" id)
         (place-channel-put ch (list 'done (list 'inprogress (hash-ref *job-status* id #f))))]))))
 
-(define (make-local-error-result herbie-result id test)
+(define (make-local-error-result herbie-result test id)
   (define expr (prog->fpcore (test-input test) (test-output-repr test)))
   (define local-error (job-result-backend herbie-result))
   ;; TODO: potentially unsafe if resugaring changes the AST
@@ -252,8 +252,7 @@
           'path
           (make-path id)))
 
-(define (make-improve-result result)
-  (define test (job-result-test result))
+(define (make-improve-result result test id)
   (define ctx (ctx-hash-table (test-context test)))
   (define backend (job-result-backend result))
   (define job-time (job-result-time result))
@@ -277,7 +276,11 @@
           'timeline
           timeline
           'backend
-          backend-hash))
+          backend-hash
+          'job
+          id
+          'path
+          (make-path id)))
 
 (define (backend-improve-result-hash-table backend repr test)
   (define pcontext (improve-result-pctxs backend))
@@ -308,19 +311,14 @@
                ([analysis end])
                (match-define (alt-analysis alt _ test-errs) analysis)
                (values alt test-errs (alt-cost alt repr))))
-  (define sendable-alts
-    (for/list ([alt end-alts] [ppctx processed] [tpctx test-pctx])
-      (render-json alt ppctx tpctx (test-context test))))
-  (define alt (hash-ref (first sendable-alts) 'program))
-  ; (eprintf "alt:~a\n" alt)
-  (define syn (read-syntax 'web (open-input-string alt)))
-  (define t (parse-test syn))
-  ; (eprintf "SEND:~a\n" t)
+  (define fpcores
+    (for/list ([altn end-alts])
+      (~a (program->fpcore (alt-expr altn) (test-context test)))))
   (define alts-histories
     (for/list ([alt end-alts] [ppctx processed] [tpctx test-pctx])
       (render-history alt ppctx tpctx (test-context test))))
   (hasheq 'end-alts
-          sendable-alts
+          fpcores
           'end-histories
           alts-histories
           'end-errors
