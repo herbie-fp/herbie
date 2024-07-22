@@ -145,20 +145,25 @@
 ;; If the sample contains the expected number of points, i.e., `(*num-points*) + (*reeval-pts*)`,
 ;; then the first `*num-points*` will be discarded and the rest will be used for evaluation,
 ;; otherwise the entire set is used.
-(define (get-alternatives test pcontext seed)
+(define (get-alternatives test train-pcontext test-pcontext ctx)
+  ;; TODO: Ignoring all user-provided preprocessing right now
+  (define-values (alternatives preprocessing)
+    (run-improve! (test-input test) (test-spec test) (*context*) train-pcontext))
+  (define test-pcontext* (preprocess-pcontext ctx test-pcontext preprocessing))
+  (values (list alternatives test-pcontext test-pcontext*) preprocessing))
+
+(define (get-alternatives-helper test pcontext seed)
   (unless pcontext
     (error 'get-alternatives "cannnot run without a pcontext"))
 
   (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext))
-  ;; TODO: Ignoring all user-provided preprocessing right now
-  (define-values (alternatives preprocessing)
-    (run-improve! (test-input test) (test-spec test) (*context*) train-pcontext))
-  (define test-pcontext* (preprocess-pcontext (*context*) test-pcontext preprocessing))
+  (define-values (result preprocessing)
+    (get-alternatives test train-pcontext test-pcontext (*context*)))
   (when seed
     (set-seed! seed))
-  (list alternatives test-pcontext test-pcontext*))
+  result)
 
-(define (get-alternatives-helper test)
+(define (get-alternatives-report-helper test)
   ; (eprintf "get-alternatives-helper\n")
   (define seed (get-seed))
   (random) ;; Child process uses deterministic but different seed from evaluator
@@ -172,20 +177,19 @@
                       (prog->spec (test-pre test))
                       repr)))
   (timeline-push! 'bogosity domain-stats)
+  (define-values (train-pcontext test-pcontext)
+    (split-pcontext joint-pcontext (*num-points*) (*reeval-pts*)))
   (define-values (preprocessing pctxs start-alt-data target-alt-data end-alts-data)
-    (get-alternatives/report test joint-pcontext ctx seed))
+    (get-alternatives-report test train-pcontext test-pcontext ctx seed))
 
   (improve-result preprocessing pctxs start-alt-data target-alt-data end-alts-data domain-stats))
 
 ;; Improvement backend for generating reports
 ;; A more heavyweight version of `get-alternatives`
-(define (get-alternatives/report test joint-pcontext ctx seed)
-  (define-values (train-pcontext test-pcontext)
-    (split-pcontext joint-pcontext (*num-points*) (*reeval-pts*)))
-  ;; TODO: Ignoring all user-provided preprocessing right now
-  (define-values (end-alts preprocessing)
-    (run-improve! (test-input test) (test-spec test) (*context*) train-pcontext))
-  (define test-pcontext* (preprocess-pcontext ctx test-pcontext preprocessing))
+(define (get-alternatives-report test train-pcontext test-pcontext ctx seed)
+
+  (define-values (result preprocessing) (get-alternatives test train-pcontext test-pcontext ctx))
+  (match-define (list end-alts _ test-pcontext*) result)
   (when seed
     (set-seed! seed))
 
@@ -265,12 +269,12 @@
       (with-handlers ([exn? (curry on-exception start-time)])
         (define result
           (match command
-            ['alternatives (get-alternatives test pcontext seed)]
+            ['alternatives (get-alternatives-helper test pcontext seed)]
             ['evaluate (get-calculation test pcontext)]
             ['cost (get-cost test)]
             ['errors (get-errors test pcontext)]
             ['exacts (get-exacts test pcontext)]
-            ['improve (get-alternatives-helper test)]
+            ['improve (get-alternatives-report-helper test)]
             ['local-error (get-local-error test pcontext)]
             ['sample (get-sample test)]
             [_ (error 'compute-result "unknown command ~a" command)]))
