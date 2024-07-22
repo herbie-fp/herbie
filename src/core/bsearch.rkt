@@ -118,9 +118,7 @@
   ; Not totally clear if this should actually use the precondition
   (define start-real-compiler
     (and start-prog
-         (make-real-compiler 
-           (list (expand-accelerators (prog->spec start-prog)))
-           (list ctx*))))
+         (make-real-compiler (list (expand-accelerators (prog->spec start-prog))) (list ctx*))))
 
   (define (find-split expr1 expr2 v1 v2)
     (define (pred v)

@@ -577,7 +577,8 @@
              splitpoints
              'job
              id
-             'path (make-path id)))))
+             'path
+             (make-path id)))))
 
 (define ->mathjs-endpoint
   (post-with-json-response (lambda (post-data)

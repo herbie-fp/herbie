@@ -86,8 +86,7 @@
 
 (define (already-computed? job-id)
   (or (hash-has-key? *completed-jobs* job-id)
-      (and (*demo-output*)
-           (directory-exists? (build-path (*demo-output*) (make-path job-id))))))
+      (and (*demo-output*) (directory-exists? (build-path (*demo-output*) (make-path job-id))))))
 
 (define (internal-wait-for-job job-id)
   (eprintf "Waiting for job\n")
