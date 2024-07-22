@@ -8,6 +8,7 @@
          "types.rkt")
 
 (provide platform
+         define-platform
          get-platform
          *active-platform*
          activate-platform!
@@ -34,6 +35,7 @@
 
 (module+ internals
   (provide platform
+           define-platform
            get-platform
            register-platform!
            platform-product
@@ -177,6 +179,30 @@
   ; make the platform
   (create-platform #f reprs (append convs impls) (make-immutable-hash (hash->list costs)) (hash)))
 
+(define (make-platform2 pform #:optional? [optional? #f] #:if-cost [if-cost #f])
+  (define missing (mutable-set))
+  (define impls
+    (reap [sow]
+          (for ([impl-sig (in-list pform)])
+            (match-define (list name tsig cost) impl-sig)
+            (match* (name tsig)
+              [('cast _) (void)] ; casts
+              [(_ `(,otype)) ; constants
+               (define orepr (get-representation (representation-name otype)))
+               (with-cond-handlers optional?
+                                   ([exn:fail:user:herbie:missing?
+                                     (λ (_) (set-add! missing (list name (representation-name otype))))])
+                                   (let ([impl (get-parametric-constant name orepr #:all? #t)])
+                                     (sow impl)))]
+              [(_ `(,itypes ... ,otype)) ; operators
+               (define ireprs (map get-representation (map representation-name itypes)))
+               (with-cond-handlers optional?
+                                   ([exn:fail:user:herbie:missing?
+                                     (λ (_) (set-add! missing `(,name ,@itypes ,(representation-name otype))))])
+                                   (let ([impl (apply get-parametric-operator name ireprs #:all? #t)])
+                                     (sow impl)))]))))
+  (create-platform #f #f impls #f #f))
+
 (begin-for-syntax
 
   ;; Macro-time platform description
@@ -269,6 +295,17 @@
 ;;     ...
 ;; ))
 ;; ```
+(define-syntax (define-platform stx)
+  (define (oops! why [sub-stx #f])
+    (raise-syntax-error 'platform why stx sub-stx))
+    (syntax-case stx ()
+      [(_ id [impl cost] ...)
+        (let ([platform-id (syntax->datum #'id)] [impls (syntax->list #'(impl ...))] [costs (syntax->list #'(cost ...))])
+          (with-syntax ([platform-id platform-id] [(impls ...) impls] [(costs ...) costs] 
+          [(tsig ...) (map (lambda (impl) (with-syntax ([impl impl]) #'`(,@(impl-info 'impl 'itype) ,(impl-info 'impl 'otype)))) impls)])
+            #'(define platform-id (make-platform2 `([,(impl->operator 'impls) ,tsig ,costs] ...)))))]
+      [_ (oops! "bad syntax")]))
+
 (define-syntax (platform stx)
   (define (oops! why [sub-stx #f])
     (raise-syntax-error 'platform why stx sub-stx))
