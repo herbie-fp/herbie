@@ -412,10 +412,7 @@
      (define command
        (create-job 'sample test #:seed seed* #:pcontext #f #:profile? #f #:timeline-disabled? #t))
      (define id (start-job command))
-     (define result (wait-for-job id))
-     (define pctx (job-result-backend result))
-     (define repr (context-repr (test-context test)))
-     (hasheq 'points (pcontext->json pctx repr) 'job id 'path (make-path id)))))
+     (wait-for-job id))))
 
 (define analyze-endpoint
   (post-with-json-response (lambda (post-data)
@@ -433,13 +430,8 @@
                                            #:profile? #f
                                            #:timeline-disabled? #t))
                              (define id (start-job command))
-                             (define result (wait-for-job id))
-                             (define errs
-                               (for/list ([pt&err (job-result-backend result)])
-                                 (define pt (first pt&err))
-                                 (define err (second pt&err))
-                                 (list pt (format-bits (ulps->bits err)))))
-                             (hasheq 'points errs 'job id 'path (make-path id)))))
+                             wait-for-job
+                             id)))
 
 ;; (await fetch('/api/exacts', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x) (- (sqrt (+ x 1))))", points: [[1, 1]]})})).json()
 (define exacts-endpoint
@@ -495,29 +487,7 @@
                                            #:profile? #f
                                            #:timeline-disabled? #t))
                              (define id (start-job command))
-                             (define result (wait-for-job id))
-                             (define local-error (job-result-backend result))
-                             ;; TODO: potentially unsafe if resugaring changes the AST
-                             (define tree
-                               (let loop ([expr expr] [err local-error])
-                                 (match expr
-                                   [(list op args ...)
-                                    ;; err => (List (listof Integer) List ...)
-                                    (hasheq 'e
-                                            (~a op)
-                                            'avg-error
-                                            (format-bits (errors-score (first err)))
-                                            'children
-                                            (map loop args (rest err)))]
-                                   [_
-                                    ;; err => (List (listof Integer))
-                                    (hasheq 'e
-                                            (~a expr)
-                                            'avg-error
-                                            (format-bits (errors-score (first err)))
-                                            'children
-                                            '())])))
-                             (hasheq 'tree tree 'job id 'path (make-path id)))))
+                             (wait-for-job id))))
 
 (define alternatives-endpoint
   (post-with-json-response (lambda (post-data)
@@ -537,8 +507,7 @@
                                            #:profile? #f
                                            #:timeline-disabled? #t))
                              (define id (start-job command))
-                             (define result (wait-for-job id))
-                             result)))
+                             (wait-for-job id))))
 
 (define ->mathjs-endpoint
   (post-with-json-response (lambda (post-data)
