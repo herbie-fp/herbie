@@ -150,7 +150,7 @@
         (define out-result
           (match kind
             ['alternatives (make-alternatives-result herbie-result test id)]
-            ['evaluate #f]
+            ['evaluate (make-calculate-result herbie-result id)]
             ['cost (make-cost-result herbie-result id)]
             ['errors #f]
             ['exacts (make-exacts-result herbie-result id)]
@@ -165,6 +165,9 @@
         (place-channel-put ch (list 'done (list 'inprogress (hash-ref *job-status* id #f))))]))))
 
 (define (make-exacts-result herbie-result id)
+  (hasheq 'points (job-result-backend herbie-result) 'job id 'path (make-path id)))
+
+(define (make-calculate-result herbie-result id)
   (hasheq 'points (job-result-backend herbie-result) 'job id 'path (make-path id)))
 
 (define (make-cost-result herbie-result id)
