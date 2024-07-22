@@ -443,22 +443,22 @@
 
 ;; (await fetch('/api/exacts', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x) (- (sqrt (+ x 1))))", points: [[1, 1]]})})).json()
 (define exacts-endpoint
-  (post-with-json-response
-   (lambda (post-data)
-     (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
-     (define sample (hash-ref post-data 'sample))
-     (define seed (hash-ref post-data 'seed #f))
-     (define test (parse-test formula))
-     (define pcontext (json->pcontext sample (test-context test)))
-     (define command
-       (create-job 'exacts
-                   test
-                   #:seed seed
-                   #:pcontext pcontext
-                   #:profile? #f
-                   #:timeline-disabled? #t))
-     (define id (start-job command))
-     (wait-for-job id))))
+  (post-with-json-response (lambda (post-data)
+                             (define formula
+                               (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
+                             (define sample (hash-ref post-data 'sample))
+                             (define seed (hash-ref post-data 'seed #f))
+                             (define test (parse-test formula))
+                             (define pcontext (json->pcontext sample (test-context test)))
+                             (define command
+                               (create-job 'exacts
+                                           test
+                                           #:seed seed
+                                           #:pcontext pcontext
+                                           #:profile? #f
+                                           #:timeline-disabled? #t))
+                             (define id (start-job command))
+                             (wait-for-job id))))
 
 (define calculate-endpoint
   (post-with-json-response (lambda (post-data)
@@ -560,8 +560,7 @@
        (create-job 'cost test #:seed #f #:pcontext #f #:profile? #f #:timeline-disabled? #t))
      (define id (start-job command))
      (define result (wait-for-job id))
-     (define cost (job-result-backend result))
-     (hasheq 'cost cost 'job id 'path (make-path id)))))
+     result)))
 
 (define translate-endpoint
   (post-with-json-response (lambda (post-data)
