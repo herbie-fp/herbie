@@ -158,9 +158,8 @@
     (set-seed! seed))
   (list alternatives test-pcontext test-pcontext*))
 
-;; Improvement backend for generating reports
-;; A more heavyweight version of `get-alternatives`
-(define (get-alternatives/report test)
+(define (get-alternatives-helper test)
+  ; (eprintf "get-alternatives-helper\n")
   (define seed (get-seed))
   (random) ;; Child process uses deterministic but different seed from evaluator
 
@@ -173,6 +172,14 @@
                       (prog->spec (test-pre test))
                       repr)))
   (timeline-push! 'bogosity domain-stats)
+  (define-values (preprocessing pctxs start-alt-data target-alt-data end-alts-data)
+    (get-alternatives/report test joint-pcontext ctx seed))
+
+  (improve-result preprocessing pctxs start-alt-data target-alt-data end-alts-data domain-stats))
+
+;; Improvement backend for generating reports
+;; A more heavyweight version of `get-alternatives`
+(define (get-alternatives/report test joint-pcontext ctx seed)
   (define-values (train-pcontext test-pcontext)
     (split-pcontext joint-pcontext (*num-points*) (*reeval-pts*)))
   ;; TODO: Ignoring all user-provided preprocessing right now
@@ -210,7 +217,7 @@
   (timeline-adjust! 'regimes 'link ".")
 
   (define pctxs (list train-pcontext test-pcontext*))
-  (improve-result preprocessing pctxs start-alt-data target-alt-data end-alts-data domain-stats))
+  (values preprocessing pctxs start-alt-data target-alt-data end-alts-data))
 
 ;;
 ;;  Public interface
@@ -263,7 +270,7 @@
             ['cost (get-cost test)]
             ['errors (get-errors test pcontext)]
             ['exacts (get-exacts test pcontext)]
-            ['improve (get-alternatives/report test)]
+            ['improve (get-alternatives-helper test)]
             ['local-error (get-local-error test pcontext)]
             ['sample (get-sample test)]
             [_ (error 'compute-result "unknown command ~a" command)]))
