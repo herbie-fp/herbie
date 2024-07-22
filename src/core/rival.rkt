@@ -16,11 +16,15 @@
          "../utils/timeline.rkt")
 
 (provide (struct-out real-compiler)
-         (contract-out [make-real-compiler
-                        (->* ((listof any/c) unified-contexts?) (#:pre any/c) real-compiler?)]
-                       [real-apply (-> real-compiler? list? (values symbol? any/c))]
-                       [real-compiler-clear! (-> real-compiler-clear! void?)]
-                       [real-compiler-analyze (-> real-compiler? (vectorof ival?) ival?)]))
+         (contract-out
+          [make-real-compiler
+           (->i ([es (listof any/c)]
+                 [ctxs (es) (and/c unified-contexts? (lambda (ctxs) (= (length es) (length ctxs))))])
+                (#:pre [pre any/c])
+                [c real-compiler?])]
+          [real-apply (-> real-compiler? list? (values symbol? any/c))]
+          [real-compiler-clear! (-> real-compiler-clear! void?)]
+          [real-compiler-analyze (-> real-compiler? (vectorof ival?) ival?)]))
 
 (define (unified-contexts? ctxs)
   (and ((non-empty-listof context?) ctxs)
