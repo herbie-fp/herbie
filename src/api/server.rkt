@@ -151,7 +151,7 @@
           (match kind
             ['alternatives (make-alternatives-result herbie-result test id)]
             ['evaluate #f]
-            ['cost #f]
+            ['cost (make-cost-result herbie-result id)]
             ['errors #f]
             ['exacts (make-exacts-result herbie-result id)]
             ['improve (make-improve-result herbie-result)]
@@ -166,6 +166,10 @@
 
 (define (make-exacts-result herbie-result id)
   (hasheq 'points (job-result-backend herbie-result) 'job id 'path (make-path id)))
+
+(define (make-cost-result herbie-result id)
+  (define cost (job-result-backend herbie-result))
+  (hasheq 'cost cost 'job id 'path (make-path id)))
 
 (define (make-alternatives-result herbie-result test id)
 
