@@ -26,7 +26,7 @@
 ;; points; and 2) a ground-truth output for each input.
 
 (define *pcontext* (make-parameter #f))
-(struct pcontext (points exacts))
+(struct pcontext (points exacts) #:prefab)
 
 (define (in-pcontext context)
   (in-parallel (in-vector (pcontext-points context)) (in-vector (pcontext-exacts context))))

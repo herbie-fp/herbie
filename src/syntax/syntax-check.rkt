@@ -73,8 +73,6 @@
          (loop arg vars))]
       [#`(#,f-syntax #,args ...)
        (define f (syntax->datum f-syntax))
-       (eprintf "*functions*: ~a\n" (*functions*))
-       (eprintf "operators: ~a\n" operators)
        (cond
          [(operator-exists? f)
           (define arity (length (operator-info f 'itype)))
