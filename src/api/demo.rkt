@@ -430,8 +430,7 @@
                                            #:profile? #f
                                            #:timeline-disabled? #t))
                              (define id (start-job command))
-                             wait-for-job
-                             id)))
+                             (wait-for-job id))))
 
 ;; (await fetch('/api/exacts', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x) (- (sqrt (+ x 1))))", points: [[1, 1]]})})).json()
 (define exacts-endpoint
