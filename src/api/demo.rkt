@@ -458,8 +458,7 @@
                    #:profile? #f
                    #:timeline-disabled? #t))
      (define id (start-job command))
-     (define result (wait-for-job id))
-     (hasheq 'points (job-result-backend result) 'job id 'path (make-path id)))))
+     (wait-for-job id))))
 
 (define calculate-endpoint
   (post-with-json-response (lambda (post-data)

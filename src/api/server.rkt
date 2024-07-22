@@ -153,7 +153,7 @@
             ['evaluate #f]
             ['cost #f]
             ['errors #f]
-            ['exacts #f]
+            ['exacts (make-exacts-result herbie-result id)]
             ['improve (make-improve-result herbie-result)]
             ['local-error #f]
             ['sample #f]
@@ -163,6 +163,9 @@
        [(list 'check id)
         (eprintf "checking ~a\n" id)
         (place-channel-put ch (list 'done (list 'inprogress (hash-ref *job-status* id #f))))]))))
+
+(define (make-exacts-result herbie-result id)
+  (hasheq 'points (job-result-backend herbie-result) 'job id 'path (make-path id)))
 
 (define (make-alternatives-result herbie-result test id)
 
