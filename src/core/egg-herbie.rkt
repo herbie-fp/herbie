@@ -1326,13 +1326,12 @@
        (unless (egraph-expr-equal? egg-graph start end ctx)
          (error 'run-egg
                 "cannot find proof; start and end are not equal.\n start: ~a \n end: ~a"
-                start end))
-        (define proof (egraph-get-proof egg-graph start end ctx))
-        (when (null? proof)
-          (error 'run-egg
-                 "proof extraction failed between`~a` and `~a`"
-                 start end))
-        proof)]
+                start
+                end))
+       (define proof (egraph-get-proof egg-graph start end ctx))
+       (when (null? proof)
+         (error 'run-egg "proof extraction failed between`~a` and `~a`" start end))
+       proof)]
     [`(equal? . ((,start-exprs . ,end-exprs) ...)) ; term equality?
      (for/list ([start (in-list start-exprs)] [end (in-list end-exprs)])
        (egraph-expr-equal? egg-graph start end ctx))]

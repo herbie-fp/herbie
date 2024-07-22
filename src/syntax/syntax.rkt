@@ -439,11 +439,10 @@
     (define ctx (context vars orepr ireprs))
     (define compiler (make-real-compiler (list spec) (list ctx)))
     (define fail ((representation-bf->repr orepr) +nan.bf))
-    (procedure-rename
-      (lambda pt
-        (define-values (_ exs) (real-apply compiler pt))
-        (if exs (first exs) fail))
-      (sym-append 'synth: name)))
+    (procedure-rename (lambda pt
+                        (define-values (_ exs) (real-apply compiler pt))
+                        (if exs (first exs) fail))
+                      (sym-append 'synth: name)))
 
   ;; Get floating-point implementation
   (define fl-proc
