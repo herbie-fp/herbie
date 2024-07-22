@@ -4,7 +4,8 @@
 
 (require "sandbox.rkt"
          "../config.rkt"
-         "../syntax/read.rkt")
+         "../syntax/read.rkt"
+         "../syntax/load-plugin.rkt")
 (require (submod "../utils/timeline.rkt" debug))
 
 (provide completed-job?
@@ -41,7 +42,7 @@
   (hash-count *job-status*))
 
 (define (is-server-up)
-  (thread-running? *worker-thread*))
+  #t)
 
 ;; Creates a command object to be passed to start-job server.
 ;; TODO contract?
@@ -65,16 +66,16 @@
   (if (already-computed? job-id) (hash-ref *completed-jobs* job-id) (internal-wait-for-job job-id)))
 
 (define (start-job-server config global-demo global-output)
+  (build-worker-pool 4)
   ;; Pass along local global values
   ;; TODO can I pull these out of config or not need ot pass them along.
   (set! *demo?* global-demo)
-  (set! *demo-output* global-output)
-  (thread-send *worker-thread* config))
+  (set! *demo-output* global-output))
 
 #| End Job Server Public API section |#
 
 ;; Job object, What herbie excepts as input for a new job.
-(struct herbie-command (command test seed pcontext profile? timeline-disabled?) #:transparent)
+(struct herbie-command (command test seed pcontext profile? timeline-disabled?) #:prefab)
 
 ; Private globals
 ; TODO I'm sure these can encapslated some how.
@@ -83,6 +84,75 @@
 (define *completed-jobs* (make-hash))
 (define *job-status* (make-hash))
 (define *job-sema* (make-hash))
+
+;; place channels in progress. "workers"
+(define *inprogress* (make-hash))
+(define *ready-workers* (list))
+
+(define (work-on command)
+  (define job-id (compute-job-id command))
+  ;; Pop off 1st ready worker
+  (define worker (first *ready-workers*))
+  (set! *ready-workers* (cdr *ready-workers*))
+  ;; Send work to worker
+  (place-channel-put worker `(apply ,worker ,command ,job-id))
+  (hash-set! *inprogress* job-id worker)
+  (eprintf "Work started: ~a\n" job-id)
+  job-id)
+
+(define (build-worker-pool number-of-workers)
+  (define workers
+    (for/list ([wid (in-range number-of-workers)])
+      (make-worker)))
+  (for/list ([worker workers])
+    (place-dead-evt worker))
+  (set! *ready-workers* workers))
+
+(define-syntax (place/context* stx)
+  (syntax-case stx ()
+    [(_ name #:parameters (params ...) body ...)
+     (with-syntax ([(fresh ...) (generate-temporaries #'(params ...))])
+       #'(let ([fresh (params)] ...)
+           (place/context name
+                          (parameterize ([params fresh] ...)
+                            body ...))))]))
+(define (make-worker)
+  (place/context*
+   ch
+   #:parameters (*flags* *num-iterations*
+                         *num-points*
+                         *timeout*
+                         *reeval-pts*
+                         *node-limit*
+                         *max-find-range-depth*
+                         *pareto-mode*
+                         *platform-name*
+                         *loose-plugins*)
+   (parameterize ([current-error-port (open-output-nowhere)]) ; hide output
+     (load-herbie-plugins))
+   (for ([_ (in-naturals)])
+     (match (place-channel-get ch)
+       [(list 'apply self command id)
+        (hash-set! *job-status* id (*timeline*))
+        (eprintf "Job [~a] being worked on.\n" id)
+        (define herbie-result (wrapper-run-herbie command id))
+        (match-define (job-result kind test status time _ _ backend) herbie-result)
+        (define out-result
+          (match kind
+            ['alternatives #f]
+            ['evaluate #f]
+            ['cost #f]
+            ['errors #f]
+            ['exacts #f]
+            ['improve (eprintf "HERE:~a\n" herbie-result)]
+            ['local-error #f]
+            ['sample #f]
+            [_ (error 'compute-result "unknown command ~a" kind)]))
+        (hash-set! *job-status* id #f)
+        (place-channel-put ch (list 'done out-result))]
+       [(list 'check id)
+        (eprintf "checking ~a\n" id)
+        (place-channel-put ch (list 'done (list 'inprogress (hash-ref *job-status* id #f))))]))))
 
 (define (already-computed? job-id)
   (or (hash-has-key? *completed-jobs* job-id)
@@ -101,10 +171,11 @@
 ; Encapsulates semaphores and async part of jobs.
 (define (start-work job)
   (define job-id (compute-job-id job))
-  (hash-set! *job-status* job-id (*timeline*))
-  (define sema (make-semaphore))
-  (hash-set! *job-sema* job-id sema)
-  (thread-send *worker-thread* (work job-id job sema))
+  (work-on job)
+  ; (hash-set! *job-status* job-id (*timeline*))
+  ; (define sema (make-semaphore))
+  ; (hash-set! *job-sema* job-id sema)
+  ; (thread-send *worker-thread* (work job-id job sema))
   job-id)
 
 ; Handles semaphore and async part of a job
@@ -133,7 +204,8 @@
                 #:profile? (herbie-command-profile? cmd)
                 #:timeline-disabled? (herbie-command-timeline-disabled? cmd)))
   (hash-set! *completed-jobs* job-id result)
-  (eprintf "Job ~a complete\n" job-id))
+  (eprintf "Job ~a complete\n" job-id)
+  result)
 
 (define (print-job-message command job-id job-str)
   (define job-label
@@ -148,34 +220,3 @@
       ['sample "Sampling"]
       [_ (error 'compute-result "unknown command ~a" command)]))
   (eprintf "~a Job ~a started:\n  ~a ~a...\n" job-label (symbol->string command) job-id job-str))
-
-(define *worker-thread*
-  (thread (λ ()
-            (let loop ([seed #f])
-              (match (thread-receive)
-                [`(init rand
-                        ,vec
-                        flags
-                        ,flag-table
-                        num-iters
-                        ,iterations
-                        points
-                        ,points
-                        timeout
-                        ,timeout
-                        output-dir
-                        ,output
-                        reeval
-                        ,reeval
-                        demo?
-                        ,demo?)
-                 (set! seed vec)
-                 (*flags* flag-table)
-                 (*num-iterations* iterations)
-                 (*num-points* points)
-                 (*timeout* timeout)
-                 (*demo-output* output)
-                 (*reeval-pts* reeval)
-                 (*demo?* demo?)]
-                [job-info (run-job job-info)])
-              (loop seed)))))
