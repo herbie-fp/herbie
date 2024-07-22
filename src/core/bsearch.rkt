@@ -15,7 +15,8 @@
          "regimes.rkt"
          "../utils/float.rkt"
          "../utils/pretty-print.rkt"
-         "sampling.rkt")
+         "sampling.rkt"
+         "rival.rkt")
 
 (provide combine-alts
          (struct-out sp)
@@ -91,13 +92,13 @@
   (define vars* (set-subtract (context-vars ctx) (free-variables pattern)))
   (if (subset? (free-variables body*) (cons var vars*)) body* #f))
 
-(define (prepend-argument fn val pcontext ctx)
+(define (prepend-argument evaluator val pcontext)
   (define pts
     (for/list ([(pt ex) (in-pcontext pcontext)])
       pt))
   (define (new-sampler)
     (cons val (random-ref pts)))
-  (apply mk-pcontext (cdr (batch-prepare-points fn (list ctx) new-sampler))))
+  (apply mk-pcontext (cdr (batch-prepare-points evaluator new-sampler))))
 
 ;; Accepts a list of sindices in one indexed form and returns the
 ;; proper splitpoints in float form. A crucial constraint is that the
@@ -115,14 +116,17 @@
   (define start-prog (extract-subexpression (*start-prog*) var expr ctx))
 
   ; Not totally clear if this should actually use the precondition
-  (define start-fn
-    (and start-prog (make-search-func '(TRUE) (list (prog->spec start-prog)) (cons ctx* `()))))
+  (define start-real-compiler
+    (and start-prog
+         (make-real-compiler 
+           (list (expand-accelerators (prog->spec start-prog)))
+           (list ctx*))))
 
   (define (find-split expr1 expr2 v1 v2)
     (define (pred v)
       (define pctx
         (parameterize ([*num-points* (*binary-search-test-points*)])
-          (prepend-argument start-fn v (*pcontext*) ctx*)))
+          (prepend-argument start-real-compiler v (*pcontext*))))
       (define acc1 (errors-score (errors expr1 pctx ctx*)))
       (define acc2 (errors-score (errors expr2 pctx ctx*)))
       (- acc1 acc2))

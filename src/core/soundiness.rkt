@@ -1,12 +1,12 @@
 #lang racket
 
 (require "../utils/alternative.rkt"
-         "../syntax/accelerator.rkt"
          "points.rkt"
          "programs.rkt"
          "egg-herbie.rkt"
          "rules.rkt"
-         "../syntax/sugar.rkt")
+         "../syntax/sugar.rkt"
+         "../syntax/syntax.rkt")
 
 (provide add-soundiness)
 

@@ -4,9 +4,8 @@
          "utils/errors.rkt"
          (submod "syntax/types.rkt" internals)
          (submod "syntax/syntax.rkt" internals)
-         (submod "core/rules.rkt" internals)
          (submod "syntax/platform.rkt" internals)
-         "syntax/defaccelerator.rkt")
+         (submod "core/rules.rkt" internals))
 
 (provide define-type
          define-representation
@@ -36,8 +35,4 @@
          platform-operator-set
          with-terminal-cost
          cost-map
-         cost-map-scale
-         register-accelerator!
-         register-accelerator-impl!
-         define-accelerator
-         define-accelerator-impl)
+         cost-map-scale)

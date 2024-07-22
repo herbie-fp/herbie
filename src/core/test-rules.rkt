@@ -1,17 +1,18 @@
 #lang racket
 
 (require rackunit)
-(require "../syntax/accelerator.rkt"
-         "../utils/common.rkt"
-         "../core/compiler.rkt"
+(require "../utils/common.rkt"
          "../utils/float.rkt"
-         "sampling.rkt"
-         "../syntax/types.rkt"
-         "../syntax/load-plugin.rkt"
          "rules.rkt"
          (submod "rules.rkt" internals)
+         "../syntax/types.rkt"
+         "../syntax/load-plugin.rkt"
+         "../syntax/syntax.rkt"
          "../syntax/sugar.rkt"
-         "egg-herbie.rkt")
+         "compiler.rkt"
+         "egg-herbie.rkt"
+         "rival.rkt"
+         "sampling.rkt")
 
 (load-herbie-builtins)
 
@@ -35,25 +36,26 @@
                                   [sqrt-pow1_binary32 . (>= x 0)]))
 
 (define (check-rule-sound test-rule)
-  (match-define (rule name p1 p2 itypes repr) test-rule)
-  (define fv (dict-keys itypes))
-  (define ctx (context fv repr (map (curry dict-ref itypes) fv)))
-
+  (match-define (rule name p1 p2 env repr) test-rule)
+  (define vars (map car env))
+  (define itypes (map cdr env))
+  (define ctx (context vars repr itypes))
+  
+  (define spec1 (expand-accelerators (prog->spec p1)))
+  (define spec2 (expand-accelerators (prog->spec p2)))
   (match-define (list pts exs)
-    (parameterize ([*num-points* (num-test-points)] [*max-find-range-depth* 0])
-      (cdr (sample-points '(TRUE) (list (prog->spec p1)) (list ctx)))))
+    (parameterize ([*num-points* (num-test-points)]
+                   [*max-find-range-depth* 0])
+      (cdr (sample-points '(TRUE) (list spec1) (list ctx)))))
 
-  (define fn (make-search-func '(TRUE) (list (prog->spec p2)) (list ctx)))
-
+  (define compiler (make-real-compiler (list spec2) (list ctx)))
   (for ([pt (in-list pts)] [v1 (in-list exs)])
-    (with-check-info* (map make-check-info fv pt)
-                      (λ ()
-                        (define-values (status v2) (ival-eval fn (list ctx) pt))
-                        (with-check-info (['lhs v1] ['rhs v2] ['status status])
-                                         (when (and (real? v2)
-                                                    (nan? v2)
-                                                    (not (set-member? '(exit unsamplable) status)))
-                                           (fail "Right hand side returns NaN")))))))
+    (with-check-info* (map make-check-info vars pt)
+      (λ ()
+        (define-values (status v2) (real-apply compiler pt))
+        (with-check-info (['lhs v1] ['rhs v2] ['status status])
+          (when (and (real? v2) (nan? v2) (not (set-member? '(exit unsamplable) status)))
+            (fail "Right hand side returns NaN")))))))
 
 (define (check-rule-correct test-rule)
   (match-define (rule name p1 p2 itypes repr) test-rule)

@@ -7,7 +7,6 @@
          "../syntax/sugar.rkt"
          "../syntax/types.rkt"
          "../utils/alternative.rkt"
-         "../syntax/accelerator.rkt"
          "../utils/common.rkt"
          "../utils/errors.rkt"
          "programs.rkt"
