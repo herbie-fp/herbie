@@ -38,6 +38,7 @@
 
 (module+ internals
   (provide platform
+           *active-platform*
            get-platform
            register-platform!
            platform-product
