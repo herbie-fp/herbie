@@ -45,12 +45,12 @@
        (cons lower higher)))
 
 (define (search-step evaluator space split-var)
-  (define vars (real-evaluator-vars evaluator))
-  (define reprs (real-evaluator-var-reprs evaluator))
+  (define vars (real-compiler-vars evaluator))
+  (define reprs (real-compiler-var-reprs evaluator))
   (match-define (search-space true false other) space)
   (define-values (true* false* other*)
     (for/fold ([true* true] [false* false] [other* '()]) ([rect (in-list other)])
-      (match-define (ival err err?) (real-evaluator-unsamplable? evaluator (list->vector rect)))
+      (match-define (ival err err?) (real-compiler-analyze evaluator (list->vector rect)))
       (when (eq? err 'unsamplable)
         (warn 'ground-truth
               #:url "faq.html#ground-truth"
@@ -89,7 +89,7 @@
   (make-immutable-hash (hash->list out)))
 
 (define (find-intervals evaluator rects #:fuel [depth 128])
-  (define var-reprs (real-evaluator-var-reprs evaluator))
+  (define var-reprs (real-compiler-var-reprs evaluator))
   (if (or (null? rects) (null? (first rects)))
       (map (curryr cons 'other) rects)
       (let loop ([space (apply make-search-space rects)] [n 0])

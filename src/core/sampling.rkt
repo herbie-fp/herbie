@@ -104,7 +104,7 @@
                         ((make-hyperrect-sampler two-point-hyperrects (list repr repr))))))
 
 (define (make-sampler evaluator)
-  (match-define (real-evaluator pre vars var-reprs _ reprs _) evaluator)
+  (match-define (real-compiler pre vars var-reprs _ reprs _) evaluator)
   (cond
     [(and (flag-set? 'setup 'search)
           (not (empty? var-reprs))
@@ -138,12 +138,12 @@
 (define (eval-progs-real specs ctxs)
   (define ctx (unify-contexts! 'eval-progs-real specs ctxs))
   (define specs&reprs (map (lambda (e ctx) (cons e (context-repr ctx))) specs ctxs))
-  (define evaluator (make-real-evaluator ctx specs&reprs))
+  (define evaluator (make-real-compiler ctx specs&reprs))
   (define bad-pt
     (for/list ([ctx* (in-list ctxs)])
       ((representation-bf->repr (context-repr ctx*)) +nan.bf)))
   (define (<eval-prog-real> . pt)
-    (define-values (_ exs) (run-real-evaluator evaluator pt))
+    (define-values (_ exs) (real-apply evaluator pt))
     (or exs bad-pt))
   <eval-prog-real>)
 
@@ -152,16 +152,16 @@
 (define (batch-prepare-points evaluator sampler)
   ;; If we're using the bf fallback, start at the max precision
   (define outcomes (make-hash))
-  (define vars (real-evaluator-vars evaluator))
-  (define var-reprs (real-evaluator-var-reprs evaluator))
-  (define reprs (real-evaluator-reprs evaluator))
+  (define vars (real-compiler-vars evaluator))
+  (define var-reprs (real-compiler-var-reprs evaluator))
+  (define reprs (real-compiler-reprs evaluator))
 
-  (real-evaluator-clear! evaluator) ; Clear profiling vector
+  (real-compiler-clear! evaluator) ; Clear profiling vector
   (define-values (points exactss)
     (let loop ([sampled 0] [skipped 0] [points '()] [exactss '()])
       (define pt (sampler))
 
-      (define-values (status exs) (run-real-evaluator evaluator pt))
+      (define-values (status exs) (real-apply evaluator pt))
       (case status
         [(exit)
          (warn 'ground-truth
@@ -204,7 +204,7 @@
   (timeline-event! 'analyze)
   (define ctx (unify-contexts! 'sample-points specs ctxs))
   (define specs&reprs (map (lambda (e ctx) (cons e (context-repr ctx))) specs ctxs))
-  (define evaluator (make-real-evaluator ctx specs&reprs #:pre pre))
+  (define evaluator (make-real-compiler ctx specs&reprs #:pre pre))
   (match-define (cons sampler table) (make-sampler evaluator))
   (timeline-event! 'sample)
   (match-define (cons table2 results) (batch-prepare-points evaluator sampler))

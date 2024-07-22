@@ -442,18 +442,18 @@
       [(operator-accelerator? op) ; Rival-synthesized accelerator implementation
        (match-define `(,(or 'lambda 'λ) (,vars ...) ,body) (operator-spec op-info))
        (define ctx (context vars orepr ireprs))
-       (define evaluator (make-real-evaluator ctx `((,body . ,orepr))))
+       (define evaluator (make-real-compiler ctx `((,body . ,orepr))))
        (define fail ((representation-bf->repr orepr) +nan.bf))
        (lambda pt
-         (define-values (_ exs) (run-real-evaluator evaluator pt))
+         (define-values (_ exs) (real-apply evaluator pt))
          (if exs (first exs) fail))]
       [else ; Rival-synthesized operator implementation
        (define vars (build-list (length ireprs) (lambda (i) (string->symbol (format "x~a" i)))))
        (define ctx (context vars orepr ireprs))
-       (define evaluator (make-real-evaluator ctx `(((,op ,@vars) . ,orepr))))
+       (define evaluator (make-real-compiler ctx `(((,op ,@vars) . ,orepr))))
        (define fail ((representation-bf->repr orepr) +nan.bf))
        (lambda pt
-         (define-values (_ exs) (run-real-evaluator evaluator pt))
+         (define-values (_ exs) (real-apply evaluator pt))
          (if exs (first exs) fail))]))
 
   ; update tables

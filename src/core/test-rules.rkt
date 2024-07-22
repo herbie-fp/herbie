@@ -46,11 +46,11 @@
                    [*max-find-range-depth* 0])
       (cdr (sample-points '(TRUE) (list (prog->spec p1)) (list ctx)))))
 
-  (define evaluator (make-real-evaluator ctx `((,(prog->spec p2) . ,repr))))
+  (define evaluator (make-real-compiler ctx `((,(prog->spec p2) . ,repr))))
   (for ([pt (in-list pts)] [v1 (in-list exs)])
     (with-check-info* (map make-check-info vars pt)
       (λ ()
-        (define-values (status v2) (run-real-evaluator evaluator pt))
+        (define-values (status v2) (real-apply evaluator pt))
         (with-check-info (['lhs v1] ['rhs v2] ['status status])
           (when (and (real? v2) (nan? v2) (not (set-member? '(exit unsamplable) status)))
             (fail "Right hand side returns NaN")))))))
