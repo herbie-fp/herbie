@@ -1,16 +1,20 @@
 #lang racket
 
 (require openssl/sha1)
-
+(require (only-in xml write-xexpr)
+         json)
 (require "sandbox.rkt"
          "../config.rkt"
+         "../core/preprocess.rkt"
+         "../reports/history.rkt"
+         "../reports/plot.rkt"
+         "../reports/common.rkt"
          "../syntax/types.rkt"
          "../syntax/read.rkt"
-         "../reports/history.rkt"
          "../syntax/load-plugin.rkt"
          "../syntax/platform.rkt"
-         "../core/preprocess.rkt"
-         "../utils/alternative.rkt")
+         "../utils/alternative.rkt"
+         "../utils/float.rkt")
 (require (submod "../utils/timeline.rkt" debug))
 
 (provide completed-job?
@@ -68,7 +72,9 @@
   (hash-ref *job-status* job-id #f))
 
 (define (wait-for-job job-id)
-  (if (already-computed? job-id) (hash-ref *completed-jobs* job-id) (internal-wait-for-job job-id)))
+  (if (already-computed? job-id)
+      (hash-ref *completed-jobs* job-id #f)
+      (internal-wait-for-job job-id)))
 
 (define (start-job-server config global-demo global-output)
   (build-worker-pool 4)
@@ -88,7 +94,6 @@
 (define *demo-output* (make-parameter false))
 (define *completed-jobs* (make-hash))
 (define *job-status* (make-hash))
-(define *job-sema* (make-hash))
 
 ;; place channels in progress. "workers"
 (define *inprogress* (make-hash))
@@ -144,7 +149,7 @@
         (match-define (job-result kind test status time _ _ backend) herbie-result)
         (define out-result
           (match kind
-            ['alternatives #f]
+            ['alternatives (make-alternatives-result herbie-result test id)]
             ['evaluate #f]
             ['cost #f]
             ['errors #f]
@@ -158,6 +163,49 @@
        [(list 'check id)
         (eprintf "checking ~a\n" id)
         (place-channel-put ch (list 'done (list 'inprogress (hash-ref *job-status* id #f))))]))))
+
+(define (make-alternatives-result herbie-result test id)
+
+  (define vars (test-vars test))
+  (define repr (test-output-repr test))
+
+  (match-define (list altns test-pcontext processed-pcontext) (job-result-backend herbie-result))
+  (define splitpoints
+    (for/list ([alt altns])
+      (for/list ([var vars])
+        (define split-var? (equal? var (regime-var alt)))
+        (if split-var?
+            (for/list ([val (regime-splitpoints alt)])
+              (real->ordinal (repr->real val repr) repr))
+            '()))))
+
+  (define fpcores
+    (for/list ([altn altns])
+      (~a (program->fpcore (alt-expr altn) (test-context test)))))
+
+  (define histories
+    (for/list ([altn altns])
+      (let ([os (open-output-string)])
+        (parameterize ([current-output-port os])
+          (write-xexpr
+           `(div ([id "history"])
+                 (ol ,@(render-history altn processed-pcontext test-pcontext (test-context test)))))
+          (get-output-string os)))))
+  (define derivations
+    (for/list ([altn altns])
+      (render-json altn processed-pcontext test-pcontext (test-context test))))
+  (hasheq 'alternatives
+          fpcores
+          'histories
+          histories
+          'derivations
+          derivations
+          'splitpoints
+          splitpoints
+          'job
+          id
+          'path
+          (make-path id)))
 
 (define (make-improve-result result)
   (define test (job-result-test result))
@@ -219,10 +267,10 @@
     (for/list ([alt end-alts] [ppctx processed] [tpctx test-pctx])
       (render-json alt ppctx tpctx (test-context test))))
   (define alt (hash-ref (first sendable-alts) 'program))
-  (eprintf "alt:~a\n" alt)
+  ; (eprintf "alt:~a\n" alt)
   (define syn (read-syntax 'web (open-input-string alt)))
   (define t (parse-test syn))
-  (eprintf "SEND:~a\n" t)
+  ; (eprintf "SEND:~a\n" t)
   (define alts-histories
     (for/list ([alt end-alts] [ppctx processed] [tpctx test-pctx])
       (render-history alt ppctx tpctx (test-context test))))
@@ -247,10 +295,10 @@
 
 (define (internal-wait-for-job job-id)
   (eprintf "Waiting for job\n")
-  (define sema (hash-ref *job-sema* job-id))
-  (semaphore-wait sema)
-  (hash-remove! *job-sema* job-id)
-  (hash-ref *completed-jobs* job-id))
+  (define ch (hash-ref *inprogress* job-id #f))
+  (match (place-channel-get ch)
+    [(list 'done result) result]
+    [else #f]))
 
 (define (compute-job-id job-info)
   (sha1 (open-input-string (~s job-info))))
@@ -259,27 +307,7 @@
 (define (start-work job)
   (define job-id (compute-job-id job))
   (work-on job)
-  ; (hash-set! *job-status* job-id (*timeline*))
-  ; (define sema (make-semaphore))
-  ; (hash-set! *job-sema* job-id sema)
-  ; (thread-send *worker-thread* (work job-id job sema))
   job-id)
-
-; Handles semaphore and async part of a job
-(struct work (id job sema))
-
-(define (run-job job-info)
-  (match-define (work job-id info sema) job-info)
-  (define path (make-path job-id))
-  (cond ;; Check caches if job as already been completed
-    [(hash-has-key? *completed-jobs* job-id) (semaphore-post sema)]
-    [(and (*demo-output*) (directory-exists? (build-path (*demo-output*) path)))
-     (semaphore-post sema)]
-    [else
-     (wrapper-run-herbie info job-id)
-     (hash-remove! *job-status* job-id)
-     (semaphore-post sema)])
-  (hash-remove! *job-sema* job-id))
 
 (define (wrapper-run-herbie cmd job-id)
   (print-job-message (herbie-command-command cmd) job-id (test-name (herbie-command-test cmd)))
