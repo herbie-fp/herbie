@@ -26,7 +26,7 @@ jobs:
         run: make install
 
       - name: "Test raco fmt compliance"
-        run: (find . -type f -name '*.rkt' | xargs raco fmt) && git diff --exit-code
+        run: (find . -type f -name '*.rkt' | xargs raco fmt -i) && git diff --exit-code
 
       # Run the Herbie unit tests
       - name: "Run Herbie unit tests"
