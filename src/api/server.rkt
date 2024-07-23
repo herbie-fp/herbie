@@ -358,6 +358,17 @@
   (define alts-histories
     (for/list ([alt end-alts] [ppctx processed] [tpctx test-pctx])
       (render-history alt ppctx tpctx (test-context test))))
+
+  (define vars (test-vars test))
+  (define end-alt (alt-analysis-alt (car end)))
+  (define splitpoints
+    (for/list ([var vars])
+      (define split-var? (equal? var (regime-var end-alt)))
+      (if split-var?
+          (for/list ([val (regime-splitpoints end-alt)])
+            (real->ordinal (repr->real val repr) repr))
+          '())))
+
   (hasheq 'end-alts
           fpcores
           'end-histories
@@ -367,7 +378,9 @@
           'end-errors
           end-errors
           'end-costs
-          end-costs))
+          end-costs
+          'splitpoints
+          splitpoints))
 
 (define (ctx-hash-table ctx)
   (hasheq 'vars (context-vars ctx) 'repr (repr-hash-table (context-repr ctx))))

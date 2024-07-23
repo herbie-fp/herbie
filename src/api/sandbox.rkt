@@ -286,11 +286,11 @@
 
 (define (dummy-table-row result status link)
   (eprintf "dummy-table-row\n")
-  (define test (hash-ref result 'rest))
+  (define test (hash-ref result 'test))
   (define repr (test-output-repr test))
   (define preprocess
     (if (eq? (hash-ref result 'status) 'success)
-        (improve-result-preprocess (job-result-backend result))
+        (hash-ref (hash-ref result 'backend) 'preprocessing)
         (test-preprocess test)))
   (table-row (test-name test)
              (test-identifier test)
@@ -300,7 +300,7 @@
              (representation-name repr)
              '() ; TODO: eliminate field
              (test-vars test)
-             (map car (job-result-warnings result))
+             (map car (hash-ref result 'warnings))
              (prog->fpcore (test-input test) repr)
              #f
              (prog->fpcore (test-spec test) repr)
@@ -310,7 +310,7 @@
              #f
              #f
              #f
-             (job-result-time result)
+             (hash-ref result 'time)
              link
              '()))
 
