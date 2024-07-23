@@ -206,8 +206,7 @@
     (warn 'platform
           "platform has missing optional implementations: ~a"
           (string-join (for/list ([m (in-set missing)])
-                         (match-define (list name itypes ... otype) m)
-                         (format "(~a ~a)" name `(,@itypes ,otype)))
+                         (format "~a" m))
                        " ")))
   (create-platform #f reprs impls (make-immutable-hash (hash->list costs)) (hash)))
 
