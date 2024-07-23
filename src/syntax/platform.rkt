@@ -182,58 +182,22 @@
 (define (make-platform2 pform #:optional? [optional? #f] #:if-cost [if-cost #f])
   (define unique-reprs (mutable-set))
   (define reprs
-    (reap [sow]
-          (for ([impl-sig (in-list pform)])
-            (match-define (list impl _) impl-sig)
-            (for ([irepr (in-list (impl-info impl 'itype))])
-              (unless (set-member? unique-reprs (representation-name irepr))
-                (set-add! unique-reprs (representation-name irepr))
-                (sow (get-representation (representation-name irepr)))))
-            (define orepr (impl-info impl 'otype))
-            (unless (set-member? unique-reprs (representation-name orepr))
-              (set-add! unique-reprs (representation-name orepr))
-              (sow (get-representation (representation-name orepr)))))))
+    (remove-duplicates 
+      (apply append (for/list ([impl-sig (in-list pform)])
+                      (match-define (list impl cost) impl-sig)
+                       `(,@(impl-info impl 'itype) ,(impl-info impl 'otype))))))
+
   (define missing (mutable-set))
   (define costs (make-hash))
-  (define convs
-    (reap [sow]
-      (for ([impl-sig (in-list pform)])
-        (match-define (list impl cost) impl-sig)
-        (define op (impl->operator impl))
-        (define tsig `(,@(impl-info impl 'itype) ,(impl-info impl 'otype)))
-        (match* (op tsig)
-          [('cast `(,itype ,otype))
-           (define irepr (get-representation itype))
-           (define orepr (get-representation otype))
-           (cond
-             [(get-cast-impl irepr orepr) =>
-              (lambda (cimpl)
-                (hash-set! costs cimpl cost)
-                (sow cimpl))]
-             [else (set-add! missing (list 'cast itype otype))])]
-          [('cast _)
-           (error 'make-platform "unexpected type signature for `cast` ~a" tsig)]
-          [(_ _) (void)]))))
   (define impls
     (reap [sow]
           (for ([impl-sig (in-list pform)])
             (match-define (list impl cost) impl-sig)
-            (define op (impl->operator impl))
-            (define tsig `(,@(impl-info impl 'itype) ,(impl-info impl 'otype)))
-            (match* (op tsig)
-              [('cast _) (void)] ; casts
-              [(_ `(,otype)) ; constants
-               (with-cond-handlers optional?
-                                   ([exn:fail:user:herbie:missing?
-                                     (λ (_) (set-add! missing (list op otype)))])
-                                     (hash-set! costs impl cost)
-                                     (sow impl))]
-              [(_ `(,itypes ... ,otype)) ; operators
-               (with-cond-handlers optional?
-                                   ([exn:fail:user:herbie:missing?
-                                     (λ (_) (set-add! missing `(,op ,@itypes ,otype)))])
-                                     (hash-set! costs impl cost)
-                                     (sow impl))]))))
+            (cond
+              [(impl-exists? impl) 
+                (hash-set! costs impl cost)
+                (sow impl)]
+              [else (set-add! missing impl)]))))
   ; set cost of `if`
   (when if-cost
     (hash-set! costs 'if if-cost))
@@ -245,7 +209,7 @@
                          (match-define (list name itypes ... otype) m)
                          (format "(~a ~a)" name `(,@itypes ,otype)))
                        " ")))
-  (create-platform #f reprs (append convs impls) (make-immutable-hash (hash->list costs)) (hash)))
+  (create-platform #f reprs impls (make-immutable-hash (hash->list costs)) (hash)))
 
 (begin-for-syntax
 
