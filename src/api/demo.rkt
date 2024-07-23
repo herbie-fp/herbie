@@ -395,7 +395,7 @@
                (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count))))
                      (header #"X-Herbie-Job-ID" (string->bytes/utf-8 job-id))
                      (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
-               (λ (out) (write-json (job-result-timeline job-result) out)))]))
+               (λ (out) (write-json (hash-ref job-result 'timeline) out)))]))
 
 ; /api/sample endpoint: test in console on demo page:
 ;; (await fetch('/api/sample', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x) (- (sqrt (+ x 1))))", seed: 5})})).json()
