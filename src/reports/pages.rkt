@@ -23,13 +23,14 @@
   (length (remove-duplicates (map (curryr list-ref idx) pts))))
 
 (define (all-pages result)
-  (define good? (eq? (job-result-status result) 'success))
+  (define good? (eq? (hash-ref result 'status) 'success))
+  (eprintf "HERE\n")
   (define default-pages '("graph.html" "timeline.html" "timeline.json"))
   (define success-pages '("interactive.js" "points.json"))
   (append default-pages (if good? success-pages empty)))
 
 (define ((page-error-handler result page out) e)
-  (define test (job-result-test result))
+  (define test (hash-ref result 'test))
   (eprintf "Error generating `~a` for \"~a\":\n  ~a\n" page (test-name test) (exn-message e))
   (parameterize ([current-error-port out])
     (display "<!doctype html><pre>" out)
@@ -37,6 +38,7 @@
     (display "</pre>" out)))
 
 (define (make-page page out result output? profile?)
+  (eprintf "make-page\n")
   (define test (job-result-test result))
   (define status (job-result-status result))
   (define ctx (test-context test))
