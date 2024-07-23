@@ -39,8 +39,8 @@
 
 (define (make-page page out result output? profile?)
   (eprintf "make-page\n")
-  (define test (job-result-test result))
-  (define status (job-result-status result))
+  (define test (hash-ref result 'test))
+  (define status (hash-ref result 'status))
   (define ctx (test-context test))
   (match page
     ["graph.html"
@@ -55,20 +55,20 @@
     ["points.json" (make-points-json result out ctx)]))
 
 (define (get-interactive-js result ctx)
-  (match-define (job-result _ _ _ _ _ _ (improve-result _ _ start _ end _)) result)
-  (define start-expr (alt-expr (alt-analysis-alt start)))
-  (define end-expr (alt-expr (alt-analysis-alt (car end))))
-  (define start-fpcore (program->fpcore start-expr ctx))
-  (define end-fpcore (program->fpcore end-expr ctx))
-  (and (fpcore? start-fpcore)
+  (define backend (hash-ref result 'backend))
+  (define start (hash-ref backend 'start))
+  (define end (hash-ref backend 'end))
+  (define end-fpcore (car (hash-ref end 'end-alts)))
+  (and (fpcore? start)
        (fpcore? end-fpcore)
-       (supported-by-lang? start-fpcore "js")
+       (supported-by-lang? start "js")
        (supported-by-lang? end-fpcore "js")
        (string-append (js-header "Math") ; pow, fmax, fmin will not work without this
-                      (core->js start-fpcore "start")
-                      (core->js end-fpcore "end"))))
+                      (core->js start "start")
+                      (core->js (end-fpcore "end")))))
 
 (define (make-interactive-js result out ctx)
+  (eprintf "make-interactive-js\n")
   (define repr (context-repr ctx))
   (define js-text (get-interactive-js result ctx))
   (when (string? js-text)

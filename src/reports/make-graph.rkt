@@ -61,6 +61,7 @@
     [_ #f]))
 
 (define (make-graph result out output? fpcore? profile?)
+  (eprintf "make-graph\n")
   (match-define (job-result _ test _ time _ warnings backend) result)
   (define vars (test-vars test))
   (define repr (test-output-repr test))
