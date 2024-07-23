@@ -82,11 +82,11 @@
         (match-define (list cost accuracy _ ...) point)
         (list (/ cost initial-cost*) accuracy))))
   (define frontier
-    (map (match-lambda
-           [(list cost accuracy)
-            ;; Equivalent to (/ 1 (/ cost tests-length))
-            (list (/ 1 (/ cost tests-length)) (- 1 (/ accuracy maximum-accuracy)))])
-         (pareto-combine rescaled #:convex? #t)))
+    (map
+     (match-lambda
+       ;; Equivalent to (/ 1 (/ cost tests-length))
+       [(list cost accuracy) (list (/ 1 (/ cost tests-length)) (- 1 (/ accuracy maximum-accuracy)))])
+     (pareto-combine rescaled #:convex? #t)))
   (define maximum-cost
     (argmax identity
             (cons 0.0 ;; To prevent `argmax` from signaling an error in case `tests` is empty
@@ -96,6 +96,7 @@
   (list (list 1.0 initial-accuracy) frontier))
 
 (define (write-datafile file info)
+  (eprintf "write-datafile\n")
   (define (simplify-test test)
     (match test
       [(table-row name

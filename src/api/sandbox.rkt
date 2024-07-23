@@ -285,10 +285,11 @@
   (if (engine-run (*timeout*) eng) (engine-result eng) (on-timeout)))
 
 (define (dummy-table-row result status link)
-  (define test (job-result-test result))
+  (eprintf "dummy-table-row\n")
+  (define test (hash-ref result 'rest))
   (define repr (test-output-repr test))
   (define preprocess
-    (if (eq? (job-result-status result) 'success)
+    (if (eq? (hash-ref result 'status) 'success)
         (improve-result-preprocess (job-result-backend result))
         (test-preprocess test)))
   (table-row (test-name test)
@@ -314,10 +315,17 @@
              '()))
 
 (define (get-table-data result link)
-  (match-define (job-result command test status time _ _ backend) result)
+  (eprintf "get-table-data\n")
+  (define command (hash-ref result 'command))
+  (define test (hash-ref result 'test))
+  (define status (hash-ref result 'status))
+  (define time (hash-ref result 'time))
+  (define backend (hash-ref result 'backend))
   (match status
     ['success
-     (match-define (improve-result _ _ start targets end _) backend)
+     (define start (hash-ref backend 'start))
+     (define targets (hash-ref backend 'target))
+     (define end (hash-ref backend 'end))
      (define expr-cost (platform-cost-proc (*active-platform*)))
      (define repr (test-output-repr test))
 
@@ -340,15 +348,10 @@
      (define best-score
        (if (null? target-cost-score) target-cost-score (apply min (map second target-cost-score))))
 
-     ; analysis of output expressions
-     (define-values (end-exprs end-train-scores end-test-scores end-costs)
-       (for/lists (l1 l2 l3 l4)
-                  ([result end])
-                  (match-define (alt-analysis alt train-errors test-errors) result)
-                  (values (alt-expr alt)
-                          (errors-score train-errors)
-                          (errors-score test-errors)
-                          (expr-cost (alt-expr alt) repr))))
+     (define end-exprs (hash-ref end 'end-alts))
+     (define end-train-scores (map errors-score (hash-ref end 'end-train-scores)))
+     (define end-test-scores (map errors-score (hash-ref end 'end-errors)))
+     (define end-costs (hash-ref end 'end-costs))
 
      ; terribly formatted pareto-optimal frontier
      (define cost&accuracy

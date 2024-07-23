@@ -47,7 +47,7 @@
 
 ; I don't like how specific this function is but it keeps the API boundary.
 (define (get-improve-job-data)
-  (for/list ([(k v) (in-hash *completed-jobs*)] #:when (equal? (job-result-command v) 'improve))
+  (for/list ([(k v) (in-hash *completed-jobs*)] #:when (equal? (hash-ref v 'command) 'improve))
     (get-table-data v (make-path k))))
 
 (define (job-count)
@@ -200,12 +200,19 @@
                  (map loop args (rest err)))]
         ;; err => (List (listof Integer))
         [_ (hasheq 'e (~a expr) 'avg-error (format-bits (errors-score (first err))) 'children '())])))
-  (hasheq 'tree tree 'job id 'path (make-path id)))
+  (hasheq 'command (job-result-command herbie-result) 'tree tree 'job id 'path (make-path id)))
 
 (define (make-sample-result herbie-result id test)
   (define pctx (job-result-backend herbie-result))
   (define repr (context-repr (test-context test)))
-  (hasheq 'points (pcontext->json pctx repr) 'job id 'path (make-path id)))
+  (hasheq 'command
+          (job-result-command herbie-result)
+          'points
+          (pcontext->json pctx repr)
+          'job
+          id
+          'path
+          (make-path id)))
 
 (define (make-error-result herbie-result id)
   (define errs
@@ -213,17 +220,31 @@
       (define pt (first pt&err))
       (define err (second pt&err))
       (list pt (format-bits (ulps->bits err)))))
-  (hasheq 'points errs 'job id 'path (make-path id)))
+  (hasheq 'command (job-result-command herbie-result) 'points errs 'job id 'path (make-path id)))
 
 (define (make-exacts-result herbie-result id)
-  (hasheq 'points (job-result-backend herbie-result) 'job id 'path (make-path id)))
+  (hasheq 'command
+          (job-result-command herbie-result)
+          'points
+          (job-result-backend herbie-result)
+          'job
+          id
+          'path
+          (make-path id)))
 
 (define (make-calculate-result herbie-result id)
-  (hasheq 'points (job-result-backend herbie-result) 'job id 'path (make-path id)))
+  (hasheq 'command
+          (job-result-command herbie-result)
+          'points
+          (job-result-backend herbie-result)
+          'job
+          id
+          'path
+          (make-path id)))
 
 (define (make-cost-result herbie-result id)
   (define cost (job-result-backend herbie-result))
-  (hasheq 'cost cost 'job id 'path (make-path id)))
+  (hasheq 'command (job-result-command herbie-result) 'cost cost 'job id 'path (make-path id)))
 
 (define (make-alternatives-result herbie-result test id)
 
@@ -255,7 +276,9 @@
   (define derivations
     (for/list ([altn altns])
       (render-json altn processed-pcontext test-pcontext (test-context test))))
-  (hasheq 'alternatives
+  (hasheq 'command
+          (job-result-command herbie-result)
+          'alternatives
           fpcores
           'histories
           histories
@@ -279,7 +302,9 @@
 
   (define backend-hash (backend-improve-result-hash-table backend repr test))
 
-  (hasheq 'status
+  (hasheq 'command
+          (job-result-command result)
+          'status
           (job-result-status result)
           'test
           test
@@ -322,11 +347,11 @@
                ([pctx pcontexts])
                (define-values (train-pcontext test-pcontext) (partition-pcontext pctx))
                (values (preprocess-pcontext (*context*) test-pcontext preprocessing) test-pcontext)))
-  (define-values (end-alts end-errors end-costs)
-    (for/lists (l1 l2 l3)
+  (define-values (end-alts train-errors end-errors end-costs)
+    (for/lists (l1 l2 l3 l4)
                ([analysis end])
-               (match-define (alt-analysis alt _ test-errs) analysis)
-               (values alt test-errs (alt-cost alt repr))))
+               (match-define (alt-analysis alt train-errors test-errs) analysis)
+               (values alt train-errors test-errs (alt-cost alt repr))))
   (define fpcores
     (for/list ([altn end-alts])
       (~a (program->fpcore (alt-expr altn) (test-context test)))))
@@ -337,6 +362,8 @@
           fpcores
           'end-histories
           alts-histories
+          'end-train-scores
+          train-errors
           'end-errors
           end-errors
           'end-costs

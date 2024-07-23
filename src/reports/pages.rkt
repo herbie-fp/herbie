@@ -41,6 +41,7 @@
   (define test (hash-ref result 'test))
   (define status (hash-ref result 'status))
   (define ctx (test-context test))
+  (define timeline (hash-ref result 'timeline))
   (match page
     ["graph.html"
      (match status
@@ -49,8 +50,8 @@
        ['failure (make-traceback result out profile?)]
        [_ (error 'make-page "unknown result type ~a" status)])]
     ["interactive.js" (make-interactive-js result out ctx)]
-    ["timeline.html" (make-timeline (test-name test) (job-result-timeline result) out #:path "..")]
-    ["timeline.json" (write-json (job-result-timeline result) out)]
+    ["timeline.html" (make-timeline (test-name test) timeline out #:path "..")]
+    ["timeline.json" (write-json timeline out)]
     ["points.json" (make-points-json result out ctx)]))
 
 (define (get-interactive-js result ctx)
@@ -77,20 +78,28 @@
   (string->number (real->decimal-string (ulps->bits x) 1)))
 
 (define (make-points-json result out repr)
-  (match-define (job-result _ test _ _ _ _ (improve-result _ pctxs start targets end _)) result)
+  (eprintf "make-points-json\n")
+  (define test (hash-ref result 'test))
+  (define backend (hash-ref result 'backend))
+  (define pctxs (hash-ref backend 'pctxs))
+  (define start (hash-ref backend 'start))
+  (define targets (hash-ref backend 'target))
+  (define end (hash-ref backend 'end))
+
   (define repr (test-output-repr test))
   (define start-errors (alt-analysis-test-errors start))
 
   (define target-errors (map alt-analysis-test-errors targets))
-
-  (define end-errors (map alt-analysis-test-errors end))
+  (define end-errors (hash-ref end 'end-errors))
   (define-values (newpoints _) (pcontext->lists (second pctxs)))
+  (eprintf "TOP\n")
 
   ; Immediately convert points to reals to handle posits
   (define points
     (for/list ([point newpoints])
       (for/list ([x point])
         (repr->real x repr))))
+  (eprintf "Bottom\n")
 
   (define json-points
     (for/list ([point points])
@@ -101,7 +110,7 @@
   (define bits (representation-total-bits repr))
   (define start-error (map ulps->bits-tenths start-errors))
   (define target-error (map (lambda (alt-error) (map ulps->bits-tenths alt-error)) target-errors))
-  (define end-error (map ulps->bits-tenths (car end-errors)))
+  (define end-error (car (hash-ref end 'end-errors)))
 
   (define target-error-entries
     (for/list ([i (in-naturals)] [error-value (in-list target-error)])
