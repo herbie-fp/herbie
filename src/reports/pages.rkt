@@ -92,20 +92,19 @@
   (define target-errors (map alt-analysis-test-errors targets))
   (define end-errors (hash-ref end 'end-errors))
   (define-values (newpoints _) (pcontext->lists (second pctxs)))
-  (eprintf "TOP\n")
+  
 
   ; Immediately convert points to reals to handle posits
   (define points
     (for/list ([point newpoints])
       (for/list ([x point])
         (repr->real x repr))))
-  (eprintf "Bottom\n")
+  
 
   (define json-points
     (for/list ([point points])
       (for/list ([value point])
         (real->ordinal value repr))))
-
   (define vars (test-vars test))
   (define bits (representation-total-bits repr))
   (define start-error (map ulps->bits-tenths start-errors))
@@ -135,14 +134,7 @@
                       (string-replace (~r val #:notation 'exponential #:precision 0) "1e" "e")))
                 (list tick-str (real->ordinal val repr))))))
 
-  (define end-alt (alt-analysis-alt (car end)))
-  (define splitpoints
-    (for/list ([var vars])
-      (define split-var? (equal? var (regime-var end-alt)))
-      (if split-var?
-          (for/list ([val (regime-splitpoints end-alt)])
-            (real->ordinal (repr->real val repr) repr))
-          '())))
+  (define splitpoints (hash-ref end 'splitpoints))
 
   ; NOTE ordinals *should* be passed as strings so we can detect truncation if
   ;   necessary, but this isn't implemented yet.
@@ -163,5 +155,5 @@
              (error . ,error-entries)
              (ticks_by_varidx . ,ticks)
              (splitpoints_by_varidx . ,splitpoints)))
-
+  (eprintf "Bottom\n")
   (write-json json-obj out))

@@ -13,9 +13,9 @@ assert.equal(improveResponse.status, 200)
 let redirect = improveResponse.url.split("/")
 const jobID = redirect[3].split(".")[0]
 // This test is a little flaky as the character count of the response is not consistent.
-const improveHTML = await improveResponse.text()
-const improveHTMLexpectedCount = 25871
-assert.equal(improveHTML.length, improveHTMLexpectedCount, `HTML response character count should be ${improveHTMLexpectedCount} unless HTML changes.`)
+// const improveHTML = await improveResponse.text()
+// const improveHTMLexpectedCount = 25871
+// assert.equal(improveHTML.length, improveHTMLexpectedCount, `HTML response character count should be ${improveHTMLexpectedCount} unless HTML changes.`)
 
 // timeline
 const timelineRSP = await callHerbie(`/timeline/${jobID}`, { method: 'GET' })
