@@ -96,6 +96,7 @@
   (list (list 1.0 initial-accuracy) frontier))
 
 (define (write-datafile file info)
+  (eprintf "write-datafile\n")
   (define (simplify-test test)
     (match test
       [(table-row name
