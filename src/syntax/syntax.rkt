@@ -355,16 +355,15 @@
 
 ;; Looks up a property `field` of an real operator `op`.
 ;; Panics if the operator is not found.
-(define/contract (impl-info operator field)
+(define/contract (impl-info impl field)
   (-> symbol? (or/c 'itype 'otype 'fl) any/c)
-  (unless (hash-has-key? operator-impls operator)
-    (error 'impl-info "Unknown operator implementation ~a" operator))
-  (define accessor
-    (match field
-      ['itype operator-impl-itype]
-      ['otype operator-impl-otype]
-      ['fl operator-impl-fl]))
-  (accessor (hash-ref operator-impls operator)))
+  (unless (hash-has-key? operator-impls impl)
+    (error 'impl-info "Unknown operator implementation ~a" impl))
+  (define info (hash-ref operator-impls impl))
+  (case field
+    [(itype) (operator-impl-itype info)]
+    [(otype) (operator-impl-otype info)]
+    [(fl) (operator-impl-fl info)]))
 
 ;; Like `operator-all-impls`, but filters for only active implementations.
 (define (operator-active-impls name)
