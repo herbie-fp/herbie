@@ -306,10 +306,19 @@
   (define (oops! why [sub-stx #f])
     (raise-syntax-error 'platform why stx sub-stx))
     (syntax-case stx ()
-      [(_ id [impl cost] ...)
-        (let ([platform-id (syntax->datum #'id)] [impls (syntax->list #'(impl ...))] [costs (syntax->list #'(cost ...))])
-          (with-syntax ([platform-id platform-id] [(impls ...) impls] [(costs ...) costs] )
-            #'(define platform-id (make-platform2 `([impls ,costs] ...)))))]
+      [(_ id cs ...)
+        (let loop ([cs #'(cs ...)])
+          (define if-cost? #f)
+          (syntax-case cs ()
+            [()
+              (let ([platform-id (syntax->datum #'id)] [impls (syntax->list #'(impl ...))] [costs (syntax->list #'(cost ...))])
+                (with-syntax ([platform-id platform-id] [(impls ...) impls] [(costs ...) costs] )
+                  #'(define platform-id (make-platform2 `([impls ,costs] ...)))))]
+            [#:if-cost]
+            [#:default-cost]
+            [#:optional]
+            [#:literals]
+            ))]
       [_ (oops! "bad syntax")]))
 
 (define-syntax (platform stx)
