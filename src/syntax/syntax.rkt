@@ -1,7 +1,7 @@
 #lang racket
 
-(require math/bigfloat
-         rival)
+(require math/bigfloat)
+
 (require "../utils/common.rkt"
          "../utils/errors.rkt"
          "../core/rival.rkt"
@@ -42,22 +42,25 @@
            variable?))
 
 (module+ test
-  (require rackunit))
+  (require rackunit
+           rival))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Real operators
 ;; Pure mathematical operations
 
+;; TODO: specs should really be associated with impls
+;; unfortunately Herbie still mandates that every impl
+;; has an associated operator so the spec is here
+
 ;; A real operator requires
 ;;  - a (unique) name
 ;;  - input and output types
-;;  - exactly one of:
-;;     - a Rival interval implementation
-;;     - a specification ["accelerator"]
-;;  - deprecated? flag [#f by default]
+;;  - optionally a specification [#f by default]
+;;  - optionally a deprecated? flag [#f by default]
 ;; Operator implementations _implement_ a real operator
 ;; for a particular set of input and output representations.
-(struct operator (name itype otype ival spec deprecated))
+(struct operator (name itype otype spec deprecated))
 
 ;; All real operators
 (define operators (make-hasheq))
@@ -93,14 +96,13 @@
 ;; Looks up a property `field` of an real operator `op`.
 ;; Panics if the operator is not found.
 (define/contract (operator-info op field)
-  (-> symbol? (or/c 'itype 'otype 'ival 'spec) any/c)
+  (-> symbol? (or/c 'itype 'otype 'spec) any/c)
   (unless (hash-has-key? operators op)
     (error 'operator-info "Unknown operator ~a" op))
   (define info (hash-ref operators op))
   (case field
     [(itype) (operator-itype info)]
     [(otype) (operator-otype info)]
-    [(ival) (operator-ival info)]
     [(spec) (operator-spec info)]))
 
 ;; Map from operator to its implementations
@@ -201,19 +203,14 @@
   ; extract relevant fields
   (define itypes* (dict-ref attrib-dict 'itype itypes))
   (define otype* (dict-ref attrib-dict 'otype otype))
-  (define ival-fn (dict-ref attrib-dict 'ival #f))
   (define spec (dict-ref attrib-dict 'spec #f))
   (define deprecated? (dict-ref attrib-dict 'deprecated #f))
-  ; check we have the required fields
-  (match* (ival-fn spec)
-    [(#f #f) (error 'register-operator! "no interval implementation or spec for `~a`" name)]
-    [(_ #f) (void)]
-    [(#f _)
-     (check-accelerator-spec! name itypes otype spec)
-     (set! spec (expand-accelerator-spec spec))]
-    [(_ _) (error 'register-operator! "both interval implementation and spec for `~a` given" name)])
+  ; check the spec if it is provided
+  (when spec
+    (check-accelerator-spec! name itypes otype spec)
+    (set! spec (expand-accelerator-spec spec)))
   ; update tables
-  (define info (operator name itypes* otype* ival-fn spec deprecated?))
+  (define info (operator name itypes* otype* spec deprecated?))
   (hash-set! operators name info)
   (hash-set! operators-to-impls name '()))
 
@@ -238,101 +235,93 @@
        (with-syntax ([id id] [(val ...) (map attribute-val keys vals)])
          #'(register-operator! 'id '(itype ...) 'otype (list (cons 'key val) ...))))]))
 
-(define-syntax-rule (define-1ary-real-operator name ival-impl)
-  (define-operator (name real) real [ival ival-impl]))
+(define-syntax define-operators
+  (syntax-rules (: ->)
+    [(_ [name : itype ... -> otype] ...)
+     (begin
+       (define-operator (name itype ...) otype) ...)]))
 
-(define-syntax-rule (define-2ary-real-operator name ival-impl)
-  (define-operator (name real real) real [ival ival-impl]))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Rival-supported operators
 
-(define-syntax-rule (define-1ary-real-operators [name ival-impl] ...)
-  (begin
-    (define-1ary-real-operator name ival-impl) ...))
+; real constants (encoded as nullary operators)
+(define-operators
+  [PI : -> real]
+  [E : -> real]
+  [INFINITY : -> real]
+  [NAN : -> real])
 
-(define-syntax-rule (define-2ary-real-operators [name ival-impl] ...)
-  (begin
-    (define-2ary-real-operator name ival-impl) ...))
+; boolean constants (encoded as nullary operators)
+(define-operators
+  [TRUE : -> bool]
+  [FALSE : -> bool])
 
-(define-1ary-real-operators [neg ival-neg]
-                            [acos ival-acos]
-                            [acosh ival-acosh]
-                            [asin ival-asin]
-                            [asinh ival-asinh]
-                            [atan ival-atan]
-                            [atanh ival-atanh]
-                            [cbrt ival-cbrt]
-                            [ceil ival-ceil]
-                            [cos ival-cos]
-                            [cosh ival-cosh]
-                            [erf ival-erf]
-                            [exp ival-exp]
-                            [exp2 ival-exp2]
-                            [fabs ival-fabs]
-                            [floor ival-floor]
-                            [lgamma ival-lgamma]
-                            [log ival-log]
-                            [log10 ival-log10]
-                            [log2 ival-log2]
-                            [logb ival-logb]
-                            [rint ival-rint]
-                            [round ival-round]
-                            [sin ival-sin]
-                            [sinh ival-sinh]
-                            [sqrt ival-sqrt]
-                            [tan ival-tan]
-                            [tanh ival-tanh]
-                            [tgamma ival-tgamma]
-                            [trunc ival-trunc])
+; boolean operators
+(define-operators
+  [not : bool -> bool]
+  [and : bool bool -> bool]
+  [or : bool bool -> bool])
 
-(define-2ary-real-operators [+ ival-add]
-                            [- ival-sub]
-                            [* ival-mult]
-                            [/ ival-div]
-                            [atan2 ival-atan2]
-                            [copysign ival-copysign]
-                            [fdim ival-fdim]
-                            [fmax ival-fmax]
-                            [fmin ival-fmin]
-                            [fmod ival-fmod]
-                            [pow ival-pow]
-                            [remainder ival-remainder])
+; real-boolean operators
+(define-operators
+  [== : real real -> bool]
+  [!= : real real -> bool]
+  [< : real real -> bool]
+  [> : real real -> bool]
+  [<= : real real -> bool]
+  [>= : real real -> bool])
 
-(define-operator (== real real) bool [ival ival-==])
+; real operators
+(define-operators
+  [acos : real -> real]
+  [acosh : real -> real]
+  [asin : real -> real]
+  [asinh : real -> real]
+  [atan : real -> real]
+  [atanh : real -> real]
+  [cbrt : real -> real]
+  [ceil : real -> real]
+  [cos : real -> real]
+  [cosh : real -> real]
+  [erf : real -> real]
+  [exp : real -> real]
+  [exp2 : real -> real]
+  [fabs : real -> real]
+  [floor : real -> real]
+  [lgamma : real -> real]
+  [log : real -> real]
+  [log10 : real -> real]
+  [log2 : real -> real]
+  [logb : real -> real]
+  [neg : real -> real]
+  [rint : real -> real]
+  [round : real -> real]
+  [sin : real -> real]
+  [sinh : real -> real]
+  [sqrt : real -> real]
+  [tan : real -> real]
+  [tanh : real -> real]
+  [tgamma : real -> real]
+  [trunc : real -> real]
+  [+ : real real -> real]
+  [- : real real -> real]
+  [* : real real -> real]
+  [/ : real real -> real]
+  [atan2 : real real -> real]
+  [copysign : real real -> real]
+  [fdim : real real -> real]
+  [fmax : real real -> real]
+  [fmin : real real -> real]
+  [fmod : real real -> real]
+  [pow : real real -> real]
+  [remainder : real real -> real])
 
-(define-operator (!= real real) bool [ival ival-!=])
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Accelerator operators
 
-(define-operator (< real real) bool [ival ival-<])
+(define-operator (cast real) real [spec (lambda (x) x)])
 
-(define-operator (> real real) bool [ival ival->])
-
-(define-operator (<= real real) bool [ival ival-<=])
-
-(define-operator (>= real real) bool [ival ival->=])
-
-;; logical operators ;;
-
-(define-operator (not bool) bool [ival ival-not])
-
-(define-operator (and bool bool) bool [ival ival-and])
-
-(define-operator (or bool bool) bool [ival ival-or])
-
-(define-operator (PI) real [ival ival-pi])
-
-(define-operator (E) real [ival ival-e])
-
-(define-operator (INFINITY) real [ival (λ () (ival (bfprev +inf.bf) +inf.bf))])
-
-(define-operator (NAN) real [ival (λ () ival-illegal)])
-
-(define-operator (TRUE) bool [ival (const (ival-bool true))])
-
-(define-operator (FALSE) bool [ival (const (ival-bool false))])
-
-;; Conversions
-
-(define-operator (cast real) real [ival identity])
-
-;; Accelerators
+(define-operator (erfc real) real [spec (lambda (x) (- 1 (erf x)))])
 
 (define-operator (expm1 real) real [spec (lambda (x) (- (exp x) 1))])
 
@@ -342,9 +331,17 @@
 
 (define-operator (fma real real real) real [spec (lambda (x y z) (+ (* x y) z))])
 
-(define-operator (erfc real) real [spec (lambda (x) (- 1 (erf x)))])
-
 (module+ test
+  ; check expected number of operators
+  (check-equal? (length (all-operators)) 63)
+
+  ; check that Rival supports all non-accelerator operators
+  (for ([op (in-list (all-operators))] #:unless (operator-accelerator? op))
+    (define vars (map (lambda (_) (gensym)) (operator-info op 'itype)))
+    (define disc (discretization 64 #f #f)) ; fake arguments
+    (rival-compile (list `(,op ,@vars)) vars (list disc)))
+
+  ; test accelerator operator
   ; log1pmd(x) = log1p(x) - log1p(-x)
   (define-operator (log1pmd real) real [spec (lambda (x) (- (log1p x) (log1p (neg x))))]))
 
@@ -369,16 +366,15 @@
 
 ;; Looks up a property `field` of an real operator `op`.
 ;; Panics if the operator is not found.
-(define/contract (impl-info operator field)
+(define/contract (impl-info impl field)
   (-> symbol? (or/c 'itype 'otype 'fl) any/c)
-  (unless (hash-has-key? operator-impls operator)
-    (error 'impl-info "Unknown operator implementation ~a" operator))
-  (define accessor
-    (match field
-      ['itype operator-impl-itype]
-      ['otype operator-impl-otype]
-      ['fl operator-impl-fl]))
-  (accessor (hash-ref operator-impls operator)))
+  (unless (hash-has-key? operator-impls impl)
+    (error 'impl-info "Unknown operator implementation ~a" impl))
+  (define info (hash-ref operator-impls impl))
+  (case field
+    [(itype) (operator-impl-itype info)]
+    [(otype) (operator-impl-otype info)]
+    [(fl) (operator-impl-fl info)]))
 
 ;; Like `operator-all-impls`, but filters for only active implementations.
 (define (operator-active-impls name)
