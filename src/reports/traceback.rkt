@@ -9,6 +9,7 @@
 (provide make-traceback)
 
 (define (make-traceback result out profile?)
+  (eprintf "make-traceback\n")
   ;; Called with timeout or failure results
   (match-define (job-result command test status time timeline warnings backend) result)
   (define exn (if (eq? status 'failure) backend 'timeout))
