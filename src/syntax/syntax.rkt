@@ -1,7 +1,7 @@
 #lang racket
 
-(require math/bigfloat
-         rival)
+(require math/bigfloat)
+
 (require "../utils/common.rkt"
          "../utils/errors.rkt"
          "../core/rival.rkt"
@@ -42,7 +42,8 @@
            variable?))
 
 (module+ test
-  (require rackunit))
+  (require rackunit
+           rival))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Real operators
@@ -331,6 +332,16 @@
 (define-operator (fma real real real) real [spec (lambda (x y z) (+ (* x y) z))])
 
 (module+ test
+  ; check expected number of operators
+  (check-equal? (length (all-operators)) 63)
+
+  ; check that Rival supports all non-accelerator operators
+  (for ([op (in-list (all-operators))] #:unless (operator-accelerator? op))
+    (define vars (map (lambda (_) (gensym)) (operator-info op 'itype)))
+    (define disc (discretization 64 #f #f)) ; fake arguments
+    (rival-compile (list `(,op ,@vars)) vars (list disc)))
+
+  ; test accelerator operator
   ; log1pmd(x) = log1p(x) - log1p(-x)
   (define-operator (log1pmd real) real [spec (lambda (x) (- (log1p x) (log1p (neg x))))]))
 
