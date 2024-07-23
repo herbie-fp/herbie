@@ -392,8 +392,7 @@
      (define opts (pareto-regimes (sort alts < #:key (curryr alt-cost repr)) ctx))
      (for/list ([opt (in-list opts)])
        (combine-alts opt ctx))]
-    [else
-     (list (argmin score-alt alts))]))
+    [else (list (argmin score-alt alts))]))
 
 (define (final-simplify! alts)
   (cond
@@ -412,20 +411,17 @@
      ; run egg
      (define simplified
        (map last
-            (simplify-batch
-              runner
-              (typed-egg-extractor
-                (if (*egraph-platform-cost*)
-                    platform-egg-cost-proc
-                    default-egg-cost-proc)))))
+            (simplify-batch runner
+                            (typed-egg-extractor (if (*egraph-platform-cost*)
+                                                     platform-egg-cost-proc
+                                                     default-egg-cost-proc)))))
 
      ; de-duplication
-     (remove-duplicates
-        (for/list ([altn (in-list alts)] [prog (in-list simplified)])
-          (if (equal? (alt-expr altn) prog)
-              altn
-              (alt prog 'final-simplify (list altn) (alt-preprocessing altn))))
-        alt-equal?)]
+     (remove-duplicates (for/list ([altn (in-list alts)] [prog (in-list simplified)])
+                          (if (equal? (alt-expr altn) prog)
+                              altn
+                              (alt prog 'final-simplify (list altn) (alt-preprocessing altn))))
+                        alt-equal?)]
     [else alts]))
 
 (define (add-soundness! alts)

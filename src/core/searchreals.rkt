@@ -44,13 +44,13 @@
        (bf<= higher hi) ; False if lo and hi were already close together
        (cons lower higher)))
 
-(define (search-step evaluator space split-var)
-  (define vars (real-evaluator-vars evaluator))
-  (define reprs (real-evaluator-var-reprs evaluator))
+(define (search-step compiler space split-var)
+  (define vars (real-compiler-vars compiler))
+  (define reprs (real-compiler-var-reprs compiler))
   (match-define (search-space true false other) space)
   (define-values (true* false* other*)
     (for/fold ([true* true] [false* false] [other* '()]) ([rect (in-list other)])
-      (match-define (ival err err?) (real-evaluator-unsamplable? evaluator (list->vector rect)))
+      (match-define (ival err err?) (real-compiler-analyze compiler (list->vector rect)))
       (when (eq? err 'unsamplable)
         (warn 'ground-truth
               #:url "faq.html#ground-truth"
@@ -88,8 +88,8 @@
   (hash-update! out 'precondition (curry + (- 1 total)) 0)
   (make-immutable-hash (hash->list out)))
 
-(define (find-intervals evaluator rects #:fuel [depth 128])
-  (define var-reprs (real-evaluator-var-reprs evaluator))
+(define (find-intervals compiler rects #:fuel [depth 128])
+  (define var-reprs (real-compiler-var-reprs compiler))
   (if (or (null? rects) (null? (first rects)))
       (map (curryr cons 'other) rects)
       (let loop ([space (apply make-search-space rects)] [n 0])
@@ -100,4 +100,4 @@
         (if (or (>= n depth) (empty? (search-space-other space)) (>= (length other) (expt 2 depth)))
             (cons (append (search-space-true space) (search-space-other space))
                   (make-sampling-table var-reprs true false other))
-            (loop (search-step evaluator space n*) (+ n 1))))))
+            (loop (search-step compiler space n*) (+ n 1))))))

@@ -111,17 +111,15 @@
     [_ #f]))
 
 (define (real-rules rules)
-  (filter-not
-    (lambda (rule)
-      (or (representation? (rule-otype rule))
-          (spec-has-accelerator? (rule-input rule))
-          (spec-has-accelerator? (rule-output rule))))
-    rules))
-  
+  (filter-not (lambda (rule)
+                (or (representation? (rule-otype rule))
+                    (spec-has-accelerator? (rule-input rule))
+                    (spec-has-accelerator? (rule-output rule))))
+              rules))
+
 ;;
 ;;  Rule loading
 ;;
-
 
 (define ((type/repr-of-rule op-info name) input output ctx)
   (let loop ([input input] [output output])

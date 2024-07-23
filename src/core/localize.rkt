@@ -38,12 +38,11 @@
 
   ; egg runner (2-phases for real rewrites and implementation selection)
   (define runner
-    (make-egg-runner
-      progs
-      reprs
-      `((,lifting-rules . ((iteration . 1) (scheduler . simple)))
-       (,rules . ((node . ,(*node-limit*))))
-       (,lowering-rules . ((iteration . 1) (scheduler . simple))))))
+    (make-egg-runner progs
+                     reprs
+                     `((,lifting-rules . ((iteration . 1) (scheduler . simple)))
+                       (,rules . ((node . ,(*node-limit*))))
+                       (,lowering-rules . ((iteration . 1) (scheduler . simple))))))
 
   ; run egg
   (define simplified

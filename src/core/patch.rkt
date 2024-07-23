@@ -19,9 +19,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Patch table ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define-resetter *patch-table*
-  (λ () (make-hash))
-  (λ () (make-hash)))
+(define-resetter *patch-table* (λ () (make-hash)) (λ () (make-hash)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Taylor ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -29,24 +27,23 @@
   (let ([invert-x (λ (x) `(/ 1 ,x))]
         [exp-x (λ (x) `(exp ,x))]
         [log-x (λ (x) `(log ,x))]
-      	[ninvert-x (λ (x) `(/ 1 (neg ,x)))])
-    `((0 ,identity ,identity)
-      (inf ,invert-x ,invert-x)
-      (-inf ,ninvert-x ,ninvert-x)
-      #;(exp ,exp-x ,log-x)
-      #;(log ,log-x ,exp-x))))
+        [ninvert-x (λ (x) `(/ 1 (neg ,x)))])
+    `((0 ,identity ,identity) (inf ,invert-x ,invert-x)
+                              (-inf ,ninvert-x ,ninvert-x)
+                              #;(exp ,exp-x ,log-x)
+                              #;(log ,log-x ,exp-x))))
 
 (define (taylor-alt altn)
   (define spec (alt-expr altn))
   (define expr (expand-accelerators (prog->spec spec)))
   (reap [sow]
-    (for* ([var (free-variables expr)] [transform-type transforms-to-try])
-      (match-define (list name f finv) transform-type)
-      (define timeline-stop! (timeline-start! 'series (~a expr) (~a var) (~a name)))
-      (define genexpr (approximate expr var #:transform (cons f finv)))
-      (for ([_ (in-range (*taylor-order-limit*))])
-        (sow (alt (genexpr) `(taylor ,name ,var) (list altn) '())))
-      (timeline-stop!))))
+        (for* ([var (free-variables expr)] [transform-type transforms-to-try])
+          (match-define (list name f finv) transform-type)
+          (define timeline-stop! (timeline-start! 'series (~a expr) (~a var) (~a name)))
+          (define genexpr (approximate expr var #:transform (cons f finv)))
+          (for ([_ (in-range (*taylor-order-limit*))])
+            (sow (alt (genexpr) `(taylor ,name ,var) (list altn) '())))
+          (timeline-stop!))))
 
 (define (spec-has-nan? expr)
   (expr-contains? expr (lambda (term) (eq? term 'NAN))))
@@ -56,10 +53,10 @@
   (timeline-push! 'inputs (map ~a altns))
   (define approximations
     (reap [sow]
-      (for ([altn (in-list altns)] [repr (in-list reprs)])
-        (for ([approximation (taylor-alt altn)])
-          (unless (spec-has-nan? (alt-expr approximation))
-            (sow (cons approximation repr)))))))
+          (for ([altn (in-list altns)] [repr (in-list reprs)])
+            (for ([approximation (taylor-alt altn)])
+              (unless (spec-has-nan? (alt-expr approximation))
+                (sow (cons approximation repr)))))))
   (timeline-push! 'outputs (map (lambda (e&r) (~a (car e&r))) approximations))
   (timeline-push! 'count (length altns) (length approximations))
   approximations)
@@ -81,7 +78,7 @@
     `((,lifting-rules . ((iteration . 1) (scheduler . simple)))
       (,rules . ((node . ,(*node-limit*))))
       (,lowering-rules . ((iteration . 1) (scheduler . simple)))))
-  
+
   ; run egg
   (define specs (map alt-expr altns))
   (define changelistss (rewrite-expressions specs reprs schedule (*context*)))
@@ -89,10 +86,10 @@
   ; apply changelists
   (define rewritten
     (reap [sow]
-      (for ([changelists changelistss] [altn altns])
-        (for ([cl changelists])
-          (match-define (list subexpr input) cl)
-          (sow (alt subexpr (list 'rr input #f #f) (list altn) '()))))))
+          (for ([changelists changelistss] [altn altns])
+            (for ([cl changelists])
+              (match-define (list subexpr input) cl)
+              (sow (alt subexpr (list 'rr input #f #f) (list altn) '()))))))
 
   (timeline-push! 'count (length altns) (length rewritten))
   rewritten)
@@ -110,32 +107,27 @@
 
   ; egg runner (2-phases for real rewrites and implementation selection)
   (define runner
-    (make-egg-runner
-      (map alt-expr altns)
-      reprs
-      `((,rules . ((node . ,(*node-limit*))))
-        (,lowering-rules . ((iteration . 1) (scheduler . simple))))))
+    (make-egg-runner (map alt-expr altns)
+                     reprs
+                     `((,rules . ((node . ,(*node-limit*))))
+                       (,lowering-rules . ((iteration . 1) (scheduler . simple))))))
 
   ; run egg
   (define simplification-options
-    (simplify-batch
-      runner
-      (typed-egg-extractor
-        (if (*egraph-platform-cost*)
-            platform-egg-cost-proc
-            default-egg-cost-proc))))
-  
+    (simplify-batch runner
+                    (typed-egg-extractor
+                     (if (*egraph-platform-cost*) platform-egg-cost-proc default-egg-cost-proc))))
+
   ; convert to altns
   (define simplified
     (reap [sow]
-      (for ([altn (in-list altns)] [outputs (in-list simplification-options)])
-        (match-define (cons _ simplified) outputs)
-        (for ([expr (in-list simplified)])
-          (sow (alt expr `(simplify ,runner #f #f) (list altn) '()))))))
-  
+          (for ([altn (in-list altns)] [outputs (in-list simplification-options)])
+            (match-define (cons _ simplified) outputs)
+            (for ([expr (in-list simplified)])
+              (sow (alt expr `(simplify ,runner #f #f) (list altn) '()))))))
+
   (timeline-push! 'count (length altns) (length simplified))
   simplified)
-
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Public API ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -150,18 +142,10 @@
     (for/list ([expr (in-list locs)] [repr (in-list reprs)])
       (alt expr (list 'patch expr repr) '() '())))
   ; Core
-  (define approximations
-    (if (flag-set? 'generate 'taylor)
-        (run-taylor start-altns reprs)
-        '()))
-  (define rewritten
-    (if (flag-set? 'generate 'rr)
-        (run-rr (map cons start-altns reprs))
-        '()))
+  (define approximations (if (flag-set? 'generate 'taylor) (run-taylor start-altns reprs) '()))
+  (define rewritten (if (flag-set? 'generate 'rr) (run-rr (map cons start-altns reprs)) '()))
   (define simplified
-    (if (flag-set? 'generate 'simplify)
-        (run-simplify approximations)
-        approximations))
+    (if (flag-set? 'generate 'simplify) (run-simplify approximations) approximations))
 
   (define altns (append rewritten simplified))
   ;; Uncaching

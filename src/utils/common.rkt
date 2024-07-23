@@ -1,6 +1,8 @@
 #lang racket
 
-(require racket/runtime-path math/base "../config.rkt")
+(require racket/runtime-path
+         math/base
+         "../config.rkt")
 
 (provide reap
          flip-lists
@@ -28,7 +30,8 @@
          web-resource
          (all-from-out "../config.rkt"))
 
-(module+ test (require rackunit))
+(module+ test
+  (require rackunit))
 
 ;; Various syntactic forms of convenience used in Herbie
 

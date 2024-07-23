@@ -103,8 +103,8 @@
     (check-true (andmap (curry set-member? '(0.0 1.0))
                         ((make-hyperrect-sampler two-point-hyperrects (list repr repr))))))
 
-(define (make-sampler evaluator)
-  (match-define (real-evaluator pre vars var-reprs _ reprs _) evaluator)
+(define (make-sampler compiler)
+  (match-define (real-compiler pre vars var-reprs _ reprs _) compiler)
   (cond
     [(and (flag-set? 'setup 'search)
           (not (empty? var-reprs))
@@ -113,55 +113,38 @@
      (timeline-push! 'method "search")
      (define hyperrects-analysis (precondition->hyperrects pre vars var-reprs))
      (match-define (cons hyperrects sampling-table)
-       (find-intervals evaluator hyperrects-analysis #:fuel (*max-find-range-depth*)))
+       (find-intervals compiler hyperrects-analysis #:fuel (*max-find-range-depth*)))
      (cons (make-hyperrect-sampler hyperrects var-reprs) sampling-table)]
     [else
      (timeline-push! 'method "random")
      (cons (λ () (map random-generate var-reprs)) (hash 'unknown 1.0))]))
 
-(define (unify-contexts! proc-name exprs ctxs)
-  (unless (= (length exprs) (length ctxs))
-    (error proc-name
-           "number of expressions and contexts are different: ~a and ~a"
-           (length exprs)
-           (length ctxs)))
-  (when (null? exprs)
-    (error proc-name "must have at least one expression"))
-  (define ctx (car ctxs))
-  (for ([ctx* (in-list (cdr ctxs))])
-    (unless (and (equal? (context-vars ctx) (context-vars ctx*))
-                 (equal? (context-var-reprs ctx) (context-var-reprs ctx*)))
-      (error proc-name "contexts don't have matching variables/representations ~a" ctxs)))
-  ctx)
-
 ;; Returns an evaluator for a list of expressions.
 (define (eval-progs-real specs ctxs)
-  (define ctx (unify-contexts! 'eval-progs-real specs ctxs))
-  (define specs&reprs (map (lambda (e ctx) (cons e (context-repr ctx))) specs ctxs))
-  (define evaluator (make-real-evaluator ctx specs&reprs))
+  (define compiler (make-real-compiler specs ctxs))
   (define bad-pt
     (for/list ([ctx* (in-list ctxs)])
       ((representation-bf->repr (context-repr ctx*)) +nan.bf)))
   (define (<eval-prog-real> . pt)
-    (define-values (_ exs) (run-real-evaluator evaluator pt))
+    (define-values (_ exs) (real-apply compiler pt))
     (or exs bad-pt))
   <eval-prog-real>)
 
 ;; Part 3: compute exact values using Rival's algorithm
 
-(define (batch-prepare-points evaluator sampler)
+(define (batch-prepare-points compiler sampler)
   ;; If we're using the bf fallback, start at the max precision
   (define outcomes (make-hash))
-  (define vars (real-evaluator-vars evaluator))
-  (define var-reprs (real-evaluator-var-reprs evaluator))
-  (define reprs (real-evaluator-reprs evaluator))
+  (define vars (real-compiler-vars compiler))
+  (define var-reprs (real-compiler-var-reprs compiler))
+  (define reprs (real-compiler-reprs compiler))
 
-  (real-evaluator-clear! evaluator) ; Clear profiling vector
+  (real-compiler-clear! compiler) ; Clear profiling vector
   (define-values (points exactss)
     (let loop ([sampled 0] [skipped 0] [points '()] [exactss '()])
       (define pt (sampler))
 
-      (define-values (status exs) (run-real-evaluator evaluator pt))
+      (define-values (status exs) (real-apply compiler pt))
       (case status
         [(exit)
          (warn 'ground-truth
@@ -202,12 +185,10 @@
 
 (define (sample-points pre specs ctxs)
   (timeline-event! 'analyze)
-  (define ctx (unify-contexts! 'sample-points specs ctxs))
-  (define specs&reprs (map (lambda (e ctx) (cons e (context-repr ctx))) specs ctxs))
-  (define evaluator (make-real-evaluator ctx specs&reprs #:pre pre))
-  (match-define (cons sampler table) (make-sampler evaluator))
+  (define compiler (make-real-compiler specs ctxs #:pre pre))
+  (match-define (cons sampler table) (make-sampler compiler))
   (timeline-event! 'sample)
-  (match-define (cons table2 results) (batch-prepare-points evaluator sampler))
+  (match-define (cons table2 results) (batch-prepare-points compiler sampler))
   (define total (apply + (hash-values table2)))
   (when (> (hash-ref table2 'infinite 0.0) (* 0.2 total))
     (warn 'inf-points

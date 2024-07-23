@@ -174,15 +174,15 @@
 
   (define targets
     (for/list ([(key val) (in-dict prop-dict)] #:when (eq? key ':alt))
-      (match (parse-platform-name val)  ; plat-name is symbol or #f
+      (match (parse-platform-name val) ; plat-name is symbol or #f
         ; If plat-name extracted, check if name matches
         [(? symbol? plat-name) (cons val (equal? plat-name (*platform-name*)))]
         ; try to lower
         [#f
-          (with-handlers ([exn:fail:user:herbie:missing? (lambda (e) (cons val #f))])
-            ; Testing if error thrown
-            (fpcore->prog val ctx)
-            (cons val #t))])))
+         (with-handlers ([exn:fail:user:herbie:missing? (lambda (e) (cons val #f))])
+           ; Testing if error thrown
+           (fpcore->prog val ctx)
+           (cons val #t))])))
 
   (define spec (fpcore->prog (dict-ref prop-dict ':spec body) ctx))
   (check-unused-variables arg-names body* pre*)

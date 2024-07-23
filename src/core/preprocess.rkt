@@ -33,25 +33,25 @@
 ;; The even identities: f(x) = f(-x)
 ;; Requires `neg` and `fabs` operator implementations.
 (define (make-even-identities spec ctx)
-  (reap [sow]
-        (for ([var (in-list (context-vars ctx))] [repr (in-list (context-var-reprs ctx))])
-          (when (has-fabs-neg-impls? repr)
-            (sow (replace-vars `((,var . (neg ,var))) spec))))))
+  (for/list ([var (in-list (context-vars ctx))]
+             [repr (in-list (context-var-reprs ctx))]
+             #:when (has-fabs-neg-impls? repr))
+    (list 'even var (replace-vars `((,var . (neg ,var))) spec))))
 
 ;; The odd identities: f(x) = -f(-x)
 ;; Requires `neg` and `fabs` operator implementations.
 (define (make-odd-identities spec ctx)
-  (reap [sow]
-        (for ([var (in-list (context-vars ctx))] [repr (in-list (context-var-reprs ctx))])
-          (when (and (has-fabs-neg-impls? repr) (has-copysign-impl? repr))
-            (sow (replace-vars `((,var . (neg ,var))) `(neg ,spec)))))))
+  (for/list ([var (in-list (context-vars ctx))]
+             [repr (in-list (context-var-reprs ctx))]
+             #:when (and (has-fabs-neg-impls? repr) (has-copysign-impl? repr)))
+    (list 'odd var (replace-vars `((,var . (neg ,var))) `(neg ,spec)))))
 
 ;; Swap identities: f(a, b) = f(b, a)
 (define (make-swap-identities spec ctx)
   (define pairs (combinations (context-vars ctx) 2))
   (for/list ([pair (in-list pairs)])
     (match-define (list a b) pair)
-    (replace-vars `((,a . ,b) (,b . ,a)) spec)))
+    (list 'swap pair (replace-vars `((,a . ,b) (,b . ,a)) spec))))
 
 ;; Initial simplify
 (define (initial-simplify expr ctx)
@@ -82,46 +82,44 @@
                            alt-equal?)))
 
 ;; See https://pavpanchekha.com/blog/symmetric-expressions.html
-(define (find-preprocessing init spec ctx)
-  (define spec* (prog->spec spec))
+(define (find-preprocessing init expr ctx)
+  (define spec (prog->spec expr))
 
   ;; identities
-  (define even-identities (make-even-identities spec* ctx))
-  (define odd-identities (make-odd-identities spec* ctx))
-  (define swap-identities (make-swap-identities spec* ctx))
+  (define even-identities (make-even-identities spec ctx))
+  (define odd-identities (make-odd-identities spec ctx))
+  (define swap-identities (make-swap-identities spec ctx))
+  (define identities (append even-identities odd-identities swap-identities))
 
-  ;; expressions
-  (define exprs (cons spec* (append even-identities odd-identities swap-identities)))
+  (define specs
+    (for/list ([ident (in-list identities)])
+      (match ident
+        [(list 'even _ spec) spec]
+        [(list 'odd _ spec) spec]
+        [(list 'swap _ spec) spec])))
 
-  ;; make runner
+  ;; make egg runner
   (define rules (real-rules (*simplify-rules*)))
   (define runner
-    (make-egg-runner exprs
-                     (map (lambda (_) (context-repr ctx)) exprs)
+    (make-egg-runner specs
+                     (map (lambda (_) (context-repr ctx)) specs)
                      `((,rules . ((node . ,(*node-limit*)))))))
 
-  ; run egg
-  (define extractor (untyped-egg-extractor default-untyped-egg-cost-proc))
-  (define exprs* (simplify-batch runner extractor))
-  (define spec** (last (first exprs*)))
-  (define evens (map last (take (drop exprs* 1) (length even-identities))))
-  (define odds (map last (take (drop exprs* (+ 1 (length even-identities))) (length odd-identities))))
-  (define swaps (map last (drop exprs* (+ 1 (length even-identities) (length odd-identities)))))
+  ;; run egg to check for identities
+  (define expr-pairs (map (curry cons spec) specs))
+  (define equal?-lst (run-egg runner `(equal? . ,expr-pairs)))
 
-  (define pairs (combinations (context-vars ctx) 2))
-  (define components
-    (connected-components
-     (context-vars ctx)
-     (for/list ([pair (in-list pairs)] [swap (in-list swaps)] #:when (equal? spec** swap))
-       pair)))
+  ;; collect equalities
+  (define abs-instrs '())
+  (define negabs-instrs '())
+  (define swaps '())
+  (for ([ident (in-list identities)] [expr-equal? (in-list equal?-lst)] #:when expr-equal?)
+    (match ident
+      [(list 'even var _) (set! abs-instrs (cons (list 'abs var) abs-instrs))]
+      [(list 'odd var _) (set! negabs-instrs (cons (list 'negabs var) negabs-instrs))]
+      [(list 'swap pair _) (set! swaps (cons pair swaps))]))
 
-  ; instructions (TODO: `equal?` should be an egraph query)
-  (define abs-instrs
-    (for/list ([var (in-list (context-vars ctx))] [even (in-list evens)] #:when (equal? spec** even))
-      (list 'abs var)))
-  (define negabs-instrs
-    (for/list ([var (in-list (context-vars ctx))] [odd (in-list odds)] #:when (equal? spec** odd))
-      (list 'negabs var)))
+  (define components (connected-components (context-vars ctx) swaps))
   (define sort-instrs
     (for/list ([component (in-list components)] #:when (> (length component) 1))
       (cons 'sort component)))
@@ -129,6 +127,7 @@
   (define instrs (append abs-instrs negabs-instrs sort-instrs))
   (define start-alts
     (if (flag-set? 'setup 'simplify)
+        ; initial simplify
         (for/list ([altn (initial-simplify init ctx)])
           (alt-add-preprocessing altn instrs))
         (list (make-alt-preprocessing init instrs))))

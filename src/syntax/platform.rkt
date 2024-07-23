@@ -129,21 +129,21 @@
   (define costs (make-hash))
   (define convs
     (reap [sow]
-      (for ([impl-sig (in-list pform)])
-        (match-define (list op tsig cost) impl-sig)
-        (match* (op tsig)
-          [('cast `(,itype ,otype))
-           (define irepr (get-representation itype))
-           (define orepr (get-representation otype))
-           (cond
-             [(get-cast-impl irepr orepr) =>
-              (lambda (impl)
-                (hash-set! costs impl cost)
-                (sow impl))]
-             [else (set-add! missing (list 'cast itype otype))])]
-          [('cast _)
-           (error 'make-platform "unexpected type signature for `cast` ~a" tsig)]
-          [(_ _) (void)]))))
+          (for ([impl-sig (in-list pform)])
+            (match-define (list op tsig cost) impl-sig)
+            (match* (op tsig)
+              [('cast `(,itype ,otype))
+               (define irepr (get-representation itype))
+               (define orepr (get-representation otype))
+               (cond
+                 [(get-cast-impl irepr orepr)
+                  =>
+                  (lambda (impl)
+                    (hash-set! costs impl cost)
+                    (sow impl))]
+                 [else (set-add! missing (list 'cast itype otype))])]
+              [('cast _) (error 'make-platform "unexpected type signature for `cast` ~a" tsig)]
+              [(_ _) (void)]))))
   ; load the operator implementations
   (define impls
     (reap [sow]
@@ -671,14 +671,10 @@
          (apply cost-proc (map loop args itypes))]))))
 
 ;; Rules from impl to spec (fixed for a particular platform)
-(define-resetter *lifting-rules*
-  (λ () (make-hash))
-  (λ () (make-hash)))
+(define-resetter *lifting-rules* (λ () (make-hash)) (λ () (make-hash)))
 
 ;; Rules from spec to impl (fixed for a particular platform)
-(define-resetter *lowering-rules*
-  (λ () (make-hash))
-  (λ () (make-hash)))
+(define-resetter *lowering-rules* (λ () (make-hash)) (λ () (make-hash)))
 
 ;; Synthesizes the LHS and RHS of lifting/lowering rules.
 (define (impl->rule-parts impl)
@@ -723,54 +719,52 @@
 ;; All possible assignments of implementations.
 (define (impl-combinations ops impls)
   (reap [sow]
-    (let loop ([ops ops] [assigns '()])
-      (match ops
-        [(? null?) (sow assigns)]
-        [(list 'if rest ...) (loop rest assigns)]
-        [(list (? (curryr assq assigns)) rest ...) (loop rest assigns)]
-        [(list op rest ...)
-         (for ([impl (operator-all-impls op)])
-           (when (set-member? impls impl)
-             (loop rest (cons (cons op impl) assigns))))]))))
+        (let loop ([ops ops] [assigns '()])
+          (match ops
+            [(? null?) (sow assigns)]
+            [(list 'if rest ...) (loop rest assigns)]
+            [(list (? (curryr assq assigns)) rest ...) (loop rest assigns)]
+            [(list op rest ...)
+             (for ([impl (operator-all-impls op)])
+               (when (set-member? impls impl)
+                 (loop rest (cons (cons op impl) assigns))))]))))
 
 ;; Attempts to lower a specification to an expression using
 ;; a precomputed assignment of operator implementations.
 ;; Fails if the result is not well-typed.
 (define (try-lower expr repr op->impl)
   (let/ec k
-    (define env '())
-    (define expr*
-      (let loop ([expr expr] [repr repr])
-        (match expr
-          [(? symbol? x) ; variable
-           (match (dict-ref env x #f)
-             [#f (set! env (cons (cons x repr) env))]
-             [(? (curry equal? repr)) (k #f env)]
-             [_ (void)])
-           x]
-          [(? number? n) ; number
-           (literal n (representation-name repr))]
-          [(list 'if cond ift iff) ; if expression
-           (list 'if
-                 (loop cond (get-representation 'bool))
-                 (loop ift repr)
-                 (loop iff repr))]
-          [(list op args ...) ; application
-           (define impl (dict-ref op->impl op))
-           (unless (equal? (impl-info impl 'otype) repr) (k #f env))
-           (cons impl (map loop args (impl-info impl 'itype)))])))
-    (define ctx (context (map car env) repr (map cdr env)))
-    (values (and (equal? (repr-of expr* ctx) repr) expr*) env)))
+          (define env '())
+          (define expr*
+            (let loop ([expr expr] [repr repr])
+              (match expr
+                [(? symbol? x) ; variable
+                 (match (dict-ref env x #f)
+                   [#f (set! env (cons (cons x repr) env))]
+                   [(? (curry equal? repr)) (k #f env)]
+                   [_ (void)])
+                 x]
+                ; number
+                [(? number? n) (literal n (representation-name repr))]
+                [(list 'if cond ift iff) ; if expression
+                 (list 'if (loop cond (get-representation 'bool)) (loop ift repr) (loop iff repr))]
+                [(list op args ...) ; application
+                 (define impl (dict-ref op->impl op))
+                 (unless (equal? (impl-info impl 'otype) repr)
+                   (k #f env))
+                 (cons impl (map loop args (impl-info impl 'itype)))])))
+          (define ctx (context (map car env) repr (map cdr env)))
+          (values (and (equal? (repr-of expr* ctx) repr) expr*) env)))
 
 ;; Merges two variable -> value mappings.
 ;; If any mapping disagrees, the result is `#f`.
 (define (merge-envs env1 env2)
   (let/ec k
-    (for/fold ([env env1]) ([(x ty) (in-dict env2)])
-      (match (dict-ref env x #f)
-        [#f (cons (cons x ty) env)]
-        [(? (curry equal? ty)) env]
-        [_ (k #f)]))))
+          (for/fold ([env env1]) ([(x ty) (in-dict env2)])
+            (match (dict-ref env x #f)
+              [#f (cons (cons x ty) env)]
+              [(? (curry equal? ty)) env]
+              [_ (k #f)]))))
 
 ;; Synthesizes impl-to-impl rules for a given platform.
 ;; If a rule is over implementations, filters by supported implementations.
@@ -779,24 +773,23 @@
 (define (platform-impl-rules rules [pform (*active-platform*)])
   (define impls (list->seteq (platform-impls pform)))
   (reap [sow]
-    (for ([ru (in-list rules)])
-      (match-define (rule name input output _ otype) ru)
-      (cond
-        [(representation? otype) ; rule over representation
-         (define ops (append (ops-in-expr input) (ops-in-expr output)))
-         (when (andmap (lambda (op) (or (eq? op 'if) (set-member? impls op))) ops)
-           (sow ru))]
-        [else ; rules over types
-         (define ops (append (ops-in-expr input) (ops-in-expr output)))
-         (define isubsts (impl-combinations ops impls))
-         (for* ([isubst (in-list isubsts)]
-                [repr (in-list (platform-reprs pform))]
-                #:when (equal? (representation-type repr) otype))
-           (define-values (input* ienv) (try-lower input repr isubst))
-           (define-values (output* oenv) (try-lower output repr isubst))
-           (when (and input* output*)
-             (define itypes* (merge-envs ienv oenv))
-             (when itypes*
-               (define name* (sym-append name '_ (repr->symbol repr)))
-               (sow (rule name* input* output* itypes* repr)))))]))))
-         
+        (for ([ru (in-list rules)])
+          (match-define (rule name input output _ otype) ru)
+          (cond
+            [(representation? otype) ; rule over representation
+             (define ops (append (ops-in-expr input) (ops-in-expr output)))
+             (when (andmap (lambda (op) (or (eq? op 'if) (set-member? impls op))) ops)
+               (sow ru))]
+            [else ; rules over types
+             (define ops (append (ops-in-expr input) (ops-in-expr output)))
+             (define isubsts (impl-combinations ops impls))
+             (for* ([isubst (in-list isubsts)]
+                    [repr (in-list (platform-reprs pform))]
+                    #:when (equal? (representation-type repr) otype))
+               (define-values (input* ienv) (try-lower input repr isubst))
+               (define-values (output* oenv) (try-lower output repr isubst))
+               (when (and input* output*)
+                 (define itypes* (merge-envs ienv oenv))
+                 (when itypes*
+                   (define name* (sym-append name '_ (repr->symbol repr)))
+                   (sow (rule name* input* output* itypes* repr)))))]))))
