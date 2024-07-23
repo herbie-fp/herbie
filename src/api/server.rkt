@@ -72,12 +72,28 @@
   (if (already-computed? job-id) job-id (start-work command)))
 
 (define (is-job-finished job-id)
-  (hash-ref *job-status* job-id #f))
+  ;; Blocking and just wait for now
+  (internal-wait-for-job job-id))
 
 (define (wait-for-job job-id)
   (if (already-computed? job-id)
       (hash-ref *completed-jobs* job-id #f)
       (internal-wait-for-job job-id)))
+
+(define (internal-wait-for-job job-id)
+  (eprintf "Waiting for job\n")
+  (define ch (hash-ref *inprogress* job-id #f))
+  (match (place-channel-get ch)
+    [(list 'done result)
+     (hash-remove! *inprogress* job-id)
+     (hash-set! *completed-jobs* job-id result)
+     (place-dead-evt ch)
+     (set! *ready-workers* ch)
+     (eprintf "internal-wait-for-job: done \n")
+     #t]
+    [else
+     (eprintf "internal-wait-for-job: other \n")
+     #f]))
 
 (define (start-job-server config global-demo global-output)
   (build-worker-pool 8)
@@ -335,13 +351,6 @@
 (define (already-computed? job-id)
   (or (hash-has-key? *completed-jobs* job-id)
       (and (*demo-output*) (directory-exists? (build-path (*demo-output*) (make-path job-id))))))
-
-(define (internal-wait-for-job job-id)
-  (eprintf "Waiting for job\n")
-  (define ch (hash-ref *inprogress* job-id #f))
-  (match (place-channel-get ch)
-    [(list 'done result) result]
-    [else #f]))
 
 (define (compute-job-id job-info)
   (sha1 (open-input-string (~s job-info))))
