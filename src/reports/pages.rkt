@@ -24,7 +24,6 @@
 
 (define (all-pages result)
   (define good? (eq? (hash-ref result 'status) 'success))
-  (eprintf "HERE\n")
   (define default-pages '("graph.html" "timeline.html" "timeline.json"))
   (define success-pages '("interactive.js" "points.json"))
   (append default-pages (if good? success-pages empty)))
