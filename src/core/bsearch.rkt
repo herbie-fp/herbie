@@ -9,6 +9,7 @@
          "../syntax/types.rkt"
          "../syntax/sugar.rkt"
          "../syntax/syntax.rkt"
+         "../config.rkt"
          "compiler.rkt"
          "programs.rkt"
          "points.rkt"
@@ -76,17 +77,16 @@
        (with-handlers ([exn:fail:user:herbie? (const 'fail)])
          (pred p3)))
 
-    (cond
-     [(eq? cmp 'fail)
-      (timeline-push! 'stop "predicate-failed" 1)
-      (values p1 p2)]
-     [(negative? cmp) (binary-search-floats pred p3 p2 repr)]
-     [(positive? cmp) (binary-search-floats pred p1 p3 repr)]
-     ;; cmp = 0 usually means sampling failed, so we give up
-     [else
-      (timeline-push! 'stop "predicate-same" 1)
-      (values p1 p2)])])
-      )
+     (cond
+       [(eq? cmp 'fail)
+        (timeline-push! 'stop "predicate-failed" 1)
+        (values p1 p2)]
+       [(negative? cmp) (binary-search-floats pred p3 p2 repr)]
+       [(positive? cmp) (binary-search-floats pred p1 p3 repr)]
+       ;; cmp = 0 usually means sampling failed, so we give up
+       [else
+        (timeline-push! 'stop "predicate-same" 1)
+        (values p1 p2)])]))
 
 (define (extract-subexpression expr var pattern ctx)
   (define body* (replace-expression expr pattern var))
@@ -101,19 +101,11 @@
     (cons val (random-ref pts)))
   (apply mk-pcontext (cdr (batch-prepare-points evaluator new-sampler))))
 
-(define cache (make-hash))
-(define (cache-put! key value)
-        (hash-set! cache key value))
+(define-resetter *prepend-arguement-cache* (λ () (make-hash)) (λ () (make-hash)))
 (define (cache-get-prepend v expr macro)
-        (define key (cons expr v))
-        (define value (hash-ref cache key #f))
-        (if (eq? value #f) 
-            (begin 
-              (set! value (macro v))
-              (cache-put! key value))
-            (void))
-        value) 
-
+  (define key (cons expr v))
+  (define value (hash-ref! *prepend-arguement-cache* key void (macro v)))
+  value)
 
 ;; Accepts a list of sindices in one indexed form and returns the
 ;; proper splitpoints in float form. A crucial constraint is that the
@@ -135,13 +127,14 @@
     (and start-prog
          (make-real-compiler (list (expand-accelerators (prog->spec start-prog))) (list ctx*))))
 
-  (define (prepend-macro v) (prepend-argument start-real-compiler v (*pcontext*)))
+  (define (prepend-macro v)
+    (prepend-argument start-real-compiler v (*pcontext*)))
 
-  (define (find-split expr1 expr2 v1 v2)  
+  (define (find-split expr1 expr2 v1 v2)
     (define (pred v)
       (define pctx
         (parameterize ([*num-points* (*binary-search-test-points*)])
-                      (cache-get-prepend v expr prepend-macro)))
+          (cache-get-prepend v expr prepend-macro)))
       (define acc1 (errors-score (errors expr1 pctx ctx*)))
       (define acc2 (errors-score (errors expr2 pctx ctx*)))
       (- acc1 acc2))
