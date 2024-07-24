@@ -5,4 +5,13 @@
 
 (load-herbie-builtins)
 
-(define-platform math64 [+.f64 1] [-.f64 1] [*.f64 2] [/.f64 2] [neg.f64 2] [sqrt.f64 4])
+(define-platform math64
+                 [+.f64 1]
+                 [-.f64 1]
+                 [*.f64 2]
+                 [/.f64 2]
+                 [neg.f64 2]
+                 [sqrt.f64 4]
+                 #:optional
+                 #:literals ([binary64 1] [binary32 1])
+                 #:if-cost 1)

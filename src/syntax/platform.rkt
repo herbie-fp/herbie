@@ -179,25 +179,42 @@
   ; make the platform
   (create-platform #f reprs (append convs impls) (make-immutable-hash (hash->list costs)) (hash)))
 
-(define (make-platform2 pform #:optional? [optional? #f] #:if-cost [if-cost #f])
+(define (make-platform2 pform literals #:optional? [optional? #f] #:if-cost [if-cost #f])
   (define unique-reprs (mutable-set))
   (define reprs
     (remove-duplicates (apply append
                               (for/list ([impl-sig (in-list pform)])
                                 (match-define (list impl cost) impl-sig)
                                 `(,@(impl-info impl 'itype) ,(impl-info impl 'otype))))))
-
   (define missing (mutable-set))
   (define costs (make-hash))
   (define impls
     (reap [sow]
           (for ([impl-sig (in-list pform)])
             (match-define (list impl cost) impl-sig)
-            (cond
-              [(impl-exists? impl)
-               (hash-set! costs impl cost)
-               (sow impl)]
-              [else (set-add! missing impl)]))))
+            (with-cond-handlers optional?
+                                ([exn:fail:user:herbie:missing? (λ (_) (set-add! missing impl))])
+                                (cond
+                                  [(impl-exists? impl)
+                                   (hash-set! costs impl cost)
+                                   (sow impl)]
+                                  [else
+                                   (raise-herbie-missing-error
+                                    "Missing implementation ~a required by platform"
+                                    impl)])))))
+  (define repr-costs (make-hash))
+  (for ([literal (in-list literals)])
+    (match-define (list repr cost) literal)
+    (cond
+      [(repr-exists? repr)
+       (if (hash-has-key? repr-costs repr)
+           (raise-herbie-error "Duplicate literal ~a" repr)
+           (hash-set! repr-costs repr cost))]
+      [else (raise-herbie-missing-error "Missing representation ~a required by platform" repr)]))
+  ; set cost of `if`
+  (when if-cost
+    (hash-set! costs 'if if-cost))
+
   ; set cost of `if`
   (when if-cost
     (hash-set! costs 'if if-cost))
@@ -208,7 +225,7 @@
           (string-join (for/list ([m (in-set missing)])
                          (format "~a" m))
                        " ")))
-  (create-platform #f reprs impls (make-immutable-hash (hash->list costs)) (hash)))
+  (create-platform #f reprs impls (make-immutable-hash (hash->list costs)) repr-costs))
 
 (begin-for-syntax
 
@@ -307,21 +324,50 @@
     (raise-syntax-error 'platform why stx sub-stx))
   (syntax-case stx ()
     [(_ id cs ...)
-     (let loop ([cs #'(cs ...)])
-       (define if-cost? #f)
-       (syntax-case cs ()
-         [()
-          (let ([platform-id (syntax->datum #'id)]
-                [impls (syntax->list #'(impl ...))]
-                [costs (syntax->list #'(cost ...))])
-            (with-syntax ([platform-id platform-id] [(impls ...) impls] [(costs ...) costs])
-              #'(define platform-id (make-platform2 `([impls ,costs] ...)))))]
-         [(#:if-cost cost rest ...)]
-         [(#:if-cost) (oops! "expected value after keyword `#:if-cost`" stx)]
-         [#:default-cost]
-         [(#:default-cost) (oops! "expected value after keyword `#:default-cost`" stx)]
-         [(#:optional rest ...)]
-         [(#:literals ([repr ,cost] ...) rest ...)]))]
+     (let ([if-cost #f] [optional? #f] [literals #f] [reprs '()] [repr-costs '()])
+       (let loop ([cs #'(cs ...)] [impls '()] [costs '()])
+         (syntax-case cs ()
+           [()
+            (let ([platform-id (syntax->datum #'id)])
+              (with-syntax ([platform-id platform-id]
+                            [(impls ...) (reverse impls)]
+                            [(costs ...) (reverse costs)]
+                            [(reprs ...) reprs]
+                            [(repr-costs ...) repr-costs]
+                            [if-cost if-cost]
+                            [optional? optional?])
+                #'(define platform-id
+                    (make-platform2 `([impls ,costs] ...)
+                                    `([reprs ,repr-costs] ...)
+                                    #:optional? optional?
+                                    #:if-cost if-cost))))]
+           [(#:if-cost cost rest ...)
+            (cond
+              [if-cost (oops! "multiple #:if-cost clauses" stx)]
+              [else
+               (set! if-cost (platform/parse-if-cost #'cost))
+               (loop #'(rest ...) impls costs)])]
+           [(#:if-cost) (oops! "expected value after keyword `#:if-cost`" stx)]
+           [(#:optional rest ...)
+            (cond
+              [optional? (oops! "multiple #:optional clauses" stx)]
+              [else
+               (set! optional? #t)
+               (loop #'(rest ...) impls costs)])]
+           [(#:literals ([repr cost] ...) rest ...)
+            (cond
+              [literals (oops! "multiple #:literals clauses" stx)]
+              [else
+               (set! literals #t)
+               (set! reprs (syntax->list #'(repr ...)))
+               (set! repr-costs (syntax->list #'(cost ...)))
+               (loop #'(rest ...) impls costs)])]
+           [(#:literals bad _ ...) (oops! "expected a literals list`" #'bad)]
+           [(#:literals) (oops! "expected literals list after keyword `#:literals`" stx)]
+           [([impl cost] rest ...)
+            (loop #'(rest ...)
+                  (cons (syntax->datum #'impl) impls)
+                  (cons (syntax->datum #'cost) costs))])))]
     [_ (oops! "bad syntax")]))
 
 (define-syntax (platform stx)
