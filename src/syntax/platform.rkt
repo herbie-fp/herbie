@@ -180,14 +180,8 @@
   (create-platform #f reprs (append convs impls) (make-immutable-hash (hash->list costs)) (hash)))
 
 (define (make-platform2 pform literals #:optional? [optional? #f] #:if-cost [if-cost #f])
-  (define unique-reprs (mutable-set))
-  (define reprs
-    (remove-duplicates (apply append
-                              (for/list ([impl-sig (in-list pform)])
-                                (match-define (list impl cost) impl-sig)
-                                `(,@(impl-info impl 'itype) ,(impl-info impl 'otype))))))
-  (define missing (mutable-set))
   (define costs (make-hash))
+  (define missing (mutable-set))
   (define impls
     (reap [sow]
           (for ([impl-sig (in-list pform)])
@@ -202,6 +196,11 @@
                                    (raise-herbie-missing-error
                                     "Missing implementation ~a required by platform"
                                     impl)])))))
+  (define reprs
+    (remove-duplicates (apply append
+                              (for/list ([impl (in-list impls)])
+                                `(,@(impl-info impl 'itype) ,(impl-info impl 'otype))))))
+
   (define repr-costs (make-hash))
   (for ([literal (in-list literals)])
     (match-define (list repr cost) literal)
@@ -211,10 +210,6 @@
            (raise-herbie-error "Duplicate literal ~a" repr)
            (hash-set! repr-costs repr cost))]
       [else (raise-herbie-missing-error "Missing representation ~a required by platform" repr)]))
-  ; set cost of `if`
-  (when if-cost
-    (hash-set! costs 'if if-cost))
-
   ; set cost of `if`
   (when if-cost
     (hash-set! costs 'if if-cost))
