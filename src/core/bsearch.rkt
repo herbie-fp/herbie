@@ -111,9 +111,7 @@
             (begin 
               (set! value (macro v))
               (cache-put! key value))
-            (begin
-            (set! val (+ val 1))
-            (displayln val)))
+            (void))
         value) 
 
 
