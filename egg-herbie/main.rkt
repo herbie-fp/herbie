@@ -93,7 +93,7 @@
 
 (define-eggmath destroy_egraphiters (_fun _pointer -> _void))
 
-(define-eggmath egraph_is_unsound_detected (_fun _egraph-pointer -> _bool))
+(define-eggmath egraph_is_unsound_detected (_fun _egraph-pointer -> _stdbool))
 
 (define-eggmath egraph_run
                 (_fun _egraph-pointer ;; egraph
@@ -104,8 +104,8 @@
                                       (_ptr o _pointer)) ;; pointer to array allocation, caller frees
                       _uint ;; iter limit
                       _uint ;; node limit
-                      _bool ;; simple scheduler?
-                      _bool ;; constant folding enabled?
+                      _stdbool ;; simple scheduler?
+                      _stdbool ;; constant folding enabled?
                       ->
                       (iterations : _EGraphIter-pointer)
                       ->
@@ -133,7 +133,7 @@
 
 (define-eggmath egraph_get_proof (_fun _egraph-pointer _string/utf-8 _string/utf-8 -> _pointer))
 
-(define-eggmath egraph_is_equal (_fun _egraph-pointer _string/utf-8 _string/utf-8 -> _bool))
+(define-eggmath egraph_is_equal (_fun _egraph-pointer _string/utf-8 _string/utf-8 -> _stdbool))
 
 ;; node number -> (s-expr string) string
 (define-eggmath egraph_get_variants

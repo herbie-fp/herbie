@@ -127,21 +127,21 @@
   (define costs (make-hash))
   (define convs
     (reap [sow]
-      (for ([impl-sig (in-list pform)])
-        (match-define (list op tsig cost) impl-sig)
-        (match* (op tsig)
-          [('cast `(,itype ,otype))
-           (define irepr (get-representation itype))
-           (define orepr (get-representation otype))
-           (cond
-             [(get-cast-impl irepr orepr) =>
-              (lambda (impl)
-                (hash-set! costs impl cost)
-                (sow impl))]
-             [else (set-add! missing (list 'cast itype otype))])]
-          [('cast _)
-           (error 'make-platform "unexpected type signature for `cast` ~a" tsig)]
-          [(_ _) (void)]))))
+          (for ([impl-sig (in-list pform)])
+            (match-define (list op tsig cost) impl-sig)
+            (match* (op tsig)
+              [('cast `(,itype ,otype))
+               (define irepr (get-representation itype))
+               (define orepr (get-representation otype))
+               (cond
+                 [(get-cast-impl irepr orepr)
+                  =>
+                  (lambda (impl)
+                    (hash-set! costs impl cost)
+                    (sow impl))]
+                 [else (set-add! missing (list 'cast itype otype))])]
+              [('cast _) (error 'make-platform "unexpected type signature for `cast` ~a" tsig)]
+              [(_ _) (void)]))))
   ; load the operator implementations
   (define impls
     (reap [sow]

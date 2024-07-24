@@ -725,6 +725,33 @@
                  [asinh-2 (acosh (+ (* 2 (* x x)) 1)) (* 2 (asinh x))]
                  [acosh-2 (acosh (- (* 2 (* x x)) 1)) (* 2 (acosh x))])
 
+; Specialized numerical functions
+(define-ruleset* special-numerical-reduce
+                 (numerics simplify)
+                 #:type ([x real] [y real] [z real])
+                 [log1p-expm1 (log1p (expm1 x)) x]
+                 [hypot-1-def (sqrt (+ 1 (* y y))) (hypot 1 y)]
+                 [fmm-def (- (* x y) z) (fma x y (neg z))]
+                 [fmm-undef (fma x y (neg z)) (- (* x y) z)])
+
+(define-ruleset* special-numerical-expand
+                 (numerics)
+                 #:type ([x real] [y real])
+                 [log1p-expm1-u x (log1p (expm1 x))]
+                 [expm1-log1p-u x (expm1 (log1p x))])
+
+(define-ruleset* erf-rules (special simplify) #:type ([x real]) [erf-odd (erf (neg x)) (neg (erf x))])
+
+(define-ruleset* numerics-papers
+                 (numerics)
+                 #:type ([a real] [b real] [c real] [d real])
+                 ;  "Further Analysis of Kahan's Algorithm for
+                 ;   the Accurate Computation of 2x2 Determinants"
+                 ;  Jeannerod et al., Mathematics of Computation, 2013
+                 ;
+                 ;  a * b - c * d  ===> fma(a, b, -(d * c)) + fma(-d, c, d * c)
+                 [prod-diff (- (* a b) (* c d)) (+ (fma a b (neg (* d c))) (fma (neg d) c (* d c)))])
+
 ;; Sound because it's about soundness over real numbers
 (define-ruleset* compare-reduce
                  (bools simplify fp-safe-nan sound)

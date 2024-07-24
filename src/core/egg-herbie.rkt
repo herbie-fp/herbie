@@ -19,7 +19,6 @@
          "../syntax/types.rkt"
          "../utils/common.rkt"
          "../config.rkt"
-         "../syntax/accelerator.rkt"
          "../utils/errors.rkt"
          "../syntax/platform.rkt"
          "programs.rkt"
@@ -157,7 +156,7 @@
 (define (egraph-find egraph-data id)
   (egraph_find (egraph-data-egraph-pointer egraph-data) id))
 
-(define (egraph-is-equal egraph-data expr goal ctx)
+(define (egraph-expr-equal? egraph-data expr goal ctx)
   (define egg-expr (~a (expr->egg-expr expr egraph-data ctx)))
   (define egg-goal (~a (expr->egg-expr goal egraph-data ctx)))
   (egraph_is_equal (egraph-data-egraph-pointer egraph-data) egg-expr egg-goal))
@@ -430,7 +429,7 @@
 ;; Spec contains no accelerators
 (define (spec-has-accelerator? spec)
   (match spec
-    [(list (? accelerator-exists?) _ ...) #t]
+    [(list (? operator-accelerator?) _ ...) #t]
     [(list _ args ...) (ormap spec-has-accelerator? args)]
     [_ #f]))
 
@@ -455,14 +454,12 @@
                  (define itypes (operator-info op 'itype))
                  (define otype (operator-info op 'otype))
                  (cond
-                   [(accelerator-exists? op)
+                   [(operator-accelerator? op)
                     ; accelerator lowering
-                    (define vars (accelerator-info op 'vars))
-                    (rule (sym-append 'accelerator-lowering- impl)
-                          (accelerator-info op 'body)
-                          (cons impl (accelerator-info op 'vars))
-                          (map cons vars itypes)
-                          otype)]
+                    (define name (sym-append 'accelerator-lowering- impl))
+                    (define spec (operator-info op 'spec))
+                    (match-define `(,(or 'lambda 'λ) (,vars ...) ,body) spec)
+                    (rule name body (cons impl vars) (map cons vars itypes) otype)]
                    [else
                     ; direct lowering
                     (define vars (map (lambda (_) (gensym)) itypes))
@@ -1312,24 +1309,21 @@
     (egraph-run-schedule (egg-runner-exprs runner) (egg-runner-schedule runner) ctx))
   ; Perform extraction
   (match cmd
-    [`(single . ,extractor)
-     ; single expression extraction
+    [`(single . ,extractor) ; single expression extraction
      (define regraph (make-regraph egg-graph))
      (define extract-id (extractor regraph))
      (define reprs (egg-runner-reprs runner))
      (for/list ([id (in-list root-ids)] [repr (in-list reprs)])
        (regraph-extract-best regraph extract-id id repr))]
-    [`(multi . ,extractor)
-     ; multi expression extraction
+    [`(multi . ,extractor) ; multi expression extraction
      (define regraph (make-regraph egg-graph))
      (define extract-id (extractor regraph))
      (define reprs (egg-runner-reprs runner))
      (for/list ([id (in-list root-ids)] [repr (in-list reprs)])
        (regraph-extract-variants regraph extract-id id repr))]
-    [`(proofs . ((,start-exprs . ,end-exprs) ...))
-     ; proof extraction
+    [`(proofs . ((,start-exprs . ,end-exprs) ...)) ; proof extraction
      (for/list ([start (in-list start-exprs)] [end (in-list end-exprs)])
-       (unless (egraph-is-equal egg-graph start end ctx)
+       (unless (egraph-expr-equal? egg-graph start end ctx)
          (error 'run-egg
                 "cannot find proof; start and end are not equal.\n start: ~a \n end: ~a"
                 start
@@ -1338,4 +1332,7 @@
        (when (null? proof)
          (error 'run-egg "proof extraction failed between`~a` and `~a`" start end))
        proof)]
+    [`(equal? . ((,start-exprs . ,end-exprs) ...)) ; term equality?
+     (for/list ([start (in-list start-exprs)] [end (in-list end-exprs)])
+       (egraph-expr-equal? egg-graph start end ctx))]
     [_ (error 'run-egg "unknown command `~a`\n" cmd)]))

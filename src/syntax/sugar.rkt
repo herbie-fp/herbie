@@ -219,8 +219,7 @@
 (define (prog->fpcore prog repr)
   (let loop ([expr prog])
     (match expr
-      [`(if ,cond ,ift ,iff)
-       `(if ,(loop cond) ,(loop ift) ,(loop iff))]
+      [`(if ,cond ,ift ,iff) `(if ,(loop cond) ,(loop ift) ,(loop iff))]
       [`(,(? cast-impl? impl) ,body)
        (match-define (list irepr) (impl-info impl 'itype))
        (define body* (prog->fpcore body irepr))
@@ -246,10 +245,8 @@
 ;; Translates an ImplProg to a Spec.
 (define (prog->spec expr)
   (match expr
-    [`(if ,cond ,ift ,iff)
-     `(if ,(prog->spec cond) ,(prog->spec ift) ,(prog->spec iff))]
-    [`(,(? cast-impl? impl) ,body)
-     `(,impl ,(prog->spec body))]
+    [`(if ,cond ,ift ,iff) `(if ,(prog->spec cond) ,(prog->spec ift) ,(prog->spec iff))]
+    [`(,(? cast-impl? impl) ,body) `(,impl ,(prog->spec body))]
     [`(,impl ,args ...)
      (define op (impl->operator impl))
      (define args* (map prog->spec args))
@@ -291,7 +288,7 @@
          (define op* (get-parametric-operator 'neg atype))
          (values (list op* arg*) (impl-info op* 'otype))]
         [`(,(? cast-impl? impl) ,body)
-        ; this case is supported here but not by fpcore->prog
+         ; this case is supported here but not by fpcore->prog
          (match-define (list irepr) (impl-info impl 'itype))
          (define-values (body* _) (loop body (struct-copy context ctx [repr irepr])))
          (values `(,impl ,body*) (impl-info impl 'otype))]

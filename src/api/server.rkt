@@ -8,6 +8,7 @@
 (require (submod "../utils/timeline.rkt" debug))
 
 (provide completed-job?
+         make-path
          get-results-for
          get-improve-job-data
          job-count
@@ -19,6 +20,9 @@
          start-job-server)
 
 #| Job Server Public API section |#
+; computes the path used for server URLs
+(define (make-path id)
+  (format "~a.~a" id *herbie-commit*))
 
 ; Helers to isolated *completed-jobs*
 (define (completed-job? id)
@@ -31,7 +35,7 @@
 ; I don't like how specific this function is but it keeps the API boundary.
 (define (get-improve-job-data)
   (for/list ([(k v) (in-hash *completed-jobs*)] #:when (equal? (job-result-command v) 'improve))
-    (get-table-data v (format "~a.~a" k *herbie-commit*))))
+    (get-table-data v (make-path k))))
 
 (define (job-count)
   (hash-count *job-status*))
@@ -82,8 +86,7 @@
 
 (define (already-computed? job-id)
   (or (hash-has-key? *completed-jobs* job-id)
-      (and (*demo-output*)
-           (directory-exists? (build-path (*demo-output*) (format "~a.~a" job-id *herbie-commit*))))))
+      (and (*demo-output*) (directory-exists? (build-path (*demo-output*) (make-path job-id))))))
 
 (define (internal-wait-for-job job-id)
   (eprintf "Waiting for job\n")
@@ -109,7 +112,7 @@
 
 (define (run-job job-info)
   (match-define (work job-id info sema) job-info)
-  (define path (format "~a.~a" job-id *herbie-commit*))
+  (define path (make-path job-id))
   (cond ;; Check caches if job as already been completed
     [(hash-has-key? *completed-jobs* job-id) (semaphore-post sema)]
     [(and (*demo-output*) (directory-exists? (build-path (*demo-output*) path)))

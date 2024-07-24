@@ -4,7 +4,6 @@
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
          "rules.rkt"
-         "../syntax/accelerator.rkt"
          "../utils/common.rkt"
          "../utils/float.rkt"
          "../syntax/platform.rkt"

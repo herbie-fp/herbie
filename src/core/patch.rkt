@@ -8,7 +8,6 @@
          "rr.rkt"
          "simplify.rkt"
          "taylor.rkt"
-         "../syntax/accelerator.rkt"
          "../utils/alternative.rkt"
          "../utils/common.rkt"
          "../syntax/platform.rkt"
