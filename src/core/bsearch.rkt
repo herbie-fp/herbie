@@ -51,7 +51,6 @@
 
 ;; Invariant: (pred p1) and (not (pred p2))
 (define (binary-search-floats pred p1 p2 repr)
-  
   (cond
    [(<= (ulps->bits (ulp-difference p1 p2 repr)) (*max-bsearch-bits*))
     (timeline-push! 'stop "narrow-enough" 1)
@@ -141,7 +140,7 @@
         (if (bfnegative? left)
             (bigfloat-interval-shortest left (bfmin (bf/ left 2.bf) right))
             (bigfloat-interval-shortest left (bfmin (bf* left 2.bf) right))))
-      ;; It's important to return something strictly less than right
+            ;; It's important to return something strictly less than right
       (if (bf= out right)
           p1
           ((representation-bf->repr repr) out))))
