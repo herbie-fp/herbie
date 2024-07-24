@@ -1,15 +1,9 @@
 #lang racket
 
-(require math/bigfloat
-         math/flonum
-         rival)
-
 (require "../syntax/syntax.rkt"
          "../syntax/types.rkt"
-         "../utils/common.rkt"
          "../utils/timeline.rkt"
-         "../utils/float.rkt"
-         "../config.rkt")
+         "../utils/float.rkt")
 
 (provide compile-progs
          compile-prog)
@@ -68,6 +62,7 @@
     (set! size (+ 1 size))
     (define node ; This compiles to the register machine
       (match prog
+        [(approx _ impl) (munge impl)]
         [(list op args ...) (cons op (map munge args))]
         [_ prog]))
     (hash-ref! exprhash

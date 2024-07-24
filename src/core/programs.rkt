@@ -20,7 +20,7 @@
 
 ;; Programs are just lisp lists plus atoms
 
-(define expr? (or/c list? symbol? boolean? real? literal?))
+(define expr? (or/c list? symbol? boolean? real? literal? approx?))
 
 ;; Returns repr name
 ;; Fast version does not recurse into functions applications
@@ -63,9 +63,9 @@
   (match expr
     [(? symbol?) #t]
     [(? number?) #t]
-    [(list 'if cond ift iff)
-     (and (spec-prog? cond) (spec-prog? ift) (spec-prog? iff))]
-    [(list (? operator-exists?) args ...) (andmap spec-prog? args)]))
+    [(list 'if cond ift iff) (and (spec-prog? cond) (spec-prog? ift) (spec-prog? iff))]
+    [(list (? operator-exists?) args ...) (andmap spec-prog? args)]
+    [_ #f]))
 
 ;; Is the expression in LImpl (floating-point implementations)?
 (define (impl-prog? expr)
@@ -73,9 +73,9 @@
     [(? symbol?) #t]
     [(? literal?) #t]
     [(approx spec impl) (and (spec-prog? spec) (impl-prog? impl))]
-    [(list 'if cond ift iff)
-     (and (impl-prog? cond) (impl-prog? ift) (impl-prog? iff))]
-    [(list (? impl-exists?) args ...) (andmap impl-prog? args)]))
+    [(list 'if cond ift iff) (and (impl-prog? cond) (impl-prog? ift) (impl-prog? iff))]
+    [(list (? impl-exists?) args ...) (andmap impl-prog? args)]
+    [_ #f]))
 
 ;; Total order on expressions
 
