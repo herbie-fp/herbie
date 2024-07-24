@@ -34,7 +34,7 @@
                               #;(log ,log-x ,exp-x))))
 
 (define (taylor-alt altn)
-  (define expr (alt-expr altn))
+  (define expr (expand-accelerators (prog->spec (alt-expr altn))))
   (reap [sow]
         (for* ([var (free-variables expr)] [transform-type transforms-to-try])
           (match-define (list name f finv) transform-type)
@@ -62,27 +62,6 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Recursive Rewrite ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define (impl-well-typed? prog repr)
-  (define impls (list->set (platform-impls (*active-platform*))))
-  (let/ec return
-          (let loop ([prog prog] [repr repr])
-            (match prog
-              [(? number?) (return #f)]
-              [(? symbol?) (void)]
-              [(? literal?) (void)]
-              [(list 'if cond ift iff)
-               (loop cond (get-representation 'bool))
-               (loop ift repr)
-               (loop iff repr)]
-              [(list (? operator-exists?) _ ...) (return #f)]
-              [(list impl args ...)
-               (unless (set-member? impls impl)
-                 (return #f))
-               (unless (eq? (impl-info impl 'otype) repr)
-                 (return #f))
-               (for-each loop args (impl-info impl 'itype))]))
-          (return #t)))
-
 (define (run-rr altns&reprs)
   (timeline-event! 'rewrite)
   (define altns (map car altns&reprs))
@@ -90,12 +69,14 @@
 
   ; generate required rules
   (define rules (real-rules (*rules*)))
+  (define lifting-rules (platform-lifting-rules))
   (define lowering-rules (platform-lowering-rules))
 
-  ; egg schedule (2-phases for real rewrites and implementation selection)
+  ; egg schedule (3-phases for mathematical rewrites and implementation selection)
   (define schedule
-    `((,rules . ((node . ,(*node-limit*)))) (,lowering-rules . ((iteration . 1) (scheduler .
-                                                                                           simple)))))
+    `((,lifting-rules . ((iteration . 1) (scheduler . simple)))
+      (,rules . ((node . ,(*node-limit*))))
+      (,lowering-rules . ((iteration . 1) (scheduler . simple)))))
 
   ; run egg
   (define specs (map alt-expr altns))
@@ -104,11 +85,10 @@
   ; apply changelists
   (define rewritten
     (reap [sow]
-          (for ([changelists changelistss] [altn altns] [repr reprs])
+          (for ([changelists changelistss] [altn altns])
             (for ([cl changelists])
               (match-define (list subexpr input) cl)
-              (when (impl-well-typed? subexpr repr)
-                (sow (alt subexpr (list 'rr input #f #f) (list altn) '())))))))
+              (sow (alt subexpr (list 'rr input #f #f) (list altn) '()))))))
 
   (timeline-push! 'count (length altns) (length rewritten))
   rewritten)
@@ -140,13 +120,10 @@
   ; convert to altns
   (define simplified
     (reap [sow]
-          (for ([altn (in-list altns)]
-                [repr (in-list reprs)]
-                [outputs (in-list simplification-options)]
-                #:when #t
-                [output (in-list outputs)])
-            (when (impl-well-typed? output repr)
-              (sow (alt output `(simplify ,runner #f #f) (list altn) '()))))))
+          (for ([altn (in-list altns)] [outputs (in-list simplification-options)])
+            (match-define (cons _ simplified) outputs)
+            (for ([expr (in-list simplified)])
+              (sow (alt expr `(simplify ,runner #f #f) (list altn) '()))))))
 
   (timeline-push! 'count (length altns) (length simplified))
   simplified)
@@ -162,8 +139,7 @@
   ; Starting alternatives
   (define start-altns
     (for/list ([expr (in-list locs)] [repr (in-list reprs)])
-      (define spec (expand-accelerators (prog->spec expr)))
-      (alt spec (list 'patch expr repr) '() '())))
+      (alt expr (list 'patch expr repr) '() '())))
   ; Core
   (define approximations (if (flag-set? 'generate 'taylor) (run-taylor start-altns reprs) '()))
   (define rewritten (if (flag-set? 'generate 'rr) (run-rr (map cons start-altns reprs)) '()))
