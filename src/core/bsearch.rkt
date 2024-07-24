@@ -100,7 +100,7 @@
   (define (new-sampler)
     (cons val (random-ref pts)))
   (apply mk-pcontext (cdr (batch-prepare-points evaluator new-sampler))))
-
+(define val 0)
 (define cache (make-hash))
 (define (cache-put! key value)
         (hash-set! cache key value))
@@ -111,7 +111,9 @@
             (begin 
               (set! value (macro v))
               (cache-put! key value))
-              (displayln "Cache Hit"))
+            (begin
+            (set! val (+ val 1))
+            (displayln val)))
         value) 
 
 
