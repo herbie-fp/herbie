@@ -34,8 +34,7 @@
                               #;(log ,log-x ,exp-x))))
 
 (define (taylor-alt altn)
-  (define spec (alt-expr altn))
-  (define expr (expand-accelerators (prog->spec spec)))
+  (define expr (expand-accelerators (prog->spec (alt-expr altn))))
   (reap [sow]
         (for* ([var (free-variables expr)] [transform-type transforms-to-try])
           (match-define (list name f finv) transform-type)
