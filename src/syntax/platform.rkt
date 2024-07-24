@@ -314,10 +314,12 @@
               (let ([platform-id (syntax->datum #'id)] [impls (syntax->list #'(impl ...))] [costs (syntax->list #'(cost ...))])
                 (with-syntax ([platform-id platform-id] [(impls ...) impls] [(costs ...) costs] )
                   #'(define platform-id (make-platform2 `([impls ,costs] ...)))))]
-            [#:if-cost]
+            [(#:if-cost cost rest ...)] 
+            [(#:if-cost) (oops! "expected value after keyword `#:if-cost`" stx)]
             [#:default-cost]
-            [#:optional]
-            [#:literals]
+            [(#:default-cost) (oops! "expected value after keyword `#:default-cost`" stx)]
+            [(#:optional rest ...)]
+            [(#:literals ([repr, cost] ...) rest ...)]
             ))]
       [_ (oops! "bad syntax")]))
 
