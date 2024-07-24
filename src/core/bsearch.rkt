@@ -123,18 +123,6 @@
 
   (define (prepend-macro v) (prepend-argument start-fn v (*pcontext*) ctx*))
 
-  #|          
-  (define (cache-get-expr key pctx)
-          (define value (hash-ref cache key #f))
-          (if (eq? value #f) 
-              (begin 
-                (set! value (errors-score (errors key pctx ctx*)))
-                (cache-put! key value))
-                (void))
-          value) 
-  |#
-
-
   (define (find-split expr1 expr2 v1 v2)  
     (define (pred v)
       (define pctx
@@ -144,7 +132,6 @@
       (define acc2 (errors-score (errors expr2 pctx ctx*)))
       (- acc1 acc2))
     (define-values (p1 p2) (binary-search-floats pred v1 v2 repr))
-    (hash-clear! cache)
     (left-point p1 p2))
 
   (define (left-point p1 p2)
