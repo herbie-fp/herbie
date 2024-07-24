@@ -1,21 +1,39 @@
 #lang racket
 
-(require math/bigfloat rival)
-(require "../errors.rkt" "types.rkt")
+(require math/bigfloat)
 
-(provide (rename-out [operator-or-impl? operator?])
+(require "../utils/common.rkt"
+         "../utils/errors.rkt"
+         "../core/rival.rkt"
+         "types.rkt")
+
+(provide (rename-out [operator-or-impl? operator?] [expand-accelerator-spec expand-accelerators])
          (struct-out literal)
-         variable? constant-operator?
-         operator-exists? operator-deprecated? impl-exists?
-         operator-info impl-info 
-         impl->operator all-operators all-constants operator-all-impls
-         operator-active-impls activate-operator-impl! clear-active-operator-impls!
-         *functions* register-function!
-         get-parametric-operator get-parametric-constant
-         generate-conversion-impl repr-conv? rewrite-repr-op?
-         get-repr-conv get-rewrite-operator)
+         variable?
+         constant-operator?
+         operator-exists?
+         operator-deprecated?
+         operator-accelerator?
+         operator-info
+         all-operators
+         all-constants
+         all-accelerators
+         impl-exists?
+         impl-info
+         impl->operator
+         operator-all-impls
+         operator-active-impls
+         activate-operator-impl!
+         clear-active-operator-impls!
+         *functions*
+         register-function!
+         get-parametric-operator
+         get-parametric-constant
+         get-cast-impl
+         generate-cast-impl
+         cast-impl?)
 
-(module+ internals 
+(module+ internals
   (provide define-operator-impl
            register-operator-impl!
            define-operator
@@ -23,23 +41,29 @@
            register-conversion-generator!
            variable?))
 
-(struct literal (value precision) #:prefab)
+(module+ test
+  (require rackunit
+           rival))
 
-;; Real operator: a pure mathematical operator specified by
-;;  - (unique) name
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Real operators
+;; Pure mathematical operations
+
+;; TODO: specs should really be associated with impls
+;; unfortunately Herbie still mandates that every impl
+;; has an associated operator so the spec is here
+
+;; A real operator requires
+;;  - a (unique) name
 ;;  - input and output types
-;;  - "bigfloat" implementation (legacy high-precision)
-;;  - Rival implementation (ground truth)
-;;  - Deprecated?
-;; For any tuple of representations implementing the input
-;; and output types, an operator implementation may be
-;; specified for a particular operator
-(struct operator (name itype otype ival deprecated))
+;;  - optionally a specification [#f by default]
+;;  - optionally a deprecated? flag [#f by default]
+;; Operator implementations _implement_ a real operator
+;; for a particular set of input and output representations.
+(struct operator (name itype otype spec deprecated))
 
-;; Real operator table and a mapping from operator to its various implementations.
-;; Real operators are global and are never removed.
+;; All real operators
 (define operators (make-hasheq))
-(define operators-to-impls (make-hasheq))
 
 ;; Checks if an operator has been registered.
 (define (operator-exists? op)
@@ -49,18 +73,40 @@
 (define (operator-deprecated? op)
   (operator-deprecated (hash-ref operators op)))
 
+;; Checks if an operator is an "accelerator".
+(define (operator-accelerator? op)
+  (and (hash-has-key? operators op) (operator-spec (hash-ref operators op))))
+
+;; Returns all operators.
+(define (all-operators)
+  (sort (hash-keys operators) symbol<?))
+
+;; Returns all constant operators (operators with no arguments).
+(define (all-constants)
+  (sort (for/list ([(name rec) (in-hash operators)] #:when (null? (operator-itype rec)))
+          name)
+        symbol<?))
+
+;; Returns all "accelerator" operators
+(define (all-accelerators)
+  (sort (for/list ([(name rec) (in-hash operators)] #:when (operator-spec rec))
+          name)
+        symbol<?))
+
 ;; Looks up a property `field` of an real operator `op`.
 ;; Panics if the operator is not found.
 (define/contract (operator-info op field)
-  (-> symbol? (or/c 'itype 'otype 'fl 'ival) any/c)
+  (-> symbol? (or/c 'itype 'otype 'spec) any/c)
   (unless (hash-has-key? operators op)
     (error 'operator-info "Unknown operator ~a" op))
-  (define accessor
-    (match field
-      ['itype operator-itype]
-      ['otype operator-otype]
-      ['ival operator-ival]))
-  (accessor (hash-ref operators op)))
+  (define info (hash-ref operators op))
+  (case field
+    [(itype) (operator-itype info)]
+    [(otype) (operator-otype info)]
+    [(spec) (operator-spec info)]))
+
+;; Map from operator to its implementations
+(define operators-to-impls (make-hasheq))
 
 ;; All implementations of an operator `op`.
 ;; Panics if the operator is not found.
@@ -69,142 +115,239 @@
     (error 'operator-info "Unknown operator ~a" op))
   (hash-ref operators-to-impls op))
 
+;; Checks an "accelerator" specification
+(define (check-accelerator-spec! name itypes otype spec)
+  (define (bad! fmt . args)
+    (error name "~a in `~a`" (apply format fmt args) spec))
+
+  (define (type-error! expr actual-ty expect-ty)
+    (bad! "expression `~a` has type `~a`, expected `~a`" expr actual-ty expect-ty))
+
+  (define-values (vars body)
+    (match spec
+      [`(,(or 'lambda 'λ) (,vars ...) ,spec)
+       (for ([var (in-list vars)])
+         (unless (symbol? var)
+           (bad! "expected symbol `~a` in `~a`" var spec)))
+       (values vars spec)]
+      [_ (bad! "malformed specification, expected `(lambda <vars> <expr>)`")]))
+
+  (unless (= (length itypes) (length vars))
+    (bad! "arity mismatch; expected ~a, got ~a" (length itypes) (length vars)))
+
+  (define env (map cons vars itypes))
+  (define actual-ty
+    (let type-of ([expr body])
+      (match expr
+        [(? number?) 'real]
+        [(? symbol?)
+         (cond
+           [(assq expr env)
+            =>
+            cdr]
+           [else (bad! "unbound variable `~a`" expr)])]
+        [`(if ,cond ,ift ,iff)
+         (define cond-ty (type-of cond))
+         (unless (equal? cond-ty 'bool)
+           (type-error! cond cond-ty 'bool))
+         (define ift-ty (type-of ift))
+         (define iff-ty (type-of iff))
+         (unless (equal? ift-ty iff-ty)
+           (type-error! iff iff-ty ift-ty))
+         ift-ty]
+        [`(,op ,args ...)
+         (unless (operator-exists? op)
+           (bad! "expected operator at `~a`, got `~a` in `~a`" expr op))
+         (define itypes (operator-info op 'itype))
+         (for ([arg (in-list args)] [itype (in-list itypes)])
+           (define arg-ty (type-of arg))
+           (unless (equal? itype arg-ty)
+             (type-error! arg arg-ty itype)))
+         (operator-info op 'otype)]
+        [_ (bad! "expected an expression, got `~a`" expr)])))
+
+  (unless (equal? actual-ty otype)
+    (type-error! body actual-ty otype)))
+
+;; Applies a substitution.
+;; Slightly different than `replace-vars` in `programs.rkt`.
+(define (replace-vars expr env)
+  (let loop ([expr expr])
+    (match expr
+      [(? number?) expr]
+      [(? symbol?) (cdr (assq expr env))]
+      [`(,op ,args ...) `(,op ,@(map loop args))])))
+
+;; Expands an "accelerator" specification.
+;; Any nested accelerator is unfolded into its definition.
+(define (expand-accelerator-spec spec)
+  (let loop ([expr spec])
+    (match expr
+      [(? number?) expr]
+      [(? symbol?) expr]
+      [`(,(? operator-accelerator? op) ,args ...)
+       (define spec (operator-info op 'spec))
+       (match-define `(,(or 'lambda 'λ) (,vars ...) ,body) spec)
+       (define env (map cons vars (map loop args)))
+       (replace-vars body env)]
+      [`(,op ,args ...) `(,op ,@(map loop args))])))
+
 ;; Registers an operator with an attribute mapping.
 ;; Panics if an operator with name `name` has already been registered.
-;; By default, the input types are specified by `itypes`,
-;; the output type is specified by `otype`, and the operator is not
-;; deprected, but `attrib-dict` can override these properties.
+;; By default, the input types are specified by `itypes`, the output type
+;; is specified by `otype`, and the operator is not deprecated; but
+;; `attrib-dict` can override these properties.
 (define (register-operator! name itypes otype attrib-dict)
   (when (hash-has-key? operators name)
     (error 'register-operator! "operator already registered: ~a" name))
-  (define attribs
-    (hash 'itype (dict-ref attrib-dict 'itype itypes)
-          'otype (dict-ref attrib-dict 'otype otype)
-          'deprecated (dict-ref attrib-dict 'deprected #f)
-          'ival (dict-ref attrib-dict 'ival
-                          (λ () (error 'register-operator! "missing interval impl for ~a" name)))))
-  (define field-names '(itype otype ival deprecated))
-  (define table-entry (apply operator name (map (curry hash-ref attribs) field-names)))
-  (hash-set! operators name table-entry)
+  ; extract relevant fields
+  (define itypes* (dict-ref attrib-dict 'itype itypes))
+  (define otype* (dict-ref attrib-dict 'otype otype))
+  (define spec (dict-ref attrib-dict 'spec #f))
+  (define deprecated? (dict-ref attrib-dict 'deprecated #f))
+  ; check the spec if it is provided
+  (when spec
+    (check-accelerator-spec! name itypes otype spec)
+    (set! spec (expand-accelerator-spec spec)))
+  ; update tables
+  (define info (operator name itypes* otype* spec deprecated?))
+  (hash-set! operators name info)
   (hash-set! operators-to-impls name '()))
 
-(define-syntax-rule (define-operator (name itypes ...) otype [key value] ...)
-  (register-operator! 'name '(itypes ...) 'otype (list (cons 'key value) ...)))
+;; Syntactic form for `register-operator!`.
+;; Special translations for
+(define-syntax (define-operator stx)
+  (define (bad! why [what #f])
+    (raise-syntax-error 'define-operator why stx what))
 
-(define-syntax-rule (define-1ary-real-operator name ival-impl)
-  (define-operator (name real) real [ival ival-impl]))
+  (define (attribute-val key val)
+    (syntax-case key (spec)
+      [spec
+       (with-syntax ([val val])
+         (syntax 'val))]
+      [_ val]))
 
-(define-syntax-rule (define-2ary-real-operator name ival-impl)
-  (define-operator (name real real) real [ival ival-impl]))
+  (syntax-case stx ()
+    [(_ (id itype ...) otype [key val] ...)
+     (let ([id #'id] [keys (syntax->list #'(key ...))] [vals (syntax->list #'(val ...))])
+       (unless (identifier? id)
+         (bad! "expected identifier" id))
+       (with-syntax ([id id] [(val ...) (map attribute-val keys vals)])
+         #'(register-operator! 'id '(itype ...) 'otype (list (cons 'key val) ...))))]))
 
-(define-syntax-rule (define-1ary-real-operators [name ival-impl] ...)
-  (begin (define-1ary-real-operator name ival-impl) ...))
+(define-syntax define-operators
+  (syntax-rules (: ->)
+    [(_ [name : itype ... -> otype] ...)
+     (begin
+       (define-operator (name itype ...) otype) ...)]))
 
-(define-syntax-rule (define-2ary-real-operators [name ival-impl] ...)
-  (begin (define-2ary-real-operator name ival-impl) ...))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Rival-supported operators
 
-(define-1ary-real-operators
-  [neg ival-neg]
-  [acos ival-acos]
-  [acosh ival-acosh]
-  [asin ival-asin]
-  [asinh ival-asinh]
-  [atan ival-atan]
-  [atanh ival-atanh]
-  [cbrt ival-cbrt]
-  [ceil ival-ceil]
-  [cos ival-cos]
-  [cosh ival-cosh]
-  [erf ival-erf]
-  [exp ival-exp]
-  [exp2 ival-exp2]
-  [fabs ival-fabs]
-  [floor ival-floor]
-  [lgamma ival-lgamma]
-  [log ival-log]
-  [log10 ival-log10]
-  [log2 ival-log2]
-  [logb ival-logb]
-  [rint ival-rint]
-  [round ival-round]
-  [sin ival-sin]
-  [sinh ival-sinh]
-  [sqrt ival-sqrt]
-  [tan ival-tan]
-  [tanh ival-tanh]
-  [tgamma ival-tgamma]
-  [trunc ival-trunc])
+; real constants (encoded as nullary operators)
+(define-operators
+  [PI : -> real]
+  [E : -> real]
+  [INFINITY : -> real]
+  [NAN : -> real])
 
-(define-2ary-real-operators
-  [+ ival-add]
-  [- ival-sub]
-  [* ival-mult]
-  [/ ival-div]
-  [atan2 ival-atan2]
-  [copysign ival-copysign]
-  [fdim ival-fdim]
-  [fmax ival-fmax]
-  [fmin ival-fmin]
-  [fmod ival-fmod]
-  [pow ival-pow]
-  [remainder ival-remainder])
+; boolean constants (encoded as nullary operators)
+(define-operators
+  [TRUE : -> bool]
+  [FALSE : -> bool])
 
-(define-operator (== real real) bool
-  [ival ival-==])
+; boolean operators
+(define-operators
+  [not : bool -> bool]
+  [and : bool bool -> bool]
+  [or : bool bool -> bool])
 
-(define-operator (!= real real) bool
-  [ival ival-!=])
+; real-boolean operators
+(define-operators
+  [== : real real -> bool]
+  [!= : real real -> bool]
+  [< : real real -> bool]
+  [> : real real -> bool]
+  [<= : real real -> bool]
+  [>= : real real -> bool])
 
-(define-operator (< real real) bool
-  [ival ival-<])
+; real operators
+(define-operators
+  [acos : real -> real]
+  [acosh : real -> real]
+  [asin : real -> real]
+  [asinh : real -> real]
+  [atan : real -> real]
+  [atanh : real -> real]
+  [cbrt : real -> real]
+  [ceil : real -> real]
+  [cos : real -> real]
+  [cosh : real -> real]
+  [erf : real -> real]
+  [exp : real -> real]
+  [exp2 : real -> real]
+  [fabs : real -> real]
+  [floor : real -> real]
+  [lgamma : real -> real]
+  [log : real -> real]
+  [log10 : real -> real]
+  [log2 : real -> real]
+  [logb : real -> real]
+  [neg : real -> real]
+  [rint : real -> real]
+  [round : real -> real]
+  [sin : real -> real]
+  [sinh : real -> real]
+  [sqrt : real -> real]
+  [tan : real -> real]
+  [tanh : real -> real]
+  [tgamma : real -> real]
+  [trunc : real -> real]
+  [+ : real real -> real]
+  [- : real real -> real]
+  [* : real real -> real]
+  [/ : real real -> real]
+  [atan2 : real real -> real]
+  [copysign : real real -> real]
+  [fdim : real real -> real]
+  [fmax : real real -> real]
+  [fmin : real real -> real]
+  [fmod : real real -> real]
+  [pow : real real -> real]
+  [remainder : real real -> real])
 
-(define-operator (> real real) bool
-  [ival ival->])
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Accelerator operators
 
-(define-operator (<= real real) bool
-  [ival ival-<=])
+(define-operator (cast real) real [spec (lambda (x) x)])
 
-(define-operator (>= real real) bool
-  [ival ival->=])
+(define-operator (erfc real) real [spec (lambda (x) (- 1 (erf x)))])
 
-;; logical operators ;;
+(define-operator (expm1 real) real [spec (lambda (x) (- (exp x) 1))])
 
-(define-operator (not bool) bool
-   [ival ival-not])
+(define-operator (log1p real) real [spec (lambda (x) (log (+ 1 x)))])
 
-(define-operator (and bool bool) bool
-   [ival ival-and])
+(define-operator (hypot real real) real [spec (lambda (x y) (sqrt (+ (* x x) (* y y))))])
 
-(define-operator (or bool bool) bool
-   [ival ival-or])
+(define-operator (fma real real real) real [spec (lambda (x y z) (+ (* x y) z))])
 
-(define-operator (PI) real
-  [ival ival-pi])
+(module+ test
+  ; check expected number of operators
+  (check-equal? (length (all-operators)) 63)
 
-(define-operator (E) real
-  [ival ival-e])
+  ; check that Rival supports all non-accelerator operators
+  (for ([op (in-list (all-operators))] #:unless (operator-accelerator? op))
+    (define vars (map (lambda (_) (gensym)) (operator-info op 'itype)))
+    (define disc (discretization 64 #f #f)) ; fake arguments
+    (rival-compile (list `(,op ,@vars)) vars (list disc)))
 
-(define-operator (INFINITY) real
-  [ival (λ () (ival (bfprev +inf.bf) +inf.bf))])
+  ; test accelerator operator
+  ; log1pmd(x) = log1p(x) - log1p(-x)
+  (define-operator (log1pmd real) real [spec (lambda (x) (- (log1p x) (log1p (neg x))))]))
 
-(define-operator (NAN) real
-  [ival (λ () ival-illegal)])
-
-(define-operator (TRUE) bool
-  [ival (const (ival-bool true))])
-
-(define-operator (FALSE) bool
-  [ival (const (ival-bool false))])
-
-;; Conversions
-
-(define-operator (convert real) real
-  [ival identity])
-
-(define-operator (cast real) real
-  [ival identity])
-
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Operator implementations
+;; Floating-point operations that approximate mathematical operations
 
 ;; Operator implementations
 ;; An "operator implementation" implements a mathematical operator for
@@ -223,21 +366,19 @@
 
 ;; Looks up a property `field` of an real operator `op`.
 ;; Panics if the operator is not found.
-(define/contract (impl-info operator field)
+(define/contract (impl-info impl field)
   (-> symbol? (or/c 'itype 'otype 'fl) any/c)
-  (unless (hash-has-key? operator-impls operator)
-    (error 'impl-info "Unknown operator implementation ~a" operator))
-  (define accessor
-    (match field
-      ['itype operator-impl-itype]
-      ['otype operator-impl-otype]
-      ['fl operator-impl-fl]))
-  (accessor (hash-ref operator-impls operator)))
+  (unless (hash-has-key? operator-impls impl)
+    (error 'impl-info "Unknown operator implementation ~a" impl))
+  (define info (hash-ref operator-impls impl))
+  (case field
+    [(itype) (operator-impl-itype info)]
+    [(otype) (operator-impl-otype info)]
+    [(fl) (operator-impl-fl info)]))
 
 ;; Like `operator-all-impls`, but filters for only active implementations.
 (define (operator-active-impls name)
-  (filter (curry set-member? active-operator-impls)
-          (operator-all-impls name)))
+  (filter (curry set-member? active-operator-impls) (operator-all-impls name)))
 
 ;; Looks up the name of an operator corresponding to an implementation `name`.
 ;; Panics if the operator is not found.
@@ -261,28 +402,65 @@
 ;; Registers an operator implementation `name` or real operator `op`.
 ;; The input and output representations must satisfy the types
 ;; specified by the `itype` and `otype` fields for `op`.
-(define (register-operator-impl! operator name areprs rrepr attrib-dict)
-  ; Ideally we check for uniqueness, but the loading code may fire multiple times
-  ; (unless (hash-has-key? operator-impls name)
-  ;   (error 'register-operator-impl! "implementation already registered ~a" name))
-  (define op (hash-ref operators operator))
-  (define fl-fun (dict-ref attrib-dict 'fl))
+(define (register-operator-impl! op name ireprs orepr attrib-dict)
+  (define op-info
+    (hash-ref
+     operators
+     op
+     (lambda ()
+       (raise-herbie-missing-error "Cannot register `~a`, operator `~a` does not exist" name op))))
 
-  (unless (equal? operator 'if) ;; Type check all operators except if
-    (for ([arepr (cons rrepr areprs)]
-          [itype (cons (operator-otype op) (operator-itype op))])
-      (unless (equal? (representation-type arepr) itype)
-        (raise-herbie-missing-error
-          "Cannot register ~a as implementation of ~a: ~a is not a representation of ~a"
-          name operator (representation-name rrepr) (operator-otype op)))))
+  ; check arity and types
+  (define itypes (operator-itype op-info))
+  (define otype (operator-otype op-info))
+  (define expect-arity (length itypes))
+  (define actual-arity (length ireprs))
+  (unless (= expect-arity actual-arity)
+    (raise-herbie-missing-error
+     "Cannot register `~a` as an implementation of `~a`: expected ~a arguments, got ~a"
+     name
+     op
+     expect-arity
+     actual-arity))
+  (for ([repr (in-list (cons orepr ireprs))] [type (in-list (cons otype itypes))])
+    (unless (equal? (representation-type repr) type)
+      "Cannot register `~a` as implementation of `~a`: ~a is not a representation of ~a"
+      name
+      op
+      repr
+      type))
 
-  (define impl (operator-impl name op areprs rrepr fl-fun))
+  ;; Synthesizes a correctly-rounded floating-point implemenation
+  (define (synth-fl-impl name vars spec)
+    (define ctx (context vars orepr ireprs))
+    (define compiler (make-real-compiler (list spec) (list ctx)))
+    (define fail ((representation-bf->repr orepr) +nan.bf))
+    (procedure-rename (lambda pt
+                        (define-values (_ exs) (real-apply compiler pt))
+                        (if exs (first exs) fail))
+                      (sym-append 'synth: name)))
+
+  ;; Get floating-point implementation
+  (define fl-proc
+    (cond
+      [(assoc 'fl attrib-dict)
+       =>
+       cdr] ; user-provided implementation
+      [(operator-accelerator? op) ; Rival-synthesized accelerator implementation
+       (match-define `(,(or 'lambda 'λ) (,vars ...) ,body) (operator-spec op-info))
+       (synth-fl-impl name vars body)]
+      [else ; Rival-synthesized operator implementation
+       (define vars (build-list (length ireprs) (lambda (i) (string->symbol (format "x~a" i)))))
+       (synth-fl-impl name vars `(,op ,@vars))]))
+
+  ; update tables
+  (define impl (operator-impl name op-info ireprs orepr fl-proc))
   (hash-set! operator-impls name impl)
-  (hash-update! operators-to-impls operator (curry cons name)))
-
+  (hash-update! operators-to-impls op (curry cons name)))
 
 (define-syntax-rule (define-operator-impl (operator name atypes ...) rtype [key value] ...)
-  (register-operator-impl! 'operator 'name
+  (register-operator-impl! 'operator
+                           'name
                            (list (get-representation 'atypes) ...)
                            (get-representation 'rtype)
                            (list (cons 'key value) ...)))
@@ -292,12 +470,12 @@
 (define (get-parametric-operator #:all? [all? #f] name . ireprs)
   (define get-impls (if all? operator-all-impls operator-active-impls))
   (let/ec k
-    (for/first ([impl (get-impls name)]
-                #:when (equal? (impl-info impl 'itype) ireprs))
-      (k impl))
-    (raise-herbie-missing-error
-      "Could not find operator implementation for ~a with ~a"
-      name (string-join (map (λ (r) (format "<~a>" (representation-name r))) ireprs) " "))))
+          (for/first ([impl (get-impls name)] #:when (equal? (impl-info impl 'itype) ireprs))
+            (k impl))
+          (raise-herbie-missing-error
+           "Could not find operator implementation for ~a with ~a"
+           name
+           (string-join (map (λ (r) (format "<~a>" (representation-name r))) ireprs) " "))))
 
 ;; Among active implementations, looks up an implementation of
 ;; a constant (nullary operator) with the operator name `name`
@@ -305,34 +483,62 @@
 (define (get-parametric-constant name repr #:all? [all? #f])
   (define get-impls (if all? operator-all-impls operator-active-impls))
   (let/ec k
-    (for ([impl (get-impls name)])
-      (define rtype (impl-info impl 'otype))
-      (when (or (equal? rtype repr) (equal? (representation-type rtype) 'bool))
-        (k impl)))
-    (raise-herbie-missing-error
-      "Could not find constant implementation for ~a with ~a"
-      name (format "<~a>" (representation-name repr)))))
+          (for ([impl (get-impls name)])
+            (define rtype (impl-info impl 'otype))
+            (when (or (equal? rtype repr) (equal? (representation-type rtype) 'bool))
+              (k impl)))
+          (raise-herbie-missing-error "Could not find constant implementation for ~a with ~a"
+                                      name
+                                      (format "<~a>" (representation-name repr)))))
+
+(module+ test
+  (require math/flonum
+           math/bigfloat
+           (submod "types.rkt" internals))
+
+  (define (shift bits fn)
+    (define shift-val (expt 2 bits))
+    (λ (x) (fn (- x shift-val))))
+
+  (define (unshift bits fn)
+    (define shift-val (expt 2 bits))
+    (λ (x) (+ (fn x) shift-val)))
+
+  ; for testing: also in <herbie>/reprs/binary64.rkt
+  (define-representation (binary64 real flonum?)
+                         bigfloat->flonum
+                         bf
+                         (shift 63 ordinal->flonum)
+                         (unshift 63 flonum->ordinal)
+                         64
+                         (conjoin number? nan?))
+
+  ; correctly-rounded log1pmd(x) for binary64
+  (define-operator-impl (log1pmd log1pmd.f64 binary64) binary64)
+  ; correctly-rounded sin(x) for binary64
+  (define-operator-impl (sin sin.acc.f64 binary64) binary64)
+
+  (define log1pmd-proc (impl-info 'log1pmd.f64 'fl))
+  (define log1pmd-vals '((0.0 . 0.0) (0.5 . 1.0986122886681098) (-0.5 . -1.0986122886681098)))
+  (for ([(pt out) (in-dict log1pmd-vals)])
+    (check-equal? (log1pmd-proc pt) out (format "log1pmd(~a) = ~a" pt out)))
+
+  (define sin-proc (impl-info 'sin.acc.f64 'fl))
+  (define sin-vals '((0.0 . 0.0) (1.0 . 0.8414709848078965) (-1.0 . -0.8414709848078965)))
+  (for ([(pt out) (in-dict sin-vals)])
+    (check-equal? (sin-proc pt) out (format "sin(~a) = ~a" pt out)))
+
+  (void))
 
 ;; Casts and precision changes
 
-(define (repr-conv? expr)
-  (and (symbol? expr) (set-member? (operator-all-impls 'cast) expr)))
+(define (cast-impl? x)
+  (and (symbol? x) (set-member? (operator-all-impls 'cast) x)))
 
-(define (rewrite-repr-op? expr)
-  (and (symbol? expr) (set-member? (operator-all-impls 'convert) expr)))
-
-(define (get-repr-conv irepr orepr #:all? [all? #f])
+(define (get-cast-impl irepr orepr #:all? [all? #f])
   (define get-impls (if all? operator-all-impls operator-active-impls))
   (for/or ([name (get-impls 'cast)])
-    (and (equal? (impl-info name 'otype) orepr)
-         (equal? (first (impl-info name 'itype)) irepr)
-         name)))
-
-(define (get-rewrite-operator repr #:all? [all? #f])
-  (define get-impls (if all? operator-all-impls operator-active-impls))
-  (for/or ([name (get-impls 'convert)])
-    (and (equal? (impl-info name 'itype) (list repr))
-         name)))
+    (and (equal? (impl-info name 'otype) orepr) (equal? (first (impl-info name 'itype)) irepr) name)))
 
 ; Similar to representation generators, conversion generators
 ; allow Herbie to query plugins for optimized implementations
@@ -345,14 +551,12 @@
   (unless (set-member? conversion-generators proc)
     (set! conversion-generators (cons proc conversion-generators))))
 
-(define (generate-conversion-impl irepr orepr)
-  (define maybe-impl (get-repr-conv irepr orepr))
-  (cond
-    [maybe-impl maybe-impl]
-    [else
-     (for/first ([gen conversion-generators])
-        (gen (representation-name irepr) (representation-name orepr)))
-     (get-repr-conv irepr orepr)]))
+(define (generate-cast-impl irepr orepr)
+  (match (get-cast-impl irepr orepr)
+    [#f
+     (for/first ([gen (in-list conversion-generators)])
+       (gen (representation-name irepr) (representation-name orepr)))]
+    [impl impl]))
 
 ;; Expression predicates ;;
 
@@ -360,14 +564,13 @@
   (hash-has-key? operator-impls op))
 
 (define (operator-or-impl? op)
-  (and (symbol? op) (not (equal? op 'if))
-       (or (hash-has-key? operators op)
-           (hash-has-key? operator-impls op))))
+  (and (symbol? op)
+       (not (equal? op 'if))
+       (or (hash-has-key? operators op) (hash-has-key? operator-impls op))))
 
 (define (constant-operator? op)
   (and (symbol? op)
-       (or (and (hash-has-key? operators op)
-                (null? (operator-itype (hash-ref operators op))))
+       (or (and (hash-has-key? operators op) (null? (operator-itype (hash-ref operators op))))
            (and (hash-has-key? operator-impls op)
                 (null? (operator-impl-itype (hash-ref operator-impls op)))))))
 
@@ -378,16 +581,12 @@
        (or (not (hash-has-key? operator-impls var))
            (not (null? (operator-impl-itype (hash-ref operator-impls var)))))))
 
+;; Floating-point expressions require that number
+;; be rounded to a particular precision.
+(struct literal (value precision) #:prefab)
+
 ;; name -> (vars repr body)	;; name -> (vars prec body)
 (define *functions* (make-parameter (make-hasheq)))
 
-(define (register-function! name args repr body)	;; Adds a function definition.
+(define (register-function! name args repr body) ;; Adds a function definition.
   (hash-set! (*functions*) name (list args repr body)))
-
-(define (all-operators)
-  (sort (hash-keys operators) symbol<?))
-
-(define (all-constants)
-  (for/list ([(name rec) (in-hash operators)]
-             #:when (= (length (operator-itype rec)) 0))
-    name))

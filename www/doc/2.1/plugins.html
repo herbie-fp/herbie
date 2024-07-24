@@ -21,10 +21,8 @@
   </header>
 
   <p><a href="../../">Herbie</a> plugins define new functions, add
-  rewrite rules, and even implement number representations.</p>
-
-  <p>Herbie plugins are installed separately. Herbie then
-  automatically loads and uses them.</p>
+  rewrite rules, and number representations. Users install plugins
+  separately, and Herbie then automatically loads and uses them.</p>
   
   <h2>Posit arithmetic</h2>
 
@@ -36,7 +34,7 @@
 
   <p>This plugin uses the SoftPosit library, only supported on Linux.
   Even then is reported to misbehave on some machines. The plugin
-  support arithmetic operations, <code>sqrt</code>, and quires.</p>
+  supports arithmetic operations, <code>sqrt</code>, and quires.</p>
 
   <p>Once <kbd>softposit-herbie</kbd> is installed,
   specify <code>:precision posit16</code> to inform Herbie that it
@@ -44,11 +42,6 @@
   posit sizes (with 8 or 32 bits) and also quires (for 8, 16, and 32
   bit posits) are available, but are poorly supported.</p>
 
-
-  <h2 id="complex">Complex numbers</h2>
-
-  <p>The <kbd>complex-herbie</kbd> plugin has been removed as of Herbie 1.6.
-    This plugin may be brought back in the future.
 
   <h2 id="complex">Generic floating-point numbers</h2>
 
@@ -107,7 +100,7 @@
   All plugins are implemented as Racket packages. The easiest way to
   initialize a new Racket package is to run
 
-  <pre class="shell">raco pkg new <i>pkg-name</i></pre>
+  <pre class="shell">raco pkg new <var>pkg-name</var></pre>
 
   in a new folder. Make sure the folder name is the same as the package name!
   This will initialize a Racket package with all the necessary files.
@@ -115,28 +108,29 @@
   <a href="https://docs.racket-lang.org/pkg/getting-started.html#%28part._how-to-create%29">
   raco</a> tool for more information.</p>
 
-  <p>A single entry needs to be added to the package manifest stored in <code>info.rkt</code>,
-  and add <code>(define herbie-plugin '<i>name</i>)</code> to the bottom of the file
-  where <i>name</i> is a unique symbol that doesn't conflict with other Herbie plugins.
-  As a suggestion, this should just be the package name.</p>
+  <p>A single entry needs to be added to the package manifest stored
+  in <code>info.rkt</code>: add <code>(define herbie-plugin
+  '<var>name</var>)</code> to the bottom of the file
+  where <var>name</var> is a unique symbol that doesn't conflict with
+  other Herbie plugins, like the package name.</p>
 
   <p>Next, edit the <code>main.rkt</code> file by erasing everything except the
   language specifier on the first line, and add the line <code>(require herbie/plugin)</code>.
   This gives the package access to the Herbie plugin interface.
   Optionally add the following for debugging purposes
-  <code>(eprintf "Loading <i>pkg-name</i> support...\n")</code>
-  directly after the <i>require</i> statement.</p>
+  <code>(eprintf "Loading <var>pkg-name</var> support...\n")</code>
+  directly after the <code>require</code> statement.</p>
 
   <p>Finally, run the following in the folder containing <code>info.rkt</code>
   and <code>main.rkt</code>:
 
   <pre class="shell">raco pkg install</pre>
 
-  This should install your package and check for errors.
-  Now everything is set up!
-  Of course, your plugin is empty and doesn't add any useful features.
+  This should install your package and check it for errors.
+  Everything is now set up.
   If you added the debugging line in <code>main.rkt</code>, you should see the string
   when you run Herbie.
+  Of course, your plugin is empty and doesn't yet add any useful features.
   </p>
 
   <p><b>Adding Features</b><br>

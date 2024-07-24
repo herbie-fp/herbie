@@ -10,7 +10,16 @@
         [localize . (costs errors)]
         [generate . (rr taylor simplify better-rr proofs)]
         [reduce . (regimes avg-error binary-search branch-expressions)]
-        [rules . (arithmetic polynomials fractions exponents trigonometry hyperbolic numerics special bools branches)]))
+        [rules
+         . (arithmetic polynomials
+                       fractions
+                       exponents
+                       trigonometry
+                       hyperbolic
+                       numerics
+                       special
+                       bools
+                       branches)]))
 
 (define default-flags
   #hash([precision . ()]
@@ -18,7 +27,16 @@
         [localize . (costs errors)]
         [generate . (rr taylor simplify proofs)]
         [reduce . (regimes avg-error binary-search branch-expressions)]
-        [rules . (arithmetic polynomials fractions exponents trigonometry hyperbolic numerics special bools branches)]))
+        [rules
+         . (arithmetic polynomials
+                       fractions
+                       exponents
+                       trigonometry
+                       hyperbolic
+                       numerics
+                       special
+                       bools
+                       branches)]))
 
 (define (check-flag-deprecated! category flag)
   (match* (category flag)
@@ -34,17 +52,18 @@
      (eprintf "The generate:better-rr option has been removed.\n")
      (eprintf "  The current recursive rewriter does not support the it.\n")
      (eprintf "See <https://herbie.uwplse.org/doc/~a/options.html> for more.\n" *herbie-version*)]
-    [(_ _)
-     (void)]))
+    [(_ _) (void)]))
 
 (define (enable-flag! category flag)
   (check-flag-deprecated! category flag)
-  (define (update cat-flags) (set-add cat-flags flag))
+  (define (update cat-flags)
+    (set-add cat-flags flag))
   (*flags* (dict-update (*flags*) category update)))
 
 (define (disable-flag! category flag)
   (check-flag-deprecated! category flag)
-  (define (update cat-flags) (set-remove cat-flags flag))
+  (define (update cat-flags)
+    (set-remove cat-flags flag))
   (*flags* (dict-update (*flags*) category update)))
 
 (define (flag-set? class flag)
@@ -63,8 +82,8 @@
 (define (changed-flags)
   (filter identity
           (for*/list ([(class flags) all-flags] [flag flags])
-            (match* ((flag-set? class flag)
-                     (parameterize ([*flags* default-flags]) (flag-set? class flag)))
+            (match* ((flag-set? class flag) (parameterize ([*flags* default-flags])
+                                              (flag-set? class flag)))
               [(#t #t) #f]
               [(#f #f) #f]
               [(#t #f) (list 'enabled class flag)]
@@ -137,20 +156,17 @@
 
 (define (git-command #:default [default ""] gitcmd . args)
   (if (directory-exists? ".git")
-      (let* ([cmd (format "git ~a ~a" gitcmd (string-join args " "))]
-             [out (run-command cmd)])
-          (if (equal? out "") default out))
+      (let* ([cmd (format "git ~a ~a" gitcmd (string-join args " "))] [out (run-command cmd)])
+        (if (equal? out "") default out))
       default))
 
-(define *herbie-version* "2.0")
+(define *herbie-version* "2.2")
 
 (define *hostname* (run-command "hostname"))
 
-(define *herbie-commit*
-  (git-command "rev-parse" "HEAD" #:default *herbie-version*))
+(define *herbie-commit* (git-command "rev-parse" "HEAD" #:default *herbie-version*))
 
-(define *herbie-branch*
-  (git-command "rev-parse" "--abbrev-ref" "HEAD" #:default "release"))
+(define *herbie-branch* (git-command "rev-parse" "--abbrev-ref" "HEAD" #:default "release"))
 
 ;;; The "reset" mechanism for clearing caches and such
 
@@ -164,15 +180,14 @@
 ;; A finializer may be optionally specified
 (define-syntax define-resetter
   (syntax-rules ()
-    [(_ name init-fn reset-fn)
-     (define-resetter name init-fn reset-fn (λ _ (void)))]
+    [(_ name init-fn reset-fn) (define-resetter name init-fn reset-fn (λ _ (void)))]
     [(_ name init-fn reset-fn finalize-fn)
      (begin
        (define name (make-parameter (init-fn)))
-       (register-reset!
-         (λ ()
-           (finalize-fn (name))
-           (name (reset-fn)))))]))
+       (register-reset! (λ ()
+                          (finalize-fn (name))
+                          (name (reset-fn)))))]))
 
 (define (reset!)
-  (for ([fn-rec (sort resetters < #:key car)]) ((cdr fn-rec))))
+  (for ([fn-rec (sort resetters < #:key car)])
+    ((cdr fn-rec))))

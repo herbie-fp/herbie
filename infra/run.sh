@@ -32,6 +32,7 @@ function output_error {
   "points": -1, "iterations": -1, "bit_width": -1,
   "note": "$NAME", "crash": true, "tests": [] }
 EOF
+  exit 1
 }
 
 # actual runner
@@ -47,7 +48,7 @@ function run {
   fi
 
   rm -rf "$OUTDIR/$name"
-  racket -y "src/herbie.rkt" report \
+  racket -y "src/main.rkt" report \
     --note "$name" \
     "$@" \
     "$bench" "$OUTDIR/$name" \

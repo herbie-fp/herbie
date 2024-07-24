@@ -2,7 +2,7 @@
 
 help:
 	@echo "Type 'make install' to install Herbie"
-	@echo "Then type 'racket src/herbie.rkt web' to run it."
+	@echo "Then type 'racket -l herbie web' to run it."
 
 install: clean egg-herbie update
 
@@ -16,6 +16,7 @@ clean:
 
 update:
 	raco pkg install --skip-installed --no-docs --auto --name herbie src/
+	raco pkg update --auto rival
 	raco pkg update --name herbie --deps search-auto src/
 
 egg-herbie:
@@ -35,7 +36,7 @@ minimal-distribution:
 	cp README.md herbie-compiled/
 	cp LICENSE.md herbie-compiled/
 	cp logo.png herbie-compiled/
-	raco exe -o herbie --orig-exe --embed-dlls --vv src/herbie.rkt
+	raco exe -o herbie --orig-exe --embed-dlls --vv src/main.rkt
 	[ ! -f herbie.exe ] || (raco distribute herbie-compiled herbie.exe && rm herbie.exe)
 	[ ! -f herbie.app ] || (raco distribute herbie-compiled herbie.app && rm herbie.app)
 	[ ! -f herbie ] || (raco distribute herbie-compiled herbie && rm herbie)
@@ -48,9 +49,16 @@ upgrade:
 	$(MAKE) install
 
 start-server:
-	racket -y src/herbie.rkt web --seed 1 --timeout 150 --num-iters 2 \
+	racket -y src/main.rkt web --seed 1 --timeout 150 --num-iters 2 \
 		--demo --public --prefix /demo/ --port 4053 --save-session www/demo/ \
 		--log infra/server.log --quiet 2>&1
+
+hooks:
+	echo "#!/bin/sh" >.git/hooks/pre-commit
+	echo "make fmt" >>.git/hooks/pre-commit
+
+fmt:
+	raco fmt -i $(shell find . -name '*.rkt')
 
 # This rule is run by herbie.uwplse.org on every commit to Github.
 # It does not restart the demo server, but it does pull new static content

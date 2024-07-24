@@ -1,15 +1,30 @@
 #lang racket
 
-(require math/bigfloat racket/random)
-(require "../common.rkt" "../alternative.rkt" "../timeline.rkt" "../errors.rkt"
-         "../syntax/types.rkt" "../syntax/sugar.rkt" "../syntax/syntax.rkt"
-         "../compiler.rkt" "../programs.rkt" "../points.rkt" "regimes.rkt"
-         "../float.rkt" "../pretty-print.rkt" "../sampling.rkt")
+(require math/bigfloat
+         racket/random)
+(require "../utils/common.rkt"
+         "../utils/alternative.rkt"
+         "../utils/timeline.rkt"
+         "../utils/errors.rkt"
+         "../syntax/types.rkt"
+         "../syntax/sugar.rkt"
+         "../syntax/syntax.rkt"
+         "compiler.rkt"
+         "programs.rkt"
+         "points.rkt"
+         "regimes.rkt"
+         "../utils/float.rkt"
+         "../utils/pretty-print.rkt"
+         "sampling.rkt"
+         "rival.rkt")
 
-(provide combine-alts (struct-out sp) splitpoints->point-preds)
+(provide combine-alts
+         (struct-out sp)
+         splitpoints->point-preds)
 
 (module+ test
-  (require rackunit "../load-plugin.rkt")
+  (require rackunit
+           "../syntax/load-plugin.rkt")
   (load-herbie-builtins))
 
 ;; A splitpoint (sp a b pt) means we should use alt a if b < pt
@@ -19,26 +34,25 @@
 (define (combine-alts best-option ctx)
   (match-define (option splitindices alts pts expr _) best-option)
   (match splitindices
-   [(list (si cidx _)) (list-ref alts cidx)]
-   [_
-    (timeline-event! 'bsearch)
-    (define splitpoints (sindices->spoints pts expr alts splitindices ctx))
+    [(list (si cidx _)) (list-ref alts cidx)]
+    [_
+     (timeline-event! 'bsearch)
+     (define splitpoints (sindices->spoints pts expr alts splitindices ctx))
 
-    (define expr*
-      (for/fold
-          ([expr (alt-expr (list-ref alts (sp-cidx (last splitpoints))))])
-          ([splitpoint (cdr (reverse splitpoints))])
-        (define repr (repr-of (sp-bexpr splitpoint) ctx))
-        (define <=-operator (get-parametric-operator '<= repr repr))
-        `(if (,<=-operator ,(sp-bexpr splitpoint)
-                           ,(literal (repr->real (sp-point splitpoint) repr)
-                                     (representation-name repr)))
-             ,(alt-expr (list-ref alts (sp-cidx splitpoint)))
-             ,expr)))
+     (define expr*
+       (for/fold ([expr (alt-expr (list-ref alts (sp-cidx (last splitpoints))))])
+                 ([splitpoint (cdr (reverse splitpoints))])
+         (define repr (repr-of (sp-bexpr splitpoint) ctx))
+         (define <=-operator (get-parametric-operator '<= repr repr))
+         `(if (,<=-operator ,(sp-bexpr splitpoint)
+                            ,(literal (repr->real (sp-point splitpoint) repr)
+                                      (representation-name repr)))
+              ,(alt-expr (list-ref alts (sp-cidx splitpoint)))
+              ,expr)))
 
-    ;; We don't want unused alts in our history!
-    (define-values (alts* splitpoints*) (remove-unused-alts alts splitpoints))
-    (alt expr* (list 'regimes splitpoints*) alts* '())]))
+     ;; We don't want unused alts in our history!
+     (define-values (alts* splitpoints*) (remove-unused-alts alts splitpoints))
+     (alt expr* (list 'regimes splitpoints*) alts* '())]))
 
 (define (remove-unused-alts alts splitpoints)
   (for/fold ([alts* '()] [splitpoints* '()]) ([splitpoint splitpoints])
@@ -52,15 +66,15 @@
 ;; Invariant: (pred p1) and (not (pred p2))
 (define (binary-search-floats pred p1 p2 repr)
   (cond
-   [(<= (ulps->bits (ulp-difference p1 p2 repr)) (*max-bsearch-bits*))
-    (timeline-push! 'stop "narrow-enough" 1)
-    (values p1 p2)]
-   [else
-    (define p3 (midpoint p1 p2 repr))
-    (define cmp
-      ;; Sampling error: don't know who's better
-      (with-handlers ([exn:fail:user:herbie? (const 'fail)])
-        (pred p3)))
+    [(<= (ulps->bits (ulp-difference p1 p2 repr)) (*max-bsearch-bits*))
+     (timeline-push! 'stop "narrow-enough" 1)
+     (values p1 p2)]
+    [else
+     (define p3 (midpoint p1 p2 repr))
+     (define cmp
+       ;; Sampling error: don't know who's better
+       (with-handlers ([exn:fail:user:herbie? (const 'fail)])
+         (pred p3)))
 
     (cond
      [(eq? cmp 'fail)
@@ -77,14 +91,15 @@
 (define (extract-subexpression expr var pattern ctx)
   (define body* (replace-expression expr pattern var))
   (define vars* (set-subtract (context-vars ctx) (free-variables pattern)))
-  (if (subset? (free-variables body*) (cons var vars*))
-      body*
-      #f))
+  (if (subset? (free-variables body*) (cons var vars*)) body* #f))
 
-(define (prepend-argument fn val pcontext ctx)
-  (define pts (for/list ([(pt ex) (in-pcontext pcontext)]) pt))
-  (define (new-sampler) (cons val (random-ref pts)))
-  (apply mk-pcontext (cdr (batch-prepare-points fn (list ctx) new-sampler))))
+(define (prepend-argument evaluator val pcontext)
+  (define pts
+    (for/list ([(pt ex) (in-pcontext pcontext)])
+      pt))
+  (define (new-sampler)
+    (cons val (random-ref pts)))
+  (apply mk-pcontext (cdr (batch-prepare-points evaluator new-sampler))))
 
 (define cache (make-hash))
 (define (cache-put! key value)
@@ -116,9 +131,9 @@
   (define start-prog (extract-subexpression (*start-prog*) var expr ctx))
 
   ; Not totally clear if this should actually use the precondition
-  (define start-fn 
-    (and start-prog 
-      (make-search-func '(TRUE) (list (prog->spec start-prog)) (cons ctx* `()))))
+  (define start-real-compiler
+    (and start-prog
+         (make-real-compiler (list (expand-accelerators (prog->spec start-prog))) (list ctx*))))
 
   (define (prepend-macro v) (prepend-argument start-fn v (*pcontext*) ctx*))
 
@@ -134,44 +149,37 @@
     (left-point p1 p2))
 
   (define (left-point p1 p2)
-    (let ([left ((representation-repr->bf repr) p1)]
-          [right ((representation-repr->bf repr) p2)])
+    (let ([left ((representation-repr->bf repr) p1)] [right ((representation-repr->bf repr) p2)])
       (define out
         (if (bfnegative? left)
             (bigfloat-interval-shortest left (bfmin (bf/ left 2.bf) right))
             (bigfloat-interval-shortest left (bfmin (bf* left 2.bf) right))))
-            ;; It's important to return something strictly less than right
-      (if (bf= out right)
-          p1
-          ((representation-bf->repr repr) out))))
+      ;; It's important to return something strictly less than right
+      (if (bf= out right) p1 ((representation-bf->repr repr) out))))
 
   (define use-binary
     (and (flag-set? 'reduce 'binary-search)
          ;; Binary search is only valid if we correctly extracted the branch expression
          (andmap identity (cons start-prog progs))))
 
-  (append
-   (for/list ([si1 sindices] [si2 (cdr sindices)])
-     (define prog1 (list-ref progs (si-cidx si1)))
-     (define prog2 (list-ref progs (si-cidx si2)))
+  (append (for/list ([si1 sindices] [si2 (cdr sindices)])
+            (define prog1 (list-ref progs (si-cidx si1)))
+            (define prog2 (list-ref progs (si-cidx si2)))
 
-     (define p1 (apply eval-expr (list-ref points (sub1 (si-pidx si1)))))
-     (define p2 (apply eval-expr (list-ref points (si-pidx si1))))
+            (define p1 (apply eval-expr (list-ref points (sub1 (si-pidx si1)))))
+            (define p2 (apply eval-expr (list-ref points (si-pidx si1))))
 
-     (define timeline-stop! (timeline-start! 'bstep (value->json p1 repr) (value->json p2 repr)))
-     (define split-at
-       (if use-binary
-           (find-split prog1 prog2 p1 p2)
-           (left-point p1 p2)))
-     (timeline-stop!)
+            (define timeline-stop!
+              (timeline-start! 'bstep (value->json p1 repr) (value->json p2 repr)))
+            (define split-at (if use-binary (find-split prog1 prog2 p1 p2) (left-point p1 p2)))
+            (timeline-stop!)
 
-     (timeline-push! 'method (if use-binary "binary-search" "left-value"))
-     (sp (si-cidx si1) expr split-at))
-   (list (sp (si-cidx (last sindices)) expr +nan.0))))
+            (timeline-push! 'method (if use-binary "binary-search" "left-value"))
+            (sp (si-cidx si1) expr split-at))
+          (list (sp (si-cidx (last sindices)) expr +nan.0))))
 
 (define (valid-splitpoints? splitpoints)
-  (and (= (set-count (list->set (map sp-bexpr splitpoints))) 1)
-       (nan? (sp-point (last splitpoints)))))
+  (and (= (set-count (list->set (map sp-bexpr splitpoints))) 1) (nan? (sp-point (last splitpoints)))))
 
 (define/contract (splitpoints->point-preds splitpoints alts ctx)
   (-> valid-splitpoints? (listof alt?) context? (listof procedure?))
@@ -198,10 +206,7 @@
             (sp 0 '(/.f64 y x) +inf.0)
             (sp 1 '(/.f64 y x) +nan.0)))
     (match-define (list p0? p1? p2?)
-                  (splitpoints->point-preds
-                    sps
-                    (map make-alt (build-list 3 (const '(λ (x y) (/ x y)))))
-                    context))
+      (splitpoints->point-preds sps (map make-alt (build-list 3 (const '(λ (x y) (/ x y))))) context))
 
     (check-pred p0? '(0.0 -1.0))
     (check-pred p2? '(-1.0 1.0))

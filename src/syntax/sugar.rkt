@@ -1,11 +1,16 @@
 #lang racket
 
-(require "../errors.rkt" "types.rkt" "syntax.rkt")
-(provide fpcore->prog prog->fpcore prog->spec spec->prog)
+(require "../utils/errors.rkt"
+         "types.rkt"
+         "syntax.rkt")
+(provide fpcore->prog
+         prog->fpcore
+         prog->spec
+         spec->prog)
 
 ;; Herbie uses various IRs.
 ;; All IRs are S-expressions with symbolic operators, variables and numbers.
-;; 
+;;
 ;; ## FPCore (with a couple modifications) ##
 ;;
 ;; - input language, loopless, with bindings, lightly annotated
@@ -20,7 +25,7 @@
 ;;           ::= (! <props> ... <expr>)
 ;;           ::= (<op> <expr> ...)
 ;;           ::= <var>
-;;           ::= <number>         
+;;           ::= <number>
 ;;
 ;; To propagate types through an FPCore, the types of the rounding context and
 ;; variables must be known. Variable types propagate up and rounding contexts
@@ -35,7 +40,7 @@
 ;; <expr> ::= (if <expr> <expr> <expr>)
 ;;        ::= (<impl> <expr> ...)
 ;;        ::= <var>
-;;        ::= <number>
+;;        ::= (literal <number> <repr-name>)
 ;;
 ;; Every (operator) implementation has a type signature taking inputs each
 ;; with a given number format producing an output of a possibly different
@@ -69,11 +74,9 @@
   (let loop ([expr expr] [env '()])
     (match expr
       ; empty let/let* expression
-      [`(,(or 'let 'let*) () ,body)
-       (loop body env)]
+      [`(,(or 'let 'let*) () ,body) (loop body env)]
       ; let* expression
-      [`(let* ([,var ,val] ,rest ...) ,body)
-       (loop `(let ([,var ,val]) (let* ,rest ,body)) env)]
+      [`(let* ([,var ,val] ,rest ...) ,body) (loop `(let ([,var ,val]) (let* ,rest ,body)) env)]
       ; let expression
       [`(let ([,vars ,vals] ...) ,body)
        (define env*
@@ -90,28 +93,25 @@
       [`(- ,a) `(neg ,(loop a env))]
       [`(/ ,a) `(/ 1 ,(loop a env))]
       ; expand arithmetic associativity
-      [`(,(and (or '+ '- '* '/ 'and 'or) op) ,as ..2 ,b)
-       `(,op ,(loop `(,op ,@as) env) ,(loop b env))]
+      [`(,(and (or '+ '- '* '/ 'and 'or) op) ,as ..2 ,b) `(,op ,(loop `(,op ,@as) env) ,(loop b env))]
       ; expand comparison associativity
       [`(,(and (or '< '<= '> '>= '=) op) ,as ...)
        (define as* (map (curryr loop env) as))
        (define out
          (for/fold ([out #f]) ([term as*] [next (cdr as*)])
-           (if out
-               (list 'and out (list op term next))
-               (list op term next))))
+           (if out (list 'and out (list op term next)) (list op term next))))
        (or out '(TRUE))]
       [`(!= ,as ...)
        (define as* (map (curryr loop env) as))
        (define out
          (for/fold ([out #f])
-             ([term as*] [i (in-naturals)]
-              #:when true
-              [term2 as*] [j (in-naturals)]
-              #:when (< i j))
-           (if out
-               (list 'and out (list '!= term term2))
-               (list '!= term term2))))
+                   ([term as*]
+                    [i (in-naturals)]
+                    #:when true
+                    [term2 as*]
+                    [j (in-naturals)]
+                    #:when (< i j))
+           (if out (list 'and out (list '!= term term2)) (list '!= term term2))))
        (or out '(TRUE))]
       ; function calls
       [(list (? (curry hash-has-key? (*functions*)) fname) args ...)
@@ -133,27 +133,19 @@
 (define (props->dict props)
   (let loop ([props props] [dict '()])
     (match props
-      [(list key val rest ...)
-       (loop rest (dict-set dict key val))]
-      [(list key)
-       (error 'props->dict "unmatched key" key)]
-      [(list)
-       dict])))
+      [(list key val rest ...) (loop rest (dict-set dict key val))]
+      [(list key) (error 'props->dict "unmatched key" key)]
+      [(list) dict])))
 
 ;; Translates an FPCore to a specification.
 (define (fpcore->spec expr)
   (let loop ([expr (expand-expr expr)])
     (match expr
-      [`(FPCore ,name (,vars ...) ,props ... ,body)
-       `(FPCore ,name ,vars ,@props ,(loop body))]
-      [`(FPCore (,vars ...) ,props ... ,body)
-       `(FPCore ,vars ,@props ,(loop body))]
-      [`(if ,cond ,ift ,iff)
-       `(if ,(loop cond) ,(loop ift) ,(loop iff))]
-      [`(! ,_ ... ,body)
-       (loop body)]
-      [`(,op ,args ...)
-       `(,op ,@(map loop args))]
+      [`(FPCore ,name (,vars ...) ,props ... ,body) `(FPCore ,name ,vars ,@props ,(loop body))]
+      [`(FPCore (,vars ...) ,props ... ,body) `(FPCore ,vars ,@props ,(loop body))]
+      [`(if ,cond ,ift ,iff) `(if ,(loop cond) ,(loop ift) ,(loop iff))]
+      [`(! ,_ ... ,body) (loop body)]
+      [`(,op ,args ...) `(,op ,@(map loop args))]
       [_ expr])))
 
 ;; Translates an FPCore to an ImplProg.
@@ -182,12 +174,11 @@
          (define repr (context-repr ctx))
          (define-values (body* repr*) (loop body ctx))
          (cond
-           [(equal? repr repr*)
-            ; cast is redundant
-            (values body* repr)]
+           ; cast is redundant
+           [(equal? repr repr*) (values body* repr)]
            [else
-            (define conv (get-repr-conv repr* repr))
-            (values (list conv body*) repr)])]
+            (define cast (get-cast-impl repr* repr))
+            (values (list cast body*) repr)])]
         [`(,(? constant-operator? x))
          (define cnst (get-parametric-constant x (context-repr ctx)))
          (values (list cnst) (impl-info cnst 'otype))]
@@ -196,9 +187,7 @@
          (define op* (get-parametric-operator 'neg atype))
          (values (list op* arg*) (impl-info op* 'otype))]
         [`(,op ,args ...)
-         (define-values (args* atypes)
-           (for/lists (args* atypes) ([arg args])
-             (loop arg ctx)))
+         (define-values (args* atypes) (for/lists (args* atypes) ([arg args]) (loop arg ctx)))
          ;; Match guaranteed to succeed because we ran type-check first
          (define op* (apply get-parametric-operator op atypes))
          (values (cons op* args*) (impl-info op* 'otype))]
@@ -209,12 +198,12 @@
            [(equal? (representation-type vrepr) 'bool) (values expr vrepr)]
            [(equal? vrepr repr) (values expr repr)]
            [else
-            (define conv (get-repr-conv vrepr repr))
-            (unless conv
+            (define cast (get-cast-impl vrepr repr))
+            (unless cast
               (raise-herbie-missing-error "conversion does not exist: ~a -> ~a"
                                           (representation-name vrepr)
                                           (representation-name repr)))
-            (values (list conv expr) repr)])]
+            (values (list cast expr) repr)])]
         [(? number?)
          (define prec (representation-name (context-repr ctx)))
          (define num
@@ -223,24 +212,21 @@
              [(? exact?) expr]
              [_ (inexact->exact expr)]))
          (values (literal num prec) (context-repr ctx))]
-        [(? boolean?)
-         (values expr (get-representation 'bool))])))
+        [(? boolean?) (values expr (get-representation 'bool))])))
   expr*)
 
 ;; Translates an ImplProg to an FPCore.
 (define (prog->fpcore prog repr)
   (let loop ([expr prog])
     (match expr
-      [`(if ,cond ,ift ,iff)
-       `(if ,(loop cond) ,(loop ift) ,(loop iff))]
-      [`(,(? repr-conv? impl) ,body)
+      [`(if ,cond ,ift ,iff) `(if ,(loop cond) ,(loop ift) ,(loop iff))]
+      [`(,(? cast-impl? impl) ,body)
        (match-define (list irepr) (impl-info impl 'itype))
        (define body* (prog->fpcore body irepr))
        (cond
          [(list? body*) `(cast (! :precision ,(representation-name irepr) ,body*))]
          [else body*])] ; constants and variables should not have casts
-      [`(,impl)
-       (impl->operator impl)]
+      [`(,impl) (impl->operator impl)]
       [`(,impl ,args ...)
        (define op (impl->operator impl))
        (define args* (map prog->fpcore args (impl-info impl 'itype)))
@@ -253,19 +239,14 @@
          [-inf.0 '(- INFINITY)]
          [+inf.0 'INFINITY]
          [+nan.0 'NAN]
-         [v (if (set-member? '(binary64 binary32) (literal-precision expr))
-                (exact->inexact v)
-                v)])])))
+         [v
+          (if (set-member? '(binary64 binary32) (literal-precision expr)) (exact->inexact v) v)])])))
 
 ;; Translates an ImplProg to a Spec.
 (define (prog->spec expr)
   (match expr
-    [`(if ,cond ,ift ,iff)
-     `(if ,(prog->spec cond) ,(prog->spec ift) ,(prog->spec iff))]
-    [`(,(? repr-conv? impl) ,body)
-     `(,impl ,(prog->spec body))]
-    [`(,(? rewrite-repr-op? impl) ,body)
-     `(,impl ,(prog->spec body))]
+    [`(if ,cond ,ift ,iff) `(if ,(prog->spec cond) ,(prog->spec ift) ,(prog->spec iff))]
+    [`(,(? cast-impl? impl) ,body) `(,impl ,(prog->spec body))]
     [`(,impl ,args ...)
      (define op (impl->operator impl))
      (define args* (map prog->spec args))
@@ -294,12 +275,11 @@
          (define repr (context-repr ctx))
          (define-values (body* repr*) (loop body ctx))
          (cond
-           [(equal? repr repr*)
-            ; cast is redundant
-            (values body* repr)]
+           ; cast is redundant
+           [(equal? repr repr*) (values body* repr)]
            [else
-            (define conv (get-repr-conv repr* repr))
-            (values (list conv body*) repr)])]
+            (define cast (get-cast-impl repr* repr))
+            (values (list cast body*) repr)])]
         [`(,(? constant-operator? x))
          (define cnst (get-parametric-constant x (context-repr ctx)))
          (values (list cnst) (impl-info cnst 'otype))]
@@ -307,18 +287,13 @@
          (define-values (arg* atype) (loop arg ctx))
          (define op* (get-parametric-operator 'neg atype))
          (values (list op* arg*) (impl-info op* 'otype))]
-        [`(,(? repr-conv? impl) ,body)
-        ; this case is supported here but not by fpcore->prog
+        [`(,(? cast-impl? impl) ,body)
+         ; this case is supported here but not by fpcore->prog
          (match-define (list irepr) (impl-info impl 'itype))
          (define-values (body* _) (loop body (struct-copy context ctx [repr irepr])))
          (values `(,impl ,body*) (impl-info impl 'otype))]
-        [`(,(? rewrite-repr-op? impl) ,body)
-         (define-values (body* repr*) (loop body ctx))
-         (values `(,impl ,body*) repr*)]
         [`(,op ,args ...)
-         (define-values (args* atypes)
-           (for/lists (args* atypes) ([arg args])
-             (loop arg ctx)))
+         (define-values (args* atypes) (for/lists (args* atypes) ([arg args]) (loop arg ctx)))
          ;; Match guaranteed to succeed because we ran type-check first
          (define op* (apply get-parametric-operator op atypes))
          (values (cons op* args*) (impl-info op* 'otype))]
@@ -329,12 +304,12 @@
            [(equal? (representation-type vrepr) 'bool) (values expr vrepr)]
            [(equal? vrepr repr) (values expr repr)]
            [else
-            (define conv (get-repr-conv vrepr repr))
-            (unless conv
+            (define cast (get-cast-impl vrepr repr))
+            (unless cast
               (raise-herbie-missing-error "conversion does not exist: ~a -> ~a"
                                           (representation-name vrepr)
                                           (representation-name repr)))
-            (values (list conv expr) repr)])]
+            (values (list cast expr) repr)])]
         [(? number?)
          (define prec (representation-name (context-repr ctx)))
          (define num
@@ -343,6 +318,5 @@
              [(? exact?) expr]
              [_ (inexact->exact expr)]))
          (values (literal num prec) (context-repr ctx))]
-        [(? boolean?)
-         (values expr (get-representation 'bool))])))
+        [(? boolean?) (values expr (get-representation 'bool))])))
   expr*)

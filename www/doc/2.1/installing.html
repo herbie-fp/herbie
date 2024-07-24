@@ -23,28 +23,27 @@
   </header>
 
   <p>
-    <a href="../../">Herbie</a> supports Linux, macOS, and Windows 
-    (though, on Windows, you will need to <a href="https://stackoverflow.com/questions/32127524/how-to-install-and-use-make-in-windows">install Make</a>). It
-    can be installed from a package or from source. To start, install
-    <a href="https://racket-lang.org">Racket</a>, which Herbie is
-    written in. Then install Herbie. (Herbie can also be installed
-    from source or via a <a href="docker.html">Docker image</a>.)
+    <a href="../../">Herbie</a> supports Linux, macOS, and Windows.
+    To start, install <a href="https://racket-lang.org">Racket</a>,
+    which Herbie is written in. Then install Herbie, either from a
+    package, from source, or via a <a href="docker.html">Docker
+    image</a>.
   </p>
 
   <h2>Installing Racket</h2>
 
   <p>
     Install Racket either using
-    the <a href="http://download.racket-lang.org/racket-v8.9.html">official
+    the <a href="http://download.racket-lang.org/racket-v8.13.html">official
       installer</a> or distro-provided packages. Versions as old as 8.0
-    are supported, but more recent versions are faster.
+    are supported, but more recent versions are faster. We strongly recommend
+    v8.7 or newer.
   </p>
 
   <p>
-    Please note: on Linux, we recommend the official Racket installer
-    over installing Racket via Snap. If you must install Racket from
-    Snap, make sure Herbie and all packages are located in your home
-    directory or another allow-listed directory.
+    On Linux, we recommend against installing Racket via Snap. If you
+    must install Racket from Snap, locate Herbie and all other
+    packages in your home directory or another allow-listed directory.
   </p>
 
   <p>
@@ -52,41 +51,40 @@
   </p>
 
   <pre class="shell">racket
-Welcome to Racket v8.9 [cs].
+Welcome to Racket v8.13 [cs].
 > (exit)</pre>
 
   <h2>Installing Herbie from a package</h2>
 
   <p>
-    This installation method supports Windows, macOS, and Linux for
-    x86-64. It won't work for ARM computers, including recent Apple
-    computers. You may also need a working version
-    of <code>make</code>; on Windows, that might have to be installed
-    separately.</p>
+    Herbie can be installed from a binary package on Windows and Linux
+    for x86-64, and on macOS on either x86-64 or ARM. If you are on a
+    more obscure platform, please install from source instead.</p>
 
-  <p>First install Racket, as above. Then install Herbie from a package with:</p>
+  <p>First install Racket. Then install Herbie from a package
+  with:</p>
 
   <pre class="shell">raco pkg install --auto herbie</pre>
 
-  <!-- This is a copy of the text above -->
+  <p>Then check that Herbie works by running:</p>
 
-  <p>
-    This command installs Herbie and its dependencies, compiles it for
-    faster startup, and places the <code>herbie</code> executable in
-    your Racket user path (example paths for Racket 8.9):
-  </p>
+  <pre class="shell">racket -l herbie -- --version
+Herbie 2.1</pre>
+
+  <p>If you'd like, you can run Herbie with the <code>herbie</code>
+  command by adding the following directory to your PATH (example
+  paths for Racket 8.13):</p>
 
   <ul>
-    <li>On Windows, <code>AppData\Roaming\Racket\8.9\bin</code> in your user folder.</li>
-    <li>On macOS, <code>Library/Racket/8.9/bin</code> in your home folder.</li>
-    <li>On Linux, <code>.local/share/racket/8.9/bin</code> in your home directory.</li>
+    <li>On Windows, <code>AppData\Roaming\Racket\8.13\bin</code> in your user folder.</li>
+    <li>On macOS, <code>Library/Racket/8.13/bin</code> in your home folder.</li>
+    <li>On Linux, <code>.local/share/racket/8.13/bin</code> in your home directory.</li>
   </ul>
 
   <p>
-    You can run <code>herbie</code> from that directory, or add it to
-    your executable path. Please note that the path of the binary will
-    be different on Linux if you have opted to use Snap. Once Herbie
-    is installed and working correctly, check out
+    Please note that the path of the binary will be different on Linux
+    if you have opted (against recommendation) to use Snap. Once
+    Herbie is installed and working correctly, check out
     the <a href="tutorial.html">tutorial</a>.
   </p>
 
@@ -96,13 +94,16 @@ Welcome to Racket v8.9 [cs].
   
   <p>
     Installing Herbie from source is best if you plan to develop
-    Herbie or Herbie <a href="plugins.html">plugins</a>, or if you are
-    on an ARM machine.</p>
+    Herbie or Herbie <a href="plugins.html">plugins</a>, or if you use
+    a more obscure hardware/OS combination. The instructions assume a
+    standard Unix userland; on Windows, you may have to install tools
+    like Make separately, or use WSL.
+  </p>
 
   <p>
-    Install Racket.
-    Then install Rust, using <a href="https://rustup.rs/">rustup</a> or via some other means.
-    Versions as old as 1.60.0 are supported.
+    Install Racket. Then install Rust,
+    using <a href="https://rustup.rs/">rustup</a> or via some other
+    means. Versions as old as 1.60.0 are supported.
   </p>
 
   <p>
@@ -116,16 +117,21 @@ Welcome to Racket v8.9 [cs].
     Change to the <code>herbie</code> directory;
     you should see a <code>README.md</code> file, a directory named <code>src</code>,
     a directory named <code>bench/</code>, and a few other directories.
-    Install Herbie on your system with:
+    Install Herbie with:
   </p>
 
   <pre class="shell">make install</pre>
 
+  <p>This command installs Herbie and its dependencies and compiles it
+  for faster startup. Check that Herbie works by running:</p>
+
+  <pre class="shell">racket -l herbie -- --version
+Herbie 2.1</pre>
+
   <p>
-    This command installs Herbie and its dependencies, compiles it for
-    faster startup, and places the <code>herbie</code> executable in
-    your Racket user path, just like the package installation.
-    Once Herbie is installed and working correctly, check out
+    You can also follow the install-from-package instructions to
+    add <code>herbie</code> to your path, if you'd like.' Once Herbie
+    is installed and working correctly, check out
     the <a href="tutorial.html">tutorial</a>.
   </p>
 

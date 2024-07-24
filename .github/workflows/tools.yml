@@ -24,15 +24,15 @@ jobs:
       - uses: actions/checkout@master
       - name: "Install dependencies"
         run: make install
-      - run: <bench/tutorial.fpcore racket src/herbie.rkt shell >/tmp/out.fpcore
+      - run: <bench/tutorial.fpcore racket -l herbie shell >/tmp/out.fpcore
         name: "Run shell tool"
       - run: test `grep -c :herbie-time /tmp/out.fpcore` -eq 3
         name: "Test that shell output had three :herbie-time lines"
-      - run: racket src/herbie.rkt improve bench/tutorial.fpcore /tmp/out.fpcore
+      - run: racket -l herbie improve bench/tutorial.fpcore /tmp/out.fpcore
         name: "Run improve tool"
       - run: test `grep -c :herbie-time /tmp/out.fpcore` -eq 3
         name: "Test that improve output had three :herbie-time lines"
-      - run: racket src/herbie.rkt report bench/tutorial.fpcore /tmp/out/
+      - run: racket -l herbie report bench/tutorial.fpcore /tmp/out/
         name: "Run report tool"
       - run: test -d /tmp/out/
         name: "Test that report created a directory"
@@ -60,8 +60,8 @@ jobs:
       - name: "Install dependencies"
         run: make install
       - name: "Run (1st time)"
-        run: racket src/herbie.rkt report --threads yes --seed 1 bench/hamming/rearrangement.fpcore graphs0
+        run: racket -l herbie report --threads yes --seed 1 bench/hamming/rearrangement.fpcore graphs0
       - name: "Run (2nd time)"
-        run: racket src/herbie.rkt report --threads yes --seed 1 bench/hamming/rearrangement.fpcore graphs1
+        run: racket -l herbie report --threads yes --seed 1 bench/hamming/rearrangement.fpcore graphs1
       - name: "Check for determinism"
         run: racket infra/diff.rkt graphs0 graphs1

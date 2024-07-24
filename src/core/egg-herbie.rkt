@@ -1,22 +1,28 @@
 #lang racket
 
 (require egg-herbie
-        (only-in ffi/unsafe
-          malloc memcpy free cast ptr-set! ptr-add
-          _byte _pointer _string/utf-8
-          register-finalizer))
+         (only-in ffi/unsafe
+                  malloc
+                  memcpy
+                  free
+                  cast
+                  ptr-set!
+                  ptr-add
+                  _byte
+                  _pointer
+                  _string/utf-8
+                  register-finalizer))
 
-(require "../syntax/rules.rkt"
+(require "rules.rkt"
          "../syntax/sugar.rkt"
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
-         "../common.rkt"
+         "../utils/common.rkt"
          "../config.rkt"
-         "../accelerator.rkt"
-         "../errors.rkt"
-         "../platform.rkt"
-         "../programs.rkt"
-         "../timeline.rkt" )
+         "../utils/errors.rkt"
+         "../syntax/platform.rkt"
+         "programs.rkt"
+         "../utils/timeline.rkt")
 
 (provide (struct-out egg-runner)
          untyped-egg-extractor
@@ -35,7 +41,7 @@
 
 (module+ test
   (require rackunit)
-  (require "../load-plugin.rkt")
+  (require "../syntax/load-plugin.rkt")
   (load-herbie-builtins))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -78,8 +84,9 @@
 ; Creates a new runner using an existing egraph.
 ; Useful for multi-phased rule application
 (define (egraph-copy eg-data)
-  (struct-copy egraph-data eg-data
-    [egraph-pointer (egraph_copy (egraph-data-egraph-pointer eg-data))]))
+  (struct-copy egraph-data
+               eg-data
+               [egraph-pointer (egraph_copy (egraph-data-egraph-pointer eg-data))]))
 
 ;; result function is a function that takes the ids of the nodes
 (define (egraph-add-expr eg-data expr ctx)
@@ -131,14 +138,14 @@
 
 (define (egraph-stop-reason egraph-data)
   (match (egraph_get_stop_reason (egraph-data-egraph-pointer egraph-data))
-   [0 "saturated"]
-   [1 "iter limit"]
-   [2 "node limit"]
-   [3 "unsound"]
-   [sr (error 'egraph-stop-reason "unexpected stop reason ~a" sr)]))
+    [0 "saturated"]
+    [1 "iter limit"]
+    [2 "node limit"]
+    [3 "unsound"]
+    [sr (error 'egraph-stop-reason "unexpected stop reason ~a" sr)]))
 
 ;; An egraph is just a S-expr of the form
-;; 
+;;
 ;;  egraph ::= (<eclass> ...)
 ;;  eclass ::= (<id> <enode> ..+)
 ;;  enode  ::= (<op> <id> ...)
@@ -149,7 +156,7 @@
 (define (egraph-find egraph-data id)
   (egraph_find (egraph-data-egraph-pointer egraph-data) id))
 
-(define (egraph-is-equal egraph-data expr goal ctx)
+(define (egraph-expr-equal? egraph-data expr goal ctx)
   (define egg-expr (~a (expr->egg-expr expr egraph-data ctx)))
   (define egg-goal (~a (expr->egg-expr goal egraph-data ctx)))
   (egraph_is_equal (egraph-data-egraph-pointer egraph-data) egg-expr egg-goal))
@@ -162,14 +169,11 @@
   (define res (cast pointer _pointer _string/utf-8))
   (destroy_string pointer)
   (cond
-   [(< (string-length res) 10000)
-    (define converted (egg-exprs->exprs res egraph-data (context-repr ctx)))
-    (define expanded (expand-proof converted (box (*proof-max-length*))))
-    (if (member #f expanded)
-        #f
-        expanded)]
-   [else
-    #f]))
+    [(< (string-length res) 10000)
+     (define converted (egg-exprs->exprs res egraph-data (context-repr ctx)))
+     (define expanded (expand-proof converted (box (*proof-max-length*))))
+     (if (member #f expanded) #f expanded)]
+    [else #f]))
 
 ;; Racket representation of per-iteration runner data
 (struct iteration-data (num-nodes num-eclasses time))
@@ -177,9 +181,7 @@
 (define (convert-iteration-data egraphiters size)
   (for/list ([i (in-range size)])
     (define ptr (ptr-add egraphiters i _EGraphIter))
-    (iteration-data (EGraphIter-numnodes ptr)
-                    (EGraphIter-numeclasses ptr)
-                    (EGraphIter-time ptr))))
+    (iteration-data (EGraphIter-numnodes ptr) (EGraphIter-numeclasses ptr) (EGraphIter-time ptr))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; eggIR
@@ -188,7 +190,7 @@
 ;; consisting of two variants:
 ;;  - patterns: all variables are prefixed by '?'
 ;;  - expressions: all variables are normalized into `h<n>` where <n> is an integer
-;; 
+;;
 
 ;; Translates a Herbie rule LHS or RHS into a pattern usable by egg.
 ;; Rules can be over specs or impls.
@@ -210,8 +212,7 @@
     (match expr
       [(? number?) expr]
       [(? literal?) (literal-value expr)]
-      [(? (curry hash-has-key? herbie->egg-dict))
-       (hash-ref herbie->egg-dict expr)]
+      [(? (curry hash-has-key? herbie->egg-dict)) (hash-ref herbie->egg-dict expr)]
       [(? symbol?)
        (define replacement (string->symbol (format "$h~a" (hash-count herbie->egg-dict))))
        (hash-set! herbie->egg-dict expr replacement)
@@ -222,25 +223,17 @@
 (define (flatten-let expr)
   (let loop ([expr expr] [env (hash)])
     (match expr
-      [`(let (,var ,term) ,body)
-       (loop body (hash-set env var (loop term env)))]
-      [(? symbol?)
-       (hash-ref env expr expr)]
-      [(? list?)
-       (map (curryr loop env) expr)]
-      [(? number?)
-       expr]
-      [_
-       (error "Unknown term ~a" expr)])))
+      [`(let (,var ,term) ,body) (loop body (hash-set env var (loop term env)))]
+      [(? symbol?) (hash-ref env expr expr)]
+      [(? list?) (map (curryr loop env) expr)]
+      [(? number?) expr]
+      [_ (error "Unknown term ~a" expr)])))
 
 ;; Converts an S-expr from egg into one Herbie understands
 (define (egg-parsed->expr expr rename-dict type)
   (let loop ([expr expr] [type type])
     (match expr
-      [(? number?)
-       (if (representation? type)
-           (literal expr (representation-name type))
-           expr)]
+      [(? number?) (if (representation? type) (literal expr (representation-name type)) expr)]
       [(? symbol?)
        (if (hash-has-key? rename-dict expr)
            (car (hash-ref rename-dict expr)) ; variable (extract uncanonical name)
@@ -250,8 +243,8 @@
       [(list 'Rewrite<= rule expr) (list 'Rewrite<= rule (loop expr type))]
       [(list 'if cond ift iff)
        (if (representation? type)
-          (list 'if (loop cond (get-representation 'bool)) (loop ift type) (loop iff type))
-          (list 'if (loop cond 'bool) (loop ift type) (loop iff type)))]
+           (list 'if (loop cond (get-representation 'bool)) (loop ift type) (loop iff type))
+           (list 'if (loop cond 'bool) (loop ift type) (loop iff type)))]
       [(list (? impl-exists? impl) args ...) (cons impl (map loop args (impl-info impl 'itype)))]
       [(list op args ...) (cons op (map loop args (operator-info op 'itype)))])))
 
@@ -273,22 +266,15 @@
   (*context* (context-extend (*context*) 'z repr))
 
   (define test-exprs
-    (list (cons '(+.f64 y x)
-                (~a '(+.f64 $h0 $h1)))
-          (cons '(+.f64 x y)
-                (~a '(+.f64 $h1 $h0)))
-          (cons '(-.f64 #s(literal 2 binary64) (+.f64 x y))
-                (~a '(-.f64 2 (+.f64 $h1 $h0))))
+    (list (cons '(+.f64 y x) (~a '(+.f64 $h0 $h1)))
+          (cons '(+.f64 x y) (~a '(+.f64 $h1 $h0)))
+          (cons '(-.f64 #s(literal 2 binary64) (+.f64 x y)) (~a '(-.f64 2 (+.f64 $h1 $h0))))
           (cons '(-.f64 z (+.f64 (+.f64 y #s(literal 2 binary64)) x))
                 (~a '(-.f64 $h2 (+.f64 (+.f64 $h0 2) $h1))))
-          (cons '(*.f64 x y)
-                (~a '(*.f64 $h1 $h0)))
-          (cons '(+.f64 (*.f64 x y) #s(literal 2 binary64))
-                (~a '(+.f64 (*.f64 $h1 $h0) 2)))
-          (cons '(cos.f32 (PI.f32))
-                (~a '(cos.f32 (PI.f32))))
-          (cons '(if (TRUE) x y)
-                (~a '(if (TRUE) $h1 $h0)))))
+          (cons '(*.f64 x y) (~a '(*.f64 $h1 $h0)))
+          (cons '(+.f64 (*.f64 x y) #s(literal 2 binary64)) (~a '(+.f64 (*.f64 $h1 $h0) 2)))
+          (cons '(cos.f32 (PI.f32)) (~a '(cos.f32 (PI.f32))))
+          (cons '(if (TRUE) x y) (~a '(if (TRUE) $h1 $h0)))))
 
   (let ([egg-graph (make-egraph)])
     (for ([(in expected-out) (in-dict test-exprs)])
@@ -299,13 +285,13 @@
 
   (*context* (make-debug-context '(x a b c r)))
   (define extended-expr-list
-    (list
-     '(/ (- (exp x) (exp (- x))) 2)
-     '(/ (+ (- b) (sqrt (- (* b b) (* (* 3 a) c)))) (* 3 a))
-     '(/ (+ (- b) (sqrt (- (* b b) (* (* 3 a) c)))) (* 3 a)) ;; duplicated to make sure it would still work
-     '(* r 30)
-     '(* 23/54 r)
-     '(+ 3/2 1.4)))
+    (list '(/ (- (exp x) (exp (- x))) 2)
+          '(/ (+ (- b) (sqrt (- (* b b) (* (* 3 a) c)))) (* 3 a))
+          '(/ (+ (- b) (sqrt (- (* b b) (* (* 3 a) c))))
+              (* 3 a)) ;; duplicated to make sure it would still work
+          '(* r 30)
+          '(* 23/54 r)
+          '(+ 3/2 1.4)))
 
   (let ([egg-graph (make-egraph)])
     (for ([expr extended-expr-list])
@@ -322,12 +308,9 @@
 
 (define (remove-rewrites proof)
   (match proof
-    [`(Rewrite=> ,_ ,something)
-     (remove-rewrites something)]
-    [`(Rewrite<= ,_ ,something)
-     (remove-rewrites something)]
-    [(list _ ...)
-     (map remove-rewrites proof)]
+    [`(Rewrite=> ,_ ,something) (remove-rewrites something)]
+    [`(Rewrite<= ,_ ,something) (remove-rewrites something)]
+    [(list _ ...) (map remove-rewrites proof)]
     [_ proof]))
 
 ;; Performs a product, but traverses the elements in order
@@ -337,19 +320,17 @@
     [(empty? elements) (list empty)]
     [else
      (define without-rewrites (remove-rewrites (last (first elements))))
-     (append
-      (for/list ([head (first elements)])
-        (cons head (map first (rest elements))))
-      (for/list ([other (in-list (rest (sequential-product (rest elements))))])
-        (cons without-rewrites other)))]))
+     (append (for/list ([head (first elements)])
+               (cons head (map first (rest elements))))
+             (for/list ([other (in-list (rest (sequential-product (rest elements))))])
+               (cons without-rewrites other)))]))
 
 ;; returns a flattened list of terms
 ;; The first term has no rewrite- the rest have exactly one rewrite
 (define (expand-proof-term term budget)
   (let loop ([term term])
     (cond
-      [(<= (unbox budget) 0)
-       (list #f)]
+      [(<= (unbox budget) 0) (list #f)]
       [else
        (match term
          [(? symbol?) (list term)]
@@ -358,9 +339,8 @@
          [`(Explanation ,body ...) (expand-proof body budget)]
          [(? list?)
           (define children (map loop term))
-          (cond 
-            [(member (list #f) children)
-             (list #f)]
+          (cond
+            [(member (list #f) children) (list #f)]
             [else
              (define res (sequential-product children))
              (set-box! budget (- (unbox budget) (length res)))
@@ -369,9 +349,7 @@
 
 ;; Remove the front term if it doesn't have any rewrites
 (define (remove-front-term proof)
-  (if (equal? (remove-rewrites (first proof)) (first proof))
-      (rest proof)
-      proof))
+  (if (equal? (remove-rewrites (first proof)) (first proof)) (rest proof) proof))
 
 ;; converts a let-bound tree explanation
 ;; into a flattened proof for use by Herbie
@@ -382,14 +360,10 @@
   ;; append together the proofs
   (define res (apply append contiguous))
   (set-box! budget (- (unbox budget) (length proof)))
-  (if (member #f res)
-      (list #f)
-      res))
+  (if (member #f res) (list #f) res))
 
 (module+ test
-  (check-equal?
-   (sequential-product `((1 2) (3 4 5) (6)))
-   `((1 3 6) (2 3 6) (2 4 6) (2 5 6)))
+  (check-equal? (sequential-product `((1 2) (3 4 5) (6))) `((1 3 6) (2 3 6) (2 4 6) (2 5 6)))
 
   (expand-proof-term '(Explanation (+ x y) (+ y x)) (box 10)))
 
@@ -401,9 +375,10 @@
 
 ;; Translates a Herbie rule into an egg rule
 (define (rule->egg-rule ru)
-  (struct-copy rule ru
-     [input (expr->egg-pattern (rule-input ru))]
-     [output (expr->egg-pattern (rule-output ru))]))
+  (struct-copy rule
+               ru
+               [input (expr->egg-pattern (rule-input ru))]
+               [output (expr->egg-pattern (rule-output ru))]))
 
 (define (rule->egg-rules ru)
   (define input (rule-input ru))
@@ -421,20 +396,15 @@
              (replace-expression (rule-output ru) input (cons op vars))
              (map cons vars itypes)
              (rule-otype ru)))]
-    [else
-     ; non-expansive rule
-     (list (rule->egg-rule ru))]))
+    ; non-expansive rule
+    [else (list (rule->egg-rule ru))]))
 
 ;; egg rule cache
-(define-resetter *egg-rule-cache*
-  (λ () (make-hash))
-  (λ () (make-hash)))
+(define-resetter *egg-rule-cache* (λ () (make-hash)) (λ () (make-hash)))
 
 ;; Cache mapping name to its canonical rule name
 ;; See `*egg-rules*` for details
-(define-resetter *canon-names*
-  (λ () (make-hash))
-  (λ () (make-hash)))
+(define-resetter *canon-names* (λ () (make-hash)) (λ () (make-hash)))
 
 ;; Tries to look up the canonical name of a rule using the cache.
 ;; Obviously dangerous if the cache is invalid.
@@ -445,37 +415,34 @@
 ;; Uses a cache to only expand each rule once.
 (define (expand-rules rules)
   (reap [sow]
-    (for ([rule (in-list rules)])
-      (define egg&ffi-rules
-        (hash-ref! (*egg-rule-cache*)
-                    (cons (*active-platform*) rule)
-                    (lambda ()
-                      (for/list ([egg-rule (in-list (rule->egg-rules rule))])
-                        (define name (rule-name egg-rule))
-                        (hash-set! (*canon-names*) name (rule-name rule))
-                        (cons egg-rule (make-ffi-rule egg-rule))))))
-      (for-each sow egg&ffi-rules))))
+        (for ([rule (in-list rules)])
+          (define egg&ffi-rules
+            (hash-ref! (*egg-rule-cache*)
+                       (cons (*active-platform*) rule)
+                       (lambda ()
+                         (for/list ([egg-rule (in-list (rule->egg-rules rule))])
+                           (define name (rule-name egg-rule))
+                           (hash-set! (*canon-names*) name (rule-name rule))
+                           (cons egg-rule (make-ffi-rule egg-rule))))))
+          (for-each sow egg&ffi-rules))))
 
 ;; Spec contains no accelerators
 (define (spec-has-accelerator? spec)
   (match spec
-    [(list (? accelerator-exists?) _ ...) #t]
+    [(list (? operator-accelerator?) _ ...) #t]
     [(list _ args ...) (ormap spec-has-accelerator? args)]
     [_ #f]))
 
 (define (real-rules rules)
-  (filter-not
-    (lambda (rule)
-      (or (representation? (rule-otype rule))
-          (spec-has-accelerator? (rule-input rule))
-          (spec-has-accelerator? (rule-output rule))))
-    rules))
+  (filter-not (lambda (rule)
+                (or (representation? (rule-otype rule))
+                    (spec-has-accelerator? (rule-input rule))
+                    (spec-has-accelerator? (rule-output rule))))
+              rules))
 
 ;; Rules from spec to impl
 ;; These are fixed for a a particular platform
-(define-resetter *lowering-rules*
-  (λ () (make-hash))
-  (λ () (make-hash)))
+(define-resetter *lowering-rules* (λ () (make-hash)) (λ () (make-hash)))
 
 (define (platform-lowering-rules)
   (define impls (platform-impls (*active-platform*)))
@@ -487,14 +454,12 @@
                  (define itypes (operator-info op 'itype))
                  (define otype (operator-info op 'otype))
                  (cond
-                   [(accelerator-exists? op)
+                   [(operator-accelerator? op)
                     ; accelerator lowering
-                    (define vars (accelerator-info op 'vars))
-                    (rule (sym-append 'accelerator-lowering- impl)
-                          (accelerator-info op 'body)
-                          (cons impl (accelerator-info op 'vars))
-                          (map cons vars itypes)
-                          otype)]
+                    (define name (sym-append 'accelerator-lowering- impl))
+                    (define spec (operator-info op 'spec))
+                    (match-define `(,(or 'lambda 'λ) (,vars ...) ,body) spec)
+                    (rule name body (cons impl vars) (map cons vars itypes) otype)]
                    [else
                     ; direct lowering
                     (define vars (map (lambda (_) (gensym)) itypes))
@@ -507,13 +472,13 @@
 ;; Computes the product of all possible representation assignments to types.
 (define (type-combinations types reprs)
   (reap [sow]
-    (let loop ([types types] [assigns '()])
-      (match types
-        [(? null?) (sow assigns)]
-        [(list type rest ...)
-         (for ([repr (in-list reprs)])
-           (when (equal? (representation-type repr) type)
-             (loop rest (cons (cons type repr) assigns))))]))))
+        (let loop ([types types] [assigns '()])
+          (match types
+            [(? null?) (sow assigns)]
+            [(list type rest ...)
+             (for ([repr (in-list reprs)])
+               (when (equal? (representation-type repr) type)
+                 (loop rest (cons (cons type repr) assigns))))]))))
 
 ;; Representation name sanitizer (also in <herbie>/platform.rkt)
 (define (repr->symbol repr)
@@ -529,49 +494,41 @@
   (define reprs (platform-reprs (*active-platform*)))
   (define impls (list->set (platform-impls (*active-platform*))))
   (reap [sow]
-    (for ([ru (in-list rules)]
-          #:when (or expansive?
-                     (not (symbol? (rule-input ru)))))
-      (match-define (rule name input output itypes otype) ru)
-      (cond
-        [(representation? otype) ; rule over representation
-         (when (andmap
-                 (curry set-member? impls)
-                 (filter-not
-                   (curry eq? 'if)
-                   (append (ops-in-expr input) (ops-in-expr output))))
-           (sow ru))]
-        [else
-         ; rule over types need to be instantiated for every representation
-         ; some operator implementations may not exist
-         (define types (remove-duplicates (cons otype (map cdr itypes))))
-         (for ([tsubst (in-list (type-combinations types reprs))])
-            ;; Strange corner case:
-            ;; Rules containing comparators cause desugaring to misbehave.
-            ;; The reported output type is bool but then desugaring
-            ;; thinks there will be a cast somewhere
-            (define otype* (dict-ref tsubst otype))
-            (define sugar-otype
-              (if (equal? otype 'bool)
-                  (dict-ref tsubst 'real (get-representation 'bool))
-                  otype*))
+        (for ([ru (in-list rules)] #:when (or expansive? (not (symbol? (rule-input ru)))))
+          (match-define (rule name input output itypes otype) ru)
+          (cond
+            [(representation? otype) ; rule over representation
+             (when (andmap (curry set-member? impls)
+                           (filter-not (curry eq? 'if)
+                                       (append (ops-in-expr input) (ops-in-expr output))))
+               (sow ru))]
+            [else
+             ; rule over types need to be instantiated for every representation
+             ; some operator implementations may not exist
+             (define types (remove-duplicates (cons otype (map cdr itypes))))
+             (for ([tsubst (in-list (type-combinations types reprs))])
+               ;; Strange corner case:
+               ;; Rules containing comparators cause desugaring to misbehave.
+               ;; The reported output type is bool but then desugaring
+               ;; thinks there will be a cast somewhere
+               (define otype* (dict-ref tsubst otype))
+               (define sugar-otype
+                 (if (equal? otype 'bool) (dict-ref tsubst 'real (get-representation 'bool)) otype*))
 
-           (define itypes* (map (λ (p) (cons (car p) (dict-ref tsubst (cdr p)))) itypes))
-           (define sugar-ctx (context (map car itypes) sugar-otype (map cdr itypes*)))
+               (define itypes* (map (λ (p) (cons (car p) (dict-ref tsubst (cdr p)))) itypes))
+               (define sugar-ctx (context (map car itypes) sugar-otype (map cdr itypes*)))
 
-           ;; The easier way to tell if every operator is supported
-           ;; in a given representation is to just try to desguar
-           ;; the expression and catch any errors.
-           (with-handlers ([exn:fail:user:herbie:missing? (const (void))])
-             (define name* (sym-append name '_ (repr->symbol sugar-otype)))
-             (define input* (spec->prog input sugar-ctx))
-             (define output* (spec->prog output sugar-ctx))
-             (when (andmap
-                     (curry set-member? impls)
-                     (filter-not
-                       (curry eq? 'if)
-                       (append (ops-in-expr input*) (ops-in-expr output*))))
-               (sow (rule name* input* output* itypes* otype*)))))]))))
+               ;; The easier way to tell if every operator is supported
+               ;; in a given representation is to just try to desguar
+               ;; the expression and catch any errors.
+               (with-handlers ([exn:fail:user:herbie:missing? (const (void))])
+                 (define name* (sym-append name '_ (repr->symbol sugar-otype)))
+                 (define input* (spec->prog input sugar-ctx))
+                 (define output* (spec->prog output sugar-ctx))
+                 (when (andmap (curry set-member? impls)
+                               (filter-not (curry eq? 'if)
+                                           (append (ops-in-expr input*) (ops-in-expr output*))))
+                   (sow (rule name* input* output* itypes* otype*)))))]))))
 
 ;; For backwards compatability in unit tests
 (define (rule->impl-rules rule)
@@ -626,8 +583,8 @@
           [(? symbol?) ; variable or constant
            (vector-set! has-leaf? id #t)
            (if (hash-has-key? egg->herbie egg-node)
-               egg-node             ; variable
-               (list egg-node))]    ; constant
+               egg-node ; variable
+               (list egg-node))] ; constant
           [(list op child-ids ...) ; application
            (cond
              [(null? child-ids) ; application is a constant function
@@ -643,10 +600,7 @@
 
   ; dedup parent-child relation and convert to vector
   (for ([id (in-range n)])
-    (vector-set! parents id 
-                 (list->vector
-                   (remove-duplicates
-                     (vector-ref parents id)))))
+    (vector-set! parents id (list->vector (remove-duplicates (vector-ref parents id)))))
 
   ; collect with wrapper
   (regraph eclasses canon has-leaf? constants parents egg->herbie))
@@ -675,7 +629,8 @@
   (define n (vector-length eclasses))
 
   ; set analysis if not provided
-  (unless analysis (set! analysis (make-vector n #f)))
+  (unless analysis
+    (set! analysis (make-vector n #f)))
   (define dirty?-vec (vector-copy has-leaf?)) ; visit eclass on next pass?
   (define changed?-vec (make-vector n #f)) ; eclass was changed last iteration
 
@@ -698,14 +653,15 @@
       (set! dirty?-vec dirty?-vec*) ; update eclasses that require visiting
       (set! changed?-vec changed?-vec*) ; update eclasses that have changed
       (sweep! (add1 iter))))
-  
+
   ; Invariant: all eclasses have an analysis
   (for ([id (in-range n)])
     (unless (vector-ref analysis id)
       (error 'regraph-analyze
              "analysis not run on all eclasses: ~a ~a"
              eclass-proc
-             (for/vector #:length n ([id (in-range n)])
+             (for/vector #:length n
+                         ([id (in-range n)])
                (define eclass (vector-ref eclasses id))
                (define eclass-analysis (vector-ref analysis id))
                (list id eclass eclass-analysis)))))
@@ -718,7 +674,7 @@
 ;; Untyped extraction is ideal for extracting real expressions from an egraph.
 ;; This style of extractor associates to each eclass a best (cost, node) pair.
 ;; The extractor procedure simply takes an eclass id.
-;; 
+;;
 ;; Untyped cost functions take:
 ;;  - the regraph we are extracting from
 ;;  - a mutable cache (to possibly stash per-node data)
@@ -775,7 +731,9 @@
            (match* (best cost)
              [(_ #f) best]
              [(#f _) (cons cost node)]
-             [(_ _) #:when (< cost (car best)) (cons cost node)]
+             [(_ _)
+              #:when (< cost (car best))
+              (cons cost node)]
              [(_ _) best])]
           [else best])))
 
@@ -791,10 +749,7 @@
       [else #f]))
 
   ; run the analysis
-  (set! costs
-    (regraph-analyze regraph
-                     eclass-set-cost!
-                     #:analysis costs))
+  (set! costs (regraph-analyze regraph eclass-set-cost! #:analysis costs))
 
   ; reconstructs the best expression at a node
   (define (build-expr id)
@@ -811,9 +766,7 @@
 
 ;; Is fractional with odd denominator.
 (define (fraction-with-odd-denominator? frac)
-  (and (rational? frac)
-       (let ([denom (denominator frac)])
-         (and (> denom 1) (odd? denom)))))
+  (and (rational? frac) (let ([denom (denominator frac)]) (and (> denom 1) (odd? denom)))))
 
 ;; The default per-node cost function
 (define (default-untyped-egg-cost-proc regraph cache node rec)
@@ -823,9 +776,7 @@
     [(? symbol?) 1]
     [(list 'pow _ b e) ; special case for fractional pow
      (define n (vector-ref constants e))
-     (if (and n (fraction-with-odd-denominator? n))
-         +inf.0
-         (+ 1 (rec b) (rec e)))]
+     (if (and n (fraction-with-odd-denominator? n)) +inf.0 (+ 1 (rec b) (rec e)))]
     [(list _ args ...) (apply + 1 (map rec args))]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -847,7 +798,6 @@
 ;;       - a default failure value
 ;;
 ;; Types are represented as one of the following:
-;;  - #t: top type (type of numbers)
 ;;  - (or <type> ..+) union of types
 ;;  - <representation>: representation type
 ;;  - <type-name>: type-name type
@@ -858,15 +808,13 @@
   (match* (ty1 ty2)
     [((list 'or tys1 ...) (list 'or tys2 ...))
      ; set equality: { tys1 ... } = { tys2 ... }
-     (and (andmap (lambda (ty) (member ty tys1)) tys2)
-          (andmap (lambda (ty) (member ty tys2)) tys1))]
+     (and (andmap (lambda (ty) (member ty tys1)) tys2) (andmap (lambda (ty) (member ty tys2)) tys1))]
     [(_ _) (equal? ty1 ty2)]))
 
 ;; Subtyping relation, e.g., `t1 :< t2`
 (define (subtype? ty1 ty2)
   (match* (ty1 ty2)
     [(_ #f) #f]
-    [(_ #t) #t]
     [((list 'or tys1 ...) (list 'or tys2 ...)) (andmap (lambda (ty) (member ty tys2)) tys1)]
     [(_ (list 'or tys2 ...)) (member ty1 tys2)]
     [(_ _) (equal? ty1 ty2)]))
@@ -875,24 +823,16 @@
 (define (type/union ty1 . tys)
   (for/fold ([ty1 ty1]) ([ty2 (in-list tys)])
     (match* (ty1 ty2)
-      [(#t _) #t]
-      [(_ #t) #t]
       [(#f _) ty2]
       [(_ #f) ty1]
-      [((list 'or tys1 ...) (list 'or tys2 ...))
-       (cons 'or (remove-duplicates (append tys1 tys2)))]
-      [((list 'or tys1 ...) _)
-       (if (member ty2 tys1) ty1 (list* 'or ty2 tys1))]
-      [(_ (list 'or tys2 ...))
-       (if (member ty1 tys2) ty2 (list* 'or ty1 tys2))]
-      [(_ _)
-       (if (equal? ty1 ty2) ty1 (list 'or ty1 ty2))])))
+      [((list 'or tys1 ...) (list 'or tys2 ...)) (cons 'or (remove-duplicates (append tys1 tys2)))]
+      [((list 'or tys1 ...) _) (if (member ty2 tys1) ty1 (list* 'or ty2 tys1))]
+      [(_ (list 'or tys2 ...)) (if (member ty1 tys2) ty2 (list* 'or ty1 tys2))]
+      [(_ _) (if (equal? ty1 ty2) ty1 (list 'or ty1 ty2))])))
 
 ;; Applying the intersection operation over types
 (define (type/intersect ty1 ty2)
   (match* (ty1 ty2)
-    [(_ #t) ty1]
-    [(#t _) ty2]
     [((list 'or tys1 ...) (list 'or tys2 ...))
      (match (for/fold ([tys '()]) ([ty (in-list tys1)] #:when (member ty tys2))
               (cons ty tys))
@@ -906,10 +846,15 @@
 ;; Computes the set of extractable types for each eclass.
 (define (regraph-eclass-types egraph)
   (define egg->herbie (regraph-egg->herbie egraph))
+  (define reprs (platform-reprs (*active-platform*)))
 
   (define (node->type analysis node)
     (match node
-      [(? number?) #t]
+      [(? number?)
+       ; NOTE: a number by itself is untyped, but we can constrain
+       ; the type of the number by the platform
+       (for/fold ([ty #f]) ([repr (in-list reprs)] #:when (eq? (representation-type repr) 'real))
+         (type/union ty repr (representation-type repr)))]
       [(? symbol?)
        (define repr (cdr (hash-ref egg->herbie node)))
        (type/union repr (representation-type repr))]
@@ -918,14 +863,10 @@
        (define iff-types (vector-ref analysis iff))
        (and ift-types iff-types (type/intersect ift-types iff-types))]
       [(list (? impl-exists? impl) ids ...)
-       (and (andmap subtype?
-                    (impl-info impl 'itype)
-                    (map (curry vector-ref analysis) ids))
+       (and (andmap subtype? (impl-info impl 'itype) (map (curry vector-ref analysis) ids))
             (impl-info impl 'otype))]
       [(list op ids ...)
-       (and (andmap subtype?
-                    (operator-info op 'itype)
-                    (map (curry vector-ref analysis) ids))
+       (and (andmap subtype? (operator-info op 'itype) (map (curry vector-ref analysis) ids))
             (operator-info op 'otype))]))
 
   ;; Type analysis
@@ -934,15 +875,15 @@
     (define ty*
       (if (= iter 0)
           ; first iteration: only run analysis on leaves
-          (for/fold ([ty ty]) ([node (in-vector eclass)]
-                               #:unless (node-has-children? node))
+          (for/fold ([ty ty]) ([node (in-vector eclass)] #:unless (node-has-children? node))
             (type/union ty (node->type analysis node)))
           ; other iterations: run only on non-leaves with updated children
-          (for/fold ([ty ty]) ([node (in-vector eclass)]
-                               #:when (and (node-has-children? node)
-                                           (ormap (lambda (id) (vector-ref changed?-vec id)) (cdr node))
-                                           (andmap (lambda (id) (vector-ref analysis id)) (cdr node))))
-              (type/union ty (node->type analysis node)))))
+          (for/fold ([ty ty])
+                    ([node (in-vector eclass)]
+                     #:when (and (node-has-children? node)
+                                 (ormap (lambda (id) (vector-ref changed?-vec id)) (cdr node))
+                                 (andmap (lambda (id) (vector-ref analysis id)) (cdr node))))
+            (type/union ty (node->type analysis node)))))
     (vector-set! analysis id ty*)
     (not (type/equal? ty ty*)))
 
@@ -957,9 +898,14 @@
 
   ; Compute the extractable types
   (define eclass-types (regraph-eclass-types regraph))
+  (define reprs (platform-reprs (*active-platform*)))
   (define (node->type node)
     (match node
-      [(? number?) #t]
+      [(? number?)
+       ; NOTE: a number by itself is untyped, but we can constrain
+       ; the type of the number by the platform
+       (for/fold ([ty #f]) ([repr (in-list reprs)] #:when (eq? (representation-type repr) 'real))
+         (type/union ty repr (representation-type repr)))]
       [(? symbol?)
        (define repr (cdr (hash-ref egg->herbie node)))
        (type/union repr (representation-type repr))]
@@ -971,10 +917,12 @@
       [(list op _ ...) (operator-info op 'otype)]))
 
   ; Construct the result
-  (for/vector #:length n ([id (in-range n)])
+  (for/vector #:length n
+              ([id (in-range n)])
     (define eclass (vector-ref eclasses id))
     (define ty (vector-ref eclass-types id))
-    (for/vector #:length (vector-length eclass) ([node (in-vector eclass)])
+    (for/vector #:length (vector-length eclass)
+                ([node (in-vector eclass)])
       (define node-ty (node->type node))
       (and (subtype? node-ty ty) node-ty))))
 
@@ -988,64 +936,62 @@
 
   ; compute the extractable types of each well-typed node
   (define eclass-types (regraph-node-types regraph))
-  
+
   ; costs: mapping eclass id to a table from type to (cost, node) pair
   (define costs
-    (for/vector #:length n ([id (in-range n)])
+    (for/vector #:length n
+                ([id (in-range n)])
       (define table (make-hash))
       (define node-types (vector-ref eclass-types id))
-      (for ([ty (in-vector node-types)] #:when ty)
+      (for ([ty (in-vector node-types)])
         (match ty
           [(list 'or tys ...)
-           (for ([ty (in-list tys)])
+           (for ([ty (in-list tys)] #:when (representation? ty))
              (hash-set! table ty #f))]
-          [_ (hash-set! table ty #f)]))
+          [(? representation?) (hash-set! table ty #f)]
+          [(? type-name?) (void)]
+          [#f (void)]))
       table))
 
   ; Checks if eclass has a cost
   (define (eclass-has-cost? id type)
-    (define c (vector-ref costs id))
-    (cond
-      [(hash-has-key? c type) (hash-ref c type)] ; typed choice has cost
-      [(hash-has-key? c #t) (hash-ref c #t)] ; untyped choice has cost (constants)
-      [else #t])) ; no choice but we can compute cost with failure value
+    (define eclass-costs (vector-ref costs id))
+    (hash-ref eclass-costs type #f))
 
   ; Unsafe lookup of eclass cost
   (define (unsafe-eclass-cost id type failure)
-    (define cost (vector-ref costs id))
+    (define eclass-costs (vector-ref costs id))
     (cond
-      [(hash-has-key? cost type) 
-       (define cost* (hash-ref cost type)) ; (cost . node) or #f
-       (and cost* (car cost*))]
-      [(hash-has-key? cost #t) ; type `#t` is always a valid choice
-       (define cost* (hash-ref cost #t))  ; (cost . node) or #f
-       (and cost* (car cost*))]
+      [(hash-ref eclass-costs type #f)
+       => ; (cost . node) or #f
+       (lambda (cost) (and cost (car cost)))]
       [else failure]))
 
   ; Unsafe lookup of best eclass node.
   ; Returns `#f` if no best eclass exists.
   (define (unsafe-best-node id type)
-    (define cost (vector-ref costs id))
+    (define eclass-costs (vector-ref costs id))
     (cond
-      [(hash-has-key? cost type)
-       (define cost* (hash-ref cost type)) ; (cost . node) or #f
-       (and cost* (cdr cost*))]
-      [(hash-has-key? cost #t) ; type `#t` is always a valid choice
-       (define cost* (hash-ref cost #t))  ; (cost . node) or #f
-       (and cost* (cdr cost*))]
+      [(hash-ref eclass-costs type #f)
+       => ; (cost . node) or #f
+       (lambda (cost) (and cost (cdr cost)))]
       [else #f]))
 
   ; We cache whether it is safe to apply the cost function on a given node
   ; for a particular type; once `#t` we need not check the `cost` vector
   ; to know if it is safe.
   (define ready?-vec
-    (for/vector #:length n ([id (in-range n)])
+    (for/vector #:length n
+                ([id (in-range n)])
       (define eclass (vector-ref eclasses id))
       (define node-types (vector-ref eclass-types id))
-      (for/vector #:length (vector-length eclass) ([ty (in-vector node-types)])
+      (for/vector #:length (vector-length eclass)
+                  ([ty (in-vector node-types)])
         (match ty
-          [(list 'or tys ...) (map (lambda (_) (box #f)) tys)]
-          [_ (box #f)]))))
+          [(list 'or tys ...) (map (lambda (ty) (and (representation? ty) (box #f))) tys)]
+          [(? representation?) (box #f)]
+          [(? type-name?) #f]
+          [#f #f]))))
 
   (define (slow-node-ready? node type)
     (match node
@@ -1053,10 +999,8 @@
        (and (eclass-has-cost? cond (get-representation 'bool))
             (eclass-has-cost? ift type)
             (eclass-has-cost? iff type))]
-      [(list (? impl-exists? op) args ...)
-       (andmap eclass-has-cost? args (impl-info op 'itype))]
-      [(list op args ...)
-       (andmap eclass-has-cost? args (operator-info op 'itype))]))
+      [(list (? impl-exists? op) args ...) (andmap eclass-has-cost? args (impl-info op 'itype))]
+      [(list op args ...) (andmap eclass-has-cost? args (operator-info op 'itype))]))
 
   ; Computes the current cost of a node if its children have a cost
   ; Cost function has access to a mutable value through `cache`
@@ -1096,25 +1040,19 @@
           (= iter 0)))
 
     ; Iterate over the nodes
-    (for ([node (in-vector eclass)]
-          [ty (in-vector node-types)]
-          [ready? (in-vector ready?/node)]
-          #:when ty)
+    (for ([node (in-vector eclass)] [ty (in-vector node-types)] [ready? (in-vector ready?/node)])
       (match ty
         [(list 'or tys ...) ; node is a union type (only for some `if` nodes)
          (for ([ty (in-list tys)] [ready? (in-list ready?)])
-           (when (node-requires-update? node)
+           (when (and (representation? ty) (node-requires-update? node))
              (define new-cost (node-cost node ty ready?))
              (update-cost! ty new-cost node)))]
-        [#t ; node is untyped (constant)
+        [(? representation?) ; node has a specific reprsentation
          (when (node-requires-update? node)
            (define new-cost (node-cost node ty ready?))
-           (for ([ty (in-list (hash-keys eclass-costs))])
-             (update-cost! ty new-cost node)))]
-        [_ ; node has a specific type
-         (when (node-requires-update? node)
-           (define new-cost (node-cost node ty ready?))
-           (update-cost! ty new-cost node))]))
+           (update-cost! ty new-cost node))]
+        [(? type-name?) (void)] ; type
+        [#f (void)])) ; no type
 
     updated?)
 
@@ -1124,32 +1062,25 @@
   ; invariant: all eclasses have a cost for all types
   (for ([cost (in-vector costs)])
     (unless (andmap identity (hash-values cost))
-      (error 'typed-egg-extractor
-             "costs not computed for all eclasses ~a"
-             costs)))
+      (error 'typed-egg-extractor "costs not computed for all eclasses ~a" costs)))
 
   ; rebuilds the extracted procedure
   (define (build-expr id type)
     (let/ec return
-      (let loop ([id id] [type type])
-        (match (unsafe-best-node id type)
-          [(? number? n) n] ; number
-          [(? symbol? s) s] ; variable
-          [(list 'if cond ift iff) ; if expression
-           (list 'if
-                 (loop cond (get-representation 'bool))
-                 (loop ift type)
-                 (loop iff type))]
-          [(list (? impl-exists? impl) ids ...) ; expression of impls
-           (cons impl (map loop ids (impl-info impl 'itype)))]
-          [(list (? operator-exists? op) ids ...) ; expression of operators
-           (cons op (map loop ids (operator-info op 'itype)))]
-          [_ (return #f)]))))
+            (let loop ([id id] [type type])
+              (match (unsafe-best-node id type)
+                [(? number? n) n] ; number
+                [(? symbol? s) s] ; variable
+                [(list 'if cond ift iff) ; if expression
+                 (list 'if (loop cond (get-representation 'bool)) (loop ift type) (loop iff type))]
+                [(list (? impl-exists? impl) ids ...) ; expression of impls
+                 (cons impl (map loop ids (impl-info impl 'itype)))]
+                [(list (? operator-exists? op) ids ...) ; expression of operators
+                 (cons op (map loop ids (operator-info op 'itype)))]
+                [_ (return #f)]))))
 
   ; the actual extraction procedure
-  (lambda (id type)
-    (cons (unsafe-eclass-cost id type +inf.0)
-          (build-expr id type))))
+  (lambda (id type) (cons (unsafe-eclass-cost id type +inf.0) (build-expr id type))))
 
 ;; Per-node cost function according to the platform
 ;; `rec` takes an id, type, and failure value
@@ -1157,8 +1088,9 @@
   (define egg->herbie (regraph-egg->herbie regraph))
   (define node-cost-proc (platform-node-cost-proc (*active-platform*)))
   (match node
-    [(? number?) 0] ; TODO: numbers are free I guess
-    [(? symbol?)
+    ; numbers (repr is unused)
+    [(? number? n) ((node-cost-proc (literal n type) type))]
+    [(? symbol?) ; variables (`egg->herbie` has the repr)
      (define repr (cdr (hash-ref egg->herbie node)))
      ((node-cost-proc node repr))]
     [(list 'if cond ift iff) ; if expression
@@ -1169,12 +1101,7 @@
     [(list (? impl-exists? impl) args ...) ; impls
      (define cost-proc (node-cost-proc node type))
      (define itypes (impl-info impl 'itype))
-     (apply cost-proc
-            (map
-              (lambda (arg itype)
-                (rec arg itype +inf.0))
-              args
-              itypes))]
+     (apply cost-proc (map (lambda (arg itype) (rec arg itype +inf.0)) args itypes))]
     [(list _ ...) +inf.0])) ; specs
 
 ;; Old cost model version
@@ -1183,19 +1110,17 @@
     [(? number?) 1]
     [(? symbol?) 1]
     [(list 'if cond ift iff)
-     (+ 1 (rec cond (get-representation 'bool) +inf.0)
-          (rec ift type +inf.0)
-          (rec iff type +inf.0))]
+     (+ 1 (rec cond (get-representation 'bool) +inf.0) (rec ift type +inf.0) (rec iff type +inf.0))]
     [(list (? impl-exists? impl) args ...)
      (define itypes (impl-info impl 'itype))
      (if (equal? (impl->operator impl) 'pow)
-      (match args
-       [(list b e)
-        (define n (vector-ref (regraph-constants regraph) e))
-        (if (fraction-with-odd-denominator? n)
-            +inf.0
-            (apply + 1 (map (lambda (arg itype) (rec arg itype +inf.0)) args itypes)))])
-      (apply + 1 (map (lambda (arg itype) (rec arg itype +inf.0)) args itypes)))]
+         (match args
+           [(list b e)
+            (define n (vector-ref (regraph-constants regraph) e))
+            (if (fraction-with-odd-denominator? n)
+                +inf.0
+                (apply + 1 (map (lambda (arg itype) (rec arg itype +inf.0)) args itypes)))])
+         (apply + 1 (map (lambda (arg itype) (rec arg itype +inf.0)) args itypes)))]
     [(list _ ...) +inf.0]))
 
 ;; Extracts the best expression according to the extractor.
@@ -1209,8 +1134,7 @@
     [egg-expr
      (define egg->herbie (regraph-egg->herbie regraph))
      (list (egg-parsed->expr (flatten-let egg-expr) egg->herbie type))]
-    [else
-     (list)]))
+    [else (list)]))
 
 ;; Extracts multiple expressions according to the extractor
 (define (regraph-extract-variants regraph extract id type)
@@ -1219,35 +1143,33 @@
   (define id* (hash-ref (regraph-canon regraph) id))
   (define egg-exprs
     (reap [sow]
-      (for ([enode (vector-ref eclasses id*)])
-        (match enode
-          [(? number?) (sow enode)]
-          [(? symbol?) (sow enode)]
-          [(list 'if cond ift iff)
-           (match-define (cons _ cond*)
-             (extract cond (if (representation? type)
-                               (get-representation 'bool)
-                               'bool)))
-           (match-define (cons _ ift*) (extract ift type))
-           (match-define (cons _ iff*) (extract iff type))
-           (when (and cond* ift* iff*) ; guard against failed extraction
-             (sow (list 'if cond* ift* iff*)))]
-          [(list (? impl-exists? impl) ids ...)
-           (when (equal? (impl-info impl 'otype) type)
-             (define args
-               (for/list ([id (in-list ids)] [itype (in-list (impl-info impl 'itype))])
-                 (match-define (cons _ expr) (extract id itype))
-                 expr))
-             (when (andmap identity args) ; guard against failed extraction
-               (sow (cons impl args))))]
-          [(list (? operator-exists? op) ids ...)
-           (when (equal? (operator-info op 'otype) type)
-             (define args
-               (for/list ([id (in-list ids)] [itype (in-list (operator-info op 'itype))])
-                   (match-define (cons _ expr) (extract id itype))
-                   expr))
-             (when (andmap identity args) ; guard against failed extraction
-               (sow (cons op args))))]))))
+          (for ([enode (vector-ref eclasses id*)])
+            (match enode
+              [(? number?) (sow enode)]
+              [(? symbol?) (sow enode)]
+              [(list 'if cond ift iff)
+               (match-define (cons _ cond*)
+                 (extract cond (if (representation? type) (get-representation 'bool) 'bool)))
+               (match-define (cons _ ift*) (extract ift type))
+               (match-define (cons _ iff*) (extract iff type))
+               (when (and cond* ift* iff*) ; guard against failed extraction
+                 (sow (list 'if cond* ift* iff*)))]
+              [(list (? impl-exists? impl) ids ...)
+               (when (equal? (impl-info impl 'otype) type)
+                 (define args
+                   (for/list ([id (in-list ids)] [itype (in-list (impl-info impl 'itype))])
+                     (match-define (cons _ expr) (extract id itype))
+                     expr))
+                 (when (andmap identity args) ; guard against failed extraction
+                   (sow (cons impl args))))]
+              [(list (? operator-exists? op) ids ...)
+               (when (equal? (operator-info op 'otype) type)
+                 (define args
+                   (for/list ([id (in-list ids)] [itype (in-list (operator-info op 'itype))])
+                     (match-define (cons _ expr) (extract id itype))
+                     expr))
+                 (when (andmap identity args) ; guard against failed extraction
+                   (sow (cons op args))))]))))
   ; translate egg IR to Herbie IR
   (define egg->herbie (regraph-egg->herbie regraph))
   (for/list ([egg-expr (in-list egg-exprs)])
@@ -1261,7 +1183,7 @@
 
 ;; Runs rules over the egraph with the given egg parameters.
 ;; Invariant: the returned egraph is never unsound
-(define (egraph-run-rules egg-graph0 egg-rules params)  
+(define (egraph-run-rules egg-graph0 egg-rules params)
   (define node-limit (dict-ref params 'node #f))
   (define iter-limit (dict-ref params 'iteration #f))
   (define scheduler (dict-ref params 'scheduler 'backoff))
@@ -1272,12 +1194,7 @@
   (let loop ([iter-limit iter-limit])
     (define egg-graph (egraph-copy egg-graph0))
     (define iteration-data
-      (egraph-run egg-graph
-                  ffi-rules
-                  node-limit
-                  iter-limit
-                  scheduler
-                  const-folding?))
+      (egraph-run egg-graph ffi-rules node-limit iter-limit scheduler const-folding?))
 
     (timeline-push! 'stop (egraph-stop-reason egg-graph) 1)
     (cond
@@ -1287,8 +1204,7 @@
        (if (<= num-iters 1) ; nothing to fall back on
            (values egg-graph0 (list))
            (loop (sub1 num-iters)))]
-      [else
-       (values egg-graph iteration-data)])))
+      [else (values egg-graph iteration-data)])))
 
 (define (egraph-run-schedule exprs schedule ctx)
   ; prepare the egraph
@@ -1296,7 +1212,7 @@
   (define root-ids
     (for/list ([expr (in-list exprs)])
       (egraph-add-expr egg-graph0 expr ctx)))
-  
+
   ; run the schedule
   (define rule-apps (make-hash))
   (define egg-graph
@@ -1313,7 +1229,7 @@
         (define new-time (+ time (iteration-data-time iter)))
         (timeline-push! 'egraph i cnt cost new-time)
         new-time)
-    
+
       ;; get rule statistics
       (for ([(egg-rule ffi-rule) (in-dict egg-rules)])
         (define count (egraph-get-times-applied egg-graph* ffi-rule))
@@ -1341,10 +1257,10 @@
 ;; Herbie's version of an egg runner.
 ;; Defines parameters for running rewrite rules with egg
 (struct egg-runner (exprs reprs schedule ctx)
-                    #:transparent ; for equality
-                    #:methods gen:custom-write ; for abbreviated printing
-                    [(define (write-proc alt port mode)
-                       (fprintf port "#<egg-runner>"))])
+  #:transparent ; for equality
+  #:methods gen:custom-write ; for abbreviated printing
+  [(define (write-proc alt port mode)
+     (fprintf port "#<egg-runner>"))])
 
 ;; Constructs an egg runner.
 ;;
@@ -1356,11 +1272,8 @@
 ;;     - constant fold: `(const-fold? . <boolean>)`
 ;;     - scheduler: `(scheduler . <name>)`
 ;;        - `simple`: run all rules without banning
-;;        - `backoff`: ban rules if the fire too much 
-(define (make-egg-runner exprs
-                         reprs
-                         schedule
-                         #:context [ctx (*context*)])
+;;        - `backoff`: ban rules if the fire too much
+(define (make-egg-runner exprs reprs schedule #:context [ctx (*context*)])
   (define (oops! fmt . args)
     (apply error 'verify-schedule! fmt args))
   ; verify the schedule
@@ -1393,37 +1306,33 @@
   ;; Run egg using runner
   (define ctx (egg-runner-ctx runner))
   (define-values (root-ids egg-graph)
-    (egraph-run-schedule (egg-runner-exprs runner)
-                         (egg-runner-schedule runner)
-                         ctx))
+    (egraph-run-schedule (egg-runner-exprs runner) (egg-runner-schedule runner) ctx))
   ; Perform extraction
   (match cmd
-    [`(single . ,extractor)
-     ; single expression extraction
+    [`(single . ,extractor) ; single expression extraction
      (define regraph (make-regraph egg-graph))
      (define extract-id (extractor regraph))
      (define reprs (egg-runner-reprs runner))
      (for/list ([id (in-list root-ids)] [repr (in-list reprs)])
        (regraph-extract-best regraph extract-id id repr))]
-    [`(multi . ,extractor)
-     ; multi expression extraction
+    [`(multi . ,extractor) ; multi expression extraction
      (define regraph (make-regraph egg-graph))
      (define extract-id (extractor regraph))
      (define reprs (egg-runner-reprs runner))
      (for/list ([id (in-list root-ids)] [repr (in-list reprs)])
        (regraph-extract-variants regraph extract-id id repr))]
-    [`(proofs . ((,start-exprs . ,end-exprs) ...))
-     ; proof extraction
-     (for/list ([start (in-list start-exprs)]
-                [end (in-list end-exprs)])
-       (unless (egraph-is-equal egg-graph start end ctx)
+    [`(proofs . ((,start-exprs . ,end-exprs) ...)) ; proof extraction
+     (for/list ([start (in-list start-exprs)] [end (in-list end-exprs)])
+       (unless (egraph-expr-equal? egg-graph start end ctx)
          (error 'run-egg
                 "cannot find proof; start and end are not equal.\n start: ~a \n end: ~a"
-                start end))
-        (define proof (egraph-get-proof egg-graph start end ctx))
-        (when (null? proof)
-          (error 'run-egg
-                 "proof extraction failed between`~a` and `~a`"
-                 start end))
-        proof)]
+                start
+                end))
+       (define proof (egraph-get-proof egg-graph start end ctx))
+       (when (null? proof)
+         (error 'run-egg "proof extraction failed between`~a` and `~a`" start end))
+       proof)]
+    [`(equal? . ((,start-exprs . ,end-exprs) ...)) ; term equality?
+     (for/list ([start (in-list start-exprs)] [end (in-list end-exprs)])
+       (egraph-expr-equal? egg-graph start end ctx))]
     [_ (error 'run-egg "unknown command `~a`\n" cmd)]))
