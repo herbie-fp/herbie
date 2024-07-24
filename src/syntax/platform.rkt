@@ -182,10 +182,10 @@
 (define (make-platform2 pform #:optional? [optional? #f] #:if-cost [if-cost #f])
   (define unique-reprs (mutable-set))
   (define reprs
-    (remove-duplicates 
-      (apply append (for/list ([impl-sig (in-list pform)])
-                      (match-define (list impl cost) impl-sig)
-                       `(,@(impl-info impl 'itype) ,(impl-info impl 'otype))))))
+    (remove-duplicates (apply append
+                              (for/list ([impl-sig (in-list pform)])
+                                (match-define (list impl cost) impl-sig)
+                                `(,@(impl-info impl 'itype) ,(impl-info impl 'otype))))))
 
   (define missing (mutable-set))
   (define costs (make-hash))
@@ -194,9 +194,9 @@
           (for ([impl-sig (in-list pform)])
             (match-define (list impl cost) impl-sig)
             (cond
-              [(impl-exists? impl) 
-                (hash-set! costs impl cost)
-                (sow impl)]
+              [(impl-exists? impl)
+               (hash-set! costs impl cost)
+               (sow impl)]
               [else (set-add! missing impl)]))))
   ; set cost of `if`
   (when if-cost
@@ -305,23 +305,24 @@
 (define-syntax (define-platform stx)
   (define (oops! why [sub-stx #f])
     (raise-syntax-error 'platform why stx sub-stx))
-    (syntax-case stx ()
-      [(_ id cs ...)
-        (let loop ([cs #'(cs ...)])
-          (define if-cost? #f)
-          (syntax-case cs ()
-            [()
-              (let ([platform-id (syntax->datum #'id)] [impls (syntax->list #'(impl ...))] [costs (syntax->list #'(cost ...))])
-                (with-syntax ([platform-id platform-id] [(impls ...) impls] [(costs ...) costs] )
-                  #'(define platform-id (make-platform2 `([impls ,costs] ...)))))]
-            [(#:if-cost cost rest ...)] 
-            [(#:if-cost) (oops! "expected value after keyword `#:if-cost`" stx)]
-            [#:default-cost]
-            [(#:default-cost) (oops! "expected value after keyword `#:default-cost`" stx)]
-            [(#:optional rest ...)]
-            [(#:literals ([repr, cost] ...) rest ...)]
-            ))]
-      [_ (oops! "bad syntax")]))
+  (syntax-case stx ()
+    [(_ id cs ...)
+     (let loop ([cs #'(cs ...)])
+       (define if-cost? #f)
+       (syntax-case cs ()
+         [()
+          (let ([platform-id (syntax->datum #'id)]
+                [impls (syntax->list #'(impl ...))]
+                [costs (syntax->list #'(cost ...))])
+            (with-syntax ([platform-id platform-id] [(impls ...) impls] [(costs ...) costs])
+              #'(define platform-id (make-platform2 `([impls ,costs] ...)))))]
+         [(#:if-cost cost rest ...)]
+         [(#:if-cost) (oops! "expected value after keyword `#:if-cost`" stx)]
+         [#:default-cost]
+         [(#:default-cost) (oops! "expected value after keyword `#:default-cost`" stx)]
+         [(#:optional rest ...)]
+         [(#:literals ([repr ,cost] ...) rest ...)]))]
+    [_ (oops! "bad syntax")]))
 
 (define-syntax (platform stx)
   (define (oops! why [sub-stx #f])
