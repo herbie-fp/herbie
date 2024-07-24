@@ -120,6 +120,16 @@
     [#`(FPCore (#,vars ...) #,props ... #,body)
      (datum->syntax #f (append (list 'FPCore vars) props (list (expand body))) stx)]))
 
+(define (parse-platform-name ann)
+  (match ann
+    [(list '! props ...)
+     (let loop ([props props])
+       (match props
+         [(list ':herbie-platform name _ ...) name]
+         [(list _ _ rest ...) (loop rest)]
+         [(list) #f]))]
+    [_ #f]))
+
 (define (parse-test stx)
   (assert-program! stx)
   (define stx* (expand-core stx))
@@ -164,14 +174,14 @@
 
   (define targets
     (for/list ([(key val) (in-dict prop-dict)] #:when (eq? key ':alt))
-      (match (extract-platform-name val) ; plat-name is symbol or #f
+      (match (parse-platform-name val) ; plat-name is symbol or #f
         ; If plat-name extracted, check if name matches
         [(? symbol? plat-name) (cons val (equal? plat-name (*platform-name*)))]
         ; try to lower
         [#f
          (with-handlers ([exn:fail:user:herbie:missing? (lambda (e) (cons val #f))])
            ; Testing if error thrown
-           (spec->prog val ctx)
+           (fpcore->prog val ctx)
            (cons val #t))])))
 
   (define spec (fpcore->prog (dict-ref prop-dict ':spec body) ctx))

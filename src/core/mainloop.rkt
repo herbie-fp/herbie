@@ -394,19 +394,19 @@
        (combine-alts opt ctx))]
     [else (list (argmin score-alt alts))]))
 
-; TODO: restore final simplify
 (define (final-simplify! alts)
   (cond
     [(flag-set? 'generate 'simplify)
      (timeline-event! 'simplify)
 
-     (define progs (map alt-expr alts))
-     (define reprs (map (lambda (prog) (repr-of prog (*context*))) progs))
+     ; egg schedule (only mathematical rewrites)
      (define rules (platform-impl-rules (*fp-safe-simplify-rules*)))
+     (define schedule `((,rules . ((node . ,(*node-limit*)) (const-fold? . #f)))))
 
      ; egg runner
-     (define runner
-       (make-egg-runner progs reprs `((,rules . ((node . ,(*node-limit*)) (const-fold? . #f))))))
+     (define exprs (map alt-expr alts))
+     (define reprs (map (lambda (expr) (repr-of expr (*context*))) exprs))
+     (define runner (make-egg-runner exprs reprs schedule))
 
      ; run egg
      (define simplified

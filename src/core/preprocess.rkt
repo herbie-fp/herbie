@@ -3,6 +3,7 @@
 (require "egg-herbie.rkt"
          "simplify.rkt"
          "rules.rkt"
+         "../syntax/platform.rkt"
          "../syntax/syntax.rkt"
          "../syntax/sugar.rkt"
          "../syntax/types.rkt"
@@ -53,18 +54,19 @@
     (list 'swap pair (replace-vars `((,a . ,b) (,b . ,a)) spec))))
 
 ;; Initial simplify
-(define (initial-simplify init ctx)
+(define (initial-simplify expr ctx)
   (define rules (real-rules (*simplify-rules*)))
+  (define lifting-rules (platform-lifting-rules))
   (define lowering-rules (platform-lowering-rules))
 
-  ; egg schedule (2-phases for real rewrites and implementation selection)
+  ; egg schedule (3-phases for mathematical rewrites and implementation selection)
   (define schedule
-    `((,rules . ((node . ,(*node-limit*)))) (,lowering-rules . ((iteration . 1) (scheduler .
-                                                                                           simple)))))
+    `((,lifting-rules . ((iteration . 1) (scheduler . simple)))
+      (,rules . ((node . ,(*node-limit*))))
+      (,lowering-rules . ((iteration . 1) (scheduler . simple)))))
 
   ; egg query
-  (define spec (expand-accelerators (prog->spec init)))
-  (define runner (make-egg-runner (list spec) (list (context-repr ctx)) schedule))
+  (define runner (make-egg-runner (list expr) (list (context-repr ctx)) schedule))
 
   ; run egg
   (define simplified
@@ -73,7 +75,7 @@
                      (if (*egraph-platform-cost*) platform-egg-cost-proc default-egg-cost-proc))))
 
   ; alternatives
-  (define start-alt (make-alt init))
+  (define start-alt (make-alt expr))
   (cons start-alt
         (remove-duplicates (for/list ([expr (rest simplified)])
                              (alt expr `(simplify () ,runner #f #f) (list start-alt) '()))

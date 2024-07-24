@@ -2,15 +2,17 @@
 
 (require rackunit)
 (require "../utils/common.rkt"
+         "../utils/errors.rkt"
          "../utils/float.rkt"
          "rules.rkt"
          (submod "rules.rkt" internals)
-         "../syntax/types.rkt"
+         "../syntax/platform.rkt"
          "../syntax/load-plugin.rkt"
          "../syntax/syntax.rkt"
          "../syntax/sugar.rkt"
+         "../syntax/types.rkt"
          "compiler.rkt"
-         "egg-herbie.rkt"
+         "programs.rkt"
          "rival.rkt"
          "sampling.rkt")
 
@@ -34,6 +36,9 @@
                                   [pow-pow_binary32 . (>= a 0)]
                                   [sqrt-pow1_binary64 . (>= x 0)]
                                   [sqrt-pow1_binary32 . (>= x 0)]))
+
+(define (rule->impl-rules rule)
+  (platform-impl-rules (list rule)))
 
 (define (check-rule-sound test-rule)
   (match-define (rule name p1 p2 env repr) test-rule)
