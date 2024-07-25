@@ -7,7 +7,7 @@
 
 ; universal boolean opertaions
 (define-platform boolean-platform
-                 #:literals ([bool 1])
+                 #:literal [bool 1]
                  #:default-cost 1
                  #:if-cost 1
                  TRUE
@@ -18,139 +18,139 @@
 
 ;; machine floating-point operations
 (define-platform machine-platform
-                 #:literals ([binary64 64] [binary32 32])
-                 [PI.64 64]
-                 [PI.32 32]
-                 [E.64 64]
-                 [E.32 32]
-                 [INFINITY.64 64]
-                 [INFINITY.32 32]
-                 [NAN.64 64]
-                 [NAN.32 32]
-                 [neg.64 128]
-                 [neg.32 64]
-                 [+.64 128]
-                 [+.32 64]
-                 [-.64 128]
-                 [-.32 64]
-                 [*.64 256]
-                 [*.32 128]
-                 [/.64 640]
-                 [/.32 320]
-                 [==.64 256]
-                 [==.32 128]
-                 [!=.64 256]
-                 [!=.32 128]
-                 [>.64 256]
-                 [>.32 128]
-                 [<.64 256]
-                 [<.32 128]
-                 [>=.64 256]
-                 [>=.32 128]
-                 [<=.64 256]
-                 [<=.32 128])
+                 #:literal [binary64 64]
+                 #:literal [binary32 32]
+                 [PI.f64 64]
+                 [PI.f32 32]
+                 [E.f64 64]
+                 [E.f32 32]
+                 [INFINITY.f64 64]
+                 [INFINITY.f32 32]
+                 [NAN.f64 64]
+                 [NAN.f32 32]
+                 [neg.f64 128]
+                 [neg.f32 64]
+                 [+.f64 128]
+                 [+.f32 64]
+                 [-.f64 128]
+                 [-.f32 64]
+                 [*.f64 256]
+                 [*.f32 128]
+                 [/.f64 640]
+                 [/.f32 320]
+                 [==.f64 256]
+                 [==.f32 128]
+                 [!=.f64 256]
+                 [!=.f32 128]
+                 [>.f64 256]
+                 [>.f32 128]
+                 [<.f64 256]
+                 [<.f32 128]
+                 [>=.f64 256]
+                 [>=.f32 128]
+                 [<=.f64 256]
+                 [<=.f32 128])
 
 ;; libm operations
 (define-platform libm-platform
-                 #:literals ([binary64 64] [binary32 32])
+                 #:literal [binary64 64]
+                 #:literal [binary32 32]
                  #:default-cost 3200
-                 #:optional [acos.64 6400]
-                 [acosh.64 6400]
-                 [asin.64 6400]
-                 [asinh.64 6400]
-                 [atan.64 6400]
-                 [atan2.64 6400]
-                 [atanh.64 6400]
-                 [cbrt.64 6400]
-                 [ceil.64 6400]
-                 [copysign.64 6400]
-                 [cos.64 6400]
-                 [cosh.64 6400]
-                 [erf.64 6400]
-                 [erfc.64 6400]
-                 [exp.64 6400]
-                 [exp2.64 6400]
-                 [expm1.64 6400]
-                 [fabs.64 128]
-                 [fdim.64 6400]
-                 [floor.64 6400]
-                 [fma.64 6400]
-                 [fmax.64 6400]
-                 [fmin.64 6400]
-                 [fmod.64 6400]
-                 [hypot.64 6400]
-                 [lgamma.64 6400]
-                 [log.64 6400]
-                 [log10.64 6400]
-                 [log1p.64 6400]
-                 [log2.64 6400]
-                 [logb.64 6400]
-                 [neg.64 6400]
-                 [pow.64 6400]
-                 [remainder.64 6400]
-                 [rint.64 6400]
-                 [round.64 6400]
-                 [sin.64 6400]
-                 [sinh.64 6400]
-                 [sqrt.64 640]
-                 [tan.64 6400]
-                 [tanh.64 6400]
-                 [tgamma.64 6400]
-                 [trunc.64 6400]
-                 acos.32
-                 acosh.32
-                 asin.32
-                 asinh.32
-                 atan.32
-                 atan2.32
-                 atanh.32
-                 cbrt.32
-                 ceil.32
-                 copysign.32
-                 cos.32
-                 cosh.32
-                 erf.32
-                 erfc.32
-                 exp.32
-                 exp2.32
-                 expm1.32
-                 [fabs.32 64]
-                 fdim.32
-                 floor.32
-                 fma.32
-                 fmax.32
-                 fmin.32
-                 fmod.32
-                 hypot.32
-                 lgamma.32
-                 log.32
-                 log10.32
-                 log1p.32
-                 log2.32
-                 logb.32
-                 neg.32
-                 pow.32
-                 remainder.32
-                 rint.32
-                 round.32
-                 sin.32
-                 sinh.32
-                 [sqrt.32 320]
-                 tan.32
-                 tanh.32
-                 tgamma.32
-                 trunc.32)
+                 #:optional [acos.f64 6400]
+                 [acosh.f64 6400]
+                 [asin.f64 6400]
+                 [asinh.f64 6400]
+                 [atan.f64 6400]
+                 [atan2.f64 6400]
+                 [atanh.f64 6400]
+                 [cbrt.f64 6400]
+                 [ceil.f64 6400]
+                 [copysign.f64 6400]
+                 [cos.f64 6400]
+                 [cosh.f64 6400]
+                 [erf.f64 6400]
+                 [erfc.f64 6400]
+                 [exp.f64 6400]
+                 [exp2.f64 6400]
+                 [expm1.f64 6400]
+                 [fabs.f64 128]
+                 [fdim.f64 6400]
+                 [floor.f64 6400]
+                 [fmax.f64 6400]
+                 [fmin.f64 6400]
+                 [fmod.f64 6400]
+                 [lgamma.f64 6400]
+                 [log.f64 6400]
+                 [log10.f64 6400]
+                 [log1p.f64 6400]
+                 [log2.f64 6400]
+                 [logb.f64 6400]
+                 [pow.f64 6400]
+                 [remainder.f64 6400]
+                 [rint.f64 6400]
+                 [round.f64 6400]
+                 [sin.f64 6400]
+                 [sinh.f64 6400]
+                 [sqrt.f64 640]
+                 [tan.f64 6400]
+                 [tanh.f64 6400]
+                 [tgamma.f64 6400]
+                 [trunc.f64 6400]
+                 acos.f32
+                 acosh.f32
+                 asin.f32
+                 asinh.f32
+                 atan.f32
+                 atan2.f32
+                 atanh.f32
+                 cbrt.f32
+                 ceil.f32
+                 copysign.f32
+                 cos.f32
+                 cosh.f32
+                 erf.f32
+                 erfc.f32
+                 exp.f32
+                 exp2.f32
+                 expm1.f32
+                 [fabs.f32 64]
+                 fdim.f32
+                 floor.f32
+                 fmax.f32
+                 fmin.f32
+                 fmod.f32
+                 lgamma.f32
+                 log.f32
+                 log10.f32
+                 log1p.f32
+                 log2.f32
+                 logb.f32
+                 pow.f32
+                 remainder.f32
+                 rint.f32
+                 round.f32
+                 sin.f32
+                 sinh.f32
+                 [sqrt.f32 320]
+                 tan.f32
+                 tanh.f32
+                 tgamma.f32
+                 trunc.f32)
 
-;; accelerator operations (minus fma)
-(define accelerator-platform
-  (with-terminal-cost ([binary64 64] [binary32 32])
-                      (let ([relative-costs (cost-map #:default-cost 100 [(fma) 4])])
-                        (platform-product #:optional [([real binary64])
-                                                      (cost-map-scale 64 relative-costs)]
-                                          [([real binary32]) (cost-map-scale 32 relative-costs)]
-                                          (operator-set [(real real) (erfc expm1 log1p)]
-                                                        [(real real real) (hypot)]
-                                                        [(real real real real) (fma)])))))
+(define-platform accelerator-platform
+                 #:literal [binary64 64]
+                 #:literal [binary32 32]
+                 #:default-cost 3200
+                 #:optional [erfc.f64 6400]
+                 [expm1.f64 6400]
+                 [log1p.f64 6400]
+                 [hypot.f64 6400]
+                 [fma.f64 256]
+                 erfc.f32
+                 expm1.f32
+                 log1p.f32
+                 hypot.f32
+                 [fma.f32 128])
 
 ; compose platforms
 

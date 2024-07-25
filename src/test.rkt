@@ -11,8 +11,8 @@
                  [*.f64 2]
                  [/.f64 2]
                  [neg.f64 2]
-                 [abg.f64 4]
                  #:optional
-                 #:literals ([binary64 1] [binary32 1])
+                 #:literal [binary64 1]
+                 #:literal [binary32 1]
                  #:default-cost 1
                  #:if-cost 1)
