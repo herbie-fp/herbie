@@ -10,7 +10,6 @@
          all-subexpressions
          ops-in-expr
          impl-prog?
-         type-of
          repr-of
          location-do
          location-get
@@ -19,19 +18,9 @@
          replace-expression
          replace-vars)
 
+;; Programs are just lisp lists plus atoms
+
 (define expr? (or/c list? symbol? boolean? real? literal?))
-
-;; Programs are just lambda expressions
-
-;; Returns type name
-;; Fast version does not recurse into functions applications
-(define (type-of expr ctx)
-  (match expr
-    [(? number?) 'real]
-    [(? variable?) (representation-type (context-lookup ctx expr))]
-    [(list 'if cond ift iff) (type-of ift ctx)]
-    [(? literal?) 'real]
-    [(list op args ...) (representation-type (impl-info op 'otype))]))
 
 ;; Returns repr name
 ;; Fast version does not recurse into functions applications
