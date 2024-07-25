@@ -62,7 +62,7 @@
                           (parameterize ([params fresh] ...)
                             body ...))))]))
 
-(define (make-worker seed profile? dir)
+(define (make-worker wid)
   (place/context* ch
                   #:parameters (*flags* *num-iterations*
                                         *num-points*
@@ -77,7 +77,7 @@
                   (parameterize ([current-error-port (open-output-nowhere)]) ; hide output
                     (load-herbie-plugins))
                   (for ([_ (in-naturals)])
-                    (match-define (list 'apply self id test) (place-channel-get ch))
+                    (match-define (list 'apply self id test seed profile? dir) (place-channel-get ch))
                     (define result (run-test id test #:seed seed #:profile profile? #:dir dir))
                     (place-channel-put ch `(done ,id ,self ,result)))))
 
@@ -98,10 +98,7 @@
 (define (run-workers progs threads #:seed seed #:profile profile? #:dir dir)
   (define workers
     (for/list ([wid (in-range threads)])
-      (make-worker seed profile? dir)))
-  (define workers-dead
-    (for/list ([worker workers])
-      (place-dead-evt worker)))
+      (make-worker wid)))
 
   (define work
     (for/list ([id (in-naturals)] [prog progs])
@@ -110,7 +107,7 @@
   (eprintf "Starting ~a Herbie workers on ~a problems (seed: ~a)...\n" threads (length progs) seed)
   (for ([worker workers])
     (match-define (list id job) (car work))
-    (place-channel-put worker (list 'apply worker id job))
+    (place-channel-put worker (list 'apply worker id job seed profile? dir))
     (set! work (cdr work)))
 
   (define outs
@@ -120,13 +117,11 @@
                                              (length out)
                                              (if (= (length out) 1) "" "s"))
                                     out)])
-        (define idk (append workers workers-dead))
-        (eprintf "idk: ~a\n" idk)
-        (match (apply sync idk)
+        (match (apply sync workers)
           [`(done ,id ,more ,tr)
            (when (not (null? work))
              (match-define (list id job) (car work))
-             (place-channel-put more (list 'apply more id job))
+             (place-channel-put more (list 'apply more id job seed profile? dir))
              (set! work (cdr work)))
            (define out* (cons (cons id tr) out))
            (print-test-result (length out*) (length progs) tr)
