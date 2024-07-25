@@ -47,6 +47,12 @@
 (define (if-proc c a b)
   (if c a b))
 
+(define (remove-approx expr)
+  (match expr
+    [(approx _ impl) (remove-approx impl)]
+    [(list op args ...) `(,op ,@(map remove-approx args))]
+    [_ expr]))
+
 (define (progs->batch exprs vars)
   (define icache (reverse vars))
   (define exprhash
@@ -62,7 +68,6 @@
     (set! size (+ 1 size))
     (define node ; This compiles to the register machine
       (match prog
-        [(approx _ impl) (munge impl)]
         [(list op args ...) (cons op (map munge args))]
         [_ prog]))
     (hash-ref! exprhash
@@ -72,7 +77,7 @@
                    (set! exprc (+ 1 exprc))
                    (set! icache (cons node icache))))))
 
-  (define roots (list->vector (map munge exprs)))
+  (define roots (list->vector (map (compose munge remove-approx) exprs)))
   (define nodes (list->vector (reverse icache)))
 
   (timeline-push! 'compiler (+ varc size) (+ exprc varc))

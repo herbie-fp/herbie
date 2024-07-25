@@ -662,6 +662,7 @@
       (match expr
         [(? literal?) ((node-cost-proc expr repr))]
         [(? symbol?) ((node-cost-proc expr repr))]
+        [(approx _ impl) (loop impl repr)]
         [(list 'if cond ift iff)
          (define cost-proc (node-cost-proc expr repr))
          (cost-proc (loop cond bool-repr) (loop ift repr) (loop iff repr))]

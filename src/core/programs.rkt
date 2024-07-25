@@ -28,12 +28,14 @@
   (match expr
     [(? literal?) (get-representation (literal-precision expr))]
     [(? variable?) (context-lookup ctx expr)]
+    [(approx _ impl) (repr-of impl ctx)]
     [(list 'if cond ift iff) (repr-of ift ctx)]
     [(list op args ...) (impl-info op 'otype)]))
 
 (define (expr-contains? expr pred)
   (let loop ([expr expr])
     (match expr
+      [(approx _ impl) (loop impl)]
       [(list elems ...) (ormap loop elems)]
       [term (pred term)])))
 
@@ -41,18 +43,21 @@
   (define subexprs
     (reap [sow]
           (let loop ([expr expr])
-            (sow expr)
             (match expr
-              [(? number?) (void)]
-              [(? literal?) (void)]
-              [(? variable?) (void)]
-              [`(if ,c ,t ,f)
-               (loop c)
-               (loop t)
-               (loop f)]
-              [(list _ args ...)
-               (for ([arg args])
-                 (loop arg))]))))
+              [(approx _ impl) (loop impl)]
+              [_
+               (sow expr)
+               (match expr
+                 [(? number?) (void)]
+                 [(? literal?) (void)]
+                 [(? variable?) (void)]
+                 [`(if ,c ,t ,f)
+                  (loop c)
+                  (loop t)
+                  (loop f)]
+                 [(list _ args ...)
+                  (for ([arg args])
+                    (loop arg))])]))))
   (remove-duplicates (if reverse? (reverse subexprs) subexprs)))
 
 (define (ops-in-expr expr)
@@ -95,6 +100,11 @@
                 (if (zero? cmp) (loop (cdr a) (cdr b)) cmp))))])]
     [((? list?) _) 1]
     [(_ (? list?)) -1]
+    [((? approx?) (? approx?))
+     (define cmp-spec (expr-cmp (approx-spec a) (approx-spec b)))
+     (if (zero? cmp-spec) (expr-cmp (approx-impl a) (approx-impl b)) cmp-spec)]
+    [((? approx?) _) 1]
+    [(_ (? approx?)) -1]
     [((? symbol?) (? symbol?))
      (cond
        [(symbol<? a b) -1]
@@ -120,13 +130,16 @@
     [(? literal?) '()]
     [(? number?) '()]
     [(? variable?) (list prog)]
+    [(? approx?) (free-variables (approx-impl prog))]
     [`(,op ,args ...) (remove-duplicates (append-map free-variables args))]))
 
 (define (replace-vars dict expr)
   (cond
     [(dict-has-key? dict expr) (dict-ref dict expr)]
+    [(approx? expr)
+     (approx (replace-vars dict (approx-spec expr)) (replace-vars dict (approx-impl expr)))]
     [(list? expr) (cons (replace-vars dict (car expr)) (map (curry replace-vars dict) (cdr expr)))]
-    [#t expr]))
+    [else expr]))
 
 (define location? (listof natural-number/c))
 
@@ -134,6 +147,7 @@
   (-> location? expr? (-> expr? expr?) expr?)
   (cond
     [(null? loc) (f prog)]
+    [(approx? prog) (location-do loc (approx-impl prog) f)]
     [(not (pair? prog)) (error "Bad location: cannot enter " prog "any further.")]
     [#t
      ; Inlined loop for speed

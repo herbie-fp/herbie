@@ -84,8 +84,22 @@
 
 ;; result function is a function that takes the ids of the nodes
 (define (egraph-add-expr eg-data expr ctx)
-  (define egg-expr (~a (expr->egg-expr expr eg-data ctx)))
-  (egraph_add_expr (egraph-data-egraph-pointer eg-data) egg-expr))
+  (define ptr (egraph-data-egraph-pointer eg-data))
+  (define egg-expr (expr->egg-expr expr eg-data ctx))
+  ; merge approx nodes with their spec
+  (let loop ([egg-expr egg-expr])
+    (match egg-expr
+      [(? number?) (void)]
+      [(? symbol?) (void)]
+      [(list '$approx spec impl)
+       (define id1 (egraph_add_expr ptr (~a egg-expr)))
+       (define id2 (egraph_add_expr ptr (~a spec)))
+       (egraph_union ptr id1 id2)
+       (loop impl)]
+      [(list _ args ...)
+       (for-each loop args)]))
+  ; add the actual expression
+  (egraph_add_expr ptr (~a egg-expr)))
 
 ;; runs rules on an egraph (optional iteration limit)
 (define (egraph-run egraph-data ffi-rules node-limit iter-limit scheduler const-folding?)
@@ -206,12 +220,15 @@
     (match expr
       [(? number?) expr]
       [(? literal?) (literal-value expr)]
-      [(? (curry hash-has-key? herbie->egg-dict)) (hash-ref herbie->egg-dict expr)]
       [(? symbol?)
-       (define replacement (string->symbol (format "$h~a" (hash-count herbie->egg-dict))))
-       (hash-set! herbie->egg-dict expr replacement)
-       (hash-set! egg->herbie-dict replacement (cons expr (context-lookup ctx expr)))
-       replacement]
+       (hash-ref! herbie->egg-dict
+                  expr
+                  (lambda ()
+                    (define id (hash-count herbie->egg-dict))
+                    (define replacement (string->symbol (format "$h~a" id)))
+                    (hash-set! egg->herbie-dict replacement (cons expr (context-lookup ctx expr)))
+                    replacement))]
+      [(approx spec impl) `($approx ,(loop spec) ,(loop impl))]
       [(list op args ...) (cons op (map loop args))])))
 
 (define (flatten-let expr)
@@ -475,7 +492,7 @@
            (if (hash-has-key? egg->herbie egg-node)
                egg-node ; variable
                (list egg-node))] ; constant
-          [(list op child-ids ...) ; application
+          [(list op child-ids ...) ; $approx / application
            (cond
              [(null? child-ids) ; application is a constant function
               (vector-set! has-leaf? id #t)
@@ -748,6 +765,8 @@
       [(? symbol?)
        (define repr (cdr (hash-ref egg->herbie node)))
        (type/union repr (representation-type repr))]
+      [(list '$approx _ impl)
+       (vector-ref analysis impl)]
       [(list 'if _ ift iff)
        (define ift-types (vector-ref analysis ift))
        (define iff-types (vector-ref analysis iff))
@@ -799,6 +818,8 @@
       [(? symbol?)
        (define repr (cdr (hash-ref egg->herbie node)))
        (type/union repr (representation-type repr))]
+      [(list '$approx _ impl)
+       (vector-ref eclass-types impl)]
       [(list 'if _ ift iff)
        (define ift-types (vector-ref eclass-types ift))
        (define iff-types (vector-ref eclass-types iff))
@@ -885,6 +906,8 @@
 
   (define (slow-node-ready? node type)
     (match node
+      [(list '$approx _ impl)
+       (eclass-has-cost? impl type)]
       [(list 'if cond ift iff)
        (and (eclass-has-cost? cond (get-representation 'bool))
             (eclass-has-cost? ift type)
@@ -983,6 +1006,8 @@
     [(? symbol?) ; variables (`egg->herbie` has the repr)
      (define repr (cdr (hash-ref egg->herbie node)))
      ((node-cost-proc node repr))]
+    [(list '$approx _ impl) ; approx node
+     (rec impl type +inf.0)]
     [(list 'if cond ift iff) ; if expression
      (define cost-proc (node-cost-proc node type))
      (cost-proc (rec cond (get-representation 'bool) +inf.0)
@@ -999,6 +1024,8 @@
   (match node
     [(? number?) 1]
     [(? symbol?) 1]
+    [(list '$approx _ impl) ; approx node
+     (rec impl type +inf.0)]
     [(list 'if cond ift iff)
      (+ 1 (rec cond (get-representation 'bool) +inf.0) (rec ift type +inf.0) (rec iff type +inf.0))]
     [(list (? impl-exists? impl) args ...)
@@ -1097,16 +1124,18 @@
       [else (values egg-graph iteration-data)])))
 
 (define (egraph-run-schedule exprs schedule ctx)
-  ; prepare the egraph
-  (define egg-graph0 (make-egraph))
+  ; allocate the e-graph
+  (define egg-graph (make-egraph))
+
+  ; insert expressions into the e-graph
   (define root-ids
     (for/list ([expr (in-list exprs)])
-      (egraph-add-expr egg-graph0 expr ctx)))
+      (egraph-add-expr egg-graph expr ctx)))
 
   ; run the schedule
   (define rule-apps (make-hash))
-  (define egg-graph
-    (for/fold ([egg-graph egg-graph0]) ([instr (in-list schedule)])
+  (define egg-graph*
+    (for/fold ([egg-graph egg-graph]) ([instr (in-list schedule)])
       (match-define (cons rules params) instr)
       ; run rules in the egraph
       (define egg-rules (expand-rules rules))
@@ -1133,9 +1162,9 @@
     (when (> count 0)
       (timeline-push! 'rules (~a name) count)))
   ; root eclasses may have changed
-  (define root-ids* (map (lambda (id) (egraph-find egg-graph id)) root-ids))
+  (define root-ids* (map (lambda (id) (egraph-find egg-graph* id)) root-ids))
   ; return what we need
-  (values root-ids* egg-graph))
+  (values root-ids* egg-graph*))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Public API
