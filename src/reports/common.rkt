@@ -126,7 +126,7 @@
   (match i
     [(list 'abs x)
      (define x* (string->symbol (string-append (symbol->string x) "_m")))
-     (define e* (replace-vars (list (cons x x*)) e))
+     (define e* (replace-expression e x x*))
      (define p (index-of (context-vars c) x))
      (define c* (struct-copy context c [vars (list-set (context-vars c) p x*)]))
      (cons e* c*)]
@@ -141,7 +141,7 @@
      (define e*
        (list (get-parametric-operator '* r (context-repr c))
              x-sign
-             (replace-vars (list (cons x x*)) e)))
+             (replace-expression e x x*)))
      (cons e* c**)]
     [_ (cons e c)]))
 
