@@ -18,7 +18,7 @@
           (atab-set-picked (alt-table? (listof alt?) . -> . alt-table?))
           (atab-completed? (alt-table? . -> . boolean?))
           (atab-min-errors (alt-table? . -> . (listof real?)))
-          (split-atab (alt-table? (non-empty-listof any/c) . -> . (listof alt-table?)))))
+          ))
 
 ;; Public API
 
@@ -82,31 +82,6 @@
   (define altns (hash-keys (alt-table-alt->points atab)))
   (define not-done? (negate (curry hash-ref (alt-table-alt->done? atab))))
   (order-altns (filter not-done? altns)))
-
-;; Split the alt table into several alt tables, each of which corresponds to a pred
-;; in 'preds', and only contains points which satisfy that pred.
-(define (split-atab atab preds)
-  (for/list ([pred preds])
-    (define-values (pts exs)
-      (for/lists (pts exs)
-                 ([(pt ex) (in-pcontext (alt-table-context atab))] #:when (pred pt))
-                 (values pt ex)))
-    (define point->alts
-      (for/hash ([pt pts])
-        (values pt (hash-ref (alt-table-point->alts atab) pt))))
-    (define alt->points
-      (make-immutable-hash (filter-not (compose null? cdr)
-                                       (for/list ([(alt pnts) (in-hash (alt-table-alt->points atab))])
-                                         (cons alt (filter (curry set-member? pts) pnts))))))
-    (define alt->done?
-      (for/hash ([alt (in-hash-keys alt->points)])
-        (values alt (hash-ref (alt-table-alt->done? atab) alt))))
-    (define alt->cost
-      (for/hash ([alt (in-hash-keys alt->points)])
-        (values alt (hash-ref (alt-table-alt->cost atab) alt))))
-    (define context (mk-pcontext pts exs))
-    (atab-prune
-     (alt-table point->alts alt->points alt->done? alt->cost context (alt-table-all atab)))))
 
 ;; Implementation
 
