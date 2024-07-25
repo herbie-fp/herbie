@@ -381,7 +381,7 @@
             (loop #'(rest ...)
                   (cons (syntax->datum #'impl) impls)
                   (cons (syntax->datum #'cost) costs))]
-           [([impl] rest ...)
+           [(impl rest ...)
             (loop #'(rest ...) (cons (syntax->datum #'impl) impls) (cons #f costs))])))]
     [_ (oops! "bad syntax")]))
 
