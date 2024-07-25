@@ -104,7 +104,7 @@
 (define-resetter *prepend-arguement-cache* (λ () (make-hash)) (λ () (make-hash)))
 (define (cache-get-prepend v expr macro)
   (define key (cons expr v))
-  (define value (hash-ref! *prepend-arguement-cache* key void (macro v)))
+  (define value (hash-ref! (*prepend-arguement-cache*) key (lambda () (macro v))))
   value)
 
 ;; Accepts a list of sindices in one indexed form and returns the
