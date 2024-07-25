@@ -179,18 +179,27 @@
   ; make the platform
   (create-platform #f reprs (append convs impls) (make-immutable-hash (hash->list costs)) (hash)))
 
-(define (make-platform2 pform literals #:optional? [optional? #f] #:if-cost [if-cost #f])
+(define (make-platform2 pform
+                        literals
+                        #:optional? [optional? #f]
+                        #:if-cost [if-cost #f]
+                        #:default-cost [default-cost #f])
   (define costs (make-hash))
   (define missing (mutable-set))
   (define impls
     (reap [sow]
           (for ([impl-sig (in-list pform)])
             (match-define (list impl cost) impl-sig)
+            (define final-cost cost)
+            (unless (or cost default-cost)
+              (raise-herbie-error "Missing cost for ~a" impl))
+            (unless cost
+              (set! final-cost default-cost))
             (with-cond-handlers optional?
                                 ([exn:fail:user:herbie:missing? (λ (_) (set-add! missing impl))])
                                 (cond
                                   [(impl-exists? impl)
-                                   (hash-set! costs impl cost)
+                                   (hash-set! costs impl final-cost)
                                    (sow impl)]
                                   [else
                                    (raise-herbie-missing-error
@@ -319,7 +328,7 @@
     (raise-syntax-error 'platform why stx sub-stx))
   (syntax-case stx ()
     [(_ id cs ...)
-     (let ([if-cost #f] [optional? #f] [literals #f] [reprs '()] [repr-costs '()])
+     (let ([if-cost #f] [default-cost #f] [optional? #f] [literals #f] [reprs '()] [repr-costs '()])
        (let loop ([cs #'(cs ...)] [impls '()] [costs '()])
          (syntax-case cs ()
            [()
@@ -330,12 +339,14 @@
                             [(reprs ...) reprs]
                             [(repr-costs ...) repr-costs]
                             [if-cost if-cost]
+                            [default-cost default-cost]
                             [optional? optional?])
                 #'(define platform-id
                     (make-platform2 `([impls ,costs] ...)
                                     `([reprs ,repr-costs] ...)
                                     #:optional? optional?
-                                    #:if-cost if-cost))))]
+                                    #:if-cost if-cost
+                                    #:default-cost default-cost))))]
            [(#:if-cost cost rest ...)
             (cond
               [if-cost (oops! "multiple #:if-cost clauses" stx)]
@@ -343,6 +354,13 @@
                (set! if-cost (platform/parse-if-cost #'cost))
                (loop #'(rest ...) impls costs)])]
            [(#:if-cost) (oops! "expected value after keyword `#:if-cost`" stx)]
+           [(#:default-cost cost rest ...)
+            (cond
+              [if-cost (oops! "multiple #:default-cost clauses" stx)]
+              [else
+               (set! default-cost #'cost)
+               (loop #'(rest ...) impls costs)])]
+           [(#:default-cost) (oops! "expected value after keyword `#:default-cost`" stx)]
            [(#:optional rest ...)
             (cond
               [optional? (oops! "multiple #:optional clauses" stx)]
@@ -362,7 +380,9 @@
            [([impl cost] rest ...)
             (loop #'(rest ...)
                   (cons (syntax->datum #'impl) impls)
-                  (cons (syntax->datum #'cost) costs))])))]
+                  (cons (syntax->datum #'cost) costs))]
+           [([impl] rest ...)
+            (loop #'(rest ...) (cons (syntax->datum #'impl) impls) (cons #f costs))])))]
     [_ (oops! "bad syntax")]))
 
 (define-syntax (platform stx)
