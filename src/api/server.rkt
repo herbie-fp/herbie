@@ -21,6 +21,7 @@
 (require (submod "../utils/timeline.rkt" debug))
 
 (provide completed-job?
+         make-improve-result
          make-path
          get-results-for
          get-improve-job-data
@@ -342,11 +343,12 @@
           (improve-result-bogosity backend)))
 
 (define (end-hash end repr preprocessing pcontexts test)
+  (define ctx (test-context test))
   (define-values (processed test-pctx)
     (for/lists (l1 l2)
                ([pctx pcontexts])
                (define-values (train-pcontext test-pcontext) (partition-pcontext pctx))
-               (values (preprocess-pcontext (*context*) test-pcontext preprocessing) test-pcontext)))
+               (values (preprocess-pcontext ctx test-pcontext preprocessing) test-pcontext)))
   (define-values (end-alts train-errors end-errors end-costs)
     (for/lists (l1 l2 l3 l4)
                ([analysis end])
@@ -383,6 +385,7 @@
           splitpoints))
 
 (define (ctx-hash-table ctx)
+  (eprintf "CTX: ~a\n" ctx)
   (hasheq 'vars (context-vars ctx) 'repr (repr-hash-table (context-repr ctx))))
 
 (define (repr-hash-table repr)

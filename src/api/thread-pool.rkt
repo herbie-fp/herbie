@@ -8,6 +8,7 @@
          "../syntax/read.rkt"
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
+         "../api/server.rkt"
          "datafile.rkt")
 
 (provide get-test-results)
@@ -33,21 +34,24 @@
          [else (run-herbie test 'improve #:seed seed)]))
 
      (set-seed! seed)
-     (define error? #f)
-     (for ([page (all-pages result)])
-       (call-with-output-file (build-path rdir page)
-                              #:exists 'replace
-                              (λ (out)
-                                (with-handlers ([exn:fail? (λ (e)
-                                                             ((page-error-handler result page out) e)
-                                                             (set! error? #t))])
-                                  (make-page page out result #t profile?)))))
 
-     (define out (get-table-data result dirname))
+     (define result-hash (make-improve-result result test ""))
+     (define error? #f)
+     (for ([page (all-pages result-hash)])
+       (call-with-output-file
+        (build-path rdir page)
+        #:exists 'replace
+        (λ (out)
+          (with-handlers ([exn:fail? (λ (e)
+                                       ((page-error-handler result-hash page out) e)
+                                       (set! error? #t))])
+            (make-page page out result-hash #t profile?)))))
+
+     (define out (get-table-data result-hash dirname))
      (if error? (struct-copy table-row out [status "crash"]) out)]
     [else
      (define result (run-herbie 'improve test #:seed seed))
-     (get-table-data result "")]))
+     (get-table-data (make-improve-result result test "") "")]))
 
 (define-syntax (place/context* stx)
   (syntax-case stx ()
@@ -115,7 +119,9 @@
                                              (length out)
                                              (if (= (length out) 1) "" "s"))
                                     out)])
-        (match (apply sync (append workers workers-dead))
+        (define idk (append workers workers-dead))
+        (eprintf "idk: ~a\n" idk)
+        (match (apply sync idk)
           [`(done ,id ,more ,tr)
            (when (not (null? work))
              (place-channel-put more `(apply ,more ,@(car work)))
