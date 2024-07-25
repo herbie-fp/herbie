@@ -24,7 +24,6 @@
          get-representation
          warn
          define-platform
-         platform
          get-platform
          register-platform!
          platform-product

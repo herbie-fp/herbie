@@ -7,8 +7,7 @@
          "syntax.rkt"
          "types.rkt")
 
-(provide platform
-         define-platform
+(provide define-platform
          get-platform
          *active-platform*
          activate-platform!
@@ -34,8 +33,7 @@
                        [platform-cost-proc (-> platform? procedure?)]))
 
 (module+ internals
-  (provide platform
-           define-platform
+  (provide define-platform
            get-platform
            register-platform!
            platform-product
@@ -186,7 +184,6 @@
                         #:default-cost [default-cost #f])
   (define costs (make-hash))
   (define missing (mutable-set))
-  (printf pform)
   (define impls
     (reap [sow]
           (for ([impl-sig (in-list pform)])
@@ -385,47 +382,6 @@
            [(impl rest ...)
             (loop #'(rest ...) (cons #'impl impls) (cons #f costs))])))]
     [_ (oops! "bad syntax")]))
-
-(define-syntax (platform stx)
-  (define (oops! why [sub-stx #f])
-    (raise-syntax-error 'platform why stx sub-stx))
-  (syntax-case stx ()
-    [(_ cs ...)
-     (let loop ([cs #'(cs ...)] [info (make-platform-info)])
-       (syntax-case cs ()
-         [()
-          (let ([default-cost-id (gensym)] [if-cost-id (gensym)])
-            (match-define (platform-info optional? default-cost if-cost conv-sigs impl-sigs) info)
-            (define cast-impls (platform/parse-convs oops! default-cost default-cost-id conv-sigs))
-            (define impls (platform/parse-impls oops! default-cost default-cost-id impl-sigs))
-            (with-syntax ([(impl-sigs ...) (append cast-impls impls)]
-                          [default-cost-id default-cost-id]
-                          [if-cost-id if-cost-id]
-                          [default-cost default-cost]
-                          [if-cost if-cost]
-                          [optional? optional?])
-              #'(let ([default-cost-id default-cost] [if-cost-id if-cost])
-                  (make-platform (list impl-sigs ...) #:optional? optional? #:if-cost if-cost))))]
-         [(#:optional rest ...) (loop #'(rest ...) (struct-copy platform-info info [optional? #t]))]
-         [(#:default-cost cost rest ...)
-          (loop #'(rest ...) (struct-copy platform-info info [default-cost #'cost]))]
-         [(#:default-cost) (oops! "expected value after keyword `#:default-cost`" stx)]
-         [(#:if-cost cost rest ...)
-          (loop #'(rest ...)
-                (struct-copy platform-info info [if-cost (platform/parse-if-cost #'cost)]))]
-         [(#:if-cost) (oops! "expected value after keyword `#:if-cost`" stx)]
-         [(#:conversions (cs ...) rest ...)
-          (loop #'(rest ...)
-                (struct-copy platform-info
-                             info
-                             [convs (append (syntax->list #'(cs ...)) (platform-info-convs info))]))]
-         [(#:conversions bad _ ...) (oops! "expected a conversion list" #'bad)]
-         [(#:conversions) (oops! "expected conversion list after keyword `#:conversions`" stx)]
-         [(impl-sig rest ...)
-          (loop
-           #'(rest ...)
-           (struct-copy platform-info info [impls (cons #'impl-sig (platform-info-impls info))]))]
-         [_ (oops! "bad syntax")]))]))
 
 ;; Casts between representations in a platform.
 (define (platform-casts pform)
