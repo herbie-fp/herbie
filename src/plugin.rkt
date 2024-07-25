@@ -29,6 +29,4 @@
          platform-union
          platform-intersect
          platform-subtract
-         platform-filter
-         operator-set
-         platform-operator-set)
+         platform-filter)

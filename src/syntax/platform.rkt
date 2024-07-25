@@ -18,23 +18,20 @@
          platform-impl-rules
          ;; Platform API
          ;; Operator sets
-         (contract-out [operator-set? (-> any/c boolean?)]
-                       [operator-set-operators (-> operator-set? (listof symbol?))]
-                       ;; Platforms
-                       [platform? (-> any/c boolean?)]
-                       [platform-name (-> platform? any/c)]
-                       [platform-reprs (-> platform? (listof representation?))]
-                       [platform-impls (-> platform? (listof symbol?))]
-                       [platform-casts (-> platform? (listof symbol?))]
-                       [platform-union (-> platform? platform? ... platform?)]
-                       [platform-intersect (-> platform? platform? ... platform?)]
-                       [platform-subtract (-> platform? platform? ... platform?)]
-                       [platform-operator-set (-> platform? operator-set?)]
-                       ; Cost model
-                       [platform-impl-cost (-> platform? any/c any/c)]
-                       [platform-repr-cost (-> platform? any/c any/c)]
-                       [platform-node-cost-proc (-> platform? procedure?)]
-                       [platform-cost-proc (-> platform? procedure?)]))
+         (contract-out ;; Platforms
+          [platform? (-> any/c boolean?)]
+          [platform-name (-> platform? any/c)]
+          [platform-reprs (-> platform? (listof representation?))]
+          [platform-impls (-> platform? (listof symbol?))]
+          [platform-casts (-> platform? (listof symbol?))]
+          [platform-union (-> platform? platform? ... platform?)]
+          [platform-intersect (-> platform? platform? ... platform?)]
+          [platform-subtract (-> platform? platform? ... platform?)]
+          ; Cost model
+          [platform-impl-cost (-> platform? any/c any/c)]
+          [platform-repr-cost (-> platform? any/c any/c)]
+          [platform-node-cost-proc (-> platform? procedure?)]
+          [platform-cost-proc (-> platform? procedure?)]))
 
 (module+ internals
   (provide define-platform
@@ -43,9 +40,7 @@
            platform-union
            platform-intersect
            platform-subtract
-           platform-filter
-           operator-set
-           platform-operator-set))
+           platform-filter))
 
 ;;; Platforms describe a set of representations, operator, and constants
 ;;; Herbie should use during its improvement loop. Platforms are just
@@ -432,63 +427,6 @@
                       (not (set-member? (list->set '(ops ...)) r)))))]
          [_ (oops! "bad syntax")]))]
     [_ (oops! "bad syntax" stx)]))
-
-;; Set of operators: operators are just names with a type signature.
-;; Platforms may be instantiated from operator sets using `platform-product`.
-(struct operator-set (ops) #:name $operator-set #:constructor-name make-operator-set)
-
-;; Constructs an operator set.
-(define-syntax (operator-set stx)
-  (define (oops! why [sub-stx #f])
-    (raise-syntax-error 'operator-set why stx sub-stx))
-  (define (go clauses)
-    (let loop ([clauses clauses] [op-data '()])
-      (cond
-        [(null? clauses)
-         (with-syntax ([op-data op-data])
-           #'(make-operator-set 'op-data))]
-        [else
-         (syntax-case (car clauses) ()
-           [((itype ... otype) (op ...))
-            ; multiple operators with same type signature and default cost
-            (loop (for/fold ([clauses (cdr clauses)]) ([o (in-list (syntax->datum #'(op ...)))])
-                    (define cl
-                      (with-syntax ([op o])
-                        #'((itype ... otype) op)))
-                    (cons cl clauses))
-                  op-data)]
-           [((itype ... otype) op)
-            ; single operator
-            (let ([tsig (syntax->datum #'(itype ... otype))])
-              (unless (identifier? #'op)
-                (oops! "expected an identifier" #'op))
-              (loop (cdr clauses) (cons (cons #'op tsig) op-data)))]
-           [((_ ... _) bad) (oops! "expected a list of operators" #'bad)]
-           [(bad (_ ...)) (oops! "expected a type signature" #'bad)]
-           [(_ _) (oops! "malformed entry" (car clauses))]
-           [_ (oops! "expected [<signature> <ops>]" (car clauses))])])))
-  (syntax-case stx ()
-    [(_ es ...) (go (syntax->list #'(es ...)))]
-    [_ (oops! "bad syntax" stx)]))
-
-;; Projection of a platform to an operator set.
-(define (platform-operator-set pform)
-  (define unique (mutable-set))
-  (make-operator-set (for/fold ([ops '()]) ([impl (platform-impls pform)])
-                       (define op (impl->operator impl))
-                       (cond
-                         [(set-member? unique op) ops]
-                         [else
-                          (define itypes (operator-info op 'itype))
-                          (define otype (operator-info op 'otype))
-                          (set-add! unique op)
-                          (cons `(,op ,@itypes ,otype) ops)]))))
-
-;; List of operator names in an operator set.
-(define (operator-set-operators oset)
-  (for/list ([op (operator-set-ops oset)])
-    (match-define (list name _ ...) op)
-    name))
 
 ; Implementation cost in a platform.
 (define (platform-impl-cost pform impl)
