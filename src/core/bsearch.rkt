@@ -9,6 +9,7 @@
          "../syntax/types.rkt"
          "../syntax/sugar.rkt"
          "../syntax/syntax.rkt"
+         "../config.rkt"
          "compiler.rkt"
          "programs.rkt"
          "points.rkt"
@@ -100,6 +101,12 @@
     (cons val (random-ref pts)))
   (apply mk-pcontext (cdr (batch-prepare-points evaluator new-sampler))))
 
+(define-resetter *prepend-arguement-cache* (λ () (make-hash)) (λ () (make-hash)))
+(define (cache-get-prepend v expr macro)
+  (define key (cons expr v))
+  (define value (hash-ref! (*prepend-arguement-cache*) key (lambda () (macro v))))
+  value)
+
 ;; Accepts a list of sindices in one indexed form and returns the
 ;; proper splitpoints in float form. A crucial constraint is that the
 ;; float form always come from the range [f(idx1), f(idx2)). If the
@@ -120,11 +127,14 @@
     (and start-prog
          (make-real-compiler (list (expand-accelerators (prog->spec start-prog))) (list ctx*))))
 
+  (define (prepend-macro v)
+    (prepend-argument start-real-compiler v (*pcontext*)))
+
   (define (find-split expr1 expr2 v1 v2)
     (define (pred v)
       (define pctx
         (parameterize ([*num-points* (*binary-search-test-points*)])
-          (prepend-argument start-real-compiler v (*pcontext*))))
+          (cache-get-prepend v expr prepend-macro)))
       (define acc1 (errors-score (errors expr1 pctx ctx*)))
       (define acc2 (errors-score (errors expr2 pctx ctx*)))
       (- acc1 acc2))
