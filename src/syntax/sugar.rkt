@@ -53,7 +53,7 @@
 ;; - internal language, describes real-number formula
 ;; - unary minus represented by `neg`
 ;; - every operator is a real-number operation
-;; - every operator is atomic (cannot be decomposed into simpler operations)
+;; - every operator is supported by Rival
 ;; - let expressions are inlined
 ;; - casts are mapped to the identity operation
 ;; - numbers are formatless
