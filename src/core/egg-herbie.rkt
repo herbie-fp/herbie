@@ -14,14 +14,12 @@
                   register-finalizer))
 
 (require "rules.rkt"
-         "../syntax/sugar.rkt"
+         "programs.rkt"
+         "../syntax/platform.rkt"
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
          "../utils/common.rkt"
          "../config.rkt"
-         "../utils/errors.rkt"
-         "../syntax/platform.rkt"
-         "programs.rkt"
          "../utils/timeline.rkt")
 
 (provide (struct-out egg-runner)
@@ -33,11 +31,7 @@
          make-egg-runner
          run-egg
          get-canon-rule-name
-         remove-rewrites
-         real-rules
-         platform-lowering-rules
-         platform-impl-rules
-         rule->impl-rules)
+         remove-rewrites)
 
 (module+ test
   (require rackunit)
@@ -285,19 +279,29 @@
 
   (*context* (make-debug-context '(x a b c r)))
   (define extended-expr-list
-    (list '(/ (- (exp x) (exp (- x))) 2)
-          '(/ (+ (- b) (sqrt (- (* b b) (* (* 3 a) c)))) (* 3 a))
-          '(/ (+ (- b) (sqrt (- (* b b) (* (* 3 a) c))))
-              (* 3 a)) ;; duplicated to make sure it would still work
+    ; specifications
+    (list '(/ (- (exp x) (exp (neg x))) 2)
+          '(/ (+ (neg b) (sqrt (- (* b b) (* (* 3 a) c)))) (* 3 a))
+          '(/ (+ (neg b) (sqrt (- (* b b) (* (* 3 a) c)))) (* 3 a))
           '(* r 30)
           '(* 23/54 r)
-          '(+ 3/2 1.4)))
+          '(+ 3/2 1.4)
+          ; implementations
+          `(/.f64 (-.f64 (exp.f64 x) (exp.f64 (neg.f64 x))) ,(literal 2 'binary64))
+          `(/.f64 (+.f64 (neg.f64 b)
+                         (sqrt.f64 (-.f64 (*.f64 b b) (*.f64 (*.f64 ,(literal 3 'binary64) a) c))))
+                  (*.f64 ,(literal 3 'binary64) a))
+          `(/.f64 (+.f64 (neg.f64 b)
+                         (sqrt.f64 (-.f64 (*.f64 b b) (*.f64 (*.f64 ,(literal 3 'binary64) a) c))))
+                  (*.f64 ,(literal 3 'binary64) a))
+          `(*.f64 r ,(literal 30 'binary64))
+          `(*.f64 ,(literal 23/54 'binary64) r)
+          `(+.f64 ,(literal 3/2 'binary64) ,(literal 1.4 'binary64))))
 
   (let ([egg-graph (make-egraph)])
     (for ([expr extended-expr-list])
-      (define expr* (spec->prog expr (*context*)))
-      (define egg-expr (expr->egg-expr expr* egg-graph (*context*)))
-      (check-equal? (egg-expr->expr (~a egg-expr) egg-graph (context-repr (*context*))) expr*))))
+      (define egg-expr (expr->egg-expr expr egg-graph (*context*)))
+      (check-equal? (egg-expr->expr (~a egg-expr) egg-graph (context-repr (*context*))) expr))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Proofs
@@ -425,120 +429,6 @@
                            (hash-set! (*canon-names*) name (rule-name rule))
                            (cons egg-rule (make-ffi-rule egg-rule))))))
           (for-each sow egg&ffi-rules))))
-
-;; Spec contains no accelerators
-(define (spec-has-accelerator? spec)
-  (match spec
-    [(list (? operator-accelerator?) _ ...) #t]
-    [(list _ args ...) (ormap spec-has-accelerator? args)]
-    [_ #f]))
-
-(define (real-rules rules)
-  (filter-not (lambda (rule)
-                (or (representation? (rule-otype rule))
-                    (spec-has-accelerator? (rule-input rule))
-                    (spec-has-accelerator? (rule-output rule))))
-              rules))
-
-;; Rules from spec to impl
-;; These are fixed for a a particular platform
-(define-resetter *lowering-rules* (λ () (make-hash)) (λ () (make-hash)))
-
-(define (platform-lowering-rules)
-  (define impls (platform-impls (*active-platform*)))
-  (for/list ([impl (in-list impls)])
-    (hash-ref! (*lowering-rules*)
-               (cons impl (*active-platform*))
-               (lambda ()
-                 (define op (impl->operator impl))
-                 (define itypes (operator-info op 'itype))
-                 (define otype (operator-info op 'otype))
-                 (cond
-                   [(operator-accelerator? op)
-                    ; accelerator lowering
-                    (define name (sym-append 'accelerator-lowering- impl))
-                    (define spec (operator-info op 'spec))
-                    (match-define `(,(or 'lambda 'λ) (,vars ...) ,body) spec)
-                    (rule name body (cons impl vars) (map cons vars itypes) otype)]
-                   [else
-                    ; direct lowering
-                    (define vars (map (lambda (_) (gensym)) itypes))
-                    (rule (sym-append op '-lowering- impl)
-                          (cons op vars)
-                          (cons impl vars)
-                          (map cons vars itypes)
-                          otype)])))))
-
-;; Computes the product of all possible representation assignments to types.
-(define (type-combinations types reprs)
-  (reap [sow]
-        (let loop ([types types] [assigns '()])
-          (match types
-            [(? null?) (sow assigns)]
-            [(list type rest ...)
-             (for ([repr (in-list reprs)])
-               (when (equal? (representation-type repr) type)
-                 (loop rest (cons (cons type repr) assigns))))]))))
-
-;; Representation name sanitizer (also in <herbie>/platform.rkt)
-(define (repr->symbol repr)
-  (define replace-table `((" " . "_") ("(" . "") (")" . "")))
-  (define repr-name (representation-name repr))
-  (string->symbol (string-replace* (~a repr-name) replace-table)))
-
-;; Instantiates rules from implementation to implementation in the platform.
-;; If a rule is over implementations, filters by supported implementations.
-;; If a rule is over real operators, instantiates for every possible output type.
-;; By default, expansive rules will be ignored (causes issues in egg)
-(define (platform-impl-rules rules #:expansive? [expansive? #f])
-  (define reprs (platform-reprs (*active-platform*)))
-  (define impls (list->set (platform-impls (*active-platform*))))
-  (reap [sow]
-        (for ([ru (in-list rules)] #:when (or expansive? (not (symbol? (rule-input ru)))))
-          (match-define (rule name input output itypes otype) ru)
-          (cond
-            [(representation? otype) ; rule over representation
-             (when (andmap (curry set-member? impls)
-                           (filter-not (curry eq? 'if)
-                                       (append (ops-in-expr input) (ops-in-expr output))))
-               (sow ru))]
-            [else
-             ; rule over types need to be instantiated for every representation
-             ; some operator implementations may not exist
-             (define types (remove-duplicates (cons otype (map cdr itypes))))
-             (for ([tsubst (in-list (type-combinations types reprs))])
-               ;; Strange corner case:
-               ;; Rules containing comparators cause desugaring to misbehave.
-               ;; The reported output type is bool but then desugaring
-               ;; thinks there will be a cast somewhere
-               (define otype* (dict-ref tsubst otype))
-               (define sugar-otype
-                 (if (equal? otype 'bool) (dict-ref tsubst 'real (get-representation 'bool)) otype*))
-
-               (define itypes* (map (λ (p) (cons (car p) (dict-ref tsubst (cdr p)))) itypes))
-               (define sugar-ctx (context (map car itypes) sugar-otype (map cdr itypes*)))
-
-               ;; The easier way to tell if every operator is supported
-               ;; in a given representation is to just try to desguar
-               ;; the expression and catch any errors.
-               (with-handlers ([exn:fail:user:herbie:missing? (const (void))])
-                 (define name* (sym-append name '_ (repr->symbol sugar-otype)))
-                 (define input* (spec->prog input sugar-ctx))
-                 (define output* (spec->prog output sugar-ctx))
-                 (when (andmap (curry set-member? impls)
-                               (filter-not (curry eq? 'if)
-                                           (append (ops-in-expr input*) (ops-in-expr output*))))
-                   (sow (rule name* input* output* itypes* otype*)))))]))))
-
-;; For backwards compatability in unit tests
-(define (rule->impl-rules rule)
-  (platform-impl-rules (list rule) #:expansive? #t))
-
-(module+ test
-  ; Check that all builtin rules are instantiated at least once
-  ; in the default platform
-  (for ([rule (in-list (*rules*))])
-    (> (length (rule->impl-rules rule)) 0)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Racket egraph

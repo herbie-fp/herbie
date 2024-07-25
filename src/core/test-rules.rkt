@@ -5,12 +5,11 @@
          "../utils/float.rkt"
          "rules.rkt"
          (submod "rules.rkt" internals)
-         "../syntax/types.rkt"
+         "../syntax/platform.rkt"
          "../syntax/load-plugin.rkt"
-         "../syntax/syntax.rkt"
          "../syntax/sugar.rkt"
+         "../syntax/types.rkt"
          "compiler.rkt"
-         "egg-herbie.rkt"
          "rival.rkt"
          "sampling.rkt")
 
@@ -35,14 +34,17 @@
                                   [sqrt-pow1_binary64 . (>= x 0)]
                                   [sqrt-pow1_binary32 . (>= x 0)]))
 
+(define (rule->impl-rules rule)
+  (platform-impl-rules (list rule)))
+
 (define (check-rule-sound test-rule)
   (match-define (rule name p1 p2 env repr) test-rule)
   (define vars (map car env))
   (define itypes (map cdr env))
   (define ctx (context vars repr itypes))
 
-  (define spec1 (expand-accelerators (prog->spec p1)))
-  (define spec2 (expand-accelerators (prog->spec p2)))
+  (define spec1 (prog->spec p1))
+  (define spec2 (prog->spec p2))
   (match-define (list pts exs)
     (parameterize ([*num-points* (num-test-points)] [*max-find-range-depth* 0])
       (cdr (sample-points '(TRUE) (list spec1) (list ctx)))))
@@ -64,8 +66,8 @@
   (define ctx (context fv repr (map (curry dict-ref itypes) fv)))
 
   (define pre (dict-ref *conditions* name '(TRUE)))
-  (define spec1 (expand-accelerators (prog->spec p1)))
-  (define spec2 (expand-accelerators (prog->spec p2)))
+  (define spec1 (prog->spec p1))
+  (define spec2 (prog->spec p2))
   (match-define (list pts exs1 exs2)
     (parameterize ([*num-points* (num-test-points)] [*max-find-range-depth* 0])
       (cdr (sample-points pre (list spec1 spec2) (list ctx ctx)))))
