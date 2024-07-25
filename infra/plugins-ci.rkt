@@ -15,7 +15,7 @@
                  and
                  or)
 
-(define softposit-platform
+(define-platform softposit-platform
   #:literal [posit8 1]
   #:literal [posit16 1]
   #:literal [posit32 1]
