@@ -7,7 +7,7 @@
          "../core/rival.rkt"
          "types.rkt")
 
-(provide (rename-out [operator-or-impl? operator?] [expand-accelerator-spec expand-accelerators])
+(provide (rename-out [operator-or-impl? operator?])
          (struct-out literal)
          variable?
          constant-operator?
@@ -18,6 +18,7 @@
          all-operators
          all-constants
          all-accelerators
+         expand-accelerators
          impl-exists?
          impl-info
          impl->operator
@@ -180,7 +181,7 @@
 
 ;; Expands an "accelerator" specification.
 ;; Any nested accelerator is unfolded into its definition.
-(define (expand-accelerator-spec spec)
+(define (expand-accelerators spec)
   (let loop ([expr spec])
     (match expr
       [(? number?) expr]
@@ -208,7 +209,7 @@
   ; check the spec if it is provided
   (when spec
     (check-accelerator-spec! name itypes otype spec)
-    (set! spec (expand-accelerator-spec spec)))
+    (set! spec (expand-accelerators spec)))
   ; update tables
   (define info (operator name itypes* otype* spec deprecated?))
   (hash-set! operators name info)

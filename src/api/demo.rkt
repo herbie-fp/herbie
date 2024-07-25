@@ -488,7 +488,7 @@
                              (define sample (hash-ref post-data 'sample))
                              (define seed (hash-ref post-data 'seed #f))
                              (define test (parse-test formula))
-                             (define expr (prog->fpcore (test-input test) (test-output-repr test)))
+                             (define expr (prog->fpcore (test-input test)))
                              (define pcontext (json->pcontext sample (test-context test)))
                              (define command
                                (create-job 'local-error
