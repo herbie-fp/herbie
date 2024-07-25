@@ -109,7 +109,8 @@
 
   (eprintf "Starting ~a Herbie workers on ~a problems (seed: ~a)...\n" threads (length progs) seed)
   (for ([worker workers])
-    (place-channel-put worker `(apply ,worker ,@(car work)))
+    (match-define (list id job) (car work))
+    (place-channel-put worker (list 'apply worker id job))
     (set! work (cdr work)))
 
   (define outs
@@ -124,7 +125,8 @@
         (match (apply sync idk)
           [`(done ,id ,more ,tr)
            (when (not (null? work))
-             (place-channel-put more `(apply ,more ,@(car work)))
+             (match-define (list id job) (car work))
+             (place-channel-put more (list 'apply more id job))
              (set! work (cdr work)))
            (define out* (cons (cons id tr) out))
            (print-test-result (length out*) (length progs) tr)
