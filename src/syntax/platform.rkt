@@ -147,7 +147,7 @@
       [(repr-exists? repr)
        (if (hash-has-key? repr-costs repr)
            (raise-herbie-error "Duplicate literal ~a" repr)
-           (hash-set! repr-costs repr cost))]
+           (hash-set! repr-costs (get-representation repr) cost))]
       [else (raise-herbie-missing-error "Missing representation ~a required by platform" repr)]))
   ; set cost of `if`
   (when if-cost
