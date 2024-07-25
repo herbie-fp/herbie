@@ -10,16 +10,14 @@
          mk-pcontext
          for/pcontext
          pcontext?
-         pcontext->lists
+         pcontext-points
          json->pcontext
          pcontext->json
          split-pcontext
-         join-pcontext
          pcontext-length
          errors
          batch-errors
-         errors-score
-         point-error)
+         errors-score)
 
 ;; pcontexts are Herbie's standard data structure for storing
 ;; ground-truth information. They contain 1) a set of sampled input
@@ -43,9 +41,6 @@
                 (for/lists (pts* exs*) ([(pt ex) (in-pcontext pcontext)] other ...) body ...)])
     (mk-pcontext pts* exs*)))
 
-(define (pcontext->lists context)
-  (for/lists (pts exs) ([(pt ex) (in-pcontext context)]) (values pt ex)))
-
 (define (split-pcontext context num-a num-b)
   (define num-total (vector-length (pcontext-points context)))
   (unless (= (+ num-a num-b) num-total)
@@ -54,10 +49,6 @@
   (define-values (pts-a pts-b) (vector-split-at pts num-a))
   (define-values (exs-a exs-b) (vector-split-at exs num-a))
   (values (pcontext pts-a exs-a) (pcontext pts-b exs-b)))
-
-(define (join-pcontext . ctxs)
-  (pcontext (apply vector-append (map pcontext-points ctxs))
-            (apply vector-append (map pcontext-exacts ctxs))))
 
 ;; Herbie's standard error measure is the average bits of error across
 ;; all points in a pcontext.

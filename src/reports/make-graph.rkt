@@ -95,7 +95,6 @@
       (and (not (null? better)) (apply max better))))
 
   (match-define (list train-pctx test-pctx) pctxs)
-  (define-values (points _) (pcontext->lists train-pctx))
 
   (define end-alt (car end-alts))
   (define end-error (car end-errors))

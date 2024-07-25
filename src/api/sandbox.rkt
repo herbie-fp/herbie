@@ -106,7 +106,7 @@
   (unless pcontext
     (error 'get-exacts "cannnot run without a pcontext"))
   (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext))
-  (define-values (pts _) (pcontext->lists test-pcontext))
+  (define pts (pcontext-points test-pcontext))
   (define fn (eval-progs-real (list (prog->spec (test-input test))) (list (*context*))))
   (for/list ([pt pts])
     (list pt (car (apply fn pt)))))
@@ -118,7 +118,7 @@
     (error 'get-calculation "cannnot run without a pcontext"))
 
   (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext))
-  (define-values (pts _) (pcontext->lists test-pcontext))
+  (define pts (pcontext-points test-pcontext))
 
   (define fn (compile-prog (test-input test) (test-context test)))
   (for/list ([pt pts])

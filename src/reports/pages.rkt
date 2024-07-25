@@ -20,7 +20,7 @@
          page-error-handler)
 
 (define (unique-values pts idx)
-  (length (remove-duplicates (map (curryr list-ref idx) pts))))
+  (set-count (for/set ([pt pts]) (list-ref pt idx))))
 
 (define (all-pages result)
   (define good? (eq? (job-result-status result) 'success))
@@ -83,7 +83,7 @@
   (define target-errors (map alt-analysis-test-errors targets))
 
   (define end-errors (map alt-analysis-test-errors end))
-  (define-values (newpoints _) (pcontext->lists (second pctxs)))
+  (define newpoints (pcontext-points (second pctxs)))
 
   ; Immediately convert points to reals to handle posits
   (define points
