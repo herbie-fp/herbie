@@ -186,6 +186,7 @@
                         #:default-cost [default-cost #f])
   (define costs (make-hash))
   (define missing (mutable-set))
+  (printf pform)
   (define impls
     (reap [sow]
           (for ([impl-sig (in-list pform)])
@@ -332,7 +333,7 @@
        (let loop ([cs #'(cs ...)] [impls '()] [costs '()])
          (syntax-case cs ()
            [()
-            (let ([platform-id (syntax->datum #'id)])
+            (let ([platform-id #'id])
               (with-syntax ([platform-id platform-id]
                             [(impls ...) (reverse impls)]
                             [(costs ...) (reverse costs)]
@@ -379,10 +380,10 @@
            [(#:literals) (oops! "expected literals list after keyword `#:literals`" stx)]
            [([impl cost] rest ...)
             (loop #'(rest ...)
-                  (cons (syntax->datum #'impl) impls)
-                  (cons (syntax->datum #'cost) costs))]
+                  (cons #'impl impls)
+                  (cons #'cost costs))]
            [(impl rest ...)
-            (loop #'(rest ...) (cons (syntax->datum #'impl) impls) (cons #f costs))])))]
+            (loop #'(rest ...) (cons #'impl impls) (cons #f costs))])))]
     [_ (oops! "bad syntax")]))
 
 (define-syntax (platform stx)
