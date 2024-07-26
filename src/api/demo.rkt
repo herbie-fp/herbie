@@ -544,12 +544,7 @@
      (match-define (list altns test-pcontext processed-pcontext) (job-result-backend result))
      (define splitpoints
        (for/list ([alt altns])
-         (for/list ([var vars])
-           (define split-var? (equal? var (regime-var alt)))
-           (if split-var?
-               (for/list ([val (regime-splitpoints alt)])
-                 (real->ordinal (repr->real val repr) repr))
-               '()))))
+         (splitpoints->json vars alt repr)))
 
      (define fpcores
        (for/list ([altn altns])

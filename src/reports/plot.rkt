@@ -13,16 +13,22 @@
          "../core/bsearch.rkt"
          "../api/sandbox.rkt")
 
-(provide real->ordinal
-         regime-splitpoints
-         regime-var
-         make-points-json)
+(provide make-points-json
+         splintpoints->json)
 
 (define (all-same? pts idx)
   (= 1 (set-count (for/set ([pt pts]) (list-ref pt idx)))))
 
 (define (ulps->bits-tenths x)
   (string->number (real->decimal-string (ulps->bits x) 1)))
+
+(define (splitpoints->json vars alt repr)
+  (for/list ([var (in-list vars)])
+    (define split-var? (equal? var (regime-var alt)))
+    (if split-var?
+        (for/list ([val (regime-splitpoints alt)])
+          (real->ordinal (repr->real val repr) repr))
+        '())))
 
 (define (make-points-json result repr)
   (match-define (job-result _ test _ _ _ _ (improve-result _ pctxs start targets end _)) result)
@@ -71,13 +77,7 @@
         (list tick-str (real->ordinal val repr)))))
 
   (define end-alt (alt-analysis-alt (car end)))
-  (define splitpoints
-    (for/list ([var vars])
-      (define split-var? (equal? var (regime-var end-alt)))
-      (if split-var?
-          (for/list ([val (regime-splitpoints end-alt)])
-            (real->ordinal (repr->real val repr) repr))
-          '())))
+  (define splitpoints (splitpoints->json vars end-elt repr))
 
   ; NOTE ordinals *should* be passed as strings so we can detect truncation if
   ;   necessary, but this isn't implemented yet.
