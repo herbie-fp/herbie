@@ -4,7 +4,7 @@
 
 (provide progs->batch batch->progs (struct-out batch))
 
-(struct batch (nodes roots))
+(struct batch (nodes roots vars))
 
 (define (progs->batch exprs vars)
   (define icache (reverse vars))
@@ -34,7 +34,7 @@
   (define nodes (list->vector (reverse icache)))
   
   (timeline-push! 'compiler (+ varc size) (+ exprc varc))
-  (batch nodes roots))
+  (batch nodes roots vars))
 
 (define (batch->progs batch)
   (define roots (batch-roots batch))
@@ -46,8 +46,9 @@
       [(list op regs ...)
        (cons op (map unmunge regs))]
       [else node]))
-  
-  (for/list ([root (in-vector roots)])
-    (unmunge root)))
+
+  (define exprs (for/list ([root (in-vector roots)])
+                  (unmunge root)))
+  exprs)
     
   

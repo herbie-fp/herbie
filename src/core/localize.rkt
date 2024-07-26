@@ -11,7 +11,8 @@
          "programs.rkt"
          "sampling.rkt"
          "simplify.rkt"
-         "egg-herbie.rkt")
+         "egg-herbie.rkt"
+         "batch.rkt")
 
 (provide batch-localize-costs
          batch-localize-errors
@@ -103,24 +104,26 @@
 
 ; Compute local error or each sampled point at each node in `prog`.
 (define (compute-local-errors subexprss ctx)
-  (define spec-list
-    (for*/list ([subexprs (in-list subexprss)] [subexpr (in-list subexprs)])
-      (prog->spec subexpr)))
+  (define exprs-list (for*/list ([subexprs (in-list subexprss)] [subexpr (in-list subexprs)])
+                       subexpr))
+  
   (define ctx-list
     (for*/list ([subexprs (in-list subexprss)] [subexpr (in-list subexprs)])
       (struct-copy context ctx [repr (repr-of subexpr ctx)])))
-
-  (define subexprs-fn (eval-progs-real spec-list ctx-list))
+  
+  (define spec-batch (progs->batch
+                      (map prog->spec exprs-list) ; exprs-list->spec-list
+                      (context-vars (first ctx-list))))
+  
+  (define subexprs-fn (eval-progs-real (batch->progs spec-batch) ctx-list))
 
   ; Mutable error hack, this is bad
-  (define errs
-    (make-hash (for*/list ([subexprs (in-list subexprss)] [subexpr (in-list subexprs)])
-                 (cons subexpr '()))))
+  (define errs (make-hash (map list exprs-list)))
 
   (for ([(pt ex) (in-pcontext (*pcontext*))])
     (define exacts (apply subexprs-fn pt))
     (define exacts-hash (make-immutable-hash (map cons (apply append subexprss) exacts)))
-    (for* ([subexprs (in-list subexprss)] [expr (in-list subexprs)])
+    (for ([expr (in-list exprs-list)])
       (define err
         (match expr
           [(? literal?) 1]
