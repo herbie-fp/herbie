@@ -209,14 +209,6 @@
             (error . ,err)
             (training-error . ,err2))]
 
-    [(alt prog `(start ,strategy) `(,prev) _)
-     `#hash((program . ,(fpcore->string (expr->fpcore prog ctx)))
-            (type . "strategy")
-            (strategy . ,(~a strategy))
-            (prev . ,(render-json prev pcontext pcontext2 ctx))
-            (error . ,err)
-            (training-error . ,err2))]
-
     [(alt prog `(regimes ,splitpoints) prevs _)
      (define intervals
        (for/list ([start-sp (cons (sp -1 -1 #f) splitpoints)] [end-sp splitpoints])
