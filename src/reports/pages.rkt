@@ -1,7 +1,6 @@
 #lang racket
 
-(require json
-         (only-in fpbench fpcore? supported-by-lang? core->js js-header))
+(require json)
 (require "../syntax/read.rkt"
          "../syntax/sugar.rkt"
          "../syntax/syntax.rkt"
@@ -25,7 +24,7 @@
 (define (all-pages result)
   (define good? (eq? (job-result-status result) 'success))
   (define default-pages '("graph.html" "timeline.html" "timeline.json"))
-  (define success-pages '("interactive.js" "points.json"))
+  (define success-pages '("points.json"))
   (append default-pages (if good? success-pages empty)))
 
 (define ((page-error-handler result page out) e)
@@ -43,34 +42,13 @@
   (match page
     ["graph.html"
      (match status
-       ['success (make-graph result out output? (get-interactive-js result ctx) profile?)]
+       ['success (make-graph result out output? profile?)]
        ['timeout (make-traceback result out profile?)]
        ['failure (make-traceback result out profile?)]
        [_ (error 'make-page "unknown result type ~a" status)])]
-    ["interactive.js" (make-interactive-js result out ctx)]
     ["timeline.html" (make-timeline (test-name test) (job-result-timeline result) out #:path "..")]
     ["timeline.json" (write-json (job-result-timeline result) out)]
     ["points.json" (make-points-json result out ctx)]))
-
-(define (get-interactive-js result ctx)
-  (match-define (job-result _ _ _ _ _ _ (improve-result _ _ start _ end _)) result)
-  (define start-expr (alt-expr (alt-analysis-alt start)))
-  (define end-expr (alt-expr (alt-analysis-alt (car end))))
-  (define start-fpcore (program->fpcore start-expr ctx))
-  (define end-fpcore (program->fpcore end-expr ctx))
-  (and (fpcore? start-fpcore)
-       (fpcore? end-fpcore)
-       (supported-by-lang? start-fpcore "js")
-       (supported-by-lang? end-fpcore "js")
-       (string-append (js-header "Math") ; pow, fmax, fmin will not work without this
-                      (core->js start-fpcore "start")
-                      (core->js end-fpcore "end"))))
-
-(define (make-interactive-js result out ctx)
-  (define repr (context-repr ctx))
-  (define js-text (get-interactive-js result ctx))
-  (when (string? js-text)
-    (display js-text out)))
 
 (define (ulps->bits-tenths x)
   (string->number (real->decimal-string (ulps->bits x) 1)))
