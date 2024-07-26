@@ -11,8 +11,8 @@
 
 (define (canonicalize-rewrite proof)
   (match proof
-    [`(Rewrite=> ,rule ,something) (list 'Rewrite=> (get-canon-rule-name rule rule) something)]
-    [`(Rewrite<= ,rule ,something) (list 'Rewrite<= (get-canon-rule-name rule rule) something)]
+    [`(Rewrite=> ,rule ,something) (list 'Rewrite=> rule something)]
+    [`(Rewrite<= ,rule ,something) (list 'Rewrite<= rule something)]
     [(list _ ...) (map canonicalize-rewrite proof)]
     [_ proof]))
 

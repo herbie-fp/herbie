@@ -384,37 +384,11 @@
                [input (expr->egg-pattern (rule-input ru))]
                [output (expr->egg-pattern (rule-output ru))]))
 
-(define (rule->egg-rules ru)
-  (define input (rule-input ru))
-  (cond
-    [(symbol? input)
-     ; expansive rules
-     (define itype (dict-ref (rule-itypes ru) input))
-     (unless (type-name? itype)
-       (error 'rule->egg-rules "expansive rules over impls is unsound ~a" input))
-     (for/list ([op (all-operators)] #:when (eq? (operator-info op 'otype) itype))
-       (define itypes (operator-info op 'itype))
-       (define vars (map (lambda (_) (gensym)) itypes))
-       (rule (sym-append (rule-name ru) '-expand- op)
-             (cons op vars)
-             (replace-expression (rule-output ru) input (cons op vars))
-             (map cons vars itypes)
-             (rule-otype ru)))]
-    ; non-expansive rule
-    [else (list (rule->egg-rule ru))]))
-
 ;; egg rule cache
 (define-resetter *egg-rule-cache* (λ () (make-hash)) (λ () (make-hash)))
 
-;; Cache mapping name to its canonical rule name
-;; See `*egg-rules*` for details
-(define-resetter *canon-names* (λ () (make-hash)) (λ () (make-hash)))
-
 ;; Tries to look up the canonical name of a rule using the cache.
 ;; Obviously dangerous if the cache is invalid.
-(define (get-canon-rule-name name [failure #f])
-  (hash-ref (*canon-names*) name failure))
-
 ;; Expand and convert the rules for egg.
 ;; Uses a cache to only expand each rule once.
 (define (expand-rules rules)
@@ -424,10 +398,9 @@
             (hash-ref! (*egg-rule-cache*)
                        (cons (*active-platform*) rule)
                        (lambda ()
-                         (for/list ([egg-rule (in-list (rule->egg-rules rule))])
-                           (define name (rule-name egg-rule))
-                           (hash-set! (*canon-names*) name (rule-name rule))
-                           (cons egg-rule (make-ffi-rule egg-rule))))))
+                         (define egg-rule (rule->egg-rule rule))
+                         (define name (rule-name rule))
+                         (cons egg-rule (make-ffi-rule egg-rule)))))
           (for-each sow egg&ffi-rules))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1123,8 +1096,7 @@
       ;; get rule statistics
       (for ([(egg-rule ffi-rule) (in-dict egg-rules)])
         (define count (egraph-get-times-applied egg-graph* ffi-rule))
-        (define canon-name (hash-ref (*canon-names*) (rule-name egg-rule)))
-        (hash-update! rule-apps canon-name (curry + count) count))
+        (hash-update! rule-apps (rule-name egg-rule) (curry + count) count))
 
       egg-graph*))
 
