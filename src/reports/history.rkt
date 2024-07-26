@@ -102,10 +102,6 @@
      (list `(li (p "Initial program " (span ((class "error") [title ,err2]) ,err))
                 (div ((class "math")) "\\[" ,(program->tex prog ctx) "\\]")))]
 
-    [(alt prog `(start ,strategy) `(,prev) _)
-     `(,@(render-history prev pcontext pcontext2 ctx)
-       (li ((class "event")) "Using strategy " (code ,(~a strategy))))]
-
     [(alt prog 'add-preprocessing `(,prev) _)
      ;; TODO message to user is? proof later
      `(,@(render-history prev pcontext pcontext2 ctx) (li "Add Preprocessing"))]
