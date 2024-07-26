@@ -121,13 +121,9 @@
        (li ((class "event")) "Recombined " ,(~a (length prevs)) " regimes into one program."))]
 
     [(alt prog `(taylor ,loc ,pt ,var) `(,prev) _)
-     (define core (mixed->fpcore prog ctx))
      `(,@(render-history prev pcontext pcontext2 ctx)
        (li (p "Taylor expanded in " ,(~a var) " around " ,(~a pt))
-           (div ((class "math"))
-                "\\[\\leadsto "
-                ,(core->tex core #:loc (and loc (cons 2 loc)) #:color "blue")
-                "\\]")))]
+           (div ((class "math")) "\\[\\leadsto " ,(program->tex prog ctx #:loc loc) "\\]")))]
 
     [(alt prog `(simplify ,loc ,input ,proof ,soundiness) `(,prev) _)
      (define-values (err err2) (altn-errors altn pcontext pcontext2 ctx))
