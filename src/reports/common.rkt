@@ -139,9 +139,7 @@
      (define c* (struct-copy context c [vars (list-set (context-vars c) p x*)]))
      (define c** (context-extend c* x-sign r))
      (define e*
-       (list (get-parametric-operator '* r (context-repr c))
-             x-sign
-             (replace-expression e x x*)))
+       (list (get-parametric-operator '* r (context-repr c)) x-sign (replace-expression e x x*)))
      (cons e* c**)]
     [_ (cons e c)]))
 

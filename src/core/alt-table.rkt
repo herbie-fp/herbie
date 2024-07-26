@@ -17,8 +17,7 @@
           (atab-add-altns (alt-table? (listof alt?) any/c any/c . -> . alt-table?))
           (atab-set-picked (alt-table? (listof alt?) . -> . alt-table?))
           (atab-completed? (alt-table? . -> . boolean?))
-          (atab-min-errors (alt-table? . -> . (listof real?)))
-          ))
+          (atab-min-errors (alt-table? . -> . (listof real?)))))
 
 ;; Public API
 

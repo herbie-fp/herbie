@@ -58,7 +58,6 @@
   (check-equal? (eval-application 'log 1) 0)
   (check-equal? (eval-application 'exp 2) #f)) ; Not exact
 
-
 (define (simplify expr)
   (hash-ref! (simplify-cache) expr (λ () (simplify* expr))))
 
