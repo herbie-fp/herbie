@@ -28,6 +28,7 @@
          render-warnings
          render-large
          render-comparison
+         render-specification
          render-program
          render-bogosity
          render-help
@@ -109,6 +110,26 @@
 
 (define (render-comparison #:title [title #f] name a b)
   (render-large #:title title name a `(span ((class "unit")) " → ") b))
+
+(define (render-specification test #:bogosity [bogosity #f])
+  (define-values (dropdown body)
+    (render-program (test-spec test) (test-context test)
+                    #:pre (test-pre test) #:ident (test-identifier test)))
+  `(section
+    (details ([id "specification"] (class "programs"))
+             (summary (h2 "Specification")
+                      ,dropdown
+                      (a ((class "help-button float") [href ,(doc-url "report.html#spec")]
+                                                      [target "_blank"])
+                         "?"))
+             ,body
+             ,@(cond
+                 [bogosity
+                  `((p "Sampling outcomes in "
+                     (kbd ,(~a (representation-name (test-output-repr test))))
+                     " precision:")
+                    ,(render-bogosity bogosity))]
+                 [else '()]))))
 
 (define languages
   `(("FPCore" "fpcore" ,(λ (c i) (fpcore->string c))) ("C" "c" ,core->c)

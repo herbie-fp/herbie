@@ -22,18 +22,7 @@
           (body ,(render-menu (~a (test-name test))
                               (list '("Report" . "../index.html") '("Metrics" . "timeline.html")))
                 ,(render-warnings warnings)
-                ,(let-values ([(dropdown body) (render-program (test-spec test)
-                                                               (test-context test)
-                                                               #:pre (test-pre test)
-                                                               #:ident (test-identifier test))])
-                   `(section (details ([id "specification"] (class "programs"))
-                                      (summary (h2 "Specification")
-                                               ,dropdown
-                                               (a ((class "help-button float")
-                                                   [href ,(doc-url "report.html#spec")]
-                                                   [target "_blank"])
-                                                  "?"))
-                                      ,body)))
+                ,(render-specification test)
                 ,(match exn
                    [(? exn:fail:user:herbie?)
                     `(section

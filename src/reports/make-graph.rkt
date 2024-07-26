@@ -108,18 +108,7 @@
                               #:title "Relative speed of fastest alternative that improves accuracy.")
                 ""))
       ,(render-warnings warnings)
-      ,(let-values ([(dropdown body)
-                     (render-program (test-spec test) ctx #:pre (test-pre test) #:ident identifier)])
-         `(section
-           (details ([id "specification"] (class "programs"))
-                    (summary (h2 "Specification")
-                             ,dropdown
-                             (a ((class "help-button float") [href ,(doc-url "report.html#spec")]
-                                                             [target "_blank"])
-                                "?"))
-                    ,body
-                    (p "Sampling outcomes in " (kbd ,(~a (representation-name repr))) " precision:")
-                    ,(render-bogosity bogosity))))
+      ,(render-specification test #:bogosity bogosity)
       (figure ([id "graphs"])
               (h2 "Local Percentage Accuracy vs "
                   (span ([id "variables"]))
