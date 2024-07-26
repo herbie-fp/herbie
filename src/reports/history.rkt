@@ -75,12 +75,6 @@
 (define (expr->fpcore expr ctx #:ident [ident #f])
   (list 'FPCore (context-vars ctx) (remove-literals expr)))
 
-(define (expr->tex expr ctx #:loc [loc #f])
-  (define core `(FPCore ,(context-vars ctx) ,(remove-literals expr)))
-  (if (supported-by-lang? core "tex")
-      (core->tex core #:loc (and loc (cons 2 loc)) #:color "blue")
-      "ERROR"))
-
 (define (mixed->fpcore expr ctx)
   (define expr*
     (let loop ([expr expr])
