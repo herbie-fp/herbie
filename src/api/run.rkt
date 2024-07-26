@@ -110,5 +110,3 @@
     (diff-datafiles (read-datafile (build-path old "results.json"))
                     (read-datafile (build-path new "results.json"))))
   (copy-file (web-resource "report.html") (build-path new "index.html") #t))
-
-  (call-with-output-file (build-path new "index.html") #:exists 'replace make-report-page))
