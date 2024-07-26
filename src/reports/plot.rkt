@@ -18,8 +18,8 @@
          regime-var
          make-points-json)
 
-(define (unique-values pts idx)
-  (set-count (for/set ([pt pts]) (list-ref pt idx))))
+(define (all-same? pts idx)
+  (= 1 (set-count (for/set ([pt pts]) (list-ref pt idx)))))
 
 (define (ulps->bits-tenths x)
   (string->number (real->decimal-string (ulps->bits x) 1)))
@@ -59,20 +59,16 @@
     (list* (cons "start" start-error) (cons "end" end-error) target-error-entries))
 
   (define ticks
-    (for/list ([idx (in-range (length vars))])
+    (for/list ([var (in-list vars)] [idx (in-naturals)] #:unless (all-same? newpoints idx))
       ; We want to bail out since choose-ticks will crash otherwise
-      (let/ec return
-              (define points-at-idx (map (curryr list-ref idx) points))
-              (when (= (unique-values newpoints idx) 1)
-                (return #f))
-              (define real-ticks
-                (choose-ticks (apply min points-at-idx) (apply max points-at-idx) repr))
-              (for/list ([val real-ticks])
-                (define tick-str
-                  (if (or (= val 0) (< 0.01 (abs val) 100))
-                      (~r (exact->inexact val) #:precision 4)
-                      (string-replace (~r val #:notation 'exponential #:precision 0) "1e" "e")))
-                (list tick-str (real->ordinal val repr))))))
+      (define points-at-idx (map (curryr list-ref idx) points))
+      (define real-ticks (choose-ticks (apply min points-at-idx) (apply max points-at-idx) repr))
+      (for/list ([val real-ticks])
+        (define tick-str
+          (if (or (= val 0) (< 0.01 (abs val) 100))
+              (~r (exact->inexact val) #:precision 4)
+              (string-replace (~r val #:notation 'exponential #:precision 0) "1e" "e")))
+        (list tick-str (real->ordinal val repr)))))
 
   (define end-alt (alt-analysis-alt (car end)))
   (define splitpoints
