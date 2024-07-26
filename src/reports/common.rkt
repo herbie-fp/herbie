@@ -113,23 +113,24 @@
 
 (define (render-specification test #:bogosity [bogosity #f])
   (define-values (dropdown body)
-    (render-program (test-spec test) (test-context test)
-                    #:pre (test-pre test) #:ident (test-identifier test)))
-  `(section
-    (details ([id "specification"] (class "programs"))
-             (summary (h2 "Specification")
-                      ,dropdown
-                      (a ((class "help-button float") [href ,(doc-url "report.html#spec")]
-                                                      [target "_blank"])
-                         "?"))
-             ,body
-             ,@(cond
-                 [bogosity
-                  `((p "Sampling outcomes in "
-                     (kbd ,(~a (representation-name (test-output-repr test))))
-                     " precision:")
-                    ,(render-bogosity bogosity))]
-                 [else '()]))))
+    (render-program (test-spec test)
+                    (test-context test)
+                    #:pre (test-pre test)
+                    #:ident (test-identifier test)))
+  `(section (details ([id "specification"] (class "programs"))
+                     (summary (h2 "Specification")
+                              ,dropdown
+                              (a ((class "help-button float") [href ,(doc-url "report.html#spec")]
+                                                              [target "_blank"])
+                                 "?"))
+                     ,body
+                     ,@(cond
+                         [bogosity
+                          `((p "Sampling outcomes in "
+                               (kbd ,(~a (representation-name (test-output-repr test))))
+                               " precision:")
+                            ,(render-bogosity bogosity))]
+                         [else '()]))))
 
 (define languages
   `(("FPCore" "fpcore" ,(λ (c i) (fpcore->string c))) ("C" "c" ,core->c)
