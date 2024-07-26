@@ -19,20 +19,21 @@
 
 ;; WARNING: These aren't treated as preconditions, they are only used for range inference
 (define *conditions*
-  `([asinh-2_binary64 . (>= x 0)] [asinh-2_binary32 . (>= x 0)]
-                                  ;; These next three approximate pi so that range analysis will work
-                                  [asin-sin-s_binary64 . (<= (fabs x) 1.5708)]
-                                  [asin-sin-s_binary32 . (<= (fabs x) 1.5708)]
-                                  [acos-cos-s_binary64 . (and (<= 0 x) (<= x 3.1416))]
-                                  [acos-cos-s_binary32 . (and (<= 0 x) (<= x 3.1416))]
-                                  [atan-tan-s_binary64 . (<= (fabs x) 1.5708)]
-                                  [atan-tan-s_binary32 . (<= (fabs x) 1.5708)]
-                                  [pow-unpow_binary64 . (>= a 0)]
-                                  [pow-unpow_binary32 . (>= a 0)]
-                                  [pow-pow_binary64 . (>= a 0)]
-                                  [pow-pow_binary32 . (>= a 0)]
-                                  [sqrt-pow1_binary64 . (>= x 0)]
-                                  [sqrt-pow1_binary32 . (>= x 0)]))
+  (list '[asinh-2_binary64 . (>= x 0)]
+        '[asinh-2_binary32 . (>= x 0)]
+        '[pow-unpow_binary64 . (>= a 0)]
+        '[pow-unpow_binary32 . (>= a 0)]
+        '[pow-pow_binary64 . (>= a 0)]
+        '[pow-pow_binary32 . (>= a 0)]
+        '[sqrt-pow1_binary64 . (>= x 0)]
+        '[sqrt-pow1_binary32 . (>= x 0)]
+        ;; These next three approximate pi so that range analysis will work
+        '[asin-sin-s_binary64 . (<= (fabs x) 1.5708)]
+        '[asin-sin-s_binary32 . (<= (fabs x) 1.5708)]
+        '[acos-cos-s_binary64 . (and (<= 0 x) (<= x 3.1416))]
+        '[acos-cos-s_binary32 . (and (<= 0 x) (<= x 3.1416))]
+        '[atan-tan-s_binary64 . (<= (fabs x) 1.5708)]
+        '[atan-tan-s_binary32 . (<= (fabs x) 1.5708)]))
 
 (define (rule->impl-rules rule)
   (platform-impl-rules (list rule)))
