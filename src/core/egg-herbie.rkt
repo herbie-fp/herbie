@@ -30,7 +30,6 @@
          default-egg-cost-proc
          make-egg-runner
          run-egg
-         get-canon-rule-name
          remove-rewrites)
 
 (module+ test
