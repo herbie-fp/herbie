@@ -5,7 +5,6 @@
          "../src/utils/profile.rkt"
          "../src/api/datafile.rkt"
          "../src/reports/timeline.rkt"
-         "../src/reports/make-report.rkt"
          "../src/syntax/load-plugin.rkt")
 
 (define (merge-timelines outdir . dirs)
@@ -46,9 +45,7 @@
   (define dfs (map car rss))
   (define joint-rs (merge-datafiles dfs #:dirs dirs #:name name))
   (write-datafile (build-path outdir "results.json") joint-rs)
-  (call-with-output-file (build-path outdir "index.html")
-                         #:exists 'replace
-                         (curryr make-report-page joint-rs outdir #:merge-data rss)))
+  (copy-file (web-resource "report.html") (build-path outdir "index.html") #t))
 
 (module+ main
   (define name #f)

@@ -25,7 +25,6 @@
          "../utils/float.rkt")
 (require "datafile.rkt"
          "../reports/pages.rkt"
-         "../reports/make-report.rkt"
          "../reports/common.rkt"
          "../reports/core2mathjs.rkt"
          "../reports/history.rkt"
@@ -243,7 +242,7 @@
   (define tmp-file (build-path (*demo-output*) "results.tmp"))
   (write-datafile tmp-file info)
   (rename-file-or-directory tmp-file data-file #t)
-  (call-with-output-file html-file #:exists 'replace (curryr make-report-page info #f)))
+  (copy-file (web-resource "report.html") html-file #t))
 
 (define (post-with-json-response fn)
   (lambda (req)
