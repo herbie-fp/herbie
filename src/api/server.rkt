@@ -55,80 +55,80 @@
                     #:timeline-disabled? [timeline-disabled? #f])
   (herbie-command command test seed pcontext profile? timeline-disabled?))
 
-(define *job-queue* (list))
-
-;; Starts a job for a given command object|
-(define (start-job command)
-  (set! *job-queue* (append *job-queue* (list command)))
-  (eprintf "~a added Q:~a\n" command (length *job-queue*))
-  (check-q-for-work)
-  (define job-id (compute-job-id command))
-  (if (already-computed? job-id) job-id (start-work command)))
-
-(define (check-q-for-work)
-  (if (and (> (length *job-queue*) 0) (> (length *idel-workers*) 0))
-      (assign-work)
-      (eprintf "~a <= 0\n" (length *job-queue*))))
-
-;; To be called when the Q is not empty
-(define (assign-work)
-  (eprintf "assigning work: from ~a jobs\n" (length *job-queue*))
-  (define job (first *job-queue*))
-  (set! *job-queue* (rest *job-queue*))
-  (define job-id (compute-job-id job))
-  (define worker (first *idel-workers*))
-  (set! *idel-workers* (rest *idel-workers*))
-  (place-channel-put worker (list 'apply worker job job-id))
-  (update-worker-queues)
-  (eprintf "works updated\n"))
-
-(define (update-worker-queues)
-  (let loop ([out '()])
-    (with-handlers ([exn:break? (λ (_)
-                                  (eprintf "Terminating after ~a problem~a!\n"
-                                           (length out)
-                                           (if (= (length out) 1) "" "s"))
-                                  out)])
-      (match (apply sync (append *busy-workers* *dead-events*))
-        [(list 'ready self) (set! *idel-workers* (append *idel-workers* (list self)))]
-        [(list 'done self result)
-         (hash-set! *completed-jobs* result)
-         (set! *idel-workers* (append *idel-workers* (list self)))]
-        ; In this case it is a place-dead-event
-        [(? evt?) (error "Thread crashed. Unrecoverable. Terminating immediately.")])))
-      (eprintf "HERE!\n"))
-
-(define (is-job-finished job-id)
-  (hash-ref *job-status* job-id #f))
-
-(define (wait-for-job job-id)
-  (if (already-computed? job-id) (hash-ref *completed-jobs* job-id) (internal-wait-for-job job-id)))
-
 (define (start-job-server config global-demo global-output)
-  (build-worker-pool (processor-count))
-  (check-q-for-work)
+  (set! receptionist (make-receptionist))
   ;; Pass along local global values
   ;; TODO can I pull these out of config or not need ot pass them along.
   (set! *demo?* global-demo)
   (set! *demo-output* global-output)
   (thread-send *worker-thread* config))
 
-(define *busy-workers* (list))
-(define *idel-workers* (list))
-(define *dead-events* (list)) ;; don't fully understand this.
-(define (build-worker-pool number-of-workers)
-  (define workers
-    (for/list ([wid (in-range number-of-workers)])
-      (make-worker wid)))
-  (define dead-workers
-    (for/list ([worker workers])
-      (place-dead-evt worker)))
-  (set! *busy-workers* workers)
-  (set! *dead-events* dead-workers)
-  (for ([worker *busy-workers*])
-    (place-channel-put worker (list 'start worker)))
-  (eprintf "workers ready\n")
-  (update-worker-queues))
+;; Starts a job for a given command object|
+(define (start-job command)
+  (define job-id (compute-job-id command))
+  (place-channel-put receptionist (list 'start receptionist command job-id))
+  ; Ok the code below won't work as I am the receptionist will be in charge of this logic.
+  ;(if (already-computed? job-id) job-id (start-work command)); not chaching right now
+  (eprintf "Job ~a, Qed up for program: ~a" job-id (test-name (herbie-command-test command)))
+  job-id)
+
+(define (is-job-finished job-id)
+  (hash-ref *job-status* job-id #f))
+
+(define (wait-for-job job-id)
+  (define-values (a b) (place-channel))
+  (place-channel-put receptionist (list 'wait job-id b))
+  ; (if (already-computed? job-id) (hash-ref *completed-jobs* job-id) (internal-wait-for-job job-id))
+  (define finished-result (place-channel-get a))
+  (eprintf "Done waiting for: ~a\n" job-id)
+  finished-result)
+
+(define (make-receptionist)
+  (place/context*
+   ch
+   #:parameters (*flags* *num-iterations*
+                         *num-points*
+                         *timeout*
+                         *reeval-pts*
+                         *node-limit*
+                         *max-find-range-depth*
+                         *pareto-mode*
+                         *platform-name*
+                         *loose-plugins*)
+   (parameterize ([current-error-port (open-output-nowhere)]) ; hide output
+     (load-herbie-plugins))
+   ; not sure if the above code is actaully needed.
+   (define completed-work (make-hash))
+   (define workers (make-hash))
+   (define waiting (make-hash))
+   (eprintf "Receptionist waiting for work.\n")
+   (for ([i (in-naturals)])
+    ;  (eprintf "Receptionist msg ~a handled\n" i)
+     (match (place-channel-get ch)
+       [(list 'start self command job-id)
+        ; Spawn a child worker to work on the given command
+        (define worker (make-worker job-id))
+        (hash-set! workers job-id worker)
+        (eprintf "Starting worker [~a] on [~a].\n" job-id (test-name (herbie-command-test command)))
+        (place-channel-put worker (list 'apply self command job-id))]
+       [(list 'finished job-id result)
+        (eprintf "Job ~a finished, saving result.\n" job-id)
+        ; Notifed job has been completed, save the result.
+        ; let GC collect worker 🤞.
+        (hash-set! completed-work job-id result)
+        (hash-remove! workers job-id)
+        (define maybe-waiting (hash-ref waiting job-id #t))
+        (when maybe-waiting
+          (eprintf "waiting job ~a completed\n" job-id)
+          (place-channel-put maybe-waiting result))]
+       ; check if work is completed.
+       [(list 'check job-id) (hash-ref completed-work job-id #f)]
+       [(list 'wait job-id handler)
+        (define result (hash-ref completed-work job-id #f))
+        (eprintf "wait request for ~a: ~a\n" job-id result)
+        (if (false? result) (hash-set! waiting job-id handler) result)]))))
+
+(define receptionist #f)
 
 (define-syntax (place/context* stx)
   (syntax-case stx ()
@@ -138,48 +138,48 @@
            (place/context name
                           (parameterize ([params fresh] ...)
                             body ...))))]))
-(define (make-worker wid)
-  (place/context* ch
-                  #:parameters (*flags* *num-iterations*
-                                        *num-points*
-                                        *timeout*
-                                        *reeval-pts*
-                                        *node-limit*
-                                        *max-find-range-depth*
-                                        *pareto-mode*
-                                        *platform-name*
-                                        *loose-plugins*)
-                  (parameterize ([current-error-port (open-output-nowhere)]) ; hide output
-                    (load-herbie-plugins))
-                  (for ([_ (in-naturals)])
-                    (match (place-channel-get ch)
-                      [(list 'apply self command id)
-                       (eprintf "[~a] working on [~a].\n" wid id)
-                       ; (define herbie-result (wrapper-run-herbie command id))
-                       ; (match-define (job-result kind test status time _ _ backend) herbie-result)
-                       ; (define out-result
-                       ;   (match kind
-                       ;     ['alternatives (make-alternatives-result herbie-result test id)]
-                       ;     ['evaluate (make-calculate-result herbie-result id)]
-                       ;     ['cost (make-cost-result herbie-result id)]
-                       ;     ['errors (make-error-result herbie-result id)]
-                       ;     ['exacts (make-exacts-result herbie-result id)]
-                       ;     ['improve (make-improve-result herbie-result test id)]
-                       ;     ['local-error (make-local-error-result herbie-result test id)]
-                       ;     ['sample (make-sample-result herbie-result id test)]
-                       ;     [_ (error 'compute-result "unknown command ~a" kind)]))
-                       ; (hash-set! *job-status* id #f)
-                       ; (place-channel-put ch (list 'done out-result))]
-                       (eprintf "~a working on job:~a\n" wid id)
-                       (define result id) ;; finnish work
-                       (place-channel-put self ('done self result))]
-                      [(list 'start self) (place-channel-put self (list 'ready self))]
-                      [(list 'ready self) (place-channel-put self (list 'ready self))]))))
+
+(define (make-worker job-id)
+  (place/context*
+   ch
+   #:parameters (*flags* *num-iterations*
+                         *num-points*
+                         *timeout*
+                         *reeval-pts*
+                         *node-limit*
+                         *max-find-range-depth*
+                         *pareto-mode*
+                         *platform-name*
+                         *loose-plugins*)
+   (parameterize ([current-error-port (open-output-nowhere)]) ; hide output
+     (load-herbie-plugins))
+   (for ([_ (in-naturals)])
+     (match (place-channel-get ch)
+       [(list 'apply receptionist command job-id)
+        (eprintf "[~a] working on [~a].\n" job-id (test-name (herbie-command-test command)))
+        ; (define herbie-result (wrapper-run-herbie command id))
+        ; (match-define (job-result kind test status time _ _ backend) herbie-result)
+        ; (define out-result
+        ;   (match kind
+        ;     ['alternatives (make-alternatives-result herbie-result test id)]
+        ;     ['evaluate (make-calculate-result herbie-result id)]
+        ;     ['cost (make-cost-result herbie-result id)]
+        ;     ['errors (make-error-result herbie-result id)]
+        ;     ['exacts (make-exacts-result herbie-result id)]
+        ;     ['improve (make-improve-result herbie-result test id)]
+        ;     ['local-error (make-local-error-result herbie-result test id)]
+        ;     ['sample (make-sample-result herbie-result id test)]
+        ;     [_ (error 'compute-result "unknown command ~a" kind)]))
+        ; (hash-set! *job-status* id #f)
+        ; (place-channel-put ch (list 'done out-result))]
+        (define result job-id) ;; finnish work
+        (eprintf "Job: ~a finished, returning work to receptionist\n" job-id)
+        (place-channel-put receptionist (list 'finished job-id result))]))))
 
 #| End Job Server Public API section |#
 
 ;; Job object, What herbie excepts as input for a new job.
-(struct herbie-command (command test seed pcontext profile? timeline-disabled?) #:transparent)
+(struct herbie-command (command test seed pcontext profile? timeline-disabled?) #:prefab)
 
 ; Private globals
 ; TODO I'm sure these can encapslated some how.
