@@ -14,7 +14,7 @@
          "../api/sandbox.rkt")
 
 (provide make-points-json
-         splintpoints->json)
+         splitpoints->json)
 
 (define (all-same? pts idx)
   (= 1 (set-count (for/set ([pt pts]) (list-ref pt idx)))))
@@ -77,7 +77,7 @@
         (list tick-str (real->ordinal val repr)))))
 
   (define end-alt (alt-analysis-alt (car end)))
-  (define splitpoints (splitpoints->json vars end-elt repr))
+  (define splitpoints (splitpoints->json vars end-alt repr))
 
   ; NOTE ordinals *should* be passed as strings so we can detect truncation if
   ;   necessary, but this isn't implemented yet.
