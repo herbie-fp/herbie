@@ -148,9 +148,7 @@
      (define-values (err err2) (altn-errors altn pcontext pcontext2 ctx))
      `(,@(render-history prev pcontext pcontext2 ctx)
        (li ,(if proof (render-proof proof soundiness pcontext ctx) ""))
-       (li (p "Applied "
-              (span ((class "rule")) ,(if (rule? input) "rewrite-once" "egg-rr"))
-              (span ((class "error") [title ,err2]) ,err))
+       (li (p "Applied rewrites" (span ((class "error") [title ,err2]) ,err))
            (div ((class "math")) "\\[\\leadsto " ,(program->tex prog ctx #:loc loc) "\\]")))]))
 
 (define (render-proof proof soundiness pcontext ctx)
@@ -253,7 +251,6 @@
             (type . "rr")
             (prev . ,(render-json prev pcontext pcontext2 ctx))
             (proof . ,(if proof (render-proof-json proof soundiness pcontext ctx) (json-null)))
-            (rule . ,(if (rule? input) "rewrite-once" "egg-rr"))
             (loc . ,loc)
             (error . ,err)
             (training-error . ,err2))]

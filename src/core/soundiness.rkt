@@ -124,12 +124,6 @@
        (canonicalize-proof (alt-expr altn) (alt->proof altn) loc pcontext ctx))
      (alt expr `(rr ,loc ,runner ,proof* ,errs) `(,prev) '())]
 
-    ; recursive rewrite using rewrite-once
-    [(alt expr `(rr ,loc ,(? rule? input) #f #f) `(,prev) _)
-     (define proof (list (alt-expr prev) (list 'Rewrite=> (rule-name input) (alt-expr altn))))
-     (define errs (get-proof-errors proof pcontext ctx))
-     (alt expr `(rr ,loc ,input ,proof ,errs) `(,prev) '())]
-
     ; simplify using egg
     [(alt expr `(simplify ,loc ,(? egg-runner? runner) #f #f) `(,prev) _)
      (match-define (cons proof* errs)
