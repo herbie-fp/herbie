@@ -31,7 +31,6 @@
          render-program
          render-bogosity
          render-help
-         render-fpcore
          render-reproduction
          format-percent
          write-html
