@@ -13,8 +13,7 @@
   (match-define (job-result command test status time timeline warnings backend) result)
   (define exn (if (eq? status 'failure) backend 'timeout))
 
-  (fprintf out "<!doctype html>\n")
-  (write-xexpr
+  (write-html
    `(html (head (meta ((charset "utf-8")))
                 (title "Exception for " ,(~a (test-name test)))
                 (link ((rel "stylesheet") (type "text/css") (href "../report.css")))

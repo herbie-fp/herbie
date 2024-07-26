@@ -74,8 +74,7 @@
   (define end-alt (car end-alts))
   (define end-error (car end-errors))
 
-  (fprintf out "<!doctype html>\n")
-  (write-xexpr
+  (write-html
    `(html
      (head (meta ([charset "utf-8"]))
            (title "Result for " ,(~a (test-name test)))

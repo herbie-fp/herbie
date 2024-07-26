@@ -34,6 +34,7 @@
          render-fpcore
          render-reproduction
          format-percent
+         write-html
          program->fpcore
          program->tex
          fpcore->string
@@ -49,6 +50,10 @@
          core->tex
          expr->tex
          core->js)
+
+(define (write-html xexpr out)
+  (fprintf out "<!doctype html>\n")
+  (write-xexpr xexpr out))
 
 (define (program->fpcore expr ctx #:ident [ident #f])
   (define body (prog->fpcore expr))
