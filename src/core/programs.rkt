@@ -151,6 +151,7 @@
     [x x]))
 
 (module+ test
+  (require rackunit)
   (check-equal? (replace-expression '(- x (sin x)) 'x 1) '(- 1 (sin 1)))
 
   (check-equal? (replace-expression '(/ (cos (* 2 x))
