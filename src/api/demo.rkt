@@ -523,62 +523,24 @@
                              (hasheq 'tree tree 'job id 'path (make-path id)))))
 
 (define alternatives-endpoint
-  (post-with-json-response
-   (lambda (post-data)
-     (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
-     (define sample (hash-ref post-data 'sample))
-     (define seed (hash-ref post-data 'seed #f))
-     (define test (parse-test formula))
-     (define vars (test-vars test))
-     (define repr (test-output-repr test))
-     (define pcontext (json->pcontext sample (test-context test)))
-     (define command
-       (create-job 'alternatives
-                   test
-                   #:seed seed
-                   #:pcontext pcontext
-                   #:profile? #f
-                   #:timeline-disabled? #t))
-     (define id (start-job command))
-     (define result (wait-for-job id))
-     (match-define (list altns test-pcontext processed-pcontext) (job-result-backend result))
-     (define splitpoints
-       (for/list ([alt altns])
-         (for/list ([var vars])
-           (define split-var? (equal? var (regime-var alt)))
-           (if split-var?
-               (for/list ([val (regime-splitpoints alt)])
-                 (real->ordinal (repr->real val repr) repr))
-               '()))))
-
-     (define fpcores
-       (for/list ([altn altns])
-         (~a (program->fpcore (alt-expr altn) (test-context test)))))
-
-     (define histories
-       (for/list ([altn altns])
-         (let ([os (open-output-string)])
-           (parameterize ([current-output-port os])
-             (write-xexpr
-              `(div ([id "history"])
-                    (ol ,@
-                        (render-history altn processed-pcontext test-pcontext (test-context test)))))
-             (get-output-string os)))))
-     (define derivations
-       (for/list ([altn altns])
-         (render-json altn processed-pcontext test-pcontext (test-context test))))
-     (hasheq 'alternatives
-             fpcores
-             'histories
-             histories
-             'derivations
-             derivations
-             'splitpoints
-             splitpoints
-             'job
-             id
-             'path
-             (make-path id)))))
+  (post-with-json-response (lambda (post-data)
+                             (define formula
+                               (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
+                             (define sample (hash-ref post-data 'sample))
+                             (define seed (hash-ref post-data 'seed #f))
+                             (define test (parse-test formula))
+                             (define vars (test-vars test))
+                             (define repr (test-output-repr test))
+                             (define pcontext (json->pcontext sample (test-context test)))
+                             (define command
+                               (create-job 'alternatives
+                                           test
+                                           #:seed seed
+                                           #:pcontext pcontext
+                                           #:profile? #f
+                                           #:timeline-disabled? #t))
+                             (define id (start-job command))
+                             (wait-for-job id))))
 
 (define ->mathjs-endpoint
   (post-with-json-response (lambda (post-data)
