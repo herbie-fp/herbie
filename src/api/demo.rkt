@@ -433,13 +433,7 @@
                                            #:profile? #f
                                            #:timeline-disabled? #t))
                              (define id (start-job command))
-                             (define result (wait-for-job id))
-                             (define errs
-                               (for/list ([pt&err (job-result-backend result)])
-                                 (define pt (first pt&err))
-                                 (define err (second pt&err))
-                                 (list pt (format-bits (ulps->bits err)))))
-                             (hasheq 'points errs 'job id 'path (make-path id)))))
+                             (wait-for-job id))))
 
 ;; (await fetch('/api/exacts', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x) (- (sqrt (+ x 1))))", points: [[1, 1]]})})).json()
 (define exacts-endpoint
