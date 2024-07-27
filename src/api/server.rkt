@@ -82,8 +82,6 @@
 ;; Starts a job for a given command object|
 (define (start-job command)
   (define job-id (compute-job-id command))
-
-  (eprintf "SENABLE?: ~a\n" (place-message-allowed? command))
   (place-channel-put receptionist (list 'start receptionist command job-id))
   (when verbose
     (eprintf "Job ~a, Qed up for program: ~a\n" job-id (test-name (herbie-command-test command))))
@@ -198,9 +196,7 @@
         (define out-result
           (match kind
             ['alternatives (make-alternatives-result herbie-result test job-id)]
-            ['evaluate
-             #f
-             #|(make-calculate-result herbie-result id) |#]
+            ['evaluate (make-calculate-result herbie-result job-id)]
             ['cost
              #f
              #| (make-cost-result herbie-result id) |#]
@@ -228,6 +224,16 @@
 
 ;; Job object, What herbie excepts as input for a new job.
 (struct herbie-command (command test seed pcontext profile? timeline-disabled?) #:prefab)
+
+(define (make-calculate-result herbie-result id)
+  (hasheq 'command
+          (get-command herbie-result)
+          'points
+          (job-result-backend herbie-result)
+          'job
+          id
+          'path
+          (make-path id)))
 
 (define (make-alternatives-result herbie-result test id)
 
@@ -260,7 +266,7 @@
     (for/list ([altn altns])
       (render-json altn processed-pcontext test-pcontext (test-context test))))
   (hasheq 'command
-          (~s (job-result-command herbie-result)) ; force symbol type to string
+          (get-command herbie-result)
           'alternatives
           fpcores
           'histories
@@ -273,6 +279,10 @@
           id
           'path
           (make-path id)))
+
+(define (get-command herbie-result)
+  ; force symbol type to string
+  (~s (job-result-command herbie-result)))
 
 ; Private globals
 ; TODO I'm sure these can encapslated some how.
