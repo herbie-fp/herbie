@@ -477,9 +477,7 @@
                                            #:profile? #f
                                            #:timeline-disabled? #t))
                              (define id (start-job command))
-                             (define result (wait-for-job id))
-                             (define approx (job-result-backend result))
-                             (hasheq 'points approx 'job id 'path (make-path id)))))
+                             (wait-for-job id))))
 
 (define local-error-endpoint
   (post-with-json-response (lambda (post-data)
