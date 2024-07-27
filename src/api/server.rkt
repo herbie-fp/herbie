@@ -26,8 +26,12 @@
   (format "~a.~a" id *herbie-commit*))
 
 ; Helers to isolated *completed-jobs*
-(define (completed-job? id)
-  (hash-has-key? *completed-jobs* id))
+(define (completed-job? job-id)
+  (define-values (a b) (place-channel))
+  (place-channel-put receptionist (list 'check job-id b))
+  (eprintf "Checking current job count")
+  (define count (place-channel-get a))
+  count)
 
 ; Returns #f is now job exsist for the given job-id
 (define (get-results-for id)
@@ -40,10 +44,14 @@
     (get-table-data v (make-path k))))
 
 (define (job-count)
-  (hash-count *job-status*))
+  (define-values (a b) (place-channel))
+  (place-channel-put receptionist (list 'count b))
+  (eprintf "Checking current job count")
+  (define count (place-channel-get a))
+  count)
 
 (define (is-server-up)
-  (thread-running? *worker-thread*))
+  (place? receptionist))
 
 ;; Creates a command object to be passed to start-job server.
 ;; TODO contract?
@@ -56,19 +64,12 @@
   (herbie-command command test seed pcontext profile? timeline-disabled?))
 
 (define (start-job-server config global-demo global-output)
-  (set! receptionist (make-receptionist))
-  ;; Pass along local global values
-  ;; TODO can I pull these out of config or not need ot pass them along.
-  (set! *demo?* global-demo)
-  (set! *demo-output* global-output)
-  (thread-send *worker-thread* config))
+  (set! receptionist (make-receptionist)))
 
 ;; Starts a job for a given command object|
 (define (start-job command)
   (define job-id (compute-job-id command))
   (place-channel-put receptionist (list 'start receptionist command job-id))
-  ; Ok the code below won't work as I am the receptionist will be in charge of this logic.
-  ;(if (already-computed? job-id) job-id (start-work command)); not chaching right now
   (eprintf "Job ~a, Qed up for program: ~a" job-id (test-name (herbie-command-test command)))
   job-id)
 
@@ -78,7 +79,6 @@
 (define (wait-for-job job-id)
   (define-values (a b) (place-channel))
   (place-channel-put receptionist (list 'wait job-id b))
-  ; (if (already-computed? job-id) (hash-ref *completed-jobs* job-id) (internal-wait-for-job job-id))
   (define finished-result (place-channel-get a))
   (eprintf "Done waiting for: ~a\n" job-id)
   finished-result)
@@ -103,8 +103,9 @@
    (define waiting (make-hash))
    (eprintf "Receptionist waiting for work.\n")
    (for ([i (in-naturals)])
-    ;  (eprintf "Receptionist msg ~a handled\n" i)
+     ;  (eprintf "Receptionist msg ~a handled\n" i)
      (match (place-channel-get ch)
+       [(list 'count handler) (place-channel-put handler (hash-count workers))]
        [(list 'start self command job-id)
         ; Spawn a child worker to work on the given command
         (define worker (make-worker job-id))
@@ -122,7 +123,7 @@
           (eprintf "waiting job ~a completed\n" job-id)
           (place-channel-put maybe-waiting result))]
        ; check if work is completed.
-       [(list 'check job-id) (hash-ref completed-work job-id #f)]
+       [(list 'check job-id handler) (place-channel-put handler (hash-ref completed-work job-id #f))]
        [(list 'wait job-id handler)
         (define result (hash-ref completed-work job-id #f))
         (eprintf "wait request for ~a: ~a\n" job-id result)
