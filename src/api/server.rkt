@@ -176,25 +176,38 @@
        [(list 'apply receptionist command job-id)
         (when verbose
           (eprintf "[~a] working on [~a].\n" job-id (test-name (herbie-command-test command))))
-        ; (define herbie-result (wrapper-run-herbie command id))
-        ; (match-define (job-result kind test status time _ _ backend) herbie-result)
-        ; (define out-result
-        ;   (match kind
-        ;     ['alternatives (make-alternatives-result herbie-result test id)]
-        ;     ['evaluate (make-calculate-result herbie-result id)]
-        ;     ['cost (make-cost-result herbie-result id)]
-        ;     ['errors (make-error-result herbie-result id)]
-        ;     ['exacts (make-exacts-result herbie-result id)]
-        ;     ['improve (make-improve-result herbie-result test id)]
-        ;     ['local-error (make-local-error-result herbie-result test id)]
-        ;     ['sample (make-sample-result herbie-result id test)]
-        ;     [_ (error 'compute-result "unknown command ~a" kind)]))
-        ; (hash-set! *job-status* id #f)
-        ; (place-channel-put ch (list 'done out-result))]
-        (define result job-id) ;; finnish work
+        (define herbie-result (wrapper-run-herbie command job-id))
+        (match-define (job-result kind test status time _ _ backend) herbie-result)
+        (define out-result
+          (match kind
+            ['alternatives
+             #f
+             #| (make-alternatives-result herbie-result test id)|#]
+            ['evaluate
+             #f
+             #|(make-calculate-result herbie-result id) |#]
+            ['cost
+             #f
+             #| (make-cost-result herbie-result id) |#]
+            ['errors
+             #f
+             #| (make-error-result herbie-result id) |#]
+            ['exacts
+             #f
+             #| (make-exacts-result herbie-result id) |#]
+            ['improve
+             #f
+             #| (make-improve-result herbie-result test id) |#]
+            ['local-error
+             #f
+             #| (make-local-error-result herbie-result test id) |#]
+            ['sample
+             #f
+             #| (make-sample-result herbie-result id test) |#]
+            [_ (error 'compute-result "unknown command ~a" kind)]))
         (when verbose
           (eprintf "Job: ~a finished, returning work to receptionist\n" job-id)
-          (place-channel-put receptionist (list 'finished job-id result)))]))))
+          (place-channel-put receptionist (list 'finished job-id out-result)))]))))
 
 #| End Job Server Public API section |#
 
