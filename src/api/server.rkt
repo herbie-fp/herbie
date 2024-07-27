@@ -70,17 +70,26 @@
 (define (start-job command)
   (define job-id (compute-job-id command))
   (place-channel-put receptionist (list 'start receptionist command job-id))
-  (eprintf "Job ~a, Qed up for program: ~a\n" job-id (test-name (herbie-command-test command)))
+  (when verbose
+    (eprintf "Job ~a, Qed up for program: ~a\n" job-id (test-name (herbie-command-test command))))
   job-id)
 
 (define (is-job-finished job-id)
   (hash-ref *job-status* job-id #f))
 
+; verbose logging for debugging
+(define verbose #t) ; Maybe change to log-level and use 'verbose?
+(define (log msg)
+  (when verbose
+    ;; TODO fix string interpolation
+    (eprintf "~a\n" msg)))
+
 (define (wait-for-job job-id)
   (define-values (a b) (place-channel))
   (place-channel-put receptionist (list 'wait job-id b))
   (define finished-result (place-channel-get a))
-  (eprintf "Done waiting for: ~a\n" job-id)
+  (when verbose
+    (eprintf "Done waiting for: ~a\n" job-id))
   finished-result)
 
 (define (make-receptionist)
@@ -101,7 +110,8 @@
    (define completed-work (make-hash))
    (define workers (make-hash))
    (define waiting (make-hash))
-   (eprintf "Receptionist waiting for work.\n")
+   (when verbose
+     (eprintf "Receptionist waiting for work.\n"))
    (for ([i (in-naturals)])
      ;  (eprintf "Receptionist msg ~a handled\n" i)
      (match (place-channel-get ch)
@@ -111,26 +121,30 @@
             (hash-ref completed-work job-id)
             (let ([worker (make-worker job-id)])
               (hash-set! workers job-id worker)
-              (eprintf "Starting worker [~a] on [~a].\n"
-                       job-id
-                       (test-name (herbie-command-test command)))
+              (when verbose
+                (eprintf "Starting worker [~a] on [~a].\n"
+                         job-id
+                         (test-name (herbie-command-test command))))
               (place-channel-put worker (list 'apply self command job-id))))]
        [(list 'finished job-id result)
-        (eprintf "Job ~a finished, saving result.\n" job-id)
+        (when verbose
+          (eprintf "Job ~a finished, saving result.\n" job-id))
         ; Notifed job has been completed, save the result.
         ; let GC collect worker 🤞.
         (hash-set! completed-work job-id result)
         (hash-remove! workers job-id)
         (define maybe-waiting (hash-ref waiting job-id #t))
         (when maybe-waiting
-          (eprintf "waiting job ~a completed\n" job-id)
+          (when verbose
+            (eprintf "waiting job ~a completed\n" job-id))
           (place-channel-put maybe-waiting result))]
        ; check if work is completed.
        [(list 'check job-id handler) (place-channel-put handler (hash-ref completed-work job-id #f))]
        [(list 'wait job-id handler)
         ; BUG, Hmm I can dead lock this if I fire 10 of the same jobs pretty quickly.
         (define result (hash-ref completed-work job-id #f))
-        (eprintf "waiting for request for ~a: ~a\n" job-id result)
+        (when verbose
+          (eprintf "waiting for request for ~a: ~a\n" job-id result))
         (if (false? result) (hash-set! waiting job-id handler) result)]))))
 
 (define receptionist #f)
@@ -161,7 +175,8 @@
    (for ([_ (in-naturals)])
      (match (place-channel-get ch)
        [(list 'apply receptionist command job-id)
-        (eprintf "[~a] working on [~a].\n" job-id (test-name (herbie-command-test command)))
+        (when verbose
+          (eprintf "[~a] working on [~a].\n" job-id (test-name (herbie-command-test command))))
         ; (define herbie-result (wrapper-run-herbie command id))
         ; (match-define (job-result kind test status time _ _ backend) herbie-result)
         ; (define out-result
@@ -178,8 +193,9 @@
         ; (hash-set! *job-status* id #f)
         ; (place-channel-put ch (list 'done out-result))]
         (define result job-id) ;; finnish work
-        (eprintf "Job: ~a finished, returning work to receptionist\n" job-id)
-        (place-channel-put receptionist (list 'finished job-id result))]))))
+        (when verbose
+          (eprintf "Job: ~a finished, returning work to receptionist\n" job-id)
+          (place-channel-put receptionist (list 'finished job-id result)))]))))
 
 #| End Job Server Public API section |#
 
@@ -243,7 +259,7 @@
                 #:profile? (herbie-command-profile? cmd)
                 #:timeline-disabled? (herbie-command-timeline-disabled? cmd)))
   (hash-set! *completed-jobs* job-id result)
-  (eprintf "Job ~a complete\n" job-id))
+  (eprintf "Herbie complete job: ~a\n" job-id))
 
 (define (print-job-message command job-id job-str)
   (define job-label
