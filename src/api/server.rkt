@@ -88,7 +88,7 @@
   (hash-ref *job-status* job-id #f))
 
 ; verbose logging for debugging
-(define verbose #t) ; Maybe change to log-level and use 'verbose?
+(define verbose #f) ; Maybe change to log-level and use 'verbose?
 (define (log msg)
   (when verbose
     ;; TODO fix string interpolation
@@ -128,7 +128,7 @@
        [(list 'count handler) (place-channel-put handler (hash-count workers))]
        [(list 'start self command job-id)
         (if (hash-has-key? completed-work job-id)
-            (hash-ref completed-work job-id)
+            (place-channel-put self (list 'finished job-id (hash-ref completed-work job-id)))
             (let ([worker (make-worker job-id)])
               (hash-set! workers job-id worker)
               (when verbose
@@ -153,6 +153,7 @@
        [(list 'check job-id handler) (place-channel-put handler (hash-ref completed-work job-id #f))]
        [(list 'wait job-id handler)
         ; BUG, Hmm I can dead lock this if I fire 10 of the same jobs pretty quickly.
+        ; I don't think I dead lock I just don't think I'm caching right.
         (define result (hash-ref completed-work job-id #f))
         (when verbose
           (eprintf "Waiting for job: ~a\n" job-id))
@@ -198,12 +199,8 @@
             ['errors (make-error-result herbie-result job-id)]
             ['exacts (make-exacts-result herbie-result job-id)]
             ['improve (make-improve-result herbie-result test job-id)]
-            ['local-error
-             #f
-             #| (make-local-error-result herbie-result test job-id) |#]
-            ['sample
-             #f
-             #| (make-sample-result herbie-result job-id test) |#]
+            ['local-error (make-local-error-result herbie-result test job-id)]
+            ['sample (make-sample-result herbie-result test job-id)]
             [_ (error 'compute-result "unknown command ~a" kind)]))
         (when verbose
           (eprintf "Job: ~a finished, returning work to receptionist\n" job-id))
@@ -213,6 +210,44 @@
 
 ;; Job object, What herbie excepts as input for a new job.
 (struct herbie-command (command test seed pcontext profile? timeline-disabled?) #:prefab)
+
+(define (make-local-error-result herbie-result test job-id)
+  (define expr (prog->fpcore (test-input test)))
+  (define local-error (job-result-backend herbie-result))
+  ;; TODO: potentially unsafe if resugaring changes the AST
+  (define tree
+    (let loop ([expr expr] [err local-error])
+      (match expr
+        [(list op args ...)
+         ;; err => (List (listof Integer) List ...)
+         (hasheq 'e
+                 (~a op)
+                 'avg-error
+                 (format-bits (errors-score (first err)))
+                 'children
+                 (map loop args (rest err)))]
+        ;; err => (List (listof Integer))
+        [_ (hasheq 'e (~a expr) 'avg-error (format-bits (errors-score (first err))) 'children '())])))
+  (hasheq 'command
+          (get-command herbie-result)
+          'tree
+          tree
+          'job
+          job-id
+          'path
+          (make-path job-id)))
+
+(define (make-sample-result herbie-result test job-id)
+  (define pctx (job-result-backend herbie-result))
+  (define repr (context-repr (test-context test)))
+  (hasheq 'command
+          (get-command herbie-result)
+          'points
+          (pcontext->json pctx repr)
+          'job
+          job-id
+          'path
+          (make-path job-id)))
 
 (define (make-calculate-result herbie-result id)
   (hasheq 'command
@@ -252,20 +287,20 @@
           'path
           (make-path job-id)))
 
-(define (make-improve-result result test job-id)
+(define (make-improve-result herbie-result test job-id)
   (define ctx (ctx-hash-table (test-context test)))
-  (define backend (job-result-backend result))
-  (define job-time (job-result-time result))
-  (define warnings (job-result-warnings result))
-  (define timeline (job-result-timeline result))
+  (define backend (job-result-backend herbie-result))
+  (define job-time (job-result-time herbie-result))
+  (define warnings (job-result-warnings herbie-result))
+  (define timeline (job-result-timeline herbie-result))
 
   (define repr (test-output-repr test))
 
   (define backend-hash (backend-improve-result-hash-table backend repr test))
   (hasheq 'command
-          (get-command result)
+          (get-command herbie-result)
           'status
-          (job-result-status result)
+          (job-result-status herbie-result)
           'test
           test
           'ctx
