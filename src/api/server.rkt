@@ -157,7 +157,7 @@
         ; BUG, Hmm I can dead lock this if I fire 10 of the same jobs pretty quickly.
         (define result (hash-ref completed-work job-id #f))
         (when verbose
-          (eprintf "waiting for request for ~a: ~a\n" job-id result))
+          (eprintf "Waiting for job: ~a\n" job-id))
         (if (false? result) (hash-set! waiting job-id handler) result)]))))
 
 (define receptionist #f)
@@ -197,9 +197,7 @@
             ['alternatives (make-alternatives-result herbie-result test job-id)]
             ['evaluate (make-calculate-result herbie-result job-id)]
             ['cost (make-cost-result herbie-result job-id)]
-            ['errors
-             #f
-             #| (make-error-result herbie-result id) |#]
+            ['errors (make-error-result herbie-result job-id)]
             ['exacts
              #f
              #| (make-exacts-result herbie-result id) |#]
@@ -233,8 +231,22 @@
           (make-path id)))
 
 (define (make-cost-result herbie-result id)
-  (define cost (get-command herbie-result))
-  (hasheq 'command (job-result-command herbie-result) 'cost cost 'job id 'path (make-path id)))
+  (hasheq 'command
+          (get-command herbie-result)
+          'cost
+          (job-result-backend herbie-result)
+          'job
+          id
+          'path
+          (make-path id)))
+
+(define (make-error-result herbie-result id)
+  (define errs
+    (for/list ([pt&err (job-result-backend herbie-result)])
+      (define pt (first pt&err))
+      (define err (second pt&err))
+      (list pt (format-bits (ulps->bits err)))))
+  (hasheq 'command (get-command herbie-result) 'points errs 'job id 'path (make-path id)))
 
 (define (make-alternatives-result herbie-result test id)
 
