@@ -20,10 +20,7 @@
 ;; from one program to another.
 ;; They are a labeled linked list of changes.
 
-(struct alt (expr event prevs preprocessing)
-  #:methods gen:custom-write
-  [(define (write-proc alt port mode)
-     (fprintf port "#<alt ~a>" (alt-expr alt)))])
+(struct alt (expr event prevs preprocessing) #:prefab)
 
 (define (make-alt expr)
   (alt expr 'start '() '()))
