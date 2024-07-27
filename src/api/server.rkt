@@ -1,11 +1,24 @@
 #lang racket
 
 (require openssl/sha1)
+(require (only-in xml write-xexpr)
+         json)
 
 (require "sandbox.rkt"
          "../config.rkt"
+         "../core/preprocess.rkt"
+         "../core/points.rkt"
+         "../reports/history.rkt"
+         "../reports/plot.rkt"
+         "../reports/common.rkt"
+         "../syntax/types.rkt"
+         "../syntax/read.rkt"
+         "../syntax/sugar.rkt"
          "../syntax/load-plugin.rkt"
-         "../syntax/read.rkt")
+         "../syntax/platform.rkt"
+         "../utils/alternative.rkt"
+         "../utils/common.rkt"
+         "../utils/float.rkt")
 (require (submod "../utils/timeline.rkt" debug))
 
 (provide completed-job?
@@ -69,6 +82,8 @@
 ;; Starts a job for a given command object|
 (define (start-job command)
   (define job-id (compute-job-id command))
+
+  (eprintf "SENABLE?: ~a\n" (place-message-allowed? command))
   (place-channel-put receptionist (list 'start receptionist command job-id))
   (when verbose
     (eprintf "Job ~a, Qed up for program: ~a\n" job-id (test-name (herbie-command-test command))))
@@ -133,11 +148,12 @@
         ; let GC collect worker 🤞.
         (hash-set! completed-work job-id result)
         (hash-remove! workers job-id)
-        (define maybe-waiting (hash-ref waiting job-id #t))
-        (when maybe-waiting
+        (define maybe-handler (hash-ref waiting job-id #f))
+        (when maybe-handler
           (when verbose
             (eprintf "waiting job ~a completed\n" job-id))
-          (place-channel-put maybe-waiting result))]
+          (place-channel-put maybe-handler result)
+          (hash-remove! waiting job-id))]
        ; check if work is completed.
        [(list 'check job-id handler) (place-channel-put handler (hash-ref completed-work job-id #f))]
        [(list 'wait job-id handler)
@@ -181,9 +197,7 @@
         (match-define (job-result kind test status time _ _ backend) herbie-result)
         (define out-result
           (match kind
-            ['alternatives
-             #f
-             #| (make-alternatives-result herbie-result test id)|#]
+            ['alternatives (make-alternatives-result herbie-result test job-id)]
             ['evaluate
              #f
              #|(make-calculate-result herbie-result id) |#]
@@ -207,13 +221,58 @@
              #| (make-sample-result herbie-result id test) |#]
             [_ (error 'compute-result "unknown command ~a" kind)]))
         (when verbose
-          (eprintf "Job: ~a finished, returning work to receptionist\n" job-id)
-          (place-channel-put receptionist (list 'finished job-id out-result)))]))))
+          (eprintf "Job: ~a finished, returning work to receptionist\n" job-id))
+        (place-channel-put receptionist (list 'finished job-id out-result))]))))
 
 #| End Job Server Public API section |#
 
 ;; Job object, What herbie excepts as input for a new job.
 (struct herbie-command (command test seed pcontext profile? timeline-disabled?) #:prefab)
+
+(define (make-alternatives-result herbie-result test id)
+
+  (define vars (test-vars test))
+  (define repr (test-output-repr test))
+
+  (match-define (list altns test-pcontext processed-pcontext) (job-result-backend herbie-result))
+  (define splitpoints
+    (for/list ([alt altns])
+      (for/list ([var vars])
+        (define split-var? (equal? var (regime-var alt)))
+        (if split-var?
+            (for/list ([val (regime-splitpoints alt)])
+              (real->ordinal (repr->real val repr) repr))
+            '()))))
+
+  (define fpcores
+    (for/list ([altn altns])
+      (~a (program->fpcore (alt-expr altn) (test-context test)))))
+
+  (define histories
+    (for/list ([altn altns])
+      (let ([os (open-output-string)])
+        (parameterize ([current-output-port os])
+          (write-xexpr
+           `(div ([id "history"])
+                 (ol ,@(render-history altn processed-pcontext test-pcontext (test-context test)))))
+          (get-output-string os)))))
+  (define derivations
+    (for/list ([altn altns])
+      (render-json altn processed-pcontext test-pcontext (test-context test))))
+  (hasheq 'command
+          (~s (job-result-command herbie-result)) ; force symbol type to string
+          'alternatives
+          fpcores
+          'histories
+          histories
+          'derivations
+          derivations
+          'splitpoints
+          splitpoints
+          'job
+          id
+          'path
+          (make-path id)))
 
 ; Private globals
 ; TODO I'm sure these can encapslated some how.
@@ -271,8 +330,8 @@
                 #:pcontext (herbie-command-pcontext cmd)
                 #:profile? (herbie-command-profile? cmd)
                 #:timeline-disabled? (herbie-command-timeline-disabled? cmd)))
-  (hash-set! *completed-jobs* job-id result)
-  (eprintf "Herbie complete job: ~a\n" job-id))
+  (eprintf "Herbie completed job: ~a\n" job-id)
+  result)
 
 (define (print-job-message command job-id job-str)
   (define job-label
