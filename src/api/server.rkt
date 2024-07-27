@@ -41,7 +41,8 @@
 (define (completed-job? job-id)
   (define-values (a b) (place-channel))
   (place-channel-put receptionist (list 'check job-id b))
-  (eprintf "Checking current job count\n")
+  (when verbose
+    (eprintf "Checking if job ~a is completed.\n" job-id))
   (place-channel-get a))
 
 ; Returns #f is now job exsist for the given job-id
@@ -57,7 +58,8 @@
 (define (job-count)
   (define-values (a b) (place-channel))
   (place-channel-put receptionist (list 'count b))
-  (eprintf "Checking current job count\n")
+  (when verbose
+    (eprintf "Checking current job count\n"))
   (define count (place-channel-get a))
   count)
 
@@ -89,7 +91,7 @@
   (hash-ref *job-status* job-id #f))
 
 ; verbose logging for debugging
-(define verbose #f) ; Maybe change to log-level and use 'verbose?
+(define verbose #t) ; Maybe change to log-level and use 'verbose?
 (define (log msg)
   (when verbose
     ;; TODO fix string interpolation
@@ -229,14 +231,7 @@
                  (map loop args (rest err)))]
         ;; err => (List (listof Integer))
         [_ (hasheq 'e (~a expr) 'avg-error (format-bits (errors-score (first err))) 'children '())])))
-  (hasheq 'command
-          (get-command herbie-result)
-          'tree
-          tree
-          'job
-          job-id
-          'path
-          (make-path job-id)))
+  (hasheq 'command (get-command herbie-result) 'tree tree 'job job-id 'path (make-path job-id)))
 
 (define (make-sample-result herbie-result test job-id)
   (define pctx (job-result-backend herbie-result))
@@ -250,25 +245,25 @@
           'path
           (make-path job-id)))
 
-(define (make-calculate-result herbie-result id)
+(define (make-calculate-result herbie-result job-id)
   (hasheq 'command
           (get-command herbie-result)
           'points
           (job-result-backend herbie-result)
           'job
-          id
+          job-id
           'path
-          (make-path id)))
+          (make-path job-id)))
 
-(define (make-cost-result herbie-result id)
+(define (make-cost-result herbie-result job-id)
   (hasheq 'command
           (get-command herbie-result)
           'cost
           (job-result-backend herbie-result)
           'job
-          id
+          job-id
           'path
-          (make-path id)))
+          (make-path job-id)))
 
 (define (make-error-result herbie-result job-id)
   (define errs
