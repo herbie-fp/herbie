@@ -29,7 +29,7 @@
 (define (completed-job? job-id)
   (define-values (a b) (place-channel))
   (place-channel-put receptionist (list 'check job-id b))
-  (eprintf "Checking current job count")
+  (eprintf "Checking current job count\n")
   (define count (place-channel-get a))
   count)
 
@@ -46,7 +46,7 @@
 (define (job-count)
   (define-values (a b) (place-channel))
   (place-channel-put receptionist (list 'count b))
-  (eprintf "Checking current job count")
+  (eprintf "Checking current job count\n")
   (define count (place-channel-get a))
   count)
 
@@ -70,7 +70,7 @@
 (define (start-job command)
   (define job-id (compute-job-id command))
   (place-channel-put receptionist (list 'start receptionist command job-id))
-  (eprintf "Job ~a, Qed up for program: ~a" job-id (test-name (herbie-command-test command)))
+  (eprintf "Job ~a, Qed up for program: ~a\n" job-id (test-name (herbie-command-test command)))
   job-id)
 
 (define (is-job-finished job-id)
@@ -107,11 +107,14 @@
      (match (place-channel-get ch)
        [(list 'count handler) (place-channel-put handler (hash-count workers))]
        [(list 'start self command job-id)
-        ; Spawn a child worker to work on the given command
-        (define worker (make-worker job-id))
-        (hash-set! workers job-id worker)
-        (eprintf "Starting worker [~a] on [~a].\n" job-id (test-name (herbie-command-test command)))
-        (place-channel-put worker (list 'apply self command job-id))]
+        (if (hash-has-key? completed-work job-id)
+            (hash-ref completed-work job-id)
+            (let ([worker (make-worker job-id)])
+              (hash-set! workers job-id worker)
+              (eprintf "Starting worker [~a] on [~a].\n"
+                       job-id
+                       (test-name (herbie-command-test command)))
+              (place-channel-put worker (list 'apply self command job-id))))]
        [(list 'finished job-id result)
         (eprintf "Job ~a finished, saving result.\n" job-id)
         ; Notifed job has been completed, save the result.
@@ -125,8 +128,9 @@
        ; check if work is completed.
        [(list 'check job-id handler) (place-channel-put handler (hash-ref completed-work job-id #f))]
        [(list 'wait job-id handler)
+        ; BUG, Hmm I can dead lock this if I fire 10 of the same jobs pretty quickly.
         (define result (hash-ref completed-work job-id #f))
-        (eprintf "wait request for ~a: ~a\n" job-id result)
+        (eprintf "waiting for request for ~a: ~a\n" job-id result)
         (if (false? result) (hash-set! waiting job-id handler) result)]))))
 
 (define receptionist #f)
