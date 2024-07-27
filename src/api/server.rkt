@@ -196,9 +196,7 @@
           (match kind
             ['alternatives (make-alternatives-result herbie-result test job-id)]
             ['evaluate (make-calculate-result herbie-result job-id)]
-            ['cost
-             #f
-             #| (make-cost-result herbie-result id) |#]
+            ['cost (make-cost-result herbie-result job-id)]
             ['errors
              #f
              #| (make-error-result herbie-result id) |#]
@@ -233,6 +231,10 @@
           id
           'path
           (make-path id)))
+
+(define (make-cost-result herbie-result id)
+  (define cost (get-command herbie-result))
+  (hasheq 'command (job-result-command herbie-result) 'cost cost 'job id 'path (make-path id)))
 
 (define (make-alternatives-result herbie-result test id)
 

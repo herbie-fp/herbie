@@ -557,9 +557,7 @@
      (define command
        (create-job 'cost test #:seed #f #:pcontext #f #:profile? #f #:timeline-disabled? #t))
      (define id (start-job command))
-     (define result (wait-for-job id))
-     (define cost (job-result-backend result))
-     (hasheq 'cost cost 'job id 'path (make-path id)))))
+     (wait-for-job id))))
 
 (define translate-endpoint
   (post-with-json-response (lambda (post-data)
