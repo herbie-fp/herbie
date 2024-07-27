@@ -73,6 +73,7 @@
                   [("results.json") generate-report]))
 
 (define (generate-page req result page)
+  (eprintf "generate-page\n")
   (define path (first (string-split (url->string (request-uri req)) "/")))
   (cond
     [(set-member? (all-pages result) page)
@@ -397,7 +398,7 @@
                (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count))))
                      (header #"X-Herbie-Job-ID" (string->bytes/utf-8 job-id))
                      (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
-               (λ (out) (write-json (job-result-timeline job-result) out)))]))
+               (λ (out) (write-json (hash-ref job-result 'timeline) out)))]))
 
 ; /api/sample endpoint: test in console on demo page:
 ;; (await fetch('/api/sample', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x) (- (sqrt (+ x 1))))", seed: 5})})).json()
@@ -411,10 +412,7 @@
      (define command
        (create-job 'sample test #:seed seed* #:pcontext #f #:profile? #f #:timeline-disabled? #t))
      (define id (start-job command))
-     (define result (wait-for-job id))
-     (define pctx (job-result-backend result))
-     (define repr (context-repr (test-context test)))
-     (hasheq 'points (pcontext->json pctx repr) 'job id 'path (make-path id)))))
+     (wait-for-job id))))
 
 (define analyze-endpoint
   (post-with-json-response (lambda (post-data)
@@ -436,23 +434,22 @@
 
 ;; (await fetch('/api/exacts', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x) (- (sqrt (+ x 1))))", points: [[1, 1]]})})).json()
 (define exacts-endpoint
-  (post-with-json-response
-   (lambda (post-data)
-     (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
-     (define sample (hash-ref post-data 'sample))
-     (define seed (hash-ref post-data 'seed #f))
-     (define test (parse-test formula))
-     (define pcontext (json->pcontext sample (test-context test)))
-     (define command
-       (create-job 'exacts
-                   test
-                   #:seed seed
-                   #:pcontext pcontext
-                   #:profile? #f
-                   #:timeline-disabled? #t))
-     (define id (start-job command))
-     (define result (wait-for-job id))
-     (hasheq 'points (job-result-backend result) 'job id 'path (make-path id)))))
+  (post-with-json-response (lambda (post-data)
+                             (define formula
+                               (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
+                             (define sample (hash-ref post-data 'sample))
+                             (define seed (hash-ref post-data 'seed #f))
+                             (define test (parse-test formula))
+                             (define pcontext (json->pcontext sample (test-context test)))
+                             (define command
+                               (create-job 'exacts
+                                           test
+                                           #:seed seed
+                                           #:pcontext pcontext
+                                           #:profile? #f
+                                           #:timeline-disabled? #t))
+                             (define id (start-job command))
+                             (wait-for-job id))))
 
 (define calculate-endpoint
   (post-with-json-response (lambda (post-data)
@@ -489,29 +486,7 @@
                                            #:profile? #f
                                            #:timeline-disabled? #t))
                              (define id (start-job command))
-                             (define result (wait-for-job id))
-                             (define local-error (job-result-backend result))
-                             ;; TODO: potentially unsafe if resugaring changes the AST
-                             (define tree
-                               (let loop ([expr expr] [err local-error])
-                                 (match expr
-                                   [(list op args ...)
-                                    ;; err => (List (listof Integer) List ...)
-                                    (hasheq 'e
-                                            (~a op)
-                                            'avg-error
-                                            (format-bits (errors-score (first err)))
-                                            'children
-                                            (map loop args (rest err)))]
-                                   [_
-                                    ;; err => (List (listof Integer))
-                                    (hasheq 'e
-                                            (~a expr)
-                                            'avg-error
-                                            (format-bits (errors-score (first err)))
-                                            'children
-                                            '())])))
-                             (hasheq 'tree tree 'job id 'path (make-path id)))))
+                             (wait-for-job id))))
 
 (define alternatives-endpoint
   (post-with-json-response (lambda (post-data)

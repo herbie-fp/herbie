@@ -38,13 +38,11 @@
 (define (make-path id)
   (format "~a.~a" id *herbie-commit*))
 
-; Helers to isolated *completed-jobs*
 (define (completed-job? job-id)
   (define-values (a b) (place-channel))
   (place-channel-put receptionist (list 'check job-id b))
   (eprintf "Checking current job count\n")
-  (define count (place-channel-get a))
-  count)
+  (place-channel-get a))
 
 ; Returns #f is now job exsist for the given job-id
 (define (get-results-for id)
@@ -198,18 +196,14 @@
             ['evaluate (make-calculate-result herbie-result job-id)]
             ['cost (make-cost-result herbie-result job-id)]
             ['errors (make-error-result herbie-result job-id)]
-            ['exacts
-             #f
-             #| (make-exacts-result herbie-result id) |#]
-            ['improve
-             #f
-             #| (make-improve-result herbie-result test id) |#]
+            ['exacts (make-exacts-result herbie-result job-id)]
+            ['improve (make-improve-result herbie-result test job-id)]
             ['local-error
              #f
-             #| (make-local-error-result herbie-result test id) |#]
+             #| (make-local-error-result herbie-result test job-id) |#]
             ['sample
              #f
-             #| (make-sample-result herbie-result id test) |#]
+             #| (make-sample-result herbie-result job-id test) |#]
             [_ (error 'compute-result "unknown command ~a" kind)]))
         (when verbose
           (eprintf "Job: ~a finished, returning work to receptionist\n" job-id))
@@ -240,15 +234,123 @@
           'path
           (make-path id)))
 
-(define (make-error-result herbie-result id)
+(define (make-error-result herbie-result job-id)
   (define errs
     (for/list ([pt&err (job-result-backend herbie-result)])
       (define pt (first pt&err))
       (define err (second pt&err))
       (list pt (format-bits (ulps->bits err)))))
-  (hasheq 'command (get-command herbie-result) 'points errs 'job id 'path (make-path id)))
+  (hasheq 'command (get-command herbie-result) 'points errs 'job job-id 'path (make-path job-id)))
 
-(define (make-alternatives-result herbie-result test id)
+(define (make-exacts-result herbie-result job-id)
+  (hasheq 'command
+          (get-command herbie-result)
+          'points
+          (job-result-backend herbie-result)
+          'job
+          job-id
+          'path
+          (make-path job-id)))
+
+(define (make-improve-result result test job-id)
+  (define ctx (ctx-hash-table (test-context test)))
+  (define backend (job-result-backend result))
+  (define job-time (job-result-time result))
+  (define warnings (job-result-warnings result))
+  (define timeline (job-result-timeline result))
+
+  (define repr (test-output-repr test))
+
+  (define backend-hash (backend-improve-result-hash-table backend repr test))
+  (hasheq 'command
+          (get-command result)
+          'status
+          (job-result-status result)
+          'test
+          test
+          'ctx
+          ctx
+          'time
+          job-time
+          'warnings
+          warnings
+          'timeline
+          timeline
+          'backend
+          backend-hash
+          'job
+          job-id
+          'path
+          (make-path job-id)))
+
+(define (backend-improve-result-hash-table backend repr test)
+  (define pcontext (improve-result-pctxs backend))
+
+  (define preprocessing (improve-result-preprocess backend))
+  (define end-hash-table (end-hash (improve-result-end backend) repr preprocessing pcontext test))
+
+  (hasheq 'preprocessing
+          preprocessing
+          'pctxs
+          pcontext
+          'start
+          (improve-result-start backend)
+          'target
+          (improve-result-target backend)
+          'end
+          end-hash-table
+          'bogosity
+          (improve-result-bogosity backend)))
+
+(define (end-hash end repr preprocessing pcontexts test)
+  (define ctx (test-context test))
+  (define-values (processed test-pctx)
+    (for/lists (l1 l2)
+               ([pctx pcontexts])
+               (define-values (train-pcontext test-pcontext) (partition-pcontext pctx))
+               (values (preprocess-pcontext ctx test-pcontext preprocessing) test-pcontext)))
+  (define-values (end-alts train-errors end-errors end-costs)
+    (for/lists (l1 l2 l3 l4)
+               ([analysis end])
+               (match-define (alt-analysis alt train-errors test-errs) analysis)
+               (values alt train-errors test-errs (alt-cost alt repr))))
+  (define fpcores
+    (for/list ([altn end-alts])
+      (~a (program->fpcore (alt-expr altn) (test-context test)))))
+  (define alts-histories
+    (for/list ([alt end-alts] [ppctx processed] [tpctx test-pctx])
+      (render-history alt ppctx tpctx (test-context test))))
+
+  (define vars (test-vars test))
+  (define end-alt (alt-analysis-alt (car end)))
+  (define splitpoints
+    (for/list ([var vars])
+      (define split-var? (equal? var (regime-var end-alt)))
+      (if split-var?
+          (for/list ([val (regime-splitpoints end-alt)])
+            (real->ordinal (repr->real val repr) repr))
+          '())))
+
+  (hasheq 'end-alts
+          fpcores
+          'end-histories
+          alts-histories
+          'end-train-scores
+          train-errors
+          'end-errors
+          end-errors
+          'end-costs
+          end-costs
+          'splitpoints
+          splitpoints))
+
+(define (ctx-hash-table ctx)
+  (hasheq 'vars (context-vars ctx) 'repr (repr-hash-table (context-repr ctx))))
+
+(define (repr-hash-table repr)
+  (hasheq 'name (representation-name repr) 'type (representation-type repr)))
+
+(define (make-alternatives-result herbie-result test job-id)
 
   (define vars (test-vars test))
   (define repr (test-output-repr test))
@@ -289,9 +391,9 @@
           'splitpoints
           splitpoints
           'job
-          id
+          job-id
           'path
-          (make-path id)))
+          (make-path job-id)))
 
 (define (get-command herbie-result)
   ; force symbol type to string

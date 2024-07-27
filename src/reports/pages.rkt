@@ -19,7 +19,7 @@
          page-error-handler)
 
 (define (all-pages result)
-  (define good? (eq? (job-result-status result) 'success))
+  (define good? (eq? (hash-ref result 'status) 'success))
   (define default-pages '("graph.html" "timeline.html" "timeline.json"))
   (define success-pages '("points.json"))
   (append default-pages (if good? success-pages empty)))
