@@ -157,77 +157,12 @@
   (create-platform #f reprs impls (make-immutable-hash (hash->list costs)) repr-costs))
 
 (begin-for-syntax
-
-  ;; Macro-time platform description
-  (struct platform-info (optional? default-cost if-cost convs impls))
-
-  ;; Empty platform description
-  (define (make-platform-info)
-    (platform-info #f #f #f '() '()))
-
   ;; Parse if cost syntax
   (define (platform/parse-if-cost stx)
     (syntax-case stx (max sum)
       [(max x) #'(list 'max x)]
       [(sum x) #'(list 'sum x)]
-      [x #'(list 'max x)]))
-
-  ;; Parse conversion signatures into a list of implementation table
-  (define (platform/parse-convs oops! default-cost default-cost-id conv-sigs)
-    (for/fold ([impls '()]) ([conv (in-list conv-sigs)])
-      (syntax-case conv ()
-        [(in out)
-         (let ([in #'in] [out #'out])
-           (unless default-cost
-             (oops! "`#:default-cost` required with `#:conversions`" conv))
-           (with-syntax ([default-cost-id default-cost-id] [in in] [out out])
-             (list* #'(list 'cast '(in out) default-cost-id)
-                    #'(list 'cast '(out in) default-cost-id)
-                    impls)))]
-        [_ (oops! "malformed conversion clause" conv)])))
-
-  ;; Parse implementation signatures into an implementation table
-  (define (platform/parse-impls oops! default-cost default-cost-id impl-sigs)
-    (let loop ([impl-sigs impl-sigs] [impls '()])
-      (match impl-sigs
-        ['() impls]
-        [(list impl-sig rest ...)
-         (syntax-case impl-sig ()
-           [((itype ... otype) (op ...) cost)
-            ; multiple implementations with same type sig and cost
-            (loop (for/fold ([impl-sigs rest]) ([op (syntax->list #'(op ...))])
-                    (let ([impl-sig (with-syntax ([op op])
-                                      #'((itype ... otype) op cost))])
-                      (cons impl-sig impl-sigs)))
-                  impls)]
-           [((itype ... otype) (op ...))
-            ; multiple implementations with same type sig and cost
-            (loop (for/fold ([impl-sigs rest]) ([op (syntax->list #'(op ...))])
-                    (let ([impl-sig (with-syntax ([op op])
-                                      #'((itype ... otype) op))])
-                      (cons impl-sig impl-sigs)))
-                  impls)]
-           [((itype ... otype) op cost)
-            ; single implementation with type sig and cost
-            (let ([op #'op])
-              (unless (identifier? op)
-                (oops! "expected an identifier" op))
-              (define impl
-                (with-syntax ([op op])
-                  #'(list 'op '(itype ... otype) cost)))
-              (loop rest (cons impl impls)))]
-           [((itype ... otype) op)
-            ; single implementation with default cost
-            (let ([op #'op])
-              (unless (identifier? op)
-                (oops! "expected an identifier" op))
-              (unless default-cost
-                (oops! "#:default-cost required for" impl-sig))
-              (define impl
-                (with-syntax ([op op] [cost default-cost-id])
-                  #'(list 'op '(itype ... otype) cost)))
-              (loop rest (cons impl impls)))]
-           [_ (oops! "malformed implementation signature" impl-sig)])]))))
+      [x #'(list 'max x)])))
 
 ;; Macro version of `make-platform`
 ;;
@@ -235,16 +170,12 @@
 ;; ```
 ;; (define default
 ;;   (platform
-;;     #:conversions ([binary64 binary32] ...)  ; conversions
+;;     #:literal [binary64 64]                  ; literal representation with cost
+;;     #:literal [binary32 32]                  ; literal representation with cost
 ;;     #:default-cost 1                         ; default cost per impl
 ;;     #:if-cost 1                              ; cost of an if branch (using max strategy)
-;;     #:if-cost (max 1)                        ; cost of an if branch (using max strategy)
-;;     #:if-cost (sum 1)                        ; cost of an if branch (using sum strategy)
-;;     [(bool) (TRUE FALSE)]                    ; constant (0-ary functions)
-;;     [(bool bool) (not)]                      ; 1-ary function: bool -> bool
-;;     [(bool bool bool) (and or)]              ; 2-ary function: bool -> bool -> bool
-;;     [(binary64 binary64 bool)                ; 2-ary function: binary64 -> binary64 -> bool
-;;      (== > < >= <=)]
+;;     [fabs.f64 3]
+;;     fabs.f32
 ;;     ...
 ;; ))
 ;; ```
@@ -258,6 +189,8 @@
          (syntax-case cs ()
            [()
             (let ([platform-id #'id])
+              (unless (identifier? platform-id)
+                (oops! "platform id is not a valid identifier" platform-id))
               (with-syntax ([platform-id platform-id]
                             [(impls ...) (reverse impls)]
                             [(costs ...) (reverse costs)]

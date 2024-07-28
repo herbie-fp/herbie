@@ -52,51 +52,53 @@
                  [<=.f32 128])
 
 ;; libm operations
-(define-platform libm-platform
+(define-platform libm64-platform
                  #:literal [binary64 64]
                  #:literal [binary32 32]
-                 #:default-cost 3200
-                 #:optional [acos.f64 6400]
-                 [acosh.f64 6400]
-                 [asin.f64 6400]
-                 [asinh.f64 6400]
-                 [atan.f64 6400]
-                 [atan2.f64 6400]
-                 [atanh.f64 6400]
-                 [cbrt.f64 6400]
-                 [ceil.f64 6400]
-                 [copysign.f64 6400]
-                 [cos.f64 6400]
-                 [cosh.f64 6400]
-                 [erf.f64 6400]
-                 [erfc.f64 6400]
-                 [exp.f64 6400]
-                 [exp2.f64 6400]
-                 [expm1.f64 6400]
+                 #:default-cost 6400
+                 #:optional acos.f64
+                 acosh.f64
+                 asin.f64
+                 asinh.f64
+                 atan.f64
+                 atan2.f64
+                 atanh.f64
+                 cbrt.f64
+                 ceil.f64
+                 copysign.f64
+                 cos.f64
+                 cosh.f64
+                 erf.f64
+                 exp.f64
+                 exp2.f64
                  [fabs.f64 128]
-                 [fdim.f64 6400]
-                 [floor.f64 6400]
-                 [fmax.f64 6400]
-                 [fmin.f64 6400]
-                 [fmod.f64 6400]
-                 [lgamma.f64 6400]
-                 [log.f64 6400]
-                 [log10.f64 6400]
-                 [log1p.f64 6400]
-                 [log2.f64 6400]
-                 [logb.f64 6400]
-                 [pow.f64 6400]
-                 [remainder.f64 6400]
-                 [rint.f64 6400]
-                 [round.f64 6400]
-                 [sin.f64 6400]
-                 [sinh.f64 6400]
+                 fdim.f64
+                 floor.f64
+                 fmax.f64
+                 fmin.f64
+                 fmod.f64
+                 lgamma.f64
+                 log.f64
+                 log10.f64
+                 log1p.f64
+                 log2.f64
+                 logb.f64
+                 pow.f64
+                 remainder.f64
+                 rint.f64
+                 round.f64
+                 sin.f64
+                 sinh.f64
                  [sqrt.f64 640]
-                 [tan.f64 6400]
-                 [tanh.f64 6400]
-                 [tgamma.f64 6400]
-                 [trunc.f64 6400]
-                 acos.f32
+                 tan.f64
+                 tanh.f64
+                 tgamma.f64
+                 trunc.f64)
+
+(define-platform libm32-platform
+                 #:literal [binary32 32]
+                 #:default-cost 3200
+                 #:optional acos.f32
                  acosh.f32
                  asin.f32
                  asinh.f32
@@ -109,10 +111,8 @@
                  cos.f32
                  cosh.f32
                  erf.f32
-                 erfc.f32
                  exp.f32
                  exp2.f32
-                 expm1.f32
                  [fabs.f32 64]
                  fdim.f32
                  floor.f32
@@ -157,7 +157,11 @@
 (define hardware-platform (platform-union boolean-platform machine-platform))
 
 (define default-platform
-  (platform-union boolean-platform machine-platform libm-platform accelerator-platform))
+  (platform-union boolean-platform
+                  machine-platform
+                  libm64-platform
+                  libm32-platform
+                  accelerator-platform))
 
 ; Register all three
 
