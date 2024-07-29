@@ -337,7 +337,18 @@
    (url main)))
 
 (define (check-status req job-id)
-  (match (is-job-finished job-id)
+  (define r (is-job-finished job-id))
+  ;; Well this isn't great but moving on.
+  (eprintf "check-status: ~a\n" r)
+  (match r
+    [#f (response 202
+               #"Job in progress"
+               (current-seconds)
+               #"text/plain"
+               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count)))))
+               (λ (out)
+                 (display "Not done!"
+                          out)))]
     [(? box? timeline)
      (response 202
                #"Job in progress"
@@ -349,7 +360,7 @@
                                  (for/list ([entry (reverse (unbox timeline))])
                                    (format "Doing ~a\n" (hash-ref entry 'type))))
                           out)))]
-    [#f
+    [(? hash? result-hash)
      (response/full 201
                     #"Job complete"
                     (current-seconds)
