@@ -168,7 +168,7 @@
 ;;
 ;; Example usage:
 ;; ```
-;; (define default
+;; (define-platform default
 ;;   (platform
 ;;     #:literal [binary64 64]                  ; literal representation with cost
 ;;     #:literal [binary32 32]                  ; literal representation with cost
