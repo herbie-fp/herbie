@@ -126,6 +126,7 @@
           [(? literal?) 1]
           [(? variable?) 1]
           [`(if ,c ,ift ,iff) 1]
+          [(approx spec impl) 1]
           [(list f args ...)
            (define repr (impl-info f 'otype))
            (define argapprox

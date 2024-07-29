@@ -43,21 +43,19 @@
   (define subexprs
     (reap [sow]
           (let loop ([expr expr])
+            (sow expr)
             (match expr
+              [(? number?) (void)]
+              [(? literal?) (void)]
+              [(? variable?) (void)]
               [(approx _ impl) (loop impl)]
-              [_
-               (sow expr)
-               (match expr
-                 [(? number?) (void)]
-                 [(? literal?) (void)]
-                 [(? variable?) (void)]
-                 [`(if ,c ,t ,f)
-                  (loop c)
-                  (loop t)
-                  (loop f)]
-                 [(list _ args ...)
-                  (for ([arg args])
-                    (loop arg))])]))))
+              [`(if ,c ,t ,f)
+               (loop c)
+               (loop t)
+               (loop f)]
+              [(list _ args ...)
+               (for ([arg args])
+                 (loop arg))]))))
   (remove-duplicates (if reverse? (reverse subexprs) subexprs)))
 
 (define (ops-in-expr expr)
