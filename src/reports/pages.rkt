@@ -28,42 +28,44 @@
   (define success-pages '("interactive.js" "points.json"))
   (append default-pages (if good? success-pages empty)))
 
-(define ((page-error-handler result page out) e)
-  (define test (job-result-test result))
+(define ((page-error-handler result-hash page out) e)
+  (define test (hash-ref result-hash 'test))
   (eprintf "Error generating `~a` for \"~a\":\n  ~a\n" page (test-name test) (exn-message e))
   (parameterize ([current-error-port out])
     (display "<!doctype html><pre>" out)
     ((error-display-handler) (exn-message e) e)
     (display "</pre>" out)))
 
-(define (make-page page out result output? profile?)
-  (define test (job-result-test result))
-  (define status (job-result-status result))
+(define (make-page page out result-hash output? profile?)
+  (eprintf "make-page\n")
+  (define test (hash-ref result-hash 'test))
+  (define status (hash-ref result-hash 'status))
   (define ctx (test-context test))
+  (define timeline (hash-ref result-hash 'timeline))
   (match page
     ["graph.html"
      (match status
-       ['success (make-graph result out output? (get-interactive-js result ctx) profile?)]
-       ['timeout (make-traceback result out profile?)]
-       ['failure (make-traceback result out profile?)]
+       ['success (make-graph result-hash out output? (get-interactive-js result-hash ctx) profile?)]
+       ['timeout (make-traceback result-hash out profile?)]
+       ['failure (make-traceback result-hash out profile?)]
        [_ (error 'make-page "unknown result type ~a" status)])]
-    ["interactive.js" (make-interactive-js result out ctx)]
-    ["timeline.html" (make-timeline (test-name test) (job-result-timeline result) out #:path "..")]
-    ["timeline.json" (write-json (job-result-timeline result) out)]
-    ["points.json" (make-points-json result out ctx)]))
+    ["interactive.js" (make-interactive-js result-hash out ctx)]
+    ["timeline.html" (make-timeline (test-name test) timeline out #:path "..")]
+    ["timeline.json" (write-json timeline out)]
+    ["points.json" (make-points-json result-hash out ctx)]))
 
-(define (get-interactive-js result ctx)
-  (match-define (job-result _ _ _ _ _ _ (improve-result _ _ start _ end _)) result)
-  (define start-expr (alt-expr (alt-analysis-alt start)))
-  (define end-expr (alt-expr (alt-analysis-alt (car end))))
-  (define start-fpcore (program->fpcore start-expr ctx))
-  (define end-fpcore (program->fpcore end-expr ctx))
-  (and (fpcore? start-fpcore)
+(define (get-interactive-js result-hash ctx)
+
+  (define backend (hash-ref result-hash 'backend))
+  (define start (hash-ref backend 'start))
+  (define end (hash-ref backend 'end))
+  (define end-fpcore (car (hash-ref end 'end-alts)))
+  (and (fpcore? start)
        (fpcore? end-fpcore)
-       (supported-by-lang? start-fpcore "js")
+       (supported-by-lang? start "js")
        (supported-by-lang? end-fpcore "js")
        (string-append (js-header "Math") ; pow, fmax, fmin will not work without this
-                      (core->js start-fpcore "start")
+                      (core->js start "start")
                       (core->js end-fpcore "end"))))
 
 (define (make-interactive-js result out ctx)
