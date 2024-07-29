@@ -36,7 +36,7 @@
   (for/list ([var (in-list (context-vars ctx))]
              [repr (in-list (context-var-reprs ctx))]
              #:when (has-fabs-neg-impls? repr))
-    (list 'even var (replace-vars `((,var . (neg ,var))) spec))))
+    (list 'even var (replace-expression spec var `(neg ,var)))))
 
 ;; The odd identities: f(x) = -f(-x)
 ;; Requires `neg` and `fabs` operator implementations.
@@ -44,7 +44,7 @@
   (for/list ([var (in-list (context-vars ctx))]
              [repr (in-list (context-var-reprs ctx))]
              #:when (and (has-fabs-neg-impls? repr) (has-copysign-impl? repr)))
-    (list 'odd var (replace-vars `((,var . (neg ,var))) `(neg ,spec)))))
+    (list 'odd var (replace-expression `(neg ,spec) var `(neg ,var)))))
 
 ;; Swap identities: f(a, b) = f(b, a)
 (define (make-swap-identities spec ctx)

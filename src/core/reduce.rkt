@@ -13,6 +13,51 @@
 
 (define-resetter simplify-node-cache (λ () (make-hash)) (λ () (make-hash)))
 
+;; This is a transcription of egg-herbie/src/math.rs, lines 97-149
+(define (eval-application op . args)
+  (define exact-value? (conjoin number? exact?))
+  (match (cons op args)
+    [(list '+ (? exact-value? as) ...) (apply + as)]
+    [(list '- (? exact-value? as) ...) (apply - as)]
+    [(list '* (? exact-value? as) ...) (apply * as)]
+    [(list '/ (? exact-value? num) (? exact-value? den)) (and (not (zero? den)) (/ num den))]
+    [(list 'neg (? exact-value? arg)) (- arg)]
+    [(list 'pow (? exact-value? a) (? exact-value? b))
+     (cond
+       [(and (zero? b) (not (zero? a))) 1]
+       [(and (zero? a) (positive? b)) 0]
+       [(and (not (zero? a)) (integer? b)) (expt a b)]
+       [else #f])]
+    [(list 'sqrt (? exact-value? a))
+     (let ([s1 (sqrt (numerator a))] [s2 (sqrt (denominator a))])
+       (and (real? s1) (real? s2) (exact? s1) (exact? s2) (/ s1 s2)))]
+    [(list 'cbrt (? exact-value? a))
+     (define inexact-num (inexact->exact (expt (numerator a) 1/3)))
+     (define inexact-den (inexact->exact (expt (denominator a) 1/3)))
+     (and (real? inexact-num)
+          (real? inexact-den)
+          (= (expt inexact-num 3) (numerator a))
+          (= (expt inexact-den 3) (denominator a))
+          (/ inexact-num inexact-den))]
+    [(list 'fabs (? exact-value? a)) (abs a)]
+    [(list 'floor (? exact-value? a)) (floor a)]
+    [(list 'ceil (? exact-value? a)) (ceiling a)]
+    [(list 'round (? exact-value? a)) (round a)]
+    ;; Added
+    [(list 'exp 0) 1]
+    [(list 'log 1) 0]
+    [_ #f]))
+
+(module+ test
+  (require rackunit)
+
+  (check-equal? (eval-application '+ 1 1) 2)
+  (check-equal? (eval-application '+) 0)
+  (check-equal? (eval-application '/ 1 0) #f) ; Not valid
+  (check-equal? (eval-application 'cbrt 1) 1)
+  (check-equal? (eval-application 'log 1) 0)
+  (check-equal? (eval-application 'exp 2) #f)) ; Not exact
+
 (define (simplify expr)
   (hash-ref! (simplify-cache) expr (λ () (simplify* expr))))
 

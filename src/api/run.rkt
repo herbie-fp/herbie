@@ -9,7 +9,7 @@
          "../utils/profile.rkt"
          "../utils/timeline.rkt"
          "../core/sampling.rkt"
-         "../reports/make-report.rkt"
+         "../reports/pages.rkt"
          "thread-pool.rkt"
          "../reports/timeline.rkt")
 
@@ -76,9 +76,7 @@
   (copy-file (web-resource "report.js") (build-path dir "report.js") #t)
   (copy-file (web-resource "report.css") (build-path dir "report.css") #t)
   (copy-file (web-resource "logo-car.png") (build-path dir "logo-car.png") #t)
-  (call-with-output-file (build-path dir "index.html")
-                         (curryr make-report-page info dir)
-                         #:exists 'replace)
+  (copy-file (web-resource "report.html") (build-path dir "index.html") #t)
   (define timeline (merge-timeline-jsons (read-json-files info dir "timeline.json")))
   (call-with-output-file (build-path dir "timeline.json")
                          (curry write-json timeline)
@@ -111,6 +109,4 @@
   (define df
     (diff-datafiles (read-datafile (build-path old "results.json"))
                     (read-datafile (build-path new "results.json"))))
-  (call-with-output-file (build-path new "index.html")
-                         #:exists 'replace
-                         (curryr make-report-page df #f)))
+  (copy-file (web-resource "report.html") (build-path new "index.html") #t))

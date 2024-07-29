@@ -107,12 +107,16 @@
   (define value (hash-ref! (*prepend-arguement-cache*) key (lambda () (macro v))))
   value)
 
+(define (valid-splitpoints? splitpoints)
+  (and (= (set-count (list->set (map sp-bexpr splitpoints))) 1) (nan? (sp-point (last splitpoints)))))
+
 ;; Accepts a list of sindices in one indexed form and returns the
 ;; proper splitpoints in float form. A crucial constraint is that the
 ;; float form always come from the range [f(idx1), f(idx2)). If the
 ;; float form of a split is f(idx2), or entirely outside that range,
 ;; problems may arise.
-(define (sindices->spoints points expr alts sindices ctx)
+(define/contract (sindices->spoints points expr alts sindices ctx)
+  (-> (listof (listof any/c)) any/c (listof alt?) (listof si?) context? valid-splitpoints?)
   (define repr (repr-of expr ctx))
 
   (define eval-expr (compile-prog expr ctx))
@@ -170,9 +174,6 @@
             (timeline-push! 'method (if use-binary "binary-search" "left-value"))
             (sp (si-cidx si1) expr split-at))
           (list (sp (si-cidx (last sindices)) expr +nan.0))))
-
-(define (valid-splitpoints? splitpoints)
-  (and (= (set-count (list->set (map sp-bexpr splitpoints))) 1) (nan? (sp-point (last splitpoints)))))
 
 (define/contract (splitpoints->point-preds splitpoints alts ctx)
   (-> valid-splitpoints? (listof alt?) context? (listof procedure?))

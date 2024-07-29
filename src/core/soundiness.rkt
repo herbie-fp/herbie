@@ -118,23 +118,12 @@
 ;; Adds proof information to alternatives.
 (define (add-soundiness-to altn pcontext ctx alt->proof)
   (match altn
-    ; recursive rewrite using egg
-    [(alt expr `(rr ,loc ,(? egg-runner? runner) #f #f) `(,prev) _)
+    ; recursive rewrite or simplify, both using egg
+    [(alt expr (list phase loc (? egg-runner? runner) #f #f) `(,prev) _)
+     #:when (or (equal? phase 'simplify) (equal? phase 'rr))
      (match-define (cons proof* errs)
        (canonicalize-proof (alt-expr altn) (alt->proof altn) loc pcontext ctx))
      (alt expr `(rr ,loc ,runner ,proof* ,errs) `(,prev) '())]
-
-    ; recursive rewrite using rewrite-once
-    [(alt expr `(rr ,loc ,(? rule? input) #f #f) `(,prev) _)
-     (define proof (list (alt-expr prev) (list 'Rewrite=> (rule-name input) (alt-expr altn))))
-     (define errs (get-proof-errors proof pcontext ctx))
-     (alt expr `(rr ,loc ,input ,proof ,errs) `(,prev) '())]
-
-    ; simplify using egg
-    [(alt expr `(simplify ,loc ,(? egg-runner? runner) #f #f) `(,prev) _)
-     (match-define (cons proof* errs)
-       (canonicalize-proof (alt-expr altn) (alt->proof altn) loc pcontext ctx))
-     (alt expr `(simplify ,loc ,runner ,proof* ,errs) `(,prev) '())]
 
     ; everything else
     [_ altn]))

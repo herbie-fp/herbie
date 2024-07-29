@@ -27,31 +27,6 @@
       [(alt _ _ (list) _) #f]
       [(alt _ _ (list prev _ ...) _) (loop prev)])))
 
-(define/contract (render-interactive vars point)
-  (-> (listof symbol?) (listof number?) xexpr?)
-  `(div ([id "try-it"] [style "display: flow-root"])
-        (div ([id "try-inputs-wrapper"])
-             (form ([id "try-inputs"])
-                   (p ((class "header")) "Your Program's Arguments")
-                   (ol ,@(for/list ([var-name (in-list vars)] [i (in-naturals)] [val point])
-                           `(li (label ((for ,(string-append "var-name-" (~a i))
-                                          ))
-                                       ,(~a var-name))
-                                (input ([type "text"] (class "input-submit")
-                                                      [name ,(string-append "var-name-" (~a i))]
-                                                      [value ,(~a val)])))))))
-        (div ([id "try-result"] (class "no-error"))
-             (p ((class "header")) "Results")
-             (table (tbody (tr (td (label ((for "try-original-output"
-                                             ))
-                                          "In"))
-                               (td (output ([id "try-original-output"]))))
-                           (tr (td (label ((for "try-herbie-output"
-                                             ))
-                                          "Out"))
-                               (td (output ([id "try-herbie-output"]))))))
-             (div ([id "try-error"]) "Enter valid numbers for all inputs"))))
-
 (define (alt->tex alt ctx)
   (core->tex (core-cse (program->fpcore (alt-expr alt) ctx))))
 
@@ -60,7 +35,7 @@
     [(list op args ...) (ormap list? args)]
     [_ #f]))
 
-(define (make-graph result out output? fpcore? profile?)
+(define (make-graph result out output? profile?)
   (match-define (job-result _ test _ time _ warnings backend) result)
   (define vars (test-vars test))
   (define repr (test-output-repr test))
@@ -95,13 +70,11 @@
       (and (not (null? better)) (apply max better))))
 
   (match-define (list train-pctx test-pctx) pctxs)
-  (define-values (points _) (pcontext->lists train-pctx))
 
   (define end-alt (car end-alts))
   (define end-error (car end-errors))
 
-  (fprintf out "<!doctype html>\n")
-  (write-xexpr
+  (write-html
    `(html
      (head (meta ([charset "utf-8"]))
            (title "Result for " ,(~a (test-name test)))
@@ -110,7 +83,6 @@
            (script ([src "https://unpkg.com/d3@6.7.0/dist/d3.min.js"]))
            (script ([src "https://unpkg.com/@observablehq/plot@0.4.3/dist/plot.umd.min.js"]))
            (link ([rel "stylesheet"] [type "text/css"] [href "../report.css"]))
-           (script ([src "interactive.js"]))
            (script ([src "../report.js"])))
      (body
       ,(render-menu #:path ".."
@@ -136,18 +108,7 @@
                               #:title "Relative speed of fastest alternative that improves accuracy.")
                 ""))
       ,(render-warnings warnings)
-      ,(let-values ([(dropdown body)
-                     (render-program (test-spec test) ctx #:pre (test-pre test) #:ident identifier)])
-         `(section
-           (details ([id "specification"] (class "programs"))
-                    (summary (h2 "Specification")
-                             ,dropdown
-                             (a ((class "help-button float") [href ,(doc-url "report.html#spec")]
-                                                             [target "_blank"])
-                                "?"))
-                    ,body
-                    (p "Sampling outcomes in " (kbd ,(~a (representation-name repr))) " precision:")
-                    ,(render-bogosity bogosity))))
+      ,(render-specification test #:bogosity bogosity)
       (figure ([id "graphs"])
               (h2 "Local Percentage Accuracy vs "
                   (span ([id "variables"]))

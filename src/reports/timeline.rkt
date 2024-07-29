@@ -16,8 +16,7 @@
 ;; This first part handles timelines for a single Herbie run
 
 (define (make-timeline name timeline out #:info [info #f] #:path [path "."])
-  (fprintf out "<!doctype html>\n")
-  (write-xexpr
+  (write-html
    `(html (head (meta ([charset "utf-8"]))
                 (title "Metrics for " ,(~a name))
                 (link ([rel "stylesheet"] [type "text/css"]

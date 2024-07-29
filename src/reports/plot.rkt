@@ -13,10 +13,90 @@
          "../core/bsearch.rkt"
          "../api/sandbox.rkt")
 
-(provide real->ordinal
-         regime-splitpoints
-         choose-ticks
-         regime-var)
+(provide make-points-json
+         splitpoints->json)
+
+(define (all-same? pts idx)
+  (= 1 (set-count (for/set ([pt pts]) (list-ref pt idx)))))
+
+(define (ulps->bits-tenths x)
+  (string->number (real->decimal-string (ulps->bits x) 1)))
+
+(define (splitpoints->json vars alt repr)
+  (for/list ([var (in-list vars)])
+    (define split-var? (equal? var (regime-var alt)))
+    (if split-var?
+        (for/list ([val (regime-splitpoints alt)])
+          (real->ordinal (repr->real val repr) repr))
+        '())))
+
+(define (make-points-json result repr)
+  (match-define (job-result _ test _ _ _ _ (improve-result _ pctxs start targets end _)) result)
+  (define repr (test-output-repr test))
+  (define start-errors (alt-analysis-test-errors start))
+
+  (define target-errors (map alt-analysis-test-errors targets))
+
+  (define end-errors (map alt-analysis-test-errors end))
+  (define newpoints (pcontext-points (second pctxs)))
+
+  ; Immediately convert points to reals to handle posits
+  (define points
+    (for/list ([point newpoints])
+      (for/list ([x point])
+        (repr->real x repr))))
+
+  (define json-points
+    (for/list ([point points])
+      (for/list ([value point])
+        (real->ordinal value repr))))
+
+  (define vars (test-vars test))
+  (define bits (representation-total-bits repr))
+  (define start-error (map ulps->bits-tenths start-errors))
+  (define target-error (map (lambda (alt-error) (map ulps->bits-tenths alt-error)) target-errors))
+  (define end-error (map ulps->bits-tenths (car end-errors)))
+
+  (define target-error-entries
+    (for/list ([i (in-naturals)] [error-value (in-list target-error)])
+      (cons (format "target~a" (+ i 1)) error-value)))
+
+  (define error-entries
+    (list* (cons "start" start-error) (cons "end" end-error) target-error-entries))
+
+  (define ticks
+    (for/list ([var (in-list vars)] [idx (in-naturals)] #:unless (all-same? newpoints idx))
+      ; We want to bail out since choose-ticks will crash otherwise
+      (define points-at-idx (map (curryr list-ref idx) points))
+      (define real-ticks (choose-ticks (apply min points-at-idx) (apply max points-at-idx) repr))
+      (for/list ([val real-ticks])
+        (define tick-str
+          (if (or (= val 0) (< 0.01 (abs val) 100))
+              (~r (exact->inexact val) #:precision 4)
+              (string-replace (~r val #:notation 'exponential #:precision 0) "1e" "e")))
+        (list tick-str (real->ordinal val repr)))))
+
+  (define end-alt (alt-analysis-alt (car end)))
+  (define splitpoints (splitpoints->json vars end-alt repr))
+
+  ; NOTE ordinals *should* be passed as strings so we can detect truncation if
+  ;   necessary, but this isn't implemented yet.
+  ; Fields:
+  ;   bits: int representing the maximum possible bits of error
+  ;   vars: array of n string variable names
+  ;   points: array of size m like [[x0, x1, ..., xn], ...] where x0 etc.
+  ;     are ordinals representing the real input values
+  ;   error: JSON dictionary where keys are {start, end, target1, ..., targetn}.
+  ;          Each key's value holds an array like [y0, ..., ym] where y0 etc are
+  ;          bits of error for the output on each point
+  ;   ticks: array of size n where each entry is 13 or so tick values as [ordinal, string] pairs
+  ;   splitpoints: array with the ordinal splitpoints
+  `#hasheq((bits . ,bits)
+           (vars . ,(map symbol->string vars))
+           (points . ,json-points)
+           (error . ,error-entries)
+           (ticks_by_varidx . ,ticks)
+           (splitpoints_by_varidx . ,splitpoints)))
 
 ;;  Repr conversions
 
