@@ -46,8 +46,12 @@
   (place-channel-get a))
 
 ; Returns #f is now job exsist for the given job-id
-(define (get-results-for id)
-  (hash-ref *completed-jobs* id #f))
+(define (get-results-for job-id)
+  (define-values (a b) (place-channel))
+  (place-channel-put receptionist (list 'check job-id b))
+  (when verbose
+    (eprintf "Getting result for job: ~a.\n" job-id))
+  (place-channel-get a))
 
 ; I don't like how specific this function is but it keeps the API boundary.
 (define (get-improve-job-data)
