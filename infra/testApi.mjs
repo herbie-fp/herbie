@@ -97,6 +97,18 @@ const localError = await callHerbie("/api/localerror", {
 assertIdAndPath(localError)
 assert.equal(localError.tree['avg-error'] > 0, true)
 
+const json1 = `
+{"formula":"${FPCoreFormula}","sample":[[[2.852044568544089e-150],1e+308]],"seed":5}`
+const json2 = `{"formula":"${FPCoreFormula}","sample":[[[1.5223342548065899e-15],1e+308]],"seed":5}`
+const localError1 = await callHerbie("/api/localerror", {
+  method: 'POST', body: json1
+})
+const localError2 = await callHerbie("/api/localerror", {
+  method: 'POST', body: json2
+})
+// Test that different sample points produce different job ids ensuring that different results are served for these inputs.
+assert.notEqual(localError1.job,localError2.job)
+
 // Alternatives endpoint
 
 const alternatives = await callHerbie("/api/alternatives", {
