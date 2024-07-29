@@ -92,7 +92,11 @@
   job-id)
 
 (define (is-job-finished job-id)
-  (hash-ref *job-status* job-id #f))
+  (define-values (a b) (place-channel))
+  (place-channel-put receptionist (list 'check job-id b))
+  (when verbose
+    (eprintf "Checking if job is finished: ~a.\n" job-id))
+  (place-channel-get a))
 
 ; verbose logging for debugging
 (define verbose #t) ; Maybe change to log-level and use 'verbose?
