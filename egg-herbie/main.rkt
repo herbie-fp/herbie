@@ -22,7 +22,6 @@
          egraph_get_times_applied
          egraph_get_proof
          destroy_string
-         egraph_is_equal
          (struct-out EGraphIter)
          (struct-out FFIRule))
 
@@ -136,8 +135,6 @@
                       _pointer))
 
 (define-eggmath egraph_get_proof (_fun _egraph-pointer _string/utf-8 _string/utf-8 -> _pointer))
-
-(define-eggmath egraph_is_equal (_fun _egraph-pointer _string/utf-8 _string/utf-8 -> _stdbool))
 
 ;; node number -> (s-expr string) string
 (define-eggmath egraph_get_variants

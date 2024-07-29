@@ -82,6 +82,7 @@
         [(? symbol?) expr]
         [(? number?) expr]
         [(? literal?) (literal-value expr)]
+        [(approx _ impl) (loop impl)]
         [`(if ,cond ,ift ,iff) `(if ,(loop cond) ,(loop ift) ,(loop ift))]
         [`(,(? impl-exists? impl) ,args ...) `(,(impl->operator impl) ,@(map loop args))]
         [`(,op ,args ...) `(,op ,@(map loop args))])))

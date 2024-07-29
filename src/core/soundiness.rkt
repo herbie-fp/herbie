@@ -5,7 +5,8 @@
          "programs.rkt"
          "egg-herbie.rkt"
          "rules.rkt"
-         "../syntax/sugar.rkt")
+         "../syntax/sugar.rkt"
+         "../syntax/syntax.rkt")
 
 (provide add-soundiness)
 
@@ -70,7 +71,7 @@
 
   (define (build! altn)
     (match altn
-      ; recursive rewrite using egg (spec -> impl)
+      ; recursive rewrite using egg (impl -> impl)
       [(alt expr `(rr ,loc ,(? egg-runner? runner) #f #f) `(,prev) _)
        (define start-expr (location-get loc (alt-expr prev)))
        (define start-expr* (prog->spec start-expr))
@@ -79,16 +80,24 @@
        (hash-set! alt->query&rws (altn->key altn) (cons runner rewrite))
        (hash-update! query->rws runner (lambda (rws) (set-add rws rewrite)) '())]
 
-      ; simplify using egg (spec -> impl)
+      ; simplify using egg
+      ;  usually: impl -> impl
+      ;  taylor: spec -> approx (_, impl)
       [(alt expr `(simplify ,loc ,(? egg-runner? runner) #f #f) `(,prev) _)
-       (define start-expr (location-get loc (alt-expr prev)))
-       (define end-expr (location-get loc expr))
-
-       (define start-expr*
+       (define rewrite
          (match (alt-event prev)
-           [(list 'taylor _ ...) start-expr] ; input was inserted as-is
-           [_ (prog->spec start-expr)]))
-       (define rewrite (cons start-expr* end-expr))
+           [(list 'taylor _ ...)
+            ; simplify after taylor: spec -> approx (_, impl)
+            (define start-expr (location-get loc (alt-expr prev)))
+            (define end-expr (location-get loc expr))
+            (unless (approx? end-expr)
+              (error 'make-proof-tables "expected approx node, got ~a" end-expr))
+            (cons start-expr (approx-impl end-expr))]
+           [_
+            ; simplify after other: impl -> impl
+            (define start-expr (location-get loc (alt-expr prev)))
+            (define end-expr (location-get loc expr))
+            (cons start-expr end-expr)]))
 
        (hash-set! alt->query&rws (altn->key altn) (cons runner rewrite))
        (hash-update! query->rws runner (lambda (rws) (set-add rws rewrite)) '())]

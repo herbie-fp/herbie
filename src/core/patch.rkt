@@ -58,7 +58,8 @@
             (match-define (cons _ simplified) outputs)
             (define prev (hash-ref approx->prev altn))
             (for ([expr (in-list simplified)])
-              (sow (alt (approx (alt-expr prev) expr) `(simplify ,runner #f #f) (list altn) '()))))))
+              (define spec (prog->spec (alt-expr prev)))
+              (sow (alt (approx spec expr) `(simplify ,runner #f #f) (list altn) '()))))))
 
   (timeline-push! 'count (length approxs) (length simplified))
   simplified)

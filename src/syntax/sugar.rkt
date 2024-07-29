@@ -198,6 +198,7 @@
      (match (cons op args*)
        [`(neg ,arg) `(- ,arg)]
        [expr expr])]
+    [(approx _ impl) (prog->fpcore impl)]
     [(? variable?) expr]
     [(? literal?)
      (match (literal-value expr)
@@ -213,5 +214,6 @@
      [`(if ,cond ,ift ,iff) `(if ,(prog->spec cond) ,(prog->spec ift) ,(prog->spec iff))]
      [`(,(? cast-impl? impl) ,body) `(,impl ,(prog->spec body))]
      [`(,impl ,args ...) `(,(impl->operator impl) ,@(map prog->spec args))]
+     [(approx spec _) spec]
      [(? variable?) expr]
      [(? literal?) (literal-value expr)])))

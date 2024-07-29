@@ -96,8 +96,7 @@
        (define id2 (egraph_add_expr ptr (~a spec)))
        (egraph_union ptr id1 id2)
        (loop impl)]
-      [(list _ args ...)
-       (for-each loop args)]))
+      [(list _ args ...) (for-each loop args)]))
   ; add the actual expression
   (egraph_add_expr ptr (~a egg-expr)))
 
@@ -165,9 +164,9 @@
   (egraph_find (egraph-data-egraph-pointer egraph-data) id))
 
 (define (egraph-expr-equal? egraph-data expr goal ctx)
-  (define egg-expr (~a (expr->egg-expr expr egraph-data ctx)))
-  (define egg-goal (~a (expr->egg-expr goal egraph-data ctx)))
-  (egraph_is_equal (egraph-data-egraph-pointer egraph-data) egg-expr egg-goal))
+  (define id1 (egraph-add-expr egraph-data expr ctx))
+  (define id2 (egraph-add-expr egraph-data goal ctx))
+  (= (egraph-find egraph-data id1) (egraph-find egraph-data id2)))
 
 ;; returns a flattened list of terms or #f if it failed to expand the proof due to budget
 (define (egraph-get-proof egraph-data expr goal ctx)
@@ -765,8 +764,7 @@
       [(? symbol?)
        (define repr (cdr (hash-ref egg->herbie node)))
        (type/union repr (representation-type repr))]
-      [(list '$approx _ impl)
-       (vector-ref analysis impl)]
+      [(list '$approx _ impl) (vector-ref analysis impl)]
       [(list 'if _ ift iff)
        (define ift-types (vector-ref analysis ift))
        (define iff-types (vector-ref analysis iff))
@@ -818,8 +816,7 @@
       [(? symbol?)
        (define repr (cdr (hash-ref egg->herbie node)))
        (type/union repr (representation-type repr))]
-      [(list '$approx _ impl)
-       (vector-ref eclass-types impl)]
+      [(list '$approx _ impl) (vector-ref eclass-types impl)]
       [(list 'if _ ift iff)
        (define ift-types (vector-ref eclass-types ift))
        (define iff-types (vector-ref eclass-types iff))
@@ -906,8 +903,7 @@
 
   (define (slow-node-ready? node type)
     (match node
-      [(list '$approx _ impl)
-       (eclass-has-cost? impl type)]
+      [(list '$approx _ impl) (eclass-has-cost? impl type)]
       [(list 'if cond ift iff)
        (and (eclass-has-cost? cond (get-representation 'bool))
             (eclass-has-cost? ift type)
@@ -1006,8 +1002,8 @@
     [(? symbol?) ; variables (`egg->herbie` has the repr)
      (define repr (cdr (hash-ref egg->herbie node)))
      ((node-cost-proc node repr))]
-    [(list '$approx _ impl) ; approx node
-     (rec impl type +inf.0)]
+    ; approx node
+    [(list '$approx _ impl) (rec impl type +inf.0)]
     [(list 'if cond ift iff) ; if expression
      (define cost-proc (node-cost-proc node type))
      (cost-proc (rec cond (get-representation 'bool) +inf.0)
@@ -1024,8 +1020,8 @@
   (match node
     [(? number?) 1]
     [(? symbol?) 1]
-    [(list '$approx _ impl) ; approx node
-     (rec impl type +inf.0)]
+    ; approx node
+    [(list '$approx _ impl) (rec impl type +inf.0)]
     [(list 'if cond ift iff)
      (+ 1 (rec cond (get-representation 'bool) +inf.0) (rec ift type +inf.0) (rec iff type +inf.0))]
     [(list (? impl-exists? impl) args ...)
