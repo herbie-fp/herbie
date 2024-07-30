@@ -23,7 +23,7 @@
 
 (provide completed-job?
          make-path
-         get-improve-results
+         get-improve-table-data
          make-improve-result
          get-results-for
          job-count
@@ -54,7 +54,7 @@
     (eprintf "Getting result for job: ~a.\n" job-id))
   (place-channel-get a))
 
-(define (get-improve-results)
+(define (get-improve-table-data)
   (define-values (a b) (place-channel))
   (place-channel-put receptionist (list 'improve b))
   (when verbose
@@ -143,7 +143,7 @@
         (define improved-list
           (for/list ([(job-id result) completed-work]
                      #:when (equal? (hash-ref result 'command) "improve"))
-            result))
+            (get-table-data-from-hash result (make-path job-id))))
         (place-channel-put handler improved-list)]
        [(list 'start self command job-id)
         (if (hash-has-key? completed-work job-id)
