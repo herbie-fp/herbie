@@ -81,10 +81,11 @@
      (when (*demo-output*)
        (make-directory (build-path (*demo-output*) path))
        (for ([page (all-pages result-hash)])
-         (call-with-output-file (build-path (*demo-output*) path page)
-                                (λ (out)
-                                  (with-handlers ([exn:fail? (page-error-handler result-hash page out)])
-                                    (make-page page out result-hash (*demo-output*) #f)))))
+         (call-with-output-file
+          (build-path (*demo-output*) path page)
+          (λ (out)
+            (with-handlers ([exn:fail? (page-error-handler result-hash page out)])
+              (make-page page out result-hash (*demo-output*) #f)))))
        (update-report result-hash
                       path
                       (get-seed)
