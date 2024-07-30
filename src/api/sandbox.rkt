@@ -25,6 +25,7 @@
 
 (provide run-herbie
          unparse-result
+         get-table-data
          partition-pcontext
          get-table-data-from-hash
          *reeval-pts*
@@ -284,7 +285,6 @@
   (if (engine-run (*timeout*) eng) (engine-result eng) (on-timeout)))
 
 (define (dummy-table-row result status link)
-  (eprintf "dummy-table-row\n")
   (define test (job-result-test result))
   (define repr (test-output-repr test))
   (define preprocess
@@ -314,7 +314,6 @@
              '()))
 
 (define (dummy-table-row-from-hash result-hash status link)
-  (eprintf "dummy-table-row-from-hash\n")
   (define test (hash-ref result-hash 'test))
   (define repr (test-output-repr test))
   (define preprocess
@@ -344,10 +343,7 @@
              '()))
 
 (define (get-table-data-from-hash result-hash link)
-  (eprintf "get-table-data-from-hash\n")
-  (define command (hash-ref result-hash 'command))
   (define test (hash-ref result-hash 'test))
-  (define time (hash-ref result-hash 'time))
   (define backend (hash-ref result-hash 'backend))
   (define status (hash-ref result-hash 'status))
   (match status
@@ -414,7 +410,7 @@
                   [target target-cost-score]
                   [result-est end-est-score]
                   [result end-score]
-                  [output (car end-exprs)]
+                  [output (test-input (parse-test (read-syntax 'web (open-input-string (car end-exprs)))))]
                   [cost-accuracy cost&accuracy])]
     ['failure
      (define exn backend)
@@ -423,8 +419,85 @@
     ['timeout (dummy-table-row-from-hash result-hash "timeout" link)]
     [_ (error 'get-table-data "unknown result type ~a" status)]))
 
+(define (get-table-data result link)
+  (match-define (job-result command test status time _ _ backend) result)
+  (match status
+    ['success
+     (match-define (improve-result _ _ start targets end _) backend)
+     (define expr-cost (platform-cost-proc (*active-platform*)))
+     (define repr (test-output-repr test))
+
+     ; starting expr analysis
+     (match-define (alt-analysis start-alt start-train-errs start-test-errs) start)
+     (define start-expr (alt-expr start-alt))
+     (define start-train-score (errors-score start-train-errs))
+     (define start-test-score (errors-score start-test-errs))
+     (define start-cost (expr-cost start-expr repr))
+
+     (define target-cost-score
+       (for/list ([target targets])
+         (define target-expr (alt-expr (alt-analysis-alt target)))
+         (define tar-cost (expr-cost target-expr repr))
+         (define tar-score (errors-score (alt-analysis-test-errors target)))
+
+         (list tar-cost tar-score)))
+
+     ; Important to calculate value of status
+     (define best-score
+       (if (null? target-cost-score) target-cost-score (apply min (map second target-cost-score))))
+
+     ; analysis of output expressions
+     (define-values (end-exprs end-train-scores end-test-scores end-costs)
+       (for/lists (l1 l2 l3 l4)
+                  ([result end])
+                  (match-define (alt-analysis alt train-errors test-errors) result)
+                  (values (alt-expr alt)
+                          (errors-score train-errors)
+                          (errors-score test-errors)
+                          (expr-cost (alt-expr alt) repr))))
+
+     ; terribly formatted pareto-optimal frontier
+     (define cost&accuracy
+       (list (list start-cost start-test-score)
+             (list (car end-costs) (car end-test-scores))
+             (map list (cdr end-costs) (cdr end-test-scores) (cdr end-exprs))))
+
+     (define fuzz 0.1)
+     (define end-est-score (car end-train-scores))
+     (define end-score (car end-test-scores))
+     (define status
+       (if (not (null? best-score))
+           (begin
+             (cond
+               [(< end-score (- best-score fuzz)) "gt-target"]
+               [(< end-score (+ best-score fuzz)) "eq-target"]
+               [(> end-score (+ start-test-score fuzz)) "lt-start"]
+               [(> end-score (- start-test-score fuzz)) "eq-start"]
+               [(> end-score (+ best-score fuzz)) "lt-target"]))
+
+           (cond
+             [(and (< start-test-score 1) (< end-score (+ start-test-score 1))) "ex-start"]
+             [(< end-score (- start-test-score 1)) "imp-start"]
+             [(< end-score (+ start-test-score fuzz)) "apx-start"]
+             [else "uni-start"])))
+
+     (struct-copy table-row
+                  (dummy-table-row result status link)
+                  [start-est start-train-score]
+                  [start start-test-score]
+                  [target target-cost-score]
+                  [result-est end-est-score]
+                  [result end-score]
+                  [output (car end-exprs)]
+                  [cost-accuracy cost&accuracy])]
+    ['failure
+     (define exn backend)
+     (define status (if (exn:fail:user:herbie? exn) "error" "crash"))
+     (dummy-table-row result status link)]
+    ['timeout (dummy-table-row result "timeout" link)]
+    [_ (error 'get-table-data "unknown result type ~a" status)]))
+
 (define (unparse-result row #:expr [expr #f] #:description [descr #f])
-  (eprintf "unparse-result\n")
   (define repr (get-representation (table-row-precision row)))
   (define expr* (or expr (table-row-output row) (table-row-input row)))
   (define top

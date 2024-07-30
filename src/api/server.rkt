@@ -140,7 +140,6 @@
      (match (place-channel-get ch)
        [(list 'count handler) (place-channel-put handler (hash-count workers))]
        [(list 'improve handler)
-        (eprintf "count: ~a\n" (hash-count completed-work))
         (define improved-list
           (for/list ([(job-id result) completed-work]
                      #:when (equal? (hash-ref result 'command) "improve"))
