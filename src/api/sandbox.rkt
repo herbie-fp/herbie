@@ -410,7 +410,8 @@
                   [target target-cost-score]
                   [result-est end-est-score]
                   [result end-score]
-                  [output (test-input (parse-test (read-syntax 'web (open-input-string (car end-exprs)))))]
+                  [output
+                   (test-input (parse-test (read-syntax 'web (open-input-string (car end-exprs)))))]
                   [cost-accuracy cost&accuracy])]
     ['failure
      (define exn backend)
