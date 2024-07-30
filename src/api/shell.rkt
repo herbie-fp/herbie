@@ -2,6 +2,8 @@
 
 (require "../syntax/read.rkt"
          "sandbox.rkt"
+         "server.rkt"
+         "../syntax/sugar.rkt"
          "../utils/common.rkt")
 (provide run-shell)
 
@@ -33,7 +35,7 @@
       (define status (job-result-status result))
       (define time (job-result-time result))
       (match status
-        ['success (pretty-print (unparse-result (get-table-data-from-hash result "")) (current-output-port) 1)]
+        ['success (pretty-print (unparse-result (get-table-data result "")) (current-output-port) 1)]
         ['failure
          (define exn (job-result-backend result))
          ((error-display-handler) (exn-message exn) exn)]
