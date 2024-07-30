@@ -23,6 +23,7 @@
 
 (provide completed-job?
          make-path
+         get-improve-results
          get-results-for
          job-count
          is-server-up
@@ -50,6 +51,13 @@
   (place-channel-put receptionist (list 'check job-id b))
   (when verbose
     (eprintf "Getting result for job: ~a.\n" job-id))
+  (place-channel-get a))
+
+(define (get-improve-results)
+  (define-values (a b) (place-channel))
+  (place-channel-put receptionist (list 'improve b))
+  (when verbose
+    (eprintf "Getting improve results.\n"))
   (place-channel-get a))
 
 (define (job-count)
@@ -130,6 +138,13 @@
      ;  (eprintf "Receptionist msg ~a handled\n" i)
      (match (place-channel-get ch)
        [(list 'count handler) (place-channel-put handler (hash-count workers))]
+       [(list 'improve handler)
+        (eprintf "count: ~a\n" (hash-count completed-work))
+        (define improved-list
+          (for/list ([(job-id result) completed-work]
+                     #:when (equal? (hash-ref result 'command) "improve"))
+            result))
+        (place-channel-put handler improved-list)]
        [(list 'start self command job-id)
         (if (hash-has-key? completed-work job-id)
             (place-channel-put self (list 'finished job-id (hash-ref completed-work job-id)))
