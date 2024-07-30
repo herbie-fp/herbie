@@ -69,13 +69,13 @@ assert.ok(sample.points)
 const points = sample.points
 assert.equal(points.length, SAMPLE_SIZE, `sample size should be ${SAMPLE_SIZE}`)
 
-// const sample2RPS = await callHerbie("/api/sample", { method: 'POST', body: JSON.stringify({ formula: FPCoreFormula2, seed: 5 }) })
-// const jid2 = sample2RPS.headers.get("x-herbie-job-id")
-// assert.notEqual(jid2, null)
-// const sample2 = await sample2RPS.json()
-// const points2 = sample2.points
-// assertIdAndPath(sample2)
-// assert.deepEqual(points[1], points2[1])
+const sample2RPS = await callHerbie("/api/sample", { method: 'POST', body: JSON.stringify({ formula: FPCoreFormula2, seed: 5 }) })
+const jid2 = sample2RPS.headers.get("x-herbie-job-id")
+assert.notEqual(jid2, null)
+const sample2 = await sample2RPS.json()
+const points2 = sample2.points
+assertIdAndPath(sample2)
+assert.deepEqual(points[1], points2[1])
 
 // Analyze endpoint
 const errors = await callHerbie("/api/analyze", {
