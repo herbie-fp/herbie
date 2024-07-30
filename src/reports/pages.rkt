@@ -22,8 +22,8 @@
 (define (unique-values pts idx)
   (length (remove-duplicates (map (curryr list-ref idx) pts))))
 
-(define (all-pages result)
-  (define good? (eq? (hash-ref result 'status) 'success))
+(define (all-pages result-hash)
+  (define good? (eq? (hash-ref result-hash 'status) 'success))
   (define default-pages '("graph.html" "timeline.html" "timeline.json"))
   (define success-pages '("interactive.js" "points.json"))
   (append default-pages (if good? success-pages empty)))
@@ -55,7 +55,6 @@
     ["points.json" (make-points-json result-hash out ctx)]))
 
 (define (get-interactive-js result-hash ctx)
-
   (define backend (hash-ref result-hash 'backend))
   (define start (hash-ref backend 'start))
   (define end (hash-ref backend 'end))
