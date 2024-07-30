@@ -140,8 +140,10 @@ pub unsafe extern "C" fn egraph_run(
             ffi_strings.push(str_tuple);
         }
 
+        println!("rules:");
         for ffi_string in ffi_strings.iter() {
             ffi_tuples.push((&ffi_string.0, &ffi_string.1, &ffi_string.2));
+            println!("rewrite!(\"{}\"; \"{}\" => \"{}\")", ffi_string.0, ffi_string.1, ffi_string.2);
         }
 
         let rules: Vec<Rewrite> = math::mk_rules(&ffi_tuples);
