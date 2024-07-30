@@ -572,25 +572,7 @@
   (*demo-output* output)
   (*demo-prefix* prefix)
   (*demo-log* log)
-
-  (define config
-    `(init rand
-           ,(get-seed)
-           flags
-           ,(*flags*)
-           num-iters
-           ,(*num-iterations*)
-           points
-           ,(*num-points*)
-           timeout
-           ,(*timeout*)
-           output-dir
-           ,(*demo-output*)
-           reeval
-           ,(*reeval-pts*)
-           demo?
-           ,(*demo?*)))
-  (start-job-server config *demo?* *demo-output*)
+  (start-job-server)
 
   (unless quiet?
     (eprintf "Herbie ~a with seed ~a\n" *herbie-version* (get-seed))

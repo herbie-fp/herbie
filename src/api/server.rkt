@@ -82,7 +82,7 @@
                     #:timeline-disabled? [timeline-disabled? #f])
   (herbie-command command test seed pcontext profile? timeline-disabled?))
 
-(define (start-job-server config global-demo global-output)
+(define (start-job-server)
   (set! receptionist (make-receptionist)))
 
 ;; Starts a job for a given command object|
@@ -101,7 +101,7 @@
   (place-channel-get a))
 
 ; verbose logging for debugging
-(define verbose #t) ; Maybe change to log-level and use 'verbose?
+(define verbose #f) ; Maybe change to log-level and use 'verbose?
 (define (log msg)
   (when verbose
     ;; TODO fix string interpolation
@@ -138,23 +138,28 @@
    (for ([i (in-naturals)])
      ;  (eprintf "Receptionist msg ~a handled\n" i)
      (match (place-channel-get ch)
+       ; Returns the current count of workers.
        [(list 'count handler) (place-channel-put handler (hash-count workers))]
+       ; Retreive the improve results for results.json
        [(list 'improve handler)
         (define improved-list
           (for/list ([(job-id result) completed-work]
                      #:when (equal? (hash-ref result 'command) "improve"))
             (get-table-data-from-hash result (make-path job-id))))
         (place-channel-put handler improved-list)]
+       ; Start a worker on a job. Unless the job-id is marked as finished then move to next state.
        [(list 'start self command job-id)
         (if (hash-has-key? completed-work job-id)
             (place-channel-put self (list 'finished job-id (hash-ref completed-work job-id)))
-            (let ([worker (make-worker job-id)])
+            (let ([worker (make-worker)])
+              ; Maybe this should be worker-id and we should pre allocate workers based on threads available.
               (hash-set! workers job-id worker)
               (when verbose
                 (eprintf "Starting worker [~a] on [~a].\n"
                          job-id
                          (test-name (herbie-command-test command))))
               (place-channel-put worker (list 'apply self command job-id))))]
+       ; Job is finished notified the waiting list with the result of the job.
        [(list 'finished job-id result)
         (when verbose
           (eprintf "Job ~a finished, saving result.\n" job-id))
@@ -170,19 +175,19 @@
             (eprintf "waiting notifed\n")
             (place-channel-put waiting result))
           (hash-remove! waiting job-id))]
-       ; check if work is completed.
+       ; Check if work is completed, returns the result or #f
        [(list 'check job-id handler) (place-channel-put handler (hash-ref completed-work job-id #f))]
+       ; Pass a place-channel `handler` to the receptionist to be notified on when a job is complete.
        [(list 'wait job-id handler)
         ; first we add the handler to the wait list.
         (if (false? (hash-ref waiting job-id #f))
             (hash-set! waiting job-id (list handler))
             (let ([wait-list (hash-ref waiting job-id)])
               (hash-set! waiting job-id (append wait-list (list handler)))))
-        ; BUG, Hmm I can dead lock this if I fire 10 of the same jobs pretty quickly.
-        ; I don't think I dead lock I just don't think I'm caching right.
         (define result (hash-ref completed-work job-id #f))
         (when verbose
           (eprintf "Waiting for job: ~a\n" job-id))
+        ; check if the job is completed oor not.
         (unless (false? result)
           ; we have a result to send.
           (let ([maybe-wait-list (hash-ref waiting job-id #f)])
@@ -204,7 +209,7 @@
                           (parameterize ([params fresh] ...)
                             body ...))))]))
 
-(define (make-worker job-id)
+(define (make-worker)
   (place/context*
    ch
    #:parameters (*flags* *num-iterations*
