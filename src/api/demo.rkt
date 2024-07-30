@@ -72,19 +72,19 @@
                   [((hash-arg) (string-arg)) generate-page]
                   [("results.json") generate-report]))
 
-(define (generate-page req result page)
+(define (generate-page req result-hash page)
   (define path (first (string-split (url->string (request-uri req)) "/")))
   (cond
-    [(set-member? (all-pages result) page)
+    [(set-member? (all-pages result-hash) page)
      ;; Write page contents to disk
      (when (*demo-output*)
        (make-directory (build-path (*demo-output*) path))
-       (for ([page (all-pages result)])
+       (for ([page (all-pages result-hash)])
          (call-with-output-file (build-path (*demo-output*) path page)
                                 (λ (out)
-                                  (with-handlers ([exn:fail? (page-error-handler result page out)])
-                                    (make-page page out result (*demo-output*) #f)))))
-       (update-report result
+                                  (with-handlers ([exn:fail? (page-error-handler result-hash page out)])
+                                    (make-page page out result-hash (*demo-output*) #f)))))
+       (update-report result-hash
                       path
                       (get-seed)
                       (build-path (*demo-output*) "results.json")
@@ -95,8 +95,8 @@
                #"text"
                (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count)))))
                (λ (out)
-                 (with-handlers ([exn:fail? (page-error-handler result page out)])
-                   (make-page page out result (*demo-output*) #f))))]
+                 (with-handlers ([exn:fail? (page-error-handler result-hash page out)])
+                   (make-page page out result-hash (*demo-output*) #f))))]
     [else (next-dispatcher)]))
 
 (define (generate-report req)
@@ -231,9 +231,9 @@
                (a ([href "./index.html"]) " See what formulas other users submitted."))]
             [else `("all formulas submitted here are " (a ([href "./index.html"]) "logged") ".")])))))
 
-(define (update-report result dir seed data-file html-file)
+(define (update-report result-hash dir seed data-file html-file)
   (define link (path-element->string (last (explode-path dir))))
-  (define data (get-table-data-from-hash result link))
+  (define data (get-table-data-from-hash result-hash link))
   (define info
     (if (file-exists? data-file)
         (let ([info (read-datafile data-file)])
