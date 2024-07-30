@@ -449,6 +449,7 @@
     [_ (error 'get-table-data "unknown result type ~a" status)]))
 
 (define (unparse-result row #:expr [expr #f] #:description [descr #f])
+  (eprintf "unparse-result\n")
   (define repr (get-representation (table-row-precision row)))
   (define expr* (or expr (table-row-output row) (table-row-input row)))
   (define top
