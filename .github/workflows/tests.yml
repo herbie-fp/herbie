@@ -4,6 +4,7 @@ on: [push]
 
 env:
   RUST_BACKTRACE: full
+  RUST_LOG: 1
 
 jobs:
   hamming:
@@ -28,4 +29,4 @@ jobs:
       - uses: actions/checkout@master
       - name: "Install dependencies"
         run: make install
-      - run: racket infra/ci.rkt --precision ${{ matrix.precision }} --seed 0 bench/hamming/
+      - run: racket infra/ci.rkt --precision ${{ matrix.precision }} --seed 0 test.fpcore
