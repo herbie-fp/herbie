@@ -85,7 +85,7 @@
 ;; result function is a function that takes the ids of the nodes
 (define (egraph-add-expr eg-data expr ctx)
   (define egg-expr (~a (expr->egg-expr expr eg-data ctx)))
-  (printf "~a\n" egg-expr)
+  (eprintf "~a\n" egg-expr)
   (egraph_add_expr (egraph-data-egraph-pointer eg-data) egg-expr))
 
 ;; runs rules on an egraph (optional iteration limit)
