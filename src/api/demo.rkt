@@ -73,7 +73,6 @@
                   [("results.json") generate-report]))
 
 (define (generate-page req result page)
-  (eprintf "generate-page\n")
   (define path (first (string-split (url->string (request-uri req)) "/")))
   (cond
     [(set-member? (all-pages result) page)
@@ -101,12 +100,20 @@
     [else (next-dispatcher)]))
 
 (define (generate-report req)
+  ; Making a lot of assumptions about the req headers
+  (define refreferer-path #f)
+  (for ([header (request-headers req)])
+    (when (equal? 'referer (car header))
+      (set! refreferer-path (cdr header))))
+  (define requested-job-id (first (string-split (fourth (string-split refreferer-path "/")) ".")))
   (cond
     [(and (*demo-output*) (file-exists? (build-path (*demo-output*) "results.json")))
      (next-dispatcher)]
     [else
+     (define result-hash (get-results-for requested-job-id))
+     (define tests (get-table-data-from-hash result-hash refreferer-path))
      (define info
-       (make-report-info (get-improve-job-data)
+       (make-report-info (list tests)
                          #:seed (get-seed)
                          #:note (if (*demo?*) "Web demo results" "Herbie results")))
      (response 200
@@ -339,16 +346,14 @@
 (define (check-status req job-id)
   (define r (is-job-finished job-id))
   ;; Well this isn't great but moving on.
-  (eprintf "check-status: ~a\n" r)
   (match r
-    [#f (response 202
+    [#f
+     (response 202
                #"Job in progress"
                (current-seconds)
                #"text/plain"
                (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count)))))
-               (λ (out)
-                 (display "Not done!"
-                          out)))]
+               (λ (out) (display "Not done!" out)))]
     [(? box? timeline)
      (response 202
                #"Job in progress"
