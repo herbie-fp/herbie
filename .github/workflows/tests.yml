@@ -4,7 +4,7 @@ on: [push]
 
 env:
   RUST_BACKTRACE: full
-  RUST_LOG: info
+  RUST_LOG: 
 
 jobs:
   hamming:
@@ -37,4 +37,4 @@ jobs:
       - uses: actions/checkout@master
       - name: "Install dependencies"
         run: make install
-      - run: racket infra/ci.rkt --precision binary64 --seed 0 test.fpcore
+      - run: cd egg-herbie && (RUST_LOG=info cargo test --package egg-herbie --lib -- bug::repro --nocapture)

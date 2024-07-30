@@ -1,5 +1,6 @@
 #![allow(clippy::missing_safety_doc)]
 
+pub mod bug;
 pub mod math;
 
 use egg::{BackoffScheduler, Extractor, Id, Language, SimpleScheduler, StopReason, Symbol};
@@ -143,7 +144,10 @@ pub unsafe extern "C" fn egraph_run(
         eprintln!("rules:");
         for ffi_string in ffi_strings.iter() {
             ffi_tuples.push((&ffi_string.0, &ffi_string.1, &ffi_string.2));
-            eprintln!("rewrite!(\"{}\"; \"{}\" => \"{}\")", ffi_string.0, ffi_string.1, ffi_string.2);
+            eprintln!(
+                "rewrite!(\"{}\"; \"{}\" => \"{}\")",
+                ffi_string.0, ffi_string.1, ffi_string.2
+            );
         }
 
         let rules: Vec<Rewrite> = math::mk_rules(&ffi_tuples);
