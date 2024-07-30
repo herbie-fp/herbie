@@ -162,21 +162,36 @@
         ; let GC collect worker 🤞.
         (hash-set! completed-work job-id result)
         (hash-remove! workers job-id)
-        (define maybe-handler (hash-ref waiting job-id #f))
-        (when maybe-handler
+        (define maybe-wait-list (hash-ref waiting job-id #f))
+        (when maybe-wait-list
           (when verbose
             (eprintf "waiting job ~a completed\n" job-id))
-          (place-channel-put maybe-handler result)
+          (for ([waiting maybe-wait-list])
+            (eprintf "waiting notifed\n")
+            (place-channel-put waiting result))
           (hash-remove! waiting job-id))]
        ; check if work is completed.
        [(list 'check job-id handler) (place-channel-put handler (hash-ref completed-work job-id #f))]
        [(list 'wait job-id handler)
+        ; first we add the handler to the wait list.
+        (if (false? (hash-ref waiting job-id #f))
+            (hash-set! waiting job-id (list handler))
+            (let ([wait-list (hash-ref waiting job-id)])
+              (hash-set! waiting job-id (append wait-list (list handler)))))
         ; BUG, Hmm I can dead lock this if I fire 10 of the same jobs pretty quickly.
         ; I don't think I dead lock I just don't think I'm caching right.
         (define result (hash-ref completed-work job-id #f))
         (when verbose
           (eprintf "Waiting for job: ~a\n" job-id))
-        (if (false? result) (hash-set! waiting job-id handler) result)]))))
+        (unless (false? result)
+          ; we have a result to send.
+          (let ([maybe-wait-list (hash-ref waiting job-id #f)])
+            (unless (false? maybe-wait-list)
+              ; we have a waiting list to notify
+              (for ([waiting maybe-wait-list])
+                (eprintf "waiting notifed\n")
+                (place-channel-put waiting result))
+              (hash-remove! waiting job-id))))]))))
 
 (define receptionist #f)
 
