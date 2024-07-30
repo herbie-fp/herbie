@@ -24,7 +24,6 @@
 (provide completed-job?
          make-path
          get-results-for
-         get-improve-job-data
          job-count
          is-server-up
          create-job
@@ -52,11 +51,6 @@
   (when verbose
     (eprintf "Getting result for job: ~a.\n" job-id))
   (place-channel-get a))
-
-; I don't like how specific this function is but it keeps the API boundary.
-(define (get-improve-job-data)
-  (for/list ([(k v) (in-hash *completed-jobs*)] #:when (equal? (job-result-command v) 'improve))
-    (get-table-data v (make-path k))))
 
 (define (job-count)
   (define-values (a b) (place-channel))
@@ -437,52 +431,8 @@
   ; force symbol type to string
   (~s (job-result-command herbie-result)))
 
-; Private globals
-; TODO I'm sure these can encapslated some how.
-(define *demo?* (make-parameter false))
-(define *demo-output* (make-parameter false))
-(define *completed-jobs* (make-hash))
-(define *job-status* (make-hash))
-(define *job-sema* (make-hash))
-
-(define (already-computed? job-id)
-  (or (hash-has-key? *completed-jobs* job-id)
-      (and (*demo-output*) (directory-exists? (build-path (*demo-output*) (make-path job-id))))))
-
-(define (internal-wait-for-job job-id)
-  (eprintf "Waiting for job\n")
-  (define sema (hash-ref *job-sema* job-id))
-  (semaphore-wait sema)
-  (hash-remove! *job-sema* job-id)
-  (hash-ref *completed-jobs* job-id))
-
 (define (compute-job-id job-info)
   (sha1 (open-input-string (~s job-info))))
-
-; Encapsulates semaphores and async part of jobs.
-(define (start-work job)
-  (define job-id (compute-job-id job))
-  (hash-set! *job-status* job-id (*timeline*))
-  (define sema (make-semaphore))
-  (hash-set! *job-sema* job-id sema)
-  (thread-send *worker-thread* (work job-id job sema))
-  job-id)
-
-; Handles semaphore and async part of a job
-(struct work (id job sema))
-
-(define (run-job job-info)
-  (match-define (work job-id info sema) job-info)
-  (define path (make-path job-id))
-  (cond ;; Check caches if job as already been completed
-    [(hash-has-key? *completed-jobs* job-id) (semaphore-post sema)]
-    [(and (*demo-output*) (directory-exists? (build-path (*demo-output*) path)))
-     (semaphore-post sema)]
-    [else
-     (wrapper-run-herbie info job-id)
-     (hash-remove! *job-status* job-id)
-     (semaphore-post sema)])
-  (hash-remove! *job-sema* job-id))
 
 (define (wrapper-run-herbie cmd job-id)
   (print-job-message (herbie-command-command cmd) job-id (test-name (herbie-command-test cmd)))
@@ -509,34 +459,3 @@
       ['sample "Sampling"]
       [_ (error 'compute-result "unknown command ~a" command)]))
   (eprintf "~a Job ~a started:\n  ~a ~a...\n" job-label (symbol->string command) job-id job-str))
-
-(define *worker-thread*
-  (thread (λ ()
-            (let loop ([seed #f])
-              (match (thread-receive)
-                [`(init rand
-                        ,vec
-                        flags
-                        ,flag-table
-                        num-iters
-                        ,iterations
-                        points
-                        ,points
-                        timeout
-                        ,timeout
-                        output-dir
-                        ,output
-                        reeval
-                        ,reeval
-                        demo?
-                        ,demo?)
-                 (set! seed vec)
-                 (*flags* flag-table)
-                 (*num-iterations* iterations)
-                 (*num-points* points)
-                 (*timeout* timeout)
-                 (*demo-output* output)
-                 (*reeval-pts* reeval)
-                 (*demo?* demo?)]
-                [job-info (run-job job-info)])
-              (loop seed)))))
