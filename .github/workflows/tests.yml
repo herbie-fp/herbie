@@ -11,8 +11,6 @@ jobs:
     name: "Integration tests (Hamming)"
     strategy:
       matrix:
-        racket-version: [ '8.12' ]
-        precision: [ 'binary64' ]
         include:
           - os: macos-latest
             arch: aarch64
@@ -26,12 +24,11 @@ jobs:
     runs-on: ${{ matrix.os }}
     
     steps:
-      - name: "Install Packages"
-        run: sudo apt-get install -y libmpfr6 libmpfr-dev
       - name: "Install Racket"
         uses: Bogdanp/setup-racket@v1.11
         with:
-          version: ${{ matrix.racket-version }}
+          version: 8.12
+          architecture: ${{ matrix.arch }}
       - name: Install Rust compiler
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -40,4 +37,4 @@ jobs:
       - uses: actions/checkout@master
       - name: "Install dependencies"
         run: make install
-      - run: racket infra/ci.rkt --precision ${{ matrix.precision }} --seed 0 test.fpcore
+      - run: racket infra/ci.rkt --precision binary64 --seed 0 test.fpcore
