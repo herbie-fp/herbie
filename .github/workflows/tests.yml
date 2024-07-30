@@ -4,7 +4,7 @@ on: [push]
 
 env:
   RUST_BACKTRACE: full
-  RUST_LOG: 
+  RUST_LOG: info
 
 jobs:
   hamming:
