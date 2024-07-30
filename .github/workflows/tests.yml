@@ -37,4 +37,4 @@ jobs:
       - uses: actions/checkout@master
       - name: "Install dependencies"
         run: make install
-      - run: cd egg-herbie && (RUST_LOG=info cargo test --package egg-herbie --lib -- bug::repro --nocapture)
+      - run: cd egg-herbie && (cargo test --package egg-herbie --lib -- bug::repro --nocapture)

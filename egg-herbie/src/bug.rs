@@ -269,7 +269,7 @@ fn repro() {
         runner = runner.with_expr(expr);
     }
 
-    runner
+   runner
         .with_node_limit(8000)
         .with_hook(|r| {
             if r.egraph.analysis.unsound.load(Ordering::SeqCst) {
