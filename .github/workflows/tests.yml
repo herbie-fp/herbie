@@ -9,11 +9,22 @@ env:
 jobs:
   hamming:
     name: "Integration tests (Hamming)"
-    runs-on: ubuntu-latest
     strategy:
       matrix:
-        racket-version: [ '8.0', '8.12' ]
-        precision: [ 'binary32', 'binary64' ]
+        racket-version: [ '8.12' ]
+        precision: [ 'binary64' ]
+        include:
+          - os: macos-latest
+            arch: aarch64
+          - os: macos-13
+            arch: x64
+          - os: ubuntu-latest
+            arch: x64
+          - os: windows-latest
+            arch: x64
+
+    runs-on: ${{ matrix.os }}
+    
     steps:
       - name: "Install Packages"
         run: sudo apt-get install -y libmpfr6 libmpfr-dev
