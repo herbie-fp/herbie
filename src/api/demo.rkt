@@ -101,20 +101,17 @@
     [else (next-dispatcher)]))
 
 (define (generate-report req)
-  ; Making a lot of assumptions about the req headers
-  (define refreferer-path #f)
-  (for ([header (request-headers req)])
-    (when (equal? 'referer (car header))
-      (set! refreferer-path (cdr header))))
-  (define requested-job-id (first (string-split (fourth (string-split refreferer-path "/")) ".")))
   (cond
     [(and (*demo-output*) (file-exists? (build-path (*demo-output*) "results.json")))
      (next-dispatcher)]
     [else
-     (define result-hash (get-results-for requested-job-id))
-     (define tests (get-table-data-from-hash result-hash refreferer-path))
+     (define improved-results (get-improve-results))
+     (define tests
+       (for/list ([improved improved-results])
+          ; TODO fix missing link
+         (get-table-data-from-hash improved "")))
      (define info
-       (make-report-info (list tests)
+       (make-report-info tests
                          #:seed (get-seed)
                          #:note (if (*demo?*) "Web demo results" "Herbie results")))
      (response 200
