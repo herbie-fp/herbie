@@ -91,19 +91,14 @@
   ; add the expression to the e-graph and save the root e-class id
   (define egg-expr (expr->egg-expr expr eg-data ctx))
   (define root-id (egraph_add_expr ptr (~a egg-expr)))
-  ; merge approx nodes with their specs and record the id
+  ; record all approx nodes and their ids
   (let loop ([egg-expr egg-expr])
     (match egg-expr
       [(? number?) (void)]
       [(? symbol?) (void)]
-      [(list '$approx spec impl)
+      [(list '$approx _ impl)
        (define id (egraph_add_expr ptr (~a egg-expr)))
-       (hash-ref! id->approx
-                  id
-                  (lambda ()
-                    (define spec-id (egraph_add_expr ptr (~a spec)))
-                    (egraph_union ptr id spec-id)
-                    egg-expr))
+       (hash-ref! id->approx id (lambda () egg-expr))
        (loop impl)]
       [(list _ args ...) (for-each loop args)]))
   ; return the id
@@ -216,6 +211,7 @@
       [(? number?) expr]
       [(? literal?) (literal-value expr)]
       [(? symbol?) (string->symbol (format "?~a" expr))]
+      [(approx spec impl) (list '$approx (loop spec) (loop impl))]
       [(list op args ...) (cons op (map loop args))])))
 
 ;; Translates a Herbie expression into an expression usable by egg.
@@ -236,7 +232,7 @@
                     (define replacement (string->symbol (format "$h~a" id)))
                     (hash-set! egg->herbie-dict replacement (cons expr (context-lookup ctx expr)))
                     replacement))]
-      [(approx spec impl) `($approx ,(loop spec) ,(loop impl))]
+      [(approx spec impl) (list '$approx (loop spec) (loop impl))]
       [(list op args ...) (cons op (map loop args))])))
 
 (define (flatten-let expr)
@@ -1236,8 +1232,8 @@
 ;;  - scheduling parameters:
 ;;     - node limit: `(node . <number>)`
 ;;     - iteration limit: `(iteration . <number>)`
-;;     - constant fold: `(const-fold? . <boolean>)`
-;;     - scheduler: `(scheduler . <name>)`
+;;     - constant fold: `(const-fold? . <boolean>)` [default: #t]
+;;     - scheduler: `(scheduler . <name>)` [default: backoff]
 ;;        - `simple`: run all rules without banning
 ;;        - `backoff`: ban rules if the fire too much
 (define (make-egg-runner exprs reprs schedule #:context [ctx (*context*)])

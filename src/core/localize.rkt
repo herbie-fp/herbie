@@ -67,23 +67,31 @@
   (define (expr->cost expr)
     (cost-proc expr (repr-of expr ctx)))
 
+  (define (subexpr->cost-opportunity subexpr)
+    ; start and end cost of roots
+    (define start-cost (expr->cost subexpr))
+    (define best-cost (expr->cost (hash-ref expr->simplest subexpr)))
+    ; start and end cost of children
+    (match-define (list _ children ...) subexpr)
+    (define start-child-costs (map expr->cost children))
+    (define best-child-costs
+      (for/list ([child (in-list children)])
+        (expr->cost (hash-ref expr->simplest child))))
+    ; compute cost opportunity
+    (- (apply - start-cost start-child-costs) (apply - best-cost best-child-costs)))
+
   ; rank subexpressions by cost opportunity
   (define localize-costss
     (for/list ([subexprs (in-list subexprss)])
-      (sort (for/list ([subexpr (in-list subexprs)] #:when (list? subexpr))
-              ; start and end cost of roots
-              (define start-cost (expr->cost subexpr))
-              (define best-cost (expr->cost (hash-ref expr->simplest subexpr)))
-              ; start and end cost of children
-              (match-define (list _ children ...) subexpr)
-              (define start-child-costs (map expr->cost children))
-              (define best-child-costs
-                (for/list ([child (in-list children)])
-                  (expr->cost (hash-ref expr->simplest child))))
-              ; compute cost opportunity
-              (define cost-opportunity
-                (- (apply - start-cost start-child-costs) (apply - best-cost best-child-costs)))
-              (cons cost-opportunity subexpr))
+      (sort (reap [sow]
+                  (for ([subexpr (in-list subexprs)])
+                    (match subexpr
+                      [(? literal?) (void)]
+                      [(? symbol?) (void)]
+                      [(approx _ _) (void)] ; TODO: ??
+                      [(list _ _ ...)
+                       (define cost-opportunity (subexpr->cost-opportunity subexpr))
+                       (sow (cons cost-opportunity subexpr))])))
             >
             #:key car)))
 

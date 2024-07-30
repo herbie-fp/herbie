@@ -692,16 +692,21 @@
 
 ;; Synthesizes lifting rules for a given platform.
 (define (platform-lifting-rules [pform (*active-platform*)])
+  ;; every impl maps to a spec
   (define impls (platform-impls pform))
-  (for/list ([impl (in-list impls)])
-    (hash-ref! (*lifting-rules*)
-               (cons impl pform)
-               (lambda ()
-                 (define name (sym-append 'lift- impl))
-                 (define itypes (impl-info impl 'itype))
-                 (define otype (impl-info impl 'otype))
-                 (define-values (vars spec-expr impl-expr) (impl->rule-parts impl))
-                 (rule name impl-expr spec-expr (map cons vars itypes) otype)))))
+  (define impl-rules
+    (for/list ([impl (in-list impls)])
+      (hash-ref! (*lifting-rules*)
+                 (cons impl pform)
+                 (lambda ()
+                   (define name (sym-append 'lift- impl))
+                   (define itypes (impl-info impl 'itype))
+                   (define otype (impl-info impl 'otype))
+                   (define-values (vars spec-expr impl-expr) (impl->rule-parts impl))
+                   (rule name impl-expr spec-expr (map cons vars itypes) otype)))))
+  ;; special rule for approx nodes
+  (define approx-rule (rule 'lift-approx (approx 'a 'b) 'a '((a . real) (b . real)) 'real))
+  (cons approx-rule impl-rules))
 
 ;; Synthesizes lowering rules for a given platform.
 (define (platform-lowering-rules [pform (*active-platform*)])
