@@ -24,17 +24,10 @@ jobs:
     runs-on: ${{ matrix.os }}
     
     steps:
-      - name: "Install Racket"
-        uses: Bogdanp/setup-racket@v1.11
-        with:
-          version: 8.12
-          architecture: ${{ matrix.arch }}
       - name: Install Rust compiler
         uses: dtolnay/rust-toolchain@stable
         with:
             toolchain: stable
             components: rustfmt, clippy
       - uses: actions/checkout@master
-      - name: "Install dependencies"
-        run: make install
       - run: cd egg-herbie && (cargo test --package egg-herbie --lib -- bug::repro --nocapture)
