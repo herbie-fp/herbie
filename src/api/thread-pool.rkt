@@ -50,7 +50,7 @@
      (if error? (struct-copy table-row out [status "crash"]) out)]
     [else
      (define result (run-herbie 'improve test #:seed seed))
-     (make-improve-result result test -1)]))
+     (get-table-data-from-hash (make-improve-result result test -1) "")]))
 
 (define-syntax (place/context* stx)
   (syntax-case stx ()
