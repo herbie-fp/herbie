@@ -105,13 +105,8 @@
     [(and (*demo-output*) (file-exists? (build-path (*demo-output*) "results.json")))
      (next-dispatcher)]
     [else
-     (define improved-results (get-improve-results))
-     (define tests
-       (for/list ([improved improved-results])
-         ; TODO fix missing link
-         (get-table-data-from-hash improved "")))
      (define info
-       (make-report-info tests
+       (make-report-info (get-improve-table-data)
                          #:seed (get-seed)
                          #:note (if (*demo?*) "Web demo results" "Herbie results")))
      (response 200
