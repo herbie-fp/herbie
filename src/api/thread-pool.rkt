@@ -3,6 +3,7 @@
 (require racket/place)
 (require "../utils/common.rkt"
          "sandbox.rkt"
+         "server.rkt"
          "../syntax/load-plugin.rkt"
          "../reports/pages.rkt"
          "../syntax/read.rkt"
@@ -27,10 +28,12 @@
      (define result
        (cond
          [profile?
-          (call-with-output-file (build-path rdir "profile.json")
-                                 #:exists 'replace
-                                 (λ (pp) (run-herbie 'improve test #:seed seed #:profile? pp)))]
-         [else (run-herbie test 'improve #:seed seed)]))
+          (call-with-output-file
+           (build-path rdir "profile.json")
+           #:exists 'replace
+           (λ (pp)
+             (make-improve-result (run-herbie 'improve test #:seed seed #:profile? pp) test -1)))]
+         [else (make-improve-result (run-herbie test 'improve #:seed seed) test -1)]))
 
      (set-seed! seed)
      (define error? #f)
@@ -43,11 +46,11 @@
                                                              (set! error? #t))])
                                   (make-page page out result #t profile?)))))
 
-     (define out (get-table-data result dirname))
+     (define out (get-table-data-from-hash result dirname))
      (if error? (struct-copy table-row out [status "crash"]) out)]
     [else
      (define result (run-herbie 'improve test #:seed seed))
-     (get-table-data result "")]))
+     (make-improve-result result test -1)]))
 
 (define-syntax (place/context* stx)
   (syntax-case stx ()

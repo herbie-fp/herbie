@@ -24,6 +24,7 @@
 (provide completed-job?
          make-path
          get-improve-results
+         make-improve-result
          get-results-for
          job-count
          is-server-up
