@@ -3,7 +3,8 @@
 (require "../syntax/syntax.rkt"
          "../syntax/types.rkt"
          "../utils/timeline.rkt"
-         "../utils/float.rkt")
+         "../utils/float.rkt"
+         "programs.rkt")
 
 (provide compile-progs
          compile-prog)
@@ -46,12 +47,6 @@
 
 (define (if-proc c a b)
   (if c a b))
-
-(define (remove-approx expr)
-  (match expr
-    [(approx _ impl) (remove-approx impl)]
-    [(list op args ...) `(,op ,@(map remove-approx args))]
-    [_ expr]))
 
 (define (progs->batch exprs vars)
   (define icache (reverse vars))
