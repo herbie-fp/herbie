@@ -67,12 +67,11 @@
   (define (expr->cost expr)
     (cost-proc expr (repr-of expr ctx)))
 
-  (define (subexpr->cost-opportunity subexpr)
+  (define (cost-opportunity subexpr children)
     ; start and end cost of roots
     (define start-cost (expr->cost subexpr))
     (define best-cost (expr->cost (hash-ref expr->simplest subexpr)))
     ; start and end cost of children
-    (match-define (list _ children ...) subexpr)
     (define start-child-costs (map expr->cost children))
     (define best-child-costs
       (for/list ([child (in-list children)])
@@ -88,10 +87,12 @@
                     (match subexpr
                       [(? literal?) (void)]
                       [(? symbol?) (void)]
-                      [(approx _ _) (void)] ; TODO: ??
-                      [(list _ _ ...)
-                       (define cost-opportunity (subexpr->cost-opportunity subexpr))
-                       (sow (cons cost-opportunity subexpr))])))
+                      [(approx _ impl)
+                       (define cost-opp (cost-opportunity subexpr (list impl)))
+                       (sow (cons cost-opp subexpr))]
+                      [(list _ args ...)
+                       (define cost-opp (cost-opportunity subexpr args))
+                       (sow (cons cost-opp subexpr))])))
             >
             #:key car)))
 
