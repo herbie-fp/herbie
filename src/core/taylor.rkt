@@ -113,12 +113,12 @@
     [`(/ ,num ,den) (taylor-quotient (taylor var nodes num) (taylor var nodes den))]
     [`(sqrt ,arg) (taylor-sqrt var (taylor var nodes arg))]
     [`(cbrt ,arg) (taylor-cbrt var (taylor var nodes arg))]
-    [`(exp ,arg) (taylor-exp (taylor var nodes arg) `(exp ,arg))]
-    [`(sin ,arg) (taylor-sin (taylor var nodes arg) `(sin ,arg))]
-    [`(cos ,arg) (taylor-cos (taylor var nodes arg) `(cos ,arg))]
+    [`(exp ,arg) (taylor-exp (taylor var nodes arg) `(exp ,(get-expr nodes arg)))]
+    [`(sin ,arg) (taylor-sin (taylor var nodes arg) `(sin ,(get-expr nodes arg)))]
+    [`(cos ,arg) (taylor-cos (taylor var nodes arg) `(cos ,(get-expr nodes arg)))]
     [`(tan ,arg)
-     (taylor-quotient (taylor-sin (taylor var nodes arg) `(sin ,arg))
-                      (taylor-cos (taylor var nodes arg) `(cos ,arg)))]
+     (taylor-quotient (taylor-sin (taylor var nodes arg) `(sin ,(get-expr nodes arg)))
+                      (taylor-cos (taylor var nodes arg) `(cos ,(get-expr nodes arg))))]
     [`(log ,arg) (taylor-log var (taylor var nodes arg))]
     [`(pow ,base ,(? exact-integer? power))
      (taylor-pow (normalize-series (taylor var nodes base)) power)]
@@ -130,15 +130,15 @@
     [`(pow ,base ,power) ; `(exp (* ,power (log ,base)))
      (taylor-exp (taylor-mult (taylor var nodes power)
                               (taylor-log var (taylor var nodes base))
-                              `(exp (* ,power (log ,base)))))]
+                              `(exp (* ,(get-expr nodes power) (log ,(get-expr nodes base))))))]
     [`(sinh ,arg)
-     (define exparg (taylor-exp (taylor var nodes arg) `(exp ,arg)))
+     (define exparg (taylor-exp (taylor var nodes arg) `(exp ,(get-expr nodes arg))))
      (taylor-mult (taylor-exact 1/2) (taylor-add exparg (taylor-negate (taylor-invert exparg))))]
     [`(cosh ,arg)
-     (define exparg (taylor-exp (taylor var nodes arg) `(exp ,arg)))
+     (define exparg (taylor-exp (taylor var nodes arg) `(exp ,(get-expr nodes arg))))
      (taylor-mult (taylor-exact 1/2) (taylor-add exparg (taylor-invert exparg)))]
     [`(tanh ,arg)
-     (define exparg (taylor-exp (taylor var nodes arg) `(exp ,arg)))
+     (define exparg (taylor-exp (taylor var nodes arg) `(exp ,(get-expr nodes arg))))
      (define expinv (taylor-invert exparg))
      (define x+ (taylor-add exparg expinv))
      (define x- (taylor-add exparg (taylor-negate expinv)))
@@ -158,7 +158,7 @@
                   (taylor-log var
                               (taylor-quotient (taylor-add (taylor-exact 1) tx)
                                                (taylor-add (taylor-exact 1) (taylor-negate tx)))))]
-    [_ (taylor-exact expr)]))
+    [_ (taylor-exact (get-expr nodes root))]))
 
 ; A taylor series is represented by a function f : nat -> expr,
 ; representing the coefficients (the 1 / n! terms not included),

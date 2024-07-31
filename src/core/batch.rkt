@@ -4,7 +4,8 @@
 
 (provide progs->batch
          batch->progs
-         (struct-out batch))
+         (struct-out batch)
+         get-expr)
 
 (struct batch (nodes roots vars))
 
@@ -52,3 +53,11 @@
     (for/list ([root (in-vector roots)])
       (unmunge root)))
   exprs)
+
+(define (get-expr nodes reg)
+  (define (unmunge reg)
+    (define node (vector-ref nodes reg))
+    (match node
+      [(list op regs ...) (cons op (map unmunge regs))]
+      [else node]))
+  (unmunge reg))
