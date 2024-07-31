@@ -7,7 +7,6 @@
 (provide egraph_create
          egraph_destroy
          egraph_add_expr
-         egraph_union
          egraph_run
          egraph_copy
          egraph_get_stop_reason
@@ -90,9 +89,6 @@
 
 ;; egraph pointer, s-expr string -> node number
 (define-eggmath egraph_add_expr (_fun _egraph-pointer _string/utf-8 -> _uint))
-
-;; egraph pointer, u32, u32 -> u32
-(define-eggmath egraph_union (_fun _egraph-pointer _uint _uint -> _uint))
 
 (define-eggmath destroy_egraphiters (_fun _pointer -> _void))
 

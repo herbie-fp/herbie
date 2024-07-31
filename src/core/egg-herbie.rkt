@@ -244,9 +244,9 @@
       [`(,op ,args ...) (cons op (map (curryr loop env) args))])))
 
 ;; Converts an S-expr from egg into one Herbie understands
-;; TODO: typing information is confusing since we proofs
-;; mean we may process mixed spec/impl expressions;
-;; only need it to correctly interpret numbers
+;; TODO: typing information is confusing since proofs mean
+;; we may process mixed spec/impl expressions;
+;; only need `type` to correctly interpret numbers
 (define (egg-parsed->expr expr rename-dict type)
   (let loop ([expr expr] [type type])
     (match expr

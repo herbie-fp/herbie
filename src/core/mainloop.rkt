@@ -246,10 +246,12 @@
         (let loop ([expr expr] [loc '()])
           (match expr
             [(== subexpr) (sow (reverse loc))]
+            [(? literal?) (void)]
+            [(? symbol?) (void)]
+            [(approx _ impl) (loop impl (cons 2 loc))]
             [(list _ args ...)
              (for ([arg (in-list args)] [i (in-naturals 1)])
-               (loop arg (cons i loc)))]
-            [_ (void)]))))
+               (loop arg (cons i loc)))]))))
 
 ;; Converts a patch to full alt with valid history
 (define (reconstruct! alts)

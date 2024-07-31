@@ -82,21 +82,6 @@ pub unsafe extern "C" fn egraph_add_expr(ptr: *mut Context, expr: *const c_char)
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn egraph_union(ptr: *mut Context, id1: u32, id2: u32) -> u32 {
-    // Safety: `ptr` was box allocated by `egraph_create`
-    let mut context = Box::from_raw(ptr);
-    let id1 = Id::from(id1 as usize);
-    let id2 = Id::from(id2 as usize);
-
-    context.runner.egraph.union(id1, id2);
-    context.runner.egraph.rebuild();
-    let id = context.runner.egraph.find(id1);
-
-    mem::forget(context);
-    usize::from(id) as u32
-}
-
-#[no_mangle]
 pub unsafe extern "C" fn egraph_copy(ptr: *mut Context) -> *mut Context {
     // Safety: `ptr` was box allocated by `egraph_create`
     let context = Box::from_raw(ptr);

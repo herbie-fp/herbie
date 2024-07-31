@@ -143,16 +143,25 @@
 
 (define/contract (location-do loc prog f)
   (-> location? expr? (-> expr? expr?) expr?)
-  (cond
-    [(null? loc) (f prog)]
-    [(approx? prog) (location-do loc (approx-impl prog) f)]
-    [(not (pair? prog)) (error "Bad location: cannot enter " prog "any further.")]
-    [#t
-     ; Inlined loop for speed
-     (let loop ([idx (car loc)] [lst prog])
-       (if (= idx 0)
-           (cons (location-do (cdr loc) (car lst) f) (cdr lst))
-           (cons (car lst) (loop (- idx 1) (cdr lst)))))]))
+  (define (invalid! where loc)
+    (error 'location-do "invalid location `~a` for `~a` in `~a`" loc where prog))
+
+  (let loop ([prog prog] [loc loc])
+    (match* (prog loc)
+      [(_ (? null?)) (f prog)]
+      [((or (? literal?) (? number?) (? symbol?)) _) (invalid! prog loc)]
+      [((approx spec impl) (cons idx rest))
+       (case idx
+         [(1) (approx (loop spec rest) impl)]
+         [(2) (approx spec (loop impl rest))]
+         [else (invalid! prog loc)])]
+      [((list op args ...) (cons idx rest))
+       (let seek ([elts (cons op args)] [idx idx])
+         (cond
+           [(= idx 0) (cons (loop (car elts) rest) (cdr elts))]
+           [(null? elts) (invalid! prog loc)]
+           [else (cons (car elts) (seek (cdr elts) (sub1 idx)))]))]
+      [(_ _) (invalid! prog loc)])))
 
 (define/contract (location-get loc prog)
   (-> location? expr? expr?)
