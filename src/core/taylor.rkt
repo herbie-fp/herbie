@@ -12,7 +12,7 @@
   (define expr* (simplify (replace-expression expr var ((car tform) var))))
   (define expr-batch* (progs->batch (list expr*) (free-variables expr)))
   (define nodes (batch-nodes expr-batch*))
-  (define root (vector-ref (batch-roots expr-batch*) 0)) ; assuming to batches in expr
+  (define root (vector-ref (batch-roots expr-batch*) 0)) ; assuming no batches in expr
   (match-define (cons offset coeffs) (taylor var nodes root))
 
   (define i 0)
@@ -135,25 +135,25 @@
      (define exparg (taylor-exp (taylor var nodes arg) `(exp ,arg)))
      (taylor-mult (taylor-exact 1/2) (taylor-add exparg (taylor-negate (taylor-invert exparg))))]
     [`(cosh ,arg)
-     (define exparg (taylor var `(exp ,arg)))
+     (define exparg (taylor-exp (taylor var nodes arg) `(exp ,arg)))
      (taylor-mult (taylor-exact 1/2) (taylor-add exparg (taylor-invert exparg)))]
     [`(tanh ,arg)
-     (define exparg (taylor var `(exp ,arg)))
+     (define exparg (taylor-exp (taylor var nodes arg) `(exp ,arg)))
      (define expinv (taylor-invert exparg))
      (define x+ (taylor-add exparg expinv))
      (define x- (taylor-add exparg (taylor-negate expinv)))
      (taylor-quotient x- x+)]
     [`(asinh ,x)
-     (define tx (taylor var x))
+     (define tx (taylor var nodes x))
      (taylor-log var
                  (taylor-add tx (taylor-sqrt var (taylor-add (taylor-mult tx tx) (taylor-exact 1)))))]
     [`(acosh ,x)
-     (define tx (taylor var x))
+     (define tx (taylor var nodes x))
      (taylor-log var
                  (taylor-add tx
                              (taylor-sqrt var (taylor-add (taylor-mult tx tx) (taylor-exact -1)))))]
     [`(atanh ,x)
-     (define tx (taylor var x))
+     (define tx (taylor var nodes x))
      (taylor-mult (taylor-exact 1/2)
                   (taylor-log var
                               (taylor-quotient (taylor-add (taylor-exact 1) tx)
