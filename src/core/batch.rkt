@@ -2,7 +2,9 @@
 
 (require "../utils/timeline.rkt")
 
-(provide progs->batch batch->progs (struct-out batch))
+(provide progs->batch
+         batch->progs
+         (struct-out batch))
 
 (struct batch (nodes roots vars))
 
@@ -32,7 +34,7 @@
 
   (define roots (list->vector (map munge exprs)))
   (define nodes (list->vector (reverse icache)))
-  
+
   (timeline-push! 'compiler (+ varc size) (+ exprc varc))
   (batch nodes roots vars))
 
@@ -43,12 +45,10 @@
   (define (unmunge reg)
     (define node (vector-ref nodes reg))
     (match node
-      [(list op regs ...)
-       (cons op (map unmunge regs))]
+      [(list op regs ...) (cons op (map unmunge regs))]
       [else node]))
 
-  (define exprs (for/list ([root (in-vector roots)])
-                  (unmunge root)))
+  (define exprs
+    (for/list ([root (in-vector roots)])
+      (unmunge root)))
   exprs)
-    
-  
