@@ -213,18 +213,16 @@
   (hash-set! operators name info)
   (hash-set! operators-to-impls name '()))
 
-;; Syntactic form for `register-operator!`.
-;; Special translations for
+;; Syntactic form for `register-operator!`
 (define-syntax (define-operator stx)
   (define (bad! why [what #f])
     (raise-syntax-error 'define-operator why stx what))
 
   (define (attribute-val key val)
-    (syntax-case key (spec)
-      [spec
-       (with-syntax ([val val])
-         (syntax 'val))]
-      [_ val]))
+    (with-syntax ([val val])
+      (syntax-case key (spec)
+        [spec #''val]
+        [_ #'val])))
 
   (syntax-case stx ()
     [(_ (id itype ...) otype [key val] ...)
@@ -428,7 +426,7 @@
   (define fpcore
     (match (dict-ref attrib-dict 'fpcore #f)
       ; not provided => need to generate it
-      [#f `(! :precision ,(representation-name orepr) `(,op ,@vars))]
+      [#f `(! :precision ,(representation-name orepr) (,op ,@vars))]
       ; provided -> TODO: check free variables
       [fpcore fpcore]))
 
@@ -451,22 +449,42 @@
          (error 'register-operator-impl!
                 "~a: procedure does not accept ~a arguments"
                 name
-                expect-arity))]
+                expect-arity))
+       proc]
       ; not a procedure
       [bad
        (error 'register-operator-impl! "~a: expected a procedure with attribute 'fl ~a" name bad)]))
+
+  (eprintf "~a ~a: ~a ~a ~a\n" name op spec fpcore fl-proc)
 
   ; update tables
   (define impl (operator-impl name op ireprs orepr spec fpcore fl-proc))
   (hash-set! operator-impls name impl)
   (hash-update! operators-to-impls op (curry cons name)))
 
-(define-syntax-rule (define-operator-impl (operator name atypes ...) rtype [key value] ...)
-  (register-operator-impl! 'operator
-                           'name
-                           (list (get-representation 'atypes) ...)
-                           (get-representation 'rtype)
-                           (list (cons 'key value) ...)))
+;; Syntactic form for `register-operator-impl!`
+(define-syntax (define-operator-impl stx)
+  (define (bad! why [what #f])
+    (raise-syntax-error 'define-operator-impl why stx what))
+
+  (define (attribute-val key val)
+    (with-syntax ([val val])
+      (syntax-case key (spec fpcore)
+        [spec #''val]
+        [fpcore #''val]
+        [_ #'val])))
+
+  (syntax-case stx ()
+    [(_ (op id itype ...) otype [key val] ...)
+     (let ([id #'id] [keys (syntax->list #'(key ...))] [vals (syntax->list #'(val ...))])
+       (unless (identifier? id)
+         (bad! "expected identifier" id))
+       (with-syntax ([id id] [(val ...) (map attribute-val keys vals)])
+         #'(register-operator-impl! 'op
+                                    'id
+                                    (list (get-representation 'itype) ...)
+                                    (get-representation 'otype)
+                                    (list (cons 'key val) ...))))]))
 
 ;; Among active implementations, looks up an implementation with
 ;; the operator name `name` and argument representations `ireprs`.
