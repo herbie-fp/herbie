@@ -47,7 +47,7 @@
   (define target-errors (map alt-analysis-test-errors targets))
 
   (define end-errors (hash-ref end 'end-errors))
-  
+
   (define newpoints (pcontext-points (second pctxs)))
 
   ; Immediately convert points to reals to handle posits
@@ -66,7 +66,6 @@
   (define start-error (map ulps->bits-tenths start-errors))
   (define target-error (map (lambda (alt-error) (map ulps->bits-tenths alt-error)) target-errors))
   (define end-error (map ulps->bits-tenths (car end-errors)))
-  
 
   (define target-error-entries
     (for/list ([i (in-naturals)]

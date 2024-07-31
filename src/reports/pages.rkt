@@ -46,6 +46,7 @@
        ['timeout (make-traceback result-hash out profile?)]
        ['failure (make-traceback result-hash out profile?)]
        [_ (error 'make-page "unknown result type ~a" status)])]
-    ["timeline.html" (make-timeline (test-name test) (job-result-timeline result-hash) out #:path "..")]
+    ["timeline.html"
+     (make-timeline (test-name test) (job-result-timeline result-hash) out #:path "..")]
     ["timeline.json" (write-json (job-result-timeline result-hash) out)]
     ["points.json" (write-json (make-points-json result-hash ctx) out)]))
