@@ -50,7 +50,6 @@
    out))
 
 (define (make-graph result-hash out output? profile?)
-  (eprintf "make-graph\n")
   (define backend (hash-ref result-hash 'backend))
   (define test (hash-ref result-hash 'test))
   (define time (hash-ref result-hash 'time))
