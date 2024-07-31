@@ -4,12 +4,16 @@
 (require "../utils/common.rkt"
          "programs.rkt"
          "reduce.rkt"
-         "../syntax/syntax.rkt")
+         "../syntax/syntax.rkt"
+         "batch.rkt")
 (provide approximate)
 
 (define (approximate expr var #:transform [tform (cons identity identity)] #:iters [iters 5])
   (define expr* (simplify (replace-expression expr var ((car tform) var))))
-  (match-define (cons offset coeffs) (taylor var expr*))
+  (define expr-batch* (progs->batch (list expr*) (free-variables expr)))
+  (define nodes (batch-nodes expr-batch*))
+  (define root (vector-ref (batch-roots expr-batch*) 0)) ; assuming to batches in expr
+  (match-define (cons offset coeffs) (taylor var nodes root))
 
   (define i 0)
   (define terms '())
@@ -25,7 +29,6 @@
       [_
        (set! terms (cons (cons coeff (- i offset 1)) terms))
        (simplify (make-horner ((cdr tform) var) (reverse terms)))]))
-
   next)
 
 (define (make-horner var terms [start 0])
@@ -91,64 +94,45 @@
     (let ([seg (n-sum-to dim sum)])
       (if ((length seg) . <= . i) (loop (- i (length seg)) (+ sum 1)) (list-ref seg i)))))
 
-(define (taylor var expr)
-  (define var-cache (hash-ref! (series-cache) var (λ () (make-hash))))
-  (hash-ref! var-cache expr (λ () (taylor* var expr))))
+(define (taylor var nodes root)
+  (taylor* var nodes root))
 
-(define (taylor* var expr)
+(define (taylor* var nodes root)
   "Return a pair (e, n), such that expr ~= e var^n"
+  (define expr (vector-ref nodes root))
   (match expr
     [(? (curry equal? var)) (taylor-exact 0 1)]
     [(? number?) (taylor-exact expr)]
     [(? variable?) (taylor-exact expr)]
     [`(,const) (taylor-exact expr)]
-    [`(+ ,args ...) (apply taylor-add (map (curry taylor var) args))]
-    [`(neg ,arg) (taylor-negate ((curry taylor var) arg))]
-    [`(- ,arg1 ,arg2) (taylor var `(+ ,arg1 (neg ,arg2)))]
-    [`(* ,left ,right) (taylor-mult (taylor var left) (taylor var right))]
-    [`(/ 1 ,arg) (taylor-invert (taylor var arg))]
-    [`(/ ,num ,den) (taylor-quotient (taylor var num) (taylor var den))]
-    [`(sqrt ,arg) (taylor-sqrt var (taylor var arg))]
-    [`(cbrt ,arg) (taylor-cbrt var (taylor var arg))]
-    [`(exp ,arg)
-     (let ([arg* (normalize-series (taylor var arg))])
-       (if (positive? (car arg*)) (taylor-exact expr) (taylor-exp (zero-series arg*))))]
-    [`(sin ,arg)
-     (let ([arg* (normalize-series (taylor var arg))])
-       (cond
-         [(positive? (car arg*)) (taylor-exact expr)]
-         [(= (car arg*) 0)
-          ; Our taylor-sin function assumes that a0 is 0,
-          ; because that way it is especially simple. We correct for this here
-          ; We use the identity sin (x + y) = sin x cos y + cos x sin y
-          (taylor-add
-           (taylor-mult (taylor-exact `(sin ,((cdr arg*) 0))) (taylor-cos (zero-series arg*)))
-           (taylor-mult (taylor-exact `(cos ,((cdr arg*) 0))) (taylor-sin (zero-series arg*))))]
-         [else (taylor-sin (zero-series arg*))]))]
-    [`(cos ,arg)
-     (let ([arg* (normalize-series (taylor var arg))])
-       (cond
-         [(positive? (car arg*)) (taylor-exact expr)]
-         [(= (car arg*) 0)
-          ; Our taylor-cos function assumes that a0 is 0,
-          ; because that way it is especially simple. We correct for this here
-          ; We use the identity cos (x + y) = cos x cos y - sin x sin y
-          (taylor-add (taylor-mult (taylor-exact `(cos ,((cdr arg*) 0)))
-                                   (taylor-cos (zero-series arg*)))
-                      (taylor-negate (taylor-mult (taylor-exact `(sin ,((cdr arg*) 0)))
-                                                  (taylor-sin (zero-series arg*)))))]
-         [else (taylor-cos (zero-series arg*))]))]
-    [`(tan ,arg) (taylor var `(/ (sin ,arg) (cos ,arg)))]
-    [`(log ,arg) (taylor-log var (taylor var arg))]
-    [`(pow ,base ,(? exact-integer? power)) (taylor-pow (normalize-series (taylor var base)) power)]
-    [`(pow ,base 1/2) (taylor-sqrt var (taylor var base))]
-    [`(pow ,base 1/3) (taylor-cbrt var (taylor var base))]
+    [`(+ ,args ...) (apply taylor-add (map (curry taylor var nodes) args))]
+    [`(neg ,arg) (taylor-negate ((curry taylor var nodes) arg))]
+    [`(- ,arg1 ,arg2) (taylor-add (taylor var nodes arg1) (taylor-negate (taylor var nodes arg2)))]
+    [`(* ,left ,right) (taylor-mult (taylor var nodes left) (taylor var nodes right))]
+    [`(/ 1 ,arg) (taylor-invert (taylor var nodes arg))]
+    [`(/ ,num ,den) (taylor-quotient (taylor var nodes num) (taylor var nodes den))]
+    [`(sqrt ,arg) (taylor-sqrt var (taylor var nodes arg))]
+    [`(cbrt ,arg) (taylor-cbrt var (taylor var nodes arg))]
+    [`(exp ,arg) (taylor-exp (taylor var nodes arg) `(exp ,arg))]
+    [`(sin ,arg) (taylor-sin (taylor var nodes arg) `(sin ,arg))]
+    [`(cos ,arg) (taylor-cos (taylor var nodes arg) `(cos ,arg))]
+    [`(tan ,arg)
+     (taylor-quotient (taylor-sin (taylor var nodes arg) `(sin ,arg))
+                      (taylor-cos (taylor var nodes arg) `(cos ,arg)))]
+    [`(log ,arg) (taylor-log var (taylor var nodes arg))]
+    [`(pow ,base ,(? exact-integer? power))
+     (taylor-pow (normalize-series (taylor var nodes base)) power)]
+    [`(pow ,base 1/2) (taylor-sqrt var (taylor var nodes base))]
+    [`(pow ,base 1/3) (taylor-cbrt var (taylor var nodes base))]
     [`(pow ,base 2/3)
-     (define tx (taylor var base))
+     (define tx (taylor var nodes base))
      (taylor-cbrt var (taylor-mult tx tx))]
-    [`(pow ,base ,power) (taylor var `(exp (* ,power (log ,base))))]
+    [`(pow ,base ,power) ; `(exp (* ,power (log ,base)))
+     (taylor-exp (taylor-mult (taylor var nodes power)
+                              (taylor-log var (taylor var nodes base))
+                              `(exp (* ,power (log ,base)))))]
     [`(sinh ,arg)
-     (define exparg (taylor var `(exp ,arg)))
+     (define exparg (taylor-exp (taylor var nodes arg) `(exp ,arg)))
      (taylor-mult (taylor-exact 1/2) (taylor-add exparg (taylor-negate (taylor-invert exparg))))]
     [`(cosh ,arg)
      (define exparg (taylor var `(exp ,arg)))
@@ -348,7 +332,7 @@
                  (for ([pt (all-partitions (- n (* k i)) options*)])
                    (sow (cons head pt))))))]))
 
-(define (taylor-exp coeffs)
+(define (taylor-exp* coeffs)
   (let* ([hash (make-hash)])
     (hash-set! hash 0 (simplify `(exp ,(coeffs 0))))
     (cons 0
@@ -367,8 +351,11 @@
                                               `(* ,@(for/list ([(count num) (in-dict p)])
                                                       `(/ (pow ,(vector-ref coeffs* (- num 1)) ,count)
                                                           ,(factorial count))))))))))))))
+(define (taylor-exp term expr)
+  (let ([arg* (normalize-series term)])
+    (if (positive? (car arg*)) (taylor-exact expr) (taylor-exp* (zero-series arg*)))))
 
-(define (taylor-sin coeffs)
+(define (taylor-sin* coeffs)
   (let ([hash (make-hash)])
     (hash-set! hash 0 0)
     (cons
@@ -390,7 +377,20 @@
                                             ,(factorial count))))
                                 0))))))))))
 
-(define (taylor-cos coeffs)
+(define (taylor-sin term expr)
+  (let ([arg* (normalize-series term)])
+    (cond
+      [(positive? (car arg*)) (taylor-exact expr)]
+      [(= (car arg*) 0)
+       ; Our taylor-sin function assumes that a0 is 0,
+       ; because that way it is especially simple. We correct for this here
+       ; We use the identity sin (x + y) = sin x cos y + cos x sin y
+       (taylor-add
+        (taylor-mult (taylor-exact `(sin ,((cdr arg*) 0))) (taylor-cos* (zero-series arg*)))
+        (taylor-mult (taylor-exact `(cos ,((cdr arg*) 0))) (taylor-sin* (zero-series arg*))))]
+      [else (taylor-sin* (zero-series arg*))])))
+
+(define (taylor-cos* coeffs)
   (let ([hash (make-hash)])
     (hash-set! hash 0 1)
     (cons
@@ -411,6 +411,20 @@
                                         `(/ (pow ,(vector-ref coeffs* (- num 1)) ,count)
                                             ,(factorial count))))
                                 0))))))))))
+
+(define (taylor-cos term expr)
+  (let ([arg* (normalize-series term)])
+    (cond
+      [(positive? (car arg*)) (taylor-exact expr)]
+      [(= (car arg*) 0)
+       ; Our taylor-cos function assumes that a0 is 0,
+       ; because that way it is especially simple. We correct for this here
+       ; We use the identity cos (x + y) = cos x cos y - sin x sin y
+       (taylor-add (taylor-mult (taylor-exact `(cos ,((cdr arg*) 0)))
+                                (taylor-cos* (zero-series arg*)))
+                   (taylor-negate (taylor-mult (taylor-exact `(sin ,((cdr arg*) 0)))
+                                               (taylor-sin* (zero-series arg*)))))]
+      [else (taylor-cos* (zero-series arg*))])))
 
 ;; This is a hyper-specialized symbolic differentiator for log(f(x))
 
@@ -477,11 +491,17 @@
   (require rackunit
            "../syntax/types.rkt"
            "../syntax/load-plugin.rkt")
-  (check-pred exact-integer? (car (taylor 'x '(pow x 1.0)))))
+  (define batch (progs->batch (list '(pow x 1.0)) '(x)))
+  (define nodes (batch-nodes batch))
+  (define root (vector-ref (batch-roots batch) 0))
+  (check-pred exact-integer? (car (taylor '(x) nodes root))))
 
 (module+ test
   (define (coeffs expr #:n [n 7])
-    (match-define fn (zero-series (taylor 'x expr)))
+    (define batch (progs->batch (list expr) '(x)))
+    (define nodes (batch-nodes batch))
+    (define root (vector-ref (batch-roots batch) 0))
+    (match-define fn (zero-series (taylor 'x nodes root)))
     (build-list n fn))
 
   (check-equal? (coeffs '(sin x)) '(0 1 0 -1/6 0 1/120 0))
