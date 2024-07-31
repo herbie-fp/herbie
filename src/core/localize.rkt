@@ -133,8 +133,10 @@
         (match expr
           [(? literal?) 1]
           [(? variable?) 1]
+          [(approx _ impl)
+           (define repr (repr-of expr ctx))
+           (ulp-difference (hash-ref exacts-hash expr) (hash-ref exacts-hash impl) repr)]
           [`(if ,c ,ift ,iff) 1]
-          [(approx spec impl) 1]
           [(list f args ...)
            (define repr (impl-info f 'otype))
            (define argapprox
