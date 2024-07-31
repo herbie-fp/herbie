@@ -104,40 +104,41 @@
 
 ; Compute local error or each sampled point at each node in `prog`.
 (define (compute-local-errors subexprss ctx)
-  (define exprs-list (for*/list ([subexprs (in-list subexprss)] [subexpr (in-list subexprs)])
-                       subexpr))
-  
+  (define exprs-list (append* subexprss)) ; unroll subexprss
   (define ctx-list
-    (for*/list ([subexprs (in-list subexprss)] [subexpr (in-list subexprs)])
+    (for/list ([subexpr (in-list exprs-list)])
       (struct-copy context ctx [repr (repr-of subexpr ctx)])))
   
-  (define spec-batch (progs->batch
-                      (map prog->spec exprs-list) ; exprs-list->spec-list
+  (define expr-batch (progs->batch
+                      exprs-list
                       (context-vars (first ctx-list))))
+  (define nodes (batch-nodes expr-batch))
+  (define roots (batch-roots expr-batch))
   
-  (define subexprs-fn (eval-progs-real (batch->progs spec-batch) ctx-list))
+  (define subexprs-fn (eval-progs-real (map prog->spec exprs-list) ctx-list))
 
   ; Mutable error hack, this is bad
   (define errs (make-hash (map list exprs-list)))
-
+  
   (for ([(pt ex) (in-pcontext (*pcontext*))])
     (define exacts (apply subexprs-fn pt))
-    (define exacts-hash (make-immutable-hash (map cons (apply append subexprss) exacts)))
-    (for ([expr (in-list exprs-list)])
+    (for ([expr (in-list exprs-list)]
+          [root (in-vector roots)])
       (define err
-        (match expr
+        (match (vector-ref nodes root)
           [(? literal?) 1]
           [(? variable?) 1]
           [`(if ,c ,ift ,iff) 1]
           [(list f args ...)
            (define repr (impl-info f 'otype))
            (define argapprox
-             (for/list ([arg (in-list args)])
-               (hash-ref exacts-hash arg)))
+             (for/list ([idx (in-list args)])
+               (list-ref exacts
+                         (vector-member idx roots)))) ; arg's index mapping to exact
            (define approx (apply (impl-info f 'fl) argapprox))
-           (ulp-difference (hash-ref exacts-hash expr) approx repr)]))
+           (ulp-difference (list-ref exacts root) approx repr)]))
       (hash-update! errs expr (curry cons err))))
-
+  
   (for/list ([subexprs (in-list subexprss)])
     (for*/hash ([subexpr (in-list subexprs)])
       (values subexpr (reverse (hash-ref errs subexpr))))))
