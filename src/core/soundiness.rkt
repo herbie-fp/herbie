@@ -73,9 +73,8 @@
       ; recursive rewrite using egg (impl -> impl)
       [(alt expr `(rr ,loc ,(? egg-runner? runner) #f #f) `(,prev) _)
        (define start-expr (location-get loc (alt-expr prev)))
-       (define start-expr* (prog->spec start-expr))
        (define end-expr (location-get loc expr))
-       (define rewrite (cons start-expr* end-expr))
+       (define rewrite (cons start-expr end-expr))
        (hash-set! alt->query&rws (altn->key altn) (cons runner rewrite))
        (hash-update! query->rws runner (lambda (rws) (set-add rws rewrite)) '())]
 
