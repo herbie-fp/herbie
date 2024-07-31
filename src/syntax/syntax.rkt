@@ -59,8 +59,6 @@
 ;;  - input and output types
 ;;  - optionally a specification [#f by default]
 ;;  - optionally a deprecated? flag [#f by default]
-;; Operator implementations _implement_ a real operator
-;; for a particular set of input and output representations.
 (struct operator (name itype otype spec deprecated))
 
 ;; All real operators
@@ -350,11 +348,15 @@
 ;; Operator implementations
 ;; Floating-point operations that approximate mathematical operations
 
-;; Operator implementations
-;; An "operator implementation" implements a mathematical operator for
-;; a particular set of representations satisfying the types described
-;; by the `itype` and `otype` properties of the operator.
-(struct operator-impl (name op itype otype fl))
+;; An operator implementation requires
+;;  - a (unique) name
+;;  - input and output representations
+;;  - a specification it approximates
+;;  - its FPCore representation
+;;  - an implementation
+;; Operator implementations _approximate_ a program of
+;; mathematical operators with fixed input and output representations.
+(struct operator-impl (name op itype otype spec fpcore fl))
 
 ;; Operator implementation table
 ;; Tracks implementations that are loaded into Racket's runtime
@@ -368,13 +370,15 @@
 ;; Looks up a property `field` of an real operator `op`.
 ;; Panics if the operator is not found.
 (define/contract (impl-info impl field)
-  (-> symbol? (or/c 'itype 'otype 'fl) any/c)
+  (-> symbol? (or/c 'itype 'otype 'spec 'fl) any/c)
   (unless (hash-has-key? operator-impls impl)
     (error 'impl-info "Unknown operator implementation ~a" impl))
   (define info (hash-ref operator-impls impl))
   (case field
     [(itype) (operator-impl-itype info)]
     [(otype) (operator-impl-otype info)]
+    [(spec) (operator-impl-spec info)]
+    [(fpcore) (operator-impl-fpcore info)]
     [(fl) (operator-impl-fl info)]))
 
 ;; Like `operator-all-impls`, but filters for only active implementations.
@@ -403,59 +407,57 @@
 ;; Registers an operator implementation `name` or real operator `op`.
 ;; The input and output representations must satisfy the types
 ;; specified by the `itype` and `otype` fields for `op`.
-(define (register-operator-impl! op name ireprs orepr attrib-dict)
-  (define op-info
-    (hash-ref
-     operators
-     op
-     (lambda ()
-       (raise-herbie-missing-error "Cannot register `~a`, operator `~a` does not exist" name op))))
+(define/contract (register-operator-impl! op name ireprs orepr attrib-dict)
+  (-> symbol? symbol? (listof representation?) representation? (listof pair?) void?)
+  ; extract or generate the spec
+  (define spec
+    (match (dict-ref attrib-dict 'spec #f)
+      ; not provided => need to generate it
+      [#f
+       (define vars (gen-vars (length ireprs)))
+       `(lambda ,vars (,op ,@vars))]
+      ; provided => check for syntax and types
+      [spec
+       (check-accelerator-spec! name
+                                (map representation-type ireprs)
+                                (representation-type orepr)
+                                spec)
+       spec]))
+  ; extract or generate the fpcore translation
+  (match-define `(,(or 'lambda 'λ) ,vars ,_) spec)
+  (define fpcore
+    (match (dict-ref attrib-dict 'fpcore #f)
+      ; not provided => need to generate it
+      [#f `(! :precision ,(representation-name orepr) `(,op ,@vars))]
+      ; provided -> TODO: check free variables
+      [fpcore fpcore]))
 
-  ; check arity and types
-  (define itypes (operator-itype op-info))
-  (define otype (operator-otype op-info))
-  (define expect-arity (length itypes))
-  (define actual-arity (length ireprs))
-  (unless (= expect-arity actual-arity)
-    (raise-herbie-missing-error
-     "Cannot register `~a` as an implementation of `~a`: expected ~a arguments, got ~a"
-     name
-     op
-     expect-arity
-     actual-arity))
-  (for ([repr (in-list (cons orepr ireprs))] [type (in-list (cons otype itypes))])
-    (unless (equal? (representation-type repr) type)
-      "Cannot register `~a` as implementation of `~a`: ~a is not a representation of ~a"
-      name
-      op
-      repr
-      type))
-
-  ;; Synthesizes a correctly-rounded floating-point implemenation
-  (define (synth-fl-impl name vars spec)
-    (define ctx (context vars orepr ireprs))
-    (define compiler (make-real-compiler (list spec) (list ctx)))
-    (define fail ((representation-bf->repr orepr) +nan.bf))
-    (procedure-rename (lambda pt
-                        (define-values (_ exs) (real-apply compiler pt))
-                        (if exs (first exs) fail))
-                      (sym-append 'synth: name)))
-
-  ;; Get floating-point implementation
+  ; extract or generate floating-point implementation
   (define fl-proc
-    (cond
-      [(assoc 'fl attrib-dict)
-       =>
-       cdr] ; user-provided implementation
-      [(operator-accelerator? op) ; Rival-synthesized accelerator implementation
-       (match-define `(,(or 'lambda 'λ) (,vars ...) ,body) (operator-spec op-info))
-       (synth-fl-impl name vars body)]
-      [else ; Rival-synthesized operator implementation
-       (define vars (build-list (length ireprs) (lambda (i) (string->symbol (format "x~a" i)))))
-       (synth-fl-impl name vars `(,op ,@vars))]))
+    (match (dict-ref attrib-dict 'fl #f)
+      ; not provided => need to generate it
+      [#f
+       (define ctx (context vars orepr ireprs))
+       (define compiler (make-real-compiler (list spec) (list ctx)))
+       (define fail ((representation-bf->repr orepr) +nan.bf))
+       (procedure-rename (lambda pt
+                           (define-values (_ exs) (real-apply compiler pt))
+                           (if exs (first exs) fail))
+                         (sym-append 'synth: name))]
+      ; provided
+      [(? procedure? proc)
+       (define expect-arity (length ireprs))
+       (unless (procedure-arity-includes? proc expect-arity #t)
+         (error 'register-operator-impl!
+                "~a: procedure does not accept ~a arguments"
+                name
+                expect-arity))]
+      ; not a procedure
+      [bad
+       (error 'register-operator-impl! "~a: expected a procedure with attribute 'fl ~a" name bad)]))
 
   ; update tables
-  (define impl (operator-impl name op-info ireprs orepr fl-proc))
+  (define impl (operator-impl name op ireprs orepr spec fpcore fl-proc))
   (hash-set! operator-impls name impl)
   (hash-update! operators-to-impls op (curry cons name)))
 

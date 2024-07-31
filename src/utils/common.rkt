@@ -22,6 +22,7 @@
          quasisyntax
          dict
          sym-append
+         gen-vars
          string-replace*
          format-time
          format-bits
@@ -261,11 +262,18 @@
 (define (web-resource [name #f])
   (if name (build-path web-resource-path name) web-resource-path))
 
-(define (sym-append . args)
-  (string->symbol (apply string-append (map ~a args))))
-
 (define/contract (string-replace* str changes)
   (-> string? (listof (cons/c string? string?)) string?)
   (for/fold ([str str]) ([change changes])
     (match-define (cons from to) change)
     (string-replace str from to)))
+
+;; Symbol generation
+
+(define (sym-append . args)
+  (string->symbol (apply string-append (map ~a args))))
+
+;; Generates a list of variables names.
+(define/contract (gen-vars n)
+  (-> natural? (listof symbol?))
+  (build-list n (lambda (i) (string->symbol (format "x~a" i)))))
