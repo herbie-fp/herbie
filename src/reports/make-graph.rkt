@@ -35,8 +35,7 @@
     [(list op args ...) (ormap list? args)]
     [_ #f]))
 
-(define (make-graph result-hash out output? fpcore? profile?)
-  (eprintf "make-graph\n")
+(define (make-graph result-hash out output? profile?)
   (define backend (hash-ref result-hash 'backend))
   (define test (hash-ref result-hash 'test))
   (define time (hash-ref result-hash 'time))

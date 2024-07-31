@@ -14,6 +14,9 @@
          "../api/sandbox.rkt")
 
 (provide make-points-json
+         regime-var
+         regime-splitpoints
+         real->ordinal
          splitpoints->json)
 
 (define (all-same? pts idx)
@@ -30,14 +33,21 @@
           (real->ordinal (repr->real val repr) repr))
         '())))
 
-(define (make-points-json result repr)
-  (match-define (job-result _ test _ _ _ _ (improve-result _ pctxs start targets end _)) result)
+(define (make-points-json result-hash repr)
+  (define test (hash-ref result-hash 'test))
+  (define backend (hash-ref result-hash 'backend))
+  (define pctxs (hash-ref backend 'pctxs))
+  (define start (hash-ref backend 'start))
+  (define targets (hash-ref backend 'target))
+  (define end (hash-ref backend 'end))
+
   (define repr (test-output-repr test))
   (define start-errors (alt-analysis-test-errors start))
 
   (define target-errors (map alt-analysis-test-errors targets))
 
-  (define end-errors (map alt-analysis-test-errors end))
+  (define end-errors (hash-ref end 'end-errors))
+  
   (define newpoints (pcontext-points (second pctxs)))
 
   ; Immediately convert points to reals to handle posits
@@ -56,6 +66,7 @@
   (define start-error (map ulps->bits-tenths start-errors))
   (define target-error (map (lambda (alt-error) (map ulps->bits-tenths alt-error)) target-errors))
   (define end-error (map ulps->bits-tenths (car end-errors)))
+  
 
   (define target-error-entries
     (for/list ([i (in-naturals)] [error-value (in-list target-error)])
@@ -76,8 +87,7 @@
               (string-replace (~r val #:notation 'exponential #:precision 0) "1e" "e")))
         (list tick-str (real->ordinal val repr)))))
 
-  (define end-alt (alt-analysis-alt (car end)))
-  (define splitpoints (splitpoints->json vars end-alt repr))
+  (define splitpoints (hash-ref end 'splitpoints))
 
   ; NOTE ordinals *should* be passed as strings so we can detect truncation if
   ;   necessary, but this isn't implemented yet.
