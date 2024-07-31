@@ -70,6 +70,7 @@
     [(? symbol?) expr]
     [(? number?) expr]
     [(? literal?) (literal-value expr)]
+    [(approx spec impl) (approx (remove-literals spec) (remove-literals impl))]
     [(list op args ...) (cons op (map remove-literals args))]))
 
 (define (expr->fpcore expr ctx #:ident [ident #f])
