@@ -72,7 +72,7 @@
         (egraph-pointer ; FFI pointer to runner
          herbie->egg-dict ; map from symbols to canonicalized names
          egg->herbie-dict ; inverse map
-         id->approx)) ; map from e-class id to approx node-or-#f
+         id->spec)) ; map from e-class id to an approx-spec or #f
 
 ; Makes a new egraph that is managed by Racket's GC
 (define (make-egraph)
@@ -87,18 +87,18 @@
 
 ;; result function is a function that takes the ids of the nodes
 (define (egraph-add-expr eg-data expr ctx)
-  (match-define (egraph-data ptr _ _ id->approx) eg-data)
+  (match-define (egraph-data ptr _ _ id->spec) eg-data)
   ; add the expression to the e-graph and save the root e-class id
   (define egg-expr (expr->egg-expr expr eg-data ctx))
   (define root-id (egraph_add_expr ptr (~a egg-expr)))
-  ; record all approx nodes and their ids
+  ; record all approx specs
   (let loop ([egg-expr egg-expr])
     (match egg-expr
       [(? number?) (void)]
       [(? symbol?) (void)]
-      [(list '$approx _ impl)
-       (define id (egraph_add_expr ptr (~a egg-expr)))
-       (hash-ref! id->approx id (lambda () egg-expr))
+      [(list '$approx spec impl)
+       (define id (egraph_add_expr ptr (~a spec)))
+       (hash-ref! id->spec id (lambda () spec))
        (loop impl)]
       [(list _ args ...) (for-each loop args)]))
   ; return the id
@@ -478,11 +478,11 @@
 ;; - constants: map from vector index to if the eclass contains a constant
 ;; - parents: parent e-classes of each e-class
 ;; - egg->herbie: data to translate egg IR to herbie IR
-;; - id->approx: map from id to an approx node or #f (allows spec recovery)
-(struct regraph (eclasses canon has-leaf? constants parents egg->herbie id->approx))
+;; - id->spec: map from id to an approx spec or #f
+(struct regraph (eclasses canon has-leaf? constants parents egg->herbie id->spec))
 
 ;; Constructs a Racket egraph from an S-expr representation.
-(define (sexpr->regraph egraph egg->herbie id->approx)
+(define (sexpr->regraph egraph egg->herbie id->spec)
   ; total number of e-classes
   (define n (length egraph))
   ; canonicalize all e-class ids to [0, n)
@@ -527,13 +527,13 @@
   (for ([id (in-range n)])
     (vector-set! parents id (list->vector (remove-duplicates (vector-ref parents id)))))
 
-  ; convert id->approx to a vector-map
-  (define id->approx* (make-vector n #f))
-  (for ([(id approx) (in-hash id->approx)])
-    (vector-set! id->approx* (hash-ref canon id) approx))
+  ; convert id->spec to a vector-map
+  (define id->spec* (make-vector n #f))
+  (for ([(id spec) (in-hash id->spec)])
+    (vector-set! id->spec* (hash-ref canon id) spec))
 
   ; collect with wrapper
-  (regraph eclasses canon has-leaf? constants parents egg->herbie id->approx*))
+  (regraph eclasses canon has-leaf? constants parents egg->herbie id->spec*))
 
 ;; Constructs a Racket egraph from an S-expr representation of
 ;; an egraph and data to translate egg IR to herbie IR.
@@ -541,8 +541,8 @@
   (define egraph-str (egraph-serialize egraph-data))
   (sexpr->regraph (read (open-input-string egraph-str))
                   (egraph-data-egg->herbie-dict egraph-data)
-                  (for/hash ([(id approx) (in-hash (egraph-data-id->approx egraph-data))])
-                    (values (egraph-find egraph-data id) approx))))
+                  (for/hash ([(id spec) (in-hash (egraph-data-id->spec egraph-data))])
+                    (values (egraph-find egraph-data id) spec))))
 
 ;; Egraph node has children.
 ;; Nullary operators have no children!
@@ -684,15 +684,15 @@
   (set! costs (regraph-analyze regraph eclass-set-cost! #:analysis costs))
 
   ; reconstructs the best expression at a node
-  (define id->approx (regraph-id->approx regraph))
+  (define id->spec (regraph-id->spec regraph))
   (define (build-expr id)
     (match (cdr (vector-ref costs id))
       [(? number? n) n] ; number
       [(? symbol? s) s] ; variable
-      [(list '$approx _ impl) ; approx
-       (match (vector-ref id->approx id)
-         [(list '$approx spec-e _) (list '$approx spec-e (build-expr impl))]
-         [#f (error 'build-expr "no initial approx node in eclass ~a" id)])]
+      [(list '$approx spec impl) ; approx
+       (match (vector-ref id->spec spec)
+         [#f (error 'build-expr "no initial approx node in eclass ~a" id)]
+         [spec-e (list '$approx spec-e (build-expr impl))])]
       [(list op ids ...) (cons op (map build-expr ids))] ; application
       [e (error 'untyped-extraction-proc "unexpected node" e)]))
 
@@ -1005,7 +1005,7 @@
       (error 'typed-egg-extractor "costs not computed for all eclasses ~a" costs)))
 
   ; rebuilds the extracted procedure
-  (define id->approx (regraph-id->approx regraph))
+  (define id->spec (regraph-id->spec regraph))
   (define (build-expr id type)
     (let/ec
      return
@@ -1013,10 +1013,10 @@
        (match (unsafe-best-node id type)
          [(? number? n) n] ; number
          [(? symbol? s) s] ; variable
-         [(list '$approx _ impl) ; approx
-          (match (vector-ref id->approx id)
-            [(list '$approx spec-e _) (list '$approx spec-e (loop impl type))]
-            [#f (error 'build-expr "no initial approx node in eclass ~a" id)])]
+         [(list '$approx spec impl) ; approx
+          (match (vector-ref id->spec spec)
+            [#f (error 'build-expr "no initial approx node in eclass ~a" id)]
+            [spec-e (list '$approx spec-e (build-expr impl type))])]
          [(list 'if cond ift iff) ; if expression
           (list 'if (loop cond (get-representation 'bool)) (loop ift type) (loop iff type))]
          ; expression of impls
@@ -1090,7 +1090,7 @@
 (define (regraph-extract-variants regraph extract id type)
   ; regraph fields
   (define eclasses (regraph-eclasses regraph))
-  (define id->approx (regraph-id->approx regraph))
+  (define id->spec (regraph-id->spec regraph))
   (define canon (regraph-canon regraph))
 
   ; extract expressions
@@ -1101,13 +1101,13 @@
             (match enode
               [(? number?) (sow enode)]
               [(? symbol?) (sow enode)]
-              [(list '$approx _ impl)
-               (match (vector-ref id->approx id*)
-                 [(list '$approx spec-e _)
+              [(list '$approx spec impl)
+               (match (vector-ref id->spec spec)
+                 [#f (error 'regraph-extract-variants "no initial approx node in eclass ~a" id*)]
+                 [spec-e
                   (match-define (cons _ impl*) (extract impl type))
                   (when impl*
-                    (sow (list '$approx spec-e impl*)))]
-                 [#f (error 'regraph-extract-variants "no initial approx node in eclass ~a" id*)])]
+                    (sow (list '$approx spec-e impl*)))])]
               [(list 'if cond ift iff)
                (match-define (cons _ cond*)
                  (extract cond (if (representation? type) (get-representation 'bool) 'bool)))

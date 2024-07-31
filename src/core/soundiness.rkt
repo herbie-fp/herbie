@@ -4,7 +4,6 @@
          "points.rkt"
          "programs.rkt"
          "egg-herbie.rkt"
-         "rules.rkt"
          "../syntax/sugar.rkt"
          "../syntax/syntax.rkt")
 

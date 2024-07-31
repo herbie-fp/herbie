@@ -705,8 +705,9 @@
                    (define-values (vars spec-expr impl-expr) (impl->rule-parts impl))
                    (rule name impl-expr spec-expr (map cons vars itypes) otype)))))
   ;; special rule for approx nodes
-  (define approx-rule (rule 'lift-approx (approx 'a 'b) 'a '((a . real) (b . real)) 'real))
-  (cons approx-rule impl-rules))
+  ; (define approx-rule (rule 'lift-approx (approx 'a 'b) 'a '((a . real) (b . real)) 'real))
+  ; (cons approx-rule impl-rules))
+  impl-rules)
 
 ;; Synthesizes lowering rules for a given platform.
 (define (platform-lowering-rules [pform (*active-platform*)])
