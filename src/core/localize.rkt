@@ -102,8 +102,9 @@
   (define subexprss (map all-subexpressions exprs))
   (define errss (compute-local-errors subexprss ctx))
 
-  (for/list ([expr (in-list exprs)] [errs (in-list errss)])
-    (sort (sort (for/list ([(subexpr err) (in-hash errs)] #:when (list? subexpr))
+  (for/list ([_ (in-list exprs)] [errs (in-list errss)])
+    (sort (sort (for/list ([(subexpr err) (in-hash errs)]
+                           #:when (or (list? subexpr) (approx? subexpr)))
                   (cons err subexpr))
                 expr<?
                 #:key cdr)
