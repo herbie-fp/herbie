@@ -114,15 +114,13 @@
   (define roots (batch-roots expr-batch))
 
   (define subexprs-fn (eval-progs-real (map prog->spec exprs-list) ctx-list))
-  
+
   ; Mutable error hack, this is bad
   (define errs (make-hash (map list exprs-list)))
 
   (for ([(pt ex) (in-pcontext (*pcontext*))])
     (define exacts (apply subexprs-fn pt))
-    (for ([expr (in-list exprs-list)]
-          [root (in-vector roots)]
-          [exact (in-list exacts)])
+    (for ([expr (in-list exprs-list)] [root (in-vector roots)] [exact (in-list exacts)])
       (define err
         (match (vector-ref nodes root)
           [(? literal?) 1]
