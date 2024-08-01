@@ -29,6 +29,8 @@
          format-accuracy
          format-cost
          web-resource
+         props->dict
+         dict->props
          (all-from-out "../config.rkt"))
 
 (module+ test
@@ -289,7 +291,8 @@
       [(list key) (error 'props->dict "unmatched key" key)]
       [(list) dict])))
 
-(define (dict->prop prop-dict)
+(define/contract (dict->props prop-dict)
+  (-> (listof (cons/c symbol? any/c)) list?)
   (apply append
          (for/list ([(k v) (in-dict prop-dict)])
            (list k v))))

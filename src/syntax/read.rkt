@@ -146,12 +146,7 @@
     (for/list ([arg args])
       (if (list? arg) (last arg) arg)))
 
-  (define prop-dict
-    (let loop ([props props])
-      (match props
-        ['() '()]
-        [(list prop val rest ...) (cons (cons prop val) (loop rest))])))
-
+  (define prop-dict (props->dict props))
   (define default-prec (dict-ref prop-dict ':precision (*default-precision*)))
   (define default-repr (get-representation default-prec))
   (define var-reprs

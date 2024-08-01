@@ -27,8 +27,7 @@
          clear-active-operator-impls!
          *functions*
          register-function!
-         get-impl
-         get-impls
+         get-fpcore-impl
          get-parametric-operator
          get-parametric-constant
          get-cast-impl
@@ -278,19 +277,15 @@
   [hypot : real real -> real]
   [fma : real real real -> real])
 
-; (module+ test
-;   ; check expected number of operators
-;   (check-equal? (length (all-operators)) 63)
+(module+ test
+  ; check expected number of operators
+  (check-equal? (length (all-operators)) 63)
 
-;   ; check that Rival supports all non-accelerator operators
-;   (for ([op (in-list (all-operators))] #:unless (operator-accelerator? op))
-;     (define vars (map (lambda (_) (gensym)) (operator-info op 'itype)))
-;     (define disc (discretization 64 #f #f)) ; fake arguments
-;     (rival-compile (list `(,op ,@vars)) vars (list disc)))
-
-;   ; test accelerator operator
-;   ; log1pmd(x) = log1p(x) - log1p(-x)
-;   (define-operator (log1pmd real) real [spec (lambda (x) (- (log1p x) (log1p (neg x))))]))
+  ; check that Rival supports all non-accelerator operators
+  (for ([op (in-list (all-operators))])
+    (define vars (map (lambda (_) (gensym)) (operator-info op 'itype)))
+    (define disc (discretization 64 #f #f)) ; fake arguments
+    (rival-compile (list `(,op ,@vars)) vars (list disc))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Operator implementations
@@ -318,7 +313,7 @@
 ;; Looks up a property `field` of an real operator `op`.
 ;; Panics if the operator is not found.
 (define/contract (impl-info impl field)
-  (-> symbol? (or/c 'itype 'otype 'spec 'fl) any/c)
+  (-> symbol? (or/c 'itype 'otype 'spec 'fpcore 'fl) any/c)
   (unless (hash-has-key? operator-impls impl)
     (error 'impl-info "Unknown operator implementation ~a" impl))
   (define info (hash-ref operator-impls impl))
@@ -475,48 +470,64 @@
 
 ;; Returns the list of implementations that implement a given spec
 ;; and have the given input and output representations.
-(define (get-impls spec ireprs orepr #:impls [impls (all-active-operator-impls)])
-  (reap [sow]
-        (for ([impl (in-list impls)])
-          (when (and (equal? orepr (impl-info impl 'otype))
-                     (equal? ireprs (impl-info impl 'itype))
-                     (let ()
-                       (match-define (list _ _ spec*) (impl-info impl 'spec))
-                       (eprintf "~a: ~a ~a\n" impl spec spec*)
-                       (spec-equal? spec spec*)))
-            (sow impl)))))
+; (define (get-impls spec ireprs orepr #:impls [impls (all-active-operator-impls)])
+;   (reap [sow]
+;         (for ([impl (in-list impls)])
+;           (when (and (equal? orepr (impl-info impl 'otype))
+;                      (equal? ireprs (impl-info impl 'itype))
+;                      (let ()
+;                        (match-define (list _ _ spec*) (impl-info impl 'spec))
+;                        (spec-equal? spec spec*)))
+;             (sow impl)))))
 
-;; Given a spec, rounding properties, and input representations,
-;; looks up the best corresponding operator implementation.
-;; Note: maximize number of matching properties, then minimize
-;; the number of extraneous properties.
-(define (get-impl spec ireprs props #:impls [impls (all-active-operator-impls)])
+;; Finds the best operator implemenation for a given
+;; FPCore expression, input representations, and rounding properties.
+;; Panics if none can be found.
+(define (get-fpcore-impl expr ireprs prop-dict #:impls [all-impls (all-active-operator-impls)])
   ; ensure `':precision` is in the prop list
-  (unless (dict-has-key? props ':precision)
-    (error 'get-impl "expected key ':precision in properties `~a`" props))
-  (define orepr (get-representation (dict-ref props ':precision)))
-  ; lookup all matching implementations
-  (define impls* (get-impls spec ireprs orepr #:impls impls))
-  (when (null? impls*)
+  (unless (dict-has-key? prop-dict ':precision)
+    (error 'get-impl "expected key ':precision in properties `~a`" prop-dict))
+  (define orepr (get-representation (dict-ref prop-dict ':precision)))
+  ; gather all implementations that have the same spec,
+  ; input and output representations, and its FPCore translation
+  ; has properties that are found in `prop-dict`
+  (define impls
+    (reap [sow]
+          (for ([impl (in-list all-impls)])
+            (when (and (equal? orepr (impl-info impl 'otype))
+                       (equal? ireprs (impl-info impl 'itype))
+                       (let ()
+                         (match-define (list '! props ... body) (impl-info impl 'fpcore))
+                         (define prop-dict* (props->dict props))
+                         (and (andmap (lambda (prop) (member prop prop-dict)) prop-dict*)
+                              (spec-equal? expr body))))
+              (sow impl)))))
+  ; check that we have any matching impls
+  (when (null? impls)
     (raise-herbie-missing-error
-     "No implementation for spec ~a with type ~a -> ~a"
-     spec
+     "No implementation for `~a` with type `~a -> ~a`"
+     expr
      (string-join (map (λ (r) (format "<~a>" (representation-name r))) ireprs) " ")
-     (format "<~a>" (representation-type orepr))))
-
-  (define scored
-    (for/list ([impl (in-list impls*)])
-      (match-define (list '! props* ... _) (impl-info impl 'fpcore))
-      (define num-props (length props*))
-      
-
-      impl))
-
-
-  impls*)
-
-; (define (get-impl spec ireprs orepr #:impls [impls (operator-active-impls)])
-;   (
+     (format "<~a>" (representation-name orepr))))
+  ; ; we rank implementations and select the highest scoring one
+  (define scores
+    (for/list ([impl (in-list impls)])
+      (match-define (list '! props ... _) (impl-info impl 'fpcore))
+      (define prop-dict* (props->dict props))
+      (define matching (filter (lambda (prop) (member prop prop-dict*)) prop-dict))
+      (cons (length matching) (- (length prop-dict) (length matching)))))
+  ; select the best implementation
+  ; sort first by the number of matched properties,
+  ; then tie break on the number of extraneous properties
+  (match-define (list (cons _ best) _ ...)
+    (sort (map cons scores impls)
+          (lambda (x y)
+            (cond
+              [(> (car x) (car y)) #t]
+              [(< (car x) (car y)) #f]
+              [else (> (cdr x) (cdr y))]))
+          #:key car))
+  best)
 
 ;; Among active implementations, looks up an implementation with
 ;; the operator name `name` and argument representations `ireprs`.
@@ -543,45 +554,6 @@
           (raise-herbie-missing-error "Could not find constant implementation for ~a with ~a"
                                       name
                                       (format "<~a>" (representation-name repr)))))
-
-; (module+ test
-;   (require math/flonum
-;            math/bigfloat
-;            (submod "types.rkt" internals))
-
-;   (define (shift bits fn)
-;     (define shift-val (expt 2 bits))
-;     (λ (x) (fn (- x shift-val))))
-
-;   (define (unshift bits fn)
-;     (define shift-val (expt 2 bits))
-;     (λ (x) (+ (fn x) shift-val)))
-
-;   ; for testing: also in <herbie>/reprs/binary64.rkt
-;   (define-representation (binary64 real flonum?)
-;                          bigfloat->flonum
-;                          bf
-;                          (shift 63 ordinal->flonum)
-;                          (unshift 63 flonum->ordinal)
-;                          64
-;                          (conjoin number? nan?))
-
-;   ; correctly-rounded log1pmd(x) for binary64
-;   (define-operator-impl (log1pmd log1pmd.f64 binary64) binary64)
-;   ; correctly-rounded sin(x) for binary64
-;   (define-operator-impl (sin sin.acc.f64 binary64) binary64)
-
-;   (define log1pmd-proc (impl-info 'log1pmd.f64 'fl))
-;   (define log1pmd-vals '((0.0 . 0.0) (0.5 . 1.0986122886681098) (-0.5 . -1.0986122886681098)))
-;   (for ([(pt out) (in-dict log1pmd-vals)])
-;     (check-equal? (log1pmd-proc pt) out (format "log1pmd(~a) = ~a" pt out)))
-
-;   (define sin-proc (impl-info 'sin.acc.f64 'fl))
-;   (define sin-vals '((0.0 . 0.0) (1.0 . 0.8414709848078965) (-1.0 . -0.8414709848078965)))
-;   (for ([(pt out) (in-dict sin-vals)])
-;     (check-equal? (sin-proc pt) out (format "sin(~a) = ~a" pt out)))
-
-;   (void))
 
 ;; Casts and precision changes
 

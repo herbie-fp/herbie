@@ -1,8 +1,9 @@
 #lang racket
 
-(require "types.rkt"
+(require "../core/programs.rkt"
+         "../utils/common.rkt"
          "syntax.rkt"
-         "../core/programs.rkt")
+         "types.rkt")
 
 (provide fpcore->prog
          prog->fpcore
@@ -125,14 +126,6 @@
       [(? symbol?) (dict-ref env expr expr)]
       ; other
       [_ expr])))
-
-;; Prop list to dict
-(define (props->dict props)
-  (let loop ([props props] [dict '()])
-    (match props
-      [(list key val rest ...) (loop rest (dict-set dict key val))]
-      [(list key) (error 'props->dict "unmatched key" key)]
-      [(list) dict])))
 
 ;; Translates from FPCore to an LImpl
 (define (fpcore->prog prog ctx)
