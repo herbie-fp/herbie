@@ -19,12 +19,16 @@
          impl-exists?
          impl-info
          impl->operator
+         all-operator-impls
+         (rename-out [all-active-operator-impls active-operator-impls])
          operator-all-impls
          operator-active-impls
          activate-operator-impl!
          clear-active-operator-impls!
          *functions*
          register-function!
+         get-impl
+         get-impls
          get-parametric-operator
          get-parametric-constant
          get-cast-impl
@@ -325,6 +329,14 @@
     [(fpcore) (operator-impl-fpcore info)]
     [(fl) (operator-impl-fl info)]))
 
+;; Returns all operator implementations.
+(define (all-operator-impls)
+  (sort (hash-keys operator-impls) symbol<?))
+
+;; Returns all active operator implementations.
+(define (all-active-operator-impls)
+  (sort (set->list active-operator-impls) symbol<?))
+
 ;; Like `operator-all-impls`, but filters for only active implementations.
 (define (operator-active-impls name)
   (filter (curry set-member? active-operator-impls) (operator-all-impls name)))
@@ -372,7 +384,7 @@
        (check-spec! name (map representation-type ireprs) (representation-type orepr) spec)
        spec]))
   ; extract or generate the fpcore translation
-  (match-define `(,(or 'lambda 'λ) ,vars ,_) spec)
+  (match-define `(,(or 'lambda 'λ) ,vars ,body) spec)
   (define fpcore
     (match (dict-ref attrib-dict 'fpcore #f)
       ; not provided => need to generate it
@@ -386,7 +398,7 @@
       ; not provided => need to generate it
       [#f
        (define ctx (context vars orepr ireprs))
-       (define compiler (make-real-compiler (list spec) (list ctx)))
+       (define compiler (make-real-compiler (list body) (list ctx)))
        (define fail ((representation-bf->repr orepr) +nan.bf))
        (procedure-rename (lambda pt
                            (define-values (_ exs) (real-apply compiler pt))
@@ -433,6 +445,78 @@
                                     (list (get-representation 'itype) ...)
                                     (get-representation 'otype)
                                     (list (cons 'key val) ...))))]))
+
+;; Unions two bindings. Returns #f if they disagree.
+(define (merge-bindings binding1 binding2)
+  (and binding1
+       binding2
+       (let/ec quit
+               (for/fold ([binding binding1]) ([(k v) (in-dict binding2)])
+                 (dict-update binding k (λ (x) (if (equal? x v) v (quit #f))) v)))))
+
+;; Pattern matcher that returns a substitution or #f.
+;; A substitution is an association list of symbols and expressions.
+(define (pattern-match pattern expr)
+  (match* (pattern expr)
+    [((? number?) _) (and (equal? pattern expr) '())]
+    [((? variable?) _) (list (cons pattern expr))]
+    [((list phead prest ...) (list head rest ...))
+     (and (equal? phead head)
+          (= (length prest) (length rest))
+          (for/fold ([bindings '()]) ([pat (in-list prest)] [term (in-list rest)])
+            (merge-bindings bindings (pattern-match pat term))))]
+    [(_ _) #f]))
+
+;; Checks if two specs are syntactically equivalent modulo renaming.
+;; This is just pattern matching.
+(define (spec-equal? spec1 spec2)
+  ; force result of `pattern-match` to be a boolean
+  (and (pattern-match spec1 spec2) #t))
+
+;; Returns the list of implementations that implement a given spec
+;; and have the given input and output representations.
+(define (get-impls spec ireprs orepr #:impls [impls (all-active-operator-impls)])
+  (reap [sow]
+        (for ([impl (in-list impls)])
+          (when (and (equal? orepr (impl-info impl 'otype))
+                     (equal? ireprs (impl-info impl 'itype))
+                     (let ()
+                       (match-define (list _ _ spec*) (impl-info impl 'spec))
+                       (eprintf "~a: ~a ~a\n" impl spec spec*)
+                       (spec-equal? spec spec*)))
+            (sow impl)))))
+
+;; Given a spec, rounding properties, and input representations,
+;; looks up the best corresponding operator implementation.
+;; Note: maximize number of matching properties, then minimize
+;; the number of extraneous properties.
+(define (get-impl spec ireprs props #:impls [impls (all-active-operator-impls)])
+  ; ensure `':precision` is in the prop list
+  (unless (dict-has-key? props ':precision)
+    (error 'get-impl "expected key ':precision in properties `~a`" props))
+  (define orepr (get-representation (dict-ref props ':precision)))
+  ; lookup all matching implementations
+  (define impls* (get-impls spec ireprs orepr #:impls impls))
+  (when (null? impls*)
+    (raise-herbie-missing-error
+     "No implementation for spec ~a with type ~a -> ~a"
+     spec
+     (string-join (map (λ (r) (format "<~a>" (representation-name r))) ireprs) " ")
+     (format "<~a>" (representation-type orepr))))
+
+  (define scored
+    (for/list ([impl (in-list impls*)])
+      (match-define (list '! props* ... _) (impl-info impl 'fpcore))
+      (define num-props (length props*))
+      
+
+      impl))
+
+
+  impls*)
+
+; (define (get-impl spec ireprs orepr #:impls [impls (operator-active-impls)])
+;   (
 
 ;; Among active implementations, looks up an implementation with
 ;; the operator name `name` and argument representations `ireprs`.

@@ -277,3 +277,19 @@
 (define/contract (gen-vars n)
   (-> natural? (listof symbol?))
   (build-list n (lambda (i) (string->symbol (format "x~a" i)))))
+
+;; Property list <=> Property dictionary
+
+;; Prop list to dict
+(define/contract (props->dict props)
+  (-> list? (listof (cons/c symbol? any/c)))
+  (let loop ([props props] [dict '()])
+    (match props
+      [(list key val rest ...) (loop rest (dict-set dict key val))]
+      [(list key) (error 'props->dict "unmatched key" key)]
+      [(list) dict])))
+
+(define (dict->prop prop-dict)
+  (apply append
+         (for/list ([(k v) (in-dict prop-dict)])
+           (list k v))))

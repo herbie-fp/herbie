@@ -730,6 +730,8 @@
                  [asinh-2 (acosh (+ (* 2 (* x x)) 1)) (* 2 (asinh x))]
                  [acosh-2 (acosh (- (* 2 (* x x)) 1)) (* 2 (acosh x))])
 
+(define-ruleset* erf-rules (special simplify) #:type ([x real]) [erf-odd (erf (neg x)) (neg (erf x))])
+
 ; ; Specialized numerical functions
 ; (define-ruleset* special-numerical-reduce
 ;                  (numerics simplify)
@@ -744,8 +746,6 @@
 ;                  #:type ([x real] [y real])
 ;                  [log1p-expm1-u x (log1p (expm1 x))]
 ;                  [expm1-log1p-u x (expm1 (log1p x))])
-
-; (define-ruleset* erf-rules (special simplify) #:type ([x real]) [erf-odd (erf (neg x)) (neg (erf x))])
 
 ; (define-ruleset* numerics-papers
 ;                  (numerics)
