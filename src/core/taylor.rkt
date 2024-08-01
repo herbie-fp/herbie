@@ -44,12 +44,6 @@
     [`(,x) x]
     [`(,x ,xs ...) `(+ ,x ,(make-sum xs))]))
 
-(define (make-prod terms)
-  (match terms
-    ['() 1]
-    [`(,x) x]
-    [`(,x ,xs ...) `(* ,x ,(make-prod xs))]))
-
 (define (make-monomial var power)
   (cond
     [(equal? power 0) 1]
@@ -57,16 +51,6 @@
     [(equal? power -1) `(/ 1 ,var)]
     [(positive? power) `(pow ,var ,power)]
     [(negative? power) `(pow ,var ,power)]))
-
-(define (make-term head vars expts)
-  ; We do not want to output something like (* (sqr x) (sqr y)) -- we'd prefer (sqr (* x y))
-  ; So we first extract the GCD of the exponents and put that exponentiation outside
-  (let ([outside-expt (apply gcd expts)])
-    (if (zero? outside-expt)
-        head ; Only happens if expts has only zeros
-        `(* ,head
-            ,(make-monomial (make-prod (map make-monomial vars (map (curryr / outside-expt) expts)))
-                            outside-expt)))))
 
 (define-resetter n-sum-to-cache (λ () (make-hash)) (λ () (make-hash)))
 
@@ -88,11 +72,6 @@
                   (apply append
                          (for/list ([i (in-range 0 (+ k 1))])
                            (map (curry cons i) (n-sum-to (- n 1) (- k i)))))]))))
-
-(define (iterate-diagonal dim i)
-  (let loop ([i i] [sum 0])
-    (let ([seg (n-sum-to dim sum)])
-      (if ((length seg) . <= . i) (loop (- i (length seg)) (+ sum 1)) (list-ref seg i)))))
 
 (define (taylor var nodes root)
   "Return a pair (e, n), such that expr ~= e var^n"

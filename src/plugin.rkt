@@ -23,16 +23,10 @@
          (struct-out representation)
          get-representation
          warn
-         platform
+         define-platform
          get-platform
          register-platform!
-         platform-product
          platform-union
          platform-intersect
          platform-subtract
-         platform-filter
-         operator-set
-         platform-operator-set
-         with-terminal-cost
-         cost-map
-         cost-map-scale)
+         platform-filter)

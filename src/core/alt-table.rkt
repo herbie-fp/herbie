@@ -17,8 +17,7 @@
           (atab-add-altns (alt-table? (listof alt?) any/c any/c . -> . alt-table?))
           (atab-set-picked (alt-table? (listof alt?) . -> . alt-table?))
           (atab-completed? (alt-table? . -> . boolean?))
-          (atab-min-errors (alt-table? . -> . (listof real?)))
-          (split-atab (alt-table? (non-empty-listof any/c) . -> . (listof alt-table?)))))
+          (atab-min-errors (alt-table? . -> . (listof real?)))))
 
 ;; Public API
 
@@ -82,31 +81,6 @@
   (define altns (hash-keys (alt-table-alt->points atab)))
   (define not-done? (negate (curry hash-ref (alt-table-alt->done? atab))))
   (order-altns (filter not-done? altns)))
-
-;; Split the alt table into several alt tables, each of which corresponds to a pred
-;; in 'preds', and only contains points which satisfy that pred.
-(define (split-atab atab preds)
-  (for/list ([pred preds])
-    (define-values (pts exs)
-      (for/lists (pts exs)
-                 ([(pt ex) (in-pcontext (alt-table-context atab))] #:when (pred pt))
-                 (values pt ex)))
-    (define point->alts
-      (for/hash ([pt pts])
-        (values pt (hash-ref (alt-table-point->alts atab) pt))))
-    (define alt->points
-      (make-immutable-hash (filter-not (compose null? cdr)
-                                       (for/list ([(alt pnts) (in-hash (alt-table-alt->points atab))])
-                                         (cons alt (filter (curry set-member? pts) pnts))))))
-    (define alt->done?
-      (for/hash ([alt (in-hash-keys alt->points)])
-        (values alt (hash-ref (alt-table-alt->done? atab) alt))))
-    (define alt->cost
-      (for/hash ([alt (in-hash-keys alt->points)])
-        (values alt (hash-ref (alt-table-alt->cost atab) alt))))
-    (define context (mk-pcontext pts exs))
-    (atab-prune
-     (alt-table point->alts alt->points alt->done? alt->cost context (alt-table-all atab)))))
 
 ;; Implementation
 
@@ -231,49 +205,3 @@
     (define curve (hash-ref pnt->alts pt))
     ;; Curve is sorted so lowest error is first
     (pareto-point-error (first curve))))
-
-;; The completeness invariant states that at any time, for every point there exists some
-;; alt that is best at it.
-(define (check-completeness-invariant atab #:message [message ""])
-  (if (for/and ([(pt curve) (in-hash (alt-table-point->alts atab))])
-        (for/and ([ppt (in-list curve)])
-          (not (null? (pareto-point-data ppt)))))
-      atab
-      (error (string-append "Completeness invariant violated. " message))))
-
-(define (pnt-maps-to-alt? pt altn pnt->alts)
-  (define curve (hash-ref pnt->alts pt))
-  (for/or ([ppt (in-list curve)])
-    (set-member? (pareto-point-data ppt) curve)))
-
-(define (alt-maps-to-pnt? altn pt alt->pnts)
-  (set-member? (hash-ref alt->pnts altn) pt))
-
-;; The reflexive invariant is this: a) For every alternative, for every point it maps to,
-;; those points also map back to the alternative. b) For every point, for every alternative
-;; it maps to, those alternatives also map back to the point.
-(define (check-reflexive-invariant atab #:message [message ""])
-  (define pnt->alts (alt-table-point->alts atab))
-  (define alt->pnts (alt-table-alt->points atab))
-  (if (and (for/and ([(altn pnts) (in-hash alt->pnts)])
-             (andmap (curryr pnt-maps-to-alt? altn pnt->alts) pnts))
-           (for/and ([(pt curve) (in-hash pnt->alts)]) ; Minor
-             (for/and ([ppt (in-list curve)])
-               (andmap (curryr alt-maps-to-pnt? pt alt->pnts) (pareto-point-data ppt)))))
-      atab
-      (error (string-append "Reflexive invariant violated. " message))))
-
-;; The minimality invariant states that every alt must be untied and best on at least one point.
-(define (check-minimality-invariant atab repr #:message [message ""])
-  (for ([(alt pts) (in-hash (alt-table-alt->points atab))])
-    (unless (for/or ([pt (in-list pts)])
-              (define curve (hash-ref (alt-table-point->alts atab) pt))
-              (for/or ([ppt (in-list curve)])
-                (equal? (pareto-point-data ppt) (list alt))))
-      (error 'check-atab "Minimality invariant violated: ~a" message))))
-
-; In normal mode, ensure that for each point, the hash contains a single cost
-(define (check-normal-mode-flatness atab)
-  (for ([(pt curve) (in-hash (alt-table-point->alts atab))])
-    (unless (= (length curve) 1)
-      (error "Point to alternative hash table not flat"))))

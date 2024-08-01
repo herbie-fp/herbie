@@ -6,6 +6,7 @@
 (provide type-name?
          (struct-out representation)
          get-representation
+         repr-exists?
          repr->symbol
          (struct-out context)
          *context*
@@ -86,6 +87,9 @@
       (raise-herbie-error "Could not find support for ~a representation: ~a"
                           name
                           (string-join (map ~s (hash-keys representations)) ", "))))
+
+(define (repr-exists? name)
+  (hash-has-key? representations name))
 
 ;; Registers a representation that can be invoked with ':precision <name>'.
 ;; Creates a new representation with the given traits and associates it

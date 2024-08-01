@@ -75,12 +75,6 @@
 (define (expr->fpcore expr ctx #:ident [ident #f])
   (list 'FPCore (context-vars ctx) (remove-literals expr)))
 
-(define (expr->tex expr ctx #:loc [loc #f])
-  (define core `(FPCore ,(context-vars ctx) ,(remove-literals expr)))
-  (if (supported-by-lang? core "tex")
-      (core->tex core #:loc (and loc (cons 2 loc)) #:color "blue")
-      "ERROR"))
-
 (define (mixed->fpcore expr ctx)
   (define expr*
     (let loop ([expr expr])
@@ -101,10 +95,6 @@
      (define-values (err err2) (altn-errors altn pcontext pcontext2 ctx))
      (list `(li (p "Initial program " (span ((class "error") [title ,err2]) ,err))
                 (div ((class "math")) "\\[" ,(program->tex prog ctx) "\\]")))]
-
-    [(alt prog `(start ,strategy) `(,prev) _)
-     `(,@(render-history prev pcontext pcontext2 ctx)
-       (li ((class "event")) "Using strategy " (code ,(~a strategy))))]
 
     [(alt prog 'add-preprocessing `(,prev) _)
      ;; TODO message to user is? proof later
@@ -162,9 +152,7 @@
      (define-values (err err2) (altn-errors altn pcontext pcontext2 ctx))
      `(,@(render-history prev pcontext pcontext2 ctx)
        (li ,(if proof (render-proof proof soundiness pcontext ctx) ""))
-       (li (p "Applied "
-              (span ((class "rule")) ,(if (rule? input) "rewrite-once" "egg-rr"))
-              (span ((class "error") [title ,err2]) ,err))
+       (li (p "Applied rewrites" (span ((class "error") [title ,err2]) ,err))
            (div ((class "math")) "\\[\\leadsto " ,(program->tex prog ctx #:loc loc) "\\]")))]))
 
 (define (render-proof proof soundiness pcontext ctx)
@@ -210,14 +198,6 @@
     [(alt prog 'start (list) _)
      `#hash((program . ,(fpcore->string (expr->fpcore prog ctx)))
             (type . "start")
-            (error . ,err)
-            (training-error . ,err2))]
-
-    [(alt prog `(start ,strategy) `(,prev) _)
-     `#hash((program . ,(fpcore->string (expr->fpcore prog ctx)))
-            (type . "strategy")
-            (strategy . ,(~a strategy))
-            (prev . ,(render-json prev pcontext pcontext2 ctx))
             (error . ,err)
             (training-error . ,err2))]
 
@@ -275,7 +255,6 @@
             (type . "rr")
             (prev . ,(render-json prev pcontext pcontext2 ctx))
             (proof . ,(if proof (render-proof-json proof soundiness pcontext ctx) (json-null)))
-            (rule . ,(if (rule? input) "rewrite-once" "egg-rr"))
             (loc . ,loc)
             (error . ,err)
             (training-error . ,err2))]
