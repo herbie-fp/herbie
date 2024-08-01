@@ -110,7 +110,7 @@
     [`(- ,arg1 ,arg2) (taylor-add (taylor var nodes arg1) (taylor-negate (taylor var nodes arg2)))]
     [`(* ,left ,right) (taylor-mult (taylor var nodes left) (taylor var nodes right))]
     [`(/ ,num ,den)
-     #:when (equal? (vector-ref nodes den) 1)
+     #:when (equal? (vector-ref nodes num) 1)
      (taylor-invert (taylor var nodes den))]
     [`(/ ,num ,den) (taylor-quotient (taylor var nodes num) (taylor var nodes den))]
     [`(sqrt ,arg) (taylor-sqrt var (taylor var nodes arg))]
