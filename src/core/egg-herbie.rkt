@@ -1003,14 +1003,16 @@
      (+ 1 (rec cond (get-representation 'bool) +inf.0) (rec ift type +inf.0) (rec iff type +inf.0))]
     [(list (? impl-exists? impl) args ...)
      (define itypes (impl-info impl 'itype))
-     (if (equal? (impl->operator impl) 'pow)
-         (match args
-           [(list b e)
-            (define n (vector-ref (regraph-constants regraph) e))
-            (if (fraction-with-odd-denominator? n)
-                +inf.0
-                (apply + 1 (map (lambda (arg itype) (rec arg itype +inf.0)) args itypes)))])
-         (apply + 1 (map (lambda (arg itype) (rec arg itype +inf.0)) args itypes)))]
+     (match-define (list _ _ spec) (impl-info impl 'spec))
+     (match spec
+       [(list 'pow _ _) ; power
+        (match-define (list b e) args)
+        (define n (vector-ref (regraph-constants regraph) e))
+        (if (fraction-with-odd-denominator? n)
+            +inf.0
+            (apply + 1 (map (lambda (arg itype) (rec arg itype +inf.0)) args itypes)))]
+       ; anything else
+       [_ (apply + 1 (map (lambda (arg itype) (rec arg itype +inf.0)) args itypes))])]
     [(list _ ...) +inf.0]))
 
 ;; Extracts the best expression according to the extractor.

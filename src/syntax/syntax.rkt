@@ -407,6 +407,13 @@
 ;; specified by the `itype` and `otype` fields for `op`.
 (define/contract (register-operator-impl! op name ireprs orepr attrib-dict)
   (-> symbol? symbol? (listof representation?) representation? (listof pair?) void?)
+  (define op-info
+    (hash-ref
+     operators
+     op
+     (lambda ()
+       (raise-herbie-missing-error "Cannot register `~a`, operator `~a` does not exist" name op))))
+
   ; extract or generate the spec
   (define spec
     (match (dict-ref attrib-dict 'spec #f)
@@ -455,10 +462,8 @@
       [bad
        (error 'register-operator-impl! "~a: expected a procedure with attribute 'fl ~a" name bad)]))
 
-  (eprintf "~a ~a: ~a ~a ~a\n" name op spec fpcore fl-proc)
-
   ; update tables
-  (define impl (operator-impl name op ireprs orepr spec fpcore fl-proc))
+  (define impl (operator-impl name op-info ireprs orepr spec fpcore fl-proc))
   (hash-set! operator-impls name impl)
   (hash-update! operators-to-impls op (curry cons name)))
 

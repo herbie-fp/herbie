@@ -1,7 +1,8 @@
 #lang racket
 
 (require "types.rkt"
-         "syntax.rkt")
+         "syntax.rkt"
+         "../core/programs.rkt")
 
 (provide fpcore->prog
          prog->fpcore
@@ -208,10 +209,11 @@
 
 ;; Translates an LImpl to a LSpec.
 (define (prog->spec expr)
-  (expand-accelerators
-   (match expr
-     [`(if ,cond ,ift ,iff) `(if ,(prog->spec cond) ,(prog->spec ift) ,(prog->spec iff))]
-     [`(,(? cast-impl? impl) ,body) `(,impl ,(prog->spec body))]
-     [`(,impl ,args ...) `(,(impl->operator impl) ,@(map prog->spec args))]
-     [(? variable?) expr]
-     [(? literal?) (literal-value expr)])))
+  (match expr
+    [(? literal?) (literal-value expr)]
+    [(? variable?) expr]
+    [`(if ,cond ,ift ,iff) `(if ,(prog->spec cond) ,(prog->spec ift) ,(prog->spec iff))]
+    [`(,impl ,args ...)
+     (match-define `(,_ (,vars ...) ,spec) (impl-info impl 'spec))
+     (define env (map cons vars (map prog->spec args)))
+     (replace-vars env spec)]))

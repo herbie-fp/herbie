@@ -1,7 +1,5 @@
 #lang racket
 
-(require (for-syntax racket/match))
-
 (require "../utils/common.rkt"
          "../utils/errors.rkt"
          "../core/programs.rkt"
@@ -238,8 +236,9 @@
 (define (platform-casts pform)
   (reap [sow]
         (for ([impl (in-list (platform-impls pform))])
-          (when (eq? (impl->operator impl) 'cast)
-            (sow impl)))))
+          (match (impl-info impl 'spec)
+            [(list _ _ (list 'cast _)) (sow impl)]
+            [_ (void)]))))
 
 ;; Merger for costs.
 (define (merge-cost pform-costs key #:optional? [optional? #f])
@@ -305,7 +304,8 @@
   (define reprs* (filter repr-supported? (platform-reprs pform)))
   (define impls*
     (filter (λ (impl)
-              (and (op-supported? (impl->operator impl))
+              (match-define (list _ _ spec) (impl-info impl 'spec))
+              (and (andmap op-supported? (ops-in-expr spec))
                    (repr-supported? (impl-info impl 'otype))
                    (andmap repr-supported? (impl-info impl 'itype))))
             (platform-impls pform)))
@@ -418,16 +418,8 @@
 
 ;; Synthesizes the LHS and RHS of lifting/lowering rules.
 (define (impl->rule-parts impl)
-  (define op (impl->operator impl))
-  (cond
-    [(operator-accelerator? op)
-     (define spec (operator-info op 'spec))
-     (match-define `(,(or 'lambda 'λ) (,vars ...) ,body) spec)
-     (values vars body (cons impl vars))]
-    [else
-     (define itypes (operator-info op 'itype))
-     (define vars (map (lambda (_) (gensym)) itypes))
-     (values vars (cons op vars) (cons impl vars))]))
+  (match-define (list _ vars spec) (impl-info impl 'spec))
+  (values vars spec (cons impl vars)))
 
 ;; Synthesizes lifting rules for a given platform.
 (define (platform-lifting-rules [pform (*active-platform*)])
@@ -449,11 +441,10 @@
     (hash-ref! (*lowering-rules*)
                (cons impl pform)
                (lambda ()
-                 (define op (impl->operator impl))
                  (define name (sym-append 'lower- impl))
-                 (define itypes (operator-info op 'itype))
-                 (define otype (operator-info op 'otype))
                  (define-values (vars spec-expr impl-expr) (impl->rule-parts impl))
+                 (define itypes (map representation-type (impl-info impl 'itype)))
+                 (define otype (representation-type (impl-info impl 'otype)))
                  (rule name spec-expr impl-expr (map cons vars itypes) otype)))))
 
 ;; All possible assignments of implementations.

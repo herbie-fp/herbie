@@ -82,7 +82,7 @@
         [(? symbol?) expr]
         [(? number?) expr]
         [(? literal?) (literal-value expr)]
-        [`(if ,cond ,ift ,iff) `(if ,(loop cond) ,(loop ift) ,(loop ift))]
+        [`(if ,cond ,ift ,iff) `(if ,(loop cond) ,(loop ift) ,(loop iff))]
         [`(,(? impl-exists? impl) ,args ...) `(,(impl->operator impl) ,@(map loop args))]
         [`(,op ,args ...) `(,op ,@(map loop args))])))
   `(FPCore ,(context-vars ctx) ,expr*))
