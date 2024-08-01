@@ -6,9 +6,7 @@
          "reduce.rkt"
          "../syntax/syntax.rkt"
          "batch.rkt")
-(provide approximate
-         #;taylor
-         #;taylor-old)
+(provide approximate)
 
 (define (approximate expr var #:transform [tform (cons identity identity)] #:iters [iters 5])
   (define expr* (simplify (replace-expression expr var ((car tform) var))))
@@ -16,10 +14,6 @@
   (define nodes (batch-nodes expr-batch*))
   (define root (vector-ref (batch-roots expr-batch*) 0)) ; assuming no batches in expr
   (match-define (cons offset coeffs) (taylor var nodes root))
-  #;(match-define (cons offset* coeffs*) (taylor-old var expr*))
-  #;(printf "equal?=~a\n" (and (equal? offset offset*) (equal? coeffs coeffs*)))
-  #;(printf "var=~a, expr=~a\n\n" var expr*)
-  #;(sleep 2)
 
   (define i 0)
   (define terms '())
@@ -143,8 +137,8 @@
      (taylor-cbrt var (taylor-mult tx tx))]
     [`(pow ,base ,power) ; `(exp (* ,power (log ,base)))
      (taylor-exp (taylor-mult (taylor var nodes power)
-                              (taylor-log var (taylor var nodes base))
-                              `(exp (* ,(get-expr nodes power) (log ,(get-expr nodes base))))))]
+                              (taylor-log var (taylor var nodes base)))
+                              `(exp (* ,(get-expr nodes power) (log ,(get-expr nodes base)))))]
     [`(sinh ,arg)
      (define exparg (taylor-exp (taylor var nodes arg) `(exp ,(get-expr nodes arg))))
      (taylor-mult (taylor-exact 1/2) (taylor-add exparg (taylor-negate (taylor-invert exparg))))]
