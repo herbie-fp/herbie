@@ -109,7 +109,9 @@
     [`(neg ,arg) (taylor-negate ((curry taylor var nodes) arg))]
     [`(- ,arg1 ,arg2) (taylor-add (taylor var nodes arg1) (taylor-negate (taylor var nodes arg2)))]
     [`(* ,left ,right) (taylor-mult (taylor var nodes left) (taylor var nodes right))]
-    [`(/ 1 ,arg) (taylor-invert (taylor var nodes arg))]
+    [`(/ ,num ,den)
+     #:when (equal? (vector-ref nodes den) 1)
+     (taylor-invert (taylor var nodes den))]
     [`(/ ,num ,den) (taylor-quotient (taylor var nodes num) (taylor var nodes den))]
     [`(sqrt ,arg) (taylor-sqrt var (taylor var nodes arg))]
     [`(cbrt ,arg) (taylor-cbrt var (taylor var nodes arg))]
@@ -122,9 +124,14 @@
     [`(log ,arg) (taylor-log var (taylor var nodes arg))]
     [`(pow ,base ,(? exact-integer? power))
      (taylor-pow (normalize-series (taylor var nodes base)) power)]
-    [`(pow ,base 1/2) (taylor-sqrt var (taylor var nodes base))]
-    [`(pow ,base 1/3) (taylor-cbrt var (taylor var nodes base))]
-    [`(pow ,base 2/3)
+    [`(pow ,base ,power)
+     #:when (equal? (vector-ref nodes power) 1/2)
+     (taylor-sqrt var (taylor var nodes base))]
+    [`(pow ,base ,power)
+     #:when (equal? (vector-ref nodes power) 1/3)
+     (taylor-cbrt var (taylor var nodes base))]
+    [`(pow ,base ,power)
+     #:when (equal? (vector-ref nodes power) 2/3)
      (define tx (taylor var nodes base))
      (taylor-cbrt var (taylor-mult tx tx))]
     [`(pow ,base ,power) ; `(exp (* ,power (log ,base)))
