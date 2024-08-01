@@ -95,9 +95,6 @@
       (if ((length seg) . <= . i) (loop (- i (length seg)) (+ sum 1)) (list-ref seg i)))))
 
 (define (taylor var nodes root)
-  (taylor* var nodes root))
-
-(define (taylor* var nodes root)
   "Return a pair (e, n), such that expr ~= e var^n"
   (define expr (vector-ref nodes root))
   (match expr
@@ -517,85 +514,3 @@
   (check-equal? (coeffs '(sqrt x)) '((sqrt x) 0 0 0 0 0 0))
   (check-equal? (coeffs '(cbrt x)) '((cbrt x) 0 0 0 0 0 0))
   (check-equal? (coeffs '(cbrt (* x x))) '((cbrt (pow x 2)) 0 0 0 0 0 0)))
-
-(define (taylor-old var expr)
-  "Return a pair (e, n), such that expr ~= e var^n"
-  (match expr
-    [(? (curry equal? var)) (taylor-exact 0 1)]
-    [(? number?) (taylor-exact expr)]
-    [(? variable?) (taylor-exact expr)]
-    [`(,const) (taylor-exact expr)]
-    [`(+ ,args ...) (apply taylor-add (map (curry taylor-old var) args))]
-    [`(neg ,arg) (taylor-negate ((curry taylor-old var) arg))]
-    [`(- ,arg1 ,arg2) (taylor-old var `(+ ,arg1 (neg ,arg2)))]
-    [`(* ,left ,right) (taylor-mult (taylor-old var left) (taylor-old var right))]
-    [`(/ 1 ,arg) (taylor-invert (taylor-old var arg))]
-    [`(/ ,num ,den) (taylor-quotient (taylor-old var num) (taylor-old var den))]
-    [`(sqrt ,arg) (taylor-sqrt var (taylor-old var arg))]
-    [`(cbrt ,arg) (taylor-cbrt var (taylor-old var arg))]
-    [`(exp ,arg)
-     (let ([arg* (normalize-series (taylor-old var arg))])
-       (if (positive? (car arg*)) (taylor-exact expr) (taylor-exp* (zero-series arg*))))]
-    [`(sin ,arg)
-     (let ([arg* (normalize-series (taylor-old var arg))])
-       (cond
-         [(positive? (car arg*)) (taylor-exact expr)]
-         [(= (car arg*) 0)
-          ; Our taylor-sin function assumes that a0 is 0,
-          ; because that way it is especially simple. We correct for this here
-          ; We use the identity sin (x + y) = sin x cos y + cos x sin y
-          (taylor-add
-           (taylor-mult (taylor-exact `(sin ,((cdr arg*) 0))) (taylor-cos* (zero-series arg*)))
-           (taylor-mult (taylor-exact `(cos ,((cdr arg*) 0))) (taylor-sin* (zero-series arg*))))]
-         [else (taylor-sin* (zero-series arg*))]))]
-    [`(cos ,arg)
-     (let ([arg* (normalize-series (taylor-old var arg))])
-       (cond
-         [(positive? (car arg*)) (taylor-exact expr)]
-         [(= (car arg*) 0)
-          ; Our taylor-cos function assumes that a0 is 0,
-          ; because that way it is especially simple. We correct for this here
-          ; We use the identity cos (x + y) = cos x cos y - sin x sin y
-          (taylor-add (taylor-mult (taylor-exact `(cos ,((cdr arg*) 0)))
-                                   (taylor-cos* (zero-series arg*)))
-                      (taylor-negate (taylor-mult (taylor-exact `(sin ,((cdr arg*) 0)))
-                                                  (taylor-sin* (zero-series arg*)))))]
-         [else (taylor-cos* (zero-series arg*))]))]
-    [`(tan ,arg) (taylor-old var `(/ (sin ,arg) (cos ,arg)))]
-    [`(log ,arg) (taylor-log var (taylor-old var arg))]
-    [`(pow ,base ,(? exact-integer? power))
-     (taylor-pow (normalize-series (taylor-old var base)) power)]
-    [`(pow ,base 1/2) (taylor-sqrt var (taylor-old var base))]
-    [`(pow ,base 1/3) (taylor-cbrt var (taylor-old var base))]
-    [`(pow ,base 2/3)
-     (define tx (taylor-old var base))
-     (taylor-cbrt var (taylor-mult tx tx))]
-    [`(pow ,base ,power) (taylor-old var `(exp (* ,power (log ,base))))]
-    [`(sinh ,arg)
-     (define exparg (taylor-old var `(exp ,arg)))
-     (taylor-mult (taylor-exact 1/2) (taylor-add exparg (taylor-negate (taylor-invert exparg))))]
-    [`(cosh ,arg)
-     (define exparg (taylor-old var `(exp ,arg)))
-     (taylor-mult (taylor-exact 1/2) (taylor-add exparg (taylor-invert exparg)))]
-    [`(tanh ,arg)
-     (define exparg (taylor-old var `(exp ,arg)))
-     (define expinv (taylor-invert exparg))
-     (define x+ (taylor-add exparg expinv))
-     (define x- (taylor-add exparg (taylor-negate expinv)))
-     (taylor-quotient x- x+)]
-    [`(asinh ,x)
-     (define tx (taylor-old var x))
-     (taylor-log var
-                 (taylor-add tx (taylor-sqrt var (taylor-add (taylor-mult tx tx) (taylor-exact 1)))))]
-    [`(acosh ,x)
-     (define tx (taylor-old var x))
-     (taylor-log var
-                 (taylor-add tx
-                             (taylor-sqrt var (taylor-add (taylor-mult tx tx) (taylor-exact -1)))))]
-    [`(atanh ,x)
-     (define tx (taylor-old var x))
-     (taylor-mult (taylor-exact 1/2)
-                  (taylor-log var
-                              (taylor-quotient (taylor-add (taylor-exact 1) tx)
-                                               (taylor-add (taylor-exact 1) (taylor-negate tx)))))]
-    [_ (taylor-exact expr)]))

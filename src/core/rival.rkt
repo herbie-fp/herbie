@@ -54,7 +54,7 @@
   (define var-reprs (context-var-reprs (first ctxs)))
   (define reprs (map context-repr ctxs))
   ; create the machine
-  (define exprs (cons `(assert ,pre) specs)) ; batch is to be here
+  (define exprs (cons `(assert ,pre) specs))
   (define discs (cons boolean-discretization (map repr->discretization reprs)))
   (define machine (rival-compile exprs vars discs))
   (timeline-push! 'compiler
