@@ -128,8 +128,7 @@
 
   ; Not totally clear if this should actually use the precondition
   (define start-real-compiler
-    (and start-prog
-         (make-real-compiler (list (expand-accelerators (prog->spec start-prog))) (list ctx*))))
+    (and start-prog (make-real-compiler (list (prog->spec start-prog)) (list ctx*))))
 
   (define (prepend-macro v)
     (prepend-argument start-real-compiler v (*pcontext*)))

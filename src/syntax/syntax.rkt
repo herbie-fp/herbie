@@ -13,12 +13,9 @@
          constant-operator?
          operator-exists?
          operator-deprecated?
-         operator-accelerator?
          operator-info
          all-operators
          all-constants
-         all-accelerators
-         expand-accelerators
          impl-exists?
          impl-info
          impl->operator
@@ -57,9 +54,8 @@
 ;; A real operator requires
 ;;  - a (unique) name
 ;;  - input and output types
-;;  - optionally a specification [#f by default]
 ;;  - optionally a deprecated? flag [#f by default]
-(struct operator (name itype otype spec deprecated))
+(struct operator (name itype otype deprecated))
 
 ;; All real operators
 (define operators (make-hasheq))
@@ -72,10 +68,6 @@
 (define (operator-deprecated? op)
   (operator-deprecated (hash-ref operators op)))
 
-;; Checks if an operator is an "accelerator".
-(define (operator-accelerator? op)
-  (and (hash-has-key? operators op) (operator-spec (hash-ref operators op))))
-
 ;; Returns all operators.
 (define (all-operators)
   (sort (hash-keys operators) symbol<?))
@@ -83,12 +75,6 @@
 ;; Returns all constant operators (operators with no arguments).
 (define (all-constants)
   (sort (for/list ([(name rec) (in-hash operators)] #:when (null? (operator-itype rec)))
-          name)
-        symbol<?))
-
-;; Returns all "accelerator" operators
-(define (all-accelerators)
-  (sort (for/list ([(name rec) (in-hash operators)] #:when (operator-spec rec))
           name)
         symbol<?))
 
@@ -101,8 +87,7 @@
   (define info (hash-ref operators op))
   (case field
     [(itype) (operator-itype info)]
-    [(otype) (operator-otype info)]
-    [(spec) (operator-spec info)]))
+    [(otype) (operator-otype info)]))
 
 ;; Map from operator to its implementations
 (define operators-to-impls (make-hasheq))
@@ -114,8 +99,8 @@
     (error 'operator-info "Unknown operator ~a" op))
   (hash-ref operators-to-impls op))
 
-;; Checks an "accelerator" specification
-(define (check-accelerator-spec! name itypes otype spec)
+;; Checks a specification
+(define (check-spec! name itypes otype spec)
   (define (bad! fmt . args)
     (error name "~a in `~a`" (apply format fmt args) spec))
 
@@ -168,29 +153,6 @@
   (unless (equal? actual-ty otype)
     (type-error! body actual-ty otype)))
 
-;; Applies a substitution.
-;; Slightly different than `replace-vars` in `programs.rkt`.
-(define (replace-vars expr env)
-  (let loop ([expr expr])
-    (match expr
-      [(? number?) expr]
-      [(? symbol?) (cdr (assq expr env))]
-      [`(,op ,args ...) `(,op ,@(map loop args))])))
-
-;; Expands an "accelerator" specification.
-;; Any nested accelerator is unfolded into its definition.
-(define (expand-accelerators spec)
-  (let loop ([expr spec])
-    (match expr
-      [(? number?) expr]
-      [(? symbol?) expr]
-      [`(,(? operator-accelerator? op) ,args ...)
-       (define spec (operator-info op 'spec))
-       (match-define `(,(or 'lambda 'λ) (,vars ...) ,body) spec)
-       (define env (map cons vars (map loop args)))
-       (replace-vars body env)]
-      [`(,op ,args ...) `(,op ,@(map loop args))])))
-
 ;; Registers an operator with an attribute mapping.
 ;; Panics if an operator with name `name` has already been registered.
 ;; By default, the input types are specified by `itypes`, the output type
@@ -202,14 +164,9 @@
   ; extract relevant fields
   (define itypes* (dict-ref attrib-dict 'itype itypes))
   (define otype* (dict-ref attrib-dict 'otype otype))
-  (define spec (dict-ref attrib-dict 'spec #f))
   (define deprecated? (dict-ref attrib-dict 'deprecated #f))
-  ; check the spec if it is provided
-  (when spec
-    (check-accelerator-spec! name itypes otype spec)
-    (set! spec (expand-accelerators spec)))
   ; update tables
-  (define info (operator name itypes* otype* spec deprecated?))
+  (define info (operator name itypes* otype* deprecated?))
   (hash-set! operators name info)
   (hash-set! operators-to-impls name '()))
 
@@ -217,19 +174,12 @@
 (define-syntax (define-operator stx)
   (define (bad! why [what #f])
     (raise-syntax-error 'define-operator why stx what))
-
-  (define (attribute-val key val)
-    (with-syntax ([val val])
-      (syntax-case key (spec)
-        [spec #''val]
-        [_ #'val])))
-
   (syntax-case stx ()
     [(_ (id itype ...) otype [key val] ...)
-     (let ([id #'id] [keys (syntax->list #'(key ...))] [vals (syntax->list #'(val ...))])
+     (let ([id #'id])
        (unless (identifier? id)
          (bad! "expected identifier" id))
-       (with-syntax ([id id] [(val ...) (map attribute-val keys vals)])
+       (with-syntax ([id id])
          #'(register-operator! 'id '(itype ...) 'otype (list (cons 'key val) ...))))]))
 
 (define-syntax define-operators
@@ -316,31 +266,27 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Accelerator operators
 
-(define-operator (cast real) real [spec (lambda (x) x)])
+(define-operators
+  [cast : real -> real]
+  [erfc : real -> real]
+  [expm1 : real -> real]
+  [log1p : real -> real]
+  [hypot : real real -> real]
+  [fma : real real real -> real])
 
-(define-operator (erfc real) real [spec (lambda (x) (- 1 (erf x)))])
+; (module+ test
+;   ; check expected number of operators
+;   (check-equal? (length (all-operators)) 63)
 
-(define-operator (expm1 real) real [spec (lambda (x) (- (exp x) 1))])
+;   ; check that Rival supports all non-accelerator operators
+;   (for ([op (in-list (all-operators))] #:unless (operator-accelerator? op))
+;     (define vars (map (lambda (_) (gensym)) (operator-info op 'itype)))
+;     (define disc (discretization 64 #f #f)) ; fake arguments
+;     (rival-compile (list `(,op ,@vars)) vars (list disc)))
 
-(define-operator (log1p real) real [spec (lambda (x) (log (+ 1 x)))])
-
-(define-operator (hypot real real) real [spec (lambda (x y) (sqrt (+ (* x x) (* y y))))])
-
-(define-operator (fma real real real) real [spec (lambda (x y z) (+ (* x y) z))])
-
-(module+ test
-  ; check expected number of operators
-  (check-equal? (length (all-operators)) 63)
-
-  ; check that Rival supports all non-accelerator operators
-  (for ([op (in-list (all-operators))] #:unless (operator-accelerator? op))
-    (define vars (map (lambda (_) (gensym)) (operator-info op 'itype)))
-    (define disc (discretization 64 #f #f)) ; fake arguments
-    (rival-compile (list `(,op ,@vars)) vars (list disc)))
-
-  ; test accelerator operator
-  ; log1pmd(x) = log1p(x) - log1p(-x)
-  (define-operator (log1pmd real) real [spec (lambda (x) (- (log1p x) (log1p (neg x))))]))
+;   ; test accelerator operator
+;   ; log1pmd(x) = log1p(x) - log1p(-x)
+;   (define-operator (log1pmd real) real [spec (lambda (x) (- (log1p x) (log1p (neg x))))]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Operator implementations
@@ -423,10 +369,7 @@
        `(lambda ,vars (,op ,@vars))]
       ; provided => check for syntax and types
       [spec
-       (check-accelerator-spec! name
-                                (map representation-type ireprs)
-                                (representation-type orepr)
-                                spec)
+       (check-spec! name (map representation-type ireprs) (representation-type orepr) spec)
        spec]))
   ; extract or generate the fpcore translation
   (match-define `(,(or 'lambda 'λ) ,vars ,_) spec)
@@ -517,44 +460,44 @@
                                       name
                                       (format "<~a>" (representation-name repr)))))
 
-(module+ test
-  (require math/flonum
-           math/bigfloat
-           (submod "types.rkt" internals))
+; (module+ test
+;   (require math/flonum
+;            math/bigfloat
+;            (submod "types.rkt" internals))
 
-  (define (shift bits fn)
-    (define shift-val (expt 2 bits))
-    (λ (x) (fn (- x shift-val))))
+;   (define (shift bits fn)
+;     (define shift-val (expt 2 bits))
+;     (λ (x) (fn (- x shift-val))))
 
-  (define (unshift bits fn)
-    (define shift-val (expt 2 bits))
-    (λ (x) (+ (fn x) shift-val)))
+;   (define (unshift bits fn)
+;     (define shift-val (expt 2 bits))
+;     (λ (x) (+ (fn x) shift-val)))
 
-  ; for testing: also in <herbie>/reprs/binary64.rkt
-  (define-representation (binary64 real flonum?)
-                         bigfloat->flonum
-                         bf
-                         (shift 63 ordinal->flonum)
-                         (unshift 63 flonum->ordinal)
-                         64
-                         (conjoin number? nan?))
+;   ; for testing: also in <herbie>/reprs/binary64.rkt
+;   (define-representation (binary64 real flonum?)
+;                          bigfloat->flonum
+;                          bf
+;                          (shift 63 ordinal->flonum)
+;                          (unshift 63 flonum->ordinal)
+;                          64
+;                          (conjoin number? nan?))
 
-  ; correctly-rounded log1pmd(x) for binary64
-  (define-operator-impl (log1pmd log1pmd.f64 binary64) binary64)
-  ; correctly-rounded sin(x) for binary64
-  (define-operator-impl (sin sin.acc.f64 binary64) binary64)
+;   ; correctly-rounded log1pmd(x) for binary64
+;   (define-operator-impl (log1pmd log1pmd.f64 binary64) binary64)
+;   ; correctly-rounded sin(x) for binary64
+;   (define-operator-impl (sin sin.acc.f64 binary64) binary64)
 
-  (define log1pmd-proc (impl-info 'log1pmd.f64 'fl))
-  (define log1pmd-vals '((0.0 . 0.0) (0.5 . 1.0986122886681098) (-0.5 . -1.0986122886681098)))
-  (for ([(pt out) (in-dict log1pmd-vals)])
-    (check-equal? (log1pmd-proc pt) out (format "log1pmd(~a) = ~a" pt out)))
+;   (define log1pmd-proc (impl-info 'log1pmd.f64 'fl))
+;   (define log1pmd-vals '((0.0 . 0.0) (0.5 . 1.0986122886681098) (-0.5 . -1.0986122886681098)))
+;   (for ([(pt out) (in-dict log1pmd-vals)])
+;     (check-equal? (log1pmd-proc pt) out (format "log1pmd(~a) = ~a" pt out)))
 
-  (define sin-proc (impl-info 'sin.acc.f64 'fl))
-  (define sin-vals '((0.0 . 0.0) (1.0 . 0.8414709848078965) (-1.0 . -0.8414709848078965)))
-  (for ([(pt out) (in-dict sin-vals)])
-    (check-equal? (sin-proc pt) out (format "sin(~a) = ~a" pt out)))
+;   (define sin-proc (impl-info 'sin.acc.f64 'fl))
+;   (define sin-vals '((0.0 . 0.0) (1.0 . 0.8414709848078965) (-1.0 . -0.8414709848078965)))
+;   (for ([(pt out) (in-dict sin-vals)])
+;     (check-equal? (sin-proc pt) out (format "sin(~a) = ~a" pt out)))
 
-  (void))
+;   (void))
 
 ;; Casts and precision changes
 
