@@ -136,9 +136,8 @@
      (define tx (taylor var nodes base))
      (taylor-cbrt var (taylor-mult tx tx))]
     [`(pow ,base ,power) ; `(exp (* ,power (log ,base)))
-     (taylor-exp (taylor-mult (taylor var nodes power)
-                              (taylor-log var (taylor var nodes base)))
-                              `(exp (* ,(get-expr nodes power) (log ,(get-expr nodes base)))))]
+     (taylor-exp (taylor-mult (taylor var nodes power) (taylor-log var (taylor var nodes base)))
+                 `(exp (* ,(get-expr nodes power) (log ,(get-expr nodes base)))))]
     [`(sinh ,arg)
      (define exparg (taylor-exp (taylor var nodes arg) `(exp ,(get-expr nodes arg))))
      (taylor-mult (taylor-exact 1/2) (taylor-add exparg (taylor-negate (taylor-invert exparg))))]
