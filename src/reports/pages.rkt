@@ -31,7 +31,6 @@
     (display "</pre>" out)))
 
 (define (make-page page out result-hash output? profile?)
-  (eprintf "make-page\n")
   (define test (hash-ref result-hash 'test))
   (define status (hash-ref result-hash 'status))
   (define ctx (test-context test))
@@ -43,6 +42,6 @@
        ['failure (make-traceback result-hash out profile?)]
        [_ (error 'make-page "unknown result type ~a" status)])]
     ["timeline.html"
-     (make-timeline (test-name test) (job-result-timeline result-hash) out #:path "..")]
-    ["timeline.json" (write-json (job-result-timeline result-hash) out)]
+     (make-timeline (test-name test) (hash-ref result-hash 'timeline) out #:path "..")]
+    ["timeline.json" (write-json (hash-ref result-hash 'timeline) out)]
     ["points.json" (write-json (make-points-json result-hash ctx) out)]))
