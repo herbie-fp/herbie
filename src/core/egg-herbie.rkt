@@ -20,7 +20,8 @@
          "../syntax/types.rkt"
          "../utils/common.rkt"
          "../config.rkt"
-         "../utils/timeline.rkt")
+         "../utils/timeline.rkt"
+         "batch.rkt")
 
 (provide (struct-out egg-runner)
          untyped-egg-extractor
@@ -1062,8 +1063,11 @@
                    (sow (cons op args))))]))))
   ; translate egg IR to Herbie IR
   (define egg->herbie (regraph-egg->herbie regraph))
-  (for/list ([egg-expr (in-list egg-exprs)])
-    (egg-parsed->expr (flatten-let egg-expr) egg->herbie type)))
+  ; Returns a batch of variants
+  (define vars (map car (hash-values egg->herbie)))
+  (define variants (for/list ([egg-expr (in-list egg-exprs)])
+                  (egg-parsed->expr (flatten-let egg-expr) egg->herbie type)))
+  (progs->batch (remove-duplicates variants) vars))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Scheduler
@@ -1209,8 +1213,8 @@
      (define regraph (make-regraph egg-graph))
      (define extract-id (extractor regraph))
      (define reprs (egg-runner-reprs runner))
-     (for/list ([id (in-list root-ids)] [repr (in-list reprs)])
-       (regraph-extract-variants regraph extract-id id repr))]
+       (for/list ([id (in-list root-ids)] [repr (in-list reprs)])
+         (regraph-extract-variants regraph extract-id id repr))]
     [`(proofs . ((,start-exprs . ,end-exprs) ...)) ; proof extraction
      (for/list ([start (in-list start-exprs)] [end (in-list end-exprs)])
        (unless (egraph-expr-equal? egg-graph start end ctx)

@@ -2,7 +2,8 @@
 
 (require "../utils/common.rkt"
          "../utils/timeline.rkt"
-         "egg-herbie.rkt")
+         "egg-herbie.rkt"
+         (only-in "batch.rkt" batch->progs))
 
 (provide rewrite-expressions)
 
@@ -18,12 +19,13 @@
     (typed-egg-extractor (if (*egraph-platform-cost*) platform-egg-cost-proc default-egg-cost-proc)))
 
   (define runner (make-egg-runner exprs reprs schedule #:context ctx))
+  ; variantss: (listof batch)
   (define variantss (run-egg runner `(multi . ,extractor)))
-
+  
   (define out
     (for/list ([variants variantss])
-      (for/list ([variant (remove-duplicates variants)])
+      (for/list ([variant (batch->progs variants)])
         (list variant runner))))
 
-  (timeline-push! 'outputs (map ~a (apply append variantss)))
+  (timeline-push! 'outputs (map ~a (apply append (map batch->progs variantss))))
   out)
