@@ -133,20 +133,23 @@
     [(list _ args ...) (remove-duplicates (append-map free-variables args))]))
 
 (define (replace-vars dict expr)
-  (cond
-    [(dict-has-key? dict expr) (dict-ref dict expr)]
-    [(approx? expr)
-     (approx (replace-vars dict (approx-spec expr)) (replace-vars dict (approx-impl expr)))]
-    [(list? expr) (cons (replace-vars dict (car expr)) (map (curry replace-vars dict) (cdr expr)))]
-    [else expr]))
+  (let loop ([expr expr])
+    (match expr
+      [(? literal?) expr]
+      [(? number?) expr]
+      [(? symbol?) (dict-ref dict expr expr)]
+      [(approx impl spec) (approx (loop impl) (loop spec))]
+      [(list op args ...) (cons op (map loop args))])))
 
 ;; For any LImpl expression, removes any approx nodes.
 ;; WARN: this is an irreversible spec-altering transformation.
 (define (remove-approx expr)
   (match expr
+    [(? literal?) expr]
+    [(? number?) expr]
+    [(? symbol?) expr]
     [(approx _ impl) (remove-approx impl)]
-    [(list op args ...) `(,op ,@(map remove-approx args))]
-    [(or (? number?) (? literal?) (? symbol?)) expr]))
+    [(list op args ...) `(,op ,@(map remove-approx args))]))
 
 (define location? (listof natural-number/c))
 
