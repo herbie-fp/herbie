@@ -129,8 +129,8 @@
     [(? literal?) '()]
     [(? number?) '()]
     [(? variable?) (list prog)]
-    [(? approx?) (free-variables (approx-impl prog))]
-    [`(,op ,args ...) (remove-duplicates (append-map free-variables args))]))
+    [(approx spec impl) (remove-duplicates (append (free-variables spec) (free-variables impl)))]
+    [(list _ args ...) (remove-duplicates (append-map free-variables args))]))
 
 (define (replace-vars dict expr)
   (cond
@@ -146,7 +146,7 @@
   (match expr
     [(approx _ impl) (remove-approx impl)]
     [(list op args ...) `(,op ,@(map remove-approx args))]
-    [_ expr]))
+    [(or (? number?) (? literal?) (? symbol?)) expr]))
 
 (define location? (listof natural-number/c))
 
@@ -159,12 +159,12 @@
     (match* (prog loc)
       [(_ (? null?)) (f prog)]
       [((or (? literal?) (? number?) (? symbol?)) _) (invalid! prog loc)]
-      [((approx spec impl) (cons idx rest))
+      [((approx spec impl) (cons idx rest)) ; approx nodes
        (case idx
          [(1) (approx (loop spec rest) impl)]
          [(2) (approx spec (loop impl rest))]
          [else (invalid! prog loc)])]
-      [((list op args ...) (cons idx rest))
+      [((list op args ...) (cons idx rest)) ; operator
        (let seek ([elts (cons op args)] [idx idx])
          (cond
            [(= idx 0) (cons (loop (car elts) rest) (cdr elts))]
@@ -177,12 +177,16 @@
   ; Clever continuation usage to early-return
   (let/ec return (location-do loc prog return)))
 
-(define/contract (replace-expression haystack needle needle*)
+(define/contract (replace-expression expr to from)
   (-> expr? expr? expr? expr?)
-  (match haystack
-    [(== needle) needle*]
-    [(list op args ...) (cons op (map (curryr replace-expression needle needle*) args))]
-    [x x]))
+  (let loop ([expr expr])
+    (match expr
+      [(== to) from]
+      [(? number?) expr]
+      [(? literal?) expr]
+      [(? symbol?) expr]
+      [(approx spec impl) (approx (loop spec) (loop impl))]
+      [(list op args ...) (cons op (map loop args))])))
 
 (module+ test
   (require rackunit)
