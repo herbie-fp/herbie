@@ -486,14 +486,14 @@
   (require rackunit
            "../syntax/types.rkt"
            "../syntax/load-plugin.rkt")
-  (define batch (progs->batch (list '(pow x 1.0)) '(x)))
+  (define batch (progs->batch (list '(pow x 1.0))))
   (define nodes (batch-nodes batch))
   (define root (vector-ref (batch-roots batch) 0))
   (check-pred exact-integer? (car (vector-ref (taylor '(x) nodes) root))))
 
 (module+ test
   (define (coeffs expr #:n [n 7])
-    (define batch (progs->batch (list expr) '(x)))
+    (define batch (progs->batch (list expr)))
     (define nodes (batch-nodes batch))
     (define root (vector-ref (batch-roots batch) 0))
     (match-define fn (zero-series (vector-ref (taylor 'x nodes) root)))
