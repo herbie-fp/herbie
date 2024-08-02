@@ -46,7 +46,11 @@
   (begin
     (define-libm-impls/binary32* (itype ... otype) name ...) ...))
 
-(define-operator-impl (neg neg.f32 binary32) binary32 [fl fl32-])
+(define-operator-impl (neg neg.f32 binary32) binary32
+  [spec (lambda (x) (neg x))]
+  [fpcore (! :precision binary32 (- x))]
+  [fl fl32-])
+
 (define-operator-impl (+ +.f32 binary32 binary32) binary32 [fl fl32+])
 (define-operator-impl (- -.f32 binary32 binary32) binary32 [fl fl32-])
 (define-operator-impl (* *.f32 binary32 binary32) binary32 [fl fl32*])

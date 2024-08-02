@@ -46,7 +46,11 @@
   (begin
     (define-libm-impls/binary64* (itype ... otype) name ...) ...))
 
-(define-operator-impl (neg neg.f64 binary64) binary64 [fl -])
+(define-operator-impl (neg neg.f64 binary64) binary64
+  [spec (lambda (x) (neg x))]
+  [fpcore (! :precision binary64 (- x))]
+  [fl -])
+
 (define-operator-impl (+ +.f64 binary64 binary64) binary64 [fl +])
 (define-operator-impl (- -.f64 binary64 binary64) binary64 [fl -])
 (define-operator-impl (* *.f64 binary64 binary64) binary64 [fl *])

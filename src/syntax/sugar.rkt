@@ -1,14 +1,5 @@
-#lang racket
-
-(require "../core/programs.rkt"
-         "../utils/common.rkt"
-         "syntax.rkt"
-         "types.rkt")
-
-(provide fpcore->prog
-         prog->fpcore
-         prog->spec)
-
+;; Expression conversions
+;;
 ;; Herbie uses three expression languages.
 ;; All formats are S-expressions with variables, numbers, and applications.
 ;;
@@ -65,6 +56,20 @@
 ;;        ::= <number>
 ;;        ::= <id>
 ;;
+
+#lang racket
+
+(require "../core/programs.rkt"
+         "../utils/common.rkt"
+         "syntax.rkt"
+         "types.rkt")
+
+(provide fpcore->prog
+         prog->fpcore
+         prog->spec)
+
+(module+ test
+  (require rackunit))
 
 ;; Expression pre-processing for normalizing expressions.
 ;; Used for conversion from FPCore to other IRs.
@@ -184,17 +189,6 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; LImpl -> FPCore
 
-;; Returns the dictionary FPCore properties required to
-;; round trip when converted to and from FPCore.
-; (define (prog->req-props expr)
-;   (match expr
-;     [(? literal?) '()]
-;     [(? variable?) '()]
-;     [(list 'if cond ift iff) (prog->req-props ift)]
-;     [(list (? impl-exists? impl) _ ...)
-;      (match-define (list '! props ... _) (impl-info impl 'fpcore))
-;      (props->dict props)]))
-
 ;; Instruction vector index
 (struct index (v) #:prefab)
 
@@ -212,38 +206,40 @@
 ;; NOTE: This translation results in a verbose output but at least it's right
 (define (prog->normal expr)
   (define exprs '())
+  (define impls '())
   (define (push! impl node)
     (define id (length exprs))
-    (set! exprs (cons (cons impl node) exprs))
+    (set! exprs (cons node exprs))
+    (set! impls (cons impl impls))
     (index id))
 
-  (define (munge expr)
+  (define (munge expr #:root? [root? #f])
     (match expr
       [(? literal?) (literal->fpcore expr)]
       [(? symbol?) expr]
-      [(list 'if cond ift iff)
-       (list 'if (munge cond) (munge ift) (munge iff))]
+      [(list 'if cond ift iff) (list 'if (munge cond) (munge ift) (munge iff))]
       [(list (? impl-exists? impl) args ...)
        (define args* (map munge args))
        (match-define (list _ vars _) (impl-info impl 'spec))
-       (push! impl (replace-vars (map cons vars args*) (impl-info impl 'fpcore)))]))
-  
-  (define node (munge expr))
-  (unless (index? node)
-    (set! exprs (cons node exprs)))
-  (list->vector (reverse exprs)))
+       (define node (replace-vars (map cons vars args*) (impl-info impl 'fpcore)))
+       (if root? node (push! impl node))]))
 
+  (define root (munge expr #:root? #t))
+  (values root (list->vector (reverse exprs)) (list->vector (reverse impls))))
 
-; (define (prog->normal expr ctx)
-;   (define vars (list->mutable-seteq (context-vars ctx)))
-;   (define counter 0)
-;   (define (gensym)
-;     (set! counter (add1 counter))
-;     (match (string->symbol (format "t~a" counter))
-;       [(? (curry set-member? vars)) (gensym)]
-;       [x
-;        (set-add! vars x)
-;        x]))
+;; Returns the dictionary FPCore properties required to
+;; round trip when converted to and from FPCore.
+; (define (prog->req-props expr)
+;   (match expr
+;     [(? literal?) '()]
+;     [(? variable?) '()]
+;     [(list 'if cond ift iff) (prog->req-props ift)]
+;     [(list (? impl-exists? impl) _ ...)
+;      (match-define (list '! props ... _) (impl-info impl 'fpcore))
+;      (props->dict props)]))
+(define (impl->req-props impl)
+  (match-define (list '! props ... _) (impl-info impl 'fpcore))
+  (props->dict props))
 
 ;; Translates from LImpl to an FPCore.
 ;; The implementation of this procedure is complicated since
@@ -251,27 +247,68 @@
 ;;  (2) rounding contexts have lexical scoping
 ;; FPCore can be precise, but that precision comes at the cost of complexity.
 (define (prog->fpcore expr ctx)
-  (eprintf "~a\n" expr)
   ; step 1: convert to an instruction vector where
   ; each expression is evaluated under explicit rounding contexts
-  (define ivec (prog->normal expr))
-  (define ivec-len (vector-length ivec))
-  (define root (vector-ref ivec (sub1 ivec-len)))
-  (eprintf "~a\n" ivec)
+  (define-values (root ivec impls) (prog->normal expr))
 
-  ; step 2: condense nodes
-  ; the value of a let binding may be inlined if converting back to LImpl
-  ; results in the same 
-  (define condensed (mutable-set))
-  (define body
-    (let loop ([node root])
-      (match node
-        [(? number?) node]
-        [(? symbol?) node]
-        [_ (error 'condense "unimplemented: ~a"node)])))
+  ; step 2: inline nodes
+  ; inlining let bindings is generally unsound with rounding properties
+  ; we only inline those that result in the same operator implementation
+  ; when converting back from FPCore to LImpl
+  (define inlined (mutable-set))
+  (define global-prop-dict (repr->prop (context-repr ctx)))
 
-  (error 'prog->fpcore "unimplemented"))
+  (define (build node prop-dict)
+    (match node
+      [(? number?) node] ; number
+      [(? symbol?) node] ; variable
+      [(index idx) ; let-bound variable
+       (define expr (build (vector-ref ivec idx) global-prop-dict))
+       (vector-set! ivec idx expr)
+       node]
+      [(list '! props ... body) ; explicit rounding context
+       (define prop-dict* (props->dict props))
+       (define new-prop-dict
+         (for/list ([(k v) (in-dict prop-dict*)]
+                    #:unless (and (dict-has-key? prop-dict k) (equal? (dict-ref prop-dict k) v)))
+           (cons k v)))
+       (if (null? new-prop-dict)
+           (build body prop-dict*)
+           `(! ,@(dict->props new-prop-dict) ,(build body prop-dict*)))]
+      [(list op args ...)
+       (define args* (map (lambda (e) (build e prop-dict)) args))
+       `(,op ,@args*)]))
 
+  (define body (build root global-prop-dict))
+
+  ; step 3: construct the actual FPCore expression from
+  ; the remaining let-bindings and body
+  (define vars (list->mutable-seteq (context-vars ctx)))
+  (define counter 0)
+  (define (gensym)
+    (set! counter (add1 counter))
+    (match (string->symbol (format "t~a" counter))
+      [(? (curry set-member? vars)) (gensym)]
+      [x
+       (set-add! vars x)
+       x]))
+
+  (define id->name (make-vector (vector-length ivec) #f))
+  (for ([_ (in-vector ivec)] [idx (in-naturals)])
+    (unless (set-member? inlined idx)
+      (vector-set! id->name idx (gensym))))
+
+  (define (remove-indices expr)
+    (match expr
+      [(? number?) expr]
+      [(? symbol?) expr]
+      [(index idx) (vector-ref id->name idx)]
+      [(list '! props ... body) `(! ,@props ,(remove-indices body))]
+      [(list op args ...) `(,op ,@(map remove-indices args))]))
+
+  (for/fold ([body (remove-indices body)])
+            ([i (in-range (sub1 (vector-length ivec)) -1 -1)] #:when (vector-ref id->name i))
+    `(let ([,(vector-ref id->name i) ,(remove-indices (vector-ref ivec i))]) ,body)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; LImpl -> LSpec

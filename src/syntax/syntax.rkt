@@ -378,12 +378,18 @@
       [spec
        (check-spec! name (map representation-type ireprs) (representation-type orepr) spec)
        spec]))
+
   ; extract or generate the fpcore translation
   (match-define `(,(or 'lambda 'λ) ,vars ,body) spec)
   (define fpcore
     (match (dict-ref attrib-dict 'fpcore #f)
       ; not provided => need to generate it
-      [#f `(! :precision ,(representation-name orepr) (,op ,@vars))]
+      [#f
+       ; special case: boolean-valued operations do not
+       ; need a precision annotation
+       (if (equal? orepr (get-representation 'bool))
+           `(,op ,@vars)
+           `(! :precision ,(representation-name orepr) (,op ,@vars)))]
       ; provided -> TODO: check free variables
       [fpcore fpcore]))
 

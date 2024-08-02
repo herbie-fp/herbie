@@ -51,7 +51,9 @@
 
 ;; Converts a representation into a rounding property
 (define (repr->prop repr)
-  (list (cons ':precision (representation-name repr))))
+  (match (representation-type repr)
+    ['bool '()]
+    ['real (list (cons ':precision (representation-name repr)))]))
 
 ;; Repr / operator generation
 ;; Some plugins might define 'parameterized' reprs (e.g. fixed point with

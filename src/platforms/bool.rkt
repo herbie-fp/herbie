@@ -20,15 +20,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; constants ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define-operator-impl (TRUE TRUE) bool
-  [spec (lambda () (TRUE))]
-  [fpcore TRUE]
-  [fl (lambda () true)])
-
-(define-operator-impl (FALSE FALSE) bool
-  [spec (lambda () (FALSE))]
-  [fpcore FALSE]
-  [fl (lambda () false)])
+(define-constants bool [TRUE TRUE true] [FALSE FALSE false])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; operators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -38,20 +30,11 @@
 (define (or-fn . as)
   (ormap identity as))
 
-(define-operator-impl (not not bool) bool
-  [spec (lambda (x) (not x))]
-  [fpcore (not x)]
-  [fl not])
+(define-operator-impl (not not bool) bool [fl not])
 
-(define-operator-impl (and and bool bool) bool
-  [spec (lambda (x y) (and x y))]
-  [fpcore (and x y)]
-  [fl and-fn])
+(define-operator-impl (and and bool bool) bool [fl and-fn])
 
-(define-operator-impl (or or bool bool) bool
-  [spec (lambda (x y) (or x y))]
-  [fpcore (or x y)]
-  [fl or-fn])
+(define-operator-impl (or or bool bool) bool [fl or-fn])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; rules ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
