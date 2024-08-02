@@ -56,7 +56,7 @@
   (write-xexpr xexpr out))
 
 (define (program->fpcore expr ctx #:ident [ident #f])
-  (define body (prog->fpcore expr))
+  (define body (prog->fpcore expr ctx))
   (if ident (list 'FPCore ident (context-vars ctx) body) (list 'FPCore (context-vars ctx) body)))
 
 (define (fpcore-add-props core props)
@@ -293,8 +293,9 @@
     `(div
       ,(if (equal? precondition '(TRUE))
            ""
-           `(div ([id "precondition"])
-                 (div ((class "program math")) "\\[" ,(expr->tex (prog->fpcore precondition)) "\\]")))
+           `(div
+             ([id "precondition"])
+             (div ((class "program math")) "\\[" ,(expr->tex (prog->fpcore precondition ctx)) "\\]")))
       (div ((class "implementation") [data-language "Math"])
            (div ((class "program math")) "\\[" ,math-out "\\]"))
       ,@(for/list ([(lang out) (in-dict versions)])
@@ -316,23 +317,25 @@
   (-> test? string?)
   (define output-repr (test-output-repr test))
   (string-join
-   (filter
-    identity
-    (list
-     (if (test-identifier test)
-         (format "(FPCore ~a ~a" (test-identifier test) (test-vars test))
-         (format "(FPCore ~a" (test-vars test)))
-     (format "  :name ~s" (test-name test))
-     (format "  :precision ~s" (representation-name (test-output-repr test)))
-     (if (equal? (test-pre test) '(TRUE)) #f (format "  :pre ~a" (prog->fpcore (test-pre test))))
-     (if (equal? (test-expected test) #t) #f (format "  :herbie-expected ~a" (test-expected test)))
-     (and (test-output test)
-          (not (null? (test-output test)))
-          (format "\n~a"
-                  (string-join (map (lambda (exp) (format "  :alt\n  ~a\n" (car exp)))
-                                    (test-output test))
-                               "\n")))
-     (format "  ~a)" (prog->fpcore (test-input test)))))
+   (filter identity
+           (list (if (test-identifier test)
+                     (format "(FPCore ~a ~a" (test-identifier test) (test-vars test))
+                     (format "(FPCore ~a" (test-vars test)))
+                 (format "  :name ~s" (test-name test))
+                 (format "  :precision ~s" (representation-name (test-output-repr test)))
+                 (if (equal? (test-pre test) '(TRUE))
+                     #f
+                     (format "  :pre ~a" (prog->fpcore (test-pre test) (test-context test))))
+                 (if (equal? (test-expected test) #t)
+                     #f
+                     (format "  :herbie-expected ~a" (test-expected test)))
+                 (and (test-output test)
+                      (not (null? (test-output test)))
+                      (format "\n~a"
+                              (string-join (map (lambda (exp) (format "  :alt\n  ~a\n" (car exp)))
+                                                (test-output test))
+                                           "\n")))
+                 (format "  ~a)" (prog->fpcore (test-input test) (test-context test)))))
    "\n"))
 
 (define (format-percent num den)

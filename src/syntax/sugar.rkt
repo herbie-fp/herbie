@@ -127,6 +127,9 @@
       ; other
       [_ expr])))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; FPCore -> LImpl
+
 ;; Translates from FPCore to an LImpl
 (define (fpcore->prog prog ctx)
   (define-values (expr* _)
@@ -178,27 +181,100 @@
          (values (literal num prec) (context-repr ctx))])))
   expr*)
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; LImpl -> FPCore
+
+;; Returns the dictionary FPCore properties required to
+;; round trip when converted to and from FPCore.
+; (define (prog->req-props expr)
+;   (match expr
+;     [(? literal?) '()]
+;     [(? variable?) '()]
+;     [(list 'if cond ift iff) (prog->req-props ift)]
+;     [(list (? impl-exists? impl) _ ...)
+;      (match-define (list '! props ... _) (impl-info impl 'fpcore))
+;      (props->dict props)]))
+
+;; Instruction vector index
+(struct index (v) #:prefab)
+
+;; Translates a literal (LImpl) to an FPCore expr
+(define (literal->fpcore x)
+  (match x
+    [(literal -inf.0 _) '(- INFINITY)]
+    [(literal +inf.0 _) 'INFINITY]
+    [(literal v (or 'binary64 'binary32)) (exact->inexact v)]
+    [(literal v _) v]))
+
+;; Translates from LImpl to an instruction vector where each
+;; expression is evaluated under an explicit rounding context.
+;; The output resembles A-normal form, so we will call the output "normal".
+;; NOTE: This translation results in a verbose output but at least it's right
+(define (prog->normal expr)
+  (define exprs '())
+  (define (push! impl node)
+    (define id (length exprs))
+    (set! exprs (cons (cons impl node) exprs))
+    (index id))
+
+  (define (munge expr)
+    (match expr
+      [(? literal?) (literal->fpcore expr)]
+      [(? symbol?) expr]
+      [(list 'if cond ift iff)
+       (list 'if (munge cond) (munge ift) (munge iff))]
+      [(list (? impl-exists? impl) args ...)
+       (define args* (map munge args))
+       (match-define (list _ vars _) (impl-info impl 'spec))
+       (push! impl (replace-vars (map cons vars args*) (impl-info impl 'fpcore)))]))
+  
+  (define node (munge expr))
+  (unless (index? node)
+    (set! exprs (cons node exprs)))
+  (list->vector (reverse exprs)))
+
+
+; (define (prog->normal expr ctx)
+;   (define vars (list->mutable-seteq (context-vars ctx)))
+;   (define counter 0)
+;   (define (gensym)
+;     (set! counter (add1 counter))
+;     (match (string->symbol (format "t~a" counter))
+;       [(? (curry set-member? vars)) (gensym)]
+;       [x
+;        (set-add! vars x)
+;        x]))
+
 ;; Translates from LImpl to an FPCore.
-(define (prog->fpcore expr)
-  (match expr
-    [`(if ,cond ,ift ,iff) `(if ,(prog->fpcore cond) ,(prog->fpcore ift) ,(prog->fpcore iff))]
-    [`(,(? cast-impl? impl) ,body)
-     (define prec (representation-name (impl-info impl 'otype)))
-     `(! :precision ,prec (cast ,(prog->fpcore body)))]
-    [`(,impl) (impl->operator impl)]
-    [`(,impl ,args ...)
-     (define op (impl->operator impl))
-     (define args* (map prog->fpcore args))
-     (match (cons op args*)
-       [`(neg ,arg) `(- ,arg)]
-       [expr expr])]
-    [(? variable?) expr]
-    [(? literal?)
-     (match (literal-value expr)
-       [-inf.0 '(- INFINITY)]
-       [+inf.0 'INFINITY]
-       [+nan.0 'NAN]
-       [v (if (set-member? '(binary64 binary32) (literal-precision expr)) (exact->inexact v) v)])]))
+;; The implementation of this procedure is complicated since
+;;  (1) every operator implementation requires certain (FPCore) rounding properties
+;;  (2) rounding contexts have lexical scoping
+;; FPCore can be precise, but that precision comes at the cost of complexity.
+(define (prog->fpcore expr ctx)
+  (eprintf "~a\n" expr)
+  ; step 1: convert to an instruction vector where
+  ; each expression is evaluated under explicit rounding contexts
+  (define ivec (prog->normal expr))
+  (define ivec-len (vector-length ivec))
+  (define root (vector-ref ivec (sub1 ivec-len)))
+  (eprintf "~a\n" ivec)
+
+  ; step 2: condense nodes
+  ; the value of a let binding may be inlined if converting back to LImpl
+  ; results in the same 
+  (define condensed (mutable-set))
+  (define body
+    (let loop ([node root])
+      (match node
+        [(? number?) node]
+        [(? symbol?) node]
+        [_ (error 'condense "unimplemented: ~a"node)])))
+
+  (error 'prog->fpcore "unimplemented"))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; LImpl -> LSpec
 
 ;; Translates an LImpl to a LSpec.
 (define (prog->spec expr)

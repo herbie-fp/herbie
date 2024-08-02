@@ -47,15 +47,14 @@
   (define (get-impl expr itypes props)
     (get-fpcore-impl expr itypes props #:impls (all-operator-impls)))
 
-
   (check-equal? (get-impl '(+ x y) (list f64 f64) '((:precision . binary64))) '+.f64)
   (check-equal? (get-impl '(+ a b) (list f64 f64) '((:precision . binary64))) '+.f64)
-  (check-equal?
-   (get-impl '(+ a b) (list f64 f64) '((:precision . binary64) (:description . "test")))
-   '+.f64)
+  (check-equal? (get-impl '(+ a b) (list f64 f64) '((:precision . binary64) (:description . "test")))
+                '+.f64)
 
   (check-equal? (get-impl '(log1pmd x) (list f64) '((:precision . binary64))) 'log1pmd.f64)
   (check-equal? (get-impl '(sin x) (list f64) '((:precision . binary64))) 'sin.f64)
-  (check-equal? (get-impl '(sin x) (list f64) '((:precision . binary64) (:math-library . fast))) 'fast-sin.f64)
+  (check-equal? (get-impl '(sin x) (list f64) '((:precision . binary64) (:math-library . fast)))
+                'fast-sin.f64)
 
   (void))

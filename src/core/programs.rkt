@@ -119,10 +119,12 @@
     [`(,op ,args ...) (remove-duplicates (append-map free-variables args))]))
 
 (define (replace-vars dict expr)
-  (cond
-    [(dict-has-key? dict expr) (dict-ref dict expr)]
-    [(list? expr) (cons (replace-vars dict (car expr)) (map (curry replace-vars dict) (cdr expr)))]
-    [#t expr]))
+  (let loop ([expr expr])
+    (match expr
+      [(? literal?) expr]
+      [(? number?) expr]
+      [(? symbol?) (dict-ref dict expr expr)]
+      [(list op args ...) (cons op (map loop args))])))
 
 (define location? (listof natural-number/c))
 
