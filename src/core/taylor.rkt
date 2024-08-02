@@ -10,7 +10,7 @@
 
 (define (approximate expr var #:transform [tform (cons identity identity)] #:iters [iters 5])
   (define expr* (simplify (replace-expression expr var ((car tform) var))))
-  (define expr-batch* (progs->batch (list expr*) (free-variables expr)))
+  (define expr-batch* (progs->batch (list expr*)))
   (define nodes (batch-nodes expr-batch*))
   (define root (vector-ref (batch-roots expr-batch*) 0)) ; assuming no batches in expr
   (define approximations (taylor var nodes))
@@ -86,12 +86,16 @@
         [`(,const) (taylor-exact expr)]
         [`(+ ,args ...) (apply taylor-add (map (curry vector-ref taylor-approxs) args))]
         [`(neg ,arg) (taylor-negate ((curry vector-ref taylor-approxs) arg))]
-        [`(- ,arg1 ,arg2) (taylor-add (vector-ref taylor-approxs arg1) (taylor-negate (vector-ref taylor-approxs arg2)))]
-        [`(* ,left ,right) (taylor-mult (vector-ref taylor-approxs left) (vector-ref taylor-approxs right))]
+        [`(- ,arg1 ,arg2)
+         (taylor-add (vector-ref taylor-approxs arg1)
+                     (taylor-negate (vector-ref taylor-approxs arg2)))]
+        [`(* ,left ,right)
+         (taylor-mult (vector-ref taylor-approxs left) (vector-ref taylor-approxs right))]
         [`(/ ,num ,den)
          #:when (equal? (vector-ref nodes num) 1)
          (taylor-invert (vector-ref taylor-approxs den))]
-        [`(/ ,num ,den) (taylor-quotient (vector-ref taylor-approxs num) (vector-ref taylor-approxs den))]
+        [`(/ ,num ,den)
+         (taylor-quotient (vector-ref taylor-approxs num) (vector-ref taylor-approxs den))]
         [`(sqrt ,arg) (taylor-sqrt var (vector-ref taylor-approxs arg))]
         [`(cbrt ,arg) (taylor-cbrt var (vector-ref taylor-approxs arg))]
         [`(exp ,arg) (taylor-exp (vector-ref taylor-approxs arg) `(exp ,(get-expr nodes arg)))]
@@ -115,7 +119,8 @@
          (define tx (vector-ref taylor-approxs base))
          (taylor-cbrt var (taylor-mult tx tx))]
         [`(pow ,base ,power) ; `(exp (* ,power (log ,base)))
-         (taylor-exp (taylor-mult (vector-ref taylor-approxs power) (taylor-log var (vector-ref taylor-approxs base)))
+         (taylor-exp (taylor-mult (vector-ref taylor-approxs power)
+                                  (taylor-log var (vector-ref taylor-approxs base)))
                      `(exp (* ,(get-expr nodes power) (log ,(get-expr nodes base)))))]
         [`(sinh ,arg)
          (define exparg (taylor-exp (vector-ref taylor-approxs arg) `(exp ,(get-expr nodes arg))))
@@ -131,19 +136,21 @@
          (taylor-quotient x- x+)]
         [`(asinh ,x)
          (define tx (vector-ref taylor-approxs x))
-         (taylor-log var
-                     (taylor-add tx (taylor-sqrt var (taylor-add (taylor-mult tx tx) (taylor-exact 1)))))]
+         (taylor-log
+          var
+          (taylor-add tx (taylor-sqrt var (taylor-add (taylor-mult tx tx) (taylor-exact 1)))))]
         [`(acosh ,x)
          (define tx (vector-ref taylor-approxs x))
-         (taylor-log var
-                     (taylor-add tx
-                                 (taylor-sqrt var (taylor-add (taylor-mult tx tx) (taylor-exact -1)))))]
+         (taylor-log
+          var
+          (taylor-add tx (taylor-sqrt var (taylor-add (taylor-mult tx tx) (taylor-exact -1)))))]
         [`(atanh ,x)
          (define tx (vector-ref taylor-approxs x))
          (taylor-mult (taylor-exact 1/2)
                       (taylor-log var
                                   (taylor-quotient (taylor-add (taylor-exact 1) tx)
-                                                   (taylor-add (taylor-exact 1) (taylor-negate tx)))))]
+                                                   (taylor-add (taylor-exact 1)
+                                                               (taylor-negate tx)))))]
         [_ (taylor-exact (get-expr nodes n))]))
     (vector-set! taylor-approxs n approx))
   taylor-approxs)

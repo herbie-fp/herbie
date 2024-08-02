@@ -9,7 +9,7 @@
 
 (struct batch (nodes roots vars nodes-length))
 
-(define (progs->batch exprs vars #:timeline-push [timeline-push #f])
+(define (progs->batch exprs #:timeline-push [timeline-push #f] #:vars [vars '()])
   (define icache (reverse vars))
   (define exprhash
     (make-hash (for/list ([var vars] [i (in-naturals)])

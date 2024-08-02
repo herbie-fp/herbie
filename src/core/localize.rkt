@@ -109,7 +109,7 @@
     (for/list ([subexpr (in-list exprs-list)])
       (struct-copy context ctx [repr (repr-of subexpr ctx)])))
 
-  (define expr-batch (progs->batch exprs-list (context-vars (first ctx-list))))
+  (define expr-batch (progs->batch exprs-list #:vars (context-vars (first ctx-list))))
   (define nodes (batch-nodes expr-batch))
   (define roots (batch-roots expr-batch))
 
