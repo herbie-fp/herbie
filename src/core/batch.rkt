@@ -9,7 +9,7 @@
 
 (struct batch (nodes roots vars))
 
-(define (progs->batch exprs vars)
+(define (progs->batch exprs vars #:timeline-push [timeline-push #f])
   (define icache (reverse vars))
   (define exprhash
     (make-hash (for/list ([var vars] [i (in-naturals)])
@@ -36,7 +36,8 @@
   (define roots (list->vector (map munge exprs)))
   (define nodes (list->vector (reverse icache)))
 
-  (timeline-push! 'compiler (+ varc size) (+ exprc varc))
+  (when timeline-push
+    (timeline-push! 'compiler (+ varc size) (+ exprc varc)))
   (batch nodes roots vars))
 
 (define (batch->progs batch)

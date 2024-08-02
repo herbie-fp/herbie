@@ -58,7 +58,7 @@
 ;; Requires some hooks to complete the translation.
 (define (make-compiler exprs vars)
   (define num-vars (length vars))
-  (define batch (progs->batch exprs vars))
+  (define batch (progs->batch exprs vars #:timeline-push #t))
 
   (define instructions
     (for/vector #:length (- (vector-length (batch-nodes batch)) num-vars)
