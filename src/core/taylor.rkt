@@ -13,7 +13,8 @@
   (define expr-batch* (progs->batch (list expr*) (free-variables expr)))
   (define nodes (batch-nodes expr-batch*))
   (define root (vector-ref (batch-roots expr-batch*) 0)) ; assuming no batches in expr
-  (match-define (cons offset coeffs) (taylor var nodes root))
+  (define approximations (taylor var nodes))
+  (match-define (cons offset coeffs) (vector-ref approximations root))
 
   (define i 0)
   (define terms '())
@@ -73,75 +74,79 @@
                          (for/list ([i (in-range 0 (+ k 1))])
                            (map (curry cons i) (n-sum-to (- n 1) (- k i)))))]))))
 
-(define (taylor var nodes root)
+(define (taylor var nodes)
   "Return a pair (e, n), such that expr ~= e var^n"
-  (define expr (vector-ref nodes root))
-  (match expr
-    [(? (curry equal? var)) (taylor-exact 0 1)]
-    [(? number?) (taylor-exact expr)]
-    [(? variable?) (taylor-exact expr)]
-    [`(,const) (taylor-exact expr)]
-    [`(+ ,args ...) (apply taylor-add (map (curry taylor var nodes) args))]
-    [`(neg ,arg) (taylor-negate ((curry taylor var nodes) arg))]
-    [`(- ,arg1 ,arg2) (taylor-add (taylor var nodes arg1) (taylor-negate (taylor var nodes arg2)))]
-    [`(* ,left ,right) (taylor-mult (taylor var nodes left) (taylor var nodes right))]
-    [`(/ ,num ,den)
-     #:when (equal? (vector-ref nodes num) 1)
-     (taylor-invert (taylor var nodes den))]
-    [`(/ ,num ,den) (taylor-quotient (taylor var nodes num) (taylor var nodes den))]
-    [`(sqrt ,arg) (taylor-sqrt var (taylor var nodes arg))]
-    [`(cbrt ,arg) (taylor-cbrt var (taylor var nodes arg))]
-    [`(exp ,arg) (taylor-exp (taylor var nodes arg) `(exp ,(get-expr nodes arg)))]
-    [`(sin ,arg) (taylor-sin (taylor var nodes arg) `(sin ,(get-expr nodes arg)))]
-    [`(cos ,arg) (taylor-cos (taylor var nodes arg) `(cos ,(get-expr nodes arg)))]
-    [`(tan ,arg)
-     (taylor-quotient (taylor-sin (taylor var nodes arg) `(sin ,(get-expr nodes arg)))
-                      (taylor-cos (taylor var nodes arg) `(cos ,(get-expr nodes arg))))]
-    [`(log ,arg) (taylor-log var (taylor var nodes arg))]
-    [`(pow ,base ,power)
-     #:when (exact-integer? (vector-ref nodes power))
-     (taylor-pow (normalize-series (taylor var nodes base)) (vector-ref nodes power))]
-    [`(pow ,base ,power)
-     #:when (equal? (vector-ref nodes power) 1/2)
-     (taylor-sqrt var (taylor var nodes base))]
-    [`(pow ,base ,power)
-     #:when (equal? (vector-ref nodes power) 1/3)
-     (taylor-cbrt var (taylor var nodes base))]
-    [`(pow ,base ,power)
-     #:when (equal? (vector-ref nodes power) 2/3)
-     (define tx (taylor var nodes base))
-     (taylor-cbrt var (taylor-mult tx tx))]
-    [`(pow ,base ,power) ; `(exp (* ,power (log ,base)))
-     (taylor-exp (taylor-mult (taylor var nodes power) (taylor-log var (taylor var nodes base)))
-                 `(exp (* ,(get-expr nodes power) (log ,(get-expr nodes base)))))]
-    [`(sinh ,arg)
-     (define exparg (taylor-exp (taylor var nodes arg) `(exp ,(get-expr nodes arg))))
-     (taylor-mult (taylor-exact 1/2) (taylor-add exparg (taylor-negate (taylor-invert exparg))))]
-    [`(cosh ,arg)
-     (define exparg (taylor-exp (taylor var nodes arg) `(exp ,(get-expr nodes arg))))
-     (taylor-mult (taylor-exact 1/2) (taylor-add exparg (taylor-invert exparg)))]
-    [`(tanh ,arg)
-     (define exparg (taylor-exp (taylor var nodes arg) `(exp ,(get-expr nodes arg))))
-     (define expinv (taylor-invert exparg))
-     (define x+ (taylor-add exparg expinv))
-     (define x- (taylor-add exparg (taylor-negate expinv)))
-     (taylor-quotient x- x+)]
-    [`(asinh ,x)
-     (define tx (taylor var nodes x))
-     (taylor-log var
-                 (taylor-add tx (taylor-sqrt var (taylor-add (taylor-mult tx tx) (taylor-exact 1)))))]
-    [`(acosh ,x)
-     (define tx (taylor var nodes x))
-     (taylor-log var
-                 (taylor-add tx
-                             (taylor-sqrt var (taylor-add (taylor-mult tx tx) (taylor-exact -1)))))]
-    [`(atanh ,x)
-     (define tx (taylor var nodes x))
-     (taylor-mult (taylor-exact 1/2)
-                  (taylor-log var
-                              (taylor-quotient (taylor-add (taylor-exact 1) tx)
-                                               (taylor-add (taylor-exact 1) (taylor-negate tx)))))]
-    [_ (taylor-exact (get-expr nodes root))]))
+  (define taylor-approxs (make-vector (vector-length nodes)))
+  (for ([expr (in-vector nodes)] [n (in-naturals)])
+    (define approx
+      (match expr
+        [(? (curry equal? var)) (taylor-exact 0 1)]
+        [(? number?) (taylor-exact expr)]
+        [(? variable?) (taylor-exact expr)]
+        [`(,const) (taylor-exact expr)]
+        [`(+ ,args ...) (apply taylor-add (map (curry vector-ref taylor-approxs) args))]
+        [`(neg ,arg) (taylor-negate ((curry vector-ref taylor-approxs) arg))]
+        [`(- ,arg1 ,arg2) (taylor-add (vector-ref taylor-approxs arg1) (taylor-negate (vector-ref taylor-approxs arg2)))]
+        [`(* ,left ,right) (taylor-mult (vector-ref taylor-approxs left) (vector-ref taylor-approxs right))]
+        [`(/ ,num ,den)
+         #:when (equal? (vector-ref nodes num) 1)
+         (taylor-invert (vector-ref taylor-approxs den))]
+        [`(/ ,num ,den) (taylor-quotient (vector-ref taylor-approxs num) (vector-ref taylor-approxs den))]
+        [`(sqrt ,arg) (taylor-sqrt var (vector-ref taylor-approxs arg))]
+        [`(cbrt ,arg) (taylor-cbrt var (vector-ref taylor-approxs arg))]
+        [`(exp ,arg) (taylor-exp (vector-ref taylor-approxs arg) `(exp ,(get-expr nodes arg)))]
+        [`(sin ,arg) (taylor-sin (vector-ref taylor-approxs arg) `(sin ,(get-expr nodes arg)))]
+        [`(cos ,arg) (taylor-cos (vector-ref taylor-approxs arg) `(cos ,(get-expr nodes arg)))]
+        [`(tan ,arg)
+         (taylor-quotient (taylor-sin (vector-ref taylor-approxs arg) `(sin ,(get-expr nodes arg)))
+                          (taylor-cos (vector-ref taylor-approxs arg) `(cos ,(get-expr nodes arg))))]
+        [`(log ,arg) (taylor-log var (vector-ref taylor-approxs arg))]
+        [`(pow ,base ,power)
+         #:when (exact-integer? (vector-ref nodes power))
+         (taylor-pow (normalize-series (vector-ref taylor-approxs base)) (vector-ref nodes power))]
+        [`(pow ,base ,power)
+         #:when (equal? (vector-ref nodes power) 1/2)
+         (taylor-sqrt var (vector-ref taylor-approxs base))]
+        [`(pow ,base ,power)
+         #:when (equal? (vector-ref nodes power) 1/3)
+         (taylor-cbrt var (vector-ref taylor-approxs base))]
+        [`(pow ,base ,power)
+         #:when (equal? (vector-ref nodes power) 2/3)
+         (define tx (vector-ref taylor-approxs base))
+         (taylor-cbrt var (taylor-mult tx tx))]
+        [`(pow ,base ,power) ; `(exp (* ,power (log ,base)))
+         (taylor-exp (taylor-mult (vector-ref taylor-approxs power) (taylor-log var (vector-ref taylor-approxs base)))
+                     `(exp (* ,(get-expr nodes power) (log ,(get-expr nodes base)))))]
+        [`(sinh ,arg)
+         (define exparg (taylor-exp (vector-ref taylor-approxs arg) `(exp ,(get-expr nodes arg))))
+         (taylor-mult (taylor-exact 1/2) (taylor-add exparg (taylor-negate (taylor-invert exparg))))]
+        [`(cosh ,arg)
+         (define exparg (taylor-exp (vector-ref taylor-approxs arg) `(exp ,(get-expr nodes arg))))
+         (taylor-mult (taylor-exact 1/2) (taylor-add exparg (taylor-invert exparg)))]
+        [`(tanh ,arg)
+         (define exparg (taylor-exp (vector-ref taylor-approxs arg) `(exp ,(get-expr nodes arg))))
+         (define expinv (taylor-invert exparg))
+         (define x+ (taylor-add exparg expinv))
+         (define x- (taylor-add exparg (taylor-negate expinv)))
+         (taylor-quotient x- x+)]
+        [`(asinh ,x)
+         (define tx (vector-ref taylor-approxs x))
+         (taylor-log var
+                     (taylor-add tx (taylor-sqrt var (taylor-add (taylor-mult tx tx) (taylor-exact 1)))))]
+        [`(acosh ,x)
+         (define tx (vector-ref taylor-approxs x))
+         (taylor-log var
+                     (taylor-add tx
+                                 (taylor-sqrt var (taylor-add (taylor-mult tx tx) (taylor-exact -1)))))]
+        [`(atanh ,x)
+         (define tx (vector-ref taylor-approxs x))
+         (taylor-mult (taylor-exact 1/2)
+                      (taylor-log var
+                                  (taylor-quotient (taylor-add (taylor-exact 1) tx)
+                                                   (taylor-add (taylor-exact 1) (taylor-negate tx)))))]
+        [_ (taylor-exact (get-expr nodes n))]))
+    (vector-set! taylor-approxs n approx))
+  taylor-approxs)
 
 ; A taylor series is represented by a function f : nat -> expr,
 ; representing the coefficients (the 1 / n! terms not included),
@@ -477,14 +482,14 @@
   (define batch (progs->batch (list '(pow x 1.0)) '(x)))
   (define nodes (batch-nodes batch))
   (define root (vector-ref (batch-roots batch) 0))
-  (check-pred exact-integer? (car (taylor '(x) nodes root))))
+  (check-pred exact-integer? (car (vector-ref (taylor '(x) nodes) root))))
 
 (module+ test
   (define (coeffs expr #:n [n 7])
     (define batch (progs->batch (list expr) '(x)))
     (define nodes (batch-nodes batch))
     (define root (vector-ref (batch-roots batch) 0))
-    (match-define fn (zero-series (taylor 'x nodes root)))
+    (match-define fn (zero-series (vector-ref (taylor 'x nodes) root)))
     (build-list n fn))
 
   (check-equal? (coeffs '(sin x)) '(0 1 0 -1/6 0 1/120 0))

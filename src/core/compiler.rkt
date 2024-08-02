@@ -61,7 +61,7 @@
   (define batch (progs->batch exprs vars #:timeline-push #t))
 
   (define instructions
-    (for/vector #:length (- (vector-length (batch-nodes batch)) num-vars)
+    (for/vector #:length (- (batch-nodes-length batch) num-vars)
                 ([node (in-vector (batch-nodes batch) num-vars)])
       (match node
         [(literal value (app get-representation repr)) (list (const (real->repr value repr)))]
