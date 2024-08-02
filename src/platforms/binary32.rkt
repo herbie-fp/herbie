@@ -46,10 +46,11 @@
   (begin
     (define-libm-impls/binary32* (itype ... otype) name ...) ...))
 
-(define-operator-impl (neg neg.f32 binary32) binary32
-  [spec (lambda (x) (neg x))]
-  [fpcore (! :precision binary32 (- x))]
-  [fl fl32-])
+(define-operator-impl (neg neg.f32 binary32)
+                      binary32
+                      [spec (lambda (x) (neg x))]
+                      [fpcore (! :precision binary32 (- x))]
+                      [fl fl32-])
 
 (define-operator-impl (+ +.f32 binary32 binary32) binary32 [fl fl32+])
 (define-operator-impl (- -.f32 binary32 binary32) binary32 [fl fl32-])
@@ -119,7 +120,7 @@
   (define-operator-impl (hypot hypot.f32 binary32 binary32)
                         binary32
                         [spec (lambda (x y) (sqrt (+ (* x x) (* y y))))]
-                        [fpcore (! :precision binary32 (hypot x))]
+                        [fpcore (! :precision binary32 (hypot x y))]
                         [fl c_hypotf]))
 
 (when c_fmaf

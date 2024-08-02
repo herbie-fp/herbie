@@ -474,18 +474,6 @@
   ; force result of `pattern-match` to be a boolean
   (and (pattern-match spec1 spec2) #t))
 
-;; Returns the list of implementations that implement a given spec
-;; and have the given input and output representations.
-; (define (get-impls spec ireprs orepr #:impls [impls (all-active-operator-impls)])
-;   (reap [sow]
-;         (for ([impl (in-list impls)])
-;           (when (and (equal? orepr (impl-info impl 'otype))
-;                      (equal? ireprs (impl-info impl 'itype))
-;                      (let ()
-;                        (match-define (list _ _ spec*) (impl-info impl 'spec))
-;                        (spec-equal? spec spec*)))
-;             (sow impl)))))
-
 ;; Finds the best operator implemenation for a given
 ;; FPCore expression, input representations, and rounding properties.
 ;; Panics if none can be found.
@@ -493,33 +481,34 @@
   ; ensure `':precision` is in the prop list
   (unless (dict-has-key? prop-dict ':precision)
     (error 'get-impl "expected key ':precision in properties `~a`" prop-dict))
-  (define orepr (get-representation (dict-ref prop-dict ':precision)))
-  ; gather all implementations that have the same spec,
-  ; input and output representations, and its FPCore translation
-  ; has properties that are found in `prop-dict`
+  ; gather all implementations that have the same spec, input representations,
+  ; and its FPCore translation has properties that are found in `prop-dict`
   (define impls
     (reap [sow]
           (for ([impl (in-list all-impls)])
-            (when (and (equal? orepr (impl-info impl 'otype))
-                       (equal? ireprs (impl-info impl 'itype))
+            (when (and (equal? ireprs (impl-info impl 'itype))
                        (let ()
-                         (match-define (list '! props ... body) (impl-info impl 'fpcore))
-                         (define prop-dict* (props->dict props))
+                         (define-values (prop-dict* body)
+                           (match (impl-info impl 'fpcore)
+                             [(list '! props ... body) (values (props->dict props) body)]
+                             [body (values '() body)]))
                          (and (andmap (lambda (prop) (member prop prop-dict)) prop-dict*)
                               (spec-equal? expr body))))
               (sow impl)))))
   ; check that we have any matching impls
   (when (null? impls)
     (raise-herbie-missing-error
-     "No implementation for `~a` with type `~a -> ~a`"
+     "No implementation for `~a` under rounding context `~a` with types `~a`"
      expr
-     (string-join (map (λ (r) (format "<~a>" (representation-name r))) ireprs) " ")
-     (format "<~a>" (representation-name orepr))))
+     prop-dict
+     (string-join (map (λ (r) (format "<~a>" (representation-name r))) ireprs) " ")))
   ; ; we rank implementations and select the highest scoring one
   (define scores
     (for/list ([impl (in-list impls)])
-      (match-define (list '! props ... _) (impl-info impl 'fpcore))
-      (define prop-dict* (props->dict props))
+      (define prop-dict*
+        (match (impl-info impl 'fpcore)
+          [(list '! props ... _) (props->dict props)]
+          [_ '()]))
       (define matching (filter (lambda (prop) (member prop prop-dict*)) prop-dict))
       (cons (length matching) (- (length prop-dict) (length matching)))))
   ; select the best implementation

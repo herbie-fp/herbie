@@ -200,10 +200,13 @@
     [(literal v (or 'binary64 'binary32)) (exact->inexact v)]
     [(literal v _) v]))
 
+;; Step 1.
 ;; Translates from LImpl to an instruction vector where each
 ;; expression is evaluated under an explicit rounding context.
 ;; The output resembles A-normal form, so we will call the output "normal".
-;; NOTE: This translation results in a verbose output but at least it's right
+;; NOTE: This translation results in a verbose output but at least it's right.
+;; Ignoring let-bound variables, the expressions are in FPCore
+
 (define (prog->normal expr)
   (define exprs '())
   (define impls '())
@@ -225,64 +228,84 @@
        (if root? node (push! impl node))]))
 
   (define root (munge expr #:root? #t))
+
   (values root (list->vector (reverse exprs)) (list->vector (reverse impls))))
 
-;; Returns the dictionary FPCore properties required to
-;; round trip when converted to and from FPCore.
-; (define (prog->req-props expr)
-;   (match expr
-;     [(? literal?) '()]
-;     [(? variable?) '()]
-;     [(list 'if cond ift iff) (prog->req-props ift)]
-;     [(list (? impl-exists? impl) _ ...)
-;      (match-define (list '! props ... _) (impl-info impl 'fpcore))
-;      (props->dict props)]))
-(define (impl->req-props impl)
-  (match-define (list '! props ... _) (impl-info impl 'fpcore))
-  (props->dict props))
+;; Step 2.
+;; Inlines let bindings; let-inlining is generally unsound with
+;; rounding properties (the parent context may change),
+;; so we only inline those that result in the same operator
+;; implementation when converting back from FPCore to LImpl.
 
-;; Translates from LImpl to an FPCore.
-;; The implementation of this procedure is complicated since
-;;  (1) every operator implementation requires certain (FPCore) rounding properties
-;;  (2) rounding contexts have lexical scoping
-;; FPCore can be precise, but that precision comes at the cost of complexity.
-(define (prog->fpcore expr ctx)
-  ; step 1: convert to an instruction vector where
-  ; each expression is evaluated under explicit rounding contexts
-  (define-values (root ivec impls) (prog->normal expr))
-
-  ; step 2: inline nodes
-  ; inlining let bindings is generally unsound with rounding properties
-  ; we only inline those that result in the same operator implementation
-  ; when converting back from FPCore to LImpl
-  (define inlined (mutable-set))
+(define (inline! root ivec impls ctx)
   (define global-prop-dict (repr->prop (context-repr ctx)))
-
-  (define (build node prop-dict)
+  (let loop ([node root] [prop-dict global-prop-dict])
     (match node
       [(? number?) node] ; number
       [(? symbol?) node] ; variable
       [(index idx) ; let-bound variable
-       (define expr (build (vector-ref ivec idx) global-prop-dict))
-       (vector-set! ivec idx expr)
-       node]
+       (define expr (vector-ref ivec idx)) ; subexpression
+       (define impl (vector-ref impls idx)) ; desired impl we want to preserve
+       ; we check what happens if we inline
+       (define impl*
+         (match expr
+           [(list '! props ... (list op args ...))
+            ; rounding context updated parent context
+            (define prop-dict* (apply dict-set prop-dict props))
+            (define pattern (cons op (map (lambda (_) (gensym)) args)))
+            (get-fpcore-impl pattern (impl-info impl 'itype) prop-dict*)]
+           [(list op args ...)
+            ; rounding context inherited from parent context
+            (define pattern (cons op (map (lambda (_) (gensym)) args)))
+            (get-fpcore-impl pattern (impl-info impl 'itype) prop-dict)]))
+       (cond
+         [(equal? impl impl*) ; inlining is safe
+          (define expr* (loop expr prop-dict))
+          (vector-set! ivec idx #f)
+          expr*]
+         [else ; inlining is not safe
+          (define expr* (loop expr global-prop-dict))
+          (vector-set! ivec idx expr*)
+          node])]
       [(list '! props ... body) ; explicit rounding context
        (define prop-dict* (props->dict props))
+       (define body* (loop body prop-dict*))
        (define new-prop-dict
          (for/list ([(k v) (in-dict prop-dict*)]
                     #:unless (and (dict-has-key? prop-dict k) (equal? (dict-ref prop-dict k) v)))
            (cons k v)))
-       (if (null? new-prop-dict)
-           (build body prop-dict*)
-           `(! ,@(dict->props new-prop-dict) ,(build body prop-dict*)))]
-      [(list op args ...)
-       (define args* (map (lambda (e) (build e prop-dict)) args))
-       `(,op ,@args*)]))
+       (if (null? new-prop-dict) body* `(! ,@(dict->props new-prop-dict) ,body*))]
+      [(list op args ...) ; operator application
+       (define args* (map (lambda (e) (loop e prop-dict)) args))
+       `(,op ,@args*)])))
 
-  (define body (build root global-prop-dict))
+;; Step 3.
+;; Construct the final FPCore expression using remaining let-bindings
+;; and the let-free body from the previous step.
 
-  ; step 3: construct the actual FPCore expression from
-  ; the remaining let-bindings and body
+(define (reachable-indices ivec expr)
+  (define reachable (mutable-set))
+  (let loop ([expr expr])
+    (match expr
+      [(? number?) (void)]
+      [(? symbol?) (void)]
+      [(index idx)
+       (set-add! reachable idx)
+       (loop (vector-ref ivec idx))]
+      [(list _ args ...) (for-each loop args)]))
+  reachable)
+
+(define (remove-indices id->name expr)
+  (let loop ([expr expr])
+    (match expr
+      [(? number?) expr]
+      [(? symbol?) expr]
+      [(index idx) (hash-ref id->name idx)]
+      [(list '! props ... body) `(! ,@props ,(loop body))]
+      [(list op args ...) `(,op ,@(map loop args))])))
+
+(define (build-expr expr ivec ctx)
+  ; variable generation
   (define vars (list->mutable-seteq (context-vars ctx)))
   (define counter 0)
   (define (gensym)
@@ -293,22 +316,34 @@
        (set-add! vars x)
        x]))
 
-  (define id->name (make-vector (vector-length ivec) #f))
-  (for ([_ (in-vector ivec)] [idx (in-naturals)])
-    (unless (set-member? inlined idx)
-      (vector-set! id->name idx (gensym))))
+  ; need fresh variables for reachable, non-inlined subexpressions
+  (define reachable (reachable-indices ivec expr))
+  (define id->name (make-hash))
+  (for ([expr (in-vector ivec)] [idx (in-naturals)])
+    (when (and expr (set-member? reachable idx))
+      (hash-set! id->name idx (gensym))))
 
-  (define (remove-indices expr)
-    (match expr
-      [(? number?) expr]
-      [(? symbol?) expr]
-      [(index idx) (vector-ref id->name idx)]
-      [(list '! props ... body) `(! ,@props ,(remove-indices body))]
-      [(list op args ...) `(,op ,@(map remove-indices args))]))
+  (for/fold ([body (remove-indices id->name expr)])
+            ([idx (in-list (sort (hash-keys id->name) >))])
+    (define var (hash-ref id->name idx))
+    (define val (remove-indices id->name (vector-ref ivec idx)))
+    `(let ([,var ,val]) ,body)))
 
-  (for/fold ([body (remove-indices body)])
-            ([i (in-range (sub1 (vector-length ivec)) -1 -1)] #:when (vector-ref id->name i))
-    `(let ([,(vector-ref id->name i) ,(remove-indices (vector-ref ivec i))]) ,body)))
+;; Translates from LImpl to an FPCore.
+;; The implementation of this procedure is complicated since
+;;  (1) every operator implementation requires certain (FPCore) rounding properties
+;;  (2) rounding contexts have lexical scoping
+(define (prog->fpcore prog ctx)
+  ; step 1: convert to an instruction vector where
+  ; each expression is evaluated under explicit rounding contexts
+  (define-values (root ivec impls) (prog->normal prog))
+
+  ; step 2: inline nodes
+  (define body (inline! root ivec impls ctx))
+
+  ; step 3: construct the actual FPCore expression from
+  ; the remaining let-bindings and body
+  (build-expr body ivec ctx))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; LImpl -> LSpec
