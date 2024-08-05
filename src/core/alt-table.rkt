@@ -55,7 +55,7 @@
   (struct-copy alt-table atab [alt->done? new-done-table]))
 
 (define (atab-completed? atab)
-  (andmap (curry hash-ref (alt-table-alt->done? atab)) (hash-keys (alt-table-alt->points atab))))
+  (andmap identity (hash-values (alt-table-alt->done? atab))))
 
 ;;
 ;; Extracting lists from sets or hash tables
@@ -72,15 +72,16 @@
   (sort altns expr<? #:key alt-expr))
 
 (define (atab-active-alts atab)
-  (order-altns (hash-keys (alt-table-alt->points atab))))
+  (order-altns (hash-keys (alt-table-alt->done? atab))))
 
 (define (atab-all-alts atab)
   (order-altns (alt-table-all atab)))
 
 (define (atab-not-done-alts atab)
-  (define altns (hash-keys (alt-table-alt->points atab)))
-  (define not-done? (negate (curry hash-ref (alt-table-alt->done? atab))))
-  (order-altns (filter not-done? altns)))
+  (order-alts
+   (for/list ([(alt done?) (in-hash (alt-table-alt->done? atab))]
+              #:unless done?)
+     alt)))
 
 ;; Implementation
 
