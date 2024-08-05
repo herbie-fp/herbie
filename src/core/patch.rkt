@@ -110,10 +110,7 @@
         ; if disabled, only implementation selection
         `((,lowering-rules . ((iteration . 1) (scheduler . simple))))))
   ; egg runner (2-phases for real rewrites and implementation selection)
-  (define runner
-    (make-egg-runner (map alt-expr altns)
-                     reprs
-                     schedule))
+  (define runner (make-egg-runner (map alt-expr altns) reprs schedule))
 
   ; run egg
   (define simplification-options
@@ -147,8 +144,7 @@
   ; Core
   (define approximations (if (flag-set? 'generate 'taylor) (run-taylor start-altns reprs) '()))
   (define rewritten (if (flag-set? 'generate 'rr) (run-rr (map cons start-altns reprs)) '()))
-  (define simplified
-    (run-simplify approximations))
+  (define simplified (run-simplify approximations))
 
   (define altns (append rewritten simplified))
   ;; Uncaching
