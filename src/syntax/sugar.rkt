@@ -201,19 +201,17 @@
     [(literal v _) v]))
 
 ;; Step 1.
-;; Translates from LImpl to an instruction vector where each
-;; expression is evaluated under an explicit rounding context.
-;; The output resembles A-normal form, so we will call the output "normal".
-;; NOTE: This translation results in a verbose output but at least it's right.
-;; Ignoring let-bound variables, the expressions are in FPCore
+;; Translates from LImpl to a series of let bindings such that each
+;; local variable is bound once and used at most once. The result is an
+;; instruction vector, representing the let bindings; the operator
+;; implementation for each instruction, and the final "root" operation/literal.
+;; Except for let-bound variables, the subexpressions are in FPCore.
 
-(define (prog->normal expr)
-  (define exprs '())
-  (define impls '())
+(define (prog->let-exprs expr)
+  (define instrs '())
   (define (push! impl node)
-    (define id (length exprs))
-    (set! exprs (cons node exprs))
-    (set! impls (cons impl impls))
+    (define id (length instrs))
+    (set! instrs (cons (cons node impl) instrs))
     (index id))
 
   (define (munge expr #:root? [root? #f])
@@ -228,8 +226,7 @@
        (if root? node (push! impl node))]))
 
   (define root (munge expr #:root? #t))
-
-  (values root (list->vector (reverse exprs)) (list->vector (reverse impls))))
+  (cons (list->vector (reverse instrs)) root))
 
 ;; Step 2.
 ;; Inlines let bindings; let-inlining is generally unsound with
@@ -237,16 +234,15 @@
 ;; so we only inline those that result in the same operator
 ;; implementation when converting back from FPCore to LImpl.
 
-(define (inline! root ivec impls ctx)
+(define (inline! root ivec ctx)
   (define global-prop-dict (repr->prop (context-repr ctx)))
   (let loop ([node root] [prop-dict global-prop-dict])
     (match node
       [(? number?) node] ; number
       [(? symbol?) node] ; variable
       [(index idx) ; let-bound variable
-       (define expr (vector-ref ivec idx)) ; subexpression
-       (define impl (vector-ref impls idx)) ; desired impl we want to preserve
        ; we check what happens if we inline
+       (match-define (cons expr impl) (vector-ref ivec idx))
        (define impl*
          (match expr
            [(list '! props ... (list op args ...))
@@ -323,8 +319,7 @@
     (when (and expr (set-member? reachable idx))
       (hash-set! id->name idx (gensym))))
 
-  (for/fold ([body (remove-indices id->name expr)])
-            ([idx (in-list (sort (hash-keys id->name) >))])
+  (for/fold ([body (remove-indices id->name expr)]) ([idx (in-list (sort (hash-keys id->name) >))])
     (define var (hash-ref id->name idx))
     (define val (remove-indices id->name (vector-ref ivec idx)))
     `(let ([,var ,val]) ,body)))
@@ -336,10 +331,10 @@
 (define (prog->fpcore prog ctx)
   ; step 1: convert to an instruction vector where
   ; each expression is evaluated under explicit rounding contexts
-  (define-values (root ivec impls) (prog->normal prog))
+  (match-define (cons ivec root) (prog->let-exprs prog))
 
   ; step 2: inline nodes
-  (define body (inline! root ivec impls ctx))
+  (define body (inline! root ivec ctx))
 
   ; step 3: construct the actual FPCore expression from
   ; the remaining let-bindings and body
