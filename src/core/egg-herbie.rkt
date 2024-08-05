@@ -30,7 +30,6 @@
          default-egg-cost-proc
          make-egg-runner
          run-egg
-         get-canon-rule-name
          remove-rewrites)
 
 (module+ test
@@ -55,8 +54,8 @@
 
 (define (make-ffi-rule rule)
   (define name (make-raw-string (~a (rule-name rule))))
-  (define lhs (make-raw-string (~a (rule-input rule))))
-  (define rhs (make-raw-string (~a (rule-output rule))))
+  (define lhs (make-raw-string (~a (expr->egg-pattern (rule-input rule)))))
+  (define rhs (make-raw-string (~a (expr->egg-pattern (rule-output rule)))))
   (define p (make-FFIRule name lhs rhs))
   (register-finalizer p free-ffi-rule)
   p)
@@ -372,65 +371,6 @@
   (expand-proof-term '(Explanation (+ x y) (+ y x)) (box 10)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Rule expansion
-;;
-;; Expansive rules are the only problematic rules.
-;; We only support expansive rules where the LHS is a spec.
-
-;; Translates a Herbie rule into an egg rule
-(define (rule->egg-rule ru)
-  (struct-copy rule
-               ru
-               [input (expr->egg-pattern (rule-input ru))]
-               [output (expr->egg-pattern (rule-output ru))]))
-
-(define (rule->egg-rules ru)
-  (define input (rule-input ru))
-  (cond
-    [(symbol? input)
-     ; expansive rules
-     (define itype (dict-ref (rule-itypes ru) input))
-     (unless (type-name? itype)
-       (error 'rule->egg-rules "expansive rules over impls is unsound ~a" input))
-     (for/list ([op (all-operators)] #:when (eq? (operator-info op 'otype) itype))
-       (define itypes (operator-info op 'itype))
-       (define vars (map (lambda (_) (gensym)) itypes))
-       (rule (sym-append (rule-name ru) '-expand- op)
-             (cons op vars)
-             (replace-expression (rule-output ru) input (cons op vars))
-             (map cons vars itypes)
-             (rule-otype ru)))]
-    ; non-expansive rule
-    [else (list (rule->egg-rule ru))]))
-
-;; egg rule cache
-(define-resetter *egg-rule-cache* (λ () (make-hash)) (λ () (make-hash)))
-
-;; Cache mapping name to its canonical rule name
-;; See `*egg-rules*` for details
-(define-resetter *canon-names* (λ () (make-hash)) (λ () (make-hash)))
-
-;; Tries to look up the canonical name of a rule using the cache.
-;; Obviously dangerous if the cache is invalid.
-(define (get-canon-rule-name name [failure #f])
-  (hash-ref (*canon-names*) name failure))
-
-;; Expand and convert the rules for egg.
-;; Uses a cache to only expand each rule once.
-(define (expand-rules rules)
-  (reap [sow]
-        (for ([rule (in-list rules)])
-          (define egg&ffi-rules
-            (hash-ref! (*egg-rule-cache*)
-                       (cons (*active-platform*) rule)
-                       (lambda ()
-                         (for/list ([egg-rule (in-list (rule->egg-rules rule))])
-                           (define name (rule-name egg-rule))
-                           (hash-set! (*canon-names*) name (rule-name rule))
-                           (cons egg-rule (make-ffi-rule egg-rule))))))
-          (for-each sow egg&ffi-rules))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Racket egraph
 ;;
 ;; Racket representation of an egraph; just a hashcons data structure
@@ -545,7 +485,7 @@
       (sweep! (add1 iter))))
 
   ; Invariant: all eclasses have an analysis
-  (for ([id (in-range n)])
+  #;(for ([id (in-range n)])
     (unless (vector-ref analysis id)
       (error 'regraph-analyze
              "analysis not run on all eclasses: ~a ~a"
@@ -1073,12 +1013,11 @@
 
 ;; Runs rules over the egraph with the given egg parameters.
 ;; Invariant: the returned egraph is never unsound
-(define (egraph-run-rules egg-graph0 egg-rules params)
+(define (egraph-run-rules egg-graph0 ffi-rules params)
   (define node-limit (dict-ref params 'node #f))
   (define iter-limit (dict-ref params 'iteration #f))
   (define scheduler (dict-ref params 'scheduler 'backoff))
   (define const-folding? (dict-ref params 'const-fold? #t))
-  (define ffi-rules (map cdr egg-rules))
 
   ;; run the rules
   (let loop ([iter-limit iter-limit])
@@ -1109,8 +1048,8 @@
     (for/fold ([egg-graph egg-graph0]) ([instr (in-list schedule)])
       (match-define (cons rules params) instr)
       ; run rules in the egraph
-      (define egg-rules (expand-rules rules))
-      (define-values (egg-graph* iteration-data) (egraph-run-rules egg-graph egg-rules params))
+      (define ffi-rules (map make-ffi-rule rules))
+      (define-values (egg-graph* iteration-data) (egraph-run-rules egg-graph ffi-rules params))
 
       ; get cost statistics
       (for/fold ([time 0]) ([iter (in-list iteration-data)] [i (in-naturals)])
@@ -1121,10 +1060,9 @@
         new-time)
 
       ;; get rule statistics
-      (for ([(egg-rule ffi-rule) (in-dict egg-rules)])
+      (for ([rule (in-list rules)] [ffi-rule (in-list ffi-rules)])
         (define count (egraph-get-times-applied egg-graph* ffi-rule))
-        (define canon-name (hash-ref (*canon-names*) (rule-name egg-rule)))
-        (hash-update! rule-apps canon-name (curry + count) count))
+        (hash-update! rule-apps (rule-name rule) (curry + count) count))
 
       egg-graph*))
 
