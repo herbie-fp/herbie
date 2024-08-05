@@ -128,7 +128,7 @@
     [(? literal?) '()]
     [(? number?) '()]
     [(? variable?) (list prog)]
-    [(approx spec impl) (remove-duplicates (append (free-variables spec) (free-variables impl)))]
+    [(approx _ impl) (free-variables impl)]
     [(list _ args ...) (remove-duplicates (append-map free-variables args))]))
 
 (define (replace-vars dict expr)
@@ -169,11 +169,11 @@
   ; Clever continuation usage to early-return
   (let/ec return (location-do loc prog return)))
 
-(define/contract (replace-expression expr to from)
+(define/contract (replace-expression expr from to)
   (-> expr? expr? expr? expr?)
   (let loop ([expr expr])
     (match expr
-      [(== to) from]
+      [(== from) to]
       [(? number?) expr]
       [(? literal?) expr]
       [(? symbol?) expr]
