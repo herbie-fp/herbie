@@ -61,6 +61,7 @@
 
 (require "../core/programs.rkt"
          "../utils/common.rkt"
+         "matcher.rkt"
          "syntax.rkt"
          "types.rkt")
 
@@ -132,35 +133,42 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; FPCore -> LImpl
 
-;; Translates from FPCore to an LImpl
+;; Translates an FPCore operator application into
+;; an LImpl operator application.
+(define (fpcore->impl-app op prop-dict args ctx)
+  (define ireprs (map (lambda (arg) (repr-of arg ctx)) args))
+  (define impl (get-fpcore-impl op prop-dict ireprs))
+  (match-define (list _ vars _) (impl-info impl 'spec))
+  (define pattern
+    (match (impl-info impl 'fpcore)
+      [(list '! _ ... body) body]
+      [body body]))
+  (define subst (pattern-match pattern (cons op args)))
+  (pattern-substitute (cons impl vars) subst))
+
+;; Translates from FPCore to an LImpl.
 (define (fpcore->prog prog ctx)
-  (define-values (expr* _)
-    (let loop ([expr (expand-expr prog)] [prop-dict (repr->prop (context-repr ctx))])
-      (match expr
-        [(? number? n) ; number
-         (define v
-           (match n
-             [(or +inf.0 -inf.0 +nan.0) expr]
-             [(? exact?) expr]
-             [_ (inexact->exact expr)]))
-         (define prec (dict-ref prop-dict ':precision))
-         (values (literal v prec) (get-representation prec))]
-        [(? variable?) (values expr (context-lookup ctx expr))]
-        [(list 'if cond ift iff)
-         (define-values (cond* cond-repr) (loop cond prop-dict))
-         (define-values (ift* ift-repr) (loop ift prop-dict))
-         (define-values (iff* iff-repr) (loop iff prop-dict))
-         (values (list 'if cond* ift* iff*) ift-repr)]
-        [(list 'neg arg) ; non-standard but useful
-         (define-values (arg* irepr) (loop arg prop-dict))
-         (define impl (get-fpcore-impl '- prop-dict (list irepr)))
-         (values (list impl arg*) (impl-info impl 'otype))]
-        [(list '! props ... body) (loop body (apply dict-set prop-dict props))]
-        [(list op args ...)
-         (define-values (args* ireprs) (for/lists (args* ireprs) ([arg args]) (loop arg prop-dict)))
-         (define impl (get-fpcore-impl op prop-dict ireprs))
-         (values (cons impl args*) (impl-info impl 'otype))])))
-  expr*)
+  (let loop ([expr (expand-expr prog)] [prop-dict (repr->prop (context-repr ctx))])
+    (match expr
+      [(? number? n)
+       (literal (match n
+                  [(or +inf.0 -inf.0 +nan.0) expr]
+                  [(? exact?) expr]
+                  [_ (inexact->exact expr)])
+                (dict-ref prop-dict ':precision))]
+      [(? variable?) expr]
+      [(list 'if cond ift iff)
+       (define cond* (loop cond prop-dict))
+       (define ift* (loop ift prop-dict))
+       (define iff* (loop iff prop-dict))
+       (list 'if cond* ift* iff*)]
+      [(list '! props ... body) (loop body (apply dict-set prop-dict props))]
+      [(list 'neg arg) ; non-standard but useful [TODO: remove]
+       (define arg* (loop arg prop-dict))
+       (fpcore->impl-app '- prop-dict (list arg*) ctx)]
+      [(list op args ...)
+       (define args* (map (lambda (arg) (loop arg prop-dict)) args))
+       (fpcore->impl-app op prop-dict args* ctx)])))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; LImpl -> FPCore

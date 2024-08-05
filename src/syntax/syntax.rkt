@@ -5,6 +5,7 @@
 (require "../utils/common.rkt"
          "../utils/errors.rkt"
          "../core/rival.rkt"
+         "matcher.rkt"
          "types.rkt")
 
 (provide (rename-out [operator-or-impl? operator?])
@@ -446,27 +447,6 @@
                                     (list (get-representation 'itype) ...)
                                     (get-representation 'otype)
                                     (list (cons 'key val) ...))))]))
-
-;; Unions two bindings. Returns #f if they disagree.
-(define (merge-bindings binding1 binding2)
-  (and binding1
-       binding2
-       (let/ec quit
-               (for/fold ([binding binding1]) ([(k v) (in-dict binding2)])
-                 (dict-update binding k (λ (x) (if (equal? x v) v (quit #f))) v)))))
-
-;; Pattern matcher that returns a substitution or #f.
-;; A substitution is an association list of symbols and expressions.
-(define (pattern-match pattern expr)
-  (match* (pattern expr)
-    [((? number?) _) (and (equal? pattern expr) '())]
-    [((? variable?) _) (list (cons pattern expr))]
-    [((list phead prest ...) (list head rest ...))
-     (and (equal? phead head)
-          (= (length prest) (length rest))
-          (for/fold ([bindings '()]) ([pat (in-list prest)] [term (in-list rest)])
-            (merge-bindings bindings (pattern-match pat term))))]
-    [(_ _) #f]))
 
 ;; Checks if two specs are syntactically equivalent modulo renaming.
 ;; This is just pattern matching.
