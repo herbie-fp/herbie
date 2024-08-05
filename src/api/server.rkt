@@ -328,7 +328,9 @@
 
   (define repr (test-output-repr test))
 
-  (define backend-hash (backend-improve-result-hash-table backend repr test))
+  (define backend-hash #f)
+  (when backend
+    (set! backend-hash (backend-improve-result-hash-table backend repr test)))
   (hasheq 'command
           (get-command herbie-result)
           'status
