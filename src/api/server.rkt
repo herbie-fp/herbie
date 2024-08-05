@@ -327,10 +327,12 @@
   (define timeline (job-result-timeline herbie-result))
 
   (define repr (test-output-repr test))
-
   (define backend-hash #f)
-  (when backend
-    (set! backend-hash (backend-improve-result-hash-table backend repr test)))
+
+  (match (job-result-status herbie-result)
+    ['success (set! backend-hash (backend-improve-result-hash-table backend repr test))]
+    [else (set! backend-hash #f)])
+
   (hasheq 'command
           (get-command herbie-result)
           'status
