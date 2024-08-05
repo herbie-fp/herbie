@@ -102,13 +102,18 @@
   ; generate real rules
   (define rules (real-rules (*simplify-rules*)))
   (define lowering-rules (platform-lowering-rules))
-
+  (define schedule
+    (if (flag-set? 'generate 'simplify)
+        ; if simplify enabled, 2-phases for real rewrites and implementation selection
+        `((,rules . ((node . ,(*node-limit*))))
+          (,lowering-rules . ((iteration . 1) (scheduler . simple))))
+        ; if disabled, only implementation selection
+        `((,lowering-rules . ((iteration . 1) (scheduler . simple))))))
   ; egg runner (2-phases for real rewrites and implementation selection)
   (define runner
     (make-egg-runner (map alt-expr altns)
                      reprs
-                     `((,rules . ((node . ,(*node-limit*))))
-                       (,lowering-rules . ((iteration . 1) (scheduler . simple))))))
+                     schedule))
 
   ; run egg
   (define simplification-options
@@ -143,7 +148,7 @@
   (define approximations (if (flag-set? 'generate 'taylor) (run-taylor start-altns reprs) '()))
   (define rewritten (if (flag-set? 'generate 'rr) (run-rr (map cons start-altns reprs)) '()))
   (define simplified
-    (if (flag-set? 'generate 'simplify) (run-simplify approximations) approximations))
+    (run-simplify approximations))
 
   (define altns (append rewritten simplified))
   ;; Uncaching
