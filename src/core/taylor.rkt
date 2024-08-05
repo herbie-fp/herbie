@@ -10,11 +10,7 @@
 
 (define (approximate expr var #:transform [tform (cons identity identity)] #:iters [iters 5])
   (define expr* (simplify (replace-expression expr var ((car tform) var))))
-  (define expr-batch* (progs->batch (list expr*)))
-  (define nodes (batch-nodes expr-batch*))
-  (define root (vector-ref (batch-roots expr-batch*) 0)) ; assuming no batches in expr
-  (define approximations (taylor var nodes))
-  (match-define (cons offset coeffs) (vector-ref approximations root))
+  (match-define (cons offset coeffs) (taylor var expr*))
 
   (define i 0)
   (define terms '())
@@ -74,16 +70,20 @@
                          (for/list ([i (in-range 0 (+ k 1))])
                            (map (curry cons i) (n-sum-to (- n 1) (- k i)))))]))))
 
-(define (taylor var nodes)
+(define (taylor var expr)
   "Return a pair (e, n), such that expr ~= e var^n"
-  (define taylor-approxs (make-vector (vector-length nodes)))
-  (for ([expr (in-vector nodes)] [n (in-naturals)])
+  (define expr-batch (progs->batch (list expr)))
+  (define nodes (batch-nodes expr-batch))
+  (define root (vector-ref (batch-roots expr-batch) 0)) ; assuming no batches in expr
+  (define taylor-approxs (make-vector (batch-nodes-length expr-batch)))
+
+  (for ([node (in-vector nodes)] [n (in-naturals)])
     (define approx
-      (match expr
+      (match node
         [(? (curry equal? var)) (taylor-exact 0 1)]
-        [(? number?) (taylor-exact expr)]
-        [(? variable?) (taylor-exact expr)]
-        [`(,const) (taylor-exact expr)]
+        [(? number?) (taylor-exact node)]
+        [(? variable?) (taylor-exact node)]
+        [`(,const) (taylor-exact node)]
         [`(+ ,args ...) (apply taylor-add (map (curry vector-ref taylor-approxs) args))]
         [`(neg ,arg) (taylor-negate ((curry vector-ref taylor-approxs) arg))]
         [`(- ,arg1 ,arg2)
@@ -153,7 +153,7 @@
                                                                (taylor-negate tx)))))]
         [_ (taylor-exact (get-expr nodes n))]))
     (vector-set! taylor-approxs n approx))
-  taylor-approxs)
+  (vector-ref taylor-approxs root))
 
 ; A taylor series is represented by a function f : nat -> expr,
 ; representing the coefficients (the 1 / n! terms not included),
@@ -486,17 +486,11 @@
   (require rackunit
            "../syntax/types.rkt"
            "../syntax/load-plugin.rkt")
-  (define batch (progs->batch (list '(pow x 1.0))))
-  (define nodes (batch-nodes batch))
-  (define root (vector-ref (batch-roots batch) 0))
-  (check-pred exact-integer? (car (vector-ref (taylor '(x) nodes) root))))
+  (check-pred exact-integer? (car (taylor 'x '(pow x 1.0)))))
 
 (module+ test
   (define (coeffs expr #:n [n 7])
-    (define batch (progs->batch (list expr)))
-    (define nodes (batch-nodes batch))
-    (define root (vector-ref (batch-roots batch) 0))
-    (match-define fn (zero-series (vector-ref (taylor 'x nodes) root)))
+    (match-define fn (zero-series (taylor 'x expr)))
     (build-list n fn))
 
   (check-equal? (coeffs '(sin x)) '(0 1 0 -1/6 0 1/120 0))
