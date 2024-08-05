@@ -29,6 +29,7 @@
          format-accuracy
          format-cost
          web-resource
+         prop-dict/c
          props->dict
          dict->props
          (all-from-out "../config.rkt"))
@@ -280,7 +281,9 @@
   (-> natural? (listof symbol?))
   (build-list n (lambda (i) (string->symbol (format "x~a" i)))))
 
-;; Property list <=> Property dictionary
+;; FPCore properties
+
+(define prop-dict/c (listof (cons/c symbol? any/c)))
 
 ;; Prop list to dict
 (define/contract (props->dict props)

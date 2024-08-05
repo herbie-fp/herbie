@@ -44,17 +44,17 @@
   ; get-fpcore-impl
 
   (define f64 (get-representation 'binary64))
-  (define (get-impl expr itypes props)
-    (get-fpcore-impl expr itypes props #:impls (all-operator-impls)))
+  (define (get-impl op props itypes)
+    (get-fpcore-impl op props itypes #:impls (all-operator-impls)))
 
-  (check-equal? (get-impl '(+ x y) (list f64 f64) '((:precision . binary64))) '+.f64)
-  (check-equal? (get-impl '(+ a b) (list f64 f64) '((:precision . binary64))) '+.f64)
-  (check-equal? (get-impl '(+ a b) (list f64 f64) '((:precision . binary64) (:description . "test")))
+  (check-equal? (get-impl '+ '((:precision . binary64)) (list f64 f64)) '+.f64)
+  (check-equal? (get-impl '+ '((:precision . binary64)) (list f64 f64)) '+.f64)
+  (check-equal? (get-impl '+ '((:precision . binary64) (:description . "test")) (list f64 f64))
                 '+.f64)
 
-  (check-equal? (get-impl '(log1pmd x) (list f64) '((:precision . binary64))) 'log1pmd.f64)
-  (check-equal? (get-impl '(sin x) (list f64) '((:precision . binary64))) 'sin.f64)
-  (check-equal? (get-impl '(sin x) (list f64) '((:precision . binary64) (:math-library . fast)))
+  (check-equal? (get-impl 'log1pmd '((:precision . binary64)) (list f64)) 'log1pmd.f64)
+  (check-equal? (get-impl 'sin '((:precision . binary64)) (list f64)) 'sin.f64)
+  (check-equal? (get-impl 'sin '((:precision . binary64) (:math-library . fast)) (list f64))
                 'fast-sin.f64)
 
   (void))

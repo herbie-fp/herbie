@@ -245,15 +245,13 @@
        (match-define (cons expr impl) (vector-ref ivec idx))
        (define impl*
          (match expr
-           [(list '! props ... (list op args ...))
+           [(list '! props ... (list op _ ...))
             ; rounding context updated parent context
             (define prop-dict* (apply dict-set prop-dict props))
-            (define pattern (cons op (map (lambda (_) (gensym)) args)))
-            (get-fpcore-impl pattern (impl-info impl 'itype) prop-dict*)]
-           [(list op args ...)
+            (get-fpcore-impl op prop-dict* (impl-info impl 'itype))]
+           [(list op _ ...)
             ; rounding context inherited from parent context
-            (define pattern (cons op (map (lambda (_) (gensym)) args)))
-            (get-fpcore-impl pattern (impl-info impl 'itype) prop-dict)]))
+            (get-fpcore-impl op prop-dict (impl-info impl 'itype))]))
        (cond
          [(equal? impl impl*) ; inlining is safe
           (define expr* (loop expr prop-dict))
