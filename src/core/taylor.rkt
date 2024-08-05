@@ -72,12 +72,6 @@
 
 (define (taylor var expr)
   "Return a pair (e, n), such that expr ~= e var^n"
-  (define expr*
-    (for/list ([e (in-list expr)])
-      (match e
-        [(list 'cosh args ...) (list 'cosh (cons 'exp args))]
-        [_ e])))
-
   (define expr-batch (progs->batch (list expr) #:taylor #t))
   (define nodes (batch-nodes expr-batch))
   (define root (vector-ref (batch-roots expr-batch) 0)) ; assuming no batches in expr
