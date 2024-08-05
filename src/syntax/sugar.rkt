@@ -68,9 +68,6 @@
          prog->fpcore
          prog->spec)
 
-(module+ test
-  (require rackunit))
-
 ;; Expression pre-processing for normalizing expressions.
 ;; Used for conversion from FPCore to other IRs.
 (define (expand-expr expr)
@@ -138,56 +135,36 @@
 ;; Translates from FPCore to an LImpl
 (define (fpcore->prog prog ctx)
   (define-values (expr* _)
-    (let loop ([expr (expand-expr prog)] [ctx ctx])
+    (let loop ([expr (expand-expr prog)] [prop-dict (repr->prop (context-repr ctx))])
       (match expr
-        [`(FPCore ,name (,vars ...) ,props ... ,body)
-         (define-values (body* repr*) (loop body ctx))
-         (values `(FPCore ,name ,vars ,@props ,body*) repr*)]
-        [`(FPCore (,vars ...) ,props ... ,body)
-         (define-values (body* repr*) (loop body ctx))
-         (values `(FPCore ,vars ,@props ,body*) repr*)]
-        [`(if ,cond ,ift ,iff)
-         (define-values (cond* cond-repr) (loop cond ctx))
-         (define-values (ift* ift-repr) (loop ift ctx))
-         (define-values (iff* iff-repr) (loop iff ctx))
-         (values `(if ,cond* ,ift* ,iff*) ift-repr)]
-        [`(! ,props ... ,body)
-         (define props* (props->dict props))
-         (loop body
-               (match (dict-ref props* ':precision #f)
-                 [#f ctx]
-                 [prec (struct-copy context ctx [repr (get-representation prec)])]))]
-        [`(cast ,body)
-         (define repr (context-repr ctx))
-         (define-values (body* repr*) (loop body ctx))
-         (if (equal? repr* repr) ; check if cast is redundant
-             (values body* repr)
-             (values (list (get-cast-impl repr* repr) body*) repr))]
-        [`(,(? constant-operator? x))
-         (define cnst (get-parametric-constant x (context-repr ctx)))
-         (values (list cnst) (impl-info cnst 'otype))]
-        [(list 'neg arg) ; non-standard but useful
-         (define-values (arg* atype) (loop arg ctx))
-         (define op* (get-parametric-operator 'neg atype))
-         (values (list op* arg*) (impl-info op* 'otype))]
-        [`(,op ,args ...)
-         (define-values (args* atypes) (for/lists (args* atypes) ([arg args]) (loop arg ctx)))
-         ;; Match guaranteed to succeed because we ran type-check first
-         (define op* (apply get-parametric-operator op atypes))
-         (values (cons op* args*) (impl-info op* 'otype))]
-        [(? variable?) (values expr (context-lookup ctx expr))]
-        [(? number?)
-         (define prec (representation-name (context-repr ctx)))
-         (define num
-           (match expr
+        [(? number? n) ; number
+         (define v
+           (match n
              [(or +inf.0 -inf.0 +nan.0) expr]
              [(? exact?) expr]
              [_ (inexact->exact expr)]))
-         (values (literal num prec) (context-repr ctx))])))
+         (define prec (dict-ref prop-dict ':precision))
+         (values (literal v prec) (get-representation prec))]
+        [(? variable?) (values expr (context-lookup ctx expr))]
+        [(list 'if cond ift iff)
+         (define-values (cond* cond-repr) (loop cond prop-dict))
+         (define-values (ift* ift-repr) (loop ift prop-dict))
+         (define-values (iff* iff-repr) (loop iff prop-dict))
+         (values (list 'if cond* ift* iff*) ift-repr)]
+        [(list 'neg arg) ; non-standard but useful
+         (define-values (arg* irepr) (loop arg prop-dict))
+         (define impl (get-fpcore-impl '- prop-dict (list irepr)))
+         (values (list impl arg*) (impl-info impl 'otype))]
+        [(list '! props ... body) (loop body (apply dict-set prop-dict props))]
+        [(list op args ...)
+         (define-values (args* ireprs) (for/lists (args* ireprs) ([arg args]) (loop arg prop-dict)))
+         (define impl (get-fpcore-impl op prop-dict ireprs))
+         (values (cons impl args*) (impl-info impl 'otype))])))
   expr*)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; LImpl -> FPCore
+;; Translates from LImpl to an FPCore
 
 ;; Instruction vector index
 (struct index (v) #:prefab)
@@ -249,9 +226,8 @@
             ; rounding context updated parent context
             (define prop-dict* (apply dict-set prop-dict props))
             (get-fpcore-impl op prop-dict* (impl-info impl 'itype))]
-           [(list op _ ...)
-            ; rounding context inherited from parent context
-            (get-fpcore-impl op prop-dict (impl-info impl 'itype))]))
+           ; rounding context inherited from parent context
+           [(list op _ ...) (get-fpcore-impl op prop-dict (impl-info impl 'itype))]))
        (cond
          [(equal? impl impl*) ; inlining is safe
           (define expr* (loop expr prop-dict))
