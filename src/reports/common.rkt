@@ -258,7 +258,6 @@
 
   (define output-prec (representation-name output-repr))
   (define out-prog* (fpcore-add-props out-prog (list ':precision output-prec)))
-  (eprintf "~a\n" out-prog*)
 
   (define versions
     (reap

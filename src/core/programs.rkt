@@ -16,8 +16,7 @@
          location-get
          free-variables
          replace-expression
-         replace-vars
-         remove-approx)
+         replace-vars)
 
 ;; Programs are just lisp lists plus atoms
 
@@ -140,16 +139,6 @@
       [(? symbol?) (dict-ref dict expr expr)]
       [(approx impl spec) (approx (loop impl) (loop spec))]
       [(list op args ...) (cons op (map loop args))])))
-
-;; For any LImpl expression, removes any approx nodes.
-;; WARN: this is an irreversible spec-altering transformation.
-(define (remove-approx expr)
-  (match expr
-    [(? literal?) expr]
-    [(? number?) expr]
-    [(? symbol?) expr]
-    [(approx _ impl) (remove-approx impl)]
-    [(list op args ...) `(,op ,@(map remove-approx args))]))
 
 (define location? (listof natural-number/c))
 
