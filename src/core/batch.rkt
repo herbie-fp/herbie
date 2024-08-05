@@ -9,7 +9,7 @@
 
 (struct batch (nodes roots vars nodes-length))
 
-(define (progs->batch exprs #:timeline-push [timeline-push #f] #:vars [vars '()])
+(define (progs->batch exprs #:timeline-push [timeline-push #f] #:vars [vars '()] #:taylor [taylor #f])
   (define icache (reverse vars))
   (define exprhash
     (make-hash (for/list ([var vars] [i (in-naturals)])
@@ -24,6 +24,42 @@
     (set! size (+ 1 size))
     (define node ; This compiles to the register machine
       (match prog
+        [(list '- arg1 arg2)
+         #:when taylor
+         (cons '+ (map munge (list arg1 `(- ,arg2))))]
+        [(list 'pow base 1/2)
+         #:when taylor
+         (cons 'sqrt (munge base))]
+        [(list 'pow base 1/3)
+         #:when taylor
+         (cons 'cbrt (munge base))]
+        [(list 'pow base 2/3)
+         #:when taylor
+         (cons 'cbrt (munge `(* ,base ,base)))]
+        [(list 'tan args ...)
+         #:when taylor
+         (cons '/ (map munge (list `(sin ,args) `(cos ,args))))]
+        [(list 'cosh args ...)
+         #:when taylor
+         (cons '* (map munge (list 1/2 `(+ (exp ,args) (/ 1 (exp ,args))))))]
+        [(list 'sinh args ...)
+         #:when taylor
+         (cons '* (map munge (list 1/2 `(+ (exp ,args) (- (/ 1 (exp ,args)))))))]
+        [(list 'tanh args ...)
+         #:when taylor
+         (cons '/
+               (map munge
+                    (list `(+ (exp ,args) (- (/ 1 (exp ,args))))
+                          `(+ (exp ,args) (/ 1 (exp ,args))))))]
+        [(list 'asinh args ...)
+         #:when taylor
+         (cons 'log (munge `(+ ,args (sqrt (+ (* ,args ,args) 1)))))]
+        [(list 'acosh args ...)
+         #:when taylor
+         (cons 'log (munge `(+ ,args (sqrt (+ (* ,args ,args) -1)))))]
+        [(list 'atanh args ...)
+         #:when taylor
+         (cons '* (map munge (list 1/2 `(log (/ (+ 1 ,args) (+ 1 (- ,args)))))))]
         [(list op args ...) (cons op (map munge args))]
         [_ prog]))
     (hash-ref! exprhash
