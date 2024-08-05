@@ -466,6 +466,46 @@
                            (get-representation 'rtype)
                            (list (cons 'key value) ...)))
 
+(define-syntax (define-operator-impl2 stx)
+  (define (oops! why [sub-stx #f])
+    (raise-syntax-error 'define-impl why stx sub-stx))
+  (syntax-case stx ()
+    [(_ (id [var : repr] ...) rtype fields ...)
+      (let loop ([fields #'(fields ...)] [op #F] [spec #f] [fpcore #f] [fl-expr #f])
+        (syntax-case fields ()
+          [()
+            (let ([impl-id #'id] [op op] [spec spec] [fpcore fpcore] [fl-expr fl-expr] [reprs (repr ...)] [rtype #'rtype])
+              (unless spec
+                (oops! "expected expression" stx))
+              (unless fpcore
+                (oops! "expected expression" stx))
+              (unless fl-expr
+                (oops! "expected expression" stx))
+              (with-syntax ([impl-id impl-id])
+                #'(define impl-id (register-operator-impl! op impl-id reprs (get-representation rtype) fl-expr))))]
+          [([spec expr] rest ...)
+            (let ([expr #'expr])
+              (syntax-case expr ()
+                [(op cs ...)
+                  (loop #'(rest ...) (if op op #'op) #'expr fpcore literal-expr fl-expr)]
+                [_ (oops! "bad syntax" expr)]))]
+          [([fpcore (! props ... expr) ] rest ...)
+            (loop #'(rest ...) op spec #'(props ...) #'expr fl-expr)]
+          [([fpcore expr] rest ...)
+            (let ([expr #'expr])
+              (syntax-case expr ()
+                [((! props ... literal-expr))
+                  (loop #'(rest ...) op expr literal-expr fl-expr)]
+                [((operator ...))
+                  (loop #'(rest ...) op spec expr literal-expr fl-expr)]
+                [_ (oops! "bad syntax" expr)]))
+            (loop #'(rest ...) op spec fpcore #'expr fl-expr)]
+          [([fl expr]) 
+            (loop #'(rest ...) op spec fpcore literal-expr #'expr)]))]
+          [([operator name] rest ...)
+           (loop #'(rest ...) operator spec fpcore literal-expr fl-expr)]
+    [_ (oops! "bad syntax")]))
+
 ;; Among active implementations, looks up an implementation with
 ;; the operator name `name` and argument representations `ireprs`.
 (define (get-parametric-operator #:all? [all? #f] name . ireprs)
