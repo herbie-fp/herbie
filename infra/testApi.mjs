@@ -91,7 +91,7 @@ assert.deepEqual(errors.points, [[[14.97651307489794], "2.3"]])
 // Local error endpoint
 const localError = await callHerbie("/api/localerror", {
   method: 'POST', body: JSON.stringify({
-    formula: FPCoreFormula, sample: sample.points
+    formula: FPCoreFormula, sample: sample2.points
   })
 })
 assertIdAndPath(localError)
