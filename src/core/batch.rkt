@@ -26,40 +26,41 @@
       (match prog
         [(list '- arg1 arg2)
          #:when taylor
-         (cons '+ (map munge (list arg1 `(- ,arg2))))]
+         `(+ ,(munge arg1) ,(munge `(- ,arg2)))]
         [(list 'pow base 1/2)
          #:when taylor
-         (cons 'sqrt (munge base))]
+         `(sqrt ,(munge base))]
         [(list 'pow base 1/3)
          #:when taylor
-         (cons 'cbrt (munge base))]
+         `(cbrt ,(munge base))]
         [(list 'pow base 2/3)
          #:when taylor
-         (cons 'cbrt (munge `(* ,base ,base)))]
+         `(cbrt ,(munge `(* ,base ,base)))]
+        [(list 'pow base power)
+         #:when (and taylor (not (exact-integer? power)))
+         `(exp ,(munge `(* ,power (log ,base))))]
         [(list 'tan args)
          #:when taylor
-         (cons '/ (map munge (list `(sin ,args) `(cos ,args))))]
+         `(/ ,(munge `(sin ,args)) ,(munge `(cos ,args)))]
         [(list 'cosh args)
          #:when taylor
-         (cons '* (map munge (list 1/2 `(+ (exp ,args) (/ 1 (exp ,args))))))]
+         `(* ,(munge 1/2) ,(munge `(+ (exp ,args) (/ 1 (exp ,args)))))]
         [(list 'sinh args)
          #:when taylor
-         (cons '* (map munge (list 1/2 `(+ (exp ,args) (- (/ 1 (exp ,args)))))))]
+         `(* ,(munge 1/2) ,(munge `(+ (exp ,args) (- (/ 1 (exp ,args))))))]
         [(list 'tanh args)
          #:when taylor
-         (cons '/
-               (map munge
-                    (list `(+ (exp ,args) (- (/ 1 (exp ,args))))
-                          `(+ (exp ,args) (/ 1 (exp ,args))))))]
+         `(/ ,(munge `(+ (exp ,args) (- (/ 1 (exp ,args)))))
+             ,(munge `(+ (exp ,args) (/ 1 (exp ,args)))))]
         [(list 'asinh args)
          #:when taylor
-         (cons 'log (munge `(+ ,args (sqrt (+ (* ,args ,args) 1)))))]
+         `(log ,(munge `(+ ,args (sqrt (+ (* ,args ,args) 1)))))]
         [(list 'acosh args)
          #:when taylor
-         (cons 'log (munge `(+ ,args (sqrt (+ (* ,args ,args) -1)))))]
+         `(log ,(munge `(+ ,args (sqrt (+ (* ,args ,args) -1)))))]
         [(list 'atanh args)
          #:when taylor
-         (cons '* (map munge (list 1/2 `(log (/ (+ 1 ,args) (+ 1 (- ,args)))))))]
+         `(* ,(munge 1/2) (munge `(log (/ (+ 1 ,args) (+ 1 (- ,args))))))]
         [(list op args ...) (cons op (map munge args))]
         [_ prog]))
     (hash-ref! exprhash
