@@ -203,6 +203,7 @@
     (match expr
       [(? literal?) (literal->fpcore expr)]
       [(? symbol?) expr]
+      [(approx _ impl) (munge impl)]
       [(list 'if cond ift iff) (list 'if (munge cond) (munge ift) (munge iff))]
       [(list (? impl-exists? impl) args ...)
        (define args* (map munge args))
