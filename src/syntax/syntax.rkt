@@ -36,6 +36,7 @@
 
 (module+ internals
   (provide define-operator-impl
+            define-operator-impl2
            register-operator-impl!
            define-operator
            register-operator!
@@ -471,39 +472,40 @@
     (raise-syntax-error 'define-impl why stx sub-stx))
   (syntax-case stx ()
     [(_ (id [var : repr] ...) rtype fields ...)
-      (let loop ([fields #'(fields ...)] [op #F] [spec #f] [fpcore #f] [fl-expr #f])
-        (syntax-case fields ()
+      (let loop ([fields #'(fields ...)] [operator #f] [spec #f] [core #f] [fl-expr #f])
+        (syntax-case fields (spec fpcore fl op)
           [()
-            (let ([impl-id #'id] [op op] [spec spec] [fpcore fpcore] [fl-expr fl-expr] [reprs (repr ...)] [rtype #'rtype])
+            (let ([impl-id #'id])
+              (unless (identifier? impl-id)
+                (oops! "impl id is not a valid identifier" impl-id))
               (unless spec
                 (oops! "expected expression" stx))
-              (unless fpcore
+              (unless core
                 (oops! "expected expression" stx))
               (unless fl-expr
                 (oops! "expected expression" stx))
-              (with-syntax ([impl-id impl-id])
-                #'(define impl-id (register-operator-impl! op impl-id reprs (get-representation rtype) fl-expr))))]
+              (with-syntax ([impl-id impl-id]
+                            [operator operator] [spec spec] [core core] [fl-expr fl-expr] [reprs #'(repr ...)] [rtype #'rtype])
+                #'(define impl-id (register-operator-impl! operator impl-id reprs (get-representation rtype) fl-expr))))]
           [([spec expr] rest ...)
             (let ([expr #'expr])
               (syntax-case expr ()
                 [(op cs ...)
-                  (loop #'(rest ...) (if op op #'op) #'expr fpcore literal-expr fl-expr)]
+                  (loop #'(rest ...) (if operator operator #'op) #'expr core fl-expr)]
                 [_ (oops! "bad syntax" expr)]))]
-          [([fpcore (! props ... expr) ] rest ...)
-            (loop #'(rest ...) op spec #'(props ...) #'expr fl-expr)]
           [([fpcore expr] rest ...)
             (let ([expr #'expr])
               (syntax-case expr ()
-                [((! props ... literal-expr))
-                  (loop #'(rest ...) op expr literal-expr fl-expr)]
-                [((operator ...))
-                  (loop #'(rest ...) op spec expr literal-expr fl-expr)]
-                [_ (oops! "bad syntax" expr)]))
-            (loop #'(rest ...) op spec fpcore #'expr fl-expr)]
-          [([fl expr]) 
-            (loop #'(rest ...) op spec fpcore literal-expr #'expr)]))]
-          [([operator name] rest ...)
-           (loop #'(rest ...) operator spec fpcore literal-expr fl-expr)]
+                [(! props ... literal-expr)
+                  (loop #'(rest ...) operator spec expr fl-expr)]
+                [(oper ...)
+                  (loop #'(rest ...) operator spec expr fl-expr)]
+                [_ (oops! "bad syntax" expr)]))]
+          [([fl expr] rest ...) 
+            (loop #'(rest ...) operator spec core #'expr)]
+          [([op name] rest ...)
+           (loop #'(rest ...) #'op spec core fl-expr)]
+          [_ (oops! "bad syntax" fields)]))]
     [_ (oops! "bad syntax")]))
 
 ;; Among active implementations, looks up an implementation with
