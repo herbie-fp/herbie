@@ -475,17 +475,11 @@
       (let loop ([fields #'(fields ...)] [operator #f] [spec #f] [core #f] [fl-expr #f])
         (syntax-case fields (spec fpcore fl op)
           [()
-            (let ([impl-id #'id])
+            (let ([impl-id #'id] )
               (unless (identifier? impl-id)
                 (oops! "impl id is not a valid identifier" impl-id))
-              (unless spec
-                (oops! "expected expression" stx))
-              (unless core
-                (oops! "expected expression" stx))
-              (unless fl-expr
-                (oops! "expected expression" stx))
               (with-syntax ([impl-id impl-id]
-                            [operator operator] [spec spec] [core core] [fl-expr fl-expr] [reprs #'(repr ...)] [rtype #'rtype])
+                            [operator operator] [spec spec] [core core] [fl-expr fl-expr] [reprs (syntax->list #'(repr ...))] [rtype #'rtype])
                 #'(define impl-id (register-operator-impl! operator impl-id reprs (get-representation rtype) fl-expr))))]
           [([spec expr] rest ...)
             (let ([expr #'expr])
