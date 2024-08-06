@@ -172,7 +172,6 @@
           (when verbose
             (eprintf "waiting job ~a completed\n" job-id))
           (for ([waiting maybe-wait-list])
-            (eprintf "waiting notifed\n")
             (place-channel-put waiting result))
           (hash-remove! waiting job-id))]
        ; Check if work is completed, returns the result or #f
@@ -194,7 +193,6 @@
             (unless (false? maybe-wait-list)
               ; we have a waiting list to notify
               (for ([waiting maybe-wait-list])
-                (eprintf "waiting notifed\n")
                 (place-channel-put waiting result))
               (hash-remove! waiting job-id))))]))))
 
