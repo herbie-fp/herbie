@@ -7,6 +7,28 @@ const FPCoreFormula = '(FPCore (x) (- (sqrt (+ x 1)) (sqrt x)))'
 const FPCoreFormula2 = '(FPCore (x) (- (sqrt (+ x 1))))'
 const eval_sample = [[[1], -1.4142135623730951]]
 
+let jobID = 42069
+
+// // timeline
+// const timelineRSP = await callHerbie(`/timeline/${jobID}`, { method: 'GET' })
+// assert.equal(timelineRSP.status, 201)
+// const timeline = await timelineRSP.json()
+// assert.equal(timeline.length > 0, true)
+
+const improveTest = {
+  name: "Improve Test 1",
+  url: buildURL(`/improve?formula=${encodeURIComponent(FPCoreFormula2)}`),
+  request: {
+    method: 'GET',
+  },
+  responseHandler: async function processResponse(response) {
+    assert.equal(response.status, 200)
+    let redirect = response.url.split("/")
+    jobID = redirect[3].split(".")[0]
+    console.log(jobID)
+  }
+}
+
 const sampleTest = {
   name: "Sample Test 1",
   url: buildURL("/api/sample"),
@@ -39,36 +61,24 @@ const runTests = async function () {
     .map(({ value }) => value)
 
   // List of test where the order in which the API calls are made matters.
-  const orderedTests = []
+  // Ordered test may also make the assumption that the shuffledTests have completed.
+  const orderedTests = [
+    improveTest,
+  ]
 
-  const tests = orderedTests.concat(shuffledTests)
+  const tests = shuffledTests.concat(orderedTests)
   const promises = []
   for (const index in tests) {
+    console.log(`Starting test: ${tests[index].name}`)
     const promise = fetch(tests[index].url,
       tests[index].request).then(tests[index].responseHandler)
     promises.push(promise)
   }
   const data = await Promise.all(promises);
-  console.log(`Ran ${data.length} tests`);
+  console.log(`Ran ${data.length} tests.`);
 }
 
 await runTests();
-
-// // improve endpoint
-// const improveResponse = await callHerbie(`/improve?formula=${encodeURIComponent(FPCoreFormula2)}`, { method: 'GET' })
-// assert.equal(improveResponse.status, 200)
-// let redirect = improveResponse.url.split("/")
-// const jobID = redirect[3].split(".")[0]
-// // This test is a little flaky as the character count of the response is not consistent.
-// // const improveHTML = await improveResponse.text()
-// // const improveHTMLexpectedCount = 25871
-// // assert.equal(improveHTML.length, improveHTMLexpectedCount, `HTML response character count should be ${improveHTMLexpectedCount} unless HTML changes.`)
-
-// // timeline
-// const timelineRSP = await callHerbie(`/timeline/${jobID}`, { method: 'GET' })
-// assert.equal(timelineRSP.status, 201)
-// const timeline = await timelineRSP.json()
-// assert.equal(timeline.length > 0, true)
 
 // // Test with a likely missing job-id
 // const badTimelineRSP = await callHerbie(`/timeline/42069`, { method: 'GET' })
