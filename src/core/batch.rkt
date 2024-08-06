@@ -26,7 +26,7 @@
       (match prog
         [(list '- arg1 arg2)
          #:when taylor
-         `(+ ,(munge arg1) ,(munge `(- ,arg2)))]
+         `(+ ,(munge arg1) ,(munge `(neg ,arg2)))]
         [(list 'pow base 1/2)
          #:when taylor
          `(sqrt ,(munge base))]
@@ -37,8 +37,11 @@
          #:when taylor
          `(cbrt ,(munge `(* ,base ,base)))]
         [(list 'pow base power)
-         #:when (and taylor (not (exact-integer? power)))
-         `(exp ,(munge `(* ,power (log ,base))))]
+         #:when (and taylor (exact-integer? power))
+         `(pow ,(munge base) ,(munge power))]
+        [(list 'pow base power)
+         #:when taylor
+         `(exp (* ,(munge power) (log ,(munge base))))]
         [(list 'tan args)
          #:when taylor
          `(/ ,(munge `(sin ,args)) ,(munge `(cos ,args)))]
@@ -47,10 +50,10 @@
          `(* ,(munge 1/2) ,(munge `(+ (exp ,args) (/ 1 (exp ,args)))))]
         [(list 'sinh args)
          #:when taylor
-         `(* ,(munge 1/2) ,(munge `(+ (exp ,args) (- (/ 1 (exp ,args))))))]
+         `(* ,(munge 1/2) ,(munge `(+ (exp ,args) (neg (/ 1 (exp ,args))))))]
         [(list 'tanh args)
          #:when taylor
-         `(/ ,(munge `(+ (exp ,args) (- (/ 1 (exp ,args)))))
+         `(/ ,(munge `(+ (exp ,args) (neg (/ 1 (exp ,args)))))
              ,(munge `(+ (exp ,args) (/ 1 (exp ,args)))))]
         [(list 'asinh args)
          #:when taylor
@@ -60,7 +63,7 @@
          `(log ,(munge `(+ ,args (sqrt (+ (* ,args ,args) -1)))))]
         [(list 'atanh args)
          #:when taylor
-         `(* ,(munge 1/2) ,(munge `(log (/ (+ 1 ,args) (+ 1 (- ,args))))))]
+         `(* ,(munge 1/2) ,(munge `(log (/ (+ 1 ,args) (+ 1 (neg ,args))))))]
         [(list op args ...) (cons op (map munge args))]
         [_ prog]))
     (hash-ref! exprhash
