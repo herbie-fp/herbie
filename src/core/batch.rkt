@@ -41,7 +41,7 @@
          `(pow ,(munge base) ,(munge power))]
         [(list 'pow base power)
          #:when taylor
-         `(exp (* ,(munge power) (log ,(munge base))))]
+         `(exp ,(munge `(* ,power (log ,base))))]
         [(list 'tan args)
          #:when taylor
          `(/ ,(munge `(sin ,args)) ,(munge `(cos ,args)))]
