@@ -1,15 +1,10 @@
 #lang racket
 
-(require math/bigfloat
-         math/flonum
-         rival)
-
 (require "../syntax/syntax.rkt"
          "../syntax/types.rkt"
-         "../utils/common.rkt"
          "../utils/timeline.rkt"
          "../utils/float.rkt"
-         "../config.rkt")
+         "programs.rkt")
 
 (provide compile-progs
          compile-prog)
@@ -66,16 +61,20 @@
   ; Translates programs into an instruction sequence of operations
   (define (munge prog)
     (set! size (+ 1 size))
-    (define node ; This compiles to the register machine
-      (match prog
-        [(list op args ...) (cons op (map munge args))]
-        [_ prog]))
-    (hash-ref! exprhash
-               node
-               (lambda ()
-                 (begin0 (+ exprc varc) ; store in cache, update exprs, exprc
-                   (set! exprc (+ 1 exprc))
-                   (set! icache (cons node icache))))))
+    (match prog ; approx nodes are ignored
+      [(approx _ impl) (munge impl)]
+      [_
+       (define node ; This compiles to the register machine
+         (match prog
+           [(? literal?) prog]
+           [(? symbol?) prog]
+           [(list op args ...) (cons op (map munge args))]))
+       (hash-ref! exprhash
+                  node
+                  (lambda ()
+                    (begin0 (+ exprc varc) ; store in cache, update exprs, exprc
+                      (set! exprc (+ 1 exprc))
+                      (set! icache (cons node icache)))))]))
 
   (define roots (list->vector (map munge exprs)))
   (define nodes (list->vector (reverse icache)))

@@ -10,6 +10,7 @@
 
 (provide (rename-out [operator-or-impl? operator?])
          (struct-out literal)
+         (struct-out approx)
          variable?
          constant-operator?
          operator-exists?
@@ -582,6 +583,10 @@
 ;; Floating-point expressions require that number
 ;; be rounded to a particular precision.
 (struct literal (value precision) #:prefab)
+
+;; An approximation of a specification by
+;; an arbitrary floating-point expression.
+(struct approx (spec impl) #:prefab)
 
 ;; name -> (vars repr body)	;; name -> (vars prec body)
 (define *functions* (make-parameter (make-hasheq)))

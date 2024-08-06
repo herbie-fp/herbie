@@ -67,13 +67,16 @@
   (free (FFIRule-right rule))
   (free rule))
 
-;; the first hash table maps all symbols and non-integer values
-;; to new names for egg; the second hash is the reverse of the first
-(struct egraph-data (egraph-pointer egg->herbie-dict herbie->egg-dict))
+;; Wrapper around Rust-allocated egg runner
+(struct egraph-data
+        (egraph-pointer ; FFI pointer to runner
+         herbie->egg-dict ; map from symbols to canonicalized names
+         egg->herbie-dict ; inverse map
+         id->spec)) ; map from e-class id to an approx-spec or #f
 
 ; Makes a new egraph that is managed by Racket's GC
 (define (make-egraph)
-  (egraph-data (egraph_create) (make-hash) (make-hash)))
+  (egraph-data (egraph_create) (make-hash) (make-hash) (make-hash)))
 
 ; Creates a new runner using an existing egraph.
 ; Useful for multi-phased rule application
@@ -84,8 +87,22 @@
 
 ;; result function is a function that takes the ids of the nodes
 (define (egraph-add-expr eg-data expr ctx)
-  (define egg-expr (~a (expr->egg-expr expr eg-data ctx)))
-  (egraph_add_expr (egraph-data-egraph-pointer eg-data) egg-expr))
+  (match-define (egraph-data ptr _ _ id->spec) eg-data)
+  ; add the expression to the e-graph and save the root e-class id
+  (define egg-expr (expr->egg-expr expr eg-data ctx))
+  (define root-id (egraph_add_expr ptr (~a egg-expr)))
+  ; record all approx specs
+  (let loop ([egg-expr egg-expr])
+    (match egg-expr
+      [(? number?) (void)]
+      [(? symbol?) (void)]
+      [(list '$approx spec impl)
+       (define id (egraph_add_expr ptr (~a spec)))
+       (hash-ref! id->spec id (lambda () spec))
+       (loop impl)]
+      [(list _ args ...) (for-each loop args)]))
+  ; return the id
+  root-id)
 
 ;; runs rules on an egraph (optional iteration limit)
 (define (egraph-run egraph-data ffi-rules node-limit iter-limit scheduler const-folding?)
@@ -151,9 +168,9 @@
   (egraph_find (egraph-data-egraph-pointer egraph-data) id))
 
 (define (egraph-expr-equal? egraph-data expr goal ctx)
-  (define egg-expr (~a (expr->egg-expr expr egraph-data ctx)))
-  (define egg-goal (~a (expr->egg-expr goal egraph-data ctx)))
-  (egraph_is_equal (egraph-data-egraph-pointer egraph-data) egg-expr egg-goal))
+  (define id1 (egraph-add-expr egraph-data expr ctx))
+  (define id2 (egraph-add-expr egraph-data goal ctx))
+  (= (egraph-find egraph-data id1) (egraph-find egraph-data id2)))
 
 ;; returns a flattened list of terms or #f if it failed to expand the proof due to budget
 (define (egraph-get-proof egraph-data expr goal ctx)
@@ -194,6 +211,7 @@
       [(? number?) expr]
       [(? literal?) (literal-value expr)]
       [(? symbol?) (string->symbol (format "?~a" expr))]
+      [(approx spec impl) (list '$approx (loop spec) (loop impl))]
       [(list op args ...) (cons op (map loop args))])))
 
 ;; Translates a Herbie expression into an expression usable by egg.
@@ -206,24 +224,29 @@
     (match expr
       [(? number?) expr]
       [(? literal?) (literal-value expr)]
-      [(? (curry hash-has-key? herbie->egg-dict)) (hash-ref herbie->egg-dict expr)]
       [(? symbol?)
-       (define replacement (string->symbol (format "$h~a" (hash-count herbie->egg-dict))))
-       (hash-set! herbie->egg-dict expr replacement)
-       (hash-set! egg->herbie-dict replacement (cons expr (context-lookup ctx expr)))
-       replacement]
+       (hash-ref! herbie->egg-dict
+                  expr
+                  (lambda ()
+                    (define id (hash-count herbie->egg-dict))
+                    (define replacement (string->symbol (format "$h~a" id)))
+                    (hash-set! egg->herbie-dict replacement (cons expr (context-lookup ctx expr)))
+                    replacement))]
+      [(approx spec impl) (list '$approx (loop spec) (loop impl))]
       [(list op args ...) (cons op (map loop args))])))
 
 (define (flatten-let expr)
   (let loop ([expr expr] [env (hash)])
     (match expr
-      [`(let (,var ,term) ,body) (loop body (hash-set env var (loop term env)))]
-      [(? symbol?) (hash-ref env expr expr)]
-      [(? list?) (map (curryr loop env) expr)]
       [(? number?) expr]
-      [_ (error "Unknown term ~a" expr)])))
+      [(? symbol?) (hash-ref env expr expr)]
+      [`(let (,var ,term) ,body) (loop body (hash-set env var (loop term env)))]
+      [`(,op ,args ...) (cons op (map (curryr loop env) args))])))
 
 ;; Converts an S-expr from egg into one Herbie understands
+;; TODO: typing information is confusing since proofs mean
+;; we may process mixed spec/impl expressions;
+;; only need `type` to correctly interpret numbers
 (define (egg-parsed->expr expr rename-dict type)
   (let loop ([expr expr] [type type])
     (match expr
@@ -232,6 +255,9 @@
        (if (hash-has-key? rename-dict expr)
            (car (hash-ref rename-dict expr)) ; variable (extract uncanonical name)
            (list expr))] ; constant function
+      [(list '$approx spec impl) ; approx
+       (define spec-type (if (representation? type) (representation-type type) type))
+       (approx (loop spec spec-type) (loop impl type))]
       [`(Explanation ,body ...) `(Explanation ,@(map (lambda (e) (loop e type)) body))]
       [(list 'Rewrite=> rule expr) (list 'Rewrite=> rule (loop expr type))]
       [(list 'Rewrite<= rule expr) (list 'Rewrite<= rule (loop expr type))]
@@ -340,6 +366,14 @@
          [(? symbol?) (list term)]
          [(? literal?) (list term)]
          [(? number?) (list term)]
+         [(approx spec impl)
+          (define children (list (loop spec) (loop impl)))
+          (cond
+            [(member (list #f) children) (list #f)]
+            [else
+             (define res (sequential-product children))
+             (set-box! budget (- (unbox budget) (length res)))
+             (map (curry apply approx) res)])]
          [`(Explanation ,body ...) (expand-proof body budget)]
          [(? list?)
           (define children (map loop term))
@@ -444,10 +478,11 @@
 ;; - constants: map from vector index to if the eclass contains a constant
 ;; - parents: parent e-classes of each e-class
 ;; - egg->herbie: data to translate egg IR to herbie IR
-(struct regraph (eclasses canon has-leaf? constants parents egg->herbie))
+;; - id->spec: map from id to an approx spec or #f
+(struct regraph (eclasses canon has-leaf? constants parents egg->herbie id->spec))
 
 ;; Constructs a Racket egraph from an S-expr representation.
-(define (sexpr->regraph egraph egg->herbie)
+(define (sexpr->regraph egraph egg->herbie id->spec)
   ; total number of e-classes
   (define n (length egraph))
   ; canonicalize all e-class ids to [0, n)
@@ -475,7 +510,7 @@
            (if (hash-has-key? egg->herbie egg-node)
                egg-node ; variable
                (list egg-node))] ; constant
-          [(list op child-ids ...) ; application
+          [(list op child-ids ...) ; $approx / application
            (cond
              [(null? child-ids) ; application is a constant function
               (vector-set! has-leaf? id #t)
@@ -492,15 +527,22 @@
   (for ([id (in-range n)])
     (vector-set! parents id (list->vector (remove-duplicates (vector-ref parents id)))))
 
+  ; convert id->spec to a vector-map
+  (define id->spec* (make-vector n #f))
+  (for ([(id spec) (in-hash id->spec)])
+    (vector-set! id->spec* (hash-ref canon id) spec))
+
   ; collect with wrapper
-  (regraph eclasses canon has-leaf? constants parents egg->herbie))
+  (regraph eclasses canon has-leaf? constants parents egg->herbie id->spec*))
 
 ;; Constructs a Racket egraph from an S-expr representation of
 ;; an egraph and data to translate egg IR to herbie IR.
 (define (make-regraph egraph-data)
-  (define egg->herbie (egraph-data-egg->herbie-dict egraph-data))
   (define egraph-str (egraph-serialize egraph-data))
-  (sexpr->regraph (read (open-input-string egraph-str)) egg->herbie))
+  (sexpr->regraph (read (open-input-string egraph-str))
+                  (egraph-data-egg->herbie-dict egraph-data)
+                  (for/hash ([(id spec) (in-hash (egraph-data-id->spec egraph-data))])
+                    (values (egraph-find egraph-data id) spec))))
 
 ;; Egraph node has children.
 ;; Nullary operators have no children!
@@ -642,11 +684,16 @@
   (set! costs (regraph-analyze regraph eclass-set-cost! #:analysis costs))
 
   ; reconstructs the best expression at a node
+  (define id->spec (regraph-id->spec regraph))
   (define (build-expr id)
     (match (cdr (vector-ref costs id))
       [(? number? n) n] ; number
       [(? symbol? s) s] ; variable
-      [(list op ids ...) (cons op (map build-expr ids))]
+      [(list '$approx spec impl) ; approx
+       (match (vector-ref id->spec spec)
+         [#f (error 'build-expr "no initial approx node in eclass ~a" id)]
+         [spec-e (list '$approx spec-e (build-expr impl))])]
+      [(list op ids ...) (cons op (map build-expr ids))] ; application
       [e (error 'untyped-extraction-proc "unexpected node" e)]))
 
   ; the actual extraction procedure
@@ -748,6 +795,7 @@
       [(? symbol?)
        (define repr (cdr (hash-ref egg->herbie node)))
        (type/union repr (representation-type repr))]
+      [(list '$approx _ impl) (vector-ref analysis impl)]
       [(list 'if _ ift iff)
        (define ift-types (vector-ref analysis ift))
        (define iff-types (vector-ref analysis iff))
@@ -799,6 +847,7 @@
       [(? symbol?)
        (define repr (cdr (hash-ref egg->herbie node)))
        (type/union repr (representation-type repr))]
+      [(list '$approx _ impl) (vector-ref eclass-types impl)]
       [(list 'if _ ift iff)
        (define ift-types (vector-ref eclass-types ift))
        (define iff-types (vector-ref eclass-types iff))
@@ -885,6 +934,7 @@
 
   (define (slow-node-ready? node type)
     (match node
+      [(list '$approx _ impl) (eclass-has-cost? impl type)]
       [(list 'if cond ift iff)
        (and (eclass-has-cost? cond (get-representation 'bool))
             (eclass-has-cost? ift type)
@@ -955,19 +1005,25 @@
       (error 'typed-egg-extractor "costs not computed for all eclasses ~a" costs)))
 
   ; rebuilds the extracted procedure
+  (define id->spec (regraph-id->spec regraph))
   (define (build-expr id type)
-    (let/ec return
-            (let loop ([id id] [type type])
-              (match (unsafe-best-node id type)
-                [(? number? n) n] ; number
-                [(? symbol? s) s] ; variable
-                [(list 'if cond ift iff) ; if expression
-                 (list 'if (loop cond (get-representation 'bool)) (loop ift type) (loop iff type))]
-                [(list (? impl-exists? impl) ids ...) ; expression of impls
-                 (cons impl (map loop ids (impl-info impl 'itype)))]
-                [(list (? operator-exists? op) ids ...) ; expression of operators
-                 (cons op (map loop ids (operator-info op 'itype)))]
-                [_ (return #f)]))))
+    (let/ec
+     return
+     (let loop ([id id] [type type])
+       (match (unsafe-best-node id type)
+         [(? number? n) n] ; number
+         [(? symbol? s) s] ; variable
+         [(list '$approx spec impl) ; approx
+          (match (vector-ref id->spec spec)
+            [#f (error 'build-expr "no initial approx node in eclass ~a" id)]
+            [spec-e (list '$approx spec-e (build-expr impl type))])]
+         [(list 'if cond ift iff) ; if expression
+          (list 'if (loop cond (get-representation 'bool)) (loop ift type) (loop iff type))]
+         ; expression of impls
+         [(list (? impl-exists? impl) ids ...) (cons impl (map loop ids (impl-info impl 'itype)))]
+         ; expression of operators
+         [(list (? operator-exists? op) ids ...) (cons op (map loop ids (operator-info op 'itype)))]
+         [_ (return #f)]))))
 
   ; the actual extraction procedure
   (lambda (id type) (cons (unsafe-eclass-cost id type +inf.0) (build-expr id type))))
@@ -983,6 +1039,8 @@
     [(? symbol?) ; variables (`egg->herbie` has the repr)
      (define repr (cdr (hash-ref egg->herbie node)))
      ((node-cost-proc node repr))]
+    ; approx node
+    [(list '$approx _ impl) (rec impl type +inf.0)]
     [(list 'if cond ift iff) ; if expression
      (define cost-proc (node-cost-proc node type))
      (cost-proc (rec cond (get-representation 'bool) +inf.0)
@@ -999,6 +1057,8 @@
   (match node
     [(? number?) 1]
     [(? symbol?) 1]
+    ; approx node
+    [(list '$approx _ impl) (rec impl type +inf.0)]
     [(list 'if cond ift iff)
      (+ 1 (rec cond (get-representation 'bool) +inf.0) (rec ift type +inf.0) (rec iff type +inf.0))]
     [(list (? impl-exists? impl) args ...)
@@ -1030,15 +1090,26 @@
 
 ;; Extracts multiple expressions according to the extractor
 (define (regraph-extract-variants regraph extract id type)
-  ; extract expressions
+  ; regraph fields
   (define eclasses (regraph-eclasses regraph))
-  (define id* (hash-ref (regraph-canon regraph) id))
+  (define id->spec (regraph-id->spec regraph))
+  (define canon (regraph-canon regraph))
+
+  ; extract expressions
+  (define id* (hash-ref canon id))
   (define egg-exprs
     (reap [sow]
           (for ([enode (vector-ref eclasses id*)])
             (match enode
               [(? number?) (sow enode)]
               [(? symbol?) (sow enode)]
+              [(list '$approx spec impl)
+               (match (vector-ref id->spec spec)
+                 [#f (error 'regraph-extract-variants "no initial approx node in eclass ~a" id*)]
+                 [spec-e
+                  (match-define (cons _ impl*) (extract impl type))
+                  (when impl*
+                    (sow (list '$approx spec-e impl*)))])]
               [(list 'if cond ift iff)
                (match-define (cons _ cond*)
                  (extract cond (if (representation? type) (get-representation 'bool) 'bool)))
@@ -1099,16 +1170,18 @@
       [else (values egg-graph iteration-data)])))
 
 (define (egraph-run-schedule exprs schedule ctx)
-  ; prepare the egraph
-  (define egg-graph0 (make-egraph))
+  ; allocate the e-graph
+  (define egg-graph (make-egraph))
+
+  ; insert expressions into the e-graph
   (define root-ids
     (for/list ([expr (in-list exprs)])
-      (egraph-add-expr egg-graph0 expr ctx)))
+      (egraph-add-expr egg-graph expr ctx)))
 
   ; run the schedule
   (define rule-apps (make-hash))
-  (define egg-graph
-    (for/fold ([egg-graph egg-graph0]) ([instr (in-list schedule)])
+  (define egg-graph*
+    (for/fold ([egg-graph egg-graph]) ([instr (in-list schedule)])
       (match-define (cons rules params) instr)
       ; run rules in the egraph
       (define egg-rules (expand-rules rules))
@@ -1135,9 +1208,9 @@
     (when (> count 0)
       (timeline-push! 'rules (~a name) count)))
   ; root eclasses may have changed
-  (define root-ids* (map (lambda (id) (egraph-find egg-graph id)) root-ids))
+  (define root-ids* (map (lambda (id) (egraph-find egg-graph* id)) root-ids))
   ; return what we need
-  (values root-ids* egg-graph))
+  (values root-ids* egg-graph*))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Public API
@@ -1161,8 +1234,8 @@
 ;;  - scheduling parameters:
 ;;     - node limit: `(node . <number>)`
 ;;     - iteration limit: `(iteration . <number>)`
-;;     - constant fold: `(const-fold? . <boolean>)`
-;;     - scheduler: `(scheduler . <name>)`
+;;     - constant fold: `(const-fold? . <boolean>)` [default: #t]
+;;     - scheduler: `(scheduler . <name>)` [default: backoff]
 ;;        - `simple`: run all rules without banning
 ;;        - `backoff`: ban rules if the fire too much
 (define (make-egg-runner exprs reprs schedule #:context [ctx (*context*)])

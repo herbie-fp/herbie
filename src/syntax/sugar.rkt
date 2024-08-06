@@ -330,6 +330,7 @@
   (match expr
     [(? literal?) (literal-value expr)]
     [(? variable?) expr]
+    [(approx spec _) spec]
     [`(if ,cond ,ift ,iff) `(if ,(prog->spec cond) ,(prog->spec ift) ,(prog->spec iff))]
     [`(,impl ,args ...)
      (match-define `(,_ (,vars ...) ,spec) (impl-info impl 'spec))

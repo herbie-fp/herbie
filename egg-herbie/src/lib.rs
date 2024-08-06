@@ -301,24 +301,6 @@ pub unsafe extern "C" fn egraph_get_proof(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn egraph_is_equal(
-    ptr: *mut Context,
-    expr: *const c_char,
-    goal: *const c_char,
-) -> bool {
-    // Safety: `ptr` was box allocated by `egraph_create`
-    let mut context = ManuallyDrop::new(Box::from_raw(ptr));
-
-    assert_eq!(context.iteration, 0);
-
-    let expr_rec = CStr::from_ptr(expr).to_str().unwrap().parse().unwrap();
-    let goal_rec = CStr::from_ptr(goal).to_str().unwrap().parse().unwrap();
-    let egraph = &mut context.runner.egraph;
-
-    egraph.add_expr(&expr_rec) == egraph.add_expr(&goal_rec)
-}
-
-#[no_mangle]
 pub unsafe extern "C" fn egraph_get_variants(
     ptr: *mut Context,
     node_id: u32,
