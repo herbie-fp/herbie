@@ -144,8 +144,13 @@
 
   (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext))
   (*pcontext* test-pcontext)
-  (define-values (fperrors sorted-explanations-table confusion-matrix maybe-confusion-matrix total-confusion-matrix freqs)
-    (explain (test-input test)(*context*)(*pcontext*)))
+  (define-values (fperrors
+                  sorted-explanations-table
+                  confusion-matrix
+                  maybe-confusion-matrix
+                  total-confusion-matrix
+                  freqs)
+    (explain (test-input test) (*context*) (*pcontext*)))
 
   sorted-explanations-table)
 

@@ -418,29 +418,29 @@
      (hasheq 'points (pcontext->json pctx repr) 'job id 'path (make-path id)))))
 
 (define explanations-endpoint
-  (post-with-json-response
-    (lambda (post-data)
-      (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
-      (define sample (hash-ref post-data 'sample))
-      (define seed (hash-ref post-data 'seed #f))
-      (eprintf "Explanations job started on ~a..." formula)
+  (post-with-json-response (lambda (post-data)
+                             (define formula
+                               (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
+                             (define sample (hash-ref post-data 'sample))
+                             (define seed (hash-ref post-data 'seed #f))
+                             (eprintf "Explanations job started on ~a..." formula)
 
-      (define test (parse-test formula))
-      (define expr (prog->fpcore (test-input test)))
-      (define pcontext (json->pcontext sample (test-context test)))
-      (define command
-        (create-job 'explanations
-                   test
-                   #:seed seed
-                   #:pcontext pcontext
-                   #:profile? #f
-                   #:timeline-disabled? #t))
-      (define id (start-job command))
-      (define result (wait-for-job id))
-      (define explanations (job-result-backend result))
+                             (define test (parse-test formula))
+                             (define expr (prog->fpcore (test-input test)))
+                             (define pcontext (json->pcontext sample (test-context test)))
+                             (define command
+                               (create-job 'explanations
+                                           test
+                                           #:seed seed
+                                           #:pcontext pcontext
+                                           #:profile? #f
+                                           #:timeline-disabled? #t))
+                             (define id (start-job command))
+                             (define result (wait-for-job id))
+                             (define explanations (job-result-backend result))
 
-      (eprintf " complete\n")
-      (hasheq 'explanation explanations))))
+                             (eprintf " complete\n")
+                             (hasheq 'explanation explanations))))
 
 (define analyze-endpoint
   (post-with-json-response (lambda (post-data)
