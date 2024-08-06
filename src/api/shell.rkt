@@ -2,8 +2,6 @@
 
 (require "../syntax/read.rkt"
          "sandbox.rkt"
-         "server.rkt"
-         "../syntax/sugar.rkt"
          "../utils/common.rkt")
 (provide run-shell)
 
