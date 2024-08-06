@@ -60,7 +60,7 @@
          `(log ,(munge `(+ ,args (sqrt (+ (* ,args ,args) -1)))))]
         [(list 'atanh args)
          #:when taylor
-         `(* ,(munge 1/2) (munge `(log (/ (+ 1 ,args) (+ 1 (- ,args))))))]
+         `(* ,(munge 1/2) ,(munge `(log (/ (+ 1 ,args) (+ 1 (- ,args))))))]
         [(list op args ...) (cons op (map munge args))]
         [_ prog]))
     (hash-ref! exprhash
