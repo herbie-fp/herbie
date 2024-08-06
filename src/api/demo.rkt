@@ -487,7 +487,6 @@
                              (define sample (hash-ref post-data 'sample))
                              (define seed (hash-ref post-data 'seed #f))
                              (define test (parse-test formula))
-                             (define expr (prog->fpcore (test-input test)))
                              (define pcontext (json->pcontext sample (test-context test)))
                              (define command
                                (create-job 'local-error
@@ -498,27 +497,7 @@
                                            #:timeline-disabled? #t))
                              (define id (start-job command))
                              (define result (wait-for-job id))
-                             (define local-error (job-result-backend result))
-                             ;; TODO: potentially unsafe if resugaring changes the AST
-                             (define tree
-                               (let loop ([expr expr] [err local-error])
-                                 (match expr
-                                   [(list op args ...)
-                                    ;; err => (List (listof Integer) List ...)
-                                    (hasheq 'e
-                                            (~a op)
-                                            'avg-error
-                                            (format-bits (errors-score (first err)))
-                                            'children
-                                            (map loop args (rest err)))]
-                                   [_
-                                    ;; err => (List (listof Integer))
-                                    (hasheq 'e
-                                            (~a expr)
-                                            'avg-error
-                                            (format-bits (errors-score (first err)))
-                                            'children
-                                            '())])))
+                             (define tree (job-result-backend result))
                              (hasheq 'tree tree 'job id 'path (make-path id)))))
 
 (define alternatives-endpoint

@@ -132,10 +132,25 @@
 (define (get-local-error test pcontext)
   (unless pcontext
     (error 'get-local-error "cannnot run without a pcontext"))
-
+  (define expr (prog->fpcore (test-input test)))
   (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext))
   (*pcontext* test-pcontext)
-  (local-error-as-tree (test-input test) (*context*)))
+  (define local-error (local-error-as-tree (test-input test) (*context*)))
+  ;; TODO: potentially unsafe if resugaring changes the AST
+  (define tree
+    (let loop ([expr expr] [err local-error])
+      (match expr
+        [(list op args ...)
+         ;; err => (List (listof Integer) List ...)
+         (hasheq 'e
+                 (~a op)
+                 'avg-error
+                 (format-bits (errors-score (first err)))
+                 'children
+                 (map loop args (rest err)))]
+        ;; err => (List (listof Integer))
+        [_ (hasheq 'e (~a expr) 'avg-error (format-bits (errors-score (first err))) 'children '())])))
+  tree)
 
 ;; TODO: What in the timeline needs fixing with these changes?
 

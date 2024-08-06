@@ -144,6 +144,7 @@
 ;; same shape as `prog`
 (define (local-error-as-tree expr ctx)
   (define errs (first (compute-local-errors (list (all-subexpressions expr)) ctx)))
+  (eprintf "errs: ~a\n" errs)
   (let loop ([expr expr])
     (match expr
       [(list op args ...) (cons (hash-ref errs expr) (map loop args))]
