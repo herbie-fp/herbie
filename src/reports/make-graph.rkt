@@ -59,7 +59,7 @@
   (define repr-bits (representation-total-bits repr))
   (define ctx (test-context test))
   (define identifier (test-identifier test))
-  ; Backend improve data
+
   (define preprocessing (hash-ref backend 'preprocessing))
   (define pctxs (hash-ref backend 'pctxs))
   (define start (hash-ref backend 'start))
