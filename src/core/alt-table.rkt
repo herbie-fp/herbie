@@ -78,7 +78,7 @@
   (order-altns (alt-table-all atab)))
 
 (define (atab-not-done-alts atab)
-  (order-alts
+  (order-altns
    (for/list ([(alt done?) (in-hash (alt-table-alt->done? atab))]
               #:unless done?)
      alt)))
