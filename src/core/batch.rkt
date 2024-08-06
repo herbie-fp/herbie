@@ -38,7 +38,7 @@
          (cons 'cbrt (munge `(* ,base ,base)))]
         [(list 'tan args)
          #:when taylor
-         (cons '/ (map munge (list `(sin args) `(cos args))))]
+         (cons '/ (map munge (list `(sin ,args) `(cos ,args))))]
         [(list 'cosh args)
          #:when taylor
          (cons '* (map munge (list 1/2 `(+ (exp ,args) (/ 1 (exp ,args))))))]
