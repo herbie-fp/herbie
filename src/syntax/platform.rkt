@@ -528,5 +528,10 @@
                (when (and input* output*)
                  (define itypes* (merge-envs ienv oenv))
                  (when itypes*
-                   (define name* (apply sym-append name '_ (map cdr isubst)))
+                   (define name*
+                     (string->symbol
+                       (format "~a-~a-~a"
+                               name
+                               (representation-name repr)
+                               (string-join (map (lambda (subst) (~a (cdr subst))) isubst) "-"))))
                    (sow (rule name* input* output* itypes* repr)))))]))))
