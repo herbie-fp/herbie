@@ -37,13 +37,15 @@
 (module+ test
   (require rackunit))
 
-#;(module+ test
-    (require "load-plugin.rkt")
-    (load-herbie-builtins)
+(module+ test
+  (require "../syntax/load-plugin.rkt")
+  (load-herbie-builtins)
+  (define binary64 (get-representation 'binary64))
 
-    (check-equal? (precondition->hyperrects '(and (and (<= 0 a) (<= a 1)) (and (<= 0 b) (<= b 1)))
-                                            (make-debug-context '(a b)))
-                  (list (list (ival (bf 0.0) (bf 1.0)) (ival (bf 0.0) (bf 1.0))))))
+  (check-equal? (precondition->hyperrects '(and (and (<= 0 a) (<= a 1)) (and (<= 0 b) (<= b 1)))
+                                          '(a b)
+                                          (list binary64 binary64))
+                (list (list (ival (bf 0.0) (bf 1.0)) (ival (bf 0.0) (bf 1.0))))))
 
 ;; Part 2: using subdivision search to find valid intervals
 
