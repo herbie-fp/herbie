@@ -126,9 +126,9 @@
       (,lowering-rules . ((iteration . 1) (scheduler . simple)))))
 
   ; run egg
-  (define progs (map alt-expr altns))
-  (define reprs (map (curryr repr-of (*context*)) progs))
-  (timeline-push! 'inputs (map ~a progs))
+  (define exprs (map alt-expr altns))
+  (define reprs (map (curryr repr-of (*context*)) exprs))
+  (timeline-push! 'inputs (map ~a exprs))
   (define runner (make-egg-runner exprs reprs schedule #:context (*context*)))
   (define variantss (run-egg runner `(multi . ,extractor)))
 
