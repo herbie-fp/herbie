@@ -419,9 +419,8 @@
 
 (define explanations-endpoint
   (post-with-json-response (lambda (post-data)
-                            (define formula-str (hash-ref post-data 'formula))
-                             (define formula
-                               (read-syntax 'web (open-input-string formula-str)))
+                             (define formula-str (hash-ref post-data 'formula))
+                             (define formula (read-syntax 'web (open-input-string formula-str)))
                              (define sample (hash-ref post-data 'sample))
                              (define seed (hash-ref post-data 'seed #f))
                              (eprintf "Explanations job started on ~a...\n" formula-str)
