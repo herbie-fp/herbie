@@ -22,7 +22,7 @@
          "../utils/timeline.rkt"
          "sampling.rkt"
          "soundiness.rkt")
-(provide (all-defined-out))
+(provide sample-pcontext run-improve! rollback-improve!)
 
 ;; I'm going to use some global state here to make the shell more
 ;; friendly to interact with without having to store your own global
