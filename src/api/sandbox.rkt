@@ -172,6 +172,14 @@
   (define test-pcontext* (preprocess-pcontext (*context*) test-pcontext preprocessing))
   (when seed
     (set-seed! seed))
+  (define repr (test-output-repr test))
+  (match-define (cons domain-stats joint-pcontext)
+    (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
+      (setup-context! (test-vars test)
+                      (prog->spec (or (test-spec test) (test-input test)))
+                      (prog->spec (test-pre test))
+                      repr)))
+  (timeline-push! 'bogosity domain-stats)
   (list alternatives test-pcontext test-pcontext*))
 
 ;; Improvement backend for generating reports
