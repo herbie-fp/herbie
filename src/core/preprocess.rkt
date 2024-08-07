@@ -21,13 +21,13 @@
 
 (define (has-fabs-neg-impls? repr)
   (with-handlers ([exn:fail:user:herbie? (const #f)])
-    (get-parametric-operator 'neg repr)
-    (get-parametric-operator 'fabs repr)
+    (get-fpcore-impl '- (repr->prop repr) (list repr))
+    (get-fpcore-impl 'fabs (repr->prop repr) (list repr))
     #t))
 
 (define (has-copysign-impl? repr)
   (with-handlers ([exn:fail:user:herbie? (const #f)])
-    (get-parametric-operator 'copysign repr repr)
+    (get-fpcore-impl 'copysign (repr->prop repr) (list repr repr))
     #t))
 
 ;; The even identities: f(x) = f(-x)
@@ -164,18 +164,21 @@
          (values (list-set* x indices sorted) y)))]
     [(list 'abs variable)
      (define index (index-of variables variable))
-     (define abs
-       (impl-info (get-parametric-operator 'fabs (list-ref (context-var-reprs context) index)) 'fl))
-     (lambda (x y) (values (list-update x index abs) y))]
+     (define var-repr (context-lookup context variable))
+     (define abs-proc (impl-info (get-fpcore-impl 'fabs (repr->prop var-repr) (list var-repr)) 'fl))
+     (lambda (x y) (values (list-update x index abs-proc) y))]
     [(list 'negabs variable)
      (define index (index-of variables variable))
-     (define negate-variable
-       (impl-info (get-parametric-operator 'neg (list-ref (context-var-reprs context) index)) 'fl))
-     (define negate-expression (impl-info (get-parametric-operator 'neg (context-repr context)) 'fl))
+     (define var-repr (context-lookup context variable))
+     (define neg-var (impl-info (get-fpcore-impl '- (repr->prop var-repr) (list var-repr)) 'fl))
+
+     (define repr (context-repr context))
+     (define neg-expr (impl-info (get-fpcore-impl '- (repr->prop repr) (list repr)) 'fl))
+
      (lambda (x y)
        ;; Negation is involutive, i.e. it is its own inverse, so t^1(y') = -y'
        (if (negative? (repr->real (list-ref x index) (context-repr context)))
-           (values (list-update x index negate-variable) (negate-expression y))
+           (values (list-update x index neg-var) (neg-expr y))
            (values x y)))]))
 
 ; until fixed point, iterate through preprocessing attempting to drop preprocessing with no effect on error
