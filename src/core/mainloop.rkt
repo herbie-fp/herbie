@@ -32,7 +32,7 @@
 ;; head at once, because then global state is going to mess you up.
 
 (struct shellstate (table next-alts locs patched) #:mutable)
-(define-resetter ^shell-state^ (λ () (shellstate #f #f #f #f)) (λ () (shellstate #f #f #f #f)))
+(define/reset ^shell-state^ (shellstate #f #f #f #f))
 
 (define (^locs^ [newval 'none])
   (when (not (equal? newval 'none))

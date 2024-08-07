@@ -438,11 +438,11 @@
     [else (list (rule->egg-rule ru))]))
 
 ;; egg rule cache
-(define-resetter *egg-rule-cache* (λ () (make-hash)) (λ () (make-hash)))
+(define/reset *egg-rule-cache* (make-hash))
 
 ;; Cache mapping name to its canonical rule name
 ;; See `*egg-rules*` for details
-(define-resetter *canon-names* (λ () (make-hash)) (λ () (make-hash)))
+(define/reset *canon-names* (make-hash))
 
 ;; Tries to look up the canonical name of a rule using the cache.
 ;; Obviously dangerous if the cache is invalid.
