@@ -69,6 +69,7 @@
                   [("api" "cost") #:method "post" cost-endpoint]
                   [("api" "mathjs") #:method "post" ->mathjs-endpoint]
                   [("api" "translate") #:method "post" translate-endpoint]
+                  [("api" "explanations") #:method "post" explanations-endpoint]
                   [((hash-arg) (string-arg)) generate-page]
                   [("results.json") generate-report]))
 
@@ -415,6 +416,31 @@
      (define pctx (job-result-backend result))
      (define repr (context-repr (test-context test)))
      (hasheq 'points (pcontext->json pctx repr) 'job id 'path (make-path id)))))
+
+(define explanations-endpoint
+  (post-with-json-response (lambda (post-data)
+                             (define formula-str (hash-ref post-data 'formula))
+                             (define formula (read-syntax 'web (open-input-string formula-str)))
+                             (define sample (hash-ref post-data 'sample))
+                             (define seed (hash-ref post-data 'seed #f))
+                             (eprintf "Explanations job started on ~a...\n" formula-str)
+
+                             (define test (parse-test formula))
+                             (define expr (prog->fpcore (test-input test)))
+                             (define pcontext (json->pcontext sample (test-context test)))
+                             (define command
+                               (create-job 'explanations
+                                           test
+                                           #:seed seed
+                                           #:pcontext pcontext
+                                           #:profile? #f
+                                           #:timeline-disabled? #t))
+                             (define id (start-job command))
+                             (define result (wait-for-job id))
+                             (define explanations (job-result-backend result))
+
+                             (eprintf " complete\n")
+                             (hasheq 'explanation explanations 'job id 'path (make-path id)))))
 
 (define analyze-endpoint
   (post-with-json-response (lambda (post-data)
