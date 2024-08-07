@@ -380,10 +380,11 @@
       ; provided -> TODO: check free variables
       [(dict-has-key? attrib-dict 'fpcore) (dict-ref attrib-dict 'fpcore)]
       [else ; not provided => need to generate it
+       (define repr (context-repr ctx))
        (define bool-repr (get-representation 'bool))
-       (if (equal? orepr bool-repr)
-           `(op ,@vars) ; special case: boolean-valued operations do not need a precision annotation
-           `(! :precision ,(representation-name orepr) (,op ,@vars)))]))
+       (if (equal? repr bool-repr)
+           `(,op ,@vars) ; special case: boolean-valued operations do not need a precision annotation
+           `(! :precision ,(representation-name repr) (,op ,@vars)))]))
 
   ; extract or generate floating-point implementation
   (define fl-proc
