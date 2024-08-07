@@ -9,7 +9,6 @@
          "../utils/timeline.rkt"
          "egg-herbie.rkt"
          "programs.rkt"
-         "rr.rkt"
          "rules.rkt"
          "simplify.rkt"
          "taylor.rkt")
