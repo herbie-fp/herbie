@@ -59,16 +59,11 @@
 ;; simplify - subset of `all` that has the `simplify` tag
 ;; fp-safe-simplify - subset of `simplify` that has `fp-safe` tag
 
-;; TODO: rewrite should ideally be mathematical,
-;; why are we using implementations?
-(define (rule-ops-supported? rule)
-  (andmap impl-exists? (filter-not (curry eq? 'if) (ops-in-expr (rule-output rule)))))
-
 (define (*rules*)
   (reap [sow]
         (for ([(_ ruleset) (in-dict (*rulesets*))])
           (match-define (list rules groups _) ruleset)
-          (when (and (ormap (curry flag-set? 'rules) groups) (filter rule-ops-supported? rules))
+          (when (ormap (curry flag-set? 'rules) groups)
             (for ([rule (in-list rules)])
               (sow rule))))))
 
@@ -76,9 +71,7 @@
   (reap [sow]
         (for ([(_ ruleset) (in-dict (*rulesets*))])
           (match-define (list rules groups _) ruleset)
-          (when (and (ormap (curry flag-set? 'rules) groups)
-                     (set-member? groups 'simplify)
-                     (filter rule-ops-supported? rules))
+          (when (and (ormap (curry flag-set? 'rules) groups) (set-member? groups 'simplify))
             (for ([rule (in-list rules)])
               (sow rule))))))
 
@@ -88,8 +81,7 @@
           (match-define (list rules groups _) ruleset)
           (when (and (ormap (curry flag-set? 'rules) groups)
                      (set-member? groups 'simplify)
-                     (set-member? groups 'fp-safe)
-                     (filter rule-ops-supported? rules))
+                     (set-member? groups 'fp-safe))
             (for ([rule (in-list rules)])
               (sow rule))))))
 
@@ -97,9 +89,7 @@
   (reap [sow]
         (for ([(_ ruleset) (in-dict (*rulesets*))])
           (match-define (list rules groups _) ruleset)
-          (when (and (ormap (curry flag-set? 'rules) groups)
-                     (not (set-member? groups 'sound))
-                     (filter rule-ops-supported? rules))
+          (when (and (ormap (curry flag-set? 'rules) groups) (not (set-member? groups 'sound)))
             (for ([rule (in-list rules)])
               (sow rule))))))
 
