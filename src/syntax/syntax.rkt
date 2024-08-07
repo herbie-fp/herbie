@@ -355,7 +355,7 @@
 ;; An "operator implementation" implements a mathematical operator for
 ;; a particular set of representations satisfying the types described
 ;; by the `itype` and `otype` properties of the operator.
-(struct operator-impl (name op itype otype fl))
+(struct operator-impl (name op ctx spec fpcore fl))
 
 ;; Operator implementation table
 ;; Tracks implementations that are loaded into Racket's runtime
@@ -374,8 +374,10 @@
     (error 'impl-info "Unknown operator implementation ~a" impl))
   (define info (hash-ref operator-impls impl))
   (case field
-    [(itype) (operator-impl-itype info)]
-    [(otype) (operator-impl-otype info)]
+    [(itype) (context-var-reprs (operator-impl-ctx info))]
+    [(otype) (context-repr (operator-impl-ctx info))]
+    [(spec) (operator-impl-spec info)]
+    [(fpcore) (operator-impl-fpcore info)]
     [(fl) (operator-impl-fl info)]))
 
 ;; Like `operator-all-impls`, but filters for only active implementations.
@@ -456,9 +458,84 @@
        (synth-fl-impl name vars `(,op ,@vars))]))
 
   ; update tables
-  (define impl (operator-impl name op-info ireprs orepr fl-proc))
+  (define impl (operator-impl name op-info (context '() orepr ireprs) #f #f fl-proc))
   (hash-set! operator-impls name impl)
   (hash-update! operators-to-impls op (curry cons name)))
+
+(define (register-operator-impl2! op name args orepr #:fl [fl #f] #:spec [spec #f] #:fpcore [fpcore #f])
+  ;; Check if op is given
+  (define new-op op)
+  (if op op
+      (let loop ([expr spec] [operator #f])
+        (match expr
+          [`(,(? symbol? op) ,args ...)
+            (if (null? args) (set! new-op op)
+                (for ([a (in-list args)])
+                  (if operator (raise-herbie-syntax-error "Could not infer operator from" expr)
+                  (loop a op))))]
+          [_ (set! new-op operator)])))
+  
+  ;; Verify fpcore is well formed
+  (match fpcore
+    [`(! ,props ... (,operator ,args ...))
+     (void)]
+    [`(,operator ,args ...)
+     (void)]
+    [_ (raise-herbie-syntax-error "Invalid fpcore given" fpcore)])
+
+  (define op-info
+    (hash-ref
+     operators
+     new-op
+     (lambda ()
+       (raise-herbie-missing-error "Cannot register `~a`, operator `~a` does not exist" name op))))
+
+  ; check arity and types
+  (define ireprs (map cdr args))
+  (define itypes (operator-itype op-info))
+  (define otype (operator-otype op-info))
+  (define expect-arity (length itypes))
+  (define actual-arity (length ireprs))
+  (unless (= expect-arity actual-arity)
+    (raise-herbie-missing-error
+     "Cannot register `~a` as an implementation of `~a`: expected ~a arguments, got ~a"
+     name
+     new-op
+     expect-arity
+     actual-arity))
+  (for ([repr (in-list (cons orepr ireprs))] [type (in-list (cons otype itypes))])
+    (unless (equal? (representation-type repr) type)
+      "Cannot register `~a` as implementation of `~a`: ~a is not a representation of ~a"
+      name
+      new-op
+      repr
+      type))
+
+  ;; Synthesizes a correctly-rounded floating-point implemenation
+  (define (synth-fl-impl name vars spec)
+    (define ctx (context vars orepr ireprs))
+    (define compiler (make-real-compiler (list spec) (list ctx)))
+    (define fail ((representation-bf->repr orepr) +nan.bf))
+    (procedure-rename (lambda pt
+                        (define-values (_ exs) (real-apply compiler pt))
+                        (if exs (first exs) fail))
+                      (sym-append 'synth: name)))
+
+  ;; Get floating-point implementation
+  (define fl-proc
+    (cond
+      [fl fl] ; user-provided implementation
+      [(operator-accelerator? new-op) ; Rival-synthesized accelerator implementation
+       (match-define `(,(or 'lambda 'λ) (,vars ...) ,body) (operator-spec op-info))
+       (synth-fl-impl name vars body)]
+      [else ; Rival-synthesized operator implementation
+       (define vars (build-list (length ireprs) (lambda (i) (string->symbol (format "x~a" i)))))
+       (synth-fl-impl name vars `(,new-op ,@vars))]))
+
+  ; update tables
+  (define impl (operator-impl name new-op (context (map car args) orepr ireprs) fl-proc spec fpcore)) 
+  (hash-set! operator-impls name impl)
+  (hash-update! operators-to-impls new-op (curry cons name)))
 
 (define-syntax-rule (define-operator-impl (operator name atypes ...) rtype [key value] ...)
   (register-operator-impl! 'operator
@@ -475,26 +552,16 @@
       (let loop ([fields #'(fields ...)] [operator #f] [spec #f] [core #f] [fl-expr #f])
         (syntax-case fields (spec fpcore fl op)
           [()
-            (let ([impl-id #'id] )
+            (let ([impl-id #'id])
               (unless (identifier? impl-id)
                 (oops! "impl id is not a valid identifier" impl-id))
               (with-syntax ([impl-id impl-id]
-                            [operator operator] [spec spec] [core core] [fl-expr fl-expr] [reprs (syntax->list #'(repr ...))] [rtype #'rtype])
-                #'(define impl-id (register-operator-impl! operator impl-id reprs (get-representation rtype) fl-expr))))]
+                            [operator operator] [spec spec] [core core] [fl-expr fl-expr])
+                #'(define impl-id (register-operator-impl2! operator 'impl-id (list (cons 'var (get-representation 'repr)) ...) (get-representation 'rtype) #:fl fl-expr #:spec 'spec #:fpcore 'core))))]
           [([spec expr] rest ...)
-            (let ([expr #'expr])
-              (syntax-case expr ()
-                [(op cs ...)
-                  (loop #'(rest ...) (if operator operator #'op) #'expr core fl-expr)]
-                [_ (oops! "bad syntax" expr)]))]
+            (loop #'(rest ...) operator #'expr core fl-expr)]
           [([fpcore expr] rest ...)
-            (let ([expr #'expr])
-              (syntax-case expr ()
-                [(! props ... literal-expr)
-                  (loop #'(rest ...) operator spec expr fl-expr)]
-                [(oper ...)
-                  (loop #'(rest ...) operator spec expr fl-expr)]
-                [_ (oops! "bad syntax" expr)]))]
+            (loop #'(rest ...) operator spec #'expr fl-expr)]
           [([fl expr] rest ...) 
             (loop #'(rest ...) operator spec core #'expr)]
           [([op name] rest ...)
@@ -609,14 +676,14 @@
   (and (symbol? op)
        (or (and (hash-has-key? operators op) (null? (operator-itype (hash-ref operators op))))
            (and (hash-has-key? operator-impls op)
-                (null? (operator-impl-itype (hash-ref operator-impls op)))))))
+                (null? (impl-info (hash-ref operator-impls op) 'itype))))))
 
 (define (variable? var)
   (and (symbol? var)
        (or (not (hash-has-key? operators var))
            (not (null? (operator-itype (hash-ref operators var)))))
        (or (not (hash-has-key? operator-impls var))
-           (not (null? (operator-impl-itype (hash-ref operator-impls var)))))))
+           (not (null? (impl-info (hash-ref operator-impls var) 'itype))))))
 
 ;; Floating-point expressions require that number
 ;; be rounded to a particular precision.

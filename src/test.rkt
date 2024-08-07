@@ -5,6 +5,11 @@
 
 (load-herbie-builtins)
 
+(define-operator-impl2 (+.f64 [x : binary64] [y : binary64]) binary64
+  [spec (+ x y)]
+  [fpcore (! :precision binary64 (+ x y))]
+  [fl +])
+
 (define-platform math64
                  [+.f64 1]
                  [-.f64 1]
@@ -12,5 +17,5 @@
                  [/.f64 2]
                  [neg.f64 2]
                  #:optional
-                 #:literals ([binary64 1] [binary64 1])
+                 #:literal [binary64 1]
                  #:if-cost 1)
