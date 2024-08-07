@@ -25,6 +25,8 @@
          "../syntax/syntax.rkt")
 
 (provide render-menu
+         supported-by-lang?
+         fpcore?
          render-warnings
          render-large
          render-comparison
