@@ -104,6 +104,23 @@
                  (application->string fname expected)
                  (application->string fname ireprs)))
        repr]
+      [#`(cast #,arg)
+       (define irepr (loop arg prop-dict ctx))
+       (define repr (get-representation (dict-ref prop-dict ':precision)))
+       (cond
+         [(equal? irepr repr) repr]
+         [else
+          (define impl
+            (with-handlers ([exn:fail:user:herbie:missing? (const #f)])
+              (get-fpcore-impl 'cast prop-dict (list irepr))))
+          (match impl
+            [#f ; no implementation found
+             (error! stx
+                     "No implementation of `~a` in platform for context `~a`"
+                     (application->string 'cast (list irepr))
+                     prop-dict)
+             (get-representation (dict-ref prop-dict ':precision))]
+            [_ (impl-info impl 'otype)])])]
       [#`(,(? symbol? op) #,args ...)
        (define ireprs (map (lambda (arg) (loop arg prop-dict ctx)) args))
        (define impl

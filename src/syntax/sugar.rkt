@@ -166,6 +166,10 @@
       [(list 'neg arg) ; non-standard but useful [TODO: remove]
        (define arg* (loop arg prop-dict))
        (fpcore->impl-app '- prop-dict (list arg*) ctx)]
+      [(list 'cast arg) ; special case: unnecessary casts
+       (define arg* (loop arg prop-dict))
+       (define repr (get-representation (dict-ref prop-dict ':precision)))
+       (if (equal? (repr-of arg* ctx) repr) arg* (fpcore->impl-app 'cast prop-dict (list arg*) ctx))]
       [(list op args ...)
        (define args* (map (lambda (arg) (loop arg prop-dict)) args))
        (fpcore->impl-app op prop-dict args* ctx)])))
