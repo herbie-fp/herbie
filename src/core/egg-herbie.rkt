@@ -1063,8 +1063,7 @@
      (+ 1 (rec cond (get-representation 'bool) +inf.0) (rec ift type +inf.0) (rec iff type +inf.0))]
     [(list (? impl-exists? impl) args ...)
      (define itypes (impl-info impl 'itype))
-     (match-define (list _ _ spec) (impl-info impl 'spec))
-     (match spec
+     (match (impl-info impl 'spec)
        [(list 'pow _ _) ; power
         (match-define (list b e) args)
         (define n (vector-ref (regraph-constants regraph) e))

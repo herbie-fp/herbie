@@ -138,7 +138,7 @@
 (define (fpcore->impl-app op prop-dict args ctx)
   (define ireprs (map (lambda (arg) (repr-of arg ctx)) args))
   (define impl (get-fpcore-impl op prop-dict ireprs))
-  (match-define (list _ vars _) (impl-info impl 'spec))
+  (define vars (impl-info impl 'vars))
   (define pattern
     (match (impl-info impl 'fpcore)
       [(list '! _ ... body) body]
@@ -211,7 +211,7 @@
       [(list 'if cond ift iff) (list 'if (munge cond) (munge ift) (munge iff))]
       [(list (? impl-exists? impl) args ...)
        (define args* (map munge args))
-       (match-define (list _ vars _) (impl-info impl 'spec))
+       (define vars (impl-info impl 'vars))
        (define node (replace-vars (map cons vars args*) (impl-info impl 'fpcore)))
        (if root? node (push! impl node))]))
 
@@ -338,6 +338,7 @@
     [(approx spec _) spec]
     [`(if ,cond ,ift ,iff) `(if ,(prog->spec cond) ,(prog->spec ift) ,(prog->spec iff))]
     [`(,impl ,args ...)
-     (match-define `(,_ (,vars ...) ,spec) (impl-info impl 'spec))
+     (define vars (impl-info impl 'vars))
+     (define spec (impl-info impl 'spec))
      (define env (map cons vars (map prog->spec args)))
      (replace-vars env spec)]))

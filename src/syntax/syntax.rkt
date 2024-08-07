@@ -83,7 +83,7 @@
 ;; Looks up a property `field` of an real operator `op`.
 ;; Panics if the operator is not found.
 (define/contract (operator-info op field)
-  (-> symbol? (or/c 'itype 'otype 'spec) any/c)
+  (-> symbol? (or/c 'itype 'otype) any/c)
   (unless (hash-has-key? operators op)
     (error 'operator-info "Unknown operator ~a" op))
   (define info (hash-ref operators op))
@@ -290,15 +290,18 @@
 ;; Operator implementations
 ;; Floating-point operations that approximate mathematical operations
 
-;; An operator implementation requires
-;;  - a (unique) name
-;;  - input and output representations
-;;  - a specification it approximates
-;;  - its FPCore representation
-;;  - an implementation
 ;; Operator implementations _approximate_ a program of
 ;; mathematical operators with fixed input and output representations.
-(struct operator-impl (name op itype otype spec fpcore fl))
+;;
+;; An operator implementation requires
+;;  - a (unique) name
+;;  - input variables/representations
+;;  - output representation
+;;  - a specification it approximates
+;;  - its FPCore representation
+;;  - a floating-point implementation
+;;
+(struct operator-impl (name ctx spec fpcore fl))
 
 ;; Operator implementation table
 ;; Tracks implementations that are loaded into Racket's runtime
@@ -312,13 +315,14 @@
 ;; Looks up a property `field` of an real operator `op`.
 ;; Panics if the operator is not found.
 (define/contract (impl-info impl field)
-  (-> symbol? (or/c 'itype 'otype 'spec 'fpcore 'fl) any/c)
+  (-> symbol? (or/c 'vars 'itype 'otype 'spec 'fpcore 'fl) any/c)
   (unless (hash-has-key? operator-impls impl)
     (error 'impl-info "Unknown operator implementation ~a" impl))
   (define info (hash-ref operator-impls impl))
   (case field
-    [(itype) (operator-impl-itype info)]
-    [(otype) (operator-impl-otype info)]
+    [(vars) (context-vars (operator-impl-ctx info))]
+    [(itype) (context-var-reprs (operator-impl-ctx info))]
+    [(otype) (context-repr (operator-impl-ctx info))]
     [(spec) (operator-impl-spec info)]
     [(fpcore) (operator-impl-fpcore info)]
     [(fl) (operator-impl-fl info)]))
@@ -346,58 +350,52 @@
 (define (clear-active-operator-impls!)
   (set-clear! active-operator-impls))
 
-;; Registers an operator implementation `name` or real operator `op`.
-;; The input and output representations must satisfy the types
-;; specified by the `itype` and `otype` fields for `op`.
+;; Register an operator implementation `name` with types `itype` and `otype`.
 (define/contract (register-operator-impl! op name ireprs orepr attrib-dict)
   (-> symbol? symbol? (listof representation?) representation? (listof pair?) void?)
-  (define op-info
-    (hash-ref
-     operators
-     op
-     (lambda ()
-       (raise-herbie-missing-error "Cannot register `~a`, operator `~a` does not exist" name op))))
-
-  ; extract or generate the spec
-  (define spec
-    (match (dict-ref attrib-dict 'spec #f)
-      ; not provided => need to generate it
-      [#f
-       (define vars (gen-vars (length ireprs)))
-       `(lambda ,vars (,op ,@vars))]
-      ; provided => check for syntax and types
-      [spec
+  ; extract or generate the spec (and its free variables)
+  (define-values (vars spec)
+    (cond
+      [(dict-has-key? attrib-dict 'spec) ; provided => check for syntax and types
+       (define spec (dict-ref attrib-dict 'spec))
        (check-spec! name (map representation-type ireprs) (representation-type orepr) spec)
-       spec]))
+       (match-define (list (or 'lambda 'λ) vars body) spec)
+       (values vars body)]
+      [else ; not provided => need to generate it
+       (define vars (gen-vars (length ireprs)))
+       (values vars `(,op ,@vars))]))
+
+  ; make the context
+  (unless (= (length ireprs) (length vars))
+    (error 'register-operator-impl
+           "~a: spec does not have expected arity; promised ~a, got ~a"
+           op
+           (length ireprs)
+           (length vars)))
+  (define ctx (context vars orepr ireprs))
 
   ; extract or generate the fpcore translation
-  (match-define `(,(or 'lambda 'λ) ,vars ,body) spec)
   (define fpcore
-    (match (dict-ref attrib-dict 'fpcore #f)
-      ; not provided => need to generate it
-      [#f
-       ; special case: boolean-valued operations do not
-       ; need a precision annotation
-       (if (equal? orepr (get-representation 'bool))
-           `(,op ,@vars)
-           `(! :precision ,(representation-name orepr) (,op ,@vars)))]
+    (cond
       ; provided -> TODO: check free variables
-      [fpcore fpcore]))
+      [(dict-has-key? attrib-dict 'fpcore) (dict-ref attrib-dict 'fpcore)]
+      [else ; not provided => need to generate it
+       (define bool-repr (get-representation 'bool))
+       (if (equal? orepr bool-repr)
+           `(op ,@vars) ; special case: boolean-valued operations do not need a precision annotation
+           `(! :precision ,(representation-name orepr) (,op ,@vars)))]))
 
   ; extract or generate floating-point implementation
   (define fl-proc
     (match (dict-ref attrib-dict 'fl #f)
-      ; not provided => need to generate it
-      [#f
-       (define ctx (context vars orepr ireprs))
-       (define compiler (make-real-compiler (list body) (list ctx)))
-       (define fail ((representation-bf->repr orepr) +nan.bf))
+      [#f ; not provided => need to generate it
+       (define compiler (make-real-compiler (list spec) (list ctx)))
+       (define fail ((representation-bf->repr (context-repr ctx)) +nan.bf))
        (procedure-rename (lambda pt
                            (define-values (_ exs) (real-apply compiler pt))
                            (if exs (first exs) fail))
-                         (sym-append 'synth: name))]
-      ; provided
-      [(? procedure? proc)
+                         name)]
+      [(? procedure? proc) ; provided
        (define expect-arity (length ireprs))
        (unless (procedure-arity-includes? proc expect-arity #t)
          (error 'register-operator-impl!
@@ -405,12 +403,11 @@
                 name
                 expect-arity))
        proc]
-      ; not a procedure
-      [bad
+      [bad ; not a procedure
        (error 'register-operator-impl! "~a: expected a procedure with attribute 'fl ~a" name bad)]))
 
   ; update tables
-  (define impl (operator-impl name op-info ireprs orepr spec fpcore fl-proc))
+  (define impl (operator-impl name ctx spec fpcore fl-proc))
   (hash-set! operator-impls name impl)
   (hash-update! operators-to-impls op (curry cons name)))
 
@@ -533,17 +530,15 @@
 (define (constant-operator? op)
   (and (symbol? op)
        (or (and (hash-has-key? operators op) (null? (operator-itype (hash-ref operators op))))
-           (and (hash-has-key? operator-impls op)
-                (null? (operator-impl-itype (hash-ref operator-impls op)))))))
+           (and (hash-has-key? operator-impls op) (null? (impl-info op 'vars))))))
 
 (define (variable? var)
   (and (symbol? var)
        (or (not (hash-has-key? operators var))
            (not (null? (operator-itype (hash-ref operators var)))))
-       (or (not (hash-has-key? operator-impls var))
-           (not (null? (operator-impl-itype (hash-ref operator-impls var)))))))
+       (or (not (hash-has-key? operator-impls var)) (not (null? (impl-info var 'vars))))))
 
-;; Floating-point expressions require that number
+;; Floating-point expressions require that numbers
 ;; be rounded to a particular precision.
 (struct literal (value precision) #:prefab)
 

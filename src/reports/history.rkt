@@ -88,7 +88,7 @@
         [`(,(? impl-exists? impl) ,args ...)
          ; use the FPCore operator without rounding properties
          (define args* (map loop args))
-         (match-define (list _ vars _) (impl-info impl 'spec))
+         (define vars (impl-info impl 'vars))
          (define pattern
            (match (impl-info impl 'fpcore)
              [(list '! _ ... body) body]

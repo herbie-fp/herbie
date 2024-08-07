@@ -237,7 +237,7 @@
   (reap [sow]
         (for ([impl (in-list (platform-impls pform))])
           (match (impl-info impl 'spec)
-            [(list _ _ (list 'cast _)) (sow impl)]
+            [(list 'cast _) (sow impl)]
             [_ (void)]))))
 
 ;; Merger for costs.
@@ -304,7 +304,7 @@
   (define reprs* (filter repr-supported? (platform-reprs pform)))
   (define impls*
     (filter (λ (impl)
-              (match-define (list _ _ spec) (impl-info impl 'spec))
+              (define spec (impl-info impl 'spec))
               (and (andmap op-supported? (ops-in-expr spec))
                    (repr-supported? (impl-info impl 'otype))
                    (andmap repr-supported? (impl-info impl 'itype))))
@@ -419,7 +419,8 @@
 
 ;; Synthesizes the LHS and RHS of lifting/lowering rules.
 (define (impl->rule-parts impl)
-  (match-define (list _ vars spec) (impl-info impl 'spec))
+  (define vars (impl-info impl 'vars))
+  (define spec (impl-info impl 'spec))
   (values vars spec (cons impl vars)))
 
 ;; Synthesizes lifting rules for a given platform.
