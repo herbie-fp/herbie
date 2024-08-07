@@ -171,13 +171,15 @@
 ;;; The "reset" mechanism for clearing caches and such
 
 (define resetters '())
-
-(define-syntax-rule (define/reset name value)
-  (define name
-    (let ([param (make-parameter value)])
-      (set! resetters (cons (λ () (name value)) resetters))
-      param)))
+(define (register-resetter! fn)
+  (set! resetters (cons fn resetters)))
 
 (define (reset!)
   (for ([fn (in-list resetters)])
     (fn)))
+
+(define-syntax-rule (define/reset name value)
+  (define name
+    (let ([param (make-parameter value)])
+      (register-resetter! (λ () (name value)))
+      param)))
