@@ -262,7 +262,7 @@
   (define (compute-result test)
     (parameterize ([*timeline-disabled* timeline-disabled?] [*warnings-disabled* false])
       (define start-time (current-inexact-milliseconds))
-      (rollback-improve!)
+      (reset!)
       (*context* (test-context test))
       (*active-platform* (get-platform (*platform-name*)))
       (activate-platform! (*active-platform*))
