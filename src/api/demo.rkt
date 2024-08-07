@@ -409,7 +409,7 @@
      (define seed* (hash-ref post-data 'seed))
      (define test (parse-test formula))
      (define command
-       (create-job 'sample test #:seed seed* #:pcontext #f #:profile? #f #:timeline-disabled? #f))
+       (create-job 'sample test #:seed seed* #:pcontext #f #:profile? #f #:timeline-disabled? #t))
      (define id (start-job command))
      (define result (wait-for-job id))
      (define pctx (job-result-backend result))
@@ -430,7 +430,7 @@
                                            #:seed seed
                                            #:pcontext pcontext
                                            #:profile? #f
-                                           #:timeline-disabled? #f))
+                                           #:timeline-disabled? #t))
                              (define id (start-job command))
                              (define result (wait-for-job id))
                              (define errs
@@ -455,7 +455,7 @@
                    #:seed seed
                    #:pcontext pcontext
                    #:profile? #f
-                   #:timeline-disabled? #f))
+                   #:timeline-disabled? #t))
      (define id (start-job command))
      (define result (wait-for-job id))
      (hasheq 'points (job-result-backend result) 'job id 'path (make-path id)))))
@@ -474,7 +474,7 @@
                                            #:seed seed
                                            #:pcontext pcontext
                                            #:profile? #f
-                                           #:timeline-disabled? #f))
+                                           #:timeline-disabled? #t))
                              (define id (start-job command))
                              (define result (wait-for-job id))
                              (define approx (job-result-backend result))
@@ -495,7 +495,7 @@
                                            #:seed seed
                                            #:pcontext pcontext
                                            #:profile? #f
-                                           #:timeline-disabled? #f))
+                                           #:timeline-disabled? #t))
                              (define id (start-job command))
                              (define result (wait-for-job id))
                              (define local-error (job-result-backend result))
