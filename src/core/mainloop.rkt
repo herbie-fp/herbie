@@ -57,8 +57,7 @@
 ;; - Then, in a loop, choose some alts, localize, run the patch table, and finalize
 ;; - Then do regimes, final simplify, add soundiness, and remove preprocessing
 
-(define (setup-context! vars specification precondition repr)
-  (*context* (context vars repr (map (const repr) vars)))
+(define (sample-pcontext vars specification precondition)
   (define sample (sample-points precondition (list specification) (list (*context*))))
   (match-define (cons domain pts+exs) sample)
   (cons domain (apply mk-pcontext pts+exs)))
