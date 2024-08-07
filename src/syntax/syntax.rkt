@@ -22,8 +22,6 @@
          impl-info
          all-operator-impls
          (rename-out [all-active-operator-impls active-operator-impls])
-         operator-all-impls
-         operator-active-impls
          activate-operator-impl!
          clear-active-operator-impls!
          *functions*
@@ -90,16 +88,6 @@
   (case field
     [(itype) (operator-itype info)]
     [(otype) (operator-otype info)]))
-
-;; Map from operator to its implementations
-(define operators-to-impls (make-hasheq))
-
-;; All implementations of an operator `op`.
-;; Panics if the operator is not found.
-(define (operator-all-impls op)
-  (unless (hash-has-key? operators op)
-    (error 'operator-info "Unknown operator ~a" op))
-  (hash-ref operators-to-impls op))
 
 ;; Checks a specification
 (define (check-spec! name itypes otype spec)
@@ -169,8 +157,7 @@
   (define deprecated? (dict-ref attrib-dict 'deprecated #f))
   ; update tables
   (define info (operator name itypes* otype* deprecated?))
-  (hash-set! operators name info)
-  (hash-set! operators-to-impls name '()))
+  (hash-set! operators name info))
 
 ;; Syntactic form for `register-operator!`
 (define-syntax (define-operator stx)
@@ -265,17 +252,6 @@
   [pow : real real -> real]
   [remainder : real real -> real])
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Accelerator operators
-
-(define-operators
-  [cast : real -> real]
-  [erfc : real -> real]
-  [expm1 : real -> real]
-  [log1p : real -> real]
-  [hypot : real real -> real]
-  [fma : real real real -> real])
-
 (module+ test
   ; check expected number of operators
   (check-equal? (length (all-operators)) 63)
@@ -334,10 +310,6 @@
 ;; Returns all active operator implementations.
 (define (all-active-operator-impls)
   (sort (set->list active-operator-impls) symbol<?))
-
-;; Like `operator-all-impls`, but filters for only active implementations.
-(define (operator-active-impls name)
-  (filter (curry set-member? active-operator-impls) (operator-all-impls name)))
 
 ;; Activates an implementation.
 ;; Panics if the operator is not found.
@@ -409,8 +381,7 @@
 
   ; update tables
   (define impl (operator-impl name ctx spec fpcore fl-proc))
-  (hash-set! operator-impls name impl)
-  (hash-update! operators-to-impls op (curry cons name)))
+  (hash-set! operator-impls name impl))
 
 ;; Syntactic form for `register-operator-impl!`
 (define-syntax (define-operator-impl stx)
@@ -436,12 +407,6 @@
                                     (get-representation 'otype)
                                     (list (cons 'key val) ...))))]))
 
-;; Checks if two specs are syntactically equivalent modulo renaming.
-;; This is just pattern matching.
-(define (spec-equal? spec1 spec2)
-  ; force result of `pattern-match` to be a boolean
-  (and (pattern-match spec1 spec2) #t))
-
 ;; Extracts the `fpcore` field of an operator implementation
 ;; as a property dictionary and expression.
 (define (impl->fpcore impl)
@@ -462,7 +427,7 @@
               (define-values (prop-dict* expr) (impl->fpcore impl))
               (define pattern (cons op (map (lambda (_) (gensym)) ireprs)))
               (when (and (andmap (lambda (prop) (member prop prop-dict)) prop-dict*)
-                         (spec-equal? pattern expr))
+                         (pattern-match pattern expr))
                 (sow impl))))))
   ; check that we have any matching impls
   (when (null? impls)
@@ -493,12 +458,13 @@
 ;; Casts and precision changes
 
 (define (cast-impl? x)
-  (and (symbol? x) (set-member? (operator-all-impls 'cast) x)))
+  (and (symbol? x)
+       (match (impl-info x 'spec)
+            [(list 'cast _) #t]
+            [_ #f])))
 
-(define (get-cast-impl irepr orepr #:all? [all? #f])
-  (define get-impls (if all? operator-all-impls operator-active-impls))
-  (for/or ([name (get-impls 'cast)])
-    (and (equal? (impl-info name 'otype) orepr) (equal? (first (impl-info name 'itype)) irepr) name)))
+(define (get-cast-impl irepr orepr #:impls [impls (all-active-operator-impls)])
+  (get-fpcore-impl 'cast (repr->prop orepr) (list irepr) #:impls impls))
 
 ; Similar to representation generators, conversion generators
 ; allow Herbie to query plugins for optimized implementations

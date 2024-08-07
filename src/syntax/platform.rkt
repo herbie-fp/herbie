@@ -4,6 +4,7 @@
          "../utils/errors.rkt"
          "../core/programs.rkt"
          "../core/rules.rkt"
+         "matcher.rkt"
          "syntax.rkt"
          "types.rkt")
 
@@ -234,11 +235,7 @@
 
 ;; Casts between representations in a platform.
 (define (platform-casts pform)
-  (reap [sow]
-        (for ([impl (in-list (platform-impls pform))])
-          (match (impl-info impl 'spec)
-            [(list 'cast _) (sow impl)]
-            [_ (void)]))))
+  (filter cast-impl? (platform-impls pform)))
 
 ;; Merger for costs.
 (define (merge-cost pform-costs key #:optional? [optional? #f])
@@ -464,8 +461,9 @@
             [(list 'if rest ...) (loop rest assigns)]
             [(list (? (curryr assq assigns)) rest ...) (loop rest assigns)]
             [(list op rest ...)
-             (for ([impl (operator-all-impls op)])
-               (when (set-member? impls impl)
+             (for ([impl (in-set impls)])
+               (define pattern (cons op (map (lambda _ (gensym)) (operator-info op 'itype))))
+               (when (pattern-match (impl-info impl 'spec) pattern)
                  (loop rest (cons (cons op impl) assigns))))]))))
 
 ;; Attempts to lower a specification to an expression using
@@ -530,5 +528,5 @@
                (when (and input* output*)
                  (define itypes* (merge-envs ienv oenv))
                  (when itypes*
-                   (define name* (sym-append name '_ (repr->symbol repr)))
+                   (define name* (apply sym-append name '_ (map cdr isubst)))
                    (sow (rule name* input* output* itypes* repr)))))]))))

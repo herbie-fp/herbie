@@ -26,7 +26,6 @@
 
 (define (and-fn . as)
   (andmap identity as))
-
 (define (or-fn . as)
   (ormap identity as))
 

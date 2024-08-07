@@ -732,7 +732,9 @@
 
 (define-ruleset* erf-rules (special simplify) #:type ([x real]) [erf-odd (erf (neg x)) (neg (erf x))])
 
-; ; Specialized numerical functions
+; Specialized numerical functions
+; TODO: These are technically rules over impls
+; 
 ; (define-ruleset* special-numerical-reduce
 ;                  (numerics simplify)
 ;                  #:type ([x real] [y real] [z real])
