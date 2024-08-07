@@ -117,6 +117,9 @@
   (define lifting-rules (platform-lifting-rules))
   (define lowering-rules (platform-lowering-rules))
 
+  (define extractor
+    (typed-egg-extractor (if (*egraph-platform-cost*) platform-egg-cost-proc default-egg-cost-proc)))
+
   ; egg schedule (3-phases for mathematical rewrites and implementation selection)
   (define schedule
     `((,lifting-rules . ((iteration . 1) (scheduler . simple)))
@@ -124,18 +127,20 @@
       (,lowering-rules . ((iteration . 1) (scheduler . simple)))))
 
   ; run egg
-  (define specs (map alt-expr altns))
-  (define reprs (map (lambda (altn) (repr-of (alt-expr altn) (*context*))) altns))
-  (define changelistss (rewrite-expressions specs reprs schedule (*context*)))
+  (define progs (map alt-expr altns))
+  (define reprs (map (curryr repr-of (*context*)) progs))
+  (timeline-push! 'inputs (map ~a progs))
+  (define runner (make-egg-runner exprs reprs schedule #:context (*context*)))
+  (define variantss (run-egg runner `(multi . ,extractor)))
 
   ; apply changelists
   (define rewritten
     (reap [sow]
-          (for ([changelists changelistss] [altn altns])
-            (for ([cl changelists])
-              (match-define (list subexpr input) cl)
-              (sow (alt subexpr (list 'rr input #f #f) (list altn) '()))))))
+          (for ([variants (in-list variantss)] [altn (in-list altns)])
+            (for ([variant (in-list (remove-duplicates variants))])
+              (sow (alt variant (list 'rr runner #f #f) (list altn) '()))))))
 
+  (timeline-push! 'outputs (map (compose ~a alt-expr) rewritten))
   (timeline-push! 'count (length altns) (length rewritten))
   rewritten)
 
@@ -144,10 +149,10 @@
 (define (patch-table-has-expr? expr)
   (hash-has-key? (*patch-table*) expr))
 
-(define (patch-table-run locs)
+(define (patch-table-run exprs)
   ; Starting alternatives
   (define start-altns
-    (for/list ([expr (in-list locs)])
+    (for/list ([expr (in-list exprs)])
       (define repr (repr-of expr (*context*)))
       (alt expr (list 'patch expr repr) '() '())))
   ; Series expand
