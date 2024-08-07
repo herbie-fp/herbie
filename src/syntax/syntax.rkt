@@ -254,7 +254,7 @@
 
 (module+ test
   ; check expected number of operators
-  (check-equal? (length (all-operators)) 63)
+  (check-equal? (length (all-operators)) 57)
 
   ; check that Rival supports all non-accelerator operators
   (for ([op (in-list (all-operators))])
@@ -459,6 +459,7 @@
 
 (define (cast-impl? x)
   (and (symbol? x)
+       (impl-exists? x)
        (match (impl-info x 'spec)
             [(list 'cast _) #t]
             [_ #f])))
