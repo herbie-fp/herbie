@@ -131,6 +131,7 @@ const explain = await callHerbie("/api/explanations", {
     formula: FPCoreFormula, sample: sampleExp.points
   })
 })
+assertIdAndPath(explain)
 assert.equal(explain.explanation.length > 0, true, 'explanation should not be empty');
 // Exacts endpoint
 const exacts = await callHerbie("/api/exacts", {

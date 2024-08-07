@@ -419,11 +419,12 @@
 
 (define explanations-endpoint
   (post-with-json-response (lambda (post-data)
+                            (define formula-str (hash-ref post-data 'formula))
                              (define formula
-                               (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
+                               (read-syntax 'web (open-input-string formula-str)))
                              (define sample (hash-ref post-data 'sample))
                              (define seed (hash-ref post-data 'seed #f))
-                             (eprintf "Explanations job started on ~a..." formula)
+                             (eprintf "Explanations job started on ~a...\n" formula-str)
 
                              (define test (parse-test formula))
                              (define expr (prog->fpcore (test-input test)))
@@ -440,7 +441,7 @@
                              (define explanations (job-result-backend result))
 
                              (eprintf " complete\n")
-                             (hasheq 'explanation explanations))))
+                             (hasheq 'explanation explanations 'job id 'path (make-path id)))))
 
 (define analyze-endpoint
   (post-with-json-response (lambda (post-data)
