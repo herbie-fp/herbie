@@ -563,7 +563,7 @@
                    #:seed seed
                    #:pcontext pcontext
                    #:profile? #f
-                   #:timeline-disabled? #t))
+                   #:timeline-disabled? #f))
      (define id (start-job command))
      (define result (wait-for-job id))
      (match-define (list altns test-pcontext processed-pcontext) (job-result-backend result))
@@ -615,7 +615,7 @@
      (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
      (define test (parse-test formula))
      (define command
-       (create-job 'cost test #:seed #f #:pcontext #f #:profile? #f #:timeline-disabled? #t))
+       (create-job 'cost test #:seed #f #:pcontext #f #:profile? #f #:timeline-disabled? #f))
      (define id (start-job command))
      (define result (wait-for-job id))
      (define cost (job-result-backend result))
