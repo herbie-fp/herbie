@@ -20,7 +20,6 @@
          all-constants
          impl-exists?
          impl-info
-         impl->operator
          all-operator-impls
          (rename-out [all-active-operator-impls active-operator-impls])
          operator-all-impls
@@ -30,8 +29,6 @@
          *functions*
          register-function!
          get-fpcore-impl
-         get-parametric-operator
-         get-parametric-constant
          get-cast-impl
          generate-cast-impl
          cast-impl?)
@@ -338,14 +335,6 @@
 (define (operator-active-impls name)
   (filter (curry set-member? active-operator-impls) (operator-all-impls name)))
 
-;; Looks up the name of an operator corresponding to an implementation `name`.
-;; Panics if the operator is not found.
-(define (impl->operator name)
-  (unless (hash-has-key? operator-impls name)
-    (raise-herbie-missing-error "Unknown operator implementation ~a" name))
-  (define impl (hash-ref operator-impls name))
-  (operator-name (operator-impl-op impl)))
-
 ;; Activates an implementation.
 ;; Panics if the operator is not found.
 (define (activate-operator-impl! name)
@@ -502,32 +491,6 @@
               [else (> (cdr x) (cdr y))]))
           #:key car))
   best)
-
-;; Among active implementations, looks up an implementation with
-;; the operator name `name` and argument representations `ireprs`.
-(define (get-parametric-operator #:all? [all? #f] name . ireprs)
-  (define get-impls (if all? operator-all-impls operator-active-impls))
-  (let/ec k
-          (for/first ([impl (get-impls name)] #:when (equal? (impl-info impl 'itype) ireprs))
-            (k impl))
-          (raise-herbie-missing-error
-           "Could not find operator implementation for ~a with ~a"
-           name
-           (string-join (map (λ (r) (format "<~a>" (representation-name r))) ireprs) " "))))
-
-;; Among active implementations, looks up an implementation of
-;; a constant (nullary operator) with the operator name `name`
-;; and representation `repr`.
-(define (get-parametric-constant name repr #:all? [all? #f])
-  (define get-impls (if all? operator-all-impls operator-active-impls))
-  (let/ec k
-          (for ([impl (get-impls name)])
-            (define rtype (impl-info impl 'otype))
-            (when (or (equal? rtype repr) (equal? (representation-type rtype) 'bool))
-              (k impl)))
-          (raise-herbie-missing-error "Could not find constant implementation for ~a with ~a"
-                                      name
-                                      (format "<~a>" (representation-name repr)))))
 
 ;; Casts and precision changes
 
