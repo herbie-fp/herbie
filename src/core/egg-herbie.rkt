@@ -467,22 +467,23 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Racket egraph
 ;;
-;; Racket representation of an egraph; just a hashcons data structure
-;; We can think of this as a read-only copy of an egraph for things like
-;; platform-aware extraction and possibly ground-truth evaluation.
-;; This is regraph reborn!
+;; Racket representation of a typed egraph.
+;; Given an e-graph from egg-herbie, we can split every e-class
+;; by type ensuring that every term in an e-class has the same output type.
+;; This trick makes extraction easier.
 
 ;; - eclasses: vector of enodes
-;; - canon: map from egraph id to vector index
-;; - has-leaf?: map from vector index to if the eclass contains a leaf
-;; - constants: map from vector index to if the eclass contains a constant
-;; - parents: parent e-classes of each e-class
+;; - types: vector-map from e-class to type/representation
+;; - leaf?: vector-map from e-class to boolean indicating if it contains a leaf node
+;; - constants: vector-map from e-class to a number or #f
+;; - specs: vector-map from e-class to an approx spec or #f
+;; - parents: vector-map from e-class to its parent e-classes (as a vector)
+;; - canon: map from (Rust) e-class, type to (Racket) e-class
 ;; - egg->herbie: data to translate egg IR to herbie IR
-;; - id->spec: map from id to an approx spec or #f
-(struct regraph (eclasses canon has-leaf? constants parents egg->herbie id->spec))
-
+(struct regraph (eclasses types leaf? constants specs parents canon egg->herbie))
+ 
 ;; Constructs a Racket egraph from an S-expr representation.
-(define (sexpr->regraph egraph egg->herbie id->spec)
+(define (datum->regraph egraph egg->herbie id->spec)
   ; total number of e-classes
   (define n (length egraph))
   ; canonicalize all e-class ids to [0, n)
@@ -491,7 +492,7 @@
     (hash-ref! canon id (lambda () (hash-count canon))))
   ; iterate through eclasses and fill data
   (define eclasses (make-vector n #f))
-  (define has-leaf? (make-vector n #f))
+  (define leaf? (make-vector n #f))
   (define constants (make-vector n #f))
   (define parents (make-vector n '()))
   (for ([eclass (in-list egraph)])
@@ -502,25 +503,25 @@
                   ([egg-node (in-list egg-nodes)])
         (match egg-node
           [(? number?) ; number
-           (vector-set! has-leaf? id #t)
+           (vector-set! leaf? id #t)
            (vector-set! constants id egg-node)
            egg-node]
           [(? symbol?) ; variable or constant
-           (vector-set! has-leaf? id #t)
+           (vector-set! leaf? id #t)
            (if (hash-has-key? egg->herbie egg-node)
                egg-node ; variable
                (list egg-node))] ; constant
           [(list op child-ids ...) ; $approx / application
            (cond
              [(null? child-ids) ; application is a constant function
-              (vector-set! has-leaf? id #t)
+              (vector-set! leaf? id #t)
               (list op)]
              [else
               (define child-ids* (map canon-id child-ids))
               (for ([child-id (in-list child-ids*)]) ; update parent-child relation
                 (vector-set! parents child-id (cons id (vector-ref parents child-id))))
               (cons op child-ids*)])]
-          [_ (error 'sexpr->regraph "malformed enode: ~a" egg-node)])))
+          [_ (error 'datum->regraph "malformed enode: ~a" egg-node)])))
     (vector-set! eclasses id nodes))
 
   ; dedup parent-child relation and convert to vector
@@ -528,18 +529,18 @@
     (vector-set! parents id (list->vector (remove-duplicates (vector-ref parents id)))))
 
   ; convert id->spec to a vector-map
-  (define id->spec* (make-vector n #f))
+  (define specs (make-vector n #f))
   (for ([(id spec) (in-hash id->spec)])
-    (vector-set! id->spec* (hash-ref canon id) spec))
+    (vector-set! specs (hash-ref canon id) spec))
 
   ; collect with wrapper
-  (regraph eclasses canon has-leaf? constants parents egg->herbie id->spec*))
+  (regraph eclasses '() leaf? constants specs parents canon egg->herbie))
 
 ;; Constructs a Racket egraph from an S-expr representation of
 ;; an egraph and data to translate egg IR to herbie IR.
 (define (make-regraph egraph-data)
   (define egraph-str (egraph-serialize egraph-data))
-  (sexpr->regraph (read (open-input-string egraph-str))
+  (datum->regraph (read (open-input-string egraph-str))
                   (egraph-data-egg->herbie-dict egraph-data)
                   (for/hash ([(id spec) (in-hash (egraph-data-id->spec egraph-data))])
                     (values (egraph-find egraph-data id) spec))))
@@ -556,14 +557,14 @@
 ;; the eclass's analysis.
 (define (regraph-analyze regraph eclass-proc #:analysis [analysis #f])
   (define eclasses (regraph-eclasses regraph))
-  (define has-leaf? (regraph-has-leaf? regraph))
+  (define leaf? (regraph-leaf? regraph))
   (define parents (regraph-parents regraph))
   (define n (vector-length eclasses))
 
   ; set analysis if not provided
   (unless analysis
     (set! analysis (make-vector n #f)))
-  (define dirty?-vec (vector-copy has-leaf?)) ; visit eclass on next pass?
+  (define dirty?-vec (vector-copy leaf?)) ; visit eclass on next pass?
   (define changed?-vec (make-vector n #f)) ; eclass was changed last iteration
 
   ; run the analysis
@@ -684,7 +685,7 @@
   (set! costs (regraph-analyze regraph eclass-set-cost! #:analysis costs))
 
   ; reconstructs the best expression at a node
-  (define id->spec (regraph-id->spec regraph))
+  (define id->spec (regraph-specs regraph))
   (define (build-expr id)
     (match (cdr (vector-ref costs id))
       [(? number? n) n] ; number
@@ -1005,7 +1006,7 @@
       (error 'typed-egg-extractor "costs not computed for all eclasses ~a" costs)))
 
   ; rebuilds the extracted procedure
-  (define id->spec (regraph-id->spec regraph))
+  (define id->spec (regraph-specs regraph))
   (define (build-expr id type)
     (let/ec
      return
@@ -1090,7 +1091,7 @@
 (define (regraph-extract-variants regraph extract id type)
   ; regraph fields
   (define eclasses (regraph-eclasses regraph))
-  (define id->spec (regraph-id->spec regraph))
+  (define id->spec (regraph-specs regraph))
   (define canon (regraph-canon regraph))
 
   ; extract expressions
