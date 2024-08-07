@@ -173,8 +173,10 @@
 (define resetters '())
 
 (define-syntax-rule (define/reset name value)
-  (define name (make-parameter value))
-  (set! resetters (cons (λ () (name value)) resetters)))
+  (define name
+    (let ([param (make-parameter value)])
+      (set! resetters (cons (λ () (name value)) resetters))
+      param)))
 
 (define (reset!)
   (for ([fn (in-list resetters)])
