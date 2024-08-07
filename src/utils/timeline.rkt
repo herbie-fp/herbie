@@ -35,14 +35,11 @@
 
 (define (timeline-event! type)
   (when *timeline-active-key*
-    (if (pair? (unbox (*timeline*)))
-        (lambda ()
-          (hash-update! (car (unbox (*timeline*)))
-                        *timeline-active-key*
-                        (curry append *timeline-active-value*)
-                        '())
-          (set! *timeline-active-key* #f))
-        (error 'timeline "Cannot push to an empty timeline")))
+    (hash-update! (car (unbox (*timeline*)))
+                  *timeline-active-key*
+                  (curry append *timeline-active-value*)
+                  '())
+    (set! *timeline-active-key* #f))
 
   (unless (*timeline-disabled*)
     (when (pair? (unbox (*timeline*)))
@@ -63,6 +60,8 @@
       [(eq? *timeline-active-key* key)
        (set! *timeline-active-value* (cons val *timeline-active-value*))]
       [(not *timeline-active-key*)
+       (unless (pair? (unbox (*timeline*)))
+         (error 'timeline "Cannot push ~a to an empty timeline" *timeline-active-key*))
        (set! *timeline-active-key* key)
        (set! *timeline-active-value* (list val))]
       [else
