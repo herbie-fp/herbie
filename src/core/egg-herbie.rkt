@@ -957,7 +957,7 @@
   (define egg->herbie (regraph-egg->herbie regraph))
   (define canon (regraph-canon regraph))
   ; extract expr (extraction is partial)
-  (define id* (hash-ref canon (cons id type)))
+  (define id* (hash-ref canon (cons id type) #f))
   (cond
     [(false? id*) (list)]
     [else
@@ -975,7 +975,7 @@
   (define canon (regraph-canon regraph))
 
   ; extract expressions
-  (define id* (hash-ref canon (cons id type)))
+  (define id* (hash-ref canon (cons id type) #f))
   (cond
     [(false? id*) (list)]
     [else
