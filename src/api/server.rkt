@@ -145,6 +145,7 @@
       ['exacts "Ground truth"]
       ['improve "Improve"]
       ['local-error "Local error"]
+      ['explanations "Explanations"]
       ['sample "Sampling"]
       [_ (error 'compute-result "unknown command ~a" command)]))
   (eprintf "~a Job ~a started:\n  ~a ~a...\n" job-label (symbol->string command) job-id job-str))

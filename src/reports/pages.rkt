@@ -27,6 +27,11 @@
 (define ((page-error-handler result page out) e)
   (define test (job-result-test result))
   (eprintf "Error generating `~a` for \"~a\":\n  ~a\n" page (test-name test) (exn-message e))
+  (eprintf "context:\n")
+  (for ([(fn loc) (in-dict (continuation-mark-set->context (exn-continuation-marks e)))])
+    (match loc
+      [(srcloc file line col _ _) (eprintf "  ~a:~a:~a: ~a\n" file line col (or fn "(unnamed)"))]
+      [#f (eprintf "  ~a\n" fn)]))
   (parameterize ([current-error-port out])
     (display "<!doctype html><pre>" out)
     ((error-display-handler) (exn-message e) e)

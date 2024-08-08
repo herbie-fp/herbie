@@ -18,6 +18,7 @@
          "../core/mainloop.rkt"
          "../syntax/platform.rkt"
          "../core/points.rkt"
+         "../core/explain.rkt"
          "../core/preprocess.rkt"
          "../utils/profile.rkt"
          "../utils/timeline.rkt"
@@ -137,6 +138,22 @@
   (*pcontext* test-pcontext)
   (local-error-as-tree (test-input test) (*context*)))
 
+(define (get-explanations test pcontext)
+  (unless pcontext
+    (error 'explain "cannot run without a pcontext"))
+
+  (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext))
+  (*pcontext* test-pcontext)
+  (define-values (fperrors
+                  sorted-explanations-table
+                  confusion-matrix
+                  maybe-confusion-matrix
+                  total-confusion-matrix
+                  freqs)
+    (explain (test-input test) (*context*) (*pcontext*)))
+
+  sorted-explanations-table)
+
 ;; TODO: What in the timeline needs fixing with these changes?
 
 ;; Given a test and a sample of points, returns a list of improved alternatives
@@ -255,6 +272,7 @@
       (when seed
         (set-seed! seed))
       (with-handlers ([exn? (curry on-exception start-time)])
+        (timeline-event! 'start) ; Prevents the timeline from being empty.
         (define result
           (match command
             ['alternatives (get-alternatives test pcontext seed)]
@@ -264,6 +282,7 @@
             ['exacts (get-exacts test pcontext)]
             ['improve (get-alternatives/report test)]
             ['local-error (get-local-error test pcontext)]
+            ['explanations (get-explanations test pcontext)]
             ['sample (get-sample test)]
             [_ (error 'compute-result "unknown command ~a" command)]))
         (timeline-event! 'end)

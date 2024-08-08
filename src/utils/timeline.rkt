@@ -60,6 +60,8 @@
       [(eq? *timeline-active-key* key)
        (set! *timeline-active-value* (cons val *timeline-active-value*))]
       [(not *timeline-active-key*)
+       (unless (pair? (unbox (*timeline*)))
+         (error 'timeline "Cannot push '~a to an empty timeline." key))
        (set! *timeline-active-key* key)
        (set! *timeline-active-value* (list val))]
       [else
