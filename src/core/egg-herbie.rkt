@@ -23,9 +23,7 @@
          "../utils/timeline.rkt")
 
 (provide (struct-out egg-runner)
-         untyped-egg-extractor
          typed-egg-extractor
-         default-untyped-egg-cost-proc
          platform-egg-cost-proc
          default-egg-cost-proc
          make-egg-runner
@@ -575,17 +573,6 @@
   (define types (list->vector (reverse eclass-types)))
   (define n (vector-length eclasses))
 
-  ; (define all-types (all-reprs/types))
-  ; (for ([eclass (in-list egraph)])
-  ;   (match-define (cons eid enodes) eclass)
-  ;   (eprintf "~a [~a]:\n ~a\n"
-  ;            eid
-  ;            (filter-map (lambda (ty)
-  ;                          (define id (hash-ref egg-id->id (cons eid ty) #f))
-  ;                          (and id (cons ty id)))
-  ;                        all-types)
-  ;            enodes))
-
   ;; Step 2: build parent map and leaf map
   ;; To prune not well-typed enodes, we start with e-classes
   ;; containing leaf enodes (which are well-typed trivially) and
@@ -610,7 +597,8 @@
     (vector-set! parents id (list->vector ids)))
 
   ;; Step 3: keep well-typed e-nodes
-  ;; A node is well-typed if all of its child e-classes have at least one well-typed node.
+  ;; An e-class is well-typed if it has one well-typed node
+  ;; A node is well-typed if all of its child e-classes are well-typed.
   (define typed? (make-vector n #f))
 
   (define (enode-typed? enode)
@@ -636,15 +624,8 @@
     (when dirty?
       (check-typed! dirty?-vec*)))
 
+  ; mark all well-typed e-classes and prune nodes that are not well-typed
   (check-typed! (vector-copy leaf?))
-
-  ; (eprintf "~a\n" egg-id->id)
-  ; (for ([id (in-range n)])
-  ;   (define eclass (vector-ref eclasses id))
-  ;   (define type (vector-ref types id))
-  ;   (define ty? (vector-ref typed? id))
-  ;   (eprintf "~a: ~a ~a ~a\n" id type ty? eclass))
-
   (for ([id (in-range n)])
     (define eclass (vector-ref eclasses id))
     (vector-set! eclasses id (filter enode-typed? eclass)))
@@ -809,122 +790,6 @@
   analysis)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Regraph untyped extraction
-;;
-;; Untyped extraction is ideal for extracting real expressions from an egraph.
-;; This style of extractor associates to each eclass a best (cost, node) pair.
-;; The extractor procedure simply takes an eclass id.
-;;
-;; Untyped cost functions take:
-;;  - the regraph we are extracting from
-;;  - a mutable cache (to possibly stash per-node data)
-;;  - the node we are computing cost for
-;;  - unary procedure to get the eclass of an id
-;;
-
-;; The untyped extraction algorithm.
-(define ((untyped-egg-extractor cost-proc) regraph)
-  (define eclasses (regraph-eclasses regraph))
-  (define n (vector-length eclasses))
-
-  ; costs: mapping id to (cost, best node)
-  (define costs (make-vector n #f))
-
-  ; Checks if eclass has a cost
-  (define (eclass-has-cost? id)
-    (vector-ref costs id))
-
-  ; Unsafe lookup of eclass cost
-  (define (unsafe-eclass-cost id)
-    (car (vector-ref costs id)))
-
-  ; Computes the current cost of a node if its children have a cost
-  ; Cost function has access to a mutable value through `cache`
-  (define cache (box #f))
-  (define (node-cost node changed?-vec)
-    (if (node-has-children? node)
-        (let ([child-ids (cdr node)]) ; (op child ...)
-          ; compute the cost if at least one child eclass has a new analysis
-          ; ... and an analysis exists for all the child eclasses
-          (and (ormap (lambda (id) (vector-ref changed?-vec id)) child-ids)
-               (andmap eclass-has-cost? child-ids)
-               (cost-proc regraph cache node unsafe-eclass-cost)))
-        (cost-proc regraph cache node unsafe-eclass-cost)))
-
-  ; Updates the cost of the current eclass.
-  ; Returns #t if the cost of the current eclass has improved.
-  (define (eclass-set-cost! _ changed?-vec iter eclass id)
-    ; Optimization: we only need to update node cost as needed.
-    ;  (i) terminals, nullary operators: only compute once
-    ;  (ii) non-nullary operators: compute when any of its child eclasses
-    ;       have their analysis updated
-    (define (node-requires-update? node)
-      (if (node-has-children? node)
-          (ormap (lambda (id) (vector-ref changed?-vec id)) (cdr node))
-          (= iter 0)))
-
-    (define new-cost
-      (for/fold ([best #f]) ([node (in-vector eclass)])
-        (cond
-          [(node-requires-update? node)
-           (define cost (node-cost node changed?-vec))
-           (match* (best cost)
-             [(_ #f) best]
-             [(#f _) (cons cost node)]
-             [(_ _)
-              #:when (< cost (car best))
-              (cons cost node)]
-             [(_ _) best])]
-          [else best])))
-
-    (cond
-      [new-cost
-       (define prev-cost (vector-ref costs id))
-       (cond
-         [(or (not prev-cost) ; first time
-              (< (car new-cost) (car prev-cost)))
-          (vector-set! costs id new-cost)
-          #t]
-         [else #f])]
-      [else #f]))
-
-  ; run the analysis
-  (set! costs (regraph-analyze regraph eclass-set-cost! #:analysis costs))
-
-  ; reconstructs the best expression at a node
-  (define id->spec (regraph-specs regraph))
-  (define (build-expr id)
-    (match (cdr (vector-ref costs id))
-      [(? number? n) n] ; number
-      [(? symbol? s) s] ; variable
-      [(list '$approx spec impl) ; approx
-       (match (vector-ref id->spec spec)
-         [#f (error 'build-expr "no initial approx node in eclass ~a" id)]
-         [spec-e (list '$approx spec-e (build-expr impl))])]
-      [(list op ids ...) (cons op (map build-expr ids))] ; application
-      [e (error 'untyped-extraction-proc "unexpected node" e)]))
-
-  ; the actual extraction procedure
-  (lambda (id _)
-    (define cost (car (vector-ref costs id)))
-    (cons cost (build-expr id))))
-
-;; Is fractional with odd denominator.
-(define (fraction-with-odd-denominator? frac)
-  (and (rational? frac) (let ([denom (denominator frac)]) (and (> denom 1) (odd? denom)))))
-
-;; The default per-node cost function
-(define (default-untyped-egg-cost-proc regraph cache node rec)
-  (define constants (regraph-constants regraph))
-  (match node
-    [(? number?) 1]
-    [(? symbol?) 1]
-    [(list 'pow _ b e) ; special case for fractional pow
-     (define n (vector-ref constants e))
-     (if (and n (fraction-with-odd-denominator? n)) +inf.0 (+ 1 (rec b) (rec e)))]
-    [(list _ args ...) (apply + 1 (map rec args))]))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Regraph typed extraction
 ;;
 ;; Typed extraction is ideal for extracting specifications from an egraph.
@@ -1039,26 +904,34 @@
     [(list 'if cond ift iff) (+ 1 (rec cond) (rec ift) (rec iff))]
     [(list _ args ...) (apply + 1 (map rec args))]))
 
+;; Is fractional with odd denominator.
+(define (fraction-with-odd-denominator? frac)
+  (and (rational? frac) (let ([denom (denominator frac)]) (and (> denom 1) (odd? denom)))))
+
 ;; Old cost model version
 (define (default-egg-cost-proc regraph cache node type rec)
   (match node
     [(? number?) 1]
     [(? symbol?) 1]
     ; approx node
-    [(list '$approx _ impl) (rec impl type +inf.0)]
+    [(list '$approx _ impl) (rec impl)]
     [(list 'if cond ift iff)
-     (+ 1 (rec cond (get-representation 'bool) +inf.0) (rec ift type +inf.0) (rec iff type +inf.0))]
+     (+ 1 (rec cond) (rec ift) (rec iff))]
     [(list (? impl-exists? impl) args ...)
-     (define itypes (impl-info impl 'itype))
-     (if (equal? (impl->operator impl) 'pow)
-         (match args
-           [(list b e)
-            (define n (vector-ref (regraph-constants regraph) e))
-            (if (fraction-with-odd-denominator? n)
-                +inf.0
-                (apply + 1 (map (lambda (arg itype) (rec arg itype +inf.0)) args itypes)))])
-         (apply + 1 (map (lambda (arg itype) (rec arg itype +inf.0)) args itypes)))]
-    [(list _ ...) +inf.0]))
+     (cond
+       [(equal? (impl->operator impl) 'pow)
+        (match-define (list b e) args)
+        (define n (vector-ref (regraph-constants regraph) e))
+        (if (fraction-with-odd-denominator? n)
+            +inf.0
+            (+ 1 (rec b) (rec e)))]
+       [else (apply + 1 (map rec args))])]
+    [(list 'pow b e)
+     (define n (vector-ref (regraph-constants regraph) e))
+     (if (fraction-with-odd-denominator? n)
+         +inf.0
+         (+ 1 (rec b) (rec e)))]
+    [(list _ args ...) (apply + 1 (map rec args))]))
 
 ;; Per-node cost function according to the platform
 ;; `rec` takes an id, type, and failure value
