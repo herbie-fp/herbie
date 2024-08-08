@@ -492,6 +492,11 @@
     [(? symbol?) (if (hash-has-key? egg->herbie enode) enode (list enode))]
     [_ enode]))
 
+;; Returns all representatations (and their types) in the current platform.
+(define (all-reprs/types [pform (*active-platform*)])
+  (remove-duplicates (append-map (lambda (repr) (list repr (representation-type repr)))
+                                 (platform-reprs pform))))
+
 ;; Returns the type(s) of an enode so it can be placed in the proper e-class.
 ;; Typing rules:
 ;;  - numbers: every real representation (or real type)
@@ -507,48 +512,16 @@
      (match-define (cons _ repr) (hash-ref egg->herbie enode))
      (list repr (representation-type repr))]
     [(list '$approx _ _) (platform-reprs (*active-platform*))]
-    [(list 'if _ _ _)
-     (append-map (lambda (repr) (list repr (representation-type repr)))
-                 (platform-reprs (*active-platform*)))]
+    [(list 'if _ _ _) (all-reprs/types)]
     [(list (? impl-exists? impl) _ ...) (list (impl-info impl 'otype))]
     [(list op _ ...) (list (operator-info op 'otype))]))
-
-;; Returns multiple vector-maps mapping e-class to an analysis.
-;;  - parents: parent ids of each e-class
-;;  - constants: numerical constant (if the e-class has one)
-;;  - leaf?: does the e-class contain a leaf node?
-(define (analyze-eclasses eclasses)
-  (define n (vector-length eclasses))
-  (define parents (make-vector n '()))
-  (define leaf? (make-vector n '#f))
-  (define constants (make-vector n #f))
-
-  (for ([id (in-range n)])
-    (define eclass (vector-ref eclasses id))
-    (for ([enode (in-vector eclass)])
-      (match enode
-        [(? number? n)
-         (vector-set! leaf? id #t)
-         (vector-set! constants id n)]
-        [(? symbol?) (vector-set! leaf? id #t)]
-        [(list _ ids ...)
-         (when (null? ids)
-           (vector-set! leaf? id #t))
-         (for ([child-id (in-list ids)])
-           (vector-set! parents child-id (cons id (vector-ref parents child-id))))])))
-
-  ; convert lists to vectors
-  (for ([id (in-range n)])
-    (define ids (remove-duplicates (vector-ref parents id)))
-    (vector-set! parents id (list->vector ids)))
-
-  (values parents leaf? constants))
 
 ;; Splits untyped eclasses into typed eclasses
 ;; keeping only the subset of enodes that are well-typed.
 (define (make-typed-eclasses egraph egg->herbie)
   (define eclass-boxes '()) ; (listof box?)
   (define eclass-types '()) ; (listof any)
+  (define egg-id->var (make-hash)) ; natural -> (or symbol #f)
   (define egg-id->id (make-hash)) ; natural, type -> natural
   (define id->eclass (make-hash)) ; natural -> box (avoid a list-ref)
 
@@ -566,6 +539,7 @@
                  id)))
 
   ;; Step 1: split Rust e-classes by type
+  ;; to correctly prune, need to track untyped eclasses with variables
   (define (split! eid enodes)
     (for ([enode (in-list enodes)])
       (let ([enode (normalize-enode enode egg->herbie)])
@@ -578,7 +552,9 @@
           (define enode*
             (match enode
               [(? number?) enode]
-              [(? symbol?) enode]
+              [(? symbol?)
+               (hash-set! egg-id->var eid enode)
+               enode]
               [(list '$approx spec impl)
                (list '$approx (lookup-id spec (representation-type type)) (lookup-id impl type))]
               [(list 'if cond ift iff)
@@ -599,46 +575,79 @@
   (define types (list->vector (reverse eclass-types)))
   (define n (vector-length eclasses))
 
-  ;; Step 2: build parent map
-  ;; To prune faster, we only follow only parent edges
-  (define-values (parents leaf? constants)
-    (analyze-eclasses (for/vector #:length n
-                                  ([eclass (in-vector eclasses)])
-                        (list->vector eclass))))
+  ; (define all-types (all-reprs/types))
+  ; (for ([eclass (in-list egraph)])
+  ;   (match-define (cons eid enodes) eclass)
+  ;   (eprintf "~a [~a]:\n ~a\n"
+  ;            eid
+  ;            (filter-map (lambda (ty)
+  ;                          (define id (hash-ref egg-id->id (cons eid ty) #f))
+  ;                          (and id (cons ty id)))
+  ;                        all-types)
+  ;            enodes))
+
+  ;; Step 2: build parent map and leaf map
+  ;; To prune not well-typed enodes, we start with e-classes
+  ;; containing leaf enodes (which are well-typed trivially) and
+  ;; then follow parent edges.
+
+  (define parents (make-vector n '()))
+  (define leaf? (make-vector n #f))
+  (for ([id (in-range n)])
+    (define eclass (vector-ref eclasses id))
+    (for ([enode (in-list eclass)])
+      (match enode
+        [(? number?) (vector-set! leaf? id #t)]
+        [(? symbol?) (vector-set! leaf? id #t)]
+        [(list _ ids ...)
+         (when (null? ids)
+           (vector-set! leaf? id #t))
+         (for ([child-id (in-list ids)])
+           (vector-set! parents child-id (cons id (vector-ref parents child-id))))])))
+
+  (for ([id (in-range n)])
+    (define ids (remove-duplicates (vector-ref parents id)))
+    (vector-set! parents id (list->vector ids)))
 
   ;; Step 3: keep well-typed e-nodes
-  ;; A node is not well-typed if at least one of its children
-  ;; corresponds to an e-class with no well-typed nodes
-  ;; Thus pruning is achieved by removing:
-  ;;  (i) enodes that point to empty e-classes
-  ;;  (ii) eclasses that are empty
+  ;; A node is well-typed if all of its child e-classes have at least one well-typed node.
+  (define typed? (make-vector n #f))
 
-  (define (enode-removable? enode)
+  (define (enode-typed? enode)
     (match enode
-      [(? number?) #f]
-      [(? symbol?) #f]
+      [(? number?) #t]
+      [(? symbol?) #t]
       [(list _ ids ...)
-       (for/or ([id (in-list ids)])
-         (null? (vector-ref eclasses id)))]))
+       (for/and ([id (in-list ids)])
+         (vector-ref typed? id))]))
 
-  (define (prune! dirty?-vec)
+  (define (check-typed! dirty?-vec)
+    (define dirty? #f)
     (define dirty?-vec* (make-vector n #f))
     (for ([id (in-range n)] #:when (vector-ref dirty?-vec id))
-      (define eclass (vector-ref eclasses id))
-      (define eclass* (filter-not enode-removable? eclass))
-      ; update if the e-class has changed
-      (unless (equal? eclass eclass*)
-        (vector-set! eclasses id eclass*)
-        ; mark parent ids as dirty
-        (define parent-ids (vector-ref parents id))
-        (for ([parent-id (in-vector parent-ids)])
-          (vector-set! dirty?-vec* parent-id #t))))
-    (when (for/or ([dirty? (in-vector dirty?-vec*)])
-            dirty?)
-      (prune! dirty?-vec*)))
+      (unless (vector-ref typed? id)
+        (define eclass (vector-ref eclasses id))
+        (when (ormap enode-typed? eclass)
+          (vector-set! typed? id #t)
+          (set! dirty? #t)
+          (define parent-ids (vector-ref parents id))
+          (for ([parent-id (in-vector parent-ids)])
+            (vector-set! dirty?-vec* parent-id #t)))))
+    (when dirty?
+      (check-typed! dirty?-vec*)))
 
-  ; check every e-class at least once
-  (prune! (make-vector n #t))
+  (check-typed! (vector-copy leaf?))
+
+  ; (eprintf "~a\n" egg-id->id)
+  ; (for ([id (in-range n)])
+  ;   (define eclass (vector-ref eclasses id))
+  ;   (define type (vector-ref types id))
+  ;   (define ty? (vector-ref typed? id))
+  ;   (eprintf "~a: ~a ~a ~a\n" id type ty? eclass))
+
+  (for ([id (in-range n)])
+    (define eclass (vector-ref eclasses id))
+    (vector-set! eclasses id (filter enode-typed? eclass)))
 
   ; sanity check: every child id points to a non-empty e-class
   (for ([id (in-range n)])
@@ -689,7 +698,8 @@
 
   ; rebuild the eclass type map
   (define types*
-    (for/vector #:length n* ([id (in-range n)] #:when (vector-ref remap id))
+    (for/vector #:length n*
+                ([id (in-range n)] #:when (vector-ref remap id))
       (vector-ref types id)))
 
   (values eclasses* types* egg-id->id*))
@@ -699,8 +709,29 @@
   ;; split the e-classes by type
   (define-values (eclasses types canon) (make-typed-eclasses egraph egg->herbie))
   (define n (vector-length eclasses))
+
   ;; analyze each eclass
-  (define-values (parents leaf? constants) (analyze-eclasses eclasses))
+  (define parents (make-vector n '()))
+  (define leaf? (make-vector n '#f))
+  (define constants (make-vector n #f))
+  (for ([id (in-range n)])
+    (define eclass (vector-ref eclasses id))
+    (for ([enode (in-vector eclass)])
+      (match enode
+        [(? number? n)
+         (vector-set! leaf? id #t)
+         (vector-set! constants id n)]
+        [(? symbol?) (vector-set! leaf? id #t)]
+        [(list _ ids ...)
+         (when (null? ids)
+           (vector-set! leaf? id #t))
+         (for ([child-id (in-list ids)])
+           (vector-set! parents child-id (cons id (vector-ref parents child-id))))])))
+  ; parent map: remove duplicates, convert lists to vectors
+  (for ([id (in-range n)])
+    (define ids (remove-duplicates (vector-ref parents id)))
+    (vector-set! parents id (list->vector ids)))
+
   ; convert id->spec to a vector-map
   (define specs (make-vector n #f))
   (for ([(id spec&repr) (in-dict id->spec)])
@@ -762,16 +793,18 @@
       (sweep! (add1 iter))))
 
   ; Invariant: all eclasses have an analysis
-  ; (for ([id (in-range n)])
-  ;   (unless (vector-ref analysis id)
-  ;     (error 'regraph-analyze
-  ;            "analysis not run on all eclasses: ~a ~a"
-  ;            eclass-proc
-  ;            (for/vector #:length n
-  ;                        ([id (in-range n)])
-  ;              (define eclass (vector-ref eclasses id))
-  ;              (define eclass-analysis (vector-ref analysis id))
-  ;              (list id eclass eclass-analysis)))))
+  (for ([id (in-range n)])
+    (unless (vector-ref analysis id)
+      (define types (regraph-types regraph))
+      (error 'regraph-analyze
+             "analysis not run on all eclasses: ~a ~a"
+             eclass-proc
+             (for/vector #:length n
+                         ([id (in-range n)])
+               (define type (vector-ref types id))
+               (define eclass (vector-ref eclasses id))
+               (define eclass-analysis (vector-ref analysis id))
+               (list id type eclass eclass-analysis)))))
 
   analysis)
 
@@ -987,8 +1020,8 @@
                  (match (vector-ref id->spec spec)
                    [#f (error 'build-expr "no initial approx node in eclass ~a" id)]
                    [spec-e (list '$approx spec-e (build-expr impl))])]
-                [(list 'if cond ift iff) ; if expression
-                 (list 'if (loop cond) (loop ift) (loop iff))]
+                ; if expression
+                [(list 'if cond ift iff) (list 'if (loop cond) (loop ift) (loop iff))]
                 ; expression of impls
                 [(list (? impl-exists? impl) ids ...) (cons impl (map loop ids))]
                 ; expression of operators
