@@ -19,7 +19,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Patch table ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define-resetter *patch-table* (λ () (make-hash)) (λ () (make-hash)))
+(define/reset *patch-table* (make-hash))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Simplify ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

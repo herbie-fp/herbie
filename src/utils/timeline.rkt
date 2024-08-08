@@ -20,11 +20,7 @@
 ;; This is a box so we can get a reference outside the engine, and so
 ;; access its value even in a timeout.
 ;; Important: Use 'eq?' based hash tables, process may freeze otherwise
-(define-resetter *timeline*
-                 (λ () (box '()))
-                 (λ ()
-                   (set-box! (*timeline*) '())
-                   (*timeline*)))
+(define/reset *timeline* (box '()))
 
 (define *timeline-active-key* #f)
 (define *timeline-active-value* #f)

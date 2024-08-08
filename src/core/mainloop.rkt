@@ -22,7 +22,8 @@
          "../utils/timeline.rkt"
          "sampling.rkt"
          "soundiness.rkt")
-(provide (all-defined-out))
+(provide sample-pcontext
+         run-improve!)
 
 ;; I'm going to use some global state here to make the shell more
 ;; friendly to interact with without having to store your own global
@@ -32,7 +33,7 @@
 ;; head at once, because then global state is going to mess you up.
 
 (struct shellstate (table next-alts locs patched) #:mutable)
-(define-resetter ^shell-state^ (λ () (shellstate #f #f #f #f)) (λ () (shellstate #f #f #f #f)))
+(define/reset ^shell-state^ (shellstate #f #f #f #f))
 
 (define (^locs^ [newval 'none])
   (when (not (equal? newval 'none))
@@ -57,8 +58,7 @@
 ;; - Then, in a loop, choose some alts, localize, run the patch table, and finalize
 ;; - Then do regimes, final simplify, add soundiness, and remove preprocessing
 
-(define (setup-context! vars specification precondition repr)
-  (*context* (context vars repr (map (const repr) vars)))
+(define (sample-pcontext vars specification precondition)
   (define sample (sample-points precondition (list specification) (list (*context*))))
   (match-define (cons domain pts+exs) sample)
   (cons domain (apply mk-pcontext pts+exs)))
@@ -139,12 +139,6 @@
   (define new-alts (list (make-alt expr)))
   (define-values (errss costs) (atab-eval-altns (^table^) new-alts (*context*)))
   (^table^ (atab-add-altns (^table^) new-alts errss costs))
-  (void))
-
-(define (rollback-improve!)
-  (rollback-iter!)
-  (reset!)
-  (^table^ #f)
   (void))
 
 ;; The rest of the file is various helper / glue functions used by
