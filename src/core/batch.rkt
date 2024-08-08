@@ -35,9 +35,9 @@
                   node
                   (lambda ()
                     (begin0 (+ exprc varc) ; store in cache, update exprs, exprc
-                            (set! exprc (+ 1 exprc))
-                            (set! icache (cons node icache)))))]))
-  
+                      (set! exprc (+ 1 exprc))
+                      (set! icache (cons node icache)))))]))
+
   (define roots (list->vector (map munge exprs)))
   (define nodes (list->vector (reverse icache)))
   (define nodes-length (vector-length nodes))
@@ -101,8 +101,8 @@
                   node
                   (lambda ()
                     (begin0 (+ exprc varc) ; store in cache, update exprs, exprc
-                            (set! exprc (+ 1 exprc))
-                            (set! icache (cons node icache)))))]))
+                      (set! exprc (+ 1 exprc))
+                      (set! icache (cons node icache)))))]))
 
   (set-batch-roots! batch (list->vector (map munge (batch->progs batch))))
   (set-batch-nodes! batch (list->vector (reverse icache)))
