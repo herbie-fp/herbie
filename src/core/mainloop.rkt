@@ -22,7 +22,8 @@
          "../utils/timeline.rkt"
          "sampling.rkt"
          "soundiness.rkt")
-(provide sample-pcontext run-improve! rollback-improve!)
+(provide sample-pcontext
+         run-improve!)
 
 ;; I'm going to use some global state here to make the shell more
 ;; friendly to interact with without having to store your own global
@@ -32,7 +33,7 @@
 ;; head at once, because then global state is going to mess you up.
 
 (struct shellstate (table next-alts locs patched) #:mutable)
-(define-resetter ^shell-state^ (λ () (shellstate #f #f #f #f)) (λ () (shellstate #f #f #f #f)))
+(define/reset ^shell-state^ (shellstate #f #f #f #f))
 
 (define (^locs^ [newval 'none])
   (when (not (equal? newval 'none))
@@ -138,12 +139,6 @@
   (define new-alts (list (make-alt expr)))
   (define-values (errss costs) (atab-eval-altns (^table^) new-alts (*context*)))
   (^table^ (atab-add-altns (^table^) new-alts errss costs))
-  (void))
-
-(define (rollback-improve!)
-  (rollback-iter!)
-  (reset!)
-  (^table^ #f)
   (void))
 
 ;; The rest of the file is various helper / glue functions used by
