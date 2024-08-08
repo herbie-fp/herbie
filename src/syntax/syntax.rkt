@@ -639,14 +639,14 @@
   (and (symbol? op)
        (or (and (hash-has-key? operators op) (null? (operator-itype (hash-ref operators op))))
            (and (hash-has-key? operator-impls op)
-                (null? (impl-info (hash-ref operator-impls op) 'itype))))))
+                (null? (impl-info (hash-ref operator-impls (operator-impl-op op)) 'itype))))))
 
 (define (variable? var)
   (and (symbol? var)
        (or (not (hash-has-key? operators var))
            (not (null? (operator-itype (hash-ref operators var)))))
        (or (not (hash-has-key? operator-impls var))
-           (not (null? (impl-info (hash-ref operator-impls var) 'itype))))))
+           (not (null? (impl-info (hash-ref operator-impls (operator-impl-op var)) 'itype))))))
 
 ;; Floating-point expressions require that number
 ;; be rounded to a particular precision.
