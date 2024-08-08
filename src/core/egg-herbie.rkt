@@ -915,22 +915,17 @@
     [(? symbol?) 1]
     ; approx node
     [(list '$approx _ impl) (rec impl)]
-    [(list 'if cond ift iff)
-     (+ 1 (rec cond) (rec ift) (rec iff))]
+    [(list 'if cond ift iff) (+ 1 (rec cond) (rec ift) (rec iff))]
     [(list (? impl-exists? impl) args ...)
      (cond
        [(equal? (impl->operator impl) 'pow)
         (match-define (list b e) args)
         (define n (vector-ref (regraph-constants regraph) e))
-        (if (fraction-with-odd-denominator? n)
-            +inf.0
-            (+ 1 (rec b) (rec e)))]
+        (if (fraction-with-odd-denominator? n) +inf.0 (+ 1 (rec b) (rec e)))]
        [else (apply + 1 (map rec args))])]
     [(list 'pow b e)
      (define n (vector-ref (regraph-constants regraph) e))
-     (if (fraction-with-odd-denominator? n)
-         +inf.0
-         (+ 1 (rec b) (rec e)))]
+     (if (fraction-with-odd-denominator? n) +inf.0 (+ 1 (rec b) (rec e)))]
     [(list _ args ...) (apply + 1 (map rec args))]))
 
 ;; Per-node cost function according to the platform
@@ -963,11 +958,14 @@
   (define canon (regraph-canon regraph))
   ; extract expr (extraction is partial)
   (define id* (hash-ref canon (cons id type)))
-  (match-define (cons _ egg-expr) (extract id*))
-  ; translate egg IR to Herbie IR
   (cond
-    [egg-expr (list (egg-parsed->expr (flatten-let egg-expr) egg->herbie type))]
-    [else (list)]))
+    [(false? id*) (list)]
+    [else
+     (match-define (cons _ egg-expr) (extract id*))
+     ; translate egg IR to Herbie IR
+     (cond
+       [egg-expr (list (egg-parsed->expr (flatten-let egg-expr) egg->herbie type))]
+       [else (list)])]))
 
 ;; Extracts multiple expressions according to the extractor
 (define (regraph-extract-variants regraph extract id type)
@@ -978,45 +976,48 @@
 
   ; extract expressions
   (define id* (hash-ref canon (cons id type)))
-  (define egg-exprs
-    (reap [sow]
-          (for ([enode (vector-ref eclasses id*)])
-            (match enode
-              [(? number?) (sow enode)]
-              [(? symbol?) (sow enode)]
-              [(list '$approx spec impl)
-               (match (vector-ref id->spec spec)
-                 [#f (error 'regraph-extract-variants "no initial approx node in eclass ~a" id*)]
-                 [spec-e
-                  (match-define (cons _ impl*) (extract impl))
-                  (when impl*
-                    (sow (list '$approx spec-e impl*)))])]
-              [(list 'if cond ift iff)
-               (match-define (cons _ cond*) (extract cond))
-               (match-define (cons _ ift*) (extract ift))
-               (match-define (cons _ iff*) (extract iff))
-               (when (and cond* ift* iff*) ; guard against failed extraction
-                 (sow (list 'if cond* ift* iff*)))]
-              [(list (? impl-exists? impl) ids ...)
-               (when (equal? (impl-info impl 'otype) type)
-                 (define args
-                   (for/list ([id (in-list ids)])
-                     (match-define (cons _ expr) (extract id))
-                     expr))
-                 (when (andmap identity args) ; guard against failed extraction
-                   (sow (cons impl args))))]
-              [(list (? operator-exists? op) ids ...)
-               (when (equal? (operator-info op 'otype) type)
-                 (define args
-                   (for/list ([id (in-list ids)])
-                     (match-define (cons _ expr) (extract id))
-                     expr))
-                 (when (andmap identity args) ; guard against failed extraction
-                   (sow (cons op args))))]))))
-  ; translate egg IR to Herbie IR
-  (define egg->herbie (regraph-egg->herbie regraph))
-  (for/list ([egg-expr (in-list egg-exprs)])
-    (egg-parsed->expr (flatten-let egg-expr) egg->herbie type)))
+  (cond
+    [(false? id*) (list)]
+    [else
+     (define egg-exprs
+       (reap [sow]
+             (for ([enode (vector-ref eclasses id*)])
+               (match enode
+                 [(? number?) (sow enode)]
+                 [(? symbol?) (sow enode)]
+                 [(list '$approx spec impl)
+                  (match (vector-ref id->spec spec)
+                    [#f (error 'regraph-extract-variants "no initial approx node in eclass ~a" id*)]
+                    [spec-e
+                     (match-define (cons _ impl*) (extract impl))
+                     (when impl*
+                       (sow (list '$approx spec-e impl*)))])]
+                 [(list 'if cond ift iff)
+                  (match-define (cons _ cond*) (extract cond))
+                  (match-define (cons _ ift*) (extract ift))
+                  (match-define (cons _ iff*) (extract iff))
+                  (when (and cond* ift* iff*) ; guard against failed extraction
+                    (sow (list 'if cond* ift* iff*)))]
+                 [(list (? impl-exists? impl) ids ...)
+                  (when (equal? (impl-info impl 'otype) type)
+                    (define args
+                      (for/list ([id (in-list ids)])
+                        (match-define (cons _ expr) (extract id))
+                        expr))
+                    (when (andmap identity args) ; guard against failed extraction
+                      (sow (cons impl args))))]
+                 [(list (? operator-exists? op) ids ...)
+                  (when (equal? (operator-info op 'otype) type)
+                    (define args
+                      (for/list ([id (in-list ids)])
+                        (match-define (cons _ expr) (extract id))
+                        expr))
+                    (when (andmap identity args) ; guard against failed extraction
+                      (sow (cons op args))))]))))
+     ; translate egg IR to Herbie IR
+     (define egg->herbie (regraph-egg->herbie regraph))
+     (for/list ([egg-expr (in-list egg-exprs)])
+       (egg-parsed->expr (flatten-let egg-expr) egg->herbie type))]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Scheduler
