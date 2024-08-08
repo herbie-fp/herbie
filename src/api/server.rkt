@@ -114,6 +114,7 @@
 
 (define (wrapper-run-herbie cmd job-id)
   (print-job-message (herbie-command-command cmd) job-id (test-name (herbie-command-test cmd)))
+  (define profile? (herbie-command-profile? cmd))
   (define result
     (run-herbie (herbie-command-command cmd)
                 (herbie-command-test cmd)

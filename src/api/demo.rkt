@@ -312,7 +312,7 @@
                      test
                      #:seed (get-seed)
                      #:pcontext #f
-                     #:profile? #f
+                     #:profile? #t
                      #:timeline-disabled? #f))
        (body command))]
     [_
@@ -420,7 +420,7 @@
      (define seed* (hash-ref post-data 'seed))
      (define test (parse-test formula))
      (define command
-       (create-job 'sample test #:seed seed* #:pcontext #f #:profile? #f #:timeline-disabled? #t))
+       (create-job 'sample test #:seed seed* #:pcontext #f #:profile? #t #:timeline-disabled? #f))
      (define id (start-job command))
      (wait-for-job id))))
 
@@ -437,8 +437,8 @@
                                            test
                                            #:seed seed
                                            #:pcontext pcontext
-                                           #:profile? #f
-                                           #:timeline-disabled? #t))
+                                           #:profile? #t
+                                           #:timeline-disabled? #f))
                              (define id (start-job command))
                              (wait-for-job id))))
 
@@ -455,8 +455,8 @@
                                            test
                                            #:seed seed
                                            #:pcontext pcontext
-                                           #:profile? #f
-                                           #:timeline-disabled? #t))
+                                           #:profile? #t
+                                           #:timeline-disabled? #f))
                              (define id (start-job command))
                              (wait-for-job id))))
 
@@ -492,8 +492,8 @@
                                            test
                                            #:seed seed
                                            #:pcontext pcontext
-                                           #:profile? #f
-                                           #:timeline-disabled? #t))
+                                           #:profile? #t
+                                           #:timeline-disabled? #f))
                              (define id (start-job command))
                              (wait-for-job id))))
 
@@ -511,8 +511,8 @@
                                            test
                                            #:seed seed
                                            #:pcontext pcontext
-                                           #:profile? #f
-                                           #:timeline-disabled? #t))
+                                           #:profile? #t
+                                           #:timeline-disabled? #f))
                              (define id (start-job command))
                              (wait-for-job id))))
 
@@ -549,7 +549,7 @@
      (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
      (define test (parse-test formula))
      (define command
-       (create-job 'cost test #:seed #f #:pcontext #f #:profile? #f #:timeline-disabled? #f))
+       (create-job 'cost test #:seed #f #:pcontext #f #:profile? #t #:timeline-disabled? #f))
      (define id (start-job command))
      (wait-for-job id))))
 
