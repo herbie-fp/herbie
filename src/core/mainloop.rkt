@@ -25,32 +25,19 @@
 (provide sample-pcontext
          run-improve!)
 
-;; I'm going to use some global state here to make the shell more
-;; friendly to interact with without having to store your own global
-;; state in the repl as you would normally do with debugging. This is
-;; probably a bad idea, and I might change it back later. When
-;; extending, make sure this never gets too complicated to fit in your
-;; head at once, because then global state is going to mess you up.
+;; The Herbie main loop goes through a simple iterative process:
+;;
+;; - Choose a subset of candidates
+;; - Choose a set of subexpressions (locs) in those alts
+;; - Patch (improve) them, generating new candidates
+;; - Evaluate all the new and old candidates and prune to the best
+;;
+;; Each stage is stored in this global variable for REPL debugging.
 
-(struct shellstate (table next-alts locs patched) #:mutable)
-(define/reset ^shell-state^ (shellstate #f #f #f #f))
-
-(define (^locs^ [newval 'none])
-  (when (not (equal? newval 'none))
-    (set-shellstate-locs! (^shell-state^) newval))
-  (shellstate-locs (^shell-state^)))
-(define (^table^ [newval 'none])
-  (when (not (equal? newval 'none))
-    (set-shellstate-table! (^shell-state^) newval))
-  (shellstate-table (^shell-state^)))
-(define (^next-alts^ [newval 'none])
-  (when (not (equal? newval 'none))
-    (set-shellstate-next-alts! (^shell-state^) newval))
-  (shellstate-next-alts (^shell-state^)))
-(define (^patched^ [newval 'none])
-  (when (not (equal? newval 'none))
-    (set-shellstate-patched! (^shell-state^) newval))
-  (shellstate-patched (^shell-state^)))
+(define/reset ^next-alts^ #f)
+(define/reset ^locs^ #f)
+(define/reset ^patched^ #f)
+(define/reset ^table^ #f)
 
 ;; These high-level functions give the high-level workflow of Herbie:
 ;; - First, set up a context by sampling input points
