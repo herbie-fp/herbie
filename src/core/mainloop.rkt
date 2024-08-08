@@ -1,7 +1,6 @@
 #lang racket
 
 (require "rules.rkt"
-         "../syntax/sugar.rkt"
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
          "alt-table.rkt"
@@ -12,7 +11,6 @@
          "simplify.rkt"
          "../utils/alternative.rkt"
          "../utils/common.rkt"
-         "../utils/float.rkt"
          "explain.rkt"
          "patch.rkt"
          "../syntax/platform.rkt"
@@ -20,10 +18,8 @@
          "preprocess.rkt"
          "programs.rkt"
          "../utils/timeline.rkt"
-         "sampling.rkt"
          "soundiness.rkt")
-(provide sample-pcontext
-         run-improve!)
+(provide run-improve!)
 
 ;; The Herbie main loop goes through a simple iterative process:
 ;;
@@ -40,38 +36,31 @@
 (define/reset ^table^ #f)
 
 ;; These high-level functions give the high-level workflow of Herbie:
-;; - First, set up a context by sampling input points
-;; - Then, do some initial steps: preprocessing, explain, and initialize the alt table
-;; - Then, in a loop, choose some alts, localize, run the patch table, and finalize
-;; - Then do regimes, final simplify, add soundiness, and remove preprocessing
-
-(define (sample-pcontext vars specification precondition)
-  (define sample (sample-points precondition (list specification) (list (*context*))))
-  (match-define (cons domain pts+exs) sample)
-  (cons domain (apply mk-pcontext pts+exs)))
+;; - Initial steps: explain, preprocessing, initialize the alt table
+;; - the loop: choose some alts, localize, run the patch table, and finalize
+;; - Final steps: regimes, final simplify, add soundiness, and remove preprocessing
 
 (define (run-improve! initial specification context pcontext)
+  (explain! simplified context pcontext)
   (timeline-event! 'preprocess)
   (define-values (simplified preprocessing) (find-preprocessing initial specification context))
   (timeline-push! 'symmetry (map ~a preprocessing))
   (define pcontext* (preprocess-pcontext context pcontext preprocessing))
-  (match-define (and alternatives (cons (alt best _ _ _) _))
-    (mutate! simplified context pcontext* (*num-iterations*)))
+  (*pcontext* pcontext*)
+  (initialize-alt-table! simplified context pcontext*)
+
+  (for ([iteration (in-range (*num-iterations*))] #:break (atab-completed? (^table^)))
+    (run-iter!))
+  (define alternatives (extract!))
+
   (timeline-event! 'preprocess)
+  (define best (alt-expr (first alternatives)))
   (define final-alts
     (for/list ([altern alternatives])
       (alt-add-preprocessing
        altern
        (remove-unnecessary-preprocessing best context pcontext (alt-preprocessing altern)))))
   (values final-alts (remove-unnecessary-preprocessing best context pcontext preprocessing)))
-
-(define (mutate! simplified context pcontext iterations)
-  (*pcontext* pcontext)
-  (explain! simplified context pcontext)
-  (initialize-alt-table! simplified context pcontext)
-  (for ([iteration (in-range iterations)] #:break (atab-completed? (^table^)))
-    (run-iter!))
-  (extract!))
 
 (define (run-iter!)
   (when (^next-alts^)
