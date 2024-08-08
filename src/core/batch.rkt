@@ -135,4 +135,5 @@
   (check-equal? '(+ 1 (neg (* 1/2 (+ (exp (/ (sin 3) (cos 3))) (/ 1 (exp (/ (sin 3) (cos 3))))))))
                 (test-expand-taylor '(- 1 (cosh (tan 3)))))
   (check-equal? '(exp (* a (log x))) (test-expand-taylor '(pow x a)))
-  (check-equal? '(cbrt x) (test-expand-taylor '(pow x 1/3))))
+  (check-equal? '(cbrt x) (test-expand-taylor '(pow x 1/3)))
+  (check-equal? '(+ 100 (cbrt x)) (test-expand-taylor '(+ 100 (pow x 1/3)))))
