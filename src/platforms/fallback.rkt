@@ -14,7 +14,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; constants ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define-constants racket
+(define-constants binary64
                   [PI PI.rkt pi]
                   [E E.rkt (exp 1.0)]
                   [INFINITY INFINITY.rkt +inf.0]
@@ -125,7 +125,7 @@
                        #:fl (from-bigfloat bffma)
                        #:op fma)
 
-(define-comparator-impls racket
+(define-comparator-impls binary64
                          [== ==.rkt =]
                          [!= !=.rkt (negate =)]
                          [< <.rkt <]
