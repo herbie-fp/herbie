@@ -402,6 +402,7 @@
       (match expr
         [(? literal?) ((node-cost-proc expr repr))]
         [(? symbol?) ((node-cost-proc expr repr))]
+        [(approx _ impl) (loop impl repr)]
         [(list 'if cond ift iff)
          (define cost-proc (node-cost-proc expr repr))
          (cost-proc (loop cond bool-repr) (loop ift repr) (loop iff repr))]
@@ -411,10 +412,10 @@
          (apply cost-proc (map loop args itypes))]))))
 
 ;; Rules from impl to spec (fixed for a particular platform)
-(define-resetter *lifting-rules* (λ () (make-hash)) (λ () (make-hash)))
+(define/reset *lifting-rules* (make-hash))
 
 ;; Rules from spec to impl (fixed for a particular platform)
-(define-resetter *lowering-rules* (λ () (make-hash)) (λ () (make-hash)))
+(define/reset *lowering-rules* (make-hash))
 
 ;; Synthesizes the LHS and RHS of lifting/lowering rules.
 (define (impl->rule-parts impl)
@@ -431,16 +432,22 @@
 
 ;; Synthesizes lifting rules for a given platform.
 (define (platform-lifting-rules [pform (*active-platform*)])
+  ;; every impl maps to a spec
   (define impls (platform-impls pform))
-  (for/list ([impl (in-list impls)])
-    (hash-ref! (*lifting-rules*)
-               (cons impl pform)
-               (lambda ()
-                 (define name (sym-append 'lift- impl))
-                 (define itypes (impl-info impl 'itype))
-                 (define otype (impl-info impl 'otype))
-                 (define-values (vars spec-expr impl-expr) (impl->rule-parts impl))
-                 (rule name impl-expr spec-expr (map cons vars itypes) otype)))))
+  (define impl-rules
+    (for/list ([impl (in-list impls)])
+      (hash-ref! (*lifting-rules*)
+                 (cons impl pform)
+                 (lambda ()
+                   (define name (sym-append 'lift- impl))
+                   (define itypes (impl-info impl 'itype))
+                   (define otype (impl-info impl 'otype))
+                   (define-values (vars spec-expr impl-expr) (impl->rule-parts impl))
+                   (rule name impl-expr spec-expr (map cons vars itypes) otype)))))
+  ;; special rule for approx nodes
+  ; (define approx-rule (rule 'lift-approx (approx 'a 'b) 'a '((a . real) (b . real)) 'real))
+  ; (cons approx-rule impl-rules))
+  impl-rules)
 
 ;; Synthesizes lowering rules for a given platform.
 (define (platform-lowering-rules [pform (*active-platform*)])

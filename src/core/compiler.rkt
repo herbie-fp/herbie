@@ -1,15 +1,9 @@
 #lang racket
 
-(require math/bigfloat
-         math/flonum
-         rival)
-
 (require "../syntax/syntax.rkt"
          "../syntax/types.rkt"
-         "../utils/common.rkt"
          "../utils/timeline.rkt"
          "../utils/float.rkt"
-         "../config.rkt"
          "batch.rkt")
 
 (provide compile-progs

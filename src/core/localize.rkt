@@ -68,23 +68,32 @@
   (define (expr->cost expr)
     (cost-proc expr (repr-of expr ctx)))
 
+  (define (cost-opportunity subexpr children)
+    ; start and end cost of roots
+    (define start-cost (expr->cost subexpr))
+    (define best-cost (expr->cost (hash-ref expr->simplest subexpr)))
+    ; start and end cost of children
+    (define start-child-costs (map expr->cost children))
+    (define best-child-costs
+      (for/list ([child (in-list children)])
+        (expr->cost (hash-ref expr->simplest child))))
+    ; compute cost opportunity
+    (- (apply - start-cost start-child-costs) (apply - best-cost best-child-costs)))
+
   ; rank subexpressions by cost opportunity
   (define localize-costss
     (for/list ([subexprs (in-list subexprss)])
-      (sort (for/list ([subexpr (in-list subexprs)] #:when (list? subexpr))
-              ; start and end cost of roots
-              (define start-cost (expr->cost subexpr))
-              (define best-cost (expr->cost (hash-ref expr->simplest subexpr)))
-              ; start and end cost of children
-              (match-define (list _ children ...) subexpr)
-              (define start-child-costs (map expr->cost children))
-              (define best-child-costs
-                (for/list ([child (in-list children)])
-                  (expr->cost (hash-ref expr->simplest child))))
-              ; compute cost opportunity
-              (define cost-opportunity
-                (- (apply - start-cost start-child-costs) (apply - best-cost best-child-costs)))
-              (cons cost-opportunity subexpr))
+      (sort (reap [sow]
+                  (for ([subexpr (in-list subexprs)])
+                    (match subexpr
+                      [(? literal?) (void)]
+                      [(? symbol?) (void)]
+                      [(approx _ impl)
+                       (define cost-opp (cost-opportunity subexpr (list impl)))
+                       (sow (cons cost-opp subexpr))]
+                      [(list _ args ...)
+                       (define cost-opp (cost-opportunity subexpr args))
+                       (sow (cons cost-opp subexpr))])))
             >
             #:key car)))
 
@@ -94,8 +103,9 @@
   (define subexprss (map all-subexpressions exprs))
   (define errss (compute-local-errors subexprss ctx))
 
-  (for/list ([expr (in-list exprs)] [errs (in-list errss)])
-    (sort (sort (for/list ([(subexpr err) (in-hash errs)] #:when (list? subexpr))
+  (for/list ([_ (in-list exprs)] [errs (in-list errss)])
+    (sort (sort (for/list ([(subexpr err) (in-hash errs)]
+                           #:when (or (list? subexpr) (approx? subexpr)))
                   (cons err subexpr))
                 expr<?
                 #:key cdr)
@@ -125,6 +135,9 @@
         (match (vector-ref nodes root)
           [(? literal?) 1]
           [(? variable?) 1]
+          [(approx _ impl)
+           (define repr (repr-of expr ctx))
+           (ulp-difference exact (vector-ref exacts (vector-member impl roots)) repr)]
           [`(if ,c ,ift ,iff) 1]
           [(list f args ...)
            (define repr (impl-info f 'otype))

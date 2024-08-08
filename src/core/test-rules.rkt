@@ -17,42 +17,42 @@
 
 (define num-test-points (make-parameter 100))
 
-;; WARNING: These aren't treated as preconditions, they are only used for range inference
 (define *conditions*
-  (list '[asinh-2_binary64 . (>= x 0)]
-        '[asinh-2_binary32 . (>= x 0)]
-        '[pow-unpow_binary64 . (>= a 0)]
-        '[pow-unpow_binary32 . (>= a 0)]
-        '[pow-pow_binary64 . (>= a 0)]
-        '[pow-pow_binary32 . (>= a 0)]
-        '[sqrt-pow1_binary64 . (>= x 0)]
-        '[sqrt-pow1_binary32 . (>= x 0)]
-        ;; These next three approximate pi so that range analysis will work
-        '[asin-sin-s_binary64 . (<= (fabs x) 1.5708)]
-        '[asin-sin-s_binary32 . (<= (fabs x) 1.5708)]
-        '[acos-cos-s_binary64 . (and (<= 0 x) (<= x 3.1416))]
-        '[acos-cos-s_binary32 . (and (<= 0 x) (<= x 3.1416))]
-        '[atan-tan-s_binary64 . (<= (fabs x) 1.5708)]
-        '[atan-tan-s_binary32 . (<= (fabs x) 1.5708)]))
+  (list '[asinh-2 . (>= x 0)]
+        '[pow-unpow . (>= a 0)]
+        '[pow-pow . (>= a 0)]
+        '[sqrt-pow1 . (>= x 0)]
+        '[asin-sin-s . (<= (fabs x) (/ (PI) 2))]
+        '[acos-cos-s . (and (<= 0 x) (<= x (PI)))]
+        '[atan-tan-s . (<= (fabs x) (/ (PI) 2))]))
+
+(define double-repr (get-representation 'binary64))
+(define boolean-repr (get-representation 'bool))
+
+(define (type->repr type)
+  (match type
+    ['real double-repr]
+    ['bool boolean-repr]))
+
+(define (env->ctx env out)
+  (define vars (dict-keys env))
+  (define itypes (map type->repr (dict-values env)))
+  (context vars (type->repr out) itypes))
 
 (define (rule->impl-rules rule)
   (platform-impl-rules (list rule)))
 
 (define (check-rule-sound test-rule)
-  (match-define (rule name p1 p2 env repr) test-rule)
-  (define vars (map car env))
-  (define itypes (map cdr env))
-  (define ctx (context vars repr itypes))
+  (match-define (rule name p1 p2 env out) test-rule)
+  (define ctx (env->ctx env out))
 
-  (define spec1 (prog->spec p1))
-  (define spec2 (prog->spec p2))
   (match-define (list pts exs)
     (parameterize ([*num-points* (num-test-points)] [*max-find-range-depth* 0])
-      (cdr (sample-points '(TRUE) (list spec1) (list ctx)))))
+      (cdr (sample-points '(TRUE) (list p1) (list ctx)))))
 
-  (define compiler (make-real-compiler (list spec2) (list ctx)))
+  (define compiler (make-real-compiler (list p2) (list ctx)))
   (for ([pt (in-list pts)] [v1 (in-list exs)])
-    (with-check-info* (map make-check-info vars pt)
+    (with-check-info* (map make-check-info (context-vars ctx) pt)
                       (λ ()
                         (define-values (status v2) (real-apply compiler pt))
                         (with-check-info (['lhs v1] ['rhs v2] ['status status])
@@ -62,21 +62,19 @@
                                            (fail "Right hand side returns NaN")))))))
 
 (define (check-rule-correct test-rule)
-  (match-define (rule name p1 p2 itypes repr) test-rule)
-  (define fv (dict-keys itypes))
-  (define ctx (context fv repr (map (curry dict-ref itypes) fv)))
+  (match-define (rule name p1 p2 env out) test-rule)
+  (define ctx (env->ctx env out))
 
   (define pre (dict-ref *conditions* name '(TRUE)))
-  (define spec1 (prog->spec p1))
-  (define spec2 (prog->spec p2))
   (match-define (list pts exs1 exs2)
     (parameterize ([*num-points* (num-test-points)] [*max-find-range-depth* 0])
-      (cdr (sample-points pre (list spec1 spec2) (list ctx ctx)))))
+      (cdr (sample-points pre (list p1 p2) (list ctx ctx)))))
 
   (for ([pt (in-list pts)] [v1 (in-list exs1)] [v2 (in-list exs2)])
-    (with-check-info*
-     (map make-check-info fv pt)
-     (λ () (with-check-info (['lhs v1] ['rhs v2]) (check-eq? (ulp-difference v1 v2 repr) 1))))))
+    (with-check-info* (map make-check-info (context-vars ctx) pt)
+                      (λ ()
+                        (with-check-info (['lhs v1] ['rhs v2])
+                                         (check-eq? (ulp-difference v1 v2 (context-repr ctx)) 1))))))
 
 (define (check-rule-fp-safe test-rule)
   (match-define (rule name p1 p2 itypes repr) test-rule)
@@ -99,28 +97,25 @@
                 (for ([name names])
                   (eprintf "Checking ~a...\n" name)
                   (define rule (first (filter (λ (x) (equal? (~a (rule-name x)) name)) (*rules*))))
-                  (for ([rule* (rule->impl-rules rule)])
-                    (check-rule-correct rule*)
-                    (unless (set-member? (*unsound-rules*) rule)
-                      (check-rule-sound rule*))
-                    (when (set-member? (*fp-safe-simplify-rules*) rule)
+                  (check-rule-correct rule)
+                  (unless (set-member? (*unsound-rules*) rule)
+                    (check-rule-sound rule))
+                  (when (set-member? (*fp-safe-simplify-rules*) rule)
+                    (for ([rule* (rule->impl-rules rule)])
                       (check-rule-fp-safe rule*))))))
 
 (module+ test
   (define _ (*simplify-rules*)) ; force an update
 
-  (for* ([(_ test-ruleset) (in-dict (*rulesets*))]
-         [test-rule (first test-ruleset)]
-         [test-rule* (rule->impl-rules test-rule)])
-    (test-case (~a (rule-name test-rule*))
-      (check-rule-correct test-rule*)))
+  (for* ([(_ test-ruleset) (in-dict (*rulesets*))] [test-rule (first test-ruleset)])
+    (test-case (~a (rule-name test-rule))
+      (check-rule-correct test-rule)))
 
   (for* ([(_ test-ruleset) (in-dict (*rulesets*))]
          [test-rule (first test-ruleset)]
-         [test-rule* (rule->impl-rules test-rule)]
          #:unless (set-member? (*unsound-rules*) test-rule))
-    (test-case (~a (rule-name test-rule*))
-      (check-rule-sound test-rule*)))
+    (test-case (~a (rule-name test-rule))
+      (check-rule-sound test-rule)))
 
   (for* ([(_ test-ruleset) (in-dict (*rulesets*))]
          [test-rule (first test-ruleset)]

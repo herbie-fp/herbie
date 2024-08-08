@@ -155,7 +155,7 @@
     (string-trim (with-output-to-string (λ () (system cmd))))))
 
 (define (git-command #:default [default ""] gitcmd . args)
-  (if (directory-exists? ".git")
+  (if (or (directory-exists? ".git") (file-exists? ".git")) ; gitlinks like for worktrees
       (let* ([cmd (format "git ~a ~a" gitcmd (string-join args " "))] [out (run-command cmd)])
         (if (equal? out "") default out))
       default))
@@ -171,23 +171,15 @@
 ;;; The "reset" mechanism for clearing caches and such
 
 (define resetters '())
-
-(define (register-reset! fn #:priority [priority 0])
-  (set! resetters (cons (cons priority fn) resetters)))
-
-;; Defines a resetter as a parameter
-;; An initialize and reset function must be provided
-;; A finializer may be optionally specified
-(define-syntax define-resetter
-  (syntax-rules ()
-    [(_ name init-fn reset-fn) (define-resetter name init-fn reset-fn (λ _ (void)))]
-    [(_ name init-fn reset-fn finalize-fn)
-     (begin
-       (define name (make-parameter (init-fn)))
-       (register-reset! (λ ()
-                          (finalize-fn (name))
-                          (name (reset-fn)))))]))
+(define (register-resetter! fn)
+  (set! resetters (cons fn resetters)))
 
 (define (reset!)
-  (for ([fn-rec (sort resetters < #:key car)])
-    ((cdr fn-rec))))
+  (for ([fn (in-list resetters)])
+    (fn)))
+
+(define-syntax-rule (define/reset name value)
+  (define name
+    (let ([param (make-parameter value)])
+      (register-resetter! (λ () (name value)))
+      param)))

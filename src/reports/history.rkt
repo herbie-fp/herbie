@@ -70,6 +70,7 @@
     [(? symbol?) expr]
     [(? number?) expr]
     [(? literal?) (literal-value expr)]
+    [(approx spec impl) (approx (remove-literals spec) (remove-literals impl))]
     [(list op args ...) (cons op (map remove-literals args))]))
 
 (define (expr->fpcore expr ctx #:ident [ident #f])
@@ -82,6 +83,7 @@
         [(? symbol?) expr]
         [(? number?) expr]
         [(? literal?) (literal-value expr)]
+        [(approx _ impl) (loop impl)]
         [`(if ,cond ,ift ,iff) `(if ,(loop cond) ,(loop ift) ,(loop ift))]
         [`(,(? impl-exists? impl) ,args ...) `(,(impl->operator impl) ,@(map loop args))]
         [`(,op ,args ...) `(,op ,@(map loop args))])))

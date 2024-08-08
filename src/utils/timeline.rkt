@@ -20,11 +20,7 @@
 ;; This is a box so we can get a reference outside the engine, and so
 ;; access its value even in a timeout.
 ;; Important: Use 'eq?' based hash tables, process may freeze otherwise
-(define-resetter *timeline*
-                 (λ () (box '()))
-                 (λ ()
-                   (set-box! (*timeline*) '())
-                   (*timeline*)))
+(define/reset *timeline* (box '()))
 
 (define *timeline-active-key* #f)
 (define *timeline-active-value* #f)
@@ -60,6 +56,8 @@
       [(eq? *timeline-active-key* key)
        (set! *timeline-active-value* (cons val *timeline-active-value*))]
       [(not *timeline-active-key*)
+       (unless (pair? (unbox (*timeline*)))
+         (error 'timeline "Cannot push '~a to an empty timeline." key))
        (set! *timeline-active-key* key)
        (set! *timeline-active-value* (list val))]
       [else

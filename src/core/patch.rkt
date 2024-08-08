@@ -1,24 +1,68 @@
 #lang racket
 
-(require "rules.rkt"
+(require "../syntax/platform.rkt"
+         "../syntax/syntax.rkt"
          "../syntax/sugar.rkt"
          "../syntax/types.rkt"
-         "egg-herbie.rkt"
-         "rr.rkt"
-         "simplify.rkt"
-         "taylor.rkt"
          "../utils/alternative.rkt"
          "../utils/common.rkt"
-         "../syntax/platform.rkt"
+         "../utils/timeline.rkt"
+         "egg-herbie.rkt"
          "programs.rkt"
-         "../utils/timeline.rkt")
+         "rr.rkt"
+         "rules.rkt"
+         "simplify.rkt"
+         "taylor.rkt")
 
 (provide patch-table-has-expr?
          patch-table-run)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Patch table ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define-resetter *patch-table* (λ () (make-hash)) (λ () (make-hash)))
+(define/reset *patch-table* (make-hash))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;; Simplify ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define (lower-approximations approxs approx->prev)
+  (timeline-event! 'simplify)
+
+  (define reprs
+    (for/list ([approx (in-list approxs)])
+      (define prev (hash-ref approx->prev approx))
+      (repr-of (alt-expr prev) (*context*))))
+
+  ; generate real rules
+  (define rules (real-rules (*simplify-rules*)))
+  (define lowering-rules (platform-lowering-rules))
+
+  ; egg runner
+  (define schedule
+    (if (flag-set? 'generate 'simplify)
+        ; if simplify enabled, 2-phases for real rewrites and implementation selection
+        `((,rules . ((node . ,(*node-limit*))))
+          (,lowering-rules . ((iteration . 1) (scheduler . simple))))
+        ; if disabled, only implementation selection
+        `((,lowering-rules . ((iteration . 1) (scheduler . simple))))))
+
+  ; run egg
+  (define runner (make-egg-runner (map alt-expr approxs) reprs schedule))
+  (define simplification-options
+    (simplify-batch runner
+                    (typed-egg-extractor
+                     (if (*egraph-platform-cost*) platform-egg-cost-proc default-egg-cost-proc))))
+
+  ; convert to altns
+  (define simplified
+    (reap [sow]
+          (for ([altn (in-list approxs)] [outputs (in-list simplification-options)])
+            (match-define (cons _ simplified) outputs)
+            (define prev (hash-ref approx->prev altn))
+            (for ([expr (in-list simplified)])
+              (define spec (prog->spec (alt-expr prev)))
+              (sow (alt (approx spec expr) `(simplify ,runner #f #f) (list altn) '()))))))
+
+  (timeline-push! 'count (length approxs) (length simplified))
+  simplified)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Taylor ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -46,25 +90,27 @@
 (define (spec-has-nan? expr)
   (expr-contains? expr (lambda (term) (eq? term 'NAN))))
 
-(define (run-taylor altns reprs)
+(define (run-taylor altns)
   (timeline-event! 'series)
   (timeline-push! 'inputs (map ~a altns))
-  (define approximations
+
+  (define approx->prev (make-hasheq))
+  (define approxs
     (reap [sow]
-          (for ([altn (in-list altns)] [repr (in-list reprs)])
+          (for ([altn (in-list altns)])
             (for ([approximation (taylor-alt altn)])
               (unless (spec-has-nan? (alt-expr approximation))
-                (sow (cons approximation repr)))))))
-  (timeline-push! 'outputs (map (lambda (e&r) (~a (car e&r))) approximations))
-  (timeline-push! 'count (length altns) (length approximations))
-  approximations)
+                (hash-set! approx->prev approximation altn)
+                (sow approximation))))))
+
+  (timeline-push! 'outputs (map ~a approxs))
+  (timeline-push! 'count (length altns) (length approxs))
+  (lower-approximations approxs approx->prev))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Recursive Rewrite ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define (run-rr altns&reprs)
+(define (run-rr altns)
   (timeline-event! 'rewrite)
-  (define altns (map car altns&reprs))
-  (define reprs (map cdr altns&reprs))
 
   ; generate required rules
   (define rules (real-rules (*rules*)))
@@ -79,6 +125,7 @@
 
   ; run egg
   (define specs (map alt-expr altns))
+  (define reprs (map (lambda (altn) (repr-of (alt-expr altn) (*context*))) altns))
   (define changelistss (rewrite-expressions specs reprs schedule (*context*)))
 
   ; apply changelists
@@ -92,59 +139,20 @@
   (timeline-push! 'count (length altns) (length rewritten))
   rewritten)
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;; Simplify ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(define (run-simplify altns&reprs)
-  (timeline-event! 'simplify)
-  (define altns (map car altns&reprs))
-  (define reprs (map cdr altns&reprs))
-
-  ; generate real rules
-  (define rules (real-rules (*simplify-rules*)))
-  (define lowering-rules (platform-lowering-rules))
-
-  ; egg runner (2-phases for real rewrites and implementation selection)
-  (define runner
-    (make-egg-runner (map alt-expr altns)
-                     reprs
-                     `((,rules . ((node . ,(*node-limit*))))
-                       (,lowering-rules . ((iteration . 1) (scheduler . simple))))))
-
-  ; run egg
-  (define simplification-options
-    (simplify-batch runner
-                    (typed-egg-extractor
-                     (if (*egraph-platform-cost*) platform-egg-cost-proc default-egg-cost-proc))))
-
-  ; convert to altns
-  (define simplified
-    (reap [sow]
-          (for ([altn (in-list altns)] [outputs (in-list simplification-options)])
-            (match-define (cons _ simplified) outputs)
-            (for ([expr (in-list simplified)])
-              (sow (alt expr `(simplify ,runner #f #f) (list altn) '()))))))
-
-  (timeline-push! 'count (length altns) (length simplified))
-  simplified)
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Public API ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (patch-table-has-expr? expr)
   (hash-has-key? (*patch-table*) expr))
 
 (define (patch-table-run locs)
-  ; Representations
-  (define reprs (map (lambda (e) (repr-of e (*context*))) locs))
   ; Starting alternatives
   (define start-altns
-    (for/list ([expr (in-list locs)] [repr (in-list reprs)])
+    (for/list ([expr (in-list locs)])
+      (define repr (repr-of expr (*context*)))
       (alt expr (list 'patch expr repr) '() '())))
-  ; Core
-  (define approximations (if (flag-set? 'generate 'taylor) (run-taylor start-altns reprs) '()))
-  (define rewritten (if (flag-set? 'generate 'rr) (run-rr (map cons start-altns reprs)) '()))
-  (define simplified
-    (if (flag-set? 'generate 'simplify) (run-simplify approximations) approximations))
+  ; Series expand
+  (define approximations (if (flag-set? 'generate 'taylor) (run-taylor start-altns) '()))
+  ; Recursive rewrite
+  (define rewritten (if (flag-set? 'generate 'rr) (run-rr start-altns) '()))
 
-  (define altns (append rewritten simplified))
-  ;; Uncaching
-  altns)
+  (append approximations rewritten))
