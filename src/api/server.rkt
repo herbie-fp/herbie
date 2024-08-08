@@ -21,8 +21,7 @@
          "../utils/float.rkt")
 (require (submod "../utils/timeline.rkt" debug))
 
-(provide completed-job?
-         make-path
+(provide make-path
          get-improve-table-data
          make-improve-result
          get-results-for
@@ -30,47 +29,17 @@
          is-server-up
          create-job
          start-job
-         is-job-finished
          wait-for-job
          start-job-server)
 
-#| Job Server Public API section |#
-; computes the path used for server URLs
-(define (make-path id)
-  (format "~a.~a" id *herbie-commit*))
-
-(define (completed-job? job-id)
-  (define-values (a b) (place-channel))
-  (place-channel-put receptionist (list 'check job-id b))
+; verbose logging for debugging
+(define verbose #t) ; Maybe change to log-level and use 'verbose?
+(define (log msg . args)
   (when verbose
-    (eprintf "Checking if job ~a is completed.\n" job-id))
-  (place-channel-get a))
+    (apply eprintf msg args)))
 
-; Returns #f is now job exsist for the given job-id
-(define (get-results-for job-id)
-  (define-values (a b) (place-channel))
-  (place-channel-put receptionist (list 'check job-id b))
-  (when verbose
-    (eprintf "Getting result for job: ~a.\n" job-id))
-  (place-channel-get a))
-
-(define (get-improve-table-data)
-  (define-values (a b) (place-channel))
-  (place-channel-put receptionist (list 'improve b))
-  (when verbose
-    (eprintf "Getting improve results.\n"))
-  (place-channel-get a))
-
-(define (job-count)
-  (define-values (a b) (place-channel))
-  (place-channel-put receptionist (list 'count b))
-  (when verbose
-    (eprintf "Checking current job count\n"))
-  (define count (place-channel-get a))
-  count)
-
-(define (is-server-up)
-  (place? receptionist))
+;; Job object, What herbie excepts as input for a new job.
+(struct herbie-command (command test seed pcontext profile? timeline-disabled?) #:prefab)
 
 ;; Creates a command object to be passed to start-job server.
 ;; TODO contract?
@@ -82,6 +51,40 @@
                     #:timeline-disabled? [timeline-disabled? #f])
   (herbie-command command test seed pcontext profile? timeline-disabled?))
 
+; computes the path used for server URLs
+(define (make-path id)
+  (format "~a.~a" id *herbie-commit*))
+
+; Returns #f is now job exsist for the given job-id
+(define (get-results-for job-id)
+  (define-values (a b) (place-channel))
+  (place-channel-put receptionist (list 'result job-id b))
+  (log "Getting result for job: ~a.\n" job-id)
+  (place-channel-get a))
+
+(define (get-improve-table-data)
+  (define-values (a b) (place-channel))
+  (place-channel-put receptionist (list 'improve b))
+  (log "Getting improve results.\n")
+  (place-channel-get a))
+
+(define (job-count)
+  (define-values (a b) (place-channel))
+  (place-channel-put receptionist (list 'count b))
+  (log "Checking current job count\n")
+  (define count (place-channel-get a))
+  count)
+
+; TODO get this to work, how do I allow args to be optional
+(define (receptionist-ask msg . args)
+  (define-values (a b) (place-channel))
+  (place-channel-put receptionist (cons msg b args))
+  (log "Checking current job count\n" msg args)
+  (place-channel-get a))
+
+(define (is-server-up)
+  (place? receptionist))
+
 (define (start-job-server)
   (set! receptionist (make-receptionist)))
 
@@ -89,30 +92,14 @@
 (define (start-job command)
   (define job-id (compute-job-id command))
   (place-channel-put receptionist (list 'start receptionist command job-id))
-  (when verbose
-    (eprintf "Job ~a, Qed up for program: ~a\n" job-id (test-name (herbie-command-test command))))
+  (log "Job ~a, Qed up for program: ~a\n" job-id (test-name (herbie-command-test command)))
   job-id)
-
-(define (is-job-finished job-id)
-  (define-values (a b) (place-channel))
-  (place-channel-put receptionist (list 'check job-id b))
-  (when verbose
-    (eprintf "Checking if job is finished: ~a.\n" job-id))
-  (place-channel-get a))
-
-; verbose logging for debugging
-(define verbose #f) ; Maybe change to log-level and use 'verbose?
-(define (log msg)
-  (when verbose
-    ;; TODO fix string interpolation
-    (eprintf "~a\n" msg)))
 
 (define (wait-for-job job-id)
   (define-values (a b) (place-channel))
   (place-channel-put receptionist (list 'wait job-id b))
   (define finished-result (place-channel-get a))
-  (when verbose
-    (eprintf "Done waiting for: ~a\n" job-id))
+  (log "Done waiting for: ~a\n" job-id)
   finished-result)
 
 (define (make-receptionist)
@@ -133,8 +120,7 @@
    (define completed-work (make-hash))
    (define workers (make-hash))
    (define waiting (make-hash))
-   (when verbose
-     (eprintf "Receptionist waiting for work.\n"))
+   (log "Receptionist waiting for work.\n")
    (for ([i (in-naturals)])
      ;  (eprintf "Receptionist msg ~a handled\n" i)
      (match (place-channel-get ch)
@@ -143,7 +129,7 @@
        ; Retreive the improve results for results.json
        [(list 'improve handler)
         (define improved-list
-          (for/list ([(job-id result) completed-work]
+          (for/list ([(job-id result) (in-hash completed-work)]
                      #:when (equal? (hash-ref result 'command) "improve"))
             (get-table-data-from-hash result (make-path job-id))))
         (place-channel-put handler improved-list)]
@@ -154,47 +140,38 @@
             (let ([worker (make-worker)])
               ; Maybe this should be worker-id and we should pre allocate workers based on threads available.
               (hash-set! workers job-id worker)
-              (when verbose
-                (eprintf "Starting worker [~a] on [~a].\n"
-                         job-id
-                         (test-name (herbie-command-test command))))
+              (log "Starting worker [~a] on [~a].\n" job-id (test-name (herbie-command-test command)))
               (place-channel-put worker (list 'apply self command job-id))))]
        ; Job is finished notified the waiting list with the result of the job.
        [(list 'finished job-id result)
-        (when verbose
-          (eprintf "Job ~a finished, saving result.\n" job-id))
+        (log "Job ~a finished, saving result.\n" job-id)
         ; Notifed job has been completed, save the result.
         ; let GC collect worker 🤞.
         (hash-set! completed-work job-id result)
         (hash-remove! workers job-id)
-        (define maybe-wait-list (hash-ref waiting job-id #f))
-        (when maybe-wait-list
-          (when verbose
-            (eprintf "waiting job ~a completed\n" job-id))
-          (for ([waiting maybe-wait-list])
-            (place-channel-put waiting result))
-          (hash-remove! waiting job-id))]
-       ; Check if work is completed, returns the result or #f
-       [(list 'check job-id handler) (place-channel-put handler (hash-ref completed-work job-id #f))]
+        (log "waiting job ~a completed\n" job-id)
+        (define maybe-wait-list (hash-ref waiting job-id '()))
+        (for ([waiting maybe-wait-list])
+          (place-channel-put waiting result))
+        (hash-remove! waiting job-id)]
+       ; Get the result for the given id, return false if no work found.
+       [(list 'result job-id handler) (place-channel-put handler (hash-ref completed-work job-id #f))]
        ; Pass a place-channel `handler` to the receptionist to be notified on when a job is complete.
        [(list 'wait job-id handler)
+        (log "Waiting for job: ~a\n" job-id)
         ; first we add the handler to the wait list.
         (if (false? (hash-ref waiting job-id #f))
             (hash-set! waiting job-id (list handler))
             (let ([wait-list (hash-ref waiting job-id)])
               (hash-set! waiting job-id (append wait-list (list handler)))))
         (define result (hash-ref completed-work job-id #f))
-        (when verbose
-          (eprintf "Waiting for job: ~a\n" job-id))
         ; check if the job is completed oor not.
         (unless (false? result)
+          (log "Done waiting for job: ~a\n" job-id)
           ; we have a result to send.
-          (let ([maybe-wait-list (hash-ref waiting job-id #f)])
-            (unless (false? maybe-wait-list)
-              ; we have a waiting list to notify
-              (for ([waiting maybe-wait-list])
-                (place-channel-put waiting result))
-              (hash-remove! waiting job-id))))]))))
+          (for ([waiting (hash-ref waiting job-id '())])
+            (place-channel-put waiting result))
+          (hash-remove! waiting job-id))]))))
 
 (define receptionist #f)
 
@@ -224,8 +201,7 @@
    (for ([_ (in-naturals)])
      (match (place-channel-get ch)
        [(list 'apply receptionist command job-id)
-        (when verbose
-          (eprintf "[~a] working on [~a].\n" job-id (test-name (herbie-command-test command))))
+        (log "[~a] working on [~a].\n" job-id (test-name (herbie-command-test command)))
         (define herbie-result (wrapper-run-herbie command job-id))
         (match-define (job-result kind test status time _ _ backend) herbie-result)
         (define out-result
@@ -239,14 +215,8 @@
             ['local-error (make-local-error-result herbie-result test job-id)]
             ['sample (make-sample-result herbie-result test job-id)]
             [_ (error 'compute-result "unknown command ~a" kind)]))
-        (when verbose
-          (eprintf "Job: ~a finished, returning work to receptionist\n" job-id))
+        (log "Job: ~a finished, returning work to receptionist\n" job-id)
         (place-channel-put receptionist (list 'finished job-id out-result))]))))
-
-#| End Job Server Public API section |#
-
-;; Job object, What herbie excepts as input for a new job.
-(struct herbie-command (command test seed pcontext profile? timeline-disabled?) #:prefab)
 
 (define (make-local-error-result herbie-result test job-id)
   (define expr (prog->fpcore (test-input test)))
@@ -318,18 +288,17 @@
           (make-path job-id)))
 
 (define (make-improve-result herbie-result test job-id)
-  (define ctx (ctx-hash-table (test-context test)))
+  (define ctx (context->json (test-context test)))
   (define backend (job-result-backend herbie-result))
   (define job-time (job-result-time herbie-result))
   (define warnings (job-result-warnings herbie-result))
   (define timeline (job-result-timeline herbie-result))
 
   (define repr (test-output-repr test))
-  (define backend-hash #f)
-
-  (match (job-result-status herbie-result)
-    ['success (set! backend-hash (backend-improve-result-hash-table backend repr test))]
-    [else (set! backend-hash #f)])
+  (define backend-hash
+    (match (job-result-status herbie-result)
+      ['success (backend-improve-result-hash-table backend repr test)]
+      [_ #f]))
 
   (hasheq 'command
           (get-command herbie-result)
@@ -413,10 +382,10 @@
           'splitpoints
           splitpoints))
 
-(define (ctx-hash-table ctx)
-  (hasheq 'vars (context-vars ctx) 'repr (repr-hash-table (context-repr ctx))))
+(define (context->json ctx)
+  (hasheq 'vars (context-vars ctx) 'repr (repr->json (context-repr ctx))))
 
-(define (repr-hash-table repr)
+(define (repr->json repr)
   (hasheq 'name (representation-name repr) 'type (representation-type repr)))
 
 (define (make-alternatives-result herbie-result test job-id)

@@ -54,7 +54,6 @@
   (define test (hash-ref result-hash 'test))
   (define time (hash-ref result-hash 'time))
   (define warnings (hash-ref result-hash 'warnings))
-  (define vars (test-vars test))
   (define repr (test-output-repr test))
   (define repr-bits (representation-total-bits repr))
   (define ctx (test-context test))

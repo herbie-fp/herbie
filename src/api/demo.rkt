@@ -47,7 +47,7 @@
    (and (not (and (*demo-output*) ; If we've already saved to disk, skip this job
                   (directory-exists? (build-path (*demo-output*) x))))
         (let ([m (regexp-match #rx"^([0-9a-f]+)\\.[0-9a-f.]+" x)])
-          (and m (completed-job? (second m))))))
+          (and m (get-results-for (second m))))))
  (λ (x)
    (let ([m (regexp-match #rx"^([0-9a-f]+)\\.[0-9a-f.]+" x)]) (get-results-for (if m (second m) x)))))
 
@@ -338,8 +338,8 @@
    (url main)))
 
 (define (check-status req job-id)
-  (define r (is-job-finished job-id))
-  ;; Well this isn't great but moving on.
+  (define r (get-results-for job-id))
+  ;; TODO return the current status from the jobs timeline
   (match r
     [#f
      (response 202
@@ -530,8 +530,6 @@
                              (define sample (hash-ref post-data 'sample))
                              (define seed (hash-ref post-data 'seed #f))
                              (define test (parse-test formula))
-                             (define vars (test-vars test))
-                             (define repr (test-output-repr test))
                              (define pcontext (json->pcontext sample (test-context test)))
                              (define command
                                (create-job 'alternatives

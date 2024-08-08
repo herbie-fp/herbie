@@ -33,7 +33,7 @@
           (real->ordinal (repr->real val repr) repr))
         '())))
 
-(define (make-points-json result-hash repr)
+(define (make-points-json result-hash)
   (define test (hash-ref result-hash 'test))
   (define backend (hash-ref result-hash 'backend))
   (define pctxs (hash-ref backend 'pctxs))
