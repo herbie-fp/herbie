@@ -41,7 +41,7 @@
 ;; - Final steps: regimes, final simplify, add soundiness, and remove preprocessing
 
 (define (run-improve! initial specification context pcontext)
-  (explain! simplified context pcontext)
+  (explain! initial context pcontext)
   (timeline-event! 'preprocess)
   (define-values (simplified preprocessing) (find-preprocessing initial specification context))
   (timeline-push! 'symmetry (map ~a preprocessing))
@@ -324,9 +324,8 @@
   (timeline-event! 'prune)
   (^table^ (atab-add-altns table simplified errss costs)))
 
-(define (explain! simplified context pcontext)
+(define (explain! expr context pcontext)
   (timeline-event! 'explain)
-  (define expr (alt-expr (car simplified)))
 
   (define-values (fperrors
                   explanations-table
@@ -334,7 +333,7 @@
                   maybe-confusion-matrix
                   total-confusion-matrix
                   freqs)
-    (explain expr (*context*) (*pcontext*)))
+    (explain expr context pcontext))
 
   (for ([fperror (in-list fperrors)])
     (match-define (list expr truth opreds oex upreds uex) fperror)
