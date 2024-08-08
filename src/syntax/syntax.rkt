@@ -36,7 +36,7 @@
 
 (module+ internals
   (provide define-operator-impl
-            define-operator-impl2
+           define-operator-impl2
            register-operator-impl!
            define-operator
            register-operator!
@@ -462,26 +462,44 @@
   (hash-set! operator-impls name impl)
   (hash-update! operators-to-impls op (curry cons name)))
 
-(define (register-operator-impl2! op name args orepr #:fl [fl #f] #:spec [spec #f] #:fpcore [fpcore #f])
-  ;; Check if op is given
+(define (register-operator-impl2! op
+                                  name
+                                  args
+                                  orepr
+                                  #:fl [fl #f]
+                                  #:spec [spec #f]
+                                  #:fpcore [fpcore #f])
+  ;; Check if spec is given (if not, infer it from the operator which is required)
+  (define vars (map car args))
+  (unless spec
+    (unless op
+      (raise-herbie-syntax-error "Missing required operator"))
+    (set! spec `(,op ,@vars)))
+
   (define new-op op)
-  (if op op
+  (if op
+      op
       (let loop ([expr spec] [operator #f])
         (match expr
           [`(,(? symbol? op) ,args ...)
-            (if (null? args) (set! new-op op)
-                (for ([a (in-list args)])
-                  (if operator (raise-herbie-syntax-error "Could not infer operator from" expr)
-                  (loop a op))))]
+           (if (null? args)
+               (set! new-op op)
+               (for ([a (in-list args)])
+                 (if operator
+                     (raise-herbie-syntax-error "Could not infer operator from ~a" spec)
+                     (loop a op))))]
           [_ (set! new-op operator)])))
-  
-  ;; Verify fpcore is well formed
-  (match fpcore
-    [`(! ,props ... (,operator ,args ...))
-     (void)]
-    [`(,operator ,args ...)
-     (void)]
-    [_ (raise-herbie-syntax-error "Invalid fpcore given" fpcore)])
+
+  (define bool-repr (get-representation 'bool))
+  (if fpcore
+      ;; Verify fpcore is well formed
+      (match fpcore
+        [`(! ,props ... (,operator ,args ...)) (void)]
+        [`(,operator ,args ...) (void)]
+        [_ (raise-herbie-syntax-error "Invalid fpcore given" fpcore)])
+      (if (equal? orepr bool-repr)
+          (set! fpcore `(,new-op ,@vars))
+          (set! fpcore `(! :precision ,(representation-name orepr) (,new-op ,@vars)))))
 
   (define op-info
     (hash-ref
@@ -533,7 +551,7 @@
        (synth-fl-impl name vars `(,new-op ,@vars))]))
 
   ; update tables
-  (define impl (operator-impl name new-op (context (map car args) orepr ireprs) fl-proc spec fpcore)) 
+  (define impl (operator-impl name new-op (context vars orepr ireprs) fl-proc spec fpcore))
   (hash-set! operator-impls name impl)
   (hash-update! operators-to-impls new-op (curry cons name)))
 
@@ -549,24 +567,26 @@
     (raise-syntax-error 'define-impl why stx sub-stx))
   (syntax-case stx ()
     [(_ (id [var : repr] ...) rtype fields ...)
-      (let loop ([fields #'(fields ...)] [operator #f] [spec #f] [core #f] [fl-expr #f])
-        (syntax-case fields (spec fpcore fl op)
-          [()
-            (let ([impl-id #'id])
-              (unless (identifier? impl-id)
-                (oops! "impl id is not a valid identifier" impl-id))
-              (with-syntax ([impl-id impl-id]
-                            [operator operator] [spec spec] [core core] [fl-expr fl-expr])
-                #'(define impl-id (register-operator-impl2! 'operator 'impl-id (list (cons 'var (get-representation 'repr)) ...) (get-representation 'rtype) #:fl 'fl-expr #:spec 'spec #:fpcore 'core))))]
-          [([spec expr] rest ...)
-            (loop #'(rest ...) operator #'expr core fl-expr)]
-          [([fpcore expr] rest ...)
-            (loop #'(rest ...) operator spec #'expr fl-expr)]
-          [([fl expr] rest ...) 
-            (loop #'(rest ...) operator spec core #'expr)]
-          [([op name] rest ...)
-           (loop #'(rest ...) #'name spec core fl-expr)]
-          [_ (oops! "bad syntax" fields)]))]
+     (let loop ([fields #'(fields ...)] [operator #f] [spec #f] [core #f] [fl-expr #f])
+       (syntax-case fields ()
+         [()
+          (let ([impl-id #'id])
+            (unless (identifier? impl-id)
+              (oops! "impl id is not a valid identifier" impl-id))
+            (with-syntax
+                ([impl-id impl-id] [operator operator] [spec spec] [core core] [fl-expr fl-expr])
+              #'(register-operator-impl2! 'operator
+                                          'impl-id
+                                          (list (cons 'var (get-representation 'repr)) ...)
+                                          (get-representation 'rtype)
+                                          #:fl 'fl-expr
+                                          #:spec 'spec
+                                          #:fpcore 'core)))]
+         [(#:spec expr rest ...) (loop #'(rest ...) operator #'expr core fl-expr)]
+         [(#:fpcore expr rest ...) (loop #'(rest ...) operator spec #'expr fl-expr)]
+         [(#:fl expr rest ...) (loop #'(rest ...) operator spec core #'expr)]
+         [(#:op name rest ...) (loop #'(rest ...) #'name spec core fl-expr)]
+         [_ (oops! "bad syntax" fields)]))]
     [_ (oops! "bad syntax")]))
 
 ;; Among active implementations, looks up an implementation with
@@ -618,9 +638,17 @@
                          (conjoin number? nan?))
 
   ; correctly-rounded log1pmd(x) for binary64
-  (define-operator-impl2 (log1pmd.f64 [x : binary64]) binary64 [spec (- (log1p x) (log1p (neg x)))] [fpcore (! :precision binary64 (log1pmd x))])
+  (define-operator-impl2 (log1pmd.f64 [x : binary64])
+                         binary64
+                         #:spec (- (log1p x) (log1p (neg x)))
+                         #:fpcore (! :precision binary64 (log1pmd x))
+                         #:fl log1pmd)
   ; correctly-rounded sin(x) for binary64
-  (define-operator-impl2 (sin.acc.f64 [x : binary64]) binary64 [spec (sin x)] [fpcore (! :precision binary64 (sin x))])
+  (define-operator-impl2 (sin.acc.f64 [x : binary64])
+                         binary64
+                         #:spec (sin x)
+                         #:fpcore (! :precision binary64 (sin x))
+                         #:fl sin)
 
   (define log1pmd-proc (impl-info 'log1pmd.f64 'fl))
   (define log1pmd-vals '((0.0 . 0.0) (0.5 . 1.0986122886681098) (-0.5 . -1.0986122886681098)))

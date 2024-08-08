@@ -60,8 +60,9 @@
        (unless (identifier? #'name)
          (oops! "expected identifier" #'name))
        (with-syntax ([(citype ...) (map repr->type (syntax->list #'(itype ...)))]
-                     [cotype (repr->type #'otype)])
+                     [cotype (repr->type #'otype)]
+                     [(var ...) (generate-temporaries #'(itype ...))])
          #'(begin
              (define-libm proc (cname citype ... cotype))
              (when proc
-               (define-operator-impl (id name itype ...) otype [fl proc] attrib ...)))))]))
+               (define-operator-impl2 (name [var : itype] ...) otype #:fl proc #:op id)))))]))
