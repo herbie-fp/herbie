@@ -557,7 +557,7 @@
                 (oops! "impl id is not a valid identifier" impl-id))
               (with-syntax ([impl-id impl-id]
                             [operator operator] [spec spec] [core core] [fl-expr fl-expr])
-                #'(define impl-id (register-operator-impl2! 'operator 'impl-id (list (cons 'var (get-representation 'repr)) ...) (get-representation 'rtype) #:fl fl-expr #:spec 'spec #:fpcore 'core))))]
+                #'(define impl-id (register-operator-impl2! 'operator 'impl-id (list (cons 'var (get-representation 'repr)) ...) (get-representation 'rtype) #:fl 'fl-expr #:spec 'spec #:fpcore 'core))))]
           [([spec expr] rest ...)
             (loop #'(rest ...) operator #'expr core fl-expr)]
           [([fpcore expr] rest ...)

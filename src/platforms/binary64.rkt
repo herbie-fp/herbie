@@ -46,11 +46,11 @@
   (begin
     (define-libm-impls/binary64* (itype ... otype) name ...) ...))
 
-(define-operator-impl2 (neg.f64 [x : binary64]) binary64 [spec (neg x)] [fpcore (! :precision binary64 (- x))] [fl -])
-(define-operator-impl2 (+.f64 [x : binary64] [y : binary64]) binary64 [spec (+ x y)] [fpcore (! :precision binary64 (+ x y))] [fl +])
-(define-operator-impl2 (-.f64 [x : binary64] [y : binary64]) binary64 [spec (- x y)] [fpcore (! :precision binary64 (- x y))] [fl -])
-(define-operator-impl2 (*.f64 [x : binary64] [y : binary64]) binary64 [spec (* x y)] [fpcore (! :precision binary64 (* x y))] [fl *])
-(define-operator-impl2 (/.f64 [x : binary64] [y : binary64]) binary64 [spec (/ x y)] [fpcore (! :precision binary64 (/ x y))] [fl /])
+(define-operator-impl2 (neg.f64 [x : binary64]) binary64 [spec (neg x)] [fpcore (! :precision binary64 (- x))] )
+(define-operator-impl2 (+.f64 [x : binary64] [y : binary64]) binary64 [spec (+ x y)] [fpcore (! :precision binary64 (+ x y))] )
+(define-operator-impl2 (-.f64 [x : binary64] [y : binary64]) binary64 [spec (- x y)] [fpcore (! :precision binary64 (- x y))] )
+(define-operator-impl2 (*.f64 [x : binary64] [y : binary64]) binary64 [spec (* x y)] [fpcore (! :precision binary64 (* x y))] )
+(define-operator-impl2 (/.f64 [x : binary64] [y : binary64]) binary64 [spec (/ x y)] [fpcore (! :precision binary64 (/ x y))])
 
 (define-libm-impls/binary64 [(binary64 binary64)
                              (acos acosh
