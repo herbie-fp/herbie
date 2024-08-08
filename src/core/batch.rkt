@@ -29,16 +29,15 @@
       [_
        (define node ; This compiles to the register machine
          (match prog
-           [(? literal?) prog]
-           [(? symbol?) prog]
-           [(list op args ...) (cons op (map munge args))]))
+           [(list op args ...) (cons op (map munge args))]
+           [_ prog]))
        (hash-ref! exprhash
                   node
                   (lambda ()
                     (begin0 (+ exprc varc) ; store in cache, update exprs, exprc
-                      (set! exprc (+ 1 exprc))
-                      (set! icache (cons node icache)))))]))
-
+                            (set! exprc (+ 1 exprc))
+                            (set! icache (cons node icache)))))]))
+  
   (define roots (list->vector (map munge exprs)))
   (define nodes (list->vector (reverse icache)))
   (define nodes-length (vector-length nodes))
@@ -69,40 +68,41 @@
     (make-hash (for/list ([var vars] [i (in-naturals)])
                  (cons var i))))
   ; Counts
-  (define size 0)
   (define exprc 0)
   (define varc (length vars))
 
   ; Translates programs into an instruction sequence of operations
   (define (munge prog)
-    (set! size (+ 1 size))
-    (define node ; This compiles to the register machine
-      (match prog
-        [(list '- arg1 arg2) `(+ ,(munge arg1) ,(munge `(neg ,arg2)))]
-        [(list 'pow base 1/2) `(sqrt ,(munge base))]
-        [(list 'pow base 1/3) `(cbrt ,(munge base))]
-        [(list 'pow base 2/3) `(cbrt ,(munge `(* ,base ,base)))]
-        [(list 'pow base power)
-         #:when (exact-integer? power)
-         `(pow ,(munge base) ,(munge power))]
-        [(list 'pow base power) `(exp ,(munge `(* ,power (log ,base))))]
-        [(list 'tan args) `(/ ,(munge `(sin ,args)) ,(munge `(cos ,args)))]
-        [(list 'cosh args) `(* ,(munge 1/2) ,(munge `(+ (exp ,args) (/ 1 (exp ,args)))))]
-        [(list 'sinh args) `(* ,(munge 1/2) ,(munge `(+ (exp ,args) (neg (/ 1 (exp ,args))))))]
-        [(list 'tanh args)
-         `(/ ,(munge `(+ (exp ,args) (neg (/ 1 (exp ,args)))))
-             ,(munge `(+ (exp ,args) (/ 1 (exp ,args)))))]
-        [(list 'asinh args) `(log ,(munge `(+ ,args (sqrt (+ (* ,args ,args) 1)))))]
-        [(list 'acosh args) `(log ,(munge `(+ ,args (sqrt (+ (* ,args ,args) -1)))))]
-        [(list 'atanh args) `(* ,(munge 1/2) ,(munge `(log (/ (+ 1 ,args) (+ 1 (neg ,args))))))]
-        [(list op args ...) (cons op (map munge args))]
-        [_ prog]))
-    (hash-ref! exprhash
-               node
-               (lambda ()
-                 (begin0 (+ exprc varc) ; store in cache, update exprs, exprc
-                   (set! exprc (+ 1 exprc))
-                   (set! icache (cons node icache))))))
+    (match prog
+      [(approx _ impl) (munge impl)]
+      [_
+       (define node ; This compiles to the register machine
+         (match prog
+           [(list '- arg1 arg2) `(+ ,(munge arg1) ,(munge `(neg ,arg2)))]
+           [(list 'pow base 1/2) `(sqrt ,(munge base))]
+           [(list 'pow base 1/3) `(cbrt ,(munge base))]
+           [(list 'pow base 2/3) `(cbrt ,(munge `(* ,base ,base)))]
+           [(list 'pow base power)
+            #:when (exact-integer? power)
+            `(pow ,(munge base) ,(munge power))]
+           [(list 'pow base power) `(exp ,(munge `(* ,power (log ,base))))]
+           [(list 'tan args) `(/ ,(munge `(sin ,args)) ,(munge `(cos ,args)))]
+           [(list 'cosh args) `(* ,(munge 1/2) ,(munge `(+ (exp ,args) (/ 1 (exp ,args)))))]
+           [(list 'sinh args) `(* ,(munge 1/2) ,(munge `(+ (exp ,args) (neg (/ 1 (exp ,args))))))]
+           [(list 'tanh args)
+            `(/ ,(munge `(+ (exp ,args) (neg (/ 1 (exp ,args)))))
+                ,(munge `(+ (exp ,args) (/ 1 (exp ,args)))))]
+           [(list 'asinh args) `(log ,(munge `(+ ,args (sqrt (+ (* ,args ,args) 1)))))]
+           [(list 'acosh args) `(log ,(munge `(+ ,args (sqrt (+ (* ,args ,args) -1)))))]
+           [(list 'atanh args) `(* ,(munge 1/2) ,(munge `(log (/ (+ 1 ,args) (+ 1 (neg ,args))))))]
+           [(list op args ...) (cons op (map munge args))]
+           [_ prog]))
+       (hash-ref! exprhash
+                  node
+                  (lambda ()
+                    (begin0 (+ exprc varc) ; store in cache, update exprs, exprc
+                            (set! exprc (+ 1 exprc))
+                            (set! icache (cons node icache)))))]))
 
   (set-batch-roots! batch (list->vector (map munge (batch->progs batch))))
   (set-batch-nodes! batch (list->vector (reverse icache)))
