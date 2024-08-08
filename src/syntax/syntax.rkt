@@ -493,7 +493,7 @@
        (synth-fl-impl name vars `(,new-op ,@vars))]))
 
   ; update tables
-  (define impl (operator-impl name new-op (context vars orepr ireprs) fl-proc spec fpcore))
+  (define impl (operator-impl name op-info (context vars orepr ireprs) fl-proc spec fpcore))
   (hash-set! operator-impls name impl)
   (hash-update! operators-to-impls new-op (curry cons name)))
 
