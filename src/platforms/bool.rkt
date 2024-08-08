@@ -29,11 +29,11 @@
 (define (or-fn . as)
   (ormap identity as))
 
-(define-operator-impl (not not bool) bool [fl not])
+(define-operator-impl2 (not [x : bool]) bool [spec (not x)] [fpcore (! (not x))] [fl not])
 
-(define-operator-impl (and and bool bool) bool [fl and-fn])
+(define-operator-impl2 (and [x : bool] [y : bool]) bool [spec (and x y)] [fpcore (! (and x x))] [fl and-fn])
 
-(define-operator-impl (or or bool bool) bool [fl or-fn])
+(define-operator-impl2 (or [x : bool] [y : bool]) bool [spec (or x y)] [fpcore (! (or x x))] [fl or-fn])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; rules ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

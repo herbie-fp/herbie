@@ -557,7 +557,7 @@
                 (oops! "impl id is not a valid identifier" impl-id))
               (with-syntax ([impl-id impl-id]
                             [operator operator] [spec spec] [core core] [fl-expr fl-expr])
-                #'(define impl-id (register-operator-impl2! operator 'impl-id (list (cons 'var (get-representation 'repr)) ...) (get-representation 'rtype) #:fl fl-expr #:spec 'spec #:fpcore 'core))))]
+                #'(define impl-id (register-operator-impl2! 'operator 'impl-id (list (cons 'var (get-representation 'repr)) ...) (get-representation 'rtype) #:fl fl-expr #:spec 'spec #:fpcore 'core))))]
           [([spec expr] rest ...)
             (loop #'(rest ...) operator #'expr core fl-expr)]
           [([fpcore expr] rest ...)
@@ -565,7 +565,7 @@
           [([fl expr] rest ...) 
             (loop #'(rest ...) operator spec core #'expr)]
           [([op name] rest ...)
-           (loop #'(rest ...) #'op spec core fl-expr)]
+           (loop #'(rest ...) #'name spec core fl-expr)]
           [_ (oops! "bad syntax" fields)]))]
     [_ (oops! "bad syntax")]))
 
@@ -618,9 +618,9 @@
                          (conjoin number? nan?))
 
   ; correctly-rounded log1pmd(x) for binary64
-  (define-operator-impl (log1pmd log1pmd.f64 binary64) binary64)
+  (define-operator-impl2 (log1pmd.f64 [x : binary64]) binary64 [spec (- (log1p x) (log1p (neg x)))] [fpcore (! :precision binary64 (log1pmd x))])
   ; correctly-rounded sin(x) for binary64
-  (define-operator-impl (sin sin.acc.f64 binary64) binary64)
+  (define-operator-impl2 (sin.acc.f64 [x : binary64]) binary64 [spec (sin x)] [fpcore (! :precision binary64 (sin x))])
 
   (define log1pmd-proc (impl-info 'log1pmd.f64 'fl))
   (define log1pmd-vals '((0.0 . 0.0) (0.5 . 1.0986122886681098) (-0.5 . -1.0986122886681098)))
