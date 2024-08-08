@@ -10,7 +10,6 @@
 (provide define-type
          define-representation
          define-operator-impl
-         define-operator-impl2
          define-operator
          define-ruleset
          define-ruleset*

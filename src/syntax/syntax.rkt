@@ -36,7 +36,6 @@
 
 (module+ internals
   (provide define-operator-impl
-           define-operator-impl2
            register-operator-impl!
            define-operator
            register-operator!
@@ -403,66 +402,9 @@
 (define (clear-active-operator-impls!)
   (set-clear! active-operator-impls))
 
-;; Registers an operator implementation `name` or real operator `op`.
-;; The input and output representations must satisfy the types
-;; specified by the `itype` and `otype` fields for `op`.
-(define (register-operator-impl! op name ireprs orepr attrib-dict)
-  (define op-info
-    (hash-ref
-     operators
-     op
-     (lambda ()
-       (raise-herbie-missing-error "Cannot register `~a`, operator `~a` does not exist" name op))))
-
-  ; check arity and types
-  (define itypes (operator-itype op-info))
-  (define otype (operator-otype op-info))
-  (define expect-arity (length itypes))
-  (define actual-arity (length ireprs))
-  (unless (= expect-arity actual-arity)
-    (raise-herbie-missing-error
-     "Cannot register `~a` as an implementation of `~a`: expected ~a arguments, got ~a"
-     name
-     op
-     expect-arity
-     actual-arity))
-  (for ([repr (in-list (cons orepr ireprs))] [type (in-list (cons otype itypes))])
-    (unless (equal? (representation-type repr) type)
-      "Cannot register `~a` as implementation of `~a`: ~a is not a representation of ~a"
-      name
-      op
-      repr
-      type))
-
-  ;; Synthesizes a correctly-rounded floating-point implemenation
-  (define (synth-fl-impl name vars spec)
-    (define ctx (context vars orepr ireprs))
-    (define compiler (make-real-compiler (list spec) (list ctx)))
-    (define fail ((representation-bf->repr orepr) +nan.bf))
-    (procedure-rename (lambda pt
-                        (define-values (_ exs) (real-apply compiler pt))
-                        (if exs (first exs) fail))
-                      (sym-append 'synth: name)))
-
-  ;; Get floating-point implementation
-  (define fl-proc
-    (cond
-      [(assoc 'fl attrib-dict)
-       =>
-       cdr] ; user-provided implementation
-      [(operator-accelerator? op) ; Rival-synthesized accelerator implementation
-       (match-define `(,(or 'lambda 'λ) (,vars ...) ,body) (operator-spec op-info))
-       (synth-fl-impl name vars body)]
-      [else ; Rival-synthesized operator implementation
-       (define vars (build-list (length ireprs) (lambda (i) (string->symbol (format "x~a" i)))))
-       (synth-fl-impl name vars `(,op ,@vars))]))
-
-  ; update tables
-  (define impl (operator-impl name op-info (context '() orepr ireprs) #f #f fl-proc))
-  (hash-set! operator-impls name impl)
-  (hash-update! operators-to-impls op (curry cons name)))
-
-(define (register-operator-impl2! op
+;; Registers an operator implementation `name`
+;; fl, spec,, and fpcore can be synthesize from an operator
+(define (register-operator-impl! op
                                   name
                                   args
                                   orepr
@@ -555,14 +497,7 @@
   (hash-set! operator-impls name impl)
   (hash-update! operators-to-impls new-op (curry cons name)))
 
-(define-syntax-rule (define-operator-impl (operator name atypes ...) rtype [key value] ...)
-  (register-operator-impl! 'operator
-                           'name
-                           (list (get-representation 'atypes) ...)
-                           (get-representation 'rtype)
-                           (list (cons 'key value) ...)))
-
-(define-syntax (define-operator-impl2 stx)
+(define-syntax (define-operator-impl stx)
   (define (oops! why [sub-stx #f])
     (raise-syntax-error 'define-impl why stx sub-stx))
   (syntax-case stx ()
@@ -575,7 +510,7 @@
               (oops! "impl id is not a valid identifier" impl-id))
             (with-syntax
                 ([impl-id impl-id] [operator operator] [spec spec] [core core] [fl-expr fl-expr])
-              #'(register-operator-impl2! 'operator
+              #'(register-operator-impl! 'operator
                                           'impl-id
                                           (list (cons 'var (get-representation 'repr)) ...)
                                           (get-representation 'rtype)
@@ -638,13 +573,13 @@
                          (conjoin number? nan?))
 
   ; correctly-rounded log1pmd(x) for binary64
-  (define-operator-impl2 (log1pmd.f64 [x : binary64])
+  (define-operator-impl (log1pmd.f64 [x : binary64])
                          binary64
                          #:spec (- (log1p x) (log1p (neg x)))
                          #:fpcore (! :precision binary64 (log1pmd x))
                          #:fl log1pmd)
   ; correctly-rounded sin(x) for binary64
-  (define-operator-impl2 (sin.acc.f64 [x : binary64])
+  (define-operator-impl (sin.acc.f64 [x : binary64])
                          binary64
                          #:spec (sin x)
                          #:fpcore (! :precision binary64 (sin x))

@@ -34,7 +34,7 @@
 
 (define-syntax-rule (define-1ary-fallback-operator op fn)
   (with-syntax ([impl (string->symbol (format "~a.rkt" (syntax->datum #'op)))] [fl fn])
-    #'(define-operator-impl2 (impl [x : binary64])
+    #'(define-operator-impl (impl [x : binary64])
                              binary64
                              #:spec (op x)
                              #:fpcore (! :precision binary64 :math-library racket (op x))
@@ -42,7 +42,7 @@
 
 (define-syntax-rule (define-2ary-fallback-operator op fn)
   (with-syntax ([impl (string->symbol (format "~a.rkt" (syntax->datum #'op)))])
-    #'(define-operator-impl2 (impl [x : binary64] [y : binary64])
+    #'(define-operator-impl (impl [x : binary64] [y : binary64])
                              binary64
                              #:spec (op x y)
                              #:fpcore (! :precision binary64 :math-library racket (op x y))
@@ -128,7 +128,7 @@
                                 [pow (no-complex expt)]
                                 [remainder remainder])
 
-(define-operator-impl2 (fma.rkt [x : binary64] [y : binary64] [z : binary64])
+(define-operator-impl (fma.rkt [x : binary64] [y : binary64] [z : binary64])
                        binary64
                        #:spec (+ (* x y) z)
                        #:fpcore (! :precision binary64 :math-library racket (fma x y z))
