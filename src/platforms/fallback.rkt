@@ -12,16 +12,6 @@
 (module test racket/base
   )
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;; representation ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(define-representation (racket real flonum?)
-                       bigfloat->flonum
-                       bf
-                       (shift 63 ordinal->flonum)
-                       (unshift 63 flonum->ordinal)
-                       64
-                       (disjoin nan? infinite?))
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; constants ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define-constants racket
