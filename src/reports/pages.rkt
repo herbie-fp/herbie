@@ -44,7 +44,11 @@
   (match page
     ["graph.html"
      (match status
-       ['success (make-graph result out output? profile?)]
+       ['success
+        (define command (job-result-command result))
+        (match command
+          ['improve (make-graph result out output? profile?)]
+          [else (dummy-graph command out)])]
        ['timeout (make-traceback result out profile?)]
        ['failure (make-traceback result out profile?)]
        [_ (error 'make-page "unknown result type ~a" status)])]
