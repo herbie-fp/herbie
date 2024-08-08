@@ -129,7 +129,11 @@
   (define result
     (cond
       [profile?
-       (call-with-output-file (build-path "profile.json")
+       (define path (build-path (make-path job-id) "profile.json"))
+       (eprintf "~a\n" (directory-exists? (build-path (make-path job-id))))
+       (unless (directory-exists? (build-path (make-path job-id)))
+         (make-directory (make-path job-id)))
+       (call-with-output-file (build-path (make-path job-id) "profile.json")
                               #:exists 'replace
                               (λ (pp)
                                 (run-herbie (herbie-command-command cmd)

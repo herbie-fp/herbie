@@ -74,6 +74,7 @@
                   [("results.json") generate-report]))
 
 (define (generate-page req result page)
+  (eprintf "generate-page: ~a, ~a \n" page result)
   (define path (first (string-split (url->string (request-uri req)) "/")))
   (cond
     [(set-member? (all-pages result) page)
