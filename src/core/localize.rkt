@@ -103,7 +103,8 @@
   (define subexprss (map all-subexpressions exprs))
   (define errss (compute-local-errors subexprss ctx))
 
-  (for/list ([_ (in-list exprs)] [errs (in-list errss)])
+  (for/list ([_ (in-list exprs)]
+             [errs (in-list errss)])
     (sort (sort (for/list ([(subexpr err) (in-hash errs)]
                            #:when (or (list? subexpr) (approx? subexpr)))
                   (cons err subexpr))
@@ -119,7 +120,7 @@
     (for/list ([subexpr (in-list exprs-list)])
       (struct-copy context ctx [repr (repr-of subexpr ctx)])))
 
-  (define expr-batch (progs->batch exprs-list #:vars (context-vars (first ctx-list))))
+  (define expr-batch (progs->batch exprs-list #:ignore-approx #f))
   (define nodes (batch-nodes expr-batch))
   (define roots (batch-roots expr-batch))
 
@@ -130,7 +131,9 @@
 
   (for ([(pt ex) (in-pcontext (*pcontext*))])
     (define exacts (list->vector (apply subexprs-fn pt)))
-    (for ([expr (in-list exprs-list)] [root (in-vector roots)] [exact (in-vector exacts)])
+    (for ([expr (in-list exprs-list)]
+          [root (in-vector roots)]
+          [exact (in-vector exacts)])
       (define err
         (match (vector-ref nodes root)
           [(? literal?) 1]

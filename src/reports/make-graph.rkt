@@ -17,7 +17,8 @@
          "../syntax/sugar.rkt"
          "timeline.rkt")
 
-(provide make-graph)
+(provide make-graph
+         dummy-graph)
 
 (define/contract (regime-info altn)
   (-> alt? (or/c (listof sp?) #f))
@@ -34,6 +35,19 @@
   (match expr
     [(list op args ...) (ormap list? args)]
     [_ #f]))
+
+(define (dummy-graph command out)
+  (write-html
+   `(html (head (meta ([charset "utf-8"]))
+                (title "Result page for the " ,(~a command) " command is not available right now.")
+                ,@js-tex-include
+                (script ([src "https://unpkg.com/mathjs@4.4.2/dist/math.min.js"]))
+                (script ([src "https://unpkg.com/d3@6.7.0/dist/d3.min.js"]))
+                (script ([src "https://unpkg.com/@observablehq/plot@0.4.3/dist/plot.umd.min.js"]))
+                (link ([rel "stylesheet"] [type "text/css"] [href "../report.css"]))
+                (script ([src "../report.js"])))
+          (body (h2 "Result page for the " ,(~a command) " command is not available right now.")))
+   out))
 
 (define (make-graph result out output? profile?)
   (match-define (job-result _ test _ time _ warnings backend) result)
@@ -152,7 +166,10 @@
                        ,dropdown
                        ,(render-help "report.html#alternatives"))
                    ,body))
-      ,@(for/list ([i (in-naturals 1)] [alt end-alts] [errs end-errors] [cost end-costs])
+      ,@(for/list ([i (in-naturals 1)]
+                   [alt end-alts]
+                   [errs end-errors]
+                   [cost end-costs])
           (define-values (dropdown body)
             (render-program (alt-expr alt) ctx #:ident identifier #:instructions preprocessing))
           `(section ([id ,(format "alternative~a" i)] (class "programs"))

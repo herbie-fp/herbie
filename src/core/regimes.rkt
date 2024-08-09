@@ -38,7 +38,9 @@
   (define err-lsts (flip-lists (batch-errors (map alt-expr sorted) (*pcontext*) ctx)))
   (define branches (if (null? sorted) '() (exprs-to-branch-on sorted ctx)))
   (define branch-exprs (if (flag-set? 'reduce 'branch-expressions) branches (context-vars ctx)))
-  (let loop ([alts sorted] [errs (hash)] [err-lsts err-lsts])
+  (let loop ([alts sorted]
+             [errs (hash)]
+             [err-lsts err-lsts])
     (cond
       [(null? alts) '()]
       ; Only return one option if not pareto mode
@@ -61,7 +63,10 @@
   ;; invariant:
   ;; errs[bexpr] is some best option on branch expression bexpr computed on more alts than we have right now.
   (define-values (best best-err errs)
-    (for/fold ([best '()] [best-err +inf.0] [errs cerrs] #:result (values best best-err errs))
+    (for/fold ([best '()]
+               [best-err +inf.0]
+               [errs cerrs]
+               #:result (values best best-err errs))
               ([bexpr sorted-bexprs]
                ;; stop if we've computed this (and following) branch-expr on more alts and it's still worse
                #:break (> (hash-ref cerrs bexpr -1) best-err))
@@ -125,7 +130,8 @@
     (for/list ([pt pts])
       (apply fn pt)))
   (define big-table ; val and errors for each alt, per point
-    (for/list ([(pt ex) (in-pcontext (*pcontext*))] [err-lst err-lsts])
+    (for/list ([(pt ex) (in-pcontext (*pcontext*))]
+               [err-lst err-lsts])
       (list* pt (apply fn pt) err-lst)))
   (match-define (list pts* splitvals* err-lsts* ...)
     (flip-lists (sort big-table (curryr </total repr) #:key second)))
@@ -134,7 +140,8 @@
 
   (define can-split?
     (append (list #f)
-            (for/list ([val (cdr splitvals*)] [prev splitvals*])
+            (for/list ([val (cdr splitvals*)]
+                       [prev splitvals*])
               (</total prev val repr))))
   (define split-indices (err-lsts->split-indices bit-err-lsts* can-split?))
   (define out (option split-indices alts pts* expr (pick-errors split-indices pts* err-lsts* repr)))
@@ -151,8 +158,11 @@
                            [errss (listof (listof real?))]
                            [r representation?])
        [idxs (listof nonnegative-integer?)])
-  (for/list ([i (in-naturals)] [pt pts] [errs (flip-lists err-lsts)])
-    (for/first ([si split-indices] #:when (< i (si-pidx si)))
+  (for/list ([i (in-naturals)]
+             [pt pts]
+             [errs (flip-lists err-lsts)])
+    (for/first ([si split-indices]
+                #:when (< i (si-pidx si)))
       (list-ref errs (si-cidx si)))))
 
 (module+ test
@@ -219,7 +229,8 @@
   (define result-alt-idxs (make-vector number-of-points 0))
   (define result-prev-idxs (make-vector number-of-points number-of-points))
 
-  (for ([alt-idx (in-naturals)] [alt-errors (in-vector flvec-psums)])
+  (for ([alt-idx (in-naturals)]
+        [alt-errors (in-vector flvec-psums)])
     (for ([point-idx (in-range number-of-points)]
           [err (in-flvector alt-errors)]
           #:when (< err (flvector-ref result-error-sums point-idx)))
@@ -244,7 +255,8 @@
     (set! best-alt-costs (make-flvector number-of-points +inf.0))
 
     ;; For each alt loop over its vector of errors
-    (for ([alt-idx (in-naturals)] [alt-error-sums (in-vector flvec-psums)])
+    (for ([alt-idx (in-naturals)]
+          [alt-error-sums (in-vector flvec-psums)])
       ;; Loop over the points up to our current point
       (for ([prev-split-idx (in-range 0 point-idx)]
             [prev-alt-error-sum (in-flvector alt-error-sums)]
@@ -296,7 +308,8 @@
   ;; Loop over results vectors in reverse and build the output split index list
   (define next number-of-points)
   (define split-idexs #f)
-  (for ([i (in-range (- number-of-points 1) -1 -1)] #:when (= (+ i 1) next))
+  (for ([i (in-range (- number-of-points 1) -1 -1)]
+        #:when (= (+ i 1) next))
     (define alt-idx (vector-ref result-alt-idxs i))
     (define split-idx (vector-ref result-prev-idxs i))
     (set! next (+ split-idx 1))

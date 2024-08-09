@@ -30,7 +30,8 @@
               (values pre "0" e)
               (values (substring pre 0 1) (substring pre 1) (- (string-length pre) 1)))]
          [(list "0" s)
-          (let loop ([idx 0] [e e])
+          (let loop ([idx 0]
+                     [e e])
             (if (eq? (string-ref s idx) #\0)
                 (loop (+ idx 1) (- e 1))
                 (values (substring s idx (+ idx 1)) (substring s (+ idx 1)) (- e 1))))]
@@ -60,7 +61,8 @@
 
 (define (digit-interval-shortest a b)
   (define digits '(0 5 2 4 6 8 1 3 7 9))
-  (for/first ([d digits] #:when (<= a d b))
+  (for/first ([d digits]
+              #:when (<= a d b))
     d))
 
 (define (string-interval-shortest a b)

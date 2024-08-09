@@ -39,7 +39,8 @@
 
   (unless (*timeline-disabled*)
     (when (pair? (unbox (*timeline*)))
-      (for ([key (in-list always-compact)] #:when (hash-has-key? (car (unbox (*timeline*))) key))
+      (for ([key (in-list always-compact)]
+            #:when (hash-has-key? (car (unbox (*timeline*))) key))
         (timeline-compact! key)))
     (define live-memory (current-memory-use #f))
     (define alloc-memory (current-memory-use 'cumulative))
@@ -71,7 +72,8 @@
 
 (define (timeline-adjust! type key . values)
   (unless (*timeline-disabled*)
-    (for/first ([cell (unbox (*timeline*))] #:when (equal? (hash-ref cell 'type) (~a type)))
+    (for/first ([cell (unbox (*timeline*))]
+                #:when (equal? (hash-ref cell 'type) (~a type)))
       (hash-set! cell key values)
       true)
     (void)))
@@ -129,7 +131,8 @@
             (current-inexact-milliseconds)
             'memory
             (list (list (current-memory-use #f) (current-memory-use 'cumulative)))))
-  (reverse (for/list ([evt (unbox (*timeline*))] [next (cons end (unbox (*timeline*)))])
+  (reverse (for/list ([evt (unbox (*timeline*))]
+                      [next (cons end (unbox (*timeline*)))])
              (define evt* (hash-copy evt))
              (hash-update! evt* 'time (λ (v) (- (hash-ref next 'time) v)))
              (hash-update! evt* 'memory (λ (v) (diff-memory-records (hash-ref next 'memory) v)))
@@ -163,18 +166,22 @@
           (hash-update! groups
                         key
                         (λ (old)
-                          (for/list ([value2 old] [(value1 fn) (in-dict values)])
+                          (for/list ([value2 old]
+                                     [(value1 fn) (in-dict values)])
                             (fn value2 value1))))
           (hash-set! groups key (map car values))))
     (for/list ([(k v) (in-hash groups)])
-      (let loop ([fields fields] [k k] [v v])
+      (let loop ([fields fields]
+                 [k k]
+                 [v v])
         (match* (fields k v)
           [((cons #f f*) (cons k k*) v) (cons k (loop f* k* v))]
           [((cons _ f*) k (cons v v*)) (cons v (loop f* k v*))]
           [('() '() '()) '()])))))
 
 (define (merge-sampling-tables l1 l2)
-  (let loop ([l1 (sort l1 < #:key first)] [l2 (sort l2 < #:key first)])
+  (let loop ([l1 (sort l1 < #:key first)]
+             [l2 (sort l2 < #:key first)])
     (match-define (list n1 t1) (car l1))
     (match-define (list n2 t2) (car l2))
     (define rec (list n1 (hash-union t1 t2 #:combine +)))
@@ -228,9 +235,11 @@
 (define (timeline-merge . timelines)
   ;; The timelines in this case are JSON objects, as above
   (define types (make-hash))
-  (for* ([tl (in-list timelines)] [event tl])
+  (for* ([tl (in-list timelines)]
+         [event tl])
     (define data (hash-ref! types (hash-ref event 'type) (make-hash)))
-    (for ([(k v) (in-dict event)] #:when (hash-ref timeline-types k #f))
+    (for ([(k v) (in-dict event)]
+          #:when (hash-ref timeline-types k #f))
       (if (hash-has-key? data k)
           (hash-update! data k (λ (old) ((hash-ref timeline-types k) v old)))
           (hash-set! data k v))))

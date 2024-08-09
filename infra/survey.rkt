@@ -36,7 +36,8 @@ section > div { width: 500; float: left; margin-right: 20px; }
      (body
       (h1 ,(format "Seed survey for ~a benchmarks" (hash-count results)))
       ,@
-      (for/list ([(name metrics) (in-dict results)] [n (in-naturals)])
+      (for/list ([(name metrics) (in-dict results)]
+                 [n (in-naturals)])
         `(section
           (h2 ,(~a name))
           ,@
