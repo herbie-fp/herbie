@@ -22,21 +22,24 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; operators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(define-syntax (define-fallback-operator stx)
+  (syntax-case stx (real fl)
+    [(_ (name tsig ...) fields ...)
+     (let ([name #'name])
+       (with-syntax ([name (string->symbol (format "~a.rkt" name))])
+         #'(define-operator-impl (name tsig ...) binary64 fields ...)))]))
+
 (define-syntax-rule (define-1ary-fallback-operator op fn)
-  (with-syntax ([impl (string->symbol (format "~a.rkt" (syntax->datum #'op)))] [fl fn])
-    #'(define-operator-impl (impl [x : binary64])
-                             binary64
-                             #:spec (op x)
-                             #:fpcore (! :precision binary64 :math-library racket (op x))
-                             #:fl fn)))
+  (define-fallback-operator (op [x : binary64])
+                            #:spec (op x)
+                            #:fpcore (! :precision binary64 :math-library racket (op x))
+                            #:fl fn))
 
 (define-syntax-rule (define-2ary-fallback-operator op fn)
-  (with-syntax ([impl (string->symbol (format "~a.rkt" (syntax->datum #'op)))])
-    #'(define-operator-impl (impl [x : binary64] [y : binary64])
-                             binary64
-                             #:spec (op x y)
-                             #:fpcore (! :precision binary64 :math-library racket (op x y))
-                             #:fl fn)))
+  (define-fallback-operator (op [x : binary64] [y : binary64])
+                            #:spec (op x)
+                            #:fpcore (! :precision binary64 :math-library racket (op x))
+                            #:fl fn))
 
 (define-syntax-rule (define-1ary-fallback-operators [op fn] ...)
   (begin
@@ -119,11 +122,11 @@
                                 [remainder remainder])
 
 (define-operator-impl (fma.rkt [x : binary64] [y : binary64] [z : binary64])
-                       binary64
-                       #:spec (+ (* x y) z)
-                       #:fpcore (! :precision binary64 :math-library racket (fma x y z))
-                       #:fl (from-bigfloat bffma)
-                       #:op fma)
+                      binary64
+                      #:spec (+ (* x y) z)
+                      #:fpcore (! :precision binary64 :math-library racket (fma x y z))
+                      #:fl (from-bigfloat bffma)
+                      #:op fma)
 
 (define-comparator-impls binary64
                          [== ==.rkt =]

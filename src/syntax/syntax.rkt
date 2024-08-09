@@ -405,12 +405,12 @@
 ;; Registers an operator implementation `name`
 ;; fl, spec,, and fpcore can be synthesize from an operator
 (define (register-operator-impl! op
-                                  name
-                                  args
-                                  orepr
-                                  #:fl [fl #f]
-                                  #:spec [spec #f]
-                                  #:fpcore [fpcore #f])
+                                 name
+                                 args
+                                 orepr
+                                 #:fl [fl #f]
+                                 #:spec [spec #f]
+                                 #:fpcore [fpcore #f])
   ;; Check if spec is given (if not, infer it from the operator which is required)
   (define vars (map car args))
   (unless spec
@@ -480,8 +480,6 @@
                         (define-values (_ exs) (real-apply compiler pt))
                         (if exs (first exs) fail))
                       (sym-append 'synth: name)))
-
-  (eprintf "~a\n" fl)
   ;; Get floating-point implementation
   (define fl-proc
     (cond
@@ -492,7 +490,7 @@
       [else ; Rival-synthesized operator implementation
        (define vars (build-list (length ireprs) (lambda (i) (string->symbol (format "x~a" i)))))
        (synth-fl-impl name vars `(,new-op ,@vars))]))
-  
+
   ; update tables
   (define impl (operator-impl name op-info (context vars orepr ireprs) spec fpcore fl-proc))
   (hash-set! operator-impls name impl)
@@ -512,12 +510,12 @@
             (with-syntax
                 ([impl-id impl-id] [operator operator] [spec spec] [core core] [fl-expr fl-expr])
               #'(register-operator-impl! 'operator
-                                          'impl-id
-                                          (list (cons 'var (get-representation 'repr)) ...)
-                                          (get-representation 'rtype)
-                                          #:fl fl-expr
-                                          #:spec 'spec
-                                          #:fpcore 'core)))]
+                                         'impl-id
+                                         (list (cons 'var (get-representation 'repr)) ...)
+                                         (get-representation 'rtype)
+                                         #:fl fl-expr
+                                         #:spec 'spec
+                                         #:fpcore 'core)))]
          [(#:spec expr rest ...) (loop #'(rest ...) operator #'expr core fl-expr)]
          [(#:fpcore expr rest ...) (loop #'(rest ...) operator spec #'expr fl-expr)]
          [(#:fl expr rest ...) (loop #'(rest ...) operator spec core #'expr)]
@@ -575,15 +573,15 @@
 
   ; correctly-rounded log1pmd(x) for binary64
   (define-operator-impl (log1pmd.f64 [x : binary64])
-                         binary64
-                         #:spec (- (log1p x) (log1p (neg x)))
-                         #:fpcore (! :precision binary64 (log1pmd x)))
+                        binary64
+                        #:spec (- (log1p x) (log1p (neg x)))
+                        #:fpcore (! :precision binary64 (log1pmd x)))
   ; correctly-rounded sin(x) for binary64
   (define-operator-impl (sin.acc.f64 [x : binary64])
-                         binary64
-                         #:spec (sin x)
-                         #:fpcore (! :precision binary64 (sin x))
-                         #:fl sin)
+                        binary64
+                        #:spec (sin x)
+                        #:fpcore (! :precision binary64 (sin x))
+                        #:fl sin)
 
   (define log1pmd-proc (impl-info 'log1pmd.f64 'fl))
   (define log1pmd-vals '((0.0 . 0.0) (0.5 . 1.0986122886681098) (-0.5 . -1.0986122886681098)))
