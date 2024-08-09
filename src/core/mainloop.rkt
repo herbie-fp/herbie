@@ -180,12 +180,7 @@
                  #:when true
                  [(cost-diff expr) (in-dict loc-costs)]
                  [_ (in-range (*localize-expressions-limit*))])
-        (timeline-push! 'locations
-                        (~a expr)
-                        "cost-diff"
-                        cost-diff
-                        (not (patch-table-has-expr? expr))
-                        (~a (representation-name repr)))
+        (timeline-push! 'locations (~a expr) "cost-diff" cost-diff)
         expr))
     (set! localized-exprs (remove-duplicates (append localized-exprs cost-localized))))
 
@@ -198,12 +193,7 @@
                  #:when true
                  [(err expr) (in-dict loc-errs)]
                  [_ (in-range (*localize-expressions-limit*))])
-        (timeline-push! 'locations
-                        (~a expr)
-                        "accuracy"
-                        (errors-score err)
-                        (not (patch-table-has-expr? expr))
-                        (~a (representation-name repr)))
+        (timeline-push! 'locations (~a expr) "accuracy" (errors-score err))
         expr))
     (set! localized-exprs (remove-duplicates (append localized-exprs error-localized))))
 

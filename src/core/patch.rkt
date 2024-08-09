@@ -13,12 +13,7 @@
          "simplify.rkt"
          "taylor.rkt")
 
-(provide patch-table-has-expr?
-         patch-table-run)
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;; Patch table ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(define/reset *patch-table* (make-hash))
+(provide generate-candidates)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Simplify ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -145,10 +140,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Public API ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define (patch-table-has-expr? expr)
-  (hash-has-key? (*patch-table*) expr))
-
-(define (patch-table-run exprs)
+(define (generate-candidates exprs)
   ; Starting alternatives
   (define start-altns
     (for/list ([expr (in-list exprs)])
