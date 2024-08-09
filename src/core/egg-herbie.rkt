@@ -980,7 +980,7 @@
        [(list (? impl-exists?) args ...) ; impls
         (define cost-proc (node-cost-proc node type))
         (apply cost-proc (map rec args))])]
-    [else (default-egg-cost-proc regraph cache node rec)]))
+    [else (default-egg-cost-proc regraph cache node type rec)]))
 
 ;; Extracts the best expression according to the extractor.
 ;; Result is a single element list.
