@@ -16,7 +16,8 @@
           #:program true-name
           #:multi [("-v" "--version") ("Print the version and exit") (printf "~a\n" version) (exit)]
           #:usage-help "This command has subcommands:"
-          #,@(for/list ([name (syntax->list #'(name ...))] [help (syntax->list #'(help ...))])
+          #,@(for/list ([name (syntax->list #'(name ...))]
+                        [help (syntax->list #'(help ...))])
                (datum->syntax name (format "  ~a:\t~a" (syntax->datum name) (syntax->datum help))))
           "Learn more about a subcommand with <subcommand> --help"
           #:args cmdline-args

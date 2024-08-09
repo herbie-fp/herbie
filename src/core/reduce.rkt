@@ -29,7 +29,8 @@
        [(and (not (zero? a)) (integer? b)) (expt a b)]
        [else #f])]
     [(list 'sqrt (? exact-value? a))
-     (let ([s1 (sqrt (numerator a))] [s2 (sqrt (denominator a))])
+     (let ([s1 (sqrt (numerator a))]
+           [s2 (sqrt (denominator a))])
        (and (real? s1) (real? s2) (exact? s1) (exact? s2) (/ s1 s2)))]
     [(list 'cbrt (? exact-value? a))
      (define inexact-num (inexact->exact (expt (numerator a) 1/3)))
@@ -175,7 +176,8 @@
      (let ([terms (gather-multiplicative-terms arg)])
        (cons (if (member (car terms) '(0 NAN)) 'NAN (/ (car terms))) (map negate-term (cdr terms))))]
     [`(/ ,arg ,args ...)
-     (let ([num (gather-multiplicative-terms arg)] [dens (map gather-multiplicative-terms args)])
+     (let ([num (gather-multiplicative-terms arg)]
+           [dens (map gather-multiplicative-terms args)])
        (cons (if (or (eq? (car num) 'NAN) (ormap (compose (curryr member '(0 NAN)) car) dens))
                  'NAN
                  (apply / (car num) (map car dens)))

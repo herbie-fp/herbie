@@ -23,9 +23,11 @@
   (define varc (length vars))
   (define vregs (make-vector (+ varc iveclen)))
   (define (compiled-prog . args)
-    (for ([arg (in-list args)] [n (in-naturals)])
+    (for ([arg (in-list args)]
+          [n (in-naturals)])
       (vector-set! vregs n arg))
-    (for ([instr (in-vector ivec)] [n (in-naturals varc)])
+    (for ([instr (in-vector ivec)]
+          [n (in-naturals varc)])
       (vector-set! vregs n (apply-instruction instr vregs)))
     (for/vector #:length rootlen
                 ([root (in-vector rootvec)])

@@ -90,7 +90,8 @@
   (match-define (alt-table pnts->alts alts->pnts alt->done? alt->cost _ _) atab)
   (define tied (list->mutable-seteq (hash-keys alts->pnts)))
   (define coverage '())
-  (for* ([pcurve (in-hash-values pnts->alts)] [ppt (in-list pcurve)])
+  (for* ([pcurve (in-hash-values pnts->alts)]
+         [ppt (in-list pcurve)])
     (match (pareto-point-data ppt)
       [(list) (error "This point has no alts which are best at it!" ppt)]
       [(list altn) (set-remove! tied altn)]
@@ -100,10 +101,14 @@
 (define (set-cover-remove! sc altn)
   (match-define (set-cover removable coverage) sc)
   (set-remove! removable altn)
-  (for ([j (in-naturals)] [s (in-vector coverage)] #:when s)
+  (for ([j (in-naturals)]
+        [s (in-vector coverage)]
+        #:when s)
     (define count 0)
     (define last #f)
-    (for ([i (in-naturals)] [a (in-vector s)] #:when a)
+    (for ([i (in-naturals)]
+          [a (in-vector s)]
+          #:when a)
       (cond
         [(eq? a altn) (vector-set! s i #f)]
         [a
@@ -161,8 +166,11 @@
 
 (define (atab-add-altns atab altns errss costs)
   (define-values (atab* progs*)
-    (for/fold ([atab atab] [progs (list->set (map alt-expr (alt-table-all atab)))])
-              ([altn (in-list altns)] [errs (in-list errss)] [cost (in-list costs)])
+    (for/fold ([atab atab]
+               [progs (list->set (map alt-expr (alt-table-all atab)))])
+              ([altn (in-list altns)]
+               [errs (in-list errss)]
+               [cost (in-list costs)])
       ;; this is subtle, we actually want to check for duplicates
       ;; in terms of expressions, not alts: the default `equal?`
       ;; returns #f for the same expression with different derivations.
@@ -180,7 +188,9 @@
 
 (define (invert-index idx)
   (define alt->points* (make-hasheq))
-  (for* ([(pt curve) (in-hash idx)] [ppt (in-list curve)] [alt (in-list (pareto-point-data ppt))])
+  (for* ([(pt curve) (in-hash idx)]
+         [ppt (in-list curve)]
+         [alt (in-list (pareto-point-data ppt))])
     (hash-set! alt->points* alt (cons pt (hash-ref alt->points* alt '()))))
   (make-immutable-hash (hash->list alt->points*)))
 
@@ -188,7 +198,8 @@
   (match-define (alt-table point->alts alt->points alt->done? alt->cost pcontext all-alts) atab)
 
   (define point->alts*
-    (for/hash ([(pt ex) (in-pcontext pcontext)] [err (in-list errs)])
+    (for/hash ([(pt ex) (in-pcontext pcontext)]
+               [err (in-list errs)])
       (define ppt (pareto-point cost err (list altn)))
       (values pt (pareto-union (list ppt) (hash-ref point->alts pt)))))
 

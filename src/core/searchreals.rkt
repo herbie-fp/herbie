@@ -27,7 +27,8 @@
 
 (define (hyperrect-weight hyperrect reprs)
   (apply *
-         (for/list ([interval (in-list hyperrect)] [repr (in-list reprs)])
+         (for/list ([interval (in-list hyperrect)]
+                    [repr (in-list reprs)])
            (define ->ordinal
              (compose (representation-repr->ordinal repr) (representation-bf->repr repr)))
            (+ 1 (- (->ordinal (ival-hi interval)) (->ordinal (ival-lo interval)))))))
@@ -49,13 +50,18 @@
   (define reprs (real-compiler-var-reprs compiler))
   (match-define (search-space true false other) space)
   (define-values (true* false* other*)
-    (for/fold ([true* true] [false* false] [other* '()]) ([rect (in-list other)])
+    (for/fold ([true* true]
+               [false* false]
+               [other* '()])
+              ([rect (in-list other)])
       (match-define (ival err err?) (real-compiler-analyze compiler (list->vector rect)))
       (when (eq? err 'unsamplable)
         (warn 'ground-truth
               #:url "faq.html#ground-truth"
               "could not determine a ground truth"
-              #:extra (for/list ([var vars] [repr reprs] [ival rect])
+              #:extra (for/list ([var vars]
+                                 [repr reprs]
+                                 [ival rect])
                         (define val
                           (value->string ((representation-bf->repr repr)
                                           (bigfloat-pick-point (ival-lo ival) (ival-hi ival)))
@@ -92,7 +98,8 @@
   (define var-reprs (real-compiler-var-reprs compiler))
   (if (or (null? rects) (null? (first rects)))
       (map (curryr cons 'other) rects)
-      (let loop ([space (apply make-search-space rects)] [n 0])
+      (let loop ([space (apply make-search-space rects)]
+                 [n 0])
         (match-define (search-space true false other) space)
         (timeline-push! 'sampling n (make-sampling-table var-reprs true false other))
 

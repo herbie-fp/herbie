@@ -82,7 +82,8 @@
   (*pcontext* pcontext)
   (explain! simplified context pcontext)
   (initialize-alt-table! simplified context pcontext)
-  (for ([iteration (in-range iterations)] #:break (atab-completed? (^table^)))
+  (for ([iteration (in-range iterations)]
+        #:break (atab-completed? (^table^)))
     (run-iter!))
   (extract!))
 
@@ -114,7 +115,8 @@
 (define (list-alts)
   (printf "Key: [.] = done, [>] = chosen\n")
   (let ([ndone-alts (atab-not-done-alts (^table^))])
-    (for ([alt (atab-active-alts (^table^))] [n (in-naturals)])
+    (for ([alt (atab-active-alts (^table^))]
+          [n (in-naturals)])
       (printf "~a ~a ~a\n"
               (cond
                 [(set-member? (^next-alts^) alt) ">"]
@@ -237,14 +239,16 @@
 ;; Returns the locations of `subexpr` within `expr`
 (define (get-locations expr subexpr)
   (reap [sow]
-        (let loop ([expr expr] [loc '()])
+        (let loop ([expr expr]
+                   [loc '()])
           (match expr
             [(== subexpr) (sow (reverse loc))]
             [(? literal?) (void)]
             [(? symbol?) (void)]
             [(approx _ impl) (loop impl (cons 2 loc))]
             [(list _ args ...)
-             (for ([arg (in-list args)] [i (in-naturals 1)])
+             (for ([arg (in-list args)]
+                   [i (in-naturals 1)])
                (loop arg (cons i loc)))]))))
 
 ;; Converts a patch to full alt with valid history
@@ -413,7 +417,8 @@
                                                      default-egg-cost-proc)))))
 
      ; de-duplication
-     (remove-duplicates (for/list ([altn (in-list alts)] [prog (in-list simplified)])
+     (remove-duplicates (for/list ([altn (in-list alts)]
+                                   [prog (in-list simplified)])
                           (if (equal? (alt-expr altn) prog)
                               altn
                               (alt prog 'final-simplify (list altn) (alt-preprocessing altn))))

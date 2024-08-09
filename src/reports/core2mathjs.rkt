@@ -50,7 +50,8 @@
     [(list (or '+ '- '* '/) a b) (format "(~a ~a ~a)" a op b)]
     [(list (or '== '< '> '<= '>=) arg args ...)
      (format "(~a)"
-             (string-join (for/list ([a (cons arg args)] [b args])
+             (string-join (for/list ([a (cons arg args)]
+                                     [b args])
                             (format "~a ~a ~a" a op b))
                           " && "))]
     [(list '!= args ...)
@@ -76,7 +77,9 @@
 
 (define (visit-let_/mathjs vtor let_ vars vals body #:ctx ctx)
   (define ctx*
-    (for/fold ([ctx* ctx]) ([var (in-list vars)] [val (in-list vals)])
+    (for/fold ([ctx* ctx])
+              ([var (in-list vars)]
+               [val (in-list vals)])
       (define val*
         (visit/ctx vtor
                    val
@@ -125,8 +128,9 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;; public ;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (expr->mathjs prog [name ""])
-  (parameterize
-      ([*gensym-used-names* (mutable-set)] [*gensym-collisions* 1] [*gensym-fix-name* fix-name])
+  (parameterize ([*gensym-used-names* (mutable-set)]
+                 [*gensym-collisions* 1]
+                 [*gensym-fix-name* fix-name])
     ; make compiler context
     (define ctx
       (ctx-update-props (make-compiler-ctx) (append '(:precision binary64 :round nearestEven))))
@@ -141,8 +145,9 @@
     (format "~a~a" body* ret)))
 
 (define (core->mathjs prog [name ""])
-  (parameterize
-      ([*gensym-used-names* (mutable-set)] [*gensym-collisions* 1] [*gensym-fix-name* fix-name])
+  (parameterize ([*gensym-used-names* (mutable-set)]
+                 [*gensym-collisions* 1]
+                 [*gensym-fix-name* fix-name])
     ; decompose FPCore
     (define-values (args props body)
       (match prog

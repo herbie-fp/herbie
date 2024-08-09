@@ -17,7 +17,8 @@
                       #:ignore-approx [ignore-approx #t])
   (define icache (reverse vars))
   (define exprhash
-    (make-hash (for/list ([var vars] [i (in-naturals)])
+    (make-hash (for/list ([var vars]
+                          [i (in-naturals)])
                  (cons var i))))
   ; Counts
   (define size 0)
@@ -85,7 +86,8 @@
   (define vars (batch-vars batch))
   (define icache (reverse vars))
   (define exprhash
-    (make-hash (for/list ([var vars] [i (in-naturals)])
+    (make-hash (for/list ([var vars]
+                          [i (in-naturals)])
                  (cons var i))))
   ; Counts
   (define exprc 0)
