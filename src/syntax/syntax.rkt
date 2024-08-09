@@ -355,7 +355,7 @@
 ;; An "operator implementation" implements a mathematical operator for
 ;; a particular set of representations satisfying the types described
 ;; by the `itype` and `otype` properties of the operator.
-(struct operator-impl (name op itype otype fl))
+(struct operator-impl (name op ctx spec fpcore fl))
 
 ;; Operator implementation table
 ;; Tracks implementations that are loaded into Racket's runtime
@@ -374,8 +374,10 @@
     (error 'impl-info "Unknown operator implementation ~a" impl))
   (define info (hash-ref operator-impls impl))
   (case field
-    [(itype) (operator-impl-itype info)]
-    [(otype) (operator-impl-otype info)]
+    [(itype) (context-var-reprs (operator-impl-ctx info))]
+    [(otype) (context-repr (operator-impl-ctx info))]
+    [(spec) (operator-impl-spec info)]
+    [(fpcore) (operator-impl-fpcore info)]
     [(fl) (operator-impl-fl info)]))
 
 ;; Like `operator-all-impls`, but filters for only active implementations.
@@ -401,18 +403,56 @@
 (define (clear-active-operator-impls!)
   (set-clear! active-operator-impls))
 
-;; Registers an operator implementation `name` or real operator `op`.
-;; The input and output representations must satisfy the types
-;; specified by the `itype` and `otype` fields for `op`.
-(define (register-operator-impl! op name ireprs orepr attrib-dict)
+;; Registers an operator implementation `name`
+;; fl, spec,, and fpcore can be synthesize from an operator
+(define (register-operator-impl! op
+                                 name
+                                 args
+                                 orepr
+                                 #:fl [fl #f]
+                                 #:spec [spec #f]
+                                 #:fpcore [fpcore #f])
+  ;; Check if spec is given (if not, infer it from the operator which is required)
+  (define vars (map car args))
+  (unless spec
+    (unless op
+      (raise-herbie-syntax-error "Missing required operator"))
+    (set! spec `(,op ,@vars)))
+
+  (define new-op op)
+  (if op
+      op
+      (let loop ([expr spec] [operator #f])
+        (match expr
+          [`(,(? symbol? op) ,args ...)
+           (if (null? args)
+               (set! new-op op)
+               (for ([a (in-list args)])
+                 (if operator
+                     (raise-herbie-syntax-error "Could not infer operator from ~a" spec)
+                     (loop a op))))]
+          [_ (set! new-op operator)])))
+
+  (define bool-repr (get-representation 'bool))
+  (if fpcore
+      ;; Verify fpcore is well formed
+      (match fpcore
+        [`(! ,props ... (,operator ,args ...)) (void)]
+        [`(,operator ,args ...) (void)]
+        [_ (raise-herbie-syntax-error "Invalid fpcore given" fpcore)])
+      (if (equal? orepr bool-repr)
+          (set! fpcore `(,new-op ,@vars))
+          (set! fpcore `(! :precision ,(representation-name orepr) (,new-op ,@vars)))))
+
   (define op-info
     (hash-ref
      operators
-     op
+     new-op
      (lambda ()
        (raise-herbie-missing-error "Cannot register `~a`, operator `~a` does not exist" name op))))
 
   ; check arity and types
+  (define ireprs (map cdr args))
   (define itypes (operator-itype op-info))
   (define otype (operator-otype op-info))
   (define expect-arity (length itypes))
@@ -421,14 +461,14 @@
     (raise-herbie-missing-error
      "Cannot register `~a` as an implementation of `~a`: expected ~a arguments, got ~a"
      name
-     op
+     new-op
      expect-arity
      actual-arity))
   (for ([repr (in-list (cons orepr ireprs))] [type (in-list (cons otype itypes))])
     (unless (equal? (representation-type repr) type)
       "Cannot register `~a` as implementation of `~a`: ~a is not a representation of ~a"
       name
-      op
+      new-op
       repr
       type))
 
@@ -441,31 +481,48 @@
                         (define-values (_ exs) (real-apply compiler pt))
                         (if exs (first exs) fail))
                       (sym-append 'synth: name)))
-
   ;; Get floating-point implementation
   (define fl-proc
     (cond
-      [(assoc 'fl attrib-dict)
-       =>
-       cdr] ; user-provided implementation
-      [(operator-accelerator? op) ; Rival-synthesized accelerator implementation
+      [fl fl] ; user-provided implementation
+      [(operator-accelerator? new-op) ; Rival-synthesized accelerator implementation
        (match-define `(,(or 'lambda 'λ) (,vars ...) ,body) (operator-spec op-info))
        (synth-fl-impl name vars body)]
       [else ; Rival-synthesized operator implementation
        (define vars (build-list (length ireprs) (lambda (i) (string->symbol (format "x~a" i)))))
-       (synth-fl-impl name vars `(,op ,@vars))]))
+       (synth-fl-impl name vars `(,new-op ,@vars))]))
 
   ; update tables
-  (define impl (operator-impl name op-info ireprs orepr fl-proc))
+  (define impl (operator-impl name op-info (context vars orepr ireprs) spec fpcore fl-proc))
   (hash-set! operator-impls name impl)
-  (hash-update! operators-to-impls op (curry cons name)))
+  (hash-update! operators-to-impls new-op (curry cons name)))
 
-(define-syntax-rule (define-operator-impl (operator name atypes ...) rtype [key value] ...)
-  (register-operator-impl! 'operator
-                           'name
-                           (list (get-representation 'atypes) ...)
-                           (get-representation 'rtype)
-                           (list (cons 'key value) ...)))
+(define-syntax (define-operator-impl stx)
+  (define (oops! why [sub-stx #f])
+    (raise-syntax-error 'define-impl why stx sub-stx))
+  (syntax-case stx ()
+    [(_ (id [var : repr] ...) rtype fields ...)
+     (let loop ([fields #'(fields ...)] [operator #f] [spec #f] [core #f] [fl-expr #f])
+       (syntax-case fields ()
+         [()
+          (let ([impl-id #'id])
+            (unless (identifier? impl-id)
+              (oops! "impl id is not a valid identifier" impl-id))
+            (with-syntax
+                ([impl-id impl-id] [operator operator] [spec spec] [core core] [fl-expr fl-expr])
+              #'(register-operator-impl! 'operator
+                                         'impl-id
+                                         (list (cons 'var (get-representation 'repr)) ...)
+                                         (get-representation 'rtype)
+                                         #:fl fl-expr
+                                         #:spec 'spec
+                                         #:fpcore 'core)))]
+         [(#:spec expr rest ...) (loop #'(rest ...) operator #'expr core fl-expr)]
+         [(#:fpcore expr rest ...) (loop #'(rest ...) operator spec #'expr fl-expr)]
+         [(#:fl expr rest ...) (loop #'(rest ...) operator spec core #'expr)]
+         [(#:op name rest ...) (loop #'(rest ...) #'name spec core fl-expr)]
+         [_ (oops! "bad syntax" fields)]))]
+    [_ (oops! "bad syntax")]))
 
 ;; Among active implementations, looks up an implementation with
 ;; the operator name `name` and argument representations `ireprs`.
@@ -516,9 +573,16 @@
                          (conjoin number? nan?))
 
   ; correctly-rounded log1pmd(x) for binary64
-  (define-operator-impl (log1pmd log1pmd.f64 binary64) binary64)
+  (define-operator-impl (log1pmd.f64 [x : binary64])
+                        binary64
+                        #:spec (- (log1p x) (log1p (neg x)))
+                        #:fpcore (! :precision binary64 (log1pmd x)))
   ; correctly-rounded sin(x) for binary64
-  (define-operator-impl (sin sin.acc.f64 binary64) binary64)
+  (define-operator-impl (sin.acc.f64 [x : binary64])
+                        binary64
+                        #:spec (sin x)
+                        #:fpcore (! :precision binary64 (sin x))
+                        #:fl sin)
 
   (define log1pmd-proc (impl-info 'log1pmd.f64 'fl))
   (define log1pmd-vals '((0.0 . 0.0) (0.5 . 1.0986122886681098) (-0.5 . -1.0986122886681098)))
@@ -574,14 +638,14 @@
   (and (symbol? op)
        (or (and (hash-has-key? operators op) (null? (operator-itype (hash-ref operators op))))
            (and (hash-has-key? operator-impls op)
-                (null? (operator-impl-itype (hash-ref operator-impls op)))))))
+                (null? (context-vars (operator-impl-ctx (hash-ref operator-impls op))))))))
 
 (define (variable? var)
   (and (symbol? var)
        (or (not (hash-has-key? operators var))
            (not (null? (operator-itype (hash-ref operators var)))))
        (or (not (hash-has-key? operator-impls var))
-           (not (null? (operator-impl-itype (hash-ref operator-impls var)))))))
+           (not (null? (context-vars (operator-impl-ctx (hash-ref operator-impls var))))))))
 
 ;; Floating-point expressions require that number
 ;; be rounded to a particular precision.

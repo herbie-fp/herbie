@@ -46,11 +46,31 @@
   (begin
     (define-libm-impls/binary32* (itype ... otype) name ...) ...))
 
-(define-operator-impl (neg neg.f32 binary32) binary32 [fl fl32-])
-(define-operator-impl (+ +.f32 binary32 binary32) binary32 [fl fl32+])
-(define-operator-impl (- -.f32 binary32 binary32) binary32 [fl fl32-])
-(define-operator-impl (* *.f32 binary32 binary32) binary32 [fl fl32*])
-(define-operator-impl (/ /.f32 binary32 binary32) binary32 [fl fl32/])
+(define-operator-impl (neg.f32 [x : binary32])
+                      binary32
+                      #:spec (neg x)
+                      #:fpcore (! :precision binary32 (- x))
+                      #:fl fl32-)
+(define-operator-impl (+.f32 [x : binary32] [y : binary32])
+                      binary32
+                      #:spec (+ x y)
+                      #:fpcore (! :precision binary32 (+ x y))
+                      #:fl fl32+)
+(define-operator-impl (-.f32 [x : binary32] [y : binary32])
+                      binary32
+                      #:spec (- x y)
+                      #:fpcore (! :precision binary32 (- x y))
+                      #:fl fl32-)
+(define-operator-impl (*.f32 [x : binary32] [y : binary32])
+                      binary32
+                      #:spec (* x y)
+                      #:fpcore (! :precision binary32 (* x y))
+                      #:fl fl32*)
+(define-operator-impl (/.f32 [x : binary32] [y : binary32])
+                      binary32
+                      #:spec (/ x y)
+                      #:fpcore (! :precision binary32 (/ x y))
+                      #:fl fl32/)
 
 (define-libm-impls/binary32 [(binary32 binary32)
                              (acos acosh
@@ -96,6 +116,16 @@
                          [<= <=.f32 <=]
                          [>= >=.f32 >=])
 
-(define-operator-impl (cast binary64->binary32 binary64) binary32 [fl (curryr ->float32)])
+(define-operator-impl (binary64->binary32 [x : binary64])
+                      binary32
+                      #:spec x
+                      #:fpcore (! :precision binary32 (cast x))
+                      #:fl (curryr ->float32)
+                      #:op cast)
 
-(define-operator-impl (cast binary32->binary64 binary32) binary64 [fl identity])
+(define-operator-impl (binary32->binary64 [x : binary32])
+                      binary64
+                      #:spec x
+                      #:fpcore (! :precision binary64 (cast x))
+                      #:fl identity
+                      #:op cast)
