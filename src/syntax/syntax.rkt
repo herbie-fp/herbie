@@ -491,7 +491,7 @@
       [else ; Rival-synthesized operator implementation
        (define vars (build-list (length ireprs) (lambda (i) (string->symbol (format "x~a" i)))))
        (synth-fl-impl name vars `(,new-op ,@vars))]))
-
+  (eprintf "~a\n"fl-proc)
   ; update tables
   (define impl (operator-impl name op-info (context vars orepr ireprs) spec fpcore fl-proc))
   (hash-set! operator-impls name impl)
@@ -514,7 +514,7 @@
                                           'impl-id
                                           (list (cons 'var (get-representation 'repr)) ...)
                                           (get-representation 'rtype)
-                                          #:fl 'fl-expr
+                                          #:fl fl-expr
                                           #:spec 'spec
                                           #:fpcore 'core)))]
          [(#:spec expr rest ...) (loop #'(rest ...) operator #'expr core fl-expr)]
@@ -576,8 +576,7 @@
   (define-operator-impl (log1pmd.f64 [x : binary64])
                          binary64
                          #:spec (- (log1p x) (log1p (neg x)))
-                         #:fpcore (! :precision binary64 (log1pmd x))
-                         #:fl log1pmd)
+                         #:fpcore (! :precision binary64 (log1pmd x)))
   ; correctly-rounded sin(x) for binary64
   (define-operator-impl (sin.acc.f64 [x : binary64])
                          binary64
