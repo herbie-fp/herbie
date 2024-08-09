@@ -587,6 +587,7 @@
                              (hasheq 'result converted 'language target-lang))))
 
 (define (run-demo #:quiet [quiet? #f]
+                  #:threads [threads #f]
                   #:output output
                   #:demo? demo?
                   #:prefix prefix
@@ -597,7 +598,7 @@
   (*demo-output* output)
   (*demo-prefix* prefix)
   (*demo-log* log)
-  (start-job-server)
+  (start-job-server threads)
 
   (unless quiet?
     (eprintf "Herbie ~a with seed ~a\n" *herbie-version* (get-seed))
@@ -609,7 +610,7 @@
                  #:servlet-current-directory (current-directory)
                  #:manager (create-none-manager #f)
                  #:command-line? true
-                 #:launch-browser? (not quiet?)
+                 #:launch-browser? #f
                  #:banner? (not quiet?)
                  #:servlets-root (web-resource)
                  #:server-root-path (web-resource)
