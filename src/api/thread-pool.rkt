@@ -100,7 +100,8 @@
       (place-dead-evt worker)))
 
   (define work
-    (for/list ([id (in-naturals)] [prog progs])
+    (for/list ([id (in-naturals)]
+               [prog progs])
       (list id prog)))
 
   (eprintf "Starting ~a Herbie workers on ~a problems (seed: ~a)...\n" threads (length progs) seed)
@@ -135,7 +136,8 @@
                                 (eprintf "Terminating after ~a problem~a!\n"
                                          (length outs)
                                          (if (= (length outs) 1) "s" "")))])
-    (for ([test progs] [i (in-naturals)])
+    (for ([test progs]
+          [i (in-naturals)])
       (define tr (run-test i test #:seed seed #:profile profile? #:dir dir))
       (print-test-result (+ 1 i) (length progs) tr)
       (set! outs (cons tr outs))))

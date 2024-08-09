@@ -8,9 +8,11 @@
   (define nodes (make-hash))
   (define root-node (node #f #f '() 0 0 '() '()))
   (hash-set! nodes (cons #f #f) root-node)
-  (for* ([p (in-list ps)] [n (profile-nodes p)])
+  (for* ([p (in-list ps)]
+         [n (profile-nodes p)])
     (hash-set! nodes (node-loc n) (node (node-id n) (node-src n) '() 0 0 '() '())))
-  (for* ([p ps] [node (profile-nodes p)])
+  (for* ([p ps]
+         [node (profile-nodes p)])
     (profile-add nodes node))
   (for ([p ps])
     (profile-add nodes (profile-*-node p)))
@@ -56,14 +58,16 @@
 
 (define (merge-thread-times . ts)
   (define h (make-hash))
-  (for* ([t (in-list ts)] [(id time) (in-dict t)])
+  (for* ([t (in-list ts)]
+         [(id time) (in-dict t)])
     (hash-update! h id (curry + time) 0))
   h)
 
 (define (profile->json p)
   (define nodes (cons (profile-*-node p) (profile-nodes p)))
   (define loc-hash
-    (for/hash ([node (in-list nodes)] [n (in-naturals)])
+    (for/hash ([node (in-list nodes)]
+               [n (in-naturals)])
       (values (node-loc node) n)))
   (define node-hash
     (for/hash ([node (in-list nodes)])
@@ -123,7 +127,8 @@
             (hash-ref n 'self)
             '()
             '())))
-  (for ([n (in-list (hash-ref j 'nodes))] [n* (in-vector nodes)])
+  (for ([n (in-list (hash-ref j 'nodes))]
+        [n* (in-vector nodes)])
     (set-node-callees! n*
                        (for/list ([e (hash-ref n 'callees)])
                          (edge (hash-ref e 'total)

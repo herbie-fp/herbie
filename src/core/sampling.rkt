@@ -24,7 +24,8 @@
   ;; FPBench needs unparameterized operators
   (define range-table (condition->range-table pre))
   (apply cartesian-product
-         (for/list ([var-name vars] [var-repr var-reprs])
+         (for/list ([var-name vars]
+                    [var-repr var-reprs])
            (map (lambda (interval) (fpbench-ival->ival var-repr interval))
                 (range-table-ref range-table var-name)))))
 
@@ -52,7 +53,8 @@
 ;; we want a index i such that vector[i] > num and vector[i-1] <= num
 ;; assumes vector strictly increasing
 (define (binary-search vector num)
-  (let loop ([left 0] [right (- (vector-length vector) 1)])
+  (let loop ([left 0]
+             [right (- (vector-length vector) 1)])
     (cond
       [(>= left right) (min left (- (vector-length vector) 1))]
       [else
@@ -80,12 +82,14 @@
   (define lo-ends
     (for/vector #:length (vector-length hyperrects)
                 ([hyperrect (in-vector hyperrects)])
-      (for/list ([interval (in-list hyperrect)] [repr (in-list reprs)])
+      (for/list ([interval (in-list hyperrect)]
+                 [repr (in-list reprs)])
         ((representation-repr->ordinal repr) ((representation-bf->repr repr) (ival-lo interval))))))
   (define hi-ends
     (for/vector #:length (vector-length hyperrects)
                 ([hyperrect (in-vector hyperrects)])
-      (for/list ([interval (in-list hyperrect)] [repr (in-list reprs)])
+      (for/list ([interval (in-list hyperrect)]
+                 [repr (in-list reprs)])
         (+ 1
            ((representation-repr->ordinal repr)
             ((representation-bf->repr repr) (ival-hi interval)))))))
@@ -96,7 +100,9 @@
     (define idx (binary-search weights rand-ordinal))
     (define los (vector-ref lo-ends idx))
     (define his (vector-ref hi-ends idx))
-    (for/list ([lo (in-list los)] [hi (in-list his)] [repr (in-list reprs)])
+    (for/list ([lo (in-list los)]
+               [hi (in-list his)]
+               [repr (in-list reprs)])
       ((representation-ordinal->repr repr) (random-integer lo hi)))))
 
 #;(module+ test
@@ -143,7 +149,10 @@
 
   (real-compiler-clear! compiler) ; Clear profiling vector
   (define-values (points exactss)
-    (let loop ([sampled 0] [skipped 0] [points '()] [exactss '()])
+    (let loop ([sampled 0]
+               [skipped 0]
+               [points '()]
+               [exactss '()])
       (define pt (sampler))
 
       (define-values (status exs) (real-apply compiler pt))
@@ -152,10 +161,12 @@
          (warn 'ground-truth
                #:url "faq.html#ground-truth"
                "could not determine a ground truth"
-               #:extra (for/list ([var vars] [val pt])
+               #:extra (for/list ([var vars]
+                                  [val pt])
                          (format "~a = ~a" var val)))]
         [(valid)
-         (for ([ex (in-list exs)] [repr (in-list reprs)])
+         (for ([ex (in-list exs)]
+               [repr (in-list reprs)])
            ; The `bool` representation does not produce bigfloats
            (define maybe-bf ((representation-repr->bf repr) ex))
            (when (and (bigfloat? maybe-bf) (bfinfinite? maybe-bf))
@@ -164,7 +175,8 @@
       (hash-update! outcomes status (curry + 1) 0)
 
       (define is-bad?
-        (for/or ([input (in-list pt)] [repr (in-list var-reprs)])
+        (for/or ([input (in-list pt)]
+                 [repr (in-list var-reprs)])
           ((representation-special-value? repr) input)))
 
       (cond
