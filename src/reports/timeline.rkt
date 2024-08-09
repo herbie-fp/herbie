@@ -37,12 +37,14 @@
     ([id "process-info"])
     (p ((class "header")) "Time bar (total: " (span ((class "number")) ,(format-time time)) ")")
     (div ((class "timeline"))
-         ,@(for/list ([n (in-naturals)] [curr timeline])
+         ,@(for/list ([n (in-naturals)]
+                      [curr timeline])
              `(div ((class ,(format "timeline-phase timeline-~a" (dict-ref curr 'type)))
                     [data-id ,(format "timeline~a" n)]
                     [data-type ,(~a (dict-ref curr 'type))]
                     [data-timespan ,(~a (dict-ref curr 'time))]))))
-    ,@(for/list ([phase timeline] [n (in-naturals)])
+    ,@(for/list ([phase timeline]
+                 [n (in-naturals)])
         (render-phase phase n time))))
 
 (define/contract (render-phase curr n total-time)
@@ -115,19 +117,13 @@
                                                                   total))])))))))
 
 (define (render-phase-locations locations)
-  `((dt "Localize:")
-    (dd (p "Found " ,(~a (length locations)) " expressions of interest:")
-        (table ((class "times"))
-               (thead (tr (th "New") (th "Metric") (th "Score") (th "Program")))
-               ,@(for/list ([rec (in-list locations)])
-                   (match-define (list expr metric score new? repr-name) rec)
-                   (define repr (get-representation (read (open-input-string repr-name))))
-                   `(tr (td ,(if new? "✓" ""))
-                        (td ,(~a metric))
-                        (td ,(if (equal? metric "accuracy")
-                                 (format-accuracy score (representation-total-bits repr) #:unit "%")
-                                 (~a score)))
-                        (td (pre ,(~a expr)))))))))
+  `((dt "Localize:") (dd (p "Found " ,(~a (length locations)) " expressions of interest:")
+                         (table ((class "times"))
+                                (thead (tr (th "New") (th "Metric") (th "Score") (th "Program")))
+                                ,@
+                                (for/list ([rec (in-list locations)])
+                                  (match-define (list expr metric score) rec)
+                                  `(tr (td ,(~a metric)) (td ,(~a score)) (td (pre ,(~a expr)))))))))
 
 (define (format-value v)
   (cond
@@ -164,7 +160,8 @@
 (define (render-phase-stop data)
   (match-define (list (list reasons counts) ...) (sort data > #:key second))
   `((dt "Stop Event") (dd (table ((class "times"))
-                                 ,@(for/list ([reason reasons] [count counts])
+                                 ,@(for/list ([reason reasons]
+                                              [count counts])
                                      `(tr (td ,(~r count #:group-sep " ") "×") (td ,(~a reason))))))))
 
 (define (format-percent num den)
@@ -245,7 +242,11 @@
 
 (define (render-phase-accuracy accuracy oracle baseline name link repr-name)
   (define rows
-    (sort (for/list ([acc accuracy] [ora oracle] [bas baseline] [name name] [link link])
+    (sort (for/list ([acc accuracy]
+                     [ora oracle]
+                     [bas baseline]
+                     [name name]
+                     [link link])
             (list (- acc ora) (- bas acc) link name))
           >
           #:key first))
@@ -268,7 +269,8 @@
                               ")")
                            ,@(if (> (length rows) 1)
                                  `((table ((class "times"))
-                                          ,@(for/list ([rec (in-list rows)] [_ (in-range 5)])
+                                          ,@(for/list ([rec (in-list rows)]
+                                                       [_ (in-range 5)])
                                               (match-define (list left gained link name) rec)
                                               `(tr (td ,(format-bits left #:unit #t))
                                                    (td ,(format-percent gained (+ left gained)))
@@ -321,7 +323,8 @@
 
 (define (render-phase-rules rules)
   `((dt "Rules") (dd (table ((class "times"))
-                            ,@(for/list ([rec (in-list (sort rules > #:key second))] [_ (in-range 5)])
+                            ,@(for/list ([rec (in-list (sort rules > #:key second))]
+                                         [_ (in-range 5)])
                                 (match-define (list rule count) rec)
                                 `(tr (td ,(~r count #:group-sep " ") "×")
                                      (td (code ,(~a rule) " "))))))))
@@ -449,7 +452,8 @@
                   "Weighted histogram; height corresponds to percentage of runtime in that bucket."]))
         (script "histogram(\"" ,(format "calls-~a" n) "\", " ,(jsexpr->string (map first times)) ")")
         (table ((class "times"))
-               ,@(for/list ([rec (in-list (sort times > #:key first))] [_ (in-range 5)])
+               ,@(for/list ([rec (in-list (sort times > #:key first))]
+                            [_ (in-range 5)])
                    (match-define (list time expr) rec)
                    `(tr (td ,(format-time time)) (td (pre ,(~a expr)))))))))
 
@@ -465,7 +469,8 @@
       ((class "times"))
       (thead (tr (th "Time") (th "Variable") (th) (th "Point") (th "Expression")))
       ,@
-      (for/list ([rec (in-list (sort times > #:key first))] [_ (in-range 5)])
+      (for/list ([rec (in-list (sort times > #:key first))]
+                 [_ (in-range 5)])
         (match-define (list time expr var transform) rec)
         `(tr (td ,(format-time time)) (td (pre ,var)) (td "@") (td ,transform) (td (pre ,expr))))))))
 
@@ -503,7 +508,9 @@
                                        (td ,(~a category))))))))
 
 (define (render-phase-inputs inputs outputs)
-  `((dt "Calls") (dd ,@(for/list ([call inputs] [output outputs] [n (in-naturals 1)])
+  `((dt "Calls") (dd ,@(for/list ([call inputs]
+                                  [output outputs]
+                                  [n (in-naturals 1)])
                          `(details (summary "Call " ,(~a n))
                                    (table (thead (tr (th "Inputs")))
                                           ,@(for/list ([arg call])
@@ -543,7 +550,8 @@
           (tr (th "Flags:")
               (td ((id "flag-list"))
                   (div ((id "all-flags"))
-                       ,@(for*/list ([(class flags) (*flags*)] [flag flags])
+                       ,@(for*/list ([(class flags) (*flags*)]
+                                     [flag flags])
                            `(kbd ,(~a class) ":" ,(~a flag))))
                   (div ((id "changed-flags"))
                        ,@(if (null? (changed-flags))

@@ -11,7 +11,8 @@
          "programs.rkt"
          "sampling.rkt"
          "simplify.rkt"
-         "egg-herbie.rkt")
+         "egg-herbie.rkt"
+         "batch.rkt")
 
 (provide batch-localize-costs
          batch-localize-errors
@@ -102,7 +103,8 @@
   (define subexprss (map all-subexpressions exprs))
   (define errss (compute-local-errors subexprss ctx))
 
-  (for/list ([_ (in-list exprs)] [errs (in-list errss)])
+  (for/list ([_ (in-list exprs)]
+             [errs (in-list errss)])
     (sort (sort (for/list ([(subexpr err) (in-hash errs)]
                            #:when (or (list? subexpr) (approx? subexpr)))
                   (cons err subexpr))
@@ -113,39 +115,40 @@
 
 ; Compute local error or each sampled point at each node in `prog`.
 (define (compute-local-errors subexprss ctx)
-  (define spec-list
-    (for*/list ([subexprs (in-list subexprss)] [subexpr (in-list subexprs)])
-      (prog->spec subexpr)))
+  (define exprs-list (append* subexprss)) ; unroll subexprss
   (define ctx-list
-    (for*/list ([subexprs (in-list subexprss)] [subexpr (in-list subexprs)])
+    (for/list ([subexpr (in-list exprs-list)])
       (struct-copy context ctx [repr (repr-of subexpr ctx)])))
 
-  (define subexprs-fn (eval-progs-real spec-list ctx-list))
+  (define expr-batch (progs->batch exprs-list #:ignore-approx #f))
+  (define nodes (batch-nodes expr-batch))
+  (define roots (batch-roots expr-batch))
+
+  (define subexprs-fn (eval-progs-real (map prog->spec exprs-list) ctx-list))
 
   ; Mutable error hack, this is bad
-  (define errs
-    (make-hash (for*/list ([subexprs (in-list subexprss)] [subexpr (in-list subexprs)])
-                 (cons subexpr '()))))
+  (define errs (make-hash (map list exprs-list)))
 
   (for ([(pt ex) (in-pcontext (*pcontext*))])
-    (define exacts (apply subexprs-fn pt))
-    (define exacts-hash (make-immutable-hash (map cons (apply append subexprss) exacts)))
-    (for* ([subexprs (in-list subexprss)] [expr (in-list subexprs)])
+    (define exacts (list->vector (apply subexprs-fn pt)))
+    (for ([expr (in-list exprs-list)]
+          [root (in-vector roots)]
+          [exact (in-vector exacts)])
       (define err
-        (match expr
+        (match (vector-ref nodes root)
           [(? literal?) 1]
           [(? variable?) 1]
           [(approx _ impl)
            (define repr (repr-of expr ctx))
-           (ulp-difference (hash-ref exacts-hash expr) (hash-ref exacts-hash impl) repr)]
+           (ulp-difference exact (vector-ref exacts (vector-member impl roots)) repr)]
           [`(if ,c ,ift ,iff) 1]
           [(list f args ...)
            (define repr (impl-info f 'otype))
            (define argapprox
-             (for/list ([arg (in-list args)])
-               (hash-ref exacts-hash arg)))
+             (for/list ([idx (in-list args)])
+               (vector-ref exacts (vector-member idx roots)))) ; arg's index mapping to exact
            (define approx (apply (impl-info f 'fl) argapprox))
-           (ulp-difference (hash-ref exacts-hash expr) approx repr)]))
+           (ulp-difference exact approx repr)]))
       (hash-update! errs expr (curry cons err))))
 
   (for/list ([subexprs (in-list subexprss)])

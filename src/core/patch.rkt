@@ -9,17 +9,11 @@
          "../utils/timeline.rkt"
          "egg-herbie.rkt"
          "programs.rkt"
-         "rr.rkt"
          "rules.rkt"
          "simplify.rkt"
          "taylor.rkt")
 
-(provide patch-table-has-expr?
-         patch-table-run)
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;; Patch table ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(define/reset *patch-table* (make-hash))
+(provide generate-candidates)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Simplify ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -54,7 +48,8 @@
   ; convert to altns
   (define simplified
     (reap [sow]
-          (for ([altn (in-list approxs)] [outputs (in-list simplification-options)])
+          (for ([altn (in-list approxs)]
+                [outputs (in-list simplification-options)])
             (match-define (cons _ simplified) outputs)
             (define prev (hash-ref approx->prev altn))
             (for ([expr (in-list simplified)])
@@ -79,7 +74,8 @@
 (define (taylor-alt altn)
   (define expr (prog->spec (alt-expr altn)))
   (reap [sow]
-        (for* ([var (free-variables expr)] [transform-type transforms-to-try])
+        (for* ([var (free-variables expr)]
+               [transform-type transforms-to-try])
           (match-define (list name f finv) transform-type)
           (define timeline-stop! (timeline-start! 'series (~a expr) (~a var) (~a name)))
           (define genexpr (approximate expr var #:transform (cons f finv)))
@@ -117,6 +113,9 @@
   (define lifting-rules (platform-lifting-rules))
   (define lowering-rules (platform-lowering-rules))
 
+  (define extractor
+    (typed-egg-extractor (if (*egraph-platform-cost*) platform-egg-cost-proc default-egg-cost-proc)))
+
   ; egg schedule (3-phases for mathematical rewrites and implementation selection)
   (define schedule
     `((,lifting-rules . ((iteration . 1) (scheduler . simple)))
@@ -124,30 +123,29 @@
       (,lowering-rules . ((iteration . 1) (scheduler . simple)))))
 
   ; run egg
-  (define specs (map alt-expr altns))
-  (define reprs (map (lambda (altn) (repr-of (alt-expr altn) (*context*))) altns))
-  (define changelistss (rewrite-expressions specs reprs schedule (*context*)))
+  (define exprs (map alt-expr altns))
+  (define reprs (map (curryr repr-of (*context*)) exprs))
+  (timeline-push! 'inputs (map ~a exprs))
+  (define runner (make-egg-runner exprs reprs schedule #:context (*context*)))
+  (define variantss (run-egg runner `(multi . ,extractor)))
 
   ; apply changelists
   (define rewritten
     (reap [sow]
-          (for ([changelists changelistss] [altn altns])
-            (for ([cl changelists])
-              (match-define (list subexpr input) cl)
-              (sow (alt subexpr (list 'rr input #f #f) (list altn) '()))))))
-
+          (for ([variants (in-list variantss)]
+                [altn (in-list altns)])
+            (for ([variant (in-list (remove-duplicates variants))])
+              (sow (alt variant (list 'rr runner #f #f) (list altn) '()))))))
+  (timeline-push! 'outputs (map (compose ~a alt-expr) rewritten))
   (timeline-push! 'count (length altns) (length rewritten))
   rewritten)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Public API ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define (patch-table-has-expr? expr)
-  (hash-has-key? (*patch-table*) expr))
-
-(define (patch-table-run locs)
+(define (generate-candidates exprs)
   ; Starting alternatives
   (define start-altns
-    (for/list ([expr (in-list locs)])
+    (for/list ([expr (in-list exprs)])
       (define repr (repr-of expr (*context*)))
       (alt expr (list 'patch expr repr) '() '())))
   ; Series expand

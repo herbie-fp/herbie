@@ -237,11 +237,15 @@
       [(list op args ...) (cons op (map loop args))])))
 
 (define (flatten-let expr)
-  (let loop ([expr expr] [env (hash)])
+  (let loop ([expr expr]
+             [env (hash)])
     (match expr
       [(? number?) expr]
       [(? symbol?) (hash-ref env expr expr)]
-      [`(let (,var ,term) ,body) (loop body (hash-set env var (loop term env)))]
+      [`(let (,var
+              ,term)
+          ,body)
+       (loop body (hash-set env var (loop term env)))]
       [`(,op ,args ...) (cons op (map (curryr loop env) args))])))
 
 ;; Converts an S-expr from egg into one Herbie understands
@@ -249,7 +253,8 @@
 ;; we may process mixed spec/impl expressions;
 ;; only need `type` to correctly interpret numbers
 (define (egg-parsed->expr expr rename-dict type)
-  (let loop ([expr expr] [type type])
+  (let loop ([expr expr]
+             [type type])
     (match expr
       [(? number?) (if (representation? type) (literal expr (representation-name type)) expr)]
       [(? symbol?)
@@ -427,7 +432,8 @@
      (define itype (dict-ref (rule-itypes ru) input))
      (unless (type-name? itype)
        (error 'rule->egg-rules "expansive rules over impls is unsound ~a" input))
-     (for/list ([op (all-operators)] #:when (eq? (operator-info op 'otype) itype))
+     (for/list ([op (all-operators)]
+                #:when (eq? (operator-info op 'otype) itype))
        (define itypes (operator-info op 'itype))
        (define vars (map (lambda (_) (gensym)) itypes))
        (rule (sym-append (rule-name ru) '-expand- op)
@@ -486,9 +492,7 @@
 ;; Normalizes a Rust e-class.
 ;; Nullary operators are serialized as symbols, so we need to fix them.
 (define (normalize-enode enode egg->herbie)
-  (if (and (symbol? enode) (not (hash-has-key? egg->herbie enode)))
-      (list enode)
-      enode))
+  (if (and (symbol? enode) (not (hash-has-key? egg->herbie enode))) (list enode) enode))
 
 ;; Returns all representatations (and their types) in the current platform.
 (define (all-reprs/types [pform (*active-platform*)])
@@ -624,7 +628,8 @@
   (define (check-typed! dirty?-vec)
     (define dirty? #f)
     (define dirty?-vec* (make-vector n #f))
-    (for ([id (in-range n)] #:when (vector-ref dirty?-vec id))
+    (for ([id (in-range n)]
+          #:when (vector-ref dirty?-vec id))
       (unless (vector-ref typed? id)
         (define eclass (vector-ref eclasses id))
         (when (ormap enode-typed? eclass)
@@ -673,7 +678,8 @@
   ; rebuild eclass vector
   ; transform each eclass from a list to a vector
   (define eclasses* (make-vector n* #f))
-  (for ([id (in-range n)] #:when (vector-ref remap id))
+  (for ([id (in-range n)]
+        #:when (vector-ref remap id))
     (define eclass (vector-ref eclasses id))
     (vector-set! eclasses*
                  (vector-ref remap id)
@@ -694,7 +700,8 @@
   ; rebuild the eclass type map
   (define types*
     (for/vector #:length n*
-                ([id (in-range n)] #:when (vector-ref remap id))
+                ([id (in-range n)]
+                 #:when (vector-ref remap id))
       (vector-ref types id)))
 
   (values eclasses* types* egg-id->id*))
@@ -789,7 +796,8 @@
     (define dirty? #f)
     (define dirty?-vec* (make-vector n #f))
     (define changed?-vec* (make-vector n #f))
-    (for ([id (in-range n)] #:when (vector-ref dirty?-vec id))
+    (for ([id (in-range n)]
+          #:when (vector-ref dirty?-vec id))
       (define eclass (vector-ref eclasses id))
       (when (eclass-proc analysis changed?-vec iter eclass id)
         ; eclass analysis was updated: need to revisit the parents
@@ -1100,7 +1108,9 @@
       (define-values (egg-graph* iteration-data) (egraph-run-rules egg-graph egg-rules params))
 
       ; get cost statistics
-      (for/fold ([time 0]) ([iter (in-list iteration-data)] [i (in-naturals)])
+      (for/fold ([time 0])
+                ([iter (in-list iteration-data)]
+                 [i (in-naturals)])
         (define cnt (iteration-data-num-nodes iter))
         (define cost (apply + (map (λ (id) (egraph-get-cost egg-graph* id i)) root-ids)))
         (define new-time (+ time (iteration-data-time iter)))
@@ -1190,16 +1200,19 @@
      (define regraph (make-regraph egg-graph))
      (define extract-id (extractor regraph))
      (define reprs (egg-runner-reprs runner))
-     (for/list ([id (in-list root-ids)] [repr (in-list reprs)])
+     (for/list ([id (in-list root-ids)]
+                [repr (in-list reprs)])
        (regraph-extract-best regraph extract-id id repr))]
     [`(multi . ,extractor) ; multi expression extraction
      (define regraph (make-regraph egg-graph))
      (define extract-id (extractor regraph))
      (define reprs (egg-runner-reprs runner))
-     (for/list ([id (in-list root-ids)] [repr (in-list reprs)])
+     (for/list ([id (in-list root-ids)]
+                [repr (in-list reprs)])
        (regraph-extract-variants regraph extract-id id repr))]
     [`(proofs . ((,start-exprs . ,end-exprs) ...)) ; proof extraction
-     (for/list ([start (in-list start-exprs)] [end (in-list end-exprs)])
+     (for/list ([start (in-list start-exprs)]
+                [end (in-list end-exprs)])
        (unless (egraph-expr-equal? egg-graph start end ctx)
          (error 'run-egg
                 "cannot find proof; start and end are not equal.\n start: ~a \n end: ~a"
@@ -1210,6 +1223,7 @@
          (error 'run-egg "proof extraction failed between`~a` and `~a`" start end))
        proof)]
     [`(equal? . ((,start-exprs . ,end-exprs) ...)) ; term equality?
-     (for/list ([start (in-list start-exprs)] [end (in-list end-exprs)])
+     (for/list ([start (in-list start-exprs)]
+                [end (in-list end-exprs)])
        (egraph-expr-equal? egg-graph start end ctx))]
     [_ (error 'run-egg "unknown command `~a`\n" cmd)]))
