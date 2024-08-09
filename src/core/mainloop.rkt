@@ -70,7 +70,7 @@
 
   (choose-alts!)
   (localize!)
-  (reconstruct! (patch-table-run (^locs^)))
+  (reconstruct! (generate-candidates (^locs^)))
   (finalize-iter!))
 
 (define (extract!)
@@ -295,7 +295,7 @@
     (choose-alts!))
   (unless (^locs^)
     (localize!))
-  (reconstruct! (patch-table-run (^locs^)))
+  (reconstruct! (generate-candidates (^locs^)))
   (finalize-iter!)
   (void))
 
