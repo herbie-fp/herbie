@@ -253,7 +253,8 @@
   (define local-error (job-result-backend herbie-result))
   ;; TODO: potentially unsafe if resugaring changes the AST
   (define tree
-    (let loop ([expr expr] [err local-error])
+    (let loop ([expr expr]
+               [err local-error])
       (match expr
         [(list op args ...)
          ;; err => (List (listof Integer) List ...)
@@ -386,7 +387,9 @@
     (for/list ([altn end-alts])
       (~a (program->fpcore (alt-expr altn) (test-context test)))))
   (define alts-histories
-    (for/list ([alt end-alts] [ppctx processed] [tpctx test-pctx])
+    (for/list ([alt end-alts]
+               [ppctx processed]
+               [tpctx test-pctx])
       (render-history alt ppctx tpctx (test-context test))))
 
   (define vars (test-vars test))
