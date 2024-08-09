@@ -15,7 +15,7 @@
 
   (when (not (equal? (build-list 7 (zero-series (taylor var expr*)))
                      (build-list 7 (zero-series (taylor-old var expr*)))))
-    (printf "yo WTF, ~a\n" expr*)
+    (printf "not equal!!!, ~a\n" expr*)
     (println (build-list 7 (zero-series (taylor var expr*))))
     (println (build-list 7 (zero-series (taylor-old var expr*)))))
 
@@ -79,7 +79,7 @@
 (define (taylor var expr)
   "Return a pair (e, n), such that expr ~= e var^n"
   (define expr-batch (progs->batch (list expr)))
-  (expand-taylor expr-batch)
+  (set! expr-batch (expand-taylor expr-batch))
 
   (define nodes (batch-nodes expr-batch))
   (define root (vector-ref (batch-roots expr-batch) 0)) ; assuming no batches in expr
