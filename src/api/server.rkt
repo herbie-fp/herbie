@@ -5,7 +5,6 @@
          json)
 
 (require "sandbox.rkt"
-         "../config.rkt"
          "../core/preprocess.rkt"
          "../core/points.rkt"
          "../reports/history.rkt"
@@ -15,11 +14,9 @@
          "../syntax/read.rkt"
          "../syntax/sugar.rkt"
          "../syntax/load-plugin.rkt"
-         "../syntax/platform.rkt"
          "../utils/alternative.rkt"
          "../utils/common.rkt"
          "../utils/float.rkt")
-(require (submod "../utils/timeline.rkt" debug))
 
 (provide make-path
          get-improve-table-data
@@ -75,19 +72,6 @@
   (define count (place-channel-get a))
   count)
 
-; TODO get this to work, how do I allow args to be optional
-(define (receptionist-ask msg . args)
-  (define-values (a b) (place-channel))
-  (place-channel-put receptionist (cons msg b args))
-  (log "Checking current job count\n" msg args)
-  (place-channel-get a))
-
-(define (is-server-up)
-  (place? receptionist))
-
-(define (start-job-server)
-  (set! receptionist (make-receptionist)))
-
 ;; Starts a job for a given command object|
 (define (start-job command)
   (define job-id (compute-job-id command))
@@ -101,6 +85,66 @@
   (define finished-result (place-channel-get a))
   (log "Done waiting for: ~a\n" job-id)
   finished-result)
+
+; TODO get this to work, how do I allow args to be optional
+(define (receptionist-ask msg . args)
+  (define-values (a b) (place-channel))
+  (place-channel-put receptionist (cons msg b args))
+  (log "Checking current job count\n" msg args)
+  (place-channel-get a))
+
+(define (is-server-up)
+  (not (sync/timeout 0 receptionist-dead-event)))
+
+(define (start-job-server)
+  (define r (make-receptionist))
+  (set! receptionist-dead-event (place-dead-evt r))
+  (set! receptionist r))
+
+(define receptionist #f)
+(define receptionist-dead-event #f)
+
+(define (get-command herbie-result)
+  ; force symbol type to string
+  (~s (job-result-command herbie-result)))
+
+(define (compute-job-id job-info)
+  (sha1 (open-input-string (~s job-info))))
+
+(define (wrapper-run-herbie cmd job-id)
+  (print-job-message (herbie-command-command cmd) job-id (test-name (herbie-command-test cmd)))
+  (define result
+    (run-herbie (herbie-command-command cmd)
+                (herbie-command-test cmd)
+                #:seed (herbie-command-seed cmd)
+                #:pcontext (herbie-command-pcontext cmd)
+                #:profile? (herbie-command-profile? cmd)
+                #:timeline-disabled? (herbie-command-timeline-disabled? cmd)))
+  (eprintf "Herbie completed job: ~a\n" job-id)
+  result)
+
+(define (print-job-message command job-id job-str)
+  (define job-label
+    (match command
+      ['alternatives "Alternatives"]
+      ['evaluate "Evaluation"]
+      ['cost "Computing"]
+      ['errors "Analyze"]
+      ['exacts "Ground truth"]
+      ['improve "Improve"]
+      ['local-error "Local error"]
+      ['sample "Sampling"]
+      [_ (error 'compute-result "unknown command ~a" command)]))
+  (eprintf "~a Job ~a started:\n  ~a ~a...\n" job-label (symbol->string command) job-id job-str))
+
+(define-syntax (place/context* stx)
+  (syntax-case stx ()
+    [(_ name #:parameters (params ...) body ...)
+     (with-syntax ([(fresh ...) (generate-temporaries #'(params ...))])
+       #'(let ([fresh (params)] ...)
+           (place/context name
+                          (parameterize ([params fresh] ...)
+                            body ...))))]))
 
 (define (make-receptionist)
   (place/context*
@@ -160,29 +204,15 @@
        [(list 'wait job-id handler)
         (log "Waiting for job: ~a\n" job-id)
         ; first we add the handler to the wait list.
-        (if (false? (hash-ref waiting job-id #f))
-            (hash-set! waiting job-id (list handler))
-            (let ([wait-list (hash-ref waiting job-id)])
-              (hash-set! waiting job-id (append wait-list (list handler)))))
+        (hash-update! waiting job-id (curry append (list handler)) (list handler))
         (define result (hash-ref completed-work job-id #f))
-        ; check if the job is completed oor not.
+        ; check if the job is completed or not.
         (unless (false? result)
           (log "Done waiting for job: ~a\n" job-id)
           ; we have a result to send.
           (for ([waiting (hash-ref waiting job-id '())])
             (place-channel-put waiting result))
           (hash-remove! waiting job-id))]))))
-
-(define receptionist #f)
-
-(define-syntax (place/context* stx)
-  (syntax-case stx ()
-    [(_ name #:parameters (params ...) body ...)
-     (with-syntax ([(fresh ...) (generate-temporaries #'(params ...))])
-       #'(let ([fresh (params)] ...)
-           (place/context name
-                          (parameterize ([params fresh] ...)
-                            body ...))))]))
 
 (define (make-worker)
   (place/context*
@@ -432,37 +462,3 @@
           job-id
           'path
           (make-path job-id)))
-
-(define (get-command herbie-result)
-  ; force symbol type to string
-  (~s (job-result-command herbie-result)))
-
-(define (compute-job-id job-info)
-  (sha1 (open-input-string (~s job-info))))
-
-(define (wrapper-run-herbie cmd job-id)
-  (print-job-message (herbie-command-command cmd) job-id (test-name (herbie-command-test cmd)))
-  (define result
-    (run-herbie (herbie-command-command cmd)
-                (herbie-command-test cmd)
-                #:seed (herbie-command-seed cmd)
-                #:pcontext (herbie-command-pcontext cmd)
-                #:profile? (herbie-command-profile? cmd)
-                #:timeline-disabled? (herbie-command-timeline-disabled? cmd)))
-  (eprintf "Herbie completed job: ~a\n" job-id)
-  result)
-
-(define (print-job-message command job-id job-str)
-  (define job-label
-    (match command
-      ['alternatives "Alternatives"]
-      ['evaluate "Evaluation"]
-      ['cost "Computing"]
-      ['errors "Analyze"]
-      ['exacts "Ground truth"]
-      ['improve "Improve"]
-      ['local-error "Local error"]
-      ['explanations "Explanations"]
-      ['sample "Sampling"]
-      [_ (error 'compute-result "unknown command ~a" command)]))
-  (eprintf "~a Job ~a started:\n  ~a ~a...\n" job-label (symbol->string command) job-id job-str))
