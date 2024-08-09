@@ -81,7 +81,7 @@
 
 (define (wait-for-job job-id)
   (define-values (a b) (place-channel))
-  (place-channel-put receptionist (list 'wait job-id b))
+  (place-channel-put receptionist (list 'wait receptionist job-id b))
   (define finished-result (place-channel-get a))
   (log "Done waiting for: ~a\n" job-id)
   finished-result)
@@ -96,7 +96,7 @@
 (define (is-server-up)
   (not (sync/timeout 0 receptionist-dead-event)))
 
-(define (start-job-server)
+(define (start-job-server job-cap)
   (define r (make-receptionist))
   (set! receptionist-dead-event (place-dead-evt r))
   (set! receptionist r))
@@ -180,28 +180,30 @@
        ; Start a worker on a job. Unless the job-id is marked as finished then move to next state.
        [(list 'start self command job-id)
         (if (hash-has-key? completed-work job-id)
-            (place-channel-put self (list 'finished job-id (hash-ref completed-work job-id)))
+            (place-channel-put self (list 'send self job-id (hash-ref completed-work job-id)))
             (let ([worker (make-worker)])
               ; Maybe this should be worker-id and we should pre allocate workers based on threads available.
               (hash-set! workers job-id worker)
               (log "Starting worker [~a] on [~a].\n" job-id (test-name (herbie-command-test command)))
               (place-channel-put worker (list 'apply self command job-id))))]
-       ; Job is finished notified the waiting list with the result of the job.
-       [(list 'finished job-id result)
+       [(list 'send self job-id result)
+        (log "Sending result for ~a.\n" job-id)
+        (for ([handle (hash-ref waiting job-id '())])
+          (place-channel-put handle result))
+        (hash-remove! waiting job-id)]
+       ; Job is finished save work and free worker. Move work to 'send state.
+       [(list 'finished self job-id result)
         (log "Job ~a finished, saving result.\n" job-id)
         ; Notifed job has been completed, save the result.
         ; let GC collect worker 🤞.
         (hash-set! completed-work job-id result)
         (hash-remove! workers job-id)
         (log "waiting job ~a completed\n" job-id)
-        (define maybe-wait-list (hash-ref waiting job-id '()))
-        (for ([waiting maybe-wait-list])
-          (place-channel-put waiting result))
-        (hash-remove! waiting job-id)]
+        (place-channel-put self (list 'send self job-id result))]
        ; Get the result for the given id, return false if no work found.
        [(list 'result job-id handler) (place-channel-put handler (hash-ref completed-work job-id #f))]
        ; Pass a place-channel `handler` to the receptionist to be notified on when a job is complete.
-       [(list 'wait job-id handler)
+       [(list 'wait self job-id handler)
         (log "Waiting for job: ~a\n" job-id)
         ; first we add the handler to the wait list.
         (hash-update! waiting job-id (curry append (list handler)) (list handler))
@@ -210,9 +212,7 @@
         (unless (false? result)
           (log "Done waiting for job: ~a\n" job-id)
           ; we have a result to send.
-          (for ([waiting (hash-ref waiting job-id '())])
-            (place-channel-put waiting result))
-          (hash-remove! waiting job-id))]))))
+          (place-channel-put self (list 'send self job-id result)))]))))
 
 (define (make-worker)
   (place/context*
@@ -246,7 +246,7 @@
             ['sample (make-sample-result herbie-result test job-id)]
             [_ (error 'compute-result "unknown command ~a" kind)]))
         (log "Job: ~a finished, returning work to receptionist\n" job-id)
-        (place-channel-put receptionist (list 'finished job-id out-result))]))))
+        (place-channel-put receptionist (list 'finished receptionist job-id out-result))]))))
 
 (define (make-local-error-result herbie-result test job-id)
   (define expr (prog->fpcore (test-input test)))
