@@ -82,41 +82,25 @@
       (unmunge root)))
   exprs)
 
-(define (expand-taylor batch)
-  (define vars (batch-vars batch))
+; TODO: ADD APPROX NODE, REMOVE UNUSED NODES SUCH AS 1/2 FROM POW(x, 1/2)
+(define (expand-taylor input-batch)
+  (define vars (batch-vars input-batch))
+  (define nodes (batch-nodes input-batch))
+  (define roots (batch-roots input-batch))
+
   (define icache (reverse vars))
   (define exprhash
     (make-hash (for/list ([var vars]
                           [i (in-naturals)])
                  (cons var i))))
-  ; Counts
+
   (define exprc 0)
   (define varc (length vars))
 
-  ; Translates programs into an instruction sequence of operations
-  (define (munge prog)
-    (define node ; This compiles to the register machine
-      (match prog
-        [(list '- arg1 arg2) `(+ ,(munge arg1) ,(munge `(neg ,arg2)))]
-        [(list 'pow base 1/2) `(sqrt ,(munge base))]
-        [(list 'pow base 1/3) `(cbrt ,(munge base))]
-        [(list 'pow base 2/3) `(cbrt ,(munge `(* ,base ,base)))]
-        [(list 'pow base power)
-         #:when (exact-integer? power)
-         `(pow ,(munge base) ,(munge power))]
-        [(list 'pow base power) `(exp ,(munge `(* ,power (log ,base))))]
-        [(list 'tan args) `(/ ,(munge `(sin ,args)) ,(munge `(cos ,args)))]
-        [(list 'cosh args) `(* ,(munge 1/2) ,(munge `(+ (exp ,args) (/ 1 (exp ,args)))))]
-        [(list 'sinh args) `(* ,(munge 1/2) ,(munge `(+ (exp ,args) (neg (/ 1 (exp ,args))))))]
-        [(list 'tanh args)
-         `(/ ,(munge `(+ (exp ,args) (neg (/ 1 (exp ,args)))))
-             ,(munge `(+ (exp ,args) (/ 1 (exp ,args)))))]
-        [(list 'asinh args) `(log ,(munge `(+ ,args (sqrt (+ (* ,args ,args) 1)))))]
-        [(list 'acosh args) `(log ,(munge `(+ ,args (sqrt (+ (* ,args ,args) -1)))))]
-        [(list 'atanh args) `(* ,(munge 1/2) ,(munge `(log (/ (+ 1 ,args) (+ 1 (neg ,args))))))]
-        [(list op args ...) (cons op (map munge args))]
-        [(approx spec impl) (approx spec (munge impl))]
-        [_ prog]))
+  (define mappings
+    (make-hash (map (λ (n) (cons n n)) (build-list (batch-nodes-length input-batch) values))))
+
+  (define (append-node node)
     (hash-ref! exprhash
                node
                (lambda ()
@@ -124,9 +108,101 @@
                    (set! exprc (+ 1 exprc))
                    (set! icache (cons node icache))))))
 
-  (set-batch-roots! batch (list->vector (map munge (batch->progs batch))))
-  (set-batch-nodes! batch (list->vector (reverse icache)))
-  (set-batch-nodes-length! batch (vector-length (batch-nodes batch))))
+  (for ([node (in-vector nodes)]
+        [n (in-naturals)])
+    (match node
+      [(list '- arg1 arg2)
+       (define neg-index (append-node `(neg ,(hash-ref mappings arg2))))
+       (hash-set! mappings n (append-node `(+ ,(hash-ref mappings arg1) ,neg-index)))]
+
+      [(list 'pow base power)
+       #:when (equal? (vector-ref nodes power) 1/2) ; 1/2 to be removed from exprhash
+       (hash-set! mappings n (append-node `(sqrt ,(hash-ref mappings base))))]
+
+      [(list 'pow base power)
+       #:when (equal? (vector-ref nodes power) 1/3) ; 1/3 to be removed from exprhash
+       (hash-set! mappings n (append-node `(cbrt ,(hash-ref mappings base))))]
+
+      [(list 'pow base power)
+       #:when (equal? (vector-ref nodes power) 2/3) ; 2/3 to be removed from exprhash
+       (define mult-index (append-node `(* ,(hash-ref mappings base) ,(hash-ref mappings base))))
+       (hash-set! mappings n (append-node `(cbrt ,mult-index)))]
+
+      [(list 'pow base power)
+       #:when (exact-integer? (vector-ref nodes power))
+       (hash-set! mappings
+                  n
+                  (append-node `(pow ,(hash-ref mappings base) ,(hash-ref mappings power))))]
+
+      [(list 'pow base power)
+       (define log-idx (append-node `(log ,(hash-ref mappings base))))
+       (define mult-idx (append-node `(* ,(hash-ref mappings power) ,log-idx)))
+       (hash-set! mappings n (append-node `(exp ,mult-idx)))]
+
+      [(list 'tan args)
+       (define sin-idx (append-node `(sin ,(hash-ref mappings args))))
+       (define cos-idx (append-node `(cos ,(hash-ref mappings args))))
+       (hash-set! mappings n (append-node `(/ ,sin-idx ,cos-idx)))]
+
+      [(list 'cosh args)
+       (define exp-idx (append-node `(exp ,(hash-ref mappings args))))
+       (define one-idx (append-node 1)) ; should it be 1 or literal 1 or smth?
+       (define inv-exp-idx (append-node `(/ ,one-idx ,exp-idx)))
+       (define add-idx (append-node `(+ ,exp-idx ,inv-exp-idx)))
+       (define half-idx (append-node 1/2))
+       (hash-set! mappings n (append-node `(* ,half-idx ,add-idx)))]
+
+      [(list 'sinh args)
+       (define exp-idx (append-node `(exp ,(hash-ref mappings args))))
+       (define one-idx (append-node 1)) ; should it be 1 or literal 1 or smth?
+       (define inv-exp-idx (append-node `(/ ,one-idx ,exp-idx)))
+       (define neg-idx (append-node `(neg ,inv-exp-idx)))
+       (define add-idx (append-node `(+ ,exp-idx ,neg-idx)))
+       (define half-idx (append-node 1/2))
+       (hash-set! mappings n (append-node `(* ,half-idx ,add-idx)))]
+
+      [(list 'tanh args)
+       (define exp-idx (append-node `(exp ,(hash-ref mappings args))))
+       (define one-idx (append-node 1)) ; should it be 1 or literal 1 or smth?
+       (define inv-exp-idx (append-node `(/ ,one-idx ,exp-idx)))
+       (define neg-idx (append-node `(neg ,inv-exp-idx)))
+       (define add-idx (append-node `(+ ,exp-idx ,inv-exp-idx)))
+       (define sub-idx (append-node `(+ ,exp-idx ,neg-idx)))
+       (hash-set! mappings n (append-node `(/ ,sub-idx ,add-idx)))]
+
+      [(list 'asinh args)
+       (define mult-idx (append-node `(* ,(hash-ref mappings args) ,(hash-ref mappings args))))
+       (define one-idx (append-node 1)) ; should it be 1 or literal 1 or smth?
+       (define add-idx (append-node `(+ ,mult-idx ,one-idx)))
+       (define sqrt-idx (append-node `(sqrt ,add-idx)))
+       (define add2-idx (append-node `(+ ,(hash-ref mappings args) ,sqrt-idx)))
+       (hash-set! mappings n (append-node `(log ,add2-idx)))]
+
+      [(list 'acosh args)
+       (define mult-idx (append-node `(* ,(hash-ref mappings args) ,(hash-ref mappings args))))
+       (define -one-idx (append-node -1)) ; should it be -1 or literal -1 or smth?
+       (define add-idx (append-node `(+ ,mult-idx ,-one-idx)))
+       (define sqrt-idx (append-node `(sqrt ,add-idx)))
+       (define add2-idx (append-node `(+ ,(hash-ref mappings args) ,sqrt-idx)))
+       (hash-set! mappings n (append-node `(log ,add2-idx)))]
+
+      [(list 'atanh args)
+       (define neg-idx (append-node `(neg ,(hash-ref mappings args))))
+       (define one-idx (append-node 1)) ; should it be 1 or literal 1 or smth?
+       (define add-idx (append-node `(+ ,one-idx ,(hash-ref mappings args))))
+       (define sub-idx (append-node `(+ ,one-idx ,neg-idx)))
+       (define div-idx (append-node `(/ ,add-idx ,sub-idx)))
+       (define log-idx (append-node `(log ,div-idx)))
+       (define half-idx (append-node 1/2)) ; should it be 1/2 or literal 1/2 or smth?
+       (hash-set! mappings n (append-node `(* ,half-idx ,log-idx)))]
+
+      [(list op args ...) (append-node (cons op (map (curry hash-ref mappings) args)))]
+      #;[(approx spec impl) (approx spec (munge impl))]
+      [_ (append-node node)]))
+
+  (define roots* (vector-map (curry hash-ref mappings) roots))
+  (define nodes* (list->vector (reverse icache)))
+  (batch nodes* roots* vars (vector-length nodes*)))
 
 (define (get-expr nodes reg)
   (define (unmunge reg)
@@ -141,8 +217,8 @@
   (require rackunit)
   (define (test-expand-taylor expr)
     (define batch (progs->batch (list expr)))
-    (expand-taylor batch)
-    (car (batch->progs batch)))
+    (define batch* (expand-taylor batch))
+    (car (batch->progs batch*)))
 
   (define (test-munge-unmunge expr [ignore-approx #t])
     (define batch (progs->batch (list expr) #:ignore-approx ignore-approx))
@@ -160,7 +236,9 @@
   (check-equal? '(+ 1 (neg (* 1/2 (+ (exp (/ (sin 3) (cos 3))) (/ 1 (exp (/ (sin 3) (cos 3))))))))
                 (test-expand-taylor '(- 1 (cosh (tan 3)))))
   (check-equal? '(exp (* a (log x))) (test-expand-taylor '(pow x a)))
+  (check-equal? '(+ x (sin a)) (test-expand-taylor '(+ x (sin a))))
   (check-equal? '(cbrt x) (test-expand-taylor '(pow x 1/3)))
+  (check-equal? '(cbrt (* x x)) (test-expand-taylor '(pow x 2/3)))
   (check-equal? '(+ 100 (cbrt x)) (test-expand-taylor '(+ 100 (pow x 1/3))))
 
   (test-munge-unmunge '(* 1/2 (+ (exp x) (neg (/ 1 (exp x))))))
