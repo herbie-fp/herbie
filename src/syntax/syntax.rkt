@@ -481,6 +481,7 @@
                         (if exs (first exs) fail))
                       (sym-append 'synth: name)))
 
+  (eprintf "~a\n" fl)
   ;; Get floating-point implementation
   (define fl-proc
     (cond
@@ -491,7 +492,7 @@
       [else ; Rival-synthesized operator implementation
        (define vars (build-list (length ireprs) (lambda (i) (string->symbol (format "x~a" i)))))
        (synth-fl-impl name vars `(,new-op ,@vars))]))
-  (eprintf "~a\n"fl-proc)
+  
   ; update tables
   (define impl (operator-impl name op-info (context vars orepr ireprs) spec fpcore fl-proc))
   (hash-set! operator-impls name impl)
