@@ -72,7 +72,8 @@
           (exact->inexact (- 1 (/ initial-accuracies-sum maximum-accuracy)))
           1.0)))
   (define rescaled
-    (for/list ([cost-accuracy (in-list cost-accuracies)] #:unless (null? cost-accuracy))
+    (for/list ([cost-accuracy (in-list cost-accuracies)]
+               #:unless (null? cost-accuracy))
       (match-define (list (and initial-point (list initial-cost _)) best-point other-points)
         cost-accuracy)
       ;; Has to be floating point so serializing to JSON doesn't complain
@@ -180,7 +181,8 @@
       (call-with-atomic-output-file file (λ (p name) (write-json data p)))))
 
 (define (flags->list flags)
-  (for*/list ([rec (hash->list flags)] [fl (cdr rec)])
+  (for*/list ([rec (hash->list flags)]
+              [fl (cdr rec)])
     (format "~a:~a" (car rec) fl)))
 
 (define (list->flags list)
@@ -194,7 +196,8 @@
   (define (parse-string s)
     (if s (call-with-input-string s read) #f))
 
-  (let* ([json (call-with-input-file file read-json)] [get (λ (field) (hash-ref json field))])
+  (let* ([json (call-with-input-file file read-json)]
+         [get (λ (field) (hash-ref json field))])
     (report-info
      (seconds->date (get 'date))
      (get 'commit)
@@ -205,7 +208,8 @@
      (get 'points)
      (get 'iterations)
      (hash-ref json 'note #f)
-     (for/list ([test (get 'tests)] #:when (hash-has-key? test 'vars))
+     (for/list ([test (get 'tests)]
+                #:when (hash-has-key? test 'vars))
        (let ([get (λ (field) (hash-ref test field))])
          (define vars
            (match (hash-ref test 'vars)

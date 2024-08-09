@@ -102,7 +102,8 @@
   (define subexprss (map all-subexpressions exprs))
   (define errss (compute-local-errors subexprss ctx))
 
-  (for/list ([_ (in-list exprs)] [errs (in-list errss)])
+  (for/list ([_ (in-list exprs)]
+             [errs (in-list errss)])
     (sort (sort (for/list ([(subexpr err) (in-hash errs)]
                            #:when (or (list? subexpr) (approx? subexpr)))
                   (cons err subexpr))
@@ -114,23 +115,27 @@
 ; Compute local error or each sampled point at each node in `prog`.
 (define (compute-local-errors subexprss ctx)
   (define spec-list
-    (for*/list ([subexprs (in-list subexprss)] [subexpr (in-list subexprs)])
+    (for*/list ([subexprs (in-list subexprss)]
+                [subexpr (in-list subexprs)])
       (prog->spec subexpr)))
   (define ctx-list
-    (for*/list ([subexprs (in-list subexprss)] [subexpr (in-list subexprs)])
+    (for*/list ([subexprs (in-list subexprss)]
+                [subexpr (in-list subexprs)])
       (struct-copy context ctx [repr (repr-of subexpr ctx)])))
 
   (define subexprs-fn (eval-progs-real spec-list ctx-list))
 
   ; Mutable error hack, this is bad
   (define errs
-    (make-hash (for*/list ([subexprs (in-list subexprss)] [subexpr (in-list subexprs)])
+    (make-hash (for*/list ([subexprs (in-list subexprss)]
+                           [subexpr (in-list subexprs)])
                  (cons subexpr '()))))
 
   (for ([(pt ex) (in-pcontext (*pcontext*))])
     (define exacts (apply subexprs-fn pt))
     (define exacts-hash (make-immutable-hash (map cons (apply append subexprss) exacts)))
-    (for* ([subexprs (in-list subexprss)] [expr (in-list subexprs)])
+    (for* ([subexprs (in-list subexprss)]
+           [expr (in-list subexprs)])
       (define err
         (match expr
           [(? literal?) 1]

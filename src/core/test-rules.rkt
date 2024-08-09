@@ -47,11 +47,13 @@
   (define ctx (env->ctx env out))
 
   (match-define (list pts exs)
-    (parameterize ([*num-points* (num-test-points)] [*max-find-range-depth* 0])
+    (parameterize ([*num-points* (num-test-points)]
+                   [*max-find-range-depth* 0])
       (cdr (sample-points '(TRUE) (list p1) (list ctx)))))
 
   (define compiler (make-real-compiler (list p2) (list ctx)))
-  (for ([pt (in-list pts)] [v1 (in-list exs)])
+  (for ([pt (in-list pts)]
+        [v1 (in-list exs)])
     (with-check-info* (map make-check-info (context-vars ctx) pt)
                       (λ ()
                         (define-values (status v2) (real-apply compiler pt))
@@ -67,10 +69,13 @@
 
   (define pre (dict-ref *conditions* name '(TRUE)))
   (match-define (list pts exs1 exs2)
-    (parameterize ([*num-points* (num-test-points)] [*max-find-range-depth* 0])
+    (parameterize ([*num-points* (num-test-points)]
+                   [*max-find-range-depth* 0])
       (cdr (sample-points pre (list p1 p2) (list ctx ctx)))))
 
-  (for ([pt (in-list pts)] [v1 (in-list exs1)] [v2 (in-list exs2)])
+  (for ([pt (in-list pts)]
+        [v1 (in-list exs1)]
+        [v2 (in-list exs2)])
     (with-check-info* (map make-check-info (context-vars ctx) pt)
                       (λ ()
                         (with-check-info (['lhs v1] ['rhs v2])
@@ -107,7 +112,8 @@
 (module+ test
   (define _ (*simplify-rules*)) ; force an update
 
-  (for* ([(_ test-ruleset) (in-dict (*rulesets*))] [test-rule (first test-ruleset)])
+  (for* ([(_ test-ruleset) (in-dict (*rulesets*))]
+         [test-rule (first test-ruleset)])
     (test-case (~a (rule-name test-rule))
       (check-rule-correct test-rule)))
 

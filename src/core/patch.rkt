@@ -13,12 +13,7 @@
          "simplify.rkt"
          "taylor.rkt")
 
-(provide patch-table-has-expr?
-         patch-table-run)
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;; Patch table ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(define/reset *patch-table* (make-hash))
+(provide generate-candidates)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Simplify ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -53,7 +48,8 @@
   ; convert to altns
   (define simplified
     (reap [sow]
-          (for ([altn (in-list approxs)] [outputs (in-list simplification-options)])
+          (for ([altn (in-list approxs)]
+                [outputs (in-list simplification-options)])
             (match-define (cons _ simplified) outputs)
             (define prev (hash-ref approx->prev altn))
             (for ([expr (in-list simplified)])
@@ -78,7 +74,8 @@
 (define (taylor-alt altn)
   (define expr (prog->spec (alt-expr altn)))
   (reap [sow]
-        (for* ([var (free-variables expr)] [transform-type transforms-to-try])
+        (for* ([var (free-variables expr)]
+               [transform-type transforms-to-try])
           (match-define (list name f finv) transform-type)
           (define timeline-stop! (timeline-start! 'series (~a expr) (~a var) (~a name)))
           (define genexpr (approximate expr var #:transform (cons f finv)))
@@ -135,7 +132,8 @@
   ; apply changelists
   (define rewritten
     (reap [sow]
-          (for ([variants (in-list variantss)] [altn (in-list altns)])
+          (for ([variants (in-list variantss)]
+                [altn (in-list altns)])
             (for ([variant (in-list (remove-duplicates variants))])
               (sow (alt variant (list 'rr runner #f #f) (list altn) '()))))))
 
@@ -145,10 +143,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Public API ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define (patch-table-has-expr? expr)
-  (hash-has-key? (*patch-table*) expr))
-
-(define (patch-table-run exprs)
+(define (generate-candidates exprs)
   ; Starting alternatives
   (define start-altns
     (for/list ([expr (in-list exprs)])

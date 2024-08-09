@@ -34,7 +34,8 @@
 
 ; I don't like how specific this function is but it keeps the API boundary.
 (define (get-improve-job-data)
-  (for/list ([(k v) (in-hash *completed-jobs*)] #:when (equal? (job-result-command v) 'improve))
+  (for/list ([(k v) (in-hash *completed-jobs*)]
+             #:when (equal? (job-result-command v) 'improve))
     (get-table-data v (make-path k))))
 
 (define (job-count)

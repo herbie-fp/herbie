@@ -122,12 +122,16 @@
      vtype]
     [#`(let ([,id #,expr] ...) #,body)
      (define env2
-       (for/fold ([env2 env]) ([var id] [val expr])
+       (for/fold ([env2 env])
+                 ([var id]
+                  [val expr])
          (dict-set env2 var (expression->type val env type error!))))
      (expression->type body env2 type error!)]
     [#`(let* ([,id #,expr] ...) #,body)
      (define env2
-       (for/fold ([env2 env]) ([var id] [val expr])
+       (for/fold ([env2 env])
+                 ([var id]
+                  [val expr])
          (dict-set env2 var (expression->type val env2 type error!))))
      (expression->type body env2 type error!)]
     [#`(if #,branch #,ifstmt #,elsestmt)
