@@ -180,6 +180,9 @@ for (const e in expectedExpressions) {
   assert.equal(translatedExpr.result, expectedExpressions[e])
 }
 
+// Hack to get test to complete
+await new Promise(r => setTimeout(r, 2000));
+
 // Results.json endpoint
 const jsonResults = await callHerbie("/results.json", { method: 'GET' })
 
