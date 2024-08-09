@@ -136,7 +136,6 @@
                 [altn (in-list altns)])
             (for ([variant (in-list (remove-duplicates variants))])
               (sow (alt variant (list 'rr runner #f #f) (list altn) '()))))))
-
   (timeline-push! 'outputs (map (compose ~a alt-expr) rewritten))
   (timeline-push! 'count (length altns) (length rewritten))
   rewritten)
