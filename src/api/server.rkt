@@ -97,7 +97,7 @@
   (not (sync/timeout 0 receptionist-dead-event)))
 
 (define (start-job-server job-cap)
-  (define r (make-receptionist))
+  (define r (make-receptionist job-cap))
   (set! receptionist-dead-event (place-dead-evt r))
   (set! receptionist r))
 
@@ -146,7 +146,7 @@
                           (parameterize ([params fresh] ...)
                             body ...))))]))
 
-(define (make-receptionist)
+(define (make-receptionist worker-count)
   (place/context*
    ch
    #:parameters (*flags* *num-iterations*
@@ -168,29 +168,17 @@
    (for ([i (in-naturals)])
      ;  (eprintf "Receptionist msg ~a handled\n" i)
      (match (place-channel-get ch)
-       ; Returns the current count of workers.
-       [(list 'count handler) (place-channel-put handler (hash-count workers))]
-       ; Retreive the improve results for results.json
-       [(list 'improve handler)
-        (define improved-list
-          (for/list ([(job-id result) (in-hash completed-work)]
-                     #:when (equal? (hash-ref result 'command) "improve"))
-            (get-table-data-from-hash result (make-path job-id))))
-        (place-channel-put handler improved-list)]
-       ; Start a worker on a job. Unless the job-id is marked as finished then move to next state.
        [(list 'start self command job-id)
+        ; Check if the work has been completed already if not assign the work.
         (if (hash-has-key? completed-work job-id)
             (place-channel-put self (list 'send job-id (hash-ref completed-work job-id)))
-            (let ([worker (make-worker)])
-              ; Maybe this should be worker-id and we should pre allocate workers based on threads available.
-              (hash-set! workers job-id worker)
-              (log "Starting worker [~a] on [~a].\n" job-id (test-name (herbie-command-test command)))
-              (place-channel-put worker (list 'apply self command job-id))))]
-       [(list 'send job-id result)
-        (log "Sending result for ~a.\n" job-id)
-        (for ([handle (hash-ref waiting job-id '())])
-          (place-channel-put handle result))
-        (hash-remove! waiting job-id)]
+            (place-channel-put self (list 'assign self job-id command)))]
+       [(list 'assign self job-id command)
+        (let ([worker (make-worker)])
+          ; Maybe this should be worker-id and we should pre allocate workers based on threads available.
+          (hash-set! workers job-id worker)
+          (log "Starting worker [~a] on [~a].\n" job-id (test-name (herbie-command-test command)))
+          (place-channel-put worker (list 'apply self command job-id)))]
        ; Job is finished save work and free worker. Move work to 'send state.
        [(list 'finished self job-id result)
         (log "Job ~a finished, saving result.\n" job-id)
@@ -200,8 +188,6 @@
         (hash-remove! workers job-id)
         (log "waiting job ~a completed\n" job-id)
         (place-channel-put self (list 'send job-id result))]
-       ; Get the result for the given id, return false if no work found.
-       [(list 'result job-id handler) (place-channel-put handler (hash-ref completed-work job-id #f))]
        ; Pass a place-channel `handler` to the receptionist to be notified on when a job is complete.
        [(list 'wait self job-id handler)
         (log "Waiting for job: ~a\n" job-id)
@@ -212,7 +198,23 @@
         (unless (false? result)
           (log "Done waiting for job: ~a\n" job-id)
           ; we have a result to send.
-          (place-channel-put self (list 'send job-id result)))]))))
+          (place-channel-put self (list 'send job-id result)))]
+       [(list 'send job-id result)
+        (log "Sending result for ~a.\n" job-id)
+        (for ([handle (hash-ref waiting job-id '())])
+          (place-channel-put handle result))
+        (hash-remove! waiting job-id)]
+       ; Get the result for the given id, return false if no work found.
+       [(list 'result job-id handler) (place-channel-put handler (hash-ref completed-work job-id #f))]
+       ; Returns the current count of working workers.
+       [(list 'count handler) (place-channel-put handler (hash-count workers))]
+       ; Retreive the improve results for results.json
+       [(list 'improve handler)
+        (define improved-list
+          (for/list ([(job-id result) (in-hash completed-work)]
+                     #:when (equal? (hash-ref result 'command) "improve"))
+            (get-table-data-from-hash result (make-path job-id))))
+        (place-channel-put handler improved-list)]))))
 
 (define (make-worker)
   (place/context*
