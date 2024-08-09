@@ -189,6 +189,9 @@ for (const e in expectedExpressions) {
   assert.equal(translatedExpr.result, expectedExpressions[e])
 }
 
+// HACK: Because the jobs are async now we need to wait a bit before checking the results.json
+await new Promise(r => setTimeout(r, 2000));
+
 // Results.json endpoint
 const jsonResults = await callHerbie("/results.json", { method: 'GET' })
 
