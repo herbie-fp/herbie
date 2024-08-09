@@ -203,16 +203,12 @@
       [_ node]))
   (unmunge reg))
 
-(module+ test
+(module+ test-taylor
   (require rackunit)
   (define (test-expand-taylor expr)
     (define batch (progs->batch (list expr)))
     (define batch* (expand-taylor batch))
     (car (batch->progs batch*)))
-
-  (define (test-munge-unmunge expr [ignore-approx #t])
-    (define batch (progs->batch (list expr) #:ignore-approx ignore-approx))
-    (check-equal? (list expr) (batch->progs batch)))
 
   (check-equal? '(* 1/2 (log (/ (+ 1 x) (+ 1 (neg x))))) (test-expand-taylor '(atanh x)))
   (check-equal? '(log (+ x (sqrt (+ (* x x) -1)))) (test-expand-taylor '(acosh x)))
@@ -229,7 +225,13 @@
   (check-equal? '(+ x (sin a)) (test-expand-taylor '(+ x (sin a))))
   (check-equal? '(cbrt x) (test-expand-taylor '(pow x 1/3)))
   (check-equal? '(cbrt (* x x)) (test-expand-taylor '(pow x 2/3)))
-  (check-equal? '(+ 100 (cbrt x)) (test-expand-taylor '(+ 100 (pow x 1/3))))
+  (check-equal? '(+ 100 (cbrt x)) (test-expand-taylor '(+ 100 (pow x 1/3)))))
+
+(module+ test-munges
+  (require rackunit)
+  (define (test-munge-unmunge expr [ignore-approx #t])
+    (define batch (progs->batch (list expr) #:ignore-approx ignore-approx))
+    (check-equal? (list expr) (batch->progs batch)))
 
   (test-munge-unmunge '(* 1/2 (+ (exp x) (neg (/ 1 (exp x))))))
   (test-munge-unmunge
