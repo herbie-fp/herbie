@@ -519,21 +519,28 @@
 (define (split-untyped-eclasses egraph egg->herbie)
   (define eclass-boxes '()) ; (listof box?)
   (define eclass-types '()) ; (listof any)
-  (define egg-id->id (make-hash)) ; natural, type -> natural
-  (define id->eclass (make-hash)) ; natural -> box (avoid a list-ref)
+  (define id->eclass (make-hash)) ; natural -> box
+
+  ; optimization: use two dimension table, first indexed by
+  ; untyped e-class id, then by type
+  (define egg-id->table (make-hash)) ; natural -> (type -> id)
+  (define n 0)
+
+  ;; Creates a fresh eclass for a given type.
+  (define (new-eclass type)
+    (define id n)
+    (define eclass (box '()))
+    (set! n (add1 n))
+    (set! eclass-boxes (cons eclass eclass-boxes))
+    (set! eclass-types (cons type eclass-types))
+    (hash-set! id->eclass id eclass)
+    id)
 
   ;; Looks up the canonical id for a given egg id and type.
   ;; Returns a fresh id if none exists.
   (define (lookup-id eid type)
-    (hash-ref! egg-id->id
-               (cons eid type)
-               (lambda ()
-                 (define id (hash-count egg-id->id))
-                 (define eclass (box '()))
-                 (set! eclass-boxes (cons eclass eclass-boxes))
-                 (set! eclass-types (cons type eclass-types))
-                 (hash-set! id->eclass id eclass)
-                 id)))
+    (define type->id (hash-ref! egg-id->table eid (lambda () (make-hasheq))))
+    (hash-ref! type->id type (lambda () (new-eclass type))))
 
   ;; build typed eclasses
   (for ([eclass (in-list egraph)])
@@ -562,8 +569,15 @@
           (define eclass (hash-ref id->eclass id))
           (set-box! eclass (cons enode* (unbox eclass)))))))
 
-  (define eclasses (list->vector (map unbox (reverse eclass-boxes))))
+  (define eclasses (list->vector (map (compose reverse unbox) (reverse eclass-boxes))))
   (define types (list->vector (reverse eclass-types)))
+
+  ; collapse the table to 1 dimension
+  (define egg-id->id (make-hash))
+  (for ([(eid type->id) (in-hash egg-id->table)])
+    (for ([(type id) (in-hash type->id)])
+      (hash-set! egg-id->id (cons eid type) id)))
+
   (values eclasses types egg-id->id))
 
 ;; Analyzes eclasses for their properties.
@@ -652,23 +666,11 @@
                       (list id (vector-ref eclasses id))))))]
         [_ (void)]))))
 
-;; Splits untyped eclasses into typed eclasses,
-;; keeping only the subset of enodes that are well-typed.
-(define (make-typed-eclasses egraph egg->herbie)
-  ;; Step 1: split Rust e-classes by type
-  ;; The result are the eclasses, their types,
-  ;; and a canonicalization map for egg e-class ids
-  (define-values (eclasses types egg-id->id) (split-untyped-eclasses egraph egg->herbie))
+;; Rebuilds eclasses and associated data after pruning.
+(define (rebuild-eclasses eclasses types egg-id->id)
   (define n (vector-length eclasses))
-
-  ;; Step 2: keep well-typed e-nodes
-  ;; An e-class is well-typed if it has one well-typed node
-  ;; A node is well-typed if all of its child e-classes are well-typed.
-  (prune-ill-typed! eclasses)
-
-  ;; Step 3: remap e-classes
-  ;; Any empty e-classes must be removed, so we re-map every id
   (define remap (make-vector n #f))
+
   (define n* 0)
   (for ([id (in-range n)])
     (define eclass (vector-ref eclasses id))
@@ -704,6 +706,23 @@
       (vector-ref types id)))
 
   (values eclasses* types* egg-id->id*))
+
+;; Splits untyped eclasses into typed eclasses,
+;; keeping only the subset of enodes that are well-typed.
+(define (make-typed-eclasses egraph egg->herbie)
+  ;; Step 1: split Rust e-classes by type
+  ;; The result are the eclasses, their types,
+  ;; and a canonicalization map for egg e-class ids
+  (define-values (eclasses types egg-id->id) (split-untyped-eclasses egraph egg->herbie))
+
+  ;; Step 2: keep well-typed e-nodes
+  ;; An e-class is well-typed if it has one well-typed node
+  ;; A node is well-typed if all of its child e-classes are well-typed.
+  (prune-ill-typed! eclasses)
+
+  ;; Step 3: remap e-classes
+  ;; Any empty e-classes must be removed, so we re-map every id
+  (rebuild-eclasses eclasses types egg-id->id))
 
 ;; Constructs a Racket egraph from an S-expr representation.
 (define (datum->regraph egraph egg->herbie id->spec)
