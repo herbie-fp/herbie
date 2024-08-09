@@ -119,7 +119,7 @@
     (for/list ([subexpr (in-list exprs-list)])
       (struct-copy context ctx [repr (repr-of subexpr ctx)])))
 
-  (define expr-batch (progs->batch exprs-list #:vars (context-vars (first ctx-list))))
+  (define expr-batch (progs->batch exprs-list #:ignore-approx #f))
   (define nodes (batch-nodes expr-batch))
   (define roots (batch-roots expr-batch))
 
@@ -130,6 +130,9 @@
 
   (for ([(pt ex) (in-pcontext (*pcontext*))])
     (define exacts (list->vector (apply subexprs-fn pt)))
+
+    #;(define exacts-hash (make-immutable-hash (map cons exprs-list (vector->list exacts))))
+
     (for ([expr (in-list exprs-list)] [root (in-vector roots)] [exact (in-vector exacts)])
       (define err
         (match (vector-ref nodes root)
@@ -146,6 +149,25 @@
                (vector-ref exacts (vector-member idx roots)))) ; arg's index mapping to exact
            (define approx (apply (impl-info f 'fl) argapprox))
            (ulp-difference exact approx repr)]))
+
+      #;(define err*
+          (match expr
+            [(? literal?) 1]
+            [(? variable?) 1]
+            [(approx _ impl)
+             (define repr (repr-of expr ctx))
+             (ulp-difference (hash-ref exacts-hash expr) (hash-ref exacts-hash impl) repr)]
+            [`(if ,c ,ift ,iff) 1]
+            [(list f args ...)
+             (define repr (impl-info f 'otype))
+             (define argapprox
+               (for/list ([arg (in-list args)])
+                 (hash-ref exacts-hash arg)))
+             (define approx (apply (impl-info f 'fl) argapprox))
+             (ulp-difference (hash-ref exacts-hash expr) approx repr)]))
+
+      #;(when (not (equal? err err*))
+          (printf "expr=~a, node=~a, err=~a, err*=~a\n" expr (vector-ref nodes root) err err*))
       (hash-update! errs expr (curry cons err))))
 
   (for/list ([subexprs (in-list subexprss)])
