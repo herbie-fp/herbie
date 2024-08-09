@@ -517,30 +517,44 @@
 ;; Splits untyped eclasses into typed eclasses.
 ;; Nodes are duplicated across their possible types.
 (define (split-untyped-eclasses egraph egg->herbie)
+  ; optimization: use two dimensional table for lookups
+  ; first indexed by untyped e-class id, then by type
+  (define egg-id->table (make-hash)) ; natural -> (type -> id)
+  (define egg-id->id (make-hash)) ; (natural, type) -> id [actual table in the result]
+
+  ; eclasses
   (define eclass-boxes '()) ; (listof box?)
   (define eclass-types '()) ; (listof any)
   (define id->eclass (make-hash)) ; natural -> box
 
-  ; optimization: use two dimension table, first indexed by
-  ; untyped e-class id, then by type
-  (define egg-id->table (make-hash)) ; natural -> (type -> id)
-  (define n 0)
-
   ;; Creates a fresh eclass for a given type.
-  (define (new-eclass type)
-    (define id n)
+  (define (new-eclass eid type)
+    (define id (hash-count egg-id->id))
     (define eclass (box '()))
-    (set! n (add1 n))
     (set! eclass-boxes (cons eclass eclass-boxes))
     (set! eclass-types (cons type eclass-types))
     (hash-set! id->eclass id eclass)
+    (hash-set! egg-id->id (cons eid type) id)
     id)
 
   ;; Looks up the canonical id for a given egg id and type.
   ;; Returns a fresh id if none exists.
   (define (lookup-id eid type)
     (define type->id (hash-ref! egg-id->table eid (lambda () (make-hasheq))))
-    (hash-ref! type->id type (lambda () (new-eclass type))))
+    (hash-ref! type->id type (lambda () (new-eclass eid type))))
+
+  ;; rebuilds an e-node using typed e-classes
+  (define (rebuild-enode enode type)
+    (match enode
+      [(? number?) enode]
+      [(? symbol?) enode]
+      [(list '$approx spec impl)
+       (list '$approx (lookup-id spec (representation-type type)) (lookup-id impl type))]
+      [(list 'if cond ift iff)
+       (define cond-type (if (representation? type) (get-representation 'bool) 'bool))
+       (list 'if (lookup-id cond cond-type) (lookup-id ift type) (lookup-id iff type))]
+      [(list (? impl-exists? impl) args ...) (cons impl (map lookup-id args (impl-info impl 'itype)))]
+      [(list op args ...) (cons op (map lookup-id args (operator-info op 'itype)))]))
 
   ;; build typed eclasses
   (for ([eclass (in-list egraph)])
@@ -553,31 +567,13 @@
           ; lookup or create a new typed eclass
           (define id (lookup-id eid type))
           ; rebuild the enode using canonical e-classes
-          (define enode*
-            (match enode
-              [(? number?) enode]
-              [(? symbol?) enode]
-              [(list '$approx spec impl)
-               (list '$approx (lookup-id spec (representation-type type)) (lookup-id impl type))]
-              [(list 'if cond ift iff)
-               (define cond-type (if (representation? type) (get-representation 'bool) 'bool))
-               (list 'if (lookup-id cond cond-type) (lookup-id ift type) (lookup-id iff type))]
-              [(list (? impl-exists? impl) args ...)
-               (cons impl (map lookup-id args (impl-info impl 'itype)))]
-              [(list op args ...) (cons op (map lookup-id args (operator-info op 'itype)))]))
+          (define enode* (rebuild-enode enode type))
           ; update the typed e-class
           (define eclass (hash-ref id->eclass id))
           (set-box! eclass (cons enode* (unbox eclass)))))))
 
   (define eclasses (list->vector (map (compose reverse unbox) (reverse eclass-boxes))))
   (define types (list->vector (reverse eclass-types)))
-
-  ; collapse the table to 1 dimension
-  (define egg-id->id (make-hash))
-  (for ([(eid type->id) (in-hash egg-id->table)])
-    (for ([(type id) (in-hash type->id)])
-      (hash-set! egg-id->id (cons eid type) id)))
-
   (values eclasses types egg-id->id))
 
 ;; Analyzes eclasses for their properties.
