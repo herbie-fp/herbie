@@ -180,13 +180,13 @@
        ; Start a worker on a job. Unless the job-id is marked as finished then move to next state.
        [(list 'start self command job-id)
         (if (hash-has-key? completed-work job-id)
-            (place-channel-put self (list 'send self job-id (hash-ref completed-work job-id)))
+            (place-channel-put self (list 'send job-id (hash-ref completed-work job-id)))
             (let ([worker (make-worker)])
               ; Maybe this should be worker-id and we should pre allocate workers based on threads available.
               (hash-set! workers job-id worker)
               (log "Starting worker [~a] on [~a].\n" job-id (test-name (herbie-command-test command)))
               (place-channel-put worker (list 'apply self command job-id))))]
-       [(list 'send self job-id result)
+       [(list 'send job-id result)
         (log "Sending result for ~a.\n" job-id)
         (for ([handle (hash-ref waiting job-id '())])
           (place-channel-put handle result))
@@ -199,7 +199,7 @@
         (hash-set! completed-work job-id result)
         (hash-remove! workers job-id)
         (log "waiting job ~a completed\n" job-id)
-        (place-channel-put self (list 'send self job-id result))]
+        (place-channel-put self (list 'send job-id result))]
        ; Get the result for the given id, return false if no work found.
        [(list 'result job-id handler) (place-channel-put handler (hash-ref completed-work job-id #f))]
        ; Pass a place-channel `handler` to the receptionist to be notified on when a job is complete.
@@ -212,7 +212,7 @@
         (unless (false? result)
           (log "Done waiting for job: ~a\n" job-id)
           ; we have a result to send.
-          (place-channel-put self (list 'send self job-id result)))]))))
+          (place-channel-put self (list 'send job-id result)))]))))
 
 (define (make-worker)
   (place/context*
