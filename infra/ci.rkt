@@ -34,7 +34,8 @@
       (append-map load-tests bench-dirs)))
   (define seed (pseudo-random-generator->vector (current-pseudo-random-generator)))
   (printf "Running Herbie on ~a tests, seed: ~a\n" (length tests) seed)
-  (for/and ([the-test tests] [i (in-naturals)])
+  (for/and ([the-test tests]
+            [i (in-naturals)])
     (printf "~a/~a\t" (~a (+ 1 i) #:width 3 #:align 'right) (length tests))
     (define the-test* (if (*precision*) (override-test-precision the-test (*precision*)) the-test))
     (define result (run-herbie 'improve the-test* #:seed seed))
