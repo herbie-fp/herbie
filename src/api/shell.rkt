@@ -27,7 +27,8 @@
              ['windows "Ctrl-Z Enter"]
              [_ "Ctrl-D"]))
   (with-handlers ([exn:break? (λ (e) (exit 0))])
-    (for ([test (in-producer get-input eof-object?)] [idx (in-naturals)])
+    (for ([test (in-producer get-input eof-object?)]
+          [idx (in-naturals)])
       (define result (run-herbie 'improve test #:seed seed))
       (define status (job-result-status result))
       (define time (job-result-time result))

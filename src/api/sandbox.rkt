@@ -97,7 +97,8 @@
 
   (define-values (_ test-pcontext) (partition-pcontext pcontext))
   (define errs (errors (test-input test) test-pcontext (*context*)))
-  (for/list ([(pt _) (in-pcontext test-pcontext)] [err (in-list errs)])
+  (for/list ([(pt _) (in-pcontext test-pcontext)]
+             [err (in-list errs)])
     (list pt err)))
 
 ;; Given a test and a sample of points, the ground truth of each point
@@ -193,7 +194,8 @@
   ;; optionally compute error/cost for input expression
   (define target-alt-data
     ;; When in platform, evaluate error
-    (for/list ([(expr is-valid?) (in-dict (test-output test))] #:when is-valid?)
+    (for/list ([(expr is-valid?) (in-dict (test-output test))]
+               #:when is-valid?)
       (define target-expr (fpcore->prog expr ctx))
       (define target-train-errs (errors target-expr train-pcontext ctx))
       (define target-test-errs (errors target-expr test-pcontext* ctx))
@@ -247,7 +249,8 @@
         [_ (error 'run-herbie "command ~a timed out" command)])))
 
   (define (compute-result test)
-    (parameterize ([*timeline-disabled* timeline-disabled?] [*warnings-disabled* false])
+    (parameterize ([*timeline-disabled* timeline-disabled?]
+                   [*warnings-disabled* false])
       (define start-time (current-inexact-milliseconds))
       (rollback-improve!)
       (*context* (test-context test))

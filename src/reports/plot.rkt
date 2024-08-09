@@ -68,14 +68,17 @@
   (define end-error (map ulps->bits-tenths (car end-errors)))
 
   (define target-error-entries
-    (for/list ([i (in-naturals)] [error-value (in-list target-error)])
+    (for/list ([i (in-naturals)]
+               [error-value (in-list target-error)])
       (cons (format "target~a" (+ i 1)) error-value)))
 
   (define error-entries
     (list* (cons "start" start-error) (cons "end" end-error) target-error-entries))
 
   (define ticks
-    (for/list ([var (in-list vars)] [idx (in-naturals)] #:unless (all-same? newpoints idx))
+    (for/list ([var (in-list vars)]
+               [idx (in-naturals)]
+               #:unless (all-same? newpoints idx))
       ; We want to bail out since choose-ticks will crash otherwise
       (define points-at-idx (map (curryr list-ref idx) points))
       (define real-ticks (choose-ticks (apply min points-at-idx) (apply max points-at-idx) repr))
@@ -150,7 +153,9 @@
         [(< (- (cadr necessary) (car necessary)) sub-range) (loop (cdr necessary))]
         [else (cons (car necessary) (loop (cdr necessary)))])))
   (define all
-    (let loop ([necessary necessary*] [min* min] [start 0])
+    (let loop ([necessary necessary*]
+               [min* min]
+               [start 0])
       (cond
         [(>= start number) '()]
         [(empty? necessary) (choose-between min* max (- number start) repr)]

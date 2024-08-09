@@ -47,11 +47,13 @@
   (define spec1 (prog->spec p1))
   (define spec2 (prog->spec p2))
   (match-define (list pts exs)
-    (parameterize ([*num-points* (num-test-points)] [*max-find-range-depth* 0])
+    (parameterize ([*num-points* (num-test-points)]
+                   [*max-find-range-depth* 0])
       (cdr (sample-points '(TRUE) (list spec1) (list ctx)))))
 
   (define compiler (make-real-compiler (list spec2) (list ctx)))
-  (for ([pt (in-list pts)] [v1 (in-list exs)])
+  (for ([pt (in-list pts)]
+        [v1 (in-list exs)])
     (with-check-info* (map make-check-info vars pt)
                       (λ ()
                         (define-values (status v2) (real-apply compiler pt))
@@ -70,10 +72,13 @@
   (define spec1 (prog->spec p1))
   (define spec2 (prog->spec p2))
   (match-define (list pts exs1 exs2)
-    (parameterize ([*num-points* (num-test-points)] [*max-find-range-depth* 0])
+    (parameterize ([*num-points* (num-test-points)]
+                   [*max-find-range-depth* 0])
       (cdr (sample-points pre (list spec1 spec2) (list ctx ctx)))))
 
-  (for ([pt (in-list pts)] [v1 (in-list exs1)] [v2 (in-list exs2)])
+  (for ([pt (in-list pts)]
+        [v1 (in-list exs1)]
+        [v2 (in-list exs2)])
     (with-check-info*
      (map make-check-info fv pt)
      (λ () (with-check-info (['lhs v1] ['rhs v2]) (check-eq? (ulp-difference v1 v2 repr) 1))))))

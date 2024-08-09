@@ -28,7 +28,8 @@
 
 (define (get-options ri)
   (define flags
-    (for*/list ([(cat flags) (in-dict (or (report-info-flags ri) '()))] [fl flags])
+    (for*/list ([(cat flags) (in-dict (or (report-info-flags ri) '()))]
+                [fl flags])
       (string->symbol (format "~a:~a" cat fl))))
   (if (equal? (report-info-iterations ri) 2) (cons 'fuel:2 flags) flags))
 
@@ -51,7 +52,8 @@
 (define cache-row?
   (apply and/c
          hash?
-         (for*/list ([(valid? keys) (in-hash key-contracts)] [key keys])
+         (for*/list ([(valid? keys) (in-hash key-contracts)]
+                     [key keys])
            (make-flat-contract #:name `(hash-has-key/c ,key)
                                #:first-order
                                (λ (x) (and (hash-has-key? x key) (valid? (hash-ref x key))))))))
@@ -73,7 +75,9 @@
     info)
 
   (define-values (total-start total-end)
-    (for/fold ([start 0] [end 0]) ([row (or tests '())])
+    (for/fold ([start 0]
+               [end 0])
+              ([row (or tests '())])
       (values (+ start (or (table-row-start row) 0)) (+ end (or (table-row-result row) 0)))))
 
   (define statuses (map table-row-status (or tests '())))
@@ -248,7 +252,8 @@
        (hash-set (compute-row folder) 'folder (path->string (simplify-path path* false))))]
     [(file-exists? file)
      (define cached-info (call-with-input-file file read-json))
-     (for ([v (in-list cached-info)] #:unless (cache-row? v))
+     (for ([v (in-list cached-info)]
+           #:unless (cache-row? v))
        (raise-user-error 'make-index "Invalid cache row ~a" v))
      cached-info]))
 

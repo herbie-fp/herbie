@@ -67,16 +67,22 @@
 ;; Expression pre-processing for normalizing expressions.
 ;; Used for conversion from FPCore to other IRs.
 (define (expand-expr expr)
-  (let loop ([expr expr] [env '()])
+  (let loop ([expr expr]
+             [env '()])
     (match expr
       ; empty let/let* expression
       [`(,(or 'let 'let*) () ,body) (loop body env)]
       ; let* expression
-      [`(let* ([,var ,val] ,rest ...) ,body) (loop `(let ([,var ,val]) (let* ,rest ,body)) env)]
+      [`(let* ([,var ,val]
+               ,rest ...)
+          ,body)
+       (loop `(let ([,var ,val]) (let* ,rest ,body)) env)]
       ; let expression
       [`(let ([,vars ,vals] ...) ,body)
        (define env*
-         (for/fold ([env* env]) ([var (in-list vars)] [val (in-list vals)])
+         (for/fold ([env* env])
+                   ([var (in-list vars)]
+                    [val (in-list vals)])
            (dict-set env* var (loop val env))))
        (loop body env*)]
       ; nullary expressions
@@ -94,7 +100,9 @@
       [`(,(and (or '< '<= '> '>= '=) op) ,as ...)
        (define as* (map (curryr loop env) as))
        (define out
-         (for/fold ([out #f]) ([term as*] [next (cdr as*)])
+         (for/fold ([out #f])
+                   ([term as*]
+                    [next (cdr as*)])
            (if out (list 'and out (list op term next)) (list op term next))))
        (or out '(TRUE))]
       [`(!= ,as ...)
@@ -113,7 +121,9 @@
       [(list (? (curry hash-has-key? (*functions*)) fname) args ...)
        (match-define (list vars _ body) (hash-ref (*functions*) fname))
        (define env*
-         (for/fold ([env* '()]) ([var (in-list vars)] [arg (in-list args)])
+         (for/fold ([env* '()])
+                   ([var (in-list vars)]
+                    [arg (in-list args)])
            (dict-set env* var (loop arg env))))
        (loop body env*)]
       ; applications
@@ -127,7 +137,8 @@
 
 ;; Prop list to dict
 (define (props->dict props)
-  (let loop ([props props] [dict '()])
+  (let loop ([props props]
+             [dict '()])
     (match props
       [(list key val rest ...) (loop rest (dict-set dict key val))]
       [(list key) (error 'props->dict "unmatched key" key)]
@@ -136,7 +147,8 @@
 ;; Translates from FPCore to an LImpl
 (define (fpcore->prog prog ctx)
   (define-values (expr* _)
-    (let loop ([expr (expand-expr prog)] [ctx ctx])
+    (let loop ([expr (expand-expr prog)]
+               [ctx ctx])
       (match expr
         [`(FPCore ,name (,vars ...) ,props ... ,body)
          (define-values (body* repr*) (loop body ctx))

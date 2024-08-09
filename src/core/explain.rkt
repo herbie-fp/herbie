@@ -39,7 +39,8 @@
 
   (define pt-worst-subexpr
     (append* (reap [sow]
-                   (for ([pt-errors (in-list pt-errorss)] [(pt _) (in-pcontext pcontext)])
+                   (for ([pt-errors (in-list pt-errorss)]
+                         [(pt _) (in-pcontext pcontext)])
                      (define sub-error (map cons subexprs pt-errors))
                      (define filtered-sub-error (filter (lambda (p) (> (cdr p) 16)) sub-error))
                      (define mapped-sub-error (map (lambda (p) (cons (car p) pt)) filtered-sub-error))
@@ -82,7 +83,9 @@
   (for ([(pt _) (in-pcontext pctx)])
     (define (silence expr)
       (define subexprs (all-subexpressions expr #:reverse? #t))
-      (for* ([subexpr (in-list subexprs)] #:when (list? subexpr) [expl (in-list all-explanations)])
+      (for* ([subexpr (in-list subexprs)]
+             #:when (list? subexpr)
+             [expl (in-list all-explanations)])
         (define key (cons subexpr expl))
         (when (hash-has-key? expls->points key)
           (hash-update! expls->points key (lambda (x) (set-remove x pt))))
@@ -516,11 +519,13 @@
             (and (not (empty? upred)) (values->json (first upred) repr)))))
 
   (define true-error-hash
-    (for/hash ([(key _) (in-pcontext pctx)] [value (in-list (errors expr pctx ctx))])
+    (for/hash ([(key _) (in-pcontext pctx)]
+               [value (in-list (errors expr pctx ctx))])
       (values key value)))
 
   (define explanations-table
-    (for/list ([(key val) (in-dict expls->points)] #:unless (zero? (length val)))
+    (for/list ([(key val) (in-dict expls->points)]
+               #:unless (zero? (length val)))
       (define expr (car key))
       (define expl (cdr key))
       (define err-count (length val))
