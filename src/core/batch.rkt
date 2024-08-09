@@ -88,18 +88,20 @@
   (define nodes (batch-nodes input-batch))
   (define roots (batch-roots input-batch))
 
+  ; Cache hits to avoid duplications
   (define icache (reverse vars))
   (define exprhash
     (make-hash (for/list ([var vars]
                           [i (in-naturals)])
                  (cons var i))))
-
   (define exprc 0)
   (define varc (length vars))
 
+  ; Mapping from nodes to nodes*
   (define mappings
     (make-hash (map (λ (n) (cons n n)) (build-list (batch-nodes-length input-batch) values))))
 
+  ; Adding a node to hash
   (define (append-node node)
     (hash-ref! exprhash
                node
@@ -108,42 +110,36 @@
                    (set! exprc (+ 1 exprc))
                    (set! icache (cons node icache))))))
 
+  ; Sequential rewriting
   (for ([node (in-vector nodes)]
         [n (in-naturals)])
     (match node
       [(list '- arg1 arg2)
        (define neg-index (append-node `(neg ,(hash-ref mappings arg2))))
        (hash-set! mappings n (append-node `(+ ,(hash-ref mappings arg1) ,neg-index)))]
-
       [(list 'pow base power)
        #:when (equal? (vector-ref nodes power) 1/2) ; 1/2 to be removed from exprhash
        (hash-set! mappings n (append-node `(sqrt ,(hash-ref mappings base))))]
-
       [(list 'pow base power)
        #:when (equal? (vector-ref nodes power) 1/3) ; 1/3 to be removed from exprhash
        (hash-set! mappings n (append-node `(cbrt ,(hash-ref mappings base))))]
-
       [(list 'pow base power)
        #:when (equal? (vector-ref nodes power) 2/3) ; 2/3 to be removed from exprhash
        (define mult-index (append-node `(* ,(hash-ref mappings base) ,(hash-ref mappings base))))
        (hash-set! mappings n (append-node `(cbrt ,mult-index)))]
-
       [(list 'pow base power)
        #:when (exact-integer? (vector-ref nodes power))
        (hash-set! mappings
                   n
                   (append-node `(pow ,(hash-ref mappings base) ,(hash-ref mappings power))))]
-
       [(list 'pow base power)
        (define log-idx (append-node `(log ,(hash-ref mappings base))))
        (define mult-idx (append-node `(* ,(hash-ref mappings power) ,log-idx)))
        (hash-set! mappings n (append-node `(exp ,mult-idx)))]
-
       [(list 'tan args)
        (define sin-idx (append-node `(sin ,(hash-ref mappings args))))
        (define cos-idx (append-node `(cos ,(hash-ref mappings args))))
        (hash-set! mappings n (append-node `(/ ,sin-idx ,cos-idx)))]
-
       [(list 'cosh args)
        (define exp-idx (append-node `(exp ,(hash-ref mappings args))))
        (define one-idx (append-node 1)) ; should it be 1 or literal 1 or smth?
@@ -151,7 +147,6 @@
        (define add-idx (append-node `(+ ,exp-idx ,inv-exp-idx)))
        (define half-idx (append-node 1/2))
        (hash-set! mappings n (append-node `(* ,half-idx ,add-idx)))]
-
       [(list 'sinh args)
        (define exp-idx (append-node `(exp ,(hash-ref mappings args))))
        (define one-idx (append-node 1)) ; should it be 1 or literal 1 or smth?
@@ -160,7 +155,6 @@
        (define add-idx (append-node `(+ ,exp-idx ,neg-idx)))
        (define half-idx (append-node 1/2))
        (hash-set! mappings n (append-node `(* ,half-idx ,add-idx)))]
-
       [(list 'tanh args)
        (define exp-idx (append-node `(exp ,(hash-ref mappings args))))
        (define one-idx (append-node 1)) ; should it be 1 or literal 1 or smth?
@@ -169,7 +163,6 @@
        (define add-idx (append-node `(+ ,exp-idx ,inv-exp-idx)))
        (define sub-idx (append-node `(+ ,exp-idx ,neg-idx)))
        (hash-set! mappings n (append-node `(/ ,sub-idx ,add-idx)))]
-
       [(list 'asinh args)
        (define mult-idx (append-node `(* ,(hash-ref mappings args) ,(hash-ref mappings args))))
        (define one-idx (append-node 1)) ; should it be 1 or literal 1 or smth?
@@ -177,7 +170,6 @@
        (define sqrt-idx (append-node `(sqrt ,add-idx)))
        (define add2-idx (append-node `(+ ,(hash-ref mappings args) ,sqrt-idx)))
        (hash-set! mappings n (append-node `(log ,add2-idx)))]
-
       [(list 'acosh args)
        (define mult-idx (append-node `(* ,(hash-ref mappings args) ,(hash-ref mappings args))))
        (define -one-idx (append-node -1)) ; should it be -1 or literal -1 or smth?
@@ -185,7 +177,6 @@
        (define sqrt-idx (append-node `(sqrt ,add-idx)))
        (define add2-idx (append-node `(+ ,(hash-ref mappings args) ,sqrt-idx)))
        (hash-set! mappings n (append-node `(log ,add2-idx)))]
-
       [(list 'atanh args)
        (define neg-idx (append-node `(neg ,(hash-ref mappings args))))
        (define one-idx (append-node 1)) ; should it be 1 or literal 1 or smth?
@@ -195,9 +186,8 @@
        (define log-idx (append-node `(log ,div-idx)))
        (define half-idx (append-node 1/2)) ; should it be 1/2 or literal 1/2 or smth?
        (hash-set! mappings n (append-node `(* ,half-idx ,log-idx)))]
-
       [(list op args ...) (append-node (cons op (map (curry hash-ref mappings) args)))]
-      #;[(approx spec impl) (approx spec (munge impl))]
+      [(approx spec impl) (approx spec (hash-ref mappings impl))]
       [_ (append-node node)]))
 
   (define roots* (vector-map (curry hash-ref mappings) roots))
