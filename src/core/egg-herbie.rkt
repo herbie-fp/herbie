@@ -514,12 +514,11 @@
     [(list (? impl-exists? impl) _ ...) (list (impl-info impl 'otype))]
     [(list op _ ...) (list (operator-info op 'otype))]))
 
-;; Splits untyped eclasses into typed eclasses
-;; keeping only the subset of enodes that are well-typed.
-(define (make-typed-eclasses egraph egg->herbie)
+;; Splits untyped eclasses into typed eclasses.
+;; Nodes are duplicated across their possible types.
+(define (split-untyped-eclasses egraph egg->herbie)
   (define eclass-boxes '()) ; (listof box?)
   (define eclass-types '()) ; (listof any)
-  (define egg-id->var (make-hash)) ; natural -> (or symbol #f)
   (define egg-id->id (make-hash)) ; natural, type -> natural
   (define id->eclass (make-hash)) ; natural -> box (avoid a list-ref)
 
@@ -536,9 +535,9 @@
                  (hash-set! id->eclass id eclass)
                  id)))
 
-  ;; Step 1: split Rust e-classes by type
-  ;; to correctly prune, need to track untyped eclasses with variables
-  (define (split! eid enodes)
+  ;; build typed eclasses
+  (for ([eclass (in-list egraph)])
+    (match-define (cons eid enodes) eclass)
     (for ([enode (in-list enodes)])
       (let ([enode (normalize-enode enode egg->herbie)])
         ; get all possible types for the enode
@@ -550,9 +549,7 @@
           (define enode*
             (match enode
               [(? number?) enode]
-              [(? symbol?)
-               (hash-set! egg-id->var eid enode)
-               enode]
+              [(? symbol?) enode]
               [(list '$approx spec impl)
                (list '$approx (lookup-id spec (representation-type type)) (lookup-id impl type))]
               [(list 'if cond ift iff)
@@ -565,26 +562,27 @@
           (define eclass (hash-ref id->eclass id))
           (set-box! eclass (cons enode* (unbox eclass)))))))
 
-  (for ([eclass (in-list egraph)])
-    (match-define (cons eid enodes) eclass)
-    (split! eid enodes))
-
   (define eclasses (list->vector (map unbox (reverse eclass-boxes))))
   (define types (list->vector (reverse eclass-types)))
+  (values eclasses types egg-id->id))
+
+;; Analyzes eclasses for their properties.
+;; The result are vector-maps from e-class ids to data.
+;;  - parents: parent e-classes (as a vector)
+;;  - leaf?: does the e-class contain a leaf node
+;;  - constants: the e-class constant (if one exists)
+(define (analyze-eclasses eclasses)
   (define n (vector-length eclasses))
-
-  ;; Step 2: build parent map and leaf map
-  ;; To prune not well-typed enodes, we start with e-classes
-  ;; containing leaf enodes (which are well-typed trivially) and
-  ;; then follow parent edges.
-
   (define parents (make-vector n '()))
-  (define leaf? (make-vector n #f))
+  (define leaf? (make-vector n '#f))
+  (define constants (make-vector n #f))
   (for ([id (in-range n)])
     (define eclass (vector-ref eclasses id))
-    (for ([enode (in-list eclass)])
+    (for ([enode eclass]) ; might be a list or vector
       (match enode
-        [(? number?) (vector-set! leaf? id #t)]
+        [(? number? n)
+         (vector-set! leaf? id #t)
+         (vector-set! constants id n)]
         [(? symbol?) (vector-set! leaf? id #t)]
         [(list _ ids ...)
          (when (null? ids)
@@ -592,13 +590,21 @@
          (for ([child-id (in-list ids)])
            (vector-set! parents child-id (cons id (vector-ref parents child-id))))])))
 
+  ; parent map: remove duplicates, convert lists to vectors
   (for ([id (in-range n)])
     (define ids (remove-duplicates (vector-ref parents id)))
     (vector-set! parents id (list->vector ids)))
 
-  ;; Step 3: keep well-typed e-nodes
-  ;; An e-class is well-typed if it has one well-typed node
-  ;; A node is well-typed if all of its child e-classes are well-typed.
+  (values parents leaf? constants))
+
+;; Prunes e-nodes that are not well-typed.
+;; An e-class is well-typed if it has one well-typed node
+;; A node is well-typed if all of its child e-classes are well-typed.
+(define (prune-ill-typed! eclasses)
+  (define n (vector-length eclasses))
+  (define-values (parents leaf? _) (analyze-eclasses eclasses))
+
+  ;; is the e-class well-typed
   (define typed? (make-vector n #f))
 
   (define (enode-typed? enode)
@@ -638,15 +644,29 @@
         [(list _ ids ...)
          (for ([id (in-list ids)])
            (when (null? (vector-ref eclasses id))
-             (error 'make-typed-eclasses
+             (error 'prune-ill-typed!
                     "eclass ~a is empty, eclasses ~a"
                     id
                     (for/vector #:length n
                                 ([id (in-range n)])
                       (list id (vector-ref eclasses id))))))]
-        [_ (void)])))
+        [_ (void)]))))
 
-  ;; Step 4: remap e-classes
+;; Splits untyped eclasses into typed eclasses,
+;; keeping only the subset of enodes that are well-typed.
+(define (make-typed-eclasses egraph egg->herbie)
+  ;; Step 1: split Rust e-classes by type
+  ;; The result are the eclasses, their types,
+  ;; and a canonicalization map for egg e-class ids
+  (define-values (eclasses types egg-id->id) (split-untyped-eclasses egraph egg->herbie))
+  (define n (vector-length eclasses))
+
+  ;; Step 2: keep well-typed e-nodes
+  ;; An e-class is well-typed if it has one well-typed node
+  ;; A node is well-typed if all of its child e-classes are well-typed.
+  (prune-ill-typed! eclasses)
+
+  ;; Step 3: remap e-classes
   ;; Any empty e-classes must be removed, so we re-map every id
   (define remap (make-vector n #f))
   (define n* 0)
