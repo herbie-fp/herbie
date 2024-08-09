@@ -935,14 +935,6 @@
   ; the actual extraction procedure
   (lambda (id) (cons (unsafe-eclass-cost id) (build-expr id))))
 
-;; Cost function for specs
-(define (egg-spec-cost-proc regraph cache node rec)
-  (match node
-    [(? number?) 1]
-    [(? symbol?) 1]
-    [(list 'if cond ift iff) (+ 1 (rec cond) (rec ift) (rec iff))]
-    [(list _ args ...) (apply + 1 (map rec args))]))
-
 ;; Is fractional with odd denominator.
 (define (fraction-with-odd-denominator? frac)
   (and (rational? frac) (let ([denom (denominator frac)]) (and (> denom 1) (odd? denom)))))
@@ -988,7 +980,7 @@
        [(list (? impl-exists?) args ...) ; impls
         (define cost-proc (node-cost-proc node type))
         (apply cost-proc (map rec args))])]
-    [else (egg-spec-cost-proc regraph cache node rec)]))
+    [else (default-egg-cost-proc regraph cache node rec)]))
 
 ;; Extracts the best expression according to the extractor.
 ;; Result is a single element list.
