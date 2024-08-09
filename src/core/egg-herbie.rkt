@@ -486,9 +486,9 @@
 ;; Normalizes a Rust e-class.
 ;; Nullary operators are serialized as symbols, so we need to fix them.
 (define (normalize-enode enode egg->herbie)
-  (match enode
-    [(? symbol?) (if (hash-has-key? egg->herbie enode) enode (list enode))]
-    [_ enode]))
+  (if (and (symbol? enode) (not (hash-has-key? egg->herbie enode)))
+      (list enode)
+      enode))
 
 ;; Returns all representatations (and their types) in the current platform.
 (define (all-reprs/types [pform (*active-platform*)])
@@ -514,6 +514,19 @@
     [(list (? impl-exists? impl) _ ...) (list (impl-info impl 'otype))]
     [(list op _ ...) (list (operator-info op 'otype))]))
 
+;; Rebuilds an e-node using typed e-classes
+(define (rebuild-enode enode type lookup)
+  (match enode
+    [(? number?) enode]
+    [(? symbol?) enode]
+    [(list '$approx spec impl)
+     (list '$approx (lookup spec (representation-type type)) (lookup impl type))]
+    [(list 'if cond ift iff)
+     (define cond-type (if (representation? type) (get-representation 'bool) 'bool))
+     (list 'if (lookup cond cond-type) (lookup ift type) (lookup iff type))]
+    [(list (? impl-exists? impl) args ...) (cons impl (map lookup args (impl-info impl 'itype)))]
+    [(list op args ...) (cons op (map lookup args (operator-info op 'itype)))]))
+
 ;; Splits untyped eclasses into typed eclasses.
 ;; Nodes are duplicated across their possible types.
 (define (split-untyped-eclasses egraph egg->herbie)
@@ -521,20 +534,18 @@
   ; first indexed by untyped e-class id, then by type
   (define egg-id->table (make-hash)) ; natural -> (type -> id)
   (define egg-id->id (make-hash)) ; (natural, type) -> id [actual table in the result]
-
-  ; eclasses
-  (define eclass-boxes '()) ; (listof box?)
-  (define eclass-types '()) ; (listof any)
   (define id->eclass (make-hash)) ; natural -> box
+  (define eclass-boxes '()) ; (listof box)
+  (define eclass-types '()) ; (listof any)
 
   ;; Creates a fresh eclass for a given type.
   (define (new-eclass eid type)
     (define id (hash-count egg-id->id))
     (define eclass (box '()))
+    (hash-set! egg-id->id (cons eid type) id)
+    (hash-set! id->eclass id eclass)
     (set! eclass-boxes (cons eclass eclass-boxes))
     (set! eclass-types (cons type eclass-types))
-    (hash-set! id->eclass id eclass)
-    (hash-set! egg-id->id (cons eid type) id)
     id)
 
   ;; Looks up the canonical id for a given egg id and type.
@@ -543,32 +554,17 @@
     (define type->id (hash-ref! egg-id->table eid (lambda () (make-hasheq))))
     (hash-ref! type->id type (lambda () (new-eclass eid type))))
 
-  ;; rebuilds an e-node using typed e-classes
-  (define (rebuild-enode enode type)
-    (match enode
-      [(? number?) enode]
-      [(? symbol?) enode]
-      [(list '$approx spec impl)
-       (list '$approx (lookup-id spec (representation-type type)) (lookup-id impl type))]
-      [(list 'if cond ift iff)
-       (define cond-type (if (representation? type) (get-representation 'bool) 'bool))
-       (list 'if (lookup-id cond cond-type) (lookup-id ift type) (lookup-id iff type))]
-      [(list (? impl-exists? impl) args ...) (cons impl (map lookup-id args (impl-info impl 'itype)))]
-      [(list op args ...) (cons op (map lookup-id args (operator-info op 'itype)))]))
-
   ;; build typed eclasses
   (for ([eclass (in-list egraph)])
-    (match-define (cons eid enodes) eclass)
-    (for ([enode (in-list enodes)])
+    (define eid (car eclass))
+    (for ([enode (in-list (cdr eclass))])
       (let ([enode (normalize-enode enode egg->herbie)])
         ; get all possible types for the enode
         (define types (enode-type enode egg->herbie))
         (for ([type (in-list types)])
           ; lookup or create a new typed eclass
           (define id (lookup-id eid type))
-          ; rebuild the enode using canonical e-classes
-          (define enode* (rebuild-enode enode type))
-          ; update the typed e-class
+          (define enode* (rebuild-enode enode type lookup-id))
           (define eclass (hash-ref id->eclass id))
           (set-box! eclass (cons enode* (unbox eclass)))))))
 
