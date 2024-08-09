@@ -125,13 +125,31 @@
 
 (define (wrapper-run-herbie cmd job-id)
   (print-job-message (herbie-command-command cmd) job-id (test-name (herbie-command-test cmd)))
+  (define profile? (herbie-command-profile? cmd))
   (define result
-    (run-herbie (herbie-command-command cmd)
-                (herbie-command-test cmd)
-                #:seed (herbie-command-seed cmd)
-                #:pcontext (herbie-command-pcontext cmd)
-                #:profile? (herbie-command-profile? cmd)
-                #:timeline-disabled? (herbie-command-timeline-disabled? cmd)))
+    (cond
+      [profile?
+       (define path (build-path (make-path job-id) "profile.json"))
+       (eprintf "~a\n" (directory-exists? (build-path (make-path job-id))))
+       (unless (directory-exists? (build-path (make-path job-id)))
+         (make-directory (make-path job-id)))
+       (call-with-output-file (build-path (make-path job-id) "profile.json")
+                              #:exists 'replace
+                              (λ (pp)
+                                (run-herbie (herbie-command-command cmd)
+                                            (herbie-command-test cmd)
+                                            #:seed (herbie-command-seed cmd)
+                                            #:pcontext (herbie-command-pcontext cmd)
+                                            #:profile? pp
+                                            #:timeline-disabled?
+                                            (herbie-command-timeline-disabled? cmd))))]
+      [else
+       (run-herbie (herbie-command-command cmd)
+                   (herbie-command-test cmd)
+                   #:seed (herbie-command-seed cmd)
+                   #:pcontext (herbie-command-pcontext cmd)
+                   #:profile? #f
+                   #:timeline-disabled? (herbie-command-timeline-disabled? cmd))]))
   (hash-set! *completed-jobs* job-id result)
   (eprintf "Job ~a complete\n" job-id))
 
