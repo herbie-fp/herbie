@@ -117,7 +117,7 @@
   (hash-ref operators-to-impls op))
 
 ;; Checks an "accelerator" specification
-(define (check-accelerator-spec! name itypes otype spec)
+(define (check-spec! name itypes otype spec)
   (define (bad! fmt . args)
     (error name "~a in `~a`" (apply format fmt args) spec))
 
@@ -413,11 +413,16 @@
                                  #:fpcore [fpcore #f])
   ;; Check if spec is given (if not, infer it from the operator which is required)
   (define vars (map car args))
+  (unless (= (length vars) (length (remove-duplicates vars)))
+    (raise-herbie-syntax-error "Duplicate variable names in ~a" vars))
+  (define ireprs (map cdr args))
   (unless spec
     (unless op
       (raise-herbie-syntax-error "Missing required operator"))
     (set! spec `(,op ,@vars)))
+  (check-spec! name (map representation-type ireprs) orepr spec)
 
+  ;; Infer operator from spec
   (define new-op op)
   (if op
       op
@@ -451,7 +456,6 @@
        (raise-herbie-missing-error "Cannot register `~a`, operator `~a` does not exist" name op))))
 
   ; check arity and types
-  (define ireprs (map cdr args))
   (define itypes (operator-itype op-info))
   (define otype (operator-otype op-info))
   (define expect-arity (length itypes))
