@@ -11,8 +11,9 @@
 (define (approximate expr var #:transform [tform (cons identity identity)] #:iters [iters 5])
   (define expr* (simplify (replace-expression expr var ((car tform) var))))
   (match-define (cons offset coeffs) (taylor var expr*))
-  (match-define (cons offset* coeffs*) (taylor-old var expr*))
 
+  ; Debugging code
+  #;(match-define (cons offset* coeffs*) (taylor-old var expr*))
   #;(when (not (equal? (build-list 7 (zero-series (taylor var expr*)))
                        (build-list 7 (zero-series (taylor-old var expr*)))))
       (printf "not equal!!!, ~a\n" expr*)
@@ -34,7 +35,6 @@
       [_
        (set! terms (cons (cons coeff (- i offset 1)) terms))
        (simplify (make-horner ((cdr tform) var) (reverse terms)))]))
-
   next)
 
 (define (make-horner var terms [start 0])

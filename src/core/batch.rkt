@@ -82,7 +82,6 @@
       (unmunge root)))
   exprs)
 
-; TODO: ADD APPROX NODE, REMOVE UNUSED NODES SUCH AS 1/2 FROM POW(x, 1/2)
 (define (expand-taylor input-batch)
   (define vars (batch-vars input-batch))
   (define nodes (batch-nodes input-batch))
@@ -118,13 +117,13 @@
        (define neg-index (append-node `(neg ,(hash-ref mappings arg2))))
        (hash-set! mappings n (append-node `(+ ,(hash-ref mappings arg1) ,neg-index)))]
       [(list 'pow base power)
-       #:when (equal? (vector-ref nodes power) 1/2) ; 1/2 to be removed from exprhash
+       #:when (equal? (vector-ref nodes power) 1/2) ; 1/2 is to be removed from exprhash
        (hash-set! mappings n (append-node `(sqrt ,(hash-ref mappings base))))]
       [(list 'pow base power)
-       #:when (equal? (vector-ref nodes power) 1/3) ; 1/3 to be removed from exprhash
+       #:when (equal? (vector-ref nodes power) 1/3) ; 1/3 is to be removed from exprhash
        (hash-set! mappings n (append-node `(cbrt ,(hash-ref mappings base))))]
       [(list 'pow base power)
-       #:when (equal? (vector-ref nodes power) 2/3) ; 2/3 to be removed from exprhash
+       #:when (equal? (vector-ref nodes power) 2/3) ; 2/3 is to be removed from exprhash
        (define mult-index (append-node `(* ,(hash-ref mappings base) ,(hash-ref mappings base))))
        (hash-set! mappings n (append-node `(cbrt ,mult-index)))]
       [(list 'pow base power)
@@ -149,7 +148,7 @@
        (hash-set! mappings n (append-node `(* ,half-idx ,add-idx)))]
       [(list 'sinh args)
        (define exp-idx (append-node `(exp ,(hash-ref mappings args))))
-       (define one-idx (append-node 1)) ; should it be 1 or literal 1 or smth?
+       (define one-idx (append-node 1))
        (define inv-exp-idx (append-node `(/ ,one-idx ,exp-idx)))
        (define neg-idx (append-node `(neg ,inv-exp-idx)))
        (define add-idx (append-node `(+ ,exp-idx ,neg-idx)))
@@ -157,7 +156,7 @@
        (hash-set! mappings n (append-node `(* ,half-idx ,add-idx)))]
       [(list 'tanh args)
        (define exp-idx (append-node `(exp ,(hash-ref mappings args))))
-       (define one-idx (append-node 1)) ; should it be 1 or literal 1 or smth?
+       (define one-idx (append-node 1))
        (define inv-exp-idx (append-node `(/ ,one-idx ,exp-idx)))
        (define neg-idx (append-node `(neg ,inv-exp-idx)))
        (define add-idx (append-node `(+ ,exp-idx ,inv-exp-idx)))
@@ -165,26 +164,26 @@
        (hash-set! mappings n (append-node `(/ ,sub-idx ,add-idx)))]
       [(list 'asinh args)
        (define mult-idx (append-node `(* ,(hash-ref mappings args) ,(hash-ref mappings args))))
-       (define one-idx (append-node 1)) ; should it be 1 or literal 1 or smth?
+       (define one-idx (append-node 1))
        (define add-idx (append-node `(+ ,mult-idx ,one-idx)))
        (define sqrt-idx (append-node `(sqrt ,add-idx)))
        (define add2-idx (append-node `(+ ,(hash-ref mappings args) ,sqrt-idx)))
        (hash-set! mappings n (append-node `(log ,add2-idx)))]
       [(list 'acosh args)
        (define mult-idx (append-node `(* ,(hash-ref mappings args) ,(hash-ref mappings args))))
-       (define -one-idx (append-node -1)) ; should it be -1 or literal -1 or smth?
+       (define -one-idx (append-node -1))
        (define add-idx (append-node `(+ ,mult-idx ,-one-idx)))
        (define sqrt-idx (append-node `(sqrt ,add-idx)))
        (define add2-idx (append-node `(+ ,(hash-ref mappings args) ,sqrt-idx)))
        (hash-set! mappings n (append-node `(log ,add2-idx)))]
       [(list 'atanh args)
        (define neg-idx (append-node `(neg ,(hash-ref mappings args))))
-       (define one-idx (append-node 1)) ; should it be 1 or literal 1 or smth?
+       (define one-idx (append-node 1))
        (define add-idx (append-node `(+ ,one-idx ,(hash-ref mappings args))))
        (define sub-idx (append-node `(+ ,one-idx ,neg-idx)))
        (define div-idx (append-node `(/ ,add-idx ,sub-idx)))
        (define log-idx (append-node `(log ,div-idx)))
-       (define half-idx (append-node 1/2)) ; should it be 1/2 or literal 1/2 or smth?
+       (define half-idx (append-node 1/2))
        (hash-set! mappings n (append-node `(* ,half-idx ,log-idx)))]
       [(list op args ...)
        (hash-set! mappings n (append-node (cons op (map (curry hash-ref mappings) args))))]
@@ -193,7 +192,46 @@
 
   (define roots* (vector-map (curry hash-ref mappings) roots))
   (define nodes* (list->vector (reverse icache)))
+
+  ; This may be too expensive to handle simple 1/2, 1/3 and 2/3 zombie nodes..
+  #;(remove-zombie-nodes (batch nodes* roots* vars (vector-length nodes*)))
+
   (batch nodes* roots* vars (vector-length nodes*)))
+
+; The function removes any zombie nodes from batch
+(define (remove-zombie-nodes input-batch)
+  (define nodes (batch-nodes input-batch))
+  (define roots (batch-roots input-batch))
+  (define nodes-length (batch-nodes-length input-batch))
+
+  (define zombie-mask (make-vector nodes-length #t))
+  (for ([root (in-vector roots)])
+    (vector-set! zombie-mask root #f))
+  (for ([node (in-vector nodes (- nodes-length 1) -1 -1)]
+        [zmb (in-vector zombie-mask (- nodes-length 1) -1 -1)]
+        #:when (not zmb))
+    (match node
+      [(list op args ...) (map (λ (n) (vector-set! zombie-mask n #f)) args)]
+      [(approx spec impl) (vector-set! zombie-mask impl #f)]
+      [_ void]))
+
+  (define mappings (make-hash (map (λ (n) (cons n n)) (build-list nodes-length values))))
+
+  (define nodes* '())
+  (for ([node (in-vector nodes)]
+        [zmb (in-vector zombie-mask)]
+        [n (in-naturals)])
+    (if zmb
+        (map (λ (n) (hash-set! mappings n (sub1 (hash-ref mappings n)))) (range n nodes-length))
+        (set! nodes*
+              (cons (match node
+                      [(list op args ...) (cons op (map (curry hash-ref mappings) args))]
+                      [(approx spec impl) (approx spec (hash-ref mappings impl))]
+                      [_ node])
+                    nodes*))))
+  (set! nodes* (list->vector (reverse nodes*)))
+  (define roots* (vector-map (curry hash-ref mappings) roots))
+  (batch nodes* roots* (batch-vars input-batch) (vector-length nodes*)))
 
 (define (get-expr nodes reg)
   (define (unmunge reg)
@@ -204,7 +242,7 @@
       [_ node]))
   (unmunge reg))
 
-(module+ test-taylor
+(module+ test
   (require rackunit)
   (define (test-expand-taylor expr)
     (define batch (progs->batch (list expr)))
@@ -226,9 +264,12 @@
   (check-equal? '(+ x (sin a)) (test-expand-taylor '(+ x (sin a))))
   (check-equal? '(cbrt x) (test-expand-taylor '(pow x 1/3)))
   (check-equal? '(cbrt (* x x)) (test-expand-taylor '(pow x 2/3)))
-  (check-equal? '(+ 100 (cbrt x)) (test-expand-taylor '(+ 100 (pow x 1/3)))))
+  (check-equal? '(+ 100 (cbrt x)) (test-expand-taylor '(+ 100 (pow x 1/3))))
+  (check-equal? '(+ 100 (cbrt (* x (approx 2 3))))
+                (test-expand-taylor '(+ 100 (pow (* x (approx 2 3)) 1/3))))
+  (check-equal? '(+ (approx 2 3) (cbrt x)) (test-expand-taylor '(+ (approx 2 3) (pow x 1/3)))))
 
-(module+ test-munges
+(module+ test
   (require rackunit)
   (define (test-munge-unmunge expr [ignore-approx #t])
     (define batch (progs->batch (list expr) #:ignore-approx ignore-approx))
@@ -242,3 +283,24 @@
   (test-munge-unmunge
    `(+ (sin ,(approx '(* 1/2 (+ (exp x) (neg (/ 1 (exp x))))) '(+ 3 (* 25 (sin 6))))) 4)
    #f))
+
+(module+ test
+  (require rackunit)
+  (define (zombie-test nodes roots)
+    (define in-batch (batch nodes roots '() (vector-length nodes)))
+    (define out-batch (remove-zombie-nodes in-batch))
+    (batch-nodes out-batch))
+
+  (check-equal? (vector 0 '(sqrt 0) 2 '(pow 2 1))
+                (zombie-test (vector 0 1 '(sqrt 0) 2 '(pow 3 2)) (vector 4)))
+  (check-equal? (vector 0 '(sqrt 0) '(exp 1))
+                (zombie-test (vector 0 6 '(pow 0 1) '(* 2 0) '(sqrt 0) '(exp 4)) (vector 5)))
+  (check-equal? (vector 0 1/2 '(+ 0 1)) (zombie-test (vector 0 1/2 '(+ 0 1) '(* 2 0)) (vector 2)))
+  (check-equal? (vector 0 (approx '(exp 2) 0))
+                (zombie-test (vector 0 1/2 '(+ 0 1) '(* 2 0) (approx '(exp 2) 0)) (vector 4)))
+  (check-equal? (vector 2 1/2 (approx '(* x x) 0) '(pow 1 2))
+                (zombie-test (vector 2 1/2 '(sqrt 0) '(cbrt 0) (approx '(* x x) 0) '(pow 1 4))
+                             (vector 5)))
+  (check-equal? (vector 2 1/2 '(sqrt 0) (approx '(* x x) 0) '(pow 1 3))
+                (zombie-test (vector 2 1/2 '(sqrt 0) '(cbrt 0) (approx '(* x x) 0) '(pow 1 4))
+                             (vector 5 2))))
