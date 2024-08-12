@@ -232,7 +232,8 @@
                              #:before-last ", and "))])]))
 
 (define (format-less-than-condition variables)
-  (string-join (for/list ([a (in-list variables)] [b (in-list (cdr variables))])
+  (string-join (for/list ([a (in-list variables)]
+                          [b (in-list (cdr variables))])
                  (format "~a < ~a" a b))
                " && "))
 

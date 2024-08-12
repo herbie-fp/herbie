@@ -35,7 +35,8 @@
 (define (taylor-alt altn)
   (define expr (prog->spec (alt-expr altn)))
   (reap [sow]
-        (for* ([var (free-variables expr)] [transform-type transforms-to-try])
+        (for* ([var (free-variables expr)]
+               [transform-type transforms-to-try])
           (match-define (list name f finv) transform-type)
           (define timeline-stop! (timeline-start! 'series (~a expr) (~a var) (~a name)))
           (define genexpr (approximate expr var #:transform (cons f finv)))
@@ -51,7 +52,8 @@
   (timeline-push! 'inputs (map ~a altns))
   (define approximations
     (reap [sow]
-          (for ([altn (in-list altns)] [repr (in-list reprs)])
+          (for ([altn (in-list altns)]
+                [repr (in-list reprs)])
             (for ([approximation (taylor-alt altn)])
               (unless (spec-has-nan? (alt-expr approximation))
                 (sow (cons approximation repr)))))))
@@ -84,7 +86,8 @@
   ; apply changelists
   (define rewritten
     (reap [sow]
-          (for ([changelists changelistss] [altn altns])
+          (for ([changelists changelistss]
+                [altn altns])
             (for ([cl changelists])
               (match-define (list subexpr input) cl)
               (sow (alt subexpr (list 'rr input #f #f) (list altn) '()))))))
@@ -119,7 +122,8 @@
   ; convert to altns
   (define simplified
     (reap [sow]
-          (for ([altn (in-list altns)] [outputs (in-list simplification-options)])
+          (for ([altn (in-list altns)]
+                [outputs (in-list simplification-options)])
             (match-define (cons _ simplified) outputs)
             (for ([expr (in-list simplified)])
               (sow (alt expr `(simplify ,runner #f #f) (list altn) '()))))))
@@ -137,7 +141,8 @@
   (define reprs (map (lambda (e) (repr-of e (*context*))) locs))
   ; Starting alternatives
   (define start-altns
-    (for/list ([expr (in-list locs)] [repr (in-list reprs)])
+    (for/list ([expr (in-list locs)]
+               [repr (in-list reprs)])
       (alt expr (list 'patch expr repr) '() '())))
   ; Core
   (define approximations (if (flag-set? 'generate 'taylor) (run-taylor start-altns reprs) '()))

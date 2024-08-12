@@ -268,27 +268,29 @@
     (hash-set! hash 0 (simplify `(sqrt ,(coeffs* 0))))
     (hash-set! hash 1 (simplify `(/ ,(coeffs* 1) (* 2 (sqrt ,(coeffs* 0))))))
     (letrec ([f (λ (n)
-                  (hash-ref!
-                   hash
-                   n
-                   (λ ()
-                     (simplify (cond
-                                 [(even? n)
-                                  `(/ (- ,(coeffs* n)
-                                         (pow ,(f (/ n 2)) 2)
-                                         (+ ,@(for/list ([k (in-naturals 1)] #:break (>= k (- n k)))
-                                                `(* 2 (* ,(f k) ,(f (- n k)))))))
-                                      (* 2 ,(f 0)))]
-                                 [(odd? n)
-                                  `(/ (- ,(coeffs* n)
-                                         (+ ,@(for/list ([k (in-naturals 1)] #:break (>= k (- n k)))
-                                                `(* 2 (* ,(f k) ,(f (- n k)))))))
-                                      (* 2 ,(f 0)))])))))])
+                  (hash-ref! hash
+                             n
+                             (λ ()
+                               (simplify (cond
+                                           [(even? n)
+                                            `(/ (- ,(coeffs* n)
+                                                   (pow ,(f (/ n 2)) 2)
+                                                   (+ ,@(for/list ([k (in-naturals 1)]
+                                                                   #:break (>= k (- n k)))
+                                                          `(* 2 (* ,(f k) ,(f (- n k)))))))
+                                                (* 2 ,(f 0)))]
+                                           [(odd? n)
+                                            `(/ (- ,(coeffs* n)
+                                                   (+ ,@(for/list ([k (in-naturals 1)]
+                                                                   #:break (>= k (- n k)))
+                                                          `(* 2 (* ,(f k) ,(f (- n k)))))))
+                                                (* 2 ,(f 0)))])))))])
       (cons (/ offset* 2) f))))
 
 (define (taylor-cbrt var num)
   (match-define (cons offset* coeffs*) (modulo-series var 3 num))
-  (let* ([f0 (simplify `(cbrt ,(coeffs* 0)))] [hash (make-hash)])
+  (let* ([f0 (simplify `(cbrt ,(coeffs* 0)))]
+         [hash (make-hash)])
     (hash-set! hash 0 f0)
     (hash-set! hash 1 (simplify `(/ ,(coeffs* 1) (* 3 (cbrt (* ,f0 ,f0))))))
     (letrec ([f (λ (n)
@@ -350,53 +352,57 @@
 (define (taylor-sin coeffs)
   (let ([hash (make-hash)])
     (hash-set! hash 0 0)
-    (cons
-     0
-     (λ (n)
-       (hash-ref!
-        hash
-        n
-        (λ ()
-          (define coeffs* (list->vector (map coeffs (range 1 (+ n 1)))))
-          (define nums
-            (for/list ([i (in-range 1 (+ n 1))] [coeff (in-vector coeffs*)] #:unless (equal? coeff 0))
-              i))
-          (simplify `(+ ,@(for/list ([p (all-partitions n (sort nums >))])
-                            (if (= (modulo (apply + (map car p)) 2) 1)
-                                `(* ,(if (= (modulo (apply + (map car p)) 4) 1) 1 -1)
-                                    ,@(for/list ([(count num) (in-dict p)])
-                                        `(/ (pow ,(vector-ref coeffs* (- num 1)) ,count)
-                                            ,(factorial count))))
-                                0))))))))))
+    (cons 0
+          (λ (n)
+            (hash-ref! hash
+                       n
+                       (λ ()
+                         (define coeffs* (list->vector (map coeffs (range 1 (+ n 1)))))
+                         (define nums
+                           (for/list ([i (in-range 1 (+ n 1))]
+                                      [coeff (in-vector coeffs*)]
+                                      #:unless (equal? coeff 0))
+                             i))
+                         (simplify `(+ ,@
+                                       (for/list ([p (all-partitions n (sort nums >))])
+                                         (if (= (modulo (apply + (map car p)) 2) 1)
+                                             `(* ,(if (= (modulo (apply + (map car p)) 4) 1) 1 -1)
+                                                 ,@(for/list ([(count num) (in-dict p)])
+                                                     `(/ (pow ,(vector-ref coeffs* (- num 1)) ,count)
+                                                         ,(factorial count))))
+                                             0))))))))))
 
 (define (taylor-cos coeffs)
   (let ([hash (make-hash)])
     (hash-set! hash 0 1)
-    (cons
-     0
-     (λ (n)
-       (hash-ref!
-        hash
-        n
-        (λ ()
-          (define coeffs* (list->vector (map coeffs (range 1 (+ n 1)))))
-          (define nums
-            (for/list ([i (in-range 1 (+ n 1))] [coeff (in-vector coeffs*)] #:unless (equal? coeff 0))
-              i))
-          (simplify `(+ ,@(for/list ([p (all-partitions n (sort nums >))])
-                            (if (= (modulo (apply + (map car p)) 2) 0)
-                                `(* ,(if (= (modulo (apply + (map car p)) 4) 0) 1 -1)
-                                    ,@(for/list ([(count num) (in-dict p)])
-                                        `(/ (pow ,(vector-ref coeffs* (- num 1)) ,count)
-                                            ,(factorial count))))
-                                0))))))))))
+    (cons 0
+          (λ (n)
+            (hash-ref! hash
+                       n
+                       (λ ()
+                         (define coeffs* (list->vector (map coeffs (range 1 (+ n 1)))))
+                         (define nums
+                           (for/list ([i (in-range 1 (+ n 1))]
+                                      [coeff (in-vector coeffs*)]
+                                      #:unless (equal? coeff 0))
+                             i))
+                         (simplify `(+ ,@
+                                       (for/list ([p (all-partitions n (sort nums >))])
+                                         (if (= (modulo (apply + (map car p)) 2) 0)
+                                             `(* ,(if (= (modulo (apply + (map car p)) 4) 0) 1 -1)
+                                                 ,@(for/list ([(count num) (in-dict p)])
+                                                     `(/ (pow ,(vector-ref coeffs* (- num 1)) ,count)
+                                                         ,(factorial count))))
+                                             0))))))))))
 
 ;; This is a hyper-specialized symbolic differentiator for log(f(x))
 
 (define initial-logtable '((1 -1 1)))
 
 (define (list-setinc l i)
-  (let loop ([i i] [l l] [rest '()])
+  (let loop ([i i]
+             [l l]
+             [rest '()])
     (if (= i 0)
         (if (null? (cdr l))
             (append (reverse rest) (list (- (car l) 1) 1))
@@ -409,7 +415,8 @@
            (match term
              [`(,coeff ,ps ...)
               (filter identity
-                      (for/list ([i (in-naturals)] [p ps])
+                      (for/list ([i (in-naturals)]
+                                 [p ps])
                         (if (zero? p) #f `(,(* coeff p) ,@(list-setinc ps i)))))]))))
 
 (define (lognormalize table)
@@ -441,7 +448,8 @@
                             (match term
                               [`(,coeff ,k ,ps ...)
                                `(* ,coeff
-                                   (/ (* ,@(for/list ([i (in-naturals 1)] [p ps])
+                                   (/ (* ,@(for/list ([i (in-naturals 1)]
+                                                      [p ps])
                                              (if (= p 0) 1 `(pow (* ,(factorial i) ,(coeffs i)) ,p))))
                                       (pow ,(coeffs 0) ,(- k))))])))
                        ,(factorial n)))))))

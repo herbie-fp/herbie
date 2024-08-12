@@ -22,7 +22,8 @@
   (define errss (batch-errors proof-progs pcontext ctx))
 
   (define prog->errs
-    (for/hash ([prog (in-list proof-progs)] [errs (in-list errss)])
+    (for/hash ([prog (in-list proof-progs)]
+               [errs (in-list errss)])
       (values prog errs)))
 
   (define proof-errors
@@ -31,7 +32,8 @@
 
   (define proof-diffs
     (cons (list 0 0)
-          (for/list ([prev proof-errors] [current (rest proof-errors)])
+          (for/list ([prev proof-errors]
+                     [current (rest proof-errors)])
             (and prev
                  current
                  (list (count > current prev) ; num points where error increased

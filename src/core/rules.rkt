@@ -122,7 +122,8 @@
 ;;
 
 (define ((type/repr-of-rule op-info name) input output ctx)
-  (let loop ([input input] [output output])
+  (let loop ([input input]
+             [output output])
     (match* (input output)
       ; first, try the input expression
       ; special case for `if` expressions

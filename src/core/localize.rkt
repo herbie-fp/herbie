@@ -70,7 +70,8 @@
   ; rank subexpressions by cost opportunity
   (define localize-costss
     (for/list ([subexprs (in-list subexprss)])
-      (sort (for/list ([subexpr (in-list subexprs)] #:when (list? subexpr))
+      (sort (for/list ([subexpr (in-list subexprs)]
+                       #:when (list? subexpr))
               ; start and end cost of roots
               (define start-cost (expr->cost subexpr))
               (define best-cost (expr->cost (hash-ref expr->simplest subexpr)))
@@ -93,8 +94,10 @@
   (define subexprss (map all-subexpressions exprs))
   (define errss (compute-local-errors subexprss ctx))
 
-  (for/list ([expr (in-list exprs)] [errs (in-list errss)])
-    (sort (sort (for/list ([(subexpr err) (in-hash errs)] #:when (list? subexpr))
+  (for/list ([expr (in-list exprs)]
+             [errs (in-list errss)])
+    (sort (sort (for/list ([(subexpr err) (in-hash errs)]
+                           #:when (list? subexpr))
                   (cons err subexpr))
                 expr<?
                 #:key cdr)
@@ -104,23 +107,27 @@
 ; Compute local error or each sampled point at each node in `prog`.
 (define (compute-local-errors subexprss ctx)
   (define spec-list
-    (for*/list ([subexprs (in-list subexprss)] [subexpr (in-list subexprs)])
+    (for*/list ([subexprs (in-list subexprss)]
+                [subexpr (in-list subexprs)])
       (prog->spec subexpr)))
   (define ctx-list
-    (for*/list ([subexprs (in-list subexprss)] [subexpr (in-list subexprs)])
+    (for*/list ([subexprs (in-list subexprss)]
+                [subexpr (in-list subexprs)])
       (struct-copy context ctx [repr (repr-of subexpr ctx)])))
 
   (define subexprs-fn (eval-progs-real spec-list ctx-list))
 
   ; Mutable error hack, this is bad
   (define errs
-    (make-hash (for*/list ([subexprs (in-list subexprss)] [subexpr (in-list subexprs)])
+    (make-hash (for*/list ([subexprs (in-list subexprss)]
+                           [subexpr (in-list subexprs)])
                  (cons subexpr '()))))
 
   (for ([(pt ex) (in-pcontext (*pcontext*))])
     (define exacts (apply subexprs-fn pt))
     (define exacts-hash (make-immutable-hash (map cons (apply append subexprss) exacts)))
-    (for* ([subexprs (in-list subexprss)] [expr (in-list subexprs)])
+    (for* ([subexprs (in-list subexprss)]
+           [expr (in-list subexprs)])
       (define err
         (match expr
           [(? literal?) 1]

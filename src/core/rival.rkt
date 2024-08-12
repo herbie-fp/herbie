@@ -69,17 +69,20 @@
   (define start (current-inexact-milliseconds))
   (define pt*
     (for/vector #:length (length vars)
-                ([val (in-list pt)] [repr (in-list var-reprs)])
+                ([val (in-list pt)]
+                 [repr (in-list var-reprs)])
       ((representation-repr->bf repr) val)))
   (define-values (status value)
     (with-handlers ([exn:rival:invalid? (lambda (e) (values 'invalid #f))]
                     [exn:rival:unsamplable? (lambda (e) (values 'exit #f))])
-      (parameterize ([*rival-max-precision* (*max-mpfr-prec*)] [*rival-max-iterations* 5])
+      (parameterize ([*rival-max-precision* (*max-mpfr-prec*)]
+                     [*rival-max-iterations* 5])
         (values 'valid (rest (vector->list (rival-apply machine pt*))))))) ; rest = drop precondition
   (when (> (rival-profile machine 'bumps) 0)
     (warn 'ground-truth
           "Could not converge on a ground truth"
-          #:extra (for/list ([var (in-list vars)] [val (in-list pt)])
+          #:extra (for/list ([var (in-list vars)]
+                             [val (in-list pt)])
                     (format "~a = ~a" var val))))
   (define executions (rival-profile machine 'executions))
   (when (>= (vector-length executions) (*rival-profile-executions*))

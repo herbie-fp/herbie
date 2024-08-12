@@ -84,7 +84,8 @@
        [(< len-a len-b) -1]
        [(> len-a len-b) 1]
        [else
-        (let loop ([a a] [b b])
+        (let loop ([a a]
+                   [b b])
           (if (null? a)
               0
               (let ([cmp (expr-cmp (car a) (car b))])
@@ -133,7 +134,8 @@
     [(not (pair? prog)) (error "Bad location: cannot enter " prog "any further.")]
     [#t
      ; Inlined loop for speed
-     (let loop ([idx (car loc)] [lst prog])
+     (let loop ([idx (car loc)]
+                [lst prog])
        (if (= idx 0)
            (cons (location-do (cdr loc) (car lst) f) (cdr lst))
            (cons (car lst) (loop (- idx 1) (cdr lst)))))]))

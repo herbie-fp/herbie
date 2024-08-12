@@ -43,7 +43,8 @@
 
 (define (splice-proof-step step)
   (let/ec k
-          (let loop ([expr step] [loc '()])
+          (let loop ([expr step]
+                     [loc '()])
             (match expr
               [(list 'Rewrite=> rule sub)
                (define loc* (reverse loc))
@@ -52,7 +53,8 @@
                (define loc* (reverse loc))
                (k 'Rewrite<= rule loc* (location-do loc* step (λ _ sub)))]
               [(list op args ...)
-               (for ([arg (in-list args)] [i (in-naturals 1)])
+               (for ([arg (in-list args)]
+                     [i (in-naturals 1)])
                  (loop arg (cons i loc)))]
               [_ (void)]))
           (k 'Goal #f '() step)))
@@ -102,7 +104,8 @@
 
     [(alt _ `(regimes ,splitpoints) prevs _)
      (define intervals
-       (for/list ([start-sp (cons (sp -1 -1 #f) splitpoints)] [end-sp splitpoints])
+       (for/list ([start-sp (cons (sp -1 -1 #f) splitpoints)]
+                  [end-sp splitpoints])
          (interval (sp-cidx end-sp) (sp-point start-sp) (sp-point end-sp) (sp-bexpr end-sp))))
      (define repr (context-repr ctx))
 
@@ -158,7 +161,8 @@
 (define (render-proof proof soundiness pcontext ctx)
   `(div ((class "proof"))
         (details (summary "Step-by-step derivation")
-                 (ol ,@(for/list ([step proof] [sound soundiness])
+                 (ol ,@(for/list ([step proof]
+                                  [sound soundiness])
                          (define-values (dir rule loc expr) (splice-proof-step step))
                          ;; need to handle mixed real/float expressions
                          (define-values (err prog)
@@ -203,12 +207,14 @@
 
     [(alt prog `(regimes ,splitpoints) prevs _)
      (define intervals
-       (for/list ([start-sp (cons (sp -1 -1 #f) splitpoints)] [end-sp splitpoints])
+       (for/list ([start-sp (cons (sp -1 -1 #f) splitpoints)]
+                  [end-sp splitpoints])
          (interval (sp-cidx end-sp) (sp-point start-sp) (sp-point end-sp) (sp-bexpr end-sp))))
 
      `#hash((program . ,(fpcore->string (expr->fpcore prog ctx)))
             (type . "regimes")
-            (conditions . ,(for/list ([entry prevs] [idx (in-naturals)])
+            (conditions . ,(for/list ([entry prevs]
+                                      [idx (in-naturals)])
                              (let ([entry-ivals (filter (λ (intrvl) (= (interval-alt-idx intrvl) idx))
                                                         intervals)])
                                (map (curryr interval->string repr) entry-ivals))))
@@ -268,7 +274,8 @@
             (preprocessing . ,(map (curry map symbol->string) preprocessing)))]))
 
 (define (render-proof-json proof soundiness pcontext ctx)
-  (for/list ([step proof] [sound soundiness])
+  (for/list ([step proof]
+             [sound soundiness])
     (define-values (dir rule loc expr) (splice-proof-step step))
     (define err (if (impl-prog? expr) (errors-score (errors expr pcontext ctx)) "N/A"))
 

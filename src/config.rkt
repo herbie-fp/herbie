@@ -81,7 +81,8 @@
 
 (define (changed-flags)
   (filter identity
-          (for*/list ([(class flags) all-flags] [flag flags])
+          (for*/list ([(class flags) all-flags]
+                      [flag flags])
             (match* ((flag-set? class flag) (parameterize ([*flags* default-flags])
                                               (flag-set? class flag)))
               [(#t #t) #f]
@@ -156,7 +157,8 @@
 
 (define (git-command #:default [default ""] gitcmd . args)
   (if (directory-exists? ".git")
-      (let* ([cmd (format "git ~a ~a" gitcmd (string-join args " "))] [out (run-command cmd)])
+      (let* ([cmd (format "git ~a ~a" gitcmd (string-join args " "))]
+             [out (run-command cmd)])
         (if (equal? out "") default out))
       default))
 

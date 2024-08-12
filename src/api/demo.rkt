@@ -501,7 +501,8 @@
                              (define local-error (job-result-backend result))
                              ;; TODO: potentially unsafe if resugaring changes the AST
                              (define tree
-                               (let loop ([expr expr] [err local-error])
+                               (let loop ([expr expr]
+                                          [err local-error])
                                  (match expr
                                    [(list op args ...)
                                     ;; err => (List (listof Integer) List ...)

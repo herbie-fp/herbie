@@ -84,13 +84,15 @@
 
 ;; Returns all constant operators (operators with no arguments).
 (define (all-constants)
-  (sort (for/list ([(name rec) (in-hash operators)] #:when (null? (operator-itype rec)))
+  (sort (for/list ([(name rec) (in-hash operators)]
+                   #:when (null? (operator-itype rec)))
           name)
         symbol<?))
 
 ;; Returns all "accelerator" operators
 (define (all-accelerators)
-  (sort (for/list ([(name rec) (in-hash operators)] #:when (operator-spec rec))
+  (sort (for/list ([(name rec) (in-hash operators)]
+                   #:when (operator-spec rec))
           name)
         symbol<?))
 
@@ -160,7 +162,8 @@
          (unless (operator-exists? op)
            (bad! "expected operator at `~a`, got `~a` in `~a`" expr op))
          (define itypes (operator-info op 'itype))
-         (for ([arg (in-list args)] [itype (in-list itypes)])
+         (for ([arg (in-list args)]
+               [itype (in-list itypes)])
            (define arg-ty (type-of arg))
            (unless (equal? itype arg-ty)
              (type-error! arg arg-ty itype)))
@@ -230,10 +233,13 @@
 
   (syntax-case stx ()
     [(_ (id itype ...) otype [key val] ...)
-     (let ([id #'id] [keys (syntax->list #'(key ...))] [vals (syntax->list #'(val ...))])
+     (let ([id #'id]
+           [keys (syntax->list #'(key ...))]
+           [vals (syntax->list #'(val ...))])
        (unless (identifier? id)
          (bad! "expected identifier" id))
-       (with-syntax ([id id] [(val ...) (map attribute-val keys vals)])
+       (with-syntax ([id id]
+                     [(val ...) (map attribute-val keys vals)])
          #'(register-operator! 'id '(itype ...) 'otype (list (cons 'key val) ...))))]))
 
 (define-syntax define-operators
@@ -337,7 +343,8 @@
   (check-equal? (length (all-operators)) 63)
 
   ; check that Rival supports all non-accelerator operators
-  (for ([op (in-list (all-operators))] #:unless (operator-accelerator? op))
+  (for ([op (in-list (all-operators))]
+        #:unless (operator-accelerator? op))
     (define vars (map (lambda (_) (gensym)) (operator-info op 'itype)))
     (define disc (discretization 64 #f #f)) ; fake arguments
     (rival-compile (list `(,op ,@vars)) vars (list disc)))
@@ -429,7 +436,8 @@
   (define new-op op)
   (if op
       op
-      (let loop ([expr spec] [operator #f])
+      (let loop ([expr spec]
+                 [operator #f])
         (match expr
           [`(,(? symbol? op) ,args ...)
            (if (null? args)
@@ -470,7 +478,8 @@
      new-op
      expect-arity
      actual-arity))
-  (for ([repr (in-list (cons orepr ireprs))] [type (in-list (cons otype itypes))])
+  (for ([repr (in-list (cons orepr ireprs))]
+        [type (in-list (cons otype itypes))])
     (unless (equal? (representation-type repr) type)
       "Cannot register `~a` as implementation of `~a`: ~a is not a representation of ~a"
       name
@@ -508,7 +517,8 @@
     (raise-syntax-error 'define-operator-impl why stx sub-stx))
   (syntax-case stx (:)
     [(_ (id [var : repr] ...) rtype fields ...)
-     (let ([impl-id #'id] [fields #'(fields ...)])
+     (let ([impl-id #'id]
+           [fields #'(fields ...)])
        (unless (identifier? impl-id)
          (oops! "impl id is not a valid identifier" impl-id))
        (for ([var (in-list (syntax->list #'(var ...)))])
@@ -521,8 +531,11 @@
        (let loop ([fields fields])
          (syntax-case fields ()
            [()
-            (with-syntax
-                ([impl-id impl-id] [operator operator] [spec spec] [core core] [fl-expr fl-expr])
+            (with-syntax ([impl-id impl-id]
+                          [operator operator]
+                          [spec spec]
+                          [core core]
+                          [fl-expr fl-expr])
               #'(register-operator-impl! 'operator
                                          'impl-id
                                          (list (cons 'var (get-representation 'repr)) ...)
@@ -566,7 +579,8 @@
 (define (get-parametric-operator #:all? [all? #f] name . ireprs)
   (define get-impls (if all? operator-all-impls operator-active-impls))
   (let/ec k
-          (for/first ([impl (get-impls name)] #:when (equal? (impl-info impl 'itype) ireprs))
+          (for/first ([impl (get-impls name)]
+                      #:when (equal? (impl-info impl 'itype) ireprs))
             (k impl))
           (raise-herbie-missing-error
            "Could not find operator implementation for ~a with ~a"
