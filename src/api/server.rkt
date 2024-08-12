@@ -269,8 +269,7 @@
             ['sample (make-sample-result herbie-result test job-id)]
             [_ (error 'compute-result "unknown command ~a" kind)]))
         (log "Job: ~a finished, returning work to manager\n" job-id)
-        (place-channel-put manager
-                           (list 'finished manager worker-id job-id out-result))]))))
+        (place-channel-put manager (list 'finished manager worker-id job-id out-result))]))))
 
 (define (make-explenation-result heribe-result job-id)
   (define explanations (job-result-backend heribe-result))
