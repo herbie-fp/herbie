@@ -915,24 +915,23 @@
   ; rebuilds the extracted procedure
   (define id->spec (regraph-specs regraph))
   (define (build-expr id)
-    (let/ec return
-            (let loop ([id id])
-              (match (cdr (vector-ref costs id))
-                [(? number? n) n] ; number
-                [(? symbol? s) s] ; variable
-                [(list '$approx spec impl) ; approx
-                 (match (vector-ref id->spec spec)
-                   [#f (error 'build-expr "no initial approx node in eclass ~a" id)]
-                   [spec-e (list '$approx spec-e (build-expr impl))])]
-                ; if expression
-                [(list 'if cond ift iff) (list 'if (loop cond) (loop ift) (loop iff))]
-                ; expression of impls
-                [(list (? impl-exists? impl) ids ...) (cons impl (map loop ids))]
-                ; expression of operators
-                [(list (? operator-exists? op) ids ...) (cons op (map loop ids))]
-                [_ (return #f)]))))
+    (let loop ([id id])
+      (match (cdr (vector-ref costs id))
+        [(? number? n) n] ; number
+        [(? symbol? s) s] ; variable
+        [(list '$approx spec impl) ; approx
+         (match (vector-ref id->spec spec)
+           [#f (error 'build-expr "no initial approx node in eclass ~a" id)]
+           [spec-e (list '$approx spec-e (build-expr impl))])]
+        ; if expression
+        [(list 'if cond ift iff) (list 'if (loop cond) (loop ift) (loop iff))]
+        ; expression of impls
+        [(list (? impl-exists? impl) ids ...) (cons impl (map loop ids))]
+        ; expression of operators
+        [(list (? operator-exists? op) ids ...) (cons op (map loop ids))])))
 
   ; the actual extraction procedure
+  ; as long as the `id` is valid, extraction will work
   (lambda (id) (cons (unsafe-eclass-cost id) (build-expr id))))
 
 ;; Is fractional with odd denominator.
@@ -987,16 +986,16 @@
 (define (regraph-extract-best regraph extract id type)
   (define egg->herbie (regraph-egg->herbie regraph))
   (define canon (regraph-canon regraph))
-  ; extract expr (extraction is partial)
-  (define id* (hash-ref canon (cons id type) #f))
+  ; extract expr
+  (define key (cons id type))
   (cond
-    [(false? id*) (list)]
-    [else
+    ; at least one extractable expression
+    [(hash-has-key? canon key)
+     (define id* (hash-ref canon key))
      (match-define (cons _ egg-expr) (extract id*))
-     ; translate egg IR to Herbie IR
-     (cond
-       [egg-expr (list (egg-parsed->expr (flatten-let egg-expr) egg->herbie type))]
-       [else (list)])]))
+     (list (egg-parsed->expr (flatten-let egg-expr) egg->herbie type))]
+    ; no extractable expressions
+    [else (list)]))
 
 ;; Extracts multiple expressions according to the extractor
 (define (regraph-extract-variants regraph extract id type)
@@ -1006,49 +1005,45 @@
   (define canon (regraph-canon regraph))
 
   ; extract expressions
-  (define id* (hash-ref canon (cons id type) #f))
+  (define key (cons id type))
   (cond
-    [(false? id*) (list)]
-    [else
+    ; at least one extractable expression
+    [(hash-has-key? canon key)
+     (define id* (hash-ref canon key))
      (define egg-exprs
-       (reap [sow]
-             (for ([enode (vector-ref eclasses id*)])
-               (match enode
-                 [(? number?) (sow enode)]
-                 [(? symbol?) (sow enode)]
-                 [(list '$approx spec impl)
-                  (match (vector-ref id->spec spec)
-                    [#f (error 'regraph-extract-variants "no initial approx node in eclass ~a" id*)]
-                    [spec-e
-                     (match-define (cons _ impl*) (extract impl))
-                     (when impl*
-                       (sow (list '$approx spec-e impl*)))])]
-                 [(list 'if cond ift iff)
-                  (match-define (cons _ cond*) (extract cond))
-                  (match-define (cons _ ift*) (extract ift))
-                  (match-define (cons _ iff*) (extract iff))
-                  (when (and cond* ift* iff*) ; guard against failed extraction
-                    (sow (list 'if cond* ift* iff*)))]
-                 [(list (? impl-exists? impl) ids ...)
-                  (when (equal? (impl-info impl 'otype) type)
-                    (define args
-                      (for/list ([id (in-list ids)])
-                        (match-define (cons _ expr) (extract id))
-                        expr))
-                    (when (andmap identity args) ; guard against failed extraction
-                      (sow (cons impl args))))]
-                 [(list (? operator-exists? op) ids ...)
-                  (when (equal? (operator-info op 'otype) type)
-                    (define args
-                      (for/list ([id (in-list ids)])
-                        (match-define (cons _ expr) (extract id))
-                        expr))
-                    (when (andmap identity args) ; guard against failed extraction
-                      (sow (cons op args))))]))))
+       (for/list ([enode (vector-ref eclasses id*)])
+         (match enode
+           [(? number?) enode]
+           [(? symbol?) enode]
+           [(list '$approx spec impl)
+            (define spec* (vector-ref id->spec spec))
+            (unless spec*
+              (error 'regraph-extract-variants "no initial approx node in eclass ~a" id*))
+            (match-define (cons _ impl*) (extract impl))
+            (list '$approx spec* impl*)]
+           [(list 'if cond ift iff)
+            (match-define (cons _ cond*) (extract cond))
+            (match-define (cons _ ift*) (extract ift))
+            (match-define (cons _ iff*) (extract iff))
+            (list 'if cond* ift* iff*)]
+           [(list (? impl-exists? impl) ids ...)
+            (define args
+              (for/list ([id (in-list ids)])
+                (match-define (cons _ expr) (extract id))
+                expr))
+            (cons impl args)]
+           [(list (? operator-exists? op) ids ...)
+            (define args
+              (for/list ([id (in-list ids)])
+                (match-define (cons _ expr) (extract id))
+                expr))
+            (cons op args)])))
      ; translate egg IR to Herbie IR
      (define egg->herbie (regraph-egg->herbie regraph))
      (for/list ([egg-expr (in-list egg-exprs)])
-       (egg-parsed->expr (flatten-let egg-expr) egg->herbie type))]))
+       (egg-parsed->expr (flatten-let egg-expr) egg->herbie type))]
+    ; no extractable expressions
+    [else (list)]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Scheduler
