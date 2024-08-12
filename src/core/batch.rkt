@@ -242,6 +242,7 @@
       [_ node]))
   (unmunge reg))
 
+; Tests for expand-taylor
 (module+ test
   (require rackunit)
   (define (test-expand-taylor expr)
@@ -269,6 +270,7 @@
                 (test-expand-taylor '(+ 100 (pow (* x (approx 2 3)) 1/3))))
   (check-equal? '(+ (approx 2 3) (cbrt x)) (test-expand-taylor '(+ (approx 2 3) (pow x 1/3)))))
 
+; Tests for progs->batch and batch->progs
 (module+ test
   (require rackunit)
   (define (test-munge-unmunge expr [ignore-approx #t])
@@ -284,6 +286,7 @@
    `(+ (sin ,(approx '(* 1/2 (+ (exp x) (neg (/ 1 (exp x))))) '(+ 3 (* 25 (sin 6))))) 4)
    #f))
 
+; Tests for remove-zombie-nodes
 (module+ test
   (require rackunit)
   (define (zombie-test nodes roots)
