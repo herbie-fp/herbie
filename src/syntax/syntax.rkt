@@ -628,7 +628,8 @@
   (define-operator-impl (log1pmd.f64 [x : binary64])
                         binary64
                         #:spec (- (log1p x) (log1p (neg x)))
-                        #:fpcore (! :precision binary64 (log1pmd x)))
+                        #:fpcore (! :precision binary64 (log1pmd x))
+                        #:fl log1pmd)
   ; correctly-rounded sin(x) for binary64
   (define-operator-impl (sin.acc.f64 [x : binary64])
                         binary64
