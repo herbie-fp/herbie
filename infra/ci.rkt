@@ -7,6 +7,7 @@
          "../src/api/sandbox.rkt"
          "../src/syntax/read.rkt"
          "../src/syntax/types.rkt"
+         "../src/api/server.rkt"
          "../src/syntax/platform.rkt")
 
 (define *precision* (make-parameter #f))
@@ -27,24 +28,35 @@
                   (cons var (representation-name repr)))]))
 
 (define (run-tests . bench-dirs)
+
   (define default-precision
     (if (*precision*) (representation-name (*precision*)) (*default-precision*)))
   (define tests
     (parameterize ([*default-precision* default-precision])
       (append-map load-tests bench-dirs)))
   (define seed (pseudo-random-generator->vector (current-pseudo-random-generator)))
+  (start-job-server #f) ; default to cpu core count.
   (printf "Running Herbie on ~a tests, seed: ~a\n" (length tests) seed)
   (for/and ([the-test tests]
             [i (in-naturals)])
     (printf "~a/~a\t" (~a (+ 1 i) #:width 3 #:align 'right) (length tests))
     (define the-test* (if (*precision*) (override-test-precision the-test (*precision*)) the-test))
-    (define result (run-herbie 'improve the-test* #:seed seed))
-    (match-define (job-result _ test status time timeline warnings backend) result)
+    (define command
+      (create-job 'improve the-test* #:seed seed #:pcontext #f #:profile? #f #:timeline-disabled? #t))
+    (define id (start-job command))
+    (define result-hash (wait-for-job id))
+    (define status (hash-ref result-hash 'status))
+    (define backend (hash-ref result-hash 'backend))
+    (define time (hash-ref result-hash 'time))
+    (define test (hash-ref result-hash 'test))
     (match status
       ['success
-       (match-define (improve-result preprocess pctxs start targets end bogosity) backend)
+       (define start (hash-ref backend 'start))
+       (define targets (hash-ref backend 'target))
+       (define end (hash-ref backend 'end))
        (match-define (alt-analysis start-alt _ start-error) start)
-       (match-define (alt-analysis end-alt _ end-error) (first end))
+       (define end-alt (hash-ref end 'end-alts))
+       (define end-error (hash-ref end 'end-errors))
 
        ;; Pick lowest target from all target
        (define target-error
@@ -54,14 +66,14 @@
        (printf "[ ~as]   ~a→~a\t~a\n"
                (~r (/ time 1000) #:min-width 7 #:precision '(= 3))
                (~r (errors-score start-error) #:min-width 2 #:precision 0)
-               (~r (errors-score end-error) #:min-width 2 #:precision 0)
+               (~r (errors-score (first end-error)) #:min-width 2 #:precision 0)
                (test-name test))
 
        (define success?
          (test-successful? test
                            (errors-score start-error)
                            (if target-error (errors-score target-error) #f)
-                           (errors-score end-error)))
+                           (errors-score (first end-error))))
 
        (when (not success?)
          (printf "\nInput (~a bits):\n" (errors-score start-error))
