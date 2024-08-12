@@ -55,19 +55,19 @@
 ; Returns #f is now job exsist for the given job-id
 (define (get-results-for job-id)
   (define-values (a b) (place-channel))
-  (place-channel-put receptionist (list 'result job-id b))
+  (place-channel-put manager (list 'result job-id b))
   (log "Getting result for job: ~a.\n" job-id)
   (place-channel-get a))
 
 (define (get-improve-table-data)
   (define-values (a b) (place-channel))
-  (place-channel-put receptionist (list 'improve b))
+  (place-channel-put manager (list 'improve b))
   (log "Getting improve results.\n")
   (place-channel-get a))
 
 (define (job-count)
   (define-values (a b) (place-channel))
-  (place-channel-put receptionist (list 'count b))
+  (place-channel-put manager (list 'count b))
   (define count (place-channel-get a))
   (log "Current job count: ~a.\n" count)
   count)
@@ -75,36 +75,36 @@
 ;; Starts a job for a given command object|
 (define (start-job command)
   (define job-id (compute-job-id command))
-  (place-channel-put receptionist (list 'start receptionist command job-id))
+  (place-channel-put manager (list 'start manager command job-id))
   (log "Job ~a, Qed up for program: ~a\n" job-id (test-name (herbie-command-test command)))
   job-id)
 
 (define (wait-for-job job-id)
   (define-values (a b) (place-channel))
-  (place-channel-put receptionist (list 'wait receptionist job-id b))
+  (place-channel-put manager (list 'wait manager job-id b))
   (define finished-result (place-channel-get a))
   (log "Done waiting for: ~a\n" job-id)
   finished-result)
 
 ; TODO refactor using this helper.
-(define (receptionist-ask msg . args)
+(define (manager-ask msg . args)
   (define-values (a b) (place-channel))
-  (place-channel-put receptionist (cons msg b args))
-  (log "Asking receptionist: ~a, ~a.\n" msg args)
+  (place-channel-put manager (cons msg b args))
+  (log "Asking manager: ~a, ~a.\n" msg args)
   (place-channel-get a))
 
 (define (is-server-up)
-  (not (sync/timeout 0 receptionist-dead-event)))
+  (not (sync/timeout 0 manager-dead-event)))
 
 (define (start-job-server job-cap)
   (unless job-cap
     (set! job-cap (processor-count)))
-  (define r (make-receptionist job-cap))
-  (set! receptionist-dead-event (place-dead-evt r))
-  (set! receptionist r))
+  (define r (make-manager job-cap))
+  (set! manager-dead-event (place-dead-evt r))
+  (set! manager r))
 
-(define receptionist #f)
-(define receptionist-dead-event #f)
+(define manager #f)
+(define manager-dead-event #f)
 
 (define (get-command herbie-result)
   ; force symbol type to string.
@@ -152,7 +152,7 @@
 
 (struct work-item (command id))
 
-(define (make-receptionist worker-count)
+(define (make-manager worker-count)
   (place/context*
    ch
    #:parameters (*flags* *num-iterations*
@@ -175,9 +175,9 @@
    (log "~a workers ready.\n" (hash-count waiting-workers))
    (define waiting (make-hash))
    (define job-queue (list))
-   (log "Receptionist waiting to assign work.\n")
+   (log "Manager waiting to assign work.\n")
    (for ([i (in-naturals)])
-     ;  (eprintf "Receptionist msg ~a handled\n" i)
+     ;  (eprintf "manager msg ~a handled\n" i)
      (match (place-channel-get ch)
        [(list 'start self command job-id)
         ; Check if the work has been completed already if not assign the work.
@@ -252,7 +252,7 @@
      (load-herbie-plugins))
    (for ([_ (in-naturals)])
      (match (place-channel-get ch)
-       [(list 'apply receptionist command job-id)
+       [(list 'apply manager command job-id)
         (log "[~a] working on [~a].\n" job-id (test-name (herbie-command-test command)))
         (define herbie-result (wrapper-run-herbie command job-id))
         (match-define (job-result kind test status time _ _ backend) herbie-result)
@@ -268,9 +268,9 @@
             ['explanations (make-explenation-result herbie-result job-id)]
             ['sample (make-sample-result herbie-result test job-id)]
             [_ (error 'compute-result "unknown command ~a" kind)]))
-        (log "Job: ~a finished, returning work to receptionist\n" job-id)
-        (place-channel-put receptionist
-                           (list 'finished receptionist worker-id job-id out-result))]))))
+        (log "Job: ~a finished, returning work to manager\n" job-id)
+        (place-channel-put manager
+                           (list 'finished manager worker-id job-id out-result))]))))
 
 (define (make-explenation-result heribe-result job-id)
   (define explanations (job-result-backend heribe-result))
