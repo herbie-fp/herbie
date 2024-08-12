@@ -208,7 +208,7 @@
   (define deprecated? (dict-ref attrib-dict 'deprecated #f))
   ; check the spec if it is provided
   (when spec
-    (check-accelerator-spec! name itypes otype spec)
+    (check-spec! name itypes otype spec)
     (set! spec (expand-accelerators spec)))
   ; update tables
   (define info (operator name itypes* otype* spec deprecated?))
@@ -420,7 +420,10 @@
     (unless op
       (raise-herbie-syntax-error "Missing required operator"))
     (set! spec `(,op ,@vars)))
-  (check-spec! name (map representation-type ireprs) orepr spec)
+  (check-spec! name
+               (map representation-type ireprs)
+               (representation-type orepr)
+               (list 'lambda vars spec))
 
   ;; Infer operator from spec
   (define new-op op)
@@ -502,15 +505,22 @@
 
 (define-syntax (define-operator-impl stx)
   (define (oops! why [sub-stx #f])
-    (raise-syntax-error 'define-impl why stx sub-stx))
-  (syntax-case stx ()
+    (raise-syntax-error 'define-operator-impl why stx sub-stx))
+  (syntax-case stx (:)
     [(_ (id [var : repr] ...) rtype fields ...)
-     (let loop ([fields #'(fields ...)] [operator #f] [spec #f] [core #f] [fl-expr #f])
-       (syntax-case fields ()
-         [()
-          (let ([impl-id #'id])
-            (unless (identifier? impl-id)
-              (oops! "impl id is not a valid identifier" impl-id))
+     (let ([impl-id #'id] [fields #'(fields ...)])
+       (unless (identifier? impl-id)
+         (oops! "impl id is not a valid identifier" impl-id))
+       (for ([var (in-list (syntax->list #'(var ...)))])
+         (unless (identifier? var)
+           (oops! "given id is not a valid identifier" var)))
+       (define operator #f)
+       (define spec #f)
+       (define core #f)
+       (define fl-expr #f)
+       (let loop ([fields fields])
+         (syntax-case fields ()
+           [()
             (with-syntax
                 ([impl-id impl-id] [operator operator] [spec spec] [core core] [fl-expr fl-expr])
               #'(register-operator-impl! 'operator
@@ -519,12 +529,36 @@
                                          (get-representation 'rtype)
                                          #:fl fl-expr
                                          #:spec 'spec
-                                         #:fpcore 'core)))]
-         [(#:spec expr rest ...) (loop #'(rest ...) operator #'expr core fl-expr)]
-         [(#:fpcore expr rest ...) (loop #'(rest ...) operator spec #'expr fl-expr)]
-         [(#:fl expr rest ...) (loop #'(rest ...) operator spec core #'expr)]
-         [(#:op name rest ...) (loop #'(rest ...) #'name spec core fl-expr)]
-         [_ (oops! "bad syntax" fields)]))]
+                                         #:fpcore 'core))]
+           [(#:spec expr rest ...)
+            (cond
+              [spec (oops! "multiple #:spec clauses" stx)]
+              [else
+               (set! spec #'expr)
+               (loop #'(rest ...))])]
+           [(#:spec) (oops! "expected value after keyword `#:spec`" stx)]
+           [(#:fpcore expr rest ...)
+            (cond
+              [core (oops! "multiple #:fpcore clauses" stx)]
+              [else
+               (set! core #'expr)
+               (loop #'(rest ...))])]
+           [(#:fpcore) (oops! "expected value after keyword `#:fpcore`" stx)]
+           [(#:fl expr rest ...)
+            (cond
+              [fl-expr (oops! "multiple #:fl clauses" stx)]
+              [else
+               (set! fl-expr #'expr)
+               (loop #'(rest ...))])]
+           [(#:fl) (oops! "expected value after keyword `#:fl`" stx)]
+           [(#:op name rest ...)
+            (cond
+              [operator (oops! "multiple #:op clauses" stx)]
+              [else
+               (set! operator #'name)
+               (loop #'(rest ...))])]
+           [(#:op) (oops! "expected value after keyword `#:op`" stx)]
+           [_ (oops! "bad syntax" fields)])))]
     [_ (oops! "bad syntax")]))
 
 ;; Among active implementations, looks up an implementation with

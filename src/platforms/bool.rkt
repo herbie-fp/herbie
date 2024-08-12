@@ -31,15 +31,9 @@
 
 (define-operator-impl (not [x : bool]) bool #:spec (not x) #:fpcore (! (not x)) #:fl not)
 
-(define-operator-impl (and [x : bool] [y : bool])
-                      bool
-                      #:spec (and x y)
-                      #:fl and-fn)
+(define-operator-impl (and [x : bool] [y : bool]) bool #:spec (and x y) #:fl and-fn)
 
-(define-operator-impl (or [x : bool] [y : bool])
-                      bool
-                      #:spec (or x y)
-                      #:fl or-fn)
+(define-operator-impl (or [x : bool] [y : bool]) bool #:spec (or x y) #:fl or-fn)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; rules ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
