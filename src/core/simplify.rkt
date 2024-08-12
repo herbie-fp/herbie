@@ -52,7 +52,7 @@
       (make-egg-runner args
                        (map (lambda (_) 'real) args)
                        `((,(*simplify-rules*) . ((node . ,(*node-limit*)))))))
-    (define extractor (untyped-egg-extractor default-untyped-egg-cost-proc))
+    (define extractor (typed-egg-extractor default-egg-cost-proc))
     (map last (simplify-batch runner extractor)))
 
   (define test-exprs
