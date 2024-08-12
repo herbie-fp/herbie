@@ -9,6 +9,7 @@
          expr<?
          all-subexpressions
          ops-in-expr
+         spec-prog?
          impl-prog?
          repr-of
          location-do
@@ -19,7 +20,7 @@
 
 ;; Programs are just lisp lists plus atoms
 
-(define expr? (or/c list? symbol? boolean? real? literal?))
+(define expr? (or/c list? symbol? boolean? real? literal? approx?))
 
 ;; Returns repr name
 ;; Fast version does not recurse into functions applications
@@ -27,12 +28,14 @@
   (match expr
     [(? literal?) (get-representation (literal-precision expr))]
     [(? variable?) (context-lookup ctx expr)]
+    [(approx _ impl) (repr-of impl ctx)]
     [(list 'if cond ift iff) (repr-of ift ctx)]
     [(list op args ...) (impl-info op 'otype)]))
 
 (define (expr-contains? expr pred)
   (let loop ([expr expr])
     (match expr
+      [(approx _ impl) (loop impl)]
       [(list elems ...) (ormap loop elems)]
       [term (pred term)])))
 
@@ -45,6 +48,7 @@
               [(? number?) (void)]
               [(? literal?) (void)]
               [(? variable?) (void)]
+              [(approx _ impl) (loop impl)]
               [`(if ,c ,t ,f)
                (loop c)
                (loop t)
@@ -57,21 +61,24 @@
 (define (ops-in-expr expr)
   (remove-duplicates (filter-map (lambda (e) (and (pair? e) (first e))) (all-subexpressions expr))))
 
-;; Returns `#t` if program is a program of operator implementations.
+;; Is the expression in LSpec (real expressions)?
+(define (spec-prog? expr)
+  (match expr
+    [(? symbol?) #t]
+    [(? number?) #t]
+    [(list 'if cond ift iff) (and (spec-prog? cond) (spec-prog? ift) (spec-prog? iff))]
+    [(list (? operator-exists?) args ...) (andmap spec-prog? args)]
+    [_ #f]))
+
+;; Is the expression in LImpl (floating-point implementations)?
 (define (impl-prog? expr)
-  (let/ec return
-          (let loop ([expr expr])
-            (match expr
-              [(? literal?) (void)]
-              [(? number?) (return #f)]
-              [(? symbol?) (void)]
-              [(list 'if cond ift iff)
-               (loop cond)
-               (loop ift)
-               (loop iff)]
-              [(list (? impl-exists?) args ...) (for-each loop args)]
-              [(list _ ...) (return #f)]))
-          #t))
+  (match expr
+    [(? symbol?) #t]
+    [(? literal?) #t]
+    [(approx spec impl) (and (spec-prog? spec) (impl-prog? impl))]
+    [(list 'if cond ift iff) (and (impl-prog? cond) (impl-prog? ift) (impl-prog? iff))]
+    [(list (? impl-exists?) args ...) (andmap impl-prog? args)]
+    [_ #f]))
 
 ;; Total order on expressions
 
@@ -92,6 +99,11 @@
                 (if (zero? cmp) (loop (cdr a) (cdr b)) cmp))))])]
     [((? list?) _) 1]
     [(_ (? list?)) -1]
+    [((? approx?) (? approx?))
+     (define cmp-spec (expr-cmp (approx-spec a) (approx-spec b)))
+     (if (zero? cmp-spec) (expr-cmp (approx-impl a) (approx-impl b)) cmp-spec)]
+    [((? approx?) _) 1]
+    [(_ (? approx?)) -1]
     [((? symbol?) (? symbol?))
      (cond
        [(symbol<? a b) -1]
@@ -117,40 +129,59 @@
     [(? literal?) '()]
     [(? number?) '()]
     [(? variable?) (list prog)]
-    [`(,op ,args ...) (remove-duplicates (append-map free-variables args))]))
+    [(approx _ impl) (free-variables impl)]
+    [(list _ args ...) (remove-duplicates (append-map free-variables args))]))
 
 (define (replace-vars dict expr)
-  (cond
-    [(dict-has-key? dict expr) (dict-ref dict expr)]
-    [(list? expr) (cons (replace-vars dict (car expr)) (map (curry replace-vars dict) (cdr expr)))]
-    [#t expr]))
+  (let loop ([expr expr])
+    (match expr
+      [(? literal?) expr]
+      [(? number?) expr]
+      [(? symbol?) (dict-ref dict expr expr)]
+      [(approx impl spec) (approx (loop impl) (loop spec))]
+      [(list op args ...) (cons op (map loop args))])))
 
 (define location? (listof natural-number/c))
 
 (define/contract (location-do loc prog f)
   (-> location? expr? (-> expr? expr?) expr?)
-  (cond
-    [(null? loc) (f prog)]
-    [(not (pair? prog)) (error "Bad location: cannot enter " prog "any further.")]
-    [#t
-     ; Inlined loop for speed
-     (let loop ([idx (car loc)]
-                [lst prog])
-       (if (= idx 0)
-           (cons (location-do (cdr loc) (car lst) f) (cdr lst))
-           (cons (car lst) (loop (- idx 1) (cdr lst)))))]))
+  (define (invalid! where loc)
+    (error 'location-do "invalid location `~a` for `~a` in `~a`" loc where prog))
+
+  (let loop ([prog prog]
+             [loc loc])
+    (match* (prog loc)
+      [(_ (? null?)) (f prog)]
+      [((or (? literal?) (? number?) (? symbol?)) _) (invalid! prog loc)]
+      [((approx spec impl) (cons idx rest)) ; approx nodes
+       (case idx
+         [(1) (approx (loop spec rest) impl)]
+         [(2) (approx spec (loop impl rest))]
+         [else (invalid! prog loc)])]
+      [((list op args ...) (cons idx rest)) ; operator
+       (let seek ([elts (cons op args)]
+                  [idx idx])
+         (cond
+           [(= idx 0) (cons (loop (car elts) rest) (cdr elts))]
+           [(null? elts) (invalid! prog loc)]
+           [else (cons (car elts) (seek (cdr elts) (sub1 idx)))]))]
+      [(_ _) (invalid! prog loc)])))
 
 (define/contract (location-get loc prog)
   (-> location? expr? expr?)
   ; Clever continuation usage to early-return
   (let/ec return (location-do loc prog return)))
 
-(define/contract (replace-expression haystack needle needle*)
+(define/contract (replace-expression expr from to)
   (-> expr? expr? expr? expr?)
-  (match haystack
-    [(== needle) needle*]
-    [(list op args ...) (cons op (map (curryr replace-expression needle needle*) args))]
-    [x x]))
+  (let loop ([expr expr])
+    (match expr
+      [(== from) to]
+      [(? number?) expr]
+      [(? literal?) expr]
+      [(? symbol?) expr]
+      [(approx spec impl) (approx (loop spec) (loop impl))]
+      [(list op args ...) (cons op (map loop args))])))
 
 (module+ test
   (require rackunit)

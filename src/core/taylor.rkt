@@ -49,13 +49,11 @@
     [(positive? power) `(pow ,var ,power)]
     [(negative? power) `(pow ,var ,power)]))
 
-(define-resetter n-sum-to-cache (λ () (make-hash)) (λ () (make-hash)))
+(define/reset n-sum-to-cache (make-hash))
 
-(define-resetter log-cache
-                 (λ () (make-hash '((1 . ((1 -1 1))))))
-                 (λ () (make-hash '((1 . ((1 -1 1)))))))
+(define/reset log-cache (make-hash '((1 . ((1 -1 1))))))
 
-(define-resetter series-cache (λ () (make-hash)) (λ () (make-hash)))
+(define/reset series-cache (make-hash))
 
 (define (n-sum-to n k)
   (hash-ref! (n-sum-to-cache)

@@ -1,15 +1,10 @@
 #lang racket
 
-(require math/bigfloat
-         math/flonum
-         rival)
-
 (require "../syntax/syntax.rkt"
          "../syntax/types.rkt"
-         "../utils/common.rkt"
          "../utils/timeline.rkt"
          "../utils/float.rkt"
-         "../config.rkt")
+         "batch.rkt")
 
 (provide compile-progs
          compile-prog)
@@ -55,52 +50,21 @@
 (define (if-proc c a b)
   (if c a b))
 
-(define (progs->batch exprs vars)
-  (define icache (reverse vars))
-  (define exprhash
-    (make-hash (for/list ([var vars]
-                          [i (in-naturals)])
-                 (cons var i))))
-  ; Counts
-  (define size 0)
-  (define exprc 0)
-  (define varc (length vars))
-
-  ; Translates programs into an instruction sequence of operations
-  (define (munge prog)
-    (set! size (+ 1 size))
-    (define node ; This compiles to the register machine
-      (match prog
-        [(list op args ...) (cons op (map munge args))]
-        [_ prog]))
-    (hash-ref! exprhash
-               node
-               (lambda ()
-                 (begin0 (+ exprc varc) ; store in cache, update exprs, exprc
-                   (set! exprc (+ 1 exprc))
-                   (set! icache (cons node icache))))))
-
-  (define roots (list->vector (map munge exprs)))
-  (define nodes (list->vector (reverse icache)))
-
-  (timeline-push! 'compiler (+ varc size) (+ exprc varc))
-  (values nodes roots))
-
 ;; Translates a Herbie IR into an interpretable IR.
 ;; Requires some hooks to complete the translation.
 (define (make-compiler exprs vars)
   (define num-vars (length vars))
-  (define-values (nodes roots) (progs->batch exprs vars))
+  (define batch (progs->batch exprs #:timeline-push #t #:vars vars #:ignore-approx #t))
 
   (define instructions
-    (for/vector #:length (- (vector-length nodes) num-vars)
-                ([node (in-vector nodes num-vars)])
+    (for/vector #:length (- (batch-nodes-length batch) num-vars)
+                ([node (in-vector (batch-nodes batch) num-vars)])
       (match node
         [(literal value (app get-representation repr)) (list (const (real->repr value repr)))]
         [(list 'if c t f) (list if-proc c t f)]
         [(list op args ...) (cons (impl-info op 'fl) args)])))
 
-  (make-progs-interpreter vars instructions roots))
+  (make-progs-interpreter (batch-vars batch) instructions (batch-roots batch)))
 
 ;; Compiles a program of operator implementations into a procedure
 ;; that evaluates the program on a single input of representation values

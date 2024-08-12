@@ -103,7 +103,7 @@
     (cons val (random-ref pts)))
   (apply mk-pcontext (cdr (batch-prepare-points evaluator new-sampler))))
 
-(define-resetter *prepend-arguement-cache* (λ () (make-hash)) (λ () (make-hash)))
+(define/reset *prepend-arguement-cache* (make-hash))
 (define (cache-get-prepend v expr macro)
   (define key (cons expr v))
   (define value (hash-ref! (*prepend-arguement-cache*) key (lambda () (macro v))))

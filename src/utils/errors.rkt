@@ -91,9 +91,8 @@
 
 (define *warnings-disabled* (make-parameter false))
 
-(define-resetter warnings (λ () (mutable-set)) (λ () (mutable-set)))
-
-(define-resetter warning-log (λ () '()) (λ () '()))
+(define/reset warnings (mutable-set))
+(define/reset warning-log '())
 
 (define (warn type message #:url [url #f] #:extra [extra '()] . args)
   (unless (or (*warnings-disabled*) (set-member? (warnings) type))

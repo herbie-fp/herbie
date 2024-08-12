@@ -9,9 +9,9 @@
 ;; It uses commutativity, identities, inverses, associativity,
 ;; distributativity, and function inverses.
 
-(define-resetter simplify-cache (λ () (make-hash)) (λ () (make-hash)))
+(define/reset simplify-cache (make-hash))
 
-(define-resetter simplify-node-cache (λ () (make-hash)) (λ () (make-hash)))
+(define/reset simplify-node-cache (make-hash))
 
 ;; This is a transcription of egg-herbie/src/math.rs, lines 97-149
 (define (eval-application op . args)
