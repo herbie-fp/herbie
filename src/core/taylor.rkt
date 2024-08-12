@@ -108,12 +108,12 @@
         [`(exp ,arg)
          (let ([arg* (normalize-series (vector-ref taylor-approxs arg))])
            (if (positive? (car arg*))
-               (taylor-exact (get-expr nodes n))
+               (taylor-exact (batch-ref expr-batch n))
                (taylor-exp (zero-series arg*))))]
         [`(sin ,arg)
          (let ([arg* (normalize-series (vector-ref taylor-approxs arg))])
            (cond
-             [(positive? (car arg*)) (taylor-exact (get-expr nodes n))]
+             [(positive? (car arg*)) (taylor-exact (batch-ref expr-batch n))]
              [(= (car arg*) 0)
               ; Our taylor-sin function assumes that a0 is 0,
               ; because that way it is especially simple. We correct for this here
@@ -125,7 +125,7 @@
         [`(cos ,arg)
          (let ([arg* (normalize-series (vector-ref taylor-approxs arg))])
            (cond
-             [(positive? (car arg*)) (taylor-exact (get-expr nodes n))]
+             [(positive? (car arg*)) (taylor-exact (batch-ref expr-batch n))]
              [(= (car arg*) 0)
               ; Our taylor-cos function assumes that a0 is 0,
               ; because that way it is especially simple. We correct for this here
@@ -139,7 +139,7 @@
         [`(pow ,base ,power)
          #:when (exact-integer? (vector-ref nodes power))
          (taylor-pow (normalize-series (vector-ref taylor-approxs base)) (vector-ref nodes power))]
-        [_ (taylor-exact (get-expr nodes n))]))
+        [_ (taylor-exact (batch-ref expr-batch n))]))
     (vector-set! taylor-approxs n approx))
   (vector-ref taylor-approxs root))
 

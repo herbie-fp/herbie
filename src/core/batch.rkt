@@ -6,7 +6,7 @@
 (provide progs->batch
          batch->progs
          (struct-out batch)
-         get-expr
+         batch-ref
          expand-taylor)
 
 (struct batch ([nodes #:mutable] [roots #:mutable] vars [nodes-length #:mutable]))
@@ -87,7 +87,7 @@
   (define nodes (batch-nodes input-batch))
   (define roots (batch-roots input-batch))
 
-  ; Cache hits to avoid duplications
+  ; Hash to avoid duplications
   (define icache (reverse vars))
   (define exprhash
     (make-hash (for/list ([var vars]
@@ -233,9 +233,9 @@
   (define roots* (vector-map (curry hash-ref mappings) roots))
   (batch nodes* roots* (batch-vars input-batch) (vector-length nodes*)))
 
-(define (get-expr nodes reg)
+(define (batch-ref batch reg)
   (define (unmunge reg)
-    (define node (vector-ref nodes reg))
+    (define node (vector-ref (batch-nodes batch) reg))
     (match node
       [(approx spec impl) (approx spec (unmunge impl))]
       [(list op regs ...) (cons op (map unmunge regs))]
