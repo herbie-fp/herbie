@@ -186,7 +186,8 @@
        (define log-idx (append-node `(log ,div-idx)))
        (define half-idx (append-node 1/2)) ; should it be 1/2 or literal 1/2 or smth?
        (hash-set! mappings n (append-node `(* ,half-idx ,log-idx)))]
-      [(list op args ...) (append-node (cons op (map (curry hash-ref mappings) args)))]
+      [(list op args ...)
+       (hash-set! mappings n (append-node (cons op (map (curry hash-ref mappings) args))))]
       [(approx spec impl) (approx spec (hash-ref mappings impl))]
       [_ (append-node node)]))
 
