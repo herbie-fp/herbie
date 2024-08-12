@@ -30,7 +30,7 @@
          start-job-server)
 
 ; verbose logging for debugging
-(define verbose #t) ; Maybe change to log-level and use 'verbose?
+(define verbose #f) ; Maybe change to log-level and use 'verbose?
 (define (log msg . args)
   (when verbose
     (apply eprintf msg args)))
@@ -68,8 +68,8 @@
 (define (job-count)
   (define-values (a b) (place-channel))
   (place-channel-put receptionist (list 'count b))
-  (log "Checking current job count\n")
   (define count (place-channel-get a))
+  (log "Current job count: ~a.\n" count)
   count)
 
 ;; Starts a job for a given command object|
@@ -86,11 +86,11 @@
   (log "Done waiting for: ~a\n" job-id)
   finished-result)
 
-; TODO get this to work, how do I allow args to be optional
+; TODO refactor using this helper.
 (define (receptionist-ask msg . args)
   (define-values (a b) (place-channel))
   (place-channel-put receptionist (cons msg b args))
-  (log "Checking current job count\n" msg args)
+  (log "Asking receptionist: ~a, ~a.\n" msg args)
   (place-channel-get a))
 
 (define (is-server-up)
@@ -107,7 +107,8 @@
 (define receptionist-dead-event #f)
 
 (define (get-command herbie-result)
-  ; force symbol type to string
+  ; force symbol type to string.
+  ; This is a HACK to fix JSON parsing errors that may or may not still happen.
   (~s (job-result-command herbie-result)))
 
 (define (compute-job-id job-info)
