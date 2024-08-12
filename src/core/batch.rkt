@@ -189,7 +189,7 @@
       [(list op args ...)
        (hash-set! mappings n (append-node (cons op (map (curry hash-ref mappings) args))))]
       [(approx spec impl) (approx spec (hash-ref mappings impl))]
-      [_ (append-node node)]))
+      [_ (hash-set! mappings n (append-node node))]))
 
   (define roots* (vector-map (curry hash-ref mappings) roots))
   (define nodes* (list->vector (reverse icache)))

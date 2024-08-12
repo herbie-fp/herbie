@@ -13,11 +13,12 @@
   (match-define (cons offset coeffs) (taylor var expr*))
   (match-define (cons offset* coeffs*) (taylor-old var expr*))
 
-  (when (not (equal? (build-list 7 (zero-series (taylor var expr*)))
-                     (build-list 7 (zero-series (taylor-old var expr*)))))
-    (printf "not equal!!!, ~a\n" expr*)
-    (println (build-list 7 (zero-series (taylor var expr*))))
-    (println (build-list 7 (zero-series (taylor-old var expr*)))))
+  #;(when (not (equal? (build-list 7 (zero-series (taylor var expr*)))
+                       (build-list 7 (zero-series (taylor-old var expr*)))))
+      (printf "not equal!!!, ~a\n" expr*)
+      (println (build-list 7 (zero-series (taylor var expr*))))
+      (println (build-list 7 (zero-series (taylor-old var expr*))))
+      (sleep 10))
 
   (define i 0)
   (define terms '())
