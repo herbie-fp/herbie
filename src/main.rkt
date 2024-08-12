@@ -155,7 +155,7 @@
     [("--quiet") "Print a smaller banner and don't start a browser." (set! quiet? true)]
     [("--threads")
      num
-     "How many jobs to run in parallel: Processor count is the default"
+     "How many jobs to run in parallel: Processor count is the default."
      (set! threads (string->thread-count num))]
     #:args ()
     (run-demo #:quiet quiet?

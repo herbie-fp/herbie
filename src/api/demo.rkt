@@ -430,10 +430,7 @@
                              (define formula (read-syntax 'web (open-input-string formula-str)))
                              (define sample (hash-ref post-data 'sample))
                              (define seed (hash-ref post-data 'seed #f))
-                             (eprintf "Explanations job started on ~a...\n" formula-str)
-
                              (define test (parse-test formula))
-                             (define expr (prog->fpcore (test-input test)))
                              (define pcontext (json->pcontext sample (test-context test)))
                              (define command
                                (create-job 'explanations
@@ -443,11 +440,7 @@
                                            #:profile? #f
                                            #:timeline-disabled? #t))
                              (define id (start-job command))
-                             (define result (wait-for-job id))
-                             (define explanations (job-result-backend result))
-
-                             (eprintf " complete\n")
-                             (hasheq 'explanation explanations 'job id 'path (make-path id)))))
+                             (wait-for-job id))))
 
 (define analyze-endpoint
   (post-with-json-response (lambda (post-data)
@@ -610,7 +603,7 @@
                  #:servlet-current-directory (current-directory)
                  #:manager (create-none-manager #f)
                  #:command-line? true
-                 #:launch-browser? #f
+                 #:launch-browser? (not quiet?)
                  #:banner? (not quiet?)
                  #:servlets-root (web-resource)
                  #:server-root-path (web-resource)

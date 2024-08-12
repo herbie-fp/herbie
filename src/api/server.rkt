@@ -136,6 +136,7 @@
       ['exacts "Ground truth"]
       ['improve "Improve"]
       ['local-error "Local error"]
+      ['explanations "Explanations"]
       ['sample "Sampling"]
       [_ (error 'compute-result "unknown command ~a" command)]))
   (eprintf "~a Job ~a started:\n  ~a ~a...\n" job-label (symbol->string command) job-id job-str))
@@ -264,11 +265,23 @@
             ['exacts (make-exacts-result herbie-result job-id)]
             ['improve (make-improve-result herbie-result test job-id)]
             ['local-error (make-local-error-result herbie-result test job-id)]
+            ['explanations (make-explenation-result herbie-result job-id)]
             ['sample (make-sample-result herbie-result test job-id)]
             [_ (error 'compute-result "unknown command ~a" kind)]))
         (log "Job: ~a finished, returning work to receptionist\n" job-id)
         (place-channel-put receptionist
                            (list 'finished receptionist worker-id job-id out-result))]))))
+
+(define (make-explenation-result heribe-result job-id)
+  (define explanations (job-result-backend heribe-result))
+  (hasheq 'command
+          (get-command heribe-result)
+          'explanation
+          explanations
+          'job
+          job-id
+          'path
+          (make-path job-id)))
 
 (define (make-local-error-result herbie-result test job-id)
   (define expr (prog->fpcore (test-input test)))
