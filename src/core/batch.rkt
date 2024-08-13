@@ -34,6 +34,10 @@
        (define node ; This compiles to the register machine
          (match prog
            [(list op args ...) (cons op (map munge-ignore-approx args))]
+           [(? symbol?)
+            (when (zero? varc) ; store own list of vars when not provided
+              (set! vars (cons prog vars)))
+            prog]
            [_ prog]))
        (hash-ref! exprhash
                   node
@@ -49,6 +53,10 @@
       (match prog
         [(approx spec impl) (approx spec (munge-include-approx impl))]
         [(list op args ...) (cons op (map munge-include-approx args))]
+        [(? symbol?)
+         (when (zero? varc) ; store own list of vars when not provided
+           (set! vars (cons prog vars)))
+         prog]
         [_ prog]))
     (hash-ref! exprhash
                node
