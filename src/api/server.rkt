@@ -23,6 +23,7 @@
          get-improve-table-data
          make-improve-result
          get-results-for
+         get-timeline-for
          job-count
          is-server-up
          create-job
@@ -57,6 +58,12 @@
 (define (get-results-for job-id)
   (define-values (a b) (place-channel))
   (place-channel-put manager (list 'result job-id b))
+  (log "Getting result for job: ~a.\n" job-id)
+  (place-channel-get a))
+
+(define (get-timeline-for job-id)
+  (define-values (a b) (place-channel))
+  (place-channel-put manager (list 'timeline job-id b))
   (log "Getting result for job: ~a.\n" job-id)
   (place-channel-get a))
 
@@ -169,6 +176,7 @@
    (define completed-work (make-hash))
    (define busy-workers (make-hash))
    (define waiting-workers (make-hash))
+   (define current-jobs (make-hash))
    (for ([i (in-range worker-count)])
      (hash-set! waiting-workers i (make-worker i)))
    (log "~a workers ready.\n" (hash-count waiting-workers))
@@ -193,6 +201,7 @@
           (log "Starting worker [~a] on [~a].\n"
                (work-item-id job)
                (test-name (herbie-command-test (work-item-command job))))
+          (hash-set! current-jobs (work-item-id job) wid)
           (place-channel-put worker (list 'apply self (work-item-command job) (work-item-id job)))
           (hash-set! reassigned wid worker)
           (hash-set! busy-workers wid worker))
@@ -206,6 +215,7 @@
         (hash-set! completed-work job-id result)
 
         ; move worker to waiting list
+        (hash-remove! current-jobs job-id)
         (hash-set! waiting-workers wid (hash-ref busy-workers wid))
         (hash-remove! busy-workers wid)
 
@@ -229,6 +239,17 @@
         (hash-remove! waiting job-id)]
        ; Get the result for the given id, return false if no work found.
        [(list 'result job-id handler) (place-channel-put handler (hash-ref completed-work job-id #f))]
+       [(list 'timeline job-id handler)
+        (define wid (hash-ref current-jobs job-id #f))
+        (when (not (false? wid))
+          (log "Worker[~a] working on ~a.\n" wid job-id)
+          (define-values (a b) (place-channel))
+          (place-channel-put (hash-ref busy-workers wid) (list 'timeline b))
+          (define timeline (place-channel-get a))
+          (place-channel-put handler timeline))
+        (when (false? wid)
+          (log "WID = FALSE\n")
+          (place-channel-put handler (hash-ref completed-work job-id #f)))]
        ; Returns the current count of working workers.
        [(list 'count handler) (place-channel-put handler (hash-count busy-workers))]
        ; Retreive the improve results for results.json
@@ -284,12 +305,18 @@
                    [job-info (run-job job-info)])
                  (loop seed)))))
    (define timeline (*timeline*))
+   (define current-job-id #f)
    (for ([_ (in-naturals)])
      (match (place-channel-get ch)
        [(list 'apply manager command job-id)
         (set! timeline (*timeline*))
+        (set! current-job-id job-id)
         (log "[~a] working on [~a].\n" job-id (test-name (herbie-command-test command)))
-        (thread-send worker-thread (work manager worker-id job-id command))]))))
+        (thread-send worker-thread (work manager worker-id job-id command))]
+       [(list 'timeline handler)
+        (eprintf "[~a]TIMELINE: ~a\n" worker-id (unbox timeline))
+        (eprintf "Timeline requested from worker[~a] for job ~a\n" worker-id current-job-id)
+        (place-channel-put handler timeline)]))))
 
 (struct work (manager worker-id job-id job))
 
