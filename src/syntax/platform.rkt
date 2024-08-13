@@ -419,10 +419,10 @@
          (apply cost-proc (map loop args itypes))]))))
 
 ;; Rules from impl to spec (fixed for a particular platform)
-(define-resetter *lifting-rules* (λ () (make-hash)) (λ () (make-hash)))
+(define/reset *lifting-rules* (make-hash))
 
 ;; Rules from spec to impl (fixed for a particular platform)
-(define-resetter *lowering-rules* (λ () (make-hash)) (λ () (make-hash)))
+(define/reset *lowering-rules* (make-hash))
 
 ;; Synthesizes the LHS and RHS of lifting/lowering rules.
 (define (impl->rule-parts impl)

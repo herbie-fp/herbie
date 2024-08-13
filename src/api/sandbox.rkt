@@ -46,6 +46,11 @@
         (and (= major 8) (< minor 2))
         (and (= major 8) (= minor 2) (zero? (string-length rest))))))
 
+(define (sample-pcontext vars specification precondition)
+  (define sample (sample-points precondition (list specification) (list (*context*))))
+  (match-define (cons domain pts+exs) sample)
+  (cons domain (apply mk-pcontext pts+exs)))
+
 ;; Partitions a joint pcontext into a training and testing set
 (define (partition-pcontext joint-pcontext)
   (define num-points (pcontext-length joint-pcontext))
@@ -78,10 +83,9 @@
   (define repr (test-output-repr test))
   (match-define (cons _ joint-pcontext)
     (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
-      (setup-context! (test-vars test)
-                      (prog->spec (or (test-spec test) (test-input test)))
-                      (prog->spec (test-pre test))
-                      repr)))
+      (sample-pcontext (test-vars test)
+                       (prog->spec (or (test-spec test) (test-input test)))
+                       (prog->spec (test-pre test)))))
 
   (define-values (_ test-pcontext) (split-pcontext joint-pcontext (*num-points*) (*reeval-pts*)))
   test-pcontext)
@@ -185,10 +189,9 @@
   (define ctx (test-context test))
   (match-define (cons domain-stats joint-pcontext)
     (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
-      (setup-context! (test-vars test)
-                      (prog->spec (or (test-spec test) (test-input test)))
-                      (prog->spec (test-pre test))
-                      repr)))
+      (sample-pcontext (test-vars test)
+                       (prog->spec (or (test-spec test) (test-input test)))
+                       (prog->spec (test-pre test)))))
   (timeline-push! 'bogosity domain-stats)
   (define-values (train-pcontext test-pcontext)
     (split-pcontext joint-pcontext (*num-points*) (*reeval-pts*)))
@@ -267,7 +270,7 @@
     (parameterize ([*timeline-disabled* timeline-disabled?]
                    [*warnings-disabled* false])
       (define start-time (current-inexact-milliseconds))
-      (rollback-improve!)
+      (reset!)
       (*context* (test-context test))
       (*active-platform* (get-platform (*platform-name*)))
       (activate-platform! (*active-platform*))
@@ -275,6 +278,7 @@
       (when seed
         (set-seed! seed))
       (with-handlers ([exn? (curry on-exception start-time)])
+        (timeline-event! 'start) ; Prevents the timeline from being empty.
         (define result
           (match command
             ['alternatives (get-alternatives test pcontext seed)]

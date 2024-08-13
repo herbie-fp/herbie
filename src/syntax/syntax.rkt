@@ -153,11 +153,10 @@
 (define (register-operator! name itypes otype attrib-dict)
   (when (hash-has-key? operators name)
     (error 'register-operator! "operator already registered: ~a" name))
-  ; extract relevant fields
+  ; extract relevant fields and update tables
   (define itypes* (dict-ref attrib-dict 'itype itypes))
   (define otype* (dict-ref attrib-dict 'otype otype))
   (define deprecated? (dict-ref attrib-dict 'deprecated #f))
-  ; update tables
   (define info (operator name itypes* otype* deprecated?))
   (hash-set! operators name info))
 
@@ -324,93 +323,111 @@
 (define (clear-active-operator-impls!)
   (set-clear! active-operator-impls))
 
-;; Register an operator implementation `name` with types `itype` and `otype`.
-(define/contract (register-operator-impl! op name ireprs orepr attrib-dict)
-  (-> symbol? symbol? (listof representation?) representation? (listof pair?) void?)
-  ; extract or generate the spec (and its free variables)
-  (define-values (vars spec)
-    (cond
-      [(dict-has-key? attrib-dict 'spec) ; provided => check for syntax and types
-       (define spec (dict-ref attrib-dict 'spec))
-       (check-spec! name (map representation-type ireprs) (representation-type orepr) spec)
-       (match-define (list (or 'lambda 'λ) vars body) spec)
-       (values vars body)]
-      [else ; not provided => need to generate it
-       (define vars (gen-vars (length ireprs)))
-       (values vars `(,op ,@vars))]))
+;; Collects all operators 
 
-  ; make the context
-  (unless (= (length ireprs) (length vars))
-    (error 'register-operator-impl
-           "~a: spec does not have expected arity; promised ~a, got ~a"
-           op
-           (length ireprs)
-           (length vars)))
-  (define ctx (context vars orepr ireprs))
-
-  ; extract or generate the fpcore translation
-  (define fpcore
+; Registers an operator implementation `name` with context `ctx` and spec `spec.
+; Can optionally specify a floating-point implementation and fpcore translation.
+(define/contract (register-operator-impl! name ctx spec #:fl [fl-proc #f] #:fpcore [fpcore #f])
+  (->* (symbol? context? any/c) (#:fl (or/c procedure? #f) #:fpcore any/c) void?)
+  (match-define (context vars orepr ireprs) ctx)
+  ; check specification
+  (check-spec! name (map representation-type ireprs) (representation-type orepr) spec)
+  ; synthesize operator (if the spec contains exactly one operator)
+  (define op
+    (match spec
+      [(list op (or (? number?) (? symbol?)) ...) op]
+      [_ #f]))
+  ; check or synthesize FPCore translatin
+  (define fpcore*
     (cond
-      ; provided -> TODO: check free variables
-      [(dict-has-key? attrib-dict 'fpcore) (dict-ref attrib-dict 'fpcore)]
+      [fpcore ; provided -> TODO: check free variables, props
+       (match fpcore
+         [`(! ,props ... (,operator ,args ...)) (void)]
+         [`(,operator ,args ...) (void)]
+         [_ (raise-herbie-syntax-error "Invalid fpcore for ~a: ~a" name fpcore)])
+       fpcore]
       [else ; not provided => need to generate it
        (define repr (context-repr ctx))
        (define bool-repr (get-representation 'bool))
        (if (equal? repr bool-repr)
            `(,op ,@vars) ; special case: boolean-valued operations do not need a precision annotation
            `(! :precision ,(representation-name repr) (,op ,@vars)))]))
-
-  ; extract or generate floating-point implementation
-  (define fl-proc
-    (match (dict-ref attrib-dict 'fl #f)
-      [#f ; not provided => need to generate it
+  ; check or synthesize floating-point operation
+  (define fl-proc*
+    (cond
+      [fl-proc ; provided => check arity
+      (unless (procedure-arity-includes? fl-proc (length vars) #t)
+         (error 'register-operator-impl!
+                "~a: procedure does not accept ~a arguments"
+                name
+                (length vars)))
+       fl-proc]
+      [else ; need to generate
        (define compiler (make-real-compiler (list spec) (list ctx)))
        (define fail ((representation-bf->repr (context-repr ctx)) +nan.bf))
        (procedure-rename (lambda pt
                            (define-values (_ exs) (real-apply compiler pt))
                            (if exs (first exs) fail))
-                         name)]
-      [(? procedure? proc) ; provided
-       (define expect-arity (length ireprs))
-       (unless (procedure-arity-includes? proc expect-arity #t)
-         (error 'register-operator-impl!
-                "~a: procedure does not accept ~a arguments"
-                name
-                expect-arity))
-       proc]
-      [bad ; not a procedure
-       (error 'register-operator-impl! "~a: expected a procedure with attribute 'fl ~a" name bad)]))
-
+                         name)]))
   ; update tables
   (define impl (operator-impl name ctx spec fpcore fl-proc))
   (hash-set! operator-impls name impl))
 
-;; Syntactic form for `register-operator-impl!`
 (define-syntax (define-operator-impl stx)
-  (define (bad! why [what #f])
-    (raise-syntax-error 'define-operator-impl why stx what))
-
-  (define (attribute-val key val)
-    (with-syntax ([val val])
-      (syntax-case key (spec fpcore)
-        [spec #''val]
-        [fpcore #''val]
-        [_ #'val])))
-
-  (syntax-case stx ()
-    [(_ (op id itype ...) otype [key val] ...)
+  (define (oops! why [sub-stx #f])
+    (raise-syntax-error 'define-operator-impl why stx sub-stx))
+  (syntax-case stx (:)
+    [(_ (id [var : repr] ...) rtype fields ...)
      (let ([id #'id]
-           [keys (syntax->list #'(key ...))]
-           [vals (syntax->list #'(val ...))])
+           [vars (syntax->list #'(var ...))]
+           [fields #'(fields ...)])
        (unless (identifier? id)
-         (bad! "expected identifier" id))
-       (with-syntax ([id id]
-                     [(val ...) (map attribute-val keys vals)])
-         #'(register-operator-impl! 'op
-                                    'id
-                                    (list (get-representation 'itype) ...)
-                                    (get-representation 'otype)
-                                    (list (cons 'key val) ...))))]))
+         (oops! "expected identifier" id))
+       (for ([var (in-list vars)])
+         (unless (identifier? var)
+           (oops! "expected identifier" var)))
+       (define spec #f)
+       (define core #f)
+       (define fl-expr #f)
+       (let loop ([fields fields])
+         (syntax-case fields ()
+           [()
+            (unless spec
+              (oops! "missing `#:spec` keyword"))
+            (with-syntax ([id id]
+                          [spec spec]
+                          [core core]
+                          [fl-expr fl-expr])
+              #'(register-operator-impl! 'id
+                                         (context '(var ...)
+                                                  (get-representation 'rtype)
+                                                  (list (get-representation 'repr) ...))
+                                         'spec
+                                         #:fl fl-expr
+                                         #:fpcore 'core))]
+           [(#:spec expr rest ...)
+            (cond
+              [spec (oops! "multiple #:spec clauses" stx)]
+              [else
+               (set! spec #'expr)
+               (loop #'(rest ...))])]
+           [(#:spec) (oops! "expected value after keyword `#:spec`" stx)]
+           [(#:fpcore expr rest ...)
+            (cond
+              [core (oops! "multiple #:fpcore clauses" stx)]
+              [else
+               (set! core #'expr)
+               (loop #'(rest ...))])]
+           [(#:fpcore) (oops! "expected value after keyword `#:fpcore`" stx)]
+           [(#:fl expr rest ...)
+            (cond
+              [fl-expr (oops! "multiple #:fl clauses" stx)]
+              [else
+               (set! fl-expr #'expr)
+               (loop #'(rest ...))])]
+           [(#:fl) (oops! "expected value after keyword `#:fl`" stx)]
+           [_ (oops! "bad syntax" fields)])))]
+    [_ (oops! "bad syntax")]))
 
 ;; Extracts the `fpcore` field of an operator implementation
 ;; as a property dictionary and expression.

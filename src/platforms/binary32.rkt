@@ -46,16 +46,43 @@
   (begin
     (define-libm-impls/binary32* (itype ... otype) name ...) ...))
 
-(define-operator-impl (neg neg.f32 binary32)
+(define-operator-impl (neg.f32 [x : binary32])
                       binary32
-                      [spec (lambda (x) (neg x))]
-                      [fpcore (! :precision binary32 (- x))]
-                      [fl fl32-])
+                      #:spec (neg x)
+                      #:fpcore (! :precision binary32 (- x))
+                      #:fl fl32-)
 
-(define-operator-impl (+ +.f32 binary32 binary32) binary32 [fl fl32+])
-(define-operator-impl (- -.f32 binary32 binary32) binary32 [fl fl32-])
-(define-operator-impl (* *.f32 binary32 binary32) binary32 [fl fl32*])
-(define-operator-impl (/ /.f32 binary32 binary32) binary32 [fl fl32/])
+(define-operator-impl (+.f32 [x : binary32] [y : binary32])
+                      binary32
+                      #:spec (+ x y)
+                      #:fpcore (! :precision binary32 (+ x y))
+                      #:fl fl32+)
+                
+(define-operator-impl (-.f32 [x : binary32] [y : binary32])
+                      binary32
+                      #:spec (- x y)
+                      #:fpcore (! :precision binary32 (- x y))
+                      #:fl fl32-)
+
+(define-operator-impl (*.f32 [x : binary32] [y : binary32])
+                      binary32
+                      #:spec (* x y)
+                      #:fpcore (! :precision binary32 (* x y))
+                      #:fl fl32*)
+
+(define-operator-impl (/.f32 [x : binary32] [y : binary32])
+                      binary32
+                      #:spec (/ x y)
+                      #:fpcore (! :precision binary32 (/ x y))
+                      #:fl fl32/)
+
+(define-comparator-impls binary32
+                         [== ==.f32 =]
+                         [!= !=.f32 (negate =)]
+                         [< <.f32 <]
+                         [> >.f32 >]
+                         [<= <=.f32 <=]
+                         [>= >=.f32 >=])
 
 (define-libm-impls/binary32 [(binary32 binary32)
                              (acos acosh
@@ -96,56 +123,48 @@
 (define-libm c_fmaf (fma float float float float))
 
 (when c_expm1f
-  (define-operator-impl (expm1 expm1.f32 binary32)
+  (define-operator-impl (expm1.f32 [x : binary32])
                         binary32
-                        [spec (lambda (x) (- (exp x) 1))]
-                        [fpcore (! :precision binary32 (expm1 x))]
-                        [fl c_expm1f]))
+                        #:spec (- (exp x) 1)
+                        #:fpcore (! :precision binary32 (expm1 x))
+                        #:fl c_expm1f))
 
 (when c_erfcf
-  (define-operator-impl (erfc erfc.f32 binary32)
+  (define-operator-impl (erfc.f32 [x : binary32])
                         binary32
-                        [spec (lambda (x) (- 1 (erf x)))]
-                        [fpcore (! :precision binary32 (erfc x))]
-                        [fl c_erfcf]))
+                        #:spec (- 1 (erf x))
+                        #:fpcore (! :precision binary32 (erfc x))
+                        #:fl c_erfcf))
 
 (when c_log1pf
-  (define-operator-impl (log1p log1p.f32 binary32)
+  (define-operator-impl (log1p.f32 [x : binary32])
                         binary32
-                        [spec (lambda (x) (log (+ 1 x)))]
-                        [fpcore (! :precision binary32 (log1p x))]
-                        [fl c_log1pf]))
+                        #:spec (log (+ 1 x))
+                        #:fpcore (! :precision binary32 (log1p x))
+                        #:fl c_log1pf))
 
 (when c_hypotf
-  (define-operator-impl (hypot hypot.f32 binary32 binary32)
+  (define-operator-impl (hypot.f32 [x : binary32] [y : binary32])
                         binary32
-                        [spec (lambda (x y) (sqrt (+ (* x x) (* y y))))]
-                        [fpcore (! :precision binary32 (hypot x y))]
-                        [fl c_hypotf]))
+                        #:spec (sqrt (+ (* x x) (* y y)))
+                        #:fpcore (! :precision binary32 (hypot x y))
+                        #:fl c_hypotf))
 
 (when c_fmaf
-  (define-operator-impl (fma fma.f32 binary32 binary32 binary32)
+  (define-operator-impl (fma.f32 [x : binary32] [y : binary32] [z : binary32])
                         binary32
-                        [spec (lambda (x y z) (+ (* x y) z))]
-                        [fpcore (! :precision binary32 (fma x y z))]
-                        [fl c_fmaf]))
+                        #:spec (+ (* x y) z)
+                        #:fpcore (! :precision binary32 (fma x y z))
+                        #:fl c_fmaf))
 
-(define-comparator-impls binary32
-                         [== ==.f32 =]
-                         [!= !=.f32 (negate =)]
-                         [< <.f32 <]
-                         [> >.f32 >]
-                         [<= <=.f32 <=]
-                         [>= >=.f32 >=])
-
-(define-operator-impl (cast binary64->binary32 binary64)
+(define-operator-impl (binary64->binary32 [x : binary64])
                       binary32
-                      [spec (lambda (x) x)]
-                      [fpcore (! :precision binary32 (cast x))]
-                      [fl ->float32])
+                      #:spec x
+                      #:fpcore (! :precision binary32 (cast x))
+                      #:fl (curryr ->float32))
 
-(define-operator-impl (cast binary32->binary64 binary32)
+(define-operator-impl (binary32->binary64 [x : binary32])
                       binary64
-                      [spec (lambda (x) x)]
-                      [fpcore (! :precision binary64 (cast x))]
-                      [fl identity])
+                      #:spec x
+                      #:fpcore (! :precision binary64 (cast x))
+                      #:fl identity)

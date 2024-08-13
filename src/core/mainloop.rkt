@@ -1,7 +1,6 @@
 #lang racket
 
 (require "rules.rkt"
-         "../syntax/sugar.rkt"
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
          "alt-table.rkt"
@@ -12,7 +11,6 @@
          "simplify.rkt"
          "../utils/alternative.rkt"
          "../utils/common.rkt"
-         "../utils/float.rkt"
          "explain.rkt"
          "patch.rkt"
          "../syntax/platform.rkt"
@@ -20,72 +18,50 @@
          "preprocess.rkt"
          "programs.rkt"
          "../utils/timeline.rkt"
-         "sampling.rkt"
          "soundiness.rkt")
-(provide (all-defined-out))
+(provide run-improve!)
 
-;; I'm going to use some global state here to make the shell more
-;; friendly to interact with without having to store your own global
-;; state in the repl as you would normally do with debugging. This is
-;; probably a bad idea, and I might change it back later. When
-;; extending, make sure this never gets too complicated to fit in your
-;; head at once, because then global state is going to mess you up.
+;; The Herbie main loop goes through a simple iterative process:
+;;
+;; - Choose a subset of candidates
+;; - Choose a set of subexpressions (locs) in those alts
+;; - Patch (improve) them, generating new candidates
+;; - Evaluate all the new and old candidates and prune to the best
+;;
+;; Each stage is stored in this global variable for REPL debugging.
 
-(struct shellstate (table next-alts locs patched) #:mutable)
-(define-resetter ^shell-state^ (λ () (shellstate #f #f #f #f)) (λ () (shellstate #f #f #f #f)))
-
-(define (^locs^ [newval 'none])
-  (when (not (equal? newval 'none))
-    (set-shellstate-locs! (^shell-state^) newval))
-  (shellstate-locs (^shell-state^)))
-(define (^table^ [newval 'none])
-  (when (not (equal? newval 'none))
-    (set-shellstate-table! (^shell-state^) newval))
-  (shellstate-table (^shell-state^)))
-(define (^next-alts^ [newval 'none])
-  (when (not (equal? newval 'none))
-    (set-shellstate-next-alts! (^shell-state^) newval))
-  (shellstate-next-alts (^shell-state^)))
-(define (^patched^ [newval 'none])
-  (when (not (equal? newval 'none))
-    (set-shellstate-patched! (^shell-state^) newval))
-  (shellstate-patched (^shell-state^)))
+(define/reset ^next-alts^ #f)
+(define/reset ^locs^ #f)
+(define/reset ^patched^ #f)
+(define/reset ^table^ #f)
 
 ;; These high-level functions give the high-level workflow of Herbie:
-;; - First, set up a context by sampling input points
-;; - Then, do some initial steps: preprocessing, explain, and initialize the alt table
-;; - Then, in a loop, choose some alts, localize, run the patch table, and finalize
-;; - Then do regimes, final simplify, add soundiness, and remove preprocessing
-
-(define (setup-context! vars specification precondition repr)
-  (*context* (context vars repr (map (const repr) vars)))
-  (define sample (sample-points precondition (list specification) (list (*context*))))
-  (match-define (cons domain pts+exs) sample)
-  (cons domain (apply mk-pcontext pts+exs)))
+;; - Initial steps: explain, preprocessing, initialize the alt table
+;; - the loop: choose some alts, localize, run the patch table, and finalize
+;; - Final steps: regimes, final simplify, add soundiness, and remove preprocessing
 
 (define (run-improve! initial specification context pcontext)
+  (explain! initial context pcontext)
   (timeline-event! 'preprocess)
   (define-values (simplified preprocessing) (find-preprocessing initial specification context))
   (timeline-push! 'symmetry (map ~a preprocessing))
   (define pcontext* (preprocess-pcontext context pcontext preprocessing))
-  (match-define (and alternatives (cons (alt best _ _ _) _))
-    (mutate! simplified context pcontext* (*num-iterations*)))
+  (*pcontext* pcontext*)
+  (initialize-alt-table! simplified context pcontext*)
+
+  (for ([iteration (in-range (*num-iterations*))]
+        #:break (atab-completed? (^table^)))
+    (run-iter!))
+  (define alternatives (extract!))
+
   (timeline-event! 'preprocess)
+  (define best (alt-expr (first alternatives)))
   (define final-alts
     (for/list ([altern alternatives])
       (alt-add-preprocessing
        altern
        (remove-unnecessary-preprocessing best context pcontext (alt-preprocessing altern)))))
   (values final-alts (remove-unnecessary-preprocessing best context pcontext preprocessing)))
-
-(define (mutate! simplified context pcontext iterations)
-  (*pcontext* pcontext)
-  (explain! simplified context pcontext)
-  (initialize-alt-table! simplified context pcontext)
-  (for ([iteration (in-range iterations)]
-        #:break (atab-completed? (^table^)))
-    (run-iter!))
-  (extract!))
 
 (define (run-iter!)
   (when (^next-alts^)
@@ -95,7 +71,7 @@
 
   (choose-alts!)
   (localize!)
-  (reconstruct! (patch-table-run (^locs^)))
+  (reconstruct! (generate-candidates (^locs^)))
   (finalize-iter!))
 
 (define (extract!)
@@ -141,12 +117,6 @@
   (define new-alts (list (make-alt expr)))
   (define-values (errss costs) (atab-eval-altns (^table^) new-alts (*context*)))
   (^table^ (atab-add-altns (^table^) new-alts errss costs))
-  (void))
-
-(define (rollback-improve!)
-  (rollback-iter!)
-  (reset!)
-  (^table^ #f)
   (void))
 
 ;; The rest of the file is various helper / glue functions used by
@@ -212,12 +182,7 @@
                  #:when true
                  [(cost-diff expr) (in-dict loc-costs)]
                  [_ (in-range (*localize-expressions-limit*))])
-        (timeline-push! 'locations
-                        (~a expr)
-                        "cost-diff"
-                        cost-diff
-                        (not (patch-table-has-expr? expr))
-                        (~a (representation-name repr)))
+        (timeline-push! 'locations (~a expr) "cost-diff" cost-diff)
         expr))
     (set! localized-exprs (remove-duplicates (append localized-exprs cost-localized))))
 
@@ -230,12 +195,7 @@
                  #:when true
                  [(err expr) (in-dict loc-errs)]
                  [_ (in-range (*localize-expressions-limit*))])
-        (timeline-push! 'locations
-                        (~a expr)
-                        "accuracy"
-                        (errors-score err)
-                        (not (patch-table-has-expr? expr))
-                        (~a (representation-name repr)))
+        (timeline-push! 'locations (~a expr) "accuracy" (errors-score err))
         expr))
     (set! localized-exprs (remove-duplicates (append localized-exprs error-localized))))
 
@@ -339,7 +299,7 @@
     (choose-alts!))
   (unless (^locs^)
     (localize!))
-  (reconstruct! (patch-table-run (^locs^)))
+  (reconstruct! (generate-candidates (^locs^)))
   (finalize-iter!)
   (void))
 
@@ -358,9 +318,8 @@
   (timeline-event! 'prune)
   (^table^ (atab-add-altns table simplified errss costs)))
 
-(define (explain! simplified context pcontext)
+(define (explain! expr context pcontext)
   (timeline-event! 'explain)
-  (define expr (alt-expr (car simplified)))
 
   (define-values (fperrors
                   explanations-table
@@ -368,7 +327,7 @@
                   maybe-confusion-matrix
                   total-confusion-matrix
                   freqs)
-    (explain expr (*context*) (*pcontext*)))
+    (explain expr context pcontext))
 
   (for ([fperror (in-list fperrors)])
     (match-define (list expr truth opreds oex upreds uex) fperror)

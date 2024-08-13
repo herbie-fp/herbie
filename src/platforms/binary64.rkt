@@ -46,16 +46,35 @@
   (begin
     (define-libm-impls/binary64* (itype ... otype) name ...) ...))
 
-(define-operator-impl (neg neg.f64 binary64)
+(define-operator-impl (neg.f64 [x : binary64])
                       binary64
-                      [spec (lambda (x) (neg x))]
-                      [fpcore (! :precision binary64 (- x))]
-                      [fl -])
+                      #:spec (neg x)
+                      #:fpcore (! :precision binary64 (- x))
+                      #:fl -)
 
-(define-operator-impl (+ +.f64 binary64 binary64) binary64 [fl +])
-(define-operator-impl (- -.f64 binary64 binary64) binary64 [fl -])
-(define-operator-impl (* *.f64 binary64 binary64) binary64 [fl *])
-(define-operator-impl (/ /.f64 binary64 binary64) binary64 [fl /])
+(define-operator-impl (+.f64 [x : binary64] [y : binary64])
+                      binary64
+                      #:spec (+ x y)
+                      #:fpcore (! :precision binary64 (+ x y))
+                      #:fl +)
+
+(define-operator-impl (-.f64 [x : binary64] [y : binary64])
+                      binary64
+                      #:spec (- x y)
+                      #:fpcore (! :precision binary64 (- x y))
+                      #:fl -)
+
+(define-operator-impl (*.f64 [x : binary64] [y : binary64])
+                      binary64
+                      #:spec (* x y)
+                      #:fpcore (! :precision binary64 (* x y))
+                      #:fl *)
+
+(define-operator-impl (/.f64 [x : binary64] [y : binary64])
+                      binary64
+                      #:spec (/ x y)
+                      #:fpcore (! :precision binary64 (/ x y))
+                      #:fl /)
 
 (define-libm-impls/binary64 [(binary64 binary64)
                              (acos acosh
@@ -96,39 +115,39 @@
 (define-libm c_fma (fma double double double double))
 
 (when c_expm1
-  (define-operator-impl (expm1 expm1.f64 binary64)
+  (define-operator-impl (expm1.f64 [x : binary64])
                         binary64
-                        [spec (lambda (x) (- (exp x) 1))]
-                        [fpcore (! :precision binary64 (expm1 x))]
-                        [fl c_expm1]))
+                        #:spec (- (exp x) 1)
+                        #:fpcore (! :precision binary64 (expm1 x))
+                        #:fl c_expm1))
 
 (when c_erfc
-  (define-operator-impl (erfc erfc.f64 binary64)
+  (define-operator-impl (erfc.f64 [x : binary64])
                         binary64
-                        [spec (lambda (x) (- 1 (erf x)))]
-                        [fpcore (! :precision binary64 (erfc x))]
-                        [fl c_erfc]))
+                        #:spec (- 1 (erf x))
+                        #:fpcore (! :precision binary64 (erfc x))
+                        #:fl c_erfc))
 
 (when c_log1p
-  (define-operator-impl (log1p log1p.f64 binary64)
+  (define-operator-impl (log1p.f64 [x : binary64])
                         binary64
-                        [spec (lambda (x) (log (+ 1 x)))]
-                        [fpcore (! :precision binary64 (log1p x))]
-                        [fl c_log1p]))
+                        #:spec (log (+ 1 x))
+                        #:fpcore (! :precision binary64 (log1p x))
+                        #:fl c_log1p))
 
 (when c_hypot
-  (define-operator-impl (hypot hypot.f64 binary64 binary64)
+  (define-operator-impl (hypot.f64 [x : binary64] [y : binary64])
                         binary64
-                        [spec (lambda (x y) (sqrt (+ (* x x) (* y y))))]
-                        [fpcore (! :precision binary64 (hypot x y))]
-                        [fl c_hypot]))
+                        #:spec (sqrt (+ (* x x) (* y y)))
+                        #:fpcore (! :precision binary64 (hypot x y))
+                        #:fl c_hypot))
 
 (when c_fma
-  (define-operator-impl (fma fma.f64 binary64 binary64 binary64)
+  (define-operator-impl (fma.f64 [x : binary64] [y : binary64] [z : binary64])
                         binary64
-                        [spec (lambda (x y z) (+ (* x y) z))]
-                        [fpcore (! :precision binary64 (fma x y z))]
-                        [fl c_fma]))
+                        #:spec (+ (* x y) z)
+                        #:fpcore (! :precision binary64 (fma x y z))
+                        #:fl c_fma))
 
 (define-comparator-impls binary64
                          [== ==.f64 =]

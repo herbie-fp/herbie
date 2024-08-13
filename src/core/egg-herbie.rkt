@@ -23,9 +23,7 @@
          "../utils/timeline.rkt")
 
 (provide (struct-out egg-runner)
-         untyped-egg-extractor
          typed-egg-extractor
-         default-untyped-egg-cost-proc
          platform-egg-cost-proc
          default-egg-cost-proc
          make-egg-runner
@@ -92,13 +90,16 @@
   (define egg-expr (expr->egg-expr expr eg-data ctx))
   (define root-id (egraph_add_expr ptr (~a egg-expr)))
   ; record all approx specs
-  (let loop ([egg-expr egg-expr])
-    (match egg-expr
+  (let loop ([expr expr])
+    (match expr
       [(? number?) (void)]
+      [(? literal?) (void)]
       [(? symbol?) (void)]
-      [(list '$approx spec impl)
-       (define id (egraph_add_expr ptr (~a spec)))
-       (hash-ref! id->spec id (lambda () spec))
+      [(approx spec impl)
+       (define type (representation-type (repr-of impl ctx)))
+       (define egg-spec (expr->egg-expr spec eg-data ctx))
+       (define id (egraph_add_expr ptr (~a egg-spec)))
+       (hash-ref! id->spec id (lambda () (cons egg-spec type)))
        (loop impl)]
       [(list _ args ...) (for-each loop args)]))
   ; return the id
@@ -444,11 +445,11 @@
     [else (list (rule->egg-rule ru))]))
 
 ;; egg rule cache
-(define-resetter *egg-rule-cache* (λ () (make-hash)) (λ () (make-hash)))
+(define/reset *egg-rule-cache* (make-hash))
 
 ;; Cache mapping name to its canonical rule name
 ;; See `*egg-rules*` for details
-(define-resetter *canon-names* (λ () (make-hash)) (λ () (make-hash)))
+(define/reset *canon-names* (make-hash))
 
 ;; Tries to look up the canonical name of a rule using the cache.
 ;; Obviously dangerous if the cache is invalid.
@@ -473,82 +474,300 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Racket egraph
 ;;
-;; Racket representation of an egraph; just a hashcons data structure
-;; We can think of this as a read-only copy of an egraph for things like
-;; platform-aware extraction and possibly ground-truth evaluation.
-;; This is regraph reborn!
+;; Racket representation of a typed egraph.
+;; Given an e-graph from egg-herbie, we can split every e-class
+;; by type ensuring that every term in an e-class has the same output type.
+;; This trick makes extraction easier.
 
 ;; - eclasses: vector of enodes
-;; - canon: map from egraph id to vector index
-;; - has-leaf?: map from vector index to if the eclass contains a leaf
-;; - constants: map from vector index to if the eclass contains a constant
-;; - parents: parent e-classes of each e-class
+;; - types: vector-map from e-class to type/representation
+;; - leaf?: vector-map from e-class to boolean indicating if it contains a leaf node
+;; - constants: vector-map from e-class to a number or #f
+;; - specs: vector-map from e-class to an approx spec or #f
+;; - parents: vector-map from e-class to its parent e-classes (as a vector)
+;; - canon: map from (Rust) e-class, type to (Racket) e-class
 ;; - egg->herbie: data to translate egg IR to herbie IR
-;; - id->spec: map from id to an approx spec or #f
-(struct regraph (eclasses canon has-leaf? constants parents egg->herbie id->spec))
+(struct regraph (eclasses types leaf? constants specs parents canon egg->herbie))
+
+;; Normalizes a Rust e-class.
+;; Nullary operators are serialized as symbols, so we need to fix them.
+(define (normalize-enode enode egg->herbie)
+  (if (and (symbol? enode) (not (hash-has-key? egg->herbie enode))) (list enode) enode))
+
+;; Returns all representatations (and their types) in the current platform.
+(define (all-reprs/types [pform (*active-platform*)])
+  (remove-duplicates (append-map (lambda (repr) (list repr (representation-type repr)))
+                                 (platform-reprs pform))))
+
+;; Returns the type(s) of an enode so it can be placed in the proper e-class.
+;; Typing rules:
+;;  - numbers: every real representation (or real type)
+;;  - variables: lookup in the `egg->herbie` renaming dictionary
+;;  - `if`: type is every representation (or type) [can prune incorrect ones]
+;;  - `approx`: every real representation [can prune incorrect ones]
+;;  - ops/impls: its output type/representation
+;; NOTE: we can constrain "every" type by using the platform.
+(define (enode-type enode egg->herbie)
+  (match enode
+    [(? number?) (cons 'real (platform-reprs (*active-platform*)))]
+    [(? symbol?)
+     (match-define (cons _ repr) (hash-ref egg->herbie enode))
+     (list repr (representation-type repr))]
+    [(list '$approx _ _) (platform-reprs (*active-platform*))]
+    [(list 'if _ _ _) (all-reprs/types)]
+    [(list (? impl-exists? impl) _ ...) (list (impl-info impl 'otype))]
+    [(list op _ ...) (list (operator-info op 'otype))]))
+
+;; Rebuilds an e-node using typed e-classes
+(define (rebuild-enode enode type lookup)
+  (match enode
+    [(? number?) enode]
+    [(? symbol?) enode]
+    [(list '$approx spec impl)
+     (list '$approx (lookup spec (representation-type type)) (lookup impl type))]
+    [(list 'if cond ift iff)
+     (define cond-type (if (representation? type) (get-representation 'bool) 'bool))
+     (list 'if (lookup cond cond-type) (lookup ift type) (lookup iff type))]
+    [(list (? impl-exists? impl) args ...) (cons impl (map lookup args (impl-info impl 'itype)))]
+    [(list op args ...) (cons op (map lookup args (operator-info op 'itype)))]))
+
+;; Splits untyped eclasses into typed eclasses.
+;; Nodes are duplicated across their possible types.
+(define (split-untyped-eclasses egraph egg->herbie)
+  ; optimization: use two dimensional table for lookups
+  ; first indexed by untyped e-class id, then by type
+  (define egg-id->table (make-hash)) ; natural -> (type -> id)
+  (define egg-id->id (make-hash)) ; (natural, type) -> id [actual table in the result]
+  (define id->eclass (make-hash)) ; natural -> box
+  (define eclass-boxes '()) ; (listof box)
+  (define eclass-types '()) ; (listof any)
+
+  ;; Creates a fresh eclass for a given type.
+  (define (new-eclass eid type)
+    (define id (hash-count egg-id->id))
+    (define eclass (box '()))
+    (hash-set! egg-id->id (cons eid type) id)
+    (hash-set! id->eclass id eclass)
+    (set! eclass-boxes (cons eclass eclass-boxes))
+    (set! eclass-types (cons type eclass-types))
+    id)
+
+  ;; Looks up the canonical id for a given egg id and type.
+  ;; Returns a fresh id if none exists.
+  (define (lookup-id eid type)
+    (define type->id (hash-ref! egg-id->table eid (lambda () (make-hasheq))))
+    (hash-ref! type->id type (lambda () (new-eclass eid type))))
+
+  ;; build typed eclasses
+  (for ([eclass (in-list egraph)])
+    (define eid (car eclass))
+    (for ([enode (in-list (cdr eclass))])
+      (let ([enode (normalize-enode enode egg->herbie)])
+        ; get all possible types for the enode
+        (define types (enode-type enode egg->herbie))
+        (for ([type (in-list types)])
+          ; lookup or create a new typed eclass
+          (define id (lookup-id eid type))
+          (define enode* (rebuild-enode enode type lookup-id))
+          (define eclass (hash-ref id->eclass id))
+          (set-box! eclass (cons enode* (unbox eclass)))))))
+
+  (define eclasses (list->vector (map (compose reverse unbox) (reverse eclass-boxes))))
+  (define types (list->vector (reverse eclass-types)))
+  (values eclasses types egg-id->id))
+
+;; Analyzes eclasses for their properties.
+;; The result are vector-maps from e-class ids to data.
+;;  - parents: parent e-classes (as a vector)
+;;  - leaf?: does the e-class contain a leaf node
+;;  - constants: the e-class constant (if one exists)
+(define (analyze-eclasses eclasses)
+  (define n (vector-length eclasses))
+  (define parents (make-vector n '()))
+  (define leaf? (make-vector n '#f))
+  (define constants (make-vector n #f))
+  (for ([id (in-range n)])
+    (define eclass (vector-ref eclasses id))
+    (for ([enode eclass]) ; might be a list or vector
+      (match enode
+        [(? number? n)
+         (vector-set! leaf? id #t)
+         (vector-set! constants id n)]
+        [(? symbol?) (vector-set! leaf? id #t)]
+        [(list _ ids ...)
+         (when (null? ids)
+           (vector-set! leaf? id #t))
+         (for ([child-id (in-list ids)])
+           (vector-set! parents child-id (cons id (vector-ref parents child-id))))])))
+
+  ; parent map: remove duplicates, convert lists to vectors
+  (for ([id (in-range n)])
+    (define ids (remove-duplicates (vector-ref parents id)))
+    (vector-set! parents id (list->vector ids)))
+
+  (values parents leaf? constants))
+
+;; Prunes e-nodes that are not well-typed.
+;; An e-class is well-typed if it has one well-typed node
+;; A node is well-typed if all of its child e-classes are well-typed.
+(define (prune-ill-typed! eclasses)
+  (define n (vector-length eclasses))
+  (define-values (parents leaf? _) (analyze-eclasses eclasses))
+
+  ;; is the e-class well-typed
+  (define typed? (make-vector n #f))
+
+  (define (enode-typed? enode)
+    (match enode
+      [(? number?) #t]
+      [(? symbol?) #t]
+      [(list _ ids ...)
+       (for/and ([id (in-list ids)])
+         (vector-ref typed? id))]))
+
+  (define (check-typed! dirty?-vec)
+    (define dirty? #f)
+    (define dirty?-vec* (make-vector n #f))
+    (for ([id (in-range n)]
+          #:when (vector-ref dirty?-vec id))
+      (unless (vector-ref typed? id)
+        (define eclass (vector-ref eclasses id))
+        (when (ormap enode-typed? eclass)
+          (vector-set! typed? id #t)
+          (set! dirty? #t)
+          (define parent-ids (vector-ref parents id))
+          (for ([parent-id (in-vector parent-ids)])
+            (vector-set! dirty?-vec* parent-id #t)))))
+    (when dirty?
+      (check-typed! dirty?-vec*)))
+
+  ; mark all well-typed e-classes and prune nodes that are not well-typed
+  (check-typed! (vector-copy leaf?))
+  (for ([id (in-range n)])
+    (define eclass (vector-ref eclasses id))
+    (vector-set! eclasses id (filter enode-typed? eclass)))
+
+  ; sanity check: every child id points to a non-empty e-class
+  (for ([id (in-range n)])
+    (define eclass (vector-ref eclasses id))
+    (for ([enode (in-list eclass)])
+      (match enode
+        [(list _ ids ...)
+         (for ([id (in-list ids)])
+           (when (null? (vector-ref eclasses id))
+             (error 'prune-ill-typed!
+                    "eclass ~a is empty, eclasses ~a"
+                    id
+                    (for/vector #:length n
+                                ([id (in-range n)])
+                      (list id (vector-ref eclasses id))))))]
+        [_ (void)]))))
+
+;; Rebuilds eclasses and associated data after pruning.
+(define (rebuild-eclasses eclasses types egg-id->id)
+  (define n (vector-length eclasses))
+  (define remap (make-vector n #f))
+
+  (define n* 0)
+  (for ([id (in-range n)])
+    (define eclass (vector-ref eclasses id))
+    (unless (null? eclass)
+      (vector-set! remap id n*)
+      (set! n* (add1 n*))))
+
+  ; rebuild eclass vector
+  ; transform each eclass from a list to a vector
+  (define eclasses* (make-vector n* #f))
+  (for ([id (in-range n)]
+        #:when (vector-ref remap id))
+    (define eclass (vector-ref eclasses id))
+    (vector-set! eclasses*
+                 (vector-ref remap id)
+                 (for/vector #:length (length eclass)
+                             ([enode (in-list eclass)])
+                   (match enode
+                     [(? number?) enode]
+                     [(? symbol?) enode]
+                     [(list op ids ...) (cons op (map (lambda (id) (vector-ref remap id)) ids))]))))
+
+  ; rebuild the canonical id map
+  (define egg-id->id* (make-hash))
+  (for ([(k id) (in-hash egg-id->id)])
+    (define id* (vector-ref remap id))
+    (when id*
+      (hash-set! egg-id->id* k id*)))
+
+  ; rebuild the eclass type map
+  (define types*
+    (for/vector #:length n*
+                ([id (in-range n)]
+                 #:when (vector-ref remap id))
+      (vector-ref types id)))
+
+  (values eclasses* types* egg-id->id*))
+
+;; Splits untyped eclasses into typed eclasses,
+;; keeping only the subset of enodes that are well-typed.
+(define (make-typed-eclasses egraph egg->herbie)
+  ;; Step 1: split Rust e-classes by type
+  ;; The result are the eclasses, their types,
+  ;; and a canonicalization map for egg e-class ids
+  (define-values (eclasses types egg-id->id) (split-untyped-eclasses egraph egg->herbie))
+
+  ;; Step 2: keep well-typed e-nodes
+  ;; An e-class is well-typed if it has one well-typed node
+  ;; A node is well-typed if all of its child e-classes are well-typed.
+  (prune-ill-typed! eclasses)
+
+  ;; Step 3: remap e-classes
+  ;; Any empty e-classes must be removed, so we re-map every id
+  (rebuild-eclasses eclasses types egg-id->id))
 
 ;; Constructs a Racket egraph from an S-expr representation.
-(define (sexpr->regraph egraph egg->herbie id->spec)
-  ; total number of e-classes
-  (define n (length egraph))
-  ; canonicalize all e-class ids to [0, n)
-  (define canon (make-hash))
-  (define (canon-id id)
-    (hash-ref! canon id (lambda () (hash-count canon))))
-  ; iterate through eclasses and fill data
-  (define eclasses (make-vector n #f))
-  (define has-leaf? (make-vector n #f))
-  (define constants (make-vector n #f))
-  (define parents (make-vector n '()))
-  (for ([eclass (in-list egraph)])
-    (match-define (cons egg-id egg-nodes) eclass)
-    (define id (canon-id egg-id))
-    (define nodes
-      (for/vector #:length (length egg-nodes)
-                  ([egg-node (in-list egg-nodes)])
-        (match egg-node
-          [(? number?) ; number
-           (vector-set! has-leaf? id #t)
-           (vector-set! constants id egg-node)
-           egg-node]
-          [(? symbol?) ; variable or constant
-           (vector-set! has-leaf? id #t)
-           (if (hash-has-key? egg->herbie egg-node)
-               egg-node ; variable
-               (list egg-node))] ; constant
-          [(list op child-ids ...) ; $approx / application
-           (cond
-             [(null? child-ids) ; application is a constant function
-              (vector-set! has-leaf? id #t)
-              (list op)]
-             [else
-              (define child-ids* (map canon-id child-ids))
-              (for ([child-id (in-list child-ids*)]) ; update parent-child relation
-                (vector-set! parents child-id (cons id (vector-ref parents child-id))))
-              (cons op child-ids*)])]
-          [_ (error 'sexpr->regraph "malformed enode: ~a" egg-node)])))
-    (vector-set! eclasses id nodes))
+(define (datum->regraph egraph egg->herbie id->spec)
+  ;; split the e-classes by type
+  (define-values (eclasses types canon) (make-typed-eclasses egraph egg->herbie))
+  (define n (vector-length eclasses))
 
-  ; dedup parent-child relation and convert to vector
+  ;; analyze each eclass
+  (define parents (make-vector n '()))
+  (define leaf? (make-vector n '#f))
+  (define constants (make-vector n #f))
   (for ([id (in-range n)])
-    (vector-set! parents id (list->vector (remove-duplicates (vector-ref parents id)))))
+    (define eclass (vector-ref eclasses id))
+    (for ([enode (in-vector eclass)])
+      (match enode
+        [(? number? n)
+         (vector-set! leaf? id #t)
+         (vector-set! constants id n)]
+        [(? symbol?) (vector-set! leaf? id #t)]
+        [(list _ ids ...)
+         (when (null? ids)
+           (vector-set! leaf? id #t))
+         (for ([child-id (in-list ids)])
+           (vector-set! parents child-id (cons id (vector-ref parents child-id))))])))
+  ; parent map: remove duplicates, convert lists to vectors
+  (for ([id (in-range n)])
+    (define ids (remove-duplicates (vector-ref parents id)))
+    (vector-set! parents id (list->vector ids)))
 
   ; convert id->spec to a vector-map
-  (define id->spec* (make-vector n #f))
-  (for ([(id spec) (in-hash id->spec)])
-    (vector-set! id->spec* (hash-ref canon id) spec))
-
+  (define specs (make-vector n #f))
+  (for ([(id spec&repr) (in-dict id->spec)])
+    (match-define (cons spec repr) spec&repr)
+    (define id* (hash-ref canon (cons id repr)))
+    (vector-set! specs id* spec))
   ; collect with wrapper
-  (regraph eclasses canon has-leaf? constants parents egg->herbie id->spec*))
+  (regraph eclasses types leaf? constants specs parents canon egg->herbie))
 
 ;; Constructs a Racket egraph from an S-expr representation of
 ;; an egraph and data to translate egg IR to herbie IR.
 (define (make-regraph egraph-data)
   (define egraph-str (egraph-serialize egraph-data))
-  (sexpr->regraph (read (open-input-string egraph-str))
+  (datum->regraph (read (open-input-string egraph-str))
                   (egraph-data-egg->herbie-dict egraph-data)
-                  (for/hash ([(id spec) (in-hash (egraph-data-id->spec egraph-data))])
-                    (values (egraph-find egraph-data id) spec))))
+                  (for/list ([(id spec&repr) (in-hash (egraph-data-id->spec egraph-data))])
+                    (cons (egraph-find egraph-data id) spec&repr))))
 
 ;; Egraph node has children.
 ;; Nullary operators have no children!
@@ -562,14 +781,14 @@
 ;; the eclass's analysis.
 (define (regraph-analyze regraph eclass-proc #:analysis [analysis #f])
   (define eclasses (regraph-eclasses regraph))
-  (define has-leaf? (regraph-has-leaf? regraph))
+  (define leaf? (regraph-leaf? regraph))
   (define parents (regraph-parents regraph))
   (define n (vector-length eclasses))
 
   ; set analysis if not provided
   (unless analysis
     (set! analysis (make-vector n #f)))
-  (define dirty?-vec (vector-copy has-leaf?)) ; visit eclass on next pass?
+  (define dirty?-vec (vector-copy leaf?)) ; visit eclass on next pass?
   (define changed?-vec (make-vector n #f)) ; eclass was changed last iteration
 
   ; run the analysis
@@ -596,132 +815,18 @@
   ; Invariant: all eclasses have an analysis
   (for ([id (in-range n)])
     (unless (vector-ref analysis id)
+      (define types (regraph-types regraph))
       (error 'regraph-analyze
              "analysis not run on all eclasses: ~a ~a"
              eclass-proc
              (for/vector #:length n
                          ([id (in-range n)])
+               (define type (vector-ref types id))
                (define eclass (vector-ref eclasses id))
                (define eclass-analysis (vector-ref analysis id))
-               (list id eclass eclass-analysis)))))
+               (list id type eclass eclass-analysis)))))
 
   analysis)
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Regraph untyped extraction
-;;
-;; Untyped extraction is ideal for extracting real expressions from an egraph.
-;; This style of extractor associates to each eclass a best (cost, node) pair.
-;; The extractor procedure simply takes an eclass id.
-;;
-;; Untyped cost functions take:
-;;  - the regraph we are extracting from
-;;  - a mutable cache (to possibly stash per-node data)
-;;  - the node we are computing cost for
-;;  - unary procedure to get the eclass of an id
-;;
-
-;; The untyped extraction algorithm.
-(define ((untyped-egg-extractor cost-proc) regraph)
-  (define eclasses (regraph-eclasses regraph))
-  (define n (vector-length eclasses))
-
-  ; costs: mapping id to (cost, best node)
-  (define costs (make-vector n #f))
-
-  ; Checks if eclass has a cost
-  (define (eclass-has-cost? id)
-    (vector-ref costs id))
-
-  ; Unsafe lookup of eclass cost
-  (define (unsafe-eclass-cost id)
-    (car (vector-ref costs id)))
-
-  ; Computes the current cost of a node if its children have a cost
-  ; Cost function has access to a mutable value through `cache`
-  (define cache (box #f))
-  (define (node-cost node changed?-vec)
-    (if (node-has-children? node)
-        (let ([child-ids (cdr node)]) ; (op child ...)
-          ; compute the cost if at least one child eclass has a new analysis
-          ; ... and an analysis exists for all the child eclasses
-          (and (ormap (lambda (id) (vector-ref changed?-vec id)) child-ids)
-               (andmap eclass-has-cost? child-ids)
-               (cost-proc regraph cache node unsafe-eclass-cost)))
-        (cost-proc regraph cache node unsafe-eclass-cost)))
-
-  ; Updates the cost of the current eclass.
-  ; Returns #t if the cost of the current eclass has improved.
-  (define (eclass-set-cost! _ changed?-vec iter eclass id)
-    ; Optimization: we only need to update node cost as needed.
-    ;  (i) terminals, nullary operators: only compute once
-    ;  (ii) non-nullary operators: compute when any of its child eclasses
-    ;       have their analysis updated
-    (define (node-requires-update? node)
-      (if (node-has-children? node)
-          (ormap (lambda (id) (vector-ref changed?-vec id)) (cdr node))
-          (= iter 0)))
-
-    (define new-cost
-      (for/fold ([best #f]) ([node (in-vector eclass)])
-        (cond
-          [(node-requires-update? node)
-           (define cost (node-cost node changed?-vec))
-           (match* (best cost)
-             [(_ #f) best]
-             [(#f _) (cons cost node)]
-             [(_ _)
-              #:when (< cost (car best))
-              (cons cost node)]
-             [(_ _) best])]
-          [else best])))
-
-    (cond
-      [new-cost
-       (define prev-cost (vector-ref costs id))
-       (cond
-         [(or (not prev-cost) ; first time
-              (< (car new-cost) (car prev-cost)))
-          (vector-set! costs id new-cost)
-          #t]
-         [else #f])]
-      [else #f]))
-
-  ; run the analysis
-  (set! costs (regraph-analyze regraph eclass-set-cost! #:analysis costs))
-
-  ; reconstructs the best expression at a node
-  (define id->spec (regraph-id->spec regraph))
-  (define (build-expr id)
-    (match (cdr (vector-ref costs id))
-      [(? number? n) n] ; number
-      [(? symbol? s) s] ; variable
-      [(list '$approx spec impl) ; approx
-       (match (vector-ref id->spec spec)
-         [#f (error 'build-expr "no initial approx node in eclass ~a" id)]
-         [spec-e (list '$approx spec-e (build-expr impl))])]
-      [(list op ids ...) (cons op (map build-expr ids))] ; application
-      [e (error 'untyped-extraction-proc "unexpected node" e)]))
-
-  ; the actual extraction procedure
-  (lambda (id _)
-    (define cost (car (vector-ref costs id)))
-    (cons cost (build-expr id))))
-
-;; Is fractional with odd denominator.
-(define (fraction-with-odd-denominator? frac)
-  (and (rational? frac) (let ([denom (denominator frac)]) (and (> denom 1) (odd? denom)))))
-
-;; The default per-node cost function
-(define (default-untyped-egg-cost-proc regraph cache node rec)
-  (define constants (regraph-constants regraph))
-  (match node
-    [(? number?) 1]
-    [(? symbol?) 1]
-    [(list 'pow _ b e) ; special case for fractional pow
-     (define n (vector-ref constants e))
-     (if (and n (fraction-with-odd-denominator? n)) +inf.0 (+ 1 (rec b) (rec e)))]
-    [(list _ args ...) (apply + 1 (map rec args))]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Regraph typed extraction
@@ -741,144 +846,6 @@
 ;;       - an output type
 ;;       - a default failure value
 ;;
-;; Types are represented as one of the following:
-;;  - (or <type> ..+) union of types
-;;  - <representation>: representation type
-;;  - <type-name>: type-name type
-;;  - #f: inconclusive (possible result of `if` type during analysis)
-
-;; Types are equal?
-(define (type/equal? ty1 ty2)
-  (match* (ty1 ty2)
-    [((list 'or tys1 ...) (list 'or tys2 ...))
-     ; set equality: { tys1 ... } = { tys2 ... }
-     (and (andmap (lambda (ty) (member ty tys1)) tys2) (andmap (lambda (ty) (member ty tys2)) tys1))]
-    [(_ _) (equal? ty1 ty2)]))
-
-;; Subtyping relation, e.g., `t1 :< t2`
-(define (subtype? ty1 ty2)
-  (match* (ty1 ty2)
-    [(_ #f) #f]
-    [((list 'or tys1 ...) (list 'or tys2 ...)) (andmap (lambda (ty) (member ty tys2)) tys1)]
-    [(_ (list 'or tys2 ...)) (member ty1 tys2)]
-    [(_ _) (equal? ty1 ty2)]))
-
-;; Applying the union operation over types
-(define (type/union ty1 . tys)
-  (for/fold ([ty1 ty1]) ([ty2 (in-list tys)])
-    (match* (ty1 ty2)
-      [(#f _) ty2]
-      [(_ #f) ty1]
-      [((list 'or tys1 ...) (list 'or tys2 ...)) (cons 'or (remove-duplicates (append tys1 tys2)))]
-      [((list 'or tys1 ...) _) (if (member ty2 tys1) ty1 (list* 'or ty2 tys1))]
-      [(_ (list 'or tys2 ...)) (if (member ty1 tys2) ty2 (list* 'or ty1 tys2))]
-      [(_ _) (if (equal? ty1 ty2) ty1 (list 'or ty1 ty2))])))
-
-;; Applying the intersection operation over types
-(define (type/intersect ty1 ty2)
-  (match* (ty1 ty2)
-    [((list 'or tys1 ...) (list 'or tys2 ...))
-     (match (for/fold ([tys '()])
-                      ([ty (in-list tys1)]
-                       #:when (member ty tys2))
-              (cons ty tys))
-       ['() #f]
-       [(list ty) ty]
-       [(list tys ...) (cons 'or tys)])]
-    [((list 'or tys1 ...) _) (and (member ty2 tys1) ty2)]
-    [(_ (list 'or tys2 ...)) (and (member ty1 tys2) ty1)]
-    [(_ _) (and (equal? ty1 ty2) ty1)]))
-
-;; Computes the set of extractable types for each eclass.
-(define (regraph-eclass-types egraph)
-  (define egg->herbie (regraph-egg->herbie egraph))
-  (define reprs (platform-reprs (*active-platform*)))
-
-  (define (node->type analysis node)
-    (match node
-      [(? number?)
-       ; NOTE: a number by itself is untyped, but we can constrain
-       ; the type of the number by the platform
-       (for/fold ([ty #f])
-                 ([repr (in-list reprs)]
-                  #:when (eq? (representation-type repr) 'real))
-         (type/union ty repr (representation-type repr)))]
-      [(? symbol?)
-       (define repr (cdr (hash-ref egg->herbie node)))
-       (type/union repr (representation-type repr))]
-      [(list '$approx _ impl) (vector-ref analysis impl)]
-      [(list 'if _ ift iff)
-       (define ift-types (vector-ref analysis ift))
-       (define iff-types (vector-ref analysis iff))
-       (and ift-types iff-types (type/intersect ift-types iff-types))]
-      [(list (? impl-exists? impl) ids ...)
-       (and (andmap subtype? (impl-info impl 'itype) (map (curry vector-ref analysis) ids))
-            (impl-info impl 'otype))]
-      [(list op ids ...)
-       (and (andmap subtype? (operator-info op 'itype) (map (curry vector-ref analysis) ids))
-            (operator-info op 'otype))]))
-
-  ;; Type analysis
-  (define (eclass-set-type! analysis changed?-vec iter eclass id)
-    (define ty (vector-ref analysis id))
-    (define ty*
-      (if (= iter 0)
-          ; first iteration: only run analysis on leaves
-          (for/fold ([ty ty])
-                    ([node (in-vector eclass)]
-                     #:unless (node-has-children? node))
-            (type/union ty (node->type analysis node)))
-          ; other iterations: run only on non-leaves with updated children
-          (for/fold ([ty ty])
-                    ([node (in-vector eclass)]
-                     #:when (and (node-has-children? node)
-                                 (ormap (lambda (id) (vector-ref changed?-vec id)) (cdr node))
-                                 (andmap (lambda (id) (vector-ref analysis id)) (cdr node))))
-            (type/union ty (node->type analysis node)))))
-    (vector-set! analysis id ty*)
-    (not (type/equal? ty ty*)))
-
-  (regraph-analyze egraph eclass-set-type!))
-
-;; Computes the return type (or `#f`) of each node.
-;; If a node is not well-typed, the type is `#f`.
-(define (regraph-node-types regraph)
-  (define eclasses (regraph-eclasses regraph))
-  (define egg->herbie (regraph-egg->herbie regraph))
-  (define n (vector-length eclasses))
-
-  ; Compute the extractable types
-  (define eclass-types (regraph-eclass-types regraph))
-  (define reprs (platform-reprs (*active-platform*)))
-  (define (node->type node)
-    (match node
-      [(? number?)
-       ; NOTE: a number by itself is untyped, but we can constrain
-       ; the type of the number by the platform
-       (for/fold ([ty #f])
-                 ([repr (in-list reprs)]
-                  #:when (eq? (representation-type repr) 'real))
-         (type/union ty repr (representation-type repr)))]
-      [(? symbol?)
-       (define repr (cdr (hash-ref egg->herbie node)))
-       (type/union repr (representation-type repr))]
-      [(list '$approx _ impl) (vector-ref eclass-types impl)]
-      [(list 'if _ ift iff)
-       (define ift-types (vector-ref eclass-types ift))
-       (define iff-types (vector-ref eclass-types iff))
-       (and ift-types iff-types (type/intersect ift-types iff-types))]
-      [(list (? impl-exists? op) _ ...) (impl-info op 'otype)]
-      [(list op _ ...) (operator-info op 'otype)]))
-
-  ; Construct the result
-  (for/vector #:length n
-              ([id (in-range n)])
-    (define eclass (vector-ref eclasses id))
-    (define ty (vector-ref eclass-types id))
-    (for/vector #:length (vector-length eclass)
-                ([node (in-vector eclass)])
-      (define node-ty (node->type node))
-      (and (subtype? node-ty ty) node-ty))))
 
 ;; The typed extraction algorithm.
 ;; Extraction is partial, that is, the result of the extraction
@@ -886,107 +853,46 @@
 ;; at a particular id with a particular output type.
 (define ((typed-egg-extractor cost-proc) regraph)
   (define eclasses (regraph-eclasses regraph))
+  (define types (regraph-types regraph))
   (define n (vector-length eclasses))
 
-  ; compute the extractable types of each well-typed node
-  (define eclass-types (regraph-node-types regraph))
+  ; e-class costs
+  (define costs (make-vector n #f))
 
-  ; costs: mapping eclass id to a table from type to (cost, node) pair
-  (define costs
-    (for/vector #:length n
-                ([id (in-range n)])
-      (define table (make-hash))
-      (define node-types (vector-ref eclass-types id))
-      (for ([ty (in-vector node-types)])
-        (match ty
-          [(list 'or tys ...)
-           (for ([ty (in-list tys)]
-                 #:when (representation? ty))
-             (hash-set! table ty #f))]
-          [(? representation?) (hash-set! table ty #f)]
-          [(? type-name?) (void)]
-          [#f (void)]))
-      table))
+  ; looks up the cost
+  (define (unsafe-eclass-cost id)
+    (car (vector-ref costs id)))
 
-  ; Checks if eclass has a cost
-  (define (eclass-has-cost? id type)
-    (define eclass-costs (vector-ref costs id))
-    (hash-ref eclass-costs type #f))
-
-  ; Unsafe lookup of eclass cost
-  (define (unsafe-eclass-cost id type failure)
-    (define eclass-costs (vector-ref costs id))
-    (cond
-      [(hash-ref eclass-costs type #f)
-       => ; (cost . node) or #f
-       (lambda (cost) (and cost (car cost)))]
-      [else failure]))
-
-  ; Unsafe lookup of best eclass node.
-  ; Returns `#f` if no best eclass exists.
-  (define (unsafe-best-node id type)
-    (define eclass-costs (vector-ref costs id))
-    (cond
-      [(hash-ref eclass-costs type #f)
-       => ; (cost . node) or #f
-       (lambda (cost) (and cost (cdr cost)))]
-      [else #f]))
-
-  ; We cache whether it is safe to apply the cost function on a given node
-  ; for a particular type; once `#t` we need not check the `cost` vector
-  ; to know if it is safe.
-  (define ready?-vec
-    (for/vector #:length n
-                ([id (in-range n)])
-      (define eclass (vector-ref eclasses id))
-      (define node-types (vector-ref eclass-types id))
-      (for/vector #:length (vector-length eclass)
-                  ([ty (in-vector node-types)])
-        (match ty
-          [(list 'or tys ...) (map (lambda (ty) (and (representation? ty) (box #f))) tys)]
-          [(? representation?) (box #f)]
-          [(? type-name?) #f]
-          [#f #f]))))
-
-  (define (slow-node-ready? node type)
+  ; do its children e-classes have a cost
+  (define (node-ready? node)
     (match node
-      [(list '$approx _ impl) (eclass-has-cost? impl type)]
-      [(list 'if cond ift iff)
-       (and (eclass-has-cost? cond (get-representation 'bool))
-            (eclass-has-cost? ift type)
-            (eclass-has-cost? iff type))]
-      [(list (? impl-exists? op) args ...) (andmap eclass-has-cost? args (impl-info op 'itype))]
-      [(list op args ...) (andmap eclass-has-cost? args (operator-info op 'itype))]))
+      [(? number?) #t]
+      [(? symbol?) #t]
+      [(list '$approx _ impl) (vector-ref costs impl)]
+      [(list _ ids ...) (andmap (lambda (id) (vector-ref costs id)) ids)]))
 
-  ; Computes the current cost of a node if its children have a cost
-  ; Cost function has access to a mutable value through `cache`
+  ; computes cost of a node (as long as each of its children have costs)
+  ; cost function has access to a mutable value through `cache`
   (define cache (box #f))
-  (define (node-cost node type ready?)
-    (and (or (not (node-has-children? node))
-             (unbox ready?)
-             (let ([v (slow-node-ready? node type)])
-               (set-box! ready? v)
-               v))
-         (cost-proc regraph cache node type unsafe-eclass-cost)))
+  (define (node-cost node type)
+    (and (node-ready? node) (cost-proc regraph cache node type unsafe-eclass-cost)))
 
-  ; Updates the cost of the current eclass.
-  ; Returns #t if the cost of the current eclass has improved.
+  ; updates the cost of the current eclass.
+  ; returns whether the cost of the current eclass has improved.
   (define (eclass-set-cost! _ changed?-vec iter eclass id)
-    (define node-types (vector-ref eclass-types id))
-    (define eclass-costs (vector-ref costs id))
-    (define ready?/node (vector-ref ready?-vec id))
+    (define type (vector-ref types id))
     (define updated? #f)
 
-    ; Update cost information
-    (define (update-cost! type new-cost node)
+    ; update cost information
+    (define (update-cost! new-cost node)
       (when new-cost
-        (define prev-cost/node (hash-ref eclass-costs type #f))
-        (when (or (not prev-cost/node) ; first cost
-                  (< new-cost (car prev-cost/node))) ; better cost
-          (hash-set! eclass-costs type (cons new-cost node))
+        (define prev-cost&node (vector-ref costs id))
+        (when (or (not prev-cost&node) ; first cost
+                  (< new-cost (car prev-cost&node))) ; better cost
+          (vector-set! costs id (cons new-cost node))
           (set! updated? #t))))
 
-    ; Optimization: we only need to update node cost as needed.
+    ; optimization: we only need to update node cost as needed.
     ;  (i) terminals, nullary operators: only compute once
     ;  (ii) non-nullary operators: compute when any of its child eclasses
     ;       have their analysis updated
@@ -995,82 +901,42 @@
           (ormap (lambda (id) (vector-ref changed?-vec id)) (cdr node))
           (= iter 0)))
 
-    ; Iterate over the nodes
-    (for ([node (in-vector eclass)]
-          [ty (in-vector node-types)]
-          [ready? (in-vector ready?/node)])
-      (match ty
-        [(list 'or tys ...) ; node is a union type (only for some `if` nodes)
-         (for ([ty (in-list tys)]
-               [ready? (in-list ready?)])
-           (when (and (representation? ty) (node-requires-update? node))
-             (define new-cost (node-cost node ty ready?))
-             (update-cost! ty new-cost node)))]
-        [(? representation?) ; node has a specific reprsentation
-         (when (node-requires-update? node)
-           (define new-cost (node-cost node ty ready?))
-           (update-cost! ty new-cost node))]
-        [(? type-name?) (void)] ; type
-        [#f (void)])) ; no type
+    ; iterate over each node
+    (for ([node (in-vector eclass)])
+      (when (node-requires-update? node)
+        (define new-cost (node-cost node type))
+        (update-cost! new-cost node)))
 
     updated?)
 
   ; run the analysis
   (regraph-analyze regraph eclass-set-cost! #:analysis costs)
 
-  ; invariant: all eclasses have a cost for all types
-  (for ([cost (in-vector costs)])
-    (unless (andmap identity (hash-values cost))
-      (error 'typed-egg-extractor "costs not computed for all eclasses ~a" costs)))
-
   ; rebuilds the extracted procedure
-  (define id->spec (regraph-id->spec regraph))
-  (define (build-expr id type)
-    (let/ec
-     return
-     (let loop ([id id]
-                [type type])
-       (match (unsafe-best-node id type)
-         [(? number? n) n] ; number
-         [(? symbol? s) s] ; variable
-         [(list '$approx spec impl) ; approx
-          (match (vector-ref id->spec spec)
-            [#f (error 'build-expr "no initial approx node in eclass ~a" id)]
-            [spec-e (list '$approx spec-e (build-expr impl type))])]
-         [(list 'if cond ift iff) ; if expression
-          (list 'if (loop cond (get-representation 'bool)) (loop ift type) (loop iff type))]
-         ; expression of impls
-         [(list (? impl-exists? impl) ids ...) (cons impl (map loop ids (impl-info impl 'itype)))]
-         ; expression of operators
-         [(list (? operator-exists? op) ids ...) (cons op (map loop ids (operator-info op 'itype)))]
-         [_ (return #f)]))))
+  (define id->spec (regraph-specs regraph))
+  (define (build-expr id)
+    (let loop ([id id])
+      (match (cdr (vector-ref costs id))
+        [(? number? n) n] ; number
+        [(? symbol? s) s] ; variable
+        [(list '$approx spec impl) ; approx
+         (match (vector-ref id->spec spec)
+           [#f (error 'build-expr "no initial approx node in eclass ~a" id)]
+           [spec-e (list '$approx spec-e (build-expr impl))])]
+        ; if expression
+        [(list 'if cond ift iff) (list 'if (loop cond) (loop ift) (loop iff))]
+        ; expression of impls
+        [(list (? impl-exists? impl) ids ...) (cons impl (map loop ids))]
+        ; expression of operators
+        [(list (? operator-exists? op) ids ...) (cons op (map loop ids))])))
 
   ; the actual extraction procedure
-  (lambda (id type) (cons (unsafe-eclass-cost id type +inf.0) (build-expr id type))))
+  ; as long as the `id` is valid, extraction will work
+  (lambda (id) (cons (unsafe-eclass-cost id) (build-expr id))))
 
-;; Per-node cost function according to the platform
-;; `rec` takes an id, type, and failure value
-(define (platform-egg-cost-proc regraph cache node type rec)
-  (define egg->herbie (regraph-egg->herbie regraph))
-  (define node-cost-proc (platform-node-cost-proc (*active-platform*)))
-  (match node
-    ; numbers (repr is unused)
-    [(? number? n) ((node-cost-proc (literal n type) type))]
-    [(? symbol?) ; variables (`egg->herbie` has the repr)
-     (define repr (cdr (hash-ref egg->herbie node)))
-     ((node-cost-proc node repr))]
-    ; approx node
-    [(list '$approx _ impl) (rec impl type +inf.0)]
-    [(list 'if cond ift iff) ; if expression
-     (define cost-proc (node-cost-proc node type))
-     (cost-proc (rec cond (get-representation 'bool) +inf.0)
-                (rec ift type +inf.0)
-                (rec iff type +inf.0))]
-    [(list (? impl-exists? impl) args ...) ; impls
-     (define cost-proc (node-cost-proc node type))
-     (define itypes (impl-info impl 'itype))
-     (apply cost-proc (map (lambda (arg itype) (rec arg itype +inf.0)) args itypes))]
-    [(list _ ...) +inf.0])) ; specs
+;; Is fractional with odd denominator.
+(define (fraction-with-odd-denominator? frac)
+  (and (rational? frac) (let ([denom (denominator frac)]) (and (> denom 1) (odd? denom)))))
 
 ;; Old cost model version
 (define (default-egg-cost-proc regraph cache node type rec)
@@ -1078,86 +944,106 @@
     [(? number?) 1]
     [(? symbol?) 1]
     ; approx node
-    [(list '$approx _ impl) (rec impl type +inf.0)]
-    [(list 'if cond ift iff)
-     (+ 1 (rec cond (get-representation 'bool) +inf.0) (rec ift type +inf.0) (rec iff type +inf.0))]
+    [(list '$approx _ impl) (rec impl)]
+    [(list 'if cond ift iff) (+ 1 (rec cond) (rec ift) (rec iff))]
     [(list (? impl-exists? impl) args ...)
-     (define itypes (impl-info impl 'itype))
-     (match (impl-info impl 'spec)
-       [(list 'pow _ _) ; power
+     (cond
+       [(equal? (impl->operator impl) 'pow)
         (match-define (list b e) args)
         (define n (vector-ref (regraph-constants regraph) e))
-        (if (fraction-with-odd-denominator? n)
-            +inf.0
-            (apply + 1 (map (lambda (arg itype) (rec arg itype +inf.0)) args itypes)))]
-       ; anything else
-       [_ (apply + 1 (map (lambda (arg itype) (rec arg itype +inf.0)) args itypes))])]
-    [(list _ ...) +inf.0]))
+        (if (fraction-with-odd-denominator? n) +inf.0 (+ 1 (rec b) (rec e)))]
+       [else (apply + 1 (map rec args))])]
+    [(list 'pow b e)
+     (define n (vector-ref (regraph-constants regraph) e))
+     (if (fraction-with-odd-denominator? n) +inf.0 (+ 1 (rec b) (rec e)))]
+    [(list _ args ...) (apply + 1 (map rec args))]))
+
+;; Per-node cost function according to the platform
+;; `rec` takes an id, type, and failure value
+(define (platform-egg-cost-proc regraph cache node type rec)
+  (cond
+    [(representation? type)
+     (define egg->herbie (regraph-egg->herbie regraph))
+     (define node-cost-proc (platform-node-cost-proc (*active-platform*)))
+     (match node
+       ; numbers (repr is unused)
+       [(? number? n) ((node-cost-proc (literal n type) type))]
+       [(? symbol?) ; variables (`egg->herbie` has the repr)
+        (define repr (cdr (hash-ref egg->herbie node)))
+        ((node-cost-proc node repr))]
+       ; approx node
+       [(list '$approx _ impl) (rec impl)]
+       [(list 'if cond ift iff) ; if expression
+        (define cost-proc (node-cost-proc node type))
+        (cost-proc (rec cond) (rec ift) (rec iff))]
+       [(list (? impl-exists?) args ...) ; impls
+        (define cost-proc (node-cost-proc node type))
+        (apply cost-proc (map rec args))])]
+    [else (default-egg-cost-proc regraph cache node type rec)]))
 
 ;; Extracts the best expression according to the extractor.
 ;; Result is a single element list.
 (define (regraph-extract-best regraph extract id type)
-  ; extract expr (extraction is partial)
-  (define id* (hash-ref (regraph-canon regraph) id))
-  (match-define (cons _ egg-expr) (extract id* type))
-  ; translate egg IR to Herbie IR
+  (define egg->herbie (regraph-egg->herbie regraph))
+  (define canon (regraph-canon regraph))
+  ; extract expr
+  (define key (cons id type))
   (cond
-    [egg-expr
-     (define egg->herbie (regraph-egg->herbie regraph))
+    ; at least one extractable expression
+    [(hash-has-key? canon key)
+     (define id* (hash-ref canon key))
+     (match-define (cons _ egg-expr) (extract id*))
      (list (egg-parsed->expr (flatten-let egg-expr) egg->herbie type))]
+    ; no extractable expressions
     [else (list)]))
 
 ;; Extracts multiple expressions according to the extractor
 (define (regraph-extract-variants regraph extract id type)
   ; regraph fields
   (define eclasses (regraph-eclasses regraph))
-  (define id->spec (regraph-id->spec regraph))
+  (define id->spec (regraph-specs regraph))
   (define canon (regraph-canon regraph))
 
   ; extract expressions
-  (define id* (hash-ref canon id))
-  (define egg-exprs
-    (reap [sow]
-          (for ([enode (vector-ref eclasses id*)])
-            (match enode
-              [(? number?) (sow enode)]
-              [(? symbol?) (sow enode)]
-              [(list '$approx spec impl)
-               (match (vector-ref id->spec spec)
-                 [#f (error 'regraph-extract-variants "no initial approx node in eclass ~a" id*)]
-                 [spec-e
-                  (match-define (cons _ impl*) (extract impl type))
-                  (when impl*
-                    (sow (list '$approx spec-e impl*)))])]
-              [(list 'if cond ift iff)
-               (match-define (cons _ cond*)
-                 (extract cond (if (representation? type) (get-representation 'bool) 'bool)))
-               (match-define (cons _ ift*) (extract ift type))
-               (match-define (cons _ iff*) (extract iff type))
-               (when (and cond* ift* iff*) ; guard against failed extraction
-                 (sow (list 'if cond* ift* iff*)))]
-              [(list (? impl-exists? impl) ids ...)
-               (when (equal? (impl-info impl 'otype) type)
-                 (define args
-                   (for/list ([id (in-list ids)]
-                              [itype (in-list (impl-info impl 'itype))])
-                     (match-define (cons _ expr) (extract id itype))
-                     expr))
-                 (when (andmap identity args) ; guard against failed extraction
-                   (sow (cons impl args))))]
-              [(list (? operator-exists? op) ids ...)
-               (when (equal? (operator-info op 'otype) type)
-                 (define args
-                   (for/list ([id (in-list ids)]
-                              [itype (in-list (operator-info op 'itype))])
-                     (match-define (cons _ expr) (extract id itype))
-                     expr))
-                 (when (andmap identity args) ; guard against failed extraction
-                   (sow (cons op args))))]))))
-  ; translate egg IR to Herbie IR
-  (define egg->herbie (regraph-egg->herbie regraph))
-  (for/list ([egg-expr (in-list egg-exprs)])
-    (egg-parsed->expr (flatten-let egg-expr) egg->herbie type)))
+  (define key (cons id type))
+  (cond
+    ; at least one extractable expression
+    [(hash-has-key? canon key)
+     (define id* (hash-ref canon key))
+     (define egg-exprs
+       (for/list ([enode (vector-ref eclasses id*)])
+         (match enode
+           [(? number?) enode]
+           [(? symbol?) enode]
+           [(list '$approx spec impl)
+            (define spec* (vector-ref id->spec spec))
+            (unless spec*
+              (error 'regraph-extract-variants "no initial approx node in eclass ~a" id*))
+            (match-define (cons _ impl*) (extract impl))
+            (list '$approx spec* impl*)]
+           [(list 'if cond ift iff)
+            (match-define (cons _ cond*) (extract cond))
+            (match-define (cons _ ift*) (extract ift))
+            (match-define (cons _ iff*) (extract iff))
+            (list 'if cond* ift* iff*)]
+           [(list (? impl-exists? impl) ids ...)
+            (define args
+              (for/list ([id (in-list ids)])
+                (match-define (cons _ expr) (extract id))
+                expr))
+            (cons impl args)]
+           [(list (? operator-exists? op) ids ...)
+            (define args
+              (for/list ([id (in-list ids)])
+                (match-define (cons _ expr) (extract id))
+                expr))
+            (cons op args)])))
+     ; translate egg IR to Herbie IR
+     (define egg->herbie (regraph-egg->herbie regraph))
+     (for/list ([egg-expr (in-list egg-exprs)])
+       (egg-parsed->expr (flatten-let egg-expr) egg->herbie type))]
+    ; no extractable expressions
+    [else (list)]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Scheduler
