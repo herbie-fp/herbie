@@ -125,8 +125,7 @@
                       binary64
                       #:spec (+ (* x y) z)
                       #:fpcore (! :precision binary64 :math-library racket (fma x y z))
-                      #:fl (from-bigfloat bffma)
-                      #:op fma)
+                      #:fl (from-bigfloat bffma))
 
 (define-comparator-impls binary64
                          [== ==.rkt =]

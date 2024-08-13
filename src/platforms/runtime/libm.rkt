@@ -51,18 +51,22 @@
       [integer #'integer]
       [_ (oops! "unknown type" repr)]))
   (syntax-case stx ()
-    [(_ cname (id name itype ...) otype attrib ...)
+    [(_ cname (op name itype ...) otype fields ...)
      (begin
        (unless (identifier? #'cname)
          (oops! "expected identifier" #'cname))
-       (unless (identifier? #'id)
-         (oops! "expected identifier" #'id))
+       (unless (identifier? #'op)
+         (oops! "expected identifier" #'op))
        (unless (identifier? #'name)
          (oops! "expected identifier" #'name))
-       (with-syntax ([(citype ...) (map repr->type (syntax->list #'(itype ...)))]
-                     [cotype (repr->type #'otype)]
-                     [(var ...) (generate-temporaries #'(itype ...))])
+       (with-syntax ([(var ...) (generate-temporaries #'(itype ...))]
+                     [(citype ...) (map repr->type (syntax->list #'(itype ...)))]
+                     [cotype (repr->type #'otype)])
          #'(begin
              (define-libm proc (cname citype ... cotype))
              (when proc
-               (define-operator-impl (name [var : itype] ...) otype #:fl proc #:op id)))))]))
+               (define-operator-impl (name [var : itype] ...)
+                                     otype
+                                     #:spec (op var ...)
+                                     #:fl proc
+                                     fields ...)))))]))

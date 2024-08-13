@@ -90,61 +90,6 @@
     [(itype) (operator-itype info)]
     [(otype) (operator-otype info)]))
 
-;; Checks a specification
-(define (check-spec! name itypes otype spec)
-  (define (bad! fmt . args)
-    (error name "~a in `~a`" (apply format fmt args) spec))
-
-  (define (type-error! expr actual-ty expect-ty)
-    (bad! "expression `~a` has type `~a`, expected `~a`" expr actual-ty expect-ty))
-
-  (define-values (vars body)
-    (match spec
-      [`(,(or 'lambda 'λ) (,vars ...) ,spec)
-       (for ([var (in-list vars)])
-         (unless (symbol? var)
-           (bad! "expected symbol `~a` in `~a`" var spec)))
-       (values vars spec)]
-      [_ (bad! "malformed specification, expected `(lambda <vars> <expr>)`")]))
-
-  (unless (= (length itypes) (length vars))
-    (bad! "arity mismatch; expected ~a, got ~a" (length itypes) (length vars)))
-
-  (define env (map cons vars itypes))
-  (define actual-ty
-    (let type-of ([expr body])
-      (match expr
-        [(? number?) 'real]
-        [(? symbol?)
-         (cond
-           [(assq expr env)
-            =>
-            cdr]
-           [else (bad! "unbound variable `~a`" expr)])]
-        [`(if ,cond ,ift ,iff)
-         (define cond-ty (type-of cond))
-         (unless (equal? cond-ty 'bool)
-           (type-error! cond cond-ty 'bool))
-         (define ift-ty (type-of ift))
-         (define iff-ty (type-of iff))
-         (unless (equal? ift-ty iff-ty)
-           (type-error! iff iff-ty ift-ty))
-         ift-ty]
-        [`(,op ,args ...)
-         (unless (operator-exists? op)
-           (bad! "expected operator at `~a`, got `~a` in `~a`" expr op))
-         (define itypes (operator-info op 'itype))
-         (for ([arg (in-list args)]
-               [itype (in-list itypes)])
-           (define arg-ty (type-of arg))
-           (unless (equal? itype arg-ty)
-             (type-error! arg arg-ty itype)))
-         (operator-info op 'otype)]
-        [_ (bad! "expected an expression, got `~a`" expr)])))
-
-  (unless (equal? actual-ty otype)
-    (type-error! body actual-ty otype)))
-
 ;; Registers an operator with an attribute mapping.
 ;; Panics if an operator with name `name` has already been registered.
 ;; By default, the input types are specified by `itypes`, the output type
@@ -323,7 +268,62 @@
 (define (clear-active-operator-impls!)
   (set-clear! active-operator-impls))
 
-;; Collects all operators 
+;; Collects all operators
+
+;; Expands and checks a specification.
+(define (expand-spec name itypes otype spec)
+  (define (bad! fmt . args)
+    (error name "~a in `~a`" (apply format fmt args) spec))
+
+  (define (type-error! expr actual-ty expect-ty)
+    (bad! "expression `~a` has type `~a`, expected `~a`" expr actual-ty expect-ty))
+
+  (define-values (vars body)
+    (match spec
+      [`(,(or 'lambda 'λ) (,vars ...) ,spec)
+       (for ([var (in-list vars)])
+         (unless (symbol? var)
+           (bad! "expected symbol `~a` in `~a`" var spec)))
+       (values vars spec)]
+      [_ (bad! "malformed specification, expected `(lambda <vars> <expr>)`")]))
+
+  (unless (= (length itypes) (length vars))
+    (bad! "arity mismatch; expected ~a, got ~a" (length itypes) (length vars)))
+
+  (define env (map cons vars itypes))
+  (define actual-ty
+    (let type-of ([expr body])
+      (match expr
+        [(? number?) 'real]
+        [(? symbol?)
+         (cond
+           [(assq expr env)
+            =>
+            cdr]
+           [else (bad! "unbound variable `~a`" expr)])]
+        [`(if ,cond ,ift ,iff)
+         (define cond-ty (type-of cond))
+         (unless (equal? cond-ty 'bool)
+           (type-error! cond cond-ty 'bool))
+         (define ift-ty (type-of ift))
+         (define iff-ty (type-of iff))
+         (unless (equal? ift-ty iff-ty)
+           (type-error! iff iff-ty ift-ty))
+         ift-ty]
+        [`(,op ,args ...)
+         (unless (operator-exists? op)
+           (bad! "expected operator at `~a`, got `~a` in `~a`" expr op))
+         (define itypes (operator-info op 'itype))
+         (for ([arg (in-list args)]
+               [itype (in-list itypes)])
+           (define arg-ty (type-of arg))
+           (unless (equal? itype arg-ty)
+             (type-error! arg arg-ty itype)))
+         (operator-info op 'otype)]
+        [_ (bad! "expected an expression, got `~a`" expr)])))
+
+  (unless (equal? actual-ty otype)
+    (type-error! body actual-ty otype)))
 
 ; Registers an operator implementation `name` with context `ctx` and spec `spec.
 ; Can optionally specify a floating-point implementation and fpcore translation.
@@ -331,7 +331,10 @@
   (->* (symbol? context? any/c) (#:fl (or/c procedure? #f) #:fpcore any/c) void?)
   (match-define (context vars orepr ireprs) ctx)
   ; check specification
-  (check-spec! name (map representation-type ireprs) (representation-type orepr) spec)
+  (expand-spec name
+               (map representation-type ireprs)
+               (representation-type orepr)
+               (list 'lambda vars spec))
   ; synthesize operator (if the spec contains exactly one operator)
   (define op
     (match spec
@@ -356,7 +359,7 @@
   (define fl-proc*
     (cond
       [fl-proc ; provided => check arity
-      (unless (procedure-arity-includes? fl-proc (length vars) #t)
+       (unless (procedure-arity-includes? fl-proc (length vars) #t)
          (error 'register-operator-impl!
                 "~a: procedure does not accept ~a arguments"
                 name

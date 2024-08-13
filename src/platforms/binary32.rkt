@@ -57,7 +57,7 @@
                       #:spec (+ x y)
                       #:fpcore (! :precision binary32 (+ x y))
                       #:fl fl32+)
-                
+
 (define-operator-impl (-.f32 [x : binary32] [y : binary32])
                       binary32
                       #:spec (- x y)

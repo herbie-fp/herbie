@@ -947,12 +947,12 @@
     [(list '$approx _ impl) (rec impl)]
     [(list 'if cond ift iff) (+ 1 (rec cond) (rec ift) (rec iff))]
     [(list (? impl-exists? impl) args ...)
-     (cond
-       [(equal? (impl->operator impl) 'pow)
+     (match (impl-info impl 'spec)
+       [(list 'pow _ _)
         (match-define (list b e) args)
         (define n (vector-ref (regraph-constants regraph) e))
         (if (fraction-with-odd-denominator? n) +inf.0 (+ 1 (rec b) (rec e)))]
-       [else (apply + 1 (map rec args))])]
+       [_ (apply + 1 (map rec args))])]
     [(list 'pow b e)
      (define n (vector-ref (regraph-constants regraph) e))
      (if (fraction-with-odd-denominator? n) +inf.0 (+ 1 (rec b) (rec e)))]
