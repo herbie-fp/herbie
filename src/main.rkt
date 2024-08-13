@@ -49,6 +49,7 @@
 
 (module+ main
   (define quiet? #f)
+  (define browser? #t)
   (define demo-output #f)
   (define demo-log #f)
   (define demo-prefix "/")
@@ -157,9 +158,9 @@
      num
      "How many jobs to run in parallel: Processor count is the default."
      (set! threads (string->thread-count num))]
+    [("--no-broswer") "Run the web demo but don't start a browser." (set! browser? false)]
     #:args ()
     (run-demo #:quiet quiet?
-              #:threads threads
               #:output demo-output
               #:log demo-log
               #:prefix demo-prefix
