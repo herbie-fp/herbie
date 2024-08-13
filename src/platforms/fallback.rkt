@@ -4,7 +4,6 @@
 
 (require math/base
          math/bigfloat
-         math/flonum
          math/special-functions)
 (require "runtime/utils.rkt")
 
@@ -37,8 +36,8 @@
 
 (define-syntax-rule (define-2ary-fallback-operator op fn)
   (define-fallback-operator (op [x : binary64] [y : binary64])
-                            #:spec (op x)
-                            #:fpcore (! :precision binary64 :math-library racket (op x))
+                            #:spec (op x y)
+                            #:fpcore (! :precision binary64 :math-library racket (op x y))
                             #:fl fn))
 
 (define-syntax-rule (define-1ary-fallback-operators [op fn] ...)

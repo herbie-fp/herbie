@@ -426,7 +426,7 @@
                              (eprintf "Explanations job started on ~a...\n" formula-str)
 
                              (define test (parse-test formula))
-                             (define expr (prog->fpcore (test-input test)))
+                             (define expr (prog->fpcore (test-input test) (test-context test)))
                              (define pcontext (json->pcontext sample (test-context test)))
                              (define command
                                (create-job 'explanations

@@ -307,8 +307,13 @@
          ift-ty]
         [`(,op ,args ...)
          (unless (operator-exists? op)
-           (bad! "expected operator at `~a`, got `~a` in `~a`" expr op))
+           (bad! "at `~a`, `~a` not an operator" expr op))
          (define itypes (operator-info op 'itype))
+         (unless (= (length itypes) (length args))
+           (bad! "arity mismatch at `~a`: expected `~a`, got `~a`"
+                 expr
+                 (length itypes)
+                 (length args)))
          (for ([arg (in-list args)]
                [itype (in-list itypes)])
            (define arg-ty (type-of arg))
