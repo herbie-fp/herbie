@@ -339,9 +339,7 @@
    (url main)))
 
 (define (check-status req job-id)
-  (define r (get-results-for job-id))
-  ;; TODO return the current status from the jobs timeline
-  (match r
+  (match (get-timeline-for job-id)
     [#f
      (response 202
                #"Job in progress"

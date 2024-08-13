@@ -17,6 +17,7 @@
          "../utils/common.rkt"
          "../utils/errors.rkt"
          "../utils/float.rkt"
+         "../utils/timeline.rkt"
          (submod "../utils/timeline.rkt" debug))
 
 (provide make-path
@@ -32,7 +33,7 @@
          start-job-server)
 
 ; verbose logging for debugging
-(define verbose #f) ; Maybe change to log-level and use 'verbose?
+(define verbose #t) ; Maybe change to log-level and use 'verbose?
 (define (log msg . args)
   (when verbose
     (apply eprintf msg args)))
@@ -64,7 +65,7 @@
 (define (get-timeline-for job-id)
   (define-values (a b) (place-channel))
   (place-channel-put manager (list 'timeline job-id b))
-  (log "Getting result for job: ~a.\n" job-id)
+  (log "Getting timeline for job: ~a.\n" job-id)
   (place-channel-get a))
 
 (define (get-improve-table-data)
@@ -245,8 +246,8 @@
           (log "Worker[~a] working on ~a.\n" wid job-id)
           (define-values (a b) (place-channel))
           (place-channel-put (hash-ref busy-workers wid) (list 'timeline b))
-          (define timeline (place-channel-get a))
-          (place-channel-put handler timeline))
+          (define requested-timeline (place-channel-get a))
+          (place-channel-put handler requested-timeline))
         (when (false? wid)
           (log "WID = FALSE\n")
           (place-channel-put handler (hash-ref completed-work job-id #f)))]
@@ -326,6 +327,8 @@
 (define (run-job job-info)
   (match-define (work manager worker-id job-id command) job-info)
   (eprintf "run-job: ~a, ~a\n" worker-id job-id)
+  ; (timeline-event! 'start)
+  ; (eprintf "TIMELINE HERE: ~a\n" (unbox *timeline*))
   (define herbie-result (wrapper-run-herbie command job-id))
   (match-define (job-result kind test status time _ _ backend) herbie-result)
   (define out-result
