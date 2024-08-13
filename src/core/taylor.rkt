@@ -12,15 +12,6 @@
   (define expr* (simplify (replace-expression expr var ((car tform) var))))
   (match-define (cons offset coeffs) (taylor var expr*))
 
-  ; Debugging code
-  #;(match-define (cons offset* coeffs*) (taylor-old var expr*))
-  #;(when (not (equal? (build-list 7 (zero-series (taylor var expr*)))
-                       (build-list 7 (zero-series (taylor-old var expr*)))))
-      (printf "not equal!!!, ~a\n" expr*)
-      (println (build-list 7 (zero-series (taylor var expr*))))
-      (println (build-list 7 (zero-series (taylor-old var expr*))))
-      (sleep 10))
-
   (define i 0)
   (define terms '())
 
@@ -35,6 +26,36 @@
       [_
        (set! terms (cons (cons coeff (- i offset 1)) terms))
        (simplify (make-horner ((cdr tform) var) (reverse terms)))]))
+
+  ; Debugging code
+  ;----------------------------------------
+  #;(match-define (cons offset* coeffs*) (taylor-old var expr*))
+  #;(define i* 0)
+  #;(define terms* '())
+  #;(define (next* [iter 0])
+      (define coeff (simplify (replace-expression (coeffs* i*) var ((cdr tform) var))))
+      (set! i* (+ i* 1))
+      (match coeff
+        [0
+         (if (< iter iters)
+             (next* (+ iter 1))
+             (simplify (make-horner ((cdr tform) var) (reverse terms*))))]
+        [_
+         (set! terms* (cons (cons coeff (- i* offset* 1)) terms*))
+         (simplify (make-horner ((cdr tform) var) (reverse terms*)))]))
+
+  #;(when (or (not (equal? offset* offset))
+              (not (equal? (build-list 7 (zero-series (taylor var expr*)))
+                           (build-list 7 (zero-series (taylor-old var expr*))))))
+      (printf "not equal!!!, ~a\n" expr*)
+      (println (build-list 7 (zero-series (taylor var expr*))))
+      (println (build-list 7 (zero-series (taylor-old var expr*))))
+      (sleep 10))
+  #;(when (not (equal? (next 2) (next* 2)))
+      (printf "not equal!!!, ~a\n" expr*)
+      (println (next 2))
+      (println (next* 2)))
+  ;---------------------------------------
   next)
 
 (define (make-horner var terms [start 0])
