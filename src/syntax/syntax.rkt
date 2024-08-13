@@ -615,6 +615,15 @@
     (define shift-val (expt 2 bits))
     (λ (x) (+ (fn x) shift-val)))
 
+  ; for testing: also in <herbie>/reprs/bool.rkt
+  (define-representation (bool bool boolean?)
+                         identity
+                         identity
+                         (λ (x) (= x 0))
+                         (λ (x) (if x 1 0))
+                         1
+                         (const #f))
+
   ; for testing: also in <herbie>/reprs/binary64.rkt
   (define-representation (binary64 real flonum?)
                          bigfloat->flonum
