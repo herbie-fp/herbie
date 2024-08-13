@@ -187,7 +187,7 @@
        (hash-set! mappings n (append-node `(* ,half-idx ,log-idx)))]
       [(list op args ...)
        (hash-set! mappings n (append-node (cons op (map (curry hash-ref mappings) args))))]
-      [(approx spec impl) (approx spec (hash-ref mappings impl))]
+      [(approx spec impl) (hash-set! mappings n (append-node (approx spec (hash-ref mappings impl))))]
       [_ (hash-set! mappings n (append-node node))]))
 
   (define roots* (vector-map (curry hash-ref mappings) roots))
@@ -246,7 +246,7 @@
 (module+ test
   (require rackunit)
   (define (test-expand-taylor expr)
-    (define batch (progs->batch (list expr)))
+    (define batch (progs->batch (list expr) #:ignore-approx #f))
     (define batch* (expand-taylor batch))
     (car (batch->progs batch*)))
 
@@ -266,9 +266,10 @@
   (check-equal? '(cbrt x) (test-expand-taylor '(pow x 1/3)))
   (check-equal? '(cbrt (* x x)) (test-expand-taylor '(pow x 2/3)))
   (check-equal? '(+ 100 (cbrt x)) (test-expand-taylor '(+ 100 (pow x 1/3))))
-  (check-equal? '(+ 100 (cbrt (* x (approx 2 3))))
-                (test-expand-taylor '(+ 100 (pow (* x (approx 2 3)) 1/3))))
-  (check-equal? '(+ (approx 2 3) (cbrt x)) (test-expand-taylor '(+ (approx 2 3) (pow x 1/3)))))
+  (check-equal? `(+ 100 (cbrt (* x ,(approx 2 3))))
+                (test-expand-taylor `(+ 100 (pow (* x ,(approx 2 3)) 1/3))))
+  (check-equal? `(+ ,(approx 2 3) (cbrt x)) (test-expand-taylor `(+ ,(approx 2 3) (pow x 1/3))))
+  (check-equal? `(+ (cbrt x) ,(approx 2 1/3)) (test-expand-taylor `(+ (pow x 1/3) ,(approx 2 1/3)))))
 
 ; Tests for progs->batch and batch->progs
 (module+ test
