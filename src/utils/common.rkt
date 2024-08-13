@@ -60,10 +60,14 @@
 ;; Utility list functions
 
 (define (argmins f lst)
-  (let loop ([lst lst] [best-score #f] [best-elts '()])
+  (let loop ([lst lst]
+             [best-score #f]
+             [best-elts '()])
     (if (null? lst)
         (reverse best-elts)
-        (let* ([elt (car lst)] [lst* (cdr lst)] [score (f elt)])
+        (let* ([elt (car lst)]
+               [lst* (cdr lst)]
+               [score (f elt)])
           (cond
             [(not best-score) (loop lst* score (list elt))]
             [(< score best-score) (loop lst* score (list elt))]
@@ -133,7 +137,10 @@
   (check-false (subsequence? '(1 2 10) l)))
 
 (define (list-set* l p v)
-  (let loop ([l l] [p p] [v v] [i 0])
+  (let loop ([l l]
+             [p p]
+             [v v]
+             [i 0])
     (cond
       [(empty? l) empty]
       [(and (not (empty? p)) (equal? (first p) i))
@@ -288,7 +295,8 @@
 ;; Prop list to dict
 (define/contract (props->dict props)
   (-> list? (listof (cons/c symbol? any/c)))
-  (let loop ([props props] [dict '()])
+  (let loop ([props props]
+             [dict '()])
     (match props
       [(list key val rest ...) (loop rest (dict-set dict key val))]
       [(list key) (error 'props->dict "unmatched key" key)]

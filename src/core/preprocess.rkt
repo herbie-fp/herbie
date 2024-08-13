@@ -113,7 +113,9 @@
   (define abs-instrs '())
   (define negabs-instrs '())
   (define swaps '())
-  (for ([ident (in-list identities)] [expr-equal? (in-list equal?-lst)] #:when expr-equal?)
+  (for ([ident (in-list identities)]
+        [expr-equal? (in-list equal?-lst)]
+        #:when expr-equal?)
     (match ident
       [(list 'even var _) (set! abs-instrs (cons (list 'abs var) abs-instrs))]
       [(list 'odd var _) (set! negabs-instrs (cons (list 'negabs var) negabs-instrs))]
@@ -121,7 +123,8 @@
 
   (define components (connected-components (context-vars ctx) swaps))
   (define sort-instrs
-    (for/list ([component (in-list components)] #:when (> (length component) 1))
+    (for/list ([component (in-list components)]
+               #:when (> (length component) 1))
       (cons 'sort component)))
 
   (define instrs (append abs-instrs negabs-instrs sort-instrs))
@@ -160,7 +163,8 @@
        (error 'instruction->operator "component should always be a subsequence of variables"))
      (define indices (indexes-where variables (curryr member component)))
      (lambda (x y)
-       (let* ([subsequence (map (curry list-ref x) indices)] [sorted (sort* subsequence)])
+       (let* ([subsequence (map (curry list-ref x) indices)]
+              [sorted (sort* subsequence)])
          (values (list-set* x indices sorted) y)))]
     [(list 'abs variable)
      (define index (index-of variables variable))
@@ -188,7 +192,9 @@
                                           preprocessing
                                           #:removed [removed empty])
   (define-values (result newly-removed)
-    (let loop ([preprocessing preprocessing] [i 0] [removed removed])
+    (let loop ([preprocessing preprocessing]
+               [i 0]
+               [removed removed])
       (cond
         [(>= i (length preprocessing)) (values preprocessing removed)]
         [(preprocessing-<=? expression context pcontext (drop-at preprocessing i) preprocessing)

@@ -183,8 +183,14 @@
     (raise-syntax-error 'platform why stx sub-stx))
   (syntax-case stx ()
     [(_ id cs ...)
-     (let ([if-cost #f] [default-cost #f] [optional? #f])
-       (let loop ([cs #'(cs ...)] [impls '()] [costs '()] [reprs '()] [repr-costs '()])
+     (let ([if-cost #f]
+           [default-cost #f]
+           [optional? #f])
+       (let loop ([cs #'(cs ...)]
+                  [impls '()]
+                  [costs '()]
+                  [reprs '()]
+                  [repr-costs '()])
          (syntax-case cs ()
            [()
             (let ([platform-id #'id])
@@ -314,10 +320,13 @@
     (raise-syntax-error 'platform why stx sub-stx))
   (syntax-case stx ()
     [(_ cs ... pform)
-     (let loop ([clauses (syntax->list #'(cs ...))] [repr-filter #f] [op-filter #f])
+     (let loop ([clauses (syntax->list #'(cs ...))]
+                [repr-filter #f]
+                [op-filter #f])
        (syntax-case clauses ()
          [()
-          (with-syntax ([repr-filter repr-filter] [op-filter op-filter])
+          (with-syntax ([repr-filter repr-filter]
+                        [op-filter op-filter])
             #'((make-platform-filter (or repr-filter (const #t)) (or op-filter (const #t))) pform))]
          [(#:representations [reprs ...] rest ...)
           (begin
@@ -395,7 +404,8 @@
   (define bool-repr (get-representation 'bool))
   (define node-cost-proc (platform-node-cost-proc pform))
   (λ (expr repr)
-    (let loop ([expr expr] [repr repr])
+    (let loop ([expr expr]
+               [repr repr])
       (match expr
         [(? literal?) ((node-cost-proc expr repr))]
         [(? symbol?) ((node-cost-proc expr repr))]
@@ -455,7 +465,8 @@
 ;; All possible assignments of implementations.
 (define (impl-combinations ops impls)
   (reap [sow]
-        (let loop ([ops ops] [assigns '()])
+        (let loop ([ops ops]
+                   [assigns '()])
           (match ops
             [(? null?) (sow assigns)]
             [(list 'if rest ...) (loop rest assigns)]
@@ -473,7 +484,8 @@
   (let/ec k
           (define env '())
           (define expr*
-            (let loop ([expr expr] [repr repr])
+            (let loop ([expr expr]
+                       [repr repr])
               (match expr
                 [(? symbol? x) ; variable
                  (match (dict-ref env x #f)
@@ -530,8 +542,8 @@
                  (when itypes*
                    (define name*
                      (string->symbol
-                       (format "~a-~a-~a"
-                               name
-                               (representation-name repr)
-                               (string-join (map (lambda (subst) (~a (cdr subst))) isubst) "-"))))
+                      (format "~a-~a-~a"
+                              name
+                              (representation-name repr)
+                              (string-join (map (lambda (subst) (~a (cdr subst))) isubst) "-"))))
                    (sow (rule name* input* output* itypes* repr)))))]))))

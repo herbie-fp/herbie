@@ -74,7 +74,8 @@
 
 ;; Returns all constant operators (operators with no arguments).
 (define (all-constants)
-  (sort (for/list ([(name rec) (in-hash operators)] #:when (null? (operator-itype rec)))
+  (sort (for/list ([(name rec) (in-hash operators)]
+                   #:when (null? (operator-itype rec)))
           name)
         symbol<?))
 
@@ -133,7 +134,8 @@
          (unless (operator-exists? op)
            (bad! "expected operator at `~a`, got `~a` in `~a`" expr op))
          (define itypes (operator-info op 'itype))
-         (for ([arg (in-list args)] [itype (in-list itypes)])
+         (for ([arg (in-list args)]
+               [itype (in-list itypes)])
            (define arg-ty (type-of arg))
            (unless (equal? itype arg-ty)
              (type-error! arg arg-ty itype)))
@@ -397,10 +399,13 @@
 
   (syntax-case stx ()
     [(_ (op id itype ...) otype [key val] ...)
-     (let ([id #'id] [keys (syntax->list #'(key ...))] [vals (syntax->list #'(val ...))])
+     (let ([id #'id]
+           [keys (syntax->list #'(key ...))]
+           [vals (syntax->list #'(val ...))])
        (unless (identifier? id)
          (bad! "expected identifier" id))
-       (with-syntax ([id id] [(val ...) (map attribute-val keys vals)])
+       (with-syntax ([id id]
+                     [(val ...) (map attribute-val keys vals)])
          #'(register-operator-impl! 'op
                                     'id
                                     (list (get-representation 'itype) ...)
@@ -461,8 +466,8 @@
   (and (symbol? x)
        (impl-exists? x)
        (match (impl-info x 'spec)
-            [(list 'cast _) #t]
-            [_ #f])))
+         [(list 'cast _) #t]
+         [_ #f])))
 
 (define (get-cast-impl irepr orepr #:impls [impls (all-active-operator-impls)])
   (get-fpcore-impl 'cast (repr->prop orepr) (list irepr) #:impls impls))

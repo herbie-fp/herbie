@@ -56,7 +56,9 @@
                        " ")))
 
 (define (expression->type stx prop-dict ctx error!)
-  (let loop ([stx stx] [prop-dict prop-dict] [ctx ctx])
+  (let loop ([stx stx]
+             [prop-dict prop-dict]
+             [ctx ctx])
     (match stx
       [#`,(? number?) (get-representation (dict-ref prop-dict ':precision))]
       [#`,(? variable? x) (context-lookup ctx x)]
@@ -71,12 +73,16 @@
          [_ (impl-info impl 'otype)])]
       [#`(let ([,ids #,exprs] ...) #,body)
        (define ctx*
-         (for/fold ([ctx* ctx]) ([id (in-list ids)] [expr (in-list exprs)])
+         (for/fold ([ctx* ctx])
+                   ([id (in-list ids)]
+                    [expr (in-list exprs)])
            (context-extend ctx* id (loop expr prop-dict ctx))))
        (loop body prop-dict ctx*)]
       [#`(let* ([,ids #,exprs] ...) #,body)
        (define ctx*
-         (for/fold ([ctx* ctx]) ([id (in-list ids)] [expr (in-list exprs)])
+         (for/fold ([ctx* ctx])
+                   ([id (in-list ids)]
+                    [expr (in-list exprs)])
            (context-extend ctx* id (loop expr prop-dict ctx*))))
        (loop body prop-dict ctx*)]
       [#`(if #,branch #,ifstmt #,elsestmt)

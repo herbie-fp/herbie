@@ -236,11 +236,15 @@
       [(list op args ...) (cons op (map loop args))])))
 
 (define (flatten-let expr)
-  (let loop ([expr expr] [env (hash)])
+  (let loop ([expr expr]
+             [env (hash)])
     (match expr
       [(? number?) expr]
       [(? symbol?) (hash-ref env expr expr)]
-      [`(let (,var ,term) ,body) (loop body (hash-set env var (loop term env)))]
+      [`(let (,var
+              ,term)
+          ,body)
+       (loop body (hash-set env var (loop term env)))]
       [`(,op ,args ...) (cons op (map (curryr loop env) args))])))
 
 ;; Converts an S-expr from egg into one Herbie understands
@@ -248,7 +252,8 @@
 ;; we may process mixed spec/impl expressions;
 ;; only need `type` to correctly interpret numbers
 (define (egg-parsed->expr expr rename-dict type)
-  (let loop ([expr expr] [type type])
+  (let loop ([expr expr]
+             [type type])
     (match expr
       [(? number?) (if (representation? type) (literal expr (representation-name type)) expr)]
       [(? symbol?)
@@ -426,7 +431,8 @@
      (define itype (dict-ref (rule-itypes ru) input))
      (unless (type-name? itype)
        (error 'rule->egg-rules "expansive rules over impls is unsound ~a" input))
-     (for/list ([op (all-operators)] #:when (eq? (operator-info op 'otype) itype))
+     (for/list ([op (all-operators)]
+                #:when (eq? (operator-info op 'otype) itype))
        (define itypes (operator-info op 'itype))
        (define vars (map (lambda (_) (gensym)) itypes))
        (rule (sym-append (rule-name ru) '-expand- op)
@@ -571,7 +577,8 @@
     (define dirty? #f)
     (define dirty?-vec* (make-vector n #f))
     (define changed?-vec* (make-vector n #f))
-    (for ([id (in-range n)] #:when (vector-ref dirty?-vec id))
+    (for ([id (in-range n)]
+          #:when (vector-ref dirty?-vec id))
       (define eclass (vector-ref eclasses id))
       (when (eclass-proc analysis changed?-vec iter eclass id)
         ; eclass analysis was updated: need to revisit the parents
@@ -771,7 +778,9 @@
 (define (type/intersect ty1 ty2)
   (match* (ty1 ty2)
     [((list 'or tys1 ...) (list 'or tys2 ...))
-     (match (for/fold ([tys '()]) ([ty (in-list tys1)] #:when (member ty tys2))
+     (match (for/fold ([tys '()])
+                      ([ty (in-list tys1)]
+                       #:when (member ty tys2))
               (cons ty tys))
        ['() #f]
        [(list ty) ty]
@@ -790,7 +799,9 @@
       [(? number?)
        ; NOTE: a number by itself is untyped, but we can constrain
        ; the type of the number by the platform
-       (for/fold ([ty #f]) ([repr (in-list reprs)] #:when (eq? (representation-type repr) 'real))
+       (for/fold ([ty #f])
+                 ([repr (in-list reprs)]
+                  #:when (eq? (representation-type repr) 'real))
          (type/union ty repr (representation-type repr)))]
       [(? symbol?)
        (define repr (cdr (hash-ref egg->herbie node)))
@@ -813,7 +824,9 @@
     (define ty*
       (if (= iter 0)
           ; first iteration: only run analysis on leaves
-          (for/fold ([ty ty]) ([node (in-vector eclass)] #:unless (node-has-children? node))
+          (for/fold ([ty ty])
+                    ([node (in-vector eclass)]
+                     #:unless (node-has-children? node))
             (type/union ty (node->type analysis node)))
           ; other iterations: run only on non-leaves with updated children
           (for/fold ([ty ty])
@@ -842,7 +855,9 @@
       [(? number?)
        ; NOTE: a number by itself is untyped, but we can constrain
        ; the type of the number by the platform
-       (for/fold ([ty #f]) ([repr (in-list reprs)] #:when (eq? (representation-type repr) 'real))
+       (for/fold ([ty #f])
+                 ([repr (in-list reprs)]
+                  #:when (eq? (representation-type repr) 'real))
          (type/union ty repr (representation-type repr)))]
       [(? symbol?)
        (define repr (cdr (hash-ref egg->herbie node)))
@@ -885,7 +900,8 @@
       (for ([ty (in-vector node-types)])
         (match ty
           [(list 'or tys ...)
-           (for ([ty (in-list tys)] #:when (representation? ty))
+           (for ([ty (in-list tys)]
+                 #:when (representation? ty))
              (hash-set! table ty #f))]
           [(? representation?) (hash-set! table ty #f)]
           [(? type-name?) (void)]
@@ -980,10 +996,13 @@
           (= iter 0)))
 
     ; Iterate over the nodes
-    (for ([node (in-vector eclass)] [ty (in-vector node-types)] [ready? (in-vector ready?/node)])
+    (for ([node (in-vector eclass)]
+          [ty (in-vector node-types)]
+          [ready? (in-vector ready?/node)])
       (match ty
         [(list 'or tys ...) ; node is a union type (only for some `if` nodes)
-         (for ([ty (in-list tys)] [ready? (in-list ready?)])
+         (for ([ty (in-list tys)]
+               [ready? (in-list ready?)])
            (when (and (representation? ty) (node-requires-update? node))
              (define new-cost (node-cost node ty ready?))
              (update-cost! ty new-cost node)))]
@@ -1009,7 +1028,8 @@
   (define (build-expr id type)
     (let/ec
      return
-     (let loop ([id id] [type type])
+     (let loop ([id id]
+                [type type])
        (match (unsafe-best-node id type)
          [(? number? n) n] ; number
          [(? symbol? s) s] ; variable
@@ -1119,7 +1139,8 @@
               [(list (? impl-exists? impl) ids ...)
                (when (equal? (impl-info impl 'otype) type)
                  (define args
-                   (for/list ([id (in-list ids)] [itype (in-list (impl-info impl 'itype))])
+                   (for/list ([id (in-list ids)]
+                              [itype (in-list (impl-info impl 'itype))])
                      (match-define (cons _ expr) (extract id itype))
                      expr))
                  (when (andmap identity args) ; guard against failed extraction
@@ -1127,7 +1148,8 @@
               [(list (? operator-exists? op) ids ...)
                (when (equal? (operator-info op 'otype) type)
                  (define args
-                   (for/list ([id (in-list ids)] [itype (in-list (operator-info op 'itype))])
+                   (for/list ([id (in-list ids)]
+                              [itype (in-list (operator-info op 'itype))])
                      (match-define (cons _ expr) (extract id itype))
                      expr))
                  (when (andmap identity args) ; guard against failed extraction
@@ -1187,7 +1209,9 @@
       (define-values (egg-graph* iteration-data) (egraph-run-rules egg-graph egg-rules params))
 
       ; get cost statistics
-      (for/fold ([time 0]) ([iter (in-list iteration-data)] [i (in-naturals)])
+      (for/fold ([time 0])
+                ([iter (in-list iteration-data)]
+                 [i (in-naturals)])
         (define cnt (iteration-data-num-nodes iter))
         (define cost (apply + (map (λ (id) (egraph-get-cost egg-graph* id i)) root-ids)))
         (define new-time (+ time (iteration-data-time iter)))
@@ -1277,16 +1301,19 @@
      (define regraph (make-regraph egg-graph))
      (define extract-id (extractor regraph))
      (define reprs (egg-runner-reprs runner))
-     (for/list ([id (in-list root-ids)] [repr (in-list reprs)])
+     (for/list ([id (in-list root-ids)]
+                [repr (in-list reprs)])
        (regraph-extract-best regraph extract-id id repr))]
     [`(multi . ,extractor) ; multi expression extraction
      (define regraph (make-regraph egg-graph))
      (define extract-id (extractor regraph))
      (define reprs (egg-runner-reprs runner))
-     (for/list ([id (in-list root-ids)] [repr (in-list reprs)])
+     (for/list ([id (in-list root-ids)]
+                [repr (in-list reprs)])
        (regraph-extract-variants regraph extract-id id repr))]
     [`(proofs . ((,start-exprs . ,end-exprs) ...)) ; proof extraction
-     (for/list ([start (in-list start-exprs)] [end (in-list end-exprs)])
+     (for/list ([start (in-list start-exprs)]
+                [end (in-list end-exprs)])
        (unless (egraph-expr-equal? egg-graph start end ctx)
          (error 'run-egg
                 "cannot find proof; start and end are not equal.\n start: ~a \n end: ~a"
@@ -1297,6 +1324,7 @@
          (error 'run-egg "proof extraction failed between`~a` and `~a`" start end))
        proof)]
     [`(equal? . ((,start-exprs . ,end-exprs) ...)) ; term equality?
-     (for/list ([start (in-list start-exprs)] [end (in-list end-exprs)])
+     (for/list ([start (in-list start-exprs)]
+                [end (in-list end-exprs)])
        (egraph-expr-equal? egg-graph start end ctx))]
     [_ (error 'run-egg "unknown command `~a`\n" cmd)]))

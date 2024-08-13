@@ -8,7 +8,8 @@
 (provide assert-program!)
 
 (define (check-expression* stx vars error! deprecated-ops)
-  (let loop ([stx stx] [vars vars])
+  (let loop ([stx stx]
+             [vars vars])
     (match stx
       [#`,(? number?) (void)]
       [#`,(? constant-operator?) (void)]
@@ -17,7 +18,9 @@
          (error! stx "Unknown variable ~a" var))]
       [#`(let* ([#,vars* #,vals] ...) #,body)
        (define bindings
-         (for/fold ([vars vars]) ([var vars*] [val vals])
+         (for/fold ([vars vars])
+                   ([var vars*]
+                    [val vals])
            (unless (identifier? var)
              (error! var "Invalid variable name ~a" var))
            (loop val vars)
@@ -25,7 +28,8 @@
        (loop body bindings)]
       [#`(let ([#,vars* #,vals] ...) #,body)
        ;; These are unfolded by desugaring
-       (for ([var vars*] [val vals])
+       (for ([var vars*]
+             [val vals])
          (unless (identifier? var)
            (error! var "Invalid variable name ~a" var))
          (loop val vars))
@@ -101,7 +105,8 @@
 
 (define (check-properties* props vars error! deprecated-ops)
   (define prop-dict
-    (let loop ([props props] [out '()])
+    (let loop ([props props]
+               [out '()])
       (match props
         [(list (? identifier? prop-name) value rest ...)
          (check-property* prop-name error!)
@@ -131,7 +136,8 @@
   (when (dict-has-key? prop-dict ':cite)
     (define cite (dict-ref prop-dict ':cite))
     (if (list? (syntax-e cite))
-        (for ([citation (syntax-e cite)] #:unless (identifier? citation))
+        (for ([citation (syntax-e cite)]
+              #:unless (identifier? citation))
           (error! citation "Invalid citation ~a; must be a variable name" citation))
         (error! cite "Invalid :cite ~a; must be a list" cite)))
 
@@ -148,7 +154,8 @@
     (error! stx "Invalid arguments list ~a; must be a list" stx))
   (define vars* (filter identifier? vars))
   (when (list? vars)
-    (for ([var vars] #:unless (identifier? var))
+    (for ([var vars]
+          #:unless (identifier? var))
       (error! stx "Argument ~a is not a variable name" var))
     (when (check-duplicate-identifier vars*)
       (error! stx "Duplicate argument name ~a" (check-duplicate-identifier vars*))))

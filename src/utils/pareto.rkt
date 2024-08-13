@@ -38,7 +38,8 @@
 ;; and returns the Pareto-optimal subset of their union.
 ;; The curves most be sorted using the same method.
 (define (pareto-union curve1 curve2)
-  (let loop ([curve1 curve1] [curve2 curve2])
+  (let loop ([curve1 curve1]
+             [curve2 curve2])
     ; The curve is sorted so that highest accuracy is first
     (match* (curve1 curve2)
       [('() _) curve2]
@@ -59,7 +60,8 @@
 ;; Takes a Pareto frontier and returns the subset of
 ;; points that are convex.
 (define (pareto-convex ppts)
-  (let loop ([ppts* '()] [ppts ppts])
+  (let loop ([ppts* '()]
+             [ppts ppts])
     (match ppts
       [(list p0 p1 p2 pns ...)
        (match-define (pareto-point p0x p0y _) p0)
@@ -90,10 +92,14 @@
   (define (finalize f)
     (if convex? (pareto-convex f) f))
   (define frontiers* (map (λ (f) (pareto-minimize (map pt->ppt f))) frontiers))
-  (for/fold ([combined (list)] #:result (map ppt->pt combined)) ([frontier (in-list frontiers*)])
+  (for/fold ([combined (list)]
+             #:result (map ppt->pt combined))
+            ([frontier (in-list frontiers*)])
     (if (null? combined)
         (finalize frontier)
-        (for/fold ([combined* (list)] #:result (finalize combined*)) ([ppt (in-list combined)])
+        (for/fold ([combined* (list)]
+                   #:result (finalize combined*))
+                  ([ppt (in-list combined)])
           (let ([ppts (pareto-minimize (pareto-shift ppt frontier))])
             (pareto-union ppts combined*))))))
 

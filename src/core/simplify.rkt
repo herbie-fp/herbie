@@ -25,7 +25,8 @@
 
   (define simplifieds (run-egg runner (cons 'single extractor)))
   (define out
-    (for/list ([simplified simplifieds] [expr (egg-runner-exprs runner)])
+    (for/list ([simplified simplifieds]
+               [expr (egg-runner-exprs runner)])
       (remove-duplicates (cons expr simplified))))
 
   (timeline-push! 'outputs (map ~a (apply append out)))
@@ -76,7 +77,8 @@
 
   (*timeline-disabled* true)
   (define outputs (apply test-simplify (dict-keys test-exprs)))
-  (for ([(original target) (in-dict test-exprs)] [output outputs])
+  (for ([(original target) (in-dict test-exprs)]
+        [output outputs])
     (with-check-info (['original original]) (check-equal? output target)))
 
   (check set-member? '((* x 6) (* 6 x)) (first (test-simplify '(+ (+ (+ (+ (+ x x) x) x) x) x))))

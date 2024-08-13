@@ -101,7 +101,8 @@
 ;;
 
 (define ((type/repr-of-rule op-info name) input output ctx)
-  (let loop ([input input] [output output])
+  (let loop ([input input]
+             [output output])
     (match* (input output)
       ; first, try the input expression
       ; special case for `if` expressions
@@ -724,7 +725,7 @@
 
 ; Specialized numerical functions
 ; TODO: These are technically rules over impls
-; 
+;
 ; (define-ruleset* special-numerical-reduce
 ;                  (numerics simplify)
 ;                  #:type ([x real] [y real] [z real])

@@ -22,7 +22,9 @@
     [((list phead prest ...) (list head rest ...))
      (and (equal? phead head)
           (= (length prest) (length rest))
-          (for/fold ([bindings '()]) ([pat (in-list prest)] [term (in-list rest)])
+          (for/fold ([bindings '()])
+                    ([pat (in-list prest)]
+                     [term (in-list rest)])
             (merge-bindings bindings (pattern-match pat term))))]
     [(_ _) #f]))
 

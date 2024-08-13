@@ -48,14 +48,16 @@
     [#`(let* ([#,vars #,vals] ...) #,body)
      (datum->syntax #f
                     (list 'let*
-                          (for/list ([var (in-list vars)] [val (in-list vals)])
+                          (for/list ([var (in-list vars)]
+                                     [val (in-list vals)])
                             (list var (expand val)))
                           (expand body))
                     stx)]
     [#`(let ([#,vars #,vals] ...) #,body)
      (datum->syntax #f
                     (list 'let
-                          (for/list ([var (in-list vars)] [val (in-list vals)])
+                          (for/list ([var (in-list vars)]
+                                     [val (in-list vals)])
                             (list var (expand val)))
                           (expand body))
                     stx)]
@@ -84,7 +86,8 @@
      (unless (null? rest)
        (warn 'variary-operator "~a is deprecated as a variary operator" op))
      (define prev (datum->syntax #f (list op (expand arg1) (expand arg2)) stx))
-     (let loop ([prev prev] [rest rest])
+     (let loop ([prev prev]
+                [rest rest])
        (match rest
          [(list) prev]
          [(list next rest ...)
@@ -93,7 +96,9 @@
     [#`(,(and (or '< '<= '> '>= '=) op) #,args ...)
      (define args* (map expand args))
      (define out
-       (for/fold ([out #f]) ([term args*] [next (cdr args*)])
+       (for/fold ([out #f])
+                 ([term args*]
+                  [next (cdr args*)])
          (datum->syntax #f (if out (list 'and out (list op term next)) (list op term next)) term)))
      (or out (datum->syntax #f 'TRUE stx))]
     [#`(!= #,args ...)
@@ -168,7 +173,8 @@
   (define pre* (fpcore->prog (dict-ref prop-dict ':pre 'TRUE) ctx))
 
   (define targets
-    (for/list ([(key val) (in-dict prop-dict)] #:when (eq? key ':alt))
+    (for/list ([(key val) (in-dict prop-dict)]
+               #:when (eq? key ':alt))
       (match (parse-platform-name val) ; plat-name is symbol or #f
         ; If plat-name extracted, check if name matches
         [(? symbol? plat-name) (cons val (equal? plat-name (*platform-name*)))]
@@ -193,7 +199,8 @@
         pre*
         (dict-ref prop-dict ':herbie-preprocess empty)
         (representation-name default-repr)
-        (for/list ([var (in-list var-names)] [repr (in-list var-reprs)])
+        (for/list ([var (in-list var-names)]
+                   [repr (in-list var-reprs)])
           (cons var (representation-name repr)))))
 
 (define (check-unused-variables vars precondition expr)
@@ -212,7 +219,8 @@
           (string-join (map ~a unused) ", "))))
 
 (define (check-weird-variables vars)
-  (for* ([var vars] [const (all-constants)])
+  (for* ([var vars]
+         [const (all-constants)])
     (when (string-ci=? (symbol->string var) (symbol->string const))
       (warn 'strange-variable
             #:url "faq.html#strange-variable"

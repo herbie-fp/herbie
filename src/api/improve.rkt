@@ -9,7 +9,9 @@
 (define (print-outputs tests results p #:seed [seed #f])
   (when seed
     (fprintf p ";; seed: ~a\n\n" seed))
-  (for ([res results] [test tests] #:when res)
+  (for ([res results]
+        [test tests]
+        #:when res)
     (define name (table-row-name res))
     (match (table-row-status res)
       ["error"

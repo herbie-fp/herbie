@@ -152,7 +152,10 @@
                        ,dropdown
                        ,(render-help "report.html#alternatives"))
                    ,body))
-      ,@(for/list ([i (in-naturals 1)] [alt end-alts] [errs end-errors] [cost end-costs])
+      ,@(for/list ([i (in-naturals 1)]
+                   [alt end-alts]
+                   [errs end-errors]
+                   [cost end-costs])
           (define-values (dropdown body)
             (render-program (alt-expr alt) ctx #:ident identifier #:instructions preprocessing))
           `(section ([id ,(format "alternative~a" i)] (class "programs"))

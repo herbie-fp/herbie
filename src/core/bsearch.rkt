@@ -55,7 +55,9 @@
      (alt expr* (list 'regimes splitpoints*) alts* '())]))
 
 (define (remove-unused-alts alts splitpoints)
-  (for/fold ([alts* '()] [splitpoints* '()]) ([splitpoint splitpoints])
+  (for/fold ([alts* '()]
+             [splitpoints* '()])
+            ([splitpoint splitpoints])
     (define alt (list-ref alts (sp-cidx splitpoint)))
     ;; It's important to snoc the alt in order for the indices not to change
     (define alts** (remove-duplicates (append alts* (list alt))))
@@ -144,7 +146,8 @@
     (left-point p1 p2))
 
   (define (left-point p1 p2)
-    (let ([left ((representation-repr->bf repr) p1)] [right ((representation-repr->bf repr) p2)])
+    (let ([left ((representation-repr->bf repr) p1)]
+          [right ((representation-repr->bf repr) p2)])
       (define out
         (if (bfnegative? left)
             (bigfloat-interval-shortest left (bfmin (bf/ left 2.bf) right))
@@ -157,7 +160,8 @@
          ;; Binary search is only valid if we correctly extracted the branch expression
          (andmap identity (cons start-prog progs))))
 
-  (append (for/list ([si1 sindices] [si2 (cdr sindices)])
+  (append (for/list ([si1 sindices]
+                     [si2 (cdr sindices)])
             (define prog1 (list-ref progs (si-cidx si1)))
             (define prog2 (list-ref progs (si-cidx si2)))
 
@@ -180,7 +184,8 @@
   (define ctx* (struct-copy context ctx [repr (repr-of bexpr ctx)]))
   (define prog (compile-prog bexpr ctx*))
 
-  (for/list ([i (in-naturals)] [alt alts]) ;; alts necessary to terminate loop
+  (for/list ([i (in-naturals)]
+             [alt alts]) ;; alts necessary to terminate loop
     (λ (pt)
       (define val (apply prog pt))
       (for/first ([right splitpoints]
