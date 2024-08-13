@@ -108,18 +108,11 @@
                             [(binary64 binary64 binary64)
                              (atan2 copysign fdim fmax fmin fmod pow remainder)])
 
-(define-libm c_expm1 (expm1 double double))
 (define-libm c_erfc (erfc double double))
+(define-libm c_expm1 (expm1 double double))
 (define-libm c_log1p (log1p double double))
 (define-libm c_hypot (hypot double double double))
 (define-libm c_fma (fma double double double double))
-
-(when c_expm1
-  (define-operator-impl (expm1.f64 [x : binary64])
-                        binary64
-                        #:spec (- (exp x) 1)
-                        #:fpcore (! :precision binary64 (expm1 x))
-                        #:fl c_expm1))
 
 (when c_erfc
   (define-operator-impl (erfc.f64 [x : binary64])
@@ -127,6 +120,13 @@
                         #:spec (- 1 (erf x))
                         #:fpcore (! :precision binary64 (erfc x))
                         #:fl c_erfc))
+
+(when c_expm1
+  (define-operator-impl (expm1.f64 [x : binary64])
+                        binary64
+                        #:spec (- (exp x) 1)
+                        #:fpcore (! :precision binary64 (expm1 x))
+                        #:fl c_expm1))
 
 (when c_log1p
   (define-operator-impl (log1p.f64 [x : binary64])

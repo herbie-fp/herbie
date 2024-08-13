@@ -75,16 +75,13 @@
                                 [cos cos]
                                 [cosh cosh]
                                 [erf (no-complex erf)]
-                                [erfc erfc]
                                 [exp exp]
                                 [exp2 (no-complex (λ (x) (expt 2 x)))]
-                                [expm1 (from-bigfloat bfexpm1)]
                                 [fabs abs]
                                 [floor floor]
                                 [lgamma log-gamma]
                                 [log (no-complex log)]
                                 [log10 (no-complex (λ (x) (log x 10)))]
-                                [log1p (from-bigfloat bflog1p)]
                                 [log2 (from-bigfloat bflog2)]
                                 [logb (λ (x) (floor (bigfloat->flonum (bflog2 (bf (abs x))))))]
                                 [rint round]
@@ -117,9 +114,32 @@
                                      [(nan? y) x]
                                      [else (min x y)]))]
                                 [fmod (from-bigfloat bffmod)]
-                                [hypot (from-bigfloat bfhypot)]
                                 [pow (no-complex expt)]
                                 [remainder remainder])
+
+(define-operator-impl (erfc.rkt [x : binary64])
+                      binary64
+                      #:spec (- 1 (erf x))
+                      #:fpcore (! :precision binary64 :math-library racket (erfc x))
+                      #:fl erfc)
+
+(define-operator-impl (expm1.rkt [x : binary64])
+                      binary64
+                      #:spec (- (exp x) 1)
+                      #:fpcore (! :precision binary64 :math-library racket (expm1 x))
+                      #:fl (from-bigfloat bfexpm1))
+
+(define-operator-impl (log1p.rkt [x : binary64])
+                      binary64
+                      #:spec (log (+ 1 x))
+                      #:fpcore (! :precision binary64 :math-library racket (log1p x))
+                      #:fl (from-bigfloat bflog1p))
+
+(define-operator-impl (hypot.rkt [x : binary64] [y : binary64])
+                      binary64
+                      #:spec (sqrt (+ (* x x) (* y y)))
+                      #:fpcore (! :precision binary64 :math-library racket (hypot x y))
+                      #:fl (from-bigfloat bfhypot))
 
 (define-operator-impl (fma.rkt [x : binary64] [y : binary64] [z : binary64])
                       binary64

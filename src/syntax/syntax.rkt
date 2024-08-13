@@ -270,29 +270,24 @@
 
 ;; Collects all operators
 
-;; Expands and checks a specification.
-(define (expand-spec name itypes otype spec)
+;; Checks a specification.
+(define (check-spec! name ctx spec)
   (define (bad! fmt . args)
     (error name "~a in `~a`" (apply format fmt args) spec))
 
   (define (type-error! expr actual-ty expect-ty)
     (bad! "expression `~a` has type `~a`, expected `~a`" expr actual-ty expect-ty))
 
-  (define-values (vars body)
-    (match spec
-      [`(,(or 'lambda 'λ) (,vars ...) ,spec)
-       (for ([var (in-list vars)])
-         (unless (symbol? var)
-           (bad! "expected symbol `~a` in `~a`" var spec)))
-       (values vars spec)]
-      [_ (bad! "malformed specification, expected `(lambda <vars> <expr>)`")]))
+  (match-define (context vars repr var-reprs) ctx)
+  (define itypes (map representation-type var-reprs))
+  (define otype (representation-type repr))
 
   (unless (= (length itypes) (length vars))
     (bad! "arity mismatch; expected ~a, got ~a" (length itypes) (length vars)))
 
   (define env (map cons vars itypes))
   (define actual-ty
-    (let type-of ([expr body])
+    (let type-of ([expr spec])
       (match expr
         [(? number?) 'real]
         [(? symbol?)
@@ -323,18 +318,15 @@
         [_ (bad! "expected an expression, got `~a`" expr)])))
 
   (unless (equal? actual-ty otype)
-    (type-error! body actual-ty otype)))
+    (type-error! spec actual-ty otype)))
 
 ; Registers an operator implementation `name` with context `ctx` and spec `spec.
 ; Can optionally specify a floating-point implementation and fpcore translation.
 (define/contract (register-operator-impl! name ctx spec #:fl [fl-proc #f] #:fpcore [fpcore #f])
   (->* (symbol? context? any/c) (#:fl (or/c procedure? #f) #:fpcore any/c) void?)
-  (match-define (context vars orepr ireprs) ctx)
   ; check specification
-  (expand-spec name
-               (map representation-type ireprs)
-               (representation-type orepr)
-               (list 'lambda vars spec))
+  (check-spec! name ctx spec)
+  (define vars (context-vars ctx))
   ; synthesize operator (if the spec contains exactly one operator)
   (define op
     (match spec
@@ -373,7 +365,7 @@
                            (if exs (first exs) fail))
                          name)]))
   ; update tables
-  (define impl (operator-impl name ctx spec fpcore fl-proc))
+  (define impl (operator-impl name ctx spec fpcore* fl-proc*))
   (hash-set! operator-impls name impl))
 
 (define-syntax (define-operator-impl stx)

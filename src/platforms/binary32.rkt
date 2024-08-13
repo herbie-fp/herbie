@@ -116,18 +116,11 @@
                             [(binary32 binary32 binary32)
                              (atan2 copysign fdim fmax fmin fmod pow remainder)])
 
-(define-libm c_expm1f (expm1 float float))
 (define-libm c_erfcf (erfc float float))
+(define-libm c_expm1f (expm1 float float))
 (define-libm c_log1pf (log1p float float))
 (define-libm c_hypotf (hypot float float float))
 (define-libm c_fmaf (fma float float float float))
-
-(when c_expm1f
-  (define-operator-impl (expm1.f32 [x : binary32])
-                        binary32
-                        #:spec (- (exp x) 1)
-                        #:fpcore (! :precision binary32 (expm1 x))
-                        #:fl c_expm1f))
 
 (when c_erfcf
   (define-operator-impl (erfc.f32 [x : binary32])
@@ -135,6 +128,13 @@
                         #:spec (- 1 (erf x))
                         #:fpcore (! :precision binary32 (erfc x))
                         #:fl c_erfcf))
+
+(when c_expm1f
+  (define-operator-impl (expm1.f32 [x : binary32])
+                        binary32
+                        #:spec (- (exp x) 1)
+                        #:fpcore (! :precision binary32 (expm1 x))
+                        #:fl c_expm1f))
 
 (when c_log1pf
   (define-operator-impl (log1p.f32 [x : binary32])
