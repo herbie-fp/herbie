@@ -161,6 +161,7 @@
     [("--no-broswer") "Run the web demo but don't start a browser." (set! browser? false)]
     #:args ()
     (run-demo #:quiet quiet?
+              #:threads threads
               #:output demo-output
               #:log demo-log
               #:prefix demo-prefix
