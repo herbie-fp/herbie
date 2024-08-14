@@ -182,7 +182,9 @@ let counter = 0
 let cap = 100
 // Check status endpoint
 let checkStatus = await callHerbie(path, { method: 'GET' })
-// Test result depends on how fast Server responds
+/*
+This is testing if the /improve-start test at the beginning has been completed. The cap and counter is a sort of timeout for the test. Ends up being 10 seconds max.
+*/
 while (checkStatus.status != 201 && counter < cap) {
   counter += 1
   checkStatus = await callHerbie(path, { method: 'GET' })
