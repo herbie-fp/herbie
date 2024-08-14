@@ -249,7 +249,7 @@
           (define requested-timeline (place-channel-get a))
           (place-channel-put handler requested-timeline))
         (when (false? wid)
-          (log "WID = FALSE\n")
+          (log "Job complete, no timeline, send result.\n")
           (place-channel-put handler (hash-ref completed-work job-id #f)))]
        ; Returns the current count of working workers.
        [(list 'count handler) (place-channel-put handler (hash-count busy-workers))]
@@ -319,7 +319,7 @@
         (place-channel-put handler timeline)]))))
 
 (struct work (manager worker-id job-id job))
-
+; Not sure if these are actually needed.
 (define *demo-output* (make-parameter false))
 (define *demo?* (make-parameter false))
 
