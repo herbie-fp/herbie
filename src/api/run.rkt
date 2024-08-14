@@ -11,6 +11,7 @@
          "../core/sampling.rkt"
          "../reports/pages.rkt"
          "thread-pool.rkt"
+         "../api/server.rkt"
          "../reports/timeline.rkt")
 
 (provide make-report
@@ -67,9 +68,15 @@
   (define seed (get-seed))
   (when (not (directory-exists? dir))
     (make-directory dir))
-
-  (define results (get-test-results tests #:threads threads #:seed seed #:profile true #:dir dir))
-  (define info (make-report-info (filter values results) #:note note #:seed seed))
+  (start-job-server threads)
+  (define ids
+    (for/list ([test tests])
+      (define command
+        (create-job 'improve test #:seed seed #:pcontext #f #:profile? #f #:timeline-disabled? #f))
+      (start-job command)))
+  (for ([id ids])
+    (wait-for-job id))
+  (define info (make-report-info (get-improve-table-data) #:seed seed #:note note))
 
   (write-datafile (build-path dir "results.json") info)
   (copy-file (web-resource "report-page.js") (build-path dir "report-page.js") #t)
