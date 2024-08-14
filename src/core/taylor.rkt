@@ -471,11 +471,18 @@
   (require rackunit
            "../syntax/types.rkt"
            "../syntax/load-plugin.rkt")
-  (check-pred exact-integer? (car (taylor 'x '(pow x 1.0)))))
+  (define batch (progs->batch (list '(pow x 1.0))))
+  (set! batch (expand-taylor batch))
+  (define root (vector-ref (batch-roots batch) 0))
+
+  (check-pred exact-integer? (car (vector-ref (taylor 'x batch) root))))
 
 (module+ test
   (define (coeffs expr #:n [n 7])
-    (match-define fn (zero-series (taylor 'x expr)))
+    (define batch (progs->batch (list expr)))
+    (set! batch (expand-taylor batch))
+    (define root (vector-ref (batch-roots batch) 0))
+    (match-define fn (zero-series (vector-ref (taylor 'x batch) root)))
     (build-list n fn))
 
   (check-equal? (coeffs '(sin x)) '(0 1 0 -1/6 0 1/120 0))
