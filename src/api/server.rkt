@@ -212,7 +212,7 @@
        [(list 'wait self job-id handler)
         (log "Waiting for job: ~a\n" job-id)
         ; first we add the handler to the wait list.
-        (hash-update! waiting job-id (curry append (list handler)) (list handler))
+        (hash-update! waiting job-id (curry append (list handler)) '())
         (define result (hash-ref completed-work job-id #f))
         ; check if the job is completed or not.
         (unless (false? result)
