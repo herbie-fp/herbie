@@ -180,8 +180,13 @@
   (for ([fn (in-list resetters)])
     (fn)))
 
-(define-syntax-rule (define/reset name value)
-  (define name
-    (let ([param (make-parameter value)])
-      (register-resetter! (λ () (name value)))
-      param)))
+(define-syntax define/reset
+  (syntax-rules ()
+    ; default resetter sets parameter to `value`
+    [(_ name value) (define/reset name value (λ () (name value)))]
+    ; initial value and resetter
+    [(_ name value reset-fn)
+     (define name
+       (let ([param (make-parameter value)])
+         (register-resetter! reset-fn)
+         param))]))
