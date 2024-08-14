@@ -83,29 +83,13 @@
                [transform-type transforms-to-try])
           (match-define (list name f finv) transform-type)
           (define timeline-stop! (timeline-start! 'series (~a exprs) (~a var) (~a name)))
-          (define genexprs (approximate-new exprs var #:transform (cons f finv)))
+          (define genexprs (approximate exprs var #:transform (cons f finv)))
           (for ([genexpr (in-list genexprs)]
                 [altn (in-list altns)]
                 [fv (in-list free-vars)]
-                #:when (member var fv))
-            (for ([n (in-range (*taylor-order-limit*))])
-              (define gex (genexpr))
-              #;(printf "~a) altn=~a, var=~a, tf=~a, genexpr=~a\n" n altn var transform-type gex)
-              (sow (alt gex `(taylor ,name ,var) (list altn) '()))))
-          (timeline-stop!))))
-
-(define (taylor-alt altn)
-  (define expr (prog->spec (alt-expr altn)))
-  (reap [sow]
-        (for* ([var (free-variables expr)]
-               [transform-type transforms-to-try])
-          (match-define (list name f finv) transform-type)
-          (define timeline-stop! (timeline-start! 'series (~a expr) (~a var) (~a name)))
-          (define genexpr (approximate expr var #:transform (cons f finv)))
-          (for ([n (in-range (*taylor-order-limit*))])
-            (define gex (genexpr))
-            #;(printf "OLD: ~a) altn=~a, var=~a, tf=~a, genexpr=~a\n" n altn var transform-type gex)
-            (sow (alt gex `(taylor ,name ,var) (list altn) '())))
+                #:when (member var fv)) ; check whether var exists in expr at all
+            (for ([_ (in-range (*taylor-order-limit*))])
+              (sow (alt (genexpr) `(taylor ,name ,var) (list altn) '()))))
           (timeline-stop!))))
 
 (define (spec-has-nan? expr)
@@ -116,7 +100,6 @@
   (timeline-push! 'inputs (map ~a altns))
 
   (define approx->prev (make-hasheq))
-  #;(define approx->prev* (make-hasheq))
 
   (define approxs
     (reap [sow]
@@ -125,44 +108,6 @@
               ; here (car (alt-prevs approximation)) is simply an original altn
               (hash-set! approx->prev approximation (car (alt-prevs approximation)))
               (sow approximation)))))
-
-  #;(define approxs
-      (reap [sow]
-            (for ([altn (in-list altns)])
-              (for ([approximation (taylor-alt altn)])
-                (unless (spec-has-nan? (alt-expr approximation))
-                  (hash-set! approx->prev approximation altn)
-                  (sow approximation))))))
-
-  ; Debugging
-  #;(for ([(key* value*) (in-hash approx->prev*)])
-      (define flag #t)
-      (for ([(key value) (in-hash approx->prev)])
-        (when (and (equal? (alt-event key) (alt-event key*))
-                   (equal? (alt-expr key) (alt-expr key*))
-                   (equal? (alt-expr value) (alt-expr value*))
-                   (equal? (alt-prevs key) (alt-prevs key*))
-                   (equal? (alt-prevs value) (alt-prevs value*)))
-          (set! flag #f)))
-      (when flag
-        (println "mismatch")
-        (printf "key=~a, value=~a\n" key* value*)
-        (println approx->prev)
-        (sleep 10)))
-  #;(for ([(key value) (in-hash approx->prev)])
-      (define flag #t)
-      (for ([(key* value*) (in-hash approx->prev*)])
-        (when (and (equal? (alt-event key) (alt-event key*))
-                   (equal? (alt-expr key) (alt-expr key*))
-                   (equal? (alt-expr value) (alt-expr value*))
-                   (equal? (alt-prevs key) (alt-prevs key*))
-                   (equal? (alt-prevs value) (alt-prevs value*)))
-          (set! flag #f)))
-      (when flag
-        (println "mismatch2")
-        (printf "key=~a, value=~a\n" key value)
-        (println approx->prev*)
-        (sleep 10)))
 
   (timeline-push! 'outputs (map ~a approxs))
   (timeline-push! 'count (length altns) (length approxs))

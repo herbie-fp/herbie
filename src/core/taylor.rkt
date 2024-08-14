@@ -7,18 +7,16 @@
          "../syntax/syntax.rkt"
          "batch.rkt")
 
-(provide approximate
-         approximate-new)
+(provide approximate)
 
-(define (approximate-new exprs var #:transform [tform (cons identity identity)] #:iters [iters 5])
+(define (approximate exprs var #:transform [tform (cons identity identity)] #:iters [iters 5])
   (define exprs*
     (for/list ([expr (in-list exprs)])
       (simplify (replace-expression expr var ((car tform) var)))))
-
   (define batch (progs->batch exprs*))
   (set! batch (expand-taylor batch))
-  (define taylor-approxs (taylor var batch))
 
+  (define taylor-approxs (taylor var batch))
   (for/list ([root (in-vector (batch-roots batch))])
     (match-define (cons offset coeffs) (vector-ref taylor-approxs root))
     (define i 0)
@@ -36,29 +34,6 @@
          (set! terms (cons (cons coeff (- i offset 1)) terms))
          (simplify (make-horner ((cdr tform) var) (reverse terms)))]))
     next))
-
-(define (approximate expr var #:transform [tform (cons identity identity)] #:iters [iters 5])
-  (define expr* (simplify (replace-expression expr var ((car tform) var))))
-  (define batch (progs->batch (list expr*)))
-  (set! batch (expand-taylor batch))
-  (define root (vector-ref (batch-roots batch) 0))
-  (match-define (cons offset coeffs) (vector-ref (taylor var batch) root))
-
-  (define i 0)
-  (define terms '())
-
-  (define (next [iter 0])
-    (define coeff (simplify (replace-expression (coeffs i) var ((cdr tform) var))))
-    (set! i (+ i 1))
-    (match coeff
-      [0
-       (if (< iter iters)
-           (next (+ iter 1))
-           (simplify (make-horner ((cdr tform) var) (reverse terms))))]
-      [_
-       (set! terms (cons (cons coeff (- i offset 1)) terms))
-       (simplify (make-horner ((cdr tform) var) (reverse terms)))]))
-  next)
 
 (define (make-horner var terms [start 0])
   (match terms
