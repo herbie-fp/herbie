@@ -265,16 +265,16 @@
             ['exacts (make-exacts-result herbie-result job-id)]
             ['improve (make-improve-result herbie-result test job-id)]
             ['local-error (make-local-error-result herbie-result test job-id)]
-            ['explanations (make-explenation-result herbie-result job-id)]
+            ['explanations (make-explanation-result herbie-result job-id)]
             ['sample (make-sample-result herbie-result test job-id)]
             [_ (error 'compute-result "unknown command ~a" kind)]))
         (log "Job: ~a finished, returning work to manager\n" job-id)
         (place-channel-put manager (list 'finished manager worker-id job-id out-result))]))))
 
-(define (make-explenation-result heribe-result job-id)
-  (define explanations (job-result-backend heribe-result))
+(define (make-explanation-result herbie-result job-id)
+  (define explanations (job-result-backend herbie-result))
   (hasheq 'command
-          (get-command heribe-result)
+          (get-command herbie-result)
           'explanation
           explanations
           'job
