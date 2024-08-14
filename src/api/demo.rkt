@@ -340,13 +340,6 @@
 
 (define (check-status req job-id)
   (match (get-timeline-for job-id)
-    [#f
-     (response 202
-               #"Job in progress"
-               (current-seconds)
-               #"text/plain"
-               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count)))))
-               (λ (out) (display "Not done!" out)))]
     [(? box? timeline)
      (response 202
                #"Job in progress"
