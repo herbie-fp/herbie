@@ -2,7 +2,7 @@
 
 pub mod math;
 
-use egg::{BackoffScheduler, Extractor, Id, Language, SimpleScheduler, StopReason, Symbol};
+use egg::{BackoffScheduler, Extractor, FromOp, Id, Language, SimpleScheduler, StopReason, Symbol};
 use indexmap::IndexMap;
 use libc::{c_void, strlen};
 use math::*;
@@ -83,6 +83,31 @@ pub unsafe extern "C" fn egraph_add_expr(ptr: *mut Context, expr: *const c_char)
     mem::forget(context);
 
     id
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn egraph_add_node(
+    ptr: *mut Context,
+    f: *const c_char,
+    ids_ptr: *const u32,
+    num_ids: u32,
+    is_root: bool,
+) -> u32 {
+    let _ = env_logger::try_init();
+    // Safety: `ptr` was box allocated by `egraph_create`
+    let mut context = ManuallyDrop::new(Box::from_raw(ptr));
+
+    let f = CStr::from_ptr(f).to_str().unwrap();
+    let len = num_ids as usize;
+    let ids: &[u32] = slice::from_raw_parts(ids_ptr, len);
+    let ids = ids.iter().map(|id| Id::from(*id as usize)).collect();
+    let node = Math::from_op(f, ids).unwrap();
+    let id = context.runner.egraph.add(node);
+    if is_root {
+        context.runner.roots.push(id);
+    }
+
+    usize::from(id) as u32
 }
 
 #[no_mangle]

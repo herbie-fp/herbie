@@ -2,8 +2,9 @@
 
 (require egg-herbie)
 
-(require "rules.rkt"
+(require "batch.rkt"
          "programs.rkt"
+         "rules.rkt"
          "../syntax/platform.rkt"
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
@@ -50,27 +51,43 @@
                eg-data
                [egraph-pointer (egraph_copy (egraph-data-egraph-pointer eg-data))]))
 
+; adds expressions returning the root ids
+(define (egraph-add-exprs egg-data exprs ctx)
+  (match-define (egraph-data ptr _ _ id->spec) egg-data)
+  (define exprs* (map (lambda (expr) (expr->egg-expr expr egg-data ctx)) exprs))
+  (define batch (progs->batch exprs*))
+  (define nodes (batch-nodes batch))
+  (define roots (batch-roots batch))
+  (define n (vector-length nodes))
+
+  ; node vectors
+  (define node-ids (make-vector n #f))
+  (define root?-vec (make-vector n #f))
+
+  (for ([idx (in-vector roots)])
+    (vector-set! root?-vec idx #t))
+  
+  ; add each node to the e-graph
+  (for ([i (in-range n)])
+    (define node (vector-ref nodes i))
+    (define root? (vector-ref root?-vec i))
+    (define id
+      (match node
+        [(? symbol?) (egraph_add_node ptr (symbol->string node) '() root?)]
+        [(? number?) (egraph_add_node ptr (number->string node) '() root?)]
+        [(list op args ...)
+         (define f (symbol->string op))
+         (define ids (map (lambda (arg) (vector-ref node-ids arg)) args))
+         (egraph_add_node ptr f ids root?)]))
+    (vector-set! node-ids i id))
+
+  ; return the ids of the roots
+  (for/list ([idx (in-vector roots)])
+    (vector-ref node-ids idx)))
+
 ;; result function is a function that takes the ids of the nodes
 (define (egraph-add-expr eg-data expr ctx)
-  (match-define (egraph-data ptr _ _ id->spec) eg-data)
-  ; add the expression to the e-graph and save the root e-class id
-  (define egg-expr (expr->egg-expr expr eg-data ctx))
-  (define root-id (egraph_add_expr ptr egg-expr))
-  ; record all approx specs
-  (let loop ([expr expr])
-    (match expr
-      [(? number?) (void)]
-      [(? literal?) (void)]
-      [(? symbol?) (void)]
-      [(approx spec impl)
-       (define type (representation-type (repr-of impl ctx)))
-       (define egg-spec (expr->egg-expr spec eg-data ctx))
-       (define id (egraph_add_expr ptr egg-spec))
-       (hash-ref! id->spec id (lambda () (cons egg-spec type)))
-       (loop impl)]
-      [(list _ args ...) (for-each loop args)]))
-  ; return the id
-  root-id)
+  (first (egraph-add-exprs eg-data (list expr) ctx)))
 
 ;; runs rules on an egraph (optional iteration limit)
 (define (egraph-run egraph-data ffi-rules node-limit iter-limit scheduler const-folding?)
@@ -1027,9 +1044,7 @@
   (define egg-graph (make-egraph))
 
   ; insert expressions into the e-graph
-  (define root-ids
-    (for/list ([expr (in-list exprs)])
-      (egraph-add-expr egg-graph expr ctx)))
+  (define root-ids (egraph-add-exprs egg-graph exprs ctx))
 
   ; run the schedule
   (define rule-apps (make-hash))

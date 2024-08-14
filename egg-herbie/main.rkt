@@ -2,11 +2,13 @@
 
 (require ffi/unsafe
          ffi/unsafe/define
+         ffi/vector
          racket/runtime-path)
 
 (provide egraph_create
          egraph_destroy
          egraph_add_expr
+         egraph_add_node
          egraph_run
          egraph_copy
          egraph_get_stop_reason
@@ -169,6 +171,16 @@
 ;; Adds an expression to the e-graph.
 ;; egraph -> expr -> id
 (define-eggmath egraph_add_expr (_fun _egraph-pointer _rust/datum -> _uint))
+
+; egraph -> string -> ids -> bool -> id
+(define-eggmath egraph_add_node
+                (_fun [p : _egraph-pointer] ; egraph
+                      [f : _rust/datum] ; enode op
+                      [v : (_list i _uint32)] ; id vector
+                      [_uint = (length v)] ; id vector length
+                      [is_root : _stdbool] ; root node?
+                      ->
+                      _uint))
 
 (define-eggmath egraph_is_unsound_detected (_fun _egraph-pointer -> _stdbool))
 
