@@ -591,6 +591,8 @@
   (*demo-output* output)
   (*demo-prefix* prefix)
   (*demo-log* log)
+  (unless threads
+    (set! threads (processor-count)))
   (start-job-server threads)
 
   (unless quiet?

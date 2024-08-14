@@ -97,8 +97,6 @@
   (not (sync/timeout 0 manager-dead-event)))
 
 (define (start-job-server job-cap)
-  (unless job-cap
-    (set! job-cap (processor-count)))
   (define r (make-manager job-cap))
   (set! manager-dead-event (place-dead-evt r))
   (set! manager r))
