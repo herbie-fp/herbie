@@ -8,9 +8,13 @@
          "common.rkt")
 (provide make-traceback)
 
-(define (make-traceback result out profile?)
+(define (make-traceback result-hash out profile?)
   ;; Called with timeout or failure results
-  (match-define (job-result command test status time timeline warnings backend) result)
+  (define test (hash-ref result-hash 'test))
+  (define status (hash-ref result-hash 'status))
+  (define time (hash-ref result-hash 'time))
+  (define warnings (hash-ref result-hash 'warnings))
+  (define backend (hash-ref result-hash 'backend))
   (define exn (if (eq? status 'failure) backend 'timeout))
 
   (write-html

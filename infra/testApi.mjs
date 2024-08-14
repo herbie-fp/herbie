@@ -40,17 +40,6 @@ const testResult = (startResponse.status == 201 || startResponse.status == 202)
 assert.equal(testResult, true)
 const path = startResponse.headers.get("location")
 
-// Check status endpoint
-const checkStatus = await callHerbie(path, { method: 'GET' })
-// Test result depends on how fast Server responds
-if (checkStatus.status == 202) {
-  assert.equal(checkStatus.statusText, 'Job in progress')
-} else if (checkStatus.status == 201) {
-  assert.equal(checkStatus.statusText, 'Job complete')
-} else {
-  assert.fail()
-}
-
 // up endpoint
 const up = await callHerbie("/up", { method: 'GET' })
 assert.equal('Up', up.statusText)
@@ -188,6 +177,20 @@ for (const e in expectedExpressions) {
 
   assert.equal(translatedExpr.result, expectedExpressions[e])
 }
+
+let counter = 0
+let cap = 100
+// Check status endpoint
+let checkStatus = await callHerbie(path, { method: 'GET' })
+/*
+This is testing if the /improve-start test at the beginning has been completed. The cap and counter is a sort of timeout for the test. Ends up being 10 seconds max.
+*/
+while (checkStatus.status != 201 && counter < cap) {
+  counter += 1
+  checkStatus = await callHerbie(path, { method: 'GET' })
+  await new Promise(r => setTimeout(r, 100)); // ms
+}
+assert.equal(checkStatus.statusText, 'Job complete')
 
 // Results.json endpoint
 const jsonResults = await callHerbie("/results.json", { method: 'GET' })
