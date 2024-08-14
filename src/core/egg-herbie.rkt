@@ -2,8 +2,7 @@
 
 (require egg-herbie)
 
-(require "batch.rkt"
-         "programs.rkt"
+(require "programs.rkt"
          "rules.rkt"
          "../syntax/platform.rkt"
          "../syntax/syntax.rkt"
@@ -94,10 +93,6 @@
   (for/list ([expr (in-list exprs)])
     (insert! expr #t)))
 
-;; result function is a function that takes the ids of the nodes
-(define (egraph-add-expr eg-data expr ctx)
-  (first (egraph-add-exprs eg-data (list expr) ctx)))
-
 ;; runs rules on an egraph (optional iteration limit)
 (define (egraph-run egraph-data ffi-rules node-limit iter-limit scheduler const-folding?)
   (define u32_max 4294967295) ; since we can't send option types
@@ -153,9 +148,8 @@
   (egraph_find (egraph-data-egraph-pointer egraph-data) id))
 
 (define (egraph-expr-equal? egraph-data expr goal ctx)
-  (define id1 (egraph-add-expr egraph-data expr ctx))
-  (define id2 (egraph-add-expr egraph-data goal ctx))
-  (= (egraph-find egraph-data id1) (egraph-find egraph-data id2)))
+  (match-define (list id1 id2) (egraph-add-exprs egraph-data (list expr goal) ctx))
+  (= id1 id2))
 
 ;; returns a flattened list of terms or #f if it failed to expand the proof due to budget
 (define (egraph-get-proof egraph-data expr goal ctx)
