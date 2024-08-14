@@ -186,13 +186,17 @@
         (set! job-queue (append job-queue (list (work-item command job-id))))
         (place-channel-put self (list 'assign self))]
        [(list 'assign self)
+        (define reassigned (make-hash))
         (for ([(wid worker) (in-hash waiting-workers)]
               [job (in-list job-queue)])
           (log "Starting worker [~a] on [~a].\n"
                (work-item-id job)
                (test-name (herbie-command-test (work-item-command job))))
           (place-channel-put worker (list 'apply self (work-item-command job) (work-item-id job)))
-          (hash-set! busy-workers wid worker)
+          (hash-set! reassigned wid worker)
+          (hash-set! busy-workers wid worker))
+        ; remove X many jobs from the Q and update waiting-workers
+        (for ([(wid worker) (in-hash reassigned)])
           (hash-remove! waiting-workers wid)
           (set! job-queue (cdr job-queue)))]
        ; Job is finished save work and free worker. Move work to 'send state.
