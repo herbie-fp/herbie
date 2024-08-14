@@ -12,6 +12,7 @@
          "../reports/pages.rkt"
          "thread-pool.rkt"
          "../api/server.rkt"
+         "../api/sandbox.rkt"
          "../reports/timeline.rkt")
 
 (provide make-report
@@ -64,19 +65,47 @@
 (define (merge-profile-jsons ps)
   (profile->json (apply profile-merge (map json->profile (dict-values ps)))))
 
+(define (graph-folder-path tname index)
+  (define replaced (string-replace tname #px"\\W+" ""))
+  (format "~a-~a" index (substring replaced 0 (min (string-length replaced) 50))))
+
 (define (run-tests tests #:dir dir #:note note #:threads threads)
   (define seed (get-seed))
   (when (not (directory-exists? dir))
     (make-directory dir))
   (start-job-server threads)
-  (define ids
-    (for/list ([test tests])
-      (define command
-        (create-job 'improve test #:seed seed #:pcontext #f #:profile? #f #:timeline-disabled? #f))
-      (start-job command)))
-  (for ([id ids])
-    (wait-for-job id))
-  (define info (make-report-info (get-improve-table-data) #:seed seed #:note note))
+  (define profile? #f)
+  (define-values (ids names)
+    (for/lists (l1 l2)
+               ([test tests])
+               (define command
+                 (create-job 'improve
+                             test
+                             #:seed seed
+                             #:pcontext #f
+                             #:profile? profile?
+                             #:timeline-disabled? #f))
+               (values (start-job command) (test-name test))))
+  (define error? #f)
+  (define results
+    (for/list ([id ids]
+               [name names]
+               [i (in-naturals 0)])
+      (define result (wait-for-job id))
+      (define dirname (graph-folder-path name i))
+      (define rdir (build-path dir dirname))
+      (unless (directory-exists? rdir)
+        (make-directory rdir))
+      (for ([page (all-pages result)])
+        (call-with-output-file (build-path rdir page)
+                               #:exists 'replace
+                               (λ (out)
+                                 (with-handlers ([exn:fail? (λ (e)
+                                                              ((page-error-handler result page out) e)
+                                                              (set! error? #t))])
+                                   (make-page page out result #t profile?)))))
+      (get-table-data-from-hash result dirname)))
+  (define info (make-report-info results #:seed seed #:note note))
 
   (write-datafile (build-path dir "results.json") info)
   (copy-file (web-resource "report-page.js") (build-path dir "report-page.js") #t)
