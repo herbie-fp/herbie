@@ -82,10 +82,6 @@
       (unmunge root)))
   exprs)
 
-(define (batch-find batch expr)
-  (
-
-
 (define (expand-taylor batch)
   (define vars (batch-vars batch))
   (define icache (reverse vars))

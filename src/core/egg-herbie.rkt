@@ -53,37 +53,46 @@
 
 ; adds expressions returning the root ids
 (define (egraph-add-exprs egg-data exprs ctx)
-  (match-define (egraph-data ptr _ _ id->spec) egg-data)
-  (define exprs* (map (lambda (expr) (expr->egg-expr expr egg-data ctx)) exprs))
-  (define batch (progs->batch exprs*))
-  (define nodes (batch-nodes batch))
-  (define roots (batch-roots batch))
-  (define n (vector-length nodes))
+  (match-define (egraph-data ptr herbie->egg-dict egg->herbie-dict id->spec) egg-data)
 
-  ; node vectors
-  (define node-ids (make-vector n #f))
-  (define root?-vec (make-vector n #f))
+  ; lookups the egg name of a variable
+  (define (normalize-var x)
+    (hash-ref! herbie->egg-dict
+               x
+               (lambda ()
+                 (define id (hash-count herbie->egg-dict))
+                 (define replacement (string->symbol (format "$h~a" id)))
+                 (hash-set! egg->herbie-dict replacement (cons x (context-lookup ctx x)))
+                 replacement)))
 
-  (for ([idx (in-vector roots)])
-    (vector-set! root?-vec idx #t))
-  
-  ; add each node to the e-graph
-  (for ([i (in-range n)])
-    (define node (vector-ref nodes i))
-    (define root? (vector-ref root?-vec i))
-    (define id
-      (match node
-        [(? symbol?) (egraph_add_node ptr (symbol->string node) '() root?)]
-        [(? number?) (egraph_add_node ptr (number->string node) '() root?)]
-        [(list op args ...)
-         (define f (symbol->string op))
-         (define ids (map (lambda (arg) (vector-ref node-ids arg)) args))
-         (egraph_add_node ptr f ids root?)]))
-    (vector-set! node-ids i id))
+  ; normalizes an approx spec
+  (define (normalize-spec expr)
+    (match expr
+      [(? number?) expr]
+      [(? symbol?) (normalize-var expr)]
+      [(list op args ...) (cons op (map normalize-spec args))]))
 
-  ; return the ids of the roots
-  (for/list ([idx (in-vector roots)])
-    (vector-ref node-ids idx)))
+  ; insert! : expr -> bool -> id
+  ; inserts an expresission into the e-graph returning its e-class id
+  (define (insert! expr root?)
+    (match expr
+      [(? number? n) (egraph_add_node ptr (number->string n) '() root?)]
+      [(literal n _) (egraph_add_node ptr (number->string n) '() root?)]
+      [(? symbol?)
+       (define x (normalize-var expr))
+       (egraph_add_node ptr (symbol->string x) '() root?)]
+      [(approx spec impl)
+       (define spec* (insert! spec #f))
+       (define impl* (insert! impl #f))
+       (define type (representation-type (repr-of impl ctx)))
+       (hash-ref! id->spec spec* (lambda () (cons (normalize-spec spec) type)))
+       (egraph_add_node ptr "$approx" (list spec* impl*) root?)]
+      [(list op args ...)
+       (define ids (map (lambda (arg) (insert! arg #f)) args))
+       (egraph_add_node ptr (symbol->string op) ids root?)]))
+
+  (for/list ([expr (in-list exprs)])
+    (insert! expr #t)))
 
 ;; result function is a function that takes the ids of the nodes
 (define (egraph-add-expr eg-data expr ctx)
