@@ -71,7 +71,7 @@
                               #;(exp ,exp-x ,log-x)
                               #;(log ,log-x ,exp-x))))
 
-(define (taylor-alt-new altns)
+(define (taylor-alts altns)
   (define exprs
     (for/list ([altn (in-list altns)])
       (prog->spec (alt-expr altn))))
@@ -86,12 +86,12 @@
           (define genexprs (approximate-new exprs var #:transform (cons f finv)))
           (for ([genexpr (in-list genexprs)]
                 [altn (in-list altns)]
-                [fv (in-list free-vars)])
-            (when (member var fv)
-              (for ([n (in-range (*taylor-order-limit*))])
-                (define gex (genexpr))
-                #;(printf "~a) altn=~a, var=~a, tf=~a, genexpr=~a\n" n altn var transform-type gex)
-                (sow (alt gex `(taylor ,name ,var) (list altn) '())))))
+                [fv (in-list free-vars)]
+                #:when (member var fv))
+            (for ([n (in-range (*taylor-order-limit*))])
+              (define gex (genexpr))
+              #;(printf "~a) altn=~a, var=~a, tf=~a, genexpr=~a\n" n altn var transform-type gex)
+              (sow (alt gex `(taylor ,name ,var) (list altn) '()))))
           (timeline-stop!))))
 
 (define (taylor-alt altn)
@@ -116,10 +116,11 @@
   (timeline-push! 'inputs (map ~a altns))
 
   (define approx->prev (make-hasheq))
+  #;(define approx->prev* (make-hasheq))
 
-  (define approxs-new
+  (define approxs
     (reap [sow]
-          (for ([approximation (taylor-alt-new altns)])
+          (for ([approximation (taylor-alts altns)])
             (unless (spec-has-nan? (alt-expr approximation))
               ; here (car (alt-prevs approximation)) is simply an original altn
               (hash-set! approx->prev approximation (car (alt-prevs approximation)))
@@ -133,9 +134,39 @@
                   (hash-set! approx->prev approximation altn)
                   (sow approximation))))))
 
-  (timeline-push! 'outputs (map ~a approxs-new))
-  (timeline-push! 'count (length altns) (length approxs-new))
-  (lower-approximations approxs-new approx->prev))
+  ; Debugging
+  #;(for ([(key* value*) (in-hash approx->prev*)])
+      (define flag #t)
+      (for ([(key value) (in-hash approx->prev)])
+        (when (and (equal? (alt-event key) (alt-event key*))
+                   (equal? (alt-expr key) (alt-expr key*))
+                   (equal? (alt-expr value) (alt-expr value*))
+                   (equal? (alt-prevs key) (alt-prevs key*))
+                   (equal? (alt-prevs value) (alt-prevs value*)))
+          (set! flag #f)))
+      (when flag
+        (println "mismatch")
+        (printf "key=~a, value=~a\n" key* value*)
+        (println approx->prev)
+        (sleep 10)))
+  #;(for ([(key value) (in-hash approx->prev)])
+      (define flag #t)
+      (for ([(key* value*) (in-hash approx->prev*)])
+        (when (and (equal? (alt-event key) (alt-event key*))
+                   (equal? (alt-expr key) (alt-expr key*))
+                   (equal? (alt-expr value) (alt-expr value*))
+                   (equal? (alt-prevs key) (alt-prevs key*))
+                   (equal? (alt-prevs value) (alt-prevs value*)))
+          (set! flag #f)))
+      (when flag
+        (println "mismatch2")
+        (printf "key=~a, value=~a\n" key value)
+        (println approx->prev*)
+        (sleep 10)))
+
+  (timeline-push! 'outputs (map ~a approxs))
+  (timeline-push! 'count (length altns) (length approxs))
+  (lower-approximations approxs approx->prev))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Recursive Rewrite ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
