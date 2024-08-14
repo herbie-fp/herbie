@@ -33,7 +33,7 @@
          start-job-server)
 
 ; verbose logging for debugging
-(define verbose #t) ; Maybe change to log-level and use 'verbose?
+(define verbose #f) ; Maybe change to log-level and use 'verbose?
 (define (log msg . args)
   (when verbose
     (apply eprintf msg args)))
@@ -315,8 +315,7 @@
         (log "[~a] working on [~a].\n" job-id (test-name (herbie-command-test command)))
         (thread-send worker-thread (work manager worker-id job-id command))]
        [(list 'timeline handler)
-        (eprintf "[~a]TIMELINE: ~a\n" worker-id (unbox timeline))
-        (eprintf "Timeline requested from worker[~a] for job ~a\n" worker-id current-job-id)
+        (log "Timeline requested from worker[~a] for job ~a\n" worker-id current-job-id)
         (place-channel-put handler timeline)]))))
 
 (struct work (manager worker-id job-id job))
@@ -326,9 +325,7 @@
 
 (define (run-job job-info)
   (match-define (work manager worker-id job-id command) job-info)
-  (eprintf "run-job: ~a, ~a\n" worker-id job-id)
-  ; (timeline-event! 'start)
-  ; (eprintf "TIMELINE HERE: ~a\n" (unbox *timeline*))
+  (log "run-job: ~a, ~a\n" worker-id job-id)
   (define herbie-result (wrapper-run-herbie command job-id))
   (match-define (job-result kind test status time _ _ backend) herbie-result)
   (define out-result
