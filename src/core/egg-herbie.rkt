@@ -1,6 +1,7 @@
 #lang racket
 
-(require egg-herbie)
+(require egg-herbie
+         (only-in ffi/vector make-u32vector u32vector-set! list->u32vector))
 
 (require "programs.rkt"
          "rules.rkt"
@@ -73,14 +74,25 @@
       [(list op args ...) (cons op (map normalize-spec args))]))
 
   (define expr->id (make-hash)) ; expr -> id
+  (define empty-u32vec (make-u32vector 0)) ; u32vector
+  (define n->u32vec (make-hasheq (list (cons 0 empty-u32vec)))) ; natural -> u32vector
+
+  ; converts a list to a u32vector using a pre-allocated u32vector
+  (define (list->u32vec xs)
+    (define n (length xs))
+    (define vec (hash-ref! n->u32vec n (lambda () (make-u32vector n))))
+    (for ([x (in-list xs)]
+          [i (in-naturals)])
+      (u32vector-set! vec i x))
+    vec)
 
   ; node -> natural
   ; inserts an expression into the e-graph, returning its e-class id.
   (define (insert-node! node root?)
     (match node
-      [(list op ids ...) (egraph_add_node ptr (symbol->string op) ids root?)]
-      [(? symbol? x) (egraph_add_node ptr (symbol->string x) '() root?)]
-      [(? number? n) (egraph_add_node ptr (number->string n) '() root?)]))
+      [(list op ids ...) (egraph_add_node ptr (symbol->string op) (list->u32vec ids) root?)]
+      [(? symbol? x) (egraph_add_node ptr (symbol->string x) empty-u32vec root?)]
+      [(? number? n) (egraph_add_node ptr (number->string n) empty-u32vec root?)]))
 
   ; expr -> natural
   ; inserts an expresison into the e-graph, returning its e-class id.

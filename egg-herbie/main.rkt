@@ -2,6 +2,7 @@
 
 (require ffi/unsafe
          ffi/unsafe/define
+         ffi/vector
          racket/runtime-path)
 
 (provide egraph_create
@@ -174,9 +175,9 @@
 ; egraph -> string -> ids -> bool -> id
 (define-eggmath egraph_add_node
                 (_fun [p : _egraph-pointer] ; egraph
-                      [f : _string/utf-8] ; enode op (as a string)
-                      [v : (_list i _uint32)] ; id vector
-                      [_uint = (length v)] ; id vector length
+                      [f : _string/utf-8] ; enode op
+                      [v : _u32vector] ; id vector
+                      [_uint = (u32vector-length v)] ; id vector length
                       [is_root : _stdbool] ; root node?
                       ->
                       _uint))
