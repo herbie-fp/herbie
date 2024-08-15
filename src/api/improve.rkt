@@ -3,6 +3,7 @@
          "thread-pool.rkt"
          "../syntax/read.rkt"
          "../utils/common.rkt"
+         "../api/server.rkt"
          "sandbox.rkt")
 (provide run-improve)
 
@@ -33,7 +34,15 @@
 (define (run-improve input output #:threads [threads #f])
   (define seed (get-seed))
   (define tests (load-tests input))
-  (define results (get-test-results tests #:threads threads #:seed seed #:profile #f #:dir #f))
+  (start-job-server threads)
+  (define-values (ids)
+    (for/list ([test tests])
+      (define command
+        (create-job 'improve test #:seed seed #:pcontext #f #:profile? #f #:timeline-disabled? #f))
+      (start-job command)))
+  (define results
+    (for/list ([id ids])
+      (get-table-data-from-hash (wait-for-job id) "")))
 
   (if (equal? output "-")
       (print-outputs tests results (current-output-port) #:seed seed)
