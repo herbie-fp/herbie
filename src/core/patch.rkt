@@ -11,7 +11,8 @@
          "programs.rkt"
          "rules.rkt"
          "simplify.rkt"
-         "taylor.rkt")
+         "taylor.rkt"
+         "batch.rkt")
 
 (provide generate-candidates)
 
@@ -127,15 +128,18 @@
   (define reprs (map (curryr repr-of (*context*)) exprs))
   (timeline-push! 'inputs (map ~a exprs))
   (define runner (make-egg-runner exprs reprs schedule #:context (*context*)))
+  ; variantss = (listof batch)
   (define variantss (run-egg runner `(multi . ,extractor)))
 
   ; apply changelists
   (define rewritten
-    (reap [sow]
-          (for ([variants (in-list variantss)]
-                [altn (in-list altns)])
-            (for ([variant (in-list (remove-duplicates variants))])
-              (sow (alt variant (list 'rr runner #f #f) (list altn) '()))))))
+    (reap
+     [sow]
+     (for ([variants (in-list variantss)]
+           [altn (in-list altns)])
+       (for ([root (in-vector (batch-roots variants))])
+         (sow (alt (delay (batch-ref variants root)) (list 'rr runner #f #f) (list altn) '()))))))
+
   (timeline-push! 'outputs (map (compose ~a alt-expr) rewritten))
   (timeline-push! 'count (length altns) (length rewritten))
   rewritten)

@@ -25,7 +25,6 @@
       [_
        (set! terms (cons (cons coeff (- i offset 1)) terms))
        (simplify (make-horner ((cdr tform) var) (reverse terms)))]))
-
   next)
 
 (define (make-horner var terms [start 0])

@@ -20,7 +20,8 @@
          "../syntax/types.rkt"
          "../utils/common.rkt"
          "../config.rkt"
-         "../utils/timeline.rkt")
+         "../utils/timeline.rkt"
+         "batch.rkt")
 
 (provide (struct-out egg-runner)
          typed-egg-extractor
@@ -1040,10 +1041,13 @@
             (cons op args)])))
      ; translate egg IR to Herbie IR
      (define egg->herbie (regraph-egg->herbie regraph))
-     (for/list ([egg-expr (in-list egg-exprs)])
-       (egg-parsed->expr (flatten-let egg-expr) egg->herbie type))]
+     (define exprs
+       (for/list ([egg-expr (in-list egg-exprs)])
+         (egg-parsed->expr (flatten-let egg-expr) egg->herbie type)))
+     (println exprs)
+     (progs->batch (remove-duplicates exprs))]
     ; no extractable expressions
-    [else (list)]))
+    [else (progs->batch '(()))]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Scheduler

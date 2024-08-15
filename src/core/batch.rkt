@@ -6,7 +6,7 @@
 (provide progs->batch
          batch->progs
          (struct-out batch)
-         get-expr
+         batch-ref
          expand-taylor)
 
 (struct batch ([nodes #:mutable] [roots #:mutable] vars [nodes-length #:mutable]))
@@ -128,9 +128,9 @@
   (set-batch-nodes! batch (list->vector (reverse icache)))
   (set-batch-nodes-length! batch (vector-length (batch-nodes batch))))
 
-(define (get-expr nodes reg)
+(define (batch-ref batch reg)
   (define (unmunge reg)
-    (define node (vector-ref nodes reg))
+    (define node (vector-ref (batch-nodes batch) reg))
     (match node
       [(approx spec impl) (approx spec (unmunge impl))]
       [(list op regs ...) (cons op (map unmunge regs))]
