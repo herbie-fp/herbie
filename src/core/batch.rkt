@@ -10,6 +10,7 @@
          batch-ref
          expand-taylor
          batch-add-expr!
+         remove-dupicates-roots!
          empty-batch)
 
 (struct batch
@@ -308,6 +309,9 @@
       [(list op regs ...) (cons op (map unmunge regs))]
       [_ node]))
   (unmunge reg))
+
+(define (remove-dupicates-roots! batch)
+  (set-batch-roots! batch (list->vector (remove-duplicates (vector->list (batch-roots batch))))))
 
 ; Tests for expand-taylor
 (module+ test
