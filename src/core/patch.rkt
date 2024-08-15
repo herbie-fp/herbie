@@ -17,12 +17,12 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Simplify ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define (lower-approximations approxs approx->prev)
+(define (lower-approximations approxs)
   (timeline-event! 'simplify)
 
   (define reprs
     (for/list ([approx (in-list approxs)])
-      (define prev (hash-ref approx->prev approx))
+      (define prev (car (alt-prevs approx)))
       (repr-of (alt-expr prev) (*context*))))
 
   ; generate real rules
@@ -51,7 +51,7 @@
           (for ([altn (in-list approxs)]
                 [outputs (in-list simplification-options)])
             (match-define (cons _ simplified) outputs)
-            (define prev (hash-ref approx->prev altn))
+            (define prev (car (alt-prevs altn)))
             (for ([expr (in-list simplified)])
               (define spec (prog->spec (alt-expr prev)))
               (sow (alt (approx spec expr) `(simplify ,runner #f #f) (list altn) '()))))))
@@ -99,19 +99,15 @@
   (timeline-event! 'series)
   (timeline-push! 'inputs (map ~a altns))
 
-  (define approx->prev (make-hasheq))
-
   (define approxs
     (reap [sow]
           (for ([approximation (taylor-alts altns)])
             (unless (spec-has-nan? (alt-expr approximation))
-              ; here (car (alt-prevs approximation)) is simply an original altn
-              (hash-set! approx->prev approximation (car (alt-prevs approximation)))
               (sow approximation)))))
 
   (timeline-push! 'outputs (map ~a approxs))
   (timeline-push! 'count (length altns) (length approxs))
-  (lower-approximations approxs approx->prev))
+  (lower-approximations approxs))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Recursive Rewrite ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
