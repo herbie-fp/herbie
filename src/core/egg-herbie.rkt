@@ -1044,7 +1044,6 @@
      (define exprs
        (for/list ([egg-expr (in-list egg-exprs)])
          (egg-parsed->expr (flatten-let egg-expr) egg->herbie type)))
-     (println exprs)
      (progs->batch (remove-duplicates exprs))]
     ; no extractable expressions
     [else (progs->batch '(()))]))
