@@ -56,7 +56,7 @@
   (define demo-port 8000)
   (define demo-public #f)
 
-  (define threads #f)
+  (define threads (processor-count)) ; Or maybe 1 as the defualt?
   (define report-note #f)
   (define timeout-set? #f)
 
