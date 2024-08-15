@@ -1,6 +1,5 @@
 #lang racket
 (require "datafile.rkt"
-         "thread-pool.rkt"
          "../syntax/read.rkt"
          "../utils/common.rkt"
          "../api/server.rkt"

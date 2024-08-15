@@ -10,7 +10,6 @@
          "../utils/timeline.rkt"
          "../core/sampling.rkt"
          "../reports/pages.rkt"
-         "thread-pool.rkt"
          "../api/server.rkt"
          "../api/sandbox.rkt"
          "../reports/timeline.rkt")
