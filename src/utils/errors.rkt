@@ -80,8 +80,14 @@
     [(? exn:fail:user:herbie:sampling?)
      (list 'exn 'sampling (exn-message exn) (herbie-error-url exn) #f (traceback->datum exn))]
     [(? exn:fail:user:herbie:syntax?)
-     (list 'exn 'syntax (exn-message exn) (herbie-error-url exn) (syntax-locations->datum exn) (traceback->datum exn))]
-    [(? exn:fail:user:herbie?) (list 'exn 'herbie (exn-message exn) (herbie-error-url exn) '() (traceback->datum exn))]
+     (list 'exn
+           'syntax
+           (exn-message exn)
+           (herbie-error-url exn)
+           (syntax-locations->datum exn)
+           (traceback->datum exn))]
+    [(? exn:fail:user:herbie?)
+     (list 'exn 'herbie (exn-message exn) (herbie-error-url exn) '() (traceback->datum exn))]
     [(? exn?) (list 'exn #f (exn-message exn) #f '() (traceback->datum exn))]))
 
 (define (herbie-error->string err)
