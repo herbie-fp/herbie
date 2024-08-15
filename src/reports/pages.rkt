@@ -2,11 +2,11 @@
 
 (require json)
 (require "../syntax/read.rkt"
-         "../api/sandbox.rkt"
          "timeline.rkt"
          "plot.rkt"
          "make-graph.rkt"
          "traceback.rkt")
+  
 (provide all-pages
          make-page
          page-error-handler)
@@ -41,8 +41,8 @@
         (match command
           ["improve" (make-graph result-hash out output? profile?)]
           [else (dummy-graph command out)])]
-       ['timeout (make-traceback result-hash out profile?)]
-       ['failure (make-traceback result-hash out profile?)]
+       ['timeout (make-traceback result-hash out)]
+       ['failure (make-traceback result-hash out)]
        [_ (error 'make-page "unknown result type ~a" status)])]
     ["timeline.html"
      (make-timeline (test-name test) (hash-ref result-hash 'timeline) out #:path "..")]

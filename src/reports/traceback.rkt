@@ -7,13 +7,13 @@
 
 (provide make-traceback)
 
-(define (make-traceback result-hash out profile?)
+(define (make-traceback result-hash out)
   (match (hash-ref result-hash 'status)
-    ['timeout (render-timeout result-hash out profile?)]
-    ['failure (render-failure result-hash out profile?)]
+    ['timeout (render-timeout result-hash out)]
+    ['failure (render-failure result-hash out)]
     [status (error 'make-traceback "unexpected status ~a" status)]))
 
-(define (render-failure result-hash out profile?)
+(define (render-failure result-hash out)
   (define test (hash-ref result-hash 'test))
   (define warnings (hash-ref result-hash 'warnings))
   (define backend (hash-ref result-hash 'backend))
@@ -63,7 +63,7 @@
           `(tr (td ((class "procedure")) ,(~a name)) (td ,(~a file)) (td ,(~a line)) (td ,(~a col)))]
          [#f `(tr (td ((class "procedure")) ,(~a name)) (td ([colspan "3"]) "unknown"))])))))
 
-(define (render-timeout result-hash out profile?)
+(define (render-timeout result-hash out)
   (define test (hash-ref result-hash 'test))
   (define time (hash-ref result-hash 'time))
   (define warnings (hash-ref result-hash 'warnings))
