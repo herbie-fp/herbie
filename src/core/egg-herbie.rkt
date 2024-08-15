@@ -55,11 +55,6 @@
 (define (egraph-add-exprs egg-data exprs ctx)
   (match-define (egraph-data ptr herbie->egg-dict egg->herbie-dict id->spec) egg-data)
 
-  ;; nodes
-  (define nodes '())
-  (define exprhash (make-hash)) ; expr -> natural
-  (define spec-types (make-hash)) ; natural -> type
-
   ; lookups the egg name of a variable
   (define (normalize-var x)
     (hash-ref! herbie->egg-dict
@@ -77,64 +72,45 @@
       [(? symbol?) (normalize-var expr)]
       [(list op args ...) (cons op (map normalize-spec args))]))
 
+  (define expr->id (make-hash)) ; expr -> id
+
+  ; node -> natural
+  ; inserts an expression into the e-graph, returning its e-class id.
+  (define (insert-node! node root?)
+    (match node
+      [(list op ids ...) (egraph_add_node ptr (symbol->string op) ids root?)]
+      [(? symbol? x) (egraph_add_node ptr (symbol->string x) '() root?)]
+      [(? number? n) (egraph_add_node ptr (number->string n) '() root?)]))
+
   ; expr -> natural
-  ; converts expressions into a sequence of nodes
-  (define (munge expr)
+  ; inserts an expresison into the e-graph, returning its e-class id.
+  (define (insert! expr [root? #f])
+    ; transform the expression into a node pointing
+    ; to its child e-classes
     (define node
       (match expr
         [(? number?) expr]
         [(? symbol?) (normalize-var expr)]
         [(literal v _) v]
         [(approx spec impl)
-         (define spec* (munge spec))
-         (define impl* (munge impl))
-         (hash-ref! spec-types
+         (define spec* (insert! spec))
+         (define impl* (insert! impl))
+         (hash-ref! id->spec
                     spec*
                     (lambda ()
                       (define spec* (normalize-spec spec)) ; preserved spec for extraction
                       (define type (representation-type (repr-of impl ctx))) ; track type of spec
                       (cons spec* type)))
          (list '$approx spec* impl*)]
-        [(list op args ...) (cons op (map munge args))]))
-    (hash-ref! exprhash
-               node
-               (lambda ()
-                 (set! nodes (cons node nodes))
-                 (hash-count exprhash))))
+        [(list op args ...) (cons op (map insert! args))]))
+    ; always insert the node if it is a root since
+    ; the e-graph tracks which nodes are roots
+    (cond
+      [root? (insert-node! node #t)]
+      [else (hash-ref! expr->id node (lambda () (insert-node! node #f)))]))
 
-  ; convert expressions into a sequence of nodes
-  ; track the roots of the expression
-  (define roots (map munge exprs))
-  (define node-vec (list->vector (reverse nodes)))
-  (define n (vector-length node-vec))
-
-  ; map from sequence index to e-class id and root?
-  (define eclass-ids (make-vector n))
-  (define root?-vec (make-vector n #f))
-  (for ([root (in-list roots)])
-    (vector-set! root?-vec root #t))
-
-  ; inserts a node into the e-graph, updating `eclass-ids`
-  (define (insert! node root? idx)
-    (define id
-      (match node
-        [(list op args ...)
-         (define ids (map (lambda (arg) (vector-ref eclass-ids arg)) args))
-         (egraph_add_node ptr (symbol->string op) ids root?)]
-        [(? symbol? x) (egraph_add_node ptr (symbol->string x) '() root?)]
-        [(? number? n) (egraph_add_node ptr (number->string n) '() root?)]))
-    (vector-set! eclass-ids idx id)
-    (match (hash-ref spec-types idx #f)
-      [(cons spec type) (hash-set! id->spec id (cons spec type))]
-      [#f (void)]))
-
-  (for ([idx (in-range n)])
-    (define node (vector-ref node-vec idx))
-    (define root? (vector-ref root?-vec idx))
-    (insert! node root? idx))
-
-  (for/list ([root (in-list roots)])
-    (vector-ref eclass-ids root)))
+  (for/list ([expr (in-list exprs)])
+    (insert! expr #t)))
 
 ;; runs rules on an egraph (optional iteration limit)
 (define (egraph-run egraph-data ffi-rules node-limit iter-limit scheduler const-folding?)
