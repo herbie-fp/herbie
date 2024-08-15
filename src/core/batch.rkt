@@ -1,7 +1,8 @@
 #lang racket
 
 (require "../utils/timeline.rkt"
-         "../syntax/syntax.rkt")
+         "../syntax/syntax.rkt"
+         "../utils/alternative.rkt")
 
 (provide progs->batch
          batch->progs
@@ -9,7 +10,8 @@
          batch-ref
          expand-taylor)
 
-(struct batch ([nodes #:mutable] [roots #:mutable] vars [nodes-length #:mutable]))
+(struct batch
+        ([nodes #:mutable] [roots #:mutable] vars [nodes-length #:mutable] [exprhash #:mutable]))
 
 (define (progs->batch exprs
                       #:timeline-push [timeline-push #f]
@@ -33,6 +35,8 @@
       [_
        (define node ; This compiles to the register machine
          (match prog
+           [(alt expr event prevs preprocessing)
+            (alt (munge-ignore-approx expr) event (map munge-ignore-approx prevs) preprocessing)]
            [(list op args ...) (cons op (map munge-ignore-approx args))]
            [_ prog]))
        (hash-ref! exprhash
@@ -47,6 +51,8 @@
     (set! size (+ 1 size))
     (define node ; This compiles to the register machine
       (match prog
+        [(alt expr event prevs preprocessing)
+         (alt (munge-include-approx expr) event (map munge-include-approx prevs) preprocessing)]
         [(approx spec impl) (approx spec (munge-include-approx impl))]
         [(list op args ...) (cons op (map munge-include-approx args))]
         [_ prog]))
@@ -64,7 +70,7 @@
 
   (when timeline-push
     (timeline-push! 'compiler (+ varc size) (+ exprc varc)))
-  (batch nodes roots vars nodes-length))
+  (batch nodes roots vars nodes-length exprhash))
 
 (define (batch->progs batch)
   (define roots (batch-roots batch))
@@ -73,6 +79,8 @@
   (define (unmunge reg)
     (define node (vector-ref nodes reg))
     (match node
+      [(alt expr event prevs preprocessing)
+       (alt (unmunge expr) event (map unmunge prevs) preprocessing)]
       [(approx spec impl) (approx spec (unmunge impl))]
       [(list op regs ...) (cons op (map unmunge regs))]
       [_ node]))
@@ -185,6 +193,12 @@
        (define log-idx (append-node `(log ,div-idx)))
        (define half-idx (append-node 1/2))
        (hash-set! mappings n (append-node `(* ,half-idx ,log-idx)))]
+      [(alt expr event prevs preprocessing)
+       (hash-set!
+        mappings
+        n
+        (append-node
+         (alt (hash-ref mappings expr) event (map (curry hash-ref mappings) prevs) preprocessing)))]
       [(list op args ...)
        (hash-set! mappings n (append-node (cons op (map (curry hash-ref mappings) args))))]
       [(approx spec impl) (hash-set! mappings n (append-node (approx spec (hash-ref mappings impl))))]
@@ -195,42 +209,91 @@
   ; This may be too expensive to handle simple 1/2, 1/3 and 2/3 zombie nodes..
   #;(remove-zombie-nodes (batch nodes* roots* vars (vector-length nodes*)))
 
-  (batch nodes* roots* vars (vector-length nodes*)))
+  (batch nodes* roots* vars (vector-length nodes*) exprhash))
+
+; Updates in-batch by adding new expressions
+; Returns list of new roots
+(define (batch-add! in-batch exprs #:ignore-approx [ignore-approx #f])
+  (define exprhash (batch-exprhash in-batch))
+  (define icache '())
+  (define exprc (length (hash-keys exprhash)))
+
+  ; Translates programs into an instruction sequence of operations
+  (define (munge-ignore-approx prog)
+    (match prog ; approx nodes are ignored
+      [(approx _ impl) (munge-ignore-approx impl)]
+      [_
+       (define node ; This compiles to the register machine
+         (match prog
+           [(alt expr event prevs preprocessing)
+            (alt (munge-ignore-approx expr) event (map munge-ignore-approx prevs) preprocessing)]
+           [(list op args ...) (cons op (map munge-ignore-approx args))]
+           [_ prog]))
+       (hash-ref! exprhash
+                  node
+                  (lambda ()
+                    (begin0 exprc ; store in cache, update exprs, exprc
+                      (set! exprc (+ 1 exprc))
+                      (set! icache (cons node icache)))))]))
+
+  ; Translates programs into an instruction sequence of operations
+  (define (munge-include-approx prog)
+    (define node ; This compiles to the register machine
+      (match prog
+        [(alt expr event prevs preprocessing)
+         (alt (munge-include-approx expr) event (map munge-include-approx prevs) preprocessing)]
+        [(approx spec impl) (approx spec (munge-include-approx impl))]
+        [(list op args ...) (cons op (map munge-include-approx args))]
+        [_ prog]))
+    (hash-ref! exprhash
+               node
+               (lambda ()
+                 (begin0 exprc ; store in cache, update exprs, exprc
+                   (set! exprc (+ 1 exprc))
+                   (set! icache (cons node icache))))))
+
+  (define roots (if ignore-approx (map munge-ignore-approx exprs) (map munge-include-approx exprs)))
+  (set-batch-roots! in-batch (vector-append (batch-roots in-batch) (list->vector roots)))
+  (set-batch-nodes! in-batch (vector-append (batch-nodes in-batch) (list->vector (reverse icache))))
+  (set-batch-nodes-length! in-batch (vector-length (batch-nodes in-batch)))
+  (set-batch-exprhash! in-batch exprhash)
+  roots)
 
 ; The function removes any zombie nodes from batch
-(define (remove-zombie-nodes input-batch)
-  (define nodes (batch-nodes input-batch))
-  (define roots (batch-roots input-batch))
-  (define nodes-length (batch-nodes-length input-batch))
+#;(define (remove-zombie-nodes input-batch)
+    (define nodes (batch-nodes input-batch))
+    (define roots (batch-roots input-batch))
+    (define nodes-length (batch-nodes-length input-batch))
 
-  (define zombie-mask (make-vector nodes-length #t))
-  (for ([root (in-vector roots)])
-    (vector-set! zombie-mask root #f))
-  (for ([node (in-vector nodes (- nodes-length 1) -1 -1)]
-        [zmb (in-vector zombie-mask (- nodes-length 1) -1 -1)]
-        #:when (not zmb))
-    (match node
-      [(list op args ...) (map (λ (n) (vector-set! zombie-mask n #f)) args)]
-      [(approx spec impl) (vector-set! zombie-mask impl #f)]
-      [_ void]))
+    (define zombie-mask (make-vector nodes-length #t))
+    (for ([root (in-vector roots)])
+      (vector-set! zombie-mask root #f))
+    (for ([node (in-vector nodes (- nodes-length 1) -1 -1)]
+          [zmb (in-vector zombie-mask (- nodes-length 1) -1 -1)]
+          #:when (not zmb))
+      (match node
+        [(list op args ...) (map (λ (n) (vector-set! zombie-mask n #f)) args)]
+        [(approx spec impl) (vector-set! zombie-mask impl #f)]
+        [_ void]))
 
-  (define mappings (make-hash (map (λ (n) (cons n n)) (build-list nodes-length values))))
+    (define mappings (make-hash (map (λ (n) (cons n n)) (build-list nodes-length values))))
 
-  (define nodes* '())
-  (for ([node (in-vector nodes)]
-        [zmb (in-vector zombie-mask)]
-        [n (in-naturals)])
-    (if zmb
-        (map (λ (n) (hash-set! mappings n (sub1 (hash-ref mappings n)))) (range n nodes-length))
-        (set! nodes*
-              (cons (match node
-                      [(list op args ...) (cons op (map (curry hash-ref mappings) args))]
-                      [(approx spec impl) (approx spec (hash-ref mappings impl))]
-                      [_ node])
-                    nodes*))))
-  (set! nodes* (list->vector (reverse nodes*)))
-  (define roots* (vector-map (curry hash-ref mappings) roots))
-  (batch nodes* roots* (batch-vars input-batch) (vector-length nodes*)))
+    (define nodes* '())
+    (for ([node (in-vector nodes)]
+          [zmb (in-vector zombie-mask)]
+          [n (in-naturals)])
+      (if zmb
+          (map (λ (n) (hash-set! mappings n (sub1 (hash-ref mappings n)))) (range n nodes-length))
+          (set! nodes*
+                (cons (match node
+                        [(list op args ...) (cons op (map (curry hash-ref mappings) args))]
+                        [(approx spec impl) (approx spec (hash-ref mappings impl))]
+                        [_ node])
+                      nodes*))))
+    (set! nodes* (list->vector (reverse nodes*)))
+    (define roots* (vector-map (curry hash-ref mappings) roots))
+    ; TODO: make exprhash for the new batch
+    (batch nodes* roots* (batch-vars input-batch) (vector-length nodes*) (make-hash)))
 
 (define (batch-ref batch reg)
   (define (unmunge reg)
@@ -268,7 +331,9 @@
   (check-equal? `(+ 100 (cbrt (* x ,(approx 2 3))))
                 (test-expand-taylor `(+ 100 (pow (* x ,(approx 2 3)) 1/3))))
   (check-equal? `(+ ,(approx 2 3) (cbrt x)) (test-expand-taylor `(+ ,(approx 2 3) (pow x 1/3))))
-  (check-equal? `(+ (cbrt x) ,(approx 2 1/3)) (test-expand-taylor `(+ (pow x 1/3) ,(approx 2 1/3)))))
+  (check-equal? `(+ (cbrt x) ,(approx 2 1/3)) (test-expand-taylor `(+ (pow x 1/3) ,(approx 2 1/3))))
+  (check-equal? (alt '(+ 2 (neg x)) 'something (list '(sqrt x)) 'something)
+                (test-expand-taylor (alt '(- 2 x) 'something (list '(pow x 1/2)) 'something))))
 
 ; Tests for progs->batch and batch->progs
 (module+ test
@@ -284,13 +349,15 @@
   (test-munge-unmunge '(x))
   (test-munge-unmunge
    `(+ (sin ,(approx '(* 1/2 (+ (exp x) (neg (/ 1 (exp x))))) '(+ 3 (* 25 (sin 6))))) 4)
-   #f))
+   #f)
+  (test-munge-unmunge (alt '(* 223 (pow 2 x)) 'something (list '(/ (pow 2 x) 4)) 'something)))
 
 ; Tests for remove-zombie-nodes
+#;
 (module+ test
   (require rackunit)
   (define (zombie-test #:nodes nodes #:roots roots)
-    (define in-batch (batch nodes roots '() (vector-length nodes)))
+    (define in-batch (batch nodes roots '() (vector-length nodes) (make-hash)))
     (define out-batch (remove-zombie-nodes in-batch))
     (batch-nodes out-batch))
 
@@ -310,3 +377,15 @@
   (check-equal? (vector 2 1/2 '(sqrt 0) (approx '(* x x) 0) '(pow 1 3))
                 (zombie-test #:nodes (vector 2 1/2 '(sqrt 0) '(cbrt 0) (approx '(* x x) 0) '(pow 1 4))
                              #:roots (vector 5 2))))
+
+(module+ test
+  (require rackunit)
+  (define (batch-add!-test expr1 expr2)
+    (define batch (progs->batch (list expr1)))
+    (define root (batch-add! batch (list expr2)))
+    (check-equal? (batch-ref batch (car root)) expr2)
+    (batch->progs batch))
+
+  (check-equal? '((* 3 (pow 5 (tan x))) (* (pow 3) (tan x)))
+                (batch-add!-test '(* 3 (pow 5 (tan x))) '(* (pow 3) (tan x))))
+  (check-equal? '((* 2 3) (+ (* 2 3) 1)) (batch-add!-test '(* 2 3) '(+ (* 2 3) 1))))
