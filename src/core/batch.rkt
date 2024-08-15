@@ -8,7 +8,9 @@
          batch->progs
          (struct-out batch)
          batch-ref
-         expand-taylor)
+         expand-taylor
+         batch-add-expr!
+         empty-batch)
 
 (struct batch
         ([nodes #:mutable] [roots #:mutable] vars [nodes-length #:mutable] [exprhash #:mutable]))
@@ -213,7 +215,7 @@
 
 ; Updates in-batch by adding new expressions
 ; Returns list of new roots
-(define (batch-add! in-batch exprs #:ignore-approx [ignore-approx #f])
+(define (batch-add-expr! in-batch expr #:ignore-approx [ignore-approx #f])
   (define exprhash (batch-exprhash in-batch))
   (define icache '())
   (define exprc (length (hash-keys exprhash)))
@@ -252,12 +254,12 @@
                    (set! exprc (+ 1 exprc))
                    (set! icache (cons node icache))))))
 
-  (define roots (if ignore-approx (map munge-ignore-approx exprs) (map munge-include-approx exprs)))
-  (set-batch-roots! in-batch (vector-append (batch-roots in-batch) (list->vector roots)))
+  (define root (if ignore-approx (munge-ignore-approx expr) (munge-include-approx expr)))
+  (set-batch-roots! in-batch (vector-append (batch-roots in-batch) (vector root)))
   (set-batch-nodes! in-batch (vector-append (batch-nodes in-batch) (list->vector (reverse icache))))
   (set-batch-nodes-length! in-batch (vector-length (batch-nodes in-batch)))
   (set-batch-exprhash! in-batch exprhash)
-  roots)
+  root)
 
 ; The function removes any zombie nodes from batch
 #;(define (remove-zombie-nodes input-batch)
@@ -294,6 +296,9 @@
     (define roots* (vector-map (curry hash-ref mappings) roots))
     ; TODO: make exprhash for the new batch
     (batch nodes* roots* (batch-vars input-batch) (vector-length nodes*) (make-hash)))
+
+(define (empty-batch)
+  (batch (make-vector 0) (make-vector 0) '() 0 (make-hash)))
 
 (define (batch-ref batch reg)
   (define (unmunge reg)
@@ -382,8 +387,8 @@
   (require rackunit)
   (define (batch-add!-test expr1 expr2)
     (define batch (progs->batch (list expr1)))
-    (define root (batch-add! batch (list expr2)))
-    (check-equal? (batch-ref batch (car root)) expr2)
+    (define root (batch-add-expr! batch expr2))
+    (check-equal? (batch-ref batch root) expr2)
     (batch->progs batch))
 
   (check-equal? '((* 3 (pow 5 (tan x))) (* (pow 3) (tan x)))

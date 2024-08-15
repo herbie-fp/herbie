@@ -1044,9 +1044,9 @@
      (define exprs
        (for/list ([egg-expr (in-list egg-exprs)])
          (egg-parsed->expr (flatten-let egg-expr) egg->herbie type)))
-     (progs->batch (remove-duplicates exprs))]
+     (remove-duplicates exprs)]
     ; no extractable expressions
-    [else (progs->batch '(()))]))
+    [else (list)]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Scheduler

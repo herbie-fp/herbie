@@ -134,7 +134,6 @@
   (define reprs (map (curryr repr-of (*context*)) exprs))
   (timeline-push! 'inputs (map ~a exprs))
   (define runner (make-egg-runner exprs reprs schedule #:context (*context*)))
-  ; variantss = (listof batch)
   (define variantss (run-egg runner `(multi . ,extractor)))
 
   ; apply changelists
@@ -142,9 +141,18 @@
     (reap [sow]
           (for ([variants (in-list variantss)]
                 [altn (in-list altns)])
-            (for ([root (in-vector (batch-roots variants))])
-              #;(println (batch-ref variants root))
-              (sow (alt (batch-ref variants root) (list 'rr runner #f #f) (list altn) '()))))))
+            (for ([variant (in-list variants)])
+              (sow (alt variant (list 'rr runner #f #f) (list altn) '()))))))
+
+  ; This approach currently is way slower
+  (define batch-rewritten (empty-batch))
+  (for ([variants (in-list variantss)]
+        [altn (in-list altns)])
+    (for ([variant (in-list variants)])
+      (batch-add-expr! batch-rewritten (alt variant (list 'rr runner #f #f) (list altn) '()))))
+
+  ; Debugging
+  #;(println (equal? rewritten (batch->progs batch)))
 
   (timeline-push! 'outputs (map (compose ~a alt-expr) rewritten))
   (timeline-push! 'count (length altns) (length rewritten))
