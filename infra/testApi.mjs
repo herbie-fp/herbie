@@ -12,7 +12,6 @@ const analyzeBody = JSON.stringify({
     14.97651307489794
   ], 0.12711304680349078]]
 })
-
 // --------------------------------------
 // TEST ASYNC APIs
 // --------------------------------------
@@ -26,6 +25,14 @@ assert.equal(sampleStartData.points.length, SAMPLE_SIZE, `sample size should be 
 const analyzeStartData = await testAsyncAPI("analyze-start", analyzeBody)
 assertIdAndPath(analyzeStartData)
 assert.deepEqual(analyzeStartData.points, [[[14.97651307489794], "2.3"]])
+
+// Localerror
+const localErrorBody = JSON.stringify({
+  formula: FPCoreFormula, sample: sampleStartData.points
+})
+const localerrorStartData = await testAsyncAPI("localerror-start", analyzeBody)
+assertIdAndPath(localerrorStartData)
+assert.equal(localerrorStartData.tree['avg-error'] > 0, true)
 
 // --------------------------------------
 // END ASYNC APIS
@@ -98,9 +105,7 @@ assert.deepEqual(errors.points, [[[14.97651307489794], "2.3"]])
 
 // Local error endpoint
 const localError = await callHerbie("/api/localerror", {
-  method: 'POST', body: JSON.stringify({
-    formula: FPCoreFormula, sample: sample2.points
-  })
+  method: 'POST', body: localErrorBody
 })
 assertIdAndPath(localError)
 assert.equal(localError.tree['avg-error'] > 0, true)

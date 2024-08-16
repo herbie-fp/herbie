@@ -60,6 +60,7 @@
                   [("api" "analyze") #:method "post" analyze-endpoint]
                   [("api" "analyze-start") #:method "post" analyze-start-endpoint]
                   [("api" "localerror") #:method "post" local-error-endpoint]
+                  [("api" "localerror-start") #:method "post" local-error-start-endpoint]
                   [("api" "alternatives") #:method "post" alternatives-endpoint]
                   [("api" "exacts") #:method "post" exacts-endpoint]
                   [("api" "calculate") #:method "post" calculate-endpoint]
@@ -521,6 +522,25 @@
                                            #:timeline-disabled? #t))
                              (define id (start-job command))
                              (wait-for-job id))))
+
+(define local-error-start-endpoint
+  (post-with-json-response (lambda (post-data)
+                             (define formula
+                               (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
+                             (define sample (hash-ref post-data 'sample))
+                             (define seed (hash-ref post-data 'seed #f))
+                             (define test (parse-test formula))
+                             (define expr (prog->fpcore (test-input test)))
+                             (define pcontext (json->pcontext sample (test-context test)))
+                             (define command
+                               (create-job 'local-error
+                                           test
+                                           #:seed seed
+                                           #:pcontext pcontext
+                                           #:profile? #f
+                                           #:timeline-disabled? #t))
+                             (define job-id (start-job command))
+                             (hasheq 'job job-id 'path (make-path job-id)))))
 
 (define alternatives-endpoint
   (post-with-json-response (lambda (post-data)
