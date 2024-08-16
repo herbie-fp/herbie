@@ -187,7 +187,10 @@
 ;;  eclass ::= (<id> <enode> ..+)
 ;;  enode  ::= (<op> <id> ...)
 (define (egraph-serialize egraph-data)
-  (egraph_serialize (egraph-data-egraph-pointer egraph-data)))
+  (define ptr (egraph_serialize (egraph-data-egraph-pointer egraph-data)))
+  (define egraph (read (open-input-string (cast ptr _pointer _string/utf-8))))
+  (destroy_string ptr)
+  egraph)
 
 (define (egraph-find egraph-data id)
   (egraph_find (egraph-data-egraph-pointer egraph-data) id))
@@ -622,8 +625,8 @@
 ;; An e-class is well-typed if it has one well-typed node
 ;; A node is well-typed if all of its child e-classes are well-typed.
 (define (prune-ill-typed! eclasses)
-  (define n (vector-length eclasses))
   (define-values (parents leaf? _) (analyze-eclasses eclasses))
+  (define n (vector-length eclasses))
 
   ;; is the e-class well-typed
   (define typed? (make-vector n #f))
@@ -748,28 +751,9 @@
   (define n (vector-length eclasses))
 
   ;; analyze each eclass
-  (define parents (make-vector n '()))
-  (define leaf? (make-vector n '#f))
-  (define constants (make-vector n #f))
-  (for ([id (in-range n)])
-    (define eclass (vector-ref eclasses id))
-    (for ([enode (in-vector eclass)])
-      (match enode
-        [(? number? n)
-         (vector-set! leaf? id #t)
-         (vector-set! constants id n)]
-        [(? symbol?) (vector-set! leaf? id #t)]
-        [(list _ ids ...)
-         (when (null? ids)
-           (vector-set! leaf? id #t))
-         (for ([child-id (in-list ids)])
-           (vector-set! parents child-id (cons id (vector-ref parents child-id))))])))
-  ; parent map: remove duplicates, convert lists to vectors
-  (for ([id (in-range n)])
-    (define ids (remove-duplicates (vector-ref parents id)))
-    (vector-set! parents id (list->vector ids)))
+  (define-values (parents leaf? constants) (analyze-eclasses eclasses))
 
-  ; convert id->spec to a vector-map
+  ;; rebuild id->spec map for typed e-classes
   (define specs (make-vector n #f))
   (for ([(id spec&repr) (in-hash id->spec)])
     (match-define (cons spec repr) spec&repr)
