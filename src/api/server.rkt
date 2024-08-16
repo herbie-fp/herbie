@@ -16,6 +16,7 @@
          "../syntax/load-plugin.rkt"
          "../utils/alternative.rkt"
          "../utils/common.rkt"
+         "../utils/errors.rkt"
          "../utils/float.rkt")
 
 (provide make-path
@@ -365,7 +366,8 @@
   (define backend-hash
     (match (job-result-status herbie-result)
       ['success (backend-improve-result-hash-table backend repr test)]
-      [_ #f]))
+      ['timeout #f]
+      ['failure (exception->datum backend)]))
 
   (hasheq 'command
           (get-command herbie-result)

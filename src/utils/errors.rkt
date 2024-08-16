@@ -5,6 +5,7 @@
          raise-herbie-sampling-error
          raise-herbie-missing-error
          syntax->error-format-string
+         exception->datum
          herbie-error->string
          herbie-error-url
          (struct-out exn:fail:user:herbie)
@@ -59,6 +60,35 @@
           file
           (or (syntax-line stx) "")
           (or (syntax-column stx) (syntax-position stx))))
+
+(define (traceback->datum exn)
+  (define ctx (continuation-mark-set->context (exn-continuation-marks exn)))
+  (for/list ([(name loc) (in-dict ctx)])
+    (define name* (or name "(unnamed)"))
+    (match loc
+      [(srcloc file line col _ _) (cons name* (list file line col))]
+      [#f (cons name* #f)])))
+
+(define (syntax-locations->datum exn)
+  (for/list ([(stx msg) (in-dict (exn:fail:user:herbie:syntax-locations exn))])
+    (list msg (syntax-source stx) (syntax-line stx) (syntax-column stx) (syntax-position stx))))
+
+(define (exception->datum exn)
+  (match exn
+    [(? exn:fail:user:herbie:missing?)
+     (list 'exn 'missing (exn-message exn) (herbie-error-url exn) #f (traceback->datum exn))]
+    [(? exn:fail:user:herbie:sampling?)
+     (list 'exn 'sampling (exn-message exn) (herbie-error-url exn) #f (traceback->datum exn))]
+    [(? exn:fail:user:herbie:syntax?)
+     (list 'exn
+           'syntax
+           (exn-message exn)
+           (herbie-error-url exn)
+           (syntax-locations->datum exn)
+           (traceback->datum exn))]
+    [(? exn:fail:user:herbie?)
+     (list 'exn 'herbie (exn-message exn) (herbie-error-url exn) '() (traceback->datum exn))]
+    [(? exn?) (list 'exn #f (exn-message exn) #f '() (traceback->datum exn))]))
 
 (define (herbie-error->string err)
   (call-with-output-string
