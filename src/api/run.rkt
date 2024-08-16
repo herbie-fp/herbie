@@ -68,6 +68,20 @@
   (define replaced (string-replace tname #px"\\W+" ""))
   (format "~a-~a" index (substring replaced 0 (min (string-length replaced) 50))))
 
+(define (print-test-result i n data)
+  (eprintf "~a/~a\t" (~a i #:width 3 #:align 'right) n)
+  (define bits (representation-total-bits (get-representation (table-row-precision data))))
+  (match (table-row-status data)
+    ["error" (eprintf "[ ERROR ]\t\t~a\n" (table-row-name data))]
+    ["crash" (eprintf "[ CRASH ]\t\t~a\n" (table-row-name data))]
+    ["timeout" (eprintf "[TIMEOUT]\t\t~a\n" (table-row-name data))]
+    [_
+     (eprintf "[~as]  ~a% → ~a%\t~a\n"
+              (~r (/ (table-row-time data) 1000) #:min-width 6 #:precision '(= 1))
+              (~r (* 100 (- 1 (/ (table-row-start data) bits))) #:min-width 3 #:precision 0)
+              (~r (* 100 (- 1 (/ (table-row-result data) bits))) #:min-width 3 #:precision 0)
+              (table-row-name data))]))
+
 (define (run-tests tests #:dir dir #:note note #:threads threads)
   (define seed (get-seed))
   (when (not (directory-exists? dir))
@@ -103,7 +117,9 @@
                                                               ((page-error-handler result page out) e)
                                                               (set! error? #t))])
                                    (make-page page out result #t profile?)))))
-      (get-table-data-from-hash result dirname)))
+      (define table-data (get-table-data-from-hash result dirname))
+      (print-test-result (+ i 1) (length ids) table-data)
+      table-data))
   (define info (make-report-info results #:seed seed #:note note))
 
   (write-datafile (build-path dir "results.json") info)
