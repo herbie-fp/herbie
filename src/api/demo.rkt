@@ -72,6 +72,7 @@
                   [("api" "mathjs") #:method "post" ->mathjs-endpoint]
                   [("api" "translate") #:method "post" translate-endpoint]
                   [("api" "explanations") #:method "post" explanations-endpoint]
+                  [("api" "explanations-start") #:method "post" explanations-start-endpoint]
                   [((hash-arg) (string-arg)) generate-page]
                   [("results.json") generate-report]))
 
@@ -434,6 +435,24 @@
                                            #:timeline-disabled? #t))
                              (define id (start-job command))
                              (wait-for-job id))))
+
+(define explanations-start-endpoint
+  (post-with-json-response (lambda (post-data)
+                             (define formula-str (hash-ref post-data 'formula))
+                             (define formula (read-syntax 'web (open-input-string formula-str)))
+                             (define sample (hash-ref post-data 'sample))
+                             (define seed (hash-ref post-data 'seed #f))
+                             (define test (parse-test formula))
+                             (define pcontext (json->pcontext sample (test-context test)))
+                             (define command
+                               (create-job 'explanations
+                                           test
+                                           #:seed seed
+                                           #:pcontext pcontext
+                                           #:profile? #f
+                                           #:timeline-disabled? #t))
+                             (define job-id (start-job command))
+                             (hasheq 'job job-id 'path (make-path job-id)))))
 
 (define analyze-endpoint
   (post-with-json-response (lambda (post-data)

@@ -68,6 +68,10 @@ const costStartData = await testAsyncAPI("cost-start", costBody)
 assertIdAndPath(costStartData)
 assert.equal(costStartData.cost > 0, true)
 
+const explainStartData = await testAsyncAPI("explanations-start",localErrorBody)
+assertIdAndPath(explainStartData)
+assert.equal(explainStartData.explanation.length > 0, true, 'explanation should not be empty');
+
 // --------------------------------------
 // END ASYNC APIS
 // --------------------------------------
