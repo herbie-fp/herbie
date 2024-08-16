@@ -242,9 +242,12 @@
                         (destroy_string p)
                         (cons (or (string->number s) (string->symbol s)) v))))
 
-; egraph -> id -> (listof (cons symbol u32vector))
+; egraph -> id -> (vectorof (cons symbol u32vector))
 (define (egraph_get_eclass egg-ptr id)
-  (build-list (egraph_eclass_size egg-ptr id) (lambda (i) (egraph_get_node egg-ptr id i))))
+  (define n (egraph_eclass_size egg-ptr id))
+  (for/vector #:length n
+              ([i (in-range n)])
+    (egraph_get_node egg-ptr id i)))
 
 ;; egraph -> id -> id
 (define-eggmath egraph_find (_fun _egraph-pointer _uint -> _uint))
