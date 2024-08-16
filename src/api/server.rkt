@@ -394,7 +394,7 @@
   (define pcontext (improve-result-pctxs backend))
 
   (define preprocessing (improve-result-preprocess backend))
-  (define end-hash-table (end-hash (improve-result-end backend) repr preprocessing pcontext test))
+  (define end-hash-table (end-hash (improve-result-end backend) repr pcontext test))
 
   (hasheq 'preprocessing
           preprocessing
@@ -409,13 +409,7 @@
           'bogosity
           (improve-result-bogosity backend)))
 
-(define (end-hash end repr preprocessing pcontexts test)
-  (define ctx (test-context test))
-  (define-values (processed test-pctx)
-    (for/lists (l1 l2)
-               ([pctx pcontexts])
-               (define-values (train-pcontext test-pcontext) (partition-pcontext pctx))
-               (values (preprocess-pcontext ctx test-pcontext preprocessing) test-pcontext)))
+(define (end-hash end repr pcontexts test)
   (define-values (end-alts train-errors end-errors end-costs)
     (for/lists (l1 l2 l3 l4)
                ([analysis end])
@@ -425,11 +419,8 @@
     (for/list ([altn end-alts])
       (~a (program->fpcore (alt-expr altn) (test-context test)))))
   (define alts-histories
-    (for/list ([alt end-alts]
-               [ppctx processed]
-               [tpctx test-pctx])
-      (render-history alt ppctx tpctx (test-context test))))
-
+    (for/list ([alt end-alts])
+      (render-history alt (first pcontexts) (second pcontexts) (test-context test))))
   (define vars (test-vars test))
   (define end-alt (alt-analysis-alt (car end)))
   (define splitpoints
