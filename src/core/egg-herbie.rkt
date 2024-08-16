@@ -566,7 +566,17 @@
      (list 'if (lookup cond cond-type) (lookup ift type) (lookup iff type))]
     [else
      (define itypes (if (impl-exists? f) (impl-info f 'itype) (operator-info f 'itype)))
-     (cons f (map lookup (u32vector->list ids) itypes))]))
+     ; unsafe since we don't check that |itypes| = |ids|
+     ; optimize for common cases to avoid extra allocations
+     (cons f
+           (match itypes
+             [(list t1) (list (lookup (u32vector-ref ids 0) t1))]
+             [(list t1 t2) (list (lookup (u32vector-ref ids 0) t1) (lookup (u32vector-ref ids 1) t2))]
+             [(list t1 t2 t3)
+              (list (lookup (u32vector-ref ids 0) t1)
+                    (lookup (u32vector-ref ids 1) t2)
+                    (lookup (u32vector-ref ids 2) t3))]
+             [_ (map lookup (u32vector->list ids) itypes)]))]))
 
 ;; Splits untyped eclasses into typed eclasses.
 ;; Nodes are duplicated across their possible types.
