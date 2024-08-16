@@ -606,11 +606,13 @@
     (hash-ref! type->id type (lambda () (new-eclass eid type))))
 
   ;; extract (untyped) eclass ids as u32vector
-  ;; for each eclass, extract the enodes
-  ;;  <enode> ::= <symbol>
-  ;;            | <number>
-  ;;            | (<symbol> . <u32vector>)
   (for ([eid (in-u32vector (egraph-eclasses egraph-data))])
+    ;; for each eclass, extract the enodes
+    ;;  <enode> ::= <symbol>
+    ;;            | <number>
+    ;;            | (<symbol> . <u32vector>)
+    ;; NOTE: nodes in typed eclasses are reversed relative
+    ;; to their position in untyped eclasses
     (for ([enode (in-vector (egraph-get-eclass egraph-data eid))])
       ; get all possible types for the enode
       ; lookup its correct eclass and add the rebuilt node
@@ -621,7 +623,7 @@
         (define eclass (hash-ref id->eclass id))
         (set-box! eclass (cons enode* (unbox eclass))))))
 
-  (define eclasses (list->vector (map (compose reverse unbox) (reverse eclass-boxes))))
+  (define eclasses (list->vector (map unbox (reverse eclass-boxes))))
   (define types (list->vector (reverse eclass-types)))
   (values eclasses types egg-id->id))
 
