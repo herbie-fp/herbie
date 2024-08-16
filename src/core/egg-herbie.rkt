@@ -528,38 +528,45 @@
 ;;  - ops/impls: its output type/representation
 ;; NOTE: we can constrain "every" type by using the platform.
 (define (enode-type enode egg->herbie)
-  (match enode
-    [(cons (? number?) _) (cons 'real (platform-reprs (*active-platform*)))]
-    [(cons (? symbol? x) (? u32vector-empty?))
+  (define f (car enode))
+  (define ids (cdr enode))
+  (cond
+    [(u32vector-empty? ids)
      (cond
-       [(hash-has-key? egg->herbie x) ; variable
-        (match-define (cons _ repr) (hash-ref egg->herbie x))
+       [(number? f) (cons 'real (platform-reprs (*active-platform*)))]
+       [(hash-has-key? egg->herbie f)
+        (match-define (cons _ repr) (hash-ref egg->herbie f))
         (list repr (representation-type repr))]
-       [(impl-exists? x) (list (impl-info x 'otype))] ; nullary impl
-       [else (list (operator-info x 'otype))])] ; nullary operator
-    [(cons '$approx _) (platform-reprs (*active-platform*))]
-    [(cons 'if _) (all-reprs/types)]
-    [(cons (? impl-exists? impl) _) (list (impl-info impl 'otype))]
-    [(cons op _) (list (operator-info op 'otype))]))
+       [(impl-exists? f) (list (impl-info f 'otype))]
+       [else (list (operator-info f 'otype))])]
+    [(eq? f '$approx) (platform-reprs (*active-platform*))]
+    [(eq? f 'if) (all-reprs/types)]
+    [(impl-exists? f) (list (impl-info f 'otype))]
+    [else (list (operator-info f 'otype))]))
 
 ;; Rebuilds an e-node using typed e-classes
 (define (rebuild-enode enode type lookup egg->herbie)
-  (match enode
-    [(cons (? number? n) _) n]
-    [(cons (? symbol? x) (? u32vector-empty?)) (if (hash-has-key? egg->herbie x) x (list x))]
-    [(cons '$approx ids)
+  (define f (car enode))
+  (define ids (cdr enode))
+  (cond
+    [(u32vector-empty? ids)
+     (cond
+       [(number? f) f] ; number
+       [(hash-has-key? egg->herbie f) f] ; variable
+       [else (list f)])] ; nullary operator
+    [(eq? f '$approx) ; approx node
      (define spec (u32vector-ref ids 0))
      (define impl (u32vector-ref ids 1))
      (list '$approx (lookup spec (representation-type type)) (lookup impl type))]
-    [(cons 'if ids)
+    [(eq? f 'if) ; if expression
      (define cond (u32vector-ref ids 0))
      (define ift (u32vector-ref ids 1))
      (define iff (u32vector-ref ids 2))
      (define cond-type (if (representation? type) (get-representation 'bool) 'bool))
      (list 'if (lookup cond cond-type) (lookup ift type) (lookup iff type))]
-    [(cons (? impl-exists? impl) ids)
-     (cons impl (map lookup (u32vector->list ids) (impl-info impl 'itype)))]
-    [(cons op ids) (cons op (map lookup (u32vector->list ids) (operator-info op 'itype)))]))
+    [else
+     (define itypes (if (impl-exists? f) (impl-info f 'itype) (operator-info f 'itype)))
+     (cons f (map lookup (u32vector->list ids) itypes))]))
 
 ;; Splits untyped eclasses into typed eclasses.
 ;; Nodes are duplicated across their possible types.
