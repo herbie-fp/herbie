@@ -20,6 +20,9 @@ const alternativesBody = JSON.stringify({
 const exactsBody = JSON.stringify({
   formula: FPCoreFormula2, sample: eval_sample
 })
+const calculateBody = JSON.stringify({
+  formula: FPCoreFormula2, sample: eval_sample
+})
 // --------------------------------------
 // TEST ASYNC APIs
 // --------------------------------------
@@ -51,6 +54,11 @@ assert.equal(Array.isArray(alternativesStartData.alternatives), true)
 const exactsStartData =  await testAsyncAPI("exacts-start", exactsBody)
 assertIdAndPath(exactsStartData)
 assert.deepEqual(exactsStartData.points, [[[1], -1.4142135623730951]])
+
+// Calculate endpoint
+const calculateStartData = await testAsyncAPI("calculate-start", calculateBody)
+assertIdAndPath(calculateStartData)
+assert.deepEqual(calculateStartData.points, [[[1], -1.4142135623730951]])
 
 
 // --------------------------------------
