@@ -68,6 +68,7 @@
                   [("api" "calculate") #:method "post" calculate-endpoint]
                   [("api" "calculate-start") #:method "post" calculate-start-endpoint]
                   [("api" "cost") #:method "post" cost-endpoint]
+                  [("api" "cost-start") #:method "post" cost-start-endpoint]
                   [("api" "mathjs") #:method "post" ->mathjs-endpoint]
                   [("api" "translate") #:method "post" translate-endpoint]
                   [("api" "explanations") #:method "post" explanations-endpoint]
@@ -635,6 +636,16 @@
        (create-job 'cost test #:seed #f #:pcontext #f #:profile? #f #:timeline-disabled? #f))
      (define id (start-job command))
      (wait-for-job id))))
+
+(define cost-start-endpoint
+  (post-with-json-response
+   (lambda (post-data)
+     (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
+     (define test (parse-test formula))
+     (define command
+       (create-job 'cost test #:seed #f #:pcontext #f #:profile? #f #:timeline-disabled? #f))
+     (define job-id (start-job command))
+     (hasheq 'job job-id 'path (make-path job-id)))))
 
 (define translate-endpoint
   (post-with-json-response (lambda (post-data)
