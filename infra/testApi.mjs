@@ -7,15 +7,25 @@ const SAMPLE_SIZE = 8000
 const FPCoreFormula = '(FPCore (x) (- (sqrt (+ x 1)) (sqrt x)))'
 const FPCoreFormula2 = '(FPCore (x) (- (sqrt (+ x 1))))'
 const eval_sample = [[[1], -1.4142135623730951]]
+const analyzeBody = JSON.stringify({
+  formula: FPCoreFormula, sample: [[[
+    14.97651307489794
+  ], 0.12711304680349078]]
+})
 
 // --------------------------------------
 // TEST ASYNC APIs
 // --------------------------------------
 
+// Sample
 const sampleStartData = await testAsyncAPI("sample-start", JSON.stringify({ formula: FPCoreFormula2, seed: 5 }))
-
 assert.ok(sampleStartData.points)
 assert.equal(sampleStartData.points.length, SAMPLE_SIZE, `sample size should be ${SAMPLE_SIZE}`)
+
+// Analyze
+const analyzeStartData = await testAsyncAPI("analyze-start", analyzeBody)
+assertIdAndPath(analyzeStartData)
+assert.deepEqual(analyzeStartData.points, [[[14.97651307489794], "2.3"]])
 
 // --------------------------------------
 // END ASYNC APIS
@@ -81,11 +91,7 @@ assert.deepEqual(points[1], points2[1])
 
 // Analyze endpoint
 const errors = await callHerbie("/api/analyze", {
-  method: 'POST', body: JSON.stringify({
-    formula: FPCoreFormula, sample: [[[
-      14.97651307489794
-    ], 0.12711304680349078]]
-  })
+  method: 'POST', body: analyzeBody
 })
 assertIdAndPath(errors)
 assert.deepEqual(errors.points, [[[14.97651307489794], "2.3"]])
