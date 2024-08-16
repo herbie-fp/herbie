@@ -242,15 +242,16 @@
        [(list 'result job-id handler) (place-channel-put handler (hash-ref completed-work job-id #f))]
        [(list 'timeline job-id handler)
         (define wid (hash-ref current-jobs job-id #f))
-        (when (not (false? wid))
-          (log "Worker[~a] working on ~a.\n" wid job-id)
-          (define-values (a b) (place-channel))
-          (place-channel-put (hash-ref busy-workers wid) (list 'timeline b))
-          (define requested-timeline (place-channel-get a))
-          (place-channel-put handler requested-timeline))
-        (when (false? wid)
-          (log "Job complete, no timeline, send result.\n")
-          (place-channel-put handler (hash-ref completed-work job-id #f)))]
+        (cond
+          [(not (false? wid))
+           (log "Worker[~a] working on ~a.\n" wid job-id)
+           (define-values (a b) (place-channel))
+           (place-channel-put (hash-ref busy-workers wid) (list 'timeline b))
+           (define requested-timeline (place-channel-get a))
+           (place-channel-put handler requested-timeline)]
+          [(false? wid)
+           (log "Job complete, no timeline, send result.\n")
+           (place-channel-put handler (hash-ref completed-work job-id #f))])]
        ; Returns the current count of working workers.
        [(list 'count handler) (place-channel-put handler (hash-count busy-workers))]
        ; Retreive the improve results for results.json
@@ -300,12 +301,10 @@
                     (*num-iterations* iterations)
                     (*num-points* points)
                     (*timeout* timeout)
-                    (*demo-output* output)
-                    (*reeval-pts* reeval)
-                    (*demo?* demo?)]
+                    (*reeval-pts* reeval)]
                    [job-info (run-job job-info)])
                  (loop seed)))))
-   (define timeline (*timeline*))
+   (define timeline #f)
    (define current-job-id #f)
    (for ([_ (in-naturals)])
      (match (place-channel-get ch)
@@ -319,9 +318,6 @@
         (place-channel-put handler timeline)]))))
 
 (struct work (manager worker-id job-id job))
-; Not sure if these are actually needed.
-(define *demo-output* (make-parameter false))
-(define *demo?* (make-parameter false))
 
 (define (run-job job-info)
   (match-define (work manager worker-id job-id command) job-info)
