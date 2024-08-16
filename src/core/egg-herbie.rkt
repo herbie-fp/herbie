@@ -182,15 +182,23 @@
     [3 "unsound"]
     [sr (error 'egraph-stop-reason "unexpected stop reason ~a" sr)]))
 
-;; An egraph is just a S-expr of the form
-;;  egraph ::= (<eclass> ...)
-;;  eclass ::= (<id> <enode> ..+)
-;;  enode  ::= (<op> <id> ...)
-(define (egraph-serialize egraph-data)
-  (define ptr (egraph_serialize (egraph-data-egraph-pointer egraph-data)))
-  (define egraph (read (open-input-string (cast ptr _pointer _string/utf-8))))
-  (destroy_string ptr)
-  egraph)
+;; Extracts the eclasses of an e-graph as a list.
+(define (egraph-eclasses egraph-data)
+  (u32vector->list (egraph_get_eclasses (egraph-data-egraph-pointer egraph-data))))
+
+;; Extracts the nodes of an e-class as a list
+;; where each enode is either a symbol, number, or list
+(define (egraph-get-eclass egraph-data id)
+  (define egg->herbie (egraph-data-egg->herbie-dict egraph-data))
+  (define nodes (egraph_get_eclass (egraph-data-egraph-pointer egraph-data) id))
+  (for/list ([(f ids) (in-dict nodes)])
+    (cond
+      ; non-nullary operator
+      [(> (u32vector-length ids) 0) (cons f (u32vector->list ids))]
+      ; either variable of nullary operator
+      [(symbol? f) (if (hash-has-key? egg->herbie f) f (list f))]
+      ; number
+      [(number? f) f])))
 
 (define (egraph-find egraph-data id)
   (egraph_find (egraph-data-egraph-pointer egraph-data) id))
@@ -503,11 +511,6 @@
 ;; - egg->herbie: data to translate egg IR to herbie IR
 (struct regraph (eclasses types leaf? constants specs parents canon egg->herbie))
 
-;; Normalizes a Rust e-class.
-;; Nullary operators are serialized as symbols, so we need to fix them.
-(define (normalize-enode enode egg->herbie)
-  (if (and (symbol? enode) (not (hash-has-key? egg->herbie enode))) (list enode) enode))
-
 ;; Returns all representatations (and their types) in the current platform.
 (define (all-reprs/types [pform (*active-platform*)])
   (remove-duplicates (append-map (lambda (repr) (list repr (representation-type repr)))
@@ -547,7 +550,7 @@
 
 ;; Splits untyped eclasses into typed eclasses.
 ;; Nodes are duplicated across their possible types.
-(define (split-untyped-eclasses egraph egg->herbie)
+(define (split-untyped-eclasses egraph-data egg->herbie)
   ; optimization: use two dimensional table for lookups
   ; first indexed by untyped e-class id, then by type
   (define egg-id->table (make-hash)) ; natural -> (type -> id)
@@ -572,19 +575,17 @@
     (define type->id (hash-ref! egg-id->table eid (lambda () (make-hasheq))))
     (hash-ref! type->id type (lambda () (new-eclass eid type))))
 
-  ;; build typed eclasses
-  (for ([eclass (in-list egraph)])
-    (define eid (car eclass))
-    (for ([enode (in-list (cdr eclass))])
-      (let ([enode (normalize-enode enode egg->herbie)])
-        ; get all possible types for the enode
-        (define types (enode-type enode egg->herbie))
-        (for ([type (in-list types)])
-          ; lookup or create a new typed eclass
-          (define id (lookup-id eid type))
-          (define enode* (rebuild-enode enode type lookup-id))
-          (define eclass (hash-ref id->eclass id))
-          (set-box! eclass (cons enode* (unbox eclass)))))))
+  ;; extract (untyped) eclass ids as u32vector
+  (for ([eid (in-list (egraph-eclasses egraph-data))])
+    (for ([enode (in-list (egraph-get-eclass egraph-data eid))])
+      ; get all possible types for the enode
+      (define types (enode-type enode egg->herbie))
+      (for ([type (in-list types)])
+        ; lookup or create a new typed eclass
+        (define id (lookup-id eid type))
+        (define enode* (rebuild-enode enode type lookup-id))
+        (define eclass (hash-ref id->eclass id))
+        (set-box! eclass (cons enode* (unbox eclass))))))
 
   (define eclasses (list->vector (map (compose reverse unbox) (reverse eclass-boxes))))
   (define types (list->vector (reverse eclass-types)))
@@ -722,11 +723,11 @@
 
 ;; Splits untyped eclasses into typed eclasses,
 ;; keeping only the subset of enodes that are well-typed.
-(define (make-typed-eclasses egraph egg->herbie)
+(define (make-typed-eclasses egraph-data egg->herbie)
   ;; Step 1: split Rust e-classes by type
   ;; The result are the eclasses, their types,
   ;; and a canonicalization map for egg e-class ids
-  (define-values (eclasses types egg-id->id) (split-untyped-eclasses egraph egg->herbie))
+  (define-values (eclasses types egg-id->id) (split-untyped-eclasses egraph-data egg->herbie))
 
   ;; Step 2: keep well-typed e-nodes
   ;; An e-class is well-typed if it has one well-typed node
@@ -743,11 +744,8 @@
   (define egg->herbie (egraph-data-egg->herbie-dict egraph-data))
   (define id->spec (egraph-data-id->spec egraph-data))
 
-  ;; serialize the e-graph into Racket
-  (define egraph (egraph-serialize egraph-data))
-
   ;; split the e-classes by type
-  (define-values (eclasses types canon) (make-typed-eclasses egraph egg->herbie))
+  (define-values (eclasses types canon) (make-typed-eclasses egraph-data egg->herbie))
   (define n (vector-length eclasses))
 
   ;; analyze each eclass

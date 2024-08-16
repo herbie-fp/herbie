@@ -12,8 +12,10 @@
          egraph_run
          egraph_copy
          egraph_get_stop_reason
-         egraph_serialize
          egraph_find
+         egraph_serialize
+         egraph_get_eclasses
+         egraph_get_eclass
          egraph_get_simplest
          egraph_get_variants
          egraph_get_cost
@@ -214,6 +216,35 @@
 
 ;; egraph -> string
 (define-eggmath egraph_serialize (_fun _egraph-pointer -> _rust/datum))
+
+;; egraph -> uint
+(define-eggmath egraph_size (_fun _egraph-pointer -> _uint))
+
+;; egraph -> id -> uint
+(define-eggmath egraph_eclass_size (_fun _egraph-pointer _uint -> _uint))
+
+;; egraph -> u32vector
+(define-eggmath
+ egraph_get_eclasses
+ (_fun [e : _egraph-pointer] [v : _u32vector = (make-u32vector (egraph_size e))] -> _void -> v))
+
+;; egraph -> id -> u32 -> (values (or symbol number) u32vector)
+(define-eggmath egraph_get_node
+                (_fun [e : _egraph-pointer]
+                      [id : _uint32]
+                      [idx : _uint32]
+                      [len : (_ptr o _uint32)]
+                      [v : (_ptr o (_u32vector o len))]
+                      ->
+                      [p : _pointer]
+                      ->
+                      (let ([s (cast p _pointer _string*/utf-8)])
+                        (destroy_string p)
+                        (cons (or (string->number s) (string->symbol s)) v))))
+
+; egraph -> id -> (listof (cons symbol u32vector))
+(define (egraph_get_eclass egg-ptr id)
+  (build-list (egraph_eclass_size egg-ptr id) (lambda (i) (egraph_get_node egg-ptr id i))))
 
 ;; egraph -> id -> id
 (define-eggmath egraph_find (_fun _egraph-pointer _uint -> _uint))
