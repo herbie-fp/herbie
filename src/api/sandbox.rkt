@@ -439,8 +439,8 @@
                    (test-input (parse-test (read-syntax 'web (open-input-string (car end-exprs)))))]
                   [cost-accuracy cost&accuracy])]
     ['failure
-     (define exn backend)
-     (define status (if (exn:fail:user:herbie? exn) "error" "crash"))
+     (match-define (list 'exn type _ ...) backend)
+     (define status (if type "error" "crash"))
      (dummy-table-row-from-hash result-hash status link)]
     ['timeout (dummy-table-row-from-hash result-hash "timeout" link)]
     [_ (error 'get-table-data "unknown result type ~a" status)]))
@@ -517,8 +517,8 @@
                   [output (car end-exprs)]
                   [cost-accuracy cost&accuracy])]
     ['failure
-     (define exn backend)
-     (define status (if (exn:fail:user:herbie? exn) "error" "crash"))
+     (match-define (list 'exn type _ ...) backend)
+     (define status (if type "error" "crash"))
      (dummy-table-row result status link)]
     ['timeout (dummy-table-row result "timeout" link)]
     [_ (error 'get-table-data "unknown result type ~a" status)]))
