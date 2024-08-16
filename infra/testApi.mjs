@@ -17,6 +17,9 @@ const alternativesBody = JSON.stringify({
     14.97651307489794
   ], 0.12711304680349078]]
 })
+const exactsBody = JSON.stringify({
+  formula: FPCoreFormula2, sample: eval_sample
+})
 // --------------------------------------
 // TEST ASYNC APIs
 // --------------------------------------
@@ -39,9 +42,16 @@ const localerrorStartData = await testAsyncAPI("localerror-start", analyzeBody)
 assertIdAndPath(localerrorStartData)
 assert.equal(localerrorStartData.tree['avg-error'] > 0, true)
 
+// Alternatives
 const alternativesStartData = await testAsyncAPI("alternatives-start", alternativesBody)
 assertIdAndPath(alternativesStartData)
 assert.equal(Array.isArray(alternativesStartData.alternatives), true)
+
+// Exacts endpoint
+const exactsStartData =  await testAsyncAPI("exacts-start", exactsBody)
+assertIdAndPath(exactsStartData)
+assert.deepEqual(exactsStartData.points, [[[1], -1.4142135623730951]])
+
 
 // --------------------------------------
 // END ASYNC APIS
