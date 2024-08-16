@@ -12,6 +12,11 @@ const analyzeBody = JSON.stringify({
     14.97651307489794
   ], 0.12711304680349078]]
 })
+const alternativesBody = JSON.stringify({
+  formula: FPCoreFormula, sample: [[[
+    14.97651307489794
+  ], 0.12711304680349078]]
+})
 // --------------------------------------
 // TEST ASYNC APIs
 // --------------------------------------
@@ -33,6 +38,10 @@ const localErrorBody = JSON.stringify({
 const localerrorStartData = await testAsyncAPI("localerror-start", analyzeBody)
 assertIdAndPath(localerrorStartData)
 assert.equal(localerrorStartData.tree['avg-error'] > 0, true)
+
+const alternativesStartData = await testAsyncAPI("alternatives-start", alternativesBody)
+assertIdAndPath(alternativesStartData)
+assert.equal(Array.isArray(alternativesStartData.alternatives), true)
 
 // --------------------------------------
 // END ASYNC APIS
