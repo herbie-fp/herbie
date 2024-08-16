@@ -454,12 +454,11 @@
     ; non-expansive rule
     [else (list (rule->egg-rule ru))]))
 
-;; egg rule cache
-(define/reset *egg-rule-cache* (make-hash))
+;; egg rule cache: rule -> (cons/c rule FFI-rule)
+(define/reset *egg-rule-cache* (make-hasheq))
 
-;; Cache mapping name to its canonical rule name
-;; See `*egg-rules*` for details
-(define/reset *canon-names* (make-hash))
+;; Cache mapping (expanded) rule name to its canonical rule name
+(define/reset *canon-names* (make-hasheq))
 
 ;; Tries to look up the canonical name of a rule using the cache.
 ;; Obviously dangerous if the cache is invalid.
@@ -473,7 +472,7 @@
         (for ([rule (in-list rules)])
           (define egg&ffi-rules
             (hash-ref! (*egg-rule-cache*)
-                       (cons (*active-platform*) rule)
+                       rule
                        (lambda ()
                          (for/list ([egg-rule (in-list (rule->egg-rules rule))])
                            (define name (rule-name egg-rule))
