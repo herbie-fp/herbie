@@ -158,10 +158,11 @@
      num
      "How many jobs to run in parallel: Processor count is the default."
      (set! threads (string->thread-count num))]
-    [("--no-browser") "Run the web demo but don't start a browser." (set! browser? false)]
+    [("--no-browser") "Run the web demo but don't start a browser." (set! browser? #f)]
     #:args ()
     (run-demo #:quiet quiet?
               #:threads threads
+              #:browser browser?
               #:output demo-output
               #:log demo-log
               #:prefix demo-prefix
