@@ -3,9 +3,23 @@ import { strict as assert } from 'node:assert';  // use strict equality everywhe
 // Future TODO: before this API becomes set in stone/offered publicly, we should change the results of these methods to be just the output data rather than duplicating input values.
 
 // Reusable testing data
+const SAMPLE_SIZE = 8000
 const FPCoreFormula = '(FPCore (x) (- (sqrt (+ x 1)) (sqrt x)))'
 const FPCoreFormula2 = '(FPCore (x) (- (sqrt (+ x 1))))'
 const eval_sample = [[[1], -1.4142135623730951]]
+
+// --------------------------------------
+// TEST ASYNC APIs
+// --------------------------------------
+
+const sampleStartData = await testAsyncAPI("sample-start", JSON.stringify({ formula: FPCoreFormula2, seed: 5 }))
+
+assert.ok(sampleStartData.points)
+assert.equal(sampleStartData.points.length, SAMPLE_SIZE, `sample size should be ${SAMPLE_SIZE}`)
+
+// --------------------------------------
+// END ASYNC APIS
+// --------------------------------------
 
 // improve endpoint
 const improveResponse = await callHerbie(`/improve?formula=${encodeURIComponent(FPCoreFormula2)}`, { method: 'GET' })
@@ -53,7 +67,6 @@ assert.notEqual(jid, null)
 const sample = await sampleRSP.json()
 assertIdAndPath(sample)
 
-const SAMPLE_SIZE = 8000
 assert.ok(sample.points)
 const points = sample.points
 assert.equal(points.length, SAMPLE_SIZE, `sample size should be ${SAMPLE_SIZE}`)
@@ -217,5 +230,31 @@ async function callHerbie(endPoint, body) {
 
 function assertIdAndPath(json) {
   assert.equal(json.job.length > 0, true)
+  // TODO regex for valid hashes?
   assert.equal(json.path.includes("."), true)
+}
+
+async function testAsyncAPI(endpointName, fetchBodyString) {
+  const serverURL = `http://127.0.0.1:8000`
+  const sampleStartURL = new URL(`${serverURL}${`/api/${endpointName}`}`)
+
+  const rsp = await fetch(sampleStartURL, { method: 'POST', body: fetchBodyString })
+  assert.equal(rsp.status, 200)
+  const rspJSON = await rsp.json()
+  assertIdAndPath(rspJSON)
+
+  const checkStatusURL = new URL(`${serverURL}${"/check-status/"}${rspJSON.job}`)
+  let counter = 0
+  let cap = 100
+  let checkStatus = await fetch(checkStatusURL, { method: 'GET' })
+  // Loop to wait for for job to finnish
+  while (checkStatus.status != 201 && counter < cap) {
+    counter += 1
+    checkStatus = await fetch(checkStatusURL, { method: 'GET' })
+    await new Promise(r => setTimeout(r, 100)); // ms
+  }
+  assert.equal(checkStatus.statusText, 'Job complete')
+  const resultsURL = new URL(`${serverURL}${"/api/results/"}${rspJSON.job}`)
+  const results = await fetch(resultsURL, { method: 'GET' })
+  return await results.json()
 }

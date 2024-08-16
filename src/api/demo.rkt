@@ -54,7 +54,9 @@
                   [("check-status" (string-arg)) check-status]
                   [("timeline" (string-arg)) get-timeline]
                   [("up") check-up]
+                  [("api" "results" (string-arg)) get-results]
                   [("api" "sample") #:method "post" sample-endpoint]
+                  [("api" "sample-start") #:method "post" sample-start-endpoint]
                   [("api" "analyze") #:method "post" analyze-endpoint]
                   [("api" "localerror") #:method "post" local-error-endpoint]
                   [("api" "alternatives") #:method "post" alternatives-endpoint]
@@ -360,6 +362,27 @@
                      (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
                (λ (out) (write-json (hash-ref job-result 'timeline) out)))]))
 
+(define (get-results req job-id)
+  (match (get-results-for job-id)
+    [#f
+     (response 404
+               #"Job Not Found"
+               (current-seconds)
+               #"text/plain"
+               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count))))
+                     (header #"X-Herbie-Job-ID" (string->bytes/utf-8 job-id))
+                     (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
+               (λ (out) `()))]
+    [job-result
+     (response 201
+               #"Job complete"
+               (current-seconds)
+               #"text/plain"
+               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count))))
+                     (header #"X-Herbie-Job-ID" (string->bytes/utf-8 job-id))
+                     (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
+               (λ (out) (write-json job-result out)))]))
+
 ; /api/sample endpoint: test in console on demo page:
 ;; (await fetch('/api/sample', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x) (- (sqrt (+ x 1))))", seed: 5})})).json()
 (define sample-endpoint
@@ -373,6 +396,20 @@
        (create-job 'sample test #:seed seed* #:pcontext #f #:profile? #f #:timeline-disabled? #t))
      (define id (start-job command))
      (wait-for-job id))))
+
+; /api/sample endpoint: test in console on demo page:
+;; (await fetch('/api/sample', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x) (- (sqrt (+ x 1))))", seed: 5})})).json()
+(define sample-start-endpoint
+  (post-with-json-response
+   (lambda (post-data)
+     (define formula-str (hash-ref post-data 'formula))
+     (define formula (read-syntax 'web (open-input-string formula-str)))
+     (define seed* (hash-ref post-data 'seed))
+     (define test (parse-test formula))
+     (define command
+       (create-job 'sample test #:seed seed* #:pcontext #f #:profile? #f #:timeline-disabled? #t))
+     (define job-id (start-job command))
+     (hasheq 'job job-id 'path (make-path job-id)))))
 
 (define explanations-endpoint
   (post-with-json-response (lambda (post-data)
