@@ -306,6 +306,14 @@ pub unsafe extern "C" fn egraph_eclass_size(ptr: *mut Context, id: u32) -> u32 {
 }
 
 #[no_mangle]
+pub unsafe extern "C" fn egraph_enode_size(ptr: *mut Context, id: u32, idx: u32) -> u32 {
+    let context = ManuallyDrop::new(Box::from_raw(ptr));
+    let id = Id::from(id as usize);
+    let idx = idx as usize;
+    context.runner.egraph[id].nodes[idx].len() as u32
+}
+
+#[no_mangle]
 pub unsafe extern "C" fn egraph_get_eclasses(ptr: *mut Context, ids: *mut u32) {
     let context = ManuallyDrop::new(Box::from_raw(ptr));
     for (i, c) in context.runner.egraph.classes().enumerate() {
@@ -318,16 +326,16 @@ pub unsafe extern "C" fn egraph_get_node(
     ptr: *mut Context,
     id: u32,
     idx: u32,
-    len: *mut u32,
-    ids: *mut *const Id,
+    ids: *mut u32,
 ) -> *const c_char {
     let context = ManuallyDrop::new(Box::from_raw(ptr));
     let id = Id::from(id as usize);
     let idx = idx as usize;
 
     let node = &context.runner.egraph[id].nodes[idx];
-    std::ptr::write(len, node.len() as u32);
-    std::ptr::write(ids, node.children().as_ptr());
+    for (i, id) in node.children().iter().enumerate() {
+        std::ptr::write(ids.offset(i as isize), usize::from(*id) as u32);
+    }
 
     let c_string = ManuallyDrop::new(CString::new(node.to_string()).unwrap());
     c_string.as_ptr()

@@ -672,10 +672,7 @@
 
   ;; is the e-node well-typed?
   (define (enode-typed? enode)
-    (or (number? enode)
-        (symbol? enode)
-        (and (list? enode)
-             (andmap eclass-well-typed? (cdr enode)))))
+    (or (number? enode) (symbol? enode) (and (list? enode) (andmap eclass-well-typed? (cdr enode)))))
 
   (define (check-typed! dirty?-vec)
     (define dirty? #f)

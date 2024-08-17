@@ -223,6 +223,9 @@
 ;; egraph -> id -> uint
 (define-eggmath egraph_eclass_size (_fun _egraph-pointer _uint -> _uint))
 
+;; egraph -> id -> idx -> uint
+(define-eggmath egraph_enode_size (_fun _egraph-pointer _uint _uint -> _uint))
+
 ;; egraph -> u32vector
 (define-eggmath
  egraph_get_eclasses
@@ -233,8 +236,7 @@
                 (_fun [e : _egraph-pointer]
                       [id : _uint32]
                       [idx : _uint32]
-                      [len : (_ptr o _uint32)]
-                      [v : (_ptr o (_u32vector o len))]
+                      [v : _u32vector = (make-u32vector (egraph_enode_size e id idx))]
                       ->
                       [p : _pointer]
                       ->
