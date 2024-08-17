@@ -85,13 +85,37 @@
   (destroy_string p)
   (bytes->string/utf-8 bstr))
 
-;; FFI type that converts Rust-allocated C-style string
+;; Converts a non-NULL, Rust-allocated C-string to a Racket datum
+;; by repeatedly reading the string. The underlying Rust string
+;; is automatically freed.
+(define (_rust/string->data p)
+  (define len (string_length p))
+  (define bstr (make-bytes len))
+  (memcpy bstr p len)
+  (destroy_string p)
+  (sequence->list (in-port read (open-input-bytes bstr))))
+
+;; FFI type that converts Rust-allocated C-style strings
 ;; to Racket strings, automatically freeing the Rust-side allocation.
-(define _rust/string 
-  (make-ctype
-        _pointer
-       (lambda (x) (and x (string->bytes/utf-8 x)))
-       (lambda (x) (and x (_rust/string->string x)))))
+(define _rust/string
+  (make-ctype _pointer
+              (lambda (x) (and x (string->bytes/utf-8 x)))
+              (lambda (x) (and x (_rust/string->string x)))))
+
+;; FFI type that converts Rust-allocated C-style strings
+;; to a Racket datum via `read`, automatically freeing the Rust-side allocation.
+(define _rust/datum
+  (make-ctype _pointer
+              (lambda (x) (and x (string->bytes/utf-8 (~a x))))
+              (lambda (x) (and x (first (_rust/string->data x))))))
+
+;; FFI type that converts Rust-allocated C-style strings
+;; to multiple Racket datum via reapeated use of `read`,
+;; automatically freeing the Rust-side allocation.
+(define _rust/data
+  (make-ctype _pointer
+              (lambda (x) (and x (string->bytes/utf-8 (apply string-join (map ~a x)))))
+              (lambda (x) (and x (_rust/string->data x)))))
 
 ; Egraph iteration data
 ; Not managed by Racket GC.
@@ -138,7 +162,7 @@
 (define-eggmath egraph_get_stop_reason (_fun _egraph-pointer -> _uint))
 
 ;; egraph -> string
-(define-eggmath egraph_serialize (_fun _egraph-pointer -> _rust/string))
+(define-eggmath egraph_serialize (_fun _egraph-pointer -> _rust/datum))
 
 ;; egraph -> id -> id
 (define-eggmath egraph_find (_fun _egraph-pointer _uint -> _uint))
@@ -149,7 +173,7 @@
                       _uint ;; node id
                       _uint ;; iteration
                       ->
-                      _rust/string))
+                      _rust/datum)) ;; expr
 
 ;; node number -> (s-expr string) string
 (define-eggmath egraph_get_variants
@@ -157,15 +181,15 @@
                       _uint ;; node id
                       _string/utf-8 ;; original expr
                       ->
-                      _rust/string)) ;; string
+                      _rust/data)) ;; listof expr
 
 ;; egraph -> string -> string -> string
-(define-eggmath egraph_get_proof 
-               (_fun _egraph-pointer ;; egraph
-                     _string/utf-8 ;; expr1
-                     _string/utf-8 ;; expr2
-                     ->
-                     _rust/string)) ;; string
+(define-eggmath egraph_get_proof
+                (_fun _egraph-pointer ;; egraph
+                      _string/utf-8 ;; expr1
+                      _string/utf-8 ;; expr2
+                      ->
+                      _rust/data)) ;; listof expr
 
 (define-eggmath egraph_get_cost
                 (_fun _egraph-pointer

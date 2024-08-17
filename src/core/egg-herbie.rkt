@@ -127,13 +127,14 @@
   iteration-data)
 
 (define (egraph-get-simplest egraph-data node-id iteration ctx)
-  (define str (egraph_get_simplest (egraph-data-egraph-pointer egraph-data) node-id iteration))
-  (egg-expr->expr str egraph-data (context-repr ctx)))
+  (define expr (egraph_get_simplest (egraph-data-egraph-pointer egraph-data) node-id iteration))
+  (egg-expr->expr expr egraph-data (context-repr ctx)))
 
 (define (egraph-get-variants egraph-data node-id orig-expr ctx)
   (define expr-str (~a (expr->egg-expr orig-expr egraph-data ctx)))
-  (define str (egraph_get_variants (egraph-data-egraph-pointer egraph-data) node-id expr-str))
-  (egg-exprs->exprs str egraph-data (context-repr ctx)))
+  (define exprs (egraph_get_variants (egraph-data-egraph-pointer egraph-data) node-id expr-str))
+  (for/list ([expr (in-list exprs)])
+    (egg-expr->expr expr egraph-data (context-repr ctx))))
 
 (define (egraph-is-unsound-detected egraph-data)
   (egraph_is_unsound_detected (egraph-data-egraph-pointer egraph-data)))
@@ -153,11 +154,9 @@
     [sr (error 'egraph-stop-reason "unexpected stop reason ~a" sr)]))
 
 ;; An egraph is just a S-expr of the form
-;;
 ;;  egraph ::= (<eclass> ...)
 ;;  eclass ::= (<id> <enode> ..+)
 ;;  enode  ::= (<op> <id> ...)
-;;
 (define (egraph-serialize egraph-data)
   (egraph_serialize (egraph-data-egraph-pointer egraph-data)))
 
@@ -173,13 +172,12 @@
 (define (egraph-get-proof egraph-data expr goal ctx)
   (define egg-expr (~a (expr->egg-expr expr egraph-data ctx)))
   (define egg-goal (~a (expr->egg-expr goal egraph-data ctx)))
-  (define res (egraph_get_proof (egraph-data-egraph-pointer egraph-data) egg-expr egg-goal))
-  (cond
-    [(< (string-length res) 10000)
-     (define converted (egg-exprs->exprs res egraph-data (context-repr ctx)))
-     (define expanded (expand-proof converted (box (*proof-max-length*))))
-     (if (member #f expanded) #f expanded)]
-    [else #f]))
+  (define exprs (egraph_get_proof (egraph-data-egraph-pointer egraph-data) egg-expr egg-goal))
+  (define converted
+    (for/list ([expr (in-list exprs)])
+      (egg-expr->expr expr egraph-data (context-repr ctx))))
+  (define expanded (expand-proof converted (box (*proof-max-length*))))
+  (if (member #f expanded) #f expanded))
 
 ;; Racket representation of per-iteration runner data
 (struct iteration-data (num-nodes num-eclasses time))
@@ -268,15 +266,10 @@
       [(list (? impl-exists? impl) args ...) (cons impl (map loop args (impl-info impl 'itype)))]
       [(list op args ...) (cons op (map loop args (operator-info op 'itype)))])))
 
-;; Parses a string from egg into a list of S-exprs.
-(define (egg-exprs->exprs s egraph-data type)
-  (define egg->herbie (egraph-data-egg->herbie-dict egraph-data))
-  (for/list ([egg-expr (in-port read (open-input-string s))])
-    (egg-parsed->expr (flatten-let egg-expr) egg->herbie type)))
-
 ;; Parses a string from egg into a single S-expr.
-(define (egg-expr->expr s egraph-data type)
-  (first (egg-exprs->exprs s egraph-data type)))
+(define (egg-expr->expr egg-expr egraph-data type)
+  (define egg->herbie (egraph-data-egg->herbie-dict egraph-data))
+  (egg-parsed->expr (flatten-let egg-expr) egg->herbie type))
 
 (module+ test
   (define repr (get-representation 'binary64))
@@ -757,8 +750,7 @@
 ;; Constructs a Racket egraph from an S-expr representation of
 ;; an egraph and data to translate egg IR to herbie IR.
 (define (make-regraph egraph-data)
-  (define egraph-str (egraph-serialize egraph-data))
-  (datum->regraph (read (open-input-string egraph-str))
+  (datum->regraph (egraph-serialize egraph-data)
                   (egraph-data-egg->herbie-dict egraph-data)
                   (for/list ([(id spec&repr) (in-hash (egraph-data-id->spec egraph-data))])
                     (cons (egraph-find egraph-data id) spec&repr))))
