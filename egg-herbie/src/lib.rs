@@ -4,7 +4,7 @@ pub mod math;
 
 use egg::{BackoffScheduler, Extractor, Id, Language, SimpleScheduler, StopReason, Symbol};
 use indexmap::IndexMap;
-use libc::c_void;
+use libc::{c_void, strlen};
 use math::*;
 
 use std::cmp::min;
@@ -45,6 +45,11 @@ pub unsafe extern "C" fn destroy_egraphiters(ptr: *mut c_void) {
 #[no_mangle]
 pub unsafe extern "C" fn destroy_string(ptr: *mut c_char) {
     drop(CString::from_raw(ptr))
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn string_length(ptr: *const c_char) -> u32 {
+    strlen(ptr) as u32
 }
 
 #[repr(C)]

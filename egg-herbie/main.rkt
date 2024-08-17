@@ -20,7 +20,6 @@
          egraph_is_unsound_detected
          egraph_get_times_applied
          egraph_get_proof
-         destroy_string
          (struct-out EGraphIter)
          (struct-out FFIRule))
 
@@ -70,6 +69,30 @@
                (register-finalizer p egraph_destroy)
                p)))
 
+;; Frees a Rust-allocated C-string
+(define-eggmath destroy_string (_fun _pointer -> _void))
+
+;; Gets the length of a Rust-allocated C-string in bytes,
+;; excluding the nul terminator.
+(define-eggmath string_length (_fun _pointer -> _uint32))
+
+;; Converts a non-NULL, Rust-allocated C-string to a Racket string,
+;; freeing the Rust string.
+(define (_rust/string->string p)
+  (define len (string_length p))
+  (define bstr (make-bytes len))
+  (memcpy bstr p len)
+  (destroy_string p)
+  (bytes->string/utf-8 bstr))
+
+;; FFI type that converts Rust-allocated C-style string
+;; to Racket strings, automatically freeing the Rust-side allocation.
+(define _rust/string 
+  (make-ctype
+        _pointer
+       (lambda (x) (and x (string->bytes/utf-8 x)))
+       (lambda (x) (and x (_rust/string->string x)))))
+
 ; Egraph iteration data
 ; Not managed by Racket GC.
 ; Must call `destroy_egraphiters` to free.
@@ -84,8 +107,6 @@
 (define-eggmath egraph_create (_fun -> _egraph-pointer))
 
 (define-eggmath egraph_destroy (_fun _egraph-pointer -> _void))
-
-(define-eggmath destroy_string (_fun _pointer -> _void))
 
 ;; egraph pointer, s-expr string -> node number
 (define-eggmath egraph_add_expr (_fun _egraph-pointer _string/utf-8 -> _uint))
@@ -117,7 +138,7 @@
 (define-eggmath egraph_get_stop_reason (_fun _egraph-pointer -> _uint))
 
 ;; egraph -> string
-(define-eggmath egraph_serialize (_fun _egraph-pointer -> _string))
+(define-eggmath egraph_serialize (_fun _egraph-pointer -> _rust/string))
 
 ;; egraph -> id -> id
 (define-eggmath egraph_find (_fun _egraph-pointer _uint -> _uint))
@@ -128,9 +149,7 @@
                       _uint ;; node id
                       _uint ;; iteration
                       ->
-                      _pointer))
-
-(define-eggmath egraph_get_proof (_fun _egraph-pointer _string/utf-8 _string/utf-8 -> _pointer))
+                      _rust/string))
 
 ;; node number -> (s-expr string) string
 (define-eggmath egraph_get_variants
@@ -138,7 +157,15 @@
                       _uint ;; node id
                       _string/utf-8 ;; original expr
                       ->
-                      _pointer)) ;; string pointer
+                      _rust/string)) ;; string
+
+;; egraph -> string -> string -> string
+(define-eggmath egraph_get_proof 
+               (_fun _egraph-pointer ;; egraph
+                     _string/utf-8 ;; expr1
+                     _string/utf-8 ;; expr2
+                     ->
+                     _rust/string)) ;; string
 
 (define-eggmath egraph_get_cost
                 (_fun _egraph-pointer

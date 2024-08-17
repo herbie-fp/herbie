@@ -127,16 +127,12 @@
   iteration-data)
 
 (define (egraph-get-simplest egraph-data node-id iteration ctx)
-  (define ptr (egraph_get_simplest (egraph-data-egraph-pointer egraph-data) node-id iteration))
-  (define str (cast ptr _pointer _string/utf-8))
-  (destroy_string ptr)
+  (define str (egraph_get_simplest (egraph-data-egraph-pointer egraph-data) node-id iteration))
   (egg-expr->expr str egraph-data (context-repr ctx)))
 
 (define (egraph-get-variants egraph-data node-id orig-expr ctx)
   (define expr-str (~a (expr->egg-expr orig-expr egraph-data ctx)))
-  (define ptr (egraph_get_variants (egraph-data-egraph-pointer egraph-data) node-id expr-str))
-  (define str (cast ptr _pointer _string/utf-8))
-  (destroy_string ptr)
+  (define str (egraph_get_variants (egraph-data-egraph-pointer egraph-data) node-id expr-str))
   (egg-exprs->exprs str egraph-data (context-repr ctx)))
 
 (define (egraph-is-unsound-detected egraph-data)
@@ -177,9 +173,7 @@
 (define (egraph-get-proof egraph-data expr goal ctx)
   (define egg-expr (~a (expr->egg-expr expr egraph-data ctx)))
   (define egg-goal (~a (expr->egg-expr goal egraph-data ctx)))
-  (define pointer (egraph_get_proof (egraph-data-egraph-pointer egraph-data) egg-expr egg-goal))
-  (define res (cast pointer _pointer _string/utf-8))
-  (destroy_string pointer)
+  (define res (egraph_get_proof (egraph-data-egraph-pointer egraph-data) egg-expr egg-goal))
   (cond
     [(< (string-length res) 10000)
      (define converted (egg-exprs->exprs res egraph-data (context-repr ctx)))
