@@ -282,19 +282,19 @@
   (*context* (context-extend (*context*) 'z repr))
 
   (define test-exprs
-    (list (cons '(+.f64 y x) (~a '(+.f64 $h0 $h1)))
-          (cons '(+.f64 x y) (~a '(+.f64 $h1 $h0)))
-          (cons '(-.f64 #s(literal 2 binary64) (+.f64 x y)) (~a '(-.f64 2 (+.f64 $h1 $h0))))
+    (list (cons '(+.f64 y x) '(+.f64 $h0 $h1))
+          (cons '(+.f64 x y) '(+.f64 $h1 $h0))
+          (cons '(-.f64 #s(literal 2 binary64) (+.f64 x y)) '(-.f64 2 (+.f64 $h1 $h0)))
           (cons '(-.f64 z (+.f64 (+.f64 y #s(literal 2 binary64)) x))
-                (~a '(-.f64 $h2 (+.f64 (+.f64 $h0 2) $h1))))
-          (cons '(*.f64 x y) (~a '(*.f64 $h1 $h0)))
-          (cons '(+.f64 (*.f64 x y) #s(literal 2 binary64)) (~a '(+.f64 (*.f64 $h1 $h0) 2)))
-          (cons '(cos.f32 (PI.f32)) (~a '(cos.f32 (PI.f32))))
-          (cons '(if (TRUE) x y) (~a '(if (TRUE) $h1 $h0)))))
+                '(-.f64 $h2 (+.f64 (+.f64 $h0 2) $h1)))
+          (cons '(*.f64 x y) '(*.f64 $h1 $h0))
+          (cons '(+.f64 (*.f64 x y) #s(literal 2 binary64)) '(+.f64 (*.f64 $h1 $h0) 2))
+          (cons '(cos.f32 (PI.f32)) '(cos.f32 (PI.f32)))
+          (cons '(if (TRUE) x y) '(if (TRUE) $h1 $h0))))
 
   (let ([egg-graph (make-egraph)])
     (for ([(in expected-out) (in-dict test-exprs)])
-      (define out (~a (expr->egg-expr in egg-graph (*context*))))
+      (define out (expr->egg-expr in egg-graph (*context*)))
       (define computed-in (egg-expr->expr out egg-graph (context-repr (*context*))))
       (check-equal? out expected-out)
       (check-equal? computed-in in)))
@@ -323,7 +323,7 @@
   (let ([egg-graph (make-egraph)])
     (for ([expr extended-expr-list])
       (define egg-expr (expr->egg-expr expr egg-graph (*context*)))
-      (check-equal? (egg-expr->expr (~a egg-expr) egg-graph (context-repr (*context*))) expr))))
+      (check-equal? (egg-expr->expr egg-expr egg-graph (context-repr (*context*))) expr))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Proofs
