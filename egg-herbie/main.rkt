@@ -93,7 +93,8 @@
   (define bstr (make-bytes len))
   (memcpy bstr p len)
   (destroy_string p)
-  (sequence->list (in-port read (open-input-bytes bstr))))
+  (for/list ([datum (in-port read (open-input-bytes bstr))])
+    datum))
 
 ;; FFI type that converts Rust-allocated C-style strings
 ;; to Racket strings, automatically freeing the Rust-side allocation.
@@ -167,7 +168,7 @@
 ;; egraph -> id -> id
 (define-eggmath egraph_find (_fun _egraph-pointer _uint -> _uint))
 
-;; node number -> s-expr string
+;; egraph -> id -> (listof expr)
 (define-eggmath egraph_get_simplest
                 (_fun _egraph-pointer
                       _uint ;; node id
@@ -175,7 +176,7 @@
                       ->
                       _rust/datum)) ;; expr
 
-;; node number -> (s-expr string) string
+;; egraph -> id -> string -> (listof expr)
 (define-eggmath egraph_get_variants
                 (_fun _egraph-pointer
                       _uint ;; node id
@@ -189,7 +190,7 @@
                       _string/utf-8 ;; expr1
                       _string/utf-8 ;; expr2
                       ->
-                      _rust/data)) ;; listof expr
+                      _rust/string)) ;; string
 
 (define-eggmath egraph_get_cost
                 (_fun _egraph-pointer

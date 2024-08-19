@@ -172,12 +172,15 @@
 (define (egraph-get-proof egraph-data expr goal ctx)
   (define egg-expr (~a (expr->egg-expr expr egraph-data ctx)))
   (define egg-goal (~a (expr->egg-expr goal egraph-data ctx)))
-  (define exprs (egraph_get_proof (egraph-data-egraph-pointer egraph-data) egg-expr egg-goal))
-  (define converted
-    (for/list ([expr (in-list exprs)])
-      (egg-expr->expr expr egraph-data (context-repr ctx))))
-  (define expanded (expand-proof converted (box (*proof-max-length*))))
-  (if (member #f expanded) #f expanded))
+  (define str (egraph_get_proof (egraph-data-egraph-pointer egraph-data) egg-expr egg-goal))
+  (cond
+    [(<= (string-length str) (*proof-max-string-length*))
+     (define converted
+       (for/list ([expr (in-port read (open-input-string str))])
+         (egg-expr->expr expr egraph-data (context-repr ctx))))
+     (define expanded (expand-proof converted (box (*proof-max-length*))))
+     (if (member #f expanded) #f expanded)]
+    [else #f]))
 
 ;; Racket representation of per-iteration runner data
 (struct iteration-data (num-nodes num-eclasses time))
