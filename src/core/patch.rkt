@@ -89,7 +89,9 @@
                 [fv (in-list free-vars)]
                 #:when (member var fv)) ; check whether var exists in expr at all
             (for ([_ (in-range (*taylor-order-limit*))])
-              (sow (alt (genexpr) `(taylor ,name ,var) (list altn) '()))))
+              (define gen (genexpr))
+              (unless (spec-has-nan? gen)
+                (sow (alt gen `(taylor ,name ,var) (list altn) '())))))
           (timeline-stop!))))
 
 (define (spec-has-nan? expr)
@@ -99,11 +101,7 @@
   (timeline-event! 'series)
   (timeline-push! 'inputs (map ~a altns))
 
-  (define approxs
-    (reap [sow]
-          (for ([approximation (taylor-alts altns)])
-            (unless (spec-has-nan? (alt-expr approximation))
-              (sow approximation)))))
+  (define approxs (taylor-alts altns))
 
   (timeline-push! 'outputs (map ~a approxs))
   (timeline-push! 'count (length altns) (length approxs))
