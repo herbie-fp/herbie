@@ -198,10 +198,21 @@
 (define (egraph-eclasses egraph-data)
   (egraph_get_eclasses (egraph-data-egraph-pointer egraph-data)))
 
-;; Extracts the nodes of an e-class as a list
+;; Extracts the nodes of an e-class as a vector
 ;; where each enode is either a symbol, number, or list
 (define (egraph-get-eclass egraph-data id)
-  (egraph_get_eclass (egraph-data-egraph-pointer egraph-data) id))
+  (define ptr (egraph-data-egraph-pointer egraph-data))
+  (define egg->herbie (egraph-data-egg->herbie-dict egraph-data))
+  (define eclass (egraph_get_eclass ptr id))
+  (for ([enode (in-vector eclass)]
+        [i (in-naturals)])
+    (match enode
+      [(cons (? number? n) _) (vector-set! eclass i n)] ; number
+      [(cons (? symbol? x) (? u32vector-empty?))
+       (when (hash-has-key? egg->herbie x) ; variable
+         (vector-set! eclass i x))]
+      [_ (void)])) ; everything else
+  eclass)
 
 (define (egraph-find egraph-data id)
   (egraph_find (egraph-data-egraph-pointer egraph-data) id))
@@ -528,55 +539,50 @@
 ;;  - ops/impls: its output type/representation
 ;; NOTE: we can constrain "every" type by using the platform.
 (define (enode-type enode egg->herbie)
-  (define f (car enode))
-  (define ids (cdr enode))
-  (cond
-    [(u32vector-empty? ids)
+  (match enode
+    [(? number?) (cons 'real (platform-reprs (*active-platform*)))] ; number
+    [(? symbol? x) ; variable
+     (match-define (cons _ repr) (hash-ref egg->herbie x))
+     (list repr (representation-type repr))]
+    [(cons f _) ; application
      (cond
-       [(number? f) (cons 'real (platform-reprs (*active-platform*)))]
-       [(hash-has-key? egg->herbie f)
-        (match-define (cons _ repr) (hash-ref egg->herbie f))
-        (list repr (representation-type repr))]
+       [(eq? f '$approx) (platform-reprs (*active-platform*))]
+       [(eq? f 'if) (all-reprs/types)]
        [(impl-exists? f) (list (impl-info f 'otype))]
-       [else (list (operator-info f 'otype))])]
-    [(eq? f '$approx) (platform-reprs (*active-platform*))]
-    [(eq? f 'if) (all-reprs/types)]
-    [(impl-exists? f) (list (impl-info f 'otype))]
-    [else (list (operator-info f 'otype))]))
+       [else (list (operator-info f 'otype))])]))
 
 ;; Rebuilds an e-node using typed e-classes
-(define (rebuild-enode enode type lookup egg->herbie)
-  (define f (car enode))
-  (define ids (cdr enode))
-  (cond
-    [(u32vector-empty? ids)
+(define (rebuild-enode enode type lookup)
+  (match enode
+    [(? number?) enode] ; number
+    [(? symbol?) enode] ; variable
+    [(cons f ids) ; application
      (cond
-       [(number? f) f] ; number
-       [(hash-has-key? egg->herbie f) f] ; variable
-       [else (list f)])] ; nullary operator
-    [(eq? f '$approx) ; approx node
-     (define spec (u32vector-ref ids 0))
-     (define impl (u32vector-ref ids 1))
-     (list '$approx (lookup spec (representation-type type)) (lookup impl type))]
-    [(eq? f 'if) ; if expression
-     (define cond (u32vector-ref ids 0))
-     (define ift (u32vector-ref ids 1))
-     (define iff (u32vector-ref ids 2))
-     (define cond-type (if (representation? type) (get-representation 'bool) 'bool))
-     (list 'if (lookup cond cond-type) (lookup ift type) (lookup iff type))]
-    [else
-     (define itypes (if (impl-exists? f) (impl-info f 'itype) (operator-info f 'itype)))
-     ; unsafe since we don't check that |itypes| = |ids|
-     ; optimize for common cases to avoid extra allocations
-     (cons f
-           (match itypes
-             [(list t1) (list (lookup (u32vector-ref ids 0) t1))]
-             [(list t1 t2) (list (lookup (u32vector-ref ids 0) t1) (lookup (u32vector-ref ids 1) t2))]
-             [(list t1 t2 t3)
-              (list (lookup (u32vector-ref ids 0) t1)
-                    (lookup (u32vector-ref ids 1) t2)
-                    (lookup (u32vector-ref ids 2) t3))]
-             [_ (map lookup (u32vector->list ids) itypes)]))]))
+       [(eq? f '$approx) ; approx node
+        (define spec (u32vector-ref ids 0))
+        (define impl (u32vector-ref ids 1))
+        (list '$approx (lookup spec (representation-type type)) (lookup impl type))]
+       [(eq? f 'if) ; if expression
+        (define cond (u32vector-ref ids 0))
+        (define ift (u32vector-ref ids 1))
+        (define iff (u32vector-ref ids 2))
+        (define cond-type (if (representation? type) (get-representation 'bool) 'bool))
+        (list 'if (lookup cond cond-type) (lookup ift type) (lookup iff type))]
+       [else
+        (define itypes (if (impl-exists? f) (impl-info f 'itype) (operator-info f 'itype)))
+        ; unsafe since we don't check that |itypes| = |ids|
+        ; optimize for common cases to avoid extra allocations
+        (cons
+         f
+         (match itypes
+           [(list) '()]
+           [(list t1) (list (lookup (u32vector-ref ids 0) t1))]
+           [(list t1 t2) (list (lookup (u32vector-ref ids 0) t1) (lookup (u32vector-ref ids 1) t2))]
+           [(list t1 t2 t3)
+            (list (lookup (u32vector-ref ids 0) t1)
+                  (lookup (u32vector-ref ids 1) t2)
+                  (lookup (u32vector-ref ids 2) t3))]
+           [_ (map lookup (u32vector->list ids) itypes)]))])]))
 
 ;; Splits untyped eclasses into typed eclasses.
 ;; Nodes are duplicated across their possible types.
@@ -619,7 +625,7 @@
       (define types (enode-type enode egg->herbie))
       (for ([type (in-list types)])
         (define id (lookup-id eid type))
-        (define enode* (rebuild-enode enode type lookup-id egg->herbie))
+        (define enode* (rebuild-enode enode type lookup-id))
         (define eclass (hash-ref id->eclass id))
         (set-box! eclass (cons enode* (unbox eclass))))))
 
