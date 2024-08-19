@@ -713,8 +713,15 @@
   ;; Any empty e-classes must be removed, so we re-map every id
   (rebuild-eclasses eclasses types egg-id->id))
 
-;; Constructs a Racket egraph from an S-expr representation.
-(define (datum->regraph egraph egg->herbie id->spec)
+;; Constructs a Racket egraph from an S-expr representation of
+;; an egraph and data to translate egg IR to herbie IR.
+(define (make-regraph egraph-data)
+  (define egg->herbie (egraph-data-egg->herbie-dict egraph-data))
+  (define id->spec (egraph-data-id->spec egraph-data))
+
+  ;; serialize the e-graph into Racket
+  (define egraph (egraph-serialize egraph-data))
+
   ;; split the e-classes by type
   (define-values (eclasses types canon) (make-typed-eclasses egraph egg->herbie))
   (define n (vector-length eclasses))
@@ -743,20 +750,13 @@
 
   ; convert id->spec to a vector-map
   (define specs (make-vector n #f))
-  (for ([(id spec&repr) (in-dict id->spec)])
+  (for ([(id spec&repr) (in-hash id->spec)])
     (match-define (cons spec repr) spec&repr)
-    (define id* (hash-ref canon (cons id repr)))
+    (define id* (hash-ref canon (cons (egraph-find egraph-data id) repr)))
     (vector-set! specs id* spec))
-  ; collect with wrapper
-  (regraph eclasses types leaf? constants specs parents canon egg->herbie))
 
-;; Constructs a Racket egraph from an S-expr representation of
-;; an egraph and data to translate egg IR to herbie IR.
-(define (make-regraph egraph-data)
-  (datum->regraph (egraph-serialize egraph-data)
-                  (egraph-data-egg->herbie-dict egraph-data)
-                  (for/list ([(id spec&repr) (in-hash (egraph-data-id->spec egraph-data))])
-                    (cons (egraph-find egraph-data id) spec&repr))))
+  ; construct the `regraph` instance
+  (regraph eclasses types leaf? constants specs parents canon egg->herbie))
 
 ;; Egraph node has children.
 ;; Nullary operators have no children!
