@@ -88,7 +88,7 @@
   (define roots (batch-roots input-batch))
 
   ; Hash to avoid duplications
-  (define icache (reverse vars))
+  (define icache vars)
   (define exprhash
     (make-hash (for/list ([var vars]
                           [i (in-naturals)])
@@ -97,8 +97,7 @@
   (define varc (length vars))
 
   ; Mapping from nodes to nodes*
-  (define mappings
-    (make-hash (map (λ (n) (cons n n)) (build-list (batch-nodes-length input-batch) values))))
+  (define mappings (make-vector (batch-nodes-length input-batch)))
 
   ; Adding a node to hash
   (define (append-node node)
@@ -114,83 +113,84 @@
         [n (in-naturals)])
     (match node
       [(list '- arg1 arg2)
-       (define neg-index (append-node `(neg ,(hash-ref mappings arg2))))
-       (hash-set! mappings n (append-node `(+ ,(hash-ref mappings arg1) ,neg-index)))]
+       (define neg-index (append-node `(neg ,(vector-ref mappings arg2))))
+       (vector-set! mappings n (append-node `(+ ,(vector-ref mappings arg1) ,neg-index)))]
       [(list 'pow base power)
        #:when (equal? (vector-ref nodes power) 1/2) ; 1/2 is to be removed from exprhash
-       (hash-set! mappings n (append-node `(sqrt ,(hash-ref mappings base))))]
+       (vector-set! mappings n (append-node `(sqrt ,(vector-ref mappings base))))]
       [(list 'pow base power)
        #:when (equal? (vector-ref nodes power) 1/3) ; 1/3 is to be removed from exprhash
-       (hash-set! mappings n (append-node `(cbrt ,(hash-ref mappings base))))]
+       (vector-set! mappings n (append-node `(cbrt ,(vector-ref mappings base))))]
       [(list 'pow base power)
        #:when (equal? (vector-ref nodes power) 2/3) ; 2/3 is to be removed from exprhash
-       (define mult-index (append-node `(* ,(hash-ref mappings base) ,(hash-ref mappings base))))
-       (hash-set! mappings n (append-node `(cbrt ,mult-index)))]
+       (define mult-index (append-node `(* ,(vector-ref mappings base) ,(vector-ref mappings base))))
+       (vector-set! mappings n (append-node `(cbrt ,mult-index)))]
       [(list 'pow base power)
        #:when (exact-integer? (vector-ref nodes power))
-       (hash-set! mappings
-                  n
-                  (append-node `(pow ,(hash-ref mappings base) ,(hash-ref mappings power))))]
+       (vector-set! mappings
+                    n
+                    (append-node `(pown ,(vector-ref mappings base) ,(vector-ref mappings power))))]
       [(list 'pow base power)
-       (define log-idx (append-node `(log ,(hash-ref mappings base))))
-       (define mult-idx (append-node `(* ,(hash-ref mappings power) ,log-idx)))
-       (hash-set! mappings n (append-node `(exp ,mult-idx)))]
+       (define log-idx (append-node `(log ,(vector-ref mappings base))))
+       (define mult-idx (append-node `(* ,(vector-ref mappings power) ,log-idx)))
+       (vector-set! mappings n (append-node `(exp ,mult-idx)))]
       [(list 'tan args)
-       (define sin-idx (append-node `(sin ,(hash-ref mappings args))))
-       (define cos-idx (append-node `(cos ,(hash-ref mappings args))))
-       (hash-set! mappings n (append-node `(/ ,sin-idx ,cos-idx)))]
+       (define sin-idx (append-node `(sin ,(vector-ref mappings args))))
+       (define cos-idx (append-node `(cos ,(vector-ref mappings args))))
+       (vector-set! mappings n (append-node `(/ ,sin-idx ,cos-idx)))]
       [(list 'cosh args)
-       (define exp-idx (append-node `(exp ,(hash-ref mappings args))))
+       (define exp-idx (append-node `(exp ,(vector-ref mappings args))))
        (define one-idx (append-node 1)) ; should it be 1 or literal 1 or smth?
        (define inv-exp-idx (append-node `(/ ,one-idx ,exp-idx)))
        (define add-idx (append-node `(+ ,exp-idx ,inv-exp-idx)))
        (define half-idx (append-node 1/2))
-       (hash-set! mappings n (append-node `(* ,half-idx ,add-idx)))]
+       (vector-set! mappings n (append-node `(* ,half-idx ,add-idx)))]
       [(list 'sinh args)
-       (define exp-idx (append-node `(exp ,(hash-ref mappings args))))
+       (define exp-idx (append-node `(exp ,(vector-ref mappings args))))
        (define one-idx (append-node 1))
        (define inv-exp-idx (append-node `(/ ,one-idx ,exp-idx)))
        (define neg-idx (append-node `(neg ,inv-exp-idx)))
        (define add-idx (append-node `(+ ,exp-idx ,neg-idx)))
        (define half-idx (append-node 1/2))
-       (hash-set! mappings n (append-node `(* ,half-idx ,add-idx)))]
+       (vector-set! mappings n (append-node `(* ,half-idx ,add-idx)))]
       [(list 'tanh args)
-       (define exp-idx (append-node `(exp ,(hash-ref mappings args))))
+       (define exp-idx (append-node `(exp ,(vector-ref mappings args))))
        (define one-idx (append-node 1))
        (define inv-exp-idx (append-node `(/ ,one-idx ,exp-idx)))
        (define neg-idx (append-node `(neg ,inv-exp-idx)))
        (define add-idx (append-node `(+ ,exp-idx ,inv-exp-idx)))
        (define sub-idx (append-node `(+ ,exp-idx ,neg-idx)))
-       (hash-set! mappings n (append-node `(/ ,sub-idx ,add-idx)))]
+       (vector-set! mappings n (append-node `(/ ,sub-idx ,add-idx)))]
       [(list 'asinh args)
-       (define mult-idx (append-node `(* ,(hash-ref mappings args) ,(hash-ref mappings args))))
+       (define mult-idx (append-node `(* ,(vector-ref mappings args) ,(vector-ref mappings args))))
        (define one-idx (append-node 1))
        (define add-idx (append-node `(+ ,mult-idx ,one-idx)))
        (define sqrt-idx (append-node `(sqrt ,add-idx)))
-       (define add2-idx (append-node `(+ ,(hash-ref mappings args) ,sqrt-idx)))
-       (hash-set! mappings n (append-node `(log ,add2-idx)))]
+       (define add2-idx (append-node `(+ ,(vector-ref mappings args) ,sqrt-idx)))
+       (vector-set! mappings n (append-node `(log ,add2-idx)))]
       [(list 'acosh args)
-       (define mult-idx (append-node `(* ,(hash-ref mappings args) ,(hash-ref mappings args))))
+       (define mult-idx (append-node `(* ,(vector-ref mappings args) ,(vector-ref mappings args))))
        (define -one-idx (append-node -1))
        (define add-idx (append-node `(+ ,mult-idx ,-one-idx)))
        (define sqrt-idx (append-node `(sqrt ,add-idx)))
-       (define add2-idx (append-node `(+ ,(hash-ref mappings args) ,sqrt-idx)))
-       (hash-set! mappings n (append-node `(log ,add2-idx)))]
+       (define add2-idx (append-node `(+ ,(vector-ref mappings args) ,sqrt-idx)))
+       (vector-set! mappings n (append-node `(log ,add2-idx)))]
       [(list 'atanh args)
-       (define neg-idx (append-node `(neg ,(hash-ref mappings args))))
+       (define neg-idx (append-node `(neg ,(vector-ref mappings args))))
        (define one-idx (append-node 1))
-       (define add-idx (append-node `(+ ,one-idx ,(hash-ref mappings args))))
+       (define add-idx (append-node `(+ ,one-idx ,(vector-ref mappings args))))
        (define sub-idx (append-node `(+ ,one-idx ,neg-idx)))
        (define div-idx (append-node `(/ ,add-idx ,sub-idx)))
        (define log-idx (append-node `(log ,div-idx)))
        (define half-idx (append-node 1/2))
-       (hash-set! mappings n (append-node `(* ,half-idx ,log-idx)))]
+       (vector-set! mappings n (append-node `(* ,half-idx ,log-idx)))]
       [(list op args ...)
-       (hash-set! mappings n (append-node (cons op (map (curry hash-ref mappings) args))))]
-      [(approx spec impl) (hash-set! mappings n (append-node (approx spec (hash-ref mappings impl))))]
-      [_ (hash-set! mappings n (append-node node))]))
+       (vector-set! mappings n (append-node (cons op (map (curry vector-ref mappings) args))))]
+      [(approx spec impl)
+       (vector-set! mappings n (append-node (approx spec (vector-ref mappings impl))))]
+      [_ (vector-set! mappings n (append-node node))]))
 
-  (define roots* (vector-map (curry hash-ref mappings) roots))
+  (define roots* (vector-map (curry vector-ref mappings) roots))
   (define nodes* (list->vector (reverse icache)))
 
   ; This may be too expensive to handle simple 1/2, 1/3 and 2/3 zombie nodes..
@@ -215,22 +215,23 @@
       [(approx spec impl) (vector-set! zombie-mask impl #f)]
       [_ void]))
 
-  (define mappings (make-hash (map (λ (n) (cons n n)) (build-list nodes-length values))))
+  (define mappings (build-vector nodes-length values))
 
   (define nodes* '())
   (for ([node (in-vector nodes)]
         [zmb (in-vector zombie-mask)]
         [n (in-naturals)])
     (if zmb
-        (map (λ (n) (hash-set! mappings n (sub1 (hash-ref mappings n)))) (range n nodes-length))
+        (for ([i (in-range n nodes-length)])
+          (vector-set! mappings i (sub1 (vector-ref mappings i))))
         (set! nodes*
               (cons (match node
-                      [(list op args ...) (cons op (map (curry hash-ref mappings) args))]
-                      [(approx spec impl) (approx spec (hash-ref mappings impl))]
+                      [(list op args ...) (cons op (map (curry vector-ref mappings) args))]
+                      [(approx spec impl) (approx spec (vector-ref mappings impl))]
                       [_ node])
                     nodes*))))
   (set! nodes* (list->vector (reverse nodes*)))
-  (define roots* (vector-map (curry hash-ref mappings) roots))
+  (define roots* (vector-map (curry vector-ref mappings) roots))
   (batch nodes* roots* (batch-vars input-batch) (vector-length nodes*)))
 
 (define (batch-ref batch reg)

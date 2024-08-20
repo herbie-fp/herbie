@@ -13,8 +13,7 @@
   (define exprs*
     (for/list ([expr (in-list exprs)])
       (simplify (replace-expression expr var ((car tform) var)))))
-  (define batch (progs->batch exprs*))
-  (set! batch (expand-taylor batch))
+  (define batch (expand-taylor (progs->batch exprs*)))
 
   (define taylor-approxs (taylor var batch))
   (for/list ([root (in-vector (batch-roots batch))])
@@ -130,8 +129,7 @@
                                                       (taylor-sin (zero-series arg*)))))]
              [else (taylor-cos (zero-series arg*))]))]
         [`(log ,arg) (taylor-log var (vector-ref taylor-approxs arg))]
-        [`(pow ,base ,power)
-         #:when (exact-integer? (vector-ref nodes power))
+        [`(pown ,base ,power)
          (taylor-pow (normalize-series (vector-ref taylor-approxs base)) (vector-ref nodes power))]
         [_ (taylor-exact (batch-ref expr-batch n))]))
     (vector-set! taylor-approxs n approx))
