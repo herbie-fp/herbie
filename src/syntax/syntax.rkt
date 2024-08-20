@@ -362,7 +362,7 @@
 ;; An "operator implementation" implements a mathematical operator for
 ;; a particular set of representations satisfying the types described
 ;; by the `itype` and `otype` properties of the operator.
-(struct operator-impl (name op ctx spec fpcore fl))
+(struct operator-impl (name op ctx spec fpcore fl identities))
 
 ;; Operator implementation table
 ;; Tracks implementations that are loaded into Racket's runtime
@@ -418,7 +418,8 @@
                                  orepr
                                  #:fl [fl #f]
                                  #:spec [spec #f]
-                                 #:fpcore [fpcore #f])
+                                 #:fpcore [fpcore #f]
+                                 #:identities [identities #f])
   ;; Check if spec is given (if not, infer it from the operator which is required)
   (define vars (map car args))
   (unless (= (length vars) (length (remove-duplicates vars)))
@@ -508,8 +509,40 @@
        (define vars (build-list (length ireprs) (lambda (i) (string->symbol (format "x~a" i)))))
        (synth-fl-impl name vars `(,new-op ,@vars))]))
 
+  ; make hash table
+  (define rules (make-hasheq))
+  (define exact? #f)
+  (define commutes? #f)
+  (when identities
+    (for ([ident (in-list identities)])
+    (syntax-case ident ()
+      [[ident-name lhs rhs] 
+        (cond
+        [(hash-has-key? rules #'ident-name)
+         (raise-herbie-syntax-error "Duplicate identity ~a" #'ident-name)]
+        [else
+          (hash-set! rules #'ident-name (list #'lhs #'rhs))])]
+      [[#:exact expr]
+       (cond 
+        [exact? (raise-herbie-syntax-error "Exact identity already defined")]
+        [else
+         (set! exact? #t)
+         (hash-set! rules (gensym (string->symbol (format "~a-exact" name))) (list #'expr #'expr))])]
+      [[#:commutes]
+        (cond 
+          [commutes? (raise-herbie-syntax-error "Commutes identity already defined")]
+          [else 
+            (cond
+            [(not (equal? actual-arity 2))
+            (raise-herbie-syntax-error "Cannot commute a non 2-ary operator")]
+            [else 
+              (set! commutes? #t)
+              (hash-set! rules (string->symbol (format "~a-commutes" name)) (list `(,name ,@vars) `(,name ,@(reverse vars))))])])]
+      [_ (raise-herbie-syntax-error "Invalid identity given from ~a" ident)])))
+  
+
   ; update tables
-  (define impl (operator-impl name op-info (context vars orepr ireprs) spec fpcore fl-proc))
+  (define impl (operator-impl name op-info (context vars orepr ireprs) spec fpcore fl-proc rules))
   (hash-set! operator-impls name impl)
   (hash-update! operators-to-impls new-op (curry cons name)))
 
@@ -529,6 +562,7 @@
        (define spec #f)
        (define core #f)
        (define fl-expr #f)
+       (define identities #f)
        (let loop ([fields fields])
          (syntax-case fields ()
            [()
@@ -536,14 +570,16 @@
                           [operator operator]
                           [spec spec]
                           [core core]
-                          [fl-expr fl-expr])
+                          [fl-expr fl-expr]
+                          [identities identities])
               #'(register-operator-impl! 'operator
                                          'impl-id
                                          (list (cons 'var (get-representation 'repr)) ...)
                                          (get-representation 'rtype)
                                          #:fl fl-expr
                                          #:spec 'spec
-                                         #:fpcore 'core))]
+                                         #:fpcore 'core
+                                         #:identities 'identities))]
            [(#:spec expr rest ...)
             (cond
               [spec (oops! "multiple #:spec clauses" stx)]
@@ -572,6 +608,14 @@
                (set! operator #'name)
                (loop #'(rest ...))])]
            [(#:op) (oops! "expected value after keyword `#:op`" stx)]
+           [(#:identities) (oops! "expected value after keyword #:identities clause" stx)]
+           [(#:identities rest ...) (oops! "expected list of impl identities" stx)]
+           [(#:identities (ident-expr ...) rest ...)
+            (cond
+              [identities (oops! "multiple #:identities clauses" stx)]
+              [else
+               (set! identities #'(ident-expr ...))
+               (loop #'(rest ...))])]
            [_ (oops! "bad syntax" fields)])))]
     [_ (oops! "bad syntax")]))
 
