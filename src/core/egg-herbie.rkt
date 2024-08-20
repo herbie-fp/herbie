@@ -93,9 +93,7 @@
                 simple_scheduler?
                 const-folding?))
   (for/list ([data (in-list iters)])
-    (iteration-data (hash-ref data 'nodes)
-                    (hash-ref data 'eclasses)
-                    (hash-ref data 'time))))
+    (iteration-data (hash-ref data 'nodes) (hash-ref data 'eclasses) (hash-ref data 'time))))
 
 (define (egraph-get-simplest egraph-data node-id iteration ctx)
   (define expr (egraph_get_simplest (egraph-data-egraph-pointer egraph-data) node-id iteration))
@@ -420,7 +418,8 @@
                        (lambda ()
                          (for/list ([egg-rule (in-list (rule->egg-rules rule))])
                            (define name (rule-name egg-rule))
-                           (define ffi-rule (make-ffi-rule name (rule-input egg-rule) (rule-output egg-rule)))
+                           (define ffi-rule
+                             (make-ffi-rule name (rule-input egg-rule) (rule-output egg-rule)))
                            (hash-set! (*canon-names*) name (rule-name rule))
                            (cons egg-rule ffi-rule)))))
           (for-each sow egg&ffi-rules))))

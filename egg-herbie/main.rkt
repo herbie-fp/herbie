@@ -190,9 +190,12 @@
                         (define iter-data
                           (for/list ([i (in-range iterations-length)])
                             (define ptr (ptr-add iterations i _EGraphIter))
-                            (hash 'nodes (EGraphIter-numnodes ptr)
-                                  'eclasses (EGraphIter-numeclasses ptr)
-                                  'time (EGraphIter-time ptr))))
+                            (hash 'nodes
+                                  (EGraphIter-numnodes ptr)
+                                  'eclasses
+                                  (EGraphIter-numeclasses ptr)
+                                  'time
+                                  (EGraphIter-time ptr))))
                         (destroy_egraphiters iterations-ptr)
                         iter-data)))
 
@@ -219,7 +222,7 @@
                       _uint ;; node id
                       _rust/datum ;; original expr
                       ->
-                      _rust/datum)) ;; listof expr
+                      _rust/data)) ;; listof expr
 
 ;; egraph -> string -> string -> string
 (define-eggmath egraph_get_proof
