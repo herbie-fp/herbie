@@ -82,12 +82,12 @@
       ['backoff #f]
       ['simple #t]
       [_ (error 'egraph-run "unknown scheduler: `~a`" scheduler)]))
-    (egraph_run (egraph-data-egraph-pointer egraph-data)
-                ffi-rules
-                iter_limit
-                node_limit
-                simple_scheduler?
-                const-folding?))
+  (egraph_run (egraph-data-egraph-pointer egraph-data)
+              ffi-rules
+              iter_limit
+              node_limit
+              simple_scheduler?
+              const-folding?))
 
 (define (egraph-get-simplest egraph-data node-id iteration ctx)
   (define expr (egraph_get_simplest (egraph-data-egraph-pointer egraph-data) node-id iteration))
