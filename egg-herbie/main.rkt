@@ -18,9 +18,7 @@
          egraph_is_unsound_detected
          egraph_get_times_applied
          egraph_get_proof
-         (struct-out EGraphIter)
-         _EGraphIter
-         destroy_egraphiters
+         (struct-out iteration-data)
          (struct-out FFIRule)
          make-ffi-rule)
 
@@ -126,6 +124,9 @@
 ;; Frees an array of _EgraphIter structs
 (define-eggmath destroy_egraphiters (_fun _pointer -> _void))
 
+;; Racket representation of `_EGraphIter`
+(struct iteration-data (num-nodes num-eclasses time))
+
 ;; Rewrite rule that can be passed over the FFI boundary.
 ;; Must be manually freed.
 (define-cstruct _FFIRule ([name _pointer] [left _pointer] [right _pointer]) #:malloc-mode 'raw)
@@ -190,12 +191,9 @@
                         (define iter-data
                           (for/list ([i (in-range iterations-length)])
                             (define ptr (ptr-add iterations i _EGraphIter))
-                            (hash 'nodes
-                                  (EGraphIter-numnodes ptr)
-                                  'eclasses
-                                  (EGraphIter-numeclasses ptr)
-                                  'time
-                                  (EGraphIter-time ptr))))
+                            (iteration-data (EGraphIter-numnodes ptr)
+                                            (EGraphIter-numeclasses ptr)
+                                            (EGraphIter-time ptr))))
                         (destroy_egraphiters iterations-ptr)
                         iter-data)))
 
@@ -225,6 +223,9 @@
                       _rust/data)) ;; listof expr
 
 ;; egraph -> string -> string -> string
+;; TODO: in Herbie, we bail on converting the proof
+;; if the string is too big. It would be more efficient
+;; to bail here instead.
 (define-eggmath egraph_get_proof
                 (_fun _egraph-pointer ;; egraph
                       _rust/datum ;; expr1

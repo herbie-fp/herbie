@@ -39,9 +39,6 @@
          egg->herbie-dict ; inverse map
          id->spec)) ; map from e-class id to an approx-spec or #f
 
-;; Racket representation of per-iteration runner data
-(struct iteration-data (num-nodes num-eclasses time))
-
 ; Makes a new egraph that is managed by Racket's GC
 (define (make-egraph)
   (egraph-data (egraph_create) (make-hash) (make-hash) (make-hash)))
@@ -85,15 +82,12 @@
       ['backoff #f]
       ['simple #t]
       [_ (error 'egraph-run "unknown scheduler: `~a`" scheduler)]))
-  (define iters
     (egraph_run (egraph-data-egraph-pointer egraph-data)
                 ffi-rules
                 iter_limit
                 node_limit
                 simple_scheduler?
                 const-folding?))
-  (for/list ([data (in-list iters)])
-    (iteration-data (hash-ref data 'nodes) (hash-ref data 'eclasses) (hash-ref data 'time))))
 
 (define (egraph-get-simplest egraph-data node-id iteration ctx)
   (define expr (egraph_get_simplest (egraph-data-egraph-pointer egraph-data) node-id iteration))
