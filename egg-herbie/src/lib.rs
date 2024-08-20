@@ -4,7 +4,7 @@ pub mod math;
 
 use egg::{BackoffScheduler, Extractor, Id, Language, SimpleScheduler, StopReason, Symbol};
 use indexmap::IndexMap;
-use libc::c_void;
+use libc::{c_void, strlen};
 use math::*;
 
 use std::cmp::min;
@@ -47,6 +47,11 @@ pub unsafe extern "C" fn destroy_string(ptr: *mut c_char) {
     drop(CString::from_raw(ptr))
 }
 
+#[no_mangle]
+pub unsafe extern "C" fn string_length(ptr: *const c_char) -> u32 {
+    strlen(ptr) as u32
+}
+
 #[repr(C)]
 pub struct EGraphIter {
     numnodes: u32,
@@ -69,7 +74,6 @@ pub unsafe extern "C" fn egraph_add_expr(ptr: *mut Context, expr: *const c_char)
     let mut context = Box::from_raw(ptr);
 
     assert_eq!(context.iteration, 0);
-
     let rec_expr = CStr::from_ptr(expr).to_str().unwrap().parse().unwrap();
     context.runner = context.runner.with_expr(&rec_expr);
     let id = usize::from(*context.runner.roots.last().unwrap())

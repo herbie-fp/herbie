@@ -1,17 +1,6 @@
 #lang racket
 
-(require egg-herbie
-         (only-in ffi/unsafe
-                  malloc
-                  memcpy
-                  free
-                  cast
-                  ptr-set!
-                  ptr-add
-                  _byte
-                  _pointer
-                  _string/utf-8
-                  register-finalizer))
+(require egg-herbie)
 
 (require "rules.rkt"
          "programs.rkt"
@@ -43,28 +32,6 @@
 ;; - FFIRule: struct defined in egg-herbie
 ;; - EgraphIter: struct defined in egg-herbie
 
-(define (make-raw-string s)
-  (define b (string->bytes/utf-8 s))
-  (define n (bytes-length b))
-  (define ptr (malloc 'raw (+ n 1)))
-  (memcpy ptr b n)
-  (ptr-set! ptr _byte n 0)
-  ptr)
-
-(define (make-ffi-rule rule)
-  (define name (make-raw-string (~a (rule-name rule))))
-  (define lhs (make-raw-string (~a (rule-input rule))))
-  (define rhs (make-raw-string (~a (rule-output rule))))
-  (define p (make-FFIRule name lhs rhs))
-  (register-finalizer p free-ffi-rule)
-  p)
-
-(define (free-ffi-rule rule)
-  (free (FFIRule-name rule))
-  (free (FFIRule-left rule))
-  (free (FFIRule-right rule))
-  (free rule))
-
 ;; Wrapper around Rust-allocated egg runner
 (struct egraph-data
         (egraph-pointer ; FFI pointer to runner
@@ -88,7 +55,7 @@
   (match-define (egraph-data ptr _ _ id->spec) eg-data)
   ; add the expression to the e-graph and save the root e-class id
   (define egg-expr (expr->egg-expr expr eg-data ctx))
-  (define root-id (egraph_add_expr ptr (~a egg-expr)))
+  (define root-id (egraph_add_expr ptr egg-expr))
   ; record all approx specs
   (let loop ([expr expr])
     (match expr
@@ -98,7 +65,7 @@
       [(approx spec impl)
        (define type (representation-type (repr-of impl ctx)))
        (define egg-spec (expr->egg-expr spec eg-data ctx))
-       (define id (egraph_add_expr ptr (~a egg-spec)))
+       (define id (egraph_add_expr ptr egg-spec))
        (hash-ref! id->spec id (lambda () (cons egg-spec type)))
        (loop impl)]
       [(list _ args ...) (for-each loop args)]))
@@ -115,29 +82,22 @@
       ['backoff #f]
       ['simple #t]
       [_ (error 'egraph-run "unknown scheduler: `~a`" scheduler)]))
-  (define-values (iterations length ptr)
-    (egraph_run (egraph-data-egraph-pointer egraph-data)
-                ffi-rules
-                iter_limit
-                node_limit
-                simple_scheduler?
-                const-folding?))
-  (define iteration-data (convert-iteration-data iterations length))
-  (destroy_egraphiters ptr)
-  iteration-data)
+  (egraph_run (egraph-data-egraph-pointer egraph-data)
+              ffi-rules
+              iter_limit
+              node_limit
+              simple_scheduler?
+              const-folding?))
 
 (define (egraph-get-simplest egraph-data node-id iteration ctx)
-  (define ptr (egraph_get_simplest (egraph-data-egraph-pointer egraph-data) node-id iteration))
-  (define str (cast ptr _pointer _string/utf-8))
-  (destroy_string ptr)
-  (egg-expr->expr str egraph-data (context-repr ctx)))
+  (define expr (egraph_get_simplest (egraph-data-egraph-pointer egraph-data) node-id iteration))
+  (egg-expr->expr expr egraph-data (context-repr ctx)))
 
 (define (egraph-get-variants egraph-data node-id orig-expr ctx)
-  (define expr-str (~a (expr->egg-expr orig-expr egraph-data ctx)))
-  (define ptr (egraph_get_variants (egraph-data-egraph-pointer egraph-data) node-id expr-str))
-  (define str (cast ptr _pointer _string/utf-8))
-  (destroy_string ptr)
-  (egg-exprs->exprs str egraph-data (context-repr ctx)))
+  (define egg-expr (expr->egg-expr orig-expr egraph-data ctx))
+  (define exprs (egraph_get_variants (egraph-data-egraph-pointer egraph-data) node-id egg-expr))
+  (for/list ([expr (in-list exprs)])
+    (egg-expr->expr expr egraph-data (context-repr ctx))))
 
 (define (egraph-is-unsound-detected egraph-data)
   (egraph_is_unsound_detected (egraph-data-egraph-pointer egraph-data)))
@@ -157,11 +117,9 @@
     [sr (error 'egraph-stop-reason "unexpected stop reason ~a" sr)]))
 
 ;; An egraph is just a S-expr of the form
-;;
 ;;  egraph ::= (<eclass> ...)
 ;;  eclass ::= (<id> <enode> ..+)
 ;;  enode  ::= (<op> <id> ...)
-;;
 (define (egraph-serialize egraph-data)
   (egraph_serialize (egraph-data-egraph-pointer egraph-data)))
 
@@ -175,25 +133,17 @@
 
 ;; returns a flattened list of terms or #f if it failed to expand the proof due to budget
 (define (egraph-get-proof egraph-data expr goal ctx)
-  (define egg-expr (~a (expr->egg-expr expr egraph-data ctx)))
-  (define egg-goal (~a (expr->egg-expr goal egraph-data ctx)))
-  (define pointer (egraph_get_proof (egraph-data-egraph-pointer egraph-data) egg-expr egg-goal))
-  (define res (cast pointer _pointer _string/utf-8))
-  (destroy_string pointer)
+  (define egg-expr (expr->egg-expr expr egraph-data ctx))
+  (define egg-goal (expr->egg-expr goal egraph-data ctx))
+  (define str (egraph_get_proof (egraph-data-egraph-pointer egraph-data) egg-expr egg-goal))
   (cond
-    [(< (string-length res) 10000)
-     (define converted (egg-exprs->exprs res egraph-data (context-repr ctx)))
+    [(<= (string-length str) (*proof-max-string-length*))
+     (define converted
+       (for/list ([expr (in-port read (open-input-string str))])
+         (egg-expr->expr expr egraph-data (context-repr ctx))))
      (define expanded (expand-proof converted (box (*proof-max-length*))))
      (if (member #f expanded) #f expanded)]
     [else #f]))
-
-;; Racket representation of per-iteration runner data
-(struct iteration-data (num-nodes num-eclasses time))
-
-(define (convert-iteration-data egraphiters size)
-  (for/list ([i (in-range size)])
-    (define ptr (ptr-add egraphiters i _EGraphIter))
-    (iteration-data (EGraphIter-numnodes ptr) (EGraphIter-numeclasses ptr) (EGraphIter-time ptr))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; eggIR
@@ -274,15 +224,10 @@
       [(list (? impl-exists? impl) args ...) (cons impl (map loop args (impl-info impl 'itype)))]
       [(list op args ...) (cons op (map loop args (operator-info op 'itype)))])))
 
-;; Parses a string from egg into a list of S-exprs.
-(define (egg-exprs->exprs s egraph-data type)
-  (define egg->herbie (egraph-data-egg->herbie-dict egraph-data))
-  (for/list ([egg-expr (in-port read (open-input-string s))])
-    (egg-parsed->expr (flatten-let egg-expr) egg->herbie type)))
-
 ;; Parses a string from egg into a single S-expr.
-(define (egg-expr->expr s egraph-data type)
-  (first (egg-exprs->exprs s egraph-data type)))
+(define (egg-expr->expr egg-expr egraph-data type)
+  (define egg->herbie (egraph-data-egg->herbie-dict egraph-data))
+  (egg-parsed->expr (flatten-let egg-expr) egg->herbie type))
 
 (module+ test
   (define repr (get-representation 'binary64))
@@ -292,19 +237,19 @@
   (*context* (context-extend (*context*) 'z repr))
 
   (define test-exprs
-    (list (cons '(+.f64 y x) (~a '(+.f64 $h0 $h1)))
-          (cons '(+.f64 x y) (~a '(+.f64 $h1 $h0)))
-          (cons '(-.f64 #s(literal 2 binary64) (+.f64 x y)) (~a '(-.f64 2 (+.f64 $h1 $h0))))
+    (list (cons '(+.f64 y x) '(+.f64 $h0 $h1))
+          (cons '(+.f64 x y) '(+.f64 $h1 $h0))
+          (cons '(-.f64 #s(literal 2 binary64) (+.f64 x y)) '(-.f64 2 (+.f64 $h1 $h0)))
           (cons '(-.f64 z (+.f64 (+.f64 y #s(literal 2 binary64)) x))
-                (~a '(-.f64 $h2 (+.f64 (+.f64 $h0 2) $h1))))
-          (cons '(*.f64 x y) (~a '(*.f64 $h1 $h0)))
-          (cons '(+.f64 (*.f64 x y) #s(literal 2 binary64)) (~a '(+.f64 (*.f64 $h1 $h0) 2)))
-          (cons '(cos.f32 (PI.f32)) (~a '(cos.f32 (PI.f32))))
-          (cons '(if (TRUE) x y) (~a '(if (TRUE) $h1 $h0)))))
+                '(-.f64 $h2 (+.f64 (+.f64 $h0 2) $h1)))
+          (cons '(*.f64 x y) '(*.f64 $h1 $h0))
+          (cons '(+.f64 (*.f64 x y) #s(literal 2 binary64)) '(+.f64 (*.f64 $h1 $h0) 2))
+          (cons '(cos.f32 (PI.f32)) '(cos.f32 (PI.f32)))
+          (cons '(if (TRUE) x y) '(if (TRUE) $h1 $h0))))
 
   (let ([egg-graph (make-egraph)])
     (for ([(in expected-out) (in-dict test-exprs)])
-      (define out (~a (expr->egg-expr in egg-graph (*context*))))
+      (define out (expr->egg-expr in egg-graph (*context*)))
       (define computed-in (egg-expr->expr out egg-graph (context-repr (*context*))))
       (check-equal? out expected-out)
       (check-equal? computed-in in)))
@@ -333,7 +278,7 @@
   (let ([egg-graph (make-egraph)])
     (for ([expr extended-expr-list])
       (define egg-expr (expr->egg-expr expr egg-graph (*context*)))
-      (check-equal? (egg-expr->expr (~a egg-expr) egg-graph (context-repr (*context*))) expr))))
+      (check-equal? (egg-expr->expr egg-expr egg-graph (context-repr (*context*))) expr))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Proofs
@@ -467,8 +412,10 @@
                        (lambda ()
                          (for/list ([egg-rule (in-list (rule->egg-rules rule))])
                            (define name (rule-name egg-rule))
+                           (define ffi-rule
+                             (make-ffi-rule name (rule-input egg-rule) (rule-output egg-rule)))
                            (hash-set! (*canon-names*) name (rule-name rule))
-                           (cons egg-rule (make-ffi-rule egg-rule))))))
+                           (cons egg-rule ffi-rule)))))
           (for-each sow egg&ffi-rules))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -723,8 +670,15 @@
   ;; Any empty e-classes must be removed, so we re-map every id
   (rebuild-eclasses eclasses types egg-id->id))
 
-;; Constructs a Racket egraph from an S-expr representation.
-(define (datum->regraph egraph egg->herbie id->spec)
+;; Constructs a Racket egraph from an S-expr representation of
+;; an egraph and data to translate egg IR to herbie IR.
+(define (make-regraph egraph-data)
+  (define egg->herbie (egraph-data-egg->herbie-dict egraph-data))
+  (define id->spec (egraph-data-id->spec egraph-data))
+
+  ;; serialize the e-graph into Racket
+  (define egraph (egraph-serialize egraph-data))
+
   ;; split the e-classes by type
   (define-values (eclasses types canon) (make-typed-eclasses egraph egg->herbie))
   (define n (vector-length eclasses))
@@ -753,21 +707,13 @@
 
   ; convert id->spec to a vector-map
   (define specs (make-vector n #f))
-  (for ([(id spec&repr) (in-dict id->spec)])
+  (for ([(id spec&repr) (in-hash id->spec)])
     (match-define (cons spec repr) spec&repr)
-    (define id* (hash-ref canon (cons id repr)))
+    (define id* (hash-ref canon (cons (egraph-find egraph-data id) repr)))
     (vector-set! specs id* spec))
-  ; collect with wrapper
-  (regraph eclasses types leaf? constants specs parents canon egg->herbie))
 
-;; Constructs a Racket egraph from an S-expr representation of
-;; an egraph and data to translate egg IR to herbie IR.
-(define (make-regraph egraph-data)
-  (define egraph-str (egraph-serialize egraph-data))
-  (datum->regraph (read (open-input-string egraph-str))
-                  (egraph-data-egg->herbie-dict egraph-data)
-                  (for/list ([(id spec&repr) (in-hash (egraph-data-id->spec egraph-data))])
-                    (cons (egraph-find egraph-data id) spec&repr))))
+  ; construct the `regraph` instance
+  (regraph eclasses types leaf? constants specs parents canon egg->herbie))
 
 ;; Egraph node has children.
 ;; Nullary operators have no children!
