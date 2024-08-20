@@ -97,7 +97,7 @@
   (define varc (length vars))
 
   ; Mapping from nodes to nodes*
-  (define mappings (make-vector (batch-nodes-length input-batch)))
+  (define mappings (build-vector (batch-nodes-length input-batch) values))
 
   ; Adding a node to hash
   (define (append-node node)
