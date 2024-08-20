@@ -171,6 +171,7 @@
 
 (define-eggmath egraph_is_unsound_detected (_fun _egraph-pointer -> _stdbool))
 
+;; Runs the egraph with a set of rules, returning the statistics of the run.
 (define-eggmath egraph_run
                 (_fun _egraph-pointer ;; egraph
                       (ffi-rules : (_list i _FFIRule-pointer)) ;; ffi rules
@@ -185,7 +186,15 @@
                       ->
                       (iterations : _EGraphIter-pointer) ;; array of _EgraphIter structs
                       ->
-                      (values iterations iterations-length iterations-ptr)))
+                      (begin
+                        (define iter-data
+                          (for/list ([i (in-range iterations-length)])
+                            (define ptr (ptr-add iterations i _EGraphIter))
+                            (hash 'nodes (EGraphIter-numnodes ptr)
+                                  'eclasses (EGraphIter-numeclasses ptr)
+                                  'time (EGraphIter-time ptr))))
+                        (destroy_egraphiters iterations-ptr)
+                        iter-data)))
 
 ;; gets the stop reason as an integer
 (define-eggmath egraph_get_stop_reason (_fun _egraph-pointer -> _uint))

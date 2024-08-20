@@ -1,7 +1,6 @@
 #lang racket
 
-(require egg-herbie
-         (only-in ffi/unsafe ptr-add))
+(require egg-herbie)
 
 (require "rules.rkt"
          "programs.rkt"
@@ -39,6 +38,9 @@
          herbie->egg-dict ; map from symbols to canonicalized names
          egg->herbie-dict ; inverse map
          id->spec)) ; map from e-class id to an approx-spec or #f
+
+;; Racket representation of per-iteration runner data
+(struct iteration-data (num-nodes num-eclasses time))
 
 ; Makes a new egraph that is managed by Racket's GC
 (define (make-egraph)
@@ -83,16 +85,17 @@
       ['backoff #f]
       ['simple #t]
       [_ (error 'egraph-run "unknown scheduler: `~a`" scheduler)]))
-  (define-values (iterations length ptr)
+  (define iters
     (egraph_run (egraph-data-egraph-pointer egraph-data)
                 ffi-rules
                 iter_limit
                 node_limit
                 simple_scheduler?
                 const-folding?))
-  (define iteration-data (convert-iteration-data iterations length))
-  (destroy_egraphiters ptr)
-  iteration-data)
+  (for/list ([data (in-list iters)])
+    (iteration-data (hash-ref data 'nodes)
+                    (hash-ref data 'eclasses)
+                    (hash-ref data 'time))))
 
 (define (egraph-get-simplest egraph-data node-id iteration ctx)
   (define expr (egraph_get_simplest (egraph-data-egraph-pointer egraph-data) node-id iteration))
@@ -149,14 +152,6 @@
      (define expanded (expand-proof converted (box (*proof-max-length*))))
      (if (member #f expanded) #f expanded)]
     [else #f]))
-
-;; Racket representation of per-iteration runner data
-(struct iteration-data (num-nodes num-eclasses time))
-
-(define (convert-iteration-data egraphiters size)
-  (for/list ([i (in-range size)])
-    (define ptr (ptr-add egraphiters i _EGraphIter))
-    (iteration-data (EGraphIter-numnodes ptr) (EGraphIter-numeclasses ptr) (EGraphIter-time ptr))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; eggIR
@@ -425,8 +420,9 @@
                        (lambda ()
                          (for/list ([egg-rule (in-list (rule->egg-rules rule))])
                            (define name (rule-name egg-rule))
+                           (define ffi-rule (make-ffi-rule name (rule-input egg-rule) (rule-output egg-rule)))
                            (hash-set! (*canon-names*) name (rule-name rule))
-                           (cons egg-rule (make-ffi-rule egg-rule))))))
+                           (cons egg-rule ffi-rule)))))
           (for-each sow egg&ffi-rules))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
