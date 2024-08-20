@@ -1,17 +1,7 @@
 #lang racket
 
 (require egg-herbie
-         (only-in ffi/unsafe
-                  malloc
-                  memcpy
-                  free
-                  cast
-                  ptr-set!
-                  ptr-add
-                  _byte
-                  _pointer
-                  _string/utf-8
-                  register-finalizer))
+         (only-in ffi/unsafe ptr-add))
 
 (require "rules.rkt"
          "programs.rkt"
@@ -43,28 +33,6 @@
 ;; - FFIRule: struct defined in egg-herbie
 ;; - EgraphIter: struct defined in egg-herbie
 
-(define (make-raw-string s)
-  (define b (string->bytes/utf-8 s))
-  (define n (bytes-length b))
-  (define ptr (malloc 'raw (+ n 1)))
-  (memcpy ptr b n)
-  (ptr-set! ptr _byte n 0)
-  ptr)
-
-(define (make-ffi-rule rule)
-  (define name (make-raw-string (~a (rule-name rule))))
-  (define lhs (make-raw-string (~a (rule-input rule))))
-  (define rhs (make-raw-string (~a (rule-output rule))))
-  (define p (make-FFIRule name lhs rhs))
-  (register-finalizer p free-ffi-rule)
-  p)
-
-(define (free-ffi-rule rule)
-  (free (FFIRule-name rule))
-  (free (FFIRule-left rule))
-  (free (FFIRule-right rule))
-  (free rule))
-
 ;; Wrapper around Rust-allocated egg runner
 (struct egraph-data
         (egraph-pointer ; FFI pointer to runner
@@ -88,7 +56,7 @@
   (match-define (egraph-data ptr _ _ id->spec) eg-data)
   ; add the expression to the e-graph and save the root e-class id
   (define egg-expr (expr->egg-expr expr eg-data ctx))
-  (define root-id (egraph_add_expr ptr (~a egg-expr)))
+  (define root-id (egraph_add_expr ptr egg-expr))
   ; record all approx specs
   (let loop ([expr expr])
     (match expr
@@ -98,7 +66,7 @@
       [(approx spec impl)
        (define type (representation-type (repr-of impl ctx)))
        (define egg-spec (expr->egg-expr spec eg-data ctx))
-       (define id (egraph_add_expr ptr (~a egg-spec)))
+       (define id (egraph_add_expr ptr egg-spec))
        (hash-ref! id->spec id (lambda () (cons egg-spec type)))
        (loop impl)]
       [(list _ args ...) (for-each loop args)]))
@@ -131,8 +99,8 @@
   (egg-expr->expr expr egraph-data (context-repr ctx)))
 
 (define (egraph-get-variants egraph-data node-id orig-expr ctx)
-  (define expr-str (~a (expr->egg-expr orig-expr egraph-data ctx)))
-  (define exprs (egraph_get_variants (egraph-data-egraph-pointer egraph-data) node-id expr-str))
+  (define egg-expr (expr->egg-expr orig-expr egraph-data ctx))
+  (define exprs (egraph_get_variants (egraph-data-egraph-pointer egraph-data) node-id egg-expr))
   (for/list ([expr (in-list exprs)])
     (egg-expr->expr expr egraph-data (context-repr ctx))))
 
@@ -170,8 +138,8 @@
 
 ;; returns a flattened list of terms or #f if it failed to expand the proof due to budget
 (define (egraph-get-proof egraph-data expr goal ctx)
-  (define egg-expr (~a (expr->egg-expr expr egraph-data ctx)))
-  (define egg-goal (~a (expr->egg-expr goal egraph-data ctx)))
+  (define egg-expr (expr->egg-expr expr egraph-data ctx))
+  (define egg-goal (expr->egg-expr goal egraph-data ctx))
   (define str (egraph_get_proof (egraph-data-egraph-pointer egraph-data) egg-expr egg-goal))
   (cond
     [(<= (string-length str) (*proof-max-string-length*))

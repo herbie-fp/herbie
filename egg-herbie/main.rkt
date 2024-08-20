@@ -14,14 +14,15 @@
          egraph_find
          egraph_get_simplest
          egraph_get_variants
-         _EGraphIter
-         destroy_egraphiters
          egraph_get_cost
          egraph_is_unsound_detected
          egraph_get_times_applied
          egraph_get_proof
          (struct-out EGraphIter)
-         (struct-out FFIRule))
+         _EGraphIter
+         destroy_egraphiters
+         (struct-out FFIRule)
+         make-ffi-rule)
 
 (define-runtime-path libeggmath-path
                      (build-path "target/release"
@@ -59,22 +60,21 @@
 ; Checks for a condition on MacOS if x86 Racket is being used on an ARM mac.
 (define-ffi-definer define-eggmath (ffi-lib libeggmath-path #:fail handle-eggmath-import-failure))
 
-; GC'able egraph
-; If Racket GC can prove unreachable, `egraph_destroy` will be called
-(define _egraph-pointer
-  (_cpointer 'egraph
-             #f
-             #f
-             (lambda (p)
-               (register-finalizer p egraph_destroy)
-               p)))
-
 ;; Frees a Rust-allocated C-string
 (define-eggmath destroy_string (_fun _pointer -> _void))
 
 ;; Gets the length of a Rust-allocated C-string in bytes,
 ;; excluding the nul terminator.
 (define-eggmath string_length (_fun _pointer -> _uint32))
+
+;; Converts a Racket string to a C-style string.
+(define (string->_rust/string s #:raw? [raw? #f])
+  (define bstr (string->bytes/utf-8 s))
+  (define n (bytes-length bstr))
+  (define p (malloc (if raw? 'raw 'atomic) (add1 n)))
+  (memcpy p bstr n)
+  (ptr-set! p _byte n 0)
+  p)
 
 ;; Converts a non-NULL, Rust-allocated C-string to a Racket string,
 ;; freeing the Rust string.
@@ -100,14 +100,14 @@
 ;; to Racket strings, automatically freeing the Rust-side allocation.
 (define _rust/string
   (make-ctype _pointer
-              (lambda (x) (and x (string->bytes/utf-8 x)))
+              (lambda (x) (and x (string->_rust/string x)))
               (lambda (x) (and x (_rust/string->string x)))))
 
 ;; FFI type that converts Rust-allocated C-style strings
 ;; to a Racket datum via `read`, automatically freeing the Rust-side allocation.
 (define _rust/datum
   (make-ctype _pointer
-              (lambda (x) (and x (string->bytes/utf-8 (~a x))))
+              (lambda (x) (and x (string->_rust/string (~a x))))
               (lambda (x) (and x (first (_rust/string->data x))))))
 
 ;; FFI type that converts Rust-allocated C-style strings
@@ -115,7 +115,7 @@
 ;; automatically freeing the Rust-side allocation.
 (define _rust/data
   (make-ctype _pointer
-              (lambda (x) (and x (string->bytes/utf-8 (apply string-join (map ~a x)))))
+              (lambda (_) (error '_rust/data "cannot be used as an input type"))
               (lambda (x) (and x (_rust/string->data x)))))
 
 ; Egraph iteration data
@@ -123,20 +123,51 @@
 ; Must call `destroy_egraphiters` to free.
 (define-cstruct _EGraphIter ([numnodes _uint] [numeclasses _uint] [time _double]) #:malloc-mode 'raw)
 
-; Rewrite rule
-; Not managed by Racket GC.
-; Must call `free` on struct and fields
+;; Frees an array of _EgraphIter structs
+(define-eggmath destroy_egraphiters (_fun _pointer -> _void))
+
+;; Rewrite rule that can be passed over the FFI boundary.
+;; Must be manually freed.
 (define-cstruct _FFIRule ([name _pointer] [left _pointer] [right _pointer]) #:malloc-mode 'raw)
 
-;;  -> a pointer to an egraph
+;; Constructs for `_FFIRule` struct.
+(define (make-ffi-rule name lhs rhs)
+  (define name* (string->_rust/string (~a name) #:raw? #t))
+  (define lhs* (string->_rust/string (~a lhs) #:raw? #t))
+  (define rhs* (string->_rust/string (~a rhs) #:raw? #t))
+  (define p (make-FFIRule name* lhs* rhs*))
+  (register-finalizer p free-ffi-rule)
+  p)
+
+;; Frees a `_FFIRule` struct.
+(define (free-ffi-rule rule)
+  (free (FFIRule-name rule))
+  (free (FFIRule-left rule))
+  (free (FFIRule-right rule))
+  (free rule))
+
+; GC'able egraph
+; If Racket GC can prove unreachable, `egraph_destroy` will be called
+(define _egraph-pointer
+  (_cpointer 'egraph
+             #f
+             #f
+             (lambda (p)
+               (register-finalizer p egraph_destroy)
+               p)))
+
+;; Constructs an e-graph instances.
 (define-eggmath egraph_create (_fun -> _egraph-pointer))
 
+;; Frees an e-graph instance.
 (define-eggmath egraph_destroy (_fun _egraph-pointer -> _void))
 
-;; egraph pointer, s-expr string -> node number
-(define-eggmath egraph_add_expr (_fun _egraph-pointer _string/utf-8 -> _uint))
+;; Copies an e-graph instance.
+(define-eggmath egraph_copy (_fun _egraph-pointer -> _egraph-pointer))
 
-(define-eggmath destroy_egraphiters (_fun _pointer -> _void))
+;; Adds an expression to the e-graph.
+;; egraph -> expr -> id
+(define-eggmath egraph_add_expr (_fun _egraph-pointer _rust/datum -> _uint))
 
 (define-eggmath egraph_is_unsound_detected (_fun _egraph-pointer -> _stdbool))
 
@@ -152,12 +183,9 @@
                       _stdbool ;; simple scheduler?
                       _stdbool ;; constant folding enabled?
                       ->
-                      (iterations : _EGraphIter-pointer)
+                      (iterations : _EGraphIter-pointer) ;; array of _EgraphIter structs
                       ->
                       (values iterations iterations-length iterations-ptr)))
-
-;; creates a fresh runner from an existing egraph
-(define-eggmath egraph_copy (_fun _egraph-pointer -> _egraph-pointer))
 
 ;; gets the stop reason as an integer
 (define-eggmath egraph_get_stop_reason (_fun _egraph-pointer -> _uint))
@@ -180,15 +208,15 @@
 (define-eggmath egraph_get_variants
                 (_fun _egraph-pointer
                       _uint ;; node id
-                      _string/utf-8 ;; original expr
+                      _rust/datum ;; original expr
                       ->
-                      _rust/data)) ;; listof expr
+                      _rust/datum)) ;; listof expr
 
 ;; egraph -> string -> string -> string
 (define-eggmath egraph_get_proof
                 (_fun _egraph-pointer ;; egraph
-                      _string/utf-8 ;; expr1
-                      _string/utf-8 ;; expr2
+                      _rust/datum ;; expr1
+                      _rust/datum ;; expr2
                       ->
                       _rust/string)) ;; string
 
