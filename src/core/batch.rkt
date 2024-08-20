@@ -131,12 +131,40 @@
       ; expression of operators
       [(list (? operator-exists? op) ids ...)
        (append-node (cons op (map add-node ids)))]))
-
-  (define (build-batch ids)
-    (set! roots (list->vector (map add-node ids)))
-    (define nodes (list->vector (reverse icache)))
-    (batch nodes roots '() (vector-length nodes) exprhash))
-  build-batch)
+  
+  (define (add-root enode)
+    (define idx
+      (match enode
+        [(? number?) (append-node enode)]
+        [(? symbol?) (append-node enode)]
+        [(list '$approx spec impl)
+         (define spec* (vector-ref id->spec spec))
+         (unless spec*
+           (error 'regraph-extract-variants "no initial approx node in eclass"))
+         (define impl-idx (add-node impl))
+         (append-node (list '$approx spec* impl-idx))]
+        [(list 'if cond ift iff)
+         (define cond-idx (add-node cond))
+         (define ift-idx (add-node ift))
+         (define iff-idx (add-node iff))
+         (append-node (list 'if cond-idx ift-idx iff-idx))]
+        [(list (? impl-exists? impl) ids ...)
+         (define args
+           (for/list ([id (in-list ids)])
+             (add-node id)))
+         (append-node (cons impl args))]
+        [(list (? operator-exists? op) ids ...)
+         (define args
+           (for/list ([id (in-list ids)])
+             (add-node id)))
+         (append-node (cons op args))]))
+    (set! roots (cons idx roots))
+    (batch (list->vector (reverse icache))
+           (list->vector (reverse roots))
+           '()
+           (length icache)
+           exprhash))
+  add-root)
 
 (define (expand-taylor input-batch)
   (define vars (batch-vars input-batch))
