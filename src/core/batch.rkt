@@ -11,7 +11,8 @@
          expand-taylor
          batch-add-expr!
          remove-dupicates-roots!
-         empty-batch)
+         empty-batch
+         nodes->batch)
 
 (struct batch
         ([nodes #:mutable] [roots #:mutable] vars [nodes-length #:mutable] [exprhash #:mutable]))
@@ -92,6 +93,50 @@
     (for/list ([root (in-vector roots)])
       (unmunge root)))
   exprs)
+
+; Function transforms nodes to a batch
+; nodes: (listof '(id op arg1-index arg2-index))
+(define (nodes->batch nodes id->spec)
+  ; Mapping from nodes to nodes*
+  (define icache '())
+  (define exprhash (make-hash))
+  (define exprc 0)
+  (define roots '())
+
+  ; Adding a node to hash
+  (define (append-node node)
+    (hash-ref! exprhash
+               node
+               (lambda ()
+                 (begin0 exprc
+                   (set! exprc (+ 1 exprc))
+                   (set! icache (cons node icache))))))
+  
+  ; adds nodes to a batch 
+  (define (add-node id)
+    (match (cdr (vector-ref nodes id))
+      [(? number? n) (append-node n)] ; number
+      [(? symbol? s) (append-node s)] ; variable
+      [(list '$approx spec impl) ; approx
+       (match (vector-ref id->spec spec)
+         [#f (error nodes->batch "no initial approx node in eclass ~a" id)]
+         [spec-e
+          (append-node (list '$approx spec-e (add-node impl)))])]
+      ; if expression
+      [(list 'if cond ift iff)
+       (append-node (list 'if (add-node cond) (add-node ift) (add-node iff)))]
+      ; expression of impls
+      [(list (? impl-exists? impl) ids ...)
+       (append-node (cons impl (map add-node ids)))]
+      ; expression of operators
+      [(list (? operator-exists? op) ids ...)
+       (append-node (cons op (map add-node ids)))]))
+
+  (define (build-batch ids)
+    (set! roots (list->vector (map add-node ids)))
+    (define nodes (list->vector (reverse icache)))
+    (batch nodes roots '() (vector-length nodes) exprhash))
+  build-batch)
 
 (define (expand-taylor input-batch)
   (define vars (batch-vars input-batch))

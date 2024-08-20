@@ -914,6 +914,7 @@
   (regraph-analyze regraph eclass-set-cost! #:analysis costs)
 
   ; rebuilds the extracted procedure
+  ; TODO: make a hash instead of a big vector?
   (define id->spec (regraph-specs regraph))
   (define (build-expr id)
     (let loop ([id id])
@@ -931,9 +932,11 @@
         ; expression of operators
         [(list (? operator-exists? op) ids ...) (cons op (map loop ids))])))
 
+  (define build-batch (nodes->batch costs id->spec))
+
   ; the actual extraction procedure
   ; as long as the `id` is valid, extraction will work
-  (lambda (id) (cons (unsafe-eclass-cost id) (build-expr id))))
+  (lambda (id) (cons (unsafe-eclass-cost id) (build-expr id) (build-batch id))))
 
 ;; Is fractional with odd denominator.
 (define (fraction-with-odd-denominator? frac)
@@ -1020,25 +1023,30 @@
             (define spec* (vector-ref id->spec spec))
             (unless spec*
               (error 'regraph-extract-variants "no initial approx node in eclass ~a" id*))
-            (match-define (cons _ impl*) (extract impl))
+            (match-define (list _ _ impl*) (extract impl))
             (list '$approx spec* impl*)]
            [(list 'if cond ift iff)
-            (match-define (cons _ cond*) (extract cond))
-            (match-define (cons _ ift*) (extract ift))
-            (match-define (cons _ iff*) (extract iff))
+            (match-define (list _ _  cond*) (extract cond))
+            (match-define (list _ _ ift*) (extract ift))
+            (match-define (list _ _ iff*) (extract iff))
             (list 'if cond* ift* iff*)]
            [(list (? impl-exists? impl) ids ...)
             (define args
               (for/list ([id (in-list ids)])
-                (match-define (cons _ expr) (extract id))
+                (match-define (list _ _ expr) (extract id))
                 expr))
             (cons impl args)]
            [(list (? operator-exists? op) ids ...)
             (define args
               (for/list ([id (in-list ids)])
-                (match-define (cons _ expr) (extract id))
+                (match-define (list _ _ expr) (extract id))
                 expr))
             (cons op args)])))
+
+     (match-define (list _ _ batch) (extract id*))
+     (define egg-exprs* (batch->progs batch))
+
+     (println egg-exprs*)
      ; translate egg IR to Herbie IR
      (define egg->herbie (regraph-egg->herbie regraph))
      (define exprs
