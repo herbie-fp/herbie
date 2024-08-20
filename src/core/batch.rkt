@@ -129,7 +129,7 @@
        #:when (exact-integer? (vector-ref nodes power))
        (vector-set! mappings
                     n
-                    (append-node `(pown ,(vector-ref mappings base) ,(vector-ref mappings power))))]
+                    (append-node `(pow ,(vector-ref mappings base) ,(vector-ref mappings power))))]
       [(list 'pow base power)
        (define log-idx (append-node `(log ,(vector-ref mappings base))))
        (define mult-idx (append-node `(* ,(vector-ref mappings power) ,log-idx)))
