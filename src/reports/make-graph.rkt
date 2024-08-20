@@ -89,9 +89,6 @@
                     (/ start-cost cost))])
       (and (not (null? better)) (apply max better))))
 
-  (match-define (list train-pctx test-pctx) pctxs)
-
-  (define end-alt (car end-alts))
   (define end-error (car end-errors))
 
   (write-html

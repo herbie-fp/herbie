@@ -581,6 +581,7 @@
 
 (define (run-demo #:quiet [quiet? #f]
                   #:threads [threads #f]
+                  #:browser [browser? #t]
                   #:output output
                   #:demo? demo?
                   #:prefix prefix
@@ -605,7 +606,7 @@
                  #:servlet-current-directory (current-directory)
                  #:manager (create-none-manager #f)
                  #:command-line? true
-                 #:launch-browser? (not quiet?)
+                 #:launch-browser? (and browser? (not quiet?))
                  #:banner? (not quiet?)
                  #:servlets-root (web-resource)
                  #:server-root-path (web-resource)
