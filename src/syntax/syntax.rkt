@@ -511,35 +511,30 @@
 
   ; make hash table
   (define rules (make-hasheq))
-  (define exact? #f)
   (define commutes? #f)
   (when identities
+    (print "looping")
     (for ([ident (in-list identities)])
-    (syntax-case ident ()
-      [[ident-name lhs rhs] 
-        (cond
-        [(hash-has-key? rules #'ident-name)
-         (raise-herbie-syntax-error "Duplicate identity ~a" #'ident-name)]
-        [else
-          (hash-set! rules #'ident-name (list #'lhs #'rhs))])]
-      [[#:exact expr]
-       (cond 
-        [exact? (raise-herbie-syntax-error "Exact identity already defined")]
-        [else
-         (set! exact? #t)
-         (hash-set! rules (gensym (string->symbol (format "~a-exact" name))) (list #'expr #'expr))])]
-      [[#:commutes]
-        (cond 
-          [commutes? (raise-herbie-syntax-error "Commutes identity already defined")]
-          [else 
+      (match ident
+        [(list ident-name lhs-expr rhs-expr)
+         (cond
+           [(hash-has-key? rules ident-name)
+            (raise-herbie-syntax-error "Duplicate identity ~a" ident-name)]
+           [else (hash-set! rules ident-name (list lhs-expr rhs-expr))])]
+        [(list 'exact expr)
+         (hash-set! rules (gensym (string->symbol (format "~a-exact" name))) (list expr expr))]
+        [(list 'commutes)
+         (cond
+           [commutes? (raise-herbie-syntax-error "Commutes identity already defined")]
+           [else
             (cond
-            [(not (equal? actual-arity 2))
-            (raise-herbie-syntax-error "Cannot commute a non 2-ary operator")]
-            [else 
-              (set! commutes? #t)
-              (hash-set! rules (string->symbol (format "~a-commutes" name)) (list `(,name ,@vars) `(,name ,@(reverse vars))))])])]
-      [_ (raise-herbie-syntax-error "Invalid identity given from ~a" ident)])))
-  
+              [(not (equal? actual-arity 2))
+               (raise-herbie-syntax-error "Cannot commute a non 2-ary operator")]
+              [else
+               (set! commutes? #t)
+               (hash-set! rules
+                          (string->symbol (format "~a-commutes" name))
+                          (list `(,name ,@vars) `(name ,@(reverse vars))))])])])))
 
   ; update tables
   (define impl (operator-impl name op-info (context vars orepr ireprs) spec fpcore fl-proc rules))
@@ -608,14 +603,22 @@
                (set! operator #'name)
                (loop #'(rest ...))])]
            [(#:op) (oops! "expected value after keyword `#:op`" stx)]
-           [(#:identities) (oops! "expected value after keyword #:identities clause" stx)]
-           [(#:identities rest ...) (oops! "expected list of impl identities" stx)]
-           [(#:identities (ident-expr ...) rest ...)
+           [(#:identities (ident-exprs ...) rest ...)
             (cond
               [identities (oops! "multiple #:identities clauses" stx)]
               [else
-               (set! identities #'(ident-expr ...))
+               (set! identities
+                     (let ident-loop ([ident-exprs #'(ident-exprs ...)])
+                       (syntax-case ident-exprs ()
+                         [() '()]
+                         [([name lhs-expr rhs-expr] rem ...)
+                          (cons (list #'name #'lhs-expr #'rhs-expr) (ident-loop #'(rem ...)))]
+                         [(#:exact expr rem ...) (cons (list 'exact #'expr) (ident-loop #'(rem ...)))]
+                         [(#:commutes rem ...) (cons (list 'commutes) (ident-loop #'(rem ...)))]
+                         [_ (oops! "bad syntax" ident-exprs)])))
                (loop #'(rest ...))])]
+           [(#:identities rest ...) (oops! "expected list of impl identities" stx)]
+           [(#:identities) (oops! "expected value after keyword #:identities clause" stx)]
            [_ (oops! "bad syntax" fields)])))]
     [_ (oops! "bad syntax")]))
 
