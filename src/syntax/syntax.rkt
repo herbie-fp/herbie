@@ -511,6 +511,7 @@
 
   ; make hash table
   (define rules (make-hasheq))
+  (define count 0)
   (define commutes? #f)
   (when identities
     (for ([ident (in-list identities)])
@@ -521,10 +522,15 @@
             (raise-herbie-syntax-error "Duplicate identity ~a" ident-name)]
            [else (hash-set! rules ident-name (list lhs-expr rhs-expr))])]
         [(list 'exact expr)
-         (hash-set! rules (gensym (string->symbol (format "~a-exact" name))) (list expr expr))]
+         (hash-set! rules
+                    (gensym (string->symbol (format "~a-exact-~a" name count)))
+                    (list expr expr))
+         (set! count (+ count 1))]
         [(list 'commutes)
          (cond
            [commutes? (raise-herbie-syntax-error "Commutes identity already defined")]
+           [(hash-has-key? rules (string->symbol (format "~a-commutes" name)))
+            (raise-herbie-syntax-error "Commutes identity already manually defined")]
            [(not (equal? actual-arity 2))
             (raise-herbie-syntax-error "Cannot commute a non 2-ary operator")]
            [else
