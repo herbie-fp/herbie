@@ -31,20 +31,30 @@
     (display "</pre>" out)))
 
 (define (make-page page out result-hash output? profile?)
-  (define test (hash-ref result-hash 'test))
-  (define status (hash-ref result-hash 'status))
   (match page
-    ["graph.html"
-     (match status
-       ['success
-        (define command (hash-ref result-hash 'command))
-        (match command
-          ["improve" (make-graph result-hash out output? profile?)]
-          [else (dummy-graph command out)])]
-       ['timeout (make-traceback result-hash out)]
-       ['failure (make-traceback result-hash out)]
-       [_ (error 'make-page "unknown result type ~a" status)])]
-    ["timeline.html"
-     (make-timeline (test-name test) (hash-ref result-hash 'timeline) out #:path "..")]
-    ["timeline.json" (write-json (hash-ref result-hash 'timeline) out)]
-    ["points.json" (write-json (make-points-json result-hash) out)]))
+    ["graph.html" (make-graph-html out result-hash output? profile?)]
+    ["timeline.html" (make-timeline-html out result-hash)]
+    ["timeline.json" (make-timeline-json out result-hash)]
+    ["points.json" (make-points out result-hash)]))
+
+(define (make-graph-html out result-hash output? profile?)
+  (define status (hash-ref result-hash 'status))
+  (match status
+    ['success
+     (define command (hash-ref result-hash 'command))
+     (match command
+       ["improve" (make-graph result-hash out output? profile?)]
+       [else (dummy-graph command out)])]
+    ['timeout (make-traceback result-hash out)]
+    ['failure (make-traceback result-hash out)]
+    [_ (error 'make-page "unknown result type ~a" status)]))
+
+(define (make-points out result-hash)
+  (write-json (make-points-json result-hash) out))
+
+(define (make-timeline-json out result-hash)
+  (write-json (hash-ref result-hash 'timeline) out))
+
+(define (make-timeline-html out result-hash)
+  (define test (hash-ref result-hash 'test))
+  (make-timeline (test-name test) (hash-ref result-hash 'timeline) out #:path ".."))
