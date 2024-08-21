@@ -1,7 +1,13 @@
 #lang racket
 
 (require egg-herbie
-         (only-in ffi/vector make-u32vector u32vector-set! list->u32vector))
+         (only-in ffi/vector
+                  make-u32vector
+                  u32vector-length
+                  u32vector-set!
+                  u32vector-ref
+                  list->u32vector
+                  u32vector->list))
 
 (require "programs.rkt"
          "rules.rkt"
@@ -612,13 +618,13 @@
     (hash-ref! type->id type (lambda () (new-eclass eid type))))
 
   ;; extract (untyped) eclass ids as u32vector
+  ;; for each eclass, extract the enodes
+  ;;  <enode> ::= <symbol>
+  ;;            | <number>
+  ;;            | (<symbol> . <u32vector>)
+  ;; NOTE: nodes in typed eclasses are reversed relative
+  ;; to their position in untyped eclasses
   (for ([eid (in-u32vector (egraph-eclasses egraph-data))])
-    ;; for each eclass, extract the enodes
-    ;;  <enode> ::= <symbol>
-    ;;            | <number>
-    ;;            | (<symbol> . <u32vector>)
-    ;; NOTE: nodes in typed eclasses are reversed relative
-    ;; to their position in untyped eclasses
     (for ([enode (in-vector (egraph-get-eclass egraph-data eid))])
       ; get all possible types for the enode
       ; lookup its correct eclass and add the rebuilt node

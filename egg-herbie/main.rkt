@@ -238,11 +238,9 @@
                       [idx : _uint32]
                       [v : _u32vector = (make-u32vector (egraph_enode_size e id idx))]
                       ->
-                      [p : _pointer]
+                      [f : _rust/string]
                       ->
-                      (let ([s (cast p _pointer _string*/utf-8)])
-                        (destroy_string p)
-                        (cons (or (string->number s) (string->symbol s)) v))))
+                      (cons (or (string->number f) (string->symbol f)) v)))
 
 ; egraph -> id -> (vectorof (cons symbol u32vector))
 (define (egraph_get_eclass egg-ptr id)

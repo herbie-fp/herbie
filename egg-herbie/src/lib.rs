@@ -268,10 +268,14 @@ pub unsafe extern "C" fn egraph_find(ptr: *mut Context, id: usize) -> u32 {
 pub unsafe extern "C" fn egraph_serialize(ptr: *mut Context) -> *const c_char {
     // Safety: `ptr` was box allocated by `egraph_create`
     let context = ManuallyDrop::new(Box::from_raw(ptr));
+    let mut ids: Vec<Id> = context.runner.egraph.classes().map(|c| c.id).collect();
+    ids.sort();
+
     // Iterate through the eclasses and print each eclass
     let mut s = String::from("(");
-    for c in context.runner.egraph.classes() {
-        s.push_str(&format!("({}", c.id));
+    for id in ids {
+        let c = &context.runner.egraph[id];
+        s.push_str(&format!("({}", id));
         for node in &c.nodes {
             if matches!(node, Math::Symbol(_) | Math::Constant(_)) {
                 s.push_str(&format!(" {}", node));
