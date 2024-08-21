@@ -1,9 +1,10 @@
 #lang racket
 
-(require egg-herbie)
+(require egg-herbie
+         (only-in ffi/vector make-u32vector u32vector-set! list->u32vector))
 
-(require "rules.rkt"
-         "programs.rkt"
+(require "programs.rkt"
+         "rules.rkt"
          "../syntax/platform.rkt"
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
@@ -50,27 +51,92 @@
                eg-data
                [egraph-pointer (egraph_copy (egraph-data-egraph-pointer eg-data))]))
 
-;; result function is a function that takes the ids of the nodes
-(define (egraph-add-expr eg-data expr ctx)
-  (match-define (egraph-data ptr _ _ id->spec) eg-data)
-  ; add the expression to the e-graph and save the root e-class id
-  (define egg-expr (expr->egg-expr expr eg-data ctx))
-  (define root-id (egraph_add_expr ptr egg-expr))
-  ; record all approx specs
-  (let loop ([expr expr])
+; Adds expressions returning the root ids
+; TODO: take a batch rather than list of expressions
+(define (egraph-add-exprs egg-data exprs ctx)
+  (match-define (egraph-data ptr herbie->egg-dict egg->herbie-dict id->spec) egg-data)
+
+  ; lookups the egg name of a variable
+  (define (normalize-var x)
+    (hash-ref! herbie->egg-dict
+               x
+               (lambda ()
+                 (define id (hash-count herbie->egg-dict))
+                 (define replacement (string->symbol (format "$h~a" id)))
+                 (hash-set! egg->herbie-dict replacement (cons x (context-lookup ctx x)))
+                 replacement)))
+
+  ; normalizes an approx spec
+  (define (normalize-spec expr)
     (match expr
-      [(? number?) (void)]
-      [(? literal?) (void)]
-      [(? symbol?) (void)]
-      [(approx spec impl)
-       (define type (representation-type (repr-of impl ctx)))
-       (define egg-spec (expr->egg-expr spec eg-data ctx))
-       (define id (egraph_add_expr ptr egg-spec))
-       (hash-ref! id->spec id (lambda () (cons egg-spec type)))
-       (loop impl)]
-      [(list _ args ...) (for-each loop args)]))
-  ; return the id
-  root-id)
+      [(? number?) expr]
+      [(? symbol?) (normalize-var expr)]
+      [(list op args ...) (cons op (map normalize-spec args))]))
+
+  ; pre-allocated id vectors for all the common cases
+  (define 0-vec (make-u32vector 0))
+  (define 1-vec (make-u32vector 1))
+  (define 2-vec (make-u32vector 2))
+  (define 3-vec (make-u32vector 3))
+
+  (define (list->u32vec xs)
+    (match xs
+      [(list) 0-vec]
+      [(list x)
+       (u32vector-set! 1-vec 0 x)
+       1-vec]
+      [(list x y)
+       (u32vector-set! 2-vec 0 x)
+       (u32vector-set! 2-vec 1 y)
+       2-vec]
+      [(list x y z)
+       (u32vector-set! 3-vec 0 x)
+       (u32vector-set! 3-vec 1 y)
+       (u32vector-set! 3-vec 2 z)
+       3-vec]
+      [_ (list->u32vector xs)]))
+
+  ; node -> natural
+  ; inserts an expression into the e-graph, returning its e-class id.
+  (define (insert-node! node root?)
+    (match node
+      [(list op ids ...) (egraph_add_node ptr (symbol->string op) (list->u32vec ids) root?)]
+      [(? symbol? x) (egraph_add_node ptr (symbol->string x) 0-vec root?)]
+      [(? number? n) (egraph_add_node ptr (number->string n) 0-vec root?)]))
+
+  ; expr -> id
+  ; expression cache
+  (define expr->id (make-hash))
+
+  ; expr -> natural
+  ; inserts an expresison into the e-graph, returning its e-class id.
+  (define (insert! expr [root? #f])
+    ; transform the expression into a node pointing
+    ; to its child e-classes
+    (define node
+      (match expr
+        [(? number?) expr]
+        [(? symbol?) (normalize-var expr)]
+        [(literal v _) v]
+        [(approx spec impl)
+         (define spec* (insert! spec))
+         (define impl* (insert! impl))
+         (hash-ref! id->spec
+                    spec*
+                    (lambda ()
+                      (define spec* (normalize-spec spec)) ; preserved spec for extraction
+                      (define type (representation-type (repr-of impl ctx))) ; track type of spec
+                      (cons spec* type)))
+         (list '$approx spec* impl*)]
+        [(list op args ...) (cons op (map insert! args))]))
+    ; always insert the node if it is a root since
+    ; the e-graph tracks which nodes are roots
+    (cond
+      [root? (insert-node! node #t)]
+      [else (hash-ref! expr->id node (lambda () (insert-node! node #f)))]))
+
+  (for/list ([expr (in-list exprs)])
+    (insert! expr #t)))
 
 ;; runs rules on an egraph (optional iteration limit)
 (define (egraph-run egraph-data ffi-rules node-limit iter-limit scheduler const-folding?)
@@ -127,9 +193,8 @@
   (egraph_find (egraph-data-egraph-pointer egraph-data) id))
 
 (define (egraph-expr-equal? egraph-data expr goal ctx)
-  (define id1 (egraph-add-expr egraph-data expr ctx))
-  (define id2 (egraph-add-expr egraph-data goal ctx))
-  (= (egraph-find egraph-data id1) (egraph-find egraph-data id2)))
+  (match-define (list id1 id2) (egraph-add-exprs egraph-data (list expr goal) ctx))
+  (= id1 id2))
 
 ;; returns a flattened list of terms or #f if it failed to expand the proof due to budget
 (define (egraph-get-proof egraph-data expr goal ctx)
@@ -1027,9 +1092,7 @@
   (define egg-graph (make-egraph))
 
   ; insert expressions into the e-graph
-  (define root-ids
-    (for/list ([expr (in-list exprs)])
-      (egraph-add-expr egg-graph expr ctx)))
+  (define root-ids (egraph-add-exprs egg-graph exprs ctx))
 
   ; run the schedule
   (define rule-apps (make-hash))
