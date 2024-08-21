@@ -931,16 +931,8 @@
         ; expression of operators
         [(list (? operator-exists? op) ids ...) (cons op (map loop ids))])))
 
-  (define add-root (nodes->batch costs id->spec))
-
-  ; the actual extraction procedure
-  ; as long as the `id` is valid, extraction will work
-  (define (extract-expr enode [batch #f])
-    (list
-     (if batch 0 (unsafe-eclass-cost enode))
-     (if batch 0 (build-expr enode))
-     (if batch (add-root enode) 0)))
-  extract-expr)
+  (define-values (add-root clean-batch finalize-batch) (nodes->batch costs id->spec))
+  (list unsafe-eclass-cost build-expr add-root clean-batch finalize-batch))
 
 ;; Is fractional with odd denominator.
 (define (fraction-with-odd-denominator? frac)
@@ -994,13 +986,15 @@
 (define (regraph-extract-best regraph extract id type)
   (define egg->herbie (regraph-egg->herbie regraph))
   (define canon (regraph-canon regraph))
+  ; Extract functions to extract exprs from egraph
+  (match-define (list _ build-expr _ _ _) extract)
   ; extract expr
   (define key (cons id type))
   (cond
     ; at least one extractable expression
     [(hash-has-key? canon key)
      (define id* (hash-ref canon key))
-     (match-define (list _ egg-expr _) (extract id*))
+     (define egg-expr (build-expr id*))
      (list (egg-parsed->expr (flatten-let egg-expr) egg->herbie type))]
     ; no extractable expressions
     [else (list)]))
@@ -1011,13 +1005,15 @@
   (define eclasses (regraph-eclasses regraph))
   (define id->spec (regraph-specs regraph))
   (define canon (regraph-canon regraph))
+  ; Functions for egg-extraction
+  (match-define (list unsafe-eclass-cost build-expr add-root clean-batch finalize-batch) extract)
   ; extract expressions
   (define key (cons id type))
   (cond
     ; at least one extractable expression
     [(hash-has-key? canon key)
      (define id* (hash-ref canon key))
-     
+
      (define egg-exprs
        (for/list ([enode (vector-ref eclasses id*)])
          (match enode
@@ -1027,37 +1023,45 @@
             (define spec* (vector-ref id->spec spec))
             (unless spec*
               (error 'regraph-extract-variants "no initial approx node in eclass ~a" id*))
-            (match-define (list _ impl* _) (extract impl))
+            (define impl* (build-expr impl))
             (list '$approx spec* impl*)]
            [(list 'if cond ift iff)
-            (match-define (list _ cond* _) (extract cond))
-            (match-define (list _ ift* _) (extract ift))
-            (match-define (list _ iff* _) (extract iff))
+            (define cond* (build-expr cond))
+            (define ift* (build-expr ift))
+            (define iff* (build-expr iff))
             (list 'if cond* ift* iff*)]
            [(list (? impl-exists? impl) ids ...)
             (define args
               (for/list ([id (in-list ids)])
-                (match-define (list _ expr _) (extract id))
+                (define expr (build-expr id))
                 expr))
             (cons impl args)]
            [(list (? operator-exists? op) ids ...)
             (define args
               (for/list ([id (in-list ids)])
-                (match-define (list _ expr _) (extract id))
+                (define expr (build-expr id))
                 expr))
             (cons op args)])))
 
-     (define batch '())
-     (for ([enode (vector-ref eclasses id*)]
-                [n (in-naturals)])
-       (set! batch (third (extract enode #t)))
-       #;(println (batch->progs batch))
-       #;(printf "egg-expr=~a\n\n" (list-ref egg-exprs n))
-       #;(sleep 5))
+     (clean-batch)
+     (for ([enode (vector-ref eclasses id*)])
+       (add-root enode))
+     (define batch (finalize-batch))
 
-     (println (equal? (batch->progs batch) egg-exprs))
-     
-     
+     ; Debooging
+     #;(printf "roots#=~a, eclasses#=~a\n"
+               (vector-length (batch-roots batch))
+               (vector-length (vector-ref eclasses id*)))
+     #;(define egg-exprs-batch (batch->progs batch))
+
+     #;(when (not (equal? egg-exprs-batch egg-exprs))
+         (println (vector-ref eclasses id*))
+         (for ([expr* (in-list egg-exprs-batch)]
+               [expr (in-list egg-exprs)])
+           (printf "expr* = ~a\n" expr*)
+           (printf "expr  = ~a\n\n" expr)
+           (sleep 5)))
+
      ; translate egg IR to Herbie IR
      (define egg->herbie (regraph-egg->herbie regraph))
      (define exprs

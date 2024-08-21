@@ -86,6 +86,10 @@
       [(alt expr event prevs preprocessing)
        (alt (unmunge expr) event (map unmunge prevs) preprocessing)]
       [(approx spec impl) (approx spec (unmunge impl))]
+      [(list '$approx spec impl)
+       (list '$approx
+             spec
+             (unmunge impl))] ; this row is to be deleted and needed only in egg-herbie.rkt
       [(list op regs ...) (cons op (map unmunge regs))]
       [_ node]))
 
@@ -95,7 +99,7 @@
   exprs)
 
 ; Function transforms nodes to a batch
-; nodes: (listof '(id op arg1-index arg2-index))
+; nodes: (listof '(cost op arg1-index arg2-index))
 (define (nodes->batch nodes id->spec)
   ; Mapping from nodes to nodes*
   (define icache '())
@@ -111,8 +115,8 @@
                  (begin0 exprc
                    (set! exprc (+ 1 exprc))
                    (set! icache (cons node icache))))))
-  
-  ; adds nodes to a batch 
+
+  ; adds nodes to a batch
   (define (add-node id)
     (match (cdr (vector-ref nodes id))
       [(? number? n) (append-node n)] ; number
@@ -120,18 +124,14 @@
       [(list '$approx spec impl) ; approx
        (match (vector-ref id->spec spec)
          [#f (error nodes->batch "no initial approx node in eclass ~a" id)]
-         [spec-e
-          (append-node (list '$approx spec-e (add-node impl)))])]
+         [spec-e (append-node (list '$approx spec-e (add-node impl)))])]
       ; if expression
-      [(list 'if cond ift iff)
-       (append-node (list 'if (add-node cond) (add-node ift) (add-node iff)))]
+      [(list 'if cond ift iff) (append-node (list 'if (add-node cond) (add-node ift) (add-node iff)))]
       ; expression of impls
-      [(list (? impl-exists? impl) ids ...)
-       (append-node (cons impl (map add-node ids)))]
+      [(list (? impl-exists? impl) ids ...) (append-node (cons impl (map add-node ids)))]
       ; expression of operators
-      [(list (? operator-exists? op) ids ...)
-       (append-node (cons op (map add-node ids)))]))
-  
+      [(list (? operator-exists? op) ids ...) (append-node (cons op (map add-node ids)))]))
+
   (define (add-root enode)
     (define idx
       (match enode
@@ -158,13 +158,20 @@
            (for/list ([id (in-list ids)])
              (add-node id)))
          (append-node (cons op args))]))
-    (set! roots (cons idx roots))
-    (batch (list->vector (reverse icache))
-           (list->vector (reverse roots))
-           '()
-           (length icache)
-           exprhash))
-  add-root)
+    (set! roots (cons idx roots)))
+
+  (define (finalize-batch)
+    (define roots* (list->vector (reverse roots)))
+    (define nodes* (list->vector (reverse icache)))
+    (batch nodes* roots* '() (length icache) exprhash))
+
+  (define (clean-batch)
+    (set! exprc 0)
+    (set! icache '())
+    (set! roots '())
+    (set! exprhash (make-hash)))
+
+  (values add-root clean-batch finalize-batch))
 
 (define (expand-taylor input-batch)
   (define vars (batch-vars input-batch))
