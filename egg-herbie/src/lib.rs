@@ -320,7 +320,12 @@ pub unsafe extern "C" fn egraph_enode_size(ptr: *mut Context, id: u32, idx: u32)
 #[no_mangle]
 pub unsafe extern "C" fn egraph_get_eclasses(ptr: *mut Context, ids_ptr: *mut u32) {
     let context = ManuallyDrop::new(Box::from_raw(ptr));
-    let mut ids: Vec<u32> = context.runner.egraph.classes().map(|c| usize::from(c.id) as u32).collect();
+    let mut ids: Vec<u32> = context
+        .runner
+        .egraph
+        .classes()
+        .map(|c| usize::from(c.id) as u32)
+        .collect();
     ids.sort();
 
     for (i, id) in ids.iter().enumerate() {

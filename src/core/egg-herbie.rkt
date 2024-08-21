@@ -547,8 +547,8 @@
 (define (enode-type enode egg->herbie)
   (match enode
     [(? number?) (cons 'real (platform-reprs (*active-platform*)))] ; number
-    [(? symbol? x) ; variable
-     (match-define (cons _ repr) (hash-ref egg->herbie x))
+    [(? symbol?) ; variable
+     (match-define (cons _ repr) (hash-ref egg->herbie enode))
      (list repr (representation-type repr))]
     [(cons f _) ; application
      (cond
