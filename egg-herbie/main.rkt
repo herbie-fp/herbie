@@ -175,7 +175,7 @@
 ; egraph -> string -> ids -> bool -> id
 (define-eggmath egraph_add_node
                 (_fun [p : _egraph-pointer] ; egraph
-                      [f : _string/utf-8] ; enode op
+                      [f : _rust/string] ; enode op
                       [v : _u32vector] ; id vector
                       [_uint = (u32vector-length v)] ; id vector length
                       [is_root : _stdbool] ; root node?

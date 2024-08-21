@@ -73,26 +73,40 @@
       [(? symbol?) (normalize-var expr)]
       [(list op args ...) (cons op (map normalize-spec args))]))
 
-  (define expr->id (make-hash)) ; expr -> id
-  (define empty-u32vec (make-u32vector 0)) ; u32vector
-  (define n->u32vec (make-hasheq (list (cons 0 empty-u32vec)))) ; natural -> u32vector
+  ; pre-allocated id vectors for all the common cases
+  (define 0-vec (make-u32vector 0))
+  (define 1-vec (make-u32vector 1))
+  (define 2-vec (make-u32vector 2))
+  (define 3-vec (make-u32vector 3))
 
-  ; converts a list to a u32vector using a pre-allocated u32vector
   (define (list->u32vec xs)
-    (define n (length xs))
-    (define vec (hash-ref! n->u32vec n (lambda () (make-u32vector n))))
-    (for ([x (in-list xs)]
-          [i (in-naturals)])
-      (u32vector-set! vec i x))
-    vec)
+    (match xs
+      [(list) 0-vec]
+      [(list x)
+       (u32vector-set! 1-vec 0 x)
+       1-vec]
+      [(list x y)
+       (u32vector-set! 2-vec 0 x)
+       (u32vector-set! 2-vec 1 y)
+       2-vec]
+      [(list x y z)
+       (u32vector-set! 3-vec 0 x)
+       (u32vector-set! 3-vec 1 y)
+       (u32vector-set! 3-vec 2 z)
+       3-vec]
+      [_ (list->u32vector xs)]))
 
   ; node -> natural
   ; inserts an expression into the e-graph, returning its e-class id.
   (define (insert-node! node root?)
     (match node
       [(list op ids ...) (egraph_add_node ptr (symbol->string op) (list->u32vec ids) root?)]
-      [(? symbol? x) (egraph_add_node ptr (symbol->string x) empty-u32vec root?)]
-      [(? number? n) (egraph_add_node ptr (number->string n) empty-u32vec root?)]))
+      [(? symbol? x) (egraph_add_node ptr (symbol->string x) 0-vec root?)]
+      [(? number? n) (egraph_add_node ptr (number->string n) 0-vec root?)]))
+
+  ; expr -> id
+  ; expression cache
+  (define expr->id (make-hash))
 
   ; expr -> natural
   ; inserts an expresison into the e-graph, returning its e-class id.
