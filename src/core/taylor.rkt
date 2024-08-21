@@ -129,7 +129,7 @@
                                                       (taylor-sin (zero-series arg*)))))]
              [else (taylor-cos (zero-series arg*))]))]
         [`(log ,arg) (taylor-log var (vector-ref taylor-approxs arg))]
-        [`(pown ,base ,power)
+        [`(pow ,base ,power)
          #:when (exact-integer? (vector-ref nodes power))
          (taylor-pow (normalize-series (vector-ref taylor-approxs base)) (vector-ref nodes power))]
         [_ (taylor-exact (batch-ref expr-batch n))]))
