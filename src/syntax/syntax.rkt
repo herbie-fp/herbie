@@ -513,7 +513,6 @@
   (define rules (make-hasheq))
   (define commutes? #f)
   (when identities
-    (print "looping")
     (for ([ident (in-list identities)])
       (match ident
         [(list ident-name lhs-expr rhs-expr)
