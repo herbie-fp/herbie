@@ -525,15 +525,13 @@
         [(list 'commutes)
          (cond
            [commutes? (raise-herbie-syntax-error "Commutes identity already defined")]
+           [(not (equal? actual-arity 2))
+            (raise-herbie-syntax-error "Cannot commute a non 2-ary operator")]
            [else
-            (cond
-              [(not (equal? actual-arity 2))
-               (raise-herbie-syntax-error "Cannot commute a non 2-ary operator")]
-              [else
-               (set! commutes? #t)
-               (hash-set! rules
-                          (string->symbol (format "~a-commutes" name))
-                          (list `(,name ,@vars) `(name ,@(reverse vars))))])])])))
+            (set! commutes? #t)
+            (hash-set! rules
+                       (string->symbol (format "~a-commutes" name))
+                       (list `(,name ,@vars) `(name ,@(reverse vars))))])])))
 
   ; update tables
   (define impl (operator-impl name op-info (context vars orepr ireprs) spec fpcore fl-proc rules))
