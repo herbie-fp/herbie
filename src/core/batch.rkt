@@ -88,7 +88,7 @@
   (define roots (batch-roots input-batch))
 
   ; Hash to avoid duplications
-  (define icache vars)
+  (define icache (reverse vars))
   (define exprhash
     (make-hash (for/list ([var vars]
                           [i (in-naturals)])
