@@ -1043,6 +1043,7 @@
                 expr))
             (cons op args)])))
 
+     ; I am wondering, can we get enode-id from the egraph to eliminate at least one function inside batch?
      (clean-batch)
      (for ([enode (vector-ref eclasses id*)])
        (add-root enode))
@@ -1066,6 +1067,7 @@
      (define egg->herbie (regraph-egg->herbie regraph))
      (define exprs
        (for/list ([egg-expr (in-list egg-exprs)])
+         (println egg-expr)
          (egg-parsed->expr (flatten-let egg-expr) egg->herbie type)))
      (remove-duplicates exprs)]
     ; no extractable expressions

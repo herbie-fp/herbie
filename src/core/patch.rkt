@@ -11,19 +11,18 @@
          "programs.rkt"
          "rules.rkt"
          "simplify.rkt"
-         "taylor.rkt"
-         "batch.rkt")
+         "taylor.rkt")
 
 (provide generate-candidates)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Simplify ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define (lower-approximations approxs)
+(define (lower-approximations approxs approx->prev)
   (timeline-event! 'simplify)
 
   (define reprs
     (for/list ([approx (in-list approxs)])
-      (define prev (car (alt-prevs approx)))
+      (define prev (hash-ref approx->prev approx))
       (repr-of (alt-expr prev) (*context*))))
 
   ; generate real rules
@@ -52,7 +51,7 @@
           (for ([altn (in-list approxs)]
                 [outputs (in-list simplification-options)])
             (match-define (cons _ simplified) outputs)
-            (define prev (car (alt-prevs altn)))
+            (define prev (hash-ref approx->prev altn))
             (for ([expr (in-list simplified)])
               (define spec (prog->spec (alt-expr prev)))
               (sow (alt (approx spec expr) `(simplify ,runner #f #f) (list altn) '()))))))
@@ -72,27 +71,16 @@
                               #;(exp ,exp-x ,log-x)
                               #;(log ,log-x ,exp-x))))
 
-(define (taylor-alts altns)
-  (define exprs
-    (for/list ([altn (in-list altns)])
-      (prog->spec (alt-expr altn))))
-  (define free-vars (map free-variables exprs))
-  (define vars (list->set (append* free-vars)))
-
+(define (taylor-alt altn)
+  (define expr (prog->spec (alt-expr altn)))
   (reap [sow]
-        (for* ([var (in-set vars)]
+        (for* ([var (free-variables expr)]
                [transform-type transforms-to-try])
           (match-define (list name f finv) transform-type)
-          (define timeline-stop! (timeline-start! 'series (~a exprs) (~a var) (~a name)))
-          (define genexprs (approximate exprs var #:transform (cons f finv)))
-          (for ([genexpr (in-list genexprs)]
-                [altn (in-list altns)]
-                [fv (in-list free-vars)]
-                #:when (member var fv)) ; check whether var exists in expr at all
-            (for ([_ (in-range (*taylor-order-limit*))])
-              (define gen (genexpr))
-              (unless (spec-has-nan? gen)
-                (sow (alt gen `(taylor ,name ,var) (list altn) '())))))
+          (define timeline-stop! (timeline-start! 'series (~a expr) (~a var) (~a name)))
+          (define genexpr (approximate expr var #:transform (cons f finv)))
+          (for ([_ (in-range (*taylor-order-limit*))])
+            (sow (alt (genexpr) `(taylor ,name ,var) (list altn) '())))
           (timeline-stop!))))
 
 (define (spec-has-nan? expr)
@@ -102,11 +90,18 @@
   (timeline-event! 'series)
   (timeline-push! 'inputs (map ~a altns))
 
-  (define approxs (taylor-alts altns))
+  (define approx->prev (make-hasheq))
+  (define approxs
+    (reap [sow]
+          (for ([altn (in-list altns)])
+            (for ([approximation (taylor-alt altn)])
+              (unless (spec-has-nan? (alt-expr approximation))
+                (hash-set! approx->prev approximation altn)
+                (sow approximation))))))
 
   (timeline-push! 'outputs (map ~a approxs))
   (timeline-push! 'count (length altns) (length approxs))
-  (lower-approximations approxs))
+  (lower-approximations approxs approx->prev))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Recursive Rewrite ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -139,19 +134,8 @@
     (reap [sow]
           (for ([variants (in-list variantss)]
                 [altn (in-list altns)])
-            (for ([variant (in-list variants)])
+            (for ([variant (in-list (remove-duplicates variants))])
               (sow (alt variant (list 'rr runner #f #f) (list altn) '()))))))
-
-  ; This approach currently is way slower
-  (define batch-rewritten (empty-batch))
-  (for ([variants (in-list variantss)]
-        [altn (in-list altns)])
-    (for ([variant (in-list variants)])
-      (batch-add-expr! batch-rewritten (alt variant (list 'rr runner #f #f) (list altn) '()))))
-
-  ; Debugging
-  #;(println (equal? rewritten (batch->progs batch-rewritten)))
-
   (timeline-push! 'outputs (map (compose ~a alt-expr) rewritten))
   (timeline-push! 'count (length altns) (length rewritten))
   rewritten)

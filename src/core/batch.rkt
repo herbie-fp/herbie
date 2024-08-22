@@ -98,7 +98,7 @@
       (unmunge root)))
   exprs)
 
-; Function transforms nodes to a batch
+; Function transforms nodes to a batch, used in egg-herbie.rkt for egraph extraction
 ; nodes: (listof '(cost op arg1-index arg2-index))
 (define (nodes->batch nodes id->spec)
   ; Mapping from nodes to nodes*
@@ -132,6 +132,7 @@
       ; expression of operators
       [(list (? operator-exists? op) ids ...) (append-node (cons op (map add-node ids)))]))
 
+  ; This function is better to be eliminated because it duplicates add-node at some point
   (define (add-root enode)
     (define idx
       (match enode
