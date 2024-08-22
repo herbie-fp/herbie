@@ -18,18 +18,14 @@
          "../config.rkt"
          "../syntax/read.rkt"
          "../utils/errors.rkt")
-(require "../syntax/types.rkt"
+(require 
          "../syntax/sugar.rkt"
-         "../utils/alternative.rkt"
          "../core/points.rkt"
-         "../api/sandbox.rkt"
-         "../utils/float.rkt")
+         "../api/sandbox.rkt")
 (require "datafile.rkt"
          "../reports/pages.rkt"
          "../reports/common.rkt"
          "../reports/core2mathjs.rkt"
-         "../reports/history.rkt"
-         "../reports/plot.rkt"
          "server.rkt")
 
 (provide run-demo)
@@ -48,14 +44,9 @@
    (and (not (and (*demo-output*) ; If we've already saved to disk, skip this job
                   (directory-exists? (build-path (*demo-output*) x))))
         (let ([m (regexp-match #rx"^([0-9a-f]+)\\.[0-9a-f.]+" x)])
-          (eprintf "TOPx: ~a\n" x)
-          (eprintf "TOPm: ~a\n" m)
           (and m (get-results-for (second m))))))
  (λ (x)
-   (let ([m (regexp-match #rx"^([0-9a-f]+)\\.[0-9a-f.]+" x)])
-     (eprintf "BOTTOMx: ~a\n" x)
-     (eprintf "BOTTOMm: ~a\n" m)
-     (get-results-for (if m (second m) x)))))
+   (let ([m (regexp-match #rx"^([0-9a-f]+)\\.[0-9a-f.]+" x)]) (get-results-for (if m (second m) x)))))
 
 (define-bidi-match-expander hash-arg hash-arg/m hash-arg/m)
 
@@ -80,8 +71,6 @@
                   [("results.json") generate-report]))
 
 (define (generate-page req result-hash page)
-  (eprintf "PAGE: ~a\n" page)
-  (eprintf "~a\n" req)
   (define path (first (string-split (url->string (request-uri req)) "/")))
   (cond
     [(set-member? (all-pages result-hash) page)

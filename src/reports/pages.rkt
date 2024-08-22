@@ -5,7 +5,8 @@
          "timeline.rkt"
          "plot.rkt"
          "make-graph.rkt"
-         "traceback.rkt")
+         "traceback.rkt"
+         "common.rkt")
 
 (provide all-pages
          make-page
@@ -32,29 +33,26 @@
 
 (define (make-page page out result-hash output? profile?)
   (match page
-    ["graph.html" (make-graph-html out result-hash output? profile?)]
-    ["timeline.html" (make-timeline-html out result-hash)]
-    ["timeline.json" (make-timeline-json out result-hash)]
-    ["points.json" (make-points out result-hash)]))
+    ["graph.html" (write-html (make-graph-html result-hash output? profile?) out)]
+    ["timeline.html" (write-html (make-timeline-html result-hash) out)]
+    ["timeline.json" (write-json (make-timeline-json result-hash) out)]
+    ["points.json" (write-json (make-points-json result-hash) out)]))
 
-(define (make-graph-html out result-hash output? profile?)
+(define (make-graph-html result-hash output? profile?)
   (define status (hash-ref result-hash 'status))
   (match status
     ['success
      (define command (hash-ref result-hash 'command))
      (match command
-       ["improve" (make-graph result-hash out output? profile?)]
-       [else (dummy-graph command out)])]
-    ['timeout (make-traceback result-hash out)]
-    ['failure (make-traceback result-hash out)]
+       ["improve" (make-graph result-hash output? profile?)]
+       [else (dummy-graph command)])]
+    ['timeout (make-traceback result-hash)]
+    ['failure (make-traceback result-hash)]
     [_ (error 'make-page "unknown result type ~a" status)]))
 
-(define (make-points out result-hash)
-  (write-json (make-points-json result-hash) out))
+(define (make-timeline-json result-hash)
+  (hash-ref result-hash 'timeline))
 
-(define (make-timeline-json out result-hash)
-  (write-json (hash-ref result-hash 'timeline) out))
-
-(define (make-timeline-html out result-hash)
+(define (make-timeline-html result-hash)
   (define test (hash-ref result-hash 'test))
-  (make-timeline (test-name test) (hash-ref result-hash 'timeline) out #:path ".."))
+  (make-timeline (test-name test) (hash-ref result-hash 'timeline) #:path ".."))

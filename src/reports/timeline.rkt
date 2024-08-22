@@ -15,20 +15,18 @@
 
 ;; This first part handles timelines for a single Herbie run
 
-(define (make-timeline name timeline out #:info [info #f] #:path [path "."])
-  (write-html
-   `(html (head (meta ([charset "utf-8"]))
-                (title "Metrics for " ,(~a name))
-                (link ([rel "stylesheet"] [type "text/css"]
-                                          [href ,(if info "report.css" "../report.css")]))
-                (script ([src ,(if info "report.js" "../report.js")])))
-          (body ,(render-menu (~a name)
-                              #:path path
-                              (if info `(("Report" . "index.html")) `(("Details" . "graph.html"))))
-                ,(if info (render-about info) "")
-                ,(render-timeline timeline)
-                ,(render-profile)))
-   out))
+(define (make-timeline name timeline #:info [info #f] #:path [path "."])
+  `(html (head (meta ([charset "utf-8"]))
+               (title "Metrics for " ,(~a name))
+               (link ([rel "stylesheet"] [type "text/css"]
+                                         [href ,(if info "report.css" "../report.css")]))
+               (script ([src ,(if info "report.js" "../report.js")])))
+         (body ,(render-menu (~a name)
+                             #:path path
+                             (if info `(("Report" . "index.html")) `(("Details" . "graph.html"))))
+               ,(if info (render-about info) "")
+               ,(render-timeline timeline)
+               ,(render-profile))))
 
 (define/contract (render-timeline timeline)
   (-> timeline? xexpr?)
