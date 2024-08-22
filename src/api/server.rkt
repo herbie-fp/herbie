@@ -26,6 +26,7 @@
 (provide make-path
          get-improve-table-data
          make-improve-result
+         server-check-on
          get-results-for
          get-timeline-for
          job-count
@@ -60,9 +61,8 @@
                     #:timeline-disabled? [timeline-disabled? #f])
   (herbie-command command test seed pcontext profile? timeline-disabled?))
 
-(define (check-and-send req page)
-  (define path (first (string-split (url->string (request-uri req)) "/")))
-  (define job-id (first (string-split path ".")))
+;; TODO move these side worker/manager
+(define (check-and-send path job-id page)
   (define result-hash (get-results-for job-id))
   (cond
     [(set-member? (all-pages result-hash) page)
@@ -115,6 +115,13 @@
   (define-values (a b) (place-channel))
   (place-channel-put manager (list 'timeline job-id b))
   (log "Getting timeline for job: ~a.\n" job-id)
+  (place-channel-get a))
+
+; Returns #f if there is no job returns the job-id if there is a completed job.
+(define (server-check-on job-id)
+  (define-values (a b) (place-channel))
+  (place-channel-put manager (list 'check job-id b))
+  (log "Checking on: ~a.\n" job-id)
   (place-channel-get a))
 
 (define (get-improve-table-data)
@@ -301,6 +308,8 @@
           [else
            (log "Job complete, no timeline, send result.\n")
            (place-channel-put handler (hash-ref completed-work job-id #f))])]
+       [(list 'check job-id handler)
+        (place-channel-put handler (if (hash-has-key? completed-work job-id) job-id #f))]
        ; Returns the current count of working workers.
        [(list 'count handler) (place-channel-put handler (hash-count busy-workers))]
        ; Retreive the improve results for results.json

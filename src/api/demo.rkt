@@ -41,9 +41,9 @@
    (and (not (and (*demo-output*) ; If we've already saved to disk, skip this job
                   (directory-exists? (build-path (*demo-output*) x))))
         (let ([m (regexp-match #rx"^([0-9a-f]+)\\.[0-9a-f.]+" x)])
-          (and m (get-results-for (second m))))))
+          (and m (server-check-on (second m))))))
  (λ (x)
-   (let ([m (regexp-match #rx"^([0-9a-f]+)\\.[0-9a-f.]+" x)]) (get-results-for (if m (second m) x)))))
+   (let ([m (regexp-match #rx"^([0-9a-f]+)\\.[0-9a-f.]+" x)]) (server-check-on (if m (second m) x)))))
 
 (define-bidi-match-expander hash-arg hash-arg/m hash-arg/m)
 
@@ -67,10 +67,10 @@
                   [((hash-arg) (string-arg)) generate-page]
                   [("results.json") generate-report]))
 
-(define (generate-page req result-hash page)
-  ; TODO pass in job-id instead of job-results
+(define (generate-page req job-id page)
+  (define path (first (string-split (url->string (request-uri req)) "/")))
   (cond
-    [(check-and-send req page)]
+    [(check-and-send path job-id page)]
     [else (next-dispatcher)]))
 
 (define (generate-report req)
