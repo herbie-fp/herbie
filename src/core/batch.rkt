@@ -6,7 +6,7 @@
 (provide progs->batch
          batch->progs
          (struct-out batch)
-         get-expr
+         batch-ref
          expand-taylor)
 
 (struct batch ([nodes #:mutable] [roots #:mutable] vars [nodes-length #:mutable]))
@@ -82,41 +82,25 @@
       (unmunge root)))
   exprs)
 
-(define (expand-taylor batch)
-  (define vars (batch-vars batch))
+(define (expand-taylor input-batch)
+  (define vars (batch-vars input-batch))
+  (define nodes (batch-nodes input-batch))
+  (define roots (batch-roots input-batch))
+
+  ; Hash to avoid duplications
   (define icache (reverse vars))
   (define exprhash
     (make-hash (for/list ([var vars]
                           [i (in-naturals)])
                  (cons var i))))
-  ; Counts
   (define exprc 0)
   (define varc (length vars))
 
-  ; Translates programs into an instruction sequence of operations
-  (define (munge prog)
-    (define node ; This compiles to the register machine
-      (match prog
-        [(list '- arg1 arg2) `(+ ,(munge arg1) ,(munge `(neg ,arg2)))]
-        [(list 'pow base 1/2) `(sqrt ,(munge base))]
-        [(list 'pow base 1/3) `(cbrt ,(munge base))]
-        [(list 'pow base 2/3) `(cbrt ,(munge `(* ,base ,base)))]
-        [(list 'pow base power)
-         #:when (exact-integer? power)
-         `(pow ,(munge base) ,(munge power))]
-        [(list 'pow base power) `(exp ,(munge `(* ,power (log ,base))))]
-        [(list 'tan args) `(/ ,(munge `(sin ,args)) ,(munge `(cos ,args)))]
-        [(list 'cosh args) `(* ,(munge 1/2) ,(munge `(+ (exp ,args) (/ 1 (exp ,args)))))]
-        [(list 'sinh args) `(* ,(munge 1/2) ,(munge `(+ (exp ,args) (neg (/ 1 (exp ,args))))))]
-        [(list 'tanh args)
-         `(/ ,(munge `(+ (exp ,args) (neg (/ 1 (exp ,args)))))
-             ,(munge `(+ (exp ,args) (/ 1 (exp ,args)))))]
-        [(list 'asinh args) `(log ,(munge `(+ ,args (sqrt (+ (* ,args ,args) 1)))))]
-        [(list 'acosh args) `(log ,(munge `(+ ,args (sqrt (+ (* ,args ,args) -1)))))]
-        [(list 'atanh args) `(* ,(munge 1/2) ,(munge `(log (/ (+ 1 ,args) (+ 1 (neg ,args))))))]
-        [(list op args ...) (cons op (map munge args))]
-        [(approx spec impl) (approx spec (munge impl))]
-        [_ prog]))
+  ; Mapping from nodes to nodes*
+  (define mappings (build-vector (batch-nodes-length input-batch) values))
+
+  ; Adding a node to hash
+  (define (append-node node)
     (hash-ref! exprhash
                node
                (lambda ()
@@ -124,29 +108,148 @@
                    (set! exprc (+ 1 exprc))
                    (set! icache (cons node icache))))))
 
-  (set-batch-roots! batch (list->vector (map munge (batch->progs batch))))
-  (set-batch-nodes! batch (list->vector (reverse icache)))
-  (set-batch-nodes-length! batch (vector-length (batch-nodes batch))))
+  ; Sequential rewriting
+  (for ([node (in-vector nodes)]
+        [n (in-naturals)])
+    (match node
+      [(list '- arg1 arg2)
+       (define neg-index (append-node `(neg ,(vector-ref mappings arg2))))
+       (vector-set! mappings n (append-node `(+ ,(vector-ref mappings arg1) ,neg-index)))]
+      [(list 'pow base power)
+       #:when (equal? (vector-ref nodes power) 1/2) ; 1/2 is to be removed from exprhash
+       (vector-set! mappings n (append-node `(sqrt ,(vector-ref mappings base))))]
+      [(list 'pow base power)
+       #:when (equal? (vector-ref nodes power) 1/3) ; 1/3 is to be removed from exprhash
+       (vector-set! mappings n (append-node `(cbrt ,(vector-ref mappings base))))]
+      [(list 'pow base power)
+       #:when (equal? (vector-ref nodes power) 2/3) ; 2/3 is to be removed from exprhash
+       (define mult-index (append-node `(* ,(vector-ref mappings base) ,(vector-ref mappings base))))
+       (vector-set! mappings n (append-node `(cbrt ,mult-index)))]
+      [(list 'pow base power)
+       #:when (exact-integer? (vector-ref nodes power))
+       (vector-set! mappings
+                    n
+                    (append-node `(pow ,(vector-ref mappings base) ,(vector-ref mappings power))))]
+      [(list 'pow base power)
+       (define log-idx (append-node `(log ,(vector-ref mappings base))))
+       (define mult-idx (append-node `(* ,(vector-ref mappings power) ,log-idx)))
+       (vector-set! mappings n (append-node `(exp ,mult-idx)))]
+      [(list 'tan args)
+       (define sin-idx (append-node `(sin ,(vector-ref mappings args))))
+       (define cos-idx (append-node `(cos ,(vector-ref mappings args))))
+       (vector-set! mappings n (append-node `(/ ,sin-idx ,cos-idx)))]
+      [(list 'cosh args)
+       (define exp-idx (append-node `(exp ,(vector-ref mappings args))))
+       (define one-idx (append-node 1)) ; should it be 1 or literal 1 or smth?
+       (define inv-exp-idx (append-node `(/ ,one-idx ,exp-idx)))
+       (define add-idx (append-node `(+ ,exp-idx ,inv-exp-idx)))
+       (define half-idx (append-node 1/2))
+       (vector-set! mappings n (append-node `(* ,half-idx ,add-idx)))]
+      [(list 'sinh args)
+       (define exp-idx (append-node `(exp ,(vector-ref mappings args))))
+       (define one-idx (append-node 1))
+       (define inv-exp-idx (append-node `(/ ,one-idx ,exp-idx)))
+       (define neg-idx (append-node `(neg ,inv-exp-idx)))
+       (define add-idx (append-node `(+ ,exp-idx ,neg-idx)))
+       (define half-idx (append-node 1/2))
+       (vector-set! mappings n (append-node `(* ,half-idx ,add-idx)))]
+      [(list 'tanh args)
+       (define exp-idx (append-node `(exp ,(vector-ref mappings args))))
+       (define one-idx (append-node 1))
+       (define inv-exp-idx (append-node `(/ ,one-idx ,exp-idx)))
+       (define neg-idx (append-node `(neg ,inv-exp-idx)))
+       (define add-idx (append-node `(+ ,exp-idx ,inv-exp-idx)))
+       (define sub-idx (append-node `(+ ,exp-idx ,neg-idx)))
+       (vector-set! mappings n (append-node `(/ ,sub-idx ,add-idx)))]
+      [(list 'asinh args)
+       (define mult-idx (append-node `(* ,(vector-ref mappings args) ,(vector-ref mappings args))))
+       (define one-idx (append-node 1))
+       (define add-idx (append-node `(+ ,mult-idx ,one-idx)))
+       (define sqrt-idx (append-node `(sqrt ,add-idx)))
+       (define add2-idx (append-node `(+ ,(vector-ref mappings args) ,sqrt-idx)))
+       (vector-set! mappings n (append-node `(log ,add2-idx)))]
+      [(list 'acosh args)
+       (define mult-idx (append-node `(* ,(vector-ref mappings args) ,(vector-ref mappings args))))
+       (define -one-idx (append-node -1))
+       (define add-idx (append-node `(+ ,mult-idx ,-one-idx)))
+       (define sqrt-idx (append-node `(sqrt ,add-idx)))
+       (define add2-idx (append-node `(+ ,(vector-ref mappings args) ,sqrt-idx)))
+       (vector-set! mappings n (append-node `(log ,add2-idx)))]
+      [(list 'atanh args)
+       (define neg-idx (append-node `(neg ,(vector-ref mappings args))))
+       (define one-idx (append-node 1))
+       (define add-idx (append-node `(+ ,one-idx ,(vector-ref mappings args))))
+       (define sub-idx (append-node `(+ ,one-idx ,neg-idx)))
+       (define div-idx (append-node `(/ ,add-idx ,sub-idx)))
+       (define log-idx (append-node `(log ,div-idx)))
+       (define half-idx (append-node 1/2))
+       (vector-set! mappings n (append-node `(* ,half-idx ,log-idx)))]
+      [(list op args ...)
+       (vector-set! mappings n (append-node (cons op (map (curry vector-ref mappings) args))))]
+      [(approx spec impl)
+       (vector-set! mappings n (append-node (approx spec (vector-ref mappings impl))))]
+      [_ (vector-set! mappings n (append-node node))]))
 
-(define (get-expr nodes reg)
+  (define roots* (vector-map (curry vector-ref mappings) roots))
+  (define nodes* (list->vector (reverse icache)))
+
+  ; This may be too expensive to handle simple 1/2, 1/3 and 2/3 zombie nodes..
+  #;(remove-zombie-nodes (batch nodes* roots* vars (vector-length nodes*)))
+
+  (batch nodes* roots* vars (vector-length nodes*)))
+
+; The function removes any zombie nodes from batch
+(define (remove-zombie-nodes input-batch)
+  (define nodes (batch-nodes input-batch))
+  (define roots (batch-roots input-batch))
+  (define nodes-length (batch-nodes-length input-batch))
+
+  (define zombie-mask (make-vector nodes-length #t))
+  (for ([root (in-vector roots)])
+    (vector-set! zombie-mask root #f))
+  (for ([node (in-vector nodes (- nodes-length 1) -1 -1)]
+        [zmb (in-vector zombie-mask (- nodes-length 1) -1 -1)]
+        #:when (not zmb))
+    (match node
+      [(list op args ...) (map (λ (n) (vector-set! zombie-mask n #f)) args)]
+      [(approx spec impl) (vector-set! zombie-mask impl #f)]
+      [_ void]))
+
+  (define mappings (build-vector nodes-length values))
+
+  (define nodes* '())
+  (for ([node (in-vector nodes)]
+        [zmb (in-vector zombie-mask)]
+        [n (in-naturals)])
+    (if zmb
+        (for ([i (in-range n nodes-length)])
+          (vector-set! mappings i (sub1 (vector-ref mappings i))))
+        (set! nodes*
+              (cons (match node
+                      [(list op args ...) (cons op (map (curry vector-ref mappings) args))]
+                      [(approx spec impl) (approx spec (vector-ref mappings impl))]
+                      [_ node])
+                    nodes*))))
+  (set! nodes* (list->vector (reverse nodes*)))
+  (define roots* (vector-map (curry vector-ref mappings) roots))
+  (batch nodes* roots* (batch-vars input-batch) (vector-length nodes*)))
+
+(define (batch-ref batch reg)
   (define (unmunge reg)
-    (define node (vector-ref nodes reg))
+    (define node (vector-ref (batch-nodes batch) reg))
     (match node
       [(approx spec impl) (approx spec (unmunge impl))]
       [(list op regs ...) (cons op (map unmunge regs))]
       [_ node]))
   (unmunge reg))
 
+; Tests for expand-taylor
 (module+ test
   (require rackunit)
   (define (test-expand-taylor expr)
-    (define batch (progs->batch (list expr)))
-    (expand-taylor batch)
-    (car (batch->progs batch)))
-
-  (define (test-munge-unmunge expr [ignore-approx #t])
-    (define batch (progs->batch (list expr) #:ignore-approx ignore-approx))
-    (check-equal? (list expr) (batch->progs batch)))
+    (define batch (progs->batch (list expr) #:ignore-approx #f))
+    (define batch* (expand-taylor batch))
+    (car (batch->progs batch*)))
 
   (check-equal? '(* 1/2 (log (/ (+ 1 x) (+ 1 (neg x))))) (test-expand-taylor '(atanh x)))
   (check-equal? '(log (+ x (sqrt (+ (* x x) -1)))) (test-expand-taylor '(acosh x)))
@@ -160,8 +263,21 @@
   (check-equal? '(+ 1 (neg (* 1/2 (+ (exp (/ (sin 3) (cos 3))) (/ 1 (exp (/ (sin 3) (cos 3))))))))
                 (test-expand-taylor '(- 1 (cosh (tan 3)))))
   (check-equal? '(exp (* a (log x))) (test-expand-taylor '(pow x a)))
+  (check-equal? '(+ x (sin a)) (test-expand-taylor '(+ x (sin a))))
   (check-equal? '(cbrt x) (test-expand-taylor '(pow x 1/3)))
+  (check-equal? '(cbrt (* x x)) (test-expand-taylor '(pow x 2/3)))
   (check-equal? '(+ 100 (cbrt x)) (test-expand-taylor '(+ 100 (pow x 1/3))))
+  (check-equal? `(+ 100 (cbrt (* x ,(approx 2 3))))
+                (test-expand-taylor `(+ 100 (pow (* x ,(approx 2 3)) 1/3))))
+  (check-equal? `(+ ,(approx 2 3) (cbrt x)) (test-expand-taylor `(+ ,(approx 2 3) (pow x 1/3))))
+  (check-equal? `(+ (cbrt x) ,(approx 2 1/3)) (test-expand-taylor `(+ (pow x 1/3) ,(approx 2 1/3)))))
+
+; Tests for progs->batch and batch->progs
+(module+ test
+  (require rackunit)
+  (define (test-munge-unmunge expr [ignore-approx #t])
+    (define batch (progs->batch (list expr) #:ignore-approx ignore-approx))
+    (check-equal? (list expr) (batch->progs batch)))
 
   (test-munge-unmunge '(* 1/2 (+ (exp x) (neg (/ 1 (exp x))))))
   (test-munge-unmunge
@@ -171,3 +287,28 @@
   (test-munge-unmunge
    `(+ (sin ,(approx '(* 1/2 (+ (exp x) (neg (/ 1 (exp x))))) '(+ 3 (* 25 (sin 6))))) 4)
    #f))
+
+; Tests for remove-zombie-nodes
+(module+ test
+  (require rackunit)
+  (define (zombie-test #:nodes nodes #:roots roots)
+    (define in-batch (batch nodes roots '() (vector-length nodes)))
+    (define out-batch (remove-zombie-nodes in-batch))
+    (batch-nodes out-batch))
+
+  (check-equal? (vector 0 '(sqrt 0) 2 '(pow 2 1))
+                (zombie-test #:nodes (vector 0 1 '(sqrt 0) 2 '(pow 3 2)) #:roots (vector 4)))
+  (check-equal? (vector 0 '(sqrt 0) '(exp 1))
+                (zombie-test #:nodes (vector 0 6 '(pow 0 1) '(* 2 0) '(sqrt 0) '(exp 4))
+                             #:roots (vector 5)))
+  (check-equal? (vector 0 1/2 '(+ 0 1))
+                (zombie-test #:nodes (vector 0 1/2 '(+ 0 1) '(* 2 0)) #:roots (vector 2)))
+  (check-equal? (vector 0 (approx '(exp 2) 0))
+                (zombie-test #:nodes (vector 0 1/2 '(+ 0 1) '(* 2 0) (approx '(exp 2) 0))
+                             #:roots (vector 4)))
+  (check-equal? (vector 2 1/2 (approx '(* x x) 0) '(pow 1 2))
+                (zombie-test #:nodes (vector 2 1/2 '(sqrt 0) '(cbrt 0) (approx '(* x x) 0) '(pow 1 4))
+                             #:roots (vector 5)))
+  (check-equal? (vector 2 1/2 '(sqrt 0) (approx '(* x x) 0) '(pow 1 3))
+                (zombie-test #:nodes (vector 2 1/2 '(sqrt 0) '(cbrt 0) (approx '(* x x) 0) '(pow 1 4))
+                             #:roots (vector 5 2))))
