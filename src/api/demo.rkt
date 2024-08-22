@@ -18,8 +18,7 @@
          "../config.rkt"
          "../syntax/read.rkt"
          "../utils/errors.rkt")
-(require 
-         "../syntax/sugar.rkt"
+(require "../syntax/sugar.rkt"
          "../core/points.rkt"
          "../api/sandbox.rkt")
 (require "datafile.rkt"
@@ -30,9 +29,7 @@
 
 (provide run-demo)
 
-(define *demo?* (make-parameter false))
 (define *demo-prefix* (make-parameter "/"))
-(define *demo-output* (make-parameter false))
 (define *demo-log* (make-parameter false))
 
 (define (add-prefix url)
@@ -71,41 +68,9 @@
                   [("results.json") generate-report]))
 
 (define (generate-page req result-hash page)
-  (define path (first (string-split (url->string (request-uri req)) "/")))
+  ; TODO pass in job-id instead of job-results
   (cond
-    [(set-member? (all-pages result-hash) page)
-     ;; Write page contents to disk
-     (when (*demo-output*)
-       (make-directory (build-path (*demo-output*) path))
-       (for ([page (all-pages result-hash)])
-         (call-with-output-file
-          (build-path (*demo-output*) path page)
-          (λ (out)
-            (with-handlers ([exn:fail? (page-error-handler result-hash page out)])
-              (make-page page out result-hash (*demo-output*) #f)))))
-       (define link (path-element->string (last (explode-path path))))
-       (define data (get-table-data-from-hash result-hash link))
-       (define data-file (build-path (*demo-output*) "results.json"))
-       (define html-file (build-path (*demo-output*) "index.html"))
-       (define info
-         (if (file-exists? data-file)
-             (let ([info (read-datafile data-file)])
-               (struct-copy report-info info [tests (cons data (report-info-tests info))]))
-             (make-report-info (list data)
-                               #:seed (get-seed)
-                               #:note (if (*demo?*) "Web demo results" ""))))
-       (define tmp-file (build-path (*demo-output*) "results.tmp"))
-       (write-datafile tmp-file info)
-       (rename-file-or-directory tmp-file data-file #t)
-       (copy-file (web-resource "report.html") html-file #t))
-     (response 200
-               #"OK"
-               (current-seconds)
-               #"text"
-               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count)))))
-               (λ (out)
-                 (with-handlers ([exn:fail? (page-error-handler result-hash page out)])
-                   (make-page page out result-hash (*demo-output*) #f))))]
+    [(check-and-send req page)]
     [else (next-dispatcher)]))
 
 (define (generate-report req)

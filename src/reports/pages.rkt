@@ -34,8 +34,12 @@
 (define (make-page page out result-hash output? profile?)
   (match page
     ["graph.html" (write-html (make-graph-html result-hash output? profile?) out)]
-    ["timeline.html" (write-html (make-timeline-html result-hash) out)]
-    ["timeline.json" (write-json (make-timeline-json result-hash) out)]
+    ["timeline.html"
+     (write-html (make-timeline (test-name (hash-ref result-hash 'test))
+                                (hash-ref result-hash 'timeline)
+                                #:path "..")
+                 out)]
+    ["timeline.json" (write-json (hash-ref result-hash 'timeline) out)]
     ["points.json" (write-json (make-points-json result-hash) out)]))
 
 (define (make-graph-html result-hash output? profile?)
@@ -48,11 +52,4 @@
        [else (dummy-graph command)])]
     ['timeout (make-traceback result-hash)]
     ['failure (make-traceback result-hash)]
-    [_ (error 'make-page "unknown result type ~a" status)]))
-
-(define (make-timeline-json result-hash)
-  (hash-ref result-hash 'timeline))
-
-(define (make-timeline-html result-hash)
-  (define test (hash-ref result-hash 'test))
-  (make-timeline (test-name test) (hash-ref result-hash 'timeline) #:path ".."))
+    [_ (error 'make-graph-html "unknown result type ~a" status)]))

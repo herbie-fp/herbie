@@ -2,8 +2,7 @@
 
 (require math/bigfloat
          math/flonum)
-(require
-         "../core/points.rkt"
+(require "../core/points.rkt"
          "../utils/float.rkt"
          "../core/programs.rkt"
          "../syntax/types.rkt"
