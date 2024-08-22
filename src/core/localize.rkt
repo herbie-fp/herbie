@@ -127,13 +127,18 @@
   (define subexprs-fn (eval-progs-real (map prog->spec exprs-list) ctx-list))
 
   ; Mutable error hack, this is bad
-  (define errs (make-hash (map list exprs-list)))
+  (define errs
+    (for/vector #:length (vector-length roots)
+                ([node (in-vector roots)])
+      (make-vector (pcontext-length (*pcontext*)))))
 
-  (for ([(pt ex) (in-pcontext (*pcontext*))])
+  (for ([(pt ex) (in-pcontext (*pcontext*))]
+        [pt-idx (in-naturals)])
     (define exacts (list->vector (apply subexprs-fn pt)))
     (for ([expr (in-list exprs-list)]
           [root (in-vector roots)]
-          [exact (in-vector exacts)])
+          [exact (in-vector exacts)]
+          [expr-idx (in-naturals)])
       (define err
         (match (vector-ref nodes root)
           [(? literal?) 1]
@@ -149,11 +154,14 @@
                (vector-ref exacts (vector-member idx roots)))) ; arg's index mapping to exact
            (define approx (apply (impl-info f 'fl) argapprox))
            (ulp-difference exact approx repr)]))
-      (hash-update! errs expr (curry cons err))))
+      (vector-set! (vector-ref errs expr-idx) pt-idx err)))
 
+  (define n 0)
   (for/list ([subexprs (in-list subexprss)])
     (for*/hash ([subexpr (in-list subexprs)])
-      (values subexpr (reverse (hash-ref errs subexpr))))))
+      (begin0
+          (values subexpr (vector->list (vector-ref errs n)))
+        (set! n (add1 n))))))
 
 ;; Compute the local error of every subexpression of `prog`
 ;; and returns the error information as an S-expr in the
