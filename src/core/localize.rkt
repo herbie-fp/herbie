@@ -159,8 +159,7 @@
   (define n 0)
   (for/list ([subexprs (in-list subexprss)])
     (for*/hash ([subexpr (in-list subexprs)])
-      (begin0
-          (values subexpr (vector->list (vector-ref errs n)))
+      (begin0 (values subexpr (vector->list (vector-ref errs n)))
         (set! n (add1 n))))))
 
 ;; Compute the local error of every subexpression of `prog`
