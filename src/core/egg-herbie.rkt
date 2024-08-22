@@ -210,14 +210,11 @@
   (define ptr (egraph-data-egraph-pointer egraph-data))
   (define egg->herbie (egraph-data-egg->herbie-dict egraph-data))
   (define eclass (egraph_get_eclass ptr id))
+  ; need to fix up any constant operators
   (for ([enode (in-vector eclass)]
         [i (in-naturals)])
-    (match enode
-      [(cons (? number? n) _) (vector-set! eclass i n)] ; number
-      [(cons (? symbol? x) (? u32vector-empty?))
-       (when (hash-has-key? egg->herbie x) ; variable
-         (vector-set! eclass i x))]
-      [_ (void)])) ; everything else
+    (when (and (symbol? enode) (not (hash-has-key? egg->herbie enode)))
+      (vector-set! eclass i (cons enode (make-u32vector 0)))))
   eclass)
 
 (define (egraph-find egraph-data id)
