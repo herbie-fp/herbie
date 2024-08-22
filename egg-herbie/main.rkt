@@ -12,8 +12,10 @@
          egraph_run
          egraph_copy
          egraph_get_stop_reason
-         egraph_serialize
          egraph_find
+         egraph_serialize
+         egraph_get_eclasses
+         egraph_get_eclass
          egraph_get_simplest
          egraph_get_variants
          egraph_get_cost
@@ -214,6 +216,46 @@
 
 ;; egraph -> string
 (define-eggmath egraph_serialize (_fun _egraph-pointer -> _rust/datum))
+
+;; egraph -> uint
+(define-eggmath egraph_size (_fun _egraph-pointer -> _uint))
+
+;; egraph -> id -> uint
+(define-eggmath egraph_eclass_size (_fun _egraph-pointer _uint -> _uint))
+
+;; egraph -> id -> idx -> uint
+(define-eggmath egraph_enode_size (_fun _egraph-pointer _uint _uint -> _uint))
+
+;; egraph -> u32vector
+(define-eggmath
+ egraph_get_eclasses
+ (_fun [e : _egraph-pointer] [v : _u32vector = (make-u32vector (egraph_size e))] -> _void -> v))
+
+;; egraph -> id -> u32 -> (or symbol? number? (cons symbol u32vector))
+;; UNSAFE: `v` must be large enough to contain the child ids
+(define-eggmath egraph_get_node
+                (_fun [e : _egraph-pointer]
+                      [id : _uint32]
+                      [idx : _uint32]
+                      [v : _u32vector]
+                      ->
+                      [f : _rust/string]
+                      ->
+                      (if (zero? (u32vector-length v))
+                          (or (string->number f) (string->symbol f))
+                          (cons (string->symbol f) v))))
+; u32vector
+(define empty-u32vec (make-u32vector 0))
+
+; egraph -> id -> (vectorof (or symbol? number? (cons symbol u32vector)))
+(define (egraph_get_eclass egg-ptr id)
+  (define n (egraph_eclass_size egg-ptr id))
+  (for/vector #:length n
+              ([i (in-range n)])
+    (define node-size (egraph_enode_size egg-ptr id i))
+    (if (zero? node-size)
+        (egraph_get_node egg-ptr id i empty-u32vec)
+        (egraph_get_node egg-ptr id i (make-u32vector node-size)))))
 
 ;; egraph -> id -> id
 (define-eggmath egraph_find (_fun _egraph-pointer _uint -> _uint))

@@ -34,7 +34,10 @@
   (define exprs-unfiltered
     (for/list ([test tests])
       (read-expr (hash-ref test 'input) is-version-10)))
-  (define exprs (for/set ([expr exprs-unfiltered] #:when (not (set-member? existing-set expr))) expr))
+  (define exprs
+    (for/set ([expr exprs-unfiltered]
+              #:when (not (set-member? existing-set expr)))
+      expr))
   (for ([expr (in-set exprs)])
     (fprintf output-file "~a\n" (make-fpcore expr)))
   exprs)

@@ -20,7 +20,9 @@
          splitpoints->json)
 
 (define (all-same? pts idx)
-  (= 1 (set-count (for/set ([pt pts]) (list-ref pt idx)))))
+  (= 1
+     (set-count (for/set ([pt pts])
+                  (list-ref pt idx)))))
 
 (define (ulps->bits-tenths x)
   (string->number (real->decimal-string (ulps->bits x) 1)))
