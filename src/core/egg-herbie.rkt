@@ -591,10 +591,13 @@
 ;; Nodes are duplicated across their possible types.
 (define (split-untyped-eclasses egraph-data egg->herbie)
   (define eclass-ids (egraph-eclasses egraph-data))
-  (define egg-id->idx (make-hash))
+  (define max-id
+    (for/fold ([current-max 0]) ([egg-id (in-u32vector eclass-ids)])
+      (max current-max egg-id)))
+  (define egg-id->idx (make-u32vector max-id))
   (for ([egg-id (in-u32vector eclass-ids)]
         [idx (in-naturals)])
-    (hash-set! egg-id->idx egg-id idx))
+    (u32vector-set! egg-id->idx egg-id idx))
 
   (define types (all-reprs/types))
   (define type->idx (make-hasheq))
@@ -609,7 +612,7 @@
 
   ; maps (untyped eclass id, type) to typed eclass id
   (define (lookup-id eid type)
-    (idx+type->id (hash-ref egg-id->idx eid) type))
+    (idx+type->id (u32vector-ref egg-id->idx eid) type))
 
   ; allocate enough eclasses for every (egg-id, type) combination
   (define n (* (u32vector-length eclass-ids) num-types))
