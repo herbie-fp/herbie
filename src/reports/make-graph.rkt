@@ -174,10 +174,9 @@
                    [errs end-errors]
                    [cost end-costs]
                    [history (hash-ref end 'end-histories)])
-          (define formula (read-syntax 'web (open-input-string alt-fpcore)))
-          (define expr (parse-test formula))
+
           (define-values (dropdown body)
-            (render-program (test-input expr) ctx #:ident identifier #:instructions preprocessing))
+            (render-program alt-fpcore ctx #:ident identifier #:instructions preprocessing))
           `(section ([id ,(format "alternative~a" i)] (class "programs"))
                     (h2 "Alternative "
                         ,(~a i)

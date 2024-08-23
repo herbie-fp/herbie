@@ -435,8 +435,7 @@
                   [target target-cost-score]
                   [result-est end-est-score]
                   [result end-score]
-                  [output
-                   (test-input (parse-test (read-syntax 'web (open-input-string (car end-exprs)))))]
+                  [output (car end-exprs)]
                   [cost-accuracy cost&accuracy])]
     ['failure
      (match-define (list 'exn type _ ...) backend)
@@ -507,6 +506,7 @@
              [(< end-score (+ start-test-score fuzz)) "apx-start"]
              [else "uni-start"])))
 
+     (eprintf "Sendable: ~a\n" (place-message-allowed? end-exprs))
      (struct-copy table-row
                   (dummy-table-row result status link)
                   [start-est start-train-score]

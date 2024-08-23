@@ -5,7 +5,6 @@
          json)
 
 (require "sandbox.rkt"
-         "../core/preprocess.rkt"
          "../core/points.rkt"
          "../reports/history.rkt"
          "../reports/plot.rkt"
@@ -14,6 +13,7 @@
          "../syntax/read.rkt"
          "../syntax/sugar.rkt"
          "../syntax/load-plugin.rkt"
+         "../syntax/platform.rkt"
          "../utils/alternative.rkt"
          "../utils/common.rkt"
          "../utils/errors.rkt"
@@ -410,14 +410,24 @@
           (improve-result-bogosity backend)))
 
 (define (end-hash end repr pcontexts test)
+
+  ; analysis of output expressions
+  (define expr-cost (platform-cost-proc (*active-platform*)))
+  (define-values (end-exprs-c end-train-scores-c end-test-scores-c end-costs-c)
+    (for/lists (l1 l2 l3 l4)
+               ([result end])
+               (match-define (alt-analysis alt train-errors test-errors) result)
+               (values (alt-expr alt)
+                       (errors-score train-errors)
+                       (errors-score test-errors)
+                       (expr-cost (alt-expr alt) repr))))
+
   (define-values (end-alts train-errors end-errors end-costs)
     (for/lists (l1 l2 l3 l4)
                ([analysis end])
                (match-define (alt-analysis alt train-errors test-errs) analysis)
                (values alt train-errors test-errs (alt-cost alt repr))))
-  (define fpcores
-    (for/list ([altn end-alts])
-      (~a (program->fpcore (alt-expr altn) (test-context test)))))
+
   (define alts-histories
     (for/list ([alt end-alts])
       (render-history alt (first pcontexts) (second pcontexts) (test-context test))))
@@ -431,8 +441,8 @@
             (real->ordinal (repr->real val repr) repr))
           '())))
 
-  (hasheq 'end-alts
-          fpcores
+  (hasheq 'end-alts ; wrong
+          end-exprs-c
           'end-histories
           alts-histories
           'end-train-scores
