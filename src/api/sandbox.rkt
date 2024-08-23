@@ -398,7 +398,7 @@
      (define best-score
        (if (null? target-cost-score) target-cost-score (apply min (map second target-cost-score))))
 
-     (define end-exprs (hash-ref end 'end-alts))
+     (define end-exprs (hash-ref end 'end-exprs))
      (define end-train-scores (map errors-score (hash-ref end 'end-train-scores)))
      (define end-test-scores (map errors-score (hash-ref end 'end-errors)))
      (define end-costs (hash-ref end 'end-costs))

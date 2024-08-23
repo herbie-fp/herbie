@@ -77,7 +77,7 @@
     (for/list ([target targets])
       (alt-cost (alt-analysis-alt target) repr)))
 
-  (define end-alts (hash-ref end 'end-alts))
+  (define end-alts (hash-ref end 'end-exprs))
   (define end-errors (hash-ref end 'end-errors))
   (define end-costs (hash-ref end 'end-costs))
 

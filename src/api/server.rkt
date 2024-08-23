@@ -13,7 +13,6 @@
          "../syntax/read.rkt"
          "../syntax/sugar.rkt"
          "../syntax/load-plugin.rkt"
-         "../syntax/platform.rkt"
          "../utils/alternative.rkt"
          "../utils/common.rkt"
          "../utils/errors.rkt"
@@ -411,17 +410,6 @@
 
 (define (end-hash end repr pcontexts test)
 
-  ; analysis of output expressions
-  (define expr-cost (platform-cost-proc (*active-platform*)))
-  (define-values (end-exprs-c end-train-scores-c end-test-scores-c end-costs-c)
-    (for/lists (l1 l2 l3 l4)
-               ([result end])
-               (match-define (alt-analysis alt train-errors test-errors) result)
-               (values (alt-expr alt)
-                       (errors-score train-errors)
-                       (errors-score test-errors)
-                       (expr-cost (alt-expr alt) repr))))
-
   (define-values (end-alts train-errors end-errors end-costs)
     (for/lists (l1 l2 l3 l4)
                ([analysis end])
@@ -441,8 +429,8 @@
             (real->ordinal (repr->real val repr) repr))
           '())))
 
-  (hasheq 'end-alts ; wrong
-          end-exprs-c
+  (hasheq 'end-exprs
+          (map alt-expr end-alts)
           'end-histories
           alts-histories
           'end-train-scores
