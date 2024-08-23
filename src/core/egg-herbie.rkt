@@ -1061,34 +1061,34 @@
     [(hash-has-key? canon key)
      (define id* (hash-ref canon key))
 
-     (define egg-exprs
-       (for/list ([enode (vector-ref eclasses id*)])
-         (match enode
-           [(? number?) enode]
-           [(? symbol?) enode]
-           [(list '$approx spec impl)
-            (define spec* (vector-ref id->spec spec))
-            (unless spec*
-              (error 'regraph-extract-variants "no initial approx node in eclass ~a" id*))
-            (define impl* (build-expr impl))
-            (list '$approx spec* impl*)]
-           [(list 'if cond ift iff)
-            (define cond* (build-expr cond))
-            (define ift* (build-expr ift))
-            (define iff* (build-expr iff))
-            (list 'if cond* ift* iff*)]
-           [(list (? impl-exists? impl) ids ...)
-            (define args
-              (for/list ([id (in-list ids)])
-                (define expr (build-expr id))
-                expr))
-            (cons impl args)]
-           [(list (? operator-exists? op) ids ...)
-            (define args
-              (for/list ([id (in-list ids)])
-                (define expr (build-expr id))
-                expr))
-            (cons op args)])))
+     #;(define egg-exprs
+         (for/list ([enode (vector-ref eclasses id*)])
+           (match enode
+             [(? number?) enode]
+             [(? symbol?) enode]
+             [(list '$approx spec impl)
+              (define spec* (vector-ref id->spec spec))
+              (unless spec*
+                (error 'regraph-extract-variants "no initial approx node in eclass ~a" id*))
+              (define impl* (build-expr impl))
+              (list '$approx spec* impl*)]
+             [(list 'if cond ift iff)
+              (define cond* (build-expr cond))
+              (define ift* (build-expr ift))
+              (define iff* (build-expr iff))
+              (list 'if cond* ift* iff*)]
+             [(list (? impl-exists? impl) ids ...)
+              (define args
+                (for/list ([id (in-list ids)])
+                  (define expr (build-expr id))
+                  expr))
+              (cons impl args)]
+             [(list (? operator-exists? op) ids ...)
+              (define args
+                (for/list ([id (in-list ids)])
+                  (define expr (build-expr id))
+                  expr))
+              (cons op args)])))
 
      ; I am wondering, can we get enode-id from the egraph to eliminate at least one function inside batch?
      (clean-batch)
@@ -1100,37 +1100,38 @@
      #;(printf "roots#=~a, eclasses#=~a\n"
                (vector-length (batch-roots batch))
                (vector-length (vector-ref eclasses id*)))
-     (define egg-exprs-batch (batch->progs batch))
-     (when (not (equal? egg-exprs-batch egg-exprs))
-       (println (vector-ref eclasses id*))
-       (for ([expr* (in-list egg-exprs-batch)]
-             [expr (in-list egg-exprs)])
-         (printf "expr* = ~a\n" expr*)
-         (printf "expr  = ~a\n\n" expr)
-         (sleep 5)))
+     #;(define egg-exprs-batch (batch->progs batch))
+     #;(when (not (equal? egg-exprs-batch egg-exprs))
+         (println (vector-ref eclasses id*))
+         (for ([expr* (in-list egg-exprs-batch)]
+               [expr (in-list egg-exprs)])
+           (printf "expr* = ~a\n" expr*)
+           (printf "expr  = ~a\n\n" expr)
+           (sleep 5)))
      ; ---------------------------
 
      ; translate egg IR to Herbie IR
      (define egg->herbie (regraph-egg->herbie regraph))
-     (define exprs
-       (for/list ([egg-expr (in-list egg-exprs)])
-         (egg-parsed->expr (flatten-let egg-expr) egg->herbie type)))
+     #;(define exprs
+         (for/list ([egg-expr (in-list egg-exprs)])
+           (egg-parsed->expr (flatten-let egg-expr) egg->herbie type)))
 
      ; translate egg IR batch to Herbie IR batch
      (egg-batch->batch batch egg->herbie type)
 
      ; -------------------------- Debooging
-     (define exprs* (batch->progs batch))
-     (when (not (equal? exprs* exprs))
-       (println (vector-ref eclasses id*))
-       (for ([expr* (in-list exprs*)]
-             [expr (in-list exprs)])
-         (printf "expr* = ~a\n" expr*)
-         (printf "expr  = ~a\n\n" expr)
-         (sleep 5)))
-     ; --------------------------
+     #;(define exprs* (batch->progs batch))
+     #;(when (not (equal? exprs* exprs))
+         (println (vector-ref eclasses id*))
+         (for ([expr* (in-list exprs*)]
+               [expr (in-list exprs)])
+           (printf "expr* = ~a\n" expr*)
+           (printf "expr  = ~a\n\n" expr)
+           (sleep 5)))
+     ; -------------------------
 
-     (remove-duplicates exprs)]
+     (remove-dupicates-roots! batch)
+     (batch->progs batch)]
     ; no extractable expressions
     [else (list)]))
 
