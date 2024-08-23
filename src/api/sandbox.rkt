@@ -506,7 +506,6 @@
              [(< end-score (+ start-test-score fuzz)) "apx-start"]
              [else "uni-start"])))
 
-     (eprintf "Sendable: ~a\n" (place-message-allowed? end-exprs))
      (struct-copy table-row
                   (dummy-table-row result status link)
                   [start-est start-train-score]
