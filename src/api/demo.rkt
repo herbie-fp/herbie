@@ -11,7 +11,8 @@
          web-server/dispatch/extend
          web-server/http/bindings
          web-server/configuration/responders
-         web-server/managers/none)
+         web-server/managers/none
+         web-server/safety-limits)
 
 (require "../utils/common.rkt"
          "../config.rkt"
@@ -603,6 +604,9 @@
   (serve/servlet dispatch
                  #:listen-ip (if public #f "127.0.0.1")
                  #:port port
+                 #:safety-limits
+                 (make-safety-limits #:max-request-body-length
+                                     (* 5 1024 1024)) ; 5 mb body size for det44 bench mark.
                  #:servlet-current-directory (current-directory)
                  #:manager (create-none-manager #f)
                  #:command-line? true

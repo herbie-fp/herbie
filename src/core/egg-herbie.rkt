@@ -1,20 +1,16 @@
 #lang racket
 
 (require egg-herbie
-         (only-in ffi/unsafe
-                  malloc
-                  memcpy
-                  free
-                  cast
-                  ptr-set!
-                  ptr-add
-                  _byte
-                  _pointer
-                  _string/utf-8
-                  register-finalizer))
+         (only-in ffi/vector
+                  make-u32vector
+                  u32vector-length
+                  u32vector-set!
+                  u32vector-ref
+                  list->u32vector
+                  u32vector->list))
 
-(require "rules.rkt"
-         "programs.rkt"
+(require "programs.rkt"
+         "rules.rkt"
          "../syntax/platform.rkt"
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
@@ -38,33 +34,23 @@
   (load-herbie-builtins))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; FFI utils
+
+(define (u32vector-empty? x)
+  (zero? (u32vector-length x)))
+
+(define (in-u32vector vec)
+  (make-do-sequence
+   (lambda ()
+     (define len (u32vector-length vec))
+     (values (lambda (i) (u32vector-ref vec i)) add1 0 (lambda (i) (< i len)) #f #f))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; egg FFI shim
 ;;
 ;; egg-herbie requires a bit of nice wrapping
 ;; - FFIRule: struct defined in egg-herbie
 ;; - EgraphIter: struct defined in egg-herbie
-
-(define (make-raw-string s)
-  (define b (string->bytes/utf-8 s))
-  (define n (bytes-length b))
-  (define ptr (malloc 'raw (+ n 1)))
-  (memcpy ptr b n)
-  (ptr-set! ptr _byte n 0)
-  ptr)
-
-(define (make-ffi-rule rule)
-  (define name (make-raw-string (~a (rule-name rule))))
-  (define lhs (make-raw-string (~a (rule-input rule))))
-  (define rhs (make-raw-string (~a (rule-output rule))))
-  (define p (make-FFIRule name lhs rhs))
-  (register-finalizer p free-ffi-rule)
-  p)
-
-(define (free-ffi-rule rule)
-  (free (FFIRule-name rule))
-  (free (FFIRule-left rule))
-  (free (FFIRule-right rule))
-  (free rule))
 
 ;; Wrapper around Rust-allocated egg runner
 (struct egraph-data
@@ -84,27 +70,92 @@
                eg-data
                [egraph-pointer (egraph_copy (egraph-data-egraph-pointer eg-data))]))
 
-;; result function is a function that takes the ids of the nodes
-(define (egraph-add-expr eg-data expr ctx)
-  (match-define (egraph-data ptr _ _ id->spec) eg-data)
-  ; add the expression to the e-graph and save the root e-class id
-  (define egg-expr (expr->egg-expr expr eg-data ctx))
-  (define root-id (egraph_add_expr ptr (~a egg-expr)))
-  ; record all approx specs
-  (let loop ([expr expr])
+; Adds expressions returning the root ids
+; TODO: take a batch rather than list of expressions
+(define (egraph-add-exprs egg-data exprs ctx)
+  (match-define (egraph-data ptr herbie->egg-dict egg->herbie-dict id->spec) egg-data)
+
+  ; lookups the egg name of a variable
+  (define (normalize-var x)
+    (hash-ref! herbie->egg-dict
+               x
+               (lambda ()
+                 (define id (hash-count herbie->egg-dict))
+                 (define replacement (string->symbol (format "$h~a" id)))
+                 (hash-set! egg->herbie-dict replacement (cons x (context-lookup ctx x)))
+                 replacement)))
+
+  ; normalizes an approx spec
+  (define (normalize-spec expr)
     (match expr
-      [(? number?) (void)]
-      [(? literal?) (void)]
-      [(? symbol?) (void)]
-      [(approx spec impl)
-       (define type (representation-type (repr-of impl ctx)))
-       (define egg-spec (expr->egg-expr spec eg-data ctx))
-       (define id (egraph_add_expr ptr (~a egg-spec)))
-       (hash-ref! id->spec id (lambda () (cons egg-spec type)))
-       (loop impl)]
-      [(list _ args ...) (for-each loop args)]))
-  ; return the id
-  root-id)
+      [(? number?) expr]
+      [(? symbol?) (normalize-var expr)]
+      [(list op args ...) (cons op (map normalize-spec args))]))
+
+  ; pre-allocated id vectors for all the common cases
+  (define 0-vec (make-u32vector 0))
+  (define 1-vec (make-u32vector 1))
+  (define 2-vec (make-u32vector 2))
+  (define 3-vec (make-u32vector 3))
+
+  (define (list->u32vec xs)
+    (match xs
+      [(list) 0-vec]
+      [(list x)
+       (u32vector-set! 1-vec 0 x)
+       1-vec]
+      [(list x y)
+       (u32vector-set! 2-vec 0 x)
+       (u32vector-set! 2-vec 1 y)
+       2-vec]
+      [(list x y z)
+       (u32vector-set! 3-vec 0 x)
+       (u32vector-set! 3-vec 1 y)
+       (u32vector-set! 3-vec 2 z)
+       3-vec]
+      [_ (list->u32vector xs)]))
+
+  ; node -> natural
+  ; inserts an expression into the e-graph, returning its e-class id.
+  (define (insert-node! node root?)
+    (match node
+      [(list op ids ...) (egraph_add_node ptr (symbol->string op) (list->u32vec ids) root?)]
+      [(? symbol? x) (egraph_add_node ptr (symbol->string x) 0-vec root?)]
+      [(? number? n) (egraph_add_node ptr (number->string n) 0-vec root?)]))
+
+  ; expr -> id
+  ; expression cache
+  (define expr->id (make-hash))
+
+  ; expr -> natural
+  ; inserts an expresison into the e-graph, returning its e-class id.
+  (define (insert! expr [root? #f])
+    ; transform the expression into a node pointing
+    ; to its child e-classes
+    (define node
+      (match expr
+        [(? number?) expr]
+        [(? symbol?) (normalize-var expr)]
+        [(literal v _) v]
+        [(approx spec impl)
+         (define spec* (insert! spec))
+         (define impl* (insert! impl))
+         (hash-ref! id->spec
+                    spec*
+                    (lambda ()
+                      (define spec* (normalize-spec spec)) ; preserved spec for extraction
+                      (define type (representation-type (repr-of impl ctx))) ; track type of spec
+                      (cons spec* type)))
+         (list '$approx spec* impl*)]
+        [(list op args ...) (cons op (map insert! args))]))
+    ; always insert the node if it is a root since
+    ; the e-graph tracks which nodes are roots
+    (cond
+      [root? (insert-node! node #t)]
+      [else (hash-ref! expr->id node (lambda () (insert-node! node #f)))]))
+
+  (for/list ([expr (in-list exprs)])
+    (insert! expr #t)))
 
 ;; runs rules on an egraph (optional iteration limit)
 (define (egraph-run egraph-data ffi-rules node-limit iter-limit scheduler const-folding?)
@@ -116,29 +167,22 @@
       ['backoff #f]
       ['simple #t]
       [_ (error 'egraph-run "unknown scheduler: `~a`" scheduler)]))
-  (define-values (iterations length ptr)
-    (egraph_run (egraph-data-egraph-pointer egraph-data)
-                ffi-rules
-                iter_limit
-                node_limit
-                simple_scheduler?
-                const-folding?))
-  (define iteration-data (convert-iteration-data iterations length))
-  (destroy_egraphiters ptr)
-  iteration-data)
+  (egraph_run (egraph-data-egraph-pointer egraph-data)
+              ffi-rules
+              iter_limit
+              node_limit
+              simple_scheduler?
+              const-folding?))
 
 (define (egraph-get-simplest egraph-data node-id iteration ctx)
-  (define ptr (egraph_get_simplest (egraph-data-egraph-pointer egraph-data) node-id iteration))
-  (define str (cast ptr _pointer _string/utf-8))
-  (destroy_string ptr)
-  (egg-expr->expr str egraph-data (context-repr ctx)))
+  (define expr (egraph_get_simplest (egraph-data-egraph-pointer egraph-data) node-id iteration))
+  (egg-expr->expr expr egraph-data (context-repr ctx)))
 
 (define (egraph-get-variants egraph-data node-id orig-expr ctx)
-  (define expr-str (~a (expr->egg-expr orig-expr egraph-data ctx)))
-  (define ptr (egraph_get_variants (egraph-data-egraph-pointer egraph-data) node-id expr-str))
-  (define str (cast ptr _pointer _string/utf-8))
-  (destroy_string ptr)
-  (egg-exprs->exprs str egraph-data (context-repr ctx)))
+  (define egg-expr (expr->egg-expr orig-expr egraph-data ctx))
+  (define exprs (egraph_get_variants (egraph-data-egraph-pointer egraph-data) node-id egg-expr))
+  (for/list ([expr (in-list exprs)])
+    (egg-expr->expr expr egraph-data (context-repr ctx))))
 
 (define (egraph-is-unsound-detected egraph-data)
   (egraph_is_unsound_detected (egraph-data-egraph-pointer egraph-data)))
@@ -157,44 +201,43 @@
     [3 "unsound"]
     [sr (error 'egraph-stop-reason "unexpected stop reason ~a" sr)]))
 
-;; An egraph is just a S-expr of the form
-;;
-;;  egraph ::= (<eclass> ...)
-;;  eclass ::= (<id> <enode> ..+)
-;;  enode  ::= (<op> <id> ...)
-;;
-(define (egraph-serialize egraph-data)
-  (egraph_serialize (egraph-data-egraph-pointer egraph-data)))
+;; Extracts the eclasses of an e-graph as a u32vector
+(define (egraph-eclasses egraph-data)
+  (egraph_get_eclasses (egraph-data-egraph-pointer egraph-data)))
+
+;; Extracts the nodes of an e-class as a vector
+;; where each enode is either a symbol, number, or list
+(define (egraph-get-eclass egraph-data id)
+  (define ptr (egraph-data-egraph-pointer egraph-data))
+  (define egg->herbie (egraph-data-egg->herbie-dict egraph-data))
+  (define eclass (egraph_get_eclass ptr id))
+  ; need to fix up any constant operators
+  (for ([enode (in-vector eclass)]
+        [i (in-naturals)])
+    (when (and (symbol? enode) (not (hash-has-key? egg->herbie enode)))
+      (vector-set! eclass i (cons enode (make-u32vector 0)))))
+  eclass)
 
 (define (egraph-find egraph-data id)
   (egraph_find (egraph-data-egraph-pointer egraph-data) id))
 
 (define (egraph-expr-equal? egraph-data expr goal ctx)
-  (define id1 (egraph-add-expr egraph-data expr ctx))
-  (define id2 (egraph-add-expr egraph-data goal ctx))
-  (= (egraph-find egraph-data id1) (egraph-find egraph-data id2)))
+  (match-define (list id1 id2) (egraph-add-exprs egraph-data (list expr goal) ctx))
+  (= id1 id2))
 
 ;; returns a flattened list of terms or #f if it failed to expand the proof due to budget
 (define (egraph-get-proof egraph-data expr goal ctx)
-  (define egg-expr (~a (expr->egg-expr expr egraph-data ctx)))
-  (define egg-goal (~a (expr->egg-expr goal egraph-data ctx)))
-  (define pointer (egraph_get_proof (egraph-data-egraph-pointer egraph-data) egg-expr egg-goal))
-  (define res (cast pointer _pointer _string/utf-8))
-  (destroy_string pointer)
+  (define egg-expr (expr->egg-expr expr egraph-data ctx))
+  (define egg-goal (expr->egg-expr goal egraph-data ctx))
+  (define str (egraph_get_proof (egraph-data-egraph-pointer egraph-data) egg-expr egg-goal))
   (cond
-    [(< (string-length res) 10000)
-     (define converted (egg-exprs->exprs res egraph-data (context-repr ctx)))
+    [(<= (string-length str) (*proof-max-string-length*))
+     (define converted
+       (for/list ([expr (in-port read (open-input-string str))])
+         (egg-expr->expr expr egraph-data (context-repr ctx))))
      (define expanded (expand-proof converted (box (*proof-max-length*))))
      (if (member #f expanded) #f expanded)]
     [else #f]))
-
-;; Racket representation of per-iteration runner data
-(struct iteration-data (num-nodes num-eclasses time))
-
-(define (convert-iteration-data egraphiters size)
-  (for/list ([i (in-range size)])
-    (define ptr (ptr-add egraphiters i _EGraphIter))
-    (iteration-data (EGraphIter-numnodes ptr) (EGraphIter-numeclasses ptr) (EGraphIter-time ptr))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; eggIR
@@ -322,15 +365,10 @@
         [n (in-range (- nodes-length 1) -1 -1)])
     (vector-set! nodes n (rewrite-node node type))))
 
-;; Parses a string from egg into a list of S-exprs.
-(define (egg-exprs->exprs s egraph-data type)
-  (define egg->herbie (egraph-data-egg->herbie-dict egraph-data))
-  (for/list ([egg-expr (in-port read (open-input-string s))])
-    (egg-parsed->expr (flatten-let egg-expr) egg->herbie type)))
-
 ;; Parses a string from egg into a single S-expr.
-(define (egg-expr->expr s egraph-data type)
-  (first (egg-exprs->exprs s egraph-data type)))
+(define (egg-expr->expr egg-expr egraph-data type)
+  (define egg->herbie (egraph-data-egg->herbie-dict egraph-data))
+  (egg-parsed->expr (flatten-let egg-expr) egg->herbie type))
 
 (module+ test
   (define repr (get-representation 'binary64))
@@ -340,19 +378,19 @@
   (*context* (context-extend (*context*) 'z repr))
 
   (define test-exprs
-    (list (cons '(+.f64 y x) (~a '(+.f64 $h0 $h1)))
-          (cons '(+.f64 x y) (~a '(+.f64 $h1 $h0)))
-          (cons '(-.f64 #s(literal 2 binary64) (+.f64 x y)) (~a '(-.f64 2 (+.f64 $h1 $h0))))
+    (list (cons '(+.f64 y x) '(+.f64 $h0 $h1))
+          (cons '(+.f64 x y) '(+.f64 $h1 $h0))
+          (cons '(-.f64 #s(literal 2 binary64) (+.f64 x y)) '(-.f64 2 (+.f64 $h1 $h0)))
           (cons '(-.f64 z (+.f64 (+.f64 y #s(literal 2 binary64)) x))
-                (~a '(-.f64 $h2 (+.f64 (+.f64 $h0 2) $h1))))
-          (cons '(*.f64 x y) (~a '(*.f64 $h1 $h0)))
-          (cons '(+.f64 (*.f64 x y) #s(literal 2 binary64)) (~a '(+.f64 (*.f64 $h1 $h0) 2)))
-          (cons '(cos.f32 (PI.f32)) (~a '(cos.f32 (PI.f32))))
-          (cons '(if (TRUE) x y) (~a '(if (TRUE) $h1 $h0)))))
+                '(-.f64 $h2 (+.f64 (+.f64 $h0 2) $h1)))
+          (cons '(*.f64 x y) '(*.f64 $h1 $h0))
+          (cons '(+.f64 (*.f64 x y) #s(literal 2 binary64)) '(+.f64 (*.f64 $h1 $h0) 2))
+          (cons '(cos.f32 (PI.f32)) '(cos.f32 (PI.f32)))
+          (cons '(if (TRUE) x y) '(if (TRUE) $h1 $h0))))
 
   (let ([egg-graph (make-egraph)])
     (for ([(in expected-out) (in-dict test-exprs)])
-      (define out (~a (expr->egg-expr in egg-graph (*context*))))
+      (define out (expr->egg-expr in egg-graph (*context*)))
       (define computed-in (egg-expr->expr out egg-graph (context-repr (*context*))))
       (check-equal? out expected-out)
       (check-equal? computed-in in)))
@@ -381,7 +419,7 @@
   (let ([egg-graph (make-egraph)])
     (for ([expr extended-expr-list])
       (define egg-expr (expr->egg-expr expr egg-graph (*context*)))
-      (check-equal? (egg-expr->expr (~a egg-expr) egg-graph (context-repr (*context*))) expr))))
+      (check-equal? (egg-expr->expr egg-expr egg-graph (context-repr (*context*))) expr))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Proofs
@@ -492,12 +530,11 @@
     ; non-expansive rule
     [else (list (rule->egg-rule ru))]))
 
-;; egg rule cache
-(define/reset *egg-rule-cache* (make-hash))
+;; egg rule cache: rule -> (cons/c rule FFI-rule)
+(define/reset *egg-rule-cache* (make-hasheq))
 
-;; Cache mapping name to its canonical rule name
-;; See `*egg-rules*` for details
-(define/reset *canon-names* (make-hash))
+;; Cache mapping (expanded) rule name to its canonical rule name
+(define/reset *canon-names* (make-hasheq))
 
 ;; Tries to look up the canonical name of a rule using the cache.
 ;; Obviously dangerous if the cache is invalid.
@@ -511,12 +548,14 @@
         (for ([rule (in-list rules)])
           (define egg&ffi-rules
             (hash-ref! (*egg-rule-cache*)
-                       (cons (*active-platform*) rule)
+                       rule
                        (lambda ()
                          (for/list ([egg-rule (in-list (rule->egg-rules rule))])
                            (define name (rule-name egg-rule))
+                           (define ffi-rule
+                             (make-ffi-rule name (rule-input egg-rule) (rule-output egg-rule)))
                            (hash-set! (*canon-names*) name (rule-name rule))
-                           (cons egg-rule (make-ffi-rule egg-rule))))))
+                           (cons egg-rule ffi-rule)))))
           (for-each sow egg&ffi-rules))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -537,11 +576,6 @@
 ;; - egg->herbie: data to translate egg IR to herbie IR
 (struct regraph (eclasses types leaf? constants specs parents canon egg->herbie))
 
-;; Normalizes a Rust e-class.
-;; Nullary operators are serialized as symbols, so we need to fix them.
-(define (normalize-enode enode egg->herbie)
-  (if (and (symbol? enode) (not (hash-has-key? egg->herbie enode))) (list enode) enode))
-
 ;; Returns all representatations (and their types) in the current platform.
 (define (all-reprs/types [pform (*active-platform*)])
   (remove-duplicates (append-map (lambda (repr) (list repr (representation-type repr)))
@@ -557,72 +591,231 @@
 ;; NOTE: we can constrain "every" type by using the platform.
 (define (enode-type enode egg->herbie)
   (match enode
-    [(? number?) (cons 'real (platform-reprs (*active-platform*)))]
-    [(? symbol?)
+    [(? number?) (cons 'real (platform-reprs (*active-platform*)))] ; number
+    [(? symbol?) ; variable
      (match-define (cons _ repr) (hash-ref egg->herbie enode))
      (list repr (representation-type repr))]
-    [(list '$approx _ _) (platform-reprs (*active-platform*))]
-    [(list 'if _ _ _) (all-reprs/types)]
-    [(list (? impl-exists? impl) _ ...) (list (impl-info impl 'otype))]
-    [(list op _ ...) (list (operator-info op 'otype))]))
+    [(cons f _) ; application
+     (cond
+       [(eq? f '$approx) (platform-reprs (*active-platform*))]
+       [(eq? f 'if) (all-reprs/types)]
+       [(impl-exists? f) (list (impl-info f 'otype))]
+       [else (list (operator-info f 'otype))])]))
 
 ;; Rebuilds an e-node using typed e-classes
 (define (rebuild-enode enode type lookup)
   (match enode
-    [(? number?) enode]
-    [(? symbol?) enode]
-    [(list '$approx spec impl)
-     (list '$approx (lookup spec (representation-type type)) (lookup impl type))]
-    [(list 'if cond ift iff)
-     (define cond-type (if (representation? type) (get-representation 'bool) 'bool))
-     (list 'if (lookup cond cond-type) (lookup ift type) (lookup iff type))]
-    [(list (? impl-exists? impl) args ...) (cons impl (map lookup args (impl-info impl 'itype)))]
-    [(list op args ...) (cons op (map lookup args (operator-info op 'itype)))]))
+    [(? number?) enode] ; number
+    [(? symbol?) enode] ; variable
+    [(cons f ids) ; application
+     (cond
+       [(eq? f '$approx) ; approx node
+        (define spec (u32vector-ref ids 0))
+        (define impl (u32vector-ref ids 1))
+        (list '$approx (lookup spec (representation-type type)) (lookup impl type))]
+       [(eq? f 'if) ; if expression
+        (define cond (u32vector-ref ids 0))
+        (define ift (u32vector-ref ids 1))
+        (define iff (u32vector-ref ids 2))
+        (define cond-type (if (representation? type) (get-representation 'bool) 'bool))
+        (list 'if (lookup cond cond-type) (lookup ift type) (lookup iff type))]
+       [else
+        (define itypes (if (impl-exists? f) (impl-info f 'itype) (operator-info f 'itype)))
+        ; unsafe since we don't check that |itypes| = |ids|
+        ; optimize for common cases to avoid extra allocations
+        (cons
+         f
+         (match itypes
+           [(list) '()]
+           [(list t1) (list (lookup (u32vector-ref ids 0) t1))]
+           [(list t1 t2) (list (lookup (u32vector-ref ids 0) t1) (lookup (u32vector-ref ids 1) t2))]
+           [(list t1 t2 t3)
+            (list (lookup (u32vector-ref ids 0) t1)
+                  (lookup (u32vector-ref ids 1) t2)
+                  (lookup (u32vector-ref ids 2) t3))]
+           [_ (map lookup (u32vector->list ids) itypes)]))])]))
 
 ;; Splits untyped eclasses into typed eclasses.
 ;; Nodes are duplicated across their possible types.
-(define (split-untyped-eclasses egraph egg->herbie)
-  ; optimization: use two dimensional table for lookups
-  ; first indexed by untyped e-class id, then by type
-  (define egg-id->table (make-hash)) ; natural -> (type -> id)
-  (define egg-id->id (make-hash)) ; (natural, type) -> id [actual table in the result]
-  (define id->eclass (make-hash)) ; natural -> box
-  (define eclass-boxes '()) ; (listof box)
-  (define eclass-types '()) ; (listof any)
+(define (split-untyped-eclasses egraph-data egg->herbie)
+  (define eclass-ids (egraph-eclasses egraph-data))
+  (define egg-id->idx (make-hash))
+  (for ([egg-id (in-u32vector eclass-ids)]
+        [idx (in-naturals)])
+    (hash-set! egg-id->idx egg-id idx))
 
-  ;; Creates a fresh eclass for a given type.
-  (define (new-eclass eid type)
-    (define id (hash-count egg-id->id))
-    (define eclass (box '()))
-    (hash-set! egg-id->id (cons eid type) id)
-    (hash-set! id->eclass id eclass)
-    (set! eclass-boxes (cons eclass eclass-boxes))
-    (set! eclass-types (cons type eclass-types))
-    id)
+  (define types (all-reprs/types))
+  (define type->idx (make-hasheq))
+  (for ([type (in-list types)]
+        [idx (in-naturals)])
+    (hash-set! type->idx type idx))
+  (define num-types (hash-count type->idx))
 
-  ;; Looks up the canonical id for a given egg id and type.
-  ;; Returns a fresh id if none exists.
+  ; maps (idx, type) to type eclass id
+  (define (idx+type->id idx type)
+    (+ (* idx num-types) (hash-ref type->idx type)))
+
+  ; maps (untyped eclass id, type) to typed eclass id
   (define (lookup-id eid type)
-    (define type->id (hash-ref! egg-id->table eid (lambda () (make-hasheq))))
-    (hash-ref! type->id type (lambda () (new-eclass eid type))))
+    (idx+type->id (hash-ref egg-id->idx eid) type))
 
-  ;; build typed eclasses
-  (for ([eclass (in-list egraph)])
-    (define eid (car eclass))
-    (for ([enode (in-list (cdr eclass))])
-      (let ([enode (normalize-enode enode egg->herbie)])
-        ; get all possible types for the enode
-        (define types (enode-type enode egg->herbie))
-        (for ([type (in-list types)])
-          ; lookup or create a new typed eclass
-          (define id (lookup-id eid type))
-          (define enode* (rebuild-enode enode type lookup-id))
-          (define eclass (hash-ref id->eclass id))
-          (set-box! eclass (cons enode* (unbox eclass)))))))
+  ; allocate enough eclasses for every (egg-id, type) combination
+  (define n (* (u32vector-length eclass-ids) num-types))
+  (define id->eclass (make-vector n '()))
+  (define id->parents (make-vector n '()))
+  (define id->leaf? (make-vector n #f))
 
-  (define eclasses (list->vector (map (compose reverse unbox) (reverse eclass-boxes))))
-  (define types (list->vector (reverse eclass-types)))
+  ; for each eclass, extract the enodes
+  ;  <enode> ::= <symbol>
+  ;            | <number>
+  ;            | (<symbol> . <u32vector>)
+  ; NOTE: nodes in typed eclasses are reversed relative
+  ; to their position in untyped eclasses
+  (for ([eid (in-u32vector eclass-ids)]
+        [idx (in-naturals)])
+    (define enodes (egraph-get-eclass egraph-data eid))
+    (for ([enode (in-vector enodes)])
+      ; get all possible types for the enode
+      ; lookup its correct eclass and add the rebuilt node
+      (define types (enode-type enode egg->herbie))
+      (for ([type (in-list types)])
+        (define id (idx+type->id idx type))
+        (define enode* (rebuild-enode enode type lookup-id))
+        (vector-set! id->eclass id (cons enode* (vector-ref id->eclass id)))
+        (match enode*
+          [(list _ ids ...)
+           (if (null? ids)
+               (vector-set! id->leaf? id #t)
+               (for ([child-id (in-list ids)])
+                 (vector-set! id->parents child-id (cons id (vector-ref id->parents child-id)))))]
+          [(? symbol?) (vector-set! id->leaf? id #t)]
+          [(? number?) (vector-set! id->leaf? id #t)]))))
+
+  ; dedup `id->parents` values
+  (for ([id (in-range n)])
+    (vector-set! id->parents id (list->vector (remove-duplicates (vector-ref id->parents id)))))
+  (values id->eclass id->parents id->leaf? egg-id->idx type->idx))
+
+;; TODO: reachable from roots?
+;; Prunes e-nodes that are not well-typed.
+;; An e-class is well-typed if it has one well-typed node
+;; A node is well-typed if all of its child e-classes are well-typed.
+(define (prune-ill-typed! id->eclass id->parents id->leaf?)
+  (define n (vector-length id->eclass))
+
+  ;; is the e-class well-typed?
+  (define typed?-vec (make-vector n #f))
+  (define (eclass-well-typed? id)
+    (vector-ref typed?-vec id))
+
+  ;; is the e-node well-typed?
+  (define (enode-typed? enode)
+    (or (number? enode) (symbol? enode) (and (list? enode) (andmap eclass-well-typed? (cdr enode)))))
+
+  (define (check-typed! dirty?-vec)
+    (define dirty? #f)
+    (define dirty?-vec* (make-vector n #f))
+    (for ([id (in-range n)]
+          #:when (vector-ref dirty?-vec id))
+      (unless (vector-ref typed?-vec id)
+        (when (ormap enode-typed? (vector-ref id->eclass id))
+          (vector-set! typed?-vec id #t)
+          (define parent-ids (vector-ref id->parents id))
+          (unless (vector-empty? parent-ids)
+            (set! dirty? #t)
+            (for ([parent-id (in-vector parent-ids)])
+              (vector-set! dirty?-vec* parent-id #t))))))
+    (when dirty?
+      (check-typed! dirty?-vec*)))
+
+  ; mark all well-typed e-classes and prune nodes that are not well-typed
+  (check-typed! (vector-copy id->leaf?))
+  (for ([id (in-range n)])
+    (define eclass (vector-ref id->eclass id))
+    (vector-set! id->eclass id (filter enode-typed? eclass)))
+
+  ; sanity check: every child id points to a non-empty e-class
+  (for ([id (in-range n)])
+    (define eclass (vector-ref id->eclass id))
+    (for ([enode (in-list eclass)])
+      (match enode
+        [(list _ ids ...)
+         (for ([id (in-list ids)])
+           (when (null? (vector-ref id->eclass id))
+             (error 'prune-ill-typed!
+                    "eclass ~a is empty, eclasses ~a"
+                    id
+                    (for/vector #:length n
+                                ([id (in-range n)])
+                      (list id (vector-ref id->eclass id))))))]
+        [_ (void)]))))
+
+;; Rebuilds eclasses and associated data after pruning.
+(define (rebuild-eclasses id->eclass egg-id->idx type->idx)
+  (define n (vector-length id->eclass))
+  (define remap (make-vector n #f))
+
+  ; build the id map
+  (define n* 0)
+  (for ([id (in-range n)])
+    (define eclass (vector-ref id->eclass id))
+    (unless (null? eclass)
+      (vector-set! remap id n*)
+      (set! n* (add1 n*))))
+
+  ; invert `type->idx` map
+  (define idx->type (make-hash))
+  (define num-types (hash-count type->idx))
+  (for ([(type idx) (in-hash type->idx)])
+    (hash-set! idx->type idx type))
+
+  ; rebuild eclass and type vectors
+  ; transform each eclass from a list to a vector
+  (define eclasses (make-vector n* #f))
+  (define types (make-vector n* #f))
+  (for ([id (in-range n)])
+    (define id* (vector-ref remap id))
+    (when id*
+      (define eclass (vector-ref id->eclass id))
+      (vector-set! eclasses
+                   id*
+                   (for/vector #:length (length eclass)
+                               ([enode (in-list eclass)])
+                     (match enode
+                       [(? number?) enode]
+                       [(? symbol?) enode]
+                       [(list op ids ...)
+                        (define ids* (map (lambda (id) (vector-ref remap id)) ids))
+                        (cons op ids*)])))
+      (vector-set! types id* (hash-ref idx->type (modulo id num-types)))))
+
+  ; build the canonical id map
+  (define egg-id->id (make-hash))
+  (for ([(eid idx) (in-hash egg-id->idx)])
+    (define id0 (* idx num-types))
+    (for ([id (in-range id0 (+ id0 num-types))])
+      (define id* (vector-ref remap id))
+      (when id*
+        (define type (vector-ref types id*))
+        (hash-set! egg-id->id (cons eid type) id*))))
+
   (values eclasses types egg-id->id))
+
+;; Splits untyped eclasses into typed eclasses,
+;; keeping only the subset of enodes that are well-typed.
+(define (make-typed-eclasses egraph-data egg->herbie)
+  ;; Step 1: split Rust-eclasses by type
+  (define-values (id->eclass id->parents id->leaf? egg-id->idx type->idx)
+    (split-untyped-eclasses egraph-data egg->herbie))
+
+  ;; Step 2: keep well-typed e-nodes
+  ;; An e-class is well-typed if it has one well-typed node
+  ;; A node is well-typed if all of its child e-classes are well-typed.
+  (prune-ill-typed! id->eclass id->parents id->leaf?)
+
+  ;; Step 3: remap e-classes
+  ;; Any empty e-classes must be removed, so we re-map every id
+  (rebuild-eclasses id->eclass egg-id->idx type->idx))
 
 ;; Analyzes eclasses for their properties.
 ;; The result are vector-maps from e-class ids to data.
@@ -655,167 +848,28 @@
 
   (values parents leaf? constants))
 
-;; Prunes e-nodes that are not well-typed.
-;; An e-class is well-typed if it has one well-typed node
-;; A node is well-typed if all of its child e-classes are well-typed.
-(define (prune-ill-typed! eclasses)
-  (define n (vector-length eclasses))
-  (define-values (parents leaf? _) (analyze-eclasses eclasses))
-
-  ;; is the e-class well-typed
-  (define typed? (make-vector n #f))
-
-  (define (enode-typed? enode)
-    (match enode
-      [(? number?) #t]
-      [(? symbol?) #t]
-      [(list _ ids ...)
-       (for/and ([id (in-list ids)])
-         (vector-ref typed? id))]))
-
-  (define (check-typed! dirty?-vec)
-    (define dirty? #f)
-    (define dirty?-vec* (make-vector n #f))
-    (for ([id (in-range n)]
-          #:when (vector-ref dirty?-vec id))
-      (unless (vector-ref typed? id)
-        (define eclass (vector-ref eclasses id))
-        (when (ormap enode-typed? eclass)
-          (vector-set! typed? id #t)
-          (set! dirty? #t)
-          (define parent-ids (vector-ref parents id))
-          (for ([parent-id (in-vector parent-ids)])
-            (vector-set! dirty?-vec* parent-id #t)))))
-    (when dirty?
-      (check-typed! dirty?-vec*)))
-
-  ; mark all well-typed e-classes and prune nodes that are not well-typed
-  (check-typed! (vector-copy leaf?))
-  (for ([id (in-range n)])
-    (define eclass (vector-ref eclasses id))
-    (vector-set! eclasses id (filter enode-typed? eclass)))
-
-  ; sanity check: every child id points to a non-empty e-class
-  (for ([id (in-range n)])
-    (define eclass (vector-ref eclasses id))
-    (for ([enode (in-list eclass)])
-      (match enode
-        [(list _ ids ...)
-         (for ([id (in-list ids)])
-           (when (null? (vector-ref eclasses id))
-             (error 'prune-ill-typed!
-                    "eclass ~a is empty, eclasses ~a"
-                    id
-                    (for/vector #:length n
-                                ([id (in-range n)])
-                      (list id (vector-ref eclasses id))))))]
-        [_ (void)]))))
-
-;; Rebuilds eclasses and associated data after pruning.
-(define (rebuild-eclasses eclasses types egg-id->id)
-  (define n (vector-length eclasses))
-  (define remap (make-vector n #f))
-
-  (define n* 0)
-  (for ([id (in-range n)])
-    (define eclass (vector-ref eclasses id))
-    (unless (null? eclass)
-      (vector-set! remap id n*)
-      (set! n* (add1 n*))))
-
-  ; rebuild eclass vector
-  ; transform each eclass from a list to a vector
-  (define eclasses* (make-vector n* #f))
-  (for ([id (in-range n)]
-        #:when (vector-ref remap id))
-    (define eclass (vector-ref eclasses id))
-    (vector-set! eclasses*
-                 (vector-ref remap id)
-                 (for/vector #:length (length eclass)
-                             ([enode (in-list eclass)])
-                   (match enode
-                     [(? number?) enode]
-                     [(? symbol?) enode]
-                     [(list op ids ...) (cons op (map (lambda (id) (vector-ref remap id)) ids))]))))
-
-  ; rebuild the canonical id map
-  (define egg-id->id* (make-hash))
-  (for ([(k id) (in-hash egg-id->id)])
-    (define id* (vector-ref remap id))
-    (when id*
-      (hash-set! egg-id->id* k id*)))
-
-  ; rebuild the eclass type map
-  (define types*
-    (for/vector #:length n*
-                ([id (in-range n)]
-                 #:when (vector-ref remap id))
-      (vector-ref types id)))
-
-  (values eclasses* types* egg-id->id*))
-
-;; Splits untyped eclasses into typed eclasses,
-;; keeping only the subset of enodes that are well-typed.
-(define (make-typed-eclasses egraph egg->herbie)
-  ;; Step 1: split Rust e-classes by type
-  ;; The result are the eclasses, their types,
-  ;; and a canonicalization map for egg e-class ids
-  (define-values (eclasses types egg-id->id) (split-untyped-eclasses egraph egg->herbie))
-
-  ;; Step 2: keep well-typed e-nodes
-  ;; An e-class is well-typed if it has one well-typed node
-  ;; A node is well-typed if all of its child e-classes are well-typed.
-  (prune-ill-typed! eclasses)
-
-  ;; Step 3: remap e-classes
-  ;; Any empty e-classes must be removed, so we re-map every id
-  (rebuild-eclasses eclasses types egg-id->id))
-
-;; Constructs a Racket egraph from an S-expr representation.
-(define (datum->regraph egraph egg->herbie id->spec)
-  ;; split the e-classes by type
-  (define-values (eclasses types canon) (make-typed-eclasses egraph egg->herbie))
-  (define n (vector-length eclasses))
-
-  ;; analyze each eclass
-  (define parents (make-vector n '()))
-  (define leaf? (make-vector n '#f))
-  (define constants (make-vector n #f))
-  (for ([id (in-range n)])
-    (define eclass (vector-ref eclasses id))
-    (for ([enode (in-vector eclass)])
-      (match enode
-        [(? number? n)
-         (vector-set! leaf? id #t)
-         (vector-set! constants id n)]
-        [(? symbol?) (vector-set! leaf? id #t)]
-        [(list _ ids ...)
-         (when (null? ids)
-           (vector-set! leaf? id #t))
-         (for ([child-id (in-list ids)])
-           (vector-set! parents child-id (cons id (vector-ref parents child-id))))])))
-  ; parent map: remove duplicates, convert lists to vectors
-  (for ([id (in-range n)])
-    (define ids (remove-duplicates (vector-ref parents id)))
-    (vector-set! parents id (list->vector ids)))
-
-  ; convert id->spec to a vector-map
-  (define specs (make-vector n #f))
-  (for ([(id spec&repr) (in-dict id->spec)])
-    (match-define (cons spec repr) spec&repr)
-    (define id* (hash-ref canon (cons id repr)))
-    (vector-set! specs id* spec))
-  ; collect with wrapper
-  (regraph eclasses types leaf? constants specs parents canon egg->herbie))
-
 ;; Constructs a Racket egraph from an S-expr representation of
 ;; an egraph and data to translate egg IR to herbie IR.
 (define (make-regraph egraph-data)
-  (define egraph-str (egraph-serialize egraph-data))
-  (datum->regraph (read (open-input-string egraph-str))
-                  (egraph-data-egg->herbie-dict egraph-data)
-                  (for/list ([(id spec&repr) (in-hash (egraph-data-id->spec egraph-data))])
-                    (cons (egraph-find egraph-data id) spec&repr))))
+  (define egg->herbie (egraph-data-egg->herbie-dict egraph-data))
+  (define id->spec (egraph-data-id->spec egraph-data))
+
+  ;; split the e-classes by type
+  (define-values (eclasses types canon) (make-typed-eclasses egraph-data egg->herbie))
+  (define n (vector-length eclasses))
+
+  ;; analyze each eclass
+  (define-values (parents leaf? constants) (analyze-eclasses eclasses))
+
+  ;; rebuild id->spec map for typed e-classes
+  (define specs (make-vector n #f))
+  (for ([(id spec&repr) (in-hash id->spec)])
+    (match-define (cons spec repr) spec&repr)
+    (define id* (hash-ref canon (cons (egraph-find egraph-data id) repr)))
+    (vector-set! specs id* spec))
+
+  ; construct the `regraph` instance
+  (regraph eclasses types leaf? constants specs parents canon egg->herbie))
 
 ;; Egraph node has children.
 ;; Nullary operators have no children!
@@ -1171,9 +1225,7 @@
   (define egg-graph (make-egraph))
 
   ; insert expressions into the e-graph
-  (define root-ids
-    (for/list ([expr (in-list exprs)])
-      (egraph-add-expr egg-graph expr ctx)))
+  (define root-ids (egraph-add-exprs egg-graph exprs ctx))
 
   ; run the schedule
   (define rule-apps (make-hash))

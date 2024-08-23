@@ -2,9 +2,9 @@
 
 pub mod math;
 
-use egg::{BackoffScheduler, Extractor, Id, Language, SimpleScheduler, StopReason, Symbol};
+use egg::{BackoffScheduler, Extractor, FromOp, Id, Language, SimpleScheduler, StopReason, Symbol};
 use indexmap::IndexMap;
-use libc::c_void;
+use libc::{c_void, strlen};
 use math::*;
 
 use std::cmp::min;
@@ -47,6 +47,11 @@ pub unsafe extern "C" fn destroy_string(ptr: *mut c_char) {
     drop(CString::from_raw(ptr))
 }
 
+#[no_mangle]
+pub unsafe extern "C" fn string_length(ptr: *const c_char) -> u32 {
+    strlen(ptr) as u32
+}
+
 #[repr(C)]
 pub struct EGraphIter {
     numnodes: u32,
@@ -69,7 +74,6 @@ pub unsafe extern "C" fn egraph_add_expr(ptr: *mut Context, expr: *const c_char)
     let mut context = Box::from_raw(ptr);
 
     assert_eq!(context.iteration, 0);
-
     let rec_expr = CStr::from_ptr(expr).to_str().unwrap().parse().unwrap();
     context.runner = context.runner.with_expr(&rec_expr);
     let id = usize::from(*context.runner.roots.last().unwrap())
@@ -79,6 +83,31 @@ pub unsafe extern "C" fn egraph_add_expr(ptr: *mut Context, expr: *const c_char)
     mem::forget(context);
 
     id
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn egraph_add_node(
+    ptr: *mut Context,
+    f: *const c_char,
+    ids_ptr: *const u32,
+    num_ids: u32,
+    is_root: bool,
+) -> u32 {
+    let _ = env_logger::try_init();
+    // Safety: `ptr` was box allocated by `egraph_create`
+    let mut context = ManuallyDrop::new(Box::from_raw(ptr));
+
+    let f = CStr::from_ptr(f).to_str().unwrap();
+    let len = num_ids as usize;
+    let ids: &[u32] = slice::from_raw_parts(ids_ptr, len);
+    let ids = ids.iter().map(|id| Id::from(*id as usize)).collect();
+    let node = Math::from_op(f, ids).unwrap();
+    let id = context.runner.egraph.add(node);
+    if is_root {
+        context.runner.roots.push(id);
+    }
+
+    usize::from(id) as u32
 }
 
 #[no_mangle]
@@ -239,10 +268,14 @@ pub unsafe extern "C" fn egraph_find(ptr: *mut Context, id: usize) -> u32 {
 pub unsafe extern "C" fn egraph_serialize(ptr: *mut Context) -> *const c_char {
     // Safety: `ptr` was box allocated by `egraph_create`
     let context = ManuallyDrop::new(Box::from_raw(ptr));
+    let mut ids: Vec<Id> = context.runner.egraph.classes().map(|c| c.id).collect();
+    ids.sort();
+
     // Iterate through the eclasses and print each eclass
     let mut s = String::from("(");
-    for c in context.runner.egraph.classes() {
-        s.push_str(&format!("({}", c.id));
+    for id in ids {
+        let c = &context.runner.egraph[id];
+        s.push_str(&format!("({}", id));
         for node in &c.nodes {
             if matches!(node, Math::Symbol(_) | Math::Constant(_)) {
                 s.push_str(&format!(" {}", node));
@@ -260,6 +293,63 @@ pub unsafe extern "C" fn egraph_serialize(ptr: *mut Context) -> *const c_char {
     s.push(')');
 
     let c_string = ManuallyDrop::new(CString::new(s).unwrap());
+    c_string.as_ptr()
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn egraph_size(ptr: *mut Context) -> u32 {
+    let context = ManuallyDrop::new(Box::from_raw(ptr));
+    context.runner.egraph.number_of_classes() as u32
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn egraph_eclass_size(ptr: *mut Context, id: u32) -> u32 {
+    let context = ManuallyDrop::new(Box::from_raw(ptr));
+    let id = Id::from(id as usize);
+    context.runner.egraph[id].nodes.len() as u32
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn egraph_enode_size(ptr: *mut Context, id: u32, idx: u32) -> u32 {
+    let context = ManuallyDrop::new(Box::from_raw(ptr));
+    let id = Id::from(id as usize);
+    let idx = idx as usize;
+    context.runner.egraph[id].nodes[idx].len() as u32
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn egraph_get_eclasses(ptr: *mut Context, ids_ptr: *mut u32) {
+    let context = ManuallyDrop::new(Box::from_raw(ptr));
+    let mut ids: Vec<u32> = context
+        .runner
+        .egraph
+        .classes()
+        .map(|c| usize::from(c.id) as u32)
+        .collect();
+    ids.sort();
+
+    for (i, id) in ids.iter().enumerate() {
+        std::ptr::write(ids_ptr.offset(i as isize), *id);
+    }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn egraph_get_node(
+    ptr: *mut Context,
+    id: u32,
+    idx: u32,
+    ids: *mut u32,
+) -> *const c_char {
+    let context = ManuallyDrop::new(Box::from_raw(ptr));
+    let id = Id::from(id as usize);
+    let idx = idx as usize;
+
+    let node = &context.runner.egraph[id].nodes[idx];
+    for (i, id) in node.children().iter().enumerate() {
+        std::ptr::write(ids.offset(i as isize), usize::from(*id) as u32);
+    }
+
+    let c_string = ManuallyDrop::new(CString::new(node.to_string()).unwrap());
     c_string.as_ptr()
 }
 
