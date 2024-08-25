@@ -591,10 +591,13 @@
 ;; Nodes are duplicated across their possible types.
 (define (split-untyped-eclasses egraph-data egg->herbie)
   (define eclass-ids (egraph-eclasses egraph-data))
-  (define egg-id->idx (make-hash))
+  (define max-id
+    (for/fold ([current-max 0]) ([egg-id (in-u32vector eclass-ids)])
+      (max current-max egg-id)))
+  (define egg-id->idx (make-u32vector (+ max-id 1)))
   (for ([egg-id (in-u32vector eclass-ids)]
         [idx (in-naturals)])
-    (hash-set! egg-id->idx egg-id idx))
+    (u32vector-set! egg-id->idx egg-id idx))
 
   (define types (all-reprs/types))
   (define type->idx (make-hasheq))
@@ -609,7 +612,7 @@
 
   ; maps (untyped eclass id, type) to typed eclass id
   (define (lookup-id eid type)
-    (idx+type->id (hash-ref egg-id->idx eid) type))
+    (idx+type->id (u32vector-ref egg-id->idx eid) type))
 
   ; allocate enough eclasses for every (egg-id, type) combination
   (define n (* (u32vector-length eclass-ids) num-types))
@@ -646,7 +649,7 @@
   ; dedup `id->parents` values
   (for ([id (in-range n)])
     (vector-set! id->parents id (list->vector (remove-duplicates (vector-ref id->parents id)))))
-  (values id->eclass id->parents id->leaf? egg-id->idx type->idx))
+  (values id->eclass id->parents id->leaf? eclass-ids egg-id->idx type->idx))
 
 ;; TODO: reachable from roots?
 ;; Prunes e-nodes that are not well-typed.
@@ -703,7 +706,7 @@
         [_ (void)]))))
 
 ;; Rebuilds eclasses and associated data after pruning.
-(define (rebuild-eclasses id->eclass egg-id->idx type->idx)
+(define (rebuild-eclasses id->eclass eclass-ids egg-id->idx type->idx)
   (define n (vector-length id->eclass))
   (define remap (make-vector n #f))
 
@@ -743,7 +746,8 @@
 
   ; build the canonical id map
   (define egg-id->id (make-hash))
-  (for ([(eid idx) (in-hash egg-id->idx)])
+  (for ([eid (in-u32vector eclass-ids)])
+    (define idx (u32vector-ref egg-id->idx eid))
     (define id0 (* idx num-types))
     (for ([id (in-range id0 (+ id0 num-types))])
       (define id* (vector-ref remap id))
@@ -757,7 +761,7 @@
 ;; keeping only the subset of enodes that are well-typed.
 (define (make-typed-eclasses egraph-data egg->herbie)
   ;; Step 1: split Rust-eclasses by type
-  (define-values (id->eclass id->parents id->leaf? egg-id->idx type->idx)
+  (define-values (id->eclass id->parents id->leaf? eclass-ids egg-id->idx type->idx)
     (split-untyped-eclasses egraph-data egg->herbie))
 
   ;; Step 2: keep well-typed e-nodes
@@ -767,7 +771,7 @@
 
   ;; Step 3: remap e-classes
   ;; Any empty e-classes must be removed, so we re-map every id
-  (rebuild-eclasses id->eclass egg-id->idx type->idx))
+  (rebuild-eclasses id->eclass eclass-ids egg-id->idx type->idx))
 
 ;; Analyzes eclasses for their properties.
 ;; The result are vector-maps from e-class ids to data.
