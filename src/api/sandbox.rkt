@@ -348,15 +348,15 @@
   (table-row (test-name test)
              (test-identifier test)
              status
-             (prog->fpcore (test-pre test))
+             (prog->fpcore (test-pre test) (test-context test))
              preprocess
              (representation-name repr)
              '() ; TODO: eliminate field
              (test-vars test)
              (map car (hash-ref result-hash 'warnings))
-             (prog->fpcore (test-input test))
+             (prog->fpcore (test-input test) (test-context test))
              #f
-             (prog->fpcore (test-spec test))
+             (prog->fpcore (test-spec test) (test-context test))
              (test-output test)
              #f
              #f
