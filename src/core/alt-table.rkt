@@ -41,8 +41,8 @@
                                              [err (errors (alt-expr initial-alt) pcontext ctx)])
                                     (cons pt (list (pareto-point cost err (list initial-alt))))))
              (hasheq initial-alt
-                   (for/list ([(pt ex) (in-pcontext pcontext)])
-                     pt))
+                     (for/list ([(pt ex) (in-pcontext pcontext)])
+                       pt))
              (hasheq initial-alt #f)
              (hasheq initial-alt cost)
              pcontext
