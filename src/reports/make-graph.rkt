@@ -77,13 +77,12 @@
     (for/list ([target targets])
       (alt-cost (alt-analysis-alt target) repr)))
 
-  (define end-alts (hash-ref end 'end-alts))
+  (define end-exprs (hash-ref end 'end-exprs))
   (define end-errors (hash-ref end 'end-errors))
   (define end-costs (hash-ref end 'end-costs))
 
   (define speedup
-    (let ([better (for/list ([alt end-alts]
-                             [err end-errors]
+    (let ([better (for/list ([err end-errors]
                              [cost end-costs]
                              #:when (<= (errors-score err) (errors-score start-error)))
                     (/ start-cost cost))])
@@ -117,7 +116,7 @@
                      (format-accuracy (apply max (map ulps->bits start-error)) repr-bits #:unit "%")
                      (format-accuracy (apply max (map ulps->bits end-error)) repr-bits #:unit "%")))
            ,(render-large "Time" (format-time time))
-           ,(render-large "Alternatives" (~a (length end-alts)))
+           ,(render-large "Alternatives" (~a (length end-exprs)))
            ,(if (*pareto-mode*)
                 (render-large "Speedup"
                               (if speedup (~r speedup #:precision '(= 1)) "N/A")
@@ -148,7 +147,7 @@
                       "?"))
                (div ((class "figure-row"))
                     (svg)
-                    (div (p "Herbie found " ,(~a (length end-alts)) " alternatives:")
+                    (div (p "Herbie found " ,(~a (length end-exprs)) " alternatives:")
                          (table (thead (tr (th "Alternative")
                                            (th ((class "numeric")) "Accuracy")
                                            (th ((class "numeric")) "Speedup")))
@@ -170,14 +169,13 @@
                        ,(render-help "report.html#alternatives"))
                    ,body))
       ,@(for/list ([i (in-naturals 1)]
-                   [alt-fpcore end-alts]
+                   [expr end-exprs]
                    [errs end-errors]
                    [cost end-costs]
                    [history (hash-ref end 'end-histories)])
-          (define formula (read-syntax 'web (open-input-string alt-fpcore)))
-          (define expr (parse-test formula))
+
           (define-values (dropdown body)
-            (render-program (test-input expr) ctx #:ident identifier #:instructions preprocessing))
+            (render-program expr ctx #:ident identifier #:instructions preprocessing))
           `(section ([id ,(format "alternative~a" i)] (class "programs"))
                     (h2 "Alternative "
                         ,(~a i)

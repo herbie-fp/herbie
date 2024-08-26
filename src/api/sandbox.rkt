@@ -398,7 +398,7 @@
      (define best-score
        (if (null? target-cost-score) target-cost-score (apply min (map second target-cost-score))))
 
-     (define end-exprs (hash-ref end 'end-alts))
+     (define end-exprs (hash-ref end 'end-exprs))
      (define end-train-scores (map errors-score (hash-ref end 'end-train-scores)))
      (define end-test-scores (map errors-score (hash-ref end 'end-errors)))
      (define end-costs (hash-ref end 'end-costs))
@@ -435,8 +435,7 @@
                   [target target-cost-score]
                   [result-est end-est-score]
                   [result end-score]
-                  [output
-                   (test-input (parse-test (read-syntax 'web (open-input-string (car end-exprs)))))]
+                  [output (car end-exprs)]
                   [cost-accuracy cost&accuracy])]
     ['failure
      (match-define (list 'exn type _ ...) backend)

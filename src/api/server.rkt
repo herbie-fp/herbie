@@ -5,7 +5,6 @@
          json)
 
 (require "sandbox.rkt"
-         "../core/preprocess.rkt"
          "../core/points.rkt"
          "../reports/history.rkt"
          "../reports/plot.rkt"
@@ -410,14 +409,13 @@
           (improve-result-bogosity backend)))
 
 (define (end-hash end repr pcontexts test)
+
   (define-values (end-alts train-errors end-errors end-costs)
     (for/lists (l1 l2 l3 l4)
                ([analysis end])
                (match-define (alt-analysis alt train-errors test-errs) analysis)
                (values alt train-errors test-errs (alt-cost alt repr))))
-  (define fpcores
-    (for/list ([altn end-alts])
-      (~a (program->fpcore (alt-expr altn) (test-context test)))))
+
   (define alts-histories
     (for/list ([alt end-alts])
       (render-history alt (first pcontexts) (second pcontexts) (test-context test))))
@@ -431,8 +429,8 @@
             (real->ordinal (repr->real val repr) repr))
           '())))
 
-  (hasheq 'end-alts
-          fpcores
+  (hasheq 'end-exprs
+          (map alt-expr end-alts)
           'end-histories
           alts-histories
           'end-train-scores
