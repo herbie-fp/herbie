@@ -134,7 +134,7 @@
 
   ;; The set may have non-deterministic behavior,
   ;; so we can only rely on some total order
-  (for ([altn (order-altns (set->list removable))])
+  (for ([altn (in-set removable)])
     (define my-done? (alt-done? altn))
     (define my-num (alt-num-points altn))
     (define my-cost (alt-cost altn))
@@ -149,7 +149,8 @@
         [(> my-cost worst-cost) #t]
         [(< my-cost worst-cost) #t]
         ;; Take first by order as last tie-breaker
-        [else #f]))
+        [else
+         (expr<? (alt-expr altn) (alt-expr worst-alt))]))
 
     (when update?
       (set! worst-alt altn)
