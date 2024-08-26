@@ -342,9 +342,11 @@
     (cond
       [fpcore ; provided -> TODO: check free variables, props
        (match fpcore
-         [`(! ,props ... (,operator ,args ...)) (void)]
+         [`(! ,props ... (,operator ,args ...))
+          (unless (even? (length props))
+            (error 'register-operator-impl! "umatched property for ~a: ~a" name fpcore))]
          [`(,operator ,args ...) (void)]
-         [_ (raise-herbie-syntax-error "Invalid fpcore for ~a: ~a" name fpcore)])
+         [_ (error 'register-operator-impl! "Invalid fpcore for ~a: ~a" name fpcore)])
        fpcore]
       [else ; not provided => need to generate it
        (define repr (context-repr ctx))
