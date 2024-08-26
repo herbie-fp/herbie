@@ -189,6 +189,12 @@
 ;; LImpl -> FPCore
 ;; Translates from LImpl to an FPCore
 
+;; TODO: this process uses a batch-like data structure
+;; but _without_ deduplication since different use sites
+;; of a particular subexpression may have different
+;; parent rounding contexts. Would be nice to explore
+;; if the batch data structure can be used.
+
 ;; Instruction vector index
 (struct index (v) #:prefab)
 

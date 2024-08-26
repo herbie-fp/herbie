@@ -426,9 +426,6 @@
                (set! fl-expr #'expr)
                (loop #'(rest ...))])]
            [(#:fl) (oops! "expected value after keyword `#:fl`" stx)]
-           ; deprecated
-           [(#:op _ rest ...) (loop #'(rest ...))]
-           [(#:op) (oops! "expected value after keyword `#:operator`" stx)]
            ; bad
            [_ (oops! "bad syntax" fields)])))]
     [_ (oops! "bad syntax")]))
