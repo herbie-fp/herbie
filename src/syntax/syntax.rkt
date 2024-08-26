@@ -483,8 +483,10 @@
 (define (cast-impl? x)
   (and (symbol? x)
        (impl-exists? x)
-       (match (impl-info x 'spec)
-         [(list 'cast _) #t]
+       (match (impl-info x 'vars)
+         [(list v)
+          #:when (eq? (impl-info x 'spec) v)
+          #t]
          [_ #f])))
 
 (define (get-cast-impl irepr orepr #:impls [impls (all-active-operator-impls)])
