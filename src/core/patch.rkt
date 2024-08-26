@@ -131,7 +131,7 @@
   (define reprs (map (curryr repr-of (*context*)) exprs))
   (timeline-push! 'inputs (map ~a exprs))
   (define runner (make-egg-runner exprs reprs schedule #:context (*context*)))
-  ; variantss is a (listof batch)
+  ; variantss is a (listof batch))
   (define variantss (run-egg runner `(multi . ,extractor)))
 
   ; apply changelists

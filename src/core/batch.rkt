@@ -6,6 +6,7 @@
 (provide progs->batch
          batch->progs
          (struct-out batch)
+         batch-get-expr
          batch-ref
          expand-taylor
          empty-batch
@@ -33,6 +34,8 @@
                            vars
                            [nodes-length #:mutable]
                            [exprhash #:mutable]))
+
+;(define add-expr-to-exprhash
 
 (define (progs->batch exprs
                       #:timeline-push [timeline-push #f]
@@ -317,47 +320,46 @@
 
 ; Updates in-batch by adding new expressions
 ; Returns list of new roots
-#;(define (batch-add-expr! in-batch expr #:ignore-approx [ignore-approx #f])
-    (define exprhash (batch-exprhash in-batch))
-    (define icache '())
-    (define exprc (length (hash-keys exprhash)))
+(define (batch-add-expr! in-batch expr #:ignore-approx [ignore-approx #f])
+  (define exprhash (batch-exprhash in-batch))
+  (define icache '())
+  (define exprc (hash-count exprhash))
 
-    ; Translates programs into an instruction sequence of operations
-    (define (munge-ignore-approx prog)
-      (match prog ; approx nodes are ignored
-        [(approx _ impl) (munge-ignore-approx impl)]
-        [_
-         (define node ; This compiles to the register machine
-           (match prog
-             [(list op args ...) (cons op (map munge-ignore-approx args))]
-             [_ prog]))
-         (hash-ref! exprhash
-                    node
-                    (lambda ()
-                      (begin0 exprc ; store in cache, update exprs, exprc
-                        (set! exprc (+ 1 exprc))
-                        (set! icache (cons node icache)))))]))
+  (define (munge-ignore-approx prog)
+    (match prog ; approx nodes are ignored
+      [(approx _ impl) (munge-ignore-approx impl)]
+      [_
+       (define node ; This compiles to the register machine
+         (match prog
+           [(list op args ...) (cons op (map munge-ignore-approx args))]
+           [_ prog]))
+       (hash-ref! exprhash
+                  node
+                  (lambda ()
+                    (begin0 exprc ; store in cache, update exprs, exprc
+                      (set! exprc (+ 1 exprc))
+                      (set! icache (cons node icache)))))]))
 
-    ; Translates programs into an instruction sequence of operations
-    (define (munge-include-approx prog)
-      (define node ; This compiles to the register machine
-        (match prog
-          [(approx spec impl) (approx spec (munge-include-approx impl))]
-          [(list op args ...) (cons op (map munge-include-approx args))]
-          [_ prog]))
-      (hash-ref! exprhash
-                 node
-                 (lambda ()
-                   (begin0 exprc ; store in cache, update exprs, exprc
-                     (set! exprc (+ 1 exprc))
-                     (set! icache (cons node icache))))))
+  ; Translates programs into an instruction sequence of operations
+  (define (munge-include-approx prog)
+    (define node ; This compiles to the register machine
+      (match prog
+        [(approx spec impl) (approx spec (munge-include-approx impl))]
+        [(list op args ...) (cons op (map munge-include-approx args))]
+        [_ prog]))
+    (hash-ref! exprhash
+               node
+               (lambda ()
+                 (begin0 exprc ; store in cache, update exprs, exprc
+                   (set! exprc (+ 1 exprc))
+                   (set! icache (cons node icache))))))
 
-    (define root (if ignore-approx (munge-ignore-approx expr) (munge-include-approx expr)))
-    (set-batch-roots! in-batch (vector-append (batch-roots in-batch) (vector root)))
-    (set-batch-nodes! in-batch (vector-append (batch-nodes in-batch) (list->vector (reverse icache))))
-    (set-batch-nodes-length! in-batch (vector-length (batch-nodes in-batch)))
-    (set-batch-exprhash! in-batch exprhash)
-    root)
+  (define root (if ignore-approx (munge-ignore-approx expr) (munge-include-approx expr)))
+  (set-batch-alt-exprs! in-batch (vector-append (batch-alt-exprs in-batch) (vector root)))
+  (set-batch-nodes! in-batch (vector-append (batch-nodes in-batch) (list->vector (reverse icache))))
+  (set-batch-nodes-length! in-batch (vector-length (batch-nodes in-batch)))
+  (set-batch-exprhash! in-batch exprhash)
+  root)
 
 ; The function removes any zombie nodes from batch
 ; TODO: reconstruct exprhash
@@ -406,14 +408,29 @@
          0
          (make-hash)))
 
-(define (batch-ref batch reg)
-  (define (unmunge reg)
-    (define node (vector-ref (batch-nodes batch) reg))
+(define (in-batch batch)
+  (for/stream ([alt-expr (in-vector (batch-alt-exprs batch))]
+               [event (in-vector (batch-events batch))]
+               [prev (in-vector (batch-prevs batch))]
+               [preprocessing (in-vector (batch-preprocessings batch))]
+               [n (in-naturals)])
+              (values n alt-expr event prev preprocessing)))
+
+(define (batch-ref batch idx)
+  (vector (vector-ref (batch-alt-exprs batch) idx)
+          (vector-ref (batch-events batch) idx)
+          (vector-ref (batch-prevs batch) idx)
+          (vector-ref (batch-preprocessings batch) idx)))
+
+; Function returns a recovered expression from nodes with index idx
+(define (batch-get-expr batch idx)
+  (define (unmunge idx)
+    (define node (vector-ref (batch-nodes batch) idx))
     (match node
       [(approx spec impl) (approx spec (unmunge impl))]
       [(list op regs ...) (cons op (map unmunge regs))]
       [_ node]))
-  (unmunge reg))
+  (unmunge idx))
 
 ; Tests for expand-taylor
 (module+ test
@@ -486,14 +503,15 @@
                 (zombie-test #:nodes (vector 2 1/2 '(sqrt 0) '(cbrt 0) (approx '(* x x) 0) '(pow 1 4))
                              #:roots (vector 5 2))))
 
-#;(module+ test
-    (require rackunit)
-    (define (batch-add!-test expr1 expr2)
-      (define batch (progs->batch (list expr1)))
-      (define root (batch-add-expr! batch expr2))
-      (check-equal? (batch-ref batch root) expr2)
-      (batch->progs batch))
+(module+ test
+  (require rackunit)
+  (define (batch-add!-test exprs)
+    (define batch (empty-batch))
+    (for ([expr (in-list exprs)])
+      (batch-add-expr! batch expr))
+    (check-equal? exprs (batch->progs batch)))
 
-    (check-equal? '((* 3 (pow 5 (tan x))) (* (pow 3) (tan x)))
-                  (batch-add!-test '(* 3 (pow 5 (tan x))) '(* (pow 3) (tan x))))
-    (check-equal? '((* 2 3) (+ (* 2 3) 1)) (batch-add!-test '(* 2 3) '(+ (* 2 3) 1))))
+  (batch-add!-test '((* 3 (pow 5 (tan x))) (* (pow 3) (tan x))))
+  (batch-add!-test '((* 3 (pow 5 (tan x))) (* 3 (pow 5 (tan (* (pow 3) (tan x)))))
+                                           (* (pow 3) (tan x))))
+  (batch-add!-test '((* 2 3) (pow 2 3) (pow 2 (exp 3)) (+ (* 2 3) 1))))
