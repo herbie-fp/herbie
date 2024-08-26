@@ -149,8 +149,7 @@
         [(> my-cost worst-cost) #t]
         [(< my-cost worst-cost) #t]
         ;; Take first by order as last tie-breaker
-        [else
-         (expr<? (alt-expr altn) (alt-expr worst-alt))]))
+        [else (expr<? (alt-expr altn) (alt-expr worst-alt))]))
 
     (when update?
       (set! worst-alt altn)
