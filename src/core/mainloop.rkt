@@ -10,6 +10,7 @@
          "regimes.rkt"
          "simplify.rkt"
          "../utils/alternative.rkt"
+         "../utils/errors.rkt"
          "../utils/common.rkt"
          "explain.rkt"
          "patch.rkt"
@@ -353,7 +354,9 @@
     [(and (flag-set? 'reduce 'regimes)
           (> (length alts) 1)
           (equal? (representation-type repr) 'real)
-          (not (null? (context-vars ctx))))
+          (not (null? (context-vars ctx)))
+          (with-handlers ([exn:fail:user:herbie:missing? (const #f)])
+            (get-fpcore-impl '<= '() (list repr repr))))
      (define opts (pareto-regimes (sort alts < #:key (curryr alt-cost repr)) ctx))
      (for/list ([opt (in-list opts)])
        (combine-alts opt ctx))]
