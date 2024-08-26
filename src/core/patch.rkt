@@ -11,7 +11,8 @@
          "programs.rkt"
          "rules.rkt"
          "simplify.rkt"
-         "taylor.rkt")
+         "taylor.rkt"
+         "batch.rkt")
 
 (provide generate-candidates)
 
@@ -132,15 +133,28 @@
   (timeline-push! 'inputs (map ~a exprs))
   (define runner (make-egg-runner exprs reprs schedule #:context (*context*)))
   ; variantss is a (listof batch))
-  (define variantss (run-egg runner `(multi . ,extractor)))
+  (define batches (run-egg runner `(multi . ,extractor)))
 
   ; apply changelists
   (define rewritten
     (reap [sow]
-          (for ([variants (in-list variantss)]
+          (for ([batch (in-list batches)]
                 [altn (in-list altns)])
-            (for ([variant (in-list variants)])
+            (for ([variant (in-list (batch->progs batch))])
               (sow (alt variant (list 'rr runner #f #f) (list altn) '()))))))
+
+  ; batchified
+  (for ([batch (in-list batches)]
+        [altn (in-list altns)])
+    (for ([root (in-vector (batch-alt-exprs batch))]
+          [n (in-naturals)])
+      (define prev-root (batch-add-expr! batch altn))
+      (vector-set! (batch-events batch)
+                   n
+                   (cons (list 'rr runner #f #f) (vector-ref (batch-events batch) n)))
+      (vector-set! (batch-prevs batch) n (cons prev-root (vector-ref (batch-prevs batch) n)))))
+  ; TODO, check whether batchified is equal to sequential version
+
   (timeline-push! 'outputs (map (compose ~a alt-expr) rewritten))
   (timeline-push! 'count (length altns) (length rewritten))
   rewritten)

@@ -10,7 +10,8 @@
          batch-ref
          expand-taylor
          empty-batch
-         nodes->batch)
+         nodes->batch
+         batch-add-expr!)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Structure batch
@@ -34,8 +35,6 @@
                            vars
                            [nodes-length #:mutable]
                            [exprhash #:mutable]))
-
-;(define add-expr-to-exprhash
 
 (define (progs->batch exprs
                       #:timeline-push [timeline-push #f]

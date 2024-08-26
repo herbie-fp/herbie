@@ -1339,7 +1339,7 @@
      (define reprs (egg-runner-reprs runner))
      (for/list ([id (in-list root-ids)]
                 [repr (in-list reprs)])
-       (batch->progs (regraph-extract-variants regraph extract-id id repr)))]
+       (regraph-extract-variants regraph extract-id id repr))]
     [`(proofs . ((,start-exprs . ,end-exprs) ...)) ; proof extraction
      (for/list ([start (in-list start-exprs)]
                 [end (in-list end-exprs)])
