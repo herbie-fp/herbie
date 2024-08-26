@@ -126,13 +126,38 @@
     (if (hash-ref (alt-table-alt->done? atab) a) 1 0))
   (define (alt-cost a)
     (if (*pareto-mode*) (hash-ref (alt-table-alt->cost atab) a) (backup-alt-cost a)))
-  ;; Rank by multiple metrics
-  (define not-done (argmins alt-done? (set->list removable)))
-  (define least-best-points (argmins alt-num-points not-done))
-  (define worst-cost (argmaxs alt-cost least-best-points))
+
+  (define worst-alt #f)
+  (define worst-done? #f)
+  (define worst-num #f)
+  (define worst-cost #f)
+
   ;; The set may have non-deterministic behavior,
   ;; so we can only rely on some total order
-  (first (order-altns worst-cost)))
+  (for ([altn (order-altns (set->list removable))])
+    (define my-done? (alt-done? altn))
+    (define my-num (alt-num-points altn))
+    (define my-cost (alt-cost altn))
+
+    (define update?
+      (cond
+        [(not worst-alt) #t]
+        [(< my-done? worst-done?) #t]
+        [(> my-done? worst-done?) #f]
+        [(< my-num worst-num) #t]
+        [(> my-num worst-num) #f]
+        [(> my-cost worst-cost) #t]
+        [(< my-cost worst-cost) #t]
+        ;; Take first by order as last tie-breaker
+        [else #f]))
+
+    (when update?
+      (set! worst-alt altn)
+      (set! worst-done? my-done?)
+      (set! worst-num my-num)
+      (set! worst-cost my-cost)))
+
+  worst-alt)
 
 (define (atab-prune atab)
   (define sc (atab->set-cover atab))
