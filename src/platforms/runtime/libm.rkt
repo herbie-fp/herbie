@@ -65,7 +65,8 @@
        (with-syntax ([op op]
                      [name name]
                      [cname cname]
-                     [(var ...) (build-list (length itypes) (lambda (i) (string->symbol (format "x~a" i))))]
+                     [(var ...) (build-list (length itypes)
+                                            (lambda (i) (string->symbol (format "x~a" i))))]
                      [(itype ...) itypes]
                      [(citype ...) (map repr->type itypes)]
                      [cotype (repr->type #'otype)])

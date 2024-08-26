@@ -398,7 +398,6 @@
                           [spec spec]
                           [core core]
                           [fl-expr fl-expr])
-               (eprintf "~a\n" #'(var ...))
               #'(register-operator-impl! 'id
                                          (context '(var ...)
                                                   (get-representation 'rtype)
@@ -427,6 +426,10 @@
                (set! fl-expr #'expr)
                (loop #'(rest ...))])]
            [(#:fl) (oops! "expected value after keyword `#:fl`" stx)]
+           ; deprecated
+           [(#:operator _ rest ...) (loop #'(rest ...))]
+           [(#:operator) (oops! "expected value after keyword `#:operator`" stx)]
+           ; bad
            [_ (oops! "bad syntax" fields)])))]
     [_ (oops! "bad syntax")]))
 
