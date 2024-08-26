@@ -37,7 +37,7 @@
 
 (define (make-alt-table pcontext initial-alt ctx)
   (define cost (alt-cost* initial-alt (context-repr ctx)))
-  (alt-table (make-immutable-hasheq (for/list ([(pt ex) (in-pcontext pcontext)]
+  (alt-table (make-immutable-hash (for/list ([(pt ex) (in-pcontext pcontext)]
                                              [err (errors (alt-expr initial-alt) pcontext ctx)])
                                     (cons pt (list (pareto-point cost err (list initial-alt))))))
              (hasheq initial-alt
