@@ -131,6 +131,7 @@
   (define reprs (map (curryr repr-of (*context*)) exprs))
   (timeline-push! 'inputs (map ~a exprs))
   (define runner (make-egg-runner exprs reprs schedule #:context (*context*)))
+  ; variantss is a (listof batch)
   (define variantss (run-egg runner `(multi . ,extractor)))
 
   ; apply changelists
@@ -138,7 +139,7 @@
     (reap [sow]
           (for ([variants (in-list variantss)]
                 [altn (in-list altns)])
-            (for ([variant (in-list (remove-duplicates variants))])
+            (for ([variant (in-list variants)])
               (sow (alt variant (list 'rr runner #f #f) (list altn) '()))))))
   (timeline-push! 'outputs (map (compose ~a alt-expr) rewritten))
   (timeline-push! 'count (length altns) (length rewritten))

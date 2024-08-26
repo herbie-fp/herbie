@@ -64,7 +64,7 @@
         [(list 'if c t f) (list if-proc c t f)]
         [(list op args ...) (cons (impl-info op 'fl) args)])))
 
-  (make-progs-interpreter (batch-vars batch) instructions (batch-roots batch)))
+  (make-progs-interpreter (batch-vars batch) instructions (batch-alt-exprs batch)))
 
 ;; Compiles a program of operator implementations into a procedure
 ;; that evaluates the program on a single input of representation values

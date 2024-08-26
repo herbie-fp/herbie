@@ -16,7 +16,7 @@
   (define batch (expand-taylor (progs->batch exprs*)))
 
   (define taylor-approxs (taylor var batch))
-  (for/list ([root (in-vector (batch-roots batch))])
+  (for/list ([root (in-vector (batch-alt-exprs batch))])
     (match-define (cons offset coeffs) (vector-ref taylor-approxs root))
     (define i 0)
     (define terms '())
@@ -447,7 +447,7 @@
            "../syntax/load-plugin.rkt")
   (define batch (progs->batch (list '(pow x 1.0))))
   (set! batch (expand-taylor batch))
-  (define root (vector-ref (batch-roots batch) 0))
+  (define root (vector-ref (batch-alt-exprs batch) 0))
 
   (check-pred exact-integer? (car (vector-ref (taylor 'x batch) root))))
 
@@ -455,7 +455,7 @@
   (define (coeffs expr #:n [n 7])
     (define batch (progs->batch (list expr)))
     (set! batch (expand-taylor batch))
-    (define root (vector-ref (batch-roots batch) 0))
+    (define root (vector-ref (batch-alt-exprs batch) 0))
     (match-define fn (zero-series (vector-ref (taylor 'x batch) root)))
     (build-list n fn))
 

@@ -122,7 +122,7 @@
 
   (define expr-batch (progs->batch exprs-list #:ignore-approx #f))
   (define nodes (batch-nodes expr-batch))
-  (define roots (batch-roots expr-batch))
+  (define roots (batch-alt-exprs expr-batch))
 
   (define subexprs-fn (eval-progs-real (map prog->spec exprs-list) ctx-list))
 

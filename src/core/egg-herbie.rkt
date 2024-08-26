@@ -1088,7 +1088,7 @@
   (define egg->herbie (regraph-egg->herbie regraph))
   (define canon (regraph-canon regraph))
   ; Extract functions to extract exprs from egraph
-  (match-define (list _ build-expr _ _ _) extract)
+  (match-define (list unsafe-eclass-cost build-expr add-root clean-batch finalize-batch) extract)
   ; extract expr
   (define key (cons id type))
   (cond
@@ -1096,6 +1096,7 @@
     [(hash-has-key? canon key)
      (define id* (hash-ref canon key))
      (define egg-expr (build-expr id*))
+
      (list (egg-parsed->expr (flatten-let egg-expr) egg->herbie type))]
     ; no extractable expressions
     [else (list)]))
@@ -1148,6 +1149,7 @@
      (clean-batch)
      (for ([enode (vector-ref eclasses id*)])
        (add-root enode))
+     ; finalize batch removes duplicates in expressions if exist
      (define batch (finalize-batch))
 
      ; -------------------------- Debooging
@@ -1184,8 +1186,7 @@
            (sleep 5)))
      ; -------------------------
 
-     (remove-dupicates-roots! batch)
-     (batch->progs batch)]
+     batch]
     ; no extractable expressions
     [else (list)]))
 
@@ -1338,7 +1339,7 @@
      (define reprs (egg-runner-reprs runner))
      (for/list ([id (in-list root-ids)]
                 [repr (in-list reprs)])
-       (regraph-extract-variants regraph extract-id id repr))]
+       (batch->progs (regraph-extract-variants regraph extract-id id repr)))]
     [`(proofs . ((,start-exprs . ,end-exprs) ...)) ; proof extraction
      (for/list ([start (in-list start-exprs)]
                 [end (in-list end-exprs)])
