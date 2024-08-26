@@ -49,14 +49,22 @@
           (body (h2 "Result page for the " ,(~a command) " command is not available right now.")))
    out))
 
-(define (make-graph result out output? profile?)
-  (match-define (job-result _ test _ time _ warnings backend) result)
-  (define vars (test-vars test))
+(define (make-graph result-hash out output? profile?)
+  (define backend (hash-ref result-hash 'backend))
+  (define test (hash-ref result-hash 'test))
+  (define time (hash-ref result-hash 'time))
+  (define warnings (hash-ref result-hash 'warnings))
   (define repr (test-output-repr test))
   (define repr-bits (representation-total-bits repr))
   (define ctx (test-context test))
   (define identifier (test-identifier test))
-  (match-define (improve-result preprocessing pctxs start targets end bogosity) backend)
+
+  (define preprocessing (hash-ref backend 'preprocessing))
+  (define pctxs (hash-ref backend 'pctxs))
+  (define start (hash-ref backend 'start))
+  (define targets (hash-ref backend 'target))
+  (define end (hash-ref backend 'end))
+  (define bogosity (hash-ref backend 'bogosity))
 
   (match-define (alt-analysis start-alt _ start-error) start)
   (define start-cost (alt-cost start-alt repr))
@@ -69,23 +77,17 @@
     (for/list ([target targets])
       (alt-cost (alt-analysis-alt target) repr)))
 
-  (define-values (end-alts end-errors end-costs)
-    (for/lists (l1 l2 l3)
-               ([analysis end])
-               (match-define (alt-analysis alt _ test-errs) analysis)
-               (values alt test-errs (alt-cost alt repr))))
+  (define end-exprs (hash-ref end 'end-exprs))
+  (define end-errors (hash-ref end 'end-errors))
+  (define end-costs (hash-ref end 'end-costs))
 
   (define speedup
-    (let ([better (for/list ([alt end-alts]
-                             [err end-errors]
+    (let ([better (for/list ([err end-errors]
                              [cost end-costs]
                              #:when (<= (errors-score err) (errors-score start-error)))
                     (/ start-cost cost))])
       (and (not (null? better)) (apply max better))))
 
-  (match-define (list train-pctx test-pctx) pctxs)
-
-  (define end-alt (car end-alts))
   (define end-error (car end-errors))
 
   (write-html
@@ -114,7 +116,7 @@
                      (format-accuracy (apply max (map ulps->bits start-error)) repr-bits #:unit "%")
                      (format-accuracy (apply max (map ulps->bits end-error)) repr-bits #:unit "%")))
            ,(render-large "Time" (format-time time))
-           ,(render-large "Alternatives" (~a (length end-alts)))
+           ,(render-large "Alternatives" (~a (length end-exprs)))
            ,(if (*pareto-mode*)
                 (render-large "Speedup"
                               (if speedup (~r speedup #:precision '(= 1)) "N/A")
@@ -145,7 +147,7 @@
                       "?"))
                (div ((class "figure-row"))
                     (svg)
-                    (div (p "Herbie found " ,(~a (length end-alts)) " alternatives:")
+                    (div (p "Herbie found " ,(~a (length end-exprs)) " alternatives:")
                          (table (thead (tr (th "Alternative")
                                            (th ((class "numeric")) "Accuracy")
                                            (th ((class "numeric")) "Speedup")))
@@ -167,11 +169,13 @@
                        ,(render-help "report.html#alternatives"))
                    ,body))
       ,@(for/list ([i (in-naturals 1)]
-                   [alt end-alts]
+                   [expr end-exprs]
                    [errs end-errors]
-                   [cost end-costs])
+                   [cost end-costs]
+                   [history (hash-ref end 'end-histories)])
+
           (define-values (dropdown body)
-            (render-program (alt-expr alt) ctx #:ident identifier #:instructions preprocessing))
+            (render-program expr ctx #:ident identifier #:instructions preprocessing))
           `(section ([id ,(format "alternative~a" i)] (class "programs"))
                     (h2 "Alternative "
                         ,(~a i)
@@ -184,9 +188,7 @@
                         ,dropdown
                         ,(render-help "report.html#alternatives"))
                     ,body
-                    (details (summary "Derivation")
-                             (ol ((class "history"))
-                                 ,@(render-history alt train-pctx test-pctx ctx)))))
+                    (details (summary "Derivation") (ol ((class "history")) ,@history))))
       ,@(for/list ([i (in-naturals 1)]
                    [target (in-list targets)]
                    [target-error (in-list list-target-error)]

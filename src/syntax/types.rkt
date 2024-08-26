@@ -27,7 +27,8 @@
 (define (type-name? x)
   (hash-has-key? type-dict x))
 
-(define-syntax-rule (define-type name _ ...) (hash-set! type-dict 'name #t))
+(define-syntax-rule (define-type name _ ...)
+  (hash-set! type-dict 'name #t))
 
 (define-type real)
 (define-type bool)

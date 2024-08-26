@@ -3,6 +3,7 @@
 (require racket/place)
 (require "../utils/common.rkt"
          "sandbox.rkt"
+         "server.rkt"
          "../syntax/load-plugin.rkt"
          "../reports/pages.rkt"
          "../syntax/read.rkt"
@@ -17,6 +18,7 @@
   (format "~a-~a" index (substring replaced 0 (min (string-length replaced) 50))))
 
 (define (run-test index test #:seed seed #:profile profile? #:dir dir)
+  (define bad-id -1) ; TODO move this code to using server.rkt
   (cond
     [dir
      (define dirname (graph-folder-path (test-name test) index))
@@ -31,23 +33,24 @@
                                  #:exists 'replace
                                  (λ (pp) (run-herbie 'improve test #:seed seed #:profile? pp)))]
          [else (run-herbie test 'improve #:seed seed)]))
-
+     (define improve-hash (make-improve-result result test bad-id))
      (set-seed! seed)
      (define error? #f)
-     (for ([page (all-pages result)])
-       (call-with-output-file (build-path rdir page)
-                              #:exists 'replace
-                              (λ (out)
-                                (with-handlers ([exn:fail? (λ (e)
-                                                             ((page-error-handler result page out) e)
-                                                             (set! error? #t))])
-                                  (make-page page out result #t profile?)))))
+     (for ([page (all-pages improve-hash)])
+       (call-with-output-file
+        (build-path rdir page)
+        #:exists 'replace
+        (λ (out)
+          (with-handlers ([exn:fail? (λ (e)
+                                       ((page-error-handler improve-hash page out) e)
+                                       (set! error? #t))])
+            (make-page page out improve-hash #t profile?)))))
 
-     (define out (get-table-data result dirname))
+     (define out (get-table-data-from-hash improve-hash dirname))
      (if error? (struct-copy table-row out [status "crash"]) out)]
     [else
      (define result (run-herbie 'improve test #:seed seed))
-     (get-table-data result "")]))
+     (get-table-data-from-hash (make-improve-result result test bad-id) "")]))
 
 (define-syntax (place/context* stx)
   (syntax-case stx ()

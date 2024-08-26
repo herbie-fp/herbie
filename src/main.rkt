@@ -49,6 +49,7 @@
 
 (module+ main
   (define quiet? #f)
+  (define browser? #t)
   (define demo-output #f)
   (define demo-log #f)
   (define demo-prefix "/")
@@ -153,8 +154,15 @@
     [("--prefix") prefix "Prefix for proxying demo" (set! demo-prefix prefix)]
     [("--demo") "Run in Herbie web demo mode. Changes some text" (set! demo? true)]
     [("--quiet") "Print a smaller banner and don't start a browser." (set! quiet? true)]
+    [("--threads")
+     num
+     "How many jobs to run in parallel: Processor count is the default."
+     (set! threads (string->thread-count num))]
+    [("--no-browser") "Run the web demo but don't start a browser." (set! browser? #f)]
     #:args ()
     (run-demo #:quiet quiet?
+              #:threads threads
+              #:browser browser?
               #:output demo-output
               #:log demo-log
               #:prefix demo-prefix
