@@ -398,6 +398,7 @@
                           [spec spec]
                           [core core]
                           [fl-expr fl-expr])
+               (eprintf "~a\n" #'(var ...))
               #'(register-operator-impl! 'id
                                          (context '(var ...)
                                                   (get-representation 'rtype)

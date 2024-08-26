@@ -52,15 +52,22 @@
       [_ (oops! "unknown type" repr)]))
   (syntax-case stx ()
     [(_ cname (op name itype ...) otype fields ...)
-     (begin
-       (unless (identifier? #'cname)
-         (oops! "expected identifier" #'cname))
-       (unless (identifier? #'op)
-         (oops! "expected identifier" #'op))
-       (unless (identifier? #'name)
-         (oops! "expected identifier" #'name))
-       (with-syntax ([(var ...) (generate-temporaries #'(itype ...))]
-                     [(citype ...) (map repr->type (syntax->list #'(itype ...)))]
+     (let ([op #'op]
+           [name #'name]
+           [cname #'cname]
+           [itypes (syntax->list #'(itype ...))])
+       (unless (identifier? op)
+         (oops! "expected identifier" op))
+       (unless (identifier? name)
+         (oops! "expected identifier" name))
+       (unless (identifier? cname)
+         (oops! "expected identifier" cname))
+       (with-syntax ([op op]
+                     [name name]
+                     [cname cname]
+                     [(var ...) (build-list (length itypes) (lambda (i) (string->symbol (format "x~a" i))))]
+                     [(itype ...) itypes]
+                     [(citype ...) (map repr->type itypes)]
                      [cotype (repr->type #'otype)])
          #'(begin
              (define-libm proc (cname citype ... cotype))
