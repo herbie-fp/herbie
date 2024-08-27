@@ -342,10 +342,20 @@
     (cond
       [fpcore ; provided -> TODO: check free variables, props
        (match fpcore
-         [`(! ,props ... (,operator ,args ...))
+         [`(! ,props ... (,op ,args ...))
           (unless (even? (length props))
-            (error 'register-operator-impl! "umatched property for ~a: ~a" name fpcore))]
-         [`(,operator ,args ...) (void)]
+            (error 'register-operator-impl! "~a: umatched property in ~a" name fpcore))
+          (unless (symbol? op)
+            (error 'register-operator-impl! "~a: expected symbol `~a`" name op))
+          (for ([arg (in-list args)])
+            (unless (or (symbol? arg) (number? arg))
+              (error 'register-operator-impl! "~a: expected terminal `~a`" name arg)))]
+         [`(,op ,args ...)
+          (unless (symbol? op)
+            (error 'register-operator-impl! "~a: expected symbol `~a`" name op))
+          (for ([arg (in-list args)])
+            (unless (or (symbol? arg) (number? arg))
+              (error 'register-operator-impl! "~a: expected terminal `~a`" name arg)))]
          [_ (error 'register-operator-impl! "Invalid fpcore for ~a: ~a" name fpcore)])
        fpcore]
       [else ; not provided => need to generate it
