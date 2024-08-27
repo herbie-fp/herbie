@@ -22,12 +22,16 @@
          quasisyntax
          dict
          sym-append
+         gen-vars
          string-replace*
          format-time
          format-bits
          format-accuracy
          format-cost
          web-resource
+         prop-dict/c
+         props->dict
+         dict->props
          (all-from-out "../config.rkt"))
 
 (module+ test
@@ -268,11 +272,38 @@
 (define (web-resource [name #f])
   (if name (build-path web-resource-path name) web-resource-path))
 
-(define (sym-append . args)
-  (string->symbol (apply string-append (map ~a args))))
-
 (define/contract (string-replace* str changes)
   (-> string? (listof (cons/c string? string?)) string?)
   (for/fold ([str str]) ([change changes])
     (match-define (cons from to) change)
     (string-replace str from to)))
+
+;; Symbol generation
+
+(define (sym-append . args)
+  (string->symbol (apply string-append (map ~a args))))
+
+;; Generates a list of variables names.
+(define/contract (gen-vars n)
+  (-> natural? (listof symbol?))
+  (build-list n (lambda (i) (string->symbol (format "x~a" i)))))
+
+;; FPCore properties
+
+(define prop-dict/c (listof (cons/c symbol? any/c)))
+
+;; Prop list to dict
+(define/contract (props->dict props)
+  (-> list? (listof (cons/c symbol? any/c)))
+  (let loop ([props props]
+             [dict '()])
+    (match props
+      [(list key val rest ...) (loop rest (dict-set dict key val))]
+      [(list key) (error 'props->dict "unmatched key" key)]
+      [(list) dict])))
+
+(define/contract (dict->props prop-dict)
+  (-> (listof (cons/c symbol? any/c)) list?)
+  (apply append
+         (for/list ([(k v) (in-dict prop-dict)])
+           (list k v))))

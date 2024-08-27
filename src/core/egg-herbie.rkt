@@ -11,6 +11,7 @@
 
 (require "programs.rkt"
          "rules.rkt"
+         "../syntax/matcher.rkt"
          "../syntax/platform.rkt"
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
@@ -996,6 +997,19 @@
 (define (fraction-with-odd-denominator? frac)
   (and (rational? frac) (let ([denom (denominator frac)]) (and (> denom 1) (odd? denom)))))
 
+;; Decompose an e-node representing an impl of `(pow b e)`.
+;; Returns either `#f` or the `(cons b e)`
+(define (pow-impl-args impl args)
+  (define vars (impl-info impl 'vars))
+  (match (impl-info impl 'spec)
+    [(list 'pow b e)
+     #:when (set-member? vars e)
+     (define env (map cons vars args))
+     (define b* (dict-ref env b b))
+     (define e* (dict-ref env e e))
+     (cons b* e*)]
+    [_ #f]))
+
 ;; Old cost model version
 (define (default-egg-cost-proc regraph cache node type rec)
   (match node
@@ -1005,12 +1019,12 @@
     [(list '$approx _ impl) (rec impl)]
     [(list 'if cond ift iff) (+ 1 (rec cond) (rec ift) (rec iff))]
     [(list (? impl-exists? impl) args ...)
-     (cond
-       [(equal? (impl->operator impl) 'pow)
-        (match-define (list b e) args)
-        (define n (vector-ref (regraph-constants regraph) e))
-        (if (fraction-with-odd-denominator? n) +inf.0 (+ 1 (rec b) (rec e)))]
-       [else (apply + 1 (map rec args))])]
+     (match (pow-impl-args impl args)
+       [(cons _ e)
+        #:when (let ([n (vector-ref (regraph-constants regraph) e)])
+                 (fraction-with-odd-denominator? n))
+        +inf.0]
+       [_ (apply + 1 (map rec args))])]
     [(list 'pow b e)
      (define n (vector-ref (regraph-constants regraph) e))
      (if (fraction-with-odd-denominator? n) +inf.0 (+ 1 (rec b) (rec e)))]

@@ -285,7 +285,7 @@
           (make-path job-id)))
 
 (define (make-local-error-result herbie-result test job-id)
-  (define expr (prog->fpcore (test-input test)))
+  (define expr (prog->fpcore (test-input test) (test-context test)))
   (define local-error (job-result-backend herbie-result))
   ;; TODO: potentially unsafe if resugaring changes the AST
   (define tree

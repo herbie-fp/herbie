@@ -80,7 +80,6 @@
                  lgamma.f64
                  log.f64
                  log10.f64
-                 log1p.f64
                  log2.f64
                  logb.f64
                  pow.f64
@@ -122,7 +121,6 @@
                  lgamma.f32
                  log.f32
                  log10.f32
-                 log1p.f32
                  log2.f32
                  logb.f32
                  pow.f32
