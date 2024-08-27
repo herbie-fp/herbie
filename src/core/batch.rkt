@@ -26,17 +26,14 @@
 
 (define (batch-length b)
   (cond
-    [(batch? b)
-     (vector-length (batch-nodes b))]
-    [(mutable-batch? b)
-     (hash-count (mutable-batch-index b))]
-    [else
-     (error 'batch-length "Invalid batch" b)]))
+    [(batch? b) (vector-length (batch-nodes b))]
+    [(mutable-batch? b) (hash-count (mutable-batch-index b))]
+    [else (error 'batch-length "Invalid batch" b)]))
 
-(struct mutable-batch ([nodes #:mutable] [index #:mutable]))
+(struct mutable-batch ([nodes #:mutable] [index #:mutable] [vars #:mutable]))
 
 (define (make-mutable-batch)
-  (mutable-batch '() (make-hash)))
+  (mutable-batch '() (make-hash) '()))
 
 (define (batch-push! b term)
   (define hashcons (mutable-batch-index b))
@@ -46,23 +43,20 @@
                (let ([new-idx (hash-count hashcons)])
                  (hash-set! hashcons term new-idx)
                  (set-mutable-batch-nodes! b (cons term (mutable-batch-nodes b)))
+                 (when (symbol? term)
+                   (set-mutable-batch-vars! b (cons term (mutable-batch-vars b))))
                  new-idx))))
 
-(define (mutable-batch->immutable b)
-  (batch (list->vector (reverse (mutable-batch-nodes b)))
-         '()
-         '()))
+(define (mutable-batch->immutable b roots)
+  (batch (list->vector (reverse (mutable-batch-nodes b))) roots (reverse (mutable-batch-vars b))))
 
 (struct batchref (batch idx))
 
 (define (deref x)
   (match-define (batchref b idx) x)
-  (expr-recurse (vector-ref (batch-nodes b) idx)
-                (lambda (ref) (batchref b ref))))
+  (expr-recurse (vector-ref (batch-nodes b) idx) (lambda (ref) (batchref b ref))))
 
-(define (progs->batch exprs
-                      #:timeline-push [timeline-push #f]
-                      #:vars [vars '()])
+(define (progs->batch exprs #:timeline-push [timeline-push #f] #:vars [vars '()])
 
   (define out (make-mutable-batch))
   (for ([var (in-list vars)])
@@ -74,16 +68,16 @@
     (batch-push! out (expr-recurse prog munge)))
 
   (define roots (list->vector (map munge exprs)))
-  (define final (struct-copy batch (mutable-batch->immutable out) [roots roots]))
+  (define final (mutable-batch->immutable out roots))
   (when timeline-push
     (timeline-push! 'compiler size (batch-length final)))
   final)
 
 (define (batch->progs b)
   (define exprs (make-vector (batch-length b)))
-  (for ([node (in-vector (batch-nodes b))] [idx (in-naturals)])
-    (vector-set! exprs idx
-                 (expr-recurse node (lambda (x) (vector-ref exprs x)))))
+  (for ([node (in-vector (batch-nodes b))]
+        [idx (in-naturals)])
+    (vector-set! exprs idx (expr-recurse node (lambda (x) (vector-ref exprs x)))))
   (for/list ([root (batch-roots b)])
     (vector-ref exprs root)))
 
@@ -97,7 +91,8 @@
 (define (batch-replace b f)
   (define out (make-mutable-batch))
   (define mapping (make-vector (batch-length b) -1))
-  (for ([node (in-vector (batch-nodes b))] [idx (in-naturals)])
+  (for ([node (in-vector (batch-nodes b))]
+        [idx (in-naturals)])
     (define replacement (f (expr-recurse node (lambda (x) (batchref b x)))))
     (define final-idx
       (let loop ([expr replacement])
@@ -108,12 +103,10 @@
            (when (= -1 (vector-ref mapping idx))
              (error 'batch-replace "Replacement ~a references unknown index ~a" replacement idx))
            (vector-ref mapping idx)]
-          [_
-           (batch-push! out (expr-recurse expr loop))])))
+          [_ (batch-push! out (expr-recurse expr loop))])))
     (vector-set! mapping idx final-idx))
-  (struct-copy batch (mutable-batch->immutable out)
-               [roots (vector-map (curry vector-ref mapping) (batch-roots b))]
-               [vars (batch-vars b)]))
+  (define roots (vector-map (curry vector-ref mapping) (batch-roots b)))
+  (mutable-batch->immutable out roots))
 
 (define (expand-taylor input-batch)
   (batch-replace
@@ -124,24 +117,15 @@
        [(list 'pow base (app deref 1/2)) `(sqrt ,base)]
        [(list 'pow base (app deref 1/3)) `(cbrt ,base)]
        [(list 'pow base (app deref 2/3)) `(cbrt (* ,base ,base))]
-       [(list 'pow base (and power (app deref (? exact-integer?))))
-        (list 'pow base power)]
-       [(list 'pow base power)
-        `(exp (* ,power (log ,base)))]
-       [(list 'tan arg)
-        `(/ (sin ,arg) (cos ,arg))]
-       [(list 'cosh arg)
-        `(* 1/2 (+ (exp ,arg) (/ 1 (exp ,arg))))]
-       [(list 'sinh arg)
-        `(* 1/2 (+ (exp ,arg) (/ -1 (exp ,arg))))]
-       [(list 'tanh arg)
-        `(/ (+ (exp ,arg) (neg (/ 1 (exp ,arg)))) (+ (exp ,arg) (/ 1 (exp ,arg))))]
-       [(list 'asinh arg)
-        `(log (+ ,arg (sqrt (+ (* ,arg ,arg) 1))))]
-       [(list 'acosh arg)
-        `(log (+ ,arg (sqrt (+ (* ,arg ,arg) -1))))]
-       [(list 'atanh arg)
-        `(* 1/2 (log (/ (+ 1 ,arg) (+ 1 (neg ,arg)))))]
+       [(list 'pow base (and power (app deref (? exact-integer?)))) (list 'pow base power)]
+       [(list 'pow base power) `(exp (* ,power (log ,base)))]
+       [(list 'tan arg) `(/ (sin ,arg) (cos ,arg))]
+       [(list 'cosh arg) `(* 1/2 (+ (exp ,arg) (/ 1 (exp ,arg))))]
+       [(list 'sinh arg) `(* 1/2 (+ (exp ,arg) (/ -1 (exp ,arg))))]
+       [(list 'tanh arg) `(/ (+ (exp ,arg) (neg (/ 1 (exp ,arg)))) (+ (exp ,arg) (/ 1 (exp ,arg))))]
+       [(list 'asinh arg) `(log (+ ,arg (sqrt (+ (* ,arg ,arg) 1))))]
+       [(list 'acosh arg) `(log (+ ,arg (sqrt (+ (* ,arg ,arg) -1))))]
+       [(list 'atanh arg) `(* 1/2 (log (/ (+ 1 ,arg) (+ 1 (neg ,arg)))))]
        [_ node]))))
 
 ; The function removes any zombie nodes from batch
