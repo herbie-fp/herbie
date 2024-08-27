@@ -77,7 +77,7 @@
 (define (taylor var expr-batch)
   "Return a pair (e, n), such that expr ~= e var^n"
   (define nodes (batch-nodes expr-batch))
-  (define taylor-approxs (make-vector (batch-nodes-length expr-batch))) ; vector of approximations
+  (define taylor-approxs (make-vector (batch-length expr-batch))) ; vector of approximations
 
   (for ([node (in-vector nodes)]
         [n (in-naturals)])
