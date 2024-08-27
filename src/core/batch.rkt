@@ -8,9 +8,7 @@
          (struct-out batch)
          batch-length
          batch-ref
-         batch-replace
-         expand-taylor
-         batch-remove-approx)
+         batch-replace)
 
 ;; This function defines the recursive structure of expressions
 
@@ -81,13 +79,6 @@
   (for/list ([root (batch-roots b)])
     (vector-ref exprs root)))
 
-(define (batch-remove-approx batch)
-  (batch-replace batch
-                 (lambda (node)
-                   (match node
-                     [(approx spec impl) impl]
-                     [node node]))))
-
 (define (batch-replace b f)
   (define out (make-mutable-batch))
   (define mapping (make-vector (batch-length b) -1))
@@ -107,26 +98,6 @@
     (vector-set! mapping idx final-idx))
   (define roots (vector-map (curry vector-ref mapping) (batch-roots b)))
   (mutable-batch->immutable out roots))
-
-(define (expand-taylor input-batch)
-  (batch-replace
-   input-batch
-   (lambda (node)
-     (match node
-       [(list '- ref1 ref2) `(+ ,ref1 (neg ,ref2))]
-       [(list 'pow base (app deref 1/2)) `(sqrt ,base)]
-       [(list 'pow base (app deref 1/3)) `(cbrt ,base)]
-       [(list 'pow base (app deref 2/3)) `(cbrt (* ,base ,base))]
-       [(list 'pow base (and power (app deref (? exact-integer?)))) (list 'pow base power)]
-       [(list 'pow base power) `(exp (* ,power (log ,base)))]
-       [(list 'tan arg) `(/ (sin ,arg) (cos ,arg))]
-       [(list 'cosh arg) `(* 1/2 (+ (exp ,arg) (/ 1 (exp ,arg))))]
-       [(list 'sinh arg) `(* 1/2 (+ (exp ,arg) (/ -1 (exp ,arg))))]
-       [(list 'tanh arg) `(/ (+ (exp ,arg) (neg (/ 1 (exp ,arg)))) (+ (exp ,arg) (/ 1 (exp ,arg))))]
-       [(list 'asinh arg) `(log (+ ,arg (sqrt (+ (* ,arg ,arg) 1))))]
-       [(list 'acosh arg) `(log (+ ,arg (sqrt (+ (* ,arg ,arg) -1))))]
-       [(list 'atanh arg) `(* 1/2 (log (/ (+ 1 ,arg) (+ 1 (neg ,arg)))))]
-       [_ node]))))
 
 ; The function removes any zombie nodes from batch
 (define (remove-zombie-nodes input-batch)

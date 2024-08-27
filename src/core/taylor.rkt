@@ -34,6 +34,27 @@
          (simplify (make-horner ((cdr tform) var) (reverse terms)))]))
     next))
 
+;; Our Taylor expander prefers sin, cos, exp, log, neg over trig, htrig, pow, and subtraction
+(define (expand-taylor input-batch)
+  (batch-replace
+   input-batch
+   (lambda (node)
+     (match node
+       [(list '- ref1 ref2) `(+ ,ref1 (neg ,ref2))]
+       [(list 'pow base (app deref 1/2)) `(sqrt ,base)]
+       [(list 'pow base (app deref 1/3)) `(cbrt ,base)]
+       [(list 'pow base (app deref 2/3)) `(cbrt (* ,base ,base))]
+       [(list 'pow base (and power (app deref (? exact-integer?)))) `(pow base power)]
+       [(list 'pow base power) `(exp (* ,power (log ,base)))]
+       [(list 'tan arg) `(/ (sin ,arg) (cos ,arg))]
+       [(list 'cosh arg) `(* 1/2 (+ (exp ,arg) (/ 1 (exp ,arg))))]
+       [(list 'sinh arg) `(* 1/2 (+ (exp ,arg) (/ -1 (exp ,arg))))]
+       [(list 'tanh arg) `(/ (+ (exp ,arg) (neg (/ 1 (exp ,arg)))) (+ (exp ,arg) (/ 1 (exp ,arg))))]
+       [(list 'asinh arg) `(log (+ ,arg (sqrt (+ (* ,arg ,arg) 1))))]
+       [(list 'acosh arg) `(log (+ ,arg (sqrt (+ (* ,arg ,arg) -1))))]
+       [(list 'atanh arg) `(* 1/2 (log (/ (+ 1 ,arg) (+ 1 (neg ,arg)))))]
+       [_ node]))))
+
 (define (make-horner var terms [start 0])
   (match terms
     ['() 0]

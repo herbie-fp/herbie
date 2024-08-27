@@ -50,6 +50,13 @@
 (define (if-proc c a b)
   (if c a b))
 
+(define (batch-remove-approx batch)
+  (batch-replace batch
+                 (lambda (node)
+                   (match node
+                     [(approx spec impl) impl]
+                     [node node]))))
+
 ;; Translates a Herbie IR into an interpretable IR.
 ;; Requires some hooks to complete the translation.
 (define (make-compiler exprs vars)
