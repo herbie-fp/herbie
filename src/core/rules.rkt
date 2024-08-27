@@ -197,12 +197,6 @@
                  [distribute-lft1-in (+ (* b a) a) (* (+ b 1) a)]
                  [distribute-rgt1-in (+ a (* c a)) (* (+ c 1) a)])
 
-(define-ruleset* cancel-sign-fp-safe
-                 (arithmetic simplify fp-safe sound)
-                 #:type ([a real] [b real] [c real])
-                 [cancel-sign-sub (- a (* (neg b) c)) (+ a (* b c))]
-                 [cancel-sign-sub-inv (- a (* b c)) (+ a (* (neg b) c))])
-
 ; Difference of squares
 (define-ruleset* difference-of-squares-canonicalize
                  (polynomials simplify sound)
@@ -233,36 +227,6 @@
                  [rgt-mult-inverse (* a (/ 1 a)) 1]
                  [lft-mult-inverse (* (/ 1 a) a) 1])
 
-(define-ruleset* id-reduce-fp-safe-nan
-                 (arithmetic simplify fp-safe-nan sound)
-                 #:type ([a real])
-                 [+-inverses (- a a) 0]
-                 [div0 (/ 0 a) 0]
-                 [mul0-lft (* 0 a) 0]
-                 [mul0-rgt (* a 0) 0]
-                 [*-inverses (/ a a) 1])
-
-(define-ruleset* id-reduce-fp-safe
-                 (arithmetic simplify fp-safe sound)
-                 #:type ([a real])
-                 [+-lft-identity (+ 0 a) a]
-                 [+-rgt-identity (+ a 0) a]
-                 [--rgt-identity (- a 0) a]
-                 [sub0-neg (- 0 a) (neg a)]
-                 [remove-double-neg (neg (neg a)) a]
-                 [*-lft-identity (* 1 a) a]
-                 [*-rgt-identity (* a 1) a]
-                 [/-rgt-identity (/ a 1) a]
-                 [mul-1-neg (* -1 a) (neg a)])
-
-(define-ruleset* nan-transform-fp-safe
-                 (arithmetic simplify fp-safe sound)
-                 #:type ([a real] [b real])
-                 [sub-neg (- a b) (+ a (neg b))]
-                 [unsub-neg (+ a (neg b)) (- a b)]
-                 [neg-sub0 (neg b) (- 0 b)]
-                 [neg-mul-1 (neg a) (* -1 a)])
-
 (define-ruleset* id-transform-safe
                  (arithmetic sound)
                  #:type ([a real] [b real])
@@ -273,11 +237,6 @@
                  (arithmetic)
                  #:type ([a real] [b real])
                  [clear-num (/ a b) (/ 1 (/ b a))])
-
-(define-ruleset* id-transform-fp-safe
-                 (arithmetic fp-safe sound)
-                 #:type ([a real])
-                 [*-un-lft-identity a (* 1 a)])
 
 ; Difference of cubes
 (define-ruleset*

@@ -57,19 +57,31 @@
                                [distribute-rgt-neg-in (neg.f64 (* a b)) (* a (neg.f64 b))]
                                [distribute-neg-in (neg.f64 (+ a b)) (+ (neg a) (neg b))]
                                [distribute-neg-frac (neg.f64 (/ x y)) (/ (neg.f64 x) y)]
-                               [distribute-neg-frac2 (neg.f64 (/ x y)) (/ x (neg.f64 y))]))
+                               [distribute-neg-frac2 (neg.f64 (/ x y)) (/ x (neg.f64 y))]
+                               [remove-double-neg (neg.f32 (neg.f32 a)) a]
+                               [neg-sub0 (neg.f64 b) (- 0 b)]
+                               [neg-mul-1 (neg.f64 a) (* -1 a)]))
 (define-operator-impl (+.f64 [x : binary64] [y : binary64])
                       binary64
                       #:spec (+ x y)
                       #:fpcore (! :precision binary64 (+ x y))
                       #:fl fl64+
                       #:identities
-                      (#:commutes [distribute-neg-out (+.f64 (neg a) (neg b)) (neg (+.f64 a b))]))
+                      (#:commutes [distribute-neg-out (+.f64 (neg a) (neg b)) (neg (+.f64 a b))]
+                                  [+-lft-identity (+.f64 0 a) a]
+                                  [+-rgt-identity (+.f64 a 0) a]
+                                  [unsub-neg (+.f64 a (neg b)) (- a b)]))
 (define-operator-impl (-.f64 [x : binary64] [y : binary64])
                       binary64
                       #:spec (- x y)
                       #:fpcore (! :precision binary64 (- x y))
-                      #:fl fl64-)
+                      #:fl fl64-
+                      #:identities ([cancel-sign-sub (-.f64 a (* (neg b) c)) (+ a (* b c))]
+                                    [cancel-sign-sub-inv (-.f64 a (* b c)) (+ a (* (neg b) c))]
+                                    [+-inverses (-.f64 a a) 0]
+                                    [--rgt-identity (-.f64 a 0) a]
+                                    [sub0-neg (-.f64 0 a) (neg a)]
+                                    [sub-neg (-.f64 a b) (+ a (neg b))]))
 (define-operator-impl (*.f64 [x : binary64] [y : binary64])
                       binary64
                       #:spec (* x y)
@@ -77,7 +89,13 @@
                       #:fl fl64*
                       #identities
                       (#:commutes [distribute-lft-neg-out (*.f64 (neg x) y) (neg (*.f64 x y))]
-                                  [distribute-rgt-neg-out (*.f64 x (neg y)) (neg (*.f64 x y))]))
+                                  [distribute-rgt-neg-out (*.f64 x (neg y)) (neg (*.f64 x y))]
+                                  [mul0-lft (*.f64 0 a) 0]
+                                  [mul0-rgt (*.f64 a 0) 0]
+                                  [*-lft-identity (*.f64 1 a) a]
+                                  [*-rgt-identity (*.f64 a 1) a]
+                                  [mul-1-neg (*.f64 -1 a) (neg a)]
+                                  [*-un-lft-identity a (*.f64 1 a)]))
 (define-operator-impl (/.f64 [x : binary64] [y : binary64])
                       binary64
                       #:spec (/ x y)
@@ -85,7 +103,10 @@
                       #:fl fl64/
                       #identities
                       ([distribute-frac-neg (/.f64 (neg x) y) (neg (/.f64 x y))]
-                       [distribute-frac-neg2 (/.f64 x (neg y)) (neg (/.f64 x y))]))
+                       [distribute-frac-neg2 (/.f64 x (neg y)) (neg (/.f64 x y))]
+                       [div0 (/.f64 0 a) 0]
+                       [*-inverses (/.f64 a a) 1]
+                       [/-rgt-identity (/.f64 a 1) a]))
 
 (define-libm-impls/binary64 [(binary64 binary64)
                              (acos acosh

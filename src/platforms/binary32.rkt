@@ -57,19 +57,31 @@
                                [distribute-rgt-neg-in (neg.f32 (* a b)) (* a (neg.f32 b))]
                                [distribute-neg-in (neg.f32 (+ a b)) (+ (neg a) (neg b))]
                                [distribute-neg-frac (neg.f32 (/ x y)) (/ (neg.f32 x) y)]
-                               [distribute-neg-frac2 (neg.f32 (/ x y)) (/ x (neg.f32 y))]))
+                               [distribute-neg-frac2 (neg.f32 (/ x y)) (/ x (neg.f32 y))]
+                               [remove-double-neg (neg.f32 (neg.f32 a)) a]
+                               [neg-sub0 (neg.f64 b) (- 0 b)]
+                               [neg-mul-1 (neg.f64 a) (* -1 a)]))
 (define-operator-impl (+.f32 [x : binary32] [y : binary32])
                       binary32
                       #:spec (+ x y)
                       #:fpcore (! :precision binary32 (+ x y))
                       #:fl fl32+
                       #:identities
-                      (#:commutes [distribute-neg-out (+.f32 (neg a) (neg b)) (neg (+.f32 a b))]))
+                      (#:commutes [distribute-neg-out (+.f32 (neg a) (neg b)) (neg (+.f32 a b))]
+                                  [+-lft-identity (+.f32 0 a) a]
+                                  [+-rgt-identity (+.f32 a 0) a]
+                                  [unsub-neg (+.f32 a (neg b)) (- a b)]))
 (define-operator-impl (-.f32 [x : binary32] [y : binary32])
                       binary32
                       #:spec (- x y)
                       #:fpcore (! :precision binary32 (- x y))
-                      #:fl fl32-)
+                      #:fl fl32-
+                      #:identities ([cancel-sign-sub (-.f32 a (* (neg b) c)) (+ a (* b c))]
+                                    [cancel-sign-sub-inv (-.f32 a (* b c)) (+ a (* (neg b) c))]
+                                    [+-inverses (-.f32 a a) 0]
+                                    [--rgt-identity (-.f64 a 0) a]
+                                    [sub0-neg (-.f64 0 a) (neg a)]
+                                    [sub-neg (-.f32 a b) (+ a (neg b))]))
 (define-operator-impl (*.f32 [x : binary32] [y : binary32])
                       binary32
                       #:spec (* x y)
@@ -77,7 +89,13 @@
                       #:fl fl32*
                       #identities
                       (#:commutes [distribute-lft-neg-out (*.f32 (neg x) y) (neg (*.f32 x y))]
-                                  [distribute-rgt-neg-out (*.f32 x (neg y)) (neg (*.f32 x y))]))
+                                  [distribute-rgt-neg-out (*.f32 x (neg y)) (neg (*.f32 x y))]
+                                  [mul0-lft (*.f32 0 a) 0]
+                                  [mul0-rgt (*.f32 a 0) 0]
+                                  [*-lft-identity (*.f32 1 a) a]
+                                  [*-rgt-identity (*.f32 a 1) a]
+                                  [mul-1-neg (*.f32 -1 a) (neg a)]
+                                  [*-un-lft-identity a (*.f32 1 a)]))
 (define-operator-impl (/.f32 [x : binary32] [y : binary32])
                       binary32
                       #:spec (/ x y)
@@ -85,7 +103,10 @@
                       #:fl fl32/
                       #identities
                       ([distribute-frac-neg (/.f32 (neg x) y) (neg (/.f32 x y))]
-                       [distribute-frac-neg2 (/.f32 x (neg y)) (neg (/.f32 x y))]))
+                       [distribute-frac-neg2 (/.f32 x (neg y)) (neg (/.f32 x y))]
+                       [div0 (/.f32 0 a) 0]
+                       [*-inverses (/.f32 a a) 1]
+                       [/-rgt-identity (/.f32 a 1) a]))
 
 (define-libm-impls/binary32 [(binary32 binary32)
                              (acos acosh
