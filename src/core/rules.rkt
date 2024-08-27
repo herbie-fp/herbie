@@ -160,13 +160,6 @@
     [(define-ruleset* name groups #:type ([var type] ...) [rname input output] ...)
      (register-ruleset*! 'name 'groups `((var . type) ...) '((rname input output) ...))]))
 
-; Commutativity
-(define-ruleset* commutativity
-                 (arithmetic simplify fp-safe sound)
-                 #:type ([a real] [b real])
-                 [+-commutative (+ a b) (+ b a)]
-                 [*-commutative (* a b) (* b a)])
-
 ; Associativity
 (define-ruleset* associativity
                  (arithmetic simplify sound)
@@ -203,21 +196,6 @@
                  [distribute-rgt-out-- (- (* b a) (* c a)) (* a (- b c))]
                  [distribute-lft1-in (+ (* b a) a) (* (+ b 1) a)]
                  [distribute-rgt1-in (+ a (* c a)) (* (+ c 1) a)])
-
-; Safe Distributiviity
-(define-ruleset* distributivity-fp-safe
-                 (arithmetic simplify fp-safe sound)
-                 #:type ([a real] [b real])
-                 [distribute-lft-neg-in (neg (* a b)) (* (neg a) b)]
-                 [distribute-rgt-neg-in (neg (* a b)) (* a (neg b))]
-                 [distribute-lft-neg-out (* (neg a) b) (neg (* a b))]
-                 [distribute-rgt-neg-out (* a (neg b)) (neg (* a b))]
-                 [distribute-neg-in (neg (+ a b)) (+ (neg a) (neg b))]
-                 [distribute-neg-out (+ (neg a) (neg b)) (neg (+ a b))]
-                 [distribute-frac-neg (/ (neg a) b) (neg (/ a b))]
-                 [distribute-frac-neg2 (/ a (neg b)) (neg (/ a b))]
-                 [distribute-neg-frac (neg (/ a b)) (/ (neg a) b)]
-                 [distribute-neg-frac2 (neg (/ a b)) (/ a (neg b))])
 
 (define-ruleset* cancel-sign-fp-safe
                  (arithmetic simplify fp-safe sound)

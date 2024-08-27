@@ -50,27 +50,42 @@
                       binary64
                       #:spec (neg x)
                       #:fpcore (! :precision binary64 (- x))
-                      #:fl -)
+                      #:fl fl64-
+                      #identities
+                      (#:exact (neg.f64 x)
+                               [distribute-lft-neg-in (neg.f64 (* a b)) (* (neg.f64 a) b)]
+                               [distribute-rgt-neg-in (neg.f64 (* a b)) (* a (neg.f64 b))]
+                               [distribute-neg-in (neg.f64 (+ a b)) (+ (neg a) (neg b))]
+                               [distribute-neg-frac (neg.f64 (/ x y)) (/ (neg.f64 x) y)]
+                               [distribute-neg-frac2 (neg.f64 (/ x y)) (/ x (neg.f64 y))]))
 (define-operator-impl (+.f64 [x : binary64] [y : binary64])
                       binary64
                       #:spec (+ x y)
                       #:fpcore (! :precision binary64 (+ x y))
-                      #:fl +)
+                      #:fl fl64+
+                      #:identities
+                      (#:commutes [distribute-neg-out (+.f64 (neg a) (neg b)) (neg (+.f64 a b))]))
 (define-operator-impl (-.f64 [x : binary64] [y : binary64])
                       binary64
                       #:spec (- x y)
                       #:fpcore (! :precision binary64 (- x y))
-                      #:fl -)
+                      #:fl fl64-)
 (define-operator-impl (*.f64 [x : binary64] [y : binary64])
                       binary64
                       #:spec (* x y)
                       #:fpcore (! :precision binary64 (* x y))
-                      #:fl *)
+                      #:fl fl64*
+                      #identities
+                      (#:commutes [distribute-lft-neg-out (*.f64 (neg x) y) (neg (*.f64 x y))]
+                                  [distribute-rgt-neg-out (*.f64 x (neg y)) (neg (*.f64 x y))]))
 (define-operator-impl (/.f64 [x : binary64] [y : binary64])
                       binary64
                       #:spec (/ x y)
                       #:fpcore (! :precision binary64 (/ x y))
-                      #:fl /)
+                      #:fl fl64/
+                      #identities
+                      ([distribute-frac-neg (/.f64 (neg x) y) (neg (/.f64 x y))]
+                       [distribute-frac-neg2 (/.f64 x (neg y)) (neg (/.f64 x y))]))
 
 (define-libm-impls/binary64 [(binary64 binary64)
                              (acos acosh

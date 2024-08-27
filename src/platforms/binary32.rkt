@@ -50,12 +50,21 @@
                       binary32
                       #:spec (neg x)
                       #:fpcore (! :precision binary32 (- x))
-                      #:fl fl32-)
+                      #:fl fl32-
+                      #identities
+                      (#:exact (neg.f32 x)
+                               [distribute-lft-neg-in (neg.f32 (* a b)) (* (neg.f32 a) b)]
+                               [distribute-rgt-neg-in (neg.f32 (* a b)) (* a (neg.f32 b))]
+                               [distribute-neg-in (neg.f32 (+ a b)) (+ (neg a) (neg b))]
+                               [distribute-neg-frac (neg.f32 (/ x y)) (/ (neg.f32 x) y)]
+                               [distribute-neg-frac2 (neg.f32 (/ x y)) (/ x (neg.f32 y))]))
 (define-operator-impl (+.f32 [x : binary32] [y : binary32])
                       binary32
                       #:spec (+ x y)
                       #:fpcore (! :precision binary32 (+ x y))
-                      #:fl fl32+)
+                      #:fl fl32+
+                      #:identities
+                      (#:commutes [distribute-neg-out (+.f32 (neg a) (neg b)) (neg (+.f32 a b))]))
 (define-operator-impl (-.f32 [x : binary32] [y : binary32])
                       binary32
                       #:spec (- x y)
@@ -65,12 +74,18 @@
                       binary32
                       #:spec (* x y)
                       #:fpcore (! :precision binary32 (* x y))
-                      #:fl fl32*)
+                      #:fl fl32*
+                      #identities
+                      (#:commutes [distribute-lft-neg-out (*.f32 (neg x) y) (neg (*.f32 x y))]
+                                  [distribute-rgt-neg-out (*.f32 x (neg y)) (neg (*.f32 x y))]))
 (define-operator-impl (/.f32 [x : binary32] [y : binary32])
                       binary32
                       #:spec (/ x y)
                       #:fpcore (! :precision binary32 (/ x y))
-                      #:fl fl32/)
+                      #:fl fl32/
+                      #identities
+                      ([distribute-frac-neg (/.f32 (neg x) y) (neg (/.f32 x y))]
+                       [distribute-frac-neg2 (/.f32 x (neg y)) (neg (/.f32 x y))]))
 
 (define-libm-impls/binary32 [(binary32 binary32)
                              (acos acosh
