@@ -145,7 +145,6 @@
       [_ node]))
   (unmunge reg))
 
-
 ; Tests for progs->batch and batch->progs
 (module+ test
   (require rackunit)
