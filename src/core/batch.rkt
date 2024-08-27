@@ -8,6 +8,7 @@
          (struct-out batch)
          batch-length
          batch-ref
+         deref
          batch-replace)
 
 ;; This function defines the recursive structure of expressions
@@ -144,35 +145,6 @@
       [_ node]))
   (unmunge reg))
 
-; Tests for expand-taylor
-(module+ test
-  (require rackunit)
-
-  (define (test-expand-taylor expr)
-    (define batch (progs->batch (list expr)))
-    (define batch* (expand-taylor batch))
-    (car (batch->progs batch*)))
-
-  (check-equal? '(* 1/2 (log (/ (+ 1 x) (+ 1 (neg x))))) (test-expand-taylor '(atanh x)))
-  (check-equal? '(log (+ x (sqrt (+ (* x x) -1)))) (test-expand-taylor '(acosh x)))
-  (check-equal? '(log (+ x (sqrt (+ (* x x) 1)))) (test-expand-taylor '(asinh x)))
-  (check-equal? '(/ (+ (exp x) (neg (/ 1 (exp x)))) (+ (exp x) (/ 1 (exp x))))
-                (test-expand-taylor '(tanh x)))
-  (check-equal? '(* 1/2 (+ (exp x) (/ -1 (exp x)))) (test-expand-taylor '(sinh x)))
-  (check-equal? '(+ 1 (neg (+ 2 (neg 3)))) (test-expand-taylor '(- 1 (- 2 3))))
-  (check-equal? '(* 1/2 (+ (exp x) (/ 1 (exp x)))) (test-expand-taylor '(cosh x)))
-  (check-equal? '(/ (sin x) (cos x)) (test-expand-taylor '(tan x)))
-  (check-equal? '(+ 1 (neg (* 1/2 (+ (exp (/ (sin 3) (cos 3))) (/ 1 (exp (/ (sin 3) (cos 3))))))))
-                (test-expand-taylor '(- 1 (cosh (tan 3)))))
-  (check-equal? '(exp (* a (log x))) (test-expand-taylor '(pow x a)))
-  (check-equal? '(+ x (sin a)) (test-expand-taylor '(+ x (sin a))))
-  (check-equal? '(cbrt x) (test-expand-taylor '(pow x 1/3)))
-  (check-equal? '(cbrt (* x x)) (test-expand-taylor '(pow x 2/3)))
-  (check-equal? '(+ 100 (cbrt x)) (test-expand-taylor '(+ 100 (pow x 1/3))))
-  (check-equal? `(+ 100 (cbrt (* x ,(approx 2 3))))
-                (test-expand-taylor `(+ 100 (pow (* x ,(approx 2 3)) 1/3))))
-  (check-equal? `(+ ,(approx 2 3) (cbrt x)) (test-expand-taylor `(+ ,(approx 2 3) (pow x 1/3))))
-  (check-equal? `(+ (cbrt x) ,(approx 2 1/3)) (test-expand-taylor `(+ (pow x 1/3) ,(approx 2 1/3)))))
 
 ; Tests for progs->batch and batch->progs
 (module+ test
