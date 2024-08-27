@@ -209,9 +209,7 @@
                       ; optimization: combining means that `alts1` corresponds to
                       ; the new pareto point
                       (match-define (list altn) alts1)
-                      (if (ormap (lambda (a) (alt-equal? a altn)) alts2)
-                          alts2
-                          (cons altn alts2))))))
+                      (if (ormap (lambda (a) (alt-equal? a altn)) alts2) alts2 (cons altn alts2))))))
 
   (alt-table point-idx->alts*
              (hash-set alt->point-idxs altn #f)
