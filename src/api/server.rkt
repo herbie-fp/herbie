@@ -17,7 +17,6 @@
          "../utils/common.rkt"
          "../utils/errors.rkt"
          "../utils/float.rkt"
-         "../utils/timeline.rkt"
          (submod "../utils/timeline.rkt" debug))
 
 (provide make-path
@@ -243,13 +242,13 @@
        [(list 'timeline job-id handler)
         (define wid (hash-ref current-jobs job-id #f))
         (cond
-          [(not (false? wid))
+          [wid
            (log "Worker[~a] working on ~a.\n" wid job-id)
            (define-values (a b) (place-channel))
            (place-channel-put (hash-ref busy-workers wid) (list 'timeline b))
            (define requested-timeline (place-channel-get a))
            (place-channel-put handler requested-timeline)]
-          [(false? wid)
+          [else
            (log "Job complete, no timeline, send result.\n")
            (place-channel-put handler (hash-ref completed-work job-id #f))])]
        ; Returns the current count of working workers.
@@ -280,28 +279,6 @@
      (thread (λ ()
                (let loop ([seed #f])
                  (match (thread-receive)
-                   [`(init rand
-                           ,vec
-                           flags
-                           ,flag-table
-                           num-iters
-                           ,iterations
-                           points
-                           ,points
-                           timeout
-                           ,timeout
-                           output-dir
-                           ,output
-                           reeval
-                           ,reeval
-                           demo?
-                           ,demo?)
-                    (set! seed vec)
-                    (*flags* flag-table)
-                    (*num-iterations* iterations)
-                    (*num-points* points)
-                    (*timeout* timeout)
-                    (*reeval-pts* reeval)]
                    [job-info (run-job job-info)])
                  (loop seed)))))
    (define timeline #f)
@@ -315,7 +292,7 @@
         (thread-send worker-thread (work manager worker-id job-id command))]
        [(list 'timeline handler)
         (log "Timeline requested from worker[~a] for job ~a\n" worker-id current-job-id)
-        (place-channel-put handler timeline)]))))
+        (place-channel-put handler (reverse (unbox timeline)))]))))
 
 (struct work (manager worker-id job-id job))
 
