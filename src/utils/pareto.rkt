@@ -37,7 +37,7 @@
 ;; Takes two lists of `pareto-point` structs that are Pareto-optimal
 ;; and returns the Pareto-optimal subset of their union.
 ;; The curves most be sorted using the same method.
-(define (pareto-union curve1 curve2)
+(define (pareto-union curve1 curve2 #:combine [combine (lambda (a b) (append a b))])
   (let loop ([curve1 curve1]
              [curve2 curve2])
     ; The curve is sorted so that highest accuracy is first
@@ -49,7 +49,7 @@
          ['< (loop curve1 rest2)]
          ['> (loop rest1 curve2)]
          ['=
-          (define joint-data (append (pareto-point-data ppt1) (pareto-point-data ppt2)))
+          (define joint-data (combine (pareto-point-data ppt1) (pareto-point-data ppt2)))
           (define joint (struct-copy pareto-point ppt1 [data joint-data]))
           (cons joint (loop rest1 rest2))]
          ['<>

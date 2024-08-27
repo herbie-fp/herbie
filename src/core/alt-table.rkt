@@ -169,19 +169,12 @@
   (values errss costs))
 
 (define (atab-add-altns atab altns errss costs)
-  (define-values (atab* progs*)
-    (for/fold ([atab atab]
-               [progs (list->set (map alt-expr (alt-table-all atab)))])
+  (define atab*
+    (for/fold ([atab atab])
               ([altn (in-list altns)]
                [errs (in-list errss)]
                [cost (in-list costs)])
-      ;; this is subtle, we actually want to check for duplicates
-      ;; in terms of expressions, not alts: the default `equal?`
-      ;; returns #f for the same expression with different derivations.
-      (let ([prog (alt-expr altn)])
-        (if (set-member? progs prog)
-            (values atab progs)
-            (values (atab-add-altn atab altn errs cost) (set-add progs prog))))))
+      (atab-add-altn atab altn errs cost)))
   (define atab**
     (struct-copy alt-table atab* [alt->point-idxs (invert-index (alt-table-point-idx->alts atab*))]))
   (define atab*** (atab-prune atab**))
@@ -208,7 +201,17 @@
                 ([pcurve (in-vector point-idx->alts)]
                  [err (in-list errs)])
       (define ppt (pareto-point cost err (list altn)))
-      (pareto-union (list ppt) pcurve)))
+      (pareto-union (list ppt)
+                    pcurve
+                    #:combine
+                    (lambda (alts1 alts2)
+                      ; dedup by program
+                      ; optimization: combining means that `alts1` corresponds to
+                      ; the new pareto point
+                      (match-define (list altn) alts1)
+                      (if (ormap (lambda (a) (alt-equal? a altn)) alts2)
+                          alts2
+                          (cons altn alts2))))))
 
   (alt-table point-idx->alts*
              (hash-set alt->point-idxs altn #f)
