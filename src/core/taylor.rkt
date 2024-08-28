@@ -44,7 +44,9 @@
        [(list 'pow base (app deref 1/2)) `(sqrt ,base)]
        [(list 'pow base (app deref 1/3)) `(cbrt ,base)]
        [(list 'pow base (app deref 2/3)) `(cbrt (* ,base ,base))]
-       [(list 'pow base (and power (app deref (? exact-integer?)))) `(pow base power)]
+       [(list 'pow base power)
+        #:when (exact-integer? (deref power))
+        `(pow ,base ,power)]
        [(list 'pow base power) `(exp (* ,power (log ,base)))]
        [(list 'tan arg) `(/ (sin ,arg) (cos ,arg))]
        [(list 'cosh arg) `(* 1/2 (+ (exp ,arg) (/ 1 (exp ,arg))))]
