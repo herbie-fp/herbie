@@ -54,7 +54,9 @@
 ;; Requires some hooks to complete the translation.
 (define (make-compiler exprs vars)
   (define num-vars (length vars))
-  (define batch (progs->batch exprs #:timeline-push #t #:vars vars #:ignore-approx #t))
+
+  ; only here we use weird arguments for exprs->batch. Can it be a separate function?
+  (define batch (exprs->batch exprs #:timeline-push #t #:vars vars #:ignore-approx #t))
 
   (define instructions
     (for/vector #:length (- (batch-nodes-length batch) num-vars)
@@ -64,7 +66,7 @@
         [(list 'if c t f) (list if-proc c t f)]
         [(list op args ...) (cons (impl-info op 'fl) args)])))
 
-  (make-progs-interpreter (batch-vars batch) instructions (batch-alt-exprs batch)))
+  (make-progs-interpreter (batch-vars batch) instructions (batch-expr-roots batch)))
 
 ;; Compiles a program of operator implementations into a procedure
 ;; that evaluates the program on a single input of representation values

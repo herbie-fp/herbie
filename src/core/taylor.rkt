@@ -16,7 +16,7 @@
   (define batch (expand-taylor (progs->batch exprs*)))
 
   (define taylor-approxs (taylor var batch))
-  (for/list ([root (in-vector (batch-alt-exprs batch))])
+  (for/list ([root (in-vector (batch-expr-roots batch))])
     (match-define (cons offset coeffs) (vector-ref taylor-approxs root))
     (define i 0)
     (define terms '())

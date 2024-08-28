@@ -122,14 +122,17 @@
 
   (define expr-batch (progs->batch exprs-list #:ignore-approx #f))
   (define nodes (batch-nodes expr-batch))
-  (define roots (batch-alt-exprs expr-batch))
+  (define roots (batch-roots expr-batch))
+  (define expr-roots
+    (for ([root (in-vector roots)])
+      (vector-ref (batch-ref expr-batch root) 0)))
 
   (define subexprs-fn (eval-progs-real (map prog->spec exprs-list) ctx-list))
 
   ; Mutable error hack, this is bad
   (define errs
-    (for/vector #:length (vector-length roots)
-                ([node (in-vector roots)])
+    (for/vector #:length (vector-length expr-roots)
+                ([node (in-vector expr-roots)])
       (make-vector (pcontext-length (*pcontext*)))))
 
   (for ([(pt ex) (in-pcontext (*pcontext*))]

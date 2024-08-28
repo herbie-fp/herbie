@@ -1,42 +1,57 @@
 #lang racket
 
 (require "../utils/timeline.rkt"
-         "../syntax/syntax.rkt")
+         "../syntax/syntax.rkt"
+         (only-in "../utils/alternative.rkt" alt))
 
-(provide progs->batch
-         batch->progs
-         (struct-out batch)
-         batch-get-expr
-         batch-ref
-         expand-taylor
-         empty-batch
-         nodes->batch
-         batch-add-expr!)
+(provide (struct-out batch)
+         exprs->batch ; (List-of Expr) -> Batch
+         batch->exprs ; Batch -> (List-of Expr)
+         batch-expr-roots ; Batch -> (Vector-of Node-ptr)
+         ; batch-get-expr
+         batch-ref ; Batch -> Alt-idx -> (Vector Node-ptr Event Alt-idx Preprocessing)
+         expand-taylor ; Batch -> Batch
+         empty-batch ; Batch
+         ;nodes->batch
+         ;batch-add-expr!
+         #;batch->alts)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Structure batch
 
-;; - nodes: a vector of operations that expressions within batch contain, highly linked to avoid any duplications
-;; - alt-exprs: pointers to a node from nodes that contain main expressions
-;; - events: a vector of events that corresponding alt-expr has overcomed
-;; - prevs: a vector of previous expressions that corresponding alt-expr has been derived from
-;; - preprocessings: a vector of preprocessing history that corresponding alt-expr has overcomed
-;; - vars: list of free variables inside batch
+;; - roots: a mapping to the current alternatives in the alts
+;; - alts: a vector that store alternatives, highly linked to avoid duplications
+;;      alts[i]: (vector alt-expr - a pointer to node in nodes vector that stores expressions
+;;                       event - an event of the alternative
+;;                       prevs - a pointer to another alt in alts
+;;                       (listof preprocessing)) - a lits of preprocessing for the current alt
+;; - nodes: a main dataset of operations the expressions are build on top of
 ;; - nodes-length: length of nodes vector
+;; - vars: list of free variables inside batch
 ;; - exprhash: a hash that maps a node to its index in nodes vector
-;;
-;; Constraints: lengths of alt-exprs/events/prevs/preprocessings should be equal
-;;              node arguments [0,n) where n is a (hash-count exprhash) or (vector-length nodes)
-(struct batch
-        ([nodes #:mutable] [alt-exprs #:mutable]
-                           [events #:mutable]
-                           [prevs #:mutable]
-                           [preprocessings #:mutable]
-                           vars
-                           [nodes-length #:mutable]
-                           [exprhash #:mutable]))
+;; - altshash: do we need it?
 
-(define (progs->batch exprs
+(struct batch
+        ([roots #:mutable] [alts #:mutable]
+                           [nodes #:mutable]
+                           [nodes-length #:mutable]
+                           [vars #:mutable]
+                           [exprhash #:mutable]
+                           [altshash #:mutable]))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; This function is needed only for debugging
+#;(define (batch->alts in-batch)
+    (for/list ([root (in-vector (batch-roots batch))]
+               [event (in-vector (batch-events in-batch))]
+               [prev (in-vector (batch-prevs in-batch))]
+               [preprocessing (in-vector (batch-preprocessings in-batch))])
+      (alt (batch-get-expr in-batch alt-expr)
+           event
+           (map (curry batch-get-expr in-batch) prev)
+           preprocessing)))
+
+(define (exprs->batch exprs
                       #:timeline-push [timeline-push #f]
                       #:vars [vars '()]
                       #:ignore-approx [ignore-approx #t])
@@ -82,22 +97,32 @@
                    (set! exprc (+ 1 exprc))
                    (set! icache (cons node icache))))))
 
-  (define alt-exprs
-    (list->vector (map (if ignore-approx munge-ignore-approx munge-include-approx) exprs)))
-  (define events (make-vector (vector-length alt-exprs) '()))
-  (define prevs (make-vector (vector-length alt-exprs) '()))
-  (define preprocessings (make-vector (vector-length alt-exprs) '()))
+  (define exprs-roots (map (if ignore-approx munge-ignore-approx munge-include-approx) exprs))
+
+  ; Maybe we do not need althash
+  (define althash (make-hash))
+  (define altc 0)
+  ; This creates an alternative vector with no history
+  (define alts
+    (for/vector ([expr-root (in-list exprs-roots)])
+      (vector expr-root '() '() '())))
+  (for ([alt (in-vector alts)]
+        [n (in-naturals)])
+    (hash-set! althash alt n))
+  (define roots (build-vector (vector-length alts) values))
+
   (define nodes (list->vector (reverse icache)))
   (define nodes-length (vector-length nodes))
 
   (when timeline-push
     (timeline-push! 'compiler (+ varc size) (+ exprc varc)))
-  (batch nodes alt-exprs events prevs preprocessings vars nodes-length exprhash))
+  (batch roots alts nodes nodes-length vars exprhash althash))
 
-; Simply recovering alt-expressions from a batch without considering prevs/preprocessings/events
-(define (batch->progs batch)
-  (define roots (batch-alt-exprs batch))
+; Simply recovering alt-expressions from a batch without considering history of previous alts etc..
+(define (batch->exprs batch)
+  (define roots (batch-roots batch))
   (define nodes (batch-nodes batch))
+  (define alts (batch-alts batch))
 
   (define (unmunge reg)
     (define node (vector-ref nodes reg))
@@ -112,15 +137,16 @@
 
   (define exprs
     (for/list ([root (in-vector roots)])
-      (unmunge root)))
+      (define alt-expr (vector-ref (vector-ref alts root) 0))
+      (unmunge alt-expr)))
   exprs)
 
-; Function transforms nodes to a batch, used in egg-herbie.rkt for egraph extraction
+; Function extracts enodes to in-batch
 ; nodes: (listof '(cost op arg1-index arg2-index))
-(define (nodes->batch nodes id->spec)
+(define (nodes->batch nodes id->spec in-batch)
   ; Mapping from nodes to nodes*
   (define icache '())
-  (define exprhash (make-hash))
+  (define exprhash (hash-copy (batch-exprhash in-batch)))
   (define exprc 0)
   (define roots '())
 
@@ -179,12 +205,22 @@
     (set! roots (cons idx roots)))
 
   (define (finalize-batch)
-    (define alt-exprs (list->vector (remove-duplicates (reverse roots))))
-    (define events (make-vector (vector-length alt-exprs) '()))
-    (define prevs (make-vector (vector-length alt-exprs) '()))
-    (define preprocessings (make-vector (vector-length alt-exprs) '()))
+    (define exprs-roots (remove-duplicates (reverse roots)))
+    ; Maybe we do not need althash
+    (define althash (make-hash))
+    (define altc 0)
+    ; This creates an alternative vector with no history
+    (define alts
+      (for/vector ([expr-root (in-list exprs-roots)])
+        (vector expr-root '() '() '())))
+    (for ([alt (in-vector alts)]
+          [n (in-naturals)])
+      (hash-set! althash alt n))
+    (define roots* (build-vector (vector-length alts) values))
+
     (define nodes* (list->vector (reverse icache)))
-    (batch nodes* alt-exprs events prevs preprocessings '() (length icache) exprhash))
+    (define nodes-length (vector-length nodes*))
+    (batch roots* alts nodes* nodes-length '() exprhash althash))
 
   (define (clean-batch)
     (set! exprc 0)
@@ -197,7 +233,6 @@
 (define (expand-taylor input-batch)
   (define vars (batch-vars input-batch))
   (define nodes (batch-nodes input-batch))
-  (define alt-exprs (batch-alt-exprs input-batch))
 
   ; Hash to avoid duplications
   (define icache (reverse vars))
@@ -228,13 +263,13 @@
        (define neg-index (append-node `(neg ,(vector-ref mappings arg2))))
        (vector-set! mappings n (append-node `(+ ,(vector-ref mappings arg1) ,neg-index)))]
       [(list 'pow base power)
-       #:when (equal? (vector-ref nodes power) 1/2) ; 1/2 is to be removed from exprhash
+       #:when (equal? (vector-ref nodes power) 1/2) ; 1/2 is to be removed from exprhash, it is zombie
        (vector-set! mappings n (append-node `(sqrt ,(vector-ref mappings base))))]
       [(list 'pow base power)
-       #:when (equal? (vector-ref nodes power) 1/3) ; 1/3 is to be removed from exprhash
+       #:when (equal? (vector-ref nodes power) 1/3) ; 1/3 is to be removed from exprhash, it is zombie
        (vector-set! mappings n (append-node `(cbrt ,(vector-ref mappings base))))]
       [(list 'pow base power)
-       #:when (equal? (vector-ref nodes power) 2/3) ; 2/3 is to be removed from exprhash
+       #:when (equal? (vector-ref nodes power) 2/3) ; 2/3 is to be removed from exprhash, it is zombie
        (define mult-index (append-node `(* ,(vector-ref mappings base) ,(vector-ref mappings base))))
        (vector-set! mappings n (append-node `(cbrt ,mult-index)))]
       [(list 'pow base power)
@@ -252,7 +287,7 @@
        (vector-set! mappings n (append-node `(/ ,sin-idx ,cos-idx)))]
       [(list 'cosh args)
        (define exp-idx (append-node `(exp ,(vector-ref mappings args))))
-       (define one-idx (append-node 1)) ; should it be 1 or literal 1 or smth?
+       (define one-idx (append-node 1))
        (define inv-exp-idx (append-node `(/ ,one-idx ,exp-idx)))
        (define add-idx (append-node `(+ ,exp-idx ,inv-exp-idx)))
        (define half-idx (append-node 1/2))
@@ -302,63 +337,64 @@
        (vector-set! mappings n (append-node (approx spec (vector-ref mappings impl))))]
       [_ (vector-set! mappings n (append-node node))]))
 
-  (define alt-exprs* (vector-map (curry vector-ref mappings) alt-exprs))
   (define nodes* (list->vector (reverse icache)))
+  (define roots*
+    (vector-copy (batch-roots input-batch))) ; roots indexes to alternatives stay the same
+  (define nodes-length* (vector-length nodes*))
+
+  ; Remap references to expressions inside alts vector
+  (define alts*
+    (for/vector ([alt (in-vector (batch-alts input-batch))])
+      (match-define (vector alt-expr event prev preprocessing) alt)
+      (vector (vector-ref mappings alt-expr) event prev preprocessing)))
 
   ; This may be too expensive to handle simple 1/2, 1/3 and 2/3 zombie nodes..
   #;(remove-zombie-nodes (batch nodes* roots* vars (vector-length nodes*)))
 
-  (batch nodes*
-         alt-exprs*
-         (batch-events input-batch)
-         (batch-prevs input-batch)
-         (batch-preprocessings input-batch)
-         vars
-         (vector-length nodes*)
-         exprhash))
+  (batch roots* alts* nodes* nodes-length* vars exprhash (make-hash)))
 
 ; Updates in-batch by adding new expressions
 ; Returns list of new roots
-(define (batch-add-expr! in-batch expr #:ignore-approx [ignore-approx #f])
-  (define exprhash (batch-exprhash in-batch))
-  (define icache '())
-  (define exprc (hash-count exprhash))
+#;(define (batch-add-expr! in-batch expr #:ignore-approx [ignore-approx #f])
+    (define exprhash (batch-exprhash in-batch))
+    (define icache '())
+    (define exprc (hash-count exprhash))
 
-  (define (munge-ignore-approx prog)
-    (match prog ; approx nodes are ignored
-      [(approx _ impl) (munge-ignore-approx impl)]
-      [_
-       (define node ; This compiles to the register machine
-         (match prog
-           [(list op args ...) (cons op (map munge-ignore-approx args))]
-           [_ prog]))
-       (hash-ref! exprhash
-                  node
-                  (lambda ()
-                    (begin0 exprc ; store in cache, update exprs, exprc
-                      (set! exprc (+ 1 exprc))
-                      (set! icache (cons node icache)))))]))
+    (define (munge-ignore-approx prog)
+      (match prog ; approx nodes are ignored
+        [(approx _ impl) (munge-ignore-approx impl)]
+        [_
+         (define node ; This compiles to the register machine
+           (match prog
+             [(list op args ...) (cons op (map munge-ignore-approx args))]
+             [_ prog]))
+         (hash-ref! exprhash
+                    node
+                    (lambda ()
+                      (begin0 exprc ; store in cache, update exprs, exprc
+                        (set! exprc (+ 1 exprc))
+                        (set! icache (cons node icache)))))]))
 
-  ; Translates programs into an instruction sequence of operations
-  (define (munge-include-approx prog)
-    (define node ; This compiles to the register machine
-      (match prog
-        [(approx spec impl) (approx spec (munge-include-approx impl))]
-        [(list op args ...) (cons op (map munge-include-approx args))]
-        [_ prog]))
-    (hash-ref! exprhash
-               node
-               (lambda ()
-                 (begin0 exprc ; store in cache, update exprs, exprc
-                   (set! exprc (+ 1 exprc))
-                   (set! icache (cons node icache))))))
+    ; Translates programs into an instruction sequence of operations
+    (define (munge-include-approx prog)
+      (define node ; This compiles to the register machine
+        (match prog
+          [(approx spec impl) (approx spec (munge-include-approx impl))]
+          [(list op args ...) (cons op (map munge-include-approx args))]
+          [_ prog]))
+      (hash-ref! exprhash
+                 node
+                 (lambda ()
+                   (begin0 exprc ; store in cache, update exprs, exprc
+                     (set! exprc (+ 1 exprc))
+                     (set! icache (cons node icache))))))
 
-  (define root (if ignore-approx (munge-ignore-approx expr) (munge-include-approx expr)))
-  (set-batch-alt-exprs! in-batch (vector-append (batch-alt-exprs in-batch) (vector root)))
-  (set-batch-nodes! in-batch (vector-append (batch-nodes in-batch) (list->vector (reverse icache))))
-  (set-batch-nodes-length! in-batch (vector-length (batch-nodes in-batch)))
-  (set-batch-exprhash! in-batch exprhash)
-  root)
+    (define root (if ignore-approx (munge-ignore-approx expr) (munge-include-approx expr)))
+    (set-batch-alt-exprs! in-batch (vector-append (batch-alt-exprs in-batch) (vector root)))
+    (set-batch-nodes! in-batch (vector-append (batch-nodes in-batch) (list->vector (reverse icache))))
+    (set-batch-nodes-length! in-batch (vector-length (batch-nodes in-batch)))
+    (set-batch-exprhash! in-batch exprhash)
+    root)
 
 ; The function removes any zombie nodes from batch
 ; TODO: reconstruct exprhash
@@ -398,46 +434,42 @@
     (batch nodes* roots* (batch-vars input-batch) (vector-length nodes*)))
 
 (define (empty-batch)
-  (batch (make-vector 0)
-         (make-vector 0)
-         (make-vector 0)
-         (make-vector 0)
-         (make-vector 0)
-         '()
-         0
-         (make-hash)))
+  (batch (make-vector 0) (make-vector 0) (make-vector 0) 0 '() (make-hash) (make-hash)))
 
-(define (in-batch batch)
-  (for/stream ([alt-expr (in-vector (batch-alt-exprs batch))]
-               [event (in-vector (batch-events batch))]
-               [prev (in-vector (batch-prevs batch))]
-               [preprocessing (in-vector (batch-preprocessings batch))]
-               [n (in-naturals)])
-              (values n alt-expr event prev preprocessing)))
+#;(define (in-batch batch)
+    (for/stream ([alt-expr (in-vector (batch-alt-exprs batch))]
+                 [event (in-vector (batch-events batch))]
+                 [prev (in-vector (batch-prevs batch))]
+                 [preprocessing (in-vector (batch-preprocessings batch))]
+                 [n (in-naturals)])
+                (values n alt-expr event prev preprocessing)))
 
 (define (batch-ref batch idx)
-  (vector (vector-ref (batch-alt-exprs batch) idx)
-          (vector-ref (batch-events batch) idx)
-          (vector-ref (batch-prevs batch) idx)
-          (vector-ref (batch-preprocessings batch) idx)))
+  (define alt (vector-ref (batch-alts batch) idx))
+  alt)
+
+(define (batch-expr-roots batch)
+  (for/vector ([root (in-vector (batch-roots batch))])
+    (define alt (vector-ref (batch-alts batch) root))
+    (vector-ref alt 0)))
 
 ; Function returns a recovered expression from nodes with index idx
-(define (batch-get-expr batch idx)
-  (define (unmunge idx)
-    (define node (vector-ref (batch-nodes batch) idx))
-    (match node
-      [(approx spec impl) (approx spec (unmunge impl))]
-      [(list op regs ...) (cons op (map unmunge regs))]
-      [_ node]))
-  (unmunge idx))
+#;(define (batch-get-expr batch idx)
+    (define (unmunge idx)
+      (define node (vector-ref (batch-nodes batch) idx))
+      (match node
+        [(approx spec impl) (approx spec (unmunge impl))]
+        [(list op regs ...) (cons op (map unmunge regs))]
+        [_ node]))
+    (unmunge idx))
 
 ; Tests for expand-taylor
 (module+ test
   (require rackunit)
   (define (test-expand-taylor expr)
-    (define batch (progs->batch (list expr) #:ignore-approx #f))
+    (define batch (exprs->batch (list expr) #:ignore-approx #f))
     (define batch* (expand-taylor batch))
-    (car (batch->progs batch*)))
+    (car (batch->exprs batch*)))
 
   (check-equal? '(* 1/2 (log (/ (+ 1 x) (+ 1 (neg x))))) (test-expand-taylor '(atanh x)))
   (check-equal? '(log (+ x (sqrt (+ (* x x) -1)))) (test-expand-taylor '(acosh x)))
@@ -464,17 +496,19 @@
 (module+ test
   (require rackunit)
   (define (test-munge-unmunge expr [ignore-approx #t])
-    (define batch (progs->batch (list expr) #:ignore-approx ignore-approx))
-    (check-equal? (list expr) (batch->progs batch)))
+    (define batch (exprs->batch expr #:ignore-approx ignore-approx))
+    (check-equal? expr (batch->exprs batch)))
 
-  (test-munge-unmunge '(* 1/2 (+ (exp x) (neg (/ 1 (exp x))))))
+  (test-munge-unmunge (list '(* 1/2 (+ (exp x) (neg (/ 1 (exp x)))))))
   (test-munge-unmunge
-   '(+ 1 (neg (* 1/2 (+ (exp (/ (sin 3) (cos 3))) (/ 1 (exp (/ (sin 3) (cos 3)))))))))
-  (test-munge-unmunge '(cbrt x))
-  (test-munge-unmunge '(x))
+   (list '(+ 1 (neg (* 1/2 (+ (exp (/ (sin 3) (cos 3))) (/ 1 (exp (/ (sin 3) (cos 3))))))))))
+  (test-munge-unmunge (list '(cbrt x)))
+  (test-munge-unmunge (list '(x)))
   (test-munge-unmunge
-   `(+ (sin ,(approx '(* 1/2 (+ (exp x) (neg (/ 1 (exp x))))) '(+ 3 (* 25 (sin 6))))) 4)
-   #f))
+   (list `(+ (sin ,(approx '(* 1/2 (+ (exp x) (neg (/ 1 (exp x))))) '(+ 3 (* 25 (sin 6))))) 4))
+   #f)
+  (test-munge-unmunge (list '()))
+  (test-munge-unmunge (list '(x) '(cbrt x))))
 
 ; Tests for remove-zombie-nodes
 #;
@@ -502,15 +536,15 @@
                 (zombie-test #:nodes (vector 2 1/2 '(sqrt 0) '(cbrt 0) (approx '(* x x) 0) '(pow 1 4))
                              #:roots (vector 5 2))))
 
-(module+ test
-  (require rackunit)
-  (define (batch-add!-test exprs)
-    (define batch (empty-batch))
-    (for ([expr (in-list exprs)])
-      (batch-add-expr! batch expr))
-    (check-equal? exprs (batch->progs batch)))
+#;(module+ test
+    (require rackunit)
+    (define (batch-add!-test exprs)
+      (define batch (empty-batch))
+      (for ([expr (in-list exprs)])
+        (batch-add-expr! batch expr))
+      (check-equal? exprs (batch->progs batch)))
 
-  (batch-add!-test '((* 3 (pow 5 (tan x))) (* (pow 3) (tan x))))
-  (batch-add!-test '((* 3 (pow 5 (tan x))) (* 3 (pow 5 (tan (* (pow 3) (tan x)))))
-                                           (* (pow 3) (tan x))))
-  (batch-add!-test '((* 2 3) (pow 2 3) (pow 2 (exp 3)) (+ (* 2 3) 1))))
+    (batch-add!-test '((* 3 (pow 5 (tan x))) (* (pow 3) (tan x))))
+    (batch-add!-test '((* 3 (pow 5 (tan x))) (* 3 (pow 5 (tan (* (pow 3) (tan x)))))
+                                             (* (pow 3) (tan x))))
+    (batch-add!-test '((* 2 3) (pow 2 3) (pow 2 (exp 3)) (+ (* 2 3) 1))))

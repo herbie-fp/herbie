@@ -153,6 +153,8 @@
                    n
                    (cons (list 'rr runner #f #f) (vector-ref (batch-events batch) n)))
       (vector-set! (batch-prevs batch) n (cons prev-root (vector-ref (batch-prevs batch) n)))))
+  (define rewritten* (map batch->alts batches))
+  (println rewritten*)
   ; TODO, check whether batchified is equal to sequential version
 
   (timeline-push! 'outputs (map (compose ~a alt-expr) rewritten))
