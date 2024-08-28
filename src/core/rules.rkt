@@ -329,13 +329,6 @@
                  [rem-exp-log (exp (log x)) x]
                  [rem-log-exp (log (exp x)) x])
 
-(define-ruleset* exp-constants
-                 (exponents simplify fp-safe sound)
-                 [exp-0 (exp 0) 1]
-                 [exp-1-e (exp 1) (E)]
-                 [1-exp 1 (exp 0)]
-                 [e-exp-1 (E) (exp 1)])
-
 (define-ruleset* exp-distribute
                  (exponents simplify sound)
                  #:type ([a real] [b real])

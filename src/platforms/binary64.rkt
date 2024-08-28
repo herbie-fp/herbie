@@ -125,6 +125,13 @@
                                          [fabs-div (fabs.f64 (/ a b)) (/ (fabs.f64 a) (fabs.f64 b))]
                                          [neg-fabs (fabs.f64 x) (fabs.f64 (neg x))]))
 
+(define-libm-impl/binary64 exp
+                           (binary64)
+                           binary64
+                           #:identities ([exp-0 (exp.f64 0) 1] [exp-1-e (exp.f64 1) (E)]
+                                                               [1-exp 1 (exp.f64 0)]
+                                                               [e-exp-1 (E) (exp.f64 1)]))
+
 (define-libm-impl/binary64 pow
                            (binary64 binary64)
                            binary64
