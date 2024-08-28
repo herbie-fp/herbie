@@ -624,17 +624,6 @@
                  [prod-diff (- (* a b) (* c d)) (+ (fma a b (neg (* d c))) (fma (neg d) c (* d c)))])
 
 ;; Sound because it's about soundness over real numbers
-(define-ruleset* compare-reduce
-                 (bools simplify fp-safe-nan sound)
-                 #:type ([x real] [y real])
-                 [lt-same (< x x) (FALSE)]
-                 [gt-same (> x x) (FALSE)]
-                 [lte-same (<= x x) (TRUE)]
-                 [gte-same (>= x x) (TRUE)]
-                 [not-lt (not (< x y)) (>= x y)]
-                 [not-gt (not (> x y)) (<= x y)]
-                 [not-lte (not (<= x y)) (> x y)]
-                 [not-gte (not (>= x y)) (< x y)])
 
 (define-ruleset* branch-reduce
                  (branches simplify fp-safe sound)

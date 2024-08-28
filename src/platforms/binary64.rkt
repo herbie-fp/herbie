@@ -198,7 +198,7 @@
 (define-comparator-impls binary64
                          [== ==.f64 =]
                          [!= !=.f64 (negate =)]
-                         [< <.f64 <]
-                         [> >.f64 >]
-                         [<= <=.f64 <=]
-                         [>= >=.f64 >=])
+                         [< <.f64 < #:identities ([lt-same (<.f64 x x) (FALSE)])]
+                         [> >.f64 > #:identities ([gt-same (>.f64 x x) (FALSE)])]
+                         [<= <=.f64 <= #:identities ([lte-same (<=.f64 x x) (TRUE)])]
+                         [>= >=.f64 >= #:identities ([gte-same (>=.f64 x x) (TRUE)])])

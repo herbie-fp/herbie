@@ -38,7 +38,11 @@
                       ([not-true (not (TRUE)) (FALSE)] [not-false (not (FALSE)) (TRUE)]
                                                        [not-not (not (not a)) a]
                                                        [not-and (not (and a b)) (or (not a) (not b))]
-                                                       [not-or (not (or a b)) (and (not a) (not b))]))
+                                                       [not-or (not (or a b)) (and (not a) (not b))]
+                                                       [not-lt (not (< x y)) (>= x y)]
+                                                       [not-gt (not (> x y)) (<= x y)]
+                                                       [not-lte (not (<= x y)) (> x y)]
+                                                       [not-gte (not (>= x y)) (< x y)]))
 
 (define-operator-impl (and [x : bool] [y : bool])
                       bool
