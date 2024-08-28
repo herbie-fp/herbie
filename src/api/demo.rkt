@@ -339,27 +339,7 @@
    (url main)))
 
 (define (check-status req job-id)
-  (define r (get-results-for job-id))
-  ;; TODO return the current status from the jobs timeline
-  (match r
-    [#f
-     (response 202
-               #"Job in progress"
-               (current-seconds)
-               #"text/plain"
-               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count)))))
-               (λ (out) (display "Not done!" out)))]
-    [(? box? timeline)
-     (response 202
-               #"Job in progress"
-               (current-seconds)
-               #"text/plain"
-               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count)))))
-               (λ (out)
-                 (display (apply string-append
-                                 (for/list ([entry (reverse (unbox timeline))])
-                                   (format "Doing ~a\n" (hash-ref entry 'type))))
-                          out)))]
+  (match (get-timeline-for job-id)
     [(? hash? result-hash)
      (response/full 201
                     #"Job complete"
@@ -370,7 +350,18 @@
                                    (add-prefix (format "~a.~a/graph.html" job-id *herbie-commit*))))
                           (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count))))
                           (header #"X-Herbie-Job-ID" (string->bytes/utf-8 job-id)))
-                    '())]))
+                    '())]
+    [timeline
+     (response 202
+               #"Job in progress"
+               (current-seconds)
+               #"text/plain"
+               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count)))))
+               (λ (out)
+                 (display (apply string-append
+                                 (for/list ([entry timeline])
+                                   (format "Doing ~a\n" (hash-ref entry 'type))))
+                          out)))]))
 
 (define (check-up req)
   (response/full (if (is-server-up) 200 500)

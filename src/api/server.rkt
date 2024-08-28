@@ -16,12 +16,14 @@
          "../utils/alternative.rkt"
          "../utils/common.rkt"
          "../utils/errors.rkt"
-         "../utils/float.rkt")
+         "../utils/float.rkt"
+         (submod "../utils/timeline.rkt" debug))
 
 (provide make-path
          get-improve-table-data
          make-improve-result
          get-results-for
+         get-timeline-for
          job-count
          is-server-up
          create-job
@@ -57,6 +59,12 @@
   (define-values (a b) (place-channel))
   (place-channel-put manager (list 'result job-id b))
   (log "Getting result for job: ~a.\n" job-id)
+  (place-channel-get a))
+
+(define (get-timeline-for job-id)
+  (define-values (a b) (place-channel))
+  (place-channel-put manager (list 'timeline job-id b))
+  (log "Getting timeline for job: ~a.\n" job-id)
   (place-channel-get a))
 
 (define (get-improve-table-data)
@@ -168,6 +176,7 @@
    (define completed-work (make-hash))
    (define busy-workers (make-hash))
    (define waiting-workers (make-hash))
+   (define current-jobs (make-hash))
    (for ([i (in-range worker-count)])
      (hash-set! waiting-workers i (make-worker i)))
    (log "~a workers ready.\n" (hash-count waiting-workers))
@@ -192,6 +201,7 @@
           (log "Starting worker [~a] on [~a].\n"
                (work-item-id job)
                (test-name (herbie-command-test (work-item-command job))))
+          (hash-set! current-jobs (work-item-id job) wid)
           (place-channel-put worker (list 'apply self (work-item-command job) (work-item-id job)))
           (hash-set! reassigned wid worker)
           (hash-set! busy-workers wid worker))
@@ -205,6 +215,7 @@
         (hash-set! completed-work job-id result)
 
         ; move worker to waiting list
+        (hash-remove! current-jobs job-id)
         (hash-set! waiting-workers wid (hash-ref busy-workers wid))
         (hash-remove! busy-workers wid)
 
@@ -228,6 +239,18 @@
         (hash-remove! waiting job-id)]
        ; Get the result for the given id, return false if no work found.
        [(list 'result job-id handler) (place-channel-put handler (hash-ref completed-work job-id #f))]
+       [(list 'timeline job-id handler)
+        (define wid (hash-ref current-jobs job-id #f))
+        (cond
+          [wid
+           (log "Worker[~a] working on ~a.\n" wid job-id)
+           (define-values (a b) (place-channel))
+           (place-channel-put (hash-ref busy-workers wid) (list 'timeline b))
+           (define requested-timeline (place-channel-get a))
+           (place-channel-put handler requested-timeline)]
+          [else
+           (log "Job complete, no timeline, send result.\n")
+           (place-channel-put handler (hash-ref completed-work job-id #f))])]
        ; Returns the current count of working workers.
        [(list 'count handler) (place-channel-put handler (hash-count busy-workers))]
        ; Retreive the improve results for results.json
@@ -252,26 +275,46 @@
                          *loose-plugins*)
    (parameterize ([current-error-port (open-output-nowhere)]) ; hide output
      (load-herbie-plugins))
+   (define worker-thread
+     (thread (λ ()
+               (let loop ([seed #f])
+                 (match (thread-receive)
+                   [job-info (run-job job-info)])
+                 (loop seed)))))
+   (define timeline #f)
+   (define current-job-id #f)
    (for ([_ (in-naturals)])
      (match (place-channel-get ch)
        [(list 'apply manager command job-id)
+        (set! timeline (*timeline*))
+        (set! current-job-id job-id)
         (log "[~a] working on [~a].\n" job-id (test-name (herbie-command-test command)))
-        (define herbie-result (wrapper-run-herbie command job-id))
-        (match-define (job-result kind test status time _ _ backend) herbie-result)
-        (define out-result
-          (match kind
-            ['alternatives (make-alternatives-result herbie-result test job-id)]
-            ['evaluate (make-calculate-result herbie-result job-id)]
-            ['cost (make-cost-result herbie-result job-id)]
-            ['errors (make-error-result herbie-result job-id)]
-            ['exacts (make-exacts-result herbie-result job-id)]
-            ['improve (make-improve-result herbie-result test job-id)]
-            ['local-error (make-local-error-result herbie-result test job-id)]
-            ['explanations (make-explanation-result herbie-result job-id)]
-            ['sample (make-sample-result herbie-result test job-id)]
-            [_ (error 'compute-result "unknown command ~a" kind)]))
-        (log "Job: ~a finished, returning work to manager\n" job-id)
-        (place-channel-put manager (list 'finished manager worker-id job-id out-result))]))))
+        (thread-send worker-thread (work manager worker-id job-id command))]
+       [(list 'timeline handler)
+        (log "Timeline requested from worker[~a] for job ~a\n" worker-id current-job-id)
+        (place-channel-put handler (reverse (unbox timeline)))]))))
+
+(struct work (manager worker-id job-id job))
+
+(define (run-job job-info)
+  (match-define (work manager worker-id job-id command) job-info)
+  (log "run-job: ~a, ~a\n" worker-id job-id)
+  (define herbie-result (wrapper-run-herbie command job-id))
+  (match-define (job-result kind test status time _ _ backend) herbie-result)
+  (define out-result
+    (match kind
+      ['alternatives (make-alternatives-result herbie-result test job-id)]
+      ['evaluate (make-calculate-result herbie-result job-id)]
+      ['cost (make-cost-result herbie-result job-id)]
+      ['errors (make-error-result herbie-result job-id)]
+      ['exacts (make-exacts-result herbie-result job-id)]
+      ['improve (make-improve-result herbie-result test job-id)]
+      ['local-error (make-local-error-result herbie-result test job-id)]
+      ['explanations (make-explanation-result herbie-result job-id)]
+      ['sample (make-sample-result herbie-result test job-id)]
+      [_ (error 'compute-result "unknown command ~a" kind)]))
+  (log "Job: ~a finished, returning work to manager\n" job-id)
+  (place-channel-put manager (list 'finished manager worker-id job-id out-result)))
 
 (define (make-explanation-result herbie-result job-id)
   (define explanations (job-result-backend herbie-result))
