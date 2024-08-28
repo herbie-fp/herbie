@@ -205,10 +205,10 @@
 (define-comparator-impls binary32
                          [== ==.f32 =]
                          [!= !=.f32 (negate =)]
-                         [< <.f32 < #:identities ([lt-same (<.f32 x x) (FALSE)])]
-                         [> >.f32 > #:identities ([gt-same (>.f32 x x) (FALSE)])]
-                         [<= <=.f32 <= #:identities ([lte-same (<=.f32 x x) (TRUE)])]
-                         [>= >=.f32 >= #:identities ([gte-same (>=.f32 x x) (TRUE)])])
+                         [< <.f32 <]
+                         [> >.f32 >]
+                         [<= <=.f32 <=]
+                         [>= >=.f32 >=])
 
 (define-operator-impl (binary64->binary32 [x : binary64])
                       binary32
