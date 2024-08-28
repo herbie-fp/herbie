@@ -16,7 +16,7 @@
   (define batch (expand-taylor (progs->batch exprs*)))
 
   (define taylor-approxs (taylor var batch))
-  (for/list ([root (in-vector (batch-expr-roots batch))])
+  (for/list ([root (in-vector (batch-roots batch))])
     (match-define (cons offset coeffs) (vector-ref taylor-approxs root))
     (define i 0)
     (define terms '())
@@ -154,12 +154,12 @@
         [`(exp ,arg)
          (let ([arg* (normalize-series (vector-ref taylor-approxs arg))])
            (if (positive? (car arg*))
-               (taylor-exact (batch-get-expr expr-batch n))
+               (taylor-exact (batch-ref expr-batch n))
                (taylor-exp (zero-series arg*))))]
         [`(sin ,arg)
          (let ([arg* (normalize-series (vector-ref taylor-approxs arg))])
            (cond
-             [(positive? (car arg*)) (taylor-exact (batch-get-expr expr-batch n))]
+             [(positive? (car arg*)) (taylor-exact (batch-ref expr-batch n))]
              [(= (car arg*) 0)
               ; Our taylor-sin function assumes that a0 is 0,
               ; because that way it is especially simple. We correct for this here
@@ -171,7 +171,7 @@
         [`(cos ,arg)
          (let ([arg* (normalize-series (vector-ref taylor-approxs arg))])
            (cond
-             [(positive? (car arg*)) (taylor-exact (batch-get-expr expr-batch n))]
+             [(positive? (car arg*)) (taylor-exact (batch-ref expr-batch n))]
              [(= (car arg*) 0)
               ; Our taylor-cos function assumes that a0 is 0,
               ; because that way it is especially simple. We correct for this here
@@ -185,7 +185,7 @@
         [`(pow ,base ,power)
          #:when (exact-integer? (vector-ref nodes power))
          (taylor-pow (normalize-series (vector-ref taylor-approxs base)) (vector-ref nodes power))]
-        [_ (taylor-exact (batch-get-expr expr-batch n))]))
+        [_ (taylor-exact (batch-ref expr-batch n))]))
     (vector-set! taylor-approxs n approx))
   taylor-approxs)
 
@@ -500,18 +500,16 @@
            "../syntax/load-plugin.rkt")
   (define batch (progs->batch (list '(pow x 1.0))))
   (set! batch (expand-taylor batch))
-  (define root (vector-ref (batch-alt-exprs batch) 0))
-
+  (define root (vector-ref (batch-roots batch) 0))
   (check-pred exact-integer? (car (vector-ref (taylor 'x batch) root))))
 
 (module+ test
   (define (coeffs expr #:n [n 7])
     (define batch (progs->batch (list expr)))
     (set! batch (expand-taylor batch))
-    (define root (vector-ref (batch-alt-exprs batch) 0))
+    (define root (vector-ref (batch-roots batch) 0))
     (match-define fn (zero-series (vector-ref (taylor 'x batch) root)))
     (build-list n fn))
-
   (check-equal? (coeffs '(sin x)) '(0 1 0 -1/6 0 1/120 0))
   (check-equal? (coeffs '(sqrt (+ 1 x))) '(1 1/2 -1/8 1/16 -5/128 7/256 -21/1024))
   (check-equal? (coeffs '(cbrt (+ 1 x))) '(1 1/3 -1/9 5/81 -10/243 22/729 -154/6561))

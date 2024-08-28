@@ -9,7 +9,8 @@
          batch-length
          batch-ref
          deref
-         batch-replace)
+         batch-replace
+         egg-nodes->batch)
 
 ;; This function defines the recursive structure of expressions
 
@@ -144,6 +145,58 @@
       [(list op regs ...) (cons op (map unmunge regs))]
       [_ node]))
   (unmunge reg))
+
+(define (egg-nodes->batch egg-nodes id->spec)
+  (define roots '())
+  (define out (make-mutable-batch))
+
+  (define (nodes-recurse idx)
+    (match (cdr (vector-ref egg-nodes idx))
+      [(? number? n) (batch-push! out n)]
+      [(? symbol? s) (batch-push! out s)]
+      [(list '$approx spec impl)
+       (match (vector-ref id->spec spec)
+         [#f (error egg-nodes->batch "no initial approx node in eclass ~a" idx)]
+         [spec-e (batch-push! out (list '$approx spec-e (nodes-recurse impl)))])]
+      [(list 'if cond ift iff)
+       (batch-push! out (list 'if (nodes-recurse cond) (nodes-recurse ift) (nodes-recurse iff)))]
+      [(list (? impl-exists? impl) ids ...) (batch-push! out (cons impl (map nodes-recurse ids)))]
+      [(list (? operator-exists? op) ids ...) (batch-push! out (cons op (map nodes-recurse ids)))]))
+
+  ; enodes unfortunately do not have ids inside egg-nodes, they have to be parsed in a separate function
+  (define (add-root enode)
+    (define idx
+      (match enode
+        [(? number?) (batch-push! out enode)]
+        [(? symbol?) (batch-push! out enode)]
+        [(list '$approx spec impl)
+         (define spec* (vector-ref id->spec spec))
+         (unless spec*
+           (error 'regraph-extract-variants "no initial approx node in eclass"))
+         (batch-push! out (list '$approx spec* (nodes-recurse impl)))]
+        [(list 'if cond ift iff)
+         (batch-push! out (list 'if (nodes-recurse cond) (nodes-recurse ift) (nodes-recurse iff)))]
+        [(list (? impl-exists? impl) ids ...)
+         (define args
+           (for/list ([id (in-list ids)])
+             (nodes-recurse id)))
+         (batch-push! out (cons impl args))]
+        [(list (? operator-exists? op) ids ...)
+         (define args
+           (for/list ([id (in-list ids)])
+             (nodes-recurse id)))
+         (batch-push! out (cons op args))]))
+    (set! roots (cons idx roots)))
+
+  (define (finalize-batch)
+    (mutable-batch->immutable out (list->vector (reverse roots))))
+
+  ; Cleaning the batch to start over
+  (define (clean-batch)
+    (set! roots '())
+    (set! out (make-mutable-batch)))
+
+  (values add-root clean-batch finalize-batch))
 
 ; Tests for progs->batch and batch->progs
 (module+ test

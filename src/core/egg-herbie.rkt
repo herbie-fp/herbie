@@ -319,52 +319,52 @@
       [(list (? impl-exists? impl) args ...) (cons impl (map loop args (impl-info impl 'itype)))]
       [(list op args ...) (cons op (map loop args (operator-info op 'itype)))])))
 
-(define (egg-batch->batch batch rename-dict type)
-  (define nodes-length (batch-nodes-length batch))
-  (define nodes (batch-nodes batch))
-  (define types (make-vector nodes-length type))
+#;(define (egg-batch->batch batch rename-dict type)
+    (define nodes-length (batch-nodes-length batch))
+    (define nodes (batch-nodes batch))
+    (define types (make-vector nodes-length type))
 
-  ; Rewriting function for node
-  (define (rewrite-node node type)
-    (match node
-      [(? number?) (if (representation? type) (literal node (representation-name type)) node)]
-      [(? symbol?)
-       ; To be checked with PI instruction
-       (if (hash-has-key? rename-dict node)
-           (car (hash-ref rename-dict node)) ; variable (extract uncanonical name)
-           node)] ; constant function
-      ; An error can occur here because spec is not a node, it is expr
-      [(list '$approx spec impl)
-       (define spec-type (if (representation? type) (representation-type type) type))
-       (vector-set! types impl type)
-       (approx (egg-parsed->expr spec rename-dict spec-type) impl)]
-      [(list 'if cond ift iff)
-       (match (representation? type)
-         [#t
-          (vector-set! types cond (get-representation 'bool))
-          (vector-set! types ift type)
-          (vector-set! types iff type)
-          (list 'if cond ift iff)]
-         [#f
-          (vector-set! types cond 'bool)
-          (vector-set! types ift type)
-          (vector-set! types iff type)
-          (list 'if cond ift iff)])]
-      [(list (? impl-exists? impl) args ...)
-       (for ([arg (in-list args)]
-             [type (in-list (impl-info impl 'itype))])
-         (vector-set! types arg type))
-       (cons impl args)]
-      [(list op args ...)
-       (for ([arg (in-list args)]
-             [type (in-list (operator-info op 'itype))])
-         (vector-set! types arg type))
-       (cons op args)]))
+    ; Rewriting function for node
+    (define (rewrite-node node type)
+      (match node
+        [(? number?) (if (representation? type) (literal node (representation-name type)) node)]
+        [(? symbol?)
+         ; To be checked with PI instruction
+         (if (hash-has-key? rename-dict node)
+             (car (hash-ref rename-dict node)) ; variable (extract uncanonical name)
+             node)] ; constant function
+        ; An error can occur here because spec is not a node, it is expr
+        [(list '$approx spec impl)
+         (define spec-type (if (representation? type) (representation-type type) type))
+         (vector-set! types impl type)
+         (approx (egg-parsed->expr spec rename-dict spec-type) impl)]
+        [(list 'if cond ift iff)
+         (match (representation? type)
+           [#t
+            (vector-set! types cond (get-representation 'bool))
+            (vector-set! types ift type)
+            (vector-set! types iff type)
+            (list 'if cond ift iff)]
+           [#f
+            (vector-set! types cond 'bool)
+            (vector-set! types ift type)
+            (vector-set! types iff type)
+            (list 'if cond ift iff)])]
+        [(list (? impl-exists? impl) args ...)
+         (for ([arg (in-list args)]
+               [type (in-list (impl-info impl 'itype))])
+           (vector-set! types arg type))
+         (cons impl args)]
+        [(list op args ...)
+         (for ([arg (in-list args)]
+               [type (in-list (operator-info op 'itype))])
+           (vector-set! types arg type))
+         (cons op args)]))
 
-  (for ([node (in-vector nodes (- nodes-length 1) -1 -1)] ; reversed over nodes
-        [type (in-vector types (- nodes-length 1) -1 -1)]
-        [n (in-range (- nodes-length 1) -1 -1)])
-    (vector-set! nodes n (rewrite-node node type))))
+    (for ([node (in-vector nodes (- nodes-length 1) -1 -1)] ; reversed over nodes
+          [type (in-vector types (- nodes-length 1) -1 -1)]
+          [n (in-range (- nodes-length 1) -1 -1)])
+      (vector-set! nodes n (rewrite-node node type))))
 
 ;; Parses a string from egg into a single S-expr.
 (define (egg-expr->expr egg-expr egraph-data type)
@@ -1037,7 +1037,7 @@
         ; expression of operators
         [(list (? operator-exists? op) ids ...) (cons op (map loop ids))])))
 
-  (define-values (add-root clean-batch finalize-batch) (nodes->batch costs id->spec))
+  (define-values (add-root clean-batch finalize-batch) (egg-nodes->batch costs id->spec))
   (list unsafe-eclass-cost build-expr add-root clean-batch finalize-batch))
 
 ;; Is fractional with odd denominator.
@@ -1134,40 +1134,38 @@
     [(hash-has-key? canon key)
      (define id* (hash-ref canon key))
 
-     #;(define egg-exprs
-         (for/list ([enode (vector-ref eclasses id*)])
-           (match enode
-             [(? number?) enode]
-             [(? symbol?) enode]
-             [(list '$approx spec impl)
-              (define spec* (vector-ref id->spec spec))
-              (unless spec*
-                (error 'regraph-extract-variants "no initial approx node in eclass ~a" id*))
-              (define impl* (build-expr impl))
-              (list '$approx spec* impl*)]
-             [(list 'if cond ift iff)
-              (define cond* (build-expr cond))
-              (define ift* (build-expr ift))
-              (define iff* (build-expr iff))
-              (list 'if cond* ift* iff*)]
-             [(list (? impl-exists? impl) ids ...)
-              (define args
-                (for/list ([id (in-list ids)])
-                  (define expr (build-expr id))
-                  expr))
-              (cons impl args)]
-             [(list (? operator-exists? op) ids ...)
-              (define args
-                (for/list ([id (in-list ids)])
-                  (define expr (build-expr id))
-                  expr))
-              (cons op args)])))
+     (define egg-exprs
+       (for/list ([enode (vector-ref eclasses id*)])
+         (match enode
+           [(? number?) enode]
+           [(? symbol?) enode]
+           [(list '$approx spec impl)
+            (define spec* (vector-ref id->spec spec))
+            (unless spec*
+              (error 'regraph-extract-variants "no initial approx node in eclass ~a" id*))
+            (define impl* (build-expr impl))
+            (list '$approx spec* impl*)]
+           [(list 'if cond ift iff)
+            (define cond* (build-expr cond))
+            (define ift* (build-expr ift))
+            (define iff* (build-expr iff))
+            (list 'if cond* ift* iff*)]
+           [(list (? impl-exists? impl) ids ...)
+            (define args
+              (for/list ([id (in-list ids)])
+                (define expr (build-expr id))
+                expr))
+            (cons impl args)]
+           [(list (? operator-exists? op) ids ...)
+            (define args
+              (for/list ([id (in-list ids)])
+                (define expr (build-expr id))
+                expr))
+            (cons op args)])))
 
-     ; I am wondering, can we get enode-id from the egraph to eliminate at least one function inside batch?
      (clean-batch)
      (for ([enode (vector-ref eclasses id*)])
        (add-root enode))
-     ; finalize batch removes duplicates in expressions if exist
      (define batch (finalize-batch))
 
      ; -------------------------- Debooging
@@ -1182,6 +1180,7 @@
            (printf "expr* = ~a\n" expr*)
            (printf "expr  = ~a\n\n" expr)
            (sleep 5)))
+     #;(println "oolright\n")
      ; ---------------------------
 
      ; translate egg IR to Herbie IR
@@ -1191,7 +1190,7 @@
            (egg-parsed->expr (flatten-let egg-expr) egg->herbie type)))
 
      ; translate egg IR batch to Herbie IR batch
-     (egg-batch->batch batch egg->herbie type)
+     #;(egg-batch->batch batch egg->herbie type)
 
      ; -------------------------- Debooging
      #;(define exprs* (batch->progs batch))
