@@ -5,7 +5,8 @@
          "timeline.rkt"
          "plot.rkt"
          "make-graph.rkt"
-         "traceback.rkt")
+         "traceback.rkt"
+         "common.rkt")
 
 (provide all-pages
          make-page
@@ -31,20 +32,24 @@
     (display "</pre>" out)))
 
 (define (make-page page out result-hash output? profile?)
-  (define test (hash-ref result-hash 'test))
-  (define status (hash-ref result-hash 'status))
   (match page
-    ["graph.html"
-     (match status
-       ['success
-        (define command (hash-ref result-hash 'command))
-        (match command
-          ["improve" (make-graph result-hash out output? profile?)]
-          [else (dummy-graph command out)])]
-       ['timeout (make-traceback result-hash out)]
-       ['failure (make-traceback result-hash out)]
-       [_ (error 'make-page "unknown result type ~a" status)])]
+    ["graph.html" (write-html (make-graph-html result-hash output? profile?) out)]
     ["timeline.html"
-     (make-timeline (test-name test) (hash-ref result-hash 'timeline) out #:path "..")]
+     (write-html (make-timeline (test-name (hash-ref result-hash 'test))
+                                (hash-ref result-hash 'timeline)
+                                #:path "..")
+                 out)]
     ["timeline.json" (write-json (hash-ref result-hash 'timeline) out)]
     ["points.json" (write-json (make-points-json result-hash) out)]))
+
+(define (make-graph-html result-hash output? profile?)
+  (define status (hash-ref result-hash 'status))
+  (match status
+    ['success
+     (define command (hash-ref result-hash 'command))
+     (match command
+       ["improve" (make-graph result-hash output? profile?)]
+       [else (dummy-graph command)])]
+    ['timeout (make-traceback result-hash)]
+    ['failure (make-traceback result-hash)]
+    [_ (error 'make-graph-html "unknown result type ~a" status)]))

@@ -3,6 +3,8 @@
 (require openssl/sha1)
 (require (only-in xml write-xexpr)
          json)
+(require net/url)
+(require web-server/http)
 
 (require "sandbox.rkt"
          "../core/points.rkt"
@@ -17,11 +19,14 @@
          "../utils/common.rkt"
          "../utils/errors.rkt"
          "../utils/float.rkt"
+         "../reports/pages.rkt"
+         "datafile.rkt"
          (submod "../utils/timeline.rkt" debug))
 
 (provide make-path
          get-improve-table-data
          make-improve-result
+         server-check-on
          get-results-for
          get-timeline-for
          job-count
@@ -29,7 +34,13 @@
          create-job
          start-job
          wait-for-job
-         start-job-server)
+         start-job-server
+         check-and-send
+         *demo?*
+         *demo-output*)
+
+(define *demo?* (make-parameter false))
+(define *demo-output* (make-parameter false))
 
 ; verbose logging for debugging
 (define verbose #f) ; Maybe change to log-level and use 'verbose?
@@ -50,6 +61,45 @@
                     #:timeline-disabled? [timeline-disabled? #f])
   (herbie-command command test seed pcontext profile? timeline-disabled?))
 
+;; TODO move these side worker/manager
+(define (check-and-send path job-id page)
+  (define result-hash (get-results-for job-id))
+  (cond
+    [(set-member? (all-pages result-hash) page)
+     ;; Write page contents to disk
+     (when (*demo-output*)
+       (write-results-to-disk result-hash path))
+     (response 200
+               #"OK"
+               (current-seconds)
+               #"text"
+               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count)))))
+               (λ (out)
+                 (with-handlers ([exn:fail? (page-error-handler result-hash page out)])
+                   (make-page page out result-hash (*demo-output*) #f))))]
+    [else #f]))
+
+(define (write-results-to-disk result-hash path)
+  (make-directory (build-path (*demo-output*) path))
+  (for ([page (all-pages result-hash)])
+    (call-with-output-file (build-path (*demo-output*) path page)
+                           (λ (out)
+                             (with-handlers ([exn:fail? (page-error-handler result-hash page out)])
+                               (make-page page out result-hash (*demo-output*) #f)))))
+  (define link (path-element->string (last (explode-path path))))
+  (define data (get-table-data-from-hash result-hash link))
+  (define data-file (build-path (*demo-output*) "results.json"))
+  (define html-file (build-path (*demo-output*) "index.html"))
+  (define info
+    (if (file-exists? data-file)
+        (let ([info (read-datafile data-file)])
+          (struct-copy report-info info [tests (cons data (report-info-tests info))]))
+        (make-report-info (list data) #:seed (get-seed) #:note (if (*demo?*) "Web demo results" ""))))
+  (define tmp-file (build-path (*demo-output*) "results.tmp"))
+  (write-datafile tmp-file info)
+  (rename-file-or-directory tmp-file data-file #t)
+  (copy-file (web-resource "report.html") html-file #t))
+
 ; computes the path used for server URLs
 (define (make-path id)
   (format "~a.~a" id *herbie-commit*))
@@ -65,6 +115,13 @@
   (define-values (a b) (place-channel))
   (place-channel-put manager (list 'timeline job-id b))
   (log "Getting timeline for job: ~a.\n" job-id)
+  (place-channel-get a))
+
+; Returns #f if there is no job returns the job-id if there is a completed job.
+(define (server-check-on job-id)
+  (define-values (a b) (place-channel))
+  (place-channel-put manager (list 'check job-id b))
+  (log "Checking on: ~a.\n" job-id)
   (place-channel-get a))
 
 (define (get-improve-table-data)
@@ -251,6 +308,8 @@
           [else
            (log "Job complete, no timeline, send result.\n")
            (place-channel-put handler (hash-ref completed-work job-id #f))])]
+       [(list 'check job-id handler)
+        (place-channel-put handler (if (hash-has-key? completed-work job-id) job-id #f))]
        ; Returns the current count of working workers.
        [(list 'count handler) (place-channel-put handler (hash-count busy-workers))]
        ; Retreive the improve results for results.json

@@ -7,13 +7,13 @@
 
 (provide make-traceback)
 
-(define (make-traceback result-hash out)
+(define (make-traceback result-hash)
   (match (hash-ref result-hash 'status)
-    ['timeout (render-timeout result-hash out)]
-    ['failure (render-failure result-hash out)]
+    ['timeout (render-timeout result-hash)]
+    ['failure (render-failure result-hash)]
     [status (error 'make-traceback "unexpected status ~a" status)]))
 
-(define (render-failure result-hash out)
+(define (render-failure result-hash)
   (define test (hash-ref result-hash 'test))
   (define warnings (hash-ref result-hash 'warnings))
   (define backend (hash-ref result-hash 'backend))
@@ -21,27 +21,25 @@
   ; unpack the exception
   (match-define (list 'exn type msg url extra traceback) backend)
 
-  (write-html
-   `(html
-     (head (meta ((charset "utf-8")))
-           (title "Exception for " ,(~a (test-name test)))
-           (link ((rel "stylesheet") (type "text/css") (href "../report.css")))
-           ,@js-tex-include
-           (script ([src "../report.js"])))
-     (body ,(render-menu (~a (test-name test))
-                         (list '("Report" . "../index.html") '("Metrics" . "timeline.html")))
-           ,(render-warnings warnings)
-           ,(render-specification test)
-           ,(if type
-                `(section ([id "user-error"] (class "error"))
-                          (h2 ,(~a msg) " " (a ([href ,url]) "(more)"))
-                          ,(if (eq? type 'syntax) (render-syntax-errors msg extra) ""))
-                "")
-           ,(if type
-                ""
-                `(,@(render-reproduction test #:bug? #t)
-                  (section ([id "backtrace"]) (h2 "Backtrace") ,(render-traceback msg traceback))))))
-   out))
+  `(html
+    (head (meta ((charset "utf-8")))
+          (title "Exception for " ,(~a (test-name test)))
+          (link ((rel "stylesheet") (type "text/css") (href "../report.css")))
+          ,@js-tex-include
+          (script ([src "../report.js"])))
+    (body ,(render-menu (~a (test-name test))
+                        (list '("Report" . "../index.html") '("Metrics" . "timeline.html")))
+          ,(render-warnings warnings)
+          ,(render-specification test)
+          ,(if type
+               `(section ([id "user-error"] (class "error"))
+                         (h2 ,(~a msg) " " (a ([href ,url]) "(more)"))
+                         ,(if (eq? type 'syntax) (render-syntax-errors msg extra) ""))
+               "")
+          ,(if type
+               ""
+               `(,@(render-reproduction test #:bug? #t)
+                 (section ([id "backtrace"]) (h2 "Backtrace") ,(render-traceback msg traceback)))))))
 
 (define (render-syntax-errors msg locations)
   `(table (thead (th ([colspan "2"]) ,msg) (th "L") (th "C"))
@@ -63,22 +61,20 @@
           `(tr (td ((class "procedure")) ,(~a name)) (td ,(~a file)) (td ,(~a line)) (td ,(~a col)))]
          [#f `(tr (td ((class "procedure")) ,(~a name)) (td ([colspan "3"]) "unknown"))])))))
 
-(define (render-timeout result-hash out)
+(define (render-timeout result-hash)
   (define test (hash-ref result-hash 'test))
   (define time (hash-ref result-hash 'time))
   (define warnings (hash-ref result-hash 'warnings))
 
-  (write-html
-   `(html (head (meta ((charset "utf-8")))
-                (title "Exception for " ,(~a (test-name test)))
-                (link ((rel "stylesheet") (type "text/css") (href "../report.css")))
-                ,@js-tex-include
-                (script ([src "../report.js"])))
-          (body ,(render-menu (~a (test-name test))
-                              (list '("Report" . "../index.html") '("Metrics" . "timeline.html")))
-                ,(render-warnings warnings)
-                ,(render-specification test)
-                (section ([id "user-error"] (class "error"))
-                         (h2 "Timeout after " ,(format-time time))
-                         (p "Use the " (code "--timeout") " flag to change the timeout."))))
-   out))
+  `(html (head (meta ((charset "utf-8")))
+               (title "Exception for " ,(~a (test-name test)))
+               (link ((rel "stylesheet") (type "text/css") (href "../report.css")))
+               ,@js-tex-include
+               (script ([src "../report.js"])))
+         (body ,(render-menu (~a (test-name test))
+                             (list '("Report" . "../index.html") '("Metrics" . "timeline.html")))
+               ,(render-warnings warnings)
+               ,(render-specification test)
+               (section ([id "user-error"] (class "error"))
+                        (h2 "Timeout after " ,(format-time time))
+                        (p "Use the " (code "--timeout") " flag to change the timeout.")))))

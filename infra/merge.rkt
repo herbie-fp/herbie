@@ -5,7 +5,8 @@
          "../src/utils/profile.rkt"
          "../src/api/datafile.rkt"
          "../src/reports/timeline.rkt"
-         "../src/syntax/load-plugin.rkt")
+         "../src/syntax/load-plugin.rkt"
+         "../src/reports/common.rkt")
 
 (define (merge-timelines outdir . dirs)
   (define tls
@@ -21,7 +22,8 @@
                          (curry write-json joint-tl))
   (call-with-output-file (build-path outdir "timeline.html")
                          #:exists 'replace
-                         (λ (out) (make-timeline "Herbie run" joint-tl out #:info info))))
+                         (λ (out)
+                           (write-html (make-timeline "Herbie run" joint-tl #:info info) out))))
 
 (define (merge-profiles outdir . dirs)
   (define pfs

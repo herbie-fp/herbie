@@ -2,12 +2,10 @@
 
 (require math/bigfloat
          math/flonum)
-(require "../utils/common.rkt"
-         "../core/points.rkt"
+(require "../core/points.rkt"
          "../utils/float.rkt"
          "../core/programs.rkt"
          "../syntax/types.rkt"
-         "../syntax/syntax.rkt"
          "../syntax/read.rkt"
          "../utils/alternative.rkt"
          "../core/bsearch.rkt"
@@ -105,12 +103,18 @@
   ;          bits of error for the output on each point
   ;   ticks: array of size n where each entry is 13 or so tick values as [ordinal, string] pairs
   ;   splitpoints: array with the ordinal splitpoints
-  `#hasheq((bits . ,bits)
-           (vars . ,(map symbol->string vars))
-           (points . ,json-points)
-           (error . ,error-entries)
-           (ticks_by_varidx . ,ticks)
-           (splitpoints_by_varidx . ,splitpoints)))
+  (hasheq 'bits
+          bits
+          'vars
+          (map symbol->string vars)
+          'points
+          json-points
+          'error
+          error-entries
+          'ticks_by_varidx
+          ticks
+          'splitpoints_by_varidx
+          splitpoints))
 
 ;;  Repr conversions
 

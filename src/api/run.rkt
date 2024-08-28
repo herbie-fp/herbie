@@ -11,7 +11,8 @@
          "../core/sampling.rkt"
          "../reports/pages.rkt"
          "thread-pool.rkt"
-         "../reports/timeline.rkt")
+         "../reports/timeline.rkt"
+         "../reports/common.rkt")
 
 (provide make-report
          rerun-report
@@ -84,9 +85,10 @@
   (define profile (merge-profile-jsons (read-json-files info dir "profile.json")))
   (call-with-output-file (build-path dir "profile.json") (curry write-json profile) #:exists 'replace)
 
-  (call-with-output-file (build-path dir "timeline.html")
-                         #:exists 'replace
-                         (λ (out) (make-timeline "Herbie run" timeline out #:info info #:path ".")))
+  (call-with-output-file
+   (build-path dir "timeline.html")
+   #:exists 'replace
+   (λ (out) (write-html (make-timeline "Herbie run" timeline #:info info #:path ".") out)))
 
   ; Delete old files
   (let* ([expected-dirs (map string->path
