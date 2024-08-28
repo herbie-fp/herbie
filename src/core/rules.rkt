@@ -93,19 +93,8 @@
             (for ([rule (in-list rules)])
               (sow rule))))))
 
-;; Spec contains no accelerators
-(define (spec-has-accelerator? spec)
-  (match spec
-    [(list (? operator-accelerator?) _ ...) #t]
-    [(list _ args ...) (ormap spec-has-accelerator? args)]
-    [_ #f]))
-
 (define (real-rules rules)
-  (filter-not (lambda (rule)
-                (or (representation? (rule-otype rule))
-                    (spec-has-accelerator? (rule-input rule))
-                    (spec-has-accelerator? (rule-output rule))))
-              rules))
+  (filter-not (lambda (rule) (representation? (rule-otype rule))) rules))
 
 ;;
 ;;  Rule loading
@@ -160,6 +149,13 @@
     [(define-ruleset* name groups #:type ([var type] ...) [rname input output] ...)
      (register-ruleset*! 'name 'groups `((var . type) ...) '((rname input output) ...))]))
 
+; Commutativity
+(define-ruleset* commutativity
+                 (arithmetic simplify fp-safe sound)
+                 #:type ([a real] [b real])
+                 [+-commutative (+ a b) (+ b a)]
+                 [*-commutative (* a b) (* b a)])
+
 ; Associativity
 (define-ruleset* associativity
                  (arithmetic simplify sound)
@@ -197,6 +193,27 @@
                  [distribute-lft1-in (+ (* b a) a) (* (+ b 1) a)]
                  [distribute-rgt1-in (+ a (* c a)) (* (+ c 1) a)])
 
+; Safe Distributiviity
+(define-ruleset* distributivity-fp-safe
+                 (arithmetic simplify fp-safe sound)
+                 #:type ([a real] [b real])
+                 [distribute-lft-neg-in (neg (* a b)) (* (neg a) b)]
+                 [distribute-rgt-neg-in (neg (* a b)) (* a (neg b))]
+                 [distribute-lft-neg-out (* (neg a) b) (neg (* a b))]
+                 [distribute-rgt-neg-out (* a (neg b)) (neg (* a b))]
+                 [distribute-neg-in (neg (+ a b)) (+ (neg a) (neg b))]
+                 [distribute-neg-out (+ (neg a) (neg b)) (neg (+ a b))]
+                 [distribute-frac-neg (/ (neg a) b) (neg (/ a b))]
+                 [distribute-frac-neg2 (/ a (neg b)) (neg (/ a b))]
+                 [distribute-neg-frac (neg (/ a b)) (/ (neg a) b)]
+                 [distribute-neg-frac2 (neg (/ a b)) (/ a (neg b))])
+
+(define-ruleset* cancel-sign-fp-safe
+                 (arithmetic simplify fp-safe sound)
+                 #:type ([a real] [b real] [c real])
+                 [cancel-sign-sub (- a (* (neg b) c)) (+ a (* b c))]
+                 [cancel-sign-sub-inv (- a (* b c)) (+ a (* (neg b) c))])
+
 ; Difference of squares
 (define-ruleset* difference-of-squares-canonicalize
                  (polynomials simplify sound)
@@ -227,6 +244,36 @@
                  [rgt-mult-inverse (* a (/ 1 a)) 1]
                  [lft-mult-inverse (* (/ 1 a) a) 1])
 
+(define-ruleset* id-reduce-fp-safe-nan
+                 (arithmetic simplify fp-safe-nan sound)
+                 #:type ([a real])
+                 [+-inverses (- a a) 0]
+                 [div0 (/ 0 a) 0]
+                 [mul0-lft (* 0 a) 0]
+                 [mul0-rgt (* a 0) 0]
+                 [*-inverses (/ a a) 1])
+
+(define-ruleset* id-reduce-fp-safe
+                 (arithmetic simplify fp-safe sound)
+                 #:type ([a real])
+                 [+-lft-identity (+ 0 a) a]
+                 [+-rgt-identity (+ a 0) a]
+                 [--rgt-identity (- a 0) a]
+                 [sub0-neg (- 0 a) (neg a)]
+                 [remove-double-neg (neg (neg a)) a]
+                 [*-lft-identity (* 1 a) a]
+                 [*-rgt-identity (* a 1) a]
+                 [/-rgt-identity (/ a 1) a]
+                 [mul-1-neg (* -1 a) (neg a)])
+
+(define-ruleset* nan-transform-fp-safe
+                 (arithmetic simplify fp-safe sound)
+                 #:type ([a real] [b real])
+                 [sub-neg (- a b) (+ a (neg b))]
+                 [unsub-neg (+ a (neg b)) (- a b)]
+                 [neg-sub0 (neg b) (- 0 b)]
+                 [neg-mul-1 (neg a) (* -1 a)])
+
 (define-ruleset* id-transform-safe
                  (arithmetic sound)
                  #:type ([a real] [b real])
@@ -237,6 +284,11 @@
                  (arithmetic)
                  #:type ([a real] [b real])
                  [clear-num (/ a b) (/ 1 (/ b a))])
+
+(define-ruleset* id-transform-fp-safe
+                 (arithmetic fp-safe sound)
+                 #:type ([a real])
+                 [*-un-lft-identity a (* 1 a)])
 
 ; Difference of cubes
 (define-ruleset*
@@ -270,6 +322,29 @@
                  #:type ([x real])
                  [rem-square-sqrt (* (sqrt x) (sqrt x)) x]
                  [rem-sqrt-square (sqrt (* x x)) (fabs x)])
+
+(define-ruleset* squares-reduce-fp-sound
+                 (arithmetic simplify fp-safe sound)
+                 #:type ([x real])
+                 [sqr-neg (* (neg x) (neg x)) (* x x)]
+                 [sqr-abs (* (fabs x) (fabs x)) (* x x)])
+
+(define-ruleset* fabs-reduce
+                 (arithmetic simplify fp-safe sound)
+                 #:type ([x real] [a real] [b real])
+                 [fabs-fabs (fabs (fabs x)) (fabs x)]
+                 [fabs-sub (fabs (- a b)) (fabs (- b a))]
+                 [fabs-neg (fabs (neg x)) (fabs x)]
+                 [fabs-sqr (fabs (* x x)) (* x x)]
+                 [fabs-mul (fabs (* a b)) (* (fabs a) (fabs b))]
+                 [fabs-div (fabs (/ a b)) (/ (fabs a) (fabs b))])
+
+(define-ruleset* fabs-expand
+                 (arithmetic fp-safe sound)
+                 #:type ([x real] [a real] [b real])
+                 [neg-fabs (fabs x) (fabs (neg x))]
+                 [mul-fabs (* (fabs a) (fabs b)) (fabs (* a b))]
+                 [div-fabs (/ (fabs a) (fabs b)) (fabs (/ a b))])
 
 (define-ruleset* squares-transform-sound
                  (arithmetic sound)
@@ -329,6 +404,13 @@
                  [rem-exp-log (exp (log x)) x]
                  [rem-log-exp (log (exp x)) x])
 
+(define-ruleset* exp-constants
+                 (exponents simplify fp-safe sound)
+                 [exp-0 (exp 0) 1]
+                 [exp-1-e (exp 1) (E)]
+                 [1-exp 1 (exp 0)]
+                 [e-exp-1 (E) (exp 1)])
+
 (define-ruleset* exp-distribute
                  (exponents simplify sound)
                  #:type ([a real] [b real])
@@ -350,6 +432,19 @@
 
 ; Powers
 (define-ruleset* pow-reduce (exponents simplify sound) #:type ([a real]) [unpow-1 (pow a -1) (/ 1 a)])
+
+(define-ruleset* pow-reduce-fp-safe
+                 (exponents simplify fp-safe sound)
+                 #:type ([a real])
+                 [unpow1 (pow a 1) a])
+
+(define-ruleset* pow-reduce-fp-safe-nan
+                 (exponents simplify fp-safe-nan sound)
+                 #:type ([a real])
+                 [unpow0 (pow a 0) 1]
+                 [pow-base-1 (pow 1 a) 1])
+
+(define-ruleset* pow-expand-fp-safe (exponents fp-safe sound) #:type ([a real]) [pow1 a (pow a 1)])
 
 (define-ruleset* pow-canonicalize
                  (exponents simplify sound)
@@ -389,6 +484,16 @@
                  [unpow-prod-up (pow a (+ b c)) (* (pow a b) (pow a c))]
                  [unpow-prod-down (pow (* b c) a) (* (pow b a) (pow c a))])
 
+(define-ruleset* pow-transform-fp-safe-nan
+                 (exponents simplify fp-safe-nan sound)
+                 #:type ([a real])
+                 [pow-base-0 (pow 0 a) 0])
+
+(define-ruleset* pow-transform-fp-safe
+                 (exponents fp-safe sound)
+                 #:type ([a real])
+                 [inv-pow (/ 1 a) (pow a -1)])
+
 (define-ruleset* log-distribute-sound
                  (exponents simplify sound)
                  #:type ([a real] [b real])
@@ -411,6 +516,25 @@
                  [neg-log (neg (log a)) (log (/ 1 a))])
 
 ; Trigonometry
+(define-ruleset* trig-reduce-fp-sound
+                 (trigonometry simplify fp-safe sound)
+                 [sin-0 (sin 0) 0]
+                 [cos-0 (cos 0) 1]
+                 [tan-0 (tan 0) 0])
+
+(define-ruleset* trig-reduce-fp-sound-nan
+                 (trigonometry simplify fp-safe-nan sound)
+                 #:type ([x real])
+                 [sin-neg (sin (neg x)) (neg (sin x))]
+                 [cos-neg (cos (neg x)) (cos x)]
+                 [tan-neg (tan (neg x)) (neg (tan x))])
+
+(define-ruleset* trig-expand-fp-safe
+                 (trignometry fp-safe sound)
+                 #:type ([x real])
+                 [sqr-sin-b (* (sin x) (sin x)) (- 1 (* (cos x) (cos x)))]
+                 [sqr-cos-b (* (cos x) (cos x)) (- 1 (* (sin x) (sin x)))])
+
 (define-ruleset*
  trig-inverses
  (trigonometry sound)
@@ -567,6 +691,14 @@
                  #:type ([x real] [y real])
                  [tanh-1/2* (tanh (/ x 2)) (/ (- (cosh x) 1) (sinh x))])
 
+(define-ruleset* htrig-expand-fp-safe
+                 (hyperbolic fp-safe sound)
+                 #:type ([x real])
+                 [sinh-neg (sinh (neg x)) (neg (sinh x))]
+                 [sinh-0 (sinh 0) 0]
+                 [cosh-neg (cosh (neg x)) (cosh x)]
+                 [cosh-0 (cosh 0) 1])
+
 (define-ruleset* ahtrig-expand-sound
                  (hyperbolic sound)
                  #:type ([x real])
@@ -589,34 +721,47 @@
                  [asinh-2 (acosh (+ (* 2 (* x x)) 1)) (* 2 (asinh x))]
                  [acosh-2 (acosh (- (* 2 (* x x)) 1)) (* 2 (acosh x))])
 
-; Specialized numerical functions
-(define-ruleset* special-numerical-reduce
-                 (numerics simplify)
-                 #:type ([x real] [y real] [z real])
-                 [log1p-expm1 (log1p (expm1 x)) x]
-                 [hypot-1-def (sqrt (+ 1 (* y y))) (hypot 1 y)]
-                 [fmm-def (- (* x y) z) (fma x y (neg z))]
-                 [fmm-undef (fma x y (neg z)) (- (* x y) z)])
-
-(define-ruleset* special-numerical-expand
-                 (numerics)
-                 #:type ([x real] [y real])
-                 [log1p-expm1-u x (log1p (expm1 x))]
-                 [expm1-log1p-u x (expm1 (log1p x))])
-
 (define-ruleset* erf-rules (special simplify) #:type ([x real]) [erf-odd (erf (neg x)) (neg (erf x))])
 
-(define-ruleset* numerics-papers
-                 (numerics)
-                 #:type ([a real] [b real] [c real] [d real])
-                 ;  "Further Analysis of Kahan's Algorithm for
-                 ;   the Accurate Computation of 2x2 Determinants"
-                 ;  Jeannerod et al., Mathematics of Computation, 2013
-                 ;
-                 ;  a * b - c * d  ===> fma(a, b, -(d * c)) + fma(-d, c, d * c)
-                 [prod-diff (- (* a b) (* c d)) (+ (fma a b (neg (* d c))) (fma (neg d) c (* d c)))])
+; Specialized numerical functions
+; TODO: These are technically rules over impls
+;
+; (define-ruleset* special-numerical-reduce
+;                  (numerics simplify)
+;                  #:type ([x real] [y real] [z real])
+;                  [log1p-expm1 (log1p (expm1 x)) x]
+;                  [hypot-1-def (sqrt (+ 1 (* y y))) (hypot 1 y)]
+;                  [fmm-def (- (* x y) z) (fma x y (neg z))]
+;                  [fmm-undef (fma x y (neg z)) (- (* x y) z)])
+
+; (define-ruleset* special-numerical-expand
+;                  (numerics)
+;                  #:type ([x real] [y real])
+;                  [log1p-expm1-u x (log1p (expm1 x))]
+;                  [expm1-log1p-u x (expm1 (log1p x))])
+
+; (define-ruleset* numerics-papers
+;                  (numerics)
+;                  #:type ([a real] [b real] [c real] [d real])
+;                  ;  "Further Analysis of Kahan's Algorithm for
+;                  ;   the Accurate Computation of 2x2 Determinants"
+;                  ;  Jeannerod et al., Mathematics of Computation, 2013
+;                  ;
+;                  ;  a * b - c * d  ===> fma(a, b, -(d * c)) + fma(-d, c, d * c)
+;                  [prod-diff (- (* a b) (* c d)) (+ (fma a b (neg (* d c))) (fma (neg d) c (* d c)))])
 
 ;; Sound because it's about soundness over real numbers
+(define-ruleset* compare-reduce
+                 (bools simplify fp-safe-nan sound)
+                 #:type ([x real] [y real])
+                 [lt-same (< x x) (FALSE)]
+                 [gt-same (> x x) (FALSE)]
+                 [lte-same (<= x x) (TRUE)]
+                 [gte-same (>= x x) (TRUE)]
+                 [not-lt (not (< x y)) (>= x y)]
+                 [not-gt (not (> x y)) (<= x y)]
+                 [not-lte (not (<= x y)) (> x y)]
+                 [not-gte (not (>= x y)) (< x y)])
 
 (define-ruleset* branch-reduce
                  (branches simplify fp-safe sound)
