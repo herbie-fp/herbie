@@ -1,11 +1,10 @@
 #lang racket
 
-(require (for-syntax racket/match))
-
 (require "../utils/common.rkt"
          "../utils/errors.rkt"
          "../core/programs.rkt"
          "../core/rules.rkt"
+         "matcher.rkt"
          "syntax.rkt"
          "types.rkt")
 
@@ -242,10 +241,7 @@
 
 ;; Casts between representations in a platform.
 (define (platform-casts pform)
-  (reap [sow]
-        (for ([impl (in-list (platform-impls pform))])
-          (when (eq? (impl->operator impl) 'cast)
-            (sow impl)))))
+  (filter cast-impl? (platform-impls pform)))
 
 ;; Merger for costs.
 (define (merge-cost pform-costs key #:optional? [optional? #f])
@@ -311,7 +307,8 @@
   (define reprs* (filter repr-supported? (platform-reprs pform)))
   (define impls*
     (filter (λ (impl)
-              (and (op-supported? (impl->operator impl))
+              (define spec (impl-info impl 'spec))
+              (and (andmap op-supported? (ops-in-expr spec))
                    (repr-supported? (impl-info impl 'otype))
                    (andmap repr-supported? (impl-info impl 'itype))))
             (platform-impls pform)))
@@ -429,16 +426,9 @@
 
 ;; Synthesizes the LHS and RHS of lifting/lowering rules.
 (define (impl->rule-parts impl)
-  (define op (impl->operator impl))
-  (cond
-    [(operator-accelerator? op)
-     (define spec (operator-info op 'spec))
-     (match-define `(,(or 'lambda 'λ) (,vars ...) ,body) spec)
-     (values vars body (cons impl vars))]
-    [else
-     (define itypes (operator-info op 'itype))
-     (define vars (map (lambda (_) (gensym)) itypes))
-     (values vars (cons op vars) (cons impl vars))]))
+  (define vars (impl-info impl 'vars))
+  (define spec (impl-info impl 'spec))
+  (values vars spec (cons impl vars)))
 
 ;; Synthesizes lifting rules for a given platform.
 (define (platform-lifting-rules [pform (*active-platform*)])
@@ -466,11 +456,10 @@
     (hash-ref! (*lowering-rules*)
                (cons impl pform)
                (lambda ()
-                 (define op (impl->operator impl))
                  (define name (sym-append 'lower- impl))
-                 (define itypes (operator-info op 'itype))
-                 (define otype (operator-info op 'otype))
                  (define-values (vars spec-expr impl-expr) (impl->rule-parts impl))
+                 (define itypes (map representation-type (impl-info impl 'itype)))
+                 (define otype (representation-type (impl-info impl 'otype)))
                  (rule name spec-expr impl-expr (map cons vars itypes) otype)))))
 
 ;; All possible assignments of implementations.
@@ -483,8 +472,9 @@
             [(list 'if rest ...) (loop rest assigns)]
             [(list (? (curryr assq assigns)) rest ...) (loop rest assigns)]
             [(list op rest ...)
-             (for ([impl (operator-all-impls op)])
-               (when (set-member? impls impl)
+             (for ([impl (in-set impls)])
+               (define pattern (cons op (map (lambda _ (gensym)) (operator-info op 'itype))))
+               (when (pattern-match (impl-info impl 'spec) pattern)
                  (loop rest (cons (cons op impl) assigns))))]))))
 
 ;; Attempts to lower a specification to an expression using
@@ -550,5 +540,10 @@
                (when (and input* output*)
                  (define itypes* (merge-envs ienv oenv))
                  (when itypes*
-                   (define name* (sym-append name '_ (repr->symbol repr)))
+                   (define name*
+                     (string->symbol
+                      (format "~a-~a-~a"
+                              name
+                              (representation-name repr)
+                              (string-join (map (lambda (subst) (~a (cdr subst))) isubst) "-"))))
                    (sow (rule name* input* output* itypes* repr)))))]))))

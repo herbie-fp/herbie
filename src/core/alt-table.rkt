@@ -40,11 +40,11 @@
   (alt-table (make-immutable-hash (for/list ([(pt ex) (in-pcontext pcontext)]
                                              [err (errors (alt-expr initial-alt) pcontext ctx)])
                                     (cons pt (list (pareto-point cost err (list initial-alt))))))
-             (hash initial-alt
-                   (for/list ([(pt ex) (in-pcontext pcontext)])
-                     pt))
-             (hash initial-alt #f)
-             (hash initial-alt cost)
+             (hasheq initial-alt
+                     (for/list ([(pt ex) (in-pcontext pcontext)])
+                       pt))
+             (hasheq initial-alt #f)
+             (hasheq initial-alt cost)
              pcontext
              (list initial-alt)))
 
@@ -192,7 +192,7 @@
          [ppt (in-list curve)]
          [alt (in-list (pareto-point-data ppt))])
     (hash-set! alt->points* alt (cons pt (hash-ref alt->points* alt '()))))
-  (make-immutable-hash (hash->list alt->points*)))
+  (make-immutable-hasheq (hash->list alt->points*)))
 
 (define (atab-add-altn atab altn errs cost)
   (match-define (alt-table point->alts alt->points alt->done? alt->cost pcontext all-alts) atab)

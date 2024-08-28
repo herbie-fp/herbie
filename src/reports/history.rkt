@@ -86,8 +86,16 @@
         [(? number?) expr]
         [(? literal?) (literal-value expr)]
         [(approx _ impl) (loop impl)]
-        [`(if ,cond ,ift ,iff) `(if ,(loop cond) ,(loop ift) ,(loop ift))]
-        [`(,(? impl-exists? impl) ,args ...) `(,(impl->operator impl) ,@(map loop args))]
+        [`(if ,cond ,ift ,iff) `(if ,(loop cond) ,(loop ift) ,(loop iff))]
+        [`(,(? impl-exists? impl) ,args ...)
+         ; use the FPCore operator without rounding properties
+         (define args* (map loop args))
+         (define vars (impl-info impl 'vars))
+         (define pattern
+           (match (impl-info impl 'fpcore)
+             [(list '! _ ... body) body]
+             [body body]))
+         (replace-vars (map cons vars args*) pattern)]
         [`(,op ,args ...) `(,op ,@(map loop args))])))
   `(FPCore ,(context-vars ctx) ,expr*))
 

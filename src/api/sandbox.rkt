@@ -319,15 +319,15 @@
   (table-row (test-name test)
              (test-identifier test)
              status
-             (prog->fpcore (test-pre test))
+             (prog->fpcore (test-pre test) (test-context test))
              preprocess
              (representation-name repr)
              '() ; TODO: eliminate field
              (test-vars test)
              (map car (job-result-warnings result))
-             (prog->fpcore (test-input test))
+             (prog->fpcore (test-input test) (test-context test))
              #f
-             (prog->fpcore (test-spec test))
+             (prog->fpcore (test-spec test) (test-context test))
              (test-output test)
              #f
              #f
@@ -348,15 +348,15 @@
   (table-row (test-name test)
              (test-identifier test)
              status
-             (prog->fpcore (test-pre test))
+             (prog->fpcore (test-pre test) (test-context test))
              preprocess
              (representation-name repr)
              '() ; TODO: eliminate field
              (test-vars test)
              (map car (hash-ref result-hash 'warnings))
-             (prog->fpcore (test-input test))
+             (prog->fpcore (test-input test) (test-context test))
              #f
-             (prog->fpcore (test-spec test))
+             (prog->fpcore (test-spec test) (test-context test))
              (test-output test)
              #f
              #f
@@ -398,7 +398,7 @@
      (define best-score
        (if (null? target-cost-score) target-cost-score (apply min (map second target-cost-score))))
 
-     (define end-exprs (hash-ref end 'end-alts))
+     (define end-exprs (hash-ref end 'end-exprs))
      (define end-train-scores (map errors-score (hash-ref end 'end-train-scores)))
      (define end-test-scores (map errors-score (hash-ref end 'end-errors)))
      (define end-costs (hash-ref end 'end-costs))
@@ -435,8 +435,7 @@
                   [target target-cost-score]
                   [result-est end-est-score]
                   [result end-score]
-                  [output
-                   (test-input (parse-test (read-syntax 'web (open-input-string (car end-exprs)))))]
+                  [output (car end-exprs)]
                   [cost-accuracy cost&accuracy])]
     ['failure
      (match-define (list 'exn type _ ...) backend)
@@ -524,12 +523,11 @@
     [_ (error 'get-table-data "unknown result type ~a" status)]))
 
 (define (unparse-result row #:expr [expr #f] #:description [descr #f])
+  (define vars (table-row-vars row))
   (define repr (get-representation (table-row-precision row)))
+  (define ctx (context vars repr (map (const repr) vars))) ; TODO: this seems wrong
   (define expr* (or expr (table-row-output row) (table-row-input row)))
-  (define top
-    (if (table-row-identifier row)
-        (list (table-row-identifier row) (table-row-vars row))
-        (list (table-row-vars row))))
+  (define top (if (table-row-identifier row) (list (table-row-identifier row) vars) (list vars)))
   `(FPCore ,@top
            :herbie-status
            ,(string->symbol (table-row-status row))
@@ -555,4 +553,4 @@
            ,@(append (for/list ([(target enabled?) (in-dict (table-row-target-prog row))]
                                 #:when enabled?)
                        `(:alt ,target)))
-           ,(prog->fpcore expr*)))
+           ,(prog->fpcore expr* ctx)))

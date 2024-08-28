@@ -18,25 +18,18 @@
          "../config.rkt"
          "../syntax/read.rkt"
          "../utils/errors.rkt")
-(require "../syntax/types.rkt"
-         "../syntax/sugar.rkt"
-         "../utils/alternative.rkt"
+(require "../syntax/sugar.rkt"
          "../core/points.rkt"
-         "../api/sandbox.rkt"
-         "../utils/float.rkt")
+         "../api/sandbox.rkt")
 (require "datafile.rkt"
          "../reports/pages.rkt"
          "../reports/common.rkt"
          "../reports/core2mathjs.rkt"
-         "../reports/history.rkt"
-         "../reports/plot.rkt"
          "server.rkt")
 
 (provide run-demo)
 
-(define *demo?* (make-parameter false))
 (define *demo-prefix* (make-parameter "/"))
-(define *demo-output* (make-parameter false))
 (define *demo-log* (make-parameter false))
 
 (define (add-prefix url)
@@ -48,9 +41,9 @@
    (and (not (and (*demo-output*) ; If we've already saved to disk, skip this job
                   (directory-exists? (build-path (*demo-output*) x))))
         (let ([m (regexp-match #rx"^([0-9a-f]+)\\.[0-9a-f.]+" x)])
-          (and m (get-results-for (second m))))))
+          (and m (server-check-on (second m))))))
  (λ (x)
-   (let ([m (regexp-match #rx"^([0-9a-f]+)\\.[0-9a-f.]+" x)]) (get-results-for (if m (second m) x)))))
+   (let ([m (regexp-match #rx"^([0-9a-f]+)\\.[0-9a-f.]+" x)]) (server-check-on (if m (second m) x)))))
 
 (define-bidi-match-expander hash-arg hash-arg/m hash-arg/m)
 
@@ -74,32 +67,10 @@
                   [((hash-arg) (string-arg)) generate-page]
                   [("results.json") generate-report]))
 
-(define (generate-page req result-hash page)
+(define (generate-page req job-id page)
   (define path (first (string-split (url->string (request-uri req)) "/")))
   (cond
-    [(set-member? (all-pages result-hash) page)
-     ;; Write page contents to disk
-     (when (*demo-output*)
-       (make-directory (build-path (*demo-output*) path))
-       (for ([page (all-pages result-hash)])
-         (call-with-output-file
-          (build-path (*demo-output*) path page)
-          (λ (out)
-            (with-handlers ([exn:fail? (page-error-handler result-hash page out)])
-              (make-page page out result-hash (*demo-output*) #f)))))
-       (update-report result-hash
-                      path
-                      (get-seed)
-                      (build-path (*demo-output*) "results.json")
-                      (build-path (*demo-output*) "index.html")))
-     (response 200
-               #"OK"
-               (current-seconds)
-               #"text"
-               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count)))))
-               (λ (out)
-                 (with-handlers ([exn:fail? (page-error-handler result-hash page out)])
-                   (make-page page out result-hash (*demo-output*) #f))))]
+    [(check-and-send path job-id page)]
     [else (next-dispatcher)]))
 
 (define (generate-report req)
@@ -234,19 +205,6 @@
                (a ([href "./index.html"]) " See what formulas other users submitted."))]
             [else `("all formulas submitted here are " (a ([href "./index.html"]) "logged") ".")])))))
 
-(define (update-report result-hash dir seed data-file html-file)
-  (define link (path-element->string (last (explode-path dir))))
-  (define data (get-table-data-from-hash result-hash link))
-  (define info
-    (if (file-exists? data-file)
-        (let ([info (read-datafile data-file)])
-          (struct-copy report-info info [tests (cons data (report-info-tests info))]))
-        (make-report-info (list data) #:seed seed #:note (if (*demo?*) "Web demo results" ""))))
-  (define tmp-file (build-path (*demo-output*) "results.tmp"))
-  (write-datafile tmp-file info)
-  (rename-file-or-directory tmp-file data-file #t)
-  (copy-file (web-resource "report.html") html-file #t))
-
 (define (post-with-json-response fn)
   (lambda (req)
     (define post-body (request-post-data/raw req))
@@ -339,27 +297,7 @@
    (url main)))
 
 (define (check-status req job-id)
-  (define r (get-results-for job-id))
-  ;; TODO return the current status from the jobs timeline
-  (match r
-    [#f
-     (response 202
-               #"Job in progress"
-               (current-seconds)
-               #"text/plain"
-               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count)))))
-               (λ (out) (display "Not done!" out)))]
-    [(? box? timeline)
-     (response 202
-               #"Job in progress"
-               (current-seconds)
-               #"text/plain"
-               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count)))))
-               (λ (out)
-                 (display (apply string-append
-                                 (for/list ([entry (reverse (unbox timeline))])
-                                   (format "Doing ~a\n" (hash-ref entry 'type))))
-                          out)))]
+  (match (get-timeline-for job-id)
     [(? hash? result-hash)
      (response/full 201
                     #"Job complete"
@@ -370,7 +308,18 @@
                                    (add-prefix (format "~a.~a/graph.html" job-id *herbie-commit*))))
                           (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count))))
                           (header #"X-Herbie-Job-ID" (string->bytes/utf-8 job-id)))
-                    '())]))
+                    '())]
+    [timeline
+     (response 202
+               #"Job in progress"
+               (current-seconds)
+               #"text/plain"
+               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count)))))
+               (λ (out)
+                 (display (apply string-append
+                                 (for/list ([entry timeline])
+                                   (format "Doing ~a\n" (hash-ref entry 'type))))
+                          out)))]))
 
 (define (check-up req)
   (response/full (if (is-server-up) 200 500)
@@ -505,7 +454,7 @@
                              (define sample (hash-ref post-data 'sample))
                              (define seed (hash-ref post-data 'seed #f))
                              (define test (parse-test formula))
-                             (define expr (prog->fpcore (test-input test)))
+                             (define expr (prog->fpcore (test-input test) (test-context test)))
                              (define pcontext (json->pcontext sample (test-context test)))
                              (define command
                                (create-job 'local-error

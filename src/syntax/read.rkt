@@ -144,28 +144,22 @@
       [(list 'FPCore name (list args ...) props ... body) (values name args props body)]
       [(list 'FPCore (list args ...) props ... body) (values #f args props body)]))
 
-  ;; TODO(interface): Currently, this code doesn't fire because annotations aren't
-  ;; allowed for variables because of the syntax checker yet. This should run correctly
-  ;; once the syntax checker is updated to the FPBench 1.1 standard.
-  (define arg-names
-    (for/list ([arg args])
-      (if (list? arg) (last arg) arg)))
-
-  (define prop-dict
-    (let loop ([props props])
-      (match props
-        ['() '()]
-        [(list prop val rest ...) (cons (cons prop val) (loop rest))])))
-
+  (define prop-dict (props->dict props))
   (define default-prec (dict-ref prop-dict ':precision (*default-precision*)))
+
+  (define-values (var-names var-precs)
+    (for/lists (var-names var-precs)
+               ([var (in-list args)])
+               (match var
+                 [(list '! props ... name)
+                  (define prop-dict (props->dict props))
+                  (define arg-prec (dict-ref prop-dict ':precision default-prec))
+                  (values name arg-prec)]
+                 [(? symbol? name) (values name default-prec)])))
+
   (define default-repr (get-representation default-prec))
-  (define var-reprs
-    (for/list ([arg args]
-               [arg-name arg-names])
-      (if (and (list? arg) (set-member? args ':precision))
-          (get-representation (cadr (member ':precision args)))
-          default-repr)))
-  (define ctx (context arg-names default-repr var-reprs))
+  (define var-reprs (map get-representation var-precs))
+  (define ctx (context var-names default-repr var-reprs))
 
   ;; Named fpcores need to be added to function table
   (when func-name
@@ -192,12 +186,12 @@
            (cons val #t))])))
 
   (define spec (fpcore->prog (dict-ref prop-dict ':spec body) ctx))
-  (check-unused-variables arg-names body* pre*)
-  (check-weird-variables arg-names)
+  (check-unused-variables var-names body* pre*)
+  (check-weird-variables var-names)
 
   (test (~a name)
         func-name
-        arg-names
+        var-names
         body*
         targets
         (dict-ref prop-dict ':herbie-expected #t)
@@ -205,8 +199,8 @@
         pre*
         (dict-ref prop-dict ':herbie-preprocess empty)
         (representation-name default-repr)
-        (for/list ([var arg-names]
-                   [repr var-reprs])
+        (for/list ([var (in-list var-names)]
+                   [repr (in-list var-reprs)])
           (cons var (representation-name repr)))))
 
 (define (check-unused-variables vars precondition expr)

@@ -67,6 +67,17 @@
        ;; These expand by associativity so we don't check the number of arguments
        (for ([arg args])
          (loop arg vars))]
+      [#`(,(? (curry set-member? '(erfc expm1 log1p hypot fma)) op) #,args ...)
+       ; FPCore operators that are composite in Herbie
+       (define arity
+         (case op
+           [(erfc expm1 log1p) 1]
+           [(hypot) 2]
+           [(fma) 3]))
+       (unless (= arity (length args))
+         (error! stx "Operator ~a given ~a arguments (expects ~a)" op (length args) arity))
+       (for ([arg (in-list args)])
+         (loop arg vars))]
       [#`(#,f-syntax #,args ...)
        (define f (syntax->datum f-syntax))
        (cond

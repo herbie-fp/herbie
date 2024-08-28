@@ -8,6 +8,7 @@
          get-representation
          repr-exists?
          repr->symbol
+         repr->prop
          (struct-out context)
          *context*
          context-extend
@@ -48,6 +49,12 @@
   (define replace-table `((" " . "_") ("(" . "") (")" . "")))
   (define repr-name (representation-name repr))
   (string->symbol (string-replace* (~a repr-name) replace-table)))
+
+;; Converts a representation into a rounding property
+(define (repr->prop repr)
+  (match (representation-type repr)
+    ['bool '()]
+    ['real (list (cons ':precision (representation-name repr)))]))
 
 ;; Repr / operator generation
 ;; Some plugins might define 'parameterized' reprs (e.g. fixed point with
