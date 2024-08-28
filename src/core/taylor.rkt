@@ -34,6 +34,59 @@
          (simplify (make-horner ((cdr tform) var) (reverse terms)))]))
     next))
 
+;; Our Taylor expander prefers sin, cos, exp, log, neg over trig, htrig, pow, and subtraction
+(define (expand-taylor input-batch)
+  (batch-replace
+   input-batch
+   (lambda (node)
+     (match node
+       [(list '- ref1 ref2) `(+ ,ref1 (neg ,ref2))]
+       [(list 'pow base (app deref 1/2)) `(sqrt ,base)]
+       [(list 'pow base (app deref 1/3)) `(cbrt ,base)]
+       [(list 'pow base (app deref 2/3)) `(cbrt (* ,base ,base))]
+       [(list 'pow base power)
+        #:when (exact-integer? (deref power))
+        `(pow ,base ,power)]
+       [(list 'pow base power) `(exp (* ,power (log ,base)))]
+       [(list 'tan arg) `(/ (sin ,arg) (cos ,arg))]
+       [(list 'cosh arg) `(* 1/2 (+ (exp ,arg) (/ 1 (exp ,arg))))]
+       [(list 'sinh arg) `(* 1/2 (+ (exp ,arg) (/ -1 (exp ,arg))))]
+       [(list 'tanh arg) `(/ (+ (exp ,arg) (neg (/ 1 (exp ,arg)))) (+ (exp ,arg) (/ 1 (exp ,arg))))]
+       [(list 'asinh arg) `(log (+ ,arg (sqrt (+ (* ,arg ,arg) 1))))]
+       [(list 'acosh arg) `(log (+ ,arg (sqrt (+ (* ,arg ,arg) -1))))]
+       [(list 'atanh arg) `(* 1/2 (log (/ (+ 1 ,arg) (+ 1 (neg ,arg)))))]
+       [_ node]))))
+
+; Tests for expand-taylor
+(module+ test
+  (require rackunit)
+
+  (define (test-expand-taylor expr)
+    (define batch (progs->batch (list expr)))
+    (define batch* (expand-taylor batch))
+    (car (batch->progs batch*)))
+
+  (check-equal? '(* 1/2 (log (/ (+ 1 x) (+ 1 (neg x))))) (test-expand-taylor '(atanh x)))
+  (check-equal? '(log (+ x (sqrt (+ (* x x) -1)))) (test-expand-taylor '(acosh x)))
+  (check-equal? '(log (+ x (sqrt (+ (* x x) 1)))) (test-expand-taylor '(asinh x)))
+  (check-equal? '(/ (+ (exp x) (neg (/ 1 (exp x)))) (+ (exp x) (/ 1 (exp x))))
+                (test-expand-taylor '(tanh x)))
+  (check-equal? '(* 1/2 (+ (exp x) (/ -1 (exp x)))) (test-expand-taylor '(sinh x)))
+  (check-equal? '(+ 1 (neg (+ 2 (neg 3)))) (test-expand-taylor '(- 1 (- 2 3))))
+  (check-equal? '(* 1/2 (+ (exp x) (/ 1 (exp x)))) (test-expand-taylor '(cosh x)))
+  (check-equal? '(/ (sin x) (cos x)) (test-expand-taylor '(tan x)))
+  (check-equal? '(+ 1 (neg (* 1/2 (+ (exp (/ (sin 3) (cos 3))) (/ 1 (exp (/ (sin 3) (cos 3))))))))
+                (test-expand-taylor '(- 1 (cosh (tan 3)))))
+  (check-equal? '(exp (* a (log x))) (test-expand-taylor '(pow x a)))
+  (check-equal? '(+ x (sin a)) (test-expand-taylor '(+ x (sin a))))
+  (check-equal? '(cbrt x) (test-expand-taylor '(pow x 1/3)))
+  (check-equal? '(cbrt (* x x)) (test-expand-taylor '(pow x 2/3)))
+  (check-equal? '(+ 100 (cbrt x)) (test-expand-taylor '(+ 100 (pow x 1/3))))
+  (check-equal? `(+ 100 (cbrt (* x ,(approx 2 3))))
+                (test-expand-taylor `(+ 100 (pow (* x ,(approx 2 3)) 1/3))))
+  (check-equal? `(+ ,(approx 2 3) (cbrt x)) (test-expand-taylor `(+ ,(approx 2 3) (pow x 1/3))))
+  (check-equal? `(+ (cbrt x) ,(approx 2 1/3)) (test-expand-taylor `(+ (pow x 1/3) ,(approx 2 1/3)))))
+
 (define (make-horner var terms [start 0])
   (match terms
     ['() 0]
@@ -77,7 +130,7 @@
 (define (taylor var expr-batch)
   "Return a pair (e, n), such that expr ~= e var^n"
   (define nodes (batch-nodes expr-batch))
-  (define taylor-approxs (make-vector (batch-nodes-length expr-batch))) ; vector of approximations
+  (define taylor-approxs (make-vector (batch-length expr-batch))) ; vector of approximations
 
   (for ([node (in-vector nodes)]
         [n (in-naturals)])

@@ -50,14 +50,21 @@
 (define (if-proc c a b)
   (if c a b))
 
+(define (batch-remove-approx batch)
+  (batch-replace batch
+                 (lambda (node)
+                   (match node
+                     [(approx spec impl) impl]
+                     [node node]))))
+
 ;; Translates a Herbie IR into an interpretable IR.
 ;; Requires some hooks to complete the translation.
 (define (make-compiler exprs vars)
   (define num-vars (length vars))
-  (define batch (progs->batch exprs #:timeline-push #t #:vars vars #:ignore-approx #t))
+  (define batch (batch-remove-approx (progs->batch exprs #:timeline-push #t #:vars vars)))
 
   (define instructions
-    (for/vector #:length (- (batch-nodes-length batch) num-vars)
+    (for/vector #:length (- (batch-length batch) num-vars)
                 ([node (in-vector (batch-nodes batch) num-vars)])
       (match node
         [(literal value (app get-representation repr)) (list (const (real->repr value repr)))]
