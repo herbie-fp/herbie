@@ -1158,10 +1158,8 @@
   (define root-ids (egraph-add-exprs egg-graph exprs ctx))
 
   ; run the schedule
-  (define rule-apps (make-hash))
   (define egg-graph*
-    (for/fold ([egg-graph egg-graph]) ([instr (in-list schedule)])
-      (match-define (cons rules params) instr)
+    (for/fold ([egg-graph egg-graph]) ([(rules params) (in-dict schedule)])
       ; run rules in the egraph
       (define egg-rules (expand-rules rules))
       (define-values (egg-graph* iteration-data) (egraph-run-rules egg-graph egg-rules params))
