@@ -22,12 +22,14 @@
 
 (provide (struct-out egg-runner)
          typed-egg-extractor
+         typed-egg-batch-extractor
          platform-egg-cost-proc
          default-egg-cost-proc
          make-egg-runner
          run-egg
          get-canon-rule-name
-         remove-rewrites)
+         remove-rewrites
+         egg-parsed->expr)
 
 (module+ test
   (require rackunit)
@@ -1037,8 +1039,91 @@
         ; expression of operators
         [(list (? operator-exists? op) ids ...) (cons op (map loop ids))])))
 
-  (define-values (add-root clean-batch finalize-batch) (egg-nodes->batch costs id->spec))
-  (list unsafe-eclass-cost build-expr add-root clean-batch finalize-batch))
+  (list unsafe-eclass-cost build-expr))
+
+(define ((typed-egg-batch-extractor cost-proc batch-extract-to) regraph)
+  (define eclasses (regraph-eclasses regraph))
+  (define types (regraph-types regraph))
+  (define n (vector-length eclasses))
+
+  ; e-class costs
+  (define costs (make-vector n #f))
+
+  ; looks up the cost
+  (define (unsafe-eclass-cost id)
+    (car (vector-ref costs id)))
+
+  ; do its children e-classes have a cost
+  (define (node-ready? node)
+    (match node
+      [(? number?) #t]
+      [(? symbol?) #t]
+      [(list '$approx _ impl) (vector-ref costs impl)]
+      [(list _ ids ...) (andmap (lambda (id) (vector-ref costs id)) ids)]))
+
+  ; computes cost of a node (as long as each of its children have costs)
+  ; cost function has access to a mutable value through `cache`
+  (define cache (box #f))
+  (define (node-cost node type)
+    (and (node-ready? node) (cost-proc regraph cache node type unsafe-eclass-cost)))
+
+  ; updates the cost of the current eclass.
+  ; returns whether the cost of the current eclass has improved.
+  (define (eclass-set-cost! _ changed?-vec iter eclass id)
+    (define type (vector-ref types id))
+    (define updated? #f)
+
+    ; update cost information
+    (define (update-cost! new-cost node)
+      (when new-cost
+        (define prev-cost&node (vector-ref costs id))
+        (when (or (not prev-cost&node) ; first cost
+                  (< new-cost (car prev-cost&node))) ; better cost
+          (vector-set! costs id (cons new-cost node))
+          (set! updated? #t))))
+
+    ; optimization: we only need to update node cost as needed.
+    ;  (i) terminals, nullary operators: only compute once
+    ;  (ii) non-nullary operators: compute when any of its child eclasses
+    ;       have their analysis updated
+    (define (node-requires-update? node)
+      (if (node-has-children? node)
+          (ormap (lambda (id) (vector-ref changed?-vec id)) (cdr node))
+          (= iter 0)))
+
+    ; iterate over each node
+    (for ([node (in-vector eclass)])
+      (when (node-requires-update? node)
+        (define new-cost (node-cost node type))
+        (update-cost! new-cost node)))
+
+    updated?)
+
+  ; run the analysis
+  (regraph-analyze regraph eclass-set-cost! #:analysis costs)
+
+  (define id->spec (regraph-specs regraph))
+  (define (build-expr id)
+    (let loop ([id id])
+      (match (cdr (vector-ref costs id))
+        [(? number? n) n] ; number
+        [(? symbol? s) s] ; variable
+        [(list '$approx spec impl) ; approx
+         (match (vector-ref id->spec spec)
+           [#f (error 'build-expr "no initial approx node in eclass ~a" id)]
+           [spec-e (list '$approx spec-e (build-expr impl))])]
+        ; if expression
+        [(list 'if cond ift iff) (list 'if (loop cond) (loop ift) (loop iff))]
+        ; expression of impls
+        [(list (? impl-exists? impl) ids ...) (cons impl (map loop ids))]
+        ; expression of operators
+        [(list (? operator-exists? op) ids ...) (cons op (map loop ids))])))
+
+  (define egg->herbie (regraph-egg->herbie regraph))
+  (define-values (add-root clean-batch finalize-batch)
+    (egg-nodes->batch costs id->spec batch-extract-to egg->herbie))
+  ;; These functions provide a setup to extract nodes into batch-extract-to from nodes
+  (list build-expr add-root clean-batch finalize-batch))
 
 ;; Is fractional with odd denominator.
 (define (fraction-with-odd-denominator? frac)
@@ -1106,7 +1191,7 @@
   (define egg->herbie (regraph-egg->herbie regraph))
   (define canon (regraph-canon regraph))
   ; Extract functions to extract exprs from egraph
-  (match-define (list unsafe-eclass-cost build-expr add-root clean-batch finalize-batch) extract)
+  (match-define (list unsafe-eclass-cost build-expr) extract)
   ; extract expr
   (define key (cons id type))
   (cond
@@ -1114,7 +1199,6 @@
     [(hash-has-key? canon key)
      (define id* (hash-ref canon key))
      (define egg-expr (build-expr id*))
-
      (list (egg-parsed->expr (flatten-let egg-expr) egg->herbie type))]
     ; no extractable expressions
     [else (list)]))
@@ -1126,7 +1210,7 @@
   (define id->spec (regraph-specs regraph))
   (define canon (regraph-canon regraph))
   ; Functions for egg-extraction
-  (match-define (list unsafe-eclass-cost build-expr add-root clean-batch finalize-batch) extract)
+  (match-define (list build-expr add-root clean-batch finalize-batch) extract)
   ; extract expressions
   (define key (cons id type))
   (cond
@@ -1164,9 +1248,10 @@
             (cons op args)])))
 
      (clean-batch)
-     (for ([enode (vector-ref eclasses id*)])
-       (add-root enode))
-     (define batch (finalize-batch))
+     (define roots
+       (for/list ([enode (vector-ref eclasses id*)])
+         (add-root enode type)))
+     (define exprs* (finalize-batch roots))
 
      ; -------------------------- Debooging
      ; This debooging crashes if unparsed approx nodes exist in the batch
@@ -1190,11 +1275,8 @@
        (for/list ([egg-expr (in-list egg-exprs)])
          (egg-parsed->expr (flatten-let egg-expr) egg->herbie type)))
 
-     ; translate egg IR batch to Herbie IR batch
-     (egg-batch->batch batch egg->herbie type)
-
      ; -------------------------- Debooging
-     (define exprs* (batch->progs batch))
+     #;(define exprs* (batch->progs batch))
      (when (not (equal? exprs* exprs))
        (println (vector-ref eclasses id*))
        (for ([expr* (in-list exprs*)]
@@ -1202,9 +1284,10 @@
          (printf "expr* = ~a\n" expr*)
          (printf "expr  = ~a\n\n" expr)
          (sleep 5)))
+     ;(println "oolright\n")
      ; -------------------------
 
-     batch]
+     exprs*]
     ; no extractable expressions
     [else (list)]))
 
@@ -1355,6 +1438,8 @@
      (define regraph (make-regraph egg-graph))
      (define extract-id (extractor regraph))
      (define reprs (egg-runner-reprs runner))
+
+     ; List of roots inside the batch
      (for/list ([id (in-list root-ids)]
                 [repr (in-list reprs)])
        (regraph-extract-variants regraph extract-id id repr))]

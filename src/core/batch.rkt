@@ -1,16 +1,19 @@
 #lang racket
 
 (require "../utils/timeline.rkt"
-         "../syntax/syntax.rkt")
+         "../syntax/syntax.rkt"
+         "../syntax/types.rkt")
+(require racket/mutability)
 
-(provide progs->batch
-         batch->progs
+(provide progs->batch ; (List-of Exprs) -> Batch
+         batch->progs ; Batch -> (List-of Exprs)
          (struct-out batch)
-         batch-length
-         batch-ref
-         deref
-         batch-replace
-         egg-nodes->batch)
+         (struct-out batchref) ; temporarily for patch.rkt
+         batch-length ; Batch -> Integer
+         batch-ref ; Batch -> Index -> Expr
+         deref ; Batchref -> Expr
+         batch-replace ; Batch -> Lambda -> Batch
+         egg-nodes->batch) ; Nodes -> Spec-maps -> Batch -> Batch
 
 ;; This function defines the recursive structure of expressions
 
@@ -146,56 +149,90 @@
       [_ node]))
   (unmunge reg))
 
-(define (egg-nodes->batch egg-nodes id->spec)
-  (define roots '())
+(define (batch-restore-index batch)
+  (make-hash (for/list ([node (in-vector (batch-nodes batch))]
+                        [n (in-naturals)])
+               (cons node n))))
+
+(define (egg-nodes->batch egg-nodes id->spec input-batch rename-dict)
   (define out (make-mutable-batch))
+  (set-mutable-batch-index! out (batch-restore-index input-batch))
 
-  (define (nodes-recurse idx)
-    (match (cdr (vector-ref egg-nodes idx))
-      [(? number? n) (batch-push! out n)]
-      [(? symbol? s) (batch-push! out s)]
-      [(list '$approx spec impl)
-       (match (vector-ref id->spec spec)
-         [#f (error egg-nodes->batch "no initial approx node in eclass ~a" idx)]
-         [spec-e (batch-push! out (list '$approx spec-e (nodes-recurse impl)))])]
-      [(list 'if cond ift iff)
-       (batch-push! out (list 'if (nodes-recurse cond) (nodes-recurse ift) (nodes-recurse iff)))]
-      [(list (? impl-exists? impl) ids ...) (batch-push! out (cons impl (map nodes-recurse ids)))]
-      [(list (? operator-exists? op) ids ...) (batch-push! out (cons op (map nodes-recurse ids)))]))
-
-  ; enodes unfortunately do not have ids inside egg-nodes, they have to be parsed in a separate function
-  (define (add-root enode)
-    (define idx
-      (match enode
-        [(? number?) (batch-push! out enode)]
-        [(? symbol?) (batch-push! out enode)]
-        [(list '$approx spec impl)
-         (define spec* (vector-ref id->spec spec))
-         (unless spec*
-           (error 'regraph-extract-variants "no initial approx node in eclass"))
-         (batch-push! out (list '$approx spec* (nodes-recurse impl)))]
+  (define (egg-parsed->expr expr rename-dict type)
+    (let loop ([expr expr]
+               [type type])
+      (match expr
+        [(? number?) (if (representation? type) (literal expr (representation-name type)) expr)]
+        [(? symbol?)
+         (if (hash-has-key? rename-dict expr)
+             (car (hash-ref rename-dict expr)) ; variable (extract uncanonical name)
+             (list expr))] ; constant function
+        [(list '$approx spec impl) ; approx
+         (define spec-type (if (representation? type) (representation-type type) type))
+         (approx (loop spec spec-type) (loop impl type))]
+        [`(Explanation ,body ...) `(Explanation ,@(map (lambda (e) (loop e type)) body))]
+        [(list 'Rewrite=> rule expr) (list 'Rewrite=> rule (loop expr type))]
+        [(list 'Rewrite<= rule expr) (list 'Rewrite<= rule (loop expr type))]
         [(list 'if cond ift iff)
-         (batch-push! out (list 'if (nodes-recurse cond) (nodes-recurse ift) (nodes-recurse iff)))]
-        [(list (? impl-exists? impl) ids ...)
-         (define args
-           (for/list ([id (in-list ids)])
-             (nodes-recurse id)))
-         (batch-push! out (cons impl args))]
-        [(list (? operator-exists? op) ids ...)
-         (define args
-           (for/list ([id (in-list ids)])
-             (nodes-recurse id)))
-         (batch-push! out (cons op args))]))
-    (set! roots (cons idx roots)))
+         (if (representation? type)
+             (list 'if (loop cond (get-representation 'bool)) (loop ift type) (loop iff type))
+             (list 'if (loop cond 'bool) (loop ift type) (loop iff type)))]
+        [(list (? impl-exists? impl) args ...) (cons impl (map loop args (impl-info impl 'itype)))]
+        [(list op args ...) (cons op (map loop args (operator-info op 'itype)))])))
 
-  (define (finalize-batch)
-    (mutable-batch->immutable out (list->vector (reverse roots))))
+  (define (add-root node type)
+    (match node
+      [(? number?)
+       (batch-push! out (if (representation? type) (literal node (representation-name type)) node))]
+      [(? symbol?)
+       (batch-push! out (if (hash-has-key? rename-dict node) (car (hash-ref rename-dict node)) node))]
+      [(list '$approx spec impl)
+       (define spec* (vector-ref id->spec spec))
+       (unless spec*
+         (error 'regraph-extract-variants "no initial approx node in eclass"))
+       (define spec-type (if (representation? type) (representation-type type) type))
+       (define final-spec (egg-parsed->expr spec* rename-dict spec-type))
+       (batch-push! out (approx final-spec (add-root (cdr (vector-ref egg-nodes impl)) type)))]
+      [(list 'if cond ift iff)
+       (define cond-node (cdr (vector-ref egg-nodes cond)))
+       (define ift-node (cdr (vector-ref egg-nodes ift)))
+       (define iff-node (cdr (vector-ref egg-nodes iff)))
+       (if (representation? type)
+           (batch-push! out
+                        (list 'if
+                              (add-root cond-node (get-representation 'bool))
+                              (add-root ift-node type)
+                              (add-root iff-node type)))
+           (batch-push!
+            out
+            (list 'if (add-root cond-node 'bool) (add-root ift-node type) (add-root iff-node type))))]
+      [(list (? impl-exists? impl) ids ...)
+       (define args
+         (for/list ([id (in-list ids)]
+                    [type (in-list (impl-info impl 'itype))])
+           (add-root (cdr (vector-ref egg-nodes id)) type)))
+       (batch-push! out (cons impl args))]
+      [(list (? operator-exists? op) ids ...)
+       (define args
+         (for/list ([id (in-list ids)]
+                    [type (in-list (operator-info op 'itype))])
+           (add-root (cdr (vector-ref egg-nodes id)) type)))
+       (batch-push! out (cons op args))]))
+
+  ; Returns roots while updating nodes of input-batch
+  (define (finalize-batch roots)
+    (set-batch-nodes! input-batch
+                      (vector-append (batch-nodes input-batch)
+                                     (list->vector (reverse (mutable-batch-nodes out)))))
+    #;(list->vector (reverse roots))
+
+    (for/list ([root (in-list roots)])
+      (batch-ref input-batch root)))
 
   ; Cleaning the batch to start over
   (define (clean-batch)
-    (set! roots '())
-    (set! out (make-mutable-batch)))
-
+    (set! out (make-mutable-batch))
+    (set-mutable-batch-index! out (batch-restore-index input-batch)))
   (values add-root clean-batch finalize-batch))
 
 ; Tests for progs->batch and batch->progs

@@ -110,7 +110,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Recursive Rewrite ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define (run-rr altns)
+(define (run-rr altns global-batch)
   (timeline-event! 'rewrite)
 
   ; generate required rules
@@ -119,7 +119,9 @@
   (define lowering-rules (platform-lowering-rules))
 
   (define extractor
-    (typed-egg-extractor (if (*egraph-platform-cost*) platform-egg-cost-proc default-egg-cost-proc)))
+    (typed-egg-batch-extractor
+     (if (*egraph-platform-cost*) platform-egg-cost-proc default-egg-cost-proc)
+     global-batch))
 
   ; egg schedule (3-phases for mathematical rewrites and implementation selection)
   (define schedule
@@ -140,8 +142,15 @@
     (reap [sow]
           (for ([batch (in-list batches)]
                 [altn (in-list altns)])
-            (for ([variant (in-list (batch->progs batch))])
-              (sow (alt variant (list 'rr runner #f #f) (list altn) '()))))))
+            (for ([root (in-list batch)])
+              (sow (alt root (list 'rr runner #f #f) (list altn) '()))))))
+
+  #;(define rewritten
+      (reap [sow]
+            (for ([batch (in-list batches)]
+                  [altn (in-list altns)])
+              (for ([root (in-vector (batch-roots batch))])
+                (sow (alt (batch-ref batch root) (list 'rr runner #f #f) (list altn) '()))))))
 
   ; batchified
   #;(for ([batch (in-list batches)]
@@ -164,14 +173,18 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Public API ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (generate-candidates exprs)
+  ; Batch to where we will extract everything
+  (define global-batch (progs->batch exprs))
+
   ; Starting alternatives
   (define start-altns
     (for/list ([expr (in-list exprs)])
       (define repr (repr-of expr (*context*)))
       (alt expr (list 'patch expr repr) '() '())))
+
   ; Series expand
   (define approximations (if (flag-set? 'generate 'taylor) (run-taylor start-altns) '()))
   ; Recursive rewrite
-  (define rewritten (if (flag-set? 'generate 'rr) (run-rr start-altns) '()))
+  (define rewritten (if (flag-set? 'generate 'rr) (run-rr start-altns global-batch) '()))
 
   (append approximations rewritten))
