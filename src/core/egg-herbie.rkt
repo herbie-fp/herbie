@@ -205,6 +205,8 @@
 (define (egraph-eclasses egraph-data)
   (egraph_get_eclasses (egraph-data-egraph-pointer egraph-data)))
 
+(define empty-u32vec (make-u32vector 0))
+
 ;; Extracts the nodes of an e-class as a vector
 ;; where each enode is either a symbol, number, or list
 (define (egraph-get-eclass egraph-data id)
@@ -215,7 +217,7 @@
   (for ([enode (in-vector eclass)]
         [i (in-naturals)])
     (when (and (symbol? enode) (not (hash-has-key? egg->herbie enode)))
-      (vector-set! eclass i (cons enode (make-u32vector 0)))))
+      (vector-set! eclass i (cons enode empty-u32vec))))
   eclass)
 
 (define (egraph-find egraph-data id)
@@ -1165,27 +1167,13 @@
       (define-values (egg-graph* iteration-data) (egraph-run-rules egg-graph egg-rules params))
 
       ; get cost statistics
-      (for/fold ([time 0])
-                ([iter (in-list iteration-data)]
-                 [i (in-naturals)])
+      (for ([iter (in-list iteration-data)] [i (in-naturals)])
         (define cnt (iteration-data-num-nodes iter))
         (define cost (apply + (map (λ (id) (egraph-get-cost egg-graph* id i)) root-ids)))
-        (define new-time (+ time (iteration-data-time iter)))
-        (timeline-push! 'egraph i cnt cost new-time)
-        new-time)
-
-      ;; get rule statistics
-      (for ([(egg-rule ffi-rule) (in-dict egg-rules)])
-        (define count (egraph-get-times-applied egg-graph* ffi-rule))
-        (define canon-name (hash-ref (*canon-names*) (rule-name egg-rule)))
-        (hash-update! rule-apps canon-name (curry + count) count))
+        (timeline-push! 'egraph i cnt cost (iteration-data-time iter)))
 
       egg-graph*))
 
-  ; report rule statistics
-  (for ([(name count) (in-hash rule-apps)])
-    (when (> count 0)
-      (timeline-push! 'rules (~a name) count)))
   ; root eclasses may have changed
   (define root-ids* (map (lambda (id) (egraph-find egg-graph* id)) root-ids))
   ; return what we need
