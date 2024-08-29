@@ -158,6 +158,7 @@
   (define out (make-mutable-batch))
   (set-mutable-batch-index! out (batch-restore-index input-batch))
 
+  ; This fuction here is only because of cycles in loads:(
   (define (egg-parsed->expr expr rename-dict type)
     (let loop ([expr expr]
                [type type])
@@ -170,9 +171,6 @@
         [(list '$approx spec impl) ; approx
          (define spec-type (if (representation? type) (representation-type type) type))
          (approx (loop spec spec-type) (loop impl type))]
-        [`(Explanation ,body ...) `(Explanation ,@(map (lambda (e) (loop e type)) body))]
-        [(list 'Rewrite=> rule expr) (list 'Rewrite=> rule (loop expr type))]
-        [(list 'Rewrite<= rule expr) (list 'Rewrite<= rule (loop expr type))]
         [(list 'if cond ift iff)
          (if (representation? type)
              (list 'if (loop cond (get-representation 'bool)) (loop ift type) (loop iff type))
@@ -220,14 +218,10 @@
        (batch-push! out (cons op args))]))
 
   ; Returns roots while updating nodes of input-batch
-  (define (finalize-batch roots)
+  (define (finalize-batch)
     (set-batch-nodes! input-batch
                       (vector-append (batch-nodes input-batch)
-                                     (list->vector (reverse (mutable-batch-nodes out)))))
-    #;(list->vector (reverse roots))
-
-    (for/list ([root (in-list roots)])
-      (batch-ref input-batch root)))
+                                     (list->vector (reverse (mutable-batch-nodes out))))))
 
   ; Cleaning the batch to start over
   (define (clean-batch)

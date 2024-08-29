@@ -134,16 +134,16 @@
   (define reprs (map (curryr repr-of (*context*)) exprs))
   (timeline-push! 'inputs (map ~a exprs))
   (define runner (make-egg-runner exprs reprs schedule #:context (*context*)))
-  ; variantss is a (listof batch))
-  (define batches (run-egg runner `(multi . ,extractor)))
+  ; variantss is a (listof roots))
+  (define rootss (run-egg runner `(multi . ,extractor)))
 
   ; apply changelists
   (define rewritten
     (reap [sow]
-          (for ([batch (in-list batches)]
+          (for ([roots (in-list rootss)]
                 [altn (in-list altns)])
-            (for ([root (in-list batch)])
-              (sow (alt root (list 'rr runner #f #f) (list altn) '()))))))
+            (for ([root (in-list roots)])
+              (sow (alt (batch-ref global-batch root) (list 'rr runner #f #f) (list altn) '()))))))
 
   #;(define rewritten
       (reap [sow]
