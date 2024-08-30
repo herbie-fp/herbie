@@ -559,10 +559,10 @@
      (define itypes (if (impl-exists? f) (impl-info f 'itype) (operator-info f 'itype)))
      ; unsafe since we don't check that |itypes| = |ids|
      ; optimize for common cases to avoid extra allocations
-     (cons
-      f
-      (for/list ([id (in-u32vector ids)] [itype (in-list itypes)])
-        (lookup id itype)))]))
+     (cons f
+           (for/list ([id (in-u32vector ids)]
+                      [itype (in-list itypes)])
+             (lookup id itype)))]))
 
 ;; Rebuilds an e-node using typed e-classes
 (define (rebuild-enode enode type lookup)
@@ -610,7 +610,8 @@
 
   (define types (all-reprs/types))
   (define type->idx
-    (for/hasheq ([type (in-list types)] [idx (in-naturals)])
+    (for/hasheq ([type (in-list types)]
+                 [idx (in-naturals)])
       (values type idx)))
   (define num-types (hash-count type->idx))
 
@@ -632,24 +633,15 @@
   ; NOTE: nodes in typed eclasses are reversed relative
   ; to their position in untyped eclasses
   (for ([(eclass op args) (in-egraph-enodes egg-ptr)])
-    #;(define enode
-      (if (or (number? op)
-              (and (hash-has-key? egg->herbie op) (zero? (u32vector-length args))))
-          op
-          (cons op args)))
     ; get all possible types for the enode
     ; lookup its correct eclass and add the rebuilt node
     (define types (enode-type op egg->herbie))
     (for ([type (in-list types)])
       (define id (idx+type->id eclass type))
-      #;(define enode** (rebuild-enode enode type idx+type->id))
       (define enode* (rebuild-enode* op args type egg->herbie idx+type->id))
-      #;(unless (equal? enode* enode**)
-        (error 'rebuild-enode "Don't match" enode* enode**))
       (vector-set! id->eclass id (cons enode* (vector-ref id->eclass id)))
       (match enode*
-        [(list _)
-         (vector-set! id->leaf? id #t)]
+        [(list _) (vector-set! id->leaf? id #t)]
         [(list _ ids ...)
          (for ([child-id (in-list ids)])
            (vector-set! id->parents child-id (cons id (vector-ref id->parents child-id))))]
