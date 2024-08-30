@@ -3,7 +3,6 @@
 (require "../utils/timeline.rkt"
          "../syntax/syntax.rkt"
          "../syntax/types.rkt")
-(require racket/mutability)
 
 (provide progs->batch ; (List-of Exprs) -> Batch
          batch->progs ; Batch -> (List-of Exprs)
