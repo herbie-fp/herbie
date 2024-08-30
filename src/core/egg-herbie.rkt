@@ -205,19 +205,6 @@
 (define (egraph-eclasses egraph-data)
   (egraph_get_eclasses (egraph-data-egraph-pointer egraph-data)))
 
-;; Extracts the nodes of an e-class as a vector
-;; where each enode is either a symbol, number, or list
-(define (egraph-get-eclass egraph-data id)
-  (define ptr (egraph-data-egraph-pointer egraph-data))
-  (define egg->herbie (egraph-data-egg->herbie-dict egraph-data))
-  (define eclass (egraph_get_eclass ptr id))
-  ; need to fix up any constant operators
-  (for ([enode (in-vector eclass)]
-        [i (in-naturals)])
-    (when (and (symbol? enode) (not (hash-has-key? egg->herbie enode)))
-      (vector-set! eclass i (cons enode (make-u32vector 0)))))
-  eclass)
-
 (define (egraph-find egraph-data id)
   (egraph_find (egraph-data-egraph-pointer egraph-data) id))
 
@@ -592,31 +579,26 @@
 ;; Nodes are duplicated across their possible types.
 (define (split-untyped-eclasses egraph-data egg->herbie)
   (define eclass-ids (egraph-eclasses egraph-data))
-  (define max-id
-    (for/fold ([current-max 0]) ([egg-id (in-u32vector eclass-ids)])
-      (max current-max egg-id)))
-  (define egg-id->idx (make-u32vector (+ max-id 1)))
-  (for ([egg-id (in-u32vector eclass-ids)]
-        [idx (in-naturals)])
-    (u32vector-set! egg-id->idx egg-id idx))
+  (define egg-ptr (egraph-data-egraph-pointer egraph-data))
+
+  (define egg-id->idx
+    (for/hasheq ([idx (in-naturals)]
+                 [egg-id (in-u32vector eclass-ids)])
+      (values egg-id idx)))
 
   (define types (all-reprs/types))
-  (define type->idx (make-hasheq))
-  (for ([type (in-list types)]
-        [idx (in-naturals)])
-    (hash-set! type->idx type idx))
+  (define type->idx
+    (for/hasheq ([type (in-list types)] [idx (in-naturals)])
+      (values type idx)))
   (define num-types (hash-count type->idx))
+
+  ; allocate enough eclasses for every (egg-id, type) combination
+  (define n (* (u32vector-length eclass-ids) num-types))
 
   ; maps (idx, type) to type eclass id
   (define (idx+type->id idx type)
     (+ (* idx num-types) (hash-ref type->idx type)))
 
-  ; maps (untyped eclass id, type) to typed eclass id
-  (define (lookup-id eid type)
-    (idx+type->id (u32vector-ref egg-id->idx eid) type))
-
-  ; allocate enough eclasses for every (egg-id, type) combination
-  (define n (* (u32vector-length eclass-ids) num-types))
   (define id->eclass (make-vector n '()))
   (define id->parents (make-vector n '()))
   (define id->leaf? (make-vector n #f))
@@ -627,25 +609,27 @@
   ;            | (<symbol> . <u32vector>)
   ; NOTE: nodes in typed eclasses are reversed relative
   ; to their position in untyped eclasses
-  (for ([eid (in-u32vector eclass-ids)]
-        [idx (in-naturals)])
-    (define enodes (egraph-get-eclass egraph-data eid))
-    (for ([enode (in-vector enodes)])
-      ; get all possible types for the enode
-      ; lookup its correct eclass and add the rebuilt node
-      (define types (enode-type enode egg->herbie))
-      (for ([type (in-list types)])
-        (define id (idx+type->id idx type))
-        (define enode* (rebuild-enode enode type lookup-id))
-        (vector-set! id->eclass id (cons enode* (vector-ref id->eclass id)))
-        (match enode*
-          [(list _ ids ...)
-           (if (null? ids)
-               (vector-set! id->leaf? id #t)
-               (for ([child-id (in-list ids)])
-                 (vector-set! id->parents child-id (cons id (vector-ref id->parents child-id)))))]
-          [(? symbol?) (vector-set! id->leaf? id #t)]
-          [(? number?) (vector-set! id->leaf? id #t)]))))
+  (for ([(eclass op args) (in-egraph-enodes egg-ptr)])
+    (define enode
+      (if (or (number? op)
+              (and (hash-has-key? egg->herbie op) (zero? (u32vector-length args))))
+          op
+          (cons op args)))
+    ; get all possible types for the enode
+    ; lookup its correct eclass and add the rebuilt node
+    (define types (enode-type enode egg->herbie))
+    (for ([type (in-list types)])
+      (define id (idx+type->id eclass type))
+      (define enode* (rebuild-enode enode type idx+type->id))
+      (vector-set! id->eclass id (cons enode* (vector-ref id->eclass id)))
+      (match enode*
+        [(list _)
+         (vector-set! id->leaf? id #t)]
+        [(list _ ids ...)
+         (for ([child-id (in-list ids)])
+           (vector-set! id->parents child-id (cons id (vector-ref id->parents child-id))))]
+        [(? symbol?) (vector-set! id->leaf? id #t)]
+        [(? number?) (vector-set! id->leaf? id #t)])))
 
   ; dedup `id->parents` values
   (for ([id (in-range n)])
@@ -748,7 +732,7 @@
   ; build the canonical id map
   (define egg-id->id (make-hash))
   (for ([eid (in-u32vector eclass-ids)])
-    (define idx (u32vector-ref egg-id->idx eid))
+    (define idx (hash-ref egg-id->idx eid))
     (define id0 (* idx num-types))
     (for ([id (in-range id0 (+ id0 num-types))])
       (define id* (vector-ref remap id))
