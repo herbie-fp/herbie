@@ -38,8 +38,10 @@
   (define lowering-rules (platform-lowering-rules))
 
   ; egg runner (2-phases for real rewrites and implementation selection)
+  (define batch (progs->batch progs))
   (define runner
-    (make-egg-runner progs
+    (make-egg-runner batch
+                     (batch-roots batch)
                      reprs
                      `((,lifting-rules . ((iteration . 1) (scheduler . simple)))
                        (,rules . ((node . ,(*node-limit*))))

@@ -13,7 +13,8 @@
          deref ; Batchref -> Expr
          batch-replace ; Batch -> Lambda -> Batch
          egg-nodes->batch ; Nodes -> Spec-maps -> Batch -> (Listof Root)
-         batchref->expr) ; Batchref -> Expr
+         batchref->expr ; Batchref -> Expr
+         batch-extract-exprs) ; Batch -> (Listof Root) -> (Listof Expr)
 
 ;; This function defines the recursive structure of expressions
 
@@ -79,6 +80,14 @@
   (when timeline-push
     (timeline-push! 'compiler size (batch-length final)))
   final)
+
+(define (batch-extract-exprs b roots)
+  (define exprs (make-vector (batch-length b)))
+  (for ([node (in-vector (batch-nodes b))]
+        [idx (in-naturals)])
+    (vector-set! exprs idx (expr-recurse node (lambda (x) (vector-ref exprs x)))))
+  (for/list ([root roots])
+    (vector-ref exprs root)))
 
 (define (batch->progs b)
   (define exprs (make-vector (batch-length b)))

@@ -40,7 +40,8 @@
         `((,lowering-rules . ((iteration . 1) (scheduler . simple))))))
 
   ; run egg
-  (define runner (make-egg-runner (map alt-expr approxs) reprs schedule))
+  (define batch (progs->batch (map alt-expr approxs)))
+  (define runner (make-egg-runner batch (batch-roots batch) reprs schedule))
   (define simplification-options
     (simplify-batch runner
                     (typed-egg-extractor
@@ -133,7 +134,9 @@
   (define exprs (map alt-expr altns))
   (define reprs (map (curryr repr-of (*context*)) exprs))
   (timeline-push! 'inputs (map ~a exprs))
-  (define runner (make-egg-runner exprs reprs schedule #:context (*context*)))
+
+  (define batch (progs->batch exprs))
+  (define runner (make-egg-runner batch (batch-roots batch) reprs schedule #:context (*context*)))
   ; variantss is a (listof roots))
   (define rootss (run-egg runner `(multi . ,extractor)))
 

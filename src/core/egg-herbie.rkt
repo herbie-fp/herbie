@@ -74,7 +74,7 @@
 
 ; Adds expressions returning the root ids
 ; TODO: take a batch rather than list of expressions
-(define (egraph-add-exprs egg-data exprs ctx)
+(define (egraph-add-exprs egg-data batch roots ctx)
   (match-define (egraph-data ptr herbie->egg-dict egg->herbie-dict id->spec) egg-data)
 
   ; lookups the egg name of a variable
@@ -129,6 +129,21 @@
   ; expression cache
   (define expr->id (make-hash))
 
+  ;--------------------------------- EXPERIMENTAL
+  #;(define (insert-batchref! ref)
+      (match ref
+        [(batchref b idx)
+         (define nodes (batch-nodes b))
+         (insert! idx #t)]
+        [_ (error insert-batchref! "Pointer is not a batchref!")]))
+
+  #;(define (insert! ref [root #f])
+      (match ref
+        [(batchref b idx) ...]
+        [(define node (match))]))
+
+  ;---------------------------------
+
   ; expr -> natural
   ; inserts an expresison into the e-graph, returning its e-class id.
   (define (insert! expr [root? #f])
@@ -156,6 +171,7 @@
       [root? (insert-node! node #t)]
       [else (hash-ref! expr->id node (lambda () (insert-node! node #f)))]))
 
+  (define exprs (batch-extract-exprs batch roots))
   (for/list ([expr (in-list exprs)])
     (insert! expr #t)))
 
@@ -224,7 +240,8 @@
   (egraph_find (egraph-data-egraph-pointer egraph-data) id))
 
 (define (egraph-expr-equal? egraph-data expr goal ctx)
-  (match-define (list id1 id2) (egraph-add-exprs egraph-data (list expr goal) ctx))
+  (define batch (progs->batch (list expr goal)))
+  (match-define (list id1 id2) (egraph-add-exprs egraph-data batch (batch-roots batch) ctx))
   (= id1 id2))
 
 ;; returns a flattened list of terms or #f if it failed to expand the proof due to budget
@@ -1195,12 +1212,12 @@
            (loop (sub1 num-iters)))]
       [else (values egg-graph iteration-data)])))
 
-(define (egraph-run-schedule exprs schedule ctx)
+(define (egraph-run-schedule batch roots schedule ctx)
   ; allocate the e-graph
   (define egg-graph (make-egraph))
 
   ; insert expressions into the e-graph
-  (define root-ids (egraph-add-exprs egg-graph exprs ctx))
+  (define root-ids (egraph-add-exprs egg-graph batch roots ctx))
 
   ; run the schedule
   (define rule-apps (make-hash))
@@ -1247,7 +1264,7 @@
 
 ;; Herbie's version of an egg runner.
 ;; Defines parameters for running rewrite rules with egg
-(struct egg-runner (exprs reprs schedule ctx)
+(struct egg-runner (batch roots reprs schedule ctx)
   #:transparent ; for equality
   #:methods gen:custom-write ; for abbreviated printing
   [(define (write-proc alt port mode)
@@ -1264,7 +1281,7 @@
 ;;     - scheduler: `(scheduler . <name>)` [default: backoff]
 ;;        - `simple`: run all rules without banning
 ;;        - `backoff`: ban rules if the fire too much
-(define (make-egg-runner exprs reprs schedule #:context [ctx (*context*)])
+(define (make-egg-runner batch roots reprs schedule #:context [ctx (*context*)])
   (define (oops! fmt . args)
     (apply error 'verify-schedule! fmt args))
   ; verify the schedule
@@ -1285,7 +1302,7 @@
            [_ (oops! "in instruction `~a`, unknown parameter `~a`" instr param)]))]
       [_ (oops! "expected `(<rules> . <params>)`, got `~a`" instr)]))
   ; make the runner
-  (egg-runner exprs reprs schedule ctx))
+  (egg-runner batch roots reprs schedule ctx))
 
 ;; Runs egg using an egg runner.
 ;;
@@ -1297,7 +1314,10 @@
   ;; Run egg using runner
   (define ctx (egg-runner-ctx runner))
   (define-values (root-ids egg-graph)
-    (egraph-run-schedule (egg-runner-exprs runner) (egg-runner-schedule runner) ctx))
+    (egraph-run-schedule (egg-runner-batch runner)
+                         (egg-runner-roots runner)
+                         (egg-runner-schedule runner)
+                         ctx))
   ; Perform extraction
   (match cmd
     [`(single . ,extractor) ; single expression extraction
