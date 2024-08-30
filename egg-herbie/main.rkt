@@ -277,49 +277,53 @@
     (u32vector-set! egg-id->idx (u32vector-ref eclass-ids idx) idx))
   (define num-eclasses (u32vector-length eclass-ids))
 
-  (define 0-vec (make-u32vector 0))
-  (define 1-vec (make-u32vector 1))
-  (define 2-vec (make-u32vector 2))
-  (define 3-vec (make-u32vector 3))
+  (cond
+    [(= num-eclasses 0)
+     (in-range 0)]
+    [else
+     (define first-eclass (u32vector-ref eclass-ids 0))
+     (define first-eclass-size (egraph_eclass_size egg-ptr first-eclass))
 
-  (define first-eclass (u32vector-ref eclass-ids 0))
-  (define first-eclass-size (egraph_eclass_size egg-ptr first-eclass))
+     (define 0-vec (make-u32vector 0))
+     (define 1-vec (make-u32vector 1))
+     (define 2-vec (make-u32vector 2))
+     (define 3-vec (make-u32vector 3))
 
-  (make-do-sequence
-   (lambda ()
-     (values
-      (lambda (i)
-        (match-define (vector eclass-idx eclass-id eclass-size enode-idx) i)
-        (define node-size (egraph_enode_size egg-ptr eclass-id enode-idx))
-        (define vec
-          (match node-size [0 0-vec] [1 1-vec] [2 2-vec] [3 3-vec] [n (make-u32vector n)]))
-        (define-values (op args) (egraph_get_node egg-ptr eclass-id enode-idx vec))
-        (for ([i (in-range (u32vector-length args))])
-          (define sub-eclass-id (u32vector-ref args i))
-          (u32vector-set! args i (u32vector-ref egg-id->idx sub-eclass-id)))
-        (values eclass-idx op args))
-      (lambda (i)
-        (match-define (vector eclass-idx eclass-id eclass-size enode-idx) i)
-        (define enode-idx* (add1 enode-idx))
-        (cond
-          [(< enode-idx* eclass-size)
-           (vector-set! i 3 enode-idx*)]
-          [else
-           (define eclass-idx* (add1 eclass-idx))
-           (vector-set! i 0 eclass-idx*)
-           (when (< eclass-idx* num-eclasses)
-             (define eclass-id* (u32vector-ref eclass-ids eclass-idx*))
-             (vector-set! i 1 eclass-id*)
-             (define eclass-size* (egraph_eclass_size egg-ptr eclass-id*))
-             (vector-set! i 2 eclass-size*)
-             (vector-set! i 3 0))])
-        i)
-      (vector 0 first-eclass first-eclass-size 0)
-      (lambda (i)
-        (match-define (vector eclass-idx eclass-id eclass-size enode-idx) i)
-        (< eclass-idx num-eclasses))
-      #f
-      #f))))
+     (make-do-sequence
+      (lambda ()
+        (values
+         (lambda (i)
+           (match-define (vector eclass-idx eclass-id eclass-size enode-idx) i)
+           (define node-size (egraph_enode_size egg-ptr eclass-id enode-idx))
+           (define vec
+             (match node-size [0 0-vec] [1 1-vec] [2 2-vec] [3 3-vec] [n (make-u32vector n)]))
+           (define-values (op args) (egraph_get_node egg-ptr eclass-id enode-idx vec))
+           (for ([i (in-range (u32vector-length args))])
+             (define sub-eclass-id (u32vector-ref args i))
+             (u32vector-set! args i (u32vector-ref egg-id->idx sub-eclass-id)))
+           (values eclass-idx op args))
+         (lambda (i)
+           (match-define (vector eclass-idx eclass-id eclass-size enode-idx) i)
+           (define enode-idx* (add1 enode-idx))
+           (cond
+             [(< enode-idx* eclass-size)
+              (vector-set! i 3 enode-idx*)]
+             [else
+              (define eclass-idx* (add1 eclass-idx))
+              (vector-set! i 0 eclass-idx*)
+              (when (< eclass-idx* num-eclasses)
+                (define eclass-id* (u32vector-ref eclass-ids eclass-idx*))
+                (vector-set! i 1 eclass-id*)
+                (define eclass-size* (egraph_eclass_size egg-ptr eclass-id*))
+                (vector-set! i 2 eclass-size*)
+                (vector-set! i 3 0))])
+           i)
+         (vector 0 first-eclass first-eclass-size 0)
+         (lambda (i)
+           (match-define (vector eclass-idx eclass-id eclass-size enode-idx) i)
+           (< eclass-idx num-eclasses))
+         #f
+         #f)))]))
 
 ;; egraph -> id -> id
 (define-eggmath egraph_find (_fun _egraph-pointer _uint -> _uint))
