@@ -4,15 +4,15 @@
          "../syntax/syntax.rkt"
          "../syntax/types.rkt")
 
-(provide progs->batch ; (List-of Exprs) -> Batch
-         batch->progs ; Batch -> (List-of Exprs)
+(provide progs->batch ; (Listof Expr) -> Batch
+         batch->progs ; Batch -> (Listof Expr)
          (struct-out batch)
          (struct-out batchref) ; temporarily for patch.rkt
          batch-length ; Batch -> Integer
          batch-ref ; Batch -> Index -> Expr
          deref ; Batchref -> Expr
          batch-replace ; Batch -> Lambda -> Batch
-         egg-nodes->batch ; Nodes -> Spec-maps -> Batch -> Batch
+         egg-nodes->batch ; Nodes -> Spec-maps -> Batch -> (Listof Root)
          batchref->expr) ; Batchref -> Expr
 
 ;; This function defines the recursive structure of expressions
