@@ -162,17 +162,15 @@
   (define out (make-mutable-batch))
   (set-mutable-batch-index! out (batch-restore-index input-batch))
 
-  ; This fuction here is only because of cycles in loads:(
+  ; This fuction here is only because of cycles in loads:( Can not be imported from egg-herbie.rkt
   (define (egg-parsed->expr expr rename-dict type)
     (let loop ([expr expr]
                [type type])
       (match expr
         [(? number?) (if (representation? type) (literal expr (representation-name type)) expr)]
         [(? symbol?)
-         (if (hash-has-key? rename-dict expr)
-             (car (hash-ref rename-dict expr)) ; variable (extract uncanonical name)
-             (list expr))] ; constant function
-        [(list '$approx spec impl) ; approx
+         (if (hash-has-key? rename-dict expr) (car (hash-ref rename-dict expr)) (list expr))]
+        [(list '$approx spec impl)
          (define spec-type (if (representation? type) (representation-type type) type))
          (approx (loop spec spec-type) (loop impl type))]
         [(list 'if cond ift iff)
@@ -221,7 +219,6 @@
            (add-root (cdr (vector-ref egg-nodes id)) type)))
        (batch-push! out (cons op args))]))
 
-  ; Returns roots while updating nodes of input-batch
   (define (finalize-batch)
     (set-batch-nodes! input-batch
                       (vector-append (batch-nodes input-batch)
