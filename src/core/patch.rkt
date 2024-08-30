@@ -142,29 +142,8 @@
     (reap [sow]
           (for ([roots (in-list rootss)]
                 [altn (in-list altns)])
-            (for ([root (in-list roots)])
-              (sow (alt (batch-ref global-batch root) (list 'rr runner #f #f) (list altn) '()))))))
-
-  #;(define rewritten
-      (reap [sow]
-            (for ([batch (in-list batches)]
-                  [altn (in-list altns)])
-              (for ([root (in-vector (batch-roots batch))])
-                (sow (alt (batch-ref batch root) (list 'rr runner #f #f) (list altn) '()))))))
-
-  ; batchified
-  #;(for ([batch (in-list batches)]
-          [altn (in-list altns)])
-      (for ([root (in-vector (batch-roots batch))]
-            [n (in-naturals)])
-        (define prev-root (batch-add-expr! batch altn))
-        (vector-set! (batch-events batch)
-                     n
-                     (cons (list 'rr runner #f #f) (vector-ref (batch-events batch) n)))
-        (vector-set! (batch-prevs batch) n (cons prev-root (vector-ref (batch-prevs batch) n)))))
-  #;(define rewritten* (map batch->alts batches))
-  #;(println rewritten*)
-  ; TODO, check whether batchified is equal to sequential version
+            (for ([root (in-list (remove-duplicates roots))])
+              (sow (alt (batchref global-batch root) (list 'rr runner #f #f) (list altn) '()))))))
 
   (timeline-push! 'outputs (map (compose ~a alt-expr) rewritten))
   (timeline-push! 'count (length altns) (length rewritten))
@@ -186,5 +165,10 @@
   (define approximations (if (flag-set? 'generate 'taylor) (run-taylor start-altns) '()))
   ; Recursive rewrite
   (define rewritten (if (flag-set? 'generate 'rr) (run-rr start-altns global-batch) '()))
+
+  ; deref everything in rewritten
+  (set! rewritten
+        (for/list ([r (in-list rewritten)])
+          (alt (batchref->expr (alt-expr r)) (alt-event r) (alt-prevs r) (alt-preprocessing r))))
 
   (append approximations rewritten))

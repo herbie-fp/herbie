@@ -13,7 +13,8 @@
          batch-ref ; Batch -> Index -> Expr
          deref ; Batchref -> Expr
          batch-replace ; Batch -> Lambda -> Batch
-         egg-nodes->batch) ; Nodes -> Spec-maps -> Batch -> Batch
+         egg-nodes->batch ; Nodes -> Spec-maps -> Batch -> Batch
+         batchref->expr) ; Batchref -> Expr
 
 ;; This function defines the recursive structure of expressions
 
@@ -58,6 +59,10 @@
 (define (deref x)
   (match-define (batchref b idx) x)
   (expr-recurse (vector-ref (batch-nodes b) idx) (lambda (ref) (batchref b ref))))
+
+(define (batchref->expr x)
+  (match-define (batchref b idx) x)
+  (batch-ref b idx))
 
 (define (progs->batch exprs #:timeline-push [timeline-push #f] #:vars [vars '()])
 

@@ -28,8 +28,7 @@
          make-egg-runner
          run-egg
          get-canon-rule-name
-         remove-rewrites
-         egg-parsed->expr)
+         remove-rewrites)
 
 (module+ test
   (require rackunit)
@@ -1271,7 +1270,6 @@
      ; -------------------------
 
      roots]
-    ; no extractable expressions
     [else (list)]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
