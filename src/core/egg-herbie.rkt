@@ -320,53 +320,6 @@
       [(list (? impl-exists? impl) args ...) (cons impl (map loop args (impl-info impl 'itype)))]
       [(list op args ...) (cons op (map loop args (operator-info op 'itype)))])))
 
-(define (egg-batch->batch batch rename-dict type)
-  (define nodes-length (batch-length batch))
-  (define nodes (batch-nodes batch))
-  (define types (make-vector nodes-length type))
-
-  ; Rewriting function for node
-  (define (rewrite-node node type)
-    (match node
-      [(? number?) (if (representation? type) (literal node (representation-name type)) node)]
-      [(? symbol?)
-       ; To be checked with PI instruction
-       (if (hash-has-key? rename-dict node)
-           (car (hash-ref rename-dict node)) ; variable (extract uncanonical name)
-           node)] ; constant function
-      ; An error can occur here because spec is not a node, it is expr
-      [(list '$approx spec impl)
-       (define spec-type (if (representation? type) (representation-type type) type))
-       (vector-set! types impl type)
-       (approx (egg-parsed->expr spec rename-dict spec-type) impl)]
-      [(list 'if cond ift iff)
-       (match (representation? type)
-         [#t
-          (vector-set! types cond (get-representation 'bool))
-          (vector-set! types ift type)
-          (vector-set! types iff type)
-          (list 'if cond ift iff)]
-         [#f
-          (vector-set! types cond 'bool)
-          (vector-set! types ift type)
-          (vector-set! types iff type)
-          (list 'if cond ift iff)])]
-      [(list (? impl-exists? impl) args ...)
-       (for ([arg (in-list args)]
-             [type (in-list (impl-info impl 'itype))])
-         (vector-set! types arg type))
-       (cons impl args)]
-      [(list op args ...)
-       (for ([arg (in-list args)]
-             [type (in-list (operator-info op 'itype))])
-         (vector-set! types arg type))
-       (cons op args)]))
-
-  (for ([node (in-vector nodes (- nodes-length 1) -1 -1)] ; reversed over nodes
-        [type (in-vector types (- nodes-length 1) -1 -1)]
-        [n (in-range (- nodes-length 1) -1 -1)])
-    (vector-set! nodes n (rewrite-node node type))))
-
 ;; Parses a string from egg into a single S-expr.
 (define (egg-expr->expr egg-expr egraph-data type)
   (define egg->herbie (egraph-data-egg->herbie-dict egraph-data))
@@ -1102,27 +1055,12 @@
   (regraph-analyze regraph eclass-set-cost! #:analysis costs)
 
   (define id->spec (regraph-specs regraph))
-  (define (build-expr id)
-    (let loop ([id id])
-      (match (cdr (vector-ref costs id))
-        [(? number? n) n] ; number
-        [(? symbol? s) s] ; variable
-        [(list '$approx spec impl) ; approx
-         (match (vector-ref id->spec spec)
-           [#f (error 'build-expr "no initial approx node in eclass ~a" id)]
-           [spec-e (list '$approx spec-e (build-expr impl))])]
-        ; if expression
-        [(list 'if cond ift iff) (list 'if (loop cond) (loop ift) (loop iff))]
-        ; expression of impls
-        [(list (? impl-exists? impl) ids ...) (cons impl (map loop ids))]
-        ; expression of operators
-        [(list (? operator-exists? op) ids ...) (cons op (map loop ids))])))
 
   (define egg->herbie (regraph-egg->herbie regraph))
   (define-values (add-root clean-batch finalize-batch)
     (egg-nodes->batch costs id->spec batch-extract-to egg->herbie))
   ;; These functions provide a setup to extract nodes into batch-extract-to from nodes
-  (list build-expr add-root clean-batch finalize-batch))
+  (list add-root clean-batch finalize-batch))
 
 ;; Is fractional with odd denominator.
 (define (fraction-with-odd-denominator? frac)
@@ -1209,65 +1147,19 @@
   (define id->spec (regraph-specs regraph))
   (define canon (regraph-canon regraph))
   ; Functions for egg-extraction
-  (match-define (list build-expr add-root clean-batch finalize-batch) extract)
+  (match-define (list add-root clean-batch finalize-batch) extract)
   ; extract expressions
   (define key (cons id type))
   (cond
     ; at least one extractable expression
     [(hash-has-key? canon key)
      (define id* (hash-ref canon key))
+
      (clean-batch)
      (define roots
        (for/list ([enode (vector-ref eclasses id*)])
          (add-root enode type)))
      (finalize-batch)
-
-     ; -------------------------- Debooging
-     ; translate egg IR to Herbie IR
-     #;(define egg-exprs
-         (for/list ([enode (vector-ref eclasses id*)])
-           (match enode
-             [(? number?) enode]
-             [(? symbol?) enode]
-             [(list '$approx spec impl)
-              (define spec* (vector-ref id->spec spec))
-              (unless spec*
-                (error 'regraph-extract-variants "no initial approx node in eclass ~a" id*))
-              (define impl* (build-expr impl))
-              (list '$approx spec* impl*)]
-             [(list 'if cond ift iff)
-              (define cond* (build-expr cond))
-              (define ift* (build-expr ift))
-              (define iff* (build-expr iff))
-              (list 'if cond* ift* iff*)]
-             [(list (? impl-exists? impl) ids ...)
-              (define args
-                (for/list ([id (in-list ids)])
-                  (define expr (build-expr id))
-                  expr))
-              (cons impl args)]
-             [(list (? operator-exists? op) ids ...)
-              (define args
-                (for/list ([id (in-list ids)])
-                  (define expr (build-expr id))
-                  expr))
-              (cons op args)])))
-
-     #;(define egg->herbie (regraph-egg->herbie regraph))
-     #;(define exprs
-         (for/list ([egg-expr (in-list egg-exprs)])
-           (egg-parsed->expr (flatten-let egg-expr) egg->herbie type)))
-
-     #;(define exprs* (batch->progs batch))
-     #;(when (not (equal? exprs* exprs))
-         (println (vector-ref eclasses id*))
-         (for ([expr* (in-list exprs*)]
-               [expr (in-list exprs)])
-           (printf "expr* = ~a\n" expr*)
-           (printf "expr  = ~a\n\n" expr)
-           (sleep 5)))
-     ;(println "oolright\n")
-     ; -------------------------
 
      roots]
     [else (list)]))
