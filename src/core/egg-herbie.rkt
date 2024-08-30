@@ -529,18 +529,40 @@
 ;;  - `approx`: every real representation [can prune incorrect ones]
 ;;  - ops/impls: its output type/representation
 ;; NOTE: we can constrain "every" type by using the platform.
-(define (enode-type enode egg->herbie)
-  (match enode
-    [(? number?) (cons 'real (platform-reprs (*active-platform*)))] ; number
-    [(? symbol?) ; variable
-     (match-define (cons _ repr) (hash-ref egg->herbie enode))
+(define (enode-type f egg->herbie)
+  (cond
+    [(number? f) (cons 'real (platform-reprs (*active-platform*)))] ; number
+    [(hash-has-key? egg->herbie f) ; variable
+     (match-define (cons _ repr) (hash-ref egg->herbie f))
      (list repr (representation-type repr))]
-    [(cons f _) ; application
-     (cond
-       [(eq? f '$approx) (platform-reprs (*active-platform*))]
-       [(eq? f 'if) (all-reprs/types)]
-       [(impl-exists? f) (list (impl-info f 'otype))]
-       [else (list (operator-info f 'otype))])]))
+    [(eq? f '$approx) (platform-reprs (*active-platform*))]
+    [(eq? f 'if) (all-reprs/types)]
+    [(impl-exists? f) (list (impl-info f 'otype))]
+    [else (list (operator-info f 'otype))]))
+
+;; Rebuilds an e-node using typed e-classes
+(define (rebuild-enode* f ids type egg->herbie lookup)
+  (cond
+    [(number? f) f] ; number
+    [(hash-has-key? egg->herbie f) f] ; variable
+    [(eq? f '$approx) ; approx node
+     (define spec (u32vector-ref ids 0))
+     (define impl (u32vector-ref ids 1))
+     (list '$approx (lookup spec (representation-type type)) (lookup impl type))]
+    [(eq? f 'if) ; if expression
+     (define cond (u32vector-ref ids 0))
+     (define ift (u32vector-ref ids 1))
+     (define iff (u32vector-ref ids 2))
+     (define cond-type (if (representation? type) (get-representation 'bool) 'bool))
+     (list 'if (lookup cond cond-type) (lookup ift type) (lookup iff type))]
+    [else
+     (define itypes (if (impl-exists? f) (impl-info f 'itype) (operator-info f 'itype)))
+     ; unsafe since we don't check that |itypes| = |ids|
+     ; optimize for common cases to avoid extra allocations
+     (cons
+      f
+      (for/list ([id (in-u32vector ids)] [itype (in-list itypes)])
+        (lookup id itype)))]))
 
 ;; Rebuilds an e-node using typed e-classes
 (define (rebuild-enode enode type lookup)
@@ -610,17 +632,20 @@
   ; NOTE: nodes in typed eclasses are reversed relative
   ; to their position in untyped eclasses
   (for ([(eclass op args) (in-egraph-enodes egg-ptr)])
-    (define enode
+    #;(define enode
       (if (or (number? op)
               (and (hash-has-key? egg->herbie op) (zero? (u32vector-length args))))
           op
           (cons op args)))
     ; get all possible types for the enode
     ; lookup its correct eclass and add the rebuilt node
-    (define types (enode-type enode egg->herbie))
+    (define types (enode-type op egg->herbie))
     (for ([type (in-list types)])
       (define id (idx+type->id eclass type))
-      (define enode* (rebuild-enode enode type idx+type->id))
+      #;(define enode** (rebuild-enode enode type idx+type->id))
+      (define enode* (rebuild-enode* op args type egg->herbie idx+type->id))
+      #;(unless (equal? enode* enode**)
+        (error 'rebuild-enode "Don't match" enode* enode**))
       (vector-set! id->eclass id (cons enode* (vector-ref id->eclass id)))
       (match enode*
         [(list _)
