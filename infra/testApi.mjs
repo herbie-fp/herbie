@@ -127,6 +127,7 @@ assert.equal(Array.isArray(alternatives.alternatives), true)
 
 //Explanations endpoint
 const sampleExp = (await (await fetch('http://127.0.0.1:8000/api/sample', { method: 'POST', body: JSON.stringify({ formula: FPCoreFormula2, seed: 5 }) })).json())
+
 const explain = await (await fetch(makeEndpoint("/api/explanations"), {
   method: 'POST', body: JSON.stringify({
     formula: FPCoreFormula, sample: sampleExp.points
@@ -134,6 +135,15 @@ const explain = await (await fetch(makeEndpoint("/api/explanations"), {
 })).json()
 assertIdAndPath(explain)
 assert.equal(explain.explanation.length > 0, true, 'explanation should not be empty');
+const explainAsyncResult = await callAsyncAndWaitJSONResult("/api/start/explanations", {
+  method: 'POST',
+  body: JSON.stringify({
+    formula: FPCoreFormula, sample: sampleExp.points
+  })
+})
+assertIdAndPath(explainAsyncResult)
+assert.equal(explainAsyncResult.explanation.length > 0, true, 'explanation should not be empty');
+
 // Exacts endpoint
 const exacts = await (await fetch(makeEndpoint("/api/exacts"), {
   method: 'POST', body: JSON.stringify({
