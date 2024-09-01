@@ -8,7 +8,7 @@ const FPCoreFormula2 = '(FPCore (x) (- (sqrt (+ x 1))))'
 const eval_sample = [[[1], -1.4142135623730951]]
 
 // improve endpoint
-const improveResponse = await callHerbie(`/improve?formula=${encodeURIComponent(FPCoreFormula2)}`, { method: 'GET' })
+const improveResponse = await fetch(makeEndpoint(`/improve?formula=${encodeURIComponent(FPCoreFormula2)}`), { method: 'GET' })
 assert.equal(improveResponse.status, 200)
 let redirect = improveResponse.url.split("/")
 const jobID = redirect[3].split(".")[0]
@@ -18,18 +18,19 @@ const jobID = redirect[3].split(".")[0]
 // assert.equal(improveHTML.length, improveHTMLexpectedCount, `HTML response character count should be ${improveHTMLexpectedCount} unless HTML changes.`)
 
 // timeline
-const timelineRSP = await callHerbie(`/timeline/${jobID}`, { method: 'GET' })
+const timelineRSP = await fetch(makeEndpoint(`/timeline/${jobID}`), { method: 'GET' })
 assert.equal(timelineRSP.status, 201)
 const timeline = await timelineRSP.json()
 assert.equal(timeline.length > 0, true)
 
 // Test with a likely missing job-id
-const badTimelineRSP = await callHerbie(`/timeline/42069`, { method: 'GET' })
+const badTimelineRSP = await fetch(makeEndpoint("/timeline/42069"), { method: 'GET' })
 assert.equal(badTimelineRSP.status, 404)
+
 
 // improve-start endpoint
 const URIencodedBody = "formula=" + encodeURIComponent(FPCoreFormula)
-const startResponse = await callHerbie(`/improve-start`, {
+const startResponse = await fetch(makeEndpoint("/improve-start"), {
   method: 'POST',
   headers: {
     'Content-Type': 'application/x-www-form-urlencoded',
@@ -41,12 +42,14 @@ assert.equal(testResult, true)
 const path = startResponse.headers.get("location")
 
 // up endpoint
-const up = await callHerbie("/up", { method: 'GET' })
+const up = await fetch(makeEndpoint("/up"), { method: 'GET' })
 assert.equal('Up', up.statusText)
 // TODO how do I test down state?
 
 // Sample endpoint
-const sampleRSP = await callHerbie("/api/sample", { method: 'POST', body: JSON.stringify({ formula: FPCoreFormula2, seed: 5 }) })
+const sampleRSP = await fetch(makeEndpoint("/api/sample"), {
+  method: 'POST', body: JSON.stringify({ formula: FPCoreFormula2, seed: 5 })
+})
 const jid = sampleRSP.headers.get("x-herbie-job-id")
 assert.notEqual(jid, null)
 
@@ -58,7 +61,9 @@ assert.ok(sample.points)
 const points = sample.points
 assert.equal(points.length, SAMPLE_SIZE, `sample size should be ${SAMPLE_SIZE}`)
 
-const sample2RPS = await callHerbie("/api/sample", { method: 'POST', body: JSON.stringify({ formula: FPCoreFormula2, seed: 5 }) })
+const sample2RPS = await fetch(makeEndpoint("/api/sample"), {
+  method: 'POST', body: JSON.stringify({ formula: FPCoreFormula2, seed: 5 })
+})
 const jid2 = sample2RPS.headers.get("x-herbie-job-id")
 assert.notEqual(jid2, null)
 const sample2 = await sample2RPS.json()
@@ -67,22 +72,22 @@ assertIdAndPath(sample2)
 assert.deepEqual(points[1], points2[1])
 
 // Analyze endpoint
-const errors = await callHerbie("/api/analyze", {
+const errors = await (await fetch(makeEndpoint("/api/analyze"), {
   method: 'POST', body: JSON.stringify({
     formula: FPCoreFormula, sample: [[[
       14.97651307489794
     ], 0.12711304680349078]]
   })
-})
+})).json()
 assertIdAndPath(errors)
 assert.deepEqual(errors.points, [[[14.97651307489794], "2.3"]])
 
 // Local error endpoint
-const localError = await callHerbie("/api/localerror", {
+const localError = await (await fetch(makeEndpoint("/api/localerror"), {
   method: 'POST', body: JSON.stringify({
     formula: FPCoreFormula, sample: sample2.points
   })
-})
+})).json()
 assertIdAndPath(localError)
 assert.equal(localError.tree['avg-error'] > 0, true)
 
@@ -92,68 +97,66 @@ const json1 = JSON.stringify({
 const json2 = JSON.stringify({
   formula: FPCoreFormula, sample: [[[1.5223342548065899e-15], 1e+308]], seed: 5
 })
-const localError1 = await callHerbie("/api/localerror", {
+const localError1 = await (await fetch(makeEndpoint("/api/localerror"), {
   method: 'POST', body: json1
-})
-const localError2 = await callHerbie("/api/localerror", {
+})).json()
+const localError2 = await (await fetch(makeEndpoint("/api/localerror"), {
   method: 'POST', body: json2
-})
+})).json()
 // Test that different sample points produce different job ids ensuring that different results are served for these inputs.
 assert.notEqual(localError1.job, localError2.job)
 
 // Alternatives endpoint
-
-const alternatives = await callHerbie("/api/alternatives", {
+const alternatives = await (await fetch(makeEndpoint("/api/alternatives"), {
   method: 'POST', body: JSON.stringify({
     formula: FPCoreFormula, sample: [[[
       14.97651307489794
     ], 0.12711304680349078]]
   })
-})
+})).json()
 assertIdAndPath(alternatives)
 assert.equal(Array.isArray(alternatives.alternatives), true)
 
 //Explanations endpoint
 const sampleExp = (await (await fetch('http://127.0.0.1:8000/api/sample', { method: 'POST', body: JSON.stringify({ formula: FPCoreFormula2, seed: 5 }) })).json())
-const explain = await callHerbie("/api/explanations", {
+const explain = await (await fetch(makeEndpoint("/api/explanations"), {
   method: 'POST', body: JSON.stringify({
     formula: FPCoreFormula, sample: sampleExp.points
   })
-})
+})).json()
 assertIdAndPath(explain)
 assert.equal(explain.explanation.length > 0, true, 'explanation should not be empty');
 // Exacts endpoint
-const exacts = await callHerbie("/api/exacts", {
+const exacts = await (await fetch(makeEndpoint("/api/exacts"), {
   method: 'POST', body: JSON.stringify({
     formula: FPCoreFormula2, sample: eval_sample
   })
-})
+})).json()
 assertIdAndPath(exacts)
 assert.deepEqual(exacts.points, [[[1], -1.4142135623730951]])
 
 // Calculate endpoint
-const calculate = await callHerbie("/api/calculate", {
+const calculate = await (await fetch(makeEndpoint("/api/calculate"), {
   method: 'POST', body: JSON.stringify({
     formula: FPCoreFormula2, sample: eval_sample
   })
-})
+})).json()
 assertIdAndPath(calculate)
 assert.deepEqual(calculate.points, [[[1], -1.4142135623730951]])
 
 // Cost endpoint
-const cost = await callHerbie("/api/cost", {
+const cost = await (await fetch(makeEndpoint("/api/cost"), {
   method: 'POST', body: JSON.stringify({
     formula: FPCoreFormula2, sample: eval_sample
   })
-})
+})).json()
 assertIdAndPath(cost)
 assert.equal(cost.cost > 0, true)
 
-// // MathJS endpoint
-const mathjs = await callHerbie("/api/mathjs", {
-  method: 'POST',
-  body: JSON.stringify({ formula: FPCoreFormula })
-})
+// MathJS endpoint
+const mathjs = await (await fetch(makeEndpoint("/api/mathjs"), {
+  method: 'POST', body: JSON.stringify({ formula: FPCoreFormula })
+})).json()
 assert.equal(mathjs.mathjs, "sqrt(x + 1.0) - sqrt(x)")
 
 // Translate endpoint
@@ -170,10 +173,10 @@ const expectedExpressions = {
 }
 
 for (const e in expectedExpressions) {
-  const translatedExpr = await callHerbie("/api/translate", {
+  const translatedExpr = await (await fetch(makeEndpoint("/api/translate"), {
     method: 'POST', body: JSON.stringify(
       { formula: FPCoreFormula, language: e })
-  })
+  })).json()
 
   assert.equal(translatedExpr.result, expectedExpressions[e])
 }
@@ -181,38 +184,26 @@ for (const e in expectedExpressions) {
 let counter = 0
 let cap = 100
 // Check status endpoint
-let checkStatus = await callHerbie(path, { method: 'GET' })
+let checkStatus = await fetch(makeEndpoint(path), { method: 'GET' })
 /*
 This is testing if the /improve-start test at the beginning has been completed. The cap and counter is a sort of timeout for the test. Ends up being 10 seconds max.
 */
 while (checkStatus.status != 201 && counter < cap) {
   counter += 1
-  checkStatus = await callHerbie(path, { method: 'GET' })
+  checkStatus = await fetch(makeEndpoint(path), { method: 'GET' })
   await new Promise(r => setTimeout(r, 100)); // ms
 }
 assert.equal(checkStatus.statusText, 'Job complete')
 
 // Results.json endpoint
-const jsonResults = await callHerbie("/results.json", { method: 'GET' })
+const jsonResults = await (await fetch(makeEndpoint("/results.json"), { method: 'GET' })).json()
 
 // Basic test that checks that there are the two results after the above test.
 // TODO add a way to reset the results.json file?
 assert.equal(jsonResults.tests.length, 2)
 
-async function callHerbie(endPoint, body) {
-  const url = new URL(`http://127.0.0.1:8000${endPoint}`)
-  const pathname = url.pathname
-  const rsp = await fetch(url, body)
-  if (pathname == "/improve" ||
-    pathname == "/improve-start" ||
-    pathname.includes("check-status") ||
-    pathname.includes("timeline") ||
-    pathname.includes("sample") ||
-    pathname == "/up") {
-    return rsp
-  } else {
-    return rsp.json()
-  }
+function makeEndpoint(endpoint) {
+  return new URL(`http://127.0.0.1:8000${endpoint}`)
 }
 
 function assertIdAndPath(json) {
