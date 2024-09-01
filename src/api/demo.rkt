@@ -247,26 +247,26 @@
                  (list (string->bytes/utf-8 (xexpr->string (herbie-page #:title title body))))))
 
 (define (get-result req job-id)
-   (match (get-results-for job-id)
-     [#f
-      (response 404
-                #"Job Not Found"
-                (current-seconds)
-                #"text/plain"
-                (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count))))
-                      (header #"X-Herbie-Job-ID" (string->bytes/utf-8 job-id))
-                      (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
-                (λ (out) `()))]
-     [job-result
-      (response 201
-                #"Job complete"
-                (current-seconds)
-                #"text/plain"
-                (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count))))
-                      (header #"X-Herbie-Job-ID" (string->bytes/utf-8 job-id))
-                      (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
-                (λ (out) (write-json job-result out)))]))
-              
+  (match (get-results-for job-id)
+    [#f
+     (response 404
+               #"Job Not Found"
+               (current-seconds)
+               #"text/plain"
+               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count))))
+                     (header #"X-Herbie-Job-ID" (string->bytes/utf-8 job-id))
+                     (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
+               (λ (out) `()))]
+    [job-result
+     (response 201
+               #"Job complete"
+               (current-seconds)
+               #"text/plain"
+               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count))))
+                     (header #"X-Herbie-Job-ID" (string->bytes/utf-8 job-id))
+                     (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
+               (λ (out) (write-json job-result out)))]))
+
 (define (improve-common req body go-back)
   (match (extract-bindings 'formula (request-bindings req))
     [(list formula-str)
