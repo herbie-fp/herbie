@@ -391,9 +391,13 @@
                (λ (out) (write-json (hash-ref job-result 'timeline) out)))]))
 
 (define (make-async-endpoint func)
-  (post-with-json-response (lambda (post-data) (func post-data))))
+  (post-with-json-response (lambda (post-data)
+                             (define job-id (start-job (func post-data)))
+                             (hasheq 'job job-id 'path (make-path job-id)))))
 (define (make-sync-endpoint func)
-  (post-with-json-response (lambda (post-data) (wait-for-job (hash-ref (func post-data) 'job)))))
+  (post-with-json-response (lambda (post-data)
+                             (define job-id (start-job (func post-data)))
+                             (wait-for-job job-id))))
 
 ; /api/sample endpoint: test in console on demo page:
 ;; (await fetch('/api/sample', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x) (- (sqrt (+ x 1))))", seed: 5})})).json()
@@ -402,10 +406,7 @@
   (define formula (read-syntax 'web (open-input-string formula-str)))
   (define seed* (hash-ref post-data 'seed))
   (define test (parse-test formula))
-  (define command
-    (create-job 'sample test #:seed seed* #:pcontext #f #:profile? #f #:timeline-disabled? #t))
-  (define job-id (start-job command))
-  (hasheq 'job job-id 'path (make-path job-id)))
+  (create-job 'sample test #:seed seed* #:pcontext #f #:profile? #f #:timeline-disabled? #t))
 
 (define sample-endpoint (make-sync-endpoint sample-common))
 (define start-sample-endpoint (make-async-endpoint sample-common))
@@ -417,15 +418,12 @@
   (define seed (hash-ref post-data 'seed #f))
   (define test (parse-test formula))
   (define pcontext (json->pcontext sample (test-context test)))
-  (define command
-    (create-job 'explanations
-                test
-                #:seed seed
-                #:pcontext pcontext
-                #:profile? #f
-                #:timeline-disabled? #t))
-  (define job-id (start-job command))
-  (hasheq 'job job-id 'path (make-path job-id)))
+  (create-job 'explanations
+              test
+              #:seed seed
+              #:pcontext pcontext
+              #:profile? #f
+              #:timeline-disabled? #t))
 
 (define explanations-endpoint (make-sync-endpoint explanations-common))
 (define start-explanations-endpoint (make-async-endpoint explanations-common))
@@ -437,10 +435,7 @@
   (define seed (hash-ref post-data 'seed #f))
   (define test (parse-test formula))
   (define pcontext (json->pcontext sample (test-context test)))
-  (define command
-    (create-job 'errors test #:seed seed #:pcontext pcontext #:profile? #f #:timeline-disabled? #t))
-  (define job-id (start-job command))
-  (hasheq 'job job-id 'path (make-path job-id)))
+  (create-job 'errors test #:seed seed #:pcontext pcontext #:profile? #f #:timeline-disabled? #t))
 
 (define analyze-endpoint (make-sync-endpoint analyze-common))
 (define start-analyze-endpoint (make-async-endpoint analyze-common))
@@ -452,10 +447,7 @@
   (define seed (hash-ref post-data 'seed #f))
   (define test (parse-test formula))
   (define pcontext (json->pcontext sample (test-context test)))
-  (define command
-    (create-job 'exacts test #:seed seed #:pcontext pcontext #:profile? #f #:timeline-disabled? #t))
-  (define job-id (start-job command))
-  (hasheq 'job job-id 'path (make-path job-id)))
+  (create-job 'exacts test #:seed seed #:pcontext pcontext #:profile? #f #:timeline-disabled? #t))
 
 (define exacts-endpoint (make-sync-endpoint exacts-common))
 (define start-exacts-endpoint (make-async-endpoint exacts-common))
@@ -466,10 +458,7 @@
   (define seed (hash-ref post-data 'seed #f))
   (define test (parse-test formula))
   (define pcontext (json->pcontext sample (test-context test)))
-  (define command
-    (create-job 'evaluate test #:seed seed #:pcontext pcontext #:profile? #f #:timeline-disabled? #t))
-  (define job-id (start-job command))
-  (hasheq 'job job-id 'path (make-path job-id)))
+  (create-job 'evaluate test #:seed seed #:pcontext pcontext #:profile? #f #:timeline-disabled? #t))
 
 (define calculate-endpoint (make-sync-endpoint calculate-common))
 (define start-calculate-endpoint (make-async-endpoint calculate-common))
@@ -480,15 +469,12 @@
   (define seed (hash-ref post-data 'seed #f))
   (define test (parse-test formula))
   (define pcontext (json->pcontext sample (test-context test)))
-  (define command
-    (create-job 'local-error
-                test
-                #:seed seed
-                #:pcontext pcontext
-                #:profile? #f
-                #:timeline-disabled? #t))
-  (define job-id (start-job command))
-  (hasheq 'job job-id 'path (make-path job-id)))
+  (create-job 'local-error
+              test
+              #:seed seed
+              #:pcontext pcontext
+              #:profile? #f
+              #:timeline-disabled? #t))
 
 (define local-error-endpoint (make-sync-endpoint local-error-common))
 (define start-local-error-endpoint (make-async-endpoint local-error-common))
@@ -499,15 +485,12 @@
   (define seed (hash-ref post-data 'seed #f))
   (define test (parse-test formula))
   (define pcontext (json->pcontext sample (test-context test)))
-  (define command
-    (create-job 'alternatives
-                test
-                #:seed seed
-                #:pcontext pcontext
-                #:profile? #f
-                #:timeline-disabled? #t))
-  (define job-id (start-job command))
-  (hasheq 'job job-id 'path (make-path job-id)))
+  (create-job 'alternatives
+              test
+              #:seed seed
+              #:pcontext pcontext
+              #:profile? #f
+              #:timeline-disabled? #t))
 
 (define alternatives-endpoint (make-sync-endpoint alternatives-common))
 (define start-alternatives-endpoint (make-async-endpoint alternatives-common))
@@ -515,10 +498,7 @@
 (define (cost-common post-data)
   (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
   (define test (parse-test formula))
-  (define command
-    (create-job 'cost test #:seed #f #:pcontext #f #:profile? #f #:timeline-disabled? #f))
-  (define job-id (start-job command))
-  (hasheq 'job job-id 'path (make-path job-id)))
+  (create-job 'cost test #:seed #f #:pcontext #f #:profile? #f #:timeline-disabled? #f))
 
 (define cost-endpoint (make-sync-endpoint cost-common))
 (define start-cost-endpoint (make-async-endpoint cost-common))
