@@ -140,6 +140,15 @@ const alternatives = await (await fetch(makeEndpoint("/api/alternatives"), {
 })).json()
 assertIdAndPath(alternatives)
 assert.equal(Array.isArray(alternatives.alternatives), true)
+const alternativesAsyncResult = await callAsyncAndWaitJSONResult("/api/start/alternatives", {
+  method: 'POST', body: JSON.stringify({
+    formula: FPCoreFormula, sample: [[[
+      14.97651307489794
+    ], 0.12711304680349078]]
+  })
+})
+assertIdAndPath(alternativesAsyncResult)
+assert.equal(Array.isArray(alternativesAsyncResult.alternatives), true)
 
 //Explanations endpoint
 const sampleExp = (await (await fetch('http://127.0.0.1:8000/api/sample', { method: 'POST', body: JSON.stringify({ formula: FPCoreFormula2, seed: 5 }) })).json())

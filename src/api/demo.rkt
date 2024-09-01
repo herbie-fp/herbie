@@ -56,6 +56,7 @@
                   [("api" "start" "exacts") #:method "post" start-exacts-endpoint]
                   [("api" "start" "calculate") #:method "post" start-calculate-endpoint]
                   [("api" "start" "localerror") #:method "post" start-local-error-endpoint]
+                  [("api" "start" "alternatives") #:method "post" start-alternatives-endpoint]
                   [("improve") #:method (or "post" "get" "put") improve]
                   [("check-status" (string-arg)) check-status]
                   [("timeline" (string-arg)) get-timeline]
@@ -491,23 +492,24 @@
 (define local-error-endpoint (make-sync-endpoint local-error-common))
 (define start-local-error-endpoint (make-async-endpoint local-error-common))
 
-(define alternatives-endpoint
-  (post-with-json-response (lambda (post-data)
-                             (define formula
-                               (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
-                             (define sample (hash-ref post-data 'sample))
-                             (define seed (hash-ref post-data 'seed #f))
-                             (define test (parse-test formula))
-                             (define pcontext (json->pcontext sample (test-context test)))
-                             (define command
-                               (create-job 'alternatives
-                                           test
-                                           #:seed seed
-                                           #:pcontext pcontext
-                                           #:profile? #f
-                                           #:timeline-disabled? #t))
-                             (define id (start-job command))
-                             (wait-for-job id))))
+(define (alternatives-common post-data)
+  (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
+  (define sample (hash-ref post-data 'sample))
+  (define seed (hash-ref post-data 'seed #f))
+  (define test (parse-test formula))
+  (define pcontext (json->pcontext sample (test-context test)))
+  (define command
+    (create-job 'alternatives
+                test
+                #:seed seed
+                #:pcontext pcontext
+                #:profile? #f
+                #:timeline-disabled? #t))
+  (define job-id (start-job command))
+  (hasheq 'job job-id 'path (make-path job-id)))
+
+(define alternatives-endpoint (make-sync-endpoint alternatives-common))
+(define start-alternatives-endpoint (make-async-endpoint alternatives-common))
 
 (define ->mathjs-endpoint
   (post-with-json-response (lambda (post-data)
