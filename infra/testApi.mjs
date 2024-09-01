@@ -210,6 +210,13 @@ const cost = await (await fetch(makeEndpoint("/api/cost"), {
 })).json()
 assertIdAndPath(cost)
 assert.equal(cost.cost > 0, true)
+const costAsyncResult = await callAsyncAndWaitJSONResult("/api/start/cost", {
+  method: 'POST', body: JSON.stringify({
+    formula: FPCoreFormula2, sample: eval_sample
+  })
+})
+assertIdAndPath(costAsyncResult)
+assert.equal(costAsyncResult.cost > 0, true)
 
 // MathJS endpoint
 const mathjs = await (await fetch(makeEndpoint("/api/mathjs"), {

@@ -57,6 +57,7 @@
                   [("api" "start" "calculate") #:method "post" start-calculate-endpoint]
                   [("api" "start" "localerror") #:method "post" start-local-error-endpoint]
                   [("api" "start" "alternatives") #:method "post" start-alternatives-endpoint]
+                  [("api" "start" "cost") #:method "post" start-cost-endpoint]
                   [("improve") #:method (or "post" "get" "put") improve]
                   [("check-status" (string-arg)) check-status]
                   [("timeline" (string-arg)) get-timeline]
@@ -511,6 +512,17 @@
 (define alternatives-endpoint (make-sync-endpoint alternatives-common))
 (define start-alternatives-endpoint (make-async-endpoint alternatives-common))
 
+(define (cost-common post-data)
+  (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
+  (define test (parse-test formula))
+  (define command
+    (create-job 'cost test #:seed #f #:pcontext #f #:profile? #f #:timeline-disabled? #f))
+  (define job-id (start-job command))
+  (hasheq 'job job-id 'path (make-path job-id)))
+
+(define cost-endpoint (make-sync-endpoint cost-common))
+(define start-cost-endpoint (make-async-endpoint cost-common))
+
 (define ->mathjs-endpoint
   (post-with-json-response (lambda (post-data)
                              (define formula
@@ -519,16 +531,6 @@
 
                              (define result (core->mathjs (syntax->datum formula)))
                              (hasheq 'mathjs result))))
-
-(define cost-endpoint
-  (post-with-json-response
-   (lambda (post-data)
-     (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
-     (define test (parse-test formula))
-     (define command
-       (create-job 'cost test #:seed #f #:pcontext #f #:profile? #f #:timeline-disabled? #f))
-     (define id (start-job command))
-     (wait-for-job id))))
 
 (define translate-endpoint
   (post-with-json-response (lambda (post-data)
