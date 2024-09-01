@@ -177,6 +177,14 @@ const calculate = await (await fetch(makeEndpoint("/api/calculate"), {
 })).json()
 assertIdAndPath(calculate)
 assert.deepEqual(calculate.points, [[[1], -1.4142135623730951]])
+const calculateAsyncResult = await callAsyncAndWaitJSONResult("/api/start/calculate", {
+  method: 'POST', body: JSON.stringify({
+    formula: FPCoreFormula2, sample: eval_sample
+  })
+})
+assertIdAndPath(calculateAsyncResult)
+assert.deepEqual(calculateAsyncResult.points, [[[1], -1.4142135623730951]])
+
 
 // Cost endpoint
 const cost = await (await fetch(makeEndpoint("/api/cost"), {
