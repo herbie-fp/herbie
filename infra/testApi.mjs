@@ -3,6 +3,7 @@ import { strict as assert } from 'node:assert';  // use strict equality everywhe
 // Future TODO: before this API becomes set in stone/offered publicly, we should change the results of these methods to be just the output data rather than duplicating input values.
 
 // Reusable testing data
+const SAMPLE_SIZE = 8000
 const FPCoreFormula = '(FPCore (x) (- (sqrt (+ x 1)) (sqrt x)))'
 const FPCoreFormula2 = '(FPCore (x) (- (sqrt (+ x 1))))'
 const eval_sample = [[[1], -1.4142135623730951]]
@@ -49,13 +50,21 @@ assert.equal('Up', up.statusText)
 const sampleRSP = await fetch(makeEndpoint("/api/sample"), {
   method: 'POST', body: JSON.stringify({ formula: FPCoreFormula2, seed: 5 })
 })
+
+const sampleAsyncResult = await callAsyncAndWaitJSONResult("/api/start/sample", {
+  method: 'POST',
+  body: JSON.stringify({ formula: FPCoreFormula2, seed: 5 })
+})
+assertIdAndPath(sampleAsyncResult)
+assert.ok(sampleAsyncResult.points)
+assert.equal(sampleAsyncResult.points.length, SAMPLE_SIZE)
+
 const jid = sampleRSP.headers.get("x-herbie-job-id")
 assert.notEqual(jid, null)
 
 const sample = await sampleRSP.json()
 assertIdAndPath(sample)
 
-const SAMPLE_SIZE = 8000
 assert.ok(sample.points)
 const points = sample.points
 assert.equal(points.length, SAMPLE_SIZE, `sample size should be ${SAMPLE_SIZE}`)
@@ -208,4 +217,23 @@ function makeEndpoint(endpoint) {
 function assertIdAndPath(json) {
   assert.equal(json.job.length > 0, true)
   assert.equal(json.path.includes("."), true)
+}
+
+async function callAsyncAndWaitJSONResult(endpoint, body) {
+  let counter = 0
+  let cap = 100
+  // Check status endpoint
+  let jobInfo = await fetch(makeEndpoint(endpoint), body)
+  /*
+  This is testing if the /improve-start test at the beginning has been completed. The cap and counter is a sort of timeout for the test. Ends up being 10 seconds max.
+  */
+  const jobJSON = await jobInfo.json()
+  const checkStatus = await fetch(makeEndpoint(`/check-status/${jobJSON.job}`), { method: 'GET' })
+  while (checkStatus.status != 201 && counter < cap) {
+    counter += 1
+    checkStatus = await fetch(makeEndpoint(`/check-status/${jobJSON.job}`), { method: 'GET' })
+    await new Promise(r => setTimeout(r, 100)); // ms
+  }
+  const result = await fetch(makeEndpoint(`/api/result/${jobJSON.job}`), { method: 'GET' })
+  return await result.json()
 }

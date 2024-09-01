@@ -50,10 +50,12 @@
 (define-values (dispatch url*)
   (dispatch-rules [("") main]
                   [("api" "start" "improve") #:method "post" improve-start]
+                  [("api" "start" "sample") #:method "post" start-sample-endpoint]
                   [("improve") #:method (or "post" "get" "put") improve]
                   [("check-status" (string-arg)) check-status]
                   [("timeline" (string-arg)) get-timeline]
                   [("up") check-up]
+                  [("api" "result" (string-arg)) get-result]
                   [("api" "sample") #:method "post" sample-endpoint]
                   [("api" "analyze") #:method "post" analyze-endpoint]
                   [("api" "localerror") #:method "post" local-error-endpoint]
@@ -244,6 +246,27 @@
                  '()
                  (list (string->bytes/utf-8 (xexpr->string (herbie-page #:title title body))))))
 
+(define (get-result req job-id)
+   (match (get-results-for job-id)
+     [#f
+      (response 404
+                #"Job Not Found"
+                (current-seconds)
+                #"text/plain"
+                (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count))))
+                      (header #"X-Herbie-Job-ID" (string->bytes/utf-8 job-id))
+                      (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
+                (λ (out) `()))]
+     [job-result
+      (response 201
+                #"Job complete"
+                (current-seconds)
+                #"text/plain"
+                (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count))))
+                      (header #"X-Herbie-Job-ID" (string->bytes/utf-8 job-id))
+                      (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
+                (λ (out) (write-json job-result out)))]))
+              
 (define (improve-common req body go-back)
   (match (extract-bindings 'formula (request-bindings req))
     [(list formula-str)
@@ -373,6 +396,18 @@
        (create-job 'sample test #:seed seed* #:pcontext #f #:profile? #f #:timeline-disabled? #t))
      (define id (start-job command))
      (wait-for-job id))))
+
+(define start-sample-endpoint
+  (post-with-json-response
+   (lambda (post-data)
+     (define formula-str (hash-ref post-data 'formula))
+     (define formula (read-syntax 'web (open-input-string formula-str)))
+     (define seed* (hash-ref post-data 'seed))
+     (define test (parse-test formula))
+     (define command
+       (create-job 'sample test #:seed seed* #:pcontext #f #:profile? #f #:timeline-disabled? #t))
+     (define job-id (start-job command))
+     (hasheq 'job job-id 'path (make-path job-id)))))
 
 (define explanations-endpoint
   (post-with-json-response (lambda (post-data)
