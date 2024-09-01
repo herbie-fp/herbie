@@ -27,10 +27,9 @@ assert.equal(timeline.length > 0, true)
 const badTimelineRSP = await fetch(makeEndpoint("/timeline/42069"), { method: 'GET' })
 assert.equal(badTimelineRSP.status, 404)
 
-
 // improve-start endpoint
 const URIencodedBody = "formula=" + encodeURIComponent(FPCoreFormula)
-const startResponse = await fetch(makeEndpoint("/improve-start"), {
+const startResponse = await fetch(makeEndpoint("/api/start/improve"), {
   method: 'POST',
   headers: {
     'Content-Type': 'application/x-www-form-urlencoded',

@@ -49,7 +49,7 @@
 
 (define-values (dispatch url*)
   (dispatch-rules [("") main]
-                  [("improve-start") #:method "post" improve-start]
+                  [("api" "start" "improve") #:method "post" improve-start]
                   [("improve") #:method (or "post" "get" "put") improve]
                   [("check-status" (string-arg)) check-status]
                   [("timeline" (string-arg)) get-timeline]
