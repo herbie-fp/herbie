@@ -383,31 +383,25 @@
                      (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
                (λ (out) (write-json (hash-ref job-result 'timeline) out)))]))
 
+(define (make-async-endpoint func)
+  (post-with-json-response (lambda (post-data) (func post-data))))
+(define (make-sync-endpoint func)
+  (post-with-json-response (lambda (post-data) (wait-for-job (hash-ref (func post-data) 'job)))))
+
 ; /api/sample endpoint: test in console on demo page:
 ;; (await fetch('/api/sample', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x) (- (sqrt (+ x 1))))", seed: 5})})).json()
-(define sample-endpoint
-  (post-with-json-response
-   (lambda (post-data)
-     (define formula-str (hash-ref post-data 'formula))
-     (define formula (read-syntax 'web (open-input-string formula-str)))
-     (define seed* (hash-ref post-data 'seed))
-     (define test (parse-test formula))
-     (define command
-       (create-job 'sample test #:seed seed* #:pcontext #f #:profile? #f #:timeline-disabled? #t))
-     (define id (start-job command))
-     (wait-for-job id))))
+(define (sample-common post-data)
+  (define formula-str (hash-ref post-data 'formula))
+  (define formula (read-syntax 'web (open-input-string formula-str)))
+  (define seed* (hash-ref post-data 'seed))
+  (define test (parse-test formula))
+  (define command
+    (create-job 'sample test #:seed seed* #:pcontext #f #:profile? #f #:timeline-disabled? #t))
+  (define job-id (start-job command))
+  (hasheq 'job job-id 'path (make-path job-id)))
 
-(define start-sample-endpoint
-  (post-with-json-response
-   (lambda (post-data)
-     (define formula-str (hash-ref post-data 'formula))
-     (define formula (read-syntax 'web (open-input-string formula-str)))
-     (define seed* (hash-ref post-data 'seed))
-     (define test (parse-test formula))
-     (define command
-       (create-job 'sample test #:seed seed* #:pcontext #f #:profile? #f #:timeline-disabled? #t))
-     (define job-id (start-job command))
-     (hasheq 'job job-id 'path (make-path job-id)))))
+(define sample-endpoint (make-sync-endpoint sample-common))
+(define start-sample-endpoint (make-async-endpoint sample-common))
 
 (define explanations-endpoint
   (post-with-json-response (lambda (post-data)
