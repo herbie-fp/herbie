@@ -107,6 +107,13 @@ const localError = await (await fetch(makeEndpoint("/api/localerror"), {
 })).json()
 assertIdAndPath(localError)
 assert.equal(localError.tree['avg-error'] > 0, true)
+const localErrorAsyncResult = await callAsyncAndWaitJSONResult("/api/start/localerror", {
+  method: 'POST', body: JSON.stringify({
+    formula: FPCoreFormula, sample: sample2.points
+  })
+})
+assertIdAndPath(localErrorAsyncResult)
+assert.equal(localErrorAsyncResult.tree['avg-error'] > 0, true)
 
 const json1 = JSON.stringify({
   formula: FPCoreFormula, sample: [[[2.852044568544089e-150], 1e+308]], seed: 5
