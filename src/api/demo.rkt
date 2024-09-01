@@ -52,6 +52,7 @@
                   [("api" "start" "improve") #:method "post" improve-start]
                   [("api" "start" "sample") #:method "post" start-sample-endpoint]
                   [("api" "start" "explanations") #:method "post" start-explanations-endpoint]
+                  [("api" "start" "analyze") #:method "post" start-analyze-endpoint]
                   [("improve") #:method (or "post" "get" "put") improve]
                   [("check-status" (string-arg)) check-status]
                   [("timeline" (string-arg)) get-timeline]
@@ -424,23 +425,20 @@
 (define explanations-endpoint (make-sync-endpoint explanations-common))
 (define start-explanations-endpoint (make-async-endpoint explanations-common))
 
-(define analyze-endpoint
-  (post-with-json-response (lambda (post-data)
-                             (define formula-str (hash-ref post-data 'formula))
-                             (define formula (read-syntax 'web (open-input-string formula-str)))
-                             (define sample (hash-ref post-data 'sample))
-                             (define seed (hash-ref post-data 'seed #f))
-                             (define test (parse-test formula))
-                             (define pcontext (json->pcontext sample (test-context test)))
-                             (define command
-                               (create-job 'errors
-                                           test
-                                           #:seed seed
-                                           #:pcontext pcontext
-                                           #:profile? #f
-                                           #:timeline-disabled? #t))
-                             (define id (start-job command))
-                             (wait-for-job id))))
+(define (analyze-common post-data)
+  (define formula-str (hash-ref post-data 'formula))
+  (define formula (read-syntax 'web (open-input-string formula-str)))
+  (define sample (hash-ref post-data 'sample))
+  (define seed (hash-ref post-data 'seed #f))
+  (define test (parse-test formula))
+  (define pcontext (json->pcontext sample (test-context test)))
+  (define command
+    (create-job 'errors test #:seed seed #:pcontext pcontext #:profile? #f #:timeline-disabled? #t))
+  (define job-id (start-job command))
+  (hasheq 'job job-id 'path (make-path job-id)))
+
+(define analyze-endpoint (make-sync-endpoint analyze-common))
+(define start-analyze-endpoint (make-async-endpoint analyze-common))
 
 ;; (await fetch('/api/exacts', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x) (- (sqrt (+ x 1))))", points: [[1, 1]]})})).json()
 (define exacts-endpoint

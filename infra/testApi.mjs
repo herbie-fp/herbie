@@ -89,6 +89,15 @@ const errors = await (await fetch(makeEndpoint("/api/analyze"), {
 })).json()
 assertIdAndPath(errors)
 assert.deepEqual(errors.points, [[[14.97651307489794], "2.3"]])
+const analyzeAsyncResult = await callAsyncAndWaitJSONResult("/api/start/analyze", {
+  method: 'POST', body: JSON.stringify({
+    formula: FPCoreFormula, sample: [[[
+      14.97651307489794
+    ], 0.12711304680349078]]
+  })
+})
+assertIdAndPath(analyzeAsyncResult)
+assert.deepEqual(analyzeAsyncResult.points, [[[14.97651307489794], "2.3"]])
 
 // Local error endpoint
 const localError = await (await fetch(makeEndpoint("/api/localerror"), {
