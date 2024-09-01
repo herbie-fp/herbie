@@ -39,7 +39,20 @@ const startResponse = await fetch(makeEndpoint("/api/start/improve"), {
 })
 const testResult = (startResponse.status == 201 || startResponse.status == 202)
 assert.equal(testResult, true)
-const path = startResponse.headers.get("location")
+const improveResultPath = startResponse.headers.get("location")
+let counter = 0
+let cap = 100
+// Check status endpoint
+let checkStatus = await fetch(makeEndpoint(improveResultPath), { method: 'GET' })
+/*
+This is testing if the /api/start/improve test at the beginning has been completed. The cap and counter is a sort of timeout for the test. Ends up being 10 seconds max.
+*/
+while (checkStatus.status != 201 && counter < cap) {
+  counter += 1
+  checkStatus = await fetch(makeEndpoint(improveResultPath), { method: 'GET' })
+  await new Promise(r => setTimeout(r, 100)); // ms
+}
+assert.equal(checkStatus.statusText, 'Job complete')
 
 // up endpoint
 const up = await fetch(makeEndpoint("/up"), { method: 'GET' })
@@ -47,174 +60,136 @@ assert.equal('Up', up.statusText)
 // TODO how do I test down state?
 
 // Sample endpoint
-const sampleRSP = await fetch(makeEndpoint("/api/sample"), {
-  method: 'POST', body: JSON.stringify({ formula: FPCoreFormula2, seed: 5 })
-})
-
-const sampleAsyncResult = await callAsyncAndWaitJSONResult("/api/start/sample", {
+const sampleBody = {
   method: 'POST',
   body: JSON.stringify({ formula: FPCoreFormula2, seed: 5 })
-})
+}
+const sampleRSP = await fetch(makeEndpoint("/api/sample"), sampleBody)
+const sampleAsyncResult = await callAsyncAndWaitJSONResult("/api/start/sample", sampleBody)
+const jid = sampleRSP.headers.get("x-herbie-job-id")
+assert.notEqual(jid, null)
+const sample = await sampleRSP.json()
 assertIdAndPath(sampleAsyncResult)
 assert.ok(sampleAsyncResult.points)
 assert.equal(sampleAsyncResult.points.length, SAMPLE_SIZE)
-
-const jid = sampleRSP.headers.get("x-herbie-job-id")
-assert.notEqual(jid, null)
-
-const sample = await sampleRSP.json()
 assertIdAndPath(sample)
-
 assert.ok(sample.points)
-const points = sample.points
-assert.equal(points.length, SAMPLE_SIZE, `sample size should be ${SAMPLE_SIZE}`)
+assert.equal(sample.points.length, SAMPLE_SIZE, `sample size should be ${SAMPLE_SIZE}`)
 
-const sample2RPS = await fetch(makeEndpoint("/api/sample"), {
-  method: 'POST', body: JSON.stringify({ formula: FPCoreFormula2, seed: 5 })
-})
+// Make second call to test that results are the same
+const sample2RPS = await fetch(makeEndpoint("/api/sample"), sampleBody)
 const jid2 = sample2RPS.headers.get("x-herbie-job-id")
 assert.notEqual(jid2, null)
 const sample2 = await sample2RPS.json()
-const points2 = sample2.points
 assertIdAndPath(sample2)
-assert.deepEqual(points[1], points2[1])
+assert.deepEqual(sample.points[1], sample2.points[1])
+
+//Explanations endpoint
+const explainBody = {
+  method: 'POST',
+  body: JSON.stringify({
+    formula: FPCoreFormula, sample: sample2.points
+  })
+}
+const explain = await (await fetch(makeEndpoint("/api/explanations"), explainBody)).json()
+assertIdAndPath(explain)
+assert.equal(explain.explanation.length > 0, true, 'explanation should not be empty');
+const explainAsyncResult = await callAsyncAndWaitJSONResult("/api/start/explanations", explainBody)
+assertIdAndPath(explainAsyncResult)
+assert.equal(explainAsyncResult.explanation.length > 0, true, 'explanation should not be empty');
 
 // Analyze endpoint
-const errors = await (await fetch(makeEndpoint("/api/analyze"), {
+const errorsBody = {
   method: 'POST', body: JSON.stringify({
     formula: FPCoreFormula, sample: [[[
       14.97651307489794
     ], 0.12711304680349078]]
   })
-})).json()
+}
+const errors = await (await fetch(makeEndpoint("/api/analyze"), errorsBody)).json()
 assertIdAndPath(errors)
 assert.deepEqual(errors.points, [[[14.97651307489794], "2.3"]])
-const analyzeAsyncResult = await callAsyncAndWaitJSONResult("/api/start/analyze", {
-  method: 'POST', body: JSON.stringify({
-    formula: FPCoreFormula, sample: [[[
-      14.97651307489794
-    ], 0.12711304680349078]]
-  })
-})
+const analyzeAsyncResult = await callAsyncAndWaitJSONResult("/api/start/analyze", errorsBody)
 assertIdAndPath(analyzeAsyncResult)
 assert.deepEqual(analyzeAsyncResult.points, [[[14.97651307489794], "2.3"]])
 
+// Exacts endpoint
+const exactsBody = {
+  method: 'POST', body: JSON.stringify({
+    formula: FPCoreFormula2, sample: eval_sample
+  })
+}
+const exacts = await (await fetch(makeEndpoint("/api/exacts"), exactsBody)).json()
+assertIdAndPath(exacts)
+assert.deepEqual(exacts.points, [[[1], -1.4142135623730951]])
+const exactsAsyncResult = await callAsyncAndWaitJSONResult("/api/start/exacts", exactsBody)
+assertIdAndPath(exactsAsyncResult)
+assert.deepEqual(exactsAsyncResult.points, [[[1], -1.4142135623730951]])
+
+// Calculate endpoint
+const calculateBody = {
+  method: 'POST', body: JSON.stringify({
+    formula: FPCoreFormula2, sample: eval_sample
+  })
+}
+const calculate = await (await fetch(makeEndpoint("/api/calculate"), calculateBody)).json()
+assertIdAndPath(calculate)
+assert.deepEqual(calculate.points, [[[1], -1.4142135623730951]])
+const calculateAsyncResult = await callAsyncAndWaitJSONResult("/api/start/calculate", calculateBody)
+assertIdAndPath(calculateAsyncResult)
+assert.deepEqual(calculateAsyncResult.points, [[[1], -1.4142135623730951]])
+
 // Local error endpoint
-const localError = await (await fetch(makeEndpoint("/api/localerror"), {
+const localErrorBody = {
   method: 'POST', body: JSON.stringify({
     formula: FPCoreFormula, sample: sample2.points
   })
-})).json()
+}
+const localError = await (await fetch(makeEndpoint("/api/localerror"), localErrorBody)).json()
 assertIdAndPath(localError)
 assert.equal(localError.tree['avg-error'] > 0, true)
-const localErrorAsyncResult = await callAsyncAndWaitJSONResult("/api/start/localerror", {
-  method: 'POST', body: JSON.stringify({
-    formula: FPCoreFormula, sample: sample2.points
-  })
-})
+const localErrorAsyncResult = await callAsyncAndWaitJSONResult("/api/start/localerror", localErrorBody)
 assertIdAndPath(localErrorAsyncResult)
 assert.equal(localErrorAsyncResult.tree['avg-error'] > 0, true)
 
-const json1 = JSON.stringify({
-  formula: FPCoreFormula, sample: [[[2.852044568544089e-150], 1e+308]], seed: 5
-})
-const json2 = JSON.stringify({
-  formula: FPCoreFormula, sample: [[[1.5223342548065899e-15], 1e+308]], seed: 5
-})
 const localError1 = await (await fetch(makeEndpoint("/api/localerror"), {
-  method: 'POST', body: json1
+  method: 'POST', body: JSON.stringify({
+    formula: FPCoreFormula, sample: [[[2.852044568544089e-150], 1e+308]], seed: 5
+  })
 })).json()
 const localError2 = await (await fetch(makeEndpoint("/api/localerror"), {
-  method: 'POST', body: json2
+  method: 'POST', body: JSON.stringify({
+    formula: FPCoreFormula, sample: [[[1.5223342548065899e-15], 1e+308]], seed: 5
+  })
 })).json()
 // Test that different sample points produce different job ids ensuring that different results are served for these inputs.
 assert.notEqual(localError1.job, localError2.job)
 
 // Alternatives endpoint
-const alternatives = await (await fetch(makeEndpoint("/api/alternatives"), {
+const altBody = {
   method: 'POST', body: JSON.stringify({
     formula: FPCoreFormula, sample: [[[
       14.97651307489794
     ], 0.12711304680349078]]
   })
-})).json()
+}
+const alternatives = await (await fetch(makeEndpoint("/api/alternatives"), altBody)).json()
 assertIdAndPath(alternatives)
 assert.equal(Array.isArray(alternatives.alternatives), true)
-const alternativesAsyncResult = await callAsyncAndWaitJSONResult("/api/start/alternatives", {
-  method: 'POST', body: JSON.stringify({
-    formula: FPCoreFormula, sample: [[[
-      14.97651307489794
-    ], 0.12711304680349078]]
-  })
-})
+const alternativesAsyncResult = await callAsyncAndWaitJSONResult("/api/start/alternatives", altBody)
 assertIdAndPath(alternativesAsyncResult)
 assert.equal(Array.isArray(alternativesAsyncResult.alternatives), true)
 
-//Explanations endpoint
-const sampleExp = (await (await fetch('http://127.0.0.1:8000/api/sample', { method: 'POST', body: JSON.stringify({ formula: FPCoreFormula2, seed: 5 }) })).json())
-
-const explain = await (await fetch(makeEndpoint("/api/explanations"), {
-  method: 'POST', body: JSON.stringify({
-    formula: FPCoreFormula, sample: sampleExp.points
-  })
-})).json()
-assertIdAndPath(explain)
-assert.equal(explain.explanation.length > 0, true, 'explanation should not be empty');
-const explainAsyncResult = await callAsyncAndWaitJSONResult("/api/start/explanations", {
-  method: 'POST',
-  body: JSON.stringify({
-    formula: FPCoreFormula, sample: sampleExp.points
-  })
-})
-assertIdAndPath(explainAsyncResult)
-assert.equal(explainAsyncResult.explanation.length > 0, true, 'explanation should not be empty');
-
-// Exacts endpoint
-const exacts = await (await fetch(makeEndpoint("/api/exacts"), {
-  method: 'POST', body: JSON.stringify({
-    formula: FPCoreFormula2, sample: eval_sample
-  })
-})).json()
-assertIdAndPath(exacts)
-assert.deepEqual(exacts.points, [[[1], -1.4142135623730951]])
-const exactsAsyncResult = await callAsyncAndWaitJSONResult("/api/start/exacts", {
-  method: 'POST', body: JSON.stringify({
-    formula: FPCoreFormula2, sample: eval_sample
-  })
-})
-assertIdAndPath(exactsAsyncResult)
-assert.deepEqual(exactsAsyncResult.points, [[[1], -1.4142135623730951]])
-
-// Calculate endpoint
-const calculate = await (await fetch(makeEndpoint("/api/calculate"), {
-  method: 'POST', body: JSON.stringify({
-    formula: FPCoreFormula2, sample: eval_sample
-  })
-})).json()
-assertIdAndPath(calculate)
-assert.deepEqual(calculate.points, [[[1], -1.4142135623730951]])
-const calculateAsyncResult = await callAsyncAndWaitJSONResult("/api/start/calculate", {
-  method: 'POST', body: JSON.stringify({
-    formula: FPCoreFormula2, sample: eval_sample
-  })
-})
-assertIdAndPath(calculateAsyncResult)
-assert.deepEqual(calculateAsyncResult.points, [[[1], -1.4142135623730951]])
-
-
 // Cost endpoint
-const cost = await (await fetch(makeEndpoint("/api/cost"), {
+const costBody = {
   method: 'POST', body: JSON.stringify({
     formula: FPCoreFormula2, sample: eval_sample
   })
-})).json()
+}
+const cost = await (await fetch(makeEndpoint("/api/cost"), costBody)).json()
 assertIdAndPath(cost)
 assert.equal(cost.cost > 0, true)
-const costAsyncResult = await callAsyncAndWaitJSONResult("/api/start/cost", {
-  method: 'POST', body: JSON.stringify({
-    formula: FPCoreFormula2, sample: eval_sample
-  })
-})
+const costAsyncResult = await callAsyncAndWaitJSONResult("/api/start/cost", costBody)
 assertIdAndPath(costAsyncResult)
 assert.equal(costAsyncResult.cost > 0, true)
 
@@ -246,20 +221,6 @@ for (const e in expectedExpressions) {
   assert.equal(translatedExpr.result, expectedExpressions[e])
 }
 
-let counter = 0
-let cap = 100
-// Check status endpoint
-let checkStatus = await fetch(makeEndpoint(path), { method: 'GET' })
-/*
-This is testing if the /improve-start test at the beginning has been completed. The cap and counter is a sort of timeout for the test. Ends up being 10 seconds max.
-*/
-while (checkStatus.status != 201 && counter < cap) {
-  counter += 1
-  checkStatus = await fetch(makeEndpoint(path), { method: 'GET' })
-  await new Promise(r => setTimeout(r, 100)); // ms
-}
-assert.equal(checkStatus.statusText, 'Job complete')
-
 // Results.json endpoint
 const jsonResults = await (await fetch(makeEndpoint("/results.json"), { method: 'GET' })).json()
 
@@ -267,6 +228,7 @@ const jsonResults = await (await fetch(makeEndpoint("/results.json"), { method: 
 // TODO add a way to reset the results.json file?
 assert.equal(jsonResults.tests.length, 2)
 
+// Helper Functions
 function makeEndpoint(endpoint) {
   return new URL(`http://127.0.0.1:8000${endpoint}`)
 }
@@ -282,7 +244,7 @@ async function callAsyncAndWaitJSONResult(endpoint, body) {
   // Check status endpoint
   let jobInfo = await fetch(makeEndpoint(endpoint), body)
   /*
-  This is testing if the /improve-start test at the beginning has been completed. The cap and counter is a sort of timeout for the test. Ends up being 10 seconds max.
+  The cap and counter is a sort of timeout for the test. Ends up being 10 seconds max.
   */
   const jobJSON = await jobInfo.json()
   const checkStatus = await fetch(makeEndpoint(`/check-status/${jobJSON.job}`), { method: 'GET' })
