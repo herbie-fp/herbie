@@ -161,6 +161,13 @@ const exacts = await (await fetch(makeEndpoint("/api/exacts"), {
 })).json()
 assertIdAndPath(exacts)
 assert.deepEqual(exacts.points, [[[1], -1.4142135623730951]])
+const exactsAsyncResult = await callAsyncAndWaitJSONResult("/api/start/exacts", {
+  method: 'POST', body: JSON.stringify({
+    formula: FPCoreFormula2, sample: eval_sample
+  })
+})
+assertIdAndPath(exactsAsyncResult)
+assert.deepEqual(exactsAsyncResult.points, [[[1], -1.4142135623730951]])
 
 // Calculate endpoint
 const calculate = await (await fetch(makeEndpoint("/api/calculate"), {
