@@ -242,6 +242,15 @@
     (set-mutable-batch-index! out (batch-restore-index input-batch)))
   (values add-root clean-batch finalize-batch))
 
+(define input-batch (progs->batch (list (approx `(+ 3 (pow ,(literal 2 'something) x)) `(+ 2 x)))))
+(batch-nodes input-batch)
+(batch-nodes (batch-replace input-batch
+                            (lambda (node)
+                              (match node
+                                [(literal v _) v]
+                                [(approx spec impl) (approx spec impl)]
+                                [node node]))))
+
 ; Tests for progs->batch and batch->progs
 (module+ test
   (require rackunit)

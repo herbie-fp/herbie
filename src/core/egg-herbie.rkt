@@ -125,21 +125,16 @@
       [(? symbol? x) (egraph_add_node ptr (symbol->string x) 0-vec root?)]
       [(? number? n) (egraph_add_node ptr (number->string n) 0-vec root?)]))
 
-  ; expr -> id
-  ; expression cache
-  (define expr->id (make-hash))
-
   ;--------------------------------- EXPERIMENTAL
+  (define (batch-parse-approx batch)
+    (batch-replace batch
+                   (lambda (node)
+                     (match node
+                       [(approx spec impl) (list '$approx spec impl)]
+                       [_ node]))))
+
   (set-batch-roots! batch roots) ; make sure that we work with the roots that are to be inserted
-  (define insert-batch
-    (remove-zombie-nodes (batch-replace batch
-                                        (lambda (node)
-                                          (match node
-                                            [(? number?) node]
-                                            [(? symbol?) (normalize-var node)]
-                                            [(literal v _) v]
-                                            [(approx spec impl) `($approx ,spec ,impl)]
-                                            [_ node])))))
+  (define insert-batch (remove-zombie-nodes (batch-parse-approx batch)))
 
   ; Inserting nodes bottom-up
   (define mappings (build-vector (batch-length insert-batch) values))
@@ -149,20 +144,19 @@
   (for ([node (in-vector (batch-nodes insert-batch))]
         [root? (in-vector root-mask)]
         [n (in-naturals)])
-    #;(when root?
-        (printf "\nexpr=~a\n" (batch-ref insert-batch n))
-        (sleep 1))
     (define node*
       (match node
+        [(literal v _) v]
+        [(? number?) node]
+        [(? symbol?) (normalize-var node)]
         [(list '$approx spec impl)
          (define impl-expr (batch-ref insert-batch impl))
-         (define spec-expr (batch-ref insert-batch spec))
+         (define spec-expr (normalize-spec (batch-ref insert-batch spec)))
          (hash-ref! id->spec
                     (vector-ref mappings spec)
                     (lambda ()
-                      (define spec* (normalize-spec spec-expr)) ; preserved spec for extraction
                       (define type (representation-type (repr-of impl-expr ctx))) ; track type of spec
-                      (cons spec* type)))
+                      (cons spec-expr type))) ; preserved spec for extraction
          (list '$approx (vector-ref mappings spec) (vector-ref mappings impl))]
         [(list op args ...) (cons op (map (curry vector-ref mappings) args))]
         [_ node]))
@@ -171,6 +165,9 @@
     #;(printf "node*=~a, n*=~a, n=~a\n" node* (vector-ref mappings n) n))
 
   ;---------------------------------
+  ; expr -> id
+  ; expression cache
+  #;(define expr->id (make-hash))
 
   ; expr -> natural
   ; inserts an expresison into the e-graph, returning its e-class id.
@@ -185,6 +182,12 @@
           [(approx spec impl)
            (define spec* (insert! spec))
            (define impl* (insert! impl))
+           #;(println spec)
+           #;(println impl)
+           #;(println spec*)
+           #;(println impl*)
+           #;(sleep 10)
+
            (hash-ref! id->spec
                       spec*
                       (lambda ()
@@ -199,13 +202,17 @@
         [root? (insert-node! node #t)]
         [else
          (define out (hash-ref! expr->id node (lambda () (insert-node! node #f))))
-         (printf "node=~a, index=~a\n" node out)
-         (sleep 1)
+         #;(printf "node=~a, index=~a\n" node out)
+         #;(sleep 1)
          out]))
 
   #;(define exprs (batch-extract-exprs batch roots))
-  #;(for/list ([expr (in-list exprs)])
-      (insert! expr #t))
+  #;(unless (equal? (for/list ([expr (in-list exprs)])
+                      (insert! expr #t))
+                    (for/list ([root (in-vector (batch-roots insert-batch))])
+                      (vector-ref mappings root)))
+      (println exprs))
+
   (for/list ([root (in-vector (batch-roots insert-batch))])
     (vector-ref mappings root)))
 
