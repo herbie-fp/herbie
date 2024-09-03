@@ -1251,6 +1251,15 @@
   (define ctx (egg-runner-ctx runner))
   (define-values (root-ids egg-graph)
     (egraph-run-schedule (egg-runner-exprs runner) (egg-runner-schedule runner) ctx))
+  (when (and (flag-set? 'dump 'egg) (set-member? '(single multi) (car cmd)))
+    (define dump-dir "dump-egg")
+    (unless (directory-exists? dump-dir)
+      (make-directory dump-dir))
+    (define name
+      (for/first ([i (in-naturals)]
+                  #:unless (file-exists? (build-path dump-dir (format "~a.json" i))))
+        (build-path dump-dir (format "~a.json" i))))
+    (egraph_dump_to_file (egraph-data-egraph-pointer egg-graph) (path->string name)))
   ; Perform extraction
   (match cmd
     [`(single . ,extractor) ; single expression extraction
