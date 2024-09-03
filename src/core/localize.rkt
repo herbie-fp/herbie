@@ -184,18 +184,27 @@
 ;; same shape as `prog`
 (define (local-error-as-tree test ctx)
   (define errs (first (compute-local-errors (list (all-subexpressions (test-input test))) ctx)))
+
   (define local-error
     (let loop ([expr (test-input test)])
       (define expr-info (hash-ref errs expr))
       (define err-list (hash-ref expr-info 'errs))
-      (define exacts-list (hash-ref expr-info 'errs))
       (match expr
         [(list op args ...) (cons err-list (map loop args))]
         [_ (list err-list)])))
 
+  (define exact-error
+    (let loop ([expr (test-input test)])
+      (define expr-info (hash-ref errs expr))
+      (define exacts-list (hash-ref expr-info 'exacts))
+      (match expr
+        [(list op args ...) (cons exacts-list (map loop args))]
+        [_ (list exacts-list)])))
+
   (define tree
     (let loop ([expr (prog->fpcore (test-input test) (test-context test))]
-               [err local-error])
+               [err local-error]
+               [exact exact-error])
       (match expr
         [(list op args ...)
          ;; err => (List (listof Integer) List ...)
@@ -203,8 +212,10 @@
                  (~a op)
                  'avg-error
                  (format-bits (errors-score (first err)))
+                 'exact-errors
+                 (map format-bits (first exact))
                  'children
-                 (map loop args (rest err)))]
+                 (map loop args (rest err) (rest exact)))]
         ;; err => (List (listof Integer))
         [_ (hasheq 'e (~a expr) 'avg-error (format-bits (errors-score (first err))) 'children '())])))
   tree)
