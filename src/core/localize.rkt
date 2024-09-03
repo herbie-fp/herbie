@@ -103,8 +103,15 @@
   (define subexprss (map all-subexpressions exprs))
   (define errss (compute-local-errors subexprss ctx))
 
+  (define pruned-list
+    (for/list ([h (in-list errss)])
+      (define pruned (make-hash))
+      (for ([(k v) (in-hash h)])
+        (hash-set! pruned k (hash-ref v 'errs)))
+      pruned))
+
   (for/list ([_ (in-list exprs)]
-             [errs (in-list errss)])
+             [errs (in-list pruned-list)])
     (sort (sort (for/list ([(subexpr err) (in-hash errs)]
                            #:when (or (list? subexpr) (approx? subexpr)))
                   (cons err subexpr))
@@ -126,8 +133,12 @@
 
   (define subexprs-fn (eval-progs-real (map prog->spec exprs-list) ctx-list))
 
-  ; Mutable error hack, this is bad
   (define errs
+    (for/vector #:length (vector-length roots)
+                ([node (in-vector roots)])
+      (make-vector (pcontext-length (*pcontext*)))))
+
+  (define exacts-out
     (for/vector #:length (vector-length roots)
                 ([node (in-vector roots)])
       (make-vector (pcontext-length (*pcontext*)))))
@@ -154,12 +165,17 @@
                (vector-ref exacts (vector-member idx roots)))) ; arg's index mapping to exact
            (define approx (apply (impl-info f 'fl) argapprox))
            (ulp-difference exact approx repr)]))
+      (vector-set! (vector-ref exacts-out expr-idx) pt-idx exact)
       (vector-set! (vector-ref errs expr-idx) pt-idx err)))
 
   (define n 0)
   (for/list ([subexprs (in-list subexprss)])
     (for*/hash ([subexpr (in-list subexprs)])
-      (begin0 (values subexpr (vector->list (vector-ref errs n)))
+      (begin0 (values subexpr
+                      (hasheq 'errs
+                              (vector->list (vector-ref errs n))
+                              'exacts
+                              (vector->list (vector-ref exacts-out n))))
         (set! n (add1 n))))))
 
 ;; Compute the local error of every subexpression of `prog`
@@ -168,6 +184,9 @@
 (define (local-error-as-tree expr ctx)
   (define errs (first (compute-local-errors (list (all-subexpressions expr)) ctx)))
   (let loop ([expr expr])
+    (define expr-info (hash-ref errs expr))
+    (define err-list (hash-ref expr-info 'errs))
+    (define exacts-list (hash-ref expr-info 'errs))
     (match expr
-      [(list op args ...) (cons (hash-ref errs expr) (map loop args))]
-      [_ (list (hash-ref errs expr))])))
+      [(list op args ...) (cons err-list (map loop args))]
+      [_ (list err-list)])))
