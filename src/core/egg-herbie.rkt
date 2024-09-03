@@ -130,50 +130,84 @@
   (define expr->id (make-hash))
 
   ;--------------------------------- EXPERIMENTAL
-  #;(define (insert-batchref! ref)
-      (match ref
-        [(batchref b idx)
-         (define nodes (batch-nodes b))
-         (insert! idx #t)]
-        [_ (error insert-batchref! "Pointer is not a batchref!")]))
+  (set-batch-roots! batch roots) ; make sure that we work with the roots that are to be inserted
+  (define insert-batch
+    (remove-zombie-nodes (batch-replace batch
+                                        (lambda (node)
+                                          (match node
+                                            [(? number?) node]
+                                            [(? symbol?) (normalize-var node)]
+                                            [(literal v _) v]
+                                            [(approx spec impl) `($approx ,spec ,impl)]
+                                            [_ node])))))
 
-  #;(define (insert! ref [root #f])
-      (match ref
-        [(batchref b idx) ...]
-        [(define node (match))]))
+  ; Inserting nodes bottom-up
+  (define mappings (build-vector (batch-length insert-batch) values))
+  (define root-mask (make-vector (batch-length insert-batch) #f))
+  (for ([root (in-vector (batch-roots insert-batch))])
+    (vector-set! root-mask root #t))
+  (for ([node (in-vector (batch-nodes insert-batch))]
+        [root? (in-vector root-mask)]
+        [n (in-naturals)])
+    #;(when root?
+        (printf "\nexpr=~a\n" (batch-ref insert-batch n))
+        (sleep 1))
+    (define node*
+      (match node
+        [(list '$approx spec impl)
+         (define impl-expr (batch-ref insert-batch impl))
+         (define spec-expr (batch-ref insert-batch spec))
+         (hash-ref! id->spec
+                    (vector-ref mappings spec)
+                    (lambda ()
+                      (define spec* (normalize-spec spec-expr)) ; preserved spec for extraction
+                      (define type (representation-type (repr-of impl-expr ctx))) ; track type of spec
+                      (cons spec* type)))
+         (list '$approx (vector-ref mappings spec) (vector-ref mappings impl))]
+        [(list op args ...) (cons op (map (curry vector-ref mappings) args))]
+        [_ node]))
+
+    (vector-set! mappings n (insert-node! node* root?))
+    #;(printf "node*=~a, n*=~a, n=~a\n" node* (vector-ref mappings n) n))
 
   ;---------------------------------
 
   ; expr -> natural
   ; inserts an expresison into the e-graph, returning its e-class id.
-  (define (insert! expr [root? #f])
-    ; transform the expression into a node pointing
-    ; to its child e-classes
-    (define node
-      (match expr
-        [(? number?) expr]
-        [(? symbol?) (normalize-var expr)]
-        [(literal v _) v]
-        [(approx spec impl)
-         (define spec* (insert! spec))
-         (define impl* (insert! impl))
-         (hash-ref! id->spec
-                    spec*
-                    (lambda ()
-                      (define spec* (normalize-spec spec)) ; preserved spec for extraction
-                      (define type (representation-type (repr-of impl ctx))) ; track type of spec
-                      (cons spec* type)))
-         (list '$approx spec* impl*)]
-        [(list op args ...) (cons op (map insert! args))]))
-    ; always insert the node if it is a root since
-    ; the e-graph tracks which nodes are roots
-    (cond
-      [root? (insert-node! node #t)]
-      [else (hash-ref! expr->id node (lambda () (insert-node! node #f)))]))
+  #;(define (insert! expr [root? #f])
+      ; transform the expression into a node pointing
+      ; to its child e-classes
+      (define node
+        (match expr
+          [(? number?) expr]
+          [(? symbol?) (normalize-var expr)]
+          [(literal v _) v]
+          [(approx spec impl)
+           (define spec* (insert! spec))
+           (define impl* (insert! impl))
+           (hash-ref! id->spec
+                      spec*
+                      (lambda ()
+                        (define spec* (normalize-spec spec)) ; preserved spec for extraction
+                        (define type (representation-type (repr-of impl ctx))) ; track type of spec
+                        (cons spec* type)))
+           (list '$approx spec* impl*)]
+          [(list op args ...) (cons op (map insert! args))]))
+      ; always insert the node if it is a root since
+      ; the e-graph tracks which nodes are roots
+      (cond
+        [root? (insert-node! node #t)]
+        [else
+         (define out (hash-ref! expr->id node (lambda () (insert-node! node #f))))
+         (printf "node=~a, index=~a\n" node out)
+         (sleep 1)
+         out]))
 
-  (define exprs (batch-extract-exprs batch roots))
-  (for/list ([expr (in-list exprs)])
-    (insert! expr #t)))
+  #;(define exprs (batch-extract-exprs batch roots))
+  #;(for/list ([expr (in-list exprs)])
+      (insert! expr #t))
+  (for/list ([root (in-vector (batch-roots insert-batch))])
+    (vector-ref mappings root)))
 
 ;; runs rules on an egraph (optional iteration limit)
 (define (egraph-run egraph-data ffi-rules node-limit iter-limit scheduler const-folding?)

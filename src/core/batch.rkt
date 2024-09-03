@@ -14,7 +14,8 @@
          batch-replace ; Batch -> Lambda -> Batch
          egg-nodes->batch ; Nodes -> Spec-maps -> Batch -> (Listof Root)
          batchref->expr ; Batchref -> Expr
-         batch-extract-exprs) ; Batch -> (Listof Root) -> (Listof Expr)
+         batch-extract-exprs ; Batch -> (Listof Root) -> (Listof Expr)
+         remove-zombie-nodes) ; Batch -> Batch
 
 ;; This function defines the recursive structure of expressions
 
@@ -117,7 +118,9 @@
   (define roots (vector-map (curry vector-ref mapping) (batch-roots b)))
   (mutable-batch->immutable out roots))
 
-; The function removes any zombie nodes from batch
+; The function removes any zombie nodes from batch with respect to the roots
+; Time complexity: O(|R| + |N|), where |R| - number of roots, |N| - length of nodes
+; Space complexity: O(|N| + |N*| + |R|), where |N*| is a length of nodes without zombie nodes
 (define (remove-zombie-nodes input-batch)
   (define nodes (batch-nodes input-batch))
   (define roots (batch-roots input-batch))
