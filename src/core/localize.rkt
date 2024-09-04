@@ -212,8 +212,8 @@
                  (~a op)
                  'avg-error
                  (format-bits (errors-score (first err)))
-                 'exact-errors
-                 (map format-bits (first exact))
+                 'exact-error
+                 (format-bits (errors-score (first exact)))
                  'children
                  (map loop args (rest err) (rest exact)))]
         ;; err => (List (listof Integer))
