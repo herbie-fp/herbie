@@ -126,11 +126,21 @@
       [(? number? n) (egraph_add_node ptr (number->string n) 0-vec root?)]))
 
   ;--------------------------------- EXPERIMENTAL
+  (define (repr-of-node batch idx ctx)
+    (define node (vector-ref (batch-nodes batch) idx))
+    (match node
+      [(? literal?) (get-representation (literal-precision node))]
+      [(? variable?) (context-lookup ctx node)]
+      [(list '$approx _ impl _) (repr-of-node batch impl ctx)]
+      [(list 'if cond ift iff) (repr-of-node batch ift ctx)]
+      [(list op args ...) (impl-info op 'otype)]))
+
   (define (batch-parse-approx batch)
     (batch-replace batch
                    (lambda (node)
                      (match node
-                       [(approx spec impl) (list '$approx spec impl)]
+                       ; this hack allows to store original spec as a list
+                       [(approx spec impl) (list '$approx spec impl (box spec))]
                        [_ node]))))
 
   (set-batch-roots! batch roots) ; make sure that we work with the roots that are to be inserted
@@ -143,20 +153,23 @@
     (vector-set! root-mask root #t))
   (for ([node (in-vector (batch-nodes insert-batch))]
         [root? (in-vector root-mask)]
-        [n (in-naturals)])
+        [n (in-naturals)]
+        #:unless (box? node)) ; only original spec can be in a box - just skip this node
     (define node*
       (match node
         [(literal v _) v]
         [(? number?) node]
         [(? symbol?) (normalize-var node)]
-        [(list '$approx spec impl)
-         (define impl-expr (batch-ref insert-batch impl))
-         (define spec-expr (normalize-spec (batch-ref insert-batch spec)))
-         (hash-ref! id->spec
-                    (vector-ref mappings spec)
-                    (lambda ()
-                      (define type (representation-type (repr-of impl-expr ctx))) ; track type of spec
-                      (cons spec-expr type))) ; preserved spec for extraction
+        [(list '$approx spec impl spec-expr)
+         (define spec-expr*
+           (normalize-spec (unbox (vector-ref (batch-nodes insert-batch) spec-expr))))
+         (hash-ref!
+          id->spec
+          (vector-ref mappings spec)
+          (lambda ()
+            (define type
+              (representation-type (repr-of-node insert-batch impl ctx))) ; track type of spec
+            (cons spec-expr* type))) ; preserved spec for extraction
          (list '$approx (vector-ref mappings spec) (vector-ref mappings impl))]
         [(list op args ...) (cons op (map (curry vector-ref mappings) args))]
         [_ node]))
