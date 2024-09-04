@@ -130,7 +130,7 @@
     (match node
       [(? literal?) (get-representation (literal-precision node))]
       [(? variable?) (context-lookup ctx node)]
-      [(list '$approx _ impl _)
+      [(list '$approx _ impl)
        (repr-of-node batch impl ctx)] ; here is a hack to match an after-parse structure
       [(list 'if cond ift iff) (repr-of-node batch ift ctx)]
       [(list op args ...) (impl-info op 'otype)]))
@@ -140,7 +140,7 @@
                    (lambda (node)
                      (match node
                        ; this hack allows to preserve original spec for extraction
-                       [(approx spec impl) (list '$approx spec impl (box spec))]
+                       [(approx spec impl) (list '$approx spec impl)]
                        [_ node]))))
 
   (set-batch-roots! batch roots) ; make sure that we work with the roots that are to be inserted
@@ -149,7 +149,7 @@
     (if (zero? (batch-length batch)) batch (remove-zombie-nodes (batch-parse-approx batch))))
 
   (define mappings (build-vector (batch-length insert-batch) values))
-  (define (demap x)
+  (define (remap x)
     (vector-ref mappings x))
 
   ; Inserting nodes bottom-up
@@ -165,17 +165,15 @@
         [(literal v _) v]
         [(? number?) node]
         [(? symbol?) (normalize-var node)]
-        [(list '$approx (app demap spec) impl orig-spec-idx)
+        [(list '$approx spec impl)
          (hash-ref! id->spec
-                    spec
+                    (remap spec)
                     (lambda ()
-                      (define spec*
-                        (normalize-spec (unbox (vector-ref (batch-nodes insert-batch)
-                                                           orig-spec-idx))))
+                      (define spec* (normalize-spec (batch-ref insert-batch spec)))
                       (define type (representation-type (repr-of-node insert-batch impl ctx)))
                       (cons spec* type))) ; preserved spec and type for extraction
-         (list '$approx spec (demap impl))]
-        [(list op (app demap args) ...) (cons op args)]))
+         (list '$approx (remap spec) (remap impl))]
+        [(list op (app remap args) ...) (cons op args)]))
 
     (vector-set! mappings n (insert-node! node* root?)))
 
@@ -192,17 +190,12 @@
           [(approx spec impl)
            (define spec* (insert! spec))
            (define impl* (insert! impl))
-
-           (define spec** (normalize-spec spec)) ; preserved spec for extraction
-           (define type (representation-type (repr-of impl ctx))) ; track type of spec
-           (unless (equal? (hash-ref id->spec spec*) (cons spec** type))
-             (printf "hash=~a, cons=~a\n" (hash-ref id->spec spec*) (cons spec** type)))
-           #;(hash-ref! id->spec
-                        spec*
-                        (lambda ()
-                          (define spec* (normalize-spec spec)) ; preserved spec for extraction
-                          (define type (representation-type (repr-of impl ctx))) ; track type of spec
-                          (cons spec* type)))
+           (hash-ref! id->spec
+                      spec*
+                      (lambda ()
+                        (define spec* (normalize-spec spec)) ; preserved spec for extraction
+                        (define type (representation-type (repr-of impl ctx))) ; track type of spec
+                        (cons spec* type)))
            (list '$approx spec* impl*)]
           [(list op args ...) (cons op (map insert! args))]))
       ; always insert the node if it is a root since
@@ -214,16 +207,26 @@
          out]))
 
   #;(define exprs (batch-extract-exprs batch roots))
-  #;(unless (equal? (for/list ([expr (in-list exprs)])
-                      (insert! expr #t))
-                    (for/list ([root (in-vector (batch-roots insert-batch))])
-                      (vector-ref mappings root)))
-      (println exprs)
-      (sleep 20))
+  #;(define out
+      (for/list ([expr (in-list exprs)])
+        (insert! expr #t)))
+  #;(define out
+      (for/list ([root (in-vector (batch-roots insert-batch))])
+        (remap root)))
+
+  #;
+  (when (or (equal?
+             out
+             '(26 25 24 23 38 34 29 27 46 45 65 64 53 47 70 75 74 73 8 11 10 33 41 43 52 66 67 69))
+            (equal?
+             out
+             '(26 25 24 23 38 37 32 30 46 45 65 64 63 57 70 75 74 73 17 19 18 36 41 43 62 66 67 69)))
+    (println (for/list ([root (in-vector (batch-roots insert-batch))])
+               (batch-ref insert-batch root))))
   ;------------
 
   (for/list ([root (in-vector (batch-roots insert-batch))])
-    (vector-ref mappings root)))
+    (remap root)))
 
 ;; runs rules on an egraph (optional iteration limit)
 (define (egraph-run egraph-data ffi-rules node-limit iter-limit scheduler const-folding?)
