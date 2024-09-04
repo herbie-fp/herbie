@@ -73,7 +73,6 @@
                [egraph-pointer (egraph_copy (egraph-data-egraph-pointer eg-data))]))
 
 ; Adds expressions returning the root ids
-; TODO: take a batch rather than list of expressions
 (define (egraph-add-exprs egg-data batch roots ctx)
   (match-define (egraph-data ptr herbie->egg-dict egg->herbie-dict id->spec) egg-data)
 
@@ -149,8 +148,11 @@
   (define insert-batch
     (if (zero? (batch-length batch)) batch (remove-zombie-nodes (batch-parse-approx batch))))
 
-  ; Inserting nodes bottom-up
   (define mappings (build-vector (batch-length insert-batch) values))
+  (define (demap x)
+    (vector-ref mappings x))
+
+  ; Inserting nodes bottom-up
   (define root-mask (make-vector (batch-length insert-batch) #f))
   (for ([root (in-vector (batch-roots insert-batch))])
     (vector-set! root-mask root #t))
@@ -163,20 +165,62 @@
         [(literal v _) v]
         [(? number?) node]
         [(? symbol?) (normalize-var node)]
-        [(list '$approx spec impl spec-expr)
-         (define spec-expr*
-           (normalize-spec (unbox (vector-ref (batch-nodes insert-batch) spec-expr))))
-         (hash-ref!
-          id->spec
-          (vector-ref mappings spec)
-          (lambda ()
-            (define type
-              (representation-type (repr-of-node insert-batch impl ctx))) ; track type of spec
-            (cons spec-expr* type))) ; preserved spec for extraction
-         (list '$approx (vector-ref mappings spec) (vector-ref mappings impl))]
-        [(list op args ...) (cons op (map (curry vector-ref mappings) args))]))
+        [(list '$approx (app demap spec) impl orig-spec-idx)
+         (hash-ref! id->spec
+                    spec
+                    (lambda ()
+                      (define spec*
+                        (normalize-spec (unbox (vector-ref (batch-nodes insert-batch)
+                                                           orig-spec-idx))))
+                      (define type (representation-type (repr-of-node insert-batch impl ctx)))
+                      (cons spec* type))) ; preserved spec and type for extraction
+         (list '$approx spec (demap impl))]
+        [(list op (app demap args) ...) (cons op args)]))
 
     (vector-set! mappings n (insert-node! node* root?)))
+
+  ; ------------- Deboogs
+  #;(define expr->id (make-hash))
+  #;(define (insert! expr [root? #f])
+      ; transform the expression into a node pointing
+      ; to its child e-classes
+      (define node
+        (match expr
+          [(? number?) expr]
+          [(? symbol?) (normalize-var expr)]
+          [(literal v _) v]
+          [(approx spec impl)
+           (define spec* (insert! spec))
+           (define impl* (insert! impl))
+
+           (define spec** (normalize-spec spec)) ; preserved spec for extraction
+           (define type (representation-type (repr-of impl ctx))) ; track type of spec
+           (unless (equal? (hash-ref id->spec spec*) (cons spec** type))
+             (printf "hash=~a, cons=~a\n" (hash-ref id->spec spec*) (cons spec** type)))
+           #;(hash-ref! id->spec
+                        spec*
+                        (lambda ()
+                          (define spec* (normalize-spec spec)) ; preserved spec for extraction
+                          (define type (representation-type (repr-of impl ctx))) ; track type of spec
+                          (cons spec* type)))
+           (list '$approx spec* impl*)]
+          [(list op args ...) (cons op (map insert! args))]))
+      ; always insert the node if it is a root since
+      ; the e-graph tracks which nodes are roots
+      (cond
+        [root? (insert-node! node #t)]
+        [else
+         (define out (hash-ref! expr->id node (lambda () (insert-node! node #f))))
+         out]))
+
+  #;(define exprs (batch-extract-exprs batch roots))
+  #;(unless (equal? (for/list ([expr (in-list exprs)])
+                      (insert! expr #t))
+                    (for/list ([root (in-vector (batch-roots insert-batch))])
+                      (vector-ref mappings root)))
+      (println exprs)
+      (sleep 20))
+  ;------------
 
   (for/list ([root (in-vector (batch-roots insert-batch))])
     (vector-ref mappings root)))
