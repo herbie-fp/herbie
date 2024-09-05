@@ -180,6 +180,9 @@
         [(list (? impl-exists? impl) args ...) (cons impl (map loop args (impl-info impl 'itype)))]
         [(list op args ...) (cons op (map loop args (operator-info op 'itype)))])))
 
+  (define (eggref id)
+    (cdr (vector-ref egg-nodes id)))
+
   (define (add-root node type)
     (match node
       [(? number?)
@@ -192,11 +195,11 @@
          (error 'regraph-extract-variants "no initial approx node in eclass"))
        (define spec-type (if (representation? type) (representation-type type) type))
        (define final-spec (egg-parsed->expr spec* rename-dict spec-type))
-       (batch-push! out (approx final-spec (add-root (cdr (vector-ref egg-nodes impl)) type)))]
+       (batch-push! out (approx final-spec (add-root (eggref impl) type)))]
       [(list 'if cond ift iff)
-       (define cond-node (cdr (vector-ref egg-nodes cond)))
-       (define ift-node (cdr (vector-ref egg-nodes ift)))
-       (define iff-node (cdr (vector-ref egg-nodes iff)))
+       (define cond-node (eggref cond))
+       (define ift-node (eggref ift))
+       (define iff-node (eggref iff))
        (if (representation? type)
            (batch-push! out
                         (list 'if
@@ -210,13 +213,13 @@
        (define args
          (for/list ([id (in-list ids)]
                     [type (in-list (impl-info impl 'itype))])
-           (add-root (cdr (vector-ref egg-nodes id)) type)))
+           (add-root (eggref id) type)))
        (batch-push! out (cons impl args))]
       [(list (? operator-exists? op) ids ...)
        (define args
          (for/list ([id (in-list ids)]
                     [type (in-list (operator-info op 'itype))])
-           (add-root (cdr (vector-ref egg-nodes id)) type)))
+           (add-root (eggref id) type)))
        (batch-push! out (cons op args))]))
 
   (define (finalize-batch)
