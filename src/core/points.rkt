@@ -53,11 +53,6 @@
 ;; Herbie's standard error measure is the average bits of error across
 ;; all points in a pcontext.
 
-(define (point-error out exact repr)
-  (if ((representation-special-value? repr) out)
-      (+ 1 (expt 2 (representation-total-bits repr)))
-      (ulp-difference out exact repr)))
-
 (define (average . s)
   (/ (apply + s) (length s)))
 
@@ -77,10 +72,19 @@
 
 (define (batch-errors exprs pcontext ctx)
   (define fn (compile-progs exprs ctx))
-  (for/list ([(point exact) (in-pcontext pcontext)])
+  (define repr (context-repr ctx))
+  (define special-value? (representation-special-value repr))
+  (define special-error (+ 1 (expt 2 (representation-total-bits repr))))
+  (define ->ordinal (representation-repr->ordinal repr))
+  (for/list ([exact (in-vector (pcontext-exacts pcontext))])
+    ; Shared across all outs for maximum performance
+    (define exact-ordinal (->ordinal exact))
     (with-handlers ([exn:fail? (batch-errors-handler exprs point)])
       (for/list ([out (in-vector (apply fn point))])
-        (point-error out exact (context-repr ctx))))))
+        (if (special-value? out)
+            special-error
+            ;; Inlines ulp-difference for maximum performance
+            (+ 1 (abs (- (->ordinal out) exact-ordinal))))))))
 
 ;; Herbie <=> JSON conversion for pcontext
 ;; A JSON pcontext is just a list of lists
