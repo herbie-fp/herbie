@@ -16,7 +16,6 @@
          batchref->expr) ; Batchref -> Expr
 
 ;; This function defines the recursive structure of expressions
-
 (define (expr-recurse expr f)
   (match expr
     [(approx spec impl) (approx spec (f impl))]
@@ -24,7 +23,6 @@
     [_ expr]))
 
 ;; Batches store these recursive structures, flattened
-
 (struct batch ([nodes #:mutable] [roots #:mutable] vars))
 
 (define (batch-length b)
@@ -228,7 +226,6 @@
     (for/list ([root (in-list roots)])
       (batchref input-batch root)))
 
-  ; Cleaning the batch to start over
   (values add-enode finalize-batch))
 
 ; Tests for progs->batch and batch->progs

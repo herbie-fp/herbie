@@ -1160,6 +1160,8 @@
          (extract-enode enode type)))
 
      ; Returns (listof batchref) with respect to the roots
+     ; Writes to the global batch new nodes from extraction
+     ; Updates roots of global batch!
      (finalize-batch (remove-duplicates roots))]
     [else (list)]))
 
