@@ -50,8 +50,13 @@
                    (set-mutable-batch-vars! b (cons term (mutable-batch-vars b))))
                  new-idx))))
 
-(define (mutable-batch->immutable b roots)
+(define (mutable-batch->batch b roots)
   (batch (list->vector (reverse (mutable-batch-nodes b))) roots (reverse (mutable-batch-vars b))))
+
+(define (batch->mutable-batch b)
+  (mutable-batch (reverse (vector->list (batch-nodes b)))
+                 (batch-restore-index b)
+                 (reverse (batch-vars b))))
 
 (struct batchref (batch idx))
 
@@ -75,7 +80,7 @@
     (batch-push! out (expr-recurse prog munge)))
 
   (define roots (list->vector (map munge exprs)))
-  (define final (mutable-batch->immutable out roots))
+  (define final (mutable-batch->batch out roots))
   (when timeline-push
     (timeline-push! 'compiler size (batch-length final)))
   final)
@@ -106,7 +111,7 @@
           [_ (batch-push! out (expr-recurse expr loop))])))
     (vector-set! mapping idx final-idx))
   (define roots (vector-map (curry vector-ref mapping) (batch-roots b)))
-  (mutable-batch->immutable out roots))
+  (mutable-batch->batch out roots))
 
 ; The function removes any zombie nodes from batch
 (define (remove-zombie-nodes input-batch)
@@ -159,8 +164,7 @@
                (cons node n))))
 
 (define (egg-nodes->batch egg-nodes id->spec input-batch rename-dict)
-  (define out (make-mutable-batch))
-  (set-mutable-batch-index! out (batch-restore-index input-batch))
+  (define out (batch->mutable-batch input-batch))
 
   ; This fuction here is only because of cycles in loads:( Can not be imported from egg-herbie.rkt
   (define (egg-parsed->expr expr rename-dict type)
@@ -183,53 +187,51 @@
   (define (eggref id)
     (cdr (vector-ref egg-nodes id)))
 
-  (define (add-root node type)
-    (match node
-      [(? number?) (if (representation? type) (literal node (representation-name type)) node)]
-      [(? symbol?) (if (hash-has-key? rename-dict node) (car (hash-ref rename-dict node)) node)]
-      [(list '$approx spec impl)
-       (define spec* (vector-ref id->spec spec))
-       (unless spec*
-         (error 'regraph-extract-variants "no initial approx node in eclass"))
-       (define spec-type (if (representation? type) (representation-type type) type))
-       (define final-spec (egg-parsed->expr spec* rename-dict spec-type))
-       (approx final-spec (add-root (eggref impl) type))]
-      [(list 'if cond ift iff)
-       (if (representation? type)
-           (list 'if
-                 (add-root (eggref cond) (get-representation 'bool))
-                 (add-root (eggref ift) type)
-                 (add-root (eggref iff) type))
-           (list 'if
-                 (add-root (eggref cond) 'bool)
-                 (add-root (eggref ift) type)
-                 (add-root (eggref iff) type)))]
-      [(list (? impl-exists? impl) ids ...)
-       (define args
-         (for/list ([id (in-list ids)]
-                    [type (in-list (impl-info impl 'itype))])
-           (add-root (eggref id) type)))
-       (cons impl args)]
-      [(list (? operator-exists? op) ids ...)
-       (define args
-         (for/list ([id (in-list ids)]
-                    [type (in-list (operator-info op 'itype))])
-           (add-root (eggref id) type)))
-       (cons op args)])
-    (batch-push! out node))
+  (define (add-enode node type)
+    (define node*
+      (match node
+        [(? number?) (if (representation? type) (literal node (representation-name type)) node)]
+        [(? symbol?) (if (hash-has-key? rename-dict node) (car (hash-ref rename-dict node)) node)]
+        [(list '$approx spec impl)
+         (define spec* (vector-ref id->spec spec))
+         (unless spec*
+           (error 'regraph-extract-variants "no initial approx node in eclass"))
+         (define spec-type (if (representation? type) (representation-type type) type))
+         (define final-spec (egg-parsed->expr spec* rename-dict spec-type))
+         (approx final-spec (add-enode (eggref impl) type))]
+        [(list 'if cond ift iff)
+         (if (representation? type)
+             (list 'if
+                   (add-enode (eggref cond) (get-representation 'bool))
+                   (add-enode (eggref ift) type)
+                   (add-enode (eggref iff) type))
+             (list 'if
+                   (add-enode (eggref cond) 'bool)
+                   (add-enode (eggref ift) type)
+                   (add-enode (eggref iff) type)))]
+        [(list (? impl-exists? impl) ids ...)
+         (define args
+           (for/list ([id (in-list ids)]
+                      [type (in-list (impl-info impl 'itype))])
+             (add-enode (eggref id) type)))
+         (cons impl args)]
+        [(list (? operator-exists? op) ids ...)
+         (define args
+           (for/list ([id (in-list ids)]
+                      [type (in-list (operator-info op 'itype))])
+             (add-enode (eggref id) type)))
+         (cons op args)]))
+    (batch-push! out node*))
 
   (define (finalize-batch roots)
-    (set-batch-nodes! input-batch
-                      (vector-append (batch-nodes input-batch)
-                                     (list->vector (reverse (mutable-batch-nodes out)))))
+    (set! input-batch (mutable-batch->batch out (list->vector roots)))
     (for/list ([root (in-list roots)])
       (batchref input-batch root)))
 
   ; Cleaning the batch to start over
   (define (clean-batch)
-    (set! out (make-mutable-batch))
-    (set-mutable-batch-index! out (batch-restore-index input-batch)))
-  (values add-root clean-batch finalize-batch))
+    (set! out (batch->mutable-batch input-batch)))
+  (values add-enode clean-batch finalize-batch))
 
 ; Tests for progs->batch and batch->progs
 (module+ test
