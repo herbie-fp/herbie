@@ -229,9 +229,7 @@
       (batchref input-batch root)))
 
   ; Cleaning the batch to start over
-  (define (clean-batch)
-    (set! out (batch->mutable-batch input-batch)))
-  (values add-enode clean-batch finalize-batch))
+  (values add-enode finalize-batch))
 
 ; Tests for progs->batch and batch->progs
 (module+ test
