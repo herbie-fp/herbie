@@ -1159,9 +1159,9 @@
      (define roots
        (for/list ([enode (vector-ref eclasses id*)])
          (add-root enode type)))
-     (finalize-batch)
 
-     roots]
+     ; Returns (listof batchref) with respect to the roots
+     (finalize-batch (remove-duplicates roots))]
     [else (list)]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

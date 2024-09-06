@@ -11,8 +11,8 @@
          batch-length ; Batch -> Integer
          batch-ref ; Batch -> Index -> Expr
          deref ; Batchref -> Expr
-         batch-replace ; Batch -> Lambda -> Batch
-         egg-nodes->batch ; Nodes -> Spec-maps -> Batch -> (Listof Root)
+         batch-replace ; Batch -> (Expr<Batchref> -> Expr<Batchref>) -> Batch
+         egg-nodes->batch ; Nodes -> Spec-maps -> Batch -> (Listof Batchref)
          batchref->expr) ; Batchref -> Expr
 
 ;; This function defines the recursive structure of expressions
@@ -185,47 +185,45 @@
 
   (define (add-root node type)
     (match node
-      [(? number?)
-       (batch-push! out (if (representation? type) (literal node (representation-name type)) node))]
-      [(? symbol?)
-       (batch-push! out (if (hash-has-key? rename-dict node) (car (hash-ref rename-dict node)) node))]
+      [(? number?) (if (representation? type) (literal node (representation-name type)) node)]
+      [(? symbol?) (if (hash-has-key? rename-dict node) (car (hash-ref rename-dict node)) node)]
       [(list '$approx spec impl)
        (define spec* (vector-ref id->spec spec))
        (unless spec*
          (error 'regraph-extract-variants "no initial approx node in eclass"))
        (define spec-type (if (representation? type) (representation-type type) type))
        (define final-spec (egg-parsed->expr spec* rename-dict spec-type))
-       (batch-push! out (approx final-spec (add-root (eggref impl) type)))]
+       (approx final-spec (add-root (eggref impl) type))]
       [(list 'if cond ift iff)
-       (define cond-node (eggref cond))
-       (define ift-node (eggref ift))
-       (define iff-node (eggref iff))
        (if (representation? type)
-           (batch-push! out
-                        (list 'if
-                              (add-root cond-node (get-representation 'bool))
-                              (add-root ift-node type)
-                              (add-root iff-node type)))
-           (batch-push!
-            out
-            (list 'if (add-root cond-node 'bool) (add-root ift-node type) (add-root iff-node type))))]
+           (list 'if
+                 (add-root (eggref cond) (get-representation 'bool))
+                 (add-root (eggref ift) type)
+                 (add-root (eggref iff) type))
+           (list 'if
+                 (add-root (eggref cond) 'bool)
+                 (add-root (eggref ift) type)
+                 (add-root (eggref iff) type)))]
       [(list (? impl-exists? impl) ids ...)
        (define args
          (for/list ([id (in-list ids)]
                     [type (in-list (impl-info impl 'itype))])
            (add-root (eggref id) type)))
-       (batch-push! out (cons impl args))]
+       (cons impl args)]
       [(list (? operator-exists? op) ids ...)
        (define args
          (for/list ([id (in-list ids)]
                     [type (in-list (operator-info op 'itype))])
            (add-root (eggref id) type)))
-       (batch-push! out (cons op args))]))
+       (cons op args)])
+    (batch-push! out node))
 
-  (define (finalize-batch)
+  (define (finalize-batch roots)
     (set-batch-nodes! input-batch
                       (vector-append (batch-nodes input-batch)
-                                     (list->vector (reverse (mutable-batch-nodes out))))))
+                                     (list->vector (reverse (mutable-batch-nodes out)))))
+    (for/list ([root (in-list roots)])
+      (batchref input-batch root)))
 
   ; Cleaning the batch to start over
   (define (clean-batch)
