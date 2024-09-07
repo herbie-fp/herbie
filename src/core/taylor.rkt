@@ -501,7 +501,6 @@
   (define batch (progs->batch (list '(pow x 1.0))))
   (set! batch (expand-taylor batch))
   (define root (vector-ref (batch-roots batch) 0))
-
   (check-pred exact-integer? (car (vector-ref (taylor 'x batch) root))))
 
 (module+ test
@@ -511,7 +510,6 @@
     (define root (vector-ref (batch-roots batch) 0))
     (match-define fn (zero-series (vector-ref (taylor 'x batch) root)))
     (build-list n fn))
-
   (check-equal? (coeffs '(sin x)) '(0 1 0 -1/6 0 1/120 0))
   (check-equal? (coeffs '(sqrt (+ 1 x))) '(1 1/2 -1/8 1/16 -5/128 7/256 -21/1024))
   (check-equal? (coeffs '(cbrt (+ 1 x))) '(1 1/3 -1/9 5/81 -10/243 22/729 -154/6561))
