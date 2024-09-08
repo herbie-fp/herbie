@@ -175,7 +175,7 @@
       (begin0 (values subexpr
                       (hasheq 'errs
                               (vector->list (vector-ref errs n))
-                              'exacts
+                              'exact-values
                               (vector->list (vector-ref exacts-out n))))
         (set! n (add1 n))))))
 
@@ -193,10 +193,10 @@
         [(list op args ...) (cons err-list (map loop args))]
         [_ (list err-list)])))
 
-  (define exact-error
+  (define exact-values
     (let loop ([expr (test-input test)])
       (define expr-info (hash-ref errs expr))
-      (define exacts-list (hash-ref expr-info 'exacts))
+      (define exacts-list (hash-ref expr-info 'exact-values))
       (match expr
         [(list op args ...) (cons exacts-list (map loop args))]
         [_ (list exacts-list)])))
@@ -204,7 +204,7 @@
   (define tree
     (let loop ([expr (prog->fpcore (test-input test) (test-context test))]
                [err local-error]
-               [exact exact-error])
+               [exact exact-values])
       (match expr
         [(list op args ...)
          ;; err => (List (listof Integer) List ...)
@@ -212,8 +212,8 @@
                  (~a op)
                  'avg-error
                  (format-bits (errors-score (first err)))
-                 'exact-error
-                 (format-bits (errors-score (first exact)))
+                 'exact-value
+                 (first exact)
                  'children
                  (map loop args (rest err) (rest exact)))]
         ;; err => (List (listof Integer))
