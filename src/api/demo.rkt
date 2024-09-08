@@ -408,82 +408,81 @@
 ;; (await fetch('/api/sample', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x) (- (sqrt (+ x 1))))", seed: 5})})).json()
 (define-endpoint
  ([sample-endpoint start-sample-endpoint] post-data)
- (define formula-str (hash-ref post-data 'formula))
- (define formula (read-syntax 'web (open-input-string formula-str)))
- (define seed* (hash-ref post-data 'seed))
- (define test (parse-test formula))
- (create-job 'sample test #:seed seed* #:pcontext #f #:profile? #f #:timeline-disabled? #t))
+ (define test (get-test post-data))
+ (define seed (parse-seed post-data))
+ (create-job 'sample test #:seed seed #:pcontext #f #:profile? #f #:timeline-disabled? #t))
+
+; (create-job 'explanations (get-test post-data) #:seed (get-seed post-data) #:pcontext (get-pcontext post-data) #:profile? #f #:timeline-disabled? #t)
+(define (get-test post-data)
+  (define formula-str (hash-ref post-data 'formula))
+  (define formula (read-syntax 'web (open-input-string formula-str)))
+  (parse-test formula))
+
+; The name get-seed is taken.
+(define (parse-seed post-data)
+  (hash-ref post-data 'seed #f))
+
+(define (get-pcontext post-data)
+  (define test (get-test post-data))
+  (define sample (hash-ref post-data 'sample))
+  (json->pcontext sample (test-context test)))
 
 (define-endpoint ([explanations-endpoint start-explanations-endpoint] post-data)
-                 (define formula-str (hash-ref post-data 'formula))
-                 (define formula (read-syntax 'web (open-input-string formula-str)))
-                 (define sample (hash-ref post-data 'sample))
-                 (define seed (hash-ref post-data 'seed #f))
-                 (define test (parse-test formula))
-                 (define pcontext (json->pcontext sample (test-context test)))
                  (create-job 'explanations
-                             test
-                             #:seed seed
-                             #:pcontext pcontext
+                             (get-test post-data)
+                             #:seed (parse-seed post-data)
+                             #:pcontext (get-pcontext post-data)
                              #:profile? #f
                              #:timeline-disabled? #t))
 
-(define-endpoint
- ([analyze-endpoint start-analyze-endpoint] post-data)
- (define formula-str (hash-ref post-data 'formula))
- (define formula (read-syntax 'web (open-input-string formula-str)))
- (define sample (hash-ref post-data 'sample))
- (define seed (hash-ref post-data 'seed #f))
- (define test (parse-test formula))
- (define pcontext (json->pcontext sample (test-context test)))
- (create-job 'errors test #:seed seed #:pcontext pcontext #:profile? #f #:timeline-disabled? #t))
+(define-endpoint ([analyze-endpoint start-analyze-endpoint] post-data)
+                 (create-job 'errors
+                             (get-test post-data)
+                             #:seed (parse-seed post-data)
+                             #:pcontext (get-pcontext post-data)
+                             #:profile? #f
+                             #:timeline-disabled? #t))
 
 ;; (await fetch('/api/exacts', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x) (- (sqrt (+ x 1))))", points: [[1, 1]]})})).json()
-(define-endpoint
- ([exacts-endpoint start-exacts-endpoint] post-data)
- (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
- (define sample (hash-ref post-data 'sample))
- (define seed (hash-ref post-data 'seed #f))
- (define test (parse-test formula))
- (define pcontext (json->pcontext sample (test-context test)))
- (create-job 'exacts test #:seed seed #:pcontext pcontext #:profile? #f #:timeline-disabled? #t))
-
-(define-endpoint
- ([calculate-endpoint start-calculate-endpoint] post-data)
- (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
- (define sample (hash-ref post-data 'sample))
- (define seed (hash-ref post-data 'seed #f))
- (define test (parse-test formula))
- (define pcontext (json->pcontext sample (test-context test)))
- (create-job 'evaluate test #:seed seed #:pcontext pcontext #:profile? #f #:timeline-disabled? #t))
-
-(define-endpoint
- ([local-error-endpoint start-local-error-endpoint] post-data)
- (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
- (define sample (hash-ref post-data 'sample))
- (define seed (hash-ref post-data 'seed #f))
- (define test (parse-test formula))
- (define pcontext (json->pcontext sample (test-context test)))
- (create-job 'local-error test #:seed seed #:pcontext pcontext #:profile? #f #:timeline-disabled? #t))
-
-(define-endpoint ([alternatives-endpoint start-alternatives-endpoint] post-data)
-                 (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
-                 (define sample (hash-ref post-data 'sample))
-                 (define seed (hash-ref post-data 'seed #f))
-                 (define test (parse-test formula))
-                 (define pcontext (json->pcontext sample (test-context test)))
-                 (create-job 'alternatives
-                             test
-                             #:seed seed
-                             #:pcontext pcontext
+(define-endpoint ([exacts-endpoint start-exacts-endpoint] post-data)
+                 (create-job 'exacts
+                             (get-test post-data)
+                             #:seed (parse-seed post-data)
+                             #:pcontext (get-pcontext post-data)
                              #:profile? #f
                              #:timeline-disabled? #t))
 
-(define-endpoint
- ([cost-endpoint start-cost-endpoint] post-data)
- (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
- (define test (parse-test formula))
- (create-job 'cost test #:seed #f #:pcontext #f #:profile? #f #:timeline-disabled? #f))
+(define-endpoint ([calculate-endpoint start-calculate-endpoint] post-data)
+                 (create-job 'evaluate
+                             (get-test post-data)
+                             #:seed (parse-seed post-data)
+                             #:pcontext (get-pcontext post-data)
+                             #:profile? #f
+                             #:timeline-disabled? #t))
+
+(define-endpoint ([local-error-endpoint start-local-error-endpoint] post-data)
+                 (create-job 'local-error
+                             (get-test post-data)
+                             #:seed (parse-seed post-data)
+                             #:pcontext (get-pcontext post-data)
+                             #:profile? #f
+                             #:timeline-disabled? #t))
+
+(define-endpoint ([alternatives-endpoint start-alternatives-endpoint] post-data)
+                 (create-job 'alternatives
+                             (get-test post-data)
+                             #:seed (parse-seed post-data)
+                             #:pcontext (get-pcontext post-data)
+                             #:profile? #f
+                             #:timeline-disabled? #t))
+
+(define-endpoint ([cost-endpoint start-cost-endpoint] post-data)
+                 (create-job 'cost
+                             (get-test post-data)
+                             #:seed #f
+                             #:pcontext #f
+                             #:profile? #f
+                             #:timeline-disabled? #f))
 
 (define ->mathjs-endpoint
   (post-with-json-response (lambda (post-data)
