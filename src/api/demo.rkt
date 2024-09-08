@@ -19,8 +19,7 @@
          "../syntax/read.rkt"
          "../utils/errors.rkt")
 (require "../syntax/sugar.rkt"
-         "../core/points.rkt"
-         "../api/sandbox.rkt")
+         "../core/points.rkt")
 (require "datafile.rkt"
          "../reports/pages.rkt"
          "../reports/common.rkt"
@@ -72,6 +71,23 @@
   (cond
     [(check-and-send path job-id page)]
     [else (next-dispatcher)]))
+
+(define (check-and-send path job-id page)
+  (define result-hash (get-results-for job-id))
+  (cond
+    [(set-member? (all-pages result-hash) page)
+     ;; Write page contents to disk
+     (when (*demo-output*)
+       (write-results-to-disk result-hash path))
+     (response 200
+               #"OK"
+               (current-seconds)
+               #"text"
+               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count)))))
+               (λ (out)
+                 (with-handlers ([exn:fail? (page-error-handler result-hash page out)])
+                   (make-page page out result-hash (*demo-output*) #f))))]
+    [else #f]))
 
 (define (generate-report req)
   (cond
