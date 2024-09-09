@@ -488,12 +488,6 @@
                  [cos-neg (cos (neg x)) (cos x)]
                  [tan-neg (tan (neg x)) (neg (tan x))])
 
-(define-ruleset* trig-expand
-                 (trignometry sound)
-                 #:type ([x real])
-                 [sqr-sin-b (* (sin x) (sin x)) (- 1 (* (cos x) (cos x)))]
-                 [sqr-cos-b (* (cos x) (cos x)) (- 1 (* (sin x) (sin x)))])
-
 (define-ruleset*
  trig-inverses
  (trigonometry sound)
@@ -556,6 +550,8 @@
 (define-ruleset* trig-expand-sound
                  (trigonometry sound)
                  #:type ([x real] [y real] [a real] [b real])
+                 [sqr-sin-b (* (sin x) (sin x)) (- 1 (* (cos x) (cos x)))]
+                 [sqr-cos-b (* (cos x) (cos x)) (- 1 (* (sin x) (sin x)))]
                  [sin-sum (sin (+ x y)) (+ (* (sin x) (cos y)) (* (cos x) (sin y)))]
                  [cos-sum (cos (+ x y)) (- (* (cos x) (cos y)) (* (sin x) (sin y)))]
                  [tan-sum (tan (+ x y)) (/ (+ (tan x) (tan y)) (- 1 (* (tan x) (tan y))))]
