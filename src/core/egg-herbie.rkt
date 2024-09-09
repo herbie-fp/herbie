@@ -124,26 +124,15 @@
       [(? symbol? x) (egraph_add_node ptr (symbol->string x) 0-vec root?)]
       [(? number? n) (egraph_add_node ptr (number->string n) 0-vec root?)]))
 
-  ; Index inside (batch-nodes batch) -> type
-  (define (repr-of-node batch idx ctx)
-    (define node (vector-ref (batch-nodes batch) idx))
-    (match node
-      [(? literal?) (get-representation (literal-precision node))]
-      [(? variable?) (context-lookup ctx node)]
-      [(list '$approx _ impl)
-       (repr-of-node batch impl ctx)] ; here is a hack to match an after-parse structure
-      [(list 'if cond ift iff) (repr-of-node batch ift ctx)]
-      [(list op args ...) (impl-info op 'otype)]))
-
+  ; The function recurses on spec
   (define (batch-parse-approx batch)
     (batch-replace batch
                    (lambda (node)
                      (match node
-                       ; this hack allows to preserve original spec for extraction
                        [(approx spec impl) (list '$approx spec impl)]
                        [_ node]))))
 
-  (set-batch-roots! batch roots) ; make sure that we work with the roots that are to be inserted
+  (set-batch-roots! batch roots) ; make sure that we work with the right roots
   ; the algorithm may crash if batch-length is zero
   (define insert-batch
     (if (zero? (batch-length batch)) batch (remove-zombie-nodes (batch-parse-approx batch))))
@@ -158,8 +147,7 @@
     (vector-set! root-mask root #t))
   (for ([node (in-vector (batch-nodes insert-batch))]
         [root? (in-vector root-mask)]
-        [n (in-naturals)]
-        #:unless (box? node)) ; only original spec can be in a box - just skip this node
+        [n (in-naturals)])
     (define node*
       (match node
         [(literal v _) v]

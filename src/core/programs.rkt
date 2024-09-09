@@ -2,7 +2,8 @@
 
 (require "../syntax/syntax.rkt"
          "../syntax/types.rkt"
-         "../utils/common.rkt")
+         "../utils/common.rkt"
+         (only-in "batch.rkt" batch-nodes))
 
 (provide expr?
          expr-contains?
@@ -12,6 +13,7 @@
          spec-prog?
          impl-prog?
          repr-of
+         repr-of-node
          location-do
          location-get
          free-variables
@@ -31,6 +33,17 @@
     [(list '$approx _ impl) (repr-of impl ctx)]
     [(approx _ impl) (repr-of impl ctx)]
     [(list 'if cond ift iff) (repr-of ift ctx)]
+    [(list op args ...) (impl-info op 'otype)]))
+
+; Index inside (batch-nodes batch) -> type
+(define (repr-of-node batch idx ctx)
+  (define node (vector-ref (batch-nodes batch) idx))
+  (match node
+    [(? literal?) (get-representation (literal-precision node))]
+    [(? variable?) (context-lookup ctx node)]
+    [(list '$approx _ impl)
+     (repr-of-node batch impl ctx)] ; here is a hack to match an after-parse structure
+    [(list 'if cond ift iff) (repr-of-node batch ift ctx)]
     [(list op args ...) (impl-info op 'otype)]))
 
 (define (expr-contains? expr pred)
