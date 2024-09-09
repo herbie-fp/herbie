@@ -62,7 +62,8 @@
        (with-syntax ([(citype ...) (map repr->type (syntax->list #'(itype ...)))]
                      [cotype (repr->type #'otype)]
                      [(var ...) (generate-temporaries #'(itype ...))])
-         #'(begin
-             (define-libm proc (cname citype ... cotype))
-             (when proc
-               (define-operator-impl (name [var : itype] ...) otype #:fl proc #:op id attrib ...)))))]))
+         #'
+         (begin
+           (define-libm proc (cname citype ... cotype))
+           (when proc
+             (define-operator-impl (name [var : itype] ...) otype #:fl proc #:op id attrib ...)))))]))
