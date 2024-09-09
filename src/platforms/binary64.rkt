@@ -50,7 +50,7 @@
                       binary64
                       #:spec (neg x)
                       #:fpcore (! :precision binary64 (- x))
-                      #:fl fl64-
+                      #:fl -
                       #:identities (#:exact (neg.f64 a)
                                     [distribute-lft-neg-in (neg.f64 (* a b)) (* (neg.f64 a) b)]
                                     [distribute-rgt-neg-in (neg.f64 (* a b)) (* a (neg.f64 b))]
@@ -64,7 +64,7 @@
                       binary64
                       #:spec (+ x y)
                       #:fpcore (! :precision binary64 (+ x y))
-                      #:fl fl64+
+                      #:fl +
                       #:identities
                       (#:commutes [distribute-neg-out (+.f64 (neg a) (neg b)) (neg (+.f64 a b))]
                                   [+-lft-identity (+.f64 0 a) a]
@@ -74,7 +74,7 @@
                       binary64
                       #:spec (- x y)
                       #:fpcore (! :precision binary64 (- x y))
-                      #:fl fl64-
+                      #:fl -
                       #:identities ([cancel-sign-sub (-.f64 a (* (neg b) c)) (+ a (* b c))]
                                     [cancel-sign-sub-inv (-.f64 a (* b c)) (+ a (* (neg b) c))]
                                     [+-inverses (-.f64 a a) 0]
@@ -85,8 +85,8 @@
                       binary64
                       #:spec (* x y)
                       #:fpcore (! :precision binary64 (* x y))
-                      #:fl fl64*
-                      #identities
+                      #:fl *
+                      #:identities
                       (#:commutes [distribute-lft-neg-out (*.f64 (neg a) b) (neg (*.f64 a b))]
                                   [distribute-rgt-neg-out (*.f64 a (neg b)) (neg (*.f64 a b))]
                                   [mul0-lft (*.f64 0 a) 0]
@@ -104,20 +104,19 @@
                       binary64
                       #:spec (/ x y)
                       #:fpcore (! :precision binary64 (/ x y))
-                      #:fl fl64/
-                      #identities
-                      ([distribute-frac-neg (/.f64 (neg a) b) (neg (/.f64 a b))]
-                       [distribute-frac-neg2 (/.f64 a (neg b)) (neg (/.f64 a b))]
-                       [div0 (/.f64 0 a) 0]
-                       [*-inverses (/.f64 a a) 1]
-                       [/-rgt-identity (/.f64 a 1) a]
-                       [div-fabs (/.f64 (fabs a) (fabs b)) (fabs (/.f64 a b))]
-                       [inv-pow (/.f64 1 a) (pow a -1)]))
+                      #:fl /
+                      #:identities ([distribute-frac-neg (/.f64 (neg a) b) (neg (/.f64 a b))]
+                                    [distribute-frac-neg2 (/.f64 a (neg b)) (neg (/.f64 a b))]
+                                    [div0 (/.f64 0 a) 0]
+                                    [*-inverses (/.f64 a a) 1]
+                                    [/-rgt-identity (/.f64 a 1) a]
+                                    [div-fabs (/.f64 (fabs a) (fabs b)) (fabs (/.f64 a b))]
+                                    [inv-pow (/.f64 1 a) (pow a -1)]))
 
 (define-libm-impl/binary64 fabs
                            (binary64)
                            binary64
-                           #:identities ([(fabs.f64 (fabs.f64 a)) (fabs.f64 a)]
+                           #:identities ([fabs-fabs (fabs.f64 (fabs.f64 a)) (fabs.f64 a)]
                                          [fabs-sub (fabs.f64 (- a b)) (fabs.f64 (- b a))]
                                          [fabs-neg (fabs.f64 (neg a)) (fabs.f64 a)]
                                          [fabs-sqr (fabs.f64 (* a a)) (* a a)]

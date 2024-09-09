@@ -33,10 +33,10 @@
 
 (define-syntax (define-libm-impl/binary32 stx)
   (syntax-case stx (real)
-    [(_ op (itype ...) otype [key value] ...)
+    [(_ op (itype ...) otype attrib ...)
      (with-syntax ([impl (string->symbol (format "~a.f32" (syntax->datum #'op)))]
                    [cname (string->symbol (format "~af" (syntax->datum #'op)))])
-       #'(define-libm-impl cname (op impl itype ...) otype [key value] ...))]))
+       #'(define-libm-impl cname (op impl itype ...) otype attrib ...))]))
 
 (define-syntax-rule (define-libm-impls/binary32* (itype ... otype) name ...)
   (begin
@@ -51,16 +51,15 @@
                       #:spec (neg x)
                       #:fpcore (! :precision binary32 (- x))
                       #:fl fl32-
-                      #identities
-                      (#:exact (neg.f32 x)
-                               [distribute-lft-neg-in (neg.f32 (* a b)) (* (neg.f32 a) b)]
-                               [distribute-rgt-neg-in (neg.f32 (* a b)) (* a (neg.f32 b))]
-                               [distribute-neg-in (neg.f32 (+ a b)) (+ (neg a) (neg b))]
-                               [distribute-neg-frac (neg.f32 (/ x y)) (/ (neg.f32 x) y)]
-                               [distribute-neg-frac2 (neg.f32 (/ x y)) (/ x (neg.f32 y))]
-                               [remove-double-neg (neg.f32 (neg.f32 a)) a]
-                               [neg-sub0 (neg.f32 b) (- 0 b)]
-                               [neg-mul-1 (neg.f32 a) (* -1 a)]))
+                      #:identities (#:exact (neg.f32 x)
+                                    [distribute-lft-neg-in (neg.f32 (* a b)) (* (neg.f32 a) b)]
+                                    [distribute-rgt-neg-in (neg.f32 (* a b)) (* a (neg.f32 b))]
+                                    [distribute-neg-in (neg.f32 (+ a b)) (+ (neg a) (neg b))]
+                                    [distribute-neg-frac (neg.f32 (/ a b)) (/ (neg.f32 a) b)]
+                                    [distribute-neg-frac2 (neg.f32 (/ a b)) (/ a (neg.f32 b))]
+                                    [remove-double-neg (neg.f32 (neg.f32 a)) a]
+                                    [neg-sub0 (neg.f32 b) (- 0 b)]
+                                    [neg-mul-1 (neg.f32 a) (* -1 a)]))
 (define-operator-impl (+.f32 [x : binary32] [y : binary32])
                       binary32
                       #:spec (+ x y)
@@ -87,7 +86,7 @@
                       #:spec (* x y)
                       #:fpcore (! :precision binary32 (* x y))
                       #:fl fl32*
-                      #identities
+                      #:identities
                       (#:commutes [distribute-lft-neg-out (*.f32 (neg x) y) (neg (*.f32 x y))]
                                   [distribute-rgt-neg-out (*.f32 x (neg y)) (neg (*.f32 x y))]
                                   [mul0-lft (*.f32 0 a) 0]
@@ -103,18 +102,17 @@
                       #:spec (/ x y)
                       #:fpcore (! :precision binary32 (/ x y))
                       #:fl fl32/
-                      #identities
-                      ([distribute-frac-neg (/.f32 (neg x) y) (neg (/.f32 x y))]
-                       [distribute-frac-neg2 (/.f32 x (neg y)) (neg (/.f32 x y))]
-                       [div0 (/.f32 0 a) 0]
-                       [*-inverses (/.f32 a a) 1]
-                       [/-rgt-identity (/.f32 a 1) a]
-                       [inv-pow (/.f32 1 a) (pow a -1)]))
+                      #:identities ([distribute-frac-neg (/.f32 (neg x) y) (neg (/.f32 x y))]
+                                    [distribute-frac-neg2 (/.f32 x (neg y)) (neg (/.f32 x y))]
+                                    [div0 (/.f32 0 a) 0]
+                                    [*-inverses (/.f32 a a) 1]
+                                    [/-rgt-identity (/.f32 a 1) a]
+                                    [inv-pow (/.f32 1 a) (pow a -1)]))
 
 (define-libm-impl/binary32 fabs
                            (binary64)
                            binary64
-                           #:identities ([(fabs.f32 (fabs.f32 a)) (fabs.f32 a)]
+                           #:identities ([fabs-fabs (fabs.f32 (fabs.f32 a)) (fabs.f32 a)]
                                          [fabs-sub (fabs.f32 (- a b)) (fabs.f32 (- b a))]
                                          [fabs-neg (fabs.f32 (neg a)) (fabs.f32 a)]
                                          [fabs-sqr (fabs.f32 (* a a)) (* a a)]
@@ -161,7 +159,7 @@
                            #:identities
                            ([sinh-neg (sinh.f32 (neg x)) (neg (sinh.f32 x))] [sinh-0 (sinh.f32 0) 0]))
 
-(define-libm-impl/binary64 cosh
+(define-libm-impl/binary32 cosh
                            (binary64)
                            binary64
                            #:identities

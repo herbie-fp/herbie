@@ -10,6 +10,7 @@
 (provide (rename-out [operator-or-impl? operator?])
          (struct-out literal)
          (struct-out approx)
+         (struct-out operator-impl)
          variable?
          constant-operator?
          operator-exists?
@@ -515,16 +516,23 @@
   (define commutes? #f)
   (when identities
     (for ([ident (in-list identities)])
+      (define ident-vars (map car args))
       (match ident
         [(list ident-name lhs-expr rhs-expr)
          (cond
            [(hash-has-key? rules ident-name)
             (raise-herbie-syntax-error "Duplicate identity ~a" ident-name)]
-           [else (hash-set! rules ident-name (list lhs-expr rhs-expr))])]
+           [else
+            (hash-set! rules
+                       ident-name
+                       (list lhs-expr
+                             rhs-expr
+                             (remove-duplicates (append (free-variables lhs-expr)
+                                                        (free-variables rhs-expr)))))])]
         [(list 'exact expr)
          (hash-set! rules
                     (gensym (string->symbol (format "~a-exact-~a" name count)))
-                    (list expr expr))
+                    (list expr expr (free-variables expr)))
          (set! count (+ count 1))]
         [(list 'commutes)
          (cond
@@ -537,12 +545,20 @@
             (set! commutes? #t)
             (hash-set! rules
                        (string->symbol (format "~a-commutes" name))
-                       (list `(,name ,@vars) `(name ,@(reverse vars))))])])))
+                       (list `(,name ,@vars) `(name ,@(reverse vars)) vars))])])))
 
   ; update tables
   (define impl (operator-impl name op-info (context vars orepr ireprs) spec fpcore fl-proc rules))
   (hash-set! operator-impls name impl)
   (hash-update! operators-to-impls new-op (curry cons name)))
+
+(define (free-variables prog)
+  (match prog
+    [(? literal?) '()]
+    [(? number?) '()]
+    [(? variable?) (list prog)]
+    [(approx _ impl) (free-variables impl)]
+    [(list _ args ...) (remove-duplicates (append-map free-variables args))]))
 
 (define-syntax (define-operator-impl stx)
   (define (oops! why [sub-stx #f])

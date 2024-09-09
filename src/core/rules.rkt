@@ -10,7 +10,6 @@
 
 (provide *rules*
          *simplify-rules*
-         *fp-safe-simplify-rules*
          (struct-out rule)
          real-rules)
 
@@ -20,8 +19,7 @@
            register-ruleset!
            *rulesets*
            *unsound-rules*
-           register-ruleset*!
-           (struct-out rule)))
+           register-ruleset*!))
 
 ;; A rule represents a "find-and-replace" pattern where `input` and `output`
 ;; are patterns, `itypes` is a mapping from variable name to type
@@ -72,16 +70,6 @@
         (for ([(_ ruleset) (in-dict (*rulesets*))])
           (match-define (list rules groups _) ruleset)
           (when (and (ormap (curry flag-set? 'rules) groups) (set-member? groups 'simplify))
-            (for ([rule (in-list rules)])
-              (sow rule))))))
-
-(define (*fp-safe-simplify-rules*)
-  (reap [sow]
-        (for ([(_ ruleset) (in-dict (*rulesets*))])
-          (match-define (list rules groups _) ruleset)
-          (when (and (ormap (curry flag-set? 'rules) groups)
-                     (set-member? groups 'simplify)
-                     (set-member? groups 'fp-safe))
             (for ([rule (in-list rules)])
               (sow rule))))))
 

@@ -13,6 +13,7 @@
          get-platform
          *active-platform*
          activate-platform!
+         *fp-safe-simplify-rules*
          platform-lifting-rules
          platform-lowering-rules
          platform-impl-rules
@@ -552,3 +553,16 @@
                  (when itypes*
                    (define name* (sym-append name '_ (repr->symbol repr)))
                    (sow (rule name* input* output* itypes* repr)))))]))))
+
+(define (*fp-safe-simplify-rules*)
+  (reap [sow]
+        (for ([impl (platform-impls (*active-platform*))])
+          (define rules (operator-impl-identities impl))
+          (for ([name (in-hash-keys rules)])
+            (match-define (list input output vars) (hash-ref rules name))
+            (define itypes
+              (build-list (length vars)
+                          (lambda (_) (car (context-var-reprs (operator-impl-ctx impl))))))
+            (define r
+              (rule name input output '((vars . itypes) ...) (context-repr (operator-impl-ctx impl))))
+            (sow r)))))
