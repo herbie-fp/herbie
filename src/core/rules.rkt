@@ -179,12 +179,7 @@
                  [distribute-rgt-out (+ (* b a) (* c a)) (* a (+ b c))]
                  [distribute-rgt-out-- (- (* b a) (* c a)) (* a (- b c))]
                  [distribute-lft1-in (+ (* b a) a) (* (+ b 1) a)]
-                 [distribute-rgt1-in (+ a (* c a)) (* (+ c 1) a)])
-
-; Safe Distributiviity
-(define-ruleset* distributivity
-                 (arithmetic simplify sound)
-                 #:type ([a real] [b real])
+                 [distribute-rgt1-in (+ a (* c a)) (* (+ c 1) a)]
                  [distribute-lft-neg-in (neg (* a b)) (* (neg a) b)]
                  [distribute-rgt-neg-in (neg (* a b)) (* a (neg b))]
                  [distribute-lft-neg-out (* (neg a) b) (neg (* a b))]
