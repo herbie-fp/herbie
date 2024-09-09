@@ -103,19 +103,12 @@
   ;          bits of error for the output on each point
   ;   ticks: array of size n where each entry is 13 or so tick values as [ordinal, string] pairs
   ;   splitpoints: array with the ordinal splitpoints
-  (hasheq 'bits
-          bits
-          'vars
-          (map symbol->string vars)
-          'points
-          json-points
-          'error
-          error-entries
-          'ticks_by_varidx
-          ticks
-          'splitpoints_by_varidx
-          splitpoints))
-
+  `#hasheq((bits . ,bits)
+           (vars . ,(map symbol->string vars))
+           (points . ,json-points)
+           (error . ,error-entries)
+           (ticks_by_varidx . ,ticks)
+           (splitpoints_by_varidx . ,splitpoints)))
 ;;  Repr conversions
 
 (define (ordinal->real x repr)
