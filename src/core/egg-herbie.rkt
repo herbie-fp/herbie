@@ -165,54 +165,6 @@
 
     (vector-set! mappings n (insert-node! node* root?)))
 
-  ; ------------- Deboogs
-  #;(define expr->id (make-hash))
-  #;(define (insert! expr [root? #f])
-      ; transform the expression into a node pointing
-      ; to its child e-classes
-      (define node
-        (match expr
-          [(? number?) expr]
-          [(? symbol?) (normalize-var expr)]
-          [(literal v _) v]
-          [(approx spec impl)
-           (define spec* (insert! spec))
-           (define impl* (insert! impl))
-           (hash-ref! id->spec
-                      spec*
-                      (lambda ()
-                        (define spec* (normalize-spec spec)) ; preserved spec for extraction
-                        (define type (representation-type (repr-of impl ctx))) ; track type of spec
-                        (cons spec* type)))
-           (list '$approx spec* impl*)]
-          [(list op args ...) (cons op (map insert! args))]))
-      ; always insert the node if it is a root since
-      ; the e-graph tracks which nodes are roots
-      (cond
-        [root? (insert-node! node #t)]
-        [else
-         (define out (hash-ref! expr->id node (lambda () (insert-node! node #f))))
-         out]))
-
-  #;(define exprs (batch-extract-exprs batch roots))
-  #;(define out
-      (for/list ([expr (in-list exprs)])
-        (insert! expr #t)))
-  #;(define out
-      (for/list ([root (in-vector (batch-roots insert-batch))])
-        (remap root)))
-
-  #;
-  (when (or (equal?
-             out
-             '(26 25 24 23 38 34 29 27 46 45 65 64 53 47 70 75 74 73 8 11 10 33 41 43 52 66 67 69))
-            (equal?
-             out
-             '(26 25 24 23 38 37 32 30 46 45 65 64 63 57 70 75 74 73 17 19 18 36 41 43 62 66 67 69)))
-    (println (for/list ([root (in-vector (batch-roots insert-batch))])
-               (batch-ref insert-batch root))))
-  ;------------
-
   (for/list ([root (in-vector (batch-roots insert-batch))])
     (remap root)))
 

@@ -30,7 +30,6 @@
   (match expr
     [(? literal?) (get-representation (literal-precision expr))]
     [(? variable?) (context-lookup ctx expr)]
-    [(list '$approx _ impl) (repr-of impl ctx)]
     [(approx _ impl) (repr-of impl ctx)]
     [(list 'if cond ift iff) (repr-of ift ctx)]
     [(list op args ...) (impl-info op 'otype)]))
