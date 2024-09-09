@@ -560,6 +560,6 @@
           (define rules (impl-info impl 'identities))
           (for ([name (in-hash-keys rules)])
             (match-define (list input output vars) (hash-ref rules name))
-            (define itypes (build-list (length vars) (lambda (_) (car (impl-info impl 'itype)))))
-            (define r (rule name input output '((vars . itypes) ...) (impl-info impl 'otype)))
+            (define itype (car (impl-info impl 'itype)))
+            (define r (rule name input output (for/hash ([v (in-list vars)]) (values v itype)) (impl-info impl 'otype)))
             (sow r)))))
