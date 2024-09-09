@@ -128,7 +128,7 @@
                                                                [e-exp-1 (E) (exp.f32 1)]))
 
 (define-libm-impl/binary32 pow
-                           (binary64 binary32)
+                           (binary32 binary32)
                            binary32
                            #:identities ([unpow1 (pow.f32 a 1) a] [unpow0 (pow.f32 a 0) 1]
                                                                   [pow-base-1 (pow.f32 1 a) 1]
