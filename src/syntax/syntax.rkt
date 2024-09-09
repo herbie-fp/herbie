@@ -26,6 +26,7 @@
          impl->operator
          operator-all-impls
          operator-active-impls
+         operator-impls
          activate-operator-impl!
          clear-active-operator-impls!
          *functions*

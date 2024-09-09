@@ -622,6 +622,10 @@
 (define-ruleset* htrig-expand-sound
                  (hyperbolic sound)
                  #:type ([x real] [y real])
+                 [sinh-neg (sinh (neg x)) (neg (sinh x))]
+                 [sinh-0 (sinh 0) 0]
+                 [cosh-neg (cosh (neg x)) (cosh x)]
+                 [cosh-0 (cosh 0) 1]
                  [sinh-undef (- (exp x) (exp (neg x))) (* 2 (sinh x))]
                  [cosh-undef (+ (exp x) (exp (neg x))) (* 2 (cosh x))]
                  [tanh-undef (/ (- (exp x) (exp (neg x))) (+ (exp x) (exp (neg x)))) (tanh x)]
@@ -645,14 +649,6 @@
                  (hyperbolic)
                  #:type ([x real] [y real])
                  [tanh-1/2* (tanh (/ x 2)) (/ (- (cosh x) 1) (sinh x))])
-
-(define-ruleset* htrig-expand-sound
-                 (hyperbolic sound)
-                 #:type ([x real])
-                 [sinh-neg (sinh (neg x)) (neg (sinh x))]
-                 [sinh-0 (sinh 0) 0]
-                 [cosh-neg (cosh (neg x)) (cosh x)]
-                 [cosh-0 (cosh 0) 1])
 
 (define-ruleset* ahtrig-expand-sound
                  (hyperbolic sound)
