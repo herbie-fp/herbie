@@ -10,7 +10,6 @@
 (provide (rename-out [operator-or-impl? operator?])
          (struct-out literal)
          (struct-out approx)
-         (struct-out operator-impl)
          variable?
          constant-operator?
          operator-exists?
@@ -26,7 +25,6 @@
          impl->operator
          operator-all-impls
          operator-active-impls
-         operator-impls
          activate-operator-impl!
          clear-active-operator-impls!
          *functions*
@@ -387,7 +385,8 @@
     [(otype) (context-repr (operator-impl-ctx info))]
     [(spec) (operator-impl-spec info)]
     [(fpcore) (operator-impl-fpcore info)]
-    [(fl) (operator-impl-fl info)]))
+    [(fl) (operator-impl-fl info)]
+    [(identities) (operator-impl-identities info)]))
 
 ;; Like `operator-all-impls`, but filters for only active implementations.
 (define (operator-active-impls name)

@@ -557,12 +557,9 @@
 (define (*fp-safe-simplify-rules*)
   (reap [sow]
         (for ([impl (platform-impls (*active-platform*))])
-          (define rules (operator-impl-identities (hash-ref operator-impls impl)))
+          (define rules (impl-info impl 'identities))
           (for ([name (in-hash-keys rules)])
             (match-define (list input output vars) (hash-ref rules name))
-            (define itypes
-              (build-list (length vars)
-                          (lambda (_) (car (context-var-reprs (operator-impl-ctx impl))))))
-            (define r
-              (rule name input output '((vars . itypes) ...) (context-repr (operator-impl-ctx impl))))
+            (define itypes (build-list (length vars) (lambda (_) (car (impl-info impl 'itype)))))
+            (define r (rule name input output '((vars . itypes) ...) (impl-info impl 'otype)))
             (sow r)))))
