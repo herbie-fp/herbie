@@ -213,7 +213,7 @@
                  'avg-error
                  (format-bits (errors-score (first err)))
                  'exact-value
-                 (first exact)
+                 (map ~s (first exact))
                  'children
                  (map loop args (rest err) (rest exact)))]
         ;; err => (List (listof Integer))
