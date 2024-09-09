@@ -110,8 +110,8 @@
                                     [inv-pow (/.f32 1 a) (pow a -1)]))
 
 (define-libm-impl/binary32 fabs
-                           (binary64)
-                           binary64
+                           (binary32)
+                           binary32
                            #:identities ([fabs-fabs (fabs.f32 (fabs.f32 a)) (fabs.f32 a)]
                                          [fabs-sub (fabs.f32 (- a b)) (fabs.f32 (- b a))]
                                          [fabs-neg (fabs.f32 (neg a)) (fabs.f32 a)]
@@ -121,47 +121,47 @@
                                          [neg-fabs (fabs.f32 x) (fabs.f32 (neg x))]))
 
 (define-libm-impl/binary32 exp
-                           (binary64)
-                           binary64
+                           (binary32)
+                           binary32
                            #:identities ([exp-0 (exp.f32 0) 1] [exp-1-e (exp.f32 1) (E)]
                                                                [1-exp 1 (exp.f32 0)]
                                                                [e-exp-1 (E) (exp.f32 1)]))
 
 (define-libm-impl/binary32 pow
-                           (binary64 binary64)
-                           binary64
+                           (binary64 binary32)
+                           binary32
                            #:identities ([unpow1 (pow.f32 a 1) a] [unpow0 (pow.f32 a 0) 1]
                                                                   [pow-base-1 (pow.f32 1 a) 1]
                                                                   [pow1 a (pow.f32 a 1)]
                                                                   [pow-base-0 (pow.f32 0 a) 0]))
 
 (define-libm-impl/binary32 sin
-                           (binary64)
-                           binary64
+                           (binary32)
+                           binary32
                            #:identities
                            ([sin-0 (sin.f32 0) 0] [sin-neg (sin.f32 (neg x)) (neg (sin.f32 x))]))
 
 (define-libm-impl/binary32 cos
-                           (binary64)
-                           binary64
+                           (binary32)
+                           binary32
                            #:identities
                            ([cos-0 (cos.f32 0) 1] [cos-neg (cos.f32 (neg x)) (cos.f32 x)]))
 
 (define-libm-impl/binary32 tan
-                           (binary64)
-                           binary64
+                           (binary32)
+                           binary32
                            #:identities
                            ([tan-0 (tan.f32 0) 0] [tan-neg (tan.f32 (neg x)) (neg (tan.f32 x))]))
 
 (define-libm-impl/binary32 sinh
-                           (binary64)
-                           binary64
+                           (binary32)
+                           binary32
                            #:identities
                            ([sinh-neg (sinh.f32 (neg x)) (neg (sinh.f32 x))] [sinh-0 (sinh.f32 0) 0]))
 
 (define-libm-impl/binary32 cosh
-                           (binary64)
-                           binary64
+                           (binary32)
+                           binary32
                            #:identities
                            ([cosh-neg (cosh.f32 (neg x)) (cosh.f32 x)] [cosh-0 (cosh.f32 0) 1]))
 
