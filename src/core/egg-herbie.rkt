@@ -165,6 +165,43 @@
 
     (vector-set! mappings n (insert-node! node* root?)))
 
+  ;------------------------- DEBUGGING
+  ; expr -> id
+  ; expression cache
+  #;(define expr->id (make-hash))
+
+  ; expr -> natural
+  ; inserts an expresison into the e-graph, returning its e-class id.
+  #;(define (insert! expr [root? #f])
+      ; transform the expression into a node pointing
+      ; to its child e-classes
+      (define node
+        (match expr
+          [(literal v _) v]
+          [(? number?) expr]
+          [(? symbol?) (normalize-var expr)]
+          [(list '$approx spec impl)
+           (define spec* (insert! (vector-ref nodes spec)))
+           (define impl* (insert! (vector-ref nodes impl)))
+           (hash-ref! id->spec
+                      spec*
+                      (lambda ()
+                        (define spec* (normalize-spec (batch-ref insert-batch spec)))
+                        (define type (representation-type (repr-of-node insert-batch impl ctx)))
+                        (cons spec* type)))
+           (list '$approx spec* impl*)]
+          [(list op args ...) (cons op (map insert! (map (curry vector-ref nodes) args)))]))
+      ; always insert the node if it is a root since
+      ; the e-graph tracks which nodes are roots
+      (cond
+        [root? (insert-node! node #t)]
+        [else (hash-ref! expr->id node (lambda () (insert-node! node #f)))]))
+
+  #;(define nodes (batch-nodes insert-batch))
+  #;(for/list ([root (in-vector (batch-roots insert-batch))])
+      (insert! (vector-ref nodes root) #t))
+  ; ---------------------- END OF DEBUGGING
+
   (for/list ([root (in-vector (batch-roots insert-batch))])
     (remap root)))
 

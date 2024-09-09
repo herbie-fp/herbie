@@ -90,10 +90,13 @@
                 [altn (in-list altns)]
                 [fv (in-list free-vars)]
                 #:when (member var fv)) ; check whether var exists in expr at all
-            (for ([_ (in-range (*taylor-order-limit*))])
+            ;(printf "orig-expr = ~a\n" (alt-expr altn))
+            (for ([i (in-range (*taylor-order-limit*))])
               (define gen (genexpr))
+              ;(printf "~a) expression=~a\n" i gen)
               (unless (spec-has-nan? gen)
-                (sow (alt gen `(taylor ,name ,var) (list altn) '())))))
+                (sow (alt gen `(taylor ,name ,var) (list altn) '()))))
+            #;(sleep 20))
           (timeline-stop!))))
 
 (define (spec-has-nan? expr)
