@@ -134,19 +134,18 @@
   (define exprs (map alt-expr altns))
   (define reprs (map (curryr repr-of (*context*)) exprs))
   (timeline-push! 'inputs (map ~a exprs))
-
   (define batch (progs->batch exprs))
   (define runner (make-egg-runner batch (batch-roots batch) reprs schedule #:context (*context*)))
-  ; variantss is a (listof roots))
-  (define rootss (run-egg runner `(multi . ,extractor)))
+  ; batchrefss is a (listof (listof batchref))
+  (define batchrefss (run-egg runner `(multi . ,extractor)))
 
   ; apply changelists
   (define rewritten
     (reap [sow]
-          (for ([roots (in-list rootss)]
+          (for ([batchrefs (in-list batchrefss)]
                 [altn (in-list altns)])
-            (for ([root (in-list (remove-duplicates roots))])
-              (sow (alt (batchref global-batch root) (list 'rr runner #f #f) (list altn) '()))))))
+            (for ([batchref* (in-list batchrefs)])
+              (sow (alt batchref* (list 'rr runner #f #f) (list altn) '()))))))
 
   (timeline-push! 'outputs (map (compose ~a alt-expr) rewritten))
   (timeline-push! 'count (length altns) (length rewritten))
@@ -156,6 +155,7 @@
 
 (define (generate-candidates exprs)
   ; Batch to where we will extract everything
+  ; Roots of this batch are constantly updated
   (define global-batch (progs->batch exprs))
 
   ; Starting alternatives

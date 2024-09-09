@@ -1,10 +1,7 @@
 #lang racket
 
 (require openssl/sha1)
-(require (only-in xml write-xexpr)
-         json)
-(require net/url)
-(require web-server/http)
+(require (only-in xml write-xexpr))
 
 (require "sandbox.rkt"
          "../core/points.rkt"
@@ -35,7 +32,7 @@
          start-job
          wait-for-job
          start-job-server
-         check-and-send
+         write-results-to-disk
          *demo?*
          *demo-output*)
 
@@ -60,24 +57,6 @@
                     #:profile? [profile? #f]
                     #:timeline-disabled? [timeline-disabled? #f])
   (herbie-command command test seed pcontext profile? timeline-disabled?))
-
-;; TODO move these side worker/manager
-(define (check-and-send path job-id page)
-  (define result-hash (get-results-for job-id))
-  (cond
-    [(set-member? (all-pages result-hash) page)
-     ;; Write page contents to disk
-     (when (*demo-output*)
-       (write-results-to-disk result-hash path))
-     (response 200
-               #"OK"
-               (current-seconds)
-               #"text"
-               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count)))))
-               (λ (out)
-                 (with-handlers ([exn:fail? (page-error-handler result-hash page out)])
-                   (make-page page out result-hash (*demo-output*) #f))))]
-    [else #f]))
 
 (define (write-results-to-disk result-hash path)
   (make-directory (build-path (*demo-output*) path))

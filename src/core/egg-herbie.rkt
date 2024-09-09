@@ -1127,10 +1127,10 @@
   (define id->spec (regraph-specs regraph))
 
   (define egg->herbie (regraph-egg->herbie regraph))
-  (define-values (add-root clean-batch finalize-batch)
+  (define-values (extract-enode finalize-batch)
     (egg-nodes->batch costs id->spec batch-extract-to egg->herbie))
   ;; These functions provide a setup to extract nodes into batch-extract-to from nodes
-  (list add-root clean-batch finalize-batch))
+  (list extract-enode finalize-batch))
 
 ;; Is fractional with odd denominator.
 (define (fraction-with-odd-denominator? frac)
@@ -1217,7 +1217,7 @@
   (define id->spec (regraph-specs regraph))
   (define canon (regraph-canon regraph))
   ; Functions for egg-extraction
-  (match-define (list add-root clean-batch finalize-batch) extract)
+  (match-define (list extract-enode finalize-batch) extract)
   ; extract expressions
   (define key (cons id type))
   (cond
@@ -1225,13 +1225,14 @@
     [(hash-has-key? canon key)
      (define id* (hash-ref canon key))
 
-     (clean-batch)
      (define roots
        (for/list ([enode (vector-ref eclasses id*)])
-         (add-root enode type)))
-     (finalize-batch)
+         (extract-enode enode type)))
 
-     roots]
+     ; Returns (listof batchref) with respect to the roots
+     ; Writes to the global batch new nodes from extraction
+     ; Updates roots of global batch!
+     (finalize-batch (remove-duplicates roots))]
     [else (list)]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
