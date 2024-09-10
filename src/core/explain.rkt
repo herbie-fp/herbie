@@ -13,7 +13,8 @@
          "../utils/alternative.rkt"
          "programs.rkt"
          "../utils/float.rkt"
-         "../config.rkt")
+         "../config.rkt"
+         "../syntax/syntax.rkt")
 
 (provide explain)
 
@@ -496,7 +497,7 @@
         (let loop ([expr expr]
                    [loc '()])
           (match expr
-            [(== subexpr) (sow (reverse loc))]
+             [(== subexpr) (sow (reverse loc))]
             [(? literal?) (void)]
             [(? symbol?) (void)]
             [(approx _ impl) (loop impl (cons 2 loc))]
@@ -543,14 +544,18 @@
   (define explanations-table
     (for/list ([(key val) (in-dict expls->points)]
                #:unless (zero? (length val)))
-      (define local_expr (car key))
+      (define expr (car key))
       (define expl (cdr key))
       (define err-count (length val))
       (define maybe-count (length (hash-ref maybe-expls->points key '())))
-      (define flow-list (make-flow-table oflow-hash uflow-hash local_expr expl))
-      ;; If expl is really `car expr`, we use that assumption in get-locations
-      (define locations (get-locations expr local_expr))  
-      (list (~a (car local_expr)) (~a local_expr) (~a expl) err-count maybe-count flow-list locations)))
+      (define flow-list (make-flow-table oflow-hash uflow-hash expr expl))
+      
+      (printf "Logging local_expr: ~a\n" (car expr))
+      (printf "Logging expr: ~a\n" expr)
+      (define locations (get-locations expr (car expr)))
+      (printf "Location: ~a\n" locations)
+
+      (list (~a (car expr)) (~a expr) (~a expl) err-count maybe-count flow-list locations)))
 
   (define sorted-explanations-table (take-top-n (sort explanations-table > #:key fourth)))
 
