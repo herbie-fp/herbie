@@ -2,12 +2,10 @@
 
 (require math/bigfloat
          math/flonum)
-(require "../utils/common.rkt"
-         "../core/points.rkt"
+(require "../core/points.rkt"
          "../utils/float.rkt"
          "../core/programs.rkt"
          "../syntax/types.rkt"
-         "../syntax/syntax.rkt"
          "../syntax/read.rkt"
          "../utils/alternative.rkt"
          "../core/bsearch.rkt"
@@ -111,7 +109,6 @@
            (error . ,error-entries)
            (ticks_by_varidx . ,ticks)
            (splitpoints_by_varidx . ,splitpoints)))
-
 ;;  Repr conversions
 
 (define (ordinal->real x repr)

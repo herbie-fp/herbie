@@ -51,19 +51,30 @@
       [integer #'integer]
       [_ (oops! "unknown type" repr)]))
   (syntax-case stx ()
-    [(_ cname (id name itype ...) otype attrib ...)
-     (begin
-       (unless (identifier? #'cname)
-         (oops! "expected identifier" #'cname))
-       (unless (identifier? #'id)
-         (oops! "expected identifier" #'id))
-       (unless (identifier? #'name)
-         (oops! "expected identifier" #'name))
-       (with-syntax ([(citype ...) (map repr->type (syntax->list #'(itype ...)))]
-                     [cotype (repr->type #'otype)]
-                     [(var ...) (generate-temporaries #'(itype ...))])
-         #'
-         (begin
-           (define-libm proc (cname citype ... cotype))
-           (when proc
-             (define-operator-impl (name [var : itype] ...) otype #:fl proc #:op id attrib ...)))))]))
+    [(_ cname (op name itype ...) otype fields ...)
+     (let ([op #'op]
+           [name #'name]
+           [cname #'cname]
+           [itypes (syntax->list #'(itype ...))])
+       (unless (identifier? op)
+         (oops! "expected identifier" op))
+       (unless (identifier? name)
+         (oops! "expected identifier" name))
+       (unless (identifier? cname)
+         (oops! "expected identifier" cname))
+       (with-syntax ([op op]
+                     [name name]
+                     [cname cname]
+                     [(var ...) (build-list (length itypes)
+                                            (lambda (i) (string->symbol (format "x~a" i))))]
+                     [(itype ...) itypes]
+                     [(citype ...) (map repr->type itypes)]
+                     [cotype (repr->type #'otype)])
+         #'(begin
+             (define-libm proc (cname citype ... cotype))
+             (when proc
+               (define-operator-impl (name [var : itype] ...)
+                                     otype
+                                     #:spec (op var ...)
+                                     #:fl proc
+                                     fields ...)))))]))

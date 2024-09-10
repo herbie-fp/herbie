@@ -11,18 +11,19 @@
          "programs.rkt"
          "rules.rkt"
          "simplify.rkt"
-         "taylor.rkt")
+         "taylor.rkt"
+         "batch.rkt")
 
 (provide generate-candidates)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Simplify ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define (lower-approximations approxs approx->prev)
+(define (lower-approximations approxs)
   (timeline-event! 'simplify)
 
   (define reprs
     (for/list ([approx (in-list approxs)])
-      (define prev (hash-ref approx->prev approx))
+      (define prev (car (alt-prevs approx)))
       (repr-of (alt-expr prev) (*context*))))
 
   ; generate real rules
@@ -51,7 +52,7 @@
           (for ([altn (in-list approxs)]
                 [outputs (in-list simplification-options)])
             (match-define (cons _ simplified) outputs)
-            (define prev (hash-ref approx->prev altn))
+            (define prev (car (alt-prevs altn)))
             (for ([expr (in-list simplified)])
               (define spec (prog->spec (alt-expr prev)))
               (sow (alt (approx spec expr) `(simplify ,runner #f #f) (list altn) '()))))))
@@ -71,16 +72,27 @@
                               #;(exp ,exp-x ,log-x)
                               #;(log ,log-x ,exp-x))))
 
-(define (taylor-alt altn)
-  (define expr (prog->spec (alt-expr altn)))
+(define (taylor-alts altns)
+  (define exprs
+    (for/list ([altn (in-list altns)])
+      (prog->spec (alt-expr altn))))
+  (define free-vars (map free-variables exprs))
+  (define vars (list->set (append* free-vars)))
+
   (reap [sow]
-        (for* ([var (free-variables expr)]
+        (for* ([var (in-set vars)]
                [transform-type transforms-to-try])
           (match-define (list name f finv) transform-type)
-          (define timeline-stop! (timeline-start! 'series (~a expr) (~a var) (~a name)))
-          (define genexpr (approximate expr var #:transform (cons f finv)))
-          (for ([_ (in-range (*taylor-order-limit*))])
-            (sow (alt (genexpr) `(taylor ,name ,var) (list altn) '())))
+          (define timeline-stop! (timeline-start! 'series (~a exprs) (~a var) (~a name)))
+          (define genexprs (approximate exprs var #:transform (cons f finv)))
+          (for ([genexpr (in-list genexprs)]
+                [altn (in-list altns)]
+                [fv (in-list free-vars)]
+                #:when (member var fv)) ; check whether var exists in expr at all
+            (for ([_ (in-range (*taylor-order-limit*))])
+              (define gen (genexpr))
+              (unless (spec-has-nan? gen)
+                (sow (alt gen `(taylor ,name ,var) (list altn) '())))))
           (timeline-stop!))))
 
 (define (spec-has-nan? expr)
@@ -90,22 +102,15 @@
   (timeline-event! 'series)
   (timeline-push! 'inputs (map ~a altns))
 
-  (define approx->prev (make-hasheq))
-  (define approxs
-    (reap [sow]
-          (for ([altn (in-list altns)])
-            (for ([approximation (taylor-alt altn)])
-              (unless (spec-has-nan? (alt-expr approximation))
-                (hash-set! approx->prev approximation altn)
-                (sow approximation))))))
+  (define approxs (taylor-alts altns))
 
   (timeline-push! 'outputs (map ~a approxs))
   (timeline-push! 'count (length altns) (length approxs))
-  (lower-approximations approxs approx->prev))
+  (lower-approximations approxs))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Recursive Rewrite ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define (run-rr altns)
+(define (run-rr altns global-batch)
   (timeline-event! 'rewrite)
 
   ; generate required rules
@@ -114,7 +119,9 @@
   (define lowering-rules (platform-lowering-rules))
 
   (define extractor
-    (typed-egg-extractor (if (*egraph-platform-cost*) platform-egg-cost-proc default-egg-cost-proc)))
+    (typed-egg-batch-extractor
+     (if (*egraph-platform-cost*) platform-egg-cost-proc default-egg-cost-proc)
+     global-batch))
 
   ; egg schedule (3-phases for mathematical rewrites and implementation selection)
   (define schedule
@@ -127,15 +134,17 @@
   (define reprs (map (curryr repr-of (*context*)) exprs))
   (timeline-push! 'inputs (map ~a exprs))
   (define runner (make-egg-runner exprs reprs schedule #:context (*context*)))
-  (define variantss (run-egg runner `(multi . ,extractor)))
+  ; batchrefss is a (listof (listof batchref))
+  (define batchrefss (run-egg runner `(multi . ,extractor)))
 
   ; apply changelists
   (define rewritten
     (reap [sow]
-          (for ([variants (in-list variantss)]
+          (for ([batchrefs (in-list batchrefss)]
                 [altn (in-list altns)])
-            (for ([variant (in-list (remove-duplicates variants))])
-              (sow (alt variant (list 'rr runner #f #f) (list altn) '()))))))
+            (for ([batchref* (in-list batchrefs)])
+              (sow (alt batchref* (list 'rr runner #f #f) (list altn) '()))))))
+
   (timeline-push! 'outputs (map (compose ~a alt-expr) rewritten))
   (timeline-push! 'count (length altns) (length rewritten))
   rewritten)
@@ -143,14 +152,24 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Public API ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (generate-candidates exprs)
+  ; Batch to where we will extract everything
+  ; Roots of this batch are constantly updated
+  (define global-batch (progs->batch exprs))
+
   ; Starting alternatives
   (define start-altns
     (for/list ([expr (in-list exprs)])
       (define repr (repr-of expr (*context*)))
       (alt expr (list 'patch expr repr) '() '())))
+
   ; Series expand
   (define approximations (if (flag-set? 'generate 'taylor) (run-taylor start-altns) '()))
   ; Recursive rewrite
-  (define rewritten (if (flag-set? 'generate 'rr) (run-rr start-altns) '()))
+  (define rewritten (if (flag-set? 'generate 'rr) (run-rr start-altns global-batch) '()))
+
+  ; deref everything in rewritten
+  (set! rewritten
+        (for/list ([r (in-list rewritten)])
+          (alt (batchref->expr (alt-expr r)) (alt-event r) (alt-prevs r) (alt-preprocessing r))))
 
   (append approximations rewritten))

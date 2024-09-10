@@ -21,7 +21,7 @@
 
 ;; Public API
 
-(struct alt-table (point->alts alt->points alt->done? alt->cost context all) #:prefab)
+(struct alt-table (point-idx->alts alt->point-idxs alt->done? alt->cost pcontext all) #:prefab)
 
 (define (backup-alt-cost altn)
   (let loop ([expr (alt-expr altn)])
@@ -37,25 +37,28 @@
 
 (define (make-alt-table pcontext initial-alt ctx)
   (define cost (alt-cost* initial-alt (context-repr ctx)))
-  (alt-table (make-immutable-hash (for/list ([(pt ex) (in-pcontext pcontext)]
-                                             [err (errors (alt-expr initial-alt) pcontext ctx)])
-                                    (cons pt (list (pareto-point cost err (list initial-alt))))))
-             (hash initial-alt
-                   (for/list ([(pt ex) (in-pcontext pcontext)])
-                     pt))
-             (hash initial-alt #f)
-             (hash initial-alt cost)
+  (define errs (errors (alt-expr initial-alt) pcontext ctx))
+  (alt-table (for/vector #:length (pcontext-length pcontext)
+                         ([err (in-list errs)])
+               (list (pareto-point cost err (list initial-alt))))
+             (hasheq initial-alt
+                     (for/list ([idx (in-range (pcontext-length pcontext))])
+                       idx))
+             (hasheq initial-alt #f)
+             (hasheq initial-alt cost)
              pcontext
              (list initial-alt)))
 
 (define (atab-set-picked atab alts)
-  (define new-done-table
-    (for/fold ([table (alt-table-alt->done? atab)]) ([alt (in-list alts)])
-      (hash-set table alt #t)))
-  (struct-copy alt-table atab [alt->done? new-done-table]))
+  (struct-copy alt-table
+               atab
+               [point-idx->alts (vector-copy (alt-table-point-idx->alts atab))]
+               [alt->done?
+                (for/fold ([alt->done? (alt-table-alt->done? atab)]) ([alt (in-list alts)])
+                  (hash-set alt->done? alt #t))]))
 
 (define (atab-completed? atab)
-  (andmap (curry hash-ref (alt-table-alt->done? atab)) (hash-keys (alt-table-alt->points atab))))
+  (andmap (curry hash-ref (alt-table-alt->done? atab)) (hash-keys (alt-table-alt->point-idxs atab))))
 
 ;;
 ;; Extracting lists from sets or hash tables
@@ -72,13 +75,13 @@
   (sort altns expr<? #:key alt-expr))
 
 (define (atab-active-alts atab)
-  (order-altns (hash-keys (alt-table-alt->points atab))))
+  (order-altns (hash-keys (alt-table-alt->point-idxs atab))))
 
 (define (atab-all-alts atab)
   (order-altns (alt-table-all atab)))
 
 (define (atab-not-done-alts atab)
-  (define altns (hash-keys (alt-table-alt->points atab)))
+  (define altns (hash-keys (alt-table-alt->point-idxs atab)))
   (define not-done? (negate (curry hash-ref (alt-table-alt->done? atab))))
   (order-altns (filter not-done? altns)))
 
@@ -90,7 +93,7 @@
   (match-define (alt-table pnts->alts alts->pnts alt->done? alt->cost _ _) atab)
   (define tied (list->mutable-seteq (hash-keys alts->pnts)))
   (define coverage '())
-  (for* ([pcurve (in-hash-values pnts->alts)]
+  (for* ([pcurve (in-vector pnts->alts)]
          [ppt (in-list pcurve)])
     (match (pareto-point-data ppt)
       [(list) (error "This point has no alts which are best at it!" ppt)]
@@ -121,7 +124,7 @@
 (define (worst atab removable)
   ;; Metrics for "worst" alt
   (define (alt-num-points a)
-    (length (hash-ref (alt-table-alt->points atab) a)))
+    (length (hash-ref (alt-table-alt->point-idxs atab) a)))
   (define (alt-done? a)
     (if (hash-ref (alt-table-alt->done? atab) a) 1 0))
   (define (alt-cost a)
@@ -148,71 +151,76 @@
     (hash-remove hash key)))
 
 (define (atab-remove* atab . altns)
-  (match-define (alt-table point->alts alt->points alt->done? alt->cost pctx _) atab)
-  (define pnts->alts*
-    (for/hash ([(pt curve) (in-hash point->alts)])
-      (values pt (pareto-map (curry remq* altns) curve))))
+  (match-define (alt-table point-idx->alts alt->point-idxs alt->done? alt->cost pctx _) atab)
+  (define pnt-idx->alts*
+    (for/vector #:length (vector-length point-idx->alts)
+                ([pcurve (in-vector point-idx->alts)])
+      (pareto-map (curry remq* altns) pcurve)))
   (struct-copy alt-table
                atab
-               [point->alts pnts->alts*]
-               [alt->points (hash-remove* alt->points altns)]
+               [point-idx->alts pnt-idx->alts*]
+               [alt->point-idxs (hash-remove* alt->point-idxs altns)]
                [alt->done? (hash-remove* alt->done? altns)]
                [alt->cost (hash-remove* alt->cost altns)]))
 
 (define (atab-eval-altns atab altns ctx)
-  (define errss (flip-lists (batch-errors (map alt-expr altns) (alt-table-context atab) ctx)))
+  (define errss (flip-lists (batch-errors (map alt-expr altns) (alt-table-pcontext atab) ctx)))
   (define costs (map (curryr alt-cost* (context-repr ctx)) altns))
   (values errss costs))
 
 (define (atab-add-altns atab altns errss costs)
-  (define-values (atab* progs*)
-    (for/fold ([atab atab]
-               [progs (list->set (map alt-expr (alt-table-all atab)))])
+  (define atab*
+    (for/fold ([atab atab])
               ([altn (in-list altns)]
                [errs (in-list errss)]
                [cost (in-list costs)])
-      ;; this is subtle, we actually want to check for duplicates
-      ;; in terms of expressions, not alts: the default `equal?`
-      ;; returns #f for the same expression with different derivations.
-      (let ([prog (alt-expr altn)])
-        (if (set-member? progs prog)
-            (values atab progs)
-            (values (atab-add-altn atab altn errs cost) (set-add progs prog))))))
+      (atab-add-altn atab altn errs cost)))
   (define atab**
-    (struct-copy alt-table atab* [alt->points (invert-index (alt-table-point->alts atab*))]))
+    (struct-copy alt-table atab* [alt->point-idxs (invert-index (alt-table-point-idx->alts atab*))]))
   (define atab*** (atab-prune atab**))
   (struct-copy alt-table
                atab***
-               [alt->points (invert-index (alt-table-point->alts atab***))]
-               [all (set-union (alt-table-all atab) (hash-keys (alt-table-alt->points atab***)))]))
+               [alt->point-idxs (invert-index (alt-table-point-idx->alts atab***))]
+               [all
+                (set-union (alt-table-all atab) (hash-keys (alt-table-alt->point-idxs atab***)))]))
 
-(define (invert-index idx)
+(define (invert-index point-idx->alts)
   (define alt->points* (make-hasheq))
-  (for* ([(pt curve) (in-hash idx)]
-         [ppt (in-list curve)]
-         [alt (in-list (pareto-point-data ppt))])
-    (hash-set! alt->points* alt (cons pt (hash-ref alt->points* alt '()))))
-  (make-immutable-hash (hash->list alt->points*)))
+  (for ([pcurve (in-vector point-idx->alts)]
+        [idx (in-naturals)])
+    (for* ([ppt (in-list pcurve)]
+           [alt (in-list (pareto-point-data ppt))])
+      (hash-set! alt->points* alt (cons idx (hash-ref alt->points* alt '())))))
+  (make-immutable-hasheq (hash->list alt->points*)))
 
 (define (atab-add-altn atab altn errs cost)
-  (match-define (alt-table point->alts alt->points alt->done? alt->cost pcontext all-alts) atab)
+  (match-define (alt-table point-idx->alts alt->point-idxs alt->done? alt->cost pcontext _) atab)
 
-  (define point->alts*
-    (for/hash ([(pt ex) (in-pcontext pcontext)]
-               [err (in-list errs)])
+  (define point-idx->alts*
+    (for/vector #:length (vector-length point-idx->alts)
+                ([pcurve (in-vector point-idx->alts)]
+                 [err (in-list errs)])
       (define ppt (pareto-point cost err (list altn)))
-      (values pt (pareto-union (list ppt) (hash-ref point->alts pt)))))
+      (pareto-union (list ppt)
+                    pcurve
+                    #:combine
+                    (lambda (alts1 alts2)
+                      ; dedup by program
+                      ; optimization: combining means that `alts1` corresponds to
+                      ; the new pareto point
+                      (match-define (list altn) alts1)
+                      (if (ormap (lambda (a) (alt-equal? a altn)) alts2) alts2 (cons altn alts2))))))
 
-  (alt-table point->alts*
-             (hash-set alt->points altn #f)
+  (alt-table point-idx->alts*
+             (hash-set alt->point-idxs altn #f)
              (hash-set alt->done? altn #f)
              (hash-set alt->cost altn cost)
              pcontext
              #f))
 
 (define (atab-min-errors atab)
-  (define pnt->alts (alt-table-point->alts atab))
-  (for/list ([(pt ex) (in-pcontext (alt-table-context atab))])
-    (define curve (hash-ref pnt->alts pt))
+  (define pnt-idx->alts (alt-table-point-idx->alts atab))
+  (for/list ([idx (in-range (pcontext-length (alt-table-pcontext atab)))])
+    (define curve (vector-ref pnt-idx->alts idx))
     ;; Curve is sorted so lowest error is first
     (pareto-point-error (first curve))))

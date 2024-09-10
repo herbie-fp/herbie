@@ -1,11 +1,9 @@
 #lang racket
 
 (require openssl/sha1)
-(require (only-in xml write-xexpr)
-         json)
+(require (only-in xml write-xexpr))
 
 (require "sandbox.rkt"
-         "../core/preprocess.rkt"
          "../core/points.rkt"
          "../reports/history.rkt"
          "../reports/plot.rkt"
@@ -17,18 +15,29 @@
          "../utils/alternative.rkt"
          "../utils/common.rkt"
          "../utils/errors.rkt"
-         "../utils/float.rkt")
+         "../utils/float.rkt"
+         "../reports/pages.rkt"
+         "datafile.rkt"
+         (submod "../utils/timeline.rkt" debug))
 
 (provide make-path
          get-improve-table-data
          make-improve-result
+         server-check-on
          get-results-for
+         get-timeline-for
          job-count
          is-server-up
          create-job
          start-job
          wait-for-job
-         start-job-server)
+         start-job-server
+         write-results-to-disk
+         *demo?*
+         *demo-output*)
+
+(define *demo?* (make-parameter false))
+(define *demo-output* (make-parameter false))
 
 ; verbose logging for debugging
 (define verbose #f) ; Maybe change to log-level and use 'verbose?
@@ -49,6 +58,27 @@
                     #:timeline-disabled? [timeline-disabled? #f])
   (herbie-command command test seed pcontext profile? timeline-disabled?))
 
+(define (write-results-to-disk result-hash path)
+  (make-directory (build-path (*demo-output*) path))
+  (for ([page (all-pages result-hash)])
+    (call-with-output-file (build-path (*demo-output*) path page)
+                           (λ (out)
+                             (with-handlers ([exn:fail? (page-error-handler result-hash page out)])
+                               (make-page page out result-hash (*demo-output*) #f)))))
+  (define link (path-element->string (last (explode-path path))))
+  (define data (get-table-data-from-hash result-hash link))
+  (define data-file (build-path (*demo-output*) "results.json"))
+  (define html-file (build-path (*demo-output*) "index.html"))
+  (define info
+    (if (file-exists? data-file)
+        (let ([info (read-datafile data-file)])
+          (struct-copy report-info info [tests (cons data (report-info-tests info))]))
+        (make-report-info (list data) #:seed (get-seed) #:note (if (*demo?*) "Web demo results" ""))))
+  (define tmp-file (build-path (*demo-output*) "results.tmp"))
+  (write-datafile tmp-file info)
+  (rename-file-or-directory tmp-file data-file #t)
+  (copy-file (web-resource "report.html") html-file #t))
+
 ; computes the path used for server URLs
 (define (make-path id)
   (format "~a.~a" id *herbie-commit*))
@@ -58,6 +88,19 @@
   (define-values (a b) (place-channel))
   (place-channel-put manager (list 'result job-id b))
   (log "Getting result for job: ~a.\n" job-id)
+  (place-channel-get a))
+
+(define (get-timeline-for job-id)
+  (define-values (a b) (place-channel))
+  (place-channel-put manager (list 'timeline job-id b))
+  (log "Getting timeline for job: ~a.\n" job-id)
+  (place-channel-get a))
+
+; Returns #f if there is no job returns the job-id if there is a completed job.
+(define (server-check-on job-id)
+  (define-values (a b) (place-channel))
+  (place-channel-put manager (list 'check job-id b))
+  (log "Checking on: ~a.\n" job-id)
   (place-channel-get a))
 
 (define (get-improve-table-data)
@@ -169,6 +212,7 @@
    (define completed-work (make-hash))
    (define busy-workers (make-hash))
    (define waiting-workers (make-hash))
+   (define current-jobs (make-hash))
    (for ([i (in-range worker-count)])
      (hash-set! waiting-workers i (make-worker i)))
    (log "~a workers ready.\n" (hash-count waiting-workers))
@@ -193,6 +237,7 @@
           (log "Starting worker [~a] on [~a].\n"
                (work-item-id job)
                (test-name (herbie-command-test (work-item-command job))))
+          (hash-set! current-jobs (work-item-id job) wid)
           (place-channel-put worker (list 'apply self (work-item-command job) (work-item-id job)))
           (hash-set! reassigned wid worker)
           (hash-set! busy-workers wid worker))
@@ -206,6 +251,7 @@
         (hash-set! completed-work job-id result)
 
         ; move worker to waiting list
+        (hash-remove! current-jobs job-id)
         (hash-set! waiting-workers wid (hash-ref busy-workers wid))
         (hash-remove! busy-workers wid)
 
@@ -229,6 +275,20 @@
         (hash-remove! waiting job-id)]
        ; Get the result for the given id, return false if no work found.
        [(list 'result job-id handler) (place-channel-put handler (hash-ref completed-work job-id #f))]
+       [(list 'timeline job-id handler)
+        (define wid (hash-ref current-jobs job-id #f))
+        (cond
+          [wid
+           (log "Worker[~a] working on ~a.\n" wid job-id)
+           (define-values (a b) (place-channel))
+           (place-channel-put (hash-ref busy-workers wid) (list 'timeline b))
+           (define requested-timeline (place-channel-get a))
+           (place-channel-put handler requested-timeline)]
+          [else
+           (log "Job complete, no timeline, send result.\n")
+           (place-channel-put handler (hash-ref completed-work job-id #f))])]
+       [(list 'check job-id handler)
+        (place-channel-put handler (if (hash-has-key? completed-work job-id) job-id #f))]
        ; Returns the current count of working workers.
        [(list 'count handler) (place-channel-put handler (hash-count busy-workers))]
        ; Retreive the improve results for results.json
@@ -253,26 +313,46 @@
                          *loose-plugins*)
    (parameterize ([current-error-port (open-output-nowhere)]) ; hide output
      (load-herbie-plugins))
+   (define worker-thread
+     (thread (λ ()
+               (let loop ([seed #f])
+                 (match (thread-receive)
+                   [job-info (run-job job-info)])
+                 (loop seed)))))
+   (define timeline #f)
+   (define current-job-id #f)
    (for ([_ (in-naturals)])
      (match (place-channel-get ch)
        [(list 'apply manager command job-id)
+        (set! timeline (*timeline*))
+        (set! current-job-id job-id)
         (log "[~a] working on [~a].\n" job-id (test-name (herbie-command-test command)))
-        (define herbie-result (wrapper-run-herbie command job-id))
-        (match-define (job-result kind test status time _ _ backend) herbie-result)
-        (define out-result
-          (match kind
-            ['alternatives (make-alternatives-result herbie-result test job-id)]
-            ['evaluate (make-calculate-result herbie-result job-id)]
-            ['cost (make-cost-result herbie-result job-id)]
-            ['errors (make-error-result herbie-result job-id)]
-            ['exacts (make-exacts-result herbie-result job-id)]
-            ['improve (make-improve-result herbie-result test job-id)]
-            ['local-error (make-local-error-result herbie-result test job-id)]
-            ['explanations (make-explanation-result herbie-result job-id)]
-            ['sample (make-sample-result herbie-result test job-id)]
-            [_ (error 'compute-result "unknown command ~a" kind)]))
-        (log "Job: ~a finished, returning work to manager\n" job-id)
-        (place-channel-put manager (list 'finished manager worker-id job-id out-result))]))))
+        (thread-send worker-thread (work manager worker-id job-id command))]
+       [(list 'timeline handler)
+        (log "Timeline requested from worker[~a] for job ~a\n" worker-id current-job-id)
+        (place-channel-put handler (reverse (unbox timeline)))]))))
+
+(struct work (manager worker-id job-id job))
+
+(define (run-job job-info)
+  (match-define (work manager worker-id job-id command) job-info)
+  (log "run-job: ~a, ~a\n" worker-id job-id)
+  (define herbie-result (wrapper-run-herbie command job-id))
+  (match-define (job-result kind test status time _ _ backend) herbie-result)
+  (define out-result
+    (match kind
+      ['alternatives (make-alternatives-result herbie-result test job-id)]
+      ['evaluate (make-calculate-result herbie-result job-id)]
+      ['cost (make-cost-result herbie-result job-id)]
+      ['errors (make-error-result herbie-result job-id)]
+      ['exacts (make-exacts-result herbie-result job-id)]
+      ['improve (make-improve-result herbie-result test job-id)]
+      ['local-error (make-local-error-result herbie-result test job-id)]
+      ['explanations (make-explanation-result herbie-result job-id)]
+      ['sample (make-sample-result herbie-result test job-id)]
+      [_ (error 'compute-result "unknown command ~a" kind)]))
+  (log "Job: ~a finished, returning work to manager\n" job-id)
+  (place-channel-put manager (list 'finished manager worker-id job-id out-result)))
 
 (define (make-explanation-result herbie-result job-id)
   (define explanations (job-result-backend herbie-result))
@@ -286,7 +366,7 @@
           (make-path job-id)))
 
 (define (make-local-error-result herbie-result test job-id)
-  (define expr (prog->fpcore (test-input test)))
+  (define expr (prog->fpcore (test-input test) (test-context test)))
   (define local-error (job-result-backend herbie-result))
   ;; TODO: potentially unsafe if resugaring changes the AST
   (define tree
@@ -410,14 +490,13 @@
           (improve-result-bogosity backend)))
 
 (define (end-hash end repr pcontexts test)
+
   (define-values (end-alts train-errors end-errors end-costs)
     (for/lists (l1 l2 l3 l4)
                ([analysis end])
                (match-define (alt-analysis alt train-errors test-errs) analysis)
                (values alt train-errors test-errs (alt-cost alt repr))))
-  (define fpcores
-    (for/list ([altn end-alts])
-      (~a (program->fpcore (alt-expr altn) (test-context test)))))
+
   (define alts-histories
     (for/list ([alt end-alts])
       (render-history alt (first pcontexts) (second pcontexts) (test-context test))))
@@ -431,8 +510,8 @@
             (real->ordinal (repr->real val repr) repr))
           '())))
 
-  (hasheq 'end-alts
-          fpcores
+  (hasheq 'end-exprs
+          (map alt-expr end-alts)
           'end-histories
           alts-histories
           'end-train-scores

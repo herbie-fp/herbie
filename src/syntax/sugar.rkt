@@ -1,12 +1,5 @@
-#lang racket
-
-(require "types.rkt"
-         "syntax.rkt")
-
-(provide fpcore->prog
-         prog->fpcore
-         prog->spec)
-
+;; Expression conversions
+;;
 ;; Herbie uses three expression languages.
 ;; All formats are S-expressions with variables, numbers, and applications.
 ;;
@@ -63,6 +56,18 @@
 ;;        ::= <number>
 ;;        ::= <id>
 ;;
+
+#lang racket
+
+(require "../core/programs.rkt"
+         "../utils/common.rkt"
+         "matcher.rkt"
+         "syntax.rkt"
+         "types.rkt")
+
+(provide fpcore->prog
+         prog->fpcore
+         prog->spec)
 
 ;; Expression pre-processing for normalizing expressions.
 ;; Used for conversion from FPCore to other IRs.
@@ -135,97 +140,224 @@
       ; other
       [_ expr])))
 
-;; Prop list to dict
-(define (props->dict props)
-  (let loop ([props props]
-             [dict '()])
-    (match props
-      [(list key val rest ...) (loop rest (dict-set dict key val))]
-      [(list key) (error 'props->dict "unmatched key" key)]
-      [(list) dict])))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; FPCore -> LImpl
 
-;; Translates from FPCore to an LImpl
+;; Translates an FPCore operator application into
+;; an LImpl operator application.
+(define (fpcore->impl-app op prop-dict args ctx)
+  (define ireprs (map (lambda (arg) (repr-of arg ctx)) args))
+  (define impl (get-fpcore-impl op prop-dict ireprs))
+  (define vars (impl-info impl 'vars))
+  (define pattern
+    (match (impl-info impl 'fpcore)
+      [(list '! _ ... body) body]
+      [body body]))
+  (define subst (pattern-match pattern (cons op args)))
+  (pattern-substitute (cons impl vars) subst))
+
+;; Translates from FPCore to an LImpl.
 (define (fpcore->prog prog ctx)
-  (define-values (expr* _)
-    (let loop ([expr (expand-expr prog)]
-               [ctx ctx])
-      (match expr
-        [`(FPCore ,name (,vars ...) ,props ... ,body)
-         (define-values (body* repr*) (loop body ctx))
-         (values `(FPCore ,name ,vars ,@props ,body*) repr*)]
-        [`(FPCore (,vars ...) ,props ... ,body)
-         (define-values (body* repr*) (loop body ctx))
-         (values `(FPCore ,vars ,@props ,body*) repr*)]
-        [`(if ,cond ,ift ,iff)
-         (define-values (cond* cond-repr) (loop cond ctx))
-         (define-values (ift* ift-repr) (loop ift ctx))
-         (define-values (iff* iff-repr) (loop iff ctx))
-         (values `(if ,cond* ,ift* ,iff*) ift-repr)]
-        [`(! ,props ... ,body)
-         (define props* (props->dict props))
-         (loop body
-               (match (dict-ref props* ':precision #f)
-                 [#f ctx]
-                 [prec (struct-copy context ctx [repr (get-representation prec)])]))]
-        [`(cast ,body)
-         (define repr (context-repr ctx))
-         (define-values (body* repr*) (loop body ctx))
-         (if (equal? repr* repr) ; check if cast is redundant
-             (values body* repr)
-             (values (list (get-cast-impl repr* repr) body*) repr))]
-        [`(,(? constant-operator? x))
-         (define cnst (get-parametric-constant x (context-repr ctx)))
-         (values (list cnst) (impl-info cnst 'otype))]
-        [(list 'neg arg) ; non-standard but useful
-         (define-values (arg* atype) (loop arg ctx))
-         (define op* (get-parametric-operator 'neg atype))
-         (values (list op* arg*) (impl-info op* 'otype))]
-        [`(,op ,args ...)
-         (define-values (args* atypes) (for/lists (args* atypes) ([arg args]) (loop arg ctx)))
-         ;; Match guaranteed to succeed because we ran type-check first
-         (define op* (apply get-parametric-operator op atypes))
-         (values (cons op* args*) (impl-info op* 'otype))]
-        [(? variable?) (values expr (context-lookup ctx expr))]
-        [(? number?)
-         (define prec (representation-name (context-repr ctx)))
-         (define num
-           (match expr
-             [(or +inf.0 -inf.0 +nan.0) expr]
-             [(? exact?) expr]
-             [_ (inexact->exact expr)]))
-         (values (literal num prec) (context-repr ctx))])))
-  expr*)
+  (let loop ([expr (expand-expr prog)]
+             [prop-dict (repr->prop (context-repr ctx))])
+    (match expr
+      [(? number? n)
+       (literal (match n
+                  [(or +inf.0 -inf.0 +nan.0) expr]
+                  [(? exact?) expr]
+                  [_ (inexact->exact expr)])
+                (dict-ref prop-dict ':precision))]
+      [(? variable?) expr]
+      [(list 'if cond ift iff)
+       (define cond* (loop cond prop-dict))
+       (define ift* (loop ift prop-dict))
+       (define iff* (loop iff prop-dict))
+       (list 'if cond* ift* iff*)]
+      [(list '! props ... body) (loop body (apply dict-set prop-dict props))]
+      [(list 'neg arg) ; non-standard but useful [TODO: remove]
+       (define arg* (loop arg prop-dict))
+       (fpcore->impl-app '- prop-dict (list arg*) ctx)]
+      [(list 'cast arg) ; special case: unnecessary casts
+       (define arg* (loop arg prop-dict))
+       (define repr (get-representation (dict-ref prop-dict ':precision)))
+       (if (equal? (repr-of arg* ctx) repr) arg* (fpcore->impl-app 'cast prop-dict (list arg*) ctx))]
+      [(list op args ...)
+       (define args* (map (lambda (arg) (loop arg prop-dict)) args))
+       (fpcore->impl-app op prop-dict args* ctx)])))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; LImpl -> FPCore
+;; Translates from LImpl to an FPCore
+
+;; TODO: this process uses a batch-like data structure
+;; but _without_ deduplication since different use sites
+;; of a particular subexpression may have different
+;; parent rounding contexts. Would be nice to explore
+;; if the batch data structure can be used.
+
+;; Instruction vector index
+(struct index (v) #:prefab)
+
+;; Translates a literal (LImpl) to an FPCore expr
+(define (literal->fpcore x)
+  (match x
+    [(literal -inf.0 _) '(- INFINITY)]
+    [(literal +inf.0 _) 'INFINITY]
+    [(literal v (or 'binary64 'binary32)) (exact->inexact v)]
+    [(literal v _) v]))
+
+;; Step 1.
+;; Translates from LImpl to a series of let bindings such that each
+;; local variable is bound once and used at most once. The result is an
+;; instruction vector, representing the let bindings; the operator
+;; implementation for each instruction, and the final "root" operation/literal.
+;; Except for let-bound variables, the subexpressions are in FPCore.
+
+(define (prog->let-exprs expr)
+  (define instrs '())
+  (define (push! impl node)
+    (define id (length instrs))
+    (set! instrs (cons (cons node impl) instrs))
+    (index id))
+
+  (define (munge expr #:root? [root? #f])
+    (match expr
+      [(? literal?) (literal->fpcore expr)]
+      [(? symbol?) expr]
+      [(approx _ impl) (munge impl)]
+      [(list 'if cond ift iff) (list 'if (munge cond) (munge ift) (munge iff))]
+      [(list (? impl-exists? impl) args ...)
+       (define args* (map munge args))
+       (define vars (impl-info impl 'vars))
+       (define node (replace-vars (map cons vars args*) (impl-info impl 'fpcore)))
+       (if root? node (push! impl node))]))
+
+  (define root (munge expr #:root? #t))
+  (cons (list->vector (reverse instrs)) root))
+
+;; Step 2.
+;; Inlines let bindings; let-inlining is generally unsound with
+;; rounding properties (the parent context may change),
+;; so we only inline those that result in the same operator
+;; implementation when converting back from FPCore to LImpl.
+
+(define (inline! root ivec ctx)
+  (define global-prop-dict (repr->prop (context-repr ctx)))
+  (let loop ([node root]
+             [prop-dict global-prop-dict])
+    (match node
+      [(? number?) node] ; number
+      [(? symbol?) node] ; variable
+      [(index idx) ; let-bound variable
+       ; we check what happens if we inline
+       (match-define (cons expr impl) (vector-ref ivec idx))
+       (define impl*
+         (match expr
+           [(list '! props ... (list op _ ...))
+            ; rounding context updated parent context
+            (define prop-dict* (apply dict-set prop-dict props))
+            (get-fpcore-impl op prop-dict* (impl-info impl 'itype))]
+           ; rounding context inherited from parent context
+           [(list op _ ...) (get-fpcore-impl op prop-dict (impl-info impl 'itype))]))
+       (cond
+         [(equal? impl impl*) ; inlining is safe
+          (define expr* (loop expr prop-dict))
+          (vector-set! ivec idx #f)
+          expr*]
+         [else ; inlining is not safe
+          (define expr* (loop expr global-prop-dict))
+          (vector-set! ivec idx expr*)
+          node])]
+      [(list '! props ... body) ; explicit rounding context
+       (define prop-dict* (props->dict props))
+       (define body* (loop body prop-dict*))
+       (define new-prop-dict
+         (for/list ([(k v) (in-dict prop-dict*)]
+                    #:unless (and (dict-has-key? prop-dict k) (equal? (dict-ref prop-dict k) v)))
+           (cons k v)))
+       (if (null? new-prop-dict) body* `(! ,@(dict->props new-prop-dict) ,body*))]
+      [(list op args ...) ; operator application
+       (define args* (map (lambda (e) (loop e prop-dict)) args))
+       `(,op ,@args*)])))
+
+;; Step 3.
+;; Construct the final FPCore expression using remaining let-bindings
+;; and the let-free body from the previous step.
+
+(define (reachable-indices ivec expr)
+  (define reachable (mutable-set))
+  (let loop ([expr expr])
+    (match expr
+      [(? number?) (void)]
+      [(? symbol?) (void)]
+      [(index idx)
+       (set-add! reachable idx)
+       (loop (vector-ref ivec idx))]
+      [(list _ args ...) (for-each loop args)]))
+  reachable)
+
+(define (remove-indices id->name expr)
+  (let loop ([expr expr])
+    (match expr
+      [(? number?) expr]
+      [(? symbol?) expr]
+      [(index idx) (hash-ref id->name idx)]
+      [(list '! props ... body) `(! ,@props ,(loop body))]
+      [(list op args ...) `(,op ,@(map loop args))])))
+
+(define (build-expr expr ivec ctx)
+  ; variable generation
+  (define vars (list->mutable-seteq (context-vars ctx)))
+  (define counter 0)
+  (define (gensym)
+    (set! counter (add1 counter))
+    (match (string->symbol (format "t~a" counter))
+      [(? (curry set-member? vars)) (gensym)]
+      [x
+       (set-add! vars x)
+       x]))
+
+  ; need fresh variables for reachable, non-inlined subexpressions
+  (define reachable (reachable-indices ivec expr))
+  (define id->name (make-hash))
+  (for ([expr (in-vector ivec)]
+        [idx (in-naturals)])
+    (when (and expr (set-member? reachable idx))
+      (hash-set! id->name idx (gensym))))
+
+  (for/fold ([body (remove-indices id->name expr)]) ([idx (in-list (sort (hash-keys id->name) >))])
+    (define var (hash-ref id->name idx))
+    (define val (remove-indices id->name (vector-ref ivec idx)))
+    `(let ([,var ,val]) ,body)))
 
 ;; Translates from LImpl to an FPCore.
-(define (prog->fpcore expr)
-  (match expr
-    [`(if ,cond ,ift ,iff) `(if ,(prog->fpcore cond) ,(prog->fpcore ift) ,(prog->fpcore iff))]
-    [`(,(? cast-impl? impl) ,body)
-     (define prec (representation-name (impl-info impl 'otype)))
-     `(! :precision ,prec (cast ,(prog->fpcore body)))]
-    [`(,impl) (impl->operator impl)]
-    [`(,impl ,args ...)
-     (define op (impl->operator impl))
-     (define args* (map prog->fpcore args))
-     (match (cons op args*)
-       [`(neg ,arg) `(- ,arg)]
-       [expr expr])]
-    [(approx _ impl) (prog->fpcore impl)]
-    [(? variable?) expr]
-    [(? literal?)
-     (match (literal-value expr)
-       [-inf.0 '(- INFINITY)]
-       [+inf.0 'INFINITY]
-       [+nan.0 'NAN]
-       [v (if (set-member? '(binary64 binary32) (literal-precision expr)) (exact->inexact v) v)])]))
+;; The implementation of this procedure is complicated since
+;;  (1) every operator implementation requires certain (FPCore) rounding properties
+;;  (2) rounding contexts have lexical scoping
+(define (prog->fpcore prog ctx)
+  ; step 1: convert to an instruction vector where
+  ; each expression is evaluated under explicit rounding contexts
+  (match-define (cons ivec root) (prog->let-exprs prog))
+
+  ; step 2: inline nodes
+  (define body (inline! root ivec ctx))
+
+  ; step 3: construct the actual FPCore expression from
+  ; the remaining let-bindings and body
+  (build-expr body ivec ctx))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; LImpl -> LSpec
 
 ;; Translates an LImpl to a LSpec.
 (define (prog->spec expr)
-  (expand-accelerators
-   (match expr
-     [`(if ,cond ,ift ,iff) `(if ,(prog->spec cond) ,(prog->spec ift) ,(prog->spec iff))]
-     [`(,(? cast-impl? impl) ,body) `(,impl ,(prog->spec body))]
-     [`(,impl ,args ...) `(,(impl->operator impl) ,@(map prog->spec args))]
-     [(approx spec _) spec]
-     [(? variable?) expr]
-     [(? literal?) (literal-value expr)])))
+  (match expr
+    [(? literal?) (literal-value expr)]
+    [(? variable?) expr]
+    [(approx spec _) spec]
+    [`(if ,cond ,ift ,iff) `(if ,(prog->spec cond) ,(prog->spec ift) ,(prog->spec iff))]
+    [`(,impl ,args ...)
+     (define vars (impl-info impl 'vars))
+     (define spec (impl-info impl 'spec))
+     (define env (map cons vars (map prog->spec args)))
+     (replace-vars env spec)]))

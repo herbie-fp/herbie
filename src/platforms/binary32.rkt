@@ -60,6 +60,7 @@
                                     [remove-double-neg (neg.f32 (neg.f32 a)) a]
                                     [neg-sub0 (neg.f32 b) (- 0 b)]
                                     [neg-mul-1 (neg.f32 a) (* -1 a)]))
+
 (define-operator-impl (+.f32 [x : binary32] [y : binary32])
                       binary32
                       #:spec (+ x y)
@@ -70,6 +71,7 @@
                                   [+-lft-identity (+.f32 0 a) a]
                                   [+-rgt-identity (+.f32 a 0) a]
                                   [unsub-neg (+.f32 a (neg b)) (- a b)]))
+
 (define-operator-impl (-.f32 [x : binary32] [y : binary32])
                       binary32
                       #:spec (- x y)
@@ -81,6 +83,7 @@
                                     [--rgt-identity (-.f32 a 0) a]
                                     [sub0-neg (-.f32 0 a) (neg a)]
                                     [sub-neg (-.f32 a b) (+ a (neg b))]))
+
 (define-operator-impl (*.f32 [x : binary32] [y : binary32])
                       binary32
                       #:spec (* x y)
@@ -97,6 +100,7 @@
                                   [*-un-lft-identity a (*.f32 1 a)]
                                   [sqr-neg (*.f32 (neg x) (neg x)) (*.f32 x x)]
                                   [sqr-abs (*.f32 (fabs x) (fabs x)) (*.f32 x x)]))
+
 (define-operator-impl (/.f32 [x : binary32] [y : binary32])
                       binary32
                       #:spec (/ x y)
@@ -165,41 +169,6 @@
                            #:identities
                            ([cosh-neg (cosh.f32 (neg x)) (cosh.f32 x)] [cosh-0 (cosh.f32 0) 1]))
 
-(define-libm-impls/binary32 [(binary32 binary32)
-                             (acos acosh
-                                   asin
-                                   asinh
-                                   atan
-                                   atanh
-                                   cbrt
-                                   ceil
-                                   cos
-                                   cosh
-                                   erf
-                                   erfc
-                                   exp
-                                   exp2
-                                   expm1
-                                   floor
-                                   lgamma
-                                   log
-                                   log10
-                                   log1p
-                                   log2
-                                   logb
-                                   rint
-                                   round
-                                   sin
-                                   sinh
-                                   sqrt
-                                   tan
-                                   tanh
-                                   tgamma
-                                   trunc)]
-                            [(binary32 binary32 binary32)
-                             (atan2 copysign fdim fmax fmin fmod hypot remainder)]
-                            [(binary32 binary32 binary32 binary32) (fma)])
-
 (define-comparator-impls binary32
                          [== ==.f32 =]
                          [!= !=.f32 (negate =)]
@@ -208,16 +177,82 @@
                          [<= <=.f32 <=]
                          [>= >=.f32 >=])
 
+(define-libm-impls/binary32 [(binary32 binary32)
+                             (acos acosh
+                                   asin
+                                   asinh
+                                   atan
+                                   atanh
+                                   cbrt
+                                   ceil
+                                   erf
+                                   exp
+                                   exp2
+                                   floor
+                                   lgamma
+                                   log
+                                   log10
+                                   log2
+                                   logb
+                                   rint
+                                   round
+                                   sqrt
+                                   tanh
+                                   tgamma
+                                   trunc)]
+                            [(binary32 binary32 binary32)
+                             (atan2 copysign fdim fmax fmin fmod pow remainder)])
+
+
+(define-libm c_erfcf (erfc float float))
+(define-libm c_expm1f (expm1 float float))
+(define-libm c_log1pf (log1p float float))
+(define-libm c_hypotf (hypot float float float))
+(define-libm c_fmaf (fma float float float float))
+
+(when c_erfcf
+  (define-operator-impl (erfc.f32 [x : binary32])
+                        binary32
+                        #:spec (- 1 (erf x))
+                        #:fpcore (! :precision binary32 (erfc x))
+                        #:fl c_erfcf))
+
+(when c_expm1f
+  (define-operator-impl (expm1.f32 [x : binary32])
+                        binary32
+                        #:spec (- (exp x) 1)
+                        #:fpcore (! :precision binary32 (expm1 x))
+                        #:fl c_expm1f))
+
+(when c_log1pf
+  (define-operator-impl (log1p.f32 [x : binary32])
+                        binary32
+                        #:spec (log (+ 1 x))
+                        #:fpcore (! :precision binary32 (log1p x))
+                        #:fl c_log1pf))
+
+(when c_hypotf
+  (define-operator-impl (hypot.f32 [x : binary32] [y : binary32])
+                        binary32
+                        #:spec (sqrt (+ (* x x) (* y y)))
+                        #:fpcore (! :precision binary32 (hypot x y))
+                        #:fl c_hypotf))
+
+(when c_fmaf
+  (define-operator-impl (fma.f32 [x : binary32] [y : binary32] [z : binary32])
+                        binary32
+                        #:spec (+ (* x y) z)
+                        #:fpcore (! :precision binary32 (fma x y z))
+                        #:fl c_fmaf))
+
 (define-operator-impl (binary64->binary32 [x : binary64])
                       binary32
                       #:spec x
                       #:fpcore (! :precision binary32 (cast x))
-                      #:fl (curryr ->float32)
-                      #:op cast)
+                      #:fl (curryr ->float32))
 
 (define-operator-impl (binary32->binary64 [x : binary32])
                       binary64
                       #:spec x
                       #:fpcore (! :precision binary64 (cast x))
-                      #:fl identity
-                      #:op cast)
+                      #:fl identity)

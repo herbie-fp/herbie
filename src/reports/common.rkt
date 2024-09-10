@@ -56,7 +56,7 @@
   (write-xexpr xexpr out))
 
 (define (program->fpcore expr ctx #:ident [ident #f])
-  (define body (prog->fpcore expr))
+  (define body (prog->fpcore expr ctx))
   (if ident (list 'FPCore ident (context-vars ctx) body) (list 'FPCore (context-vars ctx) body)))
 
 (define (fpcore-add-props core props)
@@ -164,8 +164,8 @@
      (define r (list-ref (context-var-reprs c) p))
      (define c* (struct-copy context c [vars (list-set (context-vars c) p x*)]))
      (define c** (context-extend c* x-sign r))
-     (define e*
-       (list (get-parametric-operator '* r (context-repr c)) x-sign (replace-expression e x x*)))
+     (define *-impl (get-fpcore-impl '* (repr->prop (context-repr c)) (list r (context-repr c))))
+     (define e* (list *-impl x-sign (replace-expression e x x*)))
      (cons e* c**)]
     [_ (cons e c)]))
 
@@ -185,16 +185,19 @@
     [(list 'abs x)
      (define x* (string->symbol (string-append (symbol->string x) "_m")))
      (define r (list-ref (context-var-reprs ctx) (index-of (context-vars ctx) x)))
-     (define e (list (get-parametric-operator 'fabs r) x))
+     (define fabs-impl (get-fpcore-impl 'fabs (repr->prop r) (list r)))
+     (define e (list fabs-impl x))
      (define c (context (list x) r r))
      (format "~a = ~a" x* (converter* e c))]
     [(list 'negabs x)
+     ; TODO: why are x* and x-sign unused?
      (define x* (string->symbol (format "~a_m" x)))
      (define r (context-lookup ctx x))
-     (define p (representation-name r))
-     (define e* (list (get-parametric-operator 'fabs r) x))
+     (define fabs-impl (get-fpcore-impl 'fabs (repr->prop r) (list r)))
+     (define copysign-impl (get-fpcore-impl 'copysign (repr->prop r) (list r r)))
+     (define e* (list fabs-impl x))
      (define x-sign (string->symbol (format "~a_s" x)))
-     (define e-sign (list (get-parametric-operator 'copysign r r) (literal 1 p) x))
+     (define e-sign (list copysign-impl (literal 1 (representation-name r)) x))
      (define c (context (list x) r r))
      (list (format "~a = ~a" (format "~a\\_m" x) (converter* e* c))
            (format "~a = ~a" (format "~a\\_s" x) (converter* e-sign c)))]
@@ -294,8 +297,9 @@
     `(div
       ,(if (equal? precondition '(TRUE))
            ""
-           `(div ([id "precondition"])
-                 (div ((class "program math")) "\\[" ,(expr->tex (prog->fpcore precondition)) "\\]")))
+           `(div
+             ([id "precondition"])
+             (div ((class "program math")) "\\[" ,(expr->tex (prog->fpcore precondition ctx)) "\\]")))
       (div ((class "implementation") [data-language "Math"])
            (div ((class "program math")) "\\[" ,math-out "\\]"))
       ,@(for/list ([(lang out) (in-dict versions)])
@@ -317,23 +321,25 @@
   (-> test? string?)
   (define output-repr (test-output-repr test))
   (string-join
-   (filter
-    identity
-    (list
-     (if (test-identifier test)
-         (format "(FPCore ~a ~a" (test-identifier test) (test-vars test))
-         (format "(FPCore ~a" (test-vars test)))
-     (format "  :name ~s" (test-name test))
-     (format "  :precision ~s" (representation-name (test-output-repr test)))
-     (if (equal? (test-pre test) '(TRUE)) #f (format "  :pre ~a" (prog->fpcore (test-pre test))))
-     (if (equal? (test-expected test) #t) #f (format "  :herbie-expected ~a" (test-expected test)))
-     (and (test-output test)
-          (not (null? (test-output test)))
-          (format "\n~a"
-                  (string-join (map (lambda (exp) (format "  :alt\n  ~a\n" (car exp)))
-                                    (test-output test))
-                               "\n")))
-     (format "  ~a)" (prog->fpcore (test-input test)))))
+   (filter identity
+           (list (if (test-identifier test)
+                     (format "(FPCore ~a ~a" (test-identifier test) (test-vars test))
+                     (format "(FPCore ~a" (test-vars test)))
+                 (format "  :name ~s" (test-name test))
+                 (format "  :precision ~s" (representation-name (test-output-repr test)))
+                 (if (equal? (test-pre test) '(TRUE))
+                     #f
+                     (format "  :pre ~a" (prog->fpcore (test-pre test) (test-context test))))
+                 (if (equal? (test-expected test) #t)
+                     #f
+                     (format "  :herbie-expected ~a" (test-expected test)))
+                 (and (test-output test)
+                      (not (null? (test-output test)))
+                      (format "\n~a"
+                              (string-join (map (lambda (exp) (format "  :alt\n  ~a\n" (car exp)))
+                                                (test-output test))
+                                           "\n")))
+                 (format "  ~a)" (prog->fpcore (test-input test) (test-context test)))))
    "\n"))
 
 (define (format-percent num den)

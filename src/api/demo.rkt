@@ -11,31 +11,24 @@
          web-server/dispatch/extend
          web-server/http/bindings
          web-server/configuration/responders
-         web-server/managers/none)
+         web-server/managers/none
+         web-server/safety-limits)
 
 (require "../utils/common.rkt"
          "../config.rkt"
          "../syntax/read.rkt"
          "../utils/errors.rkt")
-(require "../syntax/types.rkt"
-         "../syntax/sugar.rkt"
-         "../utils/alternative.rkt"
-         "../core/points.rkt"
-         "../api/sandbox.rkt"
-         "../utils/float.rkt")
+(require "../syntax/sugar.rkt"
+         "../core/points.rkt")
 (require "datafile.rkt"
          "../reports/pages.rkt"
          "../reports/common.rkt"
          "../reports/core2mathjs.rkt"
-         "../reports/history.rkt"
-         "../reports/plot.rkt"
          "server.rkt")
 
 (provide run-demo)
 
-(define *demo?* (make-parameter false))
 (define *demo-prefix* (make-parameter "/"))
-(define *demo-output* (make-parameter false))
 (define *demo-log* (make-parameter false))
 
 (define (add-prefix url)
@@ -47,50 +40,54 @@
    (and (not (and (*demo-output*) ; If we've already saved to disk, skip this job
                   (directory-exists? (build-path (*demo-output*) x))))
         (let ([m (regexp-match #rx"^([0-9a-f]+)\\.[0-9a-f.]+" x)])
-          (and m (get-results-for (second m))))))
+          (and m (server-check-on (second m))))))
  (λ (x)
-   (let ([m (regexp-match #rx"^([0-9a-f]+)\\.[0-9a-f.]+" x)]) (get-results-for (if m (second m) x)))))
+   (let ([m (regexp-match #rx"^([0-9a-f]+)\\.[0-9a-f.]+" x)]) (server-check-on (if m (second m) x)))))
 
 (define-bidi-match-expander hash-arg hash-arg/m hash-arg/m)
 
 (define-values (dispatch url*)
   (dispatch-rules [("") main]
-                  [("improve-start") #:method "post" improve-start]
-                  [("improve") #:method (or "post" "get" "put") improve]
                   [("check-status" (string-arg)) check-status]
                   [("timeline" (string-arg)) get-timeline]
                   [("up") check-up]
+                  [((hash-arg) (string-arg)) generate-page]
+                  [("results.json") generate-report]
+                  [("improve") #:method (or "post" "get" "put") improve]
+                  [("api" "result" (string-arg)) get-result]
                   [("api" "sample") #:method "post" sample-endpoint]
+                  [("api" "explanations") #:method "post" explanations-endpoint]
                   [("api" "analyze") #:method "post" analyze-endpoint]
-                  [("api" "localerror") #:method "post" local-error-endpoint]
-                  [("api" "alternatives") #:method "post" alternatives-endpoint]
                   [("api" "exacts") #:method "post" exacts-endpoint]
                   [("api" "calculate") #:method "post" calculate-endpoint]
+                  [("api" "localerror") #:method "post" local-error-endpoint]
+                  [("api" "alternatives") #:method "post" alternatives-endpoint]
                   [("api" "cost") #:method "post" cost-endpoint]
                   [("api" "mathjs") #:method "post" ->mathjs-endpoint]
                   [("api" "translate") #:method "post" translate-endpoint]
-                  [("api" "explanations") #:method "post" explanations-endpoint]
-                  [((hash-arg) (string-arg)) generate-page]
-                  [("results.json") generate-report]))
+                  [("api" "start" "improve") #:method "post" improve-start]
+                  [("api" "start" "sample") #:method "post" start-sample-endpoint]
+                  [("api" "start" "explanations") #:method "post" start-explanations-endpoint]
+                  [("api" "start" "analyze") #:method "post" start-analyze-endpoint]
+                  [("api" "start" "exacts") #:method "post" start-exacts-endpoint]
+                  [("api" "start" "calculate") #:method "post" start-calculate-endpoint]
+                  [("api" "start" "localerror") #:method "post" start-local-error-endpoint]
+                  [("api" "start" "alternatives") #:method "post" start-alternatives-endpoint]
+                  [("api" "start" "cost") #:method "post" start-cost-endpoint]))
 
-(define (generate-page req result-hash page)
+(define (generate-page req job-id page)
   (define path (first (string-split (url->string (request-uri req)) "/")))
+  (cond
+    [(check-and-send path job-id page)]
+    [else (next-dispatcher)]))
+
+(define (check-and-send path job-id page)
+  (define result-hash (get-results-for job-id))
   (cond
     [(set-member? (all-pages result-hash) page)
      ;; Write page contents to disk
      (when (*demo-output*)
-       (make-directory (build-path (*demo-output*) path))
-       (for ([page (all-pages result-hash)])
-         (call-with-output-file
-          (build-path (*demo-output*) path page)
-          (λ (out)
-            (with-handlers ([exn:fail? (page-error-handler result-hash page out)])
-              (make-page page out result-hash (*demo-output*) #f)))))
-       (update-report result-hash
-                      path
-                      (get-seed)
-                      (build-path (*demo-output*) "results.json")
-                      (build-path (*demo-output*) "index.html")))
+       (write-results-to-disk result-hash path))
      (response 200
                #"OK"
                (current-seconds)
@@ -99,7 +96,7 @@
                (λ (out)
                  (with-handlers ([exn:fail? (page-error-handler result-hash page out)])
                    (make-page page out result-hash (*demo-output*) #f))))]
-    [else (next-dispatcher)]))
+    [else #f]))
 
 (define (generate-report req)
   (cond
@@ -233,19 +230,6 @@
                (a ([href "./index.html"]) " See what formulas other users submitted."))]
             [else `("all formulas submitted here are " (a ([href "./index.html"]) "logged") ".")])))))
 
-(define (update-report result-hash dir seed data-file html-file)
-  (define link (path-element->string (last (explode-path dir))))
-  (define data (get-table-data-from-hash result-hash link))
-  (define info
-    (if (file-exists? data-file)
-        (let ([info (read-datafile data-file)])
-          (struct-copy report-info info [tests (cons data (report-info-tests info))]))
-        (make-report-info (list data) #:seed seed #:note (if (*demo?*) "Web demo results" ""))))
-  (define tmp-file (build-path (*demo-output*) "results.tmp"))
-  (write-datafile tmp-file info)
-  (rename-file-or-directory tmp-file data-file #t)
-  (copy-file (web-resource "report.html") html-file #t))
-
 (define (post-with-json-response fn)
   (lambda (req)
     (define post-body (request-post-data/raw req))
@@ -284,6 +268,27 @@
                  TEXT/HTML-MIME-TYPE
                  '()
                  (list (string->bytes/utf-8 (xexpr->string (herbie-page #:title title body))))))
+
+(define (get-result req job-id)
+  (match (get-results-for job-id)
+    [#f
+     (response 404
+               #"Job Not Found"
+               (current-seconds)
+               #"text/plain"
+               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count))))
+                     (header #"X-Herbie-Job-ID" (string->bytes/utf-8 job-id))
+                     (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
+               (λ (out) `()))]
+    [job-result
+     (response 201
+               #"Job complete"
+               (current-seconds)
+               #"text/plain"
+               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count))))
+                     (header #"X-Herbie-Job-ID" (string->bytes/utf-8 job-id))
+                     (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
+               (λ (out) (write-json job-result out)))]))
 
 (define (improve-common req body go-back)
   (match (extract-bindings 'formula (request-bindings req))
@@ -338,27 +343,7 @@
    (url main)))
 
 (define (check-status req job-id)
-  (define r (get-results-for job-id))
-  ;; TODO return the current status from the jobs timeline
-  (match r
-    [#f
-     (response 202
-               #"Job in progress"
-               (current-seconds)
-               #"text/plain"
-               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count)))))
-               (λ (out) (display "Not done!" out)))]
-    [(? box? timeline)
-     (response 202
-               #"Job in progress"
-               (current-seconds)
-               #"text/plain"
-               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count)))))
-               (λ (out)
-                 (display (apply string-append
-                                 (for/list ([entry (reverse (unbox timeline))])
-                                   (format "Doing ~a\n" (hash-ref entry 'type))))
-                          out)))]
+  (match (get-timeline-for job-id)
     [(? hash? result-hash)
      (response/full 201
                     #"Job complete"
@@ -369,7 +354,18 @@
                                    (add-prefix (format "~a.~a/graph.html" job-id *herbie-commit*))))
                           (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count))))
                           (header #"X-Herbie-Job-ID" (string->bytes/utf-8 job-id)))
-                    '())]))
+                    '())]
+    [timeline
+     (response 202
+               #"Job in progress"
+               (current-seconds)
+               #"text/plain"
+               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count)))))
+               (λ (out)
+                 (display (apply string-append
+                                 (for/list ([entry timeline])
+                                   (format "Doing ~a\n" (hash-ref entry 'type))))
+                          out)))]))
 
 (define (check-up req)
   (response/full (if (is-server-up) 200 500)
@@ -410,129 +406,99 @@
                      (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
                (λ (out) (write-json (hash-ref job-result 'timeline) out)))]))
 
+; Macro for defining async and sync versions of an endpoint.
+(define-syntax-rule (define-endpoint ([sync-name async-name] post-data) body ...)
+  (begin
+    (define (function post-data)
+      body ...)
+    (define sync-name
+      (post-with-json-response (lambda (post-data)
+                                 (define job-id (start-job (function post-data)))
+                                 (wait-for-job job-id))))
+    (define async-name
+      (post-with-json-response (lambda (post-data)
+                                 (define job-id (start-job (function post-data)))
+                                 (hasheq 'job job-id 'path (make-path job-id)))))))
+
 ; /api/sample endpoint: test in console on demo page:
 ;; (await fetch('/api/sample', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x) (- (sqrt (+ x 1))))", seed: 5})})).json()
-(define sample-endpoint
-  (post-with-json-response
-   (lambda (post-data)
-     (define formula-str (hash-ref post-data 'formula))
-     (define formula (read-syntax 'web (open-input-string formula-str)))
-     (define seed* (hash-ref post-data 'seed))
-     (define test (parse-test formula))
-     (define command
-       (create-job 'sample test #:seed seed* #:pcontext #f #:profile? #f #:timeline-disabled? #t))
-     (define id (start-job command))
-     (wait-for-job id))))
+(define-endpoint
+ ([sample-endpoint start-sample-endpoint] post-data)
+ (define test (get-test post-data))
+ (define seed (parse-seed post-data))
+ (create-job 'sample test #:seed seed #:pcontext #f #:profile? #f #:timeline-disabled? #t))
 
-(define explanations-endpoint
-  (post-with-json-response (lambda (post-data)
-                             (define formula-str (hash-ref post-data 'formula))
-                             (define formula (read-syntax 'web (open-input-string formula-str)))
-                             (define sample (hash-ref post-data 'sample))
-                             (define seed (hash-ref post-data 'seed #f))
-                             (define test (parse-test formula))
-                             (define pcontext (json->pcontext sample (test-context test)))
-                             (define command
-                               (create-job 'explanations
-                                           test
-                                           #:seed seed
-                                           #:pcontext pcontext
-                                           #:profile? #f
-                                           #:timeline-disabled? #t))
-                             (define id (start-job command))
-                             (wait-for-job id))))
+; (create-job 'explanations (get-test post-data) #:seed (get-seed post-data) #:pcontext (get-pcontext post-data) #:profile? #f #:timeline-disabled? #t)
+(define (get-test post-data)
+  (define formula-str (hash-ref post-data 'formula))
+  (define formula (read-syntax 'web (open-input-string formula-str)))
+  (parse-test formula))
 
-(define analyze-endpoint
-  (post-with-json-response (lambda (post-data)
-                             (define formula-str (hash-ref post-data 'formula))
-                             (define formula (read-syntax 'web (open-input-string formula-str)))
-                             (define sample (hash-ref post-data 'sample))
-                             (define seed (hash-ref post-data 'seed #f))
-                             (define test (parse-test formula))
-                             (define pcontext (json->pcontext sample (test-context test)))
-                             (define command
-                               (create-job 'errors
-                                           test
-                                           #:seed seed
-                                           #:pcontext pcontext
-                                           #:profile? #f
-                                           #:timeline-disabled? #t))
-                             (define id (start-job command))
-                             (wait-for-job id))))
+; The name get-seed is taken.
+(define (parse-seed post-data)
+  (hash-ref post-data 'seed #f))
+
+(define (get-pcontext post-data)
+  (define test (get-test post-data))
+  (define sample (hash-ref post-data 'sample))
+  (json->pcontext sample (test-context test)))
+
+(define-endpoint ([explanations-endpoint start-explanations-endpoint] post-data)
+                 (create-job 'explanations
+                             (get-test post-data)
+                             #:seed (parse-seed post-data)
+                             #:pcontext (get-pcontext post-data)
+                             #:profile? #f
+                             #:timeline-disabled? #t))
+
+(define-endpoint ([analyze-endpoint start-analyze-endpoint] post-data)
+                 (create-job 'errors
+                             (get-test post-data)
+                             #:seed (parse-seed post-data)
+                             #:pcontext (get-pcontext post-data)
+                             #:profile? #f
+                             #:timeline-disabled? #t))
 
 ;; (await fetch('/api/exacts', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x) (- (sqrt (+ x 1))))", points: [[1, 1]]})})).json()
-(define exacts-endpoint
-  (post-with-json-response (lambda (post-data)
-                             (define formula
-                               (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
-                             (define sample (hash-ref post-data 'sample))
-                             (define seed (hash-ref post-data 'seed #f))
-                             (define test (parse-test formula))
-                             (define pcontext (json->pcontext sample (test-context test)))
-                             (define command
-                               (create-job 'exacts
-                                           test
-                                           #:seed seed
-                                           #:pcontext pcontext
-                                           #:profile? #f
-                                           #:timeline-disabled? #t))
-                             (define id (start-job command))
-                             (wait-for-job id))))
+(define-endpoint ([exacts-endpoint start-exacts-endpoint] post-data)
+                 (create-job 'exacts
+                             (get-test post-data)
+                             #:seed (parse-seed post-data)
+                             #:pcontext (get-pcontext post-data)
+                             #:profile? #f
+                             #:timeline-disabled? #t))
 
-(define calculate-endpoint
-  (post-with-json-response (lambda (post-data)
-                             (define formula
-                               (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
-                             (define sample (hash-ref post-data 'sample))
-                             (define seed (hash-ref post-data 'seed #f))
-                             (define test (parse-test formula))
-                             (define pcontext (json->pcontext sample (test-context test)))
-                             (define command
-                               (create-job 'evaluate
-                                           test
-                                           #:seed seed
-                                           #:pcontext pcontext
-                                           #:profile? #f
-                                           #:timeline-disabled? #t))
-                             (define id (start-job command))
-                             (wait-for-job id))))
+(define-endpoint ([calculate-endpoint start-calculate-endpoint] post-data)
+                 (create-job 'evaluate
+                             (get-test post-data)
+                             #:seed (parse-seed post-data)
+                             #:pcontext (get-pcontext post-data)
+                             #:profile? #f
+                             #:timeline-disabled? #t))
 
-(define local-error-endpoint
-  (post-with-json-response (lambda (post-data)
-                             (define formula
-                               (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
-                             (define sample (hash-ref post-data 'sample))
-                             (define seed (hash-ref post-data 'seed #f))
-                             (define test (parse-test formula))
-                             (define expr (prog->fpcore (test-input test)))
-                             (define pcontext (json->pcontext sample (test-context test)))
-                             (define command
-                               (create-job 'local-error
-                                           test
-                                           #:seed seed
-                                           #:pcontext pcontext
-                                           #:profile? #f
-                                           #:timeline-disabled? #t))
-                             (define id (start-job command))
-                             (wait-for-job id))))
+(define-endpoint ([local-error-endpoint start-local-error-endpoint] post-data)
+                 (create-job 'local-error
+                             (get-test post-data)
+                             #:seed (parse-seed post-data)
+                             #:pcontext (get-pcontext post-data)
+                             #:profile? #f
+                             #:timeline-disabled? #t))
 
-(define alternatives-endpoint
-  (post-with-json-response (lambda (post-data)
-                             (define formula
-                               (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
-                             (define sample (hash-ref post-data 'sample))
-                             (define seed (hash-ref post-data 'seed #f))
-                             (define test (parse-test formula))
-                             (define pcontext (json->pcontext sample (test-context test)))
-                             (define command
-                               (create-job 'alternatives
-                                           test
-                                           #:seed seed
-                                           #:pcontext pcontext
-                                           #:profile? #f
-                                           #:timeline-disabled? #t))
-                             (define id (start-job command))
-                             (wait-for-job id))))
+(define-endpoint ([alternatives-endpoint start-alternatives-endpoint] post-data)
+                 (create-job 'alternatives
+                             (get-test post-data)
+                             #:seed (parse-seed post-data)
+                             #:pcontext (get-pcontext post-data)
+                             #:profile? #f
+                             #:timeline-disabled? #t))
+
+(define-endpoint ([cost-endpoint start-cost-endpoint] post-data)
+                 (create-job 'cost
+                             (get-test post-data)
+                             #:seed #f
+                             #:pcontext #f
+                             #:profile? #f
+                             #:timeline-disabled? #f))
 
 (define ->mathjs-endpoint
   (post-with-json-response (lambda (post-data)
@@ -542,16 +508,6 @@
 
                              (define result (core->mathjs (syntax->datum formula)))
                              (hasheq 'mathjs result))))
-
-(define cost-endpoint
-  (post-with-json-response
-   (lambda (post-data)
-     (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
-     (define test (parse-test formula))
-     (define command
-       (create-job 'cost test #:seed #f #:pcontext #f #:profile? #f #:timeline-disabled? #f))
-     (define id (start-job command))
-     (wait-for-job id))))
 
 (define translate-endpoint
   (post-with-json-response (lambda (post-data)
@@ -603,6 +559,9 @@
   (serve/servlet dispatch
                  #:listen-ip (if public #f "127.0.0.1")
                  #:port port
+                 #:safety-limits
+                 (make-safety-limits #:max-request-body-length
+                                     (* 5 1024 1024)) ; 5 mb body size for det44 bench mark.
                  #:servlet-current-directory (current-directory)
                  #:manager (create-none-manager #f)
                  #:command-line? true
