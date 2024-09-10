@@ -223,7 +223,7 @@
 ;;  - its FPCore representation
 ;;  - a floating-point implementation
 ;;
-(struct operator-impl (name ctx spec fpcore fl))
+(struct operator-impl (name ctx spec fpcore fl identities))
 
 ;; Operator implementation table
 ;; Tracks implementations that are loaded into Racket's runtime
@@ -247,11 +247,8 @@
     [(otype) (context-repr (operator-impl-ctx info))]
     [(spec) (operator-impl-spec info)]
     [(fpcore) (operator-impl-fpcore info)]
-    [(fl) (operator-impl-fl info)]))
-
-;; Returns all operator implementations.
-(define (all-operator-impls)
-  (sort (hash-keys operator-impls) symbol<?))
+    [(fl) (operator-impl-fl info)]
+    [(identities) (operator-impl-identities info)]))
 
 ;; Returns all operator implementations.
 (define (all-operator-impls)
@@ -331,7 +328,7 @@
 
 ; Registers an operator implementation `name` with context `ctx` and spec `spec.
 ; Can optionally specify a floating-point implementation and fpcore translation.
-(define/contract (register-operator-impl! name ctx spec #:fl [fl-proc #f] #:fpcore [fpcore #f])
+(define/contract (register-operator-impl! name ctx spec #:fl [fl-proc #f] #:fpcore [fpcore #f] #:identities [identities #f])
   (->* (symbol? context? any/c) (#:fl (or/c procedure? #f) #:fpcore any/c) void?)
   ; check specification
   (check-spec! name ctx spec)
@@ -385,8 +382,45 @@
                            (define-values (_ exs) (real-apply compiler pt))
                            (if exs (first exs) fail))
                          name)]))
+  
+  ; make hash table
+  (define rules (make-hasheq))
+  (define count 0)
+  (define commutes? #f)
+  (when identities
+    (for ([ident (in-list identities)])
+      (match ident
+        [(list ident-name lhs-expr rhs-expr)
+         (cond
+           [(hash-has-key? rules ident-name)
+            (raise-herbie-syntax-error "Duplicate identity ~a" ident-name)]
+           [else
+            (hash-set! rules
+                       ident-name
+                       (list lhs-expr
+                             rhs-expr
+                             (remove-duplicates (append (free-variables lhs-expr)
+                                                        (free-variables rhs-expr)))))])]
+        [(list 'exact expr)
+         (hash-set! rules
+                    (gensym (string->symbol (format "~a-exact-~a" name count)))
+                    (list expr expr (free-variables expr)))
+         (set! count (+ count 1))]
+        [(list 'commutes)
+         (cond
+           [commutes? (raise-herbie-syntax-error "Commutes identity already defined")]
+           [(hash-has-key? rules (string->symbol (format "~a-commutes" name)))
+            (raise-herbie-syntax-error "Commutes identity already manually defined")]
+           [(not (equal? (length vars) 2))
+            (raise-herbie-syntax-error "Cannot commute a non 2-ary operator")]
+           [else
+            (set! commutes? #t)
+            (hash-set! rules
+                       (string->symbol (format "~a-commutes" name))
+                       (list `(,name ,@vars) `(name ,@(reverse vars)) vars))])])))
+
   ; update tables
-  (define impl (operator-impl name ctx spec fpcore* fl-proc*))
+  (define impl (operator-impl name ctx spec fpcore* fl-proc* rules))
   (hash-set! operator-impls name impl))
 
 (define (free-variables prog)
@@ -422,14 +456,16 @@
             (with-syntax ([id id]
                           [spec spec]
                           [core core]
-                          [fl-expr fl-expr])
+                          [fl-expr fl-expr]
+                          [identities identities])
               #'(register-operator-impl! 'id
                                          (context '(var ...)
                                                   (get-representation 'rtype)
                                                   (list (get-representation 'repr) ...))
                                          'spec
                                          #:fl fl-expr
-                                         #:fpcore 'core))]
+                                         #:fpcore 'core
+                                         #:identities 'identities))]
            [(#:spec expr rest ...)
             (cond
               [spec (oops! "multiple #:spec clauses" stx)]
@@ -451,6 +487,22 @@
                (set! fl-expr #'expr)
                (loop #'(rest ...))])]
            [(#:fl) (oops! "expected value after keyword `#:fl`" stx)]
+           [(#:identities (ident-exprs ...) rest ...)
+            (cond
+              [identities (oops! "multiple #:identities clauses" stx)]
+              [else
+               (set! identities
+                     (let ident-loop ([ident-exprs #'(ident-exprs ...)])
+                       (syntax-case ident-exprs ()
+                         [() '()]
+                         [([name lhs-expr rhs-expr] rem ...)
+                          (cons (list #'name #'lhs-expr #'rhs-expr) (ident-loop #'(rem ...)))]
+                         [(#:exact expr rem ...) (cons (list 'exact #'expr) (ident-loop #'(rem ...)))]
+                         [(#:commutes rem ...) (cons (list 'commutes) (ident-loop #'(rem ...)))]
+                         [_ (oops! "bad syntax" ident-exprs)])))
+               (loop #'(rest ...))])]
+           [(#:identities rest ...) (oops! "expected list of impl identities" stx)]
+           [(#:identities) (oops! "expected value after keyword #:identities clause" stx)]
            ; bad
            [_ (oops! "bad syntax" fields)])))]
     [_ (oops! "bad syntax")]))
