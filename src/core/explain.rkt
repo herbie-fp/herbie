@@ -3,7 +3,8 @@
 (require racket/set
          math/bigfloat
          racket/hash)
-(require "points.rkt"
+(require "rules.rkt"
+         "points.rkt"
          "../syntax/types.rkt"
          "localize.rkt"
          "../utils/common.rkt"
@@ -490,6 +491,21 @@
         [_ #f])))
   (values error-count-hash expls->points maybe-expls->points oflow-hash uflow-hash))
 
+(define (get-locations expr subexpr)
+  (reap [sow]
+        (let loop ([expr expr]
+                   [loc '()])
+          (match expr
+            [(== subexpr) (sow (reverse loc))]
+            [(? literal?) (void)]
+            [(? symbol?) (void)]
+            [(approx _ impl) (loop impl (cons 2 loc))]
+            [(list _ args ...)
+             (for ([arg (in-list args)]
+                   [i (in-naturals 1)])
+               (loop arg (cons i loc)))]))))
+
+
 (define (generate-timelines expr
                             ctx
                             pctx
@@ -527,16 +543,14 @@
   (define explanations-table
     (for/list ([(key val) (in-dict expls->points)]
                #:unless (zero? (length val)))
-      (define expr (car key))
+      (define local_expr (car key))
       (define expl (cdr key))
       (define err-count (length val))
       (define maybe-count (length (hash-ref maybe-expls->points key '())))
-      (define flow-list (make-flow-table oflow-hash uflow-hash expr expl))
-      
+      (define flow-list (make-flow-table oflow-hash uflow-hash local_expr expl))
       ;; If expl is really `car expr`, we use that assumption in get-locations
-      (define locations (get-locations expr (car expr)))  
-
-      (list (~a (car expr)) (~a expr) (~a expl) err-count maybe-count flow-list locations)))
+      (define locations (get-locations expr local_expr))  
+      (list (~a (car local_expr)) (~a local_expr) (~a expl) err-count maybe-count flow-list locations)))
 
   (define sorted-explanations-table (take-top-n (sort explanations-table > #:key fourth)))
 
@@ -596,21 +610,6 @@
           total-confusion-matrix
           freqs))
 
-;; Returns the locations of `subexpr` within `expr`
-(define (get-locations expr subexpr)
-  (reap [sow]
-        (let loop ([expr expr]
-                   [loc '()])
-          (match expr
-            [(== subexpr) (sow (reverse loc))]
-            [(? literal?) (void)]
-            [(? symbol?) (void)]
-            [(approx _ impl) (loop impl (cons 2 loc))]
-            [(list _ args ...)
-             (for ([arg (in-list args)]
-                   [i (in-naturals 1)])
-               (loop arg (cons i loc)))]))))
-
 (define (explain expr ctx pctx)
   (define-values (subexprs-list repr-hash subexprs-fn) (compile-expr expr ctx))
 
@@ -624,6 +623,8 @@
                       maybe-expls->points
                       oflow-hash
                       uflow-hash))
+
+
 
 (define (flow-list flow-hash expr type)
   (for/list ([(k v) (in-dict (hash-ref flow-hash expr))])
