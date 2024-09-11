@@ -401,7 +401,7 @@
             (raise-herbie-syntax-error "Duplicate identity ~a" ident-name)]
            [else
             (hash-set! rules
-                       ident-name
+                       (string->symbol (format "~a-~a" (symbol->string ident-name) name))
                        (list lhs-expr
                              rhs-expr
                              (remove-duplicates (append (free-variables lhs-expr)

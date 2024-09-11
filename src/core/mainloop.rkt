@@ -368,7 +368,7 @@
      (timeline-event! 'simplify)
 
      ; egg schedule (only mathematical rewrites)
-     (define rules (platform-impl-rules (*fp-safe-simplify-rules*)))
+     (define rules (*fp-safe-simplify-rules*))
      (define schedule `((,rules . ((node . ,(*node-limit*)) (const-fold? . #f)))))
 
      ; egg runner

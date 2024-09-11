@@ -551,7 +551,7 @@
 
 (define (*fp-safe-simplify-rules*)
   (reap [sow]
-        (for ([impl (platform-impls (*active-platform*))])
+        (for ([impl (in-list (platform-impls (*active-platform*)))])
           (define rules (impl-info impl 'identities))
           (for ([name (in-hash-keys rules)])
             (match-define (list input output vars) (hash-ref rules name))
