@@ -328,7 +328,12 @@
 
 ; Registers an operator implementation `name` with context `ctx` and spec `spec.
 ; Can optionally specify a floating-point implementation and fpcore translation.
-(define/contract (register-operator-impl! name ctx spec #:fl [fl-proc #f] #:fpcore [fpcore #f] #:identities [identities #f])
+(define/contract (register-operator-impl! name
+                                          ctx
+                                          spec
+                                          #:fl [fl-proc #f]
+                                          #:fpcore [fpcore #f]
+                                          #:identities [identities #f])
   (->* (symbol? context? any/c) (#:fl (or/c procedure? #f) #:fpcore any/c #:identities any/c) void?)
   ; check specification
   (check-spec! name ctx spec)
@@ -382,7 +387,7 @@
                            (define-values (_ exs) (real-apply compiler pt))
                            (if exs (first exs) fail))
                          name)]))
-  
+
   ; make hash table
   (define rules (make-hasheq))
   (define count 0)

@@ -203,7 +203,6 @@
                             [(binary32 binary32 binary32)
                              (atan2 copysign fdim fmax fmin fmod pow remainder)])
 
-
 (define-libm c_erfcf (erfc float float))
 (define-libm c_expm1f (expm1 float float))
 (define-libm c_log1pf (log1p float float))
