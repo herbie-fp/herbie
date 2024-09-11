@@ -103,8 +103,8 @@
                [sqr-neg (*.f32 (neg.f32 x) (neg.f32 x)) (*.f32 x x)]
                [sqr-abs (*.f32 (fabs.f32 x) (fabs.f32 x)) (*.f32 x x)]
                [mul-fabs (*.f32 (fabs.f32 a) (fabs.f32 b)) (fabs.f32 (*.f32 a b))]
-               [sqr-sin-b (*.f32 (sin.f32 x) (sin.f32 x)) (- 1 (*.f32 (cos.f32 x) (cos.f32 x)))]
-               [sqr-cos-b (*.f32 (cos.f32 x) (cos.f32 x)) (- 1 (*.f32 (sin.f32 x) (sin.f32 x)))]))
+               [sqr-sin-b (*.f32 (sin.f32 x) (sin.f32 x)) (-.f32 1 (*.f32 (cos.f32 x) (cos.f32 x)))]
+               [sqr-cos-b (*.f32 (cos.f32 x) (cos.f32 x)) (-.f32 1 (*.f32 (sin.f32 x) (sin.f32 x)))]))
 
 (define-operator-impl (/.f32 [x : binary32] [y : binary32])
                       binary32
