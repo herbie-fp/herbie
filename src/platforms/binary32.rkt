@@ -55,7 +55,7 @@
                       (#:exact (neg.f32 x)
                                [distribute-lft-neg-in (neg.f32 (*.f32 a b)) (*.f32 (neg.f32 a) b)]
                                [distribute-rgt-neg-in (neg.f32 (*.f32 a b)) (*.f32 a (neg.f32 b))]
-                               [distribute-neg-in (neg.f32 (+.f32 a b)) (+.f32 (neg a) (neg b))]
+                               [distribute-neg-in (neg.f32 (+.f32 a b)) (+.f32 (neg.f32 a) (neg.f32 b))]
                                [distribute-neg-frac (neg.f32 (/.f32 a b)) (/.f32 (neg.f32 a) b)]
                                [distribute-neg-frac2 (neg.f32 (/.f32 a b)) (/.f32 a (neg.f32 b))]
                                [remove-double-neg (neg.f32 (neg.f32 a)) a]
