@@ -422,7 +422,7 @@
             (set! commutes? #t)
             (hash-set! rules
                        (string->symbol (format "~a-commutes" name))
-                       (list `(,name ,@vars) `(name ,@(reverse vars)) vars))])])))
+                       (list `(,name ,@vars) `(,name ,@(reverse vars)) vars))])])))
 
   ; update tables
   (define impl (operator-impl name ctx spec fpcore* fl-proc* rules))

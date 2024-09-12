@@ -46,21 +46,21 @@
   (begin
     (define-libm-impls/binary32* (itype ... otype) name ...) ...))
 
-(define-operator-impl (neg.f32 [x : binary32])
-                      binary32
-                      #:spec (neg x)
-                      #:fpcore (! :precision binary32 (- x))
-                      #:fl fl32-
-                      #:identities
-                      (#:exact (neg.f32 x)
-                               [distribute-lft-neg-in (neg.f32 (*.f32 a b)) (*.f32 (neg.f32 a) b)]
-                               [distribute-rgt-neg-in (neg.f32 (*.f32 a b)) (*.f32 a (neg.f32 b))]
-                               [distribute-neg-in (neg.f32 (+.f32 a b)) (+.f32 (neg.f32 a) (neg.f32 b))]
-                               [distribute-neg-frac (neg.f32 (/.f32 a b)) (/.f32 (neg.f32 a) b)]
-                               [distribute-neg-frac2 (neg.f32 (/.f32 a b)) (/.f32 a (neg.f32 b))]
-                               [remove-double-neg (neg.f32 (neg.f32 a)) a]
-                               [neg-sub0 (neg.f32 b) (-.f32 0 b)]
-                               [neg-mul-1 (neg.f32 a) (*.f32 -1 a)]))
+(define-operator-impl
+ (neg.f32 [x : binary32])
+ binary32
+ #:spec (neg x)
+ #:fpcore (! :precision binary32 (- x))
+ #:fl fl32-
+ #:identities (#:exact (neg.f32 x)
+                       [distribute-lft-neg-in (neg.f32 (*.f32 a b)) (*.f32 (neg.f32 a) b)]
+                       [distribute-rgt-neg-in (neg.f32 (*.f32 a b)) (*.f32 a (neg.f32 b))]
+                       [distribute-neg-in (neg.f32 (+.f32 a b)) (+.f32 (neg.f32 a) (neg.f32 b))]
+                       [distribute-neg-frac (neg.f32 (/.f32 a b)) (/.f32 (neg.f32 a) b)]
+                       [distribute-neg-frac2 (neg.f32 (/.f32 a b)) (/.f32 a (neg.f32 b))]
+                       [remove-double-neg (neg.f32 (neg.f32 a)) a]
+                       [neg-sub0 (neg.f32 b) (-.f32 0 b)]
+                       [neg-mul-1 (neg.f32 a) (*.f32 -1 a)]))
 
 (define-operator-impl
  (+.f32 [x : binary32] [y : binary32])

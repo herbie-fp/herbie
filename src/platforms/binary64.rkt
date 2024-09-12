@@ -61,16 +61,16 @@
                        [remove-double-neg (neg.f64 (neg.f64 a)) a]
                        [neg-sub0 (neg.f64 b) (-.f64 0 b)]
                        [neg-mul-1 (neg.f64 a) (*.f64 -1 a)]))
-(define-operator-impl (+.f64 [x : binary64] [y : binary64])
-                      binary64
-                      #:spec (+ x y)
-                      #:fpcore (! :precision binary64 (+ x y))
-                      #:fl +
-                      #:identities
-                      (#:commutes [distribute-neg-out (+.f64 (neg.f64 a) (neg.f64 b)) (neg.f64 (+.f64 a b))]
-                                  [+-lft-identity (+.f64 0 a) a]
-                                  [+-rgt-identity (+.f64 a 0) a]
-                                  [unsub-neg (+.f64 a (neg.f64 b)) (-.f64 a b)]))
+(define-operator-impl
+ (+.f64 [x : binary64] [y : binary64])
+ binary64
+ #:spec (+ x y)
+ #:fpcore (! :precision binary64 (+ x y))
+ #:fl +
+ #:identities (#:commutes [distribute-neg-out (+.f64 (neg.f64 a) (neg.f64 b)) (neg.f64 (+.f64 a b))]
+                          [+-lft-identity (+.f64 0 a) a]
+                          [+-rgt-identity (+.f64 a 0) a]
+                          [unsub-neg (+.f64 a (neg.f64 b)) (-.f64 a b)]))
 (define-operator-impl (-.f64 [x : binary64] [y : binary64])
                       binary64
                       #:spec (- x y)
