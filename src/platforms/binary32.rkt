@@ -81,8 +81,8 @@
                       #:identities
                       ([cancel-sign-sub (-.f32 a (*.f32 (neg.f32 b) c)) (+.f32 a (*.f32 b c))]
                        [cancel-sign-sub-inv (-.f32 a (*.f32 b c)) (+.f32 a (*.f32 (neg.f32 b) c))]
-                       [+-inverses (-.f32 a a) 0]
-                       [--rgt-identity (-.f32 a 0) a]
+                       #:exact (-.f32 a a)
+                       #:exact (-.f32 a 0)
                        [sub0-neg (-.f32 0 a) (neg.f32 a)]
                        [sub-neg (-.f32 a b) (+.f32 a (neg.f32 b))]))
 

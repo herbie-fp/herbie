@@ -79,8 +79,8 @@
                       #:identities
                       ([cancel-sign-sub (-.f64 a (*.f64 (neg.f64 b) c)) (+.f64 a (*.f64 b c))]
                        [cancel-sign-sub-inv (-.f64 a (*.f64 b c)) (+.f64 a (*.f64 (neg.f64 b) c))]
-                       [+-inverses (-.f64 a a) 0]
-                       [--rgt-identity (-.f64 a 0) a]
+                       #:exact (-.f64 a a)
+                       #:exact (-.f64 a 0)
                        [sub0-neg (-.f64 0 a) (neg.f64 a)]
                        [sub-neg (-.f64 a b) (+.f64 a (neg.f64 b))]))
 (define-operator-impl
