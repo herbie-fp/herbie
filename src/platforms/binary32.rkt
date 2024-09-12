@@ -166,7 +166,7 @@
 (define-libm-impl/binary32 sinh
                            (binary32)
                            binary32
-                           #:identities ([sinh-neg (sinh.f32 (ne.f32 x)) (neg.f32 (sinh.f32 x))]
+                           #:identities ([sinh-neg (sinh.f32 (neg.f32 x)) (neg.f32 (sinh.f32 x))]
                                          [sinh-0 (sinh.f32 0) 0]))
 
 (define-libm-impl/binary32 cosh

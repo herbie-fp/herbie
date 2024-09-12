@@ -67,7 +67,7 @@
                       #:fpcore (! :precision binary64 (+ x y))
                       #:fl +
                       #:identities
-                      (#:commutes [distribute-neg-out (+.f64 (neg.f64 a) (neg b)) (neg (+.f64 a b))]
+                      (#:commutes [distribute-neg-out (+.f64 (neg.f64 a) (neg.f64 b)) (neg.f64 (+.f64 a b))]
                                   [+-lft-identity (+.f64 0 a) a]
                                   [+-rgt-identity (+.f64 a 0) a]
                                   [unsub-neg (+.f64 a (neg.f64 b)) (-.f64 a b)]))
@@ -99,7 +99,7 @@
                [*-un-lft-identity a (*.f64 1 a)]
                [sqr-neg (*.f64 (neg.f64 a) (neg.f64 a)) (*.f64 a a)]
                [sqr-abs (*.f64 (fabs.f64 a) (fabs.f64 a)) (*.f64 a a)]
-               [mul-fabs (*.f64 (fabs.f64 a) (fabs.f64 b)) (fabs (*.f64 a b))]
+               [mul-fabs (*.f64 (fabs.f64 a) (fabs.f64 b)) (fabs.f64 (*.f64 a b))]
                [sqr-sin-b (*.f64 (sin.f64 x) (sin.f64 x)) (-.f64 1 (*.f64 (cos.f64 x) (cos.f64 x)))]
                [sqr-cos-b (*.f64 (cos.f64 x) (cos.f64 x)) (-.f64 1 (*.f64 (sin.f64 x) (sin.f64 x)))]))
 (define-operator-impl (/.f64 [x : binary64] [y : binary64])
@@ -121,12 +121,12 @@
                            binary64
                            #:identities
                            ([fabs-fabs (fabs.f64 (fabs.f64 a)) (fabs.f64 a)]
-                            [fabs-sub (fabs.f64 (-.f64 a b)) (fabs.f64 (- b a))]
+                            [fabs-sub (fabs.f64 (-.f64 a b)) (fabs.f64 (-.f64 b a))]
                             [fabs-neg (fabs.f64 (neg.f64 a)) (fabs.f64 a)]
                             [fabs-sqr (fabs.f64 (*.f64 a a)) (*.f64 a a)]
                             [fabs-mul (fabs.f64 (*.f64 a b)) (*.f64 (fabs.f64 a) (fabs.f64 b))]
                             [fabs-div (fabs.f64 (/.f64 a b)) (/.f64 (fabs.f64 a) (fabs.f64 b))]
-                            [neg-fabs (fabs.f64 x) (fabs.f64 (neg x))]))
+                            [neg-fabs (fabs.f64 x) (fabs.f64 (neg.f64 x))]))
 
 (define-libm-impl/binary64 exp
                            (binary64)
@@ -164,7 +164,7 @@
 (define-libm-impl/binary64 sinh
                            (binary64)
                            binary64
-                           #:identities ([sinh-neg (sinh.f64 (neg x)) (neg.f64 (sinh.f64 x))]
+                           #:identities ([sinh-neg (sinh.f64 (neg.f64 x)) (neg.f64 (sinh.f64 x))]
                                          [sinh-0 (sinh.f64 0) 0]))
 
 (define-libm-impl/binary64 cosh
