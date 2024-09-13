@@ -482,36 +482,3 @@ pub unsafe extern "C" fn egraph_get_size(ptr: *mut Context) -> u32 {
         .map(|iteration| iteration.egraph_nodes as u32)
         .unwrap_or_default()
 }
-
-#[no_mangle]
-pub unsafe extern "C" fn egraph_dump_to_file(ptr : *mut Context, path_str : *mut c_char) {
-    let context = ManuallyDrop::new(Box::from_raw(ptr));
-    let path_cstr = CStr::from_ptr(path_str).to_str().expect("Non-UTF-8 path");
-    let path = Path::new(&path_cstr);
-
-    use egraph_serialize::*;
-    let mut out = EGraph::default();
-    for class in context.runner.egraph.classes() {
-        for (i, node) in class.nodes.iter().enumerate() {
-            out.add_node(
-                format!("{}.{}", class.id, i),
-                Node {
-                    op: node.to_string(),
-                    children: node
-                        .children()
-                        .iter()
-                        .map(|id| NodeId::from(format!("{}.0", id)))
-                        .collect(),
-                    eclass: ClassId::from(format!("{}", class.id)),
-                    cost: Cost::new(1.0).unwrap(),
-                },
-            )
-        }
-    }
-
-    for root in context.runner.roots.clone() {
-        out.root_eclasses.push(ClassId::from(format!("{}", context.runner.egraph.find(root))));
-    }
-
-    out.to_json_file(path).expect("Failed to write file");
-}

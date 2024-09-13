@@ -6,7 +6,6 @@ edition = "2021"
 
 [dependencies]
 egg = { git = "https://github.com/egraphs-good/egg.git", rev = "c11d03db646aca5f55df2632927eec958e1f4d4d" }
-egraph-serialize = "0.1.0"
 
 log = "0.4"
 indexmap = "1"

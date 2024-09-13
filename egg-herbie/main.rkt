@@ -22,7 +22,6 @@
          egraph_is_unsound_detected
          egraph_get_times_applied
          egraph_get_proof
-         egraph_dump_to_file
          (struct-out iteration-data)
          (struct-out FFIRule)
          make-ffi-rule)
@@ -300,9 +299,3 @@
                       _pointer ;; name of the rule
                       ->
                       _uint))
-
-(define-eggmath egraph_dump_to_file
-                (_fun _egraph-pointer
-                      _string ;; file name
-                      ->
-                      _void))
