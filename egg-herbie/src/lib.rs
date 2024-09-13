@@ -13,7 +13,6 @@ use std::mem::{self, ManuallyDrop};
 use std::os::raw::c_char;
 use std::time::Duration;
 use std::{slice, sync::atomic::Ordering};
-use std::path::Path;
 
 pub struct Context {
     iteration: usize,
