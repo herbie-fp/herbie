@@ -1,12 +1,10 @@
 ; This example is taken from the Image Processing domain and referred to 
-; as "Logarithmic Transform". This in it's basic form is used to bring out
+; as "Logarithmic Transform". This in its basic form is used to bring out
 ; details in dark parts of an image. This instantiation of the idea is for 1D
 ; as opposed to 2D images.
 
 (FPCore (c x y)
   :name "Logarithmic Transform"
-  :precision binary64
-  :pre (and (and (and (<= -1.79e+308 c) (<= c 1.79e+308)) (and (<= -1.79e+308 x) (<= x 1.79e+308))) (and (<= -1.79e+308 y) (<= y 1.79e+308)))
   :alt
     (* c (log1p (* (expm1 x) y)))
 
