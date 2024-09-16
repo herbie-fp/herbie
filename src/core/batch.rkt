@@ -8,6 +8,7 @@
          batch->progs ; Batch -> (Listof Expr)
          (struct-out batch)
          (struct-out batchref) ; temporarily for patch.rkt
+         (struct-out mutable-batch) ; temporarily for patch.rkt
          batch-length ; Batch -> Integer
          batch-ref ; Batch -> Index -> Expr
          deref ; Batchref -> Expr
@@ -15,7 +16,10 @@
          egg-nodes->batch ; Nodes -> Spec-maps -> Batch -> (Listof Batchref)
          batchref->expr ; Batchref -> Expr
          batch-extract-exprs ; Batch -> (Listof Root) -> (Listof Expr)
-         remove-zombie-nodes) ; Batch -> Batch
+         remove-zombie-nodes ; Batch -> Batch
+         mutable-batch-add-expr! ; Mutable-batch -> Root
+         mutable-batch->batch ; Mutable-batch -> Batch
+         batch->mutable-batch) ; Batch -> Mutable-batch
 
 ;; This function defines the recursive structure of expressions
 (define (expr-recurse expr f)
@@ -84,6 +88,11 @@
   (when timeline-push
     (timeline-push! 'compiler size (batch-length final)))
   final)
+
+(define (mutable-batch-add-expr! b expr)
+  (define (munge prog)
+    (batch-push! b (expr-recurse prog munge)))
+  (munge expr))
 
 (define (batch-extract-exprs b roots)
   (define exprs (make-vector (batch-length b)))
@@ -175,10 +184,15 @@
       (match expr
         [(? number?) (if (representation? type) (literal expr (representation-name type)) expr)]
         [(? symbol?)
-         (if (hash-has-key? rename-dict expr) (car (hash-ref rename-dict expr)) (list expr))]
-        [(list '$approx spec impl)
+         (if (hash-has-key? rename-dict expr)
+             (car (hash-ref rename-dict expr)) ; variable (extract uncanonical name)
+             (list expr))] ; constant function
+        [(list '$approx spec impl) ; approx
          (define spec-type (if (representation? type) (representation-type type) type))
          (approx (loop spec spec-type) (loop impl type))]
+        [`(Explanation ,body ...) `(Explanation ,@(map (lambda (e) (loop e type)) body))]
+        [(list 'Rewrite=> rule expr) (list 'Rewrite=> rule (loop expr type))]
+        [(list 'Rewrite<= rule expr) (list 'Rewrite<= rule (loop expr type))]
         [(list 'if cond ift iff)
          (if (representation? type)
              (list 'if (loop cond (get-representation 'bool)) (loop ift type) (loop iff type))
@@ -189,11 +203,11 @@
   (define (eggref id)
     (cdr (vector-ref egg-nodes id)))
 
-  (define (add-enode node type)
-    (define node*
-      (match node
-        [(? number?) (if (representation? type) (literal node (representation-name type)) node)]
-        [(? symbol?) (if (hash-has-key? rename-dict node) (car (hash-ref rename-dict node)) node)]
+  (define (add-enode enode type)
+    (define enode*
+      (match enode
+        [(? number?) (if (representation? type) (literal enode (representation-name type)) enode)]
+        [(? symbol?) (if (hash-has-key? rename-dict enode) (car (hash-ref rename-dict enode)) enode)]
         [(list '$approx spec impl)
          (define spec* (vector-ref id->spec spec))
          (unless spec*
@@ -223,14 +237,21 @@
                       [type (in-list (operator-info op 'itype))])
              (add-enode (eggref id) type)))
          (cons op args)]))
-    (batch-push! out node*))
+    (batch-push! out enode*))
 
-  (define (finalize-batch roots)
-    (set! input-batch (mutable-batch->batch out (list->vector roots)))
-    (for/list ([root (in-list roots)])
-      (batchref input-batch root)))
+  ; same as add-enode but works with index as an input instead of enode
+  (define (add-id id type)
+    (add-enode (eggref id) type))
 
-  (values add-enode finalize-batch))
+  ; Convert a root to batchref
+  (define (root->batchref root)
+    (batchref input-batch root))
+
+  ; Commit changes to the input-batch
+  (define (finalize-batch)
+    (set-batch-nodes! input-batch (list->vector (reverse (mutable-batch-nodes out)))))
+
+  (values add-id add-enode root->batchref finalize-batch))
 
 ; Tests for progs->batch and batch->progs
 (module+ test

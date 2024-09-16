@@ -20,13 +20,11 @@
   (define taylor-approxs (taylor var batch))
   (for/list ([root (in-vector (batch-roots batch))])
     (match-define (cons offset coeffs) (vector-ref taylor-approxs root))
-    ;(printf "coeffs=~a, offset=~a\n" coeffs offset)
     (define i 0)
     (define terms '())
 
     (define (next [iter 0])
       (define coeff (simplify (replace-expression (coeffs i) var ((cdr tform) var))))
-      ;(printf "iter=~a, coeff=~a\n" iter coeff)
       (set! i (+ i 1))
       (define out
         (match coeff
@@ -37,7 +35,6 @@
           [_
            (set! terms (cons (cons coeff (- i offset 1)) terms))
            (simplify (make-horner ((cdr tform) var) (reverse terms)))]))
-      ;(printf "out=~a\n" out)
       out)
     next))
 

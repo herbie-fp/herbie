@@ -73,8 +73,9 @@
   ; run egg
   (define simplified
     (simplify-batch runner
-                    (typed-egg-extractor
-                     (if (*egraph-platform-cost*) platform-egg-cost-proc default-egg-cost-proc))))
+                    (typed-egg-batch-extractor
+                     (if (*egraph-platform-cost*) platform-egg-cost-proc default-egg-cost-proc)
+                     batch)))
 
   ; alternatives
   (define start-alt (make-alt expr))

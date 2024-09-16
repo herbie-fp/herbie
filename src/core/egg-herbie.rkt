@@ -1104,10 +1104,10 @@
   (define id->spec (regraph-specs regraph))
 
   (define egg->herbie (regraph-egg->herbie regraph))
-  (define-values (extract-enode finalize-batch)
+  (define-values (add-id add-enode root->batchref finalize-batch)
     (egg-nodes->batch costs id->spec batch-extract-to egg->herbie))
   ;; These functions provide a setup to extract nodes into batch-extract-to from nodes
-  (list extract-enode finalize-batch))
+  (list add-id add-enode root->batchref finalize-batch))
 
 ;; Is fractional with odd denominator.
 (define (fraction-with-odd-denominator? frac)
@@ -1175,15 +1175,15 @@
   (define egg->herbie (regraph-egg->herbie regraph))
   (define canon (regraph-canon regraph))
   ; Extract functions to extract exprs from egraph
-  (match-define (list unsafe-eclass-cost build-expr) extract)
+  (match-define (list extract-id _ root->batchref _) extract)
   ; extract expr
   (define key (cons id type))
   (cond
     ; at least one extractable expression
     [(hash-has-key? canon key)
      (define id* (hash-ref canon key))
-     (define egg-expr (build-expr id*))
-     (list (egg-parsed->expr (flatten-let egg-expr) egg->herbie type))]
+     (define root (extract-id id* type))
+     (list (root->batchref root))]
     ; no extractable expressions
     [else (list)]))
 
@@ -1194,7 +1194,7 @@
   (define id->spec (regraph-specs regraph))
   (define canon (regraph-canon regraph))
   ; Functions for egg-extraction
-  (match-define (list extract-enode finalize-batch) extract)
+  (match-define (list _ extract-enode root->batchref _) extract)
   ; extract expressions
   (define key (cons id type))
   (cond
@@ -1207,9 +1207,7 @@
          (extract-enode enode type)))
 
      ; Returns (listof batchref) with respect to the roots
-     ; Writes to the global batch new nodes from extraction
-     ; Updates roots of global batch!
-     (finalize-batch (remove-duplicates roots))]
+     (map root->batchref (remove-duplicates roots))]
     [else (list)]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1353,20 +1351,34 @@
   (match cmd
     [`(single . ,extractor) ; single expression extraction
      (define regraph (make-regraph egg-graph))
-     (define extract-id (extractor regraph))
-     (define reprs (egg-runner-reprs runner))
-     (for/list ([id (in-list root-ids)]
-                [repr (in-list reprs)])
-       (regraph-extract-best regraph extract-id id repr))]
-    [`(multi . ,extractor) ; multi expression extraction
-     (define regraph (make-regraph egg-graph))
-     (define extract-id (extractor regraph))
      (define reprs (egg-runner-reprs runner))
 
-     ; List of roots inside the batch
-     (for/list ([id (in-list root-ids)]
-                [repr (in-list reprs)])
-       (regraph-extract-variants regraph extract-id id repr))]
+     (match-define extract-id (extractor regraph))
+     (define finalize-batch (last extract-id))
+
+     ; (Listof (Listof batchref))
+     (define out
+       (for/list ([id (in-list root-ids)]
+                  [repr (in-list reprs)])
+         (regraph-extract-best regraph extract-id id repr)))
+     ; commit changes to the batch
+     (finalize-batch)
+     out]
+    [`(multi . ,extractor) ; multi expression extraction
+     (define regraph (make-regraph egg-graph))
+     (define reprs (egg-runner-reprs runner))
+
+     (define extract-id (extractor regraph))
+     (define finalize-batch (last extract-id))
+
+     ; (Listof (Listof batchref))
+     (define out
+       (for/list ([id (in-list root-ids)]
+                  [repr (in-list reprs)])
+         (regraph-extract-variants regraph extract-id id repr)))
+     ; commit changes to the batch
+     (finalize-batch)
+     out]
     [`(proofs . ((,start-exprs . ,end-exprs) ...)) ; proof extraction
      (for/list ([start (in-list start-exprs)]
                 [end (in-list end-exprs)])

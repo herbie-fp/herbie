@@ -20,7 +20,7 @@
 ;; the last expression is the simplest unless something went wrong due to unsoundness
 ;; if the input specifies proofs, it instead returns proofs for these expressions
 (define/contract (simplify-batch runner extractor)
-  (-> egg-runner? procedure? (listof (listof expr?)))
+  (-> egg-runner? procedure? (listof (listof batchref?)))
   (timeline-push! 'inputs
                   (map ~a (batch-extract-exprs (egg-runner-batch runner) (egg-runner-roots runner))))
   (timeline-push! 'method "egg-herbie")
@@ -28,8 +28,10 @@
   (define simplifieds (run-egg runner (cons 'single extractor)))
   (define out
     (for/list ([simplified simplifieds]
-               [expr (batch-extract-exprs (egg-runner-batch runner) (egg-runner-roots runner))])
-      (remove-duplicates (cons expr simplified))))
+               [root (egg-runner-roots runner)])
+      (if (equal? root (batchref-idx (car simplified)))
+          simplified
+          (cons (batchref (egg-runner-batch runner) root) simplified))))
 
   (timeline-push! 'outputs (map ~a (apply append out)))
   out)
@@ -56,8 +58,8 @@
                        (batch-roots batch)
                        (map (lambda (_) 'real) args)
                        `((,(*simplify-rules*) . ((node . ,(*node-limit*)))))))
-    (define extractor (typed-egg-extractor default-egg-cost-proc))
-    (map last (simplify-batch runner extractor)))
+    (define extractor (typed-egg-batch-extractor default-egg-cost-proc batch))
+    (map (compose batchref->expr last) (simplify-batch runner extractor)))
 
   (define test-exprs
     '((1 . 1) (0 . 0)

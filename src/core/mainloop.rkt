@@ -380,11 +380,13 @@
 
      ; run egg
      (define simplified
-       (map last
-            (simplify-batch runner
-                            (typed-egg-extractor (if (*egraph-platform-cost*)
-                                                     platform-egg-cost-proc
-                                                     default-egg-cost-proc)))))
+       (map batchref->expr
+            (map last
+                 (simplify-batch runner
+                                 (typed-egg-batch-extractor (if (*egraph-platform-cost*)
+                                                                platform-egg-cost-proc
+                                                                default-egg-cost-proc)
+                                                            batch)))))
 
      ; de-duplication
      (remove-duplicates (for/list ([altn (in-list alts)]
