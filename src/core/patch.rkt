@@ -51,6 +51,8 @@
                      (if (*egraph-platform-cost*) platform-egg-cost-proc default-egg-cost-proc)
                      global-batch)))
 
+  ; Start of global-batch modification
+  ; ----------------------------------
   (define global-batch-mutable (batch->mutable-batch global-batch))
 
   ; convert to altns
@@ -68,6 +70,8 @@
 
   ; Commit changes to global-batch
   (set-batch-nodes! global-batch (list->vector (reverse (mutable-batch-nodes global-batch-mutable))))
+  ; End of global-batch modification
+  ; ---------------------------------
 
   (timeline-push! 'count (length approxs) (length simplified))
   simplified)
@@ -91,6 +95,8 @@
   (define free-vars (map free-variables exprs))
   (define vars (list->set (append* free-vars)))
 
+  ; Start of global-batch modification
+  ; ----------------------------------
   (define global-batch-mutable (batch->mutable-batch global-batch))
 
   (define approxs
@@ -108,11 +114,15 @@
                 (define gen (genexpr))
                 (unless (spec-has-nan? gen)
                   (define idx (mutable-batch-add-expr! global-batch-mutable gen))
+                  ; we create a batchref that doesn't exist yet in global-batch, we update it later
                   (sow (alt (batchref global-batch idx) `(taylor ,name ,var) (list altn) '())))))
             (timeline-stop!))))
 
   ; Commit changes to global-batch
   (set-batch-nodes! global-batch (list->vector (reverse (mutable-batch-nodes global-batch-mutable))))
+  ; End of global-batch modification
+  ; ----------------------------------
+
   approxs)
 
 (define (spec-has-nan? expr)
