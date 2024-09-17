@@ -39,11 +39,11 @@
         ; if disabled, only implementation selection
         `((,lowering-rules . ((iteration . 1) (scheduler . simple))))))
 
-  ; run egg
   (define roots
     (for/vector ([approx (in-list approxs)])
       (batchref-idx (alt-expr approx))))
 
+  ; run egg
   (define runner (make-egg-runner global-batch roots reprs schedule))
   (define simplification-options
     (simplify-batch runner
@@ -110,7 +110,7 @@
                   (sow (alt (batchref global-batch idx) `(taylor ,name ,var) (list altn) '())))))
             (timeline-stop!))))
 
-  ; Commit changes to global-global-batch
+  ; Commit changes to global-batch
   (set-batch-nodes! global-batch (list->vector (reverse (mutable-batch-nodes global-batch-mutable))))
   approxs)
 
@@ -150,11 +150,11 @@
 
   ; run egg
   (define exprs (map (compose batchref->expr alt-expr) altns))
+  (define roots (list->vector (map (compose batchref-idx alt-expr) altns)))
   (define reprs (map (curryr repr-of (*context*)) exprs))
   (timeline-push! 'inputs (map ~a exprs))
 
-  (define runner
-    (make-egg-runner global-batch (batch-roots global-batch) reprs schedule #:context (*context*)))
+  (define runner (make-egg-runner global-batch roots reprs schedule #:context (*context*)))
   ; batchrefss is a (listof (listof batchref))
   (define batchrefss (run-egg runner `(multi . ,extractor)))
 
