@@ -19,7 +19,8 @@
          remove-zombie-nodes ; Batch -> Batch
          mutable-batch-add-expr! ; Mutable-batch -> Root
          mutable-batch->batch ; Mutable-batch -> Batch
-         batch->mutable-batch) ; Batch -> Mutable-batch
+         batch->mutable-batch ; Batch -> Mutable-batch
+         batch-push!) ; Mutable-batch -> Expr -> Index
 
 ;; This function defines the recursive structure of expressions
 (define (expr-recurse expr f)

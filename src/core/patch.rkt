@@ -51,6 +51,8 @@
                      (if (*egraph-platform-cost*) platform-egg-cost-proc default-egg-cost-proc)
                      global-batch)))
 
+  (define global-batch-mutable (batch->mutable-batch global-batch))
+
   ; convert to altns
   (define simplified
     (reap [sow]
@@ -61,12 +63,11 @@
             (for ([expr (in-list simplified)])
               (define spec (prog->spec (batchref->expr (alt-expr prev))))
               (match-define (batchref b idx) expr)
-              (define nodes* (vector-append (batch-nodes b) (vector (approx spec idx))))
-              (set-batch-nodes! b nodes*)
-              (sow (alt (batchref b (- (vector-length nodes*) 1))
-                        `(simplify ,runner #f #f)
-                        (list altn)
-                        '()))))))
+              (define idx* (batch-push! global-batch-mutable (approx spec idx)))
+              (sow (alt (batchref global-batch idx*) `(simplify ,runner #f #f) (list altn) '()))))))
+
+  ; Commit changes to global-batch
+  (set-batch-nodes! global-batch (list->vector (reverse (mutable-batch-nodes global-batch-mutable))))
 
   (timeline-push! 'count (length approxs) (length simplified))
   simplified)
