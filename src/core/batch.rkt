@@ -5,7 +5,7 @@
          "../syntax/types.rkt")
 
 (provide progs->batch ; (Listof Expr) -> Batch
-         batch->progs ; Batch -> (Listof Expr)
+         batch->progs ; Batch -> *(or (Listof Root) (Vectorof Root)) -> (Listof Expr)
          (struct-out batch)
          (struct-out batchref) ; temporarily for patch.rkt
          (struct-out mutable-batch) ; temporarily for patch.rkt
@@ -15,8 +15,7 @@
          batch-replace ; Batch -> (Expr<Batchref> -> Expr<Batchref>) -> Batch
          egg-nodes->batch ; Nodes -> Spec-maps -> Batch -> (Listof Batchref)
          batchref->expr ; Batchref -> Expr
-         batch-extract-exprs ; Batch -> (Listof Root) -> (Listof Expr)
-         remove-zombie-nodes ; Batch -> Batch
+         batch-remove-zombie ; Batch -> *(Vectorof Root) -> Batch
          mutable-batch-add-expr! ; Mutable-batch -> Root
          mutable-batch->batch ; Mutable-batch -> Batch
          batch->mutable-batch ; Batch -> Mutable-batch
@@ -95,20 +94,12 @@
     (batch-push! b (expr-recurse prog munge)))
   (munge expr))
 
-(define (batch-extract-exprs b roots)
+(define (batch->progs b [roots (batch-roots b)])
   (define exprs (make-vector (batch-length b)))
   (for ([node (in-vector (batch-nodes b))]
         [idx (in-naturals)])
     (vector-set! exprs idx (expr-recurse node (lambda (x) (vector-ref exprs x)))))
   (for/list ([root roots])
-    (vector-ref exprs root)))
-
-(define (batch->progs b)
-  (define exprs (make-vector (batch-length b)))
-  (for ([node (in-vector (batch-nodes b))]
-        [idx (in-naturals)])
-    (vector-set! exprs idx (expr-recurse node (lambda (x) (vector-ref exprs x)))))
-  (for/list ([root (batch-roots b)])
     (vector-ref exprs root)))
 
 (define (batch-replace b f)
@@ -134,9 +125,8 @@
 ; The function removes any zombie nodes from batch with respect to the roots
 ; Time complexity: O(|R| + |N|), where |R| - number of roots, |N| - length of nodes
 ; Space complexity: O(|N| + |N*| + |R|), where |N*| is a length of nodes without zombie nodes
-(define (remove-zombie-nodes input-batch)
+(define (batch-remove-zombie input-batch [roots (batch-roots input-batch)])
   (define nodes (batch-nodes input-batch))
-  (define roots (batch-roots input-batch))
   (define nodes-length (batch-length input-batch))
 
   (define zombie-mask (make-vector nodes-length #t))
@@ -271,7 +261,7 @@
   (require rackunit)
   (define (zombie-test #:nodes nodes #:roots roots)
     (define in-batch (batch nodes roots '()))
-    (define out-batch (remove-zombie-nodes in-batch))
+    (define out-batch (batch-remove-zombie in-batch))
     (check-equal? (batch->progs out-batch) (batch->progs in-batch))
     (batch-nodes out-batch))
 

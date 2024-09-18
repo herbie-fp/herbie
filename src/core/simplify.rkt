@@ -21,8 +21,7 @@
 ;; if the input specifies proofs, it instead returns proofs for these expressions
 (define/contract (simplify-batch runner extractor)
   (-> egg-runner? procedure? (listof (listof batchref?)))
-  (timeline-push! 'inputs
-                  (map ~a (batch-extract-exprs (egg-runner-batch runner) (egg-runner-roots runner))))
+  (timeline-push! 'inputs (map ~a (batch->progs (egg-runner-batch runner) (egg-runner-roots runner))))
   (timeline-push! 'method "egg-herbie")
 
   (define simplifieds (run-egg runner (cons 'single extractor)))

@@ -135,7 +135,7 @@
   (set-batch-roots! batch roots) ; make sure that we work with the right roots
   ; the algorithm may crash if batch-length is zero
   (define insert-batch
-    (if (zero? (batch-length batch)) batch (remove-zombie-nodes (batch-parse-approx batch))))
+    (if (zero? (batch-length batch)) batch (batch-remove-zombie (batch-parse-approx batch))))
 
   (define mappings (build-vector (batch-length insert-batch) values))
   (define (remap x)

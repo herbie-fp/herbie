@@ -49,13 +49,16 @@
 
   ; run egg
   (define simplified
-    (simplify-batch runner
-                    (typed-egg-batch-extractor
-                     (if (*egraph-platform-cost*) platform-egg-cost-proc default-egg-cost-proc)
-                     batch)))
+    (map batchref->expr
+         (map last
+              (simplify-batch runner
+                              (typed-egg-batch-extractor (if (*egraph-platform-cost*)
+                                                             platform-egg-cost-proc
+                                                             default-egg-cost-proc)
+                                                         batch)))))
 
   ; run egg
-  (define simplifiedss (regroup-nested subexprss (map batchref->expr (map last simplified))))
+  (define simplifiedss (regroup-nested subexprss simplified))
 
   ; build map from starting expr to simplest
   (define expr->simplest (make-hash))

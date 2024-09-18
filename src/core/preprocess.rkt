@@ -80,9 +80,10 @@
   ; alternatives
   (define start-alt (make-alt expr))
   (cons start-alt
-        (remove-duplicates (for/list ([expr (rest simplified)])
-                             (alt expr `(simplify () ,runner #f #f) (list start-alt) '()))
-                           alt-equal?)))
+        (remove-duplicates
+         (for/list ([expr (rest simplified)])
+           (alt (batchref->expr expr) `(simplify () ,runner #f #f) (list start-alt) '()))
+         alt-equal?)))
 
 ;; See https://pavpanchekha.com/blog/symmetric-expressions.html
 (define (find-preprocessing init expr ctx)

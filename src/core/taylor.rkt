@@ -26,16 +26,14 @@
     (define (next [iter 0])
       (define coeff (simplify (replace-expression (coeffs i) var ((cdr tform) var))))
       (set! i (+ i 1))
-      (define out
-        (match coeff
-          [0
-           (if (< iter iters)
-               (next (+ iter 1))
-               (simplify (make-horner ((cdr tform) var) (reverse terms))))]
-          [_
-           (set! terms (cons (cons coeff (- i offset 1)) terms))
-           (simplify (make-horner ((cdr tform) var) (reverse terms)))]))
-      out)
+      (match coeff
+        [0
+         (if (< iter iters)
+             (next (+ iter 1))
+             (simplify (make-horner ((cdr tform) var) (reverse terms))))]
+        [_
+         (set! terms (cons (cons coeff (- i offset 1)) terms))
+         (simplify (make-horner ((cdr tform) var) (reverse terms)))]))
     next))
 
 ;; Our Taylor expander prefers sin, cos, exp, log, neg over trig, htrig, pow, and subtraction
