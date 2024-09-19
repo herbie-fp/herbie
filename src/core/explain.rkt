@@ -544,18 +544,15 @@
   (define explanations-table
     (for/list ([(key val) (in-dict expls->points)]
                #:unless (zero? (length val)))
-      (define expr (car key))
+      (define subexpr (car key))
       (define expl (cdr key))
       (define err-count (length val))
       (define maybe-count (length (hash-ref maybe-expls->points key '())))
-      (define flow-list (make-flow-table oflow-hash uflow-hash expr expl))
-      
-      (printf "Logging local_expr: ~a\n" (car expr))
-      (printf "Logging expr: ~a\n" expr)
-      (define locations (get-locations expr (car expr)))
-      (printf "Location: ~a\n" locations)
+      (define flow-list (make-flow-table oflow-hash uflow-hash subexpr expl))
+    
+      (define locations (get-locations expr subexpr))
 
-      (list (~a (car expr)) (~a expr) (~a expl) err-count maybe-count flow-list locations)))
+      (list (~a (car subexpr)) (~a subexpr) (~a expl) err-count maybe-count flow-list locations)))
 
   (define sorted-explanations-table (take-top-n (sort explanations-table > #:key fourth)))
 
