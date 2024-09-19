@@ -335,8 +335,8 @@
     (timeline-push! 'fperrors expr truth opreds oex upreds uex))
 
   (for ([explanation (in-list explanations-table)])
-    (match-define (list op expr expl val maybe-count flow-list) explanation)
-    (timeline-push! 'explanations op expr expl val maybe-count flow-list))
+    (match-define (list op expr expl val maybe-count flow-list locations) explanation)
+    (timeline-push! 'explanations op expr expl val maybe-count flow-list locations))
 
   (timeline-push! 'confusion confusion-matrix)
 
