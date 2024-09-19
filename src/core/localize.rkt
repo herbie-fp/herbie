@@ -8,11 +8,14 @@
          "../utils/float.rkt"
          "../syntax/platform.rkt"
          "../syntax/read.rkt"
+         "../syntax/read.rkt"
+         "rival.rkt"
          "points.rkt"
          "programs.rkt"
          "sampling.rkt"
          "simplify.rkt"
          "egg-herbie.rkt"
+         "compiler.rkt"
          "batch.rkt")
 
 (provide batch-localize-costs
@@ -132,7 +135,9 @@
   (define nodes (batch-nodes expr-batch))
   (define roots (batch-roots expr-batch))
 
+  ; TODO don't ignore the status code from make-real-compiler in eval-progs-real
   (define subexprs-fn (eval-progs-real (map prog->spec exprs-list) ctx-list))
+  (define actual-value-fn (compile-progs exprs-list ctx))
 
   (define errs
     (for/vector #:length (vector-length roots)
@@ -144,12 +149,21 @@
                 ([node (in-vector roots)])
       (make-vector (pcontext-length (*pcontext*)))))
 
+  (define actuals-out
+    (for/vector #:length (vector-length roots)
+                ([node (in-vector roots)])
+      (make-vector (pcontext-length (*pcontext*)))))
+
   (for ([(pt ex) (in-pcontext (*pcontext*))]
         [pt-idx (in-naturals)])
+
     (define exacts (list->vector (apply subexprs-fn pt)))
+    (define actuals (apply actual-value-fn pt))
+
     (for ([expr (in-list exprs-list)]
           [root (in-vector roots)]
           [exact (in-vector exacts)]
+          [actual (in-vector actuals)]
           [expr-idx (in-naturals)])
       (define err
         (match (vector-ref nodes root)
@@ -167,7 +181,8 @@
            (define approx (apply (impl-info f 'fl) argapprox))
            (ulp-difference exact approx repr)]))
       (vector-set! (vector-ref exacts-out expr-idx) pt-idx exact)
-      (vector-set! (vector-ref errs expr-idx) pt-idx err)))
+      (vector-set! (vector-ref errs expr-idx) pt-idx err)
+      (vector-set! (vector-ref actuals-out expr-idx) pt-idx actual)))
 
   (define n 0)
   (for/list ([subexprs (in-list subexprss)])
@@ -176,7 +191,9 @@
                       (hasheq 'errs
                               (vector->list (vector-ref errs n))
                               'exact-values
-                              (vector->list (vector-ref exacts-out n))))
+                              (vector->list (vector-ref exacts-out n))
+                              'actual-values
+                              (vector->list (vector-ref actuals-out n))))
         (set! n (add1 n))))))
 
 ;; Compute the local error of every subexpression of `prog`
@@ -201,10 +218,19 @@
         [(list op args ...) (cons exacts-list (map loop args))]
         [_ (list exacts-list)])))
 
+  (define actual-values
+    (let loop ([expr (test-input test)])
+      (define expr-info (hash-ref errs expr))
+      (define actual-list (hash-ref expr-info 'actual-values))
+      (match expr
+        [(list op args ...) (cons actual-list (map loop args))]
+        [_ (list actual-list)])))
+
   (define tree
     (let loop ([expr (prog->fpcore (test-input test) (test-context test))]
                [err local-error]
-               [exact exact-values])
+               [exact exact-values]
+               [actual actual-values])
       (match expr
         [(list op args ...)
          ;; err => (List (listof Integer) List ...)
@@ -214,8 +240,20 @@
                  (format-bits (errors-score (first err)))
                  'exact-value
                  (map ~s (first exact))
+                 'actual-value
+                 (map ~s (first actual))
                  'children
-                 (map loop args (rest err) (rest exact)))]
+                 (map loop args (rest err) (rest exact) (rest actual)))]
         ;; err => (List (listof Integer))
-        [_ (hasheq 'e (~a expr) 'avg-error (format-bits (errors-score (first err))) 'children '())])))
+        [_
+         (hasheq 'e
+                 (~a expr)
+                 'avg-error
+                 (format-bits (errors-score (first err)))
+                 'exact-value
+                 (map ~s (first exact))
+                 'actual-value
+                 (map ~s (first actual))
+                 'children
+                 '())])))
   tree)
