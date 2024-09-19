@@ -497,7 +497,7 @@
         (let loop ([expr expr]
                    [loc '()])
           (match expr
-             [(== subexpr) (sow (reverse loc))]
+            [(== subexpr) (sow (reverse loc))]
             [(? literal?) (void)]
             [(? symbol?) (void)]
             [(approx _ impl) (loop impl (cons 2 loc))]
@@ -505,7 +505,6 @@
              (for ([arg (in-list args)]
                    [i (in-naturals 1)])
                (loop arg (cons i loc)))]))))
-
 
 (define (generate-timelines expr
                             ctx
@@ -549,7 +548,7 @@
       (define err-count (length val))
       (define maybe-count (length (hash-ref maybe-expls->points key '())))
       (define flow-list (make-flow-table oflow-hash uflow-hash subexpr expl))
-    
+
       (define locations (get-locations expr subexpr))
 
       (list (~a (car subexpr)) (~a subexpr) (~a expl) err-count maybe-count flow-list locations)))
@@ -625,8 +624,6 @@
                       maybe-expls->points
                       oflow-hash
                       uflow-hash))
-
-
 
 (define (flow-list flow-hash expr type)
   (for/list ([(k v) (in-dict (hash-ref flow-hash expr))])
