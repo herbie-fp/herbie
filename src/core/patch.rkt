@@ -203,8 +203,4 @@
 
   (define out (append approximations rewritten))
 
-  (define (rebuild-alts x)
-    (match-define (alt expr event prevs preprocessing) x)
-    (alt (batchref->expr expr) event (map rebuild-alts prevs) preprocessing))
-
-  (map rebuild-alts out))
+  out)
