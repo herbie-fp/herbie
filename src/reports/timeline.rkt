@@ -349,18 +349,20 @@
   `((dt "Explanations")
     (dd (details
          (summary "Click to see full explanations table")
-         (table ((class "times"))
-                (thead (tr (th "Operator") (th "Subexpression") (th "Explanation") (th "Count") (th "Locations")))
-                ,@(append*
-                   (for/list ([rec (in-list (sort explanations > #:key fourth))])
-                     (match-define (list op expr expl cnt mcnt flows locations) rec)
+         (table
+          ((class "times"))
+          (thead
+           (tr (th "Operator") (th "Subexpression") (th "Explanation") (th "Count") (th "Locations")))
+          ,@(append*
+             (for/list ([rec (in-list (sort explanations > #:key fourth))])
+               (match-define (list op expr expl cnt mcnt flows locations) rec)
 
-                     (append (list `(tr (td (code ,(~a op)))
-                                        (td (code ,(~a expr)))
-                                        (td (b ,(~a expl)))
-                                        (td ,(~a cnt))
-                                        (td ,(~a mcnt))
-                                        (td (code ,(~a locations))))
+               (append (list `(tr (td (code ,(~a op)))
+                                  (td (code ,(~a expr)))
+                                  (td (b ,(~a expl)))
+                                  (td ,(~a cnt))
+                                  (td ,(~a mcnt))
+                                  (td (code ,(~a locations))))
                              (for/list ([flow (in-list (or flows '()))])
                                (match-define (list ex type v) flow)
                                `(tr (td "↳") (td (code ,(~a ex))) (td ,type) (td ,(~a v)))))))))))))
