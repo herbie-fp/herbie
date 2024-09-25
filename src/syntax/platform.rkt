@@ -5,6 +5,7 @@
          "../core/programs.rkt"
          "../core/rules.rkt"
          "matcher.rkt"
+         "sugar.rkt"
          "syntax.rkt"
          "types.rkt")
 
@@ -549,18 +550,86 @@
                               (string-join (map (lambda (subst) (~a (cdr subst))) isubst) "-"))))
                    (sow (rule name* input* output* itypes* repr)))))]))))
 
+(define (expr-otype expr)
+  (match expr
+    [(? literal?) #f]
+    [(? variable?) #f]
+    [(list 'if cond ift iff) (expr-otype ift)]
+    [(list op args ...) (impl-info op 'otype)]))
+
+(define (type-verify expr otype)
+  (match expr
+    [(? literal?) '()]
+    [(? variable?) '((cons expr otype))]
+    [(list 'if cond ift iff)
+     (define bool-repr (get-representation 'bool))
+     (define combined
+       (merge-bindings (type-verify cond bool-repr)
+                       (merge-bindings (type-verify ift otype) (type-verify iff otype))))
+     (unless combined
+       (error 'type-verify "Variable types do not match in ~a" expr))
+     combined]
+    [(list op args ...)
+     (define op-otype (impl-info op 'otype))
+     (when (not (equal? op-otype otype))
+       (error 'type-verify "Operator ~a has type ~a, expected ~a" op op-otype otype))
+     (define bindings '())
+     (for ([arg (in-list args)]
+           [itype (in-list (impl-info op 'itype))])
+       (define combined (merge-bindings bindings (type-verify arg itype)))
+       (unless combined
+         (error 'type-verify "Variable types do not match in ~a" expr))
+       (set! bindings combined))
+     bindings]))
+
+(define (expr->prog expr repr)
+  (match expr
+    [(? literal?) (literal (get-representation repr) expr)]
+    [(? variable?) expr]
+    [`(if ,cond ,ift ,iff)
+     `(if ,(expr->prog cond repr) ,(expr->prog ift repr) ,(expr->prog iff repr))]
+    [`(,impl ,args ...) `(impl ,@(map (λ (arg) (expr->prog arg (impl-info impl 'itype))) args))]))
+
 (define (*fp-safe-simplify-rules*)
   (reap [sow]
         (for ([impl (in-list (platform-impls (*active-platform*)))])
           (define rules (impl-info impl 'identities))
-          (for ([name (in-hash-keys rules)])
-            (match-define (list input output vars) (hash-ref rules name))
-            (define itype (car (impl-info impl 'itype)))
-            (define r
-              (rule name
-                    input
-                    output
-                    (for/hash ([v (in-list vars)])
-                      (values v itype))
-                    (impl-info impl 'otype)))
-            (sow r)))))
+          (for ([identity (in-list rules)])
+            (match identity
+              [(list 'exact name expr)
+               (when (not (expr-otype expr))
+                 (error "Exact identity expr cannot infer type"))
+               (define otype (expr-otype expr))
+               (define var-types (type-verify expr otype))
+               (define prog (expr->prog expr otype))
+               (define r
+                 (rule name
+                       prog
+                       (prog->spec prog)
+                       (for/hash ([binding (in-list var-types)])
+                         (values (car binding) (cdr binding)))
+                       (impl-info impl 'otype)))
+               (sow r)]
+              [(list 'commutes name expr rev-expr)
+               (define vars (impl-info impl 'vars))
+               (define itype (car (impl-info impl 'itype)))
+               (define r
+                 (rule name
+                       (expr->prog expr)
+                       (expr->prog rev-expr)
+                       (for/hash ([v (in-list vars)])
+                         (values v itype))
+                       (impl-info impl 'otype))) ; Commutes by definition the types are matching
+               (sow r)]
+              [(list 'directed name lhs rhs)
+               (define lotype (expr-otype lhs))
+               (define rotype (expr-otype rhs))
+               (define var-types (merge-bindings (type-verify lhs lotype) (type-verify rhs rotype)))
+               (define r
+                 (rule name
+                       (expr->prog lhs)
+                       (expr->prog rhs)
+                       (for/hash ([binding (in-list var-types)])
+                         (values (car binding) (cdr binding)))
+                       (impl-info impl 'otype)))
+               (sow r)])))))

@@ -389,52 +389,57 @@
                          name)]))
 
   ; make hash table
-  (define rules (make-hasheq))
-  (define count 0)
+  (define rules '())
+  (define rule-names (make-hasheq))
   (define commutes? #f)
   (when identities
-    (for ([ident (in-list identities)])
-      (match ident
-        [(list ident-name lhs-expr rhs-expr)
-         (cond
-           [(hash-has-key? rules ident-name)
-            (raise-herbie-syntax-error "Duplicate identity ~a" ident-name)]
-           [else
-            (hash-set! rules
-                       (string->symbol (format "~a-~a" (symbol->string ident-name) name))
-                       (list lhs-expr
-                             rhs-expr
-                             (remove-duplicates (append (free-variables lhs-expr)
-                                                        (free-variables rhs-expr)))))])]
-        [(list 'exact expr)
-         (hash-set! rules
-                    (gensym (string->symbol (format "~a-exact-~a" name count)))
-                    (list expr expr (free-variables expr)))
-         (set! count (+ count 1))]
-        [(list 'commutes)
-         (cond
-           [commutes? (raise-herbie-syntax-error "Commutes identity already defined")]
-           [(hash-has-key? rules (string->symbol (format "~a-commutes" name)))
-            (raise-herbie-syntax-error "Commutes identity already manually defined")]
-           [(not (equal? (length vars) 2))
-            (raise-herbie-syntax-error "Cannot commute a non 2-ary operator")]
-           [else
-            (set! commutes? #t)
-            (hash-set! rules
-                       (string->symbol (format "~a-commutes" name))
-                       (list `(,name ,@vars) `(,name ,@(reverse vars)) vars))])])))
+    (set! rules
+          (for/list ([ident (in-list identities)]
+                     [i (in-naturals)])
+            (match ident
+              [(list ident-name lhs-expr rhs-expr)
+               (cond
+                 [(hash-has-key? rule-names ident-name)
+                  (raise-herbie-syntax-error "Duplicate identity ~a" ident-name)]
+                 [(not (well-formed? lhs-expr))
+                  (raise-herbie-syntax-error "Ill-formed identity expression ~a" lhs-expr)]
+                 [(not (well-formed? rhs-expr))
+                  (raise-herbie-syntax-error "Ill-formed identity expression ~a" rhs-expr)]
+                 [else
+                  (define rule-name (string->symbol (format "~a-~a" ident-name name)))
+                  (hash-set! rule-names rule-name #f)
+                  (list 'directed rule-name lhs-expr rhs-expr)])]
+              [(list 'exact expr)
+               (cond
+                 [(not (well-formed? expr))
+                  (raise-herbie-syntax-error "Ill-formed identity expression ~a" expr)]
+                 [else
+                  (define rule-name (gensym (string->symbol (format "~a-exact-~a" name i))))
+                  (hash-set! rule-names rule-name #f)
+                  (list 'exact rule-name expr)])]
+              [(list 'commutes)
+               (cond
+                 [commutes? (error "Commutes identity already defined")]
+                 [(hash-has-key? rule-names (string->symbol (format "~a-commutes" name)))
+                  (error "Commutes identity already manually defined")]
+                 [(not (equal? (length vars) 2))
+                  (raise-herbie-syntax-error "Cannot commute a non 2-ary operator")]
+                 [else
+                  (set! commutes? #t)
+                  (define rule-name (string->symbol (format "~a-commutes" name)))
+                  (hash-set! rule-names rule-name #f)
+                  (list 'commutes rule-name `(,name ,@vars) `(,name ,@(reverse vars)))])]))))
 
   ; update tables
   (define impl (operator-impl name ctx spec fpcore* fl-proc* rules))
   (hash-set! operator-impls name impl))
 
-(define (free-variables prog)
-  (match prog
-    [(? literal?) '()]
-    [(? number?) '()]
-    [(? variable?) (list prog)]
-    [(approx _ impl) (free-variables impl)]
-    [(list _ args ...) (remove-duplicates (append-map free-variables args))]))
+(define (well-formed? expr)
+  (match expr
+    [(? number?) #t]
+    [(? variable?) #t]
+    [`(,impl ,args ...) (andmap well-formed? args)]
+    [_ #f]))
 
 (define-syntax (define-operator-impl stx)
   (define (oops! why [sub-stx #f])
