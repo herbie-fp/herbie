@@ -64,9 +64,11 @@
             (define prev (car (alt-prevs altn)))
             (for ([expr (in-list simplified)])
               (define spec (prog->spec (batchref->expr (alt-expr prev))))
-              (match-define (batchref b idx) expr)
-              (define idx* (batch-push! global-batch-mutable (approx spec idx)))
-              (sow (alt (batchref global-batch idx*) `(simplify ,runner #f #f) (list altn) '()))))))
+              (define idx
+                (batch-push! global-batch-mutable
+                             (approx (mutable-batch-munge! global-batch-mutable spec)
+                                     (batchref-idx expr))))
+              (sow (alt (batchref global-batch idx) `(simplify ,runner #f #f) (list altn) '()))))))
 
   ; Commit changes to global-batch
   (set-batch-nodes! global-batch (list->vector (reverse (mutable-batch-nodes global-batch-mutable))))
@@ -113,7 +115,7 @@
               (for ([i (in-range (*taylor-order-limit*))])
                 (define gen (genexpr))
                 (unless (spec-has-nan? gen)
-                  (define idx (mutable-batch-add-expr! global-batch-mutable gen))
+                  (define idx (mutable-batch-munge! global-batch-mutable gen))
                   ; we create a batchref that doesn't exist yet in global-batch, we update it later
                   (sow (alt (batchref global-batch idx) `(taylor ,name ,var) (list altn) '())))))
             (timeline-stop!))))

@@ -221,11 +221,11 @@
 
 ;; Converts a patch to full alt with valid history
 (define (reconstruct! alts)
-
-  ;; extracts the base expression of a patch
+  (define reconstruct-batch (make-mutable-batch))
+  ;; extracts the base expressions of a patch as a batchref
   (define (get-starting-expr altn)
     (match* ((alt-event altn) (alt-prevs altn))
-      [((list 'patch expr _) _) expr]
+      [((list 'patch expr _) _) expr] ; here original Expr can be pulled as well
       [(_ (list prev)) (get-starting-expr prev)]
       [(_ _) (error 'get-starting-spec "unexpected: ~a" altn)]))
 

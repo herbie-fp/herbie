@@ -10,21 +10,23 @@
          (struct-out batchref) ; temporarily for patch.rkt
          (struct-out mutable-batch) ; temporarily for patch.rkt
          batch-length ; Batch -> Integer
-         batch-ref ; Batch -> Index -> Expr
+         batch-ref ; Batch -> Idx -> Expr
          deref ; Batchref -> Expr
          batch-replace ; Batch -> (Expr<Batchref> -> Expr<Batchref>) -> Batch
          egg-nodes->batch ; Nodes -> Spec-maps -> Batch -> (Listof Batchref)
          batchref->expr ; Batchref -> Expr
          batch-remove-zombie ; Batch -> *(Vectorof Root) -> Batch
-         mutable-batch-add-expr! ; Mutable-batch -> Root
+         mutable-batch-munge! ; Mutable-batch -> Root
          mutable-batch->batch ; Mutable-batch -> Batch
+         make-mutable-batch ; Mutable-batch
+         mutable-batch-devour-batchref! ; Mutable-batch -> Batchref -> Idx
          batch->mutable-batch ; Batch -> Mutable-batch
-         batch-push!) ; Mutable-batch -> Expr -> Index
+         batch-push!) ; Mutable-batch -> Expr -> Idx
 
 ;; This function defines the recursive structure of expressions
 (define (expr-recurse expr f)
   (match expr
-    [(approx spec impl) (approx spec (f impl))]
+    [(approx spec impl) (approx (f spec) (f impl))]
     [(list op args ...) (cons op (map f args))]
     [_ expr]))
 
@@ -89,10 +91,17 @@
     (timeline-push! 'compiler size (batch-length final)))
   final)
 
-(define (mutable-batch-add-expr! b expr)
+(define (mutable-batch-munge! b expr)
   (define (munge prog)
     (batch-push! b (expr-recurse prog munge)))
   (munge expr))
+
+(define (mutable-batch-devour-batchref! b ref)
+  (match-define (batchref b* idx) ref)
+  (define nodes* (batch-nodes b*))
+  (define (munge idx)
+    (batch-push! b (expr-recurse (vector-ref nodes* idx) munge)))
+  (munge idx))
 
 (define (batch->progs b [roots (batch-roots b)])
   (define exprs (make-vector (batch-length b)))
@@ -125,7 +134,8 @@
 ; The function removes any zombie nodes from batch with respect to the roots
 ; Time complexity: O(|R| + |N|), where |R| - number of roots, |N| - length of nodes
 ; Space complexity: O(|N| + |N*| + |R|), where |N*| is a length of nodes without zombie nodes
-(define (batch-remove-zombie input-batch [roots (batch-roots input-batch)])
+; The flag keep-vars is used in compiler.rkt when vars should be preserved no matter what
+(define (batch-remove-zombie input-batch [roots (batch-roots input-batch)] #:keep-vars [keep-vars #f])
   (define nodes (batch-nodes input-batch))
   (define nodes-length (batch-length input-batch))
 
@@ -142,6 +152,10 @@
     (vector-ref mappings idx))
 
   (define out (make-mutable-batch))
+  (when keep-vars
+    (for ([var (in-list (batch-vars input-batch))])
+      (batch-push! out var)))
+
   (for ([node (in-vector nodes)]
         [zmb (in-vector zombie-mask)]
         [n (in-naturals)]
@@ -155,7 +169,7 @@
   (define (unmunge reg)
     (define node (vector-ref (batch-nodes batch) reg))
     (match node
-      [(approx spec impl) (approx spec (unmunge impl))]
+      [(approx spec impl) (approx (unmunge spec) (unmunge impl))]
       [(list op regs ...) (cons op (map unmunge regs))]
       [_ node]))
   (unmunge reg))
@@ -167,7 +181,6 @@
 
 (define (egg-nodes->batch egg-nodes id->spec input-batch rename-dict)
   (define out (batch->mutable-batch input-batch))
-
   ; This fuction here is only because of cycles in loads:( Can not be imported from egg-herbie.rkt
   (define (egg-parsed->expr expr rename-dict type)
     (let loop ([expr expr]
@@ -202,7 +215,8 @@
            (error 'regraph-extract-variants "no initial approx node in eclass"))
          (define spec-type (if (representation? type) (representation-type type) type))
          (define final-spec (egg-parsed->expr spec* rename-dict spec-type))
-         (approx final-spec (add-enode (eggref impl) type))]
+         (define final-spec-idx (mutable-batch-munge! out final-spec))
+         (approx final-spec-idx (add-enode (eggref impl) type))]
         [(list 'if cond ift iff)
          (if (representation? type)
              (list 'if
@@ -272,12 +286,14 @@
                              #:roots (vector 5)))
   (check-equal? (vector 0 1/2 '(+ 0 1))
                 (zombie-test #:nodes (vector 0 1/2 '(+ 0 1) '(* 2 0)) #:roots (vector 2)))
-  (check-equal? (vector 0 (approx '(exp 2) 0))
-                (zombie-test #:nodes (vector 0 1/2 '(+ 0 1) '(* 2 0) (approx '(exp 2) 0))
-                             #:roots (vector 4)))
-  (check-equal? (vector 2 1/2 (approx '(* x x) 0) '(pow 1 2))
-                (zombie-test #:nodes (vector 2 1/2 '(sqrt 0) '(cbrt 0) (approx '(* x x) 0) '(pow 1 4))
+  (check-equal? (vector 0 1/2 '(exp 1) (approx 2 0))
+                (zombie-test #:nodes (vector 0 1/2 '(+ 0 1) '(* 2 0) '(exp 1) (approx 4 0))
                              #:roots (vector 5)))
-  (check-equal? (vector 2 1/2 '(sqrt 0) (approx '(* x x) 0) '(pow 1 3))
-                (zombie-test #:nodes (vector 2 1/2 '(sqrt 0) '(cbrt 0) (approx '(* x x) 0) '(pow 1 4))
-                             #:roots (vector 5 2))))
+  (check-equal? (vector 'x 2 1/2 '(* 0 0) (approx 3 1) '(pow 2 4))
+                (zombie-test #:nodes
+                             (vector 'x 2 1/2 '(sqrt 1) '(cbrt 1) '(* 0 0) (approx 5 1) '(pow 2 6))
+                             #:roots (vector 7)))
+  (check-equal? (vector 'x 2 1/2 '(sqrt 1) '(* 0 0) (approx 4 1) '(pow 2 5))
+                (zombie-test #:nodes
+                             (vector 'x 2 1/2 '(sqrt 1) '(cbrt 1) '(* 0 0) (approx 5 1) '(pow 2 6))
+                             #:roots (vector 7 3))))

@@ -124,18 +124,9 @@
       [(? symbol? x) (egraph_add_node ptr (symbol->string x) 0-vec root?)]
       [(? number? n) (egraph_add_node ptr (number->string n) 0-vec root?)]))
 
-  ; The function recurses on spec
-  (define (batch-parse-approx batch)
-    (batch-replace batch
-                   (lambda (node)
-                     (match node
-                       [(approx spec impl) (list '$approx spec impl)]
-                       [_ node]))))
-
   (set-batch-roots! batch roots) ; make sure that we work with the right roots
   ; the algorithm may crash if batch-length is zero
-  (define insert-batch
-    (if (zero? (batch-length batch)) batch (batch-remove-zombie (batch-parse-approx batch))))
+  (define insert-batch (if (zero? (batch-length batch)) batch (batch-remove-zombie batch)))
 
   (define mappings (build-vector (batch-length insert-batch) values))
   (define (remap x)
@@ -153,7 +144,7 @@
         [(literal v _) v]
         [(? number?) node]
         [(? symbol?) (normalize-var node)]
-        [(list '$approx spec impl)
+        [(approx spec impl)
          (hash-ref! id->spec
                     (remap spec)
                     (lambda ()
