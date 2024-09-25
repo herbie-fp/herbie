@@ -71,7 +71,7 @@
               (sow (alt (batchref global-batch idx) `(simplify ,runner #f #f) (list altn) '()))))))
 
   ; Commit changes to global-batch
-  (set-batch-nodes! global-batch (list->vector (reverse (mutable-batch-nodes global-batch-mutable))))
+  (batch-copy-mutable-nodes! global-batch global-batch-mutable)
   ; End of global-batch modification
   ; ---------------------------------
 
@@ -121,7 +121,7 @@
             (timeline-stop!))))
 
   ; Commit changes to global-batch
-  (set-batch-nodes! global-batch (list->vector (reverse (mutable-batch-nodes global-batch-mutable))))
+  (batch-copy-mutable-nodes! global-batch global-batch-mutable)
   ; End of global-batch modification
   ; ----------------------------------
 

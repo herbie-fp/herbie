@@ -3,7 +3,7 @@
 (require "../syntax/syntax.rkt"
          "../syntax/types.rkt"
          "../utils/common.rkt"
-         (only-in "batch.rkt" batch-nodes))
+         "batch.rkt")
 
 (provide expr?
          expr-contains?
@@ -15,6 +15,7 @@
          repr-of
          repr-of-node
          location-do
+         location-do-batch
          location-get
          free-variables
          replace-expression
@@ -178,6 +179,28 @@
            [(null? elts) (invalid! prog loc)]
            [else (cons (car elts) (seek (cdr elts) (sub1 idx)))]))]
       [(_ _) (invalid! prog loc)])))
+
+(define/contract (location-do-batch loc mbatch prog replace-batchref)
+  (-> location? mutable-batch? expr? batchref? number?)
+  (define (invalid! where loc)
+    (error 'location-do "invalid location `~a` for `~a` in `~a`" loc where prog))
+
+  (define (rewrite prog loc)
+    (match* (prog loc)
+      [(_ (? null?)) (mutable-batch-devour-batchref! mbatch replace-batchref)]
+      [((or (? literal?) (? number?) (? symbol?)) _) (invalid! prog loc)]
+      [((approx spec impl) (cons idx rest))
+       (case idx
+         [(2) (batch-push! mbatch (approx (mutable-batch-munge! mbatch spec) (rewrite impl rest)))]
+         [else (invalid! prog loc)])]
+      [((list op args ...) (cons idx rest))
+       (define args*
+         (for/list ([arg (in-list args)]
+                    [n (in-naturals 1)])
+           (if (equal? n idx) (rewrite arg rest) (mutable-batch-munge! mbatch arg))))
+       (batch-push! mbatch (cons op args*))]
+      [(_ _) (invalid! prog loc)]))
+  (rewrite prog loc))
 
 (define/contract (location-get loc prog)
   (-> location? expr? expr?)
