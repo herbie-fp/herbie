@@ -236,10 +236,7 @@
     (let loop ([altn altn])
       (match-define (alt _ event prevs _) altn)
       (match event
-        [(list 'patch _ _)
-         (match-define (alt expr event prevs preprocessing) orig)
-         (define expr-idx (mutable-batch-munge! reconstruct-batch-mutable expr))
-         (alt (batchref reconstruct-batch expr-idx) event prevs preprocessing)]
+        [(list 'patch _ _) orig]
         [_
          (define event*
            (match event
@@ -262,11 +259,10 @@
   (batch-copy-mutable-nodes! reconstruct-batch reconstruct-batch-mutable)
 
   (define (rebuild-alts x)
-    (match (batchref? (alt-expr x))
-      [#t
-       (match-define (alt expr event prevs preprocessing) x)
-       (alt (batchref->expr expr) event (map rebuild-alts prevs) preprocessing)]
-      [#f x]))
+    (match-define (alt expr event prevs preprocessing) x)
+    (match (batchref? expr)
+      [#t (alt (batchref->expr expr) event (map rebuild-alts prevs) preprocessing)]
+      [#f (alt expr event (map rebuild-alts prevs) preprocessing)]))
   (set! batchified-out (map rebuild-alts batchified-out))
 
   ;; takes a patch and converts it to a full alt
