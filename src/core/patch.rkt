@@ -40,7 +40,8 @@
         `((,lowering-rules . ((iteration . 1) (scheduler . simple))))))
 
   ; run egg
-  (define runner (make-egg-runner (map alt-expr approxs) reprs schedule))
+  (define batch (progs->batch (map alt-expr approxs)))
+  (define runner (make-egg-runner batch (batch-roots batch) reprs schedule))
   (define simplification-options
     (simplify-batch runner
                     (typed-egg-extractor
@@ -89,7 +90,7 @@
                 [altn (in-list altns)]
                 [fv (in-list free-vars)]
                 #:when (member var fv)) ; check whether var exists in expr at all
-            (for ([_ (in-range (*taylor-order-limit*))])
+            (for ([i (in-range (*taylor-order-limit*))])
               (define gen (genexpr))
               (unless (spec-has-nan? gen)
                 (sow (alt gen `(taylor ,name ,var) (list altn) '())))))
@@ -133,7 +134,8 @@
   (define exprs (map alt-expr altns))
   (define reprs (map (curryr repr-of (*context*)) exprs))
   (timeline-push! 'inputs (map ~a exprs))
-  (define runner (make-egg-runner exprs reprs schedule #:context (*context*)))
+  (define batch (progs->batch exprs))
+  (define runner (make-egg-runner batch (batch-roots batch) reprs schedule #:context (*context*)))
   ; batchrefss is a (listof (listof batchref))
   (define batchrefss (run-egg runner `(multi . ,extractor)))
 

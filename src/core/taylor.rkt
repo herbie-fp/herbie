@@ -13,6 +13,8 @@
   (define exprs*
     (for/list ([expr (in-list exprs)])
       (simplify (replace-expression expr var ((car tform) var)))))
+
+  ; maybe we want to remove zombie nodes after (not a big problem currently)
   (define batch (expand-taylor (progs->batch exprs*)))
 
   (define taylor-approxs (taylor var batch))

@@ -13,7 +13,9 @@
          deref ; Batchref -> Expr
          batch-replace ; Batch -> (Expr<Batchref> -> Expr<Batchref>) -> Batch
          egg-nodes->batch ; Nodes -> Spec-maps -> Batch -> (Listof Batchref)
-         batchref->expr) ; Batchref -> Expr
+         batchref->expr ; Batchref -> Expr
+         batch-extract-exprs ; Batch -> (Listof Root) -> (Listof Expr)
+         remove-zombie-nodes) ; Batch -> Batch
 
 ;; This function defines the recursive structure of expressions
 (define (expr-recurse expr f)
@@ -83,6 +85,14 @@
     (timeline-push! 'compiler size (batch-length final)))
   final)
 
+(define (batch-extract-exprs b roots)
+  (define exprs (make-vector (batch-length b)))
+  (for ([node (in-vector (batch-nodes b))]
+        [idx (in-naturals)])
+    (vector-set! exprs idx (expr-recurse node (lambda (x) (vector-ref exprs x)))))
+  (for/list ([root roots])
+    (vector-ref exprs root)))
+
 (define (batch->progs b)
   (define exprs (make-vector (batch-length b)))
   (for ([node (in-vector (batch-nodes b))]
@@ -111,7 +121,9 @@
   (define roots (vector-map (curry vector-ref mapping) (batch-roots b)))
   (mutable-batch->batch out roots))
 
-; The function removes any zombie nodes from batch
+; The function removes any zombie nodes from batch with respect to the roots
+; Time complexity: O(|R| + |N|), where |R| - number of roots, |N| - length of nodes
+; Space complexity: O(|N| + |N*| + |R|), where |N*| is a length of nodes without zombie nodes
 (define (remove-zombie-nodes input-batch)
   (define nodes (batch-nodes input-batch))
   (define roots (batch-roots input-batch))
@@ -123,29 +135,21 @@
   (for ([node (in-vector nodes (- nodes-length 1) -1 -1)]
         [zmb (in-vector zombie-mask (- nodes-length 1) -1 -1)]
         #:when (not zmb))
-    (match node
-      [(list op args ...) (map (λ (n) (vector-set! zombie-mask n #f)) args)]
-      [(approx spec impl) (vector-set! zombie-mask impl #f)]
-      [_ void]))
+    (expr-recurse node (λ (n) (vector-set! zombie-mask n #f))))
 
-  (define mappings (build-vector nodes-length values))
+  (define mappings (make-vector nodes-length -1))
+  (define (remap idx)
+    (vector-ref mappings idx))
 
-  (define nodes* '())
+  (define out (make-mutable-batch))
   (for ([node (in-vector nodes)]
         [zmb (in-vector zombie-mask)]
-        [n (in-naturals)])
-    (if zmb
-        (for ([i (in-range n nodes-length)])
-          (vector-set! mappings i (sub1 (vector-ref mappings i))))
-        (set! nodes*
-              (cons (match node
-                      [(list op args ...) (cons op (map (curry vector-ref mappings) args))]
-                      [(approx spec impl) (approx spec (vector-ref mappings impl))]
-                      [_ node])
-                    nodes*))))
-  (set! nodes* (list->vector (reverse nodes*)))
+        [n (in-naturals)]
+        #:unless zmb)
+    (vector-set! mappings n (batch-push! out (expr-recurse node remap))))
+
   (define roots* (vector-map (curry vector-ref mappings) roots))
-  (batch nodes* roots* (batch-vars input-batch)))
+  (mutable-batch->batch out roots*))
 
 (define (batch-ref batch reg)
   (define (unmunge reg)
@@ -249,6 +253,7 @@
   (define (zombie-test #:nodes nodes #:roots roots)
     (define in-batch (batch nodes roots '()))
     (define out-batch (remove-zombie-nodes in-batch))
+    (check-equal? (batch->progs out-batch) (batch->progs in-batch))
     (batch-nodes out-batch))
 
   (check-equal? (vector 0 '(sqrt 0) 2 '(pow 2 1))
