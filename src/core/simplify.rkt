@@ -58,7 +58,7 @@
                        (map (lambda (_) 'real) args)
                        `((,(*simplify-rules*) . ((node . ,(*node-limit*)))))))
     (define extractor (typed-egg-batch-extractor default-egg-cost-proc batch))
-    (map (compose batchref->expr last) (simplify-batch runner extractor)))
+    (map (compose debatchref last) (simplify-batch runner extractor)))
 
   (define test-exprs
     '((1 . 1) (0 . 0)

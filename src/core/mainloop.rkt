@@ -241,7 +241,7 @@
              [(list 'taylor name var) (list 'taylor loc0 name var)]
              [(list 'rr input proof soundiness) (list 'rr loc0 input proof soundiness)]
              [(list 'simplify input proof soundiness) (list 'simplify loc0 input proof soundiness)]))
-         (define expr* (location-do loc0 (alt-expr orig) (const (batchref->expr (alt-expr altn)))))
+         (define expr* (location-do loc0 (alt-expr orig) (const (debatchref (alt-expr altn)))))
          (alt expr* event* (list (loop (first prevs))) (alt-preprocessing orig))])))
 
   (^patched^ (reap [sow]
@@ -378,7 +378,7 @@
 
      ; run egg
      (define simplified
-       (map batchref->expr
+       (map debatchref
             (map last
                  (simplify-batch runner
                                  (typed-egg-batch-extractor (if (*egraph-platform-cost*)

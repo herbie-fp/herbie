@@ -5,23 +5,24 @@
          "../syntax/types.rkt")
 
 (provide progs->batch ; (Listof Expr) -> Batch
-         batch->progs ; Batch -> *(or (Listof Root) (Vectorof Root)) -> (Listof Expr)
+         batch->progs ; Batch -> ?(or (Listof Root) (Vectorof Root)) -> (Listof Expr)
          (struct-out batch)
          (struct-out batchref) ; temporarily for patch.rkt
          (struct-out mutable-batch) ; temporarily for patch.rkt
+         expr-recurse ; Expr -> (Expr -> ?) -> Expr
          batch-length ; Batch -> Integer
          batch-ref ; Batch -> Idx -> Expr
          deref ; Batchref -> Expr
          batch-replace ; Batch -> (Expr<Batchref> -> Expr<Batchref>) -> Batch
          egg-nodes->batch ; Nodes -> Spec-maps -> Batch -> (Listof Batchref)
-         batchref->expr ; Batchref -> Expr
-         batch-remove-zombie ; Batch -> *(Vectorof Root) -> Batch
-         mutable-batch-munge! ; Mutable-batch -> Root
+         debatchref ; Batchref -> Expr
+         batch-remove-zombie ; Batch -> ?(Vectorof Root) -> Batch
+         mutable-batch-munge! ; Mutable-batch -> Expr -> Root
          mutable-batch->batch ; Mutable-batch -> Batch
          make-mutable-batch ; Mutable-batch
-         mutable-batch-devour-batchref! ; Mutable-batch -> Batchref -> Idx
          batch->mutable-batch ; Batch -> Mutable-batch
-         batch-push!) ; Mutable-batch -> Expr -> Idx
+         batch-copy-mutable-nodes! ; Batch -> Mutable-batch -> Void
+         batch-push!) ; Mutable-batch -> Node -> Idx
 
 ;; This function defines the recursive structure of expressions
 (define (expr-recurse expr f)
@@ -64,13 +65,16 @@
                  (batch-restore-index b)
                  (reverse (batch-vars b))))
 
+(define (batch-copy-mutable-nodes! b mb)
+  (set-batch-nodes! b (list->vector (reverse (mutable-batch-nodes mb)))))
+
 (struct batchref (batch idx))
 
 (define (deref x)
   (match-define (batchref b idx) x)
   (expr-recurse (vector-ref (batch-nodes b) idx) (lambda (ref) (batchref b ref))))
 
-(define (batchref->expr x)
+(define (debatchref x)
   (match-define (batchref b idx) x)
   (batch-ref b idx))
 
@@ -95,13 +99,6 @@
   (define (munge prog)
     (batch-push! b (expr-recurse prog munge)))
   (munge expr))
-
-(define (mutable-batch-devour-batchref! b ref)
-  (match-define (batchref b* idx) ref)
-  (define nodes* (batch-nodes b*))
-  (define (munge idx)
-    (batch-push! b (expr-recurse (vector-ref nodes* idx) munge)))
-  (munge idx))
 
 (define (batch->progs b [roots (batch-roots b)])
   (define exprs (make-vector (batch-length b)))

@@ -24,7 +24,7 @@
   (define reprs
     (for/list ([approx (in-list approxs)])
       (define prev (car (alt-prevs approx)))
-      (repr-of (batchref->expr (alt-expr prev)) (*context*))))
+      (repr-of (debatchref (alt-expr prev)) (*context*))))
 
   ; generate real rules
   (define rules (real-rules (*simplify-rules*)))
@@ -63,7 +63,7 @@
             (match-define (cons _ simplified) outputs)
             (define prev (car (alt-prevs altn)))
             (for ([expr (in-list simplified)])
-              (define spec (prog->spec (batchref->expr (alt-expr prev))))
+              (define spec (prog->spec (debatchref (alt-expr prev))))
               (define idx
                 (batch-push! global-batch-mutable
                              (approx (mutable-batch-munge! global-batch-mutable spec)
@@ -71,7 +71,7 @@
               (sow (alt (batchref global-batch idx) `(simplify ,runner #f #f) (list altn) '()))))))
 
   ; Commit changes to global-batch
-  (set-batch-nodes! global-batch (list->vector (reverse (mutable-batch-nodes global-batch-mutable))))
+  (batch-copy-mutable-nodes! global-batch global-batch-mutable)
   ; End of global-batch modification
   ; ---------------------------------
 
@@ -93,7 +93,7 @@
 (define (taylor-alts altns global-batch)
   (define exprs
     (for/list ([altn (in-list altns)])
-      (prog->spec (batchref->expr (alt-expr altn)))))
+      (prog->spec (debatchref (alt-expr altn)))))
   (define free-vars (map free-variables exprs))
   (define vars (list->set (append* free-vars)))
 
@@ -121,7 +121,7 @@
             (timeline-stop!))))
 
   ; Commit changes to global-batch
-  (set-batch-nodes! global-batch (list->vector (reverse (mutable-batch-nodes global-batch-mutable))))
+  (batch-copy-mutable-nodes! global-batch global-batch-mutable)
   ; End of global-batch modification
   ; ----------------------------------
   approxs)
@@ -161,7 +161,7 @@
       (,lowering-rules . ((iteration . 1) (scheduler . simple)))))
 
   ; run egg
-  (define exprs (map (compose batchref->expr alt-expr) altns))
+  (define exprs (map (compose debatchref alt-expr) altns))
   (define roots (list->vector (map (compose batchref-idx alt-expr) altns)))
   (define reprs (map (curryr repr-of (*context*)) exprs))
   (timeline-push! 'inputs (map ~a exprs))

@@ -49,7 +49,7 @@
 
   ; run egg
   (define simplified
-    (map batchref->expr
+    (map debatchref
          (map last
               (simplify-batch runner
                               (typed-egg-batch-extractor (if (*egraph-platform-cost*)
