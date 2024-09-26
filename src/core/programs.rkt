@@ -41,7 +41,8 @@
   (match node
     [(? literal?) (get-representation (literal-precision node))]
     [(? variable?) (context-lookup ctx node)]
-    [(approx _ impl) (repr-of-node batch impl ctx)]
+    [(list '$approx _ impl)
+     (repr-of-node batch impl ctx)] ; this is ugly, but egraph-add-exprs relies on this match
     [(list 'if cond ift iff) (repr-of-node batch ift ctx)]
     [(list op args ...) (impl-info op 'otype)]))
 
