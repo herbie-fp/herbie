@@ -206,36 +206,30 @@
             [(? number?) (if (representation? type) (literal enode (representation-name type)) enode)]
             [(? symbol?)
              (if (hash-has-key? rename-dict enode) (car (hash-ref rename-dict enode)) enode)]
-            [(list '$approx spec impl)
+            [(list '$approx spec (app eggref impl))
              (define spec* (vector-ref id->spec spec))
              (unless spec*
                (error 'regraph-extract-variants "no initial approx node in eclass"))
              (define spec-type (if (representation? type) (representation-type type) type))
              (define final-spec (egg-parsed->expr spec* rename-dict spec-type))
              (define final-spec-idx (mutable-batch-munge! out final-spec))
-             (approx final-spec-idx (loop (eggref impl) type))]
-            [(list 'if cond ift iff)
+             (approx final-spec-idx (loop impl type))]
+            [(list 'if (app eggref cond) (app eggref ift) (app eggref iff))
              (if (representation? type)
-                 (list 'if
-                       (loop (eggref cond) (get-representation 'bool))
-                       (loop (eggref ift) type)
-                       (loop (eggref iff) type))
-                 (list 'if
-                       (loop (eggref cond) 'bool)
-                       (loop (eggref ift) type)
-                       (loop (eggref iff) type)))]
-            [(list (? impl-exists? impl) ids ...)
-             (define args
-               (for/list ([id (in-list ids)]
+                 (list 'if (loop cond (get-representation 'bool)) (loop ift type) (loop iff type))
+                 (list 'if (loop cond 'bool) (loop ift type) (loop iff type)))]
+            [(list (? impl-exists? impl) (app eggref args) ...)
+             (define args*
+               (for/list ([arg (in-list args)]
                           [type (in-list (impl-info impl 'itype))])
-                 (loop (eggref id) type)))
-             (cons impl args)]
-            [(list (? operator-exists? op) ids ...)
-             (define args
-               (for/list ([id (in-list ids)]
+                 (loop arg type)))
+             (cons impl args*)]
+            [(list (? operator-exists? op) (app eggref args) ...)
+             (define args*
+               (for/list ([arg (in-list args)]
                           [type (in-list (operator-info op 'itype))])
-                 (loop (eggref id) type)))
-             (cons op args)]))
+                 (loop arg type)))
+             (cons op args*)]))
         (batch-push! out enode*)))
     (batchref input-batch idx))
 
