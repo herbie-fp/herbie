@@ -28,7 +28,7 @@ jobs:
       - name: "Install Racket"
         uses: Bogdanp/setup-racket@v1.11
         with:
-            version: 8.12
+            version: "8.14"
             architecture: ${{ matrix.arch }}
       # WARN: need to be careful with cargo paths
       - name: Cache Racket dependencies
