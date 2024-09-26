@@ -7,7 +7,8 @@
                   u32vector-set!
                   u32vector-ref
                   list->u32vector
-                  u32vector->list))
+                  u32vector->list)
+         json) ; for dumping
 
 (require "programs.rkt"
          "rules.rkt"
@@ -879,6 +880,36 @@
   ; construct the `regraph` instance
   (regraph eclasses types leaf? constants specs parents canon egg->herbie))
 
+(define (regraph-nodes->json regraph)
+  (define cost (platform-node-cost-proc (*active-platform*)))
+  (for/hash ([n (in-naturals)]
+             [eclass (in-vector (regraph-eclasses regraph))]
+             #:when true
+             [k (in-naturals)]
+             [enode eclass])
+    (define type (vector-ref (regraph-types regraph) n))
+    (define cost
+      (if (representation? type)
+          (match enode
+            [(? number?) (platform-repr-cost (*active-platform*) type)]
+            [(? symbol?) (platform-repr-cost (*active-platform*) type)]
+            [(list '$approx x y) 0]
+            [(list 'if c x y)
+             (match (platform-impl-cost (*active-platform*) 'if)
+               [`(max ,n) n] ; Not quite right
+               [`(sum ,n) n])]
+            [(list op args ...) (platform-impl-cost (*active-platform*) op)])
+          1))
+    (values (string->symbol (format "~a.~a" n k))
+            (hash 'op
+                  (~a (if (list? enode) (car enode) enode))
+                  'children
+                  (if (list? enode) (map ~a (cdr enode)) '())
+                  'eclass
+                  (~a n)
+                  'cost
+                  cost))))
+
 ;; Egraph node has children.
 ;; Nullary operators have no children!
 (define (node-has-children? node)
@@ -1322,6 +1353,26 @@
   ; make the runner
   (egg-runner batch roots reprs schedule ctx))
 
+(define (regraph-dump regraph root-ids reprs)
+  (define dump-dir "dump-egg")
+  (unless (directory-exists? dump-dir)
+    (make-directory dump-dir))
+  (define name
+    (for/first ([i (in-naturals)]
+                #:unless (file-exists? (build-path dump-dir (format "~a.json" i))))
+      (build-path dump-dir (format "~a.json" i))))
+  (define nodes (regraph-nodes->json regraph))
+  (define canon (regraph-canon regraph))
+  (define roots
+    (filter values
+            (for/list ([id (in-list root-ids)]
+                       [type (in-list reprs)])
+              (hash-ref canon (cons id type) #f))))
+  (call-with-output-file
+   name
+   #:exists 'replace
+   (lambda (p) (write-json (hash 'nodes nodes 'root_eclasses (map ~a roots) 'class_data (hash)) p))))
+
 ;; Runs egg using an egg runner.
 ;;
 ;; Argument `cmd` specifies what to get from the e-graph:
@@ -1342,6 +1393,8 @@
      (define regraph (make-regraph egg-graph))
      (define extract-id (extractor regraph))
      (define reprs (egg-runner-reprs runner))
+     (when (flag-set? 'dump 'egg)
+       (regraph-dump regraph root-ids reprs))
      (for/list ([id (in-list root-ids)]
                 [repr (in-list reprs)])
        (regraph-extract-best regraph extract-id id repr))]
@@ -1349,6 +1402,8 @@
      (define regraph (make-regraph egg-graph))
      (define extract-id (extractor regraph))
      (define reprs (egg-runner-reprs runner))
+     (when (flag-set? 'dump 'egg)
+       (regraph-dump regraph root-ids reprs))
 
      ; List of roots inside the batch
      (for/list ([id (in-list root-ids)]
