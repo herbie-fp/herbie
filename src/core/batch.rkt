@@ -9,7 +9,6 @@
          (struct-out batch)
          (struct-out batchref) ; temporarily for patch.rkt
          (struct-out mutable-batch) ; temporarily for patch.rkt
-         expr-recurse ; Expr -> (Expr -> ?) -> Expr
          batch-length ; Batch -> Integer
          batch-ref ; Batch -> Idx -> Expr
          deref ; Batchref -> Expr
@@ -20,10 +19,8 @@
          mutable-batch-munge! ; Mutable-batch -> Root
          mutable-batch->batch ; Mutable-batch -> Batch
          make-mutable-batch ; Mutable-batch
-         make-batch ; Batch
          mutable-batch-devour-batchref! ; Mutable-batch -> Batchref -> Idx
          batch->mutable-batch ; Batch -> Mutable-batch
-         batch-copy-mutable-nodes! ; Batch -> Mutable-batch -> Void
          batch-push!) ; Mutable-batch -> Expr -> Idx
 
 ;; This function defines the recursive structure of expressions
@@ -47,9 +44,6 @@
 (define (make-mutable-batch)
   (mutable-batch '() (make-hash) '()))
 
-(define (make-batch)
-  (batch (vector) (vector) '()))
-
 (define (batch-push! b term)
   (define hashcons (mutable-batch-index b))
   (hash-ref! hashcons
@@ -69,9 +63,6 @@
   (mutable-batch (reverse (vector->list (batch-nodes b)))
                  (batch-restore-index b)
                  (reverse (batch-vars b))))
-
-(define (batch-copy-mutable-nodes! b mb)
-  (set-batch-nodes! b (list->vector (reverse (mutable-batch-nodes mb)))))
 
 (struct batchref (batch idx))
 

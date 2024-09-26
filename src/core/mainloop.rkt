@@ -221,52 +221,15 @@
 
 ;; Converts a patch to full alt with valid history
 (define (reconstruct! alts)
-  (define reconstruct-batch (make-batch))
-  (define reconstruct-batch-mutable (make-mutable-batch))
-
+  (define reconstruct-batch (make-mutable-batch))
   ;; extracts the base expressions of a patch as a batchref
   (define (get-starting-expr altn)
     (match* ((alt-event altn) (alt-prevs altn))
-      [((list 'patch expr _) _) expr]
+      [((list 'patch expr _) _) expr] ; here original Expr can be pulled as well
       [(_ (list prev)) (get-starting-expr prev)]
       [(_ _) (error 'get-starting-spec "unexpected: ~a" altn)]))
 
   ;; takes a patch and converts it to a full alt
-  (define (reconstruct-alt-batch altn loc0 orig)
-    (let loop ([altn altn])
-      (match-define (alt _ event prevs _) altn)
-      (match event
-        [(list 'patch _ _) orig]
-        [_
-         (define event*
-           (match event
-             [(list 'taylor name var) (list 'taylor loc0 name var)]
-             [(list 'rr input proof soundiness) (list 'rr loc0 input proof soundiness)]
-             [(list 'simplify input proof soundiness) (list 'simplify loc0 input proof soundiness)]))
-         (define idx
-           (location-do-batch loc0 reconstruct-batch-mutable (alt-expr orig) (alt-expr altn)))
-         (define expr* (batchref reconstruct-batch idx))
-         (alt expr* event* (list (loop (first prevs))) (alt-preprocessing orig))])))
-
-  (define batchified-out
-    (reap [sow]
-          (for ([altn (in-list alts)]) ;; does not have preproc
-            (define start-expr (get-starting-expr altn)) ; batchref
-            (for ([full-altn (in-list (^next-alts^))])
-              (define expr (alt-expr full-altn))
-              (for ([loc (in-list (get-locations expr start-expr))])
-                (sow (reconstruct-alt-batch altn loc full-altn)))))))
-  (batch-copy-mutable-nodes! reconstruct-batch reconstruct-batch-mutable)
-
-  (define (rebuild-alts x)
-    (match-define (alt expr event prevs preprocessing) x)
-    (match (batchref? expr)
-      [#t (alt (batchref->expr expr) event (map rebuild-alts prevs) preprocessing)]
-      [#f (alt expr event (map rebuild-alts prevs) preprocessing)]))
-  (set! batchified-out (map rebuild-alts batchified-out))
-
-  ;; takes a patch and converts it to a full alt
-  #;
   (define (reconstruct-alt altn loc0 orig)
     (let loop ([altn altn])
       (match-define (alt _ event prevs _) altn)
@@ -281,23 +244,13 @@
          (define expr* (location-do loc0 (alt-expr orig) (const (batchref->expr (alt-expr altn)))))
          (alt expr* event* (list (loop (first prevs))) (alt-preprocessing orig))])))
 
-  #;(define out
-      (reap [sow]
-            (for ([altn (in-list alts)]) ;; does not have preproc
-              (define start-expr (get-starting-expr altn))
-              (if start-expr
-                  (for ([full-altn (in-list (^next-alts^))])
-                    (define expr (alt-expr full-altn))
-                    (for ([loc (in-list (get-locations expr start-expr))])
-                      (sow (reconstruct-alt altn loc full-altn))))
-                  ; altn is a full alt (probably iter 0 simplify)
-                  (sow altn)))))
-
-  (^patched^ batchified-out)
-  #;(for ([p (in-list out)]
-          [p* (in-list batchified-out)])
-      (printf "\tp=~a\n" p)
-      (printf "\tp*=~a\n\n" p*))
+  (^patched^ (reap [sow]
+                   (for ([altn (in-list alts)]) ;; does not have preproc
+                     (define start-expr (get-starting-expr altn))
+                     (for ([full-altn (in-list (^next-alts^))])
+                       (define expr (alt-expr full-altn))
+                       (for ([loc (in-list (get-locations expr start-expr))])
+                         (sow (reconstruct-alt altn loc full-altn)))))))
 
   (void))
 
