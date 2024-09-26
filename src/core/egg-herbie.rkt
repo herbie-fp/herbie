@@ -1092,10 +1092,10 @@
   (define id->spec (regraph-specs regraph))
 
   (define egg->herbie (regraph-egg->herbie regraph))
-  (define-values (add-id add-enode root->batchref finalize-batch)
+  (define-values (add-id add-enode finalize-batch)
     (egg-nodes->batch costs id->spec batch-extract-to egg->herbie))
   ;; These functions provide a setup to extract nodes into batch-extract-to from nodes
-  (list add-id add-enode root->batchref finalize-batch))
+  (list add-id add-enode finalize-batch))
 
 ;; Is fractional with odd denominator.
 (define (fraction-with-odd-denominator? frac)
@@ -1163,15 +1163,14 @@
   (define egg->herbie (regraph-egg->herbie regraph))
   (define canon (regraph-canon regraph))
   ; Extract functions to extract exprs from egraph
-  (match-define (list extract-id _ root->batchref _) extract)
+  (match-define (list extract-id _ _) extract)
   ; extract expr
   (define key (cons id type))
   (cond
     ; at least one extractable expression
     [(hash-has-key? canon key)
      (define id* (hash-ref canon key))
-     (define root (extract-id id* type))
-     (list (root->batchref root))]
+     (list (extract-id id* type))]
     ; no extractable expressions
     [else (list)]))
 
@@ -1182,7 +1181,7 @@
   (define id->spec (regraph-specs regraph))
   (define canon (regraph-canon regraph))
   ; Functions for egg-extraction
-  (match-define (list _ extract-enode root->batchref _) extract)
+  (match-define (list _ extract-enode _) extract)
   ; extract expressions
   (define key (cons id type))
   (cond
@@ -1190,12 +1189,8 @@
     [(hash-has-key? canon key)
      (define id* (hash-ref canon key))
 
-     (define roots
-       (for/list ([enode (vector-ref eclasses id*)])
-         (extract-enode enode type)))
-
-     ; Returns (listof batchref) with respect to the roots
-     (map root->batchref (remove-duplicates roots))]
+     (for/list ([enode (vector-ref eclasses id*)])
+       (extract-enode enode type))]
     [else (list)]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
