@@ -49,13 +49,11 @@
 
   ; run egg
   (define simplified
-    (map debatchref
-         (map last
-              (simplify-batch runner
-                              (typed-egg-batch-extractor (if (*egraph-platform-cost*)
-                                                             platform-egg-cost-proc
-                                                             default-egg-cost-proc)
-                                                         batch)))))
+    (map (compose debatchref last)
+         (simplify-batch runner
+                         (typed-egg-batch-extractor
+                          (if (*egraph-platform-cost*) platform-egg-cost-proc default-egg-cost-proc)
+                          batch))))
 
   ; run egg
   (define simplifiedss (regroup-nested subexprss simplified))

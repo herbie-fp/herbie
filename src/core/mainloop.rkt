@@ -221,7 +221,6 @@
 
 ;; Converts a patch to full alt with valid history
 (define (reconstruct! alts)
-  (define reconstruct-batch (make-mutable-batch))
   ;; extracts the base expressions of a patch as a batchref
   (define (get-starting-expr altn)
     (match* ((alt-event altn) (alt-prevs altn))
@@ -378,13 +377,12 @@
 
      ; run egg
      (define simplified
-       (map debatchref
-            (map last
-                 (simplify-batch runner
-                                 (typed-egg-batch-extractor (if (*egraph-platform-cost*)
-                                                                platform-egg-cost-proc
-                                                                default-egg-cost-proc)
-                                                            batch)))))
+       (map (compose debatchref last)
+            (simplify-batch runner
+                            (typed-egg-batch-extractor (if (*egraph-platform-cost*)
+                                                           platform-egg-cost-proc
+                                                           default-egg-cost-proc)
+                                                       batch))))
 
      ; de-duplication
      (remove-duplicates (for/list ([altn (in-list alts)]
