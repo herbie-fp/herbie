@@ -33,10 +33,16 @@
     [else #t]))
 
 (define (actual-errors expr pcontext)
-  (match-define (cons subexprs pt-errorss)
+
+  (define errs
     (parameterize ([*pcontext* pcontext])
-      (flip-lists (hash->list (first (compute-local-errors (list (all-subexpressions expr))
-                                                           (*context*)))))))
+      (first (compute-local-errors (list (all-subexpressions expr)) (*context*)))))
+
+  (define pruned (make-hash))
+  (for ([(k v) (in-hash errs)])
+    (hash-set! pruned k (hash-ref v 'errs)))
+  (define idk (flip-lists (hash->list pruned)))
+  (match-define (cons subexprs pt-errorss) idk)
 
   (define pt-worst-subexpr
     (append* (reap [sow]
