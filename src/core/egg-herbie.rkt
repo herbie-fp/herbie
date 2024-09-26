@@ -1372,21 +1372,6 @@
      (define out
        (for/list ([id (in-list root-ids)]
                   [repr (in-list reprs)])
-         (regraph-extract-best regraph extract-id id repr)))
-     ; commit changes to the batch
-     (finalize-batch)
-     out]
-    [`(multi . ,extractor) ; multi expression extraction
-     (define regraph (make-regraph egg-graph))
-     (define reprs (egg-runner-reprs runner))
-
-     (define extract-id (extractor regraph))
-     (define finalize-batch (last extract-id))
-
-     ; (Listof (Listof batchref))
-     (define out
-       (for/list ([id (in-list root-ids)]
-                  [repr (in-list reprs)])
          (regraph-extract-variants regraph extract-id id repr)))
      ; commit changes to the batch
      (finalize-batch)
