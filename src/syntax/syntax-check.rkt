@@ -52,8 +52,7 @@
       [#`(! #,props ... #,body)
        (check-properties* props '() error! deprecated-ops)
        (loop body vars)]
-      [#`(cast #,arg)
-       (loop arg vars)]
+      [#`(cast #,arg) (loop arg vars)]
       [#`(cast #,args ...)
        (error! stx "Invalid `cast` expression with ~a arguments (expects 1)" (length args))
        (unless (null? args)

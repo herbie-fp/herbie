@@ -95,8 +95,7 @@
        (unless (equal? ift-repr iff-repr)
          (error! stx "If statement has different types for if (~a) and else (~a)" ift-repr iff-repr))
        ift-repr]
-      [#`(! #,props ... #,body)
-       (loop body (apply dict-set prop-dict (map syntax->datum props)) ctx)]
+      [#`(! #,props ... #,body) (loop body (apply dict-set prop-dict (map syntax->datum props)) ctx)]
       [#`(,(? (curry hash-has-key? (*functions*)) fname) #,args ...)
        ; TODO: inline functions expect uniform types, this is clearly wrong
        (match-define (list vars prec _) (hash-ref (*functions*) fname))
