@@ -19,7 +19,8 @@
                        numerics
                        special
                        bools
-                       branches)]))
+                       branches)]
+        [dump . (egg)]))
 
 (define default-flags
   #hash([precision . ()]
@@ -36,7 +37,8 @@
                        numerics
                        special
                        bools
-                       branches)]))
+                       branches)]
+        [dump . ()]))
 
 (define (check-flag-deprecated! category flag)
   (match* (category flag)

@@ -124,7 +124,6 @@
   (set-batch-nodes! global-batch (list->vector (reverse (mutable-batch-nodes global-batch-mutable))))
   ; End of global-batch modification
   ; ----------------------------------
-
   approxs)
 
 (define (spec-has-nan? expr)

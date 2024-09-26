@@ -7,7 +7,8 @@
                   u32vector-set!
                   u32vector-ref
                   list->u32vector
-                  u32vector->list))
+                  u32vector->list)
+         json) ; for dumping
 
 (require "programs.rkt"
          "rules.rkt"
@@ -207,6 +208,8 @@
 (define (egraph-eclasses egraph-data)
   (egraph_get_eclasses (egraph-data-egraph-pointer egraph-data)))
 
+(define empty-u32vec (make-u32vector 0))
+
 ;; Extracts the nodes of an e-class as a vector
 ;; where each enode is either a symbol, number, or list
 (define (egraph-get-eclass egraph-data id)
@@ -217,7 +220,7 @@
   (for ([enode (in-vector eclass)]
         [i (in-naturals)])
     (when (and (symbol? enode) (not (hash-has-key? egg->herbie enode)))
-      (vector-set! eclass i (cons enode (make-u32vector 0)))))
+      (vector-set! eclass i (cons enode empty-u32vec))))
   eclass)
 
 (define (egraph-find egraph-data id)
@@ -831,6 +834,36 @@
   ; construct the `regraph` instance
   (regraph eclasses types leaf? constants specs parents canon egg->herbie))
 
+(define (regraph-nodes->json regraph)
+  (define cost (platform-node-cost-proc (*active-platform*)))
+  (for/hash ([n (in-naturals)]
+             [eclass (in-vector (regraph-eclasses regraph))]
+             #:when true
+             [k (in-naturals)]
+             [enode eclass])
+    (define type (vector-ref (regraph-types regraph) n))
+    (define cost
+      (if (representation? type)
+          (match enode
+            [(? number?) (platform-repr-cost (*active-platform*) type)]
+            [(? symbol?) (platform-repr-cost (*active-platform*) type)]
+            [(list '$approx x y) 0]
+            [(list 'if c x y)
+             (match (platform-impl-cost (*active-platform*) 'if)
+               [`(max ,n) n] ; Not quite right
+               [`(sum ,n) n])]
+            [(list op args ...) (platform-impl-cost (*active-platform*) op)])
+          1))
+    (values (string->symbol (format "~a.~a" n k))
+            (hash 'op
+                  (~a (if (list? enode) (car enode) enode))
+                  'children
+                  (if (list? enode) (map ~a (cdr enode)) '())
+                  'eclass
+                  (~a n)
+                  'cost
+                  cost))))
+
 ;; Egraph node has children.
 ;; Nullary operators have no children!
 (define (node-has-children? node)
@@ -1204,36 +1237,21 @@
   (define root-ids (egraph-add-exprs egg-graph batch roots ctx))
 
   ; run the schedule
-  (define rule-apps (make-hash))
   (define egg-graph*
-    (for/fold ([egg-graph egg-graph]) ([instr (in-list schedule)])
-      (match-define (cons rules params) instr)
+    (for/fold ([egg-graph egg-graph]) ([(rules params) (in-dict schedule)])
       ; run rules in the egraph
       (define egg-rules (expand-rules rules))
       (define-values (egg-graph* iteration-data) (egraph-run-rules egg-graph egg-rules params))
 
       ; get cost statistics
-      (for/fold ([time 0])
-                ([iter (in-list iteration-data)]
-                 [i (in-naturals)])
+      (for ([iter (in-list iteration-data)]
+            [i (in-naturals)])
         (define cnt (iteration-data-num-nodes iter))
         (define cost (apply + (map (λ (id) (egraph-get-cost egg-graph* id i)) root-ids)))
-        (define new-time (+ time (iteration-data-time iter)))
-        (timeline-push! 'egraph i cnt cost new-time)
-        new-time)
-
-      ;; get rule statistics
-      (for ([(egg-rule ffi-rule) (in-dict egg-rules)])
-        (define count (egraph-get-times-applied egg-graph* ffi-rule))
-        (define canon-name (hash-ref (*canon-names*) (rule-name egg-rule)))
-        (hash-update! rule-apps canon-name (curry + count) count))
+        (timeline-push! 'egraph i cnt cost (iteration-data-time iter)))
 
       egg-graph*))
 
-  ; report rule statistics
-  (for ([(name count) (in-hash rule-apps)])
-    (when (> count 0)
-      (timeline-push! 'rules (~a name) count)))
   ; root eclasses may have changed
   (define root-ids* (map (lambda (id) (egraph-find egg-graph* id)) root-ids))
   ; return what we need
@@ -1288,6 +1306,26 @@
   ; make the runner
   (egg-runner batch roots reprs schedule ctx))
 
+(define (regraph-dump regraph root-ids reprs)
+  (define dump-dir "dump-egg")
+  (unless (directory-exists? dump-dir)
+    (make-directory dump-dir))
+  (define name
+    (for/first ([i (in-naturals)]
+                #:unless (file-exists? (build-path dump-dir (format "~a.json" i))))
+      (build-path dump-dir (format "~a.json" i))))
+  (define nodes (regraph-nodes->json regraph))
+  (define canon (regraph-canon regraph))
+  (define roots
+    (filter values
+            (for/list ([id (in-list root-ids)]
+                       [type (in-list reprs)])
+              (hash-ref canon (cons id type) #f))))
+  (call-with-output-file
+   name
+   #:exists 'replace
+   (lambda (p) (write-json (hash 'nodes nodes 'root_eclasses (map ~a roots) 'class_data (hash)) p))))
+
 ;; Runs egg using an egg runner.
 ;;
 ;; Argument `cmd` specifies what to get from the e-graph:
@@ -1307,6 +1345,25 @@
     [`(single . ,extractor) ; single expression extraction
      (define regraph (make-regraph egg-graph))
      (define reprs (egg-runner-reprs runner))
+     (when (flag-set? 'dump 'egg)
+       (regraph-dump regraph root-ids reprs))
+
+     (define extract-id (extractor regraph))
+     (define finalize-batch (last extract-id))
+
+     ; (Listof (Listof batchref))
+     (define out
+       (for/list ([id (in-list root-ids)]
+                  [repr (in-list reprs)])
+         (regraph-extract-best regraph extract-id id repr)))
+     ; commit changes to the batch
+     (finalize-batch)
+     out]
+    [`(multi . ,extractor) ; multi expression extraction
+     (define regraph (make-regraph egg-graph))
+     (define reprs (egg-runner-reprs runner))
+     (when (flag-set? 'dump 'egg)
+       (regraph-dump regraph root-ids reprs))
 
      (define extract-id (extractor regraph))
      (define finalize-batch (last extract-id))
