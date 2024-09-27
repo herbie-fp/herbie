@@ -51,27 +51,20 @@
                      (if (*egraph-platform-cost*) platform-egg-cost-proc default-egg-cost-proc)
                      global-batch)))
 
-  ; Start of global-batch modification
-  ; ----------------------------------
-  (define global-batch-mutable (batch->mutable-batch global-batch))
-
   ; convert to altns
   (define simplified
     (reap [sow]
+          (define global-batch-mutable (batch->mutable-batch global-batch)) ; Create mutable batch
           (for ([altn (in-list approxs)]
                 [batchreff (in-list simplification-options)])
             (define prev (car (alt-prevs altn)))
             (define spec (prog->spec (debatchref (alt-expr prev))))
-            (define idx
+            (define idx ; Munge everything
               (batch-push! global-batch-mutable
                            (approx (mutable-batch-munge! global-batch-mutable spec)
                                    (batchref-idx batchreff))))
-            (sow (alt (batchref global-batch idx) `(simplify ,runner #f #f) (list altn) '())))))
-
-  ; Commit changes to global-batch
-  (batch-copy-mutable-nodes! global-batch global-batch-mutable)
-  ; End of global-batch modification
-  ; ---------------------------------
+            (sow (alt (batchref global-batch idx) `(simplify ,runner #f #f) (list altn) '())))
+          (batch-copy-mutable-nodes! global-batch global-batch-mutable))) ; Update global-batch
 
   (timeline-push! 'count (length approxs) (length simplified))
   simplified)
@@ -95,34 +88,24 @@
   (define free-vars (map free-variables exprs))
   (define vars (list->set (append* free-vars)))
 
-  ; Start of global-batch modification
-  ; ----------------------------------
-  (define global-batch-mutable (batch->mutable-batch global-batch))
-
-  (define approxs
-    (reap [sow]
-          (for* ([var (in-set vars)]
-                 [transform-type transforms-to-try])
-            (match-define (list name f finv) transform-type)
-            (define timeline-stop! (timeline-start! 'series (~a exprs) (~a var) (~a name)))
-            (define genexprs (approximate exprs var #:transform (cons f finv)))
-            (for ([genexpr (in-list genexprs)]
-                  [altn (in-list altns)]
-                  [fv (in-list free-vars)]
-                  #:when (member var fv)) ; check whether var exists in expr at all
-              (for ([i (in-range (*taylor-order-limit*))])
-                (define gen (genexpr))
-                (unless (spec-has-nan? gen)
-                  (define idx (mutable-batch-munge! global-batch-mutable gen))
-                  ; we create a batchref that doesn't exist yet in global-batch, we update it later
-                  (sow (alt (batchref global-batch idx) `(taylor ,name ,var) (list altn) '())))))
-            (timeline-stop!))))
-
-  ; Commit changes to global-batch
-  (batch-copy-mutable-nodes! global-batch global-batch-mutable)
-  ; End of global-batch modification
-  ; ----------------------------------
-  approxs)
+  (reap [sow]
+        (define global-batch-mutable (batch->mutable-batch global-batch)) ; Create a mutable batch
+        (for* ([var (in-set vars)]
+               [transform-type transforms-to-try])
+          (match-define (list name f finv) transform-type)
+          (define timeline-stop! (timeline-start! 'series (~a exprs) (~a var) (~a name)))
+          (define genexprs (approximate exprs var #:transform (cons f finv)))
+          (for ([genexpr (in-list genexprs)]
+                [altn (in-list altns)]
+                [fv (in-list free-vars)]
+                #:when (member var fv)) ; check whether var exists in expr at all
+            (for ([i (in-range (*taylor-order-limit*))])
+              (define gen (genexpr))
+              (unless (spec-has-nan? gen)
+                (define idx (mutable-batch-munge! global-batch-mutable gen)) ; Munge gen
+                (sow (alt (batchref global-batch idx) `(taylor ,name ,var) (list altn) '())))))
+          (timeline-stop!))
+        (batch-copy-mutable-nodes! global-batch global-batch-mutable))) ; Update global-batch
 
 (define (spec-has-nan? expr)
   (expr-contains? expr (lambda (term) (eq? term 'NAN))))
