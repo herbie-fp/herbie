@@ -224,7 +224,7 @@
   ;; extracts the base expressions of a patch as a batchref
   (define (get-starting-expr altn)
     (match* ((alt-event altn) (alt-prevs altn))
-      [((list 'patch expr _) _) expr] ; here original Expr can be pulled as well
+      [((list 'patch expr _) _) expr]
       [(_ (list prev)) (get-starting-expr prev)]
       [(_ _) (error 'get-starting-spec "unexpected: ~a" altn)]))
 
