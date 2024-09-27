@@ -46,4 +46,4 @@
                       bool
                       #:spec (or x y)
                       #:fl or-fn
-                      #:identities (#: exact (or a b)))
+                      #:identities (#:exact (or a b)))

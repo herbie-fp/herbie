@@ -624,6 +624,14 @@
               [(list 'directed name lhs rhs)
                (define lotype (expr-otype lhs))
                (define rotype (expr-otype rhs))
+               (when (and (not lotype) (not rotype))
+                 (error "Could not find type for lhs ~a and rhs ~a" lhs rhs))
+               (when (not lotype)
+                 (set! lotype rotype))
+               (when (not rotype)
+                 (set! rotype lotype))
+               (when (not (equal? lotype rotype))
+                 (error "Incompatible types for lhs ~a and rhs ~a" lhs rhs))
                (define var-types (merge-bindings (type-verify lhs lotype) (type-verify rhs rotype)))
                (define r
                  (rule name
