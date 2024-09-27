@@ -347,7 +347,7 @@
       ['errors (make-error-result herbie-result job-id)]
       ['exacts (make-exacts-result herbie-result job-id)]
       ['improve (make-improve-result herbie-result test job-id)]
-      ['local-error (make-local-error-result herbie-result test job-id)]
+      ['local-error (make-local-error-result herbie-result job-id)]
       ['explanations (make-explanation-result herbie-result job-id)]
       ['sample (make-sample-result herbie-result test job-id)]
       [_ (error 'compute-result "unknown command ~a" kind)]))
@@ -365,25 +365,15 @@
           'path
           (make-path job-id)))
 
-(define (make-local-error-result herbie-result test job-id)
-  (define expr (prog->fpcore (test-input test) (test-context test)))
-  (define local-error (job-result-backend herbie-result))
-  ;; TODO: potentially unsafe if resugaring changes the AST
-  (define tree
-    (let loop ([expr expr]
-               [err local-error])
-      (match expr
-        [(list op args ...)
-         ;; err => (List (listof Integer) List ...)
-         (hasheq 'e
-                 (~a op)
-                 'avg-error
-                 (format-bits (errors-score (first err)))
-                 'children
-                 (map loop args (rest err)))]
-        ;; err => (List (listof Integer))
-        [_ (hasheq 'e (~a expr) 'avg-error (format-bits (errors-score (first err))) 'children '())])))
-  (hasheq 'command (get-command herbie-result) 'tree tree 'job job-id 'path (make-path job-id)))
+(define (make-local-error-result herbie-result job-id)
+  (hasheq 'command
+          (get-command herbie-result)
+          'tree
+          (job-result-backend herbie-result)
+          'job
+          job-id
+          'path
+          (make-path job-id)))
 
 (define (make-sample-result herbie-result test job-id)
   (define pctx (job-result-backend herbie-result))
