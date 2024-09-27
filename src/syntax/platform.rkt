@@ -584,7 +584,7 @@
 
 (define (expr->prog expr repr)
   (match expr
-    [(? number?) (literal (representation-name repr) expr)]
+    [(? number?) (literal expr (representation-name repr))]
     [(? variable?) expr]
     [`(if ,cond ,ift ,iff)
      `(if ,(expr->prog cond (get-representation 'bool))
