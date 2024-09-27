@@ -13,7 +13,8 @@
          "programs.rkt"
          "points.rkt"
          "../utils/timeline.rkt"
-         "../utils/float.rkt")
+         "../utils/float.rkt"
+         "batch.rkt")
 
 (provide find-preprocessing
          preprocess-pcontext
@@ -66,7 +67,8 @@
       (,lowering-rules . ((iteration . 1) (scheduler . simple)))))
 
   ; egg query
-  (define runner (make-egg-runner (list expr) (list (context-repr ctx)) schedule))
+  (define batch (progs->batch (list expr)))
+  (define runner (make-egg-runner batch (batch-roots batch) (list (context-repr ctx)) schedule))
 
   ; run egg
   (define simplified
@@ -100,8 +102,11 @@
 
   ;; make egg runner
   (define rules (real-rules (*simplify-rules*)))
+
+  (define batch (progs->batch specs))
   (define runner
-    (make-egg-runner specs
+    (make-egg-runner batch
+                     (batch-roots batch)
                      (map (lambda (_) (context-repr ctx)) specs)
                      `((,rules . ((node . ,(*node-limit*)))))))
 

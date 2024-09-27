@@ -19,7 +19,8 @@
          "preprocess.rkt"
          "programs.rkt"
          "../utils/timeline.rkt"
-         "soundiness.rkt")
+         "soundiness.rkt"
+         "batch.rkt")
 (provide run-improve!)
 
 ;; The Herbie main loop goes through a simple iterative process:
@@ -374,7 +375,8 @@
      ; egg runner
      (define exprs (map alt-expr alts))
      (define reprs (map (lambda (expr) (repr-of expr (*context*))) exprs))
-     (define runner (make-egg-runner exprs reprs schedule))
+     (define batch (progs->batch exprs))
+     (define runner (make-egg-runner batch (batch-roots batch) reprs schedule))
 
      ; run egg
      (define simplified

@@ -6,7 +6,8 @@
          "../utils/errors.rkt"
          "rules.rkt"
          "../utils/alternative.rkt"
-         "egg-herbie.rkt")
+         "egg-herbie.rkt"
+         "batch.rkt")
 
 (provide simplify-batch)
 
@@ -20,13 +21,14 @@
 ;; if the input specifies proofs, it instead returns proofs for these expressions
 (define/contract (simplify-batch runner extractor)
   (-> egg-runner? procedure? (listof (listof expr?)))
-  (timeline-push! 'inputs (map ~a (egg-runner-exprs runner)))
+  (timeline-push! 'inputs
+                  (map ~a (batch-extract-exprs (egg-runner-batch runner) (egg-runner-roots runner))))
   (timeline-push! 'method "egg-herbie")
 
   (define simplifieds (run-egg runner (cons 'single extractor)))
   (define out
     (for/list ([simplified simplifieds]
-               [expr (egg-runner-exprs runner)])
+               [expr (batch-extract-exprs (egg-runner-batch runner) (egg-runner-roots runner))])
       (remove-duplicates (cons expr simplified))))
 
   (timeline-push! 'outputs (map ~a (apply append out)))
@@ -48,8 +50,10 @@
                 (string-append "Rule failed: " (symbol->string (rule-name rule)))))
 
   (define (test-simplify . args)
+    (define batch (progs->batch args))
     (define runner
-      (make-egg-runner args
+      (make-egg-runner batch
+                       (batch-roots batch)
                        (map (lambda (_) 'real) args)
                        `((,(*simplify-rules*) . ((node . ,(*node-limit*)))))))
     (define extractor (typed-egg-extractor default-egg-cost-proc))

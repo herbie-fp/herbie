@@ -7,7 +7,8 @@
                   u32vector-set!
                   u32vector-ref
                   list->u32vector
-                  u32vector->list))
+                  u32vector->list)
+         json) ; for dumping
 
 (require "programs.rkt"
          "rules.rkt"
@@ -73,8 +74,7 @@
                [egraph-pointer (egraph_copy (egraph-data-egraph-pointer eg-data))]))
 
 ; Adds expressions returning the root ids
-; TODO: take a batch rather than list of expressions
-(define (egraph-add-exprs egg-data exprs ctx)
+(define (egraph-add-exprs egg-data batch roots ctx)
   (match-define (egraph-data ptr herbie->egg-dict egg->herbie-dict id->spec) egg-data)
 
   ; lookups the egg name of a variable
@@ -125,39 +125,86 @@
       [(? symbol? x) (egraph_add_node ptr (symbol->string x) 0-vec root?)]
       [(? number? n) (egraph_add_node ptr (number->string n) 0-vec root?)]))
 
+  ; The function recurses on spec
+  (define (batch-parse-approx batch)
+    (batch-replace batch
+                   (lambda (node)
+                     (match node
+                       [(approx spec impl) (list '$approx spec impl)]
+                       [_ node]))))
+
+  (set-batch-roots! batch roots) ; make sure that we work with the right roots
+  ; the algorithm may crash if batch-length is zero
+  (define insert-batch
+    (if (zero? (batch-length batch)) batch (remove-zombie-nodes (batch-parse-approx batch))))
+
+  (define mappings (build-vector (batch-length insert-batch) values))
+  (define (remap x)
+    (vector-ref mappings x))
+
+  ; Inserting nodes bottom-up
+  (define root-mask (make-vector (batch-length insert-batch) #f))
+  (for ([root (in-vector (batch-roots insert-batch))])
+    (vector-set! root-mask root #t))
+  (for ([node (in-vector (batch-nodes insert-batch))]
+        [root? (in-vector root-mask)]
+        [n (in-naturals)])
+    (define node*
+      (match node
+        [(literal v _) v]
+        [(? number?) node]
+        [(? symbol?) (normalize-var node)]
+        [(list '$approx spec impl)
+         (hash-ref! id->spec
+                    (remap spec)
+                    (lambda ()
+                      (define spec* (normalize-spec (batch-ref insert-batch spec)))
+                      (define type (representation-type (repr-of-node insert-batch impl ctx)))
+                      (cons spec* type))) ; preserved spec and type for extraction
+         (list '$approx (remap spec) (remap impl))]
+        [(list op (app remap args) ...) (cons op args)]))
+
+    (vector-set! mappings n (insert-node! node* root?)))
+
+  ;------------------------- DEBUGGING
   ; expr -> id
   ; expression cache
-  (define expr->id (make-hash))
+  #;(define expr->id (make-hash))
 
   ; expr -> natural
   ; inserts an expresison into the e-graph, returning its e-class id.
-  (define (insert! expr [root? #f])
-    ; transform the expression into a node pointing
-    ; to its child e-classes
-    (define node
-      (match expr
-        [(? number?) expr]
-        [(? symbol?) (normalize-var expr)]
-        [(literal v _) v]
-        [(approx spec impl)
-         (define spec* (insert! spec))
-         (define impl* (insert! impl))
-         (hash-ref! id->spec
-                    spec*
-                    (lambda ()
-                      (define spec* (normalize-spec spec)) ; preserved spec for extraction
-                      (define type (representation-type (repr-of impl ctx))) ; track type of spec
-                      (cons spec* type)))
-         (list '$approx spec* impl*)]
-        [(list op args ...) (cons op (map insert! args))]))
-    ; always insert the node if it is a root since
-    ; the e-graph tracks which nodes are roots
-    (cond
-      [root? (insert-node! node #t)]
-      [else (hash-ref! expr->id node (lambda () (insert-node! node #f)))]))
+  #;(define (insert! expr [root? #f])
+      ; transform the expression into a node pointing
+      ; to its child e-classes
+      (define node
+        (match expr
+          [(literal v _) v]
+          [(? number?) expr]
+          [(? symbol?) (normalize-var expr)]
+          [(list '$approx spec impl)
+           (define spec* (insert! (vector-ref nodes spec)))
+           (define impl* (insert! (vector-ref nodes impl)))
+           (hash-ref! id->spec
+                      spec*
+                      (lambda ()
+                        (define spec* (normalize-spec (batch-ref insert-batch spec)))
+                        (define type (representation-type (repr-of-node insert-batch impl ctx)))
+                        (cons spec* type)))
+           (list '$approx spec* impl*)]
+          [(list op args ...) (cons op (map insert! (map (curry vector-ref nodes) args)))]))
+      ; always insert the node if it is a root since
+      ; the e-graph tracks which nodes are roots
+      (cond
+        [root? (insert-node! node #t)]
+        [else (hash-ref! expr->id node (lambda () (insert-node! node #f)))]))
 
-  (for/list ([expr (in-list exprs)])
-    (insert! expr #t)))
+  #;(define nodes (batch-nodes insert-batch))
+  #;(for/list ([root (in-vector (batch-roots insert-batch))])
+      (insert! (vector-ref nodes root) #t))
+  ; ---------------------- END OF DEBUGGING
+
+  (for/list ([root (in-vector (batch-roots insert-batch))])
+    (remap root)))
 
 ;; runs rules on an egraph (optional iteration limit)
 (define (egraph-run egraph-data ffi-rules node-limit iter-limit scheduler const-folding?)
@@ -207,6 +254,8 @@
 (define (egraph-eclasses egraph-data)
   (egraph_get_eclasses (egraph-data-egraph-pointer egraph-data)))
 
+(define empty-u32vec (make-u32vector 0))
+
 ;; Extracts the nodes of an e-class as a vector
 ;; where each enode is either a symbol, number, or list
 (define (egraph-get-eclass egraph-data id)
@@ -217,14 +266,15 @@
   (for ([enode (in-vector eclass)]
         [i (in-naturals)])
     (when (and (symbol? enode) (not (hash-has-key? egg->herbie enode)))
-      (vector-set! eclass i (cons enode (make-u32vector 0)))))
+      (vector-set! eclass i (cons enode empty-u32vec))))
   eclass)
 
 (define (egraph-find egraph-data id)
   (egraph_find (egraph-data-egraph-pointer egraph-data) id))
 
 (define (egraph-expr-equal? egraph-data expr goal ctx)
-  (match-define (list id1 id2) (egraph-add-exprs egraph-data (list expr goal) ctx))
+  (define batch (progs->batch (list expr goal)))
+  (match-define (list id1 id2) (egraph-add-exprs egraph-data batch (batch-roots batch) ctx))
   (= id1 id2))
 
 ;; returns a flattened list of terms or #f if it failed to expand the proof due to budget
@@ -828,6 +878,36 @@
   ; construct the `regraph` instance
   (regraph eclasses types leaf? constants specs parents canon egg->herbie))
 
+(define (regraph-nodes->json regraph)
+  (define cost (platform-node-cost-proc (*active-platform*)))
+  (for/hash ([n (in-naturals)]
+             [eclass (in-vector (regraph-eclasses regraph))]
+             #:when true
+             [k (in-naturals)]
+             [enode eclass])
+    (define type (vector-ref (regraph-types regraph) n))
+    (define cost
+      (if (representation? type)
+          (match enode
+            [(? number?) (platform-repr-cost (*active-platform*) type)]
+            [(? symbol?) (platform-repr-cost (*active-platform*) type)]
+            [(list '$approx x y) 0]
+            [(list 'if c x y)
+             (match (platform-impl-cost (*active-platform*) 'if)
+               [`(max ,n) n] ; Not quite right
+               [`(sum ,n) n])]
+            [(list op args ...) (platform-impl-cost (*active-platform*) op)])
+          1))
+    (values (string->symbol (format "~a.~a" n k))
+            (hash 'op
+                  (~a (if (list? enode) (car enode) enode))
+                  'children
+                  (if (list? enode) (map ~a (cdr enode)) '())
+                  'eclass
+                  (~a n)
+                  'cost
+                  cost))))
+
 ;; Egraph node has children.
 ;; Nullary operators have no children!
 (define (node-has-children? node)
@@ -1194,44 +1274,29 @@
            (loop (sub1 num-iters)))]
       [else (values egg-graph iteration-data)])))
 
-(define (egraph-run-schedule exprs schedule ctx)
+(define (egraph-run-schedule batch roots schedule ctx)
   ; allocate the e-graph
   (define egg-graph (make-egraph))
 
   ; insert expressions into the e-graph
-  (define root-ids (egraph-add-exprs egg-graph exprs ctx))
+  (define root-ids (egraph-add-exprs egg-graph batch roots ctx))
 
   ; run the schedule
-  (define rule-apps (make-hash))
   (define egg-graph*
-    (for/fold ([egg-graph egg-graph]) ([instr (in-list schedule)])
-      (match-define (cons rules params) instr)
+    (for/fold ([egg-graph egg-graph]) ([(rules params) (in-dict schedule)])
       ; run rules in the egraph
       (define egg-rules (expand-rules rules))
       (define-values (egg-graph* iteration-data) (egraph-run-rules egg-graph egg-rules params))
 
       ; get cost statistics
-      (for/fold ([time 0])
-                ([iter (in-list iteration-data)]
-                 [i (in-naturals)])
+      (for ([iter (in-list iteration-data)]
+            [i (in-naturals)])
         (define cnt (iteration-data-num-nodes iter))
         (define cost (apply + (map (λ (id) (egraph-get-cost egg-graph* id i)) root-ids)))
-        (define new-time (+ time (iteration-data-time iter)))
-        (timeline-push! 'egraph i cnt cost new-time)
-        new-time)
-
-      ;; get rule statistics
-      (for ([(egg-rule ffi-rule) (in-dict egg-rules)])
-        (define count (egraph-get-times-applied egg-graph* ffi-rule))
-        (define canon-name (hash-ref (*canon-names*) (rule-name egg-rule)))
-        (hash-update! rule-apps canon-name (curry + count) count))
+        (timeline-push! 'egraph i cnt cost (iteration-data-time iter)))
 
       egg-graph*))
 
-  ; report rule statistics
-  (for ([(name count) (in-hash rule-apps)])
-    (when (> count 0)
-      (timeline-push! 'rules (~a name) count)))
   ; root eclasses may have changed
   (define root-ids* (map (lambda (id) (egraph-find egg-graph* id)) root-ids))
   ; return what we need
@@ -1246,7 +1311,7 @@
 
 ;; Herbie's version of an egg runner.
 ;; Defines parameters for running rewrite rules with egg
-(struct egg-runner (exprs reprs schedule ctx)
+(struct egg-runner (batch roots reprs schedule ctx)
   #:transparent ; for equality
   #:methods gen:custom-write ; for abbreviated printing
   [(define (write-proc alt port mode)
@@ -1263,7 +1328,7 @@
 ;;     - scheduler: `(scheduler . <name>)` [default: backoff]
 ;;        - `simple`: run all rules without banning
 ;;        - `backoff`: ban rules if the fire too much
-(define (make-egg-runner exprs reprs schedule #:context [ctx (*context*)])
+(define (make-egg-runner batch roots reprs schedule #:context [ctx (*context*)])
   (define (oops! fmt . args)
     (apply error 'verify-schedule! fmt args))
   ; verify the schedule
@@ -1284,7 +1349,27 @@
            [_ (oops! "in instruction `~a`, unknown parameter `~a`" instr param)]))]
       [_ (oops! "expected `(<rules> . <params>)`, got `~a`" instr)]))
   ; make the runner
-  (egg-runner exprs reprs schedule ctx))
+  (egg-runner batch roots reprs schedule ctx))
+
+(define (regraph-dump regraph root-ids reprs)
+  (define dump-dir "dump-egg")
+  (unless (directory-exists? dump-dir)
+    (make-directory dump-dir))
+  (define name
+    (for/first ([i (in-naturals)]
+                #:unless (file-exists? (build-path dump-dir (format "~a.json" i))))
+      (build-path dump-dir (format "~a.json" i))))
+  (define nodes (regraph-nodes->json regraph))
+  (define canon (regraph-canon regraph))
+  (define roots
+    (filter values
+            (for/list ([id (in-list root-ids)]
+                       [type (in-list reprs)])
+              (hash-ref canon (cons id type) #f))))
+  (call-with-output-file
+   name
+   #:exists 'replace
+   (lambda (p) (write-json (hash 'nodes nodes 'root_eclasses (map ~a roots) 'class_data (hash)) p))))
 
 ;; Runs egg using an egg runner.
 ;;
@@ -1296,13 +1381,18 @@
   ;; Run egg using runner
   (define ctx (egg-runner-ctx runner))
   (define-values (root-ids egg-graph)
-    (egraph-run-schedule (egg-runner-exprs runner) (egg-runner-schedule runner) ctx))
+    (egraph-run-schedule (egg-runner-batch runner)
+                         (egg-runner-roots runner)
+                         (egg-runner-schedule runner)
+                         ctx))
   ; Perform extraction
   (match cmd
     [`(single . ,extractor) ; single expression extraction
      (define regraph (make-regraph egg-graph))
      (define extract-id (extractor regraph))
      (define reprs (egg-runner-reprs runner))
+     (when (flag-set? 'dump 'egg)
+       (regraph-dump regraph root-ids reprs))
      (for/list ([id (in-list root-ids)]
                 [repr (in-list reprs)])
        (regraph-extract-best regraph extract-id id repr))]
@@ -1310,6 +1400,8 @@
      (define regraph (make-regraph egg-graph))
      (define extract-id (extractor regraph))
      (define reprs (egg-runner-reprs runner))
+     (when (flag-set? 'dump 'egg)
+       (regraph-dump regraph root-ids reprs))
 
      ; List of roots inside the batch
      (for/list ([id (in-list root-ids)]
