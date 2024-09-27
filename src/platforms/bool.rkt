@@ -32,7 +32,6 @@
 (define-operator-impl (not [x : bool])
                       bool
                       #:spec (not x)
-                      #:fpcore (! (not x))
                       #:fl not
                       #:identities (#:exact (not a)))
 
