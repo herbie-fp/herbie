@@ -20,7 +20,7 @@
          make-mutable-batch ; Mutable-batch
          batch->mutable-batch ; Batch -> Mutable-batch
          batch-copy-mutable-nodes! ; Batch -> Mutable-batch -> Void
-         batch-push!) ; Mutable-batch -> Node -> Idx
+         mutable-batch-push!) ; Mutable-batch -> Node -> Idx
 
 ;; This function defines the recursive structure of expressions
 (define (expr-recurse expr f)
@@ -43,7 +43,7 @@
 (define (make-mutable-batch)
   (mutable-batch '() (make-hash) '()))
 
-(define (batch-push! b term)
+(define (mutable-batch-push! b term)
   (define hashcons (mutable-batch-index b))
   (hash-ref! hashcons
              term
@@ -80,12 +80,12 @@
 
   (define out (make-mutable-batch))
   (for ([var (in-list vars)])
-    (batch-push! out var))
+    (mutable-batch-push! out var))
 
   (define size 0)
   (define (munge prog)
     (set! size (+ 1 size))
-    (batch-push! out (expr-recurse prog munge)))
+    (mutable-batch-push! out (expr-recurse prog munge)))
 
   (define roots (list->vector (map munge exprs)))
   (define final (mutable-batch->batch out roots))
@@ -95,7 +95,7 @@
 
 (define (mutable-batch-munge! b expr)
   (define (munge prog)
-    (batch-push! b (expr-recurse prog munge)))
+    (mutable-batch-push! b (expr-recurse prog munge)))
   (munge expr))
 
 (define (batch->progs b [roots (batch-roots b)])
@@ -121,7 +121,7 @@
            (when (= -1 (vector-ref mapping idx))
              (error 'batch-replace "Replacement ~a references unknown index ~a" replacement idx))
            (vector-ref mapping idx)]
-          [_ (batch-push! out (expr-recurse expr loop))])))
+          [_ (mutable-batch-push! out (expr-recurse expr loop))])))
     (vector-set! mapping idx final-idx))
   (define roots (vector-map (curry vector-ref mapping) (batch-roots b)))
   (mutable-batch->batch out roots))
@@ -149,13 +149,13 @@
   (define out (make-mutable-batch))
   (when keep-vars
     (for ([var (in-list (batch-vars input-batch))])
-      (batch-push! out var)))
+      (mutable-batch-push! out var)))
 
   (for ([node (in-vector nodes)]
         [zmb (in-vector zombie-mask)]
         [n (in-naturals)]
         #:unless zmb)
-    (vector-set! mappings n (batch-push! out (expr-recurse node remap))))
+    (vector-set! mappings n (mutable-batch-push! out (expr-recurse node remap))))
 
   (define roots* (vector-map (curry vector-ref mappings) roots))
   (mutable-batch->batch out roots*))
@@ -230,7 +230,7 @@
                           [type (in-list (operator-info op 'itype))])
                  (loop arg type)))
              (cons op args*)]))
-        (batch-push! out enode*)))
+        (mutable-batch-push! out enode*)))
     (batchref input-batch idx))
 
   ; same as add-enode but works with index as an input instead of enode

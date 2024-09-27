@@ -60,9 +60,9 @@
             (define prev (car (alt-prevs altn)))
             (define spec (prog->spec (debatchref (alt-expr prev))))
             (define idx ; Munge everything
-              (batch-push! global-batch-mutable
-                           (approx (mutable-batch-munge! global-batch-mutable spec)
-                                   (batchref-idx batchreff))))
+              (mutable-batch-push! global-batch-mutable
+                                   (approx (mutable-batch-munge! global-batch-mutable spec)
+                                           (batchref-idx batchreff))))
             (sow (alt (batchref global-batch idx) `(simplify ,runner #f #f) (list altn) '())))
           (batch-copy-mutable-nodes! global-batch global-batch-mutable))) ; Update global-batch
 
