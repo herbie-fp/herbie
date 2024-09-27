@@ -59,16 +59,14 @@
   (define simplified
     (reap [sow]
           (for ([altn (in-list approxs)]
-                [outputs (in-list simplification-options)])
-            (match-define (cons _ simplified) outputs)
+                [batchreff (in-list simplification-options)])
             (define prev (car (alt-prevs altn)))
-            (for ([expr (in-list simplified)])
-              (define spec (prog->spec (debatchref (alt-expr prev))))
-              (define idx
-                (batch-push! global-batch-mutable
-                             (approx (mutable-batch-munge! global-batch-mutable spec)
-                                     (batchref-idx expr))))
-              (sow (alt (batchref global-batch idx) `(simplify ,runner #f #f) (list altn) '()))))))
+            (define spec (prog->spec (debatchref (alt-expr prev))))
+            (define idx
+              (batch-push! global-batch-mutable
+                           (approx (mutable-batch-munge! global-batch-mutable spec)
+                                   (batchref-idx batchreff))))
+            (sow (alt (batchref global-batch idx) `(simplify ,runner #f #f) (list altn) '())))))
 
   ; Commit changes to global-batch
   (batch-copy-mutable-nodes! global-batch global-batch-mutable)
@@ -188,12 +186,11 @@
   ; Batch to where we will extract everything
   ; Roots of this batch are constantly updated
   (define global-batch (progs->batch exprs))
-  (define start-roots (batch-roots global-batch))
 
   ; Starting alternatives
   (define start-altns
     (for/list ([expr (in-list exprs)]
-               [root (in-vector start-roots)])
+               [root (batch-roots global-batch)])
       (define repr (repr-of expr (*context*)))
       (alt (batchref global-batch root) (list 'patch expr repr) '() '())))
 
@@ -202,6 +199,4 @@
   ; Recursive rewrite
   (define rewritten (if (flag-set? 'generate 'rr) (run-rr start-altns global-batch) '()))
 
-  (define out (append approximations rewritten))
-
-  out)
+  (append approximations rewritten))

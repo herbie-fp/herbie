@@ -49,7 +49,7 @@
 
   ; run egg
   (define simplified
-    (map (compose debatchref last)
+    (map debatchref
          (simplify-batch runner
                          (typed-egg-batch-extractor
                           (if (*egraph-platform-cost*) platform-egg-cost-proc default-egg-cost-proc)
