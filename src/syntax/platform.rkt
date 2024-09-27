@@ -552,15 +552,15 @@
 
 (define (expr-otype expr)
   (match expr
-    [(? literal?) #f]
+    [(? number?) #f]
     [(? variable?) #f]
     [(list 'if cond ift iff) (expr-otype ift)]
     [(list op args ...) (impl-info op 'otype)]))
 
 (define (type-verify expr otype)
   (match expr
-    [(? literal?) '()]
-    [(? variable?) '((cons expr otype))]
+    [(? number?) '()]
+    [(? variable?) (list (cons expr otype))]
     [(list 'if cond ift iff)
      (define bool-repr (get-representation 'bool))
      (define combined
@@ -584,11 +584,16 @@
 
 (define (expr->prog expr repr)
   (match expr
-    [(? literal?) (literal (get-representation repr) expr)]
+    [(? number?) (literal (representation-name repr) expr)]
     [(? variable?) expr]
     [`(if ,cond ,ift ,iff)
-     `(if ,(expr->prog cond repr) ,(expr->prog ift repr) ,(expr->prog iff repr))]
-    [`(,impl ,args ...) `(impl ,@(map (λ (arg) (expr->prog arg (impl-info impl 'itype))) args))]))
+     `(if ,(expr->prog cond (get-representation 'bool))
+          ,(expr->prog ift repr)
+          ,(expr->prog iff repr))]
+    [`(,impl ,args ...)
+     `(,impl ,@(for/list ([arg (in-list args)]
+                          [itype (in-list (impl-info impl 'itype))])
+                 (expr->prog arg itype)))]))
 
 (define (*fp-safe-simplify-rules*)
   (reap [sow]
@@ -613,13 +618,14 @@
               [(list 'commutes name expr rev-expr)
                (define vars (impl-info impl 'vars))
                (define itype (car (impl-info impl 'itype)))
+               (define otype (impl-info impl 'otype))
                (define r
                  (rule name
-                       (expr->prog expr)
-                       (expr->prog rev-expr)
+                       (expr->prog expr otype)
+                       (expr->prog rev-expr otype)
                        (for/hash ([v (in-list vars)])
                          (values v itype))
-                       (impl-info impl 'otype))) ; Commutes by definition the types are matching
+                       otype)) ; Commutes by definition the types are matching
                (sow r)]
               [(list 'directed name lhs rhs)
                (define lotype (expr-otype lhs))
@@ -635,8 +641,8 @@
                (define var-types (merge-bindings (type-verify lhs lotype) (type-verify rhs rotype)))
                (define r
                  (rule name
-                       (expr->prog lhs)
-                       (expr->prog rhs)
+                       (expr->prog lhs lotype)
+                       (expr->prog rhs rotype)
                        (for/hash ([binding (in-list var-types)])
                          (values (car binding) (cdr binding)))
                        (impl-info impl 'otype)))
