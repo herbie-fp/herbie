@@ -1,5 +1,6 @@
 #lang racket
 
+(require rival)
 (require "../syntax/sugar.rkt"
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
@@ -9,7 +10,7 @@
          "../syntax/platform.rkt"
          "../syntax/read.rkt"
          "../syntax/read.rkt"
-         "rival.rkt"
+         "../core/rival.rkt"
          "points.rkt"
          "programs.rkt"
          "sampling.rkt"
@@ -42,10 +43,8 @@
   (define lowering-rules (platform-lowering-rules))
 
   ; egg runner (2-phases for real rewrites and implementation selection)
-  (define batch (progs->batch progs))
   (define runner
-    (make-egg-runner batch
-                     (batch-roots batch)
+    (make-egg-runner progs
                      reprs
                      `((,lifting-rules . ((iteration . 1) (scheduler . simple)))
                        (,rules . ((node . ,(*node-limit*))))
@@ -158,6 +157,16 @@
                 ([node (in-vector roots)])
       (make-vector (pcontext-length (*pcontext*)))))
 
+  (define diffs-out
+    (for/vector #:length (vector-length roots)
+                ([node (in-vector roots)])
+      (make-vector (pcontext-length (*pcontext*)))))
+
+  (define apx-out
+    (for/vector #:length (vector-length roots)
+                ([node (in-vector roots)])
+      (make-vector (pcontext-length (*pcontext*)))))
+
   (for ([(pt ex) (in-pcontext (*pcontext*))]
         [pt-idx (in-naturals)])
 
@@ -169,6 +178,8 @@
           [exact (in-vector exacts)]
           [actual (in-vector actuals)]
           [expr-idx (in-naturals)])
+      (define apx #f)
+      (define diff #f)
       (define err
         (match (vector-ref nodes root)
           [(? literal?) 1]
@@ -183,9 +194,15 @@
              (for/list ([idx (in-list args)])
                (vector-ref exacts (vector-member idx roots)))) ; arg's index mapping to exact
            (define approx (apply (impl-info f 'fl) argapprox))
+           (set! apx approx)
+           (define machineD
+             (rival-compile (list `(- ,exact ,actual)) (list) (list flonum-discretization)))
+           (set! diff (vector-ref (rival-apply machineD (vector)) 0))
            (ulp-difference exact approx repr)]))
       (vector-set! (vector-ref exacts-out expr-idx) pt-idx exact)
       (vector-set! (vector-ref errs expr-idx) pt-idx err)
+      (vector-set! (vector-ref diffs-out expr-idx) pt-idx diff)
+      (vector-set! (vector-ref apx-out expr-idx) pt-idx apx)
       (vector-set! (vector-ref actuals-out expr-idx) pt-idx actual)))
 
   (define n 0)
@@ -197,7 +214,11 @@
                               'exact-values
                               (vector->list (vector-ref exacts-out n))
                               'actual-values
-                              (vector->list (vector-ref actuals-out n))))
+                              (vector->list (vector-ref actuals-out n))
+                              'diff-values
+                              (vector->list (vector-ref diffs-out n))
+                              'apx-values
+                              (vector->list (vector-ref diffs-out n))))
         (set! n (add1 n))))))
 
 ;; Compute the local error of every subexpression of `prog`
@@ -230,11 +251,29 @@
         [(list op args ...) (cons actual-list (map loop args))]
         [_ (list actual-list)])))
 
+  (define diff-values
+    (let loop ([expr (test-input test)])
+      (define expr-info (hash-ref errs expr))
+      (define actual-list (hash-ref expr-info 'diff-values))
+      (match expr
+        [(list op args ...) (cons actual-list (map loop args))]
+        [_ (list actual-list)])))
+
+  (define apx-values
+    (let loop ([expr (test-input test)])
+      (define expr-info (hash-ref errs expr))
+      (define actual-list (hash-ref expr-info 'apx-values))
+      (match expr
+        [(list op args ...) (cons actual-list (map loop args))]
+        [_ (list actual-list)])))
+
   (define tree
     (let loop ([expr (prog->fpcore (test-input test) (test-context test))]
                [err local-error]
                [exact exact-values]
-               [actual actual-values])
+               [actual actual-values]
+               [diff diff-values]
+               [apx apx-values])
       (match expr
         [(list op args ...)
          ;; err => (List (listof Integer) List ...)
@@ -242,22 +281,34 @@
                  (~a op)
                  'avg-error
                  (format-bits (errors-score (first err)))
+                 'err-value
+                 (map ~s (first err))
                  'exact-value
                  (map ~s (first exact))
                  'actual-value
                  (map ~s (first actual))
+                 'diff-value
+                 (map ~s (first diff))
+                 'apx-value
+                 (map ~s (first apx))
                  'children
-                 (map loop args (rest err) (rest exact) (rest actual)))]
+                 (map loop args (rest err) (rest exact) (rest actual) (rest diff) (rest apx)))]
         ;; err => (List (listof Integer))
         [_
          (hasheq 'e
                  (~a expr)
                  'avg-error
                  (format-bits (errors-score (first err)))
+                 'err-value
+                 (map ~s (first err))
                  'exact-value
                  (map ~s (first exact))
                  'actual-value
                  (map ~s (first actual))
+                 'diff-value
+                 (map ~s (first diff))
+                 'apx-value
+                 (map ~s (first apx))
                  'children
                  '())])))
   tree)
