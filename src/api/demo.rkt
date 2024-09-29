@@ -381,7 +381,6 @@
 (define (improve req)
   (improve-common req
                   (λ (command)
-                    (eprintf "HERE\n")
                     (define job-id (start-job command))
                     (wait-for-job job-id)
                     (redirect-to (add-prefix (format "~a.~a/graph.html" job-id *herbie-commit*))

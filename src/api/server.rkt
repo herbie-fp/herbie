@@ -40,7 +40,7 @@
 (define *demo-output* (make-parameter false))
 
 ; verbose logging for debugging
-(define verbose #t) ; Maybe change to log-level and use 'verbose?
+(define verbose #f) ; Maybe change to log-level and use 'verbose?
 (define (log msg . args)
   (when verbose
     (apply eprintf msg args)))
@@ -79,7 +79,6 @@
   (rename-file-or-directory tmp-file data-file #t)
   (copy-file (web-resource "report.html") html-file #t))
 
-(define single-threaded-jobs (make-hash))
 (define single-threaded-cache (make-hash))
 
 ; computes the path used for server URLs
@@ -137,7 +136,9 @@
      (define count (place-channel-get a))
      (log "Current job count: ~a.\n" count)
      count]
-    [else (hash-count single-threaded-jobs)]))
+    [else (if job-running 1 0)])) ; We can only have one job running in this mode.
+
+(define job-running #f)
 
 ;; Starts a job for a given command object|
 (define (start-job command)
@@ -155,8 +156,10 @@
                      [(list work job-id semaphore) (single-thread-herbie work job-id semaphore)])
                    (loop seed)))))
      (define sema (make-semaphore))
+     (set! job-running #t)
      (thread-send job-thread (list command job-id sema))
-     (semaphore-wait sema)]) ;; Block for job to finish
+     (semaphore-wait sema)
+     (set! job-running #f)]) ;; Block for job to finish
   job-id)
 
 (define (wait-for-job job-id)
@@ -182,7 +185,6 @@
     [else #t]))
 
 (define (start-job-server job-cap)
-  (eprintf "start-job-server\n")
   (cond
     [(> job-cap 1)
      (define r (make-manager job-cap))
@@ -368,7 +370,6 @@
 (struct work (manager worker-id job-id job))
 
 (define (single-thread-herbie command job-id sema)
-  (eprintf "single-thread-herbie\n")
   (define result (herbie-work-on command job-id))
   (log "Done waiting for job ~a to finish.\n" job-id)
   (hash-set! single-threaded-cache job-id result)
