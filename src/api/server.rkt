@@ -124,7 +124,10 @@
      (place-channel-put manager (list 'improve b))
      (log "Getting improve results.\n")
      (place-channel-get a)]
-    [else #f])) ; TODO Not supported yet
+    [else
+     (for/list ([(job-id result) (in-hash single-threaded-cache)]
+                #:when (equal? (hash-ref result 'command) "improve"))
+       (get-table-data-from-hash result (make-path job-id)))]))
 
 (define (job-count)
   (cond
