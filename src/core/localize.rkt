@@ -220,7 +220,7 @@
                               'diff-values
                               (vector->list (vector-ref diffs-out n))
                               'apx-values
-                              (vector->list (vector-ref diffs-out n))))
+                              (vector->list (vector-ref apx-out n))))
         (set! n (add1 n))))))
 
 ;; Compute the local error of every subexpression of `prog`
