@@ -181,7 +181,8 @@
           [actual (in-vector actuals)]
           [expr-idx (in-naturals)])
       (define apx #f)
-      (define diff #f)
+      (define machineD (rival-compile (list `(- ,exact ,actual)) (list) (list flonum-discretization)))
+      (define diff (vector-ref (rival-apply machineD (vector)) 0))
       (define err
         (match (vector-ref nodes root)
           [(? literal?) 1]
@@ -197,9 +198,6 @@
                (vector-ref exacts (vector-member idx roots)))) ; arg's index mapping to exact
            (define approx (apply (impl-info f 'fl) argapprox))
            (set! apx approx)
-           ;  (define machineD
-           ;    (rival-compile (list `(- ,exact ,actual)) (list) (list flonum-discretization)))
-           ;  (set! diff (vector-ref (rival-apply machineD (vector)) 0))
            (ulp-difference exact approx repr)]))
       (vector-set! (vector-ref exacts-out expr-idx) pt-idx exact)
       (vector-set! (vector-ref errs expr-idx) pt-idx err)
