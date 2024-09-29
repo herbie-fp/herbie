@@ -43,8 +43,10 @@
   (define lowering-rules (platform-lowering-rules))
 
   ; egg runner (2-phases for real rewrites and implementation selection)
+  (define batch (progs->batch progs))
   (define runner
-    (make-egg-runner progs
+    (make-egg-runner batch
+                     (batch-roots batch)
                      reprs
                      `((,lifting-rules . ((iteration . 1) (scheduler . simple)))
                        (,rules . ((node . ,(*node-limit*))))
@@ -195,9 +197,9 @@
                (vector-ref exacts (vector-member idx roots)))) ; arg's index mapping to exact
            (define approx (apply (impl-info f 'fl) argapprox))
            (set! apx approx)
-           (define machineD
-             (rival-compile (list `(- ,exact ,actual)) (list) (list flonum-discretization)))
-           (set! diff (vector-ref (rival-apply machineD (vector)) 0))
+           ;  (define machineD
+           ;    (rival-compile (list `(- ,exact ,actual)) (list) (list flonum-discretization)))
+           ;  (set! diff (vector-ref (rival-apply machineD (vector)) 0))
            (ulp-difference exact approx repr)]))
       (vector-set! (vector-ref exacts-out expr-idx) pt-idx exact)
       (vector-set! (vector-ref errs expr-idx) pt-idx err)
