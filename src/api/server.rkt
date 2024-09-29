@@ -103,7 +103,9 @@
      (place-channel-put manager (list 'timeline job-id b))
      (log "Getting timeline for job: ~a.\n" job-id)
      (place-channel-get a)]
-    [else #f])) ; TODO Not supported yet
+    [else
+     (define result (hash-ref single-threaded-cache job-id #f))
+     (if (false? result) (reverse (unbox (*timeline*))) result)]))
 
 ; Returns #f if there is no job returns the job-id if there is a completed job.
 (define (server-check-on job-id)
@@ -138,9 +140,20 @@
 (define (start-job command)
   (define job-id (compute-job-id command))
   (cond
-    [manager (place-channel-put manager (list 'start manager command job-id))]
-    [else (hash-set! single-threaded-jobs job-id command)])
-  (log "Job ~a, Qed up for program: ~a\n" job-id (test-name (herbie-command-test command)))
+    [manager
+     (log "Job ~a, Qed up for program: ~a\n" job-id (test-name (herbie-command-test command)))
+     (place-channel-put manager (list 'start manager command job-id))]
+    [else
+     (log "Waiting for job ~a to finish.\n" job-id)
+     (define job-thread
+       (thread (λ ()
+                 (let loop ([seed #f])
+                   (match (thread-receive)
+                     [(list work job-id semaphore) (single-thread-herbie work job-id semaphore)])
+                   (loop seed)))))
+     (define sema (make-semaphore))
+     (thread-send job-thread (list command job-id sema))
+     (semaphore-wait sema)]) ;; Block for job to finish
   job-id)
 
 (define (wait-for-job job-id)
@@ -151,18 +164,7 @@
      (define finished-result (place-channel-get a))
      (log "Done waiting for: ~a\n" job-id)
      finished-result]
-    [else
-     (define cached (hash-ref single-threaded-cache job-id #f))
-     (cond
-       [(false? cached)
-        (log "Waiting for job ~a to finish.\n" job-id)
-        (define work (hash-ref single-threaded-jobs job-id))
-        (hash-remove! single-threaded-jobs job-id)
-        (define result (herbie-work-on work job-id))
-        (log "Done waiting for job ~a to finish.\n" job-id)
-        (hash-set! single-threaded-cache job-id result)
-        result]
-       [else cached])]))
+    [else (hash-ref single-threaded-cache job-id #f)]))
 
 ; TODO refactor using this helper.
 (define (manager-ask msg . args)
@@ -361,6 +363,13 @@
         (place-channel-put handler (reverse (unbox timeline)))]))))
 
 (struct work (manager worker-id job-id job))
+
+(define (single-thread-herbie command job-id sema)
+  (eprintf "single-thread-herbie\n")
+  (define result (herbie-work-on command job-id))
+  (log "Done waiting for job ~a to finish.\n" job-id)
+  (hash-set! single-threaded-cache job-id result)
+  (semaphore-post sema))
 
 (define (herbie-work-on command job-id)
   (print-job-message (herbie-command-command command)
