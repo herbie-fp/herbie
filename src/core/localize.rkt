@@ -1,6 +1,6 @@
 #lang racket
 
-(require math/bigfloat 
+(require math/bigfloat
          rival)
 (require "../syntax/sugar.rkt"
          "../syntax/syntax.rkt"
@@ -172,7 +172,8 @@
           [exact (in-vector exacts)]
           [actual (in-vector actuals)]
           [expr-idx (in-naturals)])
-      (define diff (vector-ref (rival-apply diffMachine (list->vector `(,(bf exact) ,(bf actual)))) 0))
+      (define diff
+        (vector-ref (rival-apply diffMachine (list->vector `(,(bf exact) ,(bf actual)))) 0))
       (define err
         (match (vector-ref nodes root)
           [(? literal?) 1]
