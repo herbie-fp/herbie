@@ -70,20 +70,11 @@
 (define (errors expr pcontext ctx)
   (map first (batch-errors (list expr) pcontext ctx)))
 
-(define ((batch-errors-handler exprs point) e)
-  (raise e)
-  (eprintf "Error during batch-errors with exprs:\n")
-  (for ([expr (in-list exprs)])
-    (eprintf "  ~a\n" expr))
-  (eprintf "on point ~a\n" point)
-  (raise e))
-
 (define (batch-errors exprs pcontext ctx)
   (define fn (compile-progs exprs ctx))
   (for/list ([(point exact) (in-pcontext pcontext)])
-    (with-handlers ([exn:fail? (batch-errors-handler exprs point)])
-      (for/list ([out (in-vector (apply fn point))])
-        (point-error out exact (context-repr ctx))))))
+    (for/list ([out (in-vector (apply fn point))])
+      (point-error out exact (context-repr ctx)))))
 
 ;; Herbie <=> JSON conversion for pcontext
 ;; A JSON pcontext is just a list of lists
