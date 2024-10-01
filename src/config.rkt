@@ -26,7 +26,7 @@
         [setup . (simplify search)]
         [localize . (costs errors)]
         [generate . (rr taylor simplify proofs)]
-        [reduce . (regimes avg-error binary-search branch-expressions)]
+        [reduce . (regimes binary-search branch-expressions)]
         [rules
          . (arithmetic polynomials
                        fractions
@@ -52,6 +52,10 @@
      (eprintf "The generate:better-rr option has been removed.\n")
      (eprintf "  The current recursive rewriter does not support the it.\n")
      (eprintf "See <https://herbie.uwplse.org/doc/~a/options.html> for more.\n" *herbie-version*)]
+    [('reduce 'avg-error)
+     (eprintf "The reduce:avg-error option has been removed.\n")
+     (eprintf "  Herbie now always uses average error for pruning.\n")
+     (eprintf "See <herbie://herbie.uwplse.org/doc/~a/options.html> for more.\n" *herbie-version*)]
     [(_ _) (void)]))
 
 (define (enable-flag! category flag)
