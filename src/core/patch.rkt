@@ -56,14 +56,16 @@
     (reap [sow]
           (define global-batch-mutable (batch->mutable-batch global-batch)) ; Create mutable batch
           (for ([altn (in-list approxs)]
-                [batchreff (in-list simplification-options)])
+                [outputs (in-list simplification-options)])
+            (match-define (cons _ simplified) outputs)
             (define prev (car (alt-prevs altn)))
-            (define spec (prog->spec (debatchref (alt-expr prev))))
-            (define idx ; Munge everything
-              (mutable-batch-push! global-batch-mutable
-                                   (approx (mutable-batch-munge! global-batch-mutable spec)
-                                           (batchref-idx batchreff))))
-            (sow (alt (batchref global-batch idx) `(simplify ,runner #f #f) (list altn) '())))
+            (for ([batchreff (in-list simplified)])
+              (define spec (prog->spec (debatchref (alt-expr prev))))
+              (define idx ; Munge
+                (mutable-batch-push! global-batch-mutable
+                                     (approx (mutable-batch-munge! global-batch-mutable spec)
+                                             (batchref-idx batchreff))))
+              (sow (alt (batchref global-batch idx) `(simplify ,runner #f #f) (list altn) '()))))
           (batch-copy-mutable-nodes! global-batch global-batch-mutable))) ; Update global-batch
 
   (timeline-push! 'count (length approxs) (length simplified))

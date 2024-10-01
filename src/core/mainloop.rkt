@@ -377,7 +377,7 @@
 
      ; run egg
      (define simplified
-       (map debatchref
+       (map (compose debatchref last)
             (simplify-batch runner
                             (typed-egg-batch-extractor (if (*egraph-platform-cost*)
                                                            platform-egg-cost-proc

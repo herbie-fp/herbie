@@ -72,15 +72,18 @@
 
   ; run egg
   (define simplified
-    (debatchref (car (simplify-batch runner
-                                     (typed-egg-batch-extractor (if (*egraph-platform-cost*)
-                                                                    platform-egg-cost-proc
-                                                                    default-egg-cost-proc)
-                                                                batch)))))
+    (simplify-batch runner
+                    (typed-egg-batch-extractor
+                     (if (*egraph-platform-cost*) platform-egg-cost-proc default-egg-cost-proc)
+                     batch)))
 
   ; alternatives
   (define start-alt (make-alt expr))
-  (cons start-alt (list (alt simplified `(simplify () ,runner #f #f) (list start-alt) '()))))
+  (cons start-alt
+        (remove-duplicates
+         (for/list ([batchreff (rest simplified)])
+           (alt (debatchref batchreff) `(simplify () ,runner #f #f) (list start-alt) '()))
+         alt-equal?)))
 
 ;; See https://pavpanchekha.com/blog/symmetric-expressions.html
 (define (find-preprocessing init expr ctx)

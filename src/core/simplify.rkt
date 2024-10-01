@@ -20,12 +20,18 @@
 ;; the last expression is the simplest unless something went wrong due to unsoundness
 ;; if the input specifies proofs, it instead returns proofs for these expressions
 (define/contract (simplify-batch runner extractor)
-  (-> egg-runner? procedure? (listof batchref?))
+  (-> egg-runner? procedure? (listof (listof batchref?)))
   (timeline-push! 'inputs (map ~a (batch->progs (egg-runner-batch runner) (egg-runner-roots runner))))
   (timeline-push! 'method "egg-herbie")
-  (define simplifieds (apply append (run-egg runner (cons 'single extractor))))
-  (timeline-push! 'outputs (map (compose ~a debatchref) simplifieds))
-  simplifieds)
+  (define simplifieds (run-egg runner (cons 'single extractor)))
+  (define simplifieds*
+    (for/list ([simplified (in-list simplifieds)]
+               [root (egg-runner-roots runner)])
+      (if (equal? root (batchref-idx (car simplified)))
+          simplified
+          (cons (batchref (egg-runner-batch runner) root) simplified))))
+  (timeline-push! 'outputs (map (compose ~a debatchref last) simplifieds*))
+  simplifieds*)
 
 (module+ test
   (require "../syntax/types.rkt"
@@ -50,7 +56,7 @@
                        (map (lambda (_) 'real) args)
                        `((,(*simplify-rules*) . ((node . ,(*node-limit*)))))))
     (define extractor (typed-egg-batch-extractor default-egg-cost-proc batch))
-    (map debatchref (simplify-batch runner extractor)))
+    (map (compose debatchref last) (simplify-batch runner extractor)))
 
   (define test-exprs
     '((1 . 1) (0 . 0)
