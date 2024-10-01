@@ -83,10 +83,10 @@
                               #;(exp ,exp-x ,log-x)
                               #;(log ,log-x ,exp-x))))
 
-(define (taylor-alts altns global-batch)
+(define (taylor-alts starting-exprs altns global-batch)
   (define exprs
-    (for/list ([altn (in-list altns)])
-      (prog->spec (debatchref (alt-expr altn)))))
+    (for/list ([expr (in-list starting-exprs)])
+      (prog->spec expr)))
   (define free-vars (map free-variables exprs))
   (define vars (list->set (append* free-vars)))
 
@@ -112,14 +112,15 @@
 (define (spec-has-nan? expr)
   (expr-contains? expr (lambda (term) (eq? term 'NAN))))
 
-(define (run-taylor altns global-batch)
+(define (run-taylor starting-exprs altns global-batch)
   (timeline-event! 'series)
   (timeline-push! 'inputs (map ~a altns))
 
-  (define approxs (taylor-alts altns global-batch))
+  (define approxs (taylor-alts starting-exprs altns global-batch))
 
   (timeline-push! 'outputs (map ~a approxs))
   (timeline-push! 'count (length altns) (length approxs))
+
   (lower-approximations approxs global-batch))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Recursive Rewrite ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -170,7 +171,6 @@
 (define (generate-candidates exprs)
   ; Batch to where we will extract everything
   ; Roots of this batch are constantly updated
-  (println exprs)
   (define global-batch (progs->batch exprs))
 
   ; Starting alternatives
@@ -181,7 +181,8 @@
       (alt (batchref global-batch root) (list 'patch expr repr) '() '())))
 
   ; Series expand
-  (define approximations (if (flag-set? 'generate 'taylor) (run-taylor start-altns global-batch) '()))
+  (define approximations
+    (if (flag-set? 'generate 'taylor) (run-taylor exprs start-altns global-batch) '()))
   ; Recursive rewrite
   (define rewritten (if (flag-set? 'generate 'rr) (run-rr start-altns global-batch) '()))
 
