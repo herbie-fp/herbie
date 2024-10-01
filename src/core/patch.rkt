@@ -170,6 +170,7 @@
 (define (generate-candidates exprs)
   ; Batch to where we will extract everything
   ; Roots of this batch are constantly updated
+  (println exprs)
   (define global-batch (progs->batch exprs))
 
   ; Starting alternatives
