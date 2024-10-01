@@ -117,10 +117,11 @@
   (timeline-push! 'inputs (map ~a altns))
 
   (define approxs (taylor-alts starting-exprs altns global-batch))
+  (println approxs)
 
   (timeline-push! 'outputs (map ~a approxs))
   (timeline-push! 'count (length altns) (length approxs))
-
+  
   (lower-approximations approxs global-batch))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Recursive Rewrite ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -181,8 +182,7 @@
       (alt (batchref global-batch root) (list 'patch expr repr) '() '())))
 
   ; Series expand
-  (define approximations
-    (if (flag-set? 'generate 'taylor) (run-taylor exprs start-altns global-batch) '()))
+  (define approximations (if (flag-set? 'generate 'taylor) (run-taylor exprs start-altns global-batch) '()))
   ; Recursive rewrite
   (define rewritten (if (flag-set? 'generate 'rr) (run-rr start-altns global-batch) '()))
 
