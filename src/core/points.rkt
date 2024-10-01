@@ -26,11 +26,11 @@
 (define *pcontext* (make-parameter #f))
 (struct pcontext (points exacts) #:prefab)
 
-(define (in-pcontext context)
-  (in-parallel (in-vector (pcontext-points context)) (in-vector (pcontext-exacts context))))
+(define (in-pcontext pcontext)
+  (in-parallel (in-vector (pcontext-points pcontext)) (in-vector (pcontext-exacts pcontext))))
 
-(define (pcontext-length context)
-  (vector-length (pcontext-points context)))
+(define (pcontext-length pcontext)
+  (vector-length (pcontext-points pcontext)))
 
 (define/contract (mk-pcontext points exacts)
   (-> (non-empty-listof (listof any/c)) (non-empty-listof any/c) pcontext?)
@@ -41,11 +41,14 @@
                 (for/lists (pts* exs*) ([(pt ex) (in-pcontext pcontext)] other ...) body ...)])
     (mk-pcontext pts* exs*)))
 
-(define (split-pcontext context num-a num-b)
-  (define num-total (vector-length (pcontext-points context)))
-  (unless (= (+ num-a num-b) num-total)
-    (error 'split-pcontext "Cannot split pcontext of size ~a into ~a and ~a" num-total num-a num-b))
-  (match-define (pcontext pts exs) context)
+(define (split-pcontext pctx num-a num-b)
+  (match-define (pcontext pts exs) pctx)
+  (unless (= (+ num-a num-b) (vector-length pts))
+    (error 'split-pcontext
+           "Cannot split pcontext of size ~a into ~a and ~a"
+           (vector-length pts)
+           num-a
+           num-b))
   (define-values (pts-a pts-b) (vector-split-at pts num-a))
   (define-values (exs-a exs-b) (vector-split-at exs num-a))
   (values (pcontext pts-a exs-a) (pcontext pts-b exs-b)))
