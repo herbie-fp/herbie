@@ -1189,8 +1189,9 @@
     [(hash-has-key? canon key)
      (define id* (hash-ref canon key))
 
-     (for/list ([enode (vector-ref eclasses id*)])
-       (extract-enode enode type))]
+     (remove-duplicates (for/list ([enode (vector-ref eclasses id*)])
+                          (extract-enode enode type))
+                        #:key batchref-idx)]
     [else (list)]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
