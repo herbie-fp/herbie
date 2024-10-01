@@ -65,7 +65,7 @@
   (/ (apply + s) (length s)))
 
 (define (errors-score e)
-  (apply (if (flag-set? 'reduce 'avg-error) average max) (map ulps->bits e)))
+  (apply average (map ulps->bits e)))
 
 (define (errors expr pcontext ctx)
   (map first (batch-errors (list expr) pcontext ctx)))
