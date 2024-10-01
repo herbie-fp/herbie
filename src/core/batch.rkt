@@ -163,10 +163,7 @@
 (define (batch-ref batch reg)
   (define (unmunge reg)
     (define node (vector-ref (batch-nodes batch) reg))
-    (match node
-      [(approx spec impl) (approx (unmunge spec) (unmunge impl))]
-      [(list op regs ...) (cons op (map unmunge regs))]
-      [_ node]))
+    (expr-recurse node unmunge))
   (unmunge reg))
 
 (define (batch-restore-index batch)
