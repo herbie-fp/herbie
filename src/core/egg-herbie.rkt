@@ -22,7 +22,6 @@
          "batch.rkt")
 
 (provide (struct-out egg-runner)
-         ;typed-egg-extractor - Dead code
          typed-egg-batch-extractor
          platform-egg-cost-proc
          default-egg-cost-proc
@@ -125,8 +124,7 @@
       [(? symbol? x) (egraph_add_node ptr (symbol->string x) 0-vec root?)]
       [(? number? n) (egraph_add_node ptr (number->string n) 0-vec root?)]))
 
-  (set-batch-roots! batch roots) ; make sure that we work with the right roots
-  (define insert-batch (batch-remove-zombie batch))
+  (define insert-batch (batch-remove-zombie batch roots))
 
   (define mappings (build-vector (batch-length insert-batch) values))
   (define (remap x)
@@ -945,88 +943,6 @@
 ;; Extraction is partial, that is, the result of the extraction
 ;; procedure is `#f` if extraction finds no well-typed program
 ;; at a particular id with a particular output type.
-; Dead code
-#;(define ((typed-egg-extractor cost-proc) regraph)
-    (define eclasses (regraph-eclasses regraph))
-    (define types (regraph-types regraph))
-    (define n (vector-length eclasses))
-
-    ; e-class costs
-    (define costs (make-vector n #f))
-
-    ; looks up the cost
-    (define (unsafe-eclass-cost id)
-      (car (vector-ref costs id)))
-
-    ; do its children e-classes have a cost
-    (define (node-ready? node)
-      (match node
-        [(? number?) #t]
-        [(? symbol?) #t]
-        [(list '$approx _ impl) (vector-ref costs impl)]
-        [(list _ ids ...) (andmap (lambda (id) (vector-ref costs id)) ids)]))
-
-    ; computes cost of a node (as long as each of its children have costs)
-    ; cost function has access to a mutable value through `cache`
-    (define cache (box #f))
-    (define (node-cost node type)
-      (and (node-ready? node) (cost-proc regraph cache node type unsafe-eclass-cost)))
-
-    ; updates the cost of the current eclass.
-    ; returns whether the cost of the current eclass has improved.
-    (define (eclass-set-cost! _ changed?-vec iter eclass id)
-      (define type (vector-ref types id))
-      (define updated? #f)
-
-      ; update cost information
-      (define (update-cost! new-cost node)
-        (when new-cost
-          (define prev-cost&node (vector-ref costs id))
-          (when (or (not prev-cost&node) ; first cost
-                    (< new-cost (car prev-cost&node))) ; better cost
-            (vector-set! costs id (cons new-cost node))
-            (set! updated? #t))))
-
-      ; optimization: we only need to update node cost as needed.
-      ;  (i) terminals, nullary operators: only compute once
-      ;  (ii) non-nullary operators: compute when any of its child eclasses
-      ;       have their analysis updated
-      (define (node-requires-update? node)
-        (if (node-has-children? node)
-            (ormap (lambda (id) (vector-ref changed?-vec id)) (cdr node))
-            (= iter 0)))
-
-      ; iterate over each node
-      (for ([node (in-vector eclass)])
-        (when (node-requires-update? node)
-          (define new-cost (node-cost node type))
-          (update-cost! new-cost node)))
-
-      updated?)
-
-    ; run the analysis
-    (regraph-analyze regraph eclass-set-cost! #:analysis costs)
-
-    ; rebuilds the extracted procedure
-    (define id->spec (regraph-specs regraph))
-    (define (build-expr id)
-      (let loop ([id id])
-        (match (cdr (vector-ref costs id))
-          [(? number? n) n] ; number
-          [(? symbol? s) s] ; variable
-          [(list '$approx spec impl) ; approx
-           (match (vector-ref id->spec spec)
-             [#f (error 'build-expr "no initial approx node in eclass ~a" id)]
-             [spec-e (list '$approx spec-e (build-expr impl))])]
-          ; if expression
-          [(list 'if cond ift iff) (list 'if (loop cond) (loop ift) (loop iff))]
-          ; expression of impls
-          [(list (? impl-exists? impl) ids ...) (cons impl (map loop ids))]
-          ; expression of operators
-          [(list (? operator-exists? op) ids ...) (cons op (map loop ids))])))
-
-    (list unsafe-eclass-cost build-expr))
-
 (define ((typed-egg-batch-extractor cost-proc batch-extract-to) regraph)
   (define eclasses (regraph-eclasses regraph))
   (define types (regraph-types regraph))
