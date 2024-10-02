@@ -45,6 +45,7 @@
 
   ; run egg
   (printf "progs=~a\n" (batch->progs global-batch roots))
+  (sleep 6)
   (define runner (make-egg-runner global-batch roots reprs schedule))
   (define simplification-options
     (simplify-batch runner
