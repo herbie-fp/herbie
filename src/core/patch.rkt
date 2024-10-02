@@ -23,6 +23,8 @@
 
   (define reprs
     (for/list ([approx (in-list approxs)])
+      (printf "alt=~a\n" approx)
+      (printf "prev=~a\n" (car (alt-prevs approx)))
       (define prev (car (alt-prevs approx)))
       (repr-of (debatchref (alt-expr prev)) (*context*))))
 
@@ -169,6 +171,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Public API ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (generate-candidates exprs)
+  (printf "exprs=~a\n" exprs)
+  (printf "prog->spec=~a\n" (map prog->spec exprs))
   ; Batch to where we will extract everything
   ; Roots of this batch are constantly updated
   (define global-batch (progs->batch exprs))
