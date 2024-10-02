@@ -66,6 +66,9 @@
 (define (batch-copy-mutable-nodes! b mb)
   (set-batch-nodes! b (list->vector (reverse (mutable-batch-nodes mb)))))
 
+(define (batch-copy b)
+  (batch (vector-copy (batch-nodes b)) (vector-copy (batch-roots b)) (batch-vars b)))
+
 (struct batchref (batch idx))
 
 (define (deref x)
@@ -133,32 +136,34 @@
 (define (batch-remove-zombie input-batch [roots (batch-roots input-batch)] #:keep-vars [keep-vars #f])
   (define nodes (batch-nodes input-batch))
   (define nodes-length (batch-length input-batch))
+  (match (zero? nodes-length)
+    [#f
+     (define zombie-mask (make-vector nodes-length #t))
+     (for ([root (in-vector roots)])
+       (vector-set! zombie-mask root #f))
+     (for ([node (in-vector nodes (- nodes-length 1) -1 -1)]
+           [zmb (in-vector zombie-mask (- nodes-length 1) -1 -1)]
+           #:when (not zmb))
+       (expr-recurse node (λ (n) (vector-set! zombie-mask n #f))))
 
-  (define zombie-mask (make-vector nodes-length #t))
-  (for ([root (in-vector roots)])
-    (vector-set! zombie-mask root #f))
-  (for ([node (in-vector nodes (- nodes-length 1) -1 -1)]
-        [zmb (in-vector zombie-mask (- nodes-length 1) -1 -1)]
-        #:when (not zmb))
-    (expr-recurse node (λ (n) (vector-set! zombie-mask n #f))))
+     (define mappings (make-vector nodes-length -1))
+     (define (remap idx)
+       (vector-ref mappings idx))
 
-  (define mappings (make-vector nodes-length -1))
-  (define (remap idx)
-    (vector-ref mappings idx))
+     (define out (make-mutable-batch))
+     (when keep-vars
+       (for ([var (in-list (batch-vars input-batch))])
+         (mutable-batch-push! out var)))
 
-  (define out (make-mutable-batch))
-  (when keep-vars
-    (for ([var (in-list (batch-vars input-batch))])
-      (mutable-batch-push! out var)))
+     (for ([node (in-vector nodes)]
+           [zmb (in-vector zombie-mask)]
+           [n (in-naturals)]
+           #:unless zmb)
+       (vector-set! mappings n (mutable-batch-push! out (expr-recurse node remap))))
 
-  (for ([node (in-vector nodes)]
-        [zmb (in-vector zombie-mask)]
-        [n (in-naturals)]
-        #:unless zmb)
-    (vector-set! mappings n (mutable-batch-push! out (expr-recurse node remap))))
-
-  (define roots* (vector-map (curry vector-ref mappings) roots))
-  (mutable-batch->batch out roots*))
+     (define roots* (vector-map (curry vector-ref mappings) roots))
+     (mutable-batch->batch out roots*)]
+    [#t (batch-copy input-batch)]))
 
 (define (batch-ref batch reg)
   (define (unmunge reg)

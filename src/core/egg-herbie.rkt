@@ -126,8 +126,7 @@
       [(? number? n) (egraph_add_node ptr (number->string n) 0-vec root?)]))
 
   (set-batch-roots! batch roots) ; make sure that we work with the right roots
-  ; the algorithm may crash if batch-length is zero
-  (define insert-batch (if (zero? (batch-length batch)) batch (batch-remove-zombie batch)))
+  (define insert-batch (batch-remove-zombie batch))
 
   (define mappings (build-vector (batch-length insert-batch) values))
   (define (remap x)
