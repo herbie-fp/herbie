@@ -23,9 +23,7 @@
 
   (define reprs
     (for/list ([approx (in-list approxs)])
-      (println alt-prevs)
       (define prev (car (alt-prevs approx)))
-      (println prev)
       (repr-of (debatchref (alt-expr prev)) (*context*))))
 
   ; generate real rules
@@ -60,9 +58,7 @@
           (for ([altn (in-list approxs)]
                 [outputs (in-list simplification-options)])
             (match-define (cons _ simplified) outputs)
-            (println alt-prevs)
             (define prev (car (alt-prevs altn)))
-            (println prev)
             (for ([batchreff (in-list simplified)])
               (define spec (prog->spec (debatchref (alt-expr prev))))
               (define idx ; Munge
@@ -92,11 +88,11 @@
     (for/list ([expr (in-list starting-exprs)])
       (prog->spec expr)))
   (define free-vars (map free-variables exprs))
-  (define vars (list->set (append* free-vars)))
+  (define vars (context-vars (*context*)))
 
   (reap [sow]
         (define global-batch-mutable (batch->mutable-batch global-batch)) ; Create a mutable batch
-        (for* ([var (in-set vars)]
+        (for* ([var (in-list vars)]
                [transform-type transforms-to-try])
           (match-define (list name f finv) transform-type)
           (define timeline-stop! (timeline-start! 'series (~a exprs) (~a var) (~a name)))
