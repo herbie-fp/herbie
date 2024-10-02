@@ -23,8 +23,6 @@
 
   (define reprs
     (for/list ([approx (in-list approxs)])
-      ;(printf "alt=~a\n" approx)
-      ;(printf "prev=~a\n" (car (alt-prevs approx)))
       (define prev (car (alt-prevs approx)))
       (repr-of (debatchref (alt-expr prev)) (*context*))))
 
@@ -46,12 +44,14 @@
       (batchref-idx (alt-expr approx))))
 
   ; run egg
+  (printf "progs=~a\n" (batch->progs global-batch roots))
   (define runner (make-egg-runner global-batch roots reprs schedule))
   (define simplification-options
     (simplify-batch runner
                     (typed-egg-batch-extractor
                      (if (*egraph-platform-cost*) platform-egg-cost-proc default-egg-cost-proc)
                      global-batch)))
+  (printf "simpl=~a\n" simplification-options)
 
   ; convert to altns
   (define simplified
@@ -171,8 +171,6 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Public API ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (generate-candidates exprs)
-  ;(printf "exprs=~a\n" exprs)
-  ;;(printf "prog->spec=~a\n" (map prog->spec exprs))
   ; Batch to where we will extract everything
   ; Roots of this batch are constantly updated
   (define global-batch (progs->batch exprs))
