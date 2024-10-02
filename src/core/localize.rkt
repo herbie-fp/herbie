@@ -190,7 +190,18 @@
          (for/list ([idx (in-list args-roots)]
                     #:when (hash-has-key? variables idx))
            (hash-ref variables idx)))
-       (eprintf "var-list: ~a\n" var-list)
+
+       ; ??? Does variable order mater?
+       (define modifed-vars (append var-list (list 'e)))
+       (eprintf "modifed-vars: ~a\n" modifed-vars)
+       (define input-expr (list `(- ,spec e)))
+       (eprintf "input-expr: ~a\n" input-expr)
+       (define diffMachine (rival-compile input-expr modifed-vars (list flonum-discretization)))
+       (define input-points (first pt)) ; TODO remove input point hack
+       (define inputs (map bf (list input-points exact))) ; TODO remove bf hack
+       (eprintf "inputs: ~a\n" inputs)
+       (define true-error (vector-ref (rival-apply diffMachine (list->vector inputs)) 0))
+       (eprintf "true-error: ~a, other: ~a ~a\n" true-error exact pt)
        (define temp-exacts
          (for/list ([idx (in-list args-roots)])
            (vector-ref exacts (vector-member idx roots))))
@@ -236,42 +247,42 @@
                 ([node (in-vector roots)])
       (make-vector (pcontext-length (*pcontext*)))))
 
-  (for ([(pt ex) (in-pcontext (*pcontext*))]
-        [pt-idx (in-naturals)])
-    ; (define pt-idx (list 0 1))
-    ; (define pt (list 1.0 6.9))
+  ; (for ([(pt ex) (in-pcontext (*pcontext*))]
+  ;       [pt-idx (in-naturals)])
+  (define pt-idx (list 0 1))
+  (define pt (list 1.0 6.9))
 
-    (define exacts (list->vector (apply subexprs-fn pt)))
-    (define actuals (apply actual-value-fn pt))
+  (define exacts (list->vector (apply subexprs-fn pt)))
+  (define actuals (apply actual-value-fn pt))
 
-    (compute-true-error exprs-list spec-vec roots nodes actuals exacts ctx pt-idx pt)
-    (eprintf "true error here!\n")
+  (compute-true-error exprs-list spec-vec roots nodes actuals exacts ctx pt-idx pt)
+  (eprintf "true error here!\n")
 
-    (for ([expr (in-list exprs-list)]
-          [root (in-vector roots)]
-          [exact (in-vector exacts)]
-          [actual (in-vector actuals)]
-          [expr-idx (in-naturals)])
-      (define diff
-        (vector-ref (rival-apply diffMachine (list->vector `(,(bf exact) ,(bf actual)))) 0))
-      (define err
-        (match (vector-ref nodes root)
-          [(? literal?) 1]
-          [(? variable?) 1]
-          [(approx _ impl)
-           (define repr (repr-of expr ctx))
-           (ulp-difference exact (vector-ref exacts (vector-member impl roots)) repr)]
-          [`(if ,c ,ift ,iff) 1]
-          [(list f args ...)
-           (define repr (impl-info f 'otype))
-           (define argapprox
-             (for/list ([idx (in-list args)])
-               (vector-ref exacts (vector-member idx roots)))) ; arg's index mapping to exact
-           (define approx (apply (impl-info f 'fl) argapprox))
-           (ulp-difference exact approx repr)]))
-      (vector-set! (vector-ref exacts-out expr-idx) pt-idx exact)
-      (vector-set! (vector-ref errs expr-idx) pt-idx err)
-      (vector-set! (vector-ref diffs-out expr-idx) pt-idx diff)))
+  (for ([expr (in-list exprs-list)]
+        [root (in-vector roots)]
+        [exact (in-vector exacts)]
+        [actual (in-vector actuals)]
+        [expr-idx (in-naturals)])
+    (define diff (vector-ref (rival-apply diffMachine (list->vector `(,(bf exact) ,(bf actual)))) 0))
+    (define err
+      (match (vector-ref nodes root)
+        [(? literal?) 1]
+        [(? variable?) 1]
+        [(approx _ impl)
+         (define repr (repr-of expr ctx))
+         (ulp-difference exact (vector-ref exacts (vector-member impl roots)) repr)]
+        [`(if ,c ,ift ,iff) 1]
+        [(list f args ...)
+         (define repr (impl-info f 'otype))
+         (define argapprox
+           (for/list ([idx (in-list args)])
+             (vector-ref exacts (vector-member idx roots)))) ; arg's index mapping to exact
+         (define approx (apply (impl-info f 'fl) argapprox))
+         (ulp-difference exact approx repr)]))
+    (vector-set! (vector-ref exacts-out expr-idx) pt-idx exact)
+    (vector-set! (vector-ref errs expr-idx) pt-idx err)
+    (vector-set! (vector-ref diffs-out expr-idx) pt-idx diff))
+  ; )
 
   (define n 0)
   (for/list ([subexprs (in-list subexprss)])
