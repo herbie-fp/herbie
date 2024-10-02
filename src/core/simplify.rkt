@@ -27,9 +27,9 @@
   (define simplifieds*
     (for/list ([simplified (in-list simplifieds)]
                [root (egg-runner-roots runner)])
-      (if (equal? root (batchref-idx (car simplified)))
-          simplified
-          (cons (batchref (egg-runner-batch runner) root) simplified))))
+      (remove-duplicates (cons (batchref (egg-runner-batch runner) root) simplified)
+                         #:key batchref-idx)))
+
   (timeline-push! 'outputs (map (compose ~a debatchref last) simplifieds*))
   simplifieds*)
 
