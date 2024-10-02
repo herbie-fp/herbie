@@ -130,6 +130,79 @@
           >
           #:key (compose errors-score car))))
 
+(define (compute-true-error exprs-list spec-vec roots nodes actuals exacts ctx pt-idx pt)
+
+  ; Keep track of where the variales are for later.
+  (define variables (make-hash))
+  ; not sure if we need to save expr or spec
+  (for ([subexpr (in-list exprs-list)]
+        [spec (in-vector spec-vec)]
+        [root (in-vector roots)])
+    (match (vector-ref nodes root)
+      [(? variable?) (hash-set! variables root spec)]
+      [_ empty]))
+  (eprintf "Variables: ~a\n" variables)
+
+  ; (for ([(pt ex) (in-pcontext (*pcontext*))]
+  ;       [pt-idx (in-naturals)])
+
+  ;; Don't love that we do this per point iteration but oh well.
+  (define actuals-map
+    (for/hash ([subexpr (in-list exprs-list)]
+               [actual (in-vector actuals)])
+      (values subexpr actual)))
+  (define exacts-map
+    (for/hash ([subexpr (in-list exprs-list)]
+               [exact (in-vector exacts)])
+      (values subexpr exact)))
+
+  (define diff-map (make-hash))
+
+  ;; Roots maps specs to node index, as node and spec/exacts are in different orderings.
+  (for ([spec (in-vector spec-vec)]
+        [expr (in-list exprs-list)]
+        [root (in-vector roots)]
+        [exact (in-vector exacts)])
+    ; (define true-error
+    (match (vector-ref nodes root)
+      [(? literal?)
+       (eprintf "LITERAL[exact: ~a, root: ~a]\n" exact root)
+       0]
+      [(? variable?)
+       (eprintf "VARIABLE[node ~a, exact: ~a, root: ~a]\n" (vector-ref nodes root) exact root)
+       0]
+      [(approx _ impl)
+       (define repr (repr-of expr ctx))
+       (eprintf "APPROX[exact: ~a, root: ~a]\n" exact root)
+       1] ;; TODO
+      ;; ??? Do I ignore this as well?
+      [`(if ,c ,ift ,iff) 0]
+      [(list f args-roots ...)
+       ;; Find the index of the variables we need to substitute.
+       (eprintf "EXPR[node: ~a, exact: ~a, root: ~a, sepc: ~a]\n"
+                (vector-ref nodes root)
+                exact
+                root
+                spec)
+       (define repr (impl-info f 'otype))
+       (eprintf "args-roots: ~a\n" args-roots)
+       (define var-list
+         (for/list ([idx (in-list args-roots)]
+                    #:when (hash-has-key? variables idx))
+           (hash-ref variables idx)))
+       (eprintf "var-list: ~a\n" var-list)
+       (define temp-exacts
+         (for/list ([idx (in-list args-roots)])
+           (vector-ref exacts (vector-member idx roots))))
+       (eprintf "child-exacts: ~a\n" temp-exacts)
+       (define temp-specs
+         (for/list ([idx (in-list args-roots)])
+           (vector-ref spec-vec (vector-member idx roots))))
+       (eprintf "child-specs: ~a\n" temp-specs)
+       ; arg's index mapping to exact
+       1])) ;; TODO
+  1)
+
 ; Compute local error or each sampled point at each node in `prog`.
 (define (compute-local-errors subexprss ctx)
   (define exprs-list (append* subexprss)) ; unroll subexprss
@@ -137,6 +210,8 @@
     (for/list ([subexpr (in-list exprs-list)])
       (struct-copy context ctx [repr (repr-of subexpr ctx)])))
 
+  (define spec-list (map prog->spec exprs-list))
+  (define spec-vec (list->vector spec-list))
   (define expr-batch (progs->batch exprs-list))
   (define nodes (batch-nodes expr-batch))
   (define roots (batch-roots expr-batch))
@@ -163,9 +238,14 @@
 
   (for ([(pt ex) (in-pcontext (*pcontext*))]
         [pt-idx (in-naturals)])
+    ; (define pt-idx (list 0 1))
+    ; (define pt (list 1.0 6.9))
 
     (define exacts (list->vector (apply subexprs-fn pt)))
     (define actuals (apply actual-value-fn pt))
+
+    (compute-true-error exprs-list spec-vec roots nodes actuals exacts ctx pt-idx pt)
+    (eprintf "true error here!\n")
 
     (for ([expr (in-list exprs-list)]
           [root (in-vector roots)]
