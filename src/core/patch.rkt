@@ -50,7 +50,6 @@
                     (typed-egg-batch-extractor
                      (if (*egraph-platform-cost*) platform-egg-cost-proc default-egg-cost-proc)
                      global-batch)))
-  (printf "simpl=~a\n" simplification-options)
 
   ; convert to altns
   (define simplified
