@@ -23,7 +23,9 @@
 
   (define reprs
     (for/list ([approx (in-list approxs)])
+      (println alt-prevs)
       (define prev (car (alt-prevs approx)))
+      (println prev)
       (repr-of (debatchref (alt-expr prev)) (*context*))))
 
   ; generate real rules
@@ -58,7 +60,9 @@
           (for ([altn (in-list approxs)]
                 [outputs (in-list simplification-options)])
             (match-define (cons _ simplified) outputs)
+            (println alt-prevs)
             (define prev (car (alt-prevs altn)))
+            (println prev)
             (for ([batchreff (in-list simplified)])
               (define spec (prog->spec (debatchref (alt-expr prev))))
               (define idx ; Munge
@@ -114,11 +118,11 @@
 
 (define (run-taylor starting-exprs altns global-batch)
   (timeline-event! 'series)
-  (timeline-push! 'inputs (map ~a altns))
+  (timeline-push! 'inputs (map ~a starting-exprs))
 
   (define approxs (taylor-alts starting-exprs altns global-batch))
 
-  (timeline-push! 'outputs (map ~a approxs))
+  (timeline-push! 'outputs (map ~a (map (compose debatchref alt-expr) approxs)))
   (timeline-push! 'count (length altns) (length approxs))
 
   (lower-approximations approxs global-batch))
@@ -162,7 +166,7 @@
             (for ([batchref* (in-list batchrefs)])
               (sow (alt batchref* (list 'rr runner #f #f) (list altn) '()))))))
 
-  (timeline-push! 'outputs (map (compose ~a alt-expr) rewritten))
+  (timeline-push! 'outputs (map (compose ~a debatchref alt-expr) rewritten))
   (timeline-push! 'count (length altns) (length rewritten))
   rewritten)
 
