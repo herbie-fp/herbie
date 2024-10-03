@@ -161,7 +161,7 @@
                 ([node (in-vector roots)])
       (make-vector (pcontext-length (*pcontext*)))))
 
-  (define diffs-out
+  (define approx-out
     (for/vector #:length (vector-length roots)
                 ([node (in-vector roots)])
       (make-vector (pcontext-length (*pcontext*)))))
@@ -179,7 +179,7 @@
   ; not sure if we need to save expr or spec
   (define var-index 0)
   ; ??? Does the ordering of these variables always match the pt odering?
-  ; ??? How can I confirm and test this?
+  ; ??? How can I confirm the orderings and test that?
   (for ([subexpr (in-list exprs-list)]
         [spec (in-vector spec-vec)]
         [root (in-vector roots)])
@@ -228,8 +228,6 @@
           [exact (in-vector exacts)]
           [actual (in-vector actuals)]
           [expr-idx (in-naturals)])
-      (define diff
-        (vector-ref (rival-apply diffMachine (list->vector `(,(bf exact) ,(bf actual)))) 0))
       (define true-err
         ;; ??? Whats the default values for true error literal, variable approx and if?
         (match (vector-ref nodes root)
@@ -265,17 +263,17 @@
              (rival-compile true-error-expr modifed-vars (list flonum-discretization)))
            (define pt-vec (list->vector pt))
            ; Collect points that match the variables we are evaluating.
-           (define input-points 
+           (define input-points
              (for/list ([p (in-list points-needed)])
                (vector-ref pt-vec p)))
            (eprintf "input-points: ~a\n" input-points)
            (define inputs (map bf (append input-points (list exact)))) ; TODO remove bf hack
            ;; ??? Is this always length 1, as we are asking about exact?
-           (define true-error (vector-ref (rival-apply diffMachine (list->vector inputs)) 0)) 
+           (define true-error (vector-ref (rival-apply diffMachine (list->vector inputs)) 0))
            (eprintf "true-error: ~a, pt: ~a, exact ~a\n" true-error pt exact)
            true-error]))
 
-      (define err
+      (define err ; ??? Is this upls of error?
         (match (vector-ref nodes root)
           [(? literal?) 1]
           [(? variable?) 1]
@@ -289,12 +287,13 @@
              (for/list ([idx (in-list args-roots)])
                (vector-ref exacts (vector-member idx roots)))) ; arg's index mapping to exact
            (define approx (apply (impl-info f 'fl) argapprox))
+           ;; ??? Should we compute `exact` against `actual` now?
            (ulp-difference exact approx repr)]))
 
       (vector-set! (vector-ref exacts-out expr-idx) pt-idx exact)
-      (vector-set! (vector-ref errs expr-idx) pt-idx err)
-      (vector-set! (vector-ref diffs-out expr-idx) pt-idx diff)
-      (vector-set! (vector-ref true-error-out expr-idx) pt-idx true-err)))
+      (vector-set! (vector-ref approx-out expr-idx) pt-idx actual)
+      (vector-set! (vector-ref true-error-out expr-idx) pt-idx true-err)
+      (vector-set! (vector-ref errs expr-idx) pt-idx err)))
   (eprintf "\n\n")
 
   (define n 0)
@@ -305,8 +304,8 @@
                               (vector->list (vector-ref errs n))
                               'exact-values
                               (vector->list (vector-ref exacts-out n))
-                              'diff-values
-                              (vector->list (vector-ref diffs-out n))
+                              'approx-values
+                              (vector->list (vector-ref approx-out n))
                               'true-error-values
                               (vector->list (vector-ref true-error-out n))))
         (set! n (add1 n))))))
@@ -333,13 +332,13 @@
         [(list op args ...) (cons exacts-list (map loop args))]
         [_ (list exacts-list)])))
 
-  (define diff-values
+  (define approx-values
     (let loop ([expr (test-input test)])
       (define expr-info (hash-ref errs expr))
-      (define actual-list (hash-ref expr-info 'diff-values))
+      (define exacts-list (hash-ref expr-info 'approx-values))
       (match expr
-        [(list op args ...) (cons actual-list (map loop args))]
-        [_ (list actual-list)])))
+        [(list op args ...) (cons exacts-list (map loop args))]
+        [_ (list exacts-list)])))
 
   (define true-error-values
     (let loop ([expr (test-input test)])
@@ -353,33 +352,37 @@
     (let loop ([expr (prog->fpcore (test-input test) (test-context test))]
                [err local-error]
                [exact exact-values]
-               [diff diff-values]
+               [approx approx-values]
                [t-err true-error-values])
       (match expr
         [(list op args ...)
          ;; err => (List (listof Integer) List ...)
          (hasheq 'e
                  (~a op)
+                 'ulps-error ;; TODO Not sure on this
+                 (errors-score (first err))
                  'avg-error
                  (format-bits (errors-score (first err)))
                  'exact-value
                  (map ~s (first exact))
-                 'diff-value
-                 (map ~s (first diff))
+                 'approx-value
+                 (map ~s (first approx))
                  'true-error-value
                  (map ~s (first t-err))
                  'children
-                 (map loop args (rest err) (rest exact) (rest diff) (rest t-err)))]
+                 (map loop args (rest err) (rest exact) (rest approx) (rest t-err)))]
         ;; err => (List (listof Integer))
         [_
          (hasheq 'e
                  (~a expr)
+                 'ulps-error ;; TODO Not sure on this
+                 (errors-score (first err))
                  'avg-error
                  (format-bits (errors-score (first err)))
                  'exact-value
                  (map ~s (first exact))
-                 'diff-value
-                 (map ~s (first diff))
+                 'approx-value
+                 (map ~s (first approx))
                  'true-error-value
                  (map ~s (first t-err))
                  'children
