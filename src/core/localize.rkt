@@ -163,6 +163,11 @@
                 ([node (in-vector roots)])
       (make-vector (pcontext-length (*pcontext*)))))
 
+  (define true-error-out
+    (for/vector #:length (vector-length roots)
+                ([node (in-vector roots)])
+      (make-vector (pcontext-length (*pcontext*)))))
+
   ; Save variables root location for later.
   (define variables (make-hash))
   ; not sure if we need to save expr or spec
@@ -259,7 +264,8 @@
 
       (vector-set! (vector-ref exacts-out expr-idx) pt-idx exact)
       (vector-set! (vector-ref errs expr-idx) pt-idx err)
-      (vector-set! (vector-ref diffs-out expr-idx) pt-idx diff)))
+      (vector-set! (vector-ref diffs-out expr-idx) pt-idx diff)
+      (vector-set! (vector-ref true-error-out expr-idx) pt-idx true-err)))
 
   (define n 0)
   (for/list ([subexprs (in-list subexprss)])
@@ -270,7 +276,9 @@
                               'exact-values
                               (vector->list (vector-ref exacts-out n))
                               'diff-values
-                              (vector->list (vector-ref diffs-out n))))
+                              (vector->list (vector-ref diffs-out n))
+                              'true-error-values
+                              (vector->list (vector-ref true-error-out n))))
         (set! n (add1 n))))))
 
 ;; Compute the local error of every subexpression of `prog`
@@ -303,11 +311,20 @@
         [(list op args ...) (cons actual-list (map loop args))]
         [_ (list actual-list)])))
 
+  (define true-error-values
+    (let loop ([expr (test-input test)])
+      (define expr-info (hash-ref errs expr))
+      (define actual-list (hash-ref expr-info 'true-error-values))
+      (match expr
+        [(list op args ...) (cons actual-list (map loop args))]
+        [_ (list actual-list)])))
+
   (define tree
     (let loop ([expr (prog->fpcore (test-input test) (test-context test))]
                [err local-error]
                [exact exact-values]
-               [diff diff-values])
+               [diff diff-values]
+               [t-err true-error-values])
       (match expr
         [(list op args ...)
          ;; err => (List (listof Integer) List ...)
@@ -319,8 +336,10 @@
                  (map ~s (first exact))
                  'diff-value
                  (map ~s (first diff))
+                 'true-error-value
+                 (map ~s (first t-err))
                  'children
-                 (map loop args (rest err) (rest exact) (rest diff)))]
+                 (map loop args (rest err) (rest exact) (rest diff) (rest t-err)))]
         ;; err => (List (listof Integer))
         [_
          (hasheq 'e
@@ -331,6 +350,8 @@
                  (map ~s (first exact))
                  'diff-value
                  (map ~s (first diff))
+                 'true-error-value
+                 (map ~s (first t-err))
                  'children
                  '())])))
   tree)
