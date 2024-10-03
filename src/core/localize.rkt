@@ -172,30 +172,33 @@
       (make-vector (pcontext-length (*pcontext*)))))
 
   ; Save variables root location for later.
-  (define variables (make-hash))
+  (define var-root-idx (make-hash))
+  (define variable-point-loc (make-hash))
   ; Save literals and other leaf nodes.
   (define literals (make-hash))
   ; not sure if we need to save expr or spec
-  (define var-count 0)
+  (define var-index 0)
+  ; ??? Does the ordering of these variables always match the pt odering?
+  ; ??? How can I confirm and test this?
   (for ([subexpr (in-list exprs-list)]
         [spec (in-vector spec-vec)]
         [root (in-vector roots)])
     (match (vector-ref nodes root)
       [(? literal?) (hash-set! literals root spec)]
       [(? variable?)
-       (hash-set! variables root (cons spec var-count))
-       (set! var-count (+ var-count 1))]
+       (hash-set! var-root-idx root spec)
+       (hash-set! variable-point-loc spec var-index)
+       (set! var-index (+ var-index 1))]
       [_ empty]))
-  (eprintf "Variables: ~a\n" variables)
+  (eprintf "Variables: ~a\n" var-root-idx)
 
   ;; Function to expand the node to find all nested variable names
   (define (find-variables args-roots)
-    ; Maybe just pass the node in and recuse on that instead of looking stuff up.
+    ; HACK Maybe just pass the node in and recuse on that instead of looking stuff up.
+    ; TODO clean up this recusion.
     (for/list ([idx (in-list args-roots)])
       (cond
-        [(hash-has-key? variables idx)
-         (match-define (cons var-name point-idx) (hash-ref variables idx))
-         var-name]
+        [(hash-has-key? var-root-idx idx) (hash-ref var-root-idx idx)]
         [(hash-has-key? literals idx)
          #|skip we are only looking for variables|#
          empty]
@@ -204,12 +207,13 @@
          (eprintf "other: ~a\n" (vector-ref nodes idx))
          (match (vector-ref nodes idx)
            [(? literal?) empty]
-           [(? variable?)
-            (match-define (cons var-name point-idx) (hash-ref variables idx))
-            var-name]
-           [(approx _ impl) empty] ;; TODO ??? IDK
+           [(? variable?) (hash-ref var-root-idx idx)]
+           [(approx aprx-spec impl)
+            (eprintf "find-variables: APPROX, ~a ~a ~a\n" approx aprx-spec impl)] ;; TODO ??? IDK
            [`(if ,c ,ift ,iff) empty]
-           [(list f nested-args-roots ...) (find-variables nested-args-roots)])])))
+           [(list f nested-args-roots ...)
+            (eprintf "recusing ~a\n" nested-args-roots)
+            (find-variables nested-args-roots)])])))
 
   ; Points are ordered in the ordering that they appear in the spec.
   (for ([(pt ex) (in-pcontext (*pcontext*))]
@@ -217,16 +221,6 @@
 
     (define exacts (list->vector (apply subexprs-fn pt)))
     (define actuals (apply actual-value-fn pt))
-    ; (define actuals-map
-    ;   (for/hash ([subexpr (in-list exprs-list)]
-    ;              [actual (in-vector actuals)])
-    ;     (values subexpr actual)))
-    ; (define exacts-map
-    ;   (for/hash ([subexpr (in-list exprs-list)]
-    ;              [exact (in-vector exacts)])
-    ;     (values subexpr exact)))
-
-    (define diff-map (make-hash))
 
     (for ([spec (in-vector spec-vec)]
           [expr (in-list exprs-list)]
@@ -237,13 +231,14 @@
       (define diff
         (vector-ref (rival-apply diffMachine (list->vector `(,(bf exact) ,(bf actual)))) 0))
       (define true-err
+        ;; ??? Whats the default values for true error literal, variable approx and if?
         (match (vector-ref nodes root)
-          [(? literal?) 1]
-          [(? variable?) 1]
-          [(approx _ impl)
-           (define repr (repr-of expr ctx))
-           1] ;; TODO
-          [`(if ,c ,ift ,iff) 1]
+          [(? literal?) 0]
+          [(? variable?) 0]
+          [(approx aprx-spec impl)
+           (eprintf "TRUEERR: APPROX, ~a ~a ~a\n" approx aprx-spec impl)
+           0] ;; TODO understand approx nodes.
+          [`(if ,c ,ift ,iff) 0]
           [(list f args-roots ...)
            ;; Find the index of the variables we need to substitute.
            (eprintf "EXPR[node: ~a, exact: ~a, root: ~a, sepc: ~a]\n"
@@ -254,19 +249,29 @@
            (eprintf "pt: ~a\n" pt)
            ;; HACK flatten to fix my bad recusion.
            (define var-list (flatten (find-variables args-roots)))
-           ; ??? Does variable order mater?
-           ; __e double underscore to avoid conflicts with user provided
+           ;; Filter which indexs of pt we need to pass into rival.
+           (define points-needed
+             (for/list ([var-name (in-list var-list)])
+               (hash-ref variable-point-loc var-name)))
+           (eprintf "points-needed: ~a, var-names: ~a\n" points-needed var-list)
+           ; ??? Does variable order for rival mater?
+           ; __exact double underscore to avoid conflicts with user provided
            ; variables. Could use name mangling long term.
-           (define modifed-vars (append var-list `(__e)))
+           (define modifed-vars (append var-list `(__exact)))
            (eprintf "modifed-vars: ~a\n" modifed-vars)
-           (define input-expr (list `(- ,spec __e)))
-           (eprintf "input-expr: ~a\n" input-expr)
-           (define diffMachine (rival-compile input-expr modifed-vars (list flonum-discretization)))
-           ; TODO only pass in points that match variables.
-           (define input-points pt) 
+           (define true-error-expr (list `(- ,spec __exact)))
+           (eprintf "true-error-expr: ~a\n" true-error-expr)
+           (define diffMachine
+             (rival-compile true-error-expr modifed-vars (list flonum-discretization)))
+           (define pt-vec (list->vector pt))
+           ; Collect points that match the variables we are evaluating.
+           (define input-points 
+             (for/list ([p (in-list points-needed)])
+               (vector-ref pt-vec p)))
+           (eprintf "input-points: ~a\n" input-points)
            (define inputs (map bf (append input-points (list exact)))) ; TODO remove bf hack
-           ;  (eprintf "inputs: ~a\n" inputs)
-           (define true-error (vector-ref (rival-apply diffMachine (list->vector inputs)) 0))
+           ;; ??? Is this always length 1, as we are asking about exact?
+           (define true-error (vector-ref (rival-apply diffMachine (list->vector inputs)) 0)) 
            (eprintf "true-error: ~a, pt: ~a, exact ~a\n" true-error pt exact)
            true-error]))
 
@@ -290,6 +295,7 @@
       (vector-set! (vector-ref errs expr-idx) pt-idx err)
       (vector-set! (vector-ref diffs-out expr-idx) pt-idx diff)
       (vector-set! (vector-ref true-error-out expr-idx) pt-idx true-err)))
+  (eprintf "\n\n")
 
   (define n 0)
   (for/list ([subexprs (in-list subexprss)])
