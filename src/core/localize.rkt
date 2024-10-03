@@ -151,7 +151,7 @@
   (define actual-value-fn (compile-progs exprs-list ctx))
   (define diffMachine (rival-compile (list `(- e a)) '(e a) (list flonum-discretization)))
 
-  (define errs
+  (define ulp-errs
     (for/vector #:length (vector-length roots)
                 ([node (in-vector roots)])
       (make-vector (pcontext-length (*pcontext*)))))
@@ -273,7 +273,7 @@
            (eprintf "true-error: ~a, pt: ~a, exact ~a\n" true-error pt exact)
            true-error]))
 
-      (define err ; ??? Is this upls of error?
+      (define ulp-err ; ??? Is this upls of error?
         (match (vector-ref nodes root)
           [(? literal?) 1]
           [(? variable?) 1]
@@ -293,15 +293,15 @@
       (vector-set! (vector-ref exacts-out expr-idx) pt-idx exact)
       (vector-set! (vector-ref approx-out expr-idx) pt-idx actual)
       (vector-set! (vector-ref true-error-out expr-idx) pt-idx true-err)
-      (vector-set! (vector-ref errs expr-idx) pt-idx err)))
+      (vector-set! (vector-ref ulp-errs expr-idx) pt-idx ulp-err)))
   (eprintf "\n\n")
 
   (define n 0)
   (for/list ([subexprs (in-list subexprss)])
     (for*/hash ([subexpr (in-list subexprs)])
       (begin0 (values subexpr
-                      (hasheq 'errs
-                              (vector->list (vector-ref errs n))
+                      (hasheq 'ulp-errs
+                              (vector->list (vector-ref ulp-errs n))
                               'exact-values
                               (vector->list (vector-ref exacts-out n))
                               'approx-values
@@ -319,7 +319,7 @@
   (define local-error
     (let loop ([expr (test-input test)])
       (define expr-info (hash-ref errs expr))
-      (define err-list (hash-ref expr-info 'errs))
+      (define err-list (hash-ref expr-info 'ulp-errs))
       (match expr
         [(list op args ...) (cons err-list (map loop args))]
         [_ (list err-list)])))
@@ -350,7 +350,7 @@
 
   (define tree
     (let loop ([expr (prog->fpcore (test-input test) (test-context test))]
-               [err local-error]
+               [ulp-err local-error]
                [exact exact-values]
                [approx approx-values]
                [t-err true-error-values])
@@ -360,9 +360,9 @@
          (hasheq 'e
                  (~a op)
                  'ulps-error ;; TODO Not sure on this
-                 (errors-score (first err))
+                 (first ulp-err)
                  'avg-error
-                 (format-bits (errors-score (first err)))
+                 (format-bits (errors-score (first ulp-err)))
                  'exact-value
                  (map ~s (first exact))
                  'approx-value
@@ -370,15 +370,15 @@
                  'true-error-value
                  (map ~s (first t-err))
                  'children
-                 (map loop args (rest err) (rest exact) (rest approx) (rest t-err)))]
+                 (map loop args (rest ulp-err) (rest exact) (rest approx) (rest t-err)))]
         ;; err => (List (listof Integer))
         [_
          (hasheq 'e
                  (~a expr)
                  'ulps-error ;; TODO Not sure on this
-                 (errors-score (first err))
+                 (first ulp-err)
                  'avg-error
-                 (format-bits (errors-score (first err)))
+                 (format-bits (errors-score (first ulp-err)))
                  'exact-value
                  (map ~s (first exact))
                  'approx-value
