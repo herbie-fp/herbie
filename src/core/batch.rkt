@@ -241,7 +241,7 @@
 
   ; Commit changes to the input-batch
   (define (finalize-batch)
-    (set-batch-nodes! input-batch (list->vector (reverse (mutable-batch-nodes out)))))
+    (batch-copy-mutable-nodes! input-batch mutable-batch-nodes))
 
   (values add-id add-enode finalize-batch))
 
