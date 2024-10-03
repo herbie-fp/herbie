@@ -142,6 +142,9 @@
   (define expr-batch (progs->batch exprs-list))
   (define nodes (batch-nodes expr-batch))
   (define roots (batch-roots expr-batch))
+  (eprintf "nodes: ~a\n" nodes)
+  (eprintf "spec-vec: ~a\n" spec-vec)
+  (eprintf "roots: ~a\n" roots)
 
   ; TODO don't ignore the status code from make-real-compiler in eval-progs-real
   (define subexprs-fn (eval-progs-real (map prog->spec exprs-list) ctx-list))
@@ -170,15 +173,45 @@
 
   ; Save variables root location for later.
   (define variables (make-hash))
+  ; Save literals and other leaf nodes.
+  (define literals (make-hash))
   ; not sure if we need to save expr or spec
+  (define var-count 0)
   (for ([subexpr (in-list exprs-list)]
         [spec (in-vector spec-vec)]
         [root (in-vector roots)])
     (match (vector-ref nodes root)
-      [(? variable?) (hash-set! variables root spec)]
+      [(? literal?) (hash-set! literals root spec)]
+      [(? variable?)
+       (hash-set! variables root (cons spec var-count))
+       (set! var-count (+ var-count 1))]
       [_ empty]))
   (eprintf "Variables: ~a\n" variables)
 
+  ;; Function to expand the node to find all nested variable names
+  (define (find-variables args-roots)
+    ; Maybe just pass the node in and recuse on that instead of looking stuff up.
+    (for/list ([idx (in-list args-roots)])
+      (cond
+        [(hash-has-key? variables idx)
+         (match-define (cons var-name point-idx) (hash-ref variables idx))
+         var-name]
+        [(hash-has-key? literals idx)
+         #|skip we are only looking for variables|#
+         empty]
+        [else
+         #|get node and recurse|#
+         (eprintf "other: ~a\n" (vector-ref nodes idx))
+         (match (vector-ref nodes idx)
+           [(? literal?) empty]
+           [(? variable?)
+            (match-define (cons var-name point-idx) (hash-ref variables idx))
+            var-name]
+           [(approx _ impl) empty] ;; TODO ??? IDK
+           [`(if ,c ,ift ,iff) empty]
+           [(list f nested-args-roots ...) (find-variables nested-args-roots)])])))
+
+  ; Points are ordered in the ordering that they appear in the spec.
   (for ([(pt ex) (in-pcontext (*pcontext*))]
         [pt-idx (in-naturals)])
 
@@ -213,37 +246,28 @@
           [`(if ,c ,ift ,iff) 1]
           [(list f args-roots ...)
            ;; Find the index of the variables we need to substitute.
-           ;  (eprintf "EXPR[node: ~a, exact: ~a, root: ~a, sepc: ~a]\n"
-           ;           (vector-ref nodes root)
-           ;           exact
-           ;           root
-           ;           spec)
-           ;  (eprintf "args-roots: ~a\n" args-roots)
-           (define var-list
-             (for/list ([idx (in-list args-roots)]
-                        #:when (hash-has-key? variables idx))
-               (hash-ref variables idx)))
+           (eprintf "EXPR[node: ~a, exact: ~a, root: ~a, sepc: ~a]\n"
+                    (vector-ref nodes root)
+                    exact
+                    root
+                    spec)
+           (eprintf "pt: ~a\n" pt)
+           ;; HACK flatten to fix my bad recusion.
+           (define var-list (flatten (find-variables args-roots)))
            ; ??? Does variable order mater?
            ; __e double underscore to avoid conflicts with user provided
            ; variables. Could use name mangling long term.
            (define modifed-vars (append var-list `(__e)))
-           ;  (eprintf "modifed-vars: ~a\n" modifed-vars)
+           (eprintf "modifed-vars: ~a\n" modifed-vars)
            (define input-expr (list `(- ,spec __e)))
-           ;  (eprintf "input-expr: ~a\n" input-expr)
+           (eprintf "input-expr: ~a\n" input-expr)
            (define diffMachine (rival-compile input-expr modifed-vars (list flonum-discretization)))
-           (define input-points (first pt)) ; TODO remove input point hack
-           (define inputs (map bf (list input-points exact))) ; TODO remove bf hack
+           ; TODO only pass in points that match variables.
+           (define input-points pt) 
+           (define inputs (map bf (append input-points (list exact)))) ; TODO remove bf hack
            ;  (eprintf "inputs: ~a\n" inputs)
            (define true-error (vector-ref (rival-apply diffMachine (list->vector inputs)) 0))
            (eprintf "true-error: ~a, pt: ~a, exact ~a\n" true-error pt exact)
-           (define temp-exacts
-             (for/list ([idx (in-list args-roots)])
-               (vector-ref exacts (vector-member idx roots))))
-           ;  (eprintf "child-exacts: ~a\n" temp-exacts)
-           (define temp-specs
-             (for/list ([idx (in-list args-roots)])
-               (vector-ref spec-vec (vector-member idx roots))))
-           ;  (eprintf "child-specs: ~a\n" temp-specs)
            true-error]))
 
       (define err
