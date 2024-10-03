@@ -174,83 +174,92 @@
       [_ empty]))
   (eprintf "Variables: ~a\n" variables)
 
-  ; (for ([(pt ex) (in-pcontext (*pcontext*))]
-  ;       [pt-idx (in-naturals)])
-  (define pt-idx (list 0 1))
-  (define pt (list 1.0 6.9))
+  (for ([(pt ex) (in-pcontext (*pcontext*))]
+        [pt-idx (in-naturals)])
 
-  (define exacts (list->vector (apply subexprs-fn pt)))
-  (define actuals (apply actual-value-fn pt))
-  ; (define actuals-map
-  ;   (for/hash ([subexpr (in-list exprs-list)]
-  ;              [actual (in-vector actuals)])
-  ;     (values subexpr actual)))
-  ; (define exacts-map
-  ;   (for/hash ([subexpr (in-list exprs-list)]
-  ;              [exact (in-vector exacts)])
-  ;     (values subexpr exact)))
+    (define exacts (list->vector (apply subexprs-fn pt)))
+    (define actuals (apply actual-value-fn pt))
+    ; (define actuals-map
+    ;   (for/hash ([subexpr (in-list exprs-list)]
+    ;              [actual (in-vector actuals)])
+    ;     (values subexpr actual)))
+    ; (define exacts-map
+    ;   (for/hash ([subexpr (in-list exprs-list)]
+    ;              [exact (in-vector exacts)])
+    ;     (values subexpr exact)))
 
-  (define diff-map (make-hash))
+    (define diff-map (make-hash))
 
-  (for ([spec (in-vector spec-vec)]
-        [expr (in-list exprs-list)]
-        [root (in-vector roots)]
-        [exact (in-vector exacts)]
-        [actual (in-vector actuals)]
-        [expr-idx (in-naturals)])
-    (define diff (vector-ref (rival-apply diffMachine (list->vector `(,(bf exact) ,(bf actual)))) 0))
-    (define err
-      (match (vector-ref nodes root)
-        [(? literal?) 1]
-        [(? variable?) 1]
-        [(approx _ impl)
-         (define repr (repr-of expr ctx))
-         (ulp-difference exact (vector-ref exacts (vector-member impl roots)) repr)]
-        [`(if ,c ,ift ,iff) 1]
-        [(list f args-roots ...)
-         ;; Find the index of the variables we need to substitute.
-         (eprintf "EXPR[node: ~a, exact: ~a, root: ~a, sepc: ~a]\n"
-                  (vector-ref nodes root)
-                  exact
-                  root
-                  spec)
-         (define repr (impl-info f 'otype))
-         (eprintf "args-roots: ~a\n" args-roots)
-         (define var-list
-           (for/list ([idx (in-list args-roots)]
-                      #:when (hash-has-key? variables idx))
-             (hash-ref variables idx)))
+    (for ([spec (in-vector spec-vec)]
+          [expr (in-list exprs-list)]
+          [root (in-vector roots)]
+          [exact (in-vector exacts)]
+          [actual (in-vector actuals)]
+          [expr-idx (in-naturals)])
+      (define diff
+        (vector-ref (rival-apply diffMachine (list->vector `(,(bf exact) ,(bf actual)))) 0))
+      (define true-err
+        (match (vector-ref nodes root)
+          [(? literal?) 1]
+          [(? variable?) 1]
+          [(approx _ impl)
+           (define repr (repr-of expr ctx))
+           1] ;; TODO
+          [`(if ,c ,ift ,iff) 1]
+          [(list f args-roots ...)
+           ;; Find the index of the variables we need to substitute.
+           ;  (eprintf "EXPR[node: ~a, exact: ~a, root: ~a, sepc: ~a]\n"
+           ;           (vector-ref nodes root)
+           ;           exact
+           ;           root
+           ;           spec)
+           ;  (eprintf "args-roots: ~a\n" args-roots)
+           (define var-list
+             (for/list ([idx (in-list args-roots)]
+                        #:when (hash-has-key? variables idx))
+               (hash-ref variables idx)))
+           ; ??? Does variable order mater?
+           ; __e double underscore to avoid conflicts with user provided
+           ; variables. Could use name mangling long term.
+           (define modifed-vars (append var-list `(__e)))
+           ;  (eprintf "modifed-vars: ~a\n" modifed-vars)
+           (define input-expr (list `(- ,spec __e)))
+           ;  (eprintf "input-expr: ~a\n" input-expr)
+           (define diffMachine (rival-compile input-expr modifed-vars (list flonum-discretization)))
+           (define input-points (first pt)) ; TODO remove input point hack
+           (define inputs (map bf (list input-points exact))) ; TODO remove bf hack
+           ;  (eprintf "inputs: ~a\n" inputs)
+           (define true-error (vector-ref (rival-apply diffMachine (list->vector inputs)) 0))
+           (eprintf "true-error: ~a, pt: ~a, exact ~a\n" true-error pt exact)
+           (define temp-exacts
+             (for/list ([idx (in-list args-roots)])
+               (vector-ref exacts (vector-member idx roots))))
+           ;  (eprintf "child-exacts: ~a\n" temp-exacts)
+           (define temp-specs
+             (for/list ([idx (in-list args-roots)])
+               (vector-ref spec-vec (vector-member idx roots))))
+           ;  (eprintf "child-specs: ~a\n" temp-specs)
+           true-error]))
 
-         ; ??? Does variable order mater?
-         ; __e double underscore to avoid conflicts with user provided 
-         ; variables. Could use name mangling long term.
-         (define modifed-vars (append var-list `(__e)))
-         (eprintf "modifed-vars: ~a\n" modifed-vars)
-         (define input-expr (list `(- ,spec __e)))
-         (eprintf "input-expr: ~a\n" input-expr)
-         (define diffMachine (rival-compile input-expr modifed-vars (list flonum-discretization)))
-         (define input-points (first pt)) ; TODO remove input point hack
-         (define inputs (map bf (list input-points exact))) ; TODO remove bf hack
-         (eprintf "inputs: ~a\n" inputs)
-         (define true-error (vector-ref (rival-apply diffMachine (list->vector inputs)) 0))
-         (eprintf "true-error: ~a, other: ~a ~a\n" true-error exact pt)
-         (define temp-exacts
-           (for/list ([idx (in-list args-roots)])
-             (vector-ref exacts (vector-member idx roots))))
-         (eprintf "child-exacts: ~a\n" temp-exacts)
-         (define temp-specs
-           (for/list ([idx (in-list args-roots)])
-             (vector-ref spec-vec (vector-member idx roots))))
-         (eprintf "child-specs: ~a\n" temp-specs)
-         (define argapprox
-           (for/list ([idx (in-list args-roots)])
-             (vector-ref exacts (vector-member idx roots)))) ; arg's index mapping to exact
-         (define approx (apply (impl-info f 'fl) argapprox))
-         (ulp-difference exact approx repr)]))
-    (vector-set! (vector-ref exacts-out expr-idx) pt-idx exact)
-    (vector-set! (vector-ref errs expr-idx) pt-idx err)
-    (vector-set! (vector-ref diffs-out expr-idx) pt-idx diff))
-  ; )
+      (define err
+        (match (vector-ref nodes root)
+          [(? literal?) 1]
+          [(? variable?) 1]
+          [(approx _ impl)
+           (define repr (repr-of expr ctx))
+           (ulp-difference exact (vector-ref exacts (vector-member impl roots)) repr)]
+          [`(if ,c ,ift ,iff) 1]
+          [(list f args-roots ...)
+           (define repr (impl-info f 'otype))
+           (define argapprox
+             (for/list ([idx (in-list args-roots)])
+               (vector-ref exacts (vector-member idx roots)))) ; arg's index mapping to exact
+           (define approx (apply (impl-info f 'fl) argapprox))
+           (ulp-difference exact approx repr)]))
+
+      (vector-set! (vector-ref exacts-out expr-idx) pt-idx exact)
+      (vector-set! (vector-ref errs expr-idx) pt-idx err)
+      (vector-set! (vector-ref diffs-out expr-idx) pt-idx diff)))
 
   (define n 0)
   (for/list ([subexprs (in-list subexprss)])
