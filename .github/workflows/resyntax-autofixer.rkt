@@ -1,0 +1,37 @@
+name: Resyntax Autofixer
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 0 * * 7"
+
+jobs:
+  autofix:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    permissions:
+      pull-requests: write
+      contents: write
+    steps:
+      - name: "Install Packages"
+        run: sudo apt-get install -y libmpfr6 libmpfr-dev
+      - name: "Install Racket"
+        uses: Bogdanp/setup-racket@v1.11
+        with:
+          version: current
+      - name: Install Rust compiler
+        uses: dtolnay/rust-toolchain@stable
+        with:
+            toolchain: stable
+            components: rustfmt, clippy
+      - uses: actions/checkout@master
+      - name: "Install dependencies"
+        run: make install
+      - name: Create a Resyntax pull request
+        uses: jackfirth/create-resyntax-pull-request@v0.4.1
+        with:
+          private-key: ${{ secrets.RESYNTAX_APP_PRIVATE_KEY }}
+          max-fixes: '5'
+          max-modified-files: '3'
+          max-modified-lines: '100'
