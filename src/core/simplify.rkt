@@ -24,14 +24,14 @@
   (timeline-push! 'inputs (map ~a (batch->progs (egg-runner-batch runner) (egg-runner-roots runner))))
   (timeline-push! 'method "egg-herbie")
   (define simplifieds (run-egg runner (cons 'single extractor)))
-  (define simplifieds*
+  (define out
     (for/list ([simplified (in-list simplifieds)]
                [root (egg-runner-roots runner)])
       (remove-duplicates (cons (batchref (egg-runner-batch runner) root) simplified)
                          #:key batchref-idx)))
 
-  (timeline-push! 'outputs (map (compose ~a debatchref last) simplifieds*))
-  simplifieds*)
+  (timeline-push! 'outputs (map (compose ~a debatchref) (apply append out)))
+  out)
 
 (module+ test
   (require "../syntax/types.rkt"

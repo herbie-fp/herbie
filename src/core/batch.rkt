@@ -241,7 +241,7 @@
 
   ; Commit changes to the input-batch
   (define (finalize-batch)
-    (batch-copy-mutable-nodes! input-batch mutable-batch-nodes))
+    (batch-copy-mutable-nodes! input-batch out))
 
   (values add-id add-enode finalize-batch))
 
