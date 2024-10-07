@@ -45,7 +45,7 @@
 
   (define pruned (make-hash))
   (for ([(k v) (in-hash errs)])
-    (hash-set! pruned k (hash-ref v 'errs)))
+    (hash-set! pruned k (hash-ref v 'ulp-errs)))
   (match-define (cons subexprs pt-errorss) (flip-lists (hash->list pruned)))
 
   (define pt-worst-subexpr
