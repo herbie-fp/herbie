@@ -117,7 +117,7 @@
     (for/list ([h (in-list errss)])
       (define pruned (make-hash))
       (for ([(k v) (in-hash h)])
-        (hash-set! pruned k (hash-ref v 'errs)))
+        (hash-set! pruned k (hash-ref v 'ulp-errs)))
       pruned))
 
   (for/list ([_ (in-list exprs)]
