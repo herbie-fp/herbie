@@ -67,27 +67,6 @@
     (batch-remove-zombie (batch-remove-approx (progs->batch exprs #:timeline-push #t #:vars vars))
                          #:keep-vars #t))
 
-  #;(define (approx-check expr)
-      (match expr
-        [(approx _ impl) #t]
-        [(list op args ...) (ormap approx-check args)]
-        [_ #f]))
-
-  #;(define (drop-impl expr)
-      (match expr
-        [(approx _ impl) (drop-impl impl)]
-        [(list op args ...) (cons op (map drop-impl args))]
-        [_ expr]))
-
-  #;(when (ormap approx-check exprs)
-      (when (not (equal? (batch-nodes batch)
-                         (batch-nodes (progs->batch (map drop-impl exprs) #:vars vars))))
-        (println exprs)
-        (println (batch-nodes batch))
-        (println (batch-nodes (progs->batch (map drop-impl exprs) #:vars vars)))
-        (println "--")
-        (sleep 20)))
-
   (define instructions
     (for/vector #:length (- (batch-length batch) num-vars)
                 ([node (in-vector (batch-nodes batch) num-vars)])
