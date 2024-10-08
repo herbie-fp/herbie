@@ -291,7 +291,6 @@ function buildCompareForm(jsonData) {
 
     let radioButtons = [];
     for (let [i, stateInfo] of Object.entries(radioStates)) {
-        let stateInfo = radioStates[i]
         let radioElt = Element("input", {
             name: formName, id: "compare-" + i,
             type: "radio",
