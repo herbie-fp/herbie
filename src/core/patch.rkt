@@ -116,7 +116,9 @@
   (timeline-event! 'series)
   (timeline-push! 'inputs (map ~a starting-exprs))
 
-  (define approxs (taylor-alts starting-exprs altns global-batch))
+  (define approxs
+    (remove-duplicates (taylor-alts starting-exprs altns global-batch)
+                       #:key (λ (x) (batchref-idx (alt-expr x)))))
 
   (timeline-push! 'outputs (map ~a (map (compose debatchref alt-expr) approxs)))
   (timeline-push! 'count (length altns) (length approxs))
