@@ -116,9 +116,7 @@
   (timeline-event! 'series)
   (timeline-push! 'inputs (map ~a starting-exprs))
 
-  (define approxs
-    (remove-duplicates (taylor-alts starting-exprs altns global-batch)
-                       #:key (λ (x) (batchref-idx (alt-expr x)))))
+  (define approxs (taylor-alts starting-exprs altns global-batch))
 
   (timeline-push! 'outputs (map ~a (map (compose debatchref alt-expr) approxs)))
   (timeline-push! 'count (length altns) (length approxs))
@@ -188,4 +186,4 @@
   ; Recursive rewrite
   (define rewritten (if (flag-set? 'generate 'rr) (run-rr start-altns global-batch) '()))
 
-  (append approximations rewritten))
+  (remove-duplicates (append approximations rewritten) #:key (λ (x) (batchref-idx (alt-expr x)))))
