@@ -270,19 +270,20 @@ function buildDiffLine(jsonData, show) {
         fetchAndUpdate();
     });
 
-    if (unitText) {
-        const toleranceInputField = Element("input", {
-            id: `toleranceID`, value: filterTolerance,
-            size: 10, style: "text-align:right;",
-        }, []);
-        toleranceInputField.addEventListener("keydown", (e) => {
-            filterTolerance = toleranceInputField.value;
-            update();
-        });
-        return [urlInput, " Hiding: ±", toleranceInputField, unitText, " ", submitButton];
-    } else {
-        return [urlInput, " ", submitButton];
-    }
+    const toleranceInputField = Element("input", {
+        id: `toleranceID`, value: filterTolerance,
+        size: 10, style: "text-align:right;",
+    }, []);
+    toleranceInputField.addEventListener("keydown", (e) => {
+        filterTolerance = toleranceInputField.value;
+        update();
+    });
+
+    return [
+        urlInput,
+        unitText && [" Hiding: ±", toleranceInputField, unitText],
+        " ", submitButton
+    ];
 }
 
 function buildCompareForm(jsonData) {
