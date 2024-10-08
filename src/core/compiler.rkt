@@ -61,7 +61,11 @@
 ;; Requires some hooks to complete the translation.
 (define (make-compiler exprs vars)
   (define num-vars (length vars))
-  (define batch (batch-remove-approx (progs->batch exprs #:timeline-push #t #:vars vars)))
+
+  ; Here we need to keep vars even though no roots refer to the vars
+  (define batch
+    (batch-remove-zombie (batch-remove-approx (progs->batch exprs #:timeline-push #t #:vars vars))
+                         #:keep-vars #t))
 
   (define instructions
     (for/vector #:length (- (batch-length batch) num-vars)
