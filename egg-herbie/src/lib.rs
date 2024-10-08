@@ -2,7 +2,7 @@
 
 pub mod math;
 
-use egg::{BackoffScheduler, Extractor, FromOp, Id, Language, SimpleScheduler, StopReason, Symbol};
+use egg::{BackoffScheduler, Extractor, FromOp, Id, Language, SimpleScheduler, StopReason, Symbol, UndoScheduler};
 use indexmap::IndexMap;
 use libc::{c_void, strlen};
 use math::*;
