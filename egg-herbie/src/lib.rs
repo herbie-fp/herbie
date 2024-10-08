@@ -25,7 +25,7 @@ pub struct Context {
 pub unsafe extern "C" fn egraph_create() -> *mut Context {
     Box::into_raw(Box::new(Context {
         iteration: 0,
-        runner: Runner::new(Default::default()).with_explanations_enabled(),
+        runner: Runner::new(Default::default()).with_explanations_enabled().with_scheduler(UndoScheduler::default()),
         rules: vec![],
     }))
 }
