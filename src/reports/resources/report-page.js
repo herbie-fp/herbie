@@ -10,7 +10,7 @@ var resultsJsonData = null
 
 function update() {
     let bodyNode = document.querySelector("body");
-    bodyNode.replaceChildren.apply(bodyNode, buildBody(resultJsonData, otherJsonData));
+    bodyNode.replaceChildren.apply(bodyNode, buildBody(resultsJsonData, otherJsonData));
 }
 
 // Here is the UI state:
