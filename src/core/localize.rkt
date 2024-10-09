@@ -137,6 +137,7 @@
     (for/list ([subexpr (in-list exprs-list)])
       (struct-copy context ctx [repr (repr-of subexpr ctx)])))
 
+  (define all-vars (context-vars ctx))
   (define spec-list (map prog->spec exprs-list))
   (define spec-vec (list->vector spec-list))
   (define expr-batch (progs->batch exprs-list))
@@ -149,7 +150,6 @@
   ; TODO don't ignore the status code from make-real-compiler in eval-progs-real
   (define subexprs-fn (eval-progs-real (map prog->spec exprs-list) ctx-list))
   (define actual-value-fn (compile-progs exprs-list ctx))
-  (define diffMachine (rival-compile (list `(- e a)) '(e a) (list flonum-discretization)))
 
   (define ulp-errs
     (for/vector #:length (vector-length roots)
@@ -170,50 +170,6 @@
     (for/vector #:length (vector-length roots)
                 ([node (in-vector roots)])
       (make-vector (pcontext-length (*pcontext*)))))
-
-  ; Save variables root location for later.
-  (define var-root-idx (make-hash))
-  (define variable-point-loc (make-hash))
-  ; Save literals and other leaf nodes.
-  (define literals (make-hash))
-  ; not sure if we need to save expr or spec
-  (define var-index 0)
-  ; ??? Does the ordering of these variables always match the pt odering?
-  ; ??? How can I confirm the orderings and test that?
-  (for ([subexpr (in-list exprs-list)]
-        [spec (in-vector spec-vec)]
-        [root (in-vector roots)])
-    (match (vector-ref nodes root)
-      [(? literal?) (hash-set! literals root spec)]
-      [(? variable?)
-       (hash-set! var-root-idx root spec)
-       (hash-set! variable-point-loc spec var-index)
-       (set! var-index (+ var-index 1))]
-      [_ empty]))
-  (eprintf "Variables: ~a\n" var-root-idx)
-
-  ;; Function to expand the node to find all nested variable names
-  (define (find-variables args-roots)
-    ; HACK Maybe just pass the node in and recuse on that instead of looking stuff up.
-    ; TODO clean up this recusion.
-    (for/list ([idx (in-list args-roots)])
-      (cond
-        [(hash-has-key? var-root-idx idx) (hash-ref var-root-idx idx)]
-        [(hash-has-key? literals idx)
-         #|skip we are only looking for variables|#
-         empty]
-        [else
-         #|get node and recurse|#
-         (eprintf "other: ~a\n" (vector-ref nodes idx))
-         (match (vector-ref nodes idx)
-           [(? literal?) empty]
-           [(? variable?) (hash-ref var-root-idx idx)]
-           [(approx aprx-spec impl)
-            (eprintf "find-variables: APPROX, ~a ~a ~a\n" approx aprx-spec impl)] ;; TODO ??? IDK
-           [`(if ,c ,ift ,iff) empty]
-           [(list f nested-args-roots ...)
-            (eprintf "recusing ~a\n" nested-args-roots)
-            (find-variables nested-args-roots)])])))
 
   ; Points are ordered in the ordering that they appear in the spec.
   (for ([(pt ex) (in-pcontext (*pcontext*))]
@@ -244,31 +200,16 @@
                     exact
                     root
                     spec)
-           (eprintf "pt: ~a\n" pt)
-           ;; HACK flatten to fix my bad recusion.
-           (define var-list (flatten (find-variables args-roots)))
-           ;; Filter which indexs of pt we need to pass into rival.
-           (define points-needed
-             (for/list ([var-name (in-list var-list)])
-               (hash-ref variable-point-loc var-name)))
-           (eprintf "points-needed: ~a, var-names: ~a\n" points-needed var-list)
-           ; ??? Does variable order for rival mater?
            ; __exact double underscore to avoid conflicts with user provided
            ; variables. Could use name mangling long term.
-           (define modifed-vars (append var-list `(__exact)))
-           (eprintf "modifed-vars: ~a\n" modifed-vars)
+           (define modifed-vars (append all-vars `(__exact)))
            (define true-error-expr (list `(- ,spec __exact)))
            (eprintf "true-error-expr: ~a\n" true-error-expr)
            (define diffMachine
              (rival-compile true-error-expr modifed-vars (list flonum-discretization)))
-           (define pt-vec (list->vector pt))
-           ; Collect points that match the variables we are evaluating.
-           (define input-points
-             (for/list ([p (in-list points-needed)])
-               (vector-ref pt-vec p)))
-           (eprintf "input-points: ~a\n" input-points)
-           (define inputs (map bf (append input-points (list exact)))) ; TODO remove bf hack
+           (define inputs (map bf (append pt (list exact)))) ; TODO remove bf hack
            ;; ??? Is this always length 1, as we are asking about exact?
+           (eprintf "inputs: ~a\n" inputs)
            (define true-error (vector-ref (rival-apply diffMachine (list->vector inputs)) 0))
            (eprintf "true-error: ~a, pt: ~a, exact ~a\n" true-error pt exact)
            true-error]))
