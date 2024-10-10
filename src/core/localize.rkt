@@ -194,6 +194,8 @@
            (match exact
              [`+nan.0 `+nan.0]
              [`-nan.0 `-nan.0]
+             [`+inf.0 `+inf.0]
+             [`-inf.0 `-inf.0]
              [value
               ; __exact double underscore to avoid conflicts with user provided
               ; variables. Could use name mangling long term.
