@@ -3,7 +3,7 @@ name: Resyntax Autofixer
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 0 * * 7"
+    - cron: "0 0 * * 0"
 
 jobs:
   autofix:
