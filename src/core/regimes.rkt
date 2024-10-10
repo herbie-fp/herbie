@@ -189,15 +189,14 @@
        (= (si-pidx (last split-indices)) (length can-split?))))
 
 (module core typed/racket
-  (provide (struct-out si) err-lsts->split-indices)
+  (provide (struct-out si)
+           err-lsts->split-indices)
   (require math/flonum)
 
   ;; Struct representing a splitindex
   ;; cidx = Candidate index: the index candidate program that should be used to the left of this splitindex
   ;; pidx = Point index: The index of the point to the left of which we should split.
-  (struct si
-    ([cidx : Integer]
-     [pidx : Integer]) #:prefab)
+  (struct si ([cidx : Integer] [pidx : Integer]) #:prefab)
 
   ;; This is the core main loop of the regimes algorithm.
   ;; Takes in a list of alts in the form of there error at a given point
@@ -206,9 +205,10 @@
   ;; Returns a list of split indices saying which alt to use for which
   ;; range of points. Starting at 1 going up to num-points.
   ;; Alts are indexed 0 and points are index 1.
-  (define (err-lsts->split-indices
-           [err-lsts : (Listof (Listof Flonum))]
-           [can-split : (Listof Boolean)]) : (Listof si)
+  (define (err-lsts->split-indices [err-lsts : (Listof (Listof Flonum))]
+                                   [can-split : (Listof Boolean)])
+    :
+    (Listof si)
 
     ;; Coverts the list to vector form for faster processing
     (define can-split-vec (list->vector can-split))
@@ -217,13 +217,13 @@
     (define (make-vec-psum [lst : (Listof Flonum)])
       (flvector-sums (list->flvector lst)))
     (define flvec-psums (vector-map make-vec-psum (list->vector err-lsts)))
-    
+
     ;; Set up data needed for algorithm
     (define number-of-alts (vector-length flvec-psums))
     (define number-of-points (vector-length can-split-vec))
     ;; min-weight is used as penalty to favor not adding split points
     (define min-weight (fl number-of-points))
-    
+
     ;; These 3 vectors are will contain the output data and be used for
     ;; determining which alt is best for a given point
     (define result-error-sums (make-flvector number-of-points +inf.0))
@@ -243,9 +243,13 @@
 
     ;; Vectors used to determine if our current alt is better than our running
     ;; best alt.
-    (define best-alt-idxs : (Vectorof Integer)
+    (define best-alt-idxs
+      :
+      (Vectorof Integer)
       (make-vector number-of-points -1))
-    (define best-alt-costs : FlVector
+    (define best-alt-costs
+      :
+      FlVector
       (make-flvector number-of-points))
 
     (for ([point-idx (in-range 0 number-of-points)]
@@ -310,7 +314,9 @@
 
     ;; Loop over results vectors in reverse and build the output split index list
     (define next number-of-points)
-    (define split-idexs : (Listof si)
+    (define split-idexs
+      :
+      (Listof si)
       '())
     (for ([i (in-range (- number-of-points 1) -1 -1)]
           #:when (= (+ i 1) next))
