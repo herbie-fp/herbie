@@ -132,6 +132,8 @@
 
 ; Compute local error or each sampled point at each node in `prog`.
 (define (compute-local-errors subexprss ctx true-err?)
+  ; true-err? is a flag used weather we should run true error or not.
+  ; TODO split out local error for `core` use vs Odyessy?
   (define our_repr (context-repr ctx))
   (define exprs-list (append* subexprss)) ; unroll subexprss
   (define ctx-list
@@ -169,7 +171,6 @@
                 ([node (in-vector roots)])
       (make-vector (pcontext-length (*pcontext*)))))
 
-  ; Points are ordered in the ordering that they appear in the spec.
   (for ([(pt ex) (in-pcontext (*pcontext*))]
         [pt-idx (in-naturals)])
 
@@ -187,7 +188,7 @@
             (match (vector-ref nodes root)
               [(? literal?) 0]
               [(? variable?) 0]
-              [(approx aprx-spec impl) exact] ;; TODO understand approx nodes.
+              [(approx aprx-spec impl) exact] ;; TODO not sure what to do here.
               [`(if ,c ,ift ,iff) 0]
               [(list f args-roots ...)
                ;; Find the index of the variables we need to substitute.

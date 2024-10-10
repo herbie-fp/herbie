@@ -91,11 +91,9 @@ const explainBody = {
     formula: FPCoreFormula, sample: sample.points
   })
 }
-
 const explain = await (await fetch(makeEndpoint("/api/explanations"), explainBody)).json()
 assertIdAndPath(explain)
 assert.equal(explain.explanation.length > 0, true, 'explanation should not be empty');
-
 const explainAsyncResult = await callAsyncAndWaitJSONResult("/api/start/explanations", explainBody)
 assertIdAndPath(explainAsyncResult)
 assert.equal(explainAsyncResult.explanation.length > 0, true, 'explanation should not be empty');
@@ -144,10 +142,9 @@ assert.deepEqual(calculateAsyncResult.points, [[[1], -1.4142135623730951]])
 // Local error endpoint
 const localErrorBody = {
   method: 'POST', body: JSON.stringify({
-    formula: FPCoreFormula, sample: sample2.points
+    formula: FPCoreFormula, sample: sample.points
   })
 }
-
 const localError = await (await fetch(makeEndpoint("/api/localerror"), localErrorBody)).json()
 assertIdAndPath(localError)
 assert.equal(localError.tree['avg-error'] > 0, true)
