@@ -111,7 +111,7 @@
 
 (define (batch-localize-errors exprs ctx)
   (define subexprss (map all-subexpressions exprs))
-  (define errss (compute-local-errors subexprss ctx))
+  (define errss (compute-local-errors subexprss ctx #f))
 
   (define pruned-list
     (for/list ([h (in-list errss)])
@@ -131,7 +131,7 @@
           #:key (compose errors-score car))))
 
 ; Compute local error or each sampled point at each node in `prog`.
-(define (compute-local-errors subexprss ctx)
+(define (compute-local-errors subexprss ctx true-err?)
   (define our_repr (context-repr ctx))
   (define exprs-list (append* subexprss)) ; unroll subexprss
   (define ctx-list
@@ -183,30 +183,31 @@
           [actual (in-vector actuals)]
           [expr-idx (in-naturals)])
       (define true-err
-        ;; ??? Whats the default values for true error literal, variable approx and if?
-        (match (vector-ref nodes root)
-          [(? literal?) 0]
-          [(? variable?) 0]
-          [(approx aprx-spec impl) exact] ;; TODO understand approx nodes.
-          [`(if ,c ,ift ,iff) 0]
-          [(list f args-roots ...)
-           ;; Find the index of the variables we need to substitute.
-           (match exact
-             [`+nan.0 `+nan.0]
-             [`-nan.0 `-nan.0]
-             [`+inf.0 `+inf.0]
-             [`-inf.0 `-inf.0]
-             [value
-              ; __exact double underscore to avoid conflicts with user provided
-              ; variables. Could use name mangling long term.
-              (define modifed-vars (append all-vars `(__exact)))
-              (define true-error-expr (list `(- ,spec __exact)))
-              (define diffMachine
-                (rival-compile true-error-expr modifed-vars (list flonum-discretization)))
-              (define inputs (map (representation-repr->bf our_repr) (append pt (list exact))))
-              ;; ??? Is this always length 1, as we are asking about exact?
-              (define true-error (vector-ref (rival-apply diffMachine (list->vector inputs)) 0))
-              true-error])]))
+        (if true-err? ;; ??? Whats the default values for true error literal, variable approx and if?
+            (match (vector-ref nodes root)
+              [(? literal?) 0]
+              [(? variable?) 0]
+              [(approx aprx-spec impl) exact] ;; TODO understand approx nodes.
+              [`(if ,c ,ift ,iff) 0]
+              [(list f args-roots ...)
+               ;; Find the index of the variables we need to substitute.
+               (match exact
+                 [`+nan.0 `+nan.0]
+                 [`-nan.0 `-nan.0]
+                 [`+inf.0 `+inf.0]
+                 [`-inf.0 `-inf.0]
+                 [value
+                  ; __exact double underscore to avoid conflicts with user provided
+                  ; variables. Could use name mangling long term.
+                  (define modifed-vars (append all-vars `(__exact)))
+                  (define true-error-expr (list `(- ,spec __exact)))
+                  (define diffMachine
+                    (rival-compile true-error-expr modifed-vars (list flonum-discretization)))
+                  (define inputs (map (representation-repr->bf our_repr) (append pt (list exact))))
+                  ;; ??? Is this always length 1, as we are asking about exact?
+                  (define true-error (vector-ref (rival-apply diffMachine (list->vector inputs)) 0))
+                  true-error])])
+            #f))
 
       (define ulp-err
         (match (vector-ref nodes root)
@@ -247,7 +248,7 @@
 ;; and returns the error information as an S-expr in the
 ;; same shape as `prog`
 (define (local-error-as-tree test ctx)
-  (define errs (first (compute-local-errors (list (all-subexpressions (test-input test))) ctx)))
+  (define errs (first (compute-local-errors (list (all-subexpressions (test-input test))) ctx #t)))
 
   (define local-error
     (let loop ([expr (test-input test)])

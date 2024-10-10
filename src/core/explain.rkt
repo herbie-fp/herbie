@@ -41,7 +41,7 @@
 
   (define errs
     (parameterize ([*pcontext* pcontext])
-      (first (compute-local-errors (list (all-subexpressions expr)) (*context*)))))
+      (first (compute-local-errors (list (all-subexpressions expr)) (*context*) #f))))
 
   (define pruned (make-hash))
   (for ([(k v) (in-hash errs)])
