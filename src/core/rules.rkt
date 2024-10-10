@@ -149,6 +149,7 @@
     [(define-ruleset* name groups #:type ([var type] ...) [rname input output] ...)
      (register-ruleset*! 'name 'groups `((var . type) ...) '((rname input output) ...))]))
 
+
 ; Commutativity
 (define-ruleset* commutativity
                  (arithmetic simplify fp-safe sound)
@@ -172,14 +173,20 @@
                  [associate-*l* (* (* a b) c) (* a (* b c))]
                  [associate-*r/ (* a (/ b c)) (/ (* a b) c)]
                  [associate-*l/ (* (/ a b) c) (/ (* a c) b)]
-                 [associate-/r* (/ a (* b c)) (/ (/ a b) c)]
+                 [associate-/r* (/ a (* b c)) (/ (/ a b) c)] ;
                  [associate-/r/ (/ a (/ b c)) (* (/ a b) c)]
-                 [associate-/l/ (/ (/ b c) a) (/ b (* a c))]
+                 [associate-/l/ (/ (/ b c) a) (/ b (* c a))] ;
                  [associate-/l* (/ (* b c) a) (* b (/ c a))])
 
 ; Counting
 (define-ruleset* counting (arithmetic simplify sound) #:type ([x real]) [count-2 (+ x x) (* 2 x)])
 
+;$$ Good
+(define-ruleset* counting-revv
+                 (arithmetic simplify sound)
+                 #:type ([x real])
+                 [2-split 2 (+ 1 1)]
+                 [count-2-rev (* 2 x) (+ x x)])
 ; Distributivity
 (define-ruleset* distributivity
                  (arithmetic simplify sound)
@@ -197,6 +204,7 @@
 (define-ruleset* distributivity-fp-safe
                  (arithmetic simplify fp-safe sound)
                  #:type ([a real] [b real])
+                 ;$$(* (neg a) b) (* a (neg b))
                  [distribute-lft-neg-in (neg (* a b)) (* (neg a) b)]
                  [distribute-rgt-neg-in (neg (* a b)) (* a (neg b))]
                  [distribute-lft-neg-out (* (neg a) b) (neg (* a b))]
@@ -208,11 +216,19 @@
                  [distribute-neg-frac (neg (/ a b)) (/ (neg a) b)]
                  [distribute-neg-frac2 (neg (/ a b)) (/ a (neg b))])
 
+;$$ This ruleset doesn't make sense because it is passing the negative to one of multiplied numbers but only ever to the new one of the variables.
 (define-ruleset* cancel-sign-fp-safe
                  (arithmetic simplify fp-safe sound)
                  #:type ([a real] [b real] [c real])
-                 [cancel-sign-sub (- a (* (neg b) c)) (+ a (* b c))]
-                 [cancel-sign-sub-inv (- a (* b c)) (+ a (* (neg b) c))])
+                 [cancel-sign-sub (- a (* (neg b) c)) (+ a (* b c))] ;old
+                 [cancel-sub-sign (+ a (* (neg b) c)) (- a (* b c))] ;new
+                 )
+
+(define-ruleset* cancel-sign-fp-safe-revv
+                 (arithmetic simplify fp-safe sound)
+                 #:type ([a real] [b real] [c real])
+                 [cancel-sign-sub-inv (+ a (* b c)) (- a (* (neg b) c))] ;old
+                 [cancel-sub-sign-inv (- a (* b c)) (+ a (* (neg b) c))]) ;old
 
 ; Difference of squares
 (define-ruleset* difference-of-squares-canonicalize
@@ -224,6 +240,17 @@
                  [difference-of-sqr-1 (- (* a a) 1) (* (+ a 1) (- a 1))]
                  [difference-of-sqr--1 (+ (* a a) -1) (* (+ a 1) (- a 1))]
                  [pow-sqr (* (pow a b) (pow a b)) (pow a (* 2 b))])
+
+;$ reduces
+(define-ruleset* difference-of-squares-canonicalize-revv
+                 (polynomials simplify sound)
+                 #:type ([a real] [b real])
+                 [difference-of-sqr-1-rev (* (+ a 1) (- a 1)) (- (* a a) 1)];$$
+                 [difference-of-sqr--1-rev (* (+ a 1) (- a 1)) (+ (* a a) -1)];$$
+
+                 [difference-of-squares-rev (* (+ a b) (- a b)) (- (* a a) (* b b))];$$
+                 [pow-sqr-rev (pow a (* 2 b)) (* (pow a b) (pow a b))]);$)
+
 
 (define-ruleset* sqr-pow-expand
                  (polynomials)
@@ -256,15 +283,27 @@
 (define-ruleset* id-reduce-fp-safe
                  (arithmetic simplify fp-safe sound)
                  #:type ([a real])
-                 [+-lft-identity (+ 0 a) a]
-                 [+-rgt-identity (+ a 0) a]
-                 [--rgt-identity (- a 0) a]
+                 [+-lft-identity (+ 0 a) a] ;
+                 [+-rgt-identity (+ a 0) a] ;
+                 [--rgt-identity (- a 0) a] ;
                  [sub0-neg (- 0 a) (neg a)]
                  [remove-double-neg (neg (neg a)) a]
                  [*-lft-identity (* 1 a) a]
-                 [*-rgt-identity (* a 1) a]
-                 [/-rgt-identity (/ a 1) a]
+                 [*-rgt-identity (* a 1) a] ;
+                 [/-rgt-identity (/ a 1) a] ;
                  [mul-1-neg (* -1 a) (neg a)])
+
+;? 1.Would adding the extra arithmetic do anything? 2.Why is the 6th rule implemented but not the rest? 3.Would adding adouble negative help?
+(define-ruleset* id-reduce-fp-safe-revv
+                 (arithmetic simplify)
+                 #:type ([a real])
+                 [*-rgt-identity-rev a (* a 1)]
+                 [+-rgt-identity-rev a (+ a 0)]
+                 [+-lft-identity-rev a (+ 0 a)]
+                 [/-rgt-identity-rev a (/ a 1)]
+                 [--rgt-identity-rev a (- a 0)]
+                 ;[*-lft-identity-rev a (* 1 a)]
+                 [remove-double-neg-rev a (neg (neg a))])
 
 (define-ruleset* nan-transform-fp-safe
                  (arithmetic simplify fp-safe sound)
@@ -285,8 +324,15 @@
                  #:type ([a real] [b real])
                  [clear-num (/ a b) (/ 1 (/ b a))])
 
+;$$! this one seems important
+(define-ruleset* id-transform-clear-num-revv
+                 (arithmetic)
+                 #:type ([a real] [b real])
+                 [clear-num-rev (/ 1 (/ b a)) (/ a b)])
+
+;?? Why is this rule here but not the other?
 (define-ruleset* id-transform-fp-safe
-                 (arithmetic fp-safe sound)
+                 (arithmetic fp-safe)
                  #:type ([a real])
                  [*-un-lft-identity a (* 1 a)])
 
@@ -300,12 +346,27 @@
  [flip3-+ (+ a b) (/ (+ (pow a 3) (pow b 3)) (+ (* a a) (- (* b b) (* a b))))]
  [flip3-- (- a b) (/ (- (pow a 3) (pow b 3)) (+ (* a a) (+ (* b b) (* a b))))])
 
+;$$reduction
+(define-ruleset*
+ difference-of-cubes-revv
+ (polynomials sound)
+ #:type ([a real] [b real])
+ [difference-cubes-rev (* (+ (* a a) (+ (* b b) (* a b))) (- a b)) (- (pow a 3) (pow b 3))]
+ [sum-cubes-rev (* (+ (* a a) (- (* b b) (* a b))) (+ a b)) (+ (pow a 3) (pow b 3))])
+
 ; Dealing with fractions
 (define-ruleset* fractions-distribute
                  (fractions simplify sound)
                  #:type ([a real] [b real] [c real] [d real])
                  [div-sub (/ (- a b) c) (- (/ a c) (/ b c))]
-                 [times-frac (/ (* a b) (* c d)) (* (/ a c) (/ b d))])
+                 [times-frac (/ (* a b) (* c d)) (* (/ a c) (/ b d))]
+                 [div-add (/ (+ a b) c) (+ (/ a c) (/ b c))])
+
+;$$ Odd its not a rule (a/c)+(b/c) -> (a+b)/c
+(define-ruleset* fractions-distribute-revv
+                 (fractions simplify sound)
+                 #:type ([a real] [b real] [c real] [d real])
+                 [div-add-rev (+ (/ a c) (/ b c)) (/ (+ a b) c)])
 
 (define-ruleset* fractions-transform
                  (fractions sound)
@@ -316,18 +377,33 @@
                  [frac-times (* (/ a b) (/ c d)) (/ (* a c) (* b d))]
                  [frac-2neg (/ a b) (/ (neg a) (neg b))])
 
+;$$good simplification
+(define-ruleset* fractions-transform-revv
+                 (fractions sound)
+                 #:type ([a real] [b real] [c real] [d real])
+                 [frac-2neg-rev (/ (neg a) (neg b)) (/ a b)])
+
 ; Square root
 (define-ruleset* squares-reduce
                  (arithmetic simplify sound)
                  #:type ([x real])
                  [rem-square-sqrt (* (sqrt x) (sqrt x)) x]
-                 [rem-sqrt-square (sqrt (* x x)) (fabs x)])
+                 [rem-sqrt-square (sqrt (* x x)) (fabs x)]
+                 [rem-sqrt-square-rev (fabs x) (sqrt (* x x))] ;$$ sqrt might be the useful
+                 )
 
 (define-ruleset* squares-reduce-fp-sound
                  (arithmetic simplify fp-safe sound)
                  #:type ([x real])
                  [sqr-neg (* (neg x) (neg x)) (* x x)]
                  [sqr-abs (* (fabs x) (fabs x)) (* x x)])
+
+;?
+(define-ruleset* squares-reduce-fp-sound-rev
+                 (arithmetic simplify fp-safe sound)
+                 #:type ([x real])
+                 [sqr-abs-rev (* x x) (* (fabs x) (fabs x))]
+                 [sqr-neg-rev (* x x) (* (neg x) (neg x))])
 
 (define-ruleset* fabs-reduce
                  (arithmetic simplify fp-safe sound)
@@ -338,6 +414,13 @@
                  [fabs-sqr (fabs (* x x)) (* x x)]
                  [fabs-mul (fabs (* a b)) (* (fabs a) (fabs b))]
                  [fabs-div (fabs (/ a b)) (/ (fabs a) (fabs b))])
+
+;? Would adding fabs help?
+(define-ruleset* fabs-reduce-rev
+                 (arithmetic simplify fp-safe sound)
+                 #:type ([x real] [a real] [b real])
+                 [fabs-sqr-rev (* x x) (fabs (* x x))]
+                 [fabs-fabs-rev (fabs x) (fabs (fabs x))])
 
 (define-ruleset* fabs-expand
                  (arithmetic fp-safe sound)
@@ -369,17 +452,22 @@
                  [rem-cbrt-cube (cbrt (pow x 3)) x]
                  [rem-3cbrt-lft (* (* (cbrt x) (cbrt x)) (cbrt x)) x]
                  [rem-3cbrt-rft (* (cbrt x) (* (cbrt x) (cbrt x))) x]
-                 [cube-neg (pow (neg x) 3) (neg (pow x 3))])
+                 [cube-neg (pow (neg x) 3) (neg (pow x 3))]
+                 [cube-neg-rev (neg (pow x 3)) (pow (neg x) 3)] ;$$ seems reasonable
+                 )
+
 
 (define-ruleset* cubes-distribute
                  (arithmetic simplify sound)
                  #:type ([x real] [y real])
                  [cube-prod (pow (* x y) 3) (* (pow x 3) (pow y 3))]
                  [cube-div (pow (/ x y) 3) (/ (pow x 3) (pow y 3))]
-                 [cube-mult (pow x 3) (* x (* x x))])
+                 [cube-mult (pow x 3) (* x (* x x))]
+                 [cube-prod-rev (* (pow x 3) (pow y 3)) (pow (* x y) 3)] ;$reduction
+                 [cube-div-rev (/ (pow x 3) (pow y 3)) (pow (/ x y) 3)])
 
 (define-ruleset* cubes-transform
-                 (arithmetic sound)
+                 (arithmetic )
                  #:type ([x real] [y real])
                  [cbrt-prod (cbrt (* x y)) (* (cbrt x) (cbrt y))]
                  [cbrt-div (cbrt (/ x y)) (/ (cbrt x) (cbrt y))]
@@ -387,6 +475,12 @@
                  [cbrt-undiv (/ (cbrt x) (cbrt y)) (cbrt (/ x y))]
                  [add-cube-cbrt x (* (* (cbrt x) (cbrt x)) (cbrt x))]
                  [add-cbrt-cube x (cbrt (* (* x x) x))])
+
+;$$good simplifications
+(define-ruleset* cubes-transform-revv
+                 (arithmetic sound)
+                 #:type ([x real] [y real])
+                 [add-cbrt-cube-rev (cbrt (* (* x x) x)) x])
 
 (define-ruleset* cubes-canonicalize
                  (arithmetic simplify sound)
@@ -430,6 +524,15 @@
                  [exp-lft-sqr (exp (* a 2)) (* (exp a) (exp a))]
                  [exp-lft-cube (exp (* a 3)) (pow (exp a) 3)])
 
+;? Maybe useful
+(define-ruleset* exp-factor-revv
+                 (exponents simplify sound)
+                 #:type ([a real] [b real])
+                 [exp-cbrt-rev (cbrt (exp a)) (exp (/ a 3))]
+                 [exp-lft-cube-rev (pow (exp a) 3) (exp (* a 3))]
+                 [exp-sqrt-rev (sqrt (exp a)) (exp (/ a 2))]
+                 [exp-lft-sqr-rev (* (exp a) (exp a)) (exp (* a 2))])
+
 ; Powers
 (define-ruleset* pow-reduce (exponents simplify sound) #:type ([a real]) [unpow-1 (pow a -1) (/ 1 a)])
 
@@ -455,6 +558,11 @@
                  [unpow3 (pow a 3) (* (* a a) a)]
                  [unpow1/3 (pow a 1/3) (cbrt a)]
                  [pow-plus (* (pow a b) a) (pow a (+ b 1))])
+;?maybe good expansion
+(define-ruleset* pow-canonicalize-revv
+                 (exponents simplify sound)
+                 #:type ([a real] [b real])
+                 [pow-plus-rev (pow a (+ b 1)) (* (pow a b) a)])
 
 (define-ruleset* pow-transform-sound
                  (exponents sound)
@@ -508,6 +616,12 @@
                  [log-div (log (/ a b)) (- (log a) (log b))]
                  [log-pow (log (pow a b)) (* b (log a))])
 
+;$$ Good expansion
+(define-ruleset* log-distribute-rev
+                 (exponents)
+                 #:type ([a real] [b real])
+                 [log-pow-rev (* b (log a)) (log (pow a b))])
+
 (define-ruleset* log-factor
                  (exponents sound)
                  #:type ([a real] [b real])
@@ -522,6 +636,7 @@
                  [cos-0 (cos 0) 1]
                  [tan-0 (tan 0) 0])
 
+
 (define-ruleset* trig-reduce-fp-sound-nan
                  (trigonometry simplify fp-safe-nan sound)
                  #:type ([x real])
@@ -529,11 +644,21 @@
                  [cos-neg (cos (neg x)) (cos x)]
                  [tan-neg (tan (neg x)) (neg (tan x))])
 
+;$$? Add neg?
+(define-ruleset* trig-reduce-fp-sound-nan-revv
+                 (trigonometry simplify fp-safe-nan sound)
+                 #:type ([x real])
+                 [cos-neg-rev (cos x) (cos (neg x))]
+                 [sin-neg-rev (neg (sin x)) (sin (neg x))]
+                 [tan-neg-rev (neg (tan x)) (tan (neg x))])
+
 (define-ruleset* trig-expand-fp-safe
                  (trignometry fp-safe sound)
                  #:type ([x real])
                  [sqr-sin-b (* (sin x) (sin x)) (- 1 (* (cos x) (cos x)))]
-                 [sqr-cos-b (* (cos x) (cos x)) (- 1 (* (sin x) (sin x)))])
+                 [sqr-cos-b (* (cos x) (cos x)) (- 1 (* (sin x) (sin x)))]
+                 [sqr-cos-b-rev (- 1 (* (sin x) (sin x))) (* (cos x) (cos x))]
+                 [sqr-sin-b-rev (- 1 (* (cos x) (cos x))) (* (sin x) (sin x))]) ;$$ simplification)
 
 (define-ruleset*
  trig-inverses
@@ -546,6 +671,17 @@
  [asin-sin (asin (sin x)) (- (fabs (remainder (+ x (/ (PI) 2)) (* 2 (PI)))) (/ (PI) 2))]
  [acos-cos (acos (cos x)) (fabs (remainder x (* 2 (PI))))])
 
+
+
+;$simplification
+(define-ruleset*
+ trig-inverses-revv
+ (trigonometry sound)
+ #:type ([x real])
+ [acos-cos-rev (fabs (remainder x (* 2 (PI)))) (acos (cos x))]
+ [asin-sin-rev (- (fabs (remainder (+ x (/ (PI) 2)) (* 2 (PI)))) (/ (PI) 2)) (asin (sin x))]
+ [atan-tan-rev (remainder x (PI)) (atan (tan x))])
+
 (define-ruleset* trig-inverses-simplified
                  (trigonometry)
                  #:type ([x real])
@@ -553,7 +689,9 @@
                  [asin-sin-s (asin (sin x)) x]
                  [acos-cos-s (acos (cos x)) x])
 
-(define-ruleset* trig-reduce-sound
+
+
+(define-ruleset* trig-reduce-expressions
                  (trigonometry simplify sound)
                  #:type ([a real] [b real] [x real])
                  [cos-sin-sum (+ (* (cos a) (cos a)) (* (sin a) (sin a))) 1]
@@ -589,16 +727,42 @@
                  [hang-p-tan (/ (+ (sin a) (sin b)) (+ (cos a) (cos b))) (tan (/ (+ a b) 2))]
                  [hang-m-tan (/ (- (sin a) (sin b)) (+ (cos a) (cos b))) (tan (/ (- a b) 2))])
 
+(define-ruleset* trig-reduce-expressions-revv
+                 (trigonometry simplify sound)
+                 #:type ([a real] [b real] [x real])
+                 [1-sub-sin-rev (* (cos a) (cos a)) (- 1 (* (sin a) (sin a)))]     
+                 [hang-m0-tan-rev (tan (/ (neg a) 2)) (/ (- 1 (cos a)) (neg (sin a)))]
+                 [hang-p0-tan-rev (tan (/ a 2)) (/ (- 1 (cos a)) (sin a))]
+                 [hang-0m-tan-rev (tan (/ (neg a) 2)) (/ (neg (sin a)) (+ 1 (cos a)))]
+                 [hang-0p-tan-rev (tan (/ a 2)) (/ (sin a) (+ 1 (cos a)))])
+
+(define-ruleset* trig-reduce-expressions-rev
+                 (trigonometry simplify sound)
+                 #:type ([a real] [b real] [x real])
+                 [tan-+PI-rev (tan x) (tan (+ x (PI)))]
+                 [cos-+PI/2-rev (neg (sin x)) (cos (+ x (/ (PI) 2)))]
+                 [sin-+PI/2-rev (cos x) (sin (+ x (/ (PI) 2)))]
+                 [sin-+PI-rev (neg (sin x)) (sin (+ x (PI)))]
+                 [cos-+PI-rev (neg (cos x)) (cos (+ x (PI)))])
+
 (define-ruleset* trig-reduce
                  (trigonometry)
                  #:type ([a real] [b real] [x real])
-                 [tan-+PI/2 (tan (+ x (/ (PI) 2))) (/ -1 (tan x))])
+                 [tan-+PI/2 (tan (+ x (/ (PI) 2))) (/ -1 (tan x))]
+                 [tan-+PI/2-rev (tan (+ (neg x) (/ (PI) 2))) (/ 1 (tan x)) ])
+
+(define-ruleset* trig-reduce-rev
+                 (trigonometry)
+                 #:type ([a real] [b real] [x real])
+                 [neg-tan-+PI/2-rev (/ -1 (tan x)) (tan (+ x (/ (PI) 2)))]
+                 [tan-+PI/2-rev (/ 1 (tan x)) (tan (+ (neg x) (/ (PI) 2)))]); make version where 1/tanx -> 
 
 (define-ruleset* trig-expand-sound
                  (trigonometry sound)
                  #:type ([x real] [y real] [a real] [b real])
                  [sin-sum (sin (+ x y)) (+ (* (sin x) (cos y)) (* (cos x) (sin y)))]
                  [cos-sum (cos (+ x y)) (- (* (cos x) (cos y)) (* (sin x) (sin y)))]
+                 [cos-sum-rev (- (* (cos x) (cos y)) (* (sin x) (sin y))) (cos (+ x y))]
                  [tan-sum (tan (+ x y)) (/ (+ (tan x) (tan y)) (- 1 (* (tan x) (tan y))))]
                  [sin-diff (sin (- x y)) (- (* (sin x) (cos y)) (* (cos x) (sin y)))]
                  [cos-diff (cos (- x y)) (+ (* (cos x) (cos y)) (* (sin x) (sin y)))]
@@ -610,6 +774,15 @@
                  [cos-3 (cos (* 3 x)) (- (* 4 (pow (cos x) 3)) (* 3 (cos x)))]
                  [2-cos (- (* (cos x) (cos x)) (* (sin x) (sin x))) (cos (* 2 x))]
                  [3-cos (- (* 4 (pow (cos x) 3)) (* 3 (cos x))) (cos (* 3 x))])
+
+;$$simplification
+(define-ruleset* trig-expand-sound-revv
+                 (trigonometry sound)
+                 #:type ([x real] [y real] [a real] [b real])
+                 [cos-diff-rev (+ (* (cos x) (cos y)) (* (sin x) (sin y))) (cos (- x y))]
+                 [sin-diff-rev (- (* (sin x) (cos y)) (* (cos x) (sin y))) (sin (- x y))]
+                 [sin-sum-rev (+ (* (sin x) (cos y)) (* (cos x) (sin y))) (sin (+ x y))]
+                 [tan-sum-rev (/ (+ (tan x) (tan y)) (- 1 (* (tan x) (tan y)))) (tan (+ x y))])
 
 (define-ruleset* trig-expand-sound2
                  (trigonometry sound)
@@ -629,6 +802,21 @@
                  [quot-tan (/ (sin x) (cos x)) (tan x)]
                  [tan-2 (tan (* 2 x)) (/ (* 2 (tan x)) (- 1 (* (tan x) (tan x))))]
                  [2-tan (/ (* 2 (tan x)) (- 1 (* (tan x) (tan x)))) (tan (* 2 x))])
+
+;$$simplification
+(define-ruleset* trig-expand-sound2-revv
+                 (trigonometry sound)
+                 [diff-cos-rev (* -2 (* (sin (/ (- x y) 2)) (sin (/ (+ x y) 2)))) (- (cos x) (cos y))]
+                 [diff-sin-rev (* 2 (* (sin (/ (- x y) 2)) (cos (/ (+ x y) 2)))) (- (sin x) (sin y))]
+                 [diff-atan-rev (atan2 (- x y) (+ 1 (* x y))) (- (atan x) (atan y))]
+                 [sum-sin-rev (* 2 (* (sin (/ (+ x y) 2)) (cos (/ (- x y) 2)))) (+ (sin x) (sin y))]
+                 [sum-cos-rev (* 2 (* (cos (/ (+ x y) 2)) (cos (/ (- x y) 2)))) (+ (cos x) (cos y))]
+                 [sum-atan-rev (atan2 (+ x y) (- 1 (* x y))) (+ (atan x) (atan y))]
+                 [sqr-cos-a-rev (+ 1/2 (* 1/2 (cos (* 2 x)))) (* (cos x) (cos x))]
+                 [sqr-sin-a-rev (- 1/2 (* 1/2 (cos (* 2 x)))) (* (sin x) (sin x))]
+                 [cos-mult-rev (/ (+ (cos (+ x y)) (cos (- x y))) 2) (* (cos x) (cos y))]
+                 [sin-mult-rev (/ (- (cos (- x y)) (cos (+ x y))) 2) (* (sin x) (sin y))]
+                 [sin-cos-mult-rev (/ (+ (sin (- x y)) (sin (+ x y))) 2) (* (sin x) (cos y))])
 
 (define-ruleset* trig-expand
                  (trigonometry)
@@ -651,6 +839,23 @@
                  [acos-neg (acos (neg x)) (- (PI) (acos x))]
                  [atan-neg (atan (neg x)) (neg (atan x))])
 
+;$$good simplification
+(define-ruleset* atrig-expand-revv
+                 (trigonometry sound)
+                 #:type ([x real])
+                 [acos-asin-rev (- (/ (PI) 2) (asin x)) (acos x)]
+                 [asin-acos-rev (- (/ (PI) 2) (acos x)) (asin x)]
+                 ;?Does moving the negative sign around do much?
+                 [asin-neg-rev (neg (asin x)) (asin (neg x))]
+                 [atan-neg-rev (neg (atan x)) (atan (neg x))]
+                 [acos-neg-rev (- (PI) (acos x)) (acos (neg x))]
+                 [cos-atan-rev (/ 1 (sqrt (+ 1 (* x x)))) (cos (atan x))]
+                 [tan-acos-rev (/ (sqrt (- 1 (* x x))) x) (tan (acos x))]
+                 [tan-asin-rev (/ x (sqrt (- 1 (* x x)))) (tan (asin x))]
+                 [cos-asin-rev (sqrt (- 1 (* x x))) (cos (asin x))]
+                 [sin-atan-rev (/ x (sqrt (+ 1 (* x x)))) (sin (atan x))]
+                 [sin-acos-rev (sqrt (- 1 (* x x))) (sin (acos x))])
+
 ; Hyperbolic trigonometric functions
 (define-ruleset* htrig-reduce
                  (hyperbolic simplify sound)
@@ -664,12 +869,23 @@
                  [sinh-+-cosh (+ (cosh x) (sinh x)) (exp x)]
                  [sinh---cosh (- (cosh x) (sinh x)) (exp (neg x))])
 
+;$$simplification
+(define-ruleset* htrig-reduce-revv
+                 (hyperbolic simplify sound)
+                 #:type ([x real])
+                 [tanh-def-b-rev (/ (- (exp (* 2 x)) 1) (+ (exp (* 2 x)) 1)) (tanh x)]
+                 [tanh-def-c-rev (/ (- 1 (exp (* -2 x))) (+ 1 (exp (* -2 x)))) (tanh x)]
+                 [sinh-def-rev (/ (- (exp x) (exp (neg x))) 2) (sinh x)]
+                 [cosh-def-rev (/ (+ (exp x) (exp (neg x))) 2) (cosh x)]
+                 [sinh-+-cosh-rev (exp x) (+ (cosh x) (sinh x))]
+[sinh---cosh-rev (exp (neg x)) (- (cosh x) (sinh x))])
+
 (define-ruleset* htrig-expand-sound
                  (hyperbolic sound)
                  #:type ([x real] [y real])
                  [sinh-undef (- (exp x) (exp (neg x))) (* 2 (sinh x))]
                  [cosh-undef (+ (exp x) (exp (neg x))) (* 2 (cosh x))]
-                 [tanh-undef (/ (- (exp x) (exp (neg x))) (+ (exp x) (exp (neg x)))) (tanh x)]
+                 [tanh-undef (/ (- (exp x) (exp (neg x))) (+ (exp x) (exp (neg x)))) (tanh x)] ;
                  [cosh-sum (cosh (+ x y)) (+ (* (cosh x) (cosh y)) (* (sinh x) (sinh y)))]
                  [cosh-diff (cosh (- x y)) (- (* (cosh x) (cosh y)) (* (sinh x) (sinh y)))]
                  [cosh-2 (cosh (* 2 x)) (+ (* (sinh x) (sinh x)) (* (cosh x) (cosh x)))]
@@ -686,18 +902,49 @@
                  [diff-cosh (- (cosh x) (cosh y)) (* 2 (* (sinh (/ (+ x y) 2)) (sinh (/ (- x y) 2))))]
                  [tanh-sum (tanh (+ x y)) (/ (+ (tanh x) (tanh y)) (+ 1 (* (tanh x) (tanh y))))])
 
+(define-ruleset*
+ htrig-expand-sound-revv
+ (hyperbolic sound)
+ #:type ([x real] [y real])
+ [sinh-undef-rev (* 2 (sinh x)) (- (exp x) (exp (neg x)))]
+ [cosh-undef-rev (* 2 (cosh x)) (+ (exp x) (exp (neg x)))]
+ [diff-cosh-rev (* 2 (* (sinh (/ (+ x y) 2)) (sinh (/ (- x y) 2)))) (- (cosh x) (cosh y))]
+ [diff-sinh-rev (* 2 (* (cosh (/ (+ x y) 2)) (sinh (/ (- x y) 2)))) (- (sinh x) (sinh y))]
+ [cosh-diff-rev (- (* (cosh x) (cosh y)) (* (sinh x) (sinh y))) (cosh (- x y))]
+ [sinh-diff-rev (- (* (sinh x) (cosh y)) (* (cosh x) (sinh y))) (sinh (- x y))]
+ [tanh-1/2-rev (/ (sinh x) (+ (cosh x) 1)) (tanh (/ x 2))]
+ [tanh-2-rev (/ (* 2 (tanh x)) (+ 1 (* (tanh x) (tanh x)))) (tanh (* 2 x))]
+ [sinh-1/2-rev (/ (sinh x) (sqrt (* 2 (+ (cosh x) 1)))) (sinh (/ x 2))]
+ [cosh-1/2-rev (sqrt (/ (+ (cosh x) 1) 2)) (cosh (/ x 2))]
+ [sinh-2-rev (* 2 (* (sinh x) (cosh x))) (sinh (* 2 x))]
+ [cosh-2-rev (+ (* (sinh x) (sinh x)) (* (cosh x) (cosh x))) (cosh (* 2 x))]
+ [sinh-sum-rev (+ (* (sinh x) (cosh y)) (* (cosh x) (sinh y))) (sinh (+ x y))]
+ [tanh-sum-rev (/ (+ (tanh x) (tanh y)) (+ 1 (* (tanh x) (tanh y)))) (tanh (+ x y))]
+ [cosh-sum-rev (+ (* (cosh x) (cosh y)) (* (sinh x) (sinh y))) (cosh (+ x y))]
+ [sum-cosh-rev (* 2 (* (cosh (/ (+ x y) 2)) (cosh (/ (- x y) 2)))) (+ (cosh x) (cosh y))]
+ [sum-sinh-rev (* 2 (* (sinh (/ (+ x y) 2)) (cosh (/ (- x y) 2)))) (+ (sinh x) (sinh y))])
+
 (define-ruleset* htrig-expand
                  (hyperbolic)
                  #:type ([x real] [y real])
-                 [tanh-1/2* (tanh (/ x 2)) (/ (- (cosh x) 1) (sinh x))])
+                 [tanh-1/2* (tanh (/ x 2)) (/ (- (cosh x) 1) (sinh x))]
+                 [tanh-1/2*-rev (/ (- (cosh x) 1) (sinh x)) (tanh (/ x 2))]) 
 
 (define-ruleset* htrig-expand-fp-safe
                  (hyperbolic fp-safe sound)
                  #:type ([x real])
                  [sinh-neg (sinh (neg x)) (neg (sinh x))]
                  [sinh-0 (sinh 0) 0]
+                 [sinh-0-rev 0 (sinh 0)]
                  [cosh-neg (cosh (neg x)) (cosh x)]
-                 [cosh-0 (cosh 0) 1])
+                 [cosh-0 (cosh 0) 1]
+                 [cosh-0-rev 1 (cosh 0)])
+
+(define-ruleset* htrig-expand-fp-safe-revv
+                 (hyperbolic fp-safe sound)
+                 #:type ([x real])
+                 [cosh-neg-rev (cosh x) (cosh (neg x))]
+                 [sinh-neg-rev (neg (sinh x)) (sinh (neg x))])
 
 (define-ruleset* ahtrig-expand-sound
                  (hyperbolic sound)
@@ -715,40 +962,68 @@
                  [tanh-acosh (tanh (acosh x)) (/ (sqrt (- (* x x) 1)) x)]
                  [tanh-atanh (tanh (atanh x)) x])
 
+
+(define-ruleset* ahtrig-expand-sound-simplify-revv
+                 (hyperbolic sound)
+                 #:type ([x real])
+                 [asinh-def-rev (log (+ x (sqrt (+ (* x x) 1)))) (asinh x)]
+                 [atanh-def-rev (/ (log (/ (+ 1 x) (- 1 x))) 2) (atanh x)]
+                 [acosh-def-rev (log (+ x (sqrt (- (* x x) 1)))) (acosh x)]
+                 [sinh-acosh-rev (sqrt (- (* x x) 1)) (sinh (acosh x))]
+                 [tanh-asinh-rev (/ x (sqrt (+ 1 (* x x)))) (tanh (asinh x))]
+                 [cosh-asinh-rev (sqrt (+ (* x x) 1)) (cosh (asinh x))]
+                 [sinh-atanh-rev (/ x (sqrt (- 1 (* x x)))) (sinh (atanh x))]
+                 [tanh-acosh-rev (/ (sqrt (- (* x x) 1)) x) (tanh (acosh x))]
+                 [cosh-atanh-rev (/ 1 (sqrt (- 1 (* x x)))) (cosh (atanh x))])
+
 (define-ruleset* ahtrig-expand
                  (hyperbolic)
                  #:type ([x real])
                  [asinh-2 (acosh (+ (* 2 (* x x)) 1)) (* 2 (asinh x))]
                  [acosh-2 (acosh (- (* 2 (* x x)) 1)) (* 2 (acosh x))])
 
+;? I think this expansion could be helpful
+(define-ruleset* ahtrig-expand-rev
+                 (hyperbolic)
+                 #:type ([x real])
+                 [asinh-2-rev (* 2 (asinh x)) (acosh (+ (* 2 (* x x)) 1))]
+                 [acosh-2-rev (* 2 (acosh x)) (acosh (- (* 2 (* x x)) 1))])
+
+#|; Specialized numerical functions
+; TODO: These are technically rules over impls
+(define-ruleset* special-numerical-reduce
+                 (numerics simplify)
+                 #:type ([x real] [y real] [z real])
+                 [log1p-expm1 (log1p (expm1 x)) x]
+                 [expm1-log1p (expm1 (log1p x)) x]
+                 [hypot-1-def (sqrt (+ 1 (* y y))) (hypot 1 y)]
+                 [fmm-def (- (* x y) z) (fma x y (neg z))]
+                 [fmm-undef (fma x y (neg z)) (- (* x y) z)])
+
+(define-ruleset* special-numerical-expand
+                 (numerics)
+                 #:type ([x real] [y real])
+                 [log1p-expm1-u x (log1p (expm1 x))]
+                 [expm1-log1p-u x (expm1 (log1p x))])
+
 (define-ruleset* erf-rules (special simplify) #:type ([x real]) [erf-odd (erf (neg x)) (neg (erf x))])
 
-; Specialized numerical functions
-; TODO: These are technically rules over impls
-;
-; (define-ruleset* special-numerical-reduce
-;                  (numerics simplify)
-;                  #:type ([x real] [y real] [z real])
-;                  [log1p-expm1 (log1p (expm1 x)) x]
-;                  [hypot-1-def (sqrt (+ 1 (* y y))) (hypot 1 y)]
-;                  [fmm-def (- (* x y) z) (fma x y (neg z))]
-;                  [fmm-undef (fma x y (neg z)) (- (* x y) z)])
+(define-ruleset* erf-rules-rev
+                 (special simplify)
+                 #:type ([x real])
+                 [erf-odd-rev (neg (erf x)) (erf (neg x))]) 
 
-; (define-ruleset* special-numerical-expand
-;                  (numerics)
-;                  #:type ([x real] [y real])
-;                  [log1p-expm1-u x (log1p (expm1 x))]
-;                  [expm1-log1p-u x (expm1 (log1p x))])
+(define-ruleset* numerics-papers
+                 (numerics)
+                 #:type ([a real] [b real] [c real] [d real])
+                 ;  "Further Analysis of Kahan's Algorithm for
+                 ;   the Accurate Computation of 2x2 Determinants"
+                 ;  Jeannerod et al., Mathematics of Computation, 2013
+                 ;
+                 ;  a * b - c * d  ===> fma(a, b, -(d * c)) + fma(-d, c, d * c)
+                 [prod-diff (- (* a b) (* c d)) (+ (fma a b (neg (* d c))) (fma (neg d) c (* d c)))])
+ |#
 
-; (define-ruleset* numerics-papers
-;                  (numerics)
-;                  #:type ([a real] [b real] [c real] [d real])
-;                  ;  "Further Analysis of Kahan's Algorithm for
-;                  ;   the Accurate Computation of 2x2 Determinants"
-;                  ;  Jeannerod et al., Mathematics of Computation, 2013
-;                  ;
-;                  ;  a * b - c * d  ===> fma(a, b, -(d * c)) + fma(-d, c, d * c)
-;                  [prod-diff (- (* a b) (* c d)) (+ (fma a b (neg (* d c))) (fma (neg d) c (* d c)))])
 
 ;; Sound because it's about soundness over real numbers
 (define-ruleset* compare-reduce
@@ -763,6 +1038,8 @@
                  [not-lte (not (<= x y)) (> x y)]
                  [not-gte (not (>= x y)) (< x y)])
 
+
+
 (define-ruleset* branch-reduce
                  (branches simplify fp-safe sound)
                  #:type ([a bool] [b bool] [x real] [y real])
@@ -774,3 +1051,111 @@
                  [if-if-or-not (if a x (if b y x)) (if (or a (not b)) x y)]
                  [if-if-and (if a (if b x y) y) (if (and a b) x y)]
                  [if-if-and-not (if a (if b y x) y) (if (and a (not b)) x y)])
+
+
+#| ;--------Bool&Branch-------
+
+;!
+(define-ruleset* compare-reduce-revv
+                 (bools simplify fp-safe-nan sound)
+                 #:type ([x real] [y real])
+                 [not-gte-rev (< x y) (not (>= x y))]
+                 [not-gt-rev (<= x y) (not (> x y))]
+                 [not-lte-rev (> x y) (not (<= x y))]
+                 [not-lt-rev (>= x y) (not (< x y))])
+;! Boolean
+(define-ruleset* branch-reduce-revv
+                 (branches simplify fp-safe sound)
+                 #:type ([a bool] [b bool] [x real] [y real])
+                 [if-if-and-not-rev (if (and a (not b)) x y) (if a (if b y x) y)]
+                 [if-true-rev x (if (TRUE) x y)]
+                 [if-if-or-rev (if (or a b) x y) (if a x (if b x y))]
+                 [if-same-rev x (if a x x)]
+                 [if-not-rev (if a y x) (if (not a) x y)]
+                 [if-if-and-rev (if (and a b) x y) (if a (if b x y) y)]
+                 [if-false-rev y (if (FALSE) x y)]
+                 [if-if-or-not-rev (if (or a (not b)) x y) (if a x (if b y x))])
+
+
+
+;-------Expanding on constants------
+
+;! increasing constants won't do much
+(define-ruleset* trig-reduce-constants-revv
+                 (trigonometry simplify sound)
+                 #:type ([a real] [b real] [x real])
+                 [cos-PI-rev -1 (cos (PI))]
+                 [sin-PI-rev 0 (sin (PI))]
+                 [tan-PI-rev 0 (tan (PI))]
+                 [cos-PI/2-rev 0 (cos (/ (PI) 2))]
+                 [sin-PI/2-rev 1 (sin (/ (PI) 2))]
+                 [tan-PI/4-rev 1 (tan (/ (PI) 4))]
+                 [cos-PI/3-rev 1/2 (cos (/ (PI) 3))]
+                 [sin-PI/6-rev 1/2 (sin (/ (PI) 6))]
+                 [cos-PI/6-rev (/ (sqrt 3) 2) (cos (/ (PI) 6))]
+                 [cos-PI/4-rev (/ (sqrt 2) 2) (cos (/ (PI) 4))]
+                 [sin-PI/3-rev (/ (sqrt 3) 2) (sin (/ (PI) 3))]
+                 [tan-PI/6-rev (/ 1 (sqrt 3)) (tan (/ (PI) 6))]
+                 [sin-PI/4-rev (/ (sqrt 2) 2) (sin (/ (PI) 4))]
+                 [tan-PI/3-rev (sqrt 3) (tan (/ (PI) 3))])
+
+;! expanding on a constant
+(define-ruleset* log-distribute-sound-revv
+                 (exponents simplify sound)
+                 #:type ([a real] [b real])
+                 [log-E-rev 1 (log (E))])
+
+;! Seems like too much recursion
+(define-ruleset* trig-reduce-fp-sound-rev
+                 (trigonometry simplify fp-safe sound)
+                 [sin-0-rev 0 (sin 0)]
+                 [tan-0-rev 0 (tan 0)]
+                 [cos-0-rev 1 (cos 0)])
+
+
+;! Expanding single variable
+(define-ruleset* trig-inverses-from-x-revv
+                 (trigonometry sound)
+                 #:type ([x real])
+                 [cos-acos-rev x (cos (acos x))]
+                 [sin-asin-rev x (sin (asin x))]
+                 [tan-atan-rev x (tan (atan x))])
+
+;! Increasing a single variable
+(define-ruleset* trig-inverses-simplified-rev
+                 (trigonometry)
+                 #:type ([x real])
+                 [atan-tan-s-rev x (atan (tan x))]
+                 [acos-cos-s-rev x (acos (cos x))]
+                 [asin-sin-s-rev x (asin (sin x))]
+                 )
+
+;! Expanding on one variable
+(define-ruleset* ahtrig-expand-sound-revv
+                 (hyperbolic sound)
+                 #:type ([x real])
+                 [cosh-acosh-rev x (cosh (acosh x))]
+                 [sinh-asinh-rev x (sinh (asinh x))]
+                 [tanh-atanh-rev x (tanh (atanh x))])            
+
+
+;!Expanding on a variable
+(define-ruleset* cubes-reduce-revv
+                 (arithmetic simplify)
+                 #:type ([x real])
+                 [rem-cbrt-cube-rev x (cbrt (pow x 3))]
+                 [rem-cube-cbrt-rev x (pow (cbrt x) 3)]
+                 [rem-3cbrt-rft-rev x (* (cbrt x) (* (cbrt x) (cbrt x)))])
+
+;!expanding on variable
+(define-ruleset* id-reduce-revv
+                 (arithmetic simplify)
+                 #:type ([a real])
+                 [remove-double-div-rev a (/ 1 (/ 1 a))])
+
+;-------Odd Expansion-------
+(define-ruleset* special-numerical-reduce-rev
+                 (numerics simplify)
+                 #:type ([x real] [y real] [z real])
+                 [hypot-1-def-rev (hypot 1 y) (sqrt (+ 1 (* y y)))])
+                  |#
