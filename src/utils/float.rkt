@@ -30,7 +30,7 @@
                                                  2))))
 
 (define (ulps->bits x)
-  (fl (log x 2)))
+  (real->double-flonum (log x 2)))
 
 (define (random-generate repr)
   ((representation-ordinal->repr repr) (random-bits (representation-total-bits repr))))
