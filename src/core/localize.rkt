@@ -186,8 +186,7 @@
         (match (vector-ref nodes root)
           [(? literal?) 0]
           [(? variable?) 0]
-          [(approx aprx-spec impl)
-           exact] ;; TODO understand approx nodes.
+          [(approx aprx-spec impl) exact] ;; TODO understand approx nodes.
           [`(if ,c ,ift ,iff) 0]
           [(list f args-roots ...)
            ;; Find the index of the variables we need to substitute.
