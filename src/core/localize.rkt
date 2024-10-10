@@ -143,9 +143,6 @@
   (define expr-batch (progs->batch exprs-list))
   (define nodes (batch-nodes expr-batch))
   (define roots (batch-roots expr-batch))
-  (eprintf "nodes: ~a\n" nodes)
-  (eprintf "spec-vec: ~a\n" spec-vec)
-  (eprintf "roots: ~a\n" roots)
 
   ; TODO don't ignore the status code from make-real-compiler in eval-progs-real
   (define subexprs-fn (eval-progs-real (map prog->spec exprs-list) ctx-list))
@@ -190,29 +187,24 @@
           [(? literal?) 0]
           [(? variable?) 0]
           [(approx aprx-spec impl)
-           (eprintf "TRUEERR: APPROX, ~a ~a ~a\n" approx aprx-spec impl)
-           0] ;; TODO understand approx nodes.
+           exact] ;; TODO understand approx nodes.
           [`(if ,c ,ift ,iff) 0]
           [(list f args-roots ...)
            ;; Find the index of the variables we need to substitute.
-           (eprintf "EXPR[node: ~a, exact: ~a, root: ~a, sepc: ~a]\n"
-                    (vector-ref nodes root)
-                    exact
-                    root
-                    spec)
-           ; __exact double underscore to avoid conflicts with user provided
-           ; variables. Could use name mangling long term.
-           (define modifed-vars (append all-vars `(__exact)))
-           (define true-error-expr (list `(- ,spec __exact)))
-           (eprintf "true-error-expr: ~a\n" true-error-expr)
-           (define diffMachine
-             (rival-compile true-error-expr modifed-vars (list flonum-discretization)))
-           (define inputs (map bf (append pt (list exact)))) ; TODO remove bf hack
-           ;; ??? Is this always length 1, as we are asking about exact?
-           (eprintf "inputs: ~a\n" inputs)
-           (define true-error (vector-ref (rival-apply diffMachine (list->vector inputs)) 0))
-           (eprintf "true-error: ~a, pt: ~a, exact ~a\n" true-error pt exact)
-           true-error]))
+           (match exact
+             [`+nan.0 `+nan.0]
+             [`-nan.0 `-nan.0]
+             [value
+              ; __exact double underscore to avoid conflicts with user provided
+              ; variables. Could use name mangling long term.
+              (define modifed-vars (append all-vars `(__exact)))
+              (define true-error-expr (list `(- ,spec __exact)))
+              (define diffMachine
+                (rival-compile true-error-expr modifed-vars (list flonum-discretization)))
+              (define inputs (map bf (append pt (list exact)))) ; TODO remove bf hack
+              ;; ??? Is this always length 1, as we are asking about exact?
+              (define true-error (vector-ref (rival-apply diffMachine (list->vector inputs)) 0))
+              true-error])]))
 
       (define ulp-err ; ??? Is this upls of error?
         (match (vector-ref nodes root)
@@ -235,7 +227,6 @@
       (vector-set! (vector-ref approx-out expr-idx) pt-idx actual)
       (vector-set! (vector-ref true-error-out expr-idx) pt-idx true-err)
       (vector-set! (vector-ref ulp-errs expr-idx) pt-idx ulp-err)))
-  (eprintf "\n\n")
 
   (define n 0)
   (for/list ([subexprs (in-list subexprss)])
@@ -300,7 +291,7 @@
          ;; err => (List (listof Integer) List ...)
          (hasheq 'e
                  (~a op)
-                 'ulps-error ;; TODO Not sure on this
+                 'ulps-error
                  (first ulp-err)
                  'avg-error
                  (format-bits (errors-score (first ulp-err)))
@@ -316,7 +307,7 @@
         [_
          (hasheq 'e
                  (~a expr)
-                 'ulps-error ;; TODO Not sure on this
+                 'ulps-error
                  (first ulp-err)
                  'avg-error
                  (format-bits (errors-score (first ulp-err)))
