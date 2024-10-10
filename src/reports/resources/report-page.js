@@ -274,7 +274,7 @@ function buildDiffLine(jsonData, show) {
         id: `toleranceID`, value: filterTolerance,
         size: 10, style: "text-align:right;",
     }, []);
-    toleranceInputField.addEventListener("keydown", (e) => {
+    toleranceInputField.addEventListener("change", (e) => {
         filterTolerance = toleranceInputField.value;
         update();
     });
