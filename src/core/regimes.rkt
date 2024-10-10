@@ -205,11 +205,8 @@
   ;; Returns a list of split indices saying which alt to use for which
   ;; range of points. Starting at 1 going up to num-points.
   ;; Alts are indexed 0 and points are index 1.
-  (define (err-lsts->split-indices [err-lsts : (Listof (Listof Flonum))]
-                                   [can-split : (Listof Boolean)])
-    :
-    (Listof si)
-
+  (: err-lsts->split-indices (-> (Listof (Listof Flonum)) (Listof Boolean) (Listof si)))
+  (define (err-lsts->split-indices err-lsts can-split)
     ;; Coverts the list to vector form for faster processing
     (define can-split-vec (list->vector can-split))
     ;; Converting list of list to list of flvectors
@@ -243,14 +240,10 @@
 
     ;; Vectors used to determine if our current alt is better than our running
     ;; best alt.
-    (define best-alt-idxs
-      :
-      (Vectorof Integer)
-      (make-vector number-of-points -1))
-    (define best-alt-costs
-      :
-      FlVector
-      (make-flvector number-of-points))
+    (: best-alt-idxs (Vectorof Integer))
+    (: best-alt-costs FlVector)
+    (define best-alt-idxs (make-vector number-of-points -1))
+    (define best-alt-costs (make-flvector number-of-points))
 
     (for ([point-idx (in-range 0 number-of-points)]
           [current-alt-error (in-flvector result-error-sums)]
@@ -314,10 +307,8 @@
 
     ;; Loop over results vectors in reverse and build the output split index list
     (define next number-of-points)
-    (define split-idexs
-      :
-      (Listof si)
-      '())
+    (: split-idexs (Listof si))
+    (define split-idexs '())
     (for ([i (in-range (- number-of-points 1) -1 -1)]
           #:when (= (+ i 1) next))
       (define alt-idx (vector-ref result-alt-idxs i))
