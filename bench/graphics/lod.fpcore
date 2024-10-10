@@ -236,3 +236,13 @@
          [major         (sqrt major2)])
   
     (log2 major)))
+
+
+; The following two benchmarks are thanks to Ben Wang and Bill Zorn.
+(FPCore (p r q)
+  :name "1/2(abs(p)+abs(r) - sqrt((p-r)^2 + 4q^2))"
+  (* (/ 1.0 2.0) (- (+ (fabs p) (fabs r)) (sqrt (+ (pow (- p r) 2.0) (* 4.0 (pow q 2.0)))))))
+
+(FPCore (p r q)
+  :name "1/2(abs(p)+abs(r) + sqrt((p-r)^2 + 4q^2))"
+  (* (/ 1.0 2.0) (+ (+ (fabs p) (fabs r)) (sqrt (+ (pow (- p r) 2.0) (* 4.0 (pow q 2.0)))))))
