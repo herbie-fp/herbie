@@ -1,5 +1,7 @@
 #lang racket
 
+(require math/bigfloat
+         rival)
 (require "../syntax/sugar.rkt"
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
@@ -9,7 +11,7 @@
          "../syntax/platform.rkt"
          "../syntax/read.rkt"
          "../syntax/read.rkt"
-         "rival.rkt"
+         "../core/rival.rkt"
          "points.rkt"
          "programs.rkt"
          "sampling.rkt"
@@ -109,13 +111,13 @@
 
 (define (batch-localize-errors exprs ctx)
   (define subexprss (map all-subexpressions exprs))
-  (define errss (compute-local-errors subexprss ctx))
+  (define errss (compute-local-errors subexprss ctx #f))
 
   (define pruned-list
     (for/list ([h (in-list errss)])
       (define pruned (make-hash))
       (for ([(k v) (in-hash h)])
-        (hash-set! pruned k (hash-ref v 'errs)))
+        (hash-set! pruned k (hash-ref v 'ulp-errs)))
       pruned))
 
   (for/list ([_ (in-list exprs)]
@@ -129,12 +131,16 @@
           #:key (compose errors-score car))))
 
 ; Compute local error or each sampled point at each node in `prog`.
-(define (compute-local-errors subexprss ctx)
+(define (compute-local-errors subexprss ctx true-err?)
+  (define our_repr (context-repr ctx))
   (define exprs-list (append* subexprss)) ; unroll subexprss
   (define ctx-list
     (for/list ([subexpr (in-list exprs-list)])
       (struct-copy context ctx [repr (repr-of subexpr ctx)])))
 
+  (define all-vars (context-vars ctx))
+  (define spec-list (map prog->spec exprs-list))
+  (define spec-vec (list->vector spec-list))
   (define expr-batch (progs->batch exprs-list))
   (define nodes (batch-nodes expr-batch))
   (define roots (batch-roots expr-batch))
@@ -143,7 +149,7 @@
   (define subexprs-fn (eval-progs-real (map prog->spec exprs-list) ctx-list))
   (define actual-value-fn (compile-progs exprs-list ctx))
 
-  (define errs
+  (define ulp-errs
     (for/vector #:length (vector-length roots)
                 ([node (in-vector roots)])
       (make-vector (pcontext-length (*pcontext*)))))
@@ -153,23 +159,57 @@
                 ([node (in-vector roots)])
       (make-vector (pcontext-length (*pcontext*)))))
 
-  (define actuals-out
+  (define approx-out
     (for/vector #:length (vector-length roots)
                 ([node (in-vector roots)])
       (make-vector (pcontext-length (*pcontext*)))))
 
+  (define true-error-out
+    (for/vector #:length (vector-length roots)
+                ([node (in-vector roots)])
+      (make-vector (pcontext-length (*pcontext*)))))
+
+  ; Points are ordered in the ordering that they appear in the spec.
   (for ([(pt ex) (in-pcontext (*pcontext*))]
         [pt-idx (in-naturals)])
 
     (define exacts (list->vector (apply subexprs-fn pt)))
     (define actuals (apply actual-value-fn pt))
 
-    (for ([expr (in-list exprs-list)]
+    (for ([spec (in-vector spec-vec)]
+          [expr (in-list exprs-list)]
           [root (in-vector roots)]
           [exact (in-vector exacts)]
           [actual (in-vector actuals)]
           [expr-idx (in-naturals)])
-      (define err
+      (define true-err
+        (if true-err? ;; ??? Whats the default values for true error literal, variable approx and if?
+            (match (vector-ref nodes root)
+              [(? literal?) 0]
+              [(? variable?) 0]
+              [(approx aprx-spec impl) exact] ;; TODO understand approx nodes.
+              [`(if ,c ,ift ,iff) 0]
+              [(list f args-roots ...)
+               ;; Find the index of the variables we need to substitute.
+               (match exact
+                 [`+nan.0 `+nan.0]
+                 [`-nan.0 `-nan.0]
+                 [`+inf.0 `+inf.0]
+                 [`-inf.0 `-inf.0]
+                 [value
+                  ; __exact double underscore to avoid conflicts with user provided
+                  ; variables. Could use name mangling long term.
+                  (define modifed-vars (append all-vars `(__exact)))
+                  (define true-error-expr (list `(- ,spec __exact)))
+                  (define diffMachine
+                    (rival-compile true-error-expr modifed-vars (list flonum-discretization)))
+                  (define inputs (map (representation-repr->bf our_repr) (append pt (list exact))))
+                  ;; ??? Is this always length 1, as we are asking about exact?
+                  (define true-error (vector-ref (rival-apply diffMachine (list->vector inputs)) 0))
+                  true-error])])
+            #f))
+
+      (define ulp-err
         (match (vector-ref nodes root)
           [(? literal?) 1]
           [(? variable?) 1]
@@ -177,39 +217,43 @@
            (define repr (repr-of expr ctx))
            (ulp-difference exact (vector-ref exacts (vector-member impl roots)) repr)]
           [`(if ,c ,ift ,iff) 1]
-          [(list f args ...)
+          [(list f args-roots ...)
            (define repr (impl-info f 'otype))
            (define argapprox
-             (for/list ([idx (in-list args)])
+             (for/list ([idx (in-list args-roots)])
                (vector-ref exacts (vector-member idx roots)))) ; arg's index mapping to exact
            (define approx (apply (impl-info f 'fl) argapprox))
            (ulp-difference exact approx repr)]))
+
       (vector-set! (vector-ref exacts-out expr-idx) pt-idx exact)
-      (vector-set! (vector-ref errs expr-idx) pt-idx err)
-      (vector-set! (vector-ref actuals-out expr-idx) pt-idx actual)))
+      (vector-set! (vector-ref approx-out expr-idx) pt-idx actual)
+      (vector-set! (vector-ref true-error-out expr-idx) pt-idx true-err)
+      (vector-set! (vector-ref ulp-errs expr-idx) pt-idx ulp-err)))
 
   (define n 0)
   (for/list ([subexprs (in-list subexprss)])
     (for*/hash ([subexpr (in-list subexprs)])
       (begin0 (values subexpr
-                      (hasheq 'errs
-                              (vector->list (vector-ref errs n))
+                      (hasheq 'ulp-errs
+                              (vector->list (vector-ref ulp-errs n))
                               'exact-values
                               (vector->list (vector-ref exacts-out n))
-                              'actual-values
-                              (vector->list (vector-ref actuals-out n))))
+                              'approx-values
+                              (vector->list (vector-ref approx-out n))
+                              'true-error-values
+                              (vector->list (vector-ref true-error-out n))))
         (set! n (add1 n))))))
 
 ;; Compute the local error of every subexpression of `prog`
 ;; and returns the error information as an S-expr in the
 ;; same shape as `prog`
 (define (local-error-as-tree test ctx)
-  (define errs (first (compute-local-errors (list (all-subexpressions (test-input test))) ctx)))
+  (define errs (first (compute-local-errors (list (all-subexpressions (test-input test))) ctx #t)))
 
   (define local-error
     (let loop ([expr (test-input test)])
       (define expr-info (hash-ref errs expr))
-      (define err-list (hash-ref expr-info 'errs))
+      (define err-list (hash-ref expr-info 'ulp-errs))
       (match expr
         [(list op args ...) (cons err-list (map loop args))]
         [_ (list err-list)])))
@@ -222,42 +266,59 @@
         [(list op args ...) (cons exacts-list (map loop args))]
         [_ (list exacts-list)])))
 
-  (define actual-values
+  (define approx-values
     (let loop ([expr (test-input test)])
       (define expr-info (hash-ref errs expr))
-      (define actual-list (hash-ref expr-info 'actual-values))
+      (define exacts-list (hash-ref expr-info 'approx-values))
+      (match expr
+        [(list op args ...) (cons exacts-list (map loop args))]
+        [_ (list exacts-list)])))
+
+  (define true-error-values
+    (let loop ([expr (test-input test)])
+      (define expr-info (hash-ref errs expr))
+      (define actual-list (hash-ref expr-info 'true-error-values))
       (match expr
         [(list op args ...) (cons actual-list (map loop args))]
         [_ (list actual-list)])))
 
   (define tree
     (let loop ([expr (prog->fpcore (test-input test) (test-context test))]
-               [err local-error]
+               [ulp-err local-error]
                [exact exact-values]
-               [actual actual-values])
+               [approx approx-values]
+               [t-err true-error-values])
       (match expr
         [(list op args ...)
          ;; err => (List (listof Integer) List ...)
          (hasheq 'e
                  (~a op)
+                 'ulps-error
+                 (first ulp-err)
                  'avg-error
-                 (format-bits (errors-score (first err)))
+                 (format-bits (errors-score (first ulp-err)))
                  'exact-value
                  (map ~s (first exact))
-                 'actual-value
-                 (map ~s (first actual))
+                 'approx-value
+                 (map ~s (first approx))
+                 'true-error-value
+                 (map ~s (first t-err))
                  'children
-                 (map loop args (rest err) (rest exact) (rest actual)))]
+                 (map loop args (rest ulp-err) (rest exact) (rest approx) (rest t-err)))]
         ;; err => (List (listof Integer))
         [_
          (hasheq 'e
                  (~a expr)
+                 'ulps-error
+                 (first ulp-err)
                  'avg-error
-                 (format-bits (errors-score (first err)))
+                 (format-bits (errors-score (first ulp-err)))
                  'exact-value
                  (map ~s (first exact))
-                 'actual-value
-                 (map ~s (first actual))
+                 'approx-value
+                 (map ~s (first approx))
+                 'true-error-value
+                 (map ~s (first t-err))
                  'children
                  '())])))
   tree)
