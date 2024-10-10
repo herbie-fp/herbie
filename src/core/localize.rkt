@@ -132,6 +132,7 @@
 
 ; Compute local error or each sampled point at each node in `prog`.
 (define (compute-local-errors subexprss ctx)
+  (define our_repr (context-repr ctx))
   (define exprs-list (append* subexprss)) ; unroll subexprss
   (define ctx-list
     (for/list ([subexpr (in-list exprs-list)])
@@ -200,12 +201,12 @@
               (define true-error-expr (list `(- ,spec __exact)))
               (define diffMachine
                 (rival-compile true-error-expr modifed-vars (list flonum-discretization)))
-              (define inputs (map bf (append pt (list exact)))) ; TODO remove bf hack
+              (define inputs (map (representation-repr->bf our_repr) (append pt (list exact))))
               ;; ??? Is this always length 1, as we are asking about exact?
               (define true-error (vector-ref (rival-apply diffMachine (list->vector inputs)) 0))
               true-error])]))
 
-      (define ulp-err ; ??? Is this upls of error?
+      (define ulp-err
         (match (vector-ref nodes root)
           [(? literal?) 1]
           [(? variable?) 1]
@@ -219,7 +220,6 @@
              (for/list ([idx (in-list args-roots)])
                (vector-ref exacts (vector-member idx roots)))) ; arg's index mapping to exact
            (define approx (apply (impl-info f 'fl) argapprox))
-           ;; ??? Should we compute `exact` against `actual` now?
            (ulp-difference exact approx repr)]))
 
       (vector-set! (vector-ref exacts-out expr-idx) pt-idx exact)
