@@ -738,8 +738,8 @@
 (define-ruleset* trig-reduce
                  (trigonometry)
                  #:type ([a real] [b real] [x real])
-                 [tan-+PI/2 (tan (+ x (/ (PI) 2))) (/ -1 (tan x))]
-                 [tan-+PI/2-rev (tan (+ (neg x) (/ (PI) 2))) (/ 1 (tan x))])
+                 [neg-tan-+PI/2 (tan (+ x (/ (PI) 2))) (/ -1 (tan x))]
+                 [tan-+PI/2 (tan (+ (neg x) (/ (PI) 2))) (/ 1 (tan x))])
 
 (define-ruleset*
  trig-reduce-rev
