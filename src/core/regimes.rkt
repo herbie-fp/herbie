@@ -290,7 +290,7 @@
             [can-split (in-vector can-split-vec 1)]
             #:when can-split)
         ;; Re compute the error sum for a potential better alt
-        (define alt-error-sum (fl+ r-error-sum best-alt-cost min-weight))
+        (define alt-error-sum (fl+ (fl+ r-error-sum best-alt-cost) min-weight))
         ;; Check if the new alt-error-sum is better then the current
         (define set-cond
           ;; give benefit to previous best alt
