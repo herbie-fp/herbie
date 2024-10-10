@@ -2,7 +2,8 @@
 
 #lang racket
 
-(provide pattern-match
+(provide merge-bindings
+         pattern-match
          pattern-substitute)
 
 ;; Unions two bindings. Returns #f if they disagree.
