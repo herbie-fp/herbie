@@ -855,7 +855,7 @@
             (hash 'op
                   (~a (if (list? enode) (car enode) enode))
                   'children
-                  (if (list? enode) (map ~a (cdr enode)) '())
+                  (if (list? enode) (map (lambda (e) (format "~a.0" e)) (cdr enode)) '())
                   'eclass
                   (~a n)
                   'cost
