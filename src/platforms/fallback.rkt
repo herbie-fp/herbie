@@ -98,7 +98,11 @@
                                 [* *]
                                 [/ /]
                                 [atan2 (no-complex atan)]
-                                [copysign (λ (x y) (if (>= y 0) (abs x) (- (abs x))))]
+                                [copysign
+                                 (λ (x y)
+                                   (if (>= y 0)
+                                       (abs x)
+                                       (- (abs x))))]
                                 [fdim (λ (x y) (max (- x y) 0))]
                                 [fmax
                                  (λ (x y)

@@ -24,13 +24,20 @@
   (define vars (map string->symbol (hash-ref test 'vars (λ () (map ~a (free-variables expr))))))
   (define spec (fix-expr (call-with-input-string (hash-ref test 'spec (~s expr)) read) pre-fpcore?))
   (define pre (fix-expr (call-with-input-string (hash-ref test 'pre "TRUE") read) pre-fpcore?))
-  `(FPCore
-    ,vars
-    ,@(if (hash-has-key? test 'name) (list ':name (hash-ref test 'name)) '())
-    ,@(if (not (equal? pre "TRUE")) (list ':pre pre) '())
-    ,@(if (not (equal? spec expr)) (list ':spec spec) '())
-    ,@(if (hash-has-key? test 'prec) (list ':precision (string->symbol (hash-ref test 'prec))) '())
-    ,expr))
+  `(FPCore ,vars
+           ,@(if (hash-has-key? test 'name)
+                 (list ':name (hash-ref test 'name))
+                 '())
+           ,@(if (not (equal? pre "TRUE"))
+                 (list ':pre pre)
+                 '())
+           ,@(if (not (equal? spec expr))
+                 (list ':spec spec)
+                 '())
+           ,@(if (hash-has-key? test 'prec)
+                 (list ':precision (string->symbol (hash-ref test 'prec)))
+                 '())
+           ,expr))
 
 (define (convert-files json-files pre-fpcore?)
   (define seen (mutable-set))

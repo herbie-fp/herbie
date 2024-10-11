@@ -184,8 +184,13 @@
 
   ; Series expand
   (define approximations
-    (if (flag-set? 'generate 'taylor) (run-taylor exprs start-altns global-batch) '()))
+    (if (flag-set? 'generate 'taylor)
+        (run-taylor exprs start-altns global-batch)
+        '()))
   ; Recursive rewrite
-  (define rewritten (if (flag-set? 'generate 'rr) (run-rr start-altns global-batch) '()))
+  (define rewritten
+    (if (flag-set? 'generate 'rr)
+        (run-rr start-altns global-batch)
+        '()))
 
   (remove-duplicates (append approximations rewritten) #:key (λ (x) (batchref-idx (alt-expr x)))))
