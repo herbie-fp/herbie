@@ -266,10 +266,10 @@
               #:when can-split)
           ;; Check if we can add a split point
           ;; compute the difference between the current error-sum and previous
-          (let ([current-error (fl- (flvector-ref alt-error-sums point-idx) prev-alt-error-sum)])
+          (let ([current-error (- (flvector-ref alt-error-sums point-idx) prev-alt-error-sum)])
             ;; if we have not set the best alt yet or
             ;; the current alt-error-sum is less then previous
-            (when (or (= best-alt-idx -1) (fl< current-error best-alt-cost))
+            (when (or (= best-alt-idx -1) (< current-error best-alt-cost))
               ;; update best cost and best index
               (flvector-set! best-alt-costs prev-split-idx current-error)
               (vector-set! best-alt-idxs prev-split-idx alt-idx)))))
@@ -283,16 +283,16 @@
             [can-split (in-vector can-split-vec 1)]
             #:when can-split)
         ;; Re compute the error sum for a potential better alt
-        (define alt-error-sum (fl+ (fl+ r-error-sum best-alt-cost) min-weight))
+        (define alt-error-sum (+ r-error-sum best-alt-cost min-weight))
         ;; Check if the new alt-error-sum is better then the current
         (define set-cond
           ;; give benefit to previous best alt
           (cond
-            [(fl< alt-error-sum current-alt-error) #t]
+            [(< alt-error-sum current-alt-error) #t]
             ;; Tie breaker if error are the same favor first alt
-            [(and (fl= alt-error-sum current-alt-error) (> current-alt-idx best-alt-idx)) #t]
+            [(and (= alt-error-sum current-alt-error) (> current-alt-idx best-alt-idx)) #t]
             ;; Tie breaker for if error and alt is the same
-            [(and (fl= alt-error-sum current-alt-error)
+            [(and (= alt-error-sum current-alt-error)
                   (= current-alt-idx best-alt-idx)
                   (> current-prev-idx prev-split-idx))
              #t]
