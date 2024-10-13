@@ -36,14 +36,8 @@
 
 (define (pareto-regimes sorted ctx)
   (define err-lsts (flip-lists (batch-errors (map alt-expr sorted) (*pcontext*) ctx)))
-  (define branches
-    (if (null? sorted)
-        '()
-        (exprs-to-branch-on sorted ctx)))
-  (define branch-exprs
-    (if (flag-set? 'reduce 'branch-expressions)
-        branches
-        (context-vars ctx)))
+  (define branches (if (null? sorted) '() (exprs-to-branch-on sorted ctx)))
+  (define branch-exprs (if (flag-set? 'reduce 'branch-expressions) branches (context-vars ctx)))
   (let loop ([alts sorted]
              [errs (hash)]
              [err-lsts err-lsts])
@@ -81,9 +75,7 @@
         (+ (errors-score (option-errors opt))
            (length (option-split-indices opt)))) ;; one-bit penalty per split
       (define new-errs (hash-set errs bexpr err))
-      (if (< err best-err)
-          (values opt err new-errs)
-          (values best best-err new-errs))))
+      (if (< err best-err) (values opt err new-errs) (values best best-err new-errs))))
 
   (timeline-push! 'count (length alts) (length (option-split-indices best)))
   (timeline-push! 'outputs
@@ -116,10 +108,7 @@
 ;; Requires that prog is a λ expression
 (define (all-critical-subexpressions expr ctx)
   (define (subexprs-in-expr expr)
-    (cons expr
-          (if (list? expr)
-              (append-map subexprs-in-expr (cdr expr))
-              '())))
+    (cons expr (if (list? expr) (append-map subexprs-in-expr (cdr expr)) '())))
   ;; We append all variables here in case of (λ (x y) 0) or similar,
   ;; where the variables do not appear in the body but are still worth
   ;; splitting on
@@ -196,10 +185,7 @@
     ;; splitpoint (the second, since it is better at the further point).
     (test-regimes (literal 1 'binary64) '(0))
 
-    (test-regimes `(if (==.f64 x ,(literal 0.5 'binary64))
-                       ,(literal 1 'binary64)
-                       (NAN.f64))
-                  '(1 0))))
+    (test-regimes `(if (==.f64 x ,(literal 0.5 'binary64)) ,(literal 1 'binary64) (NAN.f64)) '(1 0))))
 
 ;; Struct representing a candidate set of splitpoints that we are considering.
 ;; cost = The total error in the region to the left of our rightmost splitpoint

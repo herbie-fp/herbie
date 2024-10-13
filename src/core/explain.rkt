@@ -19,17 +19,12 @@
 (define *top-3* (make-parameter #f))
 
 (define (take-top-n lst)
-  (if (*top-3*)
-      (take-n 3 lst)
-      lst))
+  (if (*top-3*) (take-n 3 lst) lst))
 
 (define (take-n n lst)
   (match lst
     ['() '()]
-    [(cons x xs)
-     (if (= n 0)
-         '()
-         (cons x (take-n (- n 1) xs)))]))
+    [(cons x xs) (if (= n 0) '() (cons x (take-n (- n 1) xs)))]))
 
 (define (constant? expr)
   (cond

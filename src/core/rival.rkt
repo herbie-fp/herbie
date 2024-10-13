@@ -35,9 +35,7 @@
                   (equal? (context-lookup ctx0 var) (context-lookup ctx var))))))))
 
 (define (expr-size expr)
-  (if (list? expr)
-      (apply + 1 (map expr-size (cdr expr)))
-      1))
+  (if (list? expr) (apply + 1 (map expr-size (cdr expr))) 1))
 
 (define (repr->discretization repr)
   (discretization (representation-total-bits repr)

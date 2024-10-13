@@ -60,16 +60,12 @@
       [else
        (define mid (floor (/ (+ left right) 2)))
        (define pivot (vector-ref vector mid))
-       (if (<= pivot num)
-           (loop (+ 1 mid) right)
-           (loop left mid))])))
+       (if (<= pivot num) (loop (+ 1 mid) right) (loop left mid))])))
 
 (module+ test
   (define rand-list
     (let loop ([current 0])
-      (if (> current 200)
-          empty
-          (let ([r (+ current (random-integer 1 10))]) (cons r (loop r))))))
+      (if (> current 200) empty (let ([r (+ current (random-integer 1 10))]) (cons r (loop r))))))
   (define arr (list->vector rand-list))
   (for ([i (range 0 20)])
     (define max-num (vector-ref arr (- (vector-length arr) 1)))
