@@ -183,11 +183,19 @@
     (let loop ([expr expr]
                [type type])
       (match expr
-        [(? number?) (if (representation? type) (literal expr (representation-name type)) expr)]
+        [(? number?)
+         (if (representation? type)
+             (literal expr (representation-name type))
+             expr)]
         [(? symbol?)
-         (if (hash-has-key? rename-dict expr) (car (hash-ref rename-dict expr)) (list expr))]
+         (if (hash-has-key? rename-dict expr)
+             (car (hash-ref rename-dict expr))
+             (list expr))]
         [(list '$approx spec impl)
-         (define spec-type (if (representation? type) (representation-type type) type))
+         (define spec-type
+           (if (representation? type)
+               (representation-type type)
+               type))
          (approx (loop spec spec-type) (loop impl type))]
         [(list 'if cond ift iff)
          (if (representation? type)
@@ -205,14 +213,22 @@
                  [type type])
         (define enode*
           (match enode
-            [(? number?) (if (representation? type) (literal enode (representation-name type)) enode)]
+            [(? number?)
+             (if (representation? type)
+                 (literal enode (representation-name type))
+                 enode)]
             [(? symbol?)
-             (if (hash-has-key? rename-dict enode) (car (hash-ref rename-dict enode)) enode)]
+             (if (hash-has-key? rename-dict enode)
+                 (car (hash-ref rename-dict enode))
+                 enode)]
             [(list '$approx spec (app eggref impl))
              (define spec* (vector-ref id->spec spec))
              (unless spec*
                (error 'regraph-extract-variants "no initial approx node in eclass"))
-             (define spec-type (if (representation? type) (representation-type type) type))
+             (define spec-type
+               (if (representation? type)
+                   (representation-type type)
+                   type))
              (define final-spec (egg-parsed->expr spec* rename-dict spec-type))
              (define final-spec-idx (mutable-batch-munge! out final-spec))
              (approx final-spec-idx (loop impl type))]

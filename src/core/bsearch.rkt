@@ -153,7 +153,9 @@
             (bigfloat-interval-shortest left (bfmin (bf/ left 2.bf) right))
             (bigfloat-interval-shortest left (bfmin (bf* left 2.bf) right))))
       ;; It's important to return something strictly less than right
-      (if (bf= out right) p1 ((representation-bf->repr repr) out))))
+      (if (bf= out right)
+          p1
+          ((representation-bf->repr repr) out))))
 
   (define use-binary
     (and (flag-set? 'reduce 'binary-search)
@@ -170,7 +172,10 @@
 
             (define timeline-stop!
               (timeline-start! 'bstep (value->json p1 repr) (value->json p2 repr)))
-            (define split-at (if use-binary (find-split prog1 prog2 p1 p2) (left-point p1 p2)))
+            (define split-at
+              (if use-binary
+                  (find-split prog1 prog2 p1 p2)
+                  (left-point p1 p2)))
             (timeline-stop!)
 
             (timeline-push! 'method (if use-binary "binary-search" "left-value"))
