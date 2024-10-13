@@ -30,22 +30,16 @@
     ;; actually have many points in each regime. That would require
     ;; breaking some abstraction boundaries right now so we haven't
     ;; done it yet.
-    (if (null? pts*)
-        pcontext
-        (mk-pcontext pts* exs*))))
+    (if (null? pts*) pcontext (mk-pcontext pts* exs*))))
 
 (struct interval (alt-idx start-point end-point expr))
 
 (define (interval->string ival repr)
   (define start (interval-start-point ival))
   (define end (interval-end-point ival))
-  (string-join (list (if start
-                         (format "~a < " (value->string start repr))
-                         "")
+  (string-join (list (if start (format "~a < " (value->string start repr)) "")
                      (~a (interval-expr ival))
-                     (if (equal? end +nan.0)
-                         ""
-                         (format " < ~a" (value->string end repr))))))
+                     (if (equal? end +nan.0) "" (format " < ~a" (value->string end repr))))))
 
 (define (splice-proof-step step)
   (let/ec k
@@ -92,10 +86,7 @@
         [(? number?) expr]
         [(? literal?) (literal-value expr)]
         [(approx _ impl) (loop impl)]
-        [`(if ,cond ,ift ,iff)
-         `(if ,(loop cond)
-              ,(loop ift)
-              ,(loop iff))]
+        [`(if ,cond ,ift ,iff) `(if ,(loop cond) ,(loop ift) ,(loop iff))]
         [`(,(? impl-exists? impl) ,args ...)
          ; use the FPCore operator without rounding properties
          (define args* (map loop args))
@@ -154,9 +145,7 @@
     [(alt prog `(simplify ,loc ,input ,proof ,soundiness) `(,prev) _)
      (define-values (err err2) (altn-errors altn pcontext pcontext2 ctx))
      `(,@(render-history prev pcontext pcontext2 ctx)
-       (li ,(if proof
-                (render-proof proof soundiness pcontext ctx)
-                ""))
+       (li ,(if proof (render-proof proof soundiness pcontext ctx) ""))
        (li (p "Simplified" (span ((class "error") [title ,err2]) ,err))
            (div ((class "math")) "\\[\\leadsto " ,(program->tex prog ctx #:loc loc) "\\]")))]
 
@@ -175,9 +164,7 @@
     [(alt prog `(rr ,loc ,input ,proof ,soundiness) `(,prev) _)
      (define-values (err err2) (altn-errors altn pcontext pcontext2 ctx))
      `(,@(render-history prev pcontext pcontext2 ctx)
-       (li ,(if proof
-                (render-proof proof soundiness pcontext ctx)
-                ""))
+       (li ,(if proof (render-proof proof soundiness pcontext ctx) ""))
        (li (p "Applied rewrites" (span ((class "error") [title ,err2]) ,err))
            (div ((class "math")) "\\[\\leadsto " ,(program->tex prog ctx #:loc loc) "\\]")))]))
 
@@ -196,14 +183,8 @@
                                       (program->fpcore expr ctx))]
                              [else (values "N/A" (mixed->fpcore expr ctx))]))
                          ;; soundiness
-                         (define num-increase
-                           (if sound
-                               (first sound)
-                               "N/A"))
-                         (define num-decrease
-                           (if sound
-                               (second sound)
-                               "N/A"))
+                         (define num-increase (if sound (first sound) "N/A"))
+                         (define num-decrease (if sound (second sound) "N/A"))
                          ; the proof
                          (if (equal? dir 'Goal)
                              ""
@@ -266,9 +247,7 @@
      `#hash((program . ,(fpcore->string (expr->fpcore prog ctx)))
             (type . "simplify")
             (prev . ,(render-json prev pcontext pcontext2 ctx))
-            (proof . ,(if proof
-                          (render-proof-json proof soundiness pcontext ctx)
-                          (json-null)))
+            (proof . ,(if proof (render-proof-json proof soundiness pcontext ctx) (json-null)))
             (loc . ,loc)
             (error . ,err)
             (training-error . ,err2))]
@@ -291,9 +270,7 @@
      `#hash((program . ,(fpcore->string (expr->fpcore prog ctx)))
             (type . "rr")
             (prev . ,(render-json prev pcontext pcontext2 ctx))
-            (proof . ,(if proof
-                          (render-proof-json proof soundiness pcontext ctx)
-                          (json-null)))
+            (proof . ,(if proof (render-proof-json proof soundiness pcontext ctx) (json-null)))
             (loc . ,loc)
             (error . ,err)
             (training-error . ,err2))]
@@ -310,19 +287,10 @@
   (for/list ([step proof]
              [sound soundiness])
     (define-values (dir rule loc expr) (splice-proof-step step))
-    (define err
-      (if (impl-prog? expr)
-          (errors-score (errors expr pcontext ctx))
-          "N/A"))
+    (define err (if (impl-prog? expr) (errors-score (errors expr pcontext ctx)) "N/A"))
 
-    (define num-increase
-      (if sound
-          (first sound)
-          "N/A"))
-    (define num-decrease
-      (if sound
-          (second sound)
-          "N/A"))
+    (define num-increase (if sound (first sound) "N/A"))
+    (define num-decrease (if sound (second sound) "N/A"))
 
     `#hash((error . ,err)
            (program . ,(fpcore->string (expr->fpcore expr ctx)))

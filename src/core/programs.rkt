@@ -68,9 +68,7 @@
               [(list _ args ...)
                (for ([arg args])
                  (loop arg))]))))
-  (remove-duplicates (if reverse?
-                         (reverse subexprs)
-                         subexprs)))
+  (remove-duplicates (if reverse? (reverse subexprs) subexprs)))
 
 (define (ops-in-expr expr)
   (remove-duplicates (filter-map (lambda (e) (and (pair? e) (first e))) (all-subexpressions expr))))
@@ -110,16 +108,12 @@
           (if (null? a)
               0
               (let ([cmp (expr-cmp (car a) (car b))])
-                (if (zero? cmp)
-                    (loop (cdr a) (cdr b))
-                    cmp))))])]
+                (if (zero? cmp) (loop (cdr a) (cdr b)) cmp))))])]
     [((? list?) _) 1]
     [(_ (? list?)) -1]
     [((? approx?) (? approx?))
      (define cmp-spec (expr-cmp (approx-spec a) (approx-spec b)))
-     (if (zero? cmp-spec)
-         (expr-cmp (approx-impl a) (approx-impl b))
-         cmp-spec)]
+     (if (zero? cmp-spec) (expr-cmp (approx-impl a) (approx-impl b)) cmp-spec)]
     [((? approx?) _) 1]
     [(_ (? approx?)) -1]
     [((? symbol?) (? symbol?))

@@ -47,9 +47,7 @@
             (make-page page out improve-hash #t profile?)))))
 
      (define out (get-table-data-from-hash improve-hash dirname))
-     (if error?
-         (struct-copy table-row out [status "crash"])
-         out)]
+     (if error? (struct-copy table-row out [status "crash"]) out)]
     [else
      (define result (run-herbie 'improve test #:seed seed))
      (get-table-data-from-hash (make-improve-result result test bad-id) "")]))
@@ -128,9 +126,7 @@
              (set! work (cdr work)))
            (define out* (cons (cons id tr) out))
            (print-test-result (length out*) (length progs) tr)
-           (if (= (length out*) (length progs))
-               out*
-               (loop out*))]
+           (if (= (length out*) (length progs)) out* (loop out*))]
           ; In this case it is a place-dead-event
           [(? evt?) (error "Thread crashed. Unrecoverable. Terminating immediately.")]))))
   (for-each place-kill workers)

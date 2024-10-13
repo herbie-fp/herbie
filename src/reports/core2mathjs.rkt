@@ -67,9 +67,7 @@
     [(list 'or a ...) (format "(~a)" (string-join (map ~a a) " || "))]))
 
 (define (compile-operator op args ctx)
-  (if (set-member? infix-ops op)
-      (compile-infix-operator op args ctx)
-      (operator->mathjs op args ctx)))
+  (if (set-member? infix-ops op) (compile-infix-operator op args ctx) (operator->mathjs op args ctx)))
 
 (define (visit-if/mathjs vtor cond ift iff #:ctx ctx)
   (format "(~a ? ~a : ~a)"

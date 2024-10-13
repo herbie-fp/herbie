@@ -28,9 +28,7 @@
 
 (define (run-tests . bench-dirs)
   (define default-precision
-    (if (*precision*)
-        (representation-name (*precision*))
-        (*default-precision*)))
+    (if (*precision*) (representation-name (*precision*)) (*default-precision*)))
   (define tests
     (parameterize ([*default-precision* default-precision])
       (append-map load-tests bench-dirs)))
@@ -39,10 +37,7 @@
   (for/and ([the-test tests]
             [i (in-naturals)])
     (printf "~a/~a\t" (~a (+ 1 i) #:width 3 #:align 'right) (length tests))
-    (define the-test*
-      (if (*precision*)
-          (override-test-precision the-test (*precision*))
-          the-test))
+    (define the-test* (if (*precision*) (override-test-precision the-test (*precision*)) the-test))
     (define result (run-herbie 'improve the-test* #:seed seed))
     (match-define (job-result _ test status time timeline warnings backend) result)
     (match status
@@ -54,9 +49,7 @@
        ;; Pick lowest target from all target
        (define target-error
          ; If the list is empty, return false
-         (if (empty? targets)
-             #f
-             (argmin errors-score (map alt-analysis-test-errors targets))))
+         (if (empty? targets) #f (argmin errors-score (map alt-analysis-test-errors targets))))
 
        (printf "[ ~as]   ~a→~a\t~a\n"
                (~r (/ time 1000) #:min-width 7 #:precision '(= 3))
@@ -67,9 +60,7 @@
        (define success?
          (test-successful? test
                            (errors-score start-error)
-                           (if target-error
-                               (errors-score target-error)
-                               #f)
+                           (if target-error (errors-score target-error) #f)
                            (errors-score end-error)))
 
        (when (not success?)

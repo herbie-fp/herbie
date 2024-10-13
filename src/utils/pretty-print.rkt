@@ -18,9 +18,7 @@
     [else
      (define s (bigfloat->string x))
      (define-values (sign s-abs)
-       (if (string-prefix? s "-")
-           (values '- (substring s 1))
-           (values '+ s)))
+       (if (string-prefix? s "-") (values '- (substring s 1)) (values '+ s)))
      (define-values (mantissa e)
        (match (string-split s-abs "e" #:trim? #f)
          [(list m e) (values m (string->number e))]
@@ -82,9 +80,7 @@
 
 (define (string-pad s n c)
   (define k (- n (string-length s)))
-  (if (> k 0)
-      (string-append (build-string k (const c)) s)
-      s))
+  (if (> k 0) (string-append (build-string k (const c)) s) s))
 
 (module+ main
   (require rackunit)
@@ -140,16 +136,11 @@
     (define exponent (random -1023 1023)) ; Pretend-double
     (define significand (bf (random-bits (bf-precision)) (- (bf-precision))))
     (define val (bfshift (bf+ 1.bf significand) exponent))
-    (if (= (random 0 2) 1)
-        (bf- val)
-        val))
+    (if (= (random 0 2) 1) (bf- val) val))
 
   (for ([i (in-range 10000)])
     (define x (sample-bigfloat))
     (define y (sample-bigfloat))
-    (define-values (x* y*)
-      (if (bf< x y)
-          (values x y)
-          (values y x)))
+    (define-values (x* y*) (if (bf< x y) (values x y) (values y x)))
     (define z (bigfloat-interval-shortest x* y*))
     (with-check-info (['x x*] ['z z] ['y y*]) (check bf<= x* z) (check bf<= z y*))))

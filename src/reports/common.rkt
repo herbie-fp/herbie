@@ -57,9 +57,7 @@
 
 (define (program->fpcore expr ctx #:ident [ident #f])
   (define body (prog->fpcore expr ctx))
-  (if ident
-      (list 'FPCore ident (context-vars ctx) body)
-      (list 'FPCore (context-vars ctx) body)))
+  (if ident (list 'FPCore ident (context-vars ctx) body) (list 'FPCore (context-vars ctx) body)))
 
 (define (fpcore-add-props core props)
   (match core
@@ -80,10 +78,7 @@
     (for/list ([(prop name)
                 (in-dict (apply dict-set* '() props))]) ; how to make a list of pairs from a list
       (format "~a ~a" prop name)))
-  (define top
-    (if ident
-        (format "FPCore ~a ~a" ident args)
-        (format "FPCore ~a" args)))
+  (define top (if ident (format "FPCore ~a ~a" ident args) (format "FPCore ~a" args)))
   (pretty-format `(,top ,@props* ,expr) #:mode 'display))
 
 (define (doc-url page)
@@ -103,10 +98,7 @@
       `(ul ((class "warnings"))
            ,@(for/list ([warning warnings])
                (match-define (list type message args url extra) warning)
-               `(li (h2 ,(apply format message args)
-                        ,(if url
-                             `(a ([href ,url]) " (more)")
-                             ""))
+               `(li (h2 ,(apply format message args) ,(if url `(a ([href ,url]) " (more)") ""))
                     ,(if (null? extra)
                          ""
                          `(ol ((class "extra"))
@@ -114,12 +106,7 @@
                                   `(li ,line)))))))))
 
 (define (render-large #:title [title #f] name . values)
-  `(div ,name
-        ": "
-        (span ((class "number") ,@(if title
-                                      `([title ,title])
-                                      '()))
-              ,@values)))
+  `(div ,name ": " (span ((class "number") ,@(if title `([title ,title]) '())) ,@values)))
 
 (define (render-comparison #:title [title #f] name a b)
   (render-large #:title title name a `(span ((class "unit")) " → ") b))
@@ -282,18 +269,13 @@
      (for ([(lang record) (in-dict languages)])
        (match-define (list ext converter) record)
        (when (and (fpcore? out-prog*) (or (equal? ext "fpcore") (supported-by-lang? out-prog* ext)))
-         (define name
-           (if identifier
-               (symbol->string identifier)
-               "code"))
+         (define name (if identifier (symbol->string identifier) "code"))
          (define out (converter out-prog* name))
          (define prelude-lines
            (string-join
             (append-map (lambda (instruction)
                           (let ([l (format-prelude-instruction instruction ctx ctx* lang converter)])
-                            (if (list? l)
-                                l
-                                (list l))))
+                            (if (list? l) l (list l))))
                         instructions)
             (if (equal? lang "TeX") "\\\\\n" "\n")
             #:after-last "\n"))
@@ -304,10 +286,7 @@
                      prelude-lines
                      out)))))))
 
-  (define math-out
-    (if (dict-has-key? versions "TeX")
-        (let ([val (dict-ref versions "TeX")]) val)
-        ""))
+  (define math-out (if (dict-has-key? versions "TeX") (let ([val (dict-ref versions "TeX")]) val) ""))
 
   (define dropdown
     `(select (option "Math")
@@ -331,9 +310,7 @@
 (define/contract (render-command-line)
   (-> string?)
   (format "herbie shell --seed ~a ~a"
-          (if (vector? (get-seed))
-              (format "'~a'" (get-seed))
-              (get-seed))
+          (if (vector? (get-seed)) (format "'~a'" (get-seed)) (get-seed))
           (string-join (for/list ([rec (changed-flags)])
                          (match rec
                            [(list 'enabled class flag) (format "+o ~a:~a" class flag)]
@@ -391,9 +368,7 @@
 
   `(section
     ([id "reproduce"])
-    (details ,(if bug?
-                  '([open "open"])
-                  "")
+    (details ,(if bug? '([open "open"]) "")
              (summary (h2 "Reproduce")
                       (a ((class "help-button float") [href ,(doc-url "report.html#reproduction")]
                                                       [target "_blank"])

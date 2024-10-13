@@ -90,9 +90,7 @@
 ;; as described in the ARITH '21 paper.
 (define (pareto-combine frontiers #:convex? [convex? #f])
   (define (finalize f)
-    (if convex?
-        (pareto-convex f)
-        f))
+    (if convex? (pareto-convex f) f))
   (define frontiers* (map (λ (f) (pareto-minimize (map pt->ppt f))) frontiers))
   (for/fold ([combined (list)]
              #:result (map ppt->pt combined))
