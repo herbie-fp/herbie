@@ -2,7 +2,9 @@
 
 (define (read-lines port)
   (define line (read port))
-  (if (equal? line eof) empty (cons line (read-lines port))))
+  (if (equal? line eof)
+      empty
+      (cons line (read-lines port))))
 
 (define (fpcore-less-than fpcore fpcore2)
   (string>? (~a (rest (rest fpcore))) (~a (rest (rest fpcore2)))))

@@ -166,7 +166,9 @@
     [(? symbol?) `(1 (1 . ,expr))]
     [`(neg ,arg)
      (let ([terms (gather-multiplicative-terms arg)])
-       (if (eq? (car terms) 'NAN) '(NAN) (cons (- (car terms)) (cdr terms))))]
+       (if (eq? (car terms) 'NAN)
+           '(NAN)
+           (cons (- (car terms)) (cdr terms))))]
     [`(* ,args ...)
      (let ([terms (map gather-multiplicative-terms args)])
        (if (ormap (curry eq? 'NAN) (map car terms))
@@ -174,7 +176,10 @@
            (cons (apply * (map car terms)) (apply append (map cdr terms)))))]
     [`(/ ,arg)
      (let ([terms (gather-multiplicative-terms arg)])
-       (cons (if (member (car terms) '(0 NAN)) 'NAN (/ (car terms))) (map negate-term (cdr terms))))]
+       (cons (if (member (car terms) '(0 NAN))
+                 'NAN
+                 (/ (car terms)))
+             (map negate-term (cdr terms))))]
     [`(/ ,arg ,args ...)
      (let ([num (gather-multiplicative-terms arg)]
            [dens (map gather-multiplicative-terms args)])
