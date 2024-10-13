@@ -303,19 +303,13 @@
   (let loop ([expr expr]
              [type type])
     (match expr
-      [(? number?)
-       (if (representation? type)
-           (literal expr (representation-name type))
-           expr)]
+      [(? number?) (if (representation? type) (literal expr (representation-name type)) expr)]
       [(? symbol?)
        (if (hash-has-key? rename-dict expr)
            (car (hash-ref rename-dict expr)) ; variable (extract uncanonical name)
            (list expr))] ; constant function
       [(list '$approx spec impl) ; approx
-       (define spec-type
-         (if (representation? type)
-             (representation-type type)
-             type))
+       (define spec-type (if (representation? type) (representation-type type) type))
        (approx (loop spec spec-type) (loop impl type))]
       [`(Explanation ,body ...) `(Explanation ,@(map (lambda (e) (loop e type)) body))]
       [(list 'Rewrite=> rule expr) (list 'Rewrite=> rule (loop expr type))]
@@ -441,9 +435,7 @@
 
 ;; Remove the front term if it doesn't have any rewrites
 (define (remove-front-term proof)
-  (if (equal? (remove-rewrites (first proof)) (first proof))
-      (rest proof)
-      proof))
+  (if (equal? (remove-rewrites (first proof)) (first proof)) (rest proof) proof))
 
 ;; converts a let-bound tree explanation
 ;; into a flattened proof for use by Herbie
@@ -454,9 +446,7 @@
   ;; append together the proofs
   (define res (apply append contiguous))
   (set-box! budget (- (unbox budget) (length proof)))
-  (if (member #f res)
-      (list #f)
-      res))
+  (if (member #f res) (list #f) res))
 
 (module+ test
   (check-equal? (sequential-product `((1 2) (3 4 5) (6))) `((1 3 6) (2 3 6) (2 4 6) (2 5 6)))
@@ -583,16 +573,10 @@
         (define cond (u32vector-ref ids 0))
         (define ift (u32vector-ref ids 1))
         (define iff (u32vector-ref ids 2))
-        (define cond-type
-          (if (representation? type)
-              (get-representation 'bool)
-              'bool))
+        (define cond-type (if (representation? type) (get-representation 'bool) 'bool))
         (list 'if (lookup cond cond-type) (lookup ift type) (lookup iff type))]
        [else
-        (define itypes
-          (if (impl-exists? f)
-              (impl-info f 'itype)
-              (operator-info f 'itype)))
+        (define itypes (if (impl-exists? f) (impl-info f 'itype) (operator-info f 'itype)))
         ; unsafe since we don't check that |itypes| = |ids|
         ; optimize for common cases to avoid extra allocations
         (cons
@@ -869,13 +853,9 @@
           1))
     (values (string->symbol (format "~a.~a" n k))
             (hash 'op
-                  (~a (if (list? enode)
-                          (car enode)
-                          enode))
+                  (~a (if (list? enode) (car enode) enode))
                   'children
-                  (if (list? enode)
-                      (map ~a (cdr enode))
-                      '())
+                  (if (list? enode) (map ~a (cdr enode)) '())
                   'eclass
                   (~a n)
                   'cost
@@ -1066,9 +1046,7 @@
        [_ (apply + 1 (map rec args))])]
     [(list 'pow b e)
      (define n (vector-ref (regraph-constants regraph) e))
-     (if (fraction-with-odd-denominator? n)
-         +inf.0
-         (+ 1 (rec b) (rec e)))]
+     (if (fraction-with-odd-denominator? n) +inf.0 (+ 1 (rec b) (rec e)))]
     [(list _ args ...) (apply + 1 (map rec args))]))
 
 ;; Per-node cost function according to the platform

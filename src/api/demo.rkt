@@ -42,10 +42,7 @@
         (let ([m (regexp-match #rx"^([0-9a-f]+)\\.[0-9a-f.]+" x)])
           (and m (server-check-on (second m))))))
  (λ (x)
-   (let ([m (regexp-match #rx"^([0-9a-f]+)\\.[0-9a-f.]+" x)])
-     (server-check-on (if m
-                          (second m)
-                          x)))))
+   (let ([m (regexp-match #rx"^([0-9a-f]+)\\.[0-9a-f.]+" x)]) (server-check-on (if m (second m) x)))))
 
 (define-bidi-match-expander hash-arg hash-arg/m hash-arg/m)
 
@@ -143,10 +140,7 @@
                (link ([rel "stylesheet"] [type "text/css"] [href "main.css"]))
                ,@(for/list ([style styles])
                    `(link ([rel "stylesheet"] [type "text/css"] [href ,style]))))
-         (body (header (img ((class "logo") [src "/logo.png"]))
-                       ,@(if title?
-                             `((h1 ,title))
-                             '()))
+         (body (header (img ((class "logo") [src "/logo.png"])) ,@(if title? `((h1 ,title)) '()))
                ,@body)))
 
 (define (main req)

@@ -52,10 +52,7 @@
 
 (define (timeline-push! key . values)
   (unless (*timeline-disabled*)
-    (define val
-      (if (null? (cdr values))
-          (car values)
-          values))
+    (define val (if (null? (cdr values)) (car values) values))
     (cond
       [(eq? *timeline-active-key* key)
        (set! *timeline-active-value* (cons val *timeline-active-value*))]

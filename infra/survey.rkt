@@ -60,9 +60,7 @@ section > div { width: 500; float: left; margin-right: 20px; }
                                              'buckets
                                              32.0
                                              'max
-                                             (if (equal? name 'time)
-                                                 (json-null)
-                                                 64.0)))
+                                             (if (equal? name 'time) (json-null) 64.0)))
                       ")")))))))
    out))
 

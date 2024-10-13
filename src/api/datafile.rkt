@@ -142,9 +142,7 @@
                                    (target . ,target-bits)
                                    (start-est . ,start-est)
                                    (end-est . ,end-est)
-                                   (vars . ,(if vars
-                                                (map symbol->string vars)
-                                                #f))
+                                   (vars . ,(if vars (map symbol->string vars) #f))
                                    (warnings . ,(map ~s warnings))
                                    (input . ,(~s input))
                                    (output . ,(~s output))
@@ -196,63 +194,60 @@
 
 (define (read-datafile file)
   (define (parse-string s)
-    (if s
-        (call-with-input-string s read)
-        #f))
+    (if s (call-with-input-string s read) #f))
 
   (let* ([json (call-with-input-file file read-json)]
          [get (λ (field) (hash-ref json field))])
-    (report-info (seconds->date (get 'date))
-                 (get 'commit)
-                 (get 'branch)
-                 (hash-ref json 'hostname "")
-                 (parse-string (get 'seed))
-                 (list->flags (get 'flags))
-                 (get 'points)
-                 (get 'iterations)
-                 (hash-ref json 'note #f)
-                 (for/list ([test (get 'tests)]
-                            #:when (hash-has-key? test 'vars))
-                   (let ([get (λ (field) (hash-ref test field))])
-                     (define vars
-                       (match (hash-ref test 'vars)
-                         [(list names ...) (map string->symbol names)]
-                         [string-lst (parse-string string-lst)]))
-                     (define cost-accuracy
-                       (match (hash-ref test 'cost-accuracy '())
-                         [(list) (list)]
-                         [(list start best others)
-                          (list start
-                                best
-                                (for/list ([other (in-list others)])
-                                  (match-define (list cost err expr) other)
-                                  (list cost err (parse-string expr))))]
-                         [(? string? s) (parse-string s)]))
-                     (table-row (get 'name)
-                                (parse-string (hash-ref test 'identifier "#f"))
-                                (get 'status)
-                                (parse-string (hash-ref test 'pre "TRUE"))
-                                (parse-string (hash-ref test 'preprocess "()"))
-                                (parse-string (hash-ref test 'prec "binary64"))
-                                (let ([cs (hash-ref test 'conversions "()")])
-                                  (if (string? cs)
-                                      (parse-string cs)
-                                      (map (curry map parse-string) cs)))
-                                vars
-                                (map string->symbol (hash-ref test 'warnings '()))
-                                (parse-string (get 'input))
-                                (parse-string (get 'output))
-                                (parse-string (hash-ref test 'spec "#f"))
-                                (parse-string (hash-ref test 'target-prog "#f"))
-                                (get 'start)
-                                (get 'end)
-                                (get 'target)
-                                (hash-ref test 'start-est 0)
-                                (hash-ref test 'end-est 0)
-                                (get 'time)
-                                (get 'link)
-                                cost-accuracy)))
-                 (hash-ref json 'merged-cost-accuracy null))))
+    (report-info
+     (seconds->date (get 'date))
+     (get 'commit)
+     (get 'branch)
+     (hash-ref json 'hostname "")
+     (parse-string (get 'seed))
+     (list->flags (get 'flags))
+     (get 'points)
+     (get 'iterations)
+     (hash-ref json 'note #f)
+     (for/list ([test (get 'tests)]
+                #:when (hash-has-key? test 'vars))
+       (let ([get (λ (field) (hash-ref test field))])
+         (define vars
+           (match (hash-ref test 'vars)
+             [(list names ...) (map string->symbol names)]
+             [string-lst (parse-string string-lst)]))
+         (define cost-accuracy
+           (match (hash-ref test 'cost-accuracy '())
+             [(list) (list)]
+             [(list start best others)
+              (list start
+                    best
+                    (for/list ([other (in-list others)])
+                      (match-define (list cost err expr) other)
+                      (list cost err (parse-string expr))))]
+             [(? string? s) (parse-string s)]))
+         (table-row (get 'name)
+                    (parse-string (hash-ref test 'identifier "#f"))
+                    (get 'status)
+                    (parse-string (hash-ref test 'pre "TRUE"))
+                    (parse-string (hash-ref test 'preprocess "()"))
+                    (parse-string (hash-ref test 'prec "binary64"))
+                    (let ([cs (hash-ref test 'conversions "()")])
+                      (if (string? cs) (parse-string cs) (map (curry map parse-string) cs)))
+                    vars
+                    (map string->symbol (hash-ref test 'warnings '()))
+                    (parse-string (get 'input))
+                    (parse-string (get 'output))
+                    (parse-string (hash-ref test 'spec "#f"))
+                    (parse-string (hash-ref test 'target-prog "#f"))
+                    (get 'start)
+                    (get 'end)
+                    (get 'target)
+                    (hash-ref test 'start-est 0)
+                    (hash-ref test 'end-est 0)
+                    (get 'time)
+                    (get 'link)
+                    cost-accuracy)))
+     (hash-ref json 'merged-cost-accuracy null))))
 
 (define (unique? a)
   (or (null? a) (andmap (curry equal? (car a)) (cdr a))))
@@ -277,9 +272,7 @@
                [test (in-list (report-info-tests df))])
       (struct-copy table-row
                    test
-                   (link (if dir
-                             (format "~a/~a" dir (table-row-link test))
-                             (table-row-link test))))))
+                   (link (if dir (format "~a/~a" dir (table-row-link test)) (table-row-link test))))))
 
   (report-info (last (sort (map report-info-date dfs) < #:key date->seconds))
                (report-info-commit (first dfs))
@@ -289,9 +282,7 @@
                (report-info-flags (first dfs))
                (report-info-points (first dfs))
                (report-info-iterations (first dfs))
-               (if name
-                   (~a name)
-                   (~a (cons 'merged (map report-info-note dfs))))
+               (if name (~a name) (~a (cons 'merged (map report-info-note dfs))))
                tests
                ;; Easiest to just recompute everything based off the combined tests
                (merged-cost-accuracy tests)))

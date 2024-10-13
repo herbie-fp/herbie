@@ -52,9 +52,7 @@
   (format "(~a ~a)"
           op
           (string-join (for/list ([t types])
-                         (if t
-                             (format "<~a>" (representation-name t))
-                             "<?>"))
+                         (if t (format "<~a>" (representation-name t)) "<?>"))
                        " ")))
 
 (define (expression->type stx prop-dict ctx error!)

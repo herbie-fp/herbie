@@ -255,9 +255,7 @@
 (define (format-accuracy numerator denominator #:sign [sign #f] #:unit [unit ""])
   (if (and numerator (positive? denominator))
       (let ([percent (~r (- 100 (* (/ numerator denominator) 100)) #:precision '(= 1))])
-        (if (and (> numerator 0) sign)
-            (format "+~a~a" percent unit)
-            (format "~a~a" percent unit)))
+        (if (and (> numerator 0) sign) (format "+~a~a" percent unit) (format "~a~a" percent unit)))
       ""))
 
 (define (format-cost r repr #:sign [sign #f])
@@ -272,9 +270,7 @@
 (define-runtime-path web-resource-path "../reports/resources/")
 
 (define (web-resource [name #f])
-  (if name
-      (build-path web-resource-path name)
-      web-resource-path))
+  (if name (build-path web-resource-path name) web-resource-path))
 
 (define/contract (string-replace* str changes)
   (-> string? (listof (cons/c string? string?)) string?)

@@ -197,18 +197,12 @@
 
 (define (taylor-exact . terms)
   (define items (list->vector (map simplify terms)))
-  (cons 0
-        (λ (n)
-          (if (<= (length terms) n)
-              0
-              (vector-ref items n)))))
+  (cons 0 (λ (n) (if (<= (length terms) n) 0 (vector-ref items n)))))
 
 (define (first-nonzero-exp f)
   "Returns n, where (series n) != 0, but (series n) = 0 for all smaller n"
   (let loop ([n 0])
-    (if (and (equal? (f n) 0) (< n 20))
-        (loop (+ n 1))
-        n)))
+    (if (and (equal? (f n) 0) (< n 20)) (loop (+ n 1)) n)))
 
 (define (align-series . serieses)
   (if (or (<= (length serieses) 1) (apply = (map car serieses)))
@@ -216,11 +210,10 @@
       (let ([offset* (car (argmax car serieses))])
         (for/list ([series serieses])
           (let ([offset (car series)])
-            (cons offset*
-                  (λ (n)
-                    (if (< (+ n (- offset offset*)) 0)
-                        0
-                        ((cdr series) (+ n (- offset offset*)))))))))))
+            (cons
+             offset*
+             (λ (n)
+               (if (< (+ n (- offset offset*)) 0) 0 ((cdr series) (+ n (- offset offset*)))))))))))
 
 (define (taylor-add . terms)
   (match (apply align-series terms)
@@ -256,9 +249,7 @@
        (cons (- offset slack) (compose coeffs (curry + slack))))]))
 
 (define ((zero-series series) n)
-  (if (< n (- (car series)))
-      0
-      ((cdr series) (+ n (car series)))))
+  (if (< n (- (car series))) 0 ((cdr series) (+ n (car series)))))
 
 (define (taylor-invert term)
   "This gets tricky, because the function might have a pole at 0.
@@ -364,10 +355,7 @@
 
 (define (all-partitions n options)
   (match options
-    ['()
-     (if (= n 0)
-         '(())
-         '())]
+    ['() (if (= n 0) '(()) '())]
     [(cons k options*)
      (reap [sow]
            (for* ([i (in-range (/ (+ n 1) k))])
@@ -465,9 +453,7 @@
               (filter identity
                       (for/list ([i (in-naturals)]
                                  [p ps])
-                        (if (zero? p)
-                            #f
-                            `(,(* coeff p) ,@(list-setinc ps i)))))]))))
+                        (if (zero? p) #f `(,(* coeff p) ,@(list-setinc ps i)))))]))))
 
 (define (lognormalize table)
   (filter (λ (entry) (not (= (car entry) 0)))
@@ -488,22 +474,21 @@
   (hash-set! hash 0 (simplify `(log ,(coeffs 0))))
 
   (define (series n)
-    (hash-ref! hash
-               n
-               (λ ()
-                 (let* ([tmpl (logcompute n)])
-                   (simplify `(/ (+ ,@
-                                    (for/list ([term tmpl])
-                                      (match term
-                                        [`(,coeff ,k ,ps ...)
-                                         `(* ,coeff
-                                             (/ (* ,@(for/list ([i (in-naturals 1)]
-                                                                [p ps])
-                                                       (if (= p 0)
-                                                           1
-                                                           `(pow (* ,(factorial i) ,(coeffs i)) ,p))))
-                                                (pow ,(coeffs 0) ,(- k))))])))
-                                 ,(factorial n)))))))
+    (hash-ref!
+     hash
+     n
+     (λ ()
+       (let* ([tmpl (logcompute n)])
+         (simplify `(/ (+ ,@
+                          (for/list ([term tmpl])
+                            (match term
+                              [`(,coeff ,k ,ps ...)
+                               `(* ,coeff
+                                   (/ (* ,@(for/list ([i (in-naturals 1)]
+                                                      [p ps])
+                                             (if (= p 0) 1 `(pow (* ,(factorial i) ,(coeffs i)) ,p))))
+                                      (pow ,(coeffs 0) ,(- k))))])))
+                       ,(factorial n)))))))
 
   (cons 0
         (λ (n)

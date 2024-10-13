@@ -73,9 +73,7 @@
 
   (for/list ([(point exact) (in-pcontext pcontext)])
     (for/list ([out (in-vector (apply fn point))])
-      (if (special? out)
-          max-error
-          (ulp-difference out exact repr)))))
+      (if (special? out) max-error (ulp-difference out exact repr)))))
 
 ;; Herbie <=> JSON conversion for pcontext
 ;; A JSON pcontext is just a list of lists

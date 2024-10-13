@@ -99,11 +99,7 @@
        (for/fold ([out #f])
                  ([term args*]
                   [next (cdr args*)])
-         (datum->syntax #f
-                        (if out
-                            (list 'and out (list op term next))
-                            (list op term next))
-                        term)))
+         (datum->syntax #f (if out (list 'and out (list op term next)) (list op term next)) term)))
      (or out (datum->syntax #f 'TRUE stx))]
     [#`(!= #,args ...)
      (define args* (map expand args))
@@ -115,11 +111,7 @@
                   [term2 args*]
                   [j (in-naturals)]
                   #:when (< i j))
-         (datum->syntax #f
-                        (if out
-                            (list 'and out (list '!= term term2))
-                            (list '!= term term2))
-                        stx)))
+         (datum->syntax #f (if out (list 'and out (list '!= term term2)) (list '!= term term2)) stx)))
      (or out (datum->syntax #f 'TRUE stx))]
     ; other operators
     [#`(#,op #,args ...) (datum->syntax #f (cons op (map expand args)) stx)]
@@ -259,10 +251,7 @@
            (load-file fname))))
 
 (define (load-tests path)
-  (define path*
-    (if (string? path)
-        (string->path path)
-        path))
+  (define path* (if (string? path) (string->path path) path))
   (define out
     (cond
       [(equal? path "-") (load-stdin)]

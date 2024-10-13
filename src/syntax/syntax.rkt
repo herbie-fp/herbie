@@ -379,9 +379,7 @@
        (define fail ((representation-bf->repr (context-repr ctx)) +nan.bf))
        (procedure-rename (lambda pt
                            (define-values (_ exs) (real-apply compiler pt))
-                           (if exs
-                               (first exs)
-                               fail))
+                           (if exs (first exs) fail))
                          name)]))
   ; update tables
   (define impl (operator-impl name ctx spec fpcore* fl-proc*))
