@@ -33,7 +33,9 @@
 ; In normal mode, cost is not considered so we return a constant
 ; The alt table becomes "degenerate"
 (define (alt-cost* altn repr)
-  (if (*pareto-mode*) (alt-cost altn repr) 1))
+  (if (*pareto-mode*)
+      (alt-cost altn repr)
+      1))
 
 (define (make-alt-table pcontext initial-alt ctx)
   (define cost (alt-cost* initial-alt (context-repr ctx)))
@@ -128,7 +130,9 @@
   (define (alt-done? a)
     (if (hash-ref (alt-table-alt->done? atab) a) 1 0))
   (define (alt-cost a)
-    (if (*pareto-mode*) (hash-ref (alt-table-alt->cost atab) a) (backup-alt-cost a)))
+    (if (*pareto-mode*)
+        (hash-ref (alt-table-alt->cost atab) a)
+        (backup-alt-cost a)))
   ;; Rank by multiple metrics
   (define not-done (argmins alt-done? (set->list removable)))
   (define least-best-points (argmins alt-num-points not-done))
@@ -203,13 +207,14 @@
       (define ppt (pareto-point cost err (list altn)))
       (pareto-union (list ppt)
                     pcurve
-                    #:combine
-                    (lambda (alts1 alts2)
-                      ; dedup by program
-                      ; optimization: combining means that `alts1` corresponds to
-                      ; the new pareto point
-                      (match-define (list altn) alts1)
-                      (if (ormap (lambda (a) (alt-equal? a altn)) alts2) alts2 (cons altn alts2))))))
+                    #:combine (lambda (alts1 alts2)
+                                ; dedup by program
+                                ; optimization: combining means that `alts1` corresponds to
+                                ; the new pareto point
+                                (match-define (list altn) alts1)
+                                (if (ormap (lambda (a) (alt-equal? a altn)) alts2)
+                                    alts2
+                                    (cons altn alts2))))))
 
   (alt-table point-idx->alts*
              (hash-set alt->point-idxs altn #f)

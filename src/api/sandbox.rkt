@@ -307,7 +307,9 @@
 
   ;; Branch on whether or not we should run inside an engine
   (define eng (engine in-engine))
-  (if (engine-run (*timeout*) eng) (engine-result eng) (on-timeout)))
+  (if (engine-run (*timeout*) eng)
+      (engine-result eng)
+      (on-timeout)))
 
 (define (dummy-table-row result status link)
   (define test (job-result-test result))
@@ -396,7 +398,9 @@
 
      ; Important to calculate value of status
      (define best-score
-       (if (null? target-cost-score) target-cost-score (apply min (map second target-cost-score))))
+       (if (null? target-cost-score)
+           target-cost-score
+           (apply min (map second target-cost-score))))
 
      (define end-exprs (hash-ref end 'end-exprs))
      (define end-train-scores (map errors-score (hash-ref end 'end-train-scores)))
@@ -469,7 +473,9 @@
 
      ; Important to calculate value of status
      (define best-score
-       (if (null? target-cost-score) target-cost-score (apply min (map second target-cost-score))))
+       (if (null? target-cost-score)
+           target-cost-score
+           (apply min (map second target-cost-score))))
 
      ; analysis of output expressions
      (define-values (end-exprs end-train-scores end-test-scores end-costs)
@@ -527,7 +533,10 @@
   (define repr (get-representation (table-row-precision row)))
   (define ctx (context vars repr (map (const repr) vars))) ; TODO: this seems wrong
   (define expr* (or expr (table-row-output row) (table-row-input row)))
-  (define top (if (table-row-identifier row) (list (table-row-identifier row) vars) (list vars)))
+  (define top
+    (if (table-row-identifier row)
+        (list (table-row-identifier row) vars)
+        (list vars)))
   `(FPCore ,@top
            :herbie-status
            ,(string->symbol (table-row-status row))
@@ -540,13 +549,19 @@
            ,@(append (for/list ([rec (in-list (table-row-target row))])
                        (match-define (list cost score) rec)
                        `(:herbie-error-target ([,(*reeval-pts*) ,(table-row-target row)]))))
-           ,@(if (empty? (table-row-warnings row)) '() `(:herbie-warnings ,(table-row-warnings row)))
+           ,@(if (empty? (table-row-warnings row))
+                 '()
+                 `(:herbie-warnings ,(table-row-warnings row)))
            :name
            ,(table-row-name row)
-           ,@(if descr `(:description ,(~a descr)) '())
+           ,@(if descr
+                 `(:description ,(~a descr))
+                 '())
            :precision
            ,(table-row-precision row)
-           ,@(if (eq? (table-row-pre row) 'TRUE) '() `(:pre ,(table-row-pre row)))
+           ,@(if (eq? (table-row-pre row) 'TRUE)
+                 '()
+                 `(:pre ,(table-row-pre row)))
            ,@(if (equal? (table-row-preprocess row) empty)
                  '()
                  `(:herbie-preprocess ,(table-row-preprocess row)))
