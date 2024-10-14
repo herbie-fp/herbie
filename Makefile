@@ -13,7 +13,7 @@ clean:
 	raco pkg remove --force --no-docs egg-herbie-windows && echo "Uninstalled old egg-herbie" || :
 	raco pkg remove --force --no-docs egg-herbie-osx && echo "Uninstalled old egg-herbie" || :
 	raco pkg remove --force --no-docs egg-herbie-macosm1 && echo "Uninstalled old egg-herbie" || :
-	$(MAKE) -C QD clean
+	$(MAKE) -C QD clean || true
 
 update:
 	raco pkg install --skip-installed --no-docs --auto --name herbie src/
