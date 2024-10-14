@@ -16,9 +16,14 @@
   (match expr
     [(? string?)
      (let ([parsed (string->number expr)])
-       (if parsed parsed (raise (error "string that is not a num"))))]
+       (if parsed
+           parsed
+           (raise (error "string that is not a num"))))]
     [(list op args ...) (format-op (cons op (map (curry format-expr is-version-10) args)))]
-    [(? symbol?) (if is-version-10 (hash-ref version-10-constants expr expr) expr)]
+    [(? symbol?)
+     (if is-version-10
+         (hash-ref version-10-constants expr expr)
+         expr)]
     [else expr]))
 
 (define (read-expr expr-string is-version-10)

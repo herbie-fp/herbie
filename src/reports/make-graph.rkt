@@ -112,7 +112,9 @@
           ,(render-large "Alternatives" (~a (length end-exprs)))
           ,(if (*pareto-mode*)
                (render-large "Speedup"
-                             (if speedup (~r speedup #:precision '(= 1)) "N/A")
+                             (if speedup
+                                 (~r speedup #:precision '(= 1))
+                                 "N/A")
                              "×"
                              #:title "Relative speed of fastest alternative that improves accuracy.")
                ""))

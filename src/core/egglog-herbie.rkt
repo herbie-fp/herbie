@@ -69,6 +69,7 @@
 
 (define (platform-spec-nodes)
   (for/list ([op (in-list (all-operators))])
+    (hash-set! id->egglog op (serialize-op op))
     (define arity (length (operator-info op 'itype)))
     `(,(serialize-op op) ,@(for/list ([i (in-range arity)])
                              'M)
@@ -79,6 +80,7 @@
   (for/list ([impl (in-list (platform-impls pform))]
              #:when (string-contains? (symbol->string impl) "."))
     (define arity (length (impl-info impl 'itype)))
+    (hash-set! id->egglog impl (serialize-impl impl))
     `(,(serialize-impl impl) ,@(for/list ([i (in-range arity)])
                                  'M)
                              :cost
@@ -87,7 +89,9 @@
 (define (platform-typed-nodes pform)
   (for/list ([impl (in-list (platform-impls pform))])
     (define arity (length (impl-info impl 'itype)))
-    `(,(string->symbol (string-append (symbol->string (serialize-impl impl)) "Ty"))
+    (define typed-name (string-append (symbol->string (serialize-impl impl)) "Ty"))
+    (hash-set! egglog->id typed-name impl)
+    `(,typed-name
       ,@(for/list ([i (in-range arity)])
           'MTy)
       :cost
@@ -157,5 +161,8 @@
 (define (serialize-impl impl)
   (define impl-split (string-split (symbol->string impl) "."))
   (define op (string->symbol (car impl-split)))
-  (define type (if (= 2 (length impl-split)) (cadr impl-split) ""))
+  (define type
+    (if (= 2 (length impl-split))
+        (cadr impl-split)
+        ""))
   (string->symbol (string-append (symbol->string (serialize-op op)) type)))
