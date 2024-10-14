@@ -1,0 +1,3 @@
+[submodule "QD"]
+	path = QD
+	url = https://github.com/bhargavkulk/QD.git

@@ -4,7 +4,7 @@ help:
 	@echo "Type 'make install' to install Herbie"
 	@echo "Then type 'racket -l herbie web' to run it."
 
-install: clean egg-herbie update
+install: clean dd egg-herbie update
 
 clean:
 	raco pkg remove --force --no-docs herbie && echo "Uninstalled old herbie" || :
@@ -13,6 +13,7 @@ clean:
 	raco pkg remove --force --no-docs egg-herbie-windows && echo "Uninstalled old egg-herbie" || :
 	raco pkg remove --force --no-docs egg-herbie-osx && echo "Uninstalled old egg-herbie" || :
 	raco pkg remove --force --no-docs egg-herbie-macosm1 && echo "Uninstalled old egg-herbie" || :
+	$(MAKE) -C QD clean
 
 update:
 	raco pkg install --skip-installed --no-docs --auto --name herbie src/
@@ -27,6 +28,10 @@ egg-herbie:
 	raco pkg remove --force --no-docs egg-herbie-osx && echo "Warning: uninstalling egg-herbie and reinstalling local version" || :
 	raco pkg remove --force --no-docs egg-herbie-macosm1 && echo "Warning: uninstalling egg-herbie and reinstalling local version" || :
 	raco pkg install ./egg-herbie
+
+dd:
+	cd QD && ./configure --enable-shared
+	$(MAKE) -C QD
 
 distribution: minimal-distribution
 	cp -r bench herbie-compiled/
