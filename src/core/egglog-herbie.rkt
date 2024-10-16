@@ -166,3 +166,14 @@
         (cadr impl-split)
         ""))
   (string->symbol (string-append (symbol->string (serialize-op op)) type)))
+
+(define (rule->egglog-rule ru)
+  (define lhs (expr->egglog-expr (rule-input ru))))
+
+(define (expr->egglog-expr expr)
+  (let loop ([expr expr])
+    (match expr
+     [(? number?) `(Num (Rational ,expr 1))]
+     [(? symbol?) `(Var ,(symbol->string expr))]
+     [(list op args) `(,(hash-ref id->egglog op) ,@(map loop args))])))
+
