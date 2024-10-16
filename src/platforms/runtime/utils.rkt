@@ -22,6 +22,10 @@
   (begin
     (define-operator-impl (impl-name) repr #:spec (name) #:fl (const value)) ...))
 
-(define-syntax-rule (define-comparator-impls repr [name impl-name impl-fn] ...)
+(define-syntax-rule (define-comparator-impls repr [name impl-name impl-fn attrib ...] ...)
   (begin
-    (define-operator-impl (impl-name [x : repr] [y : repr]) bool #:spec (name x y) #:fl impl-fn) ...))
+    (define-operator-impl (impl-name [x : repr] [y : repr])
+                          bool
+                          #:spec (name x y)
+                          #:fl impl-fn
+                          attrib ...) ...))
