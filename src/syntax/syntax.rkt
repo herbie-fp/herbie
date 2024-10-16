@@ -335,7 +335,9 @@
                                           #:fl [fl-proc #f]
                                           #:fpcore [fpcore #f]
                                           #:identities [identities #f])
-  (->* (symbol? context? any/c) (#:fl (or/c procedure? #f) #:fpcore any/c #:identities any/c) void?)
+  (->* (symbol? context? any/c)
+       (#:commutes? boolean? #:fl (or/c procedure? #f) #:fpcore any/c #:identities any/c)
+       void?)
   ; check specification
   (check-spec! name ctx spec)
   (define vars (context-vars ctx))
@@ -472,6 +474,7 @@
             (with-syntax ([id id]
                           [spec spec]
                           [core core]
+                          [commutes? commutes?]
                           [fl-expr fl-expr]
                           [identities identities])
               #'(register-operator-impl! 'id
