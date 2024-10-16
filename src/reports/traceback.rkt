@@ -34,7 +34,9 @@
           ,(if type
                `(section ([id "user-error"] (class "error"))
                          (h2 ,(~a msg) " " (a ([href ,url]) "(more)"))
-                         ,(if (eq? type 'syntax) (render-syntax-errors msg extra) ""))
+                         ,(if (eq? type 'syntax)
+                              (render-syntax-errors msg extra)
+                              ""))
                "")
           ,(if type
                ""

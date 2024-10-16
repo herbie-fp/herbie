@@ -31,7 +31,9 @@
     (for*/list ([(cat flags) (in-dict (or (report-info-flags ri) '()))]
                 [fl flags])
       (string->symbol (format "~a:~a" cat fl))))
-  (if (equal? (report-info-iterations ri) 2) (cons 'fuel:2 flags) flags))
+  (if (equal? (report-info-iterations ri) 2)
+      (cons 'fuel:2 flags)
+      flags))
 
 (define *cache* (make-parameter (make-hasheq)))
 
@@ -202,7 +204,10 @@
                                              #:key (curryr dict-ref 'date-unix))))))))
 
   (define crashes (filter (λ (x) (> (dict-ref x 'tests-crashed) 0)) (apply append mainline-infos)))
-  (define last-crash (if (null? crashes) #f (argmax (curryr dict-ref 'date-unix) crashes)))
+  (define last-crash
+    (if (null? crashes)
+        #f
+        (argmax (curryr dict-ref 'date-unix) crashes)))
   (define since-last-crash
     (and last-crash
          (/ (- (date->seconds (current-date)) (dict-ref last-crash 'date-unix)) (* 60 60 24))))
@@ -248,7 +253,10 @@
     [(directory-exists? file)
      (for/list ([folder (in-list (directory-jsons file))])
        (define relative-path (find-relative-path file folder #:more-than-same? false))
-       (define path* (if base (build-path base relative-path) relative-path))
+       (define path*
+         (if base
+             (build-path base relative-path)
+             relative-path))
        (hash-set (compute-row folder) 'folder (path->string (simplify-path path* false))))]
     [(file-exists? file)
      (define cached-info (call-with-input-file file read-json))
