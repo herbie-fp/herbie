@@ -103,8 +103,7 @@
        [(< len-a len-b) -1]
        [(> len-a len-b) 1]
        [else
-        (let loop ([a a]
-                   [b b])
+        (let loop ([a a] [b b])
           (if (null? a)
               0
               (let ([cmp (expr-cmp (car a) (car b))])
@@ -160,8 +159,7 @@
   (define (invalid! where loc)
     (error 'location-do "invalid location `~a` for `~a` in `~a`" loc where prog))
 
-  (let loop ([prog prog]
-             [loc loc])
+  (let loop ([prog prog] [loc loc])
     (match* (prog loc)
       [(_ (? null?)) (f prog)]
       [((or (? literal?) (? number?) (? symbol?)) _) (invalid! prog loc)]
@@ -171,8 +169,7 @@
          [(2) (approx spec (loop impl rest))]
          [else (invalid! prog loc)])]
       [((list op args ...) (cons idx rest)) ; operator
-       (let seek ([elts (cons op args)]
-                  [idx idx])
+       (let seek ([elts (cons op args)] [idx idx])
          (cond
            [(= idx 0) (cons (loop (car elts) rest) (cdr elts))]
            [(null? elts) (invalid! prog loc)]
