@@ -108,7 +108,9 @@
          (for/fold ([out #f])
                    ([term as*]
                     [next (cdr as*)])
-           (if out (list 'and out (list op term next)) (list op term next))))
+           (if out
+               (list 'and out (list op term next))
+               (list op term next))))
        (or out '(TRUE))]
       [`(!= ,as ...)
        (define as* (map (curryr loop env) as))
@@ -120,7 +122,9 @@
                     [term2 as*]
                     [j (in-naturals)]
                     #:when (< i j))
-           (if out (list 'and out (list '!= term term2)) (list '!= term term2))))
+           (if out
+               (list 'and out (list '!= term term2))
+               (list '!= term term2))))
        (or out '(TRUE))]
       ; function calls
       [(list (? (curry hash-has-key? (*functions*)) fname) args ...)
@@ -174,14 +178,19 @@
        (define iff* (loop iff prop-dict))
        (list 'if cond* ift* iff*)]
       [(list '! props ... body)
-       (loop body (if (not (null? props)) (apply dict-set prop-dict props) prop-dict))]
+       (loop body
+             (if (not (null? props))
+                 (apply dict-set prop-dict props)
+                 prop-dict))]
       [(list 'neg arg) ; non-standard but useful [TODO: remove]
        (define arg* (loop arg prop-dict))
        (fpcore->impl-app '- prop-dict (list arg*) ctx)]
       [(list 'cast arg) ; special case: unnecessary casts
        (define arg* (loop arg prop-dict))
        (define repr (get-representation (dict-ref prop-dict ':precision)))
-       (if (equal? (repr-of arg* ctx) repr) arg* (fpcore->impl-app 'cast prop-dict (list arg*) ctx))]
+       (if (equal? (repr-of arg* ctx) repr)
+           arg*
+           (fpcore->impl-app 'cast prop-dict (list arg*) ctx))]
       [(list op args ...)
        (define args* (map (lambda (arg) (loop arg prop-dict)) args))
        (fpcore->impl-app op prop-dict args* ctx)])))
@@ -231,7 +240,9 @@
        (define args* (map munge args))
        (define vars (impl-info impl 'vars))
        (define node (replace-vars (map cons vars args*) (impl-info impl 'fpcore)))
-       (if root? node (push! impl node))]))
+       (if root?
+           node
+           (push! impl node))]))
 
   (define root (munge expr #:root? #t))
   (cons (list->vector (reverse instrs)) root))
@@ -276,7 +287,9 @@
          (for/list ([(k v) (in-dict prop-dict*)]
                     #:unless (and (dict-has-key? prop-dict k) (equal? (dict-ref prop-dict k) v)))
            (cons k v)))
-       (if (null? new-prop-dict) body* `(! ,@(dict->props new-prop-dict) ,body*))]
+       (if (null? new-prop-dict)
+           body*
+           `(! ,@(dict->props new-prop-dict) ,body*))]
       [(list op args ...) ; operator application
        (define args* (map (lambda (e) (loop e prop-dict)) args))
        `(,op ,@args*)])))
@@ -356,7 +369,10 @@
     [(? literal?) (literal-value expr)]
     [(? variable?) expr]
     [(approx spec _) spec]
-    [`(if ,cond ,ift ,iff) `(if ,(prog->spec cond) ,(prog->spec ift) ,(prog->spec iff))]
+    [`(if ,cond ,ift ,iff)
+     `(if ,(prog->spec cond)
+          ,(prog->spec ift)
+          ,(prog->spec iff))]
     [`(,impl ,args ...)
      (define vars (impl-info impl 'vars))
      (define spec (impl-info impl 'spec))

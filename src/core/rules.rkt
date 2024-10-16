@@ -721,7 +721,23 @@
                  [if-false (if (FALSE) x y) y]
                  [if-same (if a x x) x]
                  [if-not (if (not a) x y) (if a y x)]
-                 [if-if-or (if a x (if b x y)) (if (or a b) x y)]
-                 [if-if-or-not (if a x (if b y x)) (if (or a (not b)) x y)]
-                 [if-if-and (if a (if b x y) y) (if (and a b) x y)]
-                 [if-if-and-not (if a (if b y x) y) (if (and a (not b)) x y)])
+                 [if-if-or
+                  (if a
+                      x
+                      (if b x y))
+                  (if (or a b) x y)]
+                 [if-if-or-not
+                  (if a
+                      x
+                      (if b y x))
+                  (if (or a (not b)) x y)]
+                 [if-if-and
+                  (if a
+                      (if b x y)
+                      y)
+                  (if (and a b) x y)]
+                 [if-if-and-not
+                  (if a
+                      (if b y x)
+                      y)
+                  (if (and a (not b)) x y)])

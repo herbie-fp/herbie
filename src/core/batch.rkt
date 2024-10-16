@@ -173,11 +173,19 @@
     (let loop ([expr expr]
                [type type])
       (match expr
-        [(? number?) (if (representation? type) (literal expr (representation-name type)) expr)]
+        [(? number?)
+         (if (representation? type)
+             (literal expr (representation-name type))
+             expr)]
         [(? symbol?)
-         (if (hash-has-key? rename-dict expr) (car (hash-ref rename-dict expr)) (list expr))]
+         (if (hash-has-key? rename-dict expr)
+             (car (hash-ref rename-dict expr))
+             (list expr))]
         [(list '$approx spec impl)
-         (define spec-type (if (representation? type) (representation-type type) type))
+         (define spec-type
+           (if (representation? type)
+               (representation-type type)
+               type))
          (approx (loop spec spec-type) (loop impl type))]
         [(list 'if cond ift iff)
          (if (representation? type)
@@ -192,13 +200,22 @@
   (define (add-enode node type)
     (define node*
       (match node
-        [(? number?) (if (representation? type) (literal node (representation-name type)) node)]
-        [(? symbol?) (if (hash-has-key? rename-dict node) (car (hash-ref rename-dict node)) node)]
+        [(? number?)
+         (if (representation? type)
+             (literal node (representation-name type))
+             node)]
+        [(? symbol?)
+         (if (hash-has-key? rename-dict node)
+             (car (hash-ref rename-dict node))
+             node)]
         [(list '$approx spec impl)
          (define spec* (vector-ref id->spec spec))
          (unless spec*
            (error 'regraph-extract-variants "no initial approx node in eclass"))
-         (define spec-type (if (representation? type) (representation-type type) type))
+         (define spec-type
+           (if (representation? type)
+               (representation-type type)
+               type))
          (define final-spec (egg-parsed->expr spec* rename-dict spec-type))
          (approx final-spec (add-enode (eggref impl) type))]
         [(list 'if cond ift iff)

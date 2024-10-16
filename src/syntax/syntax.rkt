@@ -331,6 +331,7 @@
 (define/contract (register-operator-impl! name
                                           ctx
                                           spec
+                                          #:commutes? [commutes? #f]
                                           #:fl [fl-proc #f]
                                           #:fpcore [fpcore #f]
                                           #:identities [identities #f])
@@ -385,7 +386,9 @@
        (define fail ((representation-bf->repr (context-repr ctx)) +nan.bf))
        (procedure-rename (lambda pt
                            (define-values (_ exs) (real-apply compiler pt))
-                           (if exs (first exs) fail))
+                           (if exs
+                               (first exs)
+                               fail))
                          name)]))
 
   ; make hash table
@@ -393,6 +396,8 @@
   (define rule-names (make-hasheq))
   (define commutes? #f)
   (when identities
+    (when commutes?
+      (cons (list 'commutes) identities))
     (set! rules
           (for/list ([ident (in-list identities)]
                      [i (in-naturals)])
@@ -454,6 +459,7 @@
        (for ([var (in-list vars)])
          (unless (identifier? var)
            (oops! "expected identifier" var)))
+       (define commutes? #f)
        (define spec #f)
        (define core #f)
        (define fl-expr #f)
@@ -473,6 +479,7 @@
                                                   (get-representation 'rtype)
                                                   (list (get-representation 'repr) ...))
                                          'spec
+                                         #:commutes? 'commutes?
                                          #:fl fl-expr
                                          #:fpcore 'core
                                          #:identities 'identities))]
@@ -497,6 +504,12 @@
                (set! fl-expr #'expr)
                (loop #'(rest ...))])]
            [(#:fl) (oops! "expected value after keyword `#:fl`" stx)]
+           [(#:commutes rest ...)
+            (cond
+              [commutes? (oops! "multiple #:commutes clauses" stx)]
+              [else
+               (set! commutes? #t)
+               (loop #'(rest ...))])]
            [(#:identities (ident-exprs ...) rest ...)
             (cond
               [identities (oops! "multiple #:identities clauses" stx)]
@@ -508,7 +521,6 @@
                          [([name lhs-expr rhs-expr] rem ...)
                           (cons (list #'name #'lhs-expr #'rhs-expr) (ident-loop #'(rem ...)))]
                          [(#:exact expr rem ...) (cons (list 'exact #'expr) (ident-loop #'(rem ...)))]
-                         [(#:commutes rem ...) (cons (list 'commutes) (ident-loop #'(rem ...)))]
                          [_ (oops! "bad syntax" ident-exprs)])))
                (loop #'(rest ...))])]
            [(#:identities rest ...) (oops! "expected list of impl identities" stx)]

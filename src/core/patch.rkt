@@ -165,9 +165,15 @@
       (alt expr (list 'patch expr repr) '() '())))
 
   ; Series expand
-  (define approximations (if (flag-set? 'generate 'taylor) (run-taylor start-altns) '()))
+  (define approximations
+    (if (flag-set? 'generate 'taylor)
+        (run-taylor start-altns)
+        '()))
   ; Recursive rewrite
-  (define rewritten (if (flag-set? 'generate 'rr) (run-rr start-altns global-batch) '()))
+  (define rewritten
+    (if (flag-set? 'generate 'rr)
+        (run-rr start-altns global-batch)
+        '()))
 
   ; deref everything in rewritten
   (set! rewritten
