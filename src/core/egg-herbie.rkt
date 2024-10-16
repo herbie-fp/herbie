@@ -872,7 +872,7 @@
                           enode))
                   'children
                   (if (list? enode)
-                      (map ~a (cdr enode))
+                      (map (lambda (e) (format "~a.0" e)) (cdr enode))
                       '())
                   'eclass
                   (~a n)
