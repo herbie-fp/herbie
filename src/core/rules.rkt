@@ -583,6 +583,10 @@
                  [diff-log (- (log a) (log b)) (log (/ a b))]
                  [neg-log (neg (log a)) (log (/ 1 a))])
 
+#| (define-ruleset* log-factor
+                 (exponents sound)
+                 #:type ([a real] [b real])                 
+                  [2log (/ (log x) (log 2)) (log2 a)] |#
 ; Trigonometry
 (define-ruleset* trig-reduce-fp-sound
                  (trigonometry simplify fp-safe sound)
