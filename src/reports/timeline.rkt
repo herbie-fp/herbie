@@ -364,16 +364,16 @@
                                   (td (b ,(~a expl)))
                                   (td ,(~a cnt))
                                   (td ,(~a mcnt))
-                                  ;; Handle flows: Iterate over each flow and create a row
-                             (for/list ([flow (in-list (or flows '()))])
-                               (match-define (list ex type v) flow)
-                               (tr (td "↳") (td (code ,(~a ex))) (td ,type) (td ,(~a v))))
                                
                              ;; Handle locations: Iterate over each location's inner lists and create a row for each
-                             (for/list ([location-list (in-list safe-locations)])
-                               ;; Handle each location in the inner list
-                               (for/list ([location (in-list location-list)])
-                                 `(tr (td "↳") (td "Location") (td ,(~a location)) (td ""))))))))))))))
+                            (for/list ([location-list (in-list safe-locations)])
+                              ;; Handle each location in the inner list
+                              (for/list ([location (in-list location-list)])
+                                `(tr (td "↳") (td "Location") (td ,(~a location)) (td ""))))
+
+                            (for/list ([flow (in-list (or flows '()))])
+                              (match-define (list ex type v) flow)
+                              `(tr (td "↳") (td (code ,(~a ex))) (td ,type) (td ,(~a v))))))))))))))
 
 (define (render-phase-confusion confusion-matrix)
   (match-define (list (list true-pos false-neg false-pos true-neg)) confusion-matrix)
