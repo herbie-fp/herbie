@@ -362,7 +362,7 @@
                                   (td (b ,(~a expl)))
                                   (td ,(~a cnt))
                                   (td ,(~a mcnt))
-                                  (td (code ,(~a locations))))
+                                  (td (code ,(string-join (map ~a locations) ", "))))
                              (for/list ([flow (in-list (or flows '()))])
                                (match-define (list ex type v) flow)
                                `(tr (td "↳") (td (code ,(~a ex))) (td ,type) (td ,(~a v)))))))))))))
