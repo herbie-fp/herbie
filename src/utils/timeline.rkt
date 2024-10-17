@@ -226,7 +226,8 @@
                  [expl false]
                  [count +]
                  [mcount +]
-                 [flows (const #f)])
+                 [flows (const #f)]
+                 [locations (const #f)])
 (define-timeline confusion #:custom (λ (x y) (list (map + (car x) (car y)))))
 (define-timeline total-confusion #:custom (λ (x y) (list (map + (car x) (car y)))))
 (define-timeline maybe-confusion #:custom (λ (x y) (list (map + (car x) (car y)))))
