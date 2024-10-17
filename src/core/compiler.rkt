@@ -4,10 +4,12 @@
          "../syntax/types.rkt"
          "../utils/timeline.rkt"
          "../utils/float.rkt"
-         "batch.rkt")
+         "batch.rkt"
+         "logfloat.rkt")
 
 (provide compile-progs
-         compile-prog)
+         compile-prog
+         compile-lfs)
 
 ;; Interpreter taking a narrow IR
 ;; ```
@@ -89,3 +91,30 @@
   (define (compiled-prog . xs)
     (vector-ref (apply core xs) 0))
   compiled-prog)
+
+;; LOG SPACE COMPILER -----------------------------------------
+(define (make-lf-compiler exprs vars)
+  (define num-vars (length vars))
+  (define batch
+    (batch-remove-zombie (batch-remove-approx (progs->batch exprs #:timeline-push #t #:vars vars))
+                         #:keep-vars #t))
+
+  (define instructions
+    (for/vector #:length (- (batch-length batch) num-vars)
+                ([node (in-vector (batch-nodes batch) num-vars)])
+      (match node
+        [(logfloat _ _ _ _ _) (list (const node))]
+        [(list 'if c t f) (list if-proc c t f)]
+        [(list op args ...) (cons (lfop op) args)])))
+
+  (make-progs-interpreter (batch-vars batch) instructions (batch-roots batch)))
+
+(define (compile-lfs exprs ctx)
+  (make-lf-compiler exprs (context-vars ctx)))
+
+;; Like `compile-progs`, but a single prog.
+(define (compile-lf expr ctx)
+  (define core (compile-progs (list expr) ctx))
+  (define (compiled-lf . xs)
+    (vector-ref (apply core xs) 0))
+  compiled-lf)

@@ -14,13 +14,14 @@
 (struct logfloat (r1 r2 s e1 e2)
   #:methods gen:custom-write
   [(define write-proc
-     (make-constructor-style-printer (lambda (_) 'ddlf)
-                                     (lambda (obj)
-                                       (list (logfloat-r1 obj)
-                                             (logfloat-r2 obj)
-                                             (logfloat-s obj)
-                                             (logfloat-e1 obj)
-                                             (logfloat-e2 obj)))))])
+     (make-constructor-style-printer
+      (lambda (_) 'logfloat)
+      (lambda (obj)
+        (list (logfloat-r1 obj)
+              (logfloat-r2 obj)
+              (logfloat-s obj)
+              (logfloat-e1 obj)
+              (logfloat-e2 obj)))))])
 
 (define (lf x1 [x2 0.0])
   (let*-values ([(e1 e2) (ddabs x1 x2)]
@@ -32,13 +33,13 @@
 
 (define (lf-normalize x)
   (match-define (logfloat x1 x2 s e1 e2) x)
-  (define-values (l1 l2) (ddexp2 x1 x2))
+  (define-values (l1 l2) (ddexp2 e1 e2))
   (define-values (n1 n2) (ddneg l1 l2))
   (if (or (ddnan? x1 x2) (ddzero? x1 x2) (ddinfinite? x1 x2))
-      (if s
-          (logfloat l1 l2 s e1 e2)
-          (logfloat n1 n2 s e1 e2))
-      x))
+                     (if s
+                         (logfloat l1 l2 s e1 e2)
+                         (logfloat n1 n2 s e1 e2))
+                     x))
 
 (define (lfzero? x)
   (match-define (logfloat x1 x2 _ e1 e2) x)
@@ -58,10 +59,10 @@
       (cond
         ; Both +ve
         [(and xs ys) (dd> ex1 ex2 ey1 ey2)]
-
+        
         ; Both -ve
         [(nor xs ys) (dd> ey1 ey2 ex1 ex2)]
-
+        
         [else xs])
       (dd> x1 x2 y1 y2)))
 
@@ -91,10 +92,235 @@
 
 ;; QUESTION: is 0 0 _ -inf 0 an underflow
 (define (lfunderflow? x)
-  (lf> (lfabs x) +min.lf))
+  (lf< (lfabs x) +min.lf))
+
+(define (lfover/underflowed? x)
+  (or (lfoverflow? x) (lfunderflow? x)))
+
+(define (lfsamesign? x y [flag #t])
+  (match-define (logfloat x1 x2 sx _ _) x)
+  (match-define (logfloat y1 y2 sy _ _) y)
+  (if flag
+      (not (xor sx sy))
+      (ddsamesign? x1 x2 y1 y2)))
 
 (define (lfnan? x)
   (match-define (logfloat x1 x2 _ ex1 ex2) x)
   (when (and (not (ddnan? x1 x2)) (ddnan? ex1 ex2))
     (eprintf "[ERROR::lfnan?] ~a\n" x))
   (and (ddnan? x1 x2) (ddnan? ex1 ex2)))
+
+(define (lfrepresentable? x)
+  (and (not (lfunderflow? x))
+       (not (lfoverflow? x))
+       (not (lfnan? x))))
+
+(define (lfneg x)
+  (match-define (logfloat x1 x2 s e1 e2) x)
+  (let*-values
+      ([(x1 x2) (ddneg x1 x2)])
+    (logfloat x1 x2 (not s) e1 e2)))
+
+(define (lf+ A B)
+  (define P (if (lf>= (lfabs A) (lfabs B)) A B))
+  (define Q (if (lf< (lfabs A) (lfabs B)) A B))
+  (match-define (logfloat x1 x2 xs ex1 ex2) P)
+  (match-define (logfloat y1 y2 ys ey1 ey2) Q)
+  (let*-values ([(a1 a2) (dd- ey1 ey2 ex1 ex2)]
+                [(b1 b2) (ddexp2 a1 a2)]
+                [(c1 c2) (if (not (xor xs ys))
+                             (dd+ 1.0 0.0 b1 b2)
+                             (dd- 1.0 0.0 b1 b2))]
+                [(d1 d2) (ddabs c1 c2)]
+                [(e1 e2) (ddlog2 d1 d2)]
+                [(f1 f2) (dd+ ex1 ex2 e1 e2)]
+                [(z1 z2) (dd+ x1 x2 y1 y2)])
+    (logfloat z1 z2 xs f1 f2)))
+
+(define (lf- A B)
+  (lf+ A (lfneg B)))
+
+(define (lf* A B)
+  (match-define (logfloat x1 x2 xs ex1 ex2) A)
+  (match-define (logfloat y1 y2 ys ey1 ey2) B)
+  (let*-values
+      ([(z1 z2) (dd* x1 x2 y1 y2)]
+       [(zs) (not (xor xs ys))]
+       [(ez1 ez2) (dd+ ex1 ex2 ey1 ey2)])
+    (logfloat z1 z2 zs ez1 ez2)))
+
+(define (lf/ A B)
+  (match-define (logfloat x1 x2 xs ex1 ex2) A)
+  (match-define (logfloat y1 y2 ys ey1 ey2) B)
+  (let*-values
+      ([(z1 z2) (dd/ x1 x2 y1 y2)]
+       [(zs) (not (xor xs ys))]
+       [(ez1 ez2) (dd- ex1 ex2 ey1 ey2)])
+    (logfloat z1 z2 zs ez1 ez2)))
+
+(define (lflog A)
+  (match-define (logfloat x1 x2 _ ex1 ex2) A)
+  (let*-values ([(z1 z2) (ddlog x1 x2)]
+                [(zs) (dd>= ex1 ex2 0.0 0.0)]
+                [(a1 a2) (dd* ex1 ex2 log2-hi log2-lo)]
+                [(a1 a2) (ddabs a1 a2)]
+                [(a1 a2) (ddlog2 a1 a2)])
+    (logfloat z1 z2 zs a1 a2)))
+
+(define (lfexp A)
+  (match-define (logfloat x1 x2 _ _ _) A)
+  (let*-values ([(z1 z2) (ddexp x1 x2)]
+                [(zs) #true]
+                [(a1 a2) (ddlog2 dde1 dde2)]
+                [(a1 a2) (dd* x1 x2 a1 a2)])
+    (logfloat z1 z2 zs a1 a2)))
+
+(define (lfexpt A B)
+  (match-define (logfloat x1 x2 _ ex1 ex2) A)
+  (match-define (logfloat y1 y2 _ _ _) B)
+  (let*-values ([(z1 z2) (ddexpt x1 x2 y1 y2)]
+                [(zs) (dd>= z1 z2 0.0 0.0)]
+                [(int?) (ddint? y1 y2)])
+    (cond
+      [(dd>= x1 x2 0.0 0.0)
+       (let*-values ([(a1 a2) (dd* y1 y2 ex1 ex2)])
+         (logfloat z1 z2 zs a1 a2))
+       (dd* y1 y2 ex1 ex2)]
+      [int? (let*-values
+                ([(a1 a2) (dd* y1 y2 ex1 ex2)])
+              (logfloat z1 z2 zs a1 a2))]
+      [else (logfloat z1 z2 zs +nan.0 0.0)])))
+
+(define (lfsqrt A)
+  (match-define (logfloat x1 x2 _ ex1 ex2) A)
+  (let*-values ([(z1 z2) (ddsqrt x1 x2)]
+                [(a1 a2) (dd/ ex1 ex2 2.0 0.0)])
+    (logfloat z1 z2 #true a1 a2)))
+
+(define (lfcbrt A)
+  (match-define (logfloat x1 x2 xs ex1 ex2) A)
+  (let*-values ([(z1 z2) (ddcbrt x1 x2)]
+                [(a1 a2) (dd/ ex1 ex2 3.0 0.0)])
+    (logfloat z1 z2 xs a1 a2)))
+
+(define (lfcos A)
+  (match-define (logfloat x1 x2 _ _ _) A)
+  (let*-values ([(z1 z2) (ddcos x1 x2)]
+                [(zs) (dd>= z1 z2 0.0 0.0)]
+                [(a1 a2) (ddabs z1 z2)]
+                [(a1 a2) (ddlog2 a1 a2)])
+    (logfloat z1 z2 zs a1 a2)))
+
+(define (lfsin A)
+  (match-define (logfloat x1 x2 _ _ _) A)
+  (let*-values ([(z1 z2) (ddsin x1 x2)]
+                [(zs) (dd>= z1 z2 0.0 0.0)]
+                [(a1 a2) (ddabs z1 z2)]
+                [(a1 a2) (ddlog2 a1 a2)])
+    (logfloat z1 z2 zs a1 a2)))
+
+(define (lftan A)
+  (match-define (logfloat x1 x2 _ _ _) A)
+  (let*-values ([(z1 z2) (ddtan x1 x2)]
+                [(zs) (dd>= z1 z2 0.0 0.0)]
+                [(a1 a2) (ddabs z1 z2)]
+                [(a1 a2) (ddlog2 a1 a2)])
+    (logfloat z1 z2 zs a1 a2)))
+
+(define (lfop? symbol)
+  (match symbol
+    ['lf+ #true]
+    ['lf- #true]
+    ['lf* #true]
+    ['lf/ #true]
+    ['lflog #true]
+    ['lfexp #true]
+    ['lfexpt #true]
+    ['lfsin #true]
+    ['lfcos #true]
+    ['lftan #true]
+    ['lfsqrt #true]
+    ['lfcbrt #true]
+    ['lfneg #true]
+    ['lf> #true]
+    ['lf>= #true]
+    ['lf< #true]
+    ['lf<= #true]
+    [_ #false]))
+
+(define (lfop symbol)
+  (match symbol
+    ['lf+ lf+]
+    ['lf- lf-]
+    ['lf* lf*]
+    ['lf/ lf/]
+    ['lflog lflog]
+    ['lfexp lfexp]
+    ['lfexpt lfexpt]
+    ['lfsin lfsin]
+    ['lfcos lfcos]
+    ['lftan lftan]
+    ['lfsqrt lfsqrt]
+    ['lfcbrt lfcbrt]
+    ['lfneg lfneg]
+    ['lf> lf>]
+    ['lf>= lf>=]
+    ['lf< lf<]
+    ['lf<= lf<=]
+    [_ #false]))
+
+(define (op->lfop op)
+  (match op
+    ['+.f64 'lf+]
+    ['-.f64 'lf-]
+    ['*.f64 'lf*]
+    ['/.f64 'lf/]
+    ['log.f64 'lflog]
+    ['exp.f64 'lfexp]
+    ['pow.f64 'lfexpt]
+    ['sin.f64 'lfsin]
+    ['cos.f64 'lfcos]
+    ['tan.f64 'lftan]
+    ['sqrt.f64 'lfsqrt]
+    ['cbrt.f64 'lfcbrt]
+    ['neg.f64 'lfneg]
+    ['+.f32 'lf+]
+    ['-.f32 'lf-]
+    ['*.f32 'lf*]
+    ['/.f32 'lf/]
+    ['log.f32 'lflog]
+    ['exp.f32 'lfexp]
+    ['pow.f32 'lfexpt]
+    ['sin.f32 'lfsin]
+    ['cos.f32 'lfcos]
+    ['tan.f32 'lftan]
+    ['sqrt.f32 'lfsqrt]
+    ['cbrt.f32 'lfcbrt]
+    ['neg.f32 'lfneg]
+    ['>.f64 'lf>]
+    ['>.f32 'lf>]
+    ['>=.f64 'lf>=]
+    ['>=.f32 'lf>=]
+    ['<.f64 'lf<]
+    ['<.f32 'lf<]
+    ['<=.f64 'lf<=]
+    ['<=.f32 'lf<=]
+    ['if 'if]
+    [_ (error 'op->logop op)]))
+
+(define (expr->lf expr)
+  (match expr
+    [(struct literal (value _))
+     (lf (if (flonum? value)
+             value
+             (exact->inexact value)))]
+    [(list (or 'PI.f64 'PI.f32))
+     (lf ddpi1 ddpi2)]
+    [(list (or 'E.f64 'E.f32))
+     (lf dde1 dde2)]
+    [(list op args ...)
+     (cons (op->lfop op)
+           (map expr->lf args))]
+    [sym sym]))
+
+(define 1.lf (lf 1.0))
