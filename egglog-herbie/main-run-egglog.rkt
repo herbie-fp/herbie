@@ -12,7 +12,7 @@
 (define program-to-egglog "program-to-egglog.egg")
 
 (define std-out-file "stdout.txt")
-(define std-err-file "stdout.txt")
+(define std-err-file "stderr.txt")
 
 ; Types handled
 ; - rationals
@@ -44,7 +44,6 @@
   (define stdout-content (port->string out)) 
   (define stderr-content (port->string err))
 
-  ; Write content to file
   (write-output-to-file stdout-content std-out-file)
   (write-output-to-file stderr-content std-err-file)
 
@@ -53,11 +52,11 @@
   (close-input-port err))
 
 
-;; High-level function that writes the program to a file and then runs it
+;; High-level function that writes the program to a file, runs it then returns output
 ;;; TODO : Faster way to read/write from/to files
 (define (run-egglog program-struct)
   (write-program-to-egglog (egglog-program-program program-struct))
 
   (process-egglog program-to-egglog)
   
-  (cons (file->string std-out-file) (file->string std-out-file)))
+  (cons (file->string std-out-file) (file->string std-err-file)))
