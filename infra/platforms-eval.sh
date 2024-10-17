@@ -69,6 +69,8 @@ python3 $INFRA_DIR/platforms/cross-plot.py "$OUTDIR/platforms/output"
 echo "Finished platforms evaluation"
 date
 
+make clean
+
 # clean up cache and build files
 if [ -n "$RM_CACHE" ]; then
   echo "removing cache and drivers"

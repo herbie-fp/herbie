@@ -20,7 +20,7 @@ default_num_threads = 1
 default_start_seed = 1
 
 def install_herbie(install_dir: Path):
-    subprocess.run(['raco', 'pkg', 'remove', 'avx-herbie', 'fdlibm-herbie', 'vdt-herbie'])
+    subprocess.run(['raco', 'pkg', 'remove', '--force', 'avx-herbie', 'fdlibm-herbie', 'vdt-herbie'])
     subprocess.run(['git', 'clone', '--branch', 'v2.0.2', 'https://github.com/herbie-fp/herbie', install_dir])
     subprocess.run(['make', 'install'], cwd=install_dir)
 
