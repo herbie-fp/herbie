@@ -357,12 +357,16 @@
              (for/list ([rec (in-list (sort explanations > #:key fourth))])
                (match-define (list op expr expl cnt mcnt flows locations) rec)
 
+               ;; Ensure locations is always a list or handle it properly
+               (define safe-locations (if (list? locations) locations '()))
+
                (append (list `(tr (td (code ,(~a op)))
                                   (td (code ,(~a expr)))
                                   (td (b ,(~a expl)))
                                   (td ,(~a cnt))
                                   (td ,(~a mcnt))
-                                  (td (code ,(string-join (map ~a locations) ", "))))
+                                  ;; Handle locations as a list or provide a fallback
+                                  (td (code ,(string-join (map ~a safe-locations) ", "))))
                              (for/list ([flow (in-list (or flows '()))])
                                (match-define (list ex type v) flow)
                                `(tr (td "↳") (td (code ,(~a ex))) (td ,type) (td ,(~a v)))))))))))))
