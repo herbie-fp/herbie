@@ -1,5 +1,7 @@
 #lang racket
 
+(require "main-run-egglog.rkt")
+
 ; Define  Egglog program as a list of S-expressions
 (define raw-egglog-program
   '((datatype M
@@ -18,4 +20,4 @@
 ; Create an instance of the egglog-program struct
 (define my-egglog-program (egglog-program raw-egglog-program))
 
-(run-egglog my-egglog-program)
+(displayln (run-egglog my-egglog-program))
