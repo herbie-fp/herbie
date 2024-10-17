@@ -355,21 +355,25 @@
            (tr (th "Operator") (th "Subexpression") (th "Explanation") (th "Count") (th "Locations")))
           ,@(append*
              (for/list ([rec (in-list (sort explanations > #:key fourth))])
-               (match-define (list op expr expl cnt mcnt flows locations) rec)
+                (match-define (list op expr expl cnt mcnt flows locations) rec)
 
-               ;; Ensure locations is always a list or handle it properly
-               (define safe-locations (if (list? locations) locations '()))
+                (define safe-locations (or locations '()))  ;; Fallback to empty list if locations is #f
 
-               (append (list `(tr (td (code ,(~a op)))
+                (append (list `(tr (td (code ,(~a op)))
                                   (td (code ,(~a expr)))
                                   (td (b ,(~a expl)))
                                   (td ,(~a cnt))
                                   (td ,(~a mcnt))
-                                  ;; Handle locations as a list or provide a fallback
-                                  (td (code ,(string-join (map ~a safe-locations) ", "))))
+                                  ;; Handle flows: Iterate over each flow and create a row
                              (for/list ([flow (in-list (or flows '()))])
                                (match-define (list ex type v) flow)
-                               `(tr (td "↳") (td (code ,(~a ex))) (td ,type) (td ,(~a v)))))))))))))
+                               (tr (td "↳") (td (code ,(~a ex))) (td ,type) (td ,(~a v))))
+                               
+                             ;; Handle locations: Iterate over each location's inner lists and create a row for each
+                             (for/list ([location-list (in-list safe-locations)])
+                               ;; Handle each location in the inner list
+                               (for/list ([location (in-list location-list)])
+                                 `(tr (td "↳") (td "Location") (td ,(~a location)) (td ""))))))))))))))
 
 (define (render-phase-confusion confusion-matrix)
   (match-define (list (list true-pos false-neg false-pos true-neg)) confusion-matrix)
