@@ -171,9 +171,9 @@
                  [associate-*l* (* (* a b) c) (* a (* b c))]
                  [associate-*r/ (* a (/ b c)) (/ (* a b) c)]
                  [associate-*l/ (* (/ a b) c) (/ (* a c) b)]
-                 [associate-/r* (/ a (* b c)) (/ (/ a b) c)] ;
+                 [associate-/r* (/ a (* b c)) (/ (/ a b) c)]
                  [associate-/r/ (/ a (/ b c)) (* (/ a b) c)]
-                 [associate-/l/ (/ (/ b c) a) (/ b (* c a))] ;
+                 [associate-/l/ (/ (/ b c) a) (/ b (* c a))]
                  [associate-/l* (/ (* b c) a) (* b (/ c a))])
 
 ; Counting
@@ -252,6 +252,33 @@
                  #:type ([a real] [b real])
                  [flip-+ (+ a b) (/ (- (* a a) (* b b)) (- a b))]
                  [flip-- (- a b) (/ (- (* a a) (* b b)) (+ a b))])
+
+; Specialized numerical functions
+; TODO: These are technically rules over impls
+;
+; (define-ruleset* special-numerical-reduce
+;                  (numerics simplify)
+;                  #:type ([x real] [y real] [z real])
+;                  [log1p-expm1 (log1p (expm1 x)) x]
+;                  [hypot-1-def (sqrt (+ 1 (* y y))) (hypot 1 y)]
+;                  [fmm-def (- (* x y) z) (fma x y (neg z))]
+;                  [fmm-undef (fma x y (neg z)) (- (* x y) z)])
+
+; (define-ruleset* special-numerical-expand
+;                  (numerics)
+;                  #:type ([x real] [y real])
+;                  [log1p-expm1-u x (log1p (expm1 x))]
+;                  [expm1-log1p-u x (expm1 (log1p x))])
+
+; (define-ruleset* numerics-papers
+;                  (numerics)
+;                  #:type ([a real] [b real] [c real] [d real])
+;                  ;  "Further Analysis of Kahan's Algorithm for
+;                  ;   the Accurate Computation of 2x2 Determinants"
+;                  ;  Jeannerod et al., Mathematics of Computation, 2013
+;                  ;
+;                  ;  a * b - c * d  ===> fma(a, b, -(d * c)) + fma(-d, c, d * c)
+;                  [prod-diff (- (* a b) (* c d)) (+ (fma a b (neg (* d c))) (fma (neg d) c (* d c)))])
 
 ; Identity
 (define-ruleset* id-reduce
@@ -350,6 +377,7 @@
                  (fractions sound)
                  #:type ([a real] [b real] [c real] [d real])
                  [frac-2neg-rev (/ (neg a) (neg b)) (/ a b)])
+
 
 ; Square root
 (define-ruleset* squares-reduce
@@ -583,10 +611,14 @@
                  [diff-log (- (log a) (log b)) (log (/ a b))]
                  [neg-log (neg (log a)) (log (/ 1 a))])
 
-#| (define-ruleset* log-factor
+
+(define-ruleset* log2-factor
                  (exponents sound)
-                 #:type ([a real] [b real])                 
-                  [2log (/ (log x) (log 2)) (log2 a)] |#
+                 #:type ([a real] [b real])
+                 [log2-expand (log x 2) (/ (log x) (log 2))]
+                 [log2-expand-rev (/ (log x) (log 2)) (log x 2)])                 
+
+
 ; Trigonometry
 (define-ruleset* trig-reduce-fp-sound
                  (trigonometry simplify fp-safe sound)
