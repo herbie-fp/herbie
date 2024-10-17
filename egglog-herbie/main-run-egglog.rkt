@@ -1,6 +1,9 @@
 #lang racket
 
-(provide (struct-out egglog-program))
+(require racket/file)
+
+(provide run-egglog
+         (struct-out egglog-program))
 
 ;; Track the entire Egglog program in one go by "converting" into racket based code
 ;; TODO : prelude, rules, expressions, extractions
@@ -8,6 +11,12 @@
 
 (define program-to-egglog "program-to-egglog.egg")
 
+(define std-out-file "stdout.txt")
+(define std-err-file "stdout.txt")
+
+; Types handled
+; - rationals
+; - string
 (define (write-program-to-egglog program)
   (with-output-to-file program-to-egglog
     #:exists 'replace
@@ -19,8 +28,7 @@
   (with-output-to-file filename
     #:exists 'replace
     (lambda ()
-      (display output))))
-
+      (displayln output))))
 
 (define (process-egglog egglog-filename)
   (define egglog-path (or (find-executable-path "egglog")
@@ -37,8 +45,8 @@
   (define stderr-content (port->string err))
 
   ; Write content to file
-  (write-output-to-file stdout-content "stdout.txt")
-  (write-output-to-file stderr-content "stderr.txt")
+  (write-output-to-file stdout-content std-out-file)
+  (write-output-to-file stderr-content std-err-file)
 
   (close-input-port out)
   (close-output-port in)
@@ -46,18 +54,10 @@
 
 
 ;; High-level function that writes the program to a file and then runs it
+;;; TODO : Faster way to read/write from/to files
 (define (run-egglog program-struct)
   (write-program-to-egglog (egglog-program-program program-struct))
+
   (process-egglog program-to-egglog)
   
-  ; TODO : read stdout and stderr
-  )
-
-;; TODO:
-;; 1. Make egglog program a struct -> list of expressions
-;;  Embed arbitrary data -> make type egglog-prog
-
-
-; 2. Types I need
-; - rationals
-; - string
+  (cons (file->string std-out-file) (file->string std-out-file)))
