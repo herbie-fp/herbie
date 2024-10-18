@@ -29,16 +29,19 @@ else
 fi
 
 # run
-RECURSE=1 LOG=1 \
-  bash "$INFRA_DIR"/run.sh \
-    "$BENCH_DIR" "$OUT_DIR" \
-    --profile \
-    --seed "$SEED" \
-    --threads "$CORES" \
-    $FLAGS
+# RECURSE=1 LOG=1 \
+#   bash "$INFRA_DIR"/run.sh \
+#     "$BENCH_DIR" "$OUT_DIR" \
+#     --profile \
+#     --seed "$SEED" \
+#     --threads "$CORES" \
+#     $FLAGS
 
-# run platforms eval
-# RM_CACHE=1 bash "$INFRA_DIR"/platforms-eval.sh "$OUT_DIR" 1
+# # run platforms eval
+# # RM_CACHE=1 bash "$INFRA_DIR"/platforms-eval.sh "$OUT_DIR" 1
 
-# upload
-bash $INFRA_DIR/publish.sh upload "$OUT_DIR"
+# # upload
+# bash $INFRA_DIR/publish.sh upload "$OUT_DIR"
+
+
+bash "nightly disabled"
