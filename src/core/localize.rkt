@@ -173,24 +173,25 @@
 
 ; Compute local error or each sampled point at each node in `prog`.
 (define (compute-errors subexprss ctx)
-  ; true-err? is a flag used weather we should run true error or not.
-  ; TODO split out local error for `core` use vs Odyessy?
-  (define our_repr (context-repr ctx))
   (define exprs-list (append* subexprss)) ; unroll subexprss
   (define ctx-list
     (for/list ([subexpr (in-list exprs-list)])
       (struct-copy context ctx [repr (repr-of subexpr ctx)])))
+  (define exact-var-name '__exact)
+  (define extended
+    (for/list ([ctx (in-list ctx-list)])
+      (context-extend ctx exact-var-name (context-repr ctx))))
+  (define compare-specs
+    (for/list ([spec (in-list (map prog->spec exprs-list))])
+      `(- ,spec ,exact-var-name)))
 
-  (define all-vars (context-vars ctx))
-  (define spec-list (map prog->spec exprs-list))
-  (define spec-vec (list->vector spec-list))
   (define expr-batch (progs->batch exprs-list))
   (define nodes (batch-nodes expr-batch))
   (define roots (batch-roots expr-batch))
 
-  ; TODO don't ignore the status code from make-real-compiler in eval-progs-real
   (define subexprs-fn (eval-progs-real (map prog->spec exprs-list) ctx-list))
   (define actual-value-fn (compile-progs exprs-list ctx))
+  (define compare-fn (eval-progs-real compare-specs extended))
 
   (define ulp-errs
     (for/vector #:length (vector-length roots)
@@ -218,14 +219,15 @@
     (define exacts (list->vector (apply subexprs-fn pt)))
     (define actuals (apply actual-value-fn pt))
 
-    (for ([spec (in-vector spec-vec)]
-          [expr (in-list exprs-list)]
+    (for ([expr (in-list exprs-list)]
           [root (in-vector roots)]
           [exact (in-vector exacts)]
           [actual (in-vector actuals)]
           [expr-idx (in-naturals)])
+      ;; Order of points matters
+      (define new_vars (append pt (list exact)))
+      (define true-errors (list->vector (apply compare-fn new_vars)))
       (define true-err
-        ;; ??? Whats the default values for true error literal, variable approx and if?
         (match (vector-ref nodes root)
           [(? literal?) 0]
           [(? variable?) 0]
@@ -238,17 +240,7 @@
              [`-nan.0 `-nan.0]
              [`+inf.0 `+inf.0]
              [`-inf.0 `-inf.0]
-             [value
-              ; __exact double underscore to avoid conflicts with user provided
-              ; variables. Could use name mangling long term.
-              (define modifed-vars (append all-vars `(__exact)))
-              (define true-error-expr (list `(- ,spec __exact)))
-              (define diffMachine
-                (rival-compile true-error-expr modifed-vars (list flonum-discretization)))
-              (define inputs (map (representation-repr->bf our_repr) (append pt (list exact))))
-              ;; ??? Is this always length 1, as we are asking about exact?
-              (define true-error (vector-ref (rival-apply diffMachine (list->vector inputs)) 0))
-              true-error])]))
+             [_ (vector-ref true-errors expr-idx)])]))
 
       (define ulp-err
         (match (vector-ref nodes root)
