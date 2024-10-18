@@ -166,7 +166,7 @@ const localError2 = await (await fetch(makeEndpoint("/api/localerror"), {
 assert.notEqual(localError1.job, localError2.job)
 // Assert local error works for default example.
 const ignoredValue = 1e+308
-// '(FPCore (1e-100) (- (sqrt (+ x 1)) (sqrt x)))'
+'(FPCore (1e-100) (- (sqrt (+ x 1)) (sqrt x)))'
 const localError5 = await (await fetch(makeEndpoint("/api/localerror"), {
   method: 'POST', body: JSON.stringify({
     formula: FPCoreFormula, sample: [[[1e-100], ignoredValue]], seed: 5
@@ -180,12 +180,12 @@ const xNode = localError5.tree['children'][0]['children'][0]['children'][0]
 const oneNode = localError5.tree['children'][0]['children'][0]['children'][1]
 
 //        node, name, approx_value, avg_error, exact_value, true_error_value, ulps_error
-assertCheckNode(rootMinusNode, '-', '1.0', '0', '1.0', '-1e-50', 1)
-assertCheckNode(leftSQRT, 'sqrt', '1.0', '0', '1.0', '5e-101', 1)
-assertCheckNode(rightSQRT, 'sqrt', '1e-50', '0', '1e-50', '2.379726195519099e-68', 1)
-assertCheckNode(plusNode, '+', '1.0', '0', '1.0', '1e-100', 1)
-assertCheckNode(xNode, 'x', '1e-100', '0', '1e-100', '0', 1)
-assertCheckNode(oneNode, '1.0', '1.0', '0', '1.0', '0', 1)
+assertCheckNode(rootMinusNode, '-', '1.0', '0.0', '1.0', '-1e-50', 1)
+assertCheckNode(leftSQRT, 'sqrt', '1.0', '0.0', '1.0', '5e-101', 1)
+assertCheckNode(rightSQRT, 'sqrt', '1e-50', '0.0', '1e-50', '2.379726195519099e-68', 1)
+assertCheckNode(plusNode, '+', '1.0', '0.0', '1.0', '1e-100', 1)
+assertCheckNode(xNode, 'x', '1e-100', '0.0', '1e-100', '0', 1)
+assertCheckNode(oneNode, '1.0', '1.0', '0.0', '1.0', '-0.0', 1)
 
 // '(FPCore (1e100) (- (sqrt (+ x 1)) (sqrt x)))'
 const localError6 = await (await fetch(makeEndpoint("/api/localerror"), {
@@ -199,17 +199,13 @@ const rightSQRT6 = localError6.tree['children'][1]
 const plusNode6 = localError6.tree['children'][0]['children'][0]
 const xNode6 = localError6.tree['children'][0]['children'][0]['children'][0]
 const oneNode6 = localError6.tree['children'][0]['children'][0]['children'][1]
-// (eval (- (- (sqrt (+ 1e100 1)) (sqrt 1e100)) 5e-51))
-// TODO finish TEST
 //        node, name, approx_value, avg_error, exact_value, true_error_value, ulps_error
-// console.log(rootMinusNode6)
-// assertCheckNode(rootMinusNode6, '-', '0.0', '61.7', '5e-51', '-1e-50', 1)
-// console.log(leftSQRT6)
-// assertCheckNode(leftSQRT6, 'sqrt', '1.0', '0', '1.0000000000000001e50', '-9.9999999999999995e33', 1)
-assertCheckNode(rightSQRT6, 'sqrt', '1e+50', '0', '1e+50', '-6.834625285603891e+33', 1)
-assertCheckNode(plusNode6, '+', '1e+100', '0', '1e+100', '1.0', 1)
-assertCheckNode(xNode6, 'x', '1e+100', '0', '1e+100', '0', 1)
-assertCheckNode(oneNode6, '1.0', '1.0', '0', '1.0', '0', 1)
+assertCheckNode(rootMinusNode6, '-', '0.0', '61.7', '5e-51', '-7.78383463033115e-68', 3854499065107888000)
+assertCheckNode(leftSQRT6, 'sqrt', '1e+50', '0.0', '1e+50', '-6.834625285603891e+33', 1)
+assertCheckNode(rightSQRT6, 'sqrt', '1e+50', '0.0', '1e+50', '-6.834625285603891e+33', 1)
+assertCheckNode(plusNode6, '+', '1e+100', '0.0', '1e+100', '1.0', 1)
+assertCheckNode(xNode6, 'x', '1e+100', '0.0', '1e+100', '0', 1)
+assertCheckNode(oneNode6, '1.0', '1.0', '0.0', '1.0', '-0.0', 1)
 
 function assertCheckNode(node, name, approx, avg_error, exact_value, true_error_value, ulps_error) {
   assert.equal(node['e'], name)

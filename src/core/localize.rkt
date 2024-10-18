@@ -174,6 +174,7 @@
 ; Compute local error or each sampled point at each node in `prog`.
 (define (compute-errors subexprss ctx)
   (define exprs-list (append* subexprss)) ; unroll subexprss
+  (define spec-list (map prog->spec exprs-list))
   (define ctx-list
     (for/list ([subexpr (in-list exprs-list)])
       (struct-copy context ctx [repr (repr-of subexpr ctx)])))
@@ -182,14 +183,14 @@
     (for/list ([ctx (in-list ctx-list)])
       (context-extend ctx exact-var-name (context-repr ctx))))
   (define compare-specs
-    (for/list ([spec (in-list (map prog->spec exprs-list))])
+    (for/list ([spec (in-list spec-list)])
       `(- ,spec ,exact-var-name)))
 
   (define expr-batch (progs->batch exprs-list))
   (define nodes (batch-nodes expr-batch))
   (define roots (batch-roots expr-batch))
 
-  (define subexprs-fn (eval-progs-real (map prog->spec exprs-list) ctx-list))
+  (define subexprs-fn (eval-progs-real spec-list ctx-list))
   (define actual-value-fn (compile-progs exprs-list ctx))
   (define compare-fn (eval-progs-real compare-specs extended))
 
@@ -219,28 +220,28 @@
     (define exacts (list->vector (apply subexprs-fn pt)))
     (define actuals (apply actual-value-fn pt))
 
-    (for ([expr (in-list exprs-list)]
+    (for ([cur-sepc (in-list spec-list)]
+          [cur-ctx (in-list ctx-list)]
+          [expr (in-list exprs-list)]
           [root (in-vector roots)]
           [exact (in-vector exacts)]
           [actual (in-vector actuals)]
           [expr-idx (in-naturals)])
-      ;; Order of points matters
-      (define new_vars (append pt (list exact)))
-      (define true-errors (list->vector (apply compare-fn new_vars)))
+
       (define true-err
         (match (vector-ref nodes root)
-          [(? literal?) 0]
+          [(? literal?)
+           (define inputs (append (list exact) (vector->list (make-vector (length pt) 0))))
+           (define true-errors (list->vector (apply compare-fn inputs)))
+           (vector-ref true-errors 0)]
           [(? variable?) 0]
-          [(approx aprx-spec impl) exact] ;; TODO not sure what to do here.
-          [`(if ,c ,ift ,iff) 0]
-          [(list f args-roots ...)
-           ;; Find the index of the variables we need to substitute.
-           (match exact
-             [`+nan.0 `+nan.0]
-             [`-nan.0 `-nan.0]
-             [`+inf.0 `+inf.0]
-             [`-inf.0 `-inf.0]
-             [_ (vector-ref true-errors expr-idx)])]))
+          [_
+           (define extended (context-append cur-ctx exact-var-name (context-repr cur-ctx)))
+           (define compare-specs `(- ,cur-sepc ,exact-var-name))
+           (define new-compare (eval-progs-real (list compare-specs) (list extended)))
+           (define inputs (append pt (list exact)))
+           (define true-errors (list->vector (apply new-compare inputs)))
+           (vector-ref true-errors 0)]))
 
       (define ulp-err
         (match (vector-ref nodes root)
@@ -260,8 +261,8 @@
 
       (vector-set! (vector-ref exacts-out expr-idx) pt-idx exact)
       (vector-set! (vector-ref approx-out expr-idx) pt-idx actual)
-      (vector-set! (vector-ref true-error-out expr-idx) pt-idx true-err)
-      (vector-set! (vector-ref ulp-errs expr-idx) pt-idx ulp-err)))
+      (vector-set! (vector-ref ulp-errs expr-idx) pt-idx ulp-err)
+      (vector-set! (vector-ref true-error-out expr-idx) pt-idx true-err)))
 
   (define n 0)
   (for/list ([subexprs (in-list subexprss)])
