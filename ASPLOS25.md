@@ -154,5 +154,16 @@ reports
     |-- drivers
     |-- herbie-2.0
     |-- output
+        |-- hamming-1
+            |-- c-pareto.pdf
+        |-- mathematics-1
+            |-- c-pareto.pdf
+        |-- cost-vs-time.pdf
+        |-- baseline-pareto2.pdf
 ```
-All plots are rendered under `reports/platform/output`.
+All plots are rendered under `reports/platforms/output`.
+The evaluation of Chassis contains 3 figures.
+Figure 7 corresponds to `hamming-1/c-pareto.pdf` (left)
+  and `mathematics-1/c-pareto.pdf` (right).
+Figure 8 corresponds to `baseline-pareto2.pdf`.
+Figure 9 corresponds to `cost-vs-time.pdf`.
