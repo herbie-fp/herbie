@@ -45,3 +45,5 @@ fi
 
 
 bash "nightly disabled"
+bash "cleaning installation"
+make clean
