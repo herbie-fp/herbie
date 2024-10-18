@@ -598,8 +598,8 @@ received 🏆&nbsp;awards.</p>
 <details>
   <summary>
     <a href="https://arxiv.org/pdf/2410.07468">Fast Real Evaluation Through Sound Mixed-Precision Tuning</a>.
-    This paper describes Herbie's kernel for real evaluations and
-    optimizations that are done to make it fast.
+    This paper describes how Herbie accurately evaluates mathematical expressions
+    and the optimizations that make this process fast.
   </summary>
   <blockquote class="abstract">
     <p>Evaluating a real-valued expression to high precision is a key building block in computational mathematics, physics, and numerics. A typical implementation uses a uniform precision for each operation, and doubles that precision until the real result can be bounded to some sufficiently narrow interval. However, this is wasteful: usually only a few operations really need to be performed at high precision, and the bulk of the expression could use much lower precision. Uniform precision can also waste iterations discovering the necessary precision and then still overestimate by up to a factor of two. We propose to instead use mixed-precision interval arithmetic to evaluate real-valued expressions. A key challenge is deriving the mixed-precision assignment both soundly and quickly. To do so, we introduce a sound variation of error Taylor series and condition numbers, specialized to interval arithmetic, that can be evaluated with minimal overhead thanks to an "exponent trick". Our implementation, Reval, achieves a speed-up of 1.25x compared to the state-of-the-art Sollya tool, with the speed-up increasing to 2.99x on the most difficult input points. An examination of the precisions used with and without precision tuning shows that the speed-up results come from quickly assigning lower precisions for the majority of operations. </p>
