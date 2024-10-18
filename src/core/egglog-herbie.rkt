@@ -11,9 +11,6 @@
 
 (define program-to-egglog "program-to-egglog.egg")
 
-(define std-out-file "stdout.txt")
-(define std-err-file "stderr.txt")
-
 ; Types handled
 ; - rationals
 ; - string
@@ -23,12 +20,6 @@
     (lambda ()
       (for-each writeln program))))
 
-
-(define (write-output-to-file output filename)
-  (with-output-to-file filename
-    #:exists 'replace
-    (lambda ()
-      (displayln output))))
 
 (define (process-egglog egglog-filename)
   (define egglog-path (or (find-executable-path "egglog")
@@ -44,12 +35,11 @@
   (define stdout-content (port->string out)) 
   (define stderr-content (port->string err))
 
-  (write-output-to-file stdout-content std-out-file)
-  (write-output-to-file stderr-content std-err-file)
-
   (close-input-port out)
   (close-output-port in)
-  (close-input-port err))
+  (close-input-port err)
+  
+  (cons stdout-content stderr-content))
 
 
 ;; High-level function that writes the program to a file, runs it then returns output
@@ -57,6 +47,4 @@
 (define (run-egglog program-struct)
   (write-program-to-egglog (egglog-program-program program-struct))
 
-  (process-egglog program-to-egglog)
-  
-  (cons (file->string std-out-file) (file->string std-err-file)))
+  (process-egglog program-to-egglog))
