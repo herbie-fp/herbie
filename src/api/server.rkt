@@ -237,10 +237,12 @@
           (log "Starting worker [~a] on [~a].\n"
                (work-item-id job)
                (test-name (herbie-command-test (work-item-command job))))
-          (hash-set! current-jobs (work-item-id job) wid)
-          (place-channel-put worker (list 'apply self (work-item-command job) (work-item-id job)))
-          (hash-set! reassigned wid worker)
-          (hash-set! busy-workers wid worker))
+          ; Check if the job is already in progress.
+          (unless (hash-has-key? current-jobs (work-item-id job))
+            (hash-set! current-jobs (work-item-id job) wid)
+            (place-channel-put worker (list 'apply self (work-item-command job) (work-item-id job)))
+            (hash-set! reassigned wid worker)
+            (hash-set! busy-workers wid worker)))
         ; remove X many jobs from the Q and update waiting-workers
         (for ([(wid worker) (in-hash reassigned)])
           (hash-remove! waiting-workers wid)

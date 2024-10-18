@@ -653,6 +653,10 @@ function get_progress(loc) {
         if (req2.readyState == 4) {
             if (req2.status == 202) {
                 document.getElementById("progress").textContent = req2.responseText;
+                const nums = document.getElementById("num-jobs");
+                if (nums != null) {
+                    nums.textContent = req2.getResponseHeader("X-Job-Count");
+                }
                 setTimeout(function() {get_progress(loc)}, 100);
             } else if (req2.status == 201) {
                 var loc2 = req2.getResponseHeader("Location");

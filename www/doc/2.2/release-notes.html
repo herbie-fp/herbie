@@ -1,0 +1,311 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Herbie 2.1 Release Notes</title>
+  <link rel='stylesheet' type='text/css' href="../../main.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    .showcase { margin: 1em 0; }
+    .showcase.side-by-side { display: flex; gap: 1em; }
+    .showcase.side-by-side :nth-child(1) { width: 60%; }
+    .showcase.side-by-side :nth-child(2) { flex-grow: 1; hyphens: auto; }
+    #team {
+        display: block; box-sizing: border-box; width: 100%;
+        border-radius: 2em; border: 3px solid black;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Herbie 2.1 Release Notes</h1>
+    <a href="../.."><img class="logo" src="../../logo-car.png" /></a>
+    <nav>
+      <ul>
+        <li><a href="../../demo/">Try</a></li>
+        <li><a href="installing.html">Install</a></li>
+        <li><a href="tutorial.html">Learn</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <p>The <a href="../..">Herbie</a> developers are excited to announce
+  Herbie 2.1! This release focuses performance, both in the generated
+  code and in the Herbie kernel itself.</p>
+
+  <p><b>What is Herbie?</b> Herbie automatically improves the accuracy
+  of floating point expressions. This avoids the bugs, errors, and
+  surprises that so often occur with floating point arithmetic.
+  Visit <a href="../..">the main page</a> to learn more about Herbie.</p>
+  
+  <p class="warning"><b>OOPSLA, ASPLOS, and POPL Reviewers</b>, please
+  do not read further, because some of the work described below is
+  submitted for publication to these venues.</p>
+
+  <img src="team.png" id="team" alt="The Herbie 2.1 team at UW and U of U" />
+
+  <h2>Faster Generated Code</h2>
+
+  <figure class="showcase side-by-side">
+    <img src="localize-comparison.png"
+         alt="A comparison of speed-accuracy curves for Herbie 2.0 and
+         2.1, showing much faster low-accuracy code in Herbie 2.1.">
+    <figcaption>
+      Herbie 2.0 (green) and 2.1 (blue) speed-accuracy curves on the
+      Hamming test suite, showing that Herbie 2.1 generates much
+      faster code, especially at low accuracy levels. The impact is
+      due to both typed extraction (described on the plot as
+      <q>egg-serialize</q>) and the cost opportunity heuristic (described on
+      the plot as <q>cost localization</q>). The orange curve shows that both
+      components are necessary to achieve the best results.
+    </figcaption>
+  </figure>
+
+  <p>
+  Last year, <a href="../2.0/release-notes.html">Herbie 2.0</a>
+  released <i>pareto mode</i>, in which Herbie generates multiple
+  expressions with different speeds and accuracies. Herbie 2.1 now
+  makes Herbie's generated code, especially at the
+  highest-performance/lowest-accuracy level, dramatically better.
+  Some features that contribute to these improvements:</p>
+
+  <ul>
+    <li>With type-based extraction (<a href="https://github.com/herbie-fp/herbie/pull/875">#875</a>, <a href="https://github.com/herbie-fp/herbie/pull/883">#883</a>, and <a href="https://github.com/herbie-fp/herbie/pull/887">#887</a>) Herbie
+    considers performance optimizations like precision tuning at the
+    same time as it considers rewrites, instead of considering each
+    separately.</li>
+
+    <li>A new cost-opportunity heuristic
+      (<a href="https://github.com/herbie-fp/herbie/pull/746">#746</a>)
+      allows Herbie to focus on parts of the program that can be sped up,
+      generating faster low-accuracy code.</li>
+
+    <li>Preprocessing for odd functions
+    (<a href="https://github.com/herbie-fp/herbie/pull/645">#645</a>)
+    generates range reductions for odd functions, which can mean more
+    accurate generated code.</li>
+
+    <li>Polynomials are now evaluated in Horner form
+    (<a href="https://github.com/herbie-fp/herbie/pull/727">#727</a>).
+      Together with some bug fixes
+    (<a href="https://github.com/herbie-fp/herbie/pull/660">#660</a>),
+    this means faster and more accurate polynomial approximations.</li>
+  </ul>
+
+  <p>While Herbie's generated results are much better, these changes
+  alone would make Herbie more than twice as slow. This leads to the
+  second category of changes.</p>
+
+  <h2>Faster Herbie Kernel</h2>
+  
+  <figure class="showcase">
+    <style>
+      #prectune thead th[colspan] { text-align: center; }
+      #prectune { width: 100%; }
+      #prectune tbody th, #prectune tfoot th { text-align: left; }
+      #prectune tr :nth-child(1n+2) { text-align: right; }
+    </style>
+    <table id="prectune">
+      <thead>
+        <tr><th><th colspan=2>Iteration 0<th colspan=2>Iteration 1<th colspan=2>Iteration 2
+        <tr><th>Operation<th>Precision<th>Time (µs)<th>Precision<th>Time (µs)<th>Precision<th>Time (µs)
+      </thead>
+      <tbody>
+        <tr><th>Tuning<td><td><td><td>22.9<td><td>21.0</tr>
+        <tr><th><code>cos</code><td>78<td>75.9<td>592<td>98.9<td>1695<td>173.1</tr>
+        <tr><th><code>add</code><td>83<td>11.0<td>2107<td>10.0<td>2698<td>11.0</tr>
+        <tr><th><code>cos</code><td>78<td>8.1<td>593<td>99.1<td>1695<td>176.0</tr>
+        <tr><th><code>sub</code><td>73<td>10.0<td>73<td>10.0<td>73<td>11.0</tr>
+      </tbody>
+      <tfoot>
+        <tr><th>Total<td><td>105.0<td><td>241.0<td><td>392.1</tr>
+      </tfoot>
+    </table>
+    <figcaption>
+      A precision-tuned execution of <code>cos(x) - cos(x + ɛ)</code>
+      when <code>x = 10<sup>300</sup></code> and <code>ɛ =
+      10<sup>-300</sup></code>. Each row of the table represents one
+      mathematical operation (or the time spent precision-tuning), and
+      each pair of columns describes one iteration precision and
+      execution time for that operation. Each operation's precision is
+      chosen independently, so the precision column is not uniform.
+    </figcaption>
+  </figure>
+
+  <p>
+  Nearly every part of Herbie has been sped up, often significantly,
+  meaning that Herbie 2.1 overall&mdash;despite the much faster
+  generated code&mdash;is only 20% or so slower than Herbie 2.0.</p>
+
+  <p>
+  The most challenging improvement is a complete rewrite of Herbie's
+  real evaluation system, Rival. Herbie 2.1 uses precision tuning to
+  reduce the time and memory costs by approximately 40%, with the
+  biggest impacts to the largest and slowest expressions. Moreover,
+  Rival has
+  been <a href="https://docs.racket-lang.org/rival/index.html">packaged</a>
+  for use in other projects.
+  </p>
+
+  <p>Other optimizations to Herbie include:</p>
+
+  <ul>
+    <li>Regimes saw a series of improvements, including to
+      data layout (<a href="https://github.com/herbie-fp/herbie/pull/696">#696</a>),
+      sharing (<a href="https://github.com/herbie-fp/herbie/pull/706">#706</a>),
+      types (<a href="https://github.com/herbie-fp/herbie/pull/748">#748</a>),
+      and algorithms (<a href="https://github.com/herbie-fp/herbie/pull/772">#772</a>),
+      which together lead to a 2–3× speed up to regimes.</li>
+    <li>The floating-point program interpreter was rewritten and sped up
+      (<a href="https://github.com/herbie-fp/herbie/pull/766">#766</a>).</li>
+    <li>Batching sped up derivation generation significantly
+      (<a href="https://github.com/herbie-fp/herbie/pull/736">#736</a>.)</li>
+    <li>An accidentally-quadratic lookup in pruning was found and fixed
+      (<a href="https://github.com/herbie-fp/herbie/pull/781">#781</a>).</li>
+    <li>Analysis capped an exponential blow-up that occurred for some preconditions
+      (<a href="https://github.com/herbie-fp/herbie/pull/762">#762</a>).</li>
+    <li>Random number generation saw a small speed up
+      (<a href="https://github.com/herbie-fp/herbie/pull/792">#792</a>).</li>
+  </ul>
+      
+
+  <h2>New Features: Platforms and Explanations</h2>
+
+  <figure class="showcase">
+    <pre>(define-accelerator (sind real) real
+  (λ (x) (sin (* x (/ (PI) 180)))))
+(define-accelerator (cosd real) real
+  (λ (x) (cos (* x (/ (PI) 180)))))
+(define-accelerator (tand real) real
+  (λ (x) (tan (* x (/ (PI) 180)))))</pre>
+    <figcaption>
+      A snippet from the Herbie "platform" for
+      the <a href="https://julialang.org/">Julia language</a>,
+      describing special library functions <code>cosd</code>,
+      <code>sind</code>, and <code>tand</code>, which Julia provides.
+      When using this platform, Herbie will use these functions in its
+      generated code.
+    </figcaption>
+  </figure>
+
+  <p>Two new features are in development and available in an
+  undocumented <i>alpha</i> state in this release: platforms and explanations.</p>
+
+  <p>Platforms allow Herbie to generate code specific
+  to a given programming language, library, or hardware platform.
+  Herbie can use platform-specific operators, cost models,
+  and compilation styles, which leads to faster and more accurate
+  code. We hope to clean up the platforms code and release it for real
+  in Herbie 2.2.</p>
+
+  <p>Explanations describe what floating-point errors Herbie found and
+  what inputs they occur for. This should make Herbie easier to
+  understand and a more valuable tool for learning about
+  floating-point error.</p>
+
+  <h2>Sister Projects</h2>
+  
+  <p>
+    The <a href="https://github.com/herbie-fp/odyssey">Odyssey numerics 
+      workbench</a> is releasing version 1.1 today, featuring FPTaylor 
+      support and expression export. Odyssey and supporting tools like 
+      Herbie and FPTaylor can be installed and run locally through the 
+      <a href="https://marketplace.visualstudio.com/items?itemName=herbie-fp.odyssey-fp">
+      Odyssey VSCode extension</a>. New features include:
+  </p>
+  
+  <ul>
+    <li>Support for using FPTaylor to compute sound error bounds in
+    Odyssey. Select "FPTaylor Analysis" from the tool dropdown for an
+    expression. This is a part of a larger effort to combine different
+    floating point tools as parts of an analysis.</li>
+    <li>Odyssey now supports exporting expressions to different
+    languages using the new "Expression Export" tool.</li>
+    <li>Herbie has been updated with an HTTP API endpoint to support
+    Odyssey's expression export. Herbie's HTTP API endpoints are
+    documented <a href="https://herbie.uwplse.org/doc/2.1/api-endpoints.html">here</a>.</li>
+    <li>Like the Herbie demo, Odyssey now shows the percent accuracy
+    of expressions, rather than bits of error.</li>
+    <li>The layout of the Odyssey interface has been updated and will
+    continue to see rolling updates.</li>
+  </ul>
+  
+  <p>
+    The <a href="https://github.com/herbie-fp/rival">Rival
+    real-arithmetic package</a> is releasing version 2.0 today,
+    featuring the correct-rounding code from Herbie
+    (<a href="https://github.com/herbie-fp/herbie/pull/804">#804</a>),
+    including the new precision tuning algorithm and a newly-build
+    profiling system.
+  </p>
+
+  <h2>Development Improvements</h2>
+  <ul>
+    <li>Herbie now supports the FPCore <code>:alt</code> field,
+      including multiple alternative expressions
+      (<a href="https://github.com/herbie-fp/herbie/pull/764">#764</a>,
+      <a href="https://github.com/herbie-fp/herbie/pull/783">#783</a>,
+      and <a href="https://github.com/herbie-fp/herbie/pull/805">#805</a>).</li>
+    <li>Many of Herbie's oldest benchmarks have gained new preconditions
+      and human-written target programs
+      (<a href="https://github.com/herbie-fp/herbie/pull/693">#693</a>,
+      <a href="https://github.com/herbie-fp/herbie/pull/697">#697</a>),
+      which will drive Herbie development in the future.</li>
+    <li>Herbie's report page has been totally rewritten, and now uses
+      JavaScript. This has allowed us to sorting, filtration, and
+      diffing capabilities, which has really made development easier.
+      (<a href="https://github.com/herbie-fp/herbie/pull/641">#641</a>,
+      <a href="https://github.com/herbie-fp/herbie/pull/651">#651</a>,
+      <a href="https://github.com/herbie-fp/herbie/pull/687">#687</a>).
+      However, this does mean that you need to run a local server to view
+      report pages saved on your local disk—this is a browser security policy
+      that we can't avoid. You'll see an error message explaning how
+      (<a href="https://github.com/herbie-fp/herbie/pull/863">#863</a>).</li>
+    <li>Friends at Intel contributed benchmarks from the DirectX specification
+      (<a href="https://github.com/herbie-fp/herbie/pull/655">#656</a>).</li>
+    <li>Caching has sped up Herbie's continuous integration
+      (<a href="https://github.com/herbie-fp/herbie/pull/663">#663</a>).</li>
+  </ul>
+
+  <h2>Other improvements</h2>
+  <ul>
+    <li>We now build and publish macOS Arm64 packages
+      (<a href="https://github.com/herbie-fp/herbie/pull/787">#787</a>,
+      <a href="https://github.com/herbie-fp/herbie/pull/826">#862</a>).
+      Thank you to Github for hosting our build infrastructure.</li>
+    <li>We fixed a memory leak
+      (<a href="https://github.com/herbie-fp/herbie/pull/636">#636</a>)
+      and segfault
+      (<a href="https://github.com/herbie-fp/herbie/pull/665">#665</a>)
+      in Herbie's supporting Rust libraries. Eventually the egg folks
+      tracked
+      down <a href="https://github.com/egraphs-good/egg/pull/310">the
+      root cause</a>, so this won't be a problem any more.</li>
+    <li>Some sources of non-determinism were tracked down and fixed
+      (<a href="https://github.com/herbie-fp/herbie/pull/661">#661</a>).</li>
+    <li>Herbie's internals now distinguish between real and
+    floating-point expressions
+    (<a href="https://github.com/herbie-fp/herbie/pull/676">#676</a>,
+      <a href="https://github.com/herbie-fp/herbie/pull/702">#702</a>,
+      <a href="https://github.com/herbie-fp/herbie/pull/723">#732</a>),
+    which has previously been an ad-hoc distinction.</li>
+    <li>Herbie's API endpoints now use an internal job astraction
+    (<a href="https://github.com/herbie-fp/herbie/pull/845">#845</a>),
+    which should eventually allow them to be threaded and asynchronous.</li>
+  </ul>
+
+  <h2>Try it out!</h2>
+
+  <p>
+    We want Herbie to be more useful to scientists, engineers, and
+    programmers around the world. We've got a lot of features we're
+    excited to work on in the coming months. Please
+    <a href="https://github.com/herbie-fp/herbie/issues">report bugs</a>
+    or <a href="https://github.com/herbie-fp/herbie">contribute</a>.
+  </p>
+  <br>
+  <p style="font-weight: bold; text-align: center;">If you find Herbie
+  useful, <a href="mailto:herbie@cs.washington.edu">let us know!</p>
+</body>
+</html>
