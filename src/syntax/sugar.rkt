@@ -177,7 +177,11 @@
        (define ift* (loop ift prop-dict))
        (define iff* (loop iff prop-dict))
        (list 'if cond* ift* iff*)]
-      [(list '! props ... body) (loop body (apply dict-set prop-dict props))]
+      [(list '! props ... body)
+       (loop body
+             (if (not (null? props))
+                 (apply dict-set prop-dict props)
+                 prop-dict))]
       [(list 'neg arg) ; non-standard but useful [TODO: remove]
        (define arg* (loop arg prop-dict))
        (fpcore->impl-app '- prop-dict (list arg*) ctx)]

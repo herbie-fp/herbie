@@ -482,8 +482,6 @@
     [(symbol? input)
      ; expansive rules
      (define itype (dict-ref (rule-itypes ru) input))
-     (unless (type-name? itype)
-       (error 'rule->egg-rules "expansive rules over impls is unsound ~a" input))
      (for/list ([op (all-operators)]
                 #:when (eq? (operator-info op 'otype) itype))
        (define itypes (operator-info op 'itype))
