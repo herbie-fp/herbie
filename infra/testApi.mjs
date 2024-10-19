@@ -6,6 +6,7 @@ import { strict as assert } from 'node:assert';  // use strict equality everywhe
 const SAMPLE_SIZE = 8000
 const FPCoreFormula = '(FPCore (x) (- (sqrt (+ x 1)) (sqrt x)))'
 const FPCoreFormula2 = '(FPCore (x) (- (sqrt (+ x 1))))'
+const FPCoreFormula3 = '(FPCore (x) (if (<= (- (sqrt (+ x 1.0)) (sqrt x)) 0.05) (* 0.5 (sqrt (/ 1.0 x))) (fma (fma (- 0.125) x 0.5) x (- 1.0 (sqrt x)))))'
 const eval_sample = [[[1], -1.4142135623730951]]
 
 // improve endpoint
@@ -215,6 +216,14 @@ function assertCheckNode(node, name, approx, avg_error, exact_value, true_error_
   assert.equal(node['true-error-value'][0], true_error_value)
   assert.equal(node['ulps-error'][0], ulps_error)
 }
+
+// TODO if statements
+// const localError7 = await (await fetch(makeEndpoint("/api/localerror"), {
+//   method: 'POST', body: JSON.stringify({
+//     formula: FPCoreFormula3, sample: [[[1e100], ignoredValue]], seed: 5
+//   })
+// })).json()
+
 // Alternatives endpoint
 const altBody = {
   method: 'POST', body: JSON.stringify({

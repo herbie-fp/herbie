@@ -192,7 +192,6 @@
 
   (define subexprs-fn (eval-progs-real spec-list ctx-list))
   (define actual-value-fn (compile-progs exprs-list ctx))
-  (define compare-fn (eval-progs-real compare-specs extended))
 
   (define ulp-errs
     (for/vector #:length (vector-length roots)
@@ -231,11 +230,20 @@
       (define true-err
         (match (vector-ref nodes root)
           [(? literal?)
+           (eprintf "literal?\n")
            (define inputs (append (list exact) (vector->list (make-vector (length pt) 0))))
+           (define compare-fn (eval-progs-real compare-specs extended))
            (define true-errors (list->vector (apply compare-fn inputs)))
            (vector-ref true-errors 0)]
           [(? variable?) 0]
-          [_
+          [(approx approx-spec impl)
+           (eprintf "approx: ~a, ~a\n" approx-spec impl)
+           0]
+          [`(if ,c ,ift ,iff)
+           (eprintf "if, ~a, ~a, ~a\n" c ift iff)
+           0]
+          [(list f args-roots ...)
+           (eprintf "func\n")
            (define extended (context-append cur-ctx exact-var-name (context-repr cur-ctx)))
            (define compare-specs `(- ,cur-sepc ,exact-var-name))
            (define new-compare (eval-progs-real (list compare-specs) (list extended)))
