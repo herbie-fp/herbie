@@ -213,11 +213,70 @@
                 ([node (in-vector roots)])
       (make-vector (pcontext-length (*pcontext*)))))
 
+  (define (error-for cur-ctx cur-sepc pt exact)
+    (define extended (context-append cur-ctx exact-var-name (context-repr cur-ctx)))
+    (define compare-specs `(- ,cur-sepc ,exact-var-name))
+    (define new-compare (eval-progs-real (list compare-specs) (list extended)))
+    (define inputs (append pt (list exact)))
+    (define true-errors (list->vector (apply new-compare inputs)))
+    (vector-ref true-errors 0))
+
+  (define spec-vec (list->vector spec-list))
+  (define ctx-vec (list->vector ctx-list))
   (for ([(pt ex) (in-pcontext (*pcontext*))]
         [pt-idx (in-naturals)])
 
     (define exacts (list->vector (apply subexprs-fn pt)))
     (define actuals (apply actual-value-fn pt))
+    (define index 0)
+    ; (for ([i (in-naturals)]
+    ;       [node (in-vector nodes)])
+    ;   (eprintf "node[~a] ~a\n" i node))
+    (define (parse-true-error i pt pt-idx)
+      (define root (vector-ref roots i))
+      (define node (vector-ref nodes root))
+      (define cur-ctx (vector-ref ctx-vec i))
+      (define cur-sepc (vector-ref spec-vec i))
+      (define exact (vector-ref exacts i))
+      (define true-error
+        (match node
+          [(? literal?)
+          ;  (eprintf "literal?: ~a\n" node)
+           ;  (define inputs (append (list exact) (vector->list (make-vector (length pt) 0))))
+           ;  (define compare-fn (eval-progs-real compare-specs extended))
+           ;  (define true-errors (list->vector (apply compare-fn inputs)))
+           ; TODO not correct because of eval-progs-real and literals being different.
+           (define extended (context-append cur-ctx exact-var-name (context-repr cur-ctx)))
+           (define compare-specs `(- ,cur-sepc ,exact-var-name))
+           (define new-compare (eval-progs-real (list compare-specs) (list extended)))
+           (define inputs (append pt (list exact)))
+           (define true-errors (list->vector (apply new-compare inputs)))
+           (vector-ref true-errors 0)]
+          [(? variable?)
+          ;  (eprintf "variable?: ~a\n" node)
+           0]
+          [(approx approx-spec impl)
+          ;  (eprintf "approx: ~a, ~a\n" approx-spec impl)
+           0]
+          [`(if ,c ,ift ,iff)
+          ;  (eprintf "if: ~a\n" node)
+           (parse-true-error (vector-member c roots) pt pt-idx)
+           (parse-true-error (vector-member ift roots) pt pt-idx)
+           (parse-true-error (vector-member iff roots) pt pt-idx)
+           0]
+          [(list f args-roots ...)
+          ;  (eprintf "func[~a]: ~a, count: ~a\n" root node (length args-roots))
+           (for ([idx (in-list args-roots)])
+             (define node (vector-member idx roots))
+            ;  (eprintf "root: ~a, idx: ~a, node: ~a\n" root idx node)
+             (parse-true-error node pt pt-idx))
+          ;  (eprintf "~a: ~a ~a\n" root cur-sepc exact)
+           (if (boolean? exact)
+               #f
+               (error-for cur-ctx cur-sepc pt exact))]))
+      (vector-set! (vector-ref true-error-out i) pt-idx true-error))
+
+    (parse-true-error index pt pt-idx)
 
     (for ([cur-sepc (in-list spec-list)]
           [cur-ctx (in-list ctx-list)]
@@ -226,31 +285,6 @@
           [exact (in-vector exacts)]
           [actual (in-vector actuals)]
           [expr-idx (in-naturals)])
-
-      (define true-err
-        (match (vector-ref nodes root)
-          [(? literal?)
-           (eprintf "literal?\n")
-           (define inputs (append (list exact) (vector->list (make-vector (length pt) 0))))
-           (define compare-fn (eval-progs-real compare-specs extended))
-           (define true-errors (list->vector (apply compare-fn inputs)))
-           (vector-ref true-errors 0)]
-          [(? variable?) 0]
-          [(approx approx-spec impl)
-           (eprintf "approx: ~a, ~a\n" approx-spec impl)
-           0]
-          [`(if ,c ,ift ,iff)
-           (eprintf "if, ~a, ~a, ~a\n" c ift iff)
-           0]
-          [(list f args-roots ...)
-           (eprintf "func\n")
-           (define extended (context-append cur-ctx exact-var-name (context-repr cur-ctx)))
-           (define compare-specs `(- ,cur-sepc ,exact-var-name))
-           (define new-compare (eval-progs-real (list compare-specs) (list extended)))
-           (define inputs (append pt (list exact)))
-           (define true-errors (list->vector (apply new-compare inputs)))
-           (vector-ref true-errors 0)]))
-
       (define ulp-err
         (match (vector-ref nodes root)
           [(? literal?) 1]
@@ -269,8 +303,7 @@
 
       (vector-set! (vector-ref exacts-out expr-idx) pt-idx exact)
       (vector-set! (vector-ref approx-out expr-idx) pt-idx actual)
-      (vector-set! (vector-ref ulp-errs expr-idx) pt-idx ulp-err)
-      (vector-set! (vector-ref true-error-out expr-idx) pt-idx true-err)))
+      (vector-set! (vector-ref ulp-errs expr-idx) pt-idx ulp-err)))
 
   (define n 0)
   (for/list ([subexprs (in-list subexprss)])
