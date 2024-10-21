@@ -83,18 +83,28 @@ bash> pip install numpy matplotlib scipy
 ### Julia
 
 Install Julia using the [juliaup](https://julialang.org/downloads/) installer.
-Like `rustup`, `juliaup` installs the newest stable version of Rust.
+Like `rustup`, `juliaup` installs the newest stable version of Julia.
 We recommend at least Julia 1.10.
 
 ### CMake
 
 We require CMake to build the libvdt library.
 We recommend installing CMake through your default package manager.
+For example, on Ubuntu, you would run
+```
+apt install cmake
+```
+This may require root access depending on your system.
 
 ### Clang
 
 We used Clang 14 as our C/C++ compiler.
 We recommend installing Clang through your package manager.
+For example, on Ubuntu, you would run
+```
+apt install clang
+```
+This may require root access depending on your system.
 
 ### libvdt
 
