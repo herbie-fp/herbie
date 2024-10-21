@@ -18,8 +18,29 @@ We recommend an x86-64 machine with at least 32 GB of RAM,
 The machine we used for our evaluation
   used an AMD EPYC 7702 CPU, with 512 GB of RAM,
   running Ubuntu 20.04 LTS.
-You will need to install a number of tools and libraries.
 We ran our evaluation using `bash`.
+
+This guide comes in three parts:
+ - Installation
+ - Testing
+ - Evaluation
+
+## Installation
+
+The evaluation relies on a number of tools and libraries.
+We assume your system has the bare essentials
+  including `git` and `make`.
+
+ - Racket
+ - Rust
+ - Python (with numpy, matplotlib, scipy)
+ - Julia
+ - CMake
+ - Clang
+ - libvdt
+
+Please read through each subsection to
+  install the necessary software.
 
 ### Racket
 
@@ -33,7 +54,7 @@ The `snap` versions of Racket are strongly discouraged
 Install Rust using the [rustup](https://rustup.rs/) installer.
 By default, `rustup` installs the newest stable version of Rust.
 We used Rust 1.77.2, so it is guaranteed to be newer.
-Updating Rust occasionally breaks the Rust dependency for Chassis.
+Updating Rust occasionally breaks Rust dependencies for Chassis.
 If you experience any problems, you can follow `rustup` documentation
   to install a specific version of Rust.
 
@@ -65,6 +86,11 @@ Install Julia using the [juliaup](https://julialang.org/downloads/) installer.
 Like `rustup`, `juliaup` installs the newest stable version of Rust.
 We recommend at least Julia 1.10.
 
+### CMake
+
+We require CMake to build the libvdt library.
+We recommend installing CMake through your default package manager.
+
 ### Clang
 
 We used Clang 14 as our C/C++ compiler.
@@ -73,7 +99,6 @@ We recommend installing Clang through your package manager.
 ### libvdt
 
 The vdt library is a vectorized math library developed at CERN.
-Building vdt requires CMake which is usually available through your package manager.
 To install, clone the [repo](https://github.com/dpiparo/vdt).
 Then navigate to the `vdt` directory and run
 ```
@@ -81,7 +106,21 @@ bash> cmake .
 bash> make
 bash> make install
 ```
-The final step possibly requires root.
+The final step possibly requires root access.
+
+### Chassis
+
+Ensure you have Chassis cloned from git,
+  if you have not cloned it already.
+```
+bash> git clone https://github.com/herbie-fp/herbie
+bash> git checkout asplos25-aec
+```
+Chassis requires Racket and Rust to build.
+To build Chassis, run
+```
+bash> make install
+```
 
 ## Testing installed software
 
@@ -110,24 +149,30 @@ Check that Julia is installed.
 ```
 bash> julia -v
 ```
-Check that `libvdt` is installed.
-On Linux, run the following command.
-It should print a single entry with the path of `libvdt.so`.
+Check that `libvdt` is installed by running `clang` with a library flag set.
 ```
-bash> ldconfig -p | grep libvdt
+bash> clang -lvdt
+```
+The command should result in an error.
+Specifically, it should complain that it could not find a `main` function.
+```
+/usr/bin/ld: /lib/x86_64-linux-gnu/Scrt1.o: in function `_start':
+(.text+0x1b): undefined reference to `main'
+```
+If libvdt is not installed, `clang` will print a different error instead.
+```
+/usr/bin/ld: cannot find -lvdt: No such file or directory
 ```
 
-Check that Herbie builds properly.
-In this directory, run
-```
-make install
-```
 To test that Herbie works, run
 ```
 racket src/herbie.rkt shell
 ```
 Assuming every command works above,
   your system should be set up to run the evaluation.
+If any of the commands above failed unexpectedly,
+  return to the corresponding subsection
+  in the installation section.
 
 ## Running the evaluation
 
