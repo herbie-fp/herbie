@@ -171,6 +171,13 @@
       (begin0 (values subexpr (vector->list (vector-ref errs n)))
         (set! n (add1 n))))))
 
+(define (check-for-invalid-exact input)
+  (match input
+    ['+inf.0 #t]
+    ['-inf.0 #t]
+    ['+nan.0 #t]
+    [value (or (bfnan? value) (boolean? value))]))
+
 ; Compute local error or each sampled point at each node in `prog`.
 (define (compute-errors subexprss ctx)
   (define exprs-list (append* subexprss)) ; unroll subexprss
@@ -232,6 +239,7 @@
     ; (for ([i (in-naturals)]
     ;       [node (in-vector nodes)])
     ;   (eprintf "node[~a] ~a\n" i node))
+
     (define (parse-true-error i pt pt-idx)
       (define root (vector-ref roots i))
       (define node (vector-ref nodes root))
@@ -246,17 +254,20 @@
            ;  (define compare-fn (eval-progs-real compare-specs extended))
            ;  (define true-errors (list->vector (apply compare-fn inputs)))
            ; TODO not correct because of eval-progs-real and literals being different.
-           (define extended (context-append cur-ctx exact-var-name (context-repr cur-ctx)))
-           (define compare-specs `(- ,cur-sepc ,exact-var-name))
-           (define new-compare (eval-progs-real (list compare-specs) (list extended)))
-           (define inputs (append pt (list exact)))
-           (define true-errors (list->vector (apply new-compare inputs)))
-           (vector-ref true-errors 0)]
+           ;  (define extended (context-append cur-ctx exact-var-name (context-repr cur-ctx)))
+           ;  (define compare-specs `(- ,cur-sepc ,exact-var-name))
+           ;  (define new-compare (eval-progs-real (list compare-specs) (list extended)))
+           ;  (define inputs (append pt (list exact)))
+           ;  (define true-errors (list->vector (apply new-compare inputs)))
+           ;  (vector-ref true-errors 0)
+           (if (check-for-invalid-exact exact)
+               #f
+               (error-for cur-ctx cur-sepc pt exact))]
           [(? variable?)
           ;  (eprintf "variable?: ~a\n" node)
            0]
           [(approx approx-spec impl)
-          ;  (eprintf "approx: ~a, ~a\n" approx-spec impl)
+          ;  (green "approx")
            0]
           [`(if ,c ,ift ,iff)
           ;  (eprintf "if: ~a\n" node)
@@ -271,7 +282,7 @@
             ;  (eprintf "root: ~a, idx: ~a, node: ~a\n" root idx node)
              (parse-true-error node pt pt-idx))
           ;  (eprintf "~a: ~a ~a\n" root cur-sepc exact)
-           (if (boolean? exact)
+           (if (check-for-invalid-exact exact)
                #f
                (error-for cur-ctx cur-sepc pt exact))]))
       (vector-set! (vector-ref true-error-out i) pt-idx true-error))
@@ -318,6 +329,10 @@
                               'true-error-values
                               (vector->list (vector-ref true-error-out n))))
         (set! n (add1 n))))))
+
+(define (green msg)
+  (printf "\e[~a;1m~a\e[0m\n" 32 msg))
+
 ;; Compute the local error of every subexpression of `prog`
 ;; and returns the error information as an S-expr in the
 ;; same shape as `prog`
