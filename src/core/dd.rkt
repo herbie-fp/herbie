@@ -29,6 +29,8 @@
 
 (define-qd c_dd_nroot (_fun _pointer _int _pointer -> _void))
 
+(define-qd c_rem_pio2 (_fun _double _pointer -> _int))
+
 (define-dd-binary c_dd_add c_dd_sub c_dd_mul c_dd_div)
 
 (define-dd-unary
@@ -44,6 +46,14 @@
   c_dd_aint
   c_dd_floor
   c_dd_ceil)
+
+(define x 2.456e+150)
+
+(define (rempio2 x)
+  (define y (make-f64vector 2))
+  (define n (c_rem_pio2 x (f64vector->cpointer y)))
+  (define-values (r1 r2) (apply values (f64vector->list y)))
+  (values n r1 r2))
 
 (define (nan.dd)
   (values +nan.0 +nan.0))
@@ -228,7 +238,7 @@
     (dd= x1 x2 a1 a2)))
 
 (define (ddneg x1 [x2 0])
-  (dd- 0.0 0.0 x1 x2))
+  (values (- x1) (- x2)))
 
 (define (ddlog x1 [x2 0.0])
   (cond
@@ -284,6 +294,59 @@
            (ddneg a1 a2)))]
     [else (nan.dd)]))
 
+(define (ddrsin x1 [x2 0.0])
+  (cond
+    [(ddnan? x1 x2) (nan.dd)]
+    [(ddinfinite? x1 x2) (nan.dd)]
+    [else
+     (let*-values ([(k1 a1 a2) (rempio2 x1)]
+                   [(k2 b1 b2) (rempio2 x2)]
+                   [(r1 r2) (dd+ a1 a2 b1 b2)]
+                   [(k) (remainder (+ k1 k2) 4)]
+                   [(s1 s2) (ddsin r1 r2)]
+                   [(c1 c2) (ddcos r1 r2)])
+       (match k
+         [0 (values s1 s2)]
+         [1 (values c1 c2)]
+         [2 (ddneg s1 s2)]
+         [3 (ddneg c1 c2)]))]))
+
+(define (ddrcos x1 [x2 0.0])
+  (cond
+    [(ddnan? x1 x2) (nan.dd)]
+    [(ddinfinite? x1 x2) (nan.dd)]
+    [else
+     (let*-values ([(k1 a1 a2) (rempio2 x1)]
+                   [(k2 b1 b2) (rempio2 x2)]
+                   [(r1 r2) (dd+ a1 a2 b1 b2)]
+                   [(k) (remainder (+ k1 k2) 4)]
+                   [(s1 s2) (ddsin r1 r2)]
+                   [(c1 c2) (ddcos r1 r2)])
+       (match k
+         [0 (values c1 c2)]
+         [1 (ddneg s1 s2)]
+         [2 (ddneg c1 c2)]
+         [3 (values s1 s2)]))]))
+
+
+(define (ddrtan x1 [x2 0.0])
+  (cond
+    [(ddnan? x1 x2) (nan.dd)]
+    [(ddinfinite? x1 x2) (nan.dd)]
+    [else
+     (let*-values ([(k1 a1 a2) (rempio2 x1)]
+                   [(k2 b1 b2) (rempio2 x2)]
+                   [(r1 r2) (dd+ a1 a2 b1 b2)]
+                   [(k) (remainder (+ k1 k2) 4)]
+                   [(t1 t2) (ddtan r1 r2)]
+                   [(c1 c2) (dd/ 1.0 0.0 t1 t2)])
+       (match k
+         [0 (values t1 t2)]
+         [1 (ddneg c1 c2)]
+         [2 (values t1 t2)]
+         [3 (ddneg c1 c2)]))]))
+
+
 (define-syntax define-dd-unary-fn
   (syntax-rules ()
     [(_ [name1 name2] ...)
@@ -303,3 +366,4 @@
   [ddexp c_dd_exp]
   [ddfloor c_dd_floor]
   [ddceil c_dd_ceil])
+

@@ -214,8 +214,6 @@
          (define condx.dl (lfabs (lf/ x.dl z.dl)))
          (define condy.dl (lfabs (lf/ x.dl z.dl)))
 
-         (eprintf "~a ~a ~a ~a ~a ~a ~a " pt x.dl y.dl (lfover/underflowed? x.dl) (lfover/underflowed? y.dl) condx.dl condy.dl)
-
          (define x.eps (+ 127 (bigfloat-exponent x)))
          (define y.eps (+ 127 (bigfloat-exponent y)))
 
@@ -229,30 +227,23 @@
                [(and (lfoverflow? x.dl)
                      (lfoverflow? y.dl)
                      (lfsamesign? x.dl y.dl))
-                (mark-erroneous! subexpr 'nan-rescue)
-                (eprintf "nan\n")]
+                (mark-erroneous! subexpr 'nan-rescue)]
                
                ; inf rescue: inf - val can become a val'
                [(and (lfoverflow? x.dl) (not (lfoverflow? z.dl)))
-                (mark-erroneous! subexpr 'oflow-left)
-                (eprintf "left\n")]
+                (mark-erroneous! subexpr 'oflow-left)]
                [(and (lfoverflow? y.dl) (not (lfoverflow? z.dl)))
-                (mark-erroneous! subexpr 'oflow-right)
-                (eprintf "right\n")]
-               [else (eprintf "none-ou\n")])
+                (mark-erroneous! subexpr 'oflow-right)])
 
              (cond
                ; G+x = x / x - y, G+y = y / x - y
                [(or (lf> condx.dl condthres.dl #f)
                     (lf> condy.dl condthres.dl #f))
-                (mark-erroneous! subexpr 'cancellation)
-                (eprintf "cond\n")]
+                (mark-erroneous! subexpr 'cancellation)]
 
                [(or (lf> condx.dl maybethres.dl #f)
                     (lf> condy.dl maybethres.dl #f))
-                (mark-maybe! subexpr 'cancellation)
-                (eprintf "maybe\n")]
-               [else (eprintf "none-c\n")]))]
+                (mark-maybe! subexpr 'cancellation)]))]
 
         [(list (or 'sin.f64 'sin.f32) x-ex)
          #:when (list? x-ex)
@@ -265,20 +256,20 @@
                (mark-erroneous! subexpr 'sensitivity))
 
              (cond
-               [(and (lf> cond.lf condthres.dl)
-                     (lf> (lfabs x.lf) condthres.dl))
+               [(and (lf> cond.lf condthres.dl #f)
+                     (lf> (lfabs x.lf) condthres.dl #f))
                 (mark-erroneous! subexpr 'sensitivity)]
 
-               [(and (lf> cond.lf condthres.dl)
-                     (lf> cot.lf condthres.dl))
+               [(and (lf> cond.lf condthres.dl #f)
+                     (lf> cot.lf condthres.dl #f))
                 (mark-erroneous! subexpr 'cancelation)]
 
-               [(and (lf> cond.lf maybethres.dl)
-                     (lf> (lfabs x.lf) maybethres.dl))
+               [(and (lf> cond.lf maybethres.dl #f)
+                     (lf> (lfabs x.lf) maybethres.dl #f))
                 (mark-maybe! subexpr 'sensitivity)]
 
-               [(and (lf> cond.lf maybethres.dl)
-                     (lf> cot.lf maybethres.dl))
+               [(and (lf> cond.lf maybethres.dl #f)
+                     (lf> cot.lf maybethres.dl #f))
                 (mark-maybe! subexpr 'cancellation)]
 
                [else #f]))]
@@ -294,20 +285,20 @@
                (mark-erroneous! subexpr 'sensitivity))
 
              (cond
-               [(and (lf> cond.lf condthres.dl)
-                     (lf> (lfabs x.lf) condthres.dl))
+               [(and (lf> cond.lf condthres.dl #f)
+                     (lf> (lfabs x.lf) condthres.dl #f))
                 (mark-erroneous! subexpr 'sensitivity)]
 
-               [(and (lf> cond.lf condthres.dl)
-                     (lf> tan.lf condthres.dl))
+               [(and (lf> cond.lf condthres.dl #f)
+                     (lf> tan.lf condthres.dl #f))
                 (mark-erroneous! subexpr 'cancelation)]
 
-               [(and (lf> cond.lf maybethres.dl)
-                     (lf> (lfabs x.lf) maybethres.dl))
+               [(and (lf> cond.lf maybethres.dl #f)
+                     (lf> (lfabs x.lf) maybethres.dl #f))
                 (mark-maybe! subexpr 'sensitivity)]
 
-               [(and (lf> cond.lf maybethres.dl)
-                     (lf> tan.lf maybethres.dl))
+               [(and (lf> cond.lf maybethres.dl #f)
+                     (lf> tan.lf maybethres.dl #f))
                 (mark-maybe! subexpr 'cancellation)]
 
                [else #f]))]
@@ -323,91 +314,123 @@
                (mark-erroneous! subexpr 'sensitivity))
 
              (cond
-               [(and (lf> cond.lf condthres.dl)
-                     (lf> (lfabs x.lf) condthres.dl))
+               [(and (lf> cond.lf condthres.dl #f)
+                     (lf> (lfabs x.lf) condthres.dl #f))
                 (mark-erroneous! subexpr 'sensitivity)]
 
-               [(and (lf> cond.lf condthres.dl)
-                     (lf> tan.lf condthres.dl))
+               [(and (lf> cond.lf condthres.dl #f)
+                     (lf> tan.lf condthres.dl #f))
                 (mark-erroneous! subexpr 'cancelation)]
 
-               [(and (lf> cond.lf maybethres.dl)
-                     (lf> (lfabs x.lf) maybethres.dl))
+               [(and (lf> cond.lf maybethres.dl #f)
+                     (lf> (lfabs x.lf) maybethres.dl #f))
                 (mark-maybe! subexpr 'sensitivity)]
 
-               [(and (lf> cond.lf maybethres.dl)
-                     (lf> tan.lf maybethres.dl))
+               [(and (lf> cond.lf maybethres.dl #f)
+                     (lf> tan.lf maybethres.dl #f))
                 (mark-maybe! subexpr 'cancellation)]
 
                [else #f]))]
 
         [(list (or 'tan.f64 'tan.f32) x-ex)
          #:when (list? x-ex)
-         (define x (exacts-ref x-ex))
-         (define tot-x (bfabs (bf+ (bfcot x) (bftan x))))
-         (define cond-no (bf* (bfabs x) tot-x))
+         (define x.lf (lfs-ref x-ex))
+         (define tan.lf (lftan x.lf))
+         (define cot.lf (lf/ (lf 1.0) tan.lf))
+         (define condhlf.lf (lfabs (lf+ tan.lf cot.lf)))
+         (define cond.lf (lf* (lfabs x.lf) condhlf.lf))
 
-         (cond
-           [(and (bfinfinite? x) (not (bfnan? subexpr-val))) (mark-erroneous! subexpr 'oflow-rescue)]
-           [(and (bf> cond-no cond-thres) (bf> (bfabs x) cond-thres))
-            (mark-erroneous! subexpr 'sensitivity)]
-           [(and (bf> cond-no cond-thres) (bf> tot-x cond-thres))
-            (mark-erroneous! subexpr 'cancellation)]
+         (if (lfover/underflowed? x.lf)
+             (when (lfoverflow? x.lf)
+               (mark-erroneous! subexpr 'sensitivity))
 
-           [(and (bf> cond-no maybe-cond-thres) (bf> (bfabs x) maybe-cond-thres))
-            (mark-maybe! subexpr 'sensitivity)]
-           [(and (bf> cond-no maybe-cond-thres) (bf> tot-x maybe-cond-thres))
-            (mark-maybe! subexpr 'cancellation)]
-           [else #f])]
+             (cond
+               [(and (lf> cond.lf condthres.dl #f)
+                     (lf> (lfabs x.lf) condthres.dl #f))
+                (mark-erroneous! subexpr 'sensitivity)]
+
+               [(and (lf> cond.lf condthres.dl #f)
+                     (lf> condhlf.lf condthres.dl #f))
+                (mark-erroneous! subexpr 'cancelation)]
+
+               [(and (lf> cond.lf maybethres.dl #f)
+                     (lf> (lfabs x.lf) maybethres.dl #f))
+                (mark-maybe! subexpr 'sensitivity)]
+
+               [(and (lf> cond.lf maybethres.dl #f)
+                     (lf> condhlf.lf maybethres.dl))
+                (mark-maybe! subexpr 'cancellation)]
+
+               [else #f]))]
 
         [(list (or 'sqrt.f64 'sqrt.f32) x-ex)
          #:when (list? x-ex)
-         (define x (exacts-ref x-ex))
+         (define x.lf (lfs-ref x-ex))
 
          (cond
            ;; Underflow rescue:
-           [(and (bfzero? x) (not (bf= subexpr-val x))) (mark-erroneous! subexpr 'uflow-rescue)]
+           [(and (lfunderflow? x.lf) (not (lfunderflow? z.dl)))
+            (mark-erroneous! subexpr 'uflow-rescue)]
 
            ;; Overflow rescue:
-           [(and (bfinfinite? x) (not (bf= subexpr-val x))) (mark-erroneous! subexpr 'oflow-rescue)])]
+           [(and (lfoverflow? x.lf) (not (lfoverflow? z.dl)))
+            (mark-erroneous! subexpr 'oflow-rescue)])]
 
         [(list (or 'cbrt.f64 'cbrt.f32) x-ex)
          #:when (list? x-ex)
-         (define x (exacts-ref x-ex))
+         (define x.lf (lfs-ref x-ex))
 
          (cond
            ;; Underflow rescue:
-           [(and (bfzero? x) (not (bf= subexpr-val x))) (mark-erroneous! subexpr 'uflow-rescue)]
+           [(and (lfunderflow? x.lf) (not (lfunderflow? z.dl)))
+            (mark-erroneous! subexpr 'uflow-rescue)]
 
            ;; Overflow rescue:
-           [(and (bfinfinite? x) (not (bf= subexpr-val x))) (mark-erroneous! subexpr 'oflow-rescue)])]
+           [(and (lfoverflow? x.lf) (not (lfoverflow? z.dl)))
+            (mark-erroneous! subexpr 'oflow-rescue)])]
 
         [(list (or '/.f64 '/.f32) x-ex y-ex)
          #:when (or (list? x-ex) (list? y-ex))
          (define x (exacts-ref x-ex))
          (define y (exacts-ref y-ex))
 
+         (define x.lf (lfs-ref x-ex))
+         (define y.lf (lfs-ref y-ex))
+
          (cond
            ;; if the numerator underflows and the denominator:
            ;; - underflows, nan could be rescued
-           [(and (bfzero? x) (bfzero? y) (not (bfnan? subexpr-val))) (mark-erroneous! subexpr 'u/u)]
+           [(and (lfunderflow? x.lf)
+                 (lfunderflow? y.lf)
+                 (not (lfnan? z.dl)))
+            (mark-erroneous! subexpr 'u/u)]
            ;; - is small enough, 0 underflow could be rescued
-           [(and (bfzero? x) (not (bfzero? subexpr-val))) (mark-erroneous! subexpr 'u/n)]
+           [(and (lfunderflow? x.lf)
+                 (not (lfunderflow? z.dl)))
+            (mark-erroneous! subexpr 'u/n)]
            ;; - overflows, no rescue is possible
 
            ;; if the numerator overflows and the denominator:
            ;; - overflows, nan could be rescued
-           [(and (bfinfinite? x) (bfinfinite? y) (not (bfnan? subexpr-val)))
+           [(and (lfoverflow? x.lf)
+                 (lfoverflow? y.lf)
+                 (not (lfnan? z.dl)))
             (mark-erroneous! subexpr 'o/o)]
            ;; - is large enough, inf overflow can be rescued
-           [(and (bfinfinite? x) (not (bfinfinite? subexpr-val))) (mark-erroneous! subexpr 'o/n)]
+           [(and (lfoverflow? x.lf)
+                 (not (lfoverflow? z.dl)))
+            (mark-erroneous! subexpr 'o/n)]
            ;; - underflow, no rescue is possible
 
            ;; if the numerator is normal and the denominator:
            ;; - overflows, then a rescue is possible
-           [(and (bfinfinite? y) (not (bfzero? subexpr-val))) (mark-erroneous! subexpr 'n/o)]
+           [(and (lfoverflow? y.lf)
+                 (not (lfunderflow? z.dl)))
+            (mark-erroneous! subexpr 'n/o)]
            ;; - underflows, then a rescue is possible
-           [(and (bfzero? y) (not (bfinfinite? subexpr-val))) (mark-erroneous! subexpr 'n/u)]
+           [(and (lfunderflow? y.lf)
+                 (not (lfoverflow? z.dl)))
+            (mark-erroneous! subexpr 'n/u)]
            ;; - is normal, then no rescue is possible
            [else #f])]
 
@@ -416,20 +439,31 @@
          (define x (exacts-ref x-ex))
          (define y (exacts-ref y-ex))
 
+         (define x.lf (lfs-ref x-ex))
+         (define y.lf (lfs-ref y-ex))
+
          (cond
            ;; if one operand underflows and the other overflows, then nan must
            ;; be rescued.
-           [(and (bfinfinite? x) (bfzero? y) (not (bfnan? subexpr-val)))
+           [(and (lfoverflow? x.lf)
+                 (lfunderflow? y.lf)
+                 (not (lfnan? z.dl)))
             (mark-erroneous! subexpr 'o*u)]
-           [(and (bfzero? x) (bfinfinite? y) (not (bfnan? subexpr-val)))
+           [(and (lfunderflow? x.lf)
+                 (lfoverflow? y.lf)
+                 (not (lfnan? z.dl)))
             (mark-erroneous! subexpr 'u*o)]
 
            ;; If one operand is normal and the other overflows then, inf rescue
            ;; could occur
-           [(and (or (bfinfinite? x) (bfinfinite? y)) (not (bfinfinite? subexpr-val)))
+           [(and (or (lfoverflow? x.lf)
+                     (lfoverflow? y.lf))
+                 (not (lfoverflow? z.dl)))
             (mark-erroneous! subexpr 'n*o)]
 
-           [(and (or (bfzero? x) (bfzero? y)) (not (bfzero? subexpr-val)))
+           [(and (or (lfunderflow? x.lf)
+                     (lfunderflow? y.lf))
+                 (not (lfunderflow? z.dl)))
             (mark-erroneous! subexpr 'n*u)]
 
            ;; If both normal then no error
@@ -437,61 +471,46 @@
 
         [(list (or 'log.f64 'log.f32) x-ex)
          #:when (list? x-ex)
-         (define x (exacts-ref x-ex))
-         (define cond-num (bfabs (bf/ 1.bf subexpr-val)))
-         (cond
-           ; Condition number hallucination:
-           ; Condition number is high when x = 1,
-           ; but x is exactly 1, so there is no error
-           ; [(and (bf= x 1.bf) (bfzero? subexpr-val)) #f]
+         (define x.lf (lfs-ref x-ex))
+         (define cond.lf (lfabs (lf/ (lf 1.0) z.dl)))
 
-           ; overflow rescue:
-           [(bfinfinite? x) (mark-erroneous! subexpr 'oflow-rescue)]
-
-           ; underflow rescue:
-           [(bfzero? x) (mark-erroneous! subexpr 'uflow-rescue)]
-
-           ; High Condition Number:
-           ; CN(log, x) = |1 / log(x)|
-           [(bf> cond-num cond-thres) (mark-erroneous! subexpr 'sensitivity)]
-
-           [(bf> cond-num maybe-cond-thres) (mark-maybe! subexpr 'sensitivity)]
-
-           [else #f])]
+         (if (lfover/underflowed? x.lf)
+             (cond
+               [(lfunderflow? x.lf) (mark-erroneous! subexpr 'uflow-rescue)]
+               [(lfoverflow? x.lf) (mark-erroneous! subexpr 'oflow-rescue)])
+             (cond
+               [(lf> cond.lf condthres.dl #f) (mark-erroneous! subexpr 'sensitivity)]
+               [(lf> cond.lf maybethres.dl #f) (mark-maybe! subexpr 'sensitivity)]))]
 
         [(list (or 'exp.f64 'exp.f32) x-ex)
          #:when (list? x-ex)
-         (define x (exacts-ref x-ex))
-         (define exp-x (bigfloat->flonum (bfexp x)))
-
+         (define x.lf (lfs-ref x-ex))
+    
          (cond
            ; Condition Number Hallucination:
            ; When x is large enough that exp(x) overflows,
            ; condition number is also high.
-           [(and (infinite? exp-x) (bfinfinite? subexpr-val)) #f]
-
            ; Condition Number Hallucination:
            ; When x is large enough (negative) that exp(x)
            ; underflows, condition number is also high
-           [(and (zero? exp-x) (bfzero? subexpr-val)) #f]
+           [(not (lfrepresentable? z.dl)) #f]
 
            ; High Condition Number:
            ; CN(exp, x) = |x|
-           [(bf> (bfabs x) cond-thres) (mark-erroneous! subexpr 'sensitivity)]
+           [(lf> (lfabs x.lf) condthres.dl #f) (mark-erroneous! subexpr 'sensitivity)]
 
-           [(bf> (bfabs x) maybe-cond-thres) (mark-maybe! subexpr 'sensitivity)]
+           [(lf> (lfabs x.lf) maybethres.dl #f) (mark-maybe! subexpr 'sensitivity)]
 
            [else #f])]
 
         ; FIXME need to rework from scratch
         [(list (or 'pow.f64 'pow.f32) x-ex y-ex)
          #:when (or (list? x-ex) (list? y-ex))
-         (define x (exacts-ref x-ex))
-         (define y (exacts-ref y-ex))
-         (define x^y (bigfloat->flonum (bfexpt x y)))
-         (define cond-x (bfabs y))
-         (define cond-y (bfabs (bf* y (bflog x))))
-
+         (define x.lf (lfs-ref x-ex))
+         (define y.lf (lfs-ref y-ex))
+         (define condx.lf (lfabs y.lf))
+         (define condy.lf (lfabs (lf* y.lf (lflog x.lf))))
+         
          (cond
            ;; Hallucination:
            ;; x has a large exponent and y is 1. The ylogx is large but there is
@@ -507,30 +526,36 @@
 
            ;; Hallucination:
            ;; y is large but x is zero
-           [(and (bfzero? x) (bfzero? subexpr-val)) #f]
+           [(lfzero? x.lf) #f]
 
            ;; Hallucination:
            ;; if x is large enough that x^y overflows, the condition number also
            ;; is very large, but the answer correctly overflows
-           [(and (bf> y 1.bf) (infinite? x^y) (bfinfinite? subexpr-val)) #f]
+           [(and (lf> y.lf (lf 1.0) #f)
+                 (lfover/underflowed? z.dl)) #f]
 
            ;; if x is small enough and y is large enough that x^y underflows,
            ;; the condition number also gets very large, but the answer
            ;; correctly underflows
-           [(and (bf> y 1.bf) (zero? x^y) (bfzero? subexpr-val)) #f]
 
-           [(and (bf< y -1.bf) (zero? x^y) (bfzero? subexpr-val)) #f]
+           [(and (lf< y.lf (lf -1.0) #f)
+                 (lfover/underflowed? z.dl)) #f]
 
-           [(and (bf< y -1.bf) (infinite? x^y) (bfinfinite? subexpr-val)) #f]
+           [(and (lfunderflow? x.lf)
+                 (lfrepresentable? z.dl))
+            (mark-erroneous! subexpr 'uflow-rescue)]
 
-           [(and (bfzero? x) (not (bf= subexpr-val x))) (mark-erroneous! subexpr 'uflow-rescue)]
+           [(and (lfoverflow? x.lf)
+                 (lfrepresentable? z.dl))
+            (mark-erroneous! subexpr 'oflow-rescue)]
 
-           [(and (bfinfinite? x) (not (bf= subexpr-val x))) (mark-erroneous! subexpr 'oflow-rescue)]
-
-           [(and (or (bf> cond-x cond-thres) (bf> cond-y cond-thres)) (not (constant? y-ex)))
+           [(and (or (lf> condx.lf condthres.dl #f)
+                     (lf> condy.lf condthres.dl #f))
+                 (not (constant? y-ex)))
             (mark-erroneous! subexpr 'sensitivity)]
 
-           [(and (or (bf> cond-x maybe-cond-thres) (bf> cond-y maybe-cond-thres))
+           [(and (or (lf> condx.lf maybethres.dl #f)
+                     (lf> condy.lf maybethres.dl #f))
                  (not (constant? y-ex)))
             (mark-maybe! subexpr 'sensitivity)]
 
@@ -726,7 +751,7 @@
     (for/list ([(pt _) (in-pcontext pcontext)])
       (define error-actual? (> (hash-ref actual-error pt) 16))
       (define error-predicted? (hash-ref predicted-error pt false))
-      (when (and error-predicted? (not error-actual?))
+      #;(when (and error-predicted? (not error-actual?))
           (eprintf "~a\n" pt))
       (cons error-actual? error-predicted?)))
 

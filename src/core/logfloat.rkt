@@ -23,7 +23,8 @@
               (logfloat-e1 obj)
               (logfloat-e2 obj)))))])
 
-(define (lf x1 [x2 0.0])
+(define/contract (lf x1 [x2 0.0])
+  (->* (flonum?) (flonum?) logfloat?)
   (let*-values ([(e1 e2) (ddabs x1 x2)]
                 [(e1 e2) (ddlog2 e1 e2)])
     (logfloat x1 x2 (dd>= x1 x2 0.0 0.0) e1 e2)))
@@ -31,7 +32,8 @@
 (define +max.lf (logfloat +max.0 0.0 #true 1024.0 0.0))
 (define +min.lf (logfloat +min.0 0.0 #true -1074.0 0.0))
 
-(define (lf-normalize x)
+(define/contract (lf-normalize x)
+  (-> logfloat? logfloat?)
   (match-define (logfloat x1 x2 s e1 e2) x)
   (define-values (l1 l2) (ddexp2 e1 e2))
   (define-values (n1 n2) (ddneg l1 l2))
@@ -41,18 +43,21 @@
                          (logfloat n1 n2 s e1 e2))
                      x))
 
-(define (lfzero? x)
+(define/contract (lfzero? x)
+  (-> logfloat? boolean?)
   (match-define (logfloat x1 x2 _ e1 e2) x)
   (and (ddzero? x1 x2) (ddinfinite? e1 e2)))
 
-(define (lf= x y [flag #t])
+(define/contract (lf= x y [flag #t])
+  (->* (logfloat? logfloat?) (boolean?) boolean?)
   (match-define (logfloat x1 x2 xs ex1 ex2) x)
   (match-define (logfloat y1 y2 ys ey1 ey2) y)
   (if flag
       (and (eq? xs ys) (dd= ex1 ex2 ey1 ey2))
       (dd= x1 x2 y1 y2)))
 
-(define (lf> x y [flag #t])
+(define/contract (lf> x y [flag #t])
+  (->* (logfloat? logfloat?) (boolean?) boolean?)
   (match-define (logfloat x1 x2 xs ex1 ex2) x)
   (match-define (logfloat y1 y2 ys ey1 ey2) y)
   (if flag
@@ -66,62 +71,76 @@
         [else xs])
       (dd> x1 x2 y1 y2)))
 
-(define (lf< x y [flag #t])
+(define/contract (lf< x y [flag #t])
+  (->* (logfloat? logfloat?) (boolean?) boolean?)
   (lf> y x flag))
 
-(define (lf>= x y [flag #t])
+(define/contract (lf>= x y [flag #t])
+  (->* (logfloat? logfloat?) (boolean?) boolean?)
   (or (lf> x y flag) (lf= x y flag)))
 
-(define (lf<= x y [flag #t])
+(define/contract (lf<= x y [flag #t])
+  (->* (logfloat? logfloat?) (boolean?) boolean?)
   (lf>= y x [flag #t]))
 
-(define (lfmax x y [flag #t])
+(define/contract (lfmax x y [flag #t])
+  (->* (logfloat? logfloat?) (boolean?) boolean?)
   (if (lf>= x y flag) x y))
 
-(define (lfmin x y [flag #t])
+(define/contract (lfmin x y [flag #t])
+  (->* (logfloat? logfloat?) (boolean?) boolean?)
   (if (lf<= x y flag) x y))
 
-(define (lfabs x)
+(define/contract (lfabs x)
+  (-> logfloat? logfloat?)
   (match-define (logfloat x1 x2 _ ex1 ex2) x)
   (let*-values ([(x1 x2) (ddabs x1 x2)])
     (logfloat x1 x2 #true ex1 ex2)))
 
 ;; QUESTION: is inf inf _ inf 0 an overflow
-(define (lfoverflow? x)
+(define/contract (lfoverflow? x)
+  (-> logfloat? boolean?)
   (lf> (lfabs x) +max.lf))
 
 ;; QUESTION: is 0 0 _ -inf 0 an underflow
-(define (lfunderflow? x)
+(define/contract (lfunderflow? x)
+  (-> logfloat? boolean?)
   (lf< (lfabs x) +min.lf))
 
-(define (lfover/underflowed? x)
+(define/contract (lfover/underflowed? x)
+  (-> logfloat? boolean?)
   (or (lfoverflow? x) (lfunderflow? x)))
 
-(define (lfsamesign? x y [flag #t])
+(define/contract (lfsamesign? x y [flag #t])
+  (->* (logfloat? logfloat?) (boolean?) boolean?)
   (match-define (logfloat x1 x2 sx _ _) x)
   (match-define (logfloat y1 y2 sy _ _) y)
   (if flag
       (not (xor sx sy))
       (ddsamesign? x1 x2 y1 y2)))
 
-(define (lfnan? x)
+(define/contract (lfnan? x)
+  (-> logfloat? boolean?)
   (match-define (logfloat x1 x2 _ ex1 ex2) x)
   (when (and (not (ddnan? x1 x2)) (ddnan? ex1 ex2))
     (eprintf "[ERROR::lfnan?] ~a\n" x))
   (and (ddnan? x1 x2) (ddnan? ex1 ex2)))
 
-(define (lfrepresentable? x)
+(define/contract (lfrepresentable? x)
+  (-> logfloat? boolean?)
   (and (not (lfunderflow? x))
        (not (lfoverflow? x))
        (not (lfnan? x))))
 
-(define (lfneg x)
+(define/contract (lfneg x)
+  (-> logfloat? logfloat?)
   (match-define (logfloat x1 x2 s e1 e2) x)
   (let*-values
       ([(x1 x2) (ddneg x1 x2)])
     (logfloat x1 x2 (not s) e1 e2)))
 
-(define (lf+ A B)
+(define/contract (lf+ A B)
+  (-> logfloat? logfloat? logfloat?)
   (define P (if (lf>= (lfabs A) (lfabs B)) A B))
   (define Q (if (lf< (lfabs A) (lfabs B)) A B))
   (match-define (logfloat x1 x2 xs ex1 ex2) P)
@@ -137,10 +156,12 @@
                 [(z1 z2) (dd+ x1 x2 y1 y2)])
     (logfloat z1 z2 xs f1 f2)))
 
-(define (lf- A B)
+(define/contract (lf- A B)
+  (-> logfloat? logfloat? logfloat?)
   (lf+ A (lfneg B)))
 
-(define (lf* A B)
+(define/contract (lf* A B)
+  (-> logfloat? logfloat? logfloat?)
   (match-define (logfloat x1 x2 xs ex1 ex2) A)
   (match-define (logfloat y1 y2 ys ey1 ey2) B)
   (let*-values
@@ -149,7 +170,8 @@
        [(ez1 ez2) (dd+ ex1 ex2 ey1 ey2)])
     (logfloat z1 z2 zs ez1 ez2)))
 
-(define (lf/ A B)
+(define/contract (lf/ A B)
+  (-> logfloat? logfloat? logfloat?)
   (match-define (logfloat x1 x2 xs ex1 ex2) A)
   (match-define (logfloat y1 y2 ys ey1 ey2) B)
   (let*-values
@@ -158,7 +180,8 @@
        [(ez1 ez2) (dd- ex1 ex2 ey1 ey2)])
     (logfloat z1 z2 zs ez1 ez2)))
 
-(define (lflog A)
+(define/contract (lflog A)
+  (-> logfloat? logfloat?)
   (match-define (logfloat x1 x2 _ ex1 ex2) A)
   (let*-values ([(z1 z2) (ddlog x1 x2)]
                 [(zs) (dd>= ex1 ex2 0.0 0.0)]
@@ -167,7 +190,8 @@
                 [(a1 a2) (ddlog2 a1 a2)])
     (logfloat z1 z2 zs a1 a2)))
 
-(define (lfexp A)
+(define/contract (lfexp A)
+  (-> logfloat? logfloat?)
   (match-define (logfloat x1 x2 _ _ _) A)
   (let*-values ([(z1 z2) (ddexp x1 x2)]
                 [(zs) #true]
@@ -175,7 +199,8 @@
                 [(a1 a2) (dd* x1 x2 a1 a2)])
     (logfloat z1 z2 zs a1 a2)))
 
-(define (lfexpt A B)
+(define/contract (lfexpt A B)
+  (-> logfloat? logfloat? logfloat?)
   (match-define (logfloat x1 x2 _ ex1 ex2) A)
   (match-define (logfloat y1 y2 _ _ _) B)
   (let*-values ([(z1 z2) (ddexpt x1 x2 y1 y2)]
@@ -184,44 +209,48 @@
     (cond
       [(dd>= x1 x2 0.0 0.0)
        (let*-values ([(a1 a2) (dd* y1 y2 ex1 ex2)])
-         (logfloat z1 z2 zs a1 a2))
-       (dd* y1 y2 ex1 ex2)]
+         (logfloat z1 z2 zs a1 a2))]
       [int? (let*-values
                 ([(a1 a2) (dd* y1 y2 ex1 ex2)])
               (logfloat z1 z2 zs a1 a2))]
       [else (logfloat z1 z2 zs +nan.0 0.0)])))
 
-(define (lfsqrt A)
+(define/contract (lfsqrt A)
+  (-> logfloat? logfloat?)
   (match-define (logfloat x1 x2 _ ex1 ex2) A)
   (let*-values ([(z1 z2) (ddsqrt x1 x2)]
                 [(a1 a2) (dd/ ex1 ex2 2.0 0.0)])
     (logfloat z1 z2 #true a1 a2)))
 
-(define (lfcbrt A)
+(define/contract (lfcbrt A)
+  (-> logfloat? logfloat?)
   (match-define (logfloat x1 x2 xs ex1 ex2) A)
   (let*-values ([(z1 z2) (ddcbrt x1 x2)]
                 [(a1 a2) (dd/ ex1 ex2 3.0 0.0)])
     (logfloat z1 z2 xs a1 a2)))
 
-(define (lfcos A)
+(define/contract (lfcos A)
+  (-> logfloat? logfloat?)
   (match-define (logfloat x1 x2 _ _ _) A)
-  (let*-values ([(z1 z2) (ddcos x1 x2)]
+  (let*-values ([(z1 z2) (ddrcos x1 x2)]
                 [(zs) (dd>= z1 z2 0.0 0.0)]
                 [(a1 a2) (ddabs z1 z2)]
                 [(a1 a2) (ddlog2 a1 a2)])
     (logfloat z1 z2 zs a1 a2)))
 
-(define (lfsin A)
+(define/contract (lfsin A)
+  (-> logfloat? logfloat?)
   (match-define (logfloat x1 x2 _ _ _) A)
-  (let*-values ([(z1 z2) (ddsin x1 x2)]
+  (let*-values ([(z1 z2) (ddrsin x1 x2)]
                 [(zs) (dd>= z1 z2 0.0 0.0)]
                 [(a1 a2) (ddabs z1 z2)]
                 [(a1 a2) (ddlog2 a1 a2)])
     (logfloat z1 z2 zs a1 a2)))
 
-(define (lftan A)
+(define/contract (lftan A)
+  (-> logfloat? logfloat?)
   (match-define (logfloat x1 x2 _ _ _) A)
-  (let*-values ([(z1 z2) (ddtan x1 x2)]
+  (let*-values ([(z1 z2) (ddrtan x1 x2)]
                 [(zs) (dd>= z1 z2 0.0 0.0)]
                 [(a1 a2) (ddabs z1 z2)]
                 [(a1 a2) (ddlog2 a1 a2)])
