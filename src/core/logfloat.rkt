@@ -14,14 +14,13 @@
 (struct logfloat (r1 r2 s e1 e2)
   #:methods gen:custom-write
   [(define write-proc
-     (make-constructor-style-printer
-      (lambda (_) 'logfloat)
-      (lambda (obj)
-        (list (logfloat-r1 obj)
-              (logfloat-r2 obj)
-              (logfloat-s obj)
-              (logfloat-e1 obj)
-              (logfloat-e2 obj)))))])
+     (make-constructor-style-printer (lambda (_) 'logfloat)
+                                     (lambda (obj)
+                                       (list (logfloat-r1 obj)
+                                             (logfloat-r2 obj)
+                                             (logfloat-s obj)
+                                             (logfloat-e1 obj)
+                                             (logfloat-e2 obj)))))])
 
 (define/contract (lf x1 [x2 0.0])
   (->* (flonum?) (flonum?) logfloat?)
@@ -38,10 +37,10 @@
   (define-values (l1 l2) (ddexp2 e1 e2))
   (define-values (n1 n2) (ddneg l1 l2))
   (if (or (ddnan? x1 x2) (ddzero? x1 x2) (ddinfinite? x1 x2))
-                     (if s
-                         (logfloat l1 l2 s e1 e2)
-                         (logfloat n1 n2 s e1 e2))
-                     x))
+      (if s
+          (logfloat l1 l2 s e1 e2)
+          (logfloat n1 n2 s e1 e2))
+      x))
 
 (define/contract (lfzero? x)
   (-> logfloat? boolean?)
@@ -64,10 +63,10 @@
       (cond
         ; Both +ve
         [(and xs ys) (dd> ex1 ex2 ey1 ey2)]
-        
+
         ; Both -ve
         [(nor xs ys) (dd> ey1 ey2 ex1 ex2)]
-        
+
         [else xs])
       (dd> x1 x2 y1 y2)))
 
@@ -128,15 +127,12 @@
 
 (define/contract (lfrepresentable? x)
   (-> logfloat? boolean?)
-  (and (not (lfunderflow? x))
-       (not (lfoverflow? x))
-       (not (lfnan? x))))
+  (and (not (lfunderflow? x)) (not (lfoverflow? x)) (not (lfnan? x))))
 
 (define/contract (lfneg x)
   (-> logfloat? logfloat?)
   (match-define (logfloat x1 x2 s e1 e2) x)
-  (let*-values
-      ([(x1 x2) (ddneg x1 x2)])
+  (let*-values ([(x1 x2) (ddneg x1 x2)])
     (logfloat x1 x2 (not s) e1 e2)))
 
 (define/contract (lf+ A B)
@@ -164,20 +160,18 @@
   (-> logfloat? logfloat? logfloat?)
   (match-define (logfloat x1 x2 xs ex1 ex2) A)
   (match-define (logfloat y1 y2 ys ey1 ey2) B)
-  (let*-values
-      ([(z1 z2) (dd* x1 x2 y1 y2)]
-       [(zs) (not (xor xs ys))]
-       [(ez1 ez2) (dd+ ex1 ex2 ey1 ey2)])
+  (let*-values ([(z1 z2) (dd* x1 x2 y1 y2)]
+                [(zs) (not (xor xs ys))]
+                [(ez1 ez2) (dd+ ex1 ex2 ey1 ey2)])
     (logfloat z1 z2 zs ez1 ez2)))
 
 (define/contract (lf/ A B)
   (-> logfloat? logfloat? logfloat?)
   (match-define (logfloat x1 x2 xs ex1 ex2) A)
   (match-define (logfloat y1 y2 ys ey1 ey2) B)
-  (let*-values
-      ([(z1 z2) (dd/ x1 x2 y1 y2)]
-       [(zs) (not (xor xs ys))]
-       [(ez1 ez2) (dd- ex1 ex2 ey1 ey2)])
+  (let*-values ([(z1 z2) (dd/ x1 x2 y1 y2)]
+                [(zs) (not (xor xs ys))]
+                [(ez1 ez2) (dd- ex1 ex2 ey1 ey2)])
     (logfloat z1 z2 zs ez1 ez2)))
 
 (define/contract (lflog A)
@@ -210,9 +204,9 @@
       [(dd>= x1 x2 0.0 0.0)
        (let*-values ([(a1 a2) (dd* y1 y2 ex1 ex2)])
          (logfloat z1 z2 zs a1 a2))]
-      [int? (let*-values
-                ([(a1 a2) (dd* y1 y2 ex1 ex2)])
-              (logfloat z1 z2 zs a1 a2))]
+      [int?
+       (let*-values ([(a1 a2) (dd* y1 y2 ex1 ex2)])
+         (logfloat z1 z2 zs a1 a2))]
       [else (logfloat z1 z2 zs +nan.0 0.0)])))
 
 (define/contract (lfsqrt A)
@@ -343,13 +337,9 @@
      (lf (if (flonum? value)
              value
              (exact->inexact value)))]
-    [(list (or 'PI.f64 'PI.f32))
-     (lf ddpi1 ddpi2)]
-    [(list (or 'E.f64 'E.f32))
-     (lf dde1 dde2)]
-    [(list op args ...)
-     (cons (op->lfop op)
-           (map expr->lf args))]
+    [(list (or 'PI.f64 'PI.f32)) (lf ddpi1 ddpi2)]
+    [(list (or 'E.f64 'E.f32)) (lf dde1 dde2)]
+    [(list op args ...) (cons (op->lfop op) (map expr->lf args))]
     [sym sym]))
 
 (define 1.lf (lf 1.0))

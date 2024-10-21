@@ -33,19 +33,18 @@
 
 (define-dd-binary c_dd_add c_dd_sub c_dd_mul c_dd_div)
 
-(define-dd-unary
-  c_dd_sqrt
-  c_dd_sqr
-  c_dd_abs
-  c_dd_exp
-  c_dd_log
-  c_dd_log10
-  c_dd_sin
-  c_dd_cos
-  c_dd_tan
-  c_dd_aint
-  c_dd_floor
-  c_dd_ceil)
+(define-dd-unary c_dd_sqrt
+                 c_dd_sqr
+                 c_dd_abs
+                 c_dd_exp
+                 c_dd_log
+                 c_dd_log10
+                 c_dd_sin
+                 c_dd_cos
+                 c_dd_tan
+                 c_dd_aint
+                 c_dd_floor
+                 c_dd_ceil)
 
 (define x 2.456e+150)
 
@@ -194,20 +193,13 @@
 
 (define (dd/ x1 x2 y1 [y2 0.0])
   (cond
-    [(and (ddinfinite? x1 x2) (ddinfinite? y1 y2))
-     (nan.dd)]
-    [(and (ddzero? x1 x2) (ddzero? y1 y2))
-     (nan.dd)]
-    [(and (ddfinite? x1 x2) (ddinfinite? y1 y2))
-     (0.dd)]
-    [(and (ddpositive? x1 x2) (ddzero? y1 y2))
-     (+inf.dd)]
-    [(and (ddnegative? x1 x2) (ddzero? y1 y2))
-     (-inf.dd)]
-    [(and (ddinfinite? x1 x2) (ddsamesign? x1 x2 y1 y2))
-     (+inf.dd)]
-    [(and (ddinfinite? x1 x2) (not (ddsamesign? x1 x2 y1 y2)))
-     (-inf.dd)]
+    [(and (ddinfinite? x1 x2) (ddinfinite? y1 y2)) (nan.dd)]
+    [(and (ddzero? x1 x2) (ddzero? y1 y2)) (nan.dd)]
+    [(and (ddfinite? x1 x2) (ddinfinite? y1 y2)) (0.dd)]
+    [(and (ddpositive? x1 x2) (ddzero? y1 y2)) (+inf.dd)]
+    [(and (ddnegative? x1 x2) (ddzero? y1 y2)) (-inf.dd)]
+    [(and (ddinfinite? x1 x2) (ddsamesign? x1 x2 y1 y2)) (+inf.dd)]
+    [(and (ddinfinite? x1 x2) (not (ddsamesign? x1 x2 y1 y2))) (-inf.dd)]
     [else
      (define a (list->f64vector (list x1 x2)))
      (define b (list->f64vector (list y1 y2)))
@@ -328,7 +320,6 @@
          [2 (ddneg c1 c2)]
          [3 (values s1 s2)]))]))
 
-
 (define (ddrtan x1 [x2 0.0])
   (cond
     [(ddnan? x1 x2) (nan.dd)]
@@ -346,7 +337,6 @@
          [2 (values t1 t2)]
          [3 (ddneg c1 c2)]))]))
 
-
 (define-syntax define-dd-unary-fn
   (syntax-rules ()
     [(_ [name1 name2] ...)
@@ -357,13 +347,11 @@
          (name2 (f64vector->cpointer a) (f64vector->cpointer b))
          (apply values (f64vector->list b))) ...)]))
 
-(define-dd-unary-fn
-  [ddabs c_dd_abs]
-  [ddsin c_dd_sin]
-  [ddcos c_dd_cos]
-  [ddtan c_dd_tan]
-  [ddaint c_dd_aint]
-  [ddexp c_dd_exp]
-  [ddfloor c_dd_floor]
-  [ddceil c_dd_ceil])
-
+(define-dd-unary-fn [ddabs c_dd_abs]
+                    [ddsin c_dd_sin]
+                    [ddcos c_dd_cos]
+                    [ddtan c_dd_tan]
+                    [ddaint c_dd_aint]
+                    [ddexp c_dd_exp]
+                    [ddfloor c_dd_floor]
+                    [ddceil c_dd_ceil])
