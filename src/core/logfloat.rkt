@@ -250,27 +250,6 @@
                 [(a1 a2) (ddlog2 a1 a2)])
     (logfloat z1 z2 zs a1 a2)))
 
-(define (lfop? symbol)
-  (match symbol
-    ['lf+ #true]
-    ['lf- #true]
-    ['lf* #true]
-    ['lf/ #true]
-    ['lflog #true]
-    ['lfexp #true]
-    ['lfexpt #true]
-    ['lfsin #true]
-    ['lfcos #true]
-    ['lftan #true]
-    ['lfsqrt #true]
-    ['lfcbrt #true]
-    ['lfneg #true]
-    ['lf> #true]
-    ['lf>= #true]
-    ['lf< #true]
-    ['lf<= #true]
-    [_ #false]))
-
 (define (lfop symbol)
   (match symbol
     ['lf+ lf+]
@@ -290,6 +269,7 @@
     ['lf>= lf>=]
     ['lf< lf<]
     ['lf<= lf<=]
+    ['lfabs lfabs]
     [_ #false]))
 
 (define (op->lfop op)
@@ -329,6 +309,8 @@
     ['<=.f64 'lf<=]
     ['<=.f32 'lf<=]
     ['if 'if]
+    ['fabs.32 'lfabs]
+    ['fabs.64 'lfabs]
     [_ (error 'op->logop op)]))
 
 (define (expr->lf expr)
