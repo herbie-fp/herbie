@@ -124,7 +124,9 @@
       (define exacts-val (hash-ref exacts-hash subexpr))
       ((representation-repr->bf (hash-ref repr-hash subexpr)) exacts-val))
 
-    (define lfs (vector-map lf-normalize (apply subexprs-lf (map lf pt))))
+    (define lfs (vector-map (lambda (x) (if (logfloat? x)
+                                            (lf-normalize x)
+                                            x)) (apply subexprs-lf (map lf pt))))
     (define lfs-hash (make-immutable-hash (map cons subexprs-list (vector->list lfs))))
     (define (lfs-ref subexpr)
       (hash-ref lfs-hash subexpr))
