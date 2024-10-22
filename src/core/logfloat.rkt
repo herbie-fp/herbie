@@ -250,6 +250,22 @@
                 [(a1 a2) (ddlog2 a1 a2)])
     (logfloat z1 z2 zs a1 a2)))
 
+(define/contract (lffloor A)
+  (-> logfloat? logfloat?)
+  (match-define (logfloat x1 x2 s _ _) A)
+  (let*-values ([(z1 z2) (ddfloor x1 x2)]
+                [(a1 a2) (ddabs z1 z2)]
+                [(a1 a2) (ddlog2 a1 a2)])
+    (logfloat z1 z2 s a1 a2)))
+
+(define/contract (lfceil A)
+  (-> logfloat? logfloat?)
+  (match-define (logfloat x1 x2 s _ _) A)
+  (let*-values ([(z1 z2) (ddceil x1 x2)]
+                [(a1 a2) (ddabs z1 z2)]
+                [(a1 a2) (ddlog2 a1 a2)])
+    (logfloat z1 z2 s a1 a2)))
+
 (define (lfop symbol)
   (match symbol
     ['lf+ lf+]
@@ -270,6 +286,8 @@
     ['lf< lf<]
     ['lf<= lf<=]
     ['lfabs lfabs]
+    ['lfceil lfceil]
+    ['lffloor lffloor]
     [_ #false]))
 
 (define (op->lfop op)
