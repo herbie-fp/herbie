@@ -3,8 +3,7 @@
 (require racket/set
          math/bigfloat
          racket/hash)
-(require "rules.rkt"
-         "points.rkt"
+(require "points.rkt"
          "../syntax/types.rkt"
          "localize.rkt"
          "../utils/common.rkt"
@@ -17,6 +16,7 @@
          "../syntax/syntax.rkt")
 
 (provide explain)
+(provide get-locations)
 
 (define *top-3* (make-parameter #f))
 
