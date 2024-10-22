@@ -23,9 +23,9 @@
                (script ([src ,(if info "report.js" "../report.js")])))
          (body ,(render-menu (~a name)
                              #:path path
-                            (if info
-                                `(("Report" . "index.html"))
-                                `(("Details" . "graph.html"))))
+                             (if info
+                                 `(("Report" . "index.html"))
+                                 `(("Details" . "graph.html"))))
                ,(if info
                     (render-about info)
                     "")
@@ -359,7 +359,7 @@
 
 (define (render-phase-explanations explanations)
   `((dt "Explanations")
-   (dd (details
+    (dd (details
          (summary "Click to see full explanations table")
          (table
           ((class "times"))
