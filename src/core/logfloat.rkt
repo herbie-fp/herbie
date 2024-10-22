@@ -327,8 +327,12 @@
     ['<=.f64 'lf<=]
     ['<=.f32 'lf<=]
     ['if 'if]
-    ['fabs.32 'lfabs]
-    ['fabs.64 'lfabs]
+    ['fabs.f32 'lfabs]
+    ['fabs.f64 'lfabs]
+    ['ceil.f32 'lfceil]
+    ['ceil.f64 'lfceil]
+    ['floor.f32 'lffloor]
+    ['floor.f64 'lffloor]
     [_ (error 'op->logop op)]))
 
 (define (expr->lf expr)
