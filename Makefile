@@ -13,7 +13,7 @@ clean:
 	raco pkg remove --force --no-docs egg-herbie-windows && echo "Uninstalled old egg-herbie" || :
 	raco pkg remove --force --no-docs egg-herbie-osx && echo "Uninstalled old egg-herbie" || :
 	raco pkg remove --force --no-docs avx-herbie fdlibm-herbie vdt-herbie && echo "Uninstalled old avx-, fdlibm-, and vdt-herbie" || :
-	find src -type d -name compiled | xargs rm -r
+	find . -type d -name compiled | xargs rm -r
 
 update:
 	raco pkg install --skip-installed --no-docs --auto --name herbie src/

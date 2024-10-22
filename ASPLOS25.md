@@ -69,15 +69,15 @@ We recommend creating a virtual environment
   by running the following series of commands.
 Create the virtual environment under `.env` with
 ```
-bash> python -m venv .env/
+python -m venv .env/
 ```
 Activate the virtual environment using
 ```
-bash> source .env/bin/activate
+source .env/bin/activate
 ```
 and install `numpy`, `matplotlib`, and `scipy` packages
 ```
-bash> pip install numpy matplotlib scipy
+pip install numpy matplotlib scipy
 ```
 
 ### Julia
@@ -110,11 +110,11 @@ This may require root access depending on your system.
 
 The vdt library is a vectorized math library developed at CERN.
 To install, clone the [repo](https://github.com/dpiparo/vdt).
-Then navigate to the `vdt` directory and run
+Then, navigate to the `vdt` directory and run
 ```
-bash> cmake .
-bash> make
-bash> make install
+cmake .
+make
+make install
 ```
 The final step possibly requires root access.
 
@@ -123,13 +123,13 @@ The final step possibly requires root access.
 Ensure you have Chassis cloned from git,
   if you have not cloned it already.
 ```
-bash> git clone https://github.com/herbie-fp/herbie
-bash> git checkout asplos25-aec
+git clone https://github.com/herbie-fp/herbie
+git checkout asplos25-aec
 ```
 Chassis requires Racket and Rust to build.
 To build Chassis, run
 ```
-bash> make install
+make install
 ```
 
 ## Testing installed software
@@ -139,29 +139,32 @@ Run the following commands and ensure they do not print any errors.
 
 Check that Racket is installed.
 ```
-bash> racket -v
+racket -v
 ```
 Check that Rust is installed.
 ```
-bash> cargo --version
+cargo --version
 ```
 Check that Clang is installed.
 ```
-bash> clang -v
+clang -v
 ```
 Check that Python is installed with the proper libraries.
 ```
-bash> python3
->>> import numpy, matplotlib, scipy
->>> exit()
+python3
+```
+In the Python REPL, run
+```
+import numpy, matplotlib, scipy
+exit()
 ```
 Check that Julia is installed.
 ```
-bash> julia -v
+julia -v
 ```
 Check that `libvdt` is installed by running `clang` with a library flag set.
 ```
-bash> clang -lvdt
+clang -lvdt
 ```
 The command should result in an error.
 Specifically, it should complain that it could not find a `main` function.
@@ -188,7 +191,7 @@ If any of the commands above failed unexpectedly,
 
 To start the evaluation, run
 ```
-bash> bash infra/platforms-eval.sh reports 1
+bash infra/platforms-eval.sh reports 1
 ```
 This command runs the entire evaluation.
 The whole process takes 2-3 hours depending the machine.
