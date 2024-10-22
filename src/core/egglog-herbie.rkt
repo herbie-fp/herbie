@@ -2,7 +2,7 @@
 
 (require racket/file)
 
-(provide run-egglog
+(provide run-egglog-process
          (struct-out egglog-program))
 
 ;; Track the entire Egglog program in one go by "converting" into racket based code
@@ -36,16 +36,31 @@
 
   (cons stdout-content stderr-content))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Public API
+;;
 ;; High-level function that writes the program to a file, runs it then returns output
-;;; TODO : Faster way to read/write from/to files
-(define (run-egglog program-struct)
+(define (run-egglog-process program-struct)
   (write-program-to-egglog (egglog-program-program program-struct))
 
   (process-egglog program-to-egglog))
 
-;; TODO:
-;; 1. Add make-egglog-runner
-;; Constructs an egg runner.
+
+;; Most calls to egglog should be done through this interface.
+;;  - `make-egglog-runner`: creates a struct that describes a _reproducible_ egglog instance
+;;  - `run-egglog`: takes an egglog runner and performs an extraction (exprs or proof)
+
+;; Herbie's version of an egglog runner.
+;; Defines parameters for running rewrite rules with egglog
+(struct egglog-runner (batch roots reprs schedule ctx)
+  #:transparent ; for equality
+  #:methods gen:custom-write ; for abbreviated printing
+  [(define (write-proc alt port mode)
+     (fprintf port "#<egglog-runner>"))])
+
+
+;; Constructs an egglog runner. Exactly same as egg-runner
+;; But needs some amount of specifics - TODO
 ;;
 ;; The schedule is a list of pairs specifying
 ;;  - a list of rules
@@ -56,7 +71,7 @@
 ;;     - scheduler: `(scheduler . <name>)` [default: backoff]
 ;;        - `simple`: run all rules without banning
 ;;        - `backoff`: ban rules if the fire too much
-(define (make-egg-runner batch roots reprs schedule #:context [ctx (*context*)])
+(define (make-egglog-runner batch roots reprs schedule #:context [ctx (*context*)])
   (define (oops! fmt . args)
     (apply error 'verify-schedule! fmt args))
   ; verify the schedule
@@ -77,7 +92,7 @@
            [_ (oops! "in instruction `~a`, unknown parameter `~a`" instr param)]))]
       [_ (oops! "expected `(<rules> . <params>)`, got `~a`" instr)]))
   ; make the runner
-  (egg-runner batch roots reprs schedule ctx))
+  (egglog-runner batch roots reprs schedule ctx))
 
 ;; 2. Add run-egglog
 ;; Runs egg using an egg runner.
@@ -86,9 +101,11 @@
 ;;  - single extraction: `(single . <extractor>)`
 ;;  - multi extraction: `(multi . <extractor>)`
 ;;  - proofs: `(proofs . ((<start> . <end>) ...))`
-(define (run-egg runner cmd)
+(define (run-egglog runner cmd)
   ;; Run egg using runner
   (define ctx (egg-runner-ctx runner))
+
+  ; fake root-ids
   (define-values (root-ids egg-graph)
     (egraph-run-schedule (egg-runner-batch runner)
                          (egg-runner-roots runner)
@@ -111,6 +128,8 @@
      ; commit changes to the batch
      (finalize-batch)
      out]
+
+    ;; very hard - per id recruse one level and ger simplest child
     [`(multi . ,extractor) ; multi expression extraction
      (define regraph (make-regraph egg-graph))
      (define reprs (egg-runner-reprs runner))
@@ -126,6 +145,10 @@
      ; commit changes to the batch
      (finalize-batch)
      out]
+
+    ;; egglog does not have proof
+    ;; there is some value that herbie has which indicates we could not
+    ;; find a proof. Might be (list #f #f ....) 
     [`(proofs . ((,start-exprs . ,end-exprs) ...)) ; proof extraction
      (for/list ([start (in-list start-exprs)]
                 [end (in-list end-exprs)])
@@ -138,8 +161,14 @@
        (when (null? proof)
          (error 'run-egg "proof extraction failed between`~a` and `~a`" start end))
        proof)]
+
+    ; 1. ask within egglog program what is id
+    ; 2. Extract expression from each expr
+    ; qn: if i have  two expressions how di i know if they are in the same e-class
+    ; if we are outside of egglog
     [`(equal? . ((,start-exprs . ,end-exprs) ...)) ; term equality?
      (for/list ([start (in-list start-exprs)]
                 [end (in-list end-exprs)])
        (egraph-expr-equal? egg-graph start end ctx))]
     [_ (error 'run-egg "unknown command `~a`\n" cmd)]))
+
