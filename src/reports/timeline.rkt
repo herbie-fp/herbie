@@ -366,10 +366,10 @@
                                   (td (b ,(~a expl)))
                                   (td ,(~a cnt))
                                   (td ,(~a mcnt))
-                                  (td ,(~a safe-locations)))
+                                  (td ,(~a safe-locations))))
                              (for/list ([flow (in-list (or flows '()))])
                                (match-define (list ex type v) flow)
-                               `(tr (td "↳") (td (code ,(~a ex))) (td ,type) (td ,(~a v)))))))))))))
+                               `(tr (td "↳") (td (code ,(~a ex))) (td ,type) (td ,(~a v))))))))))))
 
 
 (define (render-phase-confusion confusion-matrix)
