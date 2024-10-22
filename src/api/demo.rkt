@@ -42,7 +42,10 @@
         (let ([m (regexp-match #rx"^([0-9a-f]+)\\.[0-9a-f.]+" x)])
           (and m (server-check-on (second m))))))
  (λ (x)
-   (let ([m (regexp-match #rx"^([0-9a-f]+)\\.[0-9a-f.]+" x)]) (server-check-on (if m (second m) x)))))
+   (let ([m (regexp-match #rx"^([0-9a-f]+)\\.[0-9a-f.]+" x)])
+     (server-check-on (if m
+                          (second m)
+                          x)))))
 
 (define-bidi-match-expander hash-arg hash-arg/m hash-arg/m)
 
@@ -140,7 +143,10 @@
                (link ([rel "stylesheet"] [type "text/css"] [href "main.css"]))
                ,@(for/list ([style styles])
                    `(link ([rel "stylesheet"] [type "text/css"] [href ,style]))))
-         (body (header (img ((class "logo") [src "/logo.png"])) ,@(if title? `((h1 ,title)) '()))
+         (body (header (img ((class "logo") [src "/logo.png"]))
+                       ,@(if title?
+                             `((h1 ,title))
+                             '()))
                ,@body)))
 
 (define (main req)
@@ -353,14 +359,16 @@
                                   (string->bytes/utf-8
                                    (add-prefix (format "~a.~a/graph.html" job-id *herbie-commit*))))
                           (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count))))
-                          (header #"X-Herbie-Job-ID" (string->bytes/utf-8 job-id)))
+                          (header #"X-Herbie-Job-ID" (string->bytes/utf-8 job-id))
+                          (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
                     '())]
     [timeline
      (response 202
                #"Job in progress"
                (current-seconds)
                #"text/plain"
-               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count)))))
+               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count))))
+                     (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
                (λ (out)
                  (display (apply string-append
                                  (for/list ([entry timeline])

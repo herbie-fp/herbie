@@ -15,7 +15,7 @@ jobs:
       - name: "Install Racket"
         uses: Bogdanp/setup-racket@v1.11
         with:
-          version: "8.12"
+          version: "8.14"
       - name: Install Rust compiler
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -31,6 +31,27 @@ jobs:
       # Run the Herbie unit tests
       - name: "Run Herbie unit tests"
         run: raco test src/ infra/ egg-herbie/
+
+      # Test the command-line tools
+      - name: "Test the shell command-line tool"
+        run: |
+          <bench/tutorial.fpcore racket -l herbie shell >/tmp/out.fpcore
+          test `grep -c :herbie-time /tmp/out.fpcore` -eq 3
+      - name: "Test the improve command-line tool"
+        run: |
+          racket -l herbie improve bench/tutorial.fpcore /tmp/out.fpcore
+          test `grep -c :herbie-time /tmp/out.fpcore` -eq 3
+      - name: "Run the report command-line tool"
+        run: |
+          racket -l herbie report bench/tutorial.fpcore /tmp/out/
+          test -d /tmp/out/
+          test -f /tmp/out/index.html
+          test -f /tmp/out/results.json
+      - name: "Run two reports with the same seed and diff them"
+        run: |
+          racket -l herbie report --threads yes --seed 1 bench/hamming/rearrangement.fpcore graphs0
+          racket -l herbie report --threads yes --seed 1 bench/hamming/rearrangement.fpcore graphs1
+          racket infra/diff.rkt graphs0 graphs1
 
       # Test the egg-herbie Rust code
       - run: cd egg-herbie && cargo clippy --tests

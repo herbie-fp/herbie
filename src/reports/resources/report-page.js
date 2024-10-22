@@ -1,3 +1,100 @@
+/* The report page uses a dummy-React pattern, where every time the
+ * page changes we regenerate the whole HTML content from scratch */
+
+// Here is the loaded data:
+
+var compareAgainstURL = ""
+var diffAgainstFields = {}
+var otherJsonData = null
+var resultsJsonData = null
+
+function update() {
+    let bodyNode = document.querySelector("body");
+    bodyNode.replaceChildren.apply(bodyNode, buildBody(resultsJsonData, otherJsonData));
+}
+
+// Here is the UI state:
+
+const filterNames = {
+    "imp-start": "Improved start",
+    "apx-start": "Approximate start",
+    "uni-start": "Regressed from start",
+    "ex-start": "Exact start",
+    "eq-start": "Equal start",
+    "lt-start": "Less than start",
+    "gt-target": "Greater than target",
+    "gt-start": "Greater than start",
+    "eq-target": "Equal to target",
+    "lt-target": "Less than target",
+    "error": "Error",
+    "timeout": "Timeout",
+    "crash": "Crash",
+}
+var filterState = {
+    "imp-start": true,
+    "ex-start": true,
+    "eq-start": true,
+    "eq-target": true,
+    "gt-target": true,
+    "gt-start": true,
+    "uni-start": true,
+    "lt-target": true,
+    "lt-start": true,
+    "apx-start": true,
+    "timeout": true,
+    "crash": true,
+    "error": true,
+}
+
+const filterGroups = {
+    improved: [
+        "ex-start", "eq-start", "eq-target",
+        "imp-start", "gt-target", "gt-start",
+    ],
+    unchanged: [
+        "lt-target", "apx-start", "error",
+    ],
+    regressed: [
+        "uni-start", "lt-start", "timeout", "crash",
+    ],
+}
+var filterGroupState = {
+    "improved": true,
+    "unchanged": true,
+    "regressed": true,
+}
+
+const radioStates = {
+    output: { title: "Output Expression", tolerance: false, },
+    startAcc: { title: "Input Accuracy", tolerance: "%", },
+    endAcc: { title: "Output Accuracy", tolerance: "%", },
+    targetAcc: { title: "Target Accuracy", tolerance: "%", },
+    time: { title: "Running Time", tolerance: "s", },
+}
+let radioState = null;
+
+// Controlling the diff process
+var filterTolerance = 1;
+var hideDirtyEqual = true
+
+// Collapsable <details> elements
+var showFilterDetails = false;
+var showCompareDetails = false;
+
+
+var filterBySuite = ""
+var allSuites = []
+
+var filterByWarning = ""
+var allWarnings = []
+
+var sortState = {
+    key: "test",
+    dir: true, // true = ascending, false = descending
+}
+
+// Next are various strings used in the UI
+
 const tempXY_A = "Output vs Input Accuracy"
 const tempXY_B = "Each point represents a Herbie run below. Its horizontal position shows initial accuracy, and vertical position shows final accuracy. Points above the line are improved by Herbie."
 
@@ -17,6 +114,8 @@ const targetHelpText = `Color key:
     Orange: improved but did not match target
     Yellow: no accuracy change
     `
+
+// Helper functions of various sorts
 
 function Element(tagname, props, children) {
     if (children === undefined) { children = props; props = {}; }
@@ -38,7 +137,6 @@ function Element(tagname, props, children) {
     return $elt;
 }
 
-// Helper Functions
 function calculatePercent(decimal) {
     return ((100 - (100 * (decimal)))).toFixed(1)
 }
@@ -149,92 +247,6 @@ function plotPareto(jsonData) {
     return out;
 }
 
-// -------------------------------------------------
-// ------ Global State Start ----------
-// -------------------------------------------------
-
-const filterNames = {
-    "imp-start": "Improved start",
-    "apx-start": "Approximate start",
-    "uni-start": "Regressed from start",
-    "ex-start": "Exact start",
-    "eq-start": "Equal start",
-    "lt-start": "Less than start",
-    "gt-target": "Greater than target",
-    "gt-start": "Greater than start",
-    "eq-target": "Equal to target",
-    "lt-target": "Less than target",
-    "error": "Error",
-    "timeout": "Timeout",
-    "crash": "Crash",
-}
-var filterState = {
-    "imp-start": true,
-    "ex-start": true,
-    "eq-start": true,
-    "eq-target": true,
-    "gt-target": true,
-    "gt-start": true,
-    "uni-start": true,
-    "lt-target": true,
-    "lt-start": true,
-    "apx-start": true,
-    "timeout": true,
-    "crash": true,
-    "error": true,
-}
-
-const filterGroups = {
-    improved: [
-        "ex-start", "eq-start", "eq-target",
-        "imp-start", "gt-target", "gt-start",
-    ],
-    unchanged: [
-        "lt-target", "apx-start", "error",
-    ],
-    regressed: [
-        "uni-start", "lt-start", "timeout", "crash",
-    ],
-}
-var filterGroupState = {
-    "improved": true,
-    "unchanged": true,
-    "regressed": true,
-}
-
-const radioStates = {
-    output: { title: "Output Expression", tolerance: false, },
-    startAcc: { title: "Input Accuracy", tolerance: "%", },
-    endAcc: { title: "Output Accuracy", tolerance: "%", },
-    targetAcc: { title: "Target Accuracy", tolerance: "%", },
-    time: { title: "Running Time", tolerance: "s", },
-}
-let radioState = null;
-
-// Controlling the diff process
-var filterTolerance = 1;
-var hideDirtyEqual = true
-
-// Collapsable <details> elements
-var showFilterDetails = false;
-var showCompareDetails = false;
-
-
-var filterBySuite = ""
-var allSuites = []
-
-var filterByWarning = ""
-var allWarnings = []
-
-var sortState = {
-    key: "test",
-    dir: true, // true = ascending, false = descending
-}
-
-// -------------------------------------------------
-// ------ Global State End ----------
-// -------------------------------------------------
-
 function buildCheckboxLabel(classes, text, boolState) {
     return Element("label", { classList: classes }, [
         Element("input", { type: "checkbox", checked: boolState }, []),
@@ -255,22 +267,23 @@ function buildDiffLine(jsonData, show) {
         e.preventDefault();
         compareAgainstURL = urlInput.value;
         radioState = radioState ?? "endAcc";
-        fetchAndUpdate(jsonData);
+        fetchAndUpdate();
     });
 
-    if (unitText) {
-        const toleranceInputField = Element("input", {
-            id: `toleranceID`, value: filterTolerance,
-            size: 10, style: "text-align:right;",
-        }, []);
-        toleranceInputField.addEventListener("keydown", (e) => {
-            filterTolerance = toleranceInputField.value;
-            update();
-        });
-        return [urlInput, " Hiding: ±", toleranceInputField, unitText, " ", submitButton];
-    } else {
-        return [urlInput, " ", submitButton];
-    }
+    const toleranceInputField = Element("input", {
+        id: `toleranceID`, value: filterTolerance,
+        size: 10, style: "text-align:right;",
+    }, []);
+    toleranceInputField.addEventListener("change", (e) => {
+        filterTolerance = toleranceInputField.value;
+        update();
+    });
+
+    return [
+        urlInput,
+        unitText && [" Hiding: ±", toleranceInputField, unitText],
+        " ", submitButton
+    ];
 }
 
 function buildCompareForm(jsonData) {
@@ -278,7 +291,6 @@ function buildCompareForm(jsonData) {
 
     let radioButtons = [];
     for (let [i, stateInfo] of Object.entries(radioStates)) {
-        let stateInfo = radioStates[i]
         let radioElt = Element("input", {
             name: formName, id: "compare-" + i,
             type: "radio",
@@ -286,7 +298,7 @@ function buildCompareForm(jsonData) {
         }, []);
         radioElt.addEventListener("click", (e) => {
             radioState = i;
-            update(jsonData);
+            update();
         });
 
         let labelElt = Element("label", [radioElt, stateInfo.title]);
@@ -296,7 +308,7 @@ function buildCompareForm(jsonData) {
     const hideEqual = buildCheckboxLabel("hide-equal", "Hide equal", hideDirtyEqual)
     hideEqual.addEventListener("click", (e) => {
         hideDirtyEqual = !hideDirtyEqual
-        update(jsonData)
+        update()
     })
 
     return Element("form", {}, [radioButtons, " ", hideEqual]);
@@ -383,7 +395,7 @@ function buildBody(jsonData, otherJsonData) {
                 sortState.key = stringName;
                 sortState.dir = true;
             }
-            update(jsonData);
+            update();
         })
         return textElement
     }
@@ -623,7 +635,7 @@ function buildControls(jsonData, diffCount) {
     const showing = diffCount + "/" + jsonData.tests.length;
     var displayingDiv = Element("div", [
         "Displaying " + showing + " benchmarks",
-        " on ", Element("code", resultsJsonData.branch),
+        " on ", Element("code", jsonData.branch),
         otherJsonData && [
             ", compared with baseline ", Element("code", otherJsonData.branch),
         ],
@@ -644,7 +656,7 @@ function buildFilterGroup(jsonData, name, childStateNames) {
         for (let filterName of subFilters) {
             filterState[filterName] = e.target.checked;
         }
-        update(jsonData);
+        update();
     });
     return label;
 }
@@ -663,7 +675,7 @@ function buildFilterControls(jsonData) {
         const button = buildCheckboxLabel(f + " sub-filter", name, filterState[f])
         button.addEventListener("click", () => {
             filterState[f] = button.querySelector("input").checked
-            update(resultsJsonData)
+            update()
         })
         filterButtons.push(button)
     }
@@ -675,7 +687,7 @@ function buildFilterControls(jsonData) {
     ]);
     dropDown.addEventListener("input", (e) => {
         filterBySuite = dropDown.value ?? "";
-        update(resultsJsonData);
+        update();
     });
 
     const dropDown2 = Element("select", [
@@ -685,7 +697,7 @@ function buildFilterControls(jsonData) {
     ]);
     dropDown2.addEventListener("input", (e) => {
         filterByWarning = dropDown2.value ?? "";
-        update(resultsJsonData);
+        update();
     });
 
     let groupButtons = [];
@@ -713,12 +725,6 @@ function eitherOr(baselineRow, diffRow, singleFunction, pairFunctions) {
     } else {
         pairFunctions()
     }
-}
-
-function update(jsonData, otherJsonData) {
-    // capture current global filter state
-    let bodyNode = document.querySelector("body");
-    bodyNode.replaceChildren.apply(bodyNode, buildBody(jsonData, otherJsonData));
 }
 
 function showGetJsonError(error) {
@@ -869,7 +875,7 @@ function makeFilterFunction() {
     }
 }
 
-async function fetchAndUpdate(jsonData) {
+async function fetchAndUpdate() {
     if (compareAgainstURL) {
         // Could also split string on / and check if the last component = "results.json"
         var url = compareAgainstURL
@@ -883,17 +889,17 @@ async function fetchAndUpdate(jsonData) {
         const json = await response.json()
         if (json.error) {
             otherJsonData = null
-            update(jsonData)
+            update()
             return
         }
         for (let test of json.tests) {
             diffAgainstFields[`${test.name}`] = test
         }
         otherJsonData = json
-        update(jsonData)
+        update()
     } else {
         otherJsonData = null
-        update(jsonData)
+        update()
     }
 }
 
@@ -926,15 +932,7 @@ function storeBenchmarks(tests) {
     }
     allSuites = Object.keys(tempDir);
     allWarnings = Object.keys(tempAllWarnings);
-    update(resultsJsonData, otherJsonData);
+    update();
 }
-
-const htmlNode = document.querySelector("html")
-var bodyNode = htmlNode.querySelector("body")
-
-var compareAgainstURL = ""
-var diffAgainstFields = {}
-var otherJsonData = null
-var resultsJsonData = null
 
 getResultsJson()

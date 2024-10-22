@@ -37,13 +37,17 @@
   (integer-bytes->integer (real->floating-point-bytes x 4) #f #f))
 
 (define (float32->ordinal x)
-  (if (negative? x) (- (float32->bit-field (- x))) (float32->bit-field (abs x))))
+  (if (negative? x)
+      (- (float32->bit-field (- x)))
+      (float32->bit-field (abs x))))
 
 (define (bit-field->float32 x)
   (->float32 (floating-point-bytes->real (integer->integer-bytes x 4 #f #f) #f)))
 
 (define (ordinal->float32 x)
-  (if (negative? x) (- (bit-field->float32 (- x))) (bit-field->float32 x)))
+  (if (negative? x)
+      (- (bit-field->float32 (- x)))
+      (bit-field->float32 x)))
 
 (define (float32-step x n)
   (ordinal->float32 (+ (float32->ordinal x) n)))

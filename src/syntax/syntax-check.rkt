@@ -52,6 +52,11 @@
       [#`(! #,props ... #,body)
        (check-properties* props '() error! deprecated-ops)
        (loop body vars)]
+      [#`(cast #,arg) (loop arg vars)]
+      [#`(cast #,args ...)
+       (error! stx "Invalid `cast` expression with ~a arguments (expects 1)" (length args))
+       (unless (null? args)
+         (loop (first args) vars))]
       [#`(,(? (curry set-member? '(+ * and or))) #,args ...)
        ;; Variary (minimum 0 arguments)
        (for ([arg args])
@@ -152,14 +157,20 @@
 (define (check-program* stx vars props body error!)
   (unless (list? vars)
     (error! stx "Invalid arguments list ~a; must be a list" stx))
-  (define vars* (filter identifier? vars))
-  (when (list? vars)
-    (for ([var vars]
-          #:unless (identifier? var))
-      (error! stx "Argument ~a is not a variable name" var))
-    (when (check-duplicate-identifier vars*)
-      (error! stx "Duplicate argument name ~a" (check-duplicate-identifier vars*))))
   (define deprecated-ops (mutable-set))
+  (define vars*
+    (reap [sow]
+          (when (list? vars)
+            (for ([var (in-list vars)])
+              (match var
+                [(? identifier? x) (sow var)]
+                [#`(! #,props ... #,name)
+                 (check-properties* props (immutable-bound-id-set '()) error! deprecated-ops)
+                 (cond
+                   [(identifier? name) (sow name)]
+                   [else (error! var "Annotated argument ~a is not a variable name" name)])])))))
+  (when (check-duplicate-identifier vars*)
+    (error! stx "Duplicate argument name ~a" (check-duplicate-identifier vars*)))
   (check-properties* props (immutable-bound-id-set vars*) error! deprecated-ops)
   (check-expression* body (immutable-bound-id-set vars*) error! deprecated-ops)
   (for ([op (in-set deprecated-ops)])
@@ -181,7 +192,12 @@
   (define errs
     (reap [sow]
           (define (error! stx fmt . args)
-            (define args* (map (λ (x) (if (syntax? x) (syntax->datum x) x)) args))
+            (define args*
+              (map (λ (x)
+                     (if (syntax? x)
+                         (syntax->datum x)
+                         x))
+                   args))
             (sow (cons stx (apply format fmt args*))))
           (check-fpcore* stx error!)))
   (unless (null? errs)
@@ -196,7 +212,12 @@
   (define (get-errs stx)
     (reap [sow]
           (define (error! stx fmt . args)
-            (define args* (map (λ (x) (if (syntax? x) (syntax->datum x) x)) args))
+            (define args*
+              (map (λ (x)
+                     (if (syntax? x)
+                         (syntax->datum x)
+                         x))
+                   args))
             (sow (cons stx (apply format fmt args*))))
           (check-fpcore* stx error!)))
 

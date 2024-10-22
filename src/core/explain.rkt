@@ -21,12 +21,17 @@
 (define *top-3* (make-parameter #f))
 
 (define (take-top-n lst)
-  (if (*top-3*) (take-n 3 lst) lst))
+  (if (*top-3*)
+      (take-n 3 lst)
+      lst))
 
 (define (take-n n lst)
   (match lst
     ['() '()]
-    [(cons x xs) (if (= n 0) '() (cons x (take-n (- n 1) xs)))]))
+    [(cons x xs)
+     (if (= n 0)
+         '()
+         (cons x (take-n (- n 1) xs)))]))
 
 (define (constant? expr)
   (cond
@@ -35,10 +40,16 @@
     [else #t]))
 
 (define (actual-errors expr pcontext)
-  (match-define (cons subexprs pt-errorss)
+
+  (define errs
     (parameterize ([*pcontext* pcontext])
-      (flip-lists (hash->list (first (compute-local-errors (list (all-subexpressions expr))
-                                                           (*context*)))))))
+      (first (compute-local-errors (list (all-subexpressions expr)) (*context*)))))
+
+  (define pruned (make-hash))
+  (for ([(k v) (in-hash errs)])
+    (hash-set! pruned k (hash-ref v 'errs)))
+  (define idk (flip-lists (hash->list pruned)))
+  (match-define (cons subexprs pt-errorss) idk)
 
   (define pt-worst-subexpr
     (append* (reap [sow]

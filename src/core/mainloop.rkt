@@ -19,7 +19,8 @@
          "preprocess.rkt"
          "programs.rkt"
          "../utils/timeline.rkt"
-         "soundiness.rkt")
+         "soundiness.rkt"
+         "batch.rkt")
 (provide run-improve!)
 
 ;; The Herbie main loop goes through a simple iterative process:
@@ -220,7 +221,7 @@
 
 ;; Converts a patch to full alt with valid history
 (define (reconstruct! alts)
-  ;; extracts the base expression of a patch
+  ;; extracts the base expressions of a patch as a batchref
   (define (get-starting-expr altn)
     (match* ((alt-event altn) (alt-prevs altn))
       [((list 'patch expr _) _) expr]
@@ -239,19 +240,16 @@
              [(list 'taylor name var) (list 'taylor loc0 name var)]
              [(list 'rr input proof soundiness) (list 'rr loc0 input proof soundiness)]
              [(list 'simplify input proof soundiness) (list 'simplify loc0 input proof soundiness)]))
-         (define expr* (location-do loc0 (alt-expr orig) (const (alt-expr altn))))
+         (define expr* (location-do loc0 (alt-expr orig) (const (debatchref (alt-expr altn)))))
          (alt expr* event* (list (loop (first prevs))) (alt-preprocessing orig))])))
 
   (^patched^ (reap [sow]
                    (for ([altn (in-list alts)]) ;; does not have preproc
                      (define start-expr (get-starting-expr altn))
-                     (if start-expr
-                         (for ([full-altn (in-list (^next-alts^))])
-                           (define expr (alt-expr full-altn))
-                           (for ([loc (in-list (get-locations expr start-expr))])
-                             (sow (reconstruct-alt altn loc full-altn))))
-                         ; altn is a full alt (probably iter 0 simplify)
-                         (sow altn)))))
+                     (for ([full-altn (in-list (^next-alts^))])
+                       (define expr (alt-expr full-altn))
+                       (for ([loc (in-list (get-locations expr start-expr))])
+                         (sow (reconstruct-alt altn loc full-altn)))))))
 
   (void))
 
@@ -374,15 +372,17 @@
      ; egg runner
      (define exprs (map alt-expr alts))
      (define reprs (map (lambda (expr) (repr-of expr (*context*))) exprs))
-     (define runner (make-egg-runner exprs reprs schedule))
+     (define batch (progs->batch exprs))
+     (define runner (make-egg-runner batch (batch-roots batch) reprs schedule))
 
      ; run egg
      (define simplified
-       (map last
+       (map (compose debatchref last)
             (simplify-batch runner
-                            (typed-egg-extractor (if (*egraph-platform-cost*)
-                                                     platform-egg-cost-proc
-                                                     default-egg-cost-proc)))))
+                            (typed-egg-batch-extractor (if (*egraph-platform-cost*)
+                                                           platform-egg-cost-proc
+                                                           default-egg-cost-proc)
+                                                       batch))))
 
      ; de-duplication
      (remove-duplicates (for/list ([altn (in-list alts)]

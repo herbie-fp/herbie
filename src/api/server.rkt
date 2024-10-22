@@ -112,9 +112,9 @@
 (define (job-count)
   (define-values (a b) (place-channel))
   (place-channel-put manager (list 'count b))
-  (define count (place-channel-get a))
-  (log "Current job count: ~a.\n" count)
-  count)
+  (define job-list (place-channel-get a))
+  (log "Currently ~a jobs in progress, ~a jobs in queue." (first job-list) (second job-list))
+  (apply + job-list))
 
 ;; Starts a job for a given command object|
 (define (start-job command)
@@ -237,10 +237,12 @@
           (log "Starting worker [~a] on [~a].\n"
                (work-item-id job)
                (test-name (herbie-command-test (work-item-command job))))
-          (hash-set! current-jobs (work-item-id job) wid)
-          (place-channel-put worker (list 'apply self (work-item-command job) (work-item-id job)))
-          (hash-set! reassigned wid worker)
-          (hash-set! busy-workers wid worker))
+          ; Check if the job is already in progress.
+          (unless (hash-has-key? current-jobs (work-item-id job))
+            (hash-set! current-jobs (work-item-id job) wid)
+            (place-channel-put worker (list 'apply self (work-item-command job) (work-item-id job)))
+            (hash-set! reassigned wid worker)
+            (hash-set! busy-workers wid worker)))
         ; remove X many jobs from the Q and update waiting-workers
         (for ([(wid worker) (in-hash reassigned)])
           (hash-remove! waiting-workers wid)
@@ -290,7 +292,9 @@
        [(list 'check job-id handler)
         (place-channel-put handler (if (hash-has-key? completed-work job-id) job-id #f))]
        ; Returns the current count of working workers.
-       [(list 'count handler) (place-channel-put handler (hash-count busy-workers))]
+       [(list 'count handler)
+        (log "Count requested\n")
+        (place-channel-put handler (list (hash-count busy-workers) (length job-queue)))]
        ; Retreive the improve results for results.json
        [(list 'improve handler)
         (define improved-list
@@ -347,7 +351,7 @@
       ['errors (make-error-result herbie-result job-id)]
       ['exacts (make-exacts-result herbie-result job-id)]
       ['improve (make-improve-result herbie-result test job-id)]
-      ['local-error (make-local-error-result herbie-result test job-id)]
+      ['local-error (make-local-error-result herbie-result job-id)]
       ['explanations (make-explanation-result herbie-result job-id)]
       ['sample (make-sample-result herbie-result test job-id)]
       [_ (error 'compute-result "unknown command ~a" kind)]))
@@ -365,25 +369,15 @@
           'path
           (make-path job-id)))
 
-(define (make-local-error-result herbie-result test job-id)
-  (define expr (prog->fpcore (test-input test) (test-context test)))
-  (define local-error (job-result-backend herbie-result))
-  ;; TODO: potentially unsafe if resugaring changes the AST
-  (define tree
-    (let loop ([expr expr]
-               [err local-error])
-      (match expr
-        [(list op args ...)
-         ;; err => (List (listof Integer) List ...)
-         (hasheq 'e
-                 (~a op)
-                 'avg-error
-                 (format-bits (errors-score (first err)))
-                 'children
-                 (map loop args (rest err)))]
-        ;; err => (List (listof Integer))
-        [_ (hasheq 'e (~a expr) 'avg-error (format-bits (errors-score (first err))) 'children '())])))
-  (hasheq 'command (get-command herbie-result) 'tree tree 'job job-id 'path (make-path job-id)))
+(define (make-local-error-result herbie-result job-id)
+  (hasheq 'command
+          (get-command herbie-result)
+          'tree
+          (job-result-backend herbie-result)
+          'job
+          job-id
+          'path
+          (make-path job-id)))
 
 (define (make-sample-result herbie-result test job-id)
   (define pctx (job-result-backend herbie-result))

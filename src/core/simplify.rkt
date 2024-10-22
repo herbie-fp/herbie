@@ -6,7 +6,8 @@
          "../utils/errors.rkt"
          "rules.rkt"
          "../utils/alternative.rkt"
-         "egg-herbie.rkt")
+         "egg-herbie.rkt"
+         "batch.rkt")
 
 (provide simplify-batch)
 
@@ -19,17 +20,17 @@
 ;; the last expression is the simplest unless something went wrong due to unsoundness
 ;; if the input specifies proofs, it instead returns proofs for these expressions
 (define/contract (simplify-batch runner extractor)
-  (-> egg-runner? procedure? (listof (listof expr?)))
-  (timeline-push! 'inputs (map ~a (egg-runner-exprs runner)))
+  (-> egg-runner? procedure? (listof (listof batchref?)))
+  (timeline-push! 'inputs (map ~a (batch->progs (egg-runner-batch runner) (egg-runner-roots runner))))
   (timeline-push! 'method "egg-herbie")
-
   (define simplifieds (run-egg runner (cons 'single extractor)))
   (define out
-    (for/list ([simplified simplifieds]
-               [expr (egg-runner-exprs runner)])
-      (remove-duplicates (cons expr simplified))))
+    (for/list ([simplified (in-list simplifieds)]
+               [root (egg-runner-roots runner)])
+      (remove-duplicates (cons (batchref (egg-runner-batch runner) root) simplified)
+                         #:key batchref-idx)))
 
-  (timeline-push! 'outputs (map ~a (apply append out)))
+  (timeline-push! 'outputs (map (compose ~a debatchref) (apply append out)))
   out)
 
 (module+ test
@@ -48,12 +49,14 @@
                 (string-append "Rule failed: " (symbol->string (rule-name rule)))))
 
   (define (test-simplify . args)
+    (define batch (progs->batch args))
     (define runner
-      (make-egg-runner args
+      (make-egg-runner batch
+                       (batch-roots batch)
                        (map (lambda (_) 'real) args)
                        `((,(*simplify-rules*) . ((node . ,(*node-limit*)))))))
-    (define extractor (typed-egg-extractor default-egg-cost-proc))
-    (map last (simplify-batch runner extractor)))
+    (define extractor (typed-egg-batch-extractor default-egg-cost-proc batch))
+    (map (compose debatchref last) (simplify-batch runner extractor)))
 
   (define test-exprs
     '((1 . 1) (0 . 0)

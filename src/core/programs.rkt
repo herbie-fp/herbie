@@ -2,7 +2,8 @@
 
 (require "../syntax/syntax.rkt"
          "../syntax/types.rkt"
-         "../utils/common.rkt")
+         "../utils/common.rkt"
+         (only-in "batch.rkt" batch-nodes))
 
 (provide expr?
          expr-contains?
@@ -12,6 +13,7 @@
          spec-prog?
          impl-prog?
          repr-of
+         repr-of-node
          location-do
          location-get
          free-variables
@@ -30,6 +32,16 @@
     [(? variable?) (context-lookup ctx expr)]
     [(approx _ impl) (repr-of impl ctx)]
     [(list 'if cond ift iff) (repr-of ift ctx)]
+    [(list op args ...) (impl-info op 'otype)]))
+
+; Index inside (batch-nodes batch) -> type
+(define (repr-of-node batch idx ctx)
+  (define node (vector-ref (batch-nodes batch) idx))
+  (match node
+    [(? literal?) (get-representation (literal-precision node))]
+    [(? variable?) (context-lookup ctx node)]
+    [(approx _ impl) (repr-of-node batch impl ctx)]
+    [(list 'if cond ift iff) (repr-of-node batch ift ctx)]
     [(list op args ...) (impl-info op 'otype)]))
 
 (define (expr-contains? expr pred)
@@ -56,7 +68,9 @@
               [(list _ args ...)
                (for ([arg args])
                  (loop arg))]))))
-  (remove-duplicates (if reverse? (reverse subexprs) subexprs)))
+  (remove-duplicates (if reverse?
+                         (reverse subexprs)
+                         subexprs)))
 
 (define (ops-in-expr expr)
   (remove-duplicates (filter-map (lambda (e) (and (pair? e) (first e))) (all-subexpressions expr))))
@@ -96,12 +110,16 @@
           (if (null? a)
               0
               (let ([cmp (expr-cmp (car a) (car b))])
-                (if (zero? cmp) (loop (cdr a) (cdr b)) cmp))))])]
+                (if (zero? cmp)
+                    (loop (cdr a) (cdr b))
+                    cmp))))])]
     [((? list?) _) 1]
     [(_ (? list?)) -1]
     [((? approx?) (? approx?))
      (define cmp-spec (expr-cmp (approx-spec a) (approx-spec b)))
-     (if (zero? cmp-spec) (expr-cmp (approx-impl a) (approx-impl b)) cmp-spec)]
+     (if (zero? cmp-spec)
+         (expr-cmp (approx-impl a) (approx-impl b))
+         cmp-spec)]
     [((? approx?) _) 1]
     [(_ (? approx?)) -1]
     [((? symbol?) (? symbol?))

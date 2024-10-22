@@ -13,7 +13,8 @@
          "programs.rkt"
          "points.rkt"
          "../utils/timeline.rkt"
-         "../utils/float.rkt")
+         "../utils/float.rkt"
+         "batch.rkt")
 
 (provide find-preprocessing
          preprocess-pcontext
@@ -66,20 +67,23 @@
       (,lowering-rules . ((iteration . 1) (scheduler . simple)))))
 
   ; egg query
-  (define runner (make-egg-runner (list expr) (list (context-repr ctx)) schedule))
+  (define batch (progs->batch (list expr)))
+  (define runner (make-egg-runner batch (batch-roots batch) (list (context-repr ctx)) schedule))
 
   ; run egg
   (define simplified
     (simplify-batch runner
-                    (typed-egg-extractor
-                     (if (*egraph-platform-cost*) platform-egg-cost-proc default-egg-cost-proc))))
+                    (typed-egg-batch-extractor
+                     (if (*egraph-platform-cost*) platform-egg-cost-proc default-egg-cost-proc)
+                     batch)))
 
   ; alternatives
   (define start-alt (make-alt expr))
   (cons start-alt
-        (remove-duplicates (for/list ([expr (rest simplified)])
-                             (alt expr `(simplify () ,runner #f #f) (list start-alt) '()))
-                           alt-equal?)))
+        (remove-duplicates
+         (for/list ([batchreff (rest simplified)])
+           (alt (debatchref batchreff) `(simplify () ,runner #f #f) (list start-alt) '()))
+         alt-equal?)))
 
 ;; See https://pavpanchekha.com/blog/symmetric-expressions.html
 (define (find-preprocessing init expr ctx)
@@ -100,8 +104,11 @@
 
   ;; make egg runner
   (define rules (real-rules (*simplify-rules*)))
+
+  (define batch (progs->batch specs))
   (define runner
-    (make-egg-runner specs
+    (make-egg-runner batch
+                     (batch-roots batch)
                      (map (lambda (_) (context-repr ctx)) specs)
                      `((,rules . ((node . ,(*node-limit*)))))))
 
