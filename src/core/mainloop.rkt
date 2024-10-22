@@ -204,21 +204,6 @@
   (^locs^ localized-exprs)
   (void))
 
-;; Returns the locations of `subexpr` within `expr`
-(define (get-locations expr subexpr)
-  (reap [sow]
-        (let loop ([expr expr]
-                   [loc '()])
-          (match expr
-            [(== subexpr) (sow (reverse loc))]
-            [(? literal?) (void)]
-            [(? symbol?) (void)]
-            [(approx _ impl) (loop impl (cons 2 loc))]
-            [(list _ args ...)
-             (for ([arg (in-list args)]
-                   [i (in-naturals 1)])
-               (loop arg (cons i loc)))]))))
-
 ;; Converts a patch to full alt with valid history
 (define (reconstruct! alts)
   ;; extracts the base expressions of a patch as a batchref
@@ -333,8 +318,8 @@
     (timeline-push! 'fperrors expr truth opreds oex upreds uex))
 
   (for ([explanation (in-list explanations-table)])
-    (match-define (list op expr expl val maybe-count flow-list) explanation)
-    (timeline-push! 'explanations op expr expl val maybe-count flow-list))
+    (match-define (list op expr expl val maybe-count flow-list locations) explanation)
+    (timeline-push! 'explanations op expr expl val maybe-count flow-list locations))
 
   (timeline-push! 'confusion confusion-matrix)
 
