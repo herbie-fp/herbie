@@ -381,7 +381,6 @@
                                  (match-define (list ex type v) flow)
                                  `(tr (td "↳") (td (code ,(~a ex))) (td ,type) (td ,(~a v))))))))))))
 
-
 (define (render-phase-confusion confusion-matrix)
   (match-define (list (list true-pos false-neg false-pos true-neg)) confusion-matrix)
   `((dt "Confusion") (dd (table ((class "times"))
