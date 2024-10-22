@@ -23,12 +23,8 @@
                (script ([src ,(if info "report.js" "../report.js")])))
          (body ,(render-menu (~a name)
                              #:path path
-                             (if info
-                                 `(("Report" . "index.html"))
-                                 `(("Details" . "graph.html"))))
-               ,(if info
-                    (render-about info)
-                    "")
+                             (if info `(("Report" . "index.html")) `(("Details" . "graph.html"))))
+               ,(if info (render-about info) "")
                ,(render-timeline timeline)
                ,(render-profile))))
 
@@ -87,9 +83,7 @@
             ,@(dict-call curr render-phase-bogosity 'bogosity))))
 
 (define (if-cons test x l)
-  (if test
-      (cons x l)
-      l))
+  (if test (cons x l) l))
 
 (define (dict-call d f #:default [default '()] #:extra [extra (void)] . args)
   (if (andmap (curry dict-has-key? d) args)
@@ -346,58 +340,48 @@
                                             (match-define (list expr tcount opred oex upred uex) rec)
                                             `(tr (td ,(~a tcount))
                                                  (td ,(~a opred))
-                                                 (td ,(if oex
-                                                          (~a oex)
-                                                          "-"))
+                                                 (td ,(if oex (~a oex) "-"))
                                                  (td ,(~a upred))
-                                                 (td ,(if uex
-                                                          (~a uex)
-                                                          "-"))
-                                                 (td ,(if expr
-                                                          `(code ,expr)
-                                                          "No Errors")))))))))
+                                                 (td ,(if uex (~a uex) "-"))
+                                                 (td ,(if expr `(code ,expr) "No Errors")))))))))
 
 (define (render-phase-explanations explanations)
   `((dt "Explanations")
-    (dd
-     (details
-      (summary "Click to see full explanations table")
-      (table
-       ((class "times"))
-       (thead
-        (tr (th "Operator") (th "Subexpression") (th "Explanation") (th "Count") (th "Locations")))
-       ,@
-       (append*
-        (for/list ([rec (in-list (sort explanations > #:key fourth))])
-          (match-define (list op expr expl cnt mcnt flows locations) rec)
+    (dd (details
+         (summary "Click to see full explanations table")
+         (table
+          ((class "times"))
+          (thead
+           (tr (th "Operator") (th "Subexpression") (th "Explanation") (th "Count") (th "Locations")))
+          ,@(append* (for/list ([rec (in-list (sort explanations > #:key fourth))])
+                       (match-define (list op expr expl cnt mcnt flows locations) rec)
 
-          (define safe-locations (or locations '())) ;; Fallback to empty list if locations is #f
+                       (define safe-locations
+                         (or locations '())) ;; Fallback to empty list if locations is #f
 
-          (append (list `(tr (td (code ,(~a op)))
-                                  (td (code ,(~a expr)))
-                                  (td (b ,(~a expl)))
-                                  (td ,(~a cnt))
-                                  (td ,(~a mcnt))
-                                  (td ,(~a safe-locations))))
-                             (for/list ([flow (in-list (or flows '()))])
-                               (match-define (list ex type v) flow)
-                               `(tr (td "↳") (td (code ,(~a ex))) (td ,type) (td ,(~a v))))))))))))
-
+                       (append (list `(tr (td (code ,(~a op)))
+                                          (td (code ,(~a expr)))
+                                          (td (b ,(~a expl)))
+                                          (td ,(~a cnt))
+                                          (td ,(~a mcnt))
+                                          (td ,(~a safe-locations))))
+                               (for/list ([flow (in-list (or flows '()))])
+                                 (match-define (list ex type v) flow)
+                                 `(tr (td "↳") (td (code ,(~a ex))) (td ,type) (td ,(~a v))))))))))))
 
 (define (render-phase-confusion confusion-matrix)
   (match-define (list (list true-pos false-neg false-pos true-neg)) confusion-matrix)
-  `((dt "Confusion") (dd (table ((class "times"))
-                                (tr (th "") (th "Predicted +") (th "Predicted -"))
-                                (tr (th "+") (td ,(~a true-pos)) (td ,(~a false-neg)))
-                                (tr (th "-") (td ,(~a false-pos)) (td ,(~a true-neg)))))
-                     (dt "Precision")
-                     (dd ,(if (= true-pos false-pos 0)
-                              "0/0"
-                              (~a (exact->inexact (/ true-pos (+ true-pos false-pos))))))
-                     (dt "Recall")
-                     (dd ,(if (= true-pos false-neg 0)
-                              "0/0"
-                              (~a (exact->inexact (/ true-pos (+ true-pos false-neg))))))))
+  `((dt "Confusion")
+    (dd (table ((class "times"))
+               (tr (th "") (th "Predicted +") (th "Predicted -"))
+               (tr (th "+") (td ,(~a true-pos)) (td ,(~a false-neg)))
+               (tr (th "-") (td ,(~a false-pos)) (td ,(~a true-neg)))))
+    (dt "Precision")
+    (dd
+     ,(if (= true-pos false-pos 0) "0/0" (~a (exact->inexact (/ true-pos (+ true-pos false-pos))))))
+    (dt "Recall")
+    (dd
+     ,(if (= true-pos false-neg 0) "0/0" (~a (exact->inexact (/ true-pos (+ true-pos false-neg))))))))
 
 (define (render-phase-maybe-confusion confusion-matrix)
   (match-define (list (list true-pos true-maybe false-neg false-pos false-maybe true-neg))
