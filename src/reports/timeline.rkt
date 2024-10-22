@@ -361,25 +361,24 @@
   `((dt "Explanations")
     (dd (details
          (summary "Click to see full explanations table")
-         (table
-          ((class "times"))
-          (thead
-           (tr (th "Operator") (th "Subexpression") (th "Explanation") (th "Count")))
-          ,@(append* (for/list ([rec (in-list (sort explanations > #:key fourth))])
-                       (match-define (list op expr expl cnt mcnt flows locations) rec)
+         (table ((class "times"))
+                (thead (tr (th "Operator") (th "Subexpression") (th "Explanation") (th "Count")))
+                ,@(append*
+                   (for/list ([rec (in-list (sort explanations > #:key fourth))])
+                     (match-define (list op expr expl cnt mcnt flows locations) rec)
 
-                       (define safe-locations
-                         (or locations '())) ;; Fallback to empty list if locations is #f
+                     (define safe-locations
+                       (or locations '())) ;; Fallback to empty list if locations is #f
 
-                       (append (list `(tr (td (code ,(~a op)))
-                                          (td (code ,(~a expr)))
-                                          (td (b ,(~a expl)))
-                                          (td ,(~a cnt))
-                                          (td ,(~a mcnt))
-                                          (td ,(~a safe-locations))))
-                               (for/list ([flow (in-list (or flows '()))])
-                                 (match-define (list ex type v) flow)
-                                 `(tr (td "↳") (td (code ,(~a ex))) (td ,type) (td ,(~a v))))))))))))
+                     (append (list `(tr (td (code ,(~a op)))
+                                        (td (code ,(~a expr)))
+                                        (td (b ,(~a expl)))
+                                        (td ,(~a cnt))
+                                        (td ,(~a mcnt))
+                                        (td ,(~a safe-locations))))
+                             (for/list ([flow (in-list (or flows '()))])
+                               (match-define (list ex type v) flow)
+                               `(tr (td "↳") (td (code ,(~a ex))) (td ,type) (td ,(~a v))))))))))))
 
 (define (render-phase-confusion confusion-matrix)
   (match-define (list (list true-pos false-neg false-pos true-neg)) confusion-matrix)

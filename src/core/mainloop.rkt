@@ -204,7 +204,6 @@
   (^locs^ localized-exprs)
   (void))
 
-
 ;; Converts a patch to full alt with valid history
 (define (reconstruct! alts)
   ;; extracts the base expressions of a patch as a batchref
