@@ -233,3 +233,35 @@ Figure 7 corresponds to `hamming-1/c-pareto.pdf` (left)
   and `mathematics-1/c-pareto.pdf` (right).
 Figure 8 corresponds to `baseline-pareto2.pdf`.
 Figure 9 corresponds to `cost-vs-time.pdf`.
+
+Since this evaluation measures real running time,
+  you should expect to see a deviation in results
+  from the figures in the paper.
+To demonstrate this variance,
+  we ran our evaluation on other machines
+  and plotted the results;
+  the figures and specs for each machine are provided below.
+The first row of each table are
+  the figures from the submitted version
+  of the paper.
+
+### Figure 7
+
+| OS | CPU | RAM (GB) | NMSE | Mathematics |
+|--|--|--|--|--|
+| Ubuntu 20.04.6 LTS | AMD EPYC 7702P | 512 | ![Figure 7](./infra/figures/config-1/clang-comparison-hamming.jpg) | ![Figure 7](./infra/figures/config-1/clang-comparison-mathematics.jpg) |
+| Ubuntu 22.04.2 LTS | Intel i5-8279U | 16 | ![Figure 7](./infra/figures/config-2/hamming-c-pareto.jpg) | ![Figure 7](./infra/figures/config-2/mathematics-c-pareto.jpg) |
+
+### Figure 8
+
+| OS | CPU | RAM (GB) | Figure 8 |
+|--|--|--|--|
+| Ubuntu 20.04.6 LTS | AMD EPYC 7702P | 512 | ![Figure 8](./infra/figures/config-1/herbie-comparison.jpg) |
+| Ubuntu 22.04.2 LTS | Intel i5-8279U | 16 | ![Figure 8](./infra/figures/config-2/baseline-pareto2.jpg) |
+
+### Figure 9
+
+| OS | CPU | RAM (GB) | Figure 9 |
+|--|--|--|--|
+| Ubuntu 20.04.6 LTS | AMD EPYC 7702P | 512 | ![Figure 9](./infra/figures/config-1/cost-vs-time.jpg) |
+| Ubuntu 22.04.2 LTS | Intel i5-8279U | 16 | ![Figure 9](./infra/figures/config-2/cost-vs-time.jpg) |
