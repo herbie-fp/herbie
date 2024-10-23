@@ -365,7 +365,7 @@
                 (thead (tr (th "Operator") (th "Subexpression") (th "Explanation") (th "Count")))
                 ,@(append*
                    (for/list ([rec (in-list (sort explanations > #:key fourth))])
-                     (match-define (list op expr expl cnt mcnt flows) rec)
+                     (match-define (list op expr expl cnt mcnt flows locations) rec)
 
                      (append (list `(tr (td (code ,(~a op)))
                                         (td (code ,(~a expr)))
