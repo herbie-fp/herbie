@@ -132,11 +132,10 @@
     (define arity (length (impl-info impl 'itype)))
     (define typed-name (string-append (symbol->string (serialize-impl impl)) "Ty"))
     (hash-set! egglog->id typed-name impl)
-    `(,typed-name
-      ,@(for/list ([i (in-range arity)])
-          'MTy)
-      :cost
-      ,(platform-impl-cost pform impl))))
+    `(,typed-name ,@(for/list ([i (in-range arity)])
+                      'MTy)
+                  :cost
+                  ,(platform-impl-cost pform impl))))
 
 (define (num-typed-nodes pform)
   (for/list ([repr (in-list (all-repr-names))]
@@ -214,6 +213,6 @@
 (define (expr->egglog-expr expr)
   (let loop ([expr expr])
     (match expr
-     [(? number?) `(Num (Rational ,expr 1))]
-     [(? symbol?) `(Var ,(symbol->string expr))]
-     [(list op args) `(,(hash-ref id->egglog op) ,@(map loop args))])))
+      [(? number?) `(Num (Rational ,expr 1))]
+      [(? symbol?) `(Var ,(symbol->string expr))]
+      [(list op args) `(,(hash-ref id->egglog op) ,@(map loop args))])))
