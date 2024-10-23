@@ -208,7 +208,7 @@
   (string->symbol (string-append (symbol->string (serialize-op op)) type)))
 
 (define (rule->egglog-rule ru)
-  (define lhs (expr->egglog-expr (rule-input ru))))
+  '() ) ; TODO
 
 (define (expr->egglog-expr expr)
   (let loop ([expr expr])
