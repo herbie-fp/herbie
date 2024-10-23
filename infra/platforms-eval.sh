@@ -43,6 +43,15 @@ else
   echo "Starting at seed $START_SEED"
 fi
 
+# check if AVX should be disabled
+if [ -z "$NO_AVX" ]; then
+  avx_str=""
+else
+  echo "Disabling AVX"
+  avx_str="--no-avx"
+fi
+
+
 echo "Running platforms evaluation"
 date
 
@@ -56,6 +65,7 @@ function run() {
     --parallel $PARALLEL_SEEDS \
     --threads $THREADS \
     --start-seed $START_SEED \
+    $avx_str \
     $bench \
     "$OUTDIR/platforms" \
     $num_runs
@@ -64,6 +74,7 @@ function run() {
 # Run configs
 run $BENCH_DIR/hamming hamming $NUM_SEEDS
 run $BENCH_DIR/mathematics mathematics $NUM_SEEDS
+
 python3 $INFRA_DIR/platforms/cross-plot.py "$OUTDIR/platforms/output"
 
 echo "Finished platforms evaluation"

@@ -250,6 +250,7 @@ def main():
     parser.add_argument('--parallel', help='maximum number of parallel runs [default: 1]', type=int)
     parser.add_argument('--threads', help='maximum number of threads [default: 1]', type=int)
     parser.add_argument('--start-seed', help='first seed to run (sequentially) [default: 1]', type=int)
+    parser.add_argument('--no-avx', help='disable the AVX configuration', action='store_true')
     args = parser.parse_args()
 
     # extract command line arguments
@@ -260,6 +261,11 @@ def main():
     num_parallel: int = args.parallel or default_num_parallel
     num_threads: int = args.threads or default_num_threads
     start_seed: int = args.start_seed or default_start_seed
+    no_avx: bool = args.no_avx
+
+    # disable AVX if needed
+    if no_avx:
+        platforms.remove('avx')
 
     # baseline evaluation
     if 'baseline' in evals:

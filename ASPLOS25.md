@@ -189,6 +189,14 @@ If any of the commands above failed unexpectedly,
 
 ## Running the evaluation
 
+**IMPORTANT**:
+If your system is running on ARM,
+  set the environment variable `NO_AVX` before
+  running the subsequent command.
+```
+export NO_AVX=1
+```
+
 To start the evaluation, run
 ```
 bash infra/platforms-eval.sh reports 1
