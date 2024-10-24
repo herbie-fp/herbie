@@ -112,7 +112,6 @@
                  erf.f32
                  exp.f32
                  exp2.f32
-                 [fabs.f32 64]
                  fdim.f32
                  floor.f32
                  fmax.f32
