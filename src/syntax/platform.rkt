@@ -595,6 +595,17 @@
                           [itype (in-list (impl-info impl 'itype))])
                  (expr->prog arg itype)))]))
 
+(define (impls-supported? expr)
+  (match expr
+    [(? number?) #t]
+    [(? variable?) #t]
+    [`(if ,cond ,ift ,iff) (and (impls-supported? cond)
+                                (impls-supported? ift)
+                                (impls-supported? iff))]
+    [`(,impl ,args ...)
+     (and (set-member? (platform-impls (*active-platform*)) impl)
+          (andmap impls-supported? args))]))
+
 (define (*fp-safe-simplify-rules*)
   (reap [sow]
         (for ([impl (in-list (platform-impls (*active-platform*)))])
@@ -602,9 +613,11 @@
           (for ([identity (in-list rules)])
             (match identity
               [(list 'exact name expr)
-               (when (not (expr-otype expr))
+               
+              (when (impls-supported? expr )
+                (when (not (expr-otype expr))
                  (error "Exact identity expr cannot infer type"))
-               (define otype (expr-otype expr))
+                 (define otype (expr-otype expr))
                (define var-types (type-verify expr otype))
                (define prog (expr->prog expr otype))
                (define r
@@ -614,9 +627,10 @@
                        (for/hash ([binding (in-list var-types)])
                          (values (car binding) (cdr binding)))
                        (impl-info impl 'otype)))
-               (sow r)]
+               (sow r))]
               [(list 'commutes name expr rev-expr)
-               (define vars (impl-info impl 'vars))
+                (when (impls-supported? expr)
+                  (define vars (impl-info impl 'vars))
                (define itype (car (impl-info impl 'itype)))
                (define otype (impl-info impl 'otype))
                (define r
@@ -626,9 +640,11 @@
                        (for/hash ([v (in-list vars)])
                          (values v itype))
                        otype)) ; Commutes by definition the types are matching
-               (sow r)]
+               (sow r))
+               ]
               [(list 'directed name lhs rhs)
-               (define lotype (expr-otype lhs))
+                (when (and (impls-supported? lhs) (impls-supported? rhs))
+                  (define lotype (expr-otype lhs))
                (define rotype (expr-otype rhs))
                (when (and (not lotype) (not rotype))
                  (error "Could not find type for lhs ~a and rhs ~a" lhs rhs))
@@ -646,4 +662,5 @@
                        (for/hash ([binding (in-list var-types)])
                          (values (car binding) (cdr binding)))
                        (impl-info impl 'otype)))
-               (sow r)])))))
+               (sow r))
+               ])))))
