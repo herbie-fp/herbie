@@ -660,11 +660,7 @@
                  [hang-m0-tan-rev (tan (/ (neg a) 2)) (/ (- 1 (cos a)) (neg (sin a)))]
                  [hang-p0-tan-rev (tan (/ a 2)) (/ (- 1 (cos a)) (sin a))]
                  [hang-0m-tan-rev (tan (/ (neg a) 2)) (/ (neg (sin a)) (+ 1 (cos a)))]
-                 [hang-0p-tan-rev (tan (/ a 2)) (/ (sin a) (+ 1 (cos a)))])
-
-(define-ruleset* trig-reduce-expressions-rev
-                 (trigonometry simplify sound)
-                 #:type ([a real] [b real] [x real])
+                 [hang-0p-tan-rev (tan (/ a 2)) (/ (sin a) (+ 1 (cos a)))]
                  [tan-+PI-rev (tan x) (tan (+ x (PI)))]
                  [cos-+PI/2-rev (neg (sin x)) (cos (+ x (/ (PI) 2)))]
                  [sin-+PI/2-rev (cos x) (sin (+ x (/ (PI) 2)))]
