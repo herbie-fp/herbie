@@ -599,12 +599,10 @@
   (match expr
     [(? number?) #t]
     [(? variable?) #t]
-    [`(if ,cond ,ift ,iff) (and (impls-supported? cond)
-                                (impls-supported? ift)
-                                (impls-supported? iff))]
+    [`(if ,cond ,ift ,iff)
+     (and (impls-supported? cond) (impls-supported? ift) (impls-supported? iff))]
     [`(,impl ,args ...)
-     (and (set-member? (platform-impls (*active-platform*)) impl)
-          (andmap impls-supported? args))]))
+     (and (set-member? (platform-impls (*active-platform*)) impl) (andmap impls-supported? args))]))
 
 (define (*fp-safe-simplify-rules*)
   (reap [sow]
@@ -613,54 +611,52 @@
           (for ([identity (in-list rules)])
             (match identity
               [(list 'exact name expr)
-               
-              (when (impls-supported? expr )
-                (when (not (expr-otype expr))
-                 (error "Exact identity expr cannot infer type"))
+
+               (when (impls-supported? expr)
+                 (when (not (expr-otype expr))
+                   (error "Exact identity expr cannot infer type"))
                  (define otype (expr-otype expr))
-               (define var-types (type-verify expr otype))
-               (define prog (expr->prog expr otype))
-               (define r
-                 (rule name
-                       prog
-                       (prog->spec prog)
-                       (for/hash ([binding (in-list var-types)])
-                         (values (car binding) (cdr binding)))
-                       (impl-info impl 'otype)))
-               (sow r))]
+                 (define var-types (type-verify expr otype))
+                 (define prog (expr->prog expr otype))
+                 (define r
+                   (rule name
+                         prog
+                         (prog->spec prog)
+                         (for/hash ([binding (in-list var-types)])
+                           (values (car binding) (cdr binding)))
+                         (impl-info impl 'otype)))
+                 (sow r))]
               [(list 'commutes name expr rev-expr)
-                (when (impls-supported? expr)
-                  (define vars (impl-info impl 'vars))
-               (define itype (car (impl-info impl 'itype)))
-               (define otype (impl-info impl 'otype))
-               (define r
-                 (rule name
-                       (expr->prog expr otype)
-                       (expr->prog rev-expr otype)
-                       (for/hash ([v (in-list vars)])
-                         (values v itype))
-                       otype)) ; Commutes by definition the types are matching
-               (sow r))
-               ]
+               (when (impls-supported? expr)
+                 (define vars (impl-info impl 'vars))
+                 (define itype (car (impl-info impl 'itype)))
+                 (define otype (impl-info impl 'otype))
+                 (define r
+                   (rule name
+                         (expr->prog expr otype)
+                         (expr->prog rev-expr otype)
+                         (for/hash ([v (in-list vars)])
+                           (values v itype))
+                         otype)) ; Commutes by definition the types are matching
+                 (sow r))]
               [(list 'directed name lhs rhs)
-                (when (and (impls-supported? lhs) (impls-supported? rhs))
-                  (define lotype (expr-otype lhs))
-               (define rotype (expr-otype rhs))
-               (when (and (not lotype) (not rotype))
-                 (error "Could not find type for lhs ~a and rhs ~a" lhs rhs))
-               (when (not lotype)
-                 (set! lotype rotype))
-               (when (not rotype)
-                 (set! rotype lotype))
-               (when (not (equal? lotype rotype))
-                 (error "Incompatible types for lhs ~a and rhs ~a" lhs rhs))
-               (define var-types (merge-bindings (type-verify lhs lotype) (type-verify rhs rotype)))
-               (define r
-                 (rule name
-                       (expr->prog lhs lotype)
-                       (expr->prog rhs rotype)
-                       (for/hash ([binding (in-list var-types)])
-                         (values (car binding) (cdr binding)))
-                       (impl-info impl 'otype)))
-               (sow r))
-               ])))))
+               (when (and (impls-supported? lhs) (impls-supported? rhs))
+                 (define lotype (expr-otype lhs))
+                 (define rotype (expr-otype rhs))
+                 (when (and (not lotype) (not rotype))
+                   (error "Could not find type for lhs ~a and rhs ~a" lhs rhs))
+                 (when (not lotype)
+                   (set! lotype rotype))
+                 (when (not rotype)
+                   (set! rotype lotype))
+                 (when (not (equal? lotype rotype))
+                   (error "Incompatible types for lhs ~a and rhs ~a" lhs rhs))
+                 (define var-types (merge-bindings (type-verify lhs lotype) (type-verify rhs rotype)))
+                 (define r
+                   (rule name
+                         (expr->prog lhs lotype)
+                         (expr->prog rhs rotype)
+                         (for/hash ([binding (in-list var-types)])
+                           (values (car binding) (cdr binding)))
+                         (impl-info impl 'otype)))
+                 (sow r))])))))
