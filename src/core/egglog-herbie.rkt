@@ -25,10 +25,8 @@
 (define op-string-names
   (hash '+ 'Add '- 'Sub '* 'Mul '/ 'Div '== 'Eq '!= 'Neq '> 'Gt '< 'Lt '>= 'Gte '<= 'Lte))
 
-(define (id->egglog)
-  (make-hash))
-(define (egglog->id)
-  (make-hash))
+(define id->egglog (make-hash))
+(define egglog->id (make-hash))
 
 ;; [Copied from egg-herbie.rkt] Returns all representatations (and their types) in the current platform.
 (define (all-repr-names [pform (*active-platform*)])
@@ -97,16 +95,7 @@
   (define proj-fn `(function typed-id (M String) MTy))
   (define impl-rules (impl-proj-rules pform))
   (define num-rules (num-proj-rules))
-  (define if-rules (if-proj-rules))
-  (printf "~s\n" spec-egraph)
-  (printf "~s\n" typed-graph)
-  (printf "~s\n" proj-fn)
-  (for ([rule (in-list impl-rules)])
-    (printf "~s\n" rule))
-  (for ([rule (in-list num-rules)])
-    (printf "~s\n" rule))
-  (for ([rule (in-list if-rules)])
-    (printf "~s\n" rule)))
+  (define if-rules (if-proj-rules)))
 
 (define (platform-spec-nodes)
   (for/list ([op (in-list (all-operators))])
@@ -208,7 +197,7 @@
   (string->symbol (string-append (symbol->string (serialize-op op)) type)))
 
 (define (rule->egglog-rule ru)
-  '() ) ; TODO
+  '()) ; TODO
 
 (define (expr->egglog-expr expr)
   (let loop ([expr expr])
