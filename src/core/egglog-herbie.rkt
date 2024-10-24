@@ -95,7 +95,8 @@
   (define proj-fn `(function typed-id (M String) MTy))
   (define impl-rules (impl-proj-rules pform))
   (define num-rules (num-proj-rules))
-  (define if-rules (if-proj-rules)))
+  (define if-rules (if-proj-rules))
+  '())
 
 (define (platform-spec-nodes)
   (for/list ([op (in-list (all-operators))])
