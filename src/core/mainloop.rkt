@@ -6,6 +6,7 @@
          "alt-table.rkt"
          "bsearch.rkt"
          "egg-herbie.rkt"
+         "egglog-herbie.rkt"
          "localize.rkt"
          "regimes.rkt"
          "simplify.rkt"
@@ -43,6 +44,7 @@
 ;; - Final steps: regimes, final simplify, add soundiness, and remove preprocessing
 
 (define (run-improve! initial specification context pcontext)
+  (prelude)
   (explain! initial context pcontext)
   (timeline-event! 'preprocess)
   (define-values (simplified preprocessing) (find-preprocessing initial specification context))
