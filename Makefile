@@ -59,6 +59,7 @@ hooks:
 
 fmt:
 	@raco fmt -i $(shell find egg-herbie/ src/ infra/ -name '*.rkt')
+	@raco fmt -i $(shell find egg-herbie/ src/ infra/ -name '*.egglog')
 
 # This rule is run by herbie.uwplse.org on every commit to Github.
 # It does not restart the demo server, but it does pull new static content

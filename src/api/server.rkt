@@ -112,9 +112,9 @@
 (define (job-count)
   (define-values (a b) (place-channel))
   (place-channel-put manager (list 'count b))
-  (define count (place-channel-get a))
-  (log "Current job count: ~a.\n" count)
-  count)
+  (define job-list (place-channel-get a))
+  (log "Currently ~a jobs in progress, ~a jobs in queue." (first job-list) (second job-list))
+  (apply + job-list))
 
 ;; Starts a job for a given command object|
 (define (start-job command)
@@ -292,7 +292,9 @@
        [(list 'check job-id handler)
         (place-channel-put handler (if (hash-has-key? completed-work job-id) job-id #f))]
        ; Returns the current count of working workers.
-       [(list 'count handler) (place-channel-put handler (hash-count busy-workers))]
+       [(list 'count handler)
+        (log "Count requested\n")
+        (place-channel-put handler (list (hash-count busy-workers) (length job-queue)))]
        ; Retreive the improve results for results.json
        [(list 'improve handler)
         (define improved-list
