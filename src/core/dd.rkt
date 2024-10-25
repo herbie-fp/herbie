@@ -53,7 +53,13 @@
   c_dd_ceil
   c_dd_asin
   c_dd_acos
-  c_dd_atan)
+  c_dd_atan
+  c_dd_sinh
+  c_dd_cosh
+  c_dd_tanh
+  c_dd_asinh
+  c_dd_acosh
+  c_dd_atanh)
 
 (define x 2.456e+150)
 
@@ -367,4 +373,10 @@
   [ddceil c_dd_ceil]
   [ddasin c_dd_asin]
   [ddacos c_dd_acos]
-  [ddatan c_dd_atan])
+  [ddatan c_dd_atan]
+  [ddsinh c_dd_sinh]
+  [ddcosh c_dd_cosh]
+  [ddtanh c_dd_tanh]
+  [ddasinh c_dd_asinh]
+  [ddacosh c_dd_acosh]
+  [ddatanh c_dd_atanh])
