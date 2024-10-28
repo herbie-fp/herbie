@@ -1,5 +1,6 @@
 #lang racket
 
+(require math/bigfloat)
 (require "../syntax/sugar.rkt"
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
@@ -17,6 +18,13 @@
          "egg-herbie.rkt"
          "compiler.rkt"
          "batch.rkt")
+
+(module+ test
+  (require rackunit
+           "../syntax/load-plugin.rkt"
+           "../syntax/syntax.rkt"
+           "../syntax/sugar.rkt")
+  (load-herbie-builtins))
 
 (provide batch-localize-costs
          batch-localize-errors
@@ -231,11 +239,25 @@
       (begin0 (values subexpr (vector->list (vector-ref errs n)))
         (set! n (add1 n))))))
 
-(define (error-for cur-ctx cur-sepc pt exact)
-  (define compare-specs `(- ,cur-sepc ,exact))
-  (define new-compare (eval-progs-real (list compare-specs) (list cur-ctx)))
-  (define true-errors (list->vector (apply new-compare pt)))
-  (vector-ref true-errors 0))
+(define (true-error-for spec ctx exact)
+  (define specs (list `(- ,spec ,exact)))
+  (define ctxs (list ctx))
+  (define compiler (make-real-compiler specs ctxs))
+  (define bad-pt
+    (for/list ([ctx* (in-list ctxs)]) ; copied from eval-progs-real
+      ((representation-bf->repr (context-repr ctx*)) +nan.bf)))
+  (define (<eval-true-error> . pt)
+    (define-values (_ exs) (apply real-apply compiler pt))
+    (or (first exs) bad-pt)) ;; should only be one value
+  <eval-true-error>)
+
+(module+ test
+  ; Test that we can comptue the true value for n amount of points in the expression.
+  (define ctx (make-debug-context '(x y)))
+  (define spec `(- (sqrt (+ x 1)) (sqrt y)))
+  (define pt `(1e-100 1e-100))
+  (define exact 1e-50)
+  (check-equal? ((true-error-for spec ctx exact) pt) 1.0))
 
 ; Compute local error or each sampled point at each node in `prog`.
 (define (compute-errors subexprss ctx)
@@ -283,7 +305,14 @@
           [exact (in-vector exacts)]
           [actual (in-vector actuals)]
           [expr-idx (in-naturals)])
-      (define true-error (error-for cur-ctx cur-spec pt exact))
+      (match (vector-ref nodes root)
+        [(? literal?) (eprintf "literal: ~a\n" cur-spec)]
+        [(? variable?) (eprintf "variable: ~a\n" cur-spec)]
+        [(approx approx-spec impl) (eprintf "approx: ~a\n" cur-spec)]
+        [`(if ,c ,ift ,iff) (eprintf "if: ~a\n" cur-spec)]
+        [(list f args ...) (eprintf "f: ~a\n" cur-spec)])
+      (eprintf "inputs: ~a, ~a, ~a, ~a\n" cur-ctx cur-spec pt exact)
+      (define true-error ((true-error-for cur-spec cur-ctx exact) pt))
       (vector-set! (vector-ref true-errors-out expr-idx) pt-idx true-error)))
 
   (for ([(pt ex) (in-pcontext (*pcontext*))]
