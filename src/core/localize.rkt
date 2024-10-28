@@ -194,25 +194,15 @@
       (begin0 (values subexpr (vector->list (vector-ref errs n)))
         (set! n (add1 n))))))
 
-(define (true-error-for spec ctx exact)
-  (define specs (list `(- ,spec ,exact)))
-  (define ctxs (list ctx))
-  (define compiler (make-real-compiler specs ctxs))
-  (define bad-pt
-    (for/list ([ctx* (in-list ctxs)]) ; copied from eval-progs-real
-      ((representation-bf->repr (context-repr ctx*)) +nan.bf)))
-  (define (<eval-true-error> . pt)
-    (define-values (_ exs) (apply real-apply compiler pt))
-    (or (first exs) bad-pt)) ;; should only be one value
-  <eval-true-error>)
-
 (module+ test
   ; Test that we can comptue the true value for n amount of points in the expression.
   (define ctx (make-debug-context '(x y)))
   (define spec `(- (sqrt (+ x 1)) (sqrt y)))
   (define pt `(1e-100 1e-100))
   (define exact 1e-50)
-  (check-equal? ((true-error-for spec ctx exact) pt) 1.0))
+  (define specs (list `(- ,spec ,exact)))
+  (define ctxs (list ctx))
+  (check-equal? (first (apply (eval-progs-real specs ctxs) pt)) 1.0))
 
 ; Compute local error or each sampled point at each node in `prog`.
 (define (compute-errors subexprss ctx)
@@ -249,31 +239,25 @@
                 ([node (in-vector roots)])
       (make-vector (pcontext-length (*pcontext*)))))
 
-  (for ([(pt ex) (in-pcontext (*pcontext*))]
-        [pt-idx (in-naturals)])
-    (define exacts (list->vector (apply subexprs-fn pt)))
-    (define actuals (apply actual-value-fn pt))
-    (for ([cur-spec (in-list spec-list)]
-          [cur-ctx (in-list ctx-list)]
-          [expr (in-list exprs-list)]
-          [root (in-vector roots)]
+  (define exacts-from-points
+    ;; Really only gets called with one point in pcontext from Odyssey
+    (for/vector ([(pt ex) (in-pcontext (*pcontext*))])
+      (list->vector (apply subexprs-fn pt))))
+
+  ;; So much data layout inverting
+  (for ([c-spec (in-list spec-list)]
+        [c-ctx (in-list ctx-list)]
+        [exacts (in-vector exacts-from-points)]
+        [expr-idx (in-naturals)])
+    (for ([(pt ex) (in-pcontext (*pcontext*))]
           [exact (in-vector exacts)]
-          [actual (in-vector actuals)]
-          [expr-idx (in-naturals)])
-      (match (vector-ref nodes root)
-        [(? literal?) (eprintf "literal: ~a\n" cur-spec)]
-        [(? variable?) (eprintf "variable: ~a\n" cur-spec)]
-        [(approx approx-spec impl) (eprintf "approx: ~a\n" cur-spec)]
-        [`(if ,c ,ift ,iff) (eprintf "if: ~a\n" cur-spec)]
-        [(list f args ...) (eprintf "f: ~a\n" cur-spec)])
-      (eprintf "inputs: ~a, ~a, ~a, ~a\n" cur-ctx cur-spec pt exact)
-      (define true-error ((true-error-for cur-spec cur-ctx exact) pt))
-      (vector-set! (vector-ref true-errors-out expr-idx) pt-idx true-error)))
+          [pt-idx (in-naturals)])
+      (define t (first (apply (eval-progs-real (list `(- ,c-spec ,exact)) (list c-ctx)) pt)))
+      (vector-set! (vector-ref true-errors-out expr-idx) pt-idx t)))
 
   (for ([(pt ex) (in-pcontext (*pcontext*))]
-        [pt-idx (in-naturals)])
-
-    (define exacts (list->vector (apply subexprs-fn pt)))
+        [pt-idx (in-naturals)]
+        [exacts (in-vector exacts-from-points)])
     (define actuals (apply actual-value-fn pt))
 
     (for ([expr (in-list exprs-list)]
