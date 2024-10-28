@@ -231,22 +231,33 @@
       (begin0 (values subexpr (vector->list (vector-ref errs n)))
         (set! n (add1 n))))))
 
+(define (error-for cur-ctx cur-sepc pt exact)
+  (define compare-specs `(- ,cur-sepc ,exact))
+  (define new-compare (eval-progs-real (list compare-specs) (list cur-ctx)))
+  (define true-errors (list->vector (apply new-compare pt)))
+  (vector-ref true-errors 0))
+
 ; Compute local error or each sampled point at each node in `prog`.
 (define (compute-errors subexprss ctx)
   (define exprs-list (append* subexprss)) ; unroll subexprss
   (define ctx-list
     (for/list ([subexpr (in-list exprs-list)])
       (struct-copy context ctx [repr (repr-of subexpr ctx)])))
-
+  (define spec-list (map prog->spec exprs-list))
   (define expr-batch (progs->batch exprs-list))
   (define nodes (batch-nodes expr-batch))
   (define roots (batch-roots expr-batch))
 
   ; TODO don't ignore the status code from make-real-compiler in eval-progs-real
-  (define subexprs-fn (eval-progs-real (map prog->spec exprs-list) ctx-list))
+  (define subexprs-fn (eval-progs-real spec-list ctx-list))
   (define actual-value-fn (compile-progs exprs-list ctx))
 
   (define errs
+    (for/vector #:length (vector-length roots)
+                ([node (in-vector roots)])
+      (make-vector (pcontext-length (*pcontext*)))))
+
+  (define true-errors-out
     (for/vector #:length (vector-length roots)
                 ([node (in-vector roots)])
       (make-vector (pcontext-length (*pcontext*)))))
@@ -260,6 +271,20 @@
     (for/vector #:length (vector-length roots)
                 ([node (in-vector roots)])
       (make-vector (pcontext-length (*pcontext*)))))
+
+  (for ([(pt ex) (in-pcontext (*pcontext*))]
+        [pt-idx (in-naturals)])
+    (define exacts (list->vector (apply subexprs-fn pt)))
+    (define actuals (apply actual-value-fn pt))
+    (for ([cur-spec (in-list spec-list)]
+          [cur-ctx (in-list ctx-list)]
+          [expr (in-list exprs-list)]
+          [root (in-vector roots)]
+          [exact (in-vector exacts)]
+          [actual (in-vector actuals)]
+          [expr-idx (in-naturals)])
+      (define true-error (error-for cur-ctx cur-spec pt exact))
+      (vector-set! (vector-ref true-errors-out expr-idx) pt-idx true-error)))
 
   (for ([(pt ex) (in-pcontext (*pcontext*))]
         [pt-idx (in-naturals)])
@@ -300,14 +325,17 @@
                               'exact-values
                               (vector->list (vector-ref exacts-out n))
                               'actual-values
-                              (vector->list (vector-ref actuals-out n))))
+                              (vector->list (vector-ref actuals-out n))
+                              'true-error-value
+                              (vector->list (vector-ref true-errors-out n))))
         (set! n (add1 n))))))
 
 ;; Compute the local error of every subexpression of `prog`
 ;; and returns the error information as an S-expr in the
 ;; same shape as `prog`
 (define (local-error-as-tree test ctx)
-  (define errs (first (compute-errors (list (all-subexpressions (test-input test))) ctx)))
+  (define sub-exprs (list (all-subexpressions (test-input test))))
+  (define errs (first (compute-errors sub-exprs ctx)))
 
   (define local-error
     (let loop ([expr (test-input test)])
@@ -333,34 +361,51 @@
         [(list op args ...) (cons actual-list (map loop args))]
         [_ (list actual-list)])))
 
+  (define true-error-values
+    (let loop ([expr (test-input test)])
+      (define expr-info (hash-ref errs expr))
+      (define actual-list (hash-ref expr-info 'true-error-value))
+      (match expr
+        [(list op args ...) (cons actual-list (map loop args))]
+        [_ (list actual-list)])))
+
   (define tree
     (let loop ([expr (prog->fpcore (test-input test) (test-context test))]
                [err local-error]
                [exact exact-values]
-               [actual actual-values])
+               [actual actual-values]
+               [true-error true-error-values])
       (match expr
         [(list op args ...)
          ;; err => (List (listof Integer) List ...)
          (hasheq 'e
                  (~a op)
+                 'ulps-error
+                 (map ~s (first err))
                  'avg-error
                  (format-bits (errors-score (first err)))
                  'exact-value
                  (map ~s (first exact))
-                 'actual-value
+                 'approx-value
                  (map ~s (first actual))
+                 'true-error-value
+                 (map ~s (first true-error))
                  'children
-                 (map loop args (rest err) (rest exact) (rest actual)))]
+                 (map loop args (rest err) (rest exact) (rest actual) (rest true-error)))]
         ;; err => (List (listof Integer))
         [_
          (hasheq 'e
                  (~a expr)
+                 'ulps-error
+                 (map ~s (first err))
                  'avg-error
                  (format-bits (errors-score (first err)))
                  'exact-value
                  (map ~s (first exact))
                  'actual-value
                  (map ~s (first actual))
+                 'true-error-value
+                 (map ~s (first true-error))
                  'children
                  '())])))
   tree)
