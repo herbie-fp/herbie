@@ -6,6 +6,7 @@ import { strict as assert } from 'node:assert';  // use strict equality everywhe
 const SAMPLE_SIZE = 8000
 const FPCoreFormula = '(FPCore (x) (- (sqrt (+ x 1)) (sqrt x)))'
 const FPCoreFormula2 = '(FPCore (x) (- (sqrt (+ x 1))))'
+const FPCoreFormula3 = '(FPCore (x) (if (<= (- (sqrt (+ x 1.0)) (sqrt x)) 0.05) (* 0.5 (sqrt (/ 1.0 x))) (fma (fma (- 0.125) x 0.5) x (- 1.0 (sqrt x)))))'
 const eval_sample = [[[1], -1.4142135623730951]]
 
 // improve endpoint
@@ -90,7 +91,7 @@ assert.deepEqual(sample.points[1], sample2.points[1])
 const explainBody = {
   method: 'POST',
   body: JSON.stringify({
-    formula: FPCoreFormula, sample: sample2.points
+    formula: FPCoreFormula, sample: sample.points
   })
 }
 const explain = await (await fetch(makeEndpoint("/api/explanations"), explainBody)).json()
@@ -144,7 +145,7 @@ assert.deepEqual(calculateAsyncResult.points, [[[1], -1.4142135623730951]])
 // Local error endpoint
 const localErrorBody = {
   method: 'POST', body: JSON.stringify({
-    formula: FPCoreFormula, sample: sample2.points
+    formula: FPCoreFormula, sample: sample.points
   })
 }
 const localError = await (await fetch(makeEndpoint("/api/localerror"), localErrorBody)).json()
@@ -166,6 +167,64 @@ const localError2 = await (await fetch(makeEndpoint("/api/localerror"), {
 })).json()
 // Test that different sample points produce different job ids ensuring that different results are served for these inputs.
 assert.notEqual(localError1.job, localError2.job)
+// Assert local error works for default example.
+const ignoredValue = 1e+308
+'(FPCore (1e-100) (- (sqrt (+ x 1)) (sqrt x)))'
+const localError5 = await (await fetch(makeEndpoint("/api/localerror"), {
+  method: 'POST', body: JSON.stringify({
+    formula: FPCoreFormula, sample: [[[1e-100], ignoredValue]], seed: 5
+  })
+})).json()
+const rootMinusNode = localError5.tree
+const leftSQRT = localError5.tree['children'][0]
+const rightSQRT = localError5.tree['children'][1]
+const plusNode = localError5.tree['children'][0]['children'][0]
+const xNode = localError5.tree['children'][0]['children'][0]['children'][0]
+const oneNode = localError5.tree['children'][0]['children'][0]['children'][1]
+
+//        node, name, approx_value, avg_error, exact_value, true_error_value, ulps_error
+assertCheckNode(rootMinusNode, '-', '1.0', '0.0', '1.0', '-1e-50', 1)
+assertCheckNode(leftSQRT, 'sqrt', '1.0', '0.0', '1.0', '5e-101', 1)
+assertCheckNode(rightSQRT, 'sqrt', '1e-50', '0.0', '1e-50', '2.379726195519099e-68', 1)
+assertCheckNode(plusNode, '+', '1.0', '0.0', '1.0', '1e-100', 1)
+assertCheckNode(xNode, 'x', '1e-100', '0.0', '1e-100', '0', 1)
+assertCheckNode(oneNode, '1.0', '1.0', '0.0', '1.0', '-0.0', 1)
+
+// '(FPCore (1e100) (- (sqrt (+ x 1)) (sqrt x)))'
+const localError6 = await (await fetch(makeEndpoint("/api/localerror"), {
+  method: 'POST', body: JSON.stringify({
+    formula: FPCoreFormula, sample: [[[1e100], ignoredValue]], seed: 5
+  })
+})).json()
+const rootMinusNode6 = localError6.tree
+const leftSQRT6 = localError6.tree['children'][0]
+const rightSQRT6 = localError6.tree['children'][1]
+const plusNode6 = localError6.tree['children'][0]['children'][0]
+const xNode6 = localError6.tree['children'][0]['children'][0]['children'][0]
+const oneNode6 = localError6.tree['children'][0]['children'][0]['children'][1]
+//        node, name, approx_value, avg_error, exact_value, true_error_value, ulps_error
+assertCheckNode(rootMinusNode6, '-', '0.0', '61.7', '5e-51', '-7.78383463033115e-68', 3854499065107888000)
+assertCheckNode(leftSQRT6, 'sqrt', '1e+50', '0.0', '1e+50', '-6.834625285603891e+33', 1)
+assertCheckNode(rightSQRT6, 'sqrt', '1e+50', '0.0', '1e+50', '-6.834625285603891e+33', 1)
+assertCheckNode(plusNode6, '+', '1e+100', '0.0', '1e+100', '1.0', 1)
+assertCheckNode(xNode6, 'x', '1e+100', '0.0', '1e+100', '0', 1)
+assertCheckNode(oneNode6, '1.0', '1.0', '0.0', '1.0', '-0.0', 1)
+
+function assertCheckNode(node, name, approx, avg_error, exact_value, true_error_value, ulps_error) {
+  assert.equal(node['e'], name)
+  assert.equal(node['approx-value'][0], approx)
+  assert.equal(node['avg-error'], avg_error)
+  assert.equal(node['exact-value'][0], exact_value)
+  assert.equal(node['true-error-value'][0], true_error_value)
+  assert.equal(node['ulps-error'][0], ulps_error)
+}
+
+// TODO if statements
+// const localError7 = await (await fetch(makeEndpoint("/api/localerror"), {
+//   method: 'POST', body: JSON.stringify({
+//     formula: FPCoreFormula3, sample: [[[1e100], ignoredValue]], seed: 5
+//   })
+// })).json()
 
 // Alternatives endpoint
 const altBody = {
