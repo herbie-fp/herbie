@@ -192,6 +192,15 @@
                 [(a1 a2) (ddlog2 a1 a2)])
     (logfloat z1 z2 zs a1 a2)))
 
+(define/contract (lflog2 A)
+  (-> logfloat? logfloat?)
+  (match-define (logfloat x1 x2 _ ex1 ex2) A)
+  (let*-values ([(z1 z2) (ddlog2 x1 x2)]
+                [(zs) (dd>= ex1 ex2 0.0 0.0)]
+                [(a1 a2) (ddabs ex1 ex2)]
+                [(a1 a2) (ddlog2 a1 a2)])
+    (logfloat z1 z2 zs a1 a2)))
+
 (define/contract (lfexp A)
   (-> logfloat? logfloat?)
   (match-define (logfloat x1 x2 _ _ _) A)
@@ -377,6 +386,7 @@
     ['lfasin lfasinh]
     ['lfacos lfacosh]
     ['lfatan lfatanh]
+    ['lflog2 lflog2]
     [_ #false]))
 
 (define (op->lfop op)
@@ -444,6 +454,8 @@
     ['fmax.f32 'lfmax]
     ['fmin.f64 'lfmin]
     ['fmax.f32 'lfmin]
+    ['log2.64 'lflog2]
+    ['log2.f32 'lflog2]
     [_ (error 'op->logop op)]))
 
 (define (expr->lf expr)
