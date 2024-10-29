@@ -86,9 +86,17 @@
   (->* (logfloat? logfloat?) (boolean?) boolean?)
   (if (lf>= x y flag) x y))
 
+(define/contract (lfmax1 x y)
+  (-> logfloat? logfloat? boolean?)
+  (lfmax x y #f))
+
 (define/contract (lfmin x y [flag #t])
   (->* (logfloat? logfloat?) (boolean?) boolean?)
   (if (lf<= x y flag) x y))
+
+(define/contract (lfmin1 x y)
+  (-> logfloat? logfloat? boolean?)
+  (lfmin x y #f))
 
 (define/contract (lfabs x)
   (-> logfloat? logfloat?)
@@ -432,6 +440,10 @@
     ['asinh.f32 'lfasinh]
     ['acosh.f32 'lfacosh]
     ['atanh.f32 'lfatanh]
+    ['fmax.f64 'lfmax]
+    ['fmax.f32 'lfmax]
+    ['fmin.f64 'lfmin]
+    ['fmax.f32 'lfmin]
     [_ (error 'op->logop op)]))
 
 (define (expr->lf expr)
