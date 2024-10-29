@@ -83,19 +83,19 @@
   (lf>= y x [flag #t]))
 
 (define/contract (lfmax x y [flag #t])
-  (->* (logfloat? logfloat?) (boolean?) boolean?)
+  (->* (logfloat? logfloat?) (boolean?) logfloat?)
   (if (lf>= x y flag) x y))
 
 (define/contract (lfmax1 x y)
-  (-> logfloat? logfloat? boolean?)
+  (-> logfloat? logfloat? logfloat?)
   (lfmax x y #f))
 
 (define/contract (lfmin x y [flag #t])
-  (->* (logfloat? logfloat?) (boolean?) boolean?)
+  (->* (logfloat? logfloat?) (boolean?) logfloat?)
   (if (lf<= x y flag) x y))
 
 (define/contract (lfmin1 x y)
-  (-> logfloat? logfloat? boolean?)
+  (-> logfloat? logfloat? logfloat?)
   (lfmin x y #f))
 
 (define/contract (lfabs x)
@@ -387,6 +387,8 @@
     ['lfacos lfacosh]
     ['lfatan lfatanh]
     ['lflog2 lflog2]
+    ['lfmax lfmax]
+    ['lfmin lfmin]
     [_ #false]))
 
 (define (op->lfop op)
