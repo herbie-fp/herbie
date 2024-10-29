@@ -94,7 +94,6 @@
 
 ;; LOG SPACE COMPILER -----------------------------------------
 (define (make-lf-compiler exprs vars)
-  (eprintf "~a ~a\n" exprs vars)
   (define num-vars (length vars))
   (define batch
     (batch-remove-zombie (batch-remove-approx (progs->batch exprs #:timeline-push #t #:vars vars))
