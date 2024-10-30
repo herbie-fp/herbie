@@ -246,6 +246,11 @@
     ;; Really only gets called with one point in pcontext from Odyssey
     (for/vector ([(pt ex) (in-pcontext (*pcontext*))])
       (list->vector (apply subexprs-fn pt))))
+  ;; TODO combine loops over pcontext
+  (define actuals-from-points
+    ;; Really only gets called with one point in pcontext from Odyssey
+    (for/vector ([(pt ex) (in-pcontext (*pcontext*))])
+      (apply actual-value-fn pt)))
 
   (define (true-error-for spec exact ctx pt)
     ; TODO pass in the list of of specs and exacts and ctxs and apply that function to pts
@@ -261,44 +266,14 @@
 
   (for ([(pt ex) (in-pcontext (*pcontext*))]
         [exacts (in-vector exacts-from-points)]
+        [actuals (in-vector actuals-from-points)]
         [pt-idx (in-naturals)])
-    (for ([c-spec (in-vector spec-vec)]
+    (for ([expr (in-list exprs-list)]
+          [c-spec (in-vector spec-vec)]
           [c-ctx (in-list ctx-list)]
           [root (in-vector roots)]
-          [exact exacts]
-          [expr-idx (in-naturals)])
-      (eprintf "node: ~a\n" (vector-ref nodes root))
-      (define true-error
-        (match (vector-ref nodes root)
-          [(? literal?)
-           (eprintf "spec: ~a\n" c-spec)
-           exact]
-          [(? variable?) 1]
-          ; compare the exact against it's impl substitution.
-          [(approx _ impl) (true-error-from impl exact pt)]
-          [`(if ,c ,ift ,iff)
-           (set! previous_node_condition #t)
-           (if exact
-               (true-error-from ift exact pt)
-               (true-error-from iff exact pt))]
-          [(list f args ...)
-           (define local previous_node_condition)
-           (when previous_node_condition
-             (set! previous_node_condition #f))
-           (if local
-               exact
-               (true-error-for c-spec exact c-ctx pt))]))
-      (vector-set! (vector-ref true-errors-out expr-idx) pt-idx true-error)))
-
-  (for ([(pt ex) (in-pcontext (*pcontext*))]
-        [pt-idx (in-naturals)]
-        [exacts (in-vector exacts-from-points)])
-    (define actuals (apply actual-value-fn pt))
-
-    (for ([expr (in-list exprs-list)]
-          [root (in-vector roots)]
-          [exact (in-vector exacts)]
           [actual (in-vector actuals)]
+          [exact (in-vector exacts)]
           [expr-idx (in-naturals)])
       (define err
         (match (vector-ref nodes root)
@@ -315,9 +290,28 @@
                (vector-ref exacts (vector-member idx roots)))) ; arg's index mapping to exact
            (define approx (apply (impl-info f 'fl) argapprox))
            (ulp-difference exact approx repr)]))
+      (define true-error
+        (match (vector-ref nodes root)
+          [(? literal?) exact]
+          [(? variable?) 1]
+          ; compare the exact against it's impl substitution.
+          [(approx _ impl) (true-error-from impl exact pt)]
+          [`(if ,c ,ift ,iff)
+           (set! previous_node_condition #t)
+           (if exact
+               (true-error-from ift exact pt)
+               (true-error-from iff exact pt))]
+          [(list f args ...)
+           (define local previous_node_condition)
+           (when previous_node_condition
+             (set! previous_node_condition #f))
+           (if local
+               exact
+               (true-error-for c-spec exact c-ctx pt))]))
       (vector-set! (vector-ref exacts-out expr-idx) pt-idx exact)
       (vector-set! (vector-ref errs expr-idx) pt-idx err)
-      (vector-set! (vector-ref actuals-out expr-idx) pt-idx actual)))
+      (vector-set! (vector-ref actuals-out expr-idx) pt-idx actual)
+      (vector-set! (vector-ref true-errors-out expr-idx) pt-idx true-error)))
 
   (define n 0)
   (for/list ([subexprs (in-list subexprss)])
@@ -389,7 +383,7 @@
                  (format-bits (errors-score (first err)))
                  'exact-value
                  (map ~s (first exact))
-                 'approx-value
+                 'actual-value
                  (map ~s (first actual))
                  'true-error-value
                  (map ~s (first true-error))
