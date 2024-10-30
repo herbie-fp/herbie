@@ -355,6 +355,16 @@
                 [(a1 a2) (ddlog2 a1 a2)])
     (logfloat z1 z2 s a1 a2)))
 
+(define/contract (lfatan2 A B)
+  (-> logfloat? logfloat? logfloat?)
+  (match-define (logfloat x1 x2 _ _ _) A)
+  (match-define (logfloat y1 y2 _ _ _) B)
+  (let*-values ([(z1 z2) (ddatan2 x1 x2 y1 y2)]
+                [(a1 a2) (ddabs z1 z2)]
+                [(ez1 ez2) (ddlog2 a1 a2)]
+                [(zs) (dd>= z1 z2 0.0 0.0)])
+    (logfloat z1 z2 zs ez1 ez2)))
+
 (define (lfop symbol)
   (match symbol
     ['lf+ lf+]
@@ -389,6 +399,7 @@
     ['lflog2 lflog2]
     ['lfmax lfmax]
     ['lfmin lfmin]
+    ['lfatan2 lfatan2]
     [_ (error 'lfop "This should be unreachable: ~a" symbol)]))
 
 (define (op->lfop op)
@@ -458,7 +469,9 @@
     ['fmax.f32 'lfmin]
     ['log2.64 'lflog2]
     ['log2.f32 'lflog2]
-    [_ (error 'op->logop "~a does not have logflaot equivalent." op)]))
+    ['atan2.f64 'lfatan2]
+    ['atan2.f32 'lfatan2]
+    [_ (error 'op->logop "~a does not have logfloat equivalent." op)]))
 
 (define (expr->lf expr)
   (match expr

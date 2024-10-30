@@ -142,6 +142,13 @@
                 [(c1 c2) (dd* b1 b2 y1 y2)])
     (dd- x1 x2 c1 c2)))
 
+(define (ddatan2 x1 x2 y1 [y2 0.0])
+  (define a (list->f64vector (list x1 x2)))
+  (define b (list->f64vector (list y1 y2)))
+  (define c (make-f64vector 2))
+  (c_dd_atan2 (f64vector->cpointer a) (f64vector->cpointer b) (f64vector->cpointer c))
+  (apply values (f64vector->list c)))
+
 (define (dd+ x1 x2 y1 [y2 0.0])
   (cond
     ; x + +-inf = +-inf
