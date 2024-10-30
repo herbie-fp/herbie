@@ -380,16 +380,16 @@
     ['lfasin lfasin]
     ['lfacos lfacos]
     ['lfatan lfatan]
-    ['lfasin lfsinh]
-    ['lfacos lfcosh]
-    ['lfatan lftanh]
-    ['lfasin lfasinh]
-    ['lfacos lfacosh]
-    ['lfatan lfatanh]
+    ['lfsinh lfsinh]
+    ['lfcosh lfcosh]
+    ['lftanh lftanh]
+    ['lfasinh lfasinh]
+    ['lfacosh lfacosh]
+    ['lfatanh lfatanh]
     ['lflog2 lflog2]
     ['lfmax lfmax]
     ['lfmin lfmin]
-    [_ #false]))
+    [_ (error 'lfop "This should be unreachable: ~a" symbol)]))
 
 (define (op->lfop op)
   (match op
@@ -458,7 +458,7 @@
     ['fmax.f32 'lfmin]
     ['log2.64 'lflog2]
     ['log2.f32 'lflog2]
-    [_ (error 'op->logop op)]))
+    [_ (error 'op->logop "~a does not have logflaot equivalent." op)]))
 
 (define (expr->lf expr)
   (match expr
