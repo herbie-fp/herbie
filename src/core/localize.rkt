@@ -210,7 +210,9 @@
   (define ctx-list
     (for/list ([subexpr (in-list exprs-list)])
       (struct-copy context ctx [repr (repr-of subexpr ctx)])))
+  (define ctx-vec (list->vector ctx-list))
   (define spec-list (map prog->spec exprs-list))
+  (define spec-vec (list->vector spec-list))
   (define expr-batch (progs->batch exprs-list))
   (define nodes (batch-nodes expr-batch))
   (define roots (batch-roots expr-batch))
@@ -219,6 +221,7 @@
   (define subexprs-fn (eval-progs-real spec-list ctx-list))
   (define actual-value-fn (compile-progs exprs-list ctx))
 
+  ; TODO way too much allocation for what we are doing.
   (define errs
     (for/vector #:length (vector-length roots)
                 ([node (in-vector roots)])
@@ -244,16 +247,48 @@
     (for/vector ([(pt ex) (in-pcontext (*pcontext*))])
       (list->vector (apply subexprs-fn pt))))
 
-  ;; So much data layout inverting
-  (for ([c-spec (in-list spec-list)]
-        [c-ctx (in-list ctx-list)]
+  (define (true-error-for spec exact ctx pt)
+    ; TODO pass in the list of of specs and exacts and ctxs and apply that function to pts
+    (first (apply (eval-progs-real (list `(- ,spec ,exact)) (list ctx)) pt)))
+
+  (define (true-error-from i exact pt)
+    (define approx-spec (vector-ref spec-vec i))
+    (define approx-ctx (vector-ref ctx-vec i))
+    (true-error-for approx-spec exact approx-ctx pt))
+
+  ;; Set to skip evaluate the second part expresion of an if condition.
+  (define previous_node_condition #f)
+
+  (for ([(pt ex) (in-pcontext (*pcontext*))]
         [exacts (in-vector exacts-from-points)]
-        [expr-idx (in-naturals)])
-    (for ([(pt ex) (in-pcontext (*pcontext*))]
-          [exact (in-vector exacts)]
-          [pt-idx (in-naturals)])
-      (define t (first (apply (eval-progs-real (list `(- ,c-spec ,exact)) (list c-ctx)) pt)))
-      (vector-set! (vector-ref true-errors-out expr-idx) pt-idx t)))
+        [pt-idx (in-naturals)])
+    (for ([c-spec (in-vector spec-vec)]
+          [c-ctx (in-list ctx-list)]
+          [root (in-vector roots)]
+          [exact exacts]
+          [expr-idx (in-naturals)])
+      (eprintf "node: ~a\n" (vector-ref nodes root))
+      (define true-error
+        (match (vector-ref nodes root)
+          [(? literal?)
+           (eprintf "spec: ~a\n" c-spec)
+           exact]
+          [(? variable?) 1]
+          ; compare the exact against it's impl substitution.
+          [(approx _ impl) (true-error-from impl exact pt)]
+          [`(if ,c ,ift ,iff)
+           (set! previous_node_condition #t)
+           (if exact
+               (true-error-from ift exact pt)
+               (true-error-from iff exact pt))]
+          [(list f args ...)
+           (define local previous_node_condition)
+           (when previous_node_condition
+             (set! previous_node_condition #f))
+           (if local
+               exact
+               (true-error-for c-spec exact c-ctx pt))]))
+      (vector-set! (vector-ref true-errors-out expr-idx) pt-idx true-error)))
 
   (for ([(pt ex) (in-pcontext (*pcontext*))]
         [pt-idx (in-naturals)]
