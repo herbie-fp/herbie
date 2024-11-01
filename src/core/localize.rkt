@@ -258,6 +258,10 @@
   (define ctx-list
     (for/list ([subexpr (in-list exprs-list)])
       (struct-copy context ctx [repr (repr-of subexpr ctx)])))
+
+  (define repr-hash
+    (make-immutable-hash (map (lambda (e ctx) (cons e (context-repr ctx))) exprs-list ctx-list)))
+
   (define ctx-vec (list->vector ctx-list))
   (define spec-list (map prog->spec exprs-list))
   (define spec-vec (list->vector spec-list))
@@ -274,7 +278,7 @@
                 ([node (in-vector roots)])
       (make-vector (pcontext-length (*pcontext*)))))
 
-  (define abs-error-out
+  (define abs-error-outs
     (for/vector #:length (vector-length roots)
                 ([node (in-vector roots)])
       (make-vector (pcontext-length (*pcontext*)))))
@@ -337,7 +341,7 @@
                (vector-ref exacts (vector-member idx roots))))
            (define approx (apply (impl-info f 'fl) argapprox))
            (ulp-difference exact approx repr)]))
-      (define abs-error
+      (define error-difference
         (match (vector-ref nodes root)
           [(? literal?) (absolute-error c-spec exact c-ctx pt)]
           [(? variable?) 0]
@@ -354,10 +358,13 @@
            (if local
                exact
                (absolute-error c-spec exact c-ctx pt))]))
+      (define current-repr (hash-ref repr-hash expr))
+      (define abs-error (bfabs ((representation-repr->bf current-repr) error-difference)))
+      (define abs-error-out (value->json (bigfloat->flonum abs-error) current-repr))
       (vector-set! (vector-ref exacts-out expr-idx) pt-idx exact)
       (vector-set! (vector-ref ulps-error expr-idx) pt-idx err)
       (vector-set! (vector-ref actuals-out expr-idx) pt-idx actual)
-      (vector-set! (vector-ref abs-error-out expr-idx) pt-idx abs-error)))
+      (vector-set! (vector-ref abs-error-outs expr-idx) pt-idx abs-error-out)))
 
   (define n 0)
   (define err-tree
@@ -371,10 +378,10 @@
                                        'actual-values
                                        (vector->list (vector-ref actuals-out n))
                                        'absolute-error
-                                       (vector->list (vector-ref abs-error-out n))))
+                                       (vector->list (vector-ref abs-error-outs n))))
                  (set! n (add1 n)))))))
 
-  (define ulps-of-error
+  (define ulps-of-error-values
     (let loop ([expr (test-input test)])
       (define expr-info (hash-ref err-tree expr))
       (define err-list (hash-ref expr-info 'ulps-of-error))
@@ -408,7 +415,7 @@
 
   (define tree
     (let loop ([expr (prog->fpcore (test-input test) (test-context test))]
-               [ulp ulps-of-error]
+               [ulp ulps-of-error-values]
                [exact exact-values]
                [actual actual-values]
                [true-error true-error-values])
