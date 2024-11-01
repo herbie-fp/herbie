@@ -273,12 +273,17 @@
   (define subexprs-fn (eval-progs-real spec-list ctx-list))
   (define actual-value-fn (compile-progs exprs-list ctx))
 
-  (define ulps-error
+  (define local-errors
     (for/vector #:length (vector-length roots)
                 ([node (in-vector roots)])
       (make-vector (pcontext-length (*pcontext*)))))
 
   (define abs-error-outs
+    (for/vector #:length (vector-length roots)
+                ([node (in-vector roots)])
+      (make-vector (pcontext-length (*pcontext*)))))
+
+  (define ulps-out
     (for/vector #:length (vector-length roots)
                 ([node (in-vector roots)])
       (make-vector (pcontext-length (*pcontext*)))))
@@ -326,7 +331,8 @@
           [actual (in-vector actuals)]
           [exact (in-vector exacts)]
           [expr-idx (in-naturals)])
-      (define err
+      (define ulp-error 1)
+      (define local-error
         (match (vector-ref nodes root)
           [(? literal?) 1]
           [(? variable?) 1]
@@ -361,8 +367,9 @@
       (define current-repr (hash-ref repr-hash expr))
       (define abs-error (bfabs ((representation-repr->bf current-repr) error-difference)))
       (define abs-error-out (value->json (bigfloat->flonum abs-error) current-repr))
+      (vector-set! (vector-ref ulps-out expr-idx) pt-idx ulp-error)
       (vector-set! (vector-ref exacts-out expr-idx) pt-idx exact)
-      (vector-set! (vector-ref ulps-error expr-idx) pt-idx err)
+      (vector-set! (vector-ref local-errors expr-idx) pt-idx local-error)
       (vector-set! (vector-ref actuals-out expr-idx) pt-idx actual)
       (vector-set! (vector-ref abs-error-outs expr-idx) pt-idx abs-error-out)))
 
@@ -371,8 +378,10 @@
     (first (for/list ([subexprs (in-list subexprss)])
              (for*/hash ([subexpr (in-list subexprs)])
                (begin0 (values subexpr
-                               (hasheq 'ulps-of-error
-                                       (vector->list (vector-ref ulps-error n))
+                               (hasheq 'ulp-errors
+                                       (vector->list (vector-ref ulps-out n))
+                                       'local-errors
+                                       (vector->list (vector-ref local-errors n))
                                        'exact-values
                                        (vector->list (vector-ref exacts-out n))
                                        'actual-values
@@ -381,10 +390,18 @@
                                        (vector->list (vector-ref abs-error-outs n))))
                  (set! n (add1 n)))))))
 
-  (define ulps-of-error-values
+  (define ulp-error-values
     (let loop ([expr (test-input test)])
       (define expr-info (hash-ref err-tree expr))
-      (define err-list (hash-ref expr-info 'ulps-of-error))
+      (define err-list (hash-ref expr-info 'ulp-errors))
+      (match expr
+        [(list op args ...) (cons err-list (map loop args))]
+        [_ (list err-list)])))
+
+  (define local-error-values
+    (let loop ([expr (test-input test)])
+      (define expr-info (hash-ref err-tree expr))
+      (define err-list (hash-ref expr-info 'local-errors))
       (match expr
         [(list op args ...) (cons err-list (map loop args))]
         [_ (list err-list)])))
@@ -415,7 +432,8 @@
 
   (define tree
     (let loop ([expr (prog->fpcore (test-input test) (test-context test))]
-               [ulp ulps-of-error-values]
+               [ulp-error ulp-error-values]
+               [local-error local-error-values]
                [exact exact-values]
                [actual actual-values]
                [true-error true-error-values])
@@ -425,9 +443,9 @@
          (hasheq 'e
                  (~a op)
                  'ulps-error
-                 (map ~s (first ulp))
+                 (map ~s (first ulp-error))
                  'avg-error
-                 (format-bits (errors-score (first ulp)))
+                 (format-bits (errors-score (first local-error)))
                  'exact-value
                  (map ~s (first exact))
                  'actual-value
@@ -435,15 +453,21 @@
                  'absolute-error
                  (map ~s (first true-error))
                  'children
-                 (map loop args (rest ulp) (rest exact) (rest actual) (rest true-error)))]
+                 (map loop
+                      args
+                      (rest ulp-error)
+                      (rest local-error)
+                      (rest exact)
+                      (rest actual)
+                      (rest true-error)))]
         ;; err => (List (listof Integer))
         [_
          (hasheq 'e
                  (~a expr)
                  'ulps-error
-                 (map ~s (first ulp))
+                 (map ~s (first ulp-error))
                  'avg-error
-                 (format-bits (errors-score (first ulp)))
+                 (format-bits (errors-score (first local-error)))
                  'exact-value
                  (map ~s (first exact))
                  'actual-value
