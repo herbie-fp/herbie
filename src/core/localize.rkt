@@ -195,14 +195,11 @@
         (set! n (add1 n))))))
 
 (module+ test
-  ; Test that we can comptue the true value for n amount of points in the expression.
   (define ctx (make-debug-context '(x y)))
   (define spec `(- (sqrt (+ x 1)) (sqrt y)))
   (define pt `(1e-100 1e-100))
   (define exact 1e-50)
-  (define specs (list `(- ,spec ,exact)))
-  (define ctxs (list ctx))
-  (check-equal? (first (apply (eval-progs-real specs ctxs) pt)) 1.0))
+  (check-equal? (first (apply (eval-progs-real (list `(- ,spec ,exact)) (list ctx)) pt)) 1.0))
 
 ;; Compute the local error of every subexpression of `prog`
 ;; and returns the error information as an S-expr in the
@@ -239,11 +236,6 @@
                 ([node (in-vector roots)])
       (make-vector (pcontext-length (*pcontext*)))))
 
-  (define ulps-out
-    (for/vector #:length (vector-length roots)
-                ([node (in-vector roots)])
-      (make-vector (pcontext-length (*pcontext*)))))
-
   (define exacts-out
     (for/vector #:length (vector-length roots)
                 ([node (in-vector roots)])
@@ -264,25 +256,24 @@
                 ([(pt ex) (in-pcontext (*pcontext*))])
       (apply actual-value-fn pt)))
 
-  (define (absolute-error spec exact ctx pt)
-    (define s (list `(- ,spec ,exact)))
-    (define c (list ctx))
-    (first (apply (eval-progs-real s c) pt)))
+  (define (compute-true-error spec exact ctx pt)
+    ;; TODO compute in batches and evalutate propigated errors from rival.
+    (first (apply (eval-progs-real (list `(- ,spec ,exact)) (list ctx)) pt)))
 
   (define (absolute-error-for i exact pt)
     (define approx-spec (vector-ref spec-vec i))
     (define approx-ctx (vector-ref ctx-vec i))
-    (absolute-error approx-spec exact approx-ctx pt))
+    (compute-true-error approx-spec exact approx-ctx pt))
 
-  (define previous_node_condition #f)
+  (define previous_node_if? #f)
 
   (for ([(pt ex) (in-pcontext (*pcontext*))]
         [exacts (in-vector exacts-from-points)]
         [actuals (in-vector actuals-from-points)]
         [pt-idx (in-naturals)])
     (for ([expr (in-list exprs-list)]
-          [c-spec (in-vector spec-vec)]
-          [c-ctx (in-list ctx-list)]
+          [current-spec (in-vector spec-vec)]
+          [current-ctx (in-list ctx-list)]
           [root (in-vector roots)]
           [actual (in-vector actuals)]
           [exact (in-vector exacts)]
@@ -302,25 +293,25 @@
                (vector-ref exacts (vector-member idx roots))))
            (define approx (apply (impl-info f 'fl) argapprox))
            (ulp-difference exact approx repr)]))
-      (define error-difference
+      (define true-error
         (match (vector-ref nodes root)
-          [(? literal?) (absolute-error c-spec exact c-ctx pt)]
+          [(? literal?) (compute-true-error current-spec exact current-ctx pt)]
           [(? variable?) 0]
           [(approx _ impl) (absolute-error-for impl exact pt)]
           [`(if ,c ,ift ,iff)
-           (set! previous_node_condition #t)
+           (set! previous_node_if? #t)
            (if exact
                (absolute-error-for ift exact pt)
                (absolute-error-for iff exact pt))]
           [(list f args ...)
-           (define local previous_node_condition)
-           (when previous_node_condition
-             (set! previous_node_condition #f))
+           (define local previous_node_if?)
+           (when previous_node_if?
+             (set! previous_node_if? #f))
            (if local
                exact
-               (absolute-error c-spec exact c-ctx pt))]))
+               (compute-true-error current-spec exact current-ctx pt))]))
       (define current-repr (hash-ref repr-hash expr))
-      (define abs-error (bfabs ((representation-repr->bf current-repr) error-difference)))
+      (define abs-error (bfabs ((representation-repr->bf current-repr) true-error)))
       (define abs-error-out (value->json (bigfloat->flonum abs-error) current-repr))
       (vector-set! (vector-ref exacts-out expr-idx) pt-idx exact)
       (vector-set! (vector-ref local-errors expr-idx) pt-idx local-error)
@@ -396,12 +387,7 @@
                  'absolute-error
                  (map ~s (first true-error))
                  'children
-                 (map loop
-                      args
-                      (rest local-error)
-                      (rest exact)
-                      (rest actual)
-                      (rest true-error)))]
+                 (map loop args (rest local-error) (rest exact) (rest actual) (rest true-error)))]
         ;; err => (List (listof Integer))
         [_
          (hasheq 'e
