@@ -8,6 +8,8 @@
 
 (provide (all-defined-out))
 
+(define lf-precision (make-parameter 64))
+
 (define (xnor a b)
   (not (xor a b)))
 
@@ -27,6 +29,14 @@
   (let*-values ([(e1 e2) (ddabs x1 x2)]
                 [(e1 e2) (ddlog2 e1 e2)])
     (logfloat x1 x2 (dd>= x1 x2 0.0 0.0) e1 e2)))
+
+(define (max.lf) (if (= (lf-precision) 64)
+                     (logfloat +max.0 0.0 #true 1024.0 0.0)
+                     (logfloat 3.40282347E+38 0.0 #true 128.0 0.0)))
+
+(define (min.lf) (if (= (lf-precision) 64)
+                     (logfloat +min.0 0.0 #true -1074.0 0.0)
+                     (logfloat 1.17549435e-38 0.0 #true -126.0 0.0)))
 
 (define +max.lf (logfloat +max.0 0.0 #true 1024.0 0.0))
 (define +min.lf (logfloat +min.0 0.0 #true -1074.0 0.0))
@@ -107,12 +117,12 @@
 ;; QUESTION: is inf inf _ inf 0 an overflow
 (define/contract (lfoverflow? x)
   (-> logfloat? boolean?)
-  (lf> (lfabs x) +max.lf))
+  (lf> (lfabs x) (max.lf)))
 
 ;; QUESTION: is 0 0 _ -inf 0 an underflow
 (define/contract (lfunderflow? x)
   (-> logfloat? boolean?)
-  (lf< (lfabs x) +min.lf))
+  (lf< (lfabs x) (min.lf)))
 
 (define/contract (lfover/underflowed? x)
   (-> logfloat? boolean?)
@@ -159,7 +169,7 @@
                 [(f1 f2) (dd+ ex1 ex2 e1 e2)]
                 [(z1 z2) (dd+ x1 x2 y1 y2)])
     (logfloat z1 z2 xs f1 f2)))
-
+;sldkjflskdjflskdjflskdjflskdjflskdjflskdjfsllskdjflskdfjshss
 (define/contract (lf- A B)
   (-> logfloat? logfloat? logfloat?)
   (lf+ A (lfneg B)))

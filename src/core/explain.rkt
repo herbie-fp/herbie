@@ -160,6 +160,14 @@
          (update-flow-hash uflow-hash bfzero? x-ex)]
         [_ #f])
 
+      
+      (when (list? subexpr)
+        (let* ([op (first subexpr)]
+               [op (symbol->string op)]
+               [f32? (string-suffix? op ".f32")])
+          
+          (lf-precision (if f32? 32 64))))
+
       (match subexpr
         [(list (or '+.f64 '+.f32) x-ex y-ex)
          #:when (or (list? x-ex) (list? y-ex))
@@ -370,31 +378,36 @@
 
          (define x.lf (lfs-ref x-ex))
          (define y.lf (lfs-ref y-ex))
-
-         (cond
-           ;; if the numerator underflows and the denominator:
-           ;; - underflows, nan could be rescued
-           [(and (lfunderflow? x.lf) (lfunderflow? y.lf) (not (lfnan? z.dl)))
-            (mark-erroneous! subexpr 'u/u)]
-           ;; - is small enough, 0 underflow could be rescued
-           [(and (lfunderflow? x.lf) (not (lfunderflow? z.dl))) (mark-erroneous! subexpr 'u/n)]
-           ;; - overflows, no rescue is possible
-
-           ;; if the numerator overflows and the denominator:
-           ;; - overflows, nan could be rescued
-           [(and (lfoverflow? x.lf) (lfoverflow? y.lf) (not (lfnan? z.dl)))
-            (mark-erroneous! subexpr 'o/o)]
-           ;; - is large enough, inf overflow can be rescued
-           [(and (lfoverflow? x.lf) (not (lfoverflow? z.dl))) (mark-erroneous! subexpr 'o/n)]
-           ;; - underflow, no rescue is possible
-
-           ;; if the numerator is normal and the denominator:
-           ;; - overflows, then a rescue is possible
-           [(and (lfoverflow? y.lf) (not (lfunderflow? z.dl))) (mark-erroneous! subexpr 'n/o)]
-           ;; - underflows, then a rescue is possible
-           [(and (lfunderflow? y.lf) (not (lfoverflow? z.dl))) (mark-erroneous! subexpr 'n/u)]
-           ;; - is normal, then no rescue is possible
-           [else #f])]
+         
+         (when (or (lfover/underflowed? x.lf) (lfover/underflowed? y.lf))
+           (cond
+             ;; if the numerator underflows and the denominator:
+             ;; - underflows, nan could be rescued
+             [(and (lfunderflow? x.lf) (lfunderflow? y.lf) (not (lfnan? z.dl)))
+              (mark-erroneous! subexpr 'u/u)]
+             ;; - is small enough, 0 underflow could be rescued
+             [(and (lfunderflow? x.lf) (not (lfunderflow? z.dl)))
+              (mark-erroneous! subexpr 'u/n)]
+             ;; - overflows, no rescue is possible
+             
+             ;; if the numerator overflows and the denominator:
+             ;; - overflows, nan could be rescued
+             [(and (lfoverflow? x.lf) (lfoverflow? y.lf) (not (lfnan? z.dl)))
+              (mark-erroneous! subexpr 'o/o)]
+             ;; - is large enough, inf overflow can be rescued
+             [(and (lfoverflow? x.lf) (not (lfoverflow? z.dl)))
+              (mark-erroneous! subexpr 'o/n)]
+             ;; - underflow, no rescue is possible
+             
+             ;; if the numerator is normal and the denominator:
+             ;; - overflows, then a rescue is possible
+             [(and (lfoverflow? y.lf) (not (lfunderflow? z.dl)))
+              (mark-erroneous! subexpr 'n/o)]
+             ;; - underflows, then a rescue is possible
+             [(and (lfunderflow? y.lf) (not (lfoverflow? z.dl)))
+              (mark-erroneous! subexpr 'n/u)]
+             ;; - is normal, then no rescue is possible
+             [else #f]))]
 
         [(list (or '*.f64 '*.f32) x-ex y-ex)
          #:when (or (list? x-ex) [list? y-ex])
