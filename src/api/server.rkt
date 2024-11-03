@@ -127,11 +127,11 @@
     ['check (manager-ask-with-callback msg args)]
     ['count (manager-ask-with-callback msg args)]
     ['improve (manager-ask-with-callback msg args)]
-    [_ (place-channel-put manager (list msg args))]))
+    [_ (place-channel-put manager (flatten (list msg args)))]))
 
 (define (manager-ask-with-callback msg args)
   (define-values (a b) (place-channel))
-  (place-channel-put manager (list msg b args))
+  (place-channel-put manager (flatten (list msg b args)))
   (place-channel-get a))
 
 (define (is-server-up)
@@ -221,7 +221,7 @@
    (for ([i (in-naturals)])
      ;  (eprintf "manager msg ~a handled\n" i)
      (match (place-channel-get ch)
-       [(list 'start (list self command job-id))
+       [(list 'start self command job-id)
         ; Check if the work has been completed already if not assign the work.
         (if (hash-has-key? completed-work job-id)
             (place-channel-put self (list 'send job-id (hash-ref completed-work job-id)))
@@ -259,7 +259,7 @@
         (log "waiting job ~a completed\n" job-id)
         (place-channel-put self (list 'send job-id result))
         (place-channel-put self (list 'assign self))]
-       [(list 'wait handler (list self job-id))
+       [(list 'wait handler self job-id)
         (log "Waiting for job: ~a\n" job-id)
         ; first we add the handler to the wait list.
         (hash-update! waiting job-id (curry append (list handler)) '())
@@ -275,9 +275,8 @@
           (place-channel-put handle result))
         (hash-remove! waiting job-id)]
        ; Get the result for the given id, return false if no work found.
-       [(list 'result handler (list job-id))
-        (place-channel-put handler (hash-ref completed-work job-id #f))]
-       [(list 'timeline handler (list job-id))
+       [(list 'result handler job-id) (place-channel-put handler (hash-ref completed-work job-id #f))]
+       [(list 'timeline handler job-id)
         (define wid (hash-ref current-jobs job-id #f))
         (cond
           [wid
@@ -289,14 +288,14 @@
           [else
            (log "Job complete, no timeline, send result.\n")
            (place-channel-put handler (hash-ref completed-work job-id #f))])]
-       [(list 'check handler (list job-id))
+       [(list 'check handler job-id)
         (place-channel-put handler (if (hash-has-key? completed-work job-id) job-id #f))]
        ; Returns the current count of working workers.
-       [(list 'count handler args)
+       [(list 'count handler)
         (log "Count requested\n")
         (place-channel-put handler (list (hash-count busy-workers) (length job-queue)))]
        ; Retreive the improve results for results.json
-       [(list 'improve handler args)
+       [(list 'improve handler)
         (define improved-list
           (for/list ([(job-id result) (in-hash completed-work)]
                      #:when (equal? (hash-ref result 'command) "improve"))
