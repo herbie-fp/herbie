@@ -192,7 +192,7 @@ checkLocalErrorNode(localError5.tree, [0, 0, 0],
   'x', '0.0', '1e-100', '1e-100', '0.0', '1')
 // literal 1
 checkLocalErrorNode(localError5.tree, [0, 0, 1],
-  '1.0', '0.0', '1.0', '1.0', '0.0', '1')
+  '1', '0.0', '1.0', '1.0', '0.0', '1')
 
 // '(FPCore (1e100) (- (sqrt (+ x 1)) (sqrt x)))'
 const localError6 = await (await fetch(makeEndpoint("/api/localerror"), {
@@ -218,7 +218,7 @@ checkLocalErrorNode(localError6.tree, [0, 0, 0],
   'x', '0.0', '1e+100', '1e+100', '0.0', '1')
 // literal 1
 checkLocalErrorNode(localError6.tree, [0, 0, 1],
-  '1.0', '0.0', '1.0', '1.0', '0.0', '1')
+  '1', '0.0', '1.0', '1.0', '0.0', '1')
 
 /// root: The root node of the local error tree.
 /// path: the path to get to the node you want to test.
@@ -230,7 +230,6 @@ checkLocalErrorNode(localError6.tree, [0, 0, 1],
 function checkLocalErrorNode(root, path, name,
   avg_error, actual_value, exact_value, absolute_error, ulps_error) {
   const node = getNodeFromPath(root, path)
-  console.log(node) // TODO delete me
   assert.equal(node['e'], name)
   assert.equal(node['avg-error'], avg_error)
   assert.equal(node['actual-value'][0], actual_value)
