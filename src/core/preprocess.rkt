@@ -14,7 +14,9 @@
          "points.rkt"
          "../utils/timeline.rkt"
          "../utils/float.rkt"
-         "batch.rkt")
+         "batch.rkt"
+         "egglog-herbie.rkt"
+         "../config.rkt")
 
 (provide find-preprocessing
          preprocess-pcontext
@@ -114,7 +116,20 @@
 
   ;; run egg to check for identities
   (define expr-pairs (map (curry cons spec) specs))
-  (define equal?-lst (run-egg runner `(equal? . ,expr-pairs)))
+
+  ; (define equal?-lst (run-egg runner `(equal? . ,expr-pairs)))
+  (define generate-flags (hash-ref all-flags 'generate))
+
+  (printf "preprocess reached ")
+
+  (define equal?-lst
+    (if (member 'egglog generate-flags)
+        (begin 
+          (printf "egglog\n\n")
+          (run-egglog runner `(equal? . ,expr-pairs)))
+        (begin
+          (printf "egg\n\n")
+          (run-egg runner `(equal? . ,expr-pairs)))))
 
   ;; collect equalities
   (define abs-instrs '())

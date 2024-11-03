@@ -15,7 +15,9 @@
 
 (provide prelude
          run-egglog-process
-         (struct-out egglog-program))
+         (struct-out egglog-program)
+         make-egglog-runner
+         run-egglog)
 
 (module+ test
   (require rackunit)
@@ -130,73 +132,85 @@
 ;;  - proofs: `(proofs . ((<start> . <end>) ...))`
 (define (run-egglog runner cmd)
   ;; Run egg using runner
-  (define ctx (egg-runner-ctx runner))
+  ; (define ctx (egg-runner-ctx runner))
 
   ; fake root-ids
-  (define-values (root-ids egg-graph)
-    (egraph-run-schedule (egg-runner-batch runner)
-                         (egg-runner-roots runner)
-                         (egg-runner-schedule runner)
-                         ctx))
+  ; (define-values (root-ids egg-graph)
+  ;   (egraph-run-schedule (egg-runner-batch runner)
+  ;                        (egg-runner-roots runner)
+  ;                        (egg-runner-schedule runner)
+  ;                        ctx))
+
+  (define fake-root-ids (list 6 11 11 6 273))
+
   ; Perform extraction
   (match cmd
     [`(single . ,extractor) ; single expression extraction
-     (define regraph (make-regraph egg-graph))
-     (define reprs (egg-runner-reprs runner))
-     (when (flag-set? 'dump 'egg)
-       (regraph-dump regraph root-ids reprs))
-     (define extract-id (extractor regraph))
-     (define finalize-batch (last extract-id))
-     ; (Listof (Listof batchref))
-     (define out
-       (for/list ([id (in-list root-ids)]
-                  [repr (in-list reprs)])
-         (regraph-extract-best regraph extract-id id repr)))
-     ; commit changes to the batch
-     (finalize-batch)
-     out]
+    ;  (define regraph (make-regraph egg-graph))
+    ;  (define reprs (egg-runner-reprs runner))
+    ;  (when (flag-set? 'dump 'egg)
+    ;    (regraph-dump regraph root-ids reprs))
+    ;  (define extract-id (extractor regraph))
+    ;  (define finalize-batch (last extract-id))
+    ;  ; (Listof (Listof batchref))
+    ;  (define out
+    ;    (for/list ([id (in-list root-ids)]
+    ;               [repr (in-list reprs)])
+    ;      (regraph-extract-best regraph extract-id id repr)))
+    ;  ; commit changes to the batch
+    ;  (finalize-batch)
+    ;  out
+     '()
+     ]
 
     ;; very hard - per id recruse one level and ger simplest child
     [`(multi . ,extractor) ; multi expression extraction
-     (define regraph (make-regraph egg-graph))
-     (define reprs (egg-runner-reprs runner))
-     (when (flag-set? 'dump 'egg)
-       (regraph-dump regraph root-ids reprs))
-     (define extract-id (extractor regraph))
-     (define finalize-batch (last extract-id))
-     ; (Listof (Listof batchref))
-     (define out
-       (for/list ([id (in-list root-ids)]
-                  [repr (in-list reprs)])
-         (regraph-extract-variants regraph extract-id id repr)))
-     ; commit changes to the batch
-     (finalize-batch)
-     out]
+    ;  (define regraph (make-regraph egg-graph))
+    ;  (define reprs (egg-runner-reprs runner))
+    ;  (when (flag-set? 'dump 'egg)
+    ;    (regraph-dump regraph root-ids reprs))
+    ;  (define extract-id (extractor regraph))
+    ;  (define finalize-batch (last extract-id))
+    ;  ; (Listof (Listof batchref))
+    ;  (define out
+    ;    (for/list ([id (in-list root-ids)]
+    ;               [repr (in-list reprs)])
+    ;      (regraph-extract-variants regraph extract-id id repr)))
+    ;  ; commit changes to the batch
+    ;  (finalize-batch)
+    ;  out
+     '()
+     ]
 
     ;; egglog does not have proof
     ;; there is some value that herbie has which indicates we could not
     ;; find a proof. Might be (list #f #f ....) 
     [`(proofs . ((,start-exprs . ,end-exprs) ...)) ; proof extraction
-     (for/list ([start (in-list start-exprs)]
-                [end (in-list end-exprs)])
-       (unless (egraph-expr-equal? egg-graph start end ctx)
-         (error 'run-egg
-                "cannot find proof; start and end are not equal.\n start: ~a \n end: ~a"
-                start
-                end))
-       (define proof (egraph-get-proof egg-graph start end ctx))
-       (when (null? proof)
-         (error 'run-egg "proof extraction failed between`~a` and `~a`" start end))
-       proof)]
+    ;  (for/list ([start (in-list start-exprs)]
+    ;             [end (in-list end-exprs)])
+    ;    (unless (egraph-expr-equal? egg-graph start end ctx)
+    ;      (error 'run-egg
+    ;             "cannot find proof; start and end are not equal.\n start: ~a \n end: ~a"
+    ;             start
+    ;             end))
+    ;    (define proof (egraph-get-proof egg-graph start end ctx))
+    ;    (when (null? proof)
+    ;      (error 'run-egg "proof extraction failed between`~a` and `~a`" start end))
+    ;    proof)
+       
+       #f]
 
     ; 1. ask within egglog program what is id
     ; 2. Extract expression from each expr
     ; qn: if i have  two expressions how di i know if they are in the same e-class
     ; if we are outside of egglog
     [`(equal? . ((,start-exprs . ,end-exprs) ...)) ; term equality?
-     (for/list ([start (in-list start-exprs)]
-                [end (in-list end-exprs)])
-       (egraph-expr-equal? egg-graph start end ctx))]
+    ;  (for/list ([start (in-list start-exprs)]
+    ;             [end (in-list end-exprs)])
+    ;    (egraph-expr-equal? egg-graph start end ctx))
+       
+      (list #f)
+    ]
     [_ (error 'run-egg "unknown command `~a`\n" cmd)]))
 
 (define (prelude #:mixed-egraph? [mixed-egraph? #t])

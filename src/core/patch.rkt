@@ -12,7 +12,8 @@
          "rules.rkt"
          "simplify.rkt"
          "taylor.rkt"
-         "batch.rkt")
+         "batch.rkt"
+         "egglog-herbie.rkt")
 
 (provide generate-candidates)
 
@@ -154,7 +155,21 @@
 
   (define runner (make-egg-runner global-batch roots reprs schedule #:context (*context*)))
   ; batchrefss is a (listof (listof batchref))
-  (define batchrefss (run-egg runner `(multi . ,extractor)))
+
+  ; (define batchrefss (run-egg runner `(multi . ,extractor)))
+  (define generate-flags (hash-ref all-flags 'generate))
+
+  (printf "patch reached ")
+
+  (define batchrefss
+    (if (member 'egglog generate-flags)
+        (begin 
+          (printf "egglog\n\n")
+          (run-egglog runner `(multi . ,extractor)))
+        (begin
+          (printf "egg\n\n")
+          (run-egg runner `(multi . ,extractor)))))
+
 
   ; apply changelists
   (define rewritten
