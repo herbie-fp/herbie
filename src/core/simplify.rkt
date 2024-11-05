@@ -25,29 +25,24 @@
   (timeline-push! 'inputs (map ~a (batch->progs (egg-runner-batch runner) (egg-runner-roots runner))))
   (timeline-push! 'method "egg-herbie")
 
-  ; (define simplifieds (run-egg runner (cons 'single extractor)))
 
+  ; (printf "simplify reached ")
   (define generate-flags (hash-ref all-flags 'generate))
-
-  (printf "simplify reached ")
-
   (define simplifieds
     (if (member 'egglog generate-flags)
-        (begin 
-          (printf "egglog\n\n")
-          (run-egglog runner (cons 'single extractor)))
-        (begin
-          (printf "egg\n\n")
-          (run-egg runner (cons 'single extractor)))))
-
+        (run-egglog runner (cons 'single extractor))
+        (run-egg runner (cons 'single extractor))))
 
   (define out
     (for/list ([simplified (in-list simplifieds)]
                [root (egg-runner-roots runner)])
       (remove-duplicates (cons (batchref (egg-runner-batch runner) root) simplified)
                          #:key batchref-idx)))
-
+  
   (timeline-push! 'outputs (map (compose ~a debatchref) (apply append out)))
+
+  ; (printf "simplify successful\n\n")
+
   out)
 
 (module+ test

@@ -118,21 +118,13 @@
 ;; Result is a map from egg query to rewrites.
 (define (compute-proofs query->rws)
   (for/hash ([(runner rws) (in-hash query->rws)])
-    ; (define proofs (run-egg runner `(proofs . ,rws)))
+    ; (printf "soundiness reached ")
 
     (define generate-flags (hash-ref all-flags 'generate))
-
-    (printf "soundiness reached ")
-
     (define proofs
       (if (member 'egglog generate-flags)
-          (begin 
-            (printf "egglog\n\n")
-            (run-egglog runner `(proofs . ,rws)))
-          (begin
-            (printf "egg\n\n")
-            (run-egg runner `(proofs . ,rws)))))
-
+          (run-egglog runner `(proofs . ,rws))
+          (run-egg runner `(proofs . ,rws))))
 
     (values runner (map cons rws proofs))))
 

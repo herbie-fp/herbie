@@ -120,16 +120,14 @@
   ; (define equal?-lst (run-egg runner `(equal? . ,expr-pairs)))
   (define generate-flags (hash-ref all-flags 'generate))
 
-  (printf "preprocess reached ")
+  ; (printf "preprocess reached ")
 
   (define equal?-lst
     (if (member 'egglog generate-flags)
-        (begin 
-          (printf "egglog\n\n")
-          (run-egglog runner `(equal? . ,expr-pairs)))
-        (begin
-          (printf "egg\n\n")
-          (run-egg runner `(equal? . ,expr-pairs)))))
+        (run-egglog runner `(equal? . ,expr-pairs))
+        (run-egg runner `(equal? . ,expr-pairs))))
+
+  ; (printf "preprocess successful\n\n")
 
   ;; collect equalities
   (define abs-instrs '())

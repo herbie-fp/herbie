@@ -154,22 +154,16 @@
   (timeline-push! 'inputs (map ~a exprs))
 
   (define runner (make-egg-runner global-batch roots reprs schedule #:context (*context*)))
-  ; batchrefss is a (listof (listof batchref))
+  
+  ; (printf "patch reached ")
 
-  ; (define batchrefss (run-egg runner `(multi . ,extractor)))
   (define generate-flags (hash-ref all-flags 'generate))
 
-  (printf "patch reached ")
-
+  ; batchrefss is a (listof (listof batchref))
   (define batchrefss
     (if (member 'egglog generate-flags)
-        (begin 
-          (printf "egglog\n\n")
-          (run-egglog runner `(multi . ,extractor)))
-        (begin
-          (printf "egg\n\n")
-          (run-egg runner `(multi . ,extractor)))))
-
+        (run-egglog runner `(multi . ,extractor))
+        (run-egg runner `(multi . ,extractor))))
 
   ; apply changelists
   (define rewritten
@@ -179,8 +173,12 @@
             (for ([batchref* (in-list batchrefs)])
               (sow (alt batchref* (list 'rr runner #f #f) (list altn) '()))))))
 
+
   (timeline-push! 'outputs (map (compose ~a debatchref alt-expr) rewritten))
   (timeline-push! 'count (length altns) (length rewritten))
+
+  ; (printf "patch successful\n\n")
+
   rewritten)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Public API ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -202,10 +200,21 @@
     (if (flag-set? 'generate 'taylor)
         (run-taylor exprs start-altns global-batch)
         '()))
+
+  ; (printf "patch before run-rr \n")
+
   ; Recursive rewrite
   (define rewritten
     (if (flag-set? 'generate 'rr)
         (run-rr start-altns global-batch)
         '()))
+  
+  ; (printf "patch after run-rr \n")
 
-  (remove-duplicates (append approximations rewritten) #:key (λ (x) (batchref-idx (alt-expr x)))))
+  (define return-val (remove-duplicates (append approximations rewritten) #:key (λ (x) (batchref-idx (alt-expr x)))))
+  
+  ; (printf "patch after rem-dev \n")
+
+  return-val
+  )
+  
