@@ -205,12 +205,12 @@
 ;; and returns the error information as an S-expr in the
 ;; same shape as `prog`
 (define (local-error-as-tree test ctx)
+  (define fpcore (prog->fpcore (test-input test) (test-context test)))
   (define subexprss (list (all-subexpressions (test-input test))))
   (define exprs-list (append* subexprss)) ; unroll subexprss
   (define ctx-list
     (for/list ([subexpr (in-list exprs-list)])
       (struct-copy context ctx [repr (repr-of subexpr ctx)])))
-
   (define repr-hash
     (make-immutable-hash (map (lambda (e ctx) (cons e (context-repr ctx))) exprs-list ctx-list)))
 
@@ -235,14 +235,18 @@
                 ([(pt ex) (in-pcontext (*pcontext*))])
       (apply actual-value-fn pt)))
 
-  (define (compute-true-error spec exact ctx pt)
+  (define (compute-abs-error spec exact ctx pt repr)
     ;; TODO compute in batches and evalutate propigated errors from rival.
-    (first (apply (eval-progs-real (list `(- ,spec ,exact)) (list ctx)) pt)))
+    (define true-error (first (apply (eval-progs-real (list `(- ,spec ,exact)) (list ctx)) pt)))
+    (define bf-true-error ((representation-repr->bf repr) true-error))
+    (define abs-error (bfabs bf-true-error))
+    (define abs-error-out (value->json (bigfloat->flonum abs-error) repr))
+    abs-error-out)
 
-  (define (absolute-error-for i exact pt)
+  (define (absolute-error-for i exact pt repr)
     (define approx-spec (vector-ref spec-vec i))
     (define approx-ctx (vector-ref ctx-vec i))
-    (compute-true-error approx-spec exact approx-ctx pt))
+    (compute-abs-error approx-spec exact approx-ctx pt repr))
 
   (define previous_node_if? #f)
 
@@ -251,13 +255,15 @@
   (for ([(pt ex) (in-pcontext (*pcontext*))]
         [exacts (in-vector exacts-from-points)]
         [actuals (in-vector actuals-from-points)])
-    (for ([expr (in-list exprs-list)]
+    (for ([expr-syntax (in-list (all-subexpressions fpcore))]
+          [expr (in-list exprs-list)]
           [current-spec (in-vector spec-vec)]
           [current-ctx (in-list ctx-list)]
           [root (in-vector roots)]
           [actual (in-vector actuals)]
           [exact (in-vector exacts)])
       (define node (vector-ref nodes root))
+      (define current-repr (hash-ref repr-hash expr))
       (define local-error
         (match node
           [(? literal?) 1]
@@ -273,32 +279,29 @@
                (vector-ref exacts (vector-member idx roots))))
            (define approx (apply (impl-info f 'fl) argapprox))
            (ulp-difference exact approx repr)]))
-      (define true-error
+      (define abs-error
         (match node
-          [(? literal?) (compute-true-error current-spec exact current-ctx pt)]
+          [(? literal?) (compute-abs-error current-spec exact current-ctx pt current-repr)]
           [(? variable?) 0]
-          [(approx _ impl) (absolute-error-for impl exact pt)]
+          [(approx _ impl) (absolute-error-for impl exact pt current-repr)]
           [`(if ,c ,ift ,iff)
            (set! previous_node_if? #t)
            (if exact
-               (absolute-error-for ift exact pt)
-               (absolute-error-for iff exact pt))]
+               (absolute-error-for ift exact pt current-repr)
+               (absolute-error-for iff exact pt current-repr))]
           [(list f args ...)
            (define local previous_node_if?)
            (when previous_node_if?
              (set! previous_node_if? #f))
            (if local
                exact
-               (compute-true-error current-spec exact current-ctx pt))]))
-      (define current-repr (hash-ref repr-hash expr))
-      (define abs-error (bfabs ((representation-repr->bf current-repr) true-error)))
-      (define abs-error-out (value->json (bigfloat->flonum abs-error) current-repr))
+               (compute-abs-error current-spec exact current-ctx pt current-repr))]))
       (hash-set! data-hash
                  root
                  (hasheq 'e ;; String shenanigans to persevere current output.
-                         (~s (if (pair? current-spec)
-                                 (first current-spec)
-                                 current-spec))
+                         (~s (if (pair? expr-syntax)
+                                 (first expr-syntax)
+                                 expr-syntax))
                          'ulps-error
                          local-error
                          'exact-value
@@ -306,41 +309,55 @@
                          'actual-value
                          actual
                          'absolute-error
-                         abs-error-out))))
+                         abs-error))))
+
+  (define (translate-booleans value)
+    (match value
+      [#t 'true]
+      [#f 'false]
+      [v v]))
 
   (define (make-hash-for root)
     ;; TODO Remove extra array from JSON output so we don't need `(map ~s (list ...)) -> (~s ...)`
     (define data (hash-ref data-hash root))
-    (define node (vector-ref nodes root))
-    (match node
+    (define expr (hash-ref data 'e))
+    (define abs-error (translate-booleans (hash-ref data 'absolute-error)))
+    (define ulp-error (map ~s (list (translate-booleans (hash-ref data 'ulps-error)))))
+    (define avg-error (format-bits (errors-score (list (hash-ref data 'ulps-error)))))
+    (define exact-error (map ~s (list (translate-booleans (hash-ref data 'exact-value)))))
+    (define actual-error (map ~s (list (translate-booleans (hash-ref data 'actual-value)))))
+    (match abs-error ; check for errors and send as string
+      [(? hash? abs-error-hash) (set! abs-error (list (hash-ref abs-error-hash 'value)))]
+      [error-value (set! abs-error (map ~s (list error-value)))])
+    (match (vector-ref nodes root)
       [(list op args ...)
        (hasheq 'e
-               (hash-ref data 'e)
+               expr
                'ulps-error
-               (map ~s (list (hash-ref data 'ulps-error)))
+               ulp-error
                'avg-error
-               (format-bits (errors-score (list (hash-ref data 'ulps-error))))
+               avg-error
                'exact-value
-               (map ~s (list (hash-ref data 'exact-value)))
+               exact-error
                'actual-value
-               (map ~s (list (hash-ref data 'actual-value)))
+               actual-error
                'absolute-error
-               (map ~s (list (hash-ref data 'absolute-error)))
+               abs-error
                'children
-               (map make-hash-for args))] ; ???
+               (map make-hash-for args))]
       [_
        (hasheq 'e
-               (hash-ref data 'e)
+               expr
                'ulps-error
-               (map ~s (list (hash-ref data 'ulps-error)))
+               ulp-error
                'avg-error
-               (format-bits (errors-score (list (hash-ref data 'ulps-error))))
+               avg-error
                'exact-value
-               (map ~s (list (hash-ref data 'exact-value)))
+               exact-error
                'actual-value
-               (map ~s (list (hash-ref data 'actual-value)))
+               actual-error
                'absolute-error
-               (map ~s (list (hash-ref data 'absolute-error)))
+               abs-error
                'children
                '())]))
 

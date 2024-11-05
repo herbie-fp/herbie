@@ -189,10 +189,10 @@ checkLocalErrorNode(localError5.tree, [0, 0],
   '+', '0.0', '1.0', '1.0', '1e-100', '1')
 // var x
 checkLocalErrorNode(localError5.tree, [0, 0, 0],
-  'x', '0.0', '1e-100', '1e-100', '0.0', '1')
+  'x', '0.0', '1e-100', '1e-100', '0', '1')
 // literal 1
 checkLocalErrorNode(localError5.tree, [0, 0, 1],
-  '1', '0.0', '1.0', '1.0', '0.0', '1')
+  '1.0', '0.0', '1.0', '1.0', '0.0', '1')
 
 // '(FPCore (1e100) (- (sqrt (+ x 1)) (sqrt x)))'
 const localError6 = await (await fetch(makeEndpoint("/api/localerror"), {
@@ -215,10 +215,26 @@ checkLocalErrorNode(localError6.tree, [0, 0],
   '+', '0.0', '1e+100', '1e+100', '1.0', '1')
 // var x
 checkLocalErrorNode(localError6.tree, [0, 0, 0],
-  'x', '0.0', '1e+100', '1e+100', '0.0', '1')
+  'x', '0.0', '1e+100', '1e+100', '0', '1')
 // literal 1
 checkLocalErrorNode(localError6.tree, [0, 0, 1],
-  '1', '0.0', '1.0', '1.0', '0.0', '1')
+  '1.0', '0.0', '1.0', '1.0', '0.0', '1')
+
+// Test a large number `2e269` to trigger NaN in fma.
+const localError7 = await (await fetch(makeEndpoint("/api/localerror"), {
+  method: 'POST', body: JSON.stringify({
+    formula: FPCoreFormula3, sample: [[[2e269], ignoredValue]], seed: 5
+  })
+})).json()
+// Test against conditionals
+checkLocalErrorNode(localError7.tree, [0],
+  '<=', '0.0', 'true', 'true', 'true', '1')
+// Test that inexact values display using input syntax not fraction
+checkLocalErrorNode(localError7.tree, [0, 1],
+  '0.05', '0.0', '0.05', '0.05', '0.0', '1')
+// Test for NaN error
+checkLocalErrorNode(localError7.tree, [2],
+  'fma', '0.0', '-inf.0', '-inf.0', 'NaN', '1')
 
 /// root: The root node of the local error tree.
 /// path: the path to get to the node you want to test.
