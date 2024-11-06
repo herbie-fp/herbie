@@ -154,8 +154,6 @@
   (timeline-push! 'inputs (map ~a exprs))
 
   (define runner (make-egg-runner global-batch roots reprs schedule #:context (*context*)))
-  
-  ; (printf "patch reached ")
 
   (define generate-flags (hash-ref all-flags 'generate))
 
@@ -173,11 +171,8 @@
             (for ([batchref* (in-list batchrefs)])
               (sow (alt batchref* (list 'rr runner #f #f) (list altn) '()))))))
 
-
   (timeline-push! 'outputs (map (compose ~a debatchref alt-expr) rewritten))
   (timeline-push! 'count (length altns) (length rewritten))
-
-  ; (printf "patch successful\n\n")
 
   rewritten)
 
@@ -208,13 +203,12 @@
     (if (flag-set? 'generate 'rr)
         (run-rr start-altns global-batch)
         '()))
-  
+
   ; (printf "patch after run-rr \n")
 
-  (define return-val (remove-duplicates (append approximations rewritten) #:key (λ (x) (batchref-idx (alt-expr x)))))
-  
+  (define return-val
+    (remove-duplicates (append approximations rewritten) #:key (λ (x) (batchref-idx (alt-expr x)))))
+
   ; (printf "patch after rem-dev \n")
 
-  return-val
-  )
-  
+  return-val)

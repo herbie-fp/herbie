@@ -118,7 +118,6 @@
 ;; Result is a map from egg query to rewrites.
 (define (compute-proofs query->rws)
   (for/hash ([(runner rws) (in-hash query->rws)])
-    ; (printf "soundiness reached ")
 
     (define generate-flags (hash-ref all-flags 'generate))
     (define proofs

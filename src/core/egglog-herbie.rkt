@@ -75,7 +75,6 @@
 
   (process-egglog program-to-egglog))
 
-
 ;; Most calls to egglog should be done through this interface.
 ;;  - `make-egglog-runner`: creates a struct that describes a _reproducible_ egglog instance
 ;;  - `run-egglog`: takes an egglog runner and performs an extraction (exprs or proof)
@@ -87,7 +86,6 @@
   #:methods gen:custom-write ; for abbreviated printing
   [(define (write-proc alt port mode)
      (fprintf port "#<egglog-runner>"))])
-
 
 ;; Constructs an egglog runner. Exactly same as egg-runner
 ;; But needs some amount of specifics - TODO
@@ -132,75 +130,48 @@
 ;;  - multi extraction: `(multi . <extractor>)`
 ;;  - proofs: `(proofs . ((<start> . <end>) ...))`
 (define (run-egglog runner cmd)
-  ; (printf "egglog\n")
-  ;; Run egg using runner
-  ; (define ctx (egg-runner-ctx runner))
+  ;; TODO : Need to run egglog to get the actual ids per
 
-  ; (define-values (root-ids egg-graph)
-  ;   (egraph-run-schedule (egg-runner-batch runner)
-  ;                        (egg-runner-roots runner)
-  ;                        (egg-runner-schedule runner)
-  ;                        ctx))
-
-  ; Perform extraction
   (match cmd
     [`(single . ,extractor) ; single expression extraction
-      ;; TODO : Need to run egglog to get the actual ids per
 
-      (define curr-batch (egg-runner-batch runner))     
+     (define curr-batch (egg-runner-batch runner))
 
-      ;; (Listof (Listof batchref))
-      (define out
-        (for/list ([root (batch-roots curr-batch)])
-          (list (batchref curr-batch root))))
+     ;; (Listof (Listof batchref))
+     (define out
+       (for/list ([root (batch-roots curr-batch)])
+         (list (batchref curr-batch root))))
 
-      out]
+     out]
 
     ;; very hard - per id recruse one level and ger simplest child
     [`(multi . ,extractor) ; multi expression extraction
-      ;; TODO : Need to run egglog to get the actual ids per
+     (define curr-batch (egg-runner-batch runner))
 
-      (define curr-batch (egg-runner-batch runner))
+     ;; (Listof (Listof batchref))
+     (define out
+       (for/list ([root (batch-roots curr-batch)])
+         (list (batchref curr-batch root))))
 
-      ;; (Listof (Listof batchref))
-      ; (define out
-      ;   (list (list (batchref curr-batch 0))))
-      (define out
-        (for/list ([root (batch-roots curr-batch)])
-          (list (batchref curr-batch root))))
-
-      out]
+     out]
 
     ;; egglog does not have proof
     ;; there is some value that herbie has which indicates we could not
-    ;; find a proof. Might be (list #f #f ....) 
+    ;; find a proof. Might be (list #f #f ....)
     [`(proofs . ((,start-exprs . ,end-exprs) ...)) ; proof extraction
      (for/list ([start (in-list start-exprs)]
                 [end (in-list end-exprs)])
-        ;    (unless (egraph-expr-equal? egg-graph start end ctx)
-        ;      (error 'run-egg
-        ;             "cannot find proof; start and end are not equal.\n start: ~a \n end: ~a"
-        ;             start
-        ;             end))
-        ;    (define proof (egraph-get-proof egg-graph start end ctx))
-        ;    (when (null? proof)
-        ;      (error 'run-egg "proof extraction failed between`~a` and `~a`" start end))
-        ;    proof)
-
-        ;; Currently defaults to false, but the above needs to run eventually somehow??
-        #f)]
- 
+       #f)]
 
     ; 1. ask within egglog program what is id
     ; 2. Extract expression from each expr
-    ; qn: if i have  two expressions how di i know if they are in the same e-class
+    ; TODO: if i have  two expressions how di i know if they are in the same e-class
     ; if we are outside of egglog
     [`(equal? . ((,start-exprs . ,end-exprs) ...)) ; term equality?
-      (for/list ([start (in-list start-exprs)]
+     (for/list ([start (in-list start-exprs)]
                 [end (in-list end-exprs)])
-        ;    (egraph-expr-equal? egg-graph start end ctx))
-        #f)]
-       
+       #f)]
+
     [_ (error 'run-egg "unknown command `~a`\n" cmd)]))
 
 (define (prelude #:mixed-egraph? [mixed-egraph? #t])

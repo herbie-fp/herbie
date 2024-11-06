@@ -117,17 +117,12 @@
   ;; run egg to check for identities
   (define expr-pairs (map (curry cons spec) specs))
 
-  ; (define equal?-lst (run-egg runner `(equal? . ,expr-pairs)))
   (define generate-flags (hash-ref all-flags 'generate))
-
-  ; (printf "preprocess reached ")
 
   (define equal?-lst
     (if (member 'egglog generate-flags)
         (run-egglog runner `(equal? . ,expr-pairs))
         (run-egg runner `(equal? . ,expr-pairs))))
-
-  ; (printf "preprocess successful\n\n")
 
   ;; collect equalities
   (define abs-instrs '())
