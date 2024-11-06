@@ -196,19 +196,10 @@
         (run-taylor exprs start-altns global-batch)
         '()))
 
-  ; (printf "patch before run-rr \n")
-
   ; Recursive rewrite
   (define rewritten
     (if (flag-set? 'generate 'rr)
         (run-rr start-altns global-batch)
         '()))
 
-  ; (printf "patch after run-rr \n")
-
-  (define return-val
-    (remove-duplicates (append approximations rewritten) #:key (λ (x) (batchref-idx (alt-expr x)))))
-
-  ; (printf "patch after rem-dev \n")
-
-  return-val)
+  (remove-duplicates (append approximations rewritten) #:key (λ (x) (batchref-idx (alt-expr x)))))
