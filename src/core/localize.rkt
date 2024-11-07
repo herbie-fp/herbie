@@ -55,12 +55,10 @@
       [(list 'if cond ift iff) (+ 1 (rec cond) (rec ift) (rec iff))]
       [(list (? impl-exists? impl) args ...)
        (match (pow-impl-args impl args)
-         [(cons _ e)
+         [(cons _ (literal e _))
           #:when (fraction-with-odd-denominator? e)
           +inf.0]
          [_ (apply + 1 (map rec args))])]
-      [(list 'pow b e)
-       (if (fraction-with-odd-denominator? e) +inf.0 (+ 1 (rec b) (rec e)))]
       [(list _ args ...) (apply + 1 (map rec args))])))
 
 (define (batch-localize-costs exprs ctx)
@@ -105,7 +103,9 @@
 
   ; platform-based expression cost
   (define cost-proc
-    (if (*egraph-platform-cost*) (platform-cost-proc (*active-platform*)) default-cost-proc))
+    (if (*egraph-platform-cost*)
+        (platform-cost-proc (*active-platform*))
+        default-cost-proc))
   (define (expr->cost expr)
     (cost-proc expr (repr-of expr ctx)))
 
@@ -119,8 +119,10 @@
       (for/list ([child (in-list children)])
         (expr->cost (hash-ref expr->simplest child))))
     (unless (>= start-cost best-cost)
-      (error 'cost-opportunity "Initial expression ~a is better than final expression ~a\n"
-             subexpr (hash-ref expr->simplest subexpr)))
+      (error 'cost-opportunity
+             "Initial expression ~a is better than final expression ~a\n"
+             subexpr
+             (hash-ref expr->simplest subexpr)))
     ; compute cost opportunity
     (- (apply - start-cost start-child-costs) (apply - best-cost best-child-costs)))
 
