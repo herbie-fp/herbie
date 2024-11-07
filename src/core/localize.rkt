@@ -123,9 +123,12 @@
              "Initial expression ~a is better than final expression ~a\n"
              subexpr
              (hash-ref expr->simplest subexpr)))
-    ; compute cost opportunity
-    (define a (apply - start-cost start-child-costs))
-    (define b (apply - best-cost best-child-costs))
+
+    ; Cost opportunity would normally be:
+    ;   (start cost - start child costs) - (best cost - best child costs)
+    ; However, we rearrange to handle infinities:
+    (define a (apply + start-cost best-child-costs))
+    (define b (apply + best-cost start-child-costs))
     (if (= a b) 0 (- a b))) ; This `if` statement handles `inf - inf`
 
   ; rank subexpressions by cost opportunity
