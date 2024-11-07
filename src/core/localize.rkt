@@ -129,7 +129,9 @@
     ; However, we rearrange to handle infinities:
     (define a (apply + start-cost best-child-costs))
     (define b (apply + best-cost start-child-costs))
-    (if (= a b) 0 (- a b))) ; This `if` statement handles `inf - inf`
+    (if (= a b)
+        0
+        (- a b))) ; This `if` statement handles `inf - inf`
 
   ; rank subexpressions by cost opportunity
   (define localize-costss
