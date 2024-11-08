@@ -12,7 +12,8 @@
          "rules.rkt"
          "simplify.rkt"
          "taylor.rkt"
-         "batch.rkt")
+         "batch.rkt"
+         "egglog-herbie.rkt")
 
 (provide generate-candidates)
 
@@ -153,8 +154,14 @@
   (timeline-push! 'inputs (map ~a exprs))
 
   (define runner (make-egg-runner global-batch roots reprs schedule #:context (*context*)))
+
+  (define generate-flags (hash-ref all-flags 'generate))
+
   ; batchrefss is a (listof (listof batchref))
-  (define batchrefss (run-egg runner `(multi . ,extractor)))
+  (define batchrefss
+    (if (member 'egglog generate-flags)
+        (run-egglog runner `(multi . ,extractor))
+        (run-egg runner `(multi . ,extractor))))
 
   ; apply changelists
   (define rewritten
@@ -166,6 +173,7 @@
 
   (timeline-push! 'outputs (map (compose ~a debatchref alt-expr) rewritten))
   (timeline-push! 'count (length altns) (length rewritten))
+
   rewritten)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Public API ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -187,6 +195,7 @@
     (if (flag-set? 'generate 'taylor)
         (run-taylor exprs start-altns global-batch)
         '()))
+
   ; Recursive rewrite
   (define rewritten
     (if (flag-set? 'generate 'rr)

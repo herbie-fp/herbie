@@ -7,7 +7,8 @@
          "rules.rkt"
          "../utils/alternative.rkt"
          "egg-herbie.rkt"
-         "batch.rkt")
+         "batch.rkt"
+         "egglog-herbie.rkt")
 
 (provide simplify-batch)
 
@@ -23,7 +24,13 @@
   (-> egg-runner? procedure? (listof (listof batchref?)))
   (timeline-push! 'inputs (map ~a (batch->progs (egg-runner-batch runner) (egg-runner-roots runner))))
   (timeline-push! 'method "egg-herbie")
-  (define simplifieds (run-egg runner (cons 'single extractor)))
+
+  (define generate-flags (hash-ref all-flags 'generate))
+  (define simplifieds
+    (if (member 'egglog generate-flags)
+        (run-egglog runner (cons 'single extractor))
+        (run-egg runner (cons 'single extractor))))
+
   (define out
     (for/list ([simplified (in-list simplifieds)]
                [root (egg-runner-roots runner)])
@@ -31,6 +38,7 @@
                          #:key batchref-idx)))
 
   (timeline-push! 'outputs (map (compose ~a debatchref) (apply append out)))
+
   out)
 
 (module+ test
