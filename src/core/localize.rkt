@@ -206,8 +206,7 @@
 ;; same shape as `prog`
 (define (local-error-as-tree test ctx)
   (define fpcore (prog->fpcore (test-input test) (test-context test)))
-  (define subexprss (list (all-subexpressions (test-input test))))
-  (define exprs-list (append* subexprss)) ; unroll subexprss
+  (define exprs-list (all-subexpressions (test-input test)))
   (define ctx-list
     (for/list ([subexpr (in-list exprs-list)])
       (struct-copy context ctx [repr (repr-of subexpr ctx)])))
@@ -221,11 +220,9 @@
   (define nodes (batch-nodes expr-batch))
   (define roots (batch-roots expr-batch))
 
-  ; TODO don't ignore the status code from make-real-compiler in eval-progs-real
   (define subexprs-fn (eval-progs-real spec-list ctx-list))
   (define actual-value-fn (compile-progs exprs-list ctx))
 
-  ;; Combine loops over pcontext to use for/vectors?
   (define exacts-from-points
     (for/vector #:length (pcontext-length (*pcontext*))
                 ([(pt ex) (in-pcontext (*pcontext*))])
@@ -292,7 +289,7 @@
                (compute-abs-error current-spec exact current-ctx pt current-repr))]))
       (hash-set! data-hash
                  root
-                 (hasheq 'e ;; String shenanigans to persevere current output.
+                 (hasheq 'e
                          (~s (if (pair? expr-syntax)
                                  (first expr-syntax)
                                  expr-syntax))
