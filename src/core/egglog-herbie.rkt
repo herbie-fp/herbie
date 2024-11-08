@@ -133,7 +133,6 @@
 ;;  - multi extraction: `(multi . <extractor>)`
 ;;  - proofs: `(proofs . ((<start> . <end>) ...))`
 
-
 ;; TODO : Need to run egglog to get the actual ids per
 (define (run-egglog-single-extractor runner extractor) ; single expression extraction
   (define curr-batch (egg-runner-batch runner))
@@ -168,7 +167,6 @@
              [end (in-list end-exprs)])
     #f))
 
-
 ; ; 1. ask within egglog program what is id
 ; ; 2. Extract expression from each expr
 ; ; TODO: if i have  two expressions how di i know if they are in the same e-class
@@ -180,7 +178,6 @@
   (for/list ([start (in-list start-exprs)]
              [end (in-list end-exprs)])
     #f))
-
 
 (define (prelude #:mixed-egraph? [mixed-egraph? #t])
   (load-herbie-builtins)
