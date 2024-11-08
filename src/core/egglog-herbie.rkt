@@ -160,11 +160,7 @@
 ;; there is some value that herbie has which indicates we could not
 ;; find a proof. Might be (list #f #f ....)
 (define (run-egglog-proofs runner rws) ; proof extraction
-  (define start-exprs (map car rws))
-  (define end-exprs (map cadr rws))
-
-  (for/list ([start (in-list start-exprs)]
-             [end (in-list end-exprs)])
+  (for/list ([(start-expr end-expr) (in-dict rws)])
     #f))
 
 ; ; 1. ask within egglog program what is id
@@ -172,11 +168,7 @@
 ; ; TODO: if i have  two expressions how di i know if they are in the same e-class
 ; ; if we are outside of egglog
 (define (run-egglog-equal? runner expr-pairs) ; term equality?
-  (define start-exprs (map car expr-pairs))
-  (define end-exprs (map cadr expr-pairs))
-
-  (for/list ([start (in-list start-exprs)]
-             [end (in-list end-exprs)])
+  (for/list ([(start-expr end-expr) (in-dict expr-pairs)])
     #f))
 
 (define (prelude #:mixed-egraph? [mixed-egraph? #t])
