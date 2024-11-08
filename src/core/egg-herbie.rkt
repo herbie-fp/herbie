@@ -75,7 +75,6 @@
 ; Adds expressions returning the root ids
 (define (egraph-add-exprs egg-data batch roots ctx)
   (match-define (egraph-data ptr herbie->egg-dict egg->herbie-dict id->spec) egg-data)
-
   ; lookups the egg name of a variable
   (define (normalize-var x)
     (hash-ref! herbie->egg-dict
@@ -151,7 +150,6 @@
                       (cons spec* type))) ; preserved spec and type for extraction
          (list '$approx (remap spec) (remap impl))]
         [(list op (app remap args) ...) (cons op args)]))
-
     (vector-set! mappings n (insert-node! node* root?)))
 
   (for/list ([root (in-vector (batch-roots insert-batch))])
