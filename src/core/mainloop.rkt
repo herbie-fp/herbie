@@ -360,6 +360,8 @@
      (define exprs (map alt-expr alts))
      (define reprs (map (lambda (expr) (repr-of expr (*context*))) exprs))
      (define batch (progs->batch exprs))
+     (egglog-add-exprs batch (*context*))
+
      (define runner (make-egg-runner batch (batch-roots batch) reprs schedule))
 
      ; run egg
