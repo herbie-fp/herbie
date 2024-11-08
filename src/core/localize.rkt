@@ -293,8 +293,6 @@
     (define approx-ctx (vector-ref ctx-vec i))
     (compute-abs-error approx-spec exact approx-ctx pt repr))
 
-  (define previous_node_if? #f)
-
   (define data-hash (make-hash))
 
   (for ([(pt ex) (in-pcontext (*pcontext*))]
@@ -330,15 +328,11 @@
           [(? variable?) 0]
           [(approx _ impl) (absolute-error-for impl exact pt current-repr)]
           [`(if ,c ,ift ,iff)
-           (set! previous_node_if? #t)
            (if exact
                (absolute-error-for ift exact pt current-repr)
                (absolute-error-for iff exact pt current-repr))]
           [(list f args ...)
-           (define local previous_node_if?)
-           (when previous_node_if?
-             (set! previous_node_if? #f))
-           (if local
+           (if (equal? (representation-type (impl-info f 'otype)) 'bool)
                exact
                (compute-abs-error current-spec exact current-ctx pt current-repr))]))
       (hash-set! data-hash
