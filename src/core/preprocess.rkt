@@ -121,7 +121,7 @@
 
   (define equal?-lst
     (if (member 'egglog generate-flags)
-        (run-egglog runner `(equal? . ,expr-pairs))
+        (run-egglog-equal? runner expr-pairs)
         (run-egg runner `(equal? . ,expr-pairs))))
 
   ;; collect equalities

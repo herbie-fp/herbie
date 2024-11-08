@@ -18,7 +18,10 @@
          run-egglog-process
          (struct-out egglog-program)
          make-egglog-runner
-         run-egglog)
+         run-egglog-single-extractor
+         run-egglog-multi-extractor
+         run-egglog-proofs
+         run-egglog-equal?)
 
 (module+ test
   (require rackunit)
@@ -122,57 +125,62 @@
   ; make the runner
   (egglog-runner batch roots reprs schedule ctx))
 
-;; 2. Add run-egglog
+;; 2. 4 types of run-egglog
 ;; Runs egg using an egg runner.
 ;;
 ;; Argument `cmd` specifies what to get from the e-graph:
 ;;  - single extraction: `(single . <extractor>)`
 ;;  - multi extraction: `(multi . <extractor>)`
 ;;  - proofs: `(proofs . ((<start> . <end>) ...))`
-(define (run-egglog runner cmd)
-  ;; TODO : Need to run egglog to get the actual ids per
 
-  (match cmd
-    [`(single . ,extractor) ; single expression extraction
 
-     (define curr-batch (egg-runner-batch runner))
+;; TODO : Need to run egglog to get the actual ids per
+(define (run-egglog-single-extractor runner extractor) ; single expression extraction
+  (define curr-batch (egg-runner-batch runner))
 
-     ;; (Listof (Listof batchref))
-     (define out
-       (for/list ([root (batch-roots curr-batch)])
-         (list (batchref curr-batch root))))
+  ;; (Listof (Listof batchref))
+  (define out
+    (for/list ([root (batch-roots curr-batch)])
+      (list (batchref curr-batch root))))
 
-     out]
+  out)
 
-    ;; very hard - per id recruse one level and ger simplest child
-    [`(multi . ,extractor) ; multi expression extraction
-     (define curr-batch (egg-runner-batch runner))
+;; TODO : Need to run egglog to get the actual ids
+;; very hard - per id recruse one level and ger simplest child
+(define (run-egglog-multi-extractor runner extractor) ; multi expression extraction
+  (define curr-batch (egg-runner-batch runner))
 
-     ;; (Listof (Listof batchref))
-     (define out
-       (for/list ([root (batch-roots curr-batch)])
-         (list (batchref curr-batch root))))
+  ;; (Listof (Listof batchref))
+  (define out
+    (for/list ([root (batch-roots curr-batch)])
+      (list (batchref curr-batch root))))
 
-     out]
+  out)
 
-    ;; egglog does not have proof
-    ;; there is some value that herbie has which indicates we could not
-    ;; find a proof. Might be (list #f #f ....)
-    [`(proofs . ((,start-exprs . ,end-exprs) ...)) ; proof extraction
-     (for/list ([start (in-list start-exprs)]
-                [end (in-list end-exprs)])
-       #f)]
+;; egglog does not have proof
+;; there is some value that herbie has which indicates we could not
+;; find a proof. Might be (list #f #f ....)
+(define (run-egglog-proofs runner rws) ; proof extraction
+  (define start-exprs (map car rws))
+  (define end-exprs (map cadr rws))
 
-    ; 1. ask within egglog program what is id
-    ; 2. Extract expression from each expr
-    ; TODO: if i have  two expressions how di i know if they are in the same e-class
-    ; if we are outside of egglog
-    [`(equal? . ((,start-exprs . ,end-exprs) ...)) ; term equality?
-     (for/list ([start (in-list start-exprs)]
-                [end (in-list end-exprs)])
-       #f)]
+  (for/list ([start (in-list start-exprs)]
+             [end (in-list end-exprs)])
+    #f))
 
-    [_ (error 'run-egg "unknown command `~a`\n" cmd)]))
+
+; ; 1. ask within egglog program what is id
+; ; 2. Extract expression from each expr
+; ; TODO: if i have  two expressions how di i know if they are in the same e-class
+; ; if we are outside of egglog
+(define (run-egglog-equal? runner expr-pairs) ; term equality?
+  (define start-exprs (map car expr-pairs))
+  (define end-exprs (map cadr expr-pairs))
+
+  (for/list ([start (in-list start-exprs)]
+             [end (in-list end-exprs)])
+    #f))
+
 
 (define (prelude #:mixed-egraph? [mixed-egraph? #t])
   (load-herbie-builtins)
