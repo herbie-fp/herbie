@@ -28,7 +28,7 @@
   (define generate-flags (hash-ref all-flags 'generate))
   (define simplifieds
     (if (member 'egglog generate-flags)
-        (run-egglog runner (cons 'single extractor))
+        (run-egglog-single-extractor runner extractor)
         (run-egg runner (cons 'single extractor))))
 
   (define out
