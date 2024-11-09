@@ -1,7 +1,6 @@
 import { strict as assert } from 'node:assert';  // use strict equality everywhere 
 
 // Future TODO: before this API becomes set in stone/offered publicly, we should change the results of these methods to be just the output data rather than duplicating input values.
-
 // Reusable testing data
 const SAMPLE_SIZE = 8000
 const FPCoreFormula = '(FPCore (x) (- (sqrt (+ x 1)) (sqrt x)))'
@@ -177,22 +176,22 @@ const localError5 = await (await fetch(makeEndpoint("/api/localerror"), {
 // avg_error, actual_value, exact_value, absolute_error, ulps_error
 // root node
 checkLocalErrorNode(localError5.tree, [],
-  '-', '0.0', '1.0', '1.0', '1e-50', '1')
+  '-', '0.0', '1.0', '1.0', '0.0', '0.0')
 // left sqrt
 checkLocalErrorNode(localError5.tree, [0],
-  'sqrt', '0.0', '1.0', '1.0', '5e-101', '1')
+  'sqrt', '0.0', '1.0', '1.0', '0.0', '0.0')
 // right sqrt 
 checkLocalErrorNode(localError5.tree, [1],
-  'sqrt', '0.0', '1e-50', '1e-50', '2.379726195519099e-68', '1')
+  'sqrt', '0.0', '1e-50', '1e-50', '0.0', '0.0')
 // plus 
 checkLocalErrorNode(localError5.tree, [0, 0],
-  '+', '0.0', '1.0', '1.0', '1e-100', '1')
+  '+', '0.0', '1.0', '1.0', '0.0', '0.0')
 // var x
 checkLocalErrorNode(localError5.tree, [0, 0, 0],
-  'x', '0.0', '1e-100', '1e-100', '0', '1')
+  'x', '0.0', '1e-100', '1e-100', '0', '0.0')
 // literal 1
 checkLocalErrorNode(localError5.tree, [0, 0, 1],
-  '1.0', '0.0', '1.0', '1.0', '0.0', '1')
+  '1.0', '0.0', '1.0', '1.0', '0.0', '0.0')
 
 // '(FPCore (1e100) (- (sqrt (+ x 1)) (sqrt x)))'
 const localError6 = await (await fetch(makeEndpoint("/api/localerror"), {
@@ -203,22 +202,22 @@ const localError6 = await (await fetch(makeEndpoint("/api/localerror"), {
 // avg_error, actual_value, exact_value, absolute_error, ulps_error
 // root node
 checkLocalErrorNode(localError6.tree, [],
-  '-', '61.7', '0.0', '5e-51', '7.78383463033115e-68', '3854499065107888160')
+  '-', '61.7', '0.0', '5e-51', '5e-51', '61.74124908607812')
 // left sqrt
 checkLocalErrorNode(localError6.tree, [0],
-  'sqrt', '0.0', '1e+50', '1e+50', '6.834625285603891e+33', '1')
+  'sqrt', '0.0', '1e+50', '1e+50', '0.0', '0.0')
 // right sqrt 
 checkLocalErrorNode(localError6.tree, [1],
-  'sqrt', '0.0', '1e+50', '1e+50', '6.834625285603891e+33', '1')
+  'sqrt', '0.0', '1e+50', '1e+50', '0.0', '0.0')
 // plus 
 checkLocalErrorNode(localError6.tree, [0, 0],
-  '+', '0.0', '1e+100', '1e+100', '1.0', '1')
+  '+', '0.0', '1e+100', '1e+100', '0.0', '0.0')
 // var x
 checkLocalErrorNode(localError6.tree, [0, 0, 0],
-  'x', '0.0', '1e+100', '1e+100', '0', '1')
+  'x', '0.0', '1e+100', '1e+100', '0', '0.0')
 // literal 1
 checkLocalErrorNode(localError6.tree, [0, 0, 1],
-  '1.0', '0.0', '1.0', '1.0', '0.0', '1')
+  '1.0', '0.0', '1.0', '1.0', '0.0', '0.0')
 
 // Test a large number `2e269` to trigger NaN in fma.
 const localError7 = await (await fetch(makeEndpoint("/api/localerror"), {
@@ -228,13 +227,13 @@ const localError7 = await (await fetch(makeEndpoint("/api/localerror"), {
 })).json()
 // Test against conditionals
 checkLocalErrorNode(localError7.tree, [0],
-  '<=', '0.0', 'true', 'true', 'true', '1')
+  '<=', '0.0', 'true', 'true', 'true', '0.0')
 // Test that inexact values display using input syntax not fraction
 checkLocalErrorNode(localError7.tree, [0, 1],
-  '0.05', '0.0', '0.05', '0.05', '0.0', '1')
+  '0.05', '0.0', '0.05', '0.05', '0.0', '0.0')
 // Test for NaN error
 checkLocalErrorNode(localError7.tree, [2],
-  'fma', '0.0', '-inf.0', '-inf.0', 'NaN', '1')
+  'fma', '0.0', '-inf.0', '-inf.0', 'NaN', '0.0')
 
 /// root: The root node of the local error tree.
 /// path: the path to get to the node you want to test.

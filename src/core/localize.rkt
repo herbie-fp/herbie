@@ -232,9 +232,9 @@
                 ([(pt ex) (in-pcontext (*pcontext*))])
       (apply actual-value-fn pt)))
 
-  (define (compute-abs-error spec exact ctx pt repr)
+  (define (compute-abs-error actual exact ctx pt repr)
     ;; TODO compute in batches and evalutate propigated errors from rival.
-    (define true-error (first (apply (eval-progs-real (list `(- ,spec ,exact)) (list ctx)) pt)))
+    (define true-error (first (apply (eval-progs-real (list `(- ,actual ,exact)) (list ctx)) pt)))
     (define bf-true-error ((representation-repr->bf repr) true-error))
     (define abs-error (bfabs bf-true-error))
     (define abs-error-out (value->json (bigfloat->flonum abs-error) repr))
@@ -252,7 +252,6 @@
         [actuals (in-vector actuals-from-points)])
     (for ([expr-syntax (in-list (all-subexpressions fpcore))]
           [expr (in-list exprs-list)]
-          [current-spec (in-vector spec-vec)]
           [current-ctx (in-list ctx-list)]
           [root (in-vector roots)]
           [actual (in-vector actuals)]
@@ -265,7 +264,7 @@
           [(? variable?) 1]
           [(approx _ impl)
            (define repr (repr-of expr ctx))
-           (ulp-difference exact (vector-ref exacts (vector-member impl roots)) repr)]
+           (ulp-difference exact actual repr)]
           [`(if ,c ,ift ,iff) 1]
           [(list f args ...)
            (define repr (impl-info f 'otype))
@@ -276,7 +275,7 @@
            (ulp-difference exact approx repr)]))
       (define abs-error
         (match node
-          [(? literal?) (compute-abs-error current-spec exact current-ctx pt current-repr)]
+          [(? literal?) (compute-abs-error actual exact current-ctx pt current-repr)]
           [(? variable?) 0]
           [(approx _ impl) (absolute-error-for impl exact pt current-repr)]
           [`(if ,c ,ift ,iff)
@@ -286,7 +285,7 @@
           [(list f args ...)
            (if (equal? (representation-type (impl-info f 'otype)) 'bool)
                exact
-               (compute-abs-error current-spec exact current-ctx pt current-repr))]))
+               (compute-abs-error actual exact current-ctx pt current-repr))]))
       (hash-set! data-hash
                  root
                  (hasheq 'e
@@ -313,7 +312,7 @@
     (define data (hash-ref data-hash root))
     (define expr (hash-ref data 'e))
     (define abs-error (translate-booleans (hash-ref data 'absolute-error)))
-    (define ulp-error (map ~s (list (translate-booleans (hash-ref data 'ulps-error)))))
+    (define ulp-error (map ~s (list (translate-booleans (ulps->bits (hash-ref data 'ulps-error))))))
     (define avg-error (format-bits (errors-score (list (hash-ref data 'ulps-error)))))
     (define exact-error (map ~s (list (translate-booleans (hash-ref data 'exact-value)))))
     (define actual-error (map ~s (list (translate-booleans (hash-ref data 'actual-value)))))
