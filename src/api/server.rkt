@@ -131,14 +131,10 @@
   (if manager
       (manager-ask-with-callback msg args)
       (match (list* msg args) ; public commands
-        [(list 'wait hash-false job-id)
-         (hash-ref completed-work job-id)]
-        [(list 'result job-id)
-         (hash-ref completed-work job-id #f)]
-        [(list 'timeline job-id)
-         (hash-ref completed-work job-id #f)]
-        [(list 'check job-id)
-         (if (hash-ref completed-work job-id #f) job-id #f)]
+        [(list 'wait hash-false job-id) (hash-ref completed-work job-id)]
+        [(list 'result job-id) (hash-ref completed-work job-id #f)]
+        [(list 'timeline job-id) (hash-ref completed-work job-id #f)]
+        [(list 'check job-id) (if (hash-ref completed-work job-id #f) job-id #f)]
         [(list 'count) (list 0 0)]
         [(list 'improve)
          (for/list ([(job-id result) (in-hash completed-work)]
