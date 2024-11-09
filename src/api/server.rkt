@@ -16,6 +16,7 @@
          "../utils/errors.rkt"
          "../utils/float.rkt"
          "../reports/pages.rkt"
+         "../reports/core2mathjs.rkt"
          "datafile.rkt"
          (submod "../utils/timeline.rkt" debug))
 
@@ -33,19 +34,32 @@
          start-job-server
          write-results-to-disk
          *demo?*
-         *demo-output*)
+         *demo-output*
+         _create-job0
+         translate-job)
 
 (define *demo?* (make-parameter false))
 (define *demo-output* (make-parameter false))
 
 ; verbose logging for debugging
-(define verbose #f) ; Maybe change to log-level and use 'verbose?
+(define verbose #t) ; Maybe change to log-level and use 'verbose?
 (define (log msg . args)
   (when verbose
     (apply eprintf msg args)))
 
 ;; Job object, What herbie excepts as input for a new job.
 (struct herbie-command (command test seed pcontext profile? timeline-disabled?) #:prefab)
+
+; action-type 'herbie-command or 'translation
+(struct server-action (action-type associated-type))
+
+(struct translate-job (fpcore to-language))
+
+(define (_create-job0 server-action-type associated-type)
+  (match server-action-type
+    ['herbie-command (eprintf "creating herbie command\n")]
+    ['translate (eprintf "creating translation\n")])
+  (server-action server-action-type associated-type))
 
 ;; Creates a command object to be passed to start-job server.
 ;; TODO contract?
@@ -106,11 +120,24 @@
   (apply + job-list))
 
 ;; Starts a job for a given command object|
-(define (start-job command)
-  (define job-id (compute-job-id command))
-  (manager-tell 'start manager command job-id)
-  (log "Job ~a, Qed up for program: ~a\n" job-id (test-name (herbie-command-test command)))
-  job-id)
+(define (start-job action)
+  (match (server-action-action-type action)
+    ['herbie-command
+     (define command (server-action-associated-type action))
+     (define job-id (compute-job-id command))
+     (manager-tell 'start manager command job-id)
+     (log "Job ~a, Qed up for program: ~a\n" job-id (test-name (herbie-command-test command)))
+     job-id]
+    ['translate
+     (match-define (translate-job fpcore to-language) (server-action-associated-type action))
+     (eprintf "Converting ~a to ~a.\n" fpcore to-language)
+     (match to-language
+       ['mathjs
+        (define job-hash (compute-job-id (translate-job fpcore to-language)))
+        (define result (hasheq 'mathjs (core->mathjs (syntax->datum fpcore))))
+        (eprintf "job-hash: ~a, ~a\n" job-hash result)
+        (hash-set! completed-translations job-hash result)
+        job-hash])]))
 
 (define (wait-for-job job-id)
   (define finished-result (manager-ask 'wait manager job-id))
@@ -121,9 +148,8 @@
   (log "Telling manager: ~a, ~a.\n" msg args)
   (if manager
       (place-channel-put manager (list* msg args))
-      (match msg
-        ['start
-         (match-define (list hash-false command job-id) args)
+      (match (list* msg args)
+        [(list 'start hash-false command job-id)
          (hash-set! completed-work job-id (herbie-do-server-job command job-id))])))
 
 (define (manager-ask msg . args)
@@ -131,7 +157,20 @@
   (if manager
       (manager-ask-with-callback msg args)
       (match (list* msg args) ; public commands
-        [(list 'wait hash-false job-id) (hash-ref completed-work job-id)]
+        [(list 'wait hash-false job-id)
+         (define result (hash-ref completed-work job-id #f))
+         ; check if the job is completed or not.
+         (match result
+           [#f
+            (match (hash-ref completed-translations job-id #f)
+              [#f (log "Translation not found\n")]
+              [t
+               (log "Done waiting for translation: ~a\n" job-id)
+               t])]
+           [result
+            (log "Done waiting for job: ~a\n" job-id)
+            ; we have a result to send.
+            result])]
         [(list 'result job-id) (hash-ref completed-work job-id #f)]
         [(list 'timeline job-id) (hash-ref completed-work job-id #f)]
         [(list 'check job-id) (if (hash-ref completed-work job-id #f) job-id #f)]
@@ -159,6 +198,7 @@
   out-result)
 
 (define completed-work (make-hash))
+(define completed-translations (make-hash))
 
 (define (manager-ask-with-callback msg args)
   (define-values (a b) (place-channel))
@@ -296,10 +336,15 @@
         (hash-update! waiting job-id (curry append (list handler)) '())
         (define result (hash-ref completed-work job-id #f))
         ; check if the job is completed or not.
-        (unless (false? result)
-          (log "Done waiting for job: ~a\n" job-id)
-          ; we have a result to send.
-          (place-channel-put self (list 'send job-id result)))]
+        (match result
+          [#f
+           (match (hash-ref completed-translations job-id #f)
+             [#f (eprintf "Translation not found\n")]
+             [t (place-channel-put self (list 'send job-id t))])]
+          [result
+           (log "Done waiting for job: ~a\n" job-id)
+           ; we have a result to send.
+           (place-channel-put self (list 'send job-id result))])]
        [(list 'send job-id result)
         (log "Sending result for ~a.\n" job-id)
         (for ([handle (hash-ref waiting job-id '())])
