@@ -10,7 +10,6 @@
          "../reports/common.rkt"
          "../syntax/types.rkt"
          "../syntax/read.rkt"
-         "../syntax/sugar.rkt"
          "../syntax/load-plugin.rkt"
          "../utils/alternative.rkt"
          "../utils/common.rkt"
@@ -109,7 +108,7 @@
 ;; Starts a job for a given command object|
 (define (start-job command)
   (define job-id (compute-job-id command))
-  (manager-ask 'start manager command job-id)
+  (manager-tell 'start manager command job-id)
   (log "Job ~a, Qed up for program: ~a\n" job-id (test-name (herbie-command-test command)))
   job-id)
 
@@ -118,20 +117,17 @@
   (log "Done waiting for: ~a\n" job-id)
   finished-result)
 
+(define (manager-tell msg . args)
+  (log "Telling manager: ~a, ~a.\n" msg args)
+  (place-channel-put manager (list* msg args)))
+
 (define (manager-ask msg . args)
   (log "Asking manager: ~a, ~a.\n" msg args)
-  (match msg
-    ['wait (manager-ask-with-callback msg args)]
-    ['result (manager-ask-with-callback msg args)]
-    ['timeline (manager-ask-with-callback msg args)]
-    ['check (manager-ask-with-callback msg args)]
-    ['count (manager-ask-with-callback msg args)]
-    ['improve (manager-ask-with-callback msg args)]
-    [_ (place-channel-put manager (flatten (list msg args)))]))
+  (manager-ask-with-callback msg args))
 
 (define (manager-ask-with-callback msg args)
   (define-values (a b) (place-channel))
-  (place-channel-put manager (flatten (list msg b args)))
+  (place-channel-put manager (list* msg b args))
   (place-channel-get a))
 
 (define (is-server-up)
