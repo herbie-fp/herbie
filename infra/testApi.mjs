@@ -27,6 +27,8 @@ assert.equal(timeline.length > 0, true)
 // Test with a likely missing job-id
 const badTimelineRSP = await fetch(makeEndpoint("/timeline/42069"), { method: 'GET' })
 assert.equal(badTimelineRSP.status, 404)
+const check_missing_job = await fetch(makeEndpoint(`/check-status/42069`), { method: 'GET' })
+assert.equal(check_missing_job.status, 202)
 
 // improve-start endpoint
 const URIencodedBody = "formula=" + encodeURIComponent(FPCoreFormula)
