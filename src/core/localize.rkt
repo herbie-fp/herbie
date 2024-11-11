@@ -239,12 +239,19 @@
       (begin0 (values subexpr (vector->list (vector-ref errs n)))
         (set! n (add1 n))))))
 
-(module+ test
-  (define ctx (make-debug-context '(x y)))
-  (define spec `(- (sqrt (+ x 1)) (sqrt y)))
-  (define pt `(1e-100 1e-100))
-  (define exact 1e-50)
-  (check-equal? (first (apply (eval-progs-real (list `(- ,spec ,exact)) (list ctx)) pt)) 1.0))
+; TODO more consise function name?
+(define (eval-progs-real-surface-error-strings specs ctxs)
+  (define compiler (make-real-compiler specs ctxs))
+  (define bad-pt
+    (for/list ([ctx* (in-list ctxs)])
+      ((representation-bf->repr (context-repr ctx*)) +nan.bf)))
+  (define (<eval-prog-real> . pt)
+    (define-values (other exs) (real-apply compiler pt))
+    (match other
+      ['invalid (list 'invalid)]
+      ['unsamplable (list 'unsamplable)]
+      ['valid (or exs bad-pt)]))
+  <eval-prog-real>)
 
 ;; Compute the local error of every subexpression of `prog`
 ;; and returns the error information as an S-expr in the
@@ -263,7 +270,7 @@
   (define nodes (batch-nodes expr-batch))
   (define roots (batch-roots expr-batch))
 
-  (define subexprs-fn (eval-progs-real spec-list ctx-list))
+  (define subexprs-fn (eval-progs-real-surface-error-strings spec-list ctx-list))
   (define actual-value-fn (compile-progs exprs-list ctx))
 
   (define exacts-from-points
@@ -277,11 +284,17 @@
 
   (define (compute-abs-error actual exact ctx pt repr)
     ;; TODO compute in batches and evalutate propigated errors from rival.
-    (define true-error (first (apply (eval-progs-real (list `(- ,actual ,exact)) (list ctx)) pt)))
-    (define bf-true-error ((representation-repr->bf repr) true-error))
-    (define abs-error (bfabs bf-true-error))
-    (define abs-error-out (value->json (bigfloat->flonum abs-error) repr))
-    abs-error-out)
+    (define true-error
+      (first (apply (eval-progs-real-surface-error-strings (list `(- ,actual ,exact)) (list ctx))
+                    pt)))
+    (match true-error
+      ['invalid 'invalid]
+      ['unsamplable 'unsamplable]
+      [value
+       (define bf-true-error ((representation-repr->bf repr) value))
+       (define abs-error (bfabs bf-true-error))
+       (define abs-error-out (value->json (bigfloat->flonum abs-error) repr))
+       abs-error-out]))
 
   (define (absolute-error-for i exact pt repr)
     (define approx-spec (vector-ref spec-vec i))
@@ -353,19 +366,14 @@
       [v v]))
 
   (define (make-hash-for root)
-    ;; TODO Remove extra array from JSON output so we don't need `(map ~s (list ...)) -> (~s ...)`
     (define data (hash-ref data-hash root))
     (define expr (hash-ref data 'e))
-    (define abs-error (translate-booleans (hash-ref data 'absolute-error)))
-    (define ulp-error (map ~s (list (translate-booleans (ulps->bits (hash-ref data 'ulps-error))))))
+    (define abs-error (~s (translate-booleans (hash-ref data 'absolute-error))))
+    (define ulp-error (~s (translate-booleans (ulps->bits (hash-ref data 'ulps-error)))))
     (define avg-error (format-bits (errors-score (list (hash-ref data 'ulps-error)))))
-    (define exact-error (map ~s (list (translate-booleans (hash-ref data 'exact-value)))))
-    (define actual-error (map ~s (list (translate-booleans (hash-ref data 'actual-value)))))
-    (define precent-accurate (map ~s (list (hash-ref data 'percent-accuracy))))
-    (match abs-error ; check for errors and send as string
-      [(? hash? abs-error-hash) (set! abs-error (list (hash-ref abs-error-hash 'value)))]
-      [error-value (set! abs-error (map ~s (list error-value)))])
-
+    (define exact-error (~s (translate-booleans (hash-ref data 'exact-value))))
+    (define actual-error (~s (translate-booleans (hash-ref data 'actual-value))))
+    (define precent-accurate (~s (hash-ref data 'percent-accuracy)))
     (match (vector-ref nodes root)
       [(list op args ...)
        (hasheq 'e
