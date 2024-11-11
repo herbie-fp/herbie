@@ -314,31 +314,43 @@
           [exact (in-vector exacts)])
       (define node (vector-ref nodes root))
       (define node-ulp-difference
-        (match node
-          [(? literal?) (ulp-difference exact actual (repr-of expr ctx))]
-          [(? variable?) 1]
-          [(approx _ impl) (ulp-difference exact actual (repr-of expr ctx))]
-          [`(if ,c ,ift ,iff)
-           (if exact
-               (ulp-difference exact actual (impl-info (first (vector-ref nodes ift)) 'otype))
-               (ulp-difference exact actual (impl-info (first (vector-ref nodes iff)) 'otype)))]
-          [(list f args ...)
-           (if (equal? (representation-type (impl-info f 'otype)) 'bool)
-               1 ; return 1 for the condition node `c` in an if function.
-               (ulp-difference exact actual (impl-info f 'otype)))]))
+        (match exact
+          ['invalid 'invalid]
+          ['unsamplable 'unsamplable]
+          [value
+           (match node
+             [(? literal?) (ulp-difference exact actual (repr-of expr ctx))]
+             [(? variable?) 1]
+             [(approx _ impl) (ulp-difference exact actual (repr-of expr ctx))]
+             [`(if ,c ,ift ,iff)
+              (if exact
+                  (ulp-difference exact actual (impl-info (first (vector-ref nodes ift)) 'otype))
+                  (ulp-difference exact actual (impl-info (first (vector-ref nodes iff)) 'otype)))]
+             [(list f args ...)
+              (if (equal? (representation-type (impl-info f 'otype)) 'bool)
+                  1 ; return 1 for the condition node `c` in an if function.
+                  (ulp-difference exact actual (impl-info f 'otype)))])]))
       (define abs-error
-        (match node
-          [(? literal?) (compute-abs-error actual exact current-ctx pt (repr-of expr ctx))]
-          [(? variable?) 0]
-          [(approx _ impl) (absolute-error-for impl exact pt (repr-of expr ctx))]
-          [`(if ,c ,ift ,iff)
-           (if exact
-               (absolute-error-for ift exact pt (repr-of expr ctx))
-               (absolute-error-for iff exact pt (repr-of expr ctx)))]
-          [(list f args ...)
-           (if (equal? (representation-type (impl-info f 'otype)) 'bool)
-               exact
-               (compute-abs-error actual exact current-ctx pt (repr-of expr ctx)))]))
+        (match exact
+          ['invalid 'invalid]
+          ['unsamplable 'unsamplable]
+          [value
+           (if (or (equal? exact actual)
+                   (and (nan? exact) (nan? actual))
+                   (and (infinite? exact) (infinite? actual)))
+               'equal ; sepcial case for UI to not display a diffreence of 0
+               (match node
+                 [(? literal?) (compute-abs-error actual exact current-ctx pt (repr-of expr ctx))]
+                 [(? variable?) 0]
+                 [(approx _ impl) (absolute-error-for impl exact pt (repr-of expr ctx))]
+                 [`(if ,c ,ift ,iff)
+                  (if exact
+                      (absolute-error-for ift exact pt (repr-of expr ctx))
+                      (absolute-error-for iff exact pt (repr-of expr ctx)))]
+                 [(list f args ...)
+                  (if (equal? (representation-type (impl-info f 'otype)) 'bool)
+                      exact
+                      (compute-abs-error actual exact current-ctx pt (repr-of expr ctx)))]))]))
       (hash-set! data-hash
                  root
                  (hasheq 'e
@@ -351,13 +363,17 @@
                          exact
                          'actual-value
                          actual
-                         'absolute-error
+                         'abs-error-difference
                          abs-error
                          'percent-accuracy
-                         (* (- 1
-                               (/ (ulps->bits node-ulp-difference)
-                                  (representation-total-bits (repr-of expr ctx))))
-                            100)))))
+                         (match node-ulp-difference
+                           ['invalid 'invalid]
+                           ['unsamplable 'unsamplable]
+                           [value
+                            (* (- 1
+                                  (/ (ulps->bits node-ulp-difference)
+                                     (representation-total-bits (repr-of expr ctx))))
+                               100)])))))
 
   (define (translate-booleans value)
     (match value
@@ -368,7 +384,7 @@
   (define (make-hash-for root)
     (define data (hash-ref data-hash root))
     (define expr (hash-ref data 'e))
-    (define abs-error (~s (translate-booleans (hash-ref data 'absolute-error))))
+    (define abs-error (~s (translate-booleans (hash-ref data 'abs-error-difference))))
     (define ulp-error (~s (translate-booleans (ulps->bits (hash-ref data 'ulps-error)))))
     (define avg-error (format-bits (errors-score (list (hash-ref data 'ulps-error)))))
     (define exact-error (~s (translate-booleans (hash-ref data 'exact-value))))
@@ -386,7 +402,7 @@
                exact-error
                'actual-value
                actual-error
-               'absolute-error
+               'abs-error-difference
                abs-error
                'percent-accuracy
                precent-accurate
@@ -403,7 +419,7 @@
                exact-error
                'actual-value
                actual-error
-               'absolute-error
+               'abs-error-difference
                abs-error
                'percent-accuracy
                precent-accurate

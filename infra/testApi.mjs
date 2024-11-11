@@ -175,25 +175,25 @@ const localError5 = await (await fetch(makeEndpoint("/api/localerror"), {
   })
 })).json()
 
-// avg_error, actual_value, exact_value, absolute_error, ulps_error
+// avg_error, actual_value, exact_value, absolute_difference, ulps_error
 // root node
 checkLocalErrorNode(localError5.tree, [],
-  '-', '0.0', '1.0', '1.0', '0.0', '0.0')
+  '-', '0.0', '1.0', '1.0', 'equal', '0.0')
 // left sqrt
 checkLocalErrorNode(localError5.tree, [0],
-  'sqrt', '0.0', '1.0', '1.0', '0.0', '0.0')
+  'sqrt', '0.0', '1.0', '1.0', 'equal', '0.0')
 // right sqrt 
 checkLocalErrorNode(localError5.tree, [1],
-  'sqrt', '0.0', '1e-50', '1e-50', '0.0', '0.0')
+  'sqrt', '0.0', '1e-50', '1e-50', 'equal', '0.0')
 // plus 
 checkLocalErrorNode(localError5.tree, [0, 0],
-  '+', '0.0', '1.0', '1.0', '0.0', '0.0')
+  '+', '0.0', '1.0', '1.0', 'equal', '0.0')
 // var x
 checkLocalErrorNode(localError5.tree, [0, 0, 0],
-  'x', '0.0', '1e-100', '1e-100', '0', '0.0')
+  'x', '0.0', '1e-100', '1e-100', 'equal', '0.0')
 // literal 1
 checkLocalErrorNode(localError5.tree, [0, 0, 1],
-  '1.0', '0.0', '1.0', '1.0', '0.0', '0.0')
+  '1.0', '0.0', '1.0', '1.0', 'equal', '0.0')
 
 // '(FPCore (1e100) (- (sqrt (+ x 1)) (sqrt x)))'
 const localError6 = await (await fetch(makeEndpoint("/api/localerror"), {
@@ -207,20 +207,19 @@ checkLocalErrorNode(localError6.tree, [],
   '-', '61.7', '0.0', '5e-51', '5e-51', '61.74124908607812')
 // left sqrt
 checkLocalErrorNode(localError6.tree, [0],
-  'sqrt', '0.0', '1e+50', '1e+50', '0.0', '0.0')
+  'sqrt', '0.0', '1e+50', '1e+50', 'equal', '0.0')
 // right sqrt 
 checkLocalErrorNode(localError6.tree, [1],
-  'sqrt', '0.0', '1e+50', '1e+50', '0.0', '0.0')
+  'sqrt', '0.0', '1e+50', '1e+50', 'equal', '0.0')
 // plus 
 checkLocalErrorNode(localError6.tree, [0, 0],
-  '+', '0.0', '1e+100', '1e+100', '0.0', '0.0')
+  '+', '0.0', '1e+100', '1e+100', 'equal', '0.0')
 // var x
 checkLocalErrorNode(localError6.tree, [0, 0, 0],
-  'x', '0.0', '1e+100', '1e+100', '0', '0.0')
+  'x', '0.0', '1e+100', '1e+100', 'equal', '0.0')
 // literal 1
 checkLocalErrorNode(localError6.tree, [0, 0, 1],
-  '1.0', '0.0', '1.0', '1.0', '0.0', '0.0')
-
+  '1.0', '0.0', '1.0', '1.0', 'equal', '0.0')
 // Test a large number `2e269` to trigger NaN in fma.
 const localError7 = await (await fetch(makeEndpoint("/api/localerror"), {
   method: 'POST', body: JSON.stringify({
@@ -229,30 +228,31 @@ const localError7 = await (await fetch(makeEndpoint("/api/localerror"), {
 })).json()
 // Test against conditionals
 checkLocalErrorNode(localError7.tree, [0],
-  '<=', '0.0', 'true', 'true', 'true', '0.0')
+  '<=', '0.0', 'true', 'true', 'equal', '0.0')
 // Test that inexact values display using input syntax not fraction
 checkLocalErrorNode(localError7.tree, [0, 1],
-  '0.05', '0.0', '0.05', '0.05', '0.0', '0.0')
+  '0.05', '0.0', '0.05', '0.05', 'equal', '0.0')
 // Test for NaN error
 checkLocalErrorNode(localError7.tree, [2],
-  'fma', '0.0', '-inf.0', '-inf.0', 'NaN', '0.0')
+  'fma', '0.0', '-inf.0', '-inf.0', 'equal', '0.0') // invalid rival output
 
 /// root: The root node of the local error tree.
 /// path: the path to get to the node you want to test.
 /// name: Name of the node you are testing
 /// avg_error: Average Error
 /// actual_value: Value of the node
-/// absolute_error: The ABS of the error at the node |approx - exact|
+/// absolute_difference: The ABS of the error at the node |approx - exact|
 /// ulps_error: ulps of error at this node.
 function checkLocalErrorNode(root, path, name,
-  avg_error, actual_value, exact_value, absolute_error, ulps_error) {
+  avg_error, actual_value, exact_value, absolute_difference, ulps_error) {
   const node = getNodeFromPath(root, path)
+  // console.log(node) // Helpful for seeing which node is failing a test
   assert.equal(node['e'], name)
   assert.equal(node['avg-error'], avg_error)
-  assert.equal(node['actual-value'][0], actual_value)
-  assert.equal(node['exact-value'][0], exact_value)
-  assert.equal(node['absolute-error'][0], absolute_error)
-  assert.equal(node['ulps-error'][0], ulps_error)
+  assert.equal(node['actual-value'], actual_value)
+  assert.equal(node['exact-value'], exact_value)
+  assert.equal(node['abs-error-difference'], absolute_difference)
+  assert.equal(node['ulps-error'], ulps_error)
 }
 
 function getNodeFromPath(node, path) {
