@@ -255,8 +255,6 @@
   (define ctx-list
     (for/list ([subexpr (in-list exprs-list)])
       (struct-copy context ctx [repr (repr-of subexpr ctx)])))
-  (define repr-hash
-    (make-immutable-hash (map (lambda (e ctx) (cons e (context-repr ctx))) exprs-list ctx-list)))
 
   (define ctx-vec (list->vector ctx-list))
   (define spec-list (map prog->spec exprs-list))
@@ -302,35 +300,32 @@
           [actual (in-vector actuals)]
           [exact (in-vector exacts)])
       (define node (vector-ref nodes root))
-      (define current-repr (hash-ref repr-hash expr))
-      (define local-error
+      (define node-ulp-difference
         (match node
-          [(? literal?) 1]
+          [(? literal?) (ulp-difference exact actual (repr-of expr ctx))]
           [(? variable?) 1]
-          [(approx _ impl)
-           (define repr (repr-of expr ctx))
-           (ulp-difference exact actual repr)]
-          [`(if ,c ,ift ,iff) 1]
-          [(list f args ...)
-           (define repr (impl-info f 'otype))
-           (define argapprox
-             (for/list ([idx (in-list args)])
-               (vector-ref exacts (vector-member idx roots))))
-           (define approx (apply (impl-info f 'fl) argapprox))
-           (ulp-difference exact approx repr)]))
-      (define abs-error
-        (match node
-          [(? literal?) (compute-abs-error actual exact current-ctx pt current-repr)]
-          [(? variable?) 0]
-          [(approx _ impl) (absolute-error-for impl exact pt current-repr)]
+          [(approx _ impl) (ulp-difference exact actual (repr-of expr ctx))]
           [`(if ,c ,ift ,iff)
            (if exact
-               (absolute-error-for ift exact pt current-repr)
-               (absolute-error-for iff exact pt current-repr))]
+               (ulp-difference exact actual (impl-info (first (vector-ref nodes ift)) 'otype))
+               (ulp-difference exact actual (impl-info (first (vector-ref nodes iff)) 'otype)))]
+          [(list f args ...)
+           (if (equal? (representation-type (impl-info f 'otype)) 'bool)
+               1 ; return 1 for the condition node `c` in an if function.
+               (ulp-difference exact actual (impl-info f 'otype)))]))
+      (define abs-error
+        (match node
+          [(? literal?) (compute-abs-error actual exact current-ctx pt (repr-of expr ctx))]
+          [(? variable?) 0]
+          [(approx _ impl) (absolute-error-for impl exact pt (repr-of expr ctx))]
+          [`(if ,c ,ift ,iff)
+           (if exact
+               (absolute-error-for ift exact pt (repr-of expr ctx))
+               (absolute-error-for iff exact pt (repr-of expr ctx)))]
           [(list f args ...)
            (if (equal? (representation-type (impl-info f 'otype)) 'bool)
                exact
-               (compute-abs-error actual exact current-ctx pt current-repr))]))
+               (compute-abs-error actual exact current-ctx pt (repr-of expr ctx)))]))
       (hash-set! data-hash
                  root
                  (hasheq 'e
@@ -338,13 +333,18 @@
                                  (first expr-syntax)
                                  expr-syntax))
                          'ulps-error
-                         local-error
+                         node-ulp-difference
                          'exact-value
                          exact
                          'actual-value
                          actual
                          'absolute-error
-                         abs-error))))
+                         abs-error
+                         'percent-accuracy
+                         (* (- 1
+                               (/ (ulps->bits node-ulp-difference)
+                                  (representation-total-bits (repr-of expr ctx))))
+                            100)))))
 
   (define (translate-booleans value)
     (match value
@@ -361,9 +361,11 @@
     (define avg-error (format-bits (errors-score (list (hash-ref data 'ulps-error)))))
     (define exact-error (map ~s (list (translate-booleans (hash-ref data 'exact-value)))))
     (define actual-error (map ~s (list (translate-booleans (hash-ref data 'actual-value)))))
+    (define precent-accurate (map ~s (list (hash-ref data 'percent-accuracy))))
     (match abs-error ; check for errors and send as string
       [(? hash? abs-error-hash) (set! abs-error (list (hash-ref abs-error-hash 'value)))]
       [error-value (set! abs-error (map ~s (list error-value)))])
+
     (match (vector-ref nodes root)
       [(list op args ...)
        (hasheq 'e
@@ -378,6 +380,8 @@
                actual-error
                'absolute-error
                abs-error
+               'percent-accuracy
+               precent-accurate
                'children
                (map make-hash-for args))]
       [_
@@ -393,6 +397,8 @@
                actual-error
                'absolute-error
                abs-error
+               'percent-accuracy
+               precent-accurate
                'children
                '())]))
 
