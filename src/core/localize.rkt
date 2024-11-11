@@ -31,6 +31,36 @@
     [((cons '() rest) outputs) (cons '() (regroup-nested rest outputs))]
     [('() '()) '()]))
 
+(define (fraction-with-odd-denominator? frac)
+  (and (rational? frac) (let ([denom (denominator frac)]) (and (> denom 1) (odd? denom)))))
+
+(define (pow-impl-args impl args)
+  (define vars (impl-info impl 'vars))
+  (match (impl-info impl 'spec)
+    [(list 'pow b e)
+     #:when (set-member? vars e)
+     (define env (map cons vars args))
+     (define b* (dict-ref env b b))
+     (define e* (dict-ref env e e))
+     (cons b* e*)]
+    [_ #f]))
+
+(define (default-cost-proc expr _)
+  (let rec ([expr expr])
+    (match expr
+      [(literal _ _) 1]
+      [(? symbol?) 1]
+      ; approx node
+      [(approx _ impl) (rec impl)]
+      [(list 'if cond ift iff) (+ 1 (rec cond) (rec ift) (rec iff))]
+      [(list (? impl-exists? impl) args ...)
+       (match (pow-impl-args impl args)
+         [(cons _ (literal e _))
+          #:when (fraction-with-odd-denominator? e)
+          +inf.0]
+         [_ (apply + 1 (map rec args))])]
+      [(list _ args ...) (apply + 1 (map rec args))])))
+
 (define (batch-localize-costs exprs ctx)
   (define subexprss (map all-subexpressions exprs))
   (define progs (apply append subexprss))
@@ -72,7 +102,10 @@
     (hash-set! expr->simplest subexpr simplified))
 
   ; platform-based expression cost
-  (define cost-proc (platform-cost-proc (*active-platform*)))
+  (define cost-proc
+    (if (*egraph-platform-cost*)
+        (platform-cost-proc (*active-platform*))
+        default-cost-proc))
   (define (expr->cost expr)
     (cost-proc expr (repr-of expr ctx)))
 
@@ -85,8 +118,20 @@
     (define best-child-costs
       (for/list ([child (in-list children)])
         (expr->cost (hash-ref expr->simplest child))))
-    ; compute cost opportunity
-    (- (apply - start-cost start-child-costs) (apply - best-cost best-child-costs)))
+    (unless (>= start-cost best-cost)
+      (error 'cost-opportunity
+             "Initial expression ~a is better than final expression ~a\n"
+             subexpr
+             (hash-ref expr->simplest subexpr)))
+
+    ; Cost opportunity would normally be:
+    ;   (start cost - start child costs) - (best cost - best child costs)
+    ; However, we rearrange to handle infinities:
+    (define a (apply + start-cost best-child-costs))
+    (define b (apply + best-cost start-child-costs))
+    (if (= a b)
+        0
+        (- a b))) ; This `if` statement handles `inf - inf`
 
   ; rank subexpressions by cost opportunity
   (define localize-costss
