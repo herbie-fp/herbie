@@ -351,6 +351,14 @@
                   (if (equal? (representation-type (impl-info f 'otype)) 'bool)
                       exact
                       (compute-abs-error actual exact current-ctx pt (repr-of expr ctx)))]))]))
+      (define precent-accurate
+        (match node-ulp-difference
+          ['invalid 'invalid]
+          ['unsamplable 'unsamplable]
+          [value
+           (* (- 1
+                 (/ (ulps->bits node-ulp-difference) (representation-total-bits (repr-of expr ctx))))
+              100)]))
       (hash-set! data-hash
                  root
                  (hasheq 'e
@@ -366,14 +374,7 @@
                          'abs-error-difference
                          abs-error
                          'percent-accuracy
-                         (match node-ulp-difference
-                           ['invalid 'invalid]
-                           ['unsamplable 'unsamplable]
-                           [value
-                            (* (- 1
-                                  (/ (ulps->bits node-ulp-difference)
-                                     (representation-total-bits (repr-of expr ctx))))
-                               100)])))))
+                         precent-accurate))))
 
   (define (translate-booleans value)
     (match value
@@ -385,7 +386,7 @@
     (define data (hash-ref data-hash root))
     (define expr (hash-ref data 'e))
     (define abs-error (~s (translate-booleans (hash-ref data 'abs-error-difference))))
-    (define ulp-error (~s (translate-booleans (ulps->bits (hash-ref data 'ulps-error)))))
+    (define ulp-error (~s (ulps->bits (hash-ref data 'ulps-error)))) ; unused by Odyssey
     (define avg-error (format-bits (errors-score (list (hash-ref data 'ulps-error)))))
     (define exact-error (~s (translate-booleans (hash-ref data 'exact-value))))
     (define actual-error (~s (translate-booleans (hash-ref data 'actual-value))))
