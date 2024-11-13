@@ -2,7 +2,9 @@
 
 (require ffi/unsafe
          ffi/unsafe/define
-         ffi/vector)
+         ffi/vector
+         math/flonum
+         "libm.rkt")
 
 (provide (all-defined-out))
 
@@ -254,15 +256,14 @@
 (define (ddneg x1 [x2 0])
   (values (- x1) (- x2)))
 
+(define (logreduce x r)
+  (define-values (nx e) (frexp x))
+  (define nr (ldexp r (- e)))
+  (values e nx nr)
+  )
+
 (define (ddlog x1 [x2 0.0])
-  (cond
-    [(ddzero? x1 x2) (-inf.dd)]
-    [(ddposinf? x1 x2) (+inf.dd)]
-    [else
-     (define a (list->f64vector (list x1 x2)))
-     (define c (make-f64vector 2))
-     (c_dd_log (f64vector->cpointer a) (f64vector->cpointer c))
-     (apply values (f64vector->list c))]))
+  (fl2log x1 x2))
 
 (define (ddlog2 x1 [x2 0.0])
   (cond

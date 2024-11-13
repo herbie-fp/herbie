@@ -1,0 +1,22 @@
+#lang racket
+
+(require ffi/unsafe ffi/cvector)
+
+(provide frexp ldexp)
+
+(define libm (ffi-lib "libm"))
+
+(define libm_frexp
+  (get-ffi-obj 'frexp libm (_fun _double _pointer -> _double)))
+
+(define libm_ldexp
+ (get-ffi-obj 'ldexp libm (_fun _double _int  -> _double)))
+
+(define (frexp x)
+  (define eptr (make-cvector _int 1))
+  (define m (libm_frexp x (cvector-ptr eptr)))
+  (define e (cvector-ref eptr 0))
+  (values m e))
+
+(define (ldexp m e)
+  (libm_ldexp m e))

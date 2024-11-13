@@ -13,7 +13,8 @@
          "../utils/float.rkt"
          "../config.rkt"
          "logfloat.rkt"
-         "compiler.rkt")
+         "compiler.rkt"
+         "dd.rkt")
 
 (provide explain)
 
@@ -246,27 +247,48 @@
         [(list (or 'sin.f64 'sin.f32) x-ex)
          #:when (list? x-ex)
          (define x.lf (lfs-ref x-ex))
+         (match-define (logfloat x r_x _ _ _) x.lf)
+         (define-values (z r_z) (ddrsin x 0.0))
+         (define-values (cond1 cond2)
+           (let*-values ([(t1 t2) (ddrtan x r_x)]
+                         [(c1 c2) (dd/ 1.0 0.0 t1 t2)]
+                         [(c1 c2) (dd* x r_x c1 c2)])
+             (ddabs c1 c2)))
+         (define re (abs (/ r_x x)))
+         (define mu (abs (/ r_z z)))
+
+         (define-values (ae1 ae2) (dd* cond1 cond2 re))
+
          (define cot.lf (lfabs (lf/ (lf 1.0) (lftan x.lf))))
          (define cond.lf (lf* (lfabs x.lf) cot.lf))
+         
+         ;(match-define (logfloat er1 er2 _ _ _) (lf* eps cond.lf))
+
+         ;(eprintf "~a ~a ~a ~a ~a ~a\n" pt eps cond.lf er1 er2 s)
 
          (if (lfover/underflowed? x.lf)
              (when (lfoverflow? x.lf)
-               (mark-erroneous! subexpr 'sensitivity))
-
+               (mark-erroneous! subexpr 'oflow-rescue))
+             
              (cond
-               [(and (lf> cond.lf condthres.dl #f) (lf> (lfabs x.lf) condthres.dl #f))
-                (mark-erroneous! subexpr 'sensitivity)]
-
-               [(and (lf> cond.lf condthres.dl #f) (lf> cot.lf condthres.dl #f))
-                (mark-erroneous! subexpr 'cancelation)]
-
-               [(and (lf> cond.lf maybethres.dl #f) (lf> (lfabs x.lf) maybethres.dl #f))
-                (mark-maybe! subexpr 'sensitivity)]
-
-               [(and (lf> cond.lf maybethres.dl #f) (lf> cot.lf maybethres.dl #f))
-                (mark-maybe! subexpr 'cancellation)]
-
-               [else #f]))]
+               ;;[(lf> cond.lf condthres.dl #f) (mark-erroneous! subexpr 'sensitivity)]
+               [(dd> ae1 ae2 mu) (mark-erroneous! subexpr 'sensitivity)]
+               ;;[(lf> cond.lf maybethres.dl #f) (mark-maybe! subexpr 'sensitivity)]
+               ;;[(dd> er1 er2 s) (mark-maybe! subexpr 'sensitivity)])
+               #;(cond
+                   [(and (lf> cond.lf condthres.dl #f) (lf> (lfabs x.lf) condthres.dl #f))
+                    (mark-erroneous! subexpr 'sensitivity)]
+                   
+                   [(and (lf> cond.lf condthres.dl #f) (lf> cot.lf condthres.dl #f))
+                    (mark-erroneous! subexpr 'cancelation)]
+                   
+                   [(and (lf> cond.lf maybethres.dl #f) (lf> (lfabs x.lf) maybethres.dl #f))
+                    (mark-maybe! subexpr 'sensitivity)]
+                   
+                   [(and (lf> cond.lf maybethres.dl #f) (lf> cot.lf maybethres.dl #f))
+                    (mark-maybe! subexpr 'cancellation)]
+                   
+                   [else #f])))]
 
         [(list (or 'cos.f64 'cos.f32) x-ex)
          #:when (list? x-ex)
@@ -348,6 +370,7 @@
         [(list (or 'sqrt.f64 'sqrt.f32) x-ex)
          #:when (list? x-ex)
          (define x.lf (lfs-ref x-ex))
+         
 
          (cond
            ;; Underflow rescue:
