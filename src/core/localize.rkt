@@ -330,17 +330,14 @@
                               (vector->list (vector-ref true-error-out n))))
         (set! n (add1 n))))))
 
-(define (green msg)
-  (printf "\e[~a;1m~a\e[0m\n" 32 msg))
-
 ;; Compute the local error of every subexpression of `prog`
 ;; and returns the error information as an S-expr in the
 ;; same shape as `prog`
-(define (local-error-as-tree test ctx)
-  (define errs (first (compute-errors (list (all-subexpressions (test-input test))) ctx)))
+(define (local-error-as-tree expr ctx)
+  (define errs (first (compute-errors (list (all-subexpressions expr)) ctx)))
 
   (define local-error
-    (let loop ([expr (test-input test)])
+    (let loop ([expr expr])
       (define expr-info (hash-ref errs expr))
       (define err-list (hash-ref expr-info 'ulp-errs))
       (match expr
@@ -348,7 +345,7 @@
         [_ (list err-list)])))
 
   (define exact-values
-    (let loop ([expr (test-input test)])
+    (let loop ([expr expr])
       (define expr-info (hash-ref errs expr))
       (define exacts-list (hash-ref expr-info 'exact-values))
       (match expr
@@ -356,7 +353,7 @@
         [_ (list exacts-list)])))
 
   (define approx-values
-    (let loop ([expr (test-input test)])
+    (let loop ([expr expr])
       (define expr-info (hash-ref errs expr))
       (define exacts-list (hash-ref expr-info 'approx-values))
       (match expr
@@ -364,7 +361,7 @@
         [_ (list exacts-list)])))
 
   (define true-error-values
-    (let loop ([expr (test-input test)])
+    (let loop ([expr expr])
       (define expr-info (hash-ref errs expr))
       (define actual-list (hash-ref expr-info 'true-error-values))
       (match expr
@@ -372,7 +369,7 @@
         [_ (list actual-list)])))
 
   (define tree
-    (let loop ([expr (prog->fpcore (test-input test) (test-context test))]
+    (let loop ([expr (prog->fpcore expr ctx)]
                [ulp-err local-error]
                [exact exact-values]
                [approx approx-values]
