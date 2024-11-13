@@ -237,7 +237,8 @@
 
   ;; And the absolute difference between the two
   (define exact-var-names
-    (for/list ([expr (in-list exprs-list)] [n (in-naturals)])
+    (for/list ([expr (in-list exprs-list)]
+               [n (in-naturals)])
       ;; HACK: should generate unique, not just rare, symbol
       (string->symbol (format "-exact-for-~a" n))))
   (define delta-ctx
@@ -251,12 +252,10 @@
                [expr (in-list exprs-list)]
                [var (in-list exact-var-names)])
       (cond
-        [(number? spec)
-         0] ; HACK: unclear why numbers don't work in Rival but :shrug:
+        [(number? spec) 0] ; HACK: unclear why numbers don't work in Rival but :shrug:
         [(equal? (representation-type (repr-of expr ctx)) 'bool)
          0] ; HACK: just ignore differences in booleans
-        [else
-         `(fabs (- ,spec ,var))])))
+        [else `(fabs (- ,spec ,var))])))
   (define delta-fn (eval-progs-real compare-specs (map (const delta-ctx) compare-specs)))
 
   (define expr-batch (progs->batch exprs-list))
@@ -302,13 +301,13 @@
     (define pt* (append pt actuals*))
     (define deltas (list->vector (apply delta-fn pt*)))
 
-    (for [[spec (in-list spec-list)]
+    (for ([spec (in-list spec-list)]
           [expr (in-list exprs-list)]
           [root (in-vector roots)]
           [exact (in-vector exacts)]
           [actual (in-vector actuals)]
           [delta (in-vector deltas)]
-          [expr-idx (in-naturals)]]
+          [expr-idx (in-naturals)])
       (define ulp-err
         (match (vector-ref nodes root)
           [(? literal?) 1]
@@ -353,12 +352,9 @@
 
 (define (expr->spec-operator expr)
   (match expr
-    [(list op args ...)
-     op]
-    [(? number? c)
-     (exact->inexact c)]
-    [(? variable? c)
-     c]))
+    [(list op args ...) op]
+    [(? number? c) (exact->inexact c)]
+    [(? variable? c) c]))
 
 ;; Compute the local error of every subexpression of `prog`
 ;; and returns the error information as an S-expr in the
@@ -405,13 +401,13 @@
             (~s percent-accurate)
             'abs-error-difference
             (match (first (hash-ref data 'absolute-error))
-              [(? zero? )
-               "equal"]
-              [(? nan?)
-               "invalid"]
-              [_
-               abs-error])
+              [(? zero?) "equal"]
+              [(? nan?) "invalid"]
+              [_ abs-error])
             'children
-            (map make-hash-for (if (list? expr) (rest expr) '()))))
+            (map make-hash-for
+                 (if (list? expr)
+                     (rest expr)
+                     '()))))
 
   (make-hash-for expr))
