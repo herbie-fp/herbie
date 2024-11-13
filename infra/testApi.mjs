@@ -178,16 +178,16 @@ const localError5 = await (await fetch(makeEndpoint("/api/localerror"), {
 // avg_error, actual_value, exact_value, absolute_difference, ulps_error
 // root node
 checkLocalErrorNode(localError5.tree, [],
-  '-', '0.0', '1.0', '1.0', 'equal', '0.0')
+  '-', '0.0', '1.0', '1.0', '1e-50', '0.0')
 // left sqrt
 checkLocalErrorNode(localError5.tree, [0],
-  'sqrt', '0.0', '1.0', '1.0', 'equal', '0.0')
+  'sqrt', '0.0', '1.0', '1.0', '5e-101', '0.0')
 // right sqrt 
 checkLocalErrorNode(localError5.tree, [1],
-  'sqrt', '0.0', '1e-50', '1e-50', 'equal', '0.0')
+  'sqrt', '0.0', '1e-50', '1e-50', '2.379726195519099e-68', '0.0')
 // plus 
 checkLocalErrorNode(localError5.tree, [0, 0],
-  '+', '0.0', '1.0', '1.0', 'equal', '0.0')
+  '+', '0.0', '1.0', '1.0', '1e-100', '0.0')
 // var x
 checkLocalErrorNode(localError5.tree, [0, 0, 0],
   'x', '0.0', '1e-100', '1e-100', 'equal', '0.0')
@@ -207,20 +207,21 @@ checkLocalErrorNode(localError6.tree, [],
   '-', '61.7', '0.0', '5e-51', '5e-51', '61.74124908607812')
 // left sqrt
 checkLocalErrorNode(localError6.tree, [0],
-  'sqrt', '0.0', '1e+50', '1e+50', 'equal', '0.0')
+  'sqrt', '0.0', '1e+50', '1e+50', '6.834625285603891e+33', '0.0')
 // right sqrt 
 checkLocalErrorNode(localError6.tree, [1],
-  'sqrt', '0.0', '1e+50', '1e+50', 'equal', '0.0')
+  'sqrt', '0.0', '1e+50', '1e+50', '6.834625285603891e+33', '0.0')
 // plus 
 checkLocalErrorNode(localError6.tree, [0, 0],
-  '+', '0.0', '1e+100', '1e+100', 'equal', '0.0')
+  '+', '0.0', '1e+100', '1e+100', '1.0', '0.0')
 // var x
 checkLocalErrorNode(localError6.tree, [0, 0, 0],
   'x', '0.0', '1e+100', '1e+100', 'equal', '0.0')
 // literal 1
 checkLocalErrorNode(localError6.tree, [0, 0, 1],
   '1.0', '0.0', '1.0', '1.0', 'equal', '0.0')
-// Test a large number `2e269` to trigger NaN in fma.
+
+// Test a large number `2e269` to trigger NaNs in local error
 const localError7 = await (await fetch(makeEndpoint("/api/localerror"), {
   method: 'POST', body: JSON.stringify({
     formula: FPCoreFormula3, sample: [[[2e269], ignoredValue]], seed: 5
@@ -228,13 +229,13 @@ const localError7 = await (await fetch(makeEndpoint("/api/localerror"), {
 })).json()
 // Test against conditionals
 checkLocalErrorNode(localError7.tree, [0],
-  '<=', '0.0', 'true', 'true', 'equal', '0.0')
+  '<=', '0.0', 'true', 'true', 'invalid', '0.0')
 // Test that inexact values display using input syntax not fraction
 checkLocalErrorNode(localError7.tree, [0, 1],
-  '0.05', '0.0', '0.05', '0.05', 'equal', '0.0')
+  '0.05', '0.0', '0.05', '0.05', 'invalid', '0.0')
 // Test for NaN error
 checkLocalErrorNode(localError7.tree, [2],
-  'fma', '0.0', '-inf.0', '-inf.0', 'equal', '0.0') // invalid rival output
+  'fma', '0.0', '-inf.0', '-inf.0', 'invalid', '0.0') // invalid rival output
 
 /// root: The root node of the local error tree.
 /// path: the path to get to the node you want to test.
