@@ -180,25 +180,39 @@
 
 ; Compute local error or each sampled point at each node in `prog`.
 (define (compute-errors subexprss ctx)
+  ;; We compute the actual (float) result
   (define exprs-list (append* subexprss)) ; unroll subexprss
+  (define actual-value-fn (compile-progs exprs-list ctx))
+
+  ;; And the real result
   (define spec-list (map prog->spec exprs-list))
   (define ctx-list
     (for/list ([subexpr (in-list exprs-list)])
       (struct-copy context ctx [repr (repr-of subexpr ctx)])))
-  (define exact-var-name '__exact)
-  (define extended
-    (for/list ([ctx (in-list ctx-list)])
-      (context-extend ctx exact-var-name (context-repr ctx))))
+  (define subexprs-fn (eval-progs-real spec-list ctx-list))
+
+  ;; And the absolute difference between the two
+  (define exact-var-names
+    (for/list ([expr (in-list exprs-list)] [n (in-naturals)])
+      ;; HACK: should generate unique, not just rare, symbol
+      (string->symbol (format "-exact-for-~a" n))))
+  (define delta-ctx
+    (context (append (context-vars ctx) exact-var-names)
+             (get-representation 'binary64)
+             (append (context-var-reprs ctx)
+                     (for/list ([expr (in-list exprs-list)])
+                       (repr-of expr ctx)))))
   (define compare-specs
-    (for/list ([spec (in-list spec-list)])
-      `(- ,spec ,exact-var-name)))
+    (for/list ([spec (in-list spec-list)]
+               [var (in-list exact-var-names)])
+      (if (number? spec) ;; HACK: unclear why numbers don't work but :shrug:
+          0
+          `(fabs (- ,spec ,var)))))
+  (define delta-fn (eval-progs-real compare-specs (map (const delta-ctx) compare-specs)))
 
   (define expr-batch (progs->batch exprs-list))
   (define nodes (batch-nodes expr-batch))
   (define roots (batch-roots expr-batch))
-
-  (define subexprs-fn (eval-progs-real spec-list ctx-list))
-  (define actual-value-fn (compile-progs exprs-list ctx))
 
   (define ulp-errs
     (for/vector #:length (vector-length roots)
@@ -220,14 +234,6 @@
                 ([node (in-vector roots)])
       (make-vector (pcontext-length (*pcontext*)))))
 
-  (define (error-for cur-ctx cur-sepc pt exact)
-    (define extended (context-append cur-ctx exact-var-name (context-repr cur-ctx)))
-    (define compare-specs `(- ,cur-sepc ,exact-var-name))
-    (define new-compare (eval-progs-real (list compare-specs) (list extended)))
-    (define inputs (append pt (list exact)))
-    (define true-errors (list->vector (apply new-compare inputs)))
-    (vector-ref true-errors 0))
-
   (define spec-vec (list->vector spec-list))
   (define ctx-vec (list->vector ctx-list))
   (for ([(pt ex) (in-pcontext (*pcontext*))]
@@ -235,67 +241,17 @@
 
     (define exacts (list->vector (apply subexprs-fn pt)))
     (define actuals (apply actual-value-fn pt))
-    (define index 0)
-    ; (for ([i (in-naturals)]
-    ;       [node (in-vector nodes)])
-    ;   (eprintf "node[~a] ~a\n" i node))
 
-    (define (parse-true-error i pt pt-idx)
-      (define root (vector-ref roots i))
-      (define node (vector-ref nodes root))
-      (define cur-ctx (vector-ref ctx-vec i))
-      (define cur-sepc (vector-ref spec-vec i))
-      (define exact (vector-ref exacts i))
-      (define true-error
-        (match node
-          [(? literal?)
-          ;  (eprintf "literal?: ~a\n" node)
-           ;  (define inputs (append (list exact) (vector->list (make-vector (length pt) 0))))
-           ;  (define compare-fn (eval-progs-real compare-specs extended))
-           ;  (define true-errors (list->vector (apply compare-fn inputs)))
-           ; TODO not correct because of eval-progs-real and literals being different.
-           ;  (define extended (context-append cur-ctx exact-var-name (context-repr cur-ctx)))
-           ;  (define compare-specs `(- ,cur-sepc ,exact-var-name))
-           ;  (define new-compare (eval-progs-real (list compare-specs) (list extended)))
-           ;  (define inputs (append pt (list exact)))
-           ;  (define true-errors (list->vector (apply new-compare inputs)))
-           ;  (vector-ref true-errors 0)
-           (if (check-for-invalid-exact exact)
-               #f
-               (error-for cur-ctx cur-sepc pt exact))]
-          [(? variable?)
-          ;  (eprintf "variable?: ~a\n" node)
-           0]
-          [(approx approx-spec impl)
-          ;  (green "approx")
-           0]
-          [`(if ,c ,ift ,iff)
-          ;  (eprintf "if: ~a\n" node)
-           (parse-true-error (vector-member c roots) pt pt-idx)
-           (parse-true-error (vector-member ift roots) pt pt-idx)
-           (parse-true-error (vector-member iff roots) pt pt-idx)
-           0]
-          [(list f args-roots ...)
-          ;  (eprintf "func[~a]: ~a, count: ~a\n" root node (length args-roots))
-           (for ([idx (in-list args-roots)])
-             (define node (vector-member idx roots))
-            ;  (eprintf "root: ~a, idx: ~a, node: ~a\n" root idx node)
-             (parse-true-error node pt pt-idx))
-          ;  (eprintf "~a: ~a ~a\n" root cur-sepc exact)
-           (if (check-for-invalid-exact exact)
-               #f
-               (error-for cur-ctx cur-sepc pt exact))]))
-      (vector-set! (vector-ref true-error-out i) pt-idx true-error))
+    (define pt* (append pt (vector->list actuals)))
+    (define deltas (list->vector (apply delta-fn pt*)))
 
-    (parse-true-error index pt pt-idx)
-
-    (for ([cur-sepc (in-list spec-list)]
-          [cur-ctx (in-list ctx-list)]
+    (for [[spec (in-list spec-list)]
           [expr (in-list exprs-list)]
           [root (in-vector roots)]
           [exact (in-vector exacts)]
           [actual (in-vector actuals)]
-          [expr-idx (in-naturals)])
+          [delta (in-vector deltas)]
+          [expr-idx (in-naturals)]]
       (define ulp-err
         (match (vector-ref nodes root)
           [(? literal?) 1]
@@ -314,7 +270,8 @@
 
       (vector-set! (vector-ref exacts-out expr-idx) pt-idx exact)
       (vector-set! (vector-ref approx-out expr-idx) pt-idx actual)
-      (vector-set! (vector-ref ulp-errs expr-idx) pt-idx ulp-err)))
+      (vector-set! (vector-ref ulp-errs expr-idx) pt-idx ulp-err)
+      (vector-set! (vector-ref true-error-out expr-idx) pt-idx delta)))
 
   (define n 0)
   (for/list ([subexprs (in-list subexprss)])
