@@ -401,6 +401,8 @@
             exact-error
             'actual-value
             actual-error
+            'percent-accuracy
+            (~s percent-accurate)
             'abs-error-difference
             (match (first (hash-ref data 'absolute-error))
               [(? zero? )
