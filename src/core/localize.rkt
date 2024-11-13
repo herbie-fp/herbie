@@ -222,14 +222,7 @@
       (begin0 (values subexpr (vector->list (vector-ref errs n)))
         (set! n (add1 n))))))
 
-(define (check-for-invalid-exact input)
-  (match input
-    ['+inf.0 #t]
-    ['-inf.0 #t]
-    ['+nan.0 #t]
-    [value (or (bfnan? value) (boolean? value))]))
-
-; Compute local error or each sampled point at each node in `prog`.
+;; Compute local error or each sampled point at each node in `prog`.
 (define (compute-errors subexprss ctx)
   ;; We compute the actual (float) result
   (define exprs-list (append* subexprss)) ; unroll subexprss
@@ -260,7 +253,7 @@
       (cond
         [(number? spec)
          0] ; HACK: unclear why numbers don't work in Rival but :shrug:
-        [(equal? (representation-type (repr-of expr ctx)) 'boolean)
+        [(equal? (representation-type (repr-of expr ctx)) 'bool)
          0] ; HACK: just ignore differences in booleans
         [else
          `(fabs (- ,spec ,var))])))
@@ -298,7 +291,15 @@
     (define exacts (list->vector (apply subexprs-fn pt)))
     (define actuals (apply actual-value-fn pt))
 
-    (define pt* (append pt (vector->list actuals)))
+    (define actuals*
+      (for/list ([val (in-vector actuals)]
+                 [expr (in-list exprs-list)])
+        (define repr (repr-of expr ctx))
+        (define bf-val ((representation-repr->bf repr) val))
+        (if (implies (bigfloat? bf-val) (bfrational? bf-val))
+            val
+            ((representation-bf->repr repr) 0.bf)))) ; HACK: inf and nan -> 0 for absolute error
+    (define pt* (append pt actuals*))
     (define deltas (list->vector (apply delta-fn pt*)))
 
     (for [[spec (in-list spec-list)]
@@ -350,11 +351,25 @@
   (define exact 1e-50)
   (check-equal? (first (apply (eval-progs-real (list `(- ,spec ,exact)) (list ctx)) pt)) 1.0))
 
+(define (expr->spec-operator expr)
+  (match expr
+    [(list op args ...)
+     op]
+    [(? number? c)
+     (exact->inexact c)]
+    [(? variable? c)
+     c]))
+
 ;; Compute the local error of every subexpression of `prog`
 ;; and returns the error information as an S-expr in the
 ;; same shape as `prog`
 (define (local-error-as-tree expr ctx)
   (define data-hash (first (compute-errors (list (all-subexpressions expr)) ctx)))
+  (define fpcore (prog->fpcore expr ctx))
+  (define mapping
+    (for/hash ([subexpr (in-list (all-subexpressions expr))]
+               [subfpcore (in-list (all-subexpressions fpcore))])
+      (values subexpr subfpcore)))
 
   (define (translate-booleans value)
     (match value
@@ -364,48 +379,37 @@
 
   (define (make-hash-for expr)
     (define data (hash-ref data-hash expr))
-    (define abs-error (~s (hash-ref data 'absolute-error)))
-    (define ulp-error (~s (ulps->bits (hash-ref data 'ulps-error)))) ; unused by Odyssey
-    (define avg-error (format-bits (errors-score (list (hash-ref data 'ulps-error)))))
-    (define exact-error (~s (translate-booleans (hash-ref data 'exact-value))))
-    (define actual-error (~s (translate-booleans (hash-ref data 'actual-value))))
+    (define abs-error (~s (first (hash-ref data 'absolute-error))))
+    (define ulp-error (~s (ulps->bits (first (hash-ref data 'ulp-errs))))) ; unused by Odyssey
+    (define avg-error (format-bits (errors-score (hash-ref data 'ulp-errs))))
+    (define exact-error (~s (translate-booleans (first (hash-ref data 'exact-values)))))
+    (define actual-error (~s (translate-booleans (first (hash-ref data 'approx-values)))))
     (define percent-accurate
-      (if (nan? (hash-ref data 'absolute-error))
+      (if (nan? (first (hash-ref data 'absolute-error)))
           'invalid ; HACK: should specify if invalid or unsamplable
           (let* ([repr (repr-of expr ctx)]
                  [total-bits (representation-total-bits repr)]
-                 [bits-error (ulps->bits (hash-ref data 'absolute-error))])
+                 [bits-error (ulps->bits (first (hash-ref data 'ulp-errs)))])
             (* 100 (- 1 (/ bits-error total-bits))))))
-    (match expr
-      [(list op args ...)
-       (hasheq 'e
-               (~s (if (list? expr) (first expr) expr))
-               'ulps-error
-               ulp-error
-               'avg-error
-               avg-error
-               'exact-value
-               exact-error
-               'actual-value
-               actual-error
-               'absolute-error
-               abs-error
-               'children
-               (map make-hash-for args))]
-      [_
-       (hasheq 'e
-               (~s (if (list? expr) (first expr) expr))
-               'ulps-error
-               ulp-error
-               'avg-error
-               avg-error
-               'exact-value
-               exact-error
-               'actual-value
-               actual-error
-               'absolute-error
-               abs-error
-               'children
-               '())])
+    (hasheq 'e
+            (~s (expr->spec-operator (hash-ref mapping expr)))
+            'ulps-error
+            ulp-error
+            'avg-error
+            avg-error
+            'exact-value
+            exact-error
+            'actual-value
+            actual-error
+            'abs-error-difference
+            (match (first (hash-ref data 'absolute-error))
+              [(? zero? )
+               "equal"]
+              [(? nan?)
+               "invalid"]
+              [_
+               abs-error])
+            'children
+            (map make-hash-for (if (list? expr) (rest expr) '()))))
 
   (make-hash-for expr))
