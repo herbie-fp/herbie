@@ -1,7 +1,6 @@
 #lang racket
 
-(require math/bigfloat
-         rival)
+(require math/bigfloat)
 (require "../syntax/sugar.rkt"
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
@@ -19,6 +18,13 @@
          "egg-herbie.rkt"
          "compiler.rkt"
          "batch.rkt")
+
+(module+ test
+  (require rackunit
+           "../syntax/load-plugin.rkt"
+           "../syntax/syntax.rkt"
+           "../syntax/sugar.rkt")
+  (load-herbie-builtins))
 
 (provide batch-localize-costs
          batch-localize-errors
@@ -204,10 +210,15 @@
                        (repr-of expr ctx)))))
   (define compare-specs
     (for/list ([spec (in-list spec-list)]
+               [expr (in-list exprs-list)]
                [var (in-list exact-var-names)])
-      (if (number? spec) ;; HACK: unclear why numbers don't work but :shrug:
-          0
-          `(fabs (- ,spec ,var)))))
+      (cond
+        [(number? spec)
+         0] ; HACK: unclear why numbers don't work in Rival but :shrug:
+        [(equal? (representation-type (repr-of expr ctx)) 'boolean)
+         0] ; HACK: just ignore differences in booleans
+        [else
+         `(fabs (- ,spec ,var))])))
   (define delta-fn (eval-progs-real compare-specs (map (const delta-ctx) compare-specs)))
 
   (define expr-batch (progs->batch exprs-list))
@@ -283,85 +294,66 @@
                               (vector->list (vector-ref exacts-out n))
                               'approx-values
                               (vector->list (vector-ref approx-out n))
-                              'true-error-values
+                              'absolute-error
                               (vector->list (vector-ref true-error-out n))))
         (set! n (add1 n))))))
+
+(module+ test
+  (define ctx (make-debug-context '(x y)))
+  (define spec `(- (sqrt (+ x 1)) (sqrt y)))
+  (define pt `(1e-100 1e-100))
+  (define exact 1e-50)
+  (check-equal? (first (apply (eval-progs-real (list `(- ,spec ,exact)) (list ctx)) pt)) 1.0))
 
 ;; Compute the local error of every subexpression of `prog`
 ;; and returns the error information as an S-expr in the
 ;; same shape as `prog`
 (define (local-error-as-tree expr ctx)
-  (define errs (first (compute-errors (list (all-subexpressions expr)) ctx)))
+  (define data-hash (first (compute-errors (list (all-subexpressions expr)) ctx)))
 
-  (define local-error
-    (let loop ([expr expr])
-      (define expr-info (hash-ref errs expr))
-      (define err-list (hash-ref expr-info 'ulp-errs))
-      (match expr
-        [(list op args ...) (cons err-list (map loop args))]
-        [_ (list err-list)])))
+  (define (translate-booleans value)
+    (match value
+      [#t 'true]
+      [#f 'false]
+      [v v]))
 
-  (define exact-values
-    (let loop ([expr expr])
-      (define expr-info (hash-ref errs expr))
-      (define exacts-list (hash-ref expr-info 'exact-values))
-      (match expr
-        [(list op args ...) (cons exacts-list (map loop args))]
-        [_ (list exacts-list)])))
+  (define (make-hash-for expr)
+    (define data (hash-ref data-hash expr))
+    (define abs-error (hash-ref data 'absolute-error))
+    (define ulp-error (map ~s (list (ulps->bits (hash-ref data 'ulps-error)))))
+    (define avg-error (format-bits (errors-score (list (hash-ref data 'ulps-error)))))
+    (define exact-error (map ~s (list (translate-booleans (hash-ref data 'exact-value)))))
+    (define actual-error (map ~s (list (translate-booleans (hash-ref data 'actual-value)))))
+    (match expr
+      [(list op args ...)
+       (hasheq 'e
+               expr
+               'ulps-error
+               ulp-error
+               'avg-error
+               avg-error
+               'exact-value
+               exact-error
+               'actual-value
+               actual-error
+               'absolute-error
+               abs-error
+               'children
+               (map make-hash-for args))]
+      [_
+       (hasheq 'e
+               expr
+               'ulps-error
+               ulp-error
+               'avg-error
+               avg-error
+               'exact-value
+               exact-error
+               'actual-value
+               actual-error
+               'absolute-error
+               abs-error
+               'children
+               '())])
 
-  (define approx-values
-    (let loop ([expr expr])
-      (define expr-info (hash-ref errs expr))
-      (define exacts-list (hash-ref expr-info 'approx-values))
-      (match expr
-        [(list op args ...) (cons exacts-list (map loop args))]
-        [_ (list exacts-list)])))
-
-  (define true-error-values
-    (let loop ([expr expr])
-      (define expr-info (hash-ref errs expr))
-      (define actual-list (hash-ref expr-info 'true-error-values))
-      (match expr
-        [(list op args ...) (cons actual-list (map loop args))]
-        [_ (list actual-list)])))
-
-  (define tree
-    (let loop ([expr (prog->fpcore expr ctx)]
-               [ulp-err local-error]
-               [exact exact-values]
-               [approx approx-values]
-               [t-err true-error-values])
-      (match expr
-        [(list op args ...)
-         ;; err => (List (listof Integer) List ...)
-         (hasheq 'e
-                 (~a op)
-                 'ulps-error
-                 (first ulp-err)
-                 'avg-error
-                 (format-bits (errors-score (first ulp-err)))
-                 'exact-value
-                 (map ~s (first exact))
-                 'approx-value
-                 (map ~s (first approx))
-                 'true-error-value
-                 (map ~s (first t-err))
-                 'children
-                 (map loop args (rest ulp-err) (rest exact) (rest approx) (rest t-err)))]
-        ;; err => (List (listof Integer))
-        [_
-         (hasheq 'e
-                 (~a expr)
-                 'ulps-error
-                 (first ulp-err)
-                 'avg-error
-                 (format-bits (errors-score (first ulp-err)))
-                 'exact-value
-                 (map ~s (first exact))
-                 'approx-value
-                 (map ~s (first approx))
-                 'true-error-value
-                 (map ~s (first t-err))
-                 'children
-                 '())])))
-  tree)
+  (make-hash-for expr))

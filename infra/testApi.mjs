@@ -1,7 +1,6 @@
 import { strict as assert } from 'node:assert';  // use strict equality everywhere 
 
 // Future TODO: before this API becomes set in stone/offered publicly, we should change the results of these methods to be just the output data rather than duplicating input values.
-
 // Reusable testing data
 const SAMPLE_SIZE = 8000
 const FPCoreFormula = '(FPCore (x) (- (sqrt (+ x 1)) (sqrt x)))'
@@ -173,20 +172,26 @@ const localError5 = await (await fetch(makeEndpoint("/api/localerror"), {
     formula: FPCoreFormula, sample: [[[1e-100], ignoredValue]], seed: 5
   })
 })).json()
-const rootMinusNode = localError5.tree
-const leftSQRT = localError5.tree['children'][0]
-const rightSQRT = localError5.tree['children'][1]
-const plusNode = localError5.tree['children'][0]['children'][0]
-const xNode = localError5.tree['children'][0]['children'][0]['children'][0]
-const oneNode = localError5.tree['children'][0]['children'][0]['children'][1]
 
-//        node, name, approx_value, avg_error, exact_value, true_error_value, ulps_error
-assertCheckNode(rootMinusNode, '-', '1.0', '0.0', '1.0', '-1e-50', 1)
-assertCheckNode(leftSQRT, 'sqrt', '1.0', '0.0', '1.0', '5e-101', 1)
-assertCheckNode(rightSQRT, 'sqrt', '1e-50', '0.0', '1e-50', '2.379726195519099e-68', 1)
-assertCheckNode(plusNode, '+', '1.0', '0.0', '1.0', '1e-100', 1)
-assertCheckNode(xNode, 'x', '1e-100', '0.0', '1e-100', '0', 1)
-assertCheckNode(oneNode, '1.0', '1.0', '0.0', '1.0', '-0.0', 1)
+// avg_error, actual_value, exact_value, absolute_error, ulps_error
+// root node
+checkLocalErrorNode(localError5.tree, [],
+  '-', '0.0', '1.0', '1.0', '0.0', '0.0')
+// left sqrt
+checkLocalErrorNode(localError5.tree, [0],
+  'sqrt', '0.0', '1.0', '1.0', '0.0', '0.0')
+// right sqrt 
+checkLocalErrorNode(localError5.tree, [1],
+  'sqrt', '0.0', '1e-50', '1e-50', '0.0', '0.0')
+// plus 
+checkLocalErrorNode(localError5.tree, [0, 0],
+  '+', '0.0', '1.0', '1.0', '0.0', '0.0')
+// var x
+checkLocalErrorNode(localError5.tree, [0, 0, 0],
+  'x', '0.0', '1e-100', '1e-100', '0', '0.0')
+// literal 1
+checkLocalErrorNode(localError5.tree, [0, 0, 1],
+  '1.0', '0.0', '1.0', '1.0', '0.0', '0.0')
 
 // '(FPCore (1e100) (- (sqrt (+ x 1)) (sqrt x)))'
 const localError6 = await (await fetch(makeEndpoint("/api/localerror"), {
@@ -194,35 +199,69 @@ const localError6 = await (await fetch(makeEndpoint("/api/localerror"), {
     formula: FPCoreFormula, sample: [[[1e100], ignoredValue]], seed: 5
   })
 })).json()
-const rootMinusNode6 = localError6.tree
-const leftSQRT6 = localError6.tree['children'][0]
-const rightSQRT6 = localError6.tree['children'][1]
-const plusNode6 = localError6.tree['children'][0]['children'][0]
-const xNode6 = localError6.tree['children'][0]['children'][0]['children'][0]
-const oneNode6 = localError6.tree['children'][0]['children'][0]['children'][1]
-//        node, name, approx_value, avg_error, exact_value, true_error_value, ulps_error
-assertCheckNode(rootMinusNode6, '-', '0.0', '61.7', '5e-51', '-7.78383463033115e-68', 3854499065107888000)
-assertCheckNode(leftSQRT6, 'sqrt', '1e+50', '0.0', '1e+50', '-6.834625285603891e+33', 1)
-assertCheckNode(rightSQRT6, 'sqrt', '1e+50', '0.0', '1e+50', '-6.834625285603891e+33', 1)
-assertCheckNode(plusNode6, '+', '1e+100', '0.0', '1e+100', '1.0', 1)
-assertCheckNode(xNode6, 'x', '1e+100', '0.0', '1e+100', '0', 1)
-assertCheckNode(oneNode6, '1.0', '1.0', '0.0', '1.0', '-0.0', 1)
+// avg_error, actual_value, exact_value, absolute_error, ulps_error
+// root node
+checkLocalErrorNode(localError6.tree, [],
+  '-', '61.7', '0.0', '5e-51', '5e-51', '61.74124908607812')
+// left sqrt
+checkLocalErrorNode(localError6.tree, [0],
+  'sqrt', '0.0', '1e+50', '1e+50', '0.0', '0.0')
+// right sqrt 
+checkLocalErrorNode(localError6.tree, [1],
+  'sqrt', '0.0', '1e+50', '1e+50', '0.0', '0.0')
+// plus 
+checkLocalErrorNode(localError6.tree, [0, 0],
+  '+', '0.0', '1e+100', '1e+100', '0.0', '0.0')
+// var x
+checkLocalErrorNode(localError6.tree, [0, 0, 0],
+  'x', '0.0', '1e+100', '1e+100', '0', '0.0')
+// literal 1
+checkLocalErrorNode(localError6.tree, [0, 0, 1],
+  '1.0', '0.0', '1.0', '1.0', '0.0', '0.0')
 
-function assertCheckNode(node, name, approx, avg_error, exact_value, true_error_value, ulps_error) {
+// Test a large number `2e269` to trigger NaN in fma.
+const localError7 = await (await fetch(makeEndpoint("/api/localerror"), {
+  method: 'POST', body: JSON.stringify({
+    formula: FPCoreFormula3, sample: [[[2e269], ignoredValue]], seed: 5
+  })
+})).json()
+// Test against conditionals
+checkLocalErrorNode(localError7.tree, [0],
+  '<=', '0.0', 'true', 'true', 'true', '0.0')
+// Test that inexact values display using input syntax not fraction
+checkLocalErrorNode(localError7.tree, [0, 1],
+  '0.05', '0.0', '0.05', '0.05', '0.0', '0.0')
+// Test for NaN error
+checkLocalErrorNode(localError7.tree, [2],
+  'fma', '0.0', '-inf.0', '-inf.0', 'NaN', '0.0')
+
+/// root: The root node of the local error tree.
+/// path: the path to get to the node you want to test.
+/// name: Name of the node you are testing
+/// avg_error: Average Error
+/// actual_value: Value of the node
+/// absolute_error: The ABS of the error at the node |approx - exact|
+/// ulps_error: ulps of error at this node.
+function checkLocalErrorNode(root, path, name,
+  avg_error, actual_value, exact_value, absolute_error, ulps_error) {
+  const node = getNodeFromPath(root, path)
   assert.equal(node['e'], name)
-  assert.equal(node['approx-value'][0], approx)
   assert.equal(node['avg-error'], avg_error)
+  assert.equal(node['actual-value'][0], actual_value)
   assert.equal(node['exact-value'][0], exact_value)
-  assert.equal(node['true-error-value'][0], true_error_value)
+  assert.equal(node['absolute-error'][0], absolute_error)
   assert.equal(node['ulps-error'][0], ulps_error)
 }
 
-// TODO if statements
-// const localError7 = await (await fetch(makeEndpoint("/api/localerror"), {
-//   method: 'POST', body: JSON.stringify({
-//     formula: FPCoreFormula3, sample: [[[1e100], ignoredValue]], seed: 5
-//   })
-// })).json()
+function getNodeFromPath(node, path) {
+  if (path.length > 0) {
+    const index = path.shift()
+    const child = node['children'][index]
+    return getNodeFromPath(child, path)
+  } else {
+    return node
+  }
+}
 
 // Alternatives endpoint
 const altBody = {
