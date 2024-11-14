@@ -541,7 +541,6 @@
                  [diff-log (- (log a) (log b)) (log (/ a b))]
                  [neg-log (neg (log a)) (log (/ 1 a))])
 
-
 ; Trigonometry
 (define-ruleset* trig-reduce-fp-sound
                  (trigonometry simplify fp-safe sound)
