@@ -541,11 +541,6 @@
                  [diff-log (- (log a) (log b)) (log (/ a b))]
                  [neg-log (neg (log a)) (log (/ 1 a))])
 
-(define-ruleset* log2-factor
-                 (exponents sound)
-                 #:type ([x real])
-                 [log2-expand (log2 x) (/ (log x) (log 2))]
-                 [log2-expand-rev (/ (log x) (log 2)) (log x 2)])
 
 ; Trigonometry
 (define-ruleset* trig-reduce-fp-sound
@@ -887,7 +882,6 @@
 (define-ruleset* ahtrig-expand-rev
                  (hyperbolic)
                  #:type ([x real])
-                 [asinh-2-rev (* 2 (asinh x)) (acosh (+ (* 2 (* x x)) 1))]
                  [acosh-2-rev (* 2 (acosh x)) (acosh (- (* 2 (* x x)) 1))])
 
 ;; Sound because it's about soundness over real numbers
