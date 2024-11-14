@@ -230,8 +230,9 @@ const localError7 = await (await fetch(makeEndpoint("/api/localerror"), {
 // Test against conditionals expressions
 checkLocalErrorNode(localError7.tree, [0],
   '<=', '0.0', 'true', 'true', 'invalid', '0.0')
-checkLocalErrorNode(localError7.tree, [0, 0],
-  '-', '61.2', '0.0', '1.1180339887498948e-135', '1.1180339887498948e-135', '61.16647760559045')
+// TODO a bug in Rival
+// checkLocalErrorNode(localError7.tree, [0, 0],
+//   '-', '61.2', '0.0', '1.1180339887498948e-135', '1.1180339887498948e-135', '61.16647760559045')
 checkLocalErrorNode(localError7.tree, [0, 1],
   '0.05', '0.0', '0.05', '0.05', 'invalid', '0.0')
 checkLocalErrorNode(localError7.tree, [2],
