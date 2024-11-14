@@ -391,6 +391,10 @@
                  [add-cbrt-cube x (cbrt (* (* x x) x))])
 
 
+(define-ruleset* cubes-transform-rev
+                 (arithmetic sound)
+                 #:type ([x real] [y real])
+                 [add-cbrt-cube-rev (cbrt (* (* x x) x)) x])
 
 (define-ruleset* cubes-canonicalize
                  (arithmetic simplify sound)
