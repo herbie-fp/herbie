@@ -378,7 +378,8 @@
                  [cube-prod (pow (* x y) 3) (* (pow x 3) (pow y 3))]
                  [cube-div (pow (/ x y) 3) (/ (pow x 3) (pow y 3))]
                  [cube-mult (pow x 3) (* x (* x x))]
-                 )
+                 [cube-prod-rev (* (pow x 3) (pow y 3)) (pow (* x y) 3)]
+                 [cube-div-rev (/ (pow x 3) (pow y 3)) (pow (/ x y) 3)])
 
 (define-ruleset* cubes-transform
                  (arithmetic sound)
@@ -391,10 +392,7 @@
                  [add-cbrt-cube x (cbrt (* (* x x) x))])
 
 
-(define-ruleset* cubes-transform-rev
-                 (arithmetic sound)
-                 #:type ([x real] [y real])
-                 [add-cbrt-cube-rev (cbrt (* (* x x) x)) x])
+
 
 (define-ruleset* cubes-canonicalize
                  (arithmetic simplify sound)
