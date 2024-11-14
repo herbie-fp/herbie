@@ -370,7 +370,7 @@
                  [rem-3cbrt-lft (* (* (cbrt x) (cbrt x)) (cbrt x)) x]
                  [rem-3cbrt-rft (* (cbrt x) (* (cbrt x) (cbrt x))) x]
                  [cube-neg (pow (neg x) 3) (neg (pow x 3))]
-                 [cube-neg-rev (neg (pow x 3)) (pow (neg x) 3)])
+                 )
 
 (define-ruleset* cubes-distribute
                  (arithmetic simplify sound)
@@ -390,6 +390,11 @@
                  [cbrt-undiv (/ (cbrt x) (cbrt y)) (cbrt (/ x y))]
                  [add-cube-cbrt x (* (* (cbrt x) (cbrt x)) (cbrt x))]
                  [add-cbrt-cube x (cbrt (* (* x x) x))])
+
+(define-ruleset* cubes-transform-rev
+                 (arithmetic sound)
+                 #:type ([x real] [y real])
+                 [add-cbrt-cube-rev (cbrt (* (* x x) x)) x])
 
 (define-ruleset* cubes-canonicalize
                  (arithmetic simplify sound)
@@ -432,6 +437,8 @@
                  [exp-cbrt (exp (/ a 3)) (cbrt (exp a))]
                  [exp-lft-sqr (exp (* a 2)) (* (exp a) (exp a))]
                  [exp-lft-cube (exp (* a 3)) (pow (exp a) 3)])
+
+
 
 ; Powers
 (define-ruleset* pow-reduce (exponents simplify sound) #:type ([a real]) [unpow-1 (pow a -1) (/ 1 a)])
