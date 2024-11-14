@@ -441,7 +441,6 @@
 (define-ruleset* exp-factor-rev
                  (exponents simplify sound)
                  #:type ([a real] [b real])
-                 [exp-cbrt-rev (cbrt (exp a)) (exp (/ a 3))]
                  [exp-lft-cube-rev (pow (exp a) 3) (exp (* a 3))]
                  [exp-sqrt-rev (sqrt (exp a)) (exp (/ a 2))]
                  [exp-lft-sqr-rev (* (exp a) (exp a)) (exp (* a 2))])
