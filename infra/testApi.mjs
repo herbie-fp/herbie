@@ -227,21 +227,22 @@ const localError7 = await (await fetch(makeEndpoint("/api/localerror"), {
     formula: FPCoreFormula3, sample: [[[2e269], ignoredValue]], seed: 5
   })
 })).json()
-// Test against conditionals
+// Test against conditionals expressions
 checkLocalErrorNode(localError7.tree, [0],
   '<=', '0.0', 'true', 'true', 'invalid', '0.0')
-// Test that inexact values display using input syntax not fraction
+checkLocalErrorNode(localError7.tree, [0, 0],
+  '-', '61.2', '0.0', '1.1180339887498948e-135', '1.1180339887498948e-135', '61.16647760559045')
 checkLocalErrorNode(localError7.tree, [0, 1],
   '0.05', '0.0', '0.05', '0.05', 'invalid', '0.0')
-// Test for NaN error
 checkLocalErrorNode(localError7.tree, [2],
-  'fma', '0.0', '-inf.0', '-inf.0', 'invalid', '0.0') // invalid rival output
+  'fma', '0.0', '-inf.0', '-inf.0', 'invalid', '0.0')
 
 /// root: The root node of the local error tree.
 /// path: the path to get to the node you want to test.
 /// name: Name of the node you are testing
 /// avg_error: Average Error
 /// actual_value: Value of the node
+/// exact_value: The correct evaluation of the expression
 /// absolute_difference: The ABS of the error at the node |approx - exact|
 /// ulps_error: ulps of error at this node.
 function checkLocalErrorNode(root, path, name,
