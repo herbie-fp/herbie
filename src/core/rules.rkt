@@ -228,14 +228,14 @@
 (define-ruleset* cancel-sign-fp-safe
                  (arithmetic simplify fp-safe sound)
                  #:type ([a real] [b real] [c real])
-                 [cancel-sign-sub (- a (* (neg b) c)) (+ a (* b c))]
-                 [cancel-sub-sign (+ a (* (neg b) c)) (- a (* b c))])
+                 [fp-cancel-sign-sub (- a (* (neg b) c)) (+ a (* b c))]
+                 [fp-cancel-sub-sign (+ a (* (neg b) c)) (- a (* b c))])
 
 (define-ruleset* cancel-sign-fp-safe-rev
                  (arithmetic simplify fp-safe sound)
                  #:type ([a real] [b real] [c real])
-                 [cancel-sign-sub-inv (+ a (* b c)) (- a (* (neg b) c))]
-                 [cancel-sub-sign-inv (- a (* b c)) (+ a (* (neg b) c))])
+                 [fp-cancel-sign-sub-inv (+ a (* b c)) (- a (* (neg b) c))]
+                 [fp-cancel-sub-sign-inv (- a (* b c)) (+ a (* (neg b) c))])
 
 ; Difference of squares
 (define-ruleset* difference-of-squares-canonicalize
