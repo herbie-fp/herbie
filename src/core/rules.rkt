@@ -163,7 +163,7 @@
                  [associate-/r/ (/ a (/ b c)) (* (/ a b) c)]
                  [associate-/l/ (/ (/ b c) a) (/ b (* c a))]
                  [associate-/l* (/ (* b c) a) (* b (/ c a))])
-                 
+
 ; Identity
 (define-ruleset* id-reduce
                  (arithmetic simplify sound)
