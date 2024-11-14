@@ -163,7 +163,28 @@
                  [associate-/r/ (/ a (/ b c)) (* (/ a b) c)]
                  [associate-/l/ (/ (/ b c) a) (/ b (* c a))]
                  [associate-/l* (/ (* b c) a) (* b (/ c a))])
-
+                 
+; Identity
+(define-ruleset* id-reduce
+                 (arithmetic simplify sound)
+                 #:type ([a real])
+                 [remove-double-div (/ 1 (/ 1 a)) a]
+                 [rgt-mult-inverse (* a (/ 1 a)) 1]
+                 [lft-mult-inverse (* (/ 1 a) a) 1]
+                 [+-inverses (- a a) 0]
+                 [div0 (/ 0 a) 0]
+                 [mul0-lft (* 0 a) 0]
+                 [mul0-rgt (* a 0) 0]
+                 [*-inverses (/ a a) 1]
+                 [+-lft-identity (+ 0 a) a]
+                 [+-rgt-identity (+ a 0) a]
+                 [--rgt-identity (- a 0) a]
+                 [sub0-neg (- 0 a) (neg a)]
+                 [remove-double-neg (neg (neg a)) a]
+                 [*-lft-identity (* 1 a) a]
+                 [*-rgt-identity (* a 1) a]
+                 [/-rgt-identity (/ a 1) a]
+                 [mul-1-neg (* -1 a) (neg a)])
 ; Counting
 (define-ruleset* counting (arithmetic simplify sound) #:type ([x real]) [count-2 (+ x x) (* 2 x)])
 
@@ -184,7 +205,11 @@
                  [distribute-rgt-out-- (- (* b a) (* c a)) (* a (- b c))]
                  [distribute-lft1-in (+ (* b a) a) (* (+ b 1) a)]
                  [distribute-rgt1-in (+ a (* c a)) (* (+ c 1) a)])
-
+(define-ruleset* cancel-sign
+                 (arithmetic simplify sound)
+                 #:type ([a real] [b real] [c real])
+                 [cancel-sign-sub (- a (* (neg b) c)) (+ a (* b c))]
+                 [cancel-sign-sub-inv (- a (* b c)) (+ a (* (neg b) c))])
 ; Safe Distributiviity
 (define-ruleset* distributivity-fp-safe
                  (arithmetic simplify fp-safe sound)
@@ -239,33 +264,6 @@
                  #:type ([a real] [b real])
                  [flip-+ (+ a b) (/ (- (* a a) (* b b)) (- a b))]
                  [flip-- (- a b) (/ (- (* a a) (* b b)) (+ a b))])
-
-; Specialized numerical functions
-; TODO: These are technically rules over impls
-;
-; (define-ruleset* special-numerical-reduce
-;                  (numerics simplify)
-;                  #:type ([x real] [y real] [z real])
-;                  [log1p-expm1 (log1p (expm1 x)) x]
-;                  [hypot-1-def (sqrt (+ 1 (* y y))) (hypot 1 y)]
-;                  [fmm-def (- (* x y) z) (fma x y (neg z))]
-;                  [fmm-undef (fma x y (neg z)) (- (* x y) z)])
-
-; (define-ruleset* special-numerical-expand
-;                  (numerics)
-;                  #:type ([x real] [y real])
-;                  [log1p-expm1-u x (log1p (expm1 x))]
-;                  [expm1-log1p-u x (expm1 (log1p x))])
-
-; (define-ruleset* numerics-papers
-;                  (numerics)
-;                  #:type ([a real] [b real] [c real] [d real])
-;                  ;  "Further Analysis of Kahan's Algorithm for
-;                  ;   the Accurate Computation of 2x2 Determinants"
-;                  ;  Jeannerod et al., Mathematics of Computation, 2013
-;                  ;
-;                  ;  a * b - c * d  ===> fma(a, b, -(d * c)) + fma(-d, c, d * c)
-;                  [prod-diff (- (* a b) (* c d)) (+ (fma a b (neg (* d c))) (fma (neg d) c (* d c)))])
 
 ; Difference of cubes
 (define-ruleset*
