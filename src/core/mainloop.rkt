@@ -36,7 +36,8 @@
 (define/reset ^locs^ #f)
 (define/reset ^patched^ #f)
 (define/reset ^table^ #f)
-
+(define iterNum 0)
+(define egraph-json (make-hash))
 ;; These high-level functions give the high-level workflow of Herbie:
 ;; - Initial steps: explain, preprocessing, initialize the alt table
 ;; - the loop: choose some alts, localize, run the patch table, and finalize
@@ -53,6 +54,9 @@
 
   (for ([iteration (in-range (*num-iterations*))]
         #:break (atab-completed? (^table^)))
+    (set! iterNum (+ iterNum 1))
+    (hash-set! egraph-json iterNum (make-hash))
+    (displayln egraph-json)
     (run-iter!))
   (define alternatives (extract!))
 
@@ -72,6 +76,8 @@
                       "Run (finish-iter!) to finish it, or (rollback-iter!) to abandon it.\n"))
 
   (choose-alts!)
+  (display "iterNum")
+  (displayln iterNum)
   (localize!)
   (reconstruct! (generate-candidates (^locs^)))
   (finalize-iter!))
@@ -165,7 +171,7 @@
   (^next-alts^ alts)
   (^table^ (atab-set-picked (^table^) alts))
   (void))
-
+(define egraphJson (make-hash))
 ;; Invoke the subsystems individually
 (define (localize!)
   (unless (^next-alts^)
@@ -176,9 +182,8 @@
   (define exprs (map alt-expr (^next-alts^)))
   (define localized-exprs empty)
   (define repr (context-repr (*context*)))
+  (hash-set! (hash-ref egraph-json iterNum) "input-exprs" exprs)
   (when (flag-set? 'localize 'costs)
-  (when (flag-set? 'egraph-json 'all)
-  (displayln "a"))
     (define loc-costss (batch-localize-costs exprs (*context*)))
     (define cost-localized
       (for/list ([loc-costs (in-list loc-costss)]
@@ -190,6 +195,7 @@
                         "cost-diff"
                         (if (infinite? cost-diff) "Infinite" cost-diff))
         expr))
+    (hash-set! (hash-ref egraph-json iterNum) "cost-localized" cost-localized)
     (set! localized-exprs (remove-duplicates (append localized-exprs cost-localized))))
 
   (timeline-event! 'localize)
@@ -203,9 +209,11 @@
                  [_ (in-range (*localize-expressions-limit*))])
         (timeline-push! 'locations (~a expr) "accuracy" (errors-score err))
         expr))
+    (hash-set! (hash-ref egraph-json iterNum) "error-localized" error-localized)
     (set! localized-exprs (remove-duplicates (append localized-exprs error-localized))))
 
   (^locs^ localized-exprs)
+  (hash-set! (hash-ref egraph-json iterNum) "output-exprs" localized-exprs)
   (void))
 
 ;; Converts a patch to full alt with valid history
