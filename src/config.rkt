@@ -20,7 +20,8 @@
                        special
                        bools
                        branches)]
-        [dump . (egg)]))
+        [dump . (egg)]
+        [egraph-json . (all)]))
 
 (define default-flags
   #hash([precision . ()]
@@ -38,7 +39,8 @@
                        special
                        bools
                        branches)]
-        [dump . ()]))
+        [dump . ()]
+        [egraph-json . ()]))
 
 (define (check-flag-deprecated! category flag)
   (match* (category flag)

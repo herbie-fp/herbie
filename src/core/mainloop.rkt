@@ -176,8 +176,9 @@
   (define exprs (map alt-expr (^next-alts^)))
   (define localized-exprs empty)
   (define repr (context-repr (*context*)))
-
   (when (flag-set? 'localize 'costs)
+  (when (flag-set? 'egraph-json 'all)
+  (displayln "a"))
     (define loc-costss (batch-localize-costs exprs (*context*)))
     (define cost-localized
       (for/list ([loc-costs (in-list loc-costss)]
