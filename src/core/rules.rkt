@@ -713,6 +713,7 @@
 
 (define-ruleset* trig-expand-sound2-rev
                  (trigonometry sound)
+                 #:type ([x real] [y real])
                  [diff-cos-rev (* -2 (* (sin (/ (- x y) 2)) (sin (/ (+ x y) 2)))) (- (cos x) (cos y))]
                  [diff-sin-rev (* 2 (* (sin (/ (- x y) 2)) (cos (/ (+ x y) 2)))) (- (sin x) (sin y))]
                  [diff-atan-rev (atan2 (- x y) (+ 1 (* x y))) (- (atan x) (atan y))]
