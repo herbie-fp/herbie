@@ -545,7 +545,7 @@
 
 (define-ruleset* log2-factor
                  (exponents sound)
-                 #:type ([a real] [b real])
+                 #:type ([x real])
                  [log2-expand (log2 x) (/ (log x) (log 2))]
                  [log2-expand-rev (/ (log x) (log 2)) (log x 2)])
 
