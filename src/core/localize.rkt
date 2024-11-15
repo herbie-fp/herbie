@@ -266,10 +266,8 @@
 
   ;; And the absolute difference between the two
   (define exact-var-names
-    (for/list ([expr (in-list exprs-list)]
-               [n (in-naturals)])
-      ;; HACK: should generate unique, not just rare, symbol
-      (string->symbol (format "-exact-for-~a" n))))
+    (for/list ([expr (in-list exprs-list)])
+      (gensym 'exact)))
   (define delta-ctx
     (context (append (context-vars ctx) exact-var-names)
              (get-representation 'binary64)
