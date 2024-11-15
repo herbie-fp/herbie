@@ -516,35 +516,17 @@
                                            #:profile? #f
                                            #:timeline-disabled? #f)))
 
+;; TODO combine mathjs and translate endpoints and unify json output
 (define-endpoint ([mathjs-endpoint start-mathjs-endpoint] post-data)
                  (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
                  (_create-job0 'translate (translate-job formula 'mathjs)))
 
-(define translate-endpoint
-  (post-with-json-response (lambda (post-data)
-                             ; FPCore formula and target language
-                             (define formula (read (open-input-string (hash-ref post-data 'formula))))
-                             (eprintf "Translating formula: ~a...\n" formula)
-                             (define target-lang (hash-ref post-data 'language))
-                             (eprintf "Target language: ~a...\n" target-lang)
-                             ; Select the appropriate conversion function
-                             (define lang-converter
-                               (case target-lang
-                                 [("python") core->python]
-                                 [("c") core->c]
-                                 [("fortran") core->fortran]
-                                 [("java") core->java]
-                                 [("julia") core->julia]
-                                 [("matlab") core->matlab]
-                                 [("wls") core->wls]
-                                 [("tex") core->tex]
-                                 [("js") core->js]
-                                 [else (error "Unsupported target language:" target-lang)]))
-
-                             ; convert the expression
-                             (define converted (lang-converter formula "expr"))
-                             (eprintf "Converted Expression: \n~a...\n" converted)
-                             (hasheq 'result converted 'language target-lang))))
+(define-endpoint ([translate-endpoint start-translate-endpoint] post-data)
+                 (define formula (read (open-input-string (hash-ref post-data 'formula))))
+                 (eprintf "Translating formula: ~a...\n" formula)
+                 (define target-lang (hash-ref post-data 'language))
+                 (eprintf "Target language: ~a...\n" target-lang)
+                 (_create-job0 'translate (translate-job formula target-lang)))
 
 (define (run-demo #:quiet [quiet? #f]
                   #:threads [threads #f]

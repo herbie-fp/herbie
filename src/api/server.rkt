@@ -131,13 +131,24 @@
     ['translate
      (match-define (translate-job fpcore to-language) (server-action-associated-type action))
      (eprintf "Converting ~a to ~a.\n" fpcore to-language)
-     (match to-language
-       ['mathjs
-        (define job-hash (compute-job-id (translate-job fpcore to-language)))
-        (define result (hasheq 'mathjs (core->mathjs (syntax->datum fpcore))))
-        (eprintf "job-hash: ~a, ~a\n" job-hash result)
-        (hash-set! completed-translations job-hash result)
-        job-hash])]))
+     (define job-hash (compute-job-id (translate-job fpcore to-language)))
+     (define result
+       (match to-language
+         ['mathjs (hasheq 'mathjs (core->mathjs (syntax->datum fpcore)))]
+         ["python" (hasheq 'result (core->python fpcore "expr") 'language to-language)]
+         ["c" (hasheq 'result (core->c fpcore "expr") 'language to-language)]
+         ["fortran" (hasheq 'result (core->fortran fpcore "expr") 'language to-language)]
+         ["java" (hasheq 'result (core->java fpcore "expr") 'language to-language)]
+         ["julia" (hasheq 'result (core->julia fpcore "expr") 'language to-language)]
+         ["matlab" (hasheq 'result (core->matlab fpcore "expr") 'language to-language)]
+         ["wls" (hasheq 'result (core->wls fpcore "expr") 'language to-language)]
+         ["tex" (hasheq 'result (core->tex fpcore "expr") 'language to-language)]
+         ["js" (hasheq 'result (core->js fpcore "expr") 'language to-language)]
+         [_ (error "Unsupported target language:" to-language)]))
+     (eprintf "Converted Expression: \n~a...\n" result)
+     (eprintf "job-hash: ~a, ~a\n" job-hash result)
+     (hash-set! completed-translations job-hash result)
+     job-hash]))
 
 (define (wait-for-job job-id)
   (define finished-result (manager-ask 'wait manager job-id))
