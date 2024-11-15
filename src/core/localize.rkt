@@ -280,7 +280,6 @@
                [repr (in-list reprs-list)]
                [var (in-list exact-var-names)])
       (cond
-        [(number? spec) 0] ; HACK: unclear why numbers don't work in Rival but :shrug:
         [(equal? (representation-type repr) 'bool) 0] ; HACK: just ignore differences in booleans
         [else `(fabs (- ,spec ,var))])))
   (define delta-fn (eval-progs-real compare-specs (map (const delta-ctx) compare-specs)))
