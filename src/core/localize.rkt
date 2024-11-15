@@ -277,9 +277,9 @@
                [expr (in-list exprs-list)]
                [repr (in-list reprs-list)]
                [var (in-list exact-var-names)])
-      (cond
-        [(equal? (representation-type repr) 'bool) 0] ; HACK: just ignore differences in booleans
-        [else `(fabs (- ,spec ,var))])))
+      (match (representation-type repr)
+        ['bool 0] ; We can't subtract booleans so ignore them
+        ['real `(fabs (- ,spec ,var))])))
   (define delta-fn (eval-progs-real compare-specs (map (const delta-ctx) compare-specs)))
 
   (define expr-batch (progs->batch exprs-list))
