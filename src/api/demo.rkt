@@ -518,14 +518,12 @@
 
 ;; TODO combine mathjs and translate endpoints and unify json output
 (define-endpoint ([mathjs-endpoint start-mathjs-endpoint] post-data)
-                 (define formula (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
-                 (_create-job0 'translate (translate-job formula 'mathjs)))
+                 (_create-job0 'translate (translate-job (hash-ref post-data 'formula) 'mathjs)))
 
 (define-endpoint ([translate-endpoint start-translate-endpoint] post-data)
-                 (define formula (read (open-input-string (hash-ref post-data 'formula))))
-                 (eprintf "Translating formula: ~a...\n" formula)
                  (define target-lang (hash-ref post-data 'language))
-                 (eprintf "Target language: ~a...\n" target-lang)
+                 (define formula (hash-ref post-data 'formula))
+                 (eprintf "Translating ~a to language: ~a...\n" formula target-lang)
                  (_create-job0 'translate (translate-job formula target-lang)))
 
 (define (run-demo #:quiet [quiet? #f]
