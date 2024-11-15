@@ -20,7 +20,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; constants ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define-constants bool [TRUE TRUE true] [FALSE FALSE false])
+(define-constants bool [TRUE TRUE.bool true] [FALSE FALSE.bool false])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; operators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -29,16 +29,16 @@
 (define (or-fn . as)
   (ormap identity as))
 
-(define-operator-impl (not [x : bool]) bool #:spec (not x) #:fl not #:identities (#:exact (not a)))
+(define-operator-impl (not.bool [x : bool]) bool #:spec (not x) #:fl not #:identities (#:exact (not.bool a)))
 
-(define-operator-impl (and [x : bool] [y : bool])
+(define-operator-impl (and.bool [x : bool] [y : bool])
                       bool
                       #:spec (and x y)
                       #:fl and-fn
-                      #:identities (#:exact (and a b)))
+                      #:identities (#:exact (and.bool a b)))
 
-(define-operator-impl (or [x : bool] [y : bool])
+(define-operator-impl (or.bool [x : bool] [y : bool])
                       bool
                       #:spec (or x y)
                       #:fl or-fn
-                      #:identities (#:exact (or a b)))
+                      #:identities (#:exact (or.bool a b)))
