@@ -168,7 +168,7 @@
 (define (is-server-up)
   (if manager
       (not (sync/timeout 0 manager-dead-event))
-      #f))
+      #t))
 
 (define (start-job-server job-cap)
   (when job-cap
