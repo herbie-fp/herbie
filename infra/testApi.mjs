@@ -9,7 +9,7 @@ const FPCoreFormula3 = '(FPCore (x) (if (<= (- (sqrt (+ x 1.0)) (sqrt x)) 0.05) 
 const eval_sample = [[[1], -1.4142135623730951]]
 
 // improve endpoint
-const improveResponse = await fetch(makeEndpoint(`/improve?formula=${encodeURIComponent(FPCoreFormula2)}`), { method: 'GET' })
+const improveResponse = await fetchAndCheckRSPHeaders(`/improve?formula=${encodeURIComponent(FPCoreFormula2)}`, { method: 'GET' })
 assert.equal(improveResponse.status, 200)
 let redirect = improveResponse.url.split("/")
 const jobID = redirect[3].split(".")[0]
@@ -19,20 +19,20 @@ const jobID = redirect[3].split(".")[0]
 // assert.equal(improveHTML.length, improveHTMLexpectedCount, `HTML response character count should be ${improveHTMLexpectedCount} unless HTML changes.`)
 
 // timeline
-const timelineRSP = await fetch(makeEndpoint(`/timeline/${jobID}`), { method: 'GET' })
+const timelineRSP = await fetchAndCheckRSPHeaders(`/timeline/${jobID}`, { method: 'GET' })
 assert.equal(timelineRSP.status, 201)
 const timeline = await timelineRSP.json()
 assert.equal(timeline.length > 0, true)
 
 // Test with a likely missing job-id
-const badTimelineRSP = await fetch(makeEndpoint("/timeline/42069"), { method: 'GET' })
+const badTimelineRSP = await fetchAndCheckRSPHeaders("/timeline/42069", { method: 'GET' })
 assert.equal(badTimelineRSP.status, 404)
-const check_missing_job = await fetch(makeEndpoint(`/check-status/42069`), { method: 'GET' })
+const check_missing_job = await fetchAndCheckRSPHeaders(`/check-status/42069`, { method: 'GET' })
 assert.equal(check_missing_job.status, 202)
 
 // improve-start endpoint
 const URIencodedBody = "formula=" + encodeURIComponent(FPCoreFormula)
-const startResponse = await fetch(makeEndpoint("/api/start/improve"), {
+const startResponse = await fetchAndCheckRSPHeaders("/api/start/improve", {
   method: 'POST',
   headers: {
     'Content-Type': 'application/x-www-form-urlencoded',
@@ -45,19 +45,19 @@ const improveResultPath = startResponse.headers.get("location")
 let counter = 0
 let cap = 100
 // Check status endpoint
-let checkStatus = await fetch(makeEndpoint(improveResultPath), { method: 'GET' })
+let checkStatus = await fetchAndCheckRSPHeaders(improveResultPath, { method: 'GET' })
 /*
 This is testing if the /api/start/improve test at the beginning has been completed. The cap and counter is a sort of timeout for the test. Ends up being 10 seconds max.
 */
 while (checkStatus.status != 201 && counter < cap) {
   counter += 1
-  checkStatus = await fetch(makeEndpoint(improveResultPath), { method: 'GET' })
+  checkStatus = await fetchAndCheckRSPHeaders(improveResultPath, { method: 'GET' })
   await new Promise(r => setTimeout(r, 100)); // ms
 }
 assert.equal(checkStatus.statusText, 'Job complete')
 
 // up endpoint
-const up = await fetch(makeEndpoint("/up"), { method: 'GET' })
+const up = await fetchAndCheckRSPHeaders("/up", { method: 'GET' })
 assert.equal('Up', up.statusText)
 // TODO how do I test down state?
 
@@ -66,7 +66,7 @@ const sampleBody = {
   method: 'POST',
   body: JSON.stringify({ formula: FPCoreFormula2, seed: 5 })
 }
-const sampleRSP = await fetch(makeEndpoint("/api/sample"), sampleBody)
+const sampleRSP = await fetchAndCheckRSPHeaders("/api/sample", sampleBody)
 const sampleAsyncResult = await callAsyncAndWaitJSONResult("/api/start/sample", sampleBody)
 const jid = sampleRSP.headers.get("x-herbie-job-id")
 assert.notEqual(jid, null)
@@ -79,7 +79,7 @@ assert.ok(sample.points)
 assert.equal(sample.points.length, SAMPLE_SIZE, `sample size should be ${SAMPLE_SIZE}`)
 
 // Make second call to test that results are the same
-const sample2RPS = await fetch(makeEndpoint("/api/sample"), sampleBody)
+const sample2RPS = await fetchAndCheckRSPHeaders("/api/sample", sampleBody)
 const jid2 = sample2RPS.headers.get("x-herbie-job-id")
 assert.notEqual(jid2, null)
 const sample2 = await sample2RPS.json()
@@ -93,7 +93,7 @@ const explainBody = {
     formula: FPCoreFormula, sample: sample.points
   })
 }
-const explain = await (await fetch(makeEndpoint("/api/explanations"), explainBody)).json()
+const explain = await (await fetchAndCheckRSPHeaders("/api/explanations", explainBody)).json()
 assertIdAndPath(explain)
 assert.equal(explain.explanation.length > 0, true, 'explanation should not be empty');
 const explainAsyncResult = await callAsyncAndWaitJSONResult("/api/start/explanations", explainBody)
@@ -108,7 +108,7 @@ const errorsBody = {
     ], 0.12711304680349078]]
   })
 }
-const errors = await (await fetch(makeEndpoint("/api/analyze"), errorsBody)).json()
+const errors = await (await fetchAndCheckRSPHeaders("/api/analyze", errorsBody)).json()
 assertIdAndPath(errors)
 assert.deepEqual(errors.points, [[[14.97651307489794], "2.3"]])
 const analyzeAsyncResult = await callAsyncAndWaitJSONResult("/api/start/analyze", errorsBody)
@@ -121,7 +121,7 @@ const exactsBody = {
     formula: FPCoreFormula2, sample: eval_sample
   })
 }
-const exacts = await (await fetch(makeEndpoint("/api/exacts"), exactsBody)).json()
+const exacts = await (await fetchAndCheckRSPHeaders("/api/exacts", exactsBody)).json()
 assertIdAndPath(exacts)
 assert.deepEqual(exacts.points, [[[1], -1.4142135623730951]])
 const exactsAsyncResult = await callAsyncAndWaitJSONResult("/api/start/exacts", exactsBody)
@@ -134,7 +134,7 @@ const calculateBody = {
     formula: FPCoreFormula2, sample: eval_sample
   })
 }
-const calculate = await (await fetch(makeEndpoint("/api/calculate"), calculateBody)).json()
+const calculate = await (await fetchAndCheckRSPHeaders("/api/calculate", calculateBody)).json()
 assertIdAndPath(calculate)
 assert.deepEqual(calculate.points, [[[1], -1.4142135623730951]])
 const calculateAsyncResult = await callAsyncAndWaitJSONResult("/api/start/calculate", calculateBody)
@@ -147,19 +147,19 @@ const localErrorBody = {
     formula: FPCoreFormula, sample: sample.points
   })
 }
-const localError = await (await fetch(makeEndpoint("/api/localerror"), localErrorBody)).json()
+const localError = await (await fetchAndCheckRSPHeaders("/api/localerror", localErrorBody)).json()
 assertIdAndPath(localError)
 assert.equal(localError.tree['avg-error'] > 0, true)
 const localErrorAsyncResult = await callAsyncAndWaitJSONResult("/api/start/localerror", localErrorBody)
 assertIdAndPath(localErrorAsyncResult)
 assert.equal(localErrorAsyncResult.tree['avg-error'] > 0, true)
 
-const localError1 = await (await fetch(makeEndpoint("/api/localerror"), {
+const localError1 = await (await fetchAndCheckRSPHeaders("/api/localerror", {
   method: 'POST', body: JSON.stringify({
     formula: FPCoreFormula, sample: [[[2.852044568544089e-150], 1e+308]], seed: 5
   })
 })).json()
-const localError2 = await (await fetch(makeEndpoint("/api/localerror"), {
+const localError2 = await (await fetchAndCheckRSPHeaders("/api/localerror", {
   method: 'POST', body: JSON.stringify({
     formula: FPCoreFormula, sample: [[[1.5223342548065899e-15], 1e+308]], seed: 5
   })
@@ -169,7 +169,7 @@ assert.notEqual(localError1.job, localError2.job)
 // Assert local error works for default example.
 const ignoredValue = 1e+308
 '(FPCore (1e-100) (- (sqrt (+ x 1)) (sqrt x)))'
-const localError5 = await (await fetch(makeEndpoint("/api/localerror"), {
+const localError5 = await (await fetchAndCheckRSPHeaders("/api/localerror", {
   method: 'POST', body: JSON.stringify({
     formula: FPCoreFormula, sample: [[[1e-100], ignoredValue]], seed: 5
   })
@@ -196,7 +196,7 @@ checkLocalErrorNode(localError5.tree, [0, 0, 1],
   '1.0', '0.0', '1.0', '1.0', 'equal', '0.0')
 
 // '(FPCore (1e100) (- (sqrt (+ x 1)) (sqrt x)))'
-const localError6 = await (await fetch(makeEndpoint("/api/localerror"), {
+const localError6 = await (await fetchAndCheckRSPHeaders("/api/localerror", {
   method: 'POST', body: JSON.stringify({
     formula: FPCoreFormula, sample: [[[1e100], ignoredValue]], seed: 5
   })
@@ -222,7 +222,7 @@ checkLocalErrorNode(localError6.tree, [0, 0, 1],
   '1.0', '0.0', '1.0', '1.0', 'equal', '0.0')
 
 // Test a large number `2e269` to trigger NaNs in local error
-const localError7 = await (await fetch(makeEndpoint("/api/localerror"), {
+const localError7 = await (await fetchAndCheckRSPHeaders("/api/localerror", {
   method: 'POST', body: JSON.stringify({
     formula: FPCoreFormula3, sample: [[[2e269], ignoredValue]], seed: 5
   })
@@ -276,7 +276,7 @@ const altBody = {
     ], 0.12711304680349078]]
   })
 }
-const alternatives = await (await fetch(makeEndpoint("/api/alternatives"), altBody)).json()
+const alternatives = await (await fetchAndCheckRSPHeaders("/api/alternatives", altBody)).json()
 assertIdAndPath(alternatives)
 assert.equal(Array.isArray(alternatives.alternatives), true)
 const alternativesAsyncResult = await callAsyncAndWaitJSONResult("/api/start/alternatives", altBody)
@@ -289,7 +289,7 @@ const costBody = {
     formula: FPCoreFormula2, sample: eval_sample
   })
 }
-const cost = await (await fetch(makeEndpoint("/api/cost"), costBody)).json()
+const cost = await (await fetchAndCheckRSPHeaders("/api/cost", costBody)).json()
 assertIdAndPath(cost)
 assert.equal(cost.cost > 0, true)
 const costAsyncResult = await callAsyncAndWaitJSONResult("/api/start/cost", costBody)
@@ -297,9 +297,10 @@ assertIdAndPath(costAsyncResult)
 assert.equal(costAsyncResult.cost > 0, true)
 
 // MathJS endpoint
-const mathjs = await (await fetch(makeEndpoint("/api/mathjs"), {
+const mathjs_rsp = await fetchAndCheckRSPHeaders("/api/mathjs", {
   method: 'POST', body: JSON.stringify({ formula: FPCoreFormula })
-})).json()
+})
+const mathjs = await mathjs_rsp.json()
 assert.equal(mathjs.mathjs, "sqrt(x + 1.0) - sqrt(x)")
 
 // Translate endpoint
@@ -316,7 +317,7 @@ const expectedExpressions = {
 }
 
 for (const e in expectedExpressions) {
-  const translatedExpr = await (await fetch(makeEndpoint("/api/translate"), {
+  const translatedExpr = await (await fetchAndCheckRSPHeaders("/api/translate", {
     method: 'POST', body: JSON.stringify(
       { formula: FPCoreFormula, language: e })
   })).json()
@@ -324,8 +325,9 @@ for (const e in expectedExpressions) {
   assert.equal(translatedExpr.result, expectedExpressions[e])
 }
 
+const results_rsp = await fetchAndCheckRSPHeaders("/results.json", { method: 'GET' })
 // Results.json endpoint
-const jsonResults = await (await fetch(makeEndpoint("/results.json"), { method: 'GET' })).json()
+const jsonResults = await results_rsp.json()
 
 // Basic test that checks that there are the two results after the above test.
 // TODO add a way to reset the results.json file?
@@ -336,6 +338,18 @@ function makeEndpoint(endpoint) {
   return new URL(`http://127.0.0.1:8000${endpoint}`)
 }
 
+async function fetchAndCheckRSPHeaders(endpoint, body) {
+  const rsp = await fetch(makeEndpoint(endpoint), body)
+  const header = rsp['headers'].get('access-control-allow-origin')
+  if (header == null) {
+    console.log("Missing CORS header on rsp:")
+    console.log(rsp)
+  }
+  assert.equal(header, '* always')
+  return rsp
+}
+
+
 function assertIdAndPath(json) {
   assert.equal(json.job.length > 0, true)
   assert.equal(json.path.includes("."), true)
@@ -345,17 +359,17 @@ async function callAsyncAndWaitJSONResult(endpoint, body) {
   let counter = 0
   let cap = 100
   // Check status endpoint
-  let jobInfo = await fetch(makeEndpoint(endpoint), body)
+  let jobInfo = await fetchAndCheckRSPHeaders(endpoint, body)
   /*
   The cap and counter is a sort of timeout for the test. Ends up being 10 seconds max.
   */
   const jobJSON = await jobInfo.json()
-  const checkStatus = await fetch(makeEndpoint(`/check-status/${jobJSON.job}`), { method: 'GET' })
+  const checkStatus = await fetchAndCheckRSPHeaders(`/check-status/${jobJSON.job}`, { method: 'GET' })
   while (checkStatus.status != 201 && counter < cap) {
     counter += 1
-    checkStatus = await fetch(makeEndpoint(`/check-status/${jobJSON.job}`), { method: 'GET' })
+    checkStatus = await fetchAndCheckRSPHeaders(`/check-status/${jobJSON.job}`, { method: 'GET' })
     await new Promise(r => setTimeout(r, 100)); // ms
   }
-  const result = await fetch(makeEndpoint(`/api/result/${jobJSON.job}`), { method: 'GET' })
+  const result = await fetchAndCheckRSPHeaders(`/api/result/${jobJSON.job}`, { method: 'GET' })
   return await result.json()
 }
