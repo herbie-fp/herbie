@@ -58,7 +58,7 @@ assert.equal(checkStatus.statusText, 'Job complete')
 
 // up endpoint
 const up = await fetch(makeEndpoint("/up"), { method: 'GET' })
-assert.equal('Down', up.statusText) // Herbie runs single thread on CI.
+assert.equal('Up', up.statusText) // Herbie runs single thread on CI.
 
 // Sample endpoint
 const sampleBody = {
