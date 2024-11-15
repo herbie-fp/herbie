@@ -217,8 +217,6 @@
   (set! prelude-exprs (append prelude-exprs (list if-lifting)))
   (define approx-lifting (approx-lifting-rule))
   (set! prelude-exprs (append prelude-exprs (list approx-lifting)))
-  (for ([expr (in-list prelude-exprs)])
-    (printf "~s\n" expr))
 
   ;;; (define fp-rules (*fp-safe-simplify-rules*))
   ;;; (define spec-rules (real-rules (*simplify-rules*)))
