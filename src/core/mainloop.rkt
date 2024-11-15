@@ -20,7 +20,8 @@
          "programs.rkt"
          "../utils/timeline.rkt"
          "soundiness.rkt"
-         "batch.rkt")
+         "batch.rkt"
+         "../api/egraphJson.rkt")
 (provide run-improve!)
 
 ;; The Herbie main loop goes through a simple iterative process:
@@ -36,8 +37,7 @@
 (define/reset ^locs^ #f)
 (define/reset ^patched^ #f)
 (define/reset ^table^ #f)
-(define iterNum 0)
-(define egraph-json (make-hash))
+
 ;; These high-level functions give the high-level workflow of Herbie:
 ;; - Initial steps: explain, preprocessing, initialize the alt table
 ;; - the loop: choose some alts, localize, run the patch table, and finalize
@@ -54,10 +54,9 @@
 
   (for ([iteration (in-range (*num-iterations*))]
         #:break (atab-completed? (^table^)))
-    (set! iterNum (+ iterNum 1))
-    (hash-set! egraph-json iterNum (make-hash))
-    (displayln egraph-json)
-    (run-iter!))
+    (startIteration)
+    (run-iter!)
+    (endIteration))
   (define alternatives (extract!))
 
   (timeline-event! 'preprocess)
@@ -76,8 +75,6 @@
                       "Run (finish-iter!) to finish it, or (rollback-iter!) to abandon it.\n"))
 
   (choose-alts!)
-  (display "iterNum")
-  (displayln iterNum)
   (localize!)
   (reconstruct! (generate-candidates (^locs^)))
   (finalize-iter!))
@@ -171,8 +168,10 @@
   (^next-alts^ alts)
   (^table^ (atab-set-picked (^table^) alts))
   (void))
-(define egraphJson (make-hash))
+
 ;; Invoke the subsystems individually
+
+
 (define (localize!)
   (unless (^next-alts^)
     (raise-user-error 'localize!
@@ -182,8 +181,12 @@
   (define exprs (map alt-expr (^next-alts^)))
   (define localized-exprs empty)
   (define repr (context-repr (*context*)))
-  (hash-set! (hash-ref egraph-json iterNum) "input-exprs" exprs)
+  
+  (addExprs "start-exprs" exprs)
+
+
   (when (flag-set? 'localize 'costs)
+    (startLocalize)
     (define loc-costss (batch-localize-costs exprs (*context*)))
     (define cost-localized
       (for/list ([loc-costs (in-list loc-costss)]
@@ -213,7 +216,7 @@
     (set! localized-exprs (remove-duplicates (append localized-exprs error-localized))))
 
   (^locs^ localized-exprs)
-  (hash-set! (hash-ref egraph-json iterNum) "output-exprs" localized-exprs)
+  (addExprs "output-exprs" exprs) 
   (void))
 
 ;; Converts a patch to full alt with valid history

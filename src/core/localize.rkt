@@ -17,7 +17,8 @@
          "simplify.rkt"
          "egg-herbie.rkt"
          "compiler.rkt"
-         "batch.rkt")
+         "batch.rkt"
+         "../api/egraphJson.rkt")
 
 (module+ test
   (require rackunit

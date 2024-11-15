@@ -3,6 +3,7 @@
 (require "../syntax/syntax.rkt"
          "../syntax/types.rkt"
          "../utils/common.rkt"
+         "../api/egraphJson.rkt"
          (only-in "batch.rkt" batch-nodes))
 
 (provide expr?
@@ -68,9 +69,12 @@
               [(list _ args ...)
                (for ([arg args])
                  (loop arg))]))))
-  (remove-duplicates (if reverse?
+  (define final-subexprs (remove-duplicates (if reverse?
                          (reverse subexprs)
                          subexprs)))
+  (addSubexprs expr final-subexprs)                         
+                         
+                         final-subexprs)
 
 (define (ops-in-expr expr)
   (remove-duplicates (filter-map (lambda (e) (and (pair? e) (first e))) (all-subexpressions expr))))
