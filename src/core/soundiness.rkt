@@ -122,7 +122,7 @@
     (define generate-flags (hash-ref all-flags 'generate))
     (define proofs
       (if (member 'egglog generate-flags)
-          (run-egglog runner `(proofs . ,rws))
+          (run-egglog-proofs runner rws)
           (run-egg runner `(proofs . ,rws))))
 
     (values runner (map cons rws proofs))))
