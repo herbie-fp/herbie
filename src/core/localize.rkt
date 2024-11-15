@@ -1,6 +1,7 @@
 #lang racket
 
-(require math/bigfloat)
+(require math/bigfloat
+         racket/hash)
 (require "../syntax/sugar.rkt"
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
@@ -334,14 +335,14 @@
   (match (prog->fpcore expr ctx)
     [(list '! props ... (list op args ...)) op]
     [(list op args ...) op]
-    [(? number? c) (exact->exact c)]
+    [(? number? c) (exact->inexact c)]
     [(? variable? c) c]))
 
 (define (expr->json-tree expr ctx decorate)
   (define (make-json-tree subexpr)
     (define args (if (list? subexpr) (rest subexpr) '()))
     (hash-union
-     (hasheq 'e (~s (expr-fpcore-operator subexpr))
+     (hasheq 'e (~s (expr-fpcore-operator subexpr ctx))
              'children (map make-json-tree args))
      (decorate subexpr)))
   (make-json-tree expr))
@@ -388,4 +389,4 @@
               [(? nan?) "invalid"]
               [_ abs-error])))
 
-  (make-json-tree expr ctx expr-data))
+  (expr->json-tree expr ctx expr-data))
