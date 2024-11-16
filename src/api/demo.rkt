@@ -114,7 +114,8 @@
                #"OK"
                (current-seconds)
                #"text"
-               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count)))))
+               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count))))
+                     (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
                (λ (out) (write-datafile out info)))]))
 
 (define url (compose add-prefix url*))
@@ -286,7 +287,7 @@
                      (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
                (λ (out) `()))]
     [job-result
-     (response 201
+     (response 200
                #"Job complete"
                (current-seconds)
                #"text/plain"
@@ -350,7 +351,7 @@
 (define (check-status req job-id)
   (match (get-timeline-for job-id)
     [(? hash? result-hash)
-     (response/full 201
+     (response/full 200
                     #"Job complete"
                     (current-seconds)
                     #"text/plain"
