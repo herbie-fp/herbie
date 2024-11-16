@@ -250,7 +250,7 @@
         (eprintf "Error handling request: ~a\n" (hash-ref resp 'error))
         (eprintf "Success handling request\n"))
     (if (hash-has-key? resp 'error)
-        (response 500
+        (response 400
                   #"Bad Request"
                   (current-seconds)
                   APPLICATION/JSON-MIME-TYPE
