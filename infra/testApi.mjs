@@ -107,6 +107,17 @@ const errorsBody = {
     ], 0.12711304680349078]]
   })
 }
+
+console.log(sample['job'])
+const errors_hashed = await (await fetch(makeEndpoint("/api/analyze-hashed"), {
+  method: 'POST', body: JSON.stringify({
+    formula: FPCoreFormula2, sample_hash: sample['job']
+  })
+})).json()
+console.log(errors_hashed)
+assertIdAndPath(errors_hashed)
+assert.deepEqual(errors_hashed.points !== "CACHE MISS", true)
+
 const errors = await (await fetch(makeEndpoint("/api/analyze"), errorsBody)).json()
 assertIdAndPath(errors)
 assert.deepEqual(errors.points, [[[14.97651307489794], "2.3"]])

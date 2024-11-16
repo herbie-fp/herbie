@@ -42,7 +42,7 @@
 (define *demo-output* (make-parameter false))
 
 ; verbose logging for debugging
-(define verbose #t) ; Maybe change to log-level and use 'verbose?
+(define verbose #f) ; Maybe change to log-levelc and use 'verbose?
 (define (log msg . args)
   (when verbose
     (apply eprintf msg args)))
@@ -212,6 +212,7 @@
       ['evaluate (make-calculate-result herbie-result job-id)]
       ['cost (make-cost-result herbie-result job-id)]
       ['errors (make-error-result herbie-result job-id)]
+      ['errors-hash (make-error-hash-result herbie-result job-id)]
       ['exacts (make-exacts-result herbie-result job-id)]
       ['improve (make-improve-result herbie-result test job-id)]
       ['local-error (make-local-error-result herbie-result job-id)]
@@ -223,6 +224,7 @@
 ;; These are split for the 'improve call.
 (define completed-work (make-hash))
 (define completed-translations (make-hash))
+(define pcontext-cache (make-hash))
 
 (define (manager-ask-with-callback msg args)
   (define-values (a b) (place-channel))
@@ -253,15 +255,33 @@
 
 (define (wrapper-run-herbie cmd job-id)
   (print-job-message (herbie-command-command cmd) job-id (test-name (herbie-command-test cmd)))
-  (define result
-    (run-herbie (herbie-command-command cmd)
-                (herbie-command-test cmd)
-                #:seed (herbie-command-seed cmd)
-                #:pcontext (herbie-command-pcontext cmd)
-                #:profile? (herbie-command-profile? cmd)
-                #:timeline-disabled? (herbie-command-timeline-disabled? cmd)))
-  (eprintf "Herbie completed job: ~a\n" job-id)
-  result)
+  (match (herbie-command-command cmd)
+    ['errors-hash
+     (define idk (hash-ref pcontext-cache (herbie-command-pcontext cmd) #f))
+     (eprintf "HERE!!! ~a\n" pcontext-cache)
+     (match idk
+       [#f (job-result 'errors-hash #f #f #f #f #f #f)]
+       [pctx
+        (define p_context (json->pcontext pctx (test-context (herbie-command-test cmd))))
+        (define result
+          (run-herbie 'exacts
+                      (herbie-command-test cmd)
+                      #:seed (herbie-command-seed cmd)
+                      #:pcontext p_context
+                      #:profile? (herbie-command-profile? cmd)
+                      #:timeline-disabled? (herbie-command-timeline-disabled? cmd)))
+        (eprintf "Herbie completed job: ~a\n" job-id)
+        result])]
+    [_
+     (define result
+       (run-herbie (herbie-command-command cmd)
+                   (herbie-command-test cmd)
+                   #:seed (herbie-command-seed cmd)
+                   #:pcontext (herbie-command-pcontext cmd)
+                   #:profile? (herbie-command-profile? cmd)
+                   #:timeline-disabled? (herbie-command-timeline-disabled? cmd)))
+     (eprintf "Herbie completed job: ~a\n" job-id)
+     result]))
 
 (define (print-job-message command job-id job-str)
   (define job-label
@@ -270,6 +290,7 @@
       ['evaluate "Evaluation"]
       ['cost "Computing"]
       ['errors "Analyze"]
+      ['errors-hash "Hashed Analyze"]
       ['exacts "Ground truth"]
       ['improve "Improve"]
       ['local-error "Local error"]
@@ -498,14 +519,9 @@
 (define (make-sample-result herbie-result test job-id)
   (define pctx (job-result-backend herbie-result))
   (define repr (context-repr (test-context test)))
-  (hasheq 'command
-          (get-command herbie-result)
-          'points
-          (pcontext->json pctx repr)
-          'job
-          job-id
-          'path
-          (make-path job-id)))
+  (define jcontext (pcontext->json pctx repr))
+  (hash-set! pcontext-cache job-id jcontext)
+  (hasheq 'command (get-command herbie-result) 'points jcontext 'job job-id 'path (make-path job-id)))
 
 (define (make-calculate-result herbie-result job-id)
   (hasheq 'command
@@ -526,6 +542,18 @@
           job-id
           'path
           (make-path job-id)))
+
+(define (make-error-hash-result herbie-result job-id)
+  (if (job-result-backend herbie-result)
+      (make-error-result herbie-result job-id)
+      (hasheq 'command
+              (get-command herbie-result)
+              'points
+              "CACHE MISS"
+              'job
+              job-id
+              'path
+              (make-path job-id))))
 
 (define (make-error-result herbie-result job-id)
   (define errs
