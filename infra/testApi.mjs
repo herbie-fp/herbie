@@ -108,14 +108,13 @@ const errorsBody = {
   })
 }
 
-console.log(sample['job'])
 const errors_hashed = await (await fetch(makeEndpoint("/api/analyze-hashed"), {
   method: 'POST', body: JSON.stringify({
     formula: FPCoreFormula2, sample_hash: sample['job']
   })
 })).json()
-console.log(errors_hashed)
 assertIdAndPath(errors_hashed)
+assert.equal(Object.values(errors_hashed).length, 4);
 assert.deepEqual(errors_hashed.points !== "CACHE MISS", true)
 
 const errors = await (await fetch(makeEndpoint("/api/analyze"), errorsBody)).json()
@@ -239,14 +238,13 @@ const localError7 = await (await fetch(makeEndpoint("/api/localerror"), {
 })).json()
 // Test against conditionals expressions
 checkLocalErrorNode(localError7.tree, [0],
-  '<=', '0.0', 'true', 'true', 'invalid', '0.0')
-// TODO a bug in Rival
-// checkLocalErrorNode(localError7.tree, [0, 0],
-//   '-', '61.2', '0.0', '1.1180339887498948e-135', '1.1180339887498948e-135', '61.16647760559045')
+  '<=', '0.0', 'true', 'true', 'equal', '0.0')
+checkLocalErrorNode(localError7.tree, [0, 0],
+  '-', '61.2', '0.0', '1.1180339887498948e-135', '1.1180339887498948e-135', '61.16647760559045')
 checkLocalErrorNode(localError7.tree, [0, 1],
-  '0.05', '0.0', '0.05', '0.05', 'invalid', '0.0')
+  '0.05', '0.0', '0.05', '0.05', 'equal', '0.0')
 checkLocalErrorNode(localError7.tree, [2],
-  'fma', '0.0', '-inf.0', '-inf.0', 'invalid', '0.0')
+  'fma', '0.0', '-inf.0', '-inf.0', '+inf.0', '0.0')
 
 /// root: The root node of the local error tree.
 /// path: the path to get to the node you want to test.
