@@ -153,6 +153,22 @@
          (match (server-action-action-type action)
            ['herbie-command
             (define command (server-action-associated-type action))
+            (match-define (herbie-command type test seed pcontext profile? timeline-disabled?)
+              command)
+            (match type
+              ['errors-hash
+               (when (hash-has-key? completed-work pcontext)
+                 (set! command
+                       (herbie-command 'errors
+                                       test
+                                       seed
+                                       (json->pcontext (hash-ref (hash-ref completed-work pcontext)
+                                                                 'points)
+                                                       (test-context test))
+                                       profile?
+                                       timeline-disabled?))
+                 (set! action (server-action 'herbie-command command)))]
+              [_ empty])
             (hash-set! completed-work job-id (herbie-do-server-job command job-id))]
            ['translate
             (match-define (translate-job fpcore to-language) (server-action-associated-type action))
