@@ -258,16 +258,16 @@
                   APPLICATION/JSON-MIME-TYPE
                   (list (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
                   (λ (op) (write-json resp op)))
-        (response
-         200
-         #"OK"
-         (current-seconds)
-         APPLICATION/JSON-MIME-TYPE
-         (filter values
-                 (list (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*"))
-                       (and (hash-has-key? resp 'job)
-                            (header #"X-Herbie-Job-ID" (string->bytes/utf-8 (hash-ref resp 'job))))))
-         (λ (op) (write-json resp op))))))
+        (response 200
+                  #"OK"
+                  (current-seconds)
+                  APPLICATION/JSON-MIME-TYPE
+                  (filter values
+                          (list (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*"))
+                                (and (hash-has-key? resp 'job)
+                                     (header #"X-Herbie-Job-ID"
+                                             (string->bytes/utf-8 (hash-ref resp 'job))))))
+                  (λ (op) (write-json resp op))))))
 
 (define (response/error title body)
   (response/full 400
