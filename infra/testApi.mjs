@@ -345,7 +345,7 @@ async function fetchAndCheckRSPHeaders(endpoint, body) {
     console.log("Missing CORS header on rsp:")
     console.log(rsp)
   }
-  assert.equal(header, '* always')
+  assert.equal(header, '*')
   return rsp
 }
 

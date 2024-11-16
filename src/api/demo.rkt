@@ -96,7 +96,7 @@
                (current-seconds)
                #"text"
                (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count))))
-                     (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "* always")))
+                     (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
                (λ (out)
                  (with-handlers ([exn:fail? (page-error-handler result-hash page out)])
                    (make-page page out result-hash (*demo-output*) #f))))]
@@ -116,7 +116,7 @@
                (current-seconds)
                #"text"
                (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count))))
-                     (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "* always")))
+                     (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
                (λ (out) (write-datafile out info)))]))
 
 (define url (compose add-prefix url*))
@@ -256,7 +256,7 @@
                   #"Bad Request"
                   (current-seconds)
                   APPLICATION/JSON-MIME-TYPE
-                  (list (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "* always")))
+                  (list (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
                   (λ (op) (write-json resp op)))
         (response
          200
@@ -264,7 +264,7 @@
          (current-seconds)
          APPLICATION/JSON-MIME-TYPE
          (filter values
-                 (list (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "* always"))
+                 (list (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*"))
                        (and (hash-has-key? resp 'job)
                             (header #"X-Herbie-Job-ID" (string->bytes/utf-8 (hash-ref resp 'job))))))
          (λ (op) (write-json resp op))))))
@@ -286,7 +286,7 @@
                #"text/plain"
                (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count))))
                      (header #"X-Herbie-Job-ID" (string->bytes/utf-8 job-id))
-                     (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "* always")))
+                     (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
                (λ (out) `()))]
     [job-result
      (response 201
@@ -295,7 +295,7 @@
                #"text/plain"
                (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count))))
                      (header #"X-Herbie-Job-ID" (string->bytes/utf-8 job-id))
-                     (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "* always")))
+                     (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
                (λ (out) (write-json job-result out)))]))
 
 (define (improve-common req body go-back)
@@ -347,7 +347,7 @@
                     (list (header #"Location" (string->bytes/utf-8 (url check-status job-id)))
                           (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count))))
                           (header #"X-Herbie-Job-ID" (string->bytes/utf-8 job-id))
-                          (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "* always")))
+                          (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
                     '()))
    (url main)))
 
@@ -363,7 +363,7 @@
                                    (add-prefix (format "~a.~a/graph.html" job-id *herbie-commit*))))
                           (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count))))
                           (header #"X-Herbie-Job-ID" (string->bytes/utf-8 job-id))
-                          (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "* always")))
+                          (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
                     '())]
     [timeline
      (response 202
@@ -371,7 +371,7 @@
                (current-seconds)
                #"text/plain"
                (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count))))
-                     (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "* always")))
+                     (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
                (λ (out)
                  (when timeline
                    (for ([entry timeline])
@@ -383,7 +383,7 @@
                  (current-seconds)
                  #"text/plain"
                  (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count))))
-                       (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "* always")))
+                       (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
                  '()))
 
 (define (improve req)
@@ -404,7 +404,7 @@
                #"text/plain"
                (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count))))
                      (header #"X-Herbie-Job-ID" (string->bytes/utf-8 job-id))
-                     (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "* always")))
+                     (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
                (λ (out) `()))]
     [job-result
      (response 201
@@ -413,7 +413,7 @@
                #"text/plain"
                (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count))))
                      (header #"X-Herbie-Job-ID" (string->bytes/utf-8 job-id))
-                     (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "* always")))
+                     (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
                (λ (out) (write-json (hash-ref job-result 'timeline) out)))]))
 
 ; Macro for defining async and sync versions of an endpoint.
