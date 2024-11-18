@@ -14,9 +14,7 @@
          real-rules)
 
 (module+ internals
-  (provide define-ruleset
-           define-ruleset*
-           register-ruleset!
+  (provide define-ruleset*
            *rulesets*
            *unsound-rules*
            register-ruleset*!))
@@ -88,40 +86,19 @@
 ;;  Rule loading
 ;;
 
-(define ((type/repr-of-rule op-info name) input output ctx)
+(define (type-of-rule input output ctx)
   (let loop ([input input]
              [output output])
     (match* (input output)
       ; first, try the input expression
       ; special case for `if` expressions
       [((list 'if _ ift _) _) (loop ift output)]
-      [((list op _ ...) _) (op-info op 'otype)]
+      [((list op _ ...) _) (operator-info op 'otype)]
       [(_ (list 'if _ ift _)) (loop input ift)]
-      [(_ (list op _ ...)) (op-info op 'otype)]
+      [(_ (list op _ ...)) (operator-info op 'otype)]
       [((? symbol?) _) (dict-ref ctx input)]
       [(_ (? symbol?)) (dict-ref ctx output)]
-      [(_ _) (error name "could not compute type of rule ~a => ~a" input output)])))
-
-(define type-of-rule (type/repr-of-rule operator-info 'type-of-rule))
-(define repr-of-rule (type/repr-of-rule impl-info 'repr-of-rule))
-
-;; Rulesets defined by reprs. These rulesets are unique
-(define (register-ruleset! name groups var-ctx rules)
-  (define rules*
-    (for/list ([r rules])
-      (match-define (list rname input output) r)
-      (rule rname input output var-ctx (repr-of-rule input output var-ctx))))
-  (add-ruleset! name (list rules* groups var-ctx)))
-
-(define-syntax define-ruleset
-  (syntax-rules ()
-    [(define-ruleset name groups [rname input output] ...)
-     (define-ruleset name groups #:type () [rname input output] ...)]
-    [(define-ruleset name groups #:type ([var type] ...) [rname input output] ...)
-     (register-ruleset! 'name
-                        'groups
-                        `((var . ,(get-representation 'type)) ...)
-                        '((rname input output) ...))]))
+      [(_ _) (error 'type-of-rule "could not compute type of rule ~a => ~a" input output)])))
 
 (define (register-ruleset*! name groups var-ctx rules)
   (define rules*
