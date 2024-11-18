@@ -103,14 +103,10 @@
                 #:when (member var fv)) ; check whether var exists in expr at all
             (for ([i (in-range (*taylor-order-limit*))])
               (define gen (genexpr))
-              (unless (spec-has-nan? gen)
-                (define idx (mutable-batch-munge! global-batch-mutable gen)) ; Munge gen
-                (sow (alt (batchref global-batch idx) `(taylor ,name ,var) (list altn) '())))))
+              (define idx (mutable-batch-munge! global-batch-mutable gen)) ; Munge gen
+              (sow (alt (batchref global-batch idx) `(taylor ,name ,var) (list altn) '()))))
           (timeline-stop!))
         (batch-copy-mutable-nodes! global-batch global-batch-mutable))) ; Update global-batch
-
-(define (spec-has-nan? expr)
-  (expr-contains? expr (lambda (term) (eq? term 'NAN))))
 
 (define (run-taylor starting-exprs altns global-batch)
   (timeline-event! 'series)

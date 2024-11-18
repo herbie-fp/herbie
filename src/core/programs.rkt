@@ -6,7 +6,6 @@
          (only-in "batch.rkt" batch-nodes))
 
 (provide expr?
-         expr-contains?
          expr<?
          all-subexpressions
          ops-in-expr
@@ -43,13 +42,6 @@
     [(approx _ impl) (repr-of-node batch impl ctx)]
     [(list 'if cond ift iff) (repr-of-node batch ift ctx)]
     [(list op args ...) (impl-info op 'otype)]))
-
-(define (expr-contains? expr pred)
-  (let loop ([expr expr])
-    (match expr
-      [(approx _ impl) (loop impl)]
-      [(list elems ...) (ormap loop elems)]
-      [term (pred term)])))
 
 (define (all-subexpressions expr #:reverse? [reverse? #f])
   (define subexprs
