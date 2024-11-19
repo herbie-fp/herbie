@@ -14,7 +14,7 @@
          real-rules)
 
 (module+ internals
-  (provide *rulesets* *sound-rules*))
+  (provide *sound-rules*))
 
 ;; A rule represents "find-and-replacing" `input` by `output`. Both
 ;; are patterns, meaning that symbols represent pattern variables.
@@ -67,8 +67,12 @@
      (define-ruleset* name groups #:type () [rname input output] ...)]
     [(define-ruleset* name groups #:type ([var type] ...) [rname input output] ...)
      (set! *all-rules*
-           (let ([var-ctx `((var . type) ...)])
-             (cons (rule 'rname 'input 'output var-ctx (type-of-rule input output var-ctx) 'groups))))]))
+           (let ([var-ctx '((var . type) ...)])
+             (list*
+              (let ([otype (type-of-rule 'input 'output var-ctx)])
+                (rule 'rname 'input 'output var-ctx otype 'groups))
+              ...
+              *all-rules*)))]))
 
 ; Commutativity
 (define-ruleset* commutativity
