@@ -225,14 +225,6 @@
   (define fp-rules (egglog-rewrite-rules (*fp-safe-simplify-rules*) #f))
   (set! prelude-exprs (append prelude-exprs fp-rules))
 
-  ;;; (define fp-rules (*fp-safe-simplify-rules*))
-  ;;; (define spec-rules (real-rules (*simplify-rules*)))
-  ;;; (define rewrite-rules
-  ;;;   (append (egglog-rewrite-rules spec-rules #t) (egglog-rewrite-rules fp-rules #f)))
-  ;;; (for ([rule (in-list rewrite-rules)])
-  ;;;   (printf "~s\n" rule))
-  (for ([expr (in-list prelude-exprs)])
-    (printf "~s\n" expr))
   prelude-exprs)
 
 (define (platform-spec-nodes)
@@ -511,7 +503,9 @@
               (let ety (,(typed-var-id (representation-name repr))
                         ,(symbol->string var))
                 )
-              (union (lower e ty) ety)) :ruleset lowering)))
+              (union (lower e ty) ety))
+             :ruleset
+             lowering)))
 
   (set! egglog-exprs (append egglog-exprs var-lowering-rules))
 
@@ -522,7 +516,9 @@
              ((let se (Var
                        ,(symbol->string var))
                 )
-              (union (lift e) se)) :ruleset lifting)))
+              (union (lift e) se))
+             :ruleset
+             lifting)))
 
   (set! egglog-exprs (append egglog-exprs var-lifting-rules))
 
@@ -558,9 +554,6 @@
       `(extract (lower (lift ,root) ,(symbol->string (representation-name (context-repr ctx)))))))
 
   (set! egglog-exprs (append egglog-exprs extract-exprs))
-
-  (for ([expr (in-list egglog-exprs)])
-    (printf "~s\n" expr))
   egglog-exprs)
 
 (define (egglog-num? id)
