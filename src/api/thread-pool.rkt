@@ -1,15 +1,15 @@
 #lang racket
 
 (require racket/place)
-(require "../utils/common.rkt"
-         "sandbox.rkt"
-         "server.rkt"
+(require "../reports/pages.rkt"
          "../syntax/load-plugin.rkt"
-         "../reports/pages.rkt"
          "../syntax/read.rkt"
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
-         "datafile.rkt")
+         "../utils/common.rkt"
+         "datafile.rkt"
+         "sandbox.rkt"
+         "server.rkt")
 
 (provide get-test-results)
 
@@ -23,7 +23,7 @@
     [dir
      (define dirname (graph-folder-path (test-name test) index))
      (define rdir (build-path dir dirname))
-     (when (not (directory-exists? rdir))
+     (unless (directory-exists? rdir)
        (make-directory rdir))
 
      (define result
@@ -123,7 +123,7 @@
                                     out)])
         (match (apply sync (append workers workers-dead))
           [`(done ,id ,more ,tr)
-           (when (not (null? work))
+           (unless (null? work)
              (place-channel-put more `(apply ,more ,@(car work)))
              (set! work (cdr work)))
            (define out* (cons (cons id tr) out))
