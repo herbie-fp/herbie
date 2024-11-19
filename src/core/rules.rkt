@@ -10,9 +10,6 @@
 
 (provide *rules*
          *simplify-rules*
-
-(module+ internals
-  (provide *sound-rules*))
          (struct-out rule))
 
 ;; A rule represents "find-and-replacing" `input` by `output`. Both
@@ -35,12 +32,6 @@
 
 (define (*simplify-rules*)
   (filter (conjoin rule-enabled? (has-tag? 'simplify)) *all-rules*))
-
-(define (*sound-rules*)
-  (filter (conjoin rule-enabled? (has-tag? 'sound)) *all-rules*))
-
-(define (real-rules rules)
-  (filter-not (lambda (rule) (representation? (rule-otype rule))) rules))
 
 ;;
 ;;  Rule loading

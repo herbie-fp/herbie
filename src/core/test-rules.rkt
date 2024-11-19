@@ -97,9 +97,9 @@
 
 (define (check-rule rule)
   (check-rule-correct rule)
-  (when (set-member? (*sound-rules*) rule)
+  (when (set-member? (rule-tags rule) 'sound)
     (check-rule-sound rule))
-  (when (set-member? (*fp-safe-simplify-rules*) rule)
+  (when (set-member? (rule-tags rule) 'fp-safe)
     (for ([rule* (rule->impl-rules rule)])
       (check-rule-fp-safe rule*))))
 
