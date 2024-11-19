@@ -95,37 +95,23 @@
                      (match-define (vector v1 v2) (apply prog pt))
                      (check-equal? v1 v2))))
 
+(define (check-rule test-rule)
+  (check-rule-correct rule)
+  (when (set-member? (*sound-rules*) rule)
+    (check-rule-sound rule))
+  (when (set-member? (*fp-safe-simplify-rules*) rule)
+    (for ([rule* (rule->impl-rules rule)])
+      (check-rule-fp-safe rule*))))
+
 (module+ main
-  (define _ (*simplify-rules*)) ; force an update
   (num-test-points (* 100 (num-test-points)))
   (command-line #:args names
                 (for ([name names])
                   (eprintf "Checking ~a...\n" name)
                   (define rule (first (filter (λ (x) (equal? (~a (rule-name x)) name)) (*rules*))))
-                  (check-rule-correct rule)
-                  (unless (set-member? (*unsound-rules*) rule)
-                    (check-rule-sound rule))
-                  (when (set-member? (*fp-safe-simplify-rules*) rule)
-                    (for ([rule* (rule->impl-rules rule)])
-                      (check-rule-fp-safe rule*))))))
+                  (check-rule test-rule)))
 
 (module+ test
-  (define _ (*simplify-rules*)) ; force an update
-
-  (for* ([(_ test-ruleset) (in-dict (*rulesets*))]
-         [test-rule (first test-ruleset)])
-    (test-case (~a (rule-name test-rule))
-      (check-rule-correct test-rule)))
-
-  (for* ([(_ test-ruleset) (in-dict (*rulesets*))]
-         [test-rule (first test-ruleset)]
-         #:unless (set-member? (*unsound-rules*) test-rule))
-    (test-case (~a (rule-name test-rule))
-      (check-rule-sound test-rule)))
-
-  (for* ([(_ test-ruleset) (in-dict (*rulesets*))]
-         [test-rule (first test-ruleset)]
-         [test-rule* (rule->impl-rules test-rule)]
-         #:when (set-member? (*fp-safe-simplify-rules*) test-rule))
-    (test-case (~a (rule-name test-rule*))
-      (check-rule-fp-safe test-rule*))))
+  (for* ([rule (in-list (*rules*))])
+    (test-case (~a (rule-name rule))
+      (check-rule rule))))
