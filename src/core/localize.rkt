@@ -340,10 +340,12 @@
 
 (define (expr->json-tree expr ctx decorate)
   (define (make-json-tree subexpr)
-    (define args (if (list? subexpr) (rest subexpr) '()))
+    (define args
+      (if (list? subexpr)
+          (rest subexpr)
+          '()))
     (hash-union
-     (hasheq 'e (~s (expr-fpcore-operator subexpr ctx))
-             'children (map make-json-tree args))
+     (hasheq 'e (~s (expr-fpcore-operator subexpr ctx)) 'children (map make-json-tree args))
      (decorate subexpr)))
   (make-json-tree expr))
 
