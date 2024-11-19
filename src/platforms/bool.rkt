@@ -29,16 +29,8 @@
 (define (or-fn . as)
   (ormap identity as))
 
-(define-operator-impl (not.bool [x : bool]) bool #:spec (not x) #:fl not #:identities (#:exact (not.bool a)))
+(define-operator-impl (not.bool [x : bool]) bool #:spec (not x) #:fl not)
 
-(define-operator-impl (and.bool [x : bool] [y : bool])
-                      bool
-                      #:spec (and x y)
-                      #:fl and-fn
-                      #:identities (#:exact (and.bool a b)))
+(define-operator-impl (and.bool [x : bool] [y : bool]) bool #:spec (and x y) #:fl and-fn)
 
-(define-operator-impl (or.bool [x : bool] [y : bool])
-                      bool
-                      #:spec (or x y)
-                      #:fl or-fn
-                      #:identities (#:exact (or.bool a b)))
+(define-operator-impl (or.bool [x : bool] [y : bool]) bool #:spec (or x y) #:fl or-fn)
