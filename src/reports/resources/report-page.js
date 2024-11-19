@@ -446,21 +446,10 @@ function buildTableContents(jsonData, otherJsonData, filterFunction) {
     return rows
 }
 
-function getMinimum(target) {
-    if (target === false) {
-        return false
-    }
-
-    return target.reduce((minA, current) => {
-        const currentA = current[1];
-        return currentA < minA ? currentA : minA;
-    }, Infinity);
-}
-
 // HACK I kinda hate this split lambda function, Zane
 function buildRow(test, other) {
     var row
-    var smallestTarget = getMinimum(test.target)
+    var smallestTarget = test.target && Math.min.apply(Math, test.target)
 
     eitherOr(test, other,
         (function () {
@@ -830,8 +819,8 @@ function makeFilterFunction() {
 
             // Diff Target Accuracy
             if (radioState == "targetAcc") {
-                var smallestBase = getMinimum(baseData.target)
-                var smallestDiff = getMinimum(diffData.target)
+                var smallestBase = baseData.target && Math.min.apply(Math, baseData.target)
+                var smallestDiff = diffData.target && Math.min.apply(Math, diffData.target)
                 
                 const t = smallestBase / baseData.bits
                 const o = smallestDiff / diffData.bits
