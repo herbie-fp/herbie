@@ -224,7 +224,6 @@
   (set! prelude-exprs (append prelude-exprs math-rules))
   (define fp-rules (egglog-rewrite-rules (*fp-safe-simplify-rules*) #f))
   (set! prelude-exprs (append prelude-exprs fp-rules))
-
   prelude-exprs)
 
 (define (platform-spec-nodes)
@@ -413,6 +412,9 @@
                   ,(expr->e2-pattern (rule-output rule) (rule-otype rule))
                   :ruleset
                   fp-safe))))
+        `(rewrite ,(expr->e1-pattern (rule-input rule)) ,(expr->e1-pattern (rule-output rule)))
+        `(rewrite ,(expr->e2-pattern (rule-input rule) (rule-otype rule))
+                  ,(expr->e2-pattern (rule-output rule) (rule-otype rule))))))
 
 (define (egglog-add-exprs batch ctx)
   (define egglog-exprs '())
@@ -506,6 +508,7 @@
               (union (lower e ty) ety))
              :ruleset
              lowering)))
+              (union (lower e ty) ety)))))
 
   (set! egglog-exprs (append egglog-exprs var-lowering-rules))
 
@@ -533,7 +536,6 @@
                [repr (in-list (context-var-reprs ctx))])
       `(let ,(string->symbol (format "?t~a" var))
          (,(typed-var-id (representation-name repr)) ,(symbol->string var)))))
-
   (set! egglog-exprs (append egglog-exprs var-typed-bindings))
 
   (define binding-exprs
