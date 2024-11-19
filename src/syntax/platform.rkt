@@ -445,7 +445,7 @@
                    (define itypes (impl-info impl 'itype))
                    (define otype (impl-info impl 'otype))
                    (define-values (vars spec-expr impl-expr) (impl->rule-parts impl))
-                   (rule name impl-expr spec-expr (map cons vars itypes) otype)))))
+                   (rule name impl-expr spec-expr (map cons vars itypes) otype '(lifting)))))
   ;; special rule for approx nodes
   ; (define approx-rule (rule 'lift-approx (approx 'a 'b) 'a '((a . real) (b . real)) 'real))
   ; (cons approx-rule impl-rules))
@@ -462,7 +462,7 @@
                  (define-values (vars spec-expr impl-expr) (impl->rule-parts impl))
                  (define itypes (map representation-type (impl-info impl 'itype)))
                  (define otype (representation-type (impl-info impl 'otype)))
-                 (rule name spec-expr impl-expr (map cons vars itypes) otype)))))
+                 (rule name spec-expr impl-expr (map cons vars itypes) otype '(lowering)))))
 
 ;; All possible assignments of implementations.
 (define (impl-combinations ops impls)
@@ -525,7 +525,7 @@
   (define impls (list->seteq (platform-impls pform)))
   (reap [sow]
         (for ([ru (in-list rules)])
-          (match-define (rule name input output _ otype) ru)
+          (match-define (rule name input output _ otype tags) ru)
           (cond
             [(representation? otype) ; rule over representation
              (define ops (append (ops-in-expr input) (ops-in-expr output)))
@@ -548,7 +548,7 @@
                               name
                               (representation-name repr)
                               (string-join (map (lambda (subst) (~a (cdr subst))) isubst) "-"))))
-                   (sow (rule name* input* output* itypes* repr)))))]))))
+                   (sow (rule name* input* output* itypes* repr tags)))))]))))
 
 (define (expr-otype expr)
   (match expr
@@ -624,7 +624,8 @@
                          (prog->spec prog)
                          (for/hash ([binding (in-list var-types)])
                            (values (car binding) (cdr binding)))
-                         (impl-info impl 'otype)))
+                         (impl-info impl 'otype)
+                         '(fp-safe))
                  (sow r))]
               [(list 'commutes name expr rev-expr)
                (when (impls-supported? expr)
@@ -637,7 +638,8 @@
                          (expr->prog rev-expr otype)
                          (for/hash ([v (in-list vars)])
                            (values v itype))
-                         otype)) ; Commutes by definition the types are matching
+                         otype
+                         '(fp-safe)) ; Commutes by definition the types are matching
                  (sow r))]
               [(list 'directed name lhs rhs)
                (when (and (impls-supported? lhs) (impls-supported? rhs))
@@ -658,5 +660,6 @@
                          (expr->prog rhs rotype)
                          (for/hash ([binding (in-list var-types)])
                            (values (car binding) (cdr binding)))
-                         (impl-info impl 'otype)))
+                         (impl-info impl 'otype)
+                         '(fp-safe))
                  (sow r))])))))
