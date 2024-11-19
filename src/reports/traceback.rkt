@@ -46,11 +46,9 @@
     [#f `((td ([colspan "3"]) "unknown"))]))
 
 (define (render-traceback msg traceback)
-  `(table
-    (thead (th ([colspan "2"]) ,msg) (th "L") (th "C"))
-    (tbody
-     ,@(for/list ([(name loc) (in-dict traceback)])
-         `(tr (td ((class "procedure")) ,(~a name)) ,@(render-loc loc))))))
+  `(table (thead (th ([colspan "2"]) ,msg) (th "L") (th "C"))
+          (tbody ,@(for/list ([(name loc) (in-dict traceback)])
+                     `(tr (td ((class "procedure")) ,(~a name)) ,@(render-loc loc))))))
 
 (define (render-timeout result-hash)
   (define test (hash-ref result-hash 'test))

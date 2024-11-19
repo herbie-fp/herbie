@@ -68,11 +68,9 @@
     [(define-ruleset* name groups #:type ([var type] ...) [rname input output] ...)
      (set! *all-rules*
            (let ([var-ctx '((var . type) ...)])
-             (list*
-              (let ([otype (type-of-rule 'input 'output var-ctx)])
-                (rule 'rname 'input 'output var-ctx otype 'groups))
-              ...
-              *all-rules*)))]))
+             (list* (let ([otype (type-of-rule 'input 'output var-ctx)])
+                      (rule 'rname 'input 'output var-ctx otype 'groups)) ...
+                    *all-rules*)))]))
 
 ; Commutativity
 (define-ruleset* commutativity

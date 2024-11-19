@@ -7,9 +7,12 @@
          (submod "syntax/platform.rkt" internals)
          (submod "core/rules.rkt" internals))
 
-(define-syntax-rule (define-ruleset _ ...) (void))
-(define-syntax-rule (define-ruleset* _ ...) (void))
-(define (register-ruleset! . args) (void))
+(define-syntax-rule (define-ruleset _ ...)
+  (void))
+(define-syntax-rule (define-ruleset* _ ...)
+  (void))
+(define (register-ruleset! . args)
+  (void))
 
 (provide define-type
          define-representation
