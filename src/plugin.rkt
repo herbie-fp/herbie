@@ -7,7 +7,8 @@
          (submod "syntax/platform.rkt" internals)
          (submod "core/rules.rkt" internals))
 
-(define-syntax-rule (define-ruleset _ ...))
+(define-syntax-rule (define-ruleset _ ...) (void))
+(define-syntax-rule (define-ruleset* _ ...) (void))
 (define (register-ruleset! . args) (void))
 
 (provide define-type
@@ -15,12 +16,14 @@
          define-operator-impl
          define-operator
          define-ruleset*
+         define-ruleset
          register-operator-impl!
          register-representation!
          register-representation-alias!
          register-conversion-generator!
          register-generator!
          register-operator!
+         register-ruleset!
          (struct-out representation)
          get-representation
          warn

@@ -445,7 +445,7 @@
                    (define itypes (impl-info impl 'itype))
                    (define otype (impl-info impl 'otype))
                    (define-values (vars spec-expr impl-expr) (impl->rule-parts impl))
-                   (rule name impl-expr spec-expr (map cons vars itypes) otype '(lifting)))))
+                   (rule name impl-expr spec-expr (map cons vars itypes) otype '(lifting))))))
   ;; special rule for approx nodes
   ; (define approx-rule (rule 'lift-approx (approx 'a 'b) 'a '((a . real) (b . real)) 'real))
   ; (cons approx-rule impl-rules))
@@ -462,7 +462,7 @@
                  (define-values (vars spec-expr impl-expr) (impl->rule-parts impl))
                  (define itypes (map representation-type (impl-info impl 'itype)))
                  (define otype (representation-type (impl-info impl 'otype)))
-                 (rule name spec-expr impl-expr (map cons vars itypes) otype '(lowering)))))
+                 (rule name spec-expr impl-expr (map cons vars itypes) otype '(lowering))))))
 
 ;; All possible assignments of implementations.
 (define (impl-combinations ops impls)
@@ -625,7 +625,7 @@
                          (for/hash ([binding (in-list var-types)])
                            (values (car binding) (cdr binding)))
                          (impl-info impl 'otype)
-                         '(fp-safe))
+                         '(fp-safe)))
                  (sow r))]
               [(list 'commutes name expr rev-expr)
                (when (impls-supported? expr)
@@ -639,7 +639,7 @@
                          (for/hash ([v (in-list vars)])
                            (values v itype))
                          otype
-                         '(fp-safe)) ; Commutes by definition the types are matching
+                         '(fp-safe))) ; Commutes by definition the types are matching
                  (sow r))]
               [(list 'directed name lhs rhs)
                (when (and (impls-supported? lhs) (impls-supported? rhs))
@@ -661,5 +661,5 @@
                          (for/hash ([binding (in-list var-types)])
                            (values (car binding) (cdr binding)))
                          (impl-info impl 'otype)
-                         '(fp-safe))
+                         '(fp-safe)))
                  (sow r))])))))

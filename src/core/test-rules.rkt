@@ -109,7 +109,7 @@
                 (for ([name names])
                   (eprintf "Checking ~a...\n" name)
                   (define rule (first (filter (λ (x) (equal? (~a (rule-name x)) name)) (*rules*))))
-                  (check-rule test-rule)))
+                  (check-rule test-rule))))
 
 (module+ test
   (for* ([rule (in-list (*rules*))])
