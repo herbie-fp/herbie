@@ -4,7 +4,6 @@
 (require "../utils/common.rkt"
          "../utils/float.rkt"
          "rules.rkt"
-         (submod "rules.rkt" internals)
          "../syntax/platform.rkt"
          "../syntax/load-plugin.rkt"
          "../syntax/sugar.rkt"

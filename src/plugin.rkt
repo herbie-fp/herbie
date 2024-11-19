@@ -4,8 +4,7 @@
          "utils/errors.rkt"
          (submod "syntax/types.rkt" internals)
          (submod "syntax/syntax.rkt" internals)
-         (submod "syntax/platform.rkt" internals)
-         (submod "core/rules.rkt" internals))
+         (submod "syntax/platform.rkt" internals))
 
 (define-syntax-rule (define-ruleset _ ...)
   (void))
