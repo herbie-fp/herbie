@@ -491,7 +491,7 @@
              (replace-expression (rule-output ru) input (cons op vars))
              (map cons vars itypes)
              (rule-otype ru)
-             (rule-tags ru))]
+             (rule-tags ru)))]
     ; non-expansive rule
     [else (list (rule->egg-rule ru))]))
 
