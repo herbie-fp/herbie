@@ -75,7 +75,7 @@
 
   ; inputs to egg
   (define reprs (map (lambda (prog) (repr-of prog ctx)) progs))
-  (define rules (real-rules (*simplify-rules*)))
+  (define rules (*simplify-rules*))
   (define lifting-rules (platform-lifting-rules))
   (define lowering-rules (platform-lowering-rules))
 

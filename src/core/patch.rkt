@@ -27,7 +27,7 @@
       (repr-of (debatchref (alt-expr prev)) (*context*))))
 
   ; generate real rules
-  (define rules (real-rules (*simplify-rules*)))
+  (define rules (*simplify-rules*))
   (define lowering-rules (platform-lowering-rules))
 
   ; egg runner
@@ -127,7 +127,7 @@
   (timeline-event! 'rewrite)
 
   ; generate required rules
-  (define rules (real-rules (*rules*)))
+  (define rules (*rules*))
   (define lifting-rules (platform-lifting-rules))
   (define lowering-rules (platform-lowering-rules))
 

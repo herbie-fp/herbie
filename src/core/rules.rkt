@@ -10,11 +10,10 @@
 
 (provide *rules*
          *simplify-rules*
-         (struct-out rule)
-         real-rules)
 
 (module+ internals
   (provide *sound-rules*))
+         (struct-out rule))
 
 ;; A rule represents "find-and-replacing" `input` by `output`. Both
 ;; are patterns, meaning that symbols represent pattern variables.
