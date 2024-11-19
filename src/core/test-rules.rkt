@@ -108,7 +108,8 @@
   (command-line #:args names
                 (for ([name names])
                   (eprintf "Checking ~a...\n" name)
-                  (define test-rule (first (filter (λ (x) (equal? (~a (rule-name x)) name)) (*rules*))))
+                  (define test-rule
+                    (first (filter (λ (x) (equal? (~a (rule-name x)) name)) (*rules*))))
                   (check-rule test-rule))))
 
 (module+ test
