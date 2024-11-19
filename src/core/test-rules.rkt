@@ -43,7 +43,7 @@
   (platform-impl-rules (list rule)))
 
 (define (check-rule-sound test-rule)
-  (match-define (rule name p1 p2 env out) test-rule)
+  (match-define (rule name p1 p2 env out tags) test-rule)
   (define ctx (env->ctx env out))
 
   (match-define (list pts exs)
@@ -64,7 +64,7 @@
                                            (fail "Right hand side returns NaN")))))))
 
 (define (check-rule-correct test-rule)
-  (match-define (rule name p1 p2 env out) test-rule)
+  (match-define (rule name p1 p2 env out tags) test-rule)
   (define ctx (env->ctx env out))
 
   (define pre (dict-ref *conditions* name '(TRUE)))
@@ -82,7 +82,7 @@
                                          (check-eq? (ulp-difference v1 v2 (context-repr ctx)) 1))))))
 
 (define (check-rule-fp-safe test-rule)
-  (match-define (rule name p1 p2 itypes repr) test-rule)
+  (match-define (rule name p1 p2 itypes repr tags) test-rule)
   (define fv (dict-keys itypes))
   (define ctx (context fv repr (map (curry dict-ref itypes) fv)))
   (define (make-point _)
@@ -95,7 +95,7 @@
                      (match-define (vector v1 v2) (apply prog pt))
                      (check-equal? v1 v2))))
 
-(define (check-rule test-rule)
+(define (check-rule rule)
   (check-rule-correct rule)
   (when (set-member? (*sound-rules*) rule)
     (check-rule-sound rule))
@@ -108,7 +108,7 @@
   (command-line #:args names
                 (for ([name names])
                   (eprintf "Checking ~a...\n" name)
-                  (define rule (first (filter (λ (x) (equal? (~a (rule-name x)) name)) (*rules*))))
+                  (define test-rule (first (filter (λ (x) (equal? (~a (rule-name x)) name)) (*rules*))))
                   (check-rule test-rule))))
 
 (module+ test
