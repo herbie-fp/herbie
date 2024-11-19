@@ -1,6 +1,7 @@
 #lang racket
 
-(require math/bigfloat)
+(require math/bigfloat
+         racket/hash)
 (require "../syntax/sugar.rkt"
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
@@ -266,10 +267,8 @@
 
   ;; And the absolute difference between the two
   (define exact-var-names
-    (for/list ([expr (in-list exprs-list)]
-               [n (in-naturals)])
-      ;; HACK: should generate unique, not just rare, symbol
-      (string->symbol (format "-exact-for-~a" n))))
+    (for/list ([expr (in-list exprs-list)])
+      (gensym 'exact)))
   (define delta-ctx
     (context (append (context-vars ctx) exact-var-names)
              (get-representation 'binary64)
@@ -279,10 +278,9 @@
                [expr (in-list exprs-list)]
                [repr (in-list reprs-list)]
                [var (in-list exact-var-names)])
-      (cond
-        [(number? spec) 0] ; HACK: unclear why numbers don't work in Rival but :shrug:
-        [(equal? (representation-type repr) 'bool) 0] ; HACK: just ignore differences in booleans
-        [else `(fabs (- ,spec ,var))])))
+      (match (representation-type repr)
+        ['bool 0] ; We can't subtract booleans so ignore them
+        ['real `(fabs (- ,spec ,var))])))
   (define delta-fn (eval-progs-real compare-specs (map (const delta-ctx) compare-specs)))
 
   (define expr-batch (progs->batch exprs-list))
@@ -333,29 +331,29 @@
                               (vector->list (vector-ref true-error-out n))))
         (set! n (add1 n))))))
 
-(module+ test
-  (define ctx (make-debug-context '(x y)))
-  (define spec `(- (sqrt (+ x 1)) (sqrt y)))
-  (define pt `(1e-100 1e-100))
-  (define exact 1e-50)
-  (check-equal? (first (apply (eval-progs-real (list `(- ,spec ,exact)) (list ctx)) pt)) 1.0))
-
-(define (expr->spec-operator expr)
-  (match expr
+(define (expr-fpcore-operator expr ctx)
+  (match (prog->fpcore expr ctx)
+    [(list '! props ... (list op args ...)) op]
     [(list op args ...) op]
     [(? number? c) (exact->inexact c)]
     [(? variable? c) c]))
+
+(define (expr->json-tree expr ctx decorate)
+  (define (make-json-tree subexpr)
+    (define args
+      (if (list? subexpr)
+          (rest subexpr)
+          '()))
+    (hash-union
+     (hasheq 'e (~s (expr-fpcore-operator subexpr ctx)) 'children (map make-json-tree args))
+     (decorate subexpr)))
+  (make-json-tree expr))
 
 ;; Compute the local error of every subexpression of `prog`
 ;; and returns the error information as an S-expr in the
 ;; same shape as `prog`
 (define (local-error-as-tree expr ctx)
   (define data-hash (first (compute-errors (list (all-subexpressions expr)) ctx)))
-  (define fpcore (prog->fpcore expr ctx))
-  (define mapping
-    (for/hash ([subexpr (in-list (all-subexpressions expr))]
-               [subfpcore (in-list (all-subexpressions fpcore))])
-      (values subexpr subfpcore)))
 
   (define (translate-booleans value)
     (match value
@@ -363,7 +361,7 @@
       [#f 'false]
       [v v]))
 
-  (define (make-hash-for expr)
+  (define (expr-data expr)
     (define data (hash-ref data-hash expr))
     (define abs-error (~s (first (hash-ref data 'absolute-error))))
     (define ulp-error (~s (ulps->bits (first (hash-ref data 'ulp-errs))))) ; unused by Odyssey
@@ -377,9 +375,7 @@
                  [total-bits (representation-total-bits repr)]
                  [bits-error (ulps->bits (first (hash-ref data 'ulp-errs)))])
             (* 100 (- 1 (/ bits-error total-bits))))))
-    (hasheq 'e
-            (~s (expr->spec-operator (hash-ref mapping expr)))
-            'ulps-error
+    (hasheq 'ulps-error
             ulp-error
             'avg-error
             avg-error
@@ -393,11 +389,6 @@
             (match (first (hash-ref data 'absolute-error))
               [(? zero?) "equal"]
               [(? nan?) "invalid"]
-              [_ abs-error])
-            'children
-            (map make-hash-for
-                 (if (list? expr)
-                     (rest expr)
-                     '()))))
+              [_ abs-error])))
 
-  (make-hash-for expr))
+  (expr->json-tree expr ctx expr-data))
