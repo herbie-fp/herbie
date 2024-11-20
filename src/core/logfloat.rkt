@@ -46,11 +46,16 @@
   (match-define (logfloat x1 x2 s e1 e2) x)
   (define-values (l1 l2) (ddexp2 e1 e2))
   (define-values (n1 n2) (ddneg l1 l2))
-  (if (or (ddnan? x1 x2) (ddzero? x1 x2) (ddinfinite? x1 x2))
-      (if s
-          (logfloat l1 l2 s e1 e2)
-          (logfloat n1 n2 s e1 e2))
-      x))
+  (define-values (ne1 ne2) (ddlog2 x1 x2))
+  (define ns (dd>= x1 x2 0.0))
+  (cond
+    [(or (ddnan? x1 x2) (ddzero? x1 x2) (ddinfinite? x1 x2))
+     (if s
+         (logfloat l1 l2 s e1 e2)
+         (logfloat n1 n2 s e1 e2))]
+    [(or (ddnan? e1 e2) (ddzero? e1 e2) (ddinfinite? e1 e2))
+     (logfloat x1 x2 ns ne1 ne2)]
+    [else x]))
 
 (define/contract (lfzero? x)
   (-> logfloat? boolean?)
