@@ -161,12 +161,12 @@
          (update-flow-hash uflow-hash bfzero? x-ex)]
         [_ #f])
 
-      
+
       (when (list? subexpr)
         (let* ([op (first subexpr)]
                [op (symbol->string op)]
                [f32? (string-suffix? op ".f32")])
-          
+
           (lf-precision (if f32? 32 64))))
 
       (match subexpr
@@ -261,7 +261,7 @@
 
          (define cot.lf (lfabs (lf/ (lf 1.0) (lftan x.lf))))
          (define cond.lf (lf* (lfabs x.lf) cot.lf))
-         
+
          ;(match-define (logfloat er1 er2 _ _ _) (lf* eps cond.lf))
 
          ;(eprintf "~a ~a ~a ~a ~a ~a\n" pt eps cond.lf er1 er2 s)
@@ -269,7 +269,7 @@
          (if (lfover/underflowed? x.lf)
              (when (lfoverflow? x.lf)
                (mark-erroneous! subexpr 'oflow-rescue))
-             
+
              (cond
                ;;[(lf> cond.lf condthres.dl #f) (mark-erroneous! subexpr 'sensitivity)]
                [(dd> ae1 ae2 mu) (mark-erroneous! subexpr 'sensitivity)]
@@ -278,16 +278,16 @@
                #;(cond
                    [(and (lf> cond.lf condthres.dl #f) (lf> (lfabs x.lf) condthres.dl #f))
                     (mark-erroneous! subexpr 'sensitivity)]
-                   
+
                    [(and (lf> cond.lf condthres.dl #f) (lf> cot.lf condthres.dl #f))
                     (mark-erroneous! subexpr 'cancelation)]
-                   
+
                    [(and (lf> cond.lf maybethres.dl #f) (lf> (lfabs x.lf) maybethres.dl #f))
                     (mark-maybe! subexpr 'sensitivity)]
-                   
+
                    [(and (lf> cond.lf maybethres.dl #f) (lf> cot.lf maybethres.dl #f))
                     (mark-maybe! subexpr 'cancellation)]
-                   
+
                    [else #f])))]
 
         [(list (or 'cos.f64 'cos.f32) x-ex)
@@ -370,7 +370,7 @@
         [(list (or 'sqrt.f64 'sqrt.f32) x-ex)
          #:when (list? x-ex)
          (define x.lf (lfs-ref x-ex))
-         
+
 
          (cond
            ;; Underflow rescue:
@@ -401,7 +401,7 @@
 
          (define x.lf (lfs-ref x-ex))
          (define y.lf (lfs-ref y-ex))
-         
+
          (when (or (lfover/underflowed? x.lf) (lfover/underflowed? y.lf))
            (cond
              ;; if the numerator underflows and the denominator:
@@ -412,7 +412,7 @@
              [(and (lfunderflow? x.lf) (not (lfunderflow? z.dl)))
               (mark-erroneous! subexpr 'u/n)]
              ;; - overflows, no rescue is possible
-             
+
              ;; if the numerator overflows and the denominator:
              ;; - overflows, nan could be rescued
              [(and (lfoverflow? x.lf) (lfoverflow? y.lf) (not (lfnan? z.dl)))
@@ -421,7 +421,7 @@
              [(and (lfoverflow? x.lf) (not (lfoverflow? z.dl)))
               (mark-erroneous! subexpr 'o/n)]
              ;; - underflow, no rescue is possible
-             
+
              ;; if the numerator is normal and the denominator:
              ;; - overflows, then a rescue is possible
              [(and (lfoverflow? y.lf) (not (lfunderflow? z.dl)))
