@@ -3,8 +3,7 @@
 (require ffi/unsafe
          ffi/unsafe/define
          ffi/vector
-         math/flonum
-         "libm.rkt")
+         math/flonum)
 
 (provide (all-defined-out))
 
