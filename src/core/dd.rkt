@@ -255,12 +255,6 @@
 (define (ddneg x1 [x2 0])
   (values (- x1) (- x2)))
 
-(define (logreduce x r)
-  (define-values (nx e) (frexp x))
-  (define nr (ldexp r (- e)))
-  (values e nx nr)
-  )
-
 (define (ddlog x1 [x2 0.0])
   (fl2log x1 x2))
 
