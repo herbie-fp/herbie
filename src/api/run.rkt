@@ -1,18 +1,18 @@
 #lang racket
 
 (require json)
-(require "../utils/common.rkt"
+(require "datafile.rkt"
+         "server.rkt"
+         "sandbox.rkt"
+         "../reports/common.rkt"
+         "../reports/pages.rkt"
+         "../reports/timeline.rkt"
          "../syntax/read.rkt"
          "../syntax/sugar.rkt"
-         "datafile.rkt"
          "../syntax/types.rkt"
+         "../utils/common.rkt"
          "../utils/profile.rkt"
-         "../utils/timeline.rkt"
-         "../core/sampling.rkt"
-         "../reports/pages.rkt"
-         "thread-pool.rkt"
-         "../reports/timeline.rkt"
-         "../reports/common.rkt")
+         "../utils/timeline.rkt")
 
 (provide make-report
          rerun-report
@@ -69,8 +69,38 @@
   (when (not (directory-exists? dir))
     (make-directory dir))
 
-  (define results (get-test-results tests #:threads threads #:seed seed #:profile true #:dir dir))
-  (define info (make-report-info (filter values results) #:note note #:seed seed))
+  (start-job-server threads)
+  (define-values (job-ids bench-names)
+    (for/lists
+     (l1 l2)
+     ([test tests])
+     (define command
+       (create-job 'improve test #:seed seed #:pcontext #f #:profile? #f #:timeline-disabled? #f))
+     (values (start-job command) (test-name test))))
+
+  (define results
+    (for/list ([id job-ids]
+               [bench-name bench-names]
+               [i (in-naturals 0)])
+      (define result (wait-for-job id))
+      (define report-path (bench-folder-path bench-name i))
+      (define report-directory (build-path dir report-path))
+      (unless (directory-exists? report-directory)
+        (make-directory report-directory))
+
+      (for ([page (all-pages result)])
+        (call-with-output-file
+         (build-path report-directory page)
+         #:exists 'replace
+         (λ (out)
+           (with-handlers ([exn:fail? (λ (e) ((page-error-handler result page out) e))])
+             (make-page page out result #t #f)))))
+
+      (define table-data (get-table-data-from-hash result report-path))
+      (print-test-result (+ i 1) (length job-ids) table-data)
+      table-data))
+
+  (define info (make-report-info results #:seed seed #:note note))
 
   (write-datafile (build-path dir "results.json") info)
   (copy-file (web-resource "report-page.js") (build-path dir "report-page.js") #t)
@@ -112,3 +142,22 @@
     (diff-datafiles (read-datafile (build-path old "results.json"))
                     (read-datafile (build-path new "results.json"))))
   (copy-file (web-resource "report.html") (build-path new "index.html") #t))
+
+;; Generate a path for a given benchmark name
+(define (bench-folder-path bench-name index)
+  (define replaced (string-replace bench-name #px"\\W+" ""))
+  (format "~a-~a" index (substring replaced 0 (min (string-length replaced) 50))))
+
+(define (print-test-result i n data)
+  (eprintf "~a/~a\t" (~a i #:width 3 #:align 'right) n)
+  (define bits (representation-total-bits (get-representation (table-row-precision data))))
+  (match (table-row-status data)
+    ["error" (eprintf "[ ERROR ]\t\t~a\n" (table-row-name data))]
+    ["crash" (eprintf "[ CRASH ]\t\t~a\n" (table-row-name data))]
+    ["timeout" (eprintf "[TIMEOUT]\t\t~a\n" (table-row-name data))]
+    [_
+     (eprintf "[~as]  ~a% → ~a%\t~a\n"
+              (~r (/ (table-row-time data) 1000) #:min-width 6 #:precision '(= 1))
+              (~r (* 100 (- 1 (/ (table-row-start data) bits))) #:min-width 3 #:precision 0)
+              (~r (* 100 (- 1 (/ (table-row-result data) bits))) #:min-width 3 #:precision 0)
+              (table-row-name data))]))
