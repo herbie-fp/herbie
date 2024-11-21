@@ -230,7 +230,6 @@
     (define flvec-psums (vector-map make-vec-psum (list->vector err-lsts)))
 
     ;; Set up data needed for algorithm
-    (define number-of-alts (vector-length flvec-psums))
     (define number-of-points (vector-length can-split-vec))
     ;; min-weight is used as penalty to favor not adding split points
     (define min-weight (fl number-of-points))
@@ -245,7 +244,7 @@
           [alt-errors (in-vector flvec-psums)])
       (for ([point-idx (in-range number-of-points)]
             [err (in-flvector alt-errors)]
-            #:when (< err (flvector-ref result-error-sums point-idx)))
+            #:when (< (fl- err min-weight) (flvector-ref result-error-sums point-idx)))
         (flvector-set! result-error-sums point-idx err)
         (vector-set! result-alt-idxs point-idx alt-idx)))
 
