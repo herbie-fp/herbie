@@ -54,9 +54,9 @@
 
   (for ([iteration (in-range (*num-iterations*))]
         #:break (atab-completed? (^table^)))
-    (startIteration)
-    (run-iter!)
-    (endIteration))
+    ;(startIteration)
+    (run-iter!))
+    ;(endIteration))
   (define alternatives (extract!))
 
   (timeline-event! 'preprocess)
@@ -182,11 +182,11 @@
   (define localized-exprs empty)
   (define repr (context-repr (*context*)))
   
-  (addExprs "start-exprs" exprs)
+  ;(addExprs "start-exprs" exprs)
 
 
   (when (flag-set? 'localize 'costs)
-    (startLocalize)
+    ;(startLocalize)
     (define loc-costss (batch-localize-costs exprs (*context*)))
     (define cost-localized
       (for/list ([loc-costs (in-list loc-costss)]
@@ -198,7 +198,6 @@
                         "cost-diff"
                         (if (infinite? cost-diff) "Infinite" cost-diff))
         expr))
-    (hash-set! (hash-ref egraph-json iterNum) "cost-localized" cost-localized)
     (set! localized-exprs (remove-duplicates (append localized-exprs cost-localized))))
 
   (timeline-event! 'localize)
@@ -212,11 +211,10 @@
                  [_ (in-range (*localize-expressions-limit*))])
         (timeline-push! 'locations (~a expr) "accuracy" (errors-score err))
         expr))
-    (hash-set! (hash-ref egraph-json iterNum) "error-localized" error-localized)
     (set! localized-exprs (remove-duplicates (append localized-exprs error-localized))))
 
   (^locs^ localized-exprs)
-  (addExprs "output-exprs" exprs) 
+  ;(addExprs "output-exprs" exprs) 
   (void))
 
 ;; Converts a patch to full alt with valid history
