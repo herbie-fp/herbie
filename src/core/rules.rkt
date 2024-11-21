@@ -10,132 +10,58 @@
 
 (provide *rules*
          *simplify-rules*
-         (struct-out rule)
-         real-rules)
+         (struct-out rule))
 
-(module+ internals
-  (provide define-ruleset
-           define-ruleset*
-           register-ruleset!
-           *rulesets*
-           *unsound-rules*
-           register-ruleset*!))
-
-;; A rule represents a "find-and-replace" pattern where `input` and `output`
-;; are patterns, `itypes` is a mapping from variable name to type
-;; (or representation) and `otype` is a type (or representation).
-(struct rule (name input output itypes otype)
+;; A rule represents "find-and-replacing" `input` by `output`. Both
+;; are patterns, meaning that symbols represent pattern variables.
+(struct rule (name input output itypes otype tags)
   #:methods gen:custom-write
   [(define (write-proc rule port mode)
      (fprintf port "#<rule ~a>" (rule-name rule)))])
 
-;; A ruleset is a collection of rewrite rules sharing
-;;  - a type signature (variables have a type or representation)
-;;  - rule tags (support for certain tags may be toggled on or off)
-;; Beyond these restrictions, the grouping of rules is arbitrary.
-;; In practice, rules with the same theme are grouped into a ruleset.
-;;
-;; Herbie will apply all the rules listed below as well as those
-;; provided by plugins. Rules are applied regardless of which
-;; operations are actually supported by a platform since rewrite
-;; rules are intended to be mathematical.
-(define *rulesets* (make-parameter '()))
+(define *all-rules* '())
 
-;; Ruleset contract
-(define ruleset? (list/c (listof rule?) (listof symbol?) dict?))
+(define (rule-enabled? rule)
+  (ormap (curry flag-set? 'rules) (rule-tags rule)))
 
-;; Updates the `*ruleset* parameter
-(define/contract (add-ruleset! name ruleset)
-  (-> symbol? ruleset? void?)
-  (when (dict-has-key? (*rulesets*) name)
-    (warn 'rulesets "Duplicate ruleset ~a, skipping" name))
-  (*rulesets* (cons (cons name ruleset) (*rulesets*))))
-
-;; Rules: fp-safe-simplify ⊂ simplify ⊂ all
-;;
-;; all - at least one tag of an active group of rules
-;; simplify - subset of `all` that has the `simplify` tag
-;; fp-safe-simplify - subset of `simplify` that has `fp-safe` tag
+(define ((has-tag? tag) rule)
+  (set-member? (rule-tags rule) tag))
 
 (define (*rules*)
-  (reap [sow]
-        (for ([(_ ruleset) (in-dict (*rulesets*))])
-          (match-define (list rules groups _) ruleset)
-          (when (ormap (curry flag-set? 'rules) groups)
-            (for ([rule (in-list rules)])
-              (sow rule))))))
+  (filter rule-enabled? *all-rules*))
 
 (define (*simplify-rules*)
-  (reap [sow]
-        (for ([(_ ruleset) (in-dict (*rulesets*))])
-          (match-define (list rules groups _) ruleset)
-          (when (and (ormap (curry flag-set? 'rules) groups) (set-member? groups 'simplify))
-            (for ([rule (in-list rules)])
-              (sow rule))))))
-
-(define (*unsound-rules*)
-  (reap [sow]
-        (for ([(_ ruleset) (in-dict (*rulesets*))])
-          (match-define (list rules groups _) ruleset)
-          (when (and (ormap (curry flag-set? 'rules) groups) (not (set-member? groups 'sound)))
-            (for ([rule (in-list rules)])
-              (sow rule))))))
-
-(define (real-rules rules)
-  (filter-not (lambda (rule) (representation? (rule-otype rule))) rules))
+  (filter (conjoin rule-enabled? (has-tag? 'simplify)) *all-rules*))
 
 ;;
 ;;  Rule loading
 ;;
 
-(define ((type/repr-of-rule op-info name) input output ctx)
+(define (type-of-rule input output ctx)
   (let loop ([input input]
              [output output])
     (match* (input output)
       ; first, try the input expression
       ; special case for `if` expressions
       [((list 'if _ ift _) _) (loop ift output)]
-      [((list op _ ...) _) (op-info op 'otype)]
+      [((list op _ ...) _) (operator-info op 'otype)]
       [(_ (list 'if _ ift _)) (loop input ift)]
-      [(_ (list op _ ...)) (op-info op 'otype)]
+      [(_ (list op _ ...)) (operator-info op 'otype)]
       [((? symbol?) _) (dict-ref ctx input)]
       [(_ (? symbol?)) (dict-ref ctx output)]
-      [(_ _) (error name "could not compute type of rule ~a => ~a" input output)])))
-
-(define type-of-rule (type/repr-of-rule operator-info 'type-of-rule))
-(define repr-of-rule (type/repr-of-rule impl-info 'repr-of-rule))
-
-;; Rulesets defined by reprs. These rulesets are unique
-(define (register-ruleset! name groups var-ctx rules)
-  (define rules*
-    (for/list ([r rules])
-      (match-define (list rname input output) r)
-      (rule rname input output var-ctx (repr-of-rule input output var-ctx))))
-  (add-ruleset! name (list rules* groups var-ctx)))
-
-(define-syntax define-ruleset
-  (syntax-rules ()
-    [(define-ruleset name groups [rname input output] ...)
-     (define-ruleset name groups #:type () [rname input output] ...)]
-    [(define-ruleset name groups #:type ([var type] ...) [rname input output] ...)
-     (register-ruleset! 'name
-                        'groups
-                        `((var . ,(get-representation 'type)) ...)
-                        '((rname input output) ...))]))
-
-(define (register-ruleset*! name groups var-ctx rules)
-  (define rules*
-    (for/list ([ru (in-list rules)])
-      (match-define (list rname input output) ru)
-      (rule rname input output var-ctx (type-of-rule input output var-ctx))))
-  (add-ruleset! name (list rules* groups var-ctx)))
+      [(_ _) (error 'type-of-rule "could not compute type of rule ~a => ~a" input output)])))
 
 (define-syntax define-ruleset*
   (syntax-rules ()
     [(define-ruleset* name groups [rname input output] ...)
      (define-ruleset* name groups #:type () [rname input output] ...)]
     [(define-ruleset* name groups #:type ([var type] ...) [rname input output] ...)
-     (register-ruleset*! 'name 'groups `((var . type) ...) '((rname input output) ...))]))
+     (set! *all-rules*
+           (let ([var-ctx '((var . type) ...)])
+             (list* (let ([otype (type-of-rule 'input 'output var-ctx)])
+                      (rule 'rname 'input 'output var-ctx otype 'groups)) ...
+                    *all-rules*)))]))
+
 ; Commutativity
 (define-ruleset* commutativity
                  (arithmetic simplify fp-safe sound)

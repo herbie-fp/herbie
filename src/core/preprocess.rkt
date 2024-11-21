@@ -56,7 +56,7 @@
 
 ;; Initial simplify
 (define (initial-simplify expr ctx)
-  (define rules (real-rules (*simplify-rules*)))
+  (define rules (*simplify-rules*))
   (define lifting-rules (platform-lifting-rules))
   (define lowering-rules (platform-lowering-rules))
 
@@ -103,7 +103,7 @@
         [(list 'swap _ spec) spec])))
 
   ;; make egg runner
-  (define rules (real-rules (*simplify-rules*)))
+  (define rules (*simplify-rules*))
 
   (define batch (progs->batch specs))
   (define runner

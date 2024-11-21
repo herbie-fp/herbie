@@ -2,8 +2,8 @@
 
 (require json
          racket/date)
-(require "../utils/common.rkt"
-         "../syntax/types.rkt"
+(require "../syntax/types.rkt"
+         "../utils/common.rkt"
          "../utils/pareto.rkt")
 
 (provide (struct-out table-row)
