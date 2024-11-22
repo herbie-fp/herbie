@@ -292,7 +292,8 @@
     [(ddint? y1 y2)
      ;; ignore the low part
      (let*-values ([(e1 _) (ddaint y1 y2)]
-                   [(mod2) (even? (exact-round e1))]
+                   [(mod2) (or (and (even? y1) (even? y2))
+                               (and (odd? y1) (odd? y2)))]
                    [(a1 a2) (ddabs x1 x2)]
                    [(a1 a2) (ddlog a1 a2)]
                    [(a1 a2) (dd* y1 y2 a1 a2)]

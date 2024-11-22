@@ -270,12 +270,8 @@
              (when (lfoverflow? x.lf)
                (mark-erroneous! subexpr 'oflow-rescue))
 
-             (cond
-               ;;[(lf> cond.lf condthres.dl #f) (mark-erroneous! subexpr 'sensitivity)]
-               [(dd> ae1 ae2 mu) (mark-erroneous! subexpr 'sensitivity)]
-               ;;[(lf> cond.lf maybethres.dl #f) (mark-maybe! subexpr 'sensitivity)]
-               ;;[(dd> er1 er2 s) (mark-maybe! subexpr 'sensitivity)])
-               #;(cond
+
+               (cond
                    [(and (lf> cond.lf condthres.dl #f) (lf> (lfabs x.lf) condthres.dl #f))
                     (mark-erroneous! subexpr 'sensitivity)]
 
@@ -288,7 +284,7 @@
                    [(and (lf> cond.lf maybethres.dl #f) (lf> cot.lf maybethres.dl #f))
                     (mark-maybe! subexpr 'cancellation)]
 
-                   [else #f])))]
+                   [else #f]))]
 
         [(list (or 'cos.f64 'cos.f32) x-ex)
          #:when (list? x-ex)
