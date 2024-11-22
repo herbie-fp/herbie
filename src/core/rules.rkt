@@ -430,7 +430,7 @@
                  [pow-base-0 (pow 0 a) 0])
 
 (define-ruleset* pow-transform-fp-safe
-                 (exponents fp-safe sound)
+                 (exponents sound)
                  #:type ([a real])
                  [inv-pow (/ 1 a) (pow a -1)])
 
