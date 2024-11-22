@@ -38,10 +38,9 @@
 (define *demo?* (make-parameter false))
 (define *demo-output* (make-parameter false))
 
-; verbose logging for debugging
-(define verbose #f) ; Maybe change to log-level and use 'verbose?
+(define log-level #t)
 (define (log msg . args)
-  (when verbose
+  (when log-level
     (apply eprintf msg args)))
 
 ;; Job object, What herbie excepts as input for a new job.
@@ -170,9 +169,16 @@
       (not (sync/timeout 0 manager-dead-event))
       #t))
 
-(define (start-job-server job-cap)
-  (when job-cap
-    (define r (make-manager job-cap))
+;; Start the job server
+;; worker-cap: `false` or `no` to not use Racket `place` best used for
+;; debugging, specific yes to use the number of cores on your system as the
+;; worker cap or specif the number of workers you would like to use
+;; logging: Set to #f as default. Set to #t to print what the server is doing
+;; to standard error.
+(define (start-job-server worker-cap #:logging [set-logging #f])
+  (set! log-level set-logging)
+  (when worker-cap
+    (define r (make-manager worker-cap))
     (set! manager-dead-event (place-dead-evt r))
     (set! manager r)))
 
@@ -196,7 +202,7 @@
                 #:pcontext (herbie-command-pcontext cmd)
                 #:profile? (herbie-command-profile? cmd)
                 #:timeline-disabled? (herbie-command-timeline-disabled? cmd)))
-  (eprintf "Herbie completed job: ~a\n" job-id)
+  (log "Herbie completed job: ~a\n" job-id)
   result)
 
 (define (print-job-message command job-id job-str)
@@ -212,7 +218,7 @@
       ['explanations "Explanations"]
       ['sample "Sampling"]
       [_ (error 'compute-result "unknown command ~a" command)]))
-  (eprintf "~a Job ~a started:\n  ~a ~a...\n" job-label (symbol->string command) job-id job-str))
+  (log "~a Job ~a started:\n  ~a ~a...\n" job-label (symbol->string command) job-id job-str))
 
 (define-syntax (place/context* stx)
   (syntax-case stx ()
@@ -250,7 +256,6 @@
    (define job-queue (list))
    (log "Manager waiting to assign work.\n")
    (for ([i (in-naturals)])
-     ;  (eprintf "manager msg ~a handled\n" i)
      (match (place-channel-get ch)
        [(list 'start self command job-id)
         ; Check if the work has been completed already if not assign the work.
