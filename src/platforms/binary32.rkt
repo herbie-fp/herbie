@@ -1,7 +1,8 @@
 #lang racket
 
 ;; A 32-bit float is emulated in Racket as a 64-bit float,
-(require math/bigfloat)
+(require math/bigfloat
+         math/flonum)
 (require "runtime/float32.rkt"
          "runtime/utils.rkt"
          "runtime/libm.rkt")
