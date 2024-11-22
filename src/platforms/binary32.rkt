@@ -1,6 +1,6 @@
 #lang racket
 
-;; A 32-bit float is emulated in Racket as a 64-bit float, 
+;; A 32-bit float is emulated in Racket as a 64-bit float,
 (require math/bigfloat)
 (require "runtime/float32.rkt"
          "runtime/utils.rkt"
