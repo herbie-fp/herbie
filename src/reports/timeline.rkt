@@ -16,9 +16,10 @@
 ;; This first part handles timelines for a single Herbie run
 
 (define (make-timeline name timeline #:info [info #f] #:path [path "."])
-  (define total-memory 0)
-  (for ([phase (in-list timeline)])
-    (set! total-memory (+ total-memory (second (first (dict-ref phase 'memory))))))
+  (define total-memory
+    (apply +
+           (for/list ([phase (in-list timeline)])
+             (second (first (dict-ref phase 'memory))))))
   `(html (head (meta ([charset "utf-8"]))
                (title "Metrics for " ,(~a name))
                (link ([rel "stylesheet"] [type "text/css"]
@@ -580,7 +581,7 @@
                                      ":"
                                      ,(~a flag)))))))
           (tr (th "Memory:")
-              (td ,(~r (/ total-memory (expt 2 20)) #:group-sep " " #:precision '(= 1))))))
+              (td ,(~r (/ total-memory (expt 2 20)) #:group-sep " " #:precision '(= 1)) " MB"))))
 
 (define (render-profile)
   `(section ([id "profile"]) (h1 "Profiling") (p ((class "load-text")) "Loading profile data...")))
