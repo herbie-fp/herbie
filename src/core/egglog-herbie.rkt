@@ -220,7 +220,6 @@
   (set! prelude-exprs (append prelude-exprs (list if-lifting)))
   (define approx-lifting (approx-lifting-rule))
   (set! prelude-exprs (append prelude-exprs (list approx-lifting)))
-
   prelude-exprs)
 
 (define (platform-spec-nodes)
@@ -525,7 +524,6 @@
                [repr (in-list (context-var-reprs ctx))])
       `(let ,(string->symbol (format "?t~a" var))
          (,(typed-var-id (representation-name repr)) ,(symbol->string var)))))
-
   (set! egglog-exprs (append egglog-exprs var-typed-bindings))
 
   (define binding-exprs
