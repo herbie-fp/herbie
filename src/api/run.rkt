@@ -64,6 +64,25 @@
 (define (merge-profile-jsons ps)
   (profile->json (apply profile-merge (map json->profile (dict-values ps)))))
 
+(define (generate-bench-report job-id bench-name test-number dir number-of-test)
+  (define result (wait-for-job job-id))
+  (define report-path (bench-folder-path bench-name test-number))
+  (define report-directory (build-path dir report-path))
+  (unless (directory-exists? report-directory)
+    (make-directory report-directory))
+
+  (for ([page (all-pages result)])
+    (call-with-output-file (build-path report-directory page)
+                           #:exists 'replace
+                           (λ (out)
+                             (with-handlers ([exn:fail? (λ (e)
+                                                          ((page-error-handler result page out) e))])
+                               (make-page page out result #t #f)))))
+
+  (define table-data (get-table-data-from-hash result report-path))
+  (print-test-result (+ test-number 1) number-of-test table-data)
+  table-data)
+
 (define (run-tests tests #:dir dir #:note note #:threads threads)
   (define seed (get-seed))
   (when (not (directory-exists? dir))
@@ -73,34 +92,19 @@
   (define-values (job-ids bench-names)
     (for/lists
      (l1 l2)
-     ([test tests])
-     (define command
+     ([test (in-list tests)])
+     (values
+      (start-job
        (create-job 'improve test #:seed seed #:pcontext #f #:profile? #f #:timeline-disabled? #f))
-     (values (start-job command) (test-name test))))
+      (test-name test))))
 
-  (define results
-    (for/list ([id job-ids]
-               [bench-name bench-names]
-               [i (in-naturals 0)])
-      (define result (wait-for-job id))
-      (define report-path (bench-folder-path bench-name i))
-      (define report-directory (build-path dir report-path))
-      (unless (directory-exists? report-directory)
-        (make-directory report-directory))
-
-      (for ([page (all-pages result)])
-        (call-with-output-file
-         (build-path report-directory page)
-         #:exists 'replace
-         (λ (out)
-           (with-handlers ([exn:fail? (λ (e) ((page-error-handler result page out) e))])
-             (make-page page out result #t #f)))))
-
-      (define table-data (get-table-data-from-hash result report-path))
-      (print-test-result (+ i 1) (length job-ids) table-data)
-      table-data))
-
-  (define info (make-report-info results #:seed seed #:note note))
+  (define info
+    (make-report-info (for/list ([job-id job-ids]
+                                 [bench-name bench-names]
+                                 [test-number (in-naturals 0)])
+                        (generate-bench-report job-id bench-name test-number dir (length tests)))
+                      #:seed seed
+                      #:note note))
 
   (write-datafile (build-path dir "results.json") info)
   (copy-file (web-resource "report-page.js") (build-path dir "report-page.js") #t)
