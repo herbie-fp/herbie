@@ -249,6 +249,8 @@
    (define busy-workers (make-hash))
    (define waiting-workers (make-hash))
    (define current-jobs (make-hash))
+   (when (eq? worker-count #t)
+     (set! worker-count (processor-count)))
    (for ([i (in-range worker-count)])
      (hash-set! waiting-workers i (make-worker i)))
    (log "~a workers ready.\n" (hash-count waiting-workers))
