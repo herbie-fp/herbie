@@ -143,19 +143,17 @@
 (define (herbie-do-server-job command job-id)
   (define herbie-result (wrapper-run-herbie command job-id))
   (match-define (job-result kind test status time _ _ backend) herbie-result)
-  (define out-result
-    (match kind
-      ['alternatives (make-alternatives-result herbie-result test job-id)]
-      ['evaluate (make-calculate-result herbie-result job-id)]
-      ['cost (make-cost-result herbie-result job-id)]
-      ['errors (make-error-result herbie-result job-id)]
-      ['exacts (make-exacts-result herbie-result job-id)]
-      ['improve (make-improve-result herbie-result test job-id)]
-      ['local-error (make-local-error-result herbie-result job-id)]
-      ['explanations (make-explanation-result herbie-result job-id)]
-      ['sample (make-sample-result herbie-result test job-id)]
-      [_ (error 'compute-result "unknown command ~a" kind)]))
-  out-result)
+  (match kind
+    ['alternatives (make-alternatives-result herbie-result test job-id)]
+    ['evaluate (make-calculate-result herbie-result job-id)]
+    ['cost (make-cost-result herbie-result job-id)]
+    ['errors (make-error-result herbie-result job-id)]
+    ['exacts (make-exacts-result herbie-result job-id)]
+    ['improve (make-improve-result herbie-result test job-id)]
+    ['local-error (make-local-error-result herbie-result job-id)]
+    ['explanations (make-explanation-result herbie-result job-id)]
+    ['sample (make-sample-result herbie-result test job-id)]
+    [_ (error 'compute-result "unknown command ~a" kind)]))
 
 (define completed-work (make-hash))
 
