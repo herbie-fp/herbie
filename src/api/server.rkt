@@ -133,7 +133,7 @@
         [(list 'wait hash-false job-id) (hash-ref completed-work job-id)]
         [(list 'result job-id) (hash-ref completed-work job-id #f)]
         [(list 'timeline job-id) (hash-ref completed-work job-id #f)]
-        [(list 'check job-id) (if (hash-ref completed-work job-id #f) job-id #f)]
+        [(list 'check job-id) (and (hash-ref completed-work job-id #f) job-id)]
         [(list 'count) (list 0 0)]
         [(list 'improve)
          (for/list ([(job-id result) (in-hash completed-work)]
@@ -327,7 +327,7 @@
            (log "Job complete, no timeline, send result.\n")
            (place-channel-put handler (hash-ref completed-work job-id #f))])]
        [(list 'check handler job-id)
-        (place-channel-put handler (if (hash-has-key? completed-work job-id) job-id #f))]
+        (place-channel-put handler (and (hash-has-key? completed-work job-id) job-id))]
        ; Returns the current count of working workers.
        [(list 'count handler)
         (log "Count requested\n")
