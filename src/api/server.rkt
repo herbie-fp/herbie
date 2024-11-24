@@ -566,12 +566,12 @@
 
   (define histories
     (for/list ([altn altns])
-      (let ([os (open-output-string)])
-        (parameterize ([current-output-port os])
-          (write-xexpr
-           `(div ([id "history"])
-                 (ol ,@(render-history altn processed-pcontext test-pcontext (test-context test)))))
-          (get-output-string os)))))
+      (define os (open-output-string))
+      (parameterize ([current-output-port os])
+        (write-xexpr
+         `(div ([id "history"])
+               (ol ,@(render-history altn processed-pcontext test-pcontext (test-context test)))))
+        (get-output-string os))))
   (define derivations
     (for/list ([altn altns])
       (render-json altn processed-pcontext test-pcontext (test-context test))))
