@@ -38,7 +38,7 @@
 (define *demo?* (make-parameter false))
 (define *demo-output* (make-parameter false))
 
-(define log-level #t)
+(define log-level #f)
 (define (log msg . args)
   (when log-level
     (apply eprintf msg args)))
