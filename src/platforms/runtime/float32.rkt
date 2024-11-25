@@ -42,7 +42,7 @@
       (- (bit-field->float32 (- x)))
       (bit-field->float32 x)))
 
-;; Wrapping arithmetic operatinos with `flsingle` introduces a
+;; Wrapping arithmetic operations with `flsingle` introduces a
 ;; possible double-rounding problem but, perhaps surprisingly, this
 ;; double-rounding problem never actually causes error; see:
 ;;
