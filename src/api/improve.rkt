@@ -1,9 +1,9 @@
 #lang racket
-(require "datafile.rkt"
+(require "../syntax/read.rkt"
+         "../utils/common.rkt"
+         "datafile.rkt"
          "sandbox.rkt"
-         "server.rkt"
-         "../syntax/read.rkt"
-         "../utils/common.rkt")
+         "server.rkt")
 (provide run-improve)
 
 (define (print-outputs tests results p #:seed [seed #f])

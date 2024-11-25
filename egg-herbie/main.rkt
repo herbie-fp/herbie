@@ -43,8 +43,8 @@
 
 ; Note, this message should not be reached.
 (define fallback-message
-  (string-join `("Error: unable to load the 'egg-math' library"
-                 "Please file a bug at https://github.com/herbie-fp/herbie/issues")
+  (string-join (list "Error: unable to load the 'egg-math' library"
+                     "Please file a bug at https://github.com/herbie-fp/herbie/issues")
                "\n"))
 
 ; Note, refering to ARM as Apple Silicon to match Racket download page.

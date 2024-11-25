@@ -133,7 +133,7 @@
         [(list 'wait hash-false job-id) (hash-ref completed-work job-id)]
         [(list 'result job-id) (hash-ref completed-work job-id #f)]
         [(list 'timeline job-id) (hash-ref completed-work job-id #f)]
-        [(list 'check job-id) (if (hash-ref completed-work job-id #f) job-id #f)]
+        [(list 'check job-id) (and (hash-ref completed-work job-id #f) job-id)]
         [(list 'count) (list 0 0)]
         [(list 'improve)
          (for/list ([(job-id result) (in-hash completed-work)]
@@ -143,19 +143,17 @@
 (define (herbie-do-server-job command job-id)
   (define herbie-result (wrapper-run-herbie command job-id))
   (match-define (job-result kind test status time _ _ backend) herbie-result)
-  (define out-result
-    (match kind
-      ['alternatives (make-alternatives-result herbie-result test job-id)]
-      ['evaluate (make-calculate-result herbie-result job-id)]
-      ['cost (make-cost-result herbie-result job-id)]
-      ['errors (make-error-result herbie-result job-id)]
-      ['exacts (make-exacts-result herbie-result job-id)]
-      ['improve (make-improve-result herbie-result test job-id)]
-      ['local-error (make-local-error-result herbie-result job-id)]
-      ['explanations (make-explanation-result herbie-result job-id)]
-      ['sample (make-sample-result herbie-result test job-id)]
-      [_ (error 'compute-result "unknown command ~a" kind)]))
-  out-result)
+  (match kind
+    ['alternatives (make-alternatives-result herbie-result test job-id)]
+    ['evaluate (make-calculate-result herbie-result job-id)]
+    ['cost (make-cost-result herbie-result job-id)]
+    ['errors (make-error-result herbie-result job-id)]
+    ['exacts (make-exacts-result herbie-result job-id)]
+    ['improve (make-improve-result herbie-result test job-id)]
+    ['local-error (make-local-error-result herbie-result job-id)]
+    ['explanations (make-explanation-result herbie-result job-id)]
+    ['sample (make-sample-result herbie-result test job-id)]
+    [_ (error 'compute-result "unknown command ~a" kind)]))
 
 (define completed-work (make-hash))
 
@@ -327,7 +325,7 @@
            (log "Job complete, no timeline, send result.\n")
            (place-channel-put handler (hash-ref completed-work job-id #f))])]
        [(list 'check handler job-id)
-        (place-channel-put handler (if (hash-has-key? completed-work job-id) job-id #f))]
+        (place-channel-put handler (and (hash-has-key? completed-work job-id) job-id))]
        ; Returns the current count of working workers.
        [(list 'count handler)
         (log "Count requested\n")
@@ -568,12 +566,12 @@
 
   (define histories
     (for/list ([altn altns])
-      (let ([os (open-output-string)])
-        (parameterize ([current-output-port os])
-          (write-xexpr
-           `(div ([id "history"])
-                 (ol ,@(render-history altn processed-pcontext test-pcontext (test-context test)))))
-          (get-output-string os)))))
+      (define os (open-output-string))
+      (parameterize ([current-output-port os])
+        (write-xexpr
+         `(div ([id "history"])
+               (ol ,@(render-history altn processed-pcontext test-pcontext (test-context test)))))
+        (get-output-string os))))
   (define derivations
     (for/list ([altn altns])
       (render-json altn processed-pcontext test-pcontext (test-context test))))
