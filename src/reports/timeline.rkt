@@ -69,6 +69,7 @@
             ,@(dict-call curr render-phase-maybe-confusion 'maybe-confusion)
             ,@(dict-call curr render-phase-freqs 'freqs)
             ,@(dict-call curr render-phase-total-confusion 'total-confusion)
+            ,@(dict-call curr render-phase-expl-stats 'expl-stats)
             ,@(dict-call curr render-phase-egraph 'egraph)
             ,@(dict-call curr render-phase-stop 'stop)
             ,@(dict-call curr render-phase-counts 'count)
@@ -434,6 +435,13 @@
                             ,@(for/list ([freq (in-list (sort freqs < #:key first))])
                                 (match-define (list key val) freq)
                                 `(tr (td ,(~a key) (td ,(~a val)))))))))
+
+(define (render-phase-expl-stats expl-stats)
+  (match-define (list (list timings number)) expl-stats)
+  `((dt "Total Time")
+    (dd ,(~a timings))
+    (dt "Average Time")
+    (dd ,(~a (/ timings number)))))
 
 (define (render-phase-counts alts)
   (match-define (list (list inputs outputs)) alts)
