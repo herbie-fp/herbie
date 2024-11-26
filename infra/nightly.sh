@@ -5,7 +5,7 @@ set -e -x
 
 # lowered number of cores from 6 to 4 to avoid pagetable error
 # caused by heavy use of FFI by eggmath.rkt
-CORES=4
+CORES=12
 SEED=$(date "+%Y%j")
 
 # determine physical directory of this script
