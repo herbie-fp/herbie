@@ -1,7 +1,8 @@
 #lang racket
 
 (require racket/set
-         racket/hash)
+         racket/hash
+         math/statistics)
 (require "points.rkt"
          "../syntax/types.rkt"
          "localize.rkt"
@@ -34,7 +35,7 @@
     [(symbol? expr) #f]
     [else #t]))
 
-(define condthres.dl (lf 100.0))
+(define condthres.dl (lf 128.0))
 (define maybethres.dl (lf 32.0))
 
 (define (actual-errors expr pcontext)
@@ -78,6 +79,8 @@
   (define expls->points (make-hash))
   (define maybe-expls->points (make-hash))
 
+  (define timings (list))
+
   (for ([(pt _) (in-pcontext pctx)])
     (define (silence expr)
       (define subexprs (all-subexpressions expr #:reverse? #t))
@@ -97,12 +100,18 @@
     (define (mark-maybe! expr [expl 'sensitivity])
       (hash-update! maybe-expls->points (cons expr expl) (lambda (x) (set-add x pt)) '()))
 
+    (define lf-pt (map lf pt))
+    (define time-start (current-inexact-milliseconds))
+    (define compiled-stuff (apply subexprs-lf lf-pt))
+    (define time-end (current-inexact-milliseconds))
+    (define time-taken (- time-end time-start))
+    (set! timings (cons time-taken timings))
     (define lfs
       (vector-map (lambda (x)
                     (if (logfloat? x)
                         (lf-normalize x)
                         x))
-                  (apply subexprs-lf (map lf pt))))
+                  compiled-stuff))
     (define lfs-hash (make-immutable-hash (map cons subexprs-list (vector->list lfs))))
     (define (lfs-ref subexpr)
       (hash-ref lfs-hash subexpr))
@@ -531,6 +540,9 @@
 
            [else #f])]
         [_ #f])))
+  (eprintf "~a\n" (last subexprs-list))
+  (eprintf "Total Time: ~a\n" (apply + timings))
+  (eprintf "Avg Time:   ~a\n\n" (mean timings))
   (values error-count-hash expls->points maybe-expls->points oflow-hash uflow-hash))
 
 (define (generate-timelines expr

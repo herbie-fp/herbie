@@ -43,6 +43,11 @@
 (define +max.lf (logfloat +max.0 0.0 #true 1024.0 0.0))
 (define +min.lf (logfloat +min.0 0.0 #true -1074.0 0.0))
 
+(define (lf-normalize/safe x)
+  (if (logfloat? x)
+      (lf-normalize x)
+      x))
+
 (define/contract (lf-normalize x)
   (-> logfloat? logfloat?)
   (match-define (logfloat x1 x2 s e1 e2) x)
