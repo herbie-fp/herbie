@@ -24,9 +24,7 @@
   #:transparent
   #:methods gen:custom-write
   [(define (write-proc opt port mode)
-     (display "#<option " port)
-     (write (option-split-indices opt) port)
-     (display ">" port))])
+     (fprintf port "#<option ~a>" (option-split-indices opt)))])
 
 (define (pareto-regimes sorted ctx)
   (define err-lsts (flip-lists (batch-errors (map alt-expr sorted) (*pcontext*) ctx)))
