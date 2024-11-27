@@ -14,7 +14,6 @@
          variable?
          constant-operator?
          operator-exists?
-         operator-deprecated?
          operator-info
          all-operators
          all-constants
@@ -54,8 +53,7 @@
 ;; A real operator requires
 ;;  - a (unique) name
 ;;  - input and output types
-;;  - optionally a deprecated? flag [#f by default]
-(struct operator (name itype otype deprecated))
+(struct operator (name itype otype))
 
 ;; All real operators
 (define operators (make-hasheq))
@@ -63,10 +61,6 @@
 ;; Checks if an operator has been registered.
 (define (operator-exists? op)
   (hash-has-key? operators op))
-
-;; Checks if an operator has been registered as deprecated.
-(define (operator-deprecated? op)
-  (operator-deprecated (hash-ref operators op)))
 
 ;; Returns all operators.
 (define (all-operators)
@@ -93,7 +87,7 @@
 ;; Registers an operator with an attribute mapping.
 ;; Panics if an operator with name `name` has already been registered.
 ;; By default, the input types are specified by `itypes`, the output type
-;; is specified by `otype`, and the operator is not deprecated; but
+;; is specified by `otype`; but
 ;; `attrib-dict` can override these properties.
 (define (register-operator! name itypes otype attrib-dict)
   (when (hash-has-key? operators name)
@@ -101,8 +95,7 @@
   ; extract relevant fields and update tables
   (define itypes* (dict-ref attrib-dict 'itype itypes))
   (define otype* (dict-ref attrib-dict 'otype otype))
-  (define deprecated? (dict-ref attrib-dict 'deprecated #f))
-  (define info (operator name itypes* otype* deprecated?))
+  (define info (operator name itypes* otype*))
   (hash-set! operators name info))
 
 ;; Syntactic form for `register-operator!`
