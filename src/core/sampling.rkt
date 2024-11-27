@@ -15,7 +15,6 @@
 
 (provide batch-prepare-points
          eval-progs-real
-         make-sampler
          sample-points)
 
 ;; Part 1: use FPBench's condition->range-table to create initial hyperrects
