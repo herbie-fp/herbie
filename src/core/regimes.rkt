@@ -304,13 +304,13 @@
       (vector-set! result-alt-idxs point-idx current-alt-idx)
       (vector-set! result-prev-idxs point-idx current-prev-idx))
 
-    ;; Build the output split index list
-    (let loop ([i (- number-of-points 1)])
+    ;; Loop over results vectors in reverse and build the output split index list
+    (let loop ([i (- number-of-points 1)] [rest : (Listof si) '()])
       (define alt-idx (vector-ref result-alt-idxs i))
       (define next (vector-ref result-prev-idxs i))
-      (cons (si alt-idx (+ i 1))
-            (if (= next number-of-points)
-                '()
-                (loop next))))))
+      (define sis (cons (si alt-idx (+ i 1)) rest))
+      (if (< next i)
+          (loop next sis)
+          sis))))
 
 (require (submod "." core))
