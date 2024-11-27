@@ -82,31 +82,19 @@
     [(itype) (operator-itype info)]
     [(otype) (operator-otype info)]))
 
-;; Registers an operator with an attribute mapping.
-;; Panics if an operator with name `name` has already been registered.
-;; By default, the input types are specified by `itypes`, the output type
-;; is specified by `otype`; but
-;; `attrib-dict` can override these properties.
-(define (register-operator! name itypes otype attrib-dict)
+;; Registers an operator. Panics if the operator already exists.
+(define (register-operator! name itypes otype)
   (when (hash-has-key? operators name)
     (error 'register-operator! "operator already registered: ~a" name))
-  ; extract relevant fields and update tables
-  (define itypes* (dict-ref attrib-dict 'itype itypes))
-  (define otype* (dict-ref attrib-dict 'otype otype))
-  (define info (operator name itypes* otype*))
-  (hash-set! operators name info))
+  (hash-set! operators name (operator name itypes otype)))
 
 ;; Syntactic form for `register-operator!`
 (define-syntax (define-operator stx)
-  (define (bad! why [what #f])
-    (raise-syntax-error 'define-operator why stx what))
   (syntax-case stx ()
-    [(_ (id itype ...) otype [key val] ...)
-     (let ([id #'id])
-       (unless (identifier? id)
-         (bad! "expected identifier" id))
-       (with-syntax ([id id])
-         #'(register-operator! 'id '(itype ...) 'otype (list (cons 'key val) ...))))]))
+    [(_ (id itype ...) otype _ ...) ; The _ ... is for backwards-compatibility
+     (unless (identifier? #'id)
+       (raise-syntax-error 'define-operator stx "expected identifier" #'id))
+     #'(register-operator! 'id '(itype ...) 'otype)]))
 
 (define-syntax define-operators
   (syntax-rules (: ->)
@@ -574,11 +562,7 @@
 (define (cast-impl? x)
   (and (symbol? x)
        (impl-exists? x)
-       (match (impl-info x 'vars)
-         [(list v)
-          #:when (eq? (impl-info x 'spec) v)
-          #t]
-         [_ #f])))
+       (equal? (list (impl-info x 'spec)) (impl-info x 'vars))))
 
 ; Similar to representation generators, conversion generators
 ; allow Herbie to query plugins for optimized implementations
