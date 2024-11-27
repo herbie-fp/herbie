@@ -20,7 +20,7 @@
          preprocess-pcontext
          remove-unnecessary-preprocessing)
 
-(define (has-negabs-impls? repr)
+(define (has-fabs-neg-impls? repr)
   (and (get-fpcore-impl '- (repr->prop repr) (list repr))
        (get-fpcore-impl 'fabs (repr->prop repr) (list repr))))
 

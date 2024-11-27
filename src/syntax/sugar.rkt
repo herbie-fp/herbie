@@ -61,6 +61,7 @@
 
 (require "../core/programs.rkt"
          "../utils/common.rkt"
+         "../utils/errors.rkt"
          "matcher.rkt"
          "syntax.rkt"
          "types.rkt")
