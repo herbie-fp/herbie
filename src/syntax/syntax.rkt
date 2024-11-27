@@ -8,8 +8,7 @@
          "matcher.rkt"
          "types.rkt")
 
-(provide (rename-out [operator-or-impl? operator?])
-         (struct-out literal)
+(provide (struct-out literal)
          (struct-out approx)
          variable?
          constant-operator?
@@ -579,11 +578,6 @@
 
 (define (impl-exists? op)
   (hash-has-key? operator-impls op))
-
-(define (operator-or-impl? op)
-  (and (symbol? op)
-       (not (equal? op 'if))
-       (or (hash-has-key? operators op) (hash-has-key? operator-impls op))))
 
 (define (constant-operator? op)
   (and (symbol? op)
