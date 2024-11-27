@@ -110,7 +110,6 @@
   ;; We append all variables here in case of (λ (x y) 0) or similar,
   ;; where the variables do not appear in the body but are still worth
   ;; splitting on
-  (define all-subexprs )
   (for/list ([subexpr (set-union (context-vars ctx) (all-subexpressions expr))]
              #:when (critical-subexpression? expr subexpr))
     subexpr))
