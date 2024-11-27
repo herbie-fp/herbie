@@ -525,13 +525,13 @@
   ; and its FPCore translation has properties that are found in `prop-dict`
   (define impls
     (reap [sow]
-          (for ([impl (in-list all-impls)])
-            (when (equal? ireprs (impl-info impl 'itype))
-              (define-values (prop-dict* expr) (impl->fpcore impl))
-              (define pattern (cons op (map (lambda (_) (gensym)) ireprs)))
-              (when (and (andmap (lambda (prop) (member prop prop-dict)) prop-dict*)
-                         (pattern-match pattern expr))
-                (sow impl))))))
+          (for ([impl (in-list all-impls)]
+                #:when (equal? ireprs (impl-info impl 'itype)))
+            (define-values (prop-dict* expr) (impl->fpcore impl))
+            (define pattern (cons op (map (lambda (_) (gensym)) ireprs)))
+            (when (and (subset? prop-dict* prop-dict)
+                       (pattern-match pattern expr))
+              (sow impl)))))
   ; check that we have any matching impls
   (cond
     [(null? impls)
