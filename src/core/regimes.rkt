@@ -121,25 +121,25 @@
     subexpr))
 
 (define (option-on-expr alts err-lsts expr ctx)
-  (define repr (repr-of expr ctx))
   (define timeline-stop! (timeline-start! 'times (~a expr)))
 
-  (define vars (context-vars ctx))
   (define fn (compile-prog expr ctx))
-  (define big-table ; val and errors for each alt, per point
+  (define repr (repr-of expr ctx))
+
+  (define big-table ; pt ; splitval ; alt1-err ; alt2-err ; ...
     (for/list ([(pt ex) (in-pcontext (*pcontext*))]
                [err-lst err-lsts])
-      (list* pt (apply fn pt) err-lst)))
-  (match-define (list pts* splitvals* err-lsts* ...)
-    (flip-lists (sort big-table (curryr </total repr) #:key second)))
+      (list* (apply fn pt) pt err-lst)))
+  (match-define (list splitvals* pts* err-lsts* ...)
+    (flip-lists (sort big-table (curryr </total repr) #:key first)))
 
   (define bit-err-lsts* (map (curry map ulps->bits) err-lsts*))
 
   (define can-split?
-    (append (list #f)
-            (for/list ([val (cdr splitvals*)]
-                       [prev splitvals*])
-              (</total prev val repr))))
+    (cons #f
+          (for/list ([val (cdr splitvals*)]
+                     [prev splitvals*])
+            (</total prev val repr))))
   (define split-indices (err-lsts->split-indices bit-err-lsts* can-split?))
   (define out (option split-indices alts pts* expr (pick-errors split-indices pts* err-lsts* repr)))
   (timeline-stop!)
