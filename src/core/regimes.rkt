@@ -308,6 +308,9 @@
     (let loop ([i (- number-of-points 1)])
       (define alt-idx (vector-ref result-alt-idxs i))
       (define next (vector-ref result-prev-idxs i))
-      (cons (si alt-idx (+ i 1)) (loop next)))))
+      (cons (si alt-idx (+ i 1))
+            (if (= next number-of-points)
+                '()
+                (loop next))))))
 
 (require (submod "." core))
