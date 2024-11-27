@@ -134,7 +134,7 @@
           (for/list ([val (cdr splitvals*)]
                      [prev splitvals*])
             (</total prev val repr))))
-  (define split-indices (err-lsts->split-indices bit-err-lsts* can-split?))
+  (define split-indices (infer-split-indices bit-err-lsts* can-split?))
   (define out (option split-indices alts pts* expr (pick-errors split-indices pts* err-lsts* repr)))
   (timeline-stop!)
   (timeline-push! 'branch
@@ -190,7 +190,7 @@
 
 (module core typed/racket
   (provide (struct-out si)
-           err-lsts->split-indices)
+           infer-split-indices)
   (require math/flonum)
 
   ;; Struct representing a splitindex
@@ -205,8 +205,8 @@
   ;; Returns a list of split indices saying which alt to use for which
   ;; range of points. Starting at 1 going up to num-points.
   ;; Alts are indexed 0 and points are index 1.
-  (: err-lsts->split-indices (-> (Listof (Listof Flonum)) (Listof Boolean) (Listof si)))
-  (define (err-lsts->split-indices err-lsts can-split)
+  (: infer-split-indices (-> (Listof (Listof Flonum)) (Listof Boolean) (Listof si)))
+  (define (infer-split-indices err-lsts can-split)
     ;; Coverts the list to vector form for faster processing
     (define can-split-vec (list->vector can-split))
     ;; Converting list of list to list of flvectors
