@@ -3,7 +3,7 @@
 # exit immediately upon first error
 set -e -x
 
-CORES=6
+CORES=2
 SEED=$(date "+%Y%j")
 
 # determine physical directory of this script
