@@ -26,8 +26,6 @@
          *functions*
          register-function!
          get-fpcore-impl
-         get-cast-impl
-         generate-cast-impl
          cast-impl?)
 
 (module+ internals
@@ -582,9 +580,6 @@
           #t]
          [_ #f])))
 
-(define (get-cast-impl irepr orepr #:impls [impls (all-active-operator-impls)])
-  (get-fpcore-impl 'cast (repr->prop orepr) (list irepr) #:impls impls))
-
 ; Similar to representation generators, conversion generators
 ; allow Herbie to query plugins for optimized implementations
 ; of representation conversions, rather than the default
@@ -595,13 +590,6 @@
   (-> (-> any/c any/c boolean?) void?)
   (unless (set-member? conversion-generators proc)
     (set! conversion-generators (cons proc conversion-generators))))
-
-(define (generate-cast-impl irepr orepr)
-  (match (get-cast-impl irepr orepr)
-    [#f
-     (for/first ([gen (in-list conversion-generators)])
-       (gen (representation-name irepr) (representation-name orepr)))]
-    [impl impl]))
 
 ;; Expression predicates ;;
 
