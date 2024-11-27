@@ -103,21 +103,16 @@
   (define crit-vars (free-variables subexpr))
   (define replaced-expr (replace-expression expr subexpr 1))
   (define non-crit-vars (free-variables replaced-expr))
-  (set-disjoint? crit-vars non-crit-vars))
+  (and (not (null? crit-vars)) (set-disjoint? crit-vars non-crit-vars)))
 
 ;; Requires that prog is a λ expression
 (define (all-critical-subexpressions expr ctx)
-  (define (subexprs-in-expr expr)
-    (cons expr
-          (if (list? expr)
-              (append-map subexprs-in-expr (cdr expr))
-              '())))
   ;; We append all variables here in case of (λ (x y) 0) or similar,
   ;; where the variables do not appear in the body but are still worth
   ;; splitting on
-  (for/list ([subexpr (remove-duplicates (append (context-vars ctx) (subexprs-in-expr expr)))]
-             #:when (and (not (null? (free-variables subexpr)))
-                         (critical-subexpression? expr subexpr)))
+  (define all-subexprs )
+  (for/list ([subexpr (set-union (context-vars ctx) (all-subexpressions expr))]
+             #:when (critical-subexpression? expr subexpr))
     subexpr))
 
 (define (option-on-expr alts err-lsts expr ctx)
