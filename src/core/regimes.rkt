@@ -305,7 +305,8 @@
       (vector-set! result-prev-idxs point-idx current-prev-idx))
 
     ;; Loop over results vectors in reverse and build the output split index list
-    (let loop ([i (- number-of-points 1)] [rest : (Listof si) '()])
+    (let loop ([i (- number-of-points 1)]
+               [rest (cast null (Listof si))])
       (define alt-idx (vector-ref result-alt-idxs i))
       (define next (vector-ref result-prev-idxs i))
       (define sis (cons (si alt-idx (+ i 1)) rest))
