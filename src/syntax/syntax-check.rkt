@@ -7,7 +7,7 @@
          "syntax.rkt")
 (provide assert-program!)
 
-(define (check-expression* stx vars error! deprecated-ops)
+(define (check-expression* stx vars error!)
   (let loop ([stx stx]
              [vars vars])
     (match stx
@@ -50,7 +50,7 @@
        (unless (null? args)
          (loop (last args) vars))]
       [#`(! #,props ... #,body)
-       (check-properties* props '() error! deprecated-ops)
+       (check-properties* props '() error!)
        (loop body vars)]
       [#`(cast #,arg) (loop arg vars)]
       [#`(cast #,args ...)
@@ -106,7 +106,7 @@
   (unless (equal? (substring name 0 1) ":")
     (error! prop "Invalid property name ~a" prop)))
 
-(define (check-properties* props vars error! deprecated-ops)
+(define (check-properties* props vars error!)
   (define prop-dict
     (let loop ([props props]
                [out '()])
@@ -145,17 +145,16 @@
         (error! cite "Invalid :cite ~a; must be a list" cite)))
 
   (when (dict-has-key? prop-dict ':pre)
-    (check-expression* (dict-ref prop-dict ':pre) vars error! deprecated-ops))
+    (check-expression* (dict-ref prop-dict ':pre) vars error!))
 
   (when (dict-has-key? prop-dict ':alt)
-    (check-expression* (dict-ref prop-dict ':alt) vars error! deprecated-ops))
+    (check-expression* (dict-ref prop-dict ':alt) vars error!))
 
   (void))
 
 (define (check-program* stx vars props body error!)
   (unless (list? vars)
     (error! stx "Invalid arguments list ~a; must be a list" stx))
-  (define deprecated-ops (mutable-set))
   (define vars*
     (reap [sow]
           (when (list? vars)
@@ -163,18 +162,14 @@
               (match var
                 [(? identifier? x) (sow var)]
                 [#`(! #,props ... #,name)
-                 (check-properties* props (immutable-bound-id-set '()) error! deprecated-ops)
+                 (check-properties* props (immutable-bound-id-set '()) error!)
                  (cond
                    [(identifier? name) (sow name)]
                    [else (error! var "Annotated argument ~a is not a variable name" name)])])))))
   (when (check-duplicate-identifier vars*)
     (error! stx "Duplicate argument name ~a" (check-duplicate-identifier vars*)))
-  (check-properties* props (immutable-bound-id-set vars*) error! deprecated-ops)
-  (check-expression* body (immutable-bound-id-set vars*) error! deprecated-ops)
-  (for ([op (in-set deprecated-ops)])
-    (define message
-      (format (syntax->error-format-string stx) (format "operator `~a` is deprecated." op)))
-    (warn 'deprecated #:url "faq.html#deprecated-ops" message)))
+  (check-properties* props (immutable-bound-id-set vars*) error!)
+  (check-expression* body (immutable-bound-id-set vars*) error!))
 
 (define (check-fpcore* stx error!)
   (match stx
