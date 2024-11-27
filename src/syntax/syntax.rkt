@@ -529,13 +529,11 @@
                 #:when (equal? ireprs (impl-info impl 'itype)))
             (define-values (prop-dict* expr) (impl->fpcore impl))
             (define pattern (cons op (map (lambda (_) (gensym)) ireprs)))
-            (when (and (subset? prop-dict* prop-dict)
-                       (pattern-match pattern expr))
+            (when (and (subset? prop-dict* prop-dict) (pattern-match pattern expr))
               (sow impl)))))
   ; check that we have any matching impls
   (cond
-    [(null? impls)
-     #f]
+    [(null? impls) #f]
     [else
      ; we rank implementations and select the highest scoring one
      (define scores
@@ -559,9 +557,7 @@
 ;; Casts and precision changes
 
 (define (cast-impl? x)
-  (and (symbol? x)
-       (impl-exists? x)
-       (equal? (list (impl-info x 'spec)) (impl-info x 'vars))))
+  (and (symbol? x) (impl-exists? x) (equal? (list (impl-info x 'spec)) (impl-info x 'vars))))
 
 ; Similar to representation generators, conversion generators
 ; allow Herbie to query plugins for optimized implementations

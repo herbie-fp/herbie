@@ -184,8 +184,7 @@
 ;; Given error-lsts, returns a list of sp objects representing where the optimal splitpoints are.
 (define (valid-splitindices? can-split? split-indices)
   (and (for/and ([pidx (map si-pidx (drop-right split-indices 1))])
-         (and (> pidx 0)
-              (list-ref can-split? pidx)))
+         (and (> pidx 0) (list-ref can-split? pidx)))
        (= (si-pidx (last split-indices)) (length can-split?))))
 
 (module core typed/racket
