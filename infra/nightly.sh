@@ -3,7 +3,7 @@
 # exit immediately upon first error
 set -e -x
 
-CORES=2
+CORES=4 # Raising this doesn't seem to speed up nightlies
 SEED=$(date "+%Y%j")
 
 # determine physical directory of this script
