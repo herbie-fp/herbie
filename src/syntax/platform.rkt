@@ -104,24 +104,21 @@
   (define costs (make-hash))
   (define missing (mutable-set))
   (define impls
-    (reap [sow]
-          (for ([impl-sig (in-list pform)])
-            (match-define (list impl cost) impl-sig)
-            (define final-cost cost)
-            (unless (or cost default-cost)
-              (raise-herbie-error "Missing cost for ~a" impl))
-            (unless cost
-              (set! final-cost default-cost))
-            (cond
-              [(impl-exists? impl)
-               (hash-set! costs impl final-cost)
-               (sow impl)]
-              [optional?
-               (set-add! missing impl)]
-              [else
-               (raise-herbie-missing-error
-                "Missing implementation ~a required by platform"
-                impl)]))))
+    (reap
+     [sow]
+     (for ([impl-sig (in-list pform)])
+       (match-define (list impl cost) impl-sig)
+       (define final-cost cost)
+       (unless (or cost default-cost)
+         (raise-herbie-error "Missing cost for ~a" impl))
+       (unless cost
+         (set! final-cost default-cost))
+       (cond
+         [(impl-exists? impl)
+          (hash-set! costs impl final-cost)
+          (sow impl)]
+         [optional? (set-add! missing impl)]
+         [else (raise-herbie-missing-error "Missing implementation ~a required by platform" impl)]))))
   (define reprs
     (remove-duplicates (apply append
                               (for/list ([impl (in-list impls)])
