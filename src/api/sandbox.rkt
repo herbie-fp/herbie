@@ -268,8 +268,7 @@
         [_ (error 'run-herbie "command ~a timed out" command)])))
 
   (define (compute-result test)
-    (parameterize ([*timeline-disabled* timeline-disabled?]
-                   [*warnings-disabled* false])
+    (parameterize ([*timeline-disabled* timeline-disabled?])
       (define start-time (current-inexact-milliseconds))
       (reset!)
       (*context* (test-context test))
