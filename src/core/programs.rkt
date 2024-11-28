@@ -27,7 +27,7 @@
 ;; Fast version does not recurse into functions applications
 (define (repr-of expr ctx)
   (match expr
-    [(? literal?) (get-representation (literal-precision expr))]
+    [(literal val precision) (get-representation precision)]
     [(? variable?) (context-lookup ctx expr)]
     [(approx _ impl) (repr-of impl ctx)]
     [(list 'if cond ift iff) (repr-of ift ctx)]
@@ -37,7 +37,7 @@
 (define (repr-of-node batch idx ctx)
   (define node (vector-ref (batch-nodes batch) idx))
   (match node
-    [(? literal?) (get-representation (literal-precision node))]
+    [(literal val precision) (get-representation precision)]
     [(? variable?) (context-lookup ctx node)]
     [(approx _ impl) (repr-of-node batch impl ctx)]
     [(list 'if cond ift iff) (repr-of-node batch ift ctx)]
