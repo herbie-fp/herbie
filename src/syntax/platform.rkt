@@ -88,15 +88,6 @@
     (error 'register-platform! "platform already registered ~a" name))
   (hash-set! platforms name (struct-copy $platform pform [name name])))
 
-;; Optional error handler based on a value `optional?`.
-(define-syntax-rule (with-cond-handlers optional? ([pred handle] ...) body ...)
-  (if optional?
-      (with-handlers ([pred handle] ...)
-        (begin
-          body ...))
-      (begin
-        body ...)))
-
 ;; Constructor procedure for platforms.
 ;; The platform is described by a list of implementations.
 ;;
@@ -121,16 +112,16 @@
               (raise-herbie-error "Missing cost for ~a" impl))
             (unless cost
               (set! final-cost default-cost))
-            (with-cond-handlers optional?
-                                ([exn:fail:user:herbie:missing? (λ (_) (set-add! missing impl))])
-                                (cond
-                                  [(impl-exists? impl)
-                                   (hash-set! costs impl final-cost)
-                                   (sow impl)]
-                                  [else
-                                   (raise-herbie-missing-error
-                                    "Missing implementation ~a required by platform"
-                                    impl)])))))
+            (cond
+              [(impl-exists? impl)
+               (hash-set! costs impl final-cost)
+               (sow impl)]
+              [optional?
+               (set-add! missing impl)]
+              [else
+               (raise-herbie-missing-error
+                "Missing implementation ~a required by platform"
+                impl)]))))
   (define reprs
     (remove-duplicates (apply append
                               (for/list ([impl (in-list impls)])

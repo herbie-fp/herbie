@@ -4,10 +4,8 @@
          raise-herbie-syntax-error
          raise-herbie-sampling-error
          raise-herbie-missing-error
-         syntax->error-format-string
          exception->datum
          herbie-error->string
-         herbie-error-url
          (struct-out exn:fail:user:herbie)
          (struct-out exn:fail:user:herbie:syntax)
          (struct-out exn:fail:user:herbie:sampling)
