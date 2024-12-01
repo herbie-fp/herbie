@@ -67,6 +67,7 @@
             ,@(dict-call curr render-phase-explanations 'explanations)
             ,@(dict-call curr render-phase-confusion 'confusion)
             ,@(dict-call curr render-phase-maybe-confusion 'maybe-confusion)
+            ,@(dict-call curr render-phase-prcurve 'prcurve)
             ,@(dict-call curr render-phase-freqs 'freqs)
             ,@(dict-call curr render-phase-total-confusion 'total-confusion)
             ,@(dict-call curr render-phase-expl-stats 'expl-stats)
@@ -377,56 +378,69 @@
                                (match-define (list ex type v) flow)
                                `(tr (td "↳") (td (code ,(~a ex))) (td ,type) (td ,(~a v))))))))))))
 
+(define (html-confusion-matrix heading confusion-matrix)
+  (match-define (list true-pos false-neg false-pos true-neg) confusion-matrix)
+  `((dt ,heading)
+    (dd (table ((class "times"))
+               (tr (th "") (th "Predicted +") (th "Predicted -"))
+               (tr (th "+") (td ,(~a true-pos)) (td ,(~a false-neg)))
+               (tr (th "-") (td ,(~a false-pos)) (td ,(~a true-neg)))))
+    (dt "Precision")
+    (dd ,(if (= true-pos false-pos 0)
+             "0/0"
+             (~a (exact->inexact (/ true-pos (+ true-pos false-pos))))))
+    (dt "Recall")
+    (dd ,(if (= true-pos false-neg 0)
+             "0/0"
+             (~a (exact->inexact (/ true-pos (+ true-pos false-neg))))))))
+
 (define (render-phase-confusion confusion-matrix)
-  (match-define (list (list true-pos false-neg false-pos true-neg)) confusion-matrix)
-  `((dt "Confusion") (dd (table ((class "times"))
-                                (tr (th "") (th "Predicted +") (th "Predicted -"))
-                                (tr (th "+") (td ,(~a true-pos)) (td ,(~a false-neg)))
-                                (tr (th "-") (td ,(~a false-pos)) (td ,(~a true-neg)))))
-                     (dt "Precision")
-                     (dd ,(if (= true-pos false-pos 0)
-                              "0/0"
-                              (~a (exact->inexact (/ true-pos (+ true-pos false-pos))))))
-                     (dt "Recall")
-                     (dd ,(if (= true-pos false-neg 0)
-                              "0/0"
-                              (~a (exact->inexact (/ true-pos (+ true-pos false-neg))))))))
+  (match-define (list conmat) confusion-matrix)
+  (html-confusion-matrix "Confusion"
+                         conmat))
+
+(define (html-maybe-confusion-matrix heading
+                                     maybe-matrix)
+  (match-define (list true-pos true-maybe false-neg false-pos false-maybe true-neg)
+    maybe-matrix)
+  `((dt ,heading)
+    (dd (table ((class "times"))
+               (tr (th "") (th "Predicted +") (th "Predicted Maybe") (th "Predicted -"))
+               (tr (th "+") (td ,(~a true-pos)) (td ,(~a true-maybe)) (td ,(~a false-neg)))
+               (tr (th "-") (td ,(~a false-pos)) (td ,(~a false-maybe)) (td ,(~a true-neg)))))
+    (dt "Precision?")
+    (dd ,(if (= true-pos true-maybe false-pos false-maybe 0)
+             "0/0"
+             (~a (exact->inexact (/ (+ true-pos true-maybe)
+                                    (+ true-pos true-maybe false-pos false-maybe))))))
+    (dt "Recall?")
+    (dd ,(if (= true-pos true-maybe false-neg 0)
+             "0/0"
+             (~a (exact->inexact (/ (+ true-pos true-maybe) (+ true-pos true-maybe false-neg))))))))
 
 (define (render-phase-maybe-confusion confusion-matrix)
-  (match-define (list (list true-pos true-maybe false-neg false-pos false-maybe true-neg))
+  (match-define (list maybemat)
     confusion-matrix)
-  `((dt "Confusion?")
-    (dd (table ((class "times"))
-               (tr (th "") (th "Predicted +") (th "Predicted Maybe") (th "Predicted -"))
-               (tr (th "+") (td ,(~a true-pos)) (td ,(~a true-maybe)) (td ,(~a false-neg)))
-               (tr (th "-") (td ,(~a false-pos)) (td ,(~a false-maybe)) (td ,(~a true-neg)))))
-    (dt "Precision?")
-    (dd ,(if (= true-pos true-maybe false-pos false-maybe 0)
-             "0/0"
-             (~a (exact->inexact (/ (+ true-pos true-maybe)
-                                    (+ true-pos true-maybe false-pos false-maybe))))))
-    (dt "Recall?")
-    (dd ,(if (= true-pos true-maybe false-neg 0)
-             "0/0"
-             (~a (exact->inexact (/ (+ true-pos true-maybe) (+ true-pos true-maybe false-neg))))))))
+  (html-maybe-confusion-matrix "Confusion?"
+                               maybemat))
+
+(define (render-phase-prcurve prcurve)
+  (match-define (list (list confusion-hash maybe-hash)) prcurve)
+  (define res (for/list [(i (in-inclusive-range 0 10))]
+                (define key (string->symbol (~a i)))
+                (define conmat (hash-ref confusion-hash key))
+                (define html-conmat (html-confusion-matrix (format "~a: " (* 2 (expt 2 i)))
+                                                           conmat))
+                ;;(eprintf "~a\n" html-conmat)
+                (first html-conmat)))
+  ;;(eprintf "res ~a" res)
+  res)
 
 (define (render-phase-total-confusion confusion-matrix)
-  (match-define (list (list true-pos true-maybe false-neg false-pos false-maybe true-neg))
+  (match-define (list maybemat)
     confusion-matrix)
-  `((dt "Total Confusion?")
-    (dd (table ((class "times"))
-               (tr (th "") (th "Predicted +") (th "Predicted Maybe") (th "Predicted -"))
-               (tr (th "+") (td ,(~a true-pos)) (td ,(~a true-maybe)) (td ,(~a false-neg)))
-               (tr (th "-") (td ,(~a false-pos)) (td ,(~a false-maybe)) (td ,(~a true-neg)))))
-    (dt "Precision?")
-    (dd ,(if (= true-pos true-maybe false-pos false-maybe 0)
-             "0/0"
-             (~a (exact->inexact (/ (+ true-pos true-maybe)
-                                    (+ true-pos true-maybe false-pos false-maybe))))))
-    (dt "Recall?")
-    (dd ,(if (= true-pos true-maybe false-neg 0)
-             "0/0"
-             (~a (exact->inexact (/ (+ true-pos true-maybe) (+ true-pos true-maybe false-neg))))))))
+  (html-maybe-confusion-matrix "Total Confusion?"
+                               maybemat))
 
 (define (render-phase-freqs freqs)
   `((dt "Freqs") (dd "test"

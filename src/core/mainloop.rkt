@@ -20,7 +20,8 @@
          "programs.rkt"
          "../utils/timeline.rkt"
          "soundiness.rkt"
-         "batch.rkt")
+         "batch.rkt"
+         "logfloat.rkt")
 (provide run-improve!)
 
 ;; The Herbie main loop goes through a simple iterative process:
@@ -344,7 +345,27 @@
   (timeline-push! 'total-confusion total-confusion-matrix)
   (for ([(key val) (in-dict freqs)])
     (timeline-push! 'freqs key val))
-  (timeline-push! 'expl-stats (apply + timings) (length timings)))
+  (timeline-push! 'expl-stats (apply + timings) (length timings))
+
+  (define confusion-hash (make-hash))
+  (define maybe-hash (make-hash))
+
+  (for [(i (in-inclusive-range 0 10))]
+    (parameterize ([*maybethres* (lf (exact->inexact (expt 2 i)))]
+                   [*condthres* (lf (exact->inexact (* 4 (expt 2 i))))])
+      (define-values (fperror
+                      explanations-table
+                      confusion-matrix
+                      maybe-confusion-matrix
+                      total-confusion-matrix
+                      freqs
+                      timings)
+        (explain expr context pcontext))
+      (define key (string->symbol (~a i)))
+      (hash-set! confusion-hash key confusion-matrix)
+      (hash-set! maybe-hash key maybe-confusion-matrix)))
+  (timeline-push! 'prcurve confusion-hash maybe-hash)
+  #;(eprintf confusion-hash maybe-hash))
 
 (define (make-regime! alts)
   (define ctx (*context*))
