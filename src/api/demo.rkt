@@ -236,36 +236,35 @@
                (a ([href "./index.html"]) " See what formulas other users submitted."))]
             [else `("all formulas submitted here are " (a ([href "./index.html"]) "logged") ".")])))))
 
-(define (post-with-json-response fn)
-  (lambda (req)
-    (define post-body (request-post-data/raw req))
-    (define post-data
-      (cond
-        [post-body (bytes->jsexpr post-body)]
-        [#t #f]))
-    (define resp
-      (with-handlers ([exn:fail? (λ (e) (hash 'error (exn->string e)))])
-        (fn post-data)))
-    (if (hash-has-key? resp 'error)
-        (eprintf "Error handling request: ~a\n" (hash-ref resp 'error))
-        (eprintf "Success handling request\n"))
-    (if (hash-has-key? resp 'error)
-        (response 500
-                  #"Bad Request"
-                  (current-seconds)
-                  APPLICATION/JSON-MIME-TYPE
-                  (list (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
-                  (λ (op) (write-json resp op)))
-        (response 200
-                  #"OK"
-                  (current-seconds)
-                  APPLICATION/JSON-MIME-TYPE
-                  (filter values
-                          (list (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*"))
-                                (and (hash-has-key? resp 'job)
-                                     (header #"X-Herbie-Job-ID"
-                                             (string->bytes/utf-8 (hash-ref resp 'job))))))
-                  (λ (op) (write-json resp op))))))
+(define ((post-with-json-response fn) req)
+  (define post-body (request-post-data/raw req))
+  (define post-data
+    (cond
+      [post-body (bytes->jsexpr post-body)]
+      [#t #f]))
+  (define resp
+    (with-handlers ([exn:fail? (λ (e) (hash 'error (exn->string e)))])
+      (fn post-data)))
+  (if (hash-has-key? resp 'error)
+      (eprintf "Error handling request: ~a\n" (hash-ref resp 'error))
+      (eprintf "Success handling request\n"))
+  (if (hash-has-key? resp 'error)
+      (response 500
+                #"Bad Request"
+                (current-seconds)
+                APPLICATION/JSON-MIME-TYPE
+                (list (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
+                (λ (op) (write-json resp op)))
+      (response 200
+                #"OK"
+                (current-seconds)
+                APPLICATION/JSON-MIME-TYPE
+                (filter values
+                        (list (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*"))
+                              (and (hash-has-key? resp 'job)
+                                   (header #"X-Herbie-Job-ID"
+                                           (string->bytes/utf-8 (hash-ref resp 'job))))))
+                (λ (op) (write-json resp op)))))
 
 (define (response/error title body)
   (response/full 400
