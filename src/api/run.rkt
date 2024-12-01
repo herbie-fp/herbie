@@ -85,7 +85,7 @@
 
 (define (run-tests tests #:dir dir #:note note #:threads threads)
   (define seed (get-seed))
-  (when (not (directory-exists? dir))
+  (unless (directory-exists? dir)
     (make-directory dir))
 
   (start-job-server threads)
