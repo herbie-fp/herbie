@@ -1,10 +1,7 @@
 #lang racket
 
 (require json)
-(require "datafile.rkt"
-         "server.rkt"
-         "sandbox.rkt"
-         "../reports/common.rkt"
+(require "../reports/common.rkt"
          "../reports/pages.rkt"
          "../reports/timeline.rkt"
          "../syntax/read.rkt"
@@ -12,7 +9,10 @@
          "../syntax/types.rkt"
          "../utils/common.rkt"
          "../utils/profile.rkt"
-         "../utils/timeline.rkt")
+         "../utils/timeline.rkt"
+         "datafile.rkt"
+         "sandbox.rkt"
+         "server.rkt")
 
 (provide make-report
          rerun-report
@@ -85,7 +85,7 @@
 
 (define (run-tests tests #:dir dir #:note note #:threads threads)
   (define seed (get-seed))
-  (when (not (directory-exists? dir))
+  (unless (directory-exists? dir)
     (make-directory dir))
 
   (start-job-server threads)
@@ -125,14 +125,14 @@
    (λ (out) (write-html (make-timeline "Herbie run" timeline #:info info #:path ".") out)))
 
   ; Delete old files
-  (let* ([expected-dirs (map string->path
-                             (filter identity (map table-row-link (report-info-tests info))))]
-         [actual-dirs (filter (λ (name) (directory-exists? (build-path dir name)))
-                              (directory-list dir))]
-         [extra-dirs (filter (λ (name) (not (member name expected-dirs))) actual-dirs)])
-    (for ([subdir extra-dirs])
-      (with-handlers ([exn:fail:filesystem? (const true)])
-        (delete-directory/files (build-path dir subdir))))))
+  (define expected-dirs
+    (map string->path (filter identity (map table-row-link (report-info-tests info)))))
+  (define actual-dirs
+    (filter (λ (name) (directory-exists? (build-path dir name))) (directory-list dir)))
+  (define extra-dirs (filter (λ (name) (not (member name expected-dirs))) actual-dirs))
+  (for ([subdir extra-dirs])
+    (with-handlers ([exn:fail:filesystem? (const true)])
+      (delete-directory/files (build-path dir subdir)))))
 
 (define (test<? t1 t2)
   (cond
