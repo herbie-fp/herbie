@@ -4,26 +4,26 @@
 (require racket/exn)
 (require openssl/sha1
          (rename-in xml [location? xml-location?]))
-(require web-server/servlet
-         web-server/servlet-env
+(require web-server/configuration/responders
          web-server/dispatch
-         web-server/dispatchers/dispatch
          web-server/dispatch/extend
+         web-server/dispatchers/dispatch
          web-server/http/bindings
-         web-server/configuration/responders
          web-server/managers/none
-         web-server/safety-limits)
+         web-server/safety-limits
+         web-server/servlet
+         web-server/servlet-env)
 
-(require "../utils/common.rkt"
-         "../config.rkt"
+(require "../config.rkt"
          "../syntax/read.rkt"
+         "../utils/common.rkt"
          "../utils/errors.rkt")
-(require "../syntax/sugar.rkt"
-         "../core/points.rkt")
-(require "datafile.rkt"
-         "../reports/pages.rkt"
-         "../reports/common.rkt"
+(require "../core/points.rkt"
+         "../syntax/sugar.rkt")
+(require "../reports/common.rkt"
          "../reports/core2mathjs.rkt"
+         "../reports/pages.rkt"
+         "datafile.rkt"
          "server.rkt")
 
 (provide run-demo)

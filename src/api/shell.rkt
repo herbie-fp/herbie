@@ -1,8 +1,8 @@
 #lang racket
 
 (require "../syntax/read.rkt"
-         "sandbox.rkt"
-         "../utils/common.rkt")
+         "../utils/common.rkt"
+         "sandbox.rkt")
 (provide run-shell)
 
 (define (get-input)

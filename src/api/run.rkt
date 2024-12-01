@@ -1,10 +1,7 @@
 #lang racket
 
 (require json)
-(require "datafile.rkt"
-         "server.rkt"
-         "sandbox.rkt"
-         "../reports/common.rkt"
+(require "../reports/common.rkt"
          "../reports/pages.rkt"
          "../reports/timeline.rkt"
          "../syntax/read.rkt"
@@ -12,7 +9,10 @@
          "../syntax/types.rkt"
          "../utils/common.rkt"
          "../utils/profile.rkt"
-         "../utils/timeline.rkt")
+         "../utils/timeline.rkt"
+         "datafile.rkt"
+         "sandbox.rkt"
+         "server.rkt")
 
 (provide make-report
          rerun-report
