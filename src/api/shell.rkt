@@ -13,11 +13,11 @@
     (define input
       (parameterize ([read-decimal-as-inexact false])
         (read-syntax "stdin" (current-input-port))))
-    (if (eof-object? input)
-        (begin
-          (printf "\n")
-          eof)
-        (parse-test input))))
+    (cond
+      [(eof-object? input)
+       (printf "\n")
+       eof]
+      [else (parse-test input)])))
 
 (define (run-shell)
   (define seed (get-seed))
