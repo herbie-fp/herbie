@@ -100,7 +100,6 @@ define_language! {
 pub struct ConstantFold {
     pub unsound: AtomicBool,
     pub constant_fold: bool,
-    pub prune: bool,
 }
 
 impl Clone for ConstantFold {
@@ -109,7 +108,6 @@ impl Clone for ConstantFold {
         Self {
             unsound,
             constant_fold: self.constant_fold,
-            prune: self.prune,
         }
     }
 }
@@ -118,7 +116,6 @@ impl Default for ConstantFold {
     fn default() -> Self {
         Self {
             constant_fold: true,
-            prune: true,
             unsound: AtomicBool::new(false),
         }
     }
@@ -262,10 +259,6 @@ impl Analysis<Math> for ConstantFold {
                 &subst,
                 "metadata-eval".to_string(),
             );
-
-            if egraph.analysis.prune {
-                egraph[class_id].nodes.retain(|n| n.is_leaf())
-            }
         }
     }
 }
