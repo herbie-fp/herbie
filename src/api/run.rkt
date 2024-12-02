@@ -42,7 +42,7 @@
   (run-tests tests #:dir dir #:note note #:threads threads))
 
 (define (rerun-report json-file #:dir dir #:note note #:threads threads)
-  (define data (read-datafile json-file))
+  (define data (call-with-input-file json-file read-datafile))
   (define tests (map extract-test (report-info-tests data)))
   (*flags* (report-info-flags data))
   (set-seed! (report-info-seed data))
@@ -143,8 +143,8 @@
 
 (define (diff-report old new)
   (define df
-    (diff-datafiles (read-datafile (build-path old "results.json"))
-                    (read-datafile (build-path new "results.json"))))
+    (diff-datafiles (call-with-input-file (build-path old "results.json") read-datafile)
+                    (call-with-input-file (build-path new "results.json") read-datafile)))
   (copy-file (web-resource "report.html") (build-path new "index.html") #t))
 
 ;; Generate a path for a given benchmark name
