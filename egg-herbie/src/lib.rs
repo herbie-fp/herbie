@@ -198,6 +198,13 @@ pub unsafe extern "C" fn egraph_run(
             .run(&context.rules);
     }
 
+    // Prune right before extraction
+    context.runner.egraph.classes_mut().for_each(|eclass| {
+        if eclass.data.is_some() {
+            eclass.nodes.retain(|n| n.is_leaf());
+        }
+    });
+
     let iterations = context
         .runner
         .iterations

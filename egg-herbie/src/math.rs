@@ -118,7 +118,8 @@ impl Default for ConstantFold {
     fn default() -> Self {
         Self {
             constant_fold: true,
-            prune: true,
+            // Disabling pruning during eqsat
+            prune: false,
             unsound: AtomicBool::new(false),
         }
     }
