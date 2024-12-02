@@ -118,7 +118,8 @@ impl Default for ConstantFold {
     fn default() -> Self {
         Self {
             constant_fold: true,
-            prune: true,
+            // Disable in favor of pruning once before extraction
+            prune: false,
             unsound: AtomicBool::new(false),
         }
     }
