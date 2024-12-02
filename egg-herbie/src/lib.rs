@@ -198,6 +198,16 @@ pub unsafe extern "C" fn egraph_run(
             .run(&context.rules);
     }
 
+    // Prune e-nodes with children if its e-class contains `ConstantFold` analysis data. Pruning
+    // occurs once, right before extraction. Improves performance without affecting correctness:
+    // E.g. if an e-class represents the number 2, it's safe to keep the `(2)` e-node but remove the
+    // `(+ 1 1)` e-node.
+    context.runner.egraph.classes_mut().for_each(|eclass| {
+        if eclass.data.is_some() {
+            eclass.nodes.retain(|n| n.is_leaf());
+        }
+    });
+
     let iterations = context
         .runner
         .iterations
