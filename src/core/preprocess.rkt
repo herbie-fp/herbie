@@ -21,15 +21,11 @@
          remove-unnecessary-preprocessing)
 
 (define (has-fabs-neg-impls? repr)
-  (with-handlers ([exn:fail:user:herbie? (const #f)])
-    (get-fpcore-impl '- (repr->prop repr) (list repr))
-    (get-fpcore-impl 'fabs (repr->prop repr) (list repr))
-    #t))
+  (and (get-fpcore-impl '- (repr->prop repr) (list repr))
+       (get-fpcore-impl 'fabs (repr->prop repr) (list repr))))
 
 (define (has-copysign-impl? repr)
-  (with-handlers ([exn:fail:user:herbie? (const #f)])
-    (get-fpcore-impl 'copysign (repr->prop repr) (list repr repr))
-    #t))
+  (get-fpcore-impl 'copysign (repr->prop repr) (list repr repr)))
 
 ;; The even identities: f(x) = f(-x)
 ;; Requires `neg` and `fabs` operator implementations.

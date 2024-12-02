@@ -148,7 +148,7 @@
   (define reprs (map (curryr repr-of (*context*)) exprs))
   (timeline-push! 'inputs (map ~a exprs))
 
-  (define runner (make-egg-runner global-batch roots reprs schedule #:context (*context*)))
+  (define runner (make-egg-runner global-batch roots reprs schedule))
   ; batchrefss is a (listof (listof batchref))
   (define batchrefss (run-egg runner `(multi . ,extractor)))
 

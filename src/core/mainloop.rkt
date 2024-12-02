@@ -341,8 +341,7 @@
           (> (length alts) 1)
           (equal? (representation-type repr) 'real)
           (not (null? (context-vars ctx)))
-          (with-handlers ([exn:fail:user:herbie:missing? (const #f)])
-            (get-fpcore-impl '<= '() (list repr repr))))
+          (get-fpcore-impl '<= '() (list repr repr)))
      (define opts (pareto-regimes (sort alts < #:key (curryr alt-cost repr)) ctx))
      (for/list ([opt (in-list opts)])
        (combine-alts opt ctx))]
@@ -353,7 +352,7 @@
     [(flag-set? 'generate 'simplify)
      (timeline-event! 'simplify)
 
-     ; egg schedule (only mathematical rewrites)
+     ; egg schedule (only FP rewrites plus simplify rewrites for if statements)
      (define rules (append (*fp-safe-simplify-rules*) (*simplify-rules*)))
      (define schedule `((,rules . ((node . ,(*node-limit*)) (const-fold? . #f)))))
 
