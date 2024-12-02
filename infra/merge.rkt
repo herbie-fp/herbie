@@ -42,7 +42,8 @@
     (filter (conjoin (negate eof-object?) identity)
             (for/list ([dir (in-list dirs)])
               (with-handlers ([exn? (const #f)])
-                (let ([df (call-with-input-file (build-path outdir dir "results.json") read-datafile)])
+                (let ([df (call-with-input-file (build-path outdir dir "results.json")
+                                                read-datafile)])
                   (if (eof-object? df)
                       eof
                       (cons df dir)))))))
