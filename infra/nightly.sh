@@ -3,7 +3,7 @@
 # exit immediately upon first error
 set -e -x
 
-CORES=4 # Raising this doesn't seem to speed up nightlies
+CORES=1 # Temporarily lower to 1 to avoid out-of-memory (hopefully)
 SEED=$(date "+%Y%j")
 
 # determine physical directory of this script
@@ -39,4 +39,3 @@ RECURSE=1 LOG=1 \
 if [ "$?" -eq 0 ]; then
   bash $INFRA_DIR/publish.sh upload "$OUT_DIR"
 fi
-
