@@ -194,13 +194,13 @@
                                              list))])
                (cons (car (first part)) (map cadr part)))))
 
-(define (read-datafile file)
+(define (read-datafile port)
   (define (parse-string s)
     (if s
         (call-with-input-string s read)
         #f))
 
-  (let* ([json (call-with-input-file file read-json)]
+  (let* ([json (read-json port)]
          [get (λ (field) (hash-ref json field))])
     (report-info (seconds->date (get 'date))
                  (get 'commit)
