@@ -177,6 +177,7 @@
   (define localized-exprs empty)
   (define repr (context-repr (*context*)))
 
+  #|
   (when (flag-set? 'localize 'costs)
     (define loc-costss (batch-localize-costs exprs (*context*)))
     (define cost-localized
@@ -203,6 +204,8 @@
         (timeline-push! 'locations (~a expr) "accuracy" (errors-score err))
         expr))
     (set! localized-exprs (remove-duplicates (append localized-exprs error-localized))))
+  |#
+  (set! localized-exprs (remove-duplicates (append-map all-subexpressions exprs)))
 
   (^locs^ localized-exprs)
   (void))
