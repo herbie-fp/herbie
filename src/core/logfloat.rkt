@@ -331,7 +331,7 @@
 (define/contract (lfsinh A)
   (-> logfloat? logfloat?)
   (match-define (logfloat x1 x2 s _ _) A)
-  (let*-values ([(z1 z2) (ddasin x1 x2)]
+  (let*-values ([(z1 z2) (ddsinh x1 x2)]
                 [(a1 a2) (ddabs z1 z2)]
                 [(a1 a2) (ddlog2 a1 a2)])
     (logfloat z1 z2 s a1 a2)))
@@ -339,7 +339,7 @@
 (define/contract (lfcosh A)
   (-> logfloat? logfloat?)
   (match-define (logfloat x1 x2 s _ _) A)
-  (let*-values ([(z1 z2) (ddacos x1 x2)]
+  (let*-values ([(z1 z2) (ddcosh x1 x2)]
                 [(a1 a2) (ddabs z1 z2)]
                 [(a1 a2) (ddlog2 a1 a2)])
     (logfloat z1 z2 s a1 a2)))
@@ -347,7 +347,7 @@
 (define/contract (lftanh A)
   (-> logfloat? logfloat?)
   (match-define (logfloat x1 x2 s _ _) A)
-  (let*-values ([(z1 z2) (ddatan x1 x2)]
+  (let*-values ([(z1 z2) (ddtanh x1 x2)]
                 [(a1 a2) (ddabs z1 z2)]
                 [(a1 a2) (ddlog2 a1 a2)])
     (logfloat z1 z2 s a1 a2)))
@@ -355,7 +355,7 @@
 (define/contract (lfasinh A)
   (-> logfloat? logfloat?)
   (match-define (logfloat x1 x2 s _ _) A)
-  (let*-values ([(z1 z2) (ddasin x1 x2)]
+  (let*-values ([(z1 z2) (ddasinh x1 x2)]
                 [(a1 a2) (ddabs z1 z2)]
                 [(a1 a2) (ddlog2 a1 a2)])
     (logfloat z1 z2 s a1 a2)))
@@ -363,7 +363,7 @@
 (define/contract (lfacosh A)
   (-> logfloat? logfloat?)
   (match-define (logfloat x1 x2 s _ _) A)
-  (let*-values ([(z1 z2) (ddacos x1 x2)]
+  (let*-values ([(z1 z2) (ddacosh x1 x2)]
                 [(a1 a2) (ddabs z1 z2)]
                 [(a1 a2) (ddlog2 a1 a2)])
     (logfloat z1 z2 s a1 a2)))
@@ -371,7 +371,7 @@
 (define/contract (lfatanh A)
   (-> logfloat? logfloat?)
   (match-define (logfloat x1 x2 s _ _) A)
-  (let*-values ([(z1 z2) (ddatan x1 x2)]
+  (let*-values ([(z1 z2) (ddatanh x1 x2)]
                 [(a1 a2) (ddabs z1 z2)]
                 [(a1 a2) (ddlog2 a1 a2)])
     (logfloat z1 z2 s a1 a2)))

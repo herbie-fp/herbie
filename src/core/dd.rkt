@@ -3,9 +3,27 @@
 (require ffi/unsafe
          ffi/unsafe/define
          ffi/vector
-         math/flonum)
+         math/flonum
+         racket/unsafe/ops)
 
 (provide (all-defined-out))
+
+(define a (make-f64vector 2))
+(define b (make-f64vector 2))
+(define c (make-f64vector 2))
+
+(define a* (f64vector->cpointer a))
+(define b* (f64vector->cpointer b))
+(define c* (f64vector->cpointer c))
+
+(define-syntax-rule (load-f64vector a x y)
+  (begin
+    (unsafe-f64vector-set! a 0 x)
+    (unsafe-f64vector-set! a 1 y)))
+
+(define-syntax-rule (store-f64vector a)
+  (values (unsafe-f64vector-ref a 0)
+          (unsafe-f64vector-ref b 1)))
 
 (define qd-lib (ffi-lib "./QD/src/.libs/libqd"))
 
@@ -59,9 +77,9 @@
 (define x 2.456e+150)
 
 (define (rempio2 x)
-  (define y (make-f64vector 2))
-  (define n (c_rem_pio2 x (f64vector->cpointer y)))
-  (define-values (r1 r2) (apply values (f64vector->list y)))
+  (load-f64vector a 0.0 0.0)
+  (define n (c_rem_pio2 x a*))
+  (define-values (r1 r2) (store-f64vector a))
   (values n r1 r2))
 
 (define (nan.dd)
@@ -138,10 +156,10 @@
     (dd- x1 x2 c1 c2)))
 
 (define (ddatan2 x1 x2 y1 [y2 0.0])
-  (define a (list->f64vector (list x1 x2)))
-  (define b (list->f64vector (list y1 y2)))
-  (define c (make-f64vector 2))
-  (c_dd_atan2 (f64vector->cpointer a) (f64vector->cpointer b) (f64vector->cpointer c))
+  (load-f64vector a x1 x2)
+  (load-f64vector b y1 y2)
+  (load-f64vector c 0.0 0.0)
+  (c_dd_atan2 a* b* c*)
   (apply values (f64vector->list c)))
 
 (define (dd+ x1 x2 y1 [y2 0.0])
@@ -157,11 +175,11 @@
          (values x1 x2)
          (nan.dd))]
     [else
-     (define a (list->f64vector (list x1 x2)))
-     (define b (list->f64vector (list y1 y2)))
-     (define c (make-f64vector 2))
-     (c_dd_add (f64vector->cpointer a) (f64vector->cpointer b) (f64vector->cpointer c))
-     (apply values (f64vector->list c))]))
+     (load-f64vector a x1 x2)
+     (load-f64vector b y1 y2)
+     (load-f64vector c 0.0 0.0)
+     (c_dd_add a* b* c*)
+     (store-f64vector c)]))
 
 (define (dd- x1 x2 y1 [y2 0.0])
   (cond
@@ -176,11 +194,16 @@
          (nan.dd)
          (values x1 x2))]
     [else
-     (define a (list->f64vector (list x1 x2)))
-     (define b (list->f64vector (list y1 y2)))
-     (define c (make-f64vector 2))
-     (c_dd_sub (f64vector->cpointer a) (f64vector->cpointer b) (f64vector->cpointer c))
-     (apply values (f64vector->list c))]))
+     (load-f64vector a x1 x2)
+     (load-f64vector b y1 y2)
+     (load-f64vector c 0.0 0.0)
+     (c_dd_sub a* b* c*)
+     (store-f64vector c)
+     ;(define a (list->f64vector (list x1 x2)))
+     ;(define b (list->f64vector (list y1 y2)))
+     ;(define c (make-f64vector 2))
+     ;(c_dd_sub (f64vector->cpointer a) (f64vector->cpointer b) (f64vector->cpointer c))
+     #;(apply values (f64vector->list c))]))
 
 (define (dd* x1 x2 y1 [y2 0.0])
   (cond
@@ -202,11 +225,16 @@
          (+inf.dd)
          (-inf.dd))]
     [else
-     (define a (list->f64vector (list x1 x2)))
-     (define b (list->f64vector (list y1 y2)))
-     (define c (make-f64vector 2))
-     (c_dd_mul (f64vector->cpointer a) (f64vector->cpointer b) (f64vector->cpointer c))
-     (apply values (f64vector->list c))]))
+     (load-f64vector a x1 x2)
+     (load-f64vector b y1 y2)
+     (load-f64vector c 0.0 0.0)
+     (c_dd_mul a* b* c*)
+     (store-f64vector c)
+     #;(define a (list->f64vector (list x1 x2)))
+     #;(define b (list->f64vector (list y1 y2)))
+     #;(define c (make-f64vector 2))
+     #;(c_dd_mul (f64vector->cpointer a) (f64vector->cpointer b) (f64vector->cpointer c))
+     #;(apply values (f64vector->list c))]))
 
 (define (dd/ x1 x2 y1 [y2 0.0])
   (cond
@@ -218,29 +246,43 @@
     [(and (ddinfinite? x1 x2) (ddsamesign? x1 x2 y1 y2)) (+inf.dd)]
     [(and (ddinfinite? x1 x2) (not (ddsamesign? x1 x2 y1 y2))) (-inf.dd)]
     [else
-     (define a (list->f64vector (list x1 x2)))
-     (define b (list->f64vector (list y1 y2)))
-     (define c (make-f64vector 2))
-     (c_dd_div (f64vector->cpointer a) (f64vector->cpointer b) (f64vector->cpointer c))
-     (apply values (f64vector->list c))]))
+     (load-f64vector a x1 x2)
+     (load-f64vector b y1 y2)
+     (load-f64vector c 0.0 0.0)
+     (c_dd_div a* b* c*)
+     (store-f64vector c)
+     ;(define a (list->f64vector (list x1 x2)))
+     ;(define b (list->f64vector (list y1 y2)))
+     ;(define c (make-f64vector 2))
+     ;(c_dd_div (f64vector->cpointer a) (f64vector->cpointer b) (f64vector->cpointer c))
+     #;(apply values (f64vector->list c))]))
 
 (define (ddsqrt x1 [x2 0])
   (cond
     [(ddposinf? x1 x2) (values x1 x2)]
     [else
-     (define a (list->f64vector (list x1 x2)))
-     (define c (make-f64vector 2))
-     (c_dd_sqrt (f64vector->cpointer a) (f64vector->cpointer c))
-     (apply values (f64vector->list c))]))
+     (load-f64vector a x1 x2)
+     (load-f64vector c 0.0 0.0)
+     (c_dd_sqrt a* c*)
+     (store-f64vector c)
+     ;(define a (list->f64vector (list x1 x2)))
+     ;(define c (make-f64vector 2))
+     ;(c_dd_sqrt (f64vector->cpointer a) (f64vector->cpointer c))
+     #;(apply values (f64vector->list c))]))
 
 (define (ddcbrt x1 [x2 0])
   (cond
     [(ddinfinite? x1 x2) (+inf.dd)]
     [else
-     (define a (list->f64vector (list x1 x2)))
-     (define c (make-f64vector 2))
-     (c_dd_nroot (f64vector->cpointer a) 3 (f64vector->cpointer c))
-     (apply values (f64vector->list c))]))
+     (load-f64vector a x1 x2)
+
+     (load-f64vector c 0.0 0.0)
+     (c_dd_nroot a* 3 c*)
+     (store-f64vector c)
+     ;(define a (list->f64vector (list x1 x2)))
+     ;(define c (make-f64vector 2))
+     ;(c_dd_nroot (f64vector->cpointer a) 3 (f64vector->cpointer c))
+     #;(apply values (f64vector->list c))]))
 
 (define (ddint? x1 [x2 0])
   (let*-values ([(a1 a2) (ddaint x1 x2)])
@@ -301,6 +343,7 @@
     [(ddnan? x1 x2) (nan.dd)]
     [(ddinfinite? x1 x2) (nan.dd)]
     [else
+     (load-f64vector a 0.0 0.0)
      (let*-values ([(k1 a1 a2) (rempio2 x1)]
                    [(k2 b1 b2) (rempio2 x2)]
                    [(r1 r2) (dd+ a1 a2 b1 b2)]
@@ -352,10 +395,10 @@
     [(_ [name1 name2] ...)
      (begin
        (define (name1 x1 [x2 0])
-         (define a (list->f64vector (list x1 x2)))
-         (define b (make-f64vector 2))
-         (name2 (f64vector->cpointer a) (f64vector->cpointer b))
-         (apply values (f64vector->list b))) ...)]))
+         (load-f64vector a x1 x2)
+         (load-f64vector c 0.0 0.0)
+         (name2 a* c*)
+         (store-f64vector c)) ...)]))
 
 (define-dd-unary-fn [ddabs c_dd_abs]
                     [ddsin c_dd_sin]
