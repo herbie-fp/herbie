@@ -5,44 +5,56 @@
          startLocalize
          startSubexprs
          addExprs
-         addSubexprs
-         printDict
+         
+         egraphPrint
+         addLocalize
          )
 
 (define iter-num 1)
 
 (define egraphJson (make-hash))
 (define curLocalize "")
-(define startIteration (hash-set! egraphJson iter-num (make-hash)))
 
-(define egraphPrint
+(define (startIteration) (hash-set! egraphJson iter-num (make-hash)))
+
+(define (egraphPrint)
   (displayln egraphJson))
-(define endIteration (set! iter-num (+ iter-num 1)))
+
+(define (endIteration) (set! iter-num (+ iter-num 1)))
 
 (define (startLocalize key)
     (set! curLocalize key)
     (hash-set! (getIteration) key (make-hash)))
 
-(define getIteration 
+(define (getIteration) 
 
 (hash-ref egraphJson iter-num))
 
 
-(define getlocalizeDict 
-  (hash-ref (getIteration) curLocalize))
+(define (getlocalizeDict) 
 
-(define startSubexprs 
-  (hash-set! (getlocalizeDict) "subexpressions" (make-hash)))
+  (hash-ref (getIteration) curLocalize)
+  )
+
+(define (startSubexprs) 
+ 
+  (hash-set! (getlocalizeDict) "subexpressions" (make-hash))
+  )
 
 
-(define getsubexpressionDict 
+(define (getsubexpressionDict) 
   (hash-ref (getlocalizeDict) "subexpressions"))
 
 (define (addExprs key exprs)
-  (hash-set! (getlocalizeDict) key exprs))
+  (hash-set! (getIteration) key exprs)
+  )
 
-(define (addSubexprs expr subexprs)
-  (hash-set! (getsubexpressionDict) expr subexprs)
+(define (addSubexprss subexprss)
+  
+  (hash-set! (getsubexpressionDict) 1 subexprss)
+
 )
 
-(define printDict (displayln egraphJson))
+(define (addLocalize key exprs) (hash-set! (getlocalizeDict) key exprs))
+
+

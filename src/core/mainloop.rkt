@@ -54,9 +54,11 @@
 
   (for ([iteration (in-range (*num-iterations*))]
         #:break (atab-completed? (^table^)))
-    ;(startIteration)
-    (run-iter!))
-    ;(endIteration))
+    (startIteration)
+    
+    (run-iter!)
+    (egraphPrint)
+    (endIteration))
   (define alternatives (extract!))
 
   (timeline-event! 'preprocess)
@@ -182,11 +184,10 @@
   (define localized-exprs empty)
   (define repr (context-repr (*context*)))
   
-  ;(addExprs "start-exprs" exprs)
-
+  (addExprs "start-exprs" exprs)
 
   (when (flag-set? 'localize 'costs)
-    ;(startLocalize)
+    (startLocalize "cost")
     (define loc-costss (batch-localize-costs exprs (*context*)))
     (define cost-localized
       (for/list ([loc-costs (in-list loc-costss)]
@@ -198,7 +199,10 @@
                         "cost-diff"
                         (if (infinite? cost-diff) "Infinite" cost-diff))
         expr))
-    (set! localized-exprs (remove-duplicates (append localized-exprs cost-localized))))
+
+    (define final-exprs (remove-duplicates (append localized-exprs cost-localized)))
+    (addLocalize "end-exprs" final-exprs)
+    (set! localized-exprs final-exprs))
 
   (timeline-event! 'localize)
   (when (flag-set? 'localize 'errors)

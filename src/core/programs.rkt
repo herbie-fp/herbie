@@ -53,7 +53,9 @@
       [term (pred term)])))
 
 (define (all-subexpressions expr #:reverse? [reverse? #f])
+  
   (define subexprs
+  
     (reap [sow]
           (let loop ([expr expr])
             (sow expr)
@@ -71,8 +73,7 @@
                  (loop arg))]))))
   (define final-subexprs (remove-duplicates (if reverse?
                          (reverse subexprs)
-                         subexprs)))
-  ;(addSubexprs expr final-subexprs)                         
+                         subexprs)))                      
                          
                          final-subexprs)
 

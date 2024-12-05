@@ -72,6 +72,8 @@
 
 (define (batch-localize-costs exprs ctx)
   (define subexprss (map all-subexpressions exprs))
+  (displayln subexprss)
+
   (define progs (apply append subexprss))
 
   ; inputs to egg
