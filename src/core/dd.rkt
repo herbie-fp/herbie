@@ -3,9 +3,18 @@
 (require ffi/unsafe
          ffi/unsafe/define
          ffi/vector
-         math/flonum)
+         math/flonum
+         racket/unsafe/ops)
 
 (provide (all-defined-out))
+
+(define a (make-f64vector 2))
+(define b (make-f64vector 2))
+(define c (make-f64vector 2))
+
+(define a* (f64vector->cpointer a))
+(define b* (f64vector->cpointer b))
+(define c* (f64vector->cpointer c))
 
 (define qd-lib (ffi-lib "./QD/src/.libs/libqd"))
 
@@ -59,9 +68,11 @@
 (define x 2.456e+150)
 
 (define (rempio2 x)
-  (define y (make-f64vector 2))
-  (define n (c_rem_pio2 x (f64vector->cpointer y)))
-  (define-values (r1 r2) (apply values (f64vector->list y)))
+  (unsafe-f64vector-set! a 0 0.0)
+  (unsafe-f64vector-set! a 1 0.0)
+  (define n (c_rem_pio2 x a*))
+  (define r1 (unsafe-f64vector-ref a 0))
+  (define r2 (unsafe-f64vector-ref a 1))
   (values n r1 r2))
 
 (define (nan.dd)
@@ -138,11 +149,15 @@
     (dd- x1 x2 c1 c2)))
 
 (define (ddatan2 x1 x2 y1 [y2 0.0])
-  (define a (list->f64vector (list x1 x2)))
-  (define b (list->f64vector (list y1 y2)))
-  (define c (make-f64vector 2))
-  (c_dd_atan2 (f64vector->cpointer a) (f64vector->cpointer b) (f64vector->cpointer c))
-  (apply values (f64vector->list c)))
+  (unsafe-f64vector-set! a 0 x1)
+  (unsafe-f64vector-set! a 1 x2)
+  (unsafe-f64vector-set! b 0 y1)
+  (unsafe-f64vector-set! b 1 y2)
+  (unsafe-f64vector-set! c 0 0.0)
+  (unsafe-f64vector-set! c 1 0.0)
+  (c_dd_atan2 a* b* c*)
+  (values (unsafe-f64vector-ref c 0)
+          (unsafe-f64vector-ref c 1)))
 
 (define (dd+ x1 x2 y1 [y2 0.0])
   (cond
@@ -157,11 +172,15 @@
          (values x1 x2)
          (nan.dd))]
     [else
-     (define a (list->f64vector (list x1 x2)))
-     (define b (list->f64vector (list y1 y2)))
-     (define c (make-f64vector 2))
-     (c_dd_add (f64vector->cpointer a) (f64vector->cpointer b) (f64vector->cpointer c))
-     (apply values (f64vector->list c))]))
+       (unsafe-f64vector-set! a 0 x1)
+       (unsafe-f64vector-set! a 1 x2)
+       (unsafe-f64vector-set! b 0 y1)
+       (unsafe-f64vector-set! b 1 y2)
+       (unsafe-f64vector-set! c 0 0.0)
+       (unsafe-f64vector-set! c 1 0.0)
+       (c_dd_add a* b* c*)
+       (values (unsafe-f64vector-ref c 0)
+               (unsafe-f64vector-ref c 1))]))
 
 (define (dd- x1 x2 y1 [y2 0.0])
   (cond
@@ -176,11 +195,15 @@
          (nan.dd)
          (values x1 x2))]
     [else
-     (define a (list->f64vector (list x1 x2)))
-     (define b (list->f64vector (list y1 y2)))
-     (define c (make-f64vector 2))
-     (c_dd_sub (f64vector->cpointer a) (f64vector->cpointer b) (f64vector->cpointer c))
-     (apply values (f64vector->list c))]))
+     (unsafe-f64vector-set! a 0 x1)
+     (unsafe-f64vector-set! a 1 x2)
+     (unsafe-f64vector-set! b 0 y1)
+     (unsafe-f64vector-set! b 1 y2)
+     (unsafe-f64vector-set! c 0 0.0)
+     (unsafe-f64vector-set! c 1 0.0)
+     (c_dd_sub a* b* c*)
+     (values (unsafe-f64vector-ref c 0)
+             (unsafe-f64vector-ref c 1))]))
 
 (define (dd* x1 x2 y1 [y2 0.0])
   (cond
@@ -202,11 +225,15 @@
          (+inf.dd)
          (-inf.dd))]
     [else
-     (define a (list->f64vector (list x1 x2)))
-     (define b (list->f64vector (list y1 y2)))
-     (define c (make-f64vector 2))
-     (c_dd_mul (f64vector->cpointer a) (f64vector->cpointer b) (f64vector->cpointer c))
-     (apply values (f64vector->list c))]))
+     (unsafe-f64vector-set! a 0 x1)
+     (unsafe-f64vector-set! a 1 x2)
+     (unsafe-f64vector-set! b 0 y1)
+     (unsafe-f64vector-set! b 1 y2)
+     (unsafe-f64vector-set! c 0 0.0)
+     (unsafe-f64vector-set! c 1 0.0)
+     (c_dd_mul a* b* c*)
+     (values (unsafe-f64vector-ref c 0)
+             (unsafe-f64vector-ref c 1))]))
 
 (define (dd/ x1 x2 y1 [y2 0.0])
   (cond
@@ -218,29 +245,39 @@
     [(and (ddinfinite? x1 x2) (ddsamesign? x1 x2 y1 y2)) (+inf.dd)]
     [(and (ddinfinite? x1 x2) (not (ddsamesign? x1 x2 y1 y2))) (-inf.dd)]
     [else
-     (define a (list->f64vector (list x1 x2)))
-     (define b (list->f64vector (list y1 y2)))
-     (define c (make-f64vector 2))
-     (c_dd_div (f64vector->cpointer a) (f64vector->cpointer b) (f64vector->cpointer c))
-     (apply values (f64vector->list c))]))
+     (unsafe-f64vector-set! a 0 x1)
+     (unsafe-f64vector-set! a 1 x2)
+     (unsafe-f64vector-set! b 0 y1)
+     (unsafe-f64vector-set! b 1 y2)
+     (unsafe-f64vector-set! c 0 0.0)
+     (unsafe-f64vector-set! c 1 0.0)
+     (c_dd_div a* b* c*)
+     (values (unsafe-f64vector-ref c 0)
+             (unsafe-f64vector-ref c 1))]))
 
 (define (ddsqrt x1 [x2 0])
   (cond
     [(ddposinf? x1 x2) (values x1 x2)]
     [else
-     (define a (list->f64vector (list x1 x2)))
-     (define c (make-f64vector 2))
-     (c_dd_sqrt (f64vector->cpointer a) (f64vector->cpointer c))
-     (apply values (f64vector->list c))]))
+     (unsafe-f64vector-set! a 0 x1)
+     (unsafe-f64vector-set! a 1 x2)
+     (unsafe-f64vector-set! c 0 0.0)
+     (unsafe-f64vector-set! c 1 0.0)
+     (c_dd_sqrt a* c*)
+     (values (unsafe-f64vector-ref c 0)
+             (unsafe-f64vector-ref c 1))]))
 
 (define (ddcbrt x1 [x2 0])
   (cond
     [(ddinfinite? x1 x2) (+inf.dd)]
     [else
-     (define a (list->f64vector (list x1 x2)))
-     (define c (make-f64vector 2))
-     (c_dd_nroot (f64vector->cpointer a) 3 (f64vector->cpointer c))
-     (apply values (f64vector->list c))]))
+     (unsafe-f64vector-set! a 0 x1)
+     (unsafe-f64vector-set! a 1 x2)
+     (unsafe-f64vector-set! c 0 0.0)
+     (unsafe-f64vector-set! c 1 0.0)
+     (c_dd_nroot a* 3 c*)
+     (values (unsafe-f64vector-ref c 0)
+             (unsafe-f64vector-ref c 1))]))
 
 (define (ddint? x1 [x2 0])
   (let*-values ([(a1 a2) (ddaint x1 x2)])
@@ -352,10 +389,13 @@
     [(_ [name1 name2] ...)
      (begin
        (define (name1 x1 [x2 0])
-         (define a (list->f64vector (list x1 x2)))
-         (define b (make-f64vector 2))
-         (name2 (f64vector->cpointer a) (f64vector->cpointer b))
-         (apply values (f64vector->list b))) ...)]))
+         (unsafe-f64vector-set! a 0 x1)
+         (unsafe-f64vector-set! a 1 x2)
+         (unsafe-f64vector-set! c 0 0.0)
+         (unsafe-f64vector-set! c 1 0.0)
+         (name2 a* c*)
+         (values (unsafe-f64vector-ref c 0)
+                 (unsafe-f64vector-ref c 1))) ...)]))
 
 (define-dd-unary-fn [ddabs c_dd_abs]
                     [ddsin c_dd_sin]
