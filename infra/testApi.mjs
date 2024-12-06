@@ -26,7 +26,6 @@ await callAnalyze(FPCoreFormula, [[[
 ], 0.12711304680349078]], [[[14.97651307489794], "2.3"]], true);
 
 async function callAnalyze(fpcore, p_context, result_huh, async_huh) {
-  console.debug(`Analyze for ${fpcore}`);
   const errors_body = {
     method: 'POST', body: JSON.stringify({
       formula: fpcore, sample: p_context
@@ -53,7 +52,6 @@ async function callAnalyze(fpcore, p_context, result_huh, async_huh) {
 // MARK: Translate
 async function callTranslate(fpcore, language, maybe_value) {
   if (language === 'mathjs') {
-    console.debug(`Translate to mathjs for ${fpcore}.`);
     const mathjs_rsp = await fetchAndCheckRSPHeaders("/api/mathjs", {
       method: 'POST', body: JSON.stringify({ formula: fpcore })
     }, CHECK_CORS);
@@ -64,7 +62,6 @@ async function callTranslate(fpcore, language, maybe_value) {
       assert.equal(mathjs.mathjs.length > 0, true);
     }
   } else {
-    console.debug(`Translate to ${language} for ${fpcore}.`);
     const json = await (await fetchAndCheckRSPHeaders("/api/translate", {
       method: 'POST', body: JSON.stringify(
         { formula: fpcore, language: language })
@@ -95,7 +92,6 @@ async function callUp() {
 
 // MARK: Sample
 async function callSample(fpcore, async) {
-  console.debug(`Sampling ${fpcore}`);
   const sampleBody = {
     method: 'POST',
     body: JSON.stringify({ formula: fpcore, seed: 5 })
@@ -122,7 +118,6 @@ assert.deepEqual(sample1.points[1], sample2.points[1]);
 
 // MARK: Explanations
 async function callExplanations(fpcore, p_context, async) {
-  console.debug(`Explaining ${fpcore}`);
   const explainBody = {
     method: 'POST',
     body: JSON.stringify({
@@ -296,7 +291,6 @@ const alts_async = callAlternatives(FPCoreFormula, [[[
 assert.deepEqual(alts_sync, alts_async);
 
 async function callAlternatives(fpcore, p_context, async_huh) {
-  console.debug(`Getting alts for ${fpcore}`);
   const alternatives_body = {
     method: 'POST', body: JSON.stringify({
       formula: fpcore, sample: p_context
@@ -450,10 +444,8 @@ async function simulateOdysseyCall(fpcore) {
     await callTranslate(alt, 'mathjs', null)
     await callTranslate(alt, 'tex', null)
     await callAnalyze(alt, sample.points, null, false)
-    console.debug(`cost for ${alt}`)
     await callCost(alt, sample.points)
   }
-  console.log(`Odyssey call for ${fpcore} completed.`)
 }
 
 function makeEndpoint(endpoint) {
