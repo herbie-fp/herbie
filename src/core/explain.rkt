@@ -342,7 +342,7 @@
         [(list (or 'sqrt.f64 'sqrt.f32) x-ex)
          #:when (list? x-ex)
          (define x.lf (lfs-ref x-ex))
-         (when (lf< x.lf (lf 0.0) #f)
+         #;(when (lf< x.lf (lf 0.0) #f)
            (eprintf "~a, ~a, ~a\n" subexpr pt x.lf))
 
          (cond
