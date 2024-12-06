@@ -13,16 +13,7 @@
 (define (xnor a b)
   (not (xor a b)))
 
-(struct logfloat (r1 r2 s e1 e2)
-  #:methods gen:custom-write
-  [(define write-proc
-     (make-constructor-style-printer (lambda (_) 'logfloat)
-                                     (lambda (obj)
-                                       (list (logfloat-r1 obj)
-                                             (logfloat-r2 obj)
-                                             (logfloat-s obj)
-                                             (logfloat-e1 obj)
-                                             (logfloat-e2 obj)))))])
+(struct logfloat (r1 r2 s e1 e2) #:prefab)
 
 (define/contract (lf x1 [x2 0.0])
   (->* (flonum?) (flonum?) logfloat?)
