@@ -286,8 +286,31 @@
 (define (ddneg x1 [x2 0])
   (values (- x1) (- x2)))
 
+;; From racket/math:math-lib/math/private/flonum/expansion/expansion-log.rkt
+(define (fl2log-reduction x2 x1)
+  (define k (- (fltruncate (fl/ (fllog+ x1 x2) (fllog 2.0)))))
+  (cond [(k . fl> . 1023.0)
+         ;; This can happen if x is subnormal; just multiply in pieces
+         (define k0 1023.0)
+         (define k1 (fl- k k0))
+         (define 2^k0 (flexpt 2.0 k0))
+         (define 2^k1 (flexpt 2.0 k1))
+         (let*-values ([(x2 x1)  (values (* x2 2^k0 2^k1) (* x1 2^k0 2^k1))])
+           (values k x2 x1))]
+        [else
+         (define 2^k (flexpt 2.0 k))
+         (let*-values ([(x2 x1)  (values (fl* x2 2^k) (fl* x1 2^k))])
+           (values k x2 x1))]))
+
 (define (ddlog x1 [x2 0.0])
-  (fl2log x1 x2))
+  (define-values (k x1* x2*) (fl2log-reduction x1 x2))
+  (unsafe-f64vector-set! a 0 x1*)
+  (unsafe-f64vector-set! a 1 x2*)
+  (c_dd_log a* c*)
+  (define y1 (unsafe-f64vector-ref c 0))
+  (define y2 (unsafe-f64vector-ref c 1))
+  (define-values (z1 z2) (dd* log2-hi log2-lo k))
+  (dd- y1 y2 z1 z2))
 
 (define (ddlog2 x1 [x2 0.0])
   (cond
