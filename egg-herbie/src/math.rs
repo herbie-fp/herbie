@@ -118,7 +118,7 @@ impl Default for ConstantFold {
     fn default() -> Self {
         Self {
             constant_fold: true,
-            prune: true,
+            prune: false, //true,
             unsound: AtomicBool::new(false),
         }
     }
