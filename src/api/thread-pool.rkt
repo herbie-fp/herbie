@@ -18,6 +18,7 @@
   (format "~a-~a" index (substring replaced 0 (min (string-length replaced) 50))))
 
 (define (run-test index test #:seed seed #:profile profile? #:dir dir)
+  (collect-garbage 'major)
   (define bad-id -1) ; TODO move this code to using server.rkt
   (cond
     [dir
