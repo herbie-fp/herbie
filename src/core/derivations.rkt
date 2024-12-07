@@ -30,8 +30,7 @@
 ;; Computes a `equal?`-based hash table key for an alternative
 (define (altn->key altn)
   (match altn
-    [(alt expr `(rr ,loc ,method ,_) prevs _)
-     (list expr (list 'rr loc method) (map alt-expr prevs))]
+    [(alt expr `(rr ,loc ,method ,_) prevs _) (list expr (list 'rr loc method) (map alt-expr prevs))]
     [(alt expr `(simplify ,loc ,method ,_) prevs _)
      (list expr (list 'simplify loc method) (map alt-expr prevs))]
     [_ (error 'altn->key "unimplemented ~a" altn)]))
@@ -104,8 +103,7 @@
     ; recursive rewrite or simplify, both using egg
     [(alt expr (list phase loc (? egg-runner? runner) #f) `(,prev) _)
      #:when (or (equal? phase 'simplify) (equal? phase 'rr))
-     (match-define proof
-       (canonicalize-proof (alt-expr altn) (alt->proof altn) loc pcontext ctx))
+     (match-define proof (canonicalize-proof (alt-expr altn) (alt->proof altn) loc pcontext ctx))
      (alt expr `(rr ,loc ,runner ,proof) `(,prev) '())]
 
     ; everything else

@@ -201,7 +201,7 @@
                                                 ['Rewrite<= "right to left"]
                                                 ['Rewrite=> "left to right"])])
                                      `(p (code ([title ,dir]) ,(~a rule))
-                                         (span ([class "error"]) ,err)))
+                                         (span ((class "error")) ,err)))
                                   (div ((class "math"))
                                        "\\[\\leadsto "
                                        ,(core->tex prog #:loc (and loc (cons 2 loc)) #:color "blue")
