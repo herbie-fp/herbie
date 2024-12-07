@@ -7,7 +7,7 @@
          "../syntax/sugar.rkt"
          "../syntax/syntax.rkt")
 
-(provide add-soundiness)
+(provide add-derivations)
 
 (define (canonicalize-rewrite proof)
   (match proof
@@ -99,7 +99,7 @@
   (cdr (assoc rw (hash-ref query->proofs runner))))
 
 ;; Adds proof information to alternatives.
-(define (add-soundiness-to altn pcontext ctx alt->proof)
+(define (add-derivations-to altn pcontext ctx alt->proof)
   (match altn
     ; recursive rewrite or simplify, both using egg
     [(alt expr (list phase loc (? egg-runner? runner) #f) `(,prev) _)
@@ -111,9 +111,9 @@
     ; everything else
     [_ altn]))
 
-(define (add-soundiness alts pcontext ctx)
+(define (add-derivations alts pcontext ctx)
   (define-values (alt->query&rws query->rws) (make-proof-tables alts))
   (define query->proofs (compute-proofs query->rws))
   (define lookup-proc (lookup-proof alt->query&rws query->proofs))
   (for/list ([altn (in-list alts)])
-    (alt-map (curryr add-soundiness-to pcontext ctx lookup-proc) altn)))
+    (alt-map (curryr add-derivations-to pcontext ctx lookup-proc) altn)))
