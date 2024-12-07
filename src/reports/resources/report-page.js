@@ -192,14 +192,9 @@ function on(mark, listeners = {}) {
 }
 
 function plotXY(testsData, filterFunction) {
-    var filteredTests = []
-    testsData.tests.forEach((test) => {
-        // Ugh global scope 
-        let other = diffAgainstFields[test.name]
-        if (filterFunction(test, other)) {
-            filteredTests.push(test)
-        }
-    })
+    var filteredTests = testsData.tests.filter((test) => {
+        return filterFunction(test, diffAgainstFields[test.name]);
+    });
     const out = Plot.plot({
         marks: [
             Plot.line([[0, 0], [1, 1]], { stroke: '#ddd' }),
@@ -331,10 +326,6 @@ function buildCompareForm(jsonData) {
 function buildBody(jsonData, otherJsonData) {
     let filterFunction = makeFilterFunction();
 
-    function hasNote(note) {
-        return (note ? toTitleCase(note) + " " : "") + "Results"
-    }
-
     var total_start = 0
     var total_result = 0
     var maximum_accuracy = 0
@@ -376,7 +367,7 @@ function buildBody(jsonData, otherJsonData) {
     ])
 
     const header = Element("header", {}, [
-        Element("h1", {}, hasNote(jsonData.note)),
+        Element("h1", {}, toTitleCase(jsonData.note ?? "") + " Results",
         Element("img", { src: "logo-car.png" }, []),
         Element("nav", {}, [
             Element("ul", {}, [Element("li", {}, [Element("a", { href: "timeline.html" }, ["Metrics"])])])
