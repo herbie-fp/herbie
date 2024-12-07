@@ -376,25 +376,28 @@
            (cond
              ;; if the numerator underflows and the denominator:
              ;; - underflows, nan could be rescued
-             [(and (lfunderflow? x.lf) (lfunderflow? y.lf) (not (lfnan? z.dl)))
+             [(and (list? x-ex) (list? y-ex) (lfunderflow? x.lf) (lfunderflow? y.lf) (not (lfnan? z.dl)))
+              ;(eprintf "~a ~a ~a ~a ~a\n" subexpr x.lf y.lf pt (lf-precision))
               (mark-erroneous! subexpr 'u/u)]
              ;; - is small enough, 0 underflow could be rescued
-             [(and (lfunderflow? x.lf) (not (lfunderflow? z.dl))) (mark-erroneous! subexpr 'u/n)]
+             [(and (list? x-ex) (lfunderflow? x.lf) (not (lfunderflow? z.dl)))
+
+              (mark-erroneous! subexpr 'u/n)]
              ;; - overflows, no rescue is possible
 
              ;; if the numerator overflows and the denominator:
              ;; - overflows, nan could be rescued
-             [(and (lfoverflow? x.lf) (lfoverflow? y.lf) (not (lfnan? z.dl)))
+             [(and (list? x-ex) (list? y-ex) (lfoverflow? x.lf) (lfoverflow? y.lf) (not (lfnan? z.dl)))
               (mark-erroneous! subexpr 'o/o)]
              ;; - is large enough, inf overflow can be rescued
-             [(and (lfoverflow? x.lf) (not (lfoverflow? z.dl))) (mark-erroneous! subexpr 'o/n)]
+             [(and (list? x-ex) (lfoverflow? x.lf) (not (lfoverflow? z.dl))) (mark-erroneous! subexpr 'o/n)]
              ;; - underflow, no rescue is possible
 
              ;; if the numerator is normal and the denominator:
              ;; - overflows, then a rescue is possible
-             [(and (lfoverflow? y.lf) (not (lfunderflow? z.dl))) (mark-erroneous! subexpr 'n/o)]
+             [(and (list? y-ex) (lfoverflow? y.lf) (not (lfunderflow? z.dl))) (mark-erroneous! subexpr 'n/o)]
              ;; - underflows, then a rescue is possible
-             [(and (lfunderflow? y.lf) (not (lfoverflow? z.dl))) (mark-erroneous! subexpr 'n/u)]
+             [(and (list? y-ex) (lfunderflow? y.lf) (not (lfoverflow? z.dl))) (mark-erroneous! subexpr 'n/u)]
              ;; - is normal, then no rescue is possible
              [else #f]))]
 
@@ -589,6 +592,7 @@
   (define explanations-table
     (for/list ([(key val) (in-dict expls->points)]
                #:unless (zero? (length val)))
+      ;(eprintf "~a ~a\n" key (length val))
       (define expr (car key))
       (define expl (cdr key))
       (define err-count (length val))
@@ -673,10 +677,12 @@
                       uflow-hash))
 
 (define (flow-list flow-hash expr type)
+  ;(eprintf "~a ~a ~a\n" flow-hash expr type)
   (for/list ([(k v) (in-dict (hash-ref flow-hash expr))])
     (list (~a k) type v)))
 
 (define (make-flow-table oflow-hash uflow-hash expr expl)
+  ;(eprintf "~a ~a\n" expr expl)
   (match (list expl expr)
     [(list 'oflow-rescue _) (flow-list oflow-hash expr "overflow")]
     [(list 'uflow-rescue _) (flow-list uflow-hash expr "underflow")]
