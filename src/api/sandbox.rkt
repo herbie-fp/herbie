@@ -35,7 +35,7 @@
          (struct-out improve-result)
          (struct-out alt-analysis))
 
-(struct job-result (command test status time timeline warnings backend))
+(struct job-result (command test status time timeline profile warnings backend))
 (struct improve-result (preprocess pctxs start target end bogosity))
 (struct alt-analysis (alt train-errors test-errors) #:prefab)
 
@@ -245,6 +245,7 @@
                     #:profile? [profile? #f]
                     #:timeline-disabled? [timeline-disabled? #f])
   (define timeline #f)
+  (define profile #f)
 
   ;; CS versions <= 8.2: problems with scheduler cause places to stay
   ;; in a suspended state
@@ -256,7 +257,7 @@
       (timeline-event! 'end)
       (define time (- (current-inexact-milliseconds) start-time))
       (match command
-        ['improve (job-result command test 'failure time (timeline-extract) (warning-log) e)]
+        ['improve (job-result command test 'failure time (timeline-extract) profile (warning-log) e)]
         [_ (raise e)])))
 
   (define (on-timeout)
@@ -264,10 +265,11 @@
       (timeline-load! timeline)
       (timeline-event! 'end)
       (match command
-        ['improve (job-result command test 'timeout (*timeout*) (timeline-extract) (warning-log) #f)]
+        ['improve
+         (job-result command test 'timeout (*timeout*) (timeline-extract) profile (warning-log) #f)]
         [_ (error 'run-herbie "command ~a timed out" command)])))
 
-  (define (compute-result test)
+  (define (compute-result _)
     (parameterize ([*timeline-disabled* timeline-disabled?])
       (define start-time (current-inexact-milliseconds))
       (reset!)
@@ -277,34 +279,33 @@
       (set! timeline (*timeline*))
       (when seed
         (set-seed! seed))
-      (with-handlers ([exn? (curry on-exception start-time)])
-        (timeline-event! 'start) ; Prevents the timeline from being empty.
-        (define result
-          (match command
-            ['alternatives (get-alternatives test pcontext seed)]
-            ['evaluate (get-calculation test pcontext)]
-            ['cost (get-cost test)]
-            ['errors (get-errors test pcontext)]
-            ['exacts (get-exacts test pcontext)]
-            ['improve (get-alternatives/report test)]
-            ['local-error (get-local-error test pcontext)]
-            ['explanations (get-explanations test pcontext)]
-            ['sample (get-sample test)]
-            [_ (error 'compute-result "unknown command ~a" command)]))
-        (timeline-event! 'end)
-        (define time (- (current-inexact-milliseconds) start-time))
-        (job-result command test 'success time (timeline-extract) (warning-log) result))))
-
-  (define (in-engine _)
-    (if profile?
-        (profile-thunk (λ () (compute-result test))
-                       #:order 'total
-                       #:delay 0.01
-                       #:render (λ (p order) (write-json (profile->json p) profile?)))
-        (compute-result test)))
+      (define (go)
+        (with-handlers ([exn? (curry on-exception start-time)])
+          (timeline-event! 'start) ; Prevents the timeline from being empty.
+          (begin0 (match command
+                    ['alternatives (get-alternatives test pcontext seed)]
+                    ['evaluate (get-calculation test pcontext)]
+                    ['cost (get-cost test)]
+                    ['errors (get-errors test pcontext)]
+                    ['exacts (get-exacts test pcontext)]
+                    ['improve (get-alternatives/report test)]
+                    ['local-error (get-local-error test pcontext)]
+                    ['explanations (get-explanations test pcontext)]
+                    ['sample (get-sample test)]
+                    [_ (error 'compute-result "unknown command ~a" command)])
+            (timeline-event! 'end))))
+      (define result
+        (if profile?
+            (profile-thunk go
+                           #:order 'total
+                           #:delay 0.01
+                           #:render (λ (p order) (set! profile (profile->json p))))
+            (go)))
+      (define time (- (current-inexact-milliseconds) start-time))
+      (job-result command test 'success time (timeline-extract) profile (warning-log) result)))
 
   ;; Branch on whether or not we should run inside an engine
-  (define eng (engine in-engine))
+  (define eng (engine compute-result))
   (if (engine-run (*timeout*) eng)
       (engine-result eng)
       (on-timeout)))
@@ -447,7 +448,7 @@
     [_ (error 'get-table-data "unknown result type ~a" status)]))
 
 (define (get-table-data result link)
-  (match-define (job-result command test status time _ _ backend) result)
+  (match-define (job-result command test status time _ _ _ backend) result)
   (match status
     ['success
      (match-define (improve-result _ _ start targets end _) backend)
