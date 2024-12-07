@@ -219,11 +219,21 @@ function plotXY(testsData, filterFunction) {
 
 function plotPareto(jsonData, otherJsonData) {
     const [initial, frontier] = jsonData["merged-cost-accuracy"];
-    const [initial2, frontier2] = 
-          otherJsonData ? otherJsonData["merged-cost-accuracy"] : [null, null];
-    const out = Plot.plot({
-        marks: 
-        (otherJsonData ? [
+    let marks = [
+        Plot.dot([initial], {
+            stroke: "#00a",
+            symbol: "square",
+            strokeWidth: 2,
+        }),
+        Plot.line(frontier, {
+            stroke: "#00a",
+            strokeWidth: 2,
+        }),
+    ];
+
+    if (otherJsonData) {
+        const [initial2, frontier2] = otherJsonData["merged-cost-accuracy"];
+        marks = [
             Plot.dot([initial2], {
                 stroke: "#900",
                 symbol: "square",
@@ -232,18 +242,12 @@ function plotPareto(jsonData, otherJsonData) {
             Plot.line(frontier2, {
                 stroke: "#900",
                 strokeWidth: 2,
-            }),
-        ] : []) + [
-            Plot.dot([initial], {
-                stroke: "#00a",
-                symbol: "square",
-                strokeWidth: 2,
-            }),
-            Plot.line(frontier, {
-                stroke: "#00a",
-                strokeWidth: 2,
-            }),
-        ],
+            })
+        ].concat(marks);
+    }
+
+    const out = Plot.plot({
+        marks: marks,
         width: '400',
         height: '400',
         x: { line: true, nice: true, tickFormat: c => c + "×" },
@@ -367,7 +371,7 @@ function buildBody(jsonData, otherJsonData) {
     ])
 
     const header = Element("header", {}, [
-        Element("h1", {}, toTitleCase(jsonData.note ?? "") + " Results",
+        Element("h1", {}, toTitleCase(jsonData.note || "") + " Results"),
         Element("img", { src: "logo-car.png" }, []),
         Element("nav", {}, [
             Element("ul", {}, [Element("li", {}, [Element("a", { href: "timeline.html" }, ["Metrics"])])])
