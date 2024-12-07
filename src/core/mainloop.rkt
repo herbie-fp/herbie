@@ -226,8 +226,8 @@
          (define event*
            (match event
              [(list 'taylor name var) (list 'taylor loc0 name var)]
-             [(list 'rr input proof soundiness) (list 'rr loc0 input proof soundiness)]
-             [(list 'simplify input proof soundiness) (list 'simplify loc0 input proof soundiness)]))
+             [(list 'rr input proof) (list 'rr loc0 input proof)]
+             [(list 'simplify input proof) (list 'simplify loc0 input proof)]))
          (define expr* (location-do loc0 (alt-expr orig) (const (debatchref (alt-expr altn)))))
          (alt expr* event* (list (loop (first prevs))) (alt-preprocessing orig))])))
 

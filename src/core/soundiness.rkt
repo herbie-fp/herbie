@@ -16,31 +16,6 @@
     [(list _ ...) (map canonicalize-rewrite proof)]
     [_ proof]))
 
-(define (get-proof-errors proof pcontext ctx)
-  (define proof-exprs (map remove-rewrites proof))
-  (define proof-progs (filter impl-prog? proof-exprs))
-  (define errss (batch-errors proof-progs pcontext ctx))
-
-  (define prog->errs
-    (for/hash ([prog (in-list proof-progs)]
-               [errs (in-list errss)])
-      (values prog errs)))
-
-  (define proof-errors
-    (for/list ([expr (in-list proof-exprs)])
-      (hash-ref prog->errs expr #f)))
-
-  (define proof-diffs
-    (cons (list 0 0)
-          (for/list ([prev proof-errors]
-                     [current (rest proof-errors)])
-            (and prev
-                 current
-                 (list (count > current prev) ; num points where error increased
-                       (count < current prev)))))) ; num points where error decreased
-
-  proof-diffs)
-
 (define (canonicalize-proof prog proof loc pcontext ctx)
   (cond
     [proof
@@ -49,16 +24,15 @@
      (define proof*
        (for/list ([step (in-list proof)])
          (location-do loc prog (const (canonicalize-rewrite step)))))
-     (define errors (get-proof-errors proof* pcontext ctx))
-     (cons proof* errors)]
-    [else (cons #f #f)]))
+     proof*]
+    [else #f]))
 
 ;; Computes a `equal?`-based hash table key for an alternative
 (define (altn->key altn)
   (match altn
-    [(alt expr `(rr ,loc ,method ,_ ,_) prevs _)
+    [(alt expr `(rr ,loc ,method ,_) prevs _)
      (list expr (list 'rr loc method) (map alt-expr prevs))]
-    [(alt expr `(simplify ,loc ,method ,_ ,_) prevs _)
+    [(alt expr `(simplify ,loc ,method ,_) prevs _)
      (list expr (list 'simplify loc method) (map alt-expr prevs))]
     [_ (error 'altn->key "unimplemented ~a" altn)]))
 
@@ -73,7 +47,7 @@
   (define (build! altn)
     (match altn
       ; recursive rewrite using egg (impl -> impl)
-      [(alt expr `(rr ,loc ,(? egg-runner? runner) #f #f) `(,prev) _)
+      [(alt expr `(rr ,loc ,(? egg-runner? runner) #f) `(,prev) _)
        (define start-expr (location-get loc (alt-expr prev)))
        (define end-expr (location-get loc expr))
        (define rewrite (cons start-expr end-expr))
@@ -83,7 +57,7 @@
       ; simplify using egg
       ;  usually: impl -> impl
       ;  taylor: spec -> approx (_, impl)
-      [(alt expr `(simplify ,loc ,(? egg-runner? runner) #f #f) `(,prev) _)
+      [(alt expr `(simplify ,loc ,(? egg-runner? runner) #f) `(,prev) _)
        (define rewrite
          (match (alt-event prev)
            [(list 'taylor _ ...)
@@ -128,11 +102,11 @@
 (define (add-soundiness-to altn pcontext ctx alt->proof)
   (match altn
     ; recursive rewrite or simplify, both using egg
-    [(alt expr (list phase loc (? egg-runner? runner) #f #f) `(,prev) _)
+    [(alt expr (list phase loc (? egg-runner? runner) #f) `(,prev) _)
      #:when (or (equal? phase 'simplify) (equal? phase 'rr))
-     (match-define (cons proof* errs)
+     (match-define proof
        (canonicalize-proof (alt-expr altn) (alt->proof altn) loc pcontext ctx))
-     (alt expr `(rr ,loc ,runner ,proof* ,errs) `(,prev) '())]
+     (alt expr `(rr ,loc ,runner ,proof) `(,prev) '())]
 
     ; everything else
     [_ altn]))
