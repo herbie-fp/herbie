@@ -191,20 +191,32 @@ function on(mark, listeners = {}) {
     return mark
 }
 
-function plotXY(testsData, filterFunction) {
-    var filteredTests = testsData.tests.filter((test) => {
+function plotXY(testsData, otherJsonData, filterFunction) {
+    const filteredTests = testsData.tests.filter((test) => {
         return filterFunction(test, diffAgainstFields[test.name]);
     });
+    function onclick(e, d) {
+        window.location = d.link + "/graph.html";
+    }
+    let marks = [
+        Plot.line([[0, 0], [1, 1]], { stroke: '#ddd' }),
+    ];
+    if (otherJsonData) {
+        marks.push(Plot.arrow(filteredTests, {
+            x1: d => 1 - diffAgainstFields[d.name].start / 64,
+            y1: d => 1 - diffAgainstFields[d.name].end / 64,
+            x2: d => 1 - d.start / 64,
+            y2: d => 1 - d.end / 64,
+            stroke: "#900", strokeWidth: 2,
+        }));
+    }
+    marks.push(on(Plot.dot(filteredTests, {
+        x: d => 1 - d.start / 64, y: d => 1 - d.end / 64,
+        fill: "#00a", strokeWidth: 2,
+    }), { click: onclick }));
+    
     const out = Plot.plot({
-        marks: [
-            Plot.line([[0, 0], [1, 1]], { stroke: '#ddd' }),
-            on(Plot.dot(filteredTests, {
-                x: d => 1 - d.start / 64, y: d => 1 - d.end / 64,
-                fill: "#00a", strokeWidth: 2,
-            }), {
-                click: (e, d) => { window.location = d.link + "/graph.html"; },
-            }),
-        ],
+        marks: marks,
         className: "clickable",
         marginBottom: 0,
         marginRight: 0,
@@ -320,7 +332,7 @@ function buildCompareForm(jsonData) {
 
     const hideEqual = buildCheckboxLabel("hide-equal", "Hide equal", hideDirtyEqual)
     hideEqual.addEventListener("click", (e) => {
-        hideDirtyEqual = hideEqual.checked;
+        hideDirtyEqual = ! hideDirtyEqual;
         update();
     })
 
@@ -381,7 +393,7 @@ function buildBody(jsonData, otherJsonData) {
     const figureRow = Element("div", { classList: "figure-row" }, [
         Element("figure", { id: "xy" }, [
             Element("h2", {}, [tempXY_A]),
-            plotXY(jsonData, filterFunction),
+            plotXY(jsonData, otherJsonData, filterFunction),
             Element("figcaption", {}, [tempXY_B])
         ]),
         Element("figure", { id: "pareto" }, [
@@ -453,7 +465,7 @@ function buildTableContents(jsonData, otherJsonData, filterFunction) {
             rows.push(row)
         }
     }
-    return rows
+    return rows;
 }
 
 function getMinimum(target) {
