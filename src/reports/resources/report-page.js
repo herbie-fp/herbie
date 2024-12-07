@@ -222,14 +222,27 @@ function plotXY(testsData, filterFunction) {
     return out;
 }
 
-function plotPareto(jsonData) {
+function plotPareto(jsonData, otherJsonData) {
     const [initial, frontier] = jsonData["merged-cost-accuracy"];
+    const [initial2, frontier2] = 
+          otherJsonData ? otherJsonData["merged-cost-accuracy"] : [null, null];
     const out = Plot.plot({
-        marks: [
-            Plot.dot([initial], {
-                stroke: "#d00",
+        marks: 
+        (otherJsonData ? [
+            Plot.dot([initial2], {
+                stroke: "#900",
                 symbol: "square",
-                strokeWidth: 2
+                strokeWidth: 2,
+            }),
+            Plot.line(frontier2, {
+                stroke: "#900",
+                strokeWidth: 2,
+            }),
+        ] : []) + [
+            Plot.dot([initial], {
+                stroke: "#00a",
+                symbol: "square",
+                strokeWidth: 2,
             }),
             Plot.line(frontier, {
                 stroke: "#00a",
@@ -257,7 +270,8 @@ function buildCheckboxLabel(classes, text, boolState) {
 function buildDiffLine(jsonData, show) {
     const urlInput = Element("input", {
         id: "compare-input", value: compareAgainstURL,
-        placeholder: "URL to other json file"
+        placeholder: "URL to report or JSON file",
+        size: 60,
     }, []);
 
     var unitText = radioStates[radioState]?.tolerance;
@@ -307,8 +321,8 @@ function buildCompareForm(jsonData) {
 
     const hideEqual = buildCheckboxLabel("hide-equal", "Hide equal", hideDirtyEqual)
     hideEqual.addEventListener("click", (e) => {
-        hideDirtyEqual = !hideDirtyEqual
-        update()
+        hideDirtyEqual = hideEqual.checked;
+        update();
     })
 
     return Element("form", {}, [radioButtons, " ", hideEqual]);
@@ -377,7 +391,7 @@ function buildBody(jsonData, otherJsonData) {
         ]),
         Element("figure", { id: "pareto" }, [
             Element("h2", {}, [tempPareto_A]),
-            plotPareto(jsonData),
+            plotPareto(jsonData, otherJsonData),
             Element("figcaption", {}, [tempPareto_B])
         ])
     ])
@@ -385,6 +399,7 @@ function buildBody(jsonData, otherJsonData) {
     function buildTableHeader(stringName, help) {
         const textElement = Element("th", {}, [
             toTitleCase(stringName),
+            " ",
             (stringName != sortState.key ? "–" : sortState.dir ?  "⏶" : "⏷"),
             help && Element("span", { classList: "help-button", title: help }, ["?"]),
         ]);
