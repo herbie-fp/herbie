@@ -105,8 +105,7 @@
 (define/reset *prepend-arguement-cache* (make-hash))
 (define (cache-get-prepend v expr macro)
   (define key (cons expr v))
-  (define value (hash-ref! (*prepend-arguement-cache*) key (lambda () (macro v))))
-  value)
+  (hash-ref! (*prepend-arguement-cache*) key (lambda () (macro v))))
 
 (define (valid-splitpoints? splitpoints)
   (and (= (set-count (list->set (map sp-bexpr splitpoints))) 1) (nan? (sp-point (last splitpoints)))))
