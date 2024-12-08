@@ -37,6 +37,8 @@
 (define id->e2 (make-hasheq))
 (define e2->id (make-hasheq))
 
+(define file-num 1)
+
 ;; [Copied from egg-herbie.rkt] Returns all representatations (and their types) in the current platform.
 (define (all-repr-names [pform (*active-platform*)])
   (remove-duplicates (map (lambda (repr) (representation-name repr)) (platform-reprs pform))))
@@ -47,30 +49,31 @@
 
 (define program-to-egglog "program-to-egglog.egg")
 
+(define (get-numbered-file-name file-name extension)
+  (string-append file-name (string-append (number->string file-num) extension)))
+
 ; Types handled
 ; - rationals
 ; - string
 (define (write-program-to-egglog program)
-  (with-output-to-file program-to-egglog #:exists 'replace (lambda () (for-each writeln program))))
+  (with-output-to-file (get-numbered-file-name "program-to-egglog" ".egg")
+                       #:exists 'replace
+                       (lambda () (for-each writeln program))))
 
 (define (process-egglog egglog-filename)
   (define egglog-path
-    (or (find-executable-path "egglog") (error "egglog executable not found in PATH")))
+    (path->string (or (find-executable-path "egglog") (error "egglog executable not found in PATH"))))
 
-  (define curr-path (build-path (current-directory) egglog-filename))
+  (define curr-path (path->string (build-path (current-directory) egglog-filename)))
 
-  (define-values (sp out in err) (subprocess #f #f #f egglog-path curr-path))
+  (let ([stdout-port (open-output-string)]
+        [stderr-port (open-output-string)])
 
-  (subprocess-wait sp)
+    (parameterize ([current-output-port stdout-port]
+                   [current-error-port stderr-port])
+      (system (string-append egglog-path " " curr-path)))
 
-  (define stdout-content (port->string out))
-  (define stderr-content (port->string err))
-
-  (close-input-port out)
-  (close-output-port in)
-  (close-input-port err)
-
-  (cons stdout-content stderr-content))
+    (cons (get-output-string stdout-port) (get-output-string stderr-port))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Public API
@@ -79,7 +82,7 @@
 (define (run-egglog-process program-struct)
   (write-program-to-egglog (egglog-program-program program-struct))
 
-  (process-egglog program-to-egglog))
+  (process-egglog (get-numbered-file-name "program-to-egglog" ".egg")))
 
 ;; Most calls to egglog should be done through this interface.
 ;;  - `make-egglog-runner`: creates a struct that describes a _reproducible_ egglog instance
@@ -171,8 +174,66 @@
 ; ; TODO: if i have  two expressions how di i know if they are in the same e-class
 ; ; if we are outside of egglog
 (define (run-egglog-equal? runner expr-pairs) ; term equality?
-  (for/list ([(start-expr end-expr) (in-dict expr-pairs)])
-    #f))
+
+  (define program '())
+
+  ;; 1. Prelude
+  (set! program (append program (prelude #:mixed-egraph? #t)))
+
+  ;; 2. User Rules which comes from schedule (need to be translated)
+  (define tag-schedule
+    (for/list ([i (in-naturals 1)] ; Start index `i` from 1
+               [element (in-list (egg-runner-schedule runner))])
+
+      (define rule-type (car element))
+      (define schedule-params (cdr element))
+
+      (define curr-tag (string->symbol (string-append "?tag" (number->string i))))
+
+      ;; Add rulsets
+      (set! program (append program `((ruleset ,curr-tag))))
+
+      ;; Add the actual egglog rewrite rules
+      (set! program (append program (egglog-rewrite-rules rule-type curr-tag)))
+
+      (cons curr-tag schedule-params)))
+  (for ([(start-expr end-expr) (in-dict expr-pairs)]
+        [i (in-naturals 1)])
+    (define start-let
+      `(let ,(string->symbol (string-append "?e1" (number->string i))) ,(expr->e1-expr start-expr)))
+    (define end-let
+      `(let ,(string->symbol (string-append "?e2" (number->string i))) ,(expr->e1-expr end-expr)))
+    (set! program (append program `(,start-let ,end-let))))
+
+  ;; 3. Running the schedule
+  (set! program (append program '((run-schedule (repeat 5 ?tag1) (repeat 20 const-fold)))))
+
+  ;; Running Checks
+  (for ([(start-expr end-expr) (in-dict expr-pairs)]
+        [i (in-naturals 1)])
+    (define start-extract `(extract ,(string->symbol (string-append "?e1" (number->string i)))))
+    (define end-extract `(extract ,(string->symbol (string-append "?e2" (number->string i)))))
+    (set! program (append program `(,start-extract ,end-extract))))
+
+  ;; 6. Call run-egglog-process
+  (define egglog-output (run-egglog-process (egglog-program program)))
+  (define stdout-content (car egglog-output))
+
+  (with-output-to-file (get-numbered-file-name "stdout" ".txt")
+                       #:exists 'replace
+                       (lambda () (writeln stdout-content)))
+
+  (define extract-results (list->vector (string-split stdout-content "\n")))
+  (define stderr-content (cdr egglog-output))
+
+  ; (with-output-to-file "stderr.txt" #:exists 'replace (lambda () (writeln stderr-content)))
+
+  (with-output-to-file (get-numbered-file-name "stderr" ".txt")
+                       #:exists 'replace
+                       (lambda () (writeln stderr-content)))
+  (set! file-num (+ file-num 1))
+  (for/list ([i (in-range 0 (vector-length extract-results) 2)])
+    (equal? (vector-ref extract-results i) (vector-ref extract-results (+ i 1)))))
 
 (define (prelude #:mixed-egraph? [mixed-egraph? #t])
   (load-herbie-builtins)
@@ -204,8 +265,8 @@
   (define lift-fn `(function lift (MTy) M :unextractable))
   (set! prelude-exprs (append prelude-exprs (list lift-fn)))
   (set! prelude-exprs
-        (append prelude-exprs
-                (list `(ruleset lowering) `(ruleset lifting) `(ruleset math) `(ruleset fp-safe))))
+        (append prelude-exprs (list `(ruleset const-fold) `(ruleset lowering) `(ruleset lifting))))
+  (set! prelude-exprs (append prelude-exprs const-fold))
   (define impl-lowering (impl-lowering-rules pform))
   (set! prelude-exprs (append prelude-exprs impl-lowering))
   (define impl-lifting (impl-lifting-rules pform))
@@ -221,6 +282,38 @@
   (define approx-lifting (approx-lifting-rule))
   (set! prelude-exprs (append prelude-exprs (list approx-lifting)))
   prelude-exprs)
+
+(define const-fold
+  `((let ?zero (bigrat
+                (from-string "0")
+                (from-string "1"))
+      )
+    (rule ((= e (Add (Num x) (Num y)))) ((union e (Num (+ x y)))) :ruleset const-fold)
+    (rule ((= e (Sub (Num x) (Num y)))) ((union e (Num (- x y)))) :ruleset const-fold)
+    (rule ((= e (Mul (Num x) (Num y)))) ((union e (Num (* x y)))) :ruleset const-fold)
+    (rule ((= e (Div (Num x) (Num y))) (!= ?zero y)) ((union e (Num (/ x y)))) :ruleset const-fold)
+    (rule ((= e (Neg (Num x)))) ((union e (Num (neg x)))) :ruleset const-fold)
+    (rule ((= e (Pow (Num x) (Num y))) (= ?zero x) (> y ?zero))
+          ((union e (Num ?zero)))
+          :ruleset
+          const-fold)
+    (rule ((= e (Pow (Num x) (Num y))) (= ?zero y) (!= ?zero x))
+          ((union e (Num (bigrat (from-string "1") (from-string "1")))))
+          :ruleset
+          const-fold)
+    (rule ((= e (Pow (Num x) (Num y))) (> y ?zero) (!= ?zero x) (= y (round y)))
+          ((union e (Num (pow x y))))
+          :ruleset
+          const-fold)
+    (rule ((= e (Log (Num x))) (= (numer x) (denom x))) ((union e (Num ?zero))) :ruleset const-fold)
+    (rule ((= e (Cbrt (Num x))) (= (numer x) (denom x)))
+          ((union e (Num (bigrat (from-string "1") (from-string "1")))))
+          :ruleset
+          const-fold)
+    (rule ((= e (Fabs (Num x)))) ((union e (Num (abs x)))) :ruleset const-fold)
+    (rule ((= e (Floor (Num x)))) ((union e (Num (floor x)))) :ruleset const-fold)
+    (rule ((= e (Ceil (Num x)))) ((union e (Num (ceil x)))) :ruleset const-fold)
+    (rule ((= e (Round (Num x)))) ((union e (Num (round x)))) :ruleset const-fold)))
 
 (define (platform-spec-nodes)
   (for/list ([op (in-list (all-operators))])
@@ -380,7 +473,7 @@
        `(,(typed-num-id (representation-name repr))
          (bigrat (from-string ,(number->string (numerator (literal-value expr))))
                  (from-string ,(number->string (denominator (literal-value expr))))))]
-      [(? symbol?) `(,(typed-var-id (representation-name repr)) ,expr)]
+      [(? symbol?) expr]
       [`(if ,cond ,ift ,iff) `(IfTy ,(loop cond repr) ,(loop ift repr) ,(loop iff repr))]
       [(list op args ...)
        `(,(hash-ref id->e2 op) ,@(for/list ([arg (in-list args)]
@@ -393,13 +486,23 @@
       [(? number?)
        `(Num (bigrat (from-string ,(number->string (numerator expr)))
                      (from-string ,(number->string (denominator expr)))))]
-      [(? symbol?) `(Var ,expr)]
+      [(? symbol?) expr]
+      [`(if ,cond ,ift ,iff) `(If ,(loop cond) ,(loop ift) ,(loop iff))]
+      [(list op args ...) `(,(hash-ref id->e1 op) ,@(map loop args))])))
+
+(define (expr->e1-expr expr)
+  (let loop ([expr expr])
+    (match expr
+      [(? number?)
+       `(Num (bigrat (from-string ,(number->string (numerator expr)))
+                     (from-string ,(number->string (denominator expr)))))]
+      [(? symbol?) `(Var ,(symbol->string expr))]
       [`(if ,cond ,ift ,iff) `(If ,(loop cond) ,(loop ift) ,(loop iff))]
       [(list op args ...) `(,(hash-ref id->e1 op) ,@(map loop args))])))
 
 (define (egglog-rewrite-rules rules tag)
   (for/list ([rule (in-list rules)])
-    (if spec?
+    (if (not (representation? (rule-otype rule)))
         `(rewrite ,(expr->e1-pattern (rule-input rule))
                   ,(expr->e1-pattern (rule-output rule))
                   :ruleset
@@ -498,7 +601,9 @@
               (let ety (,(typed-var-id (representation-name repr))
                         ,(symbol->string var))
                 )
-              (union (lower e ty) ety)) :ruleset lowering)))
+              (union (lower e ty) ety))
+             :ruleset
+             lowering)))
 
   (set! egglog-exprs (append egglog-exprs var-lowering-rules))
 
@@ -509,7 +614,9 @@
              ((let se (Var
                        ,(symbol->string var))
                 )
-              (union (lift e) se)) :ruleset lifting)))
+              (union (lift e) se))
+             :ruleset
+             lifting)))
 
   (set! egglog-exprs (append egglog-exprs var-lifting-rules))
 
@@ -577,4 +684,5 @@
        `(if ,(loop cond)
             ,(loop ift)
             ,(loop iff))]
+      [`(Approx ,spec ,impl) (approx (e1->expr spec) (loop impl))]
       [`(,impl ,args ...) `(,(hash-ref e2->id impl) ,@(map loop args))])))
