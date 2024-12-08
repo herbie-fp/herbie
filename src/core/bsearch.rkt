@@ -207,7 +207,7 @@
             (sp 0 '(/.f64 y x) +inf.0)
             (sp 1 '(/.f64 y x) +nan.0)))
     (match-define (list p0? p1? p2?)
-      (splitpoints->point-preds sps (map make-alt (build-list 3 (const '(λ (x y) (/ x y))))) context))
+      (splitpoints->point-preds sps (map make-alt (make-list 3 '(λ (x y) (/ x y)))) context))
 
     (check-pred p0? '(0.0 -1.0))
     (check-pred p2? '(-1.0 1.0))
