@@ -2,22 +2,22 @@
 
 (require math/bigfloat
          racket/random)
-(require "../utils/common.rkt"
-         "../utils/alternative.rkt"
-         "../utils/timeline.rkt"
-         "../utils/errors.rkt"
-         "../syntax/types.rkt"
+(require "../config.rkt"
          "../syntax/sugar.rkt"
          "../syntax/syntax.rkt"
-         "../config.rkt"
-         "compiler.rkt"
-         "programs.rkt"
-         "points.rkt"
-         "regimes.rkt"
+         "../syntax/types.rkt"
+         "../utils/alternative.rkt"
+         "../utils/common.rkt"
+         "../utils/errors.rkt"
          "../utils/float.rkt"
          "../utils/pretty-print.rkt"
-         "sampling.rkt"
-         "rival.rkt")
+         "../utils/timeline.rkt"
+         "compiler.rkt"
+         "points.rkt"
+         "programs.rkt"
+         "regimes.rkt"
+         "rival.rkt"
+         "sampling.rkt")
 
 (provide combine-alts
          (struct-out sp)

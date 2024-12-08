@@ -2,8 +2,8 @@
 
 (require "../syntax/syntax.rkt"
          "../syntax/types.rkt"
-         "../utils/timeline.rkt"
          "../utils/float.rkt"
+         "../utils/timeline.rkt"
          "batch.rkt")
 
 (provide compile-progs
