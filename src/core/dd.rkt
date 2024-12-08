@@ -149,15 +149,20 @@
     (dd- x1 x2 c1 c2)))
 
 (define (ddatan2 x1 x2 y1 [y2 0.0])
-  (unsafe-f64vector-set! a 0 x1)
-  (unsafe-f64vector-set! a 1 x2)
-  (unsafe-f64vector-set! b 0 y1)
-  (unsafe-f64vector-set! b 1 y2)
-  (unsafe-f64vector-set! c 0 0.0)
-  (unsafe-f64vector-set! c 1 0.0)
-  (c_dd_atan2 a* b* c*)
-  (values (unsafe-f64vector-ref c 0)
-          (unsafe-f64vector-ref c 1)))
+  (cond
+    [(or (ddnan? x1 x2) (ddnan? y1 y2))
+     (values +nan.0 +nan.0)]
+
+    [else
+     (unsafe-f64vector-set! a 0 x1)
+     (unsafe-f64vector-set! a 1 x2)
+     (unsafe-f64vector-set! b 0 y1)
+     (unsafe-f64vector-set! b 1 y2)
+     (unsafe-f64vector-set! c 0 0.0)
+     (unsafe-f64vector-set! c 1 0.0)
+     (c_dd_atan2 a* b* c*)
+     (values (unsafe-f64vector-ref c 0)
+             (unsafe-f64vector-ref c 1))]))
 
 (define (dd+ x1 x2 y1 [y2 0.0])
   (cond
@@ -412,13 +417,16 @@
     [(_ [name1 name2] ...)
      (begin
        (define (name1 x1 [x2 0])
-         (unsafe-f64vector-set! a 0 x1)
-         (unsafe-f64vector-set! a 1 x2)
-         (unsafe-f64vector-set! c 0 0.0)
-         (unsafe-f64vector-set! c 1 0.0)
-         (name2 a* c*)
-         (values (unsafe-f64vector-ref c 0)
-                 (unsafe-f64vector-ref c 1))) ...)]))
+         (cond
+           [(ddnan? x1 x2) (values +nan.0 +nan.0)]
+           [else
+            (unsafe-f64vector-set! a 0 x1)
+            (unsafe-f64vector-set! a 1 x2)
+            (unsafe-f64vector-set! c 0 0.0)
+            (unsafe-f64vector-set! c 1 0.0)
+            (name2 a* c*)
+            (values (unsafe-f64vector-ref c 0)
+                    (unsafe-f64vector-ref c 1))])) ...)]))
 
 (define-dd-unary-fn [ddabs c_dd_abs]
                     [ddsin c_dd_sin]
