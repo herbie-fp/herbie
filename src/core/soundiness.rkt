@@ -132,7 +132,7 @@
      #:when (or (equal? phase 'simplify) (equal? phase 'rr))
      (match-define (cons proof* errs)
        (canonicalize-proof (alt-expr altn) (alt->proof altn) loc pcontext ctx))
-     (alt expr `(rr ,loc ,runner ,proof* ,errs) `(,prev) '())]
+     (alt expr `(rr ,loc ,runner ,proof* ,errs) (list prev) '())]
 
     ; everything else
     [_ altn]))
