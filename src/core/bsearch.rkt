@@ -2,22 +2,22 @@
 
 (require math/bigfloat
          racket/random)
-(require "../utils/common.rkt"
-         "../utils/alternative.rkt"
-         "../utils/timeline.rkt"
-         "../utils/errors.rkt"
-         "../syntax/types.rkt"
+(require "../config.rkt"
          "../syntax/sugar.rkt"
          "../syntax/syntax.rkt"
-         "../config.rkt"
-         "compiler.rkt"
-         "programs.rkt"
-         "points.rkt"
-         "regimes.rkt"
+         "../syntax/types.rkt"
+         "../utils/alternative.rkt"
+         "../utils/common.rkt"
+         "../utils/errors.rkt"
          "../utils/float.rkt"
          "../utils/pretty-print.rkt"
-         "sampling.rkt"
-         "rival.rkt")
+         "../utils/timeline.rkt"
+         "compiler.rkt"
+         "points.rkt"
+         "programs.rkt"
+         "regimes.rkt"
+         "rival.rkt"
+         "sampling.rkt")
 
 (provide combine-alts
          (struct-out sp)
@@ -92,7 +92,7 @@
 (define (extract-subexpression expr var pattern ctx)
   (define body* (replace-expression expr pattern var))
   (define vars* (set-subtract (context-vars ctx) (free-variables pattern)))
-  (if (subset? (free-variables body*) (cons var vars*)) body* #f))
+  (and (subset? (free-variables body*) (cons var vars*)) body*))
 
 (define (prepend-argument evaluator val pcontext)
   (define pts
@@ -105,8 +105,7 @@
 (define/reset *prepend-arguement-cache* (make-hash))
 (define (cache-get-prepend v expr macro)
   (define key (cons expr v))
-  (define value (hash-ref! (*prepend-arguement-cache*) key (lambda () (macro v))))
-  value)
+  (hash-ref! (*prepend-arguement-cache*) key (lambda () (macro v))))
 
 (define (valid-splitpoints? splitpoints)
   (and (= (set-count (list->set (map sp-bexpr splitpoints))) 1) (nan? (sp-point (last splitpoints)))))
@@ -146,16 +145,16 @@
     (left-point p1 p2))
 
   (define (left-point p1 p2)
-    (let ([left ((representation-repr->bf repr) p1)]
-          [right ((representation-repr->bf repr) p2)])
-      (define out
-        (if (bfnegative? left)
-            (bigfloat-interval-shortest left (bfmin (bf/ left 2.bf) right))
-            (bigfloat-interval-shortest left (bfmin (bf* left 2.bf) right))))
-      ;; It's important to return something strictly less than right
-      (if (bf= out right)
-          p1
-          ((representation-bf->repr repr) out))))
+    (define left ((representation-repr->bf repr) p1))
+    (define right ((representation-repr->bf repr) p2))
+    (define out
+      (if (bfnegative? left)
+          (bigfloat-interval-shortest left (bfmin (bf/ left 2.bf) right))
+          (bigfloat-interval-shortest left (bfmin (bf* left 2.bf) right))))
+    ;; It's important to return something strictly less than right
+    (if (bf= out right)
+        p1
+        ((representation-bf->repr repr) out)))
 
   (define use-binary
     (and (flag-set? 'reduce 'binary-search)
@@ -208,7 +207,7 @@
             (sp 0 '(/.f64 y x) +inf.0)
             (sp 1 '(/.f64 y x) +nan.0)))
     (match-define (list p0? p1? p2?)
-      (splitpoints->point-preds sps (map make-alt (build-list 3 (const '(λ (x y) (/ x y))))) context))
+      (splitpoints->point-preds sps (map make-alt (make-list 3 '(λ (x y) (/ x y)))) context))
 
     (check-pred p0? '(0.0 -1.0))
     (check-pred p2? '(-1.0 1.0))
