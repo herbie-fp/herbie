@@ -245,7 +245,6 @@
                     #:profile? [profile? #f]
                     #:timeline-disabled? [timeline-disabled? #f])
   (define timeline #f)
-  (define profile #f)
 
   ;; CS versions <= 8.2: problems with scheduler cause places to stay
   ;; in a suspended state
@@ -257,7 +256,7 @@
       (timeline-event! 'end)
       (define time (- (current-inexact-milliseconds) start-time))
       (match command
-        ['improve (job-result command test 'failure time (timeline-extract) profile (warning-log) e)]
+        ['improve (job-result command test 'failure time (timeline-extract) profile? (warning-log) e)]
         [_ (raise e)])))
 
   (define (on-timeout)
@@ -266,7 +265,7 @@
       (timeline-event! 'end)
       (match command
         ['improve
-         (job-result command test 'timeout (*timeout*) (timeline-extract) profile (warning-log) #f)]
+         (job-result command test 'timeout (*timeout*) (timeline-extract) profile? (warning-log) #f)]
         [_ (error 'run-herbie "command ~a timed out" command)])))
 
   (define (compute-result _)
@@ -299,10 +298,13 @@
             (profile-thunk go
                            #:order 'total
                            #:delay 0.01
-                           #:render (λ (p order) (set! profile (profile->json p))))
+                           #:render (λ (p order) (set! profile? (profile->json p))))
             (go)))
-      (define time (- (current-inexact-milliseconds) start-time))
-      (job-result command test 'success time (timeline-extract) profile (warning-log) result)))
+      (match result
+        [(? job-result?) result]
+        [_
+         (define time (- (current-inexact-milliseconds) start-time))
+         (job-result command test 'success time (timeline-extract) profile? (warning-log) result)])))
 
   ;; Branch on whether or not we should run inside an engine
   (define eng (engine compute-result))

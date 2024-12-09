@@ -21,7 +21,6 @@
 
 (provide make-path
          get-improve-table-data
-         make-improve-result
          server-check-on
          get-results-for
          get-timeline-for
