@@ -142,7 +142,7 @@
 
 (define (herbie-do-server-job command job-id)
   (define herbie-result (wrapper-run-herbie command job-id))
-  (match-define (job-result kind test status time _ _ backend) herbie-result)
+  (match-define (job-result kind test status time _ _ _ backend) herbie-result)
   (match kind
     ['alternatives (make-alternatives-result herbie-result test job-id)]
     ['evaluate (make-calculate-result herbie-result job-id)]
@@ -457,6 +457,7 @@
   (define job-time (job-result-time herbie-result))
   (define warnings (job-result-warnings herbie-result))
   (define timeline (job-result-timeline herbie-result))
+  (define profile (job-result-profile herbie-result))
 
   (define repr (test-output-repr test))
   (define backend-hash
@@ -479,6 +480,8 @@
           warnings
           'timeline
           timeline
+          'profile
+          profile
           'backend
           backend-hash
           'job

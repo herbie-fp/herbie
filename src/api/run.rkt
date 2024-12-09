@@ -95,7 +95,7 @@
      ([test (in-list tests)])
      (values
       (start-job
-       (create-job 'improve test #:seed seed #:pcontext #f #:profile? #f #:timeline-disabled? #f))
+       (create-job 'improve test #:seed seed #:pcontext #f #:profile? #t #:timeline-disabled? #f))
       (test-name test))))
 
   (define info
