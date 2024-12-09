@@ -35,8 +35,8 @@
     [(symbol? expr) #f]
     [else #t]))
 
-(define *condthres* (make-parameter (lf 128.0)))
-(define *maybethres* (make-parameter (lf 32.0)))
+(define *condthres* (make-parameter (lf 64.0)))
+(define *maybethres* (make-parameter (lf 16.0)))
 
 
 ;(define condthres.dl (lf 128.0))
