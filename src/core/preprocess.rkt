@@ -78,7 +78,7 @@
   (cons start-alt
         (remove-duplicates
          (for/list ([batchreff (rest simplified)])
-           (alt (debatchref batchreff) `(simplify () ,runner #f #f) (list start-alt) '()))
+           (alt (debatchref batchreff) `(simplify () ,runner #f) (list start-alt) '()))
          alt-equal?)))
 
 ;; See https://pavpanchekha.com/blog/symmetric-expressions.html
