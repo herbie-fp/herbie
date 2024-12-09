@@ -30,7 +30,7 @@
     (if (member 'egglog generate-flags)
         (run-egglog-single-extractor runner extractor)
         (run-egg runner (cons 'single extractor))))
-
+  
   (define out
     (for/list ([simplified (in-list simplifieds)]
                [root (egg-runner-roots runner)])

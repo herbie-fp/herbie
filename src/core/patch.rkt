@@ -68,7 +68,6 @@
                                              (batchref-idx batchreff))))
               (sow (alt (batchref global-batch idx) `(simplify ,runner #f #f) (list altn) '()))))
           (batch-copy-mutable-nodes! global-batch global-batch-mutable))) ; Update global-batch
-
   (timeline-push! 'count (length approxs) (length simplified))
   simplified)
 
@@ -143,9 +142,9 @@
 
   ; egg schedule (3-phases for mathematical rewrites and implementation selection)
   (define schedule
-    `((,lifting-rules . ((iteration . 1) (scheduler . simple)))
+    `((lift . ((iteration . 1) (scheduler . simple)))
       (,rules . ((node . ,(*node-limit*))))
-      (,lowering-rules . ((iteration . 1) (scheduler . simple)))))
+      (lower . ((iteration . 1) (scheduler . simple)))))
 
   ; run egg
   (define exprs (map (compose debatchref alt-expr) altns))
