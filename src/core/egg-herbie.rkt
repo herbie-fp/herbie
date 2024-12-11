@@ -1168,22 +1168,40 @@
   ; insert expressions into the e-graph
   (define root-ids (egraph-add-exprs egg-graph batch roots ctx))
 
-  ; run the schedule
+  (define rule-apps (make-hash))
   (define egg-graph*
-    (for/fold ([egg-graph egg-graph]) ([(rules params) (in-dict schedule)])
+    (for/fold ([egg-graph egg-graph]) ([instr (in-list schedule)])
+      (match-define (cons rules params) instr)
       ; run rules in the egraph
       (define egg-rules (expand-rules rules))
       (define-values (egg-graph* iteration-data) (egraph-run-rules egg-graph egg-rules params))
 
       ; get cost statistics
-      (for ([iter (in-list iteration-data)]
-            [i (in-naturals)])
+      (for/fold ([time 0])
+                ([iter (in-list iteration-data)]
+                 [i (in-naturals)])
         (define cnt (iteration-data-num-nodes iter))
         (define cost (apply + (map (λ (id) (egraph-get-cost egg-graph* id i)) root-ids)))
-        (timeline-push! 'egraph i cnt cost (iteration-data-time iter)))
+        (define new-time (+ time (iteration-data-time iter)))
+        (timeline-push! 'egraph i cnt cost new-time)
+        new-time)
+
+      ;; get rule statistics
+      (for ([(egg-rule ffi-rule) (in-dict egg-rules)])
+        (define count (egraph-get-times-applied egg-graph* ffi-rule))
+        (define canon-name (hash-ref (*canon-names*) (rule-name egg-rule)))
+        (hash-update! rule-apps canon-name (curry + count) count))
 
       egg-graph*))
 
+  ; report rule statistics
+  (for ([(name count) (in-hash rule-apps)])
+      (display "$")
+      (display name)
+      (display ":")
+      (display count)
+      (displayln "$")
+      (timeline-push! 'rules (~a name) count))
   ; root eclasses may have changed
   (define root-ids* (map (lambda (id) (egraph-find egg-graph* id)) root-ids))
   ; return what we need
