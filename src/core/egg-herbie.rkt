@@ -1200,7 +1200,7 @@
       (display name)
       (display ":")
       (display count)
-      (displayln "$")
+      (display "$")
       (timeline-push! 'rules (~a name) count))
   ; root eclasses may have changed
   (define root-ids* (map (lambda (id) (egraph-find egg-graph* id)) root-ids))
