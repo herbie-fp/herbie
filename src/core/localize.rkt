@@ -127,8 +127,6 @@
       (for/list ([child (in-list children)])
         (expr->cost (hash-ref expr->simplest child))))
     (unless (>= start-cost best-cost)
-      (printf "~a\n" start-cost)
-      (printf "~a\n" best-cost)
       (error 'cost-opportunity
              "Initial expression ~a is better than final expression ~a\n"
              subexpr

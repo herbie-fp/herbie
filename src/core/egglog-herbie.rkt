@@ -146,9 +146,7 @@
 
 ;; TODO : Need to run egglog to get the actual ids per
 (define (run-egglog-single-extractor runner extractor) ; single expression extraction
-  (define batch (egg-runner-batch runner))
-  (define curr-batch (batch-remove-zombie batch (batch-roots batch)))
-
+  (define curr-batch (batch-remove-zombie (egg-runner-batch runner) (egg-runner-roots runner)))
   (define program '())
   (set! program (append program (prelude #:mixed-egraph? #t)))
   ;; 2. User Rules which comes from schedule (need to be translated)
@@ -225,12 +223,13 @@
 
   (define egglog-output (run-egglog-process (egglog-program program)))
   (define stdout-content (car egglog-output))
-  (set! file-num (+ file-num 1))
+  (define stderr-content (cdr egglog-output))
 
   (define egglog-exprs-split (string-split stdout-content "\n"))
 
   (define herbie-exprs
     (map (lambda (line) (e2->expr (with-input-from-string line read))) egglog-exprs-split))
+  (set! file-num (+ file-num 1))
   (define input-batch (egg-runner-batch runner))
   (define out (batch->mutable-batch input-batch))
   (define result
@@ -238,15 +237,13 @@
       (list (egglog->batchref expr input-batch out (context-repr (egg-runner-ctx runner))))))
 
   (batch-copy-mutable-nodes! input-batch out)
-
   ;; (Listof (Listof batchref))
   result)
 
 ;; TODO : Need to run egglog to get the actual ids
 ;; very hard - per id recruse one level and ger simplest child
 (define (run-egglog-multi-extractor runner extractor) ; multi expression extraction
-  (define batch (egg-runner-batch runner))
-  (define curr-batch (batch-remove-zombie batch (batch-roots batch)))
+  (define curr-batch (batch-remove-zombie (egg-runner-batch runner) (egg-runner-roots runner)))
 
   (define program '())
   (set! program (append program (prelude #:mixed-egraph? #t)))
@@ -320,12 +317,13 @@
               (list `(extract (lower ,binding
                                      ,(symbol->string (representation-name
                                                        (context-repr (egg-runner-ctx runner)))))
-                              15))]
-             [_ (list `(extract ,binding 15))]))))
+                              10))]
+             [_ (list `(extract ,binding 10))]))))
 
   (define egglog-output (run-egglog-process (egglog-program program)))
   (define stdout-content (car egglog-output))
-  (set! file-num (+ file-num 1))
+  (define stderr-content (cdr egglog-output))
+  (define egglog-exprs-split (string-split stdout-content "\n"))
   (define (extract-between-parens lst)
     (define (helper lst acc temp inside-parens?)
       (cond
@@ -341,6 +339,7 @@
   (define herbie-exprss
     (map (lambda (line) (map (lambda (e) (e2->expr (with-input-from-string e read))) line))
          egglog-expr-lines))
+  (set! file-num (+ file-num 1))
 
   (define input-batch (egg-runner-batch runner))
   (define out (batch->mutable-batch input-batch))
@@ -790,7 +789,7 @@
         [(? symbol?) #f]
         [`(if ,cond ,ift ,iff)
          `(,(if spec? 'If 'IfTy) ,(remap cond spec?) ,(remap ift spec?) ,(remap iff spec?))]
-        [(approx spec impl) `(Approx ,(remap spec spec?) ,(remap impl spec?))]
+        [(approx spec impl) `(Approx ,(remap spec #t) ,(remap impl #f))]
         [(list impl args ...)
          `(,(hash-ref (if spec? id->e1 id->e2) impl) ,@(for/list ([arg (in-list args)])
                                                          (remap arg spec?)))]))
@@ -856,7 +855,9 @@
   (define extract-bindings
     (for/list ([root (batch-roots batch)])
       (if (hash-has-key? vars root)
-          (string->symbol (format "?t~a" (hash-ref vars root)))
+          (if (vector-ref spec-mask root)
+           (string->symbol (format "?~a" (hash-ref vars root)))
+           (string->symbol (format "?t~a" (hash-ref vars root))))
           (string->symbol (format "?r~a" root)))))
 
   (set! egglog-exprs (append egglog-exprs binding-exprs))

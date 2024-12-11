@@ -24,10 +24,9 @@
   (-> egg-runner? procedure? (listof (listof batchref?)))
   (timeline-push! 'inputs (map ~a (batch->progs (egg-runner-batch runner) (egg-runner-roots runner))))
   (timeline-push! 'method "egg-herbie")
-
   (define generate-flags (hash-ref all-flags 'generate))
   (define simplifieds
-    (if (member 'egglog generate-flags)
+    (if (member 'egglogs generate-flags)
         (run-egglog-single-extractor runner extractor)
         (run-egg runner (cons 'single extractor))))
 
