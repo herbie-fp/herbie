@@ -269,7 +269,7 @@
          (job-result command test 'timeout (*timeout*) (timeline-extract) profile (warning-log) #f)]
         [_ (error 'run-herbie "command ~a timed out" command)])))
 
-  (define (compute-result _)
+  (define (compute-result)
     (parameterize ([*timeline-disabled* timeline-disabled?])
       (define start-time (current-inexact-milliseconds))
       (reset!)
@@ -279,33 +279,34 @@
       (set! timeline (*timeline*))
       (when seed
         (set-seed! seed))
-      (define (go)
-        (with-handlers ([exn? (curry on-exception start-time)])
-          (timeline-event! 'start) ; Prevents the timeline from being empty.
-          (begin0 (match command
-                    ['alternatives (get-alternatives test pcontext seed)]
-                    ['evaluate (get-calculation test pcontext)]
-                    ['cost (get-cost test)]
-                    ['errors (get-errors test pcontext)]
-                    ['exacts (get-exacts test pcontext)]
-                    ['improve (get-alternatives/report test)]
-                    ['local-error (get-local-error test pcontext)]
-                    ['explanations (get-explanations test pcontext)]
-                    ['sample (get-sample test)]
-                    [_ (error 'compute-result "unknown command ~a" command)])
-            (timeline-event! 'end))))
-      (define result
-        (if profile?
-            (profile-thunk go
-                           #:order 'total
-                           #:delay 0.01
-                           #:render (λ (p order) (set! profile (profile->json p))))
-            (go)))
-      (define time (- (current-inexact-milliseconds) start-time))
-      (job-result command test 'success time (timeline-extract) profile (warning-log) result)))
+      (with-handlers ([exn? (curry on-exception start-time)])
+        (timeline-event! 'start) ; Prevents the timeline from being empty.
+        (define result
+          (match command
+            ['alternatives (get-alternatives test pcontext seed)]
+            ['evaluate (get-calculation test pcontext)]
+            ['cost (get-cost test)]
+            ['errors (get-errors test pcontext)]
+            ['exacts (get-exacts test pcontext)]
+            ['improve (get-alternatives/report test)]
+            ['local-error (get-local-error test pcontext)]
+            ['explanations (get-explanations test pcontext)]
+            ['sample (get-sample test)]
+            [_ (error 'compute-result "unknown command ~a" command)]))
+        (timeline-event! 'end)
+        (define time (- (current-inexact-milliseconds) start-time))
+        (job-result command test 'success time (timeline-extract) profile (warning-log) result))))
+
+  (define (in-engine _)
+    (if profile?
+        (profile-thunk compute-result
+                       #:order 'total
+                       #:delay 0.01
+                       #:render (λ (p order) (set! profile (profile->json p))))
+        (compute-result)))
 
   ;; Branch on whether or not we should run inside an engine
-  (define eng (engine compute-result))
+  (define eng (engine in-engine))
   (if (engine-run (*timeout*) eng)
       (engine-result eng)
       (on-timeout)))
