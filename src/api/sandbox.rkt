@@ -257,7 +257,7 @@
       (timeline-event! 'end)
       (define time (- (current-inexact-milliseconds) start-time))
       (match command
-        ['improve (job-result command test 'failure time (timeline-extract) profile (warning-log) e)]
+        ['improve (job-result command test 'failure time (timeline-extract) #f (warning-log) e)]
         [_ (raise e)])))
 
   (define (on-timeout)
@@ -266,7 +266,7 @@
       (timeline-event! 'end)
       (match command
         ['improve
-         (job-result command test 'timeout (*timeout*) (timeline-extract) profile (warning-log) #f)]
+         (job-result command test 'timeout (*timeout*) (timeline-extract) #f (warning-log) #f)]
         [_ (error 'run-herbie "command ~a timed out" command)])))
 
   (define (compute-result)
@@ -295,15 +295,19 @@
             [_ (error 'compute-result "unknown command ~a" command)]))
         (timeline-event! 'end)
         (define time (- (current-inexact-milliseconds) start-time))
-        (job-result command test 'success time (timeline-extract) profile (warning-log) result))))
+        (job-result command test 'success time (timeline-extract) #f (warning-log) result))))
 
   (define (in-engine _)
-    (if profile?
-        (profile-thunk compute-result
-                       #:order 'total
-                       #:delay 0.01
-                       #:render (λ (p order) (set! profile (profile->json p))))
-        (compute-result)))
+    (cond
+      [profile?
+       (define result
+         (profile-thunk compute-result
+                        #:order 'total
+                        #:delay 0.01
+                        #:render (λ (p order) (set! profile (profile->json p)))))
+       (struct-copy job-result result [profile profile])]
+      [else
+       (compute-result)]))
 
   ;; Branch on whether or not we should run inside an engine
   (define eng (engine in-engine))
