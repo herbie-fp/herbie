@@ -306,8 +306,7 @@
                         #:delay 0.01
                         #:render (λ (p order) (set! profile (profile->json p)))))
        (struct-copy job-result result [profile profile])]
-      [else
-       (compute-result)]))
+      [else (compute-result)]))
 
   ;; Branch on whether or not we should run inside an engine
   (define eng (engine in-engine))
