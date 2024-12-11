@@ -1,0 +1,1294 @@
+<!doctype html>
+<html><head><meta charset="utf-8"/><title>Result for expq2 (section 3.11)</title><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/katex.min.css" integrity="sha384-9tPv11A+glH/on/wEu99NVwDPwkMQESOocs/ZGXPoIiLE8MU/qkqUcZ3zzL+6DuH" crossorigin="anonymous"/><script src="https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/katex.min.js" integrity="sha384-U8Vrjwb8fuHMt6ewaCy8uqeUXv4oitYACKdB0VziCerzt011iQ/0TqlSlv8MReCm" crossorigin="anonymous"></script><script src="https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/contrib/auto-render.min.js" integrity="sha384-aGfk5kvhIq5x1x5YdvCp4upKZYnA8ckafviDpmWEKp4afOZEqOli7gqSnh8I6enH" crossorigin="anonymous"></script><script src="https://unpkg.com/mathjs@4.4.2/dist/math.min.js"></script><script src="https://unpkg.com/d3@6.7.0/dist/d3.min.js"></script><script src="https://unpkg.com/@observablehq/plot@0.4.3/dist/plot.umd.min.js"></script><link rel="stylesheet" type="text/css" href="../report.css"/><script src="../report.js"></script></head><body><header><h1>expq2 (section 3.11)</h1><img src="../logo-car.png"/><nav><ul><li><a href="../index.html">Report</a></li><li><a href="timeline.html">Metrics</a></li></ul></nav></header><div id="large"><div>Percentage Accurate: <span class="number" title="Minimum Accuracy: 0.0% → 79.3%">37.5%<span class="unit"> → </span>100.0%</span></div><div>Time: <span class="number">9.0s</span></div><div>Alternatives: <span class="number">13</span></div><div>Speedup: <span class="number" title="Relative speed of fastest alternative that improves accuracy.">9.3×</span></div></div><section><details id="specification" class="programs"><summary><h2>Specification</h2><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#spec" target="_blank">?</a></summary><div><div id="precondition"><div class="program math">\[710 &gt; x\]</div></div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\frac{e^{x}}{e^{x} - 1}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x) :precision binary64 (/ (exp x) (- (exp x) 1.0)))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x) {
+	return exp(x) / (exp(x) - 1.0);
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(x)
+    real(8), intent (in) :: x
+    code = exp(x) / (exp(x) - 1.0d0)
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double x) {
+	return Math.exp(x) / (Math.exp(x) - 1.0);
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(x):
+	return math.exp(x) / (math.exp(x) - 1.0)
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x)
+	return Float64(exp(x) / Float64(exp(x) - 1.0))
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp = code(x)
+	tmp = exp(x) / (exp(x) - 1.0);
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_] := N[(N[Exp[x], $MachinePrecision] / N[(N[Exp[x], $MachinePrecision] - 1.0), $MachinePrecision]), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\frac{e^{x}}{e^{x} - 1}
+\end{array}
+</pre></div></div><p>Sampling outcomes in <kbd>binary64</kbd> precision:</p><div class="bogosity"><div class="bogosity-valid" data-id="bogosity-valid" data-type="valid" data-timespan="0.7517123366742171" title="valid (75.2%)"></div><div class="bogosity-unknown" data-id="bogosity-unknown" data-type="unknown" data-timespan="0" title="unknown (0.0%)"></div><div class="bogosity-infinite" data-id="bogosity-infinite" data-type="infinite" data-timespan="9.106145810711291e-5" title="infinite (0.0%)"></div><div class="bogosity-unsamplable" data-id="bogosity-unsamplable" data-type="unsamplable" data-timespan="0" title="unsamplable (0.0%)"></div><div class="bogosity-invalid" data-id="bogosity-invalid" data-type="invalid" data-timespan="0.0" title="invalid (0.0%)"></div><div class="bogosity-precondition" data-id="bogosity-precondition" data-type="precondition" data-timespan="0.24819660186767578" title="precondition (24.8%)"></div></div></details></section><figure id="graphs"><h2>Local Percentage Accuracy vs <span id="variables"></span><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#graph" target="_blank">?</a></h2><svg></svg><div id="functions"></div><figcaption>The average percentage accuracy by input value. Horizontal axis shows value of an input variable; the variable is choosen in the title. Vertical axis is accuracy; higher is better. Red represent the original program, while blue represents Herbie's suggestion. These can be toggled with buttons below the plot. The line is an average while dots represent individual samples.</figcaption></figure><section id="cost-accuracy" class="section" data-benchmark-name="expq2 (section 3.11)"><h2>Accuracy vs Speed<a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#cost-accuracy" target="_blank">?</a></h2><div class="figure-row"><svg></svg><div><p>Herbie found 13 alternatives:</p><table><thead><tr><th>Alternative</th><th class="numeric">Accuracy</th><th class="numeric">Speedup</th></tr></thead><tbody></tbody></table></div></div><figcaption>The accuracy (vertical axis) and speed (horizontal axis) of each alternatives. Up and to the right is better. The red square shows the initial program, and each blue circle shows an alternative.The line shows the best available speed-accuracy tradeoffs.</figcaption></section><section id="initial" class="programs"><h2>Initial Program: <span class="subhead"><data>37.5%</data> accurate, <data>1.0×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\frac{e^{x}}{e^{x} - 1}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x) :precision binary64 (/ (exp x) (- (exp x) 1.0)))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x) {
+	return exp(x) / (exp(x) - 1.0);
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(x)
+    real(8), intent (in) :: x
+    code = exp(x) / (exp(x) - 1.0d0)
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double x) {
+	return Math.exp(x) / (Math.exp(x) - 1.0);
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(x):
+	return math.exp(x) / (math.exp(x) - 1.0)
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x)
+	return Float64(exp(x) / Float64(exp(x) - 1.0))
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp = code(x)
+	tmp = exp(x) / (exp(x) - 1.0);
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_] := N[(N[Exp[x], $MachinePrecision] / N[(N[Exp[x], $MachinePrecision] - 1.0), $MachinePrecision]), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\frac{e^{x}}{e^{x} - 1}
+\end{array}
+</pre></div></div></section><section id="alternative1" class="programs"><h2>Alternative 1: <span class="subhead"><data>100.0%</data> accurate, <data>1.9×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Java</option><option>Python</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\frac{-1}{\mathsf{expm1}\left(-x\right)}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x) :precision binary64 (/ -1.0 (expm1 (- x))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x) {
+	return -1.0 / expm1(-x);
+}
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double x) {
+	return -1.0 / Math.expm1(-x);
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(x):
+	return -1.0 / math.expm1(-x)
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x)
+	return Float64(-1.0 / expm1(Float64(-x)))
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_] := N[(-1.0 / N[(Exp[(-x)] - 1), $MachinePrecision]), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\frac{-1}{\mathsf{expm1}\left(-x\right)}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="37.5% on training set">42.0%</span></p><div class="math">\[\frac{e^{x}}{e^{x} - 1}
+\]</div></li><li>Add Preprocessing</li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">lift-/.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{e^{x}}{e^{x} - 1}}
+\]</div></li><li><p><code title="left to right">clear-num</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{1}{\frac{e^{x} - 1}{e^{x}}}}
+\]</div></li><li><p><code title="left to right">frac-2neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{\mathsf{neg}\left(1\right)}{\mathsf{neg}\left(\frac{e^{x} - 1}{e^{x}}\right)}}
+\]</div></li><li><p><code title="left to right">lower-/.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{\mathsf{neg}\left(1\right)}{\mathsf{neg}\left(\frac{e^{x} - 1}{e^{x}}\right)}}
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\color{blue}{-1}}{\mathsf{neg}\left(\frac{e^{x} - 1}{e^{x}}\right)}
+\]</div></li><li><p><code title="left to right">distribute-neg-frac</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\frac{\mathsf{neg}\left(\left(e^{x} - 1\right)\right)}{e^{x}}}}
+\]</div></li><li><p><code title="left to right">neg-sub0</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\color{blue}{0 - \left(e^{x} - 1\right)}}{e^{x}}}
+\]</div></li><li><p><code title="left to right">lift--.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{0 - \color{blue}{\left(e^{x} - 1\right)}}{e^{x}}}
+\]</div></li><li><p><code title="right to left">associate-+l-</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\color{blue}{\left(0 - e^{x}\right) + 1}}{e^{x}}}
+\]</div></li><li><p><code title="right to left">neg-sub0</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\color{blue}{\left(\mathsf{neg}\left(e^{x}\right)\right)} + 1}{e^{x}}}
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\color{blue}{1 + \left(\mathsf{neg}\left(e^{x}\right)\right)}}{e^{x}}}
+\]</div></li><li><p><code title="right to left">sub-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\color{blue}{1 - e^{x}}}{e^{x}}}
+\]</div></li><li><p><code title="left to right">div-sub</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\frac{1}{e^{x}} - \frac{e^{x}}{e^{x}}}}
+\]</div></li><li><p><code title="left to right">*-inverses</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{1}{e^{x}} - \color{blue}{1}}
+\]</div></li><li><p><code title="left to right">lift-exp.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{1}{\color{blue}{e^{x}}} - 1}
+\]</div></li><li><p><code title="left to right">rec-exp</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{e^{\mathsf{neg}\left(x\right)}} - 1}
+\]</div></li><li><p><code title="left to right">lower-expm1.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\mathsf{expm1}\left(\mathsf{neg}\left(x\right)\right)}}
+\]</div></li><li><p><code title="left to right">lower-neg.f64</code><span class="error" title=" ↑ N/A ↓ N/A">100.0</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{expm1}\left(\color{blue}{-x}\right)}
+\]</div></li></ol></details></div></li><li><p>Applied rewrites<span class="error" title="100.0% on training set">100.0%</span></p><div class="math">\[\leadsto \color{blue}{\frac{-1}{\mathsf{expm1}\left(-x\right)}}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative2" class="programs"><h2>Alternative 2: <span class="subhead"><data>91.6%</data> accurate, <data>0.9×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;e^{x} \leq 5 \cdot 10^{-5}:\\
+\;\;\;\;\frac{-1}{\left(\mathsf{fma}\left(0.041666666666666664, x, -0.16666666666666666\right) \cdot \left(x \cdot x\right)\right) \cdot x}\\
+
+\mathbf{else}:\\
+\;\;\;\;\mathsf{fma}\left(\mathsf{fma}\left(x \cdot x, -0.001388888888888889, 0.08333333333333333\right), x, 0.5 + {x}^{-1}\right)\\
+
+
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x)
+ :precision binary64
+ (if (&lt;= (exp x) 5e-5)
+   (/ -1.0 (* (* (fma 0.041666666666666664 x -0.16666666666666666) (* x x)) x))
+   (fma
+    (fma (* x x) -0.001388888888888889 0.08333333333333333)
+    x
+    (+ 0.5 (pow x -1.0)))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x) {
+	double tmp;
+	if (exp(x) &lt;= 5e-5) {
+		tmp = -1.0 / ((fma(0.041666666666666664, x, -0.16666666666666666) * (x * x)) * x);
+	} else {
+		tmp = fma(fma((x * x), -0.001388888888888889, 0.08333333333333333), x, (0.5 + pow(x, -1.0)));
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x)
+	tmp = 0.0
+	if (exp(x) &lt;= 5e-5)
+		tmp = Float64(-1.0 / Float64(Float64(fma(0.041666666666666664, x, -0.16666666666666666) * Float64(x * x)) * x));
+	else
+		tmp = fma(fma(Float64(x * x), -0.001388888888888889, 0.08333333333333333), x, Float64(0.5 + (x ^ -1.0)));
+	end
+	return tmp
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_] := If[LessEqual[N[Exp[x], $MachinePrecision], 5e-5], N[(-1.0 / N[(N[(N[(0.041666666666666664 * x + -0.16666666666666666), $MachinePrecision] * N[(x * x), $MachinePrecision]), $MachinePrecision] * x), $MachinePrecision]), $MachinePrecision], N[(N[(N[(x * x), $MachinePrecision] * -0.001388888888888889 + 0.08333333333333333), $MachinePrecision] * x + N[(0.5 + N[Power[x, -1.0], $MachinePrecision]), $MachinePrecision]), $MachinePrecision]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;e^{x} \leq 5 \cdot 10^{-5}:\\
+\;\;\;\;\frac{-1}{\left(\mathsf{fma}\left(0.041666666666666664, x, -0.16666666666666666\right) \cdot \left(x \cdot x\right)\right) \cdot x}\\
+
+\mathbf{else}:\\
+\;\;\;\;\mathsf{fma}\left(\mathsf{fma}\left(x \cdot x, -0.001388888888888889, 0.08333333333333333\right), x, 0.5 + {x}^{-1}\right)\\
+
+
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li class="event">Split input into 2 regimes</li><li><h2><code>if <span class="condition"> (exp.f64 x)  &lt; 5.00000000000000024e-5</span></code></h2><ol><li><p>Initial program <span class="error" title="100.0% on training set">100.0%</span></p><div class="math">\[\frac{e^{x}}{e^{x} - 1}
+\]</div></li><li>Add Preprocessing</li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">lift-/.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{e^{x}}{e^{x} - 1}}
+\]</div></li><li><p><code title="left to right">clear-num</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{1}{\frac{e^{x} - 1}{e^{x}}}}
+\]</div></li><li><p><code title="left to right">frac-2neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{\mathsf{neg}\left(1\right)}{\mathsf{neg}\left(\frac{e^{x} - 1}{e^{x}}\right)}}
+\]</div></li><li><p><code title="left to right">lower-/.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{\mathsf{neg}\left(1\right)}{\mathsf{neg}\left(\frac{e^{x} - 1}{e^{x}}\right)}}
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\color{blue}{-1}}{\mathsf{neg}\left(\frac{e^{x} - 1}{e^{x}}\right)}
+\]</div></li><li><p><code title="left to right">distribute-neg-frac</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\frac{\mathsf{neg}\left(\left(e^{x} - 1\right)\right)}{e^{x}}}}
+\]</div></li><li><p><code title="left to right">neg-sub0</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\color{blue}{0 - \left(e^{x} - 1\right)}}{e^{x}}}
+\]</div></li><li><p><code title="left to right">lift--.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{0 - \color{blue}{\left(e^{x} - 1\right)}}{e^{x}}}
+\]</div></li><li><p><code title="right to left">associate-+l-</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\color{blue}{\left(0 - e^{x}\right) + 1}}{e^{x}}}
+\]</div></li><li><p><code title="right to left">neg-sub0</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\color{blue}{\left(\mathsf{neg}\left(e^{x}\right)\right)} + 1}{e^{x}}}
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\color{blue}{1 + \left(\mathsf{neg}\left(e^{x}\right)\right)}}{e^{x}}}
+\]</div></li><li><p><code title="right to left">sub-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\color{blue}{1 - e^{x}}}{e^{x}}}
+\]</div></li><li><p><code title="left to right">div-sub</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\frac{1}{e^{x}} - \frac{e^{x}}{e^{x}}}}
+\]</div></li><li><p><code title="left to right">*-inverses</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{1}{e^{x}} - \color{blue}{1}}
+\]</div></li><li><p><code title="left to right">lift-exp.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{1}{\color{blue}{e^{x}}} - 1}
+\]</div></li><li><p><code title="left to right">rec-exp</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{e^{\mathsf{neg}\left(x\right)}} - 1}
+\]</div></li><li><p><code title="left to right">lower-expm1.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\mathsf{expm1}\left(\mathsf{neg}\left(x\right)\right)}}
+\]</div></li><li><p><code title="left to right">lower-neg.f64</code><span class="error" title=" ↑ N/A ↓ N/A">100.0</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{expm1}\left(\color{blue}{-x}\right)}
+\]</div></li></ol></details></div></li><li><p>Applied rewrites<span class="error" title="100.0% on training set">100.0%</span></p><div class="math">\[\leadsto \color{blue}{\frac{-1}{\mathsf{expm1}\left(-x\right)}}
+\]</div></li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \frac{-1}{\color{blue}{x \cdot \left(x \cdot \left(\frac{1}{2} + x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right)\right) - 1\right)}}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\left(x \cdot \left(\frac{1}{2} + x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right)\right) - 1\right) \cdot x}}
+\]</div></li><li><p><code title="left to right">lower-*.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\left(x \cdot \left(\frac{1}{2} + x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right)\right) - 1\right) \cdot x}}
+\]</div></li><li><p><code title="left to right">sub-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\left(x \cdot \left(\frac{1}{2} + x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right)\right) + \left(\mathsf{neg}\left(1\right)\right)\right)} \cdot x}
+\]</div></li><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\left(\color{blue}{\left(\frac{1}{2} + x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right)\right) \cdot x} + \left(\mathsf{neg}\left(1\right)\right)\right) \cdot x}
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\left(\left(\frac{1}{2} + x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right)\right) \cdot x + \color{blue}{-1}\right) \cdot x}
+\]</div></li><li><p><code title="left to right">lower-fma.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\mathsf{fma}\left(\frac{1}{2} + x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right), x, -1\right)} \cdot x}
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\color{blue}{x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right) + \frac{1}{2}}, x, -1\right) \cdot x}
+\]</div></li><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\color{blue}{\left(\frac{1}{24} \cdot x - \frac{1}{6}\right) \cdot x} + \frac{1}{2}, x, -1\right) \cdot x}
+\]</div></li><li><p><code title="left to right">lower-fma.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\color{blue}{\mathsf{fma}\left(\frac{1}{24} \cdot x - \frac{1}{6}, x, \frac{1}{2}\right)}, x, -1\right) \cdot x}
+\]</div></li><li><p><code title="left to right">sub-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\mathsf{fma}\left(\color{blue}{\frac{1}{24} \cdot x + \left(\mathsf{neg}\left(\frac{1}{6}\right)\right)}, x, \frac{1}{2}\right), x, -1\right) \cdot x}
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\mathsf{fma}\left(\frac{1}{24} \cdot x + \color{blue}{\frac{-1}{6}}, x, \frac{1}{2}\right), x, -1\right) \cdot x}
+\]</div></li><li><p><code title="left to right">lower-fma.f64</code><span class="error" title=" ↑ N/A ↓ N/A">76.3</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\mathsf{fma}\left(\color{blue}{\mathsf{fma}\left(0.041666666666666664, x, -0.16666666666666666\right)}, x, 0.5\right), x, -1\right) \cdot x}
+\]</div></li></ol></details></div></li><li><p>Applied rewrites<span class="error" title="75.8% on training set">76.3%</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\mathsf{fma}\left(\mathsf{fma}\left(\mathsf{fma}\left(0.041666666666666664, x, -0.16666666666666666\right), x, 0.5\right), x, -1\right) \cdot x}}
+\]</div></li><li><p>Taylor expanded in x around inf</p><div class="math">\[\leadsto \frac{-1}{\left({x}^{3} \cdot \left(\frac{1}{24} - \frac{1}{6} \cdot \frac{1}{x}\right)\right) \cdot x}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol></ol></details></div></li><li><p>Applied rewrites<span class="error" title="75.8% on training set">76.3%</span></p><div class="math">\[\leadsto \frac{-1}{\left(\mathsf{fma}\left(0.041666666666666664, x, -0.16666666666666666\right) \cdot \left(x \cdot x\right)\right) \cdot x}
+\]</div></li></ol><h2><code>if <span class="condition">5.00000000000000024e-5 &lt;  (exp.f64 x) </span></code></h2><ol><li><p>Initial program <span class="error" title="6.5% on training set">5.5%</span></p><div class="math">\[\frac{e^{x}}{e^{x} - 1}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \color{blue}{\frac{1 + x \cdot \left(\frac{1}{2} + x \cdot \left(\frac{1}{12} + \frac{-1}{720} \cdot {x}^{2}\right)\right)}{x}}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="right to left">*-lft-identity</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{1 \cdot \frac{1 + x \cdot \left(\frac{1}{2} + x \cdot \left(\frac{1}{12} + \frac{-1}{720} \cdot {x}^{2}\right)\right)}{x}}
+\]</div></li><li><p><code title="right to left">associate-/l*</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{1 \cdot \left(1 + x \cdot \left(\frac{1}{2} + x \cdot \left(\frac{1}{12} + \frac{-1}{720} \cdot {x}^{2}\right)\right)\right)}{x}}
+\]</div></li><li><p><code title="right to left">associate-*l/</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{1}{x} \cdot \left(1 + x \cdot \left(\frac{1}{2} + x \cdot \left(\frac{1}{12} + \frac{-1}{720} \cdot {x}^{2}\right)\right)\right)}
+\]</div></li><li><p><code title="left to right">distribute-lft-in</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{1}{x} \cdot \left(1 + \color{blue}{\left(x \cdot \frac{1}{2} + x \cdot \left(x \cdot \left(\frac{1}{12} + \frac{-1}{720} \cdot {x}^{2}\right)\right)\right)}\right)
+\]</div></li><li><p><code title="right to left">*-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{1}{x} \cdot \left(1 + \left(\color{blue}{\frac{1}{2} \cdot x} + x \cdot \left(x \cdot \left(\frac{1}{12} + \frac{-1}{720} \cdot {x}^{2}\right)\right)\right)\right)
+\]</div></li><li><p><code title="left to right">associate-+r+</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{1}{x} \cdot \color{blue}{\left(\left(1 + \frac{1}{2} \cdot x\right) + x \cdot \left(x \cdot \left(\frac{1}{12} + \frac{-1}{720} \cdot {x}^{2}\right)\right)\right)}
+\]</div></li><li><p><code title="left to right">distribute-lft-in</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{1}{x} \cdot \left(1 + \frac{1}{2} \cdot x\right) + \frac{1}{x} \cdot \left(x \cdot \left(x \cdot \left(\frac{1}{12} + \frac{-1}{720} \cdot {x}^{2}\right)\right)\right)}
+\]</div></li><li><p><code title="left to right">associate-*l/</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{1 \cdot \left(1 + \frac{1}{2} \cdot x\right)}{x}} + \frac{1}{x} \cdot \left(x \cdot \left(x \cdot \left(\frac{1}{12} + \frac{-1}{720} \cdot {x}^{2}\right)\right)\right)
+\]</div></li><li><p><code title="left to right">*-lft-identity</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\color{blue}{1 + \frac{1}{2} \cdot x}}{x} + \frac{1}{x} \cdot \left(x \cdot \left(x \cdot \left(\frac{1}{12} + \frac{-1}{720} \cdot {x}^{2}\right)\right)\right)
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{1}{x} \cdot \left(x \cdot \left(x \cdot \left(\frac{1}{12} + \frac{-1}{720} \cdot {x}^{2}\right)\right)\right) + \frac{1 + \frac{1}{2} \cdot x}{x}}
+\]</div></li><li><p><code title="left to right">associate-*r*</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\left(\frac{1}{x} \cdot x\right) \cdot \left(x \cdot \left(\frac{1}{12} + \frac{-1}{720} \cdot {x}^{2}\right)\right)} + \frac{1 + \frac{1}{2} \cdot x}{x}
+\]</div></li><li><p><code title="left to right">lft-mult-inverse</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{1} \cdot \left(x \cdot \left(\frac{1}{12} + \frac{-1}{720} \cdot {x}^{2}\right)\right) + \frac{1 + \frac{1}{2} \cdot x}{x}
+\]</div></li><li><p><code title="left to right">*-lft-identity</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{x \cdot \left(\frac{1}{12} + \frac{-1}{720} \cdot {x}^{2}\right)} + \frac{1 + \frac{1}{2} \cdot x}{x}
+\]</div></li><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\left(\frac{1}{12} + \frac{-1}{720} \cdot {x}^{2}\right) \cdot x} + \frac{1 + \frac{1}{2} \cdot x}{x}
+\]</div></li></ol></details></div></li><li><p>Applied rewrites<span class="error" title="99.4% on training set">99.9%</span></p><div class="math">\[\leadsto \color{blue}{\mathsf{fma}\left(\mathsf{fma}\left(x \cdot x, -0.001388888888888889, 0.08333333333333333\right), x, 0.5 + \frac{1}{x}\right)}
+\]</div></li></ol></li><li class="event">Recombined 2 regimes into one program.</li><li><p>Final simplification<span class="error" title="91.6% on training set">90.8%</span></p><div class="math">\[\leadsto \begin{array}{l}
+\mathbf{if}\;e^{x} \leq 5 \cdot 10^{-5}:\\
+\;\;\;\;\frac{-1}{\left(\mathsf{fma}\left(0.041666666666666664, x, -0.16666666666666666\right) \cdot \left(x \cdot x\right)\right) \cdot x}\\
+
+\mathbf{else}:\\
+\;\;\;\;\mathsf{fma}\left(\mathsf{fma}\left(x \cdot x, -0.001388888888888889, 0.08333333333333333\right), x, 0.5 + {x}^{-1}\right)\\
+
+
+\end{array}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative3" class="programs"><h2>Alternative 3: <span class="subhead"><data>83.7%</data> accurate, <data>1.0×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;e^{x} \leq 5 \cdot 10^{-5}:\\
+\;\;\;\;\frac{-1}{\left(0.5 \cdot x\right) \cdot x}\\
+
+\mathbf{else}:\\
+\;\;\;\;\mathsf{fma}\left(0.08333333333333333, x, 0.5 + {x}^{-1}\right)\\
+
+
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x)
+ :precision binary64
+ (if (&lt;= (exp x) 5e-5)
+   (/ -1.0 (* (* 0.5 x) x))
+   (fma 0.08333333333333333 x (+ 0.5 (pow x -1.0)))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x) {
+	double tmp;
+	if (exp(x) &lt;= 5e-5) {
+		tmp = -1.0 / ((0.5 * x) * x);
+	} else {
+		tmp = fma(0.08333333333333333, x, (0.5 + pow(x, -1.0)));
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x)
+	tmp = 0.0
+	if (exp(x) &lt;= 5e-5)
+		tmp = Float64(-1.0 / Float64(Float64(0.5 * x) * x));
+	else
+		tmp = fma(0.08333333333333333, x, Float64(0.5 + (x ^ -1.0)));
+	end
+	return tmp
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_] := If[LessEqual[N[Exp[x], $MachinePrecision], 5e-5], N[(-1.0 / N[(N[(0.5 * x), $MachinePrecision] * x), $MachinePrecision]), $MachinePrecision], N[(0.08333333333333333 * x + N[(0.5 + N[Power[x, -1.0], $MachinePrecision]), $MachinePrecision]), $MachinePrecision]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;e^{x} \leq 5 \cdot 10^{-5}:\\
+\;\;\;\;\frac{-1}{\left(0.5 \cdot x\right) \cdot x}\\
+
+\mathbf{else}:\\
+\;\;\;\;\mathsf{fma}\left(0.08333333333333333, x, 0.5 + {x}^{-1}\right)\\
+
+
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li class="event">Split input into 2 regimes</li><li><h2><code>if <span class="condition"> (exp.f64 x)  &lt; 5.00000000000000024e-5</span></code></h2><ol><li><p>Initial program <span class="error" title="100.0% on training set">100.0%</span></p><div class="math">\[\frac{e^{x}}{e^{x} - 1}
+\]</div></li><li>Add Preprocessing</li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">lift-/.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{e^{x}}{e^{x} - 1}}
+\]</div></li><li><p><code title="left to right">clear-num</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{1}{\frac{e^{x} - 1}{e^{x}}}}
+\]</div></li><li><p><code title="left to right">frac-2neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{\mathsf{neg}\left(1\right)}{\mathsf{neg}\left(\frac{e^{x} - 1}{e^{x}}\right)}}
+\]</div></li><li><p><code title="left to right">lower-/.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{\mathsf{neg}\left(1\right)}{\mathsf{neg}\left(\frac{e^{x} - 1}{e^{x}}\right)}}
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\color{blue}{-1}}{\mathsf{neg}\left(\frac{e^{x} - 1}{e^{x}}\right)}
+\]</div></li><li><p><code title="left to right">distribute-neg-frac</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\frac{\mathsf{neg}\left(\left(e^{x} - 1\right)\right)}{e^{x}}}}
+\]</div></li><li><p><code title="left to right">neg-sub0</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\color{blue}{0 - \left(e^{x} - 1\right)}}{e^{x}}}
+\]</div></li><li><p><code title="left to right">lift--.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{0 - \color{blue}{\left(e^{x} - 1\right)}}{e^{x}}}
+\]</div></li><li><p><code title="right to left">associate-+l-</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\color{blue}{\left(0 - e^{x}\right) + 1}}{e^{x}}}
+\]</div></li><li><p><code title="right to left">neg-sub0</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\color{blue}{\left(\mathsf{neg}\left(e^{x}\right)\right)} + 1}{e^{x}}}
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\color{blue}{1 + \left(\mathsf{neg}\left(e^{x}\right)\right)}}{e^{x}}}
+\]</div></li><li><p><code title="right to left">sub-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\color{blue}{1 - e^{x}}}{e^{x}}}
+\]</div></li><li><p><code title="left to right">div-sub</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\frac{1}{e^{x}} - \frac{e^{x}}{e^{x}}}}
+\]</div></li><li><p><code title="left to right">*-inverses</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{1}{e^{x}} - \color{blue}{1}}
+\]</div></li><li><p><code title="left to right">lift-exp.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{1}{\color{blue}{e^{x}}} - 1}
+\]</div></li><li><p><code title="left to right">rec-exp</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{e^{\mathsf{neg}\left(x\right)}} - 1}
+\]</div></li><li><p><code title="left to right">lower-expm1.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\mathsf{expm1}\left(\mathsf{neg}\left(x\right)\right)}}
+\]</div></li><li><p><code title="left to right">lower-neg.f64</code><span class="error" title=" ↑ N/A ↓ N/A">100.0</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{expm1}\left(\color{blue}{-x}\right)}
+\]</div></li></ol></details></div></li><li><p>Applied rewrites<span class="error" title="100.0% on training set">100.0%</span></p><div class="math">\[\leadsto \color{blue}{\frac{-1}{\mathsf{expm1}\left(-x\right)}}
+\]</div></li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \frac{-1}{\color{blue}{x \cdot \left(\frac{1}{2} \cdot x - 1\right)}}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\left(\frac{1}{2} \cdot x - 1\right) \cdot x}}
+\]</div></li><li><p><code title="left to right">lower-*.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\left(\frac{1}{2} \cdot x - 1\right) \cdot x}}
+\]</div></li><li><p><code title="left to right">sub-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\left(\frac{1}{2} \cdot x + \left(\mathsf{neg}\left(1\right)\right)\right)} \cdot x}
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\left(\frac{1}{2} \cdot x + \color{blue}{-1}\right) \cdot x}
+\]</div></li><li><p><code title="left to right">lower-fma.f64</code><span class="error" title=" ↑ N/A ↓ N/A">53.2</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\mathsf{fma}\left(0.5, x, -1\right)} \cdot x}
+\]</div></li></ol></details></div></li><li><p>Applied rewrites<span class="error" title="52.4% on training set">53.2%</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\mathsf{fma}\left(0.5, x, -1\right) \cdot x}}
+\]</div></li><li><p>Taylor expanded in x around inf</p><div class="math">\[\leadsto \frac{-1}{\left(\frac{1}{2} \cdot x\right) \cdot x}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol></ol></details></div></li><li><p>Applied rewrites<span class="error" title="52.4% on training set">53.2%</span></p><div class="math">\[\leadsto \frac{-1}{\left(0.5 \cdot x\right) \cdot x}
+\]</div></li></ol><h2><code>if <span class="condition">5.00000000000000024e-5 &lt;  (exp.f64 x) </span></code></h2><ol><li><p>Initial program <span class="error" title="6.5% on training set">5.5%</span></p><div class="math">\[\frac{e^{x}}{e^{x} - 1}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \color{blue}{\frac{1 + x \cdot \left(\frac{1}{2} + \frac{1}{12} \cdot x\right)}{x}}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="right to left">*-lft-identity</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{1 \cdot \frac{1 + x \cdot \left(\frac{1}{2} + \frac{1}{12} \cdot x\right)}{x}}
+\]</div></li><li><p><code title="right to left">associate-/l*</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{1 \cdot \left(1 + x \cdot \left(\frac{1}{2} + \frac{1}{12} \cdot x\right)\right)}{x}}
+\]</div></li><li><p><code title="right to left">associate-*l/</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{1}{x} \cdot \left(1 + x \cdot \left(\frac{1}{2} + \frac{1}{12} \cdot x\right)\right)}
+\]</div></li><li><p><code title="left to right">distribute-lft-in</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{1}{x} \cdot \left(1 + \color{blue}{\left(x \cdot \frac{1}{2} + x \cdot \left(\frac{1}{12} \cdot x\right)\right)}\right)
+\]</div></li><li><p><code title="right to left">*-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{1}{x} \cdot \left(1 + \left(\color{blue}{\frac{1}{2} \cdot x} + x \cdot \left(\frac{1}{12} \cdot x\right)\right)\right)
+\]</div></li><li><p><code title="left to right">associate-+r+</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{1}{x} \cdot \color{blue}{\left(\left(1 + \frac{1}{2} \cdot x\right) + x \cdot \left(\frac{1}{12} \cdot x\right)\right)}
+\]</div></li><li><p><code title="left to right">distribute-rgt-in</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\left(1 + \frac{1}{2} \cdot x\right) \cdot \frac{1}{x} + \left(x \cdot \left(\frac{1}{12} \cdot x\right)\right) \cdot \frac{1}{x}}
+\]</div></li><li><p><code title="right to left">associate-/l*</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{\left(1 + \frac{1}{2} \cdot x\right) \cdot 1}{x}} + \left(x \cdot \left(\frac{1}{12} \cdot x\right)\right) \cdot \frac{1}{x}
+\]</div></li><li><p><code title="left to right">*-rgt-identity</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\color{blue}{1 + \frac{1}{2} \cdot x}}{x} + \left(x \cdot \left(\frac{1}{12} \cdot x\right)\right) \cdot \frac{1}{x}
+\]</div></li><li><p><code title="right to left">*-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{1 + \frac{1}{2} \cdot x}{x} + \color{blue}{\frac{1}{x} \cdot \left(x \cdot \left(\frac{1}{12} \cdot x\right)\right)}
+\]</div></li><li><p><code title="left to right">associate-*r*</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{1 + \frac{1}{2} \cdot x}{x} + \color{blue}{\left(\frac{1}{x} \cdot x\right) \cdot \left(\frac{1}{12} \cdot x\right)}
+\]</div></li><li><p><code title="left to right">lft-mult-inverse</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{1 + \frac{1}{2} \cdot x}{x} + \color{blue}{1} \cdot \left(\frac{1}{12} \cdot x\right)
+\]</div></li><li><p><code title="left to right">*-lft-identity</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{1 + \frac{1}{2} \cdot x}{x} + \color{blue}{\frac{1}{12} \cdot x}
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{1}{12} \cdot x + \frac{1 + \frac{1}{2} \cdot x}{x}}
+\]</div></li><li><p><code title="left to right">lower-fma.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\mathsf{fma}\left(\frac{1}{12}, x, \frac{1 + \frac{1}{2} \cdot x}{x}\right)}
+\]</div></li><li><p><code title="right to left">*-rgt-identity</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \mathsf{fma}\left(\frac{1}{12}, x, \frac{\color{blue}{\left(1 + \frac{1}{2} \cdot x\right) \cdot 1}}{x}\right)
+\]</div></li><li><p><code title="left to right">associate-/l*</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \mathsf{fma}\left(\frac{1}{12}, x, \color{blue}{\left(1 + \frac{1}{2} \cdot x\right) \cdot \frac{1}{x}}\right)
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \mathsf{fma}\left(\frac{1}{12}, x, \color{blue}{\left(\frac{1}{2} \cdot x + 1\right)} \cdot \frac{1}{x}\right)
+\]</div></li><li><p><code title="right to left">distribute-lft1-in</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \mathsf{fma}\left(\frac{1}{12}, x, \color{blue}{\left(\frac{1}{2} \cdot x\right) \cdot \frac{1}{x} + \frac{1}{x}}\right)
+\]</div></li><li><p><code title="left to right">lower-+.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \mathsf{fma}\left(\frac{1}{12}, x, \color{blue}{\left(\frac{1}{2} \cdot x\right) \cdot \frac{1}{x} + \frac{1}{x}}\right)
+\]</div></li></ol></details></div></li><li><p>Applied rewrites<span class="error" title="99.3% on training set">99.8%</span></p><div class="math">\[\leadsto \color{blue}{\mathsf{fma}\left(0.08333333333333333, x, 0.5 + \frac{1}{x}\right)}
+\]</div></li></ol></li><li class="event">Recombined 2 regimes into one program.</li><li><p>Final simplification<span class="error" title="83.7% on training set">81.8%</span></p><div class="math">\[\leadsto \begin{array}{l}
+\mathbf{if}\;e^{x} \leq 5 \cdot 10^{-5}:\\
+\;\;\;\;\frac{-1}{\left(0.5 \cdot x\right) \cdot x}\\
+
+\mathbf{else}:\\
+\;\;\;\;\mathsf{fma}\left(0.08333333333333333, x, 0.5 + {x}^{-1}\right)\\
+
+
+\end{array}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative4" class="programs"><h2>Alternative 4: <span class="subhead"><data>95.4%</data> accurate, <data>1.6×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+t_0 := \left(\mathsf{fma}\left(\mathsf{fma}\left(0.041666666666666664, x, -0.16666666666666666\right), x, 0.5\right) \cdot x\right) \cdot x\\
+\mathbf{if}\;x \leq -2.5 \cdot 10^{+77}:\\
+\;\;\;\;\frac{-1}{\left(\mathsf{fma}\left(0.041666666666666664, x, -0.16666666666666666\right) \cdot \left(x \cdot x\right)\right) \cdot x}\\
+
+\mathbf{elif}\;x \leq -3.3:\\
+\;\;\;\;\frac{-1}{\frac{t\_0 \cdot t\_0 - x \cdot x}{t\_0 + x}}\\
+
+\mathbf{else}:\\
+\;\;\;\;\mathsf{fma}\left(\mathsf{fma}\left(x \cdot x, -0.001388888888888889, 0.08333333333333333\right), x, 0.5 + {x}^{-1}\right)\\
+
+
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x)
+ :precision binary64
+ (let* ((t_0
+         (*
+          (* (fma (fma 0.041666666666666664 x -0.16666666666666666) x 0.5) x)
+          x)))
+   (if (&lt;= x -2.5e+77)
+     (/
+      -1.0
+      (* (* (fma 0.041666666666666664 x -0.16666666666666666) (* x x)) x))
+     (if (&lt;= x -3.3)
+       (/ -1.0 (/ (- (* t_0 t_0) (* x x)) (+ t_0 x)))
+       (fma
+        (fma (* x x) -0.001388888888888889 0.08333333333333333)
+        x
+        (+ 0.5 (pow x -1.0)))))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x) {
+	double t_0 = (fma(fma(0.041666666666666664, x, -0.16666666666666666), x, 0.5) * x) * x;
+	double tmp;
+	if (x &lt;= -2.5e+77) {
+		tmp = -1.0 / ((fma(0.041666666666666664, x, -0.16666666666666666) * (x * x)) * x);
+	} else if (x &lt;= -3.3) {
+		tmp = -1.0 / (((t_0 * t_0) - (x * x)) / (t_0 + x));
+	} else {
+		tmp = fma(fma((x * x), -0.001388888888888889, 0.08333333333333333), x, (0.5 + pow(x, -1.0)));
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x)
+	t_0 = Float64(Float64(fma(fma(0.041666666666666664, x, -0.16666666666666666), x, 0.5) * x) * x)
+	tmp = 0.0
+	if (x &lt;= -2.5e+77)
+		tmp = Float64(-1.0 / Float64(Float64(fma(0.041666666666666664, x, -0.16666666666666666) * Float64(x * x)) * x));
+	elseif (x &lt;= -3.3)
+		tmp = Float64(-1.0 / Float64(Float64(Float64(t_0 * t_0) - Float64(x * x)) / Float64(t_0 + x)));
+	else
+		tmp = fma(fma(Float64(x * x), -0.001388888888888889, 0.08333333333333333), x, Float64(0.5 + (x ^ -1.0)));
+	end
+	return tmp
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_] := Block[{t$95$0 = N[(N[(N[(N[(0.041666666666666664 * x + -0.16666666666666666), $MachinePrecision] * x + 0.5), $MachinePrecision] * x), $MachinePrecision] * x), $MachinePrecision]}, If[LessEqual[x, -2.5e+77], N[(-1.0 / N[(N[(N[(0.041666666666666664 * x + -0.16666666666666666), $MachinePrecision] * N[(x * x), $MachinePrecision]), $MachinePrecision] * x), $MachinePrecision]), $MachinePrecision], If[LessEqual[x, -3.3], N[(-1.0 / N[(N[(N[(t$95$0 * t$95$0), $MachinePrecision] - N[(x * x), $MachinePrecision]), $MachinePrecision] / N[(t$95$0 + x), $MachinePrecision]), $MachinePrecision]), $MachinePrecision], N[(N[(N[(x * x), $MachinePrecision] * -0.001388888888888889 + 0.08333333333333333), $MachinePrecision] * x + N[(0.5 + N[Power[x, -1.0], $MachinePrecision]), $MachinePrecision]), $MachinePrecision]]]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+t_0 := \left(\mathsf{fma}\left(\mathsf{fma}\left(0.041666666666666664, x, -0.16666666666666666\right), x, 0.5\right) \cdot x\right) \cdot x\\
+\mathbf{if}\;x \leq -2.5 \cdot 10^{+77}:\\
+\;\;\;\;\frac{-1}{\left(\mathsf{fma}\left(0.041666666666666664, x, -0.16666666666666666\right) \cdot \left(x \cdot x\right)\right) \cdot x}\\
+
+\mathbf{elif}\;x \leq -3.3:\\
+\;\;\;\;\frac{-1}{\frac{t\_0 \cdot t\_0 - x \cdot x}{t\_0 + x}}\\
+
+\mathbf{else}:\\
+\;\;\;\;\mathsf{fma}\left(\mathsf{fma}\left(x \cdot x, -0.001388888888888889, 0.08333333333333333\right), x, 0.5 + {x}^{-1}\right)\\
+
+
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li class="event">Split input into 3 regimes</li><li><h2><code>if <span class="condition"> x  &lt; -2.50000000000000002e77</span></code></h2><ol><li><p>Initial program <span class="error" title="100.0% on training set">100.0%</span></p><div class="math">\[\frac{e^{x}}{e^{x} - 1}
+\]</div></li><li>Add Preprocessing</li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">lift-/.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{e^{x}}{e^{x} - 1}}
+\]</div></li><li><p><code title="left to right">clear-num</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{1}{\frac{e^{x} - 1}{e^{x}}}}
+\]</div></li><li><p><code title="left to right">frac-2neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{\mathsf{neg}\left(1\right)}{\mathsf{neg}\left(\frac{e^{x} - 1}{e^{x}}\right)}}
+\]</div></li><li><p><code title="left to right">lower-/.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{\mathsf{neg}\left(1\right)}{\mathsf{neg}\left(\frac{e^{x} - 1}{e^{x}}\right)}}
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\color{blue}{-1}}{\mathsf{neg}\left(\frac{e^{x} - 1}{e^{x}}\right)}
+\]</div></li><li><p><code title="left to right">distribute-neg-frac</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\frac{\mathsf{neg}\left(\left(e^{x} - 1\right)\right)}{e^{x}}}}
+\]</div></li><li><p><code title="left to right">neg-sub0</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\color{blue}{0 - \left(e^{x} - 1\right)}}{e^{x}}}
+\]</div></li><li><p><code title="left to right">lift--.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{0 - \color{blue}{\left(e^{x} - 1\right)}}{e^{x}}}
+\]</div></li><li><p><code title="right to left">associate-+l-</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\color{blue}{\left(0 - e^{x}\right) + 1}}{e^{x}}}
+\]</div></li><li><p><code title="right to left">neg-sub0</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\color{blue}{\left(\mathsf{neg}\left(e^{x}\right)\right)} + 1}{e^{x}}}
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\color{blue}{1 + \left(\mathsf{neg}\left(e^{x}\right)\right)}}{e^{x}}}
+\]</div></li><li><p><code title="right to left">sub-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\color{blue}{1 - e^{x}}}{e^{x}}}
+\]</div></li><li><p><code title="left to right">div-sub</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\frac{1}{e^{x}} - \frac{e^{x}}{e^{x}}}}
+\]</div></li><li><p><code title="left to right">*-inverses</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{1}{e^{x}} - \color{blue}{1}}
+\]</div></li><li><p><code title="left to right">lift-exp.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{1}{\color{blue}{e^{x}}} - 1}
+\]</div></li><li><p><code title="left to right">rec-exp</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{e^{\mathsf{neg}\left(x\right)}} - 1}
+\]</div></li><li><p><code title="left to right">lower-expm1.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\mathsf{expm1}\left(\mathsf{neg}\left(x\right)\right)}}
+\]</div></li><li><p><code title="left to right">lower-neg.f64</code><span class="error" title=" ↑ N/A ↓ N/A">100.0</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{expm1}\left(\color{blue}{-x}\right)}
+\]</div></li></ol></details></div></li><li><p>Applied rewrites<span class="error" title="100.0% on training set">100.0%</span></p><div class="math">\[\leadsto \color{blue}{\frac{-1}{\mathsf{expm1}\left(-x\right)}}
+\]</div></li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \frac{-1}{\color{blue}{x \cdot \left(x \cdot \left(\frac{1}{2} + x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right)\right) - 1\right)}}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\left(x \cdot \left(\frac{1}{2} + x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right)\right) - 1\right) \cdot x}}
+\]</div></li><li><p><code title="left to right">lower-*.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\left(x \cdot \left(\frac{1}{2} + x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right)\right) - 1\right) \cdot x}}
+\]</div></li><li><p><code title="left to right">sub-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\left(x \cdot \left(\frac{1}{2} + x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right)\right) + \left(\mathsf{neg}\left(1\right)\right)\right)} \cdot x}
+\]</div></li><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\left(\color{blue}{\left(\frac{1}{2} + x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right)\right) \cdot x} + \left(\mathsf{neg}\left(1\right)\right)\right) \cdot x}
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\left(\left(\frac{1}{2} + x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right)\right) \cdot x + \color{blue}{-1}\right) \cdot x}
+\]</div></li><li><p><code title="left to right">lower-fma.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\mathsf{fma}\left(\frac{1}{2} + x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right), x, -1\right)} \cdot x}
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\color{blue}{x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right) + \frac{1}{2}}, x, -1\right) \cdot x}
+\]</div></li><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\color{blue}{\left(\frac{1}{24} \cdot x - \frac{1}{6}\right) \cdot x} + \frac{1}{2}, x, -1\right) \cdot x}
+\]</div></li><li><p><code title="left to right">lower-fma.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\color{blue}{\mathsf{fma}\left(\frac{1}{24} \cdot x - \frac{1}{6}, x, \frac{1}{2}\right)}, x, -1\right) \cdot x}
+\]</div></li><li><p><code title="left to right">sub-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\mathsf{fma}\left(\color{blue}{\frac{1}{24} \cdot x + \left(\mathsf{neg}\left(\frac{1}{6}\right)\right)}, x, \frac{1}{2}\right), x, -1\right) \cdot x}
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\mathsf{fma}\left(\frac{1}{24} \cdot x + \color{blue}{\frac{-1}{6}}, x, \frac{1}{2}\right), x, -1\right) \cdot x}
+\]</div></li><li><p><code title="left to right">lower-fma.f64</code><span class="error" title=" ↑ N/A ↓ N/A">100.0</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\mathsf{fma}\left(\color{blue}{\mathsf{fma}\left(0.041666666666666664, x, -0.16666666666666666\right)}, x, 0.5\right), x, -1\right) \cdot x}
+\]</div></li></ol></details></div></li><li><p>Applied rewrites<span class="error" title="100.0% on training set">100.0%</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\mathsf{fma}\left(\mathsf{fma}\left(\mathsf{fma}\left(0.041666666666666664, x, -0.16666666666666666\right), x, 0.5\right), x, -1\right) \cdot x}}
+\]</div></li><li><p>Taylor expanded in x around inf</p><div class="math">\[\leadsto \frac{-1}{\left({x}^{3} \cdot \left(\frac{1}{24} - \frac{1}{6} \cdot \frac{1}{x}\right)\right) \cdot x}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol></ol></details></div></li><li><p>Applied rewrites<span class="error" title="100.0% on training set">100.0%</span></p><div class="math">\[\leadsto \frac{-1}{\left(\mathsf{fma}\left(0.041666666666666664, x, -0.16666666666666666\right) \cdot \left(x \cdot x\right)\right) \cdot x}
+\]</div></li></ol><h2><code>if <span class="condition">-2.50000000000000002e77 &lt;  x  &lt; -3.2999999999999998</span></code></h2><ol><li><p>Initial program <span class="error" title="100.0% on training set">100.0%</span></p><div class="math">\[\frac{e^{x}}{e^{x} - 1}
+\]</div></li><li>Add Preprocessing</li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">lift-/.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{e^{x}}{e^{x} - 1}}
+\]</div></li><li><p><code title="left to right">clear-num</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{1}{\frac{e^{x} - 1}{e^{x}}}}
+\]</div></li><li><p><code title="left to right">frac-2neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{\mathsf{neg}\left(1\right)}{\mathsf{neg}\left(\frac{e^{x} - 1}{e^{x}}\right)}}
+\]</div></li><li><p><code title="left to right">lower-/.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{\mathsf{neg}\left(1\right)}{\mathsf{neg}\left(\frac{e^{x} - 1}{e^{x}}\right)}}
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\color{blue}{-1}}{\mathsf{neg}\left(\frac{e^{x} - 1}{e^{x}}\right)}
+\]</div></li><li><p><code title="left to right">distribute-neg-frac</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\frac{\mathsf{neg}\left(\left(e^{x} - 1\right)\right)}{e^{x}}}}
+\]</div></li><li><p><code title="left to right">neg-sub0</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\color{blue}{0 - \left(e^{x} - 1\right)}}{e^{x}}}
+\]</div></li><li><p><code title="left to right">lift--.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{0 - \color{blue}{\left(e^{x} - 1\right)}}{e^{x}}}
+\]</div></li><li><p><code title="right to left">associate-+l-</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\color{blue}{\left(0 - e^{x}\right) + 1}}{e^{x}}}
+\]</div></li><li><p><code title="right to left">neg-sub0</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\color{blue}{\left(\mathsf{neg}\left(e^{x}\right)\right)} + 1}{e^{x}}}
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\color{blue}{1 + \left(\mathsf{neg}\left(e^{x}\right)\right)}}{e^{x}}}
+\]</div></li><li><p><code title="right to left">sub-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\color{blue}{1 - e^{x}}}{e^{x}}}
+\]</div></li><li><p><code title="left to right">div-sub</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\frac{1}{e^{x}} - \frac{e^{x}}{e^{x}}}}
+\]</div></li><li><p><code title="left to right">*-inverses</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{1}{e^{x}} - \color{blue}{1}}
+\]</div></li><li><p><code title="left to right">lift-exp.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{1}{\color{blue}{e^{x}}} - 1}
+\]</div></li><li><p><code title="left to right">rec-exp</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{e^{\mathsf{neg}\left(x\right)}} - 1}
+\]</div></li><li><p><code title="left to right">lower-expm1.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\mathsf{expm1}\left(\mathsf{neg}\left(x\right)\right)}}
+\]</div></li><li><p><code title="left to right">lower-neg.f64</code><span class="error" title=" ↑ N/A ↓ N/A">100.0</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{expm1}\left(\color{blue}{-x}\right)}
+\]</div></li></ol></details></div></li><li><p>Applied rewrites<span class="error" title="100.0% on training set">100.0%</span></p><div class="math">\[\leadsto \color{blue}{\frac{-1}{\mathsf{expm1}\left(-x\right)}}
+\]</div></li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \frac{-1}{\color{blue}{x \cdot \left(x \cdot \left(\frac{1}{2} + x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right)\right) - 1\right)}}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\left(x \cdot \left(\frac{1}{2} + x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right)\right) - 1\right) \cdot x}}
+\]</div></li><li><p><code title="left to right">lower-*.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\left(x \cdot \left(\frac{1}{2} + x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right)\right) - 1\right) \cdot x}}
+\]</div></li><li><p><code title="left to right">sub-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\left(x \cdot \left(\frac{1}{2} + x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right)\right) + \left(\mathsf{neg}\left(1\right)\right)\right)} \cdot x}
+\]</div></li><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\left(\color{blue}{\left(\frac{1}{2} + x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right)\right) \cdot x} + \left(\mathsf{neg}\left(1\right)\right)\right) \cdot x}
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\left(\left(\frac{1}{2} + x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right)\right) \cdot x + \color{blue}{-1}\right) \cdot x}
+\]</div></li><li><p><code title="left to right">lower-fma.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\mathsf{fma}\left(\frac{1}{2} + x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right), x, -1\right)} \cdot x}
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\color{blue}{x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right) + \frac{1}{2}}, x, -1\right) \cdot x}
+\]</div></li><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\color{blue}{\left(\frac{1}{24} \cdot x - \frac{1}{6}\right) \cdot x} + \frac{1}{2}, x, -1\right) \cdot x}
+\]</div></li><li><p><code title="left to right">lower-fma.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\color{blue}{\mathsf{fma}\left(\frac{1}{24} \cdot x - \frac{1}{6}, x, \frac{1}{2}\right)}, x, -1\right) \cdot x}
+\]</div></li><li><p><code title="left to right">sub-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\mathsf{fma}\left(\color{blue}{\frac{1}{24} \cdot x + \left(\mathsf{neg}\left(\frac{1}{6}\right)\right)}, x, \frac{1}{2}\right), x, -1\right) \cdot x}
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\mathsf{fma}\left(\frac{1}{24} \cdot x + \color{blue}{\frac{-1}{6}}, x, \frac{1}{2}\right), x, -1\right) \cdot x}
+\]</div></li><li><p><code title="left to right">lower-fma.f64</code><span class="error" title=" ↑ N/A ↓ N/A">6.0</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\mathsf{fma}\left(\color{blue}{\mathsf{fma}\left(0.041666666666666664, x, -0.16666666666666666\right)}, x, 0.5\right), x, -1\right) \cdot x}
+\]</div></li></ol></details></div></li><li><p>Applied rewrites<span class="error" title="5.5% on training set">6.0%</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\mathsf{fma}\left(\mathsf{fma}\left(\mathsf{fma}\left(0.041666666666666664, x, -0.16666666666666666\right), x, 0.5\right), x, -1\right) \cdot x}}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol></ol></details></div></li><li><p>Applied rewrites<span class="error" title="50.1% on training set">65.9%</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\left(\left(\mathsf{fma}\left(\mathsf{fma}\left(0.041666666666666664, x, -0.16666666666666666\right), x, 0.5\right) \cdot x\right) \cdot x\right) \cdot \left(\left(\mathsf{fma}\left(\mathsf{fma}\left(0.041666666666666664, x, -0.16666666666666666\right), x, 0.5\right) \cdot x\right) \cdot x\right) - x \cdot x}{\color{blue}{\left(\mathsf{fma}\left(\mathsf{fma}\left(0.041666666666666664, x, -0.16666666666666666\right), x, 0.5\right) \cdot x\right) \cdot x - \left(-x\right)}}}
+\]</div></li></ol><h2><code>if <span class="condition">-3.2999999999999998 &lt;  x </span></code></h2><ol><li><p>Initial program <span class="error" title="6.5% on training set">5.5%</span></p><div class="math">\[\frac{e^{x}}{e^{x} - 1}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \color{blue}{\frac{1 + x \cdot \left(\frac{1}{2} + x \cdot \left(\frac{1}{12} + \frac{-1}{720} \cdot {x}^{2}\right)\right)}{x}}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="right to left">*-lft-identity</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{1 \cdot \frac{1 + x \cdot \left(\frac{1}{2} + x \cdot \left(\frac{1}{12} + \frac{-1}{720} \cdot {x}^{2}\right)\right)}{x}}
+\]</div></li><li><p><code title="right to left">associate-/l*</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{1 \cdot \left(1 + x \cdot \left(\frac{1}{2} + x \cdot \left(\frac{1}{12} + \frac{-1}{720} \cdot {x}^{2}\right)\right)\right)}{x}}
+\]</div></li><li><p><code title="right to left">associate-*l/</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{1}{x} \cdot \left(1 + x \cdot \left(\frac{1}{2} + x \cdot \left(\frac{1}{12} + \frac{-1}{720} \cdot {x}^{2}\right)\right)\right)}
+\]</div></li><li><p><code title="left to right">distribute-lft-in</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{1}{x} \cdot \left(1 + \color{blue}{\left(x \cdot \frac{1}{2} + x \cdot \left(x \cdot \left(\frac{1}{12} + \frac{-1}{720} \cdot {x}^{2}\right)\right)\right)}\right)
+\]</div></li><li><p><code title="right to left">*-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{1}{x} \cdot \left(1 + \left(\color{blue}{\frac{1}{2} \cdot x} + x \cdot \left(x \cdot \left(\frac{1}{12} + \frac{-1}{720} \cdot {x}^{2}\right)\right)\right)\right)
+\]</div></li><li><p><code title="left to right">associate-+r+</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{1}{x} \cdot \color{blue}{\left(\left(1 + \frac{1}{2} \cdot x\right) + x \cdot \left(x \cdot \left(\frac{1}{12} + \frac{-1}{720} \cdot {x}^{2}\right)\right)\right)}
+\]</div></li><li><p><code title="left to right">distribute-lft-in</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{1}{x} \cdot \left(1 + \frac{1}{2} \cdot x\right) + \frac{1}{x} \cdot \left(x \cdot \left(x \cdot \left(\frac{1}{12} + \frac{-1}{720} \cdot {x}^{2}\right)\right)\right)}
+\]</div></li><li><p><code title="left to right">associate-*l/</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{1 \cdot \left(1 + \frac{1}{2} \cdot x\right)}{x}} + \frac{1}{x} \cdot \left(x \cdot \left(x \cdot \left(\frac{1}{12} + \frac{-1}{720} \cdot {x}^{2}\right)\right)\right)
+\]</div></li><li><p><code title="left to right">*-lft-identity</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\color{blue}{1 + \frac{1}{2} \cdot x}}{x} + \frac{1}{x} \cdot \left(x \cdot \left(x \cdot \left(\frac{1}{12} + \frac{-1}{720} \cdot {x}^{2}\right)\right)\right)
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{1}{x} \cdot \left(x \cdot \left(x \cdot \left(\frac{1}{12} + \frac{-1}{720} \cdot {x}^{2}\right)\right)\right) + \frac{1 + \frac{1}{2} \cdot x}{x}}
+\]</div></li><li><p><code title="left to right">associate-*r*</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\left(\frac{1}{x} \cdot x\right) \cdot \left(x \cdot \left(\frac{1}{12} + \frac{-1}{720} \cdot {x}^{2}\right)\right)} + \frac{1 + \frac{1}{2} \cdot x}{x}
+\]</div></li><li><p><code title="left to right">lft-mult-inverse</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{1} \cdot \left(x \cdot \left(\frac{1}{12} + \frac{-1}{720} \cdot {x}^{2}\right)\right) + \frac{1 + \frac{1}{2} \cdot x}{x}
+\]</div></li><li><p><code title="left to right">*-lft-identity</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{x \cdot \left(\frac{1}{12} + \frac{-1}{720} \cdot {x}^{2}\right)} + \frac{1 + \frac{1}{2} \cdot x}{x}
+\]</div></li><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\left(\frac{1}{12} + \frac{-1}{720} \cdot {x}^{2}\right) \cdot x} + \frac{1 + \frac{1}{2} \cdot x}{x}
+\]</div></li></ol></details></div></li><li><p>Applied rewrites<span class="error" title="99.4% on training set">99.9%</span></p><div class="math">\[\leadsto \color{blue}{\mathsf{fma}\left(\mathsf{fma}\left(x \cdot x, -0.001388888888888889, 0.08333333333333333\right), x, 0.5 + \frac{1}{x}\right)}
+\]</div></li></ol></li><li class="event">Recombined 3 regimes into one program.</li><li><p>Final simplification<span class="error" title="95.4% on training set">96.6%</span></p><div class="math">\[\leadsto \begin{array}{l}
+\mathbf{if}\;x \leq -2.5 \cdot 10^{+77}:\\
+\;\;\;\;\frac{-1}{\left(\mathsf{fma}\left(0.041666666666666664, x, -0.16666666666666666\right) \cdot \left(x \cdot x\right)\right) \cdot x}\\
+
+\mathbf{elif}\;x \leq -3.3:\\
+\;\;\;\;\frac{-1}{\frac{\left(\left(\mathsf{fma}\left(\mathsf{fma}\left(0.041666666666666664, x, -0.16666666666666666\right), x, 0.5\right) \cdot x\right) \cdot x\right) \cdot \left(\left(\mathsf{fma}\left(\mathsf{fma}\left(0.041666666666666664, x, -0.16666666666666666\right), x, 0.5\right) \cdot x\right) \cdot x\right) - x \cdot x}{\left(\mathsf{fma}\left(\mathsf{fma}\left(0.041666666666666664, x, -0.16666666666666666\right), x, 0.5\right) \cdot x\right) \cdot x + x}}\\
+
+\mathbf{else}:\\
+\;\;\;\;\mathsf{fma}\left(\mathsf{fma}\left(x \cdot x, -0.001388888888888889, 0.08333333333333333\right), x, 0.5 + {x}^{-1}\right)\\
+
+
+\end{array}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative5" class="programs"><h2>Alternative 5: <span class="subhead"><data>95.4%</data> accurate, <data>1.6×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+t_0 := \left(\left(\left(x \cdot 0.041666666666666664\right) \cdot x\right) \cdot x\right) \cdot x\\
+\mathbf{if}\;x \leq -2.5 \cdot 10^{+77}:\\
+\;\;\;\;\frac{-1}{\left(\mathsf{fma}\left(0.041666666666666664, x, -0.16666666666666666\right) \cdot \left(x \cdot x\right)\right) \cdot x}\\
+
+\mathbf{elif}\;x \leq -3.75:\\
+\;\;\;\;\frac{-1}{\frac{t\_0 \cdot t\_0 - x \cdot x}{t\_0 + x}}\\
+
+\mathbf{else}:\\
+\;\;\;\;\mathsf{fma}\left(\mathsf{fma}\left(x \cdot x, -0.001388888888888889, 0.08333333333333333\right), x, 0.5 + {x}^{-1}\right)\\
+
+
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x)
+ :precision binary64
+ (let* ((t_0 (* (* (* (* x 0.041666666666666664) x) x) x)))
+   (if (&lt;= x -2.5e+77)
+     (/
+      -1.0
+      (* (* (fma 0.041666666666666664 x -0.16666666666666666) (* x x)) x))
+     (if (&lt;= x -3.75)
+       (/ -1.0 (/ (- (* t_0 t_0) (* x x)) (+ t_0 x)))
+       (fma
+        (fma (* x x) -0.001388888888888889 0.08333333333333333)
+        x
+        (+ 0.5 (pow x -1.0)))))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x) {
+	double t_0 = (((x * 0.041666666666666664) * x) * x) * x;
+	double tmp;
+	if (x &lt;= -2.5e+77) {
+		tmp = -1.0 / ((fma(0.041666666666666664, x, -0.16666666666666666) * (x * x)) * x);
+	} else if (x &lt;= -3.75) {
+		tmp = -1.0 / (((t_0 * t_0) - (x * x)) / (t_0 + x));
+	} else {
+		tmp = fma(fma((x * x), -0.001388888888888889, 0.08333333333333333), x, (0.5 + pow(x, -1.0)));
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x)
+	t_0 = Float64(Float64(Float64(Float64(x * 0.041666666666666664) * x) * x) * x)
+	tmp = 0.0
+	if (x &lt;= -2.5e+77)
+		tmp = Float64(-1.0 / Float64(Float64(fma(0.041666666666666664, x, -0.16666666666666666) * Float64(x * x)) * x));
+	elseif (x &lt;= -3.75)
+		tmp = Float64(-1.0 / Float64(Float64(Float64(t_0 * t_0) - Float64(x * x)) / Float64(t_0 + x)));
+	else
+		tmp = fma(fma(Float64(x * x), -0.001388888888888889, 0.08333333333333333), x, Float64(0.5 + (x ^ -1.0)));
+	end
+	return tmp
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_] := Block[{t$95$0 = N[(N[(N[(N[(x * 0.041666666666666664), $MachinePrecision] * x), $MachinePrecision] * x), $MachinePrecision] * x), $MachinePrecision]}, If[LessEqual[x, -2.5e+77], N[(-1.0 / N[(N[(N[(0.041666666666666664 * x + -0.16666666666666666), $MachinePrecision] * N[(x * x), $MachinePrecision]), $MachinePrecision] * x), $MachinePrecision]), $MachinePrecision], If[LessEqual[x, -3.75], N[(-1.0 / N[(N[(N[(t$95$0 * t$95$0), $MachinePrecision] - N[(x * x), $MachinePrecision]), $MachinePrecision] / N[(t$95$0 + x), $MachinePrecision]), $MachinePrecision]), $MachinePrecision], N[(N[(N[(x * x), $MachinePrecision] * -0.001388888888888889 + 0.08333333333333333), $MachinePrecision] * x + N[(0.5 + N[Power[x, -1.0], $MachinePrecision]), $MachinePrecision]), $MachinePrecision]]]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+t_0 := \left(\left(\left(x \cdot 0.041666666666666664\right) \cdot x\right) \cdot x\right) \cdot x\\
+\mathbf{if}\;x \leq -2.5 \cdot 10^{+77}:\\
+\;\;\;\;\frac{-1}{\left(\mathsf{fma}\left(0.041666666666666664, x, -0.16666666666666666\right) \cdot \left(x \cdot x\right)\right) \cdot x}\\
+
+\mathbf{elif}\;x \leq -3.75:\\
+\;\;\;\;\frac{-1}{\frac{t\_0 \cdot t\_0 - x \cdot x}{t\_0 + x}}\\
+
+\mathbf{else}:\\
+\;\;\;\;\mathsf{fma}\left(\mathsf{fma}\left(x \cdot x, -0.001388888888888889, 0.08333333333333333\right), x, 0.5 + {x}^{-1}\right)\\
+
+
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li class="event">Split input into 3 regimes</li><li><h2><code>if <span class="condition"> x  &lt; -2.50000000000000002e77</span></code></h2><ol><li><p>Initial program <span class="error" title="100.0% on training set">100.0%</span></p><div class="math">\[\frac{e^{x}}{e^{x} - 1}
+\]</div></li><li>Add Preprocessing</li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">lift-/.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{e^{x}}{e^{x} - 1}}
+\]</div></li><li><p><code title="left to right">clear-num</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{1}{\frac{e^{x} - 1}{e^{x}}}}
+\]</div></li><li><p><code title="left to right">frac-2neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{\mathsf{neg}\left(1\right)}{\mathsf{neg}\left(\frac{e^{x} - 1}{e^{x}}\right)}}
+\]</div></li><li><p><code title="left to right">lower-/.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{\mathsf{neg}\left(1\right)}{\mathsf{neg}\left(\frac{e^{x} - 1}{e^{x}}\right)}}
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\color{blue}{-1}}{\mathsf{neg}\left(\frac{e^{x} - 1}{e^{x}}\right)}
+\]</div></li><li><p><code title="left to right">distribute-neg-frac</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\frac{\mathsf{neg}\left(\left(e^{x} - 1\right)\right)}{e^{x}}}}
+\]</div></li><li><p><code title="left to right">neg-sub0</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\color{blue}{0 - \left(e^{x} - 1\right)}}{e^{x}}}
+\]</div></li><li><p><code title="left to right">lift--.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{0 - \color{blue}{\left(e^{x} - 1\right)}}{e^{x}}}
+\]</div></li><li><p><code title="right to left">associate-+l-</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\color{blue}{\left(0 - e^{x}\right) + 1}}{e^{x}}}
+\]</div></li><li><p><code title="right to left">neg-sub0</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\color{blue}{\left(\mathsf{neg}\left(e^{x}\right)\right)} + 1}{e^{x}}}
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\color{blue}{1 + \left(\mathsf{neg}\left(e^{x}\right)\right)}}{e^{x}}}
+\]</div></li><li><p><code title="right to left">sub-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\color{blue}{1 - e^{x}}}{e^{x}}}
+\]</div></li><li><p><code title="left to right">div-sub</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\frac{1}{e^{x}} - \frac{e^{x}}{e^{x}}}}
+\]</div></li><li><p><code title="left to right">*-inverses</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{1}{e^{x}} - \color{blue}{1}}
+\]</div></li><li><p><code title="left to right">lift-exp.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{1}{\color{blue}{e^{x}}} - 1}
+\]</div></li><li><p><code title="left to right">rec-exp</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{e^{\mathsf{neg}\left(x\right)}} - 1}
+\]</div></li><li><p><code title="left to right">lower-expm1.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\mathsf{expm1}\left(\mathsf{neg}\left(x\right)\right)}}
+\]</div></li><li><p><code title="left to right">lower-neg.f64</code><span class="error" title=" ↑ N/A ↓ N/A">100.0</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{expm1}\left(\color{blue}{-x}\right)}
+\]</div></li></ol></details></div></li><li><p>Applied rewrites<span class="error" title="100.0% on training set">100.0%</span></p><div class="math">\[\leadsto \color{blue}{\frac{-1}{\mathsf{expm1}\left(-x\right)}}
+\]</div></li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \frac{-1}{\color{blue}{x \cdot \left(x \cdot \left(\frac{1}{2} + x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right)\right) - 1\right)}}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\left(x \cdot \left(\frac{1}{2} + x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right)\right) - 1\right) \cdot x}}
+\]</div></li><li><p><code title="left to right">lower-*.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\left(x \cdot \left(\frac{1}{2} + x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right)\right) - 1\right) \cdot x}}
+\]</div></li><li><p><code title="left to right">sub-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\left(x \cdot \left(\frac{1}{2} + x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right)\right) + \left(\mathsf{neg}\left(1\right)\right)\right)} \cdot x}
+\]</div></li><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\left(\color{blue}{\left(\frac{1}{2} + x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right)\right) \cdot x} + \left(\mathsf{neg}\left(1\right)\right)\right) \cdot x}
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\left(\left(\frac{1}{2} + x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right)\right) \cdot x + \color{blue}{-1}\right) \cdot x}
+\]</div></li><li><p><code title="left to right">lower-fma.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\mathsf{fma}\left(\frac{1}{2} + x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right), x, -1\right)} \cdot x}
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\color{blue}{x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right) + \frac{1}{2}}, x, -1\right) \cdot x}
+\]</div></li><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\color{blue}{\left(\frac{1}{24} \cdot x - \frac{1}{6}\right) \cdot x} + \frac{1}{2}, x, -1\right) \cdot x}
+\]</div></li><li><p><code title="left to right">lower-fma.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\color{blue}{\mathsf{fma}\left(\frac{1}{24} \cdot x - \frac{1}{6}, x, \frac{1}{2}\right)}, x, -1\right) \cdot x}
+\]</div></li><li><p><code title="left to right">sub-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\mathsf{fma}\left(\color{blue}{\frac{1}{24} \cdot x + \left(\mathsf{neg}\left(\frac{1}{6}\right)\right)}, x, \frac{1}{2}\right), x, -1\right) \cdot x}
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\mathsf{fma}\left(\frac{1}{24} \cdot x + \color{blue}{\frac{-1}{6}}, x, \frac{1}{2}\right), x, -1\right) \cdot x}
+\]</div></li><li><p><code title="left to right">lower-fma.f64</code><span class="error" title=" ↑ N/A ↓ N/A">100.0</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\mathsf{fma}\left(\color{blue}{\mathsf{fma}\left(0.041666666666666664, x, -0.16666666666666666\right)}, x, 0.5\right), x, -1\right) \cdot x}
+\]</div></li></ol></details></div></li><li><p>Applied rewrites<span class="error" title="100.0% on training set">100.0%</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\mathsf{fma}\left(\mathsf{fma}\left(\mathsf{fma}\left(0.041666666666666664, x, -0.16666666666666666\right), x, 0.5\right), x, -1\right) \cdot x}}
+\]</div></li><li><p>Taylor expanded in x around inf</p><div class="math">\[\leadsto \frac{-1}{\left({x}^{3} \cdot \left(\frac{1}{24} - \frac{1}{6} \cdot \frac{1}{x}\right)\right) \cdot x}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol></ol></details></div></li><li><p>Applied rewrites<span class="error" title="100.0% on training set">100.0%</span></p><div class="math">\[\leadsto \frac{-1}{\left(\mathsf{fma}\left(0.041666666666666664, x, -0.16666666666666666\right) \cdot \left(x \cdot x\right)\right) \cdot x}
+\]</div></li></ol><h2><code>if <span class="condition">-2.50000000000000002e77 &lt;  x  &lt; -3.75</span></code></h2><ol><li><p>Initial program <span class="error" title="100.0% on training set">100.0%</span></p><div class="math">\[\frac{e^{x}}{e^{x} - 1}
+\]</div></li><li>Add Preprocessing</li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">lift-/.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{e^{x}}{e^{x} - 1}}
+\]</div></li><li><p><code title="left to right">clear-num</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{1}{\frac{e^{x} - 1}{e^{x}}}}
+\]</div></li><li><p><code title="left to right">frac-2neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{\mathsf{neg}\left(1\right)}{\mathsf{neg}\left(\frac{e^{x} - 1}{e^{x}}\right)}}
+\]</div></li><li><p><code title="left to right">lower-/.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{\mathsf{neg}\left(1\right)}{\mathsf{neg}\left(\frac{e^{x} - 1}{e^{x}}\right)}}
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\color{blue}{-1}}{\mathsf{neg}\left(\frac{e^{x} - 1}{e^{x}}\right)}
+\]</div></li><li><p><code title="left to right">distribute-neg-frac</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\frac{\mathsf{neg}\left(\left(e^{x} - 1\right)\right)}{e^{x}}}}
+\]</div></li><li><p><code title="left to right">neg-sub0</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\color{blue}{0 - \left(e^{x} - 1\right)}}{e^{x}}}
+\]</div></li><li><p><code title="left to right">lift--.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{0 - \color{blue}{\left(e^{x} - 1\right)}}{e^{x}}}
+\]</div></li><li><p><code title="right to left">associate-+l-</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\color{blue}{\left(0 - e^{x}\right) + 1}}{e^{x}}}
+\]</div></li><li><p><code title="right to left">neg-sub0</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\color{blue}{\left(\mathsf{neg}\left(e^{x}\right)\right)} + 1}{e^{x}}}
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\color{blue}{1 + \left(\mathsf{neg}\left(e^{x}\right)\right)}}{e^{x}}}
+\]</div></li><li><p><code title="right to left">sub-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\color{blue}{1 - e^{x}}}{e^{x}}}
+\]</div></li><li><p><code title="left to right">div-sub</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\frac{1}{e^{x}} - \frac{e^{x}}{e^{x}}}}
+\]</div></li><li><p><code title="left to right">*-inverses</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{1}{e^{x}} - \color{blue}{1}}
+\]</div></li><li><p><code title="left to right">lift-exp.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{1}{\color{blue}{e^{x}}} - 1}
+\]</div></li><li><p><code title="left to right">rec-exp</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{e^{\mathsf{neg}\left(x\right)}} - 1}
+\]</div></li><li><p><code title="left to right">lower-expm1.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\mathsf{expm1}\left(\mathsf{neg}\left(x\right)\right)}}
+\]</div></li><li><p><code title="left to right">lower-neg.f64</code><span class="error" title=" ↑ N/A ↓ N/A">100.0</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{expm1}\left(\color{blue}{-x}\right)}
+\]</div></li></ol></details></div></li><li><p>Applied rewrites<span class="error" title="100.0% on training set">100.0%</span></p><div class="math">\[\leadsto \color{blue}{\frac{-1}{\mathsf{expm1}\left(-x\right)}}
+\]</div></li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \frac{-1}{\color{blue}{x \cdot \left(x \cdot \left(\frac{1}{2} + x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right)\right) - 1\right)}}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\left(x \cdot \left(\frac{1}{2} + x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right)\right) - 1\right) \cdot x}}
+\]</div></li><li><p><code title="left to right">lower-*.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\left(x \cdot \left(\frac{1}{2} + x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right)\right) - 1\right) \cdot x}}
+\]</div></li><li><p><code title="left to right">sub-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\left(x \cdot \left(\frac{1}{2} + x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right)\right) + \left(\mathsf{neg}\left(1\right)\right)\right)} \cdot x}
+\]</div></li><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\left(\color{blue}{\left(\frac{1}{2} + x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right)\right) \cdot x} + \left(\mathsf{neg}\left(1\right)\right)\right) \cdot x}
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\left(\left(\frac{1}{2} + x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right)\right) \cdot x + \color{blue}{-1}\right) \cdot x}
+\]</div></li><li><p><code title="left to right">lower-fma.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\mathsf{fma}\left(\frac{1}{2} + x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right), x, -1\right)} \cdot x}
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\color{blue}{x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right) + \frac{1}{2}}, x, -1\right) \cdot x}
+\]</div></li><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\color{blue}{\left(\frac{1}{24} \cdot x - \frac{1}{6}\right) \cdot x} + \frac{1}{2}, x, -1\right) \cdot x}
+\]</div></li><li><p><code title="left to right">lower-fma.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\color{blue}{\mathsf{fma}\left(\frac{1}{24} \cdot x - \frac{1}{6}, x, \frac{1}{2}\right)}, x, -1\right) \cdot x}
+\]</div></li><li><p><code title="left to right">sub-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\mathsf{fma}\left(\color{blue}{\frac{1}{24} \cdot x + \left(\mathsf{neg}\left(\frac{1}{6}\right)\right)}, x, \frac{1}{2}\right), x, -1\right) \cdot x}
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\mathsf{fma}\left(\frac{1}{24} \cdot x + \color{blue}{\frac{-1}{6}}, x, \frac{1}{2}\right), x, -1\right) \cdot x}
+\]</div></li><li><p><code title="left to right">lower-fma.f64</code><span class="error" title=" ↑ N/A ↓ N/A">6.0</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\mathsf{fma}\left(\color{blue}{\mathsf{fma}\left(0.041666666666666664, x, -0.16666666666666666\right)}, x, 0.5\right), x, -1\right) \cdot x}
+\]</div></li></ol></details></div></li><li><p>Applied rewrites<span class="error" title="5.5% on training set">6.0%</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\mathsf{fma}\left(\mathsf{fma}\left(\mathsf{fma}\left(0.041666666666666664, x, -0.16666666666666666\right), x, 0.5\right), x, -1\right) \cdot x}}
+\]</div></li><li><p>Taylor expanded in x around inf</p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\frac{1}{24} \cdot {x}^{2}, x, -1\right) \cdot x}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol></ol></details></div></li><li><p>Applied rewrites<span class="error" title="5.5% on training set">6.0%</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\left(0.041666666666666664 \cdot x\right) \cdot x, x, -1\right) \cdot x}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol></ol></details></div></li><li><p>Applied rewrites<span class="error" title="50.1% on training set">65.9%</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\left(\left(\left(\left(x \cdot 0.041666666666666664\right) \cdot x\right) \cdot x\right) \cdot x\right) \cdot \left(\left(\left(\left(x \cdot 0.041666666666666664\right) \cdot x\right) \cdot x\right) \cdot x\right) - \left(-x\right) \cdot \left(-x\right)}{\color{blue}{\left(\left(\left(x \cdot 0.041666666666666664\right) \cdot x\right) \cdot x\right) \cdot x - \left(-x\right)}}}
+\]</div></li></ol><h2><code>if <span class="condition">-3.75 &lt;  x </span></code></h2><ol><li><p>Initial program <span class="error" title="6.5% on training set">5.5%</span></p><div class="math">\[\frac{e^{x}}{e^{x} - 1}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \color{blue}{\frac{1 + x \cdot \left(\frac{1}{2} + x \cdot \left(\frac{1}{12} + \frac{-1}{720} \cdot {x}^{2}\right)\right)}{x}}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="right to left">*-lft-identity</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{1 \cdot \frac{1 + x \cdot \left(\frac{1}{2} + x \cdot \left(\frac{1}{12} + \frac{-1}{720} \cdot {x}^{2}\right)\right)}{x}}
+\]</div></li><li><p><code title="right to left">associate-/l*</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{1 \cdot \left(1 + x \cdot \left(\frac{1}{2} + x \cdot \left(\frac{1}{12} + \frac{-1}{720} \cdot {x}^{2}\right)\right)\right)}{x}}
+\]</div></li><li><p><code title="right to left">associate-*l/</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{1}{x} \cdot \left(1 + x \cdot \left(\frac{1}{2} + x \cdot \left(\frac{1}{12} + \frac{-1}{720} \cdot {x}^{2}\right)\right)\right)}
+\]</div></li><li><p><code title="left to right">distribute-lft-in</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{1}{x} \cdot \left(1 + \color{blue}{\left(x \cdot \frac{1}{2} + x \cdot \left(x \cdot \left(\frac{1}{12} + \frac{-1}{720} \cdot {x}^{2}\right)\right)\right)}\right)
+\]</div></li><li><p><code title="right to left">*-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{1}{x} \cdot \left(1 + \left(\color{blue}{\frac{1}{2} \cdot x} + x \cdot \left(x \cdot \left(\frac{1}{12} + \frac{-1}{720} \cdot {x}^{2}\right)\right)\right)\right)
+\]</div></li><li><p><code title="left to right">associate-+r+</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{1}{x} \cdot \color{blue}{\left(\left(1 + \frac{1}{2} \cdot x\right) + x \cdot \left(x \cdot \left(\frac{1}{12} + \frac{-1}{720} \cdot {x}^{2}\right)\right)\right)}
+\]</div></li><li><p><code title="left to right">distribute-lft-in</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{1}{x} \cdot \left(1 + \frac{1}{2} \cdot x\right) + \frac{1}{x} \cdot \left(x \cdot \left(x \cdot \left(\frac{1}{12} + \frac{-1}{720} \cdot {x}^{2}\right)\right)\right)}
+\]</div></li><li><p><code title="left to right">associate-*l/</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{1 \cdot \left(1 + \frac{1}{2} \cdot x\right)}{x}} + \frac{1}{x} \cdot \left(x \cdot \left(x \cdot \left(\frac{1}{12} + \frac{-1}{720} \cdot {x}^{2}\right)\right)\right)
+\]</div></li><li><p><code title="left to right">*-lft-identity</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\color{blue}{1 + \frac{1}{2} \cdot x}}{x} + \frac{1}{x} \cdot \left(x \cdot \left(x \cdot \left(\frac{1}{12} + \frac{-1}{720} \cdot {x}^{2}\right)\right)\right)
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{1}{x} \cdot \left(x \cdot \left(x \cdot \left(\frac{1}{12} + \frac{-1}{720} \cdot {x}^{2}\right)\right)\right) + \frac{1 + \frac{1}{2} \cdot x}{x}}
+\]</div></li><li><p><code title="left to right">associate-*r*</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\left(\frac{1}{x} \cdot x\right) \cdot \left(x \cdot \left(\frac{1}{12} + \frac{-1}{720} \cdot {x}^{2}\right)\right)} + \frac{1 + \frac{1}{2} \cdot x}{x}
+\]</div></li><li><p><code title="left to right">lft-mult-inverse</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{1} \cdot \left(x \cdot \left(\frac{1}{12} + \frac{-1}{720} \cdot {x}^{2}\right)\right) + \frac{1 + \frac{1}{2} \cdot x}{x}
+\]</div></li><li><p><code title="left to right">*-lft-identity</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{x \cdot \left(\frac{1}{12} + \frac{-1}{720} \cdot {x}^{2}\right)} + \frac{1 + \frac{1}{2} \cdot x}{x}
+\]</div></li><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\left(\frac{1}{12} + \frac{-1}{720} \cdot {x}^{2}\right) \cdot x} + \frac{1 + \frac{1}{2} \cdot x}{x}
+\]</div></li></ol></details></div></li><li><p>Applied rewrites<span class="error" title="99.4% on training set">99.9%</span></p><div class="math">\[\leadsto \color{blue}{\mathsf{fma}\left(\mathsf{fma}\left(x \cdot x, -0.001388888888888889, 0.08333333333333333\right), x, 0.5 + \frac{1}{x}\right)}
+\]</div></li></ol></li><li class="event">Recombined 3 regimes into one program.</li><li><p>Final simplification<span class="error" title="95.4% on training set">96.6%</span></p><div class="math">\[\leadsto \begin{array}{l}
+\mathbf{if}\;x \leq -2.5 \cdot 10^{+77}:\\
+\;\;\;\;\frac{-1}{\left(\mathsf{fma}\left(0.041666666666666664, x, -0.16666666666666666\right) \cdot \left(x \cdot x\right)\right) \cdot x}\\
+
+\mathbf{elif}\;x \leq -3.75:\\
+\;\;\;\;\frac{-1}{\frac{\left(\left(\left(\left(x \cdot 0.041666666666666664\right) \cdot x\right) \cdot x\right) \cdot x\right) \cdot \left(\left(\left(\left(x \cdot 0.041666666666666664\right) \cdot x\right) \cdot x\right) \cdot x\right) - x \cdot x}{\left(\left(\left(x \cdot 0.041666666666666664\right) \cdot x\right) \cdot x\right) \cdot x + x}}\\
+
+\mathbf{else}:\\
+\;\;\;\;\mathsf{fma}\left(\mathsf{fma}\left(x \cdot x, -0.001388888888888889, 0.08333333333333333\right), x, 0.5 + {x}^{-1}\right)\\
+
+
+\end{array}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative6" class="programs"><h2>Alternative 6: <span class="subhead"><data>94.1%</data> accurate, <data>1.6×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+t_0 := \left(\mathsf{fma}\left(-0.16666666666666666, x, 0.5\right) \cdot x\right) \cdot x\\
+\mathbf{if}\;x \leq -1.05 \cdot 10^{+103}:\\
+\;\;\;\;\frac{-1}{\mathsf{fma}\left(\mathsf{fma}\left(-0.16666666666666666, x, 0.5\right), x, -1\right) \cdot x}\\
+
+\mathbf{elif}\;x \leq -3.55:\\
+\;\;\;\;\frac{-1}{\frac{t\_0 \cdot t\_0 - x \cdot x}{t\_0 + x}}\\
+
+\mathbf{else}:\\
+\;\;\;\;\mathsf{fma}\left(\mathsf{fma}\left(x \cdot x, -0.001388888888888889, 0.08333333333333333\right), x, 0.5 + {x}^{-1}\right)\\
+
+
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x)
+ :precision binary64
+ (let* ((t_0 (* (* (fma -0.16666666666666666 x 0.5) x) x)))
+   (if (&lt;= x -1.05e+103)
+     (/ -1.0 (* (fma (fma -0.16666666666666666 x 0.5) x -1.0) x))
+     (if (&lt;= x -3.55)
+       (/ -1.0 (/ (- (* t_0 t_0) (* x x)) (+ t_0 x)))
+       (fma
+        (fma (* x x) -0.001388888888888889 0.08333333333333333)
+        x
+        (+ 0.5 (pow x -1.0)))))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x) {
+	double t_0 = (fma(-0.16666666666666666, x, 0.5) * x) * x;
+	double tmp;
+	if (x &lt;= -1.05e+103) {
+		tmp = -1.0 / (fma(fma(-0.16666666666666666, x, 0.5), x, -1.0) * x);
+	} else if (x &lt;= -3.55) {
+		tmp = -1.0 / (((t_0 * t_0) - (x * x)) / (t_0 + x));
+	} else {
+		tmp = fma(fma((x * x), -0.001388888888888889, 0.08333333333333333), x, (0.5 + pow(x, -1.0)));
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x)
+	t_0 = Float64(Float64(fma(-0.16666666666666666, x, 0.5) * x) * x)
+	tmp = 0.0
+	if (x &lt;= -1.05e+103)
+		tmp = Float64(-1.0 / Float64(fma(fma(-0.16666666666666666, x, 0.5), x, -1.0) * x));
+	elseif (x &lt;= -3.55)
+		tmp = Float64(-1.0 / Float64(Float64(Float64(t_0 * t_0) - Float64(x * x)) / Float64(t_0 + x)));
+	else
+		tmp = fma(fma(Float64(x * x), -0.001388888888888889, 0.08333333333333333), x, Float64(0.5 + (x ^ -1.0)));
+	end
+	return tmp
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_] := Block[{t$95$0 = N[(N[(N[(-0.16666666666666666 * x + 0.5), $MachinePrecision] * x), $MachinePrecision] * x), $MachinePrecision]}, If[LessEqual[x, -1.05e+103], N[(-1.0 / N[(N[(N[(-0.16666666666666666 * x + 0.5), $MachinePrecision] * x + -1.0), $MachinePrecision] * x), $MachinePrecision]), $MachinePrecision], If[LessEqual[x, -3.55], N[(-1.0 / N[(N[(N[(t$95$0 * t$95$0), $MachinePrecision] - N[(x * x), $MachinePrecision]), $MachinePrecision] / N[(t$95$0 + x), $MachinePrecision]), $MachinePrecision]), $MachinePrecision], N[(N[(N[(x * x), $MachinePrecision] * -0.001388888888888889 + 0.08333333333333333), $MachinePrecision] * x + N[(0.5 + N[Power[x, -1.0], $MachinePrecision]), $MachinePrecision]), $MachinePrecision]]]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+t_0 := \left(\mathsf{fma}\left(-0.16666666666666666, x, 0.5\right) \cdot x\right) \cdot x\\
+\mathbf{if}\;x \leq -1.05 \cdot 10^{+103}:\\
+\;\;\;\;\frac{-1}{\mathsf{fma}\left(\mathsf{fma}\left(-0.16666666666666666, x, 0.5\right), x, -1\right) \cdot x}\\
+
+\mathbf{elif}\;x \leq -3.55:\\
+\;\;\;\;\frac{-1}{\frac{t\_0 \cdot t\_0 - x \cdot x}{t\_0 + x}}\\
+
+\mathbf{else}:\\
+\;\;\;\;\mathsf{fma}\left(\mathsf{fma}\left(x \cdot x, -0.001388888888888889, 0.08333333333333333\right), x, 0.5 + {x}^{-1}\right)\\
+
+
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li class="event">Split input into 3 regimes</li><li><h2><code>if <span class="condition"> x  &lt; -1.0500000000000001e103</span></code></h2><ol><li><p>Initial program <span class="error" title="100.0% on training set">100.0%</span></p><div class="math">\[\frac{e^{x}}{e^{x} - 1}
+\]</div></li><li>Add Preprocessing</li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">lift-/.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{e^{x}}{e^{x} - 1}}
+\]</div></li><li><p><code title="left to right">clear-num</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{1}{\frac{e^{x} - 1}{e^{x}}}}
+\]</div></li><li><p><code title="left to right">frac-2neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{\mathsf{neg}\left(1\right)}{\mathsf{neg}\left(\frac{e^{x} - 1}{e^{x}}\right)}}
+\]</div></li><li><p><code title="left to right">lower-/.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{\mathsf{neg}\left(1\right)}{\mathsf{neg}\left(\frac{e^{x} - 1}{e^{x}}\right)}}
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\color{blue}{-1}}{\mathsf{neg}\left(\frac{e^{x} - 1}{e^{x}}\right)}
+\]</div></li><li><p><code title="left to right">distribute-neg-frac</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\frac{\mathsf{neg}\left(\left(e^{x} - 1\right)\right)}{e^{x}}}}
+\]</div></li><li><p><code title="left to right">neg-sub0</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\color{blue}{0 - \left(e^{x} - 1\right)}}{e^{x}}}
+\]</div></li><li><p><code title="left to right">lift--.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{0 - \color{blue}{\left(e^{x} - 1\right)}}{e^{x}}}
+\]</div></li><li><p><code title="right to left">associate-+l-</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\color{blue}{\left(0 - e^{x}\right) + 1}}{e^{x}}}
+\]</div></li><li><p><code title="right to left">neg-sub0</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\color{blue}{\left(\mathsf{neg}\left(e^{x}\right)\right)} + 1}{e^{x}}}
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\color{blue}{1 + \left(\mathsf{neg}\left(e^{x}\right)\right)}}{e^{x}}}
+\]</div></li><li><p><code title="right to left">sub-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\color{blue}{1 - e^{x}}}{e^{x}}}
+\]</div></li><li><p><code title="left to right">div-sub</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\frac{1}{e^{x}} - \frac{e^{x}}{e^{x}}}}
+\]</div></li><li><p><code title="left to right">*-inverses</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{1}{e^{x}} - \color{blue}{1}}
+\]</div></li><li><p><code title="left to right">lift-exp.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{1}{\color{blue}{e^{x}}} - 1}
+\]</div></li><li><p><code title="left to right">rec-exp</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{e^{\mathsf{neg}\left(x\right)}} - 1}
+\]</div></li><li><p><code title="left to right">lower-expm1.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\mathsf{expm1}\left(\mathsf{neg}\left(x\right)\right)}}
+\]</div></li><li><p><code title="left to right">lower-neg.f64</code><span class="error" title=" ↑ N/A ↓ N/A">100.0</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{expm1}\left(\color{blue}{-x}\right)}
+\]</div></li></ol></details></div></li><li><p>Applied rewrites<span class="error" title="100.0% on training set">100.0%</span></p><div class="math">\[\leadsto \color{blue}{\frac{-1}{\mathsf{expm1}\left(-x\right)}}
+\]</div></li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \frac{-1}{\color{blue}{x \cdot \left(x \cdot \left(\frac{1}{2} + \frac{-1}{6} \cdot x\right) - 1\right)}}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\left(x \cdot \left(\frac{1}{2} + \frac{-1}{6} \cdot x\right) - 1\right) \cdot x}}
+\]</div></li><li><p><code title="left to right">lower-*.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\left(x \cdot \left(\frac{1}{2} + \frac{-1}{6} \cdot x\right) - 1\right) \cdot x}}
+\]</div></li><li><p><code title="left to right">sub-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\left(x \cdot \left(\frac{1}{2} + \frac{-1}{6} \cdot x\right) + \left(\mathsf{neg}\left(1\right)\right)\right)} \cdot x}
+\]</div></li><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\left(\color{blue}{\left(\frac{1}{2} + \frac{-1}{6} \cdot x\right) \cdot x} + \left(\mathsf{neg}\left(1\right)\right)\right) \cdot x}
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\left(\left(\frac{1}{2} + \frac{-1}{6} \cdot x\right) \cdot x + \color{blue}{-1}\right) \cdot x}
+\]</div></li><li><p><code title="left to right">lower-fma.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\mathsf{fma}\left(\frac{1}{2} + \frac{-1}{6} \cdot x, x, -1\right)} \cdot x}
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\color{blue}{\frac{-1}{6} \cdot x + \frac{1}{2}}, x, -1\right) \cdot x}
+\]</div></li><li><p><code title="left to right">lower-fma.f64</code><span class="error" title=" ↑ N/A ↓ N/A">100.0</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\color{blue}{\mathsf{fma}\left(-0.16666666666666666, x, 0.5\right)}, x, -1\right) \cdot x}
+\]</div></li></ol></details></div></li><li><p>Applied rewrites<span class="error" title="100.0% on training set">100.0%</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\mathsf{fma}\left(\mathsf{fma}\left(-0.16666666666666666, x, 0.5\right), x, -1\right) \cdot x}}
+\]</div></li></ol><h2><code>if <span class="condition">-1.0500000000000001e103 &lt;  x  &lt; -3.5499999999999998</span></code></h2><ol><li><p>Initial program <span class="error" title="100.0% on training set">100.0%</span></p><div class="math">\[\frac{e^{x}}{e^{x} - 1}
+\]</div></li><li>Add Preprocessing</li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">lift-/.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{e^{x}}{e^{x} - 1}}
+\]</div></li><li><p><code title="left to right">clear-num</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{1}{\frac{e^{x} - 1}{e^{x}}}}
+\]</div></li><li><p><code title="left to right">frac-2neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{\mathsf{neg}\left(1\right)}{\mathsf{neg}\left(\frac{e^{x} - 1}{e^{x}}\right)}}
+\]</div></li><li><p><code title="left to right">lower-/.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{\mathsf{neg}\left(1\right)}{\mathsf{neg}\left(\frac{e^{x} - 1}{e^{x}}\right)}}
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\color{blue}{-1}}{\mathsf{neg}\left(\frac{e^{x} - 1}{e^{x}}\right)}
+\]</div></li><li><p><code title="left to right">distribute-neg-frac</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\frac{\mathsf{neg}\left(\left(e^{x} - 1\right)\right)}{e^{x}}}}
+\]</div></li><li><p><code title="left to right">neg-sub0</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\color{blue}{0 - \left(e^{x} - 1\right)}}{e^{x}}}
+\]</div></li><li><p><code title="left to right">lift--.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{0 - \color{blue}{\left(e^{x} - 1\right)}}{e^{x}}}
+\]</div></li><li><p><code title="right to left">associate-+l-</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\color{blue}{\left(0 - e^{x}\right) + 1}}{e^{x}}}
+\]</div></li><li><p><code title="right to left">neg-sub0</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\color{blue}{\left(\mathsf{neg}\left(e^{x}\right)\right)} + 1}{e^{x}}}
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\color{blue}{1 + \left(\mathsf{neg}\left(e^{x}\right)\right)}}{e^{x}}}
+\]</div></li><li><p><code title="right to left">sub-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\color{blue}{1 - e^{x}}}{e^{x}}}
+\]</div></li><li><p><code title="left to right">div-sub</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\frac{1}{e^{x}} - \frac{e^{x}}{e^{x}}}}
+\]</div></li><li><p><code title="left to right">*-inverses</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{1}{e^{x}} - \color{blue}{1}}
+\]</div></li><li><p><code title="left to right">lift-exp.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{1}{\color{blue}{e^{x}}} - 1}
+\]</div></li><li><p><code title="left to right">rec-exp</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{e^{\mathsf{neg}\left(x\right)}} - 1}
+\]</div></li><li><p><code title="left to right">lower-expm1.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\mathsf{expm1}\left(\mathsf{neg}\left(x\right)\right)}}
+\]</div></li><li><p><code title="left to right">lower-neg.f64</code><span class="error" title=" ↑ N/A ↓ N/A">100.0</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{expm1}\left(\color{blue}{-x}\right)}
+\]</div></li></ol></details></div></li><li><p>Applied rewrites<span class="error" title="100.0% on training set">100.0%</span></p><div class="math">\[\leadsto \color{blue}{\frac{-1}{\mathsf{expm1}\left(-x\right)}}
+\]</div></li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \frac{-1}{\color{blue}{x \cdot \left(x \cdot \left(\frac{1}{2} + x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right)\right) - 1\right)}}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\left(x \cdot \left(\frac{1}{2} + x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right)\right) - 1\right) \cdot x}}
+\]</div></li><li><p><code title="left to right">lower-*.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\left(x \cdot \left(\frac{1}{2} + x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right)\right) - 1\right) \cdot x}}
+\]</div></li><li><p><code title="left to right">sub-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\left(x \cdot \left(\frac{1}{2} + x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right)\right) + \left(\mathsf{neg}\left(1\right)\right)\right)} \cdot x}
+\]</div></li><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\left(\color{blue}{\left(\frac{1}{2} + x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right)\right) \cdot x} + \left(\mathsf{neg}\left(1\right)\right)\right) \cdot x}
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\left(\left(\frac{1}{2} + x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right)\right) \cdot x + \color{blue}{-1}\right) \cdot x}
+\]</div></li><li><p><code title="left to right">lower-fma.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\mathsf{fma}\left(\frac{1}{2} + x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right), x, -1\right)} \cdot x}
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\color{blue}{x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right) + \frac{1}{2}}, x, -1\right) \cdot x}
+\]</div></li><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\color{blue}{\left(\frac{1}{24} \cdot x - \frac{1}{6}\right) \cdot x} + \frac{1}{2}, x, -1\right) \cdot x}
+\]</div></li><li><p><code title="left to right">lower-fma.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\color{blue}{\mathsf{fma}\left(\frac{1}{24} \cdot x - \frac{1}{6}, x, \frac{1}{2}\right)}, x, -1\right) \cdot x}
+\]</div></li><li><p><code title="left to right">sub-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\mathsf{fma}\left(\color{blue}{\frac{1}{24} \cdot x + \left(\mathsf{neg}\left(\frac{1}{6}\right)\right)}, x, \frac{1}{2}\right), x, -1\right) \cdot x}
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\mathsf{fma}\left(\frac{1}{24} \cdot x + \color{blue}{\frac{-1}{6}}, x, \frac{1}{2}\right), x, -1\right) \cdot x}
+\]</div></li><li><p><code title="left to right">lower-fma.f64</code><span class="error" title=" ↑ N/A ↓ N/A">28.8</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\mathsf{fma}\left(\color{blue}{\mathsf{fma}\left(0.041666666666666664, x, -0.16666666666666666\right)}, x, 0.5\right), x, -1\right) \cdot x}
+\]</div></li></ol></details></div></li><li><p>Applied rewrites<span class="error" title="28.7% on training set">28.8%</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\mathsf{fma}\left(\mathsf{fma}\left(\mathsf{fma}\left(0.041666666666666664, x, -0.16666666666666666\right), x, 0.5\right), x, -1\right) \cdot x}}
+\]</div></li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\mathsf{fma}\left(\frac{-1}{6}, x, \frac{1}{2}\right), x, -1\right) \cdot x}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol></ol></details></div></li><li><p>Applied rewrites<span class="error" title="5.5% on training set">5.6%</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\mathsf{fma}\left(-0.16666666666666666, x, 0.5\right), x, -1\right) \cdot x}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol></ol></details></div></li><li><p>Applied rewrites<span class="error" title="51.4% on training set">59.6%</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\left(\left(\mathsf{fma}\left(-0.16666666666666666, x, 0.5\right) \cdot x\right) \cdot x\right) \cdot \left(\left(\mathsf{fma}\left(-0.16666666666666666, x, 0.5\right) \cdot x\right) \cdot x\right) - \left(-x\right) \cdot \left(-x\right)}{\color{blue}{\left(\mathsf{fma}\left(-0.16666666666666666, x, 0.5\right) \cdot x\right) \cdot x - \left(-x\right)}}}
+\]</div></li></ol><h2><code>if <span class="condition">-3.5499999999999998 &lt;  x </span></code></h2><ol><li><p>Initial program <span class="error" title="6.5% on training set">5.5%</span></p><div class="math">\[\frac{e^{x}}{e^{x} - 1}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \color{blue}{\frac{1 + x \cdot \left(\frac{1}{2} + x \cdot \left(\frac{1}{12} + \frac{-1}{720} \cdot {x}^{2}\right)\right)}{x}}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="right to left">*-lft-identity</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{1 \cdot \frac{1 + x \cdot \left(\frac{1}{2} + x \cdot \left(\frac{1}{12} + \frac{-1}{720} \cdot {x}^{2}\right)\right)}{x}}
+\]</div></li><li><p><code title="right to left">associate-/l*</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{1 \cdot \left(1 + x \cdot \left(\frac{1}{2} + x \cdot \left(\frac{1}{12} + \frac{-1}{720} \cdot {x}^{2}\right)\right)\right)}{x}}
+\]</div></li><li><p><code title="right to left">associate-*l/</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{1}{x} \cdot \left(1 + x \cdot \left(\frac{1}{2} + x \cdot \left(\frac{1}{12} + \frac{-1}{720} \cdot {x}^{2}\right)\right)\right)}
+\]</div></li><li><p><code title="left to right">distribute-lft-in</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{1}{x} \cdot \left(1 + \color{blue}{\left(x \cdot \frac{1}{2} + x \cdot \left(x \cdot \left(\frac{1}{12} + \frac{-1}{720} \cdot {x}^{2}\right)\right)\right)}\right)
+\]</div></li><li><p><code title="right to left">*-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{1}{x} \cdot \left(1 + \left(\color{blue}{\frac{1}{2} \cdot x} + x \cdot \left(x \cdot \left(\frac{1}{12} + \frac{-1}{720} \cdot {x}^{2}\right)\right)\right)\right)
+\]</div></li><li><p><code title="left to right">associate-+r+</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{1}{x} \cdot \color{blue}{\left(\left(1 + \frac{1}{2} \cdot x\right) + x \cdot \left(x \cdot \left(\frac{1}{12} + \frac{-1}{720} \cdot {x}^{2}\right)\right)\right)}
+\]</div></li><li><p><code title="left to right">distribute-lft-in</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{1}{x} \cdot \left(1 + \frac{1}{2} \cdot x\right) + \frac{1}{x} \cdot \left(x \cdot \left(x \cdot \left(\frac{1}{12} + \frac{-1}{720} \cdot {x}^{2}\right)\right)\right)}
+\]</div></li><li><p><code title="left to right">associate-*l/</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{1 \cdot \left(1 + \frac{1}{2} \cdot x\right)}{x}} + \frac{1}{x} \cdot \left(x \cdot \left(x \cdot \left(\frac{1}{12} + \frac{-1}{720} \cdot {x}^{2}\right)\right)\right)
+\]</div></li><li><p><code title="left to right">*-lft-identity</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\color{blue}{1 + \frac{1}{2} \cdot x}}{x} + \frac{1}{x} \cdot \left(x \cdot \left(x \cdot \left(\frac{1}{12} + \frac{-1}{720} \cdot {x}^{2}\right)\right)\right)
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{1}{x} \cdot \left(x \cdot \left(x \cdot \left(\frac{1}{12} + \frac{-1}{720} \cdot {x}^{2}\right)\right)\right) + \frac{1 + \frac{1}{2} \cdot x}{x}}
+\]</div></li><li><p><code title="left to right">associate-*r*</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\left(\frac{1}{x} \cdot x\right) \cdot \left(x \cdot \left(\frac{1}{12} + \frac{-1}{720} \cdot {x}^{2}\right)\right)} + \frac{1 + \frac{1}{2} \cdot x}{x}
+\]</div></li><li><p><code title="left to right">lft-mult-inverse</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{1} \cdot \left(x \cdot \left(\frac{1}{12} + \frac{-1}{720} \cdot {x}^{2}\right)\right) + \frac{1 + \frac{1}{2} \cdot x}{x}
+\]</div></li><li><p><code title="left to right">*-lft-identity</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{x \cdot \left(\frac{1}{12} + \frac{-1}{720} \cdot {x}^{2}\right)} + \frac{1 + \frac{1}{2} \cdot x}{x}
+\]</div></li><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\left(\frac{1}{12} + \frac{-1}{720} \cdot {x}^{2}\right) \cdot x} + \frac{1 + \frac{1}{2} \cdot x}{x}
+\]</div></li></ol></details></div></li><li><p>Applied rewrites<span class="error" title="99.4% on training set">99.9%</span></p><div class="math">\[\leadsto \color{blue}{\mathsf{fma}\left(\mathsf{fma}\left(x \cdot x, -0.001388888888888889, 0.08333333333333333\right), x, 0.5 + \frac{1}{x}\right)}
+\]</div></li></ol></li><li class="event">Recombined 3 regimes into one program.</li><li><p>Final simplification<span class="error" title="94.1% on training set">94.7%</span></p><div class="math">\[\leadsto \begin{array}{l}
+\mathbf{if}\;x \leq -1.05 \cdot 10^{+103}:\\
+\;\;\;\;\frac{-1}{\mathsf{fma}\left(\mathsf{fma}\left(-0.16666666666666666, x, 0.5\right), x, -1\right) \cdot x}\\
+
+\mathbf{elif}\;x \leq -3.55:\\
+\;\;\;\;\frac{-1}{\frac{\left(\left(\mathsf{fma}\left(-0.16666666666666666, x, 0.5\right) \cdot x\right) \cdot x\right) \cdot \left(\left(\mathsf{fma}\left(-0.16666666666666666, x, 0.5\right) \cdot x\right) \cdot x\right) - x \cdot x}{\left(\mathsf{fma}\left(-0.16666666666666666, x, 0.5\right) \cdot x\right) \cdot x + x}}\\
+
+\mathbf{else}:\\
+\;\;\;\;\mathsf{fma}\left(\mathsf{fma}\left(x \cdot x, -0.001388888888888889, 0.08333333333333333\right), x, 0.5 + {x}^{-1}\right)\\
+
+
+\end{array}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative7" class="programs"><h2>Alternative 7: <span class="subhead"><data>67.0%</data> accurate, <data>2.1×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+{x}^{-1}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x) :precision binary64 (pow x -1.0))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x) {
+	return pow(x, -1.0);
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(x)
+    real(8), intent (in) :: x
+    code = x ** (-1.0d0)
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double x) {
+	return Math.pow(x, -1.0);
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(x):
+	return math.pow(x, -1.0)
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x)
+	return x ^ -1.0
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp = code(x)
+	tmp = x ^ -1.0;
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_] := N[Power[x, -1.0], $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+{x}^{-1}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="37.5% on training set">42.0%</span></p><div class="math">\[\frac{e^{x}}{e^{x} - 1}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \color{blue}{\frac{1}{x}}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">lower-/.f64</code><span class="error" title=" ↑ N/A ↓ N/A">62.4</span></p><div class="math">\[\leadsto \color{blue}{\frac{1}{x}}
+\]</div></li></ol></details></div></li><li><p>Applied rewrites<span class="error" title="67.0% on training set">62.4%</span></p><div class="math">\[\leadsto \color{blue}{\frac{1}{x}}
+\]</div></li><li><p>Final simplification<span class="error" title="67.0% on training set">62.4%</span></p><div class="math">\[\leadsto {x}^{-1}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative8" class="programs"><h2>Alternative 8: <span class="subhead"><data>91.4%</data> accurate, <data>6.1×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\frac{-1}{\mathsf{fma}\left(\mathsf{fma}\left(\mathsf{fma}\left(0.041666666666666664, x, -0.16666666666666666\right), x, 0.5\right), x, -1\right) \cdot x}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x)
+ :precision binary64
+ (/
+  -1.0
+  (*
+   (fma (fma (fma 0.041666666666666664 x -0.16666666666666666) x 0.5) x -1.0)
+   x)))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x) {
+	return -1.0 / (fma(fma(fma(0.041666666666666664, x, -0.16666666666666666), x, 0.5), x, -1.0) * x);
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x)
+	return Float64(-1.0 / Float64(fma(fma(fma(0.041666666666666664, x, -0.16666666666666666), x, 0.5), x, -1.0) * x))
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_] := N[(-1.0 / N[(N[(N[(N[(0.041666666666666664 * x + -0.16666666666666666), $MachinePrecision] * x + 0.5), $MachinePrecision] * x + -1.0), $MachinePrecision] * x), $MachinePrecision]), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\frac{-1}{\mathsf{fma}\left(\mathsf{fma}\left(\mathsf{fma}\left(0.041666666666666664, x, -0.16666666666666666\right), x, 0.5\right), x, -1\right) \cdot x}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="37.5% on training set">42.0%</span></p><div class="math">\[\frac{e^{x}}{e^{x} - 1}
+\]</div></li><li>Add Preprocessing</li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">lift-/.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{e^{x}}{e^{x} - 1}}
+\]</div></li><li><p><code title="left to right">clear-num</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{1}{\frac{e^{x} - 1}{e^{x}}}}
+\]</div></li><li><p><code title="left to right">frac-2neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{\mathsf{neg}\left(1\right)}{\mathsf{neg}\left(\frac{e^{x} - 1}{e^{x}}\right)}}
+\]</div></li><li><p><code title="left to right">lower-/.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{\mathsf{neg}\left(1\right)}{\mathsf{neg}\left(\frac{e^{x} - 1}{e^{x}}\right)}}
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\color{blue}{-1}}{\mathsf{neg}\left(\frac{e^{x} - 1}{e^{x}}\right)}
+\]</div></li><li><p><code title="left to right">distribute-neg-frac</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\frac{\mathsf{neg}\left(\left(e^{x} - 1\right)\right)}{e^{x}}}}
+\]</div></li><li><p><code title="left to right">neg-sub0</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\color{blue}{0 - \left(e^{x} - 1\right)}}{e^{x}}}
+\]</div></li><li><p><code title="left to right">lift--.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{0 - \color{blue}{\left(e^{x} - 1\right)}}{e^{x}}}
+\]</div></li><li><p><code title="right to left">associate-+l-</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\color{blue}{\left(0 - e^{x}\right) + 1}}{e^{x}}}
+\]</div></li><li><p><code title="right to left">neg-sub0</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\color{blue}{\left(\mathsf{neg}\left(e^{x}\right)\right)} + 1}{e^{x}}}
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\color{blue}{1 + \left(\mathsf{neg}\left(e^{x}\right)\right)}}{e^{x}}}
+\]</div></li><li><p><code title="right to left">sub-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\color{blue}{1 - e^{x}}}{e^{x}}}
+\]</div></li><li><p><code title="left to right">div-sub</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\frac{1}{e^{x}} - \frac{e^{x}}{e^{x}}}}
+\]</div></li><li><p><code title="left to right">*-inverses</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{1}{e^{x}} - \color{blue}{1}}
+\]</div></li><li><p><code title="left to right">lift-exp.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{1}{\color{blue}{e^{x}}} - 1}
+\]</div></li><li><p><code title="left to right">rec-exp</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{e^{\mathsf{neg}\left(x\right)}} - 1}
+\]</div></li><li><p><code title="left to right">lower-expm1.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\mathsf{expm1}\left(\mathsf{neg}\left(x\right)\right)}}
+\]</div></li><li><p><code title="left to right">lower-neg.f64</code><span class="error" title=" ↑ N/A ↓ N/A">100.0</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{expm1}\left(\color{blue}{-x}\right)}
+\]</div></li></ol></details></div></li><li><p>Applied rewrites<span class="error" title="100.0% on training set">100.0%</span></p><div class="math">\[\leadsto \color{blue}{\frac{-1}{\mathsf{expm1}\left(-x\right)}}
+\]</div></li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \frac{-1}{\color{blue}{x \cdot \left(x \cdot \left(\frac{1}{2} + x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right)\right) - 1\right)}}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\left(x \cdot \left(\frac{1}{2} + x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right)\right) - 1\right) \cdot x}}
+\]</div></li><li><p><code title="left to right">lower-*.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\left(x \cdot \left(\frac{1}{2} + x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right)\right) - 1\right) \cdot x}}
+\]</div></li><li><p><code title="left to right">sub-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\left(x \cdot \left(\frac{1}{2} + x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right)\right) + \left(\mathsf{neg}\left(1\right)\right)\right)} \cdot x}
+\]</div></li><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\left(\color{blue}{\left(\frac{1}{2} + x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right)\right) \cdot x} + \left(\mathsf{neg}\left(1\right)\right)\right) \cdot x}
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\left(\left(\frac{1}{2} + x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right)\right) \cdot x + \color{blue}{-1}\right) \cdot x}
+\]</div></li><li><p><code title="left to right">lower-fma.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\mathsf{fma}\left(\frac{1}{2} + x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right), x, -1\right)} \cdot x}
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\color{blue}{x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right) + \frac{1}{2}}, x, -1\right) \cdot x}
+\]</div></li><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\color{blue}{\left(\frac{1}{24} \cdot x - \frac{1}{6}\right) \cdot x} + \frac{1}{2}, x, -1\right) \cdot x}
+\]</div></li><li><p><code title="left to right">lower-fma.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\color{blue}{\mathsf{fma}\left(\frac{1}{24} \cdot x - \frac{1}{6}, x, \frac{1}{2}\right)}, x, -1\right) \cdot x}
+\]</div></li><li><p><code title="left to right">sub-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\mathsf{fma}\left(\color{blue}{\frac{1}{24} \cdot x + \left(\mathsf{neg}\left(\frac{1}{6}\right)\right)}, x, \frac{1}{2}\right), x, -1\right) \cdot x}
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\mathsf{fma}\left(\frac{1}{24} \cdot x + \color{blue}{\frac{-1}{6}}, x, \frac{1}{2}\right), x, -1\right) \cdot x}
+\]</div></li><li><p><code title="left to right">lower-fma.f64</code><span class="error" title=" ↑ N/A ↓ N/A">90.6</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\mathsf{fma}\left(\color{blue}{\mathsf{fma}\left(0.041666666666666664, x, -0.16666666666666666\right)}, x, 0.5\right), x, -1\right) \cdot x}
+\]</div></li></ol></details></div></li><li><p>Applied rewrites<span class="error" title="91.4% on training set">90.6%</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\mathsf{fma}\left(\mathsf{fma}\left(\mathsf{fma}\left(0.041666666666666664, x, -0.16666666666666666\right), x, 0.5\right), x, -1\right) \cdot x}}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative9" class="programs"><h2>Alternative 9: <span class="subhead"><data>90.3%</data> accurate, <data>6.5×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\frac{-1}{\mathsf{fma}\left(\left(0.041666666666666664 \cdot x\right) \cdot x, x, -1\right) \cdot x}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x)
+ :precision binary64
+ (/ -1.0 (* (fma (* (* 0.041666666666666664 x) x) x -1.0) x)))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x) {
+	return -1.0 / (fma(((0.041666666666666664 * x) * x), x, -1.0) * x);
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x)
+	return Float64(-1.0 / Float64(fma(Float64(Float64(0.041666666666666664 * x) * x), x, -1.0) * x))
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_] := N[(-1.0 / N[(N[(N[(N[(0.041666666666666664 * x), $MachinePrecision] * x), $MachinePrecision] * x + -1.0), $MachinePrecision] * x), $MachinePrecision]), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\frac{-1}{\mathsf{fma}\left(\left(0.041666666666666664 \cdot x\right) \cdot x, x, -1\right) \cdot x}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="37.5% on training set">42.0%</span></p><div class="math">\[\frac{e^{x}}{e^{x} - 1}
+\]</div></li><li>Add Preprocessing</li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">lift-/.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{e^{x}}{e^{x} - 1}}
+\]</div></li><li><p><code title="left to right">clear-num</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{1}{\frac{e^{x} - 1}{e^{x}}}}
+\]</div></li><li><p><code title="left to right">frac-2neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{\mathsf{neg}\left(1\right)}{\mathsf{neg}\left(\frac{e^{x} - 1}{e^{x}}\right)}}
+\]</div></li><li><p><code title="left to right">lower-/.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{\mathsf{neg}\left(1\right)}{\mathsf{neg}\left(\frac{e^{x} - 1}{e^{x}}\right)}}
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\color{blue}{-1}}{\mathsf{neg}\left(\frac{e^{x} - 1}{e^{x}}\right)}
+\]</div></li><li><p><code title="left to right">distribute-neg-frac</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\frac{\mathsf{neg}\left(\left(e^{x} - 1\right)\right)}{e^{x}}}}
+\]</div></li><li><p><code title="left to right">neg-sub0</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\color{blue}{0 - \left(e^{x} - 1\right)}}{e^{x}}}
+\]</div></li><li><p><code title="left to right">lift--.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{0 - \color{blue}{\left(e^{x} - 1\right)}}{e^{x}}}
+\]</div></li><li><p><code title="right to left">associate-+l-</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\color{blue}{\left(0 - e^{x}\right) + 1}}{e^{x}}}
+\]</div></li><li><p><code title="right to left">neg-sub0</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\color{blue}{\left(\mathsf{neg}\left(e^{x}\right)\right)} + 1}{e^{x}}}
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\color{blue}{1 + \left(\mathsf{neg}\left(e^{x}\right)\right)}}{e^{x}}}
+\]</div></li><li><p><code title="right to left">sub-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\color{blue}{1 - e^{x}}}{e^{x}}}
+\]</div></li><li><p><code title="left to right">div-sub</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\frac{1}{e^{x}} - \frac{e^{x}}{e^{x}}}}
+\]</div></li><li><p><code title="left to right">*-inverses</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{1}{e^{x}} - \color{blue}{1}}
+\]</div></li><li><p><code title="left to right">lift-exp.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{1}{\color{blue}{e^{x}}} - 1}
+\]</div></li><li><p><code title="left to right">rec-exp</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{e^{\mathsf{neg}\left(x\right)}} - 1}
+\]</div></li><li><p><code title="left to right">lower-expm1.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\mathsf{expm1}\left(\mathsf{neg}\left(x\right)\right)}}
+\]</div></li><li><p><code title="left to right">lower-neg.f64</code><span class="error" title=" ↑ N/A ↓ N/A">100.0</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{expm1}\left(\color{blue}{-x}\right)}
+\]</div></li></ol></details></div></li><li><p>Applied rewrites<span class="error" title="100.0% on training set">100.0%</span></p><div class="math">\[\leadsto \color{blue}{\frac{-1}{\mathsf{expm1}\left(-x\right)}}
+\]</div></li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \frac{-1}{\color{blue}{x \cdot \left(x \cdot \left(\frac{1}{2} + x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right)\right) - 1\right)}}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\left(x \cdot \left(\frac{1}{2} + x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right)\right) - 1\right) \cdot x}}
+\]</div></li><li><p><code title="left to right">lower-*.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\left(x \cdot \left(\frac{1}{2} + x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right)\right) - 1\right) \cdot x}}
+\]</div></li><li><p><code title="left to right">sub-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\left(x \cdot \left(\frac{1}{2} + x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right)\right) + \left(\mathsf{neg}\left(1\right)\right)\right)} \cdot x}
+\]</div></li><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\left(\color{blue}{\left(\frac{1}{2} + x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right)\right) \cdot x} + \left(\mathsf{neg}\left(1\right)\right)\right) \cdot x}
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\left(\left(\frac{1}{2} + x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right)\right) \cdot x + \color{blue}{-1}\right) \cdot x}
+\]</div></li><li><p><code title="left to right">lower-fma.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\mathsf{fma}\left(\frac{1}{2} + x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right), x, -1\right)} \cdot x}
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\color{blue}{x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right) + \frac{1}{2}}, x, -1\right) \cdot x}
+\]</div></li><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\color{blue}{\left(\frac{1}{24} \cdot x - \frac{1}{6}\right) \cdot x} + \frac{1}{2}, x, -1\right) \cdot x}
+\]</div></li><li><p><code title="left to right">lower-fma.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\color{blue}{\mathsf{fma}\left(\frac{1}{24} \cdot x - \frac{1}{6}, x, \frac{1}{2}\right)}, x, -1\right) \cdot x}
+\]</div></li><li><p><code title="left to right">sub-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\mathsf{fma}\left(\color{blue}{\frac{1}{24} \cdot x + \left(\mathsf{neg}\left(\frac{1}{6}\right)\right)}, x, \frac{1}{2}\right), x, -1\right) \cdot x}
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\mathsf{fma}\left(\frac{1}{24} \cdot x + \color{blue}{\frac{-1}{6}}, x, \frac{1}{2}\right), x, -1\right) \cdot x}
+\]</div></li><li><p><code title="left to right">lower-fma.f64</code><span class="error" title=" ↑ N/A ↓ N/A">90.6</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\mathsf{fma}\left(\color{blue}{\mathsf{fma}\left(0.041666666666666664, x, -0.16666666666666666\right)}, x, 0.5\right), x, -1\right) \cdot x}
+\]</div></li></ol></details></div></li><li><p>Applied rewrites<span class="error" title="91.4% on training set">90.6%</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\mathsf{fma}\left(\mathsf{fma}\left(\mathsf{fma}\left(0.041666666666666664, x, -0.16666666666666666\right), x, 0.5\right), x, -1\right) \cdot x}}
+\]</div></li><li><p>Taylor expanded in x around inf</p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\frac{1}{24} \cdot {x}^{2}, x, -1\right) \cdot x}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol></ol></details></div></li><li><p>Applied rewrites<span class="error" title="90.3% on training set">89.7%</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\left(0.041666666666666664 \cdot x\right) \cdot x, x, -1\right) \cdot x}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative10" class="programs"><h2>Alternative 10: <span class="subhead"><data>88.7%</data> accurate, <data>7.4×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\frac{-1}{\mathsf{fma}\left(\mathsf{fma}\left(-0.16666666666666666, x, 0.5\right), x, -1\right) \cdot x}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x)
+ :precision binary64
+ (/ -1.0 (* (fma (fma -0.16666666666666666 x 0.5) x -1.0) x)))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x) {
+	return -1.0 / (fma(fma(-0.16666666666666666, x, 0.5), x, -1.0) * x);
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x)
+	return Float64(-1.0 / Float64(fma(fma(-0.16666666666666666, x, 0.5), x, -1.0) * x))
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_] := N[(-1.0 / N[(N[(N[(-0.16666666666666666 * x + 0.5), $MachinePrecision] * x + -1.0), $MachinePrecision] * x), $MachinePrecision]), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\frac{-1}{\mathsf{fma}\left(\mathsf{fma}\left(-0.16666666666666666, x, 0.5\right), x, -1\right) \cdot x}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="37.5% on training set">42.0%</span></p><div class="math">\[\frac{e^{x}}{e^{x} - 1}
+\]</div></li><li>Add Preprocessing</li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">lift-/.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{e^{x}}{e^{x} - 1}}
+\]</div></li><li><p><code title="left to right">clear-num</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{1}{\frac{e^{x} - 1}{e^{x}}}}
+\]</div></li><li><p><code title="left to right">frac-2neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{\mathsf{neg}\left(1\right)}{\mathsf{neg}\left(\frac{e^{x} - 1}{e^{x}}\right)}}
+\]</div></li><li><p><code title="left to right">lower-/.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{\mathsf{neg}\left(1\right)}{\mathsf{neg}\left(\frac{e^{x} - 1}{e^{x}}\right)}}
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\color{blue}{-1}}{\mathsf{neg}\left(\frac{e^{x} - 1}{e^{x}}\right)}
+\]</div></li><li><p><code title="left to right">distribute-neg-frac</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\frac{\mathsf{neg}\left(\left(e^{x} - 1\right)\right)}{e^{x}}}}
+\]</div></li><li><p><code title="left to right">neg-sub0</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\color{blue}{0 - \left(e^{x} - 1\right)}}{e^{x}}}
+\]</div></li><li><p><code title="left to right">lift--.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{0 - \color{blue}{\left(e^{x} - 1\right)}}{e^{x}}}
+\]</div></li><li><p><code title="right to left">associate-+l-</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\color{blue}{\left(0 - e^{x}\right) + 1}}{e^{x}}}
+\]</div></li><li><p><code title="right to left">neg-sub0</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\color{blue}{\left(\mathsf{neg}\left(e^{x}\right)\right)} + 1}{e^{x}}}
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\color{blue}{1 + \left(\mathsf{neg}\left(e^{x}\right)\right)}}{e^{x}}}
+\]</div></li><li><p><code title="right to left">sub-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\color{blue}{1 - e^{x}}}{e^{x}}}
+\]</div></li><li><p><code title="left to right">div-sub</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\frac{1}{e^{x}} - \frac{e^{x}}{e^{x}}}}
+\]</div></li><li><p><code title="left to right">*-inverses</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{1}{e^{x}} - \color{blue}{1}}
+\]</div></li><li><p><code title="left to right">lift-exp.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{1}{\color{blue}{e^{x}}} - 1}
+\]</div></li><li><p><code title="left to right">rec-exp</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{e^{\mathsf{neg}\left(x\right)}} - 1}
+\]</div></li><li><p><code title="left to right">lower-expm1.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\mathsf{expm1}\left(\mathsf{neg}\left(x\right)\right)}}
+\]</div></li><li><p><code title="left to right">lower-neg.f64</code><span class="error" title=" ↑ N/A ↓ N/A">100.0</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{expm1}\left(\color{blue}{-x}\right)}
+\]</div></li></ol></details></div></li><li><p>Applied rewrites<span class="error" title="100.0% on training set">100.0%</span></p><div class="math">\[\leadsto \color{blue}{\frac{-1}{\mathsf{expm1}\left(-x\right)}}
+\]</div></li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \frac{-1}{\color{blue}{x \cdot \left(x \cdot \left(\frac{1}{2} + \frac{-1}{6} \cdot x\right) - 1\right)}}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\left(x \cdot \left(\frac{1}{2} + \frac{-1}{6} \cdot x\right) - 1\right) \cdot x}}
+\]</div></li><li><p><code title="left to right">lower-*.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\left(x \cdot \left(\frac{1}{2} + \frac{-1}{6} \cdot x\right) - 1\right) \cdot x}}
+\]</div></li><li><p><code title="left to right">sub-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\left(x \cdot \left(\frac{1}{2} + \frac{-1}{6} \cdot x\right) + \left(\mathsf{neg}\left(1\right)\right)\right)} \cdot x}
+\]</div></li><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\left(\color{blue}{\left(\frac{1}{2} + \frac{-1}{6} \cdot x\right) \cdot x} + \left(\mathsf{neg}\left(1\right)\right)\right) \cdot x}
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\left(\left(\frac{1}{2} + \frac{-1}{6} \cdot x\right) \cdot x + \color{blue}{-1}\right) \cdot x}
+\]</div></li><li><p><code title="left to right">lower-fma.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\mathsf{fma}\left(\frac{1}{2} + \frac{-1}{6} \cdot x, x, -1\right)} \cdot x}
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\color{blue}{\frac{-1}{6} \cdot x + \frac{1}{2}}, x, -1\right) \cdot x}
+\]</div></li><li><p><code title="left to right">lower-fma.f64</code><span class="error" title=" ↑ N/A ↓ N/A">87.5</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\color{blue}{\mathsf{fma}\left(-0.16666666666666666, x, 0.5\right)}, x, -1\right) \cdot x}
+\]</div></li></ol></details></div></li><li><p>Applied rewrites<span class="error" title="88.7% on training set">87.5%</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\mathsf{fma}\left(\mathsf{fma}\left(-0.16666666666666666, x, 0.5\right), x, -1\right) \cdot x}}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative11" class="programs"><h2>Alternative 11: <span class="subhead"><data>83.3%</data> accurate, <data>9.3×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\frac{-1}{\mathsf{fma}\left(0.5, x, -1\right) \cdot x}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x) :precision binary64 (/ -1.0 (* (fma 0.5 x -1.0) x)))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x) {
+	return -1.0 / (fma(0.5, x, -1.0) * x);
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x)
+	return Float64(-1.0 / Float64(fma(0.5, x, -1.0) * x))
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_] := N[(-1.0 / N[(N[(0.5 * x + -1.0), $MachinePrecision] * x), $MachinePrecision]), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\frac{-1}{\mathsf{fma}\left(0.5, x, -1\right) \cdot x}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="37.5% on training set">42.0%</span></p><div class="math">\[\frac{e^{x}}{e^{x} - 1}
+\]</div></li><li>Add Preprocessing</li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">lift-/.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{e^{x}}{e^{x} - 1}}
+\]</div></li><li><p><code title="left to right">clear-num</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{1}{\frac{e^{x} - 1}{e^{x}}}}
+\]</div></li><li><p><code title="left to right">frac-2neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{\mathsf{neg}\left(1\right)}{\mathsf{neg}\left(\frac{e^{x} - 1}{e^{x}}\right)}}
+\]</div></li><li><p><code title="left to right">lower-/.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{\mathsf{neg}\left(1\right)}{\mathsf{neg}\left(\frac{e^{x} - 1}{e^{x}}\right)}}
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\color{blue}{-1}}{\mathsf{neg}\left(\frac{e^{x} - 1}{e^{x}}\right)}
+\]</div></li><li><p><code title="left to right">distribute-neg-frac</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\frac{\mathsf{neg}\left(\left(e^{x} - 1\right)\right)}{e^{x}}}}
+\]</div></li><li><p><code title="left to right">neg-sub0</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\color{blue}{0 - \left(e^{x} - 1\right)}}{e^{x}}}
+\]</div></li><li><p><code title="left to right">lift--.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{0 - \color{blue}{\left(e^{x} - 1\right)}}{e^{x}}}
+\]</div></li><li><p><code title="right to left">associate-+l-</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\color{blue}{\left(0 - e^{x}\right) + 1}}{e^{x}}}
+\]</div></li><li><p><code title="right to left">neg-sub0</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\color{blue}{\left(\mathsf{neg}\left(e^{x}\right)\right)} + 1}{e^{x}}}
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\color{blue}{1 + \left(\mathsf{neg}\left(e^{x}\right)\right)}}{e^{x}}}
+\]</div></li><li><p><code title="right to left">sub-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{\color{blue}{1 - e^{x}}}{e^{x}}}
+\]</div></li><li><p><code title="left to right">div-sub</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\frac{1}{e^{x}} - \frac{e^{x}}{e^{x}}}}
+\]</div></li><li><p><code title="left to right">*-inverses</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{1}{e^{x}} - \color{blue}{1}}
+\]</div></li><li><p><code title="left to right">lift-exp.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\frac{1}{\color{blue}{e^{x}}} - 1}
+\]</div></li><li><p><code title="left to right">rec-exp</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{e^{\mathsf{neg}\left(x\right)}} - 1}
+\]</div></li><li><p><code title="left to right">lower-expm1.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\mathsf{expm1}\left(\mathsf{neg}\left(x\right)\right)}}
+\]</div></li><li><p><code title="left to right">lower-neg.f64</code><span class="error" title=" ↑ N/A ↓ N/A">100.0</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{expm1}\left(\color{blue}{-x}\right)}
+\]</div></li></ol></details></div></li><li><p>Applied rewrites<span class="error" title="100.0% on training set">100.0%</span></p><div class="math">\[\leadsto \color{blue}{\frac{-1}{\mathsf{expm1}\left(-x\right)}}
+\]</div></li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \frac{-1}{\color{blue}{x \cdot \left(\frac{1}{2} \cdot x - 1\right)}}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\left(\frac{1}{2} \cdot x - 1\right) \cdot x}}
+\]</div></li><li><p><code title="left to right">lower-*.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\left(\frac{1}{2} \cdot x - 1\right) \cdot x}}
+\]</div></li><li><p><code title="left to right">sub-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\left(\frac{1}{2} \cdot x + \left(\mathsf{neg}\left(1\right)\right)\right)} \cdot x}
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\left(\frac{1}{2} \cdot x + \color{blue}{-1}\right) \cdot x}
+\]</div></li><li><p><code title="left to right">lower-fma.f64</code><span class="error" title=" ↑ N/A ↓ N/A">81.3</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\mathsf{fma}\left(0.5, x, -1\right)} \cdot x}
+\]</div></li></ol></details></div></li><li><p>Applied rewrites<span class="error" title="83.3% on training set">81.3%</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\mathsf{fma}\left(0.5, x, -1\right) \cdot x}}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative12" class="programs"><h2>Alternative 12: <span class="subhead"><data>3.3%</data> accurate, <data>35.8×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+0.08333333333333333 \cdot x
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x) :precision binary64 (* 0.08333333333333333 x))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x) {
+	return 0.08333333333333333 * x;
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(x)
+    real(8), intent (in) :: x
+    code = 0.08333333333333333d0 * x
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double x) {
+	return 0.08333333333333333 * x;
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(x):
+	return 0.08333333333333333 * x
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x)
+	return Float64(0.08333333333333333 * x)
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp = code(x)
+	tmp = 0.08333333333333333 * x;
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_] := N[(0.08333333333333333 * x), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+0.08333333333333333 \cdot x
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="37.5% on training set">42.0%</span></p><div class="math">\[\frac{e^{x}}{e^{x} - 1}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \color{blue}{\frac{1 + x \cdot \left(\frac{1}{2} + \frac{1}{12} \cdot x\right)}{x}}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="right to left">*-lft-identity</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{1 \cdot \frac{1 + x \cdot \left(\frac{1}{2} + \frac{1}{12} \cdot x\right)}{x}}
+\]</div></li><li><p><code title="right to left">associate-/l*</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{1 \cdot \left(1 + x \cdot \left(\frac{1}{2} + \frac{1}{12} \cdot x\right)\right)}{x}}
+\]</div></li><li><p><code title="right to left">associate-*l/</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{1}{x} \cdot \left(1 + x \cdot \left(\frac{1}{2} + \frac{1}{12} \cdot x\right)\right)}
+\]</div></li><li><p><code title="left to right">distribute-lft-in</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{1}{x} \cdot \left(1 + \color{blue}{\left(x \cdot \frac{1}{2} + x \cdot \left(\frac{1}{12} \cdot x\right)\right)}\right)
+\]</div></li><li><p><code title="right to left">*-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{1}{x} \cdot \left(1 + \left(\color{blue}{\frac{1}{2} \cdot x} + x \cdot \left(\frac{1}{12} \cdot x\right)\right)\right)
+\]</div></li><li><p><code title="left to right">associate-+r+</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{1}{x} \cdot \color{blue}{\left(\left(1 + \frac{1}{2} \cdot x\right) + x \cdot \left(\frac{1}{12} \cdot x\right)\right)}
+\]</div></li><li><p><code title="left to right">distribute-rgt-in</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\left(1 + \frac{1}{2} \cdot x\right) \cdot \frac{1}{x} + \left(x \cdot \left(\frac{1}{12} \cdot x\right)\right) \cdot \frac{1}{x}}
+\]</div></li><li><p><code title="right to left">associate-/l*</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{\left(1 + \frac{1}{2} \cdot x\right) \cdot 1}{x}} + \left(x \cdot \left(\frac{1}{12} \cdot x\right)\right) \cdot \frac{1}{x}
+\]</div></li><li><p><code title="left to right">*-rgt-identity</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\color{blue}{1 + \frac{1}{2} \cdot x}}{x} + \left(x \cdot \left(\frac{1}{12} \cdot x\right)\right) \cdot \frac{1}{x}
+\]</div></li><li><p><code title="right to left">*-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{1 + \frac{1}{2} \cdot x}{x} + \color{blue}{\frac{1}{x} \cdot \left(x \cdot \left(\frac{1}{12} \cdot x\right)\right)}
+\]</div></li><li><p><code title="left to right">associate-*r*</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{1 + \frac{1}{2} \cdot x}{x} + \color{blue}{\left(\frac{1}{x} \cdot x\right) \cdot \left(\frac{1}{12} \cdot x\right)}
+\]</div></li><li><p><code title="left to right">lft-mult-inverse</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{1 + \frac{1}{2} \cdot x}{x} + \color{blue}{1} \cdot \left(\frac{1}{12} \cdot x\right)
+\]</div></li><li><p><code title="left to right">*-lft-identity</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{1 + \frac{1}{2} \cdot x}{x} + \color{blue}{\frac{1}{12} \cdot x}
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{1}{12} \cdot x + \frac{1 + \frac{1}{2} \cdot x}{x}}
+\]</div></li><li><p><code title="left to right">lower-fma.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\mathsf{fma}\left(\frac{1}{12}, x, \frac{1 + \frac{1}{2} \cdot x}{x}\right)}
+\]</div></li><li><p><code title="right to left">*-rgt-identity</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \mathsf{fma}\left(\frac{1}{12}, x, \frac{\color{blue}{\left(1 + \frac{1}{2} \cdot x\right) \cdot 1}}{x}\right)
+\]</div></li><li><p><code title="left to right">associate-/l*</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \mathsf{fma}\left(\frac{1}{12}, x, \color{blue}{\left(1 + \frac{1}{2} \cdot x\right) \cdot \frac{1}{x}}\right)
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \mathsf{fma}\left(\frac{1}{12}, x, \color{blue}{\left(\frac{1}{2} \cdot x + 1\right)} \cdot \frac{1}{x}\right)
+\]</div></li><li><p><code title="right to left">distribute-lft1-in</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \mathsf{fma}\left(\frac{1}{12}, x, \color{blue}{\left(\frac{1}{2} \cdot x\right) \cdot \frac{1}{x} + \frac{1}{x}}\right)
+\]</div></li><li><p><code title="left to right">lower-+.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \mathsf{fma}\left(\frac{1}{12}, x, \color{blue}{\left(\frac{1}{2} \cdot x\right) \cdot \frac{1}{x} + \frac{1}{x}}\right)
+\]</div></li></ol></details></div></li><li><p>Applied rewrites<span class="error" title="67.1% on training set">62.1%</span></p><div class="math">\[\leadsto \color{blue}{\mathsf{fma}\left(0.08333333333333333, x, 0.5 + \frac{1}{x}\right)}
+\]</div></li><li><p>Taylor expanded in x around inf</p><div class="math">\[\leadsto \frac{1}{12} \cdot \color{blue}{x}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol></ol></details></div></li><li><p>Applied rewrites<span class="error" title="3.3% on training set">3.2%</span></p><div class="math">\[\leadsto 0.08333333333333333 \cdot \color{blue}{x}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative13" class="programs"><h2>Alternative 13: <span class="subhead"><data>3.3%</data> accurate, <data>215.0×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+0.5
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x) :precision binary64 0.5)</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x) {
+	return 0.5;
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(x)
+    real(8), intent (in) :: x
+    code = 0.5d0
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double x) {
+	return 0.5;
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(x):
+	return 0.5
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x)
+	return 0.5
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp = code(x)
+	tmp = 0.5;
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_] := 0.5
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+0.5
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="37.5% on training set">42.0%</span></p><div class="math">\[\frac{e^{x}}{e^{x} - 1}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \color{blue}{\frac{1 + \frac{1}{2} \cdot x}{x}}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="right to left">*-rgt-identity</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\color{blue}{\left(1 + \frac{1}{2} \cdot x\right) \cdot 1}}{x}
+\]</div></li><li><p><code title="left to right">associate-/l*</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\left(1 + \frac{1}{2} \cdot x\right) \cdot \frac{1}{x}}
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\left(\frac{1}{2} \cdot x + 1\right)} \cdot \frac{1}{x}
+\]</div></li><li><p><code title="right to left">distribute-lft1-in</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\left(\frac{1}{2} \cdot x\right) \cdot \frac{1}{x} + \frac{1}{x}}
+\]</div></li><li><p><code title="left to right">lower-+.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\left(\frac{1}{2} \cdot x\right) \cdot \frac{1}{x} + \frac{1}{x}}
+\]</div></li><li><p><code title="left to right">associate-*l*</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{1}{2} \cdot \left(x \cdot \frac{1}{x}\right)} + \frac{1}{x}
+\]</div></li><li><p><code title="left to right">rgt-mult-inverse</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{1}{2} \cdot \color{blue}{1} + \frac{1}{x}
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{1}{2}} + \frac{1}{x}
+\]</div></li><li><p><code title="left to right">lower-/.f64</code><span class="error" title=" ↑ N/A ↓ N/A">61.9</span></p><div class="math">\[\leadsto 0.5 + \color{blue}{\frac{1}{x}}
+\]</div></li></ol></details></div></li><li><p>Applied rewrites<span class="error" title="67.0% on training set">61.9%</span></p><div class="math">\[\leadsto \color{blue}{0.5 + \frac{1}{x}}
+\]</div></li><li><p>Taylor expanded in x around inf</p><div class="math">\[\leadsto \frac{1}{2}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol></ol></details></div></li><li><p>Applied rewrites<span class="error" title="3.3% on training set">3.0%</span></p><div class="math">\[\leadsto 0.5
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="target1" class="programs"><h2>Developer Target 1: <span class="subhead"><data>100.0%</data> accurate, <data>1.9×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Java</option><option>Python</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#target" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\frac{-1}{\mathsf{expm1}\left(-x\right)}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x) :precision binary64 (/ (- 1.0) (expm1 (- x))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x) {
+	return -1.0 / expm1(-x);
+}
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double x) {
+	return -1.0 / Math.expm1(-x);
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(x):
+	return -1.0 / math.expm1(-x)
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x)
+	return Float64(Float64(-1.0) / expm1(Float64(-x)))
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_] := N[((-1.0) / N[(Exp[(-x)] - 1), $MachinePrecision]), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\frac{-1}{\mathsf{expm1}\left(-x\right)}
+\end{array}
+</pre></div></div></section><section id="reproduce"><details><summary><h2>Reproduce</h2><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#reproduction" target="_blank">?</a></summary><pre class="shell"><code>herbie shell --seed 371008492 
+(FPCore (x)
+  :name "expq2 (section 3.11)"
+  :precision binary64
+  :pre (&gt; 710.0 x)
+
+  :alt
+  (! :herbie-platform default (/ (- 1) (expm1 (- x))))
+
+  (/ (exp x) (- (exp x) 1.0)))
+</code></pre></details></section></body></html>

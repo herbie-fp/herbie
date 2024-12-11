@@ -1,0 +1,1890 @@
+<!doctype html>
+<html><head><meta charset="utf-8"/><title>Result for quadp (p42, positive)</title><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/katex.min.css" integrity="sha384-9tPv11A+glH/on/wEu99NVwDPwkMQESOocs/ZGXPoIiLE8MU/qkqUcZ3zzL+6DuH" crossorigin="anonymous"/><script src="https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/katex.min.js" integrity="sha384-U8Vrjwb8fuHMt6ewaCy8uqeUXv4oitYACKdB0VziCerzt011iQ/0TqlSlv8MReCm" crossorigin="anonymous"></script><script src="https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/contrib/auto-render.min.js" integrity="sha384-aGfk5kvhIq5x1x5YdvCp4upKZYnA8ckafviDpmWEKp4afOZEqOli7gqSnh8I6enH" crossorigin="anonymous"></script><script src="https://unpkg.com/mathjs@4.4.2/dist/math.min.js"></script><script src="https://unpkg.com/d3@6.7.0/dist/d3.min.js"></script><script src="https://unpkg.com/@observablehq/plot@0.4.3/dist/plot.umd.min.js"></script><link rel="stylesheet" type="text/css" href="../report.css"/><script src="../report.js"></script></head><body><header><h1>quadp (p42, positive)</h1><img src="../logo-car.png"/><nav><ul><li><a href="../index.html">Report</a></li><li><a href="timeline.html">Metrics</a></li></ul></nav></header><div id="large"><div>Percentage Accurate: <span class="number" title="Minimum Accuracy: 0.0% → 0.0%">52.4%<span class="unit"> → </span>63.6%</span></div><div>Time: <span class="number">9.4s</span></div><div>Alternatives: <span class="number">17</span></div><div>Speedup: <span class="number" title="Relative speed of fastest alternative that improves accuracy.">0.8×</span></div></div><section><details id="specification" class="programs"><summary><h2>Specification</h2><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#spec" target="_blank">?</a></summary><div><div id="precondition"><div class="program math">\[\mathsf{TRUE}\left(\right)\]</div></div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\frac{\left(-b\right) + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (a b c)
+ :precision binary64
+ (/ (+ (- b) (sqrt (- (* b b) (* 4.0 (* a c))))) (* 2.0 a)))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double a, double b, double c) {
+	return (-b + sqrt(((b * b) - (4.0 * (a * c))))) / (2.0 * a);
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(a, b, c)
+    real(8), intent (in) :: a
+    real(8), intent (in) :: b
+    real(8), intent (in) :: c
+    code = (-b + sqrt(((b * b) - (4.0d0 * (a * c))))) / (2.0d0 * a)
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double a, double b, double c) {
+	return (-b + Math.sqrt(((b * b) - (4.0 * (a * c))))) / (2.0 * a);
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(a, b, c):
+	return (-b + math.sqrt(((b * b) - (4.0 * (a * c))))) / (2.0 * a)
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(a, b, c)
+	return Float64(Float64(Float64(-b) + sqrt(Float64(Float64(b * b) - Float64(4.0 * Float64(a * c))))) / Float64(2.0 * a))
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp = code(a, b, c)
+	tmp = (-b + sqrt(((b * b) - (4.0 * (a * c))))) / (2.0 * a);
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[a_, b_, c_] := N[(N[((-b) + N[Sqrt[N[(N[(b * b), $MachinePrecision] - N[(4.0 * N[(a * c), $MachinePrecision]), $MachinePrecision]), $MachinePrecision]], $MachinePrecision]), $MachinePrecision] / N[(2.0 * a), $MachinePrecision]), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\frac{\left(-b\right) + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\end{array}
+</pre></div></div><p>Sampling outcomes in <kbd>binary64</kbd> precision:</p><div class="bogosity"><div class="bogosity-valid" data-id="bogosity-valid" data-type="valid" data-timespan="0.6842077987951367" title="valid (68.4%)"></div><div class="bogosity-unknown" data-id="bogosity-unknown" data-type="unknown" data-timespan="0" title="unknown (0.0%)"></div><div class="bogosity-infinite" data-id="bogosity-infinite" data-type="infinite" data-timespan="0.0638811413257279" title="infinite (6.4%)"></div><div class="bogosity-unsamplable" data-id="bogosity-unsamplable" data-type="unsamplable" data-timespan="0" title="unsamplable (0.0%)"></div><div class="bogosity-invalid" data-id="bogosity-invalid" data-type="invalid" data-timespan="0.2504469312684573" title="invalid (25.0%)"></div><div class="bogosity-precondition" data-id="bogosity-precondition" data-type="precondition" data-timespan="0.0014641286106780171" title="precondition (0.1%)"></div></div></details></section><figure id="graphs"><h2>Local Percentage Accuracy vs <span id="variables"></span><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#graph" target="_blank">?</a></h2><svg></svg><div id="functions"></div><figcaption>The average percentage accuracy by input value. Horizontal axis shows value of an input variable; the variable is choosen in the title. Vertical axis is accuracy; higher is better. Red represent the original program, while blue represents Herbie's suggestion. These can be toggled with buttons below the plot. The line is an average while dots represent individual samples.</figcaption></figure><section id="cost-accuracy" class="section" data-benchmark-name="quadp (p42, positive)"><h2>Accuracy vs Speed<a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#cost-accuracy" target="_blank">?</a></h2><div class="figure-row"><svg></svg><div><p>Herbie found 17 alternatives:</p><table><thead><tr><th>Alternative</th><th class="numeric">Accuracy</th><th class="numeric">Speedup</th></tr></thead><tbody></tbody></table></div></div><figcaption>The accuracy (vertical axis) and speed (horizontal axis) of each alternatives. Up and to the right is better. The red square shows the initial program, and each blue circle shows an alternative.The line shows the best available speed-accuracy tradeoffs.</figcaption></section><section id="initial" class="programs"><h2>Initial Program: <span class="subhead"><data>52.4%</data> accurate, <data>1.0×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\frac{\left(-b\right) + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (a b c)
+ :precision binary64
+ (/ (+ (- b) (sqrt (- (* b b) (* 4.0 (* a c))))) (* 2.0 a)))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double a, double b, double c) {
+	return (-b + sqrt(((b * b) - (4.0 * (a * c))))) / (2.0 * a);
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(a, b, c)
+    real(8), intent (in) :: a
+    real(8), intent (in) :: b
+    real(8), intent (in) :: c
+    code = (-b + sqrt(((b * b) - (4.0d0 * (a * c))))) / (2.0d0 * a)
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double a, double b, double c) {
+	return (-b + Math.sqrt(((b * b) - (4.0 * (a * c))))) / (2.0 * a);
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(a, b, c):
+	return (-b + math.sqrt(((b * b) - (4.0 * (a * c))))) / (2.0 * a)
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(a, b, c)
+	return Float64(Float64(Float64(-b) + sqrt(Float64(Float64(b * b) - Float64(4.0 * Float64(a * c))))) / Float64(2.0 * a))
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp = code(a, b, c)
+	tmp = (-b + sqrt(((b * b) - (4.0 * (a * c))))) / (2.0 * a);
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[a_, b_, c_] := N[(N[((-b) + N[Sqrt[N[(N[(b * b), $MachinePrecision] - N[(4.0 * N[(a * c), $MachinePrecision]), $MachinePrecision]), $MachinePrecision]], $MachinePrecision]), $MachinePrecision] / N[(2.0 * a), $MachinePrecision]), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\frac{\left(-b\right) + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\end{array}
+</pre></div></div></section><section id="alternative1" class="programs"><h2>Alternative 1: <span class="subhead"><data>63.6%</data> accurate, <data>0.8×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;b \leq -1.35 \cdot 10^{+154}:\\
+\;\;\;\;\frac{\left(-\mathsf{fma}\left(\left(-a\right) \cdot c, a \cdot c, b\right)\right) - b}{2 \cdot a}\\
+
+\mathbf{elif}\;b \leq 10^{+154}:\\
+\;\;\;\;\frac{\left(-b\right) + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{--16}{\mathsf{fma}\left(b, b, \mathsf{fma}\left(-a, c, b \cdot b\right)\right) \cdot \left(2 \cdot a\right)}\\
+
+
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (a b c)
+ :precision binary64
+ (if (&lt;= b -1.35e+154)
+   (/ (- (- (fma (* (- a) c) (* a c) b)) b) (* 2.0 a))
+   (if (&lt;= b 1e+154)
+     (/ (+ (- b) (sqrt (- (* b b) (* 4.0 (* a c))))) (* 2.0 a))
+     (/ (- -16.0) (* (fma b b (fma (- a) c (* b b))) (* 2.0 a))))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double a, double b, double c) {
+	double tmp;
+	if (b &lt;= -1.35e+154) {
+		tmp = (-fma((-a * c), (a * c), b) - b) / (2.0 * a);
+	} else if (b &lt;= 1e+154) {
+		tmp = (-b + sqrt(((b * b) - (4.0 * (a * c))))) / (2.0 * a);
+	} else {
+		tmp = -(-16.0) / (fma(b, b, fma(-a, c, (b * b))) * (2.0 * a));
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(a, b, c)
+	tmp = 0.0
+	if (b &lt;= -1.35e+154)
+		tmp = Float64(Float64(Float64(-fma(Float64(Float64(-a) * c), Float64(a * c), b)) - b) / Float64(2.0 * a));
+	elseif (b &lt;= 1e+154)
+		tmp = Float64(Float64(Float64(-b) + sqrt(Float64(Float64(b * b) - Float64(4.0 * Float64(a * c))))) / Float64(2.0 * a));
+	else
+		tmp = Float64(Float64(-(-16.0)) / Float64(fma(b, b, fma(Float64(-a), c, Float64(b * b))) * Float64(2.0 * a)));
+	end
+	return tmp
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[a_, b_, c_] := If[LessEqual[b, -1.35e+154], N[(N[((-N[(N[((-a) * c), $MachinePrecision] * N[(a * c), $MachinePrecision] + b), $MachinePrecision]) - b), $MachinePrecision] / N[(2.0 * a), $MachinePrecision]), $MachinePrecision], If[LessEqual[b, 1e+154], N[(N[((-b) + N[Sqrt[N[(N[(b * b), $MachinePrecision] - N[(4.0 * N[(a * c), $MachinePrecision]), $MachinePrecision]), $MachinePrecision]], $MachinePrecision]), $MachinePrecision] / N[(2.0 * a), $MachinePrecision]), $MachinePrecision], N[((--16.0) / N[(N[(b * b + N[((-a) * c + N[(b * b), $MachinePrecision]), $MachinePrecision]), $MachinePrecision] * N[(2.0 * a), $MachinePrecision]), $MachinePrecision]), $MachinePrecision]]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;b \leq -1.35 \cdot 10^{+154}:\\
+\;\;\;\;\frac{\left(-\mathsf{fma}\left(\left(-a\right) \cdot c, a \cdot c, b\right)\right) - b}{2 \cdot a}\\
+
+\mathbf{elif}\;b \leq 10^{+154}:\\
+\;\;\;\;\frac{\left(-b\right) + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{--16}{\mathsf{fma}\left(b, b, \mathsf{fma}\left(-a, c, b \cdot b\right)\right) \cdot \left(2 \cdot a\right)}\\
+
+
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li class="event">Split input into 3 regimes</li><li><h2><code>if <span class="condition"> b  &lt; -1.35000000000000003e154</span></code></h2><ol><li><p>Initial program <span class="error" title="41.1% on training set">42.8%</span></p><div class="math">\[\frac{\left(-b\right) + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li>Add Preprocessing</li><li></li><li><p>Applied rewrites<span class="error" title="71.3% on training set">85.0%</span></p><div class="math">\[\leadsto \frac{\color{blue}{-\left(\mathsf{fma}\left(\left(-a\right) \cdot c, a \cdot c, b\right) + b\right)}}{2 \cdot a}
+\]</div></li></ol><h2><code>if <span class="condition">-1.35000000000000003e154 &lt;  b  &lt; 1.00000000000000004e154</span></code></h2><ol><li><p>Initial program <span class="error" title="67.4% on training set">70.0%</span></p><div class="math">\[\frac{\left(-b\right) + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li>Add Preprocessing</li></ol><h2><code>if <span class="condition">1.00000000000000004e154 &lt;  b </span></code></h2><ol><li><p>Initial program <span class="error" title="1.7% on training set">1.7%</span></p><div class="math">\[\frac{\left(-b\right) + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li>Add Preprocessing</li><li></li><li><p>Applied rewrites<span class="error" title="39.4% on training set">44.1%</span></p><div class="math">\[\leadsto \color{blue}{-\frac{-16}{\mathsf{fma}\left(b, b, \mathsf{fma}\left(-a, c, b \cdot b\right)\right) \cdot \left(2 \cdot a\right)}}
+\]</div></li></ol></li><li class="event">Recombined 3 regimes into one program.</li><li><p>Final simplification<span class="error" title="63.6% on training set">69.4%</span></p><div class="math">\[\leadsto \begin{array}{l}
+\mathbf{if}\;b \leq -1.35 \cdot 10^{+154}:\\
+\;\;\;\;\frac{\left(-\mathsf{fma}\left(\left(-a\right) \cdot c, a \cdot c, b\right)\right) - b}{2 \cdot a}\\
+
+\mathbf{elif}\;b \leq 10^{+154}:\\
+\;\;\;\;\frac{\left(-b\right) + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{--16}{\mathsf{fma}\left(b, b, \mathsf{fma}\left(-a, c, b \cdot b\right)\right) \cdot \left(2 \cdot a\right)}\\
+
+
+\end{array}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative2" class="programs"><h2>Alternative 2: <span class="subhead"><data>57.3%</data> accurate, <data>0.7×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+t_0 := \left(-a\right) \cdot c\\
+\mathbf{if}\;b \leq -1.35 \cdot 10^{+154}:\\
+\;\;\;\;\frac{\left(-\mathsf{fma}\left(t\_0, a \cdot c, b\right)\right) - b}{2 \cdot a}\\
+
+\mathbf{elif}\;b \leq -7 \cdot 10^{-59}:\\
+\;\;\;\;\frac{\left(-b\right) + \sqrt{t\_0 + b \cdot b}}{2 \cdot a}\\
+
+\mathbf{elif}\;b \leq 7.5 \cdot 10^{+25}:\\
+\;\;\;\;\frac{\left(-b\right) + \sqrt{4 \cdot \mathsf{fma}\left(-a, c, b \cdot b\right)}}{2 \cdot a}\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{\mathsf{fma}\left(t\_0, t\_0, b\right) - b}{2 \cdot a}\\
+
+
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (a b c)
+ :precision binary64
+ (let* ((t_0 (* (- a) c)))
+   (if (&lt;= b -1.35e+154)
+     (/ (- (- (fma t_0 (* a c) b)) b) (* 2.0 a))
+     (if (&lt;= b -7e-59)
+       (/ (+ (- b) (sqrt (+ t_0 (* b b)))) (* 2.0 a))
+       (if (&lt;= b 7.5e+25)
+         (/ (+ (- b) (sqrt (* 4.0 (fma (- a) c (* b b))))) (* 2.0 a))
+         (/ (- (fma t_0 t_0 b) b) (* 2.0 a)))))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double a, double b, double c) {
+	double t_0 = -a * c;
+	double tmp;
+	if (b &lt;= -1.35e+154) {
+		tmp = (-fma(t_0, (a * c), b) - b) / (2.0 * a);
+	} else if (b &lt;= -7e-59) {
+		tmp = (-b + sqrt((t_0 + (b * b)))) / (2.0 * a);
+	} else if (b &lt;= 7.5e+25) {
+		tmp = (-b + sqrt((4.0 * fma(-a, c, (b * b))))) / (2.0 * a);
+	} else {
+		tmp = (fma(t_0, t_0, b) - b) / (2.0 * a);
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(a, b, c)
+	t_0 = Float64(Float64(-a) * c)
+	tmp = 0.0
+	if (b &lt;= -1.35e+154)
+		tmp = Float64(Float64(Float64(-fma(t_0, Float64(a * c), b)) - b) / Float64(2.0 * a));
+	elseif (b &lt;= -7e-59)
+		tmp = Float64(Float64(Float64(-b) + sqrt(Float64(t_0 + Float64(b * b)))) / Float64(2.0 * a));
+	elseif (b &lt;= 7.5e+25)
+		tmp = Float64(Float64(Float64(-b) + sqrt(Float64(4.0 * fma(Float64(-a), c, Float64(b * b))))) / Float64(2.0 * a));
+	else
+		tmp = Float64(Float64(fma(t_0, t_0, b) - b) / Float64(2.0 * a));
+	end
+	return tmp
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[a_, b_, c_] := Block[{t$95$0 = N[((-a) * c), $MachinePrecision]}, If[LessEqual[b, -1.35e+154], N[(N[((-N[(t$95$0 * N[(a * c), $MachinePrecision] + b), $MachinePrecision]) - b), $MachinePrecision] / N[(2.0 * a), $MachinePrecision]), $MachinePrecision], If[LessEqual[b, -7e-59], N[(N[((-b) + N[Sqrt[N[(t$95$0 + N[(b * b), $MachinePrecision]), $MachinePrecision]], $MachinePrecision]), $MachinePrecision] / N[(2.0 * a), $MachinePrecision]), $MachinePrecision], If[LessEqual[b, 7.5e+25], N[(N[((-b) + N[Sqrt[N[(4.0 * N[((-a) * c + N[(b * b), $MachinePrecision]), $MachinePrecision]), $MachinePrecision]], $MachinePrecision]), $MachinePrecision] / N[(2.0 * a), $MachinePrecision]), $MachinePrecision], N[(N[(N[(t$95$0 * t$95$0 + b), $MachinePrecision] - b), $MachinePrecision] / N[(2.0 * a), $MachinePrecision]), $MachinePrecision]]]]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+t_0 := \left(-a\right) \cdot c\\
+\mathbf{if}\;b \leq -1.35 \cdot 10^{+154}:\\
+\;\;\;\;\frac{\left(-\mathsf{fma}\left(t\_0, a \cdot c, b\right)\right) - b}{2 \cdot a}\\
+
+\mathbf{elif}\;b \leq -7 \cdot 10^{-59}:\\
+\;\;\;\;\frac{\left(-b\right) + \sqrt{t\_0 + b \cdot b}}{2 \cdot a}\\
+
+\mathbf{elif}\;b \leq 7.5 \cdot 10^{+25}:\\
+\;\;\;\;\frac{\left(-b\right) + \sqrt{4 \cdot \mathsf{fma}\left(-a, c, b \cdot b\right)}}{2 \cdot a}\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{\mathsf{fma}\left(t\_0, t\_0, b\right) - b}{2 \cdot a}\\
+
+
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li class="event">Split input into 4 regimes</li><li><h2><code>if <span class="condition"> b  &lt; -1.35000000000000003e154</span></code></h2><ol><li><p>Initial program <span class="error" title="41.1% on training set">42.8%</span></p><div class="math">\[\frac{\left(-b\right) + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li>Add Preprocessing</li><li></li><li><p>Applied rewrites<span class="error" title="71.3% on training set">85.0%</span></p><div class="math">\[\leadsto \frac{\color{blue}{-\left(\mathsf{fma}\left(\left(-a\right) \cdot c, a \cdot c, b\right) + b\right)}}{2 \cdot a}
+\]</div></li></ol><h2><code>if <span class="condition">-1.35000000000000003e154 &lt;  b  &lt; -7.0000000000000002e-59</span></code></h2><ol><li><p>Initial program <span class="error" title="92.3% on training set">93.9%</span></p><div class="math">\[\frac{\left(-b\right) + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li>Add Preprocessing</li><li></li><li><p>Applied rewrites<span class="error" title="80.2% on training set">81.0%</span></p><div class="math">\[\leadsto \frac{\left(-b\right) + \sqrt{\color{blue}{\left(-a\right) \cdot c + b \cdot b}}}{2 \cdot a}
+\]</div></li></ol><h2><code>if <span class="condition">-7.0000000000000002e-59 &lt;  b  &lt; 7.49999999999999993e25</span></code></h2><ol><li><p>Initial program <span class="error" title="67.2% on training set">68.3%</span></p><div class="math">\[\frac{\left(-b\right) + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li>Add Preprocessing</li><li></li><li><p>Applied rewrites<span class="error" title="60.7% on training set">63.1%</span></p><div class="math">\[\leadsto \frac{\left(-b\right) + \sqrt{\color{blue}{4 \cdot \mathsf{fma}\left(-a, c, b \cdot b\right)}}}{2 \cdot a}
+\]</div></li></ol><h2><code>if <span class="condition">7.49999999999999993e25 &lt;  b </span></code></h2><ol><li><p>Initial program <span class="error" title="12.7% on training set">19.1%</span></p><div class="math">\[\frac{\left(-b\right) + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li>Add Preprocessing</li><li></li><li><p>Applied rewrites<span class="error" title="28.9% on training set">31.4%</span></p><div class="math">\[\leadsto \frac{\color{blue}{\mathsf{fma}\left(\left(-a\right) \cdot c, \left(-a\right) \cdot c, b\right) - b}}{2 \cdot a}
+\]</div></li></ol></li><li class="event">Recombined 4 regimes into one program.</li><li><p>Final simplification<span class="error" title="57.3% on training set">62.8%</span></p><div class="math">\[\leadsto \begin{array}{l}
+\mathbf{if}\;b \leq -1.35 \cdot 10^{+154}:\\
+\;\;\;\;\frac{\left(-\mathsf{fma}\left(\left(-a\right) \cdot c, a \cdot c, b\right)\right) - b}{2 \cdot a}\\
+
+\mathbf{elif}\;b \leq -7 \cdot 10^{-59}:\\
+\;\;\;\;\frac{\left(-b\right) + \sqrt{\left(-a\right) \cdot c + b \cdot b}}{2 \cdot a}\\
+
+\mathbf{elif}\;b \leq 7.5 \cdot 10^{+25}:\\
+\;\;\;\;\frac{\left(-b\right) + \sqrt{4 \cdot \mathsf{fma}\left(-a, c, b \cdot b\right)}}{2 \cdot a}\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{\mathsf{fma}\left(\left(-a\right) \cdot c, \left(-a\right) \cdot c, b\right) - b}{2 \cdot a}\\
+
+
+\end{array}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative3" class="programs"><h2>Alternative 3: <span class="subhead"><data>56.9%</data> accurate, <data>0.8×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+t_0 := \left(-a\right) \cdot c\\
+\mathbf{if}\;b \leq -1.35 \cdot 10^{+154}:\\
+\;\;\;\;\frac{\left(-\mathsf{fma}\left(t\_0, a \cdot c, b\right)\right) - b}{2 \cdot a}\\
+
+\mathbf{elif}\;b \leq -1 \cdot 10^{-72}:\\
+\;\;\;\;\frac{\left(-b\right) + \sqrt{t\_0 + b \cdot b}}{2 \cdot a}\\
+
+\mathbf{elif}\;b \leq 7.5 \cdot 10^{+25}:\\
+\;\;\;\;\frac{b + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{\mathsf{fma}\left(t\_0, t\_0, b\right) - b}{2 \cdot a}\\
+
+
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (a b c)
+ :precision binary64
+ (let* ((t_0 (* (- a) c)))
+   (if (&lt;= b -1.35e+154)
+     (/ (- (- (fma t_0 (* a c) b)) b) (* 2.0 a))
+     (if (&lt;= b -1e-72)
+       (/ (+ (- b) (sqrt (+ t_0 (* b b)))) (* 2.0 a))
+       (if (&lt;= b 7.5e+25)
+         (/ (+ b (sqrt (- (* b b) (* 4.0 (* a c))))) (* 2.0 a))
+         (/ (- (fma t_0 t_0 b) b) (* 2.0 a)))))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double a, double b, double c) {
+	double t_0 = -a * c;
+	double tmp;
+	if (b &lt;= -1.35e+154) {
+		tmp = (-fma(t_0, (a * c), b) - b) / (2.0 * a);
+	} else if (b &lt;= -1e-72) {
+		tmp = (-b + sqrt((t_0 + (b * b)))) / (2.0 * a);
+	} else if (b &lt;= 7.5e+25) {
+		tmp = (b + sqrt(((b * b) - (4.0 * (a * c))))) / (2.0 * a);
+	} else {
+		tmp = (fma(t_0, t_0, b) - b) / (2.0 * a);
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(a, b, c)
+	t_0 = Float64(Float64(-a) * c)
+	tmp = 0.0
+	if (b &lt;= -1.35e+154)
+		tmp = Float64(Float64(Float64(-fma(t_0, Float64(a * c), b)) - b) / Float64(2.0 * a));
+	elseif (b &lt;= -1e-72)
+		tmp = Float64(Float64(Float64(-b) + sqrt(Float64(t_0 + Float64(b * b)))) / Float64(2.0 * a));
+	elseif (b &lt;= 7.5e+25)
+		tmp = Float64(Float64(b + sqrt(Float64(Float64(b * b) - Float64(4.0 * Float64(a * c))))) / Float64(2.0 * a));
+	else
+		tmp = Float64(Float64(fma(t_0, t_0, b) - b) / Float64(2.0 * a));
+	end
+	return tmp
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[a_, b_, c_] := Block[{t$95$0 = N[((-a) * c), $MachinePrecision]}, If[LessEqual[b, -1.35e+154], N[(N[((-N[(t$95$0 * N[(a * c), $MachinePrecision] + b), $MachinePrecision]) - b), $MachinePrecision] / N[(2.0 * a), $MachinePrecision]), $MachinePrecision], If[LessEqual[b, -1e-72], N[(N[((-b) + N[Sqrt[N[(t$95$0 + N[(b * b), $MachinePrecision]), $MachinePrecision]], $MachinePrecision]), $MachinePrecision] / N[(2.0 * a), $MachinePrecision]), $MachinePrecision], If[LessEqual[b, 7.5e+25], N[(N[(b + N[Sqrt[N[(N[(b * b), $MachinePrecision] - N[(4.0 * N[(a * c), $MachinePrecision]), $MachinePrecision]), $MachinePrecision]], $MachinePrecision]), $MachinePrecision] / N[(2.0 * a), $MachinePrecision]), $MachinePrecision], N[(N[(N[(t$95$0 * t$95$0 + b), $MachinePrecision] - b), $MachinePrecision] / N[(2.0 * a), $MachinePrecision]), $MachinePrecision]]]]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+t_0 := \left(-a\right) \cdot c\\
+\mathbf{if}\;b \leq -1.35 \cdot 10^{+154}:\\
+\;\;\;\;\frac{\left(-\mathsf{fma}\left(t\_0, a \cdot c, b\right)\right) - b}{2 \cdot a}\\
+
+\mathbf{elif}\;b \leq -1 \cdot 10^{-72}:\\
+\;\;\;\;\frac{\left(-b\right) + \sqrt{t\_0 + b \cdot b}}{2 \cdot a}\\
+
+\mathbf{elif}\;b \leq 7.5 \cdot 10^{+25}:\\
+\;\;\;\;\frac{b + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{\mathsf{fma}\left(t\_0, t\_0, b\right) - b}{2 \cdot a}\\
+
+
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li class="event">Split input into 4 regimes</li><li><h2><code>if <span class="condition"> b  &lt; -1.35000000000000003e154</span></code></h2><ol><li><p>Initial program <span class="error" title="41.1% on training set">42.8%</span></p><div class="math">\[\frac{\left(-b\right) + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li>Add Preprocessing</li><li></li><li><p>Applied rewrites<span class="error" title="71.3% on training set">85.0%</span></p><div class="math">\[\leadsto \frac{\color{blue}{-\left(\mathsf{fma}\left(\left(-a\right) \cdot c, a \cdot c, b\right) + b\right)}}{2 \cdot a}
+\]</div></li></ol><h2><code>if <span class="condition">-1.35000000000000003e154 &lt;  b  &lt; -9.9999999999999997e-73</span></code></h2><ol><li><p>Initial program <span class="error" title="92.4% on training set">92.8%</span></p><div class="math">\[\frac{\left(-b\right) + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li>Add Preprocessing</li><li></li><li><p>Applied rewrites<span class="error" title="79.4% on training set">79.2%</span></p><div class="math">\[\leadsto \frac{\left(-b\right) + \sqrt{\color{blue}{\left(-a\right) \cdot c + b \cdot b}}}{2 \cdot a}
+\]</div></li></ol><h2><code>if <span class="condition">-9.9999999999999997e-73 &lt;  b  &lt; 7.49999999999999993e25</span></code></h2><ol><li><p>Initial program <span class="error" title="66.6% on training set">68.3%</span></p><div class="math">\[\frac{\left(-b\right) + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li>Add Preprocessing</li><li></li><li><p>Applied rewrites<span class="error" title="59.5% on training set">63.0%</span></p><div class="math">\[\leadsto \frac{\color{blue}{b} + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li></ol><h2><code>if <span class="condition">7.49999999999999993e25 &lt;  b </span></code></h2><ol><li><p>Initial program <span class="error" title="12.7% on training set">19.1%</span></p><div class="math">\[\frac{\left(-b\right) + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li>Add Preprocessing</li><li></li><li><p>Applied rewrites<span class="error" title="28.9% on training set">31.4%</span></p><div class="math">\[\leadsto \frac{\color{blue}{\mathsf{fma}\left(\left(-a\right) \cdot c, \left(-a\right) \cdot c, b\right) - b}}{2 \cdot a}
+\]</div></li></ol></li><li class="event">Recombined 4 regimes into one program.</li><li><p>Final simplification<span class="error" title="56.9% on training set">62.5%</span></p><div class="math">\[\leadsto \begin{array}{l}
+\mathbf{if}\;b \leq -1.35 \cdot 10^{+154}:\\
+\;\;\;\;\frac{\left(-\mathsf{fma}\left(\left(-a\right) \cdot c, a \cdot c, b\right)\right) - b}{2 \cdot a}\\
+
+\mathbf{elif}\;b \leq -1 \cdot 10^{-72}:\\
+\;\;\;\;\frac{\left(-b\right) + \sqrt{\left(-a\right) \cdot c + b \cdot b}}{2 \cdot a}\\
+
+\mathbf{elif}\;b \leq 7.5 \cdot 10^{+25}:\\
+\;\;\;\;\frac{b + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{\mathsf{fma}\left(\left(-a\right) \cdot c, \left(-a\right) \cdot c, b\right) - b}{2 \cdot a}\\
+
+
+\end{array}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative4" class="programs"><h2>Alternative 4: <span class="subhead"><data>43.1%</data> accurate, <data>0.8×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+t_0 := \left(-a\right) \cdot c\\
+\mathbf{if}\;b \leq -1.35 \cdot 10^{+154}:\\
+\;\;\;\;\frac{\left(-\mathsf{fma}\left(t\_0, a \cdot c, b\right)\right) - b}{2 \cdot a}\\
+
+\mathbf{elif}\;b \leq 1.65 \cdot 10^{+151}:\\
+\;\;\;\;\frac{\left(-b\right) + \sqrt{t\_0 + b \cdot b}}{2 \cdot a}\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{--16}{\mathsf{fma}\left(b, b, \mathsf{fma}\left(-a, c, b \cdot b\right)\right) \cdot \left(2 \cdot a\right)}\\
+
+
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (a b c)
+ :precision binary64
+ (let* ((t_0 (* (- a) c)))
+   (if (&lt;= b -1.35e+154)
+     (/ (- (- (fma t_0 (* a c) b)) b) (* 2.0 a))
+     (if (&lt;= b 1.65e+151)
+       (/ (+ (- b) (sqrt (+ t_0 (* b b)))) (* 2.0 a))
+       (/ (- -16.0) (* (fma b b (fma (- a) c (* b b))) (* 2.0 a)))))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double a, double b, double c) {
+	double t_0 = -a * c;
+	double tmp;
+	if (b &lt;= -1.35e+154) {
+		tmp = (-fma(t_0, (a * c), b) - b) / (2.0 * a);
+	} else if (b &lt;= 1.65e+151) {
+		tmp = (-b + sqrt((t_0 + (b * b)))) / (2.0 * a);
+	} else {
+		tmp = -(-16.0) / (fma(b, b, fma(-a, c, (b * b))) * (2.0 * a));
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(a, b, c)
+	t_0 = Float64(Float64(-a) * c)
+	tmp = 0.0
+	if (b &lt;= -1.35e+154)
+		tmp = Float64(Float64(Float64(-fma(t_0, Float64(a * c), b)) - b) / Float64(2.0 * a));
+	elseif (b &lt;= 1.65e+151)
+		tmp = Float64(Float64(Float64(-b) + sqrt(Float64(t_0 + Float64(b * b)))) / Float64(2.0 * a));
+	else
+		tmp = Float64(Float64(-(-16.0)) / Float64(fma(b, b, fma(Float64(-a), c, Float64(b * b))) * Float64(2.0 * a)));
+	end
+	return tmp
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[a_, b_, c_] := Block[{t$95$0 = N[((-a) * c), $MachinePrecision]}, If[LessEqual[b, -1.35e+154], N[(N[((-N[(t$95$0 * N[(a * c), $MachinePrecision] + b), $MachinePrecision]) - b), $MachinePrecision] / N[(2.0 * a), $MachinePrecision]), $MachinePrecision], If[LessEqual[b, 1.65e+151], N[(N[((-b) + N[Sqrt[N[(t$95$0 + N[(b * b), $MachinePrecision]), $MachinePrecision]], $MachinePrecision]), $MachinePrecision] / N[(2.0 * a), $MachinePrecision]), $MachinePrecision], N[((--16.0) / N[(N[(b * b + N[((-a) * c + N[(b * b), $MachinePrecision]), $MachinePrecision]), $MachinePrecision] * N[(2.0 * a), $MachinePrecision]), $MachinePrecision]), $MachinePrecision]]]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+t_0 := \left(-a\right) \cdot c\\
+\mathbf{if}\;b \leq -1.35 \cdot 10^{+154}:\\
+\;\;\;\;\frac{\left(-\mathsf{fma}\left(t\_0, a \cdot c, b\right)\right) - b}{2 \cdot a}\\
+
+\mathbf{elif}\;b \leq 1.65 \cdot 10^{+151}:\\
+\;\;\;\;\frac{\left(-b\right) + \sqrt{t\_0 + b \cdot b}}{2 \cdot a}\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{--16}{\mathsf{fma}\left(b, b, \mathsf{fma}\left(-a, c, b \cdot b\right)\right) \cdot \left(2 \cdot a\right)}\\
+
+
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li class="event">Split input into 3 regimes</li><li><h2><code>if <span class="condition"> b  &lt; -1.35000000000000003e154</span></code></h2><ol><li><p>Initial program <span class="error" title="41.1% on training set">42.8%</span></p><div class="math">\[\frac{\left(-b\right) + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li>Add Preprocessing</li><li></li><li><p>Applied rewrites<span class="error" title="71.3% on training set">85.0%</span></p><div class="math">\[\leadsto \frac{\color{blue}{-\left(\mathsf{fma}\left(\left(-a\right) \cdot c, a \cdot c, b\right) + b\right)}}{2 \cdot a}
+\]</div></li></ol><h2><code>if <span class="condition">-1.35000000000000003e154 &lt;  b  &lt; 1.65000000000000012e151</span></code></h2><ol><li><p>Initial program <span class="error" title="67.5% on training set">70.4%</span></p><div class="math">\[\frac{\left(-b\right) + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li>Add Preprocessing</li><li></li><li><p>Applied rewrites<span class="error" title="37.0% on training set">41.6%</span></p><div class="math">\[\leadsto \frac{\left(-b\right) + \sqrt{\color{blue}{\left(-a\right) \cdot c + b \cdot b}}}{2 \cdot a}
+\]</div></li></ol><h2><code>if <span class="condition">1.65000000000000012e151 &lt;  b </span></code></h2><ol><li><p>Initial program <span class="error" title="1.8% on training set">1.8%</span></p><div class="math">\[\frac{\left(-b\right) + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li>Add Preprocessing</li><li></li><li><p>Applied rewrites<span class="error" title="39.1% on training set">42.7%</span></p><div class="math">\[\leadsto \color{blue}{-\frac{-16}{\mathsf{fma}\left(b, b, \mathsf{fma}\left(-a, c, b \cdot b\right)\right) \cdot \left(2 \cdot a\right)}}
+\]</div></li></ol></li><li class="event">Recombined 3 regimes into one program.</li><li><p>Final simplification<span class="error" title="43.1% on training set">48.5%</span></p><div class="math">\[\leadsto \begin{array}{l}
+\mathbf{if}\;b \leq -1.35 \cdot 10^{+154}:\\
+\;\;\;\;\frac{\left(-\mathsf{fma}\left(\left(-a\right) \cdot c, a \cdot c, b\right)\right) - b}{2 \cdot a}\\
+
+\mathbf{elif}\;b \leq 1.65 \cdot 10^{+151}:\\
+\;\;\;\;\frac{\left(-b\right) + \sqrt{\left(-a\right) \cdot c + b \cdot b}}{2 \cdot a}\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{--16}{\mathsf{fma}\left(b, b, \mathsf{fma}\left(-a, c, b \cdot b\right)\right) \cdot \left(2 \cdot a\right)}\\
+
+
+\end{array}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative5" class="programs"><h2>Alternative 5: <span class="subhead"><data>39.0%</data> accurate, <data>1.0×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+t_0 := \left(-a\right) \cdot c\\
+\mathbf{if}\;b \leq -6.5 \cdot 10^{-147}:\\
+\;\;\;\;\frac{\left(-\mathsf{fma}\left(t\_0, a \cdot c, b\right)\right) - b}{2 \cdot a}\\
+
+\mathbf{elif}\;b \leq 2.5 \cdot 10^{+24}:\\
+\;\;\;\;\frac{b + \sqrt{t\_0}}{2 \cdot a}\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{\mathsf{fma}\left(t\_0, t\_0, b\right) - b}{2 \cdot a}\\
+
+
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (a b c)
+ :precision binary64
+ (let* ((t_0 (* (- a) c)))
+   (if (&lt;= b -6.5e-147)
+     (/ (- (- (fma t_0 (* a c) b)) b) (* 2.0 a))
+     (if (&lt;= b 2.5e+24)
+       (/ (+ b (sqrt t_0)) (* 2.0 a))
+       (/ (- (fma t_0 t_0 b) b) (* 2.0 a))))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double a, double b, double c) {
+	double t_0 = -a * c;
+	double tmp;
+	if (b &lt;= -6.5e-147) {
+		tmp = (-fma(t_0, (a * c), b) - b) / (2.0 * a);
+	} else if (b &lt;= 2.5e+24) {
+		tmp = (b + sqrt(t_0)) / (2.0 * a);
+	} else {
+		tmp = (fma(t_0, t_0, b) - b) / (2.0 * a);
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(a, b, c)
+	t_0 = Float64(Float64(-a) * c)
+	tmp = 0.0
+	if (b &lt;= -6.5e-147)
+		tmp = Float64(Float64(Float64(-fma(t_0, Float64(a * c), b)) - b) / Float64(2.0 * a));
+	elseif (b &lt;= 2.5e+24)
+		tmp = Float64(Float64(b + sqrt(t_0)) / Float64(2.0 * a));
+	else
+		tmp = Float64(Float64(fma(t_0, t_0, b) - b) / Float64(2.0 * a));
+	end
+	return tmp
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[a_, b_, c_] := Block[{t$95$0 = N[((-a) * c), $MachinePrecision]}, If[LessEqual[b, -6.5e-147], N[(N[((-N[(t$95$0 * N[(a * c), $MachinePrecision] + b), $MachinePrecision]) - b), $MachinePrecision] / N[(2.0 * a), $MachinePrecision]), $MachinePrecision], If[LessEqual[b, 2.5e+24], N[(N[(b + N[Sqrt[t$95$0], $MachinePrecision]), $MachinePrecision] / N[(2.0 * a), $MachinePrecision]), $MachinePrecision], N[(N[(N[(t$95$0 * t$95$0 + b), $MachinePrecision] - b), $MachinePrecision] / N[(2.0 * a), $MachinePrecision]), $MachinePrecision]]]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+t_0 := \left(-a\right) \cdot c\\
+\mathbf{if}\;b \leq -6.5 \cdot 10^{-147}:\\
+\;\;\;\;\frac{\left(-\mathsf{fma}\left(t\_0, a \cdot c, b\right)\right) - b}{2 \cdot a}\\
+
+\mathbf{elif}\;b \leq 2.5 \cdot 10^{+24}:\\
+\;\;\;\;\frac{b + \sqrt{t\_0}}{2 \cdot a}\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{\mathsf{fma}\left(t\_0, t\_0, b\right) - b}{2 \cdot a}\\
+
+
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li class="event">Split input into 3 regimes</li><li><h2><code>if <span class="condition"> b  &lt; -6.49999999999999967e-147</span></code></h2><ol><li><p>Initial program <span class="error" title="71.2% on training set">76.1%</span></p><div class="math">\[\frac{\left(-b\right) + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li>Add Preprocessing</li><li></li><li><p>Applied rewrites<span class="error" title="65.1% on training set">64.9%</span></p><div class="math">\[\leadsto \frac{\color{blue}{-\left(\mathsf{fma}\left(\left(-a\right) \cdot c, a \cdot c, b\right) + b\right)}}{2 \cdot a}
+\]</div></li></ol><h2><code>if <span class="condition">-6.49999999999999967e-147 &lt;  b  &lt; 2.50000000000000023e24</span></code></h2><ol><li><p>Initial program <span class="error" title="63.1% on training set">63.9%</span></p><div class="math">\[\frac{\left(-b\right) + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li>Add Preprocessing</li><li></li><li><p>Applied rewrites<span class="error" title="60.7% on training set">63.1%</span></p><div class="math">\[\leadsto \frac{\color{blue}{b} + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="12.6% on training set">12.8%</span></p><div class="math">\[\leadsto \frac{b + \sqrt{\color{blue}{-a \cdot c}}}{2 \cdot a}
+\]</div></li></ol><h2><code>if <span class="condition">2.50000000000000023e24 &lt;  b </span></code></h2><ol><li><p>Initial program <span class="error" title="12.7% on training set">19.1%</span></p><div class="math">\[\frac{\left(-b\right) + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li>Add Preprocessing</li><li></li><li><p>Applied rewrites<span class="error" title="28.7% on training set">31.4%</span></p><div class="math">\[\leadsto \frac{\color{blue}{\mathsf{fma}\left(\left(-a\right) \cdot c, \left(-a\right) \cdot c, b\right) - b}}{2 \cdot a}
+\]</div></li></ol></li><li class="event">Recombined 3 regimes into one program.</li><li><p>Final simplification<span class="error" title="39.0% on training set">42.0%</span></p><div class="math">\[\leadsto \begin{array}{l}
+\mathbf{if}\;b \leq -6.5 \cdot 10^{-147}:\\
+\;\;\;\;\frac{\left(-\mathsf{fma}\left(\left(-a\right) \cdot c, a \cdot c, b\right)\right) - b}{2 \cdot a}\\
+
+\mathbf{elif}\;b \leq 2.5 \cdot 10^{+24}:\\
+\;\;\;\;\frac{b + \sqrt{\left(-a\right) \cdot c}}{2 \cdot a}\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{\mathsf{fma}\left(\left(-a\right) \cdot c, \left(-a\right) \cdot c, b\right) - b}{2 \cdot a}\\
+
+
+\end{array}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative6" class="programs"><h2>Alternative 6: <span class="subhead"><data>34.5%</data> accurate, <data>1.0×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+t_0 := \left(-a\right) \cdot c\\
+\mathbf{if}\;b \leq -6.5 \cdot 10^{-147}:\\
+\;\;\;\;\frac{\left(-\mathsf{fma}\left(t\_0, a \cdot c, b\right)\right) - b}{2 \cdot a}\\
+
+\mathbf{elif}\;b \leq 5 \cdot 10^{+25}:\\
+\;\;\;\;\frac{b + \sqrt{t\_0}}{2 \cdot a}\\
+
+\mathbf{else}:\\
+\;\;\;\;\left(a \cdot c\right) \cdot 2\\
+
+
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (a b c)
+ :precision binary64
+ (let* ((t_0 (* (- a) c)))
+   (if (&lt;= b -6.5e-147)
+     (/ (- (- (fma t_0 (* a c) b)) b) (* 2.0 a))
+     (if (&lt;= b 5e+25) (/ (+ b (sqrt t_0)) (* 2.0 a)) (* (* a c) 2.0)))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double a, double b, double c) {
+	double t_0 = -a * c;
+	double tmp;
+	if (b &lt;= -6.5e-147) {
+		tmp = (-fma(t_0, (a * c), b) - b) / (2.0 * a);
+	} else if (b &lt;= 5e+25) {
+		tmp = (b + sqrt(t_0)) / (2.0 * a);
+	} else {
+		tmp = (a * c) * 2.0;
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(a, b, c)
+	t_0 = Float64(Float64(-a) * c)
+	tmp = 0.0
+	if (b &lt;= -6.5e-147)
+		tmp = Float64(Float64(Float64(-fma(t_0, Float64(a * c), b)) - b) / Float64(2.0 * a));
+	elseif (b &lt;= 5e+25)
+		tmp = Float64(Float64(b + sqrt(t_0)) / Float64(2.0 * a));
+	else
+		tmp = Float64(Float64(a * c) * 2.0);
+	end
+	return tmp
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[a_, b_, c_] := Block[{t$95$0 = N[((-a) * c), $MachinePrecision]}, If[LessEqual[b, -6.5e-147], N[(N[((-N[(t$95$0 * N[(a * c), $MachinePrecision] + b), $MachinePrecision]) - b), $MachinePrecision] / N[(2.0 * a), $MachinePrecision]), $MachinePrecision], If[LessEqual[b, 5e+25], N[(N[(b + N[Sqrt[t$95$0], $MachinePrecision]), $MachinePrecision] / N[(2.0 * a), $MachinePrecision]), $MachinePrecision], N[(N[(a * c), $MachinePrecision] * 2.0), $MachinePrecision]]]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+t_0 := \left(-a\right) \cdot c\\
+\mathbf{if}\;b \leq -6.5 \cdot 10^{-147}:\\
+\;\;\;\;\frac{\left(-\mathsf{fma}\left(t\_0, a \cdot c, b\right)\right) - b}{2 \cdot a}\\
+
+\mathbf{elif}\;b \leq 5 \cdot 10^{+25}:\\
+\;\;\;\;\frac{b + \sqrt{t\_0}}{2 \cdot a}\\
+
+\mathbf{else}:\\
+\;\;\;\;\left(a \cdot c\right) \cdot 2\\
+
+
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li class="event">Split input into 3 regimes</li><li><h2><code>if <span class="condition"> b  &lt; -6.49999999999999967e-147</span></code></h2><ol><li><p>Initial program <span class="error" title="71.2% on training set">76.1%</span></p><div class="math">\[\frac{\left(-b\right) + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li>Add Preprocessing</li><li></li><li><p>Applied rewrites<span class="error" title="65.1% on training set">64.9%</span></p><div class="math">\[\leadsto \frac{\color{blue}{-\left(\mathsf{fma}\left(\left(-a\right) \cdot c, a \cdot c, b\right) + b\right)}}{2 \cdot a}
+\]</div></li></ol><h2><code>if <span class="condition">-6.49999999999999967e-147 &lt;  b  &lt; 5.00000000000000024e25</span></code></h2><ol><li><p>Initial program <span class="error" title="62.8% on training set">63.9%</span></p><div class="math">\[\frac{\left(-b\right) + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li>Add Preprocessing</li><li></li><li><p>Applied rewrites<span class="error" title="60.4% on training set">63.1%</span></p><div class="math">\[\leadsto \frac{\color{blue}{b} + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="12.5% on training set">12.8%</span></p><div class="math">\[\leadsto \frac{b + \sqrt{\color{blue}{-a \cdot c}}}{2 \cdot a}
+\]</div></li></ol><h2><code>if <span class="condition">5.00000000000000024e25 &lt;  b </span></code></h2><ol><li><p>Initial program <span class="error" title="12.7% on training set">19.1%</span></p><div class="math">\[\frac{\left(-b\right) + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li>Add Preprocessing</li><li></li><li><p>Applied rewrites<span class="error" title="4.8% on training set">5.5%</span></p><div class="math">\[\leadsto \frac{\color{blue}{b} + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="12.7% on training set">18.1%</span></p><div class="math">\[\leadsto \color{blue}{\left(a \cdot c\right) \cdot 2 + 0}
+\]</div></li></ol></li><li class="event">Recombined 3 regimes into one program.</li><li><p>Final simplification<span class="error" title="34.5% on training set">38.6%</span></p><div class="math">\[\leadsto \begin{array}{l}
+\mathbf{if}\;b \leq -6.5 \cdot 10^{-147}:\\
+\;\;\;\;\frac{\left(-\mathsf{fma}\left(\left(-a\right) \cdot c, a \cdot c, b\right)\right) - b}{2 \cdot a}\\
+
+\mathbf{elif}\;b \leq 5 \cdot 10^{+25}:\\
+\;\;\;\;\frac{b + \sqrt{\left(-a\right) \cdot c}}{2 \cdot a}\\
+
+\mathbf{else}:\\
+\;\;\;\;\left(a \cdot c\right) \cdot 2\\
+
+
+\end{array}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative7" class="programs"><h2>Alternative 7: <span class="subhead"><data>15.7%</data> accurate, <data>1.0×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+t_0 := \left(a \cdot c\right) \cdot 2\\
+\mathbf{if}\;b \leq -6.2 \cdot 10^{-13}:\\
+\;\;\;\;\left(b \cdot b\right) \cdot \left(2 \cdot a\right) + t\_0\\
+
+\mathbf{elif}\;b \leq 5 \cdot 10^{+25}:\\
+\;\;\;\;\frac{b + \sqrt{\left(-a\right) \cdot c}}{2 \cdot a}\\
+
+\mathbf{else}:\\
+\;\;\;\;t\_0\\
+
+
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (a b c)
+ :precision binary64
+ (let* ((t_0 (* (* a c) 2.0)))
+   (if (&lt;= b -6.2e-13)
+     (+ (* (* b b) (* 2.0 a)) t_0)
+     (if (&lt;= b 5e+25) (/ (+ b (sqrt (* (- a) c))) (* 2.0 a)) t_0))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double a, double b, double c) {
+	double t_0 = (a * c) * 2.0;
+	double tmp;
+	if (b &lt;= -6.2e-13) {
+		tmp = ((b * b) * (2.0 * a)) + t_0;
+	} else if (b &lt;= 5e+25) {
+		tmp = (b + sqrt((-a * c))) / (2.0 * a);
+	} else {
+		tmp = t_0;
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(a, b, c)
+    real(8), intent (in) :: a
+    real(8), intent (in) :: b
+    real(8), intent (in) :: c
+    real(8) :: t_0
+    real(8) :: tmp
+    t_0 = (a * c) * 2.0d0
+    if (b &lt;= (-6.2d-13)) then
+        tmp = ((b * b) * (2.0d0 * a)) + t_0
+    else if (b &lt;= 5d+25) then
+        tmp = (b + sqrt((-a * c))) / (2.0d0 * a)
+    else
+        tmp = t_0
+    end if
+    code = tmp
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double a, double b, double c) {
+	double t_0 = (a * c) * 2.0;
+	double tmp;
+	if (b &lt;= -6.2e-13) {
+		tmp = ((b * b) * (2.0 * a)) + t_0;
+	} else if (b &lt;= 5e+25) {
+		tmp = (b + Math.sqrt((-a * c))) / (2.0 * a);
+	} else {
+		tmp = t_0;
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(a, b, c):
+	t_0 = (a * c) * 2.0
+	tmp = 0
+	if b &lt;= -6.2e-13:
+		tmp = ((b * b) * (2.0 * a)) + t_0
+	elif b &lt;= 5e+25:
+		tmp = (b + math.sqrt((-a * c))) / (2.0 * a)
+	else:
+		tmp = t_0
+	return tmp
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(a, b, c)
+	t_0 = Float64(Float64(a * c) * 2.0)
+	tmp = 0.0
+	if (b &lt;= -6.2e-13)
+		tmp = Float64(Float64(Float64(b * b) * Float64(2.0 * a)) + t_0);
+	elseif (b &lt;= 5e+25)
+		tmp = Float64(Float64(b + sqrt(Float64(Float64(-a) * c))) / Float64(2.0 * a));
+	else
+		tmp = t_0;
+	end
+	return tmp
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp_2 = code(a, b, c)
+	t_0 = (a * c) * 2.0;
+	tmp = 0.0;
+	if (b &lt;= -6.2e-13)
+		tmp = ((b * b) * (2.0 * a)) + t_0;
+	elseif (b &lt;= 5e+25)
+		tmp = (b + sqrt((-a * c))) / (2.0 * a);
+	else
+		tmp = t_0;
+	end
+	tmp_2 = tmp;
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[a_, b_, c_] := Block[{t$95$0 = N[(N[(a * c), $MachinePrecision] * 2.0), $MachinePrecision]}, If[LessEqual[b, -6.2e-13], N[(N[(N[(b * b), $MachinePrecision] * N[(2.0 * a), $MachinePrecision]), $MachinePrecision] + t$95$0), $MachinePrecision], If[LessEqual[b, 5e+25], N[(N[(b + N[Sqrt[N[((-a) * c), $MachinePrecision]], $MachinePrecision]), $MachinePrecision] / N[(2.0 * a), $MachinePrecision]), $MachinePrecision], t$95$0]]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+t_0 := \left(a \cdot c\right) \cdot 2\\
+\mathbf{if}\;b \leq -6.2 \cdot 10^{-13}:\\
+\;\;\;\;\left(b \cdot b\right) \cdot \left(2 \cdot a\right) + t\_0\\
+
+\mathbf{elif}\;b \leq 5 \cdot 10^{+25}:\\
+\;\;\;\;\frac{b + \sqrt{\left(-a\right) \cdot c}}{2 \cdot a}\\
+
+\mathbf{else}:\\
+\;\;\;\;t\_0\\
+
+
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li class="event">Split input into 3 regimes</li><li><h2><code>if <span class="condition"> b  &lt; -6.1999999999999998e-13</span></code></h2><ol><li><p>Initial program <span class="error" title="65.6% on training set">70.9%</span></p><div class="math">\[\frac{\left(-b\right) + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li>Add Preprocessing</li><li></li><li><p>Applied rewrites<span class="error" title="27.1% on training set">25.8%</span></p><div class="math">\[\leadsto \frac{\color{blue}{b} + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="23.4% on training set">20.8%</span></p><div class="math">\[\leadsto \color{blue}{\left(b \cdot b\right) \cdot \left(2 \cdot a\right) + \left(a \cdot c\right) \cdot 2}
+\]</div></li></ol><h2><code>if <span class="condition">-6.1999999999999998e-13 &lt;  b  &lt; 5.00000000000000024e25</span></code></h2><ol><li><p>Initial program <span class="error" title="69.4% on training set">72.2%</span></p><div class="math">\[\frac{\left(-b\right) + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li>Add Preprocessing</li><li></li><li><p>Applied rewrites<span class="error" title="56.4% on training set">58.7%</span></p><div class="math">\[\leadsto \frac{\color{blue}{b} + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="11.7% on training set">11.9%</span></p><div class="math">\[\leadsto \frac{b + \sqrt{\color{blue}{-a \cdot c}}}{2 \cdot a}
+\]</div></li></ol><h2><code>if <span class="condition">5.00000000000000024e25 &lt;  b </span></code></h2><ol><li><p>Initial program <span class="error" title="12.7% on training set">19.1%</span></p><div class="math">\[\frac{\left(-b\right) + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li>Add Preprocessing</li><li></li><li><p>Applied rewrites<span class="error" title="4.8% on training set">5.5%</span></p><div class="math">\[\leadsto \frac{\color{blue}{b} + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="12.7% on training set">18.1%</span></p><div class="math">\[\leadsto \color{blue}{\left(a \cdot c\right) \cdot 2 + 0}
+\]</div></li></ol></li><li class="event">Recombined 3 regimes into one program.</li><li><p>Final simplification<span class="error" title="15.7% on training set">16.7%</span></p><div class="math">\[\leadsto \begin{array}{l}
+\mathbf{if}\;b \leq -6.2 \cdot 10^{-13}:\\
+\;\;\;\;\left(b \cdot b\right) \cdot \left(2 \cdot a\right) + \left(a \cdot c\right) \cdot 2\\
+
+\mathbf{elif}\;b \leq 5 \cdot 10^{+25}:\\
+\;\;\;\;\frac{b + \sqrt{\left(-a\right) \cdot c}}{2 \cdot a}\\
+
+\mathbf{else}:\\
+\;\;\;\;\left(a \cdot c\right) \cdot 2\\
+
+
+\end{array}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative8" class="programs"><h2>Alternative 8: <span class="subhead"><data>14.1%</data> accurate, <data>1.4×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+t_0 := \left(a \cdot c\right) \cdot 2\\
+\mathbf{if}\;b \leq -7.7 \cdot 10^{+151}:\\
+\;\;\;\;\left(b \cdot b\right) \cdot \left(2 \cdot a\right) + t\_0\\
+
+\mathbf{elif}\;b \leq 7 \cdot 10^{-48}:\\
+\;\;\;\;\frac{65536}{2 \cdot a}\\
+
+\mathbf{else}:\\
+\;\;\;\;t\_0\\
+
+
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (a b c)
+ :precision binary64
+ (let* ((t_0 (* (* a c) 2.0)))
+   (if (&lt;= b -7.7e+151)
+     (+ (* (* b b) (* 2.0 a)) t_0)
+     (if (&lt;= b 7e-48) (/ 65536.0 (* 2.0 a)) t_0))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double a, double b, double c) {
+	double t_0 = (a * c) * 2.0;
+	double tmp;
+	if (b &lt;= -7.7e+151) {
+		tmp = ((b * b) * (2.0 * a)) + t_0;
+	} else if (b &lt;= 7e-48) {
+		tmp = 65536.0 / (2.0 * a);
+	} else {
+		tmp = t_0;
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(a, b, c)
+    real(8), intent (in) :: a
+    real(8), intent (in) :: b
+    real(8), intent (in) :: c
+    real(8) :: t_0
+    real(8) :: tmp
+    t_0 = (a * c) * 2.0d0
+    if (b &lt;= (-7.7d+151)) then
+        tmp = ((b * b) * (2.0d0 * a)) + t_0
+    else if (b &lt;= 7d-48) then
+        tmp = 65536.0d0 / (2.0d0 * a)
+    else
+        tmp = t_0
+    end if
+    code = tmp
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double a, double b, double c) {
+	double t_0 = (a * c) * 2.0;
+	double tmp;
+	if (b &lt;= -7.7e+151) {
+		tmp = ((b * b) * (2.0 * a)) + t_0;
+	} else if (b &lt;= 7e-48) {
+		tmp = 65536.0 / (2.0 * a);
+	} else {
+		tmp = t_0;
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(a, b, c):
+	t_0 = (a * c) * 2.0
+	tmp = 0
+	if b &lt;= -7.7e+151:
+		tmp = ((b * b) * (2.0 * a)) + t_0
+	elif b &lt;= 7e-48:
+		tmp = 65536.0 / (2.0 * a)
+	else:
+		tmp = t_0
+	return tmp
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(a, b, c)
+	t_0 = Float64(Float64(a * c) * 2.0)
+	tmp = 0.0
+	if (b &lt;= -7.7e+151)
+		tmp = Float64(Float64(Float64(b * b) * Float64(2.0 * a)) + t_0);
+	elseif (b &lt;= 7e-48)
+		tmp = Float64(65536.0 / Float64(2.0 * a));
+	else
+		tmp = t_0;
+	end
+	return tmp
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp_2 = code(a, b, c)
+	t_0 = (a * c) * 2.0;
+	tmp = 0.0;
+	if (b &lt;= -7.7e+151)
+		tmp = ((b * b) * (2.0 * a)) + t_0;
+	elseif (b &lt;= 7e-48)
+		tmp = 65536.0 / (2.0 * a);
+	else
+		tmp = t_0;
+	end
+	tmp_2 = tmp;
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[a_, b_, c_] := Block[{t$95$0 = N[(N[(a * c), $MachinePrecision] * 2.0), $MachinePrecision]}, If[LessEqual[b, -7.7e+151], N[(N[(N[(b * b), $MachinePrecision] * N[(2.0 * a), $MachinePrecision]), $MachinePrecision] + t$95$0), $MachinePrecision], If[LessEqual[b, 7e-48], N[(65536.0 / N[(2.0 * a), $MachinePrecision]), $MachinePrecision], t$95$0]]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+t_0 := \left(a \cdot c\right) \cdot 2\\
+\mathbf{if}\;b \leq -7.7 \cdot 10^{+151}:\\
+\;\;\;\;\left(b \cdot b\right) \cdot \left(2 \cdot a\right) + t\_0\\
+
+\mathbf{elif}\;b \leq 7 \cdot 10^{-48}:\\
+\;\;\;\;\frac{65536}{2 \cdot a}\\
+
+\mathbf{else}:\\
+\;\;\;\;t\_0\\
+
+
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li class="event">Split input into 3 regimes</li><li><h2><code>if <span class="condition"> b  &lt; -7.70000000000000038e151</span></code></h2><ol><li><p>Initial program <span class="error" title="42.0% on training set">42.8%</span></p><div class="math">\[\frac{\left(-b\right) + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li>Add Preprocessing</li><li></li><li><p>Applied rewrites<span class="error" title="40.5% on training set">42.8%</span></p><div class="math">\[\leadsto \frac{\color{blue}{b} + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="40.5% on training set">42.9%</span></p><div class="math">\[\leadsto \color{blue}{\left(b \cdot b\right) \cdot \left(2 \cdot a\right) + \left(a \cdot c\right) \cdot 2}
+\]</div></li></ol><h2><code>if <span class="condition">-7.70000000000000038e151 &lt;  b  &lt; 6.99999999999999982e-48</span></code></h2><ol><li><p>Initial program <span class="error" title="80.6% on training set">87.0%</span></p><div class="math">\[\frac{\left(-b\right) + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li>Add Preprocessing</li><li></li><li><p>Applied rewrites<span class="error" title="55.7% on training set">57.1%</span></p><div class="math">\[\leadsto \frac{\left(-b\right) + \sqrt{\color{blue}{4 \cdot \mathsf{fma}\left(-a, c, b \cdot b\right)}}}{2 \cdot a}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="6.9% on training set">8.0%</span></p><div class="math">\[\leadsto \frac{\color{blue}{65536}}{2 \cdot a}
+\]</div></li></ol><h2><code>if <span class="condition">6.99999999999999982e-48 &lt;  b </span></code></h2><ol><li><p>Initial program <span class="error" title="16.5% on training set">20.5%</span></p><div class="math">\[\frac{\left(-b\right) + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li>Add Preprocessing</li><li></li><li><p>Applied rewrites<span class="error" title="9.1% on training set">9.5%</span></p><div class="math">\[\leadsto \frac{\color{blue}{b} + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="11.2% on training set">15.0%</span></p><div class="math">\[\leadsto \color{blue}{\left(a \cdot c\right) \cdot 2 + 0}
+\]</div></li></ol></li><li class="event">Recombined 3 regimes into one program.</li><li><p>Final simplification<span class="error" title="14.1% on training set">15.7%</span></p><div class="math">\[\leadsto \begin{array}{l}
+\mathbf{if}\;b \leq -7.7 \cdot 10^{+151}:\\
+\;\;\;\;\left(b \cdot b\right) \cdot \left(2 \cdot a\right) + \left(a \cdot c\right) \cdot 2\\
+
+\mathbf{elif}\;b \leq 7 \cdot 10^{-48}:\\
+\;\;\;\;\frac{65536}{2 \cdot a}\\
+
+\mathbf{else}:\\
+\;\;\;\;\left(a \cdot c\right) \cdot 2\\
+
+
+\end{array}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative9" class="programs"><h2>Alternative 9: <span class="subhead"><data>10.4%</data> accurate, <data>1.7×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+t_0 := \left(a \cdot c\right) \cdot 2\\
+\mathbf{if}\;b \leq -1.9 \cdot 10^{+144}:\\
+\;\;\;\;\left(b \cdot b\right) \cdot 2 + t\_0\\
+
+\mathbf{elif}\;b \leq 7 \cdot 10^{-48}:\\
+\;\;\;\;\frac{65536}{2 \cdot a}\\
+
+\mathbf{else}:\\
+\;\;\;\;t\_0\\
+
+
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (a b c)
+ :precision binary64
+ (let* ((t_0 (* (* a c) 2.0)))
+   (if (&lt;= b -1.9e+144)
+     (+ (* (* b b) 2.0) t_0)
+     (if (&lt;= b 7e-48) (/ 65536.0 (* 2.0 a)) t_0))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double a, double b, double c) {
+	double t_0 = (a * c) * 2.0;
+	double tmp;
+	if (b &lt;= -1.9e+144) {
+		tmp = ((b * b) * 2.0) + t_0;
+	} else if (b &lt;= 7e-48) {
+		tmp = 65536.0 / (2.0 * a);
+	} else {
+		tmp = t_0;
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(a, b, c)
+    real(8), intent (in) :: a
+    real(8), intent (in) :: b
+    real(8), intent (in) :: c
+    real(8) :: t_0
+    real(8) :: tmp
+    t_0 = (a * c) * 2.0d0
+    if (b &lt;= (-1.9d+144)) then
+        tmp = ((b * b) * 2.0d0) + t_0
+    else if (b &lt;= 7d-48) then
+        tmp = 65536.0d0 / (2.0d0 * a)
+    else
+        tmp = t_0
+    end if
+    code = tmp
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double a, double b, double c) {
+	double t_0 = (a * c) * 2.0;
+	double tmp;
+	if (b &lt;= -1.9e+144) {
+		tmp = ((b * b) * 2.0) + t_0;
+	} else if (b &lt;= 7e-48) {
+		tmp = 65536.0 / (2.0 * a);
+	} else {
+		tmp = t_0;
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(a, b, c):
+	t_0 = (a * c) * 2.0
+	tmp = 0
+	if b &lt;= -1.9e+144:
+		tmp = ((b * b) * 2.0) + t_0
+	elif b &lt;= 7e-48:
+		tmp = 65536.0 / (2.0 * a)
+	else:
+		tmp = t_0
+	return tmp
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(a, b, c)
+	t_0 = Float64(Float64(a * c) * 2.0)
+	tmp = 0.0
+	if (b &lt;= -1.9e+144)
+		tmp = Float64(Float64(Float64(b * b) * 2.0) + t_0);
+	elseif (b &lt;= 7e-48)
+		tmp = Float64(65536.0 / Float64(2.0 * a));
+	else
+		tmp = t_0;
+	end
+	return tmp
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp_2 = code(a, b, c)
+	t_0 = (a * c) * 2.0;
+	tmp = 0.0;
+	if (b &lt;= -1.9e+144)
+		tmp = ((b * b) * 2.0) + t_0;
+	elseif (b &lt;= 7e-48)
+		tmp = 65536.0 / (2.0 * a);
+	else
+		tmp = t_0;
+	end
+	tmp_2 = tmp;
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[a_, b_, c_] := Block[{t$95$0 = N[(N[(a * c), $MachinePrecision] * 2.0), $MachinePrecision]}, If[LessEqual[b, -1.9e+144], N[(N[(N[(b * b), $MachinePrecision] * 2.0), $MachinePrecision] + t$95$0), $MachinePrecision], If[LessEqual[b, 7e-48], N[(65536.0 / N[(2.0 * a), $MachinePrecision]), $MachinePrecision], t$95$0]]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+t_0 := \left(a \cdot c\right) \cdot 2\\
+\mathbf{if}\;b \leq -1.9 \cdot 10^{+144}:\\
+\;\;\;\;\left(b \cdot b\right) \cdot 2 + t\_0\\
+
+\mathbf{elif}\;b \leq 7 \cdot 10^{-48}:\\
+\;\;\;\;\frac{65536}{2 \cdot a}\\
+
+\mathbf{else}:\\
+\;\;\;\;t\_0\\
+
+
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li class="event">Split input into 3 regimes</li><li><h2><code>if <span class="condition"> b  &lt; -1.90000000000000013e144</span></code></h2><ol><li><p>Initial program <span class="error" title="44.0% on training set">44.2%</span></p><div class="math">\[\frac{\left(-b\right) + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li>Add Preprocessing</li><li></li><li><p>Applied rewrites<span class="error" title="38.9% on training set">41.8%</span></p><div class="math">\[\leadsto \frac{\color{blue}{b} + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="18.5% on training set">28.7%</span></p><div class="math">\[\leadsto \color{blue}{\left(b \cdot b\right) \cdot 2 + \left(a \cdot c\right) \cdot 2}
+\]</div></li></ol><h2><code>if <span class="condition">-1.90000000000000013e144 &lt;  b  &lt; 6.99999999999999982e-48</span></code></h2><ol><li><p>Initial program <span class="error" title="80.4% on training set">86.9%</span></p><div class="math">\[\frac{\left(-b\right) + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li>Add Preprocessing</li><li></li><li><p>Applied rewrites<span class="error" title="56.0% on training set">56.8%</span></p><div class="math">\[\leadsto \frac{\left(-b\right) + \sqrt{\color{blue}{4 \cdot \mathsf{fma}\left(-a, c, b \cdot b\right)}}}{2 \cdot a}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="6.9% on training set">8.0%</span></p><div class="math">\[\leadsto \frac{\color{blue}{65536}}{2 \cdot a}
+\]</div></li></ol><h2><code>if <span class="condition">6.99999999999999982e-48 &lt;  b </span></code></h2><ol><li><p>Initial program <span class="error" title="16.5% on training set">20.5%</span></p><div class="math">\[\frac{\left(-b\right) + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li>Add Preprocessing</li><li></li><li><p>Applied rewrites<span class="error" title="9.1% on training set">9.5%</span></p><div class="math">\[\leadsto \frac{\color{blue}{b} + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="11.2% on training set">15.0%</span></p><div class="math">\[\leadsto \color{blue}{\left(a \cdot c\right) \cdot 2 + 0}
+\]</div></li></ol></li><li class="event">Recombined 3 regimes into one program.</li><li><p>Final simplification<span class="error" title="10.4% on training set">13.6%</span></p><div class="math">\[\leadsto \begin{array}{l}
+\mathbf{if}\;b \leq -1.9 \cdot 10^{+144}:\\
+\;\;\;\;\left(b \cdot b\right) \cdot 2 + \left(a \cdot c\right) \cdot 2\\
+
+\mathbf{elif}\;b \leq 7 \cdot 10^{-48}:\\
+\;\;\;\;\frac{65536}{2 \cdot a}\\
+
+\mathbf{else}:\\
+\;\;\;\;\left(a \cdot c\right) \cdot 2\\
+
+
+\end{array}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative10" class="programs"><h2>Alternative 10: <span class="subhead"><data>8.1%</data> accurate, <data>2.2×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;b \leq 7 \cdot 10^{-48}:\\
+\;\;\;\;\frac{65536}{2 \cdot a}\\
+
+\mathbf{else}:\\
+\;\;\;\;\left(a \cdot c\right) \cdot 2\\
+
+
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (a b c)
+ :precision binary64
+ (if (&lt;= b 7e-48) (/ 65536.0 (* 2.0 a)) (* (* a c) 2.0)))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double a, double b, double c) {
+	double tmp;
+	if (b &lt;= 7e-48) {
+		tmp = 65536.0 / (2.0 * a);
+	} else {
+		tmp = (a * c) * 2.0;
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(a, b, c)
+    real(8), intent (in) :: a
+    real(8), intent (in) :: b
+    real(8), intent (in) :: c
+    real(8) :: tmp
+    if (b &lt;= 7d-48) then
+        tmp = 65536.0d0 / (2.0d0 * a)
+    else
+        tmp = (a * c) * 2.0d0
+    end if
+    code = tmp
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double a, double b, double c) {
+	double tmp;
+	if (b &lt;= 7e-48) {
+		tmp = 65536.0 / (2.0 * a);
+	} else {
+		tmp = (a * c) * 2.0;
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(a, b, c):
+	tmp = 0
+	if b &lt;= 7e-48:
+		tmp = 65536.0 / (2.0 * a)
+	else:
+		tmp = (a * c) * 2.0
+	return tmp
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(a, b, c)
+	tmp = 0.0
+	if (b &lt;= 7e-48)
+		tmp = Float64(65536.0 / Float64(2.0 * a));
+	else
+		tmp = Float64(Float64(a * c) * 2.0);
+	end
+	return tmp
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp_2 = code(a, b, c)
+	tmp = 0.0;
+	if (b &lt;= 7e-48)
+		tmp = 65536.0 / (2.0 * a);
+	else
+		tmp = (a * c) * 2.0;
+	end
+	tmp_2 = tmp;
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[a_, b_, c_] := If[LessEqual[b, 7e-48], N[(65536.0 / N[(2.0 * a), $MachinePrecision]), $MachinePrecision], N[(N[(a * c), $MachinePrecision] * 2.0), $MachinePrecision]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;b \leq 7 \cdot 10^{-48}:\\
+\;\;\;\;\frac{65536}{2 \cdot a}\\
+
+\mathbf{else}:\\
+\;\;\;\;\left(a \cdot c\right) \cdot 2\\
+
+
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li class="event">Split input into 2 regimes</li><li><h2><code>if <span class="condition"> b  &lt; 6.99999999999999982e-48</span></code></h2><ol><li><p>Initial program <span class="error" title="70.6% on training set">76.7%</span></p><div class="math">\[\frac{\left(-b\right) + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li>Add Preprocessing</li><li></li><li><p>Applied rewrites<span class="error" title="51.9% on training set">53.8%</span></p><div class="math">\[\leadsto \frac{\left(-b\right) + \sqrt{\color{blue}{4 \cdot \mathsf{fma}\left(-a, c, b \cdot b\right)}}}{2 \cdot a}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="6.6% on training set">7.2%</span></p><div class="math">\[\leadsto \frac{\color{blue}{65536}}{2 \cdot a}
+\]</div></li></ol><h2><code>if <span class="condition">6.99999999999999982e-48 &lt;  b </span></code></h2><ol><li><p>Initial program <span class="error" title="16.5% on training set">20.5%</span></p><div class="math">\[\frac{\left(-b\right) + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li>Add Preprocessing</li><li></li><li><p>Applied rewrites<span class="error" title="9.1% on training set">9.5%</span></p><div class="math">\[\leadsto \frac{\color{blue}{b} + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="11.2% on training set">15.0%</span></p><div class="math">\[\leadsto \color{blue}{\left(a \cdot c\right) \cdot 2 + 0}
+\]</div></li></ol></li><li class="event">Recombined 2 regimes into one program.</li><li><p>Final simplification<span class="error" title="8.1% on training set">9.8%</span></p><div class="math">\[\leadsto \begin{array}{l}
+\mathbf{if}\;b \leq 7 \cdot 10^{-48}:\\
+\;\;\;\;\frac{65536}{2 \cdot a}\\
+
+\mathbf{else}:\\
+\;\;\;\;\left(a \cdot c\right) \cdot 2\\
+
+
+\end{array}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative11" class="programs"><h2>Alternative 11: <span class="subhead"><data>7.8%</data> accurate, <data>2.2×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;b \leq 7 \cdot 10^{-48}:\\
+\;\;\;\;\frac{18}{2 \cdot a}\\
+
+\mathbf{else}:\\
+\;\;\;\;\left(a \cdot c\right) \cdot 2\\
+
+
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (a b c)
+ :precision binary64
+ (if (&lt;= b 7e-48) (/ 18.0 (* 2.0 a)) (* (* a c) 2.0)))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double a, double b, double c) {
+	double tmp;
+	if (b &lt;= 7e-48) {
+		tmp = 18.0 / (2.0 * a);
+	} else {
+		tmp = (a * c) * 2.0;
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(a, b, c)
+    real(8), intent (in) :: a
+    real(8), intent (in) :: b
+    real(8), intent (in) :: c
+    real(8) :: tmp
+    if (b &lt;= 7d-48) then
+        tmp = 18.0d0 / (2.0d0 * a)
+    else
+        tmp = (a * c) * 2.0d0
+    end if
+    code = tmp
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double a, double b, double c) {
+	double tmp;
+	if (b &lt;= 7e-48) {
+		tmp = 18.0 / (2.0 * a);
+	} else {
+		tmp = (a * c) * 2.0;
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(a, b, c):
+	tmp = 0
+	if b &lt;= 7e-48:
+		tmp = 18.0 / (2.0 * a)
+	else:
+		tmp = (a * c) * 2.0
+	return tmp
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(a, b, c)
+	tmp = 0.0
+	if (b &lt;= 7e-48)
+		tmp = Float64(18.0 / Float64(2.0 * a));
+	else
+		tmp = Float64(Float64(a * c) * 2.0);
+	end
+	return tmp
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp_2 = code(a, b, c)
+	tmp = 0.0;
+	if (b &lt;= 7e-48)
+		tmp = 18.0 / (2.0 * a);
+	else
+		tmp = (a * c) * 2.0;
+	end
+	tmp_2 = tmp;
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[a_, b_, c_] := If[LessEqual[b, 7e-48], N[(18.0 / N[(2.0 * a), $MachinePrecision]), $MachinePrecision], N[(N[(a * c), $MachinePrecision] * 2.0), $MachinePrecision]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;b \leq 7 \cdot 10^{-48}:\\
+\;\;\;\;\frac{18}{2 \cdot a}\\
+
+\mathbf{else}:\\
+\;\;\;\;\left(a \cdot c\right) \cdot 2\\
+
+
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li class="event">Split input into 2 regimes</li><li><h2><code>if <span class="condition"> b  &lt; 6.99999999999999982e-48</span></code></h2><ol><li><p>Initial program <span class="error" title="70.6% on training set">76.7%</span></p><div class="math">\[\frac{\left(-b\right) + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li>Add Preprocessing</li><li></li><li><p>Applied rewrites<span class="error" title="51.9% on training set">53.8%</span></p><div class="math">\[\leadsto \frac{\left(-b\right) + \sqrt{\color{blue}{4 \cdot \mathsf{fma}\left(-a, c, b \cdot b\right)}}}{2 \cdot a}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="6.1% on training set">6.7%</span></p><div class="math">\[\leadsto \frac{\color{blue}{18}}{2 \cdot a}
+\]</div></li></ol><h2><code>if <span class="condition">6.99999999999999982e-48 &lt;  b </span></code></h2><ol><li><p>Initial program <span class="error" title="16.5% on training set">20.5%</span></p><div class="math">\[\frac{\left(-b\right) + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li>Add Preprocessing</li><li></li><li><p>Applied rewrites<span class="error" title="9.1% on training set">9.5%</span></p><div class="math">\[\leadsto \frac{\color{blue}{b} + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="11.2% on training set">15.0%</span></p><div class="math">\[\leadsto \color{blue}{\left(a \cdot c\right) \cdot 2 + 0}
+\]</div></li></ol></li><li class="event">Recombined 2 regimes into one program.</li><li><p>Final simplification<span class="error" title="7.8% on training set">9.4%</span></p><div class="math">\[\leadsto \begin{array}{l}
+\mathbf{if}\;b \leq 7 \cdot 10^{-48}:\\
+\;\;\;\;\frac{18}{2 \cdot a}\\
+
+\mathbf{else}:\\
+\;\;\;\;\left(a \cdot c\right) \cdot 2\\
+
+
+\end{array}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative12" class="programs"><h2>Alternative 12: <span class="subhead"><data>7.8%</data> accurate, <data>2.2×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;b \leq 7 \cdot 10^{-48}:\\
+\;\;\;\;\frac{0.25}{2 \cdot a}\\
+
+\mathbf{else}:\\
+\;\;\;\;\left(a \cdot c\right) \cdot 2\\
+
+
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (a b c)
+ :precision binary64
+ (if (&lt;= b 7e-48) (/ 0.25 (* 2.0 a)) (* (* a c) 2.0)))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double a, double b, double c) {
+	double tmp;
+	if (b &lt;= 7e-48) {
+		tmp = 0.25 / (2.0 * a);
+	} else {
+		tmp = (a * c) * 2.0;
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(a, b, c)
+    real(8), intent (in) :: a
+    real(8), intent (in) :: b
+    real(8), intent (in) :: c
+    real(8) :: tmp
+    if (b &lt;= 7d-48) then
+        tmp = 0.25d0 / (2.0d0 * a)
+    else
+        tmp = (a * c) * 2.0d0
+    end if
+    code = tmp
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double a, double b, double c) {
+	double tmp;
+	if (b &lt;= 7e-48) {
+		tmp = 0.25 / (2.0 * a);
+	} else {
+		tmp = (a * c) * 2.0;
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(a, b, c):
+	tmp = 0
+	if b &lt;= 7e-48:
+		tmp = 0.25 / (2.0 * a)
+	else:
+		tmp = (a * c) * 2.0
+	return tmp
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(a, b, c)
+	tmp = 0.0
+	if (b &lt;= 7e-48)
+		tmp = Float64(0.25 / Float64(2.0 * a));
+	else
+		tmp = Float64(Float64(a * c) * 2.0);
+	end
+	return tmp
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp_2 = code(a, b, c)
+	tmp = 0.0;
+	if (b &lt;= 7e-48)
+		tmp = 0.25 / (2.0 * a);
+	else
+		tmp = (a * c) * 2.0;
+	end
+	tmp_2 = tmp;
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[a_, b_, c_] := If[LessEqual[b, 7e-48], N[(0.25 / N[(2.0 * a), $MachinePrecision]), $MachinePrecision], N[(N[(a * c), $MachinePrecision] * 2.0), $MachinePrecision]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;b \leq 7 \cdot 10^{-48}:\\
+\;\;\;\;\frac{0.25}{2 \cdot a}\\
+
+\mathbf{else}:\\
+\;\;\;\;\left(a \cdot c\right) \cdot 2\\
+
+
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li class="event">Split input into 2 regimes</li><li><h2><code>if <span class="condition"> b  &lt; 6.99999999999999982e-48</span></code></h2><ol><li><p>Initial program <span class="error" title="70.6% on training set">76.7%</span></p><div class="math">\[\frac{\left(-b\right) + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li>Add Preprocessing</li><li></li><li><p>Applied rewrites<span class="error" title="51.9% on training set">53.8%</span></p><div class="math">\[\leadsto \frac{\left(-b\right) + \sqrt{\color{blue}{4 \cdot \mathsf{fma}\left(-a, c, b \cdot b\right)}}}{2 \cdot a}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="6.1% on training set">6.7%</span></p><div class="math">\[\leadsto \frac{\color{blue}{0.25}}{2 \cdot a}
+\]</div></li></ol><h2><code>if <span class="condition">6.99999999999999982e-48 &lt;  b </span></code></h2><ol><li><p>Initial program <span class="error" title="16.5% on training set">20.5%</span></p><div class="math">\[\frac{\left(-b\right) + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li>Add Preprocessing</li><li></li><li><p>Applied rewrites<span class="error" title="9.1% on training set">9.5%</span></p><div class="math">\[\leadsto \frac{\color{blue}{b} + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="11.2% on training set">15.0%</span></p><div class="math">\[\leadsto \color{blue}{\left(a \cdot c\right) \cdot 2 + 0}
+\]</div></li></ol></li><li class="event">Recombined 2 regimes into one program.</li><li><p>Final simplification<span class="error" title="7.8% on training set">9.4%</span></p><div class="math">\[\leadsto \begin{array}{l}
+\mathbf{if}\;b \leq 7 \cdot 10^{-48}:\\
+\;\;\;\;\frac{0.25}{2 \cdot a}\\
+
+\mathbf{else}:\\
+\;\;\;\;\left(a \cdot c\right) \cdot 2\\
+
+
+\end{array}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative13" class="programs"><h2>Alternative 13: <span class="subhead"><data>7.8%</data> accurate, <data>2.8×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;b \leq 7 \cdot 10^{-48}:\\
+\;\;\;\;\frac{2}{a}\\
+
+\mathbf{else}:\\
+\;\;\;\;\left(a \cdot c\right) \cdot 2\\
+
+
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (a b c)
+ :precision binary64
+ (if (&lt;= b 7e-48) (/ 2.0 a) (* (* a c) 2.0)))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double a, double b, double c) {
+	double tmp;
+	if (b &lt;= 7e-48) {
+		tmp = 2.0 / a;
+	} else {
+		tmp = (a * c) * 2.0;
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(a, b, c)
+    real(8), intent (in) :: a
+    real(8), intent (in) :: b
+    real(8), intent (in) :: c
+    real(8) :: tmp
+    if (b &lt;= 7d-48) then
+        tmp = 2.0d0 / a
+    else
+        tmp = (a * c) * 2.0d0
+    end if
+    code = tmp
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double a, double b, double c) {
+	double tmp;
+	if (b &lt;= 7e-48) {
+		tmp = 2.0 / a;
+	} else {
+		tmp = (a * c) * 2.0;
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(a, b, c):
+	tmp = 0
+	if b &lt;= 7e-48:
+		tmp = 2.0 / a
+	else:
+		tmp = (a * c) * 2.0
+	return tmp
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(a, b, c)
+	tmp = 0.0
+	if (b &lt;= 7e-48)
+		tmp = Float64(2.0 / a);
+	else
+		tmp = Float64(Float64(a * c) * 2.0);
+	end
+	return tmp
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp_2 = code(a, b, c)
+	tmp = 0.0;
+	if (b &lt;= 7e-48)
+		tmp = 2.0 / a;
+	else
+		tmp = (a * c) * 2.0;
+	end
+	tmp_2 = tmp;
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[a_, b_, c_] := If[LessEqual[b, 7e-48], N[(2.0 / a), $MachinePrecision], N[(N[(a * c), $MachinePrecision] * 2.0), $MachinePrecision]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;b \leq 7 \cdot 10^{-48}:\\
+\;\;\;\;\frac{2}{a}\\
+
+\mathbf{else}:\\
+\;\;\;\;\left(a \cdot c\right) \cdot 2\\
+
+
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li class="event">Split input into 2 regimes</li><li><h2><code>if <span class="condition"> b  &lt; 6.99999999999999982e-48</span></code></h2><ol><li><p>Initial program <span class="error" title="70.6% on training set">76.7%</span></p><div class="math">\[\frac{\left(-b\right) + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li>Add Preprocessing</li><li></li><li><p>Applied rewrites<span class="error" title="51.9% on training set">53.8%</span></p><div class="math">\[\leadsto \frac{\left(-b\right) + \sqrt{\color{blue}{4 \cdot \mathsf{fma}\left(-a, c, b \cdot b\right)}}}{2 \cdot a}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="1.6% on training set">1.6%</span></p><div class="math">\[\leadsto \frac{\color{blue}{-4096}}{2 \cdot a}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="6.1% on training set">6.6%</span></p><div class="math">\[\leadsto \color{blue}{\frac{2}{a}}
+\]</div></li></ol><h2><code>if <span class="condition">6.99999999999999982e-48 &lt;  b </span></code></h2><ol><li><p>Initial program <span class="error" title="16.5% on training set">20.5%</span></p><div class="math">\[\frac{\left(-b\right) + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li>Add Preprocessing</li><li></li><li><p>Applied rewrites<span class="error" title="9.1% on training set">9.5%</span></p><div class="math">\[\leadsto \frac{\color{blue}{b} + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="11.2% on training set">15.0%</span></p><div class="math">\[\leadsto \color{blue}{\left(a \cdot c\right) \cdot 2 + 0}
+\]</div></li></ol></li><li class="event">Recombined 2 regimes into one program.</li><li><p>Final simplification<span class="error" title="7.8% on training set">9.4%</span></p><div class="math">\[\leadsto \begin{array}{l}
+\mathbf{if}\;b \leq 7 \cdot 10^{-48}:\\
+\;\;\;\;\frac{2}{a}\\
+
+\mathbf{else}:\\
+\;\;\;\;\left(a \cdot c\right) \cdot 2\\
+
+
+\end{array}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative14" class="programs"><h2>Alternative 14: <span class="subhead"><data>7.8%</data> accurate, <data>2.8×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;b \leq 4.4 \cdot 10^{+25}:\\
+\;\;\;\;\frac{2}{a}\\
+
+\mathbf{else}:\\
+\;\;\;\;\left(c \cdot -2\right) \cdot a\\
+
+
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (a b c)
+ :precision binary64
+ (if (&lt;= b 4.4e+25) (/ 2.0 a) (* (* c -2.0) a)))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double a, double b, double c) {
+	double tmp;
+	if (b &lt;= 4.4e+25) {
+		tmp = 2.0 / a;
+	} else {
+		tmp = (c * -2.0) * a;
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(a, b, c)
+    real(8), intent (in) :: a
+    real(8), intent (in) :: b
+    real(8), intent (in) :: c
+    real(8) :: tmp
+    if (b &lt;= 4.4d+25) then
+        tmp = 2.0d0 / a
+    else
+        tmp = (c * (-2.0d0)) * a
+    end if
+    code = tmp
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double a, double b, double c) {
+	double tmp;
+	if (b &lt;= 4.4e+25) {
+		tmp = 2.0 / a;
+	} else {
+		tmp = (c * -2.0) * a;
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(a, b, c):
+	tmp = 0
+	if b &lt;= 4.4e+25:
+		tmp = 2.0 / a
+	else:
+		tmp = (c * -2.0) * a
+	return tmp
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(a, b, c)
+	tmp = 0.0
+	if (b &lt;= 4.4e+25)
+		tmp = Float64(2.0 / a);
+	else
+		tmp = Float64(Float64(c * -2.0) * a);
+	end
+	return tmp
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp_2 = code(a, b, c)
+	tmp = 0.0;
+	if (b &lt;= 4.4e+25)
+		tmp = 2.0 / a;
+	else
+		tmp = (c * -2.0) * a;
+	end
+	tmp_2 = tmp;
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[a_, b_, c_] := If[LessEqual[b, 4.4e+25], N[(2.0 / a), $MachinePrecision], N[(N[(c * -2.0), $MachinePrecision] * a), $MachinePrecision]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;b \leq 4.4 \cdot 10^{+25}:\\
+\;\;\;\;\frac{2}{a}\\
+
+\mathbf{else}:\\
+\;\;\;\;\left(c \cdot -2\right) \cdot a\\
+
+
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li class="event">Split input into 2 regimes</li><li><h2><code>if <span class="condition"> b  &lt; 4.4000000000000001e25</span></code></h2><ol><li><p>Initial program <span class="error" title="67.7% on training set">71.6%</span></p><div class="math">\[\frac{\left(-b\right) + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li>Add Preprocessing</li><li></li><li><p>Applied rewrites<span class="error" title="50.2% on training set">50.7%</span></p><div class="math">\[\leadsto \frac{\left(-b\right) + \sqrt{\color{blue}{4 \cdot \mathsf{fma}\left(-a, c, b \cdot b\right)}}}{2 \cdot a}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="1.7% on training set">1.8%</span></p><div class="math">\[\leadsto \frac{\color{blue}{-4096}}{2 \cdot a}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="6.0% on training set">6.4%</span></p><div class="math">\[\leadsto \color{blue}{\frac{2}{a}}
+\]</div></li></ol><h2><code>if <span class="condition">4.4000000000000001e25 &lt;  b </span></code></h2><ol><li><p>Initial program <span class="error" title="12.7% on training set">19.1%</span></p><div class="math">\[\frac{\left(-b\right) + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li>Add Preprocessing</li><li></li><li><p>Applied rewrites<span class="error" title="4.8% on training set">5.5%</span></p><div class="math">\[\leadsto \frac{\color{blue}{b} + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="12.6% on training set">17.8%</span></p><div class="math">\[\leadsto \color{blue}{-\left(a \cdot c\right) \cdot 2}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="12.6% on training set">17.8%</span></p><div class="math">\[\leadsto \color{blue}{\left(c \cdot -2\right) \cdot a}
+\]</div></li></ol></li><li class="event">Recombined 2 regimes into one program.</li><li>Add Preprocessing</li></ol></details></section><section id="alternative15" class="programs"><h2>Alternative 15: <span class="subhead"><data>5.7%</data> accurate, <data>4.5×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\left(c \cdot -2\right) \cdot a
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (a b c) :precision binary64 (* (* c -2.0) a))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double a, double b, double c) {
+	return (c * -2.0) * a;
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(a, b, c)
+    real(8), intent (in) :: a
+    real(8), intent (in) :: b
+    real(8), intent (in) :: c
+    code = (c * (-2.0d0)) * a
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double a, double b, double c) {
+	return (c * -2.0) * a;
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(a, b, c):
+	return (c * -2.0) * a
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(a, b, c)
+	return Float64(Float64(c * -2.0) * a)
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp = code(a, b, c)
+	tmp = (c * -2.0) * a;
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[a_, b_, c_] := N[(N[(c * -2.0), $MachinePrecision] * a), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\left(c \cdot -2\right) \cdot a
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="52.4% on training set">58.0%</span></p><div class="math">\[\frac{\left(-b\right) + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li>Add Preprocessing</li><li></li><li><p>Applied rewrites<span class="error" title="32.6% on training set">33.2%</span></p><div class="math">\[\leadsto \frac{\color{blue}{b} + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="5.7% on training set">6.7%</span></p><div class="math">\[\leadsto \color{blue}{-\left(a \cdot c\right) \cdot 2}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="5.7% on training set">6.7%</span></p><div class="math">\[\leadsto \color{blue}{\left(c \cdot -2\right) \cdot a}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative16" class="programs"><h2>Alternative 16: <span class="subhead"><data>4.0%</data> accurate, <data>4.5×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\left(2 \cdot a\right) \cdot 4
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (a b c) :precision binary64 (* (* 2.0 a) 4.0))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double a, double b, double c) {
+	return (2.0 * a) * 4.0;
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(a, b, c)
+    real(8), intent (in) :: a
+    real(8), intent (in) :: b
+    real(8), intent (in) :: c
+    code = (2.0d0 * a) * 4.0d0
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double a, double b, double c) {
+	return (2.0 * a) * 4.0;
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(a, b, c):
+	return (2.0 * a) * 4.0
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(a, b, c)
+	return Float64(Float64(2.0 * a) * 4.0)
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp = code(a, b, c)
+	tmp = (2.0 * a) * 4.0;
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[a_, b_, c_] := N[(N[(2.0 * a), $MachinePrecision] * 4.0), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\left(2 \cdot a\right) \cdot 4
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="52.4% on training set">58.0%</span></p><div class="math">\[\frac{\left(-b\right) + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li>Add Preprocessing</li><li></li><li><p>Applied rewrites<span class="error" title="37.6% on training set">39.3%</span></p><div class="math">\[\leadsto \frac{\left(-b\right) + \sqrt{\color{blue}{4 \cdot \mathsf{fma}\left(-a, c, b \cdot b\right)}}}{2 \cdot a}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="2.2% on training set">2.1%</span></p><div class="math">\[\leadsto \frac{\color{blue}{-4096}}{2 \cdot a}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="4.0% on training set">4.1%</span></p><div class="math">\[\leadsto \color{blue}{\left(2 \cdot a\right) \cdot 4}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative17" class="programs"><h2>Alternative 17: <span class="subhead"><data>4.0%</data> accurate, <data>8.3×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+a \cdot 2
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (a b c) :precision binary64 (* a 2.0))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double a, double b, double c) {
+	return a * 2.0;
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(a, b, c)
+    real(8), intent (in) :: a
+    real(8), intent (in) :: b
+    real(8), intent (in) :: c
+    code = a * 2.0d0
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double a, double b, double c) {
+	return a * 2.0;
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(a, b, c):
+	return a * 2.0
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(a, b, c)
+	return Float64(a * 2.0)
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp = code(a, b, c)
+	tmp = a * 2.0;
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[a_, b_, c_] := N[(a * 2.0), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+a \cdot 2
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="52.4% on training set">58.0%</span></p><div class="math">\[\frac{\left(-b\right) + \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li>Add Preprocessing</li><li></li><li><p>Applied rewrites<span class="error" title="37.6% on training set">39.3%</span></p><div class="math">\[\leadsto \frac{\left(-b\right) + \sqrt{\color{blue}{4 \cdot \mathsf{fma}\left(-a, c, b \cdot b\right)}}}{2 \cdot a}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="2.2% on training set">2.1%</span></p><div class="math">\[\leadsto \frac{\color{blue}{-4096}}{2 \cdot a}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="4.0% on training set">4.1%</span></p><div class="math">\[\leadsto \color{blue}{a \cdot 2}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="target1" class="programs"><h2>Developer Target 1: <span class="subhead"><data>99.7%</data> accurate, <data>0.2×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#target" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+t_0 := \left|\frac{b}{2}\right|\\
+t_1 := \sqrt{\left|a\right|} \cdot \sqrt{\left|c\right|}\\
+t_2 := \begin{array}{l}
+\mathbf{if}\;\mathsf{copysign}\left(a, c\right) = a:\\
+\;\;\;\;\sqrt{t\_0 - t\_1} \cdot \sqrt{t\_0 + t\_1}\\
+
+\mathbf{else}:\\
+\;\;\;\;\mathsf{hypot}\left(\frac{b}{2}, t\_1\right)\\
+
+
+\end{array}\\
+\mathbf{if}\;b &lt; 0:\\
+\;\;\;\;\frac{t\_2 - \frac{b}{2}}{a}\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{-c}{\frac{b}{2} + t\_2}\\
+
+
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (a b c)
+ :precision binary64
+ (let* ((t_0 (fabs (/ b 2.0)))
+        (t_1 (* (sqrt (fabs a)) (sqrt (fabs c))))
+        (t_2
+         (if (== (copysign a c) a)
+           (* (sqrt (- t_0 t_1)) (sqrt (+ t_0 t_1)))
+           (hypot (/ b 2.0) t_1))))
+   (if (&lt; b 0.0) (/ (- t_2 (/ b 2.0)) a) (/ (- c) (+ (/ b 2.0) t_2)))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double a, double b, double c) {
+	double t_0 = fabs((b / 2.0));
+	double t_1 = sqrt(fabs(a)) * sqrt(fabs(c));
+	double tmp;
+	if (copysign(a, c) == a) {
+		tmp = sqrt((t_0 - t_1)) * sqrt((t_0 + t_1));
+	} else {
+		tmp = hypot((b / 2.0), t_1);
+	}
+	double t_2 = tmp;
+	double tmp_1;
+	if (b &lt; 0.0) {
+		tmp_1 = (t_2 - (b / 2.0)) / a;
+	} else {
+		tmp_1 = -c / ((b / 2.0) + t_2);
+	}
+	return tmp_1;
+}
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double a, double b, double c) {
+	double t_0 = Math.abs((b / 2.0));
+	double t_1 = Math.sqrt(Math.abs(a)) * Math.sqrt(Math.abs(c));
+	double tmp;
+	if (Math.copySign(a, c) == a) {
+		tmp = Math.sqrt((t_0 - t_1)) * Math.sqrt((t_0 + t_1));
+	} else {
+		tmp = Math.hypot((b / 2.0), t_1);
+	}
+	double t_2 = tmp;
+	double tmp_1;
+	if (b &lt; 0.0) {
+		tmp_1 = (t_2 - (b / 2.0)) / a;
+	} else {
+		tmp_1 = -c / ((b / 2.0) + t_2);
+	}
+	return tmp_1;
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(a, b, c):
+	t_0 = math.fabs((b / 2.0))
+	t_1 = math.sqrt(math.fabs(a)) * math.sqrt(math.fabs(c))
+	tmp = 0
+	if math.copysign(a, c) == a:
+		tmp = math.sqrt((t_0 - t_1)) * math.sqrt((t_0 + t_1))
+	else:
+		tmp = math.hypot((b / 2.0), t_1)
+	t_2 = tmp
+	tmp_1 = 0
+	if b &lt; 0.0:
+		tmp_1 = (t_2 - (b / 2.0)) / a
+	else:
+		tmp_1 = -c / ((b / 2.0) + t_2)
+	return tmp_1
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(a, b, c)
+	t_0 = abs(Float64(b / 2.0))
+	t_1 = Float64(sqrt(abs(a)) * sqrt(abs(c)))
+	tmp = 0.0
+	if (copysign(a, c) == a)
+		tmp = Float64(sqrt(Float64(t_0 - t_1)) * sqrt(Float64(t_0 + t_1)));
+	else
+		tmp = hypot(Float64(b / 2.0), t_1);
+	end
+	t_2 = tmp
+	tmp_1 = 0.0
+	if (b &lt; 0.0)
+		tmp_1 = Float64(Float64(t_2 - Float64(b / 2.0)) / a);
+	else
+		tmp_1 = Float64(Float64(-c) / Float64(Float64(b / 2.0) + t_2));
+	end
+	return tmp_1
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp_3 = code(a, b, c)
+	t_0 = abs((b / 2.0));
+	t_1 = sqrt(abs(a)) * sqrt(abs(c));
+	tmp = 0.0;
+	if ((sign(c) * abs(a)) == a)
+		tmp = sqrt((t_0 - t_1)) * sqrt((t_0 + t_1));
+	else
+		tmp = hypot((b / 2.0), t_1);
+	end
+	t_2 = tmp;
+	tmp_2 = 0.0;
+	if (b &lt; 0.0)
+		tmp_2 = (t_2 - (b / 2.0)) / a;
+	else
+		tmp_2 = -c / ((b / 2.0) + t_2);
+	end
+	tmp_3 = tmp_2;
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[a_, b_, c_] := Block[{t$95$0 = N[Abs[N[(b / 2.0), $MachinePrecision]], $MachinePrecision]}, Block[{t$95$1 = N[(N[Sqrt[N[Abs[a], $MachinePrecision]], $MachinePrecision] * N[Sqrt[N[Abs[c], $MachinePrecision]], $MachinePrecision]), $MachinePrecision]}, Block[{t$95$2 = If[Equal[N[With[{TMP1 = Abs[a], TMP2 = Sign[c]}, TMP1 * If[TMP2 == 0, 1, TMP2]], $MachinePrecision], a], N[(N[Sqrt[N[(t$95$0 - t$95$1), $MachinePrecision]], $MachinePrecision] * N[Sqrt[N[(t$95$0 + t$95$1), $MachinePrecision]], $MachinePrecision]), $MachinePrecision], N[Sqrt[N[(b / 2.0), $MachinePrecision] ^ 2 + t$95$1 ^ 2], $MachinePrecision]]}, If[Less[b, 0.0], N[(N[(t$95$2 - N[(b / 2.0), $MachinePrecision]), $MachinePrecision] / a), $MachinePrecision], N[((-c) / N[(N[(b / 2.0), $MachinePrecision] + t$95$2), $MachinePrecision]), $MachinePrecision]]]]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+t_0 := \left|\frac{b}{2}\right|\\
+t_1 := \sqrt{\left|a\right|} \cdot \sqrt{\left|c\right|}\\
+t_2 := \begin{array}{l}
+\mathbf{if}\;\mathsf{copysign}\left(a, c\right) = a:\\
+\;\;\;\;\sqrt{t\_0 - t\_1} \cdot \sqrt{t\_0 + t\_1}\\
+
+\mathbf{else}:\\
+\;\;\;\;\mathsf{hypot}\left(\frac{b}{2}, t\_1\right)\\
+
+
+\end{array}\\
+\mathbf{if}\;b &lt; 0:\\
+\;\;\;\;\frac{t\_2 - \frac{b}{2}}{a}\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{-c}{\frac{b}{2} + t\_2}\\
+
+
+\end{array}
+\end{array}
+</pre></div></div></section><section id="reproduce"><details><summary><h2>Reproduce</h2><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#reproduction" target="_blank">?</a></summary><pre class="shell"><code>herbie shell --seed 1494275546 
+(FPCore (a b c)
+  :name "quadp (p42, positive)"
+  :precision binary64
+  :pre (TRUE)
+  :herbie-expected 10
+
+  :alt
+  (! :herbie-platform default (let ((sqtD (let ((x (* (sqrt (fabs a)) (sqrt (fabs c))))) (if (== (copysign a c) a) (* (sqrt (- (fabs (/ b 2)) x)) (sqrt (+ (fabs (/ b 2)) x))) (hypot (/ b 2) x))))) (if (&lt; b 0) (/ (- sqtD (/ b 2)) a) (/ (- c) (+ (/ b 2) sqtD)))))
+
+  (/ (+ (- b) (sqrt (- (* b b) (* 4.0 (* a c))))) (* 2.0 a)))
+</code></pre></details></section></body></html>

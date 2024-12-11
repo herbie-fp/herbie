@@ -1,0 +1,578 @@
+<!doctype html>
+<html><head><meta charset="utf-8"/><title>Result for cos2 (problem 3.4.1)</title><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/katex.min.css" integrity="sha384-9tPv11A+glH/on/wEu99NVwDPwkMQESOocs/ZGXPoIiLE8MU/qkqUcZ3zzL+6DuH" crossorigin="anonymous"/><script src="https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/katex.min.js" integrity="sha384-U8Vrjwb8fuHMt6ewaCy8uqeUXv4oitYACKdB0VziCerzt011iQ/0TqlSlv8MReCm" crossorigin="anonymous"></script><script src="https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/contrib/auto-render.min.js" integrity="sha384-aGfk5kvhIq5x1x5YdvCp4upKZYnA8ckafviDpmWEKp4afOZEqOli7gqSnh8I6enH" crossorigin="anonymous"></script><script src="https://unpkg.com/mathjs@4.4.2/dist/math.min.js"></script><script src="https://unpkg.com/d3@6.7.0/dist/d3.min.js"></script><script src="https://unpkg.com/@observablehq/plot@0.4.3/dist/plot.umd.min.js"></script><link rel="stylesheet" type="text/css" href="../report.css"/><script src="../report.js"></script></head><body><header><h1>cos2 (problem 3.4.1)</h1><img src="../logo-car.png"/><nav><ul><li><a href="../index.html">Report</a></li><li><a href="timeline.html">Metrics</a></li></ul></nav></header><div id="large"><div>Percentage Accurate: <span class="number" title="Minimum Accuracy: 0.0% → 91.4%">51.4%<span class="unit"> → </span>99.7%</span></div><div>Time: <span class="number">9.8s</span></div><div>Alternatives: <span class="number">8</span></div><div>Speedup: <span class="number" title="Relative speed of fastest alternative that improves accuracy.">5.2×</span></div></div><section><details id="specification" class="programs"><summary><h2>Specification</h2><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#spec" target="_blank">?</a></summary><div><div id="precondition"><div class="program math">\[\mathsf{TRUE}\left(\right)\]</div></div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\frac{1 - \cos x}{x \cdot x}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x) :precision binary64 (/ (- 1.0 (cos x)) (* x x)))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x) {
+	return (1.0 - cos(x)) / (x * x);
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(x)
+    real(8), intent (in) :: x
+    code = (1.0d0 - cos(x)) / (x * x)
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double x) {
+	return (1.0 - Math.cos(x)) / (x * x);
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(x):
+	return (1.0 - math.cos(x)) / (x * x)
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x)
+	return Float64(Float64(1.0 - cos(x)) / Float64(x * x))
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp = code(x)
+	tmp = (1.0 - cos(x)) / (x * x);
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_] := N[(N[(1.0 - N[Cos[x], $MachinePrecision]), $MachinePrecision] / N[(x * x), $MachinePrecision]), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\frac{1 - \cos x}{x \cdot x}
+\end{array}
+</pre></div></div><p>Sampling outcomes in <kbd>binary64</kbd> precision:</p><div class="bogosity"><div class="bogosity-valid" data-id="bogosity-valid" data-type="valid" data-timespan="0.99951171875" title="valid (100.0%)"></div><div class="bogosity-unknown" data-id="bogosity-unknown" data-type="unknown" data-timespan="0" title="unknown (0.0%)"></div><div class="bogosity-infinite" data-id="bogosity-infinite" data-type="infinite" data-timespan="0" title="infinite (0.0%)"></div><div class="bogosity-unsamplable" data-id="bogosity-unsamplable" data-type="unsamplable" data-timespan="0" title="unsamplable (0.0%)"></div><div class="bogosity-invalid" data-id="bogosity-invalid" data-type="invalid" data-timespan="0.0" title="invalid (0.0%)"></div><div class="bogosity-precondition" data-id="bogosity-precondition" data-type="precondition" data-timespan="0.00048828125" title="precondition (0.0%)"></div></div></details></section><figure id="graphs"><h2>Local Percentage Accuracy vs <span id="variables"></span><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#graph" target="_blank">?</a></h2><svg></svg><div id="functions"></div><figcaption>The average percentage accuracy by input value. Horizontal axis shows value of an input variable; the variable is choosen in the title. Vertical axis is accuracy; higher is better. Red represent the original program, while blue represents Herbie's suggestion. These can be toggled with buttons below the plot. The line is an average while dots represent individual samples.</figcaption></figure><section id="cost-accuracy" class="section" data-benchmark-name="cos2 (problem 3.4.1)"><h2>Accuracy vs Speed<a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#cost-accuracy" target="_blank">?</a></h2><div class="figure-row"><svg></svg><div><p>Herbie found 8 alternatives:</p><table><thead><tr><th>Alternative</th><th class="numeric">Accuracy</th><th class="numeric">Speedup</th></tr></thead><tbody></tbody></table></div></div><figcaption>The accuracy (vertical axis) and speed (horizontal axis) of each alternatives. Up and to the right is better. The red square shows the initial program, and each blue circle shows an alternative.The line shows the best available speed-accuracy tradeoffs.</figcaption></section><section id="initial" class="programs"><h2>Initial Program: <span class="subhead"><data>51.4%</data> accurate, <data>1.0×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\frac{1 - \cos x}{x \cdot x}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x) :precision binary64 (/ (- 1.0 (cos x)) (* x x)))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x) {
+	return (1.0 - cos(x)) / (x * x);
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(x)
+    real(8), intent (in) :: x
+    code = (1.0d0 - cos(x)) / (x * x)
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double x) {
+	return (1.0 - Math.cos(x)) / (x * x);
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(x):
+	return (1.0 - math.cos(x)) / (x * x)
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x)
+	return Float64(Float64(1.0 - cos(x)) / Float64(x * x))
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp = code(x)
+	tmp = (1.0 - cos(x)) / (x * x);
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_] := N[(N[(1.0 - N[Cos[x], $MachinePrecision]), $MachinePrecision] / N[(x * x), $MachinePrecision]), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\frac{1 - \cos x}{x \cdot x}
+\end{array}
+</pre></div></div></section><section id="alternative1" class="programs"><h2>Alternative 1: <span class="subhead"><data>99.7%</data> accurate, <data>0.5×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\frac{\frac{\sin x}{x} \cdot \tan \left(0.5 \cdot x\right)}{x}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x) :precision binary64 (/ (* (/ (sin x) x) (tan (* 0.5 x))) x))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x) {
+	return ((sin(x) / x) * tan((0.5 * x))) / x;
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(x)
+    real(8), intent (in) :: x
+    code = ((sin(x) / x) * tan((0.5d0 * x))) / x
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double x) {
+	return ((Math.sin(x) / x) * Math.tan((0.5 * x))) / x;
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(x):
+	return ((math.sin(x) / x) * math.tan((0.5 * x))) / x
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x)
+	return Float64(Float64(Float64(sin(x) / x) * tan(Float64(0.5 * x))) / x)
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp = code(x)
+	tmp = ((sin(x) / x) * tan((0.5 * x))) / x;
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_] := N[(N[(N[(N[Sin[x], $MachinePrecision] / x), $MachinePrecision] * N[Tan[N[(0.5 * x), $MachinePrecision]], $MachinePrecision]), $MachinePrecision] / x), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\frac{\frac{\sin x}{x} \cdot \tan \left(0.5 \cdot x\right)}{x}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="51.4% on training set">47.2%</span></p><div class="math">\[\frac{1 - \cos x}{x \cdot x}
+\]</div></li><li>Add Preprocessing</li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">lift-/.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{1 - \cos x}{x \cdot x}}
+\]</div></li><li><p><code title="left to right">lift--.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\color{blue}{1 - \cos x}}{x \cdot x}
+\]</div></li><li><p><code title="left to right">flip--</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\color{blue}{\frac{1 \cdot 1 - \cos x \cdot \cos x}{1 + \cos x}}}{x \cdot x}
+\]</div></li><li><p><code title="left to right">associate-/l/</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{1 \cdot 1 - \cos x \cdot \cos x}{\left(x \cdot x\right) \cdot \left(1 + \cos x\right)}}
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\color{blue}{1} - \cos x \cdot \cos x}{\left(x \cdot x\right) \cdot \left(1 + \cos x\right)}
+\]</div></li><li><p><code title="left to right">lift-cos.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{1 - \color{blue}{\cos x} \cdot \cos x}{\left(x \cdot x\right) \cdot \left(1 + \cos x\right)}
+\]</div></li><li><p><code title="left to right">lift-cos.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{1 - \cos x \cdot \color{blue}{\cos x}}{\left(x \cdot x\right) \cdot \left(1 + \cos x\right)}
+\]</div></li><li><p><code title="left to right">1-sub-cos</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\color{blue}{\sin x \cdot \sin x}}{\left(x \cdot x\right) \cdot \left(1 + \cos x\right)}
+\]</div></li><li><p><code title="left to right">times-frac</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{\sin x}{x \cdot x} \cdot \frac{\sin x}{1 + \cos x}}
+\]</div></li><li><p><code title="left to right">lower-*.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{\sin x}{x \cdot x} \cdot \frac{\sin x}{1 + \cos x}}
+\]</div></li><li><p><code title="left to right">lower-/.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{\sin x}{x \cdot x}} \cdot \frac{\sin x}{1 + \cos x}
+\]</div></li><li><p><code title="left to right">lower-sin.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\color{blue}{\sin x}}{x \cdot x} \cdot \frac{\sin x}{1 + \cos x}
+\]</div></li><li><p><code title="left to right">lift-cos.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\sin x}{x \cdot x} \cdot \frac{\sin x}{1 + \color{blue}{\cos x}}
+\]</div></li><li><p><code title="left to right">hang-0p-tan</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\sin x}{x \cdot x} \cdot \color{blue}{\tan \left(\frac{x}{2}\right)}
+\]</div></li><li><p><code title="left to right">lower-tan.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\sin x}{x \cdot x} \cdot \color{blue}{\tan \left(\frac{x}{2}\right)}
+\]</div></li><li><p><code title="left to right">lower-/.f64</code><span class="error" title=" ↑ N/A ↓ N/A">74.9</span></p><div class="math">\[\leadsto \frac{\sin x}{x \cdot x} \cdot \tan \color{blue}{\left(\frac{x}{2}\right)}
+\]</div></li></ol></details></div></li><li><p>Applied rewrites<span class="error" title="75.6% on training set">74.9%</span></p><div class="math">\[\leadsto \color{blue}{\frac{\sin x}{x \cdot x} \cdot \tan \left(\frac{x}{2}\right)}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">lift-*.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{\sin x}{x \cdot x} \cdot \tan \left(\frac{x}{2}\right)}
+\]</div></li><li><p><code title="left to right">lift-/.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{\sin x}{x \cdot x}} \cdot \tan \left(\frac{x}{2}\right)
+\]</div></li><li><p><code title="left to right">lift-*.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\sin x}{\color{blue}{x \cdot x}} \cdot \tan \left(\frac{x}{2}\right)
+\]</div></li><li><p><code title="left to right">associate-/r*</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{\frac{\sin x}{x}}{x}} \cdot \tan \left(\frac{x}{2}\right)
+\]</div></li><li><p><code title="left to right">associate-*l/</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{\frac{\sin x}{x} \cdot \tan \left(\frac{x}{2}\right)}{x}}
+\]</div></li><li><p><code title="left to right">lower-/.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{\frac{\sin x}{x} \cdot \tan \left(\frac{x}{2}\right)}{x}}
+\]</div></li><li><p><code title="left to right">lower-*.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\color{blue}{\frac{\sin x}{x} \cdot \tan \left(\frac{x}{2}\right)}}{x}
+\]</div></li><li><p><code title="left to right">lower-/.f64</code><span class="error" title=" ↑ N/A ↓ N/A">99.7</span></p><div class="math">\[\leadsto \frac{\color{blue}{\frac{\sin x}{x}} \cdot \tan \left(\frac{x}{2}\right)}{x}
+\]</div></li><li><p><code title="left to right">lift-/.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\frac{\sin x}{x} \cdot \tan \color{blue}{\left(\frac{x}{2}\right)}}{x}
+\]</div></li><li><p><code title="left to right">clear-num</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\frac{\sin x}{x} \cdot \tan \color{blue}{\left(\frac{1}{\frac{2}{x}}\right)}}{x}
+\]</div></li><li><p><code title="left to right">associate-/r/</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\frac{\sin x}{x} \cdot \tan \color{blue}{\left(\frac{1}{2} \cdot x\right)}}{x}
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\frac{\sin x}{x} \cdot \tan \left(\color{blue}{\frac{1}{2}} \cdot x\right)}{x}
+\]</div></li><li><p><code title="left to right">lower-*.f64</code><span class="error" title=" ↑ N/A ↓ N/A">99.7</span></p><div class="math">\[\leadsto \frac{\frac{\sin x}{x} \cdot \tan \color{blue}{\left(0.5 \cdot x\right)}}{x}
+\]</div></li></ol></details></div></li><li><p>Applied rewrites<span class="error" title="99.7% on training set">99.7%</span></p><div class="math">\[\leadsto \color{blue}{\frac{\frac{\sin x}{x} \cdot \tan \left(0.5 \cdot x\right)}{x}}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative2" class="programs"><h2>Alternative 2: <span class="subhead"><data>99.1%</data> accurate, <data>0.5×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\frac{\tan \left(0.5 \cdot x\right)}{x \cdot \frac{x}{\sin x}}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x) :precision binary64 (/ (tan (* 0.5 x)) (* x (/ x (sin x)))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x) {
+	return tan((0.5 * x)) / (x * (x / sin(x)));
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(x)
+    real(8), intent (in) :: x
+    code = tan((0.5d0 * x)) / (x * (x / sin(x)))
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double x) {
+	return Math.tan((0.5 * x)) / (x * (x / Math.sin(x)));
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(x):
+	return math.tan((0.5 * x)) / (x * (x / math.sin(x)))
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x)
+	return Float64(tan(Float64(0.5 * x)) / Float64(x * Float64(x / sin(x))))
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp = code(x)
+	tmp = tan((0.5 * x)) / (x * (x / sin(x)));
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_] := N[(N[Tan[N[(0.5 * x), $MachinePrecision]], $MachinePrecision] / N[(x * N[(x / N[Sin[x], $MachinePrecision]), $MachinePrecision]), $MachinePrecision]), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\frac{\tan \left(0.5 \cdot x\right)}{x \cdot \frac{x}{\sin x}}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="51.4% on training set">47.2%</span></p><div class="math">\[\frac{1 - \cos x}{x \cdot x}
+\]</div></li><li>Add Preprocessing</li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">lift-/.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{1 - \cos x}{x \cdot x}}
+\]</div></li><li><p><code title="left to right">lift--.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\color{blue}{1 - \cos x}}{x \cdot x}
+\]</div></li><li><p><code title="left to right">flip--</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\color{blue}{\frac{1 \cdot 1 - \cos x \cdot \cos x}{1 + \cos x}}}{x \cdot x}
+\]</div></li><li><p><code title="left to right">associate-/l/</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{1 \cdot 1 - \cos x \cdot \cos x}{\left(x \cdot x\right) \cdot \left(1 + \cos x\right)}}
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\color{blue}{1} - \cos x \cdot \cos x}{\left(x \cdot x\right) \cdot \left(1 + \cos x\right)}
+\]</div></li><li><p><code title="left to right">lift-cos.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{1 - \color{blue}{\cos x} \cdot \cos x}{\left(x \cdot x\right) \cdot \left(1 + \cos x\right)}
+\]</div></li><li><p><code title="left to right">lift-cos.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{1 - \cos x \cdot \color{blue}{\cos x}}{\left(x \cdot x\right) \cdot \left(1 + \cos x\right)}
+\]</div></li><li><p><code title="left to right">1-sub-cos</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\color{blue}{\sin x \cdot \sin x}}{\left(x \cdot x\right) \cdot \left(1 + \cos x\right)}
+\]</div></li><li><p><code title="left to right">times-frac</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{\sin x}{x \cdot x} \cdot \frac{\sin x}{1 + \cos x}}
+\]</div></li><li><p><code title="left to right">lower-*.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{\sin x}{x \cdot x} \cdot \frac{\sin x}{1 + \cos x}}
+\]</div></li><li><p><code title="left to right">lower-/.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{\sin x}{x \cdot x}} \cdot \frac{\sin x}{1 + \cos x}
+\]</div></li><li><p><code title="left to right">lower-sin.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\color{blue}{\sin x}}{x \cdot x} \cdot \frac{\sin x}{1 + \cos x}
+\]</div></li><li><p><code title="left to right">lift-cos.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\sin x}{x \cdot x} \cdot \frac{\sin x}{1 + \color{blue}{\cos x}}
+\]</div></li><li><p><code title="left to right">hang-0p-tan</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\sin x}{x \cdot x} \cdot \color{blue}{\tan \left(\frac{x}{2}\right)}
+\]</div></li><li><p><code title="left to right">lower-tan.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\sin x}{x \cdot x} \cdot \color{blue}{\tan \left(\frac{x}{2}\right)}
+\]</div></li><li><p><code title="left to right">lower-/.f64</code><span class="error" title=" ↑ N/A ↓ N/A">74.9</span></p><div class="math">\[\leadsto \frac{\sin x}{x \cdot x} \cdot \tan \color{blue}{\left(\frac{x}{2}\right)}
+\]</div></li></ol></details></div></li><li><p>Applied rewrites<span class="error" title="75.6% on training set">74.9%</span></p><div class="math">\[\leadsto \color{blue}{\frac{\sin x}{x \cdot x} \cdot \tan \left(\frac{x}{2}\right)}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">lift-*.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{\sin x}{x \cdot x} \cdot \tan \left(\frac{x}{2}\right)}
+\]</div></li><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\tan \left(\frac{x}{2}\right) \cdot \frac{\sin x}{x \cdot x}}
+\]</div></li><li><p><code title="left to right">lift-/.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \tan \left(\frac{x}{2}\right) \cdot \color{blue}{\frac{\sin x}{x \cdot x}}
+\]</div></li><li><p><code title="left to right">clear-num</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \tan \left(\frac{x}{2}\right) \cdot \color{blue}{\frac{1}{\frac{x \cdot x}{\sin x}}}
+\]</div></li><li><p><code title="left to right">un-div-inv</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{\tan \left(\frac{x}{2}\right)}{\frac{x \cdot x}{\sin x}}}
+\]</div></li><li><p><code title="left to right">lower-/.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{\tan \left(\frac{x}{2}\right)}{\frac{x \cdot x}{\sin x}}}
+\]</div></li><li><p><code title="left to right">lift-/.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\tan \color{blue}{\left(\frac{x}{2}\right)}}{\frac{x \cdot x}{\sin x}}
+\]</div></li><li><p><code title="left to right">clear-num</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\tan \color{blue}{\left(\frac{1}{\frac{2}{x}}\right)}}{\frac{x \cdot x}{\sin x}}
+\]</div></li><li><p><code title="left to right">associate-/r/</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\tan \color{blue}{\left(\frac{1}{2} \cdot x\right)}}{\frac{x \cdot x}{\sin x}}
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\tan \left(\color{blue}{\frac{1}{2}} \cdot x\right)}{\frac{x \cdot x}{\sin x}}
+\]</div></li><li><p><code title="left to right">lower-*.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\tan \color{blue}{\left(\frac{1}{2} \cdot x\right)}}{\frac{x \cdot x}{\sin x}}
+\]</div></li><li><p><code title="left to right">lift-*.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\tan \left(\frac{1}{2} \cdot x\right)}{\frac{\color{blue}{x \cdot x}}{\sin x}}
+\]</div></li><li><p><code title="left to right">associate-/l*</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\tan \left(\frac{1}{2} \cdot x\right)}{\color{blue}{x \cdot \frac{x}{\sin x}}}
+\]</div></li><li><p><code title="left to right">lower-*.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\tan \left(\frac{1}{2} \cdot x\right)}{\color{blue}{x \cdot \frac{x}{\sin x}}}
+\]</div></li><li><p><code title="left to right">lower-/.f64</code><span class="error" title=" ↑ N/A ↓ N/A">98.9</span></p><div class="math">\[\leadsto \frac{\tan \left(0.5 \cdot x\right)}{x \cdot \color{blue}{\frac{x}{\sin x}}}
+\]</div></li></ol></details></div></li><li><p>Applied rewrites<span class="error" title="99.1% on training set">98.9%</span></p><div class="math">\[\leadsto \color{blue}{\frac{\tan \left(0.5 \cdot x\right)}{x \cdot \frac{x}{\sin x}}}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative3" class="programs"><h2>Alternative 3: <span class="subhead"><data>74.2%</data> accurate, <data>0.6×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;x \leq 0.0055:\\
+\;\;\;\;\mathsf{fma}\left(x \cdot x, -0.041666666666666664, 0.5\right)\\
+
+\mathbf{else}:\\
+\;\;\;\;{x}^{-2} \cdot \left(1 - \cos x\right)\\
+
+
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x)
+ :precision binary64
+ (if (&lt;= x 0.0055)
+   (fma (* x x) -0.041666666666666664 0.5)
+   (* (pow x -2.0) (- 1.0 (cos x)))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x) {
+	double tmp;
+	if (x &lt;= 0.0055) {
+		tmp = fma((x * x), -0.041666666666666664, 0.5);
+	} else {
+		tmp = pow(x, -2.0) * (1.0 - cos(x));
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x)
+	tmp = 0.0
+	if (x &lt;= 0.0055)
+		tmp = fma(Float64(x * x), -0.041666666666666664, 0.5);
+	else
+		tmp = Float64((x ^ -2.0) * Float64(1.0 - cos(x)));
+	end
+	return tmp
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_] := If[LessEqual[x, 0.0055], N[(N[(x * x), $MachinePrecision] * -0.041666666666666664 + 0.5), $MachinePrecision], N[(N[Power[x, -2.0], $MachinePrecision] * N[(1.0 - N[Cos[x], $MachinePrecision]), $MachinePrecision]), $MachinePrecision]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;x \leq 0.0055:\\
+\;\;\;\;\mathsf{fma}\left(x \cdot x, -0.041666666666666664, 0.5\right)\\
+
+\mathbf{else}:\\
+\;\;\;\;{x}^{-2} \cdot \left(1 - \cos x\right)\\
+
+
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li class="event">Split input into 2 regimes</li><li><h2><code>if <span class="condition"> x  &lt; 0.0054999999999999997</span></code></h2><ol><li><p>Initial program <span class="error" title="35.8% on training set">30.1%</span></p><div class="math">\[\frac{1 - \cos x}{x \cdot x}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \color{blue}{\frac{1}{2} + \frac{-1}{24} \cdot {x}^{2}}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{-1}{24} \cdot {x}^{2} + \frac{1}{2}}
+\]</div></li><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{{x}^{2} \cdot \frac{-1}{24}} + \frac{1}{2}
+\]</div></li><li><p><code title="left to right">lower-fma.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\mathsf{fma}\left({x}^{2}, \frac{-1}{24}, \frac{1}{2}\right)}
+\]</div></li><li><p><code title="left to right">unpow2</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \mathsf{fma}\left(\color{blue}{x \cdot x}, \frac{-1}{24}, \frac{1}{2}\right)
+\]</div></li><li><p><code title="left to right">lower-*.f64</code><span class="error" title=" ↑ N/A ↓ N/A">71.3</span></p><div class="math">\[\leadsto \mathsf{fma}\left(\color{blue}{x \cdot x}, -0.041666666666666664, 0.5\right)
+\]</div></li></ol></details></div></li><li><p>Applied rewrites<span class="error" title="65.9% on training set">71.3%</span></p><div class="math">\[\leadsto \color{blue}{\mathsf{fma}\left(x \cdot x, -0.041666666666666664, 0.5\right)}
+\]</div></li></ol><h2><code>if <span class="condition">0.0054999999999999997 &lt;  x </span></code></h2><ol><li><p>Initial program <span class="error" title="98.1% on training set">97.3%</span></p><div class="math">\[\frac{1 - \cos x}{x \cdot x}
+\]</div></li><li>Add Preprocessing</li><li></li><li><p>Applied rewrites<span class="error" title="99.2% on training set">99.3%</span></p><div class="math">\[\leadsto \color{blue}{{x}^{-2} \cdot \left(1 - \cos x\right)}
+\]</div></li></ol></li><li class="event">Recombined 2 regimes into one program.</li><li>Add Preprocessing</li></ol></details></section><section id="alternative4" class="programs"><h2>Alternative 4: <span class="subhead"><data>74.2%</data> accurate, <data>0.9×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;x \leq 0.0055:\\
+\;\;\;\;\mathsf{fma}\left(x \cdot x, -0.041666666666666664, 0.5\right)\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{\frac{1 - \cos x}{x}}{x}\\
+
+
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x)
+ :precision binary64
+ (if (&lt;= x 0.0055)
+   (fma (* x x) -0.041666666666666664 0.5)
+   (/ (/ (- 1.0 (cos x)) x) x)))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x) {
+	double tmp;
+	if (x &lt;= 0.0055) {
+		tmp = fma((x * x), -0.041666666666666664, 0.5);
+	} else {
+		tmp = ((1.0 - cos(x)) / x) / x;
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x)
+	tmp = 0.0
+	if (x &lt;= 0.0055)
+		tmp = fma(Float64(x * x), -0.041666666666666664, 0.5);
+	else
+		tmp = Float64(Float64(Float64(1.0 - cos(x)) / x) / x);
+	end
+	return tmp
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_] := If[LessEqual[x, 0.0055], N[(N[(x * x), $MachinePrecision] * -0.041666666666666664 + 0.5), $MachinePrecision], N[(N[(N[(1.0 - N[Cos[x], $MachinePrecision]), $MachinePrecision] / x), $MachinePrecision] / x), $MachinePrecision]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;x \leq 0.0055:\\
+\;\;\;\;\mathsf{fma}\left(x \cdot x, -0.041666666666666664, 0.5\right)\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{\frac{1 - \cos x}{x}}{x}\\
+
+
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li class="event">Split input into 2 regimes</li><li><h2><code>if <span class="condition"> x  &lt; 0.0054999999999999997</span></code></h2><ol><li><p>Initial program <span class="error" title="35.8% on training set">30.1%</span></p><div class="math">\[\frac{1 - \cos x}{x \cdot x}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \color{blue}{\frac{1}{2} + \frac{-1}{24} \cdot {x}^{2}}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{-1}{24} \cdot {x}^{2} + \frac{1}{2}}
+\]</div></li><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{{x}^{2} \cdot \frac{-1}{24}} + \frac{1}{2}
+\]</div></li><li><p><code title="left to right">lower-fma.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\mathsf{fma}\left({x}^{2}, \frac{-1}{24}, \frac{1}{2}\right)}
+\]</div></li><li><p><code title="left to right">unpow2</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \mathsf{fma}\left(\color{blue}{x \cdot x}, \frac{-1}{24}, \frac{1}{2}\right)
+\]</div></li><li><p><code title="left to right">lower-*.f64</code><span class="error" title=" ↑ N/A ↓ N/A">71.3</span></p><div class="math">\[\leadsto \mathsf{fma}\left(\color{blue}{x \cdot x}, -0.041666666666666664, 0.5\right)
+\]</div></li></ol></details></div></li><li><p>Applied rewrites<span class="error" title="65.9% on training set">71.3%</span></p><div class="math">\[\leadsto \color{blue}{\mathsf{fma}\left(x \cdot x, -0.041666666666666664, 0.5\right)}
+\]</div></li></ol><h2><code>if <span class="condition">0.0054999999999999997 &lt;  x </span></code></h2><ol><li><p>Initial program <span class="error" title="98.1% on training set">97.3%</span></p><div class="math">\[\frac{1 - \cos x}{x \cdot x}
+\]</div></li><li>Add Preprocessing</li><li></li><li><p>Applied rewrites<span class="error" title="99.2% on training set">99.3%</span></p><div class="math">\[\leadsto \color{blue}{\frac{\frac{1 - \cos x}{x}}{x}}
+\]</div></li></ol></li><li class="event">Recombined 2 regimes into one program.</li><li>Add Preprocessing</li></ol></details></section><section id="alternative5" class="programs"><h2>Alternative 5: <span class="subhead"><data>74.0%</data> accurate, <data>1.0×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;x \leq 0.0055:\\
+\;\;\;\;\mathsf{fma}\left(x \cdot x, -0.041666666666666664, 0.5\right)\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{1 - \cos x}{x \cdot x}\\
+
+
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x)
+ :precision binary64
+ (if (&lt;= x 0.0055)
+   (fma (* x x) -0.041666666666666664 0.5)
+   (/ (- 1.0 (cos x)) (* x x))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x) {
+	double tmp;
+	if (x &lt;= 0.0055) {
+		tmp = fma((x * x), -0.041666666666666664, 0.5);
+	} else {
+		tmp = (1.0 - cos(x)) / (x * x);
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x)
+	tmp = 0.0
+	if (x &lt;= 0.0055)
+		tmp = fma(Float64(x * x), -0.041666666666666664, 0.5);
+	else
+		tmp = Float64(Float64(1.0 - cos(x)) / Float64(x * x));
+	end
+	return tmp
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_] := If[LessEqual[x, 0.0055], N[(N[(x * x), $MachinePrecision] * -0.041666666666666664 + 0.5), $MachinePrecision], N[(N[(1.0 - N[Cos[x], $MachinePrecision]), $MachinePrecision] / N[(x * x), $MachinePrecision]), $MachinePrecision]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;x \leq 0.0055:\\
+\;\;\;\;\mathsf{fma}\left(x \cdot x, -0.041666666666666664, 0.5\right)\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{1 - \cos x}{x \cdot x}\\
+
+
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li class="event">Split input into 2 regimes</li><li><h2><code>if <span class="condition"> x  &lt; 0.0054999999999999997</span></code></h2><ol><li><p>Initial program <span class="error" title="35.8% on training set">30.1%</span></p><div class="math">\[\frac{1 - \cos x}{x \cdot x}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \color{blue}{\frac{1}{2} + \frac{-1}{24} \cdot {x}^{2}}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{-1}{24} \cdot {x}^{2} + \frac{1}{2}}
+\]</div></li><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{{x}^{2} \cdot \frac{-1}{24}} + \frac{1}{2}
+\]</div></li><li><p><code title="left to right">lower-fma.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\mathsf{fma}\left({x}^{2}, \frac{-1}{24}, \frac{1}{2}\right)}
+\]</div></li><li><p><code title="left to right">unpow2</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \mathsf{fma}\left(\color{blue}{x \cdot x}, \frac{-1}{24}, \frac{1}{2}\right)
+\]</div></li><li><p><code title="left to right">lower-*.f64</code><span class="error" title=" ↑ N/A ↓ N/A">71.3</span></p><div class="math">\[\leadsto \mathsf{fma}\left(\color{blue}{x \cdot x}, -0.041666666666666664, 0.5\right)
+\]</div></li></ol></details></div></li><li><p>Applied rewrites<span class="error" title="65.9% on training set">71.3%</span></p><div class="math">\[\leadsto \color{blue}{\mathsf{fma}\left(x \cdot x, -0.041666666666666664, 0.5\right)}
+\]</div></li></ol><h2><code>if <span class="condition">0.0054999999999999997 &lt;  x </span></code></h2><ol><li><p>Initial program <span class="error" title="98.1% on training set">97.3%</span></p><div class="math">\[\frac{1 - \cos x}{x \cdot x}
+\]</div></li><li>Add Preprocessing</li></ol></li><li class="event">Recombined 2 regimes into one program.</li><li>Add Preprocessing</li></ol></details></section><section id="alternative6" class="programs"><h2>Alternative 6: <span class="subhead"><data>62.8%</data> accurate, <data>4.6×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;x \leq 1.3 \cdot 10^{+77}:\\
+\;\;\;\;0.5\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{1 - 1}{x \cdot x}\\
+
+
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x)
+ :precision binary64
+ (if (&lt;= x 1.3e+77) 0.5 (/ (- 1.0 1.0) (* x x))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x) {
+	double tmp;
+	if (x &lt;= 1.3e+77) {
+		tmp = 0.5;
+	} else {
+		tmp = (1.0 - 1.0) / (x * x);
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(x)
+    real(8), intent (in) :: x
+    real(8) :: tmp
+    if (x &lt;= 1.3d+77) then
+        tmp = 0.5d0
+    else
+        tmp = (1.0d0 - 1.0d0) / (x * x)
+    end if
+    code = tmp
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double x) {
+	double tmp;
+	if (x &lt;= 1.3e+77) {
+		tmp = 0.5;
+	} else {
+		tmp = (1.0 - 1.0) / (x * x);
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(x):
+	tmp = 0
+	if x &lt;= 1.3e+77:
+		tmp = 0.5
+	else:
+		tmp = (1.0 - 1.0) / (x * x)
+	return tmp
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x)
+	tmp = 0.0
+	if (x &lt;= 1.3e+77)
+		tmp = 0.5;
+	else
+		tmp = Float64(Float64(1.0 - 1.0) / Float64(x * x));
+	end
+	return tmp
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp_2 = code(x)
+	tmp = 0.0;
+	if (x &lt;= 1.3e+77)
+		tmp = 0.5;
+	else
+		tmp = (1.0 - 1.0) / (x * x);
+	end
+	tmp_2 = tmp;
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_] := If[LessEqual[x, 1.3e+77], 0.5, N[(N[(1.0 - 1.0), $MachinePrecision] / N[(x * x), $MachinePrecision]), $MachinePrecision]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;x \leq 1.3 \cdot 10^{+77}:\\
+\;\;\;\;0.5\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{1 - 1}{x \cdot x}\\
+
+
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li class="event">Split input into 2 regimes</li><li><h2><code>if <span class="condition"> x  &lt; 1.3000000000000001e77</span></code></h2><ol><li><p>Initial program <span class="error" title="40.7% on training set">36.9%</span></p><div class="math">\[\frac{1 - \cos x}{x \cdot x}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \color{blue}{\frac{1}{2}}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol></ol></details></div></li><li><p>Applied rewrites<span class="error" title="61.8% on training set">65.4%</span></p><div class="math">\[\leadsto \color{blue}{0.5}
+\]</div></li></ol><h2><code>if <span class="condition">1.3000000000000001e77 &lt;  x </span></code></h2><ol><li><p>Initial program <span class="error" title="98.0% on training set">96.8%</span></p><div class="math">\[\frac{1 - \cos x}{x \cdot x}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \frac{1 - \color{blue}{1}}{x \cdot x}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol></ol></details></div></li><li><p>Applied rewrites<span class="error" title="66.9% on training set">65.2%</span></p><div class="math">\[\leadsto \frac{1 - \color{blue}{1}}{x \cdot x}
+\]</div></li></ol></li><li class="event">Recombined 2 regimes into one program.</li><li>Add Preprocessing</li></ol></details></section><section id="alternative7" class="programs"><h2>Alternative 7: <span class="subhead"><data>77.9%</data> accurate, <data>5.2×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\frac{-1}{\mathsf{fma}\left(-0.16666666666666666, x \cdot x, -2\right)}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x)
+ :precision binary64
+ (/ -1.0 (fma -0.16666666666666666 (* x x) -2.0)))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x) {
+	return -1.0 / fma(-0.16666666666666666, (x * x), -2.0);
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x)
+	return Float64(-1.0 / fma(-0.16666666666666666, Float64(x * x), -2.0))
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_] := N[(-1.0 / N[(-0.16666666666666666 * N[(x * x), $MachinePrecision] + -2.0), $MachinePrecision]), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\frac{-1}{\mathsf{fma}\left(-0.16666666666666666, x \cdot x, -2\right)}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="51.4% on training set">47.2%</span></p><div class="math">\[\frac{1 - \cos x}{x \cdot x}
+\]</div></li><li>Add Preprocessing</li><li></li><li><p>Applied rewrites<span class="error" title="51.3% on training set">47.1%</span></p><div class="math">\[\leadsto \color{blue}{\frac{-1}{\frac{x \cdot x}{\cos x - 1}}}
+\]</div></li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\frac{-1}{6} \cdot {x}^{2} - 2}}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">sub-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\frac{-1}{6} \cdot {x}^{2} + \left(\mathsf{neg}\left(2\right)\right)}}
+\]</div></li><li><p><code title="left to right">lower-fma.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\mathsf{fma}\left(\frac{-1}{6}, {x}^{2}, \mathsf{neg}\left(2\right)\right)}}
+\]</div></li><li><p><code title="left to right">unpow2</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\frac{-1}{6}, \color{blue}{x \cdot x}, \mathsf{neg}\left(2\right)\right)}
+\]</div></li><li><p><code title="left to right">lower-*.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\frac{-1}{6}, \color{blue}{x \cdot x}, \mathsf{neg}\left(2\right)\right)}
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ N/A ↓ N/A">79.3</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(-0.16666666666666666, x \cdot x, \color{blue}{-2}\right)}
+\]</div></li></ol></details></div></li><li><p>Applied rewrites<span class="error" title="77.9% on training set">79.3%</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\mathsf{fma}\left(-0.16666666666666666, x \cdot x, -2\right)}}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative8" class="programs"><h2>Alternative 8: <span class="subhead"><data>50.9%</data> accurate, <data>120.0×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+0.5
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x) :precision binary64 0.5)</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x) {
+	return 0.5;
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(x)
+    real(8), intent (in) :: x
+    code = 0.5d0
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double x) {
+	return 0.5;
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(x):
+	return 0.5
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x)
+	return 0.5
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp = code(x)
+	tmp = 0.5;
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_] := 0.5
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+0.5
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="51.4% on training set">47.2%</span></p><div class="math">\[\frac{1 - \cos x}{x \cdot x}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \color{blue}{\frac{1}{2}}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol></ol></details></div></li><li><p>Applied rewrites<span class="error" title="50.9% on training set">54.7%</span></p><div class="math">\[\leadsto \color{blue}{0.5}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="reproduce"><details><summary><h2>Reproduce</h2><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#reproduction" target="_blank">?</a></summary><pre class="shell"><code>herbie shell --seed 371008492 
+(FPCore (x)
+  :name "cos2 (problem 3.4.1)"
+  :precision binary64
+  :pre (TRUE)
+  (/ (- 1.0 (cos x)) (* x x)))
+</code></pre></details></section></body></html>

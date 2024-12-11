@@ -1,0 +1,1005 @@
+<!doctype html>
+<html><head><meta charset="utf-8"/><title>Result for quadm (p42, negative)</title><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/katex.min.css" integrity="sha384-9tPv11A+glH/on/wEu99NVwDPwkMQESOocs/ZGXPoIiLE8MU/qkqUcZ3zzL+6DuH" crossorigin="anonymous"/><script src="https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/katex.min.js" integrity="sha384-U8Vrjwb8fuHMt6ewaCy8uqeUXv4oitYACKdB0VziCerzt011iQ/0TqlSlv8MReCm" crossorigin="anonymous"></script><script src="https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/contrib/auto-render.min.js" integrity="sha384-aGfk5kvhIq5x1x5YdvCp4upKZYnA8ckafviDpmWEKp4afOZEqOli7gqSnh8I6enH" crossorigin="anonymous"></script><script src="https://unpkg.com/mathjs@4.4.2/dist/math.min.js"></script><script src="https://unpkg.com/d3@6.7.0/dist/d3.min.js"></script><script src="https://unpkg.com/@observablehq/plot@0.4.3/dist/plot.umd.min.js"></script><link rel="stylesheet" type="text/css" href="../report.css"/><script src="../report.js"></script></head><body><header><h1>quadm (p42, negative)</h1><img src="../logo-car.png"/><nav><ul><li><a href="../index.html">Report</a></li><li><a href="timeline.html">Metrics</a></li></ul></nav></header><div id="large"><div>Percentage Accurate: <span class="number" title="Minimum Accuracy: 0.0% → 0.0%">51.6%<span class="unit"> → </span>86.4%</span></div><div>Time: <span class="number">9.6s</span></div><div>Alternatives: <span class="number">7</span></div><div>Speedup: <span class="number" title="Relative speed of fastest alternative that improves accuracy.">2.5×</span></div></div><section><details id="specification" class="programs"><summary><h2>Specification</h2><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#spec" target="_blank">?</a></summary><div><div id="precondition"><div class="program math">\[\mathsf{TRUE}\left(\right)\]</div></div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\frac{\left(-b\right) - \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (a b c)
+ :precision binary64
+ (/ (- (- b) (sqrt (- (* b b) (* 4.0 (* a c))))) (* 2.0 a)))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double a, double b, double c) {
+	return (-b - sqrt(((b * b) - (4.0 * (a * c))))) / (2.0 * a);
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(a, b, c)
+    real(8), intent (in) :: a
+    real(8), intent (in) :: b
+    real(8), intent (in) :: c
+    code = (-b - sqrt(((b * b) - (4.0d0 * (a * c))))) / (2.0d0 * a)
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double a, double b, double c) {
+	return (-b - Math.sqrt(((b * b) - (4.0 * (a * c))))) / (2.0 * a);
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(a, b, c):
+	return (-b - math.sqrt(((b * b) - (4.0 * (a * c))))) / (2.0 * a)
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(a, b, c)
+	return Float64(Float64(Float64(-b) - sqrt(Float64(Float64(b * b) - Float64(4.0 * Float64(a * c))))) / Float64(2.0 * a))
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp = code(a, b, c)
+	tmp = (-b - sqrt(((b * b) - (4.0 * (a * c))))) / (2.0 * a);
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[a_, b_, c_] := N[(N[((-b) - N[Sqrt[N[(N[(b * b), $MachinePrecision] - N[(4.0 * N[(a * c), $MachinePrecision]), $MachinePrecision]), $MachinePrecision]], $MachinePrecision]), $MachinePrecision] / N[(2.0 * a), $MachinePrecision]), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\frac{\left(-b\right) - \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\end{array}
+</pre></div></div><p>Sampling outcomes in <kbd>binary64</kbd> precision:</p><div class="bogosity"><div class="bogosity-valid" data-id="bogosity-valid" data-type="valid" data-timespan="0.6855959968729769" title="valid (68.6%)"></div><div class="bogosity-unknown" data-id="bogosity-unknown" data-type="unknown" data-timespan="0" title="unknown (0.0%)"></div><div class="bogosity-infinite" data-id="bogosity-infinite" data-type="infinite" data-timespan="0.06371305133767935" title="infinite (6.4%)"></div><div class="bogosity-unsamplable" data-id="bogosity-unsamplable" data-type="unsamplable" data-timespan="0" title="unsamplable (0.0%)"></div><div class="bogosity-invalid" data-id="bogosity-invalid" data-type="invalid" data-timespan="0.24922682317866574" title="invalid (24.9%)"></div><div class="bogosity-precondition" data-id="bogosity-precondition" data-type="precondition" data-timespan="0.0014641286106780171" title="precondition (0.1%)"></div></div></details></section><figure id="graphs"><h2>Local Percentage Accuracy vs <span id="variables"></span><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#graph" target="_blank">?</a></h2><svg></svg><div id="functions"></div><figcaption>The average percentage accuracy by input value. Horizontal axis shows value of an input variable; the variable is choosen in the title. Vertical axis is accuracy; higher is better. Red represent the original program, while blue represents Herbie's suggestion. These can be toggled with buttons below the plot. The line is an average while dots represent individual samples.</figcaption></figure><section id="cost-accuracy" class="section" data-benchmark-name="quadm (p42, negative)"><h2>Accuracy vs Speed<a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#cost-accuracy" target="_blank">?</a></h2><div class="figure-row"><svg></svg><div><p>Herbie found 7 alternatives:</p><table><thead><tr><th>Alternative</th><th class="numeric">Accuracy</th><th class="numeric">Speedup</th></tr></thead><tbody></tbody></table></div></div><figcaption>The accuracy (vertical axis) and speed (horizontal axis) of each alternatives. Up and to the right is better. The red square shows the initial program, and each blue circle shows an alternative.The line shows the best available speed-accuracy tradeoffs.</figcaption></section><section id="initial" class="programs"><h2>Initial Program: <span class="subhead"><data>51.6%</data> accurate, <data>1.0×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\frac{\left(-b\right) - \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (a b c)
+ :precision binary64
+ (/ (- (- b) (sqrt (- (* b b) (* 4.0 (* a c))))) (* 2.0 a)))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double a, double b, double c) {
+	return (-b - sqrt(((b * b) - (4.0 * (a * c))))) / (2.0 * a);
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(a, b, c)
+    real(8), intent (in) :: a
+    real(8), intent (in) :: b
+    real(8), intent (in) :: c
+    code = (-b - sqrt(((b * b) - (4.0d0 * (a * c))))) / (2.0d0 * a)
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double a, double b, double c) {
+	return (-b - Math.sqrt(((b * b) - (4.0 * (a * c))))) / (2.0 * a);
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(a, b, c):
+	return (-b - math.sqrt(((b * b) - (4.0 * (a * c))))) / (2.0 * a)
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(a, b, c)
+	return Float64(Float64(Float64(-b) - sqrt(Float64(Float64(b * b) - Float64(4.0 * Float64(a * c))))) / Float64(2.0 * a))
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp = code(a, b, c)
+	tmp = (-b - sqrt(((b * b) - (4.0 * (a * c))))) / (2.0 * a);
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[a_, b_, c_] := N[(N[((-b) - N[Sqrt[N[(N[(b * b), $MachinePrecision] - N[(4.0 * N[(a * c), $MachinePrecision]), $MachinePrecision]), $MachinePrecision]], $MachinePrecision]), $MachinePrecision] / N[(2.0 * a), $MachinePrecision]), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\frac{\left(-b\right) - \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\end{array}
+</pre></div></div></section><section id="alternative1" class="programs"><h2>Alternative 1: <span class="subhead"><data>86.4%</data> accurate, <data>0.6×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;b \leq -8.6 \cdot 10^{+62}:\\
+\;\;\;\;\frac{c}{-b}\\
+
+\mathbf{elif}\;b \leq -7 \cdot 10^{-83}:\\
+\;\;\;\;\frac{\left(4 \cdot a\right) \cdot c}{\left(b - \sqrt{\mathsf{fma}\left(-4, c \cdot a, b \cdot b\right)}\right) \cdot \left(-2 \cdot a\right)}\\
+
+\mathbf{elif}\;b \leq 3 \cdot 10^{+150}:\\
+\;\;\;\;\mathsf{fma}\left(-0.5, \frac{\sqrt{\mathsf{fma}\left(a \cdot c, -4, b \cdot b\right)}}{a}, \frac{b}{-2 \cdot a}\right)\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{-b}{a}\\
+
+
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (a b c)
+ :precision binary64
+ (if (&lt;= b -8.6e+62)
+   (/ c (- b))
+   (if (&lt;= b -7e-83)
+     (/ (* (* 4.0 a) c) (* (- b (sqrt (fma -4.0 (* c a) (* b b)))) (* -2.0 a)))
+     (if (&lt;= b 3e+150)
+       (fma -0.5 (/ (sqrt (fma (* a c) -4.0 (* b b))) a) (/ b (* -2.0 a)))
+       (/ (- b) a)))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double a, double b, double c) {
+	double tmp;
+	if (b &lt;= -8.6e+62) {
+		tmp = c / -b;
+	} else if (b &lt;= -7e-83) {
+		tmp = ((4.0 * a) * c) / ((b - sqrt(fma(-4.0, (c * a), (b * b)))) * (-2.0 * a));
+	} else if (b &lt;= 3e+150) {
+		tmp = fma(-0.5, (sqrt(fma((a * c), -4.0, (b * b))) / a), (b / (-2.0 * a)));
+	} else {
+		tmp = -b / a;
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(a, b, c)
+	tmp = 0.0
+	if (b &lt;= -8.6e+62)
+		tmp = Float64(c / Float64(-b));
+	elseif (b &lt;= -7e-83)
+		tmp = Float64(Float64(Float64(4.0 * a) * c) / Float64(Float64(b - sqrt(fma(-4.0, Float64(c * a), Float64(b * b)))) * Float64(-2.0 * a)));
+	elseif (b &lt;= 3e+150)
+		tmp = fma(-0.5, Float64(sqrt(fma(Float64(a * c), -4.0, Float64(b * b))) / a), Float64(b / Float64(-2.0 * a)));
+	else
+		tmp = Float64(Float64(-b) / a);
+	end
+	return tmp
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[a_, b_, c_] := If[LessEqual[b, -8.6e+62], N[(c / (-b)), $MachinePrecision], If[LessEqual[b, -7e-83], N[(N[(N[(4.0 * a), $MachinePrecision] * c), $MachinePrecision] / N[(N[(b - N[Sqrt[N[(-4.0 * N[(c * a), $MachinePrecision] + N[(b * b), $MachinePrecision]), $MachinePrecision]], $MachinePrecision]), $MachinePrecision] * N[(-2.0 * a), $MachinePrecision]), $MachinePrecision]), $MachinePrecision], If[LessEqual[b, 3e+150], N[(-0.5 * N[(N[Sqrt[N[(N[(a * c), $MachinePrecision] * -4.0 + N[(b * b), $MachinePrecision]), $MachinePrecision]], $MachinePrecision] / a), $MachinePrecision] + N[(b / N[(-2.0 * a), $MachinePrecision]), $MachinePrecision]), $MachinePrecision], N[((-b) / a), $MachinePrecision]]]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;b \leq -8.6 \cdot 10^{+62}:\\
+\;\;\;\;\frac{c}{-b}\\
+
+\mathbf{elif}\;b \leq -7 \cdot 10^{-83}:\\
+\;\;\;\;\frac{\left(4 \cdot a\right) \cdot c}{\left(b - \sqrt{\mathsf{fma}\left(-4, c \cdot a, b \cdot b\right)}\right) \cdot \left(-2 \cdot a\right)}\\
+
+\mathbf{elif}\;b \leq 3 \cdot 10^{+150}:\\
+\;\;\;\;\mathsf{fma}\left(-0.5, \frac{\sqrt{\mathsf{fma}\left(a \cdot c, -4, b \cdot b\right)}}{a}, \frac{b}{-2 \cdot a}\right)\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{-b}{a}\\
+
+
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li class="event">Split input into 4 regimes</li><li><h2><code>if <span class="condition"> b  &lt; -8.5999999999999994e62</span></code></h2><ol><li><p>Initial program <span class="error" title="10.9% on training set">5.7%</span></p><div class="math">\[\frac{\left(-b\right) - \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in b around -inf</p><div class="math">\[\leadsto \color{blue}{-1 \cdot \frac{c}{b}}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">mul-1-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\mathsf{neg}\left(\frac{c}{b}\right)}
+\]</div></li><li><p><code title="left to right">distribute-neg-frac2</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{c}{\mathsf{neg}\left(b\right)}}
+\]</div></li><li><p><code title="right to left">mul-1-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{c}{\color{blue}{-1 \cdot b}}
+\]</div></li><li><p><code title="left to right">lower-/.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{c}{-1 \cdot b}}
+\]</div></li><li><p><code title="left to right">mul-1-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{c}{\color{blue}{\mathsf{neg}\left(b\right)}}
+\]</div></li><li><p><code title="left to right">lower-neg.f64</code><span class="error" title=" ↑ N/A ↓ N/A">96.6</span></p><div class="math">\[\leadsto \frac{c}{\color{blue}{-b}}
+\]</div></li></ol></details></div></li><li><p>Applied rewrites<span class="error" title="93.2% on training set">96.6%</span></p><div class="math">\[\leadsto \color{blue}{\frac{c}{-b}}
+\]</div></li></ol><h2><code>if <span class="condition">-8.5999999999999994e62 &lt;  b  &lt; -7.00000000000000061e-83</span></code></h2><ol><li><p>Initial program <span class="error" title="32.0% on training set">36.7%</span></p><div class="math">\[\frac{\left(-b\right) - \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li>Add Preprocessing</li><li></li><li><p>Applied rewrites<span class="error" title="23.4% on training set">32.3%</span></p><div class="math">\[\leadsto \color{blue}{\frac{\mathsf{fma}\left(b, b, \mathsf{fma}\left(c \cdot a, 4, b \cdot b\right)\right)}{\left(b - \sqrt{\mathsf{fma}\left(-4, c \cdot a, b \cdot b\right)}\right) \cdot \left(-2 \cdot a\right)}}
+\]</div></li><li><p>Taylor expanded in a around inf</p><div class="math">\[\leadsto \frac{\color{blue}{4 \cdot \left(a \cdot c\right)}}{\left(b - \sqrt{\mathsf{fma}\left(-4, c \cdot a, b \cdot b\right)}\right) \cdot \left(-2 \cdot a\right)}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">associate-*r*</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\color{blue}{\left(4 \cdot a\right) \cdot c}}{\left(b - \sqrt{\mathsf{fma}\left(-4, c \cdot a, b \cdot b\right)}\right) \cdot \left(-2 \cdot a\right)}
+\]</div></li><li><p><code title="left to right">lower-*.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\color{blue}{\left(4 \cdot a\right) \cdot c}}{\left(b - \sqrt{\mathsf{fma}\left(-4, c \cdot a, b \cdot b\right)}\right) \cdot \left(-2 \cdot a\right)}
+\]</div></li><li><p><code title="left to right">lower-*.f64</code><span class="error" title=" ↑ N/A ↓ N/A">82.6</span></p><div class="math">\[\leadsto \frac{\color{blue}{\left(4 \cdot a\right)} \cdot c}{\left(b - \sqrt{\mathsf{fma}\left(-4, c \cdot a, b \cdot b\right)}\right) \cdot \left(-2 \cdot a\right)}
+\]</div></li></ol></details></div></li><li><p>Applied rewrites<span class="error" title="70.4% on training set">82.6%</span></p><div class="math">\[\leadsto \frac{\color{blue}{\left(4 \cdot a\right) \cdot c}}{\left(b - \sqrt{\mathsf{fma}\left(-4, c \cdot a, b \cdot b\right)}\right) \cdot \left(-2 \cdot a\right)}
+\]</div></li></ol><h2><code>if <span class="condition">-7.00000000000000061e-83 &lt;  b  &lt; 3.00000000000000012e150</span></code></h2><ol><li><p>Initial program <span class="error" title="82.4% on training set">82.1%</span></p><div class="math">\[\frac{\left(-b\right) - \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li>Add Preprocessing</li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">lift--.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\color{blue}{\left(-b\right) - \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}}{2 \cdot a}
+\]</div></li><li><p><code title="left to right">sub-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\color{blue}{\left(-b\right) + \left(\mathsf{neg}\left(\sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}\right)\right)}}{2 \cdot a}
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\color{blue}{\left(\mathsf{neg}\left(\sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}\right)\right) + \left(-b\right)}}{2 \cdot a}
+\]</div></li><li><p><code title="left to right">lift-neg.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\left(\mathsf{neg}\left(\sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}\right)\right) + \color{blue}{\left(\mathsf{neg}\left(b\right)\right)}}{2 \cdot a}
+\]</div></li><li><p><code title="left to right">unsub-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\color{blue}{\left(\mathsf{neg}\left(\sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}\right)\right) - b}}{2 \cdot a}
+\]</div></li><li><p><code title="left to right">lower--.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\color{blue}{\left(\mathsf{neg}\left(\sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}\right)\right) - b}}{2 \cdot a}
+\]</div></li><li><p><code title="left to right">lower-neg.f64</code><span class="error" title=" ↑ N/A ↓ N/A">82.1</span></p><div class="math">\[\leadsto \frac{\color{blue}{\left(-\sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}\right)} - b}{2 \cdot a}
+\]</div></li><li><p><code title="left to right">lift--.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\left(-\sqrt{\color{blue}{b \cdot b - 4 \cdot \left(a \cdot c\right)}}\right) - b}{2 \cdot a}
+\]</div></li><li><p><code title="left to right">sub-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\left(-\sqrt{\color{blue}{b \cdot b + \left(\mathsf{neg}\left(4 \cdot \left(a \cdot c\right)\right)\right)}}\right) - b}{2 \cdot a}
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\left(-\sqrt{\color{blue}{\left(\mathsf{neg}\left(4 \cdot \left(a \cdot c\right)\right)\right) + b \cdot b}}\right) - b}{2 \cdot a}
+\]</div></li><li><p><code title="left to right">lift-*.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\left(-\sqrt{\left(\mathsf{neg}\left(\color{blue}{4 \cdot \left(a \cdot c\right)}\right)\right) + b \cdot b}\right) - b}{2 \cdot a}
+\]</div></li><li><p><code title="left to right">distribute-lft-neg-in</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\left(-\sqrt{\color{blue}{\left(\mathsf{neg}\left(4\right)\right) \cdot \left(a \cdot c\right)} + b \cdot b}\right) - b}{2 \cdot a}
+\]</div></li><li><p><code title="left to right">lower-fma.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\left(-\sqrt{\color{blue}{\mathsf{fma}\left(\mathsf{neg}\left(4\right), a \cdot c, b \cdot b\right)}}\right) - b}{2 \cdot a}
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ N/A ↓ N/A">82.1</span></p><div class="math">\[\leadsto \frac{\left(-\sqrt{\mathsf{fma}\left(\color{blue}{-4}, a \cdot c, b \cdot b\right)}\right) - b}{2 \cdot a}
+\]</div></li><li><p><code title="left to right">lift-*.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\left(-\sqrt{\mathsf{fma}\left(-4, \color{blue}{a \cdot c}, b \cdot b\right)}\right) - b}{2 \cdot a}
+\]</div></li><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\left(-\sqrt{\mathsf{fma}\left(-4, \color{blue}{c \cdot a}, b \cdot b\right)}\right) - b}{2 \cdot a}
+\]</div></li><li><p><code title="left to right">lower-*.f64</code><span class="error" title=" ↑ N/A ↓ N/A">82.1</span></p><div class="math">\[\leadsto \frac{\left(-\sqrt{\mathsf{fma}\left(-4, \color{blue}{c \cdot a}, b \cdot b\right)}\right) - b}{2 \cdot a}
+\]</div></li></ol></details></div></li><li><p>Applied rewrites<span class="error" title="82.4% on training set">82.1%</span></p><div class="math">\[\leadsto \frac{\color{blue}{\left(-\sqrt{\mathsf{fma}\left(-4, c \cdot a, b \cdot b\right)}\right) - b}}{2 \cdot a}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">lift-/.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{\left(-\sqrt{\mathsf{fma}\left(-4, c \cdot a, b \cdot b\right)}\right) - b}{2 \cdot a}}
+\]</div></li><li><p><code title="left to right">lift--.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\color{blue}{\left(-\sqrt{\mathsf{fma}\left(-4, c \cdot a, b \cdot b\right)}\right) - b}}{2 \cdot a}
+\]</div></li><li><p><code title="left to right">div-sub</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{-\sqrt{\mathsf{fma}\left(-4, c \cdot a, b \cdot b\right)}}{2 \cdot a} - \frac{b}{2 \cdot a}}
+\]</div></li><li><p><code title="left to right">sub-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{-\sqrt{\mathsf{fma}\left(-4, c \cdot a, b \cdot b\right)}}{2 \cdot a} + \left(\mathsf{neg}\left(\frac{b}{2 \cdot a}\right)\right)}
+\]</div></li></ol></details></div></li><li><p>Applied rewrites<span class="error" title="82.4% on training set">82.9%</span></p><div class="math">\[\leadsto \color{blue}{\mathsf{fma}\left(-0.5, \frac{\sqrt{\mathsf{fma}\left(a \cdot c, -4, b \cdot b\right)}}{a}, \frac{b}{-2 \cdot a}\right)}
+\]</div></li></ol><h2><code>if <span class="condition">3.00000000000000012e150 &lt;  b </span></code></h2><ol><li><p>Initial program <span class="error" title="41.9% on training set">52.1%</span></p><div class="math">\[\frac{\left(-b\right) - \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in a around 0</p><div class="math">\[\leadsto \color{blue}{-1 \cdot \frac{b}{a}}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">associate-*r/</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{-1 \cdot b}{a}}
+\]</div></li><li><p><code title="left to right">lower-/.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{-1 \cdot b}{a}}
+\]</div></li><li><p><code title="left to right">mul-1-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\color{blue}{\mathsf{neg}\left(b\right)}}{a}
+\]</div></li><li><p><code title="left to right">lower-neg.f64</code><span class="error" title=" ↑ N/A ↓ N/A">97.1</span></p><div class="math">\[\leadsto \frac{\color{blue}{-b}}{a}
+\]</div></li></ol></details></div></li><li><p>Applied rewrites<span class="error" title="98.3% on training set">97.1%</span></p><div class="math">\[\leadsto \color{blue}{\frac{-b}{a}}
+\]</div></li></ol></li><li class="event">Recombined 4 regimes into one program.</li><li>Add Preprocessing</li></ol></details></section><section id="alternative2" class="programs"><h2>Alternative 2: <span class="subhead"><data>85.7%</data> accurate, <data>0.7×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;b \leq -2.5 \cdot 10^{-35}:\\
+\;\;\;\;\frac{c}{-b}\\
+
+\mathbf{elif}\;b \leq 3 \cdot 10^{+150}:\\
+\;\;\;\;\mathsf{fma}\left(-0.5, \frac{\sqrt{\mathsf{fma}\left(a \cdot c, -4, b \cdot b\right)}}{a}, \frac{b}{-2 \cdot a}\right)\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{-b}{a}\\
+
+
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (a b c)
+ :precision binary64
+ (if (&lt;= b -2.5e-35)
+   (/ c (- b))
+   (if (&lt;= b 3e+150)
+     (fma -0.5 (/ (sqrt (fma (* a c) -4.0 (* b b))) a) (/ b (* -2.0 a)))
+     (/ (- b) a))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double a, double b, double c) {
+	double tmp;
+	if (b &lt;= -2.5e-35) {
+		tmp = c / -b;
+	} else if (b &lt;= 3e+150) {
+		tmp = fma(-0.5, (sqrt(fma((a * c), -4.0, (b * b))) / a), (b / (-2.0 * a)));
+	} else {
+		tmp = -b / a;
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(a, b, c)
+	tmp = 0.0
+	if (b &lt;= -2.5e-35)
+		tmp = Float64(c / Float64(-b));
+	elseif (b &lt;= 3e+150)
+		tmp = fma(-0.5, Float64(sqrt(fma(Float64(a * c), -4.0, Float64(b * b))) / a), Float64(b / Float64(-2.0 * a)));
+	else
+		tmp = Float64(Float64(-b) / a);
+	end
+	return tmp
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[a_, b_, c_] := If[LessEqual[b, -2.5e-35], N[(c / (-b)), $MachinePrecision], If[LessEqual[b, 3e+150], N[(-0.5 * N[(N[Sqrt[N[(N[(a * c), $MachinePrecision] * -4.0 + N[(b * b), $MachinePrecision]), $MachinePrecision]], $MachinePrecision] / a), $MachinePrecision] + N[(b / N[(-2.0 * a), $MachinePrecision]), $MachinePrecision]), $MachinePrecision], N[((-b) / a), $MachinePrecision]]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;b \leq -2.5 \cdot 10^{-35}:\\
+\;\;\;\;\frac{c}{-b}\\
+
+\mathbf{elif}\;b \leq 3 \cdot 10^{+150}:\\
+\;\;\;\;\mathsf{fma}\left(-0.5, \frac{\sqrt{\mathsf{fma}\left(a \cdot c, -4, b \cdot b\right)}}{a}, \frac{b}{-2 \cdot a}\right)\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{-b}{a}\\
+
+
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li class="event">Split input into 3 regimes</li><li><h2><code>if <span class="condition"> b  &lt; -2.49999999999999982e-35</span></code></h2><ol><li><p>Initial program <span class="error" title="15.0% on training set">16.0%</span></p><div class="math">\[\frac{\left(-b\right) - \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in b around -inf</p><div class="math">\[\leadsto \color{blue}{-1 \cdot \frac{c}{b}}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">mul-1-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\mathsf{neg}\left(\frac{c}{b}\right)}
+\]</div></li><li><p><code title="left to right">distribute-neg-frac2</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{c}{\mathsf{neg}\left(b\right)}}
+\]</div></li><li><p><code title="right to left">mul-1-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{c}{\color{blue}{-1 \cdot b}}
+\]</div></li><li><p><code title="left to right">lower-/.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{c}{-1 \cdot b}}
+\]</div></li><li><p><code title="left to right">mul-1-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{c}{\color{blue}{\mathsf{neg}\left(b\right)}}
+\]</div></li><li><p><code title="left to right">lower-neg.f64</code><span class="error" title=" ↑ N/A ↓ N/A">83.4</span></p><div class="math">\[\leadsto \frac{c}{\color{blue}{-b}}
+\]</div></li></ol></details></div></li><li><p>Applied rewrites<span class="error" title="88.0% on training set">83.4%</span></p><div class="math">\[\leadsto \color{blue}{\frac{c}{-b}}
+\]</div></li></ol><h2><code>if <span class="condition">-2.49999999999999982e-35 &lt;  b  &lt; 3.00000000000000012e150</span></code></h2><ol><li><p>Initial program <span class="error" title="79.8% on training set">80.1%</span></p><div class="math">\[\frac{\left(-b\right) - \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li>Add Preprocessing</li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">lift--.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\color{blue}{\left(-b\right) - \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}}{2 \cdot a}
+\]</div></li><li><p><code title="left to right">sub-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\color{blue}{\left(-b\right) + \left(\mathsf{neg}\left(\sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}\right)\right)}}{2 \cdot a}
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\color{blue}{\left(\mathsf{neg}\left(\sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}\right)\right) + \left(-b\right)}}{2 \cdot a}
+\]</div></li><li><p><code title="left to right">lift-neg.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\left(\mathsf{neg}\left(\sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}\right)\right) + \color{blue}{\left(\mathsf{neg}\left(b\right)\right)}}{2 \cdot a}
+\]</div></li><li><p><code title="left to right">unsub-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\color{blue}{\left(\mathsf{neg}\left(\sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}\right)\right) - b}}{2 \cdot a}
+\]</div></li><li><p><code title="left to right">lower--.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\color{blue}{\left(\mathsf{neg}\left(\sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}\right)\right) - b}}{2 \cdot a}
+\]</div></li><li><p><code title="left to right">lower-neg.f64</code><span class="error" title=" ↑ N/A ↓ N/A">80.1</span></p><div class="math">\[\leadsto \frac{\color{blue}{\left(-\sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}\right)} - b}{2 \cdot a}
+\]</div></li><li><p><code title="left to right">lift--.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\left(-\sqrt{\color{blue}{b \cdot b - 4 \cdot \left(a \cdot c\right)}}\right) - b}{2 \cdot a}
+\]</div></li><li><p><code title="left to right">sub-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\left(-\sqrt{\color{blue}{b \cdot b + \left(\mathsf{neg}\left(4 \cdot \left(a \cdot c\right)\right)\right)}}\right) - b}{2 \cdot a}
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\left(-\sqrt{\color{blue}{\left(\mathsf{neg}\left(4 \cdot \left(a \cdot c\right)\right)\right) + b \cdot b}}\right) - b}{2 \cdot a}
+\]</div></li><li><p><code title="left to right">lift-*.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\left(-\sqrt{\left(\mathsf{neg}\left(\color{blue}{4 \cdot \left(a \cdot c\right)}\right)\right) + b \cdot b}\right) - b}{2 \cdot a}
+\]</div></li><li><p><code title="left to right">distribute-lft-neg-in</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\left(-\sqrt{\color{blue}{\left(\mathsf{neg}\left(4\right)\right) \cdot \left(a \cdot c\right)} + b \cdot b}\right) - b}{2 \cdot a}
+\]</div></li><li><p><code title="left to right">lower-fma.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\left(-\sqrt{\color{blue}{\mathsf{fma}\left(\mathsf{neg}\left(4\right), a \cdot c, b \cdot b\right)}}\right) - b}{2 \cdot a}
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ N/A ↓ N/A">80.1</span></p><div class="math">\[\leadsto \frac{\left(-\sqrt{\mathsf{fma}\left(\color{blue}{-4}, a \cdot c, b \cdot b\right)}\right) - b}{2 \cdot a}
+\]</div></li><li><p><code title="left to right">lift-*.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\left(-\sqrt{\mathsf{fma}\left(-4, \color{blue}{a \cdot c}, b \cdot b\right)}\right) - b}{2 \cdot a}
+\]</div></li><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\left(-\sqrt{\mathsf{fma}\left(-4, \color{blue}{c \cdot a}, b \cdot b\right)}\right) - b}{2 \cdot a}
+\]</div></li><li><p><code title="left to right">lower-*.f64</code><span class="error" title=" ↑ N/A ↓ N/A">80.1</span></p><div class="math">\[\leadsto \frac{\left(-\sqrt{\mathsf{fma}\left(-4, \color{blue}{c \cdot a}, b \cdot b\right)}\right) - b}{2 \cdot a}
+\]</div></li></ol></details></div></li><li><p>Applied rewrites<span class="error" title="79.8% on training set">80.1%</span></p><div class="math">\[\leadsto \frac{\color{blue}{\left(-\sqrt{\mathsf{fma}\left(-4, c \cdot a, b \cdot b\right)}\right) - b}}{2 \cdot a}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">lift-/.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{\left(-\sqrt{\mathsf{fma}\left(-4, c \cdot a, b \cdot b\right)}\right) - b}{2 \cdot a}}
+\]</div></li><li><p><code title="left to right">lift--.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\color{blue}{\left(-\sqrt{\mathsf{fma}\left(-4, c \cdot a, b \cdot b\right)}\right) - b}}{2 \cdot a}
+\]</div></li><li><p><code title="left to right">div-sub</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{-\sqrt{\mathsf{fma}\left(-4, c \cdot a, b \cdot b\right)}}{2 \cdot a} - \frac{b}{2 \cdot a}}
+\]</div></li><li><p><code title="left to right">sub-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{-\sqrt{\mathsf{fma}\left(-4, c \cdot a, b \cdot b\right)}}{2 \cdot a} + \left(\mathsf{neg}\left(\frac{b}{2 \cdot a}\right)\right)}
+\]</div></li></ol></details></div></li><li><p>Applied rewrites<span class="error" title="79.8% on training set">80.8%</span></p><div class="math">\[\leadsto \color{blue}{\mathsf{fma}\left(-0.5, \frac{\sqrt{\mathsf{fma}\left(a \cdot c, -4, b \cdot b\right)}}{a}, \frac{b}{-2 \cdot a}\right)}
+\]</div></li></ol><h2><code>if <span class="condition">3.00000000000000012e150 &lt;  b </span></code></h2><ol><li><p>Initial program <span class="error" title="41.9% on training set">52.1%</span></p><div class="math">\[\frac{\left(-b\right) - \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in a around 0</p><div class="math">\[\leadsto \color{blue}{-1 \cdot \frac{b}{a}}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">associate-*r/</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{-1 \cdot b}{a}}
+\]</div></li><li><p><code title="left to right">lower-/.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{-1 \cdot b}{a}}
+\]</div></li><li><p><code title="left to right">mul-1-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\color{blue}{\mathsf{neg}\left(b\right)}}{a}
+\]</div></li><li><p><code title="left to right">lower-neg.f64</code><span class="error" title=" ↑ N/A ↓ N/A">97.1</span></p><div class="math">\[\leadsto \frac{\color{blue}{-b}}{a}
+\]</div></li></ol></details></div></li><li><p>Applied rewrites<span class="error" title="98.3% on training set">97.1%</span></p><div class="math">\[\leadsto \color{blue}{\frac{-b}{a}}
+\]</div></li></ol></li><li class="event">Recombined 3 regimes into one program.</li><li>Add Preprocessing</li></ol></details></section><section id="alternative3" class="programs"><h2>Alternative 3: <span class="subhead"><data>85.7%</data> accurate, <data>0.8×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;b \leq -2.5 \cdot 10^{-35}:\\
+\;\;\;\;\frac{c}{-b}\\
+
+\mathbf{elif}\;b \leq 2 \cdot 10^{+115}:\\
+\;\;\;\;\frac{\sqrt{\mathsf{fma}\left(-4, c \cdot a, b \cdot b\right)} + b}{2 \cdot \left(-a\right)}\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{c}{b} - \frac{b}{a}\\
+
+
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (a b c)
+ :precision binary64
+ (if (&lt;= b -2.5e-35)
+   (/ c (- b))
+   (if (&lt;= b 2e+115)
+     (/ (+ (sqrt (fma -4.0 (* c a) (* b b))) b) (* 2.0 (- a)))
+     (- (/ c b) (/ b a)))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double a, double b, double c) {
+	double tmp;
+	if (b &lt;= -2.5e-35) {
+		tmp = c / -b;
+	} else if (b &lt;= 2e+115) {
+		tmp = (sqrt(fma(-4.0, (c * a), (b * b))) + b) / (2.0 * -a);
+	} else {
+		tmp = (c / b) - (b / a);
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(a, b, c)
+	tmp = 0.0
+	if (b &lt;= -2.5e-35)
+		tmp = Float64(c / Float64(-b));
+	elseif (b &lt;= 2e+115)
+		tmp = Float64(Float64(sqrt(fma(-4.0, Float64(c * a), Float64(b * b))) + b) / Float64(2.0 * Float64(-a)));
+	else
+		tmp = Float64(Float64(c / b) - Float64(b / a));
+	end
+	return tmp
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[a_, b_, c_] := If[LessEqual[b, -2.5e-35], N[(c / (-b)), $MachinePrecision], If[LessEqual[b, 2e+115], N[(N[(N[Sqrt[N[(-4.0 * N[(c * a), $MachinePrecision] + N[(b * b), $MachinePrecision]), $MachinePrecision]], $MachinePrecision] + b), $MachinePrecision] / N[(2.0 * (-a)), $MachinePrecision]), $MachinePrecision], N[(N[(c / b), $MachinePrecision] - N[(b / a), $MachinePrecision]), $MachinePrecision]]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;b \leq -2.5 \cdot 10^{-35}:\\
+\;\;\;\;\frac{c}{-b}\\
+
+\mathbf{elif}\;b \leq 2 \cdot 10^{+115}:\\
+\;\;\;\;\frac{\sqrt{\mathsf{fma}\left(-4, c \cdot a, b \cdot b\right)} + b}{2 \cdot \left(-a\right)}\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{c}{b} - \frac{b}{a}\\
+
+
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li class="event">Split input into 3 regimes</li><li><h2><code>if <span class="condition"> b  &lt; -2.49999999999999982e-35</span></code></h2><ol><li><p>Initial program <span class="error" title="15.0% on training set">16.0%</span></p><div class="math">\[\frac{\left(-b\right) - \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in b around -inf</p><div class="math">\[\leadsto \color{blue}{-1 \cdot \frac{c}{b}}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">mul-1-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\mathsf{neg}\left(\frac{c}{b}\right)}
+\]</div></li><li><p><code title="left to right">distribute-neg-frac2</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{c}{\mathsf{neg}\left(b\right)}}
+\]</div></li><li><p><code title="right to left">mul-1-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{c}{\color{blue}{-1 \cdot b}}
+\]</div></li><li><p><code title="left to right">lower-/.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{c}{-1 \cdot b}}
+\]</div></li><li><p><code title="left to right">mul-1-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{c}{\color{blue}{\mathsf{neg}\left(b\right)}}
+\]</div></li><li><p><code title="left to right">lower-neg.f64</code><span class="error" title=" ↑ N/A ↓ N/A">83.4</span></p><div class="math">\[\leadsto \frac{c}{\color{blue}{-b}}
+\]</div></li></ol></details></div></li><li><p>Applied rewrites<span class="error" title="88.0% on training set">83.4%</span></p><div class="math">\[\leadsto \color{blue}{\frac{c}{-b}}
+\]</div></li></ol><h2><code>if <span class="condition">-2.49999999999999982e-35 &lt;  b  &lt; 2e115</span></code></h2><ol><li><p>Initial program <span class="error" title="78.6% on training set">78.6%</span></p><div class="math">\[\frac{\left(-b\right) - \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li>Add Preprocessing</li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">lift--.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\color{blue}{\left(-b\right) - \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}}{2 \cdot a}
+\]</div></li><li><p><code title="left to right">sub-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\color{blue}{\left(-b\right) + \left(\mathsf{neg}\left(\sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}\right)\right)}}{2 \cdot a}
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\color{blue}{\left(\mathsf{neg}\left(\sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}\right)\right) + \left(-b\right)}}{2 \cdot a}
+\]</div></li><li><p><code title="left to right">lift-neg.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\left(\mathsf{neg}\left(\sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}\right)\right) + \color{blue}{\left(\mathsf{neg}\left(b\right)\right)}}{2 \cdot a}
+\]</div></li><li><p><code title="left to right">unsub-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\color{blue}{\left(\mathsf{neg}\left(\sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}\right)\right) - b}}{2 \cdot a}
+\]</div></li><li><p><code title="left to right">lower--.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\color{blue}{\left(\mathsf{neg}\left(\sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}\right)\right) - b}}{2 \cdot a}
+\]</div></li><li><p><code title="left to right">lower-neg.f64</code><span class="error" title=" ↑ N/A ↓ N/A">78.6</span></p><div class="math">\[\leadsto \frac{\color{blue}{\left(-\sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}\right)} - b}{2 \cdot a}
+\]</div></li><li><p><code title="left to right">lift--.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\left(-\sqrt{\color{blue}{b \cdot b - 4 \cdot \left(a \cdot c\right)}}\right) - b}{2 \cdot a}
+\]</div></li><li><p><code title="left to right">sub-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\left(-\sqrt{\color{blue}{b \cdot b + \left(\mathsf{neg}\left(4 \cdot \left(a \cdot c\right)\right)\right)}}\right) - b}{2 \cdot a}
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\left(-\sqrt{\color{blue}{\left(\mathsf{neg}\left(4 \cdot \left(a \cdot c\right)\right)\right) + b \cdot b}}\right) - b}{2 \cdot a}
+\]</div></li><li><p><code title="left to right">lift-*.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\left(-\sqrt{\left(\mathsf{neg}\left(\color{blue}{4 \cdot \left(a \cdot c\right)}\right)\right) + b \cdot b}\right) - b}{2 \cdot a}
+\]</div></li><li><p><code title="left to right">distribute-lft-neg-in</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\left(-\sqrt{\color{blue}{\left(\mathsf{neg}\left(4\right)\right) \cdot \left(a \cdot c\right)} + b \cdot b}\right) - b}{2 \cdot a}
+\]</div></li><li><p><code title="left to right">lower-fma.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\left(-\sqrt{\color{blue}{\mathsf{fma}\left(\mathsf{neg}\left(4\right), a \cdot c, b \cdot b\right)}}\right) - b}{2 \cdot a}
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ N/A ↓ N/A">78.6</span></p><div class="math">\[\leadsto \frac{\left(-\sqrt{\mathsf{fma}\left(\color{blue}{-4}, a \cdot c, b \cdot b\right)}\right) - b}{2 \cdot a}
+\]</div></li><li><p><code title="left to right">lift-*.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\left(-\sqrt{\mathsf{fma}\left(-4, \color{blue}{a \cdot c}, b \cdot b\right)}\right) - b}{2 \cdot a}
+\]</div></li><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\left(-\sqrt{\mathsf{fma}\left(-4, \color{blue}{c \cdot a}, b \cdot b\right)}\right) - b}{2 \cdot a}
+\]</div></li><li><p><code title="left to right">lower-*.f64</code><span class="error" title=" ↑ N/A ↓ N/A">78.6</span></p><div class="math">\[\leadsto \frac{\left(-\sqrt{\mathsf{fma}\left(-4, \color{blue}{c \cdot a}, b \cdot b\right)}\right) - b}{2 \cdot a}
+\]</div></li></ol></details></div></li><li><p>Applied rewrites<span class="error" title="78.6% on training set">78.6%</span></p><div class="math">\[\leadsto \frac{\color{blue}{\left(-\sqrt{\mathsf{fma}\left(-4, c \cdot a, b \cdot b\right)}\right) - b}}{2 \cdot a}
+\]</div></li></ol><h2><code>if <span class="condition">2e115 &lt;  b </span></code></h2><ol><li><p>Initial program <span class="error" title="51.4% on training set">62.6%</span></p><div class="math">\[\frac{\left(-b\right) - \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in c around 0</p><div class="math">\[\leadsto \color{blue}{-1 \cdot \frac{b}{a} + \frac{c}{b}}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{c}{b} + -1 \cdot \frac{b}{a}}
+\]</div></li><li><p><code title="left to right">mul-1-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{c}{b} + \color{blue}{\left(\mathsf{neg}\left(\frac{b}{a}\right)\right)}
+\]</div></li><li><p><code title="left to right">unsub-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{c}{b} - \frac{b}{a}}
+\]</div></li><li><p><code title="left to right">lower--.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{c}{b} - \frac{b}{a}}
+\]</div></li><li><p><code title="left to right">lower-/.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{c}{b}} - \frac{b}{a}
+\]</div></li><li><p><code title="left to right">lower-/.f64</code><span class="error" title=" ↑ N/A ↓ N/A">97.7</span></p><div class="math">\[\leadsto \frac{c}{b} - \color{blue}{\frac{b}{a}}
+\]</div></li></ol></details></div></li><li><p>Applied rewrites<span class="error" title="97.5% on training set">97.7%</span></p><div class="math">\[\leadsto \color{blue}{\frac{c}{b} - \frac{b}{a}}
+\]</div></li></ol></li><li class="event">Recombined 3 regimes into one program.</li><li><p>Final simplification<span class="error" title="85.7% on training set">83.4%</span></p><div class="math">\[\leadsto \begin{array}{l}
+\mathbf{if}\;b \leq -2.5 \cdot 10^{-35}:\\
+\;\;\;\;\frac{c}{-b}\\
+
+\mathbf{elif}\;b \leq 2 \cdot 10^{+115}:\\
+\;\;\;\;\frac{\sqrt{\mathsf{fma}\left(-4, c \cdot a, b \cdot b\right)} + b}{2 \cdot \left(-a\right)}\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{c}{b} - \frac{b}{a}\\
+
+
+\end{array}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative4" class="programs"><h2>Alternative 4: <span class="subhead"><data>81.0%</data> accurate, <data>0.9×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;b \leq -2.15 \cdot 10^{-35}:\\
+\;\;\;\;\frac{c}{-b}\\
+
+\mathbf{elif}\;b \leq 1.22 \cdot 10^{-70}:\\
+\;\;\;\;\frac{b + \sqrt{-4 \cdot \left(c \cdot a\right)}}{2 \cdot \left(-a\right)}\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{c}{b} - \frac{b}{a}\\
+
+
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (a b c)
+ :precision binary64
+ (if (&lt;= b -2.15e-35)
+   (/ c (- b))
+   (if (&lt;= b 1.22e-70)
+     (/ (+ b (sqrt (* -4.0 (* c a)))) (* 2.0 (- a)))
+     (- (/ c b) (/ b a)))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double a, double b, double c) {
+	double tmp;
+	if (b &lt;= -2.15e-35) {
+		tmp = c / -b;
+	} else if (b &lt;= 1.22e-70) {
+		tmp = (b + sqrt((-4.0 * (c * a)))) / (2.0 * -a);
+	} else {
+		tmp = (c / b) - (b / a);
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(a, b, c)
+    real(8), intent (in) :: a
+    real(8), intent (in) :: b
+    real(8), intent (in) :: c
+    real(8) :: tmp
+    if (b &lt;= (-2.15d-35)) then
+        tmp = c / -b
+    else if (b &lt;= 1.22d-70) then
+        tmp = (b + sqrt(((-4.0d0) * (c * a)))) / (2.0d0 * -a)
+    else
+        tmp = (c / b) - (b / a)
+    end if
+    code = tmp
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double a, double b, double c) {
+	double tmp;
+	if (b &lt;= -2.15e-35) {
+		tmp = c / -b;
+	} else if (b &lt;= 1.22e-70) {
+		tmp = (b + Math.sqrt((-4.0 * (c * a)))) / (2.0 * -a);
+	} else {
+		tmp = (c / b) - (b / a);
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(a, b, c):
+	tmp = 0
+	if b &lt;= -2.15e-35:
+		tmp = c / -b
+	elif b &lt;= 1.22e-70:
+		tmp = (b + math.sqrt((-4.0 * (c * a)))) / (2.0 * -a)
+	else:
+		tmp = (c / b) - (b / a)
+	return tmp
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(a, b, c)
+	tmp = 0.0
+	if (b &lt;= -2.15e-35)
+		tmp = Float64(c / Float64(-b));
+	elseif (b &lt;= 1.22e-70)
+		tmp = Float64(Float64(b + sqrt(Float64(-4.0 * Float64(c * a)))) / Float64(2.0 * Float64(-a)));
+	else
+		tmp = Float64(Float64(c / b) - Float64(b / a));
+	end
+	return tmp
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp_2 = code(a, b, c)
+	tmp = 0.0;
+	if (b &lt;= -2.15e-35)
+		tmp = c / -b;
+	elseif (b &lt;= 1.22e-70)
+		tmp = (b + sqrt((-4.0 * (c * a)))) / (2.0 * -a);
+	else
+		tmp = (c / b) - (b / a);
+	end
+	tmp_2 = tmp;
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[a_, b_, c_] := If[LessEqual[b, -2.15e-35], N[(c / (-b)), $MachinePrecision], If[LessEqual[b, 1.22e-70], N[(N[(b + N[Sqrt[N[(-4.0 * N[(c * a), $MachinePrecision]), $MachinePrecision]], $MachinePrecision]), $MachinePrecision] / N[(2.0 * (-a)), $MachinePrecision]), $MachinePrecision], N[(N[(c / b), $MachinePrecision] - N[(b / a), $MachinePrecision]), $MachinePrecision]]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;b \leq -2.15 \cdot 10^{-35}:\\
+\;\;\;\;\frac{c}{-b}\\
+
+\mathbf{elif}\;b \leq 1.22 \cdot 10^{-70}:\\
+\;\;\;\;\frac{b + \sqrt{-4 \cdot \left(c \cdot a\right)}}{2 \cdot \left(-a\right)}\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{c}{b} - \frac{b}{a}\\
+
+
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li class="event">Split input into 3 regimes</li><li><h2><code>if <span class="condition"> b  &lt; -2.1500000000000001e-35</span></code></h2><ol><li><p>Initial program <span class="error" title="15.0% on training set">16.0%</span></p><div class="math">\[\frac{\left(-b\right) - \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in b around -inf</p><div class="math">\[\leadsto \color{blue}{-1 \cdot \frac{c}{b}}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">mul-1-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\mathsf{neg}\left(\frac{c}{b}\right)}
+\]</div></li><li><p><code title="left to right">distribute-neg-frac2</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{c}{\mathsf{neg}\left(b\right)}}
+\]</div></li><li><p><code title="right to left">mul-1-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{c}{\color{blue}{-1 \cdot b}}
+\]</div></li><li><p><code title="left to right">lower-/.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{c}{-1 \cdot b}}
+\]</div></li><li><p><code title="left to right">mul-1-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{c}{\color{blue}{\mathsf{neg}\left(b\right)}}
+\]</div></li><li><p><code title="left to right">lower-neg.f64</code><span class="error" title=" ↑ N/A ↓ N/A">83.4</span></p><div class="math">\[\leadsto \frac{c}{\color{blue}{-b}}
+\]</div></li></ol></details></div></li><li><p>Applied rewrites<span class="error" title="88.0% on training set">83.4%</span></p><div class="math">\[\leadsto \color{blue}{\frac{c}{-b}}
+\]</div></li></ol><h2><code>if <span class="condition">-2.1500000000000001e-35 &lt;  b  &lt; 1.22e-70</span></code></h2><ol><li><p>Initial program <span class="error" title="71.0% on training set">73.2%</span></p><div class="math">\[\frac{\left(-b\right) - \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in a around inf</p><div class="math">\[\leadsto \frac{\left(-b\right) - \sqrt{\color{blue}{-4 \cdot \left(a \cdot c\right)}}}{2 \cdot a}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">lower-*.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\left(-b\right) - \sqrt{\color{blue}{-4 \cdot \left(a \cdot c\right)}}}{2 \cdot a}
+\]</div></li><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\left(-b\right) - \sqrt{-4 \cdot \color{blue}{\left(c \cdot a\right)}}}{2 \cdot a}
+\]</div></li><li><p><code title="left to right">lower-*.f64</code><span class="error" title=" ↑ N/A ↓ N/A">67.5</span></p><div class="math">\[\leadsto \frac{\left(-b\right) - \sqrt{-4 \cdot \color{blue}{\left(c \cdot a\right)}}}{2 \cdot a}
+\]</div></li></ol></details></div></li><li><p>Applied rewrites<span class="error" title="65.4% on training set">67.5%</span></p><div class="math">\[\leadsto \frac{\left(-b\right) - \sqrt{\color{blue}{-4 \cdot \left(c \cdot a\right)}}}{2 \cdot a}
+\]</div></li></ol><h2><code>if <span class="condition">1.22e-70 &lt;  b </span></code></h2><ol><li><p>Initial program <span class="error" title="69.5% on training set">75.9%</span></p><div class="math">\[\frac{\left(-b\right) - \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in c around 0</p><div class="math">\[\leadsto \color{blue}{-1 \cdot \frac{b}{a} + \frac{c}{b}}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{c}{b} + -1 \cdot \frac{b}{a}}
+\]</div></li><li><p><code title="left to right">mul-1-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{c}{b} + \color{blue}{\left(\mathsf{neg}\left(\frac{b}{a}\right)\right)}
+\]</div></li><li><p><code title="left to right">unsub-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{c}{b} - \frac{b}{a}}
+\]</div></li><li><p><code title="left to right">lower--.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{c}{b} - \frac{b}{a}}
+\]</div></li><li><p><code title="left to right">lower-/.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{c}{b}} - \frac{b}{a}
+\]</div></li><li><p><code title="left to right">lower-/.f64</code><span class="error" title=" ↑ N/A ↓ N/A">84.4</span></p><div class="math">\[\leadsto \frac{c}{b} - \color{blue}{\frac{b}{a}}
+\]</div></li></ol></details></div></li><li><p>Applied rewrites<span class="error" title="87.3% on training set">84.4%</span></p><div class="math">\[\leadsto \color{blue}{\frac{c}{b} - \frac{b}{a}}
+\]</div></li></ol></li><li class="event">Recombined 3 regimes into one program.</li><li><p>Final simplification<span class="error" title="81.0% on training set">78.4%</span></p><div class="math">\[\leadsto \begin{array}{l}
+\mathbf{if}\;b \leq -2.15 \cdot 10^{-35}:\\
+\;\;\;\;\frac{c}{-b}\\
+
+\mathbf{elif}\;b \leq 1.22 \cdot 10^{-70}:\\
+\;\;\;\;\frac{b + \sqrt{-4 \cdot \left(c \cdot a\right)}}{2 \cdot \left(-a\right)}\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{c}{b} - \frac{b}{a}\\
+
+
+\end{array}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative5" class="programs"><h2>Alternative 5: <span class="subhead"><data>68.6%</data> accurate, <data>1.6×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;b \leq -5 \cdot 10^{-310}:\\
+\;\;\;\;\frac{c}{-b}\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{c}{b} - \frac{b}{a}\\
+
+
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (a b c)
+ :precision binary64
+ (if (&lt;= b -5e-310) (/ c (- b)) (- (/ c b) (/ b a))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double a, double b, double c) {
+	double tmp;
+	if (b &lt;= -5e-310) {
+		tmp = c / -b;
+	} else {
+		tmp = (c / b) - (b / a);
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(a, b, c)
+    real(8), intent (in) :: a
+    real(8), intent (in) :: b
+    real(8), intent (in) :: c
+    real(8) :: tmp
+    if (b &lt;= (-5d-310)) then
+        tmp = c / -b
+    else
+        tmp = (c / b) - (b / a)
+    end if
+    code = tmp
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double a, double b, double c) {
+	double tmp;
+	if (b &lt;= -5e-310) {
+		tmp = c / -b;
+	} else {
+		tmp = (c / b) - (b / a);
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(a, b, c):
+	tmp = 0
+	if b &lt;= -5e-310:
+		tmp = c / -b
+	else:
+		tmp = (c / b) - (b / a)
+	return tmp
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(a, b, c)
+	tmp = 0.0
+	if (b &lt;= -5e-310)
+		tmp = Float64(c / Float64(-b));
+	else
+		tmp = Float64(Float64(c / b) - Float64(b / a));
+	end
+	return tmp
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp_2 = code(a, b, c)
+	tmp = 0.0;
+	if (b &lt;= -5e-310)
+		tmp = c / -b;
+	else
+		tmp = (c / b) - (b / a);
+	end
+	tmp_2 = tmp;
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[a_, b_, c_] := If[LessEqual[b, -5e-310], N[(c / (-b)), $MachinePrecision], N[(N[(c / b), $MachinePrecision] - N[(b / a), $MachinePrecision]), $MachinePrecision]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;b \leq -5 \cdot 10^{-310}:\\
+\;\;\;\;\frac{c}{-b}\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{c}{b} - \frac{b}{a}\\
+
+
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li class="event">Split input into 2 regimes</li><li><h2><code>if <span class="condition"> b  &lt; -4.999999999999985e-310</span></code></h2><ol><li><p>Initial program <span class="error" title="30.7% on training set">31.3%</span></p><div class="math">\[\frac{\left(-b\right) - \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in b around -inf</p><div class="math">\[\leadsto \color{blue}{-1 \cdot \frac{c}{b}}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">mul-1-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\mathsf{neg}\left(\frac{c}{b}\right)}
+\]</div></li><li><p><code title="left to right">distribute-neg-frac2</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{c}{\mathsf{neg}\left(b\right)}}
+\]</div></li><li><p><code title="right to left">mul-1-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{c}{\color{blue}{-1 \cdot b}}
+\]</div></li><li><p><code title="left to right">lower-/.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{c}{-1 \cdot b}}
+\]</div></li><li><p><code title="left to right">mul-1-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{c}{\color{blue}{\mathsf{neg}\left(b\right)}}
+\]</div></li><li><p><code title="left to right">lower-neg.f64</code><span class="error" title=" ↑ N/A ↓ N/A">63.0</span></p><div class="math">\[\leadsto \frac{c}{\color{blue}{-b}}
+\]</div></li></ol></details></div></li><li><p>Applied rewrites<span class="error" title="67.8% on training set">63.0%</span></p><div class="math">\[\leadsto \color{blue}{\frac{c}{-b}}
+\]</div></li></ol><h2><code>if <span class="condition">-4.999999999999985e-310 &lt;  b </span></code></h2><ol><li><p>Initial program <span class="error" title="72.5% on training set">80.9%</span></p><div class="math">\[\frac{\left(-b\right) - \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in c around 0</p><div class="math">\[\leadsto \color{blue}{-1 \cdot \frac{b}{a} + \frac{c}{b}}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{c}{b} + -1 \cdot \frac{b}{a}}
+\]</div></li><li><p><code title="left to right">mul-1-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{c}{b} + \color{blue}{\left(\mathsf{neg}\left(\frac{b}{a}\right)\right)}
+\]</div></li><li><p><code title="left to right">unsub-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{c}{b} - \frac{b}{a}}
+\]</div></li><li><p><code title="left to right">lower--.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{c}{b} - \frac{b}{a}}
+\]</div></li><li><p><code title="left to right">lower-/.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{c}{b}} - \frac{b}{a}
+\]</div></li><li><p><code title="left to right">lower-/.f64</code><span class="error" title=" ↑ N/A ↓ N/A">62.0</span></p><div class="math">\[\leadsto \frac{c}{b} - \color{blue}{\frac{b}{a}}
+\]</div></li></ol></details></div></li><li><p>Applied rewrites<span class="error" title="69.4% on training set">62.0%</span></p><div class="math">\[\leadsto \color{blue}{\frac{c}{b} - \frac{b}{a}}
+\]</div></li></ol></li><li class="event">Recombined 2 regimes into one program.</li><li>Add Preprocessing</li></ol></details></section><section id="alternative6" class="programs"><h2>Alternative 6: <span class="subhead"><data>68.4%</data> accurate, <data>2.5×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;b \leq -1.45 \cdot 10^{-287}:\\
+\;\;\;\;\frac{c}{-b}\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{-b}{a}\\
+
+
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (a b c)
+ :precision binary64
+ (if (&lt;= b -1.45e-287) (/ c (- b)) (/ (- b) a)))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double a, double b, double c) {
+	double tmp;
+	if (b &lt;= -1.45e-287) {
+		tmp = c / -b;
+	} else {
+		tmp = -b / a;
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(a, b, c)
+    real(8), intent (in) :: a
+    real(8), intent (in) :: b
+    real(8), intent (in) :: c
+    real(8) :: tmp
+    if (b &lt;= (-1.45d-287)) then
+        tmp = c / -b
+    else
+        tmp = -b / a
+    end if
+    code = tmp
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double a, double b, double c) {
+	double tmp;
+	if (b &lt;= -1.45e-287) {
+		tmp = c / -b;
+	} else {
+		tmp = -b / a;
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(a, b, c):
+	tmp = 0
+	if b &lt;= -1.45e-287:
+		tmp = c / -b
+	else:
+		tmp = -b / a
+	return tmp
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(a, b, c)
+	tmp = 0.0
+	if (b &lt;= -1.45e-287)
+		tmp = Float64(c / Float64(-b));
+	else
+		tmp = Float64(Float64(-b) / a);
+	end
+	return tmp
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp_2 = code(a, b, c)
+	tmp = 0.0;
+	if (b &lt;= -1.45e-287)
+		tmp = c / -b;
+	else
+		tmp = -b / a;
+	end
+	tmp_2 = tmp;
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[a_, b_, c_] := If[LessEqual[b, -1.45e-287], N[(c / (-b)), $MachinePrecision], N[((-b) / a), $MachinePrecision]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;b \leq -1.45 \cdot 10^{-287}:\\
+\;\;\;\;\frac{c}{-b}\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{-b}{a}\\
+
+
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li class="event">Split input into 2 regimes</li><li><h2><code>if <span class="condition"> b  &lt; -1.4499999999999999e-287</span></code></h2><ol><li><p>Initial program <span class="error" title="29.9% on training set">30.8%</span></p><div class="math">\[\frac{\left(-b\right) - \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in b around -inf</p><div class="math">\[\leadsto \color{blue}{-1 \cdot \frac{c}{b}}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">mul-1-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\mathsf{neg}\left(\frac{c}{b}\right)}
+\]</div></li><li><p><code title="left to right">distribute-neg-frac2</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{c}{\mathsf{neg}\left(b\right)}}
+\]</div></li><li><p><code title="right to left">mul-1-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{c}{\color{blue}{-1 \cdot b}}
+\]</div></li><li><p><code title="left to right">lower-/.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{c}{-1 \cdot b}}
+\]</div></li><li><p><code title="left to right">mul-1-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{c}{\color{blue}{\mathsf{neg}\left(b\right)}}
+\]</div></li><li><p><code title="left to right">lower-neg.f64</code><span class="error" title=" ↑ N/A ↓ N/A">63.4</span></p><div class="math">\[\leadsto \frac{c}{\color{blue}{-b}}
+\]</div></li></ol></details></div></li><li><p>Applied rewrites<span class="error" title="69.1% on training set">63.4%</span></p><div class="math">\[\leadsto \color{blue}{\frac{c}{-b}}
+\]</div></li></ol><h2><code>if <span class="condition">-1.4499999999999999e-287 &lt;  b </span></code></h2><ol><li><p>Initial program <span class="error" title="72.5% on training set">81.1%</span></p><div class="math">\[\frac{\left(-b\right) - \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in a around 0</p><div class="math">\[\leadsto \color{blue}{-1 \cdot \frac{b}{a}}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">associate-*r/</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{-1 \cdot b}{a}}
+\]</div></li><li><p><code title="left to right">lower-/.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{-1 \cdot b}{a}}
+\]</div></li><li><p><code title="left to right">mul-1-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\color{blue}{\mathsf{neg}\left(b\right)}}{a}
+\]</div></li><li><p><code title="left to right">lower-neg.f64</code><span class="error" title=" ↑ N/A ↓ N/A">61.3</span></p><div class="math">\[\leadsto \frac{\color{blue}{-b}}{a}
+\]</div></li></ol></details></div></li><li><p>Applied rewrites<span class="error" title="67.8% on training set">61.3%</span></p><div class="math">\[\leadsto \color{blue}{\frac{-b}{a}}
+\]</div></li></ol></li><li class="event">Recombined 2 regimes into one program.</li><li>Add Preprocessing</li></ol></details></section><section id="alternative7" class="programs"><h2>Alternative 7: <span class="subhead"><data>35.0%</data> accurate, <data>3.6×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\frac{c}{-b}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (a b c) :precision binary64 (/ c (- b)))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double a, double b, double c) {
+	return c / -b;
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(a, b, c)
+    real(8), intent (in) :: a
+    real(8), intent (in) :: b
+    real(8), intent (in) :: c
+    code = c / -b
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double a, double b, double c) {
+	return c / -b;
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(a, b, c):
+	return c / -b
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(a, b, c)
+	return Float64(c / Float64(-b))
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp = code(a, b, c)
+	tmp = c / -b;
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[a_, b_, c_] := N[(c / (-b)), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\frac{c}{-b}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="51.6% on training set">52.8%</span></p><div class="math">\[\frac{\left(-b\right) - \sqrt{b \cdot b - 4 \cdot \left(a \cdot c\right)}}{2 \cdot a}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in b around -inf</p><div class="math">\[\leadsto \color{blue}{-1 \cdot \frac{c}{b}}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">mul-1-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\mathsf{neg}\left(\frac{c}{b}\right)}
+\]</div></li><li><p><code title="left to right">distribute-neg-frac2</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{c}{\mathsf{neg}\left(b\right)}}
+\]</div></li><li><p><code title="right to left">mul-1-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{c}{\color{blue}{-1 \cdot b}}
+\]</div></li><li><p><code title="left to right">lower-/.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{c}{-1 \cdot b}}
+\]</div></li><li><p><code title="left to right">mul-1-neg</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{c}{\color{blue}{\mathsf{neg}\left(b\right)}}
+\]</div></li><li><p><code title="left to right">lower-neg.f64</code><span class="error" title=" ↑ N/A ↓ N/A">36.7</span></p><div class="math">\[\leadsto \frac{c}{\color{blue}{-b}}
+\]</div></li></ol></details></div></li><li><p>Applied rewrites<span class="error" title="35.0% on training set">36.7%</span></p><div class="math">\[\leadsto \color{blue}{\frac{c}{-b}}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="target1" class="programs"><h2>Developer Target 1: <span class="subhead"><data>99.7%</data> accurate, <data>0.2×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#target" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+t_0 := \left|\frac{b}{2}\right|\\
+t_1 := \sqrt{\left|a\right|} \cdot \sqrt{\left|c\right|}\\
+t_2 := \begin{array}{l}
+\mathbf{if}\;\mathsf{copysign}\left(a, c\right) = a:\\
+\;\;\;\;\sqrt{t\_0 - t\_1} \cdot \sqrt{t\_0 + t\_1}\\
+
+\mathbf{else}:\\
+\;\;\;\;\mathsf{hypot}\left(\frac{b}{2}, t\_1\right)\\
+
+
+\end{array}\\
+\mathbf{if}\;b &lt; 0:\\
+\;\;\;\;\frac{c}{t\_2 - \frac{b}{2}}\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{\frac{b}{2} + t\_2}{-a}\\
+
+
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (a b c)
+ :precision binary64
+ (let* ((t_0 (fabs (/ b 2.0)))
+        (t_1 (* (sqrt (fabs a)) (sqrt (fabs c))))
+        (t_2
+         (if (== (copysign a c) a)
+           (* (sqrt (- t_0 t_1)) (sqrt (+ t_0 t_1)))
+           (hypot (/ b 2.0) t_1))))
+   (if (&lt; b 0.0) (/ c (- t_2 (/ b 2.0))) (/ (+ (/ b 2.0) t_2) (- a)))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double a, double b, double c) {
+	double t_0 = fabs((b / 2.0));
+	double t_1 = sqrt(fabs(a)) * sqrt(fabs(c));
+	double tmp;
+	if (copysign(a, c) == a) {
+		tmp = sqrt((t_0 - t_1)) * sqrt((t_0 + t_1));
+	} else {
+		tmp = hypot((b / 2.0), t_1);
+	}
+	double t_2 = tmp;
+	double tmp_1;
+	if (b &lt; 0.0) {
+		tmp_1 = c / (t_2 - (b / 2.0));
+	} else {
+		tmp_1 = ((b / 2.0) + t_2) / -a;
+	}
+	return tmp_1;
+}
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double a, double b, double c) {
+	double t_0 = Math.abs((b / 2.0));
+	double t_1 = Math.sqrt(Math.abs(a)) * Math.sqrt(Math.abs(c));
+	double tmp;
+	if (Math.copySign(a, c) == a) {
+		tmp = Math.sqrt((t_0 - t_1)) * Math.sqrt((t_0 + t_1));
+	} else {
+		tmp = Math.hypot((b / 2.0), t_1);
+	}
+	double t_2 = tmp;
+	double tmp_1;
+	if (b &lt; 0.0) {
+		tmp_1 = c / (t_2 - (b / 2.0));
+	} else {
+		tmp_1 = ((b / 2.0) + t_2) / -a;
+	}
+	return tmp_1;
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(a, b, c):
+	t_0 = math.fabs((b / 2.0))
+	t_1 = math.sqrt(math.fabs(a)) * math.sqrt(math.fabs(c))
+	tmp = 0
+	if math.copysign(a, c) == a:
+		tmp = math.sqrt((t_0 - t_1)) * math.sqrt((t_0 + t_1))
+	else:
+		tmp = math.hypot((b / 2.0), t_1)
+	t_2 = tmp
+	tmp_1 = 0
+	if b &lt; 0.0:
+		tmp_1 = c / (t_2 - (b / 2.0))
+	else:
+		tmp_1 = ((b / 2.0) + t_2) / -a
+	return tmp_1
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(a, b, c)
+	t_0 = abs(Float64(b / 2.0))
+	t_1 = Float64(sqrt(abs(a)) * sqrt(abs(c)))
+	tmp = 0.0
+	if (copysign(a, c) == a)
+		tmp = Float64(sqrt(Float64(t_0 - t_1)) * sqrt(Float64(t_0 + t_1)));
+	else
+		tmp = hypot(Float64(b / 2.0), t_1);
+	end
+	t_2 = tmp
+	tmp_1 = 0.0
+	if (b &lt; 0.0)
+		tmp_1 = Float64(c / Float64(t_2 - Float64(b / 2.0)));
+	else
+		tmp_1 = Float64(Float64(Float64(b / 2.0) + t_2) / Float64(-a));
+	end
+	return tmp_1
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp_3 = code(a, b, c)
+	t_0 = abs((b / 2.0));
+	t_1 = sqrt(abs(a)) * sqrt(abs(c));
+	tmp = 0.0;
+	if ((sign(c) * abs(a)) == a)
+		tmp = sqrt((t_0 - t_1)) * sqrt((t_0 + t_1));
+	else
+		tmp = hypot((b / 2.0), t_1);
+	end
+	t_2 = tmp;
+	tmp_2 = 0.0;
+	if (b &lt; 0.0)
+		tmp_2 = c / (t_2 - (b / 2.0));
+	else
+		tmp_2 = ((b / 2.0) + t_2) / -a;
+	end
+	tmp_3 = tmp_2;
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[a_, b_, c_] := Block[{t$95$0 = N[Abs[N[(b / 2.0), $MachinePrecision]], $MachinePrecision]}, Block[{t$95$1 = N[(N[Sqrt[N[Abs[a], $MachinePrecision]], $MachinePrecision] * N[Sqrt[N[Abs[c], $MachinePrecision]], $MachinePrecision]), $MachinePrecision]}, Block[{t$95$2 = If[Equal[N[With[{TMP1 = Abs[a], TMP2 = Sign[c]}, TMP1 * If[TMP2 == 0, 1, TMP2]], $MachinePrecision], a], N[(N[Sqrt[N[(t$95$0 - t$95$1), $MachinePrecision]], $MachinePrecision] * N[Sqrt[N[(t$95$0 + t$95$1), $MachinePrecision]], $MachinePrecision]), $MachinePrecision], N[Sqrt[N[(b / 2.0), $MachinePrecision] ^ 2 + t$95$1 ^ 2], $MachinePrecision]]}, If[Less[b, 0.0], N[(c / N[(t$95$2 - N[(b / 2.0), $MachinePrecision]), $MachinePrecision]), $MachinePrecision], N[(N[(N[(b / 2.0), $MachinePrecision] + t$95$2), $MachinePrecision] / (-a)), $MachinePrecision]]]]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+t_0 := \left|\frac{b}{2}\right|\\
+t_1 := \sqrt{\left|a\right|} \cdot \sqrt{\left|c\right|}\\
+t_2 := \begin{array}{l}
+\mathbf{if}\;\mathsf{copysign}\left(a, c\right) = a:\\
+\;\;\;\;\sqrt{t\_0 - t\_1} \cdot \sqrt{t\_0 + t\_1}\\
+
+\mathbf{else}:\\
+\;\;\;\;\mathsf{hypot}\left(\frac{b}{2}, t\_1\right)\\
+
+
+\end{array}\\
+\mathbf{if}\;b &lt; 0:\\
+\;\;\;\;\frac{c}{t\_2 - \frac{b}{2}}\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{\frac{b}{2} + t\_2}{-a}\\
+
+
+\end{array}
+\end{array}
+</pre></div></div></section><section id="reproduce"><details><summary><h2>Reproduce</h2><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#reproduction" target="_blank">?</a></summary><pre class="shell"><code>herbie shell --seed 371008492 
+(FPCore (a b c)
+  :name "quadm (p42, negative)"
+  :precision binary64
+  :pre (TRUE)
+  :herbie-expected 10
+
+  :alt
+  (! :herbie-platform default (let ((sqtD (let ((x (* (sqrt (fabs a)) (sqrt (fabs c))))) (if (== (copysign a c) a) (* (sqrt (- (fabs (/ b 2)) x)) (sqrt (+ (fabs (/ b 2)) x))) (hypot (/ b 2) x))))) (if (&lt; b 0) (/ c (- sqtD (/ b 2))) (/ (+ (/ b 2) sqtD) (- a)))))
+
+  (/ (- (- b) (sqrt (- (* b b) (* 4.0 (* a c))))) (* 2.0 a)))
+</code></pre></details></section></body></html>

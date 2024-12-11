@@ -1,0 +1,956 @@
+<!doctype html>
+<html><head><meta charset="utf-8"/><title>Result for expq2 (section 3.11)</title><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/katex.min.css" integrity="sha384-9tPv11A+glH/on/wEu99NVwDPwkMQESOocs/ZGXPoIiLE8MU/qkqUcZ3zzL+6DuH" crossorigin="anonymous"/><script src="https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/katex.min.js" integrity="sha384-U8Vrjwb8fuHMt6ewaCy8uqeUXv4oitYACKdB0VziCerzt011iQ/0TqlSlv8MReCm" crossorigin="anonymous"></script><script src="https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/contrib/auto-render.min.js" integrity="sha384-aGfk5kvhIq5x1x5YdvCp4upKZYnA8ckafviDpmWEKp4afOZEqOli7gqSnh8I6enH" crossorigin="anonymous"></script><script src="https://unpkg.com/mathjs@4.4.2/dist/math.min.js"></script><script src="https://unpkg.com/d3@6.7.0/dist/d3.min.js"></script><script src="https://unpkg.com/@observablehq/plot@0.4.3/dist/plot.umd.min.js"></script><link rel="stylesheet" type="text/css" href="../report.css"/><script src="../report.js"></script></head><body><header><h1>expq2 (section 3.11)</h1><img src="../logo-car.png"/><nav><ul><li><a href="../index.html">Report</a></li><li><a href="timeline.html">Metrics</a></li></ul></nav></header><div id="large"><div>Percentage Accurate: <span class="number" title="Minimum Accuracy: 0.0% → 98.4%">36.7%<span class="unit"> → </span>100.0%</span></div><div>Time: <span class="number">5.8s</span></div><div>Alternatives: <span class="number">18</span></div><div>Speedup: <span class="number" title="Relative speed of fastest alternative that improves accuracy.">9.3×</span></div></div><section><details id="specification" class="programs"><summary><h2>Specification</h2><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#spec" target="_blank">?</a></summary><div><div id="precondition"><div class="program math">\[710 &gt; x\]</div></div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\frac{e^{x}}{e^{x} - 1}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x) :precision binary64 (/ (exp x) (- (exp x) 1.0)))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x) {
+	return exp(x) / (exp(x) - 1.0);
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(x)
+    real(8), intent (in) :: x
+    code = exp(x) / (exp(x) - 1.0d0)
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double x) {
+	return Math.exp(x) / (Math.exp(x) - 1.0);
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(x):
+	return math.exp(x) / (math.exp(x) - 1.0)
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x)
+	return Float64(exp(x) / Float64(exp(x) - 1.0))
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp = code(x)
+	tmp = exp(x) / (exp(x) - 1.0);
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_] := N[(N[Exp[x], $MachinePrecision] / N[(N[Exp[x], $MachinePrecision] - 1.0), $MachinePrecision]), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\frac{e^{x}}{e^{x} - 1}
+\end{array}
+</pre></div></div><p>Sampling outcomes in <kbd>binary64</kbd> precision:</p><div class="bogosity"><div class="bogosity-valid" data-id="bogosity-valid" data-type="valid" data-timespan="0.7517123366742171" title="valid (75.2%)"></div><div class="bogosity-unknown" data-id="bogosity-unknown" data-type="unknown" data-timespan="0" title="unknown (0.0%)"></div><div class="bogosity-infinite" data-id="bogosity-infinite" data-type="infinite" data-timespan="9.106145810711291e-5" title="infinite (0.0%)"></div><div class="bogosity-unsamplable" data-id="bogosity-unsamplable" data-type="unsamplable" data-timespan="0" title="unsamplable (0.0%)"></div><div class="bogosity-invalid" data-id="bogosity-invalid" data-type="invalid" data-timespan="0.0" title="invalid (0.0%)"></div><div class="bogosity-precondition" data-id="bogosity-precondition" data-type="precondition" data-timespan="0.24819660186767578" title="precondition (24.8%)"></div></div></details></section><figure id="graphs"><h2>Local Percentage Accuracy vs <span id="variables"></span><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#graph" target="_blank">?</a></h2><svg></svg><div id="functions"></div><figcaption>The average percentage accuracy by input value. Horizontal axis shows value of an input variable; the variable is choosen in the title. Vertical axis is accuracy; higher is better. Red represent the original program, while blue represents Herbie's suggestion. These can be toggled with buttons below the plot. The line is an average while dots represent individual samples.</figcaption></figure><section id="cost-accuracy" class="section" data-benchmark-name="expq2 (section 3.11)"><h2>Accuracy vs Speed<a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#cost-accuracy" target="_blank">?</a></h2><div class="figure-row"><svg></svg><div><p>Herbie found 18 alternatives:</p><table><thead><tr><th>Alternative</th><th class="numeric">Accuracy</th><th class="numeric">Speedup</th></tr></thead><tbody></tbody></table></div></div><figcaption>The accuracy (vertical axis) and speed (horizontal axis) of each alternatives. Up and to the right is better. The red square shows the initial program, and each blue circle shows an alternative.The line shows the best available speed-accuracy tradeoffs.</figcaption></section><section id="initial" class="programs"><h2>Initial Program: <span class="subhead"><data>36.7%</data> accurate, <data>1.0×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\frac{e^{x}}{e^{x} - 1}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x) :precision binary64 (/ (exp x) (- (exp x) 1.0)))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x) {
+	return exp(x) / (exp(x) - 1.0);
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(x)
+    real(8), intent (in) :: x
+    code = exp(x) / (exp(x) - 1.0d0)
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double x) {
+	return Math.exp(x) / (Math.exp(x) - 1.0);
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(x):
+	return math.exp(x) / (math.exp(x) - 1.0)
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x)
+	return Float64(exp(x) / Float64(exp(x) - 1.0))
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp = code(x)
+	tmp = exp(x) / (exp(x) - 1.0);
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_] := N[(N[Exp[x], $MachinePrecision] / N[(N[Exp[x], $MachinePrecision] - 1.0), $MachinePrecision]), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\frac{e^{x}}{e^{x} - 1}
+\end{array}
+</pre></div></div></section><section id="alternative1" class="programs"><h2>Alternative 1: <span class="subhead"><data>100.0%</data> accurate, <data>1.9×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Java</option><option>Python</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\frac{-1}{\mathsf{expm1}\left(-x\right)}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x) :precision binary64 (/ -1.0 (expm1 (- x))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x) {
+	return -1.0 / expm1(-x);
+}
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double x) {
+	return -1.0 / Math.expm1(-x);
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(x):
+	return -1.0 / math.expm1(-x)
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x)
+	return Float64(-1.0 / expm1(Float64(-x)))
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_] := N[(-1.0 / N[(Exp[(-x)] - 1), $MachinePrecision]), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\frac{-1}{\mathsf{expm1}\left(-x\right)}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="36.7% on training set">35.3%</span></p><div class="math">\[\frac{e^{x}}{e^{x} - 1}
+\]</div></li><li>Add Preprocessing</li><li></li><li><p>Applied rewrites<span class="error" title="100.0% on training set">100.0%</span></p><div class="math">\[\leadsto \color{blue}{\frac{-1}{\mathsf{expm1}\left(-x\right)}}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative2" class="programs"><h2>Alternative 2: <span class="subhead"><data>92.5%</data> accurate, <data>0.9×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;e^{x} \leq 0:\\
+\;\;\;\;\frac{-1}{\left(\mathsf{fma}\left(\mathsf{fma}\left(0.041666666666666664, x, -0.16666666666666666\right), x, 0.5\right) \cdot x\right) \cdot x}\\
+
+\mathbf{else}:\\
+\;\;\;\;\mathsf{fma}\left(\mathsf{fma}\left(x \cdot x, -0.001388888888888889, 0.08333333333333333\right), x, 0.5 + {x}^{-1}\right)\\
+
+
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x)
+ :precision binary64
+ (if (&lt;= (exp x) 0.0)
+   (/
+    -1.0
+    (* (* (fma (fma 0.041666666666666664 x -0.16666666666666666) x 0.5) x) x))
+   (fma
+    (fma (* x x) -0.001388888888888889 0.08333333333333333)
+    x
+    (+ 0.5 (pow x -1.0)))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x) {
+	double tmp;
+	if (exp(x) &lt;= 0.0) {
+		tmp = -1.0 / ((fma(fma(0.041666666666666664, x, -0.16666666666666666), x, 0.5) * x) * x);
+	} else {
+		tmp = fma(fma((x * x), -0.001388888888888889, 0.08333333333333333), x, (0.5 + pow(x, -1.0)));
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x)
+	tmp = 0.0
+	if (exp(x) &lt;= 0.0)
+		tmp = Float64(-1.0 / Float64(Float64(fma(fma(0.041666666666666664, x, -0.16666666666666666), x, 0.5) * x) * x));
+	else
+		tmp = fma(fma(Float64(x * x), -0.001388888888888889, 0.08333333333333333), x, Float64(0.5 + (x ^ -1.0)));
+	end
+	return tmp
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_] := If[LessEqual[N[Exp[x], $MachinePrecision], 0.0], N[(-1.0 / N[(N[(N[(N[(0.041666666666666664 * x + -0.16666666666666666), $MachinePrecision] * x + 0.5), $MachinePrecision] * x), $MachinePrecision] * x), $MachinePrecision]), $MachinePrecision], N[(N[(N[(x * x), $MachinePrecision] * -0.001388888888888889 + 0.08333333333333333), $MachinePrecision] * x + N[(0.5 + N[Power[x, -1.0], $MachinePrecision]), $MachinePrecision]), $MachinePrecision]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;e^{x} \leq 0:\\
+\;\;\;\;\frac{-1}{\left(\mathsf{fma}\left(\mathsf{fma}\left(0.041666666666666664, x, -0.16666666666666666\right), x, 0.5\right) \cdot x\right) \cdot x}\\
+
+\mathbf{else}:\\
+\;\;\;\;\mathsf{fma}\left(\mathsf{fma}\left(x \cdot x, -0.001388888888888889, 0.08333333333333333\right), x, 0.5 + {x}^{-1}\right)\\
+
+
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li class="event">Split input into 2 regimes</li><li><h2><code>if <span class="condition"> (exp.f64 x)  &lt; 0.0</span></code></h2><ol><li><p>Initial program <span class="error" title="100.0% on training set">100.0%</span></p><div class="math">\[\frac{e^{x}}{e^{x} - 1}
+\]</div></li><li>Add Preprocessing</li><li></li><li><p>Applied rewrites<span class="error" title="100.0% on training set">100.0%</span></p><div class="math">\[\leadsto \color{blue}{\frac{-1}{\mathsf{expm1}\left(-x\right)}}
+\]</div></li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \frac{-1}{\color{blue}{x \cdot \left(x \cdot \left(\frac{1}{2} + x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right)\right) - 1\right)}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="78.9% on training set">68.8%</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\mathsf{fma}\left(\mathsf{fma}\left(\mathsf{fma}\left(0.041666666666666664, x, -0.16666666666666666\right), x, 0.5\right), x, -1\right) \cdot x}}
+\]</div></li><li><p>Taylor expanded in x around inf</p><div class="math">\[\leadsto \frac{-1}{\left({x}^{3} \cdot \left(\left(\frac{1}{24} + \frac{\frac{1}{2}}{{x}^{2}}\right) - \frac{1}{6} \cdot \frac{1}{x}\right)\right) \cdot x}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="78.9% on training set">68.8%</span></p><div class="math">\[\leadsto \frac{-1}{\left(\mathsf{fma}\left(\mathsf{fma}\left(0.041666666666666664, x, -0.16666666666666666\right), x, 0.5\right) \cdot x\right) \cdot x}
+\]</div></li></ol><h2><code>if <span class="condition">0.0 &lt;  (exp.f64 x) </span></code></h2><ol><li><p>Initial program <span class="error" title="6.7% on training set">4.8%</span></p><div class="math">\[\frac{e^{x}}{e^{x} - 1}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \color{blue}{\frac{1 + x \cdot \left(\frac{1}{2} + x \cdot \left(\frac{1}{12} + \frac{-1}{720} \cdot {x}^{2}\right)\right)}{x}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="99.0% on training set">100.0%</span></p><div class="math">\[\leadsto \color{blue}{\mathsf{fma}\left(\mathsf{fma}\left(x \cdot x, -0.001388888888888889, 0.08333333333333333\right), x, 0.5 + \frac{1}{x}\right)}
+\]</div></li></ol></li><li class="event">Recombined 2 regimes into one program.</li><li><p>Final simplification<span class="error" title="92.5% on training set">90.0%</span></p><div class="math">\[\leadsto \begin{array}{l}
+\mathbf{if}\;e^{x} \leq 0:\\
+\;\;\;\;\frac{-1}{\left(\mathsf{fma}\left(\mathsf{fma}\left(0.041666666666666664, x, -0.16666666666666666\right), x, 0.5\right) \cdot x\right) \cdot x}\\
+
+\mathbf{else}:\\
+\;\;\;\;\mathsf{fma}\left(\mathsf{fma}\left(x \cdot x, -0.001388888888888889, 0.08333333333333333\right), x, 0.5 + {x}^{-1}\right)\\
+
+
+\end{array}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative3" class="programs"><h2>Alternative 3: <span class="subhead"><data>92.5%</data> accurate, <data>0.9×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;e^{x} \leq 0:\\
+\;\;\;\;\frac{-1}{\left(\left(\mathsf{fma}\left(0.041666666666666664, x, -0.16666666666666666\right) \cdot x\right) \cdot x\right) \cdot x}\\
+
+\mathbf{else}:\\
+\;\;\;\;\mathsf{fma}\left(\mathsf{fma}\left(x \cdot x, -0.001388888888888889, 0.08333333333333333\right), x, 0.5 + {x}^{-1}\right)\\
+
+
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x)
+ :precision binary64
+ (if (&lt;= (exp x) 0.0)
+   (/ -1.0 (* (* (* (fma 0.041666666666666664 x -0.16666666666666666) x) x) x))
+   (fma
+    (fma (* x x) -0.001388888888888889 0.08333333333333333)
+    x
+    (+ 0.5 (pow x -1.0)))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x) {
+	double tmp;
+	if (exp(x) &lt;= 0.0) {
+		tmp = -1.0 / (((fma(0.041666666666666664, x, -0.16666666666666666) * x) * x) * x);
+	} else {
+		tmp = fma(fma((x * x), -0.001388888888888889, 0.08333333333333333), x, (0.5 + pow(x, -1.0)));
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x)
+	tmp = 0.0
+	if (exp(x) &lt;= 0.0)
+		tmp = Float64(-1.0 / Float64(Float64(Float64(fma(0.041666666666666664, x, -0.16666666666666666) * x) * x) * x));
+	else
+		tmp = fma(fma(Float64(x * x), -0.001388888888888889, 0.08333333333333333), x, Float64(0.5 + (x ^ -1.0)));
+	end
+	return tmp
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_] := If[LessEqual[N[Exp[x], $MachinePrecision], 0.0], N[(-1.0 / N[(N[(N[(N[(0.041666666666666664 * x + -0.16666666666666666), $MachinePrecision] * x), $MachinePrecision] * x), $MachinePrecision] * x), $MachinePrecision]), $MachinePrecision], N[(N[(N[(x * x), $MachinePrecision] * -0.001388888888888889 + 0.08333333333333333), $MachinePrecision] * x + N[(0.5 + N[Power[x, -1.0], $MachinePrecision]), $MachinePrecision]), $MachinePrecision]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;e^{x} \leq 0:\\
+\;\;\;\;\frac{-1}{\left(\left(\mathsf{fma}\left(0.041666666666666664, x, -0.16666666666666666\right) \cdot x\right) \cdot x\right) \cdot x}\\
+
+\mathbf{else}:\\
+\;\;\;\;\mathsf{fma}\left(\mathsf{fma}\left(x \cdot x, -0.001388888888888889, 0.08333333333333333\right), x, 0.5 + {x}^{-1}\right)\\
+
+
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li class="event">Split input into 2 regimes</li><li><h2><code>if <span class="condition"> (exp.f64 x)  &lt; 0.0</span></code></h2><ol><li><p>Initial program <span class="error" title="100.0% on training set">100.0%</span></p><div class="math">\[\frac{e^{x}}{e^{x} - 1}
+\]</div></li><li>Add Preprocessing</li><li></li><li><p>Applied rewrites<span class="error" title="100.0% on training set">100.0%</span></p><div class="math">\[\leadsto \color{blue}{\frac{-1}{\mathsf{expm1}\left(-x\right)}}
+\]</div></li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \frac{-1}{\color{blue}{x \cdot \left(x \cdot \left(\frac{1}{2} + x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right)\right) - 1\right)}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="78.9% on training set">68.8%</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\mathsf{fma}\left(\mathsf{fma}\left(\mathsf{fma}\left(0.041666666666666664, x, -0.16666666666666666\right), x, 0.5\right), x, -1\right) \cdot x}}
+\]</div></li><li><p>Taylor expanded in x around inf</p><div class="math">\[\leadsto \frac{-1}{\left({x}^{3} \cdot \left(\frac{1}{24} - \frac{1}{6} \cdot \frac{1}{x}\right)\right) \cdot x}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="78.9% on training set">68.8%</span></p><div class="math">\[\leadsto \frac{-1}{\left(\left(\mathsf{fma}\left(0.041666666666666664, x, -0.16666666666666666\right) \cdot x\right) \cdot x\right) \cdot x}
+\]</div></li></ol><h2><code>if <span class="condition">0.0 &lt;  (exp.f64 x) </span></code></h2><ol><li><p>Initial program <span class="error" title="6.7% on training set">4.8%</span></p><div class="math">\[\frac{e^{x}}{e^{x} - 1}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \color{blue}{\frac{1 + x \cdot \left(\frac{1}{2} + x \cdot \left(\frac{1}{12} + \frac{-1}{720} \cdot {x}^{2}\right)\right)}{x}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="99.0% on training set">100.0%</span></p><div class="math">\[\leadsto \color{blue}{\mathsf{fma}\left(\mathsf{fma}\left(x \cdot x, -0.001388888888888889, 0.08333333333333333\right), x, 0.5 + \frac{1}{x}\right)}
+\]</div></li></ol></li><li class="event">Recombined 2 regimes into one program.</li><li><p>Final simplification<span class="error" title="92.5% on training set">90.0%</span></p><div class="math">\[\leadsto \begin{array}{l}
+\mathbf{if}\;e^{x} \leq 0:\\
+\;\;\;\;\frac{-1}{\left(\left(\mathsf{fma}\left(0.041666666666666664, x, -0.16666666666666666\right) \cdot x\right) \cdot x\right) \cdot x}\\
+
+\mathbf{else}:\\
+\;\;\;\;\mathsf{fma}\left(\mathsf{fma}\left(x \cdot x, -0.001388888888888889, 0.08333333333333333\right), x, 0.5 + {x}^{-1}\right)\\
+
+
+\end{array}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative4" class="programs"><h2>Alternative 4: <span class="subhead"><data>92.5%</data> accurate, <data>0.9×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;e^{x} \leq 0:\\
+\;\;\;\;\frac{-1}{\left(\left(\left(x \cdot x\right) \cdot 0.041666666666666664\right) \cdot x\right) \cdot x}\\
+
+\mathbf{else}:\\
+\;\;\;\;\mathsf{fma}\left(\mathsf{fma}\left(x \cdot x, -0.001388888888888889, 0.08333333333333333\right), x, 0.5 + {x}^{-1}\right)\\
+
+
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x)
+ :precision binary64
+ (if (&lt;= (exp x) 0.0)
+   (/ -1.0 (* (* (* (* x x) 0.041666666666666664) x) x))
+   (fma
+    (fma (* x x) -0.001388888888888889 0.08333333333333333)
+    x
+    (+ 0.5 (pow x -1.0)))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x) {
+	double tmp;
+	if (exp(x) &lt;= 0.0) {
+		tmp = -1.0 / ((((x * x) * 0.041666666666666664) * x) * x);
+	} else {
+		tmp = fma(fma((x * x), -0.001388888888888889, 0.08333333333333333), x, (0.5 + pow(x, -1.0)));
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x)
+	tmp = 0.0
+	if (exp(x) &lt;= 0.0)
+		tmp = Float64(-1.0 / Float64(Float64(Float64(Float64(x * x) * 0.041666666666666664) * x) * x));
+	else
+		tmp = fma(fma(Float64(x * x), -0.001388888888888889, 0.08333333333333333), x, Float64(0.5 + (x ^ -1.0)));
+	end
+	return tmp
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_] := If[LessEqual[N[Exp[x], $MachinePrecision], 0.0], N[(-1.0 / N[(N[(N[(N[(x * x), $MachinePrecision] * 0.041666666666666664), $MachinePrecision] * x), $MachinePrecision] * x), $MachinePrecision]), $MachinePrecision], N[(N[(N[(x * x), $MachinePrecision] * -0.001388888888888889 + 0.08333333333333333), $MachinePrecision] * x + N[(0.5 + N[Power[x, -1.0], $MachinePrecision]), $MachinePrecision]), $MachinePrecision]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;e^{x} \leq 0:\\
+\;\;\;\;\frac{-1}{\left(\left(\left(x \cdot x\right) \cdot 0.041666666666666664\right) \cdot x\right) \cdot x}\\
+
+\mathbf{else}:\\
+\;\;\;\;\mathsf{fma}\left(\mathsf{fma}\left(x \cdot x, -0.001388888888888889, 0.08333333333333333\right), x, 0.5 + {x}^{-1}\right)\\
+
+
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li class="event">Split input into 2 regimes</li><li><h2><code>if <span class="condition"> (exp.f64 x)  &lt; 0.0</span></code></h2><ol><li><p>Initial program <span class="error" title="100.0% on training set">100.0%</span></p><div class="math">\[\frac{e^{x}}{e^{x} - 1}
+\]</div></li><li>Add Preprocessing</li><li></li><li><p>Applied rewrites<span class="error" title="100.0% on training set">100.0%</span></p><div class="math">\[\leadsto \color{blue}{\frac{-1}{\mathsf{expm1}\left(-x\right)}}
+\]</div></li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \frac{-1}{\color{blue}{x \cdot \left(x \cdot \left(\frac{1}{2} + x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right)\right) - 1\right)}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="78.9% on training set">68.8%</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\mathsf{fma}\left(\mathsf{fma}\left(\mathsf{fma}\left(0.041666666666666664, x, -0.16666666666666666\right), x, 0.5\right), x, -1\right) \cdot x}}
+\]</div></li><li><p>Taylor expanded in x around inf</p><div class="math">\[\leadsto \frac{-1}{\left({x}^{3} \cdot \left(\frac{1}{24} - \frac{1}{6} \cdot \frac{1}{x}\right)\right) \cdot x}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="78.9% on training set">68.8%</span></p><div class="math">\[\leadsto \frac{-1}{\left(\left(\mathsf{fma}\left(0.041666666666666664, x, -0.16666666666666666\right) \cdot x\right) \cdot x\right) \cdot x}
+\]</div></li><li><p>Taylor expanded in x around inf</p><div class="math">\[\leadsto \frac{-1}{\left(\left(\frac{1}{24} \cdot {x}^{2}\right) \cdot x\right) \cdot x}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="78.9% on training set">68.8%</span></p><div class="math">\[\leadsto \frac{-1}{\left(\left(\left(x \cdot x\right) \cdot 0.041666666666666664\right) \cdot x\right) \cdot x}
+\]</div></li></ol><h2><code>if <span class="condition">0.0 &lt;  (exp.f64 x) </span></code></h2><ol><li><p>Initial program <span class="error" title="6.7% on training set">4.8%</span></p><div class="math">\[\frac{e^{x}}{e^{x} - 1}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \color{blue}{\frac{1 + x \cdot \left(\frac{1}{2} + x \cdot \left(\frac{1}{12} + \frac{-1}{720} \cdot {x}^{2}\right)\right)}{x}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="99.0% on training set">100.0%</span></p><div class="math">\[\leadsto \color{blue}{\mathsf{fma}\left(\mathsf{fma}\left(x \cdot x, -0.001388888888888889, 0.08333333333333333\right), x, 0.5 + \frac{1}{x}\right)}
+\]</div></li></ol></li><li class="event">Recombined 2 regimes into one program.</li><li><p>Final simplification<span class="error" title="92.5% on training set">90.0%</span></p><div class="math">\[\leadsto \begin{array}{l}
+\mathbf{if}\;e^{x} \leq 0:\\
+\;\;\;\;\frac{-1}{\left(\left(\left(x \cdot x\right) \cdot 0.041666666666666664\right) \cdot x\right) \cdot x}\\
+
+\mathbf{else}:\\
+\;\;\;\;\mathsf{fma}\left(\mathsf{fma}\left(x \cdot x, -0.001388888888888889, 0.08333333333333333\right), x, 0.5 + {x}^{-1}\right)\\
+
+
+\end{array}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative5" class="programs"><h2>Alternative 5: <span class="subhead"><data>89.9%</data> accurate, <data>1.0×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;e^{x} \leq 0:\\
+\;\;\;\;\frac{-1}{\left(\left(x \cdot x\right) \cdot -0.16666666666666666\right) \cdot x}\\
+
+\mathbf{else}:\\
+\;\;\;\;\mathsf{fma}\left(0.08333333333333333, x, 0.5 + {x}^{-1}\right)\\
+
+
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x)
+ :precision binary64
+ (if (&lt;= (exp x) 0.0)
+   (/ -1.0 (* (* (* x x) -0.16666666666666666) x))
+   (fma 0.08333333333333333 x (+ 0.5 (pow x -1.0)))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x) {
+	double tmp;
+	if (exp(x) &lt;= 0.0) {
+		tmp = -1.0 / (((x * x) * -0.16666666666666666) * x);
+	} else {
+		tmp = fma(0.08333333333333333, x, (0.5 + pow(x, -1.0)));
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x)
+	tmp = 0.0
+	if (exp(x) &lt;= 0.0)
+		tmp = Float64(-1.0 / Float64(Float64(Float64(x * x) * -0.16666666666666666) * x));
+	else
+		tmp = fma(0.08333333333333333, x, Float64(0.5 + (x ^ -1.0)));
+	end
+	return tmp
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_] := If[LessEqual[N[Exp[x], $MachinePrecision], 0.0], N[(-1.0 / N[(N[(N[(x * x), $MachinePrecision] * -0.16666666666666666), $MachinePrecision] * x), $MachinePrecision]), $MachinePrecision], N[(0.08333333333333333 * x + N[(0.5 + N[Power[x, -1.0], $MachinePrecision]), $MachinePrecision]), $MachinePrecision]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;e^{x} \leq 0:\\
+\;\;\;\;\frac{-1}{\left(\left(x \cdot x\right) \cdot -0.16666666666666666\right) \cdot x}\\
+
+\mathbf{else}:\\
+\;\;\;\;\mathsf{fma}\left(0.08333333333333333, x, 0.5 + {x}^{-1}\right)\\
+
+
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li class="event">Split input into 2 regimes</li><li><h2><code>if <span class="condition"> (exp.f64 x)  &lt; 0.0</span></code></h2><ol><li><p>Initial program <span class="error" title="100.0% on training set">100.0%</span></p><div class="math">\[\frac{e^{x}}{e^{x} - 1}
+\]</div></li><li>Add Preprocessing</li><li></li><li><p>Applied rewrites<span class="error" title="100.0% on training set">100.0%</span></p><div class="math">\[\leadsto \color{blue}{\frac{-1}{\mathsf{expm1}\left(-x\right)}}
+\]</div></li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \frac{-1}{\color{blue}{x \cdot \left(x \cdot \left(\frac{1}{2} + x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right)\right) - 1\right)}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="78.9% on training set">68.8%</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\mathsf{fma}\left(\mathsf{fma}\left(\mathsf{fma}\left(0.041666666666666664, x, -0.16666666666666666\right), x, 0.5\right), x, -1\right) \cdot x}}
+\]</div></li><li><p>Taylor expanded in x around inf</p><div class="math">\[\leadsto \frac{-1}{\left({x}^{3} \cdot \left(\frac{1}{24} - \frac{1}{6} \cdot \frac{1}{x}\right)\right) \cdot x}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="78.9% on training set">68.8%</span></p><div class="math">\[\leadsto \frac{-1}{\left(\left(\mathsf{fma}\left(0.041666666666666664, x, -0.16666666666666666\right) \cdot x\right) \cdot x\right) \cdot x}
+\]</div></li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \frac{-1}{\left(\frac{-1}{6} \cdot {x}^{2}\right) \cdot x}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="70.8% on training set">62.9%</span></p><div class="math">\[\leadsto \frac{-1}{\left(\left(x \cdot x\right) \cdot -0.16666666666666666\right) \cdot x}
+\]</div></li></ol><h2><code>if <span class="condition">0.0 &lt;  (exp.f64 x) </span></code></h2><ol><li><p>Initial program <span class="error" title="6.7% on training set">4.8%</span></p><div class="math">\[\frac{e^{x}}{e^{x} - 1}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \color{blue}{\frac{1 + x \cdot \left(\frac{1}{2} + \frac{1}{12} \cdot x\right)}{x}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="98.9% on training set">99.9%</span></p><div class="math">\[\leadsto \color{blue}{\mathsf{fma}\left(0.08333333333333333, x, 0.5 + \frac{1}{x}\right)}
+\]</div></li></ol></li><li class="event">Recombined 2 regimes into one program.</li><li><p>Final simplification<span class="error" title="89.9% on training set">88.1%</span></p><div class="math">\[\leadsto \begin{array}{l}
+\mathbf{if}\;e^{x} \leq 0:\\
+\;\;\;\;\frac{-1}{\left(\left(x \cdot x\right) \cdot -0.16666666666666666\right) \cdot x}\\
+
+\mathbf{else}:\\
+\;\;\;\;\mathsf{fma}\left(0.08333333333333333, x, 0.5 + {x}^{-1}\right)\\
+
+
+\end{array}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative6" class="programs"><h2>Alternative 6: <span class="subhead"><data>84.0%</data> accurate, <data>1.0×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;e^{x} \leq 0:\\
+\;\;\;\;\frac{-1}{\left(0.5 \cdot x\right) \cdot x}\\
+
+\mathbf{else}:\\
+\;\;\;\;\mathsf{fma}\left(0.08333333333333333, x, 0.5 + {x}^{-1}\right)\\
+
+
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x)
+ :precision binary64
+ (if (&lt;= (exp x) 0.0)
+   (/ -1.0 (* (* 0.5 x) x))
+   (fma 0.08333333333333333 x (+ 0.5 (pow x -1.0)))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x) {
+	double tmp;
+	if (exp(x) &lt;= 0.0) {
+		tmp = -1.0 / ((0.5 * x) * x);
+	} else {
+		tmp = fma(0.08333333333333333, x, (0.5 + pow(x, -1.0)));
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x)
+	tmp = 0.0
+	if (exp(x) &lt;= 0.0)
+		tmp = Float64(-1.0 / Float64(Float64(0.5 * x) * x));
+	else
+		tmp = fma(0.08333333333333333, x, Float64(0.5 + (x ^ -1.0)));
+	end
+	return tmp
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_] := If[LessEqual[N[Exp[x], $MachinePrecision], 0.0], N[(-1.0 / N[(N[(0.5 * x), $MachinePrecision] * x), $MachinePrecision]), $MachinePrecision], N[(0.08333333333333333 * x + N[(0.5 + N[Power[x, -1.0], $MachinePrecision]), $MachinePrecision]), $MachinePrecision]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;e^{x} \leq 0:\\
+\;\;\;\;\frac{-1}{\left(0.5 \cdot x\right) \cdot x}\\
+
+\mathbf{else}:\\
+\;\;\;\;\mathsf{fma}\left(0.08333333333333333, x, 0.5 + {x}^{-1}\right)\\
+
+
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li class="event">Split input into 2 regimes</li><li><h2><code>if <span class="condition"> (exp.f64 x)  &lt; 0.0</span></code></h2><ol><li><p>Initial program <span class="error" title="100.0% on training set">100.0%</span></p><div class="math">\[\frac{e^{x}}{e^{x} - 1}
+\]</div></li><li>Add Preprocessing</li><li></li><li><p>Applied rewrites<span class="error" title="100.0% on training set">100.0%</span></p><div class="math">\[\leadsto \color{blue}{\frac{-1}{\mathsf{expm1}\left(-x\right)}}
+\]</div></li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \frac{-1}{\color{blue}{x \cdot \left(\frac{1}{2} \cdot x - 1\right)}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="52.6% on training set">46.7%</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\mathsf{fma}\left(0.5, x, -1\right) \cdot x}}
+\]</div></li><li><p>Taylor expanded in x around inf</p><div class="math">\[\leadsto \frac{-1}{\left(\frac{1}{2} \cdot x\right) \cdot x}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="52.6% on training set">46.7%</span></p><div class="math">\[\leadsto \frac{-1}{\left(0.5 \cdot x\right) \cdot x}
+\]</div></li></ol><h2><code>if <span class="condition">0.0 &lt;  (exp.f64 x) </span></code></h2><ol><li><p>Initial program <span class="error" title="6.7% on training set">4.8%</span></p><div class="math">\[\frac{e^{x}}{e^{x} - 1}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \color{blue}{\frac{1 + x \cdot \left(\frac{1}{2} + \frac{1}{12} \cdot x\right)}{x}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="98.9% on training set">99.9%</span></p><div class="math">\[\leadsto \color{blue}{\mathsf{fma}\left(0.08333333333333333, x, 0.5 + \frac{1}{x}\right)}
+\]</div></li></ol></li><li class="event">Recombined 2 regimes into one program.</li><li><p>Final simplification<span class="error" title="84.0% on training set">82.9%</span></p><div class="math">\[\leadsto \begin{array}{l}
+\mathbf{if}\;e^{x} \leq 0:\\
+\;\;\;\;\frac{-1}{\left(0.5 \cdot x\right) \cdot x}\\
+
+\mathbf{else}:\\
+\;\;\;\;\mathsf{fma}\left(0.08333333333333333, x, 0.5 + {x}^{-1}\right)\\
+
+
+\end{array}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative7" class="programs"><h2>Alternative 7: <span class="subhead"><data>67.8%</data> accurate, <data>1.9×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\mathsf{fma}\left(0.08333333333333333, x, 0.5 + {x}^{-1}\right)
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x)
+ :precision binary64
+ (fma 0.08333333333333333 x (+ 0.5 (pow x -1.0))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x) {
+	return fma(0.08333333333333333, x, (0.5 + pow(x, -1.0)));
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x)
+	return fma(0.08333333333333333, x, Float64(0.5 + (x ^ -1.0)))
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_] := N[(0.08333333333333333 * x + N[(0.5 + N[Power[x, -1.0], $MachinePrecision]), $MachinePrecision]), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\mathsf{fma}\left(0.08333333333333333, x, 0.5 + {x}^{-1}\right)
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="36.7% on training set">35.3%</span></p><div class="math">\[\frac{e^{x}}{e^{x} - 1}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \color{blue}{\frac{1 + x \cdot \left(\frac{1}{2} + \frac{1}{12} \cdot x\right)}{x}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="67.8% on training set">68.7%</span></p><div class="math">\[\leadsto \color{blue}{\mathsf{fma}\left(0.08333333333333333, x, 0.5 + \frac{1}{x}\right)}
+\]</div></li><li><p>Final simplification<span class="error" title="67.8% on training set">68.7%</span></p><div class="math">\[\leadsto \mathsf{fma}\left(0.08333333333333333, x, 0.5 + {x}^{-1}\right)
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative8" class="programs"><h2>Alternative 8: <span class="subhead"><data>67.7%</data> accurate, <data>2.0×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+0.5 + {x}^{-1}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x) :precision binary64 (+ 0.5 (pow x -1.0)))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x) {
+	return 0.5 + pow(x, -1.0);
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(x)
+    real(8), intent (in) :: x
+    code = 0.5d0 + (x ** (-1.0d0))
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double x) {
+	return 0.5 + Math.pow(x, -1.0);
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(x):
+	return 0.5 + math.pow(x, -1.0)
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x)
+	return Float64(0.5 + (x ^ -1.0))
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp = code(x)
+	tmp = 0.5 + (x ^ -1.0);
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_] := N[(0.5 + N[Power[x, -1.0], $MachinePrecision]), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+0.5 + {x}^{-1}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="36.7% on training set">35.3%</span></p><div class="math">\[\frac{e^{x}}{e^{x} - 1}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \color{blue}{\frac{1 + \frac{1}{2} \cdot x}{x}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="67.8% on training set">68.6%</span></p><div class="math">\[\leadsto \color{blue}{0.5 + \frac{1}{x}}
+\]</div></li><li><p>Final simplification<span class="error" title="67.7% on training set">68.6%</span></p><div class="math">\[\leadsto 0.5 + {x}^{-1}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative9" class="programs"><h2>Alternative 9: <span class="subhead"><data>67.8%</data> accurate, <data>2.1×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+{x}^{-1}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x) :precision binary64 (pow x -1.0))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x) {
+	return pow(x, -1.0);
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(x)
+    real(8), intent (in) :: x
+    code = x ** (-1.0d0)
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double x) {
+	return Math.pow(x, -1.0);
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(x):
+	return math.pow(x, -1.0)
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x)
+	return x ^ -1.0
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp = code(x)
+	tmp = x ^ -1.0;
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_] := N[Power[x, -1.0], $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+{x}^{-1}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="36.7% on training set">35.3%</span></p><div class="math">\[\frac{e^{x}}{e^{x} - 1}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \color{blue}{\frac{1}{x}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="67.8% on training set">68.6%</span></p><div class="math">\[\leadsto \color{blue}{\frac{1}{x}}
+\]</div></li><li><p>Final simplification<span class="error" title="67.8% on training set">68.6%</span></p><div class="math">\[\leadsto {x}^{-1}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative10" class="programs"><h2>Alternative 10: <span class="subhead"><data>96.1%</data> accurate, <data>3.3×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\frac{-1}{\mathsf{fma}\left(\mathsf{fma}\left(\left(-\mathsf{fma}\left(0.001736111111111111, x \cdot x, -0.027777777777777776\right)\right) \cdot \mathsf{fma}\left(\mathsf{fma}\left(\mathsf{fma}\left(0.09375, x, -0.375\right), x, 1.5\right), x, -6\right), x, 0.5\right), x, -1\right) \cdot x}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x)
+ :precision binary64
+ (/
+  -1.0
+  (*
+   (fma
+    (fma
+     (*
+      (- (fma 0.001736111111111111 (* x x) -0.027777777777777776))
+      (fma (fma (fma 0.09375 x -0.375) x 1.5) x -6.0))
+     x
+     0.5)
+    x
+    -1.0)
+   x)))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x) {
+	return -1.0 / (fma(fma((-fma(0.001736111111111111, (x * x), -0.027777777777777776) * fma(fma(fma(0.09375, x, -0.375), x, 1.5), x, -6.0)), x, 0.5), x, -1.0) * x);
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x)
+	return Float64(-1.0 / Float64(fma(fma(Float64(Float64(-fma(0.001736111111111111, Float64(x * x), -0.027777777777777776)) * fma(fma(fma(0.09375, x, -0.375), x, 1.5), x, -6.0)), x, 0.5), x, -1.0) * x))
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_] := N[(-1.0 / N[(N[(N[(N[((-N[(0.001736111111111111 * N[(x * x), $MachinePrecision] + -0.027777777777777776), $MachinePrecision]) * N[(N[(N[(0.09375 * x + -0.375), $MachinePrecision] * x + 1.5), $MachinePrecision] * x + -6.0), $MachinePrecision]), $MachinePrecision] * x + 0.5), $MachinePrecision] * x + -1.0), $MachinePrecision] * x), $MachinePrecision]), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\frac{-1}{\mathsf{fma}\left(\mathsf{fma}\left(\left(-\mathsf{fma}\left(0.001736111111111111, x \cdot x, -0.027777777777777776\right)\right) \cdot \mathsf{fma}\left(\mathsf{fma}\left(\mathsf{fma}\left(0.09375, x, -0.375\right), x, 1.5\right), x, -6\right), x, 0.5\right), x, -1\right) \cdot x}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="36.7% on training set">35.3%</span></p><div class="math">\[\frac{e^{x}}{e^{x} - 1}
+\]</div></li><li>Add Preprocessing</li><li></li><li><p>Applied rewrites<span class="error" title="100.0% on training set">100.0%</span></p><div class="math">\[\leadsto \color{blue}{\frac{-1}{\mathsf{expm1}\left(-x\right)}}
+\]</div></li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \frac{-1}{\color{blue}{x \cdot \left(x \cdot \left(\frac{1}{2} + x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right)\right) - 1\right)}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="92.4% on training set">89.9%</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\mathsf{fma}\left(\mathsf{fma}\left(\mathsf{fma}\left(0.041666666666666664, x, -0.16666666666666666\right), x, 0.5\right), x, -1\right) \cdot x}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="92.4% on training set">89.9%</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\mathsf{fma}\left(\left(-\mathsf{fma}\left(0.001736111111111111, x \cdot x, -0.027777777777777776\right)\right) \cdot \frac{1}{-\mathsf{fma}\left(0.041666666666666664, x, 0.16666666666666666\right)}, x, 0.5\right), x, -1\right) \cdot x}
+\]</div></li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\mathsf{fma}\left(\left(-\mathsf{fma}\left(\frac{1}{576}, x \cdot x, \frac{-1}{36}\right)\right) \cdot \left(x \cdot \left(\frac{3}{2} + x \cdot \left(\frac{3}{32} \cdot x - \frac{3}{8}\right)\right) - 6\right), x, \frac{1}{2}\right), x, -1\right) \cdot x}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="96.1% on training set">95.1%</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\mathsf{fma}\left(\left(-\mathsf{fma}\left(0.001736111111111111, x \cdot x, -0.027777777777777776\right)\right) \cdot \mathsf{fma}\left(\mathsf{fma}\left(\mathsf{fma}\left(0.09375, x, -0.375\right), x, 1.5\right), x, -6\right), x, 0.5\right), x, -1\right) \cdot x}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative11" class="programs"><h2>Alternative 11: <span class="subhead"><data>95.4%</data> accurate, <data>3.6×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\frac{-1}{\mathsf{fma}\left(\mathsf{fma}\left(\left(-\mathsf{fma}\left(0.001736111111111111, x \cdot x, -0.027777777777777776\right)\right) \cdot \mathsf{fma}\left(\mathsf{fma}\left(-0.375, x, 1.5\right), x, -6\right), x, 0.5\right), x, -1\right) \cdot x}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x)
+ :precision binary64
+ (/
+  -1.0
+  (*
+   (fma
+    (fma
+     (*
+      (- (fma 0.001736111111111111 (* x x) -0.027777777777777776))
+      (fma (fma -0.375 x 1.5) x -6.0))
+     x
+     0.5)
+    x
+    -1.0)
+   x)))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x) {
+	return -1.0 / (fma(fma((-fma(0.001736111111111111, (x * x), -0.027777777777777776) * fma(fma(-0.375, x, 1.5), x, -6.0)), x, 0.5), x, -1.0) * x);
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x)
+	return Float64(-1.0 / Float64(fma(fma(Float64(Float64(-fma(0.001736111111111111, Float64(x * x), -0.027777777777777776)) * fma(fma(-0.375, x, 1.5), x, -6.0)), x, 0.5), x, -1.0) * x))
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_] := N[(-1.0 / N[(N[(N[(N[((-N[(0.001736111111111111 * N[(x * x), $MachinePrecision] + -0.027777777777777776), $MachinePrecision]) * N[(N[(-0.375 * x + 1.5), $MachinePrecision] * x + -6.0), $MachinePrecision]), $MachinePrecision] * x + 0.5), $MachinePrecision] * x + -1.0), $MachinePrecision] * x), $MachinePrecision]), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\frac{-1}{\mathsf{fma}\left(\mathsf{fma}\left(\left(-\mathsf{fma}\left(0.001736111111111111, x \cdot x, -0.027777777777777776\right)\right) \cdot \mathsf{fma}\left(\mathsf{fma}\left(-0.375, x, 1.5\right), x, -6\right), x, 0.5\right), x, -1\right) \cdot x}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="36.7% on training set">35.3%</span></p><div class="math">\[\frac{e^{x}}{e^{x} - 1}
+\]</div></li><li>Add Preprocessing</li><li></li><li><p>Applied rewrites<span class="error" title="100.0% on training set">100.0%</span></p><div class="math">\[\leadsto \color{blue}{\frac{-1}{\mathsf{expm1}\left(-x\right)}}
+\]</div></li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \frac{-1}{\color{blue}{x \cdot \left(x \cdot \left(\frac{1}{2} + x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right)\right) - 1\right)}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="92.4% on training set">89.9%</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\mathsf{fma}\left(\mathsf{fma}\left(\mathsf{fma}\left(0.041666666666666664, x, -0.16666666666666666\right), x, 0.5\right), x, -1\right) \cdot x}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="92.4% on training set">89.9%</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\mathsf{fma}\left(\left(-\mathsf{fma}\left(0.001736111111111111, x \cdot x, -0.027777777777777776\right)\right) \cdot \frac{1}{-\mathsf{fma}\left(0.041666666666666664, x, 0.16666666666666666\right)}, x, 0.5\right), x, -1\right) \cdot x}
+\]</div></li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\mathsf{fma}\left(\left(-\mathsf{fma}\left(\frac{1}{576}, x \cdot x, \frac{-1}{36}\right)\right) \cdot \left(x \cdot \left(\frac{3}{2} + \frac{-3}{8} \cdot x\right) - 6\right), x, \frac{1}{2}\right), x, -1\right) \cdot x}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="95.4% on training set">94.4%</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\mathsf{fma}\left(\left(-\mathsf{fma}\left(0.001736111111111111, x \cdot x, -0.027777777777777776\right)\right) \cdot \mathsf{fma}\left(\mathsf{fma}\left(-0.375, x, 1.5\right), x, -6\right), x, 0.5\right), x, -1\right) \cdot x}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative12" class="programs"><h2>Alternative 12: <span class="subhead"><data>94.7%</data> accurate, <data>4.1×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\frac{-1}{\mathsf{fma}\left(\mathsf{fma}\left(\left(-\mathsf{fma}\left(0.001736111111111111, x \cdot x, -0.027777777777777776\right)\right) \cdot \mathsf{fma}\left(1.5, x, -6\right), x, 0.5\right), x, -1\right) \cdot x}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x)
+ :precision binary64
+ (/
+  -1.0
+  (*
+   (fma
+    (fma
+     (*
+      (- (fma 0.001736111111111111 (* x x) -0.027777777777777776))
+      (fma 1.5 x -6.0))
+     x
+     0.5)
+    x
+    -1.0)
+   x)))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x) {
+	return -1.0 / (fma(fma((-fma(0.001736111111111111, (x * x), -0.027777777777777776) * fma(1.5, x, -6.0)), x, 0.5), x, -1.0) * x);
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x)
+	return Float64(-1.0 / Float64(fma(fma(Float64(Float64(-fma(0.001736111111111111, Float64(x * x), -0.027777777777777776)) * fma(1.5, x, -6.0)), x, 0.5), x, -1.0) * x))
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_] := N[(-1.0 / N[(N[(N[(N[((-N[(0.001736111111111111 * N[(x * x), $MachinePrecision] + -0.027777777777777776), $MachinePrecision]) * N[(1.5 * x + -6.0), $MachinePrecision]), $MachinePrecision] * x + 0.5), $MachinePrecision] * x + -1.0), $MachinePrecision] * x), $MachinePrecision]), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\frac{-1}{\mathsf{fma}\left(\mathsf{fma}\left(\left(-\mathsf{fma}\left(0.001736111111111111, x \cdot x, -0.027777777777777776\right)\right) \cdot \mathsf{fma}\left(1.5, x, -6\right), x, 0.5\right), x, -1\right) \cdot x}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="36.7% on training set">35.3%</span></p><div class="math">\[\frac{e^{x}}{e^{x} - 1}
+\]</div></li><li>Add Preprocessing</li><li></li><li><p>Applied rewrites<span class="error" title="100.0% on training set">100.0%</span></p><div class="math">\[\leadsto \color{blue}{\frac{-1}{\mathsf{expm1}\left(-x\right)}}
+\]</div></li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \frac{-1}{\color{blue}{x \cdot \left(x \cdot \left(\frac{1}{2} + x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right)\right) - 1\right)}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="92.4% on training set">89.9%</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\mathsf{fma}\left(\mathsf{fma}\left(\mathsf{fma}\left(0.041666666666666664, x, -0.16666666666666666\right), x, 0.5\right), x, -1\right) \cdot x}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="92.4% on training set">89.9%</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\mathsf{fma}\left(\left(-\mathsf{fma}\left(0.001736111111111111, x \cdot x, -0.027777777777777776\right)\right) \cdot \frac{1}{-\mathsf{fma}\left(0.041666666666666664, x, 0.16666666666666666\right)}, x, 0.5\right), x, -1\right) \cdot x}
+\]</div></li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\mathsf{fma}\left(\left(-\mathsf{fma}\left(\frac{1}{576}, x \cdot x, \frac{-1}{36}\right)\right) \cdot \left(\frac{3}{2} \cdot x - 6\right), x, \frac{1}{2}\right), x, -1\right) \cdot x}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="94.7% on training set">93.6%</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\mathsf{fma}\left(\left(-\mathsf{fma}\left(0.001736111111111111, x \cdot x, -0.027777777777777776\right)\right) \cdot \mathsf{fma}\left(1.5, x, -6\right), x, 0.5\right), x, -1\right) \cdot x}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative13" class="programs"><h2>Alternative 13: <span class="subhead"><data>93.7%</data> accurate, <data>4.6×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\frac{-1}{\mathsf{fma}\left(\mathsf{fma}\left(\left(-\mathsf{fma}\left(0.001736111111111111, x \cdot x, -0.027777777777777776\right)\right) \cdot -6, x, 0.5\right), x, -1\right) \cdot x}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x)
+ :precision binary64
+ (/
+  -1.0
+  (*
+   (fma
+    (fma
+     (* (- (fma 0.001736111111111111 (* x x) -0.027777777777777776)) -6.0)
+     x
+     0.5)
+    x
+    -1.0)
+   x)))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x) {
+	return -1.0 / (fma(fma((-fma(0.001736111111111111, (x * x), -0.027777777777777776) * -6.0), x, 0.5), x, -1.0) * x);
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x)
+	return Float64(-1.0 / Float64(fma(fma(Float64(Float64(-fma(0.001736111111111111, Float64(x * x), -0.027777777777777776)) * -6.0), x, 0.5), x, -1.0) * x))
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_] := N[(-1.0 / N[(N[(N[(N[((-N[(0.001736111111111111 * N[(x * x), $MachinePrecision] + -0.027777777777777776), $MachinePrecision]) * -6.0), $MachinePrecision] * x + 0.5), $MachinePrecision] * x + -1.0), $MachinePrecision] * x), $MachinePrecision]), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\frac{-1}{\mathsf{fma}\left(\mathsf{fma}\left(\left(-\mathsf{fma}\left(0.001736111111111111, x \cdot x, -0.027777777777777776\right)\right) \cdot -6, x, 0.5\right), x, -1\right) \cdot x}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="36.7% on training set">35.3%</span></p><div class="math">\[\frac{e^{x}}{e^{x} - 1}
+\]</div></li><li>Add Preprocessing</li><li></li><li><p>Applied rewrites<span class="error" title="100.0% on training set">100.0%</span></p><div class="math">\[\leadsto \color{blue}{\frac{-1}{\mathsf{expm1}\left(-x\right)}}
+\]</div></li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \frac{-1}{\color{blue}{x \cdot \left(x \cdot \left(\frac{1}{2} + x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right)\right) - 1\right)}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="92.4% on training set">89.9%</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\mathsf{fma}\left(\mathsf{fma}\left(\mathsf{fma}\left(0.041666666666666664, x, -0.16666666666666666\right), x, 0.5\right), x, -1\right) \cdot x}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="92.4% on training set">89.9%</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\mathsf{fma}\left(\left(-\mathsf{fma}\left(0.001736111111111111, x \cdot x, -0.027777777777777776\right)\right) \cdot \frac{1}{-\mathsf{fma}\left(0.041666666666666664, x, 0.16666666666666666\right)}, x, 0.5\right), x, -1\right) \cdot x}
+\]</div></li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\mathsf{fma}\left(\left(-\mathsf{fma}\left(\frac{1}{576}, x \cdot x, \frac{-1}{36}\right)\right) \cdot -6, x, \frac{1}{2}\right), x, -1\right) \cdot x}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="93.7% on training set">92.0%</span></p><div class="math">\[\leadsto \frac{-1}{\mathsf{fma}\left(\mathsf{fma}\left(\left(-\mathsf{fma}\left(0.001736111111111111, x \cdot x, -0.027777777777777776\right)\right) \cdot -6, x, 0.5\right), x, -1\right) \cdot x}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative14" class="programs"><h2>Alternative 14: <span class="subhead"><data>92.4%</data> accurate, <data>6.1×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\frac{-1}{\mathsf{fma}\left(\mathsf{fma}\left(\mathsf{fma}\left(0.041666666666666664, x, -0.16666666666666666\right), x, 0.5\right), x, -1\right) \cdot x}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x)
+ :precision binary64
+ (/
+  -1.0
+  (*
+   (fma (fma (fma 0.041666666666666664 x -0.16666666666666666) x 0.5) x -1.0)
+   x)))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x) {
+	return -1.0 / (fma(fma(fma(0.041666666666666664, x, -0.16666666666666666), x, 0.5), x, -1.0) * x);
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x)
+	return Float64(-1.0 / Float64(fma(fma(fma(0.041666666666666664, x, -0.16666666666666666), x, 0.5), x, -1.0) * x))
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_] := N[(-1.0 / N[(N[(N[(N[(0.041666666666666664 * x + -0.16666666666666666), $MachinePrecision] * x + 0.5), $MachinePrecision] * x + -1.0), $MachinePrecision] * x), $MachinePrecision]), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\frac{-1}{\mathsf{fma}\left(\mathsf{fma}\left(\mathsf{fma}\left(0.041666666666666664, x, -0.16666666666666666\right), x, 0.5\right), x, -1\right) \cdot x}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="36.7% on training set">35.3%</span></p><div class="math">\[\frac{e^{x}}{e^{x} - 1}
+\]</div></li><li>Add Preprocessing</li><li></li><li><p>Applied rewrites<span class="error" title="100.0% on training set">100.0%</span></p><div class="math">\[\leadsto \color{blue}{\frac{-1}{\mathsf{expm1}\left(-x\right)}}
+\]</div></li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \frac{-1}{\color{blue}{x \cdot \left(x \cdot \left(\frac{1}{2} + x \cdot \left(\frac{1}{24} \cdot x - \frac{1}{6}\right)\right) - 1\right)}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="92.4% on training set">89.9%</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\mathsf{fma}\left(\mathsf{fma}\left(\mathsf{fma}\left(0.041666666666666664, x, -0.16666666666666666\right), x, 0.5\right), x, -1\right) \cdot x}}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative15" class="programs"><h2>Alternative 15: <span class="subhead"><data>89.7%</data> accurate, <data>7.4×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\frac{-1}{\mathsf{fma}\left(\mathsf{fma}\left(-0.16666666666666666, x, 0.5\right), x, -1\right) \cdot x}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x)
+ :precision binary64
+ (/ -1.0 (* (fma (fma -0.16666666666666666 x 0.5) x -1.0) x)))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x) {
+	return -1.0 / (fma(fma(-0.16666666666666666, x, 0.5), x, -1.0) * x);
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x)
+	return Float64(-1.0 / Float64(fma(fma(-0.16666666666666666, x, 0.5), x, -1.0) * x))
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_] := N[(-1.0 / N[(N[(N[(-0.16666666666666666 * x + 0.5), $MachinePrecision] * x + -1.0), $MachinePrecision] * x), $MachinePrecision]), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\frac{-1}{\mathsf{fma}\left(\mathsf{fma}\left(-0.16666666666666666, x, 0.5\right), x, -1\right) \cdot x}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="36.7% on training set">35.3%</span></p><div class="math">\[\frac{e^{x}}{e^{x} - 1}
+\]</div></li><li>Add Preprocessing</li><li></li><li><p>Applied rewrites<span class="error" title="100.0% on training set">100.0%</span></p><div class="math">\[\leadsto \color{blue}{\frac{-1}{\mathsf{expm1}\left(-x\right)}}
+\]</div></li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \frac{-1}{\color{blue}{x \cdot \left(x \cdot \left(\frac{1}{2} + \frac{-1}{6} \cdot x\right) - 1\right)}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="89.7% on training set">87.9%</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\mathsf{fma}\left(\mathsf{fma}\left(-0.16666666666666666, x, 0.5\right), x, -1\right) \cdot x}}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative16" class="programs"><h2>Alternative 16: <span class="subhead"><data>83.6%</data> accurate, <data>9.3×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\frac{-1}{\mathsf{fma}\left(0.5, x, -1\right) \cdot x}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x) :precision binary64 (/ -1.0 (* (fma 0.5 x -1.0) x)))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x) {
+	return -1.0 / (fma(0.5, x, -1.0) * x);
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x)
+	return Float64(-1.0 / Float64(fma(0.5, x, -1.0) * x))
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_] := N[(-1.0 / N[(N[(0.5 * x + -1.0), $MachinePrecision] * x), $MachinePrecision]), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\frac{-1}{\mathsf{fma}\left(0.5, x, -1\right) \cdot x}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="36.7% on training set">35.3%</span></p><div class="math">\[\frac{e^{x}}{e^{x} - 1}
+\]</div></li><li>Add Preprocessing</li><li></li><li><p>Applied rewrites<span class="error" title="100.0% on training set">100.0%</span></p><div class="math">\[\leadsto \color{blue}{\frac{-1}{\mathsf{expm1}\left(-x\right)}}
+\]</div></li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \frac{-1}{\color{blue}{x \cdot \left(\frac{1}{2} \cdot x - 1\right)}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="83.6% on training set">82.6%</span></p><div class="math">\[\leadsto \frac{-1}{\color{blue}{\mathsf{fma}\left(0.5, x, -1\right) \cdot x}}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative17" class="programs"><h2>Alternative 17: <span class="subhead"><data>3.3%</data> accurate, <data>35.8×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+0.08333333333333333 \cdot x
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x) :precision binary64 (* 0.08333333333333333 x))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x) {
+	return 0.08333333333333333 * x;
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(x)
+    real(8), intent (in) :: x
+    code = 0.08333333333333333d0 * x
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double x) {
+	return 0.08333333333333333 * x;
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(x):
+	return 0.08333333333333333 * x
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x)
+	return Float64(0.08333333333333333 * x)
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp = code(x)
+	tmp = 0.08333333333333333 * x;
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_] := N[(0.08333333333333333 * x), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+0.08333333333333333 \cdot x
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="36.7% on training set">35.3%</span></p><div class="math">\[\frac{e^{x}}{e^{x} - 1}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \color{blue}{\frac{1 + x \cdot \left(\frac{1}{2} + \frac{1}{12} \cdot x\right)}{x}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="67.8% on training set">68.7%</span></p><div class="math">\[\leadsto \color{blue}{\mathsf{fma}\left(0.08333333333333333, x, 0.5 + \frac{1}{x}\right)}
+\]</div></li><li><p>Taylor expanded in x around inf</p><div class="math">\[\leadsto \frac{1}{12} \cdot \color{blue}{x}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="3.3% on training set">3.2%</span></p><div class="math">\[\leadsto 0.08333333333333333 \cdot \color{blue}{x}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative18" class="programs"><h2>Alternative 18: <span class="subhead"><data>3.3%</data> accurate, <data>215.0×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+0.5
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x) :precision binary64 0.5)</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x) {
+	return 0.5;
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(x)
+    real(8), intent (in) :: x
+    code = 0.5d0
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double x) {
+	return 0.5;
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(x):
+	return 0.5
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x)
+	return 0.5
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp = code(x)
+	tmp = 0.5;
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_] := 0.5
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+0.5
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="36.7% on training set">35.3%</span></p><div class="math">\[\frac{e^{x}}{e^{x} - 1}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \color{blue}{\frac{1 + \frac{1}{2} \cdot x}{x}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="67.8% on training set">68.6%</span></p><div class="math">\[\leadsto \color{blue}{0.5 + \frac{1}{x}}
+\]</div></li><li><p>Taylor expanded in x around inf</p><div class="math">\[\leadsto \frac{1}{2}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="3.3% on training set">3.1%</span></p><div class="math">\[\leadsto 0.5
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="target1" class="programs"><h2>Developer Target 1: <span class="subhead"><data>100.0%</data> accurate, <data>1.9×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Java</option><option>Python</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#target" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\frac{-1}{\mathsf{expm1}\left(-x\right)}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x) :precision binary64 (/ (- 1.0) (expm1 (- x))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x) {
+	return -1.0 / expm1(-x);
+}
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double x) {
+	return -1.0 / Math.expm1(-x);
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(x):
+	return -1.0 / math.expm1(-x)
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x)
+	return Float64(Float64(-1.0) / expm1(Float64(-x)))
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_] := N[((-1.0) / N[(Exp[(-x)] - 1), $MachinePrecision]), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\frac{-1}{\mathsf{expm1}\left(-x\right)}
+\end{array}
+</pre></div></div></section><section id="reproduce"><details><summary><h2>Reproduce</h2><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#reproduction" target="_blank">?</a></summary><pre class="shell"><code>herbie shell --seed 80361537 
+(FPCore (x)
+  :name "expq2 (section 3.11)"
+  :precision binary64
+  :pre (&gt; 710.0 x)
+
+  :alt
+  (! :herbie-platform default (/ (- 1) (expm1 (- x))))
+
+  (/ (exp x) (- (exp x) 1.0)))
+</code></pre></details></section></body></html>

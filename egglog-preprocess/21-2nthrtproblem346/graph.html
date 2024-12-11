@@ -1,0 +1,2352 @@
+<!doctype html>
+<html><head><meta charset="utf-8"/><title>Result for 2nthrt (problem 3.4.6)</title><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/katex.min.css" integrity="sha384-9tPv11A+glH/on/wEu99NVwDPwkMQESOocs/ZGXPoIiLE8MU/qkqUcZ3zzL+6DuH" crossorigin="anonymous"/><script src="https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/katex.min.js" integrity="sha384-U8Vrjwb8fuHMt6ewaCy8uqeUXv4oitYACKdB0VziCerzt011iQ/0TqlSlv8MReCm" crossorigin="anonymous"></script><script src="https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/contrib/auto-render.min.js" integrity="sha384-aGfk5kvhIq5x1x5YdvCp4upKZYnA8ckafviDpmWEKp4afOZEqOli7gqSnh8I6enH" crossorigin="anonymous"></script><script src="https://unpkg.com/mathjs@4.4.2/dist/math.min.js"></script><script src="https://unpkg.com/d3@6.7.0/dist/d3.min.js"></script><script src="https://unpkg.com/@observablehq/plot@0.4.3/dist/plot.umd.min.js"></script><link rel="stylesheet" type="text/css" href="../report.css"/><script src="../report.js"></script></head><body><header><h1>2nthrt (problem 3.4.6)</h1><img src="../logo-car.png"/><nav><ul><li><a href="../index.html">Report</a></li><li><a href="timeline.html">Metrics</a></li></ul></nav></header><div id="large"><div>Percentage Accurate: <span class="number" title="Minimum Accuracy: 0.0% → 3.1%">53.8%<span class="unit"> → </span>91.9%</span></div><div>Time: <span class="number">21.8s</span></div><div>Alternatives: <span class="number">20</span></div><div>Speedup: <span class="number" title="Relative speed of fastest alternative that improves accuracy.">1.8×</span></div></div><ul class="warnings"><li><h2>could not determine a ground truth<a href="https://herbie.uwplse.org/doc/2.2/faq.html#ground-truth"> (more)</a></h2><ol class="extra"><li>x = -1.6729988457442732e+116</li><li>n = 5.963515017907445e+212</li></ol></li></ul><section><details id="specification" class="programs"><summary><h2>Specification</h2><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#spec" target="_blank">?</a></summary><div><div id="precondition"><div class="program math">\[\mathsf{TRUE}\left(\right)\]</div></div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+{\left(x + 1\right)}^{\left(\frac{1}{n}\right)} - {x}^{\left(\frac{1}{n}\right)}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x n)
+ :precision binary64
+ (- (pow (+ x 1.0) (/ 1.0 n)) (pow x (/ 1.0 n))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double n) {
+	return pow((x + 1.0), (1.0 / n)) - pow(x, (1.0 / n));
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(x, n)
+    real(8), intent (in) :: x
+    real(8), intent (in) :: n
+    code = ((x + 1.0d0) ** (1.0d0 / n)) - (x ** (1.0d0 / n))
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double x, double n) {
+	return Math.pow((x + 1.0), (1.0 / n)) - Math.pow(x, (1.0 / n));
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(x, n):
+	return math.pow((x + 1.0), (1.0 / n)) - math.pow(x, (1.0 / n))
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, n)
+	return Float64((Float64(x + 1.0) ^ Float64(1.0 / n)) - (x ^ Float64(1.0 / n)))
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp = code(x, n)
+	tmp = ((x + 1.0) ^ (1.0 / n)) - (x ^ (1.0 / n));
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, n_] := N[(N[Power[N[(x + 1.0), $MachinePrecision], N[(1.0 / n), $MachinePrecision]], $MachinePrecision] - N[Power[x, N[(1.0 / n), $MachinePrecision]], $MachinePrecision]), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+{\left(x + 1\right)}^{\left(\frac{1}{n}\right)} - {x}^{\left(\frac{1}{n}\right)}
+\end{array}
+</pre></div></div><p>Sampling outcomes in <kbd>binary64</kbd> precision:</p><div class="bogosity"><div class="bogosity-valid" data-id="bogosity-valid" data-type="valid" data-timespan="0.34631990923544825" title="valid (34.6%)"></div><div class="bogosity-unknown" data-id="bogosity-unknown" data-type="unknown" data-timespan="0" title="unknown (0.0%)"></div><div class="bogosity-infinite" data-id="bogosity-infinite" data-type="infinite" data-timespan="0.09106989811469107" title="infinite (9.1%)"></div><div class="bogosity-unsamplable" data-id="bogosity-unsamplable" data-type="unsamplable" data-timespan="0" title="unsamplable (0.0%)"></div><div class="bogosity-invalid" data-id="bogosity-invalid" data-type="invalid" data-timespan="0.10146334208548069" title="invalid (10.1%)"></div><div class="bogosity-precondition" data-id="bogosity-precondition" data-type="precondition" data-timespan="0.0009763240814208984" title="precondition (0.1%)"></div></div></details></section><figure id="graphs"><h2>Local Percentage Accuracy vs <span id="variables"></span><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#graph" target="_blank">?</a></h2><svg></svg><div id="functions"></div><figcaption>The average percentage accuracy by input value. Horizontal axis shows value of an input variable; the variable is choosen in the title. Vertical axis is accuracy; higher is better. Red represent the original program, while blue represents Herbie's suggestion. These can be toggled with buttons below the plot. The line is an average while dots represent individual samples.</figcaption></figure><section id="cost-accuracy" class="section" data-benchmark-name="2nthrt (problem 3.4.6)"><h2>Accuracy vs Speed<a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#cost-accuracy" target="_blank">?</a></h2><div class="figure-row"><svg></svg><div><p>Herbie found 20 alternatives:</p><table><thead><tr><th>Alternative</th><th class="numeric">Accuracy</th><th class="numeric">Speedup</th></tr></thead><tbody></tbody></table></div></div><figcaption>The accuracy (vertical axis) and speed (horizontal axis) of each alternatives. Up and to the right is better. The red square shows the initial program, and each blue circle shows an alternative.The line shows the best available speed-accuracy tradeoffs.</figcaption></section><section id="initial" class="programs"><h2>Initial Program: <span class="subhead"><data>53.8%</data> accurate, <data>1.0×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+{\left(x + 1\right)}^{\left(\frac{1}{n}\right)} - {x}^{\left(\frac{1}{n}\right)}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x n)
+ :precision binary64
+ (- (pow (+ x 1.0) (/ 1.0 n)) (pow x (/ 1.0 n))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double n) {
+	return pow((x + 1.0), (1.0 / n)) - pow(x, (1.0 / n));
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(x, n)
+    real(8), intent (in) :: x
+    real(8), intent (in) :: n
+    code = ((x + 1.0d0) ** (1.0d0 / n)) - (x ** (1.0d0 / n))
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double x, double n) {
+	return Math.pow((x + 1.0), (1.0 / n)) - Math.pow(x, (1.0 / n));
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(x, n):
+	return math.pow((x + 1.0), (1.0 / n)) - math.pow(x, (1.0 / n))
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, n)
+	return Float64((Float64(x + 1.0) ^ Float64(1.0 / n)) - (x ^ Float64(1.0 / n)))
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp = code(x, n)
+	tmp = ((x + 1.0) ^ (1.0 / n)) - (x ^ (1.0 / n));
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, n_] := N[(N[Power[N[(x + 1.0), $MachinePrecision], N[(1.0 / n), $MachinePrecision]], $MachinePrecision] - N[Power[x, N[(1.0 / n), $MachinePrecision]], $MachinePrecision]), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+{\left(x + 1\right)}^{\left(\frac{1}{n}\right)} - {x}^{\left(\frac{1}{n}\right)}
+\end{array}
+</pre></div></div></section><section id="alternative1" class="programs"><h2>Alternative 1: <span class="subhead"><data>91.9%</data> accurate, <data>1.0×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Java</option><option>Python</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;x \leq 1:\\
+\;\;\;\;\frac{x}{n} - \mathsf{expm1}\left(\frac{\log x}{n}\right)\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{\frac{{x}^{\left({n}^{-1}\right)}}{x}}{n}\\
+
+
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x n)
+ :precision binary64
+ (if (&lt;= x 1.0)
+   (- (/ x n) (expm1 (/ (log x) n)))
+   (/ (/ (pow x (pow n -1.0)) x) n)))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double n) {
+	double tmp;
+	if (x &lt;= 1.0) {
+		tmp = (x / n) - expm1((log(x) / n));
+	} else {
+		tmp = (pow(x, pow(n, -1.0)) / x) / n;
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double x, double n) {
+	double tmp;
+	if (x &lt;= 1.0) {
+		tmp = (x / n) - Math.expm1((Math.log(x) / n));
+	} else {
+		tmp = (Math.pow(x, Math.pow(n, -1.0)) / x) / n;
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(x, n):
+	tmp = 0
+	if x &lt;= 1.0:
+		tmp = (x / n) - math.expm1((math.log(x) / n))
+	else:
+		tmp = (math.pow(x, math.pow(n, -1.0)) / x) / n
+	return tmp
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, n)
+	tmp = 0.0
+	if (x &lt;= 1.0)
+		tmp = Float64(Float64(x / n) - expm1(Float64(log(x) / n)));
+	else
+		tmp = Float64(Float64((x ^ (n ^ -1.0)) / x) / n);
+	end
+	return tmp
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, n_] := If[LessEqual[x, 1.0], N[(N[(x / n), $MachinePrecision] - N[(Exp[N[(N[Log[x], $MachinePrecision] / n), $MachinePrecision]] - 1), $MachinePrecision]), $MachinePrecision], N[(N[(N[Power[x, N[Power[n, -1.0], $MachinePrecision]], $MachinePrecision] / x), $MachinePrecision] / n), $MachinePrecision]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;x \leq 1:\\
+\;\;\;\;\frac{x}{n} - \mathsf{expm1}\left(\frac{\log x}{n}\right)\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{\frac{{x}^{\left({n}^{-1}\right)}}{x}}{n}\\
+
+
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li class="event">Split input into 2 regimes</li><li><h2><code>if <span class="condition"> x  &lt; 1</span></code></h2><ol><li><p>Initial program <span class="error" title="42.4% on training set">48.9%</span></p><div class="math">\[{\left(x + 1\right)}^{\left(\frac{1}{n}\right)} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \color{blue}{\left(1 + \frac{x}{n}\right) - e^{\frac{\log x}{n}}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="86.9% on training set">90.1%</span></p><div class="math">\[\leadsto \color{blue}{\frac{x}{n} - \mathsf{expm1}\left(\frac{\log x}{n}\right)}
+\]</div></li></ol><h2><code>if <span class="condition">1 &lt;  x </span></code></h2><ol><li><p>Initial program <span class="error" title="68.8% on training set">75.1%</span></p><div class="math">\[{\left(x + 1\right)}^{\left(\frac{1}{n}\right)} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in x around inf</p><div class="math">\[\leadsto \color{blue}{\frac{e^{-1 \cdot \frac{\log \left(\frac{1}{x}\right)}{n}}}{n \cdot x}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="98.4% on training set">98.9%</span></p><div class="math">\[\leadsto \color{blue}{\frac{\frac{{x}^{\left(\frac{1}{n}\right)}}{x}}{n}}
+\]</div></li></ol></li><li class="event">Recombined 2 regimes into one program.</li><li><p>Final simplification<span class="error" title="91.9% on training set">93.5%</span></p><div class="math">\[\leadsto \begin{array}{l}
+\mathbf{if}\;x \leq 1:\\
+\;\;\;\;\frac{x}{n} - \mathsf{expm1}\left(\frac{\log x}{n}\right)\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{\frac{{x}^{\left({n}^{-1}\right)}}{x}}{n}\\
+
+
+\end{array}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative2" class="programs"><h2>Alternative 2: <span class="subhead"><data>78.8%</data> accurate, <data>0.2×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+t_0 := {x}^{\left({n}^{-1}\right)}\\
+t_1 := {\left(x + 1\right)}^{\left({n}^{-1}\right)} - t\_0\\
+t_2 := 1 - t\_0\\
+\mathbf{if}\;t\_1 \leq -1 \cdot 10^{-7}:\\
+\;\;\;\;t\_2\\
+
+\mathbf{elif}\;t\_1 \leq 0:\\
+\;\;\;\;\frac{\log \left(\frac{x}{1 + x}\right)}{-n}\\
+
+\mathbf{else}:\\
+\;\;\;\;t\_2\\
+
+
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x n)
+ :precision binary64
+ (let* ((t_0 (pow x (pow n -1.0)))
+        (t_1 (- (pow (+ x 1.0) (pow n -1.0)) t_0))
+        (t_2 (- 1.0 t_0)))
+   (if (&lt;= t_1 -1e-7)
+     t_2
+     (if (&lt;= t_1 0.0) (/ (log (/ x (+ 1.0 x))) (- n)) t_2))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double n) {
+	double t_0 = pow(x, pow(n, -1.0));
+	double t_1 = pow((x + 1.0), pow(n, -1.0)) - t_0;
+	double t_2 = 1.0 - t_0;
+	double tmp;
+	if (t_1 &lt;= -1e-7) {
+		tmp = t_2;
+	} else if (t_1 &lt;= 0.0) {
+		tmp = log((x / (1.0 + x))) / -n;
+	} else {
+		tmp = t_2;
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(x, n)
+    real(8), intent (in) :: x
+    real(8), intent (in) :: n
+    real(8) :: t_0
+    real(8) :: t_1
+    real(8) :: t_2
+    real(8) :: tmp
+    t_0 = x ** (n ** (-1.0d0))
+    t_1 = ((x + 1.0d0) ** (n ** (-1.0d0))) - t_0
+    t_2 = 1.0d0 - t_0
+    if (t_1 &lt;= (-1d-7)) then
+        tmp = t_2
+    else if (t_1 &lt;= 0.0d0) then
+        tmp = log((x / (1.0d0 + x))) / -n
+    else
+        tmp = t_2
+    end if
+    code = tmp
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double x, double n) {
+	double t_0 = Math.pow(x, Math.pow(n, -1.0));
+	double t_1 = Math.pow((x + 1.0), Math.pow(n, -1.0)) - t_0;
+	double t_2 = 1.0 - t_0;
+	double tmp;
+	if (t_1 &lt;= -1e-7) {
+		tmp = t_2;
+	} else if (t_1 &lt;= 0.0) {
+		tmp = Math.log((x / (1.0 + x))) / -n;
+	} else {
+		tmp = t_2;
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(x, n):
+	t_0 = math.pow(x, math.pow(n, -1.0))
+	t_1 = math.pow((x + 1.0), math.pow(n, -1.0)) - t_0
+	t_2 = 1.0 - t_0
+	tmp = 0
+	if t_1 &lt;= -1e-7:
+		tmp = t_2
+	elif t_1 &lt;= 0.0:
+		tmp = math.log((x / (1.0 + x))) / -n
+	else:
+		tmp = t_2
+	return tmp
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, n)
+	t_0 = x ^ (n ^ -1.0)
+	t_1 = Float64((Float64(x + 1.0) ^ (n ^ -1.0)) - t_0)
+	t_2 = Float64(1.0 - t_0)
+	tmp = 0.0
+	if (t_1 &lt;= -1e-7)
+		tmp = t_2;
+	elseif (t_1 &lt;= 0.0)
+		tmp = Float64(log(Float64(x / Float64(1.0 + x))) / Float64(-n));
+	else
+		tmp = t_2;
+	end
+	return tmp
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp_2 = code(x, n)
+	t_0 = x ^ (n ^ -1.0);
+	t_1 = ((x + 1.0) ^ (n ^ -1.0)) - t_0;
+	t_2 = 1.0 - t_0;
+	tmp = 0.0;
+	if (t_1 &lt;= -1e-7)
+		tmp = t_2;
+	elseif (t_1 &lt;= 0.0)
+		tmp = log((x / (1.0 + x))) / -n;
+	else
+		tmp = t_2;
+	end
+	tmp_2 = tmp;
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, n_] := Block[{t$95$0 = N[Power[x, N[Power[n, -1.0], $MachinePrecision]], $MachinePrecision]}, Block[{t$95$1 = N[(N[Power[N[(x + 1.0), $MachinePrecision], N[Power[n, -1.0], $MachinePrecision]], $MachinePrecision] - t$95$0), $MachinePrecision]}, Block[{t$95$2 = N[(1.0 - t$95$0), $MachinePrecision]}, If[LessEqual[t$95$1, -1e-7], t$95$2, If[LessEqual[t$95$1, 0.0], N[(N[Log[N[(x / N[(1.0 + x), $MachinePrecision]), $MachinePrecision]], $MachinePrecision] / (-n)), $MachinePrecision], t$95$2]]]]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+t_0 := {x}^{\left({n}^{-1}\right)}\\
+t_1 := {\left(x + 1\right)}^{\left({n}^{-1}\right)} - t\_0\\
+t_2 := 1 - t\_0\\
+\mathbf{if}\;t\_1 \leq -1 \cdot 10^{-7}:\\
+\;\;\;\;t\_2\\
+
+\mathbf{elif}\;t\_1 \leq 0:\\
+\;\;\;\;\frac{\log \left(\frac{x}{1 + x}\right)}{-n}\\
+
+\mathbf{else}:\\
+\;\;\;\;t\_2\\
+
+
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li class="event">Split input into 2 regimes</li><li><h2><code>if <span class="condition"> (-.f64 (pow.f64 (+.f64 x #s(literal 1 binary64)) (/.f64 #s(literal 1 binary64) n)) (pow.f64 x (/.f64 #s(literal 1 binary64) n)))  &lt; -9.9999999999999995e-8 or 0.0 &lt;  (-.f64 (pow.f64 (+.f64 x #s(literal 1 binary64)) (/.f64 #s(literal 1 binary64) n)) (pow.f64 x (/.f64 #s(literal 1 binary64) n))) </span></code></h2><ol><li><p>Initial program <span class="error" title="76.4% on training set">85.4%</span></p><div class="math">\[{\left(x + 1\right)}^{\left(\frac{1}{n}\right)} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \color{blue}{1} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="73.8% on training set">81.9%</span></p><div class="math">\[\leadsto \color{blue}{1} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li></ol><h2><code>if <span class="condition">-9.9999999999999995e-8 &lt;  (-.f64 (pow.f64 (+.f64 x #s(literal 1 binary64)) (/.f64 #s(literal 1 binary64) n)) (pow.f64 x (/.f64 #s(literal 1 binary64) n)))  &lt; 0.0</span></code></h2><ol><li><p>Initial program <span class="error" title="44.4% on training set">46.2%</span></p><div class="math">\[{\left(x + 1\right)}^{\left(\frac{1}{n}\right)} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in n around inf</p><div class="math">\[\leadsto \color{blue}{\frac{\log \left(1 + x\right) - \log x}{n}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="80.8% on training set">84.8%</span></p><div class="math">\[\leadsto \color{blue}{\frac{\mathsf{log1p}\left(x\right) - \log x}{n}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="80.9% on training set">84.9%</span></p><div class="math">\[\leadsto \frac{-\log \left(\frac{x}{1 + x}\right)}{n}
+\]</div></li></ol></li><li class="event">Recombined 2 regimes into one program.</li><li><p>Final simplification<span class="error" title="78.8% on training set">83.9%</span></p><div class="math">\[\leadsto \begin{array}{l}
+\mathbf{if}\;{\left(x + 1\right)}^{\left({n}^{-1}\right)} - {x}^{\left({n}^{-1}\right)} \leq -1 \cdot 10^{-7}:\\
+\;\;\;\;1 - {x}^{\left({n}^{-1}\right)}\\
+
+\mathbf{elif}\;{\left(x + 1\right)}^{\left({n}^{-1}\right)} - {x}^{\left({n}^{-1}\right)} \leq 0:\\
+\;\;\;\;\frac{\log \left(\frac{x}{1 + x}\right)}{-n}\\
+
+\mathbf{else}:\\
+\;\;\;\;1 - {x}^{\left({n}^{-1}\right)}\\
+
+
+\end{array}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative3" class="programs"><h2>Alternative 3: <span class="subhead"><data>78.8%</data> accurate, <data>0.2×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+t_0 := {x}^{\left({n}^{-1}\right)}\\
+t_1 := {\left(x + 1\right)}^{\left({n}^{-1}\right)} - t\_0\\
+t_2 := 1 - t\_0\\
+\mathbf{if}\;t\_1 \leq -1 \cdot 10^{-7}:\\
+\;\;\;\;t\_2\\
+
+\mathbf{elif}\;t\_1 \leq 0:\\
+\;\;\;\;\frac{\log \left(\frac{1 + x}{x}\right)}{n}\\
+
+\mathbf{else}:\\
+\;\;\;\;t\_2\\
+
+
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x n)
+ :precision binary64
+ (let* ((t_0 (pow x (pow n -1.0)))
+        (t_1 (- (pow (+ x 1.0) (pow n -1.0)) t_0))
+        (t_2 (- 1.0 t_0)))
+   (if (&lt;= t_1 -1e-7) t_2 (if (&lt;= t_1 0.0) (/ (log (/ (+ 1.0 x) x)) n) t_2))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double n) {
+	double t_0 = pow(x, pow(n, -1.0));
+	double t_1 = pow((x + 1.0), pow(n, -1.0)) - t_0;
+	double t_2 = 1.0 - t_0;
+	double tmp;
+	if (t_1 &lt;= -1e-7) {
+		tmp = t_2;
+	} else if (t_1 &lt;= 0.0) {
+		tmp = log(((1.0 + x) / x)) / n;
+	} else {
+		tmp = t_2;
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(x, n)
+    real(8), intent (in) :: x
+    real(8), intent (in) :: n
+    real(8) :: t_0
+    real(8) :: t_1
+    real(8) :: t_2
+    real(8) :: tmp
+    t_0 = x ** (n ** (-1.0d0))
+    t_1 = ((x + 1.0d0) ** (n ** (-1.0d0))) - t_0
+    t_2 = 1.0d0 - t_0
+    if (t_1 &lt;= (-1d-7)) then
+        tmp = t_2
+    else if (t_1 &lt;= 0.0d0) then
+        tmp = log(((1.0d0 + x) / x)) / n
+    else
+        tmp = t_2
+    end if
+    code = tmp
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double x, double n) {
+	double t_0 = Math.pow(x, Math.pow(n, -1.0));
+	double t_1 = Math.pow((x + 1.0), Math.pow(n, -1.0)) - t_0;
+	double t_2 = 1.0 - t_0;
+	double tmp;
+	if (t_1 &lt;= -1e-7) {
+		tmp = t_2;
+	} else if (t_1 &lt;= 0.0) {
+		tmp = Math.log(((1.0 + x) / x)) / n;
+	} else {
+		tmp = t_2;
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(x, n):
+	t_0 = math.pow(x, math.pow(n, -1.0))
+	t_1 = math.pow((x + 1.0), math.pow(n, -1.0)) - t_0
+	t_2 = 1.0 - t_0
+	tmp = 0
+	if t_1 &lt;= -1e-7:
+		tmp = t_2
+	elif t_1 &lt;= 0.0:
+		tmp = math.log(((1.0 + x) / x)) / n
+	else:
+		tmp = t_2
+	return tmp
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, n)
+	t_0 = x ^ (n ^ -1.0)
+	t_1 = Float64((Float64(x + 1.0) ^ (n ^ -1.0)) - t_0)
+	t_2 = Float64(1.0 - t_0)
+	tmp = 0.0
+	if (t_1 &lt;= -1e-7)
+		tmp = t_2;
+	elseif (t_1 &lt;= 0.0)
+		tmp = Float64(log(Float64(Float64(1.0 + x) / x)) / n);
+	else
+		tmp = t_2;
+	end
+	return tmp
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp_2 = code(x, n)
+	t_0 = x ^ (n ^ -1.0);
+	t_1 = ((x + 1.0) ^ (n ^ -1.0)) - t_0;
+	t_2 = 1.0 - t_0;
+	tmp = 0.0;
+	if (t_1 &lt;= -1e-7)
+		tmp = t_2;
+	elseif (t_1 &lt;= 0.0)
+		tmp = log(((1.0 + x) / x)) / n;
+	else
+		tmp = t_2;
+	end
+	tmp_2 = tmp;
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, n_] := Block[{t$95$0 = N[Power[x, N[Power[n, -1.0], $MachinePrecision]], $MachinePrecision]}, Block[{t$95$1 = N[(N[Power[N[(x + 1.0), $MachinePrecision], N[Power[n, -1.0], $MachinePrecision]], $MachinePrecision] - t$95$0), $MachinePrecision]}, Block[{t$95$2 = N[(1.0 - t$95$0), $MachinePrecision]}, If[LessEqual[t$95$1, -1e-7], t$95$2, If[LessEqual[t$95$1, 0.0], N[(N[Log[N[(N[(1.0 + x), $MachinePrecision] / x), $MachinePrecision]], $MachinePrecision] / n), $MachinePrecision], t$95$2]]]]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+t_0 := {x}^{\left({n}^{-1}\right)}\\
+t_1 := {\left(x + 1\right)}^{\left({n}^{-1}\right)} - t\_0\\
+t_2 := 1 - t\_0\\
+\mathbf{if}\;t\_1 \leq -1 \cdot 10^{-7}:\\
+\;\;\;\;t\_2\\
+
+\mathbf{elif}\;t\_1 \leq 0:\\
+\;\;\;\;\frac{\log \left(\frac{1 + x}{x}\right)}{n}\\
+
+\mathbf{else}:\\
+\;\;\;\;t\_2\\
+
+
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li class="event">Split input into 2 regimes</li><li><h2><code>if <span class="condition"> (-.f64 (pow.f64 (+.f64 x #s(literal 1 binary64)) (/.f64 #s(literal 1 binary64) n)) (pow.f64 x (/.f64 #s(literal 1 binary64) n)))  &lt; -9.9999999999999995e-8 or 0.0 &lt;  (-.f64 (pow.f64 (+.f64 x #s(literal 1 binary64)) (/.f64 #s(literal 1 binary64) n)) (pow.f64 x (/.f64 #s(literal 1 binary64) n))) </span></code></h2><ol><li><p>Initial program <span class="error" title="76.4% on training set">85.4%</span></p><div class="math">\[{\left(x + 1\right)}^{\left(\frac{1}{n}\right)} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \color{blue}{1} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="73.8% on training set">81.9%</span></p><div class="math">\[\leadsto \color{blue}{1} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li></ol><h2><code>if <span class="condition">-9.9999999999999995e-8 &lt;  (-.f64 (pow.f64 (+.f64 x #s(literal 1 binary64)) (/.f64 #s(literal 1 binary64) n)) (pow.f64 x (/.f64 #s(literal 1 binary64) n)))  &lt; 0.0</span></code></h2><ol><li><p>Initial program <span class="error" title="44.4% on training set">46.2%</span></p><div class="math">\[{\left(x + 1\right)}^{\left(\frac{1}{n}\right)} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in n around inf</p><div class="math">\[\leadsto \color{blue}{\frac{\log \left(1 + x\right) - \log x}{n}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="80.8% on training set">84.8%</span></p><div class="math">\[\leadsto \color{blue}{\frac{\mathsf{log1p}\left(x\right) - \log x}{n}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="80.8% on training set">84.9%</span></p><div class="math">\[\leadsto \frac{\log \left(\frac{1 + x}{x}\right)}{n}
+\]</div></li></ol></li><li class="event">Recombined 2 regimes into one program.</li><li><p>Final simplification<span class="error" title="78.8% on training set">83.9%</span></p><div class="math">\[\leadsto \begin{array}{l}
+\mathbf{if}\;{\left(x + 1\right)}^{\left({n}^{-1}\right)} - {x}^{\left({n}^{-1}\right)} \leq -1 \cdot 10^{-7}:\\
+\;\;\;\;1 - {x}^{\left({n}^{-1}\right)}\\
+
+\mathbf{elif}\;{\left(x + 1\right)}^{\left({n}^{-1}\right)} - {x}^{\left({n}^{-1}\right)} \leq 0:\\
+\;\;\;\;\frac{\log \left(\frac{1 + x}{x}\right)}{n}\\
+
+\mathbf{else}:\\
+\;\;\;\;1 - {x}^{\left({n}^{-1}\right)}\\
+
+
+\end{array}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative4" class="programs"><h2>Alternative 4: <span class="subhead"><data>82.1%</data> accurate, <data>0.4×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+t_0 := {x}^{\left({n}^{-1}\right)}\\
+\mathbf{if}\;{n}^{-1} \leq -2 \cdot 10^{-33}:\\
+\;\;\;\;\frac{\frac{t\_0}{x}}{n}\\
+
+\mathbf{elif}\;{n}^{-1} \leq 2 \cdot 10^{-21}:\\
+\;\;\;\;\frac{\log \left(\frac{x}{1 + x}\right)}{-n}\\
+
+\mathbf{elif}\;{n}^{-1} \leq 10^{+226}:\\
+\;\;\;\;\left(\frac{x}{n} + 1\right) - t\_0\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{\frac{n}{x}}{n \cdot n}\\
+
+
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x n)
+ :precision binary64
+ (let* ((t_0 (pow x (pow n -1.0))))
+   (if (&lt;= (pow n -1.0) -2e-33)
+     (/ (/ t_0 x) n)
+     (if (&lt;= (pow n -1.0) 2e-21)
+       (/ (log (/ x (+ 1.0 x))) (- n))
+       (if (&lt;= (pow n -1.0) 1e+226)
+         (- (+ (/ x n) 1.0) t_0)
+         (/ (/ n x) (* n n)))))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double n) {
+	double t_0 = pow(x, pow(n, -1.0));
+	double tmp;
+	if (pow(n, -1.0) &lt;= -2e-33) {
+		tmp = (t_0 / x) / n;
+	} else if (pow(n, -1.0) &lt;= 2e-21) {
+		tmp = log((x / (1.0 + x))) / -n;
+	} else if (pow(n, -1.0) &lt;= 1e+226) {
+		tmp = ((x / n) + 1.0) - t_0;
+	} else {
+		tmp = (n / x) / (n * n);
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(x, n)
+    real(8), intent (in) :: x
+    real(8), intent (in) :: n
+    real(8) :: t_0
+    real(8) :: tmp
+    t_0 = x ** (n ** (-1.0d0))
+    if ((n ** (-1.0d0)) &lt;= (-2d-33)) then
+        tmp = (t_0 / x) / n
+    else if ((n ** (-1.0d0)) &lt;= 2d-21) then
+        tmp = log((x / (1.0d0 + x))) / -n
+    else if ((n ** (-1.0d0)) &lt;= 1d+226) then
+        tmp = ((x / n) + 1.0d0) - t_0
+    else
+        tmp = (n / x) / (n * n)
+    end if
+    code = tmp
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double x, double n) {
+	double t_0 = Math.pow(x, Math.pow(n, -1.0));
+	double tmp;
+	if (Math.pow(n, -1.0) &lt;= -2e-33) {
+		tmp = (t_0 / x) / n;
+	} else if (Math.pow(n, -1.0) &lt;= 2e-21) {
+		tmp = Math.log((x / (1.0 + x))) / -n;
+	} else if (Math.pow(n, -1.0) &lt;= 1e+226) {
+		tmp = ((x / n) + 1.0) - t_0;
+	} else {
+		tmp = (n / x) / (n * n);
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(x, n):
+	t_0 = math.pow(x, math.pow(n, -1.0))
+	tmp = 0
+	if math.pow(n, -1.0) &lt;= -2e-33:
+		tmp = (t_0 / x) / n
+	elif math.pow(n, -1.0) &lt;= 2e-21:
+		tmp = math.log((x / (1.0 + x))) / -n
+	elif math.pow(n, -1.0) &lt;= 1e+226:
+		tmp = ((x / n) + 1.0) - t_0
+	else:
+		tmp = (n / x) / (n * n)
+	return tmp
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, n)
+	t_0 = x ^ (n ^ -1.0)
+	tmp = 0.0
+	if ((n ^ -1.0) &lt;= -2e-33)
+		tmp = Float64(Float64(t_0 / x) / n);
+	elseif ((n ^ -1.0) &lt;= 2e-21)
+		tmp = Float64(log(Float64(x / Float64(1.0 + x))) / Float64(-n));
+	elseif ((n ^ -1.0) &lt;= 1e+226)
+		tmp = Float64(Float64(Float64(x / n) + 1.0) - t_0);
+	else
+		tmp = Float64(Float64(n / x) / Float64(n * n));
+	end
+	return tmp
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp_2 = code(x, n)
+	t_0 = x ^ (n ^ -1.0);
+	tmp = 0.0;
+	if ((n ^ -1.0) &lt;= -2e-33)
+		tmp = (t_0 / x) / n;
+	elseif ((n ^ -1.0) &lt;= 2e-21)
+		tmp = log((x / (1.0 + x))) / -n;
+	elseif ((n ^ -1.0) &lt;= 1e+226)
+		tmp = ((x / n) + 1.0) - t_0;
+	else
+		tmp = (n / x) / (n * n);
+	end
+	tmp_2 = tmp;
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, n_] := Block[{t$95$0 = N[Power[x, N[Power[n, -1.0], $MachinePrecision]], $MachinePrecision]}, If[LessEqual[N[Power[n, -1.0], $MachinePrecision], -2e-33], N[(N[(t$95$0 / x), $MachinePrecision] / n), $MachinePrecision], If[LessEqual[N[Power[n, -1.0], $MachinePrecision], 2e-21], N[(N[Log[N[(x / N[(1.0 + x), $MachinePrecision]), $MachinePrecision]], $MachinePrecision] / (-n)), $MachinePrecision], If[LessEqual[N[Power[n, -1.0], $MachinePrecision], 1e+226], N[(N[(N[(x / n), $MachinePrecision] + 1.0), $MachinePrecision] - t$95$0), $MachinePrecision], N[(N[(n / x), $MachinePrecision] / N[(n * n), $MachinePrecision]), $MachinePrecision]]]]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+t_0 := {x}^{\left({n}^{-1}\right)}\\
+\mathbf{if}\;{n}^{-1} \leq -2 \cdot 10^{-33}:\\
+\;\;\;\;\frac{\frac{t\_0}{x}}{n}\\
+
+\mathbf{elif}\;{n}^{-1} \leq 2 \cdot 10^{-21}:\\
+\;\;\;\;\frac{\log \left(\frac{x}{1 + x}\right)}{-n}\\
+
+\mathbf{elif}\;{n}^{-1} \leq 10^{+226}:\\
+\;\;\;\;\left(\frac{x}{n} + 1\right) - t\_0\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{\frac{n}{x}}{n \cdot n}\\
+
+
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li class="event">Split input into 4 regimes</li><li><h2><code>if <span class="condition"> (/.f64 #s(literal 1 binary64) n)  &lt; -2.0000000000000001e-33</span></code></h2><ol><li><p>Initial program <span class="error" title="92.5% on training set">93.5%</span></p><div class="math">\[{\left(x + 1\right)}^{\left(\frac{1}{n}\right)} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in x around inf</p><div class="math">\[\leadsto \color{blue}{\frac{e^{-1 \cdot \frac{\log \left(\frac{1}{x}\right)}{n}}}{n \cdot x}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="95.0% on training set">94.0%</span></p><div class="math">\[\leadsto \color{blue}{\frac{\frac{{x}^{\left(\frac{1}{n}\right)}}{x}}{n}}
+\]</div></li></ol><h2><code>if <span class="condition">-2.0000000000000001e-33 &lt;  (/.f64 #s(literal 1 binary64) n)  &lt; 1.99999999999999982e-21</span></code></h2><ol><li><p>Initial program <span class="error" title="31.5% on training set">31.6%</span></p><div class="math">\[{\left(x + 1\right)}^{\left(\frac{1}{n}\right)} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in n around inf</p><div class="math">\[\leadsto \color{blue}{\frac{\log \left(1 + x\right) - \log x}{n}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="79.7% on training set">84.3%</span></p><div class="math">\[\leadsto \color{blue}{\frac{\mathsf{log1p}\left(x\right) - \log x}{n}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="79.9% on training set">84.4%</span></p><div class="math">\[\leadsto \frac{-\log \left(\frac{x}{1 + x}\right)}{n}
+\]</div></li></ol><h2><code>if <span class="condition">1.99999999999999982e-21 &lt;  (/.f64 #s(literal 1 binary64) n)  &lt; 9.99999999999999961e225</span></code></h2><ol><li><p>Initial program <span class="error" title="61.7% on training set">80.8%</span></p><div class="math">\[{\left(x + 1\right)}^{\left(\frac{1}{n}\right)} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \color{blue}{\left(1 + \frac{x}{n}\right)} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="58.4% on training set">75.6%</span></p><div class="math">\[\leadsto \color{blue}{\left(\frac{x}{n} + 1\right)} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li></ol><h2><code>if <span class="condition">9.99999999999999961e225 &lt;  (/.f64 #s(literal 1 binary64) n) </span></code></h2><ol><li><p>Initial program <span class="error" title="20.8% on training set">24.4%</span></p><div class="math">\[{\left(x + 1\right)}^{\left(\frac{1}{n}\right)} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in n around inf</p><div class="math">\[\leadsto \color{blue}{\frac{\log \left(1 + x\right) - \log x}{n}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="9.7% on training set">7.0%</span></p><div class="math">\[\leadsto \color{blue}{\frac{\mathsf{log1p}\left(x\right) - \log x}{n}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="86.6% on training set">89.2%</span></p><div class="math">\[\leadsto \frac{\mathsf{log1p}\left(x\right) \cdot n - n \cdot \log x}{\color{blue}{n \cdot n}}
+\]</div></li><li><p>Taylor expanded in x around inf</p><div class="math">\[\leadsto \frac{\frac{n}{x}}{\color{blue}{n} \cdot n}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="86.6% on training set">89.2%</span></p><div class="math">\[\leadsto \frac{\frac{n}{x}}{\color{blue}{n} \cdot n}
+\]</div></li></ol></li><li class="event">Recombined 4 regimes into one program.</li><li><p>Final simplification<span class="error" title="82.1% on training set">87.2%</span></p><div class="math">\[\leadsto \begin{array}{l}
+\mathbf{if}\;{n}^{-1} \leq -2 \cdot 10^{-33}:\\
+\;\;\;\;\frac{\frac{{x}^{\left({n}^{-1}\right)}}{x}}{n}\\
+
+\mathbf{elif}\;{n}^{-1} \leq 2 \cdot 10^{-21}:\\
+\;\;\;\;\frac{\log \left(\frac{x}{1 + x}\right)}{-n}\\
+
+\mathbf{elif}\;{n}^{-1} \leq 10^{+226}:\\
+\;\;\;\;\left(\frac{x}{n} + 1\right) - {x}^{\left({n}^{-1}\right)}\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{\frac{n}{x}}{n \cdot n}\\
+
+
+\end{array}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative5" class="programs"><h2>Alternative 5: <span class="subhead"><data>82.1%</data> accurate, <data>0.4×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;{n}^{-1} \leq -2 \cdot 10^{-33}:\\
+\;\;\;\;\frac{{x}^{\left(\mathsf{fma}\left(2, \frac{0.5}{n}, -1\right)\right)}}{n}\\
+
+\mathbf{elif}\;{n}^{-1} \leq 2 \cdot 10^{-21}:\\
+\;\;\;\;\frac{\log \left(\frac{x}{1 + x}\right)}{-n}\\
+
+\mathbf{elif}\;{n}^{-1} \leq 10^{+226}:\\
+\;\;\;\;\left(\frac{x}{n} + 1\right) - {x}^{\left({n}^{-1}\right)}\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{\frac{n}{x}}{n \cdot n}\\
+
+
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x n)
+ :precision binary64
+ (if (&lt;= (pow n -1.0) -2e-33)
+   (/ (pow x (fma 2.0 (/ 0.5 n) -1.0)) n)
+   (if (&lt;= (pow n -1.0) 2e-21)
+     (/ (log (/ x (+ 1.0 x))) (- n))
+     (if (&lt;= (pow n -1.0) 1e+226)
+       (- (+ (/ x n) 1.0) (pow x (pow n -1.0)))
+       (/ (/ n x) (* n n))))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double n) {
+	double tmp;
+	if (pow(n, -1.0) &lt;= -2e-33) {
+		tmp = pow(x, fma(2.0, (0.5 / n), -1.0)) / n;
+	} else if (pow(n, -1.0) &lt;= 2e-21) {
+		tmp = log((x / (1.0 + x))) / -n;
+	} else if (pow(n, -1.0) &lt;= 1e+226) {
+		tmp = ((x / n) + 1.0) - pow(x, pow(n, -1.0));
+	} else {
+		tmp = (n / x) / (n * n);
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, n)
+	tmp = 0.0
+	if ((n ^ -1.0) &lt;= -2e-33)
+		tmp = Float64((x ^ fma(2.0, Float64(0.5 / n), -1.0)) / n);
+	elseif ((n ^ -1.0) &lt;= 2e-21)
+		tmp = Float64(log(Float64(x / Float64(1.0 + x))) / Float64(-n));
+	elseif ((n ^ -1.0) &lt;= 1e+226)
+		tmp = Float64(Float64(Float64(x / n) + 1.0) - (x ^ (n ^ -1.0)));
+	else
+		tmp = Float64(Float64(n / x) / Float64(n * n));
+	end
+	return tmp
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, n_] := If[LessEqual[N[Power[n, -1.0], $MachinePrecision], -2e-33], N[(N[Power[x, N[(2.0 * N[(0.5 / n), $MachinePrecision] + -1.0), $MachinePrecision]], $MachinePrecision] / n), $MachinePrecision], If[LessEqual[N[Power[n, -1.0], $MachinePrecision], 2e-21], N[(N[Log[N[(x / N[(1.0 + x), $MachinePrecision]), $MachinePrecision]], $MachinePrecision] / (-n)), $MachinePrecision], If[LessEqual[N[Power[n, -1.0], $MachinePrecision], 1e+226], N[(N[(N[(x / n), $MachinePrecision] + 1.0), $MachinePrecision] - N[Power[x, N[Power[n, -1.0], $MachinePrecision]], $MachinePrecision]), $MachinePrecision], N[(N[(n / x), $MachinePrecision] / N[(n * n), $MachinePrecision]), $MachinePrecision]]]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;{n}^{-1} \leq -2 \cdot 10^{-33}:\\
+\;\;\;\;\frac{{x}^{\left(\mathsf{fma}\left(2, \frac{0.5}{n}, -1\right)\right)}}{n}\\
+
+\mathbf{elif}\;{n}^{-1} \leq 2 \cdot 10^{-21}:\\
+\;\;\;\;\frac{\log \left(\frac{x}{1 + x}\right)}{-n}\\
+
+\mathbf{elif}\;{n}^{-1} \leq 10^{+226}:\\
+\;\;\;\;\left(\frac{x}{n} + 1\right) - {x}^{\left({n}^{-1}\right)}\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{\frac{n}{x}}{n \cdot n}\\
+
+
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li class="event">Split input into 4 regimes</li><li><h2><code>if <span class="condition"> (/.f64 #s(literal 1 binary64) n)  &lt; -2.0000000000000001e-33</span></code></h2><ol><li><p>Initial program <span class="error" title="92.5% on training set">93.5%</span></p><div class="math">\[{\left(x + 1\right)}^{\left(\frac{1}{n}\right)} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in x around inf</p><div class="math">\[\leadsto \color{blue}{\frac{e^{-1 \cdot \frac{\log \left(\frac{1}{x}\right)}{n}}}{n \cdot x}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="95.0% on training set">94.0%</span></p><div class="math">\[\leadsto \color{blue}{\frac{\frac{{x}^{\left(\frac{1}{n}\right)}}{x}}{n}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="94.8% on training set">93.8%</span></p><div class="math">\[\leadsto \frac{{x}^{\left(\mathsf{fma}\left(2, \frac{0.5}{n}, -1\right)\right)}}{n}
+\]</div></li></ol><h2><code>if <span class="condition">-2.0000000000000001e-33 &lt;  (/.f64 #s(literal 1 binary64) n)  &lt; 1.99999999999999982e-21</span></code></h2><ol><li><p>Initial program <span class="error" title="31.5% on training set">31.6%</span></p><div class="math">\[{\left(x + 1\right)}^{\left(\frac{1}{n}\right)} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in n around inf</p><div class="math">\[\leadsto \color{blue}{\frac{\log \left(1 + x\right) - \log x}{n}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="79.7% on training set">84.3%</span></p><div class="math">\[\leadsto \color{blue}{\frac{\mathsf{log1p}\left(x\right) - \log x}{n}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="79.9% on training set">84.4%</span></p><div class="math">\[\leadsto \frac{-\log \left(\frac{x}{1 + x}\right)}{n}
+\]</div></li></ol><h2><code>if <span class="condition">1.99999999999999982e-21 &lt;  (/.f64 #s(literal 1 binary64) n)  &lt; 9.99999999999999961e225</span></code></h2><ol><li><p>Initial program <span class="error" title="61.7% on training set">80.8%</span></p><div class="math">\[{\left(x + 1\right)}^{\left(\frac{1}{n}\right)} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \color{blue}{\left(1 + \frac{x}{n}\right)} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="58.4% on training set">75.6%</span></p><div class="math">\[\leadsto \color{blue}{\left(\frac{x}{n} + 1\right)} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li></ol><h2><code>if <span class="condition">9.99999999999999961e225 &lt;  (/.f64 #s(literal 1 binary64) n) </span></code></h2><ol><li><p>Initial program <span class="error" title="20.8% on training set">24.4%</span></p><div class="math">\[{\left(x + 1\right)}^{\left(\frac{1}{n}\right)} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in n around inf</p><div class="math">\[\leadsto \color{blue}{\frac{\log \left(1 + x\right) - \log x}{n}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="9.7% on training set">7.0%</span></p><div class="math">\[\leadsto \color{blue}{\frac{\mathsf{log1p}\left(x\right) - \log x}{n}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="86.6% on training set">89.2%</span></p><div class="math">\[\leadsto \frac{\mathsf{log1p}\left(x\right) \cdot n - n \cdot \log x}{\color{blue}{n \cdot n}}
+\]</div></li><li><p>Taylor expanded in x around inf</p><div class="math">\[\leadsto \frac{\frac{n}{x}}{\color{blue}{n} \cdot n}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="86.6% on training set">89.2%</span></p><div class="math">\[\leadsto \frac{\frac{n}{x}}{\color{blue}{n} \cdot n}
+\]</div></li></ol></li><li class="event">Recombined 4 regimes into one program.</li><li><p>Final simplification<span class="error" title="82.1% on training set">87.2%</span></p><div class="math">\[\leadsto \begin{array}{l}
+\mathbf{if}\;{n}^{-1} \leq -2 \cdot 10^{-33}:\\
+\;\;\;\;\frac{{x}^{\left(\mathsf{fma}\left(2, \frac{0.5}{n}, -1\right)\right)}}{n}\\
+
+\mathbf{elif}\;{n}^{-1} \leq 2 \cdot 10^{-21}:\\
+\;\;\;\;\frac{\log \left(\frac{x}{1 + x}\right)}{-n}\\
+
+\mathbf{elif}\;{n}^{-1} \leq 10^{+226}:\\
+\;\;\;\;\left(\frac{x}{n} + 1\right) - {x}^{\left({n}^{-1}\right)}\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{\frac{n}{x}}{n \cdot n}\\
+
+
+\end{array}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative6" class="programs"><h2>Alternative 6: <span class="subhead"><data>81.9%</data> accurate, <data>0.4×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;{n}^{-1} \leq -2 \cdot 10^{-33}:\\
+\;\;\;\;\frac{{x}^{\left(\mathsf{fma}\left(2, \frac{0.5}{n}, -1\right)\right)}}{n}\\
+
+\mathbf{elif}\;{n}^{-1} \leq 2 \cdot 10^{-21}:\\
+\;\;\;\;\frac{\log \left(\frac{x}{1 + x}\right)}{-n}\\
+
+\mathbf{elif}\;{n}^{-1} \leq 10^{+226}:\\
+\;\;\;\;1 - {x}^{\left({n}^{-1}\right)}\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{\frac{n}{x}}{n \cdot n}\\
+
+
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x n)
+ :precision binary64
+ (if (&lt;= (pow n -1.0) -2e-33)
+   (/ (pow x (fma 2.0 (/ 0.5 n) -1.0)) n)
+   (if (&lt;= (pow n -1.0) 2e-21)
+     (/ (log (/ x (+ 1.0 x))) (- n))
+     (if (&lt;= (pow n -1.0) 1e+226)
+       (- 1.0 (pow x (pow n -1.0)))
+       (/ (/ n x) (* n n))))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double n) {
+	double tmp;
+	if (pow(n, -1.0) &lt;= -2e-33) {
+		tmp = pow(x, fma(2.0, (0.5 / n), -1.0)) / n;
+	} else if (pow(n, -1.0) &lt;= 2e-21) {
+		tmp = log((x / (1.0 + x))) / -n;
+	} else if (pow(n, -1.0) &lt;= 1e+226) {
+		tmp = 1.0 - pow(x, pow(n, -1.0));
+	} else {
+		tmp = (n / x) / (n * n);
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, n)
+	tmp = 0.0
+	if ((n ^ -1.0) &lt;= -2e-33)
+		tmp = Float64((x ^ fma(2.0, Float64(0.5 / n), -1.0)) / n);
+	elseif ((n ^ -1.0) &lt;= 2e-21)
+		tmp = Float64(log(Float64(x / Float64(1.0 + x))) / Float64(-n));
+	elseif ((n ^ -1.0) &lt;= 1e+226)
+		tmp = Float64(1.0 - (x ^ (n ^ -1.0)));
+	else
+		tmp = Float64(Float64(n / x) / Float64(n * n));
+	end
+	return tmp
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, n_] := If[LessEqual[N[Power[n, -1.0], $MachinePrecision], -2e-33], N[(N[Power[x, N[(2.0 * N[(0.5 / n), $MachinePrecision] + -1.0), $MachinePrecision]], $MachinePrecision] / n), $MachinePrecision], If[LessEqual[N[Power[n, -1.0], $MachinePrecision], 2e-21], N[(N[Log[N[(x / N[(1.0 + x), $MachinePrecision]), $MachinePrecision]], $MachinePrecision] / (-n)), $MachinePrecision], If[LessEqual[N[Power[n, -1.0], $MachinePrecision], 1e+226], N[(1.0 - N[Power[x, N[Power[n, -1.0], $MachinePrecision]], $MachinePrecision]), $MachinePrecision], N[(N[(n / x), $MachinePrecision] / N[(n * n), $MachinePrecision]), $MachinePrecision]]]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;{n}^{-1} \leq -2 \cdot 10^{-33}:\\
+\;\;\;\;\frac{{x}^{\left(\mathsf{fma}\left(2, \frac{0.5}{n}, -1\right)\right)}}{n}\\
+
+\mathbf{elif}\;{n}^{-1} \leq 2 \cdot 10^{-21}:\\
+\;\;\;\;\frac{\log \left(\frac{x}{1 + x}\right)}{-n}\\
+
+\mathbf{elif}\;{n}^{-1} \leq 10^{+226}:\\
+\;\;\;\;1 - {x}^{\left({n}^{-1}\right)}\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{\frac{n}{x}}{n \cdot n}\\
+
+
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li class="event">Split input into 4 regimes</li><li><h2><code>if <span class="condition"> (/.f64 #s(literal 1 binary64) n)  &lt; -2.0000000000000001e-33</span></code></h2><ol><li><p>Initial program <span class="error" title="92.5% on training set">93.5%</span></p><div class="math">\[{\left(x + 1\right)}^{\left(\frac{1}{n}\right)} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in x around inf</p><div class="math">\[\leadsto \color{blue}{\frac{e^{-1 \cdot \frac{\log \left(\frac{1}{x}\right)}{n}}}{n \cdot x}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="95.0% on training set">94.0%</span></p><div class="math">\[\leadsto \color{blue}{\frac{\frac{{x}^{\left(\frac{1}{n}\right)}}{x}}{n}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="94.8% on training set">93.8%</span></p><div class="math">\[\leadsto \frac{{x}^{\left(\mathsf{fma}\left(2, \frac{0.5}{n}, -1\right)\right)}}{n}
+\]</div></li></ol><h2><code>if <span class="condition">-2.0000000000000001e-33 &lt;  (/.f64 #s(literal 1 binary64) n)  &lt; 1.99999999999999982e-21</span></code></h2><ol><li><p>Initial program <span class="error" title="31.5% on training set">31.6%</span></p><div class="math">\[{\left(x + 1\right)}^{\left(\frac{1}{n}\right)} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in n around inf</p><div class="math">\[\leadsto \color{blue}{\frac{\log \left(1 + x\right) - \log x}{n}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="79.7% on training set">84.3%</span></p><div class="math">\[\leadsto \color{blue}{\frac{\mathsf{log1p}\left(x\right) - \log x}{n}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="79.9% on training set">84.4%</span></p><div class="math">\[\leadsto \frac{-\log \left(\frac{x}{1 + x}\right)}{n}
+\]</div></li></ol><h2><code>if <span class="condition">1.99999999999999982e-21 &lt;  (/.f64 #s(literal 1 binary64) n)  &lt; 9.99999999999999961e225</span></code></h2><ol><li><p>Initial program <span class="error" title="61.7% on training set">80.8%</span></p><div class="math">\[{\left(x + 1\right)}^{\left(\frac{1}{n}\right)} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \color{blue}{1} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="57.3% on training set">73.4%</span></p><div class="math">\[\leadsto \color{blue}{1} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li></ol><h2><code>if <span class="condition">9.99999999999999961e225 &lt;  (/.f64 #s(literal 1 binary64) n) </span></code></h2><ol><li><p>Initial program <span class="error" title="20.8% on training set">24.4%</span></p><div class="math">\[{\left(x + 1\right)}^{\left(\frac{1}{n}\right)} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in n around inf</p><div class="math">\[\leadsto \color{blue}{\frac{\log \left(1 + x\right) - \log x}{n}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="9.7% on training set">7.0%</span></p><div class="math">\[\leadsto \color{blue}{\frac{\mathsf{log1p}\left(x\right) - \log x}{n}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="86.6% on training set">89.2%</span></p><div class="math">\[\leadsto \frac{\mathsf{log1p}\left(x\right) \cdot n - n \cdot \log x}{\color{blue}{n \cdot n}}
+\]</div></li><li><p>Taylor expanded in x around inf</p><div class="math">\[\leadsto \frac{\frac{n}{x}}{\color{blue}{n} \cdot n}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="86.6% on training set">89.2%</span></p><div class="math">\[\leadsto \frac{\frac{n}{x}}{\color{blue}{n} \cdot n}
+\]</div></li></ol></li><li class="event">Recombined 4 regimes into one program.</li><li><p>Final simplification<span class="error" title="81.9% on training set">86.9%</span></p><div class="math">\[\leadsto \begin{array}{l}
+\mathbf{if}\;{n}^{-1} \leq -2 \cdot 10^{-33}:\\
+\;\;\;\;\frac{{x}^{\left(\mathsf{fma}\left(2, \frac{0.5}{n}, -1\right)\right)}}{n}\\
+
+\mathbf{elif}\;{n}^{-1} \leq 2 \cdot 10^{-21}:\\
+\;\;\;\;\frac{\log \left(\frac{x}{1 + x}\right)}{-n}\\
+
+\mathbf{elif}\;{n}^{-1} \leq 10^{+226}:\\
+\;\;\;\;1 - {x}^{\left({n}^{-1}\right)}\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{\frac{n}{x}}{n \cdot n}\\
+
+
+\end{array}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative7" class="programs"><h2>Alternative 7: <span class="subhead"><data>84.1%</data> accurate, <data>0.5×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+t_0 := {x}^{\left({n}^{-1}\right)}\\
+\mathbf{if}\;{n}^{-1} \leq -2 \cdot 10^{-33}:\\
+\;\;\;\;\frac{\frac{t\_0}{x}}{n}\\
+
+\mathbf{elif}\;{n}^{-1} \leq 2 \cdot 10^{-21}:\\
+\;\;\;\;\frac{\log \left(\frac{x}{1 + x}\right)}{-n}\\
+
+\mathbf{else}:\\
+\;\;\;\;\mathsf{fma}\left(\frac{\left(-\mathsf{fma}\left(\mathsf{fma}\left(-0.3333333333333333, x, 0.5\right), x, -1\right)\right) + \frac{\mathsf{fma}\left(0.5, x, \left(x \cdot x\right) \cdot \left(-0.5 + \frac{0.16666666666666666}{n}\right)\right)}{n}}{n}, x, 1\right) - t\_0\\
+
+
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x n)
+ :precision binary64
+ (let* ((t_0 (pow x (pow n -1.0))))
+   (if (&lt;= (pow n -1.0) -2e-33)
+     (/ (/ t_0 x) n)
+     (if (&lt;= (pow n -1.0) 2e-21)
+       (/ (log (/ x (+ 1.0 x))) (- n))
+       (-
+        (fma
+         (/
+          (+
+           (- (fma (fma -0.3333333333333333 x 0.5) x -1.0))
+           (/ (fma 0.5 x (* (* x x) (+ -0.5 (/ 0.16666666666666666 n)))) n))
+          n)
+         x
+         1.0)
+        t_0)))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double n) {
+	double t_0 = pow(x, pow(n, -1.0));
+	double tmp;
+	if (pow(n, -1.0) &lt;= -2e-33) {
+		tmp = (t_0 / x) / n;
+	} else if (pow(n, -1.0) &lt;= 2e-21) {
+		tmp = log((x / (1.0 + x))) / -n;
+	} else {
+		tmp = fma(((-fma(fma(-0.3333333333333333, x, 0.5), x, -1.0) + (fma(0.5, x, ((x * x) * (-0.5 + (0.16666666666666666 / n)))) / n)) / n), x, 1.0) - t_0;
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, n)
+	t_0 = x ^ (n ^ -1.0)
+	tmp = 0.0
+	if ((n ^ -1.0) &lt;= -2e-33)
+		tmp = Float64(Float64(t_0 / x) / n);
+	elseif ((n ^ -1.0) &lt;= 2e-21)
+		tmp = Float64(log(Float64(x / Float64(1.0 + x))) / Float64(-n));
+	else
+		tmp = Float64(fma(Float64(Float64(Float64(-fma(fma(-0.3333333333333333, x, 0.5), x, -1.0)) + Float64(fma(0.5, x, Float64(Float64(x * x) * Float64(-0.5 + Float64(0.16666666666666666 / n)))) / n)) / n), x, 1.0) - t_0);
+	end
+	return tmp
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, n_] := Block[{t$95$0 = N[Power[x, N[Power[n, -1.0], $MachinePrecision]], $MachinePrecision]}, If[LessEqual[N[Power[n, -1.0], $MachinePrecision], -2e-33], N[(N[(t$95$0 / x), $MachinePrecision] / n), $MachinePrecision], If[LessEqual[N[Power[n, -1.0], $MachinePrecision], 2e-21], N[(N[Log[N[(x / N[(1.0 + x), $MachinePrecision]), $MachinePrecision]], $MachinePrecision] / (-n)), $MachinePrecision], N[(N[(N[(N[((-N[(N[(-0.3333333333333333 * x + 0.5), $MachinePrecision] * x + -1.0), $MachinePrecision]) + N[(N[(0.5 * x + N[(N[(x * x), $MachinePrecision] * N[(-0.5 + N[(0.16666666666666666 / n), $MachinePrecision]), $MachinePrecision]), $MachinePrecision]), $MachinePrecision] / n), $MachinePrecision]), $MachinePrecision] / n), $MachinePrecision] * x + 1.0), $MachinePrecision] - t$95$0), $MachinePrecision]]]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+t_0 := {x}^{\left({n}^{-1}\right)}\\
+\mathbf{if}\;{n}^{-1} \leq -2 \cdot 10^{-33}:\\
+\;\;\;\;\frac{\frac{t\_0}{x}}{n}\\
+
+\mathbf{elif}\;{n}^{-1} \leq 2 \cdot 10^{-21}:\\
+\;\;\;\;\frac{\log \left(\frac{x}{1 + x}\right)}{-n}\\
+
+\mathbf{else}:\\
+\;\;\;\;\mathsf{fma}\left(\frac{\left(-\mathsf{fma}\left(\mathsf{fma}\left(-0.3333333333333333, x, 0.5\right), x, -1\right)\right) + \frac{\mathsf{fma}\left(0.5, x, \left(x \cdot x\right) \cdot \left(-0.5 + \frac{0.16666666666666666}{n}\right)\right)}{n}}{n}, x, 1\right) - t\_0\\
+
+
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li class="event">Split input into 3 regimes</li><li><h2><code>if <span class="condition"> (/.f64 #s(literal 1 binary64) n)  &lt; -2.0000000000000001e-33</span></code></h2><ol><li><p>Initial program <span class="error" title="92.5% on training set">93.5%</span></p><div class="math">\[{\left(x + 1\right)}^{\left(\frac{1}{n}\right)} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in x around inf</p><div class="math">\[\leadsto \color{blue}{\frac{e^{-1 \cdot \frac{\log \left(\frac{1}{x}\right)}{n}}}{n \cdot x}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="95.0% on training set">94.0%</span></p><div class="math">\[\leadsto \color{blue}{\frac{\frac{{x}^{\left(\frac{1}{n}\right)}}{x}}{n}}
+\]</div></li></ol><h2><code>if <span class="condition">-2.0000000000000001e-33 &lt;  (/.f64 #s(literal 1 binary64) n)  &lt; 1.99999999999999982e-21</span></code></h2><ol><li><p>Initial program <span class="error" title="31.5% on training set">31.6%</span></p><div class="math">\[{\left(x + 1\right)}^{\left(\frac{1}{n}\right)} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in n around inf</p><div class="math">\[\leadsto \color{blue}{\frac{\log \left(1 + x\right) - \log x}{n}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="79.7% on training set">84.3%</span></p><div class="math">\[\leadsto \color{blue}{\frac{\mathsf{log1p}\left(x\right) - \log x}{n}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="79.9% on training set">84.4%</span></p><div class="math">\[\leadsto \frac{-\log \left(\frac{x}{1 + x}\right)}{n}
+\]</div></li></ol><h2><code>if <span class="condition">1.99999999999999982e-21 &lt;  (/.f64 #s(literal 1 binary64) n) </span></code></h2><ol><li><p>Initial program <span class="error" title="52.2% on training set">66.3%</span></p><div class="math">\[{\left(x + 1\right)}^{\left(\frac{1}{n}\right)} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \color{blue}{\left(1 + x \cdot \left(x \cdot \left(\left(\frac{1}{2} \cdot \frac{1}{{n}^{2}} + x \cdot \left(\left(\frac{1}{6} \cdot \frac{1}{{n}^{3}} + \frac{1}{3} \cdot \frac{1}{n}\right) - \frac{1}{2} \cdot \frac{1}{{n}^{2}}\right)\right) - \frac{1}{2} \cdot \frac{1}{n}\right) + \frac{1}{n}\right)\right)} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="33.7% on training set">37.0%</span></p><div class="math">\[\leadsto \color{blue}{\mathsf{fma}\left(\mathsf{fma}\left(\mathsf{fma}\left(\left(\frac{0.3333333333333333}{n} + \frac{0.16666666666666666}{{n}^{3}}\right) - \frac{0.5}{n \cdot n}, x, \frac{0.5}{n \cdot n} - \frac{0.5}{n}\right), x, \frac{1}{n}\right), x, 1\right)} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li><li><p>Taylor expanded in n around -inf</p><div class="math">\[\leadsto \mathsf{fma}\left(-1 \cdot \frac{\left(-1 \cdot \frac{\frac{1}{6} \cdot \frac{{x}^{2}}{n} + x \cdot \left(\frac{1}{2} + \frac{-1}{2} \cdot x\right)}{n} + x \cdot \left(\frac{1}{2} + \frac{-1}{3} \cdot x\right)\right) - 1}{n}, x, 1\right) - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="76.8% on training set">82.8%</span></p><div class="math">\[\leadsto \mathsf{fma}\left(\frac{\mathsf{fma}\left(\mathsf{fma}\left(-0.3333333333333333, x, 0.5\right), x, -1\right) - \frac{\mathsf{fma}\left(0.5, x, \left(x \cdot x\right) \cdot \left(-0.5 + \frac{0.16666666666666666}{n}\right)\right)}{n}}{-n}, x, 1\right) - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li></ol></li><li class="event">Recombined 3 regimes into one program.</li><li><p>Final simplification<span class="error" title="84.1% on training set">87.7%</span></p><div class="math">\[\leadsto \begin{array}{l}
+\mathbf{if}\;{n}^{-1} \leq -2 \cdot 10^{-33}:\\
+\;\;\;\;\frac{\frac{{x}^{\left({n}^{-1}\right)}}{x}}{n}\\
+
+\mathbf{elif}\;{n}^{-1} \leq 2 \cdot 10^{-21}:\\
+\;\;\;\;\frac{\log \left(\frac{x}{1 + x}\right)}{-n}\\
+
+\mathbf{else}:\\
+\;\;\;\;\mathsf{fma}\left(\frac{\left(-\mathsf{fma}\left(\mathsf{fma}\left(-0.3333333333333333, x, 0.5\right), x, -1\right)\right) + \frac{\mathsf{fma}\left(0.5, x, \left(x \cdot x\right) \cdot \left(-0.5 + \frac{0.16666666666666666}{n}\right)\right)}{n}}{n}, x, 1\right) - {x}^{\left({n}^{-1}\right)}\\
+
+
+\end{array}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative8" class="programs"><h2>Alternative 8: <span class="subhead"><data>83.1%</data> accurate, <data>0.5×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+t_0 := {x}^{\left({n}^{-1}\right)}\\
+\mathbf{if}\;{n}^{-1} \leq -2 \cdot 10^{-33}:\\
+\;\;\;\;\frac{\frac{t\_0}{x}}{n}\\
+
+\mathbf{elif}\;{n}^{-1} \leq 2 \cdot 10^{-21}:\\
+\;\;\;\;\frac{\log \left(\frac{x}{1 + x}\right)}{-n}\\
+
+\mathbf{else}:\\
+\;\;\;\;\mathsf{fma}\left(\frac{\mathsf{fma}\left(x, \frac{\mathsf{fma}\left(-0.5, x, 0.5\right)}{n} + \mathsf{fma}\left(0.3333333333333333, x, -0.5\right), 1\right)}{n}, x, 1\right) - t\_0\\
+
+
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x n)
+ :precision binary64
+ (let* ((t_0 (pow x (pow n -1.0))))
+   (if (&lt;= (pow n -1.0) -2e-33)
+     (/ (/ t_0 x) n)
+     (if (&lt;= (pow n -1.0) 2e-21)
+       (/ (log (/ x (+ 1.0 x))) (- n))
+       (-
+        (fma
+         (/
+          (fma
+           x
+           (+ (/ (fma -0.5 x 0.5) n) (fma 0.3333333333333333 x -0.5))
+           1.0)
+          n)
+         x
+         1.0)
+        t_0)))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double n) {
+	double t_0 = pow(x, pow(n, -1.0));
+	double tmp;
+	if (pow(n, -1.0) &lt;= -2e-33) {
+		tmp = (t_0 / x) / n;
+	} else if (pow(n, -1.0) &lt;= 2e-21) {
+		tmp = log((x / (1.0 + x))) / -n;
+	} else {
+		tmp = fma((fma(x, ((fma(-0.5, x, 0.5) / n) + fma(0.3333333333333333, x, -0.5)), 1.0) / n), x, 1.0) - t_0;
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, n)
+	t_0 = x ^ (n ^ -1.0)
+	tmp = 0.0
+	if ((n ^ -1.0) &lt;= -2e-33)
+		tmp = Float64(Float64(t_0 / x) / n);
+	elseif ((n ^ -1.0) &lt;= 2e-21)
+		tmp = Float64(log(Float64(x / Float64(1.0 + x))) / Float64(-n));
+	else
+		tmp = Float64(fma(Float64(fma(x, Float64(Float64(fma(-0.5, x, 0.5) / n) + fma(0.3333333333333333, x, -0.5)), 1.0) / n), x, 1.0) - t_0);
+	end
+	return tmp
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, n_] := Block[{t$95$0 = N[Power[x, N[Power[n, -1.0], $MachinePrecision]], $MachinePrecision]}, If[LessEqual[N[Power[n, -1.0], $MachinePrecision], -2e-33], N[(N[(t$95$0 / x), $MachinePrecision] / n), $MachinePrecision], If[LessEqual[N[Power[n, -1.0], $MachinePrecision], 2e-21], N[(N[Log[N[(x / N[(1.0 + x), $MachinePrecision]), $MachinePrecision]], $MachinePrecision] / (-n)), $MachinePrecision], N[(N[(N[(N[(x * N[(N[(N[(-0.5 * x + 0.5), $MachinePrecision] / n), $MachinePrecision] + N[(0.3333333333333333 * x + -0.5), $MachinePrecision]), $MachinePrecision] + 1.0), $MachinePrecision] / n), $MachinePrecision] * x + 1.0), $MachinePrecision] - t$95$0), $MachinePrecision]]]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+t_0 := {x}^{\left({n}^{-1}\right)}\\
+\mathbf{if}\;{n}^{-1} \leq -2 \cdot 10^{-33}:\\
+\;\;\;\;\frac{\frac{t\_0}{x}}{n}\\
+
+\mathbf{elif}\;{n}^{-1} \leq 2 \cdot 10^{-21}:\\
+\;\;\;\;\frac{\log \left(\frac{x}{1 + x}\right)}{-n}\\
+
+\mathbf{else}:\\
+\;\;\;\;\mathsf{fma}\left(\frac{\mathsf{fma}\left(x, \frac{\mathsf{fma}\left(-0.5, x, 0.5\right)}{n} + \mathsf{fma}\left(0.3333333333333333, x, -0.5\right), 1\right)}{n}, x, 1\right) - t\_0\\
+
+
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li class="event">Split input into 3 regimes</li><li><h2><code>if <span class="condition"> (/.f64 #s(literal 1 binary64) n)  &lt; -2.0000000000000001e-33</span></code></h2><ol><li><p>Initial program <span class="error" title="92.5% on training set">93.5%</span></p><div class="math">\[{\left(x + 1\right)}^{\left(\frac{1}{n}\right)} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in x around inf</p><div class="math">\[\leadsto \color{blue}{\frac{e^{-1 \cdot \frac{\log \left(\frac{1}{x}\right)}{n}}}{n \cdot x}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="95.0% on training set">94.0%</span></p><div class="math">\[\leadsto \color{blue}{\frac{\frac{{x}^{\left(\frac{1}{n}\right)}}{x}}{n}}
+\]</div></li></ol><h2><code>if <span class="condition">-2.0000000000000001e-33 &lt;  (/.f64 #s(literal 1 binary64) n)  &lt; 1.99999999999999982e-21</span></code></h2><ol><li><p>Initial program <span class="error" title="31.5% on training set">31.6%</span></p><div class="math">\[{\left(x + 1\right)}^{\left(\frac{1}{n}\right)} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in n around inf</p><div class="math">\[\leadsto \color{blue}{\frac{\log \left(1 + x\right) - \log x}{n}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="79.7% on training set">84.3%</span></p><div class="math">\[\leadsto \color{blue}{\frac{\mathsf{log1p}\left(x\right) - \log x}{n}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="79.9% on training set">84.4%</span></p><div class="math">\[\leadsto \frac{-\log \left(\frac{x}{1 + x}\right)}{n}
+\]</div></li></ol><h2><code>if <span class="condition">1.99999999999999982e-21 &lt;  (/.f64 #s(literal 1 binary64) n) </span></code></h2><ol><li><p>Initial program <span class="error" title="52.2% on training set">66.3%</span></p><div class="math">\[{\left(x + 1\right)}^{\left(\frac{1}{n}\right)} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \color{blue}{\left(1 + x \cdot \left(x \cdot \left(\left(\frac{1}{2} \cdot \frac{1}{{n}^{2}} + x \cdot \left(\left(\frac{1}{6} \cdot \frac{1}{{n}^{3}} + \frac{1}{3} \cdot \frac{1}{n}\right) - \frac{1}{2} \cdot \frac{1}{{n}^{2}}\right)\right) - \frac{1}{2} \cdot \frac{1}{n}\right) + \frac{1}{n}\right)\right)} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="33.7% on training set">37.0%</span></p><div class="math">\[\leadsto \color{blue}{\mathsf{fma}\left(\mathsf{fma}\left(\mathsf{fma}\left(\left(\frac{0.3333333333333333}{n} + \frac{0.16666666666666666}{{n}^{3}}\right) - \frac{0.5}{n \cdot n}, x, \frac{0.5}{n \cdot n} - \frac{0.5}{n}\right), x, \frac{1}{n}\right), x, 1\right)} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li><li><p>Taylor expanded in n around inf</p><div class="math">\[\leadsto \mathsf{fma}\left(\frac{1 + \left(x \cdot \left(\frac{1}{3} \cdot x - \frac{1}{2}\right) + \frac{x \cdot \left(\frac{1}{2} + \frac{-1}{2} \cdot x\right)}{n}\right)}{n}, x, 1\right) - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="70.9% on training set">76.9%</span></p><div class="math">\[\leadsto \mathsf{fma}\left(\frac{\mathsf{fma}\left(x, \frac{\mathsf{fma}\left(-0.5, x, 0.5\right)}{n} + \mathsf{fma}\left(0.3333333333333333, x, -0.5\right), 1\right)}{n}, x, 1\right) - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li></ol></li><li class="event">Recombined 3 regimes into one program.</li><li><p>Final simplification<span class="error" title="83.1% on training set">86.9%</span></p><div class="math">\[\leadsto \begin{array}{l}
+\mathbf{if}\;{n}^{-1} \leq -2 \cdot 10^{-33}:\\
+\;\;\;\;\frac{\frac{{x}^{\left({n}^{-1}\right)}}{x}}{n}\\
+
+\mathbf{elif}\;{n}^{-1} \leq 2 \cdot 10^{-21}:\\
+\;\;\;\;\frac{\log \left(\frac{x}{1 + x}\right)}{-n}\\
+
+\mathbf{else}:\\
+\;\;\;\;\mathsf{fma}\left(\frac{\mathsf{fma}\left(x, \frac{\mathsf{fma}\left(-0.5, x, 0.5\right)}{n} + \mathsf{fma}\left(0.3333333333333333, x, -0.5\right), 1\right)}{n}, x, 1\right) - {x}^{\left({n}^{-1}\right)}\\
+
+
+\end{array}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative9" class="programs"><h2>Alternative 9: <span class="subhead"><data>48.1%</data> accurate, <data>0.7×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+t_0 := \frac{0.3333333333333333}{x} - 0.5\\
+\mathbf{if}\;{n}^{-1} \leq -400:\\
+\;\;\;\;\frac{\frac{\mathsf{fma}\left(\frac{n}{x}, t\_0, n\right)}{x}}{n \cdot n}\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{\mathsf{fma}\left(\frac{{x}^{-1}}{n}, t\_0, {n}^{-1}\right)}{x}\\
+
+
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x n)
+ :precision binary64
+ (let* ((t_0 (- (/ 0.3333333333333333 x) 0.5)))
+   (if (&lt;= (pow n -1.0) -400.0)
+     (/ (/ (fma (/ n x) t_0 n) x) (* n n))
+     (/ (fma (/ (pow x -1.0) n) t_0 (pow n -1.0)) x))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double n) {
+	double t_0 = (0.3333333333333333 / x) - 0.5;
+	double tmp;
+	if (pow(n, -1.0) &lt;= -400.0) {
+		tmp = (fma((n / x), t_0, n) / x) / (n * n);
+	} else {
+		tmp = fma((pow(x, -1.0) / n), t_0, pow(n, -1.0)) / x;
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, n)
+	t_0 = Float64(Float64(0.3333333333333333 / x) - 0.5)
+	tmp = 0.0
+	if ((n ^ -1.0) &lt;= -400.0)
+		tmp = Float64(Float64(fma(Float64(n / x), t_0, n) / x) / Float64(n * n));
+	else
+		tmp = Float64(fma(Float64((x ^ -1.0) / n), t_0, (n ^ -1.0)) / x);
+	end
+	return tmp
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, n_] := Block[{t$95$0 = N[(N[(0.3333333333333333 / x), $MachinePrecision] - 0.5), $MachinePrecision]}, If[LessEqual[N[Power[n, -1.0], $MachinePrecision], -400.0], N[(N[(N[(N[(n / x), $MachinePrecision] * t$95$0 + n), $MachinePrecision] / x), $MachinePrecision] / N[(n * n), $MachinePrecision]), $MachinePrecision], N[(N[(N[(N[Power[x, -1.0], $MachinePrecision] / n), $MachinePrecision] * t$95$0 + N[Power[n, -1.0], $MachinePrecision]), $MachinePrecision] / x), $MachinePrecision]]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+t_0 := \frac{0.3333333333333333}{x} - 0.5\\
+\mathbf{if}\;{n}^{-1} \leq -400:\\
+\;\;\;\;\frac{\frac{\mathsf{fma}\left(\frac{n}{x}, t\_0, n\right)}{x}}{n \cdot n}\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{\mathsf{fma}\left(\frac{{x}^{-1}}{n}, t\_0, {n}^{-1}\right)}{x}\\
+
+
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li class="event">Split input into 2 regimes</li><li><h2><code>if <span class="condition"> (/.f64 #s(literal 1 binary64) n)  &lt; -400</span></code></h2><ol><li><p>Initial program <span class="error" title="100.0% on training set">100.0%</span></p><div class="math">\[{\left(x + 1\right)}^{\left(\frac{1}{n}\right)} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in n around inf</p><div class="math">\[\leadsto \color{blue}{\frac{\log \left(1 + x\right) - \log x}{n}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="51.7% on training set">45.9%</span></p><div class="math">\[\leadsto \color{blue}{\frac{\mathsf{log1p}\left(x\right) - \log x}{n}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="49.4% on training set">58.0%</span></p><div class="math">\[\leadsto \frac{\mathsf{log1p}\left(x\right) \cdot n - n \cdot \log x}{\color{blue}{n \cdot n}}
+\]</div></li><li><p>Taylor expanded in x around inf</p><div class="math">\[\leadsto \frac{\frac{n + \left(\frac{-1}{2} \cdot \frac{n}{x} + \frac{1}{3} \cdot \frac{n}{{x}^{2}}\right)}{x}}{\color{blue}{n} \cdot n}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="49.7% on training set">49.2%</span></p><div class="math">\[\leadsto \frac{\frac{\mathsf{fma}\left(\frac{n}{x}, \frac{0.3333333333333333}{x} - 0.5, n\right)}{x}}{\color{blue}{n} \cdot n}
+\]</div></li></ol><h2><code>if <span class="condition">-400 &lt;  (/.f64 #s(literal 1 binary64) n) </span></code></h2><ol><li><p>Initial program <span class="error" title="36.1% on training set">39.1%</span></p><div class="math">\[{\left(x + 1\right)}^{\left(\frac{1}{n}\right)} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in n around inf</p><div class="math">\[\leadsto \color{blue}{\frac{\log \left(1 + x\right) - \log x}{n}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="62.5% on training set">65.9%</span></p><div class="math">\[\leadsto \color{blue}{\frac{\mathsf{log1p}\left(x\right) - \log x}{n}}
+\]</div></li><li><p>Taylor expanded in x around inf</p><div class="math">\[\leadsto \frac{\frac{1}{x}}{n}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="45.6% on training set">41.2%</span></p><div class="math">\[\leadsto \frac{\frac{1}{x}}{n}
+\]</div></li><li><p>Taylor expanded in x around -inf</p><div class="math">\[\leadsto -1 \cdot \color{blue}{\frac{-1 \cdot \frac{\frac{1}{3} \cdot \frac{1}{n \cdot x} - \frac{1}{2} \cdot \frac{1}{n}}{x} - \frac{1}{n}}{x}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="47.5% on training set">43.0%</span></p><div class="math">\[\leadsto \frac{\mathsf{fma}\left(\frac{\frac{1}{x}}{n}, \frac{0.3333333333333333}{x} - 0.5, \frac{1}{n}\right)}{\color{blue}{x}}
+\]</div></li></ol></li><li class="event">Recombined 2 regimes into one program.</li><li><p>Final simplification<span class="error" title="48.1% on training set">45.0%</span></p><div class="math">\[\leadsto \begin{array}{l}
+\mathbf{if}\;{n}^{-1} \leq -400:\\
+\;\;\;\;\frac{\frac{\mathsf{fma}\left(\frac{n}{x}, \frac{0.3333333333333333}{x} - 0.5, n\right)}{x}}{n \cdot n}\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{\mathsf{fma}\left(\frac{{x}^{-1}}{n}, \frac{0.3333333333333333}{x} - 0.5, {n}^{-1}\right)}{x}\\
+
+
+\end{array}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative10" class="programs"><h2>Alternative 10: <span class="subhead"><data>56.1%</data> accurate, <data>0.9×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;x \leq 3.3 \cdot 10^{-45}:\\
+\;\;\;\;\frac{-\log x}{n}\\
+
+\mathbf{elif}\;x \leq 0.98:\\
+\;\;\;\;\frac{\frac{n}{x}}{n \cdot n}\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{\mathsf{fma}\left(\frac{{x}^{-1}}{n}, \frac{0.3333333333333333}{x} - 0.5, {n}^{-1}\right)}{x}\\
+
+
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x n)
+ :precision binary64
+ (if (&lt;= x 3.3e-45)
+   (/ (- (log x)) n)
+   (if (&lt;= x 0.98)
+     (/ (/ n x) (* n n))
+     (/
+      (fma (/ (pow x -1.0) n) (- (/ 0.3333333333333333 x) 0.5) (pow n -1.0))
+      x))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double n) {
+	double tmp;
+	if (x &lt;= 3.3e-45) {
+		tmp = -log(x) / n;
+	} else if (x &lt;= 0.98) {
+		tmp = (n / x) / (n * n);
+	} else {
+		tmp = fma((pow(x, -1.0) / n), ((0.3333333333333333 / x) - 0.5), pow(n, -1.0)) / x;
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, n)
+	tmp = 0.0
+	if (x &lt;= 3.3e-45)
+		tmp = Float64(Float64(-log(x)) / n);
+	elseif (x &lt;= 0.98)
+		tmp = Float64(Float64(n / x) / Float64(n * n));
+	else
+		tmp = Float64(fma(Float64((x ^ -1.0) / n), Float64(Float64(0.3333333333333333 / x) - 0.5), (n ^ -1.0)) / x);
+	end
+	return tmp
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, n_] := If[LessEqual[x, 3.3e-45], N[((-N[Log[x], $MachinePrecision]) / n), $MachinePrecision], If[LessEqual[x, 0.98], N[(N[(n / x), $MachinePrecision] / N[(n * n), $MachinePrecision]), $MachinePrecision], N[(N[(N[(N[Power[x, -1.0], $MachinePrecision] / n), $MachinePrecision] * N[(N[(0.3333333333333333 / x), $MachinePrecision] - 0.5), $MachinePrecision] + N[Power[n, -1.0], $MachinePrecision]), $MachinePrecision] / x), $MachinePrecision]]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;x \leq 3.3 \cdot 10^{-45}:\\
+\;\;\;\;\frac{-\log x}{n}\\
+
+\mathbf{elif}\;x \leq 0.98:\\
+\;\;\;\;\frac{\frac{n}{x}}{n \cdot n}\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{\mathsf{fma}\left(\frac{{x}^{-1}}{n}, \frac{0.3333333333333333}{x} - 0.5, {n}^{-1}\right)}{x}\\
+
+
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li class="event">Split input into 3 regimes</li><li><h2><code>if <span class="condition"> x  &lt; 3.3000000000000001e-45</span></code></h2><ol><li><p>Initial program <span class="error" title="43.0% on training set">44.8%</span></p><div class="math">\[{\left(x + 1\right)}^{\left(\frac{1}{n}\right)} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in n around inf</p><div class="math">\[\leadsto \color{blue}{\frac{\log \left(1 + x\right) - \log x}{n}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="52.3% on training set">54.5%</span></p><div class="math">\[\leadsto \color{blue}{\frac{\mathsf{log1p}\left(x\right) - \log x}{n}}
+\]</div></li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \frac{-1 \cdot \log x}{n}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="52.3% on training set">54.5%</span></p><div class="math">\[\leadsto \frac{-\log x}{n}
+\]</div></li></ol><h2><code>if <span class="condition">3.3000000000000001e-45 &lt;  x  &lt; 0.97999999999999998</span></code></h2><ol><li><p>Initial program <span class="error" title="38.6% on training set">69.1%</span></p><div class="math">\[{\left(x + 1\right)}^{\left(\frac{1}{n}\right)} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in n around inf</p><div class="math">\[\leadsto \color{blue}{\frac{\log \left(1 + x\right) - \log x}{n}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="52.9% on training set">27.2%</span></p><div class="math">\[\leadsto \color{blue}{\frac{\mathsf{log1p}\left(x\right) - \log x}{n}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="51.3% on training set">58.3%</span></p><div class="math">\[\leadsto \frac{\mathsf{log1p}\left(x\right) \cdot n - n \cdot \log x}{\color{blue}{n \cdot n}}
+\]</div></li><li><p>Taylor expanded in x around inf</p><div class="math">\[\leadsto \frac{\frac{n}{x}}{\color{blue}{n} \cdot n}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="29.2% on training set">47.8%</span></p><div class="math">\[\leadsto \frac{\frac{n}{x}}{\color{blue}{n} \cdot n}
+\]</div></li></ol><h2><code>if <span class="condition">0.97999999999999998 &lt;  x </span></code></h2><ol><li><p>Initial program <span class="error" title="68.8% on training set">75.1%</span></p><div class="math">\[{\left(x + 1\right)}^{\left(\frac{1}{n}\right)} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in n around inf</p><div class="math">\[\leadsto \color{blue}{\frac{\log \left(1 + x\right) - \log x}{n}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="68.9% on training set">74.4%</span></p><div class="math">\[\leadsto \color{blue}{\frac{\mathsf{log1p}\left(x\right) - \log x}{n}}
+\]</div></li><li><p>Taylor expanded in x around inf</p><div class="math">\[\leadsto \frac{\frac{1}{x}}{n}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="64.5% on training set">61.6%</span></p><div class="math">\[\leadsto \frac{\frac{1}{x}}{n}
+\]</div></li><li><p>Taylor expanded in x around -inf</p><div class="math">\[\leadsto -1 \cdot \color{blue}{\frac{-1 \cdot \frac{\frac{1}{3} \cdot \frac{1}{n \cdot x} - \frac{1}{2} \cdot \frac{1}{n}}{x} - \frac{1}{n}}{x}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="65.4% on training set">62.6%</span></p><div class="math">\[\leadsto \frac{\mathsf{fma}\left(\frac{\frac{1}{x}}{n}, \frac{0.3333333333333333}{x} - 0.5, \frac{1}{n}\right)}{\color{blue}{x}}
+\]</div></li></ol></li><li class="event">Recombined 3 regimes into one program.</li><li><p>Final simplification<span class="error" title="56.1% on training set">56.9%</span></p><div class="math">\[\leadsto \begin{array}{l}
+\mathbf{if}\;x \leq 3.3 \cdot 10^{-45}:\\
+\;\;\;\;\frac{-\log x}{n}\\
+
+\mathbf{elif}\;x \leq 0.98:\\
+\;\;\;\;\frac{\frac{n}{x}}{n \cdot n}\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{\mathsf{fma}\left(\frac{{x}^{-1}}{n}, \frac{0.3333333333333333}{x} - 0.5, {n}^{-1}\right)}{x}\\
+
+
+\end{array}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative11" class="programs"><h2>Alternative 11: <span class="subhead"><data>60.1%</data> accurate, <data>1.0×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+t_0 := 1 - {x}^{\left({n}^{-1}\right)}\\
+\mathbf{if}\;x \leq 9.6 \cdot 10^{-232}:\\
+\;\;\;\;t\_0\\
+
+\mathbf{elif}\;x \leq 1.1 \cdot 10^{-42}:\\
+\;\;\;\;\frac{-\log x}{n}\\
+
+\mathbf{elif}\;x \leq 0.145:\\
+\;\;\;\;t\_0\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{{\left(x \cdot x\right)}^{-0.5}}{n}\\
+
+
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x n)
+ :precision binary64
+ (let* ((t_0 (- 1.0 (pow x (pow n -1.0)))))
+   (if (&lt;= x 9.6e-232)
+     t_0
+     (if (&lt;= x 1.1e-42)
+       (/ (- (log x)) n)
+       (if (&lt;= x 0.145) t_0 (/ (pow (* x x) -0.5) n))))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double n) {
+	double t_0 = 1.0 - pow(x, pow(n, -1.0));
+	double tmp;
+	if (x &lt;= 9.6e-232) {
+		tmp = t_0;
+	} else if (x &lt;= 1.1e-42) {
+		tmp = -log(x) / n;
+	} else if (x &lt;= 0.145) {
+		tmp = t_0;
+	} else {
+		tmp = pow((x * x), -0.5) / n;
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(x, n)
+    real(8), intent (in) :: x
+    real(8), intent (in) :: n
+    real(8) :: t_0
+    real(8) :: tmp
+    t_0 = 1.0d0 - (x ** (n ** (-1.0d0)))
+    if (x &lt;= 9.6d-232) then
+        tmp = t_0
+    else if (x &lt;= 1.1d-42) then
+        tmp = -log(x) / n
+    else if (x &lt;= 0.145d0) then
+        tmp = t_0
+    else
+        tmp = ((x * x) ** (-0.5d0)) / n
+    end if
+    code = tmp
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double x, double n) {
+	double t_0 = 1.0 - Math.pow(x, Math.pow(n, -1.0));
+	double tmp;
+	if (x &lt;= 9.6e-232) {
+		tmp = t_0;
+	} else if (x &lt;= 1.1e-42) {
+		tmp = -Math.log(x) / n;
+	} else if (x &lt;= 0.145) {
+		tmp = t_0;
+	} else {
+		tmp = Math.pow((x * x), -0.5) / n;
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(x, n):
+	t_0 = 1.0 - math.pow(x, math.pow(n, -1.0))
+	tmp = 0
+	if x &lt;= 9.6e-232:
+		tmp = t_0
+	elif x &lt;= 1.1e-42:
+		tmp = -math.log(x) / n
+	elif x &lt;= 0.145:
+		tmp = t_0
+	else:
+		tmp = math.pow((x * x), -0.5) / n
+	return tmp
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, n)
+	t_0 = Float64(1.0 - (x ^ (n ^ -1.0)))
+	tmp = 0.0
+	if (x &lt;= 9.6e-232)
+		tmp = t_0;
+	elseif (x &lt;= 1.1e-42)
+		tmp = Float64(Float64(-log(x)) / n);
+	elseif (x &lt;= 0.145)
+		tmp = t_0;
+	else
+		tmp = Float64((Float64(x * x) ^ -0.5) / n);
+	end
+	return tmp
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp_2 = code(x, n)
+	t_0 = 1.0 - (x ^ (n ^ -1.0));
+	tmp = 0.0;
+	if (x &lt;= 9.6e-232)
+		tmp = t_0;
+	elseif (x &lt;= 1.1e-42)
+		tmp = -log(x) / n;
+	elseif (x &lt;= 0.145)
+		tmp = t_0;
+	else
+		tmp = ((x * x) ^ -0.5) / n;
+	end
+	tmp_2 = tmp;
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, n_] := Block[{t$95$0 = N[(1.0 - N[Power[x, N[Power[n, -1.0], $MachinePrecision]], $MachinePrecision]), $MachinePrecision]}, If[LessEqual[x, 9.6e-232], t$95$0, If[LessEqual[x, 1.1e-42], N[((-N[Log[x], $MachinePrecision]) / n), $MachinePrecision], If[LessEqual[x, 0.145], t$95$0, N[(N[Power[N[(x * x), $MachinePrecision], -0.5], $MachinePrecision] / n), $MachinePrecision]]]]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+t_0 := 1 - {x}^{\left({n}^{-1}\right)}\\
+\mathbf{if}\;x \leq 9.6 \cdot 10^{-232}:\\
+\;\;\;\;t\_0\\
+
+\mathbf{elif}\;x \leq 1.1 \cdot 10^{-42}:\\
+\;\;\;\;\frac{-\log x}{n}\\
+
+\mathbf{elif}\;x \leq 0.145:\\
+\;\;\;\;t\_0\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{{\left(x \cdot x\right)}^{-0.5}}{n}\\
+
+
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li class="event">Split input into 3 regimes</li><li><h2><code>if <span class="condition"> x  &lt; 9.59999999999999995e-232 or 1.10000000000000003e-42 &lt;  x  &lt; 0.14499999999999999</span></code></h2><ol><li><p>Initial program <span class="error" title="47.6% on training set">64.7%</span></p><div class="math">\[{\left(x + 1\right)}^{\left(\frac{1}{n}\right)} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \color{blue}{1} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="44.1% on training set">60.1%</span></p><div class="math">\[\leadsto \color{blue}{1} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li></ol><h2><code>if <span class="condition">9.59999999999999995e-232 &lt;  x  &lt; 1.10000000000000003e-42</span></code></h2><ol><li><p>Initial program <span class="error" title="39.3% on training set">38.5%</span></p><div class="math">\[{\left(x + 1\right)}^{\left(\frac{1}{n}\right)} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in n around inf</p><div class="math">\[\leadsto \color{blue}{\frac{\log \left(1 + x\right) - \log x}{n}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="53.0% on training set">58.2%</span></p><div class="math">\[\leadsto \color{blue}{\frac{\mathsf{log1p}\left(x\right) - \log x}{n}}
+\]</div></li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \frac{-1 \cdot \log x}{n}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="53.0% on training set">58.2%</span></p><div class="math">\[\leadsto \frac{-\log x}{n}
+\]</div></li></ol><h2><code>if <span class="condition">0.14499999999999999 &lt;  x </span></code></h2><ol><li><p>Initial program <span class="error" title="68.7% on training set">74.4%</span></p><div class="math">\[{\left(x + 1\right)}^{\left(\frac{1}{n}\right)} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in n around inf</p><div class="math">\[\leadsto \color{blue}{\frac{\log \left(1 + x\right) - \log x}{n}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="68.9% on training set">74.6%</span></p><div class="math">\[\leadsto \color{blue}{\frac{\mathsf{log1p}\left(x\right) - \log x}{n}}
+\]</div></li><li><p>Taylor expanded in x around inf</p><div class="math">\[\leadsto \frac{\frac{1}{x}}{n}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="64.3% on training set">61.2%</span></p><div class="math">\[\leadsto \frac{\frac{1}{x}}{n}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="73.7% on training set">74.6%</span></p><div class="math">\[\leadsto \frac{{\left(x \cdot x\right)}^{-0.5}}{n}
+\]</div></li></ol></li><li class="event">Recombined 3 regimes into one program.</li><li><p>Final simplification<span class="error" title="60.1% on training set">65.1%</span></p><div class="math">\[\leadsto \begin{array}{l}
+\mathbf{if}\;x \leq 9.6 \cdot 10^{-232}:\\
+\;\;\;\;1 - {x}^{\left({n}^{-1}\right)}\\
+
+\mathbf{elif}\;x \leq 1.1 \cdot 10^{-42}:\\
+\;\;\;\;\frac{-\log x}{n}\\
+
+\mathbf{elif}\;x \leq 0.145:\\
+\;\;\;\;1 - {x}^{\left({n}^{-1}\right)}\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{{\left(x \cdot x\right)}^{-0.5}}{n}\\
+
+
+\end{array}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative12" class="programs"><h2>Alternative 12: <span class="subhead"><data>57.8%</data> accurate, <data>1.0×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+t_0 := 1 - {x}^{\left({n}^{-1}\right)}\\
+\mathbf{if}\;x \leq 9.6 \cdot 10^{-232}:\\
+\;\;\;\;t\_0\\
+
+\mathbf{elif}\;x \leq 1.1 \cdot 10^{-42}:\\
+\;\;\;\;\frac{-\log x}{n}\\
+
+\mathbf{elif}\;x \leq 0.2:\\
+\;\;\;\;t\_0\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{\log 1}{-n}\\
+
+
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x n)
+ :precision binary64
+ (let* ((t_0 (- 1.0 (pow x (pow n -1.0)))))
+   (if (&lt;= x 9.6e-232)
+     t_0
+     (if (&lt;= x 1.1e-42)
+       (/ (- (log x)) n)
+       (if (&lt;= x 0.2) t_0 (/ (log 1.0) (- n)))))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double n) {
+	double t_0 = 1.0 - pow(x, pow(n, -1.0));
+	double tmp;
+	if (x &lt;= 9.6e-232) {
+		tmp = t_0;
+	} else if (x &lt;= 1.1e-42) {
+		tmp = -log(x) / n;
+	} else if (x &lt;= 0.2) {
+		tmp = t_0;
+	} else {
+		tmp = log(1.0) / -n;
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(x, n)
+    real(8), intent (in) :: x
+    real(8), intent (in) :: n
+    real(8) :: t_0
+    real(8) :: tmp
+    t_0 = 1.0d0 - (x ** (n ** (-1.0d0)))
+    if (x &lt;= 9.6d-232) then
+        tmp = t_0
+    else if (x &lt;= 1.1d-42) then
+        tmp = -log(x) / n
+    else if (x &lt;= 0.2d0) then
+        tmp = t_0
+    else
+        tmp = log(1.0d0) / -n
+    end if
+    code = tmp
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double x, double n) {
+	double t_0 = 1.0 - Math.pow(x, Math.pow(n, -1.0));
+	double tmp;
+	if (x &lt;= 9.6e-232) {
+		tmp = t_0;
+	} else if (x &lt;= 1.1e-42) {
+		tmp = -Math.log(x) / n;
+	} else if (x &lt;= 0.2) {
+		tmp = t_0;
+	} else {
+		tmp = Math.log(1.0) / -n;
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(x, n):
+	t_0 = 1.0 - math.pow(x, math.pow(n, -1.0))
+	tmp = 0
+	if x &lt;= 9.6e-232:
+		tmp = t_0
+	elif x &lt;= 1.1e-42:
+		tmp = -math.log(x) / n
+	elif x &lt;= 0.2:
+		tmp = t_0
+	else:
+		tmp = math.log(1.0) / -n
+	return tmp
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, n)
+	t_0 = Float64(1.0 - (x ^ (n ^ -1.0)))
+	tmp = 0.0
+	if (x &lt;= 9.6e-232)
+		tmp = t_0;
+	elseif (x &lt;= 1.1e-42)
+		tmp = Float64(Float64(-log(x)) / n);
+	elseif (x &lt;= 0.2)
+		tmp = t_0;
+	else
+		tmp = Float64(log(1.0) / Float64(-n));
+	end
+	return tmp
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp_2 = code(x, n)
+	t_0 = 1.0 - (x ^ (n ^ -1.0));
+	tmp = 0.0;
+	if (x &lt;= 9.6e-232)
+		tmp = t_0;
+	elseif (x &lt;= 1.1e-42)
+		tmp = -log(x) / n;
+	elseif (x &lt;= 0.2)
+		tmp = t_0;
+	else
+		tmp = log(1.0) / -n;
+	end
+	tmp_2 = tmp;
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, n_] := Block[{t$95$0 = N[(1.0 - N[Power[x, N[Power[n, -1.0], $MachinePrecision]], $MachinePrecision]), $MachinePrecision]}, If[LessEqual[x, 9.6e-232], t$95$0, If[LessEqual[x, 1.1e-42], N[((-N[Log[x], $MachinePrecision]) / n), $MachinePrecision], If[LessEqual[x, 0.2], t$95$0, N[(N[Log[1.0], $MachinePrecision] / (-n)), $MachinePrecision]]]]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+t_0 := 1 - {x}^{\left({n}^{-1}\right)}\\
+\mathbf{if}\;x \leq 9.6 \cdot 10^{-232}:\\
+\;\;\;\;t\_0\\
+
+\mathbf{elif}\;x \leq 1.1 \cdot 10^{-42}:\\
+\;\;\;\;\frac{-\log x}{n}\\
+
+\mathbf{elif}\;x \leq 0.2:\\
+\;\;\;\;t\_0\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{\log 1}{-n}\\
+
+
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li class="event">Split input into 3 regimes</li><li><h2><code>if <span class="condition"> x  &lt; 9.59999999999999995e-232 or 1.10000000000000003e-42 &lt;  x  &lt; 0.20000000000000001</span></code></h2><ol><li><p>Initial program <span class="error" title="47.6% on training set">64.7%</span></p><div class="math">\[{\left(x + 1\right)}^{\left(\frac{1}{n}\right)} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \color{blue}{1} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="44.1% on training set">60.1%</span></p><div class="math">\[\leadsto \color{blue}{1} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li></ol><h2><code>if <span class="condition">9.59999999999999995e-232 &lt;  x  &lt; 1.10000000000000003e-42</span></code></h2><ol><li><p>Initial program <span class="error" title="39.3% on training set">38.5%</span></p><div class="math">\[{\left(x + 1\right)}^{\left(\frac{1}{n}\right)} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in n around inf</p><div class="math">\[\leadsto \color{blue}{\frac{\log \left(1 + x\right) - \log x}{n}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="53.0% on training set">58.2%</span></p><div class="math">\[\leadsto \color{blue}{\frac{\mathsf{log1p}\left(x\right) - \log x}{n}}
+\]</div></li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \frac{-1 \cdot \log x}{n}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="53.0% on training set">58.2%</span></p><div class="math">\[\leadsto \frac{-\log x}{n}
+\]</div></li></ol><h2><code>if <span class="condition">0.20000000000000001 &lt;  x </span></code></h2><ol><li><p>Initial program <span class="error" title="68.7% on training set">74.4%</span></p><div class="math">\[{\left(x + 1\right)}^{\left(\frac{1}{n}\right)} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in n around inf</p><div class="math">\[\leadsto \color{blue}{\frac{\log \left(1 + x\right) - \log x}{n}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="68.9% on training set">74.6%</span></p><div class="math">\[\leadsto \color{blue}{\frac{\mathsf{log1p}\left(x\right) - \log x}{n}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="69.0% on training set">74.7%</span></p><div class="math">\[\leadsto \frac{-\log \left(\frac{x}{1 + x}\right)}{n}
+\]</div></li><li><p>Taylor expanded in x around inf</p><div class="math">\[\leadsto \frac{-\log 1}{n}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="68.5% on training set">74.4%</span></p><div class="math">\[\leadsto \frac{-\log 1}{n}
+\]</div></li></ol></li><li class="event">Recombined 3 regimes into one program.</li><li><p>Final simplification<span class="error" title="57.8% on training set">65.0%</span></p><div class="math">\[\leadsto \begin{array}{l}
+\mathbf{if}\;x \leq 9.6 \cdot 10^{-232}:\\
+\;\;\;\;1 - {x}^{\left({n}^{-1}\right)}\\
+
+\mathbf{elif}\;x \leq 1.1 \cdot 10^{-42}:\\
+\;\;\;\;\frac{-\log x}{n}\\
+
+\mathbf{elif}\;x \leq 0.2:\\
+\;\;\;\;1 - {x}^{\left({n}^{-1}\right)}\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{\log 1}{-n}\\
+
+
+\end{array}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative13" class="programs"><h2>Alternative 13: <span class="subhead"><data>61.1%</data> accurate, <data>1.1×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;x \leq 9.6 \cdot 10^{-232}:\\
+\;\;\;\;1 - {x}^{\left({n}^{-1}\right)}\\
+
+\mathbf{elif}\;x \leq 1.25 \cdot 10^{-144}:\\
+\;\;\;\;\frac{-\log x}{n}\\
+
+\mathbf{elif}\;x \leq 0.98:\\
+\;\;\;\;\frac{\left(-n\right) \cdot \log x}{n \cdot n}\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{{\left(x \cdot x\right)}^{-0.5}}{n}\\
+
+
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x n)
+ :precision binary64
+ (if (&lt;= x 9.6e-232)
+   (- 1.0 (pow x (pow n -1.0)))
+   (if (&lt;= x 1.25e-144)
+     (/ (- (log x)) n)
+     (if (&lt;= x 0.98) (/ (* (- n) (log x)) (* n n)) (/ (pow (* x x) -0.5) n)))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double n) {
+	double tmp;
+	if (x &lt;= 9.6e-232) {
+		tmp = 1.0 - pow(x, pow(n, -1.0));
+	} else if (x &lt;= 1.25e-144) {
+		tmp = -log(x) / n;
+	} else if (x &lt;= 0.98) {
+		tmp = (-n * log(x)) / (n * n);
+	} else {
+		tmp = pow((x * x), -0.5) / n;
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(x, n)
+    real(8), intent (in) :: x
+    real(8), intent (in) :: n
+    real(8) :: tmp
+    if (x &lt;= 9.6d-232) then
+        tmp = 1.0d0 - (x ** (n ** (-1.0d0)))
+    else if (x &lt;= 1.25d-144) then
+        tmp = -log(x) / n
+    else if (x &lt;= 0.98d0) then
+        tmp = (-n * log(x)) / (n * n)
+    else
+        tmp = ((x * x) ** (-0.5d0)) / n
+    end if
+    code = tmp
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double x, double n) {
+	double tmp;
+	if (x &lt;= 9.6e-232) {
+		tmp = 1.0 - Math.pow(x, Math.pow(n, -1.0));
+	} else if (x &lt;= 1.25e-144) {
+		tmp = -Math.log(x) / n;
+	} else if (x &lt;= 0.98) {
+		tmp = (-n * Math.log(x)) / (n * n);
+	} else {
+		tmp = Math.pow((x * x), -0.5) / n;
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(x, n):
+	tmp = 0
+	if x &lt;= 9.6e-232:
+		tmp = 1.0 - math.pow(x, math.pow(n, -1.0))
+	elif x &lt;= 1.25e-144:
+		tmp = -math.log(x) / n
+	elif x &lt;= 0.98:
+		tmp = (-n * math.log(x)) / (n * n)
+	else:
+		tmp = math.pow((x * x), -0.5) / n
+	return tmp
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, n)
+	tmp = 0.0
+	if (x &lt;= 9.6e-232)
+		tmp = Float64(1.0 - (x ^ (n ^ -1.0)));
+	elseif (x &lt;= 1.25e-144)
+		tmp = Float64(Float64(-log(x)) / n);
+	elseif (x &lt;= 0.98)
+		tmp = Float64(Float64(Float64(-n) * log(x)) / Float64(n * n));
+	else
+		tmp = Float64((Float64(x * x) ^ -0.5) / n);
+	end
+	return tmp
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp_2 = code(x, n)
+	tmp = 0.0;
+	if (x &lt;= 9.6e-232)
+		tmp = 1.0 - (x ^ (n ^ -1.0));
+	elseif (x &lt;= 1.25e-144)
+		tmp = -log(x) / n;
+	elseif (x &lt;= 0.98)
+		tmp = (-n * log(x)) / (n * n);
+	else
+		tmp = ((x * x) ^ -0.5) / n;
+	end
+	tmp_2 = tmp;
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, n_] := If[LessEqual[x, 9.6e-232], N[(1.0 - N[Power[x, N[Power[n, -1.0], $MachinePrecision]], $MachinePrecision]), $MachinePrecision], If[LessEqual[x, 1.25e-144], N[((-N[Log[x], $MachinePrecision]) / n), $MachinePrecision], If[LessEqual[x, 0.98], N[(N[((-n) * N[Log[x], $MachinePrecision]), $MachinePrecision] / N[(n * n), $MachinePrecision]), $MachinePrecision], N[(N[Power[N[(x * x), $MachinePrecision], -0.5], $MachinePrecision] / n), $MachinePrecision]]]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;x \leq 9.6 \cdot 10^{-232}:\\
+\;\;\;\;1 - {x}^{\left({n}^{-1}\right)}\\
+
+\mathbf{elif}\;x \leq 1.25 \cdot 10^{-144}:\\
+\;\;\;\;\frac{-\log x}{n}\\
+
+\mathbf{elif}\;x \leq 0.98:\\
+\;\;\;\;\frac{\left(-n\right) \cdot \log x}{n \cdot n}\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{{\left(x \cdot x\right)}^{-0.5}}{n}\\
+
+
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li class="event">Split input into 4 regimes</li><li><h2><code>if <span class="condition"> x  &lt; 9.59999999999999995e-232</span></code></h2><ol><li><p>Initial program <span class="error" title="52.1% on training set">58.2%</span></p><div class="math">\[{\left(x + 1\right)}^{\left(\frac{1}{n}\right)} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \color{blue}{1} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="52.1% on training set">58.2%</span></p><div class="math">\[\leadsto \color{blue}{1} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li></ol><h2><code>if <span class="condition">9.59999999999999995e-232 &lt;  x  &lt; 1.2499999999999999e-144</span></code></h2><ol><li><p>Initial program <span class="error" title="42.5% on training set">31.6%</span></p><div class="math">\[{\left(x + 1\right)}^{\left(\frac{1}{n}\right)} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in n around inf</p><div class="math">\[\leadsto \color{blue}{\frac{\log \left(1 + x\right) - \log x}{n}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="53.5% on training set">68.4%</span></p><div class="math">\[\leadsto \color{blue}{\frac{\mathsf{log1p}\left(x\right) - \log x}{n}}
+\]</div></li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \frac{-1 \cdot \log x}{n}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="53.5% on training set">68.4%</span></p><div class="math">\[\leadsto \frac{-\log x}{n}
+\]</div></li></ol><h2><code>if <span class="condition">1.2499999999999999e-144 &lt;  x  &lt; 0.97999999999999998</span></code></h2><ol><li><p>Initial program <span class="error" title="37.2% on training set">53.6%</span></p><div class="math">\[{\left(x + 1\right)}^{\left(\frac{1}{n}\right)} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in n around inf</p><div class="math">\[\leadsto \color{blue}{\frac{\log \left(1 + x\right) - \log x}{n}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="52.5% on training set">41.9%</span></p><div class="math">\[\leadsto \color{blue}{\frac{\mathsf{log1p}\left(x\right) - \log x}{n}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="50.5% on training set">58.4%</span></p><div class="math">\[\leadsto \frac{\mathsf{log1p}\left(x\right) \cdot n - n \cdot \log x}{\color{blue}{n \cdot n}}
+\]</div></li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \frac{-1 \cdot \left(n \cdot \log x\right)}{\color{blue}{n} \cdot n}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="49.5% on training set">57.3%</span></p><div class="math">\[\leadsto \frac{\left(-n\right) \cdot \log x}{\color{blue}{n} \cdot n}
+\]</div></li></ol><h2><code>if <span class="condition">0.97999999999999998 &lt;  x </span></code></h2><ol><li><p>Initial program <span class="error" title="68.8% on training set">75.1%</span></p><div class="math">\[{\left(x + 1\right)}^{\left(\frac{1}{n}\right)} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in n around inf</p><div class="math">\[\leadsto \color{blue}{\frac{\log \left(1 + x\right) - \log x}{n}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="68.9% on training set">74.4%</span></p><div class="math">\[\leadsto \color{blue}{\frac{\mathsf{log1p}\left(x\right) - \log x}{n}}
+\]</div></li><li><p>Taylor expanded in x around inf</p><div class="math">\[\leadsto \frac{\frac{1}{x}}{n}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="64.5% on training set">61.6%</span></p><div class="math">\[\leadsto \frac{\frac{1}{x}}{n}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="74.0% on training set">75.2%</span></p><div class="math">\[\leadsto \frac{{\left(x \cdot x\right)}^{-0.5}}{n}
+\]</div></li></ol></li><li class="event">Recombined 4 regimes into one program.</li><li><p>Final simplification<span class="error" title="61.1% on training set">66.2%</span></p><div class="math">\[\leadsto \begin{array}{l}
+\mathbf{if}\;x \leq 9.6 \cdot 10^{-232}:\\
+\;\;\;\;1 - {x}^{\left({n}^{-1}\right)}\\
+
+\mathbf{elif}\;x \leq 1.25 \cdot 10^{-144}:\\
+\;\;\;\;\frac{-\log x}{n}\\
+
+\mathbf{elif}\;x \leq 0.98:\\
+\;\;\;\;\frac{\left(-n\right) \cdot \log x}{n \cdot n}\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{{\left(x \cdot x\right)}^{-0.5}}{n}\\
+
+
+\end{array}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative14" class="programs"><h2>Alternative 14: <span class="subhead"><data>48.1%</data> accurate, <data>1.4×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+t_0 := \frac{0.3333333333333333}{x} - 0.5\\
+\mathbf{if}\;{n}^{-1} \leq -5 \cdot 10^{-17}:\\
+\;\;\;\;\frac{\frac{\mathsf{fma}\left(\frac{n}{x}, t\_0, n\right)}{x}}{n \cdot n}\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{\frac{1 + \frac{t\_0}{x}}{x}}{n}\\
+
+
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x n)
+ :precision binary64
+ (let* ((t_0 (- (/ 0.3333333333333333 x) 0.5)))
+   (if (&lt;= (pow n -1.0) -5e-17)
+     (/ (/ (fma (/ n x) t_0 n) x) (* n n))
+     (/ (/ (+ 1.0 (/ t_0 x)) x) n))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double n) {
+	double t_0 = (0.3333333333333333 / x) - 0.5;
+	double tmp;
+	if (pow(n, -1.0) &lt;= -5e-17) {
+		tmp = (fma((n / x), t_0, n) / x) / (n * n);
+	} else {
+		tmp = ((1.0 + (t_0 / x)) / x) / n;
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, n)
+	t_0 = Float64(Float64(0.3333333333333333 / x) - 0.5)
+	tmp = 0.0
+	if ((n ^ -1.0) &lt;= -5e-17)
+		tmp = Float64(Float64(fma(Float64(n / x), t_0, n) / x) / Float64(n * n));
+	else
+		tmp = Float64(Float64(Float64(1.0 + Float64(t_0 / x)) / x) / n);
+	end
+	return tmp
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, n_] := Block[{t$95$0 = N[(N[(0.3333333333333333 / x), $MachinePrecision] - 0.5), $MachinePrecision]}, If[LessEqual[N[Power[n, -1.0], $MachinePrecision], -5e-17], N[(N[(N[(N[(n / x), $MachinePrecision] * t$95$0 + n), $MachinePrecision] / x), $MachinePrecision] / N[(n * n), $MachinePrecision]), $MachinePrecision], N[(N[(N[(1.0 + N[(t$95$0 / x), $MachinePrecision]), $MachinePrecision] / x), $MachinePrecision] / n), $MachinePrecision]]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+t_0 := \frac{0.3333333333333333}{x} - 0.5\\
+\mathbf{if}\;{n}^{-1} \leq -5 \cdot 10^{-17}:\\
+\;\;\;\;\frac{\frac{\mathsf{fma}\left(\frac{n}{x}, t\_0, n\right)}{x}}{n \cdot n}\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{\frac{1 + \frac{t\_0}{x}}{x}}{n}\\
+
+
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li class="event">Split input into 2 regimes</li><li><h2><code>if <span class="condition"> (/.f64 #s(literal 1 binary64) n)  &lt; -4.9999999999999999e-17</span></code></h2><ol><li><p>Initial program <span class="error" title="97.0% on training set">96.1%</span></p><div class="math">\[{\left(x + 1\right)}^{\left(\frac{1}{n}\right)} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in n around inf</p><div class="math">\[\leadsto \color{blue}{\frac{\log \left(1 + x\right) - \log x}{n}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="50.6% on training set">45.4%</span></p><div class="math">\[\leadsto \color{blue}{\frac{\mathsf{log1p}\left(x\right) - \log x}{n}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="48.5% on training set">56.6%</span></p><div class="math">\[\leadsto \frac{\mathsf{log1p}\left(x\right) \cdot n - n \cdot \log x}{\color{blue}{n \cdot n}}
+\]</div></li><li><p>Taylor expanded in x around inf</p><div class="math">\[\leadsto \frac{\frac{n + \left(\frac{-1}{2} \cdot \frac{n}{x} + \frac{1}{3} \cdot \frac{n}{{x}^{2}}\right)}{x}}{\color{blue}{n} \cdot n}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="48.3% on training set">47.6%</span></p><div class="math">\[\leadsto \frac{\frac{\mathsf{fma}\left(\frac{n}{x}, \frac{0.3333333333333333}{x} - 0.5, n\right)}{x}}{\color{blue}{n} \cdot n}
+\]</div></li></ol><h2><code>if <span class="condition">-4.9999999999999999e-17 &lt;  (/.f64 #s(literal 1 binary64) n) </span></code></h2><ol><li><p>Initial program <span class="error" title="35.8% on training set">38.6%</span></p><div class="math">\[{\left(x + 1\right)}^{\left(\frac{1}{n}\right)} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in n around inf</p><div class="math">\[\leadsto \color{blue}{\frac{\log \left(1 + x\right) - \log x}{n}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="63.2% on training set">67.0%</span></p><div class="math">\[\leadsto \color{blue}{\frac{\mathsf{log1p}\left(x\right) - \log x}{n}}
+\]</div></li><li><p>Taylor expanded in x around inf</p><div class="math">\[\leadsto \frac{\frac{\left(1 + \frac{\frac{1}{3}}{{x}^{2}}\right) - \frac{1}{2} \cdot \frac{1}{x}}{x}}{n}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="48.0% on training set">43.6%</span></p><div class="math">\[\leadsto \frac{\frac{1 + \frac{\frac{0.3333333333333333}{x} - 0.5}{x}}{x}}{n}
+\]</div></li></ol></li><li class="event">Recombined 2 regimes into one program.</li><li><p>Final simplification<span class="error" title="48.1% on training set">45.0%</span></p><div class="math">\[\leadsto \begin{array}{l}
+\mathbf{if}\;{n}^{-1} \leq -5 \cdot 10^{-17}:\\
+\;\;\;\;\frac{\frac{\mathsf{fma}\left(\frac{n}{x}, \frac{0.3333333333333333}{x} - 0.5, n\right)}{x}}{n \cdot n}\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{\frac{1 + \frac{\frac{0.3333333333333333}{x} - 0.5}{x}}{x}}{n}\\
+
+
+\end{array}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative15" class="programs"><h2>Alternative 15: <span class="subhead"><data>46.7%</data> accurate, <data>1.5×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;{n}^{-1} \leq -1 \cdot 10^{+138}:\\
+\;\;\;\;\frac{\frac{n}{x}}{n \cdot n}\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{\frac{1 + \frac{\frac{0.3333333333333333}{x} - 0.5}{x}}{x}}{n}\\
+
+
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x n)
+ :precision binary64
+ (if (&lt;= (pow n -1.0) -1e+138)
+   (/ (/ n x) (* n n))
+   (/ (/ (+ 1.0 (/ (- (/ 0.3333333333333333 x) 0.5) x)) x) n)))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double n) {
+	double tmp;
+	if (pow(n, -1.0) &lt;= -1e+138) {
+		tmp = (n / x) / (n * n);
+	} else {
+		tmp = ((1.0 + (((0.3333333333333333 / x) - 0.5) / x)) / x) / n;
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(x, n)
+    real(8), intent (in) :: x
+    real(8), intent (in) :: n
+    real(8) :: tmp
+    if ((n ** (-1.0d0)) &lt;= (-1d+138)) then
+        tmp = (n / x) / (n * n)
+    else
+        tmp = ((1.0d0 + (((0.3333333333333333d0 / x) - 0.5d0) / x)) / x) / n
+    end if
+    code = tmp
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double x, double n) {
+	double tmp;
+	if (Math.pow(n, -1.0) &lt;= -1e+138) {
+		tmp = (n / x) / (n * n);
+	} else {
+		tmp = ((1.0 + (((0.3333333333333333 / x) - 0.5) / x)) / x) / n;
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(x, n):
+	tmp = 0
+	if math.pow(n, -1.0) &lt;= -1e+138:
+		tmp = (n / x) / (n * n)
+	else:
+		tmp = ((1.0 + (((0.3333333333333333 / x) - 0.5) / x)) / x) / n
+	return tmp
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, n)
+	tmp = 0.0
+	if ((n ^ -1.0) &lt;= -1e+138)
+		tmp = Float64(Float64(n / x) / Float64(n * n));
+	else
+		tmp = Float64(Float64(Float64(1.0 + Float64(Float64(Float64(0.3333333333333333 / x) - 0.5) / x)) / x) / n);
+	end
+	return tmp
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp_2 = code(x, n)
+	tmp = 0.0;
+	if ((n ^ -1.0) &lt;= -1e+138)
+		tmp = (n / x) / (n * n);
+	else
+		tmp = ((1.0 + (((0.3333333333333333 / x) - 0.5) / x)) / x) / n;
+	end
+	tmp_2 = tmp;
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, n_] := If[LessEqual[N[Power[n, -1.0], $MachinePrecision], -1e+138], N[(N[(n / x), $MachinePrecision] / N[(n * n), $MachinePrecision]), $MachinePrecision], N[(N[(N[(1.0 + N[(N[(N[(0.3333333333333333 / x), $MachinePrecision] - 0.5), $MachinePrecision] / x), $MachinePrecision]), $MachinePrecision] / x), $MachinePrecision] / n), $MachinePrecision]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;{n}^{-1} \leq -1 \cdot 10^{+138}:\\
+\;\;\;\;\frac{\frac{n}{x}}{n \cdot n}\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{\frac{1 + \frac{\frac{0.3333333333333333}{x} - 0.5}{x}}{x}}{n}\\
+
+
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li class="event">Split input into 2 regimes</li><li><h2><code>if <span class="condition"> (/.f64 #s(literal 1 binary64) n)  &lt; -1e138</span></code></h2><ol><li><p>Initial program <span class="error" title="100.0% on training set">100.0%</span></p><div class="math">\[{\left(x + 1\right)}^{\left(\frac{1}{n}\right)} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in n around inf</p><div class="math">\[\leadsto \color{blue}{\frac{\log \left(1 + x\right) - \log x}{n}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="53.4% on training set">40.2%</span></p><div class="math">\[\leadsto \color{blue}{\frac{\mathsf{log1p}\left(x\right) - \log x}{n}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="49.2% on training set">61.9%</span></p><div class="math">\[\leadsto \frac{\mathsf{log1p}\left(x\right) \cdot n - n \cdot \log x}{\color{blue}{n \cdot n}}
+\]</div></li><li><p>Taylor expanded in x around inf</p><div class="math">\[\leadsto \frac{\frac{n}{x}}{\color{blue}{n} \cdot n}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="48.3% on training set">64.1%</span></p><div class="math">\[\leadsto \frac{\frac{n}{x}}{\color{blue}{n} \cdot n}
+\]</div></li></ol><h2><code>if <span class="condition">-1e138 &lt;  (/.f64 #s(literal 1 binary64) n) </span></code></h2><ol><li><p>Initial program <span class="error" title="45.5% on training set">49.9%</span></p><div class="math">\[{\left(x + 1\right)}^{\left(\frac{1}{n}\right)} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in n around inf</p><div class="math">\[\leadsto \color{blue}{\frac{\log \left(1 + x\right) - \log x}{n}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="60.6% on training set">63.6%</span></p><div class="math">\[\leadsto \color{blue}{\frac{\mathsf{log1p}\left(x\right) - \log x}{n}}
+\]</div></li><li><p>Taylor expanded in x around inf</p><div class="math">\[\leadsto \frac{\frac{\left(1 + \frac{\frac{1}{3}}{{x}^{2}}\right) - \frac{1}{2} \cdot \frac{1}{x}}{x}}{n}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="46.4% on training set">40.7%</span></p><div class="math">\[\leadsto \frac{\frac{1 + \frac{\frac{0.3333333333333333}{x} - 0.5}{x}}{x}}{n}
+\]</div></li></ol></li><li class="event">Recombined 2 regimes into one program.</li><li><p>Final simplification<span class="error" title="46.7% on training set">45.0%</span></p><div class="math">\[\leadsto \begin{array}{l}
+\mathbf{if}\;{n}^{-1} \leq -1 \cdot 10^{+138}:\\
+\;\;\;\;\frac{\frac{n}{x}}{n \cdot n}\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{\frac{1 + \frac{\frac{0.3333333333333333}{x} - 0.5}{x}}{x}}{n}\\
+
+
+\end{array}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative16" class="programs"><h2>Alternative 16: <span class="subhead"><data>57.4%</data> accurate, <data>1.8×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;x \leq 3.3 \cdot 10^{-45}:\\
+\;\;\;\;\frac{-\log x}{n}\\
+
+\mathbf{elif}\;x \leq 3000000:\\
+\;\;\;\;\frac{\frac{\mathsf{fma}\left(\frac{n}{x}, \frac{0.3333333333333333}{x} - 0.5, n\right)}{x}}{n \cdot n}\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{\log 1}{-n}\\
+
+
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x n)
+ :precision binary64
+ (if (&lt;= x 3.3e-45)
+   (/ (- (log x)) n)
+   (if (&lt;= x 3000000.0)
+     (/ (/ (fma (/ n x) (- (/ 0.3333333333333333 x) 0.5) n) x) (* n n))
+     (/ (log 1.0) (- n)))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double n) {
+	double tmp;
+	if (x &lt;= 3.3e-45) {
+		tmp = -log(x) / n;
+	} else if (x &lt;= 3000000.0) {
+		tmp = (fma((n / x), ((0.3333333333333333 / x) - 0.5), n) / x) / (n * n);
+	} else {
+		tmp = log(1.0) / -n;
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, n)
+	tmp = 0.0
+	if (x &lt;= 3.3e-45)
+		tmp = Float64(Float64(-log(x)) / n);
+	elseif (x &lt;= 3000000.0)
+		tmp = Float64(Float64(fma(Float64(n / x), Float64(Float64(0.3333333333333333 / x) - 0.5), n) / x) / Float64(n * n));
+	else
+		tmp = Float64(log(1.0) / Float64(-n));
+	end
+	return tmp
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, n_] := If[LessEqual[x, 3.3e-45], N[((-N[Log[x], $MachinePrecision]) / n), $MachinePrecision], If[LessEqual[x, 3000000.0], N[(N[(N[(N[(n / x), $MachinePrecision] * N[(N[(0.3333333333333333 / x), $MachinePrecision] - 0.5), $MachinePrecision] + n), $MachinePrecision] / x), $MachinePrecision] / N[(n * n), $MachinePrecision]), $MachinePrecision], N[(N[Log[1.0], $MachinePrecision] / (-n)), $MachinePrecision]]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;x \leq 3.3 \cdot 10^{-45}:\\
+\;\;\;\;\frac{-\log x}{n}\\
+
+\mathbf{elif}\;x \leq 3000000:\\
+\;\;\;\;\frac{\frac{\mathsf{fma}\left(\frac{n}{x}, \frac{0.3333333333333333}{x} - 0.5, n\right)}{x}}{n \cdot n}\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{\log 1}{-n}\\
+
+
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li class="event">Split input into 3 regimes</li><li><h2><code>if <span class="condition"> x  &lt; 3.3000000000000001e-45</span></code></h2><ol><li><p>Initial program <span class="error" title="43.0% on training set">44.8%</span></p><div class="math">\[{\left(x + 1\right)}^{\left(\frac{1}{n}\right)} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in n around inf</p><div class="math">\[\leadsto \color{blue}{\frac{\log \left(1 + x\right) - \log x}{n}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="52.3% on training set">54.5%</span></p><div class="math">\[\leadsto \color{blue}{\frac{\mathsf{log1p}\left(x\right) - \log x}{n}}
+\]</div></li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \frac{-1 \cdot \log x}{n}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="52.3% on training set">54.5%</span></p><div class="math">\[\leadsto \frac{-\log x}{n}
+\]</div></li></ol><h2><code>if <span class="condition">3.3000000000000001e-45 &lt;  x  &lt; 3e6</span></code></h2><ol><li><p>Initial program <span class="error" title="38.4% on training set">64.6%</span></p><div class="math">\[{\left(x + 1\right)}^{\left(\frac{1}{n}\right)} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in n around inf</p><div class="math">\[\leadsto \color{blue}{\frac{\log \left(1 + x\right) - \log x}{n}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="53.1% on training set">29.8%</span></p><div class="math">\[\leadsto \color{blue}{\frac{\mathsf{log1p}\left(x\right) - \log x}{n}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="48.5% on training set">56.6%</span></p><div class="math">\[\leadsto \frac{\mathsf{log1p}\left(x\right) \cdot n - n \cdot \log x}{\color{blue}{n \cdot n}}
+\]</div></li><li><p>Taylor expanded in x around inf</p><div class="math">\[\leadsto \frac{\frac{n + \left(\frac{-1}{2} \cdot \frac{n}{x} + \frac{1}{3} \cdot \frac{n}{{x}^{2}}\right)}{x}}{\color{blue}{n} \cdot n}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="27.7% on training set">47.6%</span></p><div class="math">\[\leadsto \frac{\frac{\mathsf{fma}\left(\frac{n}{x}, \frac{0.3333333333333333}{x} - 0.5, n\right)}{x}}{\color{blue}{n} \cdot n}
+\]</div></li></ol><h2><code>if <span class="condition">3e6 &lt;  x </span></code></h2><ol><li><p>Initial program <span class="error" title="69.6% on training set">76.6%</span></p><div class="math">\[{\left(x + 1\right)}^{\left(\frac{1}{n}\right)} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in n around inf</p><div class="math">\[\leadsto \color{blue}{\frac{\log \left(1 + x\right) - \log x}{n}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="69.3% on training set">74.6%</span></p><div class="math">\[\leadsto \color{blue}{\frac{\mathsf{log1p}\left(x\right) - \log x}{n}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="69.3% on training set">74.5%</span></p><div class="math">\[\leadsto \frac{-\log \left(\frac{x}{1 + x}\right)}{n}
+\]</div></li><li><p>Taylor expanded in x around inf</p><div class="math">\[\leadsto \frac{-\log 1}{n}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="69.6% on training set">76.6%</span></p><div class="math">\[\leadsto \frac{-\log 1}{n}
+\]</div></li></ol></li><li class="event">Recombined 3 regimes into one program.</li><li><p>Final simplification<span class="error" title="57.4% on training set">62.1%</span></p><div class="math">\[\leadsto \begin{array}{l}
+\mathbf{if}\;x \leq 3.3 \cdot 10^{-45}:\\
+\;\;\;\;\frac{-\log x}{n}\\
+
+\mathbf{elif}\;x \leq 3000000:\\
+\;\;\;\;\frac{\frac{\mathsf{fma}\left(\frac{n}{x}, \frac{0.3333333333333333}{x} - 0.5, n\right)}{x}}{n \cdot n}\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{\log 1}{-n}\\
+
+
+\end{array}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative17" class="programs"><h2>Alternative 17: <span class="subhead"><data>40.9%</data> accurate, <data>2.0×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\frac{{x}^{-1}}{n}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x n) :precision binary64 (/ (pow x -1.0) n))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double n) {
+	return pow(x, -1.0) / n;
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(x, n)
+    real(8), intent (in) :: x
+    real(8), intent (in) :: n
+    code = (x ** (-1.0d0)) / n
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double x, double n) {
+	return Math.pow(x, -1.0) / n;
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(x, n):
+	return math.pow(x, -1.0) / n
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, n)
+	return Float64((x ^ -1.0) / n)
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp = code(x, n)
+	tmp = (x ^ -1.0) / n;
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, n_] := N[(N[Power[x, -1.0], $MachinePrecision] / n), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\frac{{x}^{-1}}{n}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="53.8% on training set">59.1%</span></p><div class="math">\[{\left(x + 1\right)}^{\left(\frac{1}{n}\right)} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in n around inf</p><div class="math">\[\leadsto \color{blue}{\frac{\log \left(1 + x\right) - \log x}{n}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="59.5% on training set">59.3%</span></p><div class="math">\[\leadsto \color{blue}{\frac{\mathsf{log1p}\left(x\right) - \log x}{n}}
+\]</div></li><li><p>Taylor expanded in x around inf</p><div class="math">\[\leadsto \frac{\frac{1}{x}}{n}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="40.9% on training set">37.0%</span></p><div class="math">\[\leadsto \frac{\frac{1}{x}}{n}
+\]</div></li><li><p>Final simplification<span class="error" title="40.9% on training set">37.0%</span></p><div class="math">\[\leadsto \frac{{x}^{-1}}{n}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative18" class="programs"><h2>Alternative 18: <span class="subhead"><data>43.3%</data> accurate, <data>5.4×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;x \leq 1:\\
+\;\;\;\;\frac{\frac{n}{x}}{n \cdot n}\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{\frac{1 - \frac{0.5}{x}}{n}}{x}\\
+
+
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x n)
+ :precision binary64
+ (if (&lt;= x 1.0) (/ (/ n x) (* n n)) (/ (/ (- 1.0 (/ 0.5 x)) n) x)))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double n) {
+	double tmp;
+	if (x &lt;= 1.0) {
+		tmp = (n / x) / (n * n);
+	} else {
+		tmp = ((1.0 - (0.5 / x)) / n) / x;
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(x, n)
+    real(8), intent (in) :: x
+    real(8), intent (in) :: n
+    real(8) :: tmp
+    if (x &lt;= 1.0d0) then
+        tmp = (n / x) / (n * n)
+    else
+        tmp = ((1.0d0 - (0.5d0 / x)) / n) / x
+    end if
+    code = tmp
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double x, double n) {
+	double tmp;
+	if (x &lt;= 1.0) {
+		tmp = (n / x) / (n * n);
+	} else {
+		tmp = ((1.0 - (0.5 / x)) / n) / x;
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(x, n):
+	tmp = 0
+	if x &lt;= 1.0:
+		tmp = (n / x) / (n * n)
+	else:
+		tmp = ((1.0 - (0.5 / x)) / n) / x
+	return tmp
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, n)
+	tmp = 0.0
+	if (x &lt;= 1.0)
+		tmp = Float64(Float64(n / x) / Float64(n * n));
+	else
+		tmp = Float64(Float64(Float64(1.0 - Float64(0.5 / x)) / n) / x);
+	end
+	return tmp
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp_2 = code(x, n)
+	tmp = 0.0;
+	if (x &lt;= 1.0)
+		tmp = (n / x) / (n * n);
+	else
+		tmp = ((1.0 - (0.5 / x)) / n) / x;
+	end
+	tmp_2 = tmp;
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, n_] := If[LessEqual[x, 1.0], N[(N[(n / x), $MachinePrecision] / N[(n * n), $MachinePrecision]), $MachinePrecision], N[(N[(N[(1.0 - N[(0.5 / x), $MachinePrecision]), $MachinePrecision] / n), $MachinePrecision] / x), $MachinePrecision]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;x \leq 1:\\
+\;\;\;\;\frac{\frac{n}{x}}{n \cdot n}\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{\frac{1 - \frac{0.5}{x}}{n}}{x}\\
+
+
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li class="event">Split input into 2 regimes</li><li><h2><code>if <span class="condition"> x  &lt; 1</span></code></h2><ol><li><p>Initial program <span class="error" title="42.4% on training set">48.9%</span></p><div class="math">\[{\left(x + 1\right)}^{\left(\frac{1}{n}\right)} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in n around inf</p><div class="math">\[\leadsto \color{blue}{\frac{\log \left(1 + x\right) - \log x}{n}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="52.4% on training set">49.8%</span></p><div class="math">\[\leadsto \color{blue}{\frac{\mathsf{log1p}\left(x\right) - \log x}{n}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="47.6% on training set">50.4%</span></p><div class="math">\[\leadsto \frac{\mathsf{log1p}\left(x\right) \cdot n - n \cdot \log x}{\color{blue}{n \cdot n}}
+\]</div></li><li><p>Taylor expanded in x around inf</p><div class="math">\[\leadsto \frac{\frac{n}{x}}{\color{blue}{n} \cdot n}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="26.7% on training set">29.3%</span></p><div class="math">\[\leadsto \frac{\frac{n}{x}}{\color{blue}{n} \cdot n}
+\]</div></li></ol><h2><code>if <span class="condition">1 &lt;  x </span></code></h2><ol><li><p>Initial program <span class="error" title="68.8% on training set">75.1%</span></p><div class="math">\[{\left(x + 1\right)}^{\left(\frac{1}{n}\right)} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in x around inf</p><div class="math">\[\leadsto \color{blue}{\frac{\frac{e^{-1 \cdot \frac{\log \left(\frac{1}{x}\right)}{n}}}{n} + \frac{e^{-1 \cdot \frac{\log \left(\frac{1}{x}\right)}{n}} \cdot \left(\frac{1}{2} \cdot \frac{1}{{n}^{2}} - \frac{1}{2} \cdot \frac{1}{n}\right)}{x}}{x}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="82.6% on training set">82.4%</span></p><div class="math">\[\leadsto \color{blue}{\frac{\mathsf{fma}\left(\frac{{x}^{\left(\frac{1}{n}\right)}}{x}, \frac{0.5}{n \cdot n} - \frac{0.5}{n}, \frac{{x}^{\left(\frac{1}{n}\right)}}{n}\right)}{x}}
+\]</div></li><li><p>Taylor expanded in n around inf</p><div class="math">\[\leadsto \frac{\frac{1 - \frac{1}{2} \cdot \frac{1}{x}}{n}}{x}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="65.1% on training set">62.3%</span></p><div class="math">\[\leadsto \frac{\frac{1 - \frac{0.5}{x}}{n}}{x}
+\]</div></li></ol></li><li class="event">Recombined 2 regimes into one program.</li><li>Add Preprocessing</li></ol></details></section><section id="alternative19" class="programs"><h2>Alternative 19: <span class="subhead"><data>42.9%</data> accurate, <data>6.8×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;x \leq 0.2:\\
+\;\;\;\;\frac{\frac{n}{x}}{n \cdot n}\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{-1}{x} \cdot \frac{-1}{n}\\
+
+
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x n)
+ :precision binary64
+ (if (&lt;= x 0.2) (/ (/ n x) (* n n)) (* (/ -1.0 x) (/ -1.0 n))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double n) {
+	double tmp;
+	if (x &lt;= 0.2) {
+		tmp = (n / x) / (n * n);
+	} else {
+		tmp = (-1.0 / x) * (-1.0 / n);
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(x, n)
+    real(8), intent (in) :: x
+    real(8), intent (in) :: n
+    real(8) :: tmp
+    if (x &lt;= 0.2d0) then
+        tmp = (n / x) / (n * n)
+    else
+        tmp = ((-1.0d0) / x) * ((-1.0d0) / n)
+    end if
+    code = tmp
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double x, double n) {
+	double tmp;
+	if (x &lt;= 0.2) {
+		tmp = (n / x) / (n * n);
+	} else {
+		tmp = (-1.0 / x) * (-1.0 / n);
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(x, n):
+	tmp = 0
+	if x &lt;= 0.2:
+		tmp = (n / x) / (n * n)
+	else:
+		tmp = (-1.0 / x) * (-1.0 / n)
+	return tmp
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, n)
+	tmp = 0.0
+	if (x &lt;= 0.2)
+		tmp = Float64(Float64(n / x) / Float64(n * n));
+	else
+		tmp = Float64(Float64(-1.0 / x) * Float64(-1.0 / n));
+	end
+	return tmp
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp_2 = code(x, n)
+	tmp = 0.0;
+	if (x &lt;= 0.2)
+		tmp = (n / x) / (n * n);
+	else
+		tmp = (-1.0 / x) * (-1.0 / n);
+	end
+	tmp_2 = tmp;
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, n_] := If[LessEqual[x, 0.2], N[(N[(n / x), $MachinePrecision] / N[(n * n), $MachinePrecision]), $MachinePrecision], N[(N[(-1.0 / x), $MachinePrecision] * N[(-1.0 / n), $MachinePrecision]), $MachinePrecision]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;x \leq 0.2:\\
+\;\;\;\;\frac{\frac{n}{x}}{n \cdot n}\\
+
+\mathbf{else}:\\
+\;\;\;\;\frac{-1}{x} \cdot \frac{-1}{n}\\
+
+
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li class="event">Split input into 2 regimes</li><li><h2><code>if <span class="condition"> x  &lt; 0.20000000000000001</span></code></h2><ol><li><p>Initial program <span class="error" title="42.4% on training set">49.2%</span></p><div class="math">\[{\left(x + 1\right)}^{\left(\frac{1}{n}\right)} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in n around inf</p><div class="math">\[\leadsto \color{blue}{\frac{\log \left(1 + x\right) - \log x}{n}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="52.3% on training set">49.5%</span></p><div class="math">\[\leadsto \color{blue}{\frac{\mathsf{log1p}\left(x\right) - \log x}{n}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="47.6% on training set">50.1%</span></p><div class="math">\[\leadsto \frac{\mathsf{log1p}\left(x\right) \cdot n - n \cdot \log x}{\color{blue}{n \cdot n}}
+\]</div></li><li><p>Taylor expanded in x around inf</p><div class="math">\[\leadsto \frac{\frac{n}{x}}{\color{blue}{n} \cdot n}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="26.7% on training set">29.4%</span></p><div class="math">\[\leadsto \frac{\frac{n}{x}}{\color{blue}{n} \cdot n}
+\]</div></li></ol><h2><code>if <span class="condition">0.20000000000000001 &lt;  x </span></code></h2><ol><li><p>Initial program <span class="error" title="68.7% on training set">74.4%</span></p><div class="math">\[{\left(x + 1\right)}^{\left(\frac{1}{n}\right)} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in n around inf</p><div class="math">\[\leadsto \color{blue}{\frac{\log \left(1 + x\right) - \log x}{n}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="68.9% on training set">74.6%</span></p><div class="math">\[\leadsto \color{blue}{\frac{\mathsf{log1p}\left(x\right) - \log x}{n}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="68.8% on training set">74.6%</span></p><div class="math">\[\leadsto \left(-\left(\mathsf{log1p}\left(x\right) - \log x\right)\right) \cdot \color{blue}{\frac{-1}{n}}
+\]</div></li><li><p>Taylor expanded in x around inf</p><div class="math">\[\leadsto \frac{-1}{x} \cdot \frac{\color{blue}{-1}}{n}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="64.2% on training set">61.2%</span></p><div class="math">\[\leadsto \frac{-1}{x} \cdot \frac{\color{blue}{-1}}{n}
+\]</div></li></ol></li><li class="event">Recombined 2 regimes into one program.</li><li>Add Preprocessing</li></ol></details></section><section id="alternative20" class="programs"><h2>Alternative 20: <span class="subhead"><data>40.9%</data> accurate, <data>8.3×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\frac{-1}{x} \cdot \frac{-1}{n}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x n) :precision binary64 (* (/ -1.0 x) (/ -1.0 n)))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double n) {
+	return (-1.0 / x) * (-1.0 / n);
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(x, n)
+    real(8), intent (in) :: x
+    real(8), intent (in) :: n
+    code = ((-1.0d0) / x) * ((-1.0d0) / n)
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double x, double n) {
+	return (-1.0 / x) * (-1.0 / n);
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(x, n):
+	return (-1.0 / x) * (-1.0 / n)
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, n)
+	return Float64(Float64(-1.0 / x) * Float64(-1.0 / n))
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp = code(x, n)
+	tmp = (-1.0 / x) * (-1.0 / n);
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, n_] := N[(N[(-1.0 / x), $MachinePrecision] * N[(-1.0 / n), $MachinePrecision]), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\frac{-1}{x} \cdot \frac{-1}{n}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="53.8% on training set">59.1%</span></p><div class="math">\[{\left(x + 1\right)}^{\left(\frac{1}{n}\right)} - {x}^{\left(\frac{1}{n}\right)}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in n around inf</p><div class="math">\[\leadsto \color{blue}{\frac{\log \left(1 + x\right) - \log x}{n}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="59.5% on training set">59.3%</span></p><div class="math">\[\leadsto \color{blue}{\frac{\mathsf{log1p}\left(x\right) - \log x}{n}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="59.4% on training set">59.3%</span></p><div class="math">\[\leadsto \left(-\left(\mathsf{log1p}\left(x\right) - \log x\right)\right) \cdot \color{blue}{\frac{-1}{n}}
+\]</div></li><li><p>Taylor expanded in x around inf</p><div class="math">\[\leadsto \frac{-1}{x} \cdot \frac{\color{blue}{-1}}{n}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="40.9% on training set">37.0%</span></p><div class="math">\[\leadsto \frac{-1}{x} \cdot \frac{\color{blue}{-1}}{n}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="reproduce"><details><summary><h2>Reproduce</h2><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#reproduction" target="_blank">?</a></summary><pre class="shell"><code>herbie shell --seed 80361537 
+(FPCore (x n)
+  :name "2nthrt (problem 3.4.6)"
+  :precision binary64
+  :pre (TRUE)
+  (- (pow (+ x 1.0) (/ 1.0 n)) (pow x (/ 1.0 n))))
+</code></pre></details></section></body></html>

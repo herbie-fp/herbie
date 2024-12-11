@@ -1,0 +1,262 @@
+<!doctype html>
+<html><head><meta charset="utf-8"/><title>Result for 2log (problem 3.3.6)</title><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/katex.min.css" integrity="sha384-9tPv11A+glH/on/wEu99NVwDPwkMQESOocs/ZGXPoIiLE8MU/qkqUcZ3zzL+6DuH" crossorigin="anonymous"/><script src="https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/katex.min.js" integrity="sha384-U8Vrjwb8fuHMt6ewaCy8uqeUXv4oitYACKdB0VziCerzt011iQ/0TqlSlv8MReCm" crossorigin="anonymous"></script><script src="https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/contrib/auto-render.min.js" integrity="sha384-aGfk5kvhIq5x1x5YdvCp4upKZYnA8ckafviDpmWEKp4afOZEqOli7gqSnh8I6enH" crossorigin="anonymous"></script><script src="https://unpkg.com/mathjs@4.4.2/dist/math.min.js"></script><script src="https://unpkg.com/d3@6.7.0/dist/d3.min.js"></script><script src="https://unpkg.com/@observablehq/plot@0.4.3/dist/plot.umd.min.js"></script><link rel="stylesheet" type="text/css" href="../report.css"/><script src="../report.js"></script></head><body><header><h1>2log (problem 3.3.6)</h1><img src="../logo-car.png"/><nav><ul><li><a href="../index.html">Report</a></li><li><a href="timeline.html">Metrics</a></li></ul></nav></header><div id="large"><div>Percentage Accurate: <span class="number" title="Minimum Accuracy: 3.2% → 3.2%">24.4%<span class="unit"> → </span>30.8%</span></div><div>Time: <span class="number">8.7s</span></div><div>Alternatives: <span class="number">2</span></div><div>Speedup: <span class="number" title="Relative speed of fastest alternative that improves accuracy.">1.7×</span></div></div><section><details id="specification" class="programs"><summary><h2>Specification</h2><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#spec" target="_blank">?</a></summary><div><div id="precondition"><div class="program math">\[N &gt; 1 \land N &lt; 10^{+40}\]</div></div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\log \left(N + 1\right) - \log N
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (N) :precision binary64 (- (log (+ N 1.0)) (log N)))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double N) {
+	return log((N + 1.0)) - log(N);
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(n)
+    real(8), intent (in) :: n
+    code = log((n + 1.0d0)) - log(n)
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double N) {
+	return Math.log((N + 1.0)) - Math.log(N);
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(N):
+	return math.log((N + 1.0)) - math.log(N)
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(N)
+	return Float64(log(Float64(N + 1.0)) - log(N))
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp = code(N)
+	tmp = log((N + 1.0)) - log(N);
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[N_] := N[(N[Log[N[(N + 1.0), $MachinePrecision]], $MachinePrecision] - N[Log[N], $MachinePrecision]), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\log \left(N + 1\right) - \log N
+\end{array}
+</pre></div></div><p>Sampling outcomes in <kbd>binary64</kbd> precision:</p><div class="bogosity"><div class="bogosity-valid" data-id="bogosity-valid" data-type="valid" data-timespan="0.03243083738358394" title="valid (3.2%)"></div><div class="bogosity-unknown" data-id="bogosity-unknown" data-type="unknown" data-timespan="0" title="unknown (0.0%)"></div><div class="bogosity-infinite" data-id="bogosity-infinite" data-type="infinite" data-timespan="0" title="infinite (0.0%)"></div><div class="bogosity-unsamplable" data-id="bogosity-unsamplable" data-type="unsamplable" data-timespan="0" title="unsamplable (0.0%)"></div><div class="bogosity-invalid" data-id="bogosity-invalid" data-type="invalid" data-timespan="0.0" title="invalid (0.0%)"></div><div class="bogosity-precondition" data-id="bogosity-precondition" data-type="precondition" data-timespan="0.967569162616416" title="precondition (96.8%)"></div></div></details></section><figure id="graphs"><h2>Local Percentage Accuracy vs <span id="variables"></span><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#graph" target="_blank">?</a></h2><svg></svg><div id="functions"></div><figcaption>The average percentage accuracy by input value. Horizontal axis shows value of an input variable; the variable is choosen in the title. Vertical axis is accuracy; higher is better. Red represent the original program, while blue represents Herbie's suggestion. These can be toggled with buttons below the plot. The line is an average while dots represent individual samples.</figcaption></figure><section id="cost-accuracy" class="section" data-benchmark-name="2log (problem 3.3.6)"><h2>Accuracy vs Speed<a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#cost-accuracy" target="_blank">?</a></h2><div class="figure-row"><svg></svg><div><p>Herbie found 2 alternatives:</p><table><thead><tr><th>Alternative</th><th class="numeric">Accuracy</th><th class="numeric">Speedup</th></tr></thead><tbody></tbody></table></div></div><figcaption>The accuracy (vertical axis) and speed (horizontal axis) of each alternatives. Up and to the right is better. The red square shows the initial program, and each blue circle shows an alternative.The line shows the best available speed-accuracy tradeoffs.</figcaption></section><section id="initial" class="programs"><h2>Initial Program: <span class="subhead"><data>24.4%</data> accurate, <data>1.0×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\log \left(N + 1\right) - \log N
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (N) :precision binary64 (- (log (+ N 1.0)) (log N)))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double N) {
+	return log((N + 1.0)) - log(N);
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(n)
+    real(8), intent (in) :: n
+    code = log((n + 1.0d0)) - log(n)
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double N) {
+	return Math.log((N + 1.0)) - Math.log(N);
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(N):
+	return math.log((N + 1.0)) - math.log(N)
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(N)
+	return Float64(log(Float64(N + 1.0)) - log(N))
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp = code(N)
+	tmp = log((N + 1.0)) - log(N);
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[N_] := N[(N[Log[N[(N + 1.0), $MachinePrecision]], $MachinePrecision] - N[Log[N], $MachinePrecision]), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\log \left(N + 1\right) - \log N
+\end{array}
+</pre></div></div></section><section id="alternative1" class="programs"><h2>Alternative 1: <span class="subhead"><data>30.8%</data> accurate, <data>1.7×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;N \leq 1.4 \cdot 10^{+16}:\\
+\;\;\;\;-\log \left(\frac{N}{N + 1}\right)\\
+
+\mathbf{else}:\\
+\;\;\;\;1\\
+
+
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (N)
+ :precision binary64
+ (if (&lt;= N 1.4e+16) (- (log (/ N (+ N 1.0)))) 1.0))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double N) {
+	double tmp;
+	if (N &lt;= 1.4e+16) {
+		tmp = -log((N / (N + 1.0)));
+	} else {
+		tmp = 1.0;
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(n)
+    real(8), intent (in) :: n
+    real(8) :: tmp
+    if (n &lt;= 1.4d+16) then
+        tmp = -log((n / (n + 1.0d0)))
+    else
+        tmp = 1.0d0
+    end if
+    code = tmp
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double N) {
+	double tmp;
+	if (N &lt;= 1.4e+16) {
+		tmp = -Math.log((N / (N + 1.0)));
+	} else {
+		tmp = 1.0;
+	}
+	return tmp;
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(N):
+	tmp = 0
+	if N &lt;= 1.4e+16:
+		tmp = -math.log((N / (N + 1.0)))
+	else:
+		tmp = 1.0
+	return tmp
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(N)
+	tmp = 0.0
+	if (N &lt;= 1.4e+16)
+		tmp = Float64(-log(Float64(N / Float64(N + 1.0))));
+	else
+		tmp = 1.0;
+	end
+	return tmp
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp_2 = code(N)
+	tmp = 0.0;
+	if (N &lt;= 1.4e+16)
+		tmp = -log((N / (N + 1.0)));
+	else
+		tmp = 1.0;
+	end
+	tmp_2 = tmp;
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[N_] := If[LessEqual[N, 1.4e+16], (-N[Log[N[(N / N[(N + 1.0), $MachinePrecision]), $MachinePrecision]], $MachinePrecision]), 1.0]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+\mathbf{if}\;N \leq 1.4 \cdot 10^{+16}:\\
+\;\;\;\;-\log \left(\frac{N}{N + 1}\right)\\
+
+\mathbf{else}:\\
+\;\;\;\;1\\
+
+
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li class="event">Split input into 2 regimes</li><li><h2><code>if <span class="condition"> N  &lt; 1.4e16</span></code></h2><ol><li><p>Initial program <span class="error" title="55.0% on training set">53.9%</span></p><div class="math">\[\log \left(N + 1\right) - \log N
+\]</div></li><li>Add Preprocessing</li><li></li><li><p>Applied rewrites<span class="error" title="63.1% on training set">62.5%</span></p><div class="math">\[\leadsto \color{blue}{-\log \left(\frac{N}{N + 1}\right)}
+\]</div></li></ol><h2><code>if <span class="condition">1.4e16 &lt;  N </span></code></h2><ol><li><p>Initial program <span class="error" title="3.3% on training set">3.3%</span></p><div class="math">\[\log \left(N + 1\right) - \log N
+\]</div></li><li>Add Preprocessing</li><li></li><li><p>Applied rewrites<span class="error" title="3.4% on training set">3.3%</span></p><div class="math">\[\leadsto \color{blue}{-\log \left(\frac{N}{N + 1}\right)}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="8.6% on training set">8.6%</span></p><div class="math">\[\leadsto \color{blue}{1}
+\]</div></li></ol></li><li class="event">Recombined 2 regimes into one program.</li><li>Add Preprocessing</li></ol></details></section><section id="alternative2" class="programs"><h2>Alternative 2: <span class="subhead"><data>10.0%</data> accurate, <data>207.0×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+1
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (N) :precision binary64 1.0)</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double N) {
+	return 1.0;
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(n)
+    real(8), intent (in) :: n
+    code = 1.0d0
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double N) {
+	return 1.0;
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(N):
+	return 1.0
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(N)
+	return 1.0
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp = code(N)
+	tmp = 1.0;
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[N_] := 1.0
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+1
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="24.4% on training set">23.5%</span></p><div class="math">\[\log \left(N + 1\right) - \log N
+\]</div></li><li>Add Preprocessing</li><li></li><li><p>Applied rewrites<span class="error" title="27.7% on training set">26.9%</span></p><div class="math">\[\leadsto \color{blue}{-\log \left(\frac{N}{N + 1}\right)}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="10.0% on training set">9.9%</span></p><div class="math">\[\leadsto \color{blue}{1}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="target1" class="programs"><h2>Developer Target 1: <span class="subhead"><data>96.0%</data> accurate, <data>0.6×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#target" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\left(\left(\frac{1}{N} + \frac{-1}{2 \cdot {N}^{2}}\right) + \frac{1}{3 \cdot {N}^{3}}\right) + \frac{-1}{4 \cdot {N}^{4}}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (N)
+ :precision binary64
+ (+
+  (+ (+ (/ 1.0 N) (/ -1.0 (* 2.0 (pow N 2.0)))) (/ 1.0 (* 3.0 (pow N 3.0))))
+  (/ -1.0 (* 4.0 (pow N 4.0)))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double N) {
+	return (((1.0 / N) + (-1.0 / (2.0 * pow(N, 2.0)))) + (1.0 / (3.0 * pow(N, 3.0)))) + (-1.0 / (4.0 * pow(N, 4.0)));
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(n)
+    real(8), intent (in) :: n
+    code = (((1.0d0 / n) + ((-1.0d0) / (2.0d0 * (n ** 2.0d0)))) + (1.0d0 / (3.0d0 * (n ** 3.0d0)))) + ((-1.0d0) / (4.0d0 * (n ** 4.0d0)))
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double N) {
+	return (((1.0 / N) + (-1.0 / (2.0 * Math.pow(N, 2.0)))) + (1.0 / (3.0 * Math.pow(N, 3.0)))) + (-1.0 / (4.0 * Math.pow(N, 4.0)));
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(N):
+	return (((1.0 / N) + (-1.0 / (2.0 * math.pow(N, 2.0)))) + (1.0 / (3.0 * math.pow(N, 3.0)))) + (-1.0 / (4.0 * math.pow(N, 4.0)))
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(N)
+	return Float64(Float64(Float64(Float64(1.0 / N) + Float64(-1.0 / Float64(2.0 * (N ^ 2.0)))) + Float64(1.0 / Float64(3.0 * (N ^ 3.0)))) + Float64(-1.0 / Float64(4.0 * (N ^ 4.0))))
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp = code(N)
+	tmp = (((1.0 / N) + (-1.0 / (2.0 * (N ^ 2.0)))) + (1.0 / (3.0 * (N ^ 3.0)))) + (-1.0 / (4.0 * (N ^ 4.0)));
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[N_] := N[(N[(N[(N[(1.0 / N), $MachinePrecision] + N[(-1.0 / N[(2.0 * N[Power[N, 2.0], $MachinePrecision]), $MachinePrecision]), $MachinePrecision]), $MachinePrecision] + N[(1.0 / N[(3.0 * N[Power[N, 3.0], $MachinePrecision]), $MachinePrecision]), $MachinePrecision]), $MachinePrecision] + N[(-1.0 / N[(4.0 * N[Power[N, 4.0], $MachinePrecision]), $MachinePrecision]), $MachinePrecision]), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\left(\left(\frac{1}{N} + \frac{-1}{2 \cdot {N}^{2}}\right) + \frac{1}{3 \cdot {N}^{3}}\right) + \frac{-1}{4 \cdot {N}^{4}}
+\end{array}
+</pre></div></div></section><section id="reproduce"><details><summary><h2>Reproduce</h2><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#reproduction" target="_blank">?</a></summary><pre class="shell"><code>herbie shell --seed 1494275546 
+(FPCore (N)
+  :name "2log (problem 3.3.6)"
+  :precision binary64
+  :pre (and (&gt; N 1.0) (&lt; N 1e+40))
+
+  :alt
+  (! :herbie-platform default (+ (/ 1 N) (/ -1 (* 2 (pow N 2))) (/ 1 (* 3 (pow N 3))) (/ -1 (* 4 (pow N 4)))))
+
+  (- (log (+ N 1.0)) (log N)))
+</code></pre></details></section></body></html>

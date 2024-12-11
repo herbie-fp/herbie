@@ -1,0 +1,364 @@
+<!doctype html>
+<html><head><meta charset="utf-8"/><title>Result for 2sqrt (example 3.1)</title><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/katex.min.css" integrity="sha384-9tPv11A+glH/on/wEu99NVwDPwkMQESOocs/ZGXPoIiLE8MU/qkqUcZ3zzL+6DuH" crossorigin="anonymous"/><script src="https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/katex.min.js" integrity="sha384-U8Vrjwb8fuHMt6ewaCy8uqeUXv4oitYACKdB0VziCerzt011iQ/0TqlSlv8MReCm" crossorigin="anonymous"></script><script src="https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/contrib/auto-render.min.js" integrity="sha384-aGfk5kvhIq5x1x5YdvCp4upKZYnA8ckafviDpmWEKp4afOZEqOli7gqSnh8I6enH" crossorigin="anonymous"></script><script src="https://unpkg.com/mathjs@4.4.2/dist/math.min.js"></script><script src="https://unpkg.com/d3@6.7.0/dist/d3.min.js"></script><script src="https://unpkg.com/@observablehq/plot@0.4.3/dist/plot.umd.min.js"></script><link rel="stylesheet" type="text/css" href="../report.css"/><script src="../report.js"></script></head><body><header><h1>2sqrt (example 3.1)</h1><img src="../logo-car.png"/><nav><ul><li><a href="../index.html">Report</a></li><li><a href="timeline.html">Metrics</a></li></ul></nav></header><div id="large"><div>Percentage Accurate: <span class="number" title="Minimum Accuracy: 3.2% → 97.5%">6.9%<span class="unit"> → </span>99.6%</span></div><div>Time: <span class="number">8.4s</span></div><div>Alternatives: <span class="number">5</span></div><div>Speedup: <span class="number" title="Relative speed of fastest alternative that improves accuracy.">1.2×</span></div></div><section><details id="specification" class="programs"><summary><h2>Specification</h2><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#spec" target="_blank">?</a></summary><div><div id="precondition"><div class="program math">\[x &gt; 1 \land x &lt; 10^{+308}\]</div></div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\sqrt{x + 1} - \sqrt{x}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x) :precision binary64 (- (sqrt (+ x 1.0)) (sqrt x)))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x) {
+	return sqrt((x + 1.0)) - sqrt(x);
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(x)
+    real(8), intent (in) :: x
+    code = sqrt((x + 1.0d0)) - sqrt(x)
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double x) {
+	return Math.sqrt((x + 1.0)) - Math.sqrt(x);
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(x):
+	return math.sqrt((x + 1.0)) - math.sqrt(x)
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x)
+	return Float64(sqrt(Float64(x + 1.0)) - sqrt(x))
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp = code(x)
+	tmp = sqrt((x + 1.0)) - sqrt(x);
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_] := N[(N[Sqrt[N[(x + 1.0), $MachinePrecision]], $MachinePrecision] - N[Sqrt[x], $MachinePrecision]), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\sqrt{x + 1} - \sqrt{x}
+\end{array}
+</pre></div></div><p>Sampling outcomes in <kbd>binary64</kbd> precision:</p><div class="bogosity"><div class="bogosity-valid" data-id="bogosity-valid" data-type="valid" data-timespan="0.24978333421124357" title="valid (25.0%)"></div><div class="bogosity-unknown" data-id="bogosity-unknown" data-type="unknown" data-timespan="0" title="unknown (0.0%)"></div><div class="bogosity-infinite" data-id="bogosity-infinite" data-type="infinite" data-timespan="0" title="infinite (0.0%)"></div><div class="bogosity-unsamplable" data-id="bogosity-unsamplable" data-type="unsamplable" data-timespan="0" title="unsamplable (0.0%)"></div><div class="bogosity-invalid" data-id="bogosity-invalid" data-type="invalid" data-timespan="0.0" title="invalid (0.0%)"></div><div class="bogosity-precondition" data-id="bogosity-precondition" data-type="precondition" data-timespan="0.7502166657887565" title="precondition (75.0%)"></div></div></details></section><figure id="graphs"><h2>Local Percentage Accuracy vs <span id="variables"></span><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#graph" target="_blank">?</a></h2><svg></svg><div id="functions"></div><figcaption>The average percentage accuracy by input value. Horizontal axis shows value of an input variable; the variable is choosen in the title. Vertical axis is accuracy; higher is better. Red represent the original program, while blue represents Herbie's suggestion. These can be toggled with buttons below the plot. The line is an average while dots represent individual samples.</figcaption></figure><section id="cost-accuracy" class="section" data-benchmark-name="2sqrt (example 3.1)"><h2>Accuracy vs Speed<a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#cost-accuracy" target="_blank">?</a></h2><div class="figure-row"><svg></svg><div><p>Herbie found 5 alternatives:</p><table><thead><tr><th>Alternative</th><th class="numeric">Accuracy</th><th class="numeric">Speedup</th></tr></thead><tbody></tbody></table></div></div><figcaption>The accuracy (vertical axis) and speed (horizontal axis) of each alternatives. Up and to the right is better. The red square shows the initial program, and each blue circle shows an alternative.The line shows the best available speed-accuracy tradeoffs.</figcaption></section><section id="initial" class="programs"><h2>Initial Program: <span class="subhead"><data>6.9%</data> accurate, <data>1.0×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\sqrt{x + 1} - \sqrt{x}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x) :precision binary64 (- (sqrt (+ x 1.0)) (sqrt x)))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x) {
+	return sqrt((x + 1.0)) - sqrt(x);
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(x)
+    real(8), intent (in) :: x
+    code = sqrt((x + 1.0d0)) - sqrt(x)
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double x) {
+	return Math.sqrt((x + 1.0)) - Math.sqrt(x);
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(x):
+	return math.sqrt((x + 1.0)) - math.sqrt(x)
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x)
+	return Float64(sqrt(Float64(x + 1.0)) - sqrt(x))
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp = code(x)
+	tmp = sqrt((x + 1.0)) - sqrt(x);
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_] := N[(N[Sqrt[N[(x + 1.0), $MachinePrecision]], $MachinePrecision] - N[Sqrt[x], $MachinePrecision]), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\sqrt{x + 1} - \sqrt{x}
+\end{array}
+</pre></div></div></section><section id="alternative1" class="programs"><h2>Alternative 1: <span class="subhead"><data>99.6%</data> accurate, <data>0.2×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+{\left(\sqrt{1 + x} + \sqrt{x}\right)}^{-1}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x) :precision binary64 (pow (+ (sqrt (+ 1.0 x)) (sqrt x)) -1.0))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x) {
+	return pow((sqrt((1.0 + x)) + sqrt(x)), -1.0);
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(x)
+    real(8), intent (in) :: x
+    code = (sqrt((1.0d0 + x)) + sqrt(x)) ** (-1.0d0)
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double x) {
+	return Math.pow((Math.sqrt((1.0 + x)) + Math.sqrt(x)), -1.0);
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(x):
+	return math.pow((math.sqrt((1.0 + x)) + math.sqrt(x)), -1.0)
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x)
+	return Float64(sqrt(Float64(1.0 + x)) + sqrt(x)) ^ -1.0
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp = code(x)
+	tmp = (sqrt((1.0 + x)) + sqrt(x)) ^ -1.0;
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_] := N[Power[N[(N[Sqrt[N[(1.0 + x), $MachinePrecision]], $MachinePrecision] + N[Sqrt[x], $MachinePrecision]), $MachinePrecision], -1.0], $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+{\left(\sqrt{1 + x} + \sqrt{x}\right)}^{-1}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="6.9% on training set">5.4%</span></p><div class="math">\[\sqrt{x + 1} - \sqrt{x}
+\]</div></li><li>Add Preprocessing</li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">lift--.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\sqrt{x + 1} - \sqrt{x}}
+\]</div></li><li><p><code title="left to right">flip--</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{\sqrt{x + 1} \cdot \sqrt{x + 1} - \sqrt{x} \cdot \sqrt{x}}{\sqrt{x + 1} + \sqrt{x}}}
+\]</div></li><li><p><code title="left to right">lower-/.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\frac{\sqrt{x + 1} \cdot \sqrt{x + 1} - \sqrt{x} \cdot \sqrt{x}}{\sqrt{x + 1} + \sqrt{x}}}
+\]</div></li><li><p><code title="left to right">lift-sqrt.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\color{blue}{\sqrt{x + 1}} \cdot \sqrt{x + 1} - \sqrt{x} \cdot \sqrt{x}}{\sqrt{x + 1} + \sqrt{x}}
+\]</div></li><li><p><code title="left to right">lift-sqrt.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\sqrt{x + 1} \cdot \color{blue}{\sqrt{x + 1}} - \sqrt{x} \cdot \sqrt{x}}{\sqrt{x + 1} + \sqrt{x}}
+\]</div></li><li><p><code title="left to right">rem-square-sqrt</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\color{blue}{\left(x + 1\right)} - \sqrt{x} \cdot \sqrt{x}}{\sqrt{x + 1} + \sqrt{x}}
+\]</div></li><li><p><code title="left to right">lift-sqrt.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\left(x + 1\right) - \color{blue}{\sqrt{x}} \cdot \sqrt{x}}{\sqrt{x + 1} + \sqrt{x}}
+\]</div></li><li><p><code title="left to right">lift-sqrt.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\left(x + 1\right) - \sqrt{x} \cdot \color{blue}{\sqrt{x}}}{\sqrt{x + 1} + \sqrt{x}}
+\]</div></li><li><p><code title="left to right">rem-square-sqrt</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\left(x + 1\right) - \color{blue}{x}}{\sqrt{x + 1} + \sqrt{x}}
+\]</div></li><li><p><code title="left to right">lower--.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\color{blue}{\left(x + 1\right) - x}}{\sqrt{x + 1} + \sqrt{x}}
+\]</div></li><li><p><code title="left to right">lift-+.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\color{blue}{\left(x + 1\right)} - x}{\sqrt{x + 1} + \sqrt{x}}
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\color{blue}{\left(1 + x\right)} - x}{\sqrt{x + 1} + \sqrt{x}}
+\]</div></li><li><p><code title="left to right">lower-+.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\color{blue}{\left(1 + x\right)} - x}{\sqrt{x + 1} + \sqrt{x}}
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\left(1 + x\right) - x}{\color{blue}{\sqrt{x} + \sqrt{x + 1}}}
+\]</div></li><li><p><code title="left to right">lower-+.f64</code><span class="error" title=" ↑ N/A ↓ N/A">6.5</span></p><div class="math">\[\leadsto \frac{\left(1 + x\right) - x}{\color{blue}{\sqrt{x} + \sqrt{x + 1}}}
+\]</div></li><li><p><code title="left to right">lift-+.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\left(1 + x\right) - x}{\sqrt{x} + \sqrt{\color{blue}{x + 1}}}
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\left(1 + x\right) - x}{\sqrt{x} + \sqrt{\color{blue}{1 + x}}}
+\]</div></li><li><p><code title="left to right">lower-+.f64</code><span class="error" title=" ↑ N/A ↓ N/A">6.5</span></p><div class="math">\[\leadsto \frac{\left(1 + x\right) - x}{\sqrt{x} + \sqrt{\color{blue}{1 + x}}}
+\]</div></li></ol></details></div></li><li><p>Applied rewrites<span class="error" title="9.0% on training set">6.5%</span></p><div class="math">\[\leadsto \color{blue}{\frac{\left(1 + x\right) - x}{\sqrt{x} + \sqrt{1 + x}}}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">lift--.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\color{blue}{\left(1 + x\right) - x}}{\sqrt{x} + \sqrt{1 + x}}
+\]</div></li><li><p><code title="left to right">lift-+.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\color{blue}{\left(1 + x\right)} - x}{\sqrt{x} + \sqrt{1 + x}}
+\]</div></li><li><p><code title="left to right">associate--l+</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{\color{blue}{1 + \left(x - x\right)}}{\sqrt{x} + \sqrt{1 + x}}
+\]</div></li><li><p><code title="left to right">+-inverses</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{1 + \color{blue}{0}}{\sqrt{x} + \sqrt{1 + x}}
+\]</div></li><li><p><code title="left to right">metadata-eval</code><span class="error" title=" ↑ N/A ↓ N/A">99.6</span></p><div class="math">\[\leadsto \frac{\color{blue}{1}}{\sqrt{x} + \sqrt{1 + x}}
+\]</div></li><li><p><code title="left to right">lift-+.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{1}{\color{blue}{\sqrt{x} + \sqrt{1 + x}}}
+\]</div></li><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \frac{1}{\color{blue}{\sqrt{1 + x} + \sqrt{x}}}
+\]</div></li><li><p><code title="left to right">lower-+.f64</code><span class="error" title=" ↑ N/A ↓ N/A">99.6</span></p><div class="math">\[\leadsto \frac{1}{\color{blue}{\sqrt{1 + x} + \sqrt{x}}}
+\]</div></li></ol></details></div></li><li><p>Applied rewrites<span class="error" title="99.6% on training set">99.6%</span></p><div class="math">\[\leadsto \color{blue}{\frac{1}{\sqrt{1 + x} + \sqrt{x}}}
+\]</div></li><li><p>Final simplification<span class="error" title="99.6% on training set">99.6%</span></p><div class="math">\[\leadsto {\left(\sqrt{1 + x} + \sqrt{x}\right)}^{-1}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative2" class="programs"><h2>Alternative 2: <span class="subhead"><data>97.8%</data> accurate, <data>0.2×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\sqrt{{x}^{-1}} \cdot 0.5
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x) :precision binary64 (* (sqrt (pow x -1.0)) 0.5))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x) {
+	return sqrt(pow(x, -1.0)) * 0.5;
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(x)
+    real(8), intent (in) :: x
+    code = sqrt((x ** (-1.0d0))) * 0.5d0
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double x) {
+	return Math.sqrt(Math.pow(x, -1.0)) * 0.5;
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(x):
+	return math.sqrt(math.pow(x, -1.0)) * 0.5
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x)
+	return Float64(sqrt((x ^ -1.0)) * 0.5)
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp = code(x)
+	tmp = sqrt((x ^ -1.0)) * 0.5;
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_] := N[(N[Sqrt[N[Power[x, -1.0], $MachinePrecision]], $MachinePrecision] * 0.5), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\sqrt{{x}^{-1}} \cdot 0.5
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="6.9% on training set">5.4%</span></p><div class="math">\[\sqrt{x + 1} - \sqrt{x}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in x around inf</p><div class="math">\[\leadsto \color{blue}{\frac{1}{2} \cdot \sqrt{\frac{1}{x}}}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\sqrt{\frac{1}{x}} \cdot \frac{1}{2}}
+\]</div></li><li><p><code title="left to right">lower-*.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\sqrt{\frac{1}{x}} \cdot \frac{1}{2}}
+\]</div></li><li><p><code title="left to right">lower-sqrt.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\sqrt{\frac{1}{x}}} \cdot \frac{1}{2}
+\]</div></li><li><p><code title="left to right">lower-/.f64</code><span class="error" title=" ↑ N/A ↓ N/A">98.7</span></p><div class="math">\[\leadsto \sqrt{\color{blue}{\frac{1}{x}}} \cdot 0.5
+\]</div></li></ol></details></div></li><li><p>Applied rewrites<span class="error" title="97.8% on training set">98.7%</span></p><div class="math">\[\leadsto \color{blue}{\sqrt{\frac{1}{x}} \cdot 0.5}
+\]</div></li><li><p>Final simplification<span class="error" title="97.8% on training set">98.7%</span></p><div class="math">\[\leadsto \sqrt{{x}^{-1}} \cdot 0.5
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative3" class="programs"><h2>Alternative 3: <span class="subhead"><data>97.6%</data> accurate, <data>1.2×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\frac{0.5}{\sqrt{x}}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x) :precision binary64 (/ 0.5 (sqrt x)))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x) {
+	return 0.5 / sqrt(x);
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(x)
+    real(8), intent (in) :: x
+    code = 0.5d0 / sqrt(x)
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double x) {
+	return 0.5 / Math.sqrt(x);
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(x):
+	return 0.5 / math.sqrt(x)
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x)
+	return Float64(0.5 / sqrt(x))
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp = code(x)
+	tmp = 0.5 / sqrt(x);
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_] := N[(0.5 / N[Sqrt[x], $MachinePrecision]), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\frac{0.5}{\sqrt{x}}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="6.9% on training set">5.4%</span></p><div class="math">\[\sqrt{x + 1} - \sqrt{x}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in x around inf</p><div class="math">\[\leadsto \color{blue}{\frac{1}{2} \cdot \sqrt{\frac{1}{x}}}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">*-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\sqrt{\frac{1}{x}} \cdot \frac{1}{2}}
+\]</div></li><li><p><code title="left to right">lower-*.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\sqrt{\frac{1}{x}} \cdot \frac{1}{2}}
+\]</div></li><li><p><code title="left to right">lower-sqrt.f64</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\sqrt{\frac{1}{x}}} \cdot \frac{1}{2}
+\]</div></li><li><p><code title="left to right">lower-/.f64</code><span class="error" title=" ↑ N/A ↓ N/A">98.7</span></p><div class="math">\[\leadsto \sqrt{\color{blue}{\frac{1}{x}}} \cdot 0.5
+\]</div></li></ol></details></div></li><li><p>Applied rewrites<span class="error" title="97.8% on training set">98.7%</span></p><div class="math">\[\leadsto \color{blue}{\sqrt{\frac{1}{x}} \cdot 0.5}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol></ol></details></div></li><li><p>Applied rewrites<span class="error" title="97.6% on training set">98.5%</span></p><div class="math">\[\leadsto \color{blue}{\frac{0.5}{\sqrt{x}}}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative4" class="programs"><h2>Alternative 4: <span class="subhead"><data>4.5%</data> accurate, <data>1.4×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+0.5 \cdot x - \sqrt{x}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x) :precision binary64 (- (* 0.5 x) (sqrt x)))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x) {
+	return (0.5 * x) - sqrt(x);
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(x)
+    real(8), intent (in) :: x
+    code = (0.5d0 * x) - sqrt(x)
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double x) {
+	return (0.5 * x) - Math.sqrt(x);
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(x):
+	return (0.5 * x) - math.sqrt(x)
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x)
+	return Float64(Float64(0.5 * x) - sqrt(x))
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp = code(x)
+	tmp = (0.5 * x) - sqrt(x);
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_] := N[(N[(0.5 * x), $MachinePrecision] - N[Sqrt[x], $MachinePrecision]), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+0.5 \cdot x - \sqrt{x}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="6.9% on training set">5.4%</span></p><div class="math">\[\sqrt{x + 1} - \sqrt{x}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \color{blue}{\left(1 + \frac{1}{2} \cdot x\right)} - \sqrt{x}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol><li><p><code title="left to right">+-commutative</code><span class="error" title=" ↑ N/A ↓ N/A">N/A</span></p><div class="math">\[\leadsto \color{blue}{\left(\frac{1}{2} \cdot x + 1\right)} - \sqrt{x}
+\]</div></li><li><p><code title="left to right">lower-fma.f64</code><span class="error" title=" ↑ N/A ↓ N/A">4.4</span></p><div class="math">\[\leadsto \color{blue}{\mathsf{fma}\left(0.5, x, 1\right)} - \sqrt{x}
+\]</div></li></ol></details></div></li><li><p>Applied rewrites<span class="error" title="4.5% on training set">4.4%</span></p><div class="math">\[\leadsto \color{blue}{\mathsf{fma}\left(0.5, x, 1\right)} - \sqrt{x}
+\]</div></li><li><p>Taylor expanded in x around inf</p><div class="math">\[\leadsto \frac{1}{2} \cdot \color{blue}{x} - \sqrt{x}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol></ol></details></div></li><li><p>Applied rewrites<span class="error" title="4.5% on training set">4.4%</span></p><div class="math">\[\leadsto 0.5 \cdot \color{blue}{x} - \sqrt{x}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative5" class="programs"><h2>Alternative 5: <span class="subhead"><data>1.6%</data> accurate, <data>1.9×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+1 - \sqrt{x}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x) :precision binary64 (- 1.0 (sqrt x)))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x) {
+	return 1.0 - sqrt(x);
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(x)
+    real(8), intent (in) :: x
+    code = 1.0d0 - sqrt(x)
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double x) {
+	return 1.0 - Math.sqrt(x);
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(x):
+	return 1.0 - math.sqrt(x)
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x)
+	return Float64(1.0 - sqrt(x))
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp = code(x)
+	tmp = 1.0 - sqrt(x);
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_] := N[(1.0 - N[Sqrt[x], $MachinePrecision]), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+1 - \sqrt{x}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="6.9% on training set">5.4%</span></p><div class="math">\[\sqrt{x + 1} - \sqrt{x}
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \color{blue}{1} - \sqrt{x}
+\]</div></li><li><div class="proof"><details><summary>Step-by-step derivation</summary><ol></ol></details></div></li><li><p>Applied rewrites<span class="error" title="1.6% on training set">1.6%</span></p><div class="math">\[\leadsto \color{blue}{1} - \sqrt{x}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="target1" class="programs"><h2>Developer Target 1: <span class="subhead"><data>98.0%</data> accurate, <data>0.3×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#target" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+0.5 \cdot {x}^{-0.5}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x) :precision binary64 (* 0.5 (pow x -0.5)))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x) {
+	return 0.5 * pow(x, -0.5);
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(x)
+    real(8), intent (in) :: x
+    code = 0.5d0 * (x ** (-0.5d0))
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double x) {
+	return 0.5 * Math.pow(x, -0.5);
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(x):
+	return 0.5 * math.pow(x, -0.5)
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x)
+	return Float64(0.5 * (x ^ -0.5))
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp = code(x)
+	tmp = 0.5 * (x ^ -0.5);
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_] := N[(0.5 * N[Power[x, -0.5], $MachinePrecision]), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+0.5 \cdot {x}^{-0.5}
+\end{array}
+</pre></div></div></section><section id="reproduce"><details><summary><h2>Reproduce</h2><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#reproduction" target="_blank">?</a></summary><pre class="shell"><code>herbie shell --seed 371008492 
+(FPCore (x)
+  :name "2sqrt (example 3.1)"
+  :precision binary64
+  :pre (and (&gt; x 1.0) (&lt; x 1e+308))
+
+  :alt
+  (! :herbie-platform default (* 1/2 (pow x -1/2)))
+
+  (- (sqrt (+ x 1.0)) (sqrt x)))
+</code></pre></details></section></body></html>

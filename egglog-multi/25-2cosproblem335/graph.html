@@ -1,0 +1,610 @@
+<!doctype html>
+<html><head><meta charset="utf-8"/><title>Result for 2cos (problem 3.3.5)</title><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/katex.min.css" integrity="sha384-9tPv11A+glH/on/wEu99NVwDPwkMQESOocs/ZGXPoIiLE8MU/qkqUcZ3zzL+6DuH" crossorigin="anonymous"/><script src="https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/katex.min.js" integrity="sha384-U8Vrjwb8fuHMt6ewaCy8uqeUXv4oitYACKdB0VziCerzt011iQ/0TqlSlv8MReCm" crossorigin="anonymous"></script><script src="https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/contrib/auto-render.min.js" integrity="sha384-aGfk5kvhIq5x1x5YdvCp4upKZYnA8ckafviDpmWEKp4afOZEqOli7gqSnh8I6enH" crossorigin="anonymous"></script><script src="https://unpkg.com/mathjs@4.4.2/dist/math.min.js"></script><script src="https://unpkg.com/d3@6.7.0/dist/d3.min.js"></script><script src="https://unpkg.com/@observablehq/plot@0.4.3/dist/plot.umd.min.js"></script><link rel="stylesheet" type="text/css" href="../report.css"/><script src="../report.js"></script></head><body><header><h1>2cos (problem 3.3.5)</h1><img src="../logo-car.png"/><nav><ul><li><a href="../index.html">Report</a></li><li><a href="timeline.html">Metrics</a></li></ul></nav></header><div id="large"><div>Percentage Accurate: <span class="number" title="Minimum Accuracy: 3.2% → 1.5%">51.9%<span class="unit"> → </span>99.6%</span></div><div>Time: <span class="number">17.3s</span></div><div>Alternatives: <span class="number">14</span></div><div>Speedup: <span class="number" title="Relative speed of fastest alternative that improves accuracy.">25.9×</span></div></div><section><details id="specification" class="programs"><summary><h2>Specification</h2><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#spec" target="_blank">?</a></summary><div><div id="precondition"><div class="program math">\[\left(\left(-10000 \leq x \land x \leq 10000\right) \land 10^{-16} \cdot \left|x\right| &lt; \varepsilon\right) \land \varepsilon &lt; \left|x\right|\]</div></div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\cos \left(x + \varepsilon\right) - \cos x
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x eps) :precision binary64 (- (cos (+ x eps)) (cos x)))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double eps) {
+	return cos((x + eps)) - cos(x);
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(x, eps)
+    real(8), intent (in) :: x
+    real(8), intent (in) :: eps
+    code = cos((x + eps)) - cos(x)
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double x, double eps) {
+	return Math.cos((x + eps)) - Math.cos(x);
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(x, eps):
+	return math.cos((x + eps)) - math.cos(x)
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, eps)
+	return Float64(cos(Float64(x + eps)) - cos(x))
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp = code(x, eps)
+	tmp = cos((x + eps)) - cos(x);
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, eps_] := N[(N[Cos[N[(x + eps), $MachinePrecision]], $MachinePrecision] - N[Cos[x], $MachinePrecision]), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\cos \left(x + \varepsilon\right) - \cos x
+\end{array}
+</pre></div></div><p>Sampling outcomes in <kbd>binary64</kbd> precision:</p><div class="bogosity"><div class="bogosity-valid" data-id="bogosity-valid" data-type="valid" data-timespan="0.006362970910377951" title="valid (0.6%)"></div><div class="bogosity-unknown" data-id="bogosity-unknown" data-type="unknown" data-timespan="0" title="unknown (0.0%)"></div><div class="bogosity-infinite" data-id="bogosity-infinite" data-type="infinite" data-timespan="0" title="infinite (0.0%)"></div><div class="bogosity-unsamplable" data-id="bogosity-unsamplable" data-type="unsamplable" data-timespan="0" title="unsamplable (0.0%)"></div><div class="bogosity-invalid" data-id="bogosity-invalid" data-type="invalid" data-timespan="0.49935711501970126" title="invalid (49.9%)"></div><div class="bogosity-precondition" data-id="bogosity-precondition" data-type="precondition" data-timespan="0.4942799140699208" title="precondition (49.4%)"></div></div></details></section><figure id="graphs"><h2>Local Percentage Accuracy vs <span id="variables"></span><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#graph" target="_blank">?</a></h2><svg></svg><div id="functions"></div><figcaption>The average percentage accuracy by input value. Horizontal axis shows value of an input variable; the variable is choosen in the title. Vertical axis is accuracy; higher is better. Red represent the original program, while blue represents Herbie's suggestion. These can be toggled with buttons below the plot. The line is an average while dots represent individual samples.</figcaption></figure><section id="cost-accuracy" class="section" data-benchmark-name="2cos (problem 3.3.5)"><h2>Accuracy vs Speed<a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#cost-accuracy" target="_blank">?</a></h2><div class="figure-row"><svg></svg><div><p>Herbie found 14 alternatives:</p><table><thead><tr><th>Alternative</th><th class="numeric">Accuracy</th><th class="numeric">Speedup</th></tr></thead><tbody></tbody></table></div></div><figcaption>The accuracy (vertical axis) and speed (horizontal axis) of each alternatives. Up and to the right is better. The red square shows the initial program, and each blue circle shows an alternative.The line shows the best available speed-accuracy tradeoffs.</figcaption></section><section id="initial" class="programs"><h2>Initial Program: <span class="subhead"><data>51.9%</data> accurate, <data>1.0×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\cos \left(x + \varepsilon\right) - \cos x
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x eps) :precision binary64 (- (cos (+ x eps)) (cos x)))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double eps) {
+	return cos((x + eps)) - cos(x);
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(x, eps)
+    real(8), intent (in) :: x
+    real(8), intent (in) :: eps
+    code = cos((x + eps)) - cos(x)
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double x, double eps) {
+	return Math.cos((x + eps)) - Math.cos(x);
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(x, eps):
+	return math.cos((x + eps)) - math.cos(x)
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, eps)
+	return Float64(cos(Float64(x + eps)) - cos(x))
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp = code(x, eps)
+	tmp = cos((x + eps)) - cos(x);
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, eps_] := N[(N[Cos[N[(x + eps), $MachinePrecision]], $MachinePrecision] - N[Cos[x], $MachinePrecision]), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\cos \left(x + \varepsilon\right) - \cos x
+\end{array}
+</pre></div></div></section><section id="alternative1" class="programs"><h2>Alternative 1: <span class="subhead"><data>99.6%</data> accurate, <data>0.6×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\mathsf{fma}\left(\mathsf{fma}\left(\cos x, \mathsf{fma}\left(\varepsilon \cdot \varepsilon, 0.041666666666666664, -0.5\right), \left(\sin x \cdot \varepsilon\right) \cdot 0.16666666666666666\right), \varepsilon, -\sin x\right) \cdot \varepsilon
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x eps)
+ :precision binary64
+ (*
+  (fma
+   (fma
+    (cos x)
+    (fma (* eps eps) 0.041666666666666664 -0.5)
+    (* (* (sin x) eps) 0.16666666666666666))
+   eps
+   (- (sin x)))
+  eps))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double eps) {
+	return fma(fma(cos(x), fma((eps * eps), 0.041666666666666664, -0.5), ((sin(x) * eps) * 0.16666666666666666)), eps, -sin(x)) * eps;
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, eps)
+	return Float64(fma(fma(cos(x), fma(Float64(eps * eps), 0.041666666666666664, -0.5), Float64(Float64(sin(x) * eps) * 0.16666666666666666)), eps, Float64(-sin(x))) * eps)
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, eps_] := N[(N[(N[(N[Cos[x], $MachinePrecision] * N[(N[(eps * eps), $MachinePrecision] * 0.041666666666666664 + -0.5), $MachinePrecision] + N[(N[(N[Sin[x], $MachinePrecision] * eps), $MachinePrecision] * 0.16666666666666666), $MachinePrecision]), $MachinePrecision] * eps + (-N[Sin[x], $MachinePrecision])), $MachinePrecision] * eps), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\mathsf{fma}\left(\mathsf{fma}\left(\cos x, \mathsf{fma}\left(\varepsilon \cdot \varepsilon, 0.041666666666666664, -0.5\right), \left(\sin x \cdot \varepsilon\right) \cdot 0.16666666666666666\right), \varepsilon, -\sin x\right) \cdot \varepsilon
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="51.9% on training set">54.8%</span></p><div class="math">\[\cos \left(x + \varepsilon\right) - \cos x
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in eps around 0</p><div class="math">\[\leadsto \color{blue}{\varepsilon \cdot \left(\varepsilon \cdot \left(\frac{-1}{2} \cdot \cos x + \varepsilon \cdot \left(\frac{1}{24} \cdot \left(\varepsilon \cdot \cos x\right) - \frac{-1}{6} \cdot \sin x\right)\right) - \sin x\right)}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="99.6% on training set">99.5%</span></p><div class="math">\[\leadsto \color{blue}{\left(\mathsf{fma}\left(\mathsf{fma}\left(\sin x, 0.16666666666666666, \left(\cos x \cdot \varepsilon\right) \cdot 0.041666666666666664\right), \varepsilon, \cos x \cdot -0.5\right) \cdot \varepsilon - \sin x\right) \cdot \varepsilon}
+\]</div></li><li><p>Taylor expanded in eps around 0</p><div class="math">\[\leadsto \color{blue}{\varepsilon \cdot \left(\varepsilon \cdot \left(\frac{-1}{2} \cdot \cos x + \varepsilon \cdot \left(\frac{1}{24} \cdot \left(\varepsilon \cdot \cos x\right) - \frac{-1}{6} \cdot \sin x\right)\right) - \sin x\right)}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="99.6% on training set">99.5%</span></p><div class="math">\[\leadsto \color{blue}{\mathsf{fma}\left(\mathsf{fma}\left(\cos x, \mathsf{fma}\left(\varepsilon \cdot \varepsilon, 0.041666666666666664, -0.5\right), \left(\sin x \cdot \varepsilon\right) \cdot 0.16666666666666666\right), \varepsilon, -\sin x\right) \cdot \varepsilon}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative2" class="programs"><h2>Alternative 2: <span class="subhead"><data>99.5%</data> accurate, <data>0.9×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\mathsf{fma}\left(\sin x, \mathsf{fma}\left(\varepsilon \cdot \varepsilon, 0.16666666666666666, -1\right), \left(\cos x \cdot -0.5\right) \cdot \varepsilon\right) \cdot \varepsilon
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x eps)
+ :precision binary64
+ (*
+  (fma
+   (sin x)
+   (fma (* eps eps) 0.16666666666666666 -1.0)
+   (* (* (cos x) -0.5) eps))
+  eps))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double eps) {
+	return fma(sin(x), fma((eps * eps), 0.16666666666666666, -1.0), ((cos(x) * -0.5) * eps)) * eps;
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, eps)
+	return Float64(fma(sin(x), fma(Float64(eps * eps), 0.16666666666666666, -1.0), Float64(Float64(cos(x) * -0.5) * eps)) * eps)
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, eps_] := N[(N[(N[Sin[x], $MachinePrecision] * N[(N[(eps * eps), $MachinePrecision] * 0.16666666666666666 + -1.0), $MachinePrecision] + N[(N[(N[Cos[x], $MachinePrecision] * -0.5), $MachinePrecision] * eps), $MachinePrecision]), $MachinePrecision] * eps), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\mathsf{fma}\left(\sin x, \mathsf{fma}\left(\varepsilon \cdot \varepsilon, 0.16666666666666666, -1\right), \left(\cos x \cdot -0.5\right) \cdot \varepsilon\right) \cdot \varepsilon
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="51.9% on training set">54.8%</span></p><div class="math">\[\cos \left(x + \varepsilon\right) - \cos x
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in eps around 0</p><div class="math">\[\leadsto \color{blue}{\varepsilon \cdot \left(\varepsilon \cdot \left(\frac{-1}{2} \cdot \cos x + \frac{1}{6} \cdot \left(\varepsilon \cdot \sin x\right)\right) - \sin x\right)}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="99.5% on training set">99.4%</span></p><div class="math">\[\leadsto \color{blue}{\mathsf{fma}\left(\sin x, \mathsf{fma}\left(\varepsilon \cdot \varepsilon, 0.16666666666666666, -1\right), \left(\cos x \cdot -0.5\right) \cdot \varepsilon\right) \cdot \varepsilon}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative3" class="programs"><h2>Alternative 3: <span class="subhead"><data>99.3%</data> accurate, <data>0.9×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\left(\left(\cos x \cdot -0.5\right) \cdot \varepsilon - \sin x\right) \cdot \varepsilon
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x eps)
+ :precision binary64
+ (* (- (* (* (cos x) -0.5) eps) (sin x)) eps))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double eps) {
+	return (((cos(x) * -0.5) * eps) - sin(x)) * eps;
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(x, eps)
+    real(8), intent (in) :: x
+    real(8), intent (in) :: eps
+    code = (((cos(x) * (-0.5d0)) * eps) - sin(x)) * eps
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double x, double eps) {
+	return (((Math.cos(x) * -0.5) * eps) - Math.sin(x)) * eps;
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(x, eps):
+	return (((math.cos(x) * -0.5) * eps) - math.sin(x)) * eps
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, eps)
+	return Float64(Float64(Float64(Float64(cos(x) * -0.5) * eps) - sin(x)) * eps)
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp = code(x, eps)
+	tmp = (((cos(x) * -0.5) * eps) - sin(x)) * eps;
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, eps_] := N[(N[(N[(N[(N[Cos[x], $MachinePrecision] * -0.5), $MachinePrecision] * eps), $MachinePrecision] - N[Sin[x], $MachinePrecision]), $MachinePrecision] * eps), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\left(\left(\cos x \cdot -0.5\right) \cdot \varepsilon - \sin x\right) \cdot \varepsilon
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="51.9% on training set">54.8%</span></p><div class="math">\[\cos \left(x + \varepsilon\right) - \cos x
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in eps around 0</p><div class="math">\[\leadsto \color{blue}{\varepsilon \cdot \left(\frac{-1}{2} \cdot \left(\varepsilon \cdot \cos x\right) - \sin x\right)}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="99.3% on training set">99.2%</span></p><div class="math">\[\leadsto \color{blue}{\left(\left(\cos x \cdot -0.5\right) \cdot \varepsilon - \sin x\right) \cdot \varepsilon}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative4" class="programs"><h2>Alternative 4: <span class="subhead"><data>98.9%</data> accurate, <data>1.6×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\left(\mathsf{fma}\left(\varepsilon, \mathsf{fma}\left(0.16666666666666666, x, 0.041666666666666664 \cdot \varepsilon\right), -0.5\right) \cdot \varepsilon - \sin x\right) \cdot \varepsilon
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x eps)
+ :precision binary64
+ (*
+  (-
+   (*
+    (fma eps (fma 0.16666666666666666 x (* 0.041666666666666664 eps)) -0.5)
+    eps)
+   (sin x))
+  eps))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double eps) {
+	return ((fma(eps, fma(0.16666666666666666, x, (0.041666666666666664 * eps)), -0.5) * eps) - sin(x)) * eps;
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, eps)
+	return Float64(Float64(Float64(fma(eps, fma(0.16666666666666666, x, Float64(0.041666666666666664 * eps)), -0.5) * eps) - sin(x)) * eps)
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, eps_] := N[(N[(N[(N[(eps * N[(0.16666666666666666 * x + N[(0.041666666666666664 * eps), $MachinePrecision]), $MachinePrecision] + -0.5), $MachinePrecision] * eps), $MachinePrecision] - N[Sin[x], $MachinePrecision]), $MachinePrecision] * eps), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\left(\mathsf{fma}\left(\varepsilon, \mathsf{fma}\left(0.16666666666666666, x, 0.041666666666666664 \cdot \varepsilon\right), -0.5\right) \cdot \varepsilon - \sin x\right) \cdot \varepsilon
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="51.9% on training set">54.8%</span></p><div class="math">\[\cos \left(x + \varepsilon\right) - \cos x
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in eps around 0</p><div class="math">\[\leadsto \color{blue}{\varepsilon \cdot \left(\varepsilon \cdot \left(\frac{-1}{2} \cdot \cos x + \varepsilon \cdot \left(\frac{1}{24} \cdot \left(\varepsilon \cdot \cos x\right) - \frac{-1}{6} \cdot \sin x\right)\right) - \sin x\right)}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="99.6% on training set">99.5%</span></p><div class="math">\[\leadsto \color{blue}{\left(\mathsf{fma}\left(\mathsf{fma}\left(\sin x, 0.16666666666666666, \left(\cos x \cdot \varepsilon\right) \cdot 0.041666666666666664\right), \varepsilon, \cos x \cdot -0.5\right) \cdot \varepsilon - \sin x\right) \cdot \varepsilon}
+\]</div></li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \left(\left(\left(\frac{1}{24} \cdot {\varepsilon}^{2} + \frac{1}{6} \cdot \left(\varepsilon \cdot x\right)\right) - \frac{1}{2}\right) \cdot \varepsilon - \sin x\right) \cdot \varepsilon
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="98.9% on training set">98.7%</span></p><div class="math">\[\leadsto \left(\mathsf{fma}\left(\varepsilon, \mathsf{fma}\left(0.16666666666666666, x, 0.041666666666666664 \cdot \varepsilon\right), -0.5\right) \cdot \varepsilon - \sin x\right) \cdot \varepsilon
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative5" class="programs"><h2>Alternative 5: <span class="subhead"><data>98.9%</data> accurate, <data>1.7×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\mathsf{fma}\left(\mathsf{fma}\left(\varepsilon, 0.16666666666666666 \cdot x, -0.5\right), \varepsilon, -\sin x\right) \cdot \varepsilon
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x eps)
+ :precision binary64
+ (* (fma (fma eps (* 0.16666666666666666 x) -0.5) eps (- (sin x))) eps))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double eps) {
+	return fma(fma(eps, (0.16666666666666666 * x), -0.5), eps, -sin(x)) * eps;
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, eps)
+	return Float64(fma(fma(eps, Float64(0.16666666666666666 * x), -0.5), eps, Float64(-sin(x))) * eps)
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, eps_] := N[(N[(N[(eps * N[(0.16666666666666666 * x), $MachinePrecision] + -0.5), $MachinePrecision] * eps + (-N[Sin[x], $MachinePrecision])), $MachinePrecision] * eps), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\mathsf{fma}\left(\mathsf{fma}\left(\varepsilon, 0.16666666666666666 \cdot x, -0.5\right), \varepsilon, -\sin x\right) \cdot \varepsilon
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="51.9% on training set">54.8%</span></p><div class="math">\[\cos \left(x + \varepsilon\right) - \cos x
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in eps around 0</p><div class="math">\[\leadsto \color{blue}{\varepsilon \cdot \left(\varepsilon \cdot \left(\frac{-1}{2} \cdot \cos x + \varepsilon \cdot \left(\frac{1}{24} \cdot \left(\varepsilon \cdot \cos x\right) - \frac{-1}{6} \cdot \sin x\right)\right) - \sin x\right)}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="99.6% on training set">99.5%</span></p><div class="math">\[\leadsto \color{blue}{\left(\mathsf{fma}\left(\mathsf{fma}\left(\sin x, 0.16666666666666666, \left(\cos x \cdot \varepsilon\right) \cdot 0.041666666666666664\right), \varepsilon, \cos x \cdot -0.5\right) \cdot \varepsilon - \sin x\right) \cdot \varepsilon}
+\]</div></li><li><p>Taylor expanded in eps around 0</p><div class="math">\[\leadsto \color{blue}{\varepsilon \cdot \left(\varepsilon \cdot \left(\frac{-1}{2} \cdot \cos x + \varepsilon \cdot \left(\frac{1}{24} \cdot \left(\varepsilon \cdot \cos x\right) - \frac{-1}{6} \cdot \sin x\right)\right) - \sin x\right)}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="99.6% on training set">99.5%</span></p><div class="math">\[\leadsto \color{blue}{\mathsf{fma}\left(\mathsf{fma}\left(\cos x, \mathsf{fma}\left(\varepsilon \cdot \varepsilon, 0.041666666666666664, -0.5\right), \left(\sin x \cdot \varepsilon\right) \cdot 0.16666666666666666\right), \varepsilon, -\sin x\right) \cdot \varepsilon}
+\]</div></li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \mathsf{fma}\left(\left(\frac{1}{24} \cdot {\varepsilon}^{2} + \frac{1}{6} \cdot \left(\varepsilon \cdot x\right)\right) - \frac{1}{2}, \varepsilon, -\sin x\right) \cdot \varepsilon
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="98.9% on training set">98.7%</span></p><div class="math">\[\leadsto \mathsf{fma}\left(\mathsf{fma}\left(\varepsilon, \mathsf{fma}\left(0.16666666666666666, x, 0.041666666666666664 \cdot \varepsilon\right), -0.5\right), \varepsilon, -\sin x\right) \cdot \varepsilon
+\]</div></li><li><p>Taylor expanded in x around inf</p><div class="math">\[\leadsto \mathsf{fma}\left(\mathsf{fma}\left(\varepsilon, \frac{1}{6} \cdot x, \frac{-1}{2}\right), \varepsilon, -\sin x\right) \cdot \varepsilon
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="98.9% on training set">98.7%</span></p><div class="math">\[\leadsto \mathsf{fma}\left(\mathsf{fma}\left(\varepsilon, 0.16666666666666666 \cdot x, -0.5\right), \varepsilon, -\sin x\right) \cdot \varepsilon
+\]</div></li><li><p>Final simplification<span class="error" title="98.9% on training set">98.7%</span></p><div class="math">\[\leadsto \mathsf{fma}\left(\mathsf{fma}\left(\varepsilon, 0.16666666666666666 \cdot x, -0.5\right), \varepsilon, -\sin x\right) \cdot \varepsilon
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative6" class="programs"><h2>Alternative 6: <span class="subhead"><data>98.9%</data> accurate, <data>1.8×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\left(-0.5 \cdot \varepsilon - \sin x\right) \cdot \varepsilon
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x eps) :precision binary64 (* (- (* -0.5 eps) (sin x)) eps))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double eps) {
+	return ((-0.5 * eps) - sin(x)) * eps;
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(x, eps)
+    real(8), intent (in) :: x
+    real(8), intent (in) :: eps
+    code = (((-0.5d0) * eps) - sin(x)) * eps
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double x, double eps) {
+	return ((-0.5 * eps) - Math.sin(x)) * eps;
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(x, eps):
+	return ((-0.5 * eps) - math.sin(x)) * eps
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, eps)
+	return Float64(Float64(Float64(-0.5 * eps) - sin(x)) * eps)
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp = code(x, eps)
+	tmp = ((-0.5 * eps) - sin(x)) * eps;
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, eps_] := N[(N[(N[(-0.5 * eps), $MachinePrecision] - N[Sin[x], $MachinePrecision]), $MachinePrecision] * eps), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\left(-0.5 \cdot \varepsilon - \sin x\right) \cdot \varepsilon
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="51.9% on training set">54.8%</span></p><div class="math">\[\cos \left(x + \varepsilon\right) - \cos x
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in eps around 0</p><div class="math">\[\leadsto \color{blue}{\varepsilon \cdot \left(\varepsilon \cdot \left(\frac{-1}{2} \cdot \cos x + \varepsilon \cdot \left(\frac{1}{24} \cdot \left(\varepsilon \cdot \cos x\right) - \frac{-1}{6} \cdot \sin x\right)\right) - \sin x\right)}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="99.6% on training set">99.5%</span></p><div class="math">\[\leadsto \color{blue}{\left(\mathsf{fma}\left(\mathsf{fma}\left(\sin x, 0.16666666666666666, \left(\cos x \cdot \varepsilon\right) \cdot 0.041666666666666664\right), \varepsilon, \cos x \cdot -0.5\right) \cdot \varepsilon - \sin x\right) \cdot \varepsilon}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="98.9% on training set">98.6%</span></p><div class="math">\[\leadsto \left(-0.5 \cdot \varepsilon - \sin x\right) \cdot \varepsilon
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative7" class="programs"><h2>Alternative 7: <span class="subhead"><data>98.5%</data> accurate, <data>5.0×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\mathsf{fma}\left(\mathsf{fma}\left(\varepsilon \cdot \mathsf{fma}\left(0.25, \varepsilon, 0.16666666666666666 \cdot x\right), x, -\varepsilon\right), x, \left(\varepsilon \cdot \varepsilon\right) \cdot -0.5\right)
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x eps)
+ :precision binary64
+ (fma
+  (fma (* eps (fma 0.25 eps (* 0.16666666666666666 x))) x (- eps))
+  x
+  (* (* eps eps) -0.5)))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double eps) {
+	return fma(fma((eps * fma(0.25, eps, (0.16666666666666666 * x))), x, -eps), x, ((eps * eps) * -0.5));
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, eps)
+	return fma(fma(Float64(eps * fma(0.25, eps, Float64(0.16666666666666666 * x))), x, Float64(-eps)), x, Float64(Float64(eps * eps) * -0.5))
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, eps_] := N[(N[(N[(eps * N[(0.25 * eps + N[(0.16666666666666666 * x), $MachinePrecision]), $MachinePrecision]), $MachinePrecision] * x + (-eps)), $MachinePrecision] * x + N[(N[(eps * eps), $MachinePrecision] * -0.5), $MachinePrecision]), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\mathsf{fma}\left(\mathsf{fma}\left(\varepsilon \cdot \mathsf{fma}\left(0.25, \varepsilon, 0.16666666666666666 \cdot x\right), x, -\varepsilon\right), x, \left(\varepsilon \cdot \varepsilon\right) \cdot -0.5\right)
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="51.9% on training set">54.8%</span></p><div class="math">\[\cos \left(x + \varepsilon\right) - \cos x
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in eps around 0</p><div class="math">\[\leadsto \color{blue}{\varepsilon \cdot \left(\varepsilon \cdot \left(\frac{-1}{2} \cdot \cos x + \varepsilon \cdot \left(\frac{1}{24} \cdot \left(\varepsilon \cdot \cos x\right) - \frac{-1}{6} \cdot \sin x\right)\right) - \sin x\right)}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="99.6% on training set">99.5%</span></p><div class="math">\[\leadsto \color{blue}{\left(\mathsf{fma}\left(\mathsf{fma}\left(\sin x, 0.16666666666666666, \left(\cos x \cdot \varepsilon\right) \cdot 0.041666666666666664\right), \varepsilon, \cos x \cdot -0.5\right) \cdot \varepsilon - \sin x\right) \cdot \varepsilon}
+\]</div></li><li><p>Taylor expanded in eps around 0</p><div class="math">\[\leadsto \color{blue}{\varepsilon \cdot \left(\frac{-1}{2} \cdot \left(\varepsilon \cdot \cos x\right) - \sin x\right)}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="99.3% on training set">99.2%</span></p><div class="math">\[\leadsto \color{blue}{\mathsf{fma}\left(\cos x \cdot \varepsilon, -0.5, -\sin x\right) \cdot \varepsilon}
+\]</div></li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \frac{-1}{2} \cdot {\varepsilon}^{2} + \color{blue}{x \cdot \left(-1 \cdot \varepsilon + x \cdot \left(\frac{1}{6} \cdot \left(\varepsilon \cdot x\right) + \frac{1}{4} \cdot {\varepsilon}^{2}\right)\right)}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="98.5% on training set">97.6%</span></p><div class="math">\[\leadsto \mathsf{fma}\left(\mathsf{fma}\left(\varepsilon \cdot \mathsf{fma}\left(0.25, \varepsilon, 0.16666666666666666 \cdot x\right), x, -\varepsilon\right), \color{blue}{x}, \left(\varepsilon \cdot \varepsilon\right) \cdot -0.5\right)
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative8" class="programs"><h2>Alternative 8: <span class="subhead"><data>98.4%</data> accurate, <data>5.3×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\mathsf{fma}\left(\mathsf{fma}\left(\mathsf{fma}\left(-0.008333333333333333, x \cdot x, 0.16666666666666666\right), x \cdot x, -1\right), x, -0.5 \cdot \varepsilon\right) \cdot \varepsilon
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x eps)
+ :precision binary64
+ (*
+  (fma
+   (fma (fma -0.008333333333333333 (* x x) 0.16666666666666666) (* x x) -1.0)
+   x
+   (* -0.5 eps))
+  eps))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double eps) {
+	return fma(fma(fma(-0.008333333333333333, (x * x), 0.16666666666666666), (x * x), -1.0), x, (-0.5 * eps)) * eps;
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, eps)
+	return Float64(fma(fma(fma(-0.008333333333333333, Float64(x * x), 0.16666666666666666), Float64(x * x), -1.0), x, Float64(-0.5 * eps)) * eps)
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, eps_] := N[(N[(N[(N[(-0.008333333333333333 * N[(x * x), $MachinePrecision] + 0.16666666666666666), $MachinePrecision] * N[(x * x), $MachinePrecision] + -1.0), $MachinePrecision] * x + N[(-0.5 * eps), $MachinePrecision]), $MachinePrecision] * eps), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\mathsf{fma}\left(\mathsf{fma}\left(\mathsf{fma}\left(-0.008333333333333333, x \cdot x, 0.16666666666666666\right), x \cdot x, -1\right), x, -0.5 \cdot \varepsilon\right) \cdot \varepsilon
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="51.9% on training set">54.8%</span></p><div class="math">\[\cos \left(x + \varepsilon\right) - \cos x
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in eps around 0</p><div class="math">\[\leadsto \color{blue}{\varepsilon \cdot \left(\varepsilon \cdot \left(\frac{-1}{2} \cdot \cos x + \varepsilon \cdot \left(\frac{1}{24} \cdot \left(\varepsilon \cdot \cos x\right) - \frac{-1}{6} \cdot \sin x\right)\right) - \sin x\right)}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="99.6% on training set">99.5%</span></p><div class="math">\[\leadsto \color{blue}{\left(\mathsf{fma}\left(\mathsf{fma}\left(\sin x, 0.16666666666666666, \left(\cos x \cdot \varepsilon\right) \cdot 0.041666666666666664\right), \varepsilon, \cos x \cdot -0.5\right) \cdot \varepsilon - \sin x\right) \cdot \varepsilon}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="98.9% on training set">98.6%</span></p><div class="math">\[\leadsto \left(-0.5 \cdot \varepsilon - \sin x\right) \cdot \varepsilon
+\]</div></li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \left(\frac{-1}{2} \cdot \varepsilon + x \cdot \left({x}^{2} \cdot \left(\frac{1}{6} + \frac{-1}{120} \cdot {x}^{2}\right) - 1\right)\right) \cdot \varepsilon
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="98.4% on training set">97.4%</span></p><div class="math">\[\leadsto \mathsf{fma}\left(\mathsf{fma}\left(\mathsf{fma}\left(-0.008333333333333333, x \cdot x, 0.16666666666666666\right), x \cdot x, -1\right), x, -0.5 \cdot \varepsilon\right) \cdot \varepsilon
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative9" class="programs"><h2>Alternative 9: <span class="subhead"><data>98.3%</data> accurate, <data>7.4×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\mathsf{fma}\left(\mathsf{fma}\left(x \cdot x, 0.16666666666666666, -1\right), x, -0.5 \cdot \varepsilon\right) \cdot \varepsilon
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x eps)
+ :precision binary64
+ (* (fma (fma (* x x) 0.16666666666666666 -1.0) x (* -0.5 eps)) eps))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double eps) {
+	return fma(fma((x * x), 0.16666666666666666, -1.0), x, (-0.5 * eps)) * eps;
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, eps)
+	return Float64(fma(fma(Float64(x * x), 0.16666666666666666, -1.0), x, Float64(-0.5 * eps)) * eps)
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, eps_] := N[(N[(N[(N[(x * x), $MachinePrecision] * 0.16666666666666666 + -1.0), $MachinePrecision] * x + N[(-0.5 * eps), $MachinePrecision]), $MachinePrecision] * eps), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\mathsf{fma}\left(\mathsf{fma}\left(x \cdot x, 0.16666666666666666, -1\right), x, -0.5 \cdot \varepsilon\right) \cdot \varepsilon
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="51.9% on training set">54.8%</span></p><div class="math">\[\cos \left(x + \varepsilon\right) - \cos x
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in eps around 0</p><div class="math">\[\leadsto \color{blue}{\varepsilon \cdot \left(\varepsilon \cdot \left(\frac{-1}{2} \cdot \cos x + \varepsilon \cdot \left(\frac{1}{24} \cdot \left(\varepsilon \cdot \cos x\right) - \frac{-1}{6} \cdot \sin x\right)\right) - \sin x\right)}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="99.6% on training set">99.5%</span></p><div class="math">\[\leadsto \color{blue}{\left(\mathsf{fma}\left(\mathsf{fma}\left(\sin x, 0.16666666666666666, \left(\cos x \cdot \varepsilon\right) \cdot 0.041666666666666664\right), \varepsilon, \cos x \cdot -0.5\right) \cdot \varepsilon - \sin x\right) \cdot \varepsilon}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="98.9% on training set">98.6%</span></p><div class="math">\[\leadsto \left(-0.5 \cdot \varepsilon - \sin x\right) \cdot \varepsilon
+\]</div></li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \left(\frac{-1}{2} \cdot \varepsilon + x \cdot \left(\frac{1}{6} \cdot {x}^{2} - 1\right)\right) \cdot \varepsilon
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="98.3% on training set">97.4%</span></p><div class="math">\[\leadsto \mathsf{fma}\left(\mathsf{fma}\left(x \cdot x, 0.16666666666666666, -1\right), x, -0.5 \cdot \varepsilon\right) \cdot \varepsilon
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative10" class="programs"><h2>Alternative 10: <span class="subhead"><data>97.8%</data> accurate, <data>7.4×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\mathsf{fma}\left(\mathsf{fma}\left(0.16666666666666666 \cdot \varepsilon, \varepsilon, -1\right), x, -0.5 \cdot \varepsilon\right) \cdot \varepsilon
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x eps)
+ :precision binary64
+ (* (fma (fma (* 0.16666666666666666 eps) eps -1.0) x (* -0.5 eps)) eps))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double eps) {
+	return fma(fma((0.16666666666666666 * eps), eps, -1.0), x, (-0.5 * eps)) * eps;
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, eps)
+	return Float64(fma(fma(Float64(0.16666666666666666 * eps), eps, -1.0), x, Float64(-0.5 * eps)) * eps)
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, eps_] := N[(N[(N[(N[(0.16666666666666666 * eps), $MachinePrecision] * eps + -1.0), $MachinePrecision] * x + N[(-0.5 * eps), $MachinePrecision]), $MachinePrecision] * eps), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\mathsf{fma}\left(\mathsf{fma}\left(0.16666666666666666 \cdot \varepsilon, \varepsilon, -1\right), x, -0.5 \cdot \varepsilon\right) \cdot \varepsilon
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="51.9% on training set">54.8%</span></p><div class="math">\[\cos \left(x + \varepsilon\right) - \cos x
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in eps around 0</p><div class="math">\[\leadsto \color{blue}{\varepsilon \cdot \left(\varepsilon \cdot \left(\frac{-1}{2} \cdot \cos x + \frac{1}{6} \cdot \left(\varepsilon \cdot \sin x\right)\right) - \sin x\right)}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="99.5% on training set">99.4%</span></p><div class="math">\[\leadsto \color{blue}{\mathsf{fma}\left(\sin x, \mathsf{fma}\left(\varepsilon \cdot \varepsilon, 0.16666666666666666, -1\right), \left(\cos x \cdot -0.5\right) \cdot \varepsilon\right) \cdot \varepsilon}
+\]</div></li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \left(\frac{-1}{2} \cdot \varepsilon + x \cdot \left(\frac{1}{6} \cdot {\varepsilon}^{2} - 1\right)\right) \cdot \varepsilon
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="97.8% on training set">97.0%</span></p><div class="math">\[\leadsto \mathsf{fma}\left(\mathsf{fma}\left(0.16666666666666666 \cdot \varepsilon, \varepsilon, -1\right), x, -0.5 \cdot \varepsilon\right) \cdot \varepsilon
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative11" class="programs"><h2>Alternative 11: <span class="subhead"><data>97.8%</data> accurate, <data>14.8×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\mathsf{fma}\left(-0.5, \varepsilon, -x\right) \cdot \varepsilon
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x eps) :precision binary64 (* (fma -0.5 eps (- x)) eps))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double eps) {
+	return fma(-0.5, eps, -x) * eps;
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, eps)
+	return Float64(fma(-0.5, eps, Float64(-x)) * eps)
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, eps_] := N[(N[(-0.5 * eps + (-x)), $MachinePrecision] * eps), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\mathsf{fma}\left(-0.5, \varepsilon, -x\right) \cdot \varepsilon
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="51.9% on training set">54.8%</span></p><div class="math">\[\cos \left(x + \varepsilon\right) - \cos x
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in eps around 0</p><div class="math">\[\leadsto \color{blue}{\varepsilon \cdot \left(\varepsilon \cdot \left(\frac{-1}{2} \cdot \cos x + \varepsilon \cdot \left(\frac{1}{24} \cdot \left(\varepsilon \cdot \cos x\right) - \frac{-1}{6} \cdot \sin x\right)\right) - \sin x\right)}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="99.6% on training set">99.5%</span></p><div class="math">\[\leadsto \color{blue}{\left(\mathsf{fma}\left(\mathsf{fma}\left(\sin x, 0.16666666666666666, \left(\cos x \cdot \varepsilon\right) \cdot 0.041666666666666664\right), \varepsilon, \cos x \cdot -0.5\right) \cdot \varepsilon - \sin x\right) \cdot \varepsilon}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="98.9% on training set">98.6%</span></p><div class="math">\[\leadsto \left(-0.5 \cdot \varepsilon - \sin x\right) \cdot \varepsilon
+\]</div></li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \left(-1 \cdot x + \frac{-1}{2} \cdot \varepsilon\right) \cdot \varepsilon
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="97.8% on training set">97.0%</span></p><div class="math">\[\leadsto \mathsf{fma}\left(-0.5, \varepsilon, -x\right) \cdot \varepsilon
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative12" class="programs"><h2>Alternative 12: <span class="subhead"><data>78.6%</data> accurate, <data>25.9×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\left(-x\right) \cdot \varepsilon
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x eps) :precision binary64 (* (- x) eps))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double eps) {
+	return -x * eps;
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(x, eps)
+    real(8), intent (in) :: x
+    real(8), intent (in) :: eps
+    code = -x * eps
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double x, double eps) {
+	return -x * eps;
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(x, eps):
+	return -x * eps
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, eps)
+	return Float64(Float64(-x) * eps)
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp = code(x, eps)
+	tmp = -x * eps;
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, eps_] := N[((-x) * eps), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\left(-x\right) \cdot \varepsilon
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="51.9% on training set">54.8%</span></p><div class="math">\[\cos \left(x + \varepsilon\right) - \cos x
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in eps around 0</p><div class="math">\[\leadsto \color{blue}{-1 \cdot \left(\varepsilon \cdot \sin x\right)}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="79.4% on training set">80.2%</span></p><div class="math">\[\leadsto \color{blue}{\left(-\sin x\right) \cdot \varepsilon}
+\]</div></li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \left(-1 \cdot x\right) \cdot \varepsilon
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="78.6% on training set">78.7%</span></p><div class="math">\[\leadsto \left(-x\right) \cdot \varepsilon
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative13" class="programs"><h2>Alternative 13: <span class="subhead"><data>50.6%</data> accurate, <data>207.0×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+0
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x eps) :precision binary64 0.0)</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double eps) {
+	return 0.0;
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(x, eps)
+    real(8), intent (in) :: x
+    real(8), intent (in) :: eps
+    code = 0.0d0
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double x, double eps) {
+	return 0.0;
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(x, eps):
+	return 0.0
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, eps)
+	return 0.0
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp = code(x, eps)
+	tmp = 0.0;
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, eps_] := 0.0
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+0
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="51.9% on training set">54.8%</span></p><div class="math">\[\cos \left(x + \varepsilon\right) - \cos x
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in eps around 0</p><div class="math">\[\leadsto \color{blue}{\varepsilon \cdot \left(\varepsilon \cdot \left(\frac{-1}{2} \cdot \cos x + \varepsilon \cdot \left(\frac{1}{24} \cdot \left(\varepsilon \cdot \cos x\right) - \frac{-1}{6} \cdot \sin x\right)\right) - \sin x\right)}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="99.6% on training set">99.5%</span></p><div class="math">\[\leadsto \color{blue}{\left(\mathsf{fma}\left(\mathsf{fma}\left(\sin x, 0.16666666666666666, \left(\cos x \cdot \varepsilon\right) \cdot 0.041666666666666664\right), \varepsilon, \cos x \cdot -0.5\right) \cdot \varepsilon - \sin x\right) \cdot \varepsilon}
+\]</div></li><li><p>Taylor expanded in eps around 0</p><div class="math">\[\leadsto \color{blue}{\varepsilon \cdot \left(\frac{-1}{2} \cdot \left(\varepsilon \cdot \cos x\right) - \sin x\right)}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="99.3% on training set">99.2%</span></p><div class="math">\[\leadsto \color{blue}{\mathsf{fma}\left(\cos x \cdot \varepsilon, -0.5, -\sin x\right) \cdot \varepsilon}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="50.6% on training set">53.2%</span></p><div class="math">\[\leadsto 0
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative14" class="programs"><h2>Alternative 14: <span class="subhead"><data>3.5%</data> accurate, <data>207.0×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+0.16666666666666666
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x eps) :precision binary64 0.16666666666666666)</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double eps) {
+	return 0.16666666666666666;
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(x, eps)
+    real(8), intent (in) :: x
+    real(8), intent (in) :: eps
+    code = 0.16666666666666666d0
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double x, double eps) {
+	return 0.16666666666666666;
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(x, eps):
+	return 0.16666666666666666
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, eps)
+	return 0.16666666666666666
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp = code(x, eps)
+	tmp = 0.16666666666666666;
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, eps_] := 0.16666666666666666
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+0.16666666666666666
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="51.9% on training set">54.8%</span></p><div class="math">\[\cos \left(x + \varepsilon\right) - \cos x
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in eps around 0</p><div class="math">\[\leadsto \color{blue}{\varepsilon \cdot \left(\varepsilon \cdot \left(\frac{-1}{2} \cdot \cos x + \varepsilon \cdot \left(\frac{1}{24} \cdot \left(\varepsilon \cdot \cos x\right) - \frac{-1}{6} \cdot \sin x\right)\right) - \sin x\right)}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="99.6% on training set">99.5%</span></p><div class="math">\[\leadsto \color{blue}{\left(\mathsf{fma}\left(\mathsf{fma}\left(\sin x, 0.16666666666666666, \left(\cos x \cdot \varepsilon\right) \cdot 0.041666666666666664\right), \varepsilon, \cos x \cdot -0.5\right) \cdot \varepsilon - \sin x\right) \cdot \varepsilon}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="3.5% on training set">3.7%</span></p><div class="math">\[\leadsto \color{blue}{0.16666666666666666}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="target1" class="programs"><h2>Developer Target 1: <span class="subhead"><data>99.3%</data> accurate, <data>0.5×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#target" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+{\left(\sqrt[3]{\left(-2 \cdot \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right)\right) \cdot \sin \left(0.5 \cdot \varepsilon\right)}\right)}^{3}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x eps)
+ :precision binary64
+ (pow (cbrt (* (* -2.0 (sin (* 0.5 (fma 2.0 x eps)))) (sin (* 0.5 eps)))) 3.0))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double eps) {
+	return pow(cbrt(((-2.0 * sin((0.5 * fma(2.0, x, eps)))) * sin((0.5 * eps)))), 3.0);
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, eps)
+	return cbrt(Float64(Float64(-2.0 * sin(Float64(0.5 * fma(2.0, x, eps)))) * sin(Float64(0.5 * eps)))) ^ 3.0
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, eps_] := N[Power[N[Power[N[(N[(-2.0 * N[Sin[N[(0.5 * N[(2.0 * x + eps), $MachinePrecision]), $MachinePrecision]], $MachinePrecision]), $MachinePrecision] * N[Sin[N[(0.5 * eps), $MachinePrecision]], $MachinePrecision]), $MachinePrecision], 1/3], $MachinePrecision], 3.0], $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+{\left(\sqrt[3]{\left(-2 \cdot \sin \left(0.5 \cdot \mathsf{fma}\left(2, x, \varepsilon\right)\right)\right) \cdot \sin \left(0.5 \cdot \varepsilon\right)}\right)}^{3}
+\end{array}
+</pre></div></div></section><section id="reproduce"><details><summary><h2>Reproduce</h2><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#reproduction" target="_blank">?</a></summary><pre class="shell"><code>herbie shell --seed 1835695063 
+(FPCore (x eps)
+  :name "2cos (problem 3.3.5)"
+  :precision binary64
+  :pre (and (and (and (&lt;= -10000.0 x) (&lt;= x 10000.0)) (&lt; (* 1e-16 (fabs x)) eps)) (&lt; eps (fabs x)))
+
+  :alt
+  (! :herbie-platform default (pow (cbrt (* -2 (sin (* 1/2 (fma 2 x eps))) (sin (* 1/2 eps)))) 3))
+
+  (- (cos (+ x eps)) (cos x)))
+</code></pre></details></section></body></html>

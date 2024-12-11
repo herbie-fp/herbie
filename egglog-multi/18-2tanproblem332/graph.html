@@ -1,0 +1,901 @@
+<!doctype html>
+<html><head><meta charset="utf-8"/><title>Result for 2tan (problem 3.3.2)</title><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/katex.min.css" integrity="sha384-9tPv11A+glH/on/wEu99NVwDPwkMQESOocs/ZGXPoIiLE8MU/qkqUcZ3zzL+6DuH" crossorigin="anonymous"/><script src="https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/katex.min.js" integrity="sha384-U8Vrjwb8fuHMt6ewaCy8uqeUXv4oitYACKdB0VziCerzt011iQ/0TqlSlv8MReCm" crossorigin="anonymous"></script><script src="https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/contrib/auto-render.min.js" integrity="sha384-aGfk5kvhIq5x1x5YdvCp4upKZYnA8ckafviDpmWEKp4afOZEqOli7gqSnh8I6enH" crossorigin="anonymous"></script><script src="https://unpkg.com/mathjs@4.4.2/dist/math.min.js"></script><script src="https://unpkg.com/d3@6.7.0/dist/d3.min.js"></script><script src="https://unpkg.com/@observablehq/plot@0.4.3/dist/plot.umd.min.js"></script><link rel="stylesheet" type="text/css" href="../report.css"/><script src="../report.js"></script></head><body><header><h1>2tan (problem 3.3.2)</h1><img src="../logo-car.png"/><nav><ul><li><a href="../index.html">Report</a></li><li><a href="timeline.html">Metrics</a></li></ul></nav></header><div id="large"><div>Percentage Accurate: <span class="number" title="Minimum Accuracy: 3.3% → 1.5%">62.5%<span class="unit"> → </span>99.7%</span></div><div>Time: <span class="number">21.4s</span></div><div>Alternatives: <span class="number">20</span></div><div>Speedup: <span class="number" title="Relative speed of fastest alternative that improves accuracy.">34.5×</span></div></div><section><details id="specification" class="programs"><summary><h2>Specification</h2><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#spec" target="_blank">?</a></summary><div><div id="precondition"><div class="program math">\[\left(\left(-10000 \leq x \land x \leq 10000\right) \land 10^{-16} \cdot \left|x\right| &lt; \varepsilon\right) \land \varepsilon &lt; \left|x\right|\]</div></div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\tan \left(x + \varepsilon\right) - \tan x
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x eps) :precision binary64 (- (tan (+ x eps)) (tan x)))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double eps) {
+	return tan((x + eps)) - tan(x);
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(x, eps)
+    real(8), intent (in) :: x
+    real(8), intent (in) :: eps
+    code = tan((x + eps)) - tan(x)
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double x, double eps) {
+	return Math.tan((x + eps)) - Math.tan(x);
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(x, eps):
+	return math.tan((x + eps)) - math.tan(x)
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, eps)
+	return Float64(tan(Float64(x + eps)) - tan(x))
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp = code(x, eps)
+	tmp = tan((x + eps)) - tan(x);
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, eps_] := N[(N[Tan[N[(x + eps), $MachinePrecision]], $MachinePrecision] - N[Tan[x], $MachinePrecision]), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\tan \left(x + \varepsilon\right) - \tan x
+\end{array}
+</pre></div></div><p>Sampling outcomes in <kbd>binary64</kbd> precision:</p><div class="bogosity"><div class="bogosity-valid" data-id="bogosity-valid" data-type="valid" data-timespan="0.006362970910377951" title="valid (0.6%)"></div><div class="bogosity-unknown" data-id="bogosity-unknown" data-type="unknown" data-timespan="0" title="unknown (0.0%)"></div><div class="bogosity-infinite" data-id="bogosity-infinite" data-type="infinite" data-timespan="0" title="infinite (0.0%)"></div><div class="bogosity-unsamplable" data-id="bogosity-unsamplable" data-type="unsamplable" data-timespan="0" title="unsamplable (0.0%)"></div><div class="bogosity-invalid" data-id="bogosity-invalid" data-type="invalid" data-timespan="0.49935711501970126" title="invalid (49.9%)"></div><div class="bogosity-precondition" data-id="bogosity-precondition" data-type="precondition" data-timespan="0.4942799140699208" title="precondition (49.4%)"></div></div></details></section><figure id="graphs"><h2>Local Percentage Accuracy vs <span id="variables"></span><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#graph" target="_blank">?</a></h2><svg></svg><div id="functions"></div><figcaption>The average percentage accuracy by input value. Horizontal axis shows value of an input variable; the variable is choosen in the title. Vertical axis is accuracy; higher is better. Red represent the original program, while blue represents Herbie's suggestion. These can be toggled with buttons below the plot. The line is an average while dots represent individual samples.</figcaption></figure><section id="cost-accuracy" class="section" data-benchmark-name="2tan (problem 3.3.2)"><h2>Accuracy vs Speed<a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#cost-accuracy" target="_blank">?</a></h2><div class="figure-row"><svg></svg><div><p>Herbie found 20 alternatives:</p><table><thead><tr><th>Alternative</th><th class="numeric">Accuracy</th><th class="numeric">Speedup</th></tr></thead><tbody></tbody></table></div></div><figcaption>The accuracy (vertical axis) and speed (horizontal axis) of each alternatives. Up and to the right is better. The red square shows the initial program, and each blue circle shows an alternative.The line shows the best available speed-accuracy tradeoffs.</figcaption></section><section id="initial" class="programs"><h2>Initial Program: <span class="subhead"><data>62.5%</data> accurate, <data>1.0×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\tan \left(x + \varepsilon\right) - \tan x
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x eps) :precision binary64 (- (tan (+ x eps)) (tan x)))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double eps) {
+	return tan((x + eps)) - tan(x);
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(x, eps)
+    real(8), intent (in) :: x
+    real(8), intent (in) :: eps
+    code = tan((x + eps)) - tan(x)
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double x, double eps) {
+	return Math.tan((x + eps)) - Math.tan(x);
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(x, eps):
+	return math.tan((x + eps)) - math.tan(x)
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, eps)
+	return Float64(tan(Float64(x + eps)) - tan(x))
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp = code(x, eps)
+	tmp = tan((x + eps)) - tan(x);
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, eps_] := N[(N[Tan[N[(x + eps), $MachinePrecision]], $MachinePrecision] - N[Tan[x], $MachinePrecision]), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\tan \left(x + \varepsilon\right) - \tan x
+\end{array}
+</pre></div></div></section><section id="alternative1" class="programs"><h2>Alternative 1: <span class="subhead"><data>99.7%</data> accurate, <data>0.1×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+t_0 := {\cos x}^{2}\\
+t_1 := \mathsf{fma}\left(\sin x, \sin x, \frac{{\sin x}^{4}}{t\_0}\right)\\
+t_2 := \frac{{\sin x}^{2}}{t\_0}\\
+\mathsf{fma}\left(\left(-\varepsilon\right) \cdot \varepsilon, \mathsf{fma}\left(\sin x \cdot \varepsilon, \frac{\mathsf{fma}\left(t\_2, -0.6666666666666666, -0.6666666666666666\right)}{\cos x} - \frac{t\_1}{{\cos x}^{3}}, \mathsf{fma}\left(t\_2, -0.3333333333333333, -0.3333333333333333\right) - \frac{t\_1}{t\_0}\right), \mathsf{fma}\left(\sin x, \frac{\varepsilon}{\cos x}, 1\right) \cdot \mathsf{fma}\left(\sin x, \frac{\sin x}{t\_0}, 1\right)\right) \cdot \varepsilon
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x eps)
+ :precision binary64
+ (let* ((t_0 (pow (cos x) 2.0))
+        (t_1 (fma (sin x) (sin x) (/ (pow (sin x) 4.0) t_0)))
+        (t_2 (/ (pow (sin x) 2.0) t_0)))
+   (*
+    (fma
+     (* (- eps) eps)
+     (fma
+      (* (sin x) eps)
+      (-
+       (/ (fma t_2 -0.6666666666666666 -0.6666666666666666) (cos x))
+       (/ t_1 (pow (cos x) 3.0)))
+      (- (fma t_2 -0.3333333333333333 -0.3333333333333333) (/ t_1 t_0)))
+     (* (fma (sin x) (/ eps (cos x)) 1.0) (fma (sin x) (/ (sin x) t_0) 1.0)))
+    eps)))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double eps) {
+	double t_0 = pow(cos(x), 2.0);
+	double t_1 = fma(sin(x), sin(x), (pow(sin(x), 4.0) / t_0));
+	double t_2 = pow(sin(x), 2.0) / t_0;
+	return fma((-eps * eps), fma((sin(x) * eps), ((fma(t_2, -0.6666666666666666, -0.6666666666666666) / cos(x)) - (t_1 / pow(cos(x), 3.0))), (fma(t_2, -0.3333333333333333, -0.3333333333333333) - (t_1 / t_0))), (fma(sin(x), (eps / cos(x)), 1.0) * fma(sin(x), (sin(x) / t_0), 1.0))) * eps;
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, eps)
+	t_0 = cos(x) ^ 2.0
+	t_1 = fma(sin(x), sin(x), Float64((sin(x) ^ 4.0) / t_0))
+	t_2 = Float64((sin(x) ^ 2.0) / t_0)
+	return Float64(fma(Float64(Float64(-eps) * eps), fma(Float64(sin(x) * eps), Float64(Float64(fma(t_2, -0.6666666666666666, -0.6666666666666666) / cos(x)) - Float64(t_1 / (cos(x) ^ 3.0))), Float64(fma(t_2, -0.3333333333333333, -0.3333333333333333) - Float64(t_1 / t_0))), Float64(fma(sin(x), Float64(eps / cos(x)), 1.0) * fma(sin(x), Float64(sin(x) / t_0), 1.0))) * eps)
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, eps_] := Block[{t$95$0 = N[Power[N[Cos[x], $MachinePrecision], 2.0], $MachinePrecision]}, Block[{t$95$1 = N[(N[Sin[x], $MachinePrecision] * N[Sin[x], $MachinePrecision] + N[(N[Power[N[Sin[x], $MachinePrecision], 4.0], $MachinePrecision] / t$95$0), $MachinePrecision]), $MachinePrecision]}, Block[{t$95$2 = N[(N[Power[N[Sin[x], $MachinePrecision], 2.0], $MachinePrecision] / t$95$0), $MachinePrecision]}, N[(N[(N[((-eps) * eps), $MachinePrecision] * N[(N[(N[Sin[x], $MachinePrecision] * eps), $MachinePrecision] * N[(N[(N[(t$95$2 * -0.6666666666666666 + -0.6666666666666666), $MachinePrecision] / N[Cos[x], $MachinePrecision]), $MachinePrecision] - N[(t$95$1 / N[Power[N[Cos[x], $MachinePrecision], 3.0], $MachinePrecision]), $MachinePrecision]), $MachinePrecision] + N[(N[(t$95$2 * -0.3333333333333333 + -0.3333333333333333), $MachinePrecision] - N[(t$95$1 / t$95$0), $MachinePrecision]), $MachinePrecision]), $MachinePrecision] + N[(N[(N[Sin[x], $MachinePrecision] * N[(eps / N[Cos[x], $MachinePrecision]), $MachinePrecision] + 1.0), $MachinePrecision] * N[(N[Sin[x], $MachinePrecision] * N[(N[Sin[x], $MachinePrecision] / t$95$0), $MachinePrecision] + 1.0), $MachinePrecision]), $MachinePrecision]), $MachinePrecision] * eps), $MachinePrecision]]]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+t_0 := {\cos x}^{2}\\
+t_1 := \mathsf{fma}\left(\sin x, \sin x, \frac{{\sin x}^{4}}{t\_0}\right)\\
+t_2 := \frac{{\sin x}^{2}}{t\_0}\\
+\mathsf{fma}\left(\left(-\varepsilon\right) \cdot \varepsilon, \mathsf{fma}\left(\sin x \cdot \varepsilon, \frac{\mathsf{fma}\left(t\_2, -0.6666666666666666, -0.6666666666666666\right)}{\cos x} - \frac{t\_1}{{\cos x}^{3}}, \mathsf{fma}\left(t\_2, -0.3333333333333333, -0.3333333333333333\right) - \frac{t\_1}{t\_0}\right), \mathsf{fma}\left(\sin x, \frac{\varepsilon}{\cos x}, 1\right) \cdot \mathsf{fma}\left(\sin x, \frac{\sin x}{t\_0}, 1\right)\right) \cdot \varepsilon
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="62.5% on training set">61.2%</span></p><div class="math">\[\tan \left(x + \varepsilon\right) - \tan x
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in eps around 0</p><div class="math">\[\leadsto \color{blue}{\varepsilon \cdot \left(\left(1 + \varepsilon \cdot \left(\varepsilon \cdot \left(-1 \cdot \left(\varepsilon \cdot \left(\frac{-1}{2} \cdot \frac{\sin x \cdot \left(1 - -1 \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)}{\cos x} + \left(\frac{1}{6} \cdot \frac{\sin x \cdot \left(1 - -1 \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)}{\cos x} + \frac{\sin x \cdot \left(\frac{1}{6} + \left(-1 \cdot \frac{{\sin x}^{2} \cdot \left(1 - -1 \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)}{{\cos x}^{2}} + \left(\frac{-1}{2} \cdot \left(1 - -1 \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right) + \frac{1}{6} \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)\right)\right)}{\cos x}\right)\right)\right) - \left(\frac{1}{6} + \left(-1 \cdot \frac{{\sin x}^{2} \cdot \left(1 - -1 \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)}{{\cos x}^{2}} + \left(\frac{-1}{2} \cdot \left(1 - -1 \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right) + \frac{1}{6} \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)\right)\right)\right) - -1 \cdot \frac{\sin x \cdot \left(1 - -1 \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)}{\cos x}\right)\right) - -1 \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="99.7% on training set">99.5%</span></p><div class="math">\[\leadsto \color{blue}{\mathsf{fma}\left(\left(-\mathsf{fma}\left(\sin x \cdot \mathsf{fma}\left(\frac{\mathsf{fma}\left(\frac{\sin x}{{\cos x}^{2}}, \sin x, 1\right)}{\cos x}, -0.3333333333333333, \frac{\mathsf{fma}\left(\mathsf{fma}\left(\frac{\sin x}{{\cos x}^{2}}, \sin x, 1\right), -0.3333333333333333, \frac{\mathsf{fma}\left(\sin x, \sin x, \frac{{\sin x}^{4}}{{\cos x}^{2}}\right)}{-{\cos x}^{2}}\right)}{\cos x}\right), \varepsilon, \mathsf{fma}\left(\mathsf{fma}\left(\frac{\sin x}{{\cos x}^{2}}, \sin x, 1\right), -0.3333333333333333, \frac{\mathsf{fma}\left(\sin x, \sin x, \frac{{\sin x}^{4}}{{\cos x}^{2}}\right)}{-{\cos x}^{2}}\right)\right)\right) \cdot \varepsilon, \varepsilon, \mathsf{fma}\left(\frac{\sin x}{{\cos x}^{2}}, \sin x, 1\right) \cdot \left(\frac{\sin x \cdot \varepsilon}{\cos x} + 1\right)\right) \cdot \varepsilon}
+\]</div></li><li><p>Taylor expanded in x around inf</p><div class="math">\[\leadsto \varepsilon \cdot \color{blue}{\left(-1 \cdot \left({\varepsilon}^{2} \cdot \left(-1 \cdot \frac{\frac{{\sin x}^{4}}{{\cos x}^{2}} + {\sin x}^{2}}{{\cos x}^{2}} + \left(\frac{-1}{3} \cdot \left(1 + \frac{{\sin x}^{2}}{{\cos x}^{2}}\right) + \varepsilon \cdot \left(\sin x \cdot \left(-1 \cdot \frac{\frac{{\sin x}^{4}}{{\cos x}^{2}} + {\sin x}^{2}}{{\cos x}^{3}} + \frac{-2}{3} \cdot \frac{1 + \frac{{\sin x}^{2}}{{\cos x}^{2}}}{\cos x}\right)\right)\right)\right)\right) + \left(1 + \frac{\varepsilon \cdot \sin x}{\cos x}\right) \cdot \left(1 + \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)\right)}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="99.7% on training set">99.5%</span></p><div class="math">\[\leadsto \mathsf{fma}\left(\left(-\varepsilon\right) \cdot \varepsilon, \mathsf{fma}\left(\sin x \cdot \varepsilon, \frac{\mathsf{fma}\left(\frac{{\sin x}^{2}}{{\cos x}^{2}}, -0.6666666666666666, -0.6666666666666666\right)}{\cos x} - \frac{\mathsf{fma}\left(\sin x, \sin x, \frac{{\sin x}^{4}}{{\cos x}^{2}}\right)}{{\cos x}^{3}}, \mathsf{fma}\left(\frac{{\sin x}^{2}}{{\cos x}^{2}}, -0.3333333333333333, -0.3333333333333333\right) - \frac{\mathsf{fma}\left(\sin x, \sin x, \frac{{\sin x}^{4}}{{\cos x}^{2}}\right)}{{\cos x}^{2}}\right), \mathsf{fma}\left(\sin x, \frac{\varepsilon}{\cos x}, 1\right) \cdot \mathsf{fma}\left(\sin x, \frac{\sin x}{{\cos x}^{2}}, 1\right)\right) \cdot \color{blue}{\varepsilon}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative2" class="programs"><h2>Alternative 2: <span class="subhead"><data>99.6%</data> accurate, <data>0.1×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+t_0 := {\cos x}^{2}\\
+t_1 := \frac{{\sin x}^{2}}{t\_0}\\
+\mathsf{fma}\left(\mathsf{fma}\left(\mathsf{fma}\left(\mathsf{fma}\left(-6 \cdot \varepsilon, \sin x, \frac{\mathsf{fma}\left(\sin x, \sin x, \frac{{\sin x}^{4}}{t\_0}\right)}{t\_0}\right) - \mathsf{fma}\left(t\_1, -0.3333333333333333, -0.3333333333333333\right), \varepsilon, \frac{\frac{{\sin x}^{3}}{t\_0} + \sin x}{\cos x}\right), \varepsilon, t\_1\right), \varepsilon, \varepsilon\right)
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x eps)
+ :precision binary64
+ (let* ((t_0 (pow (cos x) 2.0)) (t_1 (/ (pow (sin x) 2.0) t_0)))
+   (fma
+    (fma
+     (fma
+      (-
+       (fma
+        (* -6.0 eps)
+        (sin x)
+        (/ (fma (sin x) (sin x) (/ (pow (sin x) 4.0) t_0)) t_0))
+       (fma t_1 -0.3333333333333333 -0.3333333333333333))
+      eps
+      (/ (+ (/ (pow (sin x) 3.0) t_0) (sin x)) (cos x)))
+     eps
+     t_1)
+    eps
+    eps)))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double eps) {
+	double t_0 = pow(cos(x), 2.0);
+	double t_1 = pow(sin(x), 2.0) / t_0;
+	return fma(fma(fma((fma((-6.0 * eps), sin(x), (fma(sin(x), sin(x), (pow(sin(x), 4.0) / t_0)) / t_0)) - fma(t_1, -0.3333333333333333, -0.3333333333333333)), eps, (((pow(sin(x), 3.0) / t_0) + sin(x)) / cos(x))), eps, t_1), eps, eps);
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, eps)
+	t_0 = cos(x) ^ 2.0
+	t_1 = Float64((sin(x) ^ 2.0) / t_0)
+	return fma(fma(fma(Float64(fma(Float64(-6.0 * eps), sin(x), Float64(fma(sin(x), sin(x), Float64((sin(x) ^ 4.0) / t_0)) / t_0)) - fma(t_1, -0.3333333333333333, -0.3333333333333333)), eps, Float64(Float64(Float64((sin(x) ^ 3.0) / t_0) + sin(x)) / cos(x))), eps, t_1), eps, eps)
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, eps_] := Block[{t$95$0 = N[Power[N[Cos[x], $MachinePrecision], 2.0], $MachinePrecision]}, Block[{t$95$1 = N[(N[Power[N[Sin[x], $MachinePrecision], 2.0], $MachinePrecision] / t$95$0), $MachinePrecision]}, N[(N[(N[(N[(N[(N[(-6.0 * eps), $MachinePrecision] * N[Sin[x], $MachinePrecision] + N[(N[(N[Sin[x], $MachinePrecision] * N[Sin[x], $MachinePrecision] + N[(N[Power[N[Sin[x], $MachinePrecision], 4.0], $MachinePrecision] / t$95$0), $MachinePrecision]), $MachinePrecision] / t$95$0), $MachinePrecision]), $MachinePrecision] - N[(t$95$1 * -0.3333333333333333 + -0.3333333333333333), $MachinePrecision]), $MachinePrecision] * eps + N[(N[(N[(N[Power[N[Sin[x], $MachinePrecision], 3.0], $MachinePrecision] / t$95$0), $MachinePrecision] + N[Sin[x], $MachinePrecision]), $MachinePrecision] / N[Cos[x], $MachinePrecision]), $MachinePrecision]), $MachinePrecision] * eps + t$95$1), $MachinePrecision] * eps + eps), $MachinePrecision]]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+t_0 := {\cos x}^{2}\\
+t_1 := \frac{{\sin x}^{2}}{t\_0}\\
+\mathsf{fma}\left(\mathsf{fma}\left(\mathsf{fma}\left(\mathsf{fma}\left(-6 \cdot \varepsilon, \sin x, \frac{\mathsf{fma}\left(\sin x, \sin x, \frac{{\sin x}^{4}}{t\_0}\right)}{t\_0}\right) - \mathsf{fma}\left(t\_1, -0.3333333333333333, -0.3333333333333333\right), \varepsilon, \frac{\frac{{\sin x}^{3}}{t\_0} + \sin x}{\cos x}\right), \varepsilon, t\_1\right), \varepsilon, \varepsilon\right)
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="62.5% on training set">61.2%</span></p><div class="math">\[\tan \left(x + \varepsilon\right) - \tan x
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in eps around 0</p><div class="math">\[\leadsto \color{blue}{\varepsilon \cdot \left(\left(1 + \varepsilon \cdot \left(\varepsilon \cdot \left(-1 \cdot \left(\varepsilon \cdot \left(\frac{-1}{2} \cdot \frac{\sin x \cdot \left(1 - -1 \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)}{\cos x} + \left(\frac{1}{6} \cdot \frac{\sin x \cdot \left(1 - -1 \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)}{\cos x} + \frac{\sin x \cdot \left(\frac{1}{6} + \left(-1 \cdot \frac{{\sin x}^{2} \cdot \left(1 - -1 \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)}{{\cos x}^{2}} + \left(\frac{-1}{2} \cdot \left(1 - -1 \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right) + \frac{1}{6} \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)\right)\right)}{\cos x}\right)\right)\right) - \left(\frac{1}{6} + \left(-1 \cdot \frac{{\sin x}^{2} \cdot \left(1 - -1 \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)}{{\cos x}^{2}} + \left(\frac{-1}{2} \cdot \left(1 - -1 \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right) + \frac{1}{6} \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)\right)\right)\right) - -1 \cdot \frac{\sin x \cdot \left(1 - -1 \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)}{\cos x}\right)\right) - -1 \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="99.7% on training set">99.5%</span></p><div class="math">\[\leadsto \color{blue}{\mathsf{fma}\left(\left(-\mathsf{fma}\left(\sin x \cdot \mathsf{fma}\left(\frac{\mathsf{fma}\left(\frac{\sin x}{{\cos x}^{2}}, \sin x, 1\right)}{\cos x}, -0.3333333333333333, \frac{\mathsf{fma}\left(\mathsf{fma}\left(\frac{\sin x}{{\cos x}^{2}}, \sin x, 1\right), -0.3333333333333333, \frac{\mathsf{fma}\left(\sin x, \sin x, \frac{{\sin x}^{4}}{{\cos x}^{2}}\right)}{-{\cos x}^{2}}\right)}{\cos x}\right), \varepsilon, \mathsf{fma}\left(\mathsf{fma}\left(\frac{\sin x}{{\cos x}^{2}}, \sin x, 1\right), -0.3333333333333333, \frac{\mathsf{fma}\left(\sin x, \sin x, \frac{{\sin x}^{4}}{{\cos x}^{2}}\right)}{-{\cos x}^{2}}\right)\right)\right) \cdot \varepsilon, \varepsilon, \mathsf{fma}\left(\frac{\sin x}{{\cos x}^{2}}, \sin x, 1\right) \cdot \left(\frac{\sin x \cdot \varepsilon}{\cos x} + 1\right)\right) \cdot \varepsilon}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="99.6% on training set">99.5%</span></p><div class="math">\[\leadsto \mathsf{fma}\left(\left(-\mathsf{fma}\left(\sin x \cdot 6, \varepsilon, \mathsf{fma}\left(\mathsf{fma}\left(\frac{\sin x}{{\cos x}^{2}}, \sin x, 1\right), -0.3333333333333333, \frac{\mathsf{fma}\left(\sin x, \sin x, \frac{{\sin x}^{4}}{{\cos x}^{2}}\right)}{-{\cos x}^{2}}\right)\right)\right) \cdot \varepsilon, \varepsilon, \mathsf{fma}\left(\frac{\sin x}{{\cos x}^{2}}, \sin x, 1\right) \cdot \left(\frac{\sin x \cdot \varepsilon}{\cos x} + 1\right)\right) \cdot \varepsilon
+\]</div></li><li><p>Taylor expanded in eps around 0</p><div class="math">\[\leadsto \varepsilon \cdot \color{blue}{\left(1 + \left(\varepsilon \cdot \left(\varepsilon \cdot \left(-6 \cdot \left(\varepsilon \cdot \sin x\right) + -1 \cdot \left(-1 \cdot \frac{\frac{{\sin x}^{4}}{{\cos x}^{2}} + {\sin x}^{2}}{{\cos x}^{2}} + \frac{-1}{3} \cdot \left(1 + \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)\right)\right) + \frac{\sin x \cdot \left(1 + \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)}{\cos x}\right) + \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)\right)}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="99.6% on training set">99.5%</span></p><div class="math">\[\leadsto \mathsf{fma}\left(\mathsf{fma}\left(\mathsf{fma}\left(\mathsf{fma}\left(-6 \cdot \varepsilon, \sin x, \frac{\mathsf{fma}\left(\sin x, \sin x, \frac{{\sin x}^{4}}{{\cos x}^{2}}\right)}{{\cos x}^{2}}\right) - \mathsf{fma}\left(\frac{{\sin x}^{2}}{{\cos x}^{2}}, -0.3333333333333333, -0.3333333333333333\right), \varepsilon, \frac{\frac{{\sin x}^{3}}{{\cos x}^{2}} + \sin x}{\cos x}\right), \varepsilon, \frac{{\sin x}^{2}}{{\cos x}^{2}}\right), \color{blue}{\varepsilon}, \varepsilon\right)
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative3" class="programs"><h2>Alternative 3: <span class="subhead"><data>99.6%</data> accurate, <data>0.1×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+t_0 := {\cos x}^{2}\\
+\mathsf{fma}\left(\frac{\mathsf{fma}\left(\sin x, \sin x, \frac{{\sin x}^{4}}{t\_0}\right)}{t\_0} - \mathsf{fma}\left(6 \cdot \sin x, \varepsilon, \mathsf{fma}\left(\frac{{\sin x}^{2}}{t\_0}, -0.3333333333333333, -0.3333333333333333\right)\right), \varepsilon \cdot \varepsilon, \mathsf{fma}\left(\sin x, \frac{\varepsilon}{\cos x}, 1\right) \cdot \mathsf{fma}\left(\sin x, \frac{\sin x}{t\_0}, 1\right)\right) \cdot \varepsilon
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x eps)
+ :precision binary64
+ (let* ((t_0 (pow (cos x) 2.0)))
+   (*
+    (fma
+     (-
+      (/ (fma (sin x) (sin x) (/ (pow (sin x) 4.0) t_0)) t_0)
+      (fma
+       (* 6.0 (sin x))
+       eps
+       (fma
+        (/ (pow (sin x) 2.0) t_0)
+        -0.3333333333333333
+        -0.3333333333333333)))
+     (* eps eps)
+     (* (fma (sin x) (/ eps (cos x)) 1.0) (fma (sin x) (/ (sin x) t_0) 1.0)))
+    eps)))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double eps) {
+	double t_0 = pow(cos(x), 2.0);
+	return fma(((fma(sin(x), sin(x), (pow(sin(x), 4.0) / t_0)) / t_0) - fma((6.0 * sin(x)), eps, fma((pow(sin(x), 2.0) / t_0), -0.3333333333333333, -0.3333333333333333))), (eps * eps), (fma(sin(x), (eps / cos(x)), 1.0) * fma(sin(x), (sin(x) / t_0), 1.0))) * eps;
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, eps)
+	t_0 = cos(x) ^ 2.0
+	return Float64(fma(Float64(Float64(fma(sin(x), sin(x), Float64((sin(x) ^ 4.0) / t_0)) / t_0) - fma(Float64(6.0 * sin(x)), eps, fma(Float64((sin(x) ^ 2.0) / t_0), -0.3333333333333333, -0.3333333333333333))), Float64(eps * eps), Float64(fma(sin(x), Float64(eps / cos(x)), 1.0) * fma(sin(x), Float64(sin(x) / t_0), 1.0))) * eps)
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, eps_] := Block[{t$95$0 = N[Power[N[Cos[x], $MachinePrecision], 2.0], $MachinePrecision]}, N[(N[(N[(N[(N[(N[Sin[x], $MachinePrecision] * N[Sin[x], $MachinePrecision] + N[(N[Power[N[Sin[x], $MachinePrecision], 4.0], $MachinePrecision] / t$95$0), $MachinePrecision]), $MachinePrecision] / t$95$0), $MachinePrecision] - N[(N[(6.0 * N[Sin[x], $MachinePrecision]), $MachinePrecision] * eps + N[(N[(N[Power[N[Sin[x], $MachinePrecision], 2.0], $MachinePrecision] / t$95$0), $MachinePrecision] * -0.3333333333333333 + -0.3333333333333333), $MachinePrecision]), $MachinePrecision]), $MachinePrecision] * N[(eps * eps), $MachinePrecision] + N[(N[(N[Sin[x], $MachinePrecision] * N[(eps / N[Cos[x], $MachinePrecision]), $MachinePrecision] + 1.0), $MachinePrecision] * N[(N[Sin[x], $MachinePrecision] * N[(N[Sin[x], $MachinePrecision] / t$95$0), $MachinePrecision] + 1.0), $MachinePrecision]), $MachinePrecision]), $MachinePrecision] * eps), $MachinePrecision]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+t_0 := {\cos x}^{2}\\
+\mathsf{fma}\left(\frac{\mathsf{fma}\left(\sin x, \sin x, \frac{{\sin x}^{4}}{t\_0}\right)}{t\_0} - \mathsf{fma}\left(6 \cdot \sin x, \varepsilon, \mathsf{fma}\left(\frac{{\sin x}^{2}}{t\_0}, -0.3333333333333333, -0.3333333333333333\right)\right), \varepsilon \cdot \varepsilon, \mathsf{fma}\left(\sin x, \frac{\varepsilon}{\cos x}, 1\right) \cdot \mathsf{fma}\left(\sin x, \frac{\sin x}{t\_0}, 1\right)\right) \cdot \varepsilon
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="62.5% on training set">61.2%</span></p><div class="math">\[\tan \left(x + \varepsilon\right) - \tan x
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in eps around 0</p><div class="math">\[\leadsto \color{blue}{\varepsilon \cdot \left(\left(1 + \varepsilon \cdot \left(\varepsilon \cdot \left(-1 \cdot \left(\varepsilon \cdot \left(\frac{-1}{2} \cdot \frac{\sin x \cdot \left(1 - -1 \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)}{\cos x} + \left(\frac{1}{6} \cdot \frac{\sin x \cdot \left(1 - -1 \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)}{\cos x} + \frac{\sin x \cdot \left(\frac{1}{6} + \left(-1 \cdot \frac{{\sin x}^{2} \cdot \left(1 - -1 \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)}{{\cos x}^{2}} + \left(\frac{-1}{2} \cdot \left(1 - -1 \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right) + \frac{1}{6} \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)\right)\right)}{\cos x}\right)\right)\right) - \left(\frac{1}{6} + \left(-1 \cdot \frac{{\sin x}^{2} \cdot \left(1 - -1 \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)}{{\cos x}^{2}} + \left(\frac{-1}{2} \cdot \left(1 - -1 \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right) + \frac{1}{6} \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)\right)\right)\right) - -1 \cdot \frac{\sin x \cdot \left(1 - -1 \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)}{\cos x}\right)\right) - -1 \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="99.7% on training set">99.5%</span></p><div class="math">\[\leadsto \color{blue}{\mathsf{fma}\left(\left(-\mathsf{fma}\left(\sin x \cdot \mathsf{fma}\left(\frac{\mathsf{fma}\left(\frac{\sin x}{{\cos x}^{2}}, \sin x, 1\right)}{\cos x}, -0.3333333333333333, \frac{\mathsf{fma}\left(\mathsf{fma}\left(\frac{\sin x}{{\cos x}^{2}}, \sin x, 1\right), -0.3333333333333333, \frac{\mathsf{fma}\left(\sin x, \sin x, \frac{{\sin x}^{4}}{{\cos x}^{2}}\right)}{-{\cos x}^{2}}\right)}{\cos x}\right), \varepsilon, \mathsf{fma}\left(\mathsf{fma}\left(\frac{\sin x}{{\cos x}^{2}}, \sin x, 1\right), -0.3333333333333333, \frac{\mathsf{fma}\left(\sin x, \sin x, \frac{{\sin x}^{4}}{{\cos x}^{2}}\right)}{-{\cos x}^{2}}\right)\right)\right) \cdot \varepsilon, \varepsilon, \mathsf{fma}\left(\frac{\sin x}{{\cos x}^{2}}, \sin x, 1\right) \cdot \left(\frac{\sin x \cdot \varepsilon}{\cos x} + 1\right)\right) \cdot \varepsilon}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="99.6% on training set">99.5%</span></p><div class="math">\[\leadsto \mathsf{fma}\left(\left(-\mathsf{fma}\left(\sin x \cdot 6, \varepsilon, \mathsf{fma}\left(\mathsf{fma}\left(\frac{\sin x}{{\cos x}^{2}}, \sin x, 1\right), -0.3333333333333333, \frac{\mathsf{fma}\left(\sin x, \sin x, \frac{{\sin x}^{4}}{{\cos x}^{2}}\right)}{-{\cos x}^{2}}\right)\right)\right) \cdot \varepsilon, \varepsilon, \mathsf{fma}\left(\frac{\sin x}{{\cos x}^{2}}, \sin x, 1\right) \cdot \left(\frac{\sin x \cdot \varepsilon}{\cos x} + 1\right)\right) \cdot \varepsilon
+\]</div></li><li><p>Taylor expanded in x around inf</p><div class="math">\[\leadsto \varepsilon \cdot \color{blue}{\left(-1 \cdot \left({\varepsilon}^{2} \cdot \left(-1 \cdot \frac{\frac{{\sin x}^{4}}{{\cos x}^{2}} + {\sin x}^{2}}{{\cos x}^{2}} + \left(\frac{-1}{3} \cdot \left(1 + \frac{{\sin x}^{2}}{{\cos x}^{2}}\right) + 6 \cdot \left(\varepsilon \cdot \sin x\right)\right)\right)\right) + \left(1 + \frac{\varepsilon \cdot \sin x}{\cos x}\right) \cdot \left(1 + \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)\right)}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="99.6% on training set">99.5%</span></p><div class="math">\[\leadsto \mathsf{fma}\left(\frac{\mathsf{fma}\left(\sin x, \sin x, \frac{{\sin x}^{4}}{{\cos x}^{2}}\right)}{{\cos x}^{2}} - \mathsf{fma}\left(6 \cdot \sin x, \varepsilon, \mathsf{fma}\left(\frac{{\sin x}^{2}}{{\cos x}^{2}}, -0.3333333333333333, -0.3333333333333333\right)\right), \varepsilon \cdot \varepsilon, \mathsf{fma}\left(\sin x, \frac{\varepsilon}{\cos x}, 1\right) \cdot \mathsf{fma}\left(\sin x, \frac{\sin x}{{\cos x}^{2}}, 1\right)\right) \cdot \color{blue}{\varepsilon}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative4" class="programs"><h2>Alternative 4: <span class="subhead"><data>99.6%</data> accurate, <data>0.1×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+t_0 := {\cos x}^{2}\\
+\mathsf{fma}\left(\left(\mathsf{fma}\left(\frac{{\sin x}^{2}}{t\_0}, -0.3333333333333333, -0.3333333333333333\right) - \frac{\mathsf{fma}\left(\sin x, \sin x, \frac{{\sin x}^{4}}{t\_0}\right)}{t\_0}\right) \cdot \left(-\varepsilon\right), \varepsilon, \mathsf{fma}\left(\frac{\sin x}{t\_0}, \sin x, 1\right) \cdot \left(\frac{\sin x \cdot \varepsilon}{\cos x} + 1\right)\right) \cdot \varepsilon
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x eps)
+ :precision binary64
+ (let* ((t_0 (pow (cos x) 2.0)))
+   (*
+    (fma
+     (*
+      (-
+       (fma (/ (pow (sin x) 2.0) t_0) -0.3333333333333333 -0.3333333333333333)
+       (/ (fma (sin x) (sin x) (/ (pow (sin x) 4.0) t_0)) t_0))
+      (- eps))
+     eps
+     (* (fma (/ (sin x) t_0) (sin x) 1.0) (+ (/ (* (sin x) eps) (cos x)) 1.0)))
+    eps)))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double eps) {
+	double t_0 = pow(cos(x), 2.0);
+	return fma(((fma((pow(sin(x), 2.0) / t_0), -0.3333333333333333, -0.3333333333333333) - (fma(sin(x), sin(x), (pow(sin(x), 4.0) / t_0)) / t_0)) * -eps), eps, (fma((sin(x) / t_0), sin(x), 1.0) * (((sin(x) * eps) / cos(x)) + 1.0))) * eps;
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, eps)
+	t_0 = cos(x) ^ 2.0
+	return Float64(fma(Float64(Float64(fma(Float64((sin(x) ^ 2.0) / t_0), -0.3333333333333333, -0.3333333333333333) - Float64(fma(sin(x), sin(x), Float64((sin(x) ^ 4.0) / t_0)) / t_0)) * Float64(-eps)), eps, Float64(fma(Float64(sin(x) / t_0), sin(x), 1.0) * Float64(Float64(Float64(sin(x) * eps) / cos(x)) + 1.0))) * eps)
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, eps_] := Block[{t$95$0 = N[Power[N[Cos[x], $MachinePrecision], 2.0], $MachinePrecision]}, N[(N[(N[(N[(N[(N[(N[Power[N[Sin[x], $MachinePrecision], 2.0], $MachinePrecision] / t$95$0), $MachinePrecision] * -0.3333333333333333 + -0.3333333333333333), $MachinePrecision] - N[(N[(N[Sin[x], $MachinePrecision] * N[Sin[x], $MachinePrecision] + N[(N[Power[N[Sin[x], $MachinePrecision], 4.0], $MachinePrecision] / t$95$0), $MachinePrecision]), $MachinePrecision] / t$95$0), $MachinePrecision]), $MachinePrecision] * (-eps)), $MachinePrecision] * eps + N[(N[(N[(N[Sin[x], $MachinePrecision] / t$95$0), $MachinePrecision] * N[Sin[x], $MachinePrecision] + 1.0), $MachinePrecision] * N[(N[(N[(N[Sin[x], $MachinePrecision] * eps), $MachinePrecision] / N[Cos[x], $MachinePrecision]), $MachinePrecision] + 1.0), $MachinePrecision]), $MachinePrecision]), $MachinePrecision] * eps), $MachinePrecision]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+t_0 := {\cos x}^{2}\\
+\mathsf{fma}\left(\left(\mathsf{fma}\left(\frac{{\sin x}^{2}}{t\_0}, -0.3333333333333333, -0.3333333333333333\right) - \frac{\mathsf{fma}\left(\sin x, \sin x, \frac{{\sin x}^{4}}{t\_0}\right)}{t\_0}\right) \cdot \left(-\varepsilon\right), \varepsilon, \mathsf{fma}\left(\frac{\sin x}{t\_0}, \sin x, 1\right) \cdot \left(\frac{\sin x \cdot \varepsilon}{\cos x} + 1\right)\right) \cdot \varepsilon
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="62.5% on training set">61.2%</span></p><div class="math">\[\tan \left(x + \varepsilon\right) - \tan x
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in eps around 0</p><div class="math">\[\leadsto \color{blue}{\varepsilon \cdot \left(\left(1 + \varepsilon \cdot \left(\varepsilon \cdot \left(-1 \cdot \left(\varepsilon \cdot \left(\frac{-1}{2} \cdot \frac{\sin x \cdot \left(1 - -1 \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)}{\cos x} + \left(\frac{1}{6} \cdot \frac{\sin x \cdot \left(1 - -1 \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)}{\cos x} + \frac{\sin x \cdot \left(\frac{1}{6} + \left(-1 \cdot \frac{{\sin x}^{2} \cdot \left(1 - -1 \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)}{{\cos x}^{2}} + \left(\frac{-1}{2} \cdot \left(1 - -1 \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right) + \frac{1}{6} \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)\right)\right)}{\cos x}\right)\right)\right) - \left(\frac{1}{6} + \left(-1 \cdot \frac{{\sin x}^{2} \cdot \left(1 - -1 \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)}{{\cos x}^{2}} + \left(\frac{-1}{2} \cdot \left(1 - -1 \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right) + \frac{1}{6} \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)\right)\right)\right) - -1 \cdot \frac{\sin x \cdot \left(1 - -1 \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)}{\cos x}\right)\right) - -1 \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="99.7% on training set">99.5%</span></p><div class="math">\[\leadsto \color{blue}{\mathsf{fma}\left(\left(-\mathsf{fma}\left(\sin x \cdot \mathsf{fma}\left(\frac{\mathsf{fma}\left(\frac{\sin x}{{\cos x}^{2}}, \sin x, 1\right)}{\cos x}, -0.3333333333333333, \frac{\mathsf{fma}\left(\mathsf{fma}\left(\frac{\sin x}{{\cos x}^{2}}, \sin x, 1\right), -0.3333333333333333, \frac{\mathsf{fma}\left(\sin x, \sin x, \frac{{\sin x}^{4}}{{\cos x}^{2}}\right)}{-{\cos x}^{2}}\right)}{\cos x}\right), \varepsilon, \mathsf{fma}\left(\mathsf{fma}\left(\frac{\sin x}{{\cos x}^{2}}, \sin x, 1\right), -0.3333333333333333, \frac{\mathsf{fma}\left(\sin x, \sin x, \frac{{\sin x}^{4}}{{\cos x}^{2}}\right)}{-{\cos x}^{2}}\right)\right)\right) \cdot \varepsilon, \varepsilon, \mathsf{fma}\left(\frac{\sin x}{{\cos x}^{2}}, \sin x, 1\right) \cdot \left(\frac{\sin x \cdot \varepsilon}{\cos x} + 1\right)\right) \cdot \varepsilon}
+\]</div></li><li><p>Taylor expanded in eps around 0</p><div class="math">\[\leadsto \mathsf{fma}\left(\left(-\left(-1 \cdot \frac{\frac{{\sin x}^{4}}{{\cos x}^{2}} + {\sin x}^{2}}{{\cos x}^{2}} + \frac{-1}{3} \cdot \left(1 + \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)\right)\right) \cdot \varepsilon, \varepsilon, \mathsf{fma}\left(\frac{\sin x}{{\cos x}^{2}}, \sin x, 1\right) \cdot \left(\frac{\sin x \cdot \varepsilon}{\cos x} + 1\right)\right) \cdot \varepsilon
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="99.6% on training set">99.4%</span></p><div class="math">\[\leadsto \mathsf{fma}\left(\left(-\left(\mathsf{fma}\left(\frac{{\sin x}^{2}}{{\cos x}^{2}}, -0.3333333333333333, -0.3333333333333333\right) - \frac{\mathsf{fma}\left(\sin x, \sin x, \frac{{\sin x}^{4}}{{\cos x}^{2}}\right)}{{\cos x}^{2}}\right)\right) \cdot \varepsilon, \varepsilon, \mathsf{fma}\left(\frac{\sin x}{{\cos x}^{2}}, \sin x, 1\right) \cdot \left(\frac{\sin x \cdot \varepsilon}{\cos x} + 1\right)\right) \cdot \varepsilon
+\]</div></li><li><p>Final simplification<span class="error" title="99.6% on training set">99.4%</span></p><div class="math">\[\leadsto \mathsf{fma}\left(\left(\mathsf{fma}\left(\frac{{\sin x}^{2}}{{\cos x}^{2}}, -0.3333333333333333, -0.3333333333333333\right) - \frac{\mathsf{fma}\left(\sin x, \sin x, \frac{{\sin x}^{4}}{{\cos x}^{2}}\right)}{{\cos x}^{2}}\right) \cdot \left(-\varepsilon\right), \varepsilon, \mathsf{fma}\left(\frac{\sin x}{{\cos x}^{2}}, \sin x, 1\right) \cdot \left(\frac{\sin x \cdot \varepsilon}{\cos x} + 1\right)\right) \cdot \varepsilon
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative5" class="programs"><h2>Alternative 5: <span class="subhead"><data>99.6%</data> accurate, <data>0.1×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\begin{array}{l}
+t_0 := {\cos x}^{2}\\
+t_1 := \frac{{\sin x}^{2}}{t\_0}\\
+\mathsf{fma}\left(\left(-\varepsilon\right) \cdot \varepsilon, \left(\mathsf{fma}\left(t\_1, -0.3333333333333333, -0.3333333333333333\right) - \frac{{\sin x}^{4}}{{\cos x}^{4}}\right) - t\_1, \mathsf{fma}\left(\sin x, \frac{\varepsilon}{\cos x}, 1\right) \cdot \mathsf{fma}\left(\sin x, \frac{\sin x}{t\_0}, 1\right)\right) \cdot \varepsilon
+\end{array}
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x eps)
+ :precision binary64
+ (let* ((t_0 (pow (cos x) 2.0)) (t_1 (/ (pow (sin x) 2.0) t_0)))
+   (*
+    (fma
+     (* (- eps) eps)
+     (-
+      (-
+       (fma t_1 -0.3333333333333333 -0.3333333333333333)
+       (/ (pow (sin x) 4.0) (pow (cos x) 4.0)))
+      t_1)
+     (* (fma (sin x) (/ eps (cos x)) 1.0) (fma (sin x) (/ (sin x) t_0) 1.0)))
+    eps)))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double eps) {
+	double t_0 = pow(cos(x), 2.0);
+	double t_1 = pow(sin(x), 2.0) / t_0;
+	return fma((-eps * eps), ((fma(t_1, -0.3333333333333333, -0.3333333333333333) - (pow(sin(x), 4.0) / pow(cos(x), 4.0))) - t_1), (fma(sin(x), (eps / cos(x)), 1.0) * fma(sin(x), (sin(x) / t_0), 1.0))) * eps;
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, eps)
+	t_0 = cos(x) ^ 2.0
+	t_1 = Float64((sin(x) ^ 2.0) / t_0)
+	return Float64(fma(Float64(Float64(-eps) * eps), Float64(Float64(fma(t_1, -0.3333333333333333, -0.3333333333333333) - Float64((sin(x) ^ 4.0) / (cos(x) ^ 4.0))) - t_1), Float64(fma(sin(x), Float64(eps / cos(x)), 1.0) * fma(sin(x), Float64(sin(x) / t_0), 1.0))) * eps)
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, eps_] := Block[{t$95$0 = N[Power[N[Cos[x], $MachinePrecision], 2.0], $MachinePrecision]}, Block[{t$95$1 = N[(N[Power[N[Sin[x], $MachinePrecision], 2.0], $MachinePrecision] / t$95$0), $MachinePrecision]}, N[(N[(N[((-eps) * eps), $MachinePrecision] * N[(N[(N[(t$95$1 * -0.3333333333333333 + -0.3333333333333333), $MachinePrecision] - N[(N[Power[N[Sin[x], $MachinePrecision], 4.0], $MachinePrecision] / N[Power[N[Cos[x], $MachinePrecision], 4.0], $MachinePrecision]), $MachinePrecision]), $MachinePrecision] - t$95$1), $MachinePrecision] + N[(N[(N[Sin[x], $MachinePrecision] * N[(eps / N[Cos[x], $MachinePrecision]), $MachinePrecision] + 1.0), $MachinePrecision] * N[(N[Sin[x], $MachinePrecision] * N[(N[Sin[x], $MachinePrecision] / t$95$0), $MachinePrecision] + 1.0), $MachinePrecision]), $MachinePrecision]), $MachinePrecision] * eps), $MachinePrecision]]]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\begin{array}{l}
+t_0 := {\cos x}^{2}\\
+t_1 := \frac{{\sin x}^{2}}{t\_0}\\
+\mathsf{fma}\left(\left(-\varepsilon\right) \cdot \varepsilon, \left(\mathsf{fma}\left(t\_1, -0.3333333333333333, -0.3333333333333333\right) - \frac{{\sin x}^{4}}{{\cos x}^{4}}\right) - t\_1, \mathsf{fma}\left(\sin x, \frac{\varepsilon}{\cos x}, 1\right) \cdot \mathsf{fma}\left(\sin x, \frac{\sin x}{t\_0}, 1\right)\right) \cdot \varepsilon
+\end{array}
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="62.5% on training set">61.2%</span></p><div class="math">\[\tan \left(x + \varepsilon\right) - \tan x
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in eps around 0</p><div class="math">\[\leadsto \color{blue}{\varepsilon \cdot \left(\left(1 + \varepsilon \cdot \left(\varepsilon \cdot \left(-1 \cdot \left(\varepsilon \cdot \left(\frac{-1}{2} \cdot \frac{\sin x \cdot \left(1 - -1 \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)}{\cos x} + \left(\frac{1}{6} \cdot \frac{\sin x \cdot \left(1 - -1 \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)}{\cos x} + \frac{\sin x \cdot \left(\frac{1}{6} + \left(-1 \cdot \frac{{\sin x}^{2} \cdot \left(1 - -1 \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)}{{\cos x}^{2}} + \left(\frac{-1}{2} \cdot \left(1 - -1 \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right) + \frac{1}{6} \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)\right)\right)}{\cos x}\right)\right)\right) - \left(\frac{1}{6} + \left(-1 \cdot \frac{{\sin x}^{2} \cdot \left(1 - -1 \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)}{{\cos x}^{2}} + \left(\frac{-1}{2} \cdot \left(1 - -1 \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right) + \frac{1}{6} \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)\right)\right)\right) - -1 \cdot \frac{\sin x \cdot \left(1 - -1 \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)}{\cos x}\right)\right) - -1 \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="99.7% on training set">99.5%</span></p><div class="math">\[\leadsto \color{blue}{\mathsf{fma}\left(\left(-\mathsf{fma}\left(\sin x \cdot \mathsf{fma}\left(\frac{\mathsf{fma}\left(\frac{\sin x}{{\cos x}^{2}}, \sin x, 1\right)}{\cos x}, -0.3333333333333333, \frac{\mathsf{fma}\left(\mathsf{fma}\left(\frac{\sin x}{{\cos x}^{2}}, \sin x, 1\right), -0.3333333333333333, \frac{\mathsf{fma}\left(\sin x, \sin x, \frac{{\sin x}^{4}}{{\cos x}^{2}}\right)}{-{\cos x}^{2}}\right)}{\cos x}\right), \varepsilon, \mathsf{fma}\left(\mathsf{fma}\left(\frac{\sin x}{{\cos x}^{2}}, \sin x, 1\right), -0.3333333333333333, \frac{\mathsf{fma}\left(\sin x, \sin x, \frac{{\sin x}^{4}}{{\cos x}^{2}}\right)}{-{\cos x}^{2}}\right)\right)\right) \cdot \varepsilon, \varepsilon, \mathsf{fma}\left(\frac{\sin x}{{\cos x}^{2}}, \sin x, 1\right) \cdot \left(\frac{\sin x \cdot \varepsilon}{\cos x} + 1\right)\right) \cdot \varepsilon}
+\]</div></li><li><p>Taylor expanded in x around inf</p><div class="math">\[\leadsto \varepsilon \cdot \color{blue}{\left(-1 \cdot \left({\varepsilon}^{2} \cdot \left(-1 \cdot \frac{\frac{{\sin x}^{4}}{{\cos x}^{2}} + {\sin x}^{2}}{{\cos x}^{2}} + \left(\frac{-1}{3} \cdot \left(1 + \frac{{\sin x}^{2}}{{\cos x}^{2}}\right) + \varepsilon \cdot \left(\sin x \cdot \left(-1 \cdot \frac{\frac{{\sin x}^{4}}{{\cos x}^{2}} + {\sin x}^{2}}{{\cos x}^{3}} + \frac{-2}{3} \cdot \frac{1 + \frac{{\sin x}^{2}}{{\cos x}^{2}}}{\cos x}\right)\right)\right)\right)\right) + \left(1 + \frac{\varepsilon \cdot \sin x}{\cos x}\right) \cdot \left(1 + \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)\right)}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="99.7% on training set">99.5%</span></p><div class="math">\[\leadsto \mathsf{fma}\left(\left(-\varepsilon\right) \cdot \varepsilon, \mathsf{fma}\left(\sin x \cdot \varepsilon, \frac{\mathsf{fma}\left(\frac{{\sin x}^{2}}{{\cos x}^{2}}, -0.6666666666666666, -0.6666666666666666\right)}{\cos x} - \frac{\mathsf{fma}\left(\sin x, \sin x, \frac{{\sin x}^{4}}{{\cos x}^{2}}\right)}{{\cos x}^{3}}, \mathsf{fma}\left(\frac{{\sin x}^{2}}{{\cos x}^{2}}, -0.3333333333333333, -0.3333333333333333\right) - \frac{\mathsf{fma}\left(\sin x, \sin x, \frac{{\sin x}^{4}}{{\cos x}^{2}}\right)}{{\cos x}^{2}}\right), \mathsf{fma}\left(\sin x, \frac{\varepsilon}{\cos x}, 1\right) \cdot \mathsf{fma}\left(\sin x, \frac{\sin x}{{\cos x}^{2}}, 1\right)\right) \cdot \color{blue}{\varepsilon}
+\]</div></li><li><p>Taylor expanded in eps around 0</p><div class="math">\[\leadsto \mathsf{fma}\left(\left(-\varepsilon\right) \cdot \varepsilon, \frac{-1}{3} \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}} - \left(\frac{1}{3} + \left(\frac{{\sin x}^{2}}{{\cos x}^{2}} + \frac{{\sin x}^{4}}{{\cos x}^{4}}\right)\right), \mathsf{fma}\left(\sin x, \frac{\varepsilon}{\cos x}, 1\right) \cdot \mathsf{fma}\left(\sin x, \frac{\sin x}{{\cos x}^{2}}, 1\right)\right) \cdot \varepsilon
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="99.6% on training set">99.4%</span></p><div class="math">\[\leadsto \mathsf{fma}\left(\left(-\varepsilon\right) \cdot \varepsilon, \left(\mathsf{fma}\left(\frac{{\sin x}^{2}}{{\cos x}^{2}}, -0.3333333333333333, -0.3333333333333333\right) - \frac{{\sin x}^{4}}{{\cos x}^{4}}\right) - \frac{{\sin x}^{2}}{{\cos x}^{2}}, \mathsf{fma}\left(\sin x, \frac{\varepsilon}{\cos x}, 1\right) \cdot \mathsf{fma}\left(\sin x, \frac{\sin x}{{\cos x}^{2}}, 1\right)\right) \cdot \varepsilon
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative6" class="programs"><h2>Alternative 6: <span class="subhead"><data>99.5%</data> accurate, <data>0.3×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\mathsf{fma}\left(0.3333333333333333 \cdot \varepsilon, \varepsilon, \mathsf{fma}\left(\frac{\sin x}{{\cos x}^{2}}, \sin x, 1\right) \cdot \left(\frac{\sin x \cdot \varepsilon}{\cos x} + 1\right)\right) \cdot \varepsilon
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x eps)
+ :precision binary64
+ (*
+  (fma
+   (* 0.3333333333333333 eps)
+   eps
+   (*
+    (fma (/ (sin x) (pow (cos x) 2.0)) (sin x) 1.0)
+    (+ (/ (* (sin x) eps) (cos x)) 1.0)))
+  eps))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double eps) {
+	return fma((0.3333333333333333 * eps), eps, (fma((sin(x) / pow(cos(x), 2.0)), sin(x), 1.0) * (((sin(x) * eps) / cos(x)) + 1.0))) * eps;
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, eps)
+	return Float64(fma(Float64(0.3333333333333333 * eps), eps, Float64(fma(Float64(sin(x) / (cos(x) ^ 2.0)), sin(x), 1.0) * Float64(Float64(Float64(sin(x) * eps) / cos(x)) + 1.0))) * eps)
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, eps_] := N[(N[(N[(0.3333333333333333 * eps), $MachinePrecision] * eps + N[(N[(N[(N[Sin[x], $MachinePrecision] / N[Power[N[Cos[x], $MachinePrecision], 2.0], $MachinePrecision]), $MachinePrecision] * N[Sin[x], $MachinePrecision] + 1.0), $MachinePrecision] * N[(N[(N[(N[Sin[x], $MachinePrecision] * eps), $MachinePrecision] / N[Cos[x], $MachinePrecision]), $MachinePrecision] + 1.0), $MachinePrecision]), $MachinePrecision]), $MachinePrecision] * eps), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\mathsf{fma}\left(0.3333333333333333 \cdot \varepsilon, \varepsilon, \mathsf{fma}\left(\frac{\sin x}{{\cos x}^{2}}, \sin x, 1\right) \cdot \left(\frac{\sin x \cdot \varepsilon}{\cos x} + 1\right)\right) \cdot \varepsilon
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="62.5% on training set">61.2%</span></p><div class="math">\[\tan \left(x + \varepsilon\right) - \tan x
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in eps around 0</p><div class="math">\[\leadsto \color{blue}{\varepsilon \cdot \left(\left(1 + \varepsilon \cdot \left(\varepsilon \cdot \left(-1 \cdot \left(\varepsilon \cdot \left(\frac{-1}{2} \cdot \frac{\sin x \cdot \left(1 - -1 \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)}{\cos x} + \left(\frac{1}{6} \cdot \frac{\sin x \cdot \left(1 - -1 \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)}{\cos x} + \frac{\sin x \cdot \left(\frac{1}{6} + \left(-1 \cdot \frac{{\sin x}^{2} \cdot \left(1 - -1 \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)}{{\cos x}^{2}} + \left(\frac{-1}{2} \cdot \left(1 - -1 \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right) + \frac{1}{6} \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)\right)\right)}{\cos x}\right)\right)\right) - \left(\frac{1}{6} + \left(-1 \cdot \frac{{\sin x}^{2} \cdot \left(1 - -1 \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)}{{\cos x}^{2}} + \left(\frac{-1}{2} \cdot \left(1 - -1 \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right) + \frac{1}{6} \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)\right)\right)\right) - -1 \cdot \frac{\sin x \cdot \left(1 - -1 \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)}{\cos x}\right)\right) - -1 \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="99.7% on training set">99.5%</span></p><div class="math">\[\leadsto \color{blue}{\mathsf{fma}\left(\left(-\mathsf{fma}\left(\sin x \cdot \mathsf{fma}\left(\frac{\mathsf{fma}\left(\frac{\sin x}{{\cos x}^{2}}, \sin x, 1\right)}{\cos x}, -0.3333333333333333, \frac{\mathsf{fma}\left(\mathsf{fma}\left(\frac{\sin x}{{\cos x}^{2}}, \sin x, 1\right), -0.3333333333333333, \frac{\mathsf{fma}\left(\sin x, \sin x, \frac{{\sin x}^{4}}{{\cos x}^{2}}\right)}{-{\cos x}^{2}}\right)}{\cos x}\right), \varepsilon, \mathsf{fma}\left(\mathsf{fma}\left(\frac{\sin x}{{\cos x}^{2}}, \sin x, 1\right), -0.3333333333333333, \frac{\mathsf{fma}\left(\sin x, \sin x, \frac{{\sin x}^{4}}{{\cos x}^{2}}\right)}{-{\cos x}^{2}}\right)\right)\right) \cdot \varepsilon, \varepsilon, \mathsf{fma}\left(\frac{\sin x}{{\cos x}^{2}}, \sin x, 1\right) \cdot \left(\frac{\sin x \cdot \varepsilon}{\cos x} + 1\right)\right) \cdot \varepsilon}
+\]</div></li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \mathsf{fma}\left(\frac{1}{3} \cdot \varepsilon, \varepsilon, \mathsf{fma}\left(\frac{\sin x}{{\cos x}^{2}}, \sin x, 1\right) \cdot \left(\frac{\sin x \cdot \varepsilon}{\cos x} + 1\right)\right) \cdot \varepsilon
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="99.5% on training set">99.3%</span></p><div class="math">\[\leadsto \mathsf{fma}\left(0.3333333333333333 \cdot \varepsilon, \varepsilon, \mathsf{fma}\left(\frac{\sin x}{{\cos x}^{2}}, \sin x, 1\right) \cdot \left(\frac{\sin x \cdot \varepsilon}{\cos x} + 1\right)\right) \cdot \varepsilon
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative7" class="programs"><h2>Alternative 7: <span class="subhead"><data>99.4%</data> accurate, <data>0.3×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\left(\mathsf{fma}\left(\frac{\sin x}{{\cos x}^{2}}, \sin x, 1\right) \cdot \mathsf{fma}\left(\sin x, \frac{\varepsilon}{\cos x}, 1\right)\right) \cdot \varepsilon
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x eps)
+ :precision binary64
+ (*
+  (*
+   (fma (/ (sin x) (pow (cos x) 2.0)) (sin x) 1.0)
+   (fma (sin x) (/ eps (cos x)) 1.0))
+  eps))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double eps) {
+	return (fma((sin(x) / pow(cos(x), 2.0)), sin(x), 1.0) * fma(sin(x), (eps / cos(x)), 1.0)) * eps;
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, eps)
+	return Float64(Float64(fma(Float64(sin(x) / (cos(x) ^ 2.0)), sin(x), 1.0) * fma(sin(x), Float64(eps / cos(x)), 1.0)) * eps)
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, eps_] := N[(N[(N[(N[(N[Sin[x], $MachinePrecision] / N[Power[N[Cos[x], $MachinePrecision], 2.0], $MachinePrecision]), $MachinePrecision] * N[Sin[x], $MachinePrecision] + 1.0), $MachinePrecision] * N[(N[Sin[x], $MachinePrecision] * N[(eps / N[Cos[x], $MachinePrecision]), $MachinePrecision] + 1.0), $MachinePrecision]), $MachinePrecision] * eps), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\left(\mathsf{fma}\left(\frac{\sin x}{{\cos x}^{2}}, \sin x, 1\right) \cdot \mathsf{fma}\left(\sin x, \frac{\varepsilon}{\cos x}, 1\right)\right) \cdot \varepsilon
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="62.5% on training set">61.2%</span></p><div class="math">\[\tan \left(x + \varepsilon\right) - \tan x
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in eps around 0</p><div class="math">\[\leadsto \color{blue}{\varepsilon \cdot \left(\left(1 + \frac{\varepsilon \cdot \left(\sin x \cdot \left(1 - -1 \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)\right)}{\cos x}\right) - -1 \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="99.4% on training set">99.3%</span></p><div class="math">\[\leadsto \color{blue}{\left(\mathsf{fma}\left(\frac{\sin x}{{\cos x}^{2}}, \sin x, 1\right) \cdot \left(\frac{\sin x \cdot \varepsilon}{\cos x} + 1\right)\right) \cdot \varepsilon}
+\]</div></li><li><p>Taylor expanded in x around inf</p><div class="math">\[\leadsto \left(\mathsf{fma}\left(\frac{\sin x}{{\cos x}^{2}}, \sin x, 1\right) \cdot \left(1 + \frac{\varepsilon \cdot \sin x}{\cos x}\right)\right) \cdot \varepsilon
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="99.4% on training set">99.3%</span></p><div class="math">\[\leadsto \left(\mathsf{fma}\left(\frac{\sin x}{{\cos x}^{2}}, \sin x, 1\right) \cdot \mathsf{fma}\left(\sin x, \frac{\varepsilon}{\cos x}, 1\right)\right) \cdot \varepsilon
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative8" class="programs"><h2>Alternative 8: <span class="subhead"><data>99.5%</data> accurate, <data>0.3×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\mathsf{fma}\left({\sin x}^{2}, \frac{\varepsilon}{{\cos x}^{2}}, \varepsilon\right) \cdot \mathsf{fma}\left(\sin x, \frac{\varepsilon}{\cos x}, 1\right)
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x eps)
+ :precision binary64
+ (*
+  (fma (pow (sin x) 2.0) (/ eps (pow (cos x) 2.0)) eps)
+  (fma (sin x) (/ eps (cos x)) 1.0)))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double eps) {
+	return fma(pow(sin(x), 2.0), (eps / pow(cos(x), 2.0)), eps) * fma(sin(x), (eps / cos(x)), 1.0);
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, eps)
+	return Float64(fma((sin(x) ^ 2.0), Float64(eps / (cos(x) ^ 2.0)), eps) * fma(sin(x), Float64(eps / cos(x)), 1.0))
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, eps_] := N[(N[(N[Power[N[Sin[x], $MachinePrecision], 2.0], $MachinePrecision] * N[(eps / N[Power[N[Cos[x], $MachinePrecision], 2.0], $MachinePrecision]), $MachinePrecision] + eps), $MachinePrecision] * N[(N[Sin[x], $MachinePrecision] * N[(eps / N[Cos[x], $MachinePrecision]), $MachinePrecision] + 1.0), $MachinePrecision]), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\mathsf{fma}\left({\sin x}^{2}, \frac{\varepsilon}{{\cos x}^{2}}, \varepsilon\right) \cdot \mathsf{fma}\left(\sin x, \frac{\varepsilon}{\cos x}, 1\right)
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="62.5% on training set">61.2%</span></p><div class="math">\[\tan \left(x + \varepsilon\right) - \tan x
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in eps around 0</p><div class="math">\[\leadsto \color{blue}{\varepsilon \cdot \left(\left(1 + \frac{\varepsilon \cdot \left(\sin x \cdot \left(1 - -1 \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)\right)}{\cos x}\right) - -1 \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="99.4% on training set">99.3%</span></p><div class="math">\[\leadsto \color{blue}{\left(\mathsf{fma}\left(\frac{\sin x}{{\cos x}^{2}}, \sin x, 1\right) \cdot \left(\frac{\sin x \cdot \varepsilon}{\cos x} + 1\right)\right) \cdot \varepsilon}
+\]</div></li><li><p>Taylor expanded in x around inf</p><div class="math">\[\leadsto \varepsilon \cdot \color{blue}{\left(\left(1 + \frac{\varepsilon \cdot \sin x}{\cos x}\right) \cdot \left(1 + \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)\right)}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="99.5% on training set">99.3%</span></p><div class="math">\[\leadsto \mathsf{fma}\left({\sin x}^{2}, \frac{\varepsilon}{{\cos x}^{2}}, \varepsilon\right) \cdot \color{blue}{\mathsf{fma}\left(\sin x, \frac{\varepsilon}{\cos x}, 1\right)}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative9" class="programs"><h2>Alternative 9: <span class="subhead"><data>99.0%</data> accurate, <data>0.5×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\mathsf{fma}\left({\sin x}^{2}, \frac{\varepsilon}{{\cos x}^{2}}, \varepsilon\right)
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x eps)
+ :precision binary64
+ (fma (pow (sin x) 2.0) (/ eps (pow (cos x) 2.0)) eps))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double eps) {
+	return fma(pow(sin(x), 2.0), (eps / pow(cos(x), 2.0)), eps);
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, eps)
+	return fma((sin(x) ^ 2.0), Float64(eps / (cos(x) ^ 2.0)), eps)
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, eps_] := N[(N[Power[N[Sin[x], $MachinePrecision], 2.0], $MachinePrecision] * N[(eps / N[Power[N[Cos[x], $MachinePrecision], 2.0], $MachinePrecision]), $MachinePrecision] + eps), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\mathsf{fma}\left({\sin x}^{2}, \frac{\varepsilon}{{\cos x}^{2}}, \varepsilon\right)
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="62.5% on training set">61.2%</span></p><div class="math">\[\tan \left(x + \varepsilon\right) - \tan x
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \color{blue}{\frac{\sin \varepsilon}{\cos \varepsilon}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="97.9% on training set">97.4%</span></p><div class="math">\[\leadsto \color{blue}{\frac{\sin \varepsilon}{\cos \varepsilon}}
+\]</div></li><li><p>Taylor expanded in eps around 0</p><div class="math">\[\leadsto \color{blue}{\varepsilon \cdot \left(1 - -1 \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="99.0% on training set">98.7%</span></p><div class="math">\[\leadsto \color{blue}{\mathsf{fma}\left({\sin x}^{2}, \frac{\varepsilon}{{\cos x}^{2}}, \varepsilon\right)}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative10" class="programs"><h2>Alternative 10: <span class="subhead"><data>99.0%</data> accurate, <data>0.5×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\mathsf{fma}\left(\frac{{\sin x}^{2}}{{\cos x}^{2}}, \varepsilon, \varepsilon\right)
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x eps)
+ :precision binary64
+ (fma (/ (pow (sin x) 2.0) (pow (cos x) 2.0)) eps eps))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double eps) {
+	return fma((pow(sin(x), 2.0) / pow(cos(x), 2.0)), eps, eps);
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, eps)
+	return fma(Float64((sin(x) ^ 2.0) / (cos(x) ^ 2.0)), eps, eps)
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, eps_] := N[(N[(N[Power[N[Sin[x], $MachinePrecision], 2.0], $MachinePrecision] / N[Power[N[Cos[x], $MachinePrecision], 2.0], $MachinePrecision]), $MachinePrecision] * eps + eps), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\mathsf{fma}\left(\frac{{\sin x}^{2}}{{\cos x}^{2}}, \varepsilon, \varepsilon\right)
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="62.5% on training set">61.2%</span></p><div class="math">\[\tan \left(x + \varepsilon\right) - \tan x
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in eps around 0</p><div class="math">\[\leadsto \color{blue}{\varepsilon \cdot \left(1 - -1 \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="99.0% on training set">98.7%</span></p><div class="math">\[\leadsto \color{blue}{\mathsf{fma}\left(\frac{{\sin x}^{2}}{{\cos x}^{2}}, \varepsilon, \varepsilon\right)}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative11" class="programs"><h2>Alternative 11: <span class="subhead"><data>98.7%</data> accurate, <data>0.8×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\mathsf{fma}\left(\frac{{\sin x}^{2}}{\mathsf{fma}\left(\mathsf{fma}\left(\mathsf{fma}\left(-0.044444444444444446, x \cdot x, 0.3333333333333333\right), x \cdot x, -1\right), x \cdot x, 1\right)}, \varepsilon, \varepsilon\right)
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x eps)
+ :precision binary64
+ (fma
+  (/
+   (pow (sin x) 2.0)
+   (fma
+    (fma (fma -0.044444444444444446 (* x x) 0.3333333333333333) (* x x) -1.0)
+    (* x x)
+    1.0))
+  eps
+  eps))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double eps) {
+	return fma((pow(sin(x), 2.0) / fma(fma(fma(-0.044444444444444446, (x * x), 0.3333333333333333), (x * x), -1.0), (x * x), 1.0)), eps, eps);
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, eps)
+	return fma(Float64((sin(x) ^ 2.0) / fma(fma(fma(-0.044444444444444446, Float64(x * x), 0.3333333333333333), Float64(x * x), -1.0), Float64(x * x), 1.0)), eps, eps)
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, eps_] := N[(N[(N[Power[N[Sin[x], $MachinePrecision], 2.0], $MachinePrecision] / N[(N[(N[(-0.044444444444444446 * N[(x * x), $MachinePrecision] + 0.3333333333333333), $MachinePrecision] * N[(x * x), $MachinePrecision] + -1.0), $MachinePrecision] * N[(x * x), $MachinePrecision] + 1.0), $MachinePrecision]), $MachinePrecision] * eps + eps), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\mathsf{fma}\left(\frac{{\sin x}^{2}}{\mathsf{fma}\left(\mathsf{fma}\left(\mathsf{fma}\left(-0.044444444444444446, x \cdot x, 0.3333333333333333\right), x \cdot x, -1\right), x \cdot x, 1\right)}, \varepsilon, \varepsilon\right)
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="62.5% on training set">61.2%</span></p><div class="math">\[\tan \left(x + \varepsilon\right) - \tan x
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in eps around 0</p><div class="math">\[\leadsto \color{blue}{\varepsilon \cdot \left(1 - -1 \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="99.0% on training set">98.7%</span></p><div class="math">\[\leadsto \color{blue}{\mathsf{fma}\left(\frac{{\sin x}^{2}}{{\cos x}^{2}}, \varepsilon, \varepsilon\right)}
+\]</div></li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \mathsf{fma}\left(\frac{{\sin x}^{2}}{1 + {x}^{2} \cdot \left({x}^{2} \cdot \left(\frac{1}{3} + \frac{-2}{45} \cdot {x}^{2}\right) - 1\right)}, \varepsilon, \varepsilon\right)
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="98.7% on training set">97.9%</span></p><div class="math">\[\leadsto \mathsf{fma}\left(\frac{{\sin x}^{2}}{\mathsf{fma}\left(\mathsf{fma}\left(\mathsf{fma}\left(-0.044444444444444446, x \cdot x, 0.3333333333333333\right), x \cdot x, -1\right), x \cdot x, 1\right)}, \varepsilon, \varepsilon\right)
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative12" class="programs"><h2>Alternative 12: <span class="subhead"><data>98.6%</data> accurate, <data>1.1×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\mathsf{fma}\left(\frac{\mathsf{fma}\left({x}^{4}, \mathsf{fma}\left(\mathsf{fma}\left(-0.0031746031746031746, x \cdot x, 0.044444444444444446\right), x \cdot x, -0.3333333333333333\right), x \cdot x\right)}{\mathsf{fma}\left(\mathsf{fma}\left(\mathsf{fma}\left(-0.044444444444444446, x \cdot x, 0.3333333333333333\right), x \cdot x, -1\right), x \cdot x, 1\right)}, \varepsilon, \varepsilon\right)
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x eps)
+ :precision binary64
+ (fma
+  (/
+   (fma
+    (pow x 4.0)
+    (fma
+     (fma -0.0031746031746031746 (* x x) 0.044444444444444446)
+     (* x x)
+     -0.3333333333333333)
+    (* x x))
+   (fma
+    (fma (fma -0.044444444444444446 (* x x) 0.3333333333333333) (* x x) -1.0)
+    (* x x)
+    1.0))
+  eps
+  eps))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double eps) {
+	return fma((fma(pow(x, 4.0), fma(fma(-0.0031746031746031746, (x * x), 0.044444444444444446), (x * x), -0.3333333333333333), (x * x)) / fma(fma(fma(-0.044444444444444446, (x * x), 0.3333333333333333), (x * x), -1.0), (x * x), 1.0)), eps, eps);
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, eps)
+	return fma(Float64(fma((x ^ 4.0), fma(fma(-0.0031746031746031746, Float64(x * x), 0.044444444444444446), Float64(x * x), -0.3333333333333333), Float64(x * x)) / fma(fma(fma(-0.044444444444444446, Float64(x * x), 0.3333333333333333), Float64(x * x), -1.0), Float64(x * x), 1.0)), eps, eps)
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, eps_] := N[(N[(N[(N[Power[x, 4.0], $MachinePrecision] * N[(N[(-0.0031746031746031746 * N[(x * x), $MachinePrecision] + 0.044444444444444446), $MachinePrecision] * N[(x * x), $MachinePrecision] + -0.3333333333333333), $MachinePrecision] + N[(x * x), $MachinePrecision]), $MachinePrecision] / N[(N[(N[(-0.044444444444444446 * N[(x * x), $MachinePrecision] + 0.3333333333333333), $MachinePrecision] * N[(x * x), $MachinePrecision] + -1.0), $MachinePrecision] * N[(x * x), $MachinePrecision] + 1.0), $MachinePrecision]), $MachinePrecision] * eps + eps), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\mathsf{fma}\left(\frac{\mathsf{fma}\left({x}^{4}, \mathsf{fma}\left(\mathsf{fma}\left(-0.0031746031746031746, x \cdot x, 0.044444444444444446\right), x \cdot x, -0.3333333333333333\right), x \cdot x\right)}{\mathsf{fma}\left(\mathsf{fma}\left(\mathsf{fma}\left(-0.044444444444444446, x \cdot x, 0.3333333333333333\right), x \cdot x, -1\right), x \cdot x, 1\right)}, \varepsilon, \varepsilon\right)
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="62.5% on training set">61.2%</span></p><div class="math">\[\tan \left(x + \varepsilon\right) - \tan x
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in eps around 0</p><div class="math">\[\leadsto \color{blue}{\varepsilon \cdot \left(1 - -1 \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="99.0% on training set">98.7%</span></p><div class="math">\[\leadsto \color{blue}{\mathsf{fma}\left(\frac{{\sin x}^{2}}{{\cos x}^{2}}, \varepsilon, \varepsilon\right)}
+\]</div></li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \mathsf{fma}\left(\frac{{\sin x}^{2}}{1 + {x}^{2} \cdot \left({x}^{2} \cdot \left(\frac{1}{3} + \frac{-2}{45} \cdot {x}^{2}\right) - 1\right)}, \varepsilon, \varepsilon\right)
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="98.7% on training set">97.9%</span></p><div class="math">\[\leadsto \mathsf{fma}\left(\frac{{\sin x}^{2}}{\mathsf{fma}\left(\mathsf{fma}\left(\mathsf{fma}\left(-0.044444444444444446, x \cdot x, 0.3333333333333333\right), x \cdot x, -1\right), x \cdot x, 1\right)}, \varepsilon, \varepsilon\right)
+\]</div></li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \mathsf{fma}\left(\frac{{x}^{2} \cdot \left(1 + {x}^{2} \cdot \left({x}^{2} \cdot \left(\frac{2}{45} + \frac{-1}{315} \cdot {x}^{2}\right) - \frac{1}{3}\right)\right)}{\mathsf{fma}\left(\mathsf{fma}\left(\mathsf{fma}\left(\frac{-2}{45}, x \cdot x, \frac{1}{3}\right), x \cdot x, -1\right), x \cdot x, 1\right)}, \varepsilon, \varepsilon\right)
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="98.6% on training set">97.9%</span></p><div class="math">\[\leadsto \mathsf{fma}\left(\frac{\mathsf{fma}\left({x}^{4}, \mathsf{fma}\left(\mathsf{fma}\left(-0.0031746031746031746, x \cdot x, 0.044444444444444446\right), x \cdot x, -0.3333333333333333\right), x \cdot x\right)}{\mathsf{fma}\left(\mathsf{fma}\left(\mathsf{fma}\left(-0.044444444444444446, x \cdot x, 0.3333333333333333\right), x \cdot x, -1\right), x \cdot x, 1\right)}, \varepsilon, \varepsilon\right)
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative13" class="programs"><h2>Alternative 13: <span class="subhead"><data>98.6%</data> accurate, <data>1.3×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\mathsf{fma}\left(\frac{\mathsf{fma}\left({x}^{4}, -0.3333333333333333, x \cdot x\right)}{\mathsf{fma}\left(\mathsf{fma}\left(\mathsf{fma}\left(-0.044444444444444446, x \cdot x, 0.3333333333333333\right), x \cdot x, -1\right), x \cdot x, 1\right)}, \varepsilon, \varepsilon\right)
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x eps)
+ :precision binary64
+ (fma
+  (/
+   (fma (pow x 4.0) -0.3333333333333333 (* x x))
+   (fma
+    (fma (fma -0.044444444444444446 (* x x) 0.3333333333333333) (* x x) -1.0)
+    (* x x)
+    1.0))
+  eps
+  eps))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double eps) {
+	return fma((fma(pow(x, 4.0), -0.3333333333333333, (x * x)) / fma(fma(fma(-0.044444444444444446, (x * x), 0.3333333333333333), (x * x), -1.0), (x * x), 1.0)), eps, eps);
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, eps)
+	return fma(Float64(fma((x ^ 4.0), -0.3333333333333333, Float64(x * x)) / fma(fma(fma(-0.044444444444444446, Float64(x * x), 0.3333333333333333), Float64(x * x), -1.0), Float64(x * x), 1.0)), eps, eps)
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, eps_] := N[(N[(N[(N[Power[x, 4.0], $MachinePrecision] * -0.3333333333333333 + N[(x * x), $MachinePrecision]), $MachinePrecision] / N[(N[(N[(-0.044444444444444446 * N[(x * x), $MachinePrecision] + 0.3333333333333333), $MachinePrecision] * N[(x * x), $MachinePrecision] + -1.0), $MachinePrecision] * N[(x * x), $MachinePrecision] + 1.0), $MachinePrecision]), $MachinePrecision] * eps + eps), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\mathsf{fma}\left(\frac{\mathsf{fma}\left({x}^{4}, -0.3333333333333333, x \cdot x\right)}{\mathsf{fma}\left(\mathsf{fma}\left(\mathsf{fma}\left(-0.044444444444444446, x \cdot x, 0.3333333333333333\right), x \cdot x, -1\right), x \cdot x, 1\right)}, \varepsilon, \varepsilon\right)
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="62.5% on training set">61.2%</span></p><div class="math">\[\tan \left(x + \varepsilon\right) - \tan x
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in eps around 0</p><div class="math">\[\leadsto \color{blue}{\varepsilon \cdot \left(1 - -1 \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="99.0% on training set">98.7%</span></p><div class="math">\[\leadsto \color{blue}{\mathsf{fma}\left(\frac{{\sin x}^{2}}{{\cos x}^{2}}, \varepsilon, \varepsilon\right)}
+\]</div></li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \mathsf{fma}\left(\frac{{\sin x}^{2}}{1 + {x}^{2} \cdot \left({x}^{2} \cdot \left(\frac{1}{3} + \frac{-2}{45} \cdot {x}^{2}\right) - 1\right)}, \varepsilon, \varepsilon\right)
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="98.7% on training set">97.9%</span></p><div class="math">\[\leadsto \mathsf{fma}\left(\frac{{\sin x}^{2}}{\mathsf{fma}\left(\mathsf{fma}\left(\mathsf{fma}\left(-0.044444444444444446, x \cdot x, 0.3333333333333333\right), x \cdot x, -1\right), x \cdot x, 1\right)}, \varepsilon, \varepsilon\right)
+\]</div></li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \mathsf{fma}\left(\frac{{x}^{2} \cdot \left(1 + \frac{-1}{3} \cdot {x}^{2}\right)}{\mathsf{fma}\left(\mathsf{fma}\left(\mathsf{fma}\left(\frac{-2}{45}, x \cdot x, \frac{1}{3}\right), x \cdot x, -1\right), x \cdot x, 1\right)}, \varepsilon, \varepsilon\right)
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="98.6% on training set">97.8%</span></p><div class="math">\[\leadsto \mathsf{fma}\left(\frac{\mathsf{fma}\left({x}^{4}, -0.3333333333333333, x \cdot x\right)}{\mathsf{fma}\left(\mathsf{fma}\left(\mathsf{fma}\left(-0.044444444444444446, x \cdot x, 0.3333333333333333\right), x \cdot x, -1\right), x \cdot x, 1\right)}, \varepsilon, \varepsilon\right)
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative14" class="programs"><h2>Alternative 14: <span class="subhead"><data>98.6%</data> accurate, <data>4.1×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\mathsf{fma}\left(\left(\mathsf{fma}\left(\mathsf{fma}\left(\mathsf{fma}\left(0.19682539682539682, x \cdot x, 0.37777777777777777\right), x \cdot x, 0.6666666666666666\right), x \cdot x, 1\right) \cdot x\right) \cdot x, \varepsilon, \varepsilon\right)
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x eps)
+ :precision binary64
+ (fma
+  (*
+   (*
+    (fma
+     (fma
+      (fma 0.19682539682539682 (* x x) 0.37777777777777777)
+      (* x x)
+      0.6666666666666666)
+     (* x x)
+     1.0)
+    x)
+   x)
+  eps
+  eps))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double eps) {
+	return fma(((fma(fma(fma(0.19682539682539682, (x * x), 0.37777777777777777), (x * x), 0.6666666666666666), (x * x), 1.0) * x) * x), eps, eps);
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, eps)
+	return fma(Float64(Float64(fma(fma(fma(0.19682539682539682, Float64(x * x), 0.37777777777777777), Float64(x * x), 0.6666666666666666), Float64(x * x), 1.0) * x) * x), eps, eps)
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, eps_] := N[(N[(N[(N[(N[(N[(0.19682539682539682 * N[(x * x), $MachinePrecision] + 0.37777777777777777), $MachinePrecision] * N[(x * x), $MachinePrecision] + 0.6666666666666666), $MachinePrecision] * N[(x * x), $MachinePrecision] + 1.0), $MachinePrecision] * x), $MachinePrecision] * x), $MachinePrecision] * eps + eps), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\mathsf{fma}\left(\left(\mathsf{fma}\left(\mathsf{fma}\left(\mathsf{fma}\left(0.19682539682539682, x \cdot x, 0.37777777777777777\right), x \cdot x, 0.6666666666666666\right), x \cdot x, 1\right) \cdot x\right) \cdot x, \varepsilon, \varepsilon\right)
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="62.5% on training set">61.2%</span></p><div class="math">\[\tan \left(x + \varepsilon\right) - \tan x
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in eps around 0</p><div class="math">\[\leadsto \color{blue}{\varepsilon \cdot \left(1 - -1 \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="99.0% on training set">98.7%</span></p><div class="math">\[\leadsto \color{blue}{\mathsf{fma}\left(\frac{{\sin x}^{2}}{{\cos x}^{2}}, \varepsilon, \varepsilon\right)}
+\]</div></li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \mathsf{fma}\left({x}^{2} \cdot \left(1 + {x}^{2} \cdot \left(\frac{2}{3} + {x}^{2} \cdot \left(\frac{17}{45} + \frac{62}{315} \cdot {x}^{2}\right)\right)\right), \varepsilon, \varepsilon\right)
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="98.6% on training set">97.7%</span></p><div class="math">\[\leadsto \mathsf{fma}\left(\left(\mathsf{fma}\left(\mathsf{fma}\left(\mathsf{fma}\left(0.19682539682539682, x \cdot x, 0.37777777777777777\right), x \cdot x, 0.6666666666666666\right), x \cdot x, 1\right) \cdot x\right) \cdot x, \varepsilon, \varepsilon\right)
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative15" class="programs"><h2>Alternative 15: <span class="subhead"><data>98.5%</data> accurate, <data>5.3×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\mathsf{fma}\left(\left(\mathsf{fma}\left(\mathsf{fma}\left(0.37777777777777777, x \cdot x, 0.6666666666666666\right), x \cdot x, 1\right) \cdot x\right) \cdot x, \varepsilon, \varepsilon\right)
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x eps)
+ :precision binary64
+ (fma
+  (*
+   (* (fma (fma 0.37777777777777777 (* x x) 0.6666666666666666) (* x x) 1.0) x)
+   x)
+  eps
+  eps))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double eps) {
+	return fma(((fma(fma(0.37777777777777777, (x * x), 0.6666666666666666), (x * x), 1.0) * x) * x), eps, eps);
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, eps)
+	return fma(Float64(Float64(fma(fma(0.37777777777777777, Float64(x * x), 0.6666666666666666), Float64(x * x), 1.0) * x) * x), eps, eps)
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, eps_] := N[(N[(N[(N[(N[(0.37777777777777777 * N[(x * x), $MachinePrecision] + 0.6666666666666666), $MachinePrecision] * N[(x * x), $MachinePrecision] + 1.0), $MachinePrecision] * x), $MachinePrecision] * x), $MachinePrecision] * eps + eps), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\mathsf{fma}\left(\left(\mathsf{fma}\left(\mathsf{fma}\left(0.37777777777777777, x \cdot x, 0.6666666666666666\right), x \cdot x, 1\right) \cdot x\right) \cdot x, \varepsilon, \varepsilon\right)
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="62.5% on training set">61.2%</span></p><div class="math">\[\tan \left(x + \varepsilon\right) - \tan x
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in eps around 0</p><div class="math">\[\leadsto \color{blue}{\varepsilon \cdot \left(1 - -1 \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="99.0% on training set">98.7%</span></p><div class="math">\[\leadsto \color{blue}{\mathsf{fma}\left(\frac{{\sin x}^{2}}{{\cos x}^{2}}, \varepsilon, \varepsilon\right)}
+\]</div></li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \mathsf{fma}\left({x}^{2} \cdot \left(1 + {x}^{2} \cdot \left(\frac{2}{3} + \frac{17}{45} \cdot {x}^{2}\right)\right), \varepsilon, \varepsilon\right)
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="98.5% on training set">97.7%</span></p><div class="math">\[\leadsto \mathsf{fma}\left(\left(\mathsf{fma}\left(\mathsf{fma}\left(0.37777777777777777, x \cdot x, 0.6666666666666666\right), x \cdot x, 1\right) \cdot x\right) \cdot x, \varepsilon, \varepsilon\right)
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative16" class="programs"><h2>Alternative 16: <span class="subhead"><data>98.5%</data> accurate, <data>7.4×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\mathsf{fma}\left(\left(\mathsf{fma}\left(0.6666666666666666, x \cdot x, 1\right) \cdot x\right) \cdot x, \varepsilon, \varepsilon\right)
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x eps)
+ :precision binary64
+ (fma (* (* (fma 0.6666666666666666 (* x x) 1.0) x) x) eps eps))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double eps) {
+	return fma(((fma(0.6666666666666666, (x * x), 1.0) * x) * x), eps, eps);
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, eps)
+	return fma(Float64(Float64(fma(0.6666666666666666, Float64(x * x), 1.0) * x) * x), eps, eps)
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, eps_] := N[(N[(N[(N[(0.6666666666666666 * N[(x * x), $MachinePrecision] + 1.0), $MachinePrecision] * x), $MachinePrecision] * x), $MachinePrecision] * eps + eps), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\mathsf{fma}\left(\left(\mathsf{fma}\left(0.6666666666666666, x \cdot x, 1\right) \cdot x\right) \cdot x, \varepsilon, \varepsilon\right)
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="62.5% on training set">61.2%</span></p><div class="math">\[\tan \left(x + \varepsilon\right) - \tan x
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in eps around 0</p><div class="math">\[\leadsto \color{blue}{\varepsilon \cdot \left(1 - -1 \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="99.0% on training set">98.7%</span></p><div class="math">\[\leadsto \color{blue}{\mathsf{fma}\left(\frac{{\sin x}^{2}}{{\cos x}^{2}}, \varepsilon, \varepsilon\right)}
+\]</div></li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \mathsf{fma}\left({x}^{2} \cdot \left(1 + \frac{2}{3} \cdot {x}^{2}\right), \varepsilon, \varepsilon\right)
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="98.5% on training set">97.7%</span></p><div class="math">\[\leadsto \mathsf{fma}\left(\left(\mathsf{fma}\left(0.6666666666666666, x \cdot x, 1\right) \cdot x\right) \cdot x, \varepsilon, \varepsilon\right)
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative17" class="programs"><h2>Alternative 17: <span class="subhead"><data>98.4%</data> accurate, <data>13.8×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\mathsf{fma}\left(\varepsilon \cdot \left(\varepsilon + x\right), x, \varepsilon\right)
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x eps) :precision binary64 (fma (* eps (+ eps x)) x eps))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double eps) {
+	return fma((eps * (eps + x)), x, eps);
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, eps)
+	return fma(Float64(eps * Float64(eps + x)), x, eps)
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, eps_] := N[(N[(eps * N[(eps + x), $MachinePrecision]), $MachinePrecision] * x + eps), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\mathsf{fma}\left(\varepsilon \cdot \left(\varepsilon + x\right), x, \varepsilon\right)
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="62.5% on training set">61.2%</span></p><div class="math">\[\tan \left(x + \varepsilon\right) - \tan x
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in eps around 0</p><div class="math">\[\leadsto \color{blue}{\varepsilon \cdot \left(\left(1 + \frac{\varepsilon \cdot \left(\sin x \cdot \left(1 - -1 \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)\right)}{\cos x}\right) - -1 \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="99.4% on training set">99.3%</span></p><div class="math">\[\leadsto \color{blue}{\left(\mathsf{fma}\left(\frac{\sin x}{{\cos x}^{2}}, \sin x, 1\right) \cdot \left(\frac{\sin x \cdot \varepsilon}{\cos x} + 1\right)\right) \cdot \varepsilon}
+\]</div></li><li><p>Taylor expanded in x around inf</p><div class="math">\[\leadsto \varepsilon \cdot \color{blue}{\left(\left(1 + \frac{\varepsilon \cdot \sin x}{\cos x}\right) \cdot \left(1 + \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)\right)}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="99.5% on training set">99.3%</span></p><div class="math">\[\leadsto \mathsf{fma}\left({\sin x}^{2}, \frac{\varepsilon}{{\cos x}^{2}}, \varepsilon\right) \cdot \color{blue}{\mathsf{fma}\left(\sin x, \frac{\varepsilon}{\cos x}, 1\right)}
+\]</div></li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \varepsilon + \color{blue}{x \cdot \left(\varepsilon \cdot x + {\varepsilon}^{2}\right)}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="98.4% on training set">97.7%</span></p><div class="math">\[\leadsto \mathsf{fma}\left(\varepsilon \cdot \left(\varepsilon + x\right), \color{blue}{x}, \varepsilon\right)
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative18" class="programs"><h2>Alternative 18: <span class="subhead"><data>98.4%</data> accurate, <data>17.3×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Julia</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\mathsf{fma}\left(x \cdot x, \varepsilon, \varepsilon\right)
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x eps) :precision binary64 (fma (* x x) eps eps))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double eps) {
+	return fma((x * x), eps, eps);
+}
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, eps)
+	return fma(Float64(x * x), eps, eps)
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, eps_] := N[(N[(x * x), $MachinePrecision] * eps + eps), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\mathsf{fma}\left(x \cdot x, \varepsilon, \varepsilon\right)
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="62.5% on training set">61.2%</span></p><div class="math">\[\tan \left(x + \varepsilon\right) - \tan x
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in eps around 0</p><div class="math">\[\leadsto \color{blue}{\varepsilon \cdot \left(1 - -1 \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="99.0% on training set">98.7%</span></p><div class="math">\[\leadsto \color{blue}{\mathsf{fma}\left(\frac{{\sin x}^{2}}{{\cos x}^{2}}, \varepsilon, \varepsilon\right)}
+\]</div></li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \mathsf{fma}\left({x}^{2}, \varepsilon, \varepsilon\right)
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="98.4% on training set">97.6%</span></p><div class="math">\[\leadsto \mathsf{fma}\left(x \cdot x, \varepsilon, \varepsilon\right)
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative19" class="programs"><h2>Alternative 19: <span class="subhead"><data>97.9%</data> accurate, <data>34.5×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+1 \cdot \varepsilon
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x eps) :precision binary64 (* 1.0 eps))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double eps) {
+	return 1.0 * eps;
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(x, eps)
+    real(8), intent (in) :: x
+    real(8), intent (in) :: eps
+    code = 1.0d0 * eps
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double x, double eps) {
+	return 1.0 * eps;
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(x, eps):
+	return 1.0 * eps
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, eps)
+	return Float64(1.0 * eps)
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp = code(x, eps)
+	tmp = 1.0 * eps;
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, eps_] := N[(1.0 * eps), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+1 \cdot \varepsilon
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="62.5% on training set">61.2%</span></p><div class="math">\[\tan \left(x + \varepsilon\right) - \tan x
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in eps around 0</p><div class="math">\[\leadsto \color{blue}{\varepsilon \cdot \left(\left(1 + \frac{\varepsilon \cdot \left(\sin x \cdot \left(1 - -1 \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)\right)}{\cos x}\right) - -1 \cdot \frac{{\sin x}^{2}}{{\cos x}^{2}}\right)}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="99.4% on training set">99.3%</span></p><div class="math">\[\leadsto \color{blue}{\left(\mathsf{fma}\left(\frac{\sin x}{{\cos x}^{2}}, \sin x, 1\right) \cdot \left(\frac{\sin x \cdot \varepsilon}{\cos x} + 1\right)\right) \cdot \varepsilon}
+\]</div></li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \left(1 + x \cdot \left(\varepsilon + x \cdot \left(1 + x \cdot \left(\left(\varepsilon + \frac{-1}{6} \cdot \varepsilon\right) - \frac{-1}{2} \cdot \varepsilon\right)\right)\right)\right) \cdot \varepsilon
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="98.4% on training set">97.6%</span></p><div class="math">\[\leadsto \mathsf{fma}\left(\mathsf{fma}\left(\mathsf{fma}\left(1.3333333333333333 \cdot x, \varepsilon, 1\right), x, \varepsilon\right), x, 1\right) \cdot \varepsilon
+\]</div></li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto 1 \cdot \varepsilon
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="97.9% on training set">97.4%</span></p><div class="math">\[\leadsto 1 \cdot \varepsilon
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="alternative20" class="programs"><h2>Alternative 20: <span class="subhead"><data>5.3%</data> accurate, <data>207.0×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#alternatives" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+2
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x eps) :precision binary64 2.0)</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double eps) {
+	return 2.0;
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(x, eps)
+    real(8), intent (in) :: x
+    real(8), intent (in) :: eps
+    code = 2.0d0
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double x, double eps) {
+	return 2.0;
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(x, eps):
+	return 2.0
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, eps)
+	return 2.0
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp = code(x, eps)
+	tmp = 2.0;
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, eps_] := 2.0
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+2
+\end{array}
+</pre></div></div><details><summary>Derivation</summary><ol class="history"><li><p>Initial program <span class="error" title="62.5% on training set">61.2%</span></p><div class="math">\[\tan \left(x + \varepsilon\right) - \tan x
+\]</div></li><li>Add Preprocessing</li><li><p>Taylor expanded in x around 0</p><div class="math">\[\leadsto \color{blue}{\frac{\sin \varepsilon}{\cos \varepsilon}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="97.9% on training set">97.4%</span></p><div class="math">\[\leadsto \color{blue}{\frac{\sin \varepsilon}{\cos \varepsilon}}
+\]</div></li><li></li><li><p>Applied rewrites<span class="error" title="5.3% on training set">5.3%</span></p><div class="math">\[\leadsto \color{blue}{2}
+\]</div></li><li>Add Preprocessing</li></ol></details></section><section id="target1" class="programs"><h2>Developer Target 1: <span class="subhead"><data>99.0%</data> accurate, <data>1.0×</data> speedup</span><select><option>Math</option><option>FPCore</option><option>C</option><option>Fortran</option><option>Java</option><option>Python</option><option>Julia</option><option>MATLAB</option><option>Wolfram</option><option>TeX</option></select><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#target" target="_blank">?</a></h2><div><div class="implementation" data-language="Math"><div class="program math">\[\begin{array}{l}
+
+\\
+\varepsilon + \left(\varepsilon \cdot \tan x\right) \cdot \tan x
+\end{array}
+\]</div></div><div class="implementation" data-language="FPCore"><pre class="program">
+(FPCore (x eps) :precision binary64 (+ eps (* (* eps (tan x)) (tan x))))</pre></div><div class="implementation" data-language="C"><pre class="program">
+double code(double x, double eps) {
+	return eps + ((eps * tan(x)) * tan(x));
+}
+</pre></div><div class="implementation" data-language="Fortran"><pre class="program">
+real(8) function code(x, eps)
+    real(8), intent (in) :: x
+    real(8), intent (in) :: eps
+    code = eps + ((eps * tan(x)) * tan(x))
+end function
+</pre></div><div class="implementation" data-language="Java"><pre class="program">
+public static double code(double x, double eps) {
+	return eps + ((eps * Math.tan(x)) * Math.tan(x));
+}
+</pre></div><div class="implementation" data-language="Python"><pre class="program">
+def code(x, eps):
+	return eps + ((eps * math.tan(x)) * math.tan(x))
+</pre></div><div class="implementation" data-language="Julia"><pre class="program">
+function code(x, eps)
+	return Float64(eps + Float64(Float64(eps * tan(x)) * tan(x)))
+end
+</pre></div><div class="implementation" data-language="MATLAB"><pre class="program">
+function tmp = code(x, eps)
+	tmp = eps + ((eps * tan(x)) * tan(x));
+end
+</pre></div><div class="implementation" data-language="Wolfram"><pre class="program">
+code[x_, eps_] := N[(eps + N[(N[(eps * N[Tan[x], $MachinePrecision]), $MachinePrecision] * N[Tan[x], $MachinePrecision]), $MachinePrecision]), $MachinePrecision]
+</pre></div><div class="implementation" data-language="TeX"><pre class="program">\begin{array}{l}
+
+\\
+\varepsilon + \left(\varepsilon \cdot \tan x\right) \cdot \tan x
+\end{array}
+</pre></div></div></section><section id="reproduce"><details><summary><h2>Reproduce</h2><a class="help-button float" href="https://herbie.uwplse.org/doc/2.2/report.html#reproduction" target="_blank">?</a></summary><pre class="shell"><code>herbie shell --seed 1835695063 
+(FPCore (x eps)
+  :name "2tan (problem 3.3.2)"
+  :precision binary64
+  :pre (and (and (and (&lt;= -10000.0 x) (&lt;= x 10000.0)) (&lt; (* 1e-16 (fabs x)) eps)) (&lt; eps (fabs x)))
+
+  :alt
+  (! :herbie-platform default (+ eps (* eps (tan x) (tan x))))
+
+  (- (tan (+ x eps)) (tan x)))
+</code></pre></details></section></body></html>
