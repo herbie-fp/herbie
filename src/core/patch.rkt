@@ -35,10 +35,9 @@
   (define schedule
     (if (flag-set? 'generate 'simplify)
         ; if simplify enabled, 2-phases for real rewrites and implementation selection
-        `((,rules . ((node . ,(*node-limit*))))
-          (,lowering-rules . ((iteration . 1) (scheduler . simple))))
+        `((,rules . ((node . ,(*node-limit*)))) (lower . ((iteration . 1) (scheduler . simple))))
         ; if disabled, only implementation selection
-        `((,lowering-rules . ((iteration . 1) (scheduler . simple))))))
+        `((lower . ((iteration . 1) (scheduler . simple))))))
 
   (define roots
     (for/vector ([approx (in-list approxs)])
@@ -142,16 +141,15 @@
 
   ; egg schedule (3-phases for mathematical rewrites and implementation selection)
   (define schedule
-    `((lift . ((iteration . 1) (scheduler . simple)))
-      (,rules . ((node . ,(*node-limit*))))
-      (lower . ((iteration . 1) (scheduler . simple)))))
+    `((lift . ((iteration . 1) (scheduler . simple))) (,rules . ((node . ,(*node-limit*))))
+                                                      (lower . ((iteration . 1) (scheduler .
+                                                                                           simple)))))
 
   ; run egg
   (define exprs (map (compose debatchref alt-expr) altns))
   (define roots (list->vector (map (compose batchref-idx alt-expr) altns)))
   (define reprs (map (curryr repr-of (*context*)) exprs))
   (timeline-push! 'inputs (map ~a exprs))
-
   (define runner (make-egg-runner global-batch roots reprs schedule #:context (*context*)))
 
   (define generate-flags (hash-ref all-flags 'generate))

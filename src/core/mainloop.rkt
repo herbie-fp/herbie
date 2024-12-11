@@ -52,12 +52,10 @@
   (define pcontext* (preprocess-pcontext context pcontext preprocessing))
   (*pcontext* pcontext*)
   (initialize-alt-table! simplified context pcontext*)
-
   (for ([iteration (in-range (*num-iterations*))]
         #:break (atab-completed? (^table^)))
     (run-iter!))
   (define alternatives (extract!))
-
   (timeline-event! 'preprocess)
   (define best (alt-expr (first alternatives)))
   (define final-alts
@@ -83,6 +81,7 @@
 
   (define all-alts (atab-all-alts (^table^)))
   (define joined-alts (make-regime! all-alts))
+
   (define cleaned-alts (final-simplify! joined-alts))
   (define annotated-alts (add-soundness! cleaned-alts))
 
@@ -192,7 +191,6 @@
                         (if (infinite? cost-diff) "Infinite" cost-diff))
         expr))
     (set! localized-exprs (remove-duplicates (append localized-exprs cost-localized))))
-
   (timeline-event! 'localize)
   (when (flag-set? 'localize 'errors)
     (define loc-errss (batch-localize-errors exprs (*context*)))
@@ -289,6 +287,7 @@
   (unless (^locs^)
     (localize!))
   (reconstruct! (generate-candidates (^locs^)))
+  (printf "FINALIZING\n")
   (finalize-iter!)
   (void))
 

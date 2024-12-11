@@ -1169,7 +1169,11 @@
   (define egg-graph*
     (for/fold ([egg-graph egg-graph]) ([(rules params) (in-dict schedule)])
       ; run rules in the egraph
-      (define egg-rules (expand-rules rules))
+      (define egg-rules
+        (expand-rules (match rules
+                        [`lift (platform-lifting-rules)]
+                        [`lower (platform-lowering-rules)]
+                        [else rules])))
       (define-values (egg-graph* iteration-data) (egraph-run-rules egg-graph egg-rules params))
 
       ; get cost statistics

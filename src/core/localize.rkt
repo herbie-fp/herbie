@@ -85,9 +85,9 @@
     (make-egg-runner batch
                      (batch-roots batch)
                      reprs
-                     `((,lifting-rules . ((iteration . 1) (scheduler . simple)))
+                     `((lift . ((iteration . 1) (scheduler . simple)))
                        (,rules . ((node . ,(*node-limit*))))
-                       (,lowering-rules . ((iteration . 1) (scheduler . simple))))))
+                       (lower . ((iteration . 1) (scheduler . simple))))))
 
   ; run egg
   (define simplified
@@ -127,6 +127,8 @@
       (for/list ([child (in-list children)])
         (expr->cost (hash-ref expr->simplest child))))
     (unless (>= start-cost best-cost)
+      (printf "~a\n" start-cost)
+      (printf "~a\n" best-cost)
       (error 'cost-opportunity
              "Initial expression ~a is better than final expression ~a\n"
              subexpr
