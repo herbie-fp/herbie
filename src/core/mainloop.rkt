@@ -364,7 +364,7 @@
       (define key (string->symbol (~a i)))
       (hash-set! confusion-hash key confusion-matrix)
       (hash-set! maybe-hash key maybe-confusion-matrix)))
-  (timeline-push! 'prcurve confusion-hash maybe-hash)
+  (timeline-push! 'prcurve confusion-hash)
   #;(eprintf confusion-hash maybe-hash))
 
 (define (make-regime! alts)

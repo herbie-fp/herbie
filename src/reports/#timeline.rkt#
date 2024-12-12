@@ -422,7 +422,6 @@
     confusion-matrix)
   (html-maybe-confusion-matrix "Confusion?"
                                maybemat))
-
 (define (render-phase-total-confusion confusion-matrix)
   (match-define (list maybemat)
     confusion-matrix)
