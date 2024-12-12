@@ -2,7 +2,9 @@
 
 pub mod math;
 
-use egg::{BackoffScheduler, Extractor, FromOp, Id, Language, SimpleScheduler, StopReason, Symbol};
+use egg::{
+    filter, BackoffScheduler, Extractor, FromOp, Id, Language, SimpleScheduler, StopReason, Symbol,
+};
 use indexmap::IndexMap;
 use libc::{c_void, strlen};
 use math::*;
@@ -14,6 +16,14 @@ use std::os::raw::c_char;
 use std::time::Duration;
 use std::{slice, sync::atomic::Ordering};
 
+use lazy_static::lazy_static;
+use std::sync::Mutex;
+
+lazy_static! {
+    static ref INC_EGRAPH: Mutex<EGraph> = Mutex::new(EGraph::default());
+    static ref IS_FRESH: Mutex<bool> = Mutex::new(false);
+}
+
 pub struct Context {
     iteration: usize,
     runner: Runner,
@@ -23,9 +33,21 @@ pub struct Context {
 // I had to add $(rustc --print sysroot)/lib to LD_LIBRARY_PATH to get linking to work after installing rust with rustup
 #[no_mangle]
 pub unsafe extern "C" fn egraph_create() -> *mut Context {
+    println!("Asking for fresh egraph!");
+
+    let mut is_fresh = IS_FRESH.lock().unwrap();
+    *is_fresh = true;
+
+    let mut inc_egraph = INC_EGRAPH.lock().unwrap();
+    inc_egraph.version += 1;
+
     Box::into_raw(Box::new(Context {
         iteration: 0,
-        runner: Runner::new(Default::default()).with_explanations_enabled(),
+        runner: Runner::new(Default::default())
+            .with_egraph(inc_egraph.clone())
+            // .with_explanations_enabled()
+            // .with_expr(&"x".parse().unwrap())
+            .with_explanations_enabled(),
         rules: vec![],
     }))
 }
@@ -159,6 +181,20 @@ pub unsafe extern "C" fn egraph_run(
     // Safety: `ptr` was box allocated by `egraph_create`
     let mut context = Box::from_raw(ptr);
 
+    if !context.runner.egraph.is_empty() {
+        println!(
+            "No. of nodes: {}",
+            context.runner.egraph.total_number_of_nodes()
+        );
+    }
+
+    let mut is_fresh = IS_FRESH.lock().unwrap();
+    if !*is_fresh {
+        let inc_egraph = INC_EGRAPH.lock().unwrap();
+        context.runner.egraph = inc_egraph.clone();
+    }
+    *is_fresh = false;
+
     if context.runner.stop_reason.is_none() {
         let length: usize = rules_array_length as usize;
         let ffi_rules: &[*mut FFIRule] = slice::from_raw_parts(rules_array_ptr, length);
@@ -197,6 +233,15 @@ pub unsafe extern "C" fn egraph_run(
             })
             .run(&context.rules);
     }
+
+    let mut inc_egraph = INC_EGRAPH.lock().unwrap();
+    // dbg!(inc_egraph.total_number_of_nodes());
+    println!("inc_egraph.version = {}", inc_egraph.version);
+    println!("runner.egraph.version = {}", context.runner.egraph.version);
+    *inc_egraph = context.runner.egraph.clone();
+    // Filter the egraph before returning it to Racket. When egraph_run was called, hopefully
+    // it was passed inc_egraph via egraph_create...
+    context.runner.egraph = filter(&context.runner.egraph);
 
     let iterations = context
         .runner
