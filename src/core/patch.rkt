@@ -65,7 +65,7 @@
                 (mutable-batch-push! global-batch-mutable
                                      (approx (mutable-batch-munge! global-batch-mutable spec)
                                              (batchref-idx batchreff))))
-              (sow (alt (batchref global-batch idx) `(simplify ,runner #f #f) (list altn) '()))))
+              (sow (alt (batchref global-batch idx) `(simplify ,runner #f) (list altn) '()))))
           (batch-copy-mutable-nodes! global-batch global-batch-mutable))) ; Update global-batch
 
   (timeline-push! 'count (length approxs) (length simplified))
@@ -158,7 +158,7 @@
           (for ([batchrefs (in-list batchrefss)]
                 [altn (in-list altns)])
             (for ([batchref* (in-list batchrefs)])
-              (sow (alt batchref* (list 'rr runner #f #f) (list altn) '()))))))
+              (sow (alt batchref* (list 'rr runner #f) (list altn) '()))))))
 
   (timeline-push! 'outputs (map (compose ~a debatchref alt-expr) rewritten))
   (timeline-push! 'count (length altns) (length rewritten))
