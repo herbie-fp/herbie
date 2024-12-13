@@ -323,7 +323,8 @@
                       "MiB live, "
                       ,(~r (/ alloc (expt 2 20)) #:group-sep " " #:precision '(= 1))
                       "MiB allocated"
-                      ,(format-time gc-time) " collecting garbage")))
+                      ,(format-time gc-time)
+                      " collecting garbage")))
 
 (define (render-phase-error min-error-table)
   (match-define (list min-error repr-name) (car min-error-table))
