@@ -322,7 +322,7 @@
   `((dt "Memory") (dd ,(~r (/ live (expt 2 20)) #:group-sep " " #:precision '(= 1))
                       "MiB live, "
                       ,(~r (/ alloc (expt 2 20)) #:group-sep " " #:precision '(= 1))
-                      "MiB allocated"
+                      "MiB allocated; "
                       ,(format-time gc-time)
                       " collecting garbage")))
 
