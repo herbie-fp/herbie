@@ -6,10 +6,11 @@ use egg::{
     filter, BackoffScheduler, Extractor, FromOp, Id, Language, SimpleScheduler, StopReason, Symbol,
 };
 use indexmap::IndexMap;
-use libc::{c_void, strlen};
+use libc::{c_void, printf, strlen};
 use math::*;
 
 use std::cmp::min;
+use std::collections::HashSet;
 use std::ffi::{CStr, CString};
 use std::mem::{self, ManuallyDrop};
 use std::os::raw::c_char;
@@ -33,20 +34,19 @@ pub struct Context {
 // I had to add $(rustc --print sysroot)/lib to LD_LIBRARY_PATH to get linking to work after installing rust with rustup
 #[no_mangle]
 pub unsafe extern "C" fn egraph_create() -> *mut Context {
-    println!("Asking for fresh egraph!");
+    println!("*** creating new egraph");
 
     let mut is_fresh = IS_FRESH.lock().unwrap();
     *is_fresh = true;
 
     let mut inc_egraph = INC_EGRAPH.lock().unwrap();
     inc_egraph.version += 1;
+    println!("inc_egraph.version = {}", inc_egraph.version);
 
     Box::into_raw(Box::new(Context {
         iteration: 0,
         runner: Runner::new(Default::default())
             .with_egraph(inc_egraph.clone())
-            // .with_explanations_enabled()
-            // .with_expr(&"x".parse().unwrap())
             .with_explanations_enabled(),
         rules: vec![],
     }))
@@ -178,6 +178,7 @@ pub unsafe extern "C" fn egraph_run(
     simple_scheduler: bool,
     is_constant_folding_enabled: bool,
 ) -> *const EGraphIter {
+    println!("*** starting egraph_run");
     // Safety: `ptr` was box allocated by `egraph_create`
     let mut context = Box::from_raw(ptr);
 
@@ -186,14 +187,16 @@ pub unsafe extern "C" fn egraph_run(
             "No. of nodes: {}",
             context.runner.egraph.total_number_of_nodes()
         );
+    } else {
+        println!("...with empty egraph");
     }
 
-    let mut is_fresh = IS_FRESH.lock().unwrap();
-    if !*is_fresh {
-        let inc_egraph = INC_EGRAPH.lock().unwrap();
-        context.runner.egraph = inc_egraph.clone();
-    }
-    *is_fresh = false;
+    // let mut is_fresh = IS_FRESH.lock().unwrap();
+    // if !*is_fresh {
+    //     let inc_egraph = INC_EGRAPH.lock().unwrap();
+    //     context.runner.egraph = inc_egraph.clone();
+    // }
+    // *is_fresh = false;
 
     if context.runner.stop_reason.is_none() {
         let length: usize = rules_array_length as usize;
@@ -235,13 +238,7 @@ pub unsafe extern "C" fn egraph_run(
     }
 
     let mut inc_egraph = INC_EGRAPH.lock().unwrap();
-    // dbg!(inc_egraph.total_number_of_nodes());
-    println!("inc_egraph.version = {}", inc_egraph.version);
-    println!("runner.egraph.version = {}", context.runner.egraph.version);
     *inc_egraph = context.runner.egraph.clone();
-    // Filter the egraph before returning it to Racket. When egraph_run was called, hopefully
-    // it was passed inc_egraph via egraph_create...
-    context.runner.egraph = filter(&context.runner.egraph);
 
     let iterations = context
         .runner
@@ -344,7 +341,24 @@ pub unsafe extern "C" fn egraph_serialize(ptr: *mut Context) -> *const c_char {
 #[no_mangle]
 pub unsafe extern "C" fn egraph_size(ptr: *mut Context) -> u32 {
     let context = ManuallyDrop::new(Box::from_raw(ptr));
-    context.runner.egraph.number_of_classes() as u32
+
+    let ids = context
+        .runner
+        .egraph
+        .classes()
+        .into_iter()
+        .filter(|ec| ec.version == context.runner.egraph.version)
+        .map(|ec| ec.id)
+        .collect::<HashSet<_>>();
+
+    let mut whitelist = HashSet::default();
+    for id in ids {
+        if !whitelist.contains(&id) {
+            add_reachable(id, &context.runner.egraph, &mut whitelist);
+        }
+    }
+
+    whitelist.len() as u32
 }
 
 #[no_mangle]
@@ -362,13 +376,56 @@ pub unsafe extern "C" fn egraph_enode_size(ptr: *mut Context, id: u32, idx: u32)
     context.runner.egraph[id].nodes[idx].len() as u32
 }
 
+fn add_reachable(id: Id, egraph: &EGraph, whitelist: &mut HashSet<Id>) {
+    if whitelist.contains(&id) {
+        return;
+    }
+    whitelist.insert(id);
+    for node in egraph[id].nodes.iter() {
+        for child in node.children().iter() {
+            add_reachable(*child, egraph, whitelist);
+        }
+    }
+}
+
 #[no_mangle]
 pub unsafe extern "C" fn egraph_get_eclasses(ptr: *mut Context, ids_ptr: *mut u32) {
     let context = ManuallyDrop::new(Box::from_raw(ptr));
+
+    println!("*** egraph_get_classes");
+
+    // let latest_version = context
+    //     .runner
+    //     .egraph
+    //     .classes()
+    //     .into_iter()
+    //     .map(|ec| ec.version)
+    //     .max()
+    //     .unwrap_or_default();
+
+    // assert_eq!(latest_version + 1, context.runner.egraph.version);
+
+    let ids = context
+        .runner
+        .egraph
+        .classes()
+        .into_iter()
+        .filter(|ec| ec.version == context.runner.egraph.version)
+        .map(|ec| ec.id)
+        .collect::<HashSet<_>>();
+
+    let mut whitelist = HashSet::default();
+    for id in ids {
+        if !whitelist.contains(&id) {
+            add_reachable(id, &context.runner.egraph, &mut whitelist);
+        }
+    }
+
     let mut ids: Vec<u32> = context
         .runner
         .egraph
         .classes()
+        .filter(|ec| whitelist.contains(&ec.id))
         .map(|c| usize::from(c.id) as u32)
         .collect();
     ids.sort();
