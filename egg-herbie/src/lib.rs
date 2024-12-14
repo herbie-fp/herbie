@@ -20,6 +20,7 @@ use std::sync::Mutex;
 
 lazy_static! {
     static ref INC_EGRAPH: Mutex<EGraph> = Mutex::new(EGraph::default());
+    static ref MULTIPLIER: Mutex<u32> = Mutex::new(0);
 }
 
 pub struct Context {
@@ -32,6 +33,11 @@ pub struct Context {
 #[no_mangle]
 pub unsafe extern "C" fn egraph_create() -> *mut Context {
     println!("*** creating new egraph");
+
+    // Refresh my node limit whenever I ask for a new egraph
+    let mut multiplier = MULTIPLIER.lock().unwrap();
+    *multiplier += 1;
+    println!("Increasing multiplier. New value: {}", multiplier);
 
     let mut inc_egraph = INC_EGRAPH.lock().unwrap();
     inc_egraph.version += 1;
@@ -108,8 +114,6 @@ pub unsafe extern "C" fn egraph_add_node(
     num_ids: u32,
     is_root: bool,
 ) -> u32 {
-    println!("...adding node");
-
     let _ = env_logger::try_init();
     // Safety: `ptr` was box allocated by `egraph_create`
     let mut context = ManuallyDrop::new(Box::from_raw(ptr));
@@ -210,9 +214,10 @@ pub unsafe extern "C" fn egraph_run(
             context.runner.with_scheduler(BackoffScheduler::default())
         };
 
+        let multiplier: u32 = *MULTIPLIER.lock().unwrap();
         context.runner = context
             .runner
-            .with_node_limit(node_limit as usize)
+            .with_node_limit((multiplier * node_limit) as usize)
             .with_iter_limit(iter_limit as usize) // should never hit
             .with_time_limit(Duration::from_secs(u64::MAX))
             .with_hook(|r| {
@@ -223,6 +228,11 @@ pub unsafe extern "C" fn egraph_run(
                 }
             })
             .run(&context.rules);
+
+        println!(
+            "stop_reason: {:?}",
+            context.runner.stop_reason.clone().unwrap()
+        );
     }
 
     let mut inc_egraph = INC_EGRAPH.lock().unwrap();
