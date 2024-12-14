@@ -436,7 +436,10 @@ pub unsafe extern "C" fn egraph_get_node(
 
     let node = &context.runner.egraph[id].nodes[idx];
     for (i, id) in node.children().iter().enumerate() {
-        std::ptr::write(ids.offset(i as isize), usize::from(*id) as u32);
+        std::ptr::write(
+            ids.offset(i as isize),
+            usize::from(context.runner.egraph.find(*id)) as u32,
+        );
     }
 
     let c_string = ManuallyDrop::new(CString::new(node.to_string()).unwrap());
