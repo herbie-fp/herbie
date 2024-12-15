@@ -149,9 +149,9 @@
     [else (~r x #:precision 2)]))
 
 (define (bad-result? info)
-  (or (> (dict-ref info 'tests-crashed 0) 0)
-      (> (dict-ref info 'tests-unimproved 0) 0)
-      (> (dict-ref info 'tests-timeout 0) 0)))
+  (or (positive? (dict-ref info 'tests-crashed 0))
+      (positive? (dict-ref info 'tests-unimproved 0))
+      (positive? (dict-ref info 'tests-timeout 0))))
 
 (define (print-rows infos #:name name)
   `((thead ((id ,(format "reports-~a" name)) (data-branch ,name))
@@ -175,7 +175,7 @@
             (td ([title ,(field 'commit)]) ,(field 'branch))
             (td ([title ,(string-join (field 'options) " ")] (class ,(if (field 'note) "note" "")))
                 ,(or (field 'note) "⭐"))
-            (td ,(if (> (field 'tests-available) 0)
+            (td ,(if (positive? (field 'tests-available))
                      (format "~a/~a" (field 'tests-passed) (field 'tests-available))
                      ""))
             (td ,(if (field 'bits-improved)
@@ -216,7 +216,7 @@
                                              >
                                              #:key (curryr dict-ref 'date-unix))))))))
 
-  (define crashes (filter (λ (x) (> (dict-ref x 'tests-crashed) 0)) (apply append mainline-infos)))
+  (define crashes (filter (λ (x) (positive? (dict-ref x 'tests-crashed))) (apply append mainline-infos)))
   (define last-crash
     (if (null? crashes)
         #f
