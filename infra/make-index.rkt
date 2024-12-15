@@ -4,8 +4,8 @@
          json
          racket/date
          (only-in xml write-xexpr))
-(require "../src/utils/common.rkt"
-         "../src/api/datafile.rkt")
+(require "../src/api/datafile.rkt"
+         "../src/utils/common.rkt")
 (provide directory-jsons)
 
 (define (directory-jsons dir)
