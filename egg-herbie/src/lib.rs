@@ -9,6 +9,7 @@ use math::*;
 
 use std::cmp::min;
 use std::collections::HashSet;
+use std::default;
 use std::ffi::{CStr, CString};
 use std::mem::{self, ManuallyDrop};
 use std::os::raw::c_char;
@@ -20,7 +21,7 @@ use std::sync::Mutex;
 
 lazy_static! {
     static ref INC_EGRAPH: Mutex<EGraph> = Mutex::new(EGraph::default());
-    static ref MULTIPLIER: Mutex<u32> = Mutex::new(0);
+    static ref INC_ITERDATA: Mutex<Vec<Iteration>> = Mutex::new(vec![]);
 }
 
 pub struct Context {
@@ -33,11 +34,6 @@ pub struct Context {
 #[no_mangle]
 pub unsafe extern "C" fn egraph_create() -> *mut Context {
     println!("*** creating new egraph");
-
-    // Refresh my node limit whenever I ask for a new egraph
-    let mut multiplier = MULTIPLIER.lock().unwrap();
-    *multiplier += 1;
-    println!("Increasing multiplier. New value: {}", multiplier);
 
     let mut inc_egraph = INC_EGRAPH.lock().unwrap();
     inc_egraph.version += 1;
@@ -178,8 +174,11 @@ pub unsafe extern "C" fn egraph_run(
     is_constant_folding_enabled: bool,
 ) -> *const EGraphIter {
     println!("*** starting egraph_run");
+
     // Safety: `ptr` was box allocated by `egraph_create`
     let mut context = Box::from_raw(ptr);
+
+    assert!(context.runner.iterations.is_empty());
 
     if !context.runner.egraph.is_empty() {
         println!(
@@ -214,15 +213,20 @@ pub unsafe extern "C" fn egraph_run(
             context.runner.with_scheduler(BackoffScheduler::default())
         };
 
-        let multiplier: u32 = *MULTIPLIER.lock().unwrap();
+        let node_limit = if node_limit != u32::MAX {
+            context.runner.egraph.total_size() + 8000
+        } else {
+            node_limit as usize
+        };
+
         context.runner = context
             .runner
-            .with_node_limit((multiplier * node_limit) as usize)
+            .with_node_limit(node_limit as usize)
             .with_iter_limit(iter_limit as usize) // should never hit
             .with_time_limit(Duration::from_secs(u64::MAX))
             .with_hook(|r| {
                 if r.egraph.analysis.unsound.load(Ordering::SeqCst) {
-                    Err("Unsoundness detected".into())
+                    panic!("Unsoundness detected")
                 } else {
                     Ok(())
                 }
@@ -237,6 +241,15 @@ pub unsafe extern "C" fn egraph_run(
 
     let mut inc_egraph = INC_EGRAPH.lock().unwrap();
     *inc_egraph = context.runner.egraph.clone();
+
+    let mut inc_iterdata = INC_ITERDATA.lock().unwrap();
+    inc_iterdata.extend(context.runner.iterations.clone());
+
+    // Construct a fresh Runner to print the aggregate report
+    let mut tmp = Runner::new(Default::default());
+    tmp.iterations = inc_iterdata.clone();
+    tmp.stop_reason = Some(StopReason::Other("Tmp Runner".to_string()));
+    println!("{}", tmp.report());
 
     let iterations = context
         .runner

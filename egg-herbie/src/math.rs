@@ -15,10 +15,12 @@ pub type Rewrite = egg::Rewrite<Math, ConstantFold>;
 pub type Runner = egg::Runner<Math, ConstantFold, IterData>;
 pub type Iteration = egg::Iteration<IterData>;
 
+#[derive(Clone)]
 pub struct IterData {
     pub extracted: Vec<(Id, Extracted)>,
 }
 
+#[derive(Clone)]
 pub struct Extracted {
     pub best: RecExpr,
     pub cost: usize,
