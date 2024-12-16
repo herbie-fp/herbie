@@ -35,7 +35,7 @@
          (struct-out improve-result)
          (struct-out alt-analysis))
 
-(struct job-result (command test status time timeline warnings backend))
+(struct job-result (command test status time timeline profile warnings backend))
 (struct improve-result (preprocess pctxs start target end bogosity))
 (struct alt-analysis (alt train-errors test-errors) #:prefab)
 
@@ -245,6 +245,7 @@
                     #:profile? [profile? #f]
                     #:timeline-disabled? [timeline-disabled? #f])
   (define timeline #f)
+  (define profile #f)
 
   ;; CS versions <= 8.2: problems with scheduler cause places to stay
   ;; in a suspended state
@@ -256,7 +257,7 @@
       (timeline-event! 'end)
       (define time (- (current-inexact-milliseconds) start-time))
       (match command
-        ['improve (job-result command test 'failure time (timeline-extract) (warning-log) e)]
+        ['improve (job-result command test 'failure time (timeline-extract) #f (warning-log) e)]
         [_ (raise e)])))
 
   (define (on-timeout)
@@ -264,10 +265,11 @@
       (timeline-load! timeline)
       (timeline-event! 'end)
       (match command
-        ['improve (job-result command test 'timeout (*timeout*) (timeline-extract) (warning-log) #f)]
+        ['improve
+         (job-result command test 'timeout (*timeout*) (timeline-extract) #f (warning-log) #f)]
         [_ (error 'run-herbie "command ~a timed out" command)])))
 
-  (define (compute-result test)
+  (define (compute-result)
     (parameterize ([*timeline-disabled* timeline-disabled?])
       (define start-time (current-inexact-milliseconds))
       (reset!)
@@ -293,15 +295,18 @@
             [_ (error 'compute-result "unknown command ~a" command)]))
         (timeline-event! 'end)
         (define time (- (current-inexact-milliseconds) start-time))
-        (job-result command test 'success time (timeline-extract) (warning-log) result))))
+        (job-result command test 'success time (timeline-extract) #f (warning-log) result))))
 
   (define (in-engine _)
-    (if profile?
-        (profile-thunk (λ () (compute-result test))
-                       #:order 'total
-                       #:delay 0.01
-                       #:render (λ (p order) (write-json (profile->json p) profile?)))
-        (compute-result test)))
+    (cond
+      [profile?
+       (define result
+         (profile-thunk compute-result
+                        #:order 'total
+                        #:delay 0.01
+                        #:render (λ (p order) (set! profile (profile->json p)))))
+       (struct-copy job-result result [profile profile])]
+      [else (compute-result)]))
 
   ;; Branch on whether or not we should run inside an engine
   (define eng (engine in-engine))
@@ -447,7 +452,7 @@
     [_ (error 'get-table-data "unknown result type ~a" status)]))
 
 (define (get-table-data result link)
-  (match-define (job-result command test status time _ _ backend) result)
+  (match-define (job-result command test status time _ _ _ backend) result)
   (match status
     ['success
      (match-define (improve-result _ _ start targets end _) backend)

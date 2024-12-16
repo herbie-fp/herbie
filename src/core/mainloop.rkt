@@ -19,7 +19,7 @@
          "preprocess.rkt"
          "programs.rkt"
          "../utils/timeline.rkt"
-         "soundiness.rkt"
+         "derivations.rkt"
          "batch.rkt")
 (provide run-improve!)
 
@@ -40,7 +40,7 @@
 ;; These high-level functions give the high-level workflow of Herbie:
 ;; - Initial steps: explain, preprocessing, initialize the alt table
 ;; - the loop: choose some alts, localize, run the patch table, and finalize
-;; - Final steps: regimes, final simplify, add soundiness, and remove preprocessing
+;; - Final steps: regimes, final simplify, derivations, and remove preprocessing
 
 (define (run-improve! initial specification context pcontext)
   (explain! initial context pcontext)
@@ -82,7 +82,7 @@
   (define all-alts (atab-all-alts (^table^)))
   (define joined-alts (make-regime! all-alts))
   (define cleaned-alts (final-simplify! joined-alts))
-  (define annotated-alts (add-soundness! cleaned-alts))
+  (define annotated-alts (add-derivations! cleaned-alts))
 
   (timeline-push! 'stop (if (atab-completed? (^table^)) "done" "fuel") 1)
   (sort-alts annotated-alts))
@@ -229,8 +229,8 @@
          (define event*
            (match event
              [(list 'taylor name var) (list 'taylor loc0 name var)]
-             [(list 'rr input proof soundiness) (list 'rr loc0 input proof soundiness)]
-             [(list 'simplify input proof soundiness) (list 'simplify loc0 input proof soundiness)]))
+             [(list 'rr input proof) (list 'rr loc0 input proof)]
+             [(list 'simplify input proof) (list 'simplify loc0 input proof)]))
          (define expr* (location-do loc0 (alt-expr orig) (const (debatchref (alt-expr altn)))))
          (alt expr* event* (list (loop (first prevs))) (alt-preprocessing orig))])))
 
@@ -383,11 +383,11 @@
                         alt-equal?)]
     [else alts]))
 
-(define (add-soundness! alts)
+(define (add-derivations! alts)
   (cond
     [(flag-set? 'generate 'proofs)
-     (timeline-event! 'soundness)
-     (add-soundiness alts (*pcontext*) (*context*))]
+     (timeline-event! 'derivations)
+     (add-derivations alts (*pcontext*) (*context*))]
     [else alts]))
 
 (define (sort-alts alts)

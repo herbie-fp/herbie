@@ -47,6 +47,7 @@
     (define b
       (make-hasheq (list (cons 'type (~a type))
                          (cons 'time (current-inexact-milliseconds))
+                         (cons 'gc-time (current-gc-milliseconds))
                          (cons 'memory (list (list live-memory alloc-memory))))))
     (set-box! (*timeline*) (cons b (unbox (*timeline*))))))
 
@@ -132,12 +133,15 @@
   (define end
     (hasheq 'time
             (current-inexact-milliseconds)
+            'gc-time
+            (current-gc-milliseconds)
             'memory
             (list (list (current-memory-use #f) (current-memory-use 'cumulative)))))
   (reverse (for/list ([evt (unbox (*timeline*))]
                       [next (cons end (unbox (*timeline*)))])
              (define evt* (hash-copy evt))
              (hash-update! evt* 'time (λ (v) (- (hash-ref next 'time) v)))
+             (hash-update! evt* 'gc-time (λ (v) (- (hash-ref next 'gc-time) v)))
              (hash-update! evt* 'memory (λ (v) (diff-memory-records (hash-ref next 'memory) v)))
              evt*)))
 
@@ -196,6 +200,7 @@
 
 (define-timeline type #:custom (λ (a b) a))
 (define-timeline time #:custom +)
+(define-timeline gc-time #:custom +)
 
 (define-timeline memory [live +] [alloc +])
 (define-timeline method [method])
