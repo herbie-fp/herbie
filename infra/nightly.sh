@@ -7,7 +7,6 @@ set -e -x
 SEED=$(date "+%Y%j")
 BENCHDIR="$1"; shift
 REPORTDIR="$1"; shift
-ARGS="$@"
 
 mkdir -p reports
 rm -rf "reports"/* || echo "nothing to delete"
@@ -21,7 +20,7 @@ for bench in bench/*; do
   racket -y "src/main.rkt" report \
          --note "$name" \
          --seed "$SEED" \
-         "$ARGS" \
+         "$@" \
          "$bench" "reports/$name"
   
   dirs="$dirs $name";
