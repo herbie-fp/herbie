@@ -15,8 +15,7 @@
          "server.rkt")
 
 (provide make-report
-         rerun-report
-         diff-report)
+         rerun-report)
 
 (define (extract-test row)
   (define vars (table-row-vars row))
@@ -140,12 +139,6 @@
     [(and (not (test-output t1)) (not (test-output t2))) (string<? (test-name t1) (test-name t2))]
     ; Put things with an output first
     [else (test-output t1)]))
-
-(define (diff-report old new)
-  (define df
-    (diff-datafiles (call-with-input-file (build-path old "results.json") read-datafile)
-                    (call-with-input-file (build-path new "results.json") read-datafile)))
-  (copy-file (web-resource "report.html") (build-path new "index.html") #t))
 
 ;; Generate a path for a given benchmark name
 (define (bench-folder-path bench-name index)
