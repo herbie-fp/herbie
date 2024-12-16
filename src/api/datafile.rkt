@@ -11,8 +11,7 @@
          make-report-info
          read-datafile
          write-datafile
-         merge-datafiles
-         diff-datafiles)
+         merge-datafiles)
 
 (struct table-row
         (name identifier
@@ -295,31 +294,3 @@
                tests
                ;; Easiest to just recompute everything based off the combined tests
                (merged-cost-accuracy tests)))
-
-(define (diff-datafiles old new)
-  (define old-tests
-    (for/hash ([ot (in-list (report-info-tests old))])
-      (values (table-row-name ot) ot)))
-  (define tests*
-    (for/list ([nt (in-list (report-info-tests new))])
-      (if (hash-has-key? old-tests (table-row-name nt))
-          (let ([ot (hash-ref old-tests (table-row-name nt))])
-            (define end-score (table-row-result nt))
-            (define target-score (table-row-result ot))
-            (define start-score (table-row-start nt))
-
-            (struct-copy table-row
-                         nt
-                         [status
-                          (if (and end-score target-score start-score)
-                              (cond
-                                [(< end-score (- target-score 1)) "gt-target"]
-                                [(< end-score (+ target-score 1)) "eq-target"]
-                                [(> end-score (+ start-score 1)) "lt-start"]
-                                [(> end-score (- start-score 1)) "eq-start"]
-                                [(> end-score (+ target-score 1)) "lt-target"])
-                              (table-row-status nt))]
-                         [target-prog (table-row-output ot)]
-                         [target (table-row-result ot)]))
-          nt)))
-  (struct-copy report-info new [tests tests*]))

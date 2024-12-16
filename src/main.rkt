@@ -12,7 +12,7 @@
 (load-herbie-plugins)
 
 (lazy-require ["api/demo.rkt" (run-demo)]
-              ["api/run.rkt" (make-report rerun-report diff-report)]
+              ["api/run.rkt" (make-report rerun-report)]
               ["api/shell.rkt" (run-shell)]
               ["api/improve.rkt" (run-improve)])
 
@@ -197,7 +197,6 @@
     [("--profile") "Whether to profile each run" (void)]
     #:args (input output)
     (rerun-report input #:dir output #:note report-note #:threads threads)]
-   [diff "Diff two HTML reports" #:args (old new) (diff-report old new)]
    #:args files
    (match files
      ['()
