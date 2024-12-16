@@ -1,6 +1,6 @@
 #lang racket
 
-(require egg-herbie
+(require "../../egg-herbie/main.rkt"
          (only-in ffi/vector
                   make-u32vector
                   u32vector-length
