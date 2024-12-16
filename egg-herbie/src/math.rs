@@ -59,7 +59,8 @@ impl<'a> CostFunction<Math> for AltCost<'a> {
 
 impl IterationData<Math, ConstantFold> for IterData {
     fn make(runner: &Runner) -> Self {
-        let extractor = Extractor::new(&runner.egraph, AltCost::new(&runner.egraph));
+        let mut extractor = Extractor::new(&runner.egraph, AltCost::new(&runner.egraph));
+        println!("Runner roots: {:?}", runner.roots);
         let extracted = runner
             .roots
             .iter()

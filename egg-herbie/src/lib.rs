@@ -9,7 +9,6 @@ use math::*;
 
 use std::cmp::min;
 use std::collections::HashSet;
-use std::default;
 use std::ffi::{CStr, CString};
 use std::mem::{self, ManuallyDrop};
 use std::os::raw::c_char;
@@ -214,10 +213,11 @@ pub unsafe extern "C" fn egraph_run(
         };
 
         let node_limit = if node_limit != u32::MAX {
-            context.runner.egraph.total_size() + 8000
+            context.runner.egraph.total_size() + node_limit as usize
         } else {
             node_limit as usize
         };
+        println!("node_limit: {}", node_limit);
 
         context.runner = context
             .runner
@@ -244,6 +244,7 @@ pub unsafe extern "C" fn egraph_run(
 
     let mut inc_iterdata = INC_ITERDATA.lock().unwrap();
     inc_iterdata.extend(context.runner.iterations.clone());
+    context.runner.iterations = vec![];
 
     // Construct a fresh Runner to print the aggregate report
     let mut tmp = Runner::new(Default::default());
@@ -353,36 +354,7 @@ pub unsafe extern "C" fn egraph_serialize(ptr: *mut Context) -> *const c_char {
 pub unsafe extern "C" fn egraph_size(ptr: *mut Context) -> u32 {
     let context = ManuallyDrop::new(Box::from_raw(ptr));
 
-    // TODO: Cache this
-    let ids = context
-        .runner
-        .egraph
-        .classes()
-        .into_iter()
-        .filter(|ec| ec.version == context.runner.egraph.version)
-        .map(|ec| context.runner.egraph.find(ec.id))
-        .collect::<HashSet<_>>();
-
-    let mut whitelist = HashSet::default();
-    for id in ids {
-        if !whitelist.contains(&id) {
-            add_reachable(id, &context.runner.egraph, &mut whitelist);
-        }
-    }
-
-    let n_classes = context
-        .runner
-        .egraph
-        .classes()
-        .filter(|ec| whitelist.contains(&context.runner.egraph.find(ec.id)))
-        .map(|c| usize::from(c.id) as u32)
-        .collect::<Vec<_>>()
-        .len();
-
-    // TODO: Remove this check
-    assert_eq!(n_classes, whitelist.len());
-
-    whitelist.len() as u32
+    context.runner.egraph.whitelist.len() as u32
 }
 
 #[no_mangle]
@@ -400,43 +372,21 @@ pub unsafe extern "C" fn egraph_enode_size(ptr: *mut Context, id: u32, idx: u32)
     context.runner.egraph[id].nodes[idx].len() as u32
 }
 
-fn add_reachable(id: Id, egraph: &EGraph, whitelist: &mut HashSet<Id>) {
-    if whitelist.contains(&id) {
-        return;
-    }
-    whitelist.insert(egraph.find(id));
-    for node in egraph[id].nodes.iter() {
-        for child in node.children().iter() {
-            add_reachable(*child, egraph, whitelist);
-        }
-    }
-}
-
 #[no_mangle]
 pub unsafe extern "C" fn egraph_get_eclasses(ptr: *mut Context, ids_ptr: *mut u32) {
     let context = ManuallyDrop::new(Box::from_raw(ptr));
-
-    let ids = context
-        .runner
-        .egraph
-        .classes()
-        .into_iter()
-        .filter(|ec| ec.version == context.runner.egraph.version)
-        .map(|ec| context.runner.egraph.find(ec.id))
-        .collect::<HashSet<_>>();
-
-    let mut whitelist = HashSet::default();
-    for id in ids {
-        if !whitelist.contains(&id) {
-            add_reachable(id, &context.runner.egraph, &mut whitelist);
-        }
-    }
 
     let mut ids: Vec<u32> = context
         .runner
         .egraph
         .classes()
-        .filter(|ec| whitelist.contains(&context.runner.egraph.find(ec.id)))
+        .filter(|ec| {
+            context
+                .runner
+                .egraph
+                .whitelist
+                .contains(&context.runner.egraph.find(ec.id))
+        })
         .map(|c| usize::from(c.id) as u32)
         .collect();
     ids.sort();
@@ -521,7 +471,8 @@ pub unsafe extern "C" fn egraph_get_variants(
     let head_node = &orig_recexpr.as_ref()[orig_recexpr.as_ref().len() - 1];
 
     // extractor
-    let extractor = Extractor::new(&context.runner.egraph, AltCost::new(&context.runner.egraph));
+    let mut extractor =
+        Extractor::new(&context.runner.egraph, AltCost::new(&context.runner.egraph));
     let mut cache: IndexMap<Id, RecExpr> = Default::default();
 
     // extract variants
