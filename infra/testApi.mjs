@@ -26,21 +26,11 @@ await callAnalyze(FPCoreFormula, [[[
 ], 0.12711304680349078]], [[[14.97651307489794], "2.3"]], true);
 
 async function callAnalyze(fpcore, p_context, result_huh, async_huh) {
-  const errors_body = {
-    method: 'POST', body: JSON.stringify({
-      formula: fpcore, sample: p_context
-    })
-  };
-  var alt_error = null;
-  if (async_huh) {
-    const analyze_rsp = await callAsyncAndWaitResult("/api/start/analyze", errors_body, CHECK_CORS);
-    assert.equal(analyze_rsp.status, 200);
-    alt_error = await analyze_rsp.json();
-  } else {
-    const analyze_rsp = await fetchAndCheckRSPHeaders("/api/analyze", errors_body, CHECK_CORS);
-    assert.equal(analyze_rsp.status, 200);
-    alt_error = await analyze_rsp.json();
-  }
+  const analyze_rsp = await call('analyze', 'POST', JSON.stringify({
+    formula: fpcore, sample: p_context
+  }), async_huh);
+  assert.equal(analyze_rsp.status, 200);
+  const alt_error = await analyze_rsp.json();
   assert.equal(Object.values(alt_error).length, 4);
   assertIdAndPath(alt_error);
   assert.equal(alt_error.points.length == p_context.length, true);
@@ -91,21 +81,10 @@ async function callUp() {
 }
 
 // MARK: Sample
-async function callSample(fpcore, async) {
-  const sampleBody = {
-    method: 'POST',
-    body: JSON.stringify({ formula: fpcore, seed: 5 })
-  };
-  var sample_json = null;
-  if (async) {
-    const sample_rsp = await callAsyncAndWaitResult("/api/start/sample", sampleBody, CHECK_CORS);
-    assert.equal(sample_rsp.status, 200);
-    sample_json = await sample_rsp.json();
-  } else {
-    const sample_rsp = await fetchAndCheckRSPHeaders("/api/sample", sampleBody, CHECK_CORS);
-    assert.equal(sample_rsp.status, 200);
-    sample_json = await sample_rsp.json();
-  }
+async function callSample(fpcore, async_huh) {
+  var sample_rsp = await call('sample', 'POST', JSON.stringify({ formula: fpcore, seed: 5 }), async_huh);
+  assert.equal(sample_rsp.status, 200);
+  const sample_json = await sample_rsp.json();
   assert.equal(Object.values(sample_json).length, 4);
   assert.ok(sample_json.points);
   assert.equal(sample_json.points.length, SAMPLE_SIZE);
@@ -117,44 +96,23 @@ const sample2 = await callSample(FPCoreFormula, false);
 assert.deepEqual(sample1.points[1], sample2.points[1]);
 
 // MARK: Explanations
-async function callExplanations(fpcore, p_context, async) {
-  const explainBody = {
-    method: 'POST',
-    body: JSON.stringify({
-      formula: fpcore, sample: p_context
-    })
-  };
-  var explain_json = null;
-  if (async) {
-    const explain_rsp = await callAsyncAndWaitResult("/api/start/explanations", explainBody, CHECK_CORS);
-    assert.equal(explain_rsp.status, 200);
-    explain_json = await explain_rsp.json();
-  } else {
-    const explain_rsp = await fetchAndCheckRSPHeaders("/api/explanations", explainBody, CHECK_CORS);
-    assert.equal(explain_rsp.status, 200);
-    explain_json = await explain_rsp.json();
-  }
+async function callExplanations(fpcore, p_context, async_huh) {
+  const explain_rsp = await call('explanations', 'POST', JSON.stringify({
+    formula: fpcore, sample: p_context
+  }), async_huh);
+  assert.equal(explain_rsp.status, 200);
+  const explain_json = await explain_rsp.json();
   assertIdAndPath(explain_json);
   assert.equal(Object.values(explain_json).length, 4);
 }
 
 // MARK: Exacts endpoint
-async function callExacts(fpcore, p_context, as_async) {
-  const exacts_body = {
-    method: 'POST', body: JSON.stringify({
-      formula: fpcore, sample: p_context
-    })
-  };
-  var exacts_json = null;
-  if (as_async) {
-    const exacts_rsp = await callAsyncAndWaitResult("/api/start/exacts", exacts_body, CHECK_CORS);
-    assert.equal(exacts_rsp.status, 200);
-    exacts_json = await exacts_rsp.json();
-  } else {
-    const exacts_rsp = await fetchAndCheckRSPHeaders("/api/exacts", exacts_body, CHECK_CORS);
-    assert.equal(exacts_rsp.status, 200);
-    exacts_json = await exacts_rsp.json();
-  }
+async function callExacts(fpcore, p_context, async_huh) {
+  const exacts_rsp = await call('exacts', 'POST', JSON.stringify({
+    formula: fpcore, sample: p_context
+  }), async_huh);
+  assert.equal(exacts_rsp.status, 200);
+  const exacts_json = await exacts_rsp.json();
   assertIdAndPath(exacts_json);
   assert.equal(Object.values(exacts_json).length, 4);
   return exacts_json;
@@ -166,23 +124,12 @@ assert.deepEqual(exacts1.points, [[[1], -1.4142135623730951]]);
 assert.deepEqual(exacts2.points, [[[1], -1.4142135623730951]]);
 
 // MARK: Calculate endpoint
-async function callCalculate(fpcore, p_context, as_async) {
-  const calculateBody = {
-    method: 'POST', body: JSON.stringify({
-      formula: fpcore, sample: p_context
-    })
-  }
-  var calculate_json = null;
-  var calculate_rsp = null;
-  if (as_async) {
-    calculate_rsp = await callAsyncAndWaitResult("/api/start/calculate", calculateBody, CHECK_CORS);
-    assert.equal(calculate_rsp.status, 200);
-    calculate_json = await calculate_rsp.json();
-  } else {
-    calculate_rsp = await fetchAndCheckRSPHeaders("/api/calculate", calculateBody, CHECK_CORS);
-    assert.equal(calculate_rsp.status, 200);
-    calculate_json = await calculate_rsp.json();
-  }
+async function callCalculate(fpcore, p_context, async_huh) {
+  const calculate_rsp = await call('calculate', 'POST', JSON.stringify({
+    formula: fpcore, sample: p_context
+  }), async_huh);
+  assert.equal(calculate_rsp.status, 200);
+  const calculate_json = await calculate_rsp.json();
   assertIdAndPath(calculate_json);
   assert.equal(Object.values(calculate_json).length, 4);
   return calculate_json;
@@ -258,23 +205,12 @@ checkLocalErrorNode(localError7.tree, [0, 1],
 checkLocalErrorNode(localError7.tree, [2],
   'fma', '0.0', '-inf.0', '-inf.0', '+inf.0', '0.0')
 
-async function callLocalError(fpcore, p_context, as_async) {
-  const localError_body = {
-    method: 'POST', body: JSON.stringify({
-      formula: fpcore, sample: p_context
-    })
-  };
-  var localerror_json = null;
-  var localerror_rsp = null;
-  if (as_async) {
-    localerror_rsp = await callAsyncAndWaitResult("/api/start/localerror", localError_body, CHECK_CORS);
-    assert.equal(localerror_rsp.status, 200);
-    localerror_json = await localerror_rsp.json();
-  } else {
-    localerror_rsp = await fetchAndCheckRSPHeaders("/api/localerror", localError_body, CHECK_CORS);
-    assert.equal(localerror_rsp.status, 200);
-    localerror_json = await localerror_rsp.json();
-  }
+async function callLocalError(fpcore, p_context, async_huh) {
+  const localerror_rsp = await call('localerror', 'POST', JSON.stringify({
+    formula: fpcore, sample: p_context
+  }), async_huh);
+  assert.equal(localerror_rsp.status, 200);
+  const localerror_json = await localerror_rsp.json();
   assertIdAndPath(localerror_json);
   assert.equal(Object.values(localerror_json).length, 4);
   assert.ok(localerror_json.tree['avg-error']);
@@ -291,22 +227,11 @@ const alts_async = callAlternatives(FPCoreFormula, [[[
 assert.deepEqual(alts_sync, alts_async);
 
 async function callAlternatives(fpcore, p_context, async_huh) {
-  const alternatives_body = {
-    method: 'POST', body: JSON.stringify({
-      formula: fpcore, sample: p_context
-    })
-  };
-  var alternatives_json = null;
-  var alternatives_rsp = null;
-  if (async_huh) {
-    alternatives_rsp = await callAsyncAndWaitResult("/api/start/alternatives", alternatives_body, CHECK_CORS);
-    assert.equal(alternatives_rsp.status, 200);
-    alternatives_json = await alternatives_rsp.json();
-  } else {
-    alternatives_rsp = await fetchAndCheckRSPHeaders("/api/alternatives", alternatives_body, CHECK_CORS);
-    assert.equal(alternatives_rsp.status, 200);
-    alternatives_json = await alternatives_rsp.json();
-  }
+  const alternatives_rsp = await call('alternatives', 'POST', JSON.stringify({
+    formula: fpcore, sample: p_context
+  }), async_huh);
+  assert.equal(alternatives_rsp.status, 200);
+  const alternatives_json = await alternatives_rsp.json();
   assertIdAndPath(alternatives_json);
   assert.equal(Object.values(alternatives_json).length, 7);
   assert.equal(Array.isArray(alternatives_json.alternatives), true);
@@ -315,21 +240,11 @@ async function callAlternatives(fpcore, p_context, async_huh) {
 
 // MARK: Cost endpoint
 async function callCost(fpcore, p_context, async_huh) {
-  const costBody = {
-    method: 'POST', body: JSON.stringify({
-      formula: fpcore, sample: p_context
-    })
-  };
-  var cost_result = null;
-  if (async_huh) {
-    const cost_rsp = await callAsyncAndWaitResult("/api/start/cost", costBody, CHECK_CORS);
-    assert.equal(cost_rsp.status, 200);
-    cost_result = await cost_rsp.json();
-  } else {
-    const cost_rsp = await fetchAndCheckRSPHeaders("/api/cost", costBody, CHECK_CORS)
-    assert.equal(cost_rsp.status, 200);
-    cost_result = await cost_rsp.json();
-  }
+  const cost_rsp = await call('cost', 'POST', JSON.stringify({
+    formula: fpcore, sample: p_context
+  }), async_huh);
+  assert.equal(cost_rsp.status, 200);
+  const cost_result = await cost_rsp.json();
   assertIdAndPath(cost_result);
   assert.equal(Object.values(cost_result).length, 4);
   assert.equal(cost_result.cost > 0, true);
@@ -465,6 +380,18 @@ function assertIdAndPath(json) {
   assert.equal(json.job.length > 0, true)
   assert.equal(json.path.includes(json.job), true)
   assert.equal(json.path.includes("."), true)
+}
+
+async function call(endpoint, method, body, async_huh) {
+  const request = {
+    method: method,
+    body: body
+  };
+  if (async_huh) {
+    return await callAsyncAndWaitResult(`/api/start/${endpoint}`, request, CHECK_CORS);
+  } else {
+    return await fetchAndCheckRSPHeaders(`/api/${endpoint}`, request, CHECK_CORS);
+  }
 }
 
 async function callAsyncAndWaitResult(endpoint, body, check) {
