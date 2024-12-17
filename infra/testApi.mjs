@@ -30,12 +30,12 @@ async function callAnalyze(fpcore, p_context, result_huh, async_huh) {
     formula: fpcore, sample: p_context
   }), async_huh);
   assert.equal(analyze_rsp.status, 200);
-  const alt_error = await analyze_rsp.json();
-  assert.equal(Object.values(alt_error).length, 4);
-  assertIdAndPath(alt_error);
-  assert.equal(alt_error.points.length == p_context.length, true);
+  const analyze_json = await analyze_rsp.json();
+  assertIdAndPath(analyze_json);
+  checkFelids(analyze_json, ['command', 'points', 'job', 'path']);
+  assert.equal(analyze_json.points.length == p_context.length, true);
   if (result_huh != null) {
-    assert.deepEqual(alt_error.points, result_huh);
+    assert.deepEqual(analyze_json.points, result_huh);
   }
 }
 
@@ -45,18 +45,19 @@ async function callTranslate(fpcore, language, maybe_value) {
     const mathjs_rsp = await fetchAndCheckRSPHeaders("/api/mathjs", {
       method: 'POST', body: JSON.stringify({ formula: fpcore })
     }, CHECK_CORS);
-    const mathjs = await mathjs_rsp.json();
+    const json = await mathjs_rsp.json();
+    checkFelids(json, ['mathjs']);
     if (maybe_value != null) {
-      assert.equal(mathjs.mathjs, maybe_value);
+      assert.equal(json.mathjs, maybe_value);
     } else {
-      assert.equal(mathjs.mathjs.length > 0, true);
+      assert.equal(json.mathjs.length > 0, true);
     }
   } else {
     const json = await (await fetchAndCheckRSPHeaders("/api/translate", {
       method: 'POST', body: JSON.stringify(
         { formula: fpcore, language: language })
     }, CHECK_CORS)).json();
-    assert.equal(Object.values(json).length, 2);
+    checkFelids(json, ['language', 'result']);
     assert.equal(json['language'], language);
     if (maybe_value != null) {
       assert.equal(json['result'], maybe_value);
@@ -85,8 +86,8 @@ async function callSample(fpcore, async_huh) {
   var sample_rsp = await call('sample', 'POST', JSON.stringify({ formula: fpcore, seed: 5 }), async_huh);
   assert.equal(sample_rsp.status, 200);
   const sample_json = await sample_rsp.json();
-  assert.equal(Object.values(sample_json).length, 4);
-  assert.ok(sample_json.points);
+  assertIdAndPath(sample_json);
+  checkFelids(sample_json, ['command', 'points', 'job', 'path']);
   assert.equal(sample_json.points.length, SAMPLE_SIZE);
   return sample_json;
 }
@@ -103,7 +104,7 @@ async function callExplanations(fpcore, p_context, async_huh) {
   assert.equal(explain_rsp.status, 200);
   const explain_json = await explain_rsp.json();
   assertIdAndPath(explain_json);
-  assert.equal(Object.values(explain_json).length, 4);
+  checkFelids(explain_json, ['command', 'explanation', 'job', 'path']);
 }
 
 // MARK: Exacts endpoint
@@ -114,7 +115,7 @@ async function callExacts(fpcore, p_context, async_huh) {
   assert.equal(exacts_rsp.status, 200);
   const exacts_json = await exacts_rsp.json();
   assertIdAndPath(exacts_json);
-  assert.equal(Object.values(exacts_json).length, 4);
+  checkFelids(exacts_json, ['command', 'points', 'job', 'path']);
   return exacts_json;
 }
 
@@ -131,7 +132,7 @@ async function callCalculate(fpcore, p_context, async_huh) {
   assert.equal(calculate_rsp.status, 200);
   const calculate_json = await calculate_rsp.json();
   assertIdAndPath(calculate_json);
-  assert.equal(Object.values(calculate_json).length, 4);
+  checkFelids(calculate_json, ['command', 'points', 'job', 'path']);
   return calculate_json;
 }
 
@@ -141,6 +142,18 @@ assert.deepEqual(calc1.points, [[[1], -1.4142135623730951]]);
 assert.deepEqual(calc2.points, [[[1], -1.4142135623730951]]);
 
 // MARK: Local error
+async function callLocalError(fpcore, p_context, async_huh) {
+  const localerror_rsp = await call('localerror', 'POST', JSON.stringify({
+    formula: fpcore, sample: p_context
+  }), async_huh);
+  assert.equal(localerror_rsp.status, 200);
+  const localerror_json = await localerror_rsp.json();
+  assertIdAndPath(localerror_json);
+  checkFelids(localerror_json, ['command', 'tree', 'job', 'path']);
+  assert.ok(localerror_json.tree['avg-error']);
+  return localerror_json;
+}
+
 const tree1 = await callLocalError(FPCoreFormula, [[[2.852044568544089e-150], 1e+308]], true);
 const tree2 = await callLocalError(FPCoreFormula, [[[1.5223342548065899e-15], 1e+308]], false);
 // Test that different sample points produce different job ids ensuring that different results are served for these inputs.
@@ -205,18 +218,6 @@ checkLocalErrorNode(localError7.tree, [0, 1],
 checkLocalErrorNode(localError7.tree, [2],
   'fma', '0.0', '-inf.0', '-inf.0', '+inf.0', '0.0')
 
-async function callLocalError(fpcore, p_context, async_huh) {
-  const localerror_rsp = await call('localerror', 'POST', JSON.stringify({
-    formula: fpcore, sample: p_context
-  }), async_huh);
-  assert.equal(localerror_rsp.status, 200);
-  const localerror_json = await localerror_rsp.json();
-  assertIdAndPath(localerror_json);
-  assert.equal(Object.values(localerror_json).length, 4);
-  assert.ok(localerror_json.tree['avg-error']);
-  return localerror_json;
-}
-
 // MARK: Alternatives endpoint
 const alts_sync = callAlternatives(FPCoreFormula, [[[
   14.97651307489794
@@ -233,7 +234,7 @@ async function callAlternatives(fpcore, p_context, async_huh) {
   assert.equal(alternatives_rsp.status, 200);
   const alternatives_json = await alternatives_rsp.json();
   assertIdAndPath(alternatives_json);
-  assert.equal(Object.values(alternatives_json).length, 7);
+  checkFelids(alternatives_json, ['command', 'alternatives', 'histories', 'derivations', 'splitpoints', 'job', 'path']);
   assert.equal(Array.isArray(alternatives_json.alternatives), true);
   return alternatives_json;
 }
@@ -246,7 +247,7 @@ async function callCost(fpcore, p_context, async_huh) {
   assert.equal(cost_rsp.status, 200);
   const cost_result = await cost_rsp.json();
   assertIdAndPath(cost_result);
-  assert.equal(Object.values(cost_result).length, 4);
+  checkFelids(cost_result, ['command', 'cost', 'job', 'path']);
   assert.equal(cost_result.cost > 0, true);
   return cost_result;
 }
@@ -410,4 +411,11 @@ async function callAsyncAndWaitResult(endpoint, body, check) {
     await new Promise(r => setTimeout(r, 100)); // ms
   }
   return await fetchAndCheckRSPHeaders(`/api/result/${jobJSON.job}`, { method: 'GET' }, check)
+}
+
+function checkFelids(json, names) {
+  assert.equal(Object.values(json).length, names.length);
+  for (const felid of names) {
+    assert.ok(json[felid]);
+  }
 }
