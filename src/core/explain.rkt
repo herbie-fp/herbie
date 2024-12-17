@@ -348,6 +348,7 @@
         [(list (or 'sqrt.f64 'sqrt.f32) x-ex)
          #:when (list? x-ex)
          (define x.lf (lfs-ref x-ex))
+         (void)
          #;(when (lf< x.lf (lf 0.0) #f)
            (eprintf "~a, ~a, ~a\n" subexpr pt x.lf))
 
@@ -363,7 +364,7 @@
         [(list (or 'cbrt.f64 'cbrt.f32) x-ex)
          #:when (list? x-ex)
          (define x.lf (lfs-ref x-ex))
-
+         (void)
          #;(cond
            ;; Underflow rescue:
            [(and (lfunderflow? x.lf) (not (lfunderflow? z.dl)))
@@ -377,7 +378,7 @@
          #:when (or (list? x-ex) (list? y-ex))
          (define x.lf (lfs-ref x-ex))
          (define y.lf (lfs-ref y-ex))
-
+         (void)
          #;(when (or (lfover/underflowed? x.lf) (lfover/underflowed? y.lf))
            (cond
              ;; if the numerator underflows and the denominator:
@@ -411,7 +412,7 @@
          #:when (or (list? x-ex) [list? y-ex])
          (define x.lf (lfs-ref x-ex))
          (define y.lf (lfs-ref y-ex))
-
+         (void)
          #;(cond
            ;; if one operand underflows and the other overflows, then nan must
            ;; be rescued.
