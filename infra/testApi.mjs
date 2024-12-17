@@ -211,20 +211,12 @@ async function callCost(fpcore, p_context, async_huh) {
 // MARK: Translate
 async function callTranslate(fpcore, language) {
   if (language === 'mathjs') {
-    const mathjs_rsp = await fetchAndCheckRSPHeaders("/api/mathjs", {
-      method: 'POST', body: JSON.stringify({ formula: fpcore })
-    }, CHECK_CORS);
-    assert.equal(mathjs_rsp.status, 200);
-    const json = await mathjs_rsp.json();
+    const json = await getJSONFor('mathjs', 'POST', JSON.stringify({ formula: fpcore }), false);
     checkFelids(json, ['mathjs']);
     return json;
   } else {
-    const translate_rsp = await fetchAndCheckRSPHeaders("/api/translate", {
-      method: 'POST', body: JSON.stringify(
-        { formula: fpcore, language: language })
-    }, CHECK_CORS)
-    assert.equal(translate_rsp.status, 200);
-    const json = await translate_rsp.json();
+    const json = await getJSONFor('translate', 'POST', JSON.stringify(
+      { formula: fpcore, language: language }), false);
     checkFelids(json, ['language', 'result']);
     return json;
   }
