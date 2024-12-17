@@ -173,7 +173,8 @@
            [(> (- ye1 xe1) 100) (silence x-ex)])
 
          (if (or (lfover/underflowed? x.dl) (lfover/underflowed? y.dl))
-             (cond
+             (void)
+             #;(cond
                ; NaN rescue: +-inf + -+inf cannot be nan
                [(and (lfoverflow? x.dl) (lfoverflow? y.dl) (not (lfsamesign? x.dl y.dl)))
                 (mark-erroneous! subexpr 'nan-rescue)]
@@ -214,7 +215,8 @@
              [(> (- y.eps x.eps) 100) (silence x-ex)])
 
          (if (or (lfover/underflowed? x.dl) (lfover/underflowed? y.dl))
-             (cond
+             (void)
+             #;(cond
                ; NaN rescue: +-inf - -+inf cannot be nan
                [(and (lfoverflow? x.dl) (lfoverflow? y.dl) (lfsamesign? x.dl y.dl))
                 (mark-erroneous! subexpr 'nan-rescue)]
@@ -244,6 +246,7 @@
          ;(eprintf "~a ~a ~a ~a ~a ~a\n" pt eps cond.lf er1 er2 s)
 
          (if (lfover/underflowed? x.lf)
+             #;(void)
              (when (lfoverflow? x.lf)
                (mark-erroneous! subexpr 'oflow-rescue))
 
@@ -269,7 +272,8 @@
          (define cond.lf (lf* (lfabs x.lf) tan.lf))
 
          (if (lfover/underflowed? x.lf)
-             (when (lfoverflow? x.lf)
+             (void)
+             #;(when (lfoverflow? x.lf)
                (mark-erroneous! subexpr 'sensitivity))
 
              (cond
@@ -294,7 +298,8 @@
          (define cond.lf (lf* (lfabs x.lf) tan.lf))
 
          (if (lfover/underflowed? x.lf)
-             (when (lfoverflow? x.lf)
+             (void)
+             #;(when (lfoverflow? x.lf)
                (mark-erroneous! subexpr 'sensitivity))
 
              (cond
@@ -321,7 +326,8 @@
          (define cond.lf (lf* (lfabs x.lf) condhlf.lf))
 
          (if (lfover/underflowed? x.lf)
-             (when (lfoverflow? x.lf)
+             (void)
+             #;(when (lfoverflow? x.lf)
                (mark-erroneous! subexpr 'sensitivity))
 
              (cond
@@ -345,7 +351,7 @@
          #;(when (lf< x.lf (lf 0.0) #f)
            (eprintf "~a, ~a, ~a\n" subexpr pt x.lf))
 
-         (cond
+         #;(cond
            ;; Underflow rescue:
            [(and (lfunderflow? x.lf) (not (lfunderflow? z.dl)))
             (mark-erroneous! subexpr 'uflow-rescue)]
@@ -358,7 +364,7 @@
          #:when (list? x-ex)
          (define x.lf (lfs-ref x-ex))
 
-         (cond
+         #;(cond
            ;; Underflow rescue:
            [(and (lfunderflow? x.lf) (not (lfunderflow? z.dl)))
             (mark-erroneous! subexpr 'uflow-rescue)]
@@ -372,7 +378,7 @@
          (define x.lf (lfs-ref x-ex))
          (define y.lf (lfs-ref y-ex))
 
-         (when (or (lfover/underflowed? x.lf) (lfover/underflowed? y.lf))
+         #;(when (or (lfover/underflowed? x.lf) (lfover/underflowed? y.lf))
            (cond
              ;; if the numerator underflows and the denominator:
              ;; - underflows, nan could be rescued
@@ -406,7 +412,7 @@
          (define x.lf (lfs-ref x-ex))
          (define y.lf (lfs-ref y-ex))
 
-         (cond
+         #;(cond
            ;; if one operand underflows and the other overflows, then nan must
            ;; be rescued.
            [(and (lfoverflow? x.lf) (lfunderflow? y.lf) (not (lfnan? z.dl)))
@@ -431,7 +437,8 @@
          (define cond.lf (lfabs (lf/ (lf 1.0) z.dl)))
 
          (if (lfover/underflowed? x.lf)
-             (cond
+             (void)
+             #;(cond
                [(lfunderflow? x.lf) (mark-erroneous! subexpr 'uflow-rescue)]
                [(lfoverflow? x.lf) (mark-erroneous! subexpr 'oflow-rescue)])
              (cond
@@ -495,9 +502,9 @@
 
            [(and (lf< y.lf (lf -1.0) #f) (lfover/underflowed? z.dl)) #f]
 
-           [(and (lfunderflow? x.lf) (lfrepresentable? z.dl)) (mark-erroneous! subexpr 'uflow-rescue)]
+           #;[(and (lfunderflow? x.lf) (lfrepresentable? z.dl)) (mark-erroneous! subexpr 'uflow-rescue)]
 
-           [(and (lfoverflow? x.lf) (lfrepresentable? z.dl)) (mark-erroneous! subexpr 'oflow-rescue)]
+           #;[(and (lfoverflow? x.lf) (lfrepresentable? z.dl)) (mark-erroneous! subexpr 'oflow-rescue)]
 
            [(and (or (lf> condx.lf (*condthres*) #f) (lf> condy.lf (*condthres*) #f))
                  (not (constant? y-ex)))
