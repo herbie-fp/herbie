@@ -74,12 +74,17 @@
     (define given-seed (read (open-input-string int)))
     (when given-seed
       (set-seed! given-seed))]
+   [("--threads")
+    num
+    "How many jobs to run in parallel: Processor count is the default."
+    (set! threads (string->thread-count num))]
    [("--platform")
     platform
     ("The platform to use during improvement" "[Default: default]")
     (*platform-name* (string->symbol platform))
     (*active-platform* (get-platform (*platform-name*)))
     (activate-platform! (*active-platform*))]
+
    [("--num-iters")
     num
     ("The number of iterations to use for the main loop. Herbie may find additional improvements
@@ -104,6 +109,7 @@
      during sampling. May fix \"Cannot sample enough valid points\" but will slow."
      (format "[Default: ~a iterations]" (*max-find-range-depth*)))
     (*max-find-range-depth* (string->number num))]
+
    [("--no-pareto")
     ("Disables Pareto-Herbie (Pherbie). Pareto-mode performs accuracy and expression cost
      optimization and extracts multiple output expressions that are Pareto-optimal. Disabling
@@ -144,10 +150,6 @@
     [("--prefix") prefix "Prefix for proxying demo" (set! demo-prefix prefix)]
     [("--demo") "Run in Herbie web demo mode. Changes some text" (set! demo? true)]
     [("--quiet") "Print a smaller banner and don't start a browser." (set! quiet? true)]
-    [("--threads")
-     num
-     "How many jobs to run in parallel: Processor count is the default."
-     (set! threads (string->thread-count num))]
     [("--no-browser") "Run the web demo but don't start a browser." (set! browser? #f)]
     #:args ()
     (run-demo #:quiet quiet?
@@ -161,28 +163,16 @@
               #:public? demo-public)]
    [improve
     "Run Herbie on an FPCore file, producing an FPCore file"
-    #:once-each [("--threads")
-                 num
-                 "How many tests to run in parallel: 'yes', 'no', or a number"
-                 (set! threads (string->thread-count num))]
     #:args (input output)
     (run-improve input output #:threads threads)]
    [report
     "Run Herbie on an FPCore file, producing an HTML report"
     #:once-each [("--note") note "Add a note for this run" (set! report-note note)]
-    [("--threads")
-     num
-     "How many tests to run in parallel: 'yes', 'no', or a number"
-     (set! threads (string->thread-count num))]
     #:args (input output)
     (make-report (list input) #:dir output #:note report-note #:threads threads)]
    [reproduce
     "Rerun an HTML report"
     #:once-each [("--note") note "Add a note for this run" (set! report-note note)]
-    [("--threads")
-     num
-     "How many tests to run in parallel: 'yes', 'no', or a number"
-     (set! threads (string->thread-count num))]
     #:args (input output)
     (rerun-report input #:dir output #:note report-note #:threads threads)]
    #:args files
