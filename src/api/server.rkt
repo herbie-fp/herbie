@@ -60,7 +60,7 @@
     (if (file-exists? data-file)
         (let ([info (call-with-input-file data-file read-datafile)])
           (struct-copy report-info info [tests (cons data (report-info-tests info))]))
-        (make-report-info (list data) #:seed (get-seed) #:note (if (*demo?*) "Web demo results" ""))))
+        (make-report-info (list data) #:seed (get-seed))))
   (define tmp-file (build-path (*demo-output*) "results.tmp"))
   (write-datafile tmp-file info)
   (rename-file-or-directory tmp-file data-file #t)

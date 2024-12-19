@@ -41,8 +41,6 @@
 (define key-contracts
   (hash string?
         '(date-full date-short folder commit branch hostname)
-        (or/c string? false)
-        '(note)
         exact-nonnegative-integer?
         '(date-unix tests-passed tests-available tests-crashed)
         (listof string?)
@@ -84,7 +82,6 @@
                              flags
                              points
                              iterations
-                             note
                              tests
                              merged-cost-accuracy)
     info)
@@ -125,8 +122,6 @@
         branch
         'options
         (map ~a (get-options info))
-        'note
-        note
         'tests-passed
         total-passed
         'tests-available
@@ -161,32 +156,30 @@
            (th "Collection")
            (th "Tests")
            (th "Bits"))
-    (tbody
-     ,@
-     (for/list ([info infos])
-       (define field (curry dict-ref info))
+    (tbody ,@(for/list ([info infos])
+               (define field (curry dict-ref info))
 
-       `(tr ((class ,(if (bad-result? info) "crash" "")))
-            ;; TODO: Best to output a datetime field in RFC3338 format,
-            ;; but Racket doesn't make that easy.
-            (td ([title ,(field 'date-full)])
-                (time ([data-unix ,(~a (field 'date-unix))]) ,(field 'date-short)))
-            (td (time ([data-ms ,(~a (field 'speed))]) ,(format-time (field 'speed))))
-            (td ([title ,(field 'commit)]) ,(field 'branch))
-            (td ([title ,(string-join (field 'options) " ")] (class ,(if (field 'note) "note" "")))
-                ,(or (field 'note) "⭐"))
-            (td ,(if (> (field 'tests-available) 0)
-                     (format "~a/~a" (field 'tests-passed) (field 'tests-available))
-                     ""))
-            (td ,(if (field 'bits-improved)
-                     (format "~a/~a" (round* (field 'bits-improved)) (round* (field 'bits-available)))
-                     ""))
-            (td ([title
-                  ,(format "At ~a\nOn ~a\nFlags ~a"
-                           (field 'date-full)
-                           (field 'hostname)
-                           (string-join (field 'options) " "))])
-                (a ([href ,(format "./~a/index.html" (field 'folder))]) "»")))))))
+               `(tr ((class ,(if (bad-result? info) "crash" "")))
+                    ;; TODO: Best to output a datetime field in RFC3338 format,
+                    ;; but Racket doesn't make that easy.
+                    (td ([title ,(field 'date-full)])
+                        (time ([data-unix ,(~a (field 'date-unix))]) ,(field 'date-short)))
+                    (td (time ([data-ms ,(~a (field 'speed))]) ,(format-time (field 'speed))))
+                    (td ([title ,(field 'commit)]) ,(field 'branch))
+                    (td ,(if (> (field 'tests-available) 0)
+                             (format "~a/~a" (field 'tests-passed) (field 'tests-available))
+                             ""))
+                    (td ,(if (field 'bits-improved)
+                             (format "~a/~a"
+                                     (round* (field 'bits-improved))
+                                     (round* (field 'bits-available)))
+                             ""))
+                    (td ([title
+                          ,(format "At ~a\nOn ~a\nFlags ~a"
+                                   (field 'date-full)
+                                   (field 'hostname)
+                                   (string-join (field 'options) " "))])
+                        (a ([href ,(format "./~a/index.html" (field 'folder))]) "»")))))))
 
 (define (make-index-page folders out)
   (define branch-infos
@@ -203,18 +196,6 @@
   (define-values (mainline-infos other-infos)
     (partition (λ (x) (set-member? '("master" "develop" "main") (dict-ref (first x) 'branch)))
                branch-infos))
-
-  (when (null? mainline-infos)
-    (set! mainline-infos
-          (list (filter (curryr dict-ref 'note)
-                        (map first
-                             (group-by (curryr dict-ref 'note)
-                                       (sort (filter (λ (x)
-                                                       (set-member? '("master" "develop" "main")
-                                                                    (dict-ref x 'branch)))
-                                                     folders)
-                                             >
-                                             #:key (curryr dict-ref 'date-unix))))))))
 
   (define crashes (filter (λ (x) (> (dict-ref x 'tests-crashed) 0)) (apply append mainline-infos)))
   (define last-crash
