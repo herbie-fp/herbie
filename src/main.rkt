@@ -192,8 +192,9 @@
    #:args files
    (match files
      ['()
-      (eprintf "Please specify a Herbie tool, such as `herbie web`.\n")
-      (eprintf "See <https://herbie.uwplse.org/doc/~a/options.html> for more.\n" *herbie-version*)]
+      (raise-herbie-error "Please specify a Herbie tool like `racket -l herbie web`"
+                          #:url "options.html")]
      [(cons tool _)
-      (eprintf "Unknown Herbie tool `~a`. See a list of available tools with `herbie --help`.\n" tool)
-      (eprintf "See <https://herbie.uwplse.org/doc/~a/options.html> for more.\n" *herbie-version*)])))
+      (raise-herbie-error "Unknown tool `~a`. List available tools with `racket -l herbie -- --help`"
+                          tool
+                          #:url "options.html")])))
