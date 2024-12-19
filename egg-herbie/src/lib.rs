@@ -15,10 +15,11 @@ use std::time::Duration;
 use std::{slice, sync::atomic::Ordering};
 
 use lazy_static::lazy_static;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 lazy_static! {
-    static ref INC_EGRAPH: Mutex<EGraph> = Mutex::new(EGraph::default());
+    static ref INC_EGRAPH: Arc<Mutex<Option<EGraph>>> =
+        Arc::new(Mutex::new(Some(EGraph::default())));
     static ref INC_ITERDATA: Mutex<Vec<Iteration>> = Mutex::new(vec![]);
 }
 
@@ -33,14 +34,16 @@ pub struct Context {
 pub unsafe extern "C" fn egraph_create() -> *mut Context {
     println!("*** creating new egraph");
 
-    let mut inc_egraph = INC_EGRAPH.lock().unwrap();
-    inc_egraph.version += 1;
+    let arc = INC_EGRAPH.clone();
+    let mut mutex = arc.lock().unwrap();
+    mutex.as_mut().unwrap().version += 1;
+
+    // let mut inc_egraph = mutex.take().unwrap();
+    // inc_egraph.version += 1;
 
     Box::into_raw(Box::new(Context {
         iteration: 0,
-        runner: Runner::new(Default::default())
-            .with_egraph(inc_egraph.clone())
-            .with_explanations_enabled(),
+        runner: Runner::new(Default::default()).with_explanations_enabled(),
         rules: vec![],
     }))
 }
@@ -117,7 +120,12 @@ pub unsafe extern "C" fn egraph_add_node(
     let ids: &[u32] = slice::from_raw_parts(ids_ptr, len);
     let ids = ids.iter().map(|id| Id::from(*id as usize)).collect();
     let node = Math::from_op(f, ids).unwrap();
-    let id = context.runner.egraph.add(node);
+
+    let arc = INC_EGRAPH.clone();
+    let mut mutex = arc.lock().unwrap();
+    let inc_egraph = mutex.as_mut().unwrap();
+
+    let id = inc_egraph.add(node);
     if is_root {
         context.runner.roots.push(id);
     }
@@ -187,7 +195,10 @@ pub unsafe extern "C" fn egraph_run(
         println!("...with empty egraph");
     }
 
+    let mut update_inc_egraph = false;
     if context.runner.stop_reason.is_none() {
+        update_inc_egraph = true;
+
         let length: usize = rules_array_length as usize;
         let ffi_rules: &[*mut FFIRule] = slice::from_raw_parts(rules_array_ptr, length);
         let mut ffi_tuples: Vec<(&str, &str, &str)> = vec![];
@@ -204,7 +215,11 @@ pub unsafe extern "C" fn egraph_run(
         let rules: Vec<Rewrite> = math::mk_rules(&ffi_tuples);
         context.rules = rules;
 
-        context.runner.egraph.analysis.constant_fold = is_constant_folding_enabled;
+        let arc = INC_EGRAPH.clone();
+        let mut mutex = arc.lock().unwrap();
+        let mut inc_egraph = mutex.take().unwrap();
+
+        inc_egraph.analysis.constant_fold = is_constant_folding_enabled;
         context.runner = if simple_scheduler {
             context.runner.with_scheduler(SimpleScheduler)
         } else {
@@ -212,7 +227,7 @@ pub unsafe extern "C" fn egraph_run(
         };
 
         let node_limit = if node_limit != u32::MAX {
-            context.runner.egraph.total_size() + node_limit as usize
+            inc_egraph.total_size() + node_limit as usize
         } else {
             node_limit as usize
         };
@@ -230,6 +245,7 @@ pub unsafe extern "C" fn egraph_run(
                     Ok(())
                 }
             })
+            .with_egraph(inc_egraph)
             .run(&context.rules);
 
         println!(
@@ -238,8 +254,12 @@ pub unsafe extern "C" fn egraph_run(
         );
     }
 
-    let mut inc_egraph = INC_EGRAPH.lock().unwrap();
-    *inc_egraph = context.runner.egraph.clone();
+    if update_inc_egraph {
+        let arc = INC_EGRAPH.clone();
+        let mut mutex = arc.lock().unwrap();
+        *mutex = Some(context.runner.egraph);
+        context.runner.egraph = EGraph::default();
+    }
 
     let mut inc_iterdata = INC_ITERDATA.lock().unwrap();
     inc_iterdata.extend(context.runner.iterations.clone());
@@ -270,6 +290,7 @@ pub unsafe extern "C" fn egraph_run(
     );
     mem::forget(context);
 
+    println!("*** ending egraph_run");
     iterations_data
 }
 
@@ -288,10 +309,13 @@ pub unsafe extern "C" fn egraph_get_stop_reason(ptr: *mut Context) -> u32 {
 }
 
 fn find_extracted(runner: &Runner, id: u32, iter: u32) -> &Extracted {
-    let id = runner.egraph.find(Id::from(id as usize));
+    let arc = INC_EGRAPH.clone();
+    let mutex = arc.lock().unwrap();
+    let inc_egraph = mutex.as_ref().unwrap();
+    let id = inc_egraph.find(Id::from(id as usize));
 
     // go back one more iter, egg can duplicate the final iter in the case of an error
-    let is_unsound = runner.egraph.analysis.unsound.load(Ordering::SeqCst);
+    let is_unsound = inc_egraph.analysis.unsound.load(Ordering::SeqCst);
     let sound_iter = min(
         runner
             .iterations
@@ -304,7 +328,7 @@ fn find_extracted(runner: &Runner, id: u32, iter: u32) -> &Extracted {
         .data
         .extracted
         .iter()
-        .find(|(i, _)| runner.egraph.find(*i) == id)
+        .find(|(i, _)| inc_egraph.find(*i) == id)
         .map(|(_, ext)| ext)
         .expect("Couldn't find matching extraction!")
 }
@@ -313,7 +337,10 @@ fn find_extracted(runner: &Runner, id: u32, iter: u32) -> &Extracted {
 pub unsafe extern "C" fn egraph_find(ptr: *mut Context, id: usize) -> u32 {
     let context = ManuallyDrop::new(Box::from_raw(ptr));
     let node_id = Id::from(id);
-    let canon_id = context.runner.egraph.find(node_id);
+    let arc = INC_EGRAPH.clone();
+    let mutex = arc.lock().unwrap();
+    let inc_egraph = mutex.as_ref().unwrap();
+    let canon_id = inc_egraph.find(node_id);
     usize::from(canon_id) as u32
 }
 
@@ -321,13 +348,16 @@ pub unsafe extern "C" fn egraph_find(ptr: *mut Context, id: usize) -> u32 {
 pub unsafe extern "C" fn egraph_serialize(ptr: *mut Context) -> *const c_char {
     // Safety: `ptr` was box allocated by `egraph_create`
     let context = ManuallyDrop::new(Box::from_raw(ptr));
-    let mut ids: Vec<Id> = context.runner.egraph.classes().map(|c| c.id).collect();
+    let arc = INC_EGRAPH.clone();
+    let mutex = arc.lock().unwrap();
+    let inc_egraph = mutex.as_ref().unwrap();
+    let mut ids: Vec<Id> = inc_egraph.classes().map(|c| c.id).collect();
     ids.sort();
 
     // Iterate through the eclasses and print each eclass
     let mut s = String::from("(");
     for id in ids {
-        let c = &context.runner.egraph[id];
+        let c = &inc_egraph[id];
         s.push_str(&format!("({}", id));
         for node in &c.nodes {
             if matches!(node, Math::Symbol(_) | Math::Constant(_)) {
@@ -353,14 +383,20 @@ pub unsafe extern "C" fn egraph_serialize(ptr: *mut Context) -> *const c_char {
 pub unsafe extern "C" fn egraph_size(ptr: *mut Context) -> u32 {
     let context = ManuallyDrop::new(Box::from_raw(ptr));
 
-    context.runner.egraph.whitelist.len() as u32
+    let arc = INC_EGRAPH.clone();
+    let mutex = arc.lock().unwrap();
+    let inc_egraph = mutex.as_ref().unwrap();
+    inc_egraph.whitelist.len() as u32
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn egraph_eclass_size(ptr: *mut Context, id: u32) -> u32 {
     let context = ManuallyDrop::new(Box::from_raw(ptr));
     let id = Id::from(id as usize);
-    context.runner.egraph[id].nodes.len() as u32
+    let arc = INC_EGRAPH.clone();
+    let mutex = arc.lock().unwrap();
+    let inc_egraph = mutex.as_ref().unwrap();
+    inc_egraph[id].nodes.len() as u32
 }
 
 #[no_mangle]
@@ -368,12 +404,19 @@ pub unsafe extern "C" fn egraph_enode_size(ptr: *mut Context, id: u32, idx: u32)
     let context = ManuallyDrop::new(Box::from_raw(ptr));
     let id = Id::from(id as usize);
     let idx = idx as usize;
-    context.runner.egraph[id].nodes[idx].len() as u32
+    let arc = INC_EGRAPH.clone();
+    let mutex = arc.lock().unwrap();
+    let inc_egraph = mutex.as_ref().unwrap();
+    inc_egraph[id].nodes[idx].len() as u32
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn egraph_get_eclasses(ptr: *mut Context, ids_ptr: *mut u32) {
     let context = ManuallyDrop::new(Box::from_raw(ptr));
+
+    let arc = INC_EGRAPH.clone();
+    let mutex = arc.lock().unwrap();
+    let inc_egraph = mutex.as_ref().unwrap();
 
     let mut ids: Vec<u32> = context
         .runner
@@ -384,7 +427,7 @@ pub unsafe extern "C" fn egraph_get_eclasses(ptr: *mut Context, ids_ptr: *mut u3
                 .runner
                 .egraph
                 .whitelist
-                .contains(&context.runner.egraph.find(ec.id))
+                .contains(&inc_egraph.find(ec.id))
         })
         .map(|c| usize::from(c.id) as u32)
         .collect();
@@ -406,11 +449,15 @@ pub unsafe extern "C" fn egraph_get_node(
     let id = Id::from(id as usize);
     let idx = idx as usize;
 
-    let node = &context.runner.egraph[id].nodes[idx];
+    let arc = INC_EGRAPH.clone();
+    let mutex = arc.lock().unwrap();
+    let inc_egraph = mutex.as_ref().unwrap();
+
+    let node = &inc_egraph[id].nodes[idx];
     for (i, id) in node.children().iter().enumerate() {
         std::ptr::write(
             ids.offset(i as isize),
-            usize::from(context.runner.egraph.find(*id)) as u32,
+            usize::from(inc_egraph.find(*id)) as u32,
         );
     }
 
@@ -441,7 +488,10 @@ pub unsafe extern "C" fn egraph_get_proof(
     // Safety: `ptr` was box allocated by `egraph_create`
     let mut context = ManuallyDrop::new(Box::from_raw(ptr));
     // Send `EGraph` since neither `Context` nor `Runner` are `Send`. `Runner::explain_equivalence` just forwards to `EGraph::explain_equivalence` so this is fine.
-    let egraph = &mut context.runner.egraph;
+    let arc = INC_EGRAPH.clone();
+    let mut mutex = arc.lock().unwrap();
+    let mut inc_egraph = mutex.take().unwrap();
+    let egraph = &mut inc_egraph;
     let expr_rec = CStr::from_ptr(expr).to_str().unwrap().parse().unwrap();
     let goal_rec = CStr::from_ptr(goal).to_str().unwrap().parse().unwrap();
 
@@ -450,6 +500,8 @@ pub unsafe extern "C" fn egraph_get_proof(
         .explain_equivalence(&expr_rec, &goal_rec)
         .get_string_with_let()
         .replace('\n', " ");
+
+    *mutex = Some(inc_egraph);
 
     let c_string = ManuallyDrop::new(CString::new(string).unwrap());
     c_string.as_ptr()
