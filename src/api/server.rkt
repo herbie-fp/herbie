@@ -27,7 +27,6 @@
          get-timeline-for
          job-count
          is-server-up
-         create-job
          start-job
          wait-for-job
          start-job-server
@@ -45,16 +44,6 @@
 
 ;; Job object, What herbie excepts as input for a new job.
 (struct herbie-command (command test seed pcontext profile? timeline-disabled?) #:prefab)
-
-;; Creates a command object to be passed to start-job server.
-;; TODO contract?
-(define (create-job command
-                    test
-                    #:seed [seed #f]
-                    #:pcontext [pcontext #f]
-                    #:profile? [profile? #f]
-                    #:timeline-disabled? [timeline-disabled? #f])
-  (herbie-command command test seed pcontext profile? timeline-disabled?))
 
 (define (write-results-to-disk result-hash path)
   (make-directory (build-path (*demo-output*) path))
@@ -104,11 +93,18 @@
   (log "Currently ~a jobs in progress, ~a jobs in queue.\n" (first job-list) (second job-list))
   (apply + job-list))
 
-;; Starts a job for a given command object|
-(define (start-job command)
-  (define job-id (compute-job-id command))
-  (manager-tell 'start manager command job-id)
-  (log "Job ~a, Qed up for program: ~a\n" job-id (test-name (herbie-command-test command)))
+;; Starts a job on the server
+;; TODO contract?
+(define (start-job command
+                   test
+                   #:seed [seed #f]
+                   #:pcontext [pcontext #f]
+                   #:profile? [profile? #f]
+                   #:timeline-disabled? [timeline-disabled? #f])
+  (define job (herbie-command command test seed pcontext profile? timeline-disabled?))
+  (define job-id (compute-job-id job))
+  (manager-tell 'start manager job job-id)
+  (log "Job ~a, Qed up for program: ~a\n" job-id (test-name test))
   job-id)
 
 (define (wait-for-job job-id)

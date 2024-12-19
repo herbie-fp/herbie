@@ -90,8 +90,7 @@
   (start-job-server threads)
   (define job-ids
     (for/list ([test (in-list tests)])
-      (start-job
-       (create-job 'improve test #:seed seed #:pcontext #f #:profile? #t #:timeline-disabled? #f))))
+      (start-job 'improve test #:seed seed #:pcontext #f #:profile? #t #:timeline-disabled? #f)))
 
   (define results
     (for/list ([job-id (in-list job-ids)]
