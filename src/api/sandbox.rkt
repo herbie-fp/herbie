@@ -536,7 +536,7 @@
   (define repr (get-representation (table-row-precision row)))
   (define ctx (context vars repr (map (const repr) vars))) ; TODO: this seems wrong
   (define expr (or (table-row-output row) (table-row-input row)))
-  `(FPCore ,@(if table-row-identifier row (list (table-row-identifier row)))
+  `(FPCore ,@(filter identity (list (table-row-identifier row)))
            ,vars
            :herbie-status
            ,(string->symbol (table-row-status row))
