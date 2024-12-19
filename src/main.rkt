@@ -20,10 +20,8 @@
   (match th
     ["no" #f]
     ["yes" (max (- (processor-count) 1) 1)]
-    [else
-     (match (string->number th)
-       [(? positive-integer? x) x]
-       [else (error 'string->thread-count "invalid thread count ~a" th)])]))
+    [(app string->number (? positive-integer? x)) x]
+    [_ (raise-herbie-error "Invalid thread count `~a`" th #:url "options.html")]))
 
 (define (string->flag s)
   (match (string-split s ":")
