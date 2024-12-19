@@ -8,7 +8,6 @@ use libc::{c_void, strlen};
 use math::*;
 
 use std::cmp::min;
-use std::collections::HashSet;
 use std::ffi::{CStr, CString};
 use std::mem::{self, ManuallyDrop};
 use std::os::raw::c_char;
