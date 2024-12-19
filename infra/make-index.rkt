@@ -156,30 +156,30 @@
            (th "Collection")
            (th "Tests")
            (th "Bits"))
-    (tbody
-     ,@
-     (for/list ([info infos])
-       (define field (curry dict-ref info))
+    (tbody ,@(for/list ([info infos])
+               (define field (curry dict-ref info))
 
-       `(tr ((class ,(if (bad-result? info) "crash" "")))
-            ;; TODO: Best to output a datetime field in RFC3338 format,
-            ;; but Racket doesn't make that easy.
-            (td ([title ,(field 'date-full)])
-                (time ([data-unix ,(~a (field 'date-unix))]) ,(field 'date-short)))
-            (td (time ([data-ms ,(~a (field 'speed))]) ,(format-time (field 'speed))))
-            (td ([title ,(field 'commit)]) ,(field 'branch))
-            (td ,(if (> (field 'tests-available) 0)
-                     (format "~a/~a" (field 'tests-passed) (field 'tests-available))
-                     ""))
-            (td ,(if (field 'bits-improved)
-                     (format "~a/~a" (round* (field 'bits-improved)) (round* (field 'bits-available)))
-                     ""))
-            (td ([title
-                  ,(format "At ~a\nOn ~a\nFlags ~a"
-                           (field 'date-full)
-                           (field 'hostname)
-                           (string-join (field 'options) " "))])
-                (a ([href ,(format "./~a/index.html" (field 'folder))]) "»")))))))
+               `(tr ((class ,(if (bad-result? info) "crash" "")))
+                    ;; TODO: Best to output a datetime field in RFC3338 format,
+                    ;; but Racket doesn't make that easy.
+                    (td ([title ,(field 'date-full)])
+                        (time ([data-unix ,(~a (field 'date-unix))]) ,(field 'date-short)))
+                    (td (time ([data-ms ,(~a (field 'speed))]) ,(format-time (field 'speed))))
+                    (td ([title ,(field 'commit)]) ,(field 'branch))
+                    (td ,(if (> (field 'tests-available) 0)
+                             (format "~a/~a" (field 'tests-passed) (field 'tests-available))
+                             ""))
+                    (td ,(if (field 'bits-improved)
+                             (format "~a/~a"
+                                     (round* (field 'bits-improved))
+                                     (round* (field 'bits-available)))
+                             ""))
+                    (td ([title
+                          ,(format "At ~a\nOn ~a\nFlags ~a"
+                                   (field 'date-full)
+                                   (field 'hostname)
+                                   (string-join (field 'options) " "))])
+                        (a ([href ,(format "./~a/index.html" (field 'folder))]) "»")))))))
 
 (define (make-index-page folders out)
   (define branch-infos
