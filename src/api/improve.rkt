@@ -36,9 +36,7 @@
   (start-job-server threads)
   (define ids
     (for/list ([test (in-list tests)])
-      (define command
-        (create-job 'improve test #:seed seed #:pcontext #f #:profile? #f #:timeline-disabled? #f))
-      (start-job command)))
+      (start-job 'improve test #:seed seed #:pcontext #f #:profile? #f #:timeline-disabled? #f)))
   (define results
     (for/list ([id ids])
       (get-table-data-from-hash (wait-for-job id) "")))
