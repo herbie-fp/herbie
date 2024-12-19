@@ -106,10 +106,7 @@
     [(and (*demo-output*) (file-exists? (build-path (*demo-output*) "results.json")))
      (next-dispatcher)]
     [else
-     (define info
-       (make-report-info (get-improve-table-data)
-                         #:seed (get-seed)
-                         #:note (if (*demo?*) "Web demo results" "Herbie results")))
+     (define info (make-report-info (get-improve-table-data) #:seed (get-seed)))
      (response 200
                #"OK"
                (current-seconds)

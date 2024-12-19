@@ -36,18 +36,18 @@
           (cons k (representation-name v)))
         (table-row-conversions row)))
 
-(define (make-report bench-dirs #:dir dir #:note note #:threads threads)
+(define (make-report bench-dirs #:dir dir #:threads threads)
   (define tests (reverse (sort (append-map load-tests bench-dirs) test<?)))
-  (run-tests tests #:dir dir #:note note #:threads threads))
+  (run-tests tests #:dir dir #:threads threads))
 
-(define (rerun-report json-file #:dir dir #:note note #:threads threads)
+(define (rerun-report json-file #:dir dir #:threads threads)
   (define data (call-with-input-file json-file read-datafile))
   (define tests (map extract-test (report-info-tests data)))
   (*flags* (report-info-flags data))
   (set-seed! (report-info-seed data))
   (*num-points* (report-info-points data))
   (*num-iterations* (report-info-iterations data))
-  (run-tests tests #:dir dir #:note note #:threads threads))
+  (run-tests tests #:dir dir #:threads threads))
 
 (define (read-json-files info dir name)
   (filter identity
@@ -82,7 +82,7 @@
   (print-test-result (+ test-number 1) number-of-test table-data)
   table-data)
 
-(define (run-tests tests #:dir dir #:note note #:threads threads)
+(define (run-tests tests #:dir dir #:threads threads)
   (define seed (get-seed))
   (unless (directory-exists? dir)
     (make-directory dir))
@@ -99,7 +99,7 @@
                [test-number (in-naturals)])
       (generate-bench-report job-id (test-name test) test-number dir (length tests))))
 
-  (define info (make-report-info results #:seed seed #:note note))
+  (define info (make-report-info results #:seed seed))
   (write-datafile (build-path dir "results.json") info)
   (copy-file (web-resource "report-page.js") (build-path dir "report-page.js") #t)
   (copy-file (web-resource "report.js") (build-path dir "report.js") #t)

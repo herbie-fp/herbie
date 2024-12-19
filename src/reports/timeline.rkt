@@ -547,7 +547,6 @@
                              flags
                              points
                              iterations
-                             note
                              tests
                              merged-cost-accuracy)
     info)

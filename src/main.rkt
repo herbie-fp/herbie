@@ -56,8 +56,6 @@
   (define demo-public #f)
 
   (define threads #f)
-  (define report-note #f)
-
   (set-seed! (random 1 (expt 2 31)))
 
   (multi-command-line
@@ -165,14 +163,12 @@
     (run-improve input output #:threads threads)]
    [report
     "Run Herbie on an FPCore file, producing an HTML report"
-    #:once-each [("--note") note "Add a note for this run" (set! report-note note)]
     #:args (input output)
-    (make-report (list input) #:dir output #:note report-note #:threads threads)]
+    (make-report (list input) #:dir output #:threads threads)]
    [reproduce
     "Rerun an HTML report"
-    #:once-each [("--note") note "Add a note for this run" (set! report-note note)]
     #:args (input output)
-    (rerun-report input #:dir output #:note report-note #:threads threads)]
+    (rerun-report input #:dir output #:threads threads)]
    #:args files
    (match files
      ['()

@@ -37,11 +37,11 @@
   #:prefab)
 
 (struct report-info
-        (date commit branch hostname seed flags points iterations note tests merged-cost-accuracy)
+        (date commit branch hostname seed flags points iterations tests merged-cost-accuracy)
   #:prefab
   #:mutable)
 
-(define (make-report-info tests #:note [note ""] #:seed [seed #f])
+(define (make-report-info tests #:seed [seed #f])
   (report-info (current-date)
                *herbie-commit*
                *herbie-branch*
@@ -50,7 +50,6 @@
                (*flags*)
                (*num-points*)
                (*num-iterations*)
-               note
                tests
                (merged-cost-accuracy tests)))
 
@@ -163,7 +162,6 @@
                     flags
                     points
                     iterations
-                    note
                     tests
                     merged-cost-accuracy)
        (make-hash `((date . ,(date->seconds date)) (commit . ,commit)
@@ -173,7 +171,6 @@
                                                    (flags . ,(flags->list flags))
                                                    (points . ,points)
                                                    (iterations . ,iterations)
-                                                   (note . ,note)
                                                    (tests . ,(map simplify-test tests))
                                                    (merged-cost-accuracy . ,merged-cost-accuracy)))]))
 
@@ -209,7 +206,6 @@
                  (list->flags (get 'flags))
                  (get 'points)
                  (get 'iterations)
-                 (hash-ref json 'note #f)
                  (for/list ([test (get 'tests)]
                             #:when (hash-has-key? test 'vars))
                    (let ([get (λ (field) (hash-ref test field))])
@@ -256,7 +252,7 @@
 (define (unique? a)
   (or (null? a) (andmap (curry equal? (car a)) (cdr a))))
 
-(define (merge-datafiles dfs #:dirs [dirs #f] #:name [name #f])
+(define (merge-datafiles dfs #:dirs [dirs #f])
   (when (null? dfs)
     (error 'merge-datafiles "Cannot merge no datafiles"))
   (for ([f (in-list (list report-info-commit
@@ -288,9 +284,6 @@
                (report-info-flags (first dfs))
                (report-info-points (first dfs))
                (report-info-iterations (first dfs))
-               (if name
-                   (~a name)
-                   (~a (cons 'merged (map report-info-note dfs))))
                tests
                ;; Easiest to just recompute everything based off the combined tests
                (merged-cost-accuracy tests)))
