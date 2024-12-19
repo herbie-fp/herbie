@@ -110,6 +110,7 @@
      this feature forces Herbie to extract a single, most-accurate output expression."
      "[Default: Pareto-Herbie enabled]")
     (*pareto-mode* #f)]
+   [("--profile") "Whether to profile each run (no-op, always on)" (void)]
    #:multi [("--plugin")
             path
             ("Path to a Herbie plugin." "Allows for dynamic loading of \"loose\" plugins.")
@@ -173,7 +174,6 @@
      num
      "How many tests to run in parallel: 'yes', 'no', or a number"
      (set! threads (string->thread-count num))]
-    [("--profile") "Whether to profile each run (no-op, always on)" (void)]
     #:args (input output)
     (make-report (list input) #:dir output #:note report-note #:threads threads)]
    [reproduce
@@ -183,7 +183,6 @@
      num
      "How many tests to run in parallel: 'yes', 'no', or a number"
      (set! threads (string->thread-count num))]
-    [("--profile") "Whether to profile each run (no-op, always on)" (void)]
     #:args (input output)
     (rerun-report input #:dir output #:note report-note #:threads threads)]
    #:args files
