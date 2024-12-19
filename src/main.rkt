@@ -58,8 +58,7 @@
   (define threads #f)
   (define report-note #f)
 
-  (define seed (random 1 (expt 2 31)))
-  (set-seed! seed)
+  (set-seed! (random 1 (expt 2 31)))
 
   (multi-command-line
    #:program "herbie"
