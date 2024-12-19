@@ -29,7 +29,7 @@
      (and (dict-has-key? all-flags category)
           (set-member? (dict-ref all-flags category) flag)
           (list category flag))]
-    [_ #f]))
+    [_ (raise-herbie-error "Invalid flag `~a`" s #:url "options.html")]))
 
 (define (default-flags->table)
   (list* (format "~a | ~a | ~a"
@@ -122,10 +122,7 @@
     flag
     ("Disable a search flag (formatted category:name)."
      "See `+o/--enable` for the full list of search flags.")
-    (define tf (string->flag flag))
-    (when (not tf)
-      (raise-herbie-error "Invalid flag ~a" flag #:url "options.html"))
-    (apply disable-flag! tf)]
+    (apply disable-flag! (string->flag flag))]
    [("+o" "--enable")
     flag
     ("Enable a search flag (formatted category:name)."
@@ -134,10 +131,7 @@
      (apply string-append
             "\n" ;; 5 spaces is the padding inserted by `command-line`
             (map (curry format "     ~a\n") (default-flags->table))))
-    (define tf (string->flag flag))
-    (when (not tf)
-      (raise-herbie-error "Invalid flag ~a" flag #:url "options.html"))
-    (apply enable-flag! tf)]
+    (apply enable-flag! (string->flag flag))]
    #:subcommands [shell "Interact with Herbie from the shell" #:args () (run-shell)]
    [web
     "Interact with Herbie from your browser"
