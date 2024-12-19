@@ -92,10 +92,8 @@
     (for/lists
      (l1 l2)
      ([test (in-list tests)])
-     (values
-      (start-job
-       (create-job 'improve test #:seed seed #:pcontext #f #:profile? #t #:timeline-disabled? #f))
-      (test-name test))))
+     (values (start-job 'improve test #:seed seed #:pcontext #f #:profile? #t #:timeline-disabled? #f)
+             (test-name test))))
 
   (define info
     (make-report-info (for/list ([job-id job-ids]
