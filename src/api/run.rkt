@@ -88,23 +88,18 @@
     (make-directory dir))
 
   (start-job-server threads)
-  (define-values (job-ids bench-names)
-    (for/lists
-     (l1 l2)
-     ([test (in-list tests)])
-     (values
+  (define job-ids
+    (for/list ([test (in-list tests)])
       (start-job
-       (create-job 'improve test #:seed seed #:pcontext #f #:profile? #t #:timeline-disabled? #f))
-      (test-name test))))
+       (create-job 'improve test #:seed seed #:pcontext #f #:profile? #t #:timeline-disabled? #f))))
 
-  (define info
-    (make-report-info (for/list ([job-id job-ids]
-                                 [bench-name bench-names]
-                                 [test-number (in-naturals 0)])
-                        (generate-bench-report job-id bench-name test-number dir (length tests)))
-                      #:seed seed
-                      #:note note))
+  (define results
+    (for/list ([job-id (in-list job-ids)]
+               [test (in-list tests)]
+               [test-number (in-naturals)])
+      (generate-bench-report job-id (test-name test) test-number dir (length tests))))
 
+  (define info (make-report-info results #:seed seed #:note note))
   (write-datafile (build-path dir "results.json") info)
   (copy-file (web-resource "report-page.js") (build-path dir "report-page.js") #t)
   (copy-file (web-resource "report.js") (build-path dir "report.js") #t)

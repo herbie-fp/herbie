@@ -18,7 +18,6 @@ for bench in bench/*; do
   rm -rf "reports/$name"
 
   racket -y "src/main.rkt" report \
-         --note "$name" \
          --seed "$SEED" \
          "$@" \
          "$bench" "reports/$name"
