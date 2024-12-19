@@ -39,15 +39,6 @@
 (struct improve-result (preprocess pctxs start target end bogosity))
 (struct alt-analysis (alt train-errors test-errors) #:prefab)
 
-;; true if Racket CS <= 8.2
-(define cs-places-workaround?
-  (let ([major (string->number (substring (version) 0 1))]
-        [minor (string->number (substring (version) 2 3))]
-        [rest (substring (version) 3)])
-    (or (< major 8)
-        (and (= major 8) (< minor 2))
-        (and (= major 8) (= minor 2) (zero? (string-length rest))))))
-
 (define (sample-pcontext vars specification precondition)
   (define sample (sample-points precondition (list specification) (list (*context*))))
   (match-define (cons domain pts+exs) sample)
@@ -246,11 +237,6 @@
                     #:timeline-disabled? [timeline-disabled? #f])
   (define timeline #f)
   (define profile #f)
-
-  ;; CS versions <= 8.2: problems with scheduler cause places to stay
-  ;; in a suspended state
-  (when cs-places-workaround?
-    (thread (lambda () (sync (system-idle-evt)))))
 
   (define (on-exception start-time e)
     (parameterize ([*timeline-disabled* timeline-disabled?])
