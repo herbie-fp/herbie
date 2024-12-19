@@ -84,7 +84,6 @@
     (*platform-name* (string->symbol platform))
     (*active-platform* (get-platform (*platform-name*)))
     (activate-platform! (*active-platform*))]
-
    [("--num-iters")
     num
     ("The number of iterations to use for the main loop. Herbie may find additional improvements
@@ -109,7 +108,6 @@
      during sampling. May fix \"Cannot sample enough valid points\" but will slow."
      (format "[Default: ~a iterations]" (*max-find-range-depth*)))
     (*max-find-range-depth* (string->number num))]
-
    [("--no-pareto")
     ("Disables Pareto-Herbie (Pherbie). Pareto-mode performs accuracy and expression cost
      optimization and extracts multiple output expressions that are Pareto-optimal. Disabling
