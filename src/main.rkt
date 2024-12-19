@@ -176,7 +176,7 @@
      num
      "How many tests to run in parallel: 'yes', 'no', or a number"
      (set! threads (string->thread-count num))]
-    [("--profile") "Whether to profile each run" (void)]
+    [("--profile") "Whether to profile each run (no-op, always on)" (void)]
     #:args (input output)
     (make-report (list input) #:dir output #:note report-note #:threads threads)]
    [reproduce
@@ -186,7 +186,7 @@
      num
      "How many tests to run in parallel: 'yes', 'no', or a number"
      (set! threads (string->thread-count num))]
-    [("--profile") "Whether to profile each run" (void)]
+    [("--profile") "Whether to profile each run (no-op, always on)" (void)]
     #:args (input output)
     (rerun-report input #:dir output #:note report-note #:threads threads)]
    #:args files
