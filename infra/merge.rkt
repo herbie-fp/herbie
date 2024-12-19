@@ -54,6 +54,7 @@
 
 (module+ main
   (command-line #:args (outdir . dirs)
+                (apply merge-reports outdir dirs)
                 (apply merge-timelines outdir dirs)
                 (apply merge-profiles outdir dirs)
                 (copy-file (web-resource "report.js") (build-path outdir "report.js") #t)
