@@ -57,7 +57,6 @@
 
   (define threads #f)
   (define report-note #f)
-  (define timeout-set? #f)
 
   (define seed (random 1 (expt 2 31)))
   (set-seed! seed)
@@ -69,7 +68,6 @@
    [("--timeout")
     s
     ("Timeout for each test (in seconds)." (format "[Default: ~a seconds]" (/ (*timeout*) 1000)))
-    (set! timeout-set? #t)
     (*timeout* (* 1000 (string->number s)))]
    [("--seed")
     int
