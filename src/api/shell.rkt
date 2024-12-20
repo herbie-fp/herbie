@@ -7,7 +7,8 @@
          "datafile.rkt"
          "sandbox.rkt"
          "server.rkt")
-(provide run-shell run-improve)
+(provide run-shell
+         run-improve)
 
 (define (unparse-result row #:expr [expr #f] #:description [descr #f])
   (define vars (table-row-vars row))
@@ -129,7 +130,6 @@
          (for ([loc (in-list locs)])
            (match-define (list msg file line col pos) loc)
            (printf ";   ~a:~a~a: ~a\n" file line col msg))
-         (printf "; See <https://herbie.uwplse.org/doc/~a/~a> for more.\n"
-                 *herbie-version* url)]
+         (printf "; See <https://herbie.uwplse.org/doc/~a/~a> for more.\n" *herbie-version* url)]
         ['timeout (printf "Timeout in ~as (see --timeout option)\n" (/ time 1000))]
         [else (error 'run-shell "unknown result type ~a" status)]))))
