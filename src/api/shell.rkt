@@ -2,7 +2,8 @@
 
 (require "../syntax/read.rkt"
          "../utils/common.rkt"
-         "sandbox.rkt")
+         "sandbox.rkt"
+         "server.rkt")
 (provide run-shell)
 
 (define (get-input)
@@ -29,13 +30,19 @@
   (with-handlers ([exn:break? (λ (e) (exit 0))])
     (for ([test (in-producer get-input eof-object?)]
           [idx (in-naturals)])
-      (define result (run-herbie 'improve test #:seed seed))
-      (define status (job-result-status result))
-      (define time (job-result-time result))
+      (define result (wait-for-job (start-job 'improve test #:seed seed)))
+      (define status (hash-ref result 'status))
+      (define time (hash-ref result 'time))
+      (define table-data (get-table-data-from-hash result ""))
       (match status
-        ['success (pretty-print (unparse-result (get-table-data result "")) (current-output-port) 1)]
+        ['success (pretty-print (unparse-result table-data) (current-output-port) 1)]
         ['failure
-         (define exn (job-result-backend result))
-         ((error-display-handler) (exn-message exn) exn)]
+         (match-define (list 'exn type msg url locs traceback) (hash-ref result 'backend))
+         (printf "; ~a\n" msg)
+         (for ([loc (in-list locs)])
+           (match-define (list msg file line col pos) loc)
+           (printf ";   ~a:~a~a: ~a\n" file line col msg))
+         (printf "; See <https://herbie.uwplse.org/doc/~a/~a> for more.\n"
+                 *herbie-version* url)]
         ['timeout (printf "Timeout in ~as (see --timeout option)\n" (/ time 1000))]
         [else (error 'run-shell "unknown result type ~a" status)]))))
