@@ -113,6 +113,7 @@
            (match (system-type 'os)
              ['windows "Ctrl-Z Enter"]
              [_ "Ctrl-D"]))
+  (start-job-server #f)
   (with-handlers ([exn:break? (λ (e) (exit 0))])
     (for ([test (in-producer get-shell-input eof-object?)]
           [idx (in-naturals)])
