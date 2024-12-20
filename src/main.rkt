@@ -13,8 +13,7 @@
 
 (lazy-require ["api/demo.rkt" (run-demo)]
               ["api/run.rkt" (make-report rerun-report)]
-              ["api/shell.rkt" (run-shell)]
-              ["api/improve.rkt" (run-improve)])
+              ["api/shell.rkt" (run-shell run-improve)])
 
 (define (string->thread-count th)
   (match th

@@ -25,8 +25,6 @@
          (submod "../utils/timeline.rkt" debug))
 
 (provide run-herbie
-         unparse-result
-         partition-pcontext
          get-table-data-from-hash
          *reeval-pts*
          *timeout*
@@ -435,45 +433,3 @@
      (dummy-table-row-from-hash result-hash status link)]
     ['timeout (dummy-table-row-from-hash result-hash "timeout" link)]
     [_ (error 'get-table-data "unknown result type ~a" status)]))
-
-(define (unparse-result row #:expr [expr #f] #:description [descr #f])
-  (define vars (table-row-vars row))
-  (define repr (get-representation (table-row-precision row)))
-  (define ctx (context vars repr (map (const repr) vars))) ; TODO: this seems wrong
-  (define expr* (or expr (table-row-output row) (table-row-input row)))
-  (define top
-    (if (table-row-identifier row)
-        (list (table-row-identifier row) vars)
-        (list vars)))
-  `(FPCore ,@top
-           :herbie-status
-           ,(string->symbol (table-row-status row))
-           :herbie-time
-           ,(table-row-time row)
-           :herbie-error-input
-           ([,(*num-points*) ,(table-row-start-est row)] [,(*reeval-pts*) ,(table-row-start row)])
-           :herbie-error-output
-           ([,(*num-points*) ,(table-row-result-est row)] [,(*reeval-pts*) ,(table-row-result row)])
-           ,@(append (for/list ([rec (in-list (table-row-target row))])
-                       (match-define (list cost score) rec)
-                       `(:herbie-error-target ([,(*reeval-pts*) ,(table-row-target row)]))))
-           ,@(if (empty? (table-row-warnings row))
-                 '()
-                 `(:herbie-warnings ,(table-row-warnings row)))
-           :name
-           ,(table-row-name row)
-           ,@(if descr
-                 `(:description ,(~a descr))
-                 '())
-           :precision
-           ,(table-row-precision row)
-           ,@(if (eq? (table-row-pre row) 'TRUE)
-                 '()
-                 `(:pre ,(table-row-pre row)))
-           ,@(if (equal? (table-row-preprocess row) empty)
-                 '()
-                 `(:herbie-preprocess ,(table-row-preprocess row)))
-           ,@(append (for/list ([(target enabled?) (in-dict (table-row-target-prog row))]
-                                #:when enabled?)
-                       `(:alt ,target)))
-           ,(prog->fpcore expr* ctx)))
