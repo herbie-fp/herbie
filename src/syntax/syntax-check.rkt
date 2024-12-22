@@ -186,11 +186,10 @@
     (reap [sow]
           (define (error! stx fmt . args)
             (define args*
-              (map (λ (x)
-                     (if (syntax? x)
-                         (syntax->datum x)
-                         x))
-                   args))
+              (for/list ([x (in-list args)])
+                (if (syntax? x)
+                    (syntax->datum x)
+                    x)))
             (sow (cons stx (apply format fmt args*))))
           (check-fpcore* stx error!)))
   (unless (null? errs)
@@ -206,11 +205,10 @@
     (reap [sow]
           (define (error! stx fmt . args)
             (define args*
-              (map (λ (x)
-                     (if (syntax? x)
-                         (syntax->datum x)
-                         x))
-                   args))
+              (for/list ([x (in-list args)])
+                (if (syntax? x)
+                    (syntax->datum x)
+                    x)))
             (sow (cons stx (apply format fmt args*))))
           (check-fpcore* stx error!)))
 
