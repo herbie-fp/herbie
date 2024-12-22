@@ -1,6 +1,6 @@
 #lang racket
-(require setup/getinfo
-         racket/runtime-path)
+(require racket/runtime-path
+         setup/getinfo)
 (require "../config.rkt"
          "platform.rkt"
          "types.rkt")

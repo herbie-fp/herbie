@@ -1,15 +1,15 @@
 #lang racket
 
-(require "../utils/common.rkt"
+(require "../core/programs.rkt"
+         "../utils/common.rkt"
          "../utils/errors.rkt"
-         "../core/programs.rkt"
-         "types.rkt"
-         "syntax.rkt"
+         "load-plugin.rkt"
          "platform.rkt"
-         "syntax-check.rkt"
-         "type-check.rkt"
          "sugar.rkt"
-         "load-plugin.rkt")
+         "syntax-check.rkt"
+         "syntax.rkt"
+         "type-check.rkt"
+         "types.rkt")
 
 (provide (struct-out test)
          test-context
@@ -228,13 +228,13 @@
 
 (define (check-weird-variables vars)
   (for* ([var vars]
-         [const (all-constants)])
-    (when (string-ci=? (symbol->string var) (symbol->string const))
-      (warn 'strange-variable
-            #:url "faq.html#strange-variable"
-            "unusual variable ~a; did you mean ~a?"
-            var
-            const))))
+         [const (all-constants)]
+         #:when (string-ci=? (symbol->string var) (symbol->string const)))
+    (warn 'strange-variable
+          #:url "faq.html#strange-variable"
+          "unusual variable ~a; did you mean ~a?"
+          var
+          const)))
 
 (define (our-read-syntax port name)
   (parameterize ([read-decimal-as-inexact false])
