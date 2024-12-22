@@ -228,13 +228,13 @@
 
 (define (check-weird-variables vars)
   (for* ([var vars]
-         [const (all-constants)])
-    (when (string-ci=? (symbol->string var) (symbol->string const))
-      (warn 'strange-variable
-            #:url "faq.html#strange-variable"
-            "unusual variable ~a; did you mean ~a?"
-            var
-            const))))
+         [const (all-constants)]
+         #:when (string-ci=? (symbol->string var) (symbol->string const)))
+    (warn 'strange-variable
+          #:url "faq.html#strange-variable"
+          "unusual variable ~a; did you mean ~a?"
+          var
+          const)))
 
 (define (our-read-syntax port name)
   (parameterize ([read-decimal-as-inexact false])
