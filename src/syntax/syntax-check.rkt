@@ -3,8 +3,8 @@
 (require syntax/id-set)
 (require "../utils/common.rkt"
          "../utils/errors.rkt"
-         "types.rkt"
-         "syntax.rkt")
+         "syntax.rkt"
+         "types.rkt")
 (provide assert-program!)
 
 (define (check-expression* stx vars error!)

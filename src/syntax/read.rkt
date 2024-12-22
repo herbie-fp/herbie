@@ -1,15 +1,15 @@
 #lang racket
 
-(require "../utils/common.rkt"
+(require "../core/programs.rkt"
+         "../utils/common.rkt"
          "../utils/errors.rkt"
-         "../core/programs.rkt"
-         "types.rkt"
-         "syntax.rkt"
+         "load-plugin.rkt"
          "platform.rkt"
-         "syntax-check.rkt"
-         "type-check.rkt"
          "sugar.rkt"
-         "load-plugin.rkt")
+         "syntax-check.rkt"
+         "syntax.rkt"
+         "type-check.rkt"
+         "types.rkt")
 
 (provide (struct-out test)
          test-context
