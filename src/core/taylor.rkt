@@ -475,8 +475,6 @@
 (define (logstep table)
   (lognormalize (loggenerate table)))
 
-(define logbiggest 1)
-
 (define (logcompute i)
   (hash-ref! (log-cache) i (λ () (logstep (logcompute (- i 1))))))
 
