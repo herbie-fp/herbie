@@ -10,16 +10,13 @@
 (provide run-shell
          run-improve)
 
-(define (unparse-result row #:expr [expr #f] #:description [descr #f])
+(define (unparse-result row)
   (define vars (table-row-vars row))
   (define repr (get-representation (table-row-precision row)))
   (define ctx (context vars repr (map (const repr) vars))) ; TODO: this seems wrong
-  (define expr* (or expr (table-row-output row) (table-row-input row)))
-  (define top
-    (if (table-row-identifier row)
-        (list (table-row-identifier row) vars)
-        (list vars)))
-  `(FPCore ,@top
+  (define expr (or (table-row-output row) (table-row-input row)))
+  `(FPCore ,@(filter identity (list (table-row-identifier row)))
+           ,vars
            :herbie-status
            ,(string->symbol (table-row-status row))
            :herbie-time
@@ -36,9 +33,6 @@
                  `(:herbie-warnings ,(table-row-warnings row)))
            :name
            ,(table-row-name row)
-           ,@(if descr
-                 `(:description ,(~a descr))
-                 '())
            :precision
            ,(table-row-precision row)
            ,@(if (eq? (table-row-pre row) 'TRUE)
@@ -50,7 +44,7 @@
            ,@(append (for/list ([(target enabled?) (in-dict (table-row-target-prog row))]
                                 #:when enabled?)
                        `(:alt ,target)))
-           ,(prog->fpcore expr* ctx)))
+           ,(prog->fpcore expr ctx)))
 
 (define (get-shell-input)
   (printf "herbie> ")
