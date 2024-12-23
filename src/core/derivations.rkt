@@ -17,15 +17,12 @@
     [_ proof]))
 
 (define (canonicalize-proof prog proof loc pcontext ctx)
-  (cond
-    [proof
-     ;; Proofs are actually on subexpressions,
-     ;; we need to construct the proof for the full expression
-     (define proof*
-       (for/list ([step (in-list proof)])
-         (location-do loc prog (const (canonicalize-rewrite step)))))
-     proof*]
-    [else #f]))
+  (and
+   proof
+   ;; Proofs are actually on subexpressions,
+   ;; we need to construct the proof for the full expression
+   (for/list ([step (in-list proof)])
+     (location-do loc prog (const (canonicalize-rewrite step))))))
 
 ;; Computes a `equal?`-based hash table key for an alternative
 (define (altn->key altn)
@@ -103,7 +100,7 @@
     ; recursive rewrite or simplify, both using egg
     [(alt expr (list phase loc (? egg-runner? runner) #f) `(,prev) _)
      #:when (or (equal? phase 'simplify) (equal? phase 'rr))
-     (match-define proof (canonicalize-proof (alt-expr altn) (alt->proof altn) loc pcontext ctx))
+     (define proof (canonicalize-proof (alt-expr altn) (alt->proof altn) loc pcontext ctx))
      (alt expr `(rr ,loc ,runner ,proof) `(,prev) '())]
 
     ; everything else
