@@ -297,35 +297,6 @@
       (engine-result eng)
       (on-timeout)))
 
-(define (dummy-table-row result status link)
-  (define test (job-result-test result))
-  (define repr (test-output-repr test))
-  (define preprocess
-    (if (eq? (job-result-status result) 'success)
-        (improve-result-preprocess (job-result-backend result))
-        (test-preprocess test)))
-  (table-row (test-name test)
-             (test-identifier test)
-             status
-             (prog->fpcore (test-pre test) (test-context test))
-             preprocess
-             (representation-name repr)
-             '() ; TODO: eliminate field
-             (test-vars test)
-             (map car (job-result-warnings result))
-             (prog->fpcore (test-input test) (test-context test))
-             #f
-             (prog->fpcore (test-spec test) (test-context test))
-             (test-output test)
-             #f
-             #f
-             #f
-             #f
-             #f
-             (job-result-time result)
-             link
-             '()))
-
 (define (dummy-table-row-from-hash result-hash status link)
   (define test (hash-ref result-hash 'test))
   (define repr (test-output-repr test))
