@@ -31,7 +31,7 @@
   (filter rule-enabled? *all-rules*))
 
 (define (*simplify-rules*)
-  (filter (conjoin rule-enabled? (has-tag? 'simplify)) *all-rules*))
+  (filter (conjoin rule-enabled? (has-tag? 'simplify) (has-tag? 'sound)) *all-rules*))
 
 ;;
 ;;  Rule loading
