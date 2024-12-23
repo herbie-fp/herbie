@@ -27,7 +27,6 @@
          default-egg-cost-proc
          make-egg-runner
          run-egg
-         get-canon-rule-name
          remove-rewrites)
 
 (module+ test
@@ -318,8 +317,8 @@
              type))
        (approx (loop spec spec-type) (loop impl type))]
       [`(Explanation ,body ...) `(Explanation ,@(map (lambda (e) (loop e type)) body))]
-      [(list 'Rewrite=> rule expr) (list 'Rewrite=> rule (loop expr type))]
-      [(list 'Rewrite<= rule expr) (list 'Rewrite<= rule (loop expr type))]
+      [(list 'Rewrite=> rule expr) (list 'Rewrite=> (get-canon-rule-name rule rule) (loop expr type))]
+      [(list 'Rewrite<= rule expr) (list 'Rewrite<= (get-canon-rule-name rule rule) (loop expr type))]
       [(list 'if cond ift iff)
        (if (representation? type)
            (list 'if (loop cond (get-representation 'bool)) (loop ift type) (loop iff type))
