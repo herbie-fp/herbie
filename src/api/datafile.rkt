@@ -36,8 +36,7 @@
               cost-accuracy)
   #:prefab)
 
-(struct report-info
-        (date commit branch seed flags points iterations tests merged-cost-accuracy)
+(struct report-info (date commit branch seed flags points iterations tests merged-cost-accuracy)
   #:prefab
   #:mutable)
 
@@ -153,15 +152,7 @@
 
   (define data
     (match info
-      [(report-info date
-                    commit
-                    branch
-                    seed
-                    flags
-                    points
-                    iterations
-                    tests
-                    merged-cost-accuracy)
+      [(report-info date commit branch seed flags points iterations tests merged-cost-accuracy)
        (make-hash `((date . ,(date->seconds date)) (commit . ,commit)
                                                    (branch . ,branch)
                                                    (seed . ,(~a seed))
