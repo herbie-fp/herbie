@@ -40,7 +40,7 @@
 
 (define key-contracts
   (hash string?
-        '(date-full date-short folder commit branch hostname)
+        '(date-full date-short folder commit branch)
         exact-nonnegative-integer?
         '(date-unix tests-passed tests-available tests-crashed)
         (listof string?)
@@ -77,7 +77,6 @@
   (match-define (report-info date
                              commit
                              branch
-                             hostname
                              seed
                              flags
                              points
@@ -114,8 +113,6 @@
         speed
         'folder
         (path->string folder)
-        'hostname
-        hostname
         'commit
         commit
         'branch
@@ -175,9 +172,8 @@
                                      (round* (field 'bits-available)))
                              ""))
                     (td ([title
-                          ,(format "At ~a\nOn ~a\nFlags ~a"
+                          ,(format "At ~a\nFlags ~a"
                                    (field 'date-full)
-                                   (field 'hostname)
                                    (string-join (field 'options) " "))])
                         (a ([href ,(format "./~a/index.html" (field 'folder))]) "»")))))))
 

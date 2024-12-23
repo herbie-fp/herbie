@@ -167,8 +167,6 @@
 
 (define *herbie-version* "2.2")
 
-(define *hostname* (run-command "hostname"))
-
 (define *herbie-commit* (git-command "rev-parse" "HEAD" #:default *herbie-version*))
 
 (define *herbie-branch* (git-command "rev-parse" "--abbrev-ref" "HEAD" #:default "release"))
