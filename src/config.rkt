@@ -134,9 +134,6 @@
 (define *pareto-mode* (make-parameter #t))
 (define *pareto-pick-limit* (make-parameter 5))
 
-;; In mainloop, cache improvements between iterations
-(define *use-improve-cache* (make-parameter #t))
-
 ;; If `:precision` is unspecified, which representation should we use?
 (define *default-precision* (make-parameter 'binary64))
 
