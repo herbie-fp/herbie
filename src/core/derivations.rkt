@@ -9,23 +9,12 @@
 
 (provide add-derivations)
 
-(define (canonicalize-rewrite proof)
-  (match proof
-    [`(Rewrite=> ,rule ,something) (list 'Rewrite=> (get-canon-rule-name rule rule) something)]
-    [`(Rewrite<= ,rule ,something) (list 'Rewrite<= (get-canon-rule-name rule rule) something)]
-    [(list _ ...) (map canonicalize-rewrite proof)]
-    [_ proof]))
-
 (define (canonicalize-proof prog proof loc pcontext ctx)
-  (cond
-    [proof
-     ;; Proofs are actually on subexpressions,
-     ;; we need to construct the proof for the full expression
-     (define proof*
+  (and proof
+       ;; Proofs are actually on subexpressions,
+       ;; we need to construct the proof for the full expression
        (for/list ([step (in-list proof)])
-         (location-do loc prog (const (canonicalize-rewrite step)))))
-     proof*]
-    [else #f]))
+         (location-do loc prog (const step)))))
 
 ;; Computes a `equal?`-based hash table key for an alternative
 (define (altn->key altn)
@@ -103,7 +92,7 @@
     ; recursive rewrite or simplify, both using egg
     [(alt expr (list phase loc (? egg-runner? runner) #f) `(,prev) _)
      #:when (or (equal? phase 'simplify) (equal? phase 'rr))
-     (match-define proof (canonicalize-proof (alt-expr altn) (alt->proof altn) loc pcontext ctx))
+     (define proof (canonicalize-proof (alt-expr altn) (alt->proof altn) loc pcontext ctx))
      (alt expr `(rr ,loc ,runner ,proof) `(,prev) '())]
 
     ; everything else
