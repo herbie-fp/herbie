@@ -2,7 +2,10 @@
 
 pub mod math;
 
-use egg::{BackoffScheduler, Extractor, FromOp, Id, Language, SimpleScheduler, StopReason, Symbol};
+use egg::{
+    BackoffScheduler, Extractor, FromOp, Id, Language, SimpleScheduler, StopReason, Symbol,
+    UndoScheduler,
+};
 use indexmap::IndexMap;
 use libc::{c_void, strlen};
 use math::*;
@@ -25,7 +28,7 @@ pub struct Context {
 pub unsafe extern "C" fn egraph_create() -> *mut Context {
     Box::into_raw(Box::new(Context {
         iteration: 0,
-        runner: Runner::new(Default::default()).with_explanations_enabled(),
+        runner: Runner::new(Default::default()),
         rules: vec![],
     }))
 }
@@ -114,9 +117,7 @@ pub unsafe extern "C" fn egraph_add_node(
 pub unsafe extern "C" fn egraph_copy(ptr: *mut Context) -> *mut Context {
     // Safety: `ptr` was box allocated by `egraph_create`
     let context = Box::from_raw(ptr);
-    let mut runner = Runner::new(Default::default())
-        .with_explanations_enabled()
-        .with_egraph(context.runner.egraph.clone());
+    let mut runner = Runner::new(Default::default()).with_egraph(context.runner.egraph.clone());
     runner.roots = context.runner.roots.clone();
     runner.egraph.rebuild();
 
@@ -178,7 +179,7 @@ pub unsafe extern "C" fn egraph_run(
         context.runner = if simple_scheduler {
             context.runner.with_scheduler(SimpleScheduler)
         } else {
-            context.runner.with_scheduler(BackoffScheduler::default())
+            context.runner.with_scheduler(UndoScheduler::default())
         };
 
         context.runner = context
