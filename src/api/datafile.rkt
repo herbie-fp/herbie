@@ -36,8 +36,7 @@
               cost-accuracy)
   #:prefab)
 
-(struct report-info
-        (date commit branch hostname seed flags points iterations tests merged-cost-accuracy)
+(struct report-info (date commit branch seed flags points iterations tests merged-cost-accuracy)
   #:prefab
   #:mutable)
 
@@ -45,7 +44,6 @@
   (report-info (current-date)
                *herbie-commit*
                *herbie-branch*
-               *hostname*
                (or seed (get-seed))
                (*flags*)
                (*num-points*)
@@ -154,19 +152,9 @@
 
   (define data
     (match info
-      [(report-info date
-                    commit
-                    branch
-                    hostname
-                    seed
-                    flags
-                    points
-                    iterations
-                    tests
-                    merged-cost-accuracy)
+      [(report-info date commit branch seed flags points iterations tests merged-cost-accuracy)
        (make-hash `((date . ,(date->seconds date)) (commit . ,commit)
                                                    (branch . ,branch)
-                                                   (hostname . ,hostname)
                                                    (seed . ,(~a seed))
                                                    (flags . ,(flags->list flags))
                                                    (points . ,points)
@@ -201,7 +189,6 @@
     (report-info (seconds->date (get 'date))
                  (get 'commit)
                  (get 'branch)
-                 (hash-ref json 'hostname "")
                  (parse-string (get 'seed))
                  (list->flags (get 'flags))
                  (get 'points)
@@ -256,7 +243,6 @@
   (when (null? dfs)
     (error 'merge-datafiles "Cannot merge no datafiles"))
   (for ([f (in-list (list report-info-commit
-                          report-info-hostname
                           report-info-seed
                           report-info-flags
                           report-info-points
@@ -279,7 +265,6 @@
   (report-info (last (sort (map report-info-date dfs) < #:key date->seconds))
                (report-info-commit (first dfs))
                (first (filter values (map report-info-branch dfs)))
-               (report-info-hostname (first dfs))
                (report-info-seed (first dfs))
                (report-info-flags (first dfs))
                (report-info-points (first dfs))
