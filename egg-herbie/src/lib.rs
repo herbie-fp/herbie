@@ -235,25 +235,7 @@ pub unsafe extern "C" fn egraph_get_stop_reason(ptr: *mut Context) -> u32 {
 }
 
 fn find_extracted(runner: &Runner, id: u32, iter: u32) -> &Extracted {
-    let id = runner.egraph.find(Id::from(id as usize));
-
-    // go back one more iter, egg can duplicate the final iter in the case of an error
-    let is_unsound = runner.egraph.analysis.unsound.load(Ordering::SeqCst);
-    let sound_iter = min(
-        runner
-            .iterations
-            .len()
-            .saturating_sub(if is_unsound { 3 } else { 1 }),
-        iter as usize,
-    );
-
-    runner.iterations[sound_iter]
-        .data
-        .extracted
-        .iter()
-        .find(|(i, _)| runner.egraph.find(*i) == id)
-        .map(|(_, ext)| ext)
-        .expect("Couldn't find matching extraction!")
+    unimplemented!()
 }
 
 #[no_mangle]
