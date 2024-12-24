@@ -7,7 +7,6 @@ use indexmap::IndexMap;
 use libc::{c_void, strlen};
 use math::*;
 
-use std::cmp::min;
 use std::ffi::{CStr, CString};
 use std::mem::{self, ManuallyDrop};
 use std::os::raw::c_char;
@@ -36,7 +35,7 @@ pub unsafe extern "C" fn egraph_create() -> *mut Context {
 
     let arc = INC_EGRAPH.clone();
     let mut mutex = arc.lock().unwrap();
-    mutex.as_mut().unwrap().version += 1;
+    mutex.as_mut().unwrap().inc_version();
 
     // let mut inc_egraph = mutex.take().unwrap();
     // inc_egraph.version += 1;
@@ -179,21 +178,10 @@ pub unsafe extern "C" fn egraph_run(
     simple_scheduler: bool,
     is_constant_folding_enabled: bool,
 ) -> *const EGraphIter {
-    println!("*** starting egraph_run");
-
     // Safety: `ptr` was box allocated by `egraph_create`
     let mut context = Box::from_raw(ptr);
 
     assert!(context.runner.iterations.is_empty());
-
-    if !context.runner.egraph.is_empty() {
-        println!(
-            "No. of nodes: {}",
-            context.runner.egraph.total_number_of_nodes()
-        );
-    } else {
-        println!("...with empty egraph");
-    }
 
     let mut update_inc_egraph = false;
     if context.runner.stop_reason.is_none() {
@@ -231,7 +219,6 @@ pub unsafe extern "C" fn egraph_run(
         } else {
             node_limit as usize
         };
-        println!("node_limit: {}", node_limit);
 
         context.runner = context
             .runner
@@ -266,10 +253,11 @@ pub unsafe extern "C" fn egraph_run(
     context.runner.iterations = vec![];
 
     // Construct a fresh Runner to print the aggregate report
-    let mut tmp = Runner::new(Default::default());
+    let mut tmp = Runner::new(Default::default()).with_egraph(context.runner.egraph);
     tmp.iterations = inc_iterdata.clone();
     tmp.stop_reason = Some(StopReason::Other("Tmp Runner".to_string()));
     println!("{}", tmp.report());
+    context.runner.egraph = tmp.egraph;
 
     let iterations = context
         .runner
@@ -308,29 +296,8 @@ pub unsafe extern "C" fn egraph_get_stop_reason(ptr: *mut Context) -> u32 {
     }
 }
 
-fn find_extracted(runner: &Runner, id: u32, iter: u32) -> &Extracted {
-    let arc = INC_EGRAPH.clone();
-    let mutex = arc.lock().unwrap();
-    let inc_egraph = mutex.as_ref().unwrap();
-    let id = inc_egraph.find(Id::from(id as usize));
-
-    // go back one more iter, egg can duplicate the final iter in the case of an error
-    let is_unsound = inc_egraph.analysis.unsound.load(Ordering::SeqCst);
-    let sound_iter = min(
-        runner
-            .iterations
-            .len()
-            .saturating_sub(if is_unsound { 3 } else { 1 }),
-        iter as usize,
-    );
-
-    runner.iterations[sound_iter]
-        .data
-        .extracted
-        .iter()
-        .find(|(i, _)| inc_egraph.find(*i) == id)
-        .map(|(_, ext)| ext)
-        .expect("Couldn't find matching extraction!")
+fn find_extracted(_runner: &Runner, _id: u32, _iter: u32) -> &Extracted {
+    unimplemented!()
 }
 
 #[no_mangle]
