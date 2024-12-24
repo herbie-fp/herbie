@@ -7,7 +7,6 @@ use indexmap::IndexMap;
 use libc::{c_void, strlen};
 use math::*;
 
-use std::cmp::min;
 use std::ffi::{CStr, CString};
 use std::mem::{self, ManuallyDrop};
 use std::os::raw::c_char;
@@ -31,10 +30,10 @@ pub struct Context {
 // I had to add $(rustc --print sysroot)/lib to LD_LIBRARY_PATH to get linking to work after installing rust with rustup
 #[no_mangle]
 pub unsafe extern "C" fn egraph_create() -> *mut Context {
-    println!("*** creating new egraph");
-
     let mut inc_egraph = INC_EGRAPH.lock().unwrap();
-    inc_egraph.version += 1;
+    let new_version = inc_egraph.inc_version();
+
+    eprintln!("*** creating new egraph with version: {}", new_version);
 
     Box::into_raw(Box::new(Context {
         iteration: 0,
@@ -171,21 +170,10 @@ pub unsafe extern "C" fn egraph_run(
     simple_scheduler: bool,
     is_constant_folding_enabled: bool,
 ) -> *const EGraphIter {
-    println!("*** starting egraph_run");
-
     // Safety: `ptr` was box allocated by `egraph_create`
     let mut context = Box::from_raw(ptr);
 
     assert!(context.runner.iterations.is_empty());
-
-    if !context.runner.egraph.is_empty() {
-        println!(
-            "No. of nodes: {}",
-            context.runner.egraph.total_number_of_nodes()
-        );
-    } else {
-        println!("...with empty egraph");
-    }
 
     if context.runner.stop_reason.is_none() {
         let length: usize = rules_array_length as usize;
@@ -216,7 +204,6 @@ pub unsafe extern "C" fn egraph_run(
         } else {
             node_limit as usize
         };
-        println!("node_limit: {}", node_limit);
 
         context.runner = context
             .runner
@@ -246,10 +233,11 @@ pub unsafe extern "C" fn egraph_run(
     context.runner.iterations = vec![];
 
     // Construct a fresh Runner to print the aggregate report
-    let mut tmp = Runner::new(Default::default());
+    let mut tmp = Runner::new(Default::default()).with_egraph(context.runner.egraph);
     tmp.iterations = inc_iterdata.clone();
     tmp.stop_reason = Some(StopReason::Other("Tmp Runner".to_string()));
     println!("{}", tmp.report());
+    context.runner.egraph = tmp.egraph;
 
     let iterations = context
         .runner
@@ -287,26 +275,8 @@ pub unsafe extern "C" fn egraph_get_stop_reason(ptr: *mut Context) -> u32 {
     }
 }
 
-fn find_extracted(runner: &Runner, id: u32, iter: u32) -> &Extracted {
-    let id = runner.egraph.find(Id::from(id as usize));
-
-    // go back one more iter, egg can duplicate the final iter in the case of an error
-    let is_unsound = runner.egraph.analysis.unsound.load(Ordering::SeqCst);
-    let sound_iter = min(
-        runner
-            .iterations
-            .len()
-            .saturating_sub(if is_unsound { 3 } else { 1 }),
-        iter as usize,
-    );
-
-    runner.iterations[sound_iter]
-        .data
-        .extracted
-        .iter()
-        .find(|(i, _)| runner.egraph.find(*i) == id)
-        .map(|(_, ext)| ext)
-        .expect("Couldn't find matching extraction!")
+fn find_extracted(_runner: &Runner, _id: u32, _iter: u32) -> &Extracted {
+    unimplemented!()
 }
 
 #[no_mangle]

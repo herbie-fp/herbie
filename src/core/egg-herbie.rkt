@@ -1176,11 +1176,11 @@
       (define-values (egg-graph* iteration-data) (egraph-run-rules egg-graph egg-rules params))
 
       ; get cost statistics
-      (for ([iter (in-list iteration-data)]
-            [i (in-naturals)])
-        (define cnt (iteration-data-num-nodes iter))
-        (define cost (apply + (map (λ (id) (egraph-get-cost egg-graph* id i)) root-ids)))
-        (timeline-push! 'egraph i cnt cost (iteration-data-time iter)))
+      ;; (for ([iter (in-list iteration-data)]
+      ;;       [i (in-naturals)])
+      ;;   (define cnt (iteration-data-num-nodes iter))
+      ;;   (define cost (apply + (map (λ (id) (egraph-get-cost egg-graph* id i)) root-ids)))
+      ;;   (timeline-push! 'egraph i cnt cost (iteration-data-time iter)))
 
       egg-graph*))
 
