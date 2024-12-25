@@ -35,7 +35,7 @@ pub unsafe extern "C" fn egraph_create() -> *mut Context {
     println!("*** creating new egraph");
 
     let arc = INC_EGRAPH.clone();
-    let mut mutex = arc.lock().unwrap();
+    let mut mutex = arc.try_lock().unwrap();
     mutex.as_mut().unwrap().inc_version();
 
     Box::into_raw(Box::new(Context {
@@ -120,7 +120,7 @@ pub unsafe extern "C" fn egraph_add_node(
     let node = Math::from_op(f, ids).unwrap();
 
     let arc = INC_EGRAPH.clone();
-    let mut mutex = arc.lock().unwrap();
+    let mut mutex = arc.try_lock().unwrap();
     let inc_egraph = mutex.as_mut().unwrap();
 
     let id = inc_egraph.add(node);
@@ -203,7 +203,7 @@ pub unsafe extern "C" fn egraph_run(
         context.rules = rules;
 
         let arc = INC_EGRAPH.clone();
-        let mut mutex = arc.lock().unwrap();
+        let mut mutex = arc.try_lock().unwrap();
         let mut inc_egraph = mutex.take().unwrap();
 
         inc_egraph.analysis.constant_fold = is_constant_folding_enabled;
@@ -243,13 +243,13 @@ pub unsafe extern "C" fn egraph_run(
         context.runner.egraph = EGraph::default();
     }
 
-    let mut inc_iterdata = INC_ITERDATA.lock().unwrap();
+    let mut inc_iterdata = INC_ITERDATA.try_lock().unwrap();
     inc_iterdata.extend(context.runner.iterations.clone());
     context.runner.iterations = vec![];
 
     // Construct a fresh Runner to print the aggregate report
     let arc = INC_EGRAPH.clone();
-    let mut mutex = arc.lock().unwrap();
+    let mut mutex = arc.try_lock().unwrap();
     let inc_egraph = mutex.take().unwrap();
 
     let mut tmp = Runner::new(Default::default()).with_egraph(inc_egraph);
@@ -303,7 +303,7 @@ fn find_extracted(_runner: &Runner, _id: u32, _iter: u32) -> &Extracted {
 pub unsafe extern "C" fn egraph_find(_ptr: *mut Context, id: usize) -> u32 {
     let node_id = Id::from(id);
     let arc = INC_EGRAPH.clone();
-    let mutex = arc.lock().unwrap();
+    let mutex = arc.try_lock().unwrap();
     let inc_egraph = mutex.as_ref().unwrap();
     let canon_id = inc_egraph.find(node_id);
     usize::from(canon_id) as u32
@@ -312,7 +312,7 @@ pub unsafe extern "C" fn egraph_find(_ptr: *mut Context, id: usize) -> u32 {
 #[no_mangle]
 pub unsafe extern "C" fn egraph_serialize(_ptr: *mut Context) -> *const c_char {
     let arc = INC_EGRAPH.clone();
-    let mutex = arc.lock().unwrap();
+    let mutex = arc.try_lock().unwrap();
     let inc_egraph = mutex.as_ref().unwrap();
     let mut ids: Vec<Id> = inc_egraph.classes().map(|c| c.id).collect();
     ids.sort();
@@ -345,7 +345,7 @@ pub unsafe extern "C" fn egraph_serialize(_ptr: *mut Context) -> *const c_char {
 #[no_mangle]
 pub unsafe extern "C" fn egraph_size(_ptr: *mut Context) -> u32 {
     let arc = INC_EGRAPH.clone();
-    let mutex = arc.lock().unwrap();
+    let mutex = arc.try_lock().unwrap();
     let inc_egraph = mutex.as_ref().unwrap();
     inc_egraph.whitelist.len() as u32
 }
@@ -354,7 +354,7 @@ pub unsafe extern "C" fn egraph_size(_ptr: *mut Context) -> u32 {
 pub unsafe extern "C" fn egraph_eclass_size(_ptr: *mut Context, id: u32) -> u32 {
     let id = Id::from(id as usize);
     let arc = INC_EGRAPH.clone();
-    let mutex = arc.lock().unwrap();
+    let mutex = arc.try_lock().unwrap();
     let inc_egraph = mutex.as_ref().unwrap();
     inc_egraph[id].nodes.len() as u32
 }
@@ -364,7 +364,7 @@ pub unsafe extern "C" fn egraph_enode_size(_ptr: *mut Context, id: u32, idx: u32
     let id = Id::from(id as usize);
     let idx = idx as usize;
     let arc = INC_EGRAPH.clone();
-    let mutex = arc.lock().unwrap();
+    let mutex = arc.try_lock().unwrap();
     let inc_egraph = mutex.as_ref().unwrap();
     inc_egraph[id].nodes[idx].len() as u32
 }
@@ -372,7 +372,7 @@ pub unsafe extern "C" fn egraph_enode_size(_ptr: *mut Context, id: u32, idx: u32
 #[no_mangle]
 pub unsafe extern "C" fn egraph_get_eclasses(_ptr: *mut Context, ids_ptr: *mut u32) {
     let arc = INC_EGRAPH.clone();
-    let mutex = arc.lock().unwrap();
+    let mutex = arc.try_lock().unwrap();
     let inc_egraph = mutex.as_ref().unwrap();
 
     let mut ids = inc_egraph
@@ -398,7 +398,7 @@ pub unsafe extern "C" fn egraph_get_node(
     let idx = idx as usize;
 
     let arc = INC_EGRAPH.clone();
-    let mutex = arc.lock().unwrap();
+    let mutex = arc.try_lock().unwrap();
     let inc_egraph = mutex.as_ref().unwrap();
 
     let node = &inc_egraph[id].nodes[idx];
@@ -437,7 +437,7 @@ pub unsafe extern "C" fn egraph_get_proof(
     let mut context = ManuallyDrop::new(Box::from_raw(ptr));
     // Send `EGraph` since neither `Context` nor `Runner` are `Send`. `Runner::explain_equivalence` just forwards to `EGraph::explain_equivalence` so this is fine.
     let arc = INC_EGRAPH.clone();
-    let mut mutex = arc.lock().unwrap();
+    let mut mutex = arc.try_lock().unwrap();
     let mut inc_egraph = mutex.take().unwrap();
     let egraph = &mut inc_egraph;
     let expr_rec = CStr::from_ptr(expr).to_str().unwrap().parse().unwrap();
