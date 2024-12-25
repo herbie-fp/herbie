@@ -83,21 +83,22 @@ pub struct FFIRule {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn egraph_add_expr(ptr: *mut Context, expr: *const c_char) -> u32 {
-    let _ = env_logger::try_init();
-    // Safety: `ptr` was box allocated by `egraph_create`
-    let mut context = Box::from_raw(ptr);
+pub unsafe extern "C" fn egraph_add_expr(_ptr: *mut Context, _expr: *const c_char) -> u32 {
+    todo!()
+    // let _ = env_logger::try_init();
+    // // Safety: `ptr` was box allocated by `egraph_create`
+    // let mut context = Box::from_raw(ptr);
 
-    assert_eq!(context.iteration, 0);
-    let rec_expr = CStr::from_ptr(expr).to_str().unwrap().parse().unwrap();
-    context.runner = context.runner.with_expr(&rec_expr);
-    let id = usize::from(*context.runner.roots.last().unwrap())
-        .try_into()
-        .unwrap();
+    // assert_eq!(context.iteration, 0);
+    // let rec_expr = CStr::from_ptr(expr).to_str().unwrap().parse().unwrap();
+    // context.runner = context.runner.with_expr(&rec_expr);
+    // let id = usize::from(*context.runner.roots.last().unwrap())
+    //     .try_into()
+    //     .unwrap();
 
-    mem::forget(context);
+    // mem::forget(context);
 
-    id
+    // id
 }
 
 #[no_mangle]
@@ -251,11 +252,15 @@ pub unsafe extern "C" fn egraph_run(
     context.runner.iterations = vec![];
 
     // Construct a fresh Runner to print the aggregate report
-    let mut tmp = Runner::new(Default::default()).with_egraph(context.runner.egraph);
+    let arc = INC_EGRAPH.clone();
+    let mut mutex = arc.lock().unwrap();
+    let inc_egraph = mutex.take().unwrap();
+
+    let mut tmp = Runner::new(Default::default()).with_egraph(inc_egraph);
     tmp.iterations = inc_iterdata.clone();
     tmp.stop_reason = Some(StopReason::Other("Tmp Runner".to_string()));
     println!("{}", tmp.report());
-    context.runner.egraph = tmp.egraph;
+    *mutex = Some(tmp.egraph);
 
     let iterations = context
         .runner
@@ -299,8 +304,7 @@ fn find_extracted(_runner: &Runner, _id: u32, _iter: u32) -> &Extracted {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn egraph_find(ptr: *mut Context, id: usize) -> u32 {
-    let context = ManuallyDrop::new(Box::from_raw(ptr));
+pub unsafe extern "C" fn egraph_find(_ptr: *mut Context, id: usize) -> u32 {
     let node_id = Id::from(id);
     let arc = INC_EGRAPH.clone();
     let mutex = arc.lock().unwrap();
@@ -310,9 +314,7 @@ pub unsafe extern "C" fn egraph_find(ptr: *mut Context, id: usize) -> u32 {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn egraph_serialize(ptr: *mut Context) -> *const c_char {
-    // Safety: `ptr` was box allocated by `egraph_create`
-    let context = ManuallyDrop::new(Box::from_raw(ptr));
+pub unsafe extern "C" fn egraph_serialize(_ptr: *mut Context) -> *const c_char {
     let arc = INC_EGRAPH.clone();
     let mutex = arc.lock().unwrap();
     let inc_egraph = mutex.as_ref().unwrap();
@@ -345,9 +347,7 @@ pub unsafe extern "C" fn egraph_serialize(ptr: *mut Context) -> *const c_char {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn egraph_size(ptr: *mut Context) -> u32 {
-    let context = ManuallyDrop::new(Box::from_raw(ptr));
-
+pub unsafe extern "C" fn egraph_size(_ptr: *mut Context) -> u32 {
     let arc = INC_EGRAPH.clone();
     let mutex = arc.lock().unwrap();
     let inc_egraph = mutex.as_ref().unwrap();
@@ -355,8 +355,7 @@ pub unsafe extern "C" fn egraph_size(ptr: *mut Context) -> u32 {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn egraph_eclass_size(ptr: *mut Context, id: u32) -> u32 {
-    let context = ManuallyDrop::new(Box::from_raw(ptr));
+pub unsafe extern "C" fn egraph_eclass_size(_ptr: *mut Context, id: u32) -> u32 {
     let id = Id::from(id as usize);
     let arc = INC_EGRAPH.clone();
     let mutex = arc.lock().unwrap();
@@ -365,8 +364,7 @@ pub unsafe extern "C" fn egraph_eclass_size(ptr: *mut Context, id: u32) -> u32 {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn egraph_enode_size(ptr: *mut Context, id: u32, idx: u32) -> u32 {
-    let context = ManuallyDrop::new(Box::from_raw(ptr));
+pub unsafe extern "C" fn egraph_enode_size(_ptr: *mut Context, id: u32, idx: u32) -> u32 {
     let id = Id::from(id as usize);
     let idx = idx as usize;
     let arc = INC_EGRAPH.clone();
@@ -376,24 +374,11 @@ pub unsafe extern "C" fn egraph_enode_size(ptr: *mut Context, id: u32, idx: u32)
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn egraph_get_eclasses(ptr: *mut Context, ids_ptr: *mut u32) {
-    let context = ManuallyDrop::new(Box::from_raw(ptr));
-
+pub unsafe extern "C" fn egraph_get_eclasses(_ptr: *mut Context, ids_ptr: *mut u32) {
     let arc = INC_EGRAPH.clone();
     let mutex = arc.lock().unwrap();
     let inc_egraph = mutex.as_ref().unwrap();
 
-    // let ids: Vec<u32> = inc_egraph
-    //     .classes()
-    //     .filter(|ec| {
-    //         context
-    //             .runner
-    //             .egraph
-    //             .whitelist
-    //             .contains(&inc_egraph.find(ec.id))
-    //     })
-    //     .map(|c| usize::from(c.id) as u32)
-    //     .collect();
     let mut ids = inc_egraph
         .whitelist
         .iter()
@@ -408,12 +393,11 @@ pub unsafe extern "C" fn egraph_get_eclasses(ptr: *mut Context, ids_ptr: *mut u3
 
 #[no_mangle]
 pub unsafe extern "C" fn egraph_get_node(
-    ptr: *mut Context,
+    _ptr: *mut Context,
     id: u32,
     idx: u32,
     ids: *mut u32,
 ) -> *const c_char {
-    let context = ManuallyDrop::new(Box::from_raw(ptr));
     let id = Id::from(id as usize);
     let idx = idx as usize;
 
