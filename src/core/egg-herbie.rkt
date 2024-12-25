@@ -1147,8 +1147,7 @@
 
   ;; run the rules
   (let loop ([iter-limit iter-limit])
-    ;; (define egg-graph (egraph-copy egg-graph0))
-    (define egg-graph egg-graph0)
+    (define egg-graph (egraph-copy egg-graph0))
     (define iteration-data
       (egraph-run egg-graph ffi-rules node-limit iter-limit scheduler const-folding?))
 
