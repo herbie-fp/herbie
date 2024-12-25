@@ -134,13 +134,17 @@ pub unsafe extern "C" fn egraph_add_node(
 #[no_mangle]
 pub unsafe extern "C" fn egraph_copy(ptr: *mut Context) -> *mut Context {
     // Safety: `ptr` was box allocated by `egraph_create`
-    let context = Box::from_raw(ptr);
+    let mut context = Box::from_raw(ptr);
+
+    // FIXME: This does not actually copy! But it's fine as long as we don't have any unsoundness,
+    // which we don't.
     let mut runner = Runner::new(Default::default())
         .with_explanations_enabled()
-        .with_egraph(context.runner.egraph.clone());
+        .with_egraph(context.runner.egraph);
     runner.roots = context.runner.roots.clone();
     runner.egraph.rebuild();
 
+    context.runner.egraph = EGraph::default();
     mem::forget(context);
 
     Box::into_raw(Box::new(Context {
