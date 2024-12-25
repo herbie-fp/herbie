@@ -17,8 +17,9 @@ use lazy_static::lazy_static;
 use std::sync::{Arc, Mutex};
 
 lazy_static! {
-    static ref INC_EGRAPH: Arc<Mutex<Option<EGraph>>> =
-        Arc::new(Mutex::new(Some(EGraph::default())));
+    static ref INC_EGRAPH: Arc<Mutex<Option<EGraph>>> = Arc::new(Mutex::new(Some(
+        EGraph::default().with_explanations_enabled()
+    )));
     static ref INC_ITERDATA: Mutex<Vec<Iteration>> = Mutex::new(vec![]);
 }
 
@@ -37,12 +38,9 @@ pub unsafe extern "C" fn egraph_create() -> *mut Context {
     let mut mutex = arc.lock().unwrap();
     mutex.as_mut().unwrap().inc_version();
 
-    // let mut inc_egraph = mutex.take().unwrap();
-    // inc_egraph.version += 1;
-
     Box::into_raw(Box::new(Context {
         iteration: 0,
-        runner: Runner::new(Default::default()).with_explanations_enabled(),
+        runner: Runner::new(Default::default()),
         rules: vec![],
     }))
 }
@@ -385,19 +383,22 @@ pub unsafe extern "C" fn egraph_get_eclasses(ptr: *mut Context, ids_ptr: *mut u3
     let mutex = arc.lock().unwrap();
     let inc_egraph = mutex.as_ref().unwrap();
 
-    let mut ids: Vec<u32> = context
-        .runner
-        .egraph
-        .classes()
-        .filter(|ec| {
-            context
-                .runner
-                .egraph
-                .whitelist
-                .contains(&inc_egraph.find(ec.id))
-        })
-        .map(|c| usize::from(c.id) as u32)
-        .collect();
+    // let ids: Vec<u32> = inc_egraph
+    //     .classes()
+    //     .filter(|ec| {
+    //         context
+    //             .runner
+    //             .egraph
+    //             .whitelist
+    //             .contains(&inc_egraph.find(ec.id))
+    //     })
+    //     .map(|c| usize::from(c.id) as u32)
+    //     .collect();
+    let mut ids = inc_egraph
+        .whitelist
+        .iter()
+        .map(|c| usize::from(*c) as u32)
+        .collect::<Vec<u32>>();
     ids.sort();
 
     for (i, id) in ids.iter().enumerate() {
