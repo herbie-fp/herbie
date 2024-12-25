@@ -182,10 +182,7 @@ pub unsafe extern "C" fn egraph_run(
 
     assert!(context.runner.iterations.is_empty());
 
-    let mut update_inc_egraph = false;
     if context.runner.stop_reason.is_none() {
-        update_inc_egraph = true;
-
         let length: usize = rules_array_length as usize;
         let ffi_rules: &[*mut FFIRule] = slice::from_raw_parts(rules_array_ptr, length);
         let mut ffi_tuples: Vec<(&str, &str, &str)> = vec![];
@@ -238,11 +235,7 @@ pub unsafe extern "C" fn egraph_run(
             "stop_reason: {:?}",
             context.runner.stop_reason.clone().unwrap()
         );
-    }
 
-    if update_inc_egraph {
-        let arc = INC_EGRAPH.clone();
-        let mut mutex = arc.lock().unwrap();
         *mutex = Some(context.runner.egraph);
         context.runner.egraph = EGraph::default();
     }
