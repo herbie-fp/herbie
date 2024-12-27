@@ -383,7 +383,7 @@ function buildBody(jsonData, otherJsonData) {
     ])
 
     const header = Element("header", {}, [
-        Element("h1", {}, toTitleCase(jsonData.note || "") + " Results"),
+        Element("h1", {}, "Herbie Results"),
         Element("img", { src: "logo-car.png" }, []),
         Element("nav", {}, [
             Element("ul", {}, [Element("li", {}, [Element("a", { href: "timeline.html" }, ["Metrics"])])])
