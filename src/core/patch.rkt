@@ -45,8 +45,7 @@
 
   ; run egg
   (define runner (make-egg-runner global-batch roots reprs schedule))
-  (define simplification-options
-    (simplify-batch runner global-batch))
+  (define simplification-options (simplify-batch runner global-batch))
 
   ; convert to altns
   (define simplified

@@ -9,8 +9,7 @@
          "egg-herbie.rkt"
          "batch.rkt")
 
-(provide
- (contract-out [simplify-batch (-> egg-runner? batch? (listof (listof batchref?)))]))
+(provide (contract-out [simplify-batch (-> egg-runner? batch? (listof (listof batchref?)))]))
 
 (module+ test
   (require rackunit
