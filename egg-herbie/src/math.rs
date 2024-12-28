@@ -170,7 +170,8 @@ impl Analysis<Math> for ConstantFold {
                         }
                     } else if is_zero(b) {
                         Ratio::new(BigInt::from(1), BigInt::from(1))
-                    } else if x(b)?.is_integer() && x(b)?.abs() <= egraph.analysis.max_abs_exponent {
+                    } else if x(b)?.is_integer() && x(b)?.abs() <= egraph.analysis.max_abs_exponent
+                    {
                         Pow::pow(x(a)?, x(b)?.to_integer())
                     } else {
                         return None;
