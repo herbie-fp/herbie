@@ -9,15 +9,15 @@
          "egg-herbie.rkt"
          "batch.rkt")
 
-(provide simplify-batch)
+(provide
+ (contract-out [simplify-batch (-> egg-runner? batch? (listof (listof batchref?)))]))
 
 (module+ test
   (require rackunit
            "../syntax/load-plugin.rkt")
   (load-herbie-plugins))
 
-(define/contract (simplify-batch runner batch)
-  (-> egg-runner? procedure? (listof (listof batchref?)))
+(define (simplify-batch runner batch)
   (timeline-push! 'inputs (map ~a (batch->progs (egg-runner-batch runner) (egg-runner-roots runner))))
 
   (define cost-proc (if (*egraph-platform-cost*) platform-egg-cost-proc default-egg-cost-proc))
