@@ -74,14 +74,13 @@
   ;; This generates the errors array in reverse because that's how lists work
   (define num-points (pcontext-length pcontext))
   (for/fold ([result (make-list (length exprs) '())])
-            ([pt (in-vector (pcontext-points pcontext) (- num-points 1) -1 -1)])
+            ([point (in-vector (pcontext-points pcontext) (- num-points 1) -1 -1)])
     (for/list ([out (in-vector (apply fn point))]
                [rest (in-list result)])
-      (cons
-       (if (special? out)
-           max-error
-           (ulp-difference out exact repr))
-       rest))))
+      (cons (if (special? out)
+                max-error
+                (ulp-difference out exact repr))
+            rest))))
 
 ;; Herbie <=> JSON conversion for pcontext
 ;; A JSON pcontext is just a list of lists
