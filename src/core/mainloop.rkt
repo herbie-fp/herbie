@@ -391,5 +391,5 @@
   (define repr (context-repr (*context*)))
   ;; find the best, sort the rest by cost
   (define errss (batch-errors (map alt-expr alts) (*pcontext*) (*context*)))
-  (define best (car (argmin (compose errors-score cdr) (map cons alts (flip-lists errss)))))
+  (define best (car (argmin (compose errors-score cdr) (map cons alts errss))))
   (cons best (sort (set-remove alts best) > #:key (curryr alt-cost repr))))
