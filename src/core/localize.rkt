@@ -91,12 +91,7 @@
                        (,lowering-rules . ((iteration . 1) (scheduler . simple))))))
 
   ; run egg
-  (define simplified
-    (map (compose debatchref last)
-         (simplify-batch runner
-                         (typed-egg-batch-extractor
-                          (if (*egraph-platform-cost*) platform-egg-cost-proc default-egg-cost-proc)
-                          batch))))
+  (define simplified (map (compose debatchref last) (simplify-batch runner batch)))
 
   ; run egg
   (define simplifiedss (regroup-nested subexprss simplified))

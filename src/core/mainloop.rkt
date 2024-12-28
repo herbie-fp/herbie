@@ -363,13 +363,7 @@
      (define runner (make-egg-runner batch (batch-roots batch) reprs schedule))
 
      ; run egg
-     (define simplified
-       (map (compose debatchref last)
-            (simplify-batch runner
-                            (typed-egg-batch-extractor (if (*egraph-platform-cost*)
-                                                           platform-egg-cost-proc
-                                                           default-egg-cost-proc)
-                                                       batch))))
+     (define simplified (map (compose debatchref last) (simplify-batch runner batch)))
 
      ; de-duplication
      (remove-duplicates (for/list ([altn (in-list alts)]

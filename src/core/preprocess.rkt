@@ -67,11 +67,7 @@
   (define runner (make-egg-runner batch (batch-roots batch) (list (context-repr ctx)) schedule))
 
   ; run egg
-  (define simplified
-    (simplify-batch runner
-                    (typed-egg-batch-extractor
-                     (if (*egraph-platform-cost*) platform-egg-cost-proc default-egg-cost-proc)
-                     batch)))
+  (define simplified (simplify-batch runner batch))
 
   ; alternatives
   (define start-alt (make-alt expr))
