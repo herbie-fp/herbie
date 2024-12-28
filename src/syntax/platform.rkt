@@ -10,7 +10,6 @@
          "types.rkt")
 
 (provide define-platform
-         get-platform
          *active-platform*
          activate-platform!
          *fp-safe-simplify-rules*
@@ -36,7 +35,6 @@
 
 (module+ internals
   (provide define-platform
-           get-platform
            register-platform!
            platform-union
            platform-intersect
@@ -68,18 +66,18 @@
 ;; Active platform
 (define *active-platform* (make-parameter #f))
 
-;; Looks up a platform by identifier.
-;; Panics if no platform is found.
-(define (get-platform name)
-  (or (hash-ref platforms name #f)
-      (raise-herbie-error "unknown platform `~a`, found (~a)"
-                          name
-                          (string-join (map ~a (hash-keys platforms)) ", "))))
-
 ;; Loads a platform.
-(define (activate-platform! pform)
-  ; replace the active operator table
+(define (activate-platform! name)
+  (define pform (hash-ref platforms name #f))
+
+  (unless platform
+    (raise-herbie-error "unknown platform `~a`, found (~a)"
+                        name
+                        (string-join (map ~a (hash-keys platforms)) ", ")))
+
+  (*platform-name* name)
   (*active-platform* pform)
+  ; replace the active operator table
   (clear-active-operator-impls!)
   (for-each activate-operator-impl! (platform-impls pform)))
 

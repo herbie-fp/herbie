@@ -257,7 +257,7 @@
       (define start-time (current-inexact-milliseconds))
       (reset!)
       (*context* (test-context test))
-      (activate-platform! (get-platform (*platform-name*)))
+      (activate-platform! (*platform-name*))
       (set! timeline (*timeline*))
       (when seed
         (set-seed! seed))

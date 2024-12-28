@@ -30,7 +30,6 @@
          get-representation
          warn
          define-platform
-         get-platform
          register-platform!
          platform-union
          platform-intersect
