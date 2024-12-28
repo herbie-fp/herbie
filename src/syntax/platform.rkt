@@ -70,7 +70,7 @@
 (define (activate-platform! name)
   (define pform (hash-ref platforms name #f))
 
-  (unless platform
+  (unless pform
     (raise-herbie-error "unknown platform `~a`, found (~a)"
                         name
                         (string-join (map ~a (hash-keys platforms)) ", ")))
