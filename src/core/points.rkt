@@ -74,7 +74,8 @@
   ;; This generates the errors array in reverse because that's how lists work
   (define num-points (pcontext-length pcontext))
   (for/fold ([result (make-list (length exprs) '())])
-            ([point (in-vector (pcontext-points pcontext) (- num-points 1) -1 -1)])
+            ([point (in-vector (pcontext-points pcontext) (- num-points 1) -1 -1)]
+             [exact (in-vector (pcontext-exacts pcontext) (- num-points 1) -1 -1)])
     (for/list ([out (in-vector (apply fn point))]
                [rest (in-list result)])
       (cons (if (special? out)
