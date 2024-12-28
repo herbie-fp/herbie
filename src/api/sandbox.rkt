@@ -211,8 +211,8 @@
 
   ;; compute error/cost for output expression
   (define end-exprs (map alt-expr end-alts))
-  (define end-train-errs (flip-lists (batch-errors end-exprs train-pcontext ctx)))
-  (define end-test-errs (flip-lists (batch-errors end-exprs test-pcontext* ctx)))
+  (define end-train-errs (batch-errors end-exprs train-pcontext ctx))
+  (define end-test-errs (batch-errors end-exprs test-pcontext* ctx))
   (define end-alts-data (map alt-analysis end-alts end-train-errs end-test-errs))
 
   ;; bundle up the result
