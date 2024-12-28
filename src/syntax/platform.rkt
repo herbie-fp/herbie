@@ -12,7 +12,7 @@
 (provide define-platform
          *active-platform*
          activate-platform!
-         *fp-safe-simplify-rules*
+         platform-simplify-rules
          platform-lifting-rules
          platform-lowering-rules
          platform-impl-rules
@@ -591,7 +591,7 @@
     [`(,impl ,args ...)
      (and (set-member? (platform-impls (*active-platform*)) impl) (andmap impls-supported? args))]))
 
-(define (*fp-safe-simplify-rules*)
+(define (platform-simplify-rules)
   (reap [sow]
         (for ([impl (in-list (platform-impls (*active-platform*)))])
           (define rules (impl-info impl 'identities))

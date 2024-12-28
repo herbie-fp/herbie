@@ -353,7 +353,7 @@
      (timeline-event! 'simplify)
 
      ; egg schedule (only FP rewrites plus simplify rewrites for if statements)
-     (define rules (append (*fp-safe-simplify-rules*) (*simplify-rules*)))
+     (define rules (append (platform-simplify-rules) (*simplify-rules*)))
      (define schedule `((,rules . ((node . ,(*node-limit*)) (const-fold? . #f)))))
 
      ; egg runner
