@@ -79,8 +79,7 @@
     platform
     ("The platform to use during improvement" "[Default: default]")
     (*platform-name* (string->symbol platform))
-    (*active-platform* (get-platform (*platform-name*)))
-    (activate-platform! (*active-platform*))]
+    (activate-platform! (get-platform (*platform-name*)))]
    [("--num-iters")
     num
     ("The number of iterations to use for the main loop. Herbie may find additional improvements

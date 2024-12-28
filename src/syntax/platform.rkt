@@ -79,6 +79,7 @@
 ;; Loads a platform.
 (define (activate-platform! pform)
   ; replace the active operator table
+  (*active-platform* pform)
   (clear-active-operator-impls!)
   (for-each activate-operator-impl! (platform-impls pform)))
 
