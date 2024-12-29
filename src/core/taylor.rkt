@@ -125,9 +125,9 @@
                  [(= n 1) (list (list k))]
                  [(= n 0) '()]
                  [else
-                  (apply append
-                         (for/list ([i (in-range 0 (+ k 1))])
-                           (map (curry cons i) (n-sum-to (- n 1) (- k i)))))]))))
+                  (for*/list ([i (in-range 0 (+ k 1))]
+                              [v (in-list (map (curry cons i) (n-sum-to (- n 1) (- k i))))])
+                    v)]))))
 
 (define (taylor var expr-batch)
   "Return a pair (e, n), such that expr ~= e var^n"
