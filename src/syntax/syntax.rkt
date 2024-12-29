@@ -16,9 +16,9 @@
          operator-info
          all-operators
          all-constants
+
          impl-exists?
          impl-info
-         all-operator-impls
          (rename-out [all-active-operator-impls active-operator-impls])
          activate-operator-impl!
          clear-active-operator-impls!
@@ -227,10 +227,6 @@
     [(fpcore) (operator-impl-fpcore info)]
     [(fl) (operator-impl-fl info)]
     [(identities) (operator-impl-identities info)]))
-
-;; Returns all operator implementations.
-(define (all-operator-impls)
-  (sort (hash-keys operator-impls) symbol<?))
 
 ;; Returns all active operator implementations.
 (define (all-active-operator-impls)
