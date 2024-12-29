@@ -162,9 +162,9 @@
        (error 'instruction->operator "component should always be a subsequence of variables"))
      (define indices (indexes-where variables (curryr member component)))
      (lambda (x y)
-       (let* ([subsequence (map (curry list-ref x) indices)]
-              [sorted (sort* subsequence)])
-         (values (list-set* x indices sorted) y)))]
+       (define subsequence (map (curry list-ref x) indices))
+       (define sorted (sort* subsequence))
+       (values (list-set* x indices sorted) y))]
     [(list 'abs variable)
      (define index (index-of variables variable))
      (define var-repr (context-lookup context variable))

@@ -171,18 +171,18 @@
                (taylor-mult (taylor-exact `(cos ,((cdr arg*) 0))) (taylor-sin (zero-series arg*))))]
              [else (taylor-sin (zero-series arg*))]))]
         [`(cos ,arg)
-         (let ([arg* (normalize-series (vector-ref taylor-approxs arg))])
-           (cond
-             [(positive? (car arg*)) (taylor-exact (batch-ref expr-batch n))]
-             [(= (car arg*) 0)
-              ; Our taylor-cos function assumes that a0 is 0,
-              ; because that way it is especially simple. We correct for this here
-              ; We use the identity cos (x + y) = cos x cos y - sin x sin y
-              (taylor-add (taylor-mult (taylor-exact `(cos ,((cdr arg*) 0)))
-                                       (taylor-cos (zero-series arg*)))
-                          (taylor-negate (taylor-mult (taylor-exact `(sin ,((cdr arg*) 0)))
-                                                      (taylor-sin (zero-series arg*)))))]
-             [else (taylor-cos (zero-series arg*))]))]
+         (define arg* (normalize-series (vector-ref taylor-approxs arg)))
+         (cond
+           [(positive? (car arg*)) (taylor-exact (batch-ref expr-batch n))]
+           [(= (car arg*) 0)
+            ; Our taylor-cos function assumes that a0 is 0,
+            ; because that way it is especially simple. We correct for this here
+            ; We use the identity cos (x + y) = cos x cos y - sin x sin y
+            (taylor-add (taylor-mult (taylor-exact `(cos ,((cdr arg*) 0)))
+                                     (taylor-cos (zero-series arg*)))
+                        (taylor-negate (taylor-mult (taylor-exact `(sin ,((cdr arg*) 0)))
+                                                    (taylor-sin (zero-series arg*)))))]
+           [else (taylor-cos (zero-series arg*))])]
         [`(log ,arg) (taylor-log var (vector-ref taylor-approxs arg))]
         [`(pow ,base ,power)
          #:when (exact-integer? (vector-ref nodes power))
