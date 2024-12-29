@@ -2,6 +2,7 @@
 
 (require "syntax/types.rkt"
          "utils/errors.rkt"
+         "syntax/platform.rkt"
          (submod "syntax/types.rkt" internals)
          (submod "syntax/syntax.rkt" internals)
          (submod "syntax/platform.rkt" internals))

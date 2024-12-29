@@ -33,11 +33,7 @@
           [platform-cost-proc (-> platform? procedure?)]))
 
 (module+ internals
-  (provide define-platform
-           register-platform!
-           platform-union
-           platform-intersect
-           platform-subtract
+  (provide register-platform!
            platform-filter))
 
 ;;; Platforms describe a set of representations, operator, and constants
