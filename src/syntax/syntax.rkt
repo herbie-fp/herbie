@@ -15,7 +15,6 @@
          operator-exists?
          operator-info
          all-operators
-         all-constants
 
          prog->spec
 
