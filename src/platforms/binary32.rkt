@@ -110,7 +110,6 @@
                       #:fl fl32/
                       #:identities ([distribute-frac-neg (/.f32 (neg.f32 x) y) (neg.f32 (/.f32 x y))]
                                     [distribute-frac-neg2 (/.f32 x (neg.f32 y)) (neg.f32 (/.f32 x y))]
-                                    [*-inverses (/.f32 a a) 1]
                                     [/-rgt-identity (/.f32 a 1) a]))
 
 (define-libm-impl/binary32 fabs
