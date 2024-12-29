@@ -368,10 +368,7 @@
 ; Powers
 (define-ruleset* pow-reduce (exponents simplify sound) #:type ([a real]) [unpow-1 (pow a -1) (/ 1 a)])
 
-(define-ruleset* pow-reduce-fp-safe
-                 (exponents simplify sound)
-                 #:type ([a real])
-                 [unpow1 (pow a 1) a])
+(define-ruleset* pow-reduce-fp-safe (exponents simplify sound) #:type ([a real]) [unpow1 (pow a 1) a])
 
 (define-ruleset* pow-reduce-fp-safe-nan
                  (exponents simplify sound)
