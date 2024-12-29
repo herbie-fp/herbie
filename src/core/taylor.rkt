@@ -1,11 +1,11 @@
 #lang racket
 
 (require math/number-theory)
-(require "../utils/common.rkt"
+(require "../syntax/syntax.rkt"
+         "../utils/common.rkt"
+         "batch.rkt"
          "programs.rkt"
-         "reduce.rkt"
-         "../syntax/syntax.rkt"
-         "batch.rkt")
+         "reduce.rkt")
 
 (provide approximate)
 
