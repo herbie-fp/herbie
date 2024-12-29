@@ -21,8 +21,6 @@
 
          impl-exists?
          impl-info
-         activate-operator-impl!
-         clear-active-operator-impls!
          *functions*
          register-function!)
 
