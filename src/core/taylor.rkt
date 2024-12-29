@@ -211,16 +211,17 @@
         n)))
 
 (define (align-series . serieses)
-  (if (or (<= (length serieses) 1) (apply = (map car serieses)))
-      serieses
-      (let ([offset* (car (argmax car serieses))])
-        (for/list ([series serieses])
-          (let ([offset (car series)])
-            (cons offset*
-                  (λ (n)
-                    (if (< (+ n (- offset offset*)) 0)
-                        0
-                        ((cdr series) (+ n (- offset offset*)))))))))))
+  (cond
+    [(or (<= (length serieses) 1) (apply = (map car serieses))) serieses]
+    [else
+     (define offset* (car (argmax car serieses)))
+     (for/list ([series serieses])
+       (let ([offset (car series)])
+         (cons offset*
+               (λ (n)
+                 (if (< (+ n (- offset offset*)) 0)
+                     0
+                     ((cdr series) (+ n (- offset offset*))))))))]))
 
 (define (taylor-add . terms)
   (match (apply align-series terms)
