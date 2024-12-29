@@ -84,22 +84,22 @@
                        #:exact (-.f64 a 0)
                        [sub0-neg (-.f64 0 a) (neg.f64 a)]
                        [sub-neg (-.f64 a b) (+.f64 a (neg.f64 b))]))
-(define-operator-impl
- (*.f64 [x : binary64] [y : binary64])
- binary64
- #:spec (* x y)
- #:fpcore (! :precision binary64 (* x y))
- #:fl *
- #:commutes
- #:identities ([distribute-lft-neg-out (*.f64 (neg.f64 a) b) (neg.f64 (*.f64 a b))]
-               [distribute-rgt-neg-out (*.f64 a (neg.f64 b)) (neg.f64 (*.f64 a b))]
-               [*-lft-identity (*.f64 1 a) a]
-               [*-rgt-identity (*.f64 a 1) a]
-               [mul-1-neg (*.f64 -1 a) (neg.f64 a)]
-               [*-un-lft-identity a (*.f64 1 a)]
-               [sqr-neg (*.f64 (neg.f64 a) (neg.f64 a)) (*.f64 a a)]
-               [sqr-abs (*.f64 (fabs.f64 a) (fabs.f64 a)) (*.f64 a a)]
-               [mul-fabs (*.f64 (fabs.f64 a) (fabs.f64 b)) (fabs.f64 (*.f64 a b))]))
+(define-operator-impl (*.f64 [x : binary64] [y : binary64])
+                      binary64
+                      #:spec (* x y)
+                      #:fpcore (! :precision binary64 (* x y))
+                      #:fl *
+                      #:commutes
+                      #:identities
+                      ([distribute-lft-neg-out (*.f64 (neg.f64 a) b) (neg.f64 (*.f64 a b))]
+                       [distribute-rgt-neg-out (*.f64 a (neg.f64 b)) (neg.f64 (*.f64 a b))]
+                       [*-lft-identity (*.f64 1 a) a]
+                       [*-rgt-identity (*.f64 a 1) a]
+                       [mul-1-neg (*.f64 -1 a) (neg.f64 a)]
+                       [*-un-lft-identity a (*.f64 1 a)]
+                       [sqr-neg (*.f64 (neg.f64 a) (neg.f64 a)) (*.f64 a a)]
+                       [sqr-abs (*.f64 (fabs.f64 a) (fabs.f64 a)) (*.f64 a a)]
+                       [mul-fabs (*.f64 (fabs.f64 a) (fabs.f64 b)) (fabs.f64 (*.f64 a b))]))
 (define-operator-impl (/.f64 [x : binary64] [y : binary64])
                       binary64
                       #:spec (/ x y)
