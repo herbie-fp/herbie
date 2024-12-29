@@ -2,6 +2,7 @@
 
 (require "load-plugin.rkt"
          "syntax.rkt"
+         "platform.rkt"
          "types.rkt"
          (only-in "platform.rkt" *active-platform* activate-platform!)
          (submod "syntax.rkt" internals)
