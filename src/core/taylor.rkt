@@ -224,16 +224,15 @@
                      ((cdr series) (+ n (- offset offset*))))))))]))
 
 (define (taylor-add . terms)
-  (match (apply align-series terms)
-    [`((,offset . ,serieses) ...)
-     (let ([hash (make-hash)])
-       (cons (car offset)
-             (λ (n)
-               (hash-ref! hash
-                          n
-                          (λ ()
-                            (reduce (make-sum (for/list ([series serieses])
-                                                (series n)))))))))]))
+  (match-define `((,offset . ,serieses) ...) (apply align-series terms))
+  (let ([hash (make-hash)])
+    (cons (car offset)
+          (λ (n)
+            (hash-ref! hash
+                       n
+                       (λ ()
+                         (reduce (make-sum (for/list ([series serieses])
+                                             (series n))))))))))
 
 (define (taylor-negate term)
   (cons (car term) (λ (n) (reduce (list 'neg ((cdr term) n))))))
@@ -251,10 +250,8 @@
 (define (normalize-series series)
   "Fixes up the series to have a non-zero zeroth term,
    allowing a possibly negative offset"
-  (match series
-    [(cons offset coeffs)
-     (let ([slack (first-nonzero-exp coeffs)])
-       (cons (- offset slack) (compose coeffs (curry + slack))))]))
+  (match-define (cons offset coeffs) series)
+  (let ([slack (first-nonzero-exp coeffs)]) (cons (- offset slack) (compose coeffs (curry + slack)))))
 
 (define ((zero-series series) n)
   (if (< n (- (car series)))
@@ -265,17 +262,16 @@
   "This gets tricky, because the function might have a pole at 0.
    This happens if the inverted series doesn't have a constant term,
    so we extract that case out."
-  (match (normalize-series term)
-    [(cons offset b)
-     (let ([hash (make-hash)])
-       (hash-set! hash 0 (reduce `(/ 1 ,(b 0))))
-       (letrec ([f (λ (n)
-                     (hash-ref! hash
-                                n
-                                (λ ()
-                                  (reduce `(neg (+ ,@(for/list ([i (range n)])
-                                                       `(* ,(f i) (/ ,(b (- n i)) ,(b 0))))))))))])
-         (cons (- offset) f)))]))
+  (match-define (cons offset b) (normalize-series term))
+  (let ([hash (make-hash)])
+    (hash-set! hash 0 (reduce `(/ 1 ,(b 0))))
+    (letrec ([f (λ (n)
+                  (hash-ref! hash
+                             n
+                             (λ ()
+                               (reduce `(neg (+ ,@(for/list ([i (range n)])
+                                                    `(* ,(f i) (/ ,(b (- n i)) ,(b 0))))))))))])
+      (cons (- offset) f))))
 
 (define (taylor-quotient num denom)
   "This gets tricky, because the function might have a pole at 0.
