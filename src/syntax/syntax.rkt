@@ -24,8 +24,7 @@
          clear-active-operator-impls!
          *functions*
          register-function!
-         get-fpcore-impl
-         cast-impl?)
+         get-fpcore-impl)
 
 (module+ internals
   (provide define-operator-impl
@@ -549,11 +548,6 @@
                  [else (> (cdr x) (cdr y))]))
              #:key car))
      best]))
-
-;; Casts and precision changes
-
-(define (cast-impl? x)
-  (and (symbol? x) (impl-exists? x) (equal? (list (impl-info x 'spec)) (impl-info x 'vars))))
 
 ; Similar to representation generators, conversion generators
 ; allow Herbie to query plugins for optimized implementations

@@ -22,7 +22,6 @@
           [platform-name (-> platform? any/c)]
           [platform-reprs (-> platform? (listof representation?))]
           [platform-impls (-> platform? (listof symbol?))]
-          [platform-casts (-> platform? (listof symbol?))]
           [platform-union (-> platform? platform? ... platform?)]
           [platform-intersect (-> platform? platform? ... platform?)]
           [platform-subtract (-> platform? platform? ... platform?)]
@@ -226,10 +225,6 @@
            [(impl rest ...) (loop #'(rest ...) (cons #'impl impls) (cons #f costs) reprs repr-costs)]
            [_ (oops! "bad syntax")])))]
     [_ (oops! "bad syntax")]))
-
-;; Casts between representations in a platform.
-(define (platform-casts pform)
-  (filter cast-impl? (platform-impls pform)))
 
 ;; Merger for costs.
 (define (merge-cost pform-costs key #:optional? [optional? #f])

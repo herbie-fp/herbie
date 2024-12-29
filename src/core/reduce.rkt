@@ -66,8 +66,6 @@
   (match expr
     [(? number?) expr]
     [(? symbol?) expr]
-    ; conversion (e.g. posit16->f64)
-    [(list (? cast-impl? op) body) (list op (simplify body))]
     [`(,(and (or '+ '- '*) op) ,args ...) ; v-ary
      (define args* (map simplify args))
      (define val (apply eval-application op args*))
