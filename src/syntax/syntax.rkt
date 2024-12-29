@@ -19,7 +19,6 @@
 
          impl-exists?
          impl-info
-         (rename-out [all-active-operator-impls active-operator-impls])
          activate-operator-impl!
          clear-active-operator-impls!
          *functions*
@@ -226,10 +225,6 @@
     [(fpcore) (operator-impl-fpcore info)]
     [(fl) (operator-impl-fl info)]
     [(identities) (operator-impl-identities info)]))
-
-;; Returns all active operator implementations.
-(define (all-active-operator-impls)
-  (sort (set->list active-operator-impls) symbol<?))
 
 ;; Activates an implementation.
 ;; Panics if the operator is not found.
@@ -514,13 +509,13 @@
 
 ;; For a given FPCore operator, rounding context, and input representations,
 ;; finds the best operator implementation. Panics if none can be found.
-(define/contract (get-fpcore-impl op prop-dict ireprs #:impls [all-impls (all-active-operator-impls)])
-  (->* (symbol? prop-dict/c (listof representation?)) (#:impls (listof symbol?)) (or/c symbol? #f))
+(define/contract (get-fpcore-impl op prop-dict ireprs)
+  (-> symbol? prop-dict/c (listof representation?) (or/c symbol? #f))
   ; gather all implementations that have the same spec, input representations,
   ; and its FPCore translation has properties that are found in `prop-dict`
   (define impls
     (reap [sow]
-          (for ([impl (in-list all-impls)]
+          (for ([impl (in-set active-operator-impls)]
                 #:when (equal? ireprs (impl-info impl 'itype)))
             (define-values (prop-dict* expr) (impl->fpcore impl))
             (define pattern (cons op (map (lambda (_) (gensym)) ireprs)))
