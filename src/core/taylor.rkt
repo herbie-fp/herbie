@@ -121,7 +121,7 @@
              (cons n k)
              (λ ()
                (cond
-                 [(= k 0) (list (build-list n (const 0)))]
+                 [(= k 0) (list (make-list n 0))]
                  [(= n 1) (list (list k))]
                  [(= n 0) '()]
                  [else
