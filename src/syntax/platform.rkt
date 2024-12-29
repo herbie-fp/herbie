@@ -75,10 +75,7 @@
                         (string-join (map ~a (hash-keys platforms)) ", ")))
 
   (*platform-name* name)
-  (*active-platform* pform)
-  ; replace the active operator table
-  (clear-active-operator-impls!)
-  (for-each activate-operator-impl! (platform-impls pform)))
+  (*active-platform* pform))
 
 ;; Registers a platform under identifier `name`.
 (define (register-platform! name pform)

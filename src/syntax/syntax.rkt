@@ -206,11 +206,6 @@
 ;; Tracks implementations that are loaded into Racket's runtime
 (define operator-impls (make-hasheq))
 
-;; "Active" operator set
-;; Tracks implementations that will be used by Herbie during the improvement loop.
-;; Guaranteed to be a subset of the `operator-impls` table.
-(define active-operator-impls (mutable-set))
-
 ;; Looks up a property `field` of an real operator `op`.
 ;; Panics if the operator is not found.
 (define/contract (impl-info impl field)
@@ -226,19 +221,6 @@
     [(fpcore) (operator-impl-fpcore info)]
     [(fl) (operator-impl-fl info)]
     [(identities) (operator-impl-identities info)]))
-
-;; Activates an implementation.
-;; Panics if the operator is not found.
-(define (activate-operator-impl! name)
-  (unless (hash-has-key? operator-impls name)
-    (raise-herbie-missing-error "Unknown operator implementation ~a" name))
-  (set-add! active-operator-impls name))
-
-;; Clears the table of active implementations.
-(define (clear-active-operator-impls!)
-  (set-clear! active-operator-impls))
-
-;; Collects all operators
 
 ;; Checks a specification.
 (define (check-spec! name ctx spec)
