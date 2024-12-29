@@ -33,8 +33,7 @@
           [platform-cost-proc (-> platform? procedure?)]))
 
 (module+ internals
-  (provide register-platform!
-           platform-filter))
+  (provide register-platform!))
 
 ;;; Platforms describe a set of representations, operator, and constants
 ;;; Herbie should use during its improvement loop. Platforms are just
