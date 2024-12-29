@@ -525,7 +525,7 @@
                          (for/hash ([binding (in-list var-types)])
                            (values (car binding) (cdr binding)))
                          (impl-info impl 'otype)
-                         '(fp-safe)))
+                         '()))
                  (sow r))]
               [(list 'commutes name expr rev-expr)
                (when (impls-supported? expr)
@@ -539,7 +539,7 @@
                          (for/hash ([v (in-list vars)])
                            (values v itype))
                          otype
-                         '(fp-safe))) ; Commutes by definition the types are matching
+                         '())) ; Commutes by definition the types are matching
                  (sow r))]
               [(list 'directed name lhs rhs)
                (when (and (impls-supported? lhs) (impls-supported? rhs))
@@ -561,5 +561,5 @@
                          (for/hash ([binding (in-list var-types)])
                            (values (car binding) (cdr binding)))
                          (impl-info impl 'otype)
-                         '(fp-safe)))
+                         '()))
                  (sow r))])))))
