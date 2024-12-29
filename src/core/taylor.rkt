@@ -1,11 +1,11 @@
 #lang racket
 
 (require math/number-theory)
-(require "../utils/common.rkt"
+(require "../syntax/syntax.rkt"
+         "../utils/common.rkt"
+         "batch.rkt"
          "programs.rkt"
-         "reduce.rkt"
-         "../syntax/syntax.rkt"
-         "batch.rkt")
+         "reduce.rkt")
 
 (provide approximate)
 
@@ -121,13 +121,13 @@
              (cons n k)
              (λ ()
                (cond
-                 [(= k 0) (list (build-list n (const 0)))]
+                 [(= k 0) (list (make-list n 0))]
                  [(= n 1) (list (list k))]
                  [(= n 0) '()]
                  [else
-                  (apply append
-                         (for/list ([i (in-range 0 (+ k 1))])
-                           (map (curry cons i) (n-sum-to (- n 1) (- k i)))))]))))
+                  (for*/list ([i (in-range 0 (+ k 1))]
+                              [v (in-list (map (curry cons i) (n-sum-to (- n 1) (- k i))))])
+                    v)]))))
 
 (define (taylor var expr-batch)
   "Return a pair (e, n), such that expr ~= e var^n"
@@ -171,18 +171,18 @@
                (taylor-mult (taylor-exact `(cos ,((cdr arg*) 0))) (taylor-sin (zero-series arg*))))]
              [else (taylor-sin (zero-series arg*))]))]
         [`(cos ,arg)
-         (let ([arg* (normalize-series (vector-ref taylor-approxs arg))])
-           (cond
-             [(positive? (car arg*)) (taylor-exact (batch-ref expr-batch n))]
-             [(= (car arg*) 0)
-              ; Our taylor-cos function assumes that a0 is 0,
-              ; because that way it is especially simple. We correct for this here
-              ; We use the identity cos (x + y) = cos x cos y - sin x sin y
-              (taylor-add (taylor-mult (taylor-exact `(cos ,((cdr arg*) 0)))
-                                       (taylor-cos (zero-series arg*)))
-                          (taylor-negate (taylor-mult (taylor-exact `(sin ,((cdr arg*) 0)))
-                                                      (taylor-sin (zero-series arg*)))))]
-             [else (taylor-cos (zero-series arg*))]))]
+         (define arg* (normalize-series (vector-ref taylor-approxs arg)))
+         (cond
+           [(positive? (car arg*)) (taylor-exact (batch-ref expr-batch n))]
+           [(= (car arg*) 0)
+            ; Our taylor-cos function assumes that a0 is 0,
+            ; because that way it is especially simple. We correct for this here
+            ; We use the identity cos (x + y) = cos x cos y - sin x sin y
+            (taylor-add (taylor-mult (taylor-exact `(cos ,((cdr arg*) 0)))
+                                     (taylor-cos (zero-series arg*)))
+                        (taylor-negate (taylor-mult (taylor-exact `(sin ,((cdr arg*) 0)))
+                                                    (taylor-sin (zero-series arg*)))))]
+           [else (taylor-cos (zero-series arg*))])]
         [`(log ,arg) (taylor-log var (vector-ref taylor-approxs arg))]
         [`(pow ,base ,power)
          #:when (exact-integer? (vector-ref nodes power))
@@ -211,28 +211,28 @@
         n)))
 
 (define (align-series . serieses)
-  (if (or (<= (length serieses) 1) (apply = (map car serieses)))
-      serieses
-      (let ([offset* (car (argmax car serieses))])
-        (for/list ([series serieses])
-          (let ([offset (car series)])
-            (cons offset*
-                  (λ (n)
-                    (if (< (+ n (- offset offset*)) 0)
-                        0
-                        ((cdr series) (+ n (- offset offset*)))))))))))
+  (cond
+    [(or (<= (length serieses) 1) (apply = (map car serieses))) serieses]
+    [else
+     (define offset* (car (argmax car serieses)))
+     (for/list ([series serieses])
+       (let ([offset (car series)])
+         (cons offset*
+               (λ (n)
+                 (if (< (+ n (- offset offset*)) 0)
+                     0
+                     ((cdr series) (+ n (- offset offset*))))))))]))
 
 (define (taylor-add . terms)
-  (match (apply align-series terms)
-    [`((,offset . ,serieses) ...)
-     (let ([hash (make-hash)])
-       (cons (car offset)
-             (λ (n)
-               (hash-ref! hash
-                          n
-                          (λ ()
-                            (reduce (make-sum (for/list ([series serieses])
-                                                (series n)))))))))]))
+  (match-define `((,offset . ,serieses) ...) (apply align-series terms))
+  (let ([hash (make-hash)])
+    (cons (car offset)
+          (λ (n)
+            (hash-ref! hash
+                       n
+                       (λ ()
+                         (reduce (make-sum (for/list ([series serieses])
+                                             (series n))))))))))
 
 (define (taylor-negate term)
   (cons (car term) (λ (n) (reduce (list 'neg ((cdr term) n))))))
@@ -250,10 +250,8 @@
 (define (normalize-series series)
   "Fixes up the series to have a non-zero zeroth term,
    allowing a possibly negative offset"
-  (match series
-    [(cons offset coeffs)
-     (let ([slack (first-nonzero-exp coeffs)])
-       (cons (- offset slack) (compose coeffs (curry + slack))))]))
+  (match-define (cons offset coeffs) series)
+  (let ([slack (first-nonzero-exp coeffs)]) (cons (- offset slack) (compose coeffs (curry + slack)))))
 
 (define ((zero-series series) n)
   (if (< n (- (car series)))
@@ -264,17 +262,16 @@
   "This gets tricky, because the function might have a pole at 0.
    This happens if the inverted series doesn't have a constant term,
    so we extract that case out."
-  (match (normalize-series term)
-    [(cons offset b)
-     (let ([hash (make-hash)])
-       (hash-set! hash 0 (reduce `(/ 1 ,(b 0))))
-       (letrec ([f (λ (n)
-                     (hash-ref! hash
-                                n
-                                (λ ()
-                                  (reduce `(neg (+ ,@(for/list ([i (range n)])
-                                                       `(* ,(f i) (/ ,(b (- n i)) ,(b 0))))))))))])
-         (cons (- offset) f)))]))
+  (match-define (cons offset b) (normalize-series term))
+  (let ([hash (make-hash)])
+    (hash-set! hash 0 (reduce `(/ 1 ,(b 0))))
+    (letrec ([f (λ (n)
+                  (hash-ref! hash
+                             n
+                             (λ ()
+                               (reduce `(neg (+ ,@(for/list ([i (range n)])
+                                                    `(* ,(f i) (/ ,(b (- n i)) ,(b 0))))))))))])
+      (cons (- offset) f))))
 
 (define (taylor-quotient num denom)
   "This gets tricky, because the function might have a pole at 0.

@@ -1,20 +1,20 @@
 #lang racket
 
-(require "egg-herbie.rkt"
-         "simplify.rkt"
-         "rules.rkt"
-         "../syntax/platform.rkt"
-         "../syntax/syntax.rkt"
+(require "../syntax/platform.rkt"
          "../syntax/sugar.rkt"
+         "../syntax/syntax.rkt"
          "../syntax/types.rkt"
          "../utils/alternative.rkt"
          "../utils/common.rkt"
          "../utils/errors.rkt"
-         "programs.rkt"
-         "points.rkt"
-         "../utils/timeline.rkt"
          "../utils/float.rkt"
-         "batch.rkt")
+         "../utils/timeline.rkt"
+         "batch.rkt"
+         "egg-herbie.rkt"
+         "points.rkt"
+         "programs.rkt"
+         "rules.rkt"
+         "simplify.rkt")
 
 (provide find-preprocessing
          preprocess-pcontext
@@ -162,9 +162,9 @@
        (error 'instruction->operator "component should always be a subsequence of variables"))
      (define indices (indexes-where variables (curryr member component)))
      (lambda (x y)
-       (let* ([subsequence (map (curry list-ref x) indices)]
-              [sorted (sort* subsequence)])
-         (values (list-set* x indices sorted) y)))]
+       (define subsequence (map (curry list-ref x) indices))
+       (define sorted (sort* subsequence))
+       (values (list-set* x indices sorted) y))]
     [(list 'abs variable)
      (define index (index-of variables variable))
      (define var-repr (context-lookup context variable))
