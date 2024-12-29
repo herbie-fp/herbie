@@ -5,7 +5,6 @@
          "../core/programs.rkt"
          "../core/rules.rkt"
          "matcher.rkt"
-         "sugar.rkt"
          "syntax.rkt"
          "types.rkt")
 
@@ -15,6 +14,8 @@
          platform-simplify-rules
          platform-lifting-rules
          platform-lowering-rules
+
+         get-fpcore-impl
          ;; Platform API
          ;; Operator sets
          (contract-out ;; Platforms
@@ -558,3 +559,47 @@
                          (impl-info impl 'otype)
                          '()))
                  (sow r))])))))
+
+;; Extracts the `fpcore` field of an operator implementation
+;; as a property dictionary and expression.
+(define (impl->fpcore impl)
+  (match (impl-info impl 'fpcore)
+    [(list '! props ... body) (values (props->dict props) body)]
+    [body (values '() body)]))
+
+;; For a given FPCore operator, rounding context, and input representations,
+;; finds the best operator implementation. Panics if none can be found.
+(define/contract (get-fpcore-impl op prop-dict ireprs)
+  (-> symbol? prop-dict/c (listof representation?) (or/c symbol? #f))
+  ; gather all implementations that have the same spec, input representations,
+  ; and its FPCore translation has properties that are found in `prop-dict`
+  (define impls
+    (reap [sow]
+          (for ([impl (in-list (platform-impls (*active-platform*)))]
+                #:when (equal? ireprs (impl-info impl 'itype)))
+            (define-values (prop-dict* expr) (impl->fpcore impl))
+            (define pattern (cons op (map (lambda (_) (gensym)) ireprs)))
+            (when (and (subset? prop-dict* prop-dict) (pattern-match pattern expr))
+              (sow impl)))))
+  ; check that we have any matching impls
+  (cond
+    [(null? impls) #f]
+    [else
+     ; we rank implementations and select the highest scoring one
+     (define scores
+       (for/list ([impl (in-list impls)])
+         (define-values (prop-dict* _) (impl->fpcore impl))
+         (define num-matching (count (lambda (prop) (member prop prop-dict*)) prop-dict))
+         (cons num-matching (- (length prop-dict) num-matching))))
+     ; select the best implementation
+     ; sort first by the number of matched properties,
+     ; then tie break on the number of extraneous properties
+     (match-define (list (cons _ best) _ ...)
+       (sort (map cons scores impls)
+             (lambda (x y)
+               (cond
+                 [(> (car x) (car y)) #t]
+                 [(< (car x) (car y)) #f]
+                 [else (> (cdr x) (cdr y))]))
+             #:key car))
+     best]))

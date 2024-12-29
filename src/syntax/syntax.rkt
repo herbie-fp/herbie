@@ -17,13 +17,14 @@
          all-operators
          all-constants
 
+         prog->spec
+
          impl-exists?
          impl-info
          activate-operator-impl!
          clear-active-operator-impls!
          *functions*
-         register-function!
-         get-fpcore-impl)
+         register-function!)
 
 (module+ internals
   (provide define-operator-impl
@@ -500,50 +501,6 @@
            [_ (oops! "bad syntax" fields)])))]
     [_ (oops! "bad syntax")]))
 
-;; Extracts the `fpcore` field of an operator implementation
-;; as a property dictionary and expression.
-(define (impl->fpcore impl)
-  (match (impl-info impl 'fpcore)
-    [(list '! props ... body) (values (props->dict props) body)]
-    [body (values '() body)]))
-
-;; For a given FPCore operator, rounding context, and input representations,
-;; finds the best operator implementation. Panics if none can be found.
-(define/contract (get-fpcore-impl op prop-dict ireprs)
-  (-> symbol? prop-dict/c (listof representation?) (or/c symbol? #f))
-  ; gather all implementations that have the same spec, input representations,
-  ; and its FPCore translation has properties that are found in `prop-dict`
-  (define impls
-    (reap [sow]
-          (for ([impl (in-set active-operator-impls)]
-                #:when (equal? ireprs (impl-info impl 'itype)))
-            (define-values (prop-dict* expr) (impl->fpcore impl))
-            (define pattern (cons op (map (lambda (_) (gensym)) ireprs)))
-            (when (and (subset? prop-dict* prop-dict) (pattern-match pattern expr))
-              (sow impl)))))
-  ; check that we have any matching impls
-  (cond
-    [(null? impls) #f]
-    [else
-     ; we rank implementations and select the highest scoring one
-     (define scores
-       (for/list ([impl (in-list impls)])
-         (define-values (prop-dict* _) (impl->fpcore impl))
-         (define num-matching (count (lambda (prop) (member prop prop-dict*)) prop-dict))
-         (cons num-matching (- (length prop-dict) num-matching))))
-     ; select the best implementation
-     ; sort first by the number of matched properties,
-     ; then tie break on the number of extraneous properties
-     (match-define (list (cons _ best) _ ...)
-       (sort (map cons scores impls)
-             (lambda (x y)
-               (cond
-                 [(> (car x) (car y)) #t]
-                 [(< (car x) (car y)) #f]
-                 [else (> (cdr x) (cdr y))]))
-             #:key car))
-     best]))
-
 ; Similar to representation generators, conversion generators
 ; allow Herbie to query plugins for optimized implementations
 ; of representation conversions, rather than the default
@@ -584,3 +541,22 @@
 
 (define (register-function! name args repr body) ;; Adds a function definition.
   (hash-set! (*functions*) name (list args repr body)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; LImpl -> LSpec
+
+;; Translates an LImpl to a LSpec.
+(define (prog->spec expr)
+  (match expr
+    [(? literal?) (literal-value expr)]
+    [(? variable?) expr]
+    [(approx spec _) spec]
+    [`(if ,cond ,ift ,iff)
+     `(if ,(prog->spec cond)
+          ,(prog->spec ift)
+          ,(prog->spec iff))]
+    [`(,impl ,args ...)
+     (define vars (impl-info impl 'vars))
+     (define spec (impl-info impl 'spec))
+     (define env (map cons vars (map prog->spec args)))
+     (pattern-substitute spec env)]))
