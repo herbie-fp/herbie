@@ -167,12 +167,15 @@
       ['backoff #f]
       ['simple #t]
       [_ (error 'egraph-run "unknown scheduler: `~a`" scheduler)]))
-  (egraph_run (egraph-data-egraph-pointer egraph-data)
+  (define timeline-end! (timeline-start! 'times (~a "inc_egraph_run")))
+  (define out (egraph_run (egraph-data-egraph-pointer egraph-data)
               ffi-rules
               iter_limit
               node_limit
               simple_scheduler?
               const-folding?))
+  (timeline-end!)
+  out)
 
 (define (egraph-get-simplest egraph-data node-id iteration ctx)
   (define expr (egraph_get_simplest (egraph-data-egraph-pointer egraph-data) node-id iteration))
@@ -216,7 +219,9 @@
   ; need to fix up any constant operators
   (for ([enode (in-vector eclass)]
         [i (in-naturals)])
-    (when (and (symbol? enode) (not (hash-has-key? egg->herbie enode)))
+    (when (and (symbol? enode)
+               (not (string-prefix? (symbol->string enode) "$h"))
+               (not (hash-has-key? egg->herbie enode)))
       (vector-set! eclass i (cons enode empty-u32vec))))
   eclass)
 
@@ -265,6 +270,7 @@
 ;; Translates a Herbie expression into an expression usable by egg.
 ;; Updates translation dictionary upon encountering variables.
 ;; Result is the expression.
+
 (define (expr->egg-expr expr egg-data ctx)
   (define egg->herbie-dict (egraph-data-egg->herbie-dict egg-data))
   (define herbie->egg-dict (egraph-data-herbie->egg-dict egg-data))
@@ -558,7 +564,7 @@
   (match enode
     [(? number?) (cons 'real (platform-reprs (*active-platform*)))] ; number
     [(? symbol?) ; variable
-     (match-define (cons _ repr) (hash-ref egg->herbie enode))
+     (match-define (cons _ repr) (hash-ref egg->herbie enode (lambda () (hash-ref egg->herbie '$h0))))
      (list repr (representation-type repr))]
     [(cons f _) ; application
      (cond
