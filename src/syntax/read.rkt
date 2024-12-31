@@ -227,14 +227,14 @@
           (string-join (map ~a unused) ", "))))
 
 (define (check-weird-variables vars)
-  (for* ([var vars]
-         [const (all-constants)]
-         #:when (string-ci=? (symbol->string var) (symbol->string const)))
-    (warn 'strange-variable
-          #:url "faq.html#strange-variable"
-          "unusual variable ~a; did you mean ~a?"
-          var
-          const)))
+  (for ([var (in-list vars)])
+    (define const-name (string->symbol (string-upcase (symbol->string var))))
+    (when (operator-exists? const-name)
+      (warn 'strange-variable
+            #:url "faq.html#strange-variable"
+            "unusual variable ~a; did you mean ~a?"
+            var
+            const-name))))
 
 (define (our-read-syntax port name)
   (parameterize ([read-decimal-as-inexact false])

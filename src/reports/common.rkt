@@ -22,6 +22,7 @@
          "../core/programs.rkt"
          "../syntax/types.rkt"
          "../syntax/sugar.rkt"
+         "../syntax/platform.rkt"
          "../syntax/syntax.rkt")
 
 (provide render-menu

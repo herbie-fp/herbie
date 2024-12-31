@@ -5,6 +5,7 @@
          json)
 
 (require "../syntax/read.rkt"
+         "../syntax/syntax.rkt"
          "../syntax/sugar.rkt"
          "../syntax/types.rkt"
          "../core/localize.rkt"
@@ -257,8 +258,7 @@
       (define start-time (current-inexact-milliseconds))
       (reset!)
       (*context* (test-context test))
-      (*active-platform* (get-platform (*platform-name*)))
-      (activate-platform! (*active-platform*))
+      (activate-platform! (*platform-name*))
       (set! timeline (*timeline*))
       (when seed
         (set-seed! seed))

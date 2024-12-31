@@ -116,9 +116,7 @@
                 [("--platform")
                  platform
                  "Which platform to use for tests"
-                 (*platform-name* (string->symbol platform))
-                 (*active-platform* (get-platform (*platform-name*)))
-                 (activate-platform! (*active-platform*))]
+                 (activate-platform! (string->symbol platform))]
                 [("--precision")
                  prec
                  "Which precision to use for tests"
