@@ -62,8 +62,10 @@
          id->spec)) ; map from e-class id to an approx-spec or #f
 
 ; Makes a new egraph that is managed by Racket's GC
-(define (make-egraph)
-  (egraph-data (egraph_create) (make-hash) (make-hash) (make-hash)))
+(define (make-egraph mode)
+  (if (equal? mode 'single)
+    (egraph-data (egraph_create 0) (make-hash) (make-hash) (make-hash))
+    (egraph-data (egraph_create 1) (make-hash) (make-hash) (make-hash))))
 
 ; Creates a new runner using an existing egraph.
 ; Useful for multi-phased rule application
@@ -1167,9 +1169,9 @@
            (loop (sub1 num-iters)))]
       [else (values egg-graph iteration-data)])))
 
-(define (egraph-run-schedule batch roots schedule ctx)
+(define (egraph-run-schedule mode batch roots schedule ctx)
   ; allocate the e-graph
-  (define egg-graph (make-egraph))
+  (define egg-graph (make-egraph mode))
 
   ; insert expressions into the e-graph
   (define root-ids (egraph-add-exprs egg-graph batch roots ctx))
@@ -1274,7 +1276,8 @@
   ;; Run egg using runner
   (define ctx (egg-runner-ctx runner))
   (define-values (root-ids egg-graph)
-    (egraph-run-schedule (egg-runner-batch runner)
+    (egraph-run-schedule (car cmd)
+                         (egg-runner-batch runner)
                          (egg-runner-roots runner)
                          (egg-runner-schedule runner)
                          ctx))

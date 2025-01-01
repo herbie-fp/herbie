@@ -14,11 +14,11 @@ use std::time::Duration;
 use std::{slice, sync::atomic::Ordering};
 
 use lazy_static::lazy_static;
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
 
 lazy_static! {
-    static ref INC_EGRAPH: Mutex<Option<EGraph>> =
-        Mutex::new(Some(EGraph::default().with_explanations_enabled()));
+    static ref INC_EGRAPH: Mutex<Option<EGraph>> = Mutex::new(Some(EGraph::default()));
+    static ref INC_EGRAPH_INACTIVE: Mutex<Option<EGraph>> = Mutex::new(Some(EGraph::default()));
     static ref INC_ITERDATA: Mutex<Vec<Iteration>> = Mutex::new(vec![]);
 }
 
@@ -30,18 +30,40 @@ pub struct Context {
 
 // I had to add $(rustc --print sysroot)/lib to LD_LIBRARY_PATH to get linking to work after installing rust with rustup
 #[no_mangle]
-pub unsafe extern "C" fn egraph_create() -> *mut Context {
-    println!("*** creating new egraph");
+pub unsafe extern "C" fn egraph_create(mode: u32) -> *mut Context {
+    if mode == 0 {
+        let mut guard = INC_EGRAPH.try_lock().unwrap();
+        let ieg = if let Some(ieg) = guard.as_mut() {
+            ieg
+        } else {
+            // We must have stuffed it into INACTIVE. So get it from there.
+            let mut inactive_guard = INC_EGRAPH_INACTIVE.try_lock().unwrap();
+            &mut inactive_guard.take().unwrap()
+        };
+        let version = ieg.inc_version();
+        eprintln!("Incremented version to: {}", version);
 
-    let mut guard = INC_EGRAPH.try_lock().unwrap();
-    let ieg = guard.as_mut();
-    ieg.unwrap().inc_version();
+        Box::into_raw(Box::new(Context {
+            iteration: 0,
+            runner: Runner::new(Default::default()),
+            rules: vec![],
+        }))
+    } else {
+        assert_eq!(mode, 1);
+        // Since we are not accelerating this case for now, we must hide any active inc egraph. And
+        // provide a fresh one for the rest of the program.
+        let mut guard = INC_EGRAPH.try_lock().unwrap();
+        let ieg = guard.take().unwrap();
+        let mut inactive_guard = INC_EGRAPH_INACTIVE.try_lock().unwrap();
+        *inactive_guard = Some(ieg);
+        *guard = Some(EGraph::default());
 
-    Box::into_raw(Box::new(Context {
-        iteration: 0,
-        runner: Runner::new(Default::default()),
-        rules: vec![],
-    }))
+        Box::into_raw(Box::new(Context {
+            iteration: 0,
+            runner: Runner::new(Default::default()),
+            rules: vec![],
+        }))
+    }
 }
 
 #[no_mangle]
@@ -251,6 +273,10 @@ pub unsafe extern "C" fn egraph_run(
     tmp.iterations = inc_iterdata.clone();
     tmp.stop_reason = Some(StopReason::Other("Tmp Runner".to_string()));
     println!("{}", tmp.report());
+    eprintln!(
+        "Total whitelisted nodes: {}",
+        tmp.egraph.total_number_of_whitelist_nodes()
+    );
     *guard = Some(tmp.egraph);
 
     let iterations = context
@@ -492,12 +518,14 @@ pub unsafe extern "C" fn egraph_is_unsound_detected(ptr: *mut Context) -> bool {
     // Safety: `ptr` was box allocated by `egraph_create`
     let context = ManuallyDrop::new(Box::from_raw(ptr));
 
-    context
+    let result = context
         .runner
         .egraph
         .analysis
         .unsound
-        .load(Ordering::SeqCst)
+        .load(Ordering::SeqCst);
+    assert!(!result);
+    result
 }
 
 #[no_mangle]
