@@ -19,7 +19,6 @@ use std::sync::Mutex;
 lazy_static! {
     static ref INC_EGRAPH: Mutex<Option<EGraph>> = Mutex::new(Some(EGraph::default()));
     static ref INC_EGRAPH_INACTIVE: Mutex<Option<EGraph>> = Mutex::new(Some(EGraph::default()));
-    static ref INC_ITERDATA: Mutex<Vec<Iteration>> = Mutex::new(vec![]);
 }
 
 pub struct Context {
@@ -32,6 +31,7 @@ pub struct Context {
 #[no_mangle]
 pub unsafe extern "C" fn egraph_create(mode: u32) -> *mut Context {
     if mode == 0 {
+        // 'simplify phase
         let mut guard = INC_EGRAPH.try_lock().unwrap();
         let ieg = if let Some(ieg) = guard.as_mut() {
             ieg
@@ -258,26 +258,16 @@ pub unsafe extern "C" fn egraph_run(
             context.runner.stop_reason.clone().unwrap()
         );
 
+        println!("{}", context.runner.report());
+        println!(
+            "Total whitelisted nodes: {}",
+            context.runner.egraph.total_number_of_whitelist_nodes()
+        );
+
         *guard = Some(context.runner.egraph);
         context.runner.egraph = EGraph::default();
+        context.runner.iterations = vec![];
     }
-
-    let mut inc_iterdata = INC_ITERDATA.try_lock().unwrap();
-    inc_iterdata.extend(context.runner.iterations.clone());
-    context.runner.iterations = vec![];
-
-    // Construct a fresh Runner to print the aggregate report
-    let mut guard = INC_EGRAPH.try_lock().unwrap();
-    let inc_egraph = guard.take().unwrap();
-    let mut tmp = Runner::new(Default::default()).with_egraph(inc_egraph);
-    tmp.iterations = inc_iterdata.clone();
-    tmp.stop_reason = Some(StopReason::Other("Tmp Runner".to_string()));
-    println!("{}", tmp.report());
-    eprintln!(
-        "Total whitelisted nodes: {}",
-        tmp.egraph.total_number_of_whitelist_nodes()
-    );
-    *guard = Some(tmp.egraph);
 
     let iterations = context
         .runner
@@ -298,7 +288,6 @@ pub unsafe extern "C" fn egraph_run(
     );
     mem::forget(context);
 
-    println!("*** ending egraph_run");
     iterations_data
 }
 
