@@ -67,6 +67,7 @@ fn activate_inc_egraph(mode: Mode) {
             }
         },
     }
+}
 
 #[no_mangle]
 pub unsafe extern "C" fn egraph_create(mode: u32) -> *mut Context {
