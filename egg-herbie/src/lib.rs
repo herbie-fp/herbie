@@ -17,8 +17,9 @@ use lazy_static::lazy_static;
 use std::sync::Mutex;
 
 lazy_static! {
-    static ref INC_EGRAPH: Mutex<Option<EGraph>> = Mutex::new(Some(EGraph::default()));
-    static ref INC_EGRAPH_INACTIVE: Mutex<Option<EGraph>> = Mutex::new(Some(EGraph::default()));
+    static ref MODE_ACTIVE: Mutex<Option<Mode>> = Mutex::new(None);
+    static ref INC_EGRAPH_ACTIVE: Mutex<Option<EGraph>> = Mutex::new(None);
+    static ref INC_EGRAPH_SIMPLIFY: Mutex<Option<EGraph>> = Mutex::new(Some(EGraph::default()));
 }
 
 pub struct Context {
@@ -27,43 +28,65 @@ pub struct Context {
     rules: Vec<Rewrite>,
 }
 
-// I had to add $(rustc --print sysroot)/lib to LD_LIBRARY_PATH to get linking to work after installing rust with rustup
+#[derive(Clone, Copy, Debug)]
+enum Mode {
+    Simplify,
+    Other,
+}
+
+fn activate_inc_egraph(mode: Mode) {
+    let mut simplify = INC_EGRAPH_SIMPLIFY.try_lock().unwrap();
+    let mut active = INC_EGRAPH_ACTIVE.try_lock().unwrap();
+    let mut active_mode = MODE_ACTIVE.try_lock().unwrap();
+    println!("current mode: {:?}, new mode: {:?}", active_mode, mode);
+
+    match active_mode.as_ref() {
+        Some(Mode::Simplify) => match mode {
+            Mode::Simplify => return,
+            Mode::Other => {
+                *active_mode = Some(Mode::Other);
+                *simplify = Some(active.take().unwrap());
+                *active = Some(EGraph::default());
+            }
+        },
+        Some(Mode::Other) => match mode {
+            Mode::Simplify => {
+                *active_mode = Some(Mode::Simplify);
+                *active = Some(simplify.take().unwrap());
+            }
+            Mode::Other => return,
+        },
+        None => match mode {
+            Mode::Simplify => {
+                *active_mode = Some(Mode::Simplify);
+                *active = Some(simplify.take().unwrap());
+            }
+            Mode::Other => {
+                *active_mode = Some(Mode::Other);
+                *active = Some(EGraph::default());
+            }
+        },
+    }
+
 #[no_mangle]
 pub unsafe extern "C" fn egraph_create(mode: u32) -> *mut Context {
     if mode == 0 {
-        // 'simplify phase
-        let mut guard = INC_EGRAPH.try_lock().unwrap();
-        let ieg = if let Some(ieg) = guard.as_mut() {
-            ieg
-        } else {
-            // We must have stuffed it into INACTIVE. So get it from there.
-            let mut inactive_guard = INC_EGRAPH_INACTIVE.try_lock().unwrap();
-            &mut inactive_guard.take().unwrap()
-        };
-        let version = ieg.inc_version();
-        eprintln!("Incremented version to: {}", version);
-
-        Box::into_raw(Box::new(Context {
-            iteration: 0,
-            runner: Runner::new(Default::default()),
-            rules: vec![],
-        }))
+        activate_inc_egraph(Mode::Simplify);
+        let mut inc_egraph = INC_EGRAPH_ACTIVE.try_lock().unwrap();
+        let inc_egraph = inc_egraph.as_mut().unwrap();
+        let version = inc_egraph.inc_version();
+        println!("Incremented version to: {}", version);
+    } else if mode == 1 {
+        activate_inc_egraph(Mode::Other);
     } else {
-        assert_eq!(mode, 1);
-        // Since we are not accelerating this case for now, we must hide any active inc egraph. And
-        // provide a fresh one for the rest of the program.
-        let mut guard = INC_EGRAPH.try_lock().unwrap();
-        let ieg = guard.take().unwrap();
-        let mut inactive_guard = INC_EGRAPH_INACTIVE.try_lock().unwrap();
-        *inactive_guard = Some(ieg);
-        *guard = Some(EGraph::default());
-
-        Box::into_raw(Box::new(Context {
-            iteration: 0,
-            runner: Runner::new(Default::default()),
-            rules: vec![],
-        }))
+        unreachable!()
     }
+
+    Box::into_raw(Box::new(Context {
+        iteration: 0,
+        runner: Runner::new(Default::default()),
+        rules: vec![],
+    }))
 }
 
 #[no_mangle]
@@ -140,7 +163,7 @@ pub unsafe extern "C" fn egraph_add_node(
     let ids = ids.iter().map(|id| Id::from(*id as usize)).collect();
     let node = Math::from_op(f, ids).unwrap();
 
-    let mut guard = INC_EGRAPH.try_lock().unwrap();
+    let mut guard = INC_EGRAPH_ACTIVE.try_lock().unwrap();
     let inc_egraph = guard.as_mut().unwrap();
 
     let id = inc_egraph.add(node);
@@ -222,7 +245,7 @@ pub unsafe extern "C" fn egraph_run(
         let rules: Vec<Rewrite> = math::mk_rules(&ffi_tuples);
         context.rules = rules;
 
-        let mut guard = INC_EGRAPH.try_lock().unwrap();
+        let mut guard = INC_EGRAPH_ACTIVE.try_lock().unwrap();
         let mut inc_egraph = guard.take().unwrap();
 
         inc_egraph.analysis.constant_fold = is_constant_folding_enabled;
@@ -312,7 +335,7 @@ fn find_extracted(_runner: &Runner, _id: u32, _iter: u32) -> &Extracted {
 #[no_mangle]
 pub unsafe extern "C" fn egraph_find(_ptr: *mut Context, id: usize) -> u32 {
     let node_id = Id::from(id);
-    let guard = INC_EGRAPH.try_lock().unwrap();
+    let guard = INC_EGRAPH_ACTIVE.try_lock().unwrap();
     let inc_egraph = guard.as_ref().unwrap();
     let canon_id = inc_egraph.find(node_id);
     usize::from(canon_id) as u32
@@ -320,7 +343,7 @@ pub unsafe extern "C" fn egraph_find(_ptr: *mut Context, id: usize) -> u32 {
 
 #[no_mangle]
 pub unsafe extern "C" fn egraph_serialize(_ptr: *mut Context) -> *const c_char {
-    let guard = INC_EGRAPH.try_lock().unwrap();
+    let guard = INC_EGRAPH_ACTIVE.try_lock().unwrap();
     let inc_egraph = guard.as_ref().unwrap();
     let mut ids: Vec<Id> = inc_egraph.classes().map(|c| c.id).collect();
     ids.sort();
@@ -352,14 +375,14 @@ pub unsafe extern "C" fn egraph_serialize(_ptr: *mut Context) -> *const c_char {
 
 #[no_mangle]
 pub unsafe extern "C" fn egraph_size(_ptr: *mut Context) -> u32 {
-    let guard = INC_EGRAPH.try_lock().unwrap();
+    let guard = INC_EGRAPH_ACTIVE.try_lock().unwrap();
     let inc_egraph = guard.as_ref().unwrap();
     inc_egraph.whitelist.len() as u32
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn egraph_eclass_size(_ptr: *mut Context, id: u32) -> u32 {
-    let guard = INC_EGRAPH.try_lock().unwrap();
+    let guard = INC_EGRAPH_ACTIVE.try_lock().unwrap();
     let inc_egraph = guard.as_ref().unwrap();
     let id = Id::from(id as usize);
     inc_egraph[id].nodes.len() as u32
@@ -369,14 +392,14 @@ pub unsafe extern "C" fn egraph_eclass_size(_ptr: *mut Context, id: u32) -> u32 
 pub unsafe extern "C" fn egraph_enode_size(_ptr: *mut Context, id: u32, idx: u32) -> u32 {
     let id = Id::from(id as usize);
     let idx = idx as usize;
-    let guard = INC_EGRAPH.try_lock().unwrap();
+    let guard = INC_EGRAPH_ACTIVE.try_lock().unwrap();
     let inc_egraph = guard.as_ref().unwrap();
     inc_egraph[id].nodes[idx].len() as u32
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn egraph_get_eclasses(_ptr: *mut Context, ids_ptr: *mut u32) {
-    let guard = INC_EGRAPH.try_lock().unwrap();
+    let guard = INC_EGRAPH_ACTIVE.try_lock().unwrap();
     let inc_egraph = guard.as_ref().unwrap();
 
     let mut ids = inc_egraph
@@ -401,7 +424,7 @@ pub unsafe extern "C" fn egraph_get_node(
     let id = Id::from(id as usize);
     let idx = idx as usize;
 
-    let guard = INC_EGRAPH.try_lock().unwrap();
+    let guard = INC_EGRAPH_ACTIVE.try_lock().unwrap();
     let inc_egraph = guard.as_ref().unwrap();
 
     let node = &inc_egraph[id].nodes[idx];
@@ -439,7 +462,7 @@ pub unsafe extern "C" fn egraph_get_proof(
     // Safety: `ptr` was box allocated by `egraph_create`
     let mut context = ManuallyDrop::new(Box::from_raw(ptr));
     // Send `EGraph` since neither `Context` nor `Runner` are `Send`. `Runner::explain_equivalence` just forwards to `EGraph::explain_equivalence` so this is fine.
-    let mut guard = INC_EGRAPH.try_lock().unwrap();
+    let mut guard = INC_EGRAPH_ACTIVE.try_lock().unwrap();
     let mut inc_egraph = guard.take().unwrap();
 
     let egraph = &mut inc_egraph;
