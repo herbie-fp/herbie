@@ -28,7 +28,6 @@
            register-operator-impl!
            define-operator
            register-operator!
-           register-conversion-generator!
            variable?))
 
 (module+ test
@@ -479,17 +478,6 @@
            ; bad
            [_ (oops! "bad syntax" fields)])))]
     [_ (oops! "bad syntax")]))
-
-; Similar to representation generators, conversion generators
-; allow Herbie to query plugins for optimized implementations
-; of representation conversions, rather than the default
-; bigfloat implementation
-(define conversion-generators '())
-
-(define/contract (register-conversion-generator! proc)
-  (-> (-> any/c any/c boolean?) void?)
-  (unless (set-member? conversion-generators proc)
-    (set! conversion-generators (cons proc conversion-generators))))
 
 ;; Expression predicates ;;
 

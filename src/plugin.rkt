@@ -13,6 +13,8 @@
   (void))
 (define (register-ruleset! . args)
   (void))
+(define (register-conversion-generator! proc)
+  (void))
 
 (provide define-type
          define-representation
