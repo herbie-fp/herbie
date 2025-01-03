@@ -26,8 +26,7 @@
          platform-egg-cost-proc
          default-egg-cost-proc
          make-egg-runner
-         run-egg
-         remove-rewrites)
+         run-egg)
 
 (module+ test
   (require rackunit)
@@ -961,7 +960,8 @@
 ;; Extraction is partial, that is, the result of the extraction
 ;; procedure is `#f` if extraction finds no well-typed program
 ;; at a particular id with a particular output type.
-(define ((typed-egg-batch-extractor cost-proc batch-extract-to) regraph)
+(define ((typed-egg-batch-extractor batch-extract-to) regraph)
+  (define cost-proc (if (*egraph-platform-cost*) platform-egg-cost-proc default-egg-cost-proc))
   (define eclasses (regraph-eclasses regraph))
   (define types (regraph-types regraph))
   (define n (vector-length eclasses))

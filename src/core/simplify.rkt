@@ -19,9 +19,7 @@
 (define (simplify-batch runner batch)
   (timeline-push! 'inputs (map ~a (batch->progs (egg-runner-batch runner) (egg-runner-roots runner))))
 
-  (define cost-proc (if (*egraph-platform-cost*) platform-egg-cost-proc default-egg-cost-proc))
-  (define extractor (typed-egg-batch-extractor cost-proc batch))
-  (define simplifieds (run-egg runner (cons 'single extractor)))
+  (define simplifieds (run-egg runner (cons 'single (typed-egg-batch-extractor batch))))
   (define out
     (for/list ([simplified (in-list simplifieds)]
                [root (egg-runner-roots runner)])
