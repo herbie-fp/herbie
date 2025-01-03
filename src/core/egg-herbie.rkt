@@ -23,8 +23,6 @@
 
 (provide (struct-out egg-runner)
          typed-egg-batch-extractor
-         platform-egg-cost-proc
-         default-egg-cost-proc
          make-egg-runner
          run-egg)
 
