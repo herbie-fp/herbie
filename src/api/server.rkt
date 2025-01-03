@@ -362,11 +362,10 @@
   (place-channel-put manager (list 'finished manager worker-id job-id out-result)))
 
 (define (make-explanation-result herbie-result job-id)
-  (define explanations (job-result-backend herbie-result))
   (hasheq 'command
           (get-command herbie-result)
           'explanation
-          explanations
+          (job-result-backend herbie-result)
           'job
           job-id
           'path
