@@ -188,31 +188,16 @@
   (sha1 (open-input-string (~s job-info))))
 
 (define (wrapper-run-herbie cmd job-id)
-  (print-job-message (herbie-command-command cmd) job-id (test-name (herbie-command-test cmd)))
-  (define result
-    (run-herbie (herbie-command-command cmd)
-                (herbie-command-test cmd)
-                #:seed (herbie-command-seed cmd)
-                #:pcontext (herbie-command-pcontext cmd)
-                #:profile? (herbie-command-profile? cmd)
-                #:timeline-disabled? (herbie-command-timeline-disabled? cmd)))
-  (log "Herbie completed job: ~a\n" job-id)
-  result)
-
-(define (print-job-message command job-id job-str)
-  (define job-label
-    (match command
-      ['alternatives "Alternatives"]
-      ['evaluate "Evaluation"]
-      ['cost "Computing"]
-      ['errors "Analyze"]
-      ['exacts "Ground truth"]
-      ['improve "Improve"]
-      ['local-error "Local error"]
-      ['explanations "Explanations"]
-      ['sample "Sampling"]
-      [_ (error 'compute-result "unknown command ~a" command)]))
-  (log "~a Job ~a started:\n  ~a ~a...\n" job-label (symbol->string command) job-id job-str))
+  (log "Started ~a job (~a): ~a\n"
+       (herbie-command-command cmd) job-id (test-name (herbie-command-test cmd)))
+  (begin0
+      (run-herbie (herbie-command-command cmd)
+                  (herbie-command-test cmd)
+                  #:seed (herbie-command-seed cmd)
+                  #:pcontext (herbie-command-pcontext cmd)
+                  #:profile? (herbie-command-profile? cmd)
+                  #:timeline-disabled? (herbie-command-timeline-disabled? cmd))
+    (log "Completed ~a job (~a)\n" (herbie-command-command cmd) job-id)))
 
 (define-syntax (place/context* stx)
   (syntax-case stx ()
