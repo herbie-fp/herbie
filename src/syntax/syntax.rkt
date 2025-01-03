@@ -58,13 +58,6 @@
 (define (all-operators)
   (sort (hash-keys operators) symbol<?))
 
-;; Returns all constant operators (operators with no arguments).
-(define (all-constants)
-  (sort (for/list ([(name rec) (in-hash operators)]
-                   #:when (null? (operator-itype rec)))
-          name)
-        symbol<?))
-
 ;; Looks up a property `field` of an real operator `op`.
 ;; Panics if the operator is not found.
 (define/contract (operator-info op field)
