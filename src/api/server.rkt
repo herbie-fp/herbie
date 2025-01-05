@@ -189,14 +189,15 @@
 
 (define (wrapper-run-herbie cmd job-id)
   (log "Started ~a job (~a): ~a\n"
-       (herbie-command-command cmd) job-id (test-name (herbie-command-test cmd)))
-  (begin0
-      (run-herbie (herbie-command-command cmd)
-                  (herbie-command-test cmd)
-                  #:seed (herbie-command-seed cmd)
-                  #:pcontext (herbie-command-pcontext cmd)
-                  #:profile? (herbie-command-profile? cmd)
-                  #:timeline-disabled? (herbie-command-timeline-disabled? cmd))
+       (herbie-command-command cmd)
+       job-id
+       (test-name (herbie-command-test cmd)))
+  (begin0 (run-herbie (herbie-command-command cmd)
+                      (herbie-command-test cmd)
+                      #:seed (herbie-command-seed cmd)
+                      #:pcontext (herbie-command-pcontext cmd)
+                      #:profile? (herbie-command-profile? cmd)
+                      #:timeline-disabled? (herbie-command-timeline-disabled? cmd))
     (log "Completed ~a job (~a)\n" (herbie-command-command cmd) job-id)))
 
 (define-syntax (place/context* stx)
