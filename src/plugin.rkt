@@ -36,5 +36,4 @@
          register-platform!
          platform-union
          platform-intersect
-         platform-subtract
-         platform-filter)
+         platform-subtract)
