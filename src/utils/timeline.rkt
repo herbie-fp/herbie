@@ -162,29 +162,28 @@
     [(_ name #:custom fn) (hash-set! timeline-types 'name fn)]
     [(_ name #:unmergable) (hash-set! timeline-types 'name #f)]))
 
-(define (make-merger . fields)
-  (λ tables
-    (define rows (apply append tables))
-    (define groups (make-hash))
-    (for ([row rows])
-      (define-values (values key*) (partition cdr (map cons row fields)))
-      (define key (map car key*))
-      (if (hash-has-key? groups key)
-          (hash-update! groups
-                        key
-                        (λ (old)
-                          (for/list ([value2 old]
-                                     [(value1 fn) (in-dict values)])
-                            (fn value2 value1))))
-          (hash-set! groups key (map car values))))
-    (for/list ([(k v) (in-hash groups)])
-      (let loop ([fields fields]
-                 [k k]
-                 [v v])
-        (match* (fields k v)
-          [((cons #f f*) (cons k k*) v) (cons k (loop f* k* v))]
-          [((cons _ f*) k (cons v v*)) (cons v (loop f* k v*))]
-          [('() '() '()) '()])))))
+(define ((make-merger . fields) . tables)
+  (define rows (apply append tables))
+  (define groups (make-hash))
+  (for ([row rows])
+    (define-values (values key*) (partition cdr (map cons row fields)))
+    (define key (map car key*))
+    (if (hash-has-key? groups key)
+        (hash-update! groups
+                      key
+                      (λ (old)
+                        (for/list ([value2 old]
+                                   [(value1 fn) (in-dict values)])
+                          (fn value2 value1))))
+        (hash-set! groups key (map car values))))
+  (for/list ([(k v) (in-hash groups)])
+    (let loop ([fields fields]
+               [k k]
+               [v v])
+      (match* (fields k v)
+        [((cons #f f*) (cons k k*) v) (cons k (loop f* k* v))]
+        [((cons _ f*) k (cons v v*)) (cons v (loop f* k v*))]
+        [('() '() '()) '()]))))
 
 (define (merge-sampling-tables l1 l2)
   (let loop ([l1 (sort l1 < #:key first)]
