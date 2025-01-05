@@ -1232,8 +1232,7 @@
            [_ (oops! "in instruction `~a`, unknown parameter `~a`" instr param)]))]
       [_ (oops! "expected `(<rules> . <params>)`, got `~a`" instr)]))
 
-  (define-values (root-ids egg-graph)
-    (egraph-run-schedule batch roots schedule ctx))
+  (define-values (root-ids egg-graph) (egraph-run-schedule batch roots schedule ctx))
 
   ; make the runner
   (egg-runner batch roots reprs schedule ctx root-ids egg-graph))
