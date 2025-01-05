@@ -22,7 +22,6 @@
          "batch.rkt")
 
 (provide (struct-out egg-runner)
-         typed-egg-batch-extractor
          make-egg-runner
          run-egg)
 
@@ -1271,13 +1270,13 @@
                          ctx))
   ; Perform extraction
   (match cmd
-    [`(single . ,extractor) ; single expression extraction
+    [`(single . ,batch) ; single expression extraction
      (define regraph (make-regraph egg-graph))
      (define reprs (egg-runner-reprs runner))
      (when (flag-set? 'dump 'egg)
        (regraph-dump regraph root-ids reprs))
 
-     (define extract-id (extractor regraph))
+     (define extract-id ((typed-egg-batch-extractor batch) regraph))
      (define finalize-batch (last extract-id))
 
      ; (Listof (Listof batchref))
@@ -1288,13 +1287,13 @@
      ; commit changes to the batch
      (finalize-batch)
      out]
-    [`(multi . ,extractor) ; multi expression extraction
+    [`(multi . ,batch) ; multi expression extraction
      (define regraph (make-regraph egg-graph))
      (define reprs (egg-runner-reprs runner))
      (when (flag-set? 'dump 'egg)
        (regraph-dump regraph root-ids reprs))
 
-     (define extract-id (extractor regraph))
+     (define extract-id ((typed-egg-batch-extractor batch) regraph))
      (define finalize-batch (last extract-id))
 
      ; (Listof (Listof batchref))

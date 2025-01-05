@@ -141,7 +141,7 @@
 
   (define runner (make-egg-runner global-batch roots reprs schedule))
   ; batchrefss is a (listof (listof batchref))
-  (define batchrefss (run-egg runner (cons 'multi (typed-egg-batch-extractor global-batch))))
+  (define batchrefss (run-egg runner (cons 'multi global-batch)))
 
   ; apply changelists
   (define rewritten
