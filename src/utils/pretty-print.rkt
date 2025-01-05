@@ -82,7 +82,7 @@
 
 (define (string-pad s n c)
   (define k (- n (string-length s)))
-  (if (> k 0)
+  (if (positive? k)
       (string-append (build-string k (const c)) s)
       s))
 
