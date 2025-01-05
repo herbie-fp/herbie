@@ -1194,7 +1194,7 @@
 
 ;; Herbie's version of an egg runner.
 ;; Defines parameters for running rewrite rules with egg
-(struct egg-runner (batch roots reprs schedule ctx)
+(struct egg-runner (batch roots reprs schedule ctx new-roots egg-graph)
   #:transparent ; for equality
   #:methods gen:custom-write ; for abbreviated printing
   [(define (write-proc alt port mode)
@@ -1231,8 +1231,12 @@
               (oops! "in instruction `~a`, unknown scheduler `~a`" instr mode))]
            [_ (oops! "in instruction `~a`, unknown parameter `~a`" instr param)]))]
       [_ (oops! "expected `(<rules> . <params>)`, got `~a`" instr)]))
+
+  (define-values (root-ids egg-graph)
+    (egraph-run-schedule batch roots schedule ctx))
+
   ; make the runner
-  (egg-runner batch roots reprs schedule ctx))
+  (egg-runner batch roots reprs schedule ctx root-ids egg-graph))
 
 (define (regraph-dump regraph root-ids reprs)
   (define dump-dir "dump-egg")
@@ -1263,11 +1267,8 @@
 (define (run-egg runner cmd)
   ;; Run egg using runner
   (define ctx (egg-runner-ctx runner))
-  (define-values (root-ids egg-graph)
-    (egraph-run-schedule (egg-runner-batch runner)
-                         (egg-runner-roots runner)
-                         (egg-runner-schedule runner)
-                         ctx))
+  (define root-ids (egg-runner-new-roots runner))
+  (define egg-graph (egg-runner-egg-graph runner))
   ; Perform extraction
   (match cmd
     [`(single . ,batch) ; single expression extraction
