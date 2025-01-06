@@ -78,10 +78,11 @@
     (when (> search-result 0)
       (check-true (<= (vector-ref arr (- search-result 1)) search-for)))))
 
-(define (make-hyperrect-sampler hyperrects* reprs)
-  (when (null? hyperrects*)
+(define (make-hyperrect-sampler hints-hyperrects* reprs)
+  (when (null? hints-hyperrects*)
     (raise-herbie-sampling-error "No valid values." #:url "faq.html#no-valid-values"))
-  (define hyperrects (list->vector hyperrects*))
+  (define hints (list->vector (map car hints-hyperrects*)))
+  (define hyperrects (list->vector (map rest hints-hyperrects*)))
   (define lo-ends
     (for/vector #:length (vector-length hyperrects)
                 ([hyperrect (in-vector hyperrects)])
@@ -103,10 +104,12 @@
     (define idx (binary-search weights rand-ordinal))
     (define los (vector-ref lo-ends idx))
     (define his (vector-ref hi-ends idx))
-    (for/list ([lo (in-list los)]
-               [hi (in-list his)]
-               [repr (in-list reprs)])
-      ((representation-ordinal->repr repr) (random-integer lo hi)))))
+    (define hint (vector-ref hints idx))
+    (cons (for/list ([lo (in-list los)]
+                     [hi (in-list his)]
+                     [repr (in-list reprs)])
+            ((representation-ordinal->repr repr) (random-integer lo hi)))
+          hint)))
 
 #;(module+ test
     (define two-point-hyperrects (list (list (ival (bf 0) (bf 0)) (ival (bf 1) (bf 1)))))
@@ -123,12 +126,14 @@
             (equal? (representation-type repr) 'real)))
      (timeline-push! 'method "search")
      (define hyperrects-analysis (precondition->hyperrects pre vars var-reprs))
-     (match-define (cons hyperrects sampling-table)
+     ; hyperrects is a (listof '(hint hyperrect))
+     (match-define (cons hints-hyperrects sampling-table)
        (find-intervals compiler hyperrects-analysis #:fuel (*max-find-range-depth*)))
-     (cons (make-hyperrect-sampler hyperrects var-reprs) sampling-table)]
+     (cons (make-hyperrect-sampler hints-hyperrects var-reprs) sampling-table)]
     [else
      (timeline-push! 'method "random")
-     (cons (λ () (map random-generate var-reprs)) (hash 'unknown 1.0))]))
+     (println "opa")
+     (cons (λ () (cons (map random-generate var-reprs) #f)) (hash 'unknown 1.0))]))
 
 ;; Returns an evaluator for a list of expressions.
 (define (eval-progs-real specs ctxs)
@@ -156,9 +161,8 @@
                [skipped 0]
                [points '()]
                [exactss '()])
-      (define pt (sampler))
-
-      (define-values (status exs) (real-apply compiler pt))
+      (match-define (cons pt hint) (sampler))
+      (define-values (status exs) (real-apply compiler pt hint))
       (case status
         [(exit)
          (warn 'ground-truth

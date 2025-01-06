@@ -99,7 +99,7 @@
     (for/list ([(pt ex) (in-pcontext pcontext)])
       pt))
   (define (new-sampler)
-    (cons val (random-ref pts)))
+    (cons (cons val (random-ref pts)) #f))
   (apply mk-pcontext (cdr (batch-prepare-points evaluator new-sampler))))
 
 (define/reset *prepend-arguement-cache* (make-hash))

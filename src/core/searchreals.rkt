@@ -54,7 +54,12 @@
                [false* false]
                [other* '()])
               ([rect (in-list other)])
-      (match-define (ival err err?) (real-compiler-analyze compiler (list->vector rect)))
+      ; if a rect has a hint stored already then drop that hint
+      (when (not (equal? (length vars) (length rect)))
+        (set! rect (rest rect)))
+
+      (match-define-values ((ival err err?) hint)
+        (real-compiler-analyze compiler (list->vector rect)))
       (when (eq? err 'unsamplable)
         (warn 'ground-truth
               #:url "faq.html#ground-truth"
@@ -69,7 +74,7 @@
                         (format "~a = ~a" var val))))
       (cond
         [err (values true* (cons rect false*) other*)]
-        [(not err?) (values (cons rect true*) false* other*)]
+        [(not err?) (values (cons (cons hint rect) true*) false* other*)]
         [else
          (define range (list-ref rect split-var))
          (define repr (list-ref reprs split-var))
@@ -77,15 +82,15 @@
            [(cons midleft midright)
             (define rect-lo (list-set rect split-var (ival (ival-lo range) midleft)))
             (define rect-hi (list-set rect split-var (ival midright (ival-hi range))))
-            (values true* false* (list* rect-lo rect-hi other*))]
-           [#f (values true* false* (cons rect other*))])])))
+            (values true* false* (list* (cons hint rect-lo) (cons hint rect-hi) other*))]
+           [#f (values true* false* (cons (cons hint rect) other*))])])))
   (search-space true* false* other*))
 
 (define (make-sampling-table reprs true false other)
   (define denom (total-weight reprs))
-  (define true-weight (apply + (map (curryr hyperrect-weight reprs) true)))
+  (define true-weight (apply + (map (curryr hyperrect-weight reprs) (map rest true))))
   (define false-weight (apply + (map (curryr hyperrect-weight reprs) false)))
-  (define other-weight (apply + (map (curryr hyperrect-weight reprs) other)))
+  (define other-weight (apply + (map (curryr hyperrect-weight reprs) (map rest other))))
   (define out (make-hash))
   (hash-set! out 'valid (exact->inexact (/ true-weight denom)))
   (hash-set! out 'unknown (exact->inexact (/ other-weight denom)))
