@@ -8,24 +8,23 @@ SEED=$(date "+%Y%j")
 BENCHDIR="$1"; shift
 REPORTDIR="$1"; shift
 
-mkdir -p reports
+mkdir -p "$REPORTDIR"
 rm -rf "reports"/* || echo "nothing to delete"
 
 # run
 dirs=""
-for bench in bench/*; do
+for bench in "$BENCHDIR"/*; do
   name=$(basename "$bench" .fpcore)
-  rm -rf "reports/$name"
+  rm -rf "$REPORTDIR"/"$name"
 
   racket -y "src/main.rkt" report \
-         --note "$name" \
          --seed "$SEED" \
          "$@" \
-         "$bench" "reports/$name"
+         "$bench" "$REPORTDIR"/"$name"
   
   dirs="$dirs $name";
 done
 
 # merge reports
-racket -y infra/merge.rkt --name "$(basename bench .fpcore)" "reports" $dirs
+racket -y infra/merge.rkt "$REPORTDIR" $dirs
 

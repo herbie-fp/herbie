@@ -36,18 +36,18 @@
           (cons k (representation-name v)))
         (table-row-conversions row)))
 
-(define (make-report bench-dirs #:dir dir #:note note #:threads threads)
+(define (make-report bench-dirs #:dir dir #:threads threads)
   (define tests (reverse (sort (append-map load-tests bench-dirs) test<?)))
-  (run-tests tests #:dir dir #:note note #:threads threads))
+  (run-tests tests #:dir dir #:threads threads))
 
-(define (rerun-report json-file #:dir dir #:note note #:threads threads)
+(define (rerun-report json-file #:dir dir #:threads threads)
   (define data (call-with-input-file json-file read-datafile))
   (define tests (map extract-test (report-info-tests data)))
   (*flags* (report-info-flags data))
   (set-seed! (report-info-seed data))
   (*num-points* (report-info-points data))
   (*num-iterations* (report-info-iterations data))
-  (run-tests tests #:dir dir #:note note #:threads threads))
+  (run-tests tests #:dir dir #:threads threads))
 
 (define (read-json-files info dir name)
   (filter identity
@@ -82,29 +82,23 @@
   (print-test-result (+ test-number 1) number-of-test table-data)
   table-data)
 
-(define (run-tests tests #:dir dir #:note note #:threads threads)
+(define (run-tests tests #:dir dir #:threads threads)
   (define seed (get-seed))
   (unless (directory-exists? dir)
     (make-directory dir))
 
   (start-job-server threads)
-  (define-values (job-ids bench-names)
-    (for/lists
-     (l1 l2)
-     ([test (in-list tests)])
-     (values
-      (start-job
-       (create-job 'improve test #:seed seed #:pcontext #f #:profile? #t #:timeline-disabled? #f))
-      (test-name test))))
+  (define job-ids
+    (for/list ([test (in-list tests)])
+      (start-job 'improve test #:seed seed #:pcontext #f #:profile? #t #:timeline-disabled? #f)))
 
-  (define info
-    (make-report-info (for/list ([job-id job-ids]
-                                 [bench-name bench-names]
-                                 [test-number (in-naturals 0)])
-                        (generate-bench-report job-id bench-name test-number dir (length tests)))
-                      #:seed seed
-                      #:note note))
+  (define results
+    (for/list ([job-id (in-list job-ids)]
+               [test (in-list tests)]
+               [test-number (in-naturals)])
+      (generate-bench-report job-id (test-name test) test-number dir (length tests))))
 
+  (define info (make-report-info results #:seed seed))
   (write-datafile (build-path dir "results.json") info)
   (copy-file (web-resource "report-page.js") (build-path dir "report-page.js") #t)
   (copy-file (web-resource "report.js") (build-path dir "report.js") #t)

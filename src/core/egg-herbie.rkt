@@ -22,13 +22,8 @@
          "batch.rkt")
 
 (provide (struct-out egg-runner)
-         typed-egg-batch-extractor
-         platform-egg-cost-proc
-         default-egg-cost-proc
          make-egg-runner
-         run-egg
-         get-canon-rule-name
-         remove-rewrites)
+         run-egg)
 
 (module+ test
   (require rackunit)
@@ -318,8 +313,8 @@
              type))
        (approx (loop spec spec-type) (loop impl type))]
       [`(Explanation ,body ...) `(Explanation ,@(map (lambda (e) (loop e type)) body))]
-      [(list 'Rewrite=> rule expr) (list 'Rewrite=> rule (loop expr type))]
-      [(list 'Rewrite<= rule expr) (list 'Rewrite<= rule (loop expr type))]
+      [(list 'Rewrite=> rule expr) (list 'Rewrite=> (get-canon-rule-name rule rule) (loop expr type))]
+      [(list 'Rewrite<= rule expr) (list 'Rewrite<= (get-canon-rule-name rule rule) (loop expr type))]
       [(list 'if cond ift iff)
        (if (representation? type)
            (list 'if (loop cond (get-representation 'bool)) (loop ift type) (loop iff type))
@@ -962,7 +957,8 @@
 ;; Extraction is partial, that is, the result of the extraction
 ;; procedure is `#f` if extraction finds no well-typed program
 ;; at a particular id with a particular output type.
-(define ((typed-egg-batch-extractor cost-proc batch-extract-to) regraph)
+(define ((typed-egg-batch-extractor batch-extract-to) regraph)
+  (define cost-proc (if (*egraph-platform-cost*) platform-egg-cost-proc default-egg-cost-proc))
   (define eclasses (regraph-eclasses regraph))
   (define types (regraph-types regraph))
   (define n (vector-length eclasses))
@@ -1198,7 +1194,7 @@
 
 ;; Herbie's version of an egg runner.
 ;; Defines parameters for running rewrite rules with egg
-(struct egg-runner (batch roots reprs schedule ctx)
+(struct egg-runner (batch roots reprs schedule ctx new-roots egg-graph)
   #:transparent ; for equality
   #:methods gen:custom-write ; for abbreviated printing
   [(define (write-proc alt port mode)
@@ -1235,8 +1231,11 @@
               (oops! "in instruction `~a`, unknown scheduler `~a`" instr mode))]
            [_ (oops! "in instruction `~a`, unknown parameter `~a`" instr param)]))]
       [_ (oops! "expected `(<rules> . <params>)`, got `~a`" instr)]))
+
+  (define-values (root-ids egg-graph) (egraph-run-schedule batch roots schedule ctx))
+
   ; make the runner
-  (egg-runner batch roots reprs schedule ctx))
+  (egg-runner batch roots reprs schedule ctx root-ids egg-graph))
 
 (define (regraph-dump regraph root-ids reprs)
   (define dump-dir "dump-egg")
@@ -1267,20 +1266,17 @@
 (define (run-egg runner cmd)
   ;; Run egg using runner
   (define ctx (egg-runner-ctx runner))
-  (define-values (root-ids egg-graph)
-    (egraph-run-schedule (egg-runner-batch runner)
-                         (egg-runner-roots runner)
-                         (egg-runner-schedule runner)
-                         ctx))
+  (define root-ids (egg-runner-new-roots runner))
+  (define egg-graph (egg-runner-egg-graph runner))
   ; Perform extraction
   (match cmd
-    [`(single . ,extractor) ; single expression extraction
+    [`(single . ,batch) ; single expression extraction
      (define regraph (make-regraph egg-graph))
      (define reprs (egg-runner-reprs runner))
      (when (flag-set? 'dump 'egg)
        (regraph-dump regraph root-ids reprs))
 
-     (define extract-id (extractor regraph))
+     (define extract-id ((typed-egg-batch-extractor batch) regraph))
      (define finalize-batch (last extract-id))
 
      ; (Listof (Listof batchref))
@@ -1291,13 +1287,13 @@
      ; commit changes to the batch
      (finalize-batch)
      out]
-    [`(multi . ,extractor) ; multi expression extraction
+    [`(multi . ,batch) ; multi expression extraction
      (define regraph (make-regraph egg-graph))
      (define reprs (egg-runner-reprs runner))
      (when (flag-set? 'dump 'egg)
        (regraph-dump regraph root-ids reprs))
 
-     (define extract-id (extractor regraph))
+     (define extract-id ((typed-egg-batch-extractor batch) regraph))
      (define finalize-batch (last extract-id))
 
      ; (Listof (Listof batchref))

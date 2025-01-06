@@ -9,6 +9,7 @@
          "../syntax/types.rkt"
          "../syntax/sugar.rkt"
          "../syntax/syntax.rkt"
+         "../syntax/platform.rkt"
          "../config.rkt"
          "compiler.rkt"
          "programs.rkt"

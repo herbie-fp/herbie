@@ -45,11 +45,7 @@
 
   ; run egg
   (define runner (make-egg-runner global-batch roots reprs schedule))
-  (define simplification-options
-    (simplify-batch runner
-                    (typed-egg-batch-extractor
-                     (if (*egraph-platform-cost*) platform-egg-cost-proc default-egg-cost-proc)
-                     global-batch)))
+  (define simplification-options (simplify-batch runner global-batch))
 
   ; convert to altns
   (define simplified
@@ -131,11 +127,6 @@
   (define lifting-rules (platform-lifting-rules))
   (define lowering-rules (platform-lowering-rules))
 
-  (define extractor
-    (typed-egg-batch-extractor
-     (if (*egraph-platform-cost*) platform-egg-cost-proc default-egg-cost-proc)
-     global-batch))
-
   ; egg schedule (3-phases for mathematical rewrites and implementation selection)
   (define schedule
     `((,lifting-rules . ((iteration . 1) (scheduler . simple)))
@@ -150,7 +141,7 @@
 
   (define runner (make-egg-runner global-batch roots reprs schedule))
   ; batchrefss is a (listof (listof batchref))
-  (define batchrefss (run-egg runner `(multi . ,extractor)))
+  (define batchrefss (run-egg runner (cons 'multi global-batch)))
 
   ; apply changelists
   (define rewritten

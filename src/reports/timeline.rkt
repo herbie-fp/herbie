@@ -542,12 +542,10 @@
   (match-define (report-info date
                              commit
                              branch
-                             hostname
                              seed
                              flags
                              points
                              iterations
-                             note
                              tests
                              merged-cost-accuracy)
     info)
@@ -560,7 +558,6 @@
                            (substring commit 0 8)))
                   " on "
                   ,branch))
-          (tr (th "Hostname:") (td ,hostname " with Racket " ,(version)))
           (tr (th "Seed:") (td ,(~a seed)))
           (tr (th "Parameters:")
               (td ,(~a (*num-points*)) " points for " ,(~a (*num-iterations*)) " iterations"))

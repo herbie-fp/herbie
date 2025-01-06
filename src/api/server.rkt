@@ -27,7 +27,6 @@
          get-timeline-for
          job-count
          is-server-up
-         create-job
          start-job
          wait-for-job
          start-job-server
@@ -46,16 +45,6 @@
 ;; Job object, What herbie excepts as input for a new job.
 (struct herbie-command (command test seed pcontext profile? timeline-disabled?) #:prefab)
 
-;; Creates a command object to be passed to start-job server.
-;; TODO contract?
-(define (create-job command
-                    test
-                    #:seed [seed #f]
-                    #:pcontext [pcontext #f]
-                    #:profile? [profile? #f]
-                    #:timeline-disabled? [timeline-disabled? #f])
-  (herbie-command command test seed pcontext profile? timeline-disabled?))
-
 (define (write-results-to-disk result-hash path)
   (make-directory (build-path (*demo-output*) path))
   (for ([page (all-pages result-hash)])
@@ -71,7 +60,7 @@
     (if (file-exists? data-file)
         (let ([info (call-with-input-file data-file read-datafile)])
           (struct-copy report-info info [tests (cons data (report-info-tests info))]))
-        (make-report-info (list data) #:seed (get-seed) #:note (if (*demo?*) "Web demo results" ""))))
+        (make-report-info (list data) #:seed (get-seed))))
   (define tmp-file (build-path (*demo-output*) "results.tmp"))
   (write-datafile tmp-file info)
   (rename-file-or-directory tmp-file data-file #t)
@@ -104,11 +93,18 @@
   (log "Currently ~a jobs in progress, ~a jobs in queue.\n" (first job-list) (second job-list))
   (apply + job-list))
 
-;; Starts a job for a given command object|
-(define (start-job command)
-  (define job-id (compute-job-id command))
-  (manager-tell 'start manager command job-id)
-  (log "Job ~a, Qed up for program: ~a\n" job-id (test-name (herbie-command-test command)))
+;; Starts a job on the server
+;; TODO contract?
+(define (start-job command
+                   test
+                   #:seed [seed #f]
+                   #:pcontext [pcontext #f]
+                   #:profile? [profile? #f]
+                   #:timeline-disabled? [timeline-disabled? #f])
+  (define job (herbie-command command test seed pcontext profile? timeline-disabled?))
+  (define job-id (compute-job-id job))
+  (manager-tell 'start manager job job-id)
+  (log "Job ~a, Qed up for program: ~a\n" job-id (test-name test))
   job-id)
 
 (define (wait-for-job job-id)
@@ -192,31 +188,17 @@
   (sha1 (open-input-string (~s job-info))))
 
 (define (wrapper-run-herbie cmd job-id)
-  (print-job-message (herbie-command-command cmd) job-id (test-name (herbie-command-test cmd)))
-  (define result
-    (run-herbie (herbie-command-command cmd)
-                (herbie-command-test cmd)
-                #:seed (herbie-command-seed cmd)
-                #:pcontext (herbie-command-pcontext cmd)
-                #:profile? (herbie-command-profile? cmd)
-                #:timeline-disabled? (herbie-command-timeline-disabled? cmd)))
-  (log "Herbie completed job: ~a\n" job-id)
-  result)
-
-(define (print-job-message command job-id job-str)
-  (define job-label
-    (match command
-      ['alternatives "Alternatives"]
-      ['evaluate "Evaluation"]
-      ['cost "Computing"]
-      ['errors "Analyze"]
-      ['exacts "Ground truth"]
-      ['improve "Improve"]
-      ['local-error "Local error"]
-      ['explanations "Explanations"]
-      ['sample "Sampling"]
-      [_ (error 'compute-result "unknown command ~a" command)]))
-  (log "~a Job ~a started:\n  ~a ~a...\n" job-label (symbol->string command) job-id job-str))
+  (log "Started ~a job (~a): ~a\n"
+       (herbie-command-command cmd)
+       job-id
+       (test-name (herbie-command-test cmd)))
+  (begin0 (run-herbie (herbie-command-command cmd)
+                      (herbie-command-test cmd)
+                      #:seed (herbie-command-seed cmd)
+                      #:pcontext (herbie-command-pcontext cmd)
+                      #:profile? (herbie-command-profile? cmd)
+                      #:timeline-disabled? (herbie-command-timeline-disabled? cmd))
+    (log "Completed ~a job (~a)\n" (herbie-command-command cmd) job-id)))
 
 (define-syntax (place/context* stx)
   (syntax-case stx ()
@@ -381,11 +363,10 @@
   (place-channel-put manager (list 'finished manager worker-id job-id out-result)))
 
 (define (make-explanation-result herbie-result job-id)
-  (define explanations (job-result-backend herbie-result))
   (hasheq 'command
           (get-command herbie-result)
           'explanation
-          explanations
+          (job-result-backend herbie-result)
           'job
           job-id
           'path
