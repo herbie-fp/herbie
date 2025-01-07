@@ -22,12 +22,8 @@
          "batch.rkt")
 
 (provide (struct-out egg-runner)
-         typed-egg-batch-extractor
-         platform-egg-cost-proc
-         default-egg-cost-proc
          make-egg-runner
-         run-egg
-         remove-rewrites)
+         run-egg)
 
 (module+ test
   (require rackunit)
@@ -961,7 +957,8 @@
 ;; Extraction is partial, that is, the result of the extraction
 ;; procedure is `#f` if extraction finds no well-typed program
 ;; at a particular id with a particular output type.
-(define ((typed-egg-batch-extractor cost-proc batch-extract-to) regraph)
+(define ((typed-egg-batch-extractor batch-extract-to) regraph)
+  (define cost-proc (if (*egraph-platform-cost*) platform-egg-cost-proc default-egg-cost-proc))
   (define eclasses (regraph-eclasses regraph))
   (define types (regraph-types regraph))
   (define n (vector-length eclasses))
@@ -1273,13 +1270,13 @@
                          ctx))
   ; Perform extraction
   (match cmd
-    [`(single . ,extractor) ; single expression extraction
+    [`(single . ,batch) ; single expression extraction
      (define regraph (make-regraph egg-graph))
      (define reprs (egg-runner-reprs runner))
      (when (flag-set? 'dump 'egg)
        (regraph-dump regraph root-ids reprs))
 
-     (define extract-id (extractor regraph))
+     (define extract-id ((typed-egg-batch-extractor batch) regraph))
      (define finalize-batch (last extract-id))
 
      ; (Listof (Listof batchref))
@@ -1290,13 +1287,13 @@
      ; commit changes to the batch
      (finalize-batch)
      out]
-    [`(multi . ,extractor) ; multi expression extraction
+    [`(multi . ,batch) ; multi expression extraction
      (define regraph (make-regraph egg-graph))
      (define reprs (egg-runner-reprs runner))
      (when (flag-set? 'dump 'egg)
        (regraph-dump regraph root-ids reprs))
 
-     (define extract-id (extractor regraph))
+     (define extract-id ((typed-egg-batch-extractor batch) regraph))
      (define finalize-batch (last extract-id))
 
      ; (Listof (Listof batchref))

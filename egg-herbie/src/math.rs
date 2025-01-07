@@ -268,10 +268,6 @@ impl Analysis<Math> for ConstantFold {
                 &subst,
                 "metadata-eval".to_string(),
             );
-
-            if egraph.analysis.prune {
-                egraph[class_id].nodes.retain(|n| n.is_leaf())
-            }
         }
     }
 }

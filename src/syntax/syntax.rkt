@@ -28,7 +28,6 @@
            register-operator-impl!
            define-operator
            register-operator!
-           register-conversion-generator!
            variable?))
 
 (module+ test
@@ -58,13 +57,6 @@
 ;; Returns all operators.
 (define (all-operators)
   (sort (hash-keys operators) symbol<?))
-
-;; Returns all constant operators (operators with no arguments).
-(define (all-constants)
-  (sort (for/list ([(name rec) (in-hash operators)]
-                   #:when (null? (operator-itype rec)))
-          name)
-        symbol<?))
 
 ;; Looks up a property `field` of an real operator `op`.
 ;; Panics if the operator is not found.
@@ -479,17 +471,6 @@
            ; bad
            [_ (oops! "bad syntax" fields)])))]
     [_ (oops! "bad syntax")]))
-
-; Similar to representation generators, conversion generators
-; allow Herbie to query plugins for optimized implementations
-; of representation conversions, rather than the default
-; bigfloat implementation
-(define conversion-generators '())
-
-(define/contract (register-conversion-generator! proc)
-  (-> (-> any/c any/c boolean?) void?)
-  (unless (set-member? conversion-generators proc)
-    (set! conversion-generators (cons proc conversion-generators))))
 
 ;; Expression predicates ;;
 
