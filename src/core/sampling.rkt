@@ -22,6 +22,19 @@
 (define (precondition->hyperrects pre vars var-reprs)
   ;; FPBench needs unparameterized operators
   (define range-table (condition->range-table pre))
+  (define initial-ranges
+    (for/list ([var-name vars]
+               [var-repr var-reprs])
+      (map (lambda (interval) (fpbench-ival->ival var-repr interval))
+           (range-table-ref range-table var-name))))
+  (println initial-ranges)
+  ; split initial ranges in midpoints
+  (println (for*/list ([range (in-list initial-ranges)]
+                       [r (in-list range)])
+             (define-values (x y) (ival-split r (ival-midpoint r)))
+             (cons x y)))
+  (sleep 20)
+
   (apply cartesian-product
          (for/list ([var-name vars]
                     [var-repr var-reprs])
@@ -78,6 +91,7 @@
     (when (> search-result 0)
       (check-true (<= (vector-ref arr (- search-result 1)) search-for)))))
 
+;; hints-hyperrects* is a (listof '(hint hyperrect))
 (define (make-hyperrect-sampler hints-hyperrects* reprs)
   (when (null? hints-hyperrects*)
     (raise-herbie-sampling-error "No valid values." #:url "faq.html#no-valid-values"))
@@ -99,6 +113,8 @@
             ((representation-bf->repr repr) (ival-hi interval)))))))
   (define weights (partial-sums (vector-map (curryr hyperrect-weight reprs) hyperrects)))
   (define weight-max (vector-ref weights (- (vector-length weights) 1)))
+
+  ;; returns (cons (listof pts) hint)
   (λ ()
     (define rand-ordinal (random-integer 0 weight-max))
     (define idx (binary-search weights rand-ordinal))
@@ -126,13 +142,13 @@
             (equal? (representation-type repr) 'real)))
      (timeline-push! 'method "search")
      (define hyperrects-analysis (precondition->hyperrects pre vars var-reprs))
-     ; hyperrects is a (listof '(hint hyperrect))
+     ; hints-hyperrects is a (listof '(hint hyperrect))
      (match-define (cons hints-hyperrects sampling-table)
        (find-intervals compiler hyperrects-analysis #:fuel (*max-find-range-depth*)))
      (cons (make-hyperrect-sampler hints-hyperrects var-reprs) sampling-table)]
     [else
      (timeline-push! 'method "random")
-     (println "opa")
+     ; sampler return false hint since rival-analyze has not been called in random method
      (cons (λ () (cons (map random-generate var-reprs) #f)) (hash 'unknown 1.0))]))
 
 ;; Returns an evaluator for a list of expressions.

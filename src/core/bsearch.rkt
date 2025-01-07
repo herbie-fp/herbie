@@ -98,6 +98,8 @@
   (define pts
     (for/list ([(pt ex) (in-pcontext pcontext)])
       pt))
+  ; new-sampler returns: (cons (cons val pts) hint)
+  ; Since the sampler does not call rival-analyze, the hint is set to #f
   (define (new-sampler)
     (cons (cons val (random-ref pts)) #f))
   (apply mk-pcontext (cdr (batch-prepare-points evaluator new-sampler))))
