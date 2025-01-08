@@ -1,5 +1,6 @@
 #lang racket
 (require math/bigfloat
+         math/flonum
          rival
          math/base
          (only-in fpbench interval range-table-ref condition->range-table [expr? fpcore-expr?]))
@@ -22,24 +23,34 @@
 (define (precondition->hyperrects pre vars var-reprs)
   ;; FPBench needs unparameterized operators
   (define range-table (condition->range-table pre))
-  (define initial-ranges
-    (for/list ([var-name vars]
-               [var-repr var-reprs])
-      (map (lambda (interval) (fpbench-ival->ival var-repr interval))
-           (range-table-ref range-table var-name))))
-  (println initial-ranges)
-  ; split initial ranges in midpoints
-  (println (for*/list ([range (in-list initial-ranges)]
-                       [r (in-list range)])
-             (define-values (x y) (ival-split r (ival-midpoint r)))
-             (cons x y)))
-  (sleep 20)
-
   (apply cartesian-product
          (for/list ([var-name vars]
                     [var-repr var-reprs])
            (map (lambda (interval) (fpbench-ival->ival var-repr interval))
                 (range-table-ref range-table var-name)))))
+
+(define (grind-hyperrects hyperrects var-reprs)
+  (define (ival-custom-midpoint iv repr)
+    (define (repr-round repr dir point)
+      ((representation-repr->bf repr) (parameterize ([bf-rounding-mode dir])
+                                        ((representation-bf->repr repr) point))))
+    (define <-ordinal (compose (representation-repr->bf repr) (representation-ordinal->repr repr)))
+    (define ->ordinal (compose (representation-repr->ordinal repr) (representation-bf->repr repr)))
+    (define lower (<-ordinal (floor (/ (+ (->ordinal (ival-hi iv)) (->ordinal (ival-lo iv))) 2))))
+    (define higher (repr-round repr 'up (bfnext lower))) ; repr-next
+    (values lower higher))
+
+  (define hyperrects* '())
+  (for* ([hyperrect (in-list hyperrects)])
+    (set! hyperrects*
+          (append hyperrects*
+                  (apply cartesian-product
+                         (for/list ([range (in-list hyperrect)]
+                                    [repr (in-list var-reprs)])
+                           (define-values (lower higher) (ival-custom-midpoint range repr))
+                           (define-values (x y) (ival-split range lower))
+                           (list x y))))))
+  hyperrects*)
 
 (define (fpbench-ival->ival repr fpbench-interval)
   (match-define (interval lo hi lo? hi?) fpbench-interval)
@@ -142,9 +153,10 @@
             (equal? (representation-type repr) 'real)))
      (timeline-push! 'method "search")
      (define hyperrects-analysis (precondition->hyperrects pre vars var-reprs))
+     (define hyperrects-analysis* (grind-hyperrects hyperrects-analysis var-reprs))
      ; hints-hyperrects is a (listof '(hint hyperrect))
      (match-define (cons hints-hyperrects sampling-table)
-       (find-intervals compiler hyperrects-analysis #:fuel (*max-find-range-depth*)))
+       (find-intervals compiler hyperrects-analysis* #:fuel (*max-find-range-depth*)))
      (cons (make-hyperrect-sampler hints-hyperrects var-reprs) sampling-table)]
     [else
      (timeline-push! 'method "random")
