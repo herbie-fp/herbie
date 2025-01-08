@@ -18,10 +18,6 @@
 (define (make-search-space . ranges)
   (search-space '() '() ranges))
 
-(define (repr-round repr dir point)
-  ((representation-repr->bf repr) (parameterize ([bf-rounding-mode dir])
-                                    ((representation-bf->repr repr) point))))
-
 (define (total-weight reprs)
   (expt 2 (apply + (map representation-total-bits reprs))))
 
@@ -32,18 +28,6 @@
            (define ->ordinal
              (compose (representation-repr->ordinal repr) (representation-bf->repr repr)))
            (+ 1 (- (->ordinal (ival-hi interval)) (->ordinal (ival-lo interval)))))))
-
-(define (midpoint repr lo hi)
-  ; Midpoint is taken in repr-space, but values are stored in bf
-  (define <-ordinal (compose (representation-repr->bf repr) (representation-ordinal->repr repr)))
-  (define ->ordinal (compose (representation-repr->ordinal repr) (representation-bf->repr repr)))
-
-  (define lower (<-ordinal (floor (/ (+ (->ordinal hi) (->ordinal lo)) 2))))
-  (define higher (repr-round repr 'up (bfnext lower))) ; repr-next
-
-  (and (bf>= lower lo)
-       (bf<= higher hi) ; False if lo and hi were already close together
-       (cons lower higher)))
 
 (define (search-step compiler space split-var)
   (define vars (real-compiler-vars compiler))
@@ -78,7 +62,7 @@
         [else
          (define range (list-ref rect split-var))
          (define repr (list-ref reprs split-var))
-         (match (midpoint repr (ival-lo range) (ival-hi range))
+         (match (two-midpoints repr (ival-lo range) (ival-hi range))
            [(cons midleft midright)
             (define rect-lo (list-set rect split-var (ival (ival-lo range) midleft)))
             (define rect-hi (list-set rect split-var (ival midright (ival-hi range))))

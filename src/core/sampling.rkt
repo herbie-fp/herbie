@@ -30,27 +30,15 @@
                 (range-table-ref range-table var-name)))))
 
 (define (grind-hyperrects hyperrects var-reprs)
-  (define (ival-custom-midpoint iv repr)
-    (define (repr-round repr dir point)
-      ((representation-repr->bf repr) (parameterize ([bf-rounding-mode dir])
-                                        ((representation-bf->repr repr) point))))
-    (define <-ordinal (compose (representation-repr->bf repr) (representation-ordinal->repr repr)))
-    (define ->ordinal (compose (representation-repr->ordinal repr) (representation-bf->repr repr)))
-    (define lower (<-ordinal (floor (/ (+ (->ordinal (ival-hi iv)) (->ordinal (ival-lo iv))) 2))))
-    (define higher (repr-round repr 'up (bfnext lower))) ; repr-next
-    (values lower higher))
-
-  (define hyperrects* '())
-  (for* ([hyperrect (in-list hyperrects)])
-    (set! hyperrects*
-          (append hyperrects*
-                  (apply cartesian-product
-                         (for/list ([range (in-list hyperrect)]
-                                    [repr (in-list var-reprs)])
-                           (define-values (lower higher) (ival-custom-midpoint range repr))
-                           (define-values (x y) (ival-split range lower))
-                           (list x y))))))
-  hyperrects*)
+  (reap [sow]
+        (for ([hyperrect (in-list hyperrects)])
+          (sow (apply cartesian-product
+                      (for/list ([range (in-list hyperrect)]
+                                 [repr (in-list var-reprs)])
+                        (match (two-midpoints repr (ival-lo range) (ival-hi range))
+                          [(cons midleft midright)
+                           (list (ival (ival-lo range) midleft) (ival midright (ival-hi range)))]
+                          [#f range])))))))
 
 (define (fpbench-ival->ival repr fpbench-interval)
   (match-define (interval lo hi lo? hi?) fpbench-interval)
