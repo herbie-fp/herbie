@@ -29,16 +29,16 @@
            (map (lambda (interval) (fpbench-ival->ival var-repr interval))
                 (range-table-ref range-table var-name)))))
 
-(define (grind-hyperrects hyperrects var-reprs)
-  (reap [sow]
-        (for ([hyperrect (in-list hyperrects)])
-          (sow (apply cartesian-product
-                      (for/list ([range (in-list hyperrect)]
-                                 [repr (in-list var-reprs)])
-                        (match (two-midpoints repr (ival-lo range) (ival-hi range))
-                          [(cons midleft midright)
-                           (list (ival (ival-lo range) midleft) (ival midright (ival-hi range)))]
-                          [#f range])))))))
+(define (subsplit-hyperrects hyperrects var-reprs)
+  (for/fold ([storage '()]) ([hyperrect (in-list hyperrects)])
+    (append storage
+            (apply cartesian-product
+                   (for/list ([range (in-list hyperrect)]
+                              [repr (in-list var-reprs)])
+                     (match (two-midpoints repr (ival-lo range) (ival-hi range))
+                       [(cons midleft midright)
+                        (list (ival (ival-lo range) midleft) (ival midright (ival-hi range)))]
+                       [#f (list range)]))))))
 
 (define (fpbench-ival->ival repr fpbench-interval)
   (match-define (interval lo hi lo? hi?) fpbench-interval)
@@ -141,10 +141,9 @@
             (equal? (representation-type repr) 'real)))
      (timeline-push! 'method "search")
      (define hyperrects-analysis (precondition->hyperrects pre vars var-reprs))
-     (define hyperrects-analysis* (grind-hyperrects hyperrects-analysis var-reprs))
      ; hints-hyperrects is a (listof '(hint hyperrect))
      (match-define (cons hints-hyperrects sampling-table)
-       (find-intervals compiler hyperrects-analysis* #:fuel (*max-find-range-depth*)))
+       (find-intervals compiler hyperrects-analysis #:fuel (*max-find-range-depth*)))
      (cons (make-hyperrect-sampler hints-hyperrects var-reprs) sampling-table)]
     [else
      (timeline-push! 'method "random")

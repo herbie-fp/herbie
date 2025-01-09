@@ -26,7 +26,7 @@
            (->* (real-compiler? list?) ((or/c (vectorof any/c) boolean?)) (values symbol? any/c))]
           [real-compiler-clear! (-> real-compiler-clear! void?)]
           [real-compiler-analyze
-           (-> real-compiler? (vectorof ival?) (values ival? (vectorof any/c)))]))
+           (-> real-compiler? (vectorof ival?) (values ival? (vectorof any/c) boolean?))]))
 
 (define (unified-contexts? ctxs)
   (and ((non-empty-listof context?) ctxs)

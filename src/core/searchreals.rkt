@@ -42,7 +42,7 @@
       (when (not (equal? (length vars) (length rect)))
         (set! rect (rest rect)))
 
-      (match-define-values ((ival err err?) hint)
+      (match-define-values ((ival err err?) hint converged?)
         (real-compiler-analyze compiler (list->vector rect)))
       (when (eq? err 'unsamplable)
         (warn 'ground-truth
@@ -58,7 +58,7 @@
                         (format "~a = ~a" var val))))
       (cond
         [err (values true* (cons rect false*) other*)]
-        [(not err?) (values (cons (cons hint rect) true*) false* other*)]
+        [(and (not err?) converged?) (values (cons (cons hint rect) true*) false* other*)]
         [else
          (define range (list-ref rect split-var))
          (define repr (list-ref reprs split-var))
