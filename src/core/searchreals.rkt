@@ -42,7 +42,7 @@
       (when (not (equal? (length vars) (length rect)))
         (set! rect (rest rect)))
 
-      (match-define-values ((ival err err?) hint converged?)
+      (match-define (list (ival err err?) hint converged?)
         (real-compiler-analyze compiler (list->vector rect)))
       (when (eq? err 'unsamplable)
         (warn 'ground-truth

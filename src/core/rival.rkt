@@ -26,7 +26,7 @@
            (->* (real-compiler? list?) ((or/c (vectorof any/c) boolean?)) (values symbol? any/c))]
           [real-compiler-clear! (-> real-compiler-clear! void?)]
           [real-compiler-analyze
-           (-> real-compiler? (vectorof ival?) (values ival? (vectorof any/c) boolean?))]))
+           (-> real-compiler? (vectorof ival?) (listof (or/c ival? (vectorof any/c) boolean?)))]))
 
 (define (unified-contexts? ctxs)
   (and ((non-empty-listof context?) ctxs)
@@ -81,8 +81,11 @@
                     [exn:rival:unsamplable? (lambda (e) (values 'exit #f))])
       (parameterize ([*rival-max-precision* (*max-mpfr-prec*)]
                      [*rival-max-iterations* 5])
-        (values 'valid
-                (rest (vector->list (rival-apply machine pt* hint))))))) ; rest = drop precondition
+        (define value
+          (rest (vector->list (if hint ; rest = drop precondition
+                                  (rival-apply machine pt* hint)
+                                  (rival-apply machine pt*)))))
+        (values 'valid value))))
   (when (> (rival-profile machine 'bumps) 0)
     (warn 'ground-truth
           "Could not converge on a ground truth"
