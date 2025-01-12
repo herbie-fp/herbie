@@ -291,10 +291,10 @@
          (define prelude-lines
            (string-join
             (append-map (lambda (instruction)
-                          (let ([l (format-prelude-instruction instruction ctx ctx* lang converter)])
-                            (if (list? l)
-                                l
-                                (list l))))
+                          (define l (format-prelude-instruction instruction ctx ctx* lang converter))
+                          (if (list? l)
+                              l
+                              (list l)))
                         instructions)
             (if (equal? lang "TeX") "\\\\\n" "\n")
             #:after-last "\n"))

@@ -232,9 +232,9 @@
             (type . "regimes")
             (conditions . ,(for/list ([entry prevs]
                                       [idx (in-naturals)])
-                             (let ([entry-ivals (filter (λ (intrvl) (= (interval-alt-idx intrvl) idx))
-                                                        intervals)])
-                               (map (curryr interval->string repr) entry-ivals))))
+                             (define entry-ivals
+                               (filter (λ (intrvl) (= (interval-alt-idx intrvl) idx)) intervals))
+                             (map (curryr interval->string repr) entry-ivals)))
             (prevs . ,(for/list ([entry prevs]
                                  [new-pcontext (split-pcontext pcontext splitpoints prevs ctx)]
                                  [new-pcontext2 (split-pcontext pcontext2 splitpoints prevs ctx)])
