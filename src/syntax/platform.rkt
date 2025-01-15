@@ -336,10 +336,36 @@
 (define/reset *lowering-rules* (make-hash))
 
 ;; Synthesizes the LHS and RHS of lifting/lowering rules.
+;;
+;; This uses a new syntactic construct:
+;;
+;; r : repr, t : spec |- (impl r t) : impl
+;;
+;; This represents "an implementation" of the spec `t`.
+;; For an impl f.ab : a b -> c whose spec is
+;; f : real real -> real, we have the rewrite rule:
+;;
+;;  (impl c (f x y)) = (f.ab (impl a x) (impl b y))
+;;
+;; Note that the variables (x and y) both bind *real*
+;; expressions. Intuitively, the rule says:
+;;
+;;   To implement f(x, y) to precision c,
+;;   apply f.ab to an implementation of x to precision a
+;;   and y to precision b.
+;;
+;; One direction (left to right) is called "lowering",
+;; the other direction (right to left) is called "lifting".
+
 (define (impl->rule-parts impl)
   (define vars (impl-info impl 'vars))
   (define spec (impl-info impl 'spec))
-  (values vars spec (cons impl vars)))
+  (define otype (impl-info impl 'otype))
+  (define itypes (impl-info impl 'itype))
+  (values vars
+          `(impl ,(representation-name otype) ,spec)
+          (cons impl (for/list ([var (in-list vars)] [itype (in-list itypes)])
+                       `(impl ,(representation-name itype) ,var)))))
 
 ;; Synthesizes lifting rules for a given platform.
 (define (platform-lifting-rules [pform (*active-platform*)])

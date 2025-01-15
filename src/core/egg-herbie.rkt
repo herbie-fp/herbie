@@ -137,6 +137,14 @@
         [(literal v _) v]
         [(? number?) node]
         [(? symbol?) (normalize-var node)]
+        [`(impl ,prec ,spec)
+         (hash-ref! id->spec
+                    (remap spec)
+                    (lambda ()
+                      (define spec* (normalize-spec (batch-ref insert-batch spec)))
+                      (define type (representation-type (get-representation prec)))
+                      (cons spec* type)))
+         (list '$impl prec (remap spec))]
         [(approx spec impl)
          (hash-ref! id->spec
                     (remap spec)
@@ -254,6 +262,7 @@
       [(? number?) expr]
       [(? literal?) (literal-value expr)]
       [(? symbol?) (string->symbol (format "?~a" expr))]
+      [`(impl ,prec ,spec) (list '$impl prec (loop spec))]
       [(approx spec impl) (list '$approx (loop spec) (loop impl))]
       [(list op args ...) (cons op (map loop args))])))
 
@@ -276,6 +285,7 @@
                     (hash-set! egg->herbie-dict replacement (cons expr (context-lookup ctx expr)))
                     replacement))]
       [(approx spec impl) (list '$approx (loop spec) (loop impl))]
+      [(list 'impl prec spec) (list '$impl prec (loop spec))]
       [(list op args ...) (cons op (map loop args))])))
 
 (define (flatten-let expr)
@@ -306,6 +316,8 @@
        (if (hash-has-key? rename-dict expr)
            (car (hash-ref rename-dict expr)) ; variable (extract uncanonical name)
            (list expr))] ; constant function
+      [(list '$impl prec spec)
+       (list 'impl prec (loop spec (get-representation prec)))]
       [(list '$approx spec impl) ; approx
        (define spec-type
          (if (representation? type)
@@ -423,6 +435,13 @@
              (define res (sequential-product children))
              (set-box! budget (- (unbox budget) (length res)))
              (map (curry apply approx) res)])]
+         [(list 'impl prec spec)
+          (define spec* (loop spec))
+          (cond
+            [(equal? (list #f) spec*) (list #f)]
+            [else
+             (set-box! budget (- (unbox budget) (length spec*)))
+             (map (curry list 'impl prec) spec*)])]
          [`(Explanation ,body ...) (expand-proof body budget)]
          [(? list?)
           (define children (map loop term))
@@ -555,6 +574,8 @@
     [(? symbol?) ; variable
      (match-define (cons _ repr) (hash-ref egg->herbie enode))
      (list repr (representation-type repr))]
+    [(list 'impl prec spec)
+     (list (get-representation prec))]
     [(cons f _) ; application
      (cond
        [(eq? f '$approx) (platform-reprs (*active-platform*))]
@@ -569,6 +590,11 @@
     [(? symbol?) enode] ; variable
     [(cons f ids) ; application
      (cond
+       [(eq? f '$impl)
+        (define prec (u32vector-ref ids 0))
+        (define spec (u32vector-ref ids 1))
+        (list '$impl (lookup prec (representation-type type)) (lookup spec (representation-type type)))
+        ]
        [(eq? f '$approx) ; approx node
         (define spec (u32vector-ref ids 0))
         (define impl (u32vector-ref ids 1))
@@ -855,6 +881,7 @@
             [(? number?) (platform-repr-cost (*active-platform*) type)]
             [(? symbol?) (platform-repr-cost (*active-platform*) type)]
             [(list '$approx x y) 0]
+            [(list '$impl x y) 1.0e300]
             [(list 'if c x y)
              (match (platform-impl-cost (*active-platform*) 'if)
                [`(max ,n) n] ; Not quite right
@@ -976,6 +1003,7 @@
       [(? number?) #t]
       [(? symbol?) #t]
       [(list '$approx _ impl) (vector-ref costs impl)]
+      [(list '$impl _ spec) #t]
       [(list _ ids ...) (andmap (lambda (id) (vector-ref costs id)) ids)]))
 
   ; computes cost of a node (as long as each of its children have costs)
@@ -1050,6 +1078,7 @@
     [(? number?) 1]
     [(? symbol?) 1]
     ; approx node
+    [(list '$impl _ _) +inf.0]
     [(list '$approx _ impl) (rec impl)]
     [(list 'if cond ift iff) (+ 1 (rec cond) (rec ift) (rec iff))]
     [(list (? impl-exists? impl) args ...)
@@ -1079,6 +1108,7 @@
        [(? symbol?) ; variables (`egg->herbie` has the repr)
         (define repr (cdr (hash-ref egg->herbie node)))
         ((node-cost-proc node repr))]
+       [(list '$impl _ _) +inf.0]
        ; approx node
        [(list '$approx _ impl) (rec impl)]
        [(list 'if cond ift iff) ; if expression
