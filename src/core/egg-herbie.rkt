@@ -134,9 +134,12 @@
         [n (in-naturals)])
     (define node*
       (match node
-        [(literal v _) v]
+        [(literal v prec) (list '$literal (insert-node! prec #f) (insert-node! v #f))]
         [(? number?) node]
-        [(? symbol?) (normalize-var node)]
+        [(? symbol?)
+         (define replacement (normalize-var node))
+         (match-define (cons _ repr) (hash-ref egg->herbie-dict replacement))
+         (list '$var (insert-node! (representation-name repr) #f) (insert-node! replacement #f))]
         [`(impl ,prec ,spec)
          (hash-ref! id->spec
                     (remap spec)
@@ -144,7 +147,7 @@
                       (define spec* (normalize-spec (batch-ref insert-batch spec)))
                       (define type (representation-type (get-representation prec)))
                       (cons spec* type)))
-         (list '$impl prec (remap spec))]
+         (list '$impl (insert-node! prec #f) (remap spec))]
         [(approx spec impl)
          (hash-ref! id->spec
                     (remap spec)
@@ -275,7 +278,7 @@
   (let loop ([expr expr])
     (match expr
       [(? number?) expr]
-      [(? literal?) (literal-value expr)]
+      [(? literal?) (list '$literal (literal-precision expr) (literal-value expr))]
       [(? symbol?)
        (hash-ref! herbie->egg-dict
                   expr
@@ -283,7 +286,7 @@
                     (define id (hash-count herbie->egg-dict))
                     (define replacement (string->symbol (format "$h~a" id)))
                     (hash-set! egg->herbie-dict replacement (cons expr (context-lookup ctx expr)))
-                    replacement))]
+                    (list '$impl (representation-name (context-lookup ctx expr)) replacement)))]
       [(approx spec impl) (list '$approx (loop spec) (loop impl))]
       [(list 'impl prec spec) (list '$impl prec (loop spec))]
       [(list op args ...) (cons op (map loop args))])))
@@ -524,6 +527,8 @@
 ;; Uses a cache to only expand each rule once.
 (define (expand-rules rules)
   (reap [sow]
+        (sow (cons #f (make-ffi-rule "lift-literal" "($literal ?repr ?a)" "($impl ?repr ?a)")))
+        (sow (cons #f (make-ffi-rule "lift-var" "($var ?repr ?a)" "($impl ?repr ?a)")))
         (for ([rule (in-list rules)])
           (define egg&ffi-rules
             (hash-ref! (*egg-rule-cache*)
@@ -574,10 +579,12 @@
     [(? symbol?) ; variable
      (match-define (cons _ repr) (hash-ref egg->herbie enode))
      (list repr (representation-type repr))]
-    [(list 'impl prec spec)
-     (list (get-representation prec))]
     [(cons f _) ; application
      (cond
+       [(eq? f '$impl) (all-reprs/types)]
+       [(eq? f '$literal) (all-reprs/types)]
+       [(eq? f '$var) (all-reprs/types)]
+       [(eq? f 'binary64) (all-reprs/types)]
        [(eq? f '$approx) (platform-reprs (*active-platform*))]
        [(eq? f 'if) (all-reprs/types)]
        [(impl-exists? f) (list (impl-info f 'otype))]
@@ -590,11 +597,20 @@
     [(? symbol?) enode] ; variable
     [(cons f ids) ; application
      (cond
+       [(eq? f 'binary64)
+        'binary64]
        [(eq? f '$impl)
         (define prec (u32vector-ref ids 0))
         (define spec (u32vector-ref ids 1))
-        (list '$impl (lookup prec (representation-type type)) (lookup spec (representation-type type)))
-        ]
+        (list '$impl (lookup prec 'real) (lookup spec 'real))]
+       [(eq? f '$var)
+        (define prec (u32vector-ref ids 0))
+        (define spec (u32vector-ref ids 1))
+        (list '$var (lookup prec 'real) (lookup spec 'real))]
+       [(eq? f '$literal)
+        (define prec (u32vector-ref ids 0))
+        (define spec (u32vector-ref ids 1))
+        (list '$literal (lookup prec 'real) (lookup spec 'real))]
        [(eq? f '$approx) ; approx node
         (define spec (u32vector-ref ids 0))
         (define impl (u32vector-ref ids 1))
@@ -882,6 +898,8 @@
             [(? symbol?) (platform-repr-cost (*active-platform*) type)]
             [(list '$approx x y) 0]
             [(list '$impl x y) 1.0e300]
+            [(list '$literal x y) 1]
+            [(list '$var x y) 1]
             [(list 'if c x y)
              (match (platform-impl-cost (*active-platform*) 'if)
                [`(max ,n) n] ; Not quite right
@@ -1004,6 +1022,8 @@
       [(? symbol?) #t]
       [(list '$approx _ impl) (vector-ref costs impl)]
       [(list '$impl _ spec) #t]
+      [(list '$literal _ spec) #t]
+      [(list '$var _ spec) #t]
       [(list _ ids ...) (andmap (lambda (id) (vector-ref costs id)) ids)]))
 
   ; computes cost of a node (as long as each of its children have costs)
@@ -1079,6 +1099,8 @@
     [(? symbol?) 1]
     ; approx node
     [(list '$impl _ _) +inf.0]
+    [(list '$literal _ _) 1]
+    [(list '$var _ _) 1]
     [(list '$approx _ impl) (rec impl)]
     [(list 'if cond ift iff) (+ 1 (rec cond) (rec ift) (rec iff))]
     [(list (? impl-exists? impl) args ...)
@@ -1109,6 +1131,8 @@
         (define repr (cdr (hash-ref egg->herbie node)))
         ((node-cost-proc node repr))]
        [(list '$impl _ _) +inf.0]
+       [(list '$literal _ c) (rec c)]
+       [(list '$var _ v) (rec v)]
        ; approx node
        [(list '$approx _ impl) (rec impl)]
        [(list 'if cond ift iff) ; if expression
