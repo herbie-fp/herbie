@@ -263,7 +263,7 @@
   (let loop ([expr expr])
     (match expr
       [(? number?) expr]
-      [(? literal?) (literal-value expr)]
+      [(? literal?) (list '$literal (literal-precision expr) (literal-value expr))]
       [(? symbol?) (string->symbol (format "?~a" expr))]
       [`(impl ,prec ,spec) (list '$impl prec (loop spec))]
       [(approx spec impl) (list '$approx (loop spec) (loop impl))]
@@ -581,7 +581,7 @@
      (list repr (representation-type repr))]
     [(cons f _) ; application
      (cond
-       [(eq? f '$impl) (all-reprs/types)]
+       [(eq? f '$impl) (list)] ;; Hack so these aren't extracted
        [(eq? f '$literal) (all-reprs/types)]
        [(eq? f '$var) (all-reprs/types)]
        [(eq? f 'binary64) (all-reprs/types)]

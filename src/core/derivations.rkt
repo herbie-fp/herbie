@@ -54,9 +54,7 @@
             (define end-expr (location-get loc expr))
             (unless (approx? end-expr)
               (error 'make-proof-tables "expected approx node, got ~a" end-expr))
-            (cons start-expr start-expr)
-            ;; TODO: Currently disabling derivations for taylor simplify
-            #;(cons start-expr (approx-impl end-expr))]
+            (cons start-expr (approx-impl end-expr))]
            [_
             ; simplify after other: impl -> impl
             (define start-expr (location-get loc (alt-expr prev)))
