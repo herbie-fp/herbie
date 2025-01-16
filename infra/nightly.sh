@@ -19,6 +19,7 @@ for bench in "$BENCHDIR"/*; do
 
   racket -y "src/main.rkt" report \
          --seed "$SEED" \
+         --disable generate:proofs \
          "$@" \
          "$bench" "$REPORTDIR"/"$name"
   
