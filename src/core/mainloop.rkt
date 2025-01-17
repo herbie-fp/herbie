@@ -173,6 +173,7 @@
                       "No alt chosen. Run (choose-alts!) or (choose-alt! n) to choose one"))
 
   (define exprs (map alt-expr (^next-alts^)))
+  (^locs^ '())
 
   (when (flag-set? 'localize 'costs)
     (timeline-event! 'simplify)
