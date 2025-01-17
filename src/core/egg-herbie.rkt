@@ -278,17 +278,20 @@
   (let loop ([expr expr])
     (match expr
       [(? number?) expr]
-      [(? literal?) (list '$literal (literal-precision expr) (literal-value expr))]
+      [(literal v prec) (list '$literal prec v)]
       [(? symbol?)
-       (hash-ref! herbie->egg-dict
-                  expr
-                  (lambda ()
-                    (define id (hash-count herbie->egg-dict))
-                    (define replacement (string->symbol (format "$h~a" id)))
-                    (hash-set! egg->herbie-dict replacement (cons expr (context-lookup ctx expr)))
-                    (list '$impl (representation-name (context-lookup ctx expr)) replacement)))]
-      [(approx spec impl) (list '$approx (loop spec) (loop impl))]
+       (define type (context-lookup ctx expr))
+       (define replacement
+         (hash-ref! herbie->egg-dict
+                    expr
+                    (lambda ()
+                      (define id (hash-count herbie->egg-dict))
+                      (define replacement (string->symbol (format "$h~a" id)))
+                      (hash-set! egg->herbie-dict replacement (cons expr type))
+                      replacement)))
+       (list '$var (representation-name type) replacement)]
       [(list 'impl prec spec) (list '$impl prec (loop spec))]
+      [(approx spec impl) (list '$approx (loop spec) (loop impl))]
       [(list op args ...) (cons op (map loop args))])))
 
 (define (flatten-let expr)
@@ -320,6 +323,8 @@
            (car (hash-ref rename-dict expr)) ; variable (extract uncanonical name)
            (list expr))] ; constant function
       [(list '$impl prec spec) (list 'impl prec (loop spec (get-representation prec)))]
+      [(list '$var prec spec) (loop spec (get-representation prec))]
+      [(list '$literal prec spec) (loop spec (get-representation prec))]
       [(list '$approx spec impl) ; approx
        (define spec-type
          (if (representation? type)
