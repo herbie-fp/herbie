@@ -581,10 +581,10 @@
     [(? symbol?) ; variable
      (match-define (cons _ repr) (hash-ref egg->herbie enode))
      (list repr (representation-type repr))]
-    [(or 'binary32 'binary64 'bool)
-     (list 'real)]
     [(cons f _) ; application
      (cond
+       [(or 'binary32 'binary64 'bool)
+        (list 'real)]
        [(eq? f '$impl) (list)] ;; Hack so these aren't extracted
        [(eq? f '$literal) (all-reprs/types)]
        [(eq? f '$var) (all-reprs/types)]
