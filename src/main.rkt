@@ -25,8 +25,7 @@
 (define (string->flag s)
   (match (string-split s ":")
     [(list (app string->symbol category) (app string->symbol flag))
-     #:when (and (dict-has-key? all-flags category)
-                 (set-member? (dict-ref all-flags category) flag))
+     #:when (set-member? (dict-ref all-flags category '()) flag)
      (list category flag)]
     [_ (raise-herbie-error "Invalid flag `~a`" s #:url "options.html")]))
 
