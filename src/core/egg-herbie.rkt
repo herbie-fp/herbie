@@ -529,6 +529,8 @@
   (reap [sow]
         (sow (cons #f (make-ffi-rule "lift-literal" "($literal ?repr ?a)" "($impl ?repr ?a)")))
         (sow (cons #f (make-ffi-rule "lift-var" "($var ?repr ?a)" "($impl ?repr ?a)")))
+        (sow (cons #f (make-ffi-rule "lift-if" "(if ($impl bool ?c) ($impl ?r ?t) ($impl ?r ?f))" "($impl ?r (if ?c ?t ?f))")))
+        (sow (cons #f (make-ffi-rule "lower-if" "($impl ?r (if ?c ?t ?f))" "(if ($impl bool ?c) ($impl ?r ?t) ($impl ?r ?f))")))
         (for ([rule (in-list rules)])
           (define egg&ffi-rules
             (hash-ref! (*egg-rule-cache*)
@@ -579,6 +581,8 @@
     [(? symbol?) ; variable
      (match-define (cons _ repr) (hash-ref egg->herbie enode))
      (list repr (representation-type repr))]
+    [(or 'binary32 'binary64 'bool)
+     (list 'real)]
     [(cons f _) ; application
      (cond
        [(eq? f '$impl) (list)] ;; Hack so these aren't extracted
