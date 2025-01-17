@@ -319,8 +319,7 @@
        (if (hash-has-key? rename-dict expr)
            (car (hash-ref rename-dict expr)) ; variable (extract uncanonical name)
            (list expr))] ; constant function
-      [(list '$impl prec spec)
-       (list 'impl prec (loop spec (get-representation prec)))]
+      [(list '$impl prec spec) (list 'impl prec (loop spec (get-representation prec)))]
       [(list '$approx spec impl) ; approx
        (define spec-type
          (if (representation? type)
@@ -529,8 +528,14 @@
   (reap [sow]
         (sow (cons #f (make-ffi-rule "lift-literal" "($literal ?repr ?a)" "($impl ?repr ?a)")))
         (sow (cons #f (make-ffi-rule "lift-var" "($var ?repr ?a)" "($impl ?repr ?a)")))
-        (sow (cons #f (make-ffi-rule "lift-if" "(if ($impl bool ?c) ($impl ?r ?t) ($impl ?r ?f))" "($impl ?r (if ?c ?t ?f))")))
-        (sow (cons #f (make-ffi-rule "lower-if" "($impl ?r (if ?c ?t ?f))" "(if ($impl bool ?c) ($impl ?r ?t) ($impl ?r ?f))")))
+        (sow (cons #f
+                   (make-ffi-rule "lift-if"
+                                  "(if ($impl bool ?c) ($impl ?r ?t) ($impl ?r ?f))"
+                                  "($impl ?r (if ?c ?t ?f))")))
+        (sow (cons #f
+                   (make-ffi-rule "lower-if"
+                                  "($impl ?r (if ?c ?t ?f))"
+                                  "(if ($impl bool ?c) ($impl ?r ?t) ($impl ?r ?f))")))
         (for ([rule (in-list rules)])
           (define egg&ffi-rules
             (hash-ref! (*egg-rule-cache*)
@@ -583,8 +588,7 @@
      (list repr (representation-type repr))]
     [(cons f _) ; application
      (cond
-       [(set-member? '(binary32 binary64 bool posit16) f)
-        (list 'real)]
+       [(set-member? '(binary32 binary64 bool posit16) f) (list 'real)]
        [(eq? f '$impl) (list)] ;; Hack so these aren't extracted
        [(eq? f '$literal) (all-reprs/types)]
        [(eq? f '$var) (all-reprs/types)]
@@ -600,8 +604,7 @@
     [(? symbol?) enode] ; variable
     [(cons f ids) ; application
      (cond
-       [(set-member? '(binary64 binary32 bool posit16) f)
-        f]
+       [(set-member? '(binary64 binary32 bool posit16) f) f]
        [(eq? f '$impl)
         (define prec (u32vector-ref ids 0))
         (define spec (u32vector-ref ids 1))

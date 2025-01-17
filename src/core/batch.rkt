@@ -222,14 +222,12 @@
              (if (hash-has-key? rename-dict enode)
                  (car (hash-ref rename-dict enode))
                  enode)]
-            [(list '$literal (app eggref prec) (app eggref spec))
-             (literal spec prec)]
+            [(list '$literal (app eggref prec) (app eggref spec)) (literal spec prec)]
             [(list '$var (app eggref prec) (app eggref spec))
              (if (hash-has-key? rename-dict spec)
                  (car (hash-ref rename-dict spec))
                  spec)]
-            [(list '$impl (app eggref prec) (app eggref spec))
-             (list 'impl prec (loop spec 'real))]
+            [(list '$impl (app eggref prec) (app eggref spec)) (list 'impl prec (loop spec 'real))]
             [(list '$approx spec (app eggref impl))
              (define spec* (vector-ref id->spec spec))
              (unless spec*

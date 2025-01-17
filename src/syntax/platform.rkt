@@ -364,8 +364,10 @@
   (define itypes (impl-info impl 'itype))
   (values vars
           `(impl ,(representation-name otype) ,spec)
-          (cons impl (for/list ([var (in-list vars)] [itype (in-list itypes)])
-                       `(impl ,(representation-name itype) ,var)))))
+          (cons impl
+                (for/list ([var (in-list vars)]
+                           [itype (in-list itypes)])
+                  `(impl ,(representation-name itype) ,var)))))
 
 ;; Synthesizes lifting rules for a given platform.
 (define (platform-lifting-rules [pform (*active-platform*)])
