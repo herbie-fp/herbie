@@ -583,12 +583,11 @@
      (list repr (representation-type repr))]
     [(cons f _) ; application
      (cond
-       [(or 'binary32 'binary64 'bool)
+       [(set-member? '(binary32 binary64 bool posit16) f)
         (list 'real)]
        [(eq? f '$impl) (list)] ;; Hack so these aren't extracted
        [(eq? f '$literal) (all-reprs/types)]
        [(eq? f '$var) (all-reprs/types)]
-       [(eq? f 'binary64) (all-reprs/types)]
        [(eq? f '$approx) (platform-reprs (*active-platform*))]
        [(eq? f 'if) (all-reprs/types)]
        [(impl-exists? f) (list (impl-info f 'otype))]
@@ -601,8 +600,8 @@
     [(? symbol?) enode] ; variable
     [(cons f ids) ; application
      (cond
-       [(eq? f 'binary64)
-        'binary64]
+       [(set-member? '(binary64 binary32 bool posit16) f)
+        f]
        [(eq? f '$impl)
         (define prec (u32vector-ref ids 0))
         (define spec (u32vector-ref ids 1))
