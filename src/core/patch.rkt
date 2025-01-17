@@ -54,13 +54,8 @@
                 [outputs (in-list simplification-options)])
             (match-define (cons _ simplified) outputs)
             (define prev (car (alt-prevs altn)))
-            (for ([batchreff (in-list simplified)])
-              (define spec (prog->spec (debatchref (alt-expr prev))))
-              (define idx ; Munge
-                (mutable-batch-push! global-batch-mutable
-                                     (approx (mutable-batch-munge! global-batch-mutable spec)
-                                             (batchref-idx batchreff))))
-              (sow (alt (batchref global-batch idx) `(simplify ,runner #f) (list altn) '()))))
+            (for ([batchref (in-list simplified)])
+              (sow (alt batchref `(simplify ,runner #f) (list altn) '()))))
           (batch-copy-mutable-nodes! global-batch global-batch-mutable))) ; Update global-batch
 
   (timeline-push! 'count (length approxs) (length simplified))
@@ -84,6 +79,7 @@
       (prog->spec expr)))
   (define free-vars (map free-variables exprs))
   (define vars (context-vars (*context*)))
+  (define repr (context-repr (*context*)))
 
   (reap [sow]
         (define global-batch-mutable (batch->mutable-batch global-batch)) ; Create a mutable batch
@@ -93,11 +89,12 @@
           (define timeline-stop! (timeline-start! 'series (~a exprs) (~a var) (~a name)))
           (define genexprs (approximate exprs var #:transform (cons f finv)))
           (for ([genexpr (in-list genexprs)]
+                [spec (in-list exprs)]
                 [altn (in-list altns)]
                 [fv (in-list free-vars)]
                 #:when (member var fv)) ; check whether var exists in expr at all
             (for ([i (in-range (*taylor-order-limit*))])
-              (define gen (genexpr))
+              (define gen (approx spec `(impl ,(representation-name repr) ,(genexpr))))
               (define idx (mutable-batch-munge! global-batch-mutable gen)) ; Munge gen
               (sow (alt (batchref global-batch idx) `(taylor ,name ,var) (list altn) '()))))
           (timeline-stop!))
