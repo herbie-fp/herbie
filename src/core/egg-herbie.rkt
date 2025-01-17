@@ -618,7 +618,7 @@
        [(eq? f '$approx) ; approx node
         (define spec (u32vector-ref ids 0))
         (define impl (u32vector-ref ids 1))
-        (list '$approx (lookup spec (representation-type type)) (lookup impl type))]
+        (list '$approx (lookup spec 'real) (lookup impl type))]
        [(eq? f 'if) ; if expression
         (define cond (u32vector-ref ids 0))
         (define ift (u32vector-ref ids 1))
