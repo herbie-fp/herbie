@@ -45,18 +45,16 @@
 
   ; run egg
   (define runner (make-egg-runner global-batch roots reprs schedule))
-  (define simplification-options (simplify-batch runner global-batch))
+  (define simplifieds (simplify-batch runner global-batch))
 
   ; convert to altns
   (define simplified
     (reap [sow]
           (define global-batch-mutable (batch->mutable-batch global-batch)) ; Create mutable batch
           (for ([altn (in-list approxs)]
-                [outputs (in-list simplification-options)])
-            (match-define (cons _ simplified) outputs)
+                [simplified (in-list simplifieds)])
             (define prev (car (alt-prevs altn)))
-            (for ([bref (in-list simplified)])
-              (sow (alt bref `(simplify ,runner #f) (list altn) '()))))
+            (sow (alt simplified `(simplify ,runner #f) (list altn) '())))
           (batch-copy-mutable-nodes! global-batch global-batch-mutable))) ; Update global-batch
 
   (timeline-push! 'count (length approxs) (length simplified))

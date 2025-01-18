@@ -67,15 +67,11 @@
   (define runner (make-egg-runner batch (batch-roots batch) (list (context-repr ctx)) schedule))
 
   ; run egg
-  (define simplified (simplify-batch runner batch))
+  (define simplified (first (simplify-batch runner batch)))
 
   ; alternatives
   (define start-alt (make-alt expr))
-  (cons start-alt
-        (remove-duplicates
-         (for/list ([batchreff (rest simplified)])
-           (alt (debatchref batchreff) `(simplify () ,runner #f) (list start-alt) '()))
-         alt-equal?)))
+  (list start-alt (alt (debatchref simplified) `(simplify () ,runner #f) (list start-alt) '())))
 
 ;; See https://pavpanchekha.com/blog/symmetric-expressions.html
 (define (find-preprocessing init expr ctx)

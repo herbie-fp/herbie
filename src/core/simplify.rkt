@@ -9,7 +9,7 @@
          "egg-herbie.rkt"
          "batch.rkt")
 
-(provide (contract-out [simplify-batch (-> egg-runner? batch? (listof (listof batchref?)))]))
+(provide (contract-out [simplify-batch (-> egg-runner? batch? (listof batchref?))]))
 
 (module+ test
   (require rackunit
@@ -18,16 +18,9 @@
 
 (define (simplify-batch runner batch)
   (timeline-push! 'inputs (map ~a (batch->progs (egg-runner-batch runner) (egg-runner-roots runner))))
-
   (define simplifieds (run-egg runner (cons 'single batch)))
-  (define out
-    (for/list ([simplified (in-list simplifieds)]
-               [root (egg-runner-roots runner)])
-      (remove-duplicates (cons (batchref (egg-runner-batch runner) root) simplified)
-                         #:key batchref-idx)))
-
-  (timeline-push! 'outputs (map (compose ~a debatchref) (apply append out)))
-  out)
+  (timeline-push! 'outputs (map (compose ~a debatchref) simplifieds))
+  simplifieds)
 
 (module+ test
   (require "../syntax/types.rkt"
@@ -45,7 +38,7 @@
                        (map (lambda (_) 'real) args)
                        `((,(*simplify-rules*) . ((node . ,(*node-limit*)))))))
     (parameterize ([*egraph-platform-cost* #f])
-      (map (compose debatchref last) (simplify-batch runner batch))))
+      (map debatchref (simplify-batch runner batch))))
 
   (define test-exprs
     '((1 . 1) (0 . 0)

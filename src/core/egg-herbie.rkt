@@ -1100,13 +1100,10 @@
   (match-define (list extract-id _ _) extract)
   ; extract expr
   (define key (cons id type))
-  (cond
-    ; at least one extractable expression
-    [(hash-has-key? canon key)
-     (define id* (hash-ref canon key))
-     (list (extract-id id* type))]
-    ; no extractable expressions
-    [else (list)]))
+  ; TODO: this can actually fail if no extractable expressions
+  ; Most of Herbie doesn't actually check for / handle this
+  (define id* (hash-ref canon key))
+  (extract-id id* type))
 
 ;; Extracts multiple expressions according to the extractor
 (define (regraph-extract-variants regraph extract id type)
