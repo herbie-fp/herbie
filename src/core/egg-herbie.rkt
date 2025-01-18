@@ -530,32 +530,32 @@
 ;; Expand and convert the rules for egg.
 ;; Uses a cache to only expand each rule once.
 (define (expand-rules rules)
-  (reap [sow]
-        (sow (cons #f (make-ffi-rule "lift-literal" "($literal ?repr ?a)" "($impl ?repr ?a)")))
-        (sow (cons #f (make-ffi-rule "lift-var" "($var ?repr ?a)" "($impl ?repr ?a)")))
-        (sow (cons #f (make-ffi-rule "lift-approx"
-                                     "($approx ?spec ($impl ?repr ?b))"
-                                     "($impl ?repr ?spec)")))
-        (sow (cons #f
-                   (make-ffi-rule "lift-if"
-                                  "(if ($impl bool ?c) ($impl ?r ?t) ($impl ?r ?f))"
-                                  "($impl ?r (if ?c ?t ?f))")))
-        (sow (cons #f
-                   (make-ffi-rule "lower-if"
-                                  "($impl ?r (if ?c ?t ?f))"
-                                  "(if ($impl bool ?c) ($impl ?r ?t) ($impl ?r ?f))")))
-        (for ([rule (in-list rules)])
-          (define egg&ffi-rules
-            (hash-ref! (*egg-rule-cache*)
-                       rule
-                       (lambda ()
-                         (for/list ([egg-rule (in-list (rule->egg-rules rule))])
-                           (define name (rule-name egg-rule))
-                           (define ffi-rule
-                             (make-ffi-rule name (rule-input egg-rule) (rule-output egg-rule)))
-                           (hash-set! (*canon-names*) name (rule-name rule))
-                           (cons egg-rule ffi-rule)))))
-          (for-each sow egg&ffi-rules))))
+  (reap
+   [sow]
+   (sow (cons #f (make-ffi-rule "lift-literal" "($literal ?repr ?a)" "($impl ?repr ?a)")))
+   (sow (cons #f (make-ffi-rule "lift-var" "($var ?repr ?a)" "($impl ?repr ?a)")))
+   (sow (cons #f
+              (make-ffi-rule "lift-approx" "($approx ?spec ($impl ?repr ?b))" "($impl ?repr ?spec)")))
+   (sow (cons #f
+              (make-ffi-rule "lift-if"
+                             "(if ($impl bool ?c) ($impl ?r ?t) ($impl ?r ?f))"
+                             "($impl ?r (if ?c ?t ?f))")))
+   (sow (cons #f
+              (make-ffi-rule "lower-if"
+                             "($impl ?r (if ?c ?t ?f))"
+                             "(if ($impl bool ?c) ($impl ?r ?t) ($impl ?r ?f))")))
+   (for ([rule (in-list rules)])
+     (define egg&ffi-rules
+       (hash-ref! (*egg-rule-cache*)
+                  rule
+                  (lambda ()
+                    (for/list ([egg-rule (in-list (rule->egg-rules rule))])
+                      (define name (rule-name egg-rule))
+                      (define ffi-rule
+                        (make-ffi-rule name (rule-input egg-rule) (rule-output egg-rule)))
+                      (hash-set! (*canon-names*) name (rule-name rule))
+                      (cons egg-rule ffi-rule)))))
+     (for-each sow egg&ffi-rules))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Racket egraph
