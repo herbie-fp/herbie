@@ -53,7 +53,6 @@
           (define global-batch-mutable (batch->mutable-batch global-batch)) ; Create mutable batch
           (for ([altn (in-list approxs)]
                 [simplified (in-list simplifieds)])
-            (define prev (car (alt-prevs altn)))
             (sow (alt simplified `(simplify ,runner #f) (list altn) '())))
           (batch-copy-mutable-nodes! global-batch global-batch-mutable))) ; Update global-batch
 
