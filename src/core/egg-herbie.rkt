@@ -533,6 +533,9 @@
   (reap [sow]
         (sow (cons #f (make-ffi-rule "lift-literal" "($literal ?repr ?a)" "($impl ?repr ?a)")))
         (sow (cons #f (make-ffi-rule "lift-var" "($var ?repr ?a)" "($impl ?repr ?a)")))
+        (sow (cons #f (make-ffi-rule "lift-approx"
+                                     "($approx ?spec ($impl ?repr ?b))"
+                                     "($impl ?repr ?spec)")))
         (sow (cons #f
                    (make-ffi-rule "lift-if"
                                   "(if ($impl bool ?c) ($impl ?r ?t) ($impl ?r ?f))"
