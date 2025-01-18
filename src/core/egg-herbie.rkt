@@ -141,12 +141,6 @@
          (match-define (cons _ repr) (hash-ref egg->herbie-dict replacement))
          (list '$var (insert-node! (representation-name repr) #f) (insert-node! replacement #f))]
         [`(impl ,prec ,spec)
-         (hash-ref! id->spec
-                    (remap spec)
-                    (lambda ()
-                      (define spec* (normalize-spec (batch-ref insert-batch spec)))
-                      (define type (representation-type (get-representation prec)))
-                      (cons spec* type)))
          (list '$impl (insert-node! prec #f) (remap spec))]
         [(approx spec impl)
          (hash-ref! id->spec

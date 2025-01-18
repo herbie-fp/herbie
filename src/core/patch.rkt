@@ -79,7 +79,6 @@
       (prog->spec expr)))
   (define free-vars (map free-variables exprs))
   (define vars (context-vars (*context*)))
-  (define repr (context-repr (*context*)))
 
   (reap [sow]
         (define global-batch-mutable (batch->mutable-batch global-batch)) ; Create a mutable batch
@@ -89,11 +88,13 @@
           (define timeline-stop! (timeline-start! 'series (~a exprs) (~a var) (~a name)))
           (define genexprs (approximate exprs var #:transform (cons f finv)))
           (for ([genexpr (in-list genexprs)]
+                [expr (in-list starting-exprs)]
                 [spec (in-list exprs)]
                 [altn (in-list altns)]
                 [fv (in-list free-vars)]
                 #:when (member var fv)) ; check whether var exists in expr at all
             (for ([i (in-range (*taylor-order-limit*))])
+              (define repr (repr-of expr (*context*)))
               (define gen (approx spec `(impl ,(representation-name repr) ,(genexpr))))
               (define idx (mutable-batch-munge! global-batch-mutable gen)) ; Munge gen
               (sow (alt (batchref global-batch idx) `(taylor ,name ,var) (list altn) '()))))
