@@ -137,8 +137,7 @@
         [(literal v _) (insert-node! v root?)]
         [(? number?) (insert-node! node root?)]
         [(? symbol?) (insert-node! (normalize-var node) root?)]
-        [(hole prec spec)
-         (remap spec)] ; "hole" terms currently disappear
+        [(hole prec spec) (remap spec)] ; "hole" terms currently disappear
         [(approx spec impl)
          (hash-ref! id->spec
                     (remap spec)
