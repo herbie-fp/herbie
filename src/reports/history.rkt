@@ -92,6 +92,7 @@
         [(? number?) expr]
         [(? literal?) (literal-value expr)]
         [(approx _ impl) (loop impl)]
+        [(hole precision spec) (loop spec)]
         [`(if ,cond ,ift ,iff)
          `(if ,(loop cond)
               ,(loop ift)

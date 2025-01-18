@@ -88,11 +88,13 @@
           (define genexprs (approximate specs var #:transform (cons f finv)))
           (for ([genexpr (in-list genexprs)]
                 [spec (in-list specs)]
+                [expr (in-list starting-exprs)]
                 [altn (in-list altns)]
                 [fv (in-list free-vars)]
                 #:when (set-member? fv var)) ; check whether var exists in expr at all
             (for ([i (in-range (*taylor-order-limit*))])
-              (define gen (approx spec (genexpr)))
+              (define repr (repr-of expr (*context*)))
+              (define gen (approx spec (hole (representation-name repr) (genexpr))))
               (define idx (mutable-batch-munge! global-batch-mutable gen)) ; Munge gen
               (sow (alt (batchref global-batch idx) `(taylor ,name ,var) (list altn) '()))))
           (timeline-stop!))
