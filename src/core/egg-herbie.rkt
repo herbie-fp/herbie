@@ -534,8 +534,8 @@
    [sow]
    (sow (cons #f (make-ffi-rule "lift-literal" "($literal ?repr ?a)" "($impl ?repr ?a)")))
    (sow (cons #f (make-ffi-rule "lift-var" "($var ?repr ?a)" "($impl ?repr ?a)")))
-   (sow (cons #f
-              (make-ffi-rule "lift-approx" "($approx ?spec ($impl ?repr ?b))" "($impl ?repr ?spec)")))
+   ;; This is ugly but does the job
+   (sow (cons #f (make-ffi-rule "lift-var-spec" "($var ?repr ?a)" "?a")))
    (sow (cons #f
               (make-ffi-rule "lift-if"
                              "(if ($impl bool ?c) ($impl ?r ?t) ($impl ?r ?f))"
@@ -1377,7 +1377,7 @@
                 [end (in-list end-exprs)])
        (unless (egraph-expr-equal? egg-graph start end ctx)
          (error 'run-egg
-                "cannot find proof; start and end are not equal.\n start: ~a \n end: ~a"
+                "cannot find proof; start ~a and end ~a are not equal"
                 start
                 end))
        (define proof (egraph-get-proof egg-graph start end ctx))
