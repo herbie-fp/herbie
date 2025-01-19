@@ -74,7 +74,8 @@
           (format "~a on training set" (format-accuracy err2 repr-bits #:unit "%"))))
 
 (define (expr->fpcore expr ctx #:ident [ident #f])
-  (list 'FPCore (context-vars ctx)
+  (list 'FPCore
+        (context-vars ctx)
         (let loop ([expr expr])
           (match expr
             [(? symbol?) expr]
