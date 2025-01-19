@@ -302,12 +302,7 @@
                      prelude-lines
                      out)))))))
 
-  (define math-out
-    (cond
-      [(dict-has-key? versions "TeX")
-       (define val (dict-ref versions "TeX"))
-       val]
-      [else ""]))
+  (define math-out (dict-ref versions "TeX" ""))
 
   (define dropdown
     `(select (option "Math")
