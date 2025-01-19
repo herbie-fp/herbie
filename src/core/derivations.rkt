@@ -35,32 +35,10 @@
   (define (build! altn)
     (match altn
       ; recursive rewrite using egg (impl -> impl)
-      [(alt expr `(rr ,loc ,(? egg-runner? runner) #f) `(,prev) _)
+      [(alt expr `(,(or 'rr 'simplify) ,loc ,(? egg-runner? runner) #f) `(,prev) _)
        (define start-expr (location-get loc (alt-expr prev)))
        (define end-expr (location-get loc expr))
        (define rewrite (cons start-expr end-expr))
-       (hash-set! alt->query&rws (altn->key altn) (cons runner rewrite))
-       (hash-update! query->rws runner (lambda (rws) (set-add rws rewrite)) '())]
-
-      ; simplify using egg
-      ;  usually: impl -> impl
-      ;  taylor: spec -> approx (_, impl)
-      [(alt expr `(simplify ,loc ,(? egg-runner? runner) #f) `(,prev) _)
-       (define rewrite
-         (match (alt-event prev)
-           [(list 'taylor _ ...)
-            ; simplify after taylor: spec -> approx (_, impl)
-            (define start-expr (location-get loc (alt-expr prev)))
-            (define end-expr (location-get loc expr))
-            (unless (approx? end-expr)
-              (error 'make-proof-tables "expected approx node, got ~a" end-expr))
-            (cons start-expr (approx-impl end-expr))]
-           [_
-            ; simplify after other: impl -> impl
-            (define start-expr (location-get loc (alt-expr prev)))
-            (define end-expr (location-get loc expr))
-            (cons start-expr end-expr)]))
-
        (hash-set! alt->query&rws (altn->key altn) (cons runner rewrite))
        (hash-update! query->rws runner (lambda (rws) (set-add rws rewrite)) '())]
 

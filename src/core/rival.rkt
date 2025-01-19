@@ -111,4 +111,7 @@
 ;; for the given inputs range. The result is an interval representing
 ;; how certain the result is: no, maybe, yes.
 (define (real-compiler-analyze compiler input-ranges)
-  (rival-analyze (real-compiler-machine compiler) input-ranges))
+  (define res (rival-analyze (real-compiler-machine compiler) input-ranges))
+  (if (list? res)
+      (car res)
+      res))
