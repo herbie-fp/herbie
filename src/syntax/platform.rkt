@@ -339,13 +339,13 @@
 ;;
 ;; This uses a new syntactic construct:
 ;;
-;; r : repr, t : spec |- (impl r t) : impl
+;; r : repr, t : spec |- (hole r t) : impl
 ;;
 ;; This represents "an implementation" of the spec `t`.
 ;; For an impl f.ab : a b -> c whose spec is
 ;; f : real real -> real, we have the rewrite rule:
 ;;
-;;  (impl c (f x y)) = (f.ab (impl a x) (impl b y))
+;;  (hole c (f x y)) = (f.ab (hole a x) (hole b y))
 ;;
 ;; Note that the variables (x and y) both bind *real*
 ;; expressions. Intuitively, the rule says:
@@ -363,11 +363,11 @@
   (define otype (impl-info impl 'otype))
   (define itypes (impl-info impl 'itype))
   (values vars
-          `(impl ,(representation-name otype) ,spec)
+          (hole (representation-name otype) spec)
           (cons impl
                 (for/list ([var (in-list vars)]
                            [itype (in-list itypes)])
-                  `(impl ,(representation-name itype) ,var)))))
+                  (hole (representation-name itype) var)))))
 
 ;; Synthesizes lifting rules for a given platform.
 (define (platform-lifting-rules [pform (*active-platform*)])

@@ -132,7 +132,7 @@
   (for ([node (in-vector (batch-nodes insert-batch))]
         [root? (in-vector root-mask)]
         [n (in-naturals)])
-    (define node*
+    (define idx
       (match node
         [(literal v prec) (list '$literal (insert-node! prec #f) (insert-node! v #f))]
         [(? number?) node]
@@ -140,7 +140,7 @@
          (define replacement (normalize-var node))
          (match-define (cons _ repr) (hash-ref egg->herbie-dict replacement))
          (list '$var (insert-node! (representation-name repr) #f) (insert-node! replacement #f))]
-        [`(impl ,prec ,spec) (list '$impl (insert-node! prec #f) (remap spec))]
+        [(hole prec spec) (list '$hole (insert-node! prec #f) (remap spec))]
         [(approx spec impl)
          (hash-ref! id->spec
                     (remap spec)
@@ -148,10 +148,10 @@
                       (define spec* (normalize-spec (batch-ref insert-batch spec)))
                       (define type (representation-type (repr-of-node insert-batch impl ctx)))
                       (cons spec* type))) ; preserved spec and type for extraction
-         (list '$approx (remap spec) (remap impl))]
-        [(list op (app remap args) ...) (cons op args)]))
+         (insert-node! (list '$approx (remap spec) (remap impl)) root?)]
+        [(list op (app remap args) ...) (insert-node! (cons op args) root?)]))
 
-    (vector-set! mappings n (insert-node! node* root?)))
+    (vector-set! mappings n idx))
 
   (for/list ([root (in-vector (batch-roots insert-batch))])
     (remap root)))
@@ -258,7 +258,7 @@
       [(? number?) expr]
       [(? literal?) (list '$literal (literal-precision expr) (literal-value expr))]
       [(? symbol?) (string->symbol (format "?~a" expr))]
-      [`(impl ,prec ,spec) (list '$impl prec (loop spec))]
+      [(hole prec spec) (list '$hole prec (loop spec))]
       [(approx spec impl) (list '$approx (loop spec) (loop impl))]
       [(list op args ...) (cons op (map loop args))])))
 
@@ -283,8 +283,9 @@
                       (hash-set! egg->herbie-dict replacement (cons expr type))
                       replacement)))
        (list '$var (representation-name type) replacement)]
-      [(list 'impl prec spec) (list '$impl prec (loop spec))]
+      [(hole prec spec) (list '$hole prec (loop spec))]
       [(approx spec impl) (list '$approx (loop spec) (loop impl))]
+      [(hole precision spec) (loop spec)]
       [(list op args ...) (cons op (map loop args))])))
 
 (define (flatten-let expr)
@@ -315,7 +316,7 @@
        (if (hash-has-key? rename-dict expr)
            (car (hash-ref rename-dict expr)) ; variable (extract uncanonical name)
            (list expr))] ; constant function
-      [(list '$impl prec spec) (list 'impl prec (loop spec (get-representation prec)))]
+      [(list '$hole prec spec) (hole prec (loop spec (get-representation prec)))]
       [(list '$var prec spec) (loop spec (get-representation prec))]
       [(list '$literal prec spec) (loop spec (get-representation prec))]
       [(list '$approx spec impl) ; approx
@@ -532,18 +533,18 @@
 (define (expand-rules rules)
   (reap
    [sow]
-   (sow (cons #f (make-ffi-rule "lift-literal" "($literal ?repr ?a)" "($impl ?repr ?a)")))
-   (sow (cons #f (make-ffi-rule "lift-var" "($var ?repr ?a)" "($impl ?repr ?a)")))
+   (sow (cons #f (make-ffi-rule "lift-literal" "($literal ?repr ?a)" "($hole ?repr ?a)")))
+   (sow (cons #f (make-ffi-rule "lift-var" "($var ?repr ?a)" "($hole ?repr ?a)")))
    ;; This is ugly but does the job
    (sow (cons #f (make-ffi-rule "lift-var-spec" "($var ?repr ?a)" "?a")))
    (sow (cons #f
               (make-ffi-rule "lift-if"
-                             "(if ($impl bool ?c) ($impl ?r ?t) ($impl ?r ?f))"
-                             "($impl ?r (if ?c ?t ?f))")))
+                             "(if ($hole bool ?c) ($hole ?r ?t) ($hole ?r ?f))"
+                             "($hole ?r (if ?c ?t ?f))")))
    (sow (cons #f
               (make-ffi-rule "lower-if"
-                             "($impl ?r (if ?c ?t ?f))"
-                             "(if ($impl bool ?c) ($impl ?r ?t) ($impl ?r ?f))")))
+                             "($hole ?r (if ?c ?t ?f))"
+                             "(if ($hole bool ?c) ($hole ?r ?t) ($hole ?r ?f))")))
    (for ([rule (in-list rules)])
      (define egg&ffi-rules
        (hash-ref! (*egg-rule-cache*)
@@ -597,7 +598,7 @@
     [(cons f _) ; application
      (cond
        [(set-member? '(binary32 binary64 bool posit16) f) (list 'real)]
-       [(eq? f '$impl) (list)] ;; Hack so these aren't extracted
+       [(eq? f '$hole) (list)] ;; Hack so these aren't extracted
        [(eq? f '$literal) (all-reprs/types)]
        [(eq? f '$var) (all-reprs/types)]
        [(eq? f '$approx) (platform-reprs (*active-platform*))]
@@ -613,10 +614,10 @@
     [(cons f ids) ; application
      (cond
        [(set-member? '(binary64 binary32 bool posit16) f) f]
-       [(eq? f '$impl)
+       [(eq? f '$hole)
         (define prec (u32vector-ref ids 0))
         (define spec (u32vector-ref ids 1))
-        (list '$impl (lookup prec 'real) (lookup spec 'real))]
+        (list '$hole (lookup prec 'real) (lookup spec 'real))]
        [(eq? f '$var)
         (define prec (u32vector-ref ids 0))
         (define spec (u32vector-ref ids 1))
@@ -911,7 +912,7 @@
             [(? number?) (platform-repr-cost (*active-platform*) type)]
             [(? symbol?) (platform-repr-cost (*active-platform*) type)]
             [(list '$approx x y) 0]
-            [(list '$impl x y) 1.0e300]
+            [(list '$hole x y) 1.0e300]
             [(list '$literal x y) 1]
             [(list '$var x y) 1]
             [(list 'if c x y)
@@ -1035,7 +1036,7 @@
       [(? number?) #t]
       [(? symbol?) #t]
       [(list '$approx _ impl) (vector-ref costs impl)]
-      [(list '$impl _ spec) #t]
+      [(list '$hole _ spec) #t]
       [(list '$literal _ spec) #t]
       [(list '$var _ spec) #t]
       [(list _ ids ...) (andmap (lambda (id) (vector-ref costs id)) ids)]))
@@ -1112,7 +1113,7 @@
     [(? number?) 1]
     [(? symbol?) 1]
     ; approx node
-    [(list '$impl _ _) +inf.0]
+    [(list '$hole _ _) +inf.0]
     [(list '$literal _ _) 1]
     [(list '$var _ _) 1]
     [(list '$approx _ impl) (rec impl)]
@@ -1144,7 +1145,7 @@
        [(? symbol?) ; variables (`egg->herbie` has the repr)
         (define repr (cdr (hash-ref egg->herbie node)))
         ((node-cost-proc node repr))]
-       [(list '$impl _ _) +inf.0]
+       [(list '$hole _ _) +inf.0]
        [(list '$literal _ c) (rec c)]
        [(list '$var _ v) (rec v)]
        ; approx node

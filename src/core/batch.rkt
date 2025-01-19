@@ -26,7 +26,7 @@
 (define (expr-recurse expr f)
   (match expr
     [(approx spec impl) (approx (f spec) (f impl))]
-    [(list 'impl prec spec) (list 'impl prec (f spec))]
+    [(hole precision spec) (hole precision (f spec))]
     [(list op args ...) (cons op (map f args))]
     [_ expr]))
 

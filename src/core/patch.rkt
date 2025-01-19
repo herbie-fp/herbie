@@ -54,8 +54,8 @@
                 [outputs (in-list simplification-options)])
             (match-define (cons _ simplified) outputs)
             (define prev (car (alt-prevs altn)))
-            (for ([batchref (in-list simplified)])
-              (sow (alt batchref `(simplify ,runner #f) (list altn) '()))))
+            (for ([bref (in-list simplified)])
+              (sow (alt bref `(simplify ,runner #f) (list altn) '()))))
           (batch-copy-mutable-nodes! global-batch global-batch-mutable))) ; Update global-batch
 
   (timeline-push! 'count (length approxs) (length simplified))
@@ -74,10 +74,8 @@
                               #;(log ,log-x ,exp-x))))
 
 (define (taylor-alts starting-exprs altns global-batch)
-  (define exprs
-    (for/list ([expr (in-list starting-exprs)])
-      (prog->spec expr)))
-  (define free-vars (map free-variables exprs))
+  (define specs (map prog->spec starting-exprs))
+  (define free-vars (map free-variables specs))
   (define vars (context-vars (*context*)))
 
   (reap [sow]
@@ -85,17 +83,17 @@
         (for* ([var (in-list vars)]
                [transform-type transforms-to-try])
           (match-define (list name f finv) transform-type)
-          (define timeline-stop! (timeline-start! 'series (~a exprs) (~a var) (~a name)))
-          (define genexprs (approximate exprs var #:transform (cons f finv)))
+          (define timeline-stop! (timeline-start! 'series (~a specs) (~a var) (~a name)))
+          (define genexprs (approximate specs var #:transform (cons f finv)))
           (for ([genexpr (in-list genexprs)]
+                [spec (in-list specs)]
                 [expr (in-list starting-exprs)]
-                [spec (in-list exprs)]
                 [altn (in-list altns)]
                 [fv (in-list free-vars)]
-                #:when (member var fv)) ; check whether var exists in expr at all
+                #:when (set-member? fv var)) ; check whether var exists in expr at all
             (for ([i (in-range (*taylor-order-limit*))])
               (define repr (repr-of expr (*context*)))
-              (define gen (approx spec `(impl ,(representation-name repr) ,(genexpr))))
+              (define gen (approx spec (hole (representation-name repr) (genexpr))))
               (define idx (mutable-batch-munge! global-batch-mutable gen)) ; Munge gen
               (sow (alt (batchref global-batch idx) `(taylor ,name ,var) (list altn) '()))))
           (timeline-stop!))
