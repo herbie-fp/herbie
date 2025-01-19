@@ -278,29 +278,29 @@
   (define out-prog* (fpcore-add-props out-prog (list ':precision output-prec)))
 
   (define versions
-    (reap
-     [sow]
-     (for ([(lang record) (in-dict languages)])
-       (match-define (list ext converter) record)
-       (when (and (fpcore? out-prog*) (or (equal? ext "fpcore") (supported-by-lang? out-prog* ext)))
-         (define name
-           (if identifier
-               (symbol->string identifier)
-               "code"))
-         (define out (converter out-prog* name))
-         (define prelude-lines
-           (string-join
-            (append-map (lambda (instruction)
-                          (format-prelude-instruction instruction ctx ctx* lang converter))
-                        instructions)
-            (if (equal? lang "TeX") "\\\\\n" "\n")
-            #:after-last "\n"))
-         (sow (cons lang
-                    ((if (equal? lang "TeX")
-                         (curry format "\\begin{array}{l}\n~a\\\\\n~a\\end{array}\n")
-                         string-append)
-                     prelude-lines
-                     out)))))))
+    (reap [sow]
+          (for ([(lang record) (in-dict languages)])
+            (match-define (list ext converter) record)
+            (when (and (fpcore? out-prog*)
+                       (or (equal? ext "fpcore") (supported-by-lang? out-prog* ext)))
+              (define name
+                (if identifier
+                    (symbol->string identifier)
+                    "code"))
+              (define out (converter out-prog* name))
+              (define prelude-lines
+                (string-join
+                 (append-map (lambda (instruction)
+                               (format-prelude-instruction instruction ctx ctx* lang converter))
+                             instructions)
+                 (if (equal? lang "TeX") "\\\\\n" "\n")
+                 #:after-last "\n"))
+              (sow (cons lang
+                         ((if (equal? lang "TeX")
+                              (curry format "\\begin{array}{l}\n~a\\\\\n~a\\end{array}\n")
+                              string-append)
+                          prelude-lines
+                          out)))))))
 
   (define math-out (dict-ref versions "TeX" ""))
 
