@@ -202,7 +202,7 @@
      (define fabs-impl (get-fpcore-impl 'fabs (repr->prop r) (list r)))
      (define e (list fabs-impl x))
      (define c (context (list x) r r))
-     (format "~a = ~a" x* (converter* e c))]
+     (list (format "~a = ~a" x* (converter* e c)))]
     [(list 'negabs x)
      ; TODO: why are x* and x-sign unused?
      (define x* (string->symbol (format "~a_m" x)))
@@ -220,7 +220,7 @@
      (define vs* (context-vars ctx*))
      ;; We added some sign-* variables to the front of the variable
      ;; list in `ctx*`, we only want the originals here
-     (format-sort-instruction (take-right vs* (length vs)) language)]))
+     (list (format-sort-instruction (take-right vs* (length vs)) language))]))
 
 (define (format-sort-instruction vs l)
   (match l
@@ -291,10 +291,7 @@
          (define prelude-lines
            (string-join
             (append-map (lambda (instruction)
-                          (define l (format-prelude-instruction instruction ctx ctx* lang converter))
-                          (if (list? l)
-                              l
-                              (list l)))
+                          (format-prelude-instruction instruction ctx ctx* lang converter))
                         instructions)
             (if (equal? lang "TeX") "\\\\\n" "\n")
             #:after-last "\n"))
