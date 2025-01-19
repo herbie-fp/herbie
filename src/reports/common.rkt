@@ -306,9 +306,11 @@
                      out)))))))
 
   (define math-out
-    (if (dict-has-key? versions "TeX")
-        (let ([val (dict-ref versions "TeX")]) val)
-        ""))
+    (cond
+      [(dict-has-key? versions "TeX")
+       (define val (dict-ref versions "TeX"))
+       val]
+      [else ""]))
 
   (define dropdown
     `(select (option "Math")
