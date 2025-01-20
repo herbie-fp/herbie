@@ -137,7 +137,7 @@
            (get-table-data-from-hash result (make-path job-id)))])))
 
 (define (get-json-converter command)
-  (match command
+  (match (herbie-command-command command)
     ['alternatives make-alternatives-result]
     ['evaluate make-calculate-result]
     ['cost make-cost-result]
