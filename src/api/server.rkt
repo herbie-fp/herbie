@@ -367,7 +367,8 @@
 (define (make-local-error-result herbie-result job-id)
   (hasheq 'tree (job-result-backend herbie-result)))
 
-(define (make-sample-result herbie-result test job-id)
+(define (make-sample-result herbie-result job-id)
+  (define test (job-result-test herbie-result))
   (define pctx (job-result-backend herbie-result))
   (define repr (context-repr (test-context test)))
   (hasheq 'points (pcontext->json pctx repr)))
