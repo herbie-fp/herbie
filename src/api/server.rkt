@@ -390,7 +390,7 @@
   (hasheq 'points (job-result-backend herbie-result)))
 
 (define (make-improve-result herbie-result job-id)
-  (define test (job-result-test test))
+  (define test (job-result-test herbie-result))
   (define ctx (context->json (test-context test)))
   (define backend (job-result-backend herbie-result))
   (define job-time (job-result-time herbie-result))
