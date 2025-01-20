@@ -28,5 +28,7 @@
     [_ altn]))
 
 (define (add-derivations alts)
+  (define cache (make-hasheq))
   (for/list ([altn (in-list alts)])
-    (alt-map add-derivations-to altn)))
+    ;; We need to cache this because we'll see the same alt several times
+    (alt-map (lambda (altn) (hash-ref! cache altn (lambda () (add-derivations-to altn)))) altn)))
