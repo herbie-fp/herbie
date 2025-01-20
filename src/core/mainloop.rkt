@@ -353,7 +353,7 @@
      (timeline-event! 'simplify)
 
      ; egg schedule (only FP rewrites plus simplify rewrites for if statements)
-     (define rules (append (*fp-safe-simplify-rules*) (*simplify-rules*)))
+     (define rules (append (platform-simplify-rules) (*simplify-rules*)))
      (define schedule `((,rules . ((node . ,(*node-limit*)) (const-fold? . #f)))))
 
      ; egg runner
@@ -363,13 +363,7 @@
      (define runner (make-egg-runner batch (batch-roots batch) reprs schedule))
 
      ; run egg
-     (define simplified
-       (map (compose debatchref last)
-            (simplify-batch runner
-                            (typed-egg-batch-extractor (if (*egraph-platform-cost*)
-                                                           platform-egg-cost-proc
-                                                           default-egg-cost-proc)
-                                                       batch))))
+     (define simplified (map (compose debatchref last) (simplify-batch runner batch)))
 
      ; de-duplication
      (remove-duplicates (for/list ([altn (in-list alts)]
@@ -384,12 +378,12 @@
   (cond
     [(flag-set? 'generate 'proofs)
      (timeline-event! 'derivations)
-     (add-derivations alts (*pcontext*) (*context*))]
+     (add-derivations alts)]
     [else alts]))
 
 (define (sort-alts alts)
   (define repr (context-repr (*context*)))
   ;; find the best, sort the rest by cost
   (define errss (batch-errors (map alt-expr alts) (*pcontext*) (*context*)))
-  (define best (car (argmin (compose errors-score cdr) (map cons alts (flip-lists errss)))))
+  (define best (car (argmin (compose errors-score cdr) (map cons alts errss))))
   (cons best (sort (set-remove alts best) > #:key (curryr alt-cost repr))))
