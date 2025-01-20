@@ -105,76 +105,65 @@
 ;; Rival-supported operators
 
 ; real constants (encoded as nullary operators)
-(define-operators
-  [PI : -> real]
-  [E : -> real]
-  [INFINITY : -> real]
-  [NAN : -> real])
+(define-operators [PI : -> real] [E : -> real] [INFINITY : -> real] [NAN : -> real])
 
 ; boolean constants (encoded as nullary operators)
-(define-operators
-  [TRUE : -> bool]
-  [FALSE : -> bool])
+(define-operators [TRUE : -> bool] [FALSE : -> bool])
 
 ; boolean operators
-(define-operators
-  [not : bool -> bool]
-  [and : bool bool -> bool]
-  [or : bool bool -> bool])
+(define-operators [not : bool -> bool] [and : bool bool -> bool] [or : bool bool -> bool])
 
 ; real-boolean operators
-(define-operators
-  [== : real real -> bool]
-  [!= : real real -> bool]
-  [< : real real -> bool]
-  [> : real real -> bool]
-  [<= : real real -> bool]
-  [>= : real real -> bool])
+(define-operators [== : real real -> bool]
+                  [!= : real real -> bool]
+                  [< : real real -> bool]
+                  [> : real real -> bool]
+                  [<= : real real -> bool]
+                  [>= : real real -> bool])
 
 ; real operators
-(define-operators
-  [acos : real -> real]
-  [acosh : real -> real]
-  [asin : real -> real]
-  [asinh : real -> real]
-  [atan : real -> real]
-  [atanh : real -> real]
-  [cbrt : real -> real]
-  [ceil : real -> real]
-  [cos : real -> real]
-  [cosh : real -> real]
-  [erf : real -> real]
-  [exp : real -> real]
-  [exp2 : real -> real]
-  [fabs : real -> real]
-  [floor : real -> real]
-  [lgamma : real -> real]
-  [log : real -> real]
-  [log10 : real -> real]
-  [log2 : real -> real]
-  [logb : real -> real]
-  [neg : real -> real]
-  [rint : real -> real]
-  [round : real -> real]
-  [sin : real -> real]
-  [sinh : real -> real]
-  [sqrt : real -> real]
-  [tan : real -> real]
-  [tanh : real -> real]
-  [tgamma : real -> real]
-  [trunc : real -> real]
-  [+ : real real -> real]
-  [- : real real -> real]
-  [* : real real -> real]
-  [/ : real real -> real]
-  [atan2 : real real -> real]
-  [copysign : real real -> real]
-  [fdim : real real -> real]
-  [fmax : real real -> real]
-  [fmin : real real -> real]
-  [fmod : real real -> real]
-  [pow : real real -> real]
-  [remainder : real real -> real])
+(define-operators [acos : real -> real]
+                  [acosh : real -> real]
+                  [asin : real -> real]
+                  [asinh : real -> real]
+                  [atan : real -> real]
+                  [atanh : real -> real]
+                  [cbrt : real -> real]
+                  [ceil : real -> real]
+                  [cos : real -> real]
+                  [cosh : real -> real]
+                  [erf : real -> real]
+                  [exp : real -> real]
+                  [exp2 : real -> real]
+                  [fabs : real -> real]
+                  [floor : real -> real]
+                  [lgamma : real -> real]
+                  [log : real -> real]
+                  [log10 : real -> real]
+                  [log2 : real -> real]
+                  [logb : real -> real]
+                  [neg : real -> real]
+                  [rint : real -> real]
+                  [round : real -> real]
+                  [sin : real -> real]
+                  [sinh : real -> real]
+                  [sqrt : real -> real]
+                  [tan : real -> real]
+                  [tanh : real -> real]
+                  [tgamma : real -> real]
+                  [trunc : real -> real]
+                  [+ : real real -> real]
+                  [- : real real -> real]
+                  [* : real real -> real]
+                  [/ : real real -> real]
+                  [atan2 : real real -> real]
+                  [copysign : real real -> real]
+                  [fdim : real real -> real]
+                  [fmax : real real -> real]
+                  [fmin : real real -> real]
+                  [fmod : real real -> real]
+                  [pow : real real -> real]
+                  [remainder : real real -> real])
 
 (module+ test
   ; check expected number of operators
