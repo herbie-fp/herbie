@@ -147,7 +147,7 @@
     ['local-error make-local-error-result]
     ['explanations make-explanation-result]
     ['sample make-sample-result]
-    [_ (error 'compute-result "unknown command ~a" kind)]))
+    [_ (error 'compute-result "unknown command ~a" command)]))
 
 (define (herbie-do-server-job command job-id)
   (define herbie-result (wrapper-run-herbie command job-id))
