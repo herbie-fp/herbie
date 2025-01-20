@@ -151,7 +151,9 @@
 
 (define (herbie-do-server-job command job-id)
   (define herbie-result (wrapper-run-herbie command job-id))
-  ((get-json-converter command) herbie-result job-id))
+  (define basic-output ((get-json-converter command) herbie-result job-id))
+  ;; Add default fields that all commands have
+  (hash-set* basic-output 'command (~a command) 'job job-id 'path (make-path job-id)))
 
 (define completed-work (make-hash))
 
@@ -360,56 +362,21 @@
   (place-channel-put manager (list 'finished manager worker-id job-id out-result)))
 
 (define (make-explanation-result herbie-result job-id)
-  (hasheq 'command
-          (~a (job-result-command herbie-result))
-          'explanation
-          (job-result-backend herbie-result)
-          'job
-          job-id
-          'path
-          (make-path job-id)))
+  (hasheq 'explanation (job-result-backend herbie-result)))
 
 (define (make-local-error-result herbie-result job-id)
-  (hasheq 'command
-          (~a (job-result-command herbie-result))
-          'tree
-          (job-result-backend herbie-result)
-          'job
-          job-id
-          'path
-          (make-path job-id)))
+  (hasheq 'tree (job-result-backend herbie-result)))
 
 (define (make-sample-result herbie-result test job-id)
   (define pctx (job-result-backend herbie-result))
   (define repr (context-repr (test-context test)))
-  (hasheq 'command
-          (~a (job-result-command herbie-result))
-          'points
-          (pcontext->json pctx repr)
-          'job
-          job-id
-          'path
-          (make-path job-id)))
+  (hasheq 'points (pcontext->json pctx repr)))
 
 (define (make-calculate-result herbie-result job-id)
-  (hasheq 'command
-          (~a (job-result-command herbie-result))
-          'points
-          (job-result-backend herbie-result)
-          'job
-          job-id
-          'path
-          (make-path job-id)))
+  (hasheq 'points (job-result-backend herbie-result)))
 
 (define (make-cost-result herbie-result job-id)
-  (hasheq 'command
-          (~a (job-result-command herbie-result))
-          'cost
-          (job-result-backend herbie-result)
-          'job
-          job-id
-          'path
-          (make-path job-id)))
+  (hasheq 'cost (job-result-backend herbie-result)))
 
 (define (make-error-result herbie-result job-id)
   (define errs
@@ -417,24 +384,10 @@
       (define pt (first pt&err))
       (define err (second pt&err))
       (list pt (format-bits (ulps->bits err)))))
-  (hasheq 'command
-          (~a (job-result-command herbie-result))
-          'points
-          errs
-          'job
-          job-id
-          'path
-          (make-path job-id)))
+  (hasheq 'points errs))
 
 (define (make-exacts-result herbie-result job-id)
-  (hasheq 'command
-          (~a (job-result-command herbie-result))
-          'points
-          (job-result-backend herbie-result)
-          'job
-          job-id
-          'path
-          (make-path job-id)))
+  (hasheq 'points (job-result-backend herbie-result)))
 
 (define (make-improve-result herbie-result test job-id)
   (define ctx (context->json (test-context test)))
@@ -451,9 +404,7 @@
       ['timeout #f]
       ['failure (exception->datum backend)]))
 
-  (hasheq 'command
-          (~a (job-result-command herbie-result))
-          'status
+  (hasheq 'status
           (job-result-status herbie-result)
           'test
           test
@@ -468,11 +419,7 @@
           'profile
           profile
           'backend
-          backend-hash
-          'job
-          job-id
-          'path
-          (make-path job-id)))
+          backend-hash))
 
 (define (backend-improve-result-hash-table backend repr test)
   (define pcontext (improve-result-pctxs backend))
@@ -564,17 +511,11 @@
   (define derivations
     (for/list ([altn altns])
       (render-json altn processed-pcontext test-pcontext (test-context test))))
-  (hasheq 'command
-          (~a (job-result-command herbie-result))
-          'alternatives
+  (hasheq 'alternatives
           fpcores
           'histories
           histories
           'derivations
           derivations
           'splitpoints
-          splitpoints
-          'job
-          job-id
-          'path
-          (make-path job-id)))
+          splitpoints))
