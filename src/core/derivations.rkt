@@ -1,11 +1,8 @@
 #lang racket
 
 (require "../utils/alternative.rkt"
-         "points.rkt"
          "programs.rkt"
-         "egg-herbie.rkt"
-         "../syntax/sugar.rkt"
-         "../syntax/syntax.rkt")
+         "egg-herbie.rkt")
 
 (provide add-derivations)
 
