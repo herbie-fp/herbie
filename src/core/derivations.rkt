@@ -22,7 +22,7 @@
      (define end-expr (location-get loc expr))
      (define proof (run-egg runner `(proofs ,(cons start-expr end-expr))))
      (define proof* (canonicalize-proof (alt-expr altn) proof loc))
-     (alt expr `(rr ,loc ,runner ,proof) `(,prev) '())]
+     (alt expr `(rr ,loc ,runner ,proof*) `(,prev) '())]
 
     ; everything else
     [_ altn]))
