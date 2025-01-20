@@ -139,13 +139,13 @@
 (define (get-json-converter command)
   (match (herbie-command-command command)
     ['alternatives make-alternatives-result]
-    ['evaluate make-calculate-result]
     ['cost make-cost-result]
     ['errors make-error-result]
+    ['evaluate make-calculate-result]
     ['exacts make-exacts-result]
+    ['explanations make-explanation-result]
     ['improve make-improve-result]
     ['local-error make-local-error-result]
-    ['explanations make-explanation-result]
     ['sample make-sample-result]
     [_ (error 'compute-result "unknown command ~a" command)]))
 
