@@ -389,7 +389,8 @@
 (define (make-exacts-result herbie-result job-id)
   (hasheq 'points (job-result-backend herbie-result)))
 
-(define (make-improve-result herbie-result test job-id)
+(define (make-improve-result herbie-result job-id)
+  (define test (job-result-test test))
   (define ctx (context->json (test-context test)))
   (define backend (job-result-backend herbie-result))
   (define job-time (job-result-time herbie-result))
