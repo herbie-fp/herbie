@@ -181,11 +181,6 @@
 (define manager #f)
 (define manager-dead-event #f)
 
-(define (get-command herbie-result)
-  ; force symbol type to string.
-  ; This is a HACK to fix JSON parsing errors that may or may not still happen.
-  (~s (job-result-command herbie-result)))
-
 (define (compute-job-id job-info)
   (sha1 (open-input-string (~s job-info))))
 
@@ -366,7 +361,7 @@
 
 (define (make-explanation-result herbie-result job-id)
   (hasheq 'command
-          (get-command herbie-result)
+          (~a (job-result-command herbie-result))
           'explanation
           (job-result-backend herbie-result)
           'job
@@ -376,7 +371,7 @@
 
 (define (make-local-error-result herbie-result job-id)
   (hasheq 'command
-          (get-command herbie-result)
+          (~a (job-result-command herbie-result))
           'tree
           (job-result-backend herbie-result)
           'job
@@ -388,7 +383,7 @@
   (define pctx (job-result-backend herbie-result))
   (define repr (context-repr (test-context test)))
   (hasheq 'command
-          (get-command herbie-result)
+          (~a (job-result-command herbie-result))
           'points
           (pcontext->json pctx repr)
           'job
@@ -398,7 +393,7 @@
 
 (define (make-calculate-result herbie-result job-id)
   (hasheq 'command
-          (get-command herbie-result)
+          (~a (job-result-command herbie-result))
           'points
           (job-result-backend herbie-result)
           'job
@@ -408,7 +403,7 @@
 
 (define (make-cost-result herbie-result job-id)
   (hasheq 'command
-          (get-command herbie-result)
+          (~a (job-result-command herbie-result))
           'cost
           (job-result-backend herbie-result)
           'job
@@ -422,11 +417,18 @@
       (define pt (first pt&err))
       (define err (second pt&err))
       (list pt (format-bits (ulps->bits err)))))
-  (hasheq 'command (get-command herbie-result) 'points errs 'job job-id 'path (make-path job-id)))
+  (hasheq 'command
+          (~a (job-result-command herbie-result))
+          'points
+          errs
+          'job
+          job-id
+          'path
+          (make-path job-id)))
 
 (define (make-exacts-result herbie-result job-id)
   (hasheq 'command
-          (get-command herbie-result)
+          (~a (job-result-command herbie-result))
           'points
           (job-result-backend herbie-result)
           'job
@@ -450,7 +452,7 @@
       ['failure (exception->datum backend)]))
 
   (hasheq 'command
-          (get-command herbie-result)
+          (~a (job-result-command herbie-result))
           'status
           (job-result-status herbie-result)
           'test
@@ -563,7 +565,7 @@
     (for/list ([altn altns])
       (render-json altn processed-pcontext test-pcontext (test-context test))))
   (hasheq 'command
-          (get-command herbie-result)
+          (~a (job-result-command herbie-result))
           'alternatives
           fpcores
           'histories
