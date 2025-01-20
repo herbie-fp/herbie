@@ -25,8 +25,7 @@
           [real-apply
            (->* (real-compiler? list?) ((or/c (vectorof any/c) boolean?)) (values symbol? any/c))]
           [real-compiler-clear! (-> real-compiler-clear! void?)]
-          [real-compiler-analyze
-           (-> real-compiler? (vectorof ival?) (listof (or/c ival? (vectorof any/c) boolean?)))]))
+          [real-compiler-analyze (-> real-compiler? (vectorof ival?) (listof any/c))]))
 
 (define (unified-contexts? ctxs)
   (and ((non-empty-listof context?) ctxs)
@@ -117,7 +116,4 @@
 ;; for the given inputs range. The result is an interval representing
 ;; how certain the result is: no, maybe, yes.
 (define (real-compiler-analyze compiler input-ranges)
-  (define res (rival-analyze (real-compiler-machine compiler) input-ranges))
-  (if (list? res)
-      (car res)
-      res))
+  (rival-analyze (real-compiler-machine compiler) input-ranges))
