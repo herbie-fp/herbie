@@ -472,38 +472,38 @@
 ;; Fails if the result is not well-typed.
 (define (try-lower expr repr op->impl)
   (let/ec k
-          (define env '())
-          (define expr*
-            (let loop ([expr expr]
-                       [repr repr])
-              (match expr
-                [(? symbol? x) ; variable
-                 (match (dict-ref env x #f)
-                   [#f (set! env (cons (cons x repr) env))]
-                   [(? (curry equal? repr)) (k #f env)]
-                   [_ (void)])
-                 x]
-                ; number
-                [(? number? n) (literal n (representation-name repr))]
-                [(list 'if cond ift iff) ; if expression
-                 (list 'if (loop cond (get-representation 'bool)) (loop ift repr) (loop iff repr))]
-                [(list op args ...) ; application
-                 (define impl (dict-ref op->impl op))
-                 (unless (equal? (impl-info impl 'otype) repr)
-                   (k #f env))
-                 (cons impl (map loop args (impl-info impl 'itype)))])))
-          (define ctx (context (map car env) repr (map cdr env)))
-          (values (and (equal? (repr-of expr* ctx) repr) expr*) env)))
+    (define env '())
+    (define expr*
+      (let loop ([expr expr]
+                 [repr repr])
+        (match expr
+          [(? symbol? x) ; variable
+           (match (dict-ref env x #f)
+             [#f (set! env (cons (cons x repr) env))]
+             [(? (curry equal? repr)) (k #f env)]
+             [_ (void)])
+           x]
+          ; number
+          [(? number? n) (literal n (representation-name repr))]
+          [(list 'if cond ift iff) ; if expression
+           (list 'if (loop cond (get-representation 'bool)) (loop ift repr) (loop iff repr))]
+          [(list op args ...) ; application
+           (define impl (dict-ref op->impl op))
+           (unless (equal? (impl-info impl 'otype) repr)
+             (k #f env))
+           (cons impl (map loop args (impl-info impl 'itype)))])))
+    (define ctx (context (map car env) repr (map cdr env)))
+    (values (and (equal? (repr-of expr* ctx) repr) expr*) env)))
 
 ;; Merges two variable -> value mappings.
 ;; If any mapping disagrees, the result is `#f`.
 (define (merge-envs env1 env2)
   (let/ec k
-          (for/fold ([env env1]) ([(x ty) (in-dict env2)])
-            (match (dict-ref env x #f)
-              [#f (cons (cons x ty) env)]
-              [(? (curry equal? ty)) env]
-              [_ (k #f)]))))
+    (for/fold ([env env1]) ([(x ty) (in-dict env2)])
+      (match (dict-ref env x #f)
+        [#f (cons (cons x ty) env)]
+        [(? (curry equal? ty)) env]
+        [_ (k #f)]))))
 
 ;; Synthesizes impl-to-impl rules for a given platform.
 ;; If a rule is over implementations, filters by supported implementations.

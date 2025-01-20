@@ -29,17 +29,6 @@
            (map (lambda (interval) (fpbench-ival->ival var-repr interval))
                 (range-table-ref range-table var-name)))))
 
-(define (subsplit-hyperrects hyperrects var-reprs)
-  (for/fold ([storage '()]) ([hyperrect (in-list hyperrects)])
-    (append storage
-            (apply cartesian-product
-                   (for/list ([range (in-list hyperrect)]
-                              [repr (in-list var-reprs)])
-                     (match (two-midpoints repr (ival-lo range) (ival-hi range))
-                       [(cons midleft midright)
-                        (list (ival (ival-lo range) midleft) (ival midright (ival-hi range)))]
-                       [#f (list range)]))))))
-
 (define (fpbench-ival->ival repr fpbench-interval)
   (match-define (interval lo hi lo? hi?) fpbench-interval)
   (match (representation-type repr)

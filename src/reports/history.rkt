@@ -49,21 +49,21 @@
 
 (define (splice-proof-step step)
   (let/ec k
-          (let loop ([expr step]
-                     [loc '()])
-            (match expr
-              [(list 'Rewrite=> rule sub)
-               (define loc* (reverse loc))
-               (k 'Rewrite=> rule loc* (location-do loc* step (λ _ sub)))]
-              [(list 'Rewrite<= rule sub)
-               (define loc* (reverse loc))
-               (k 'Rewrite<= rule loc* (location-do loc* step (λ _ sub)))]
-              [(list op args ...)
-               (for ([arg (in-list args)]
-                     [i (in-naturals 1)])
-                 (loop arg (cons i loc)))]
-              [_ (void)]))
-          (k 'Goal #f '() step)))
+    (let loop ([expr step]
+               [loc '()])
+      (match expr
+        [(list 'Rewrite=> rule sub)
+         (define loc* (reverse loc))
+         (k 'Rewrite=> rule loc* (location-do loc* step (λ _ sub)))]
+        [(list 'Rewrite<= rule sub)
+         (define loc* (reverse loc))
+         (k 'Rewrite<= rule loc* (location-do loc* step (λ _ sub)))]
+        [(list op args ...)
+         (for ([arg (in-list args)]
+               [i (in-naturals 1)])
+           (loop arg (cons i loc)))]
+        [_ (void)]))
+    (k 'Goal #f '() step)))
 
 (define (altn-errors altn pcontext pcontext2 ctx)
   (define repr (context-repr ctx))
