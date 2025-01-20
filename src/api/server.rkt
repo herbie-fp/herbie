@@ -153,7 +153,13 @@
   (define herbie-result (wrapper-run-herbie command job-id))
   (define basic-output ((get-json-converter command) herbie-result job-id))
   ;; Add default fields that all commands have
-  (hash-set* basic-output 'command (~a command) 'job job-id 'path (make-path job-id)))
+  (hash-set* basic-output
+             'command
+             (~a (herbie-command-command command))
+             'job
+             job-id
+             'path
+             (make-path job-id)))
 
 (define completed-work (make-hash))
 
