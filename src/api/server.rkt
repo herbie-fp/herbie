@@ -136,20 +136,22 @@
                     #:when (equal? (hash-ref result 'command) "improve"))
            (get-table-data-from-hash result (make-path job-id)))])))
 
+(define (get-json-converter command)
+  (match command
+    ['alternatives make-alternatives-result]
+    ['evaluate make-calculate-result]
+    ['cost make-cost-result]
+    ['errors make-error-result]
+    ['exacts make-exacts-result]
+    ['improve make-improve-result]
+    ['local-error make-local-error-result]
+    ['explanations make-explanation-result]
+    ['sample make-sample-result]
+    [_ (error 'compute-result "unknown command ~a" kind)]))
+
 (define (herbie-do-server-job command job-id)
   (define herbie-result (wrapper-run-herbie command job-id))
-  (match-define (job-result kind test status time _ _ _ backend) herbie-result)
-  (match kind
-    ['alternatives (make-alternatives-result herbie-result test job-id)]
-    ['evaluate (make-calculate-result herbie-result job-id)]
-    ['cost (make-cost-result herbie-result job-id)]
-    ['errors (make-error-result herbie-result job-id)]
-    ['exacts (make-exacts-result herbie-result job-id)]
-    ['improve (make-improve-result herbie-result test job-id)]
-    ['local-error (make-local-error-result herbie-result job-id)]
-    ['explanations (make-explanation-result herbie-result job-id)]
-    ['sample (make-sample-result herbie-result test job-id)]
-    [_ (error 'compute-result "unknown command ~a" kind)]))
+  ((get-json-converter command) herbie-result job-id))
 
 (define completed-work (make-hash))
 
@@ -529,8 +531,9 @@
 (define (repr->json repr)
   (hasheq 'name (representation-name repr) 'type (representation-type repr)))
 
-(define (make-alternatives-result herbie-result test job-id)
+(define (make-alternatives-result herbie-result job-id)
 
+  (define test (job-result-test herbie-result))
   (define vars (test-vars test))
   (define repr (test-output-repr test))
 
