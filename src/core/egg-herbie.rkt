@@ -1275,10 +1275,7 @@
   (define egg-graph (egg-runner-egg-graph runner))
 
   (unless (egraph-expr-equal? egg-graph start end ctx)
-    (error 'egraph-prove
-           "cannot prove ~a is equal to ~a; not equal"
-           start
-           end))
+    (error 'egraph-prove "cannot prove ~a is equal to ~a; not equal" start end))
   (define proof (egraph-get-proof egg-graph start end ctx))
   (when (null? proof)
     (error 'egraph-prove "proof extraction failed between`~a` and `~a`" start end))
@@ -1315,10 +1312,10 @@
   (define reprs (egg-runner-reprs runner))
   (when (flag-set? 'dump 'egg)
     (regraph-dump regraph root-ids reprs))
-  
+
   (define extract-id ((typed-egg-batch-extractor batch) regraph))
   (define finalize-batch (last extract-id))
-  
+
   ; (Listof (Listof batchref))
   (define out
     (for/list ([id (in-list root-ids)]
