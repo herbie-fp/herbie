@@ -64,7 +64,7 @@
 
   ; egg query
   (define batch (progs->batch (list expr)))
-  (define runner (make-egg-runner batch (batch-roots batch) (list (context-repr ctx)) schedule))
+  (define runner (make-egraph batch (batch-roots batch) (list (context-repr ctx)) schedule))
 
   ; run egg
   (define simplified (simplify-batch runner batch))
@@ -99,10 +99,10 @@
 
   (define batch (progs->batch specs))
   (define runner
-    (make-egg-runner batch
-                     (batch-roots batch)
-                     (map (lambda (_) (context-repr ctx)) specs)
-                     `((,rules . ((node . ,(*node-limit*)))))))
+    (make-egraph batch
+                 (batch-roots batch)
+                 (map (lambda (_) (context-repr ctx)) specs)
+                 `((,rules . ((node . ,(*node-limit*)))))))
 
   ;; run egg to check for identities
   (define expr-pairs (map (curry cons spec) specs))

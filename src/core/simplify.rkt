@@ -40,10 +40,10 @@
   (define (test-simplify . args)
     (define batch (progs->batch args))
     (define runner
-      (make-egg-runner batch
-                       (batch-roots batch)
-                       (map (lambda (_) 'real) args)
-                       `((,(*simplify-rules*) . ((node . ,(*node-limit*)))))))
+      (make-egraph batch
+                   (batch-roots batch)
+                   (map (lambda (_) 'real) args)
+                   `((,(*simplify-rules*) . ((node . ,(*node-limit*)))))))
     (parameterize ([*egraph-platform-cost* #f])
       (map (compose debatchref last) (simplify-batch runner batch))))
 

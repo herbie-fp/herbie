@@ -22,7 +22,7 @@
          "batch.rkt")
 
 (provide (struct-out egg-runner)
-         make-egg-runner
+         make-egraph
          run-egg)
 
 (module+ test
@@ -57,7 +57,7 @@
          id->spec)) ; map from e-class id to an approx-spec or #f
 
 ; Makes a new egraph that is managed by Racket's GC
-(define (make-egraph)
+(define (make-egraph-data)
   (egraph-data (egraph_create) (make-hash) (make-hash) (make-hash)))
 
 ; Creates a new runner using an existing egraph.
@@ -347,7 +347,7 @@
           (cons '(cos.f32 (PI.f32)) '(cos.f32 (PI.f32)))
           (cons '(if (TRUE) x y) '(if (TRUE) $h1 $h0))))
 
-  (let ([egg-graph (make-egraph)])
+  (let ([egg-graph (make-egraph-data)])
     (for ([(in expected-out) (in-dict test-exprs)])
       (define out (expr->egg-expr in egg-graph (*context*)))
       (define computed-in (egg-expr->expr out egg-graph (context-repr (*context*))))
@@ -375,7 +375,7 @@
           `(*.f64 ,(literal 23/54 'binary64) r)
           `(+.f64 ,(literal 3/2 'binary64) ,(literal 1.4 'binary64))))
 
-  (let ([egg-graph (make-egraph)])
+  (let ([egg-graph (make-egraph-data)])
     (for ([expr extended-expr-list])
       (define egg-expr (expr->egg-expr expr egg-graph (*context*)))
       (check-equal? (egg-expr->expr egg-expr egg-graph (context-repr (*context*))) expr))))
@@ -1161,7 +1161,7 @@
 
 (define (egraph-run-schedule batch roots schedule ctx)
   ; allocate the e-graph
-  (define egg-graph (make-egraph))
+  (define egg-graph (make-egraph-data))
 
   ; insert expressions into the e-graph
   (define root-ids (egraph-add-exprs egg-graph batch roots ctx))
@@ -1191,7 +1191,7 @@
 ;; Public API
 ;;
 ;; Most calls to egg should be done through this interface.
-;;  - `make-egg-runner`: creates a struct that describes a _reproducible_ egg instance
+;;  - `make-egraph`: creates a struct that describes an egraph
 ;;  - `run-egg`: takes an egg runner and performs an extraction (exprs or proof)
 
 ;; Herbie's version of an egg runner.
@@ -1213,7 +1213,7 @@
 ;;     - scheduler: `(scheduler . <name>)` [default: backoff]
 ;;        - `simple`: run all rules without banning
 ;;        - `backoff`: ban rules if the fire too much
-(define (make-egg-runner batch roots reprs schedule #:context [ctx (*context*)])
+(define (make-egraph batch roots reprs schedule #:context [ctx (*context*)])
   (define (oops! fmt . args)
     (apply error 'verify-schedule! fmt args))
   ; verify the schedule
