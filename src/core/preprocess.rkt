@@ -33,7 +33,7 @@
   (for/list ([var (in-list (context-vars ctx))]
              [repr (in-list (context-var-reprs ctx))]
              #:when (has-fabs-neg-impls? repr))
-    (list 'even var (replace-expression spec var `(neg ,var)))))
+    (cons `(abs ,var) (replace-expression spec var `(neg ,var)))))
 
 ;; The odd identities: f(x) = -f(-x)
 ;; Requires `neg` and `fabs` operator implementations.
@@ -41,14 +41,14 @@
   (for/list ([var (in-list (context-vars ctx))]
              [repr (in-list (context-var-reprs ctx))]
              #:when (and (has-fabs-neg-impls? repr) (has-copysign-impl? repr)))
-    (list 'odd var (replace-expression `(neg ,spec) var `(neg ,var)))))
+    (cons `(negabs ,var) (replace-expression `(neg ,spec) var `(neg ,var)))))
 
 ;; Swap identities: f(a, b) = f(b, a)
 (define (make-swap-identities spec ctx)
   (define pairs (combinations (context-vars ctx) 2))
   (for/list ([pair (in-list pairs)])
     (match-define (list a b) pair)
-    (list 'swap pair (replace-vars `((,a . ,b) (,b . ,a)) spec))))
+    (cons `(swap ,a ,b) (replace-vars `((,a . ,b) (,b . ,a)) spec))))
 
 ;; Initial simplify
 (define (initial-simplify expr ctx)
@@ -90,29 +90,29 @@
   ;; make egg runner
   (define rules (*simplify-rules*))
 
-  (define batch (progs->batch (map third identities)))
+  (define batch (progs->batch (cons spec (map cdr identities))))
   (define runner
     (make-egraph batch
                  (batch-roots batch)
-                 (map (const (context-repr ctx)) identities)
+                 (make-list (vector-length (batch-roots batch)) (context-repr ctx))
                  `((,rules . ((node . ,(*node-limit*)))))))
 
   ;; collect equalities
   (define abs-instrs
-    (for/list ([ident (in-list even-identities)]
-               #:when (egraph-equal? runner spec (third ident)))
-      (list 'abs (second ident))))
+    (for/list ([(ident spec*) (in-dict even-identities)]
+               #:when (egraph-equal? runner spec spec*))
+      ident))
 
   (define negabs-instrs
-    (for/list ([ident (in-list odd-identities)]
-               #:when (egraph-equal? runner spec (third ident)))
-      (list 'negabs (second ident))))
+    (for/list ([(ident spec*) (in-dict odd-identities)]
+               #:when (egraph-equal? runner spec spec*))
+      ident))
 
   (define swaps
-    (for/list ([ident (in-list swap-identities)]
-               #:when (egraph-equal? runner spec (third ident)))
-      (second ident)))
-
+    (for/list ([(ident spec*) (in-dict swap-identities)]
+               #:when (egraph-equal? runner spec spec*))
+      (match-define (list 'swap a b) ident)
+      (list a b)))
   (define components (connected-components (context-vars ctx) swaps))
   (define sort-instrs
     (for/list ([component (in-list components)]
