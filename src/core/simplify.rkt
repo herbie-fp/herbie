@@ -19,7 +19,7 @@
 (define (simplify-batch runner batch)
   (timeline-push! 'inputs (map ~a (batch->progs (egg-runner-batch runner) (egg-runner-roots runner))))
 
-  (define simplifieds (run-egg runner (cons 'single batch)))
+  (define simplifieds (egraph-best runner batch))
   (define out
     (for/list ([simplified (in-list simplifieds)]
                [root (egg-runner-roots runner)])

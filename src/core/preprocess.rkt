@@ -106,7 +106,9 @@
 
   ;; run egg to check for identities
   (define expr-pairs (map (curry cons spec) specs))
-  (define equal?-lst (run-egg runner `(equal? . ,expr-pairs)))
+  (define equal?-lst
+    (for/list ([(start end) (in-dict expr-pairs)])
+      (egraph-equal? runner start end)))
 
   ;; collect equalities
   (define abs-instrs '())

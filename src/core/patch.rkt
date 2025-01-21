@@ -137,7 +137,7 @@
 
   (define runner (make-egraph global-batch roots reprs schedule))
   ; batchrefss is a (listof (listof batchref))
-  (define batchrefss (run-egg runner (cons 'multi global-batch)))
+  (define batchrefss (egraph-variations runner global-batch))
 
   ; apply changelists
   (define rewritten
