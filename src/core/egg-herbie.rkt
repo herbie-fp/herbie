@@ -130,16 +130,20 @@
         [(? symbol?) (insert-node! (var->egg-var node ctx) root?)]
         [(hole prec spec) (remap spec)] ; "hole" terms currently disappear
         [(approx spec impl)
-         (hash-ref! id->spec
-                    (remap spec)
-                    (lambda ()
-                      (define spec* (normalize-spec (batch-ref insert-batch spec)))
-                      (define type (representation-type (repr-of-node insert-batch impl ctx)))
-                      (cons spec* type))) ; preserved spec and type for extraction
          (insert-node! (list '$approx (remap spec) (remap impl)) root?)]
         [(list op (app remap args) ...) (insert-node! (cons op args) root?)]))
 
     (vector-set! mappings n idx))
+
+  (for ([node (in-vector (batch-nodes insert-batch))]
+        #:when (approx? node))
+    (match-define (approx spec impl) node)
+    (hash-ref! id->spec
+               (remap spec)
+               (lambda ()
+                 (define spec* (normalize-spec (batch-ref insert-batch spec)))
+                 (define type (representation-type (repr-of-node insert-batch impl ctx)))
+                 (cons spec* type))))
 
   (for/list ([root (in-vector (batch-roots insert-batch))])
     (remap root)))
