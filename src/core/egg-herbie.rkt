@@ -55,13 +55,12 @@
 ;; Wrapper around Rust-allocated egg runner
 (struct egraph-data
         (egraph-pointer ; FFI pointer to runner
-         herbie->egg-dict ; map from symbols to canonicalized names
          egg->herbie-dict ; inverse map
          id->spec)) ; map from e-class id to an approx-spec or #f
 
 ; Makes a new egraph that is managed by Racket's GC
 (define (make-egraph-data)
-  (egraph-data (egraph_create) (make-hash) (make-hash) (make-hash)))
+  (egraph-data (egraph_create) (make-hash) (make-hash)))
 
 ; Creates a new runner using an existing egraph.
 ; Useful for multi-phased rule application
@@ -72,17 +71,14 @@
 
 ; Adds expressions returning the root ids
 (define (egraph-add-exprs egg-data batch roots ctx)
-  (match-define (egraph-data ptr herbie->egg-dict egg->herbie-dict id->spec) egg-data)
+  (match-define (egraph-data ptr egg->herbie-dict id->spec) egg-data)
 
   ; lookups the egg name of a variable
   (define (normalize-var x)
-    (hash-ref! herbie->egg-dict
-               x
-               (lambda ()
-                 (define id (hash-count herbie->egg-dict))
-                 (define replacement (string->symbol (format "$h~a" id)))
-                 (hash-set! egg->herbie-dict replacement (cons x (context-lookup ctx x)))
-                 replacement)))
+    (define idx (index-of (context-vars ctx) x))
+    (define replacement (string->symbol (format "$var~a" idx)))
+    (hash-set! egg->herbie-dict replacement (cons x (context-lookup ctx x)))
+    replacement)
 
   ; normalizes an approx spec
   (define (normalize-spec expr)
@@ -266,19 +262,15 @@
 ;; Result is the expression.
 (define (expr->egg-expr expr egg-data ctx)
   (define egg->herbie-dict (egraph-data-egg->herbie-dict egg-data))
-  (define herbie->egg-dict (egraph-data-herbie->egg-dict egg-data))
   (let loop ([expr expr])
     (match expr
       [(? number?) expr]
       [(? literal?) (literal-value expr)]
-      [(? symbol?)
-       (hash-ref! herbie->egg-dict
-                  expr
-                  (lambda ()
-                    (define id (hash-count herbie->egg-dict))
-                    (define replacement (string->symbol (format "$h~a" id)))
-                    (hash-set! egg->herbie-dict replacement (cons expr (context-lookup ctx expr)))
-                    replacement))]
+      [(? symbol? x)
+       (define idx (index-of (context-vars ctx) x))
+       (define replacement (string->symbol (format "$var~a" idx)))
+       (hash-set! egg->herbie-dict replacement (cons x (context-lookup ctx x)))
+       replacement]
       [(approx spec impl) (list '$approx (loop spec) (loop impl))]
       [(hole precision spec) (loop spec)]
       [(list op args ...) (cons op (map loop args))])))
@@ -333,22 +325,18 @@
   (egg-parsed->expr (flatten-let egg-expr) egg->herbie type))
 
 (module+ test
-  (define repr (get-representation 'binary64))
-  (*context* (make-debug-context '()))
-  (*context* (context-extend (*context*) 'x repr))
-  (*context* (context-extend (*context*) 'y repr))
-  (*context* (context-extend (*context*) 'z repr))
+  (*context* (make-debug-context '(x y z)))
 
   (define test-exprs
-    (list (cons '(+.f64 y x) '(+.f64 $h0 $h1))
-          (cons '(+.f64 x y) '(+.f64 $h1 $h0))
-          (cons '(-.f64 #s(literal 2 binary64) (+.f64 x y)) '(-.f64 2 (+.f64 $h1 $h0)))
+    (list (cons '(+.f64 y x) '(+.f64 $var1 $var0))
+          (cons '(+.f64 x y) '(+.f64 $var0 $var1))
+          (cons '(-.f64 #s(literal 2 binary64) (+.f64 x y)) '(-.f64 2 (+.f64 $var0 $var1)))
           (cons '(-.f64 z (+.f64 (+.f64 y #s(literal 2 binary64)) x))
-                '(-.f64 $h2 (+.f64 (+.f64 $h0 2) $h1)))
-          (cons '(*.f64 x y) '(*.f64 $h1 $h0))
-          (cons '(+.f64 (*.f64 x y) #s(literal 2 binary64)) '(+.f64 (*.f64 $h1 $h0) 2))
+                '(-.f64 $var2 (+.f64 (+.f64 $var1 2) $var0)))
+          (cons '(*.f64 x y) '(*.f64 $var0 $var1))
+          (cons '(+.f64 (*.f64 x y) #s(literal 2 binary64)) '(+.f64 (*.f64 $var0 $var1) 2))
           (cons '(cos.f32 (PI.f32)) '(cos.f32 (PI.f32)))
-          (cons '(if (TRUE) x y) '(if (TRUE) $h1 $h0))))
+          (cons '(if (TRUE) x y) '(if (TRUE) $var0 $var1))))
 
   (let ([egg-graph (make-egraph-data)])
     (for ([(in expected-out) (in-dict test-exprs)])
