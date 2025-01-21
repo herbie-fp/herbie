@@ -87,40 +87,31 @@
   (define swap-identities (make-swap-identities spec ctx))
   (define identities (append even-identities odd-identities swap-identities))
 
-  (define specs
-    (for/list ([ident (in-list identities)])
-      (match ident
-        [(list 'even _ spec) spec]
-        [(list 'odd _ spec) spec]
-        [(list 'swap _ spec) spec])))
-
   ;; make egg runner
   (define rules (*simplify-rules*))
 
-  (define batch (progs->batch specs))
+  (define batch (progs->batch (map third identities)))
   (define runner
     (make-egraph batch
                  (batch-roots batch)
-                 (map (lambda (_) (context-repr ctx)) specs)
+                 (map (const (context-repr ctx)) identities)
                  `((,rules . ((node . ,(*node-limit*)))))))
 
-  ;; run egg to check for identities
-  (define expr-pairs (map (curry cons spec) specs))
-  (define equal?-lst
-    (for/list ([(start end) (in-dict expr-pairs)])
-      (egraph-equal? runner start end)))
-
   ;; collect equalities
-  (define abs-instrs '())
-  (define negabs-instrs '())
-  (define swaps '())
-  (for ([ident (in-list identities)]
-        [expr-equal? (in-list equal?-lst)]
-        #:when expr-equal?)
-    (match ident
-      [(list 'even var _) (set! abs-instrs (cons (list 'abs var) abs-instrs))]
-      [(list 'odd var _) (set! negabs-instrs (cons (list 'negabs var) negabs-instrs))]
-      [(list 'swap pair _) (set! swaps (cons pair swaps))]))
+  (define abs-instrs
+    (for/list ([ident (in-list even-identities)]
+               #:when (egraph-equal? runner spec (third ident)))
+      (list 'abs (second ident))))
+
+  (define negabs-instrs
+    (for/list ([ident (in-list odd-identities)]
+               #:when (egraph-equal? runner spec (third ident)))
+      (list 'negabs (second ident))))
+
+  (define swaps
+    (for/list ([ident (in-list swap-identities)]
+               #:when (egraph-equal? runner spec (third ident)))
+      (second ident)))
 
   (define components (connected-components (context-vars ctx) swaps))
   (define sort-instrs
