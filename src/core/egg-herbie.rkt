@@ -129,8 +129,7 @@
         [(? number?) (insert-node! node root?)]
         [(? symbol?) (insert-node! (var->egg-var node ctx) root?)]
         [(hole prec spec) (remap spec)] ; "hole" terms currently disappear
-        [(approx spec impl)
-         (insert-node! (list '$approx (remap spec) (remap impl)) root?)]
+        [(approx spec impl) (insert-node! (list '$approx (remap spec) (remap impl)) root?)]
         [(list op (app remap args) ...) (insert-node! (cons op args) root?)]))
 
     (vector-set! mappings n idx))
@@ -297,10 +296,8 @@
        (if (representation? type)
            (literal expr (representation-name type))
            expr)]
-      [(? symbol? (regexp #rx"^\\$var"))
-       (egg-var->var expr)]
-      [(? symbol?)
-       (list expr)] ; constant function
+      [(? symbol? (regexp #rx"^\\$var")) (egg-var->var expr)]
+      [(? symbol?) (list expr)] ; constant function
       [(list '$approx spec impl) ; approx
        (define spec-type
          (if (representation? type)
@@ -1101,7 +1098,6 @@
     (batch-copy-mutable-nodes! input-batch out))
 
   (values add-id add-enode finalize-batch))
-
 
 ;; Is fractional with odd denominator.
 (define (fraction-with-odd-denominator? frac)
