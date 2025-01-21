@@ -34,7 +34,7 @@
     (match rect
       [(cons (vector _ ...) rect*) rect*]
       [_ rect]))
-  
+
   (define vars (real-compiler-vars compiler))
   (define reprs (real-compiler-var-reprs compiler))
   (match-define (search-space true false other) space)
@@ -73,7 +73,7 @@
 
 (define (make-sampling-table reprs true false other)
   (define denom (total-weight reprs))
-   ; map rest = drop hint
+  ; map rest = drop hint
   (define true-weight (apply + (map (curryr hyperrect-weight reprs) (map rest true))))
   (define false-weight (apply + (map (curryr hyperrect-weight reprs) false)))
   (define other-weight (apply + (map (curryr hyperrect-weight reprs) (map rest other))))
