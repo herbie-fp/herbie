@@ -378,7 +378,7 @@
   (cond
     [(flag-set? 'generate 'proofs)
      (timeline-event! 'derivations)
-     (add-derivations alts (*pcontext*) (*context*))]
+     (add-derivations alts)]
     [else alts]))
 
 (define (sort-alts alts)
