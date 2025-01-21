@@ -55,12 +55,11 @@
 ;; Wrapper around Rust-allocated egg runner
 (struct egraph-data
         (egraph-pointer ; FFI pointer to runner
-         egg->herbie-dict ; inverse map
          id->spec)) ; map from e-class id to an approx-spec or #f
 
 ; Makes a new egraph that is managed by Racket's GC
 (define (make-egraph-data)
-  (egraph-data (egraph_create) (make-hash) (make-hash)))
+  (egraph-data (egraph_create) (make-hash)))
 
 ; Creates a new runner using an existing egraph.
 ; Useful for multi-phased rule application
@@ -71,20 +70,13 @@
 
 ; Adds expressions returning the root ids
 (define (egraph-add-exprs egg-data batch roots ctx)
-  (match-define (egraph-data ptr egg->herbie-dict id->spec) egg-data)
-
-  ; lookups the egg name of a variable
-  (define (normalize-var x)
-    (define idx (index-of (context-vars ctx) x))
-    (define replacement (string->symbol (format "$var~a" idx)))
-    (hash-set! egg->herbie-dict replacement (cons x (context-lookup ctx x)))
-    replacement)
+  (match-define (egraph-data ptr id->spec) egg-data)
 
   ; normalizes an approx spec
   (define (normalize-spec expr)
     (match expr
       [(? number?) expr]
-      [(? symbol?) (normalize-var expr)]
+      [(? symbol?) (var->egg-var expr ctx)]
       [(list op args ...) (cons op (map normalize-spec args))]))
 
   ; pre-allocated id vectors for all the common cases
@@ -135,7 +127,7 @@
       (match node
         [(literal v _) (insert-node! v root?)]
         [(? number?) (insert-node! node root?)]
-        [(? symbol?) (insert-node! (normalize-var node) root?)]
+        [(? symbol?) (insert-node! (var->egg-var node ctx) root?)]
         [(hole prec spec) (remap spec)] ; "hole" terms currently disappear
         [(approx spec impl)
          (hash-ref! id->spec
@@ -171,13 +163,13 @@
 
 (define (egraph-get-simplest egraph-data node-id iteration ctx)
   (define expr (egraph_get_simplest (egraph-data-egraph-pointer egraph-data) node-id iteration))
-  (egg-expr->expr expr egraph-data (context-repr ctx)))
+  (egg-expr->expr expr egraph-data ctx (context-repr ctx)))
 
 (define (egraph-get-variants egraph-data node-id orig-expr ctx)
   (define egg-expr (expr->egg-expr orig-expr egraph-data ctx))
   (define exprs (egraph_get_variants (egraph-data-egraph-pointer egraph-data) node-id egg-expr))
   (for/list ([expr (in-list exprs)])
-    (egg-expr->expr expr egraph-data (context-repr ctx))))
+    (egg-expr->expr expr egraph-data ctx (context-repr ctx))))
 
 (define (egraph-is-unsound-detected egraph-data)
   (egraph_is_unsound_detected (egraph-data-egraph-pointer egraph-data)))
@@ -206,12 +198,11 @@
 ;; where each enode is either a symbol, number, or list
 (define (egraph-get-eclass egraph-data id)
   (define ptr (egraph-data-egraph-pointer egraph-data))
-  (define egg->herbie (egraph-data-egg->herbie-dict egraph-data))
   (define eclass (egraph_get_eclass ptr id))
   ; need to fix up any constant operators
   (for ([enode (in-vector eclass)]
         [i (in-naturals)])
-    (when (and (symbol? enode) (not (hash-has-key? egg->herbie enode)))
+    (when (and (symbol? enode) (not (equal? (substring (symbol->string enode) 0 4) "$var")))
       (vector-set! eclass i (cons enode empty-u32vec))))
   eclass)
 
@@ -232,7 +223,7 @@
     [(<= (string-length str) (*proof-max-string-length*))
      (define converted
        (for/list ([expr (in-port read (open-input-string str))])
-         (egg-expr->expr expr egraph-data (context-repr ctx))))
+         (egg-expr->expr expr egraph-data ctx (context-repr ctx))))
      (define expanded (expand-proof converted (box (*proof-max-length*))))
      (if (member #f expanded) #f expanded)]
     [else #f]))
@@ -257,20 +248,23 @@
       [(approx spec impl) (list '$approx (loop spec) (loop impl))]
       [(list op args ...) (cons op (map loop args))])))
 
+(define (var->egg-var var ctx)
+  (define idx (index-of (context-vars ctx) var))
+  (string->symbol (format "$var~a" idx)))
+
+(define (egg-var->var egg-var ctx)
+  (define idx (string->number (substring (symbol->string egg-var) 4)))
+  (list-ref (context-vars ctx) idx))
+
 ;; Translates a Herbie expression into an expression usable by egg.
 ;; Updates translation dictionary upon encountering variables.
 ;; Result is the expression.
 (define (expr->egg-expr expr egg-data ctx)
-  (define egg->herbie-dict (egraph-data-egg->herbie-dict egg-data))
   (let loop ([expr expr])
     (match expr
       [(? number?) expr]
       [(? literal?) (literal-value expr)]
-      [(? symbol? x)
-       (define idx (index-of (context-vars ctx) x))
-       (define replacement (string->symbol (format "$var~a" idx)))
-       (hash-set! egg->herbie-dict replacement (cons x (context-lookup ctx x)))
-       replacement]
+      [(? symbol? x) (var->egg-var x ctx)]
       [(approx spec impl) (list '$approx (loop spec) (loop impl))]
       [(hole precision spec) (loop spec)]
       [(list op args ...) (cons op (map loop args))])))
@@ -291,7 +285,7 @@
 ;; TODO: typing information is confusing since proofs mean
 ;; we may process mixed spec/impl expressions;
 ;; only need `type` to correctly interpret numbers
-(define (egg-parsed->expr expr rename-dict type)
+(define (egg-parsed->expr expr ctx type)
   (let loop ([expr expr]
              [type type])
     (match expr
@@ -299,10 +293,10 @@
        (if (representation? type)
            (literal expr (representation-name type))
            expr)]
+      [(? symbol? (regexp #rx"^\\$var"))
+       (egg-var->var expr)]
       [(? symbol?)
-       (if (hash-has-key? rename-dict expr)
-           (car (hash-ref rename-dict expr)) ; variable (extract uncanonical name)
-           (list expr))] ; constant function
+       (list expr)] ; constant function
       [(list '$approx spec impl) ; approx
        (define spec-type
          (if (representation? type)
@@ -320,9 +314,8 @@
       [(list op args ...) (cons op (map loop args (operator-info op 'itype)))])))
 
 ;; Parses a string from egg into a single S-expr.
-(define (egg-expr->expr egg-expr egraph-data type)
-  (define egg->herbie (egraph-data-egg->herbie-dict egraph-data))
-  (egg-parsed->expr (flatten-let egg-expr) egg->herbie type))
+(define (egg-expr->expr egg-expr egraph-data ctx type)
+  (egg-parsed->expr (flatten-let egg-expr) ctx type))
 
 (module+ test
   (*context* (make-debug-context '(x y z)))
@@ -341,7 +334,7 @@
   (let ([egg-graph (make-egraph-data)])
     (for ([(in expected-out) (in-dict test-exprs)])
       (define out (expr->egg-expr in egg-graph (*context*)))
-      (define computed-in (egg-expr->expr out egg-graph (context-repr (*context*))))
+      (define computed-in (egg-expr->expr out egg-graph (*context*) (context-repr (*context*))))
       (check-equal? out expected-out)
       (check-equal? computed-in in)))
 
@@ -369,7 +362,7 @@
   (let ([egg-graph (make-egraph-data)])
     (for ([expr extended-expr-list])
       (define egg-expr (expr->egg-expr expr egg-graph (*context*)))
-      (check-equal? (egg-expr->expr egg-expr egg-graph (context-repr (*context*))) expr))))
+      (check-equal? (egg-expr->expr egg-expr egg-graph (*context*) (context-repr (*context*))) expr))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Proofs
@@ -526,8 +519,8 @@
 ;; - specs: vector-map from e-class to an approx spec or #f
 ;; - parents: vector-map from e-class to its parent e-classes (as a vector)
 ;; - canon: map from (Rust) e-class, type to (Racket) e-class
-;; - egg->herbie: data to translate egg IR to herbie IR
-(struct regraph (eclasses types leaf? constants specs parents canon egg->herbie))
+;; - ctx: the standard variable context
+(struct regraph (eclasses types leaf? constants specs parents canon ctx))
 
 ;; Returns all representatations (and their types) in the current platform.
 (define (all-reprs/types [pform (*active-platform*)])
@@ -537,16 +530,17 @@
 ;; Returns the type(s) of an enode so it can be placed in the proper e-class.
 ;; Typing rules:
 ;;  - numbers: every real representation (or real type)
-;;  - variables: lookup in the `egg->herbie` renaming dictionary
+;;  - variables: lookup in the context
 ;;  - `if`: type is every representation (or type) [can prune incorrect ones]
 ;;  - `approx`: every real representation [can prune incorrect ones]
 ;;  - ops/impls: its output type/representation
 ;; NOTE: we can constrain "every" type by using the platform.
-(define (enode-type enode egg->herbie)
+(define (enode-type enode ctx)
   (match enode
     [(? number?) (cons 'real (platform-reprs (*active-platform*)))] ; number
     [(? symbol?) ; variable
-     (match-define (cons _ repr) (hash-ref egg->herbie enode))
+     (define var (egg-var->var enode ctx))
+     (define repr (context-lookup ctx var))
      (list repr (representation-type repr))]
     [(cons f _) ; application
      (cond
@@ -596,7 +590,7 @@
 
 ;; Splits untyped eclasses into typed eclasses.
 ;; Nodes are duplicated across their possible types.
-(define (split-untyped-eclasses egraph-data egg->herbie)
+(define (split-untyped-eclasses egraph-data ctx)
   (define eclass-ids (egraph-eclasses egraph-data))
   (define max-id
     (for/fold ([current-max 0]) ([egg-id (in-u32vector eclass-ids)])
@@ -639,7 +633,7 @@
     (for ([enode (in-vector enodes)])
       ; get all possible types for the enode
       ; lookup its correct eclass and add the rebuilt node
-      (define types (enode-type enode egg->herbie))
+      (define types (enode-type enode ctx))
       (for ([type (in-list types)])
         (define id (idx+type->id idx type))
         (define enode* (rebuild-enode enode type lookup-id))
@@ -766,10 +760,10 @@
 
 ;; Splits untyped eclasses into typed eclasses,
 ;; keeping only the subset of enodes that are well-typed.
-(define (make-typed-eclasses egraph-data egg->herbie)
+(define (make-typed-eclasses egraph-data ctx)
   ;; Step 1: split Rust-eclasses by type
   (define-values (id->eclass id->parents id->leaf? eclass-ids egg-id->idx type->idx)
-    (split-untyped-eclasses egraph-data egg->herbie))
+    (split-untyped-eclasses egraph-data ctx))
 
   ;; Step 2: keep well-typed e-nodes
   ;; An e-class is well-typed if it has one well-typed node
@@ -813,12 +807,11 @@
 
 ;; Constructs a Racket egraph from an S-expr representation of
 ;; an egraph and data to translate egg IR to herbie IR.
-(define (make-regraph egraph-data)
-  (define egg->herbie (egraph-data-egg->herbie-dict egraph-data))
+(define (make-regraph egraph-data ctx)
   (define id->spec (egraph-data-id->spec egraph-data))
 
   ;; split the e-classes by type
-  (define-values (eclasses types canon) (make-typed-eclasses egraph-data egg->herbie))
+  (define-values (eclasses types canon) (make-typed-eclasses egraph-data ctx))
   (define n (vector-length eclasses))
 
   ;; analyze each eclass
@@ -832,7 +825,7 @@
     (vector-set! specs id* spec))
 
   ; construct the `regraph` instance
-  (regraph eclasses types leaf? constants specs parents canon egg->herbie))
+  (regraph eclasses types leaf? constants specs parents canon ctx))
 
 (define (regraph-nodes->json regraph)
   (define cost (platform-node-cost-proc (*active-platform*)))
@@ -1014,11 +1007,97 @@
 
   (define id->spec (regraph-specs regraph))
 
-  (define egg->herbie (regraph-egg->herbie regraph))
+  (define ctx (regraph-ctx regraph))
   (define-values (add-id add-enode finalize-batch)
-    (egg-nodes->batch costs id->spec batch-extract-to egg->herbie))
+    (egg-nodes->batch costs id->spec batch-extract-to ctx))
   ;; These functions provide a setup to extract nodes into batch-extract-to from nodes
   (list add-id add-enode finalize-batch))
+
+(define (egg-nodes->batch egg-nodes id->spec input-batch ctx)
+  (define out (batch->mutable-batch input-batch))
+  ; This fuction here is only because of cycles in loads:( Can not be imported from egg-herbie.rkt
+  (define (egg-parsed->expr expr type)
+    (let loop ([expr expr]
+               [type type])
+      (match expr
+        [(? number?)
+         (if (representation? type)
+             (literal expr (representation-name type))
+             expr)]
+        [(? symbol?)
+         (if (equal? (substring (symbol->string expr) 0 4) "$var")
+             (egg-var->var expr ctx)
+             (list expr))]
+        [(list '$approx spec impl)
+         (define spec-type
+           (if (representation? type)
+               (representation-type type)
+               type))
+         (approx (loop spec spec-type) (loop impl type))]
+        [(list 'if cond ift iff)
+         (if (representation? type)
+             (list 'if (loop cond (get-representation 'bool)) (loop ift type) (loop iff type))
+             (list 'if (loop cond 'bool) (loop ift type) (loop iff type)))]
+        [(list (? impl-exists? impl) args ...) (cons impl (map loop args (impl-info impl 'itype)))]
+        [(list op args ...) (cons op (map loop args (operator-info op 'itype)))])))
+
+  (define (eggref id)
+    (cdr (vector-ref egg-nodes id)))
+
+  (define (add-enode enode type)
+    (define idx
+      (let loop ([enode enode]
+                 [type type])
+        (define enode*
+          (match enode
+            [(? number?)
+             (if (representation? type)
+                 (literal enode (representation-name type))
+                 enode)]
+            [(? symbol?)
+             (if (equal? (substring (symbol->string enode) 0 4) "$var")
+                 (egg-var->var enode ctx)
+                 enode)]
+            [(list '$approx spec (app eggref impl))
+             (define spec* (vector-ref id->spec spec))
+             (unless spec*
+               (error 'regraph-extract-variants "no initial approx node in eclass"))
+             (define spec-type
+               (if (representation? type)
+                   (representation-type type)
+                   type))
+             (define final-spec (egg-parsed->expr spec* spec-type))
+             (define final-spec-idx (mutable-batch-munge! out final-spec))
+             (approx final-spec-idx (loop impl type))]
+            [(list 'if (app eggref cond) (app eggref ift) (app eggref iff))
+             (if (representation? type)
+                 (list 'if (loop cond (get-representation 'bool)) (loop ift type) (loop iff type))
+                 (list 'if (loop cond 'bool) (loop ift type) (loop iff type)))]
+            [(list (? impl-exists? impl) (app eggref args) ...)
+             (define args*
+               (for/list ([arg (in-list args)]
+                          [type (in-list (impl-info impl 'itype))])
+                 (loop arg type)))
+             (cons impl args*)]
+            [(list (? operator-exists? op) (app eggref args) ...)
+             (define args*
+               (for/list ([arg (in-list args)]
+                          [type (in-list (operator-info op 'itype))])
+                 (loop arg type)))
+             (cons op args*)]))
+        (mutable-batch-push! out enode*)))
+    (batchref input-batch idx))
+
+  ; same as add-enode but works with index as an input instead of enode
+  (define (add-id id type)
+    (add-enode (eggref id) type))
+
+  ; Commit changes to the input-batch
+  (define (finalize-batch)
+    (batch-copy-mutable-nodes! input-batch out))
+
+  (values add-id add-enode finalize-batch))
+
 
 ;; Is fractional with odd denominator.
 (define (fraction-with-odd-denominator? frac)
@@ -1064,13 +1143,13 @@
 (define (platform-egg-cost-proc regraph cache node type rec)
   (cond
     [(representation? type)
-     (define egg->herbie (regraph-egg->herbie regraph))
+     (define ctx (regraph-ctx regraph))
      (define node-cost-proc (platform-node-cost-proc (*active-platform*)))
      (match node
        ; numbers (repr is unused)
        [(? number? n) ((node-cost-proc (literal n type) type))]
-       [(? symbol?) ; variables (`egg->herbie` has the repr)
-        (define repr (cdr (hash-ref egg->herbie node)))
+       [(? symbol?) ; variables
+        (define repr (context-lookup ctx (egg-var->var node ctx)))
         ((node-cost-proc node repr))]
        ; approx node
        [(list '$approx _ impl) (rec impl)]
@@ -1085,7 +1164,6 @@
 ;; Extracts the best expression according to the extractor.
 ;; Result is a single element list.
 (define (regraph-extract-best regraph extract id type)
-  (define egg->herbie (regraph-egg->herbie regraph))
   (define canon (regraph-canon regraph))
   ; Extract functions to extract exprs from egraph
   (match-define (list extract-id _ _) extract)
@@ -1274,7 +1352,7 @@
   (define root-ids (egg-runner-new-roots runner))
   (define egg-graph (egg-runner-egg-graph runner))
 
-  (define regraph (make-regraph egg-graph))
+  (define regraph (make-regraph egg-graph ctx))
   (define reprs (egg-runner-reprs runner))
   (when (flag-set? 'dump 'egg)
     (regraph-dump regraph root-ids reprs))
@@ -1296,7 +1374,7 @@
   (define root-ids (egg-runner-new-roots runner))
   (define egg-graph (egg-runner-egg-graph runner))
 
-  (define regraph (make-regraph egg-graph))
+  (define regraph (make-regraph egg-graph ctx))
   (define reprs (egg-runner-reprs runner))
   (when (flag-set? 'dump 'egg)
     (regraph-dump regraph root-ids reprs))
