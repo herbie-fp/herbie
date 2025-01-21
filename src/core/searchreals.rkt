@@ -32,7 +32,7 @@
 (define (search-step compiler space split-var)
   (define (drop-hints-from-rects rect)
     (match rect
-      [(cons _ rect*) rect*]
+      [(cons (vector _ ...) rect*) rect*]
       [_ rect]))
   
   (define vars (real-compiler-vars compiler))
