@@ -205,7 +205,7 @@
   ; need to fix up any constant operators
   (for ([enode (in-vector eclass)]
         [i (in-naturals)])
-    (when (and (symbol? enode) (not (string-prefix? (symbol->string expr) "$var")))
+    (when (and (symbol? enode) (not (string-prefix? (symbol->string enode) "$var")))
       (vector-set! eclass i (cons enode empty-u32vec))))
   eclass)
 
@@ -1056,7 +1056,7 @@
                  (literal enode (representation-name type))
                  enode)]
             [(? symbol?)
-             (if (string-prefix? (symbol->string expr) "$var")
+             (if (string-prefix? (symbol->string enode) "$var")
                  (egg-var->var enode ctx)
                  enode)]
             [(list '$approx spec (app eggref impl))
