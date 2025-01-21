@@ -30,6 +30,11 @@
            (+ 1 (- (->ordinal (ival-hi interval)) (->ordinal (ival-lo interval)))))))
 
 (define (search-step compiler space split-var)
+  (define (drop-hints-from-rects rect)
+    (match rect
+      [(cons _ rect*) rect*]
+      [_ rect]))
+  
   (define vars (real-compiler-vars compiler))
   (define reprs (real-compiler-var-reprs compiler))
   (match-define (search-space true false other) space)
@@ -37,11 +42,7 @@
     (for/fold ([true* true]
                [false* false]
                [other* '()])
-              ([rect (in-list other)])
-      ; if a rect has a hint stored already then drop that hint
-      (when (not (equal? (length vars) (length rect)))
-        (set! rect (rest rect)))
-
+              ([rect (in-list (map drop-hints-from-rects other))])
       (match-define (list (ival err err?) hint converged?)
         (real-compiler-analyze compiler (list->vector rect)))
       (when (eq? err 'unsamplable)
@@ -72,6 +73,7 @@
 
 (define (make-sampling-table reprs true false other)
   (define denom (total-weight reprs))
+   ; map rest = drop hint
   (define true-weight (apply + (map (curryr hyperrect-weight reprs) (map rest true))))
   (define false-weight (apply + (map (curryr hyperrect-weight reprs) false)))
   (define other-weight (apply + (map (curryr hyperrect-weight reprs) (map rest other))))

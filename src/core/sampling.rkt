@@ -1,6 +1,5 @@
 #lang racket
 (require math/bigfloat
-         math/flonum
          rival
          math/base
          (only-in fpbench interval range-table-ref condition->range-table [expr? fpcore-expr?]))
