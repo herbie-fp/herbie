@@ -227,7 +227,7 @@
              (if (hash-has-key? rename-dict spec)
                  (car (hash-ref rename-dict spec))
                  spec)]
-            [(list '$impl (app eggref prec) (app eggref spec)) (list 'impl prec (loop spec 'real))]
+            [(list '$hole (app eggref prec) (app eggref spec)) (hole prec (loop spec 'real))]
             [(list '$approx spec (app eggref impl))
              (define spec* (vector-ref id->spec spec))
              (unless spec*

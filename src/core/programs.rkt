@@ -21,7 +21,7 @@
 
 ;; Programs are just lisp lists plus atoms
 
-(define expr? (or/c list? symbol? boolean? real? literal? approx?))
+(define expr? (or/c list? symbol? boolean? real? literal? approx? hole?))
 
 ;; Returns repr name
 ;; Fast version does not recurse into functions applications
@@ -164,6 +164,8 @@
     (match* (prog loc)
       [(_ (? null?)) (f prog)]
       [((or (? literal?) (? number?) (? symbol?)) _) (invalid! prog loc)]
+      [((hole prec spec) (cons 1 rest))
+       (hole prec (loop spec rest))]
       [((approx spec impl) (cons idx rest)) ; approx nodes
        (case idx
          [(1) (approx (loop spec rest) impl)]

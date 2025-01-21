@@ -132,7 +132,7 @@
   (for ([node (in-vector (batch-nodes insert-batch))]
         [root? (in-vector root-mask)]
         [n (in-naturals)])
-    (define idx
+    (define node*
       (match node
         [(literal v prec) (list '$literal (insert-node! prec #f) (insert-node! v #f))]
         [(? number?) node]
@@ -148,9 +148,9 @@
                       (define spec* (normalize-spec (batch-ref insert-batch spec)))
                       (define type (representation-type (repr-of-node insert-batch impl ctx)))
                       (cons spec* type))) ; preserved spec and type for extraction
-         (insert-node! (list '$approx (remap spec) (remap impl)) root?)]
-        [(list op (app remap args) ...) (insert-node! (cons op args) root?)]))
-
+         (list '$approx (remap spec) (remap impl))]
+        [(list op (app remap args) ...) (cons op args)]))
+    (define idx (insert-node! node* root?))
     (vector-set! mappings n idx))
 
   (for/list ([root (in-vector (batch-roots insert-batch))])
@@ -443,13 +443,13 @@
              (define res (sequential-product children))
              (set-box! budget (- (unbox budget) (length res)))
              (map (curry apply approx) res)])]
-         [(list 'impl prec spec)
+         [(hole prec spec)
           (define spec* (loop spec))
           (cond
             [(equal? (list #f) spec*) (list #f)]
             [else
              (set-box! budget (- (unbox budget) (length spec*)))
-             (map (curry list 'impl prec) spec*)])]
+             (map (curry hole prec) spec*)])]
          [`(Explanation ,body ...) (expand-proof body budget)]
          [(? list?)
           (define children (map loop term))
@@ -459,7 +459,7 @@
              (define res (sequential-product children))
              (set-box! budget (- (unbox budget) (length res)))
              res])]
-         [_ (error "Unknown proof term ~a" term)])])))
+         [_ (error 'expand-proof "Unknown proof term" term)])])))
 
 ;; Remove the front term if it doesn't have any rewrites
 (define (remove-front-term proof)
