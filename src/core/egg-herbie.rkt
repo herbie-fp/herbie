@@ -167,13 +167,13 @@
 
 (define (egraph-get-simplest egraph-data node-id iteration ctx)
   (define expr (egraph_get_simplest (egraph-data-egraph-pointer egraph-data) node-id iteration))
-  (egg-expr->expr expr egraph-data ctx (context-repr ctx)))
+  (egg-expr->expr expr ctx))
 
 (define (egraph-get-variants egraph-data node-id orig-expr ctx)
-  (define egg-expr (expr->egg-expr orig-expr egraph-data ctx))
+  (define egg-expr (expr->egg-expr orig-expr ctx))
   (define exprs (egraph_get_variants (egraph-data-egraph-pointer egraph-data) node-id egg-expr))
   (for/list ([expr (in-list exprs)])
-    (egg-expr->expr expr egraph-data ctx (context-repr ctx))))
+    (egg-expr->expr expr ctx)))
 
 (define (egraph-is-unsound-detected egraph-data)
   (egraph_is_unsound_detected (egraph-data-egraph-pointer egraph-data)))
@@ -220,14 +220,14 @@
 
 ;; returns a flattened list of terms or #f if it failed to expand the proof due to budget
 (define (egraph-get-proof egraph-data expr goal ctx)
-  (define egg-expr (expr->egg-expr expr egraph-data ctx))
-  (define egg-goal (expr->egg-expr goal egraph-data ctx))
+  (define egg-expr (expr->egg-expr expr ctx))
+  (define egg-goal (expr->egg-expr goal ctx))
   (define str (egraph_get_proof (egraph-data-egraph-pointer egraph-data) egg-expr egg-goal))
   (cond
     [(<= (string-length str) (*proof-max-string-length*))
      (define converted
        (for/list ([expr (in-port read (open-input-string str))])
-         (egg-expr->expr expr egraph-data ctx (context-repr ctx))))
+         (egg-expr->expr expr ctx)))
      (define expanded (expand-proof converted (box (*proof-max-length*))))
      (if (member #f expanded) #f expanded)]
     [else #f]))
@@ -263,7 +263,7 @@
 ;; Translates a Herbie expression into an expression usable by egg.
 ;; Updates translation dictionary upon encountering variables.
 ;; Result is the expression.
-(define (expr->egg-expr expr egg-data ctx)
+(define (expr->egg-expr expr ctx)
   (let loop ([expr expr])
     (match expr
       [(? number?) expr]
@@ -318,8 +318,8 @@
       [(list op args ...) (cons op (map loop args (operator-info op 'itype)))])))
 
 ;; Parses a string from egg into a single S-expr.
-(define (egg-expr->expr egg-expr egraph-data ctx type)
-  (egg-parsed->expr (flatten-let egg-expr) ctx type))
+(define (egg-expr->expr egg-expr ctx)
+  (egg-parsed->expr (flatten-let egg-expr) ctx (context-repr ctx)))
 
 (module+ test
   (*context* (make-debug-context '(x y z)))
@@ -337,8 +337,8 @@
 
   (let ([egg-graph (make-egraph-data)])
     (for ([(in expected-out) (in-dict test-exprs)])
-      (define out (expr->egg-expr in egg-graph (*context*)))
-      (define computed-in (egg-expr->expr out egg-graph (*context*) (context-repr (*context*))))
+      (define out (expr->egg-expr in (*context*)))
+      (define computed-in (egg-expr->expr out (*context*)))
       (check-equal? out expected-out)
       (check-equal? computed-in in)))
 
@@ -365,8 +365,8 @@
 
   (let ([egg-graph (make-egraph-data)])
     (for ([expr extended-expr-list])
-      (define egg-expr (expr->egg-expr expr egg-graph (*context*)))
-      (check-equal? (egg-expr->expr egg-expr egg-graph (*context*) (context-repr (*context*))) expr))))
+      (define egg-expr (expr->egg-expr expr (*context*)))
+      (check-equal? (egg-expr->expr egg-expr (*context*)) expr))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Proofs
