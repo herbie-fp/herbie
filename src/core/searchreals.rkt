@@ -13,10 +13,10 @@
 (provide find-intervals
          hyperrect-weight)
 
-(struct search-space (true false other))
+(struct search-space (true false other true-hints other-hints))
 
 (define (make-search-space . ranges)
-  (search-space '() '() ranges))
+  (search-space '() '() ranges '() (make-list (length ranges) #f)))
 
 (define (total-weight reprs)
   (expt 2 (apply + (map representation-total-bits reprs))))
@@ -30,21 +30,19 @@
            (+ 1 (- (->ordinal (ival-hi interval)) (->ordinal (ival-lo interval)))))))
 
 (define (search-step compiler space split-var)
-  (define (drop-hints-from-rects rect)
-    (match rect
-      [(cons (vector _ ...) rect*) rect*]
-      [_ rect]))
-
   (define vars (real-compiler-vars compiler))
   (define reprs (real-compiler-var-reprs compiler))
-  (match-define (search-space true false other) space)
-  (define-values (true* false* other*)
+  (match-define (search-space true false other true-hints other-hints) space)
+  (define-values (true* false* other* true-hints* other-hints*)
     (for/fold ([true* true]
                [false* false]
-               [other* '()])
-              ([rect (in-list (map drop-hints-from-rects other))])
-      (match-define (list (ival err err?) hint converged?)
-        (real-compiler-analyze compiler (list->vector rect)))
+               [other* '()]
+               [true-hints* true-hints]
+               [other-hints* '()])
+              ([rect (in-list other)]
+               [hint (in-list other-hints)])
+      (match-define (list (ival err err?) hint* converged?)
+        (real-compiler-analyze compiler (list->vector rect) hint))
       (when (eq? err 'unsamplable)
         (warn 'ground-truth
               #:url "faq.html#ground-truth"
@@ -58,8 +56,9 @@
                                          repr))
                         (format "~a = ~a" var val))))
       (cond
-        [err (values true* (cons rect false*) other*)]
-        [(and (not err?) converged?) (values (cons (cons hint rect) true*) false* other*)]
+        [err (values true* (cons rect false*) other* true-hints* other-hints*)]
+        [(and (not err?) converged?)
+         (values (cons rect true*) false* other* (cons hint* true-hints*) other-hints*)]
         [else
          (define range (list-ref rect split-var))
          (define repr (list-ref reprs split-var))
@@ -67,16 +66,19 @@
            [(cons midleft midright)
             (define rect-lo (list-set rect split-var (ival (ival-lo range) midleft)))
             (define rect-hi (list-set rect split-var (ival midright (ival-hi range))))
-            (values true* false* (list* (cons hint rect-lo) (cons hint rect-hi) other*))]
-           [#f (values true* false* (cons (cons hint rect) other*))])])))
-  (search-space true* false* other*))
+            (values true*
+                    false*
+                    (list* rect-lo rect-hi other*)
+                    true-hints*
+                    (list* hint* hint* other-hints*))]
+           [#f (values true* false* (cons rect other*) true-hints* (cons hint* other-hints*))])])))
+  (search-space true* false* other* true-hints* other-hints*))
 
 (define (make-sampling-table reprs true false other)
   (define denom (total-weight reprs))
-  ; map rest = drop hint
-  (define true-weight (apply + (map (curryr hyperrect-weight reprs) (map rest true))))
+  (define true-weight (apply + (map (curryr hyperrect-weight reprs) true)))
   (define false-weight (apply + (map (curryr hyperrect-weight reprs) false)))
-  (define other-weight (apply + (map (curryr hyperrect-weight reprs) (map rest other))))
+  (define other-weight (apply + (map (curryr hyperrect-weight reprs) other)))
   (define out (make-hash))
   (hash-set! out 'valid (exact->inexact (/ true-weight denom)))
   (hash-set! out 'unknown (exact->inexact (/ other-weight denom)))
@@ -91,11 +93,12 @@
       (map (curryr cons 'other) rects)
       (let loop ([space (apply make-search-space rects)]
                  [n 0])
-        (match-define (search-space true false other) space)
+        (match-define (search-space true false other true-hints other-hints) space)
         (timeline-push! 'sampling n (make-sampling-table var-reprs true false other))
 
         (define n* (remainder n (length (first rects))))
         (if (or (>= n depth) (empty? (search-space-other space)) (>= (length other) (expt 2 depth)))
-            (cons (append (search-space-true space) (search-space-other space))
+            (list (append (search-space-true space) (search-space-other space))
+                  (append (search-space-true-hints space) (search-space-other-hints space))
                   (make-sampling-table var-reprs true false other))
             (loop (search-step compiler space n*) (+ n 1))))))

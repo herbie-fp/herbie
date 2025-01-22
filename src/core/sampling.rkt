@@ -78,12 +78,11 @@
     (when (> search-result 0)
       (check-true (<= (vector-ref arr (- search-result 1)) search-for)))))
 
-;; hints-hyperrects* is a (listof '(hint hyperrect))
-(define (make-hyperrect-sampler hints-hyperrects* reprs)
-  (when (null? hints-hyperrects*)
+(define (make-hyperrect-sampler hyperrects* hints* reprs)
+  (when (null? hyperrects*)
     (raise-herbie-sampling-error "No valid values." #:url "faq.html#no-valid-values"))
-  (define hints (list->vector (map car hints-hyperrects*)))
-  (define hyperrects (list->vector (map rest hints-hyperrects*)))
+  (define hints (list->vector hints*))
+  (define hyperrects (list->vector hyperrects*))
   (define lo-ends
     (for/vector #:length (vector-length hyperrects)
                 ([hyperrect (in-vector hyperrects)])
@@ -130,9 +129,9 @@
      (timeline-push! 'method "search")
      (define hyperrects-analysis (precondition->hyperrects pre vars var-reprs))
      ; hints-hyperrects is a (listof '(hint hyperrect))
-     (match-define (cons hints-hyperrects sampling-table)
+     (match-define (list hyperrects hints sampling-table)
        (find-intervals compiler hyperrects-analysis #:fuel (*max-find-range-depth*)))
-     (cons (make-hyperrect-sampler hints-hyperrects var-reprs) sampling-table)]
+     (cons (make-hyperrect-sampler hyperrects hints var-reprs) sampling-table)]
     [else
      (timeline-push! 'method "random")
      ; sampler return false hint since rival-analyze has not been called in random method
