@@ -139,6 +139,7 @@ async function testAPI(url, body, cb) {
     console.log("  Synchronous response in " + Math.round(Date.now() - sync_start) + "ms")
     cb(sync_json);
 
+    let async_start = Date.now()
     let start_resp = await fetch(makeURL(url.replace("/api", "/api/start")), {
         method: 'POST',
         body: JSON.stringify(body),
@@ -154,7 +155,7 @@ async function testAPI(url, body, cb) {
     let async_resp = await fetch(makeURL("/api/result/" + jobid));
     let async_json = await async_resp.json();
 
-    console.log("  Asynchronous response in " + Math.round(Date.now() - sync_start) + "ms")
+    console.log("  Asynchronous response in " + Math.round(Date.now() - async_start) + "ms")
     cb(async_json);
 }
 
