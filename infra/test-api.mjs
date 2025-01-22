@@ -1,3 +1,5 @@
+// -*- mode: js -*-
+
 import { strict as assert } from 'node:assert';  // use strict equality everywhere 
 import { spawn } from 'child_process';
 import net from 'net';
@@ -30,6 +32,10 @@ child.stderr.on('data', (data) => {
 
 child.on('close', (code) => {
     if (code) console.log("Server crashed with code " + code);
+});
+
+process.on('exit', () => {
+  child.kill('SIGTERM'); // or any appropriate signal
 });
 
 function waitForPort(port) {
