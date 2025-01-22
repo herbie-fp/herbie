@@ -269,7 +269,7 @@ pub unsafe extern "C" fn egraph_run(
         let rho = ones / (zeros + ones);
         assert!(rho.is_nan() || rho <= 1f64);
 
-        let increase = (0.01 * rho * node_limit as f64) as usize;
+        let increase = (0.1 * rho * node_limit as f64) as usize;
         if increase == 0 {
             println!("shortcircuiting...");
             context.runner.stop_reason = Some(StopReason::Saturated);
