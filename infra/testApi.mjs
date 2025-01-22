@@ -48,6 +48,8 @@ function waitForPort(port) {
 await waitForPort(PORT)
 console.log("Server up and responding on port " + PORT)
 
+/* Step 2: Test the legacy HTTP endpoints */
+
 // Future TODO: before this API becomes set in stone/offered publicly, we should change the results of these methods to be just the output data rather than duplicating input values.
 // Reusable testing data
 const SAMPLE_SIZE = 8000
@@ -108,36 +110,61 @@ assert.equal(checkStatus.statusText, 'Job complete')
 const up = await fetch(makeEndpoint("/up"), { method: 'GET' })
 assert.equal('Up', up.statusText) // Herbie runs single thread on CI.
 
-// Sample endpoint
-const sampleBody = {
-  method: 'POST',
-  body: JSON.stringify({ formula: FPCoreFormula2, seed: 5 })
-}
-const sampleRSP = await fetch(makeEndpoint("/api/sample"), sampleBody)
-const sampleAsyncResult = await callAsyncAndWaitJSONResult("/api/start/sample", sampleBody)
-const jid = sampleRSP.headers.get("x-herbie-job-id")
-assert.notEqual(jid, null)
-const sample = await sampleRSP.json()
-assertIdAndPath(sampleAsyncResult)
-assert.ok(sampleAsyncResult.points)
-assert.equal(sampleAsyncResult.points.length, SAMPLE_SIZE)
-assertIdAndPath(sample)
-assert.ok(sample.points)
-assert.equal(sample.points.length, SAMPLE_SIZE, `sample size should be ${SAMPLE_SIZE}`)
 
-// Make second call to test that results are the same
-const sample2RPS = await fetch(makeEndpoint("/api/sample"), sampleBody)
-const jid2 = sample2RPS.headers.get("x-herbie-job-id")
-assert.notEqual(jid2, null)
-const sample2 = await sample2RPS.json()
-assertIdAndPath(sample2)
-assert.deepEqual(sample.points[1], sample2.points[1])
+/* Step 3: Test the formal API */
+
+async function testAPI(url, body, cb) {
+    const sync_resp = await fetch(makeEndpoint(url), {
+        method: 'POST',
+        body: JSON.stringify(body),
+    });
+    assert.ok(sync_resp.headers.get("x-herbie-job-id"));
+    const sync_json = await sync_resp.json();
+    assert.equal(sync_json.job.length > 0, true)
+    assert.equal(sync_json.path.includes("."), true)
+    
+    cb(sync_json);
+
+    let start_resp = await fetch(makeEndpoint(url.replace("/api", "/api/start")), {
+        method: 'POST',
+        body: JSON.stringify(body),
+    })
+    let jobid = (await start_resp.json()).job;
+
+    // This loop is a sort of 10 second timeout for the test.
+    for (let i = 0; i < 100; i++) {
+        let status_resp = await fetch(makeEndpoint("/check-status/" + jobid));
+        if (status_resp.status != 201) break;
+        await new Promise(r => setTimeout(r, 100)); // Wait 100ms
+    }
+    let async_resp = await fetch(makeEndpoint("/api/result/" + jobid));
+    let async_json = await async_resp.json();
+
+    cb(async_json);
+}
+
+let POINTS = null;
+
+// Sample endpoint
+await testAPI("/api/sample", {
+    formula: FPCoreFormula2,
+    seed: 5,
+}, (body) => {
+    assert.ok(body.points);
+    assert.equal(body.points.length, SAMPLE_SIZE);
+    if (!POINTS) {
+        POINTS = body.points;
+    } else {
+        // Test reproducibility between sync and async call
+        assert.deepEqual(POINTS, body.points);
+    }
+});
 
 //Explanations endpoint
 const explainBody = {
   method: 'POST',
   body: JSON.stringify({
-    formula: FPCoreFormula, sample: sample.points
+    formula: FPCoreFormula, sample: POINTS
   })
 }
 const explain = await (await fetch(makeEndpoint("/api/explanations"), explainBody)).json()
@@ -191,7 +218,7 @@ assert.deepEqual(calculateAsyncResult.points, [[[1], -1.4142135623730951]])
 // Local error endpoint
 const localErrorBody = {
   method: 'POST', body: JSON.stringify({
-    formula: FPCoreFormula, sample: sample.points
+    formula: FPCoreFormula, sample: POINTS
   })
 }
 const localError = await (await fetch(makeEndpoint("/api/localerror"), localErrorBody)).json()
