@@ -58,70 +58,15 @@ function makeURL(endpoint) {
   return new URL(`http://127.0.0.1:${PORT}${endpoint}`)
 }
 
-/* Step 2: Test the legacy HTTP endpoints */
+/* Step 2: Test the formal API */
 
-// Future TODO: before this API becomes set in stone/offered publicly, we should change the results of these methods to be just the output data rather than duplicating input values.
 // Reusable testing data
 const SAMPLE_SIZE = 8000
+
 const FPCoreFormula = '(FPCore (x) (- (sqrt (+ x 1)) (sqrt x)))'
 const FPCoreFormula2 = '(FPCore (x) (- (sqrt (+ x 1))))'
 const FPCoreFormula3 = '(FPCore (x) (if (<= (- (sqrt (+ x 1.0)) (sqrt x)) 0.05) (* 0.5 (sqrt (/ 1.0 x))) (fma (fma (- 0.125) x 0.5) x (- 1.0 (sqrt x)))))'
 const eval_sample = [[[1], -1.4142135623730951]]
-
-// improve endpoint
-const improveResponse = await fetch(makeURL(`/improve?formula=${encodeURIComponent(FPCoreFormula2)}`), { method: 'GET' })
-assert.equal(improveResponse.status, 200)
-let redirect = improveResponse.url.split("/")
-const jobID = redirect[3].split(".")[0]
-// This test is a little flaky as the character count of the response is not consistent.
-// const improveHTML = await improveResponse.text()
-// const improveHTMLexpectedCount = 25871
-// assert.equal(improveHTML.length, improveHTMLexpectedCount, `HTML response character count should be ${improveHTMLexpectedCount} unless HTML changes.`)
-
-// timeline
-const timelineRSP = await fetch(makeURL(`/timeline/${jobID}`), { method: 'GET' })
-assert.equal(timelineRSP.status, 201)
-const timeline = await timelineRSP.json()
-assert.equal(timeline.length > 0, true)
-
-// Test with a likely missing job-id
-const badTimelineRSP = await fetch(makeURL("/timeline/42069"), { method: 'GET' })
-assert.equal(badTimelineRSP.status, 404)
-const check_missing_job = await fetch(makeURL(`/check-status/42069`), { method: 'GET' })
-assert.equal(check_missing_job.status, 202)
-
-// improve-start endpoint
-const URIencodedBody = "formula=" + encodeURIComponent(FPCoreFormula)
-const startResponse = await fetch(makeURL("/api/start/improve"), {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/x-www-form-urlencoded',
-  },
-  body: URIencodedBody
-})
-const testResult = (startResponse.status == 201 || startResponse.status == 202)
-assert.equal(testResult, true)
-const improveResultPath = startResponse.headers.get("location")
-let counter = 0
-let cap = 100
-// Check status endpoint
-let checkStatus = await fetch(makeURL(improveResultPath), { method: 'GET' })
-/*
-This is testing if the /api/start/improve test at the beginning has been completed. The cap and counter is a sort of timeout for the test. Ends up being 10 seconds max.
-*/
-while (checkStatus.status != 201 && counter < cap) {
-  counter += 1
-  checkStatus = await fetch(makeURL(improveResultPath), { method: 'GET' })
-  await new Promise(r => setTimeout(r, 100)); // ms
-}
-assert.equal(checkStatus.statusText, 'Job complete')
-
-// up endpoint
-const up = await fetch(makeURL("/up"), { method: 'GET' })
-assert.equal('Up', up.statusText) // Herbie runs single thread on CI.
-
-
-/* Step 3: Test the formal API */
 
 async function testAPI(url, body, cb) {
     console.log("Testing endpoint " + url)
@@ -352,27 +297,113 @@ const mathjs = await (await fetch(makeURL("/api/mathjs"), {
 })).json()
 assert.equal(mathjs.mathjs, "sqrt(x + 1.0) - sqrt(x)")
 
-// Translate endpoint
-const expectedExpressions = {
-  "python": 'def expr(x):\n\treturn math.sqrt((x + 1.0)) - math.sqrt(x)\n',
-  "c": 'double expr(double x) {\n\treturn sqrt((x + 1.0)) - sqrt(x);\n}\n',
-  "fortran": 'real(8) function expr(x)\nuse fmin_fmax_functions\n    real(8), intent (in) :: x\n    expr = sqrt((x + 1.0d0)) - sqrt(x)\nend function\n',
-  "java": 'public static double expr(double x) {\n\treturn Math.sqrt((x + 1.0)) - Math.sqrt(x);\n}\n',
-  "julia": 'function expr(x)\n\treturn Float64(sqrt(Float64(x + 1.0)) - sqrt(x))\nend\n',
-  "matlab": 'function tmp = expr(x)\n\ttmp = sqrt((x + 1.0)) - sqrt(x);\nend\n',
-  "wls": 'expr[x_] := N[(N[Sqrt[N[(x + 1), $MachinePrecision]], $MachinePrecision] - N[Sqrt[x], $MachinePrecision]), $MachinePrecision]\n', // Wolfram 
-  "tex": '\\mathsf{expr}\\left(x\\right) = \\sqrt{x + 1} - \\sqrt{x}\n',
-  "js": 'function expr(x) {\n\treturn Math.sqrt((x + 1.0)) - Math.sqrt(x);\n}\n'
+console.log("Testing translation API");
+
+async function testTranslate(language, result) {
+    let start = Date.now()
+    const resp = await fetch(makeURL("/api/translate"), {
+        method: 'POST',
+        body: JSON.stringify({
+            formula: FPCoreFormula,
+            language: language,
+        }),
+    });
+    const json = await resp.json();
+
+    console.log("  Translation to " + language + " in " + Math.round(Date.now() - start) + "ms")
+    assert.equal(json.result.trim().replace("\t", "    "), result.trim());
 }
 
-for (const e in expectedExpressions) {
-  const translatedExpr = await (await fetch(makeURL("/api/translate"), {
-    method: 'POST', body: JSON.stringify(
-      { formula: FPCoreFormula, language: e })
-  })).json()
+await testTranslate("python", `
+def expr(x):
+    return math.sqrt((x + 1.0)) - math.sqrt(x)`);
 
-  assert.equal(translatedExpr.result, expectedExpressions[e])
+await testTranslate("c", `
+double expr(double x) {
+    return sqrt((x + 1.0)) - sqrt(x);
+}`);
+
+await testTranslate("fortran", `
+real(8) function expr(x)
+use fmin_fmax_functions
+    real(8), intent (in) :: x
+    expr = sqrt((x + 1.0d0)) - sqrt(x)
+end function`);
+
+await testTranslate("java", `
+public static double expr(double x) {
+    return Math.sqrt((x + 1.0)) - Math.sqrt(x);
+}`);
+
+await testTranslate("julia", `
+function expr(x)
+    return Float64(sqrt(Float64(x + 1.0)) - sqrt(x))
+end`);
+
+await testTranslate("matlab", `
+function tmp = expr(x)
+    tmp = sqrt((x + 1.0)) - sqrt(x);
+end`);
+
+await testTranslate("wls", 'expr[x_] := N[(N[Sqrt[N[(x + 1), $MachinePrecision]], $MachinePrecision] - N[Sqrt[x], $MachinePrecision]), $MachinePrecision]')
+
+await testTranslate("tex", '\\mathsf{expr}\\left(x\\right) = \\sqrt{x + 1} - \\sqrt{x}')
+
+/* Step 3: Test the legacy HTTP endpoints */
+
+console.log("Testing legacy endpoints")
+
+// improve endpoint
+const improveResponse = await fetch(makeURL(`/improve?formula=${encodeURIComponent(FPCoreFormula2)}`), { method: 'GET' })
+assert.equal(improveResponse.status, 200)
+let redirect = improveResponse.url.split("/")
+const jobID = redirect[3].split(".")[0]
+// This test is a little flaky as the character count of the response is not consistent.
+// const improveHTML = await improveResponse.text()
+// const improveHTMLexpectedCount = 25871
+// assert.equal(improveHTML.length, improveHTMLexpectedCount, `HTML response character count should be ${improveHTMLexpectedCount} unless HTML changes.`)
+
+// timeline
+const timelineRSP = await fetch(makeURL(`/timeline/${jobID}`), { method: 'GET' })
+assert.equal(timelineRSP.status, 201)
+const timeline = await timelineRSP.json()
+assert.equal(timeline.length > 0, true)
+
+// Test with a likely missing job-id
+const badTimelineRSP = await fetch(makeURL("/timeline/42069"), { method: 'GET' })
+assert.equal(badTimelineRSP.status, 404)
+const check_missing_job = await fetch(makeURL(`/check-status/42069`), { method: 'GET' })
+assert.equal(check_missing_job.status, 202)
+
+// improve-start endpoint
+const URIencodedBody = "formula=" + encodeURIComponent(FPCoreFormula)
+const startResponse = await fetch(makeURL("/api/start/improve"), {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/x-www-form-urlencoded',
+  },
+  body: URIencodedBody
+})
+const testResult = (startResponse.status == 201 || startResponse.status == 202)
+assert.equal(testResult, true)
+const improveResultPath = startResponse.headers.get("location")
+let counter = 0
+let cap = 100
+// Check status endpoint
+let checkStatus = await fetch(makeURL(improveResultPath), { method: 'GET' })
+/*
+This is testing if the /api/start/improve test at the beginning has been completed. The cap and counter is a sort of timeout for the test. Ends up being 10 seconds max.
+*/
+while (checkStatus.status != 201 && counter < cap) {
+  counter += 1
+  checkStatus = await fetch(makeURL(improveResultPath), { method: 'GET' })
+  await new Promise(r => setTimeout(r, 100)); // ms
 }
+assert.equal(checkStatus.statusText, 'Job complete')
+
+// up endpoint
+const up = await fetch(makeURL("/up"), { method: 'GET' })
+assert.equal('Up', up.statusText) // Herbie runs single thread on CI.
 
 // Results.json endpoint
 const jsonResults = await (await fetch(makeURL("/results.json"), { method: 'GET' })).json()
@@ -380,5 +411,6 @@ const jsonResults = await (await fetch(makeURL("/results.json"), { method: 'GET'
 // Basic test that checks that there are the two results after the above test.
 // TODO add a way to reset the results.json file?
 assert.equal(jsonResults.tests.length, 2)
+
 
 child.kill('SIGINT');
