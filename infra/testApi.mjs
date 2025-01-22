@@ -142,7 +142,7 @@ async function testAPI(url, body, cb) {
     // This loop is a sort of 10 second timeout for the test.
     for (let i = 0; i < 100; i++) {
         let status_resp = await fetch(makeURL("/check-status/" + jobid));
-        if (status_resp.status != 201) break;
+        if (status_resp.status == 201) break;
         await new Promise(r => setTimeout(r, 100)); // Wait 100ms
     }
     let async_resp = await fetch(makeURL("/api/result/" + jobid));
