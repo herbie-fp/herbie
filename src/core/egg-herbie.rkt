@@ -296,8 +296,10 @@
        (if (representation? type)
            (literal expr (representation-name type))
            expr)]
-      [(? symbol? (regexp #rx"^\\$var")) (egg-var->var expr)]
-      [(? symbol?) (list expr)] ; constant function
+      [(? symbol?)
+       (if (string-prefix? (symbol->string expr) "$var")
+           (egg-var->var expr ctx)
+           (list expr))]
       [(list '$approx spec impl) ; approx
        (define spec-type
          (if (representation? type)
