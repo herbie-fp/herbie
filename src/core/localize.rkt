@@ -83,12 +83,12 @@
   ; egg runner (2-phases for real rewrites and implementation selection)
   (define batch (progs->batch progs))
   (define runner
-    (make-egg-runner batch
-                     (batch-roots batch)
-                     reprs
-                     `((,lifting-rules . ((iteration . 1) (scheduler . simple)))
-                       (,rules . ((node . ,(*node-limit*))))
-                       (,lowering-rules . ((iteration . 1) (scheduler . simple))))))
+    (make-egraph batch
+                 (batch-roots batch)
+                 reprs
+                 `((,lifting-rules . ((iteration . 1) (scheduler . simple)))
+                   (,rules . ((node . ,(*node-limit*))))
+                   (,lowering-rules . ((iteration . 1) (scheduler . simple))))))
 
   ; run egg
   (define simplified (map (compose debatchref last) (simplify-batch runner batch)))

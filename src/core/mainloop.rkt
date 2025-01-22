@@ -361,7 +361,7 @@
      (define exprs (map alt-expr alts))
      (define reprs (map (lambda (expr) (repr-of expr (*context*))) exprs))
      (define batch (progs->batch exprs))
-     (define runner (make-egg-runner batch (batch-roots batch) reprs schedule))
+     (define runner (make-egraph batch (batch-roots batch) reprs schedule))
 
      ; run egg
      (define simplified (map (compose debatchref last) (simplify-batch runner batch)))
@@ -379,7 +379,7 @@
   (cond
     [(flag-set? 'generate 'proofs)
      (timeline-event! 'derivations)
-     (add-derivations alts (*pcontext*) (*context*))]
+     (add-derivations alts)]
     [else alts]))
 
 (define (sort-alts alts)
