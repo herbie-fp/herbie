@@ -1,4 +1,52 @@
 import { strict as assert } from 'node:assert';  // use strict equality everywhere 
+import { spawn } from 'child_process';
+import net from 'net';
+
+/* Step 1: we start the Herbie server for testing */
+
+function getFreePort() {
+    return new Promise((resolve, reject) => {
+        const server = net.createServer();
+        server.listen(0, () => {
+            const { port } = server.address();
+            server.close(() => resolve(port));
+        });
+        server.on('error', reject);
+    });
+}
+
+const PORT = await getFreePort();
+
+console.log("Spawning server on port " + PORT)
+const child = spawn('racket', ['-y', 'src/main.rkt', 'web', '--quiet', '--port', ""+PORT]);
+
+child.stdout.on('data', (data) => {
+    console.log(""+data);
+});
+
+child.stderr.on('data', (data) => {
+    console.error(""+data);
+});
+
+child.on('close', (code) => {
+    if (code) console.log("Server crashed with code " + code);
+});
+
+function waitForPort(port) {
+  return new Promise(resolve => {
+    const attempt = () => {
+      const socket = net.connect(port, 'localhost', () => {
+        socket.end();
+        resolve();
+      });
+      socket.on('error', () => setTimeout(attempt, 500));
+    };
+    attempt();
+  });
+}
+
+await waitForPort(PORT)
+console.log("Server up and responding on port " + PORT)
 
 // Future TODO: before this API becomes set in stone/offered publicly, we should change the results of these methods to be just the output data rather than duplicating input values.
 // Reusable testing data
@@ -331,7 +379,7 @@ assert.equal(jsonResults.tests.length, 2)
 
 // Helper Functions
 function makeEndpoint(endpoint) {
-  return new URL(`http://127.0.0.1:8000${endpoint}`)
+  return new URL(`http://127.0.0.1:${PORT}${endpoint}`)
 }
 
 function assertIdAndPath(json) {
@@ -357,3 +405,5 @@ async function callAsyncAndWaitJSONResult(endpoint, body) {
   const result = await fetch(makeEndpoint(`/api/result/${jobJSON.job}`), { method: 'GET' })
   return await result.json()
 }
+
+child.kill('SIGINT');
