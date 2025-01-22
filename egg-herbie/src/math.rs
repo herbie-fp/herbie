@@ -256,7 +256,7 @@ impl Analysis<Math> for ConstantFold {
             );
 
             if egraph.analysis.prune {
-                egraph[class_id].nodes.retain(|n| n.is_leaf())
+                egraph[class_id].nodes.retain(|n| n.node.is_leaf())
             }
         }
     }

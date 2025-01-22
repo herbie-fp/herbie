@@ -73,10 +73,16 @@ fn activate_inc_egraph(mode: Mode) {
 pub unsafe extern "C" fn egraph_create(mode: u32) -> *mut Context {
     if mode == 0 {
         activate_inc_egraph(Mode::Simplify);
-        let mut inc_egraph = ACTIVE_INC_EGRAPH.try_lock().unwrap();
-        let inc_egraph = inc_egraph.as_mut().unwrap();
-        let version = inc_egraph.inc_version();
-        println!("Incremented version to: {}", version);
+        let mut guard = ACTIVE_INC_EGRAPH.try_lock().unwrap();
+        let mut inc_egraph = guard.take().unwrap();
+        let version = inc_egraph.get_version();
+        if version != 0 && version % 50 == 0 {
+            *guard = Some(EGraph::default());
+        } else {
+            let version = inc_egraph.inc_version();
+            *guard = Some(inc_egraph);
+            println!("Incremented version to: {}", version);
+        }
     } else if mode == 1 {
         activate_inc_egraph(Mode::Other);
     } else {
@@ -256,41 +262,56 @@ pub unsafe extern "C" fn egraph_run(
             context.runner.with_scheduler(BackoffScheduler::default())
         };
 
-        let node_limit = if node_limit != u32::MAX {
-            inc_egraph.total_size() + node_limit as usize
+        inc_egraph.rebuild();
+
+        let zeros = inc_egraph.newest_old_classes.len() as f64;
+        let ones = inc_egraph.newest_classes.len() as f64;
+        let rho = ones / (zeros + ones);
+        assert!(rho.is_nan() || rho <= 1f64);
+
+        let increase = (0.01 * rho * node_limit as f64) as usize;
+        if increase == 0 {
+            println!("shortcircuiting...");
+            context.runner.stop_reason = Some(StopReason::Saturated);
+            *guard = Some(inc_egraph);
         } else {
-            node_limit as usize
-        };
+            let node_limit = if node_limit != u32::MAX {
+                println!("rho: {}, increase in node_limit: {}", rho, increase);
+                inc_egraph.total_size() + increase
+            } else {
+                node_limit as usize
+            };
 
-        context.runner = context
-            .runner
-            .with_node_limit(node_limit as usize)
-            .with_iter_limit(iter_limit as usize) // should never hit
-            .with_time_limit(Duration::from_secs(u64::MAX))
-            .with_hook(|r| {
-                if r.egraph.analysis.unsound.load(Ordering::SeqCst) {
-                    panic!("Unsoundness detected")
-                } else {
-                    Ok(())
-                }
-            })
-            .with_egraph(inc_egraph)
-            .run(&context.rules);
+            context.runner = context
+                .runner
+                .with_node_limit(node_limit as usize)
+                .with_iter_limit(iter_limit as usize) // should never hit
+                .with_time_limit(Duration::from_secs(u64::MAX))
+                .with_hook(|r| {
+                    if r.egraph.analysis.unsound.load(Ordering::SeqCst) {
+                        panic!("Unsoundness detected")
+                    } else {
+                        Ok(())
+                    }
+                })
+                .with_egraph(inc_egraph)
+                .run(&context.rules);
 
-        println!(
-            "stop_reason: {:?}",
-            context.runner.stop_reason.clone().unwrap()
-        );
+            println!(
+                "stop_reason: {:?}",
+                context.runner.stop_reason.clone().unwrap()
+            );
 
-        println!("{}", context.runner.report());
-        println!(
-            "Total whitelisted nodes: {}",
-            context.runner.egraph.total_number_of_whitelist_nodes()
-        );
+            println!("{}", context.runner.report());
+            println!(
+                "Total whitelisted nodes: {}",
+                context.runner.egraph.total_number_of_whitelist_nodes()
+            );
 
-        *guard = Some(context.runner.egraph);
-        context.runner.egraph = EGraph::default();
-        context.runner.iterations = vec![];
+            *guard = Some(context.runner.egraph);
+            context.runner.egraph = EGraph::default();
+            context.runner.iterations = vec![];
+        }
     }
 
     let iterations = context
@@ -355,7 +376,7 @@ pub unsafe extern "C" fn egraph_serialize(_ptr: *mut Context) -> *const c_char {
         let c = &inc_egraph[id];
         s.push_str(&format!("({}", id));
         for node in &c.nodes {
-            if matches!(node, Math::Symbol(_) | Math::Constant(_)) {
+            if matches!(node.node, Math::Symbol(_) | Math::Constant(_)) {
                 s.push_str(&format!(" {}", node));
             } else {
                 s.push_str(&format!("({}", node));
@@ -395,7 +416,7 @@ pub unsafe extern "C" fn egraph_enode_size(_ptr: *mut Context, id: u32, idx: u32
     let idx = idx as usize;
     let guard = ACTIVE_INC_EGRAPH.try_lock().unwrap();
     let inc_egraph = guard.as_ref().unwrap();
-    inc_egraph[id].nodes[idx].len() as u32
+    inc_egraph[id].nodes[idx].node.len() as u32
 }
 
 #[no_mangle]
@@ -506,16 +527,16 @@ pub unsafe extern "C" fn egraph_get_variants(
     for n in &context.runner.egraph[id].nodes {
         // assuming same ops in an eclass cannot
         // have different precisions
-        if !n.matches(head_node) {
+        if !n.node.matches(head_node) {
             // extract if not in cache
-            n.for_each(|id| {
+            n.node.for_each(|id| {
                 if cache.get(&id).is_none() {
                     let (_, best) = extractor.find_best(id);
                     cache.insert(id, best);
                 }
             });
 
-            exprs.push(n.join_recexprs(|id| cache.get(&id).unwrap().as_ref()));
+            exprs.push(n.node.join_recexprs(|id| cache.get(&id).unwrap().as_ref()));
         }
     }
 
