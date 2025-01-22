@@ -65,4 +65,4 @@ jobs:
         with:
           node-version: 20
       - name: "Test the endpoint"
-        run: node infra/testApi.mjs
+        run: node infra/test-api.js
