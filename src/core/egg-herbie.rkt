@@ -169,7 +169,7 @@
       ['backoff #f]
       ['simple #t]
       [_ (error 'egraph-run "unknown scheduler: `~a`" scheduler)]))
-  (define timeline-end! (timeline-start! 'times (~a "inc_egraph_run")))
+  (define timeline-end! (timeline-start! 'times (~a "i-egraph-run")))
   (define out (egraph_run (egraph-data-egraph-pointer egraph-data)
               ffi-rules
               iter_limit
@@ -834,12 +834,14 @@
 ;; Constructs a Racket egraph from an S-expr representation of
 ;; an egraph and data to translate egg IR to herbie IR.
 (define (make-regraph egraph-data)
+  (define timeline-end! (timeline-start! 'times (~a "i-make-regraph")))
   (define egg->herbie (egraph-data-egg->herbie-dict egraph-data))
   (define id->spec (egraph-data-id->spec egraph-data))
 
   ;; split the e-classes by type
   (define-values (eclasses types canon) (make-typed-eclasses egraph-data egg->herbie))
   (define n (vector-length eclasses))
+  (eprintf "#eclasses from make-regraph: ~a\n" n)
 
   ;; analyze each eclass
   (define-values (parents leaf? constants) (analyze-eclasses eclasses))
@@ -852,7 +854,9 @@
     (vector-set! specs id* spec))
 
   ; construct the `regraph` instance
-  (regraph eclasses types leaf? constants specs parents canon egg->herbie))
+  (define out (regraph eclasses types leaf? constants specs parents canon egg->herbie))
+  (timeline-end!)
+  out)
 
 (define (regraph-nodes->json regraph)
   (define cost (platform-node-cost-proc (*active-platform*)))
@@ -1016,6 +1020,7 @@
     ;  (ii) non-nullary operators: compute when any of its child eclasses
     ;       have their analysis updated
     (define (node-requires-update? node)
+
       (if (node-has-children? node)
           (ormap (lambda (id) (vector-ref changed?-vec id)) (cdr node))
           (= iter 0)))
@@ -1181,7 +1186,9 @@
     (for/fold ([egg-graph egg-graph]) ([(rules params) (in-dict schedule)])
       ; run rules in the egraph
       (define egg-rules (expand-rules rules))
+      (define timeline-end! (timeline-start! 'times (~a "i-egraph-run-rules")))
       (define-values (egg-graph* iteration-data) (egraph-run-rules egg-graph egg-rules params))
+      (timeline-end!)
 
       ; get cost statistics
       ;; (for ([iter (in-list iteration-data)]
@@ -1275,14 +1282,17 @@
 (define (run-egg runner cmd)
   ;; Run egg using runner
   (define ctx (egg-runner-ctx runner))
+  (define timeline-end! (timeline-start! 'times (~a "i-egraph-run-schedule")))
   (define-values (root-ids egg-graph)
     (egraph-run-schedule (car cmd)
                          (egg-runner-batch runner)
                          (egg-runner-roots runner)
                          (egg-runner-schedule runner)
                          ctx))
+  (timeline-end!)
   ; Perform extraction
-  (match cmd
+  (define timeline-end-2! (timeline-start! 'times (~a "i-run-egg-extraction")))
+  (define out (match cmd
     [`(single . ,extractor) ; single expression extraction
      (define regraph (make-regraph egg-graph))
      (define reprs (egg-runner-reprs runner))
@@ -1334,3 +1344,5 @@
                 [end (in-list end-exprs)])
        (egraph-expr-equal? egg-graph start end ctx))]
     [_ (error 'run-egg "unknown command `~a`\n" cmd)]))
+    (timeline-end-2!)
+    out)
