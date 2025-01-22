@@ -48,6 +48,10 @@ function waitForPort(port) {
 await waitForPort(PORT)
 console.log("Server up and responding on port " + PORT)
 
+function makeURL(endpoint) {
+  return new URL(`http://127.0.0.1:${PORT}${endpoint}`)
+}
+
 /* Step 2: Test the legacy HTTP endpoints */
 
 // Future TODO: before this API becomes set in stone/offered publicly, we should change the results of these methods to be just the output data rather than duplicating input values.
@@ -59,7 +63,7 @@ const FPCoreFormula3 = '(FPCore (x) (if (<= (- (sqrt (+ x 1.0)) (sqrt x)) 0.05) 
 const eval_sample = [[[1], -1.4142135623730951]]
 
 // improve endpoint
-const improveResponse = await fetch(makeEndpoint(`/improve?formula=${encodeURIComponent(FPCoreFormula2)}`), { method: 'GET' })
+const improveResponse = await fetch(makeURL(`/improve?formula=${encodeURIComponent(FPCoreFormula2)}`), { method: 'GET' })
 assert.equal(improveResponse.status, 200)
 let redirect = improveResponse.url.split("/")
 const jobID = redirect[3].split(".")[0]
@@ -69,20 +73,20 @@ const jobID = redirect[3].split(".")[0]
 // assert.equal(improveHTML.length, improveHTMLexpectedCount, `HTML response character count should be ${improveHTMLexpectedCount} unless HTML changes.`)
 
 // timeline
-const timelineRSP = await fetch(makeEndpoint(`/timeline/${jobID}`), { method: 'GET' })
+const timelineRSP = await fetch(makeURL(`/timeline/${jobID}`), { method: 'GET' })
 assert.equal(timelineRSP.status, 201)
 const timeline = await timelineRSP.json()
 assert.equal(timeline.length > 0, true)
 
 // Test with a likely missing job-id
-const badTimelineRSP = await fetch(makeEndpoint("/timeline/42069"), { method: 'GET' })
+const badTimelineRSP = await fetch(makeURL("/timeline/42069"), { method: 'GET' })
 assert.equal(badTimelineRSP.status, 404)
-const check_missing_job = await fetch(makeEndpoint(`/check-status/42069`), { method: 'GET' })
+const check_missing_job = await fetch(makeURL(`/check-status/42069`), { method: 'GET' })
 assert.equal(check_missing_job.status, 202)
 
 // improve-start endpoint
 const URIencodedBody = "formula=" + encodeURIComponent(FPCoreFormula)
-const startResponse = await fetch(makeEndpoint("/api/start/improve"), {
+const startResponse = await fetch(makeURL("/api/start/improve"), {
   method: 'POST',
   headers: {
     'Content-Type': 'application/x-www-form-urlencoded',
@@ -95,26 +99,29 @@ const improveResultPath = startResponse.headers.get("location")
 let counter = 0
 let cap = 100
 // Check status endpoint
-let checkStatus = await fetch(makeEndpoint(improveResultPath), { method: 'GET' })
+let checkStatus = await fetch(makeURL(improveResultPath), { method: 'GET' })
 /*
 This is testing if the /api/start/improve test at the beginning has been completed. The cap and counter is a sort of timeout for the test. Ends up being 10 seconds max.
 */
 while (checkStatus.status != 201 && counter < cap) {
   counter += 1
-  checkStatus = await fetch(makeEndpoint(improveResultPath), { method: 'GET' })
+  checkStatus = await fetch(makeURL(improveResultPath), { method: 'GET' })
   await new Promise(r => setTimeout(r, 100)); // ms
 }
 assert.equal(checkStatus.statusText, 'Job complete')
 
 // up endpoint
-const up = await fetch(makeEndpoint("/up"), { method: 'GET' })
+const up = await fetch(makeURL("/up"), { method: 'GET' })
 assert.equal('Up', up.statusText) // Herbie runs single thread on CI.
 
 
 /* Step 3: Test the formal API */
 
 async function testAPI(url, body, cb) {
-    const sync_resp = await fetch(makeEndpoint(url), {
+    console.log("Testing endpoint " + url)
+
+    let sync_start = Date.now()
+    const sync_resp = await fetch(makeURL(url), {
         method: 'POST',
         body: JSON.stringify(body),
     });
@@ -122,10 +129,11 @@ async function testAPI(url, body, cb) {
     const sync_json = await sync_resp.json();
     assert.equal(sync_json.job.length > 0, true)
     assert.equal(sync_json.path.includes("."), true)
-    
+
+    console.log("  Synchronous response in " + Math.round(Date.now() - sync_start) + "ms")
     cb(sync_json);
 
-    let start_resp = await fetch(makeEndpoint(url.replace("/api", "/api/start")), {
+    let start_resp = await fetch(makeURL(url.replace("/api", "/api/start")), {
         method: 'POST',
         body: JSON.stringify(body),
     })
@@ -133,13 +141,14 @@ async function testAPI(url, body, cb) {
 
     // This loop is a sort of 10 second timeout for the test.
     for (let i = 0; i < 100; i++) {
-        let status_resp = await fetch(makeEndpoint("/check-status/" + jobid));
+        let status_resp = await fetch(makeURL("/check-status/" + jobid));
         if (status_resp.status != 201) break;
         await new Promise(r => setTimeout(r, 100)); // Wait 100ms
     }
-    let async_resp = await fetch(makeEndpoint("/api/result/" + jobid));
+    let async_resp = await fetch(makeURL("/api/result/" + jobid));
     let async_json = await async_resp.json();
 
+    console.log("  Asynchronous response in " + Math.round(Date.now() - sync_start) + "ms")
     cb(async_json);
 }
 
@@ -160,80 +169,53 @@ await testAPI("/api/sample", {
     }
 });
 
-//Explanations endpoint
-const explainBody = {
-  method: 'POST',
-  body: JSON.stringify({
-    formula: FPCoreFormula, sample: POINTS
-  })
-}
-const explain = await (await fetch(makeEndpoint("/api/explanations"), explainBody)).json()
-assertIdAndPath(explain)
-assert.equal(explain.explanation.length > 0, true, 'explanation should not be empty');
-const explainAsyncResult = await callAsyncAndWaitJSONResult("/api/start/explanations", explainBody)
-assertIdAndPath(explainAsyncResult)
-assert.equal(explainAsyncResult.explanation.length > 0, true, 'explanation should not be empty');
+// Explanations endpoint
+await testAPI("/api/explanations", {
+  formula: FPCoreFormula,
+  sample: POINTS
+}, (body) => {
+  assert.equal(body.explanation.length > 0, true, 'explanation should not be empty');
+});
 
 // Analyze endpoint
-const errorsBody = {
-  method: 'POST', body: JSON.stringify({
-    formula: FPCoreFormula, sample: [[[
-      14.97651307489794
-    ], 0.12711304680349078]]
-  })
-}
-const errors = await (await fetch(makeEndpoint("/api/analyze"), errorsBody)).json()
-assertIdAndPath(errors)
-assert.deepEqual(errors.points, [[[14.97651307489794], "2.3"]])
-const analyzeAsyncResult = await callAsyncAndWaitJSONResult("/api/start/analyze", errorsBody)
-assertIdAndPath(analyzeAsyncResult)
-assert.deepEqual(analyzeAsyncResult.points, [[[14.97651307489794], "2.3"]])
+await testAPI("/api/analyze", {
+  formula: FPCoreFormula,
+  sample: [[[14.97651307489794], 0.12711304680349078]]
+}, (body) => {
+  assert.deepEqual(body.points, [[[14.97651307489794], "2.3"]]);
+});
 
 // Exacts endpoint
-const exactsBody = {
-  method: 'POST', body: JSON.stringify({
-    formula: FPCoreFormula2, sample: eval_sample
-  })
-}
-const exacts = await (await fetch(makeEndpoint("/api/exacts"), exactsBody)).json()
-assertIdAndPath(exacts)
-assert.deepEqual(exacts.points, [[[1], -1.4142135623730951]])
-const exactsAsyncResult = await callAsyncAndWaitJSONResult("/api/start/exacts", exactsBody)
-assertIdAndPath(exactsAsyncResult)
-assert.deepEqual(exactsAsyncResult.points, [[[1], -1.4142135623730951]])
+await testAPI("/api/exacts", {
+  formula: FPCoreFormula2,
+  sample: eval_sample
+}, (body) => {
+  assert.deepEqual(body.points, [[[1], -1.4142135623730951]]);
+});
 
 // Calculate endpoint
-const calculateBody = {
-  method: 'POST', body: JSON.stringify({
-    formula: FPCoreFormula2, sample: eval_sample
-  })
-}
-const calculate = await (await fetch(makeEndpoint("/api/calculate"), calculateBody)).json()
-assertIdAndPath(calculate)
-assert.deepEqual(calculate.points, [[[1], -1.4142135623730951]])
-const calculateAsyncResult = await callAsyncAndWaitJSONResult("/api/start/calculate", calculateBody)
-assertIdAndPath(calculateAsyncResult)
-assert.deepEqual(calculateAsyncResult.points, [[[1], -1.4142135623730951]])
+await testAPI("/api/calculate", {
+  formula: FPCoreFormula2,
+  sample: eval_sample
+}, (body) => {
+  assert.deepEqual(body.points, [[[1], -1.4142135623730951]]);
+});
+
 
 // Local error endpoint
-const localErrorBody = {
-  method: 'POST', body: JSON.stringify({
-    formula: FPCoreFormula, sample: POINTS
-  })
-}
-const localError = await (await fetch(makeEndpoint("/api/localerror"), localErrorBody)).json()
-assertIdAndPath(localError)
-assert.equal(localError.tree['avg-error'] > 0, true)
-const localErrorAsyncResult = await callAsyncAndWaitJSONResult("/api/start/localerror", localErrorBody)
-assertIdAndPath(localErrorAsyncResult)
-assert.equal(localErrorAsyncResult.tree['avg-error'] > 0, true)
+await testAPI("/api/localerror", {
+  formula: FPCoreFormula,
+  sample: eval_sample
+}, (body) => {
+  assert.ok(body.tree['avg-error'] > 0);
+});
 
-const localError1 = await (await fetch(makeEndpoint("/api/localerror"), {
+const localError1 = await (await fetch(makeURL("/api/localerror"), {
   method: 'POST', body: JSON.stringify({
     formula: FPCoreFormula, sample: [[[2.852044568544089e-150], 1e+308]], seed: 5
   })
 })).json()
-const localError2 = await (await fetch(makeEndpoint("/api/localerror"), {
+const localError2 = await (await fetch(makeURL("/api/localerror"), {
   method: 'POST', body: JSON.stringify({
     formula: FPCoreFormula, sample: [[[1.5223342548065899e-15], 1e+308]], seed: 5
   })
@@ -243,7 +225,7 @@ assert.notEqual(localError1.job, localError2.job)
 // Assert local error works for default example.
 const ignoredValue = 1e+308
 '(FPCore (1e-100) (- (sqrt (+ x 1)) (sqrt x)))'
-const localError5 = await (await fetch(makeEndpoint("/api/localerror"), {
+const localError5 = await (await fetch(makeURL("/api/localerror"), {
   method: 'POST', body: JSON.stringify({
     formula: FPCoreFormula, sample: [[[1e-100], ignoredValue]], seed: 5
   })
@@ -270,7 +252,7 @@ checkLocalErrorNode(localError5.tree, [0, 0, 1],
   '1.0', '0.0', '1.0', '1.0', 'equal', '0.0')
 
 // '(FPCore (1e100) (- (sqrt (+ x 1)) (sqrt x)))'
-const localError6 = await (await fetch(makeEndpoint("/api/localerror"), {
+const localError6 = await (await fetch(makeURL("/api/localerror"), {
   method: 'POST', body: JSON.stringify({
     formula: FPCoreFormula, sample: [[[1e100], ignoredValue]], seed: 5
   })
@@ -296,7 +278,7 @@ checkLocalErrorNode(localError6.tree, [0, 0, 1],
   '1.0', '0.0', '1.0', '1.0', 'equal', '0.0')
 
 // Test a large number `2e269` to trigger NaNs in local error
-const localError7 = await (await fetch(makeEndpoint("/api/localerror"), {
+const localError7 = await (await fetch(makeURL("/api/localerror"), {
   method: 'POST', body: JSON.stringify({
     formula: FPCoreFormula3, sample: [[[2e269], ignoredValue]], seed: 5
   })
@@ -342,35 +324,23 @@ function getNodeFromPath(node, path) {
 }
 
 // Alternatives endpoint
-const altBody = {
-  method: 'POST', body: JSON.stringify({
-    formula: FPCoreFormula, sample: [[[
-      14.97651307489794
-    ], 0.12711304680349078]]
-  })
-}
-const alternatives = await (await fetch(makeEndpoint("/api/alternatives"), altBody)).json()
-assertIdAndPath(alternatives)
-assert.equal(Array.isArray(alternatives.alternatives), true)
-const alternativesAsyncResult = await callAsyncAndWaitJSONResult("/api/start/alternatives", altBody)
-assertIdAndPath(alternativesAsyncResult)
-assert.equal(Array.isArray(alternativesAsyncResult.alternatives), true)
+await testAPI("/api/alternatives", {
+  formula: FPCoreFormula,
+  sample: [[[14.97651307489794], 0.12711304680349078]]
+}, (body) => {
+  assert.ok(Array.isArray(body.alternatives));
+});
 
 // Cost endpoint
-const costBody = {
-  method: 'POST', body: JSON.stringify({
-    formula: FPCoreFormula2, sample: eval_sample
-  })
-}
-const cost = await (await fetch(makeEndpoint("/api/cost"), costBody)).json()
-assertIdAndPath(cost)
-assert.equal(cost.cost > 0, true)
-const costAsyncResult = await callAsyncAndWaitJSONResult("/api/start/cost", costBody)
-assertIdAndPath(costAsyncResult)
-assert.equal(costAsyncResult.cost > 0, true)
+await testAPI("/api/cost", {
+  formula: FPCoreFormula2,
+  sample: eval_sample
+}, (body) => {
+  assert.ok(body.cost > 0);
+});
 
 // MathJS endpoint
-const mathjs = await (await fetch(makeEndpoint("/api/mathjs"), {
+const mathjs = await (await fetch(makeURL("/api/mathjs"), {
   method: 'POST', body: JSON.stringify({ formula: FPCoreFormula })
 })).json()
 assert.equal(mathjs.mathjs, "sqrt(x + 1.0) - sqrt(x)")
@@ -389,7 +359,7 @@ const expectedExpressions = {
 }
 
 for (const e in expectedExpressions) {
-  const translatedExpr = await (await fetch(makeEndpoint("/api/translate"), {
+  const translatedExpr = await (await fetch(makeURL("/api/translate"), {
     method: 'POST', body: JSON.stringify(
       { formula: FPCoreFormula, language: e })
   })).json()
@@ -398,39 +368,10 @@ for (const e in expectedExpressions) {
 }
 
 // Results.json endpoint
-const jsonResults = await (await fetch(makeEndpoint("/results.json"), { method: 'GET' })).json()
+const jsonResults = await (await fetch(makeURL("/results.json"), { method: 'GET' })).json()
 
 // Basic test that checks that there are the two results after the above test.
 // TODO add a way to reset the results.json file?
 assert.equal(jsonResults.tests.length, 2)
-
-// Helper Functions
-function makeEndpoint(endpoint) {
-  return new URL(`http://127.0.0.1:${PORT}${endpoint}`)
-}
-
-function assertIdAndPath(json) {
-  assert.equal(json.job.length > 0, true)
-  assert.equal(json.path.includes("."), true)
-}
-
-async function callAsyncAndWaitJSONResult(endpoint, body) {
-  let counter = 0
-  let cap = 100
-  // Check status endpoint
-  let jobInfo = await fetch(makeEndpoint(endpoint), body)
-  /*
-  The cap and counter is a sort of timeout for the test. Ends up being 10 seconds max.
-  */
-  const jobJSON = await jobInfo.json()
-  const checkStatus = await fetch(makeEndpoint(`/check-status/${jobJSON.job}`), { method: 'GET' })
-  while (checkStatus.status != 201 && counter < cap) {
-    counter += 1
-    checkStatus = await fetch(makeEndpoint(`/check-status/${jobJSON.job}`), { method: 'GET' })
-    await new Promise(r => setTimeout(r, 100)); // ms
-  }
-  const result = await fetch(makeEndpoint(`/api/result/${jobJSON.job}`), { method: 'GET' })
-  return await result.json()
-}
 
 child.kill('SIGINT');
