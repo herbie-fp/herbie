@@ -33,7 +33,7 @@
   (for/list ([var (in-list (context-vars ctx))]
              [repr (in-list (context-var-reprs ctx))]
              #:when (has-fabs-neg-impls? repr))
-    (list 'even var (replace-expression spec var `(neg ,var)))))
+    (cons `(abs ,var) (replace-expression spec var `(neg ,var)))))
 
 ;; The odd identities: f(x) = -f(-x)
 ;; Requires `neg` and `fabs` operator implementations.
@@ -41,14 +41,14 @@
   (for/list ([var (in-list (context-vars ctx))]
              [repr (in-list (context-var-reprs ctx))]
              #:when (and (has-fabs-neg-impls? repr) (has-copysign-impl? repr)))
-    (list 'odd var (replace-expression `(neg ,spec) var `(neg ,var)))))
+    (cons `(negabs ,var) (replace-expression `(neg ,spec) var `(neg ,var)))))
 
 ;; Swap identities: f(a, b) = f(b, a)
 (define (make-swap-identities spec ctx)
   (define pairs (combinations (context-vars ctx) 2))
   (for/list ([pair (in-list pairs)])
     (match-define (list a b) pair)
-    (list 'swap pair (replace-vars `((,a . ,b) (,b . ,a)) spec))))
+    (cons `(swap ,a ,b) (replace-vars `((,a . ,b) (,b . ,a)) spec))))
 
 ;; Initial simplify
 (define (initial-simplify expr ctx)
@@ -64,7 +64,7 @@
 
   ; egg query
   (define batch (progs->batch (list expr)))
-  (define runner (make-egg-runner batch (batch-roots batch) (list (context-repr ctx)) schedule))
+  (define runner (make-egraph batch (batch-roots batch) (list (context-repr ctx)) schedule))
 
   ; run egg
   (define simplified (simplify-batch runner batch))
@@ -87,39 +87,32 @@
   (define swap-identities (make-swap-identities spec ctx))
   (define identities (append even-identities odd-identities swap-identities))
 
-  (define specs
-    (for/list ([ident (in-list identities)])
-      (match ident
-        [(list 'even _ spec) spec]
-        [(list 'odd _ spec) spec]
-        [(list 'swap _ spec) spec])))
-
   ;; make egg runner
   (define rules (*simplify-rules*))
 
-  (define batch (progs->batch specs))
+  (define batch (progs->batch (cons spec (map cdr identities))))
   (define runner
-    (make-egg-runner batch
-                     (batch-roots batch)
-                     (map (lambda (_) (context-repr ctx)) specs)
-                     `((,rules . ((node . ,(*node-limit*)))))))
-
-  ;; run egg to check for identities
-  (define expr-pairs (map (curry cons spec) specs))
-  (define equal?-lst (run-egg runner `(equal? . ,expr-pairs)))
+    (make-egraph batch
+                 (batch-roots batch)
+                 (make-list (vector-length (batch-roots batch)) (context-repr ctx))
+                 `((,rules . ((node . ,(*node-limit*)))))))
 
   ;; collect equalities
-  (define abs-instrs '())
-  (define negabs-instrs '())
-  (define swaps '())
-  (for ([ident (in-list identities)]
-        [expr-equal? (in-list equal?-lst)]
-        #:when expr-equal?)
-    (match ident
-      [(list 'even var _) (set! abs-instrs (cons (list 'abs var) abs-instrs))]
-      [(list 'odd var _) (set! negabs-instrs (cons (list 'negabs var) negabs-instrs))]
-      [(list 'swap pair _) (set! swaps (cons pair swaps))]))
+  (define abs-instrs
+    (for/list ([(ident spec*) (in-dict even-identities)]
+               #:when (egraph-equal? runner spec spec*))
+      ident))
 
+  (define negabs-instrs
+    (for/list ([(ident spec*) (in-dict odd-identities)]
+               #:when (egraph-equal? runner spec spec*))
+      ident))
+
+  (define swaps
+    (for/list ([(ident spec*) (in-dict swap-identities)]
+               #:when (egraph-equal? runner spec spec*))
+      (match-define (list 'swap a b) ident)
+      (list a b)))
   (define components (connected-components (context-vars ctx) swaps))
   (define sort-instrs
     (for/list ([component (in-list components)]
