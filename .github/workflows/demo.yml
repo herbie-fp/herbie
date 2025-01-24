@@ -1,0 +1,85 @@
+# Release building
+# ================
+# Build binaries to attach to the releases
+name: release
+
+# Configure when to run the workflows.
+on:
+  release:
+    types:
+      - created
+  workflow_dispatch: # Add this trigger to allow manual runs
+
+jobs:
+  release:
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            os-name: linux
+            herbie_artifact: herbie-linux-amd64
+          - os: macos-latest
+            os-name: macos
+            herbie_artifact: herbie-macos-amd64
+          - os: windows-latest
+            os-name: windows
+            herbie_artifact: herbie-windows-amd64.exe
+
+    steps:
+      # Checkout the repository
+      - name: Checkout the repo
+        uses: actions/checkout@v3
+
+      # Install Racket
+      - name: Setup Racket
+        uses: Bogdanp/setup-racket@v1
+        with:
+          racket-version: latest
+
+      # Install Rust Compiler
+      - name: Install Rust compiler
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+
+      # Build egg-herbie (Rust Backend)
+      - name: Build egg-herbie
+        run: cargo build --release --manifest-path=egg-herbie/Cargo.toml
+
+      # Create Tarball for Distribution
+      - name: Create tarball
+        run: raco pkg create --format zip egg-herbie
+
+      # Rename Tarballs and Checksums
+      - name: Rename tarballs
+        run: |
+          mv egg-herbie.zip egg-herbie-${{ matrix.os-name }}.zip
+          mv egg-herbie.zip.CHECKSUM egg-herbie-${{ matrix.os-name }}.zip.CHECKSUM
+
+      # Upload Pre-built Tarball
+      - name: Upload pre-built egg-herbie
+        uses: actions/upload-artifact@v4
+        with:
+          path: egg-herbie-${{ matrix.os-name }}.zip
+          name: egg-herbie-${{ matrix.os-name }}.zip
+          if-no-files-found: error
+
+      # Upload Pre-built Checksum
+      - name: Upload pre-built egg-herbie checksum
+        uses: actions/upload-artifact@v4
+        with:
+          path: egg-herbie-${{ matrix.os-name }}.zip.CHECKSUM
+          name: egg-herbie-${{ matrix.os-name }}.zip.CHECKSUM
+          if-no-files-found: error
+
+      # Upload the Binary to Release
+      - name: Upload Herbie Binary to Release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: target/release/${{ matrix.herbie_artifact }}
+          asset_name: ${{ matrix.herbie_artifact }}
+          tag: ${{ github.ref }}
