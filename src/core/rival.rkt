@@ -22,9 +22,13 @@
                  [ctxs (es) (and/c unified-contexts? (lambda (ctxs) (= (length es) (length ctxs))))])
                 (#:pre [pre any/c])
                 [c real-compiler?])]
-          [real-apply (-> real-compiler? list? (values symbol? any/c))]
+          [real-apply
+           (->* (real-compiler? list?) ((or/c (vectorof any/c) boolean?)) (values symbol? any/c))]
           [real-compiler-clear! (-> real-compiler-clear! void?)]
-          [real-compiler-analyze (-> real-compiler? (vectorof ival?) ival?)]))
+          [real-compiler-analyze
+           (->* (real-compiler? (vectorof ival?))
+                ((or/c (vectorof any/c) boolean?))
+                (listof any/c))]))
 
 (define (unified-contexts? ctxs)
   (and ((non-empty-listof context?) ctxs)
@@ -66,7 +70,7 @@
   (real-compiler pre vars var-reprs specs reprs machine))
 
 ;; Runs a Rival machine on an input point.
-(define (real-apply compiler pt)
+(define (real-apply compiler pt [hint #f])
   (match-define (real-compiler _ vars var-reprs _ _ machine) compiler)
   (define start (current-inexact-milliseconds))
   (define pt*
@@ -79,7 +83,8 @@
                     [exn:rival:unsamplable? (lambda (e) (values 'exit #f))])
       (parameterize ([*rival-max-precision* (*max-mpfr-prec*)]
                      [*rival-max-iterations* 5])
-        (values 'valid (rest (vector->list (rival-apply machine pt*))))))) ; rest = drop precondition
+        (define value (rest (vector->list (rival-apply machine pt* hint)))) ; rest = drop precondition
+        (values 'valid value))))
   (when (> (rival-profile machine 'bumps) 0)
     (warn 'ground-truth
           "Could not converge on a ground truth"
@@ -110,8 +115,5 @@
 ;; Returns whether the machine is guaranteed to raise an exception
 ;; for the given inputs range. The result is an interval representing
 ;; how certain the result is: no, maybe, yes.
-(define (real-compiler-analyze compiler input-ranges)
-  (define res (rival-analyze (real-compiler-machine compiler) input-ranges))
-  (if (list? res)
-      (car res)
-      res))
+(define (real-compiler-analyze compiler input-ranges [hint #f])
+  (rival-analyze (real-compiler-machine compiler) input-ranges hint))
