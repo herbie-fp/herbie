@@ -1,7 +1,7 @@
 # Release building
 # ================
 # Build binaries to attach to the releases
-name: release
+name: Demo Binary Check
 
 # Configure when to run the workflows.
 on:
