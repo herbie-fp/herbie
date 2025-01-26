@@ -138,23 +138,20 @@
         (- a b))) ; This `if` statement handles `inf - inf`
 
   ; rank subexpressions by cost opportunity
-  (define localize-costss
-    (for/list ([subexprs (in-list subexprss)])
-      (sort (reap [sow]
-                  (for ([subexpr (in-list subexprs)])
-                    (match subexpr
-                      [(? literal?) (void)]
-                      [(? symbol?) (void)]
-                      [(approx _ impl)
-                       (define cost-opp (cost-opportunity subexpr (list impl)))
-                       (sow (cons cost-opp subexpr))]
-                      [(list _ args ...)
-                       (define cost-opp (cost-opportunity subexpr args))
-                       (sow (cons cost-opp subexpr))])))
-            >
-            #:key car)))
-
-  localize-costss)
+  (for/list ([subexprs (in-list subexprss)])
+    (sort (reap [sow]
+                (for ([subexpr (in-list subexprs)])
+                  (match subexpr
+                    [(? literal?) (void)]
+                    [(? symbol?) (void)]
+                    [(approx _ impl)
+                     (define cost-opp (cost-opportunity subexpr (list impl)))
+                     (sow (cons cost-opp subexpr))]
+                    [(list _ args ...)
+                     (define cost-opp (cost-opportunity subexpr args))
+                     (sow (cons cost-opp subexpr))])))
+          >
+          #:key car)))
 
 (define (batch-localize-errors exprs ctx)
   (define subexprss (map all-subexpressions exprs))
