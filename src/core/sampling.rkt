@@ -77,7 +77,7 @@
     (define search-for (random-integer 0 max-num))
     (define search-result (binary-search arr search-for))
     (check-true (> (vector-ref arr search-result) search-for))
-    (when (> search-result 0)
+    (when (positive? search-result)
       (check-true (<= (vector-ref arr (- search-result 1)) search-for)))))
 
 (define (make-hyperrect-sampler hyperrects* hints* reprs)
