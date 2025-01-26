@@ -30,6 +30,7 @@
     [(literal val precision) (get-representation precision)]
     [(? variable?) (context-lookup ctx expr)]
     [(approx _ impl) (repr-of impl ctx)]
+    [(hole precision spec) (get-representation precision)]
     [(list 'if cond ift iff) (repr-of ift ctx)]
     [(list op args ...) (impl-info op 'otype)]))
 

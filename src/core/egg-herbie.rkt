@@ -104,6 +104,7 @@
 
   ; node -> natural
   ; inserts an expression into the e-graph, returning its e-class id.
+
   (define (insert-node! node root?)
     (match node
       [(list op ids ...) (egraph_add_node ptr (symbol->string op) (list->u32vec ids) root?)]
@@ -111,7 +112,6 @@
       [(? number? n) (egraph_add_node ptr (number->string n) 0-vec root?)]))
 
   (define insert-batch (batch-remove-zombie batch roots))
-
   (define mappings (build-vector (batch-length insert-batch) values))
   (define (remap x)
     (vector-ref mappings x))
@@ -131,7 +131,6 @@
         [(hole prec spec) (remap spec)] ; "hole" terms currently disappear
         [(approx spec impl) (insert-node! (list '$approx (remap spec) (remap impl)) root?)]
         [(list op (app remap args) ...) (insert-node! (cons op args) root?)]))
-
     (vector-set! mappings n idx))
 
   (for ([node (in-vector (batch-nodes insert-batch))]
