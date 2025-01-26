@@ -75,10 +75,12 @@
                      #:unless (file-exists? (build-path dump-dir (format "~a.rival" i))))
            (build-path dump-dir (format "~a.rival" i))))
        (define dump-file (open-output-file name #:exists 'replace))
-       (pretty-print `(define (f ,@vars) ,@specs) dump-file 1)
+       (pretty-print `(define (f ,@vars)
+                        ,@specs)
+                     dump-file
+                     1)
        dump-file]
-      [else
-       #f]))
+      [else #f]))
 
   ; wrap it with useful information for Herbie
   (real-compiler pre vars var-reprs specs reprs machine dump-file))
