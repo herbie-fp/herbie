@@ -61,8 +61,7 @@
         [(approx spec impl)
          (loop spec (cons 1 loc))
          (loop impl (cons 2 loc))]
-        [(hole prec spec)
-         (loop spec (cons 1 loc))]
+        [(hole prec spec) (loop spec (cons 1 loc))]
         [(list op args ...)
          (for ([arg (in-list args)]
                [i (in-naturals 1)])
