@@ -115,7 +115,7 @@
                         ((make-hyperrect-sampler two-point-hyperrects (list repr repr))))))
 
 (define (make-sampler compiler)
-  (match-define (real-compiler pre vars var-reprs _ reprs _) compiler)
+  (match-define (real-compiler pre vars var-reprs _ reprs _ _) compiler)
   (cond
     [(and (flag-set? 'setup 'search)
           (not (empty? var-reprs))
