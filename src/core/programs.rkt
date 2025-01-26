@@ -132,7 +132,7 @@
        [else 1])]))
 
 (define (expr<? a b)
-  (< (expr-cmp a b) 0))
+  (negative? (expr-cmp a b)))
 
 ;; Converting constants
 
