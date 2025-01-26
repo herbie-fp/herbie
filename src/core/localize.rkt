@@ -361,12 +361,14 @@
     (define exact-error (~s (translate-booleans (first (hash-ref data 'exact-values)))))
     (define actual-error (~s (translate-booleans (first (hash-ref data 'approx-values)))))
     (define percent-accurate
-      (if (nan? (first (hash-ref data 'absolute-error)))
-          'invalid ; HACK: should specify if invalid or unsamplable
-          (let* ([repr (repr-of expr ctx)]
-                 [total-bits (representation-total-bits repr)]
-                 [bits-error (ulps->bits (first (hash-ref data 'ulp-errs)))])
-            (* 100 (- 1 (/ bits-error total-bits))))))
+      (cond
+        [(nan? (first (hash-ref data 'absolute-error)))
+         'invalid] ; HACK: should specify if invalid or unsamplable
+        [else
+         (define repr (repr-of expr ctx))
+         (define total-bits (representation-total-bits repr))
+         (define bits-error (ulps->bits (first (hash-ref data 'ulp-errs))))
+         (* 100 (- 1 (/ bits-error total-bits)))]))
     (hasheq 'ulps-error
             ulp-error
             'avg-error

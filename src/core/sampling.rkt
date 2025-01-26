@@ -66,9 +66,11 @@
 (module+ test
   (define rand-list
     (let loop ([current 0])
-      (if (> current 200)
-          empty
-          (let ([r (+ current (random-integer 1 10))]) (cons r (loop r))))))
+      (cond
+        [(> current 200) empty]
+        [else
+         (define r (+ current (random-integer 1 10)))
+         (cons r (loop r))])))
   (define arr (list->vector rand-list))
   (for ([i (range 0 20)])
     (define max-num (vector-ref arr (- (vector-length arr) 1)))
