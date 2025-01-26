@@ -138,23 +138,20 @@
         (- a b))) ; This `if` statement handles `inf - inf`
 
   ; rank subexpressions by cost opportunity
-  (define localize-costss
-    (for/list ([subexprs (in-list subexprss)])
-      (sort (reap [sow]
-                  (for ([subexpr (in-list subexprs)])
-                    (match subexpr
-                      [(? literal?) (void)]
-                      [(? symbol?) (void)]
-                      [(approx _ impl)
-                       (define cost-opp (cost-opportunity subexpr (list impl)))
-                       (sow (cons cost-opp subexpr))]
-                      [(list _ args ...)
-                       (define cost-opp (cost-opportunity subexpr args))
-                       (sow (cons cost-opp subexpr))])))
-            >
-            #:key car)))
-
-  localize-costss)
+  (for/list ([subexprs (in-list subexprss)])
+    (sort (reap [sow]
+                (for ([subexpr (in-list subexprs)])
+                  (match subexpr
+                    [(? literal?) (void)]
+                    [(? symbol?) (void)]
+                    [(approx _ impl)
+                     (define cost-opp (cost-opportunity subexpr (list impl)))
+                     (sow (cons cost-opp subexpr))]
+                    [(list _ args ...)
+                     (define cost-opp (cost-opportunity subexpr args))
+                     (sow (cons cost-opp subexpr))])))
+          >
+          #:key car)))
 
 (define (batch-localize-errors exprs ctx)
   (define subexprss (map all-subexpressions exprs))
@@ -364,12 +361,14 @@
     (define exact-error (~s (translate-booleans (first (hash-ref data 'exact-values)))))
     (define actual-error (~s (translate-booleans (first (hash-ref data 'approx-values)))))
     (define percent-accurate
-      (if (nan? (first (hash-ref data 'absolute-error)))
-          'invalid ; HACK: should specify if invalid or unsamplable
-          (let* ([repr (repr-of expr ctx)]
-                 [total-bits (representation-total-bits repr)]
-                 [bits-error (ulps->bits (first (hash-ref data 'ulp-errs)))])
-            (* 100 (- 1 (/ bits-error total-bits))))))
+      (cond
+        [(nan? (first (hash-ref data 'absolute-error)))
+         'invalid] ; HACK: should specify if invalid or unsamplable
+        [else
+         (define repr (repr-of expr ctx))
+         (define total-bits (representation-total-bits repr))
+         (define bits-error (ulps->bits (first (hash-ref data 'ulp-errs))))
+         (* 100 (- 1 (/ bits-error total-bits)))]))
     (hasheq 'ulps-error
             ulp-error
             'avg-error
