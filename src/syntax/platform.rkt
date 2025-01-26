@@ -508,7 +508,7 @@
             (define expr*
               (if (symbol? expr)
                   (list expr)
-                  expr*)) ; Handle named constants
+                  expr)) ; Handle named constants
             (define pattern (cons op (map (lambda (_) (gensym)) ireprs)))
             (when (and (subset? prop-dict* prop-dict) (pattern-match pattern expr*))
               (sow impl)))))
