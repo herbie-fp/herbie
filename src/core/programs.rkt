@@ -100,12 +100,13 @@
        [else
         (let loop ([a a]
                    [b b])
-          (if (null? a)
-              0
-              (let ([cmp (expr-cmp (car a) (car b))])
-                (if (zero? cmp)
-                    (loop (cdr a) (cdr b))
-                    cmp))))])]
+          (cond
+            [(null? a) 0]
+            [else
+             (define cmp (expr-cmp (car a) (car b)))
+             (if (zero? cmp)
+                 (loop (cdr a) (cdr b))
+                 cmp)]))])]
     [((? list?) _) 1]
     [(_ (? list?)) -1]
     [((? approx?) (? approx?))
@@ -131,7 +132,7 @@
        [else 1])]))
 
 (define (expr<? a b)
-  (< (expr-cmp a b) 0))
+  (negative? (expr-cmp a b)))
 
 ;; Converting constants
 
