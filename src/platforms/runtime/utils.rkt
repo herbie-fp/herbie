@@ -24,7 +24,7 @@
                           repr
                           #:spec (name)
                           #:fl (const value)
-                          #:fpcore (! :precision binary64 name)) ...))
+                          #:fpcore (! :precision repr name)) ...))
 
 (define-syntax-rule (define-comparator-impls repr [name impl-name impl-fn attrib ...] ...)
   (begin
