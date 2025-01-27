@@ -286,7 +286,7 @@
        (define result
          (profile-thunk compute-result
                         #:order 'total
-                        #:delay 0.01
+                        #:delay 0.05
                         #:render (λ (p order) (set! profile (profile->json p)))))
        (struct-copy job-result result [profile profile])]
       [else (compute-result)]))

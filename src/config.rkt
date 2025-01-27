@@ -25,7 +25,7 @@
 (define default-flags
   #hash([precision . ()]
         [setup . (simplify search)]
-        [localize . (costs errors)]
+        [localize . ()]
         [generate . (rr taylor simplify proofs)]
         [reduce . (regimes binary-search branch-expressions)]
         [rules

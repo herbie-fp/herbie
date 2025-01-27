@@ -172,12 +172,11 @@
     (raise-user-error 'localize!
                       "No alt chosen. Run (choose-alts!) or (choose-alt! n) to choose one"))
 
-  (timeline-event! 'simplify)
   (define exprs (map alt-expr (^next-alts^)))
-  (define localized-exprs empty)
-  (define repr (context-repr (*context*)))
+  (^locs^ '())
 
   (when (flag-set? 'localize 'costs)
+    (timeline-event! 'simplify)
     (define loc-costss (batch-localize-costs exprs (*context*)))
     (define cost-localized
       (for/list ([loc-costs (in-list loc-costss)]
@@ -189,10 +188,10 @@
                         "cost-diff"
                         (if (infinite? cost-diff) "Infinite" cost-diff))
         expr))
-    (set! localized-exprs (remove-duplicates (append localized-exprs cost-localized))))
+    (^locs^ (remove-duplicates (append (^locs^) cost-localized))))
 
-  (timeline-event! 'localize)
   (when (flag-set? 'localize 'errors)
+    (timeline-event! 'localize)
     (define loc-errss (batch-localize-errors exprs (*context*)))
     ;;Timeline will push duplicates
     (define error-localized
@@ -202,9 +201,11 @@
                  [_ (in-range (*localize-expressions-limit*))])
         (timeline-push! 'locations (~a expr) "accuracy" (errors-score err))
         expr))
-    (set! localized-exprs (remove-duplicates (append localized-exprs error-localized))))
+    (^locs^ (remove-duplicates (append (^locs^) error-localized))))
 
-  (^locs^ localized-exprs)
+  (when (empty? (^locs^))
+    (^locs^ (remove-duplicates (append-map all-subexpressions exprs))))
+
   (void))
 
 ;; Converts a patch to full alt with valid history
