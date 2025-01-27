@@ -171,6 +171,10 @@
          [(1) (approx (loop spec rest) impl)]
          [(2) (approx spec (loop impl rest))]
          [else (invalid! prog loc)])]
+      [((hole prec spec) (cons idx rest)) ; approx nodes
+       (case idx
+         [(1) (hole prec (loop spec rest))]
+         [else (invalid! prog loc)])]
       [((list op args ...) (cons idx rest)) ; operator
        (let seek ([elts (cons op args)]
                   [idx idx])
