@@ -7,7 +7,8 @@
 
 #lang racket
 
-(require rival)
+(require math/bigfloat
+         rival)
 
 (require "../config.rkt"
          "../syntax/types.rkt"
@@ -49,7 +50,7 @@
                   (lambda (x y) (- (ulp-difference x y repr) 1))))
 
 ;; Herbie's wrapper around the Rival machine abstraction.
-(struct real-compiler (pre vars var-reprs exprs reprs machine))
+(struct real-compiler (pre vars var-reprs exprs reprs machine dump-file))
 
 ;; Creates a Rival machine.
 ;; Takes a context to encode input variables and their representations,
@@ -66,18 +67,41 @@
   (timeline-push! 'compiler
                   (apply + 1 (expr-size pre) (map expr-size specs))
                   (+ (length vars) (rival-profile machine 'instructions)))
+
+  (define dump-file
+    (cond
+      [(flag-set? 'dump 'rival)
+       (define dump-dir "dump-rival")
+       (unless (directory-exists? dump-dir)
+         (make-directory dump-dir))
+       (define name
+         (for/first ([i (in-naturals)]
+                     #:unless (file-exists? (build-path dump-dir (format "~a.rival" i))))
+           (build-path dump-dir (format "~a.rival" i))))
+       (define dump-file (open-output-file name #:exists 'replace))
+       (pretty-print `(define (f ,@vars)
+                        ,@specs)
+                     dump-file
+                     1)
+       dump-file]
+      [else #f]))
+
   ; wrap it with useful information for Herbie
-  (real-compiler pre vars var-reprs specs reprs machine))
+  (real-compiler pre vars var-reprs specs reprs machine dump-file))
 
 ;; Runs a Rival machine on an input point.
 (define (real-apply compiler pt [hint #f])
-  (match-define (real-compiler _ vars var-reprs _ _ machine) compiler)
+  (match-define (real-compiler _ vars var-reprs _ _ machine dump-file) compiler)
   (define start (current-inexact-milliseconds))
   (define pt*
     (for/vector #:length (length vars)
                 ([val (in-list pt)]
                  [repr (in-list var-reprs)])
       ((representation-repr->bf repr) val)))
+  (when dump-file
+    (define args (map bigfloat->rational (vector->list pt*)))
+    ;; convert to rational, because Rival reads as exact
+    (pretty-print `(eval f ,@args) dump-file 1))
   (define-values (status value)
     (with-handlers ([exn:rival:invalid? (lambda (e) (values 'invalid #f))]
                     [exn:rival:unsamplable? (lambda (e) (values 'exit #f))])
