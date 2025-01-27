@@ -16,52 +16,6 @@
 
 (provide generate-candidates)
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;; Simplify ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(define (lower-approximations approxs global-batch)
-  (timeline-event! 'simplify)
-
-  (define reprs
-    (for/list ([approx (in-list approxs)])
-      (define prev (car (alt-prevs approx)))
-      (repr-of (debatchref (alt-expr prev)) (*context*))))
-
-  ; generate real rules
-  (define rules (*simplify-rules*))
-  (define lowering-rules (platform-lowering-rules))
-
-  ; egg runner
-  (define schedule
-    (if (flag-set? 'generate 'simplify)
-        ; if simplify enabled, 2-phases for real rewrites and implementation selection
-        `((,rules . ((node . ,(*node-limit*))))
-          (,lowering-rules . ((iteration . 1) (scheduler . simple))))
-        ; if disabled, only implementation selection
-        `((,lowering-rules . ((iteration . 1) (scheduler . simple))))))
-
-  (define roots
-    (for/vector ([approx (in-list approxs)])
-      (batchref-idx (alt-expr approx))))
-
-  ; run egg
-  (define runner (make-egraph global-batch roots reprs schedule))
-  (define simplification-options (simplify-batch runner global-batch))
-
-  ; convert to altns
-  (define simplified
-    (reap [sow]
-          (define global-batch-mutable (batch->mutable-batch global-batch)) ; Create mutable batch
-          (for ([altn (in-list approxs)]
-                [outputs (in-list simplification-options)])
-            (match-define (cons _ simplified) outputs)
-            (define prev (car (alt-prevs altn)))
-            (for ([bref (in-list simplified)])
-              (sow (alt bref `(simplify ,runner #f) (list altn) '()))))
-          (batch-copy-mutable-nodes! global-batch global-batch-mutable))) ; Update global-batch
-
-  (timeline-push! 'count (length approxs) (length simplified))
-  simplified)
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Taylor ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define transforms-to-try
@@ -111,7 +65,7 @@
   (timeline-push! 'outputs (map ~a (map (compose debatchref alt-expr) approxs)))
   (timeline-push! 'count (length altns) (length approxs))
 
-  (lower-approximations approxs global-batch))
+  approxs)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Recursive Rewrite ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -134,7 +88,6 @@
   (define roots (list->vector (map (compose batchref-idx alt-expr) altns)))
   (define reprs (map (curryr repr-of (*context*)) exprs))
   (timeline-push! 'inputs (map ~a exprs))
-
   (define runner (make-egraph global-batch roots reprs schedule))
   ; batchrefss is a (listof (listof batchref))
   (define batchrefss (egraph-variations runner global-batch))
@@ -161,7 +114,7 @@
   ; Starting alternatives
   (define start-altns
     (for/list ([expr (in-list exprs)]
-               [root (batch-roots global-batch)])
+               [root (in-vector (batch-roots global-batch))])
       (define repr (repr-of expr (*context*)))
       (alt (batchref global-batch root) (list 'patch expr repr) '() '())))
 
@@ -170,10 +123,11 @@
     (if (flag-set? 'generate 'taylor)
         (run-taylor exprs start-altns global-batch)
         '()))
+
   ; Recursive rewrite
   (define rewritten
     (if (flag-set? 'generate 'rr)
-        (run-rr start-altns global-batch)
+        (run-rr (append start-altns approximations) global-batch)
         '()))
 
-  (remove-duplicates (append approximations rewritten) #:key (λ (x) (batchref-idx (alt-expr x)))))
+  (remove-duplicates rewritten #:key (λ (x) (batchref-idx (alt-expr x)))))
