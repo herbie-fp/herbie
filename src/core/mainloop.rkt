@@ -6,7 +6,6 @@
          "alt-table.rkt"
          "bsearch.rkt"
          "egg-herbie.rkt"
-         "localize.rkt"
          "regimes.rkt"
          "simplify.rkt"
          "../utils/alternative.rkt"
@@ -33,7 +32,6 @@
 ;; Each stage is stored in this global variable for REPL debugging.
 
 (define/reset ^next-alts^ #f)
-(define/reset ^locs^ #f)
 (define/reset ^patched^ #f)
 (define/reset ^table^ #f)
 
@@ -53,7 +51,7 @@
 
   (for ([iteration (in-range (*num-iterations*))]
         #:break (atab-completed? (^table^)))
-    (run-iter!))
+    (finish-iter!))
   (define alternatives (extract!))
 
   (timeline-event! 'preprocess)
@@ -64,17 +62,6 @@
        altern
        (remove-unnecessary-preprocessing best context pcontext (alt-preprocessing altern)))))
   (values final-alts (remove-unnecessary-preprocessing best context pcontext preprocessing)))
-
-(define (run-iter!)
-  (when (^next-alts^)
-    (raise-user-error 'run-iter!
-                      "An iteration is already in progress\n~a"
-                      "Run (finish-iter!) to finish it, or (rollback-iter!) to abandon it.\n"))
-
-  (choose-alts!)
-  (localize!)
-  (reconstruct! (generate-candidates (^locs^)))
-  (finalize-iter!))
 
 (define (extract!)
   (timeline-push-alts! '())
@@ -166,48 +153,6 @@
   (^table^ (atab-set-picked (^table^) alts))
   (void))
 
-;; Invoke the subsystems individually
-(define (localize!)
-  (unless (^next-alts^)
-    (raise-user-error 'localize!
-                      "No alt chosen. Run (choose-alts!) or (choose-alt! n) to choose one"))
-
-  (define exprs (map alt-expr (^next-alts^)))
-  (^locs^ '())
-
-  (when (flag-set? 'localize 'costs)
-    (timeline-event! 'simplify)
-    (define loc-costss (batch-localize-costs exprs (*context*)))
-    (define cost-localized
-      (for/list ([loc-costs (in-list loc-costss)]
-                 #:when true
-                 [(cost-diff expr) (in-dict loc-costs)]
-                 [_ (in-range (*localize-expressions-limit*))])
-        (timeline-push! 'locations
-                        (~a expr)
-                        "cost-diff"
-                        (if (infinite? cost-diff) "Infinite" cost-diff))
-        expr))
-    (^locs^ (remove-duplicates (append (^locs^) cost-localized))))
-
-  (when (flag-set? 'localize 'errors)
-    (timeline-event! 'localize)
-    (define loc-errss (batch-localize-errors exprs (*context*)))
-    ;;Timeline will push duplicates
-    (define error-localized
-      (for/list ([loc-errs (in-list loc-errss)]
-                 #:when true
-                 [(err expr) (in-dict loc-errs)]
-                 [_ (in-range (*localize-expressions-limit*))])
-        (timeline-push! 'locations (~a expr) "accuracy" (errors-score err))
-        expr))
-    (^locs^ (remove-duplicates (append (^locs^) error-localized))))
-
-  (when (empty? (^locs^))
-    (^locs^ (remove-duplicates (append-map all-subexpressions exprs))))
-
-  (void))
-
 ;; Converts a patch to full alt with valid history
 (define (reconstruct! alts)
   ;; extracts the base expressions of a patch as a batchref
@@ -279,22 +224,19 @@
   (timeline-push! 'min-error
                   (errors-score (atab-min-errors (^table^)))
                   (format "~a" (representation-name repr)))
-  (rollback-iter!)
+  (^next-alts^ #f)
+  (^patched^ #f)
   (void))
 
 (define (finish-iter!)
   (unless (^next-alts^)
     (choose-alts!))
-  (unless (^locs^)
-    (localize!))
-  (reconstruct! (generate-candidates (^locs^)))
+  (define locs (append-map (compose all-subexpressions alt-expr) (^next-alts^)))
+  (reconstruct! (generate-candidates (remove-duplicates locs)))
   (finalize-iter!)
   (void))
 
 (define (rollback-iter!)
-  (^locs^ #f)
-  (^next-alts^ #f)
-  (^patched^ #f)
   (void))
 
 (define (initialize-alt-table! alternatives context pcontext)
