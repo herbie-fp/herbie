@@ -292,7 +292,7 @@
 
 (define (final-simplify! alts)
   (cond
-    [(flag-set? 'generate 'simplify)
+    [(flag-set? 'reduce 'simplify)
      (timeline-event! 'simplify)
 
      ; egg schedule (only FP rewrites plus simplify rewrites for if statements)
