@@ -135,12 +135,9 @@
 
 (define (parse-platform-name ann)
   (match ann
-    [(list '! props ...)
-     (let loop ([props props])
-       (match props
-         [(list ':herbie-platform name _ ...) name]
-         [(list _ _ rest ...) (loop rest)]
-         [(list) #f]))]
+    [(list '! props ... body)
+     (define dict (props->dict props))
+     (dict-ref dict ':herbie-platform #f)]
     [_ #f]))
 
 (define (parse-test stx)

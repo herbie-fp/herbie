@@ -189,7 +189,7 @@
       [(list '! props ... body)
        (loop body
              (if (not (null? props))
-                 (apply dict-set prop-dict props)
+                 (apply dict-set* prop-dict props)
                  prop-dict))]
       [(list 'neg arg) ; non-standard but useful [TODO: remove]
        (define arg* (loop arg prop-dict))
