@@ -110,9 +110,10 @@
          [optional? (set-add! missing impl)]
          [else (raise-herbie-missing-error "Missing implementation ~a required by platform" impl)]))))
   (define reprs
-    (remove-duplicates (apply append
-                              (for/list ([impl (in-list impls)])
-                                `(,@(impl-info impl 'itype) ,(impl-info impl 'otype))))))
+    (remove-duplicates (for*/list ([impl (in-list impls)]
+                                   [v (in-list `(,@(impl-info impl 'itype) ,(impl-info impl
+                                                                                       'otype)))])
+                         v)))
 
   (define repr-costs (make-hash))
   (for ([literal (in-list literals)])
