@@ -293,23 +293,22 @@
 
 ; Cost model of a single node by a platform.
 ; Returns a procedure that must be called with the costs of the children.
-(define (platform-node-cost-proc pform)
-  (λ (expr repr)
-    (match expr
-      [(? literal?) (lambda () (platform-repr-cost pform repr))]
-      [(? symbol?) (lambda () (platform-repr-cost pform repr))]
-      [(list 'if _ _ _)
-       (define if-cost (platform-impl-cost pform 'if))
-       (lambda (cond-cost ift-cost iff-cost)
-         (match if-cost
-           [`(max ,n) (+ n cond-cost (max ift-cost iff-cost))]
-           [`(sum ,n) (+ n cond-cost ift-cost iff-cost)]))]
-      [(list impl args ...)
-       (define impl-cost (platform-impl-cost pform impl))
-       (lambda itype-costs
-         (unless (= (length itype-costs) (length args))
-           (error 'platform-node-cost-proc "arity mismatch, expected ~a arguments" (length args)))
-         (apply + impl-cost itype-costs))])))
+(define ((platform-node-cost-proc pform) expr repr)
+  (match expr
+    [(? literal?) (lambda () (platform-repr-cost pform repr))]
+    [(? symbol?) (lambda () (platform-repr-cost pform repr))]
+    [(list 'if _ _ _)
+     (define if-cost (platform-impl-cost pform 'if))
+     (lambda (cond-cost ift-cost iff-cost)
+       (match if-cost
+         [`(max ,n) (+ n cond-cost (max ift-cost iff-cost))]
+         [`(sum ,n) (+ n cond-cost ift-cost iff-cost)]))]
+    [(list impl args ...)
+     (define impl-cost (platform-impl-cost pform impl))
+     (lambda itype-costs
+       (unless (= (length itype-costs) (length args))
+         (error 'platform-node-cost-proc "arity mismatch, expected ~a arguments" (length args)))
+       (apply + impl-cost itype-costs))]))
 
 ; Cost model parameterized by a platform.
 (define (platform-cost-proc pform)
