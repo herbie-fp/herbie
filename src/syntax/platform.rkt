@@ -394,7 +394,7 @@
      combined]
     [(list op args ...)
      (define op-otype (impl-info op 'otype))
-     (when (not (equal? op-otype otype))
+     (unless (equal? op-otype otype)
        (error 'type-verify "Operator ~a has type ~a, expected ~a" op op-otype otype))
      (define bindings '())
      (for ([arg (in-list args)]
@@ -436,7 +436,7 @@
               [(list 'exact name expr)
 
                (when (impls-supported? expr)
-                 (when (not (expr-otype expr))
+                 (unless (expr-otype expr)
                    (error "Exact identity expr cannot infer type"))
                  (define otype (expr-otype expr))
                  (define var-types (type-verify expr otype))
@@ -470,11 +470,11 @@
                  (define rotype (expr-otype rhs))
                  (when (and (not lotype) (not rotype))
                    (error "Could not find type for lhs ~a and rhs ~a" lhs rhs))
-                 (when (not lotype)
+                 (unless lotype
                    (set! lotype rotype))
-                 (when (not rotype)
+                 (unless rotype
                    (set! rotype lotype))
-                 (when (not (equal? lotype rotype))
+                 (unless (equal? lotype rotype)
                    (error "Incompatible types for lhs ~a and rhs ~a" lhs rhs))
                  (define var-types (merge-bindings (type-verify lhs lotype) (type-verify rhs rotype)))
                  (define r
