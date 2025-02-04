@@ -25,8 +25,11 @@
   (timeline-push! 'inputs (map ~a (batch->progs (egg-runner-batch runner) (egg-runner-roots runner))))
   (timeline-push! 'method "egg-herbie")
   (define generate-flags (hash-ref all-flags 'generate))
+
+  ; (printf "generate-flag :~a\n " generate-flags)
+
   (define simplifieds
-    (if (member 'egglogs generate-flags)
+    (if (member 'egglog generate-flags)
         (run-egglog-single-extractor runner extractor)
         (run-egg runner (cons 'single extractor))))
 

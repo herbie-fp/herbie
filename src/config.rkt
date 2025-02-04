@@ -26,7 +26,7 @@
   #hash([precision . ()]
         [setup . (simplify search)]
         [localize . (costs errors)]
-        [generate . (rr taylor simplify proofs egglog)]
+        [generate . (rr taylor simplify proofs)]
         [reduce . (regimes binary-search branch-expressions)]
         [rules
          . (arithmetic polynomials
