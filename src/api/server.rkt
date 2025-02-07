@@ -118,8 +118,8 @@
       (place-channel-put manager (list* msg args))
       (match msg
         ['start
-         (match-define (list hash-false command job-id) args)
          (hash-set! completed-work job-id (herbie-do-server-job command job-id))])))
+         (match-define (list #f command job-id) args)
 
 (define (manager-ask msg . args)
   (log "Asking manager: ~a, ~a.\n" msg args)
