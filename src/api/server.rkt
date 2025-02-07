@@ -255,9 +255,7 @@
         (define reassigned (make-hash))
         (for ([(wid worker) (in-hash waiting-workers)]
               [(jid command) (in-hash queued-jobs)])
-          (log "Starting worker [~a] on [~a].\n"
-               jid
-               (test-name (herbie-command-test command)))
+          (log "Starting worker [~a] on [~a].\n" jid (test-name (herbie-command-test command)))
           ; Check if the job is already in progress.
           (unless (hash-has-key? current-jobs jid)
             (place-channel-put worker (list 'apply self command jid))
