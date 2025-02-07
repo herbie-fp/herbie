@@ -118,10 +118,11 @@
       (define subexpr-val (exacts-ref subexpr))
 
       (define (update-flow-hash flow-hash pred? . children)
-        (define child-set
-          (foldl (lambda (a b) (hash-union a b #:combine +))
-                 (make-immutable-hash)
-                 (map (lambda (a) (hash-ref flow-hash a (make-immutable-hash))) children)))
+        (define child-set (make-hash))
+        (for ([child (in-list children)])
+          (when (hash-has-key? flow-hash child)
+            (for ([(k v) (in-hash (hash-ref flow-hash child))])
+              (hash-update! child-set k (curry + v) 0))))
         (define parent-set (hash-ref flow-hash subexpr (make-immutable-hash)))
         (define parent+child-set (hash-union parent-set child-set #:combine (lambda (_ v) v)))
         (define new-parent-set
