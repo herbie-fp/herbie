@@ -245,12 +245,12 @@
      (match (place-channel-get ch)
        [(list 'start self command job-id)
         ; Check if the work has been completed already if not assign the work.
-        (if (hash-has-key? completed-jobs job-id)
-            (place-channel-put self (list 'send job-id (hash-ref completed-jobs job-id)))
-            (place-channel-put self (list 'queue self job-id command)))]
-       [(list 'queue self job-id command)
-        (hash-set! queued-jobs job-id command job-id)
-        (place-channel-put self (list 'assign self))]
+        (cond
+          [(hash-has-key? completed-jobs job-id)
+           (place-channel-put self (list 'send job-id (hash-ref completed-jobs job-id)))]
+          [else
+           (hash-set! queued-jobs job-id command job-id)
+           (place-channel-put self (list 'assign self))])]
        [(list 'assign self)
         (define reassigned (make-hash))
         (for ([(wid worker) (in-hash waiting-workers)]
