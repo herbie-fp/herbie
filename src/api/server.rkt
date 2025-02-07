@@ -21,7 +21,6 @@
 
 (provide make-path
          get-improve-table-data
-         make-improve-result
          server-check-on
          get-results-for
          get-timeline-for
@@ -31,10 +30,8 @@
          wait-for-job
          start-job-server
          write-results-to-disk
-         *demo?*
          *demo-output*)
 
-(define *demo?* (make-parameter false))
 (define *demo-output* (make-parameter false))
 
 (define log-level #f)
