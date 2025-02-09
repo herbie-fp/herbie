@@ -141,9 +141,9 @@
     [else (~r x #:precision 2)]))
 
 (define (bad-result? info)
-  (or (> (dict-ref info 'tests-crashed 0) 0)
-      (> (dict-ref info 'tests-unimproved 0) 0)
-      (> (dict-ref info 'tests-timeout 0) 0)))
+  (or (positive? (dict-ref info 'tests-crashed 0))
+      (positive? (dict-ref info 'tests-unimproved 0))
+      (positive? (dict-ref info 'tests-timeout 0))))
 
 (define (print-rows infos #:name name)
   `((thead ((id ,(format "reports-~a" name)) (data-branch ,name))
@@ -165,7 +165,7 @@
                 (time ([data-unix ,(~a (field 'date-unix))]) ,(field 'date-short)))
             (td (time ([data-ms ,(~a (field 'speed))]) ,(format-time (field 'speed))))
             (td ([title ,(field 'commit)]) ,(field 'branch))
-            (td ,(if (> (field 'tests-available) 0)
+            (td ,(if (positive? (field 'tests-available))
                      (format "~a/~a" (field 'tests-passed) (field 'tests-available))
                      ""))
             (td ,(if (field 'bits-improved)
@@ -191,7 +191,7 @@
     (partition (λ (x) (set-member? '("master" "develop" "main") (dict-ref (first x) 'branch)))
                branch-infos))
 
-  (define crashes (filter (λ (x) (> (dict-ref x 'tests-crashed) 0)) (apply append mainline-infos)))
+  (define crashes (filter (λ (x) (positive? (dict-ref x 'tests-crashed))) (apply append mainline-infos)))
   (define last-crash
     (if (null? crashes)
         #f
