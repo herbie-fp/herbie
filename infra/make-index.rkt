@@ -231,9 +231,9 @@
        (script
         "window.addEventListener('load', function(){draw_results(d3.select('#accuracy-graph'), d3.select('#speed-graph'))})"))
       (table ((id "reports"))
-             ,@(apply append
-                      (for/list ([rows (append mainline-infos other-infos)])
-                        (print-rows rows #:name (dict-ref (first rows) 'branch)))))))
+             ,@(for*/list ([rows (append mainline-infos other-infos)]
+                           [v (in-list (print-rows rows #:name (dict-ref (first rows) 'branch)))])
+                 v))))
    out))
 
 (define (get-reports file base)
