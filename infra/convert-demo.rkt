@@ -15,10 +15,10 @@
 (define (format-expr is-version-10 expr)
   (match expr
     [(? string?)
-     (let ([parsed (string->number expr)])
-       (if parsed
-           parsed
-           (raise (error "string that is not a num"))))]
+     (define parsed (string->number expr))
+     (if parsed
+         parsed
+         (raise (error "string that is not a num")))]
     [(list op args ...) (format-op (cons op (map (curry format-expr is-version-10) args)))]
     [(? symbol?)
      (if is-version-10
@@ -30,8 +30,8 @@
   (format-expr is-version-10 (call-with-input-string expr-string read)))
 
 (define (make-fpcore expr)
-  (let ([vars (free-variables expr)])
-    (format "(FPCore (~a) ~a)" (string-join (map symbol->string vars) " ") expr)))
+  (define vars (free-variables expr))
+  (format "(FPCore (~a) ~a)" (string-join (map symbol->string vars) " ") expr))
 
 (define (convert-file file-name output-file existing-set is-version-10)
   (define file-port (open-input-file file-name))
