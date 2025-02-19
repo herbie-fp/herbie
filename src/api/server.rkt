@@ -249,7 +249,7 @@
           [(hash-has-key? completed-jobs job-id)
            (place-channel-put self (list 'send job-id (hash-ref completed-jobs job-id)))]
           [else
-           (hash-set! queued-jobs job-id command job-id)
+           (hash-set! queued-jobs job-id command)
            (place-channel-put self (list 'assign self))])]
        [(list 'assign self)
         (define reassigned (make-hash))
