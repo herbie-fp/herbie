@@ -67,9 +67,8 @@
   (timeline-push-alts! '())
 
   (define all-alts (atab-all-alts (^table^)))
-  (define joined-alts (make-regime! all-alts))
-  (define cleaned-alts (final-simplify! joined-alts))
-  (define annotated-alts (add-derivations! cleaned-alts))
+  (define joined-alts (make-regime! all-alts)) ;; HERE
+  (define annotated-alts (add-derivations! joined-alts))
 
   (timeline-push! 'stop (if (atab-completed? (^table^)) "done" "fuel") 1)
   (sort-alts annotated-alts))
