@@ -9,7 +9,7 @@
         [setup . (simplify search)]
         [localize . (costs errors)]
         [generate . (rr taylor simplify better-rr proofs)]
-        [reduce . (regimes avg-error binary-search branch-expressions)]
+        [reduce . (regimes avg-error binary-search branch-expressions simplify)]
         [rules
          . (arithmetic polynomials
                        fractions
@@ -20,14 +20,14 @@
                        special
                        bools
                        branches)]
-        [dump . (egg)]))
+        [dump . (egg rival)]))
 
 (define default-flags
   #hash([precision . ()]
         [setup . (simplify search)]
-        [localize . (costs errors)]
+        [localize . ()]
         [generate . (rr taylor simplify proofs)]
-        [reduce . (regimes binary-search branch-expressions)]
+        [reduce . (regimes binary-search branch-expressions simplify)]
         [rules
          . (arithmetic polynomials
                        fractions
@@ -54,9 +54,21 @@
      (eprintf "The generate:better-rr option has been removed.\n")
      (eprintf "  The current recursive rewriter does not support the it.\n")
      (eprintf "See <https://herbie.uwplse.org/doc/~a/options.html> for more.\n" *herbie-version*)]
+    [('generate 'simplify)
+     (eprintf "The generate:simplify option has been removed.\n")
+     (eprintf "  Simplification is no longer performed as a separate step.\n")
+     (eprintf "See <https://herbie.uwplse.org/doc/~a/options.html> for more.\n" *herbie-version*)]
     [('reduce 'avg-error)
      (eprintf "The reduce:avg-error option has been removed.\n")
      (eprintf "  Herbie now always uses average error for pruning.\n")
+     (eprintf "See <herbie://herbie.uwplse.org/doc/~a/options.html> for more.\n" *herbie-version*)]
+    [('localize 'costs)
+     (eprintf "The localize:costs option has been removed.\n")
+     (eprintf "  Herbie no longer performs localization.\n")
+     (eprintf "See <herbie://herbie.uwplse.org/doc/~a/options.html> for more.\n" *herbie-version*)]
+    [('localize 'errors)
+     (eprintf "The localize:errors option has been removed.\n")
+     (eprintf "  Herbie no longer performs localization.\n")
      (eprintf "See <herbie://herbie.uwplse.org/doc/~a/options.html> for more.\n" *herbie-version*)]
     [(_ _) (void)]))
 

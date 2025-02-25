@@ -28,6 +28,7 @@
 
 (provide run-demo)
 
+(define *demo?* (make-parameter false))
 (define *demo-prefix* (make-parameter "/"))
 (define *demo-log* (make-parameter false))
 
@@ -167,8 +168,8 @@
        `(form
          ([action ,(url improve)] [method "post"] [id "formula"] [data-progress ,(url improve-start)])
          (textarea ([name "formula"] [autofocus "true"]
-                                     [placeholder "(FPCore (x) (- (sqrt (+ x 1)) (sqrt x)))"]))
-         (input ([name "formula-math"] [placeholder "sqrt(x + 1) - sqrt(x)"]))
+                                     [placeholder "e.g. (FPCore (x) (- (sqrt (+ x 1)) (sqrt x)))"]))
+         (input ([name "formula-math"] [placeholder "e.g. sqrt(x + 1) - sqrt(x)"]))
          (table ([id "input-ranges"]))
          (ul ([id "errors"]))
          (ul ([id "warnings"]))
