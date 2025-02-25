@@ -127,10 +127,7 @@
 
   `(dl ((class "function-list")) ,@(append-map fn-class fn-classes)))
 
-(define (herbie-page #:title title
-                     #:show-title [title? true]
-                     #:scripts [scripts '()]
-                     . body)
+(define (herbie-page #:title title #:show-title [title? true] #:scripts [scripts '()] . body)
   `(html (head (meta ([charset "utf-8"]))
                (title ,title)
                ,@(for/list ([script scripts])
@@ -285,7 +282,7 @@
                (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count))))
                      (header #"X-Herbie-Job-ID" (string->bytes/utf-8 job-id))
                      (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
-               (curry write-json job-result)))]))
+               (curry write-json job-result))]))
 
 (define (improve-common req body go-back)
   (match (extract-bindings 'formula (request-bindings req))
@@ -400,7 +397,7 @@
                (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count))))
                      (header #"X-Herbie-Job-ID" (string->bytes/utf-8 job-id))
                      (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
-               (curry write-json (hash-ref job-result 'timeline))))]))
+               (curry write-json (hash-ref job-result 'timeline)))]))
 
 ; Macro for defining async and sync versions of an endpoint.
 (define-syntax-rule (define-endpoint ([sync-name async-name] post-data) body ...)
