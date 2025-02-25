@@ -139,3 +139,7 @@
 
 ; Register the platform
 (register-platform! 'herbie10 herbie10-platform)
+
+;; Do not run this file during testing
+(module test racket/base
+  )
