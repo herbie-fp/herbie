@@ -6,12 +6,12 @@
 (require "../plugin.rkt")
 
 ; universal boolean opertaions
-(define-platform universal-platform
-                 #:literal [bool 1]
-                 #:literal [binary64 1]
-                 #:literal [binary32 1]
-                 #:default-cost 1
-                 #:if-cost 1
+(define-platform herbie10-platform
+                 #:literal [bool 0]
+                 #:literal [binary64 0]
+                 #:literal [binary32 0]
+                 #:default-cost 0
+                 #:if-cost 0
                  ; ---- Boolean ----
                  TRUE
                  FALSE
@@ -138,4 +138,4 @@
                  fma.f32)
 
 ; Register the platform
-(register-platform! 'herbie10 universal-platform)
+(register-platform! 'herbie10 herbie10-platform)

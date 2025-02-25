@@ -81,6 +81,8 @@
   (define frontier
     (map
      (match-lambda
+       [(list 0 accuracy)
+        (list "N/A" (- 1 (/ accuracy maximum-accuracy)))] ; in case if cost-model is 0
        ;; Equivalent to (/ 1 (/ cost tests-length))
        [(list cost accuracy) (list (/ 1 (/ cost tests-length)) (- 1 (/ accuracy maximum-accuracy)))])
      (pareto-combine rescaled #:convex? #t)))
@@ -88,6 +90,7 @@
     (argmax identity
             (cons 0.0 ;; To prevent `argmax` from signaling an error in case `tests` is empty
                   (map (match-lambda
+                         [(list "N/A" _) 1.0]
                          [(list cost _) cost])
                        frontier))))
   (list (list 1.0 initial-accuracy) frontier))
