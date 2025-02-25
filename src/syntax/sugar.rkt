@@ -150,7 +150,8 @@
 
 (define (assert-fpcore-impl op prop-dict ireprs)
   (or (get-fpcore-impl op prop-dict ireprs)
-      (raise-herbie-missing-error
+      (error
+       'assert-fpcore-impl
        "No implementation for `~a` under rounding context `~a` with types `~a`"
        op
        prop-dict
@@ -274,7 +275,7 @@
        (match-define (cons expr impl) (vector-ref ivec idx))
        (define impl*
          (match expr
-           [(list '! props ... (list op _ ...))
+           [(list '! props ... (or (? symbol? op) (list op _ ...)))
             ; rounding context updated parent context
             (define prop-dict*
               (if (not (null? props))
