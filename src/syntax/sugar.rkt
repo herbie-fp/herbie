@@ -150,8 +150,7 @@
 
 (define (assert-fpcore-impl op prop-dict ireprs)
   (or (get-fpcore-impl op prop-dict ireprs)
-      (error
-       'assert-fpcore-impl
+      (raise-herbie-missing-error
        "No implementation for `~a` under rounding context `~a` with types `~a`"
        op
        prop-dict
