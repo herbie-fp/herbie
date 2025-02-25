@@ -25,9 +25,10 @@
            ([,(*num-points*) ,(table-row-start-est row)] [,(*reeval-pts*) ,(table-row-start row)])
            :herbie-error-output
            ([,(*num-points*) ,(table-row-result-est row)] [,(*reeval-pts*) ,(table-row-result row)])
-           ,@(append (for/list ([rec (in-list (table-row-target row))])
-                       (match-define (list cost score) rec)
-                       `(:herbie-error-target ([,(*reeval-pts*) ,(table-row-target row)]))))
+           ,@(apply append
+                    (for/list ([rec (in-list (table-row-target row))])
+                      (match-define (list cost score) rec)
+                      `(:herbie-error-target ([,(*reeval-pts*) ,(table-row-target row)]))))
            ,@(if (empty? (table-row-warnings row))
                  '()
                  `(:herbie-warnings ,(table-row-warnings row)))
@@ -41,9 +42,10 @@
            ,@(if (equal? (table-row-preprocess row) empty)
                  '()
                  `(:herbie-preprocess ,(table-row-preprocess row)))
-           ,@(append (for/list ([(target enabled?) (in-dict (table-row-target-prog row))]
-                                #:when enabled?)
-                       `(:alt ,target)))
+           ,@(apply append
+                    (for/list ([(target enabled?) (in-dict (table-row-target-prog row))]
+                               #:when enabled?)
+                      `(:alt ,target)))
            ,(prog->fpcore expr ctx)))
 
 (define (get-shell-input)
