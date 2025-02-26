@@ -158,7 +158,12 @@ function calculateSpeedup(mergedCostAccuracy) {
     const deepCopy = JSON.parse(JSON.stringify(mergedCostAccuracy[1]))
     for (const point of deepCopy.reverse()) {
         if (point[1] > initial_accuracy) {
-            return point[0].toFixed(1) + "×"
+            if (typeof point[0] == 'number') {
+                return point[0].toFixed(1) + "×";
+            }
+            else {
+                return point[0] + "×";
+            }
         }
     }
 }
