@@ -3,7 +3,7 @@
 (FPCore (x)
  :name "Kahan's exp quotient"
  :alt 
- (! :herbie-platform default
+ (! :herbie-platform herbie20
   (if (and (< x 1) (> x -1))
    (/ (- (exp x) 1) (log (exp x)))
    (/ (- (exp x) 1) x)))

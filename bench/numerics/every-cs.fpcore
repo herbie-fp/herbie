@@ -3,7 +3,7 @@
 (FPCore (a b c)
  :name "The quadratic formula (r1)"
  :alt 
- (! :herbie-platform default
+ (! :herbie-platform herbie20
   (let ((d (- (* b b) (* (* 4 a) c))))
    (let ((r1 (/ (+ (- b) (sqrt d)) (* 2 a))))
      (let ((r2 (/ (- (- b) (sqrt d)) (* 2 a))))
@@ -15,7 +15,7 @@
 (FPCore (a b c)
  :name "The quadratic formula (r2)"
  :alt 
- (! :herbie-platform default
+ (! :herbie-platform herbie20
   (let ((d (sqrt (- (* b b) (* 4 (* a c))))))
    (let ((r1 (/ (+ (- b) d) (* 2 a))))
      (let ((r2 (/ (- (- b) d) (* 2 a)))) (if (< b 0) (/ c (* a r1)) r2)))))
@@ -26,7 +26,7 @@
 (FPCore (a b)
  :name "Difference of squares"
  :alt 
- (! :herbie-platform default
+ (! :herbie-platform herbie20
   (* (+ a b) (- a b)))
 
  (- (* a a) (* b b)))
@@ -35,7 +35,7 @@
  :name "Area of a triangle"
  :pre (and (< 0 a (+ b c)) (< 0 b (+ a c)) (< 0 c (+ a b)))
  :alt 
- (! :herbie-platform default
+ (! :herbie-platform herbie20
   (/ (sqrt (* (+ a (+ b c)) (- c (- a b)) (+ c (- a b)) (+ a (- b c)))) 4))
 
  (let ((s (/ (+ (+ a b) c) 2)))
@@ -44,7 +44,7 @@
 (FPCore (x)
  :name "ln(1 + x)"
  :alt 
- (! :herbie-platform default
+ (! :herbie-platform herbie20
   (if (== (+ 1 x) 1) x (/ (* x (log (+ 1 x))) (- (+ 1 x) 1))))
 
  (log (+ 1 x)))
@@ -52,7 +52,7 @@
 (FPCore (i n)
  :name "Compound Interest"
  :alt 
- (! :herbie-platform default
+ (! :herbie-platform herbie20
   (let ((lnbase
         (if (== (+ 1 (/ i n)) 1)
           (/ i n)
@@ -64,7 +64,7 @@
 (FPCore (x)
  :name "x / (x^2 + 1)"
  :alt 
- (! :herbie-platform default
+ (! :herbie-platform herbie20
   (/ 1 (+ x (/ 1 x))))
 
  (/ x (+ (* x x) 1)))
@@ -72,7 +72,7 @@
 (FPCore (a b c d)
  :name "Complex division, real part"
  :alt 
- (! :herbie-platform default
+ (! :herbie-platform herbie20
   (if (< (fabs d) (fabs c))
     (/ (+ a (* b (/ d c))) (+ c (* d (/ d c))))
     (/ (+ b (* a (/ c d))) (+ d (* c (/ c d))))))
@@ -82,7 +82,7 @@
 (FPCore (a b c d)
  :name "Complex division, imag part"
  :alt 
- (! :herbie-platform default
+ (! :herbie-platform herbie20
   (if (< (fabs d) (fabs c))
     (/ (- b (* a (/ d c))) (+ c (* d (/ d c))))
     (/ (+ (- a) (* b (/ c d))) (+ d (* c (/ c d))))))

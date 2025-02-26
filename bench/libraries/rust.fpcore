@@ -3,7 +3,7 @@
   :spec (asinh x)
 
   :alt 
-  (! :herbie-platform default
+  (! :herbie-platform herbie20
    (let* ([ax (fabs x)] [ix (/ 1 ax)])
     (copysign (log1p (+ ax (/ ax (+ (hypot 1 ix) ix)))) x)))
 
@@ -15,7 +15,7 @@
   :precision binary32
 
   :alt 
-  (! :herbie-platform default
+  (! :herbie-platform herbie20
    (let* ([ax (fabs x)] [ix (/ 1 ax)])
     (copysign (log1p (+ ax (/ ax (+ (hypot 1 ix) ix)))) x)))
 
@@ -27,7 +27,7 @@
   :pre (>= x 1)
 
   :alt 
-  (! :herbie-platform default
+  (! :herbie-platform herbie20
    (log (+ x (* (sqrt (- x 1)) (sqrt (+ x 1))))))
 
   (log (+ x (sqrt (- (* x x) 1)))))
@@ -39,7 +39,7 @@
   :pre (>= x 1)
 
   :alt 
-  (! :herbie-platform default
+  (! :herbie-platform herbie20
    (log (+ x (* (sqrt (- x 1)) (sqrt (+ x 1))))))
 
   (log (+ x (sqrt (- (* x x) 1)))))
