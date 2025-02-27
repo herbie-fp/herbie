@@ -5,6 +5,7 @@
 
 (require "../plugin.rkt")
 (require "runtime/utils.rkt")
+(provide machine-platform boolean-platform libm64-platform)
 
 ; universal boolean opertaions
 (define-platform boolean-platform

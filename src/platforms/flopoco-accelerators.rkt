@@ -4,19 +4,19 @@
          math/flonum)
 
 (define (fl2dotprod a b c d)
-(define-values (x1 x2) (fl2* a 0.0 b 0.0))
-(define-values (y1 y2) (fl2* c 0.0 d 0.0))
-(define-values (z1 z2) (fl2+ x1 x2 y1 y2))
+    (define-values (x1 x2) (fl2* a 0.0 b 0.0))
+    (define-values (y1 y2) (fl2* c 0.0 d 0.0))
+    (define-values (z1 z2) (fl2+ x1 x2 y1 y2))
 z1)
 
 (define (fl2add3 a b c)
-(define-values (x1 x2) (fl2+ a 0.0 b 0.0))
-(define-values (y1 y2) (fl2+ x1 x2 c 0.0))
+    (define-values (x1 x2) (fl2+ a 0.0 b 0.0))
+    (define-values (y1 y2) (fl2+ x1 x2 c 0.0))
 y1)
 
 (define (fl2fma a b c)
-(define-values (x1 x2) (fl2* a 0.0 b 0.0))
-(define-values (y1 y2) (fl2+ x1 x2 c 0.0))
+    (define-values (x1 x2) (fl2* a 0.0 b 0.0))
+    (define-values (y1 y2) (fl2+ x1 x2 c 0.0))
 y1)
 
 (define (square a) (* a a))
@@ -69,7 +69,7 @@ y1)
                  or)
 
 (define compare-cost 0.1506329114)
-(define-platform hardware-accelerators-platform
+(define-platform flopoco
                  #:literal [binary32 1]
                  [PI.f32 1]
                  [E.f32 1]
@@ -98,9 +98,9 @@ y1)
                  [square.f32 1.82278481]
 )
 
-(define hardware-accelerators-platform-2 (platform-union boolean-platform hardware-accelerators-platform))
+(define flopoco-accelerators-platform (platform-union boolean-platform flopoco))
 
-(register-platform! 'hardware-accelerators hardware-accelerators-platform-2)
+(register-platform! 'flopoco-accelerators flopoco-accelerators-platform)
 
                    
 

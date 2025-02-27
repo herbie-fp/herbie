@@ -19,9 +19,10 @@
 (define-runtime-module-path c-platform "../platforms/libm.rkt")
 (define-runtime-module-path default-platform "../platforms/default.rkt")
 (define-runtime-module-path math-platform "../platforms/math.rkt")
-(define-runtime-module-path hardware-accelerators-platform "../platforms/hardware-accelerators.rkt")
+(define-runtime-module-path flopoco-accelerators-platform "../platforms/flopoco-accelerators.rkt")
 (define-runtime-module-path arith-platform "../platforms/arith.rkt")
-
+(define-runtime-module-path no-accel-platform "../platforms/new-accelerators.rkt")
+(define-runtime-module-path new-accel-platform "../platforms/new-accelerators.rkt")
 
 ; Automatically loads default representations and platforms
 (define (load-herbie-builtins)
@@ -35,8 +36,11 @@
   (dynamic-require c-platform #f)
   (dynamic-require default-platform #f)
   (dynamic-require math-platform #f)
-  (dynamic-require hardware-accelerators-platform #f)
   (dynamic-require arith-platform #f)
+  (dynamic-require flopoco-accelerators-platform #f)
+  (dynamic-require no-accel-platform #f)
+  (dynamic-require new-accel-platform #f)
+
   ; activate the required platform
   (activate-platform! (*platform-name*)))
 
