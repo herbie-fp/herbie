@@ -21,13 +21,13 @@ for bench in "$BENCHDIR"/*; do
          --seed "$SEED" \
          --platform "newaccel" \
          "$@" \
-         "$bench" "$REPORTDIR"/"$name"/1
+         "$bench" "$REPORTDIR"/1/"$name"
 
     racket -y "src/main.rkt" report \
          --seed "$SEED" \
          --platform "noaccel" \
          "$@" \
-         "$bench" "$REPORTDIR"/"$name"/2
+         "$bench" "$REPORTDIR"/2/"$name"
   
   dirs="$dirs $name";
 done
