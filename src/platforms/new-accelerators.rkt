@@ -46,33 +46,77 @@
                       #:fpcore (! :precision binary64 (expnp1 z0))
                       )     
 
-(define-operator-impl (pow2/3s.f64 [z0 : binary64])
+(define-operator-impl (pown3/2s.f64 [z0 : binary64])
                       binary64
                       #:spec (sqrt (/ 1 (pow z0 3)))
-                      #:fpcore (! :precision binary64 (pow2/3s z0))
+                      #:fpcore (! :precision binary64 (pown3/2s z0))
                       ) 
 
 
+(define-operator-impl (ratio-of-squares.f32 [z0 : binary32] [z1 : binary32])
+                      binary32
+                      #:spec (/ (* z0 z0) (* z1 z1))
+                      #:fpcore (! :precision binary32 (ratio-of-squares z0 z1)))
+
+(define-operator-impl (ratio-square-sum.f32 [z0 : binary32] [z1 : binary32])
+                      binary32
+                      #:spec (/ (* z0 z0) (+ z0 z1))
+                      #:fpcore (! :precision binary32 (ratio-square-sum z0 z1))
+                      )            
+
+(define-operator-impl (sqrt-product.f32 [z0 : binary32] [z1 : binary32])
+                      binary32
+                      #:spec (sqrt (* (+ z0 z1) (- z0 z1)))
+                      #:fpcore (! :precision binary32 (sqrt-product z0 z1))
+                      )            
+
+(define-operator-impl (log1m.f32 [z0 : binary32])
+                      binary32
+                      #:spec (log (- 1 z0))
+                      #:fpcore (! :precision binary32 (log1m z0))
+                      )     
+
+(define-operator-impl (expnp1.f32 [z0 : binary32])
+                      binary32
+                      #:spec (+ (exp (neg z0)) 1)
+                      #:fpcore (! :precision binary32 (expnp1 z0))
+                      )     
+
+(define-operator-impl (pown3/2s.f32 [z0 : binary32])
+                      binary32
+                      #:spec (sqrt (/ 1 (pow z0 3)))
+                      #:fpcore (! :precision binary32 (pown3/2s z0))
+                      ) 
+
 (define-platform new-accelerator-platform
-                 #:literal [binary64 64]
-                 #:default-cost 3200
-                 ratio-of-squares.f64
-                 ratio-square-sum.f64
-                 sqrt-product.f64
-                 log1m.f64
-                 expnp1.f64
-                 pow2/3s.f64) 
+                    #:literal [binary64 64]
+                    #:literal [binary32 32]
+                    #:default-cost 100
+                    ratio-of-squares.f64
+                    ratio-square-sum.f64
+                    sqrt-product.f64
+                    log1m.f64
+                    expnp1.f64
+                    pown3/2s.f64
+                    ratio-of-squares.f32
+                    ratio-square-sum.f32
+                    sqrt-product.f32
+                    log1m.f32
+                    expnp1.f32
+                    pown3/2s.f32) 
 
 
 (define no-accel-platform
 (platform-union boolean-platform
                   machine-platform
-                  libm64-platform))
+                  libm64-platform
+                  libm32-platform))
 
 (define new-accel-platform
 (platform-union boolean-platform
                   machine-platform
                   libm64-platform
+                  libm32-platform
                   new-accelerator-platform))
 
 (register-platform! 'noaccel no-accel-platform)

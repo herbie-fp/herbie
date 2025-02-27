@@ -11,4 +11,3 @@
 (FPCore (x y z)
  :name "Commute and associate"
  (- (+ (+ x y) z) (+ x (+ y z))))
-
