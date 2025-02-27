@@ -8,7 +8,9 @@ SEED=$(date "+%Y%j")
 BENCHDIR="$1"; shift
 REPORTDIR="$1"; shift
 
-mkdir -p "$REPORTDIR"
+mkdir -p "$REPORTDIR/1"
+mkdir -p "$REPORTDIR/2"
+
 rm -rf "reports"/* || echo "nothing to delete"
 
 # run
