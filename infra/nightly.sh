@@ -15,7 +15,8 @@ rm -rf "reports"/* || echo "nothing to delete"
 dirs=""
 for bench in "$BENCHDIR"/*; do
   name=$(basename "$bench" .fpcore)
-  rm -rf "$REPORTDIR"/"$name"
+  rm -rf "$REPORTDIR"/1/"$name"
+  rm -rf "$REPORTDIR"/2/"$name"
 
   racket -y "src/main.rkt" report \
          --seed "$SEED" \
