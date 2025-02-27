@@ -58,6 +58,8 @@
       (with-output-to-file temp-file #:exists 'replace (lambda () (for-each writeln curr-program)))
       temp-file))
 
+  (printf "file path ~a\n" egglog-file-path)
+
   (define egglog-path
     (or (find-executable-path "egglog") (error "egglog executable not found in PATH")))
 
@@ -79,10 +81,12 @@
                  "stderr-port ~a\n"
                  (string-join (take-right (string-split (get-output-string stderr-port) "\n") 100)
                               "\n"))
-        (fprintf old-error-port "incorrect program ~a\n" curr-program)
+        ; (fprintf old-error-port "incorrect program ~a\n" curr-program)
         (error "Failed to execute egglog"))))
 
   ; (delete-file egglog-file-path)
+
+  ; (printf "output ~a\n" (get-output-string stdout-port))
 
   (cons (get-output-string stdout-port) (get-output-string stderr-port)))
 
@@ -177,6 +181,7 @@
            ;; Add the actual egglog rewrite rules
            (define curr-rewrite-val (egglog-rewrite-rules rule-type curr-tag))
            (egglog-program-add-list! (remove-duplicates curr-rewrite-val) curr-program)
+           ; (egglog-program-add-list! curr-rewrite-val curr-program)
 
            curr-tag]))
 
@@ -214,9 +219,9 @@
           (set! run-schedule (append run-schedule `((repeat ,iter-amt ,tag))))]
 
          [((? nonnegative-integer? node-amt) #f)
-          (set! run-schedule (append run-schedule `((repeat 10 ,tag))))]
+          (set! run-schedule (append run-schedule `((repeat 3 ,tag))))]
 
-         [(#f #f) `((repeat 10 ,tag))])]))
+         [(#f #f) `((repeat 3 ,tag))])]))
 
   ; (set! program (append program `((run-schedule ,@run-schedule))))
   (egglog-program-add! `(run-schedule ,@run-schedule) curr-program)
@@ -340,7 +345,7 @@
     (egglog-program-add! end-let curr-program))
 
   ;; 4. Running the schedule
-  (define run-schedule `((run-schedule 10 ?tag1) (repeat 20 const-fold)))
+  (define run-schedule `((run-schedule 3 ?tag1) (repeat 20 const-fold)))
   (egglog-program-add! run-schedule curr-program)
 
   ;; 5. Running Checks
@@ -656,17 +661,29 @@
       [(list op args ...) `(,(hash-ref (id->e1) op) ,@(map loop args))])))
 
 (define (egglog-rewrite-rules rules tag)
-  (for/list ([rule (in-list rules)]
-             #:when (not (symbol? (rule-input rule))))
-    (if (not (representation? (rule-otype rule)))
-        `(rewrite ,(expr->e1-pattern (rule-input rule))
-                  ,(expr->e1-pattern (rule-output rule))
-                  :ruleset
-                  ,tag)
-        `(rewrite ,(expr->e2-pattern (rule-input rule) (rule-otype rule))
-                  ,(expr->e2-pattern (rule-output rule) (rule-otype rule))
-                  :ruleset
-                  ,tag))))
+  (begin
+    (define val
+      (for/list ([rule (in-list rules)]
+                 #:when (not (symbol? (rule-input rule))))
+        (if (not (representation? (rule-otype rule)))
+            `(rewrite ,(expr->e1-pattern (rule-input rule))
+                      ,(expr->e1-pattern (rule-output rule))
+                      :ruleset
+                      ,tag)
+            `(rewrite ,(expr->e2-pattern (rule-input rule) (rule-otype rule))
+                      ,(expr->e2-pattern (rule-output rule) (rule-otype rule))
+                      :ruleset
+                      ,tag))))
+
+    (append
+     val
+     (list
+      `(rewrite (Erf (Neg x)) (Neg (Erf x)) :ruleset ,tag)
+      `(rewrite (Sub a b) (Add a (Neg b)) :ruleset ,tag)
+      `(rewrite (Add a (Neg b)) (Sub a b) :ruleset ,tag)
+      `(rewrite (Neg b) (Sub (Num (bigrat (from-string "0") (from-string "1"))) b) :ruleset ,tag)
+      `(rewrite (Neg a) (Mul (Num (bigrat (from-string "-1") (from-string "1"))) a) :ruleset ,tag)
+      `(rewrite (Div (Div b c) a) (Div b (Mul a c)) :ruleset ,tag)))))
 
 (define (egglog-add-exprs-mainloop batch ctx)
   (define curr-program (make-egglog-program))
@@ -726,9 +743,9 @@
   (for ([root (in-vector (batch-roots batch))])
     (vector-set! root-mask root #t))
 
-  (printf "reached here 1\n")
+  ; (printf "reached here 1\n")
 
-  (printf "batch-nodes : ~a\n\n" (batch-nodes batch))
+  ; (printf "batch-nodes : ~a\n\n" (batch-nodes batch))
 
   (for ([node (in-vector (batch-nodes batch))]
         [root? (in-vector root-mask)]
@@ -768,7 +785,7 @@
     (when root?
       (set! root-bindings (cons (vector-ref mappings n) root-bindings))))
 
-  (printf "reached here 3\n")
+  ; (printf "reached here 3\n")
 
   ; Var-lowering-rules
   (for ([var (in-list (context-vars ctx))]
