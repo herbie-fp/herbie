@@ -35,7 +35,7 @@
 (define (alt-cost* altn repr)
   (if (*pareto-mode*)
       (alt-cost altn repr)
-      1))
+      0))
 
 (define (make-alt-table pcontext initial-alt ctx)
   (define cost (alt-cost* initial-alt (context-repr ctx)))
@@ -132,7 +132,7 @@
   (define (alt-cost a)
     (if (*pareto-mode*)
         (hash-ref (alt-table-alt->cost atab) a)
-        (backup-alt-cost a)))
+        0))
   ;; Rank by multiple metrics
   (define not-done (argmins alt-done? (set->list removable)))
   (define least-best-points (argmins alt-num-points not-done))

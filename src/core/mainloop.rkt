@@ -146,8 +146,10 @@
 (define (choose-alts!)
   (define fresh-alts (atab-not-done-alts (^table^)))
   (define alts (choose-mult-alts fresh-alts))
-  (unless (*pareto-mode*)
-    (set! alts (take alts 1)))
+  #;(unless (*pareto-mode*)
+      (set! alts (take alts 1)))
+  (set! alts (take alts 1))
+
   (timeline-push-alts! alts)
   (^next-alts^ alts)
   (^table^ (atab-set-picked (^table^) alts))
@@ -200,8 +202,7 @@
   (timeline-event! 'prune)
   (^table^ (atab-add-altns (^table^) new-alts errss costs))
   (define final-fresh-alts (atab-not-done-alts (^table^)))
-  (define final-done-alts (set-subtract (atab-active-alts (^table^)) (atab-not-done-alts (^table^))))
-
+  (define final-done-alts (set-subtract (atab-active-alts (^table^)) final-fresh-alts))
   (timeline-push! 'count
                   (+ (length new-alts) (length orig-fresh-alts) (length orig-done-alts))
                   (+ (length final-fresh-alts) (length final-done-alts)))
