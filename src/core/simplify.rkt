@@ -44,8 +44,7 @@
                    (batch-roots batch)
                    (map (lambda (_) 'real) args)
                    `((,(*simplify-rules*) . ((node . ,(*node-limit*)))))))
-    (parameterize ([*egraph-platform-cost* #f])
-      (map (compose debatchref last) (simplify-batch runner batch))))
+    (map (compose debatchref last) (simplify-batch runner batch)))
 
   (define test-exprs
     '((1 . 1) (0 . 0)

@@ -146,9 +146,6 @@
 (define (choose-alts!)
   (define fresh-alts (atab-not-done-alts (^table^)))
   (define alts (choose-mult-alts fresh-alts))
-  #;(unless (*pareto-mode*)
-      (set! alts (take alts 1)))
-  (set! alts (take alts 1))
 
   (timeline-push-alts! alts)
   (^next-alts^ alts)

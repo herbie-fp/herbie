@@ -946,7 +946,7 @@
 ;; procedure is `#f` if extraction finds no well-typed program
 ;; at a particular id with a particular output type.
 (define ((typed-egg-batch-extractor batch-extract-to) regraph)
-  (define cost-proc (if (*egraph-platform-cost*) platform-egg-cost-proc default-egg-cost-proc))
+  (define cost-proc default-egg-cost-proc)
   (define eclasses (regraph-eclasses regraph))
   (define types (regraph-types regraph))
   (define n (vector-length eclasses))
@@ -1138,29 +1138,6 @@
          +inf.0
          (+ 1 (rec b) (rec e)))]
     [(list _ args ...) (apply + 1 (map rec args))]))
-
-;; Per-node cost function according to the platform
-;; `rec` takes an id, type, and failure value
-(define (platform-egg-cost-proc regraph cache node type rec)
-  (cond
-    [(representation? type)
-     (define ctx (regraph-ctx regraph))
-     (define node-cost-proc (platform-node-cost-proc (*active-platform*)))
-     (match node
-       ; numbers (repr is unused)
-       [(? number? n) ((node-cost-proc (literal n type) type))]
-       [(? symbol?) ; variables
-        (define repr (context-lookup ctx (egg-var->var node ctx)))
-        ((node-cost-proc node repr))]
-       ; approx node
-       [(list '$approx _ impl) (rec impl)]
-       [(list 'if cond ift iff) ; if expression
-        (define cost-proc (node-cost-proc node type))
-        (cost-proc (rec cond) (rec ift) (rec iff))]
-       [(list (? impl-exists?) args ...) ; impls
-        (define cost-proc (node-cost-proc node type))
-        (apply cost-proc (map rec args))])]
-    [else (default-egg-cost-proc regraph cache node type rec)]))
 
 ;; Extracts the best expression according to the extractor.
 ;; Result is a single element list.
