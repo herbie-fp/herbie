@@ -20,6 +20,8 @@ for bench in "$BENCHDIR"/*; do
   racket -y "src/main.rkt" report \
          --seed "$SEED" \
          --platform herbie10 \
+         -o reduce:regimes \
+         -o reduce:simplify \
          "$@" \
          "$bench" "$REPORTDIR"/"$name"
   
