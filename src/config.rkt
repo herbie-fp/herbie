@@ -150,7 +150,7 @@
 (define *default-precision* (make-parameter 'binary64))
 
 ;; The platform that Herbie will evaluate with.
-(define *platform-name* (make-parameter 'herbie20))
+(define *platform-name* (make-parameter 'c))
 
 ;; True iff using the old cost function
 (define *egraph-platform-cost* (make-parameter #f))

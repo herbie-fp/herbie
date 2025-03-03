@@ -3,7 +3,7 @@
 (FPCore (d1 d2 d3)
  :name "FastMath dist"
  :alt 
- (! :herbie-platform herbie20
+ (! :herbie-platform c
   (* d1 (+ d2 d3)))
 
  (+ (* d1 d2) (* d1 d3)))
@@ -11,14 +11,14 @@
 (FPCore (d)
  :name "FastMath test1"
  :alt 
- (! :herbie-platform herbie20 (* d 30))
+ (! :herbie-platform c (* d 30))
 
  (+ (* d 10) (* d 20)))
 
 (FPCore (d1 d2)
  :name "FastMath test2"
  :alt 
- (! :herbie-platform herbie20
+ (! :herbie-platform c
   (* d1 (+ 30 d2)))
 
  (+ (+ (* d1 10) (* d1 d2)) (* d1 20)))
@@ -26,7 +26,7 @@
 (FPCore (d1 d2 d3)
  :name "FastMath dist3"
  :alt 
- (! :herbie-platform herbie20
+ (! :herbie-platform c
   (* d1 (+ 37 d3 d2)))
 
  (+ (+ (* d1 d2) (* (+ d3 5) d1)) (* d1 32)))
@@ -34,7 +34,7 @@
 (FPCore (d1 d2 d3 d4)
  :name "FastMath dist4"
  :alt 
- (! :herbie-platform herbie20
+ (! :herbie-platform c
   (* d1 (- (+ (- d2 d3) d4) d1)))
 
  (- (+ (- (* d1 d2) (* d1 d3)) (* d4 d1)) (* d1 d1)))
@@ -42,7 +42,7 @@
 (FPCore (d1 d2 d3)
  :name "FastMath test3"
  :alt 
- (! :herbie-platform herbie20
+ (! :herbie-platform c
   (* d1 (+ 3 d2 d3)))
 
  (+ (+ (* d1 3) (* d1 d2)) (* d1 d3)))
@@ -50,13 +50,13 @@
 (FPCore (d1)
  :name "FastMath repmul"
  :alt 
- (! :herbie-platform herbie20 (pow d1 4))
+ (! :herbie-platform c (pow d1 4))
 
  (* (* (* d1 d1) d1) d1))
 
 (FPCore (d1)
  :name "FastMath test5"
  :alt 
- (! :herbie-platform herbie20 (pow d1 10))
+ (! :herbie-platform c (pow d1 10))
  
  (* (* d1 (* (* (* (* (* d1 (* d1 d1)) d1) d1) (* d1 d1)) d1)) d1))

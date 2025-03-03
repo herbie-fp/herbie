@@ -18,15 +18,15 @@
   :name "2sin (example 3.3)"
   :pre (and (<= -1e4 x) (<= x 1e4) (< (* 1e-16 (fabs x)) eps) (< eps (* (fabs x))))
   :alt 
-  (! :herbie-platform herbie20
+  (! :herbie-platform c
    (* 2 (cos (+ x (/ eps 2))) (sin (/ eps 2))))
 
   :alt 
-  (! :herbie-platform herbie20
+  (! :herbie-platform c
     (+ (* (sin x) (- (cos eps) 1)) (* (cos x) (sin eps))))
 
   :alt 
-  (! :herbie-platform herbie20
+  (! :herbie-platform c
     (* (cos (* 0.5 (- eps (* -2 x)))) (sin (* 0.5 eps)) 2))
  
   (- (sin (+ x eps)) (sin x)))
@@ -38,11 +38,11 @@
  :name "2cos (problem 3.3.5)"
  :pre (and (<= -1e4 x) (<= x 1e4) (< (* 1e-16 (fabs x)) eps) (< eps (* (fabs x))))
  :alt 
- (! :herbie-platform herbie20
+ (! :herbie-platform c
   (* -2 (sin (+ x (/ eps 2))) (sin (/ eps 2))))
 
  :alt 
- (! :herbie-platform herbie20
+ (! :herbie-platform c
   (pow (cbrt (* -2 (sin (* 0.5 (fma 2.0 x eps))) (sin (* 0.5 eps)) )) 3))
 
  (- (cos (+ x eps)) (cos x)))
@@ -57,15 +57,15 @@
  :name "2tan (problem 3.3.2)"
  :pre (and (<= -1e4 x) (<= x 1e4) (< (* 1e-16 (fabs x)) eps) (< eps (* (fabs x))))
  :alt 
- (! :herbie-platform herbie20
+ (! :herbie-platform c
   (/ (sin eps) (* (cos x) (cos (+ x eps)))))
 
  :alt 
- (! :herbie-platform herbie20
+ (! :herbie-platform c
   (- (/ (+ (tan x) (tan eps)) (- 1 (* (tan x) (tan eps)))) (tan x)))
 
  :alt 
- (! :herbie-platform herbie20
+ (! :herbie-platform c
   (+ eps (* eps (tan x) (tan x))))
 
  (- (tan (+ x eps)) (tan x)))
@@ -78,7 +78,7 @@
 (FPCore (x)
  :name "tanhf (example 3.4)"
  :alt 
- (! :herbie-platform herbie20
+ (! :herbie-platform c
   (tan (/ x 2)))
 
  (/ (- 1 (cos x)) (sin x)))
@@ -91,11 +91,11 @@
  :name "2atan (example 3.5)"
  :pre (and (> N 1) (< N 1e+100))
  :alt 
- (! :herbie-platform herbie20
+ (! :herbie-platform c
   (atan (/ 1 (+ 1 (* N (+ N 1))))))
  
  :alt 
- (! :herbie-platform herbie20
+ (! :herbie-platform c
   (atan2 1 (fma N (+ 1 N) 1)))
 
  (- (atan (+ N 1)) (atan N)))
@@ -113,11 +113,11 @@
  :name "sintan (problem 3.4.5)"
  :pre (and (<= -0.4 eps) (<= eps 0.4))
  :alt 
- (! :herbie-platform herbie20
+ (! :herbie-platform c
   (+ -0.5 (/ (* 9 (* eps eps)) 40) (/ (* -27 (* eps eps eps eps)) 2800) (/ (* 27 (* eps eps eps eps eps eps)) 112000)))
 
  :alt
- (! :herbie-platform herbie20
+ (! :herbie-platform c
   (- (* 0.225 eps eps) 0.5))
 
  (/ (- eps (sin eps)) (- eps (tan eps))))

@@ -43,7 +43,7 @@
 (FPCore (wj x)
  :name "Jmat.Real.lambertw, newton loop step"
  :alt 
- (! :herbie-platform herbie20
+ (! :herbie-platform c
   (let ((ew (exp wj)))
    (- wj (- (/ wj (+ wj 1)) (/ x (+ ew (* wj ew)))))))
    

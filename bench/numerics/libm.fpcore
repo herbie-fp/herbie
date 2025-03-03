@@ -3,6 +3,6 @@
 (FPCore (x y z)
  :name "simple fma test"
  :alt 
- (! :herbie-platform herbie20 -1)
+ (! :herbie-platform c -1)
 
  (- (fma x y z) (+ 1 (+ (* x y) z))))

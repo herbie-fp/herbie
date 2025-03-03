@@ -5,7 +5,7 @@
   :name "Given's Rotation SVD example"
   :pre (< 1e-150 (fabs x) 1e150)
   :alt 
-  (! :herbie-platform herbie20
+  (! :herbie-platform c
    (sqrt (+ 1/2 (/ (copysign 1/2 x) (hypot 1 (/ (* 2 p) x))))))
 
   (sqrt (* 0.5 (+ 1 (/ x (sqrt (+ (* (* 4 p) p) (* x x))))))))
