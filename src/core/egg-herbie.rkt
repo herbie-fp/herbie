@@ -946,7 +946,6 @@
 ;; procedure is `#f` if extraction finds no well-typed program
 ;; at a particular id with a particular output type.
 (define ((typed-egg-batch-extractor batch-extract-to) regraph)
-  (define cost-proc default-egg-cost-proc)
   (define eclasses (regraph-eclasses regraph))
   (define types (regraph-types regraph))
   (define n (vector-length eclasses))
@@ -970,7 +969,7 @@
   ; cost function has access to a mutable value through `cache`
   (define cache (box #f))
   (define (node-cost node type)
-    (and (node-ready? node) (cost-proc regraph cache node type unsafe-eclass-cost)))
+    (and (node-ready? node) (default-egg-cost-proc regraph cache node type unsafe-eclass-cost)))
 
   ; updates the cost of the current eclass.
   ; returns whether the cost of the current eclass has improved.
