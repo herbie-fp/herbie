@@ -969,7 +969,7 @@
   ; cost function has access to a mutable value through `cache`
   (define cache (box #f))
   (define (node-cost node type)
-    (and (node-ready? node) (default-egg-cost-proc regraph cache node type unsafe-eclass-cost)))
+    (and (node-ready? node) (platform-egg-cost-proc regraph cache node type unsafe-eclass-cost)))
 
   ; updates the cost of the current eclass.
   ; returns whether the cost of the current eclass has improved.
@@ -1116,27 +1116,28 @@
      (cons b* e*)]
     [_ #f]))
 
-;; Old cost model version
-(define (default-egg-cost-proc regraph cache node type rec)
-  (match node
-    [(? number?) 1]
-    [(? symbol?) 1]
-    ; approx node
-    [(list '$approx _ impl) (rec impl)]
-    [(list 'if cond ift iff) (+ 1 (rec cond) (rec ift) (rec iff))]
-    [(list (? impl-exists? impl) args ...)
-     (match (pow-impl-args impl args)
-       [(cons _ e)
-        #:when (let ([n (vector-ref (regraph-constants regraph) e)])
-                 (fraction-with-odd-denominator? n))
-        +inf.0]
-       [_ (apply + 1 (map rec args))])]
-    [(list 'pow b e)
-     (define n (vector-ref (regraph-constants regraph) e))
-     (if (fraction-with-odd-denominator? n)
-         +inf.0
-         (+ 1 (rec b) (rec e)))]
-    [(list _ args ...) (apply + 1 (map rec args))]))
+;; Per-node cost function according to the platform
+;; `rec` takes an id, type, and failure value
+(define (platform-egg-cost-proc regraph cache node type rec)
+  (cond
+    [(representation? type)
+     (define ctx (regraph-ctx regraph))
+     (define node-cost-proc (platform-node-cost-proc (*active-platform*)))
+     (match node
+       ; numbers (repr is unused)
+       [(? number? n) ((node-cost-proc (literal n type) type))]
+       [(? symbol?) ; variables
+        (define repr (context-lookup ctx (egg-var->var node ctx)))
+        ((node-cost-proc node repr))]
+       ; approx node
+       [(list '$approx _ impl) (rec impl)]
+       [(list 'if cond ift iff) ; if expression
+        (define cost-proc (node-cost-proc node type))
+        (cost-proc (rec cond) (rec ift) (rec iff))]
+       [(list (? impl-exists?) args ...) ; impls
+        (define cost-proc (node-cost-proc node type))
+        (apply cost-proc (map rec args))])]
+    [else (platform-egg-cost-proc regraph cache node type rec)]))
 
 ;; Extracts the best expression according to the extractor.
 ;; Result is a single element list.
