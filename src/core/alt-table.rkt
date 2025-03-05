@@ -184,28 +184,38 @@
 (define (atab-add-altn atab altn errs cost)
   (match-define (alt-table point-idx->alts alt->point-idxs alt->done? alt->cost pcontext _) atab)
 
+  (define max-alts-per-point 0)
   (define point-idx->alts*
     (for/vector #:length (vector-length point-idx->alts)
-                ([pcurve (in-vector point-idx->alts)]
-                 [err (in-list errs)])
+      ([pcurve (in-vector point-idx->alts)]
+       [err (in-list errs)])
       (define ppt (pareto-point cost err (list altn)))
-      (pareto-union (list ppt)
-                    pcurve
-                    #:combine (lambda (alts1 alts2)
-                                ; dedup by program
-                                ; optimization: combining means that `alts1` corresponds to
-                                ; the new pareto point
-                                (match-define (list altn) alts1)
-                                (if (ormap (lambda (a) (alt-equal? a altn)) alts2)
-                                    alts2
-                                    (cons altn alts2))))))
-
-  (alt-table point-idx->alts*
-             (hash-set alt->point-idxs altn #f)
-             (hash-set alt->done? altn #f)
-             (hash-set alt->cost altn cost)
-             pcontext
-             #f))
+      (define pt*
+        (pareto-union (list ppt) pcurve
+                      #:combine (lambda (alts1 alts2)
+                                  ; dedup by program
+                                  ; optimization: combining means that `alts1` corresponds to
+                                  ; the new pareto point
+                                  (match-define (list altn) alts1)
+                                  (if (ormap (lambda (a) (alt-equal? a altn)) alts2)
+                                      alts2
+                                      (cons altn alts2)))))
+      (set! max-alts-per-point (max max-alts-per-point (apply max (map (compose length pareto-point-data) pt*))))
+      pt*))
+  
+  (define atab*
+    (alt-table point-idx->alts*
+               (hash-set alt->point-idxs altn #f)
+               (hash-set alt->done? altn #f)
+               (hash-set alt->cost altn cost)
+               pcontext
+               #f))
+  
+  (if (> max-alts-per-point (* (*pareto-pick-limit*) 5))
+      (atab-prune (struct-copy alt-table
+                               atab*
+                               [alt->point-idxs (invert-index (alt-table-point-idx->alts atab*))]))
+      atab*))
 
 (define (atab-min-errors atab)
   (define pnt-idx->alts (alt-table-point-idx->alts atab))
