@@ -92,18 +92,18 @@
                     #:literal [binary64 64]
                     #:literal [binary32 32]
                     #:default-cost 100
-                    ratio-of-squares.f64
-                    ratio-square-sum.f64
-                    sqrt-product.f64
-                    log1m.f64
-                    expnp1.f64
-                    pown3/2s.f64
-                    ratio-of-squares.f32
-                    ratio-square-sum.f32
-                    sqrt-product.f32
-                    log1m.f32
-                    expnp1.f32
-                    pown3/2s.f32) 
+                    [ratio-of-squares.f64 352]
+                    [ratio-square-sum.f64 320]
+                    [sqrt-product.f64 352]
+                    [log1m.f64 1664]
+                    [expnp1.f64 1696]
+                    [pown3/2s.f64 1968]
+                    [ratio-of-squares.f32 352]
+                    [ratio-square-sum.f32 320]
+                    [sqrt-product.f32 352]
+                    [log1m.f32 1664]
+                    [expnp1.f32 1696]
+                    [pown3/2s.f32 1968]) 
 
 
 (define no-accel-platform
