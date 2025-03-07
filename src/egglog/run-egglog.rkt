@@ -13,14 +13,10 @@
 
 (define egg-iters 5)
 (define ground-truth-iters 0)
-(define compute-accuracy-iters 0)
 (define egg-node-limit 20000)
 (define egg-match-limit 1000)
-(define HIGH-COST 100000000)
 ;; Number of egraphs to run (independent samples)
 (define egg-num-egraphs 2)
-;; local error threshold for search
-(define ERROR-THRESHOLD 0.0)
 
 
 ;; var-intervals is a hash from variable names to
