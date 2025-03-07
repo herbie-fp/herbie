@@ -23,22 +23,8 @@
 
 (struct alt-table (point-idx->alts alt->point-idxs alt->done? alt->cost pcontext all) #:prefab)
 
-(define (backup-alt-cost altn)
-  (let loop ([expr (alt-expr altn)])
-    (match expr
-      [(list 'if cond ift iff) (+ 1 (loop cond) (max (loop ift) (loop iff)))]
-      [(list op args ...) (apply + 1 (map loop args))]
-      [_ 1])))
-
-; In normal mode, cost is not considered so we return a constant
-; The alt table becomes "degenerate"
-(define (alt-cost* altn repr)
-  (if (*pareto-mode*)
-      (alt-cost altn repr)
-      1))
-
 (define (make-alt-table pcontext initial-alt ctx)
-  (define cost (alt-cost* initial-alt (context-repr ctx)))
+  (define cost (alt-cost initial-alt (context-repr ctx)))
   (define errs (errors (alt-expr initial-alt) pcontext ctx))
   (alt-table (for/vector #:length (pcontext-length pcontext)
                          ([err (in-list errs)])
@@ -130,9 +116,7 @@
   (define (alt-done? a)
     (if (hash-ref (alt-table-alt->done? atab) a) 1 0))
   (define (alt-cost a)
-    (if (*pareto-mode*)
-        (hash-ref (alt-table-alt->cost atab) a)
-        (backup-alt-cost a)))
+    (hash-ref (alt-table-alt->cost atab) a))
   ;; Rank by multiple metrics
   (define not-done (argmins alt-done? (set->list removable)))
   (define least-best-points (argmins alt-num-points not-done))
@@ -169,7 +153,7 @@
 
 (define (atab-eval-altns atab altns ctx)
   (define errss (batch-errors (map alt-expr altns) (alt-table-pcontext atab) ctx))
-  (define costs (map (curryr alt-cost* (context-repr ctx)) altns))
+  (define costs (map (curryr alt-cost (context-repr ctx)) altns))
   (values errss costs))
 
 (define (atab-add-altns atab altns errss costs)
@@ -200,28 +184,31 @@
 (define (atab-add-altn atab altn errs cost)
   (match-define (alt-table point-idx->alts alt->point-idxs alt->done? alt->cost pcontext _) atab)
 
+  (define max-alts-per-pareto-point 0)
   (define point-idx->alts*
     (for/vector #:length (vector-length point-idx->alts)
                 ([pcurve (in-vector point-idx->alts)]
                  [err (in-list errs)])
       (define ppt (pareto-point cost err (list altn)))
-      (pareto-union (list ppt)
-                    pcurve
-                    #:combine (lambda (alts1 alts2)
-                                ; dedup by program
-                                ; optimization: combining means that `alts1` corresponds to
-                                ; the new pareto point
-                                (match-define (list altn) alts1)
-                                (if (ormap (lambda (a) (alt-equal? a altn)) alts2)
-                                    alts2
-                                    (cons altn alts2))))))
+      (define pcurve* (pareto-union (list ppt) pcurve))
+      (set! max-alts-per-pareto-point
+            (max max-alts-per-pareto-point
+                 (apply max (map (compose length pareto-point-data) pcurve*))))
+      pcurve*))
 
-  (alt-table point-idx->alts*
-             (hash-set alt->point-idxs altn #f)
-             (hash-set alt->done? altn #f)
-             (hash-set alt->cost altn cost)
-             pcontext
-             #f))
+  (define atab*
+    (alt-table point-idx->alts*
+               (hash-set alt->point-idxs altn #f)
+               (hash-set alt->done? altn #f)
+               (hash-set alt->cost altn cost)
+               pcontext
+               #f))
+
+  (if (> max-alts-per-pareto-point (* (*pareto-pick-limit*) 5))
+      (atab-prune (struct-copy alt-table
+                               atab*
+                               [alt->point-idxs (invert-index (alt-table-point-idx->alts atab*))]))
+      atab*))
 
 (define (atab-min-errors atab)
   (define pnt-idx->alts (alt-table-point-idx->alts atab))

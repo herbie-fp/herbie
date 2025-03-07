@@ -1,6 +1,6 @@
 #lang racket
 
-;;; The default platform:
+;;; The default Herbie2.0 platform:
 ;;; C/C++ on Linux with a full libm
 
 (require "../plugin.rkt")
@@ -150,22 +150,15 @@
                  hypot.f32
                  [fma.f32 128])
 
-; compose platforms
-
-(define hardware-platform (platform-union boolean-platform machine-platform))
-
-(define default-platform
+(define herbie20-platform
   (platform-union boolean-platform
                   machine-platform
                   libm64-platform
                   libm32-platform
                   accelerator-platform))
 
-; Register all three
-
-(register-platform! 'boolean boolean-platform)
-(register-platform! 'hardware hardware-platform)
-(register-platform! 'default default-platform)
+; Register herbie20
+(register-platform! 'herbie20 herbie20-platform)
 
 ;; Do not run this file during testing
 (module test racket/base
