@@ -68,8 +68,6 @@
 
   (define old-error-port (current-error-port))
 
-  (printf "file path : ~a\n " egglog-file-path)
-
   ;; Run egglog and capture output
   (parameterize ([current-output-port stdout-port]
                  [current-error-port stderr-port])
@@ -158,6 +156,7 @@
   (define curr-program (make-egglog-program))
 
   ; (printf "schedule : ~a\n\n" (egg-runner-schedule runner))
+  ; (map (lambda(rule)))
 
   ;; 1. Add the Prelude
   (prelude curr-program #:mixed-egraph? #t)
@@ -178,6 +177,8 @@
            ;; Add rulesets
            (egglog-program-add! `(ruleset ,curr-tag) curr-program)
 
+          ;  (printf "rules : ~a\n" rule-type)
+
            ;; Add the actual egglog rewrite rules
            (define curr-rewrite-val (egglog-rewrite-rules rule-type curr-tag))
            (egglog-program-add-list! (remove-duplicates curr-rewrite-val) curr-program)
@@ -189,10 +190,13 @@
 
   ;; 3. Inserting expressions -> (egglog-add-exprs curr-batch (egglog-runner-ctx))
   ; (exprs . extract bindings)
-  (define extract-bindings (egglog-add-exprs curr-batch (egg-runner-ctx runner) curr-program))
+  (define extract-bindings
+    (egglog-add-exprs curr-batch (egg-runner-ctx runner) curr-program num-variants))
 
   ; (set! program (append program (car egglog-batch-exprs)))
   ; (egglog-program-add-list! (car egglog-batch-exprs) curr-program)
+
+  ; (printf "reached here 1\n")
 
   ;; 4. Running the schedule
   (define run-schedule '())
@@ -226,6 +230,8 @@
   ; (set! program (append program `((run-schedule ,@run-schedule))))
   (egglog-program-add! `(run-schedule ,@run-schedule) curr-program)
 
+  ; (printf "reached here 2\n")
+
   ;; 5. Extraction -> should just need root ids
   (for ([binding extract-bindings])
     (define val
@@ -243,6 +249,8 @@
     ; (set! program (append program val))
     (egglog-program-add! val curr-program))
 
+  ; (printf "reached here 3\n")
+
   ;; 6. After step-by-step building the program, process it
   ;; by running it using egglog
   (define egglog-output (process-egglog curr-program))
@@ -258,6 +266,8 @@
   (define herbie-exprss
     (let ([input-port (open-input-string stdout-content)])
       (for/list ([next-expr (in-port read input-port)])
+        ; (printf "next-expr ~a \n" next-expr)
+
         (if num-variants
             (map e2->expr next-expr)
             (list (e2->expr next-expr))))))
@@ -266,10 +276,13 @@
     (for/list ([variants (in-list herbie-exprss)])
       (remove-duplicates
        (for/list ([v (in-list variants)])
+        ;  (printf "context-repr ~a\n" (context-repr (egg-runner-ctx runner)))
          (egglog->batchref v input-batch out (context-repr (egg-runner-ctx runner))))
        #:key batchref-idx)))
 
   (batch-copy-mutable-nodes! input-batch out)
+
+  (printf "done :)\n")
 
   ;; (Listof (Listof batchref))
   result)
@@ -439,37 +452,38 @@
 
   (get-actual-program curr-program))
 
-(define const-fold
-  `((let ?zero (bigrat
-                [from-string "0"]
-                [from-string "1"])
-      )
-    (rewrite (Add (Num x) (Num y)) (Num (+ x y)) :ruleset const-fold)
-    (rewrite (Sub (Num x) (Num y)) (Num (- x y)) :ruleset const-fold)
-    (rewrite (Mul (Num x) (Num y)) (Num (* x y)) :ruleset const-fold)
-    ;(rule ((= e (Div (Num x) (Num y))) (!= ?zero y)) ((union e (Num (/ x y)))) :ruleset const-fold)
-    (rewrite (Neg (Num x)) (Num (neg x)) :ruleset const-fold)
-    (rule ((= e (Pow (Num x) (Num y))) (= ?zero x) (> y ?zero))
-          ((union e (Num ?zero)))
-          :ruleset
-          const-fold)
-    (rule ((= e (Pow (Num x) (Num y))) (= ?zero y) (!= ?zero x))
-          ((union e (Num (bigrat (from-string "1") (from-string "1")))))
-          :ruleset
-          const-fold)
-    (rule ((= e (Pow (Num x) (Num y))) (> y ?zero) (!= ?zero x) (= y (round y)))
-          ((union e (Num (pow x y))))
-          :ruleset
-          const-fold)
-    (rule ((= e (Log (Num x))) (= (numer x) (denom x))) ((union e (Num ?zero))) :ruleset const-fold)
-    (rule ((= e (Cbrt (Num x))) (= (numer x) (denom x)))
-          ((union e (Num (bigrat (from-string "1") (from-string "1")))))
-          :ruleset
-          const-fold)
-    (rewrite (Fabs (Num x)) (Num (abs x)) :ruleset const-fold)
-    (rewrite (Floor (Num x)) (Num (floor x)) :ruleset const-fold)
-    (rewrite (Ceil (Num x)) (Num (ceil x)) :ruleset const-fold)
-    (rewrite (Round (Num x)) (Num (round x)) :ruleset const-fold)))
+; (define const-fold
+;   `((let ?zero (bigrat
+;                 [from-string "0"]
+;                 [from-string "1"])
+;       )
+;     (rewrite (Add (Num x) (Num y)) (Num (+ x y)) :ruleset const-fold)
+;     (rewrite (Sub (Num x) (Num y)) (Num (- x y)) :ruleset const-fold)
+;     (rewrite (Mul (Num x) (Num y)) (Num (* x y)) :ruleset const-fold)
+;     ;(rule ((= e (Div (Num x) (Num y))) (!= ?zero y)) ((union e (Num (/ x y)))) :ruleset const-fold)
+;     (rewrite (Neg (Num x)) (Num (neg x)) :ruleset const-fold)
+;     (rule ((= e (Pow (Num x) (Num y))) (= ?zero x) (> y ?zero))
+;           ((union e (Num ?zero)))
+;           :ruleset
+;           const-fold)
+;     (rule ((= e (Pow (Num x) (Num y))) (= ?zero y) (!= ?zero x))
+;           ((union e (Num (bigrat (from-string "1") (from-string "1")))))
+;           :ruleset
+;           const-fold)
+;     (rule ((= e (Pow (Num x) (Num y))) (> y ?zero) (!= ?zero x) (= y (round y)))
+;           ((union e (Num (pow x y))))
+;           :ruleset
+;           const-fold)
+;     (rule ((= e (Log (Num x))) (= (numer x) (denom x))) ((union e (Num ?zero))) :ruleset const-fold)
+;     (rule ((= e (Cbrt (Num x))) (= (numer x) (denom x)))
+;           ((union e (Num (bigrat (from-string "1") (from-string "1")))))
+;           :ruleset
+;           const-fold)
+;     (rewrite (Fabs (Num x)) (Num (abs x)) :ruleset const-fold)
+;     (rewrite (Floor (Num x)) (Num (floor x)) :ruleset const-fold)
+;     (rewrite (Ceil (Num x)) (Num (ceil x)) :ruleset const-fold)
+;     (rewrite (Round (Num x)) (Num (round x)) :ruleset const-fold)))
+(define const-fold '())
 
 (define (platform-spec-nodes)
   (for/list ([op (in-list (all-operators))])
@@ -687,11 +701,11 @@
 
 (define (egglog-add-exprs-mainloop batch ctx)
   (define curr-program (make-egglog-program))
-  (define extract-bindings (egglog-add-exprs batch ctx curr-program))
+  (define extract-bindings (egglog-add-exprs batch ctx curr-program #t))
 
   (cons (get-actual-program curr-program) extract-bindings))
 
-(define (egglog-add-exprs batch ctx curr-program)
+(define (egglog-add-exprs batch ctx curr-program multi?)
   (define mappings (build-vector (batch-length batch) values))
   (define bindings (make-hash))
   (define vars (make-hash))
@@ -746,6 +760,12 @@
   ; (printf "reached here 1\n")
 
   ; (printf "batch-nodes : ~a\n\n" (batch-nodes batch))
+  ; (printf "batch-roots : ~a\n\n" (batch-roots batch))
+  ; (printf "batch-vars : ~a\n\n" (batch-vars batch))
+
+  ; (printf "context-vars : ~a\n\n" (context-vars ctx))
+  ; (printf "context-repr : ~a\n\n" (representation-name (context-vars ctx)))
+  ; (map (lambda (repr) (printf "repr : ~a\n" (representation-name repr))) (context-var-reprs ctx))
 
   (for ([node (in-vector (batch-nodes batch))]
         [root? (in-vector root-mask)]
@@ -858,118 +878,160 @@
           (string->symbol (format "?r~a" root)))))
 
   ; (egglog-program-add-list!
-
-  ;   (if multi?
+  ;   ; (if multi?
   ;     (list
   ;       `(let ?x (Var "x"))
   ;       `(let ?eps (Var "eps"))
   ;       `(let ?tx (Varbinary64 "x"))
   ;       `(let ?teps (Varbinary64 "eps"))
-  ;       `(let ?r2 (Sin ?eps))
-  ;       `(let ?b3 (Cos ?eps))
-  ;       `(let ?b4 (Num (bigrat (from-string "1") (from-string "1"))))
+  ;       `(let ?b2 (Add ?x ?eps))
+  ;       `(let ?b3 (Sin ?b2))
+  ;       `(let ?b4 (Sin ?x))
   ;       `(let ?b5 (Sub ?b3 ?b4))
-  ;       `(let ?b6 (Mul ?x ?b5))
-  ;       `(let ?r7 (Add ?r2 ?b6))
-  ;       `(let ?b8 (Num (bigrat (from-string "-1") (from-string "2"))))
-  ;       `(let ?b9 (Mul ?x ?r2))
-  ;       `(let ?b10 (Mul ?b8 ?b9))
-  ;       `(let ?b11 (Add ?b3 ?b10))
-  ;       `(let ?b12 (Sub ?b11 ?b4))
-  ;       `(let ?b13 (Mul ?x ?b12))
-  ;       `(let ?r14 (Add ?r2 ?b13))
-  ;       `(let ?b15 (Mul ?b8 ?r2))
-  ;       `(let ?b16 (Num (bigrat (from-string "1") (from-string "6"))))
-  ;       `(let ?b17 (Num (bigrat (from-string "-1") (from-string "6"))))
-  ;       `(let ?b18 (Mul ?b17 ?b3))
-  ;       `(let ?b19 (Add ?b16 ?b18))
-  ;       `(let ?b20 (Mul ?x ?b19))
-  ;       `(let ?b21 (Add ?b15 ?b20))
-  ;       `(let ?b22 (Mul ?x ?b21))
-  ;       `(let ?b23 (Add ?b3 ?b22))
-  ;       `(let ?b24 (Sub ?b23 ?b4))
-  ;       `(let ?b25 (Mul ?x ?b24))
-  ;       `(let ?r26 (Add ?r2 ?b25))
-  ;       `(let ?b27 (Mul ?x ?b3))
-  ;       `(let ?r28 (Add ?r2 ?b27))
-  ;       `(let ?b29 (Mul ?x ?b11))
-  ;       `(let ?r30 (Add ?r2 ?b29))
-  ;       `(let ?b31 (Mul ?b17 ?b27))
-  ;       `(let ?b32 (Add ?b15 ?b31))
-  ;       `(let ?b33 (Mul ?x ?b32))
-  ;       `(let ?b34 (Add ?b3 ?b33))
-  ;       `(let ?b35 (Mul ?x ?b34))
-  ;       `(let ?r36 (Add ?r2 ?b35))
-  ;       `(let ?r37 (Add ?eps ?x))
-  ;       `(let ?b38 (Num (bigrat (from-string "2") (from-string "1"))))
-  ;       `(let ?b39 (Pow ?x ?b38))
-  ;       `(let ?b40 (Mul ?b17 ?b39))
-  ;       `(let ?b41 (Add ?b4 ?b40))
-  ;       `(let ?r42 (Mul ?x ?b41))
-  ;       `(let ?b43 (Num (bigrat (from-string "1") (from-string "120"))))
-  ;       `(let ?b44 (Mul ?b43 ?b39))
-  ;       `(let ?b45 (Sub ?b44 ?b16))
-  ;       `(let ?b46 (Mul ?b39 ?b45))
-  ;       `(let ?b47 (Add ?b4 ?b46))
-  ;       `(let ?r48 (Mul ?x ?b47))
-  ;       `(let ?b49 (Num (bigrat (from-string "-1") (from-string "5040"))))
-  ;       `(let ?b50 (Mul ?b49 ?b39))
-  ;       `(let ?b51 (Add ?b43 ?b50))
-  ;       `(let ?b52 (Mul ?b39 ?b51))
-  ;       `(let ?b53 (Sub ?b52 ?b16))
-  ;       `(let ?b54 (Mul ?b39 ?b53))
-  ;       `(let ?b55 (Add ?b4 ?b54))
-  ;       `(let ?r56 (Mul ?x ?b55))
-  ;       `(let ?r57 (Sin ?r37))
-  ;       `(let ?r58 (Sin ?x))
-  ;       `(let ?r59 (Sub ?r57 ?r58))
-  ;       `(let ?b60 (Div ?eps ?x))
-  ;       `(let ?b61 (Add ?b4 ?b60))
-  ;       `(let ?r62 (Mul ?x ?b61))
-  ;       `(let ?b63 (Num (bigrat (from-string "-1") (from-string "1"))))
-  ;       `(let ?b64 (Mul ?b63 ?x))
-  ;       `(let ?b65 (Sub ?eps ?b64))
-  ;       `(let ?r66 (Sin ?b65))
-  ;       `(let ?r67 (Sub ?r66 ?r58))
-  ;       `(let ?b68 (Mul ?b63 ?b60))
-  ;       `(let ?b69 (Sub ?b68 ?b4))
-  ;       `(let ?b70 (Mul ?x ?b69))
-  ;       `(let ?r71 (Mul ?b63 ?b70))
-  ;       `(let ?b72 (Cos ?x))
-  ;       `(let ?r73 (Mul ?eps ?b72))
-  ;       `(let ?b74 (Mul ?eps ?r58))
-  ;       `(let ?b75 (Mul ?b8 ?b74))
-  ;       `(let ?b76 (Add ?b72 ?b75))
-  ;       `(let ?r77 (Mul ?eps ?b76))
-  ;       `(let ?b78 (Mul ?b8 ?r58))
-  ;       `(let ?b79 (Mul ?b17 ?r73))
-  ;       `(let ?b80 (Add ?b78 ?b79))
-  ;       `(let ?b81 (Mul ?eps ?b80))
-  ;       `(let ?b82 (Add ?b72 ?b81))
-  ;       `(let ?r83 (Mul ?eps ?b82))
-  ;       `(let ?b84 (Mul ?b17 ?b72))
-  ;       `(let ?b85 (Num (bigrat (from-string "1") (from-string "24"))))
-  ;       `(let ?b86 (Mul ?b85 ?b74))
-  ;       `(let ?b87 (Add ?b84 ?b86))
-  ;       `(let ?b88 (Mul ?eps ?b87))
-  ;       `(let ?b89 (Add ?b78 ?b88))
-  ;       `(let ?b90 (Mul ?eps ?b89))
-  ;       `(let ?b91 (Add ?b72 ?b90))
-  ;       `(let ?r92 (Mul ?eps ?b91))
-  ;       `(let ?r93 (Add ?r58 ?r73))
-  ;       `(let ?r94 (Add ?r58 ?r77))
-  ;       `(let ?r95 (Add ?r58 ?r83))
-  ;       `(let ?b96 (Div ?x ?eps))
-  ;       `(let ?b97 (Add ?b4 ?b96))
-  ;       `(let ?r98 (Mul ?eps ?b97))
-  ;       `(let ?b99 (Mul ?b63 ?eps))
-  ;       `(let ?b100 (Sub ?x ?b99))
-  ;       `(let ?r101 (Sin ?b100))
-  ;       `(let ?r102 (Sub ?r101 ?r58))
-  ;       `(let ?b103 (Mul ?b63 ?b96))
-  ;       `(let ?b104 (Sub ?b103 ?b4))
-  ;       `(let ?b105 (Mul ?eps ?b104))
-  ;       `(let ?r106 (Mul ?b63 ?b105)))
+  ;       `(let ?r6 (Sinf64Ty ?tx))
+  ;       `(let ?r7 (Numbinary64 (bigrat (from-string "1") (from-string "24"))))
+  ;       `(let ?r8 (Mulf64Ty ?teps ?r7))
+  ;       `(let ?r9 (Numbinary64 (bigrat (from-string "-1") (from-string "2"))))
+  ;       `(let ?r10 (Fmaf64Ty ?r8 ?teps ?r9))
+  ;       `(let ?r11 (Numbinary64 (bigrat (from-string "-1") (from-string "6"))))
+  ;       `(let ?r12 (Mulf64Ty ?teps ?r11))
+  ;       `(let ?r13 (Cosf64Ty ?tx))
+  ;       `(let ?r14 (Mulf64Ty ?r12 ?r13))
+  ;       `(let ?r15 (Fmaf64Ty ?r6 ?r10 ?r14))
+  ;       `(let ?r16 (Fmaf64Ty ?r15 ?teps ?r13))
+  ;       `(let ?r17 (Mulf64Ty ?r16 ?teps))
+  ;       `(let ?r18 (Approx ?b5 ?r17))
+  ;       `(let ?r19 (Sinf64Ty ?teps))
+  ;       `(let ?r20 (Approx ?b5 ?r19))
+  ;       `(let ?r21 (Mulf64Ty ?r13 ?teps))
+  ;       `(let ?r22 (Approx ?b5 ?r21))
+  ;       `(let ?r23 (Addf64Ty ?tx ?teps))
+  ;       `(let ?r24 (Sinf64Ty ?r23))
+  ;       `(let ?r25 (Mulf64Ty ?tx ?r11))
+  ;       `(let ?r26 (Mulf64Ty ?tx ?tx))
+  ;       `(let ?r27 (Fmaf64Ty ?r25 ?r26 ?tx))
+  ;       `(let ?r28 (Approx ?b4 ?r27))
+  ;       `(let ?r29 (Subf64Ty ?r24 ?r28))
+  ;       `(let ?r30 (Numbinary64 (bigrat (from-string "1") (from-string "120"))))
+  ;       `(let ?r31 (Mulf64Ty ?tx ?r30))
+  ;       `(let ?r32 (Fmaf64Ty ?r31 ?tx ?r11))
+  ;       `(let ?r33 (Mulf64Ty ?r26 ?tx))
+  ;       `(let ?r34 (Fmaf64Ty ?r32 ?r33 ?tx))
+  ;       `(let ?r35 (Approx ?b4 ?r34))
+  ;       `(let ?r36 (Subf64Ty ?r24 ?r35)))
+
+  ;     ; (list
+  ;     ;   `(let ?x (Var "x"))
+  ;     ;   `(let ?eps (Var "eps"))
+  ;     ;   `(let ?tx (Varbinary64 "x"))
+  ;     ;   `(let ?teps (Varbinary64 "eps"))
+  ;     ;   `(let ?r2 (Sin ?eps))
+  ;     ;   `(let ?b3 (Cos ?eps))
+  ;     ;   `(let ?b4 (Num (bigrat (from-string "1") (from-string "1"))))
+  ;     ;   `(let ?b5 (Sub ?b3 ?b4))
+  ;     ;   `(let ?b6 (Mul ?x ?b5))
+  ;     ;   `(let ?r7 (Add ?r2 ?b6))
+  ;     ;   `(let ?b8 (Num (bigrat (from-string "-1") (from-string "2"))))
+  ;     ;   `(let ?b9 (Mul ?x ?r2))
+  ;     ;   `(let ?b10 (Mul ?b8 ?b9))
+  ;     ;   `(let ?b11 (Add ?b3 ?b10))
+  ;     ;   `(let ?b12 (Sub ?b11 ?b4))
+  ;     ;   `(let ?b13 (Mul ?x ?b12))
+  ;     ;   `(let ?r14 (Add ?r2 ?b13))
+  ;     ;   `(let ?b15 (Mul ?b8 ?r2))
+  ;     ;   `(let ?b16 (Num (bigrat (from-string "1") (from-string "6"))))
+  ;     ;   `(let ?b17 (Num (bigrat (from-string "-1") (from-string "6"))))
+  ;     ;   `(let ?b18 (Mul ?b17 ?b3))
+  ;     ;   `(let ?b19 (Add ?b16 ?b18))
+  ;     ;   `(let ?b20 (Mul ?x ?b19))
+  ;     ;   `(let ?b21 (Add ?b15 ?b20))
+  ;     ;   `(let ?b22 (Mul ?x ?b21))
+  ;     ;   `(let ?b23 (Add ?b3 ?b22))
+  ;     ;   `(let ?b24 (Sub ?b23 ?b4))
+  ;     ;   `(let ?b25 (Mul ?x ?b24))
+  ;     ;   `(let ?r26 (Add ?r2 ?b25))
+  ;     ;   `(let ?b27 (Mul ?x ?b3))
+  ;     ;   `(let ?r28 (Add ?r2 ?b27))
+  ;     ;   `(let ?b29 (Mul ?x ?b11))
+  ;     ;   `(let ?r30 (Add ?r2 ?b29))
+  ;     ;   `(let ?b31 (Mul ?b17 ?b27))
+  ;     ;   `(let ?b32 (Add ?b15 ?b31))
+  ;     ;   `(let ?b33 (Mul ?x ?b32))
+  ;     ;   `(let ?b34 (Add ?b3 ?b33))
+  ;     ;   `(let ?b35 (Mul ?x ?b34))
+  ;     ;   `(let ?r36 (Add ?r2 ?b35))
+  ;     ;   `(let ?r37 (Add ?eps ?x))
+  ;     ;   `(let ?b38 (Num (bigrat (from-string "2") (from-string "1"))))
+  ;     ;   `(let ?b39 (Pow ?x ?b38))
+  ;     ;   `(let ?b40 (Mul ?b17 ?b39))
+  ;     ;   `(let ?b41 (Add ?b4 ?b40))
+  ;     ;   `(let ?r42 (Mul ?x ?b41))
+  ;     ;   `(let ?b43 (Num (bigrat (from-string "1") (from-string "120"))))
+  ;     ;   `(let ?b44 (Mul ?b43 ?b39))
+  ;     ;   `(let ?b45 (Sub ?b44 ?b16))
+  ;     ;   `(let ?b46 (Mul ?b39 ?b45))
+  ;     ;   `(let ?b47 (Add ?b4 ?b46))
+  ;     ;   `(let ?r48 (Mul ?x ?b47))
+  ;     ;   `(let ?b49 (Num (bigrat (from-string "-1") (from-string "5040"))))
+  ;     ;   `(let ?b50 (Mul ?b49 ?b39))
+  ;     ;   `(let ?b51 (Add ?b43 ?b50))
+  ;     ;   `(let ?b52 (Mul ?b39 ?b51))
+  ;     ;   `(let ?b53 (Sub ?b52 ?b16))
+  ;     ;   `(let ?b54 (Mul ?b39 ?b53))
+  ;     ;   `(let ?b55 (Add ?b4 ?b54))
+  ;     ;   `(let ?r56 (Mul ?x ?b55))
+  ;     ;   `(let ?r57 (Sin ?r37))
+  ;     ;   `(let ?r58 (Sin ?x))
+  ;     ;   `(let ?r59 (Sub ?r57 ?r58))
+  ;     ;   `(let ?b60 (Div ?eps ?x))
+  ;     ;   `(let ?b61 (Add ?b4 ?b60))
+  ;     ;   `(let ?r62 (Mul ?x ?b61))
+  ;     ;   `(let ?b63 (Num (bigrat (from-string "-1") (from-string "1"))))
+  ;     ;   `(let ?b64 (Mul ?b63 ?x))
+  ;     ;   `(let ?b65 (Sub ?eps ?b64))
+  ;     ;   `(let ?r66 (Sin ?b65))
+  ;     ;   `(let ?r67 (Sub ?r66 ?r58))
+  ;     ;   `(let ?b68 (Mul ?b63 ?b60))
+  ;     ;   `(let ?b69 (Sub ?b68 ?b4))
+  ;     ;   `(let ?b70 (Mul ?x ?b69))
+  ;     ;   `(let ?r71 (Mul ?b63 ?b70))
+  ;     ;   `(let ?b72 (Cos ?x))
+  ;     ;   `(let ?r73 (Mul ?eps ?b72))
+  ;     ;   `(let ?b74 (Mul ?eps ?r58))
+  ;     ;   `(let ?b75 (Mul ?b8 ?b74))
+  ;     ;   `(let ?b76 (Add ?b72 ?b75))
+  ;     ;   `(let ?r77 (Mul ?eps ?b76))
+  ;     ;   `(let ?b78 (Mul ?b8 ?r58))
+  ;     ;   `(let ?b79 (Mul ?b17 ?r73))
+  ;     ;   `(let ?b80 (Add ?b78 ?b79))
+  ;     ;   `(let ?b81 (Mul ?eps ?b80))
+  ;     ;   `(let ?b82 (Add ?b72 ?b81))
+  ;     ;   `(let ?r83 (Mul ?eps ?b82))
+  ;     ;   `(let ?b84 (Mul ?b17 ?b72))
+  ;     ;   `(let ?b85 (Num (bigrat (from-string "1") (from-string "24"))))
+  ;     ;   `(let ?b86 (Mul ?b85 ?b74))
+  ;     ;   `(let ?b87 (Add ?b84 ?b86))
+  ;     ;   `(let ?b88 (Mul ?eps ?b87))
+  ;     ;   `(let ?b89 (Add ?b78 ?b88))
+  ;     ;   `(let ?b90 (Mul ?eps ?b89))
+  ;     ;   `(let ?b91 (Add ?b72 ?b90))
+  ;     ;   `(let ?r92 (Mul ?eps ?b91))
+  ;     ;   `(let ?r93 (Add ?r58 ?r73))
+  ;     ;   `(let ?r94 (Add ?r58 ?r77))
+  ;     ;   `(let ?r95 (Add ?r58 ?r83))
+  ;     ;   `(let ?b96 (Div ?x ?eps))
+  ;     ;   `(let ?b97 (Add ?b4 ?b96))
+  ;     ;   `(let ?r98 (Mul ?eps ?b97))
+  ;     ;   `(let ?b99 (Mul ?b63 ?eps))
+  ;     ;   `(let ?b100 (Sub ?x ?b99))
+  ;     ;   `(let ?r101 (Sin ?b100))
+  ;     ;   `(let ?r102 (Sub ?r101 ?r58))
+  ;     ;   `(let ?b103 (Mul ?b63 ?b96))
+  ;     ;   `(let ?b104 (Sub ?b103 ?b4))
+  ;     ;   `(let ?b105 (Mul ?eps ?b104))
+  ;     ;   `(let ?r106 (Mul ?b63 ?b105))))
+
+  ;       curr-program)
 
   ;     (list
   ;       `(let ?x (Var "x"))
@@ -985,40 +1047,17 @@
 
   ; ; Only thing returned -> Extract Bindings
   ; (define extract-bindings
-  ;   (if multi?
-  ;     '((extract (lower ?r2 "binary64"))
-  ;       (extract (lower ?r7 "binary64"))
-  ;       (extract (lower ?r14 "binary64"))
-  ;       (extract (lower ?r26 "binary64"))
-  ;       (extract (lower ?r28 "binary64"))
-  ;       (extract (lower ?r30 "binary64"))
-  ;       (extract (lower ?r36 "binary64"))
-  ;       (extract (lower ?eps "binary64"))
-  ;       (extract (lower ?r37 "binary64"))
-  ;       (extract (lower ?x "binary64"))
-  ;       (extract (lower ?r42 "binary64"))
-  ;       (extract (lower ?r48 "binary64"))
-  ;       (extract (lower ?r56 "binary64"))
-  ;       (extract (lower ?r59 "binary64"))
-  ;       (extract (lower ?r57 "binary64"))
-  ;       (extract (lower ?r62 "binary64"))
-  ;       (extract (lower ?r58 "binary64"))
-  ;       (extract (lower ?r67 "binary64"))
-  ;       (extract (lower ?r66 "binary64"))
-  ;       (extract (lower ?r71 "binary64"))
-  ;       (extract (lower ?r73 "binary64"))
-  ;       (extract (lower ?r77 "binary64"))
-  ;       (extract (lower ?r83 "binary64"))
-  ;       (extract (lower ?r92 "binary64"))
-  ;       (extract (lower ?r93 "binary64"))
-  ;       (extract (lower ?r94 "binary64"))
-  ;       (extract (lower ?r95 "binary64"))
-  ;       (extract (lower ?r98 "binary64"))
-  ;       (extract (lower ?r102 "binary64"))
-  ;       (extract (lower ?r101 "binary64"))
-  ;       (extract (lower ?r106 "binary64")))
+  ;   (map string->symbol
+  ;     ; (if multi?
+  ;       (list "?r18" "?r17" "?r16" "?r15" "?r6" "?x" "?r10" "?r8" "?eps" "?r7" "?r9" "?r14" "?r12" "?r11" "?r13"
+  ;             "?r20" "?r19" "?eps" "?r22" "?r21" "?r13" "?x" "?eps" "?r29" "?r24" "?r23" "?x" "?eps" "?r28" "?r27"
+  ;             "?r25" "?r11" "?r26" "?r36" "?r24" "?r23" "?x" "?eps" "?r35" "?r34" "?r32" "?r31" "?r30" "?r11"
+  ;             "?r33" "?r26")
 
-  ;     '()))
+  ;     ; (list "?r2" "?r7" "?r14" "?r26" "?r28" "?r30" "?r36" "?eps" "?r37" "?x"
+  ;     ;   "?r42" "?r48" "?r56" "?r59" "?r57" "?r62" "?r58" "?r67" "?r66" "?r71"
+  ;     ;   "?r73" "?r77" "?r83" "?r92" "?r93" "?r94" "?r95" "?r98" "?r102" "?r101" "?r106"))
+  ;       ))
 
   extract-bindings)
 
@@ -1060,7 +1099,11 @@
             ,(loop ift)
             ,(loop iff))]
       [`(Approx ,spec ,impl) (approx (e1->expr spec) (loop impl))] ;;; todo approx bug or not?
-      [`(,impl ,args ...) `(,(hash-ref (e2->id) impl) ,@(map loop args))])))
+      [`(,impl ,args ...)
+       `(,(if (hash-has-key? (e2->id) impl)
+              (hash-ref (e2->id) impl)
+              (hash-ref (e1->id) impl))
+         ,@(map loop args))])))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Testing API

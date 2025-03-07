@@ -75,6 +75,7 @@
 
   ; generate required rules
   (define rules (*rules*))
+  ; (printf "")
   (define lifting-rules (platform-lifting-rules))
   (define lowering-rules (platform-lowering-rules))
 
@@ -86,14 +87,18 @@
 
   ; run egg
   (define exprs (map (compose debatchref alt-expr) altns))
-  (printf "exprs : ~a\n" exprs)
-  
+  ; (printf "exprs : ~a\n" exprs)
+
   (define roots (list->vector (map (compose batchref-idx alt-expr) altns)))
   (define reprs (map (curryr repr-of (*context*)) exprs))
-  (printf "reprs : ~a\n" reprs)
+  ; (printf "reprs : ~a\n" reprs)
 
   (timeline-push! 'inputs (map ~a exprs))
   (define runner (make-egraph global-batch roots reprs schedule))
+
+  ; (printf "global-batch ~a\n" global-batch)
+  ; (printf "roots ~a\n" roots)
+  ; (printf "reprs ~a\n" reprs)
 
   (printf "before patch\n\n")
 
