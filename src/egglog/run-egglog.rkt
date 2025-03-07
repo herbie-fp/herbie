@@ -11,12 +11,11 @@
 (define-runtime-path egglog-binary
   "egg-smol/target/release/egg-smol")
 
-(define egg-iters 25)
-(define ground-truth-iters 20)
-(define compute-accuracy-iters 20)
+(define egg-iters 5)
+(define ground-truth-iters 0)
+(define compute-accuracy-iters 0)
 (define egg-node-limit 20000)
 (define egg-match-limit 1000)
-(define egg-if-match-limit 10000)
 (define HIGH-COST 100000000)
 ;; Number of egraphs to run (independent samples)
 (define egg-num-egraphs 2)
@@ -27,7 +26,7 @@
 ;; var-intervals is a hash from variable names to
 ;; an interval: (list start end)
 (struct econfig
-	(ctx pctx exprs egg-data local-error? num-sample num-variants var-intervals))
+	(ctx pctx exprs egg-data num-sample num-variants var-intervals))
 
 (define (add-to-ruleset ruleset commands)
   	(for/list ([command commands])
@@ -228,14 +227,6 @@
 		(relation non-error (Math))
     (relation non-negative (Math))
     (relation positive (Math))
-
-		(function mostaccurate (i64 Math) AstMath
-		:cost ,HIGH-COST :merge new)
-		(function mostaccurate-num (i64 Math) f64
-		:merge new :default NaN)
-		;; convert bool to i64, use 2 for unknown
-		(function mostaccurate-bool (i64 Math) i64
-		:merge new :default 2)
 
     ;; First, constant folding!
     ;; We don't need an explicit constant folding analysis, we can just union
@@ -1345,11 +1336,6 @@
 
 (define (build-iter config)
 	`(
-		,@(if 
-				(econfig-local-error? config)
-				 `()
-				empty)
-
 		(set-option match_limit 10000000)
     (run ground-truth ,ground-truth-iters)
 		
@@ -1405,101 +1391,6 @@
 						   `(,(ast-prefix Op) HerbieType
 							    ,@(build-list (arity Op) (lambda (x)  'AstMath))))
 				)))
-
-
-(define (make-extract-rules)
-	(expand-for-list
-	   all-ops Op
-	   `(rule (
-			 (= term (,Op ty ,@(rep Op 'c)))
-			 (point i)
-			 ;; values for children
-			 ,@(apply append
-			 		 (for/list ([v (in-range (arity Op))])
-					 		(if (equal? (type Op v) 'bool)
-								`((= ,(ivar 'val v)
-											(to-bool (,(append-type 'mostaccurate Op v) i ,(ivar 'c v))))
-									(< (,(append-type 'mostaccurate Op v) i ,(ivar 'c v)) 2))
-								`((= ,(ivar 'val v) (,(append-type 'mostaccurate Op v) i ,(ivar 'c v)))))))
-			 ;; AstMath for the children
-			 ,@(build-list (arity Op)
-			      (lambda (v)
-						   `(= ,(ivar 'child v) (mostaccurate i ,(ivar 'c v)))))
-			 ;; the ground truth
-			 (= true-physical
-			    ,(if (equal? (return-type Op) 'num)
-					     `(true-float term i)
-							 `(to-i64 (true-bool term i))))
-
-			 (= current-physical
-			 		,(compute-physical Op (rep Op 'val)))
-			 ;; evaluate and compare to ground truth
-			 (= difference
-			    (rel-error
-					 current-physical
-					 true-physical))
-			
-				(= current-mostnum
-						(,(append-type 'mostaccurate Op (arity Op)) i term))
-						
-				(= to-beat
-						(rel-error current-mostnum
-									true-physical))
-				(< difference to-beat)
-			 )
-			((set (mostaccurate i term)
-				 (,(ast-prefix Op) ty ,@(rep Op 'child)))
-			 (set (,(append-type 'mostaccurate Op (arity Op)) i term)
-			 	 current-physical)
-			 ))))
-
-(define (build-ground-truth-extract config)
-  (add-to-ruleset 'compute-accuracy
-                  	(append
-   `((ruleset compute-accuracy)
-	;; if an eclass contains a num or variable it is
-	;; the most accurate by definition
-	(rule ((= term (Num ty n))
-	       (point i)
-				 (= true-physical (true-float term i)))
-				((set (mostaccurate i term) (AstNum ty n))
-				 (set (mostaccurate-num i term) (to-f64 n))))
-	(rule ((= term (Var ty v))
-	       (point i)
-				 (= true-physical (true-float term i)))
-				((set (mostaccurate i term) (AstVar ty v))
-				 (set (mostaccurate-num i term) true-physical)))
-	(rule ((= term (Var ty v))
-	       (point i)
-				 (= true-physical (true-bool term i)))
-				((set (mostaccurate i term) (AstVar ty v))
-				 (set (mostaccurate-bool i term) (to-i64 true-physical))))
-
-	;; initialize the most accurate value to default of None
-	;; very ugly, but the best way in egglog right now?
-	,@(expand-for-list
-	   all-ops Op
-	   `(rule (
-			 (= term (,Op ty ,@(rep Op 'c)))
-			 (point i)
-			 )
-			((,(append-type 'mostaccurate Op (arity Op)) i term)
-			 )))
-
-	,@(make-extract-rules)
-	))))
-
-(define (extract-most-accurate config)
-	`((run compute-accuracy ,compute-accuracy-iters)
-	
-	;; Finally, extract out the best expr for each expr and each point
-	,@(apply append
-			(for/list ([expr (econfig-exprs config)]
-				         [ei (in-naturals)])
-				(for/list ([point (in-range (econfig-num-sample config))])
-					`(extract (mostaccurate ,point ,(varname ei))))
-			))))
-
 
 (define (in-interval? point config)
 	(for/and ([var (context-vars (econfig-ctx config))]
@@ -1557,16 +1448,12 @@
 		ground-truth
 		(build-exprs config)
 		(build-interval-analysis config)
-		(setup-ground-truth config)
-		(build-ground-truth-extract config)
 		(build-runner config)
 
 		(build-extract config) ;; get variants
 		(if (equal? (econfig-num-variants config) 0)
 				empty
-				(append
-					run-ground-truth-compute
-			    (extract-most-accurate config)))))
+				run-ground-truth-compute)))
 
 (define (side-condition->bool condition)
 	(match condition
@@ -1698,74 +1585,16 @@
 		  [else
 				line])))
 
-(define (rewrite-check-local-error egglog-program)
-	(for/list ([line egglog-program])
-		(match line
-			[`(rewrite (,Op ty ,children ...) ,rhs ,options ...)
-				(match-define
-					(list conditions other-options)
-					(match options
-						[`(:when ,parenthesized-conditions ,other ...)
-							(list parenthesized-conditions other)]
-						[else
-							(list empty options)]))
-				(define ruleset
-					(match other-options
-						[`(:ruleset ,ruleset) ruleset]
-						[else (error (format "Failed to parse ruleset for ~a" line))]))
-
-				(if (not (or
-							(equal? ruleset 'if-permute)
-							(equal? ruleset 'rewrites)))
-						line
-
-			  `(rule ((= left-hand-side__ (,Op ty ,@children))
-								,@conditions
-								;; my ground truth
-							  (= true-physical
-									,(if (equal? (return-type Op) 'num)
-											`(true-float left-hand-side__ 0)
-											`(true-bool left-hand-side__ 0)))
-								#;(= (,(some Op) current-mostnum)
-									 (,(append-type 'mostaccurate Op (arity Op)) 0 left-hand-side__))
-								#;(<= (rel-error current-mostnum true-physical) ,ERROR-THRESHOLD)
-								
-
-								;; child ground truth
-								,@(for/list ([i (range (arity Op))]
-								             [child children])
-								   `(= ,(ivar 'true i)
-									    ,(if (equal? (type Op i) 'num)
-											    `(true-float ,child 0)
-													`(true-bool ,child 0))))
-								(= locally-accurate
-									 ,(compute-physical Op (rep Op 'true)))
-								(<= (rel-error true-physical locally-accurate)
-								   ,ERROR-THRESHOLD))
-							((set (,Op ty ,@children) ,rhs))
-							,@other-options))]
-			[`(rewrite ,stuff ...)
-			  (error (format "Unrecognized rewrite pattern ~a" line))]
-			[else line])))
-
-(define (apply-egglog-macros egglog-program local-error?)
+(define (apply-egglog-macros egglog-program)
 	(sanity-check-rewrites egglog-program)
 	#;(define with-ifs
 		(rewrite-if egglog-program))
-	(define with-ifs 
+	(define res
 		(remove-precisely-when egglog-program))
-	(define res 
-		(if local-error?
-				(rewrite-check-local-error with-ifs)
-				with-ifs))
 
 	(sanity-check-rewrites res)
 	res)
 
-(define (extracted-mostaccurate? expr)
-	(match expr
-		[`(mostaccurate ,args ...) #f]
-		[else #t]))
 
 (define (egglog-float num)
 	(define inexact (exact->inexact num))
@@ -1811,7 +1640,6 @@
 					(econfig ctx pctx exprs
 						(egraph-data (make-hash)
 												 (make-hash))
-						#f
 						1
 						num-variants
 						(random-area ctx pctx)
@@ -1824,8 +1652,7 @@
 	(define egglog-program
     (apply ~s #:separator "\n"
       (apply-egglog-macros
-				(build-egglog config)
-				(econfig-local-error? config))))
+				(build-egglog config))))
 	;; save the egglog program
   (timeline-push! 'egglog egglog-program)
 
@@ -1842,10 +1669,9 @@
 					;; list of exprs for this expr at each point
 					(append variants
 					(map remove-ast-prefix
-						(filter extracted-mostaccurate?
-							(for/list ([i (in-range (econfig-num-sample config))])
-								;; egglog extracts one thing per point
-								(first (read egglog-output)))))))))
+						(for/list ([i (in-range (econfig-num-sample config))])
+							;; egglog extracts one thing per point
+							(first (read egglog-output))))))))
 
 	(close-input-port egglog-output)
 
