@@ -23,7 +23,7 @@
 
   (define simplifieds
     (if (member 'egglog generate-flags)
-        (run-egglog-multi-extractor runner #:num-variants #f)
+        (run-egglog-multi-extractor runner batch #:num-variants #f)
         (egraph-best runner batch)))
 
   (define out

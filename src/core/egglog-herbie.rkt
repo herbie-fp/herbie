@@ -58,7 +58,7 @@
       (with-output-to-file temp-file #:exists 'replace (lambda () (for-each writeln curr-program)))
       temp-file))
 
-  ; (printf "file path ~a\n" egglog-file-path)
+  (printf "file path ~a\n" egglog-file-path)
 
   (define egglog-path
     (or (find-executable-path "egglog") (error "egglog executable not found in PATH")))
@@ -82,9 +82,7 @@
         (fprintf old-error-port "incorrect program ~a\n" curr-program)
         (error "Failed to execute egglog"))))
 
-  (delete-file egglog-file-path)
-
-  ; (printf "output ~a\n" (get-output-string stdout-port))
+  ; (delete-file egglog-file-path)
 
   (cons (get-output-string stdout-port) (get-output-string stderr-port)))
 
@@ -147,9 +145,10 @@
 
 ;; TODO : Need to run egglog to get the actual ids
 ;; very hard - per id recruse one level and ger simplest child
-(define (run-egglog-multi-extractor runner #:num-variants [num-variants #t]) ; multi expression extraction
+(define (run-egglog-multi-extractor runner batch #:num-variants [num-variants #t]) ; multi expression extraction
 
-  (define curr-batch (batch-remove-zombie (egg-runner-batch runner) (egg-runner-roots runner)))
+  ; (define curr-batch (batch-remove-zombie (egg-runner-batch runner) (egg-runner-roots runner)))
+  (define curr-batch batch)
 
   (define curr-program (make-egglog-program))
 
@@ -246,7 +245,8 @@
   (define stdout-content (car egglog-output))
   ; (define stderr-content (cdr egglog-output))
 
-  (define input-batch (egg-runner-batch runner))
+  ; (define input-batch (egg-runner-batch runner))
+  (define input-batch batch)
   (define out (batch->mutable-batch input-batch))
 
   ;; (Listof (Listof exprs))
@@ -434,37 +434,38 @@
 
   (get-actual-program curr-program))
 
-(define const-fold
-  `((let ?zero (bigrat
-                [from-string "0"]
-                [from-string "1"])
-      )
-    (rewrite (Add (Num x) (Num y)) (Num (+ x y)) :ruleset const-fold)
-    (rewrite (Sub (Num x) (Num y)) (Num (- x y)) :ruleset const-fold)
-    (rewrite (Mul (Num x) (Num y)) (Num (* x y)) :ruleset const-fold)
-    ;(rule ((= e (Div (Num x) (Num y))) (!= ?zero y)) ((union e (Num (/ x y)))) :ruleset const-fold)
-    (rewrite (Neg (Num x)) (Num (neg x)) :ruleset const-fold)
-    (rule ((= e (Pow (Num x) (Num y))) (= ?zero x) (> y ?zero))
-          ((union e (Num ?zero)))
-          :ruleset
-          const-fold)
-    (rule ((= e (Pow (Num x) (Num y))) (= ?zero y) (!= ?zero x))
-          ((union e (Num (bigrat (from-string "1") (from-string "1")))))
-          :ruleset
-          const-fold)
-    (rule ((= e (Pow (Num x) (Num y))) (> y ?zero) (!= ?zero x) (= y (round y)))
-          ((union e (Num (pow x y))))
-          :ruleset
-          const-fold)
-    (rule ((= e (Log (Num x))) (= (numer x) (denom x))) ((union e (Num ?zero))) :ruleset const-fold)
-    (rule ((= e (Cbrt (Num x))) (= (numer x) (denom x)))
-          ((union e (Num (bigrat (from-string "1") (from-string "1")))))
-          :ruleset
-          const-fold)
-    (rewrite (Fabs (Num x)) (Num (abs x)) :ruleset const-fold)
-    (rewrite (Floor (Num x)) (Num (floor x)) :ruleset const-fold)
-    (rewrite (Ceil (Num x)) (Num (ceil x)) :ruleset const-fold)
-    (rewrite (Round (Num x)) (Num (round x)) :ruleset const-fold)))
+; (define const-fold
+;   `((let ?zero (bigrat
+;                 [from-string "0"]
+;                 [from-string "1"])
+;       )
+;     (rewrite (Add (Num x) (Num y)) (Num (+ x y)) :ruleset const-fold)
+;     (rewrite (Sub (Num x) (Num y)) (Num (- x y)) :ruleset const-fold)
+;     (rewrite (Mul (Num x) (Num y)) (Num (* x y)) :ruleset const-fold)
+;     ;(rule ((= e (Div (Num x) (Num y))) (!= ?zero y)) ((union e (Num (/ x y)))) :ruleset const-fold)
+;     (rewrite (Neg (Num x)) (Num (neg x)) :ruleset const-fold)
+;     (rule ((= e (Pow (Num x) (Num y))) (= ?zero x) (> y ?zero))
+;           ((union e (Num ?zero)))
+;           :ruleset
+;           const-fold)
+;     (rule ((= e (Pow (Num x) (Num y))) (= ?zero y) (!= ?zero x))
+;           ((union e (Num (bigrat (from-string "1") (from-string "1")))))
+;           :ruleset
+;           const-fold)
+;     (rule ((= e (Pow (Num x) (Num y))) (> y ?zero) (!= ?zero x) (= y (round y)))
+;           ((union e (Num (pow x y))))
+;           :ruleset
+;           const-fold)
+;     (rule ((= e (Log (Num x))) (= (numer x) (denom x))) ((union e (Num ?zero))) :ruleset const-fold)
+;     (rule ((= e (Cbrt (Num x))) (= (numer x) (denom x)))
+;           ((union e (Num (bigrat (from-string "1") (from-string "1")))))
+;           :ruleset
+;           const-fold)
+;     (rewrite (Fabs (Num x)) (Num (abs x)) :ruleset const-fold)
+;     (rewrite (Floor (Num x)) (Num (floor x)) :ruleset const-fold)
+;     (rewrite (Ceil (Num x)) (Num (ceil x)) :ruleset const-fold)
+;     (rewrite (Round (Num x)) (Num (round x)) :ruleset const-fold)))
+(define const-fold '())
 
 (define (platform-spec-nodes)
   (for/list ([op (in-list (all-operators))])
@@ -712,6 +713,10 @@
         [(approx spec impl)
          (vector-set! spec-mask n #t)
          (spec-tag spec #t)]
+
+        [(hole _ spec)  ;<- HERE
+         (spec-tag spec #t)] ;<- HERE
+
         [(list impl args ...)
          (when (hash-has-key? (id->e1) impl)
            (vector-set! spec-mask n #t)
@@ -747,7 +752,10 @@
                           (id->e2))
                       impl)
            ,@(for/list ([arg (in-list args)])
-               (remap arg spec?)))]))
+               (remap arg spec?)))]
+        
+        [(hole ty spec) `(lower ,(remap spec #t) ,(symbol->string ty))])) 
+              
 
     (if node*
         (vector-set! mappings n (insert-node! node* n root?))
