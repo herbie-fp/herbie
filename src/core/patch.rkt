@@ -97,7 +97,7 @@
   ; batchrefss is a (listof (listof batchref))
   (define batchrefss 
     (if (member 'egglog generate-flags)
-        (run-egglog-multi-extractor runner extractor)
+        (run-egglog-multi-extractor runner)
         (egraph-variations runner global-batch)))
 
 

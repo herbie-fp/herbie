@@ -173,7 +173,8 @@
            (egglog-program-add! `(ruleset ,curr-tag) curr-program)
 
            ;; Add the actual egglog rewrite rules
-           (egglog-program-add-list! (egglog-rewrite-rules rule-type curr-tag) curr-program)
+           ;; TODO : why duplicates
+           (egglog-program-add-list! (remove-duplicates (egglog-rewrite-rules rule-type curr-tag)) curr-program)
 
            curr-tag]))
 
