@@ -147,9 +147,7 @@
 
 ;; TODO : Need to run egglog to get the actual ids
 ;; very hard - per id recruse one level and ger simplest child
-(define (run-egglog-multi-extractor runner
-                                    extractor
-                                    #:num-variants [num-variants #t]) ; multi expression extraction
+(define (run-egglog-multi-extractor runner #:num-variants [num-variants #t]) ; multi expression extraction
 
   (define curr-batch (batch-remove-zombie (egg-runner-batch runner) (egg-runner-roots runner)))
 
