@@ -110,5 +110,10 @@
 ;; Returns whether the machine is guaranteed to raise an exception
 ;; for the given inputs range. The result is an interval representing
 ;; how certain the result is: no, maybe, yes.
+; (define (real-compiler-analyze compiler input-ranges)
+;   (rival-analyze (real-compiler-machine compiler) input-ranges))
 (define (real-compiler-analyze compiler input-ranges)
-  (rival-analyze (real-compiler-machine compiler) input-ranges))
+  (let ([result (rival-analyze (real-compiler-machine compiler) input-ranges)])
+    (if (ival? result)
+        result
+        (first result)))) ;; Adjust based on actual structure
