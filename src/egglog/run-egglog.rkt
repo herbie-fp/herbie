@@ -1659,19 +1659,9 @@
 	(displayln egglog-program egglog-in)
 	(close-output-port egglog-in)
 
-	(define all-variants
+	(define results
 		(for/list ([expr (econfig-exprs config)])
 				(read egglog-output)))
-	(define results
-		(if (equal? (econfig-num-variants config) 0)
-		    all-variants
-				(for/list ([expr (econfig-exprs config)] [variants all-variants])
-					;; list of exprs for this expr at each point
-					(append variants
-					(map remove-ast-prefix
-						(for/list ([i (in-range (econfig-num-sample config))])
-							;; egglog extracts one thing per point
-							(first (read egglog-output))))))))
 
 	(close-input-port egglog-output)
 
