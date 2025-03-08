@@ -58,7 +58,7 @@
       (with-output-to-file temp-file #:exists 'replace (lambda () (for-each writeln curr-program)))
       temp-file))
 
-  (printf "file path ~a\n" egglog-file-path)
+  ; (printf "file path ~a\n" egglog-file-path)
 
   (define egglog-path
     (or (find-executable-path "egglog") (error "egglog executable not found in PATH")))
@@ -82,7 +82,7 @@
         (fprintf old-error-port "incorrect program ~a\n" curr-program)
         (error "Failed to execute egglog"))))
 
-  ; (delete-file egglog-file-path)
+  (delete-file egglog-file-path)
 
   (cons (get-output-string stdout-port) (get-output-string stderr-port)))
 
@@ -147,8 +147,15 @@
 ;; very hard - per id recruse one level and ger simplest child
 (define (run-egglog-multi-extractor runner batch #:num-variants [num-variants #t]) ; multi expression extraction
 
+  ; (printf "progs ~a\n\n" (batch->progs batch))
+  ; (printf "progs ~a\n\n" (batch->progs (egg-runner-batch runner)))
+
+  (define temp-batch (progs->batch (batch->progs batch)))
+
+
   ; (define curr-batch (batch-remove-zombie (egg-runner-batch runner) (egg-runner-roots runner)))
-  (define curr-batch batch)
+  (define curr-batch temp-batch)
+  ; (define curr-batch batch)
 
   (define curr-program (make-egglog-program))
 
@@ -199,7 +206,7 @@
       ['lowering
        (set! domain-fns (cons tag domain-fns))
        (set! run-schedule
-             (append run-schedule (list (list 'repeat 2 'const-fold) (list 'saturate tag))))]
+             (append run-schedule (list (list 'saturate tag))))] ; (list 'repeat 2 'const-fold)
       [_
        ; Set params
        (define is-node-present (dict-ref schedule-params 'node #f))
@@ -213,9 +220,9 @@
           (set! run-schedule (append run-schedule `((repeat ,iter-amt ,tag))))]
 
          [((? nonnegative-integer? node-amt) #f)
-          (set! run-schedule (append run-schedule `((repeat 3 ,tag))))]
+          (set! run-schedule (append run-schedule `((repeat 2 ,tag))))]
 
-         [(#f #f) `((repeat 3 ,tag))])]))
+         [(#f #f) `((repeat 2 ,tag))])]))
 
   ; (set! program (append program `((run-schedule ,@run-schedule))))
   (egglog-program-add! `(run-schedule ,@run-schedule) curr-program)
@@ -243,10 +250,11 @@
 
   ;; Extract its returned value
   (define stdout-content (car egglog-output))
+  ; (printf "stdout-content ~a\n\n" stdout-content)
   ; (define stderr-content (cdr egglog-output))
 
   ; (define input-batch (egg-runner-batch runner))
-  (define input-batch batch)
+  (define input-batch temp-batch)
   (define out (batch->mutable-batch input-batch))
 
   ;; (Listof (Listof exprs))
@@ -259,10 +267,14 @@
 
   (define result
     (for/list ([variants (in-list herbie-exprss)])
+      ; (printf "variants ~a\n\n" variants)
+
       (remove-duplicates
        (for/list ([v (in-list variants)])
          (egglog->batchref v input-batch out (context-repr (egg-runner-ctx runner))))
        #:key batchref-idx)))
+
+  ; (printf "result ~a\n\n" result)
 
   (batch-copy-mutable-nodes! input-batch out)
 
@@ -434,38 +446,38 @@
 
   (get-actual-program curr-program))
 
-; (define const-fold
-;   `((let ?zero (bigrat
-;                 [from-string "0"]
-;                 [from-string "1"])
-;       )
-;     (rewrite (Add (Num x) (Num y)) (Num (+ x y)) :ruleset const-fold)
-;     (rewrite (Sub (Num x) (Num y)) (Num (- x y)) :ruleset const-fold)
-;     (rewrite (Mul (Num x) (Num y)) (Num (* x y)) :ruleset const-fold)
-;     ;(rule ((= e (Div (Num x) (Num y))) (!= ?zero y)) ((union e (Num (/ x y)))) :ruleset const-fold)
-;     (rewrite (Neg (Num x)) (Num (neg x)) :ruleset const-fold)
-;     (rule ((= e (Pow (Num x) (Num y))) (= ?zero x) (> y ?zero))
-;           ((union e (Num ?zero)))
-;           :ruleset
-;           const-fold)
-;     (rule ((= e (Pow (Num x) (Num y))) (= ?zero y) (!= ?zero x))
-;           ((union e (Num (bigrat (from-string "1") (from-string "1")))))
-;           :ruleset
-;           const-fold)
-;     (rule ((= e (Pow (Num x) (Num y))) (> y ?zero) (!= ?zero x) (= y (round y)))
-;           ((union e (Num (pow x y))))
-;           :ruleset
-;           const-fold)
-;     (rule ((= e (Log (Num x))) (= (numer x) (denom x))) ((union e (Num ?zero))) :ruleset const-fold)
-;     (rule ((= e (Cbrt (Num x))) (= (numer x) (denom x)))
-;           ((union e (Num (bigrat (from-string "1") (from-string "1")))))
-;           :ruleset
-;           const-fold)
-;     (rewrite (Fabs (Num x)) (Num (abs x)) :ruleset const-fold)
-;     (rewrite (Floor (Num x)) (Num (floor x)) :ruleset const-fold)
-;     (rewrite (Ceil (Num x)) (Num (ceil x)) :ruleset const-fold)
-;     (rewrite (Round (Num x)) (Num (round x)) :ruleset const-fold)))
-(define const-fold '())
+(define const-fold
+  `((let ?zero (bigrat
+                [from-string "0"]
+                [from-string "1"])
+      )
+    (rewrite (Add (Num x) (Num y)) (Num (+ x y)) :ruleset const-fold)
+    (rewrite (Sub (Num x) (Num y)) (Num (- x y)) :ruleset const-fold)
+    (rewrite (Mul (Num x) (Num y)) (Num (* x y)) :ruleset const-fold)
+    ;(rule ((= e (Div (Num x) (Num y))) (!= ?zero y)) ((union e (Num (/ x y)))) :ruleset const-fold)
+    (rewrite (Neg (Num x)) (Num (neg x)) :ruleset const-fold)
+    (rule ((= e (Pow (Num x) (Num y))) (= ?zero x) (> y ?zero))
+          ((union e (Num ?zero)))
+          :ruleset
+          const-fold)
+    (rule ((= e (Pow (Num x) (Num y))) (= ?zero y) (!= ?zero x))
+          ((union e (Num (bigrat (from-string "1") (from-string "1")))))
+          :ruleset
+          const-fold)
+    (rule ((= e (Pow (Num x) (Num y))) (> y ?zero) (!= ?zero x) (= y (round y)))
+          ((union e (Num (pow x y))))
+          :ruleset
+          const-fold)
+    (rule ((= e (Log (Num x))) (= (numer x) (denom x))) ((union e (Num ?zero))) :ruleset const-fold)
+    (rule ((= e (Cbrt (Num x))) (= (numer x) (denom x)))
+          ((union e (Num (bigrat (from-string "1") (from-string "1")))))
+          :ruleset
+          const-fold)
+    (rewrite (Fabs (Num x)) (Num (abs x)) :ruleset const-fold)
+    (rewrite (Floor (Num x)) (Num (floor x)) :ruleset const-fold)
+    (rewrite (Ceil (Num x)) (Num (ceil x)) :ruleset const-fold)
+    (rewrite (Round (Num x)) (Num (round x)) :ruleset const-fold)))
+; (define const-fold '())
 
 (define (platform-spec-nodes)
   (for/list ([op (in-list (all-operators))])

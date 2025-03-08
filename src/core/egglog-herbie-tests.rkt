@@ -158,12 +158,48 @@
                                  (Num (bigrat (from-string "-2") (from-string "3")))))
                 '(if cond 7/8 -2/3)))
 
-(define (run-tests)
-  (begin
-    (printf "Testing....\n")
-    (populate-e->id-tables)
-    (test-e1->expr)
-    (test-e2->expr)
-    (printf "Done.\n")))
 
-(run-tests)
+; run-tests
+(module+ test
+  (require rackunit
+           "../syntax/load-plugin.rkt"
+           "egglog-herbie.rkt")
+
+  (load-herbie-builtins)
+  (populate-e->id-tables)
+  (test-e1->expr)
+  (test-e2->expr))
+
+;; run-sample-egglog
+(module+ test
+  (require rackunit
+           "egglog-herbie.rkt"
+           "egg-herbie.rkt"
+           "../syntax/load-plugin.rkt"
+           "../syntax/types.rkt"
+           "batch.rkt"
+           "rules.rkt"
+           "../config.rkt")
+
+  (load-herbie-builtins)
+
+  (define batch
+    (progs->batch (list '(-.f64 (sqrt.f64 (+.f64 x #s(literal 1 binary64))) (sqrt.f64 x)))))
+
+  (define roots (batch-roots batch))
+
+  (*context* (make-debug-context '(x)))
+
+  (define reprs (make-list (vector-length (batch-roots batch)) (context-repr (*context*))))
+
+
+  (define rules (*rules*))
+  (define schedule
+    `((lift . ((iteration . 1) (scheduler . simple))) (,rules . ((node . ,(*node-limit*))))
+                                                      (lower . ((iteration . 1) (scheduler .
+                                                                                           simple)))))
+
+
+  (run-egglog-multi-extractor (egg-runner batch roots reprs schedule (*context*) '() '()) batch)
+
+  (check-equal? (+ 1 0) 1))
