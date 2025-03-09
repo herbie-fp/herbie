@@ -63,16 +63,17 @@
   (let loop ([lst lst]
              [best-score #f]
              [best-elts '()])
-    (if (null? lst)
-        (reverse best-elts)
-        (let* ([elt (car lst)]
-               [lst* (cdr lst)]
-               [score (f elt)])
-          (cond
-            [(not best-score) (loop lst* score (list elt))]
-            [(< score best-score) (loop lst* score (list elt))]
-            [(> score best-score) (loop lst* best-score best-elts)]
-            [(= score best-score) (loop lst* best-score (cons elt best-elts))])))))
+    (cond
+      [(null? lst) (reverse best-elts)]
+      [else
+       (define elt (car lst))
+       (define lst* (cdr lst))
+       (define score (f elt))
+       (cond
+         [(not best-score) (loop lst* score (list elt))]
+         [(< score best-score) (loop lst* score (list elt))]
+         [(> score best-score) (loop lst* best-score best-elts)]
+         [(= score best-score) (loop lst* best-score (cons elt best-elts))])])))
 
 (module+ test
   (check-equal? (argmins string-length '("a" "bb" "f" "ccc" "dd" "eee" "g")) '("a" "f" "g")))
@@ -97,9 +98,9 @@
 (define (partial-sums vec)
   (define res (make-vector (vector-length vec)))
   (for/fold ([cur-psum 0]) ([(el idx) (in-indexed (in-vector vec))])
-    (let ([new-psum (+ cur-psum el)])
-      (vector-set! res idx new-psum)
-      new-psum))
+    (define new-psum (+ cur-psum el))
+    (vector-set! res idx new-psum)
+    new-psum)
   res)
 
 (module+ test
@@ -161,11 +162,12 @@
 
 (define (disjoint-set-find! d x)
   (define p (vector-ref d x))
-  (if (= p x)
-      x
-      (let ([r (disjoint-set-find! d p)])
-        (vector-set! d x r)
-        r)))
+  (cond
+    [(= p x) x]
+    [else
+     (define r (disjoint-set-find! d p))
+     (vector-set! d x r)
+     r]))
 
 (define (disjoint-set-union! d x y)
   (vector-set! d y x))
@@ -249,16 +251,17 @@
   (define unit (if unit? "b" ""))
   (cond
     [(not r) ""]
-    [(and (> r 0) sign) (format "+~a~a" (/ (round (* r 10)) 10) unit)]
+    [(and (positive? r) sign) (format "+~a~a" (/ (round (* r 10)) 10) unit)]
     [else (format "~a~a" (/ (round (* r 10)) 10) unit)]))
 
 (define (format-accuracy numerator denominator #:sign [sign #f] #:unit [unit ""])
-  (if (and numerator (positive? denominator))
-      (let ([percent (~r (- 100 (* (/ numerator denominator) 100)) #:precision '(= 1))])
-        (if (and (> numerator 0) sign)
-            (format "+~a~a" percent unit)
-            (format "~a~a" percent unit)))
-      ""))
+  (cond
+    [(and numerator (positive? denominator))
+     (define percent (~r (- 100 (* (/ numerator denominator) 100)) #:precision '(= 1)))
+     (if (and (> numerator 0) sign)
+         (format "+~a~a" percent unit)
+         (format "~a~a" percent unit))]
+    [else ""]))
 
 (define (format-cost r repr #:sign [sign #f])
   (cond
@@ -266,7 +269,7 @@
     [else
      (define val (~r (/ (round (* r 10)) 10) #:precision 2))
      (cond
-       [(and (> r 0) sign) (format "+~a" val)]
+       [(and (positive? r) sign) (format "+~a" val)]
        [else (format "~a" val)])]))
 
 (define-runtime-path web-resource-path "../reports/resources/")
