@@ -251,7 +251,7 @@
   (define unit (if unit? "b" ""))
   (cond
     [(not r) ""]
-    [(and (> r 0) sign) (format "+~a~a" (/ (round (* r 10)) 10) unit)]
+    [(and (positive? r) sign) (format "+~a~a" (/ (round (* r 10)) 10) unit)]
     [else (format "~a~a" (/ (round (* r 10)) 10) unit)]))
 
 (define (format-accuracy numerator denominator #:sign [sign #f] #:unit [unit ""])
@@ -269,7 +269,7 @@
     [else
      (define val (~r (/ (round (* r 10)) 10) #:precision 2))
      (cond
-       [(and (> r 0) sign) (format "+~a" val)]
+       [(and (positive? r) sign) (format "+~a" val)]
        [else (format "~a" val)])]))
 
 (define-runtime-path web-resource-path "../reports/resources/")
