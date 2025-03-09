@@ -69,11 +69,9 @@
        [(nan? x1) #f]
        [(nan? x2) #t]
        [else (< x1 x2)])]
-    [else
-     (cond
-       [(special? x1) #f]
-       [(special? x2) #t]
-       [else (< (->ordinal x1) (->ordinal x2))])]))
+    [(special? x1) #f]
+    [(special? x2) #t]
+    [else (< (->ordinal x1) (->ordinal x2))]))
 
 (define (<=/total x1 x2 repr)
   (or (</total x1 x2 repr) (=/total x1 x2 repr)))
