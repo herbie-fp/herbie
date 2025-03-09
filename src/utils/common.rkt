@@ -98,9 +98,9 @@
 (define (partial-sums vec)
   (define res (make-vector (vector-length vec)))
   (for/fold ([cur-psum 0]) ([(el idx) (in-indexed (in-vector vec))])
-    (let ([new-psum (+ cur-psum el)])
-      (vector-set! res idx new-psum)
-      new-psum))
+    (define new-psum (+ cur-psum el))
+    (vector-set! res idx new-psum)
+    new-psum)
   res)
 
 (module+ test
