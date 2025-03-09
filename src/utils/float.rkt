@@ -109,19 +109,20 @@
   (define <-bf (representation-bf->repr repr))
   ;; Linear search because speed not an issue
   (let loop ([precision 16])
-    (if (> precision (*max-mpfr-prec*))
-        (begin
-          (warn 'value-to-string #:url "faq.html#value-to-string" "Could not uniquely print ~a" n)
-          n)
-        (parameterize ([bf-precision precision])
-          (define bf (->bf n))
-          (if (=/total n (<-bf bf) repr)
-              (match (bigfloat->string bf)
-                ["-inf.bf" "-inf.0"]
-                ["+inf.bf" "+inf.0"]
-                ["+nan.bf" "+nan.0"]
-                [x x])
-              (loop (+ precision 4))))))) ; 2^4 > 10
+    (cond
+      [(> precision (*max-mpfr-prec*))
+       (warn 'value-to-string #:url "faq.html#value-to-string" "Could not uniquely print ~a" n)
+       n]
+      [else
+       (parameterize ([bf-precision precision])
+         (define bf (->bf n))
+         (if (=/total n (<-bf bf) repr)
+             (match (bigfloat->string bf)
+               ["-inf.bf" "-inf.0"]
+               ["+inf.bf" "+inf.0"]
+               ["+nan.bf" "+nan.0"]
+               [x x])
+             (loop (+ precision 4))))]))) ; 2^4 > 10
 
 (define (real->repr x repr)
   ((representation-bf->repr repr) (bf x)))
