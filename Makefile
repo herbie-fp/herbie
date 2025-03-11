@@ -7,6 +7,7 @@ help:
 install: clean egglog update
 
 clean:
+	rustup update
 	raco pkg remove --force herbie && echo "Uninstalled old herbie" || :
 
 update:
