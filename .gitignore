@@ -20,3 +20,6 @@ egg-herbie/pkg
 *.zo
 *.dep
 herbie-compiled/
+
+# Rust
+src/egglog/egglog-wrapper/target/

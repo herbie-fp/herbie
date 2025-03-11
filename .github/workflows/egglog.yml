@@ -26,7 +26,7 @@ jobs:
             default: true
             override: true
             components: rustfmt, clippy
-      - run: cd src/egglog/egg-smol && cargo clippy --tests
-      - run: cd src/egglog/egg-smol && cargo test
-      - run: cd src/egglog/egg-smol && cargo fmt -- --check
-      - run: cd src/egglog/egg-smol && cargo build --release
+      - run: cd src/egglog/egglog-wrapper && cargo clippy --tests
+      - run: cd src/egglog/egglog-wrapper && cargo test
+      - run: cd src/egglog/egglog-wrapper && cargo fmt -- --check
+      - run: cd src/egglog/egglog-wrapper && cargo build --release

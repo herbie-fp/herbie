@@ -14,7 +14,7 @@ update:
 	raco pkg update --name herbie --deps search-auto src/
 
 egglog:
-	cargo build --release --manifest-path=src/egglog/egg-smol/Cargo.toml
+	cargo build --release --manifest-path=src/egglog/egglog-wrapper/Cargo.toml
 
 distribution: minimal-distribution
 	cp -r bench herbie-compiled/

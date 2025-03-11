@@ -1,0 +1,7 @@
+[package]
+name = "egglog-wrapper"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+egg-smol = { git = "https://github.com/oflatt/egglog/", rev = "0af0645c279a6d605372d8825bc71b4b3fd8ee25" }

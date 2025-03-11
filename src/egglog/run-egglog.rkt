@@ -9,11 +9,11 @@
 (provide run-egglog)
 
 (define-runtime-path egglog-binary
-  "egg-smol/target/release/egg-smol")
+  "egglog-wrapper/target/release/egglog-wrapper")
 
-(define egg-iters 5)
+(define egg-iters 25)
 (define ground-truth-iters 0)
-(define egg-node-limit 20000)
+(define egg-node-limit 10000)
 (define egg-match-limit 1000)
 ;; Number of egraphs to run (independent samples)
 (define egg-num-egraphs 2)
