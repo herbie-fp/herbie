@@ -160,8 +160,8 @@
 
   (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext))
   ;; TODO: Ignoring all user-provided preprocessing right now
-  (define-values (alternatives preprocessing)
-    (run-improve! (test-input test) (test-spec test) (*context*) train-pcontext))
+  (define alternatives (run-improve! (test-input test) (test-spec test) (*context*) train-pcontext))
+  (define preprocessing (alt-preprocessing (first alternatives)))
   (define test-pcontext* (preprocess-pcontext (*context*) test-pcontext preprocessing))
 
   (list alternatives test-pcontext test-pcontext*))
@@ -173,13 +173,13 @@
 
   (define-values (train-pcontext test-pcontext) (partition-pcontext joint-pcontext))
   ;; TODO: Ignoring all user-provided preprocessing right now
-  (define-values (alternatives preprocessing)
-    (run-improve! (test-input test) (test-spec test) (*context*) train-pcontext))
+  (define alternatives (run-improve! (test-input test) (test-spec test) (*context*) train-pcontext))
+  (define preprocessing (alt-preprocessing (first alternatives)))
   (define test-pcontext* (preprocess-pcontext (*context*) test-pcontext preprocessing))
 
   ;; compute error/cost for input expression
   (define start-expr (test-input test))
-  (define start-alt (make-alt start-expr))
+  (define start-alt (make-alt-preprocessing start-expr (test-preprocess test)))
   (define start-train-errs (errors start-expr train-pcontext (*context*)))
   (define start-test-errs (errors start-expr test-pcontext* (*context*)))
   (define start-alt-data (alt-analysis start-alt start-train-errs start-test-errs))
