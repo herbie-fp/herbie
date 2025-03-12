@@ -59,7 +59,8 @@
     (for/list ([altn alternatives])
       (define expr (alt-expr altn))
       (define preprocessing (alt-preprocessing altn))
-      (alt-add-preprocessing altn (remove-unnecessary-preprocessing expr context pcontext preprocessing))))
+      (alt-add-preprocessing altn
+                             (remove-unnecessary-preprocessing expr context pcontext preprocessing))))
   final-alts)
 
 (define (extract!)
