@@ -38,6 +38,7 @@
 (struct alt-analysis (alt train-errors test-errors) #:prefab)
 
 (define (sample-pcontext test)
+  (random) ;; Tick the random number generator, for backwards compatibility
   (define specification (prog->spec (or (test-spec test) (test-input test))))
   (define precondition (prog->spec (test-pre test)))
   (define sample
@@ -168,9 +169,6 @@
 ;; Improvement backend for generating reports
 ;; A more heavyweight version of `get-alternatives`
 (define (get-alternatives/report test)
-  (define seed (get-seed))
-  (random) ;; Child process uses deterministic but different seed from evaluator
-
   (define joint-pcontext (sample-pcontext test))
 
   (define-values (train-pcontext test-pcontext) (partition-pcontext joint-pcontext))
