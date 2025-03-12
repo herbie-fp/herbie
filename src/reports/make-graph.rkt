@@ -41,7 +41,6 @@
   (match-define (alt-analysis start-alt _ start-error) (hash-ref backend 'start))
   (define targets (hash-ref backend 'target))
   (define end (hash-ref backend 'end))
-  (define bogosity (hash-ref backend 'bogosity))
 
   (define start-cost (alt-cost start-alt repr))
 
@@ -101,7 +100,7 @@
                              #:title "Relative speed of fastest alternative that improves accuracy.")
                ""))
      ,(render-warnings warnings)
-     ,(render-specification test #:bogosity bogosity)
+     ,(render-specification test)
      (figure ([id "graphs"])
              (h2 "Local Percentage Accuracy vs "
                  (span ([id "variables"]))

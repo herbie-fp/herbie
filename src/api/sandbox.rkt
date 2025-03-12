@@ -34,7 +34,7 @@
          (struct-out alt-analysis))
 
 (struct job-result (command test status time timeline profile warnings backend))
-(struct improve-result (preprocess pctxs start target end bogosity))
+(struct improve-result (preprocess pctxs start target end))
 (struct alt-analysis (alt train-errors test-errors) #:prefab)
 
 (define (sample-pcontext vars specification precondition)
@@ -216,7 +216,7 @@
   (timeline-adjust! 'regimes 'link ".")
 
   (define pctxs (list train-pcontext test-pcontext*))
-  (improve-result preprocessing pctxs start-alt-data target-alt-data end-data domain-stats))
+  (improve-result preprocessing pctxs start-alt-data target-alt-data end-data))
 
 ;;
 ;;  Public interface

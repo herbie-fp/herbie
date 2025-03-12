@@ -440,9 +440,7 @@
           'target
           (improve-result-target backend)
           'end
-          end-hash-table
-          'bogosity
-          (improve-result-bogosity backend)))
+          end-hash-table))
 
 (define (end-hash end repr pcontexts test)
 
