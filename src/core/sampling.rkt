@@ -220,4 +220,5 @@
           #:url "faq.html#inf-points"
           "~a of points produce a very large (infinite) output. You may want to add a precondition."
           (format-accuracy (- total (hash-ref table2 'infinite)) total #:unit "%")))
-  (cons (combine-tables table table2) results))
+  (timeline-push! 'bogosity (combine-tables table table2))
+  results)

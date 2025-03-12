@@ -37,10 +37,13 @@
 (struct improve-result (preprocess pctxs start target end))
 (struct alt-analysis (alt train-errors test-errors) #:prefab)
 
-(define (sample-pcontext vars specification precondition)
-  (define sample (sample-points precondition (list specification) (list (*context*))))
-  (match-define (cons domain pts+exs) sample)
-  (cons domain (apply mk-pcontext pts+exs)))
+(define (sample-pcontext test)
+  (define specification (prog->spec (or (test-spec test) (test-input test))))
+  (define precondition (prog->spec (test-pre test)))
+  (define sample
+    (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
+      (sample-points precondition (list specification) (list (*context*)))))
+  (apply mk-pcontext sample))
 
 ;; Partitions a joint pcontext into a training and testing set
 (define (partition-pcontext joint-pcontext)
@@ -70,14 +73,8 @@
 
 ;; Given a test and a sample of points, returns the test points.
 (define (get-sample test)
-  (define repr (test-output-repr test))
-  (match-define (cons _ joint-pcontext)
-    (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
-      (sample-pcontext (test-vars test)
-                       (prog->spec (or (test-spec test) (test-input test)))
-                       (prog->spec (test-pre test)))))
-
-  (define-values (_ test-pcontext) (split-pcontext joint-pcontext (*num-points*) (*reeval-pts*)))
+  (define joint-pcontext (sample-pcontext test))
+  (define-values (_ test-pcontext) (partition-pcontext joint-pcontext))
   test-pcontext)
 
 ;; Given a test and a sample of points, computes the error at each point.
@@ -174,12 +171,7 @@
   (define seed (get-seed))
   (random) ;; Child process uses deterministic but different seed from evaluator
 
-  (match-define (cons domain-stats joint-pcontext)
-    (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
-      (sample-pcontext (test-vars test)
-                       (prog->spec (or (test-spec test) (test-input test)))
-                       (prog->spec (test-pre test)))))
-  (timeline-push! 'bogosity domain-stats)
+  (define joint-pcontext (sample-pcontext test))
 
   (define-values (train-pcontext test-pcontext) (partition-pcontext joint-pcontext))
   ;; TODO: Ignoring all user-provided preprocessing right now
