@@ -165,8 +165,7 @@
   (define-values (alternatives preprocessing)
     (run-improve! (test-input test) (test-spec test) (*context*) train-pcontext))
   (define test-pcontext* (preprocess-pcontext (*context*) test-pcontext preprocessing))
-  (when seed
-    (set-seed! seed))
+
   (list alternatives test-pcontext test-pcontext*))
 
 ;; Improvement backend for generating reports
@@ -175,28 +174,24 @@
   (define seed (get-seed))
   (random) ;; Child process uses deterministic but different seed from evaluator
 
-  (define repr (test-output-repr test))
-  (define ctx (test-context test))
   (match-define (cons domain-stats joint-pcontext)
     (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
       (sample-pcontext (test-vars test)
                        (prog->spec (or (test-spec test) (test-input test)))
                        (prog->spec (test-pre test)))))
   (timeline-push! 'bogosity domain-stats)
-  (define-values (train-pcontext test-pcontext)
-    (split-pcontext joint-pcontext (*num-points*) (*reeval-pts*)))
+
+  (define-values (train-pcontext test-pcontext) (partition-pcontext joint-pcontext))
   ;; TODO: Ignoring all user-provided preprocessing right now
-  (define-values (end-alts preprocessing)
+  (define-values (alternatives preprocessing)
     (run-improve! (test-input test) (test-spec test) (*context*) train-pcontext))
-  (define test-pcontext* (preprocess-pcontext ctx test-pcontext preprocessing))
-  (when seed
-    (set-seed! seed))
+  (define test-pcontext* (preprocess-pcontext (*context*) test-pcontext preprocessing))
 
   ;; compute error/cost for input expression
   (define start-expr (test-input test))
   (define start-alt (make-alt start-expr))
-  (define start-train-errs (errors start-expr train-pcontext ctx))
-  (define start-test-errs (errors start-expr test-pcontext* ctx))
+  (define start-train-errs (errors start-expr train-pcontext (*context*)))
+  (define start-test-errs (errors start-expr test-pcontext* (*context*)))
   (define start-alt-data (alt-analysis start-alt start-train-errs start-test-errs))
 
   ;; optionally compute error/cost for input expression
@@ -204,24 +199,24 @@
     ;; When in platform, evaluate error
     (for/list ([(expr is-valid?) (in-dict (test-output test))]
                #:when is-valid?)
-      (define target-expr (fpcore->prog expr ctx))
-      (define target-train-errs (errors target-expr train-pcontext ctx))
-      (define target-test-errs (errors target-expr test-pcontext* ctx))
+      (define target-expr (fpcore->prog expr (*context*)))
+      (define target-train-errs (errors target-expr train-pcontext (*context*)))
+      (define target-test-errs (errors target-expr test-pcontext* (*context*)))
 
       (alt-analysis (make-alt target-expr) target-train-errs target-test-errs)))
 
   ;; compute error/cost for output expression
-  (define end-exprs (map alt-expr end-alts))
-  (define end-train-errs (batch-errors end-exprs train-pcontext ctx))
-  (define end-test-errs (batch-errors end-exprs test-pcontext* ctx))
-  (define end-alts-data (map alt-analysis end-alts end-train-errs end-test-errs))
+  (define end-exprs (map alt-expr alternatives))
+  (define end-train-errs (batch-errors end-exprs train-pcontext (*context*)))
+  (define end-test-errs (batch-errors end-exprs test-pcontext* (*context*)))
+  (define end-data (map alt-analysis alternatives end-train-errs end-test-errs))
 
   ;; bundle up the result
   (timeline-adjust! 'regimes 'name (test-name test))
   (timeline-adjust! 'regimes 'link ".")
 
   (define pctxs (list train-pcontext test-pcontext*))
-  (improve-result preprocessing pctxs start-alt-data target-alt-data end-alts-data domain-stats))
+  (improve-result preprocessing pctxs start-alt-data target-alt-data end-data domain-stats))
 
 ;;
 ;;  Public interface
