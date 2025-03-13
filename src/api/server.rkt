@@ -477,18 +477,7 @@
 (define (make-alternatives-result herbie-result job-id)
 
   (define test (job-result-test herbie-result))
-  (define vars (test-vars test))
-  (define repr (test-output-repr test))
-
   (match-define (list altns test-pcontext processed-pcontext) (job-result-backend herbie-result))
-  (define splitpoints
-    (for/list ([alt altns])
-      (for/list ([var vars])
-        (define split-var? (equal? var (regime-var alt)))
-        (if split-var?
-            (for/list ([val (regime-splitpoints alt)])
-              (real->ordinal (repr->real val repr) repr))
-            '()))))
 
   (define fpcores
     (for/list ([altn altns])
@@ -507,9 +496,7 @@
       (render-json altn processed-pcontext test-pcontext (test-context test))))
   (hasheq 'alternatives
           fpcores
-          'histories
+          'histories ; FIXME: currently used by Odyssey but should switch to 'derivations below
           histories
           'derivations
-          derivations
-          'splitpoints
-          splitpoints))
+          derivations))
