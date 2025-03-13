@@ -63,10 +63,10 @@
   ; create the machine
   (define exprs (cons `(assert ,pre) specs))
   (define discs (cons boolean-discretization (map repr->discretization reprs)))
-  (define machine (rival-compile exprs vars discs))
+  (define machine (baseline-compile exprs vars discs))
   (timeline-push! 'compiler
                   (apply + 1 (expr-size pre) (map expr-size specs))
-                  (+ (length vars) (rival-profile machine 'instructions)))
+                  (+ (length vars) (baseline-profile machine 'instructions)))
 
   (define dump-file
     (cond
@@ -105,17 +105,17 @@
   (define-values (status value)
     (with-handlers ([exn:rival:invalid? (lambda (e) (values 'invalid #f))]
                     [exn:rival:unsamplable? (lambda (e) (values 'exit #f))])
-      (parameterize ([*rival-max-precision* (*max-mpfr-prec*)]
-                     [*rival-max-iterations* 5])
-        (define value (rest (vector->list (rival-apply machine pt* hint)))) ; rest = drop precondition
+      (parameterize ([*rival-max-precision* (*max-mpfr-prec*)])
+        (define value
+          (rest (vector->list (baseline-apply machine pt* hint)))) ; rest = drop precondition
         (values 'valid value))))
-  (when (> (rival-profile machine 'bumps) 0)
-    (warn 'ground-truth
-          "Could not converge on a ground truth"
-          #:extra (for/list ([var (in-list vars)]
-                             [val (in-list pt)])
-                    (format "~a = ~a" var val))))
-  (define executions (rival-profile machine 'executions))
+  #;(when (> (baseline-profile machine 'bumps) 0)
+      (warn 'ground-truth
+            "Could not converge on a ground truth"
+            #:extra (for/list ([var (in-list vars)]
+                               [val (in-list pt)])
+                      (format "~a = ~a" var val))))
+  (define executions (baseline-profile machine 'executions))
   (when (>= (vector-length executions) (*rival-profile-executions*))
     (warn 'profile "Rival profile vector overflowed, profile may not be complete"))
   (define prec-threshold (exact-floor (/ (*max-mpfr-prec*) 25)))
@@ -126,18 +126,18 @@
     (timeline-push!/unsafe 'mixsample (execution-time execution) name precision))
   (timeline-push!/unsafe 'outcomes
                          (- (current-inexact-milliseconds) start)
-                         (rival-profile machine 'iterations)
+                         (baseline-profile machine 'precision)
                          (~a status)
                          1)
   (values status value))
 
 ;; Clears profiling data.
 (define (real-compiler-clear! compiler)
-  (rival-profile (real-compiler-machine compiler) 'executions)
+  (baseline-profile (real-compiler-machine compiler) 'executions)
   (void))
 
 ;; Returns whether the machine is guaranteed to raise an exception
 ;; for the given inputs range. The result is an interval representing
 ;; how certain the result is: no, maybe, yes.
 (define (real-compiler-analyze compiler input-ranges [hint #f])
-  (rival-analyze (real-compiler-machine compiler) input-ranges hint))
+  (baseline-analyze (real-compiler-machine compiler) input-ranges hint))
