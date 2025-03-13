@@ -90,32 +90,6 @@
              [err (in-list errs)])
     (list pt err)))
 
-;; Given a test and a sample of points, the ground truth of each point
-;; If the sample contains the expected number of points, i.e., `(*num-points*) + (*reeval-pts*)`,
-;; then the first `*num-points*` will be discarded and the rest will be used for evaluation,
-;; otherwise the entire set is used.
-(define (get-exacts test pcontext)
-  (unless pcontext
-    (error 'get-exacts "cannnot run without a pcontext"))
-  (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext))
-  (define pts (pcontext-points test-pcontext))
-  (define fn (eval-progs-real (list (prog->spec (test-input test))) (list (*context*))))
-  (for/list ([pt pts])
-    (list pt (car (apply fn pt)))))
-
-;; Given a test and a sample of points,
-;; the floating-point result at each point
-(define (get-evaluate test pcontext)
-  (unless pcontext
-    (error 'get-calculation "cannnot run without a pcontext"))
-
-  (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext))
-  (define pts (pcontext-points test-pcontext))
-
-  (define fn (compile-prog (test-input test) (test-context test)))
-  (for/list ([pt pts])
-    (list pt (apply fn pt))))
-
 ;; Given a test and a sample of points, computes the local error at every node in the expression
 ;; returning a tree of errors that mirrors the structure of the expression.
 ;; If the sample contains the expected number of points, i.e., `(*num-points*) + (*reeval-pts*)`,
@@ -252,8 +226,6 @@
             ['alternatives (get-alternatives test pcontext seed)]
             ['cost (get-cost test)]
             ['errors (get-errors test pcontext)]
-            ['evaluate (get-evaluate test pcontext)]
-            ['exacts (get-exacts test pcontext)]
             ['explanations (get-explanations test pcontext)]
             ['improve (get-improve test)]
             ['local-error (get-local-error test pcontext)]

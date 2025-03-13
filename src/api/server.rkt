@@ -142,8 +142,6 @@
     ['alternatives make-alternatives-result]
     ['cost make-cost-result]
     ['errors make-error-result]
-    ['evaluate make-calculate-result]
-    ['exacts make-exacts-result]
     ['explanations make-explanation-result]
     ['improve make-improve-result]
     ['local-error make-local-error-result]
@@ -375,9 +373,6 @@
   (define repr (context-repr (test-context test)))
   (hasheq 'points (pcontext->json pctx repr)))
 
-(define (make-calculate-result herbie-result job-id)
-  (hasheq 'points (job-result-backend herbie-result)))
-
 (define (make-cost-result herbie-result job-id)
   (hasheq 'cost (job-result-backend herbie-result)))
 
@@ -388,9 +383,6 @@
       (define err (second pt&err))
       (list pt (format-bits (ulps->bits err)))))
   (hasheq 'points errs))
-
-(define (make-exacts-result herbie-result job-id)
-  (hasheq 'points (job-result-backend herbie-result)))
 
 (define (make-improve-result herbie-result job-id)
   (define test (job-result-test herbie-result))

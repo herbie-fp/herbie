@@ -137,23 +137,6 @@ await testAPI("/api/analyze", {
   assert.deepEqual(body.points, [[[14.97651307489794], "2.3"]]);
 });
 
-// Exacts endpoint
-await testAPI("/api/exacts", {
-  formula: FPCoreFormula2,
-  sample: eval_sample
-}, (body) => {
-  assert.deepEqual(body.points, [[[1], -1.4142135623730951]]);
-});
-
-// Calculate endpoint
-await testAPI("/api/calculate", {
-  formula: FPCoreFormula2,
-  sample: eval_sample
-}, (body) => {
-  assert.deepEqual(body.points, [[[1], -1.4142135623730951]]);
-});
-
-
 // Local error endpoint
 await testAPI("/api/localerror", {
   formula: FPCoreFormula,
