@@ -99,16 +99,14 @@
   (unless pcontext
     (error 'get-local-error "cannnot run without a pcontext"))
 
-  (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext))
-  (*pcontext* test-pcontext)
+  (*pcontext* pcontext)
   (local-error-as-tree (test-input test) (*context*)))
 
 (define (get-explanations test pcontext)
   (unless pcontext
     (error 'explain "cannot run without a pcontext"))
 
-  (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext))
-  (*pcontext* test-pcontext)
+  (*pcontext* pcontext)
   (define-values (fperrors
                   sorted-explanations-table
                   confusion-matrix
