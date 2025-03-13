@@ -48,10 +48,11 @@
 
 (define (syntax->error-format-string stx)
   (define file
-    (if (path? (syntax-source stx))
-        (let-values ([(base name dir?) (split-path (syntax-source stx))])
-          (path->string name))
-        (syntax-source stx)))
+    (cond
+      [(path? (syntax-source stx))
+       (define-values (base name dir?) (split-path (syntax-source stx)))
+       (path->string name)]
+      [else (syntax-source stx)]))
   (format "~a:~a:~a: ~~a"
           file
           (or (syntax-line stx) "")
