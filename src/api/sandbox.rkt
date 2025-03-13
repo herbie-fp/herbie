@@ -107,7 +107,7 @@
 
 ;; Given a test and a sample of points,
 ;; the floating-point result at each point
-(define (get-calculation test pcontext)
+(define (get-evaluate test pcontext)
   (unless pcontext
     (error 'get-calculation "cannnot run without a pcontext"))
 
@@ -168,7 +168,7 @@
 
 ;; Improvement backend for generating reports
 ;; A more heavyweight version of `get-alternatives`
-(define (get-alternatives/report test)
+(define (get-improve test)
   (define joint-pcontext (sample-pcontext test))
 
   (define-values (train-pcontext test-pcontext) (partition-pcontext joint-pcontext))
@@ -252,13 +252,13 @@
         (define result
           (match command
             ['alternatives (get-alternatives test pcontext seed)]
-            ['evaluate (get-calculation test pcontext)]
             ['cost (get-cost test)]
             ['errors (get-errors test pcontext)]
+            ['evaluate (get-evaluate test pcontext)]
             ['exacts (get-exacts test pcontext)]
-            ['improve (get-alternatives/report test)]
-            ['local-error (get-local-error test pcontext)]
             ['explanations (get-explanations test pcontext)]
+            ['improve (get-improve test)]
+            ['local-error (get-local-error test pcontext)]
             ['sample (get-sample test)]
             [_ (error 'compute-result "unknown command ~a" command)]))
         (timeline-event! 'end)
