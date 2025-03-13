@@ -74,9 +74,7 @@
 
 ;; Given a test and a sample of points, returns the test points.
 (define (get-sample test)
-  (define joint-pcontext (sample-pcontext test))
-  (define-values (_ test-pcontext) (partition-pcontext joint-pcontext))
-  test-pcontext)
+  (sample-pcontext test))
 
 ;; Given a test and a sample of points, computes the error at each point.
 ;; If the sample contains the expected number of points, i.e., `(*num-points*) + (*reeval-pts*)`,
