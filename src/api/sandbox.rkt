@@ -124,7 +124,7 @@
 ;; If the sample contains the expected number of points, i.e., `(*num-points*) + (*reeval-pts*)`,
 ;; then the first `*num-points*` will be discarded and the rest will be used for evaluation,
 ;; otherwise the entire set is used.
-(define (get-alternatives test pcontext seed)
+(define (get-alternatives test pcontext)
   (unless pcontext
     (error 'get-alternatives "cannnot run without a pcontext"))
 
@@ -137,13 +137,15 @@
   (list alternatives test-pcontext test-pcontext*))
 
 ;; Improvement backend for generating reports
-;; A more heavyweight version of `get-alternatives`
-(define (get-improve test)
-  (define joint-pcontext (sample-pcontext test))
+;; This is (get-alternatives) + a bunch of extra evaluation / data collection
+(define (get-improve test joint-pcontext)
+  (unless joint-pcontext
+    (error 'get-alternatives "cannnot run without a pcontext"))
 
   (define-values (train-pcontext test-pcontext) (partition-pcontext joint-pcontext))
   ;; TODO: Ignoring all user-provided preprocessing right now
   (define alternatives (run-improve! (test-input test) (test-spec test) (*context*) train-pcontext))
+
   (define preprocessing (alt-preprocessing (first alternatives)))
   (define test-pcontext* (preprocess-pcontext (*context*) test-pcontext preprocessing))
 
@@ -221,11 +223,11 @@
         (timeline-event! 'start) ; Prevents the timeline from being empty.
         (define result
           (match command
-            ['alternatives (get-alternatives test pcontext seed)]
+            ['alternatives (get-alternatives test pcontext)]
             ['cost (get-cost test)]
             ['errors (get-errors test pcontext)]
             ['explanations (get-explanations test pcontext)]
-            ['improve (get-improve test)]
+            ['improve (get-improve test (get-sample test))]
             ['local-error (get-local-error test pcontext)]
             ['sample (get-sample test)]
             [_ (error 'compute-result "unknown command ~a" command)]))
