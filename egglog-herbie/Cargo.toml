@@ -1,0 +1,13 @@
+[package]
+name = "egglog-herbie"
+version = "0.1.0"
+authors = [ "Brett Saiki <bksaiki@gmail.com>" ]
+edition = "2021"
+
+[dependencies]
+egglog = { git = "https://github.com/egraphs-good/egglog.git", rev = "215714e1cbb13ae9e21bed2f2e1bf95804571512" }
+libc = "0.2"
+
+[lib]
+name = "egglog_herbie"
+crate-type = ["rlib", "cdylib"]
