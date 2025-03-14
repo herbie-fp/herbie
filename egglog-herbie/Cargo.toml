@@ -5,7 +5,7 @@ authors = [ "Brett Saiki <bksaiki@gmail.com>" ]
 edition = "2021"
 
 [dependencies]
-egglog = { git = "https://github.com/egraphs-good/egglog.git", rev = "215714e1cbb13ae9e21bed2f2e1bf95804571512" }
+egglog = { git = "https://github.com/bksaiki/egglog.git", rev = "885cd7786cbc69dd8f0dbb324190f5131757baba" }
 libc = "0.2"
 
 [lib]

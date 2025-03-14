@@ -58,7 +58,7 @@ pub unsafe extern "C" fn egraph_run(ptr: *mut Context, prog: *const c_char) -> *
     ManuallyDrop::new(cstring).as_ptr()
 }
 
-fn _egraph_extract(context: &mut Context, strs: &[*mut c_char]) -> String {
+fn _egraph_extract(context: &mut Context, strs: &[*mut c_char], limit: Option<usize>) -> String {
     // Convert `strs` to Rust FFI strings
     let terms: Vec<_> = strs
         .iter()
@@ -86,9 +86,26 @@ fn _egraph_extract(context: &mut Context, strs: &[*mut c_char]) -> String {
     let mut termdag = TermDag::default();
     let extractor = Extractor::new(&context.egraph, &mut termdag);
     for (sort, value) in terms {
-        let (_, extracted) = extractor.find_best(value, &mut termdag, &sort).unwrap();
-        let s = termdag.to_string(&extracted);
-        string.push_str(&s);
+        match limit {
+            Some(limit) => {
+                // multi expression extraction
+                let extracted = extractor
+                    .find_variants(value, &mut termdag, &sort, limit)
+                    .unwrap();
+                string.push('(');
+                for term in extracted {
+                    let s = termdag.to_string(&term);
+                    string.push_str(&s);
+                }
+                string.push(')');
+            }
+            None => {
+                // single expression extraction
+                let (_, extracted) = extractor.find_best(value, &mut termdag, &sort).unwrap();
+                let s = termdag.to_string(&extracted);
+                string.push_str(&s);
+            }
+        }
     }
 
     string
@@ -99,6 +116,7 @@ pub unsafe extern "C" fn egraph_extract(
     ptr: *mut Context,
     vec: *const *mut c_char,
     len: usize,
+    limit: usize,
 ) -> *const c_char {
     // Ensures that `context` will not be freed
     assert!(!ptr.is_null());
@@ -108,8 +126,11 @@ pub unsafe extern "C" fn egraph_extract(
     assert!(!vec.is_null());
     let strs = std::slice::from_raw_parts(vec, len);
 
+    // Interpreter `limit == 0` as `None`
+    let limit = if limit == 0 { None } else { Some(limit) };
+
     // Run batched extraction
-    let string = _egraph_extract(&mut context, strs);
+    let string = _egraph_extract(&mut context, strs, limit);
 
     // Return the result as a string
     let cstring = CString::new(string).unwrap();

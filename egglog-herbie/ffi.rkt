@@ -10,19 +10,16 @@
          egraph_run)
 
 (define-runtime-path libegglog-path
-  (build-path "target/release"
-             (string-append
-               (case (system-type)
-                 [(windows) "egglog_herbie"]
-                [else "libegglog_herbie"])
-        (bytes->string/utf-8 (system-type 'so-suffix)))))
+                     (build-path "target/release"
+                                 (string-append (case (system-type)
+                                                  [(windows) "egglog_herbie"]
+                                                  [else "libegglog_herbie"])
+                                                (bytes->string/utf-8 (system-type 'so-suffix)))))
 
 (define (handle-egglog-import-failure)
   (error 'eggmath "Failed to import eggmath"))
 
-(define-ffi-definer define-eggmath
-  (ffi-lib libegglog-path
-           #:fail handle-egglog-import-failure))
+(define-ffi-definer define-eggmath (ffi-lib libegglog-path #:fail handle-egglog-import-failure))
 
 ;; Converts a Racket string to a C-style string.
 (define (string->_rust/string s #:raw? [raw? #f])
@@ -70,10 +67,12 @@
 
 ;; Runs an extraction on an e-graph instance.
 (define-eggmath egraph_extract
-  (_fun _egraph-pointer
-       [vec : (_vector i _rust/string)]
-       [_size = (vector-length vec)]
-       -> _rust/string))
+                (_fun _egraph-pointer
+                      [vec : (_vector i _rust/string)]
+                      [_size = (vector-length vec)]
+                      _size
+                      ->
+                      _rust/string))
 
 ;; Gets the length of a Rust-allocated C-string in bytes,
 ;; excluding the nul terminator.
