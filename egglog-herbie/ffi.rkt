@@ -5,6 +5,7 @@
          racket/runtime-path)
 
 (provide egraph_create
+         egraph_extract
          egraph_free
          egraph_run)
 
@@ -66,6 +67,13 @@
 
 ;; Runs an egglog program on an e-graph instance.
 (define-eggmath egraph_run (_fun _egraph-pointer _rust/string -> _rust/string))
+
+;; Runs an extraction on an e-graph instance.
+(define-eggmath egraph_extract
+  (_fun _egraph-pointer
+       [vec : (_vector i _rust/string)]
+       [_size = (vector-length vec)]
+       -> _rust/string))
 
 ;; Gets the length of a Rust-allocated C-string in bytes,
 ;; excluding the nul terminator.
