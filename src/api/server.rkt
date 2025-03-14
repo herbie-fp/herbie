@@ -32,6 +32,12 @@
          write-results-to-disk
          *demo-output*)
 
+(define (warn-single-threaded-mpfr)
+  (local-require ffi/unsafe)
+  (local-require math/private/bigfloat/mpfr)
+  (unless ((get-ffi-obj 'mpfr_buildopt_tls_p mpfr-lib (_fun -> _bool)))
+    (warn 'mpfr-threads "Your MPFR is single-threaded. Herbie will work but be slower than normal.")))
+
 (define *demo-output* (make-parameter false))
 
 (define log-level #f)
@@ -322,6 +328,8 @@
         (place-channel-put handler improved-list)]))))
 
 (define (make-worker worker-id)
+  (warn-single-threaded-mpfr)
+
   (place/context*
    ch
    #:parameters (*flags* *num-iterations*
