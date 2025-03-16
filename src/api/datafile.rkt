@@ -138,9 +138,7 @@
                                 (target . ,target-bits)
                                 (start-est . ,start-est)
                                 (end-est . ,end-est)
-                                (vars . ,(if vars
-                                             (map symbol->string vars)
-                                             #f))
+                                (vars . ,(and vars (map symbol->string vars)))
                                 (warnings . ,(map ~s warnings))
                                 (input . ,(~s input))
                                 (output . ,(~s output))
