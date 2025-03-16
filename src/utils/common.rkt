@@ -258,7 +258,7 @@
   (cond
     [(and numerator (positive? denominator))
      (define percent (~r (- 100 (* (/ numerator denominator) 100)) #:precision '(= 1)))
-     (if (and (> numerator 0) sign)
+     (if (and (positive? numerator) sign)
          (format "+~a~a" percent unit)
          (format "~a~a" percent unit))]
     [else ""]))
