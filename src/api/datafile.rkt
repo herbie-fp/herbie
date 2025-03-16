@@ -180,9 +180,7 @@
 
 (define (read-datafile port)
   (define (parse-string s)
-    (if s
-        (call-with-input-string s read)
-        #f))
+    (and s (call-with-input-string s read)))
 
   (let* ([json (read-json port)]
          [get (λ (field) (hash-ref json field))])
