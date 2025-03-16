@@ -244,9 +244,9 @@
                           report-info-seed
                           report-info-flags
                           report-info-points
-                          report-info-iterations))])
-    (unless (unique? (map f dfs))
-      (error 'merge-datafiles "Cannot merge datafiles at different ~a" f)))
+                          report-info-iterations))]
+        #:unless (unique? (map f dfs)))
+    (error 'merge-datafiles "Cannot merge datafiles at different ~a" f))
   (unless dirs
     (set! dirs (map (const #f) dfs)))
   (define tests
