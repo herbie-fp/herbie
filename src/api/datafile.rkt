@@ -62,8 +62,8 @@
   (define initial-accuracy
     (let ([initial-accuracies-sum
            (for/sum ([cost-accuracy (in-list cost-accuracies)] #:unless (null? cost-accuracy))
-                    (match cost-accuracy
-                      [(list (list _ initial-accuracy) _ _) initial-accuracy]))])
+                    (match-define (list (list _ initial-accuracy) _ _) cost-accuracy)
+                    initial-accuracy)])
       (if (positive? maximum-accuracy)
           (exact->inexact (- 1 (/ initial-accuracies-sum maximum-accuracy)))
           1.0)))
@@ -94,61 +94,61 @@
 
 (define (write-datafile file info)
   (define (simplify-test test)
-    (match test
-      [(table-row name
-                  identifier
-                  status
-                  pre
-                  preprocess
-                  prec
-                  conversions
-                  vars
-                  warnings
-                  input
-                  output
-                  spec
-                  target-prog
-                  start-bits
-                  end-bits
-                  target-bits
-                  start-est
-                  end-est
-                  time
-                  link
-                  cost-accuracy)
-       (define bits (representation-total-bits (get-representation prec)))
-       (define cost-accuracy*
-         (match cost-accuracy
-           [(list) (list)]
-           [(list start best others)
-            (list start
-                  best
-                  (for/list ([other (in-list others)])
-                    (match-define (list cost error expr) other)
-                    (list cost error (~a expr))))]))
-       (make-hash `((name . ,name) (identifier . ,(~s identifier))
-                                   (pre . ,(~s pre))
-                                   (preprocess . ,(~s preprocess))
-                                   (prec . ,(~s prec))
-                                   (bits . ,(representation-total-bits (get-representation prec)))
-                                   (conversions . ,(map (curry map ~s) conversions))
-                                   (status . ,status)
-                                   (start . ,start-bits)
-                                   (end . ,end-bits)
-                                   (target . ,target-bits)
-                                   (start-est . ,start-est)
-                                   (end-est . ,end-est)
-                                   (vars . ,(if vars
-                                                (map symbol->string vars)
-                                                #f))
-                                   (warnings . ,(map ~s warnings))
-                                   (input . ,(~s input))
-                                   (output . ,(~s output))
-                                   (spec . ,(~s spec))
-                                   (target-prog . ,(~s target-prog))
-                                   (time . ,time)
-                                   (link . ,(~a link))
-                                   (cost-accuracy . ,cost-accuracy*)))]))
+    (match-define (table-row name
+                             identifier
+                             status
+                             pre
+                             preprocess
+                             prec
+                             conversions
+                             vars
+                             warnings
+                             input
+                             output
+                             spec
+                             target-prog
+                             start-bits
+                             end-bits
+                             target-bits
+                             start-est
+                             end-est
+                             time
+                             link
+                             cost-accuracy)
+      test)
+    (define bits (representation-total-bits (get-representation prec)))
+    (define cost-accuracy*
+      (match cost-accuracy
+        [(list) (list)]
+        [(list start best others)
+         (list start
+               best
+               (for/list ([other (in-list others)])
+                 (match-define (list cost error expr) other)
+                 (list cost error (~a expr))))]))
+    (make-hash `((name . ,name) (identifier . ,(~s identifier))
+                                (pre . ,(~s pre))
+                                (preprocess . ,(~s preprocess))
+                                (prec . ,(~s prec))
+                                (bits . ,(representation-total-bits (get-representation prec)))
+                                (conversions . ,(map (curry map ~s) conversions))
+                                (status . ,status)
+                                (start . ,start-bits)
+                                (end . ,end-bits)
+                                (target . ,target-bits)
+                                (start-est . ,start-est)
+                                (end-est . ,end-est)
+                                (vars . ,(if vars
+                                             (map symbol->string vars)
+                                             #f))
+                                (warnings . ,(map ~s warnings))
+                                (input . ,(~s input))
+                                (output . ,(~s output))
+                                (spec . ,(~s spec))
+                                (target-prog . ,(~s target-prog))
+                                (time . ,time)
+                                (link . ,(~a link))
+                                (cost-accuracy . ,cost-accuracy*))))
 
   (define data
     (match info
