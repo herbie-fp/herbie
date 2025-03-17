@@ -223,7 +223,7 @@
         (timeline-event! 'start) ; Prevents the timeline from being empty.
         (define result
           (match command
-            ['alternatives (get-alternatives test pcontext)]
+            ['alternatives (get-improve test pcontext)]
             ['cost (get-cost test)]
             ['errors (get-errors test pcontext)]
             ['explanations (get-explanations test pcontext)]

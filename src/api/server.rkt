@@ -145,7 +145,7 @@
 
 (define (get-json-converter command)
   (match (herbie-command-command command)
-    ['alternatives make-alternatives-result]
+    ['alternatives make-improve-result]
     ['cost make-cost-result]
     ['errors make-error-result]
     ['explanations make-explanation-result]
@@ -408,6 +408,27 @@
       ['timeout #f]
       ['failure (exception->datum backend)]))
 
+
+  (match-define (list train-pcontext processed-pcontext) (improve-result-pctxs backend))
+
+  (define fpcores
+    (for/list ([analysis (improve-result-end backend)])
+      (define altn (alt-analysis-alt analysis))
+      (~a (program->fpcore (alt-expr altn) (test-context test)))))
+
+  (define histories
+    (for/list ([analysis (improve-result-end backend)])
+      (define altn (alt-analysis-alt analysis))
+      (define os (open-output-string))
+      (parameterize ([current-output-port os])
+        (write-xexpr
+         `(div ([id "history"])
+               (ol ,@(render-history altn processed-pcontext train-pcontext (test-context test)))))
+        (get-output-string os))))
+  (define derivations
+    (for/list ([altn altns])
+      (render-json altn processed-pcontext train-pcontext (test-context test))))
+
   (hasheq 'status
           (job-result-status herbie-result)
           'test
@@ -422,6 +443,12 @@
           timeline
           'profile
           profile
+          'alternatives ; FIXME: currently used by Odyssey but should maybe be 'backend?
+          fpcores
+          'histories ; FIXME: currently used by Odyssey but should switch to 'derivations below
+          histories
+          'derivations
+          derivations
           'backend
           backend-hash))
 
@@ -502,6 +529,7 @@
   (define derivations
     (for/list ([altn altns])
       (render-json altn processed-pcontext test-pcontext (test-context test))))
+
   (hasheq 'alternatives
           fpcores
           'histories ; FIXME: currently used by Odyssey but should switch to 'derivations below
