@@ -382,7 +382,7 @@
             [(> end-score (+ start-test-score fuzz)) "lt-start"]
             [(> end-score (- start-test-score fuzz)) "eq-start"]
             [(> end-score (+ best-score fuzz)) "lt-target"])]
-       
+
          [else
           (cond
             [(and (< start-test-score 1) (< end-score (+ start-test-score 1))) "ex-start"]
