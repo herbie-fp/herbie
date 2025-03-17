@@ -61,7 +61,7 @@ function makeURL(endpoint) {
 /* Step 2: Test the formal API */
 
 // Reusable testing data
-const SAMPLE_SIZE = 8000
+const SAMPLE_SIZE = 8256
 
 const FPCoreFormula = '(FPCore (x) (- (sqrt (+ x 1)) (sqrt x)))'
 const FPCoreFormula2 = '(FPCore (x) (- (sqrt (+ x 1))))'
