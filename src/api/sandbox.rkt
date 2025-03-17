@@ -34,13 +34,17 @@
          (struct-out alt-analysis))
 
 (struct job-result (command test status time timeline profile warnings backend))
-(struct improve-result (preprocess pctxs start target end bogosity))
+(struct improve-result (preprocess pctxs start target end))
 (struct alt-analysis (alt train-errors test-errors) #:prefab)
 
-(define (sample-pcontext vars specification precondition)
-  (define sample (sample-points precondition (list specification) (list (*context*))))
-  (match-define (cons domain pts+exs) sample)
-  (cons domain (apply mk-pcontext pts+exs)))
+(define (sample-pcontext test)
+  (random) ;; Tick the random number generator, for backwards compatibility
+  (define specification (prog->spec (or (test-spec test) (test-input test))))
+  (define precondition (prog->spec (test-pre test)))
+  (define sample
+    (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
+      (sample-points precondition (list specification) (list (*context*)))))
+  (apply mk-pcontext sample))
 
 ;; Partitions a joint pcontext into a training and testing set
 (define (partition-pcontext joint-pcontext)
@@ -70,15 +74,7 @@
 
 ;; Given a test and a sample of points, returns the test points.
 (define (get-sample test)
-  (define repr (test-output-repr test))
-  (match-define (cons _ joint-pcontext)
-    (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
-      (sample-pcontext (test-vars test)
-                       (prog->spec (or (test-spec test) (test-input test)))
-                       (prog->spec (test-pre test)))))
-
-  (define-values (_ test-pcontext) (split-pcontext joint-pcontext (*num-points*) (*reeval-pts*)))
-  test-pcontext)
+  (sample-pcontext test))
 
 ;; Given a test and a sample of points, computes the error at each point.
 ;; If the sample contains the expected number of points, i.e., `(*num-points*) + (*reeval-pts*)`,
@@ -94,32 +90,6 @@
              [err (in-list errs)])
     (list pt err)))
 
-;; Given a test and a sample of points, the ground truth of each point
-;; If the sample contains the expected number of points, i.e., `(*num-points*) + (*reeval-pts*)`,
-;; then the first `*num-points*` will be discarded and the rest will be used for evaluation,
-;; otherwise the entire set is used.
-(define (get-exacts test pcontext)
-  (unless pcontext
-    (error 'get-exacts "cannnot run without a pcontext"))
-  (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext))
-  (define pts (pcontext-points test-pcontext))
-  (define fn (eval-progs-real (list (prog->spec (test-input test))) (list (*context*))))
-  (for/list ([pt pts])
-    (list pt (car (apply fn pt)))))
-
-;; Given a test and a sample of points,
-;; the floating-point result at each point
-(define (get-calculation test pcontext)
-  (unless pcontext
-    (error 'get-calculation "cannnot run without a pcontext"))
-
-  (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext))
-  (define pts (pcontext-points test-pcontext))
-
-  (define fn (compile-prog (test-input test) (test-context test)))
-  (for/list ([pt pts])
-    (list pt (apply fn pt))))
-
 ;; Given a test and a sample of points, computes the local error at every node in the expression
 ;; returning a tree of errors that mirrors the structure of the expression.
 ;; If the sample contains the expected number of points, i.e., `(*num-points*) + (*reeval-pts*)`,
@@ -129,16 +99,14 @@
   (unless pcontext
     (error 'get-local-error "cannnot run without a pcontext"))
 
-  (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext))
-  (*pcontext* test-pcontext)
+  (*pcontext* pcontext)
   (local-error-as-tree (test-input test) (*context*)))
 
 (define (get-explanations test pcontext)
   (unless pcontext
     (error 'explain "cannot run without a pcontext"))
 
-  (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext))
-  (*pcontext* test-pcontext)
+  (*pcontext* pcontext)
   (define-values (fperrors
                   sorted-explanations-table
                   confusion-matrix
@@ -156,47 +124,36 @@
 ;; If the sample contains the expected number of points, i.e., `(*num-points*) + (*reeval-pts*)`,
 ;; then the first `*num-points*` will be discarded and the rest will be used for evaluation,
 ;; otherwise the entire set is used.
-(define (get-alternatives test pcontext seed)
+(define (get-alternatives test pcontext)
   (unless pcontext
     (error 'get-alternatives "cannnot run without a pcontext"))
 
   (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext))
   ;; TODO: Ignoring all user-provided preprocessing right now
-  (define-values (alternatives preprocessing)
-    (run-improve! (test-input test) (test-spec test) (*context*) train-pcontext))
+  (define alternatives (run-improve! (test-input test) (test-spec test) (*context*) train-pcontext))
+  (define preprocessing (alt-preprocessing (first alternatives)))
   (define test-pcontext* (preprocess-pcontext (*context*) test-pcontext preprocessing))
-  (when seed
-    (set-seed! seed))
+
   (list alternatives test-pcontext test-pcontext*))
 
 ;; Improvement backend for generating reports
-;; A more heavyweight version of `get-alternatives`
-(define (get-alternatives/report test)
-  (define seed (get-seed))
-  (random) ;; Child process uses deterministic but different seed from evaluator
+;; This is (get-alternatives) + a bunch of extra evaluation / data collection
+(define (get-improve test joint-pcontext)
+  (unless joint-pcontext
+    (error 'get-alternatives "cannnot run without a pcontext"))
 
-  (define repr (test-output-repr test))
-  (define ctx (test-context test))
-  (match-define (cons domain-stats joint-pcontext)
-    (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
-      (sample-pcontext (test-vars test)
-                       (prog->spec (or (test-spec test) (test-input test)))
-                       (prog->spec (test-pre test)))))
-  (timeline-push! 'bogosity domain-stats)
-  (define-values (train-pcontext test-pcontext)
-    (split-pcontext joint-pcontext (*num-points*) (*reeval-pts*)))
+  (define-values (train-pcontext test-pcontext) (partition-pcontext joint-pcontext))
   ;; TODO: Ignoring all user-provided preprocessing right now
-  (define-values (end-alts preprocessing)
-    (run-improve! (test-input test) (test-spec test) (*context*) train-pcontext))
-  (define test-pcontext* (preprocess-pcontext ctx test-pcontext preprocessing))
-  (when seed
-    (set-seed! seed))
+  (define alternatives (run-improve! (test-input test) (test-spec test) (*context*) train-pcontext))
+
+  (define preprocessing (alt-preprocessing (first alternatives)))
+  (define test-pcontext* (preprocess-pcontext (*context*) test-pcontext preprocessing))
 
   ;; compute error/cost for input expression
   (define start-expr (test-input test))
-  (define start-alt (make-alt start-expr))
-  (define start-train-errs (errors start-expr train-pcontext ctx))
-  (define start-test-errs (errors start-expr test-pcontext* ctx))
+  (define start-alt (make-alt-preprocessing start-expr (test-preprocess test)))
+  (define start-train-errs (errors start-expr train-pcontext (*context*)))
+  (define start-test-errs (errors start-expr test-pcontext* (*context*)))
   (define start-alt-data (alt-analysis start-alt start-train-errs start-test-errs))
 
   ;; optionally compute error/cost for input expression
@@ -204,24 +161,24 @@
     ;; When in platform, evaluate error
     (for/list ([(expr is-valid?) (in-dict (test-output test))]
                #:when is-valid?)
-      (define target-expr (fpcore->prog expr ctx))
-      (define target-train-errs (errors target-expr train-pcontext ctx))
-      (define target-test-errs (errors target-expr test-pcontext* ctx))
+      (define target-expr (fpcore->prog expr (*context*)))
+      (define target-train-errs (errors target-expr train-pcontext (*context*)))
+      (define target-test-errs (errors target-expr test-pcontext* (*context*)))
 
       (alt-analysis (make-alt target-expr) target-train-errs target-test-errs)))
 
   ;; compute error/cost for output expression
-  (define end-exprs (map alt-expr end-alts))
-  (define end-train-errs (batch-errors end-exprs train-pcontext ctx))
-  (define end-test-errs (batch-errors end-exprs test-pcontext* ctx))
-  (define end-alts-data (map alt-analysis end-alts end-train-errs end-test-errs))
+  (define end-exprs (map alt-expr alternatives))
+  (define end-train-errs (batch-errors end-exprs train-pcontext (*context*)))
+  (define end-test-errs (batch-errors end-exprs test-pcontext* (*context*)))
+  (define end-data (map alt-analysis alternatives end-train-errs end-test-errs))
 
   ;; bundle up the result
   (timeline-adjust! 'regimes 'name (test-name test))
   (timeline-adjust! 'regimes 'link ".")
 
   (define pctxs (list train-pcontext test-pcontext*))
-  (improve-result preprocessing pctxs start-alt-data target-alt-data end-alts-data domain-stats))
+  (improve-result preprocessing pctxs start-alt-data target-alt-data end-data))
 
 ;;
 ;;  Public interface
@@ -266,14 +223,12 @@
         (timeline-event! 'start) ; Prevents the timeline from being empty.
         (define result
           (match command
-            ['alternatives (get-alternatives test pcontext seed)]
-            ['evaluate (get-calculation test pcontext)]
+            ['alternatives (get-alternatives test pcontext)]
             ['cost (get-cost test)]
             ['errors (get-errors test pcontext)]
-            ['exacts (get-exacts test pcontext)]
-            ['improve (get-alternatives/report test)]
-            ['local-error (get-local-error test pcontext)]
             ['explanations (get-explanations test pcontext)]
+            ['improve (get-improve test (get-sample test))]
+            ['local-error (get-local-error test pcontext)]
             ['sample (get-sample test)]
             [_ (error 'compute-result "unknown command ~a" command)]))
         (timeline-event! 'end)

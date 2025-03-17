@@ -46,7 +46,7 @@
   (match-define (list pts exs)
     (parameterize ([*num-points* (num-test-points)]
                    [*max-find-range-depth* 0])
-      (cdr (sample-points '(TRUE) (list p1) (list ctx)))))
+      (sample-points '(TRUE) (list p1) (list ctx))))
 
   (define compiler (make-real-compiler (list p2) (list ctx)))
   (for ([pt (in-list pts)]
@@ -68,7 +68,7 @@
   (match-define (list pts exs1 exs2)
     (parameterize ([*num-points* (num-test-points)]
                    [*max-find-range-depth* 0])
-      (cdr (sample-points pre (list p1 p2) (list ctx ctx)))))
+      (sample-points pre (list p1 p2) (list ctx ctx))))
 
   (for ([pt (in-list pts)]
         [v1 (in-list exs1)]

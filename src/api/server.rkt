@@ -148,8 +148,6 @@
     ['alternatives make-alternatives-result]
     ['cost make-cost-result]
     ['errors make-error-result]
-    ['evaluate make-calculate-result]
-    ['exacts make-exacts-result]
     ['explanations make-explanation-result]
     ['improve make-improve-result]
     ['local-error make-local-error-result]
@@ -383,9 +381,6 @@
   (define repr (context-repr (test-context test)))
   (hasheq 'points (pcontext->json pctx repr)))
 
-(define (make-calculate-result herbie-result job-id)
-  (hasheq 'points (job-result-backend herbie-result)))
-
 (define (make-cost-result herbie-result job-id)
   (hasheq 'cost (job-result-backend herbie-result)))
 
@@ -396,9 +391,6 @@
       (define err (second pt&err))
       (list pt (format-bits (ulps->bits err)))))
   (hasheq 'points errs))
-
-(define (make-exacts-result herbie-result job-id)
-  (hasheq 'points (job-result-backend herbie-result)))
 
 (define (make-improve-result herbie-result job-id)
   (define test (job-result-test herbie-result))
@@ -448,9 +440,7 @@
           'target
           (improve-result-target backend)
           'end
-          end-hash-table
-          'bogosity
-          (improve-result-bogosity backend)))
+          end-hash-table))
 
 (define (end-hash end repr pcontexts test)
 
@@ -495,18 +485,7 @@
 (define (make-alternatives-result herbie-result job-id)
 
   (define test (job-result-test herbie-result))
-  (define vars (test-vars test))
-  (define repr (test-output-repr test))
-
   (match-define (list altns test-pcontext processed-pcontext) (job-result-backend herbie-result))
-  (define splitpoints
-    (for/list ([alt altns])
-      (for/list ([var vars])
-        (define split-var? (equal? var (regime-var alt)))
-        (if split-var?
-            (for/list ([val (regime-splitpoints alt)])
-              (real->ordinal (repr->real val repr) repr))
-            '()))))
 
   (define fpcores
     (for/list ([altn altns])
@@ -525,9 +504,7 @@
       (render-json altn processed-pcontext test-pcontext (test-context test))))
   (hasheq 'alternatives
           fpcores
-          'histories
+          'histories ; FIXME: currently used by Odyssey but should switch to 'derivations below
           histories
           'derivations
-          derivations
-          'splitpoints
-          splitpoints))
+          derivations))
