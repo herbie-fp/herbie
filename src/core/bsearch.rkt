@@ -53,7 +53,8 @@
 
      ;; We don't want unused alts in our history!
      (define-values (alts* splitpoints*) (remove-unused-alts alts splitpoints))
-     (alt expr* (list 'regimes splitpoints*) alts* '())]))
+     (define preprocessing (alt-preprocessing (first alts*)))
+     (alt expr* (list 'regimes splitpoints*) alts* preprocessing)]))
 
 (define (remove-unused-alts alts splitpoints)
   (for/fold ([alts* '()]
