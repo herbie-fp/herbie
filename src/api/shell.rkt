@@ -78,4 +78,4 @@
            (printf ";   ~a:~a~a: ~a\n" file line col msg))
          (printf "; See <https://herbie.uwplse.org/doc/~a/~a> for more.\n" *herbie-version* url)]
         ['timeout
-         (printf "Timeout in ~as (see --timeout option)\n" (/ (hash-ref result 'time) 1000))]))))
+         (printf "; Timeout in ~as (see --timeout option)\n" (/ (hash-ref result 'time) 1000))]))))
