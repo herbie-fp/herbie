@@ -141,6 +141,7 @@
 
 (define languages
   `(("FPCore" "fpcore" ,(λ (c i) (fpcore->string c))) ("C" "c" ,core->c)
+                                                      ("CUDA" "cuda" ,core->cuda)
                                                       ("Fortran" "f03" ,core->fortran)
                                                       ("Java" "java" ,core->java)
                                                       ("Python" "py" ,core->python)
