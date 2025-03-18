@@ -195,11 +195,11 @@
         (timeline-event! 'start) ; Prevents the timeline from being empty.
         (define result
           (match command
-            ['alternatives (get-improve test pcontext)]
+            ['alternatives (get-alternatives test pcontext)]
             ['cost (get-cost test)]
             ['errors (get-errors test pcontext)]
             ['explanations (get-explanations test pcontext)]
-            ['improve (get-improve test (get-sample test))]
+            ['improve (get-alternatives test (get-sample test))]
             ['local-error (get-local-error test pcontext)]
             ['sample (get-sample test)]
             [_ (error 'compute-result "unknown command ~a" command)]))
