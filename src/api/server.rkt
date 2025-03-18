@@ -416,12 +416,14 @@
        (values altns train-pcontext processed-pcontext)]
       [else (values '() #f #f)]))
 
+  (define test-fpcore
+    (alt->fpcore test (make-alt-preprocessing (test-input test) (test-preprocess test))))
+
   (define fpcores
     (if (equal? (job-result-status herbie-result) 'success)
         (for/list ([altn (in-list altns)])
           (~s (alt->fpcore test altn)))
-        (list (~s (alt->fpcore test
-                               (make-alt-preprocessing (test-input test) (test-preprocess test)))))))
+        (list (~s test-fpcore))))
 
   (define histories
     (for/list ([altn (in-list altns)])
@@ -439,7 +441,7 @@
   (hasheq 'status
           (~a (job-result-status herbie-result))
           'test
-          test
+          (~s test-fpcore)
           'time
           job-time
           'warnings
@@ -503,17 +505,27 @@
 
 (define (alt->fpcore test altn)
   `(FPCore ,@(filter identity (list (test-identifier test)))
-           ,(test-vars test)
+           ,(for/list ([var (in-list (test-vars test))])
+               (define repr (dict-ref (test-var-repr-names test) var))
+               (if (equal? repr (test-output-repr-name test))
+                   var
+                   (list '! ':precision repr var)))
            :name
            ,(test-name test)
            :precision
            ,(test-output-repr-name test)
-           ,@(if (eq? (test-pre test) 'TRUE)
+           ,@(if (eq? (test-pre test) '(TRUE))
                  '()
-                 `(:pre ,(test-pre test)))
+                 `(:pre ,(prog->fpcore (test-pre test) (test-context test))))
+           ,@(if (equal? (test-spec test) empty)
+                 '()
+                 `(:herbie-spec ,(prog->fpcore (test-spec test) (test-context test))))
            ,@(if (equal? (alt-preprocessing altn) empty)
                  '()
                  `(:herbie-preprocess ,(alt-preprocessing altn)))
+           ,@(if (equal? (test-expected test) #t)
+                 '()
+                 `(:herbie-expected ,(test-expected test)))
            ,@(apply append
                     (for/list ([(target enabled?) (in-dict (test-output test))]
                                #:when enabled?)

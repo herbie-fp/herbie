@@ -29,7 +29,7 @@
   (for ([res results]
         [test tests]
         #:when res)
-    (define test (hash-ref res 'test))
+    (define test (car (load-tests (open-input-string (hash-ref result-hash 'test)))))
     (define name (test-name test))
     (match (hash-ref res 'status)
       ['failure

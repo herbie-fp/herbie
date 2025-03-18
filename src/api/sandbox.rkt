@@ -224,7 +224,7 @@
       (on-timeout)))
 
 (define (dummy-table-row-from-hash result-hash status link)
-  (define test (hash-ref result-hash 'test))
+  (define test (car (load-tests (open-input-string (hash-ref result-hash 'test)))))
   (define repr (test-output-repr test))
   (define preprocess
     (if (eq? (hash-ref result-hash 'status) 'success)
@@ -253,7 +253,7 @@
              '()))
 
 (define (get-table-data-from-hash result-hash link)
-  (define test (hash-ref result-hash 'test))
+  (define test (car (load-tests (open-input-string (hash-ref result-hash 'test)))))
   (define backend (hash-ref result-hash 'backend))
   (define status (hash-ref result-hash 'status))
   (match status
