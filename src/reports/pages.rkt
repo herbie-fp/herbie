@@ -19,8 +19,8 @@
   (append default-pages (if good? success-pages empty)))
 
 (define ((page-error-handler result-hash page out) e)
-  (define test (car (load-tests (open-input-string (hash-ref result-hash 'test)))))
-  (eprintf "Error generating `~a` for \"~a\":\n  ~a\n" page (test-name test) (exn-message e))
+  (define name (hash-ref result-hash 'name))
+  (eprintf "Error generating `~a` for \"~a\":\n  ~a\n" page name (exn-message e))
   (eprintf "context:\n")
   (for ([(fn loc) (in-dict (continuation-mark-set->context (exn-continuation-marks e)))])
     (match loc
@@ -35,10 +35,8 @@
   (match page
     ["graph.html" (write-html (make-graph-html result-hash output? profile?) out)]
     ["timeline.html"
-     (define test (car (load-tests (open-input-string (hash-ref result-hash 'test)))))
-     (write-html (make-timeline (test-name test) (hash-ref result-hash 'timeline)
-                                #:path "..")
-                 out)]
+     (define name (hash-ref result-hash 'name))
+     (write-html (make-timeline name (hash-ref result-hash 'timeline) #:path "..") out)]
     ["timeline.json" (write-json (hash-ref result-hash 'timeline) out)]
     ["profile.json" (write-json (hash-ref result-hash 'profile) out)]
     ["points.json" (write-json (make-points-json result-hash) out)]))

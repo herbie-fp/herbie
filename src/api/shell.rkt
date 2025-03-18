@@ -29,8 +29,7 @@
   (for ([res results]
         [test tests]
         #:when res)
-    (define test (car (load-tests (open-input-string (hash-ref res 'test)))))
-    (define name (test-name test))
+    (define name (hash-ref res 'name))
     (match (hash-ref res 'status)
       ['failure
        (match-define (list 'exn type msg url locs traceback) (hash-ref res 'backend))

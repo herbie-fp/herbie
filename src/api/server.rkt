@@ -440,6 +440,8 @@
 
   (hasheq 'status
           (~a (job-result-status herbie-result))
+          'name
+          (test-name test)
           'test
           (~s test-fpcore)
           'time
