@@ -162,7 +162,8 @@
                        ,(render-help "report.html#alternatives"))
                    ,body
                    (details (summary "Derivation") (ol ((class "history")) ,@history))))
-     ,@(for/list ([i (in-naturals 1)] [target (in-list targets)])
+     ,@(for/list ([i (in-naturals 1)]
+                  [target (in-list targets)])
          (define target-error (hash-ref target 'errors))
          (define target-cost (hash-ref target 'cost))
          (define target-expr (read (open-input-string (hash-ref target 'expr))))

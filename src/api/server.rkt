@@ -481,8 +481,7 @@
   (define cost (alt-cost alt repr))
 
   (match-define (list train-pcontext processed-pcontext) pcontexts)
-  (define history
-    (render-history alt processed-pcontext train-pcontext (test-context test)))
+  (define history (render-history alt processed-pcontext train-pcontext (test-context test)))
 
   (define vars (test-vars test))
   (define splitpoints
@@ -508,10 +507,10 @@
 (define (alt->fpcore test altn)
   `(FPCore ,@(filter identity (list (test-identifier test)))
            ,(for/list ([var (in-list (test-vars test))])
-               (define repr (dict-ref (test-var-repr-names test) var))
-               (if (equal? repr (test-output-repr-name test))
-                   var
-                   (list '! ':precision repr var)))
+              (define repr (dict-ref (test-var-repr-names test) var))
+              (if (equal? repr (test-output-repr-name test))
+                  var
+                  (list '! ':precision repr var)))
            :name
            ,(test-name test)
            :precision
