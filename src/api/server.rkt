@@ -409,16 +409,15 @@
       ['failure (exception->datum backend)]))
 
 
+  (define altns (map alt-analysis-alt (improve-result-end backend)))
   (match-define (list train-pcontext processed-pcontext) (improve-result-pctxs backend))
 
   (define fpcores
-    (for/list ([analysis (improve-result-end backend)])
-      (define altn (alt-analysis-alt analysis))
+    (for/list ([altn (in-list altns)])
       (~a (program->fpcore (alt-expr altn) (test-context test)))))
 
   (define histories
-    (for/list ([analysis (improve-result-end backend)])
-      (define altn (alt-analysis-alt analysis))
+    (for/list ([altn (in-list altns)])
       (define os (open-output-string))
       (parameterize ([current-output-port os])
         (write-xexpr
@@ -426,7 +425,7 @@
                (ol ,@(render-history altn processed-pcontext train-pcontext (test-context test)))))
         (get-output-string os))))
   (define derivations
-    (for/list ([altn altns])
+    (for/list ([altn (in-list altns)])
       (render-json altn processed-pcontext train-pcontext (test-context test))))
 
   (hasheq 'status
