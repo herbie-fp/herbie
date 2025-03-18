@@ -38,23 +38,21 @@
   (define identifier (test-identifier test))
 
   (define preprocessing (hash-ref backend 'preprocessing))
-  (match-define (alt-analysis start-alt _ start-error) (hash-ref backend 'start))
+  (define start-expr (read (open-input-string (hash-ref (hash-ref backend 'start) 'expr))))
+  (define start-cost (hash-ref (hash-ref backend 'start) 'cost))
+  (define start-error (hash-ref (hash-ref backend 'start) 'errors))
+
   (define targets (hash-ref backend 'target))
+
   (define end (hash-ref backend 'end))
-
-  (define start-cost (alt-cost start-alt repr))
-
-  (define list-target-error
-    (for/list ([target targets])
-      (alt-analysis-test-errors target)))
-
-  (define list-target-cost
-    (for/list ([target targets])
-      (alt-cost (alt-analysis-alt target) repr)))
-
-  (define end-exprs (hash-ref end 'end-exprs))
-  (define end-errors (hash-ref end 'end-errors))
-  (define end-costs (hash-ref end 'end-costs))
+  (define end-exprs
+    (for/list ([end-analysis (in-list end)])
+      (read (open-input-string (hash-ref end-analysis 'expr)))))
+  (define end-errors (map (curryr hash-ref 'errors) end))
+  (define end-costs (map (curryr hash-ref 'cost) end))
+  (define end-histories
+    (for/list ([end-analysis (in-list end)])
+      (read (open-input-string (hash-ref end-analysis 'history)))))
 
   (define speedup
     (let ([better (for/list ([err end-errors]
@@ -132,7 +130,7 @@
                           "alternatives. Up and to the right is better. The red square shows "
                           "the initial program, and each blue circle shows an alternative."
                           "The line shows the best available speed-accuracy tradeoffs."))
-     ,(let-values ([(dropdown body) (render-program (alt-expr start-alt) ctx #:ident identifier)])
+     ,(let-values ([(dropdown body) (render-program start-expr ctx #:ident identifier)])
         `(section ([id "initial"] (class "programs"))
                   (h2 "Initial Program"
                       ": "
@@ -148,7 +146,7 @@
                   [expr end-exprs]
                   [errs end-errors]
                   [cost end-costs]
-                  [history (hash-ref end 'end-histories)])
+                  [history end-histories])
          (define-values (dropdown body)
            (render-program expr ctx #:ident identifier #:instructions preprocessing))
          `(section ([id ,(format "alternative~a" i)] (class "programs"))
@@ -158,18 +156,17 @@
                        (span ((class "subhead"))
                              (data ,(format-accuracy (errors-score errs) repr-bits #:unit "%"))
                              " accurate, "
-                             (data ,(~r (/ (alt-cost start-alt repr) cost) #:precision '(= 1)) "×")
+                             (data ,(~r (/ start-cost cost) #:precision '(= 1)) "×")
                              " speedup")
                        ,dropdown
                        ,(render-help "report.html#alternatives"))
                    ,body
                    (details (summary "Derivation") (ol ((class "history")) ,@history))))
-     ,@(for/list ([i (in-naturals 1)]
-                  [target (in-list targets)]
-                  [target-error (in-list list-target-error)]
-                  [target-cost (in-list list-target-cost)])
-         (let-values ([(dropdown body)
-                       (render-program (alt-expr (alt-analysis-alt target)) ctx #:ident identifier)])
+     ,@(for/list ([i (in-naturals 1)] [target (in-list targets)])
+         (define target-error (hash-ref target 'errors))
+         (define target-cost (hash-ref target 'cost))
+         (define target-expr (read (open-input-string (hash-ref target 'expr))))
+         (let-values ([(dropdown body) (render-program target-expr ctx #:ident identifier)])
            `(section
              ([id ,(format "target~a" i)] (class "programs"))
              (h2 "Developer Target "
@@ -178,7 +175,7 @@
                  (span ((class "subhead"))
                        (data ,(format-accuracy (errors-score target-error) repr-bits #:unit "%"))
                        " accurate, "
-                       (data ,(~r (/ (alt-cost start-alt repr) target-cost) #:precision '(= 1)) "×")
+                       (data ,(~r (/ start-cost target-cost) #:precision '(= 1)) "×")
                        " speedup")
                  ,dropdown
                  ,(render-help "report.html#target"))

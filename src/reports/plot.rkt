@@ -36,21 +36,24 @@
 (define (make-points-json result-hash)
   (define test (hash-ref result-hash 'test))
   (define backend (hash-ref result-hash 'backend))
-  (define pctxs (hash-ref backend 'pctxs))
+  (define test-points (map first (second (hash-ref backend 'pctxs))))
   (define start (hash-ref backend 'start))
   (define targets (hash-ref backend 'target))
   (define end (hash-ref backend 'end))
 
   (define repr (test-output-repr test))
-  (define start-errors (alt-analysis-test-errors start))
+  (define start-errors (hash-ref start 'errors))
 
-  (define target-errors (map alt-analysis-test-errors targets))
+  (define target-errors (map (curryr hash-ref 'errors) targets))
 
-  (define end-errors (hash-ref end 'end-errors))
-
-  (define newpoints (pcontext-points (second pctxs)))
+  (define end-errors (map (curryr hash-ref 'errors) end))
 
   ; Immediately convert points to reals to handle posits
+  (define newpoints
+    (for/list ([point test-points])
+      (for/list ([x point])
+        (json->value x repr))))
+
   (define points
     (for/list ([point newpoints])
       (for/list ([x point])
@@ -89,7 +92,7 @@
               (string-replace (~r val #:notation 'exponential #:precision 0) "1e" "e")))
         (list tick-str (real->ordinal val repr)))))
 
-  (define splitpoints (hash-ref end 'splitpoints))
+  (define splitpoints (hash-ref (car end) 'splitpoints))
 
   ; NOTE ordinals *should* be passed as strings so we can detect truncation if
   ;   necessary, but this isn't implemented yet.

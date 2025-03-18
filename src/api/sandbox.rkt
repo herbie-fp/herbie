@@ -257,7 +257,7 @@
   (define backend (hash-ref result-hash 'backend))
   (define status (hash-ref result-hash 'status))
   (match status
-    ['success
+    ["success"
      (define start (hash-ref backend 'start))
      (define targets (hash-ref backend 'target))
      (define end (hash-ref backend 'end))
@@ -265,17 +265,16 @@
      (define repr (test-output-repr test))
 
      ; starting expr analysis
-     (match-define (alt-analysis start-alt start-train-errs start-test-errs) start)
-     (define start-expr (alt-expr start-alt))
-     (define start-train-score (errors-score start-train-errs))
-     (define start-test-score (errors-score start-test-errs))
-     (define start-cost (expr-cost start-expr repr))
+     (define start-expr (read (open-input-string (hash-ref start 'expr))))
+     (define start-train-score (errors-score (hash-ref start 'train-score)))
+     (define start-test-score (errors-score (hash-ref start 'errors)))
+     (define start-cost (hash-ref start 'cost))
 
      (define target-cost-score
        (for/list ([target targets])
-         (define target-expr (alt-expr (alt-analysis-alt target)))
-         (define tar-cost (expr-cost target-expr repr))
-         (define tar-score (errors-score (alt-analysis-test-errors target)))
+         (define target-expr (read (open-input-string (hash-ref target 'expr))))
+         (define tar-cost (hash-ref target 'cost))
+         (define tar-score (errors-score (hash-ref target 'errors)))
 
          (list tar-cost tar-score)))
 
@@ -285,10 +284,16 @@
            target-cost-score
            (apply min (map second target-cost-score))))
 
-     (define end-exprs (hash-ref end 'end-exprs))
-     (define end-train-scores (map errors-score (hash-ref end 'end-train-scores)))
-     (define end-test-scores (map errors-score (hash-ref end 'end-errors)))
-     (define end-costs (hash-ref end 'end-costs))
+     (define end-exprs
+       (for/list ([end-analysis (in-list end)])
+         (read (open-input-string (hash-ref end-analysis 'expr)))))
+     (define end-train-scores
+       (for/list ([end-analysis (in-list end)])
+         (errors-score (hash-ref end-analysis 'train-score))))
+     (define end-test-scores
+       (for/list ([end-analysis (in-list end)])
+         (errors-score (hash-ref end-analysis 'errors))))
+     (define end-costs (map (curryr hash-ref 'cost) end))
 
      ; terribly formatted pareto-optimal frontier
      (define cost&accuracy
@@ -325,9 +330,8 @@
                   [result end-score]
                   [output (car end-exprs)]
                   [cost-accuracy cost&accuracy])]
-    ['failure
+    ["failure"
      (match-define (list 'exn type _ ...) backend)
      (define status (if type "error" "crash"))
      (dummy-table-row-from-hash result-hash status link)]
-    ['timeout (dummy-table-row-from-hash result-hash "timeout" link)]
-    [_ (error 'get-table-data "unknown result type ~a" status)]))
+    ["timeout" (dummy-table-row-from-hash result-hash "timeout" link)]))

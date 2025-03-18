@@ -403,10 +403,9 @@
   (define timeline (job-result-timeline herbie-result))
   (define profile (job-result-profile herbie-result))
 
-  (define repr (test-output-repr test))
   (define backend-hash
     (match (job-result-status herbie-result)
-      ['success (backend-improve-result-hash-table backend repr test)]
+      ['success (backend-improve-result-hash-table backend test)]
       ['timeout #f]
       ['failure (exception->datum backend)]))
 
@@ -439,11 +438,9 @@
       (render-json altn processed-pcontext train-pcontext (test-context test))))
 
   (hasheq 'status
-          (job-result-status herbie-result)
+          (~a (job-result-status herbie-result))
           'test
           test
-          'ctx
-          ctx
           'time
           job-time
           'warnings
@@ -461,54 +458,47 @@
           'backend
           backend-hash))
 
-(define (backend-improve-result-hash-table backend repr test)
-  (define pcontext (improve-result-pctxs backend))
-
-  (define preprocessing (improve-result-preprocess backend))
-  (define end-hash-table (end-hash (improve-result-end backend) repr pcontext test))
-
+(define (backend-improve-result-hash-table backend test)
+  (define repr (context-repr (test-context test)))
+  (define pcontexts (improve-result-pctxs backend))
   (hasheq 'preprocessing
-          preprocessing
+          (improve-result-preprocess backend)
           'pctxs
-          pcontext
+          (map (curryr pcontext->json repr) pcontexts)
           'start
-          (improve-result-start backend)
+          (analysis->json (improve-result-start backend) pcontexts test)
           'target
-          (improve-result-target backend)
+          (map (curryr analysis->json pcontexts test) (improve-result-target backend))
           'end
-          end-hash-table))
+          (map (curryr analysis->json pcontexts test) (improve-result-end backend))))
 
-(define (end-hash end repr pcontexts test)
+(define (analysis->json analysis pcontexts test)
+  (define repr (context-repr (test-context test)))
+  (match-define (alt-analysis alt train-errors test-errors) analysis)
+  (define cost (alt-cost alt repr))
 
-  (define-values (end-alts train-errors end-errors end-costs)
-    (for/lists (l1 l2 l3 l4)
-               ([analysis end])
-               (match-define (alt-analysis alt train-errors test-errs) analysis)
-               (values alt train-errors test-errs (alt-cost alt repr))))
+  (match-define (list train-pcontext processed-pcontext) pcontexts)
+  (define history
+    (render-history alt processed-pcontext train-pcontext (test-context test)))
 
-  (define alts-histories
-    (for/list ([alt end-alts])
-      (render-history alt (first pcontexts) (second pcontexts) (test-context test))))
   (define vars (test-vars test))
-  (define end-alt (alt-analysis-alt (car end)))
   (define splitpoints
-    (for/list ([var vars])
-      (define split-var? (equal? var (regime-var end-alt)))
-      (if split-var?
-          (for/list ([val (regime-splitpoints end-alt)])
+    (for/list ([var (in-list vars)])
+      (if (equal? var (regime-var alt))
+          (for/list ([val (regime-splitpoints alt)])
             (real->ordinal (repr->real val repr) repr))
           '())))
 
-  (hasheq 'end-exprs
-          (map alt-expr end-alts)
-          'end-histories
-          alts-histories
-          'end-train-scores
+  (hasheq 'expr
+          (~s (alt-expr alt))
+          'history
+          (~s history)
+          'train-score
           train-errors
-          'end-errors
-          end-errors
-          'end-costs
-          end-costs
+          'errors
+          test-errors
+          'cost
+          cost
           'splitpoints
           splitpoints))
 
@@ -516,7 +506,7 @@
   (hasheq 'vars (context-vars ctx) 'repr (repr->json (context-repr ctx))))
 
 (define (repr->json repr)
-  (hasheq 'name (representation-name repr) 'type (representation-type repr)))
+  (hasheq 'name (~s (representation-name repr)) 'type (representation-type repr)))
 
 (define (alt->fpcore test altn)
   `(FPCore ,@(filter identity (list (test-identifier test)))
