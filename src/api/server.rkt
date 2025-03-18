@@ -396,7 +396,6 @@
 
 (define (make-alternatives-result herbie-result job-id)
   (define test (job-result-test herbie-result))
-  (define ctx (context->json (test-context test)))
   (define backend (job-result-backend herbie-result))
   (define job-time (job-result-time herbie-result))
   (define warnings (job-result-warnings herbie-result))
@@ -501,12 +500,6 @@
           cost
           'splitpoints
           splitpoints))
-
-(define (context->json ctx)
-  (hasheq 'vars (context-vars ctx) 'repr (repr->json (context-repr ctx))))
-
-(define (repr->json repr)
-  (hasheq 'name (~s (representation-name repr)) 'type (representation-type repr)))
 
 (define (alt->fpcore test altn)
   `(FPCore ,@(filter identity (list (test-identifier test)))
