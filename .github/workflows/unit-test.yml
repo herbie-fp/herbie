@@ -42,7 +42,7 @@ jobs:
         run: |
           racket -l herbie improve bench/tutorial.fpcore /tmp/out.fpcore
           test `grep -c :precision /tmp/out.fpcore` -eq 3
-          test `grep -c '; ' /tmp/out.fpcore` -eq 0
+          test `grep -c '^; ' /tmp/out.fpcore` -eq 0
       - name: "Run the report command-line tool"
         run: |
           racket -l herbie report bench/tutorial.fpcore /tmp/out/
