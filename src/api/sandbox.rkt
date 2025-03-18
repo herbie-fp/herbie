@@ -37,22 +37,15 @@
 (struct improve-result (preprocess pctxs start target end))
 (struct alt-analysis (alt train-errors test-errors) #:prefab)
 
-(define (sample-pcontext test)
-  (random) ;; Tick the random number generator, for backwards compatibility
-  (define specification (prog->spec (or (test-spec test) (test-input test))))
-  (define precondition (prog->spec (test-pre test)))
-  (define sample
-    (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
-      (sample-points precondition (list specification) (list (*context*)))))
-  (apply mk-pcontext sample))
+;; API users can supply their own, weird set of points, in which case
+;; the first 256 are training points and everything is test points.
+;; For backwards compatibility, exactly 8256 points are split as
+;; Herbie expects (first 256 training, rest are test).
 
-;; Partitions a joint pcontext into a training and testing set
 (define (partition-pcontext joint-pcontext)
   (define num-points (pcontext-length joint-pcontext))
   (cond
     [(= num-points (+ (*num-points*) (*reeval-pts*)))
-     ; got the expected amount of points
-     ; will partition into training and testing set
      (split-pcontext joint-pcontext (*num-points*) (*reeval-pts*))]
     [else
      ; the training set will just be up to the first (*num-points*)
@@ -62,66 +55,10 @@
      (define-values (train-pcontext _) (split-pcontext joint-pcontext training-count testing-count))
      (values train-pcontext joint-pcontext)]))
 
-;;
-;;  API endpoint backends
-;;
+;; API Functions
 
-;; Given a test, computes the program cost of the input expression
-(define (get-cost test)
-  (define cost-proc (platform-cost-proc (*active-platform*)))
-  (define output-repr (context-repr (*context*)))
-  (cost-proc (test-input test) output-repr))
-
-;; Given a test and a sample of points, returns the test points.
-(define (get-sample test)
-  (sample-pcontext test))
-
-;; Given a test and a sample of points, computes the error at each point.
-;; If the sample contains the expected number of points, i.e., `(*num-points*) + (*reeval-pts*)`,
-;; then the first `*num-points*` will be discarded and the rest will be used for evaluation,
-;; otherwise the entire set is used.
-(define (get-errors test pcontext)
-  (unless pcontext
-    (error 'get-errors "cannnot run without a pcontext"))
-
-  (define-values (_ test-pcontext) (partition-pcontext pcontext))
-  (define errs (errors (test-input test) test-pcontext (*context*)))
-  (for/list ([(pt _) (in-pcontext test-pcontext)]
-             [err (in-list errs)])
-    (list pt err)))
-
-;; Given a test and a sample of points, computes the local error at every node in the expression
-;; returning a tree of errors that mirrors the structure of the expression.
-;; If the sample contains the expected number of points, i.e., `(*num-points*) + (*reeval-pts*)`,
-;; then the first `*num-points*` will be discarded and the rest will be used for evaluation,
-;; otherwise the entire set is used.
-(define (get-local-error test pcontext)
-  (unless pcontext
-    (error 'get-local-error "cannnot run without a pcontext"))
-
-  (*pcontext* pcontext)
-  (local-error-as-tree (test-input test) (*context*)))
-
-(define (get-explanations test pcontext)
-  (unless pcontext
-    (error 'explain "cannot run without a pcontext"))
-
-  (*pcontext* pcontext)
-  (define-values (fperrors
-                  sorted-explanations-table
-                  confusion-matrix
-                  maybe-confusion-matrix
-                  total-confusion-matrix
-                  freqs)
-    (explain (test-input test) (*context*) (*pcontext*)))
-
-  sorted-explanations-table)
-
-;; TODO: What in the timeline needs fixing with these changes?
-
-;; Improvement backend for generating reports
-;; This is (get-alternatives) + a bunch of extra evaluation / data collection
-(define (get-improve test joint-pcontext)
+;; The main Herbie function
+(define (get-alternatives test joint-pcontext)
   (unless joint-pcontext
     (error 'get-alternatives "cannnot run without a pcontext"))
 
@@ -162,6 +99,58 @@
 
   (define pctxs (list train-pcontext test-pcontext*))
   (improve-result preprocessing pctxs start-alt-data target-alt-data end-data))
+
+(define (get-cost test)
+  (define cost-proc (platform-cost-proc (*active-platform*)))
+  (define output-repr (context-repr (*context*)))
+  (cost-proc (test-input test) output-repr))
+
+(define (get-errors test pcontext)
+  (unless pcontext
+    (error 'get-errors "cannnot run without a pcontext"))
+
+  (define-values (_ test-pcontext) (partition-pcontext pcontext))
+  (define errs (errors (test-input test) test-pcontext (*context*)))
+  (for/list ([(pt _) (in-pcontext test-pcontext)]
+             [err (in-list errs)])
+    (list pt err)))
+
+(define (get-explanations test pcontext)
+  (unless pcontext
+    (error 'explain "cannot run without a pcontext"))
+
+  (*pcontext* pcontext)
+  (define-values (fperrors
+                  sorted-explanations-table
+                  confusion-matrix
+                  maybe-confusion-matrix
+                  total-confusion-matrix
+                  freqs)
+    (explain (test-input test) (*context*) (*pcontext*)))
+
+  sorted-explanations-table)
+
+;; Given a test and a sample of points, computes the local error at every node in the expression
+;; returning a tree of errors that mirrors the structure of the expression.
+;; If the sample contains the expected number of points, i.e., `(*num-points*) + (*reeval-pts*)`,
+;; then the first `*num-points*` will be discarded and the rest will be used for evaluation,
+;; otherwise the entire set is used.
+(define (get-local-error test pcontext)
+  (unless pcontext
+    (error 'get-local-error "cannnot run without a pcontext"))
+
+  (*pcontext* pcontext)
+  (local-error-as-tree (test-input test) (*context*)))
+
+(define (get-sample test)
+  (random) ;; Tick the random number generator, for backwards compatibility
+  (define specification (prog->spec (or (test-spec test) (test-input test))))
+  (define precondition (prog->spec (test-pre test)))
+  (define sample
+    (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
+      (sample-points precondition (list specification) (list (*context*)))))
+  (apply mk-pcontext sample))
+
 
 ;;
 ;;  Public interface
