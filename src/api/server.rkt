@@ -147,11 +147,11 @@
 
 (define (get-json-converter command)
   (match (herbie-command-command command)
-    ['alternatives make-improve-result]
+    ['alternatives make-alternatives-result]
     ['cost make-cost-result]
     ['errors make-error-result]
     ['explanations make-explanation-result]
-    ['improve make-improve-result]
+    ['improve make-alternatives-result]
     ['local-error make-local-error-result]
     ['sample make-sample-result]
     [_ (error 'compute-result "unknown command ~a" command)]))
@@ -394,7 +394,7 @@
       (list pt (format-bits (ulps->bits err)))))
   (hasheq 'points errs))
 
-(define (make-improve-result herbie-result job-id)
+(define (make-alternatives-result herbie-result job-id)
   (define test (job-result-test herbie-result))
   (define ctx (context->json (test-context test)))
   (define backend (job-result-backend herbie-result))
