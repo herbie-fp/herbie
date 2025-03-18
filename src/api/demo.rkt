@@ -77,11 +77,6 @@
 
 (define (generate-page req job-id page)
   (define path (first (string-split (url->string (request-uri req)) "/")))
-  (cond
-    [(check-and-send path job-id page)]
-    [else (next-dispatcher)]))
-
-(define (check-and-send path job-id page)
   (define result-hash (get-results-for job-id))
   (cond
     [(set-member? (all-pages result-hash) page)
@@ -96,7 +91,7 @@
                (λ (out)
                  (with-handlers ([exn:fail? (page-error-handler result-hash page out)])
                    (make-page page out result-hash (*demo-output*) #f))))]
-    [else #f]))
+    [else (next-dispatcher)]))
 
 (define (generate-report req)
   (cond
