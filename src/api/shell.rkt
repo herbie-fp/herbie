@@ -31,11 +31,11 @@
         #:when res)
     (define name (hash-ref res 'name))
     (match (hash-ref res 'status)
-      ['failure
+      ["failure"
        (match-define (list 'exn type msg url locs traceback) (hash-ref res 'backend))
        (fprintf p ";; ~a in ~a\n" (if type "Error" "Crash") name)]
-      ['timeout (fprintf p ";; ~a times out in ~as\n" (/ (*timeout*) 1000) name)]
-      ['success (void)])
+      ["timeout" (fprintf p ";; ~a times out in ~as\n" (/ (*timeout*) 1000) name)]
+      ["success" (void)])
     (pretty-print (job-result->fpcore res) p 1)))
 
 (define (run-improve input output #:threads [threads #f])
@@ -68,13 +68,13 @@
           [idx (in-naturals)])
       (define result (wait-for-job (start-job 'improve test #:seed seed)))
       (match (hash-ref result 'status)
-        ['success (pretty-print (job-result->fpcore result) (current-output-port) 1)]
-        ['failure
+        ["success" (pretty-print (job-result->fpcore result) (current-output-port) 1)]
+        ["failure"
          (match-define (list 'exn type msg url locs traceback) (hash-ref result 'backend))
          (printf "; ~a\n" msg)
          (for ([loc (in-list locs)])
            (match-define (list msg file line col pos) loc)
            (printf ";   ~a:~a~a: ~a\n" file line col msg))
          (printf "; See <https://herbie.uwplse.org/doc/~a/~a> for more.\n" *herbie-version* url)]
-        ['timeout
+        ["timeout"
          (printf "; Timeout in ~as (see --timeout option)\n" (/ (hash-ref result 'time) 1000))]))))
