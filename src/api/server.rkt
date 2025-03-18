@@ -118,7 +118,7 @@
   finished-result)
 
 (define (manager-tell msg . args)
-  (log "Telling manager: ~a, ~a.\n" msg args)
+  (log "Telling manager: ~a.\n" msg)
   (if manager
       (place-channel-put manager (list* msg args))
       (match msg
