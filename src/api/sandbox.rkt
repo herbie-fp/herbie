@@ -119,23 +119,6 @@
 
 ;; TODO: What in the timeline needs fixing with these changes?
 
-;; Given a test and a sample of points, returns a list of improved alternatives
-;; and both the test set of points and processed test set of points.
-;; If the sample contains the expected number of points, i.e., `(*num-points*) + (*reeval-pts*)`,
-;; then the first `*num-points*` will be discarded and the rest will be used for evaluation,
-;; otherwise the entire set is used.
-(define (get-alternatives test pcontext)
-  (unless pcontext
-    (error 'get-alternatives "cannnot run without a pcontext"))
-
-  (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext))
-  ;; TODO: Ignoring all user-provided preprocessing right now
-  (define alternatives (run-improve! (test-input test) (test-spec test) (*context*) train-pcontext))
-  (define preprocessing (alt-preprocessing (first alternatives)))
-  (define test-pcontext* (preprocess-pcontext (*context*) test-pcontext preprocessing))
-
-  (list alternatives test-pcontext test-pcontext*))
-
 ;; Improvement backend for generating reports
 ;; This is (get-alternatives) + a bunch of extra evaluation / data collection
 (define (get-improve test joint-pcontext)

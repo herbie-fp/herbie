@@ -508,30 +508,3 @@
 (define (repr->json repr)
   (hasheq 'name (representation-name repr) 'type (representation-type repr)))
 
-(define (make-alternatives-result herbie-result job-id)
-
-  (define test (job-result-test herbie-result))
-  (match-define (list altns test-pcontext processed-pcontext) (job-result-backend herbie-result))
-
-  (define fpcores
-    (for/list ([altn altns])
-      (~a (program->fpcore (alt-expr altn) (test-context test)))))
-
-  (define histories
-    (for/list ([altn altns])
-      (define os (open-output-string))
-      (parameterize ([current-output-port os])
-        (write-xexpr
-         `(div ([id "history"])
-               (ol ,@(render-history altn processed-pcontext test-pcontext (test-context test)))))
-        (get-output-string os))))
-  (define derivations
-    (for/list ([altn altns])
-      (render-json altn processed-pcontext test-pcontext (test-context test))))
-
-  (hasheq 'alternatives
-          fpcores
-          'histories ; FIXME: currently used by Odyssey but should switch to 'derivations below
-          histories
-          'derivations
-          derivations))
