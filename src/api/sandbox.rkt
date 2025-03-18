@@ -151,7 +151,6 @@
       (sample-points precondition (list specification) (list (*context*)))))
   (apply mk-pcontext sample))
 
-
 ;;
 ;;  Public interface
 ;;

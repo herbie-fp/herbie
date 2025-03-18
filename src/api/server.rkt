@@ -11,6 +11,7 @@
          "../syntax/types.rkt"
          "../syntax/read.rkt"
          "../syntax/load-plugin.rkt"
+         "../syntax/sugar.rkt"
          "../utils/alternative.rkt"
          "../utils/common.rkt"
          "../utils/errors.rkt"
@@ -30,7 +31,8 @@
          wait-for-job
          start-job-server
          write-results-to-disk
-         *demo-output*)
+         *demo-output*
+         alt->fpcore)
 
 (define (warn-single-threaded-mpfr)
   (local-require ffi/unsafe)
@@ -408,13 +410,20 @@
       ['timeout #f]
       ['failure (exception->datum backend)]))
 
-
-  (define altns (map alt-analysis-alt (improve-result-end backend)))
-  (match-define (list train-pcontext processed-pcontext) (improve-result-pctxs backend))
+  (define-values (altns train-pcontext processed-pcontext)
+    (cond
+      [(equal? (job-result-status herbie-result) 'success)
+       (define altns (map alt-analysis-alt (improve-result-end backend)))
+       (match-define (list train-pcontext processed-pcontext) (improve-result-pctxs backend))
+       (values altns train-pcontext processed-pcontext)]
+      [else (values '() #f #f)]))
 
   (define fpcores
-    (for/list ([altn (in-list altns)])
-      (~a (program->fpcore (alt-expr altn) (test-context test)))))
+    (if (equal? (job-result-status herbie-result) 'success)
+        (for/list ([altn (in-list altns)])
+          (~s (alt->fpcore test altn)))
+        (list (~s (alt->fpcore test
+                               (make-alt-preprocessing (test-input test) (test-preprocess test)))))))
 
   (define histories
     (for/list ([altn (in-list altns)])
@@ -424,6 +433,7 @@
          `(div ([id "history"])
                (ol ,@(render-history altn processed-pcontext train-pcontext (test-context test)))))
         (get-output-string os))))
+
   (define derivations
     (for/list ([altn (in-list altns)])
       (render-json altn processed-pcontext train-pcontext (test-context test))))
@@ -442,7 +452,7 @@
           timeline
           'profile
           profile
-          'alternatives ; FIXME: currently used by Odyssey but should maybe be 'backend?
+          'alternatives ; FIXME: currently used by Odyssey but should maybe be in 'backend?
           fpcores
           'histories ; FIXME: currently used by Odyssey but should switch to 'derivations below
           histories
@@ -508,3 +518,21 @@
 (define (repr->json repr)
   (hasheq 'name (representation-name repr) 'type (representation-type repr)))
 
+(define (alt->fpcore test altn)
+  `(FPCore ,@(filter identity (list (test-identifier test)))
+           ,(test-vars test)
+           :name
+           ,(test-name test)
+           :precision
+           ,(test-output-repr-name test)
+           ,@(if (eq? (test-pre test) 'TRUE)
+                 '()
+                 `(:pre ,(test-pre test)))
+           ,@(if (equal? (alt-preprocessing altn) empty)
+                 '()
+                 `(:herbie-preprocess ,(alt-preprocessing altn)))
+           ,@(apply append
+                    (for/list ([(target enabled?) (in-dict (test-output test))]
+                               #:when enabled?)
+                      `(:alt ,target)))
+           ,(prog->fpcore (alt-expr altn) (test-context test))))
