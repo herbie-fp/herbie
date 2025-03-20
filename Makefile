@@ -42,7 +42,7 @@ minimal-distribution:
 	[ ! -f herbie ] || (raco distribute herbie-compiled herbie && rm herbie)
 
 nightly: install
-	bash infra/nightly.sh bench/ reports/ --threads 4
+	bash infra/nightly.sh bench/ reports/
 	bash infra/publish.sh upload reports/
 
 upgrade:
