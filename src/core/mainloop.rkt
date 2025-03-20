@@ -289,33 +289,6 @@
        (combine-alts opt ctx))]
     [else (list (argmin score-alt alts))]))
 
-(define (final-simplify! alts)
-  (cond
-    [(flag-set? 'reduce 'simplify)
-     (timeline-event! 'simplify)
-
-     ; egg schedule (only FP rewrites plus simplify rewrites for if statements)
-     (define rules (append (platform-simplify-rules) (*simplify-rules*)))
-     (define schedule `((,rules . ((node . ,(*node-limit*)) (const-fold? . #f)))))
-
-     ; egg runner
-     (define exprs (map alt-expr alts))
-     (define reprs (map (lambda (expr) (repr-of expr (*context*))) exprs))
-     (define batch (progs->batch exprs))
-     (define runner (make-egraph batch (batch-roots batch) reprs schedule))
-
-     ; run egg
-     (define simplified (map (compose debatchref last) (simplify-batch runner batch)))
-
-     ; de-duplication
-     (remove-duplicates (for/list ([altn (in-list alts)]
-                                   [prog (in-list simplified)])
-                          (if (equal? (alt-expr altn) prog)
-                              altn
-                              (alt prog 'final-simplify (list altn) (alt-preprocessing altn))))
-                        alt-equal?)]
-    [else alts]))
-
 (define (add-derivations! alts)
   (cond
     [(flag-set? 'generate 'proofs)
