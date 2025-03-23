@@ -456,14 +456,13 @@
 (define (loggenerate table)
   (apply append
          (for/list ([term table])
-           (match term
-             [`(,coeff ,ps ...)
-              (filter identity
-                      (for/list ([i (in-naturals)]
-                                 [p ps])
-                        (if (zero? p)
-                            #f
-                            `(,(* coeff p) ,@(list-setinc ps i)))))]))))
+           (match-define `(,coeff ,ps ...) term)
+           (filter identity
+                   (for/list ([i (in-naturals)]
+                              [p ps])
+                     (if (zero? p)
+                         #f
+                         `(,(* coeff p) ,@(list-setinc ps i))))))))
 
 (define (lognormalize table)
   (filter (λ (entry) (not (= (car entry) 0)))
