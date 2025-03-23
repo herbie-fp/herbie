@@ -1247,7 +1247,7 @@
       (for ([iter (in-list iteration-data)]
             [i (in-naturals)])
         (define cnt (iteration-data-num-nodes iter))
-        (define cost (apply + (map (λ (id) (egraph-get-cost egg-graph* id i)) root-ids)))
+        (define cost (for/sum ([id (in-list root-ids)]) (egraph-get-cost egg-graph* id i)))
         (timeline-push! 'egraph i cnt cost (iteration-data-time iter)))
 
       egg-graph*))
