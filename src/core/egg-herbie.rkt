@@ -203,9 +203,9 @@
   (define eclass (egraph_get_eclass ptr id))
   ; need to fix up any constant operators
   (for ([enode (in-vector eclass)]
-        [i (in-naturals)])
-    (when (and (symbol? enode) (not (string-prefix? (symbol->string enode) "$var")))
-      (vector-set! eclass i (cons enode empty-u32vec))))
+        [i (in-naturals)]
+        #:when (and (symbol? enode) (not (string-prefix? (symbol->string enode) "$var"))))
+    (vector-set! eclass i (cons enode empty-u32vec)))
   eclass)
 
 (define (egraph-find egraph-data id)
@@ -698,14 +698,14 @@
     (for ([enode (in-list eclass)])
       (match enode
         [(list _ ids ...)
-         (for ([id (in-list ids)])
-           (when (null? (vector-ref id->eclass id))
-             (error 'prune-ill-typed!
-                    "eclass ~a is empty, eclasses ~a"
-                    id
-                    (for/vector #:length n
-                                ([id (in-range n)])
-                      (list id (vector-ref id->eclass id))))))]
+         (for ([id (in-list ids)]
+               #:when (null? (vector-ref id->eclass id)))
+           (error 'prune-ill-typed!
+                  "eclass ~a is empty, eclasses ~a"
+                  id
+                  (for/vector #:length n
+                              ([id (in-range n)])
+                    (list id (vector-ref id->eclass id)))))]
         [_ (void)]))))
 
 ;; Rebuilds eclasses and associated data after pruning.
@@ -997,10 +997,10 @@
           (= iter 0)))
 
     ; iterate over each node
-    (for ([node (in-vector eclass)])
-      (when (node-requires-update? node)
-        (define new-cost (node-cost node type))
-        (update-cost! new-cost node)))
+    (for ([node (in-vector eclass)]
+          #:when (node-requires-update? node))
+      (define new-cost (node-cost node type))
+      (update-cost! new-cost node))
 
     updated?)
 
