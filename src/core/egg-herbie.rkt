@@ -674,15 +674,15 @@
     (define dirty? #f)
     (define dirty?-vec* (make-vector n #f))
     (for ([id (in-range n)]
-          #:when (vector-ref dirty?-vec id))
-      (unless (vector-ref typed?-vec id)
-        (when (ormap enode-typed? (vector-ref id->eclass id))
-          (vector-set! typed?-vec id #t)
-          (define parent-ids (vector-ref id->parents id))
-          (unless (vector-empty? parent-ids)
-            (set! dirty? #t)
-            (for ([parent-id (in-vector parent-ids)])
-              (vector-set! dirty?-vec* parent-id #t))))))
+          #:when (vector-ref dirty?-vec id)
+          #:unless (vector-ref typed?-vec id))
+      (when (ormap enode-typed? (vector-ref id->eclass id))
+        (vector-set! typed?-vec id #t)
+        (define parent-ids (vector-ref id->parents id))
+        (unless (vector-empty? parent-ids)
+          (set! dirty? #t)
+          (for ([parent-id (in-vector parent-ids)])
+            (vector-set! dirty?-vec* parent-id #t)))))
     (when dirty?
       (check-typed! dirty?-vec*)))
 
@@ -907,18 +907,18 @@
       (sweep! (add1 iter))))
 
   ; Invariant: all eclasses have an analysis
-  (for ([id (in-range n)])
-    (unless (vector-ref analysis id)
-      (define types (regraph-types regraph))
-      (error 'regraph-analyze
-             "analysis not run on all eclasses: ~a ~a"
-             eclass-proc
-             (for/vector #:length n
-                         ([id (in-range n)])
-               (define type (vector-ref types id))
-               (define eclass (vector-ref eclasses id))
-               (define eclass-analysis (vector-ref analysis id))
-               (list id type eclass eclass-analysis)))))
+  (for ([id (in-range n)]
+        #:unless (vector-ref analysis id))
+    (define types (regraph-types regraph))
+    (error 'regraph-analyze
+           "analysis not run on all eclasses: ~a ~a"
+           eclass-proc
+           (for/vector #:length n
+                       ([id (in-range n)])
+             (define type (vector-ref types id))
+             (define eclass (vector-ref eclasses id))
+             (define eclass-analysis (vector-ref analysis id))
+             (list id type eclass eclass-analysis))))
 
   analysis)
 
