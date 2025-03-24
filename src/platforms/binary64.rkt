@@ -46,81 +46,49 @@
   (begin
     (define-libm-impls/binary64* (itype ... otype) name ...) ...))
 
-(define-operator-impl
- (neg.f64 [x : binary64])
- binary64
- #:spec (neg x)
- #:fpcore (! :precision binary64 (- x))
- #:fl -
- )
+(define-operator-impl (neg.f64 [x : binary64])
+                      binary64
+                      #:spec (neg x)
+                      #:fpcore (! :precision binary64 (- x))
+                      #:fl -)
 (define-operator-impl (+.f64 [x : binary64] [y : binary64])
                       binary64
                       #:spec (+ x y)
                       #:fpcore (! :precision binary64 (+ x y))
                       #:fl +
-                      #:commutes
-                      )
+                      #:commutes)
 (define-operator-impl (-.f64 [x : binary64] [y : binary64])
                       binary64
                       #:spec (- x y)
                       #:fpcore (! :precision binary64 (- x y))
-                      #:fl -
-                      )
+                      #:fl -)
 (define-operator-impl (*.f64 [x : binary64] [y : binary64])
                       binary64
                       #:spec (* x y)
                       #:fpcore (! :precision binary64 (* x y))
                       #:fl *
-                      #:commutes
-                      )
+                      #:commutes)
 (define-operator-impl (/.f64 [x : binary64] [y : binary64])
                       binary64
                       #:spec (/ x y)
                       #:fpcore (! :precision binary64 (/ x y))
-                      #:fl /
-                      )
+                      #:fl /)
 
-(define-libm-impl/binary64 fabs
-                           (binary64)
-                           binary64
-                           )
+(define-libm-impl/binary64 fabs (binary64) binary64)
 
-(define-libm-impl/binary64 exp
-                           (binary64)
-                           binary64
-                           )
+(define-libm-impl/binary64 exp (binary64) binary64)
 
-(define-libm-impl/binary64 pow
-                           (binary64 binary64)
-                           binary64
-                           )
+(define-libm-impl/binary64 pow (binary64 binary64) binary64)
 
-(define-libm-impl/binary64
- sin
- (binary64)
- binary64
- )
+(define-libm-impl/binary64 sin (binary64) binary64)
 
-(define-libm-impl/binary64 cos
-                           (binary64)
-                           binary64
-                           )
+(define-libm-impl/binary64 cos (binary64) binary64)
 
-(define-libm-impl/binary64
- tan
- (binary64)
- binary64
- )
+(define-libm-impl/binary64 tan (binary64) binary64)
 
-(define-libm-impl/binary64 sinh
-                           (binary64)
-                           binary64
-                           )
+(define-libm-impl/binary64 sinh (binary64) binary64)
 
-(define-libm-impl/binary64 cosh
-                           (binary64)
-                           binary64
-                           )
+(define-libm-impl/binary64 cosh (binary64) binary64)
 
 (define-libm-impls/binary64 [(binary64 binary64)
                              (acos acosh

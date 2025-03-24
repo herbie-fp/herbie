@@ -45,84 +45,53 @@
   (begin
     (define-libm-impls/binary32* (itype ... otype) name ...) ...))
 
-(define-operator-impl
- (neg.f32 [x : binary32])
- binary32
- #:spec (neg x)
- #:fpcore (! :precision binary32 (- x))
- #:fl fl32-)
+(define-operator-impl (neg.f32 [x : binary32])
+                      binary32
+                      #:spec (neg x)
+                      #:fpcore (! :precision binary32 (- x))
+                      #:fl fl32-)
 
 (define-operator-impl (+.f32 [x : binary32] [y : binary32])
                       binary32
                       #:spec (+ x y)
                       #:fpcore (! :precision binary32 (+ x y))
                       #:fl fl32+
-                      #:commutes
-                     )
+                      #:commutes)
 
 (define-operator-impl (-.f32 [x : binary32] [y : binary32])
                       binary32
                       #:spec (- x y)
                       #:fpcore (! :precision binary32 (- x y))
-                      #:fl fl32-
-                      )
+                      #:fl fl32-)
 
 (define-operator-impl (*.f32 [x : binary32] [y : binary32])
                       binary32
                       #:spec (* x y)
                       #:fpcore (! :precision binary32 (* x y))
                       #:fl fl32*
-                      #:commutes
-                      )
+                      #:commutes)
 
 (define-operator-impl (/.f32 [x : binary32] [y : binary32])
                       binary32
                       #:spec (/ x y)
                       #:fpcore (! :precision binary32 (/ x y))
-                      #:fl fl32/
-                      )
+                      #:fl fl32/)
 
-(define-libm-impl/binary32 fabs
-                           (binary32)
-                           binary32
-                           )
+(define-libm-impl/binary32 fabs (binary32) binary32)
 
-(define-libm-impl/binary32 exp
-                           (binary32)
-                           binary32
-                           )
+(define-libm-impl/binary32 exp (binary32) binary32)
 
-(define-libm-impl/binary32 pow
-                           (binary32 binary32)
-                           binary32
-                           )
+(define-libm-impl/binary32 pow (binary32 binary32) binary32)
 
-(define-libm-impl/binary32
- sin
- (binary32)
- binary32
- )
+(define-libm-impl/binary32 sin (binary32) binary32)
 
-(define-libm-impl/binary32 cos
-                           (binary32)
-                           binary32
-                           )
+(define-libm-impl/binary32 cos (binary32) binary32)
 
-(define-libm-impl/binary32
- tan
- (binary32)
- binary32
- )
+(define-libm-impl/binary32 tan (binary32) binary32)
 
-(define-libm-impl/binary32 sinh
-                           (binary32)
-                           binary32
-                           )
+(define-libm-impl/binary32 sinh (binary32) binary32)
 
-(define-libm-impl/binary32 cosh
-                           (binary32)
-                           binary32
-                           )
+(define-libm-impl/binary32 cosh (binary32) binary32)
 
 (define-comparator-impls binary32
                          [== ==.f32 =]
