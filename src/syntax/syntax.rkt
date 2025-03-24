@@ -274,11 +274,8 @@
                                           spec
                                           #:commutes? [commutes? #f]
                                           #:fl [fl-proc #f]
-                                          #:fpcore [fpcore #f]
-                                         );; #:identities [identities #f]
-  (->* (symbol? context? any/c)
-       (#:commutes? boolean? #:fl (or/c procedure? #f) #:fpcore any/c)
-       void?)
+                                          #:fpcore [fpcore #f]) ;; #:identities [identities #f]
+  (->* (symbol? context? any/c) (#:commutes? boolean? #:fl (or/c procedure? #f) #:fpcore any/c) void?)
   ; check specification
   (check-spec! name ctx spec)
   (define vars (context-vars ctx))
@@ -367,7 +364,7 @@
        (define spec #f)
        (define core #f)
        (define fl-expr #f)
-       
+
        (let loop ([fields fields])
          (syntax-case fields ()
            [()
@@ -377,8 +374,7 @@
                           [spec spec]
                           [core core]
                           [commutes? commutes?]
-                          [fl-expr fl-expr]
-                          )
+                          [fl-expr fl-expr])
               #'(register-operator-impl! 'id
                                          (context '(var ...)
                                                   (get-representation 'rtype)
@@ -386,8 +382,7 @@
                                          'spec
                                          #:commutes? 'commutes?
                                          #:fl fl-expr
-                                         #:fpcore 'core
-                                         ))]
+                                         #:fpcore 'core))]
            [(#:spec expr rest ...)
             (cond
               [spec (oops! "multiple #:spec clauses" stx)]
