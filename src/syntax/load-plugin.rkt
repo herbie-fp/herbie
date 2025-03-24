@@ -23,6 +23,7 @@
 (define-runtime-module-path arith-platform "../platforms/arith.rkt")
 (define-runtime-module-path no-accel-platform "../platforms/new-accelerators.rkt")
 (define-runtime-module-path new-accel-platform "../platforms/new-accelerators.rkt")
+(define-runtime-module-path cubic-platform "../platforms/cubic.rkt")
 
 ; Automatically loads default representations and platforms
 (define (load-herbie-builtins)
@@ -40,6 +41,7 @@
   (dynamic-require flopoco-accelerators-platform #f)
   (dynamic-require no-accel-platform #f)
   (dynamic-require new-accel-platform #f)
+  (dynamic-require cubic-platform #f)
 
   ; activate the required platform
   (activate-platform! (*platform-name*)))
