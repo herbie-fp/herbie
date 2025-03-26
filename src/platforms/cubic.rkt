@@ -17,8 +17,8 @@
 (define-platform cubic-accelerator-platform
                  #:literal [binary64 64]
                  #:literal [binary32 32]
-                 [vcubic.f64 768]
-                 [vcubic.f32 384])
+                 [vcubic.f64 512]
+                 [vcubic.f32 256])
 
 (define cubic-platform
   (platform-union boolean-platform
