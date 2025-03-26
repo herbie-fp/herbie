@@ -37,7 +37,7 @@
   (define ctx (test-context test))
   (define identifier (test-identifier test))
 
-  (define preprocessing (hash-ref backend 'preprocessing))
+  (define preprocessing (map (compose read open-input-string) (hash-ref backend 'preprocessing)))
   (define start-expr (read (open-input-string (hash-ref (hash-ref backend 'start) 'expr))))
   (define start-cost (hash-ref (hash-ref backend 'start) 'cost))
   (define start-error (hash-ref (hash-ref backend 'start) 'errors))

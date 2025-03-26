@@ -228,7 +228,8 @@
   (define repr (test-output-repr test))
   (define preprocess
     (if (eq? (hash-ref result-hash 'status) 'success)
-        (hash-ref (hash-ref result-hash 'backend) 'preprocessing)
+        (map (compose read open-input-string)
+             (hash-ref (hash-ref result-hash 'backend) 'preprocessing))
         (test-preprocess test)))
   (table-row (test-name test)
              (test-identifier test)

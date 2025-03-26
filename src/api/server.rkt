@@ -465,7 +465,7 @@
   (define repr (context-repr (test-context test)))
   (define pcontexts (improve-result-pctxs backend))
   (hasheq 'preprocessing
-          (improve-result-preprocess backend)
+          (map ~s (improve-result-preprocess backend))
           'pctxs
           (map (curryr pcontext->json repr) pcontexts)
           'start
