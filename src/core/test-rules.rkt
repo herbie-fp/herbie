@@ -3,14 +3,10 @@
 (require rackunit)
 (require "../utils/common.rkt"
          "../utils/float.rkt"
-         "rules.rkt"
-         "../syntax/platform.rkt"
          "../syntax/load-plugin.rkt"
-         "../syntax/sugar.rkt"
          "../syntax/types.rkt"
-         "compiler.rkt"
          "rival.rkt"
-         "programs.rkt"
+         "rules.rkt"
          "sampling.rkt")
 
 (load-herbie-builtins)
@@ -77,20 +73,6 @@
                       (λ ()
                         (with-check-info (['lhs v1] ['rhs v2])
                                          (check-eq? (ulp-difference v1 v2 (context-repr ctx)) 1))))))
-
-(define (check-rule-fp-safe test-rule)
-  (match-define (rule name p1 p2 itypes repr tags) test-rule)
-  (define fv (dict-keys itypes))
-  (define ctx (context fv repr (map (curry dict-ref itypes) fv)))
-  (define (make-point _)
-    (for/list ([v (in-list fv)])
-      (random-generate (dict-ref itypes v))))
-  (define points (build-list (num-test-points) make-point))
-  (define prog (compile-progs (list p1 p2) ctx))
-  (for ([pt points])
-    (with-check-info (['point (map list fv pt)])
-                     (match-define (vector v1 v2) (apply prog pt))
-                     (check-equal? v1 v2))))
 
 (define (check-rule rule)
   (check-rule-correct rule)

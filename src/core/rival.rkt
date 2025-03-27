@@ -11,10 +11,10 @@
          rival)
 
 (require "../config.rkt"
-         "../syntax/types.rkt"
          "../utils/errors.rkt"
          "../utils/float.rkt"
-         "../utils/timeline.rkt")
+         "../utils/timeline.rkt"
+         "../syntax/types.rkt")
 
 (provide (struct-out real-compiler)
          (contract-out

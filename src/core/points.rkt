@@ -1,9 +1,8 @@
 #lang racket
 
-(require "../utils/common.rkt"
-         "compiler.rkt"
-         "../utils/float.rkt"
-         "../syntax/types.rkt")
+(require "../utils/float.rkt"
+         "../syntax/types.rkt"
+         "compiler.rkt")
 
 (provide *pcontext*
          in-pcontext

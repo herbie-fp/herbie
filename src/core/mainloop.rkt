@@ -1,24 +1,20 @@
 #lang racket
 
-(require "rules.rkt"
-         "../syntax/syntax.rkt"
+(require "../utils/alternative.rkt"
+         "../utils/common.rkt"
+         "../utils/timeline.rkt"
+         "../syntax/platform.rkt"
          "../syntax/types.rkt"
          "alt-table.rkt"
          "bsearch.rkt"
-         "egg-herbie.rkt"
-         "regimes.rkt"
-         "../utils/alternative.rkt"
-         "../utils/errors.rkt"
-         "../utils/common.rkt"
+         "batch.rkt"
+         "derivations.rkt"
          "explain.rkt"
          "patch.rkt"
-         "../syntax/platform.rkt"
          "points.rkt"
          "preprocess.rkt"
          "programs.rkt"
-         "../utils/timeline.rkt"
-         "derivations.rkt"
-         "batch.rkt")
+         "regimes.rkt")
 (provide run-improve!)
 
 ;; The Herbie main loop goes through a simple iterative process:

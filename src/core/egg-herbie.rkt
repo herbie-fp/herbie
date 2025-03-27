@@ -10,16 +10,14 @@
                   u32vector->list)
          json) ; for dumping
 
-(require "programs.rkt"
-         "rules.rkt"
-         "../syntax/matcher.rkt"
+(require "../utils/common.rkt"
+         "../utils/timeline.rkt"
          "../syntax/platform.rkt"
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
-         "../utils/common.rkt"
-         "../config.rkt"
-         "../utils/timeline.rkt"
-         "batch.rkt")
+         "batch.rkt"
+         "programs.rkt"
+         "rules.rkt")
 
 (provide (struct-out egg-runner)
          make-egraph

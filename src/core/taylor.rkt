@@ -1,8 +1,8 @@
 #lang racket
 
 (require math/number-theory)
-(require "../syntax/syntax.rkt"
-         "../utils/common.rkt"
+(require "../utils/common.rkt"
+         "../syntax/syntax.rkt"
          "batch.rkt"
          "programs.rkt"
          "reduce.rkt")

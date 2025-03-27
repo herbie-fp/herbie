@@ -3,15 +3,13 @@
          rival
          math/base
          (only-in fpbench interval range-table-ref condition->range-table [expr? fpcore-expr?]))
-(require "searchreals.rkt"
-         "rival.rkt"
+(require "../utils/common.rkt"
          "../utils/errors.rkt"
-         "../utils/common.rkt"
          "../utils/float.rkt"
-         "../syntax/types.rkt"
          "../utils/timeline.rkt"
-         "../config.rkt"
-         "../syntax/sugar.rkt")
+         "../syntax/types.rkt"
+         "searchreals.rkt"
+         "rival.rkt")
 
 (provide batch-prepare-points
          eval-progs-real
