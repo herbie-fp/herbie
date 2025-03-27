@@ -65,10 +65,19 @@
 
   ; egg query
   (define batch (progs->batch (list expr)))
-  (define runner (make-egraph batch (batch-roots batch) (list (context-repr ctx)) schedule))
+
+  (define generate-flags (hash-ref all-flags 'generate))
+
+  (define runner
+    (if (member 'egglog generate-flags)
+      (make-egglog-runner batch (batch-roots batch) (list (context-repr ctx)) schedule)
+      (make-egraph batch (batch-roots batch) (list (context-repr ctx)) schedule)))
 
   ; run egg
-  (define simplified (simplify-batch runner batch))
+  (define simplified 
+    (if (member 'egglog generate-flags)
+        (simplify-batch-egglog runner batch)
+        (simplify-batch runner batch)))
 
   ; alternatives
   (define start-alt (make-alt expr))

@@ -90,15 +90,19 @@
   (define reprs (map (curryr repr-of (*context*)) exprs))
   (timeline-push! 'inputs (map ~a exprs))
 
-  (define runner (make-egraph global-batch roots reprs schedule))
-
   (define generate-flags (hash-ref all-flags 'generate))
 
-  ; batchrefss is a (listof (listof batchref))
-  (define batchrefss 
+  (define copy-batch (batch-copy global-batch))
+
+  (define runner
     (if (member 'egglog generate-flags)
-        (run-egglog-multi-extractor runner global-batch)
-        (egraph-variations runner global-batch)))
+      (make-egglog-runner copy-batch roots reprs schedule)
+      (make-egraph global-batch roots reprs schedule)))
+
+  (define batchrefss
+    (if (member 'egglog generate-flags)
+      (run-egglog-multi-extractor runner copy-batch)
+      (egraph-variations runner global-batch)))
 
 
   ; apply changelists
