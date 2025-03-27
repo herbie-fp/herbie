@@ -3,19 +3,18 @@
 (require "../utils/alternative.rkt")
 
 (require/typed "programs.rkt"
-  [location-do (-> Loc Program (-> Program Program) Program)]
-  [location-get (-> Loc Program Program)])
+               [location-do (-> Loc Program (-> Program Program) Program)]
+               [location-get (-> Loc Program Program)])
 
 (require/typed "egg-herbie.rkt"
-  [#:struct egg-runner
-   ([batch : Any]
-    [roots : Any]
-    [reprs : Any]
-    [schedule : Any]
-    [ctx : Any]
-    [new-roots : Any]
-    [egg-graph : Any])]
-  [egraph-prove (-> egg-runner Program Program Proof)])
+               [#:struct egg-runner
+                ([batch : Any] [roots : Any]
+                               [reprs : Any]
+                               [schedule : Any]
+                               [ctx : Any]
+                               [new-roots : Any]
+                               [egg-graph : Any])]
+               [egraph-prove (-> egg-runner Program Program Proof)])
 
 (provide add-derivations)
 
@@ -48,7 +47,8 @@
 
 (: add-derivations (-> (Listof alt) (Listof alt)))
 (define (add-derivations alts)
-  (define cache : (HashTable alt alt) (make-hash))
+  (: cache (HashTable alt alt))
+  (define cache (make-hash))
   (for/list ([altn (in-list alts)])
     ;; We need to cache this because we'll see the same alt several times
     (alt-map (lambda (altn) (hash-ref! cache altn (lambda () (add-derivations-to altn)))) altn)))

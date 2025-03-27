@@ -151,11 +151,10 @@
   (require math/flonum)
   (require "../syntax/types.rkt")
   (require/typed "../utils/common.rkt"
-    [flip-lists (All (A) (Listof (Listof A)) -> (Listof (Listof A)))])
+                 [flip-lists (All (A) (Listof (Listof A)) -> (Listof (Listof A)))])
 
   (: pick-errors
-     (-> (Listof si) (Listof (Listof Any)) (Listof (Listof Flonum)) representation
-         (Listof Flonum)))
+     (-> (Listof si) (Listof (Listof Any)) (Listof (Listof Flonum)) representation (Listof Flonum)))
   (define (pick-errors split-indices pts err-lsts repr)
     (for/list ([i (in-naturals)]
                [pt (in-list pts)]
@@ -171,9 +170,8 @@
 
   (: valid-splitindices? (-> (Listof Boolean) (Listof si) Boolean))
   (define (valid-splitindices? can-split? split-indices)
-    (and (andmap
-          (lambda ([x : si]) (and (> (si-pidx x) 0) (list-ref can-split? (si-pidx x))))
-          (drop-right split-indices 1))
+    (and (andmap (lambda ([x : si]) (and (> (si-pidx x) 0) (list-ref can-split? (si-pidx x))))
+                 (drop-right split-indices 1))
          (= (si-pidx (last split-indices)) (length can-split?))))
 
   ;; This is the core main loop of the regimes algorithm.

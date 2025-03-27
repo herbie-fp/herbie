@@ -2,11 +2,9 @@
 
 (require math/bigfloat)
 (require/typed "../utils/common.rkt"
-  [string-replace* (-> String (Listof (Pair String String)) String)])
-(require/typed "../utils/errors.rkt"
-  [raise-herbie-error (All (A) String Any * -> A)])
-(require/typed racket/dict
-  [dict-ref (All (A B) (Listof (Pair A B)) A -> B)])
+               [string-replace* (-> String (Listof (Pair String String)) String)])
+(require/typed "../utils/errors.rkt" [raise-herbie-error (All (A) String Any * -> A)])
+(require/typed racket/dict [dict-ref (All (A B) (Listof (Pair A B)) A -> B)])
 
 (provide type-name?
          (struct-out representation)
@@ -46,22 +44,23 @@
 (define-type ReprName (U Symbol (Listof Any)))
 
 (struct representation
-  ([name : ReprName]
-   [type : Type]
-   [repr? : (-> Any Boolean)]
-   [bf->repr : (-> Bigfloat Any)]
-   [repr->bf : (-> Any Bigfloat)]
-   [ordinal->repr : (-> Integer Any)]
-   [repr->ordinal : (-> Any Integer)]
-   [total-bits : Integer]
-   [special-value? : (-> Any Boolean)])
-  #:transparent
-  #|
+        ([name : ReprName] [type : Type]
+                           [repr? : (-> Any Boolean)]
+                           [bf->repr : (-> Bigfloat Any)]
+                           [repr->bf : (-> Any Bigfloat)]
+                           [ordinal->repr : (-> Integer Any)]
+                           [repr->ordinal : (-> Any Integer)]
+                           [total-bits : Integer]
+                           [special-value? : (-> Any Boolean)])
+  #:transparent #|
   #:methods gen:custom-write
   [(define (write-proc repr port mode)
      (fprintf port "#<representation ~a>" (representation-name repr)))]|#)
 
-(define representations : (HashTable ReprName representation) (hash))
+(define representations
+  :
+  (HashTable ReprName representation)
+  (hash))
 
 ;; Representation name sanitizer
 (: repr->symbol (-> representation Symbol))
@@ -87,8 +86,10 @@
 ;; repr is and has generated that repr and its operators, and false otherwise
 (define-type ReprGenerator (-> ReprName representation))
 
-(define repr-generators : (Listof ReprGenerator) '())
-(define *current-generator* : (Parameterof (U ReprGenerator #f)) (make-parameter #f))
+(: repr-generators (Listof ReprGenerator))
+(define repr-generators '())
+(: *current-generator* (U ReprGenerator #f))
+(define *current-generator* (make-parameter #f))
 
 (: register-generator! (-> ReprGenerator Void))
 (define (register-generator! proc)
@@ -99,19 +100,19 @@
 (: generate-repr (-> ReprName (U representation #f #t)))
 (define (generate-repr repr-name)
   (or (hash-has-key? representations repr-name)
-      (ormap
-       (lambda ([proc : ReprGenerator])
-         ;; Check if a user accidently created an infinite loop in their plugin!
-         (when (and (eq? proc (*current-generator*)) (not (hash-has-key? representations repr-name)))
-           (raise-herbie-error
-            (string-append
-             "Tried to generate `~a` representation while generating the same representation. "
-             "Check your plugin to make sure you register your representation(s) "
-             "before calling `get-representation`!")
-            repr-name))
-         (parameterize ([*current-generator* proc])
-           (proc repr-name)))
-       repr-generators)))
+      (ormap (lambda ([proc : ReprGenerator])
+               ;; Check if a user accidently created an infinite loop in their plugin!
+               (when (and (eq? proc (*current-generator*))
+                          (not (hash-has-key? representations repr-name)))
+                 (raise-herbie-error
+                  (string-append
+                   "Tried to generate `~a` representation while generating the same representation. "
+                   "Check your plugin to make sure you register your representation(s) "
+                   "before calling `get-representation`!")
+                  repr-name))
+               (parameterize ([*current-generator* proc])
+                 (proc repr-name)))
+             repr-generators)))
 
 ;; Returns the representation associated with `name`
 ;; attempts to generate the repr if not initially found
@@ -131,8 +132,16 @@
 ;; with the same name. See `register-representation-alias!` for associating
 ;; a representation with a different name.
 (: register-representation!
-   (-> ReprName Symbol (-> Any Boolean) (-> Bigfloat Any) (-> Any Bigfloat) (-> Integer Any)
-       (-> Any Integer) Integer (-> Any Boolean) Void))
+   (-> ReprName
+       Symbol
+       (-> Any Boolean)
+       (-> Bigfloat Any)
+       (-> Any Bigfloat)
+       (-> Integer Any)
+       (-> Any Integer)
+       Integer
+       (-> Any Boolean)
+       Void))
 (define (register-representation! name type repr? bf->r r->bf o->r r->o tb sp?)
   (unless (type-name? type)
     (raise-herbie-error "Tried to register a representation for type ~a: not found" type))
@@ -155,13 +164,12 @@
 ;; Contexts
 
 (struct context
-  ([vars : (Listof Symbol)]
-   [repr : representation]
-   [var-reprs : (Listof representation)])
+        ([vars : (Listof Symbol)] [repr : representation] [var-reprs : (Listof representation)])
   #:transparent)
 
 ;; Current context
-(define *context* : (Parameterof (U context #f)) (make-parameter #f))
+(: *context* (Parameterof (U context #f)))
+(define *context* (make-parameter #f))
 
 (: context-extend (-> context Symbol representation context))
 (define (context-extend ctx var repr)
@@ -180,4 +188,6 @@
 (: context-lookup (-> context Symbol representation))
 (define (context-lookup ctx var)
   (dict-ref (map (ann cons (-> Symbol representation (Pair Symbol representation)))
-                 (context-vars ctx) (context-var-reprs ctx)) var))
+                 (context-vars ctx)
+                 (context-var-reprs ctx))
+            var))

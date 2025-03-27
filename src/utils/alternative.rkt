@@ -10,8 +10,8 @@
 (define-type representation Any)
 
 (require/typed "../syntax/platform.rkt"
-  [*active-platform* (-> Platform)]
-  [platform-cost-proc (-> Platform (-> Program representation Real))])
+               [*active-platform* (-> Platform)]
+               [platform-cost-proc (-> Platform (-> Program representation Real))])
 
 (provide (struct-out alt)
          make-alt
@@ -32,10 +32,9 @@
 ;; They are a labeled linked list of changes.
 
 (struct alt
-  ([expr : Program]
-   [event : Event]
-   [prevs : (Listof alt)]
-   [preprocessing : (Listof Preprocessing)])
+        ([expr : Program] [event : Event]
+                          [prevs : (Listof alt)]
+                          [preprocessing : (Listof Preprocessing)])
   #:prefab)
 
 (: make-alt (-> Program alt))
