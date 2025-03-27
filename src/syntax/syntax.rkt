@@ -190,7 +190,7 @@
 ;;  - its FPCore representation
 ;;  - a floating-point implementation
 ;;
-(struct operator-impl (name ctx spec fpcore fl identities))
+(struct operator-impl (name ctx spec fpcore fl))
 
 ;; Operator implementation table
 ;; Tracks implementations that are loaded into Racket's runtime
@@ -199,7 +199,7 @@
 ;; Looks up a property `field` of an real operator `op`.
 ;; Panics if the operator is not found.
 (define/contract (impl-info impl field)
-  (-> symbol? (or/c 'vars 'itype 'otype 'spec 'fpcore 'fl 'identities) any/c)
+  (-> symbol? (or/c 'vars 'itype 'otype 'spec 'fpcore 'fl ) any/c)
   (unless (hash-has-key? operator-impls impl)
     (error 'impl-info "Unknown operator implementation ~a" impl))
   (define info (hash-ref operator-impls impl))
@@ -209,8 +209,7 @@
     [(otype) (context-repr (operator-impl-ctx info))]
     [(spec) (operator-impl-spec info)]
     [(fpcore) (operator-impl-fpcore info)]
-    [(fl) (operator-impl-fl info)]
-    [(identities) (operator-impl-identities info)]))
+    [(fl) (operator-impl-fl info)]))
 
 ;; Checks a specification.
 (define (check-spec! name ctx spec)
@@ -273,8 +272,8 @@
                                           ctx
                                           spec
                                           #:fl [fl-proc #f]
-                                          #:fpcore [fpcore #f]) ;; #:identities [identities #f]
-  (->* (symbol? context? any/c) (#:fl (or/c procedure? #f) #:fpcore any/c) void?) ;????
+                                          #:fpcore [fpcore #f]) 
+  (->* (symbol? context? any/c) (#:fl (or/c procedure? #f) #:fpcore any/c) void?) 
   ; check specification
   (check-spec! name ctx spec)
   (define vars (context-vars ctx))
@@ -330,13 +329,8 @@
                                fail))
                          name)]))
 
-  ; make hash table
-  (define rules '())
-  (define rule-names (make-hasheq))
-  (define commutes? #f)
-
   ; update tables
-  (define impl (operator-impl name ctx spec fpcore* fl-proc* rules))
+  (define impl (operator-impl name ctx spec fpcore* fl-proc*))
   (hash-set! operator-impls name impl))
 
 (define (well-formed? expr)
@@ -359,7 +353,6 @@
        (for ([var (in-list vars)]
              #:unless (identifier? var))
          (oops! "expected identifier" var))
-       (define commutes? #f)
        (define spec #f)
        (define core #f)
        (define fl-expr #f)
@@ -372,7 +365,6 @@
             (with-syntax ([id id]
                           [spec spec]
                           [core core]
-                          [commutes? commutes?]
                           [fl-expr fl-expr])
               #'(register-operator-impl! 'id
                                          (context '(var ...)
