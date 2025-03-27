@@ -272,10 +272,9 @@
 (define/contract (register-operator-impl! name
                                           ctx
                                           spec
-                                          #:commutes? [commutes? #f]
                                           #:fl [fl-proc #f]
                                           #:fpcore [fpcore #f]) ;; #:identities [identities #f]
-  (->* (symbol? context? any/c) (#:commutes? boolean? #:fl (or/c procedure? #f) #:fpcore any/c) void?)
+  (->* (symbol? context? any/c) (#:fl (or/c procedure? #f) #:fpcore any/c) void?) ;????
   ; check specification
   (check-spec! name ctx spec)
   (define vars (context-vars ctx))
@@ -380,7 +379,7 @@
                                                   (get-representation 'rtype)
                                                   (list (get-representation 'repr) ...))
                                          'spec
-                                         #:commutes? 'commutes?
+                                         
                                          #:fl fl-expr
                                          #:fpcore 'core))]
            [(#:spec expr rest ...)
@@ -404,12 +403,7 @@
                (set! fl-expr #'expr)
                (loop #'(rest ...))])]
            [(#:fl) (oops! "expected value after keyword `#:fl`" stx)]
-           [(#:commutes rest ...)
-            (cond
-              [commutes? (oops! "multiple #:commutes clauses" stx)]
-              [else
-               (set! commutes? #t)
-               (loop #'(rest ...))])]
+          
            ; bad
            [_ (oops! "bad syntax" fields)])))]
     [_ (oops! "bad syntax")]))
