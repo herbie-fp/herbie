@@ -7,7 +7,6 @@
          "bsearch.rkt"
          "egg-herbie.rkt"
          "regimes.rkt"
-         "simplify.rkt"
          "../utils/alternative.rkt"
          "../utils/errors.rkt"
          "../utils/common.rkt"

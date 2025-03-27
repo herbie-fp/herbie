@@ -10,7 +10,6 @@
          "egg-herbie.rkt"
          "programs.rkt"
          "rules.rkt"
-         "simplify.rkt"
          "taylor.rkt"
          "batch.rkt")
 
