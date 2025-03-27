@@ -378,7 +378,8 @@
                      (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
                (curry write-json (hash-ref job-result 'timeline)))]))
 
-(define-syntax-rule (define-api-endpoint (name post-data) body ...)
+(define-syntax-rule (define-api-endpoint (name post-data)
+                      body ...)
   (begin
     (define (function post-data)
       body ...)
@@ -449,7 +450,12 @@
              #:timeline-disabled? #t))
 
 (define-api-endpoint ("cost" post-data)
-  (start-job 'cost (get-test post-data) #:seed #f #:pcontext #f #:profile? #f #:timeline-disabled? #f))
+  (start-job 'cost
+             (get-test post-data)
+             #:seed #f
+             #:pcontext #f
+             #:profile? #f
+             #:timeline-disabled? #f))
 
 (define ->mathjs-endpoint
   (post-with-json-response (lambda (post-data)
