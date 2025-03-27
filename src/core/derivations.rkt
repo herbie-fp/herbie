@@ -1,12 +1,6 @@
 #lang typed/racket
 
-(require/typed "../utils/alternative.rkt"
-  [#:struct alt
-   ([expr : Program]
-    [event : (U Symbol (Listof Any))]
-    [prevs : (Listof alt)]
-    [preprocessing : (Listof (Listof Symbol))])]
-  [alt-map (-> (-> alt alt) alt alt)])
+(require "../utils/alternative.rkt")
 
 (require/typed "programs.rkt"
   [location-do (-> Loc Program (-> Program Program) Program)]
