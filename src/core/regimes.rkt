@@ -149,17 +149,7 @@
            infer-split-indices
            pick-errors)
   (require math/flonum)
-  (require/typed "../syntax/types.rkt"
-    [#:struct representation 
-     ([name : Any]
-      [type : Any]
-      [repr? : Any]
-      [bf->repr : Any]
-      [repr->bf : Any]
-      [ordinal->repr : Any]
-      [repr->ordinal : Any]
-      [total-bits : Any]
-      [special-value? : Any])])
+  (require "../syntax/types.rkt")
   (require/typed "../utils/common.rkt"
     [flip-lists (All (A) (Listof (Listof A)) -> (Listof (Listof A)))])
 
