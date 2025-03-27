@@ -143,23 +143,36 @@
                   (~a (representation-name repr)))
   out)
 
-(define/contract (pick-errors split-indices pts err-lsts repr)
-  (->i ([sis (listof si?)] [vss (r) (listof (listof (representation-repr? r)))]
-                           [errss (listof (listof real?))]
-                           [r representation?])
-       [idxs (listof nonnegative-integer?)])
-  (for/list ([i (in-naturals)]
-             [pt pts]
-             [errs (flip-lists err-lsts)])
-    (for/first ([si split-indices]
-                #:when (< i (si-pidx si)))
-      (list-ref errs (si-cidx si)))))
-
 ;; Given error-lsts, returns a list of sp objects representing where the optimal splitpoints are.
 (module core typed/racket
   (provide (struct-out si)
-           infer-split-indices)
+           infer-split-indices
+           pick-errors)
   (require math/flonum)
+  (require/typed "../syntax/types.rkt"
+    [#:struct representation 
+     ([name : Any]
+      [type : Any]
+      [repr? : Any]
+      [bf->repr : Any]
+      [repr->bf : Any]
+      [ordinal->repr : Any]
+      [repr->ordinal : Any]
+      [total-bits : Any]
+      [special-value? : Any])])
+  (require/typed "../utils/common.rkt"
+    [flip-lists (All (A) (Listof (Listof A)) -> (Listof (Listof A)))])
+
+  (: pick-errors
+     (-> (Listof si) (Listof (Listof Any)) (Listof (Listof Flonum)) representation
+         (Listof Flonum)))
+  (define (pick-errors split-indices pts err-lsts repr)
+    (for/list ([i (in-naturals)]
+               [pt (in-list pts)]
+               [errs (in-list (flip-lists err-lsts))])
+      ;; Cast is safe because last pidx is the number of points
+      (define s (cast (findf (lambda ([x : si]) (< i (si-pidx x))) split-indices) si))
+      (list-ref errs (si-cidx s))))
 
   ;; Struct representing a splitindex
   ;; cidx = Candidate index: the index candidate program that should be used to the left of this splitindex
