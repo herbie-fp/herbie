@@ -2,23 +2,16 @@
 
 (require math/bigfloat
          racket/hash)
-(require "../syntax/sugar.rkt"
+(require "../utils/common.rkt"
+         "../utils/float.rkt"
+         "../syntax/sugar.rkt"
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
-         "rules.rkt"
-         "../utils/common.rkt"
-         "../utils/float.rkt"
-         "../syntax/platform.rkt"
-         "../syntax/read.rkt"
-         "../syntax/read.rkt"
-         "../core/rival.rkt"
+         "batch.rkt"
+         "compiler.rkt"
          "points.rkt"
          "programs.rkt"
-         "sampling.rkt"
-         "simplify.rkt"
-         "egg-herbie.rkt"
-         "compiler.rkt"
-         "batch.rkt")
+         "sampling.rkt")
 
 (module+ test
   (require rackunit

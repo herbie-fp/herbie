@@ -372,60 +372,6 @@
                  (define otype (representation-type (impl-info impl 'otype)))
                  (rule name spec-expr impl-expr (map cons vars itypes) otype '(lowering))))))
 
-(define (expr-otype expr)
-  (match expr
-    [(? number?) #f]
-    [(? variable?) #f]
-    [(list 'if cond ift iff) (expr-otype ift)]
-    [(list op args ...) (impl-info op 'otype)]))
-
-(define (type-verify expr otype)
-  (match expr
-    [(? number?) '()]
-    [(? variable?) (list (cons expr otype))]
-    [(list 'if cond ift iff)
-     (define bool-repr (get-representation 'bool))
-     (define combined
-       (merge-bindings (type-verify cond bool-repr)
-                       (merge-bindings (type-verify ift otype) (type-verify iff otype))))
-     (unless combined
-       (error 'type-verify "Variable types do not match in ~a" expr))
-     combined]
-    [(list op args ...)
-     (define op-otype (impl-info op 'otype))
-     (when (not (equal? op-otype otype))
-       (error 'type-verify "Operator ~a has type ~a, expected ~a" op op-otype otype))
-     (define bindings '())
-     (for ([arg (in-list args)]
-           [itype (in-list (impl-info op 'itype))])
-       (define combined (merge-bindings bindings (type-verify arg itype)))
-       (unless combined
-         (error 'type-verify "Variable types do not match in ~a" expr))
-       (set! bindings combined))
-     bindings]))
-
-(define (expr->prog expr repr)
-  (match expr
-    [(? number?) (literal expr (representation-name repr))]
-    [(? variable?) expr]
-    [`(if ,cond ,ift ,iff)
-     `(if ,(expr->prog cond (get-representation 'bool))
-          ,(expr->prog ift repr)
-          ,(expr->prog iff repr))]
-    [`(,impl ,args ...)
-     `(,impl ,@(for/list ([arg (in-list args)]
-                          [itype (in-list (impl-info impl 'itype))])
-                 (expr->prog arg itype)))]))
-
-(define (impls-supported? expr)
-  (match expr
-    [(? number?) #t]
-    [(? variable?) #t]
-    [`(if ,cond ,ift ,iff)
-     (and (impls-supported? cond) (impls-supported? ift) (impls-supported? iff))]
-    [`(,impl ,args ...)
-     (and (set-member? (platform-impls (*active-platform*)) impl) (andmap impls-supported? args))]))
-
 ;; Extracts the `fpcore` field of an operator implementation
 ;; as a property dictionary and expression.
 (define (impl->fpcore impl)
