@@ -199,7 +199,7 @@
 ;; Looks up a property `field` of an real operator `op`.
 ;; Panics if the operator is not found.
 (define/contract (impl-info impl field)
-  (-> symbol? (or/c 'vars 'itype 'otype 'spec 'fpcore 'fl ) any/c)
+  (-> symbol? (or/c 'vars 'itype 'otype 'spec 'fpcore 'fl) any/c)
   (unless (hash-has-key? operator-impls impl)
     (error 'impl-info "Unknown operator implementation ~a" impl))
   (define info (hash-ref operator-impls impl))
@@ -268,12 +268,8 @@
 
 ; Registers an operator implementation `name` with context `ctx` and spec `spec.
 ; Can optionally specify a floating-point implementation and fpcore translation.
-(define/contract (register-operator-impl! name
-                                          ctx
-                                          spec
-                                          #:fl [fl-proc #f]
-                                          #:fpcore [fpcore #f]) 
-  (->* (symbol? context? any/c) (#:fl (or/c procedure? #f) #:fpcore any/c) void?) 
+(define/contract (register-operator-impl! name ctx spec #:fl [fl-proc #f] #:fpcore [fpcore #f])
+  (->* (symbol? context? any/c) (#:fl (or/c procedure? #f) #:fpcore any/c) void?)
   ; check specification
   (check-spec! name ctx spec)
   (define vars (context-vars ctx))
@@ -371,7 +367,6 @@
                                                   (get-representation 'rtype)
                                                   (list (get-representation 'repr) ...))
                                          'spec
-                                         
                                          #:fl fl-expr
                                          #:fpcore 'core))]
            [(#:spec expr rest ...)
@@ -395,7 +390,7 @@
                (set! fl-expr #'expr)
                (loop #'(rest ...))])]
            [(#:fl) (oops! "expected value after keyword `#:fl`" stx)]
-          
+
            ; bad
            [_ (oops! "bad syntax" fields)])))]
     [_ (oops! "bad syntax")]))

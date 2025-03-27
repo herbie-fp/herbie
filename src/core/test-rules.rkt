@@ -92,7 +92,6 @@
                      (match-define (vector v1 v2) (apply prog pt))
                      (check-equal? v1 v2))))
 
-
 (define (check-rule rule)
   (check-rule-correct rule)
   (when (set-member? (rule-tags rule) 'sound)

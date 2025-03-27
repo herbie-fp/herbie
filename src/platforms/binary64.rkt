@@ -55,8 +55,7 @@
                       binary64
                       #:spec (+ x y)
                       #:fpcore (! :precision binary64 (+ x y))
-                      #:fl +
-                      )
+                      #:fl +)
 (define-operator-impl (-.f64 [x : binary64] [y : binary64])
                       binary64
                       #:spec (- x y)
@@ -66,8 +65,7 @@
                       binary64
                       #:spec (* x y)
                       #:fpcore (! :precision binary64 (* x y))
-                      #:fl *
-                      )
+                      #:fl *)
 (define-operator-impl (/.f64 [x : binary64] [y : binary64])
                       binary64
                       #:spec (/ x y)
