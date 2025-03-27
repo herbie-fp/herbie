@@ -181,11 +181,6 @@
                   '(1 0))))
 
 ;; Given error-lsts, returns a list of sp objects representing where the optimal splitpoints are.
-(define (valid-splitindices? can-split? split-indices)
-  (and (for/and ([pidx (map si-pidx (drop-right split-indices 1))])
-         (and (> pidx 0) (list-ref can-split? pidx)))
-       (= (si-pidx (last split-indices)) (length can-split?))))
-
 (module core typed/racket
   (provide (struct-out si)
            infer-split-indices)
@@ -195,6 +190,13 @@
   ;; cidx = Candidate index: the index candidate program that should be used to the left of this splitindex
   ;; pidx = Point index: The index of the point to the left of which we should split.
   (struct si ([cidx : Integer] [pidx : Integer]) #:prefab)
+
+  (: valid-splitindices? (-> (Listof Boolean) (Listof si) Boolean))
+  (define (valid-splitindices? can-split? split-indices)
+    (and (andmap
+          (lambda ([x : si]) (and (> (si-pidx x) 0) (list-ref can-split? (si-pidx x))))
+          (drop-right split-indices 1))
+         (= (si-pidx (last split-indices)) (length can-split?))))
 
   ;; This is the core main loop of the regimes algorithm.
   ;; Takes in a list of alts in the form of there error at a given point
@@ -303,13 +305,20 @@
       (vector-set! result-prev-idxs point-idx current-prev-idx))
 
     ;; Loop over results vectors in reverse and build the output split index list
-    (let loop ([i (- number-of-points 1)]
-               [rest (cast null (Listof si))])
-      (define alt-idx (vector-ref result-alt-idxs i))
-      (define next (vector-ref result-prev-idxs i))
-      (define sis (cons (si alt-idx (+ i 1)) rest))
-      (if (< next i)
-          (loop next sis)
-          sis))))
+    (: out (Listof si))
+    (define out
+      (let loop ([i (- number-of-points 1)]
+                 [rest (cast null (Listof si))])
+        (define alt-idx (vector-ref result-alt-idxs i))
+        (define next (vector-ref result-prev-idxs i))
+        (define sis (cons (si alt-idx (+ i 1)) rest))
+        (if (< next i)
+            (loop next sis)
+            sis)))
+
+    (unless (valid-splitindices? can-split out)
+      (error 'infer-split-indices "Inferred invalid split indices; internal error"))
+
+    out))
 
 (require (submod "." core))
