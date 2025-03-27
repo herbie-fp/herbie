@@ -46,127 +46,47 @@
   (begin
     (define-libm-impls/binary64* (itype ... otype) name ...) ...))
 
-(define-operator-impl
- (neg.f64 [x : binary64])
- binary64
- #:spec (neg x)
- #:fpcore (! :precision binary64 (- x))
- #:fl -
- #:identities (#:exact (neg.f64 a)
-                       [distribute-lft-neg-in (neg.f64 (*.f64 a b)) (*.f64 (neg.f64 a) b)]
-                       [distribute-rgt-neg-in (neg.f64 (*.f64 a b)) (*.f64 a (neg.f64 b))]
-                       [distribute-neg-in (neg.f64 (+.f64 a b)) (+.f64 (neg.f64 a) (neg.f64 b))]
-                       [distribute-neg-frac (neg.f64 (/.f64 a b)) (/.f64 (neg.f64 a) b)]
-                       [distribute-neg-frac2 (neg.f64 (/.f64 a b)) (/.f64 a (neg.f64 b))]
-                       [remove-double-neg (neg.f64 (neg.f64 a)) a]
-                       [neg-sub0 (neg.f64 b) (-.f64 0 b)]
-                       [neg-mul-1 (neg.f64 a) (*.f64 -1 a)]))
+(define-operator-impl (neg.f64 [x : binary64])
+                      binary64
+                      #:spec (neg x)
+                      #:fpcore (! :precision binary64 (- x))
+                      #:fl -)
 (define-operator-impl (+.f64 [x : binary64] [y : binary64])
                       binary64
                       #:spec (+ x y)
                       #:fpcore (! :precision binary64 (+ x y))
-                      #:fl +
-                      #:commutes
-                      #:identities
-                      ([distribute-neg-out (+.f64 (neg.f64 a) (neg.f64 b)) (neg.f64 (+.f64 a b))]
-                       [+-lft-identity (+.f64 0 a) a]
-                       [+-rgt-identity (+.f64 a 0) a]
-                       [unsub-neg (+.f64 a (neg.f64 b)) (-.f64 a b)]))
+                      #:fl +)
 (define-operator-impl (-.f64 [x : binary64] [y : binary64])
                       binary64
                       #:spec (- x y)
                       #:fpcore (! :precision binary64 (- x y))
-                      #:fl -
-                      #:identities
-                      ([cancel-sign-sub (-.f64 a (*.f64 (neg.f64 b) c)) (+.f64 a (*.f64 b c))]
-                       [cancel-sign-sub-inv (-.f64 a (*.f64 b c)) (+.f64 a (*.f64 (neg.f64 b) c))]
-                       #:exact (-.f64 a a)
-                       #:exact (-.f64 a 0)
-                       [sub0-neg (-.f64 0 a) (neg.f64 a)]
-                       [sub-neg (-.f64 a b) (+.f64 a (neg.f64 b))]))
+                      #:fl -)
 (define-operator-impl (*.f64 [x : binary64] [y : binary64])
                       binary64
                       #:spec (* x y)
                       #:fpcore (! :precision binary64 (* x y))
-                      #:fl *
-                      #:commutes
-                      #:identities
-                      ([distribute-lft-neg-out (*.f64 (neg.f64 a) b) (neg.f64 (*.f64 a b))]
-                       [distribute-rgt-neg-out (*.f64 a (neg.f64 b)) (neg.f64 (*.f64 a b))]
-                       [*-lft-identity (*.f64 1 a) a]
-                       [*-rgt-identity (*.f64 a 1) a]
-                       [mul-1-neg (*.f64 -1 a) (neg.f64 a)]
-                       [*-un-lft-identity a (*.f64 1 a)]
-                       [sqr-neg (*.f64 (neg.f64 a) (neg.f64 a)) (*.f64 a a)]
-                       [sqr-abs (*.f64 (fabs.f64 a) (fabs.f64 a)) (*.f64 a a)]
-                       [mul-fabs (*.f64 (fabs.f64 a) (fabs.f64 b)) (fabs.f64 (*.f64 a b))]))
+                      #:fl *)
 (define-operator-impl (/.f64 [x : binary64] [y : binary64])
                       binary64
                       #:spec (/ x y)
                       #:fpcore (! :precision binary64 (/ x y))
-                      #:fl /
-                      #:identities
-                      ([distribute-frac-neg (/.f64 (neg.f64 a) b) (neg.f64 (/.f64 a b))]
-                       [distribute-frac-neg2 (/.f64 a (neg.f64 b)) (neg.f64 (/.f64 a b))]
-                       [/-rgt-identity (/.f64 a 1) a]
-                       [div-fabs (/.f64 (fabs.f64 a) (fabs.f64 b)) (fabs.f64 (/.f64 a b))]))
+                      #:fl /)
 
-(define-libm-impl/binary64 fabs
-                           (binary64)
-                           binary64
-                           #:identities
-                           ([fabs-fabs (fabs.f64 (fabs.f64 a)) (fabs.f64 a)]
-                            [fabs-sub (fabs.f64 (-.f64 a b)) (fabs.f64 (-.f64 b a))]
-                            [fabs-neg (fabs.f64 (neg.f64 a)) (fabs.f64 a)]
-                            [fabs-sqr (fabs.f64 (*.f64 a a)) (*.f64 a a)]
-                            [fabs-mul (fabs.f64 (*.f64 a b)) (*.f64 (fabs.f64 a) (fabs.f64 b))]
-                            [fabs-div (fabs.f64 (/.f64 a b)) (/.f64 (fabs.f64 a) (fabs.f64 b))]
-                            [neg-fabs (fabs.f64 x) (fabs.f64 (neg.f64 x))]))
+(define-libm-impl/binary64 fabs (binary64) binary64)
 
-(define-libm-impl/binary64 exp
-                           (binary64)
-                           binary64
-                           #:identities ([exp-0 (exp.f64 0) 1] [exp-1-e (exp.f64 1) (E)]
-                                                               [1-exp 1 (exp.f64 0)]
-                                                               [e-exp-1 (E) (exp.f64 1)]))
+(define-libm-impl/binary64 exp (binary64) binary64)
 
-(define-libm-impl/binary64 pow
-                           (binary64 binary64)
-                           binary64
-                           #:identities ([unpow1 (pow.f64 a 1) a] [unpow0 (pow.f64 a 0) 1]
-                                                                  [pow-base-1 (pow.f64 1 a) 1]
-                                                                  [pow1 a (pow.f64 a 1)]
-                                                                  [pow-base-0 (pow.f64 0 a) 0]))
+(define-libm-impl/binary64 pow (binary64 binary64) binary64)
 
-(define-libm-impl/binary64
- sin
- (binary64)
- binary64
- #:identities ([sin-0 (sin.f64 0) 0] [sin-neg (sin.f64 (neg.f64 x)) (neg.f64 (sin.f64 x))]))
+(define-libm-impl/binary64 sin (binary64) binary64)
 
-(define-libm-impl/binary64 cos
-                           (binary64)
-                           binary64
-                           #:identities
-                           ([cos-0 (cos.f64 0) 1] [cos-neg (cos.f64 (neg.f64 x)) (cos.f64 x)]))
+(define-libm-impl/binary64 cos (binary64) binary64)
 
-(define-libm-impl/binary64
- tan
- (binary64)
- binary64
- #:identities ([tan-0 (tan.f64 0) 0] [tan-neg (tan.f64 (neg.f64 x)) (neg.f64 (tan.f64 x))]))
+(define-libm-impl/binary64 tan (binary64) binary64)
 
-(define-libm-impl/binary64 sinh
-                           (binary64)
-                           binary64
-                           #:identities ([sinh-neg (sinh.f64 (neg.f64 x)) (neg.f64 (sinh.f64 x))]
-                                         [sinh-0 (sinh.f64 0) 0]))
+(define-libm-impl/binary64 sinh (binary64) binary64)
 
-(define-libm-impl/binary64 cosh
-                           (binary64)
-                           binary64
-                           #:identities
-                           ([cosh-neg (cosh.f64 (neg.f64 x)) (cosh.f64 x)] [cosh-0 (cosh.f64 0) 1]))
+(define-libm-impl/binary64 cosh (binary64) binary64)
 
 (define-libm-impls/binary64 [(binary64 binary64)
                              (acos acosh

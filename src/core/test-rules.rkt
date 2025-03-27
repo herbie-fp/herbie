@@ -92,16 +92,6 @@
                      (match-define (vector v1 v2) (apply prog pt))
                      (check-equal? v1 v2))))
 
-(define (check-platform pform)
-  (define simplify-rules
-    (parameterize ([*active-platform* pform])
-      (platform-simplify-rules)))
-  (for ([rule (in-list simplify-rules)]
-        ; "exact" rules use spec outputs; we don't test those
-        #:unless (spec-prog? (rule-output rule)))
-    (test-case (~a (rule-name rule))
-      (check-rule-fp-safe rule))))
-
 (define (check-rule rule)
   (check-rule-correct rule)
   (when (set-member? (rule-tags rule) 'sound)
@@ -119,5 +109,4 @@
 (module+ test
   (for* ([rule (in-list (*rules*))])
     (test-case (~a (rule-name rule))
-      (check-rule rule)))
-  (check-platform (*active-platform*)))
+      (check-rule rule))))
