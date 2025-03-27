@@ -147,7 +147,9 @@
 
 ;; TODO : Need to run egglog to get the actual ids
 ;; very hard - per id recruse one level and ger simplest child
-(define (run-egglog-multi-extractor runner batch #:num-variants [num-variants #t]) ; multi expression extraction
+(define (run-egglog-multi-extractor runner
+                                    batch
+                                    #:num-variants [num-variants #t]) ; multi expression extraction
 
   (define temp-batch (progs->batch (batch->progs batch)))
 
@@ -175,7 +177,8 @@
 
            ;; Add the actual egglog rewrite rules
            ;; TODO : why duplicates
-           (egglog-program-add-list! (remove-duplicates (egglog-rewrite-rules rule-type curr-tag)) curr-program)
+           (egglog-program-add-list! (remove-duplicates (egglog-rewrite-rules rule-type curr-tag))
+                                     curr-program)
 
            curr-tag]))
 
@@ -250,7 +253,6 @@
         (if num-variants
             (map e2->expr next-expr)
             (list (e2->expr next-expr))))))
-  
 
   (define result
     (for/list ([variants (in-list herbie-exprss)])
@@ -258,7 +260,6 @@
        (for/list ([v (in-list variants)])
          (egglog->batchref v input-batch out (context-repr (egglog-runner-ctx runner))))
        #:key batchref-idx)))
-
 
   (batch-copy-mutable-nodes! input-batch out)
 
@@ -296,7 +297,6 @@
 (define (run-egglog-proofs runner rws) ; proof extraction
   (for/list ([(start-expr end-expr) (in-dict rws)])
     #f))
-
 
 (define (prelude curr-program #:mixed-egraph? [mixed-egraph? #t])
   (load-herbie-builtins)
@@ -360,7 +360,6 @@
   (egglog-program-add! (approx-lifting-rule) curr-program)
 
   (void))
-
 
 (define const-fold
   `((let ?zero (bigrat
@@ -630,25 +629,26 @@
   (define root-mask (make-vector (batch-length batch) #f))
   (define spec-mask (make-vector (batch-length batch) #f))
 
-
   (for ([n (in-range (batch-length batch))])
     (let ([node (vector-ref (batch-nodes batch) n)])
       (match node
-        [(? literal?) (vector-set! spec-mask n #f)]  ;; If literal, not a spec
-        [(? number?) (vector-set! spec-mask n #t)]   ;; If number, it's a spec
-        [(? symbol?) (vector-set! spec-mask n #f)]   ;; If symbol, assume not a spec could be either (find way to distinguish) : PREPROCESS
-        [(hole _ _) (vector-set! spec-mask n #f)]    ;; If hole, not a spec
-        [(approx _ _) (vector-set! spec-mask n #f)]  ;; If approx, not a spec
-        
+        [(? literal?) (vector-set! spec-mask n #f)] ;; If literal, not a spec
+        [(? number?) (vector-set! spec-mask n #t)] ;; If number, it's a spec
+        [(? symbol?)
+         (vector-set!
+          spec-mask
+          n
+          #f)] ;; If symbol, assume not a spec could be either (find way to distinguish) : PREPROCESS
+        [(hole _ _) (vector-set! spec-mask n #f)] ;; If hole, not a spec
+        [(approx _ _) (vector-set! spec-mask n #f)] ;; If approx, not a spec
+
         [(list appl args ...)
-          (if (hash-has-key? (id->e1) appl)
-              (vector-set! spec-mask n #t)   ;; appl with op -> Is a spec 
-              (vector-set! spec-mask n #f))] ;; appl impl -> Not a spec
+         (if (hash-has-key? (id->e1) appl)
+             (vector-set! spec-mask n #t) ;; appl with op -> Is a spec
+             (vector-set! spec-mask n #f))] ;; appl impl -> Not a spec
 
         ;; If the condition or any branch is a spec, then this is a spec
-        [`(if ,cond ,ift ,iff)
-          (vector-set! spec-mask n (vector-ref spec-mask cond))])))
-
+        [`(if ,cond ,ift ,iff) (vector-set! spec-mask n (vector-ref spec-mask cond))])))
 
   (for ([root (in-vector (batch-roots batch))])
     (vector-set! root-mask root #t))
@@ -675,9 +675,8 @@
                       impl)
            ,@(for/list ([arg (in-list args)])
                (remap arg spec?)))]
-        
-        [(hole ty spec) `(lower ,(remap spec #t) ,(symbol->string ty))])) 
-              
+
+        [(hole ty spec) `(lower ,(remap spec #t) ,(symbol->string ty))]))
 
     (if node*
         (vector-set! mappings n (insert-node! node* n root?))
@@ -756,7 +755,6 @@
           (string->symbol (format "?r~a" root)))))
 
   extract-bindings)
-
 
 (define (egglog-num? id)
   (string-prefix? (symbol->string id) "Num"))

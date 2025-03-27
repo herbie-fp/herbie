@@ -96,14 +96,13 @@
 
   (define runner
     (if (member 'egglog generate-flags)
-      (make-egglog-runner copy-batch roots reprs schedule)
-      (make-egraph global-batch roots reprs schedule)))
+        (make-egglog-runner copy-batch roots reprs schedule)
+        (make-egraph global-batch roots reprs schedule)))
 
   (define batchrefss
     (if (member 'egglog generate-flags)
-      (run-egglog-multi-extractor runner copy-batch)
-      (egraph-variations runner global-batch)))
-
+        (run-egglog-multi-extractor runner copy-batch)
+        (egraph-variations runner global-batch)))
 
   ; apply changelists
   (define rewritten

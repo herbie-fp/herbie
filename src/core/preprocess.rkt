@@ -70,11 +70,11 @@
 
   (define runner
     (if (member 'egglog generate-flags)
-      (make-egglog-runner batch (batch-roots batch) (list (context-repr ctx)) schedule)
-      (make-egraph batch (batch-roots batch) (list (context-repr ctx)) schedule)))
+        (make-egglog-runner batch (batch-roots batch) (list (context-repr ctx)) schedule)
+        (make-egraph batch (batch-roots batch) (list (context-repr ctx)) schedule)))
 
   ; run egg
-  (define simplified 
+  (define simplified
     (if (member 'egglog generate-flags)
         (simplify-batch-egglog runner batch)
         (simplify-batch runner batch)))
@@ -108,7 +108,7 @@
                  `((,rules . ((node . ,(*node-limit*)))))))
 
   ;; TODO : FIGURE HOW TO IMPLEMENT PREPROCESS
-  
+
   ;; collect equalities
   (define abs-instrs
     (for/list ([(ident spec*) (in-dict even-identities)]

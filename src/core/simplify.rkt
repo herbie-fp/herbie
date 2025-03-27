@@ -10,7 +10,9 @@
          "batch.rkt"
          "egglog-herbie.rkt")
 
-(provide (contract-out [simplify-batch (-> egg-runner? batch? (listof (listof batchref?)))]))
+(provide (contract-out [simplify-batch
+                        (-> (or egg-runner? egglog-runner?) batch? (listof (listof batchref?)))])
+         simplify-batch-egglog)
 
 (module+ test
   (require rackunit
@@ -19,13 +21,8 @@
 
 (define (simplify-batch runner batch)
   (timeline-push! 'inputs (map ~a (batch->progs (egg-runner-batch runner) (egg-runner-roots runner))))
-  (define generate-flags (hash-ref all-flags 'generate))
 
-  (define simplifieds
-    (if (member 'egglog generate-flags)
-        (run-egglog-multi-extractor runner batch #:num-variants #f)
-        (egraph-best runner batch)))
-
+  (define simplifieds (egraph-best runner batch))
   (define out
     (for/list ([simplified (in-list simplifieds)]
                [root (egg-runner-roots runner)])
@@ -33,7 +30,20 @@
                          #:key batchref-idx)))
 
   (timeline-push! 'outputs (map (compose ~a debatchref) (apply append out)))
+  out)
 
+(define (simplify-batch-egglog runner batch)
+  (timeline-push! 'inputs
+                  (map ~a (batch->progs (egglog-runner-batch runner) (egglog-runner-roots runner))))
+
+  (define simplifieds (run-egglog-multi-extractor runner batch #:num-variants #f))
+
+  (define out
+    (for/list ([simplified (in-list simplifieds)]
+               [root (egglog-runner-roots runner)])
+      (remove-duplicates (cons (batchref (egglog-runner-batch runner) root) simplified)
+                         #:key batchref-idx)))
+  (timeline-push! 'outputs (map (compose ~a debatchref) (apply append out)))
   out)
 
 (module+ test

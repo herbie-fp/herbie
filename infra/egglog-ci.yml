@@ -1,0 +1,16 @@
+name: Check EggLog Availability
+
+# This step would be part of your existing CI workflow
+# Assumes Racket and Rust are already set up
+
+steps:
+  - name: Check for EggLog flag and install if needed
+    run: |
+      # Check if egglog flag is present in config or if egglog not installed
+      if grep -q "egglog" config.rkt || [ ! -f "$(which egglog)" ]; then
+        echo "EggLog needed but not found. Installing..."
+        cargo install egglog
+        echo "EggLog installed to: $(which egglog)"
+      else
+        echo "EggLog already installed or not needed."
+      fi

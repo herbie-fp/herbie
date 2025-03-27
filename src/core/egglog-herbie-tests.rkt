@@ -158,7 +158,6 @@
                                  (Num (bigrat (from-string "-2") (from-string "3")))))
                 '(if cond 7/8 -2/3)))
 
-
 ; run-tests
 (module+ test
   (require rackunit
@@ -192,13 +191,11 @@
 
   (define reprs (make-list (vector-length (batch-roots batch)) (context-repr (*context*))))
 
-
   (define rules (*rules*))
   (define schedule
     `((lift . ((iteration . 1) (scheduler . simple))) (,rules . ((node . ,(*node-limit*))))
                                                       (lower . ((iteration . 1) (scheduler .
                                                                                            simple)))))
-
 
   (run-egglog-multi-extractor (egg-runner batch roots reprs schedule (*context*) '() '()) batch)
 

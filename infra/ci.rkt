@@ -11,6 +11,8 @@
 
 (define *precision* (make-parameter #f))
 
+(define *test-egglog* (make-parameter #f))
+
 (define (test-successful? test input-bits target-bits output-bits)
   (match* ((test-output test) (test-expected test))
     [(_ #f) #t]
@@ -25,6 +27,20 @@
                [var-repr-names
                 (for/list ([var (in-list (test-vars the-test))])
                   (cons var (representation-name repr)))]))
+
+(define (run-egglog-tests)
+  (printf "Running egglog-specific Racket tests...\n")
+  (define test-directories '("../src/core/egglog-herbie-tests.rkt"))
+
+  (for ([dir (in-list test-directories)])
+    (when (directory-exists? dir)
+      (printf "Testing directory: ~a\n" dir)
+      (define result (system (format "raco test ~a" dir)))
+      (unless result
+        (error 'ci "EggLog tests failed in directory ~a" dir))))
+
+  (printf "All EggLog-specific tests passed.\n")
+  #t)
 
 (define (run-tests . bench-dirs)
   (define default-precision
@@ -126,4 +142,14 @@
                  "The number of iterations to use for the main loop"
                  (*num-iterations* (string->number num))]
                 #:args bench-dir
-                (exit (if (apply run-tests bench-dir) 0 1))))
+                (begin
+                  ;; Run tests from before
+                  (define standard-tests-result (apply run-tests bench-dir))
+
+                  ;; Run egglog tests
+                  (define egglog-tests-result
+                    (if (*test-egglog*)
+                        (run-egglog-tests)
+                        #t))
+
+                  (exit (if (and standard-tests-result egglog-tests-result) 0 1)))))
