@@ -37,22 +37,15 @@
 (struct improve-result (preprocess pctxs start target end))
 (struct alt-analysis (alt train-errors test-errors) #:prefab)
 
-(define (sample-pcontext test)
-  (random) ;; Tick the random number generator, for backwards compatibility
-  (define specification (prog->spec (or (test-spec test) (test-input test))))
-  (define precondition (prog->spec (test-pre test)))
-  (define sample
-    (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
-      (sample-points precondition (list specification) (list (*context*)))))
-  (apply mk-pcontext sample))
+;; API users can supply their own, weird set of points, in which case
+;; the first 256 are training points and everything is test points.
+;; For backwards compatibility, exactly 8256 points are split as
+;; Herbie expects (first 256 training, rest are test).
 
-;; Partitions a joint pcontext into a training and testing set
 (define (partition-pcontext joint-pcontext)
   (define num-points (pcontext-length joint-pcontext))
   (cond
     [(= num-points (+ (*num-points*) (*reeval-pts*)))
-     ; got the expected amount of points
-     ; will partition into training and testing set
      (split-pcontext joint-pcontext (*num-points*) (*reeval-pts*))]
     [else
      ; the training set will just be up to the first (*num-points*)
@@ -62,83 +55,10 @@
      (define-values (train-pcontext _) (split-pcontext joint-pcontext training-count testing-count))
      (values train-pcontext joint-pcontext)]))
 
-;;
-;;  API endpoint backends
-;;
+;; API Functions
 
-;; Given a test, computes the program cost of the input expression
-(define (get-cost test)
-  (define cost-proc (platform-cost-proc (*active-platform*)))
-  (define output-repr (context-repr (*context*)))
-  (cost-proc (test-input test) output-repr))
-
-;; Given a test and a sample of points, returns the test points.
-(define (get-sample test)
-  (sample-pcontext test))
-
-;; Given a test and a sample of points, computes the error at each point.
-;; If the sample contains the expected number of points, i.e., `(*num-points*) + (*reeval-pts*)`,
-;; then the first `*num-points*` will be discarded and the rest will be used for evaluation,
-;; otherwise the entire set is used.
-(define (get-errors test pcontext)
-  (unless pcontext
-    (error 'get-errors "cannnot run without a pcontext"))
-
-  (define-values (_ test-pcontext) (partition-pcontext pcontext))
-  (define errs (errors (test-input test) test-pcontext (*context*)))
-  (for/list ([(pt _) (in-pcontext test-pcontext)]
-             [err (in-list errs)])
-    (list pt err)))
-
-;; Given a test and a sample of points, computes the local error at every node in the expression
-;; returning a tree of errors that mirrors the structure of the expression.
-;; If the sample contains the expected number of points, i.e., `(*num-points*) + (*reeval-pts*)`,
-;; then the first `*num-points*` will be discarded and the rest will be used for evaluation,
-;; otherwise the entire set is used.
-(define (get-local-error test pcontext)
-  (unless pcontext
-    (error 'get-local-error "cannnot run without a pcontext"))
-
-  (*pcontext* pcontext)
-  (local-error-as-tree (test-input test) (*context*)))
-
-(define (get-explanations test pcontext)
-  (unless pcontext
-    (error 'explain "cannot run without a pcontext"))
-
-  (*pcontext* pcontext)
-  (define-values (fperrors
-                  sorted-explanations-table
-                  confusion-matrix
-                  maybe-confusion-matrix
-                  total-confusion-matrix
-                  freqs)
-    (explain (test-input test) (*context*) (*pcontext*)))
-
-  sorted-explanations-table)
-
-;; TODO: What in the timeline needs fixing with these changes?
-
-;; Given a test and a sample of points, returns a list of improved alternatives
-;; and both the test set of points and processed test set of points.
-;; If the sample contains the expected number of points, i.e., `(*num-points*) + (*reeval-pts*)`,
-;; then the first `*num-points*` will be discarded and the rest will be used for evaluation,
-;; otherwise the entire set is used.
-(define (get-alternatives test pcontext)
-  (unless pcontext
-    (error 'get-alternatives "cannnot run without a pcontext"))
-
-  (define-values (train-pcontext test-pcontext) (partition-pcontext pcontext))
-  ;; TODO: Ignoring all user-provided preprocessing right now
-  (define alternatives (run-improve! (test-input test) (test-spec test) (*context*) train-pcontext))
-  (define preprocessing (alt-preprocessing (first alternatives)))
-  (define test-pcontext* (preprocess-pcontext (*context*) test-pcontext preprocessing))
-
-  (list alternatives test-pcontext test-pcontext*))
-
-;; Improvement backend for generating reports
-;; This is (get-alternatives) + a bunch of extra evaluation / data collection
-(define (get-improve test joint-pcontext)
+;; The main Herbie function
+(define (get-alternatives test joint-pcontext)
   (unless joint-pcontext
     (error 'get-alternatives "cannnot run without a pcontext"))
 
@@ -179,6 +99,57 @@
 
   (define pctxs (list train-pcontext test-pcontext*))
   (improve-result preprocessing pctxs start-alt-data target-alt-data end-data))
+
+(define (get-cost test)
+  (define cost-proc (platform-cost-proc (*active-platform*)))
+  (define output-repr (context-repr (*context*)))
+  (cost-proc (test-input test) output-repr))
+
+(define (get-errors test pcontext)
+  (unless pcontext
+    (error 'get-errors "cannnot run without a pcontext"))
+
+  (define-values (_ test-pcontext) (partition-pcontext pcontext))
+  (define errs (errors (test-input test) test-pcontext (*context*)))
+  (for/list ([(pt _) (in-pcontext test-pcontext)]
+             [err (in-list errs)])
+    (list pt err)))
+
+(define (get-explanations test pcontext)
+  (unless pcontext
+    (error 'explain "cannot run without a pcontext"))
+
+  (*pcontext* pcontext)
+  (define-values (fperrors
+                  sorted-explanations-table
+                  confusion-matrix
+                  maybe-confusion-matrix
+                  total-confusion-matrix
+                  freqs)
+    (explain (test-input test) (*context*) (*pcontext*)))
+
+  sorted-explanations-table)
+
+;; Given a test and a sample of points, computes the local error at every node in the expression
+;; returning a tree of errors that mirrors the structure of the expression.
+;; If the sample contains the expected number of points, i.e., `(*num-points*) + (*reeval-pts*)`,
+;; then the first `*num-points*` will be discarded and the rest will be used for evaluation,
+;; otherwise the entire set is used.
+(define (get-local-error test pcontext)
+  (unless pcontext
+    (error 'get-local-error "cannnot run without a pcontext"))
+
+  (*pcontext* pcontext)
+  (local-error-as-tree (test-input test) (*context*)))
+
+(define (get-sample test)
+  (random) ;; Tick the random number generator, for backwards compatibility
+  (define specification (prog->spec (or (test-spec test) (test-input test))))
+  (define precondition (prog->spec (test-pre test)))
+  (define sample
+    (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
+      (sample-points precondition (list specification) (list (*context*)))))
+  (apply mk-pcontext sample))
 
 ;;
 ;;  Public interface
@@ -227,7 +198,7 @@
             ['cost (get-cost test)]
             ['errors (get-errors test pcontext)]
             ['explanations (get-explanations test pcontext)]
-            ['improve (get-improve test (get-sample test))]
+            ['improve (get-alternatives test (get-sample test))]
             ['local-error (get-local-error test pcontext)]
             ['sample (get-sample test)]
             [_ (error 'compute-result "unknown command ~a" command)]))
@@ -253,11 +224,12 @@
       (on-timeout)))
 
 (define (dummy-table-row-from-hash result-hash status link)
-  (define test (hash-ref result-hash 'test))
+  (define test (car (load-tests (open-input-string (hash-ref result-hash 'test)))))
   (define repr (test-output-repr test))
   (define preprocess
     (if (eq? (hash-ref result-hash 'status) 'success)
-        (hash-ref (hash-ref result-hash 'backend) 'preprocessing)
+        (map (compose read open-input-string)
+             (hash-ref (hash-ref result-hash 'backend) 'preprocessing))
         (test-preprocess test)))
   (table-row (test-name test)
              (test-identifier test)
@@ -282,11 +254,11 @@
              '()))
 
 (define (get-table-data-from-hash result-hash link)
-  (define test (hash-ref result-hash 'test))
+  (define test (car (load-tests (open-input-string (hash-ref result-hash 'test)))))
   (define backend (hash-ref result-hash 'backend))
   (define status (hash-ref result-hash 'status))
   (match status
-    ['success
+    ["success"
      (define start (hash-ref backend 'start))
      (define targets (hash-ref backend 'target))
      (define end (hash-ref backend 'end))
@@ -294,17 +266,16 @@
      (define repr (test-output-repr test))
 
      ; starting expr analysis
-     (match-define (alt-analysis start-alt start-train-errs start-test-errs) start)
-     (define start-expr (alt-expr start-alt))
-     (define start-train-score (errors-score start-train-errs))
-     (define start-test-score (errors-score start-test-errs))
-     (define start-cost (expr-cost start-expr repr))
+     (define start-expr (read (open-input-string (hash-ref start 'expr))))
+     (define start-train-score (errors-score (hash-ref start 'train-score)))
+     (define start-test-score (errors-score (hash-ref start 'errors)))
+     (define start-cost (hash-ref start 'cost))
 
      (define target-cost-score
        (for/list ([target targets])
-         (define target-expr (alt-expr (alt-analysis-alt target)))
-         (define tar-cost (expr-cost target-expr repr))
-         (define tar-score (errors-score (alt-analysis-test-errors target)))
+         (define target-expr (read (open-input-string (hash-ref target 'expr))))
+         (define tar-cost (hash-ref target 'cost))
+         (define tar-score (errors-score (hash-ref target 'errors)))
 
          (list tar-cost tar-score)))
 
@@ -314,10 +285,16 @@
            target-cost-score
            (apply min (map second target-cost-score))))
 
-     (define end-exprs (hash-ref end 'end-exprs))
-     (define end-train-scores (map errors-score (hash-ref end 'end-train-scores)))
-     (define end-test-scores (map errors-score (hash-ref end 'end-errors)))
-     (define end-costs (hash-ref end 'end-costs))
+     (define end-exprs
+       (for/list ([end-analysis (in-list end)])
+         (read (open-input-string (hash-ref end-analysis 'expr)))))
+     (define end-train-scores
+       (for/list ([end-analysis (in-list end)])
+         (errors-score (hash-ref end-analysis 'train-score))))
+     (define end-test-scores
+       (for/list ([end-analysis (in-list end)])
+         (errors-score (hash-ref end-analysis 'errors))))
+     (define end-costs (map (curryr hash-ref 'cost) end))
 
      ; terribly formatted pareto-optimal frontier
      (define cost&accuracy
@@ -354,9 +331,8 @@
                   [result end-score]
                   [output (car end-exprs)]
                   [cost-accuracy cost&accuracy])]
-    ['failure
+    ["failure"
      (match-define (list 'exn type _ ...) backend)
      (define status (if type "error" "crash"))
      (dummy-table-row-from-hash result-hash status link)]
-    ['timeout (dummy-table-row-from-hash result-hash "timeout" link)]
-    [_ (error 'get-table-data "unknown result type ~a" status)]))
+    ["timeout" (dummy-table-row-from-hash result-hash "timeout" link)]))
