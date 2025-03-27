@@ -155,31 +155,6 @@
                 #:when (< i (si-pidx si)))
       (list-ref errs (si-cidx si)))))
 
-(module+ test
-  (define ctx (make-debug-context '(x)))
-  (parameterize ([*start-prog* (literal 1 'binary64)]
-                 [*pcontext* (mk-pcontext '((0.5) (4.0)) '(1.0 1.0))])
-    (define alts (map make-alt (list '(fmin.f64 x 1) '(fmax.f64 x 1))))
-    (define err-lsts `((,(expt 2.0 53) 1.0) (1.0 ,(expt 2.0 53))))
-
-    (define (test-regimes expr goal)
-      (check (lambda (x y) (equal? (map si-cidx (option-split-indices x)) y))
-             (option-on-expr alts err-lsts expr ctx)
-             goal))
-
-    ;; This is a basic sanity test
-    (test-regimes 'x '(1 0))
-
-    ;; This test ensures we handle equal points correctly. All points
-    ;; are equal along the `1` axis, so we should only get one
-    ;; splitpoint (the second, since it is better at the further point).
-    (test-regimes (literal 1 'binary64) '(0))
-
-    (test-regimes `(if (==.f64 x ,(literal 0.5 'binary64))
-                       ,(literal 1 'binary64)
-                       (NAN.f64))
-                  '(1 0))))
-
 ;; Given error-lsts, returns a list of sp objects representing where the optimal splitpoints are.
 (module core typed/racket
   (provide (struct-out si)
@@ -322,3 +297,28 @@
     out))
 
 (require (submod "." core))
+
+(module+ test
+  (define ctx (make-debug-context '(x)))
+  (parameterize ([*start-prog* (literal 1 'binary64)]
+                 [*pcontext* (mk-pcontext '((0.5) (4.0)) '(1.0 1.0))])
+    (define alts (map make-alt (list '(fmin.f64 x 1) '(fmax.f64 x 1))))
+    (define err-lsts `((,(expt 2.0 53) 1.0) (1.0 ,(expt 2.0 53))))
+
+    (define (test-regimes expr goal)
+      (check (lambda (x y) (equal? (map si-cidx (option-split-indices x)) y))
+             (option-on-expr alts err-lsts expr ctx)
+             goal))
+
+    ;; This is a basic sanity test
+    (test-regimes 'x '(1 0))
+
+    ;; This test ensures we handle equal points correctly. All points
+    ;; are equal along the `1` axis, so we should only get one
+    ;; splitpoint (the second, since it is better at the further point).
+    (test-regimes (literal 1 'binary64) '(0))
+
+    (test-regimes `(if (==.f64 x ,(literal 0.5 'binary64))
+                       ,(literal 1 'binary64)
+                       (NAN.f64))
+                  '(1 0))))
