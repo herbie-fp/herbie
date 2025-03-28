@@ -88,7 +88,7 @@
 
 (: repr-generators (Listof ReprGenerator))
 (define repr-generators '())
-(: *current-generator* (U ReprGenerator #f))
+(: *current-generator* (Parameterof (U ReprGenerator #f)))
 (define *current-generator* (make-parameter #f))
 
 (: register-generator! (-> ReprGenerator Void))
