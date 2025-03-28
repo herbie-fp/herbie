@@ -5,12 +5,12 @@
 (require "types.rkt")
 
 (require/typed "matcher.rkt"
-  [pattern-match (-> Any Any (Listof (Pairof Symbol Any)))]
-  [pattern-substitute (-> Any (Listof (Pairof Symbol Any)) Any)])
+               [pattern-match (-> Any Any (Listof (Pairof Symbol Any)))]
+               [pattern-substitute (-> Any (Listof (Pairof Symbol Any)) Any)])
 
 (require/typed "../core/rival.rkt"
-  [make-real-compiler (-> (Listof Any) (Listof context) Any)]
-  [real-apply (-> Any (Listof Any) (values Symbol (Listof Any)))])
+               [make-real-compiler (-> (Listof Any) (Listof context) Any)]
+               [real-apply (-> Any (Listof Any) (values Symbol (Listof Any)))])
 
 (provide (struct-out literal)
          (struct-out approx)
@@ -36,8 +36,8 @@
 (module+ test
   (require typed/rackunit)
   (require/typed rival
-    [flonum-discretization Any]
-    [rival-compile (-> (Listof Any) (Listof Symbol) Any Any)]))
+                 [flonum-discretization Any]
+                 [rival-compile (-> (Listof Any) (Listof Symbol) Any Any)]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Real operators
@@ -47,18 +47,12 @@
 ;; unfortunately Herbie still mandates that every impl
 ;; has an associated operator so the spec is here
 
-(define-type Spec
-  (U Exact-Rational
-     Symbol
-     (Pairof Symbol (Listof Spec))))
+(define-type Spec (U Exact-Rational Symbol (Pairof Symbol (Listof Spec))))
 
 ;; A real operator requires
 ;;  - a (unique) name
 ;;  - input and output types
-(struct operator
-  ([name : Symbol]
-   [itype : (Listof Type)]
-   [otype : Type]))
+(struct operator ([name : Symbol] [itype : (Listof Type)] [otype : Type]))
 
 ;; All real operators
 (: operators (HashTable Symbol operator))
@@ -203,12 +197,7 @@
 ;;  - its FPCore representation
 ;;  - a floating-point implementation
 ;;
-(struct operator-impl
-  ([name : Symbol]
-   [ctx : context]
-   [spec : Spec]
-   [fpcore : Any]
-   [fl : Procedure]))
+(struct operator-impl ([name : Symbol] [ctx : context] [spec : Spec] [fpcore : Any] [fl : Procedure]))
 
 ;; Operator implementation table
 ;; Tracks implementations that are loaded into Racket's runtime
@@ -249,8 +238,10 @@
 
   (define env (map (lambda ([x : Symbol] [y : Type]) (cons x y)) vars itypes))
   (define actual-ty
-    (let type-of : Type
-        ([expr spec])
+    (let type-of
+      :
+      Type
+      ([expr spec])
       (match expr
         [(? number?) 'real]
         [(? symbol?)
@@ -296,7 +287,9 @@
   (check-spec! name ctx spec)
   (define vars (context-vars ctx))
   ; synthesize operator (if the spec contains exactly one operator)
-  (define op : (U Symbol #f)
+  (define op
+    :
+    (U Symbol #f)
     (match spec
       [(list (? symbol? op) (or (? number?) (? symbol?)) ...) op]
       [_ #f]))
@@ -377,28 +370,18 @@
 
 ;; Floating-point expressions require that numbers
 ;; be rounded to a particular precision.
-(struct literal
-  ([value : Exact-Rational]
-   [precision : ReprName])
-  #:prefab)
+(struct literal ([value : Exact-Rational] [precision : ReprName]) #:prefab)
 
 ;; An approximation of a specification by
 ;; a floating-point expression.
-(struct approx
-  ([spec : Spec]
-   [impl : Program])
-  #:prefab)
+(struct approx ([spec : Spec] [impl : Program]) #:prefab)
 
 ;; An unknown floating-point expression that implements a given spec
 (struct hole ([precision : ReprName] [spec : Spec]) #:prefab)
 
-(define-type Program
-  (U literal
-     Symbol
-     approx
-     hole
-     (List 'if Program Program Program)
-     (Pairof Symbol (Listof Program))))
+(define-type
+ Program
+ (U literal Symbol approx hole (List 'if Program Program Program) (Pairof Symbol (Listof Program))))
 
 ;; name -> (vars repr body)	;; name -> (vars prec body)
 (define *functions* (make-parameter (make-hasheq)))
@@ -423,6 +406,5 @@
     [`(,(? symbol? impl) ,args ...)
      (define vars (cast (impl-info impl 'vars) (Listof Symbol)))
      (define spec (impl-info impl 'spec))
-     (define env (map (ann cons (-> Symbol Any (Pairof Symbol Any)))
-                      vars (map prog->spec args)))
+     (define env (map (ann cons (-> Symbol Any (Pairof Symbol Any))) vars (map prog->spec args)))
      (cast (pattern-substitute spec env) Spec)]))

@@ -190,9 +190,9 @@
    '(+ 1 (neg (* 1/2 (+ (exp (/ (sin 3) (cos 3))) (/ 1 (exp (/ (sin 3) (cos 3)))))))))
   (test-munge-unmunge '(cbrt x))
   (test-munge-unmunge '(x))
-  (test-munge-unmunge
-   `(+ (sin ,(approx '(* 1/2 (+ (exp x) (neg (/ 1 (exp x)))))
-                     `(+ ,(lit 3) (* ,(lit 25) (sin ,(lit 6)))))) ,(lit 4))))
+  (test-munge-unmunge `(+ (sin ,(approx '(* 1/2 (+ (exp x) (neg (/ 1 (exp x)))))
+                                        `(+ ,(lit 3) (* ,(lit 25) (sin ,(lit 6))))))
+                          ,(lit 4))))
 
 ; Tests for remove-zombie-nodes
 (module+ test
