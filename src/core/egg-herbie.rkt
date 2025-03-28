@@ -346,7 +346,7 @@
           '(/ (+ (neg b) (sqrt (- (* b b) (* (* 3 a) c)))) (* 3 a))
           '(* r 30)
           '(* 23/54 r)
-          '(+ 3/2 1.4)
+          '(+ 3/2 14/10)
           ; implementations
           `(/.f64 (-.f64 (exp.f64 x) (exp.f64 (neg.f64 x))) ,(literal 2 'binary64))
           `(/.f64 (+.f64 (neg.f64 b)
@@ -357,7 +357,7 @@
                   (*.f64 ,(literal 3 'binary64) a))
           `(*.f64 r ,(literal 30 'binary64))
           `(*.f64 ,(literal 23/54 'binary64) r)
-          `(+.f64 ,(literal 3/2 'binary64) ,(literal 1.4 'binary64))))
+          `(+.f64 ,(literal 3/2 'binary64) ,(literal 14/10 'binary64))))
 
   (let ([egg-graph (make-egraph-data)])
     (for ([expr extended-expr-list])

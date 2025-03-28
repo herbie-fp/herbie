@@ -319,7 +319,7 @@
     ;; splitpoint (the second, since it is better at the further point).
     (test-regimes (literal 1 'binary64) '(0))
 
-    (test-regimes `(if (==.f64 x ,(literal 0.5 'binary64))
+    (test-regimes `(if (==.f64 x ,(literal 1/2 'binary64))
                        ,(literal 1 'binary64)
                        (NAN.f64))
                   '(1 0))))

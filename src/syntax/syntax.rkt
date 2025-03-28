@@ -372,9 +372,9 @@
 ;; be rounded to a particular precision.
 (struct literal ([value : Exact-Rational] [precision : ReprName]) #:prefab)
 
-;; An approximation of a specification by
-;; a floating-point expression.
-(struct approx ([spec : Spec] [impl : Program]) #:prefab)
+;; An approximation of a specification by a floating-point expression.
+;; The (U ... Integer) is for handling batches
+(struct approx ([spec : Spec] [impl : (U Program Integer)]) #:prefab)
 
 ;; An unknown floating-point expression that implements a given spec
 (struct hole ([precision : ReprName] [spec : Spec]) #:prefab)

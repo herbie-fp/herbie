@@ -183,7 +183,7 @@
     (check-equal? (list expr) (batch->progs batch)))
 
   (define (lit x)
-    (literal 'binary64 x))
+    (literal x 'binary64))
 
   (test-munge-unmunge '(* 1/2 (+ (exp x) (neg (/ 1 (exp x))))))
   (test-munge-unmunge

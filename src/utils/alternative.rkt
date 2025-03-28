@@ -70,5 +70,8 @@
 ;; ultimately one that should be located somewhere else or perhaps
 ;; exorcised
 
+(: *start-prog* (Parameterof (U #f Program)))
 (define *start-prog* (make-parameter #f))
+
+(: *all-alts* (Parameterof (Listof alt)))
 (define *all-alts* (make-parameter '()))
