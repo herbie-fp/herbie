@@ -8,6 +8,8 @@
 
 (provide type-name?
          (struct-out representation)
+         Type
+         ReprName
          get-representation
          repr-exists?
          repr->symbol

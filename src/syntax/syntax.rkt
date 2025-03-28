@@ -1,12 +1,16 @@
-#lang racket
+#lang typed/racket
 
 (require math/bigfloat)
 
-(require "../core/rival.rkt"
-         "../utils/common.rkt"
-         "../utils/errors.rkt"
-         "matcher.rkt"
-         "types.rkt")
+(require "types.rkt")
+
+(require/typed "matcher.rkt"
+  [pattern-match (-> Any Any (Listof (Pairof Symbol Any)))]
+  [pattern-substitute (-> Any (Listof (Pairof Symbol Any)) Any)])
+
+(require/typed "../core/rival.rkt"
+  [make-real-compiler (-> (Listof Any) (Listof context) Any)]
+  [real-apply (-> Any (Listof Any) (values Symbol (Listof Any)))])
 
 (provide (struct-out literal)
          (struct-out approx)
@@ -32,8 +36,10 @@
            variable?))
 
 (module+ test
-  (require rackunit
-           rival))
+  (require typed/rackunit)
+  (require/typed rival
+    [flonum-discretization Any]
+    [rival-compile (-> (Listof Any) (Listof Symbol) Any Any)]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Real operators
@@ -46,9 +52,13 @@
 ;; A real operator requires
 ;;  - a (unique) name
 ;;  - input and output types
-(struct operator (name itype otype))
+(struct operator
+  ([name : Symbol]
+   [itype : (Listof Type)]
+   [otype : Type]))
 
 ;; All real operators
+(: operators (HashTable Symbol operator))
 (define operators (make-hasheq))
 
 ;; Checks if an operator has been registered.
@@ -61,8 +71,8 @@
 
 ;; Looks up a property `field` of an real operator `op`.
 ;; Panics if the operator is not found.
-(define/contract (operator-info op field)
-  (-> symbol? (or/c 'itype 'otype) any/c)
+(: operator-info (-> Symbol (U 'itype 'otype) Any))
+(define (operator-info op field)
   (unless (hash-has-key? operators op)
     (error 'operator-info "Unknown operator ~a" op))
   (define info (hash-ref operators op))
@@ -71,6 +81,7 @@
     [(otype) (operator-otype info)]))
 
 ;; Registers an operator. Panics if the operator already exists.
+(: register-operator! (-> Symbol (Listof Type) Type Void))
 (define (register-operator! name itypes otype)
   (when (hash-has-key? operators name)
     (error 'register-operator! "operator already registered: ~a" name))
@@ -171,9 +182,8 @@
 
   ; check that Rival supports all non-accelerator operators
   (for ([op (in-list (all-operators))])
-    (define vars (map (lambda (_) (gensym)) (operator-info op 'itype)))
-    (define disc (discretization 64 #f #f)) ; fake arguments
-    (rival-compile (list `(,op ,@vars)) vars (list disc))))
+    (define vars (map (lambda (_) (gensym)) (cast (operator-info op 'itype) (Listof Type))))
+    (rival-compile (list `(,op ,@vars)) vars (list flonum-discretization))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Operator implementations
@@ -190,16 +200,22 @@
 ;;  - its FPCore representation
 ;;  - a floating-point implementation
 ;;
-(struct operator-impl (name ctx spec fpcore fl))
+(struct operator-impl
+  ([name : Symbol]
+   [ctx : context]
+   [spec : Any]
+   [fpcore : Any]
+   [fl : Procedure]))
 
 ;; Operator implementation table
 ;; Tracks implementations that are loaded into Racket's runtime
+(: operator-impls (HashTable Symbol operator-impl))
 (define operator-impls (make-hasheq))
 
 ;; Looks up a property `field` of an real operator `op`.
 ;; Panics if the operator is not found.
-(define/contract (impl-info impl field)
-  (-> symbol? (or/c 'vars 'itype 'otype 'spec 'fpcore 'fl) any/c)
+(: impl-info (-> Symbol (U 'vars 'itype 'otype 'spec 'fpcore 'fl) Any))
+(define (impl-info impl field)
   (unless (hash-has-key? operator-impls impl)
     (error 'impl-info "Unknown operator implementation ~a" impl))
   (define info (hash-ref operator-impls impl))
@@ -212,7 +228,9 @@
     [(fl) (operator-impl-fl info)]))
 
 ;; Checks a specification.
+(: check-spec! (-> Symbol context Any Void))
 (define (check-spec! name ctx spec)
+  (: bad! (-> String Any * Nothing))
   (define (bad! fmt . args)
     (error name "~a in `~a`" (apply format fmt args) spec))
 
@@ -226,9 +244,10 @@
   (unless (= (length itypes) (length vars))
     (bad! "arity mismatch; expected ~a, got ~a" (length itypes) (length vars)))
 
-  (define env (map cons vars itypes))
+  (define env (map (lambda ([x : Symbol] [y : Type]) (cons x y)) vars itypes))
   (define actual-ty
-    (let type-of ([expr spec])
+    (let type-of : Type
+        ([expr spec])
       (match expr
         [(? number?) 'real]
         [(? symbol?)
@@ -246,10 +265,10 @@
          (unless (equal? ift-ty iff-ty)
            (type-error! iff iff-ty ift-ty))
          ift-ty]
-        [`(,op ,args ...)
+        [`(,(? symbol? op) ,args ...)
          (unless (operator-exists? op)
            (bad! "at `~a`, `~a` not an operator" expr op))
-         (define itypes (operator-info op 'itype))
+         (define itypes (cast (operator-info op 'itype) (Listof Type)))
          (unless (= (length itypes) (length args))
            (bad! "arity mismatch at `~a`: expected `~a`, got `~a`"
                  expr
@@ -260,7 +279,7 @@
            (define arg-ty (type-of arg))
            (unless (equal? itype arg-ty)
              (type-error! arg arg-ty itype)))
-         (operator-info op 'otype)]
+         (cast (operator-info op 'otype) Type)]
         [_ (bad! "expected an expression, got `~a`" expr)])))
 
   (unless (equal? actual-ty otype)
@@ -268,15 +287,15 @@
 
 ; Registers an operator implementation `name` with context `ctx` and spec `spec.
 ; Can optionally specify a floating-point implementation and fpcore translation.
-(define/contract (register-operator-impl! name ctx spec #:fl [fl-proc #f] #:fpcore [fpcore #f])
-  (->* (symbol? context? any/c) (#:fl (or/c procedure? #f) #:fpcore any/c) void?)
+(: register-operator-impl! (-> Symbol context Any [#:fl (U Procedure #f)] [#:fpcore Any] Void))
+(define (register-operator-impl! name ctx spec #:fl [fl-proc #f] #:fpcore [fpcore #f])
   ; check specification
   (check-spec! name ctx spec)
   (define vars (context-vars ctx))
   ; synthesize operator (if the spec contains exactly one operator)
-  (define op
+  (define op : (U Symbol #f)
     (match spec
-      [(list op (or (? number?) (? symbol?)) ...) op]
+      [(list (? symbol? op) (or (? number?) (? symbol?)) ...) op]
       [_ #f]))
   ; check or synthesize FPCore translatin
   (define fpcore*
@@ -329,6 +348,7 @@
   (define impl (operator-impl name ctx spec fpcore* fl-proc*))
   (hash-set! operator-impls name impl))
 
+(: well-formed? (-> Any Boolean))
 (define (well-formed? expr)
   (match expr
     [(? number?) #t]
@@ -413,14 +433,20 @@
 
 ;; Floating-point expressions require that numbers
 ;; be rounded to a particular precision.
-(struct literal (value precision) #:prefab)
+(struct literal
+  ([value : Exact-Rational]
+   [precision : ReprName])
+  #:prefab)
 
 ;; An approximation of a specification by
 ;; a floating-point expression.
-(struct approx (spec impl) #:prefab)
+(struct approx
+  ([spec : Any]
+   [impl : Any])
+  #:prefab)
 
 ;; An unknown floating-point expression that implements a given spec
-(struct hole (precision spec) #:prefab)
+(struct hole ([precision : ReprName] [spec : Any]) #:prefab)
 
 ;; name -> (vars repr body)	;; name -> (vars prec body)
 (define *functions* (make-parameter (make-hasheq)))
@@ -432,6 +458,7 @@
 ;; LImpl -> LSpec
 
 ;; Translates an LImpl to a LSpec.
+(: prog->spec (-> Any Any))
 (define (prog->spec expr)
   (match expr
     [(? literal?) (literal-value expr)]
@@ -441,8 +468,9 @@
      `(if ,(prog->spec cond)
           ,(prog->spec ift)
           ,(prog->spec iff))]
-    [`(,impl ,args ...)
-     (define vars (impl-info impl 'vars))
+    [`(,(? symbol? impl) ,args ...)
+     (define vars (cast (impl-info impl 'vars) (Listof Symbol)))
      (define spec (impl-info impl 'spec))
-     (define env (map cons vars (map prog->spec args)))
+     (define env (map (ann cons (-> Symbol Any (Pairof Symbol Any)))
+                      vars (map prog->spec args)))
      (pattern-substitute spec env)]))
