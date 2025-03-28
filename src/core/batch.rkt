@@ -182,13 +182,17 @@
     (define batch (progs->batch (list expr)))
     (check-equal? (list expr) (batch->progs batch)))
 
+  (define (lit x)
+    (literal 'binary64 x))
+
   (test-munge-unmunge '(* 1/2 (+ (exp x) (neg (/ 1 (exp x))))))
   (test-munge-unmunge
    '(+ 1 (neg (* 1/2 (+ (exp (/ (sin 3) (cos 3))) (/ 1 (exp (/ (sin 3) (cos 3)))))))))
   (test-munge-unmunge '(cbrt x))
   (test-munge-unmunge '(x))
   (test-munge-unmunge
-   `(+ (sin ,(approx '(* 1/2 (+ (exp x) (neg (/ 1 (exp x))))) '(+ 3 (* 25 (sin 6))))) 4)))
+   `(+ (sin ,(approx '(* 1/2 (+ (exp x) (neg (/ 1 (exp x)))))
+                     `(+ ,(lit 3) (* ,(lit 25) (sin ,(lit 6)))))) ,(lit 4))))
 
 ; Tests for remove-zombie-nodes
 (module+ test

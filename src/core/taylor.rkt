@@ -84,10 +84,9 @@
   (check-equal? '(cbrt x) (test-expand-taylor '(pow x 1/3)))
   (check-equal? '(cbrt (* x x)) (test-expand-taylor '(pow x 2/3)))
   (check-equal? '(+ 100 (cbrt x)) (test-expand-taylor '(+ 100 (pow x 1/3))))
-  (check-equal? `(+ 100 (cbrt (* x ,(approx 2 3))))
-                (test-expand-taylor `(+ 100 (pow (* x ,(approx 2 3)) 1/3))))
-  (check-equal? `(+ ,(approx 2 3) (cbrt x)) (test-expand-taylor `(+ ,(approx 2 3) (pow x 1/3))))
-  (check-equal? `(+ (cbrt x) ,(approx 2 1/3)) (test-expand-taylor `(+ (pow x 1/3) ,(approx 2 1/3)))))
+  (check-equal? `(+ 100 (cbrt (* x y))) (test-expand-taylor `(+ 100 (pow (* x y) 1/3))))
+  (check-equal? `(+ y (cbrt x)) (test-expand-taylor `(+ y (pow x 1/3))))
+  (check-equal? `(+ (cbrt x) y) (test-expand-taylor `(+ (pow x 1/3) y))))
 
 (define (make-horner var terms [start 0])
   (match terms
