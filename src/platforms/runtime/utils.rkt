@@ -23,7 +23,7 @@
     (define-operator-impl (impl-name)
                           repr
                           #:spec (name)
-                          #:fl (const value)
+                          #:fl (lambda () value)
                           #:fpcore (! :precision repr name)) ...))
 
 (define-syntax-rule (define-comparator-impls repr [name impl-name impl-fn attrib ...] ...)
