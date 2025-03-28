@@ -21,8 +21,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; constants ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; Don't use define-constants because don't want to require :precision bool annotation
-(define-operator-impl (TRUE.bool) bool #:spec (TRUE) #:fl (const true) #:fpcore (! TRUE))
-(define-operator-impl (FALSE.bool) bool #:spec (FALSE) #:fl (const false) #:fpcore (! FALSE))
+(define-operator-impl (TRUE) bool #:spec (TRUE) #:fl (const true) #:fpcore (! TRUE))
+(define-operator-impl (FALSE) bool #:spec (FALSE) #:fl (const false) #:fpcore (! FALSE))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; operators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

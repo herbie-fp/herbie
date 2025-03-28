@@ -14,11 +14,11 @@
                  #:literal [bool move-cost]
                  #:default-cost move-cost
                  #:if-cost move-cost
-                 TRUE.bool
-                 FALSE.bool
-                 not.bool
-                 and.bool
-                 or.bool)
+                 TRUE
+                 FALSE
+                 not
+                 and
+                 or)
 
 ; non-tunable operations
 (define-platform non-tunable

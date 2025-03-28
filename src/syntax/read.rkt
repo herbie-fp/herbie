@@ -149,11 +149,11 @@
       [(list 'FPCore name (list args ...) props ... body) (values name args props body)]
       [(list 'FPCore (list args ...) props ... body) (values #f args props body)]))
 
-  ;; Do not do this for the below code : (define prop-dict (props->dict props))
-  ;; Yes, the above is more efficient but it DOES not work
-  ;; Why? : props->dict on paper makes sense but :alt is not a unique key. TO prevent
-  ;;        there from being only one Developer Target, let this inefficient code exist
-  ;;        until we find something that exists that allows duplicate keys and dict-ref
+  ;; NOTE: We intentionally do not use (define prop-dict (props->dict props)) here
+  ;; despite its apparent efficiency. props->dict could be considered, if :alt was a unique key
+  ;; in our property. When there are multiple entries with the same key, props->dict would collapse
+  ;; them, and prevent mutliple Developer Targets from being represented correctly.
+  ;; This less efficient implementation preserves all entries, and maintains dict-ref functionality.
   (define prop-dict
     (let loop ([props props])
       (match props
@@ -188,24 +188,17 @@
   (define pre* (fpcore->prog (dict-ref prop-dict ':pre 'TRUE) ctx))
 
   (define targets
-    (begin
-      ; (printf "prop-dict ~a\n\n" prop-dict)
-
-      (for/list ([(key val) (in-dict prop-dict)]
-                 #:when (eq? key ':alt))
-
-        ; (printf "key ~a\n" key)
-        ; (printf "val ~a\n" val)
-
-        (match (parse-platform-name val) ; plat-name is symbol or #f
-          ; If plat-name extracted, check if name matches
-          [(? symbol? plat-name) (cons val (equal? plat-name (*platform-name*)))]
-          ; try to lower
-          [#f
-           (with-handlers ([exn:fail:user:herbie:missing? (lambda (e) (cons val #f))])
-             ; Testing if error thrown
-             (fpcore->prog val ctx)
-             (cons val #t))]))))
+    (for/list ([(key val) (in-dict prop-dict)]
+               #:when (eq? key ':alt))
+      (match (parse-platform-name val) ; plat-name is symbol or #f
+        ; If plat-name extracted, check if name matches
+        [(? symbol? plat-name) (cons val (equal? plat-name (*platform-name*)))]
+        ; try to lower
+        [#f
+         (with-handlers ([exn:fail:user:herbie:missing? (lambda (e) (cons val #f))])
+           ; Testing if error thrown
+           (fpcore->prog val ctx)
+           (cons val #t))])))
 
   (define spec (fpcore->prog (dict-ref prop-dict ':spec body) ctx))
   (check-unused-variables var-names body* pre*)
