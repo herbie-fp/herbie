@@ -4,7 +4,8 @@
 (require/typed "../utils/common.rkt"
                [string-replace* (-> String (Listof (Pair String String)) String)])
 (require/typed "../utils/errors.rkt" [raise-herbie-error (All (A) String Any * -> A)])
-(require/typed racket/dict [dict-ref (-> (Listof (Pair Symbol representation)) Symbol representation)])
+(require/typed racket/dict
+               [dict-ref (-> (Listof (Pair Symbol representation)) Symbol representation)])
 
 (provide type-name?
          (struct-out representation)
