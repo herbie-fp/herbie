@@ -207,8 +207,10 @@
                         (destroy_egraphiters iterations-ptr)
                         iter-data)))
 
+(define _stop_reason (_enum '(saturated iter-limit node-limit unsound) _uint))
+
 ;; gets the stop reason as an integer
-(define-eggmath egraph_get_stop_reason (_fun _egraph-pointer -> _uint))
+(define-eggmath egraph_get_stop_reason (_fun _egraph-pointer -> _stop_reason))
 
 ;; egraph -> string
 (define-eggmath egraph_serialize (_fun _egraph-pointer -> _rust/datum))

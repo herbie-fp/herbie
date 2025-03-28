@@ -180,12 +180,7 @@
   (egraph_get_times_applied (egraph-data-egraph-pointer egraph-data) (FFIRule-name rule)))
 
 (define (egraph-stop-reason egraph-data)
-  (match (egraph_get_stop_reason (egraph-data-egraph-pointer egraph-data))
-    [0 "saturated"]
-    [1 "iter limit"]
-    [2 "node limit"]
-    [3 "unsound"]
-    [sr (error 'egraph-stop-reason "unexpected stop reason ~a" sr)]))
+  (egraph_get_stop_reason (egraph-data-egraph-pointer egraph-data)))
 
 ;; Extracts the eclasses of an e-graph as a u32vector
 (define (egraph-eclasses egraph-data)
@@ -1215,7 +1210,7 @@
     (define iteration-data
       (egraph-run egg-graph ffi-rules node-limit iter-limit scheduler))
 
-    (timeline-push! 'stop (egraph-stop-reason egg-graph) 1)
+    (timeline-push! 'stop (~a (egraph-stop-reason egg-graph)) 1)
     (cond
       [(egraph-is-unsound-detected egg-graph)
        ; unsoundness means run again with less iterations
