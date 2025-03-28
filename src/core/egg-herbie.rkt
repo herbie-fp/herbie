@@ -1207,8 +1207,7 @@
   ;; run the rules
   (let loop ([iter-limit iter-limit])
     (define egg-graph (egraph-copy egg-graph0))
-    (define iteration-data
-      (egraph-run egg-graph ffi-rules node-limit iter-limit scheduler))
+    (define iteration-data (egraph-run egg-graph ffi-rules node-limit iter-limit scheduler))
 
     (timeline-push! 'stop (~a (egraph-stop-reason egg-graph)) 1)
     (cond
