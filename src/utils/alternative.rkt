@@ -1,13 +1,13 @@
-#lang typed/racket
+#lang typed/racket/shallow
 
 (require "../syntax/platform.rkt")
+(require "../syntax/types.rkt")
+(require "../syntax/syntax.rkt")
 
-(define-type Program Any)
 (define-type Event Any)
 (define-type Preprocessing (Listof Symbol))
 
 (define-type Platform Any)
-(define-type representation Any)
 
 (require/typed "../syntax/platform.rkt"
                [*active-platform* (-> Platform)]

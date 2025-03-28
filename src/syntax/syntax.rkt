@@ -21,6 +21,9 @@
          operator-info
          all-operators
 
+         Program
+         Spec
+
          prog->spec
 
          impl-exists?
