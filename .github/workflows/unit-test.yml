@@ -55,7 +55,7 @@ jobs:
           racket -l herbie report --threads yes --seed 1 bench/hamming/rearrangement.fpcore graphs1
           racket infra/diff.rkt graphs0 graphs1
       - name: "Install egglog"
-        run: make egglog-herbie
+        run: cargo install --git https://github.com/egraphs-good/egglog.git --tag v0.4.0 egglog
       - name: "Run Herbie with egglog
         run: racket -l herbie report --timeout 600 +o generate:egglog --seed 1 bench/hamming/trigonometry.fpcore graphs2
 
