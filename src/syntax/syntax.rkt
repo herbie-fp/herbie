@@ -49,6 +49,11 @@
 ;; unfortunately Herbie still mandates that every impl
 ;; has an associated operator so the spec is here
 
+(define-type Spec
+  (U Exact-Rational
+     Symbol
+     (Pairof Symbol (Listof Spec))))
+
 ;; A real operator requires
 ;;  - a (unique) name
 ;;  - input and output types
@@ -203,7 +208,7 @@
 (struct operator-impl
   ([name : Symbol]
    [ctx : context]
-   [spec : Any]
+   [spec : Spec]
    [fpcore : Any]
    [fl : Procedure]))
 
@@ -345,7 +350,7 @@
                          name)]))
 
   ; update tables
-  (define impl (operator-impl name ctx spec fpcore* fl-proc*))
+  (define impl (operator-impl name ctx (cast spec Spec) fpcore* fl-proc*))
   (hash-set! operator-impls name impl))
 
 (: well-formed? (-> Any Boolean))
@@ -441,12 +446,20 @@
 ;; An approximation of a specification by
 ;; a floating-point expression.
 (struct approx
-  ([spec : Any]
-   [impl : Any])
+  ([spec : Spec]
+   [impl : Program])
   #:prefab)
 
 ;; An unknown floating-point expression that implements a given spec
-(struct hole ([precision : ReprName] [spec : Any]) #:prefab)
+(struct hole ([precision : ReprName] [spec : Spec]) #:prefab)
+
+(define-type Program
+  (U literal
+     Symbol
+     approx
+     hole
+     (List 'if Program Program Program)
+     (Pairof Symbol (Listof Program))))
 
 ;; name -> (vars repr body)	;; name -> (vars prec body)
 (define *functions* (make-parameter (make-hasheq)))
@@ -458,7 +471,7 @@
 ;; LImpl -> LSpec
 
 ;; Translates an LImpl to a LSpec.
-(: prog->spec (-> Any Any))
+(: prog->spec (-> Program Spec))
 (define (prog->spec expr)
   (match expr
     [(? literal?) (literal-value expr)]
@@ -473,4 +486,4 @@
      (define spec (impl-info impl 'spec))
      (define env (map (ann cons (-> Symbol Any (Pairof Symbol Any)))
                       vars (map prog->spec args)))
-     (pattern-substitute spec env)]))
+     (cast (pattern-substitute spec env) Spec)]))
