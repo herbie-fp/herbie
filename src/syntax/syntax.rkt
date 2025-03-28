@@ -1,4 +1,4 @@
-#lang typed/racket
+#lang typed/racket/shallow
 
 (require math/bigfloat)
 
