@@ -63,7 +63,7 @@
     (match-define (job-result _ test status time timeline profile warnings backend) result)
     (match status
       ['success
-       (match-define (improve-result preprocess pctxs start targets end bogosity) backend)
+       (match-define (improve-result preprocess pctxs start targets end) backend)
        (match-define (alt-analysis start-alt _ start-error) start)
        (match-define (alt-analysis end-alt _ end-error) (first end))
 

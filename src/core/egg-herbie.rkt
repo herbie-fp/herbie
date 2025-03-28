@@ -10,16 +10,14 @@
                   u32vector->list)
          json) ; for dumping
 
-(require "programs.rkt"
-         "rules.rkt"
-         "../syntax/matcher.rkt"
+(require "../utils/common.rkt"
+         "../utils/timeline.rkt"
          "../syntax/platform.rkt"
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
-         "../utils/common.rkt"
-         "../config.rkt"
-         "../utils/timeline.rkt"
-         "batch.rkt")
+         "batch.rkt"
+         "programs.rkt"
+         "rules.rkt")
 
 (provide (struct-out egg-runner)
          make-egraph
@@ -203,9 +201,9 @@
   (define eclass (egraph_get_eclass ptr id))
   ; need to fix up any constant operators
   (for ([enode (in-vector eclass)]
-        [i (in-naturals)])
-    (when (and (symbol? enode) (not (string-prefix? (symbol->string enode) "$var")))
-      (vector-set! eclass i (cons enode empty-u32vec))))
+        [i (in-naturals)]
+        #:when (and (symbol? enode) (not (string-prefix? (symbol->string enode) "$var"))))
+    (vector-set! eclass i (cons enode empty-u32vec)))
   eclass)
 
 (define (egraph-find egraph-data id)
@@ -674,15 +672,15 @@
     (define dirty? #f)
     (define dirty?-vec* (make-vector n #f))
     (for ([id (in-range n)]
-          #:when (vector-ref dirty?-vec id))
-      (unless (vector-ref typed?-vec id)
-        (when (ormap enode-typed? (vector-ref id->eclass id))
-          (vector-set! typed?-vec id #t)
-          (define parent-ids (vector-ref id->parents id))
-          (unless (vector-empty? parent-ids)
-            (set! dirty? #t)
-            (for ([parent-id (in-vector parent-ids)])
-              (vector-set! dirty?-vec* parent-id #t))))))
+          #:when (vector-ref dirty?-vec id)
+          #:unless (vector-ref typed?-vec id))
+      (when (ormap enode-typed? (vector-ref id->eclass id))
+        (vector-set! typed?-vec id #t)
+        (define parent-ids (vector-ref id->parents id))
+        (unless (vector-empty? parent-ids)
+          (set! dirty? #t)
+          (for ([parent-id (in-vector parent-ids)])
+            (vector-set! dirty?-vec* parent-id #t)))))
     (when dirty?
       (check-typed! dirty?-vec*)))
 
@@ -698,14 +696,14 @@
     (for ([enode (in-list eclass)])
       (match enode
         [(list _ ids ...)
-         (for ([id (in-list ids)])
-           (when (null? (vector-ref id->eclass id))
-             (error 'prune-ill-typed!
-                    "eclass ~a is empty, eclasses ~a"
-                    id
-                    (for/vector #:length n
-                                ([id (in-range n)])
-                      (list id (vector-ref id->eclass id))))))]
+         (for ([id (in-list ids)]
+               #:when (null? (vector-ref id->eclass id)))
+           (error 'prune-ill-typed!
+                  "eclass ~a is empty, eclasses ~a"
+                  id
+                  (for/vector #:length n
+                              ([id (in-range n)])
+                    (list id (vector-ref id->eclass id)))))]
         [_ (void)]))))
 
 ;; Rebuilds eclasses and associated data after pruning.
@@ -907,18 +905,18 @@
       (sweep! (add1 iter))))
 
   ; Invariant: all eclasses have an analysis
-  (for ([id (in-range n)])
-    (unless (vector-ref analysis id)
-      (define types (regraph-types regraph))
-      (error 'regraph-analyze
-             "analysis not run on all eclasses: ~a ~a"
-             eclass-proc
-             (for/vector #:length n
-                         ([id (in-range n)])
-               (define type (vector-ref types id))
-               (define eclass (vector-ref eclasses id))
-               (define eclass-analysis (vector-ref analysis id))
-               (list id type eclass eclass-analysis)))))
+  (for ([id (in-range n)]
+        #:unless (vector-ref analysis id))
+    (define types (regraph-types regraph))
+    (error 'regraph-analyze
+           "analysis not run on all eclasses: ~a ~a"
+           eclass-proc
+           (for/vector #:length n
+                       ([id (in-range n)])
+             (define type (vector-ref types id))
+             (define eclass (vector-ref eclasses id))
+             (define eclass-analysis (vector-ref analysis id))
+             (list id type eclass eclass-analysis))))
 
   analysis)
 
@@ -997,10 +995,10 @@
           (= iter 0)))
 
     ; iterate over each node
-    (for ([node (in-vector eclass)])
-      (when (node-requires-update? node)
-        (define new-cost (node-cost node type))
-        (update-cost! new-cost node)))
+    (for ([node (in-vector eclass)]
+          #:when (node-requires-update? node))
+      (define new-cost (node-cost node type))
+      (update-cost! new-cost node))
 
     updated?)
 
@@ -1251,7 +1249,7 @@
       (for ([iter (in-list iteration-data)]
             [i (in-naturals)])
         (define cnt (iteration-data-num-nodes iter))
-        (define cost (apply + (map (λ (id) (egraph-get-cost egg-graph* id i)) root-ids)))
+        (define cost (for/sum ([id (in-list root-ids)]) (egraph-get-cost egg-graph* id i)))
         (timeline-push! 'egraph i cnt cost (iteration-data-time iter)))
 
       egg-graph*))

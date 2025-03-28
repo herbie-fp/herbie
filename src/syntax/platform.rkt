@@ -11,7 +11,6 @@
 (provide define-platform
          *active-platform*
          activate-platform!
-         platform-simplify-rules
          platform-lifting-rules
          platform-lowering-rules
 
@@ -372,120 +371,6 @@
                  (define itypes (map representation-type (impl-info impl 'itype)))
                  (define otype (representation-type (impl-info impl 'otype)))
                  (rule name spec-expr impl-expr (map cons vars itypes) otype '(lowering))))))
-
-(define (expr-otype expr)
-  (match expr
-    [(? number?) #f]
-    [(? variable?) #f]
-    [(list 'if cond ift iff) (expr-otype ift)]
-    [(list op args ...) (impl-info op 'otype)]))
-
-(define (type-verify expr otype)
-  (match expr
-    [(? number?) '()]
-    [(? variable?) (list (cons expr otype))]
-    [(list 'if cond ift iff)
-     (define bool-repr (get-representation 'bool))
-     (define combined
-       (merge-bindings (type-verify cond bool-repr)
-                       (merge-bindings (type-verify ift otype) (type-verify iff otype))))
-     (unless combined
-       (error 'type-verify "Variable types do not match in ~a" expr))
-     combined]
-    [(list op args ...)
-     (define op-otype (impl-info op 'otype))
-     (when (not (equal? op-otype otype))
-       (error 'type-verify "Operator ~a has type ~a, expected ~a" op op-otype otype))
-     (define bindings '())
-     (for ([arg (in-list args)]
-           [itype (in-list (impl-info op 'itype))])
-       (define combined (merge-bindings bindings (type-verify arg itype)))
-       (unless combined
-         (error 'type-verify "Variable types do not match in ~a" expr))
-       (set! bindings combined))
-     bindings]))
-
-(define (expr->prog expr repr)
-  (match expr
-    [(? number?) (literal expr (representation-name repr))]
-    [(? variable?) expr]
-    [`(if ,cond ,ift ,iff)
-     `(if ,(expr->prog cond (get-representation 'bool))
-          ,(expr->prog ift repr)
-          ,(expr->prog iff repr))]
-    [`(,impl ,args ...)
-     `(,impl ,@(for/list ([arg (in-list args)]
-                          [itype (in-list (impl-info impl 'itype))])
-                 (expr->prog arg itype)))]))
-
-(define (impls-supported? expr)
-  (match expr
-    [(? number?) #t]
-    [(? variable?) #t]
-    [`(if ,cond ,ift ,iff)
-     (and (impls-supported? cond) (impls-supported? ift) (impls-supported? iff))]
-    [`(,impl ,args ...)
-     (and (set-member? (platform-impls (*active-platform*)) impl) (andmap impls-supported? args))]))
-
-(define (platform-simplify-rules)
-  (reap [sow]
-        (for ([impl (in-list (platform-impls (*active-platform*)))])
-          (define rules (impl-info impl 'identities))
-          (for ([identity (in-list rules)])
-            (match identity
-              [(list 'exact name expr)
-
-               (when (impls-supported? expr)
-                 (when (not (expr-otype expr))
-                   (error "Exact identity expr cannot infer type"))
-                 (define otype (expr-otype expr))
-                 (define var-types (type-verify expr otype))
-                 (define prog (expr->prog expr otype))
-                 (define r
-                   (rule name
-                         prog
-                         (prog->spec prog)
-                         (for/hash ([binding (in-list var-types)])
-                           (values (car binding) (cdr binding)))
-                         (impl-info impl 'otype)
-                         '()))
-                 (sow r))]
-              [(list 'commutes name expr rev-expr)
-               (when (impls-supported? expr)
-                 (define vars (impl-info impl 'vars))
-                 (define itype (car (impl-info impl 'itype)))
-                 (define otype (impl-info impl 'otype))
-                 (define r
-                   (rule name
-                         (expr->prog expr otype)
-                         (expr->prog rev-expr otype)
-                         (for/hash ([v (in-list vars)])
-                           (values v itype))
-                         otype
-                         '())) ; Commutes by definition the types are matching
-                 (sow r))]
-              [(list 'directed name lhs rhs)
-               (when (and (impls-supported? lhs) (impls-supported? rhs))
-                 (define lotype (expr-otype lhs))
-                 (define rotype (expr-otype rhs))
-                 (when (and (not lotype) (not rotype))
-                   (error "Could not find type for lhs ~a and rhs ~a" lhs rhs))
-                 (when (not lotype)
-                   (set! lotype rotype))
-                 (when (not rotype)
-                   (set! rotype lotype))
-                 (when (not (equal? lotype rotype))
-                   (error "Incompatible types for lhs ~a and rhs ~a" lhs rhs))
-                 (define var-types (merge-bindings (type-verify lhs lotype) (type-verify rhs rotype)))
-                 (define r
-                   (rule name
-                         (expr->prog lhs lotype)
-                         (expr->prog rhs rotype)
-                         (for/hash ([binding (in-list var-types)])
-                           (values (car binding) (cdr binding)))
-                         (impl-info impl 'otype)
-                         '()))
-                 (sow r))])))))
 
 ;; Extracts the `fpcore` field of an operator implementation
 ;; as a property dictionary and expression.

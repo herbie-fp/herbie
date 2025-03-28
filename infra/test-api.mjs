@@ -61,7 +61,7 @@ function makeURL(endpoint) {
 /* Step 2: Test the formal API */
 
 // Reusable testing data
-const SAMPLE_SIZE = 8000
+const SAMPLE_SIZE = 8256
 
 const FPCoreFormula = '(FPCore (x) (- (sqrt (+ x 1)) (sqrt x)))'
 const FPCoreFormula2 = '(FPCore (x) (- (sqrt (+ x 1))))'
@@ -136,23 +136,6 @@ await testAPI("/api/analyze", {
 }, (body) => {
   assert.deepEqual(body.points, [[[14.97651307489794], "2.3"]]);
 });
-
-// Exacts endpoint
-await testAPI("/api/exacts", {
-  formula: FPCoreFormula2,
-  sample: eval_sample
-}, (body) => {
-  assert.deepEqual(body.points, [[[1], -1.4142135623730951]]);
-});
-
-// Calculate endpoint
-await testAPI("/api/calculate", {
-  formula: FPCoreFormula2,
-  sample: eval_sample
-}, (body) => {
-  assert.deepEqual(body.points, [[[1], -1.4142135623730951]]);
-});
-
 
 // Local error endpoint
 await testAPI("/api/localerror", {

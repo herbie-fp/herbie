@@ -237,24 +237,6 @@
   "developer targets"; these might be other alternatives you've tried
   that you want to compare against.</p>
 
-  <h2 id="output-properties">Additional Output Metadata</h2>
-
-  <p>Herbie's output provides additional information in custom
-  properties:</p>
-
-  <dl class="function-list">
-    <dt><code>:herbie-status <var>status</var></code></dt>
-    <dd><var>status</var> describes whether Herbie worked: it is one
-    of <code>success</code>, <code>timeout</code>, <code>error</code>,
-    or <code>crash</code>.</dd>
-    <dt><code>:herbie-time <var>ms</var></code></dt>
-    <dd>The time, in milliseconds, used by Herbie to find a more accurate formula.</dd>
-    <dt><code>:herbie-error-input<br/>([<var>pts</var> <var>err</var>] ...)</code></dt>
-    <dd>The average <var>err</var>or of the input program at <var>pts</var> points. Multiple entries correspond to Herbie's training and test sets.</dd>
-    <dt><code>:herbie-error-output<br/>([<var>pts</var> <var>err</var>] ...)</code></dt>
-    <dd>The computed average error of the output program, similar to <code>:herbie-error-input</code>.</dd>
-  </dl>
-
   <p>Herbie's benchmark suite also uses properties for continuous
   integration, but these are not officially supported and their use is
   discouraged.</p>

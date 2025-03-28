@@ -1,9 +1,8 @@
 #lang racket
 
-(require "../utils/common.rkt"
-         "compiler.rkt"
-         "../utils/float.rkt"
-         "../syntax/types.rkt")
+(require "../utils/float.rkt"
+         "../syntax/types.rkt"
+         "compiler.rkt")
 
 (provide *pcontext*
          in-pcontext
@@ -94,8 +93,9 @@
     (for/lists (pts exs)
                ([entry (in-list json)])
                (match-define (list pt ex) entry)
-               (values (map real->repr pt var-reprs)
-                       (real->repr (json->value ex output-repr) output-repr))))
+               (unless (and (list? pt) (= (length pt) (length var-reprs)))
+                 (error 'json->pcontext "Invalid point ~a" pt))
+               (values (map json->value pt var-reprs) (json->value ex output-repr))))
   (mk-pcontext pts exs))
 
 (define (pcontext->json pcontext repr)

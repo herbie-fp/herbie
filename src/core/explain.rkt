@@ -3,17 +3,14 @@
 (require racket/set
          math/bigfloat
          racket/hash)
-(require "points.rkt"
-         "../syntax/types.rkt"
-         "localize.rkt"
-         "../utils/common.rkt"
-         "sampling.rkt"
-         "../syntax/sugar.rkt"
-         "../utils/alternative.rkt"
-         "programs.rkt"
+(require "../utils/common.rkt"
          "../utils/float.rkt"
-         "../config.rkt"
-         "../syntax/syntax.rkt")
+         "../syntax/types.rkt"
+         "../syntax/syntax.rkt"
+         "localize.rkt"
+         "points.rkt"
+         "programs.rkt"
+         "sampling.rkt")
 
 (provide explain)
 (provide get-locations)

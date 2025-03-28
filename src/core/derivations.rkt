@@ -18,7 +18,7 @@
 (define (add-derivations-to altn)
   (match altn
     ; recursive rewrite or simplify, both using egg
-    [(alt expr (list (or 'simplify 'rr) loc (? egg-runner? runner) #f) `(,prev) _)
+    [(alt expr (list (or 'simplify 'rr) loc (? egg-runner? runner) #f) `(,prev) preprocessing)
      (define start-expr (location-get loc (alt-expr prev)))
      (define end-expr (location-get loc expr))
 
@@ -29,7 +29,7 @@
            (egraph-prove runner start-expr end-expr)))
 
      (define proof* (canonicalize-proof (alt-expr altn) proof loc))
-     (alt expr `(rr ,loc ,runner ,proof*) `(,prev) '())]
+     (alt expr `(rr ,loc ,runner ,proof*) `(,prev) preprocessing)]
 
     ; everything else
     [_ altn]))

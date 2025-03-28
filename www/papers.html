@@ -323,7 +323,7 @@ received 🏆&nbsp;awards.</p>
   <summary>
     <a href="https://dl.acm.org/doi/pdf/10.1145/3485496">Rewrite Rule
     Inference Using Equality Saturation</a> was published
-    in <a href="https://2021.splashcon.org/track/splash-2021-oopsla">OOPSLA'21</a>, 
+    in <a href="https://2021.splashcon.org/track/splash-2021-oopsla">OOPSLA'21</a>,
     where it won the 🏆&nbsp;<em>Distinguished Paper Award</em>. The
     paper describes how rewrite rules, like the ones Herbie uses, can
     be synthesized from examples.
@@ -497,23 +497,23 @@ received 🏆&nbsp;awards.</p>
     <p>In recent years, researchers have proposed a number of automated tools to
       identify and improve floating-point rounding error in mathematical expressions.
     However, users struggle to effectively apply these tools.
-    In this paper, we work with 
-      novices, experts, and tool developers to 
+    In this paper, we work with
+      novices, experts, and tool developers to
       investigate user needs during the expression rewriting process.
     We find that users follow an iterative design process.
-    They want to compare expressions on multiple input ranges, 
+    They want to compare expressions on multiple input ranges,
       integrate and guide various rewriting tools,
       and understand where errors come from.
     We organize this investigation's results into a three-stage workflow
       and implement that workflow
       in a new, extensible workbench dubbed Odyssey.
     Odyssey enables users to:
-      (1) diagnose problems in an expression, 
-      (2) generate solutions automatically or by hand, and 
-      (3) tune their results. 
+      (1) diagnose problems in an expression,
+      (2) generate solutions automatically or by hand, and
+      (3) tune their results.
     Odyssey tracks a working set of expressions
       and turns a state-of-the-art automated tool "inside out,"
-      giving the user access to internal heuristics, algorithms, 
+      giving the user access to internal heuristics, algorithms,
       and functionality.
     In a user study, Odyssey enabled five expert numerical analysts
        to solve challenging rewriting problems
@@ -610,5 +610,44 @@ received 🏆&nbsp;awards.</p>
   A <a href="https://arxiv.org/pdf/2410.07468">paper</a>,
   <a href="https://docs.racket-lang.org/rival/">documentation</a>,
   and <a href="https://github.com/herbie-fp/rival">source code</a> are
+  available.
+</p>
+
+<h2>ARITH’25: <span style="font-variant: small-caps;">ExplaniFloat</span>
+</h2>
+
+<details>
+  <summary>
+    <a href="https://arxiv.org/abs/2503.11884">Mixing Condition Numbers and
+    Oracles for Accurate Floating-point Debugging</a> was published
+    at <a href="https://www.arith2025.org/">★&nbsp;ARITH 2025</a>. The paper
+    introduces <span style="font-variant: small-caps;">ExplaniFloat</span>, a
+    numerical debugger that combines performant numerical oracles and sound
+    error analysis for fast and accurate floating-point debugging.
+  </summary>
+
+  <blockquote class="abstract">
+    <p>
+      Recent advances have made numeric debugging tools much faster by using
+      double-double oracles, and numeric analysis tools much more accurate by
+      using condition numbers. But these techniques have downsides:
+      double-double oracles have correlated error so miss floating-point errors
+      while condition numbers cannot cleanly handle over- and under- flow. We
+      combine both techniques to avoid these downsides. Our combination,
+      <span style="font-variant: small-caps;">ExplaniFloat</span>, computes
+      condition numbers using double-double arithmetic, which avoids correlated
+      errors. To handle over- and under- flow, it introduces a separate
+      logarithmic oracle. As a result, <span style="font-variant:
+      small-caps;">ExplaniFloat</span> achieves a precision of 80.0% and a
+      recall of 96.1% on a collection of 546 difficult numeric benchmarks: more
+      accurate than double-double oracles yet dramatically faster than
+      arbitrary-precision condition number computations.
+    </p>
+  </blockquote>
+</details>
+
+<p>
+  A <a href="https://arxiv.org/abs/2503.11884">paper</a>,
+  and <a href="https://github.com/herbie-fp/herbie/tree/bhargav-nobigfloat">source code</a> are
   available.
 </p>

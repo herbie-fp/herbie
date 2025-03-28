@@ -3,10 +3,7 @@
 ;; Arithmetic identities for rewriting programs.
 
 (require "../utils/common.rkt"
-         "../utils/errors.rkt"
-         "programs.rkt"
-         "../syntax/syntax.rkt"
-         "../syntax/types.rkt")
+         "../syntax/syntax.rkt")
 
 (provide *rules*
          *simplify-rules*

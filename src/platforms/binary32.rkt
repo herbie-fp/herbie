@@ -49,124 +49,47 @@
                       binary32
                       #:spec (neg x)
                       #:fpcore (! :precision binary32 (- x))
-                      #:fl fl32-
-                      #:identities
-                      ([distribute-lft-neg-in (neg.f32 (*.f32 a b)) (*.f32 (neg.f32 a) b)]
-                       [distribute-rgt-neg-in (neg.f32 (*.f32 a b)) (*.f32 a (neg.f32 b))]
-                       [distribute-neg-in (neg.f32 (+.f32 a b)) (+.f32 (neg.f32 a) (neg.f32 b))]
-                       [distribute-neg-frac (neg.f32 (/.f32 a b)) (/.f32 (neg.f32 a) b)]
-                       [distribute-neg-frac2 (neg.f32 (/.f32 a b)) (/.f32 a (neg.f32 b))]
-                       [remove-double-neg (neg.f32 (neg.f32 a)) a]
-                       [neg-sub0 (neg.f32 b) (-.f32 0 b)]
-                       [neg-mul-1 (neg.f32 a) (*.f32 -1 a)]))
+                      #:fl fl32-)
 
 (define-operator-impl (+.f32 [x : binary32] [y : binary32])
                       binary32
                       #:spec (+ x y)
                       #:fpcore (! :precision binary32 (+ x y))
-                      #:fl fl32+
-                      #:commutes
-                      #:identities
-                      ([distribute-neg-out (+.f32 (neg.f32 a) (neg.f32 b)) (neg.f32 (+.f32 a b))]
-                       [+-lft-identity (+.f32 0 a) a]
-                       [+-rgt-identity (+.f32 a 0) a]
-                       [unsub-neg (+.f32 a (neg.f32 b)) (-.f32 a b)]))
+                      #:fl fl32+)
 
 (define-operator-impl (-.f32 [x : binary32] [y : binary32])
                       binary32
                       #:spec (- x y)
                       #:fpcore (! :precision binary32 (- x y))
-                      #:fl fl32-
-                      #:identities
-                      ([cancel-sign-sub (-.f32 a (*.f32 (neg.f32 b) c)) (+.f32 a (*.f32 b c))]
-                       [cancel-sign-sub-inv (-.f32 a (*.f32 b c)) (+.f32 a (*.f32 (neg.f32 b) c))]
-                       [sub-cancel (-.f32 a a) 0]
-                       [sub-fold (-.f32 a 0) a]
-                       [sub0-neg (-.f32 0 a) (neg.f32 a)]
-                       [sub-neg (-.f32 a b) (+.f32 a (neg.f32 b))]))
+                      #:fl fl32-)
 
 (define-operator-impl (*.f32 [x : binary32] [y : binary32])
                       binary32
                       #:spec (* x y)
                       #:fpcore (! :precision binary32 (* x y))
-                      #:fl fl32*
-                      #:commutes
-                      #:identities
-                      ([distribute-lft-neg-out (*.f32 (neg.f32 x) y) (neg.f32 (*.f32 x y))]
-                       [distribute-rgt-neg-out (*.f32 x (neg.f32 y)) (neg.f32 (*.f32 x y))]
-                       [*-lft-identity (*.f32 1 a) a]
-                       [*-rgt-identity (*.f32 a 1) a]
-                       [mul-1-neg (*.f32 -1 a) (neg.f32 a)]
-                       [*-un-lft-identity a (*.f32 1 a)]
-                       [sqr-neg (*.f32 (neg.f32 x) (neg.f32 x)) (*.f32 x x)]
-                       [sqr-abs (*.f32 (fabs.f32 x) (fabs.f32 x)) (*.f32 x x)]
-                       [mul-fabs (*.f32 (fabs.f32 a) (fabs.f32 b)) (fabs.f32 (*.f32 a b))]))
+                      #:fl fl32*)
 
 (define-operator-impl (/.f32 [x : binary32] [y : binary32])
                       binary32
                       #:spec (/ x y)
                       #:fpcore (! :precision binary32 (/ x y))
-                      #:fl fl32/
-                      #:identities ([distribute-frac-neg (/.f32 (neg.f32 x) y) (neg.f32 (/.f32 x y))]
-                                    [distribute-frac-neg2 (/.f32 x (neg.f32 y)) (neg.f32 (/.f32 x y))]
-                                    [/-rgt-identity (/.f32 a 1) a]))
+                      #:fl fl32/)
 
-(define-libm-impl/binary32 fabs
-                           (binary32)
-                           binary32
-                           #:identities
-                           ([fabs-fabs (fabs.f32 (fabs.f32 a)) (fabs.f32 a)]
-                            [fabs-sub (fabs.f32 (-.f32 a b)) (fabs.f32 (-.f32 b a))]
-                            [fabs-neg (fabs.f32 (neg.f32 a)) (fabs.f32 a)]
-                            [fabs-sqr (fabs.f32 (*.f32 a a)) (*.f32 a a)]
-                            [fabs-mul (fabs.f32 (*.f32 a b)) (*.f32 (fabs.f32 a) (fabs.f32 b))]
-                            [fabs-div (fabs.f32 (/.f32 a b)) (/.f32 (fabs.f32 a) (fabs.f32 b))]
-                            [neg-fabs (fabs.f32 x) (fabs.f32 (neg.f32 x))]))
+(define-libm-impl/binary32 fabs (binary32) binary32)
 
-(define-libm-impl/binary32 exp
-                           (binary32)
-                           binary32
-                           #:identities ([exp-0 (exp.f32 0) 1] [exp-1-e (exp.f32 1) (E)]
-                                                               [1-exp 1 (exp.f32 0)]
-                                                               [e-exp-1 (E) (exp.f32 1)]))
+(define-libm-impl/binary32 exp (binary32) binary32)
 
-(define-libm-impl/binary32 pow
-                           (binary32 binary32)
-                           binary32
-                           #:identities ([unpow1 (pow.f32 a 1) a] [unpow0 (pow.f32 a 0) 1]
-                                                                  [pow-base-1 (pow.f32 1 a) 1]
-                                                                  [pow1 a (pow.f32 a 1)]
-                                                                  [pow-base-0 (pow.f32 0 a) 0]))
+(define-libm-impl/binary32 pow (binary32 binary32) binary32)
 
-(define-libm-impl/binary32
- sin
- (binary32)
- binary32
- #:identities ([sin-0 (sin.f32 0) 0] [sin-neg (sin.f32 (neg.f32 x)) (neg.f32 (sin.f32 x))]))
+(define-libm-impl/binary32 sin (binary32) binary32)
 
-(define-libm-impl/binary32 cos
-                           (binary32)
-                           binary32
-                           #:identities
-                           ([cos-0 (cos.f32 0) 1] [cos-neg (cos.f32 (neg.f32 x)) (cos.f32 x)]))
+(define-libm-impl/binary32 cos (binary32) binary32)
 
-(define-libm-impl/binary32
- tan
- (binary32)
- binary32
- #:identities ([tan-0 (tan.f32 0) 0] [tan-neg (tan.f32 (neg.f32 x)) (neg.f32 (tan.f32 x))]))
+(define-libm-impl/binary32 tan (binary32) binary32)
 
-(define-libm-impl/binary32 sinh
-                           (binary32)
-                           binary32
-                           #:identities ([sinh-neg (sinh.f32 (neg.f32 x)) (neg.f32 (sinh.f32 x))]
-                                         [sinh-0 (sinh.f32 0) 0]))
+(define-libm-impl/binary32 sinh (binary32) binary32)
 
-(define-libm-impl/binary32 cosh
-                           (binary32)
-                           binary32
-                           #:identities
-                           ([cosh-neg (cosh.f32 (neg.f32 x)) (cosh.f32 x)] [cosh-0 (cosh.f32 0) 1]))
+(define-libm-impl/binary32 cosh (binary32) binary32)
 
 (define-comparator-impls binary32
                          [== ==.f32 =]

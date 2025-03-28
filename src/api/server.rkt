@@ -11,6 +11,7 @@
          "../syntax/types.rkt"
          "../syntax/read.rkt"
          "../syntax/load-plugin.rkt"
+         "../syntax/sugar.rkt"
          "../utils/alternative.rkt"
          "../utils/common.rkt"
          "../utils/errors.rkt"
@@ -30,7 +31,14 @@
          wait-for-job
          start-job-server
          write-results-to-disk
-         *demo-output*)
+         *demo-output*
+         alt->fpcore)
+
+(define (warn-single-threaded-mpfr)
+  (local-require ffi/unsafe)
+  (local-require math/private/bigfloat/mpfr)
+  (unless ((get-ffi-obj 'mpfr_buildopt_tls_p mpfr-lib (_fun -> _bool)))
+    (warn 'mpfr-threads "Your MPFR is single-threaded. Herbie will work but be slower than normal.")))
 
 (define *demo-output* (make-parameter false))
 
@@ -110,7 +118,7 @@
   finished-result)
 
 (define (manager-tell msg . args)
-  (log "Telling manager: ~a, ~a.\n" msg args)
+  (log "Telling manager: ~a.\n" msg)
   (if manager
       (place-channel-put manager (list* msg args))
       (match msg
@@ -142,10 +150,8 @@
     ['alternatives make-alternatives-result]
     ['cost make-cost-result]
     ['errors make-error-result]
-    ['evaluate make-calculate-result]
-    ['exacts make-exacts-result]
     ['explanations make-explanation-result]
-    ['improve make-improve-result]
+    ['improve make-alternatives-result]
     ['local-error make-local-error-result]
     ['sample make-sample-result]
     [_ (error 'compute-result "unknown command ~a" command)]))
@@ -322,6 +328,8 @@
         (place-channel-put handler improved-list)]))))
 
 (define (make-worker worker-id)
+  (warn-single-threaded-mpfr)
+
   (place/context*
    ch
    #:parameters (*flags* *num-iterations*
@@ -375,9 +383,6 @@
   (define repr (context-repr (test-context test)))
   (hasheq 'points (pcontext->json pctx repr)))
 
-(define (make-calculate-result herbie-result job-id)
-  (hasheq 'points (job-result-backend herbie-result)))
-
 (define (make-cost-result herbie-result job-id)
   (hasheq 'cost (job-result-backend herbie-result)))
 
@@ -389,31 +394,56 @@
       (list pt (format-bits (ulps->bits err)))))
   (hasheq 'points errs))
 
-(define (make-exacts-result herbie-result job-id)
-  (hasheq 'points (job-result-backend herbie-result)))
-
-(define (make-improve-result herbie-result job-id)
+(define (make-alternatives-result herbie-result job-id)
   (define test (job-result-test herbie-result))
-  (define ctx (context->json (test-context test)))
   (define backend (job-result-backend herbie-result))
   (define job-time (job-result-time herbie-result))
   (define warnings (job-result-warnings herbie-result))
   (define timeline (job-result-timeline herbie-result))
   (define profile (job-result-profile herbie-result))
 
-  (define repr (test-output-repr test))
   (define backend-hash
     (match (job-result-status herbie-result)
-      ['success (backend-improve-result-hash-table backend repr test)]
+      ['success (backend-improve-result-hash-table backend test)]
       ['timeout #f]
       ['failure (exception->datum backend)]))
 
+  (define-values (altns train-pcontext processed-pcontext)
+    (cond
+      [(equal? (job-result-status herbie-result) 'success)
+       (define altns (map alt-analysis-alt (improve-result-end backend)))
+       (match-define (list train-pcontext processed-pcontext) (improve-result-pctxs backend))
+       (values altns train-pcontext processed-pcontext)]
+      [else (values '() #f #f)]))
+
+  (define test-fpcore
+    (alt->fpcore test (make-alt-preprocessing (test-input test) (test-preprocess test))))
+
+  (define fpcores
+    (if (equal? (job-result-status herbie-result) 'success)
+        (for/list ([altn (in-list altns)])
+          (~s (alt->fpcore test altn)))
+        (list (~s test-fpcore))))
+
+  (define histories
+    (for/list ([altn (in-list altns)])
+      (define os (open-output-string))
+      (parameterize ([current-output-port os])
+        (write-xexpr
+         `(div ([id "history"])
+               (ol ,@(render-history altn processed-pcontext train-pcontext (test-context test)))))
+        (get-output-string os))))
+
+  (define derivations
+    (for/list ([altn (in-list altns)])
+      (render-json altn processed-pcontext train-pcontext (test-context test))))
+
   (hasheq 'status
-          (job-result-status herbie-result)
+          (~a (job-result-status herbie-result))
+          'name
+          (test-name test)
           'test
-          test
-          'ctx
-          ctx
+          (~s test-fpcore)
           'time
           job-time
           'warnings
@@ -422,104 +452,83 @@
           timeline
           'profile
           profile
-          'backend
-          backend-hash))
-
-(define (backend-improve-result-hash-table backend repr test)
-  (define pcontext (improve-result-pctxs backend))
-
-  (define preprocessing (improve-result-preprocess backend))
-  (define end-hash-table (end-hash (improve-result-end backend) repr pcontext test))
-
-  (hasheq 'preprocessing
-          preprocessing
-          'pctxs
-          pcontext
-          'start
-          (improve-result-start backend)
-          'target
-          (improve-result-target backend)
-          'end
-          end-hash-table
-          'bogosity
-          (improve-result-bogosity backend)))
-
-(define (end-hash end repr pcontexts test)
-
-  (define-values (end-alts train-errors end-errors end-costs)
-    (for/lists (l1 l2 l3 l4)
-               ([analysis end])
-               (match-define (alt-analysis alt train-errors test-errs) analysis)
-               (values alt train-errors test-errs (alt-cost alt repr))))
-
-  (define alts-histories
-    (for/list ([alt end-alts])
-      (render-history alt (first pcontexts) (second pcontexts) (test-context test))))
-  (define vars (test-vars test))
-  (define end-alt (alt-analysis-alt (car end)))
-  (define splitpoints
-    (for/list ([var vars])
-      (define split-var? (equal? var (regime-var end-alt)))
-      (if split-var?
-          (for/list ([val (regime-splitpoints end-alt)])
-            (real->ordinal (repr->real val repr) repr))
-          '())))
-
-  (hasheq 'end-exprs
-          (map alt-expr end-alts)
-          'end-histories
-          alts-histories
-          'end-train-scores
-          train-errors
-          'end-errors
-          end-errors
-          'end-costs
-          end-costs
-          'splitpoints
-          splitpoints))
-
-(define (context->json ctx)
-  (hasheq 'vars (context-vars ctx) 'repr (repr->json (context-repr ctx))))
-
-(define (repr->json repr)
-  (hasheq 'name (representation-name repr) 'type (representation-type repr)))
-
-(define (make-alternatives-result herbie-result job-id)
-
-  (define test (job-result-test herbie-result))
-  (define vars (test-vars test))
-  (define repr (test-output-repr test))
-
-  (match-define (list altns test-pcontext processed-pcontext) (job-result-backend herbie-result))
-  (define splitpoints
-    (for/list ([alt altns])
-      (for/list ([var vars])
-        (define split-var? (equal? var (regime-var alt)))
-        (if split-var?
-            (for/list ([val (regime-splitpoints alt)])
-              (real->ordinal (repr->real val repr) repr))
-            '()))))
-
-  (define fpcores
-    (for/list ([altn altns])
-      (~a (program->fpcore (alt-expr altn) (test-context test)))))
-
-  (define histories
-    (for/list ([altn altns])
-      (define os (open-output-string))
-      (parameterize ([current-output-port os])
-        (write-xexpr
-         `(div ([id "history"])
-               (ol ,@(render-history altn processed-pcontext test-pcontext (test-context test)))))
-        (get-output-string os))))
-  (define derivations
-    (for/list ([altn altns])
-      (render-json altn processed-pcontext test-pcontext (test-context test))))
-  (hasheq 'alternatives
+          'alternatives ; FIXME: currently used by Odyssey but should maybe be in 'backend?
           fpcores
-          'histories
+          'histories ; FIXME: currently used by Odyssey but should switch to 'derivations below
           histories
           'derivations
           derivations
+          'backend
+          backend-hash))
+
+(define (backend-improve-result-hash-table backend test)
+  (define repr (context-repr (test-context test)))
+  (define pcontexts (improve-result-pctxs backend))
+  (hasheq 'preprocessing
+          (map ~s (improve-result-preprocess backend))
+          'pctxs
+          (map (curryr pcontext->json repr) pcontexts)
+          'start
+          (analysis->json (improve-result-start backend) pcontexts test)
+          'target
+          (map (curryr analysis->json pcontexts test) (improve-result-target backend))
+          'end
+          (map (curryr analysis->json pcontexts test) (improve-result-end backend))))
+
+(define (analysis->json analysis pcontexts test)
+  (define repr (context-repr (test-context test)))
+  (match-define (alt-analysis alt train-errors test-errors) analysis)
+  (define cost (alt-cost alt repr))
+
+  (match-define (list train-pcontext processed-pcontext) pcontexts)
+  (define history (render-history alt processed-pcontext train-pcontext (test-context test)))
+
+  (define vars (test-vars test))
+  (define splitpoints
+    (for/list ([var (in-list vars)])
+      (if (equal? var (regime-var alt))
+          (for/list ([val (regime-splitpoints alt)])
+            (real->ordinal (repr->real val repr) repr))
+          '())))
+
+  (hasheq 'expr
+          (~s (alt-expr alt))
+          'history
+          (~s history)
+          'train-score
+          train-errors
+          'errors
+          test-errors
+          'cost
+          cost
           'splitpoints
           splitpoints))
+
+(define (alt->fpcore test altn)
+  `(FPCore ,@(filter identity (list (test-identifier test)))
+           ,(for/list ([var (in-list (test-vars test))])
+              (define repr (dict-ref (test-var-repr-names test) var))
+              (if (equal? repr (test-output-repr-name test))
+                  var
+                  (list '! ':precision repr var)))
+           :name
+           ,(test-name test)
+           :precision
+           ,(test-output-repr-name test)
+           ,@(if (eq? (test-pre test) '(TRUE))
+                 '()
+                 `(:pre ,(prog->fpcore (test-pre test) (test-context test))))
+           ,@(if (equal? (test-spec test) empty)
+                 '()
+                 `(:herbie-spec ,(prog->fpcore (test-spec test) (test-context test))))
+           ,@(if (equal? (alt-preprocessing altn) empty)
+                 '()
+                 `(:herbie-preprocess ,(alt-preprocessing altn)))
+           ,@(if (equal? (test-expected test) #t)
+                 '()
+                 `(:herbie-expected ,(test-expected test)))
+           ,@(apply append
+                    (for/list ([(target enabled?) (in-dict (test-output test))]
+                               #:when enabled?)
+                      `(:alt ,target)))
+           ,(prog->fpcore (alt-expr altn) (test-context test))))

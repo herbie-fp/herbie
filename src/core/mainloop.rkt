@@ -1,27 +1,23 @@
 #lang racket
 
-(require "rules.rkt"
-         "../syntax/syntax.rkt"
+(require "../utils/alternative.rkt"
+         "../utils/common.rkt"
+         "../utils/timeline.rkt"
+         "../syntax/platform.rkt"
          "../syntax/types.rkt"
          "alt-table.rkt"
          "bsearch.rkt"
-         "egg-herbie.rkt"
-         "egglog-herbie.rkt"
-         "localize.rkt"
-         "regimes.rkt"
-         "simplify.rkt"
-         "../utils/alternative.rkt"
-         "../utils/errors.rkt"
-         "../utils/common.rkt"
+         "batch.rkt"
+         "derivations.rkt"
          "explain.rkt"
          "patch.rkt"
-         "../syntax/platform.rkt"
          "points.rkt"
          "preprocess.rkt"
          "programs.rkt"
-         "../utils/timeline.rkt"
-         "derivations.rkt"
-         "batch.rkt")
+         "regimes.rkt"
+         "../syntax/platform.rkt"
+         "../utils/timeline.rkt")
+
 (provide run-improve!)
 
 ;; The Herbie main loop goes through a simple iterative process:
@@ -55,22 +51,20 @@
     (finish-iter!))
   (define alternatives (extract!))
   (timeline-event! 'preprocess)
-  (define best (alt-expr (first alternatives)))
   (define final-alts
-    (for/list ([altern alternatives])
-      (alt-add-preprocessing
-       altern
-       (remove-unnecessary-preprocessing best context pcontext (alt-preprocessing altern)))))
-  (values final-alts (remove-unnecessary-preprocessing best context pcontext preprocessing)))
+    (for/list ([altn alternatives])
+      (define expr (alt-expr altn))
+      (define preprocessing (alt-preprocessing altn))
+      (alt-add-preprocessing altn
+                             (remove-unnecessary-preprocessing expr context pcontext preprocessing))))
+  final-alts)
 
 (define (extract!)
   (timeline-push-alts! '())
 
   (define all-alts (atab-all-alts (^table^)))
-  (define joined-alts (make-regime! all-alts))
-
-  (define cleaned-alts (final-simplify! joined-alts))
-  (define annotated-alts (add-derivations! cleaned-alts))
+  (define joined-alts (make-regime! all-alts)) ;; HERE
+  (define annotated-alts (add-derivations! joined-alts))
 
   (timeline-push! 'stop (if (atab-completed? (^table^)) "done" "fuel") 1)
   (sort-alts annotated-alts))
@@ -290,33 +284,6 @@
      (for/list ([opt (in-list opts)])
        (combine-alts opt ctx))]
     [else (list (argmin score-alt alts))]))
-
-(define (final-simplify! alts)
-  (cond
-    [(flag-set? 'reduce 'simplify)
-     (timeline-event! 'simplify)
-
-     ; egg schedule (only FP rewrites plus simplify rewrites for if statements)
-     (define rules (append (platform-simplify-rules) (*simplify-rules*)))
-     (define schedule `((,rules . ((node . ,(*node-limit*)) (const-fold? . #f)))))
-
-     ; egg runner
-     (define exprs (map alt-expr alts))
-     (define reprs (map (lambda (expr) (repr-of expr (*context*))) exprs))
-     (define batch (progs->batch exprs))
-     (define runner (make-egraph batch (batch-roots batch) reprs schedule))
-
-     ; run egg
-     (define simplified (map (compose debatchref last) (simplify-batch runner batch)))
-
-     ; de-duplication
-     (remove-duplicates (for/list ([altn (in-list alts)]
-                                   [prog (in-list simplified)])
-                          (if (equal? (alt-expr altn) prog)
-                              altn
-                              (alt prog 'final-simplify (list altn) (alt-preprocessing altn))))
-                        alt-equal?)]
-    [else alts]))
 
 (define (add-derivations! alts)
   (cond
