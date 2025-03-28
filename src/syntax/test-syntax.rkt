@@ -4,6 +4,7 @@
          "syntax.rkt"
          "platform.rkt"
          "types.rkt"
+         "../plugin.rkt"
          (only-in "platform.rkt" *active-platform* activate-platform!)
          (submod "syntax.rkt" internals)
          (submod "platform.rkt" internals))

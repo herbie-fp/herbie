@@ -31,8 +31,7 @@
 (module+ internals
   (provide register-operator-impl!
            define-operator
-           register-operator!
-           variable?))
+           register-operator!))
 
 (module+ test
   (require typed/rackunit)
