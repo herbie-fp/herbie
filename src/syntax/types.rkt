@@ -10,6 +10,8 @@
          (struct-out representation)
          Type
          ReprName
+         RealValue
+         FloatValue
          get-representation
          repr-exists?
          repr->symbol
@@ -43,17 +45,19 @@
 
 ;; Representations
 
+(define-type FloatValue Any)
+(define-type RealValue (U Bigfloat Boolean))
 (define-type ReprName (U Symbol (Listof Any)))
 
 (struct representation
         ([name : ReprName] [type : Type]
                            [repr? : (-> Any Boolean)]
-                           [bf->repr : (-> Bigfloat Any)]
-                           [repr->bf : (-> Any Bigfloat)]
-                           [ordinal->repr : (-> Integer Any)]
-                           [repr->ordinal : (-> Any Integer)]
+                           [bf->repr : (-> RealValue FloatValue)]
+                           [repr->bf : (-> FloatValue RealValue)]
+                           [ordinal->repr : (-> Integer FloatValue)]
+                           [repr->ordinal : (-> FloatValue Integer)]
                            [total-bits : Integer]
-                           [special-value? : (-> Any Boolean)])
+                           [special-value? : (-> FloatValue Boolean)])
   #:transparent #|
   #:methods gen:custom-write
   [(define (write-proc repr port mode)
@@ -137,12 +141,12 @@
    (-> ReprName
        Symbol
        (-> Any Boolean)
-       (-> Bigfloat Any)
-       (-> Any Bigfloat)
-       (-> Integer Any)
-       (-> Any Integer)
+       (-> RealValue FloatValue)
+       (-> FloatValue RealValue)
+       (-> Integer FloatValue)
+       (-> FloatValue Integer)
        Integer
-       (-> Any Boolean)
+       (-> FloatValue Boolean)
        Void))
 (define (register-representation! name type repr? bf->r r->bf o->r r->o tb sp?)
   (unless (type-name? type)
