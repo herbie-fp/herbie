@@ -145,7 +145,7 @@
     (remap root)))
 
 ;; runs rules on an egraph (optional iteration limit)
-(define (egraph-run egraph-data ffi-rules node-limit iter-limit scheduler const-folding?)
+(define (egraph-run egraph-data ffi-rules node-limit iter-limit scheduler)
   (define u32_max 4294967295) ; since we can't send option types
   (define node_limit (if node-limit node-limit u32_max))
   (define iter_limit (if iter-limit iter-limit u32_max))
@@ -159,7 +159,7 @@
               iter_limit
               node_limit
               simple_scheduler?
-              const-folding?))
+              #t))
 
 (define (egraph-get-simplest egraph-data node-id iteration ctx)
   (define expr (egraph_get_simplest (egraph-data-egraph-pointer egraph-data) node-id iteration))
@@ -1208,14 +1208,13 @@
   (define node-limit (dict-ref params 'node #f))
   (define iter-limit (dict-ref params 'iteration #f))
   (define scheduler (dict-ref params 'scheduler 'backoff))
-  (define const-folding? (dict-ref params 'const-fold? #t))
   (define ffi-rules (map cdr egg-rules))
 
   ;; run the rules
   (let loop ([iter-limit iter-limit])
     (define egg-graph (egraph-copy egg-graph0))
     (define iteration-data
-      (egraph-run egg-graph ffi-rules node-limit iter-limit scheduler const-folding?))
+      (egraph-run egg-graph ffi-rules node-limit iter-limit scheduler))
 
     (timeline-push! 'stop (egraph-stop-reason egg-graph) 1)
     (cond
@@ -1280,7 +1279,6 @@
 ;;  - scheduling parameters:
 ;;     - node limit: `(node . <number>)`
 ;;     - iteration limit: `(iteration . <number>)`
-;;     - constant fold: `(const-fold? . <boolean>)` [default: #t]
 ;;     - scheduler: `(scheduler . <name>)` [default: backoff]
 ;;        - `simple`: run all rules without banning
 ;;        - `backoff`: ban rules if the fire too much
@@ -1298,7 +1296,6 @@
          (match param
            [(cons 'node (? nonnegative-integer?)) (void)]
            [(cons 'iteration (? nonnegative-integer?)) (void)]
-           [(cons 'const-fold? (? boolean?)) (void)]
            [(cons 'scheduler mode)
             (unless (set-member? '(simple backoff) mode)
               (oops! "in instruction `~a`, unknown scheduler `~a`" instr mode))]

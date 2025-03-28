@@ -194,7 +194,6 @@
                       _uint ;; iter limit
                       _uint ;; node limit
                       _stdbool ;; simple scheduler?
-                      _stdbool ;; constant folding enabled?
                       ->
                       (iterations : _EGraphIter-pointer) ;; array of _EgraphIter structs
                       ->
