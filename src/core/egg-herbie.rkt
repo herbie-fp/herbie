@@ -158,8 +158,7 @@
               ffi-rules
               iter_limit
               node_limit
-              simple_scheduler?
-              #t))
+              simple_scheduler?))
 
 (define (egraph-get-simplest egraph-data node-id iteration ctx)
   (define expr (egraph_get_simplest (egraph-data-egraph-pointer egraph-data) node-id iteration))
