@@ -7,7 +7,10 @@
          "../utils/common.rkt"
          "../utils/float.rkt"
          "../utils/timeline.rkt"
+         "../utils/float.rkt"
          "batch.rkt"
+         "egglog-herbie.rkt"
+         "../config.rkt"
          "egg-herbie.rkt"
          "points.rkt"
          "programs.rkt"
@@ -56,16 +59,23 @@
 
   ; egg schedule (3-phases for mathematical rewrites and implementation selection)
   (define schedule
-    `((,lifting-rules . ((iteration . 1) (scheduler . simple)))
-      (,rules . ((node . ,(*node-limit*))))
-      (,lowering-rules . ((iteration . 1) (scheduler . simple)))))
+    `((lift . ((iteration . 1))) (,rules . ((node . ,(*node-limit*)))) (lower . ((iteration . 1)))))
 
   ; egg query
   (define batch (progs->batch (list expr)))
-  (define runner (make-egraph batch (batch-roots batch) (list (context-repr ctx)) schedule))
+
+  (define generate-flags (hash-ref all-flags 'generate))
+
+  (define runner
+    (if (member 'egglog generate-flags)
+        (make-egglog-runner batch (batch-roots batch) (list (context-repr ctx)) schedule)
+        (make-egraph batch (batch-roots batch) (list (context-repr ctx)) schedule)))
 
   ; run egg
-  (define simplified (simplify-batch runner batch))
+  (define simplified
+    (if (member 'egglog generate-flags)
+        (simplify-batch-egglog runner batch)
+        (simplify-batch runner batch)))
 
   ; alternatives
   (define start-alt (make-alt expr))
@@ -94,6 +104,8 @@
                  (batch-roots batch)
                  (make-list (vector-length (batch-roots batch)) (context-repr ctx))
                  `((,rules . ((node . ,(*node-limit*)))))))
+
+  ;; TODO : FIGURE HOW TO IMPLEMENT PREPROCESS
 
   ;; collect equalities
   (define abs-instrs

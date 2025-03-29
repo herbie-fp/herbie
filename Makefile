@@ -28,6 +28,10 @@ egg-herbie:
 	raco pkg remove --force --no-docs egg-herbie-macosm1 && echo "Warning: uninstalling egg-herbie and reinstalling local version" || :
 	raco pkg install ./egg-herbie
 
+egglog-herbie:
+	cargo install --git https://github.com/egraphs-good/egglog.git --tag v0.4.0 egglog
+
+
 distribution: minimal-distribution
 	cp -r bench herbie-compiled/
 
@@ -56,6 +60,7 @@ start-server:
 
 fmt:
 	@raco fmt -i $(shell find egg-herbie/ src/ infra/ -name '*.rkt')
+	@raco fmt -i $(shell find egg-herbie/ src/ infra/ -name '*.egglog')
 
 herbie.zip herbie.zip.CHECKSUM:
 	raco pkg create src/
