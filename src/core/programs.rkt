@@ -187,7 +187,7 @@
 (define/contract (location-get loc prog)
   (-> location? expr? expr?)
   ; Clever continuation usage to early-return
-  (let/ec return 
+  (let/ec return
     (location-do loc prog return)))
 
 (define/contract (replace-expression expr from to)

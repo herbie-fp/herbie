@@ -11,8 +11,8 @@
   (and binding1
        binding2
        (let/ec quit
-          (for/fold ([binding binding1]) ([(k v) (in-dict binding2)])
-            (dict-update binding
+         (for/fold ([binding binding1]) ([(k v) (in-dict binding2)])
+           (dict-update binding
                         k
                         (λ (x)
                           (if (equal? x v)

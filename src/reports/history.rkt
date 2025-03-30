@@ -53,19 +53,19 @@
                [loc '()])
       (match expr
         [(list 'Rewrite=> rule sub)
-          (define loc* (reverse loc))
-          (k 'Rewrite=> rule loc* (location-do loc* step (λ _ sub)))]
+         (define loc* (reverse loc))
+         (k 'Rewrite=> rule loc* (location-do loc* step (λ _ sub)))]
         [(list 'Rewrite<= rule sub)
-          (define loc* (reverse loc))
-          (k 'Rewrite<= rule loc* (location-do loc* step (λ _ sub)))]
+         (define loc* (reverse loc))
+         (k 'Rewrite<= rule loc* (location-do loc* step (λ _ sub)))]
         [(approx spec impl)
-          (loop spec (cons 1 loc))
-          (loop impl (cons 2 loc))]
+         (loop spec (cons 1 loc))
+         (loop impl (cons 2 loc))]
         [(hole prec spec) (loop spec (cons 1 loc))]
         [(list op args ...)
-          (for ([arg (in-list args)]
-                [i (in-naturals 1)])
-            (loop arg (cons i loc)))]
+         (for ([arg (in-list args)]
+               [i (in-naturals 1)])
+           (loop arg (cons i loc)))]
         [_ (void)]))
     (k 'Goal #f '() step)))
 
