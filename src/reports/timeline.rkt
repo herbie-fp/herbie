@@ -244,7 +244,7 @@
                                       (td ,(~a n))))))))
 
 (define (simple-render-phase info name)
-  (if (> (length (first info)) 0)
+  (if (positive? (length (first info)))
       `((dt ,name) (dd ,@(map (lambda (s) `(p ,(~a s))) (first info))))
       empty))
 
