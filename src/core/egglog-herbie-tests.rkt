@@ -173,7 +173,6 @@
 (module+ test
   (require rackunit
            "egglog-herbie.rkt"
-           "egg-herbie.rkt"
            "../syntax/load-plugin.rkt"
            "../syntax/types.rkt"
            "batch.rkt"
@@ -197,6 +196,4 @@
                                                       (lower . ((iteration . 1) (scheduler .
                                                                                            simple)))))
 
-  (run-egglog-multi-extractor (egg-runner batch roots reprs schedule (*context*) '() '()) batch)
-
-  (check-equal? (+ 1 0) 1))
+  (run-egglog-multi-extractor (egglog-runner batch roots reprs schedule (*context*)) batch))
