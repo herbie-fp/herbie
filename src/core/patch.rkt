@@ -88,17 +88,15 @@
   (define reprs (map (curryr repr-of (*context*)) exprs))
   (timeline-push! 'inputs (map ~a exprs))
 
-  (define generate-flags (hash-ref all-flags 'generate))
-
   (define copy-batch (batch-copy global-batch))
 
   (define runner
-    (if (member 'egglog generate-flags)
+    (if (set-member? (hash-ref (*flags*) 'generate '()) 'egglog)
         (make-egglog-runner copy-batch roots reprs schedule)
         (make-egraph global-batch roots reprs schedule)))
 
   (define batchrefss
-    (if (member 'egglog generate-flags)
+    (if (set-member? (hash-ref (*flags*) 'generate '()) 'egglog)
         (run-egglog-multi-extractor runner copy-batch)
         (egraph-variations runner global-batch)))
 

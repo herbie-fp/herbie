@@ -22,9 +22,8 @@
      (define start-expr (location-get loc (alt-expr prev)))
      (define end-expr (location-get loc expr))
 
-     (define generate-flags (hash-ref all-flags 'generate))
      (define proof
-       (if (member 'egglog generate-flags)
+       (if (set-member? (hash-ref (*flags*) 'generate '()) 'egglog)
            #f
            (egraph-prove runner start-expr end-expr)))
 

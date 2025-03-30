@@ -61,19 +61,17 @@
   (define schedule
     `((lift . ((iteration . 1))) (,rules . ((node . ,(*node-limit*)))) (lower . ((iteration . 1)))))
 
-  ; egg query
   (define batch (progs->batch (list expr)))
 
-  (define generate-flags (hash-ref all-flags 'generate))
-
+  ; egg query
   (define runner
-    (if (member 'egglog generate-flags)
+    (if (set-member? (hash-ref (*flags*) 'generate '()) 'egglog)
         (make-egglog-runner batch (batch-roots batch) (list (context-repr ctx)) schedule)
         (make-egraph batch (batch-roots batch) (list (context-repr ctx)) schedule)))
 
   ; run egg
   (define simplified
-    (if (member 'egglog generate-flags)
+    (if (set-member? (hash-ref (*flags*) 'generate '()) 'egglog)
         (simplify-batch-egglog runner batch)
         (simplify-batch runner batch)))
 
