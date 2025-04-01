@@ -65,13 +65,13 @@
 
   ; egg query
   (define runner
-    (if (set-member? (hash-ref (*flags*) 'generate '()) 'egglog)
+    (if (flag-set? 'generate 'egglog)
         (make-egglog-runner batch (batch-roots batch) (list (context-repr ctx)) schedule)
         (make-egraph batch (batch-roots batch) (list (context-repr ctx)) schedule)))
 
   ; run egg
   (define simplified
-    (if (set-member? (hash-ref (*flags*) 'generate '()) 'egglog)
+    (if (flag-set? 'generate 'egglog)
         (simplify-batch-egglog runner batch)
         (simplify-batch runner batch)))
 

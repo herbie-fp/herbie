@@ -18,7 +18,6 @@
 (provide (struct-out egglog-runner)
          prelude
          egglog-add-exprs
-         egglog-add-exprs-mainloop
          make-egglog-runner
          run-egglog-multi-extractor
          run-egglog-proofs
@@ -50,7 +49,7 @@
 
 ;; High-level function that writes the program to a file, runs it then returns output
 (define (process-egglog program)
-  (define curr-program (get-actual-program program))
+  (define curr-program (get-current-program program))
 
   (define egglog-file-path
     (let ([temp-file (make-temporary-file "program-to-egglog-~a.egg")])
@@ -151,9 +150,9 @@
                                     batch
                                     #:num-variants [num-variants #t]) ; multi expression extraction
 
-  (define temp-batch (progs->batch (batch->progs batch)))
+  (define curr-batch (progs->batch (batch->progs batch)))
+  ; (define curr-batch (batch-copy batch))
 
-  (define curr-batch temp-batch)
   (define curr-program (make-egglog-program))
 
   ;; 1. Add the Prelude
@@ -242,8 +241,7 @@
   ;; Extract its returned value
   (define stdout-content (car egglog-output))
 
-  ; (define input-batch (egglog-runner-batch runner))
-  (define input-batch temp-batch)
+  (define input-batch curr-batch)
   (define out (batch->mutable-batch input-batch))
 
   ;; (Listof (Listof exprs))
@@ -595,12 +593,6 @@
                   ,(expr->e2-pattern (rule-output rule) (rule-otype rule))
                   :ruleset
                   ,tag))))
-
-(define (egglog-add-exprs-mainloop batch ctx)
-  (define curr-program (make-egglog-program))
-  (define extract-bindings (egglog-add-exprs batch ctx curr-program))
-
-  (cons (get-actual-program curr-program) extract-bindings))
 
 (define (egglog-add-exprs batch ctx curr-program)
   (define mappings (build-vector (batch-length batch) values))

@@ -23,7 +23,7 @@
      (define end-expr (location-get loc expr))
 
      (define proof
-       (if (set-member? (hash-ref (*flags*) 'generate '()) 'egglog)
+       (if (flag-set? 'generate 'egglog)
            #f
            (egraph-prove runner start-expr end-expr)))
 
