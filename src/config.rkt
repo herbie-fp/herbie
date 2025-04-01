@@ -50,6 +50,10 @@
      (eprintf "The precision:fallback option has been removed.\n")
      (eprintf "  The fallback representation is specified with :precision racket.\n")
      (eprintf "See <https://herbie.uwplse.org/doc/~a/input.html> for more.\n" *herbie-version*)]
+    [('setup 'simplify)
+     (eprintf "The setup:simplify option has been removed.\n")
+     (eprintf "  Initial simplification is no longer needed.\n")
+     (eprintf "See <https://herbie.uwplse.org/doc/~a/options.html> for more.\n" *herbie-version*)]
     [('generate 'better-rr)
      (eprintf "The generate:better-rr option has been removed.\n")
      (eprintf "  The current recursive rewriter does not support the it.\n")
