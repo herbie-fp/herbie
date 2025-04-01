@@ -1,0 +1,3 @@
+(FPCore (a b c d x)
+ :name "vcubic teeball"
+ (+ (+ (+ (* (* (* x x) x) a) (* (* x x) b)) (* x c)) d))
