@@ -154,7 +154,7 @@
                  [flip-lists (All (A) (Listof (Listof A)) -> (Listof (Listof A)))])
 
   (: pick-errors
-     (-> (Listof si) (Listof (Listof Any)) (Listof (Listof Flonum)) representation (Listof Flonum)))
+     (-> (Listof si) (Listof (Listof Any)) (Listof (Listof Natural)) representation (Listof Natural)))
   (define (pick-errors split-indices pts err-lsts repr)
     (for/list ([i (in-naturals)]
                [pt (in-list pts)]
