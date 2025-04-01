@@ -23,6 +23,6 @@
   (set-egglog-program-exprs! program (append (reverse expr-list) (egglog-program-exprs program)))
   (void))
 
-;; Get program as (Listof exprs) in the correct order 
+;; Get program as (Listof exprs) in the correct order
 (define (get-current-program program)
   (reverse (egglog-program-exprs program)))

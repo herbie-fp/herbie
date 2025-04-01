@@ -60,7 +60,6 @@ start-server:
 
 fmt:
 	@raco fmt -i $(shell find egg-herbie/ src/ infra/ -name '*.rkt')
-	@raco fmt -i $(shell find egg-herbie/ src/ infra/ -name '*.egglog')
 
 herbie.zip herbie.zip.CHECKSUM:
 	raco pkg create src/

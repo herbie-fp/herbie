@@ -17,7 +17,6 @@ rival
 regraph
 egg-herbie/pkg
 odyssey
-egglog-herbie
 
 # Racket
 *.zo
