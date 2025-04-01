@@ -3,12 +3,12 @@
 (require math/bigfloat
          rival)
 
-(require "../syntax/types.rkt"
-         "../core/rival.rkt"
-         "../utils/timeline.rkt"
-         "../utils/errors.rkt"
+(require "../utils/errors.rkt"
+         "../utils/float.rkt"
          "../utils/pretty-print.rkt"
-         "../utils/float.rkt")
+         "../utils/timeline.rkt"
+         "../syntax/types.rkt"
+         "../core/rival.rkt")
 
 (provide find-intervals
          hyperrect-weight)

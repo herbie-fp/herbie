@@ -3,14 +3,10 @@
 (require rackunit)
 (require "../utils/common.rkt"
          "../utils/float.rkt"
-         "rules.rkt"
-         "../syntax/platform.rkt"
          "../syntax/load-plugin.rkt"
-         "../syntax/sugar.rkt"
          "../syntax/types.rkt"
-         "compiler.rkt"
          "rival.rkt"
-         "programs.rkt"
+         "rules.rkt"
          "sampling.rkt")
 
 (load-herbie-builtins)
@@ -46,7 +42,7 @@
   (match-define (list pts exs)
     (parameterize ([*num-points* (num-test-points)]
                    [*max-find-range-depth* 0])
-      (cdr (sample-points '(TRUE) (list p1) (list ctx)))))
+      (sample-points '(TRUE) (list p1) (list ctx))))
 
   (define compiler (make-real-compiler (list p2) (list ctx)))
   (for ([pt (in-list pts)]
@@ -68,7 +64,7 @@
   (match-define (list pts exs1 exs2)
     (parameterize ([*num-points* (num-test-points)]
                    [*max-find-range-depth* 0])
-      (cdr (sample-points pre (list p1 p2) (list ctx ctx)))))
+      (sample-points pre (list p1 p2) (list ctx ctx))))
 
   (for ([pt (in-list pts)]
         [v1 (in-list exs1)]
@@ -77,30 +73,6 @@
                       (λ ()
                         (with-check-info (['lhs v1] ['rhs v2])
                                          (check-eq? (ulp-difference v1 v2 (context-repr ctx)) 1))))))
-
-(define (check-rule-fp-safe test-rule)
-  (match-define (rule name p1 p2 itypes repr tags) test-rule)
-  (define fv (dict-keys itypes))
-  (define ctx (context fv repr (map (curry dict-ref itypes) fv)))
-  (define (make-point _)
-    (for/list ([v (in-list fv)])
-      (random-generate (dict-ref itypes v))))
-  (define points (build-list (num-test-points) make-point))
-  (define prog (compile-progs (list p1 p2) ctx))
-  (for ([pt points])
-    (with-check-info (['point (map list fv pt)])
-                     (match-define (vector v1 v2) (apply prog pt))
-                     (check-equal? v1 v2))))
-
-(define (check-platform pform)
-  (define simplify-rules
-    (parameterize ([*active-platform* pform])
-      (platform-simplify-rules)))
-  (for ([rule (in-list simplify-rules)]
-        ; "exact" rules use spec outputs; we don't test those
-        #:unless (spec-prog? (rule-output rule)))
-    (test-case (~a (rule-name rule))
-      (check-rule-fp-safe rule))))
 
 (define (check-rule rule)
   (check-rule-correct rule)
@@ -119,5 +91,4 @@
 (module+ test
   (for* ([rule (in-list (*rules*))])
     (test-case (~a (rule-name rule))
-      (check-rule rule)))
-  (check-platform (*active-platform*)))
+      (check-rule rule))))

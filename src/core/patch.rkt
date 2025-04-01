@@ -2,7 +2,6 @@
 
 (require "../syntax/platform.rkt"
          "../syntax/syntax.rkt"
-         "../syntax/sugar.rkt"
          "../syntax/types.rkt"
          "../utils/alternative.rkt"
          "../utils/common.rkt"
@@ -10,7 +9,6 @@
          "egg-herbie.rkt"
          "programs.rkt"
          "rules.rkt"
-         "simplify.rkt"
          "taylor.rkt"
          "batch.rkt")
 

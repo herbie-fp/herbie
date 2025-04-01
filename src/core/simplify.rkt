@@ -1,11 +1,7 @@
 #lang racket
 
 (require "../utils/common.rkt"
-         "programs.rkt"
          "../utils/timeline.rkt"
-         "../utils/errors.rkt"
-         "rules.rkt"
-         "../utils/alternative.rkt"
          "egg-herbie.rkt"
          "batch.rkt")
 

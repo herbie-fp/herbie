@@ -171,11 +171,12 @@
     (string-trim (with-output-to-string (λ () (system cmd))))))
 
 (define (git-command #:default [default ""] gitcmd . args)
-  (if (or (directory-exists? ".git") (file-exists? ".git")) ; gitlinks like for worktrees
-      (let* ([cmd (format "git ~a ~a" gitcmd (string-join args " "))]
-             [out (run-command cmd)])
-        (if (equal? out "") default out))
-      default))
+  (cond
+    [(or (directory-exists? ".git") (file-exists? ".git")) ; gitlinks like for worktrees
+     (define cmd (format "git ~a ~a" gitcmd (string-join args " ")))
+     (define out (run-command cmd))
+     (if (equal? out "") default out)]
+    [else default]))
 
 (define *herbie-version* "2.2")
 

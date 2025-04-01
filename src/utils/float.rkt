@@ -69,11 +69,9 @@
        [(nan? x1) #f]
        [(nan? x2) #t]
        [else (< x1 x2)])]
-    [else
-     (cond
-       [(special? x1) #f]
-       [(special? x2) #t]
-       [else (< (->ordinal x1) (->ordinal x2))])]))
+    [(special? x1) #f]
+    [(special? x2) #t]
+    [else (< (->ordinal x1) (->ordinal x2))]))
 
 (define (<=/total x1 x2 repr)
   (or (</total x1 x2 repr) (=/total x1 x2 repr)))
@@ -94,7 +92,7 @@
 
 (define (json->value x repr)
   (match x
-    [(? real?) x]
+    [(? real?) (exact->inexact x)]
     [(? hash?)
      (match (hash-ref x 'type)
        ["real"
@@ -111,19 +109,20 @@
   (define <-bf (representation-bf->repr repr))
   ;; Linear search because speed not an issue
   (let loop ([precision 16])
-    (if (> precision (*max-mpfr-prec*))
-        (begin
-          (warn 'value-to-string #:url "faq.html#value-to-string" "Could not uniquely print ~a" n)
-          n)
-        (parameterize ([bf-precision precision])
-          (define bf (->bf n))
-          (if (=/total n (<-bf bf) repr)
-              (match (bigfloat->string bf)
-                ["-inf.bf" "-inf.0"]
-                ["+inf.bf" "+inf.0"]
-                ["+nan.bf" "+nan.0"]
-                [x x])
-              (loop (+ precision 4))))))) ; 2^4 > 10
+    (cond
+      [(> precision (*max-mpfr-prec*))
+       (warn 'value-to-string #:url "faq.html#value-to-string" "Could not uniquely print ~a" n)
+       n]
+      [else
+       (parameterize ([bf-precision precision])
+         (define bf (->bf n))
+         (if (=/total n (<-bf bf) repr)
+             (match (bigfloat->string bf)
+               ["-inf.bf" "-inf.0"]
+               ["+inf.bf" "+inf.0"]
+               ["+nan.bf" "+nan.0"]
+               [x x])
+             (loop (+ precision 4))))]))) ; 2^4 > 10
 
 (define (real->repr x repr)
   ((representation-bf->repr repr) (bf x)))

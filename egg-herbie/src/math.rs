@@ -99,7 +99,6 @@ define_language! {
 
 pub struct ConstantFold {
     pub unsound: AtomicBool,
-    pub constant_fold: bool,
     pub max_abs_exponent: Ratio<BigInt>,
     pub prune: bool,
 }
@@ -109,7 +108,6 @@ impl Clone for ConstantFold {
         let unsound = AtomicBool::new(self.unsound.load(Ordering::SeqCst));
         Self {
             unsound,
-            constant_fold: self.constant_fold,
             max_abs_exponent: self.max_abs_exponent.clone(),
             prune: self.prune,
         }
@@ -120,7 +118,6 @@ impl Default for ConstantFold {
     fn default() -> Self {
         Self {
             unsound: AtomicBool::new(false),
-            constant_fold: true,
             // Avoid calculating extremely large numbers. 16 is somewhat arbitrary, even 0 passes
             // all tests.
             max_abs_exponent: Ratio::new(BigInt::from(16), BigInt::from(1)),
@@ -132,10 +129,6 @@ impl Default for ConstantFold {
 impl Analysis<Math> for ConstantFold {
     type Data = Option<(Constant, (PatternAst<Math>, Subst))>;
     fn make(egraph: &mut EGraph, enode: &Math) -> Self::Data {
-        if !egraph.analysis.constant_fold {
-            return None;
-        }
-
         let x = |id: &Id| egraph[*id].data.clone().map(|x| x.0);
         let is_zero = |id: &Id| {
             let data = egraph[*id].data.as_ref();

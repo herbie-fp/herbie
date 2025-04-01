@@ -178,7 +178,7 @@
        (error! stx "FPCore identifier must be a symbol: ~a" name))
      (check-program* stx vars props body error!)]
     [#`(FPCore (#,vars ...) #,props ... #,body) (check-program* stx vars props body error!)]
-    [#`(FPCore #,something ...) (error! stx "FPCore not in a valid format: ~a" stx)]
+    [#`(FPCore #,something ...) (error! stx "FPCore not in a valid format: ~s" stx)]
     [_ (error! stx "Not an FPCore: ~a" stx)]))
 
 (define (assert-program! stx)

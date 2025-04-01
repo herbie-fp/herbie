@@ -1,8 +1,7 @@
 #lang racket
 
 (require "../utils/timeline.rkt"
-         "../syntax/syntax.rkt"
-         "../syntax/types.rkt")
+         "../syntax/syntax.rkt")
 
 (provide progs->batch ; (Listof Expr) -> Batch
          batch->progs ; Batch -> ?(or (Listof Root) (Vectorof Root)) -> (Listof Expr)
