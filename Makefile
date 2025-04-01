@@ -42,8 +42,10 @@ minimal-distribution:
 	[ ! -f herbie ] || (raco distribute herbie-compiled herbie && rm herbie)
 
 nightly: install
-	bash infra/nightly.sh bench/ reports/ --threads 4
-	bash infra/publish.sh upload reports/
+	bash infra/nightly.sh bench/ reports1/ arith-fma --threads 4
+	bash infra/publish.sh upload reports1/
+	bash infra/nightly.sh bench/ reports2/ arith-fma-vcubic --threads 4
+	bash infra/publish.sh upload reports2/
 
 upgrade:
 	git pull
