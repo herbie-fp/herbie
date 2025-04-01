@@ -38,11 +38,11 @@
 (define (run-improve! initial specification context pcontext)
   (explain! initial context pcontext)
   (timeline-event! 'preprocess)
-  (define-values (simplified preprocessing) (find-preprocessing initial specification context))
+  (define-values preprocessing (find-preprocessing specification context))
   (timeline-push! 'symmetry (map ~a preprocessing))
   (define pcontext* (preprocess-pcontext context pcontext preprocessing))
   (*pcontext* pcontext*)
-  (initialize-alt-table! simplified context pcontext*)
+  (initialize-alt-table! (make-alt-preprocessing initial preprocessing) context pcontext*)
 
   (for ([iteration (in-range (*num-iterations*))]
         #:break (atab-completed? (^table^)))

@@ -11,8 +11,7 @@
          "egg-herbie.rkt"
          "points.rkt"
          "programs.rkt"
-         "rules.rkt"
-         "simplify.rkt")
+         "rules.rkt")
 
 (provide find-preprocessing
          preprocess-pcontext
@@ -48,35 +47,8 @@
     (match-define (list a b) pair)
     (cons `(swap ,a ,b) (replace-vars `((,a . ,b) (,b . ,a)) spec))))
 
-;; Initial simplify
-(define (initial-simplify expr ctx)
-  (define rules (*simplify-rules*))
-  (define lifting-rules (platform-lifting-rules))
-  (define lowering-rules (platform-lowering-rules))
-
-  ; egg schedule (3-phases for mathematical rewrites and implementation selection)
-  (define schedule
-    `((,lifting-rules . ((iteration . 1) (scheduler . simple)))
-      (,rules . ((node . ,(*node-limit*))))
-      (,lowering-rules . ((iteration . 1) (scheduler . simple)))))
-
-  ; egg query
-  (define batch (progs->batch (list expr)))
-  (define runner (make-egraph batch (batch-roots batch) (list (context-repr ctx)) schedule))
-
-  ; run egg
-  (define simplified (simplify-batch runner batch))
-
-  ; alternatives
-  (define start-alt (make-alt expr))
-  (cons start-alt
-        (remove-duplicates
-         (for/list ([batchreff (rest simplified)])
-           (alt (debatchref batchreff) `(simplify () ,runner #f) (list start-alt) '()))
-         alt-equal?)))
-
 ;; See https://pavpanchekha.com/blog/symmetric-expressions.html
-(define (find-preprocessing init expr ctx)
+(define (find-preprocessing expr ctx)
   (define spec (prog->spec expr))
 
   ;; identities
@@ -117,15 +89,7 @@
                #:when (> (length component) 1))
       (cons 'sort component)))
 
-  (define instrs (append abs-instrs negabs-instrs sort-instrs))
-  (define start-alts
-    (if (flag-set? 'setup 'simplify)
-        ; initial simplify
-        (for/list ([altn (initial-simplify init ctx)])
-          (alt-add-preprocessing altn instrs))
-        (list (make-alt-preprocessing init instrs))))
-
-  (values start-alts instrs))
+  (append abs-instrs negabs-instrs sort-instrs))
 
 (define (connected-components variables swaps)
   (define components (disjoint-set (length variables)))
