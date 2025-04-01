@@ -26,8 +26,8 @@
   #hash([precision . ()]
         [setup . (simplify search)]
         [localize . ()]
-        [generate . (rr taylor simplify proofs)]
-        [reduce . (regimes binary-search branch-expressions simplify)]
+        [generate . (rr taylor proofs)]
+        [reduce . (regimes binary-search branch-expressions)]
         [rules
          . (arithmetic polynomials
                        fractions
@@ -57,6 +57,10 @@
     [('generate 'simplify)
      (eprintf "The generate:simplify option has been removed.\n")
      (eprintf "  Simplification is no longer performed as a separate step.\n")
+     (eprintf "See <https://herbie.uwplse.org/doc/~a/options.html> for more.\n" *herbie-version*)]
+    [('reduce 'simplify)
+     (eprintf "The reduce:simplify option has been removed.\n")
+     (eprintf "  Final-simplification is no longer performed.\n")
      (eprintf "See <https://herbie.uwplse.org/doc/~a/options.html> for more.\n" *herbie-version*)]
     [('reduce 'avg-error)
      (eprintf "The reduce:avg-error option has been removed.\n")
