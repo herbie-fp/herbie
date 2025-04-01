@@ -20,7 +20,9 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; constants ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define-constants bool [TRUE TRUE true] [FALSE FALSE false])
+;; Don't use define-constants because don't want to require :precision bool annotation
+(define-operator-impl (TRUE) bool #:spec (TRUE) #:fl (const true) #:fpcore (! TRUE))
+(define-operator-impl (FALSE) bool #:spec (FALSE) #:fl (const false) #:fpcore (! FALSE))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; operators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -29,16 +31,8 @@
 (define (or-fn . as)
   (ormap identity as))
 
-(define-operator-impl (not [x : bool]) bool #:spec (not x) #:fl not #:identities (#:exact (not a)))
+(define-operator-impl (not [x : bool]) bool #:spec (not x) #:fl not)
 
-(define-operator-impl (and [x : bool] [y : bool])
-                      bool
-                      #:spec (and x y)
-                      #:fl and-fn
-                      #:identities (#:exact (and a b)))
+(define-operator-impl (and [x : bool] [y : bool]) bool #:spec (and x y) #:fl and-fn)
 
-(define-operator-impl (or [x : bool] [y : bool])
-                      bool
-                      #:spec (or x y)
-                      #:fl or-fn
-                      #:identities (#:exact (or a b)))
+(define-operator-impl (or [x : bool] [y : bool]) bool #:spec (or x y) #:fl or-fn)

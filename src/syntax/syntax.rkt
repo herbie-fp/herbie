@@ -190,7 +190,7 @@
 ;;  - its FPCore representation
 ;;  - a floating-point implementation
 ;;
-(struct operator-impl (name ctx spec fpcore fl identities))
+(struct operator-impl (name ctx spec fpcore fl))
 
 ;; Operator implementation table
 ;; Tracks implementations that are loaded into Racket's runtime
@@ -199,7 +199,7 @@
 ;; Looks up a property `field` of an real operator `op`.
 ;; Panics if the operator is not found.
 (define/contract (impl-info impl field)
-  (-> symbol? (or/c 'vars 'itype 'otype 'spec 'fpcore 'fl 'identities) any/c)
+  (-> symbol? (or/c 'vars 'itype 'otype 'spec 'fpcore 'fl) any/c)
   (unless (hash-has-key? operator-impls impl)
     (error 'impl-info "Unknown operator implementation ~a" impl))
   (define info (hash-ref operator-impls impl))
@@ -209,8 +209,7 @@
     [(otype) (context-repr (operator-impl-ctx info))]
     [(spec) (operator-impl-spec info)]
     [(fpcore) (operator-impl-fpcore info)]
-    [(fl) (operator-impl-fl info)]
-    [(identities) (operator-impl-identities info)]))
+    [(fl) (operator-impl-fl info)]))
 
 ;; Checks a specification.
 (define (check-spec! name ctx spec)
@@ -269,16 +268,8 @@
 
 ; Registers an operator implementation `name` with context `ctx` and spec `spec.
 ; Can optionally specify a floating-point implementation and fpcore translation.
-(define/contract (register-operator-impl! name
-                                          ctx
-                                          spec
-                                          #:commutes? [commutes? #f]
-                                          #:fl [fl-proc #f]
-                                          #:fpcore [fpcore #f]
-                                          #:identities [identities #f])
-  (->* (symbol? context? any/c)
-       (#:commutes? boolean? #:fl (or/c procedure? #f) #:fpcore any/c #:identities any/c)
-       void?)
+(define/contract (register-operator-impl! name ctx spec #:fl [fl-proc #f] #:fpcore [fpcore #f])
+  (->* (symbol? context? any/c) (#:fl (or/c procedure? #f) #:fpcore any/c) void?)
   ; check specification
   (check-spec! name ctx spec)
   (define vars (context-vars ctx))
@@ -334,52 +325,8 @@
                                fail))
                          name)]))
 
-  ; make hash table
-  (define rules '())
-  (define rule-names (make-hasheq))
-  (define commutes? #f)
-  (when identities
-    (when commutes?
-      (cons (list 'commutes) identities))
-    (set! rules
-          (for/list ([ident (in-list identities)]
-                     [i (in-naturals)])
-            (match ident
-              [(list ident-name lhs-expr rhs-expr)
-               (cond
-                 [(hash-has-key? rule-names ident-name)
-                  (raise-herbie-syntax-error "Duplicate identity ~a" ident-name)]
-                 [(not (well-formed? lhs-expr))
-                  (raise-herbie-syntax-error "Ill-formed identity expression ~a" lhs-expr)]
-                 [(not (well-formed? rhs-expr))
-                  (raise-herbie-syntax-error "Ill-formed identity expression ~a" rhs-expr)]
-                 [else
-                  (define rule-name (string->symbol (format "~a-~a" ident-name name)))
-                  (hash-set! rule-names rule-name #f)
-                  (list 'directed rule-name lhs-expr rhs-expr)])]
-              [(list 'exact expr)
-               (cond
-                 [(not (well-formed? expr))
-                  (raise-herbie-syntax-error "Ill-formed identity expression ~a" expr)]
-                 [else
-                  (define rule-name (gensym (string->symbol (format "~a-exact-~a" name i))))
-                  (hash-set! rule-names rule-name #f)
-                  (list 'exact rule-name expr)])]
-              [(list 'commutes)
-               (cond
-                 [commutes? (error "Commutes identity already defined")]
-                 [(hash-has-key? rule-names (string->symbol (format "~a-commutes" name)))
-                  (error "Commutes identity already manually defined")]
-                 [(not (equal? (length vars) 2))
-                  (raise-herbie-syntax-error "Cannot commute a non 2-ary operator")]
-                 [else
-                  (set! commutes? #t)
-                  (define rule-name (string->symbol (format "~a-commutes" name)))
-                  (hash-set! rule-names rule-name #f)
-                  (list 'commutes rule-name `(,name ,@vars) `(,name ,@(reverse vars)))])]))))
-
   ; update tables
-  (define impl (operator-impl name ctx spec fpcore* fl-proc* rules))
+  (define impl (operator-impl name ctx spec fpcore* fl-proc*))
   (hash-set! operator-impls name impl))
 
 (define (well-formed? expr)
@@ -402,11 +349,10 @@
        (for ([var (in-list vars)]
              #:unless (identifier? var))
          (oops! "expected identifier" var))
-       (define commutes? #f)
        (define spec #f)
        (define core #f)
        (define fl-expr #f)
-       (define identities #f)
+
        (let loop ([fields fields])
          (syntax-case fields ()
            [()
@@ -415,18 +361,14 @@
             (with-syntax ([id id]
                           [spec spec]
                           [core core]
-                          [commutes? commutes?]
-                          [fl-expr fl-expr]
-                          [identities identities])
+                          [fl-expr fl-expr])
               #'(register-operator-impl! 'id
                                          (context '(var ...)
                                                   (get-representation 'rtype)
                                                   (list (get-representation 'repr) ...))
                                          'spec
-                                         #:commutes? 'commutes?
                                          #:fl fl-expr
-                                         #:fpcore 'core
-                                         #:identities 'identities))]
+                                         #:fpcore 'core))]
            [(#:spec expr rest ...)
             (cond
               [spec (oops! "multiple #:spec clauses" stx)]
@@ -448,27 +390,7 @@
                (set! fl-expr #'expr)
                (loop #'(rest ...))])]
            [(#:fl) (oops! "expected value after keyword `#:fl`" stx)]
-           [(#:commutes rest ...)
-            (cond
-              [commutes? (oops! "multiple #:commutes clauses" stx)]
-              [else
-               (set! commutes? #t)
-               (loop #'(rest ...))])]
-           [(#:identities (ident-exprs ...) rest ...)
-            (cond
-              [identities (oops! "multiple #:identities clauses" stx)]
-              [else
-               (set! identities
-                     (let ident-loop ([ident-exprs #'(ident-exprs ...)])
-                       (syntax-case ident-exprs ()
-                         [() '()]
-                         [([name lhs-expr rhs-expr] rem ...)
-                          (cons (list #'name #'lhs-expr #'rhs-expr) (ident-loop #'(rem ...)))]
-                         [(#:exact expr rem ...) (cons (list 'exact #'expr) (ident-loop #'(rem ...)))]
-                         [_ (oops! "bad syntax" ident-exprs)])))
-               (loop #'(rest ...))])]
-           [(#:identities rest ...) (oops! "expected list of impl identities" stx)]
-           [(#:identities) (oops! "expected value after keyword #:identities clause" stx)]
+
            ; bad
            [_ (oops! "bad syntax" fields)])))]
     [_ (oops! "bad syntax")]))

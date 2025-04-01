@@ -189,7 +189,7 @@
       [(list '! props ... body)
        (loop body
              (if (not (null? props))
-                 (apply dict-set prop-dict props)
+                 (apply dict-set* prop-dict props)
                  prop-dict))]
       [(list 'neg arg) ; non-standard but useful [TODO: remove]
        (define arg* (loop arg prop-dict))
@@ -274,7 +274,7 @@
        (match-define (cons expr impl) (vector-ref ivec idx))
        (define impl*
          (match expr
-           [(list '! props ... (list op _ ...))
+           [(list '! props ... (or (? symbol? op) (list op _ ...)))
             ; rounding context updated parent context
             (define prop-dict*
               (if (not (null? props))

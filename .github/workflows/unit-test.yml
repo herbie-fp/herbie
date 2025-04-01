@@ -36,11 +36,13 @@ jobs:
       - name: "Test the shell command-line tool"
         run: |
           <bench/tutorial.fpcore racket -l herbie shell >/tmp/out.fpcore
-          test `grep -c :herbie-time /tmp/out.fpcore` -eq 3
+          test `grep -c :precision /tmp/out.fpcore` -eq 3
+          test `grep -c ';;' /tmp/out.fpcore` -eq 0
       - name: "Test the improve command-line tool"
         run: |
           racket -l herbie improve bench/tutorial.fpcore /tmp/out.fpcore
-          test `grep -c :herbie-time /tmp/out.fpcore` -eq 3
+          test `grep -c :precision /tmp/out.fpcore` -eq 3
+          test `grep -c '^; ' /tmp/out.fpcore` -eq 0
       - name: "Run the report command-line tool"
         run: |
           racket -l herbie report bench/tutorial.fpcore /tmp/out/
@@ -61,12 +63,8 @@ jobs:
       - run: cd egg-herbie && raco test ./
 
       # Test the API
-      - name: "Start server"
-        run: racket -l herbie web --port 8000 &
-      - name: "Wait for server startup"
-        run: while ! nc -z localhost 8000; do sleep 0.1; done
       - uses: actions/setup-node@v4
         with:
           node-version: 20
       - name: "Test the endpoint"
-        run: node infra/testApi.mjs
+        run: node infra/test-api.mjs

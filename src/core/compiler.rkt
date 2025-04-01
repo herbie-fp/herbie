@@ -2,7 +2,6 @@
 
 (require "../syntax/syntax.rkt"
          "../syntax/types.rkt"
-         "../utils/timeline.rkt"
          "../utils/float.rkt"
          "batch.rkt")
 

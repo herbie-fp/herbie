@@ -135,12 +135,9 @@
 
 (define (parse-platform-name ann)
   (match ann
-    [(list '! props ...)
-     (let loop ([props props])
-       (match props
-         [(list ':herbie-platform name _ ...) name]
-         [(list _ _ rest ...) (loop rest)]
-         [(list) #f]))]
+    [(list '! props ... body)
+     (define dict (props->dict props))
+     (dict-ref dict ':herbie-platform #f)]
     [_ #f]))
 
 (define (parse-test stx)
@@ -240,8 +237,9 @@
   (parameterize ([read-decimal-as-inexact false])
     (read-syntax port name)))
 
-(define (load-stdin)
-  (for/list ([test (in-port (curry our-read-syntax "stdin") (current-input-port))])
+(define (load-port port)
+  (port-count-lines! port)
+  (for/list ([test (in-port (curry our-read-syntax "stdin") port)])
     (parse-test test)))
 
 (define (load-file file)
@@ -268,7 +266,8 @@
         path))
   (define out
     (cond
-      [(equal? path "-") (load-stdin)]
+      [(port? path) (load-port path)]
+      [(equal? path "-") (load-port (current-input-port))]
       [(directory-exists? path*) (load-directory path*)]
       [else (load-file path*)]))
   (define duplicates (find-duplicates (map test-name out)))

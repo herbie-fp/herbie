@@ -194,7 +194,6 @@
                       _uint ;; iter limit
                       _uint ;; node limit
                       _stdbool ;; simple scheduler?
-                      _stdbool ;; constant folding enabled?
                       ->
                       (iterations : _EGraphIter-pointer) ;; array of _EgraphIter structs
                       ->
@@ -208,8 +207,10 @@
                         (destroy_egraphiters iterations-ptr)
                         iter-data)))
 
+(define _stop_reason (_enum '(saturated iter-limit node-limit unsound) _uint))
+
 ;; gets the stop reason as an integer
-(define-eggmath egraph_get_stop_reason (_fun _egraph-pointer -> _uint))
+(define-eggmath egraph_get_stop_reason (_fun _egraph-pointer -> _stop_reason))
 
 ;; egraph -> string
 (define-eggmath egraph_serialize (_fun _egraph-pointer -> _rust/datum))

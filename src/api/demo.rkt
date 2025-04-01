@@ -28,6 +28,7 @@
 
 (provide run-demo)
 
+(define *demo?* (make-parameter false))
 (define *demo-prefix* (make-parameter "/"))
 (define *demo-log* (make-parameter false))
 
@@ -58,33 +59,12 @@
                   [("results.json") generate-report]
                   [("improve") #:method (or "post" "get" "put") improve]
                   [("api" "result" (string-arg)) get-result]
-                  [("api" "sample") #:method "post" sample-endpoint]
-                  [("api" "explanations") #:method "post" explanations-endpoint]
-                  [("api" "analyze") #:method "post" analyze-endpoint]
-                  [("api" "exacts") #:method "post" exacts-endpoint]
-                  [("api" "calculate") #:method "post" calculate-endpoint]
-                  [("api" "localerror") #:method "post" local-error-endpoint]
-                  [("api" "alternatives") #:method "post" alternatives-endpoint]
-                  [("api" "cost") #:method "post" cost-endpoint]
                   [("api" "mathjs") #:method "post" ->mathjs-endpoint]
                   [("api" "translate") #:method "post" translate-endpoint]
-                  [("api" "start" "improve") #:method "post" improve-start]
-                  [("api" "start" "sample") #:method "post" start-sample-endpoint]
-                  [("api" "start" "explanations") #:method "post" start-explanations-endpoint]
-                  [("api" "start" "analyze") #:method "post" start-analyze-endpoint]
-                  [("api" "start" "exacts") #:method "post" start-exacts-endpoint]
-                  [("api" "start" "calculate") #:method "post" start-calculate-endpoint]
-                  [("api" "start" "localerror") #:method "post" start-local-error-endpoint]
-                  [("api" "start" "alternatives") #:method "post" start-alternatives-endpoint]
-                  [("api" "start" "cost") #:method "post" start-cost-endpoint]))
+                  [("api" "start" "improve") #:method "post" improve-start]))
 
 (define (generate-page req job-id page)
   (define path (first (string-split (url->string (request-uri req)) "/")))
-  (cond
-    [(check-and-send path job-id page)]
-    [else (next-dispatcher)]))
-
-(define (check-and-send path job-id page)
   (define result-hash (get-results-for job-id))
   (cond
     [(set-member? (all-pages result-hash) page)
@@ -99,7 +79,7 @@
                (λ (out)
                  (with-handlers ([exn:fail? (page-error-handler result-hash page out)])
                    (make-page page out result-hash (*demo-output*) #f))))]
-    [else #f]))
+    [else (next-dispatcher)]))
 
 (define (generate-report req)
   (cond
@@ -126,20 +106,12 @@
 
   `(dl ((class "function-list")) ,@(append-map fn-class fn-classes)))
 
-(define (herbie-page #:title title
-                     #:show-title [title? true]
-                     #:scripts [scripts '()]
-                     #:styles [styles '()]
-                     #:head-include [other-include-head '()]
-                     . body)
+(define (herbie-page #:title title #:show-title [title? true] #:scripts [scripts '()] . body)
   `(html (head (meta ([charset "utf-8"]))
                (title ,title)
-               ,@other-include-head
                ,@(for/list ([script scripts])
                    `(script ([src ,script] [type "text/javascript"])))
-               (link ([rel "stylesheet"] [type "text/css"] [href "main.css"]))
-               ,@(for/list ([style styles])
-                   `(link ([rel "stylesheet"] [type "text/css"] [href ,style]))))
+               (link ([rel "stylesheet"] [type "text/css"] [href "main.css"])))
          (body (header (img ((class "logo") [src "/logo.png"]))
                        ,@(if title?
                              `((h1 ,title))
@@ -167,8 +139,8 @@
        `(form
          ([action ,(url improve)] [method "post"] [id "formula"] [data-progress ,(url improve-start)])
          (textarea ([name "formula"] [autofocus "true"]
-                                     [placeholder "(FPCore (x) (- (sqrt (+ x 1)) (sqrt x)))"]))
-         (input ([name "formula-math"] [placeholder "sqrt(x + 1) - sqrt(x)"]))
+                                     [placeholder "e.g. (FPCore (x) (- (sqrt (+ x 1)) (sqrt x)))"]))
+         (input ([name "formula-math"] [placeholder "e.g. sqrt(x + 1) - sqrt(x)"]))
          (table ([id "input-ranges"]))
          (ul ([id "errors"]))
          (ul ([id "warnings"]))
@@ -280,7 +252,7 @@
                (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count))))
                      (header #"X-Herbie-Job-ID" (string->bytes/utf-8 job-id))
                      (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
-               (λ (out) `()))]
+               void)]
     [job-result
      (response 201
                #"Job complete"
@@ -289,7 +261,7 @@
                (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count))))
                      (header #"X-Herbie-Job-ID" (string->bytes/utf-8 job-id))
                      (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
-               (λ (out) (write-json job-result out)))]))
+               (curry write-json job-result))]))
 
 (define (improve-common req body go-back)
   (match (extract-bindings 'formula (request-bindings req))
@@ -395,7 +367,7 @@
                (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count))))
                      (header #"X-Herbie-Job-ID" (string->bytes/utf-8 job-id))
                      (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
-               (λ (out) `()))]
+               void)]
     [job-result
      (response 201
                #"Job complete"
@@ -404,29 +376,27 @@
                (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count))))
                      (header #"X-Herbie-Job-ID" (string->bytes/utf-8 job-id))
                      (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
-               (λ (out) (write-json (hash-ref job-result 'timeline) out)))]))
+               (curry write-json (hash-ref job-result 'timeline)))]))
 
-; Macro for defining async and sync versions of an endpoint.
-(define-syntax-rule (define-endpoint ([sync-name async-name] post-data) body ...)
+(define-syntax-rule (define-api-endpoint (name post-data)
+                      body ...)
   (begin
     (define (function post-data)
       body ...)
-    (define sync-name
+    (define sync-fn
       (post-with-json-response (lambda (post-data)
                                  (define job-id (function post-data))
                                  (wait-for-job job-id))))
-    (define async-name
+    (define async-fn
       (post-with-json-response (lambda (post-data)
                                  (define job-id (function post-data))
-                                 (hasheq 'job job-id 'path (make-path job-id)))))))
-
-; /api/sample endpoint: test in console on demo page:
-;; (await fetch('/api/sample', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x) (- (sqrt (+ x 1))))", seed: 5})})).json()
-(define-endpoint
- ([sample-endpoint start-sample-endpoint] post-data)
- (define test (get-test post-data))
- (define seed (parse-seed post-data))
- (start-job 'sample test #:seed seed #:pcontext #f #:profile? #f #:timeline-disabled? #t))
+                                 (hasheq 'job job-id 'path (make-path job-id)))))
+    (define-values (new-dispatch new-url)
+      (let ([old-dispatch dispatch])
+        (dispatch-rules [("api" name) #:method "post" sync-fn]
+                        [("api" "start" name) #:method "post" async-fn]
+                        [else old-dispatch])))
+    (set! dispatch new-dispatch)))
 
 (define (get-test post-data)
   (define formula-str (hash-ref post-data 'formula))
@@ -442,64 +412,55 @@
   (define sample (hash-ref post-data 'sample))
   (json->pcontext sample (test-context test)))
 
-(define-endpoint ([explanations-endpoint start-explanations-endpoint] post-data)
-                 (start-job 'explanations
-                            (get-test post-data)
-                            #:seed (parse-seed post-data)
-                            #:pcontext (get-pcontext post-data)
-                            #:profile? #f
-                            #:timeline-disabled? #t))
+(define-api-endpoint ("sample" post-data)
+  (define test (get-test post-data))
+  (define seed (parse-seed post-data))
+  (start-job 'sample test #:seed seed #:pcontext #f #:profile? #f #:timeline-disabled? #t))
 
-(define-endpoint ([analyze-endpoint start-analyze-endpoint] post-data)
-                 (start-job 'errors
-                            (get-test post-data)
-                            #:seed (parse-seed post-data)
-                            #:pcontext (get-pcontext post-data)
-                            #:profile? #f
-                            #:timeline-disabled? #t))
+(define-api-endpoint ("explanations" post-data)
+  (start-job 'explanations
+             (get-test post-data)
+             #:seed (parse-seed post-data)
+             #:pcontext (get-pcontext post-data)
+             #:profile? #f
+             #:timeline-disabled? #t))
 
-;; (await fetch('/api/exacts', {method: 'POST', body: JSON.stringify({formula: "(FPCore (x) (- (sqrt (+ x 1))))", points: [[1, 1]]})})).json()
-(define-endpoint ([exacts-endpoint start-exacts-endpoint] post-data)
-                 (start-job 'exacts
-                            (get-test post-data)
-                            #:seed (parse-seed post-data)
-                            #:pcontext (get-pcontext post-data)
-                            #:profile? #f
-                            #:timeline-disabled? #t))
+(define-api-endpoint ("analyze" post-data)
+  (start-job 'errors
+             (get-test post-data)
+             #:seed (parse-seed post-data)
+             #:pcontext (get-pcontext post-data)
+             #:profile? #f
+             #:timeline-disabled? #t))
 
-(define-endpoint ([calculate-endpoint start-calculate-endpoint] post-data)
-                 (start-job 'evaluate
-                            (get-test post-data)
-                            #:seed (parse-seed post-data)
-                            #:pcontext (get-pcontext post-data)
-                            #:profile? #f
-                            #:timeline-disabled? #t))
+(define-api-endpoint ("localerror" post-data)
+  (start-job 'local-error
+             (get-test post-data)
+             #:seed (parse-seed post-data)
+             #:pcontext (get-pcontext post-data)
+             #:profile? #f
+             #:timeline-disabled? #t))
 
-(define-endpoint ([local-error-endpoint start-local-error-endpoint] post-data)
-                 (start-job 'local-error
-                            (get-test post-data)
-                            #:seed (parse-seed post-data)
-                            #:pcontext (get-pcontext post-data)
-                            #:profile? #f
-                            #:timeline-disabled? #t))
+(define-api-endpoint ("alternatives" post-data)
+  (start-job 'alternatives
+             (get-test post-data)
+             #:seed (parse-seed post-data)
+             #:pcontext (get-pcontext post-data)
+             #:profile? #f
+             #:timeline-disabled? #t))
 
-(define-endpoint ([alternatives-endpoint start-alternatives-endpoint] post-data)
-                 (start-job 'alternatives
-                            (get-test post-data)
-                            #:seed (parse-seed post-data)
-                            #:pcontext (get-pcontext post-data)
-                            #:profile? #f
-                            #:timeline-disabled? #t))
-
-(define-endpoint
- ([cost-endpoint start-cost-endpoint] post-data)
- (start-job 'cost (get-test post-data) #:seed #f #:pcontext #f #:profile? #f #:timeline-disabled? #f))
+(define-api-endpoint ("cost" post-data)
+  (start-job 'cost
+             (get-test post-data)
+             #:seed #f
+             #:pcontext #f
+             #:profile? #f
+             #:timeline-disabled? #f))
 
 (define ->mathjs-endpoint
   (post-with-json-response (lambda (post-data)
                              (define formula
                                (read-syntax 'web (open-input-string (hash-ref post-data 'formula))))
-                             (eprintf "Converting to Math.js ~a..." formula)
 
                              (define result (core->mathjs (syntax->datum formula)))
                              (hasheq 'mathjs result))))
@@ -508,9 +469,7 @@
   (post-with-json-response (lambda (post-data)
                              ; FPCore formula and target language
                              (define formula (read (open-input-string (hash-ref post-data 'formula))))
-                             (eprintf "Translating formula: ~a...\n" formula)
                              (define target-lang (hash-ref post-data 'language))
-                             (eprintf "Target language: ~a...\n" target-lang)
                              ; Select the appropriate conversion function
                              (define lang-converter
                                (case target-lang
@@ -527,7 +486,6 @@
 
                              ; convert the expression
                              (define converted (lang-converter formula "expr"))
-                             (eprintf "Converted Expression: \n~a...\n" converted)
                              (hasheq 'result converted 'language target-lang))))
 
 (define (run-demo #:quiet [quiet? #f]

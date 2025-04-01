@@ -1,26 +1,20 @@
 #lang racket
 
-(require "rules.rkt"
-         "../syntax/syntax.rkt"
+(require "../utils/alternative.rkt"
+         "../utils/common.rkt"
+         "../utils/timeline.rkt"
+         "../syntax/platform.rkt"
          "../syntax/types.rkt"
          "alt-table.rkt"
          "bsearch.rkt"
-         "egg-herbie.rkt"
-         "localize.rkt"
-         "regimes.rkt"
-         "simplify.rkt"
-         "../utils/alternative.rkt"
-         "../utils/errors.rkt"
-         "../utils/common.rkt"
+         "batch.rkt"
+         "derivations.rkt"
          "explain.rkt"
          "patch.rkt"
-         "../syntax/platform.rkt"
          "points.rkt"
          "preprocess.rkt"
          "programs.rkt"
-         "../utils/timeline.rkt"
-         "derivations.rkt"
-         "batch.rkt")
+         "regimes.rkt")
 (provide run-improve!)
 
 ;; The Herbie main loop goes through a simple iterative process:
@@ -33,7 +27,6 @@
 ;; Each stage is stored in this global variable for REPL debugging.
 
 (define/reset ^next-alts^ #f)
-(define/reset ^locs^ #f)
 (define/reset ^patched^ #f)
 (define/reset ^table^ #f)
 
@@ -53,11 +46,10 @@
 
   (for ([iteration (in-range (*num-iterations*))]
         #:break (atab-completed? (^table^)))
-    (run-iter!))
+    (finish-iter!))
   (define alternatives (extract!))
 
   (timeline-event! 'preprocess)
-  (define best (alt-expr (first alternatives)))
   (define final-alts
     (for/list ([altern alternatives])
       (alt-add-preprocessing
@@ -83,14 +75,19 @@
     (alt-expr altn)))
 (displayln expressions)
   (finalize-iter!))
+    (for/list ([altn alternatives])
+      (define expr (alt-expr altn))
+      (define preprocessing (alt-preprocessing altn))
+      (alt-add-preprocessing altn
+                             (remove-unnecessary-preprocessing expr context pcontext preprocessing))))
+  final-alts)
 
 (define (extract!)
   (timeline-push-alts! '())
 
   (define all-alts (atab-all-alts (^table^)))
-  (define joined-alts (make-regime! all-alts))
-  (define cleaned-alts (final-simplify! joined-alts))
-  (define annotated-alts (add-derivations! cleaned-alts))
+  (define joined-alts (make-regime! all-alts)) ;; HERE
+  (define annotated-alts (add-derivations! joined-alts))
 
   (timeline-push! 'stop (if (atab-completed? (^table^)) "done" "fuel") 1)
   (sort-alts annotated-alts))
@@ -174,48 +171,6 @@
   (^table^ (atab-set-picked (^table^) alts))
   (void))
 
-;; Invoke the subsystems individually
-(define (localize!)
-  (unless (^next-alts^)
-    (raise-user-error 'localize!
-                      "No alt chosen. Run (choose-alts!) or (choose-alt! n) to choose one"))
-
-  (timeline-event! 'simplify)
-  (define exprs (map alt-expr (^next-alts^)))
-  ;;; (displayln exprs)
-  (define localized-exprs empty)
-  (define repr (context-repr (*context*)))
-
-  (when (flag-set? 'localize 'costs)
-    (define loc-costss (batch-localize-costs exprs (*context*)))
-    (define cost-localized
-      (for/list ([loc-costs (in-list loc-costss)]
-                 #:when true
-                 [(cost-diff expr) (in-dict loc-costs)]
-                 [_ (in-range (*localize-expressions-limit*))])
-        (timeline-push! 'locations
-                        (~a expr)
-                        "cost-diff"
-                        (if (infinite? cost-diff) "Infinite" cost-diff))
-        expr))
-    (set! localized-exprs (remove-duplicates (append localized-exprs cost-localized))))
-
-  (timeline-event! 'localize)
-  (when (flag-set? 'localize 'errors)
-    (define loc-errss (batch-localize-errors exprs (*context*)))
-    ;;Timeline will push duplicates
-    (define error-localized
-      (for/list ([loc-errs (in-list loc-errss)]
-                 #:when true
-                 [(err expr) (in-dict loc-errs)]
-                 [_ (in-range (*localize-expressions-limit*))])
-        (timeline-push! 'locations (~a expr) "accuracy" (errors-score err))
-        expr))
-    (set! localized-exprs (remove-duplicates (append localized-exprs error-localized))))
-
-  (^locs^ localized-exprs)
-  (void))
-
 ;; Converts a patch to full alt with valid history
 (define (reconstruct! alts)
   ;; extracts the base expressions of a patch as a batchref
@@ -289,22 +244,19 @@
   (timeline-push! 'min-error
                   (errors-score (atab-min-errors (^table^)))
                   (format "~a" (representation-name repr)))
-  (rollback-iter!)
+  (^next-alts^ #f)
+  (^patched^ #f)
   (void))
 
 (define (finish-iter!)
   (unless (^next-alts^)
     (choose-alts!))
-  (unless (^locs^)
-    (localize!))
-  (reconstruct! (generate-candidates (^locs^)))
+  (define locs (append-map (compose all-subexpressions alt-expr) (^next-alts^)))
+  (reconstruct! (generate-candidates (remove-duplicates locs)))
   (finalize-iter!)
   (void))
 
 (define (rollback-iter!)
-  (^locs^ #f)
-  (^next-alts^ #f)
-  (^patched^ #f)
   (void))
 
 (define (initialize-alt-table! alternatives context pcontext)
@@ -357,33 +309,6 @@
      (for/list ([opt (in-list opts)])
        (combine-alts opt ctx))]
     [else (list (argmin score-alt alts))]))
-
-(define (final-simplify! alts)
-  (cond
-    [(flag-set? 'generate 'simplify)
-     (timeline-event! 'simplify)
-
-     ; egg schedule (only FP rewrites plus simplify rewrites for if statements)
-     (define rules (append (platform-simplify-rules) (*simplify-rules*)))
-     (define schedule `((,rules . ((node . ,(*node-limit*)) (const-fold? . #f)))))
-
-     ; egg runner
-     (define exprs (map alt-expr alts))
-     (define reprs (map (lambda (expr) (repr-of expr (*context*))) exprs))
-     (define batch (progs->batch exprs))
-     (define runner (make-egg-runner batch (batch-roots batch) reprs schedule))
-
-     ; run egg
-     (define simplified (map (compose debatchref last) (simplify-batch runner batch)))
-
-     ; de-duplication
-     (remove-duplicates (for/list ([altn (in-list alts)]
-                                   [prog (in-list simplified)])
-                          (if (equal? (alt-expr altn) prog)
-                              altn
-                              (alt prog 'final-simplify (list altn) (alt-preprocessing altn))))
-                        alt-equal?)]
-    [else alts]))
 
 (define (add-derivations! alts)
   (cond

@@ -58,6 +58,10 @@
         [(list 'Rewrite<= rule sub)
          (define loc* (reverse loc))
          (k 'Rewrite<= rule loc* (location-do loc* step (λ _ sub)))]
+        [(approx spec impl)
+         (loop spec (cons 1 loc))
+         (loop impl (cons 2 loc))]
+        [(hole prec spec) (loop spec (cons 1 loc))]
         [(list op args ...)
          (for ([arg (in-list args)]
                [i (in-naturals 1)])
@@ -234,9 +238,9 @@
             (type . "regimes")
             (conditions . ,(for/list ([entry prevs]
                                       [idx (in-naturals)])
-                             (let ([entry-ivals (filter (λ (intrvl) (= (interval-alt-idx intrvl) idx))
-                                                        intervals)])
-                               (map (curryr interval->string repr) entry-ivals))))
+                             (define entry-ivals
+                               (filter (λ (intrvl) (= (interval-alt-idx intrvl) idx)) intervals))
+                             (map (curryr interval->string repr) entry-ivals)))
             (prevs . ,(for/list ([entry prevs]
                                  [new-pcontext (split-pcontext pcontext splitpoints prevs ctx)]
                                  [new-pcontext2 (split-pcontext pcontext2 splitpoints prevs ctx)])

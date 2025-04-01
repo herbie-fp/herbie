@@ -1,12 +1,12 @@
 #lang racket
 
 (require racket/hash)
-(require "../utils/common.rkt"
-         "../utils/alternative.rkt"
-         "points.rkt"
-         "programs.rkt"
+(require "../utils/alternative.rkt"
+         "../utils/common.rkt"
+         "../utils/pareto.rkt"
          "../syntax/types.rkt"
-         "../utils/pareto.rkt")
+         "points.rkt"
+         "programs.rkt")
 
 (provide (contract-out
           (make-alt-table (pcontext? alt? any/c . -> . alt-table?))

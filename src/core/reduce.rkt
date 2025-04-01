@@ -1,8 +1,8 @@
 #lang racket
 
 (require "../utils/common.rkt"
-         "programs.rkt"
-         "../syntax/syntax.rkt")
+         "../syntax/syntax.rkt"
+         "programs.rkt")
 (provide reduce)
 
 ;; Cancellation's goal is to cancel (additively or multiplicatively) like terms.

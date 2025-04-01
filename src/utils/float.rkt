@@ -9,6 +9,7 @@
 (provide ulp-difference
          ulps->bits
          midpoint
+         two-midpoints
          random-generate
          </total
          <=/total
@@ -28,6 +29,22 @@
   ((representation-ordinal->repr repr) (floor (/ (+ ((representation-repr->ordinal repr) p1)
                                                     ((representation-repr->ordinal repr) p2))
                                                  2))))
+
+(define (repr-round repr dir point)
+  ((representation-repr->bf repr) (parameterize ([bf-rounding-mode dir])
+                                    ((representation-bf->repr repr) point))))
+
+(define (two-midpoints repr lo hi)
+  ; Midpoint is taken in repr-space, but values are stored in bf
+  (define <-ordinal (compose (representation-repr->bf repr) (representation-ordinal->repr repr)))
+  (define ->ordinal (compose (representation-repr->ordinal repr) (representation-bf->repr repr)))
+
+  (define lower (<-ordinal (floor (/ (+ (->ordinal hi) (->ordinal lo)) 2))))
+  (define higher (repr-round repr 'up (bfnext lower))) ; repr-next
+
+  (and (bf>= lower lo)
+       (bf<= higher hi) ; False if lo and hi were already close together
+       (cons lower higher)))
 
 (define (ulps->bits x)
   (real->double-flonum (log x 2)))
@@ -52,11 +69,9 @@
        [(nan? x1) #f]
        [(nan? x2) #t]
        [else (< x1 x2)])]
-    [else
-     (cond
-       [(special? x1) #f]
-       [(special? x2) #t]
-       [else (< (->ordinal x1) (->ordinal x2))])]))
+    [(special? x1) #f]
+    [(special? x2) #t]
+    [else (< (->ordinal x1) (->ordinal x2))]))
 
 (define (<=/total x1 x2 repr)
   (or (</total x1 x2 repr) (=/total x1 x2 repr)))
@@ -77,7 +92,7 @@
 
 (define (json->value x repr)
   (match x
-    [(? real?) x]
+    [(? real?) (exact->inexact x)]
     [(? hash?)
      (match (hash-ref x 'type)
        ["real"
@@ -94,19 +109,20 @@
   (define <-bf (representation-bf->repr repr))
   ;; Linear search because speed not an issue
   (let loop ([precision 16])
-    (if (> precision (*max-mpfr-prec*))
-        (begin
-          (warn 'value-to-string #:url "faq.html#value-to-string" "Could not uniquely print ~a" n)
-          n)
-        (parameterize ([bf-precision precision])
-          (define bf (->bf n))
-          (if (=/total n (<-bf bf) repr)
-              (match (bigfloat->string bf)
-                ["-inf.bf" "-inf.0"]
-                ["+inf.bf" "+inf.0"]
-                ["+nan.bf" "+nan.0"]
-                [x x])
-              (loop (+ precision 4))))))) ; 2^4 > 10
+    (cond
+      [(> precision (*max-mpfr-prec*))
+       (warn 'value-to-string #:url "faq.html#value-to-string" "Could not uniquely print ~a" n)
+       n]
+      [else
+       (parameterize ([bf-precision precision])
+         (define bf (->bf n))
+         (if (=/total n (<-bf bf) repr)
+             (match (bigfloat->string bf)
+               ["-inf.bf" "-inf.0"]
+               ["+inf.bf" "+inf.0"]
+               ["+nan.bf" "+nan.0"]
+               [x x])
+             (loop (+ precision 4))))]))) ; 2^4 > 10
 
 (define (real->repr x repr)
   ((representation-bf->repr repr) (bf x)))
