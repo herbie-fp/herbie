@@ -181,7 +181,7 @@
       (atab-add-altn atab altn errs cost)))
   (define atab** (atab-dedup atab*))
   (define atab***
-    (struct-copy alt-table atab* [alt->point-idxs (invert-index (alt-table-point-idx->alts atab**))]))
+    (struct-copy alt-table atab** [alt->point-idxs (invert-index (alt-table-point-idx->alts atab**))]))
   (define atab**** (atab-prune atab***))
   (struct-copy alt-table
                atab****
