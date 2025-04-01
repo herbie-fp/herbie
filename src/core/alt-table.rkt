@@ -203,7 +203,8 @@
   (define point-idx->alts*
     (for/vector #:length (vector-length point-idx->alts)
                 ([pcurve (in-vector point-idx->alts)])
-      (pareto-map (lambda (alts) (remove-duplicates alts #:key alt-expr)) pcurve)))
+      (reverse (pareto-map (lambda (alts) (remove-duplicates alts #:key alt-expr))
+                           (reverse pcurve)))))
   (struct-copy alt-table atab [point-idx->alts point-idx->alts*]))
 
 (define (atab-add-altn atab altn errs cost)
