@@ -38,11 +38,11 @@
 (define (run-improve! initial specification context pcontext)
   (explain! initial context pcontext)
   (timeline-event! 'preprocess)
-  (define-values (simplified preprocessing) (find-preprocessing initial specification context))
+  (define preprocessing (find-preprocessing specification context))
   (timeline-push! 'symmetry (map ~a preprocessing))
   (define pcontext* (preprocess-pcontext context pcontext preprocessing))
   (*pcontext* pcontext*)
-  (initialize-alt-table! simplified context pcontext*)
+  (initialize-alt-table! (make-alt-preprocessing initial preprocessing) context pcontext*)
 
   (for ([iteration (in-range (*num-iterations*))]
         #:break (atab-completed? (^table^)))
@@ -233,14 +233,9 @@
 (define (rollback-iter!)
   (void))
 
-(define (initialize-alt-table! alternatives context pcontext)
-  (match-define (cons initial simplified) alternatives)
+(define (initialize-alt-table! initial context pcontext)
   (*start-prog* (alt-expr initial))
-  (define table (make-alt-table pcontext initial context))
-  (timeline-event! 'eval)
-  (define-values (errss costs) (atab-eval-altns table simplified context))
-  (timeline-event! 'prune)
-  (^table^ (atab-add-altns table simplified errss costs)))
+  (^table^ (make-alt-table pcontext initial context)))
 
 (define (explain! expr context pcontext)
   (timeline-event! 'explain)
