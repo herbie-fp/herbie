@@ -20,8 +20,7 @@
 ;; The Herbie main loop goes through a simple iterative process:
 ;;
 ;; - Choose a subset of candidates
-;; - Choose a set of subexpressions (locs) in those alts
-;; - Patch (improve) them, generating new candidates
+;; - Generating new candidates based on them
 ;; - Evaluate all the new and old candidates and prune to the best
 ;;
 ;; Each stage is stored in this global variable for REPL debugging.
