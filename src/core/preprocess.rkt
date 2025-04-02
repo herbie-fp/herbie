@@ -3,7 +3,6 @@
 (require "../syntax/platform.rkt"
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
-         "../utils/alternative.rkt"
          "../utils/common.rkt"
          "../utils/float.rkt"
          "../utils/timeline.rkt"
