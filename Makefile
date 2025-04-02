@@ -43,7 +43,6 @@ minimal-distribution:
 
 nightly: install
 	bash infra/nightly.sh bench/ reports/ --threads 4
-	bash infra/publish.sh upload reports/
 
 upgrade:
 	git pull
