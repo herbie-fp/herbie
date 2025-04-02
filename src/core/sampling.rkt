@@ -17,11 +17,10 @@
 ;; Part 1: use FPBench's condition->range-table to create initial hyperrects
 
 (define (precondition->hyperrects pre vars var-reprs)
-  ;; FPBench needs unparameterized operators
   (define range-table (condition->range-table pre))
   (apply cartesian-product
-         (for/list ([var-name vars]
-                    [var-repr var-reprs])
+         (for/list ([var-name (in-list vars)]
+                    [var-repr (in-list var-reprs)])
            (map (lambda (interval) (fpbench-ival->ival var-repr interval))
                 (range-table-ref range-table var-name)))))
 
@@ -32,17 +31,14 @@
     ['bool (ival #f #t)]))
 
 (module+ test
-  (require rackunit))
-
-(module+ test
+  (require rackunit)
   (require "../syntax/load-plugin.rkt")
   (load-herbie-builtins)
   (define binary64 (get-representation 'binary64))
+  (define pre '(and (and (<= 0 a) (<= a 1)) (and (<= 0 b) (<= b 1))))
 
-  (check-equal? (precondition->hyperrects '(and (and (<= 0 a) (<= a 1)) (and (<= 0 b) (<= b 1)))
-                                          '(a b)
-                                          (list binary64 binary64))
-                (list (list (ival (bf 0.0) (bf 1.0)) (ival (bf 0.0) (bf 1.0))))))
+  (check-equal? (precondition->hyperrects pre '(a b) (list binary64 binary64))
+                (list (list (ival 0.bf 1.bf) (ival 0.bf 1.bf)))))
 
 ;; Part 2: using subdivision search to find valid intervals
 
@@ -71,7 +67,7 @@
   (define arr (list->vector rand-list))
   (for ([i (range 0 20)])
     (define max-num (vector-ref arr (- (vector-length arr) 1)))
-    (define search-for (random-integer 0 max-num))
+    (define search-for (random-natural max-num))
     (define search-result (binary-search arr search-for))
     (check-true (> (vector-ref arr search-result) search-for))
     (when (positive? search-result)
@@ -107,8 +103,8 @@
     (define his (vector-ref hi-ends idx))
     (define hint (vector-ref hints idx))
     (values (for/list ([lo (in-list los)]
-                     [hi (in-list his)]
-                     [repr (in-list reprs)])
+                       [hi (in-list his)]
+                       [repr (in-list reprs)])
               ((representation-ordinal->repr repr) (random-integer lo hi)))
             hint)))
 
