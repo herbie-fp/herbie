@@ -56,9 +56,13 @@
                      [(approx spec impl) impl]
                      [node node]))))
 
+;; Compiles a program of operator implementations into a procedure
+;; that evaluates the program on a single input of representation values
+;; returning representation values.
 ;; Translates a Herbie IR into an interpretable IR.
 ;; Requires some hooks to complete the translation.
-(define (make-compiler exprs vars)
+(define (compile-progs exprs ctx)
+  (define vars (context-vars ctx))
   (define num-vars (length vars))
 
   ; Here we need to keep vars even though no roots refer to the vars
@@ -75,12 +79,6 @@
         [(list op args ...) (cons (impl-info op 'fl) args)])))
 
   (make-progs-interpreter (batch-vars batch) instructions (batch-roots batch)))
-
-;; Compiles a program of operator implementations into a procedure
-;; that evaluates the program on a single input of representation values
-;; returning representation values.
-(define (compile-progs exprs ctx)
-  (make-compiler exprs (context-vars ctx)))
 
 ;; Like `compile-progs`, but a single prog.
 (define (compile-prog expr ctx)
