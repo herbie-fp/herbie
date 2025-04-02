@@ -11,7 +11,7 @@
          "compiler.rkt"
          "points.rkt"
          "programs.rkt"
-         "sampling.rkt")
+         "rival.rkt")
 
 (module+ test
   (require rackunit
