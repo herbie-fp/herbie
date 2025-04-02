@@ -120,11 +120,11 @@
      ; hints-hyperrects is a (listof '(hint hyperrect))
      (match-define (list hyperrects hints sampling-table)
        (find-intervals compiler hyperrects-analysis #:fuel (*max-find-range-depth*)))
-     (cons (make-hyperrect-sampler hyperrects hints var-reprs) sampling-table)]
+     (values (make-hyperrect-sampler hyperrects hints var-reprs) sampling-table)]
     [else
      (timeline-push! 'method "random")
      ; sampler return false hint since rival-analyze has not been called in random method
-     (cons (λ () (cons (map random-generate var-reprs) #f)) (hash 'unknown 1.0))]))
+     (values (λ () (cons (map random-generate var-reprs) #f)) (hash 'unknown 1.0))]))
 
 ;; Returns an evaluator for a list of expressions.
 ;; Part 3: compute exact values using Rival's algorithm
@@ -158,7 +158,7 @@
            (when (and (bigfloat? maybe-bf) (bfinfinite? maybe-bf))
              (set! status 'infinite)))])
 
-      (hash-update! outcomes status (curry + 1) 0)
+      (hash-update! outcomes status add1 0)
 
       (define is-bad?
         (for/or ([input (in-list pt)]
@@ -175,7 +175,7 @@
            (raise-herbie-sampling-error "Cannot sample enough valid points."
                                         #:url "faq.html#sample-valid-points"))
          (loop sampled (+ 1 skipped) points exactss)])))
-  (cons outcomes (cons points (flip-lists exactss))))
+  (values (cons points (flip-lists exactss)) outcomes))
 
 (define (combine-tables t1 t2)
   (define t2-total (apply + (hash-values t2)))
@@ -186,9 +186,9 @@
 (define (sample-points pre specs ctxs)
   (timeline-event! 'analyze)
   (define compiler (make-real-compiler specs ctxs #:pre pre))
-  (match-define (cons sampler table) (make-sampler compiler))
+  (define-values (sampler table) (make-sampler compiler))
   (timeline-event! 'sample)
-  (match-define (cons table2 results) (batch-prepare-points compiler sampler))
+  (define-values (results table2) (batch-prepare-points compiler sampler))
   (define total (apply + (hash-values table2)))
   (when (> (hash-ref table2 'infinite 0.0) (* 0.2 total))
     (warn 'inf-points
