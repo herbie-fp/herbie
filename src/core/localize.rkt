@@ -21,7 +21,19 @@
   (load-herbie-builtins))
 
 (provide compute-local-errors
+         eval-progs-real
          local-error-as-tree)
+
+(define (eval-progs-real specs ctxs)
+  (define compiler (make-real-compiler specs ctxs))
+  (define bad-pt
+    (for/list ([ctx* (in-list ctxs)])
+      ((representation-bf->repr (context-repr ctx*)) +nan.bf)))
+  (define (<eval-prog-real> . pt)
+    (define-values (_ exs) (real-apply compiler pt))
+    (or exs bad-pt))
+  <eval-prog-real>)
+
 
 ;; The local error of an expression f(x, y) is
 ;;

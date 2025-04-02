@@ -12,7 +12,6 @@
          "rival.rkt")
 
 (provide batch-prepare-points
-         eval-progs-real
          sample-points)
 
 ;; Part 1: use FPBench's condition->range-table to create initial hyperrects
@@ -100,24 +99,18 @@
   (define weights (partial-sums (vector-map (curryr hyperrect-weight reprs) hyperrects)))
   (define weight-max (vector-ref weights (- (vector-length weights) 1)))
 
-  ;; returns (cons (listof pts) hint)
+  ;; returns pt and hint
   (λ ()
-    (define rand-ordinal (random-integer 0 weight-max))
+    (define rand-ordinal (random-natural weight-max))
     (define idx (binary-search weights rand-ordinal))
     (define los (vector-ref lo-ends idx))
     (define his (vector-ref hi-ends idx))
     (define hint (vector-ref hints idx))
-    (cons (for/list ([lo (in-list los)]
+    (values (for/list ([lo (in-list los)]
                      [hi (in-list his)]
                      [repr (in-list reprs)])
-            ((representation-ordinal->repr repr) (random-integer lo hi)))
-          hint)))
-
-#;(module+ test
-    (define two-point-hyperrects (list (list (ival (bf 0) (bf 0)) (ival (bf 1) (bf 1)))))
-    (define repr (get-representation 'binary64))
-    (check-true (andmap (curry set-member? '(0.0 1.0))
-                        ((make-hyperrect-sampler two-point-hyperrects (list repr repr))))))
+              ((representation-ordinal->repr repr) (random-integer lo hi)))
+            hint)))
 
 (define (make-sampler compiler)
   (match-define (real-compiler pre vars var-reprs _ reprs _ _) compiler)
@@ -138,16 +131,6 @@
      (cons (λ () (cons (map random-generate var-reprs) #f)) (hash 'unknown 1.0))]))
 
 ;; Returns an evaluator for a list of expressions.
-(define (eval-progs-real specs ctxs)
-  (define compiler (make-real-compiler specs ctxs))
-  (define bad-pt
-    (for/list ([ctx* (in-list ctxs)])
-      ((representation-bf->repr (context-repr ctx*)) +nan.bf)))
-  (define (<eval-prog-real> . pt)
-    (define-values (_ exs) (real-apply compiler pt))
-    (or exs bad-pt))
-  <eval-prog-real>)
-
 ;; Part 3: compute exact values using Rival's algorithm
 
 (define (batch-prepare-points compiler sampler)
@@ -163,16 +146,14 @@
                [skipped 0]
                [points '()]
                [exactss '()])
-      (match-define (cons pt hint) (sampler))
+      (define-values (pt hint) (sampler))
       (define-values (status exs) (real-apply compiler pt hint))
       (case status
         [(exit)
          (warn 'ground-truth
-               #:url "faq.html#ground-truth"
                "could not determine a ground truth"
-               #:extra (for/list ([var vars]
-                                  [val pt])
-                         (format "~a = ~a" var val)))]
+               #:url "faq.html#ground-truth"
+               #:extra (map (curry format "~a = ~a") vars pt))]
         [(valid)
          (for ([ex (in-list exs)]
                [repr (in-list reprs)])
