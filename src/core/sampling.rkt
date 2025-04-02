@@ -50,7 +50,7 @@
     (cond
       [(>= left right) (min left (- (vector-length vector) 1))]
       [else
-       (define mid (quotient (+ left right) 2))
+       (define mid (arithmetic-shift (+ left right) -1))
        (define pivot (vector-ref vector mid))
        (if (<= pivot num)
            (loop (+ 1 mid) right)
