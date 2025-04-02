@@ -2,7 +2,8 @@
 
 (require "../utils/alternative.rkt"
          "programs.rkt"
-         "egg-herbie.rkt")
+         "egg-herbie.rkt"
+         "../config.rkt")
 
 (provide add-derivations)
 
@@ -20,7 +21,12 @@
     [(alt expr (list 'rr loc (? egg-runner? runner) #f) `(,prev) preprocessing)
      (define start-expr (location-get loc (alt-expr prev)))
      (define end-expr (location-get loc expr))
-     (define proof (egraph-prove runner start-expr end-expr))
+
+     (define proof
+       (if (flag-set? 'generate 'egglog)
+           #f
+           (egraph-prove runner start-expr end-expr)))
+
      (define proof* (canonicalize-proof (alt-expr altn) proof loc))
      (alt expr `(rr ,loc ,runner ,proof*) `(,prev) preprocessing)]
 

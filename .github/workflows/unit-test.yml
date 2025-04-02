@@ -24,6 +24,8 @@ jobs:
       - uses: actions/checkout@master
       - name: "Install dependencies"
         run: make install
+      - name: "Install egglog"
+        run: make egglog-herbie
 
       - name: "Test raco fmt compliance"
         run: make fmt && git diff --exit-code
@@ -54,6 +56,8 @@ jobs:
           racket -l herbie report --threads yes --seed 1 bench/hamming/rearrangement.fpcore graphs0
           racket -l herbie report --threads yes --seed 1 bench/hamming/rearrangement.fpcore graphs1
           racket infra/diff.rkt graphs0 graphs1
+      - name: "Run Herbie with egglog"
+        run: racket -l herbie report --timeout 600 +o generate:egglog --seed 1 bench/hamming/trigonometry.fpcore graphs2
 
       # Test the egg-herbie Rust code
       - run: cd egg-herbie && cargo clippy --tests

@@ -14,7 +14,10 @@
          "points.rkt"
          "preprocess.rkt"
          "programs.rkt"
-         "regimes.rkt")
+         "regimes.rkt"
+         "../syntax/platform.rkt"
+         "../utils/timeline.rkt")
+
 (provide run-improve!)
 
 ;; The Herbie main loop goes through a simple iterative process:
@@ -48,7 +51,6 @@
         #:break (atab-completed? (^table^)))
     (finish-iter!))
   (define alternatives (extract!))
-
   (timeline-event! 'preprocess)
   (define final-alts
     (for/list ([altn alternatives])
