@@ -9,8 +9,8 @@
 
 (define (make-traceback result-hash)
   (match (hash-ref result-hash 'status)
-    ['timeout (render-timeout result-hash)]
-    ['failure (render-failure result-hash)]
+    ["timeout" (render-timeout result-hash)]
+    ["failure" (render-failure result-hash)]
     [status (error 'make-traceback "unexpected status ~a" status)]))
 
 (define (render-failure result-hash)

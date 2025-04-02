@@ -3,7 +3,6 @@
 (require "../syntax/platform.rkt"
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
-         "../utils/alternative.rkt"
          "../utils/common.rkt"
          "../utils/float.rkt"
          "../utils/timeline.rkt"
@@ -14,8 +13,7 @@
          "egg-herbie.rkt"
          "points.rkt"
          "programs.rkt"
-         "rules.rkt"
-         "simplify.rkt")
+         "rules.rkt")
 
 (provide find-preprocessing
          preprocess-pcontext
@@ -51,40 +49,8 @@
     (match-define (list a b) pair)
     (cons `(swap ,a ,b) (replace-vars `((,a . ,b) (,b . ,a)) spec))))
 
-;; Initial simplify
-(define (initial-simplify expr ctx)
-  (define rules (*simplify-rules*))
-  (define lifting-rules (platform-lifting-rules))
-  (define lowering-rules (platform-lowering-rules))
-
-  ; egg schedule (3-phases for mathematical rewrites and implementation selection)
-  (define schedule
-    `((lift . ((iteration . 1))) (,rules . ((node . ,(*node-limit*)))) (lower . ((iteration . 1)))))
-
-  (define batch (progs->batch (list expr)))
-
-  ; egg query
-  (define runner
-    (if (flag-set? 'generate 'egglog)
-        (make-egglog-runner batch (batch-roots batch) (list (context-repr ctx)) schedule)
-        (make-egraph batch (batch-roots batch) (list (context-repr ctx)) schedule)))
-
-  ; run egg
-  (define simplified
-    (if (flag-set? 'generate 'egglog)
-        (simplify-batch-egglog runner batch)
-        (simplify-batch runner batch)))
-
-  ; alternatives
-  (define start-alt (make-alt expr))
-  (cons start-alt
-        (remove-duplicates
-         (for/list ([batchreff (rest simplified)])
-           (alt (debatchref batchreff) `(simplify () ,runner #f) (list start-alt) '()))
-         alt-equal?)))
-
 ;; See https://pavpanchekha.com/blog/symmetric-expressions.html
-(define (find-preprocessing init expr ctx)
+(define (find-preprocessing expr ctx)
   (define spec (prog->spec expr))
 
   ;; identities
@@ -127,15 +93,7 @@
                #:when (> (length component) 1))
       (cons 'sort component)))
 
-  (define instrs (append abs-instrs negabs-instrs sort-instrs))
-  (define start-alts
-    (if (flag-set? 'setup 'simplify)
-        ; initial simplify
-        (for/list ([altn (initial-simplify init ctx)])
-          (alt-add-preprocessing altn instrs))
-        (list (make-alt-preprocessing init instrs))))
-
-  (values start-alts instrs))
+  (append abs-instrs negabs-instrs sort-instrs))
 
 (define (connected-components variables swaps)
   (define components (disjoint-set (length variables)))
