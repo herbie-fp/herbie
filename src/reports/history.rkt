@@ -157,15 +157,6 @@
                 ,(core->tex core #:loc (and loc (cons 2 loc)) #:color "blue")
                 "\\]")))]
 
-    [(alt prog `(simplify ,loc ,input ,proof) `(,prev) _)
-     (define-values (err err2) (altn-errors altn pcontext pcontext2 ctx))
-     `(,@(render-history prev pcontext pcontext2 ctx)
-       (li ,(if proof
-                (render-proof proof pcontext ctx)
-                ""))
-       (li (p "Simplified" (span ((class "error") [title ,err2]) ,err))
-           (div ((class "math")) "\\[\\leadsto " ,(program->tex prog ctx #:loc loc) "\\]")))]
-
     [(alt prog `(rr ,loc ,input ,proof) `(,prev) _)
      (define-values (err err2) (altn-errors altn pcontext pcontext2 ctx))
      `(,@(render-history prev pcontext pcontext2 ctx)
@@ -240,17 +231,6 @@
             (prev . ,(render-json prev pcontext pcontext2 ctx))
             (pt . ,(~a pt))
             (var . ,(~a var))
-            (loc . ,loc)
-            (error . ,err)
-            (training-error . ,err2))]
-
-    [(alt prog `(simplify ,loc ,input ,proof) `(,prev) _)
-     `#hash((program . ,(fpcore->string (expr->fpcore prog ctx)))
-            (type . "simplify")
-            (prev . ,(render-json prev pcontext pcontext2 ctx))
-            (proof . ,(if proof
-                          (render-proof-json proof pcontext ctx)
-                          (json-null)))
             (loc . ,loc)
             (error . ,err)
             (training-error . ,err2))]
