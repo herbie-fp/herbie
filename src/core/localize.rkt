@@ -34,7 +34,6 @@
     (or exs bad-pt))
   <eval-prog-real>)
 
-
 ;; The local error of an expression f(x, y) is
 ;;
 ;;   R[f(x, y)] - f(R[x], R[y])

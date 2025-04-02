@@ -57,21 +57,12 @@
            (loop left mid))])))
 
 (module+ test
-  (define rand-list
-    (let loop ([current 0])
-      (cond
-        [(> current 200) empty]
-        [else
-         (define r (+ current (random-integer 1 10)))
-         (cons r (loop r))])))
-  (define arr (list->vector rand-list))
-  (for ([i (range 0 20)])
-    (define max-num (vector-ref arr (- (vector-length arr) 1)))
-    (define search-for (random-natural max-num))
+  (define arr (partial-sums (build-vector 50 (lambda (_) (random-integer 1 100)))))
+  (define max-num (vector-ref arr (- (vector-length arr) 1)))
+  (for ([search-for (in-range max-num)])
     (define search-result (binary-search arr search-for))
     (check-true (> (vector-ref arr search-result) search-for))
-    (when (positive? search-result)
-      (check-true (<= (vector-ref arr (- search-result 1)) search-for)))))
+    (check-true (or (zero? search-result) (<= (vector-ref arr (- search-result 1)) search-for)))))
 
 (define (make-hyperrect-sampler hyperrects* hints* reprs)
   (when (null? hyperrects*)
