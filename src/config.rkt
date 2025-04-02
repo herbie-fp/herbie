@@ -152,7 +152,7 @@
 
 ;; Pherbie related options
 (define *pareto-mode* (make-parameter #t))
-(define *pareto-pick-limit* (make-parameter 5))
+(define *pareto-pick-limit* (make-parameter 50000))
 
 ;; If `:precision` is unspecified, which representation should we use?
 (define *default-precision* (make-parameter 'binary64))
