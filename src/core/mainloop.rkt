@@ -33,7 +33,7 @@
 ;; These high-level functions give the high-level workflow of Herbie:
 ;; - Initial steps: explain, preprocessing, initialize the alt table
 ;; - the loop: choose some alts, localize, run the patch table, and finalize
-;; - Final steps: regimes, final simplify, derivations, and remove preprocessing
+;; - Final steps: regimes, derivations, and remove preprocessing
 
 (define (run-improve! initial specification context pcontext)
   (explain! initial context pcontext)
@@ -42,7 +42,8 @@
   (timeline-push! 'symmetry (map ~a preprocessing))
   (define pcontext* (preprocess-pcontext context pcontext preprocessing))
   (*pcontext* pcontext*)
-  (initialize-alt-table! (make-alt-preprocessing initial preprocessing) context pcontext*)
+  (*start-prog* initial)
+  (^table^ (make-alt-table pcontext (make-alt-preprocessing initial preprocessing) context))
 
   (for ([iteration (in-range (*num-iterations*))]
         #:break (atab-completed? (^table^)))
@@ -231,10 +232,6 @@
 
 (define (rollback-iter!)
   (void))
-
-(define (initialize-alt-table! initial context pcontext)
-  (*start-prog* (alt-expr initial))
-  (^table^ (make-alt-table pcontext initial context)))
 
 (define (explain! expr context pcontext)
   (timeline-event! 'explain)
