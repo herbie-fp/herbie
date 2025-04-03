@@ -19,7 +19,7 @@
 (provide add-derivations)
 
 (define-type Program Any)
-(define-type Proof (Listof Any))
+(define-type Proof (U (Listof Any) #f))
 (define-type Loc (Listof Natural))
 
 (: canonicalize-proof (-> Program Proof Loc Proof))
@@ -27,7 +27,7 @@
   (and proof
        ;; Proofs are actually on subexpressions,
        ;; we need to construct the proof for the full expression
-       (for/list ([step (in-list proof)])
+       (for/list : (Listof Any) ([step (in-list proof)])
          (location-do loc prog (const step)))))
 
 ;; Adds proof information to alternatives.

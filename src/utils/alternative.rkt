@@ -11,7 +11,7 @@
      (List 'simplify (Listof Natural) Any Any)
      'initial-simplify
      'final-simplify
-     (List 'rr (Listof Natural) Any (Listof Any))
+     (List 'rr (Listof Natural) Any (U #f (Listof Any)))
      'add-preprocessing))
 (define-type Preprocessing (Listof Symbol))
 
