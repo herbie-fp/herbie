@@ -1,4 +1,4 @@
-#lang typed/racket/optional
+#lang typed/racket/shallow
 
 (require "../utils/alternative.rkt")
 
