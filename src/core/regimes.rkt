@@ -144,7 +144,7 @@
   out)
 
 ;; Given error-lsts, returns a list of sp objects representing where the optimal splitpoints are.
-(module core typed/racket
+(module core typed/racket/optional
   (provide (struct-out si)
            infer-split-indices
            pick-errors)
