@@ -1,14 +1,13 @@
 #lang racket
 
-(require "../utils/common.rkt"
-         "../utils/alternative.rkt"
-         "programs.rkt"
+(require "../utils/alternative.rkt"
+         "../utils/common.rkt"
+         "../utils/float.rkt"
          "../utils/timeline.rkt"
          "../syntax/types.rkt"
-         "../utils/errors.rkt"
+         "compiler.rkt"
          "points.rkt"
-         "../utils/float.rkt"
-         "compiler.rkt")
+         "programs.rkt")
 (provide pareto-regimes
          (struct-out option)
          (struct-out si))

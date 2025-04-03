@@ -125,7 +125,7 @@
 (define (render-comparison #:title [title #f] name a b)
   (render-large #:title title name a `(span ((class "unit")) " → ") b))
 
-(define (render-specification test #:bogosity [bogosity #f])
+(define (render-specification test)
   (define-values (dropdown body)
     (render-program (test-spec test)
                     (test-context test)
@@ -137,14 +137,7 @@
                               (a ((class "help-button float") [href ,(doc-url "report.html#spec")]
                                                               [target "_blank"])
                                  "?"))
-                     ,body
-                     ,@(cond
-                         [bogosity
-                          `((p "Sampling outcomes in "
-                               (kbd ,(~a (representation-name (test-output-repr test))))
-                               " precision:")
-                            ,(render-bogosity bogosity))]
-                         [else '()]))))
+                     ,body)))
 
 (define languages
   `(("FPCore" "fpcore" ,(λ (c i) (fpcore->string c))) ("C" "c" ,core->c)

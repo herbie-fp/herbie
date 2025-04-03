@@ -48,13 +48,12 @@
   (begin
     (define-2ary-fallback-operator op fn) ...))
 
-(define (no-complex fun)
-  (λ xs
-    (define res (apply fun xs))
-    (if (real? res) res +nan.0)))
+(define ((no-complex fun) . xs)
+  (define res (apply fun xs))
+  (if (real? res) res +nan.0))
 
-(define (from-bigfloat bff)
-  (λ args (bigfloat->flonum (apply bff (map bf args)))))
+(define ((from-bigfloat bff) . args)
+  (bigfloat->flonum (apply bff (map bf args))))
 
 (define (bffmod x mod)
   (bf- x (bf* (bftruncate (bf/ x mod)) mod)))

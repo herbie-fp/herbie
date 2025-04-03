@@ -1,8 +1,7 @@
 #lang racket
 
 (require "../utils/timeline.rkt"
-         "../syntax/syntax.rkt"
-         "../syntax/types.rkt")
+         "../syntax/syntax.rkt")
 
 (provide progs->batch ; (Listof Expr) -> Batch
          batch->progs ; Batch -> ?(or (Listof Root) (Vectorof Root)) -> (Listof Expr)
@@ -19,7 +18,8 @@
          make-mutable-batch ; Mutable-batch
          batch->mutable-batch ; Batch -> Mutable-batch
          batch-copy-mutable-nodes! ; Batch -> Mutable-batch -> Void
-         mutable-batch-push!) ; Mutable-batch -> Node -> Idx
+         mutable-batch-push! ; Mutable-batch -> Node -> Idx
+         batch-copy)
 
 ;; This function defines the recursive structure of expressions
 (define (expr-recurse expr f)

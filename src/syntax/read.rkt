@@ -149,7 +149,17 @@
       [(list 'FPCore name (list args ...) props ... body) (values name args props body)]
       [(list 'FPCore (list args ...) props ... body) (values #f args props body)]))
 
-  (define prop-dict (props->dict props))
+  ;; NOTE: We intentionally do not use (define prop-dict (props->dict props)) here
+  ;; despite its apparent efficiency. props->dict could be considered, if :alt was a unique key
+  ;; in our property. When there are multiple entries with the same key, props->dict would collapse
+  ;; them, and prevent mutliple Developer Targets from being represented correctly.
+  ;; This less efficient implementation preserves all entries, and maintains dict-ref functionality.
+  (define prop-dict
+    (let loop ([props props])
+      (match props
+        ['() '()]
+        [(list prop val rest ...) (cons (cons prop val) (loop rest))])))
+
   (define default-prec (dict-ref prop-dict ':precision (*default-precision*)))
 
   (define-values (var-names var-precs)
@@ -237,8 +247,9 @@
   (parameterize ([read-decimal-as-inexact false])
     (read-syntax port name)))
 
-(define (load-stdin)
-  (for/list ([test (in-port (curry our-read-syntax "stdin") (current-input-port))])
+(define (load-port port)
+  (port-count-lines! port)
+  (for/list ([test (in-port (curry our-read-syntax "stdin") port)])
     (parse-test test)))
 
 (define (load-file file)
@@ -262,7 +273,8 @@
         path))
   (define out
     (cond
-      [(equal? path "-") (load-stdin)]
+      [(port? path) (load-port path)]
+      [(equal? path "-") (load-port (current-input-port))]
       [(directory-exists? path*) (load-directory path*)]
       [else (load-file path*)]))
   (define duplicates (find-duplicates (map test-name out)))

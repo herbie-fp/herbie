@@ -9,12 +9,12 @@
 
 (define (make-traceback result-hash)
   (match (hash-ref result-hash 'status)
-    ['timeout (render-timeout result-hash)]
-    ['failure (render-failure result-hash)]
+    ["timeout" (render-timeout result-hash)]
+    ["failure" (render-failure result-hash)]
     [status (error 'make-traceback "unexpected status ~a" status)]))
 
 (define (render-failure result-hash)
-  (define test (hash-ref result-hash 'test))
+  (define test (car (load-tests (open-input-string (hash-ref result-hash 'test)))))
   (define warnings (hash-ref result-hash 'warnings))
   (define backend (hash-ref result-hash 'backend))
 
@@ -51,7 +51,7 @@
                      `(tr (td ((class "procedure")) ,(~a name)) ,@(render-loc loc))))))
 
 (define (render-timeout result-hash)
-  (define test (hash-ref result-hash 'test))
+  (define test (car (load-tests (open-input-string (hash-ref result-hash 'test)))))
   (define time (hash-ref result-hash 'time))
   (define warnings (hash-ref result-hash 'warnings))
 

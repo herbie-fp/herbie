@@ -1,8 +1,8 @@
 #lang racket
 
 (require math/number-theory)
-(require "../syntax/syntax.rkt"
-         "../utils/common.rkt"
+(require "../utils/common.rkt"
+         "../syntax/syntax.rkt"
          "batch.rkt"
          "programs.rkt"
          "reduce.rkt")
@@ -159,17 +159,17 @@
                (taylor-exact (batch-ref expr-batch n))
                (taylor-exp (zero-series arg*))))]
         [`(sin ,arg)
-         (let ([arg* (normalize-series (vector-ref taylor-approxs arg))])
-           (cond
-             [(positive? (car arg*)) (taylor-exact (batch-ref expr-batch n))]
-             [(= (car arg*) 0)
-              ; Our taylor-sin function assumes that a0 is 0,
-              ; because that way it is especially simple. We correct for this here
-              ; We use the identity sin (x + y) = sin x cos y + cos x sin y
-              (taylor-add
-               (taylor-mult (taylor-exact `(sin ,((cdr arg*) 0))) (taylor-cos (zero-series arg*)))
-               (taylor-mult (taylor-exact `(cos ,((cdr arg*) 0))) (taylor-sin (zero-series arg*))))]
-             [else (taylor-sin (zero-series arg*))]))]
+         (define arg* (normalize-series (vector-ref taylor-approxs arg)))
+         (cond
+           [(positive? (car arg*)) (taylor-exact (batch-ref expr-batch n))]
+           [(= (car arg*) 0)
+            ; Our taylor-sin function assumes that a0 is 0,
+            ; because that way it is especially simple. We correct for this here
+            ; We use the identity sin (x + y) = sin x cos y + cos x sin y
+            (taylor-add
+             (taylor-mult (taylor-exact `(sin ,((cdr arg*) 0))) (taylor-cos (zero-series arg*)))
+             (taylor-mult (taylor-exact `(cos ,((cdr arg*) 0))) (taylor-sin (zero-series arg*))))]
+           [else (taylor-sin (zero-series arg*))])]
         [`(cos ,arg)
          (define arg* (normalize-series (vector-ref taylor-approxs arg)))
          (cond
@@ -216,12 +216,12 @@
     [else
      (define offset* (car (argmax car serieses)))
      (for/list ([series serieses])
-       (let ([offset (car series)])
-         (cons offset*
-               (λ (n)
-                 (if (< (+ n (- offset offset*)) 0)
-                     0
-                     ((cdr series) (+ n (- offset offset*))))))))]))
+       (define offset (car series))
+       (cons offset*
+             (λ (n)
+               (if (< (+ n (- offset offset*)) 0)
+                   0
+                   ((cdr series) (+ n (- offset offset*)))))))]))
 
 (define (taylor-add . terms)
   (match-define `((,offset . ,serieses) ...) (apply align-series terms))
@@ -251,7 +251,8 @@
   "Fixes up the series to have a non-zero zeroth term,
    allowing a possibly negative offset"
   (match-define (cons offset coeffs) series)
-  (let ([slack (first-nonzero-exp coeffs)]) (cons (- offset slack) (compose coeffs (curry + slack)))))
+  (define slack (first-nonzero-exp coeffs))
+  (cons (- offset slack) (compose coeffs (curry + slack))))
 
 (define ((zero-series series) n)
   (if (< n (- (car series)))
@@ -455,14 +456,13 @@
 (define (loggenerate table)
   (apply append
          (for/list ([term table])
-           (match term
-             [`(,coeff ,ps ...)
-              (filter identity
-                      (for/list ([i (in-naturals)]
-                                 [p ps])
-                        (if (zero? p)
-                            #f
-                            `(,(* coeff p) ,@(list-setinc ps i)))))]))))
+           (match-define `(,coeff ,ps ...) term)
+           (filter identity
+                   (for/list ([i (in-naturals)]
+                              [p ps])
+                     (if (zero? p)
+                         #f
+                         `(,(* coeff p) ,@(list-setinc ps i))))))))
 
 (define (lognormalize table)
   (filter (λ (entry) (not (= (car entry) 0)))

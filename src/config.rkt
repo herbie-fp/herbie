@@ -8,7 +8,7 @@
   #hash([precision . (double fallback)]
         [setup . (simplify search)]
         [localize . (costs errors)]
-        [generate . (rr taylor simplify better-rr proofs)]
+        [generate . (rr taylor simplify better-rr proofs egglog)]
         [reduce . (regimes avg-error binary-search branch-expressions simplify)]
         [rules
          . (arithmetic polynomials
@@ -24,10 +24,10 @@
 
 (define default-flags
   #hash([precision . ()]
-        [setup . (simplify search)]
+        [setup . (search)]
         [localize . ()]
-        [generate . (rr taylor simplify proofs)]
-        [reduce . (regimes binary-search branch-expressions simplify)]
+        [generate . (rr taylor proofs)]
+        [reduce . (regimes binary-search branch-expressions)]
         [rules
          . (arithmetic polynomials
                        fractions
@@ -50,6 +50,10 @@
      (eprintf "The precision:fallback option has been removed.\n")
      (eprintf "  The fallback representation is specified with :precision racket.\n")
      (eprintf "See <https://herbie.uwplse.org/doc/~a/input.html> for more.\n" *herbie-version*)]
+    [('setup 'simplify)
+     (eprintf "The setup:simplify option has been removed.\n")
+     (eprintf "  Initial simplification is no longer needed.\n")
+     (eprintf "See <https://herbie.uwplse.org/doc/~a/options.html> for more.\n" *herbie-version*)]
     [('generate 'better-rr)
      (eprintf "The generate:better-rr option has been removed.\n")
      (eprintf "  The current recursive rewriter does not support the it.\n")
@@ -57,6 +61,10 @@
     [('generate 'simplify)
      (eprintf "The generate:simplify option has been removed.\n")
      (eprintf "  Simplification is no longer performed as a separate step.\n")
+     (eprintf "See <https://herbie.uwplse.org/doc/~a/options.html> for more.\n" *herbie-version*)]
+    [('reduce 'simplify)
+     (eprintf "The reduce:simplify option has been removed.\n")
+     (eprintf "  Final-simplification is no longer performed.\n")
      (eprintf "See <https://herbie.uwplse.org/doc/~a/options.html> for more.\n" *herbie-version*)]
     [('reduce 'avg-error)
      (eprintf "The reduce:avg-error option has been removed.\n")
@@ -168,11 +176,12 @@
     (string-trim (with-output-to-string (λ () (system cmd))))))
 
 (define (git-command #:default [default ""] gitcmd . args)
-  (if (or (directory-exists? ".git") (file-exists? ".git")) ; gitlinks like for worktrees
-      (let* ([cmd (format "git ~a ~a" gitcmd (string-join args " "))]
-             [out (run-command cmd)])
-        (if (equal? out "") default out))
-      default))
+  (cond
+    [(or (directory-exists? ".git") (file-exists? ".git")) ; gitlinks like for worktrees
+     (define cmd (format "git ~a ~a" gitcmd (string-join args " ")))
+     (define out (run-command cmd))
+     (if (equal? out "") default out)]
+    [else default]))
 
 (define *herbie-version* "2.2")
 

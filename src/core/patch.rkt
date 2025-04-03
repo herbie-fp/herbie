@@ -2,7 +2,6 @@
 
 (require "../syntax/platform.rkt"
          "../syntax/syntax.rkt"
-         "../syntax/sugar.rkt"
          "../syntax/types.rkt"
          "../utils/alternative.rkt"
          "../utils/common.rkt"
@@ -10,9 +9,9 @@
          "egg-herbie.rkt"
          "programs.rkt"
          "rules.rkt"
-         "simplify.rkt"
          "taylor.rkt"
-         "batch.rkt")
+         "batch.rkt"
+         "egglog-herbie.rkt")
 
 (provide generate-candidates)
 
@@ -79,18 +78,25 @@
 
   ; egg schedule (3-phases for mathematical rewrites and implementation selection)
   (define schedule
-    `((,lifting-rules . ((iteration . 1) (scheduler . simple)))
-      (,rules . ((node . ,(*node-limit*))))
-      (,lowering-rules . ((iteration . 1) (scheduler . simple)))))
+    `((lift . ((iteration . 1) (scheduler . simple))) (,rules . ((node . ,(*node-limit*))))
+                                                      (lower . ((iteration . 1) (scheduler .
+                                                                                           simple)))))
 
   ; run egg
   (define exprs (map (compose debatchref alt-expr) altns))
   (define roots (list->vector (map (compose batchref-idx alt-expr) altns)))
   (define reprs (map (curryr repr-of (*context*)) exprs))
   (timeline-push! 'inputs (map ~a exprs))
-  (define runner (make-egraph global-batch roots reprs schedule))
-  ; batchrefss is a (listof (listof batchref))
-  (define batchrefss (egraph-variations runner global-batch))
+
+  (define runner
+    (if (flag-set? 'generate 'egglog)
+        (make-egglog-runner global-batch roots reprs schedule)
+        (make-egraph global-batch roots reprs schedule)))
+
+  (define batchrefss
+    (if (flag-set? 'generate 'egglog)
+        (run-egglog-multi-extractor runner global-batch)
+        (egraph-variations runner global-batch)))
 
   ; apply changelists
   (define rewritten
@@ -102,6 +108,7 @@
 
   (timeline-push! 'outputs (map (compose ~a debatchref alt-expr) rewritten))
   (timeline-push! 'count (length altns) (length rewritten))
+
   rewritten)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Public API ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
