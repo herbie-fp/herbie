@@ -14,14 +14,16 @@
          "points.rkt"
          "preprocess.rkt"
          "programs.rkt"
-         "regimes.rkt")
+         "regimes.rkt"
+         "../syntax/platform.rkt"
+         "../utils/timeline.rkt")
+
 (provide run-improve!)
 
 ;; The Herbie main loop goes through a simple iterative process:
 ;;
 ;; - Choose a subset of candidates
-;; - Choose a set of subexpressions (locs) in those alts
-;; - Patch (improve) them, generating new candidates
+;; - Generating new candidates based on them
 ;; - Evaluate all the new and old candidates and prune to the best
 ;;
 ;; Each stage is stored in this global variable for REPL debugging.
@@ -33,22 +35,22 @@
 ;; These high-level functions give the high-level workflow of Herbie:
 ;; - Initial steps: explain, preprocessing, initialize the alt table
 ;; - the loop: choose some alts, localize, run the patch table, and finalize
-;; - Final steps: regimes, final simplify, derivations, and remove preprocessing
+;; - Final steps: regimes, derivations, and remove preprocessing
 
 (define (run-improve! initial specification context pcontext)
   (explain! initial context pcontext)
   (timeline-event! 'preprocess)
-  (define-values (simplified preprocessing) (find-preprocessing initial specification context))
+  (define preprocessing (find-preprocessing specification context))
   (timeline-push! 'symmetry (map ~a preprocessing))
   (define pcontext* (preprocess-pcontext context pcontext preprocessing))
   (*pcontext* pcontext*)
-  (initialize-alt-table! simplified context pcontext*)
+  (*start-prog* initial)
+  (^table^ (make-alt-table pcontext (make-alt-preprocessing initial preprocessing) context))
 
   (for ([iteration (in-range (*num-iterations*))]
         #:break (atab-completed? (^table^)))
     (finish-iter!))
   (define alternatives (extract!))
-
   (timeline-event! 'preprocess)
   (define final-alts
     (for/list ([altn alternatives])
@@ -166,8 +168,7 @@
          (define event*
            (match event
              [(list 'taylor name var) (list 'taylor loc0 name var)]
-             [(list 'rr input proof) (list 'rr loc0 input proof)]
-             [(list 'simplify input proof) (list 'simplify loc0 input proof)]))
+             [(list 'rr input proof) (list 'rr loc0 input proof)]))
          (define expr* (location-do loc0 (alt-expr orig) (const (debatchref (alt-expr altn)))))
          (alt expr* event* (list (loop (first prevs))) (alt-preprocessing orig))])))
 
@@ -232,15 +233,6 @@
 
 (define (rollback-iter!)
   (void))
-
-(define (initialize-alt-table! alternatives context pcontext)
-  (match-define (cons initial simplified) alternatives)
-  (*start-prog* (alt-expr initial))
-  (define table (make-alt-table pcontext initial context))
-  (timeline-event! 'eval)
-  (define-values (errss costs) (atab-eval-altns table simplified context))
-  (timeline-event! 'prune)
-  (^table^ (atab-add-altns table simplified errss costs)))
 
 (define (explain! expr context pcontext)
   (timeline-event! 'explain)

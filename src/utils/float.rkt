@@ -92,7 +92,7 @@
 
 (define (json->value x repr)
   (match x
-    [(? real?) x]
+    [(? real?) (exact->inexact x)]
     [(? hash?)
      (match (hash-ref x 'type)
        ["real"

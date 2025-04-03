@@ -154,7 +154,6 @@ pub unsafe extern "C" fn egraph_run(
     iter_limit: u32,
     node_limit: u32,
     simple_scheduler: bool,
-    is_constant_folding_enabled: bool,
 ) -> *const EGraphIter {
     // Safety: `ptr` was box allocated by `egraph_create`
     let mut context = Box::from_raw(ptr);
@@ -176,7 +175,6 @@ pub unsafe extern "C" fn egraph_run(
         let rules: Vec<Rewrite> = math::mk_rules(&ffi_tuples);
         context.rules = rules;
 
-        context.runner.egraph.analysis.constant_fold = is_constant_folding_enabled;
         context.runner = if simple_scheduler {
             context.runner.with_scheduler(SimpleScheduler)
         } else {

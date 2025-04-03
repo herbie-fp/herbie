@@ -145,7 +145,7 @@
     (remap root)))
 
 ;; runs rules on an egraph (optional iteration limit)
-(define (egraph-run egraph-data ffi-rules node-limit iter-limit scheduler const-folding?)
+(define (egraph-run egraph-data ffi-rules node-limit iter-limit scheduler)
   (define u32_max 4294967295) ; since we can't send option types
   (define node_limit (if node-limit node-limit u32_max))
   (define iter_limit (if iter-limit iter-limit u32_max))
@@ -158,8 +158,7 @@
               ffi-rules
               iter_limit
               node_limit
-              simple_scheduler?
-              const-folding?))
+              simple_scheduler?))
 
 (define (egraph-get-simplest egraph-data node-id iteration ctx)
   (define expr (egraph_get_simplest (egraph-data-egraph-pointer egraph-data) node-id iteration))
@@ -181,12 +180,7 @@
   (egraph_get_times_applied (egraph-data-egraph-pointer egraph-data) (FFIRule-name rule)))
 
 (define (egraph-stop-reason egraph-data)
-  (match (egraph_get_stop_reason (egraph-data-egraph-pointer egraph-data))
-    [0 "saturated"]
-    [1 "iter limit"]
-    [2 "node limit"]
-    [3 "unsound"]
-    [sr (error 'egraph-stop-reason "unexpected stop reason ~a" sr)]))
+  (egraph_get_stop_reason (egraph-data-egraph-pointer egraph-data)))
 
 ;; Extracts the eclasses of an e-graph as a u32vector
 (define (egraph-eclasses egraph-data)
@@ -1208,16 +1202,14 @@
   (define node-limit (dict-ref params 'node #f))
   (define iter-limit (dict-ref params 'iteration #f))
   (define scheduler (dict-ref params 'scheduler 'backoff))
-  (define const-folding? (dict-ref params 'const-fold? #t))
   (define ffi-rules (map cdr egg-rules))
 
   ;; run the rules
   (let loop ([iter-limit iter-limit])
     (define egg-graph (egraph-copy egg-graph0))
-    (define iteration-data
-      (egraph-run egg-graph ffi-rules node-limit iter-limit scheduler const-folding?))
+    (define iteration-data (egraph-run egg-graph ffi-rules node-limit iter-limit scheduler))
 
-    (timeline-push! 'stop (egraph-stop-reason egg-graph) 1)
+    (timeline-push! 'stop (~a (egraph-stop-reason egg-graph)) 1)
     (cond
       [(egraph-is-unsound-detected egg-graph)
        ; unsoundness means run again with less iterations
@@ -1238,7 +1230,11 @@
   (define egg-graph*
     (for/fold ([egg-graph egg-graph]) ([(rules params) (in-dict schedule)])
       ; run rules in the egraph
-      (define egg-rules (expand-rules rules))
+      (define egg-rules
+        (expand-rules (match rules
+                        [`lift (platform-lifting-rules)]
+                        [`lower (platform-lowering-rules)]
+                        [else rules])))
       (define-values (egg-graph* iteration-data) (egraph-run-rules egg-graph egg-rules params))
 
       ; get cost statistics
@@ -1280,7 +1276,6 @@
 ;;  - scheduling parameters:
 ;;     - node limit: `(node . <number>)`
 ;;     - iteration limit: `(iteration . <number>)`
-;;     - constant fold: `(const-fold? . <boolean>)` [default: #t]
 ;;     - scheduler: `(scheduler . <name>)` [default: backoff]
 ;;        - `simple`: run all rules without banning
 ;;        - `backoff`: ban rules if the fire too much
@@ -1292,13 +1287,16 @@
     (match instr
       [(cons rules params)
        ;; `run` instruction
-       (unless (and (list? rules) (andmap rule? rules))
+
+       (unless (or (equal? `lift rules)
+                   (equal? `lower rules)
+                   (and (list? rules) (andmap rule? rules)))
          (oops! "expected list of rules: `~a`" rules))
+
        (for ([param (in-list params)])
          (match param
            [(cons 'node (? nonnegative-integer?)) (void)]
            [(cons 'iteration (? nonnegative-integer?)) (void)]
-           [(cons 'const-fold? (? boolean?)) (void)]
            [(cons 'scheduler mode)
             (unless (set-member? '(simple backoff) mode)
               (oops! "in instruction `~a`, unknown scheduler `~a`" instr mode))]
