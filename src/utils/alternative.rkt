@@ -1,4 +1,4 @@
-#lang typed/racket/shallow
+#lang typed/racket/optional
 
 (require "../syntax/platform.rkt")
 (require "../syntax/types.rkt")

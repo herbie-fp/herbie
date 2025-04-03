@@ -1,4 +1,4 @@
-#lang typed/racket/shallow
+#lang typed/racket/optional
 
 (require math/bigfloat)
 (require/typed "../utils/common.rkt"
