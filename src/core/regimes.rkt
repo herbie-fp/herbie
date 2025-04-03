@@ -200,8 +200,14 @@
     ;; These 3 vectors are will contain the output data and be used for
     ;; determining which alt is best for a given point
     (define result-error-sums (make-flvector number-of-points +inf.0))
-    (define result-alt-idxs : (Vectorof Index) (make-vector number-of-points 0))
-    (define result-prev-idxs : (Vectorof Index) (make-vector number-of-points number-of-points))
+    (define result-alt-idxs
+      :
+      (Vectorof Index)
+      (make-vector number-of-points 0))
+    (define result-prev-idxs
+      :
+      (Vectorof Index)
+      (make-vector number-of-points number-of-points))
 
     (for ([alt-idx (in-range number-of-points)]
           [alt-errors (in-vector flvec-psums)])
@@ -223,8 +229,14 @@
 
     (for ([point-idx (in-range number-of-points)]
           [current-alt-error (in-flvector result-error-sums)]
-          [current-alt-idx : Index (in-vector result-alt-idxs)]
-          [current-prev-idx : Index (in-vector result-prev-idxs)])
+          [current-alt-idx
+           :
+           Index
+           (in-vector result-alt-idxs)]
+          [current-prev-idx
+           :
+           Index
+           (in-vector result-prev-idxs)])
       ;; Set and fill temporary vectors with starting data
       ;; #f for best index and positive infinite for best cost
       (vector-fill! best-alt-idxs number-of-alts)

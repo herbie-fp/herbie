@@ -5,14 +5,14 @@
 (require "../syntax/syntax.rkt")
 
 (define-type Event
-  (U 'start
-     (List 'regimes (Listof Any))
-     (List 'taylor (Listof Natural) Symbol Symbol)
-     (List 'simplify (Listof Natural) Any Any)
-     'initial-simplify
-     'final-simplify
-     (List 'rr (Listof Natural) Any (U #f (Listof Any)))
-     'add-preprocessing))
+             (U 'start
+                (List 'regimes (Listof Any))
+                (List 'taylor (Listof Natural) Symbol Symbol)
+                (List 'simplify (Listof Natural) Any Any)
+                'initial-simplify
+                'final-simplify
+                (List 'rr (Listof Natural) Any (U #f (Listof Any)))
+                'add-preprocessing))
 (define-type Preprocessing (Listof Symbol))
 
 (define-type Platform Any)

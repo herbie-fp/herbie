@@ -1,8 +1,7 @@
 #lang typed/racket/optional
 
 (require "../utils/alternative.rkt")
-(require/typed "../config.rkt"
-  [flag-set? (-> Symbol Symbol Boolean)])
+(require/typed "../config.rkt" [flag-set? (-> Symbol Symbol Boolean)])
 
 (require/typed "programs.rkt"
                [location-do (-> Loc Program (-> Program Program) Program)]
@@ -29,7 +28,9 @@
   (and proof
        ;; Proofs are actually on subexpressions,
        ;; we need to construct the proof for the full expression
-       (for/list : (Listof Any) ([step (in-list proof)])
+       (for/list :
+         (Listof Any)
+         ([step (in-list proof)])
          (location-do loc prog (const step)))))
 
 ;; Adds proof information to alternatives.
@@ -38,10 +39,11 @@
   (match altn
     ; recursive rewrite or simplify, both using egg
     [(alt expr (list 'rr loc (? egg-runner? runner) #f) `(,prev) preprocessing)
-     (define start-expr (location-get (cast loc Loc) (alt-expr prev)))
-     (define end-expr (location-get (cast loc Loc) expr))
-     (define proof (and (flag-set? 'generate 'egglog) (egraph-prove runner start-expr end-expr)))
-     (define proof* (canonicalize-proof (alt-expr altn) proof (cast loc Loc)))
+     (define start-expr (location-get loc (alt-expr prev)))
+     (define end-expr (location-get loc expr))
+     (define proof
+       (and (not (flag-set? 'generate 'egglog)) (egraph-prove runner start-expr end-expr)))
+     (define proof* (canonicalize-proof (alt-expr altn) proof loc))
      (alt expr `(rr ,loc ,runner ,proof*) `(,prev) preprocessing)]
 
     ; everything else
