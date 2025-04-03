@@ -88,22 +88,80 @@
                       #:fpcore (! :precision binary32 (pown3/2s z0))
                       ) 
 
+(define-operator-impl (cosD.f32 [z0 : binary32])
+                      binary32
+                      #:spec (cos (* (PI) (/ z0 180)))
+                      #:fpcore (! :precision binary32 (cosD z0))
+                      ) 
+
+(define-operator-impl (cosD.f64 [z0 : binary64])
+                      binary64
+                      #:spec (cos (* (PI) (/ z0 180)))
+                      #:fpcore (! :precision binary64 (cosD z0))
+                      ) 
+
+(define-operator-impl (sinD.f32 [z0 : binary32])
+                      binary32
+                      #:spec (sin (* (PI) (/ z0 180)))
+                      #:fpcore (! :precision binary32 (sinD z0))
+                      ) 
+
+(define-operator-impl (sinD.f64 [z0 : binary64])
+                      binary64
+                      #:spec (sin (* (PI) (/ z0 180)))
+                      #:fpcore (! :precision binary64 (sinD z0))
+                      ) 
+
+
+(define-operator-impl (cos30.f32 [z0 : binary32])
+                      binary32
+                      #:spec (cos (* z0 30))
+                      #:fpcore (! :precision binary32 (cos30 z0))
+                      ) 
+
+(define-operator-impl (cos30.f64 [z0 : binary64])
+                      binary64
+                      #:spec (cos (* z0 30))
+                      #:fpcore (! :precision binary64 (cos30 z0))
+                      ) 
+
+(define-operator-impl (sin30.f32 [z0 : binary32])
+                      binary32
+                      #:spec (sin (* z0 30))
+                      #:fpcore (! :precision binary32 (sin30 z0))
+                      ) 
+
+(define-operator-impl (sin30.f64 [z0 : binary64])
+                      binary64
+                      #:spec (sin (* z0 30))
+                      #:fpcore (! :precision binary64 (sin30 z0))
+                      ) 
+
 (define-platform new-accelerator-platform
                     #:literal [binary64 64]
                     #:literal [binary32 32]
                     #:default-cost 100
-                    [ratio-of-squares.f64 352]
-                    [ratio-square-sum.f64 320]
-                    [sqrt-product.f64 352]
-                    [log1m.f64 1664]
-                    [expnp1.f64 1696]
-                    [pown3/2s.f64 1968]
-                    [ratio-of-squares.f32 352]
-                    [ratio-square-sum.f32 320]
-                    [sqrt-product.f32 352]
-                    [log1m.f32 1664]
-                    [expnp1.f32 1696]
-                    [pown3/2s.f32 1968]) 
+                    ;;; [ratio-of-squares.f64 352]
+                    ;;; [ratio-square-sum.f64 320]
+                    ;;; [sqrt-product.f64 352]
+                    ;;; [log1m.f64 1664]
+                    ;;; [expnp1.f64 1696]
+                    ;;; [pown3/2s.f64 1968]
+                    ;;; [ratio-of-squares.f32 352]
+                    ;;; [ratio-square-sum.f32 320]
+                    ;;; [sqrt-product.f32 352]
+                    ;;; [log1m.f32 1664]
+                    ;;; [expnp1.f32 1696]
+                    ;;; [pown3/2s.f32 1968]
+                    [cosD.f32 888]
+                    [cosD.f64 1776]
+                    [sinD.f32 888]
+                    [sinD.f64 1776]
+                    [sin30.f32 848]
+                    [sin30.f64 1696]
+                    [cos30.f32 848]
+                    [cos30.f64 1696]
+                    ) 
 
 
 (define no-accel-platform
@@ -119,6 +177,17 @@
                   libm32-platform
                   new-accelerator-platform))
 
+(define default-new-accel-platform
+  (platform-union boolean-platform
+                  machine-platform
+                  libm64-platform
+                  libm32-platform
+                  accelerator-platform
+                  new-accelerator-platform))
+
+
 (register-platform! 'noaccel no-accel-platform)
-(register-platform! 'newaccel new-accel-platform)
+(register-platform! 'new-accel new-accel-platform)
+(register-platform! 'default-new-accel default-new-accel-platform)
+
 

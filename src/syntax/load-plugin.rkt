@@ -24,6 +24,7 @@
 (define-runtime-module-path arith-fma-platform "../platforms/arith.rkt")
 (define-runtime-module-path arith-fma-vcubic-platform "../platforms/arith.rkt")
 (define-runtime-module-path no-accel-platform "../platforms/new-accelerators.rkt")
+(define-runtime-module-path default-new-accel-platform "../platforms/new-accelerators.rkt")
 (define-runtime-module-path new-accel-platform "../platforms/new-accelerators.rkt")
 (define-runtime-module-path cubic-platform "../platforms/cubic.rkt")
 
@@ -41,8 +42,9 @@
   (dynamic-require math-platform #f)
   (dynamic-require arith-platform #f)
   (dynamic-require arith-fma-platform #f)
- (dynamic-require arith-fma-vcubic-platform #f)
+  (dynamic-require arith-fma-vcubic-platform #f)
   (dynamic-require flopoco-accelerators-platform #f)
+  (dynamic-require default-new-accel-platform #f)
   (dynamic-require no-accel-platform #f)
   (dynamic-require new-accel-platform #f)
   (dynamic-require cubic-platform #f)
