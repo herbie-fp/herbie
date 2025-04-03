@@ -47,6 +47,8 @@
       (with-output-to-file temp-file #:exists 'replace (lambda () (for-each writeln curr-program)))
       temp-file))
 
+  ; (printf "file path ~a\n" egglog-file-path)
+
   (define egglog-path
     (or (find-executable-path "egglog") (error "egglog executable not found in PATH")))
 
@@ -87,8 +89,7 @@
   [(define (write-proc alt port mode)
      (fprintf port "#<egglog-runner>"))])
 
-;; Constructs an egglog runner. Exactly same as egg-runner
-;; But needs some amount of specifics - TODO
+;; Constructs an egglog runner - structurally serves the same purpose as egg-runner
 ;;
 ;; The schedule is a list of pairs specifying
 ;;  - a list of rules
@@ -127,16 +128,7 @@
   ; make the runner
   (egglog-runner batch roots reprs schedule ctx))
 
-;; 2. 4 types of run-egglog
-;; Runs egg using an egg runner.
-;;
-;; Argument `cmd` specifies what to get from the e-graph:
-;;  - single extraction: `(single . <extractor>)`
-;;  - multi extraction: `(multi . <extractor>)`
-;;  - proofs: `(proofs . ((<start> . <end>) ...))`
-
-;; TODO : Need to run egglog to get the actual ids
-;; very hard - per id recruse one level and ger simplest child
+;; Runs egglog using an egglog runner by extracting multiple variants
 (define (run-egglog-multi-extractor runner
                                     batch
                                     #:num-variants [num-variants #t]) ; multi expression extraction
@@ -172,8 +164,7 @@
 
       (cons tag schedule-params)))
 
-  ;; 3. Inserting expressions -> (egglog-add-exprs curr-batch (egglog-runner-ctx))
-  ; (exprs . extract bindings)
+  ;; 3. Inserting expressions into the egglog program and getting a Listof (exprs . extract bindings)
   (define extract-bindings (egglog-add-exprs curr-batch (egglog-runner-ctx runner) curr-program))
 
   ;; 4. Running the schedule
@@ -187,7 +178,7 @@
       ['lowering
        (set! domain-fns (cons tag domain-fns))
        (set! run-schedule
-             (append run-schedule (list (list 'saturate tag))))] ; (list 'repeat 2 'const-fold)
+             (append run-schedule (list (list 'saturate tag) (list 'repeat 2 'const-fold))))] ; TODO : (list 'repeat 2 'const-fold)
       [_
        ; Set params
        (define is-node-present (dict-ref schedule-params 'node #f))
@@ -211,7 +202,7 @@
   (for ([binding extract-bindings])
     (define val
       (if num-variants
-          `(extract ,binding 5)
+          `(extract ,binding 1)
 
           (match domain-fns
             [(list 'lifting) `(extract (lift ,binding))]
@@ -240,6 +231,8 @@
         (if num-variants
             (map e2->expr next-expr)
             (list (e2->expr next-expr))))))
+
+  ; (printf "herbie-exprss : ~a" herbie-exprss)
 
   (define result
     (for/list ([variants (in-list herbie-exprss)])
