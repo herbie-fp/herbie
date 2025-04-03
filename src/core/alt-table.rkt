@@ -196,7 +196,7 @@
 (define (atab-add-altn atab altn errs cost)
   (match-define (alt-table point-idx->alts alt->point-idxs alt->done? alt->cost pcontext _) atab)
 
-  (define max-alts-per-pareto-point 0)
+  #;(define max-alts-per-pareto-point 0)
   (define point-idx->alts*
     (for/vector #:length (vector-length point-idx->alts)
                 ([pcurve (in-vector point-idx->alts)]
@@ -204,7 +204,7 @@
       (define ppt (pareto-point cost err (list altn)))
       ;; This creates duplicate points, but they are removed by `alt-dedup`
       (define pcurve* (pareto-union (list ppt) pcurve #:combine append))
-      (set! max-alts-per-pareto-point
+      #;(set! max-alts-per-pareto-point
             (max max-alts-per-pareto-point
                  (apply max (map (compose length pareto-point-data) pcurve*))))
       pcurve*))
@@ -217,11 +217,12 @@
                pcontext
                #f))
 
-  (if (> max-alts-per-pareto-point (* (*pareto-pick-limit*) 5))
+  #;(if (> max-alts-per-pareto-point (* (*pareto-pick-limit*) 5))
       (atab-prune (struct-copy alt-table
                                atab*
                                [alt->point-idxs (invert-index (alt-table-point-idx->alts atab*))]))
-      atab*))
+      atab*)
+  atab*)
 
 (define (atab-min-errors atab)
   (define pnt-idx->alts (alt-table-point-idx->alts atab))
