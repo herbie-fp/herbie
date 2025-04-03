@@ -162,7 +162,7 @@ function calculateSpeedup(mergedCostAccuracy) {
                 return point[0].toFixed(1) + "×";
             }
             else {
-                return point[0] + "×";
+                return point[0];
             }
         }
     }
