@@ -25,13 +25,9 @@
 
 (: canonicalize-proof (-> Program Proof Loc Proof))
 (define (canonicalize-proof prog proof loc)
-  (and proof
-       ;; Proofs are actually on subexpressions,
-       ;; we need to construct the proof for the full expression
-       (for/list :
-         (Listof Any)
-         ([step (in-list proof)])
-         (location-do loc prog (const step)))))
+  ;; Proofs are actually on subexpressions,
+  ;; we need to construct the proof for the full expression
+  (and proof (map (lambda (step) (location-do loc prog (const step))) proof)))
 
 ;; Adds proof information to alternatives.
 (: add-derivations-to (-> alt alt))
