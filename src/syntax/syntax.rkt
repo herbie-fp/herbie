@@ -172,8 +172,7 @@
   ; check that Rival supports all non-accelerator operators
   (for ([op (in-list (all-operators))])
     (define vars (map (lambda (_) (gensym)) (operator-info op 'itype)))
-    (define disc (discretization 64 #f #f)) ; fake arguments
-    (rival-compile (list `(,op ,@vars)) vars (list disc))))
+    (rival-compile (list `(,op ,@vars)) vars (list flonum-discretization))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Operator implementations

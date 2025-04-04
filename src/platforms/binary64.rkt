@@ -20,7 +20,7 @@
                        (shift 63 ordinal->flonum)
                        (unshift 63 flonum->ordinal)
                        64
-                       (conjoin number? nan?))
+                       nan?)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; constants ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

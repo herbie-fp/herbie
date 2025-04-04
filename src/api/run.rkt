@@ -10,6 +10,7 @@
          "../utils/common.rkt"
          "../utils/profile.rkt"
          "../utils/timeline.rkt"
+         "../core/points.rkt"
          "datafile.rkt"
          "sandbox.rkt"
          "server.rkt")
@@ -73,12 +74,10 @@
     (call-with-output-file (build-path report-directory page)
                            #:exists 'replace
                            (λ (out)
-                             (with-handlers ([exn:fail? (λ (e)
-                                                          ((page-error-handler result page out) e))])
+                             (with-handlers ([exn:fail? (page-error-handler result page out)])
                                (make-page page out result #t #f)))))
 
   (define table-data (get-table-data-from-hash result report-path))
-  (print-test-result (+ test-number 1) total-tests table-data)
   table-data)
 
 (define (run-tests tests #:dir dir #:threads threads)
@@ -91,11 +90,20 @@
     (for/list ([test (in-list tests)])
       (start-job 'improve test #:seed seed #:pcontext #f #:profile? #t #:timeline-disabled? #f)))
 
-  (define results
+  (define total-tests (length tests))
+  (define job-results
     (for/list ([job-id (in-list job-ids)]
                [test (in-list tests)]
                [test-number (in-naturals)])
-      (generate-bench-report (wait-for-job job-id) (test-name test) test-number dir (length tests))))
+      (define result (wait-for-job job-id))
+      (print-test-result (+ test-number 1) total-tests test result)
+      result))
+  (define results
+    (for/list ([job-id (in-list job-ids)]
+               [job-result (in-list job-results)]
+               [test (in-list tests)]
+               [test-number (in-naturals)])
+      (generate-bench-report job-result (test-name test) test-number dir (length tests))))
 
   (define info (make-report-info results #:seed seed))
   (write-datafile (build-path dir "results.json") info)
@@ -138,16 +146,26 @@
   (define replaced (string-replace bench-name #px"\\W+" ""))
   (format "~a-~a" index (substring replaced 0 (min (string-length replaced) 50))))
 
-(define (print-test-result i n data)
+(define (hash-ref-path hash . path)
+  (match path
+    ['() hash]
+    [(cons (? symbol? key) rest) (apply hash-ref-path (hash-ref hash key) rest)]
+    [(cons (? integer? key) rest) (apply hash-ref-path (list-ref hash key) rest)]))
+
+(define (print-test-result i n test result-hash)
   (eprintf "~a/~a\t" (~a i #:width 3 #:align 'right) n)
-  (define bits (representation-total-bits (get-representation (table-row-precision data))))
-  (match (table-row-status data)
-    ["error" (eprintf "[ ERROR ]\t\t~a\n" (table-row-name data))]
-    ["crash" (eprintf "[ CRASH ]\t\t~a\n" (table-row-name data))]
-    ["timeout" (eprintf "[TIMEOUT]\t\t~a\n" (table-row-name data))]
+  (define name (test-name test))
+  (define bits (representation-total-bits (test-output-repr test)))
+  (define time (hash-ref-path result-hash 'time))
+  (define start-score (errors-score (hash-ref-path result-hash 'backend 'start 'errors)))
+  (define end-score (errors-score (hash-ref-path result-hash 'backend 'end 0 'errors)))
+  (match (hash-ref-path result-hash 'status)
+    ["error" (eprintf "[ ERROR ]\t\t~a\n" name)]
+    ["crash" (eprintf "[ CRASH ]\t\t~a\n" name)]
+    ["timeout" (eprintf "[TIMEOUT]\t\t~a\n" name)]
     [_
      (eprintf "[~as]  ~a% → ~a%\t~a\n"
-              (~r (/ (table-row-time data) 1000) #:min-width 6 #:precision '(= 1))
-              (~r (* 100 (- 1 (/ (table-row-start data) bits))) #:min-width 3 #:precision 0)
-              (~r (* 100 (- 1 (/ (table-row-result data) bits))) #:min-width 3 #:precision 0)
-              (table-row-name data))]))
+              (~r (/ time 1000) #:min-width 6 #:precision '(= 1))
+              (~r (* 100 (- 1 (/ start-score bits))) #:min-width 3 #:precision 0)
+              (~r (* 100 (- 1 (/ end-score bits))) #:min-width 3 #:precision 0)
+              name)]))
