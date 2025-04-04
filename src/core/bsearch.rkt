@@ -102,7 +102,8 @@
   ; Since the sampler does not call rival-analyze, the hint is set to #f
   (define (new-sampler)
     (cons (cons val (random-ref pts)) #f))
-  (apply mk-pcontext (cdr (batch-prepare-points evaluator new-sampler))))
+  (define-values (results _) (batch-prepare-points evaluator new-sampler))
+  (apply mk-pcontext results))
 
 (define/reset *prepend-arguement-cache* (make-hash))
 (define (cache-get-prepend v expr macro)
