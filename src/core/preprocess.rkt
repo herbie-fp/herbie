@@ -6,7 +6,10 @@
          "../utils/common.rkt"
          "../utils/float.rkt"
          "../utils/timeline.rkt"
+         "../utils/float.rkt"
          "batch.rkt"
+         "egglog-herbie.rkt"
+         "../config.rkt"
          "egg-herbie.rkt"
          "points.rkt"
          "programs.rkt"
@@ -65,6 +68,8 @@
                  (batch-roots batch)
                  (make-list (vector-length (batch-roots batch)) (context-repr ctx))
                  `((,rules . ((node . ,(*node-limit*)))))))
+
+  ;; TODO : FIGURE HOW TO IMPLEMENT PREPROCESS
 
   ;; collect equalities
   (define abs-instrs

@@ -1241,7 +1241,11 @@
   (define egg-graph*
     (for/fold ([egg-graph egg-graph]) ([(rules params) (in-dict schedule)])
       ; run rules in the egraph
-      (define egg-rules (expand-rules rules))
+      (define egg-rules
+        (expand-rules (match rules
+                        [`lift (platform-lifting-rules)]
+                        [`lower (platform-lowering-rules)]
+                        [else rules])))
       (define-values (egg-graph* iteration-data) (egraph-run-rules egg-graph egg-rules params))
 
       ; get cost statistics
@@ -1294,8 +1298,12 @@
     (match instr
       [(cons rules params)
        ;; `run` instruction
-       (unless (and (list? rules) (andmap rule? rules))
+
+       (unless (or (equal? `lift rules)
+                   (equal? `lower rules)
+                   (and (list? rules) (andmap rule? rules)))
          (oops! "expected list of rules: `~a`" rules))
+
        (for ([param (in-list params)])
          (match param
            [(cons 'node (? nonnegative-integer?)) (void)]
