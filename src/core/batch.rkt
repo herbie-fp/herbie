@@ -191,8 +191,10 @@
    '(+ 1 (neg (* 1/2 (+ (exp (/ (sin 3) (cos 3))) (/ 1 (exp (/ (sin 3) (cos 3)))))))))
   (test-munge-unmunge '(cbrt x))
   (test-munge-unmunge '(x))
-  (test-munge-unmunge
-   `(+.f64 (sin.f64 ,(approx '(* 1/2 (+ (exp x) (neg (/ 1 (exp x))))) '(+.f64 ,(f64 3) (*.f64 ,(f64 25) (sin.f64 ,(f64 6)))))) ,(f64 4))))
+  (test-munge-unmunge `(+.f64 (sin.f64 ,(approx '(* 1/2 (+ (exp x) (neg (/ 1 (exp x)))))
+                                                '(+.f64 ,(f64 3)
+                                                        (*.f64 ,(f64 25) (sin.f64 ,(f64 6))))))
+                              ,(f64 4))))
 
 ; Tests for remove-zombie-nodes
 (module+ test
