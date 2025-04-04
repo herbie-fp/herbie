@@ -204,13 +204,12 @@
       ;; This creates duplicate points, but they are removed by `alt-dedup`
       (pareto-union (list ppt) pcurve #:combine append)))
 
-  (define atab*
-    (alt-table point-idx->alts*
-               (hash-set alt->point-idxs altn #f)
-               (hash-set alt->done? altn #f)
-               (hash-set alt->cost altn cost)
-               pcontext
-               #f)))
+  (alt-table point-idx->alts*
+             (hash-set alt->point-idxs altn #f)
+             (hash-set alt->done? altn #f)
+             (hash-set alt->cost altn cost)
+             pcontext
+             #f))
 
 (define (atab-min-errors atab)
   (define pnt-idx->alts (alt-table-point-idx->alts atab))
