@@ -144,10 +144,7 @@
   out)
 
 (define/contract (pick-errors split-indices err-lsts repr)
-  (->i ([sis (listof si?)] [vss (r) (listof (listof (representation-repr? r)))]
-                           [errss (listof (listof real?))]
-                           [r representation?])
-       [idxs (listof nonnegative-integer?)])
+  (-> (listof si?) (listof (listof real?)) representation? (listof nonnegative-integer?))
   (for/list ([i (in-naturals)]
              [errs (flip-lists err-lsts)])
     (list-ref errs (si-cidx (findf (lambda (x) (< i (si-pidx x))) split-indices)))))
