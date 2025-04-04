@@ -146,7 +146,7 @@
 (define/contract (pick-errors split-indices err-lsts repr)
   (-> (listof si?) (listof (listof real?)) representation? (listof nonnegative-integer?))
   (for/list ([i (in-naturals)]
-             [errs (flip-lists err-lsts)])
+             [errs (in-list (flip-lists err-lsts))])
     (list-ref errs (si-cidx (findf (lambda (x) (< i (si-pidx x))) split-indices)))))
 
 (module+ test
