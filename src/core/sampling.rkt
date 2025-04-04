@@ -88,16 +88,12 @@
 
   ;; returns pt and hint
   (λ ()
-    (define rand-ordinal (random-natural weight-max))
-    (define idx (binary-search weights rand-ordinal))
-    (define los (vector-ref lo-ends idx))
-    (define his (vector-ref hi-ends idx))
-    (define hint (vector-ref hints idx))
-    (values (for/list ([lo (in-list los)]
-                       [hi (in-list his)]
+    (define idx (binary-search weights (random-natural weight-max)))
+    (values (for/list ([lo (in-list (vector-ref lo-ends idx))]
+                       [hi (in-list (vector-ref hi-ends idx))]
                        [repr (in-list reprs)])
               ((representation-ordinal->repr repr) (random-integer lo hi)))
-            hint)))
+            (vector-ref hints idx))))
 
 (define (make-sampler compiler)
   (match-define (real-compiler pre vars var-reprs _ reprs _ _) compiler)
