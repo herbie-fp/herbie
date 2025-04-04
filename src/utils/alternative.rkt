@@ -11,7 +11,6 @@
          alt-cost
          alt-equal?
          alt-map
-         alt-for-each
          alt-add-preprocessing
          make-alt-preprocessing)
 
@@ -43,11 +42,6 @@
 
 (define (alt-map f altn)
   (f (struct-copy alt altn [prevs (map (curry alt-map f) (alt-prevs altn))])))
-
-(define (alt-for-each f altn)
-  (for ([prev (alt-prevs altn)])
-    (alt-for-each f prev))
-  (f altn))
 
 ;; A useful parameter for many of Herbie's subsystems, though
 ;; ultimately one that should be located somewhere else or perhaps
