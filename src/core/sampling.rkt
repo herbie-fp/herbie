@@ -115,7 +115,7 @@
     [else
      (timeline-push! 'method "random")
      ; sampler return false hint since rival-analyze has not been called in random method
-     (values (λ () (cons (map random-generate var-reprs) #f)) (hash 'unknown 1.0))]))
+     (values (λ () (values (map random-generate var-reprs) #f)) (hash 'unknown 1.0))]))
 
 ;; Returns an evaluator for a list of expressions.
 ;; Part 3: compute exact values using Rival's algorithm
