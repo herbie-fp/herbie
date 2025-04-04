@@ -88,9 +88,12 @@
       (alt-analysis (make-alt target-expr) target-train-errs target-test-errs)))
 
   ;; compute error/cost for output expression
-  (define end-exprs (map alt-expr alternatives))
+  ;; and sort alternatives by accuracy + cost on testing subset
+  (define test-errs* (batch-errors (map alt-expr alternatives) test-pcontext* (*context*)))
+  (define sorted-end-exprs (sort-alts alternatives test-errs*))
+  (define end-exprs (map (compose alt-expr car) sorted-end-exprs))
+  (define end-test-errs (map cdr sorted-end-exprs))
   (define end-train-errs (batch-errors end-exprs train-pcontext (*context*)))
-  (define end-test-errs (batch-errors end-exprs test-pcontext* (*context*)))
   (define end-data (map alt-analysis alternatives end-train-errs end-test-errs))
 
   ;; bundle up the result
