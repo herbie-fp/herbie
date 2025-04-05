@@ -68,7 +68,7 @@
                  "stderr-port ~a\n"
                  (string-join (take-right (string-split (get-output-string stderr-port) "\n") 100)
                               "\n"))
-        (fprintf old-error-port "incorrect program ~a\n" curr-program)
+        (fprintf old-error-port "incorrect program in ~a\n" egglog-file-path)
         (error "Failed to execute egglog"))))
 
   (delete-file egglog-file-path)
@@ -156,9 +156,7 @@
            (egglog-program-add! `(ruleset ,curr-tag) curr-program)
 
            ;; Add the actual egglog rewrite rules
-           ;; TODO : why duplicates
-           (egglog-program-add-list! (remove-duplicates (egglog-rewrite-rules rule-type curr-tag))
-                                     curr-program)
+           (egglog-program-add-list! (egglog-rewrite-rules rule-type curr-tag) curr-program)
 
            curr-tag]))
 
@@ -178,7 +176,7 @@
       ['lowering
        (set! domain-fns (cons tag domain-fns))
        (set! run-schedule
-             (append run-schedule (list (list 'saturate tag) (list 'repeat 2 'const-fold))))] ; TODO : (list 'repeat 2 'const-fold)
+             (append run-schedule (list (list 'saturate tag))))] ; TODO : (list 'repeat 2 'const-fold)
       [_
        ; Set params
        (define is-node-present (dict-ref schedule-params 'node #f))
@@ -202,7 +200,7 @@
   (for ([binding extract-bindings])
     (define val
       (if num-variants
-          `(extract ,binding 1)
+          `(extract ,binding 5)
 
           (match domain-fns
             [(list 'lifting) `(extract (lift ,binding))]

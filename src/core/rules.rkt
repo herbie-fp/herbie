@@ -128,11 +128,7 @@
                  [distribute-rgt-out-- (- (* b a) (* c a)) (* a (- b c))]
                  [distribute-lft1-in (+ (* b a) a) (* (+ b 1) a)]
                  [distribute-rgt1-in (+ a (* c a)) (* (+ c 1) a)])
-(define-ruleset* cancel-sign
-                 (arithmetic simplify sound)
-                 #:type ([a real] [b real] [c real])
-                 [cancel-sign-sub (- a (* (neg b) c)) (+ a (* b c))]
-                 [cancel-sign-sub-inv (- a (* b c)) (+ a (* (neg b) c))])
+
 ; Safe Distributiviity
 (define-ruleset* distributivity-fp-safe
                  (arithmetic simplify sound)
