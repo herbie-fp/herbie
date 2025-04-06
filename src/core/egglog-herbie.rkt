@@ -638,7 +638,7 @@
                        (from-string ,(number->string (denominator node)))))]
         [(? symbol?) #f]
         [`(if ,cond ,ift ,iff)
-         `(,(if spec? 'If 'IfTy) ,(remap cond spec?) ,(remap ift spec?) ,(remap iff spec?))]
+         (list (if spec? 'If 'IfTy) (remap cond spec?) (remap ift spec?) (remap iff spec?))]
         [(approx spec impl) `(Approx ,(remap spec #t) ,(remap impl #f))]
         [(list impl args ...)
          `(,(hash-ref (if spec?
