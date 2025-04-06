@@ -602,25 +602,25 @@
   (define spec-mask (make-vector (batch-length batch) #f))
 
   (for ([n (in-range (batch-length batch))])
-    (let ([node (vector-ref (batch-nodes batch) n)])
-      (match node
-        [(? literal?) (vector-set! spec-mask n #f)] ;; If literal, not a spec
-        [(? number?) (vector-set! spec-mask n #t)] ;; If number, it's a spec
-        [(? symbol?)
-         (vector-set!
-          spec-mask
-          n
-          #f)] ;; If symbol, assume not a spec could be either (find way to distinguish) : PREPROCESS
-        [(hole _ _) (vector-set! spec-mask n #f)] ;; If hole, not a spec
-        [(approx _ _) (vector-set! spec-mask n #f)] ;; If approx, not a spec
-
-        [(list appl args ...)
-         (if (hash-has-key? (id->e1) appl)
-             (vector-set! spec-mask n #t) ;; appl with op -> Is a spec
-             (vector-set! spec-mask n #f))] ;; appl impl -> Not a spec
-
-        ;; If the condition or any branch is a spec, then this is a spec
-        [`(if ,cond ,ift ,iff) (vector-set! spec-mask n (vector-ref spec-mask cond))])))
+    (define node (vector-ref (batch-nodes batch) n))
+    (match node
+      [(? literal?) (vector-set! spec-mask n #f)] ;; If literal, not a spec
+      [(? number?) (vector-set! spec-mask n #t)] ;; If number, it's a spec
+      [(? symbol?)
+       (vector-set!
+        spec-mask
+        n
+        #f)] ;; If symbol, assume not a spec could be either (find way to distinguish) : PREPROCESS
+      [(hole _ _) (vector-set! spec-mask n #f)] ;; If hole, not a spec
+      [(approx _ _) (vector-set! spec-mask n #f)] ;; If approx, not a spec
+    
+      [(list appl args ...)
+       (if (hash-has-key? (id->e1) appl)
+           (vector-set! spec-mask n #t) ;; appl with op -> Is a spec
+           (vector-set! spec-mask n #f))] ;; appl impl -> Not a spec
+    
+      ;; If the condition or any branch is a spec, then this is a spec
+      [`(if ,cond ,ift ,iff) (vector-set! spec-mask n (vector-ref spec-mask cond))]))
 
   (for ([root (in-vector (batch-roots batch))])
     (vector-set! root-mask root #t))
