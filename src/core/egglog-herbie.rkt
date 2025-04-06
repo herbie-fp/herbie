@@ -59,15 +59,14 @@
   (parameterize ([current-output-port stdout-port]
                  [current-error-port stderr-port])
     (unless (system (format "~a ~a" egglog-path egglog-file-path))
-      (begin
-        (fprintf old-error-port "stdout-port ~a\n" (get-output-string stdout-port))
-        ; Tail the last 100 lines of the error instead of everything
-        (fprintf old-error-port
-                 "stderr-port ~a\n"
-                 (string-join (take-right (string-split (get-output-string stderr-port) "\n") 100)
-                              "\n"))
-        (fprintf old-error-port "incorrect program ~a\n" curr-program)
-        (error "Failed to execute egglog"))))
+      (fprintf old-error-port "stdout-port ~a\n" (get-output-string stdout-port))
+      ; Tail the last 100 lines of the error instead of everything
+      (fprintf old-error-port
+               "stderr-port ~a\n"
+               (string-join (take-right (string-split (get-output-string stderr-port) "\n") 100)
+                            "\n"))
+      (fprintf old-error-port "incorrect program ~a\n" curr-program)
+      (error "Failed to execute egglog")))
 
   (delete-file egglog-file-path)
 
@@ -603,25 +602,25 @@
   (define spec-mask (make-vector (batch-length batch) #f))
 
   (for ([n (in-range (batch-length batch))])
-    (let ([node (vector-ref (batch-nodes batch) n)])
-      (match node
-        [(? literal?) (vector-set! spec-mask n #f)] ;; If literal, not a spec
-        [(? number?) (vector-set! spec-mask n #t)] ;; If number, it's a spec
-        [(? symbol?)
-         (vector-set!
-          spec-mask
-          n
-          #f)] ;; If symbol, assume not a spec could be either (find way to distinguish) : PREPROCESS
-        [(hole _ _) (vector-set! spec-mask n #f)] ;; If hole, not a spec
-        [(approx _ _) (vector-set! spec-mask n #f)] ;; If approx, not a spec
-
-        [(list appl args ...)
-         (if (hash-has-key? (id->e1) appl)
-             (vector-set! spec-mask n #t) ;; appl with op -> Is a spec
-             (vector-set! spec-mask n #f))] ;; appl impl -> Not a spec
-
-        ;; If the condition or any branch is a spec, then this is a spec
-        [`(if ,cond ,ift ,iff) (vector-set! spec-mask n (vector-ref spec-mask cond))])))
+    (define node (vector-ref (batch-nodes batch) n))
+    (match node
+      [(? literal?) (vector-set! spec-mask n #f)] ;; If literal, not a spec
+      [(? number?) (vector-set! spec-mask n #t)] ;; If number, it's a spec
+      [(? symbol?)
+       (vector-set!
+        spec-mask
+        n
+        #f)] ;; If symbol, assume not a spec could be either (find way to distinguish) : PREPROCESS
+      [(hole _ _) (vector-set! spec-mask n #f)] ;; If hole, not a spec
+      [(approx _ _) (vector-set! spec-mask n #f)] ;; If approx, not a spec
+    
+      [(list appl args ...)
+       (if (hash-has-key? (id->e1) appl)
+           (vector-set! spec-mask n #t) ;; appl with op -> Is a spec
+           (vector-set! spec-mask n #f))] ;; appl impl -> Not a spec
+    
+      ;; If the condition or any branch is a spec, then this is a spec
+      [`(if ,cond ,ift ,iff) (vector-set! spec-mask n (vector-ref spec-mask cond))]))
 
   (for ([root (in-vector (batch-roots batch))])
     (vector-set! root-mask root #t))
@@ -639,7 +638,7 @@
                        (from-string ,(number->string (denominator node)))))]
         [(? symbol?) #f]
         [`(if ,cond ,ift ,iff)
-         `(,(if spec? 'If 'IfTy) ,(remap cond spec?) ,(remap ift spec?) ,(remap iff spec?))]
+         (list (if spec? 'If 'IfTy) (remap cond spec?) (remap ift spec?) (remap iff spec?))]
         [(approx spec impl) `(Approx ,(remap spec #t) ,(remap impl #f))]
         [(list impl args ...)
          `(,(hash-ref (if spec?

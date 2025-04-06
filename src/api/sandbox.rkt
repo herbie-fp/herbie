@@ -314,13 +314,11 @@
             [(> end-score (+ start-test-score fuzz)) "lt-start"]
             [(> end-score (- start-test-score fuzz)) "eq-start"]
             [(> end-score (+ best-score fuzz)) "lt-target"])]
-
-         [else
-          (cond
-            [(and (< start-test-score 1) (< end-score (+ start-test-score 1))) "ex-start"]
-            [(< end-score (- start-test-score 1)) "imp-start"]
-            [(< end-score (+ start-test-score fuzz)) "apx-start"]
-            [else "uni-start"])]))
+       
+         [(and (< start-test-score 1) (< end-score (+ start-test-score 1))) "ex-start"]
+         [(< end-score (- start-test-score 1)) "imp-start"]
+         [(< end-score (+ start-test-score fuzz)) "apx-start"]
+         [else "uni-start"]))
 
      (struct-copy table-row
                   (dummy-table-row-from-hash result-hash status link)
