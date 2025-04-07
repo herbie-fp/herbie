@@ -87,16 +87,16 @@
       [else #f]))
 
   ; wrap it with useful information for Herbie
-  (real-compiler pre vars var-reprs specs reprs machine dump-file))
+  (real-compiler pre (list->vector vars) (list->vector var-reprs) specs (list->vector reprs) machine dump-file))
 
 ;; Runs a Rival machine on an input point.
 (define (real-apply compiler pt [hint #f])
   (match-define (real-compiler _ vars var-reprs _ _ machine dump-file) compiler)
   (define start (current-inexact-milliseconds))
   (define pt*
-    (for/vector #:length (length vars)
+    (for/vector #:length (vector-length vars)
                 ([val (in-vector pt)]
-                 [repr (in-list var-reprs)])
+                 [repr (in-vector var-reprs)])
       ((representation-repr->bf repr) val)))
   (when dump-file
     (define args (map bigfloat->rational (vector->list pt*)))
@@ -112,8 +112,8 @@
   (when (> (rival-profile machine 'bumps) 0)
     (warn 'ground-truth
           "Could not converge on a ground truth"
-          #:extra (for/list ([var (in-list vars)]
-                             [val (in-list pt)])
+          #:extra (for/list ([var (in-vector vars)]
+                             [val (in-vector pt)])
                     (format "~a = ~a" var val))))
   (define executions (rival-profile machine 'executions))
   (when (>= (vector-length executions) (*rival-profile-executions*))
