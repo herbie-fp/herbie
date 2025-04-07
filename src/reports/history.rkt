@@ -55,10 +55,10 @@
       (match expr
         [(list 'Rewrite=> rule sub)
          (define loc* (reverse loc))
-         (k 'Rewrite=> rule loc* (location-do loc* step (λ _ sub)))]
+         (k 'Rewrite=> rule loc* (location-set loc* step sub))]
         [(list 'Rewrite<= rule sub)
          (define loc* (reverse loc))
-         (k 'Rewrite<= rule loc* (location-do loc* step (λ _ sub)))]
+         (k 'Rewrite<= rule loc* (location-set loc* step sub))]
         [(approx spec impl)
          (loop spec (cons 1 loc))
          (loop impl (cons 2 loc))]

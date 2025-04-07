@@ -10,8 +10,8 @@
          ops-in-expr
          impl-prog?
          repr-of
-         location-do
          location-get
+         location-set
          get-locations
          free-variables
          replace-expression)
@@ -133,8 +133,7 @@
 
 (define location? (listof natural-number/c))
 
-(define/contract (location-do loc prog f)
-  (-> location? expr? (-> expr? expr?) expr?)
+(define (location-do loc prog f)
   (match* (prog loc)
     [(_ (? null?)) (f prog)]
     [((approx spec impl) (cons 1 rest)) (approx (location-do rest spec f) impl)]
@@ -147,6 +146,10 @@
   ; Clever continuation usage to early-return
   (let/ec return
     (location-do loc prog return)))
+
+(define/contract (location-set loc prog expr*)
+  (-> location? expr? expr? expr?)
+  (location-do loc prog (const expr*)))
 
 (define (get-locations expr subexpr)
   (reap [sow]
