@@ -1234,9 +1234,7 @@
       [(cons rules params)
        ;; `run` instruction
 
-       (unless (or (equal? `lift rules)
-                   (equal? `lower rules)
-                   (and (list? rules) (andmap rule? rules)))
+       (unless (and (list? rules) (andmap rule? rules))
          (oops! "expected list of rules: `~a`" rules))
 
        (for ([param (in-list params)])
