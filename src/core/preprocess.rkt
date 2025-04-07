@@ -118,8 +118,7 @@
 (define (vector-set* v indices vals)
   (match* (indices vals)
     [('() '()) v]
-    [((cons i indices*) (cons x vals*))
-     (vector-set* (vector-set/copy v i x) indices* vals*)]))
+    [((cons i indices*) (cons x vals*)) (vector-set* (vector-set/copy v i x) indices* vals*)]))
 
 (define (instruction->operator context instruction)
   (define variables (context-vars context))
