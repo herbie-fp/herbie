@@ -155,15 +155,15 @@
 (define (print-test-result i n test result-hash)
   (eprintf "~a/~a\t" (~a i #:width 3 #:align 'right) n)
   (define name (test-name test))
-  (define bits (representation-total-bits (test-output-repr test)))
-  (define time (hash-ref-path result-hash 'time))
-  (define start-score (errors-score (hash-ref-path result-hash 'backend 'start 'errors)))
-  (define end-score (errors-score (hash-ref-path result-hash 'backend 'end 0 'errors)))
   (match (hash-ref-path result-hash 'status)
     ["error" (eprintf "[ ERROR ]\t\t~a\n" name)]
     ["crash" (eprintf "[ CRASH ]\t\t~a\n" name)]
     ["timeout" (eprintf "[TIMEOUT]\t\t~a\n" name)]
     [_
+     (define bits (representation-total-bits (test-output-repr test)))
+     (define time (hash-ref-path result-hash 'time))
+     (define start-score (errors-score (hash-ref-path result-hash 'backend 'start 'errors)))
+     (define end-score (errors-score (hash-ref-path result-hash 'backend 'end 0 'errors)))
      (eprintf "[~as]  ~a% → ~a%\t~a\n"
               (~r (/ time 1000) #:min-width 6 #:precision '(= 1))
               (~r (* 100 (- 1 (/ start-score bits))) #:min-width 3 #:precision 0)
