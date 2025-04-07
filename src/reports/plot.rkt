@@ -193,7 +193,6 @@
 (define (regime-splitpoints altn)
   (map sp-point (drop-right (regime-info altn) 1)))
 
-(define/contract (regime-var altn)
-  (-> alt? (or/c expr? #f))
+(define (regime-var altn)
   (define info (regime-info altn))
   (and info (sp-bexpr (car info))))

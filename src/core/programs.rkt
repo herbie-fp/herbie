@@ -5,11 +5,9 @@
          "../syntax/types.rkt"
          (only-in "batch.rkt" batch-nodes))
 
-(provide expr?
-         expr<?
+(provide expr<?
          all-subexpressions
          ops-in-expr
-         spec-prog?
          impl-prog?
          repr-of
          location-do
