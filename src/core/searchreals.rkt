@@ -60,7 +60,7 @@
         [(and (not err?) converged?)
          (values (cons rect true*) false* other* (cons hint* true-hints*) other-hints*)]
         [else
-         (define range (vector-ref rect split-var))
+         (define range (list-ref rect split-var))
          (define repr (vector-ref reprs split-var))
          (match (two-midpoints repr (ival-lo range) (ival-hi range))
            [(cons midleft midright)
