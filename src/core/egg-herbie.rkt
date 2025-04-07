@@ -19,7 +19,7 @@
          "programs.rkt"
          "rules.rkt")
 
-(provide (struct-out egg-runner)
+(provide egg-runner?
          make-egraph
          egraph-equal?
          egraph-prove
@@ -444,13 +444,10 @@
 ;; Expansive rules are the only problematic rules.
 ;; We only support expansive rules where the LHS is a spec.
 
-;; Expand and convert the rules for egg.
-;; Uses a cache to only expand each rule once.
-(define (expand-rules rules)
-  (for/list ([rule (in-list rules)])
-    (make-ffi-rule (rule-name rule)
-                   (expr->egg-pattern (rule-input rule))
-                   (expr->egg-pattern (rule-output rule)))))
+(define (rule->ffi-rule rule)
+  (make-ffi-rule (rule-name rule)
+                 (expr->egg-pattern (rule-input rule))
+                 (expr->egg-pattern (rule-output rule))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Racket egraph
@@ -1183,11 +1180,7 @@
   (define egg-graph*
     (for/fold ([egg-graph egg-graph]) ([(rules params) (in-dict schedule)])
       ; run rules in the egraph
-      (define ffi-rules
-        (expand-rules (match rules
-                        [`lift (platform-lifting-rules)]
-                        [`lower (platform-lowering-rules)]
-                        [else rules])))
+      (define ffi-rules (map rule->ffi-rule rules))
       (define-values (egg-graph* iteration-data) (egraph-run-rules egg-graph ffi-rules params))
 
       ; get cost statistics
