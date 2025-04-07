@@ -7,6 +7,7 @@
          "../syntax/sugar.rkt"
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
+         "../syntax/matcher.rkt"
          "../core/bsearch.rkt"
          "../utils/alternative.rkt"
          "../utils/common.rkt"
@@ -105,12 +106,12 @@
         [`(,(? impl-exists? impl) ,args ...)
          ; use the FPCore operator without rounding properties
          (define args* (map loop args))
-         (define vars (impl-info impl 'vars))
+         (define binding (pattern-match (cons impl (impl-info impl 'vars)) (cons impl args*)))
          (define pattern
            (match (impl-info impl 'fpcore)
              [(list '! _ ... body) body]
              [body body]))
-         (replace-vars (map cons vars args*) pattern)]
+         (pattern-substitute pattern binding)]
         [`(,op ,args ...) `(,op ,@(map loop args))])))
   `(FPCore ,(context-vars ctx) ,expr*))
 

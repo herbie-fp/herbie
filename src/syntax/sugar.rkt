@@ -247,8 +247,8 @@
       [(list 'if cond ift iff) (list 'if (munge cond) (munge ift) (munge iff))]
       [(list (? impl-exists? impl) args ...)
        (define args* (map munge args))
-       (define vars (impl-info impl 'vars))
-       (define node (replace-vars (map cons vars args*) (impl-info impl 'fpcore)))
+       (define binding (pattern-match (cons impl (impl-info impl 'vars)) (cons impl args*)))
+       (define node (pattern-substitute (impl-info impl 'fpcore) binding))
        (if root?
            node
            (push! impl node))]))

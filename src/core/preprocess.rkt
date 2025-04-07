@@ -44,10 +44,13 @@
 
 ;; Swap identities: f(a, b) = f(b, a)
 (define (make-swap-identities spec ctx)
-  (define pairs (combinations (context-vars ctx) 2))
-  (for/list ([pair (in-list pairs)])
+  (for/list ([pair (in-combinations (context-vars ctx) 2)])
     (match-define (list a b) pair)
-    (cons `(swap ,a ,b) (replace-vars `((,a . ,b) (,b . ,a)) spec))))
+    (define temp-var (gensym))
+    (define spec-t (replace-expression spec a temp-var))
+    (define spec-a (replace-expression spec b a))
+    (define spec-b (replace-expression spec temp-var b))
+    (cons `(swap ,a ,b) spec-b)))
 
 ;; See https://pavpanchekha.com/blog/symmetric-expressions.html
 (define (find-preprocessing expr ctx)
