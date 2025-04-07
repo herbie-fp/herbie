@@ -87,7 +87,13 @@
       [else #f]))
 
   ; wrap it with useful information for Herbie
-  (real-compiler pre (list->vector vars) (list->vector var-reprs) specs (list->vector reprs) machine dump-file))
+  (real-compiler pre
+                 (list->vector vars)
+                 (list->vector var-reprs)
+                 specs
+                 (list->vector reprs)
+                 machine
+                 dump-file))
 
 ;; Runs a Rival machine on an input point.
 (define (real-apply compiler pt [hint #f])
