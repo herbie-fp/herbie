@@ -136,9 +136,7 @@
 (define (location-do loc prog f)
   (match* (prog loc)
     [(_ (? null?)) (f prog)]
-    [((approx spec impl) (cons 1 rest)) (approx (location-do rest spec f) impl)]
-    [((approx spec impl) (cons idx rest)) (approx spec (location-do rest impl f))]
-    [((hole prec spec) (cons 1 rest)) (hole prec (location-do rest spec f))]
+    [((approx spec impl) (cons 2 rest)) (approx spec (location-do rest impl f))]
     [((? list?) (cons idx rest)) (list-set prog idx (location-do rest (list-ref prog idx) f))]))
 
 (define/contract (location-get loc prog)
