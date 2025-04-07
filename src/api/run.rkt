@@ -156,8 +156,11 @@
   (eprintf "~a/~a\t" (~a i #:width 3 #:align 'right) n)
   (define name (test-name test))
   (match (hash-ref-path result-hash 'status)
-    ["error" (eprintf "[ ERROR ]\t\t~a\n" name)]
-    ["crash" (eprintf "[ CRASH ]\t\t~a\n" name)]
+    ["failure"
+     (match-define (list 'exn type msg url locs tb) (hash-ref-path result-hash 'backend))
+     (if type
+         (eprintf "[ ERROR ]\t\t~a\n" name)
+         (eprintf "[ CRASH ]\t\t~a\n" name))]
     ["timeout" (eprintf "[TIMEOUT]\t\t~a\n" name)]
     [_
      (define bits (representation-total-bits (test-output-repr test)))
