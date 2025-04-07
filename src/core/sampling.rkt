@@ -88,14 +88,15 @@
 
   ;; returns pt and hint
   (define num-vars (vector-length reprs))
-  (λ ()
+  (define (hyperrect-sampler)
     (define idx (binary-search weights (random-natural weight-max)))
     (values (for/vector #:length num-vars
                         ([lo (in-list (vector-ref lo-ends idx))]
                          [hi (in-list (vector-ref hi-ends idx))]
                          [repr (in-vector reprs)])
               ((representation-ordinal->repr repr) (random-integer lo hi)))
-            (vector-ref hints idx))))
+            (vector-ref hints idx)))
+  hyperrect-sampler)
 
 (define (make-sampler compiler)
   (match-define (real-compiler pre vars var-reprs _ reprs _ _) compiler)
