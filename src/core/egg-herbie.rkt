@@ -298,8 +298,8 @@
              type))
        (approx (loop spec spec-type) (loop impl type))]
       [`(Explanation ,body ...) `(Explanation ,@(map (lambda (e) (loop e type)) body))]
-      [(list 'Rewrite=> rule expr) (list 'Rewrite=> (get-canon-rule-name rule rule) (loop expr type))]
-      [(list 'Rewrite<= rule expr) (list 'Rewrite<= (get-canon-rule-name rule rule) (loop expr type))]
+      [(list 'Rewrite=> rule expr) (list 'Rewrite=> rule (loop expr type))]
+      [(list 'Rewrite<= rule expr) (list 'Rewrite<= rule (loop expr type))]
       [(list 'if cond ift iff)
        (if (representation? type)
            (list 'if (loop cond (get-representation 'bool)) (loop ift type) (loop iff type))
@@ -444,59 +444,13 @@
 ;; Expansive rules are the only problematic rules.
 ;; We only support expansive rules where the LHS is a spec.
 
-;; Translates a Herbie rule into an egg rule
-(define (rule->egg-rule ru)
-  (struct-copy rule
-               ru
-               [input (expr->egg-pattern (rule-input ru))]
-               [output (expr->egg-pattern (rule-output ru))]))
-
-(define (rule->egg-rules ru)
-  (define input (rule-input ru))
-  (cond
-    [(symbol? input)
-     ; expansive rules
-     (define itype (dict-ref (rule-itypes ru) input))
-     (for/list ([op (all-operators)]
-                #:when (eq? (operator-info op 'otype) itype))
-       (define itypes (operator-info op 'itype))
-       (define vars (map (lambda (_) (gensym)) itypes))
-       (rule (sym-append (rule-name ru) '-expand- op)
-             (cons op vars)
-             (replace-expression (rule-output ru) input (cons op vars))
-             (map cons vars itypes)
-             (rule-otype ru)
-             (rule-tags ru)))]
-    ; non-expansive rule
-    [else (list (rule->egg-rule ru))]))
-
-;; egg rule cache: rule -> (cons/c rule FFI-rule)
-(define/reset *egg-rule-cache* (make-hasheq))
-
-;; Cache mapping (expanded) rule name to its canonical rule name
-(define/reset *canon-names* (make-hasheq))
-
-;; Tries to look up the canonical name of a rule using the cache.
-;; Obviously dangerous if the cache is invalid.
-(define (get-canon-rule-name name [failure #f])
-  (hash-ref (*canon-names*) name failure))
-
 ;; Expand and convert the rules for egg.
 ;; Uses a cache to only expand each rule once.
 (define (expand-rules rules)
-  (reap [sow]
-        (for ([rule (in-list rules)])
-          (define egg&ffi-rules
-            (hash-ref! (*egg-rule-cache*)
-                       rule
-                       (lambda ()
-                         (for/list ([egg-rule (in-list (rule->egg-rules rule))])
-                           (define name (rule-name egg-rule))
-                           (define ffi-rule
-                             (make-ffi-rule name (rule-input egg-rule) (rule-output egg-rule)))
-                           (hash-set! (*canon-names*) name (rule-name rule))
-                           (cons egg-rule ffi-rule)))))
-          (for-each sow egg&ffi-rules))))
+  (for/list ([rule (in-list rules)])
+    (make-ffi-rule (rule-name rule)
+                   (expr->egg-pattern (rule-input rule))
+                   (expr->egg-pattern (rule-output rule)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Racket egraph
@@ -1198,11 +1152,10 @@
 
 ;; Runs rules over the egraph with the given egg parameters.
 ;; Invariant: the returned egraph is never unsound
-(define (egraph-run-rules egg-graph0 egg-rules params)
+(define (egraph-run-rules egg-graph0 ffi-rules params)
   (define node-limit (dict-ref params 'node #f))
   (define iter-limit (dict-ref params 'iteration #f))
   (define scheduler (dict-ref params 'scheduler 'backoff))
-  (define ffi-rules (map cdr egg-rules))
 
   ;; run the rules
   (let loop ([iter-limit iter-limit])
@@ -1230,12 +1183,12 @@
   (define egg-graph*
     (for/fold ([egg-graph egg-graph]) ([(rules params) (in-dict schedule)])
       ; run rules in the egraph
-      (define egg-rules
+      (define ffi-rules
         (expand-rules (match rules
                         [`lift (platform-lifting-rules)]
                         [`lower (platform-lowering-rules)]
                         [else rules])))
-      (define-values (egg-graph* iteration-data) (egraph-run-rules egg-graph egg-rules params))
+      (define-values (egg-graph* iteration-data) (egraph-run-rules egg-graph ffi-rules params))
 
       ; get cost statistics
       (for ([iter (in-list iteration-data)]
