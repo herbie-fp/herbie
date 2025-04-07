@@ -120,7 +120,7 @@
 ;; float form of a split is f(idx2), or entirely outside that range,
 ;; problems may arise.
 (define/contract (sindices->spoints points expr alts sindices ctx)
-  (-> (listof (listof any/c)) any/c (listof alt?) (listof si?) context? valid-splitpoints?)
+  (-> (listof vector?) any/c (listof alt?) (listof si?) context? valid-splitpoints?)
   (define repr (repr-of expr ctx))
 
   (define eval-expr (compile-prog expr ctx))
@@ -170,8 +170,8 @@
             (define prog1 (list-ref progs (si-cidx si1)))
             (define prog2 (list-ref progs (si-cidx si2)))
 
-            (define p1 (apply eval-expr (list-ref points (sub1 (si-pidx si1)))))
-            (define p2 (apply eval-expr (list-ref points (si-pidx si1))))
+            (define p1 (eval-expr (list-ref points (sub1 (si-pidx si1)))))
+            (define p2 (eval-expr (list-ref points (si-pidx si1))))
 
             (define timeline-stop!
               (timeline-start! 'bstep (value->json p1 repr) (value->json p2 repr)))
@@ -195,7 +195,7 @@
   (for/list ([i (in-naturals)]
              [alt alts]) ;; alts necessary to terminate loop
     (λ (pt)
-      (define val (apply prog pt))
+      (define val (prog pt))
       (for/first ([right splitpoints]
                   #:when (or (equal? (sp-point right) +nan.0)
                              (<=/total val (sp-point right) (context-repr ctx*))))

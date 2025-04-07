@@ -87,11 +87,13 @@
   (define weight-max (vector-ref weights (- (vector-length weights) 1)))
 
   ;; returns pt and hint
+  (define num-vars (length reprs))
   (λ ()
     (define idx (binary-search weights (random-natural weight-max)))
-    (values (for/list ([lo (in-list (vector-ref lo-ends idx))]
-                       [hi (in-list (vector-ref hi-ends idx))]
-                       [repr (in-list reprs)])
+    (values (for/vector #:length num-vars
+                        ([lo (in-list (vector-ref lo-ends idx))]
+                         [hi (in-list (vector-ref hi-ends idx))]
+                         [repr (in-list reprs)])
               ((representation-ordinal->repr repr) (random-integer lo hi)))
             (vector-ref hints idx))))
 
@@ -111,7 +113,7 @@
     [else
      (timeline-push! 'method "random")
      ; sampler return false hint since rival-analyze has not been called in random method
-     (values (λ () (values (map random-generate var-reprs) #f)) (hash 'unknown 1.0))]))
+     (values (λ () (values (list->vector (map random-generate var-reprs)) #f)) (hash 'unknown 1.0))]))
 
 ;; Returns an evaluator for a list of expressions.
 ;; Part 3: compute exact values using Rival's algorithm
@@ -136,7 +138,7 @@
          (warn 'ground-truth
                "could not determine a ground truth"
                #:url "faq.html#ground-truth"
-               #:extra (map (curry format "~a = ~a") vars pt))]
+               #:extra (map (curry format "~a = ~a") vars (vector->list pt)))]
         [(valid)
          (for ([ex (in-list exs)]
                [repr (in-list reprs)])
@@ -148,7 +150,7 @@
       (hash-update! outcomes status add1 0)
 
       (define is-bad?
-        (for/or ([input (in-list pt)]
+        (for/or ([input (in-vector pt)]
                  [repr (in-list var-reprs)])
           ((representation-special-value? repr) input)))
 

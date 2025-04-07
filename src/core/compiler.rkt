@@ -21,8 +21,8 @@
   (define iveclen (vector-length ivec))
   (define varc (length vars))
   (define vregs (make-vector (+ varc iveclen)))
-  (define (compiled-prog . args)
-    (for ([arg (in-list args)]
+  (define (compiled-prog args)
+    (for ([arg (in-vector args)]
           [n (in-naturals)])
       (vector-set! vregs n arg))
     (for ([instr (in-vector ivec)]

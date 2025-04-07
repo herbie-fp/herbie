@@ -122,7 +122,7 @@
   (define big-table ; pt ; splitval ; alt1-err ; alt2-err ; ...
     (for/list ([(pt ex) (in-pcontext (*pcontext*))]
                [err-lst err-lsts])
-      (list* (apply fn pt) pt err-lst)))
+      (list* (fn pt) pt err-lst)))
   (match-define (list splitvals* pts* err-lsts* ...)
     (flip-lists (sort big-table (curryr </total repr) #:key first)))
 

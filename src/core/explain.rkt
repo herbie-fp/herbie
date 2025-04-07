@@ -104,7 +104,7 @@
     (define (mark-maybe! expr [expl 'sensitivity])
       (hash-update! maybe-expls->points (cons expr expl) (lambda (x) (set-add x pt)) '()))
 
-    (define exacts (apply subexprs-fn pt))
+    (define exacts (subexprs-fn pt))
 
     (define exacts-hash (make-immutable-hash (map cons subexprs-list exacts)))
     (define (exacts-ref subexpr)
@@ -521,7 +521,7 @@
 
   (define repr (repr-of expr (*context*)))
   (define (values->json vs repr)
-    (map (lambda (value) (value->json value repr)) vs))
+    (map (lambda (value) (value->json value repr)) (vector->list vs)))
 
   (define fperrors
     (for/list ([subexpr (in-list (set-union (hash-keys tcount-hash) (hash-keys error-count-hash)))])

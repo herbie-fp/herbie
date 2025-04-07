@@ -32,7 +32,7 @@
   (vector-length (pcontext-points pcontext)))
 
 (define/contract (mk-pcontext points exacts)
-  (-> (non-empty-listof (listof any/c)) (non-empty-listof any/c) pcontext?)
+  (-> (non-empty-listof vector?) (non-empty-listof any/c) pcontext?)
   (pcontext (list->vector points) (list->vector exacts)))
 
 (define-syntax-rule (for/pcontext ([(pt ex) pcontext] other ...) body ...)
@@ -75,7 +75,7 @@
   (for/fold ([result (make-list (length exprs) '())])
             ([point (in-vector (pcontext-points pcontext) (- num-points 1) -1 -1)]
              [exact (in-vector (pcontext-exacts pcontext) (- num-points 1) -1 -1)])
-    (for/list ([out (in-vector (apply fn point))]
+    (for/list ([out (in-vector (fn point))]
                [rest (in-list result)])
       (cons (if (special? out)
                 max-error
@@ -100,4 +100,4 @@
 
 (define (pcontext->json pcontext repr)
   (for/list ([(pt ex) (in-pcontext pcontext)])
-    (list (map (curryr value->json repr) pt) (value->json ex repr))))
+    (list (map (curryr value->json repr) (vector->list pt)) (value->json ex repr))))

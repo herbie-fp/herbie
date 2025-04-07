@@ -24,7 +24,7 @@
                 (#:pre [pre any/c])
                 [c real-compiler?])]
           [real-apply
-           (->* (real-compiler? list?) ((or/c (vectorof any/c) boolean?)) (values symbol? any/c))]
+           (->* (real-compiler? vector?) ((or/c (vectorof any/c) boolean?)) (values symbol? any/c))]
           [real-compiler-clear! (-> real-compiler-clear! void?)]
           [real-compiler-analyze
            (->* (real-compiler? (vectorof ival?))
@@ -95,7 +95,7 @@
   (define start (current-inexact-milliseconds))
   (define pt*
     (for/vector #:length (length vars)
-                ([val (in-list pt)]
+                ([val (in-vector pt)]
                  [repr (in-list var-reprs)])
       ((representation-repr->bf repr) val)))
   (when dump-file
