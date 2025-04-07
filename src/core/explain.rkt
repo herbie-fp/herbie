@@ -13,7 +13,6 @@
          "sampling.rkt")
 
 (provide explain)
-(provide get-locations)
 
 (define *top-3* (make-parameter #f))
 
@@ -493,20 +492,6 @@
            [else #f])]
         [_ #f])))
   (values error-count-hash expls->points maybe-expls->points oflow-hash uflow-hash))
-
-(define (get-locations expr subexpr)
-  (reap [sow]
-        (let loop ([expr expr]
-                   [loc '()])
-          (match expr
-            [(== subexpr) (sow (reverse loc))]
-            [(? literal?) (void)]
-            [(? symbol?) (void)]
-            [(approx _ impl) (loop impl (cons 2 loc))]
-            [(list _ args ...)
-             (for ([arg (in-list args)]
-                   [i (in-naturals 1)])
-               (loop arg (cons i loc)))]))))
 
 (define (generate-timelines expr
                             ctx

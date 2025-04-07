@@ -12,6 +12,7 @@
          repr-of
          location-do
          location-get
+         get-locations
          free-variables
          replace-expression)
 
@@ -146,6 +147,21 @@
   ; Clever continuation usage to early-return
   (let/ec return
     (location-do loc prog return)))
+
+(define (get-locations expr subexpr)
+  (reap [sow]
+        (let loop ([expr expr]
+                   [loc '()])
+          (match expr
+            [(== subexpr) (sow (reverse loc))]
+            [(? literal?) (void)]
+            [(? symbol?) (void)]
+            [(approx _ impl) (loop impl (cons 2 loc))]
+            [(list _ args ...)
+             (for ([arg (in-list args)]
+                   [i (in-naturals 1)])
+               (loop arg (cons i loc)))]))))
+
 
 (define/contract (replace-expression expr from to)
   (-> expr? expr? expr? expr?)
