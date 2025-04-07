@@ -179,17 +179,16 @@
                [errs (in-list errss)]
                [cost (in-list costs)])
       (atab-add-altn atab altn errs cost)))
-  (define atab** (atab-dedup atab*))
-  (define atab***
+  (define atab**
     (struct-copy alt-table
-                 atab**
-                 [alt->point-idxs (invert-index (alt-table-point-idx->alts atab**))]))
-  (define atab**** (atab-prune atab***))
+                 atab*
+                 [alt->point-idxs (invert-index (alt-table-point-idx->alts atab*))]))
+  (define atab*** (atab-prune atab**))
   (struct-copy alt-table
-               atab****
-               [alt->point-idxs (invert-index (alt-table-point-idx->alts atab****))]
+               atab***
+               [alt->point-idxs (invert-index (alt-table-point-idx->alts atab***))]
                [all
-                (set-union (alt-table-all atab) (hash-keys (alt-table-alt->point-idxs atab****)))]))
+                (set-union (alt-table-all atab) (hash-keys (alt-table-alt->point-idxs atab***)))]))
 
 (define (invert-index point-idx->alts)
   (define alt->points* (make-hasheq))
@@ -200,15 +199,6 @@
       (hash-set! alt->points* alt (cons idx (hash-ref alt->points* alt '())))))
   (make-immutable-hasheq (hash->list alt->points*)))
 
-(define (atab-dedup atab)
-  (match-define (alt-table point-idx->alts alt->point-idxs alt->done? alt->cost pcontext _) atab)
-  (define point-idx->alts*
-    (for/vector #:length (vector-length point-idx->alts)
-                ([pcurve (in-vector point-idx->alts)])
-      (pareto-map (lambda (alts) (reverse (remove-duplicates (reverse alts) #:key alt-expr)))
-                  pcurve)))
-  (struct-copy alt-table atab [point-idx->alts point-idx->alts*]))
-
 (define (atab-add-altn atab altn errs cost)
   (match-define (alt-table point-idx->alts alt->point-idxs alt->done? alt->cost pcontext _) atab)
 
@@ -217,7 +207,7 @@
                 ([pcurve (in-vector point-idx->alts)]
                  [err (in-list errs)])
       (define ppt (pareto-point cost err (list altn)))
-      ;; This creates duplicate points, but they are removed by `alt-dedup`
+      ;; Duplicate points are removed by `alt-prune`
       (pareto-union (list ppt) pcurve #:combine append)))
 
   (alt-table point-idx->alts*
