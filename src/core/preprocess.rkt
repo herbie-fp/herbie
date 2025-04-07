@@ -113,18 +113,13 @@
   (for/pcontext ([(x y) pcontext]) (preprocess x y)))
 
 (define (vector-update v i f)
-  (define copy (make-vector (vector-length v)))
-  (vector-copy! copy 0 v)
-  (vector-set! copy i (f (vector-ref copy i)))
-  copy)
+  (vector-set/copy v i (f (vector-ref v i))))
 
 (define (vector-set* v indices vals)
-  (define copy (make-vector (vector-length v)))
-  (vector-copy! copy 0 v)
-  (for ([i (in-list indices)]
-        [v (in-list vals)])
-    (vector-set! copy i v))
-  copy)
+  (match* (indices vals)
+    [('() '()) v]
+    [((cons i indices*) (cons x vals*))
+     (vector-set* (vector-set/copy v i x) indices* vals*)]))
 
 (define (instruction->operator context instruction)
   (define variables (context-vars context))
