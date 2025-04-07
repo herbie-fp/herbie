@@ -18,7 +18,7 @@
                        (shift 31 ordinal->float32)
                        (unshift 31 float32->ordinal)
                        32
-                       (conjoin number? nan?))
+                       nan?)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; constants ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

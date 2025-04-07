@@ -134,7 +134,7 @@
                      [prev splitvals*])
             (</total prev val repr))))
   (define split-indices (infer-split-indices bit-err-lsts* can-split?))
-  (define out (option split-indices alts pts* expr (pick-errors split-indices pts* err-lsts* repr)))
+  (define out (option split-indices alts pts* expr (pick-errors split-indices err-lsts* repr)))
   (timeline-stop!)
   (timeline-push! 'branch
                   (~a expr)
@@ -143,17 +143,11 @@
                   (~a (representation-name repr)))
   out)
 
-(define/contract (pick-errors split-indices pts err-lsts repr)
-  (->i ([sis (listof si?)] [vss (r) (listof (listof (representation-repr? r)))]
-                           [errss (listof (listof real?))]
-                           [r representation?])
-       [idxs (listof nonnegative-integer?)])
+(define/contract (pick-errors split-indices err-lsts repr)
+  (-> (listof si?) (listof (listof real?)) representation? (listof nonnegative-integer?))
   (for/list ([i (in-naturals)]
-             [pt pts]
-             [errs (flip-lists err-lsts)])
-    (for/first ([si split-indices]
-                #:when (< i (si-pidx si)))
-      (list-ref errs (si-cidx si)))))
+             [errs (in-list (flip-lists err-lsts))])
+    (list-ref errs (si-cidx (findf (lambda (x) (< i (si-pidx x))) split-indices)))))
 
 (module+ test
   (define ctx (make-debug-context '(x)))
@@ -215,6 +209,7 @@
 
     ;; Set up data needed for algorithm
     (define number-of-points (vector-length can-split-vec))
+    (define number-of-alts (vector-length flvec-psums))
     ;; min-weight is used as penalty to favor not adding split points
     (define min-weight (fl number-of-points))
 
@@ -239,10 +234,10 @@
     ;; best alt.
     (: best-alt-idxs (Vectorof Integer))
     (: best-alt-costs FlVector)
-    (define best-alt-idxs (make-vector number-of-points -1))
+    (define best-alt-idxs (make-vector number-of-points number-of-alts))
     (define best-alt-costs (make-flvector number-of-points))
 
-    (for ([point-idx (in-range 0 number-of-points)]
+    (for ([point-idx (in-range number-of-points)]
           [current-alt-error (in-flvector result-error-sums)]
           [current-alt-idx (in-vector result-alt-idxs)]
           [current-prev-idx (in-vector result-prev-idxs)])
@@ -255,7 +250,7 @@
       (for ([alt-idx (in-naturals)]
             [alt-error-sums (in-vector flvec-psums)])
         ;; Loop over the points up to our current point
-        (for ([prev-split-idx (in-range 0 point-idx)]
+        (for ([prev-split-idx (in-range point-idx)]
               [prev-alt-error-sum (in-flvector alt-error-sums)]
               [best-alt-idx (in-vector best-alt-idxs)]
               [best-alt-cost (in-flvector best-alt-costs)]
@@ -266,14 +261,14 @@
           (let ([current-error (- (flvector-ref alt-error-sums point-idx) prev-alt-error-sum)])
             ;; if we have not set the best alt yet or
             ;; the current alt-error-sum is less then previous
-            (when (or (= best-alt-idx -1) (< current-error best-alt-cost))
+            (when (or (= best-alt-idx number-of-alts) (< current-error best-alt-cost))
               ;; update best cost and best index
               (flvector-set! best-alt-costs prev-split-idx current-error)
               (vector-set! best-alt-idxs prev-split-idx alt-idx)))))
       ;; We have now have the index of the best alt and its error up to our
       ;; current point-idx.
       ;; Now we compare against our current best saved in the 3 vectors above
-      (for ([prev-split-idx (in-range 0 point-idx)]
+      (for ([prev-split-idx (in-range point-idx)]
             [r-error-sum (in-flvector result-error-sums)]
             [best-alt-idx (in-vector best-alt-idxs)]
             [best-alt-cost (in-flvector best-alt-costs)]
@@ -304,7 +299,7 @@
 
     ;; Loop over results vectors in reverse and build the output split index list
     (let loop ([i (- number-of-points 1)]
-               [rest (cast null (Listof si))])
+               [rest (ann null (Listof si))])
       (define alt-idx (vector-ref result-alt-idxs i))
       (define next (vector-ref result-prev-idxs i))
       (define sis (cons (si alt-idx (+ i 1)) rest))
