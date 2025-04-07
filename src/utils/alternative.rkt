@@ -1,6 +1,26 @@
-#lang racket
+#lang typed/racket/optional
 
 (require "../syntax/platform.rkt")
+(require "../syntax/types.rkt")
+(require "../syntax/syntax.rkt")
+
+(define-type Event
+             (U 'start
+                (List 'regimes (Listof Any))
+                (List 'taylor (Listof Natural) Symbol Symbol)
+                (List 'simplify (Listof Natural) Any Any)
+                'initial-simplify
+                'final-simplify
+                (List 'rr (Listof Natural) Any (U #f (Listof Any)))
+                'add-preprocessing))
+(define-type Preprocessing (Listof Symbol))
+
+(define-type Platform Any)
+
+(require/typed "../syntax/platform.rkt"
+               [*active-platform* (-> Platform)]
+               [platform-cost-proc (-> Platform (-> Program representation Real))])
+
 (provide (struct-out alt)
          make-alt
          alt?
@@ -11,7 +31,6 @@
          alt-cost
          alt-equal?
          alt-map
-         alt-for-each
          alt-add-preprocessing
          make-alt-preprocessing)
 
@@ -20,38 +39,47 @@
 ;; from one program to another.
 ;; They are a labeled linked list of changes.
 
-(struct alt (expr event prevs preprocessing) #:prefab)
+(struct alt
+        ([expr : Program] [event : Event]
+                          [prevs : (Listof alt)]
+                          [preprocessing : (Listof Preprocessing)])
+  #:prefab)
 
+(: make-alt (-> Program alt))
 (define (make-alt expr)
   (alt expr 'start '() '()))
 
+(: make-alt-preprocessing (-> Program (Listof Preprocessing) alt))
 (define (make-alt-preprocessing expr preprocessing)
   (alt expr 'start '() preprocessing))
 
+(: alt-equal? (-> alt alt Boolean))
 (define (alt-equal? x y)
   (equal? (alt-expr x) (alt-expr y)))
 
+(: alt-add-event (-> alt Event alt))
 (define (alt-add-event altn event)
   (alt (alt-expr altn) event (list altn) (alt-preprocessing altn)))
 
+(: alt-add-preprocessing (-> alt (Listof Preprocessing) alt))
 (define (alt-add-preprocessing altn preprocessing)
   (alt (alt-expr altn) 'add-preprocessing (list altn) preprocessing))
 
+(: alt-cost (-> alt representation Real))
 (define (alt-cost altn repr)
   (define expr-cost (platform-cost-proc (*active-platform*)))
   (expr-cost (alt-expr altn) repr))
 
+(: alt-map (-> (-> alt alt) alt alt))
 (define (alt-map f altn)
   (f (struct-copy alt altn [prevs (map (curry alt-map f) (alt-prevs altn))])))
-
-(define (alt-for-each f altn)
-  (for ([prev (alt-prevs altn)])
-    (alt-for-each f prev))
-  (f altn))
 
 ;; A useful parameter for many of Herbie's subsystems, though
 ;; ultimately one that should be located somewhere else or perhaps
 ;; exorcised
 
+(: *start-prog* (Parameterof (U #f Program)))
 (define *start-prog* (make-parameter #f))
+
+(: *all-alts* (Parameterof (Listof alt)))
 (define *all-alts* (make-parameter '()))
