@@ -613,12 +613,12 @@
         #f)] ;; If symbol, assume not a spec could be either (find way to distinguish) : PREPROCESS
       [(hole _ _) (vector-set! spec-mask n #f)] ;; If hole, not a spec
       [(approx _ _) (vector-set! spec-mask n #f)] ;; If approx, not a spec
-    
+
       [(list appl args ...)
        (if (hash-has-key? (id->e1) appl)
            (vector-set! spec-mask n #t) ;; appl with op -> Is a spec
            (vector-set! spec-mask n #f))] ;; appl impl -> Not a spec
-    
+
       ;; If the condition or any branch is a spec, then this is a spec
       [`(if ,cond ,ift ,iff) (vector-set! spec-mask n (vector-ref spec-mask cond))]))
 
