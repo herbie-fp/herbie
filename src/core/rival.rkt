@@ -58,7 +58,6 @@
 ;; for each expression. Optionally, takes a precondition.
 (define (make-real-compiler specs ctxs #:pre [pre '(TRUE)])
   (define vars (context-vars (first ctxs)))
-  (define var-reprs (context-var-reprs (first ctxs)))
   (define reprs (map context-repr ctxs))
   ; create the machine
   (define exprs (cons `(assert ,pre) specs))
@@ -89,7 +88,7 @@
   ; wrap it with useful information for Herbie
   (real-compiler pre
                  (list->vector vars)
-                 (list->vector var-reprs)
+                 (list->vector (context-var-reprs (first ctxs)))
                  specs
                  (list->vector reprs)
                  machine
