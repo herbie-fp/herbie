@@ -18,6 +18,7 @@
          "../utils/float.rkt"
          "../reports/pages.rkt"
          "datafile.rkt"
+         "../syntax/syntax.rkt"
          (submod "../utils/timeline.rkt" debug))
 
 (provide make-path
@@ -233,7 +234,8 @@
                          *max-find-range-depth*
                          *pareto-mode*
                          *platform-name*
-                         *loose-plugins*)
+                         *loose-plugins*
+                         *functions*)
    (parameterize ([current-error-port (open-output-nowhere)]) ; hide output
      (load-herbie-plugins))
    ; not sure if the above code is actaully needed.
@@ -340,7 +342,8 @@
                          *max-find-range-depth*
                          *pareto-mode*
                          *platform-name*
-                         *loose-plugins*)
+                         *loose-plugins*
+                         *functions*)
    (parameterize ([current-error-port (open-output-nowhere)]) ; hide output
      (load-herbie-plugins))
    (define worker-thread
