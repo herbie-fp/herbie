@@ -387,11 +387,13 @@
   (hasheq 'cost (job-result-backend herbie-result)))
 
 (define (make-error-result herbie-result job-id)
+  (define test (job-result-test herbie-result))
   (define errs
-    (for/list ([pt&err (job-result-backend herbie-result)])
-      (define pt (first pt&err))
-      (define err (second pt&err))
-      (list pt (format-bits (ulps->bits err)))))
+    (for/list ([(pt err) (in-dict (job-result-backend herbie-result))])
+      (list (for/list ([val (in-vector pt)]
+                       [repr (in-list (context-var-reprs (test-context test)))])
+              (value->json val repr))
+            (format-bits (ulps->bits err)))))
   (hasheq 'points errs))
 
 (define (make-alternatives-result herbie-result job-id)

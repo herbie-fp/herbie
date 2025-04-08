@@ -113,7 +113,7 @@
   (define errs (errors (test-input test) test-pcontext (*context*)))
   (for/list ([(pt _) (in-pcontext test-pcontext)]
              [err (in-list errs)])
-    (list pt err)))
+    (cons pt err)))
 
 (define (get-explanations test pcontext)
   (unless pcontext
