@@ -162,12 +162,20 @@
   (define basic-output ((get-json-converter command) herbie-result job-id))
   ;; Add default fields that all commands have
   (hash-set* basic-output
-             'command
-             (~a (herbie-command-command command))
              'job
              job-id
              'path
-             (make-path job-id)))
+             (make-path job-id)
+             'command
+             (~a (herbie-command-command command))
+             'name
+             (test-name (herbie-command-test command))
+             'status
+             (~a (job-result-status herbie-result))
+             'time
+             (job-result-time herbie-result)
+             'warnings
+             (job-result-warnings herbie-result)))
 
 (define queued-jobs (make-hash))
 (define completed-jobs (make-hash))
@@ -400,8 +408,6 @@
 (define (make-alternatives-result herbie-result job-id)
   (define test (job-result-test herbie-result))
   (define backend (job-result-backend herbie-result))
-  (define job-time (job-result-time herbie-result))
-  (define warnings (job-result-warnings herbie-result))
   (define timeline (job-result-timeline herbie-result))
   (define profile (job-result-profile herbie-result))
 
@@ -441,16 +447,8 @@
     (for/list ([altn (in-list altns)])
       (render-json altn processed-pcontext train-pcontext (test-context test))))
 
-  (hasheq 'status
-          (~a (job-result-status herbie-result))
-          'name
-          (test-name test)
-          'test
+  (hasheq 'test
           (~s test-fpcore)
-          'time
-          job-time
-          'warnings
-          warnings
           'timeline
           timeline
           'profile
