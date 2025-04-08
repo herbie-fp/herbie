@@ -102,8 +102,8 @@
 ;; since those aren't real numbers. To fix this, we replace all
 ;; non-finite R[e] with 0.
 (define (remove-infinities pt reprs)
-  (for/list ([val (in-vector pt)]
-             [repr (in-list reprs)])
+  (for/vector ([val (in-vector pt)]
+               [repr (in-list reprs)])
     (define bf-val ((representation-repr->bf repr) val))
     (if (implies (bigfloat? bf-val) (bfrational? bf-val))
         val
