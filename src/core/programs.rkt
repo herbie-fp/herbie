@@ -14,7 +14,8 @@
          location-set
          get-locations
          free-variables
-         replace-expression)
+         replace-expression
+         replace-vars)
 
 ;; Programs are just lisp lists plus atoms
 
@@ -130,6 +131,15 @@
     [(? variable?) (list prog)]
     [(approx _ impl) (free-variables impl)]
     [(list _ args ...) (remove-duplicates (append-map free-variables args))]))
+
+(define (replace-vars dict expr)
+  (let loop ([expr expr])
+    (match expr
+      [(? literal?) expr]
+      [(? number?) expr]
+      [(? symbol?) (dict-ref dict expr expr)]
+      [(approx impl spec) (approx (loop impl) (loop spec))]
+      [(list op args ...) (cons op (map loop args))])))
 
 (define location? (listof natural-number/c))
 
