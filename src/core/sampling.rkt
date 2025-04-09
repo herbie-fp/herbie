@@ -19,8 +19,8 @@
 (define (precondition->hyperrects pre vars var-reprs)
   (define range-table (condition->range-table pre))
   (apply cartesian-product
-         (for/list ([var-name (in-list vars)]
-                    [var-repr (in-list var-reprs)])
+         (for/list ([var-name (in-vector vars)]
+                    [var-repr (in-vector var-reprs)])
            (map (lambda (interval) (fpbench-ival->ival var-repr interval))
                 (range-table-ref range-table var-name)))))
 
@@ -37,7 +37,7 @@
   (define binary64 (get-representation 'binary64))
   (define pre '(and (and (<= 0 a) (<= a 1)) (and (<= 0 b) (<= b 1))))
 
-  (check-equal? (precondition->hyperrects pre '(a b) (list binary64 binary64))
+  (check-equal? (precondition->hyperrects pre '#(a b) (vector binary64 binary64))
                 (list (list (ival 0.bf 1.bf) (ival 0.bf 1.bf)))))
 
 ;; Part 2: using subdivision search to find valid intervals
@@ -73,13 +73,13 @@
     (for/vector #:length (vector-length hyperrects)
                 ([hyperrect (in-vector hyperrects)])
       (for/list ([interval (in-list hyperrect)]
-                 [repr (in-list reprs)])
+                 [repr (in-vector reprs)])
         ((representation-repr->ordinal repr) ((representation-bf->repr repr) (ival-lo interval))))))
   (define hi-ends
     (for/vector #:length (vector-length hyperrects)
                 ([hyperrect (in-vector hyperrects)])
       (for/list ([interval (in-list hyperrect)]
-                 [repr (in-list reprs)])
+                 [repr (in-vector reprs)])
         (+ 1
            ((representation-repr->ordinal repr)
             ((representation-bf->repr repr) (ival-hi interval)))))))
@@ -87,20 +87,23 @@
   (define weight-max (vector-ref weights (- (vector-length weights) 1)))
 
   ;; returns pt and hint
-  (λ ()
+  (define num-vars (vector-length reprs))
+  (define (hyperrect-sampler)
     (define idx (binary-search weights (random-natural weight-max)))
-    (values (for/list ([lo (in-list (vector-ref lo-ends idx))]
-                       [hi (in-list (vector-ref hi-ends idx))]
-                       [repr (in-list reprs)])
+    (values (for/vector #:length num-vars
+                        ([lo (in-list (vector-ref lo-ends idx))]
+                         [hi (in-list (vector-ref hi-ends idx))]
+                         [repr (in-vector reprs)])
               ((representation-ordinal->repr repr) (random-integer lo hi)))
-            (vector-ref hints idx))))
+            (vector-ref hints idx)))
+  hyperrect-sampler)
 
 (define (make-sampler compiler)
   (match-define (real-compiler pre vars var-reprs _ reprs _ _) compiler)
   (cond
     [(and (flag-set? 'setup 'search)
-          (not (empty? var-reprs))
-          (for/and ([repr (in-list (append var-reprs reprs))])
+          (not (vector-empty? var-reprs))
+          (for/and ([repr (in-vector (vector-append var-reprs reprs))])
             (equal? (representation-type repr) 'real)))
      (timeline-push! 'method "search")
      (define hyperrects-analysis (precondition->hyperrects pre vars var-reprs))
@@ -111,7 +114,7 @@
     [else
      (timeline-push! 'method "random")
      ; sampler return false hint since rival-analyze has not been called in random method
-     (values (λ () (values (map random-generate var-reprs) #f)) (hash 'unknown 1.0))]))
+     (values (λ () (values (vector-map random-generate var-reprs) #f)) (hash 'unknown 1.0))]))
 
 ;; Returns an evaluator for a list of expressions.
 ;; Part 3: compute exact values using Rival's algorithm
@@ -136,10 +139,10 @@
          (warn 'ground-truth
                "could not determine a ground truth"
                #:url "faq.html#ground-truth"
-               #:extra (map (curry format "~a = ~a") vars pt))]
+               #:extra (vector->list (vector-map (curry format "~a = ~a") vars pt)))]
         [(valid)
          (for ([ex (in-list exs)]
-               [repr (in-list reprs)])
+               [repr (in-vector reprs)])
            ; The `bool` representation does not produce bigfloats
            (define maybe-bf ((representation-repr->bf repr) ex))
            (when (and (bigfloat? maybe-bf) (bfinfinite? maybe-bf))
@@ -148,8 +151,8 @@
       (hash-update! outcomes status add1 0)
 
       (define is-bad?
-        (for/or ([input (in-list pt)]
-                 [repr (in-list var-reprs)])
+        (for/or ([input (in-vector pt)]
+                 [repr (in-vector var-reprs)])
           ((representation-special-value? repr) input)))
 
       (cond

@@ -29,7 +29,7 @@
   (define bad-pt
     (for/list ([ctx* (in-list ctxs)])
       ((representation-bf->repr (context-repr ctx*)) +nan.bf)))
-  (define (<eval-prog-real> . pt)
+  (define (<eval-prog-real> pt)
     (define-values (_ exs) (real-apply compiler pt))
     (or exs bad-pt))
   <eval-prog-real>)
@@ -79,7 +79,7 @@
 
   (for ([(pt ex) (in-pcontext (*pcontext*))]
         [pt-idx (in-naturals)])
-    (define exacts (list->vector (apply subexprs-fn pt)))
+    (define exacts (list->vector (subexprs-fn pt)))
     (define (get-exact idx)
       (vector-ref exacts (vector-member idx roots)))
     (for ([expr (in-list exprs-list)]
@@ -102,8 +102,8 @@
 ;; since those aren't real numbers. To fix this, we replace all
 ;; non-finite R[e] with 0.
 (define (remove-infinities pt reprs)
-  (for/list ([val (in-vector pt)]
-             [repr (in-list reprs)])
+  (for/vector ([val (in-vector pt)]
+               [repr (in-list reprs)])
     (define bf-val ((representation-repr->bf repr) val))
     (if (implies (bigfloat? bf-val) (bfrational? bf-val))
         val
@@ -156,13 +156,13 @@
   (for ([(pt ex) (in-pcontext (*pcontext*))]
         [pt-idx (in-naturals)])
 
-    (define exacts (list->vector (apply subexprs-fn pt)))
+    (define exacts (list->vector (subexprs-fn pt)))
     (define (get-exact idx)
       (vector-ref exacts (vector-member idx roots)))
 
-    (define actuals (apply actual-value-fn pt))
-    (define pt* (append pt (remove-infinities actuals reprs-list)))
-    (define deltas (list->vector (apply delta-fn pt*)))
+    (define actuals (actual-value-fn pt))
+    (define pt* (vector-append pt (remove-infinities actuals reprs-list)))
+    (define deltas (list->vector (delta-fn pt*)))
 
     (for ([repr (in-list reprs-list)]
           [root (in-vector roots)]

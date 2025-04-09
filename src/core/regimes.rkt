@@ -122,7 +122,7 @@
   (define big-table ; pt ; splitval ; alt1-err ; alt2-err ; ...
     (for/list ([(pt ex) (in-pcontext (*pcontext*))]
                [err-lst err-lsts])
-      (list* (apply fn pt) pt err-lst)))
+      (list* (fn pt) pt err-lst)))
   (match-define (list splitvals* pts* err-lsts* ...)
     (flip-lists (sort big-table (curryr </total repr) #:key first)))
 
@@ -152,7 +152,7 @@
 (module+ test
   (define ctx (make-debug-context '(x)))
   (parameterize ([*start-prog* (literal 1 'binary64)]
-                 [*pcontext* (mk-pcontext '((0.5) (4.0)) '(1.0 1.0))])
+                 [*pcontext* (mk-pcontext '(#(0.5) #(4.0)) '(1.0 1.0))])
     (define alts (map make-alt (list '(fmin.f64 x 1) '(fmax.f64 x 1))))
     (define err-lsts `((,(expt 2.0 53) 1.0) (1.0 ,(expt 2.0 53))))
 
