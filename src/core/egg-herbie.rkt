@@ -37,11 +37,27 @@
 (define (u32vector-empty? x)
   (zero? (u32vector-length x)))
 
-(define (in-u32vector vec)
+(define (in-u32vector/proc vec)
   (make-do-sequence
    (lambda ()
      (define len (u32vector-length vec))
      (values (lambda (i) (u32vector-ref vec i)) add1 0 (lambda (i) (< i len)) #f #f))))
+
+(define-sequence-syntax in-u32vector
+                        (lambda () #'in-u32vector/proc)
+                        (lambda (stx)
+                          (syntax-case stx ()
+                            [[(x) (_ v)]
+                             #'[(x)
+                                (:do-in ([(len) (u32vector-length v)])
+                                        #t
+                                        ([i 0])
+                                        (< i len)
+                                        ([(x) (u32vector-ref v i)])
+                                        #t
+                                        #t
+                                        ((+ i 1)))]]
+                            [_ #f])))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; egg FFI shim

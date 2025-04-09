@@ -25,8 +25,26 @@
 (define *pcontext* (make-parameter #f))
 (struct pcontext (points exacts) #:prefab)
 
-(define (in-pcontext pcontext)
+(define (in-pcontext/proc pcontext)
   (in-parallel (in-vector (pcontext-points pcontext)) (in-vector (pcontext-exacts pcontext))))
+
+(define-sequence-syntax
+ in-pcontext
+ (lambda () #'in-pcontext/proc)
+ (lambda (stx)
+   (syntax-case stx ()
+     [[(pt ex) (_ pctx)]
+      #'[(x)
+         (:do-in ([(pts) (pcontext-points pctx)] [(exs) (pcontext-exacts pctx)]
+                                                 [(len) (vector-length (pcontext-points pctx))])
+                 #t
+                 ([i 0])
+                 (< i len)
+                 ([(pt) (vector-ref pts i)] [(ex) (vector-ref exs i)])
+                 #t
+                 #t
+                 ((+ i 1)))]]
+     [_ #f])))
 
 (define (pcontext-length pcontext)
   (vector-length (pcontext-points pcontext)))
