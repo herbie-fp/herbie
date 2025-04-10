@@ -4,7 +4,7 @@
 ;;; C/C++ on Linux with a full libm
 
 (require "../plugin.rkt")
-(provide machine-platform boolean-platform libm64-platform libm32-platform accelerator-platform)
+(provide machine-platform boolean-platform libm64-platform libm32-platform accelerator-platform default-platform)
 
 ; universal boolean opertaions
 (define-platform boolean-platform
