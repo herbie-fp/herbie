@@ -145,8 +145,7 @@
 
 (define (atab-prune atab)
   (define sc (atab->set-cover atab))
-  (define removability
-    (sort (set->list (set-cover-removable sc)) (removability<? atab)))
+  (define removability (sort (set->list (set-cover-removable sc)) (removability<? atab)))
   (let loop ([removed '()]
              [removability removability])
     (match removability
@@ -188,9 +187,7 @@
                [cost (in-list costs)])
       (atab-add-altn atab altn errs cost)))
   (define atab**
-    (struct-copy alt-table
-                 atab*
-                 [alt->point-idxs (invert-index (alt-table-point-idx->alts atab*))]))
+    (struct-copy alt-table atab* [alt->point-idxs (invert-index (alt-table-point-idx->alts atab*))]))
   (define atab*** (atab-prune atab**))
   (struct-copy alt-table
                atab***
