@@ -12,7 +12,6 @@
          spec-prog?
          impl-prog?
          repr-of
-         repr-of-node
          location-do
          location-get
          free-variables
@@ -32,17 +31,6 @@
     [(approx _ impl) (repr-of impl ctx)]
     [(hole precision spec) (get-representation precision)]
     [(list 'if cond ift iff) (repr-of ift ctx)]
-    [(list op args ...) (impl-info op 'otype)]))
-
-; Index inside (batch-nodes batch) -> type
-(define (repr-of-node batch idx ctx)
-  (define node (vector-ref (batch-nodes batch) idx))
-  (match node
-    [(literal val precision) (get-representation precision)]
-    [(? variable?) (context-lookup ctx node)]
-    [(approx _ impl) (repr-of-node batch impl ctx)]
-    [(hole precision spec) (get-representation precision)]
-    [(list 'if cond ift iff) (repr-of-node batch ift ctx)]
     [(list op args ...) (impl-info op 'otype)]))
 
 (define (all-subexpressions expr #:reverse? [reverse? #f])
@@ -158,31 +146,12 @@
 
 (define/contract (location-do loc prog f)
   (-> location? expr? (-> expr? expr?) expr?)
-  (define (invalid! where loc)
-    (error 'location-do "invalid location `~a` for `~a` in `~a`" loc where prog))
-
-  (let loop ([prog prog]
-             [loc loc])
-    (match* (prog loc)
-      [(_ (? null?)) (f prog)]
-      [((or (? literal?) (? number?) (? symbol?)) _) (invalid! prog loc)]
-      [((approx spec impl) (cons idx rest)) ; approx nodes
-       (case idx
-         [(1) (approx (loop spec rest) impl)]
-         [(2) (approx spec (loop impl rest))]
-         [else (invalid! prog loc)])]
-      [((hole prec spec) (cons idx rest)) ; approx nodes
-       (case idx
-         [(1) (hole prec (loop spec rest))]
-         [else (invalid! prog loc)])]
-      [((list op args ...) (cons idx rest)) ; operator
-       (let seek ([elts (cons op args)]
-                  [idx idx])
-         (cond
-           [(= idx 0) (cons (loop (car elts) rest) (cdr elts))]
-           [(null? elts) (invalid! prog loc)]
-           [else (cons (car elts) (seek (cdr elts) (sub1 idx)))]))]
-      [(_ _) (invalid! prog loc)])))
+  (match* (prog loc)
+    [(_ (? null?)) (f prog)]
+    [((approx spec impl) (cons 1 rest)) (approx (location-do rest spec f) impl)]
+    [((approx spec impl) (cons idx rest)) (approx spec (location-do rest impl f))]
+    [((hole prec spec) (cons 1 rest)) (hole prec (location-do rest spec f))]
+    [((? list?) (cons idx rest)) (list-set prog idx (location-do rest (list-ref prog idx) f))]))
 
 (define/contract (location-get loc prog)
   (-> location? expr? expr?)

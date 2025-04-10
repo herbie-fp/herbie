@@ -183,57 +183,58 @@
   (define (parse-string s)
     (and s (call-with-input-string s read)))
 
-  (let* ([json (read-json port)]
-         [get (λ (field) (hash-ref json field))])
-    (report-info (seconds->date (get 'date))
-                 (get 'commit)
-                 (get 'branch)
-                 (parse-string (get 'seed))
-                 (list->flags (get 'flags))
-                 (get 'points)
-                 (get 'iterations)
-                 (for/list ([test (get 'tests)]
-                            #:when (hash-has-key? test 'vars))
-                   (let ([get (λ (field) (hash-ref test field))])
-                     (define vars
-                       (match (hash-ref test 'vars)
-                         [(list names ...) (map string->symbol names)]
-                         [string-lst (parse-string string-lst)]))
-                     (define cost-accuracy
-                       (match (hash-ref test 'cost-accuracy '())
-                         [(list) (list)]
-                         [(list start best others)
-                          (list start
-                                best
-                                (for/list ([other (in-list others)])
-                                  (match-define (list cost err expr) other)
-                                  (list cost err (parse-string expr))))]
-                         [(? string? s) (parse-string s)]))
-                     (table-row (get 'name)
-                                (parse-string (hash-ref test 'identifier "#f"))
-                                (get 'status)
-                                (parse-string (hash-ref test 'pre "TRUE"))
-                                (parse-string (hash-ref test 'preprocess "()"))
-                                (parse-string (hash-ref test 'prec "binary64"))
-                                (let ([cs (hash-ref test 'conversions "()")])
-                                  (if (string? cs)
-                                      (parse-string cs)
-                                      (map (curry map parse-string) cs)))
-                                vars
-                                (map string->symbol (hash-ref test 'warnings '()))
-                                (parse-string (get 'input))
-                                (parse-string (get 'output))
-                                (parse-string (hash-ref test 'spec "#f"))
-                                (parse-string (hash-ref test 'target-prog "#f"))
-                                (get 'start)
-                                (get 'end)
-                                (get 'target)
-                                (hash-ref test 'start-est 0)
-                                (hash-ref test 'end-est 0)
-                                (get 'time)
-                                (get 'link)
-                                cost-accuracy)))
-                 (hash-ref json 'merged-cost-accuracy null))))
+  (define json (read-json port))
+  (define (get field)
+    (hash-ref json field))
+  (report-info (seconds->date (get 'date))
+               (get 'commit)
+               (get 'branch)
+               (parse-string (get 'seed))
+               (list->flags (get 'flags))
+               (get 'points)
+               (get 'iterations)
+               (for/list ([test (get 'tests)]
+                          #:when (hash-has-key? test 'vars))
+                 (let ([get (λ (field) (hash-ref test field))])
+                   (define vars
+                     (match (hash-ref test 'vars)
+                       [(list names ...) (map string->symbol names)]
+                       [string-lst (parse-string string-lst)]))
+                   (define cost-accuracy
+                     (match (hash-ref test 'cost-accuracy '())
+                       [(list) (list)]
+                       [(list start best others)
+                        (list start
+                              best
+                              (for/list ([other (in-list others)])
+                                (match-define (list cost err expr) other)
+                                (list cost err (parse-string expr))))]
+                       [(? string? s) (parse-string s)]))
+                   (table-row (get 'name)
+                              (parse-string (hash-ref test 'identifier "#f"))
+                              (get 'status)
+                              (parse-string (hash-ref test 'pre "TRUE"))
+                              (parse-string (hash-ref test 'preprocess "()"))
+                              (parse-string (hash-ref test 'prec "binary64"))
+                              (let ([cs (hash-ref test 'conversions "()")])
+                                (if (string? cs)
+                                    (parse-string cs)
+                                    (map (curry map parse-string) cs)))
+                              vars
+                              (map string->symbol (hash-ref test 'warnings '()))
+                              (parse-string (get 'input))
+                              (parse-string (get 'output))
+                              (parse-string (hash-ref test 'spec "#f"))
+                              (parse-string (hash-ref test 'target-prog "#f"))
+                              (get 'start)
+                              (get 'end)
+                              (get 'target)
+                              (hash-ref test 'start-est 0)
+                              (hash-ref test 'end-est 0)
+                              (get 'time)
+                              (get 'link)
+                              cost-accuracy)))
+               (hash-ref json 'merged-cost-accuracy null)))
 
 (define (unique? a)
   (or (null? a) (andmap (curry equal? (car a)) (cdr a))))

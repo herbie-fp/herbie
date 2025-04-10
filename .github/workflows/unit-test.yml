@@ -24,8 +24,6 @@ jobs:
       - uses: actions/checkout@master
       - name: "Install dependencies"
         run: make install
-      - name: "Install egglog"
-        run: make egglog-herbie
 
       - name: "Test raco fmt compliance"
         run: make fmt && git diff --exit-code

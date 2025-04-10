@@ -47,7 +47,7 @@
   (define compiler (make-real-compiler (list p2) (list ctx)))
   (for ([pt (in-list pts)]
         [v1 (in-list exs)])
-    (with-check-info* (map make-check-info (context-vars ctx) pt)
+    (with-check-info* (map make-check-info (context-vars ctx) (vector->list pt))
                       (λ ()
                         (define-values (status v2) (real-apply compiler pt))
                         (with-check-info (['lhs v1] ['rhs v2] ['status status])
@@ -69,7 +69,7 @@
   (for ([pt (in-list pts)]
         [v1 (in-list exs1)]
         [v2 (in-list exs2)])
-    (with-check-info* (map make-check-info (context-vars ctx) pt)
+    (with-check-info* (map make-check-info (context-vars ctx) (vector->list pt))
                       (λ ()
                         (with-check-info (['lhs v1] ['rhs v2])
                                          (check-eq? (ulp-difference v1 v2 (context-repr ctx)) 1))))))

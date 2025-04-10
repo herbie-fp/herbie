@@ -172,8 +172,7 @@
   ; check that Rival supports all non-accelerator operators
   (for ([op (in-list (all-operators))])
     (define vars (map (lambda (_) (gensym)) (operator-info op 'itype)))
-    (define disc (discretization 64 #f #f)) ; fake arguments
-    (rival-compile (list `(,op ,@vars)) vars (list disc))))
+    (rival-compile (list `(,op ,@vars)) vars (list flonum-discretization))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Operator implementations
@@ -319,7 +318,7 @@
        (define compiler (make-real-compiler (list spec) (list ctx)))
        (define fail ((representation-bf->repr (context-repr ctx)) +nan.bf))
        (procedure-rename (lambda pt
-                           (define-values (_ exs) (real-apply compiler pt))
+                           (define-values (_ exs) (real-apply compiler (list->vector pt)))
                            (if exs
                                (first exs)
                                fail))

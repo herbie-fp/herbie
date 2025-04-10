@@ -59,15 +59,14 @@
   (parameterize ([current-output-port stdout-port]
                  [current-error-port stderr-port])
     (unless (system (format "~a ~a" egglog-path egglog-file-path))
-      (begin
-        (fprintf old-error-port "stdout-port ~a\n" (get-output-string stdout-port))
-        ; Tail the last 100 lines of the error instead of everything
-        (fprintf old-error-port
-                 "stderr-port ~a\n"
-                 (string-join (take-right (string-split (get-output-string stderr-port) "\n") 100)
-                              "\n"))
-        (fprintf old-error-port "incorrect program ~a\n" curr-program)
-        (error "Failed to execute egglog"))))
+      (fprintf old-error-port "stdout-port ~a\n" (get-output-string stdout-port))
+      ; Tail the last 100 lines of the error instead of everything
+      (fprintf old-error-port
+               "stderr-port ~a\n"
+               (string-join (take-right (string-split (get-output-string stderr-port) "\n") 100)
+                            "\n"))
+      (fprintf old-error-port "incorrect program ~a\n" curr-program)
+      (error "Failed to execute egglog")))
 
   (delete-file egglog-file-path)
 
@@ -278,6 +277,9 @@
       (mutable-batch-push! out term)))
   (batchref input-batch idx))
 
+(define (normalize-cost c min-cost)
+  (exact-round (* (/ c min-cost) 100)))
+
 (define (prelude curr-program #:mixed-egraph? [mixed-egraph? #t])
   (load-herbie-builtins)
   (define pform (*active-platform*))
@@ -291,19 +293,41 @@
 
   (egglog-program-add! spec-egraph curr-program)
 
+  ;;; To add support for floating point cost (which egglog does not support), compute
+  ;;; the minimum by accumulating all raw costs and normalize them
+  (define raw-costs '())
+
+  ;; Add raw num-typed-nodes and var-typed-nodes costs
+  (for ([repr (in-list (all-repr-names))])
+    (set! raw-costs (cons (platform-repr-cost pform (get-representation repr)) raw-costs)))
+
+  ;; Add raw if-cost
+  (set! raw-costs
+        (cons (match (platform-impl-cost pform 'if)
+                [`(max ,n) n] ; Not quite right (copied from egg-herbie.rkt)
+                [`(sum ,n) n])
+              raw-costs))
+
+  ;; Add raw platform-impl-nodes
+  (for ([impl (in-list (platform-impls pform))])
+    (set! raw-costs (cons (platform-impl-cost pform impl) raw-costs)))
+
+  (define min-cost (apply min raw-costs))
+
   (define typed-graph
     `(datatype MTy
-               ,@(num-typed-nodes pform)
-               ,@(var-typed-nodes pform)
+               ,@(num-typed-nodes pform min-cost)
+               ,@(var-typed-nodes pform min-cost)
                (IfTy MTy
                      MTy
                      MTy
                      :cost
-                     ,(match (platform-impl-cost pform 'if)
-                        [`(max ,n) n] ; Not quite right (copied from egg-herbie.rkt)
-                        [`(sum ,n) n]))
+                     ,(normalize-cost (match (platform-impl-cost pform 'if)
+                                        [`(max ,n) n] ; Not quite right (copied from egg-herbie.rkt)
+                                        [`(sum ,n) n])
+                                      min-cost))
                (Approx M MTy)
-               ,@(platform-impl-nodes pform)))
+               ,@(platform-impl-nodes pform min-cost)))
 
   (egglog-program-add! typed-graph curr-program)
 
@@ -383,7 +407,7 @@
                          :cost
                          4294967295)))
 
-(define (platform-impl-nodes pform)
+(define (platform-impl-nodes pform min-cost)
   (for/list ([impl (in-list (platform-impls pform))])
     (define arity (length (impl-info impl 'itype)))
     (define typed-name (string->symbol (string-append (symbol->string (serialize-impl impl)) "Ty")))
@@ -392,7 +416,7 @@
     `(,typed-name ,@(for/list ([i (in-range arity)])
                       'MTy)
                   :cost
-                  ,(platform-impl-cost pform impl))))
+                  ,(normalize-cost (platform-impl-cost pform impl) min-cost))))
 
 (define (typed-num-id repr-name)
   (string->symbol (string-append "Num" (symbol->string repr-name))))
@@ -400,14 +424,20 @@
 (define (typed-var-id repr-name)
   (string->symbol (string-append "Var" (symbol->string repr-name))))
 
-(define (num-typed-nodes pform)
+(define (num-typed-nodes pform min-cost)
   (for/list ([repr (in-list (all-repr-names))]
              #:when (not (eq? repr 'bool)))
-    `(,(typed-num-id repr) BigRat :cost ,(platform-repr-cost pform (get-representation repr)))))
+    `(,(typed-num-id repr) BigRat
+                           :cost
+                           ,(normalize-cost (platform-repr-cost pform (get-representation repr))
+                                            min-cost))))
 
-(define (var-typed-nodes pform)
+(define (var-typed-nodes pform min-cost)
   (for/list ([repr (in-list (all-repr-names))])
-    `(,(typed-var-id repr) String :cost ,(platform-repr-cost pform (get-representation repr)))))
+    `(,(typed-var-id repr) String
+                           :cost
+                           ,(normalize-cost (platform-repr-cost pform (get-representation repr))
+                                            min-cost))))
 
 (define (num-lowering-rules)
   (for/list ([repr (in-list (all-repr-names))]
@@ -603,25 +633,25 @@
   (define spec-mask (make-vector (batch-length batch) #f))
 
   (for ([n (in-range (batch-length batch))])
-    (let ([node (vector-ref (batch-nodes batch) n)])
-      (match node
-        [(? literal?) (vector-set! spec-mask n #f)] ;; If literal, not a spec
-        [(? number?) (vector-set! spec-mask n #t)] ;; If number, it's a spec
-        [(? symbol?)
-         (vector-set!
-          spec-mask
-          n
-          #f)] ;; If symbol, assume not a spec could be either (find way to distinguish) : PREPROCESS
-        [(hole _ _) (vector-set! spec-mask n #f)] ;; If hole, not a spec
-        [(approx _ _) (vector-set! spec-mask n #f)] ;; If approx, not a spec
+    (define node (vector-ref (batch-nodes batch) n))
+    (match node
+      [(? literal?) (vector-set! spec-mask n #f)] ;; If literal, not a spec
+      [(? number?) (vector-set! spec-mask n #t)] ;; If number, it's a spec
+      [(? symbol?)
+       (vector-set!
+        spec-mask
+        n
+        #f)] ;; If symbol, assume not a spec could be either (find way to distinguish) : PREPROCESS
+      [(hole _ _) (vector-set! spec-mask n #f)] ;; If hole, not a spec
+      [(approx _ _) (vector-set! spec-mask n #f)] ;; If approx, not a spec
 
-        [(list appl args ...)
-         (if (hash-has-key? (id->e1) appl)
-             (vector-set! spec-mask n #t) ;; appl with op -> Is a spec
-             (vector-set! spec-mask n #f))] ;; appl impl -> Not a spec
+      [(list appl args ...)
+       (if (hash-has-key? (id->e1) appl)
+           (vector-set! spec-mask n #t) ;; appl with op -> Is a spec
+           (vector-set! spec-mask n #f))] ;; appl impl -> Not a spec
 
-        ;; If the condition or any branch is a spec, then this is a spec
-        [`(if ,cond ,ift ,iff) (vector-set! spec-mask n (vector-ref spec-mask cond))])))
+      ;; If the condition or any branch is a spec, then this is a spec
+      [`(if ,cond ,ift ,iff) (vector-set! spec-mask n (vector-ref spec-mask cond))]))
 
   (for ([root (in-vector (batch-roots batch))])
     (vector-set! root-mask root #t))
@@ -639,7 +669,7 @@
                        (from-string ,(number->string (denominator node)))))]
         [(? symbol?) #f]
         [`(if ,cond ,ift ,iff)
-         `(,(if spec? 'If 'IfTy) ,(remap cond spec?) ,(remap ift spec?) ,(remap iff spec?))]
+         (list (if spec? 'If 'IfTy) (remap cond spec?) (remap ift spec?) (remap iff spec?))]
         [(approx spec impl) `(Approx ,(remap spec #t) ,(remap impl #f))]
         [(list impl args ...)
          `(,(hash-ref (if spec?

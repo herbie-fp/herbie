@@ -13,7 +13,6 @@
          argmaxs
          set-disjoint?
          subsequence?
-         list-set*
          disjoint-set
          disjoint-set-find!
          disjoint-set-union!
@@ -136,24 +135,6 @@
   (check-true (subsequence? '(1 2 5 8) l))
   (check-false (subsequence? '(x y) l))
   (check-false (subsequence? '(1 2 10) l)))
-
-(define (list-set* l p v)
-  (let loop ([l l]
-             [p p]
-             [v v]
-             [i 0])
-    (cond
-      [(empty? l) empty]
-      [(and (not (empty? p)) (equal? (first p) i))
-       (cons (first v) (loop (rest l) (rest p) (rest v) (add1 i)))]
-      [else (cons (first l) (loop (rest l) p v (add1 i)))])))
-
-(module+ test
-  (define n '(a b c d e f g))
-  (check-equal? (list-set* empty empty empty) empty)
-  (check-equal? (list-set* n empty empty) n)
-  (check-equal? (list-set* n '(0) '(x)) '(x b c d e f g))
-  (check-equal? (list-set* n '(1 2 5) '(x y z)) '(a x y d e z g)))
 
 ;; Union-find
 
