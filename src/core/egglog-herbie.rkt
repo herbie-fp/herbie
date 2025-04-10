@@ -326,8 +326,8 @@
                                         [`(max ,n) n] ; Not quite right (copied from egg-herbie.rkt)
                                         [`(sum ,n) n])
                                       min-cost))
-                     (Approx M MTy)
-                     ,@(platform-impl-nodes pform min-cost)))
+               (Approx M MTy)
+               ,@(platform-impl-nodes pform min-cost)))
 
   (egglog-program-add! typed-graph curr-program)
 
