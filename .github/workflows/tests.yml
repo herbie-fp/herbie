@@ -28,6 +28,4 @@ jobs:
       - uses: actions/checkout@master
       - name: "Install dependencies"
         run: make install
-      - name: "Install egglog"
-        run: make egglog-herbie
-      - run: racket infra/ci.rkt --precision ${{ matrix.precision }} --seed 0 bench/hamming/
+      - run: racket -y infra/ci.rkt --precision ${{ matrix.precision }} --seed 0 bench/hamming/

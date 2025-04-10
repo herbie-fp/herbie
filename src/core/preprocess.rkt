@@ -112,6 +112,20 @@
                 (reverse preprocessing))))
   (for/pcontext ([(x y) pcontext]) (preprocess x y)))
 
+(define (vector-update v i f)
+  (define copy (make-vector (vector-length v)))
+  (vector-copy! copy 0 v)
+  (vector-set! copy i (f (vector-ref copy i)))
+  copy)
+
+(define (vector-set* v indices vals)
+  (define copy (make-vector (vector-length v)))
+  (vector-copy! copy 0 v)
+  (for ([i (in-list indices)]
+        [v (in-list vals)])
+    (vector-set! copy i v))
+  copy)
+
 (define (instruction->operator context instruction)
   (define variables (context-vars context))
   (define sort* (curryr sort (curryr </total (context-repr context))))
@@ -121,14 +135,14 @@
        (error 'instruction->operator "component should always be a subsequence of variables"))
      (define indices (indexes-where variables (curryr member component)))
      (lambda (x y)
-       (define subsequence (map (curry list-ref x) indices))
+       (define subsequence (map (curry vector-ref x) indices))
        (define sorted (sort* subsequence))
-       (values (list-set* x indices sorted) y))]
+       (values (vector-set* x indices sorted) y))]
     [(list 'abs variable)
      (define index (index-of variables variable))
      (define var-repr (context-lookup context variable))
      (define abs-proc (impl-info (get-fpcore-impl 'fabs (repr->prop var-repr) (list var-repr)) 'fl))
-     (lambda (x y) (values (list-update x index abs-proc) y))]
+     (lambda (x y) (values (vector-update x index abs-proc) y))]
     [(list 'negabs variable)
      (define index (index-of variables variable))
      (define var-repr (context-lookup context variable))
@@ -139,8 +153,8 @@
 
      (lambda (x y)
        ;; Negation is involutive, i.e. it is its own inverse, so t^1(y') = -y'
-       (if (negative? (repr->real (list-ref x index) (context-repr context)))
-           (values (list-update x index neg-var) (neg-expr y))
+       (if (negative? (repr->real (vector-ref x index) (context-repr context)))
+           (values (vector-update x index neg-var) (neg-expr y))
            (values x y)))]))
 
 ; until fixed point, iterate through preprocessing attempting to drop preprocessing with no effect on error

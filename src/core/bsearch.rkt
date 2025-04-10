@@ -101,8 +101,9 @@
   ; new-sampler returns: (cons (cons val pts) hint)
   ; Since the sampler does not call rival-analyze, the hint is set to #f
   (define (new-sampler)
-    (cons (cons val (random-ref pts)) #f))
-  (apply mk-pcontext (cdr (batch-prepare-points evaluator new-sampler))))
+    (values (vector-append (vector val) (random-ref pts)) #f))
+  (define-values (results _) (batch-prepare-points evaluator new-sampler))
+  (apply mk-pcontext results))
 
 (define/reset *prepend-arguement-cache* (make-hash))
 (define (cache-get-prepend v expr macro)
@@ -119,7 +120,7 @@
 ;; float form of a split is f(idx2), or entirely outside that range,
 ;; problems may arise.
 (define/contract (sindices->spoints points expr alts sindices ctx)
-  (-> (listof (listof any/c)) any/c (listof alt?) (listof si?) context? valid-splitpoints?)
+  (-> (listof vector?) any/c (listof alt?) (listof si?) context? valid-splitpoints?)
   (define repr (repr-of expr ctx))
 
   (define eval-expr (compile-prog expr ctx))
@@ -169,8 +170,8 @@
             (define prog1 (list-ref progs (si-cidx si1)))
             (define prog2 (list-ref progs (si-cidx si2)))
 
-            (define p1 (apply eval-expr (list-ref points (sub1 (si-pidx si1)))))
-            (define p2 (apply eval-expr (list-ref points (si-pidx si1))))
+            (define p1 (eval-expr (list-ref points (sub1 (si-pidx si1)))))
+            (define p2 (eval-expr (list-ref points (si-pidx si1))))
 
             (define timeline-stop!
               (timeline-start! 'bstep (value->json p1 repr) (value->json p2 repr)))
@@ -194,7 +195,7 @@
   (for/list ([i (in-naturals)]
              [alt alts]) ;; alts necessary to terminate loop
     (λ (pt)
-      (define val (apply prog pt))
+      (define val (prog pt))
       (for/first ([right splitpoints]
                   #:when (or (equal? (sp-point right) +nan.0)
                              (<=/total val (sp-point right) (context-repr ctx*))))
@@ -212,7 +213,7 @@
     (match-define (list p0? p1? p2?)
       (splitpoints->point-preds sps (map make-alt (build-list 3 (const '(λ (x y) (/ x y))))) context))
 
-    (check-pred p0? '(0.0 -1.0))
-    (check-pred p2? '(-1.0 1.0))
-    (check-pred p0? '(+1.0 1.0))
-    (check-pred p1? '(0.0 0.0))))
+    (check-pred p0? #(0.0 -1.0))
+    (check-pred p2? #(-1.0 1.0))
+    (check-pred p0? #(+1.0 1.0))
+    (check-pred p1? #(0.0 0.0))))

@@ -19,12 +19,12 @@
   (search-space '() '() ranges '() (make-list (length ranges) #f)))
 
 (define (total-weight reprs)
-  (expt 2 (apply + (map representation-total-bits reprs))))
+  (expt 2 (apply + (vector->list (vector-map representation-total-bits reprs)))))
 
 (define (hyperrect-weight hyperrect reprs)
   (apply *
          (for/list ([interval (in-list hyperrect)]
-                    [repr (in-list reprs)])
+                    [repr (in-vector reprs)])
            (define ->ordinal
              (compose (representation-repr->ordinal repr) (representation-bf->repr repr)))
            (+ 1 (- (->ordinal (ival-hi interval)) (->ordinal (ival-lo interval)))))))
@@ -47,8 +47,8 @@
         (warn 'ground-truth
               #:url "faq.html#ground-truth"
               "could not determine a ground truth"
-              #:extra (for/list ([var vars]
-                                 [repr reprs]
+              #:extra (for/list ([var (in-vector vars)]
+                                 [repr (in-vector reprs)]
                                  [ival rect])
                         (define val
                           (value->string ((representation-bf->repr repr)
@@ -61,7 +61,7 @@
          (values (cons rect true*) false* other* (cons hint* true-hints*) other-hints*)]
         [else
          (define range (list-ref rect split-var))
-         (define repr (list-ref reprs split-var))
+         (define repr (vector-ref reprs split-var))
          (match (two-midpoints repr (ival-lo range) (ival-hi range))
            [(cons midleft midright)
             (define rect-lo (list-set rect split-var (ival (ival-lo range) midleft)))

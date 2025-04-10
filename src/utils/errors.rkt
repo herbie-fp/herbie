@@ -127,6 +127,6 @@
     (define url* (and url (format "https://herbie.uwplse.org/doc/~a/~a" *herbie-version* url)))
     (when url*
       (eprintf "See <~a> for more.\n" url*))
-    (define entry (list type message args url* extra))
+    (define entry (list (~a type) (apply format message args) url* extra))
     (set-add! (warnings) type)
     (warning-log (cons entry (warning-log)))))

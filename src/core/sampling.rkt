@@ -12,17 +12,15 @@
          "rival.rkt")
 
 (provide batch-prepare-points
-         eval-progs-real
          sample-points)
 
 ;; Part 1: use FPBench's condition->range-table to create initial hyperrects
 
 (define (precondition->hyperrects pre vars var-reprs)
-  ;; FPBench needs unparameterized operators
   (define range-table (condition->range-table pre))
   (apply cartesian-product
-         (for/list ([var-name vars]
-                    [var-repr var-reprs])
+         (for/list ([var-name (in-vector vars)]
+                    [var-repr (in-vector var-reprs)])
            (map (lambda (interval) (fpbench-ival->ival var-repr interval))
                 (range-table-ref range-table var-name)))))
 
@@ -33,17 +31,14 @@
     ['bool (ival #f #t)]))
 
 (module+ test
-  (require rackunit))
-
-(module+ test
+  (require rackunit)
   (require "../syntax/load-plugin.rkt")
   (load-herbie-builtins)
   (define binary64 (get-representation 'binary64))
+  (define pre '(and (and (<= 0 a) (<= a 1)) (and (<= 0 b) (<= b 1))))
 
-  (check-equal? (precondition->hyperrects '(and (and (<= 0 a) (<= a 1)) (and (<= 0 b) (<= b 1)))
-                                          '(a b)
-                                          (list binary64 binary64))
-                (list (list (ival (bf 0.0) (bf 1.0)) (ival (bf 0.0) (bf 1.0))))))
+  (check-equal? (precondition->hyperrects pre '#(a b) (vector binary64 binary64))
+                (list (list (ival 0.bf 1.bf) (ival 0.bf 1.bf)))))
 
 ;; Part 2: using subdivision search to find valid intervals
 
@@ -55,28 +50,19 @@
     (cond
       [(>= left right) (min left (- (vector-length vector) 1))]
       [else
-       (define mid (floor (/ (+ left right) 2)))
+       (define mid (arithmetic-shift (+ left right) -1))
        (define pivot (vector-ref vector mid))
        (if (<= pivot num)
            (loop (+ 1 mid) right)
            (loop left mid))])))
 
 (module+ test
-  (define rand-list
-    (let loop ([current 0])
-      (cond
-        [(> current 200) empty]
-        [else
-         (define r (+ current (random-integer 1 10)))
-         (cons r (loop r))])))
-  (define arr (list->vector rand-list))
-  (for ([i (range 0 20)])
-    (define max-num (vector-ref arr (- (vector-length arr) 1)))
-    (define search-for (random-integer 0 max-num))
+  (define arr (partial-sums (build-vector 50 (lambda (_) (random-integer 1 100)))))
+  (define max-num (vector-ref arr (- (vector-length arr) 1)))
+  (for ([search-for (in-range max-num)])
     (define search-result (binary-search arr search-for))
     (check-true (> (vector-ref arr search-result) search-for))
-    (when (positive? search-result)
-      (check-true (<= (vector-ref arr (- search-result 1)) search-for)))))
+    (check-true (or (zero? search-result) (<= (vector-ref arr (- search-result 1)) search-for)))))
 
 (define (make-hyperrect-sampler hyperrects* hints* reprs)
   (when (null? hyperrects*)
@@ -87,67 +73,50 @@
     (for/vector #:length (vector-length hyperrects)
                 ([hyperrect (in-vector hyperrects)])
       (for/list ([interval (in-list hyperrect)]
-                 [repr (in-list reprs)])
+                 [repr (in-vector reprs)])
         ((representation-repr->ordinal repr) ((representation-bf->repr repr) (ival-lo interval))))))
   (define hi-ends
     (for/vector #:length (vector-length hyperrects)
                 ([hyperrect (in-vector hyperrects)])
       (for/list ([interval (in-list hyperrect)]
-                 [repr (in-list reprs)])
+                 [repr (in-vector reprs)])
         (+ 1
            ((representation-repr->ordinal repr)
             ((representation-bf->repr repr) (ival-hi interval)))))))
   (define weights (partial-sums (vector-map (curryr hyperrect-weight reprs) hyperrects)))
   (define weight-max (vector-ref weights (- (vector-length weights) 1)))
 
-  ;; returns (cons (listof pts) hint)
-  (λ ()
-    (define rand-ordinal (random-integer 0 weight-max))
-    (define idx (binary-search weights rand-ordinal))
-    (define los (vector-ref lo-ends idx))
-    (define his (vector-ref hi-ends idx))
-    (define hint (vector-ref hints idx))
-    (cons (for/list ([lo (in-list los)]
-                     [hi (in-list his)]
-                     [repr (in-list reprs)])
-            ((representation-ordinal->repr repr) (random-integer lo hi)))
-          hint)))
-
-#;(module+ test
-    (define two-point-hyperrects (list (list (ival (bf 0) (bf 0)) (ival (bf 1) (bf 1)))))
-    (define repr (get-representation 'binary64))
-    (check-true (andmap (curry set-member? '(0.0 1.0))
-                        ((make-hyperrect-sampler two-point-hyperrects (list repr repr))))))
+  ;; returns pt and hint
+  (define num-vars (vector-length reprs))
+  (define (hyperrect-sampler)
+    (define idx (binary-search weights (random-natural weight-max)))
+    (values (for/vector #:length num-vars
+                        ([lo (in-list (vector-ref lo-ends idx))]
+                         [hi (in-list (vector-ref hi-ends idx))]
+                         [repr (in-vector reprs)])
+              ((representation-ordinal->repr repr) (random-integer lo hi)))
+            (vector-ref hints idx)))
+  hyperrect-sampler)
 
 (define (make-sampler compiler)
   (match-define (real-compiler pre vars var-reprs _ reprs _ _) compiler)
   (cond
     [(and (flag-set? 'setup 'search)
-          (not (empty? var-reprs))
-          (for/and ([repr (in-list (append var-reprs reprs))])
+          (not (vector-empty? var-reprs))
+          (for/and ([repr (in-vector (vector-append var-reprs reprs))])
             (equal? (representation-type repr) 'real)))
      (timeline-push! 'method "search")
      (define hyperrects-analysis (precondition->hyperrects pre vars var-reprs))
      ; hints-hyperrects is a (listof '(hint hyperrect))
      (match-define (list hyperrects hints sampling-table)
        (find-intervals compiler hyperrects-analysis #:fuel (*max-find-range-depth*)))
-     (cons (make-hyperrect-sampler hyperrects hints var-reprs) sampling-table)]
+     (values (make-hyperrect-sampler hyperrects hints var-reprs) sampling-table)]
     [else
      (timeline-push! 'method "random")
      ; sampler return false hint since rival-analyze has not been called in random method
-     (cons (λ () (cons (map random-generate var-reprs) #f)) (hash 'unknown 1.0))]))
+     (values (λ () (values (vector-map random-generate var-reprs) #f)) (hash 'unknown 1.0))]))
 
 ;; Returns an evaluator for a list of expressions.
-(define (eval-progs-real specs ctxs)
-  (define compiler (make-real-compiler specs ctxs))
-  (define bad-pt
-    (for/list ([ctx* (in-list ctxs)])
-      ((representation-bf->repr (context-repr ctx*)) +nan.bf)))
-  (define (<eval-prog-real> . pt)
-    (define-values (_ exs) (real-apply compiler pt))
-    (or exs bad-pt))
-  <eval-prog-real>)
-
 ;; Part 3: compute exact values using Rival's algorithm
 
 (define (batch-prepare-points compiler sampler)
@@ -163,29 +132,27 @@
                [skipped 0]
                [points '()]
                [exactss '()])
-      (match-define (cons pt hint) (sampler))
+      (define-values (pt hint) (sampler))
       (define-values (status exs) (real-apply compiler pt hint))
       (case status
         [(exit)
          (warn 'ground-truth
-               #:url "faq.html#ground-truth"
                "could not determine a ground truth"
-               #:extra (for/list ([var vars]
-                                  [val pt])
-                         (format "~a = ~a" var val)))]
+               #:url "faq.html#ground-truth"
+               #:extra (vector->list (vector-map (curry format "~a = ~a") vars pt)))]
         [(valid)
          (for ([ex (in-list exs)]
-               [repr (in-list reprs)])
+               [repr (in-vector reprs)])
            ; The `bool` representation does not produce bigfloats
            (define maybe-bf ((representation-repr->bf repr) ex))
            (when (and (bigfloat? maybe-bf) (bfinfinite? maybe-bf))
              (set! status 'infinite)))])
 
-      (hash-update! outcomes status (curry + 1) 0)
+      (hash-update! outcomes status add1 0)
 
       (define is-bad?
-        (for/or ([input (in-list pt)]
-                 [repr (in-list var-reprs)])
+        (for/or ([input (in-vector pt)]
+                 [repr (in-vector var-reprs)])
           ((representation-special-value? repr) input)))
 
       (cond
@@ -198,7 +165,7 @@
            (raise-herbie-sampling-error "Cannot sample enough valid points."
                                         #:url "faq.html#sample-valid-points"))
          (loop sampled (+ 1 skipped) points exactss)])))
-  (cons outcomes (cons points (flip-lists exactss))))
+  (values (cons points (flip-lists exactss)) outcomes))
 
 (define (combine-tables t1 t2)
   (define t2-total (apply + (hash-values t2)))
@@ -209,9 +176,9 @@
 (define (sample-points pre specs ctxs)
   (timeline-event! 'analyze)
   (define compiler (make-real-compiler specs ctxs #:pre pre))
-  (match-define (cons sampler table) (make-sampler compiler))
+  (define-values (sampler table) (make-sampler compiler))
   (timeline-event! 'sample)
-  (match-define (cons table2 results) (batch-prepare-points compiler sampler))
+  (define-values (results table2) (batch-prepare-points compiler sampler))
   (define total (apply + (hash-values table2)))
   (when (> (hash-ref table2 'infinite 0.0) (* 0.2 total))
     (warn 'inf-points
