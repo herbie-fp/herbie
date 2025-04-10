@@ -47,7 +47,7 @@
       (with-output-to-file temp-file #:exists 'replace (lambda () (for-each writeln curr-program)))
       temp-file))
 
-  ; (printf "file path ~a\n" egglog-file-path)
+  (printf "file path ~a\n" egglog-file-path)
 
   (define egglog-path
     (or (find-executable-path "egglog") (error "egglog executable not found in PATH")))
@@ -71,7 +71,7 @@
         (fprintf old-error-port "incorrect program in ~a\n" egglog-file-path)
         (error "Failed to execute egglog"))))
 
-  (delete-file egglog-file-path)
+  ; (delete-file egglog-file-path)
 
   (cons (get-output-string stdout-port) (get-output-string stderr-port)))
 
