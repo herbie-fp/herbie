@@ -23,22 +23,8 @@
 
 (struct alt-table (point-idx->alts alt->point-idxs alt->done? alt->cost pcontext all) #:prefab)
 
-(define (backup-alt-cost altn)
-  (let loop ([expr (alt-expr altn)])
-    (match expr
-      [(list 'if cond ift iff) (+ 1 (loop cond) (max (loop ift) (loop iff)))]
-      [(list op args ...) (apply + 1 (map loop args))]
-      [_ 1])))
-
-; In normal mode, cost is not considered so we return a constant
-; The alt table becomes "degenerate"
-(define (alt-cost* altn repr)
-  (if (*pareto-mode*)
-      (alt-cost altn repr)
-      1))
-
 (define (make-alt-table pcontext initial-alt ctx)
-  (define cost (alt-cost* initial-alt (context-repr ctx)))
+  (define cost (alt-cost initial-alt (context-repr ctx)))
   (define errs (errors (alt-expr initial-alt) pcontext ctx))
   (alt-table (for/vector #:length (pcontext-length pcontext)
                          ([err (in-list errs)])
@@ -176,7 +162,7 @@
 
 (define (atab-eval-altns atab altns ctx)
   (define errss (batch-errors (map alt-expr altns) (alt-table-pcontext atab) ctx))
-  (define costs (map (curryr alt-cost* (context-repr ctx)) altns))
+  (define costs (map (curryr alt-cost (context-repr ctx)) altns))
   (values errss costs))
 
 (define (atab-add-altns atab altns errss costs)

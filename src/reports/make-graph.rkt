@@ -54,11 +54,15 @@
     (for/list ([end-analysis (in-list end)])
       (read (open-input-string (hash-ref end-analysis 'history)))))
 
+  ; Speedup is going to be #f if cost is 0 for each alternative
   (define speedup
-    (let ([better (for/list ([err end-errors]
-                             [cost end-costs]
-                             #:when (<= (errors-score err) (errors-score start-error)))
-                    (/ start-cost cost))])
+    (let ([better (filter number?
+                          (for/list ([err end-errors]
+                                     [cost end-costs]
+                                     #:when (<= (errors-score err) (errors-score start-error)))
+                            (if (zero? cost) ; catching division by zero
+                                #f
+                                (/ start-cost cost))))])
       (and (not (null? better)) (apply max better))))
 
   (define end-error (car end-errors))
@@ -156,7 +160,10 @@
                        (span ((class "subhead"))
                              (data ,(format-accuracy (errors-score errs) repr-bits #:unit "%"))
                              " accurate, "
-                             (data ,(~r (/ start-cost cost) #:precision '(= 1)) "×")
+                             (data ,(if (zero? cost)
+                                        "N/A"
+                                        (~r (/ start-cost cost) #:precision '(= 1)))
+                                   "×")
                              " speedup")
                        ,dropdown
                        ,(render-help "report.html#alternatives"))
