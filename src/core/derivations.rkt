@@ -10,7 +10,7 @@
 (define (canonicalize-proof prog proof loc)
   ;; Proofs are actually on subexpressions,
   ;; we need to construct the proof for the full expression
-  (and proof (map (lambda (step) (location-do loc prog (const step))) proof)))
+  (and proof (map (curry location-set loc prog) proof)))
 
 ;; Adds proof information to alternatives.
 (define (add-derivations-to altn)

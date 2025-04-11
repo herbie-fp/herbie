@@ -169,7 +169,7 @@
            (match event
              [(list 'taylor name var) (list 'taylor loc0 name var)]
              [(list 'rr input proof) (list 'rr loc0 input proof)]))
-         (define expr* (location-do loc0 (alt-expr orig) (const (debatchref (alt-expr altn)))))
+         (define expr* (location-set loc0 (alt-expr orig) (debatchref (alt-expr altn))))
          (alt expr* event* (list (loop (first prevs))) (alt-preprocessing orig))])))
 
   (^patched^ (reap [sow]
