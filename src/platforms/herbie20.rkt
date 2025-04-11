@@ -18,44 +18,45 @@
 
 ;; machine floating-point operations
 (define-platform machine-platform
-                 #:literal [binary64 64]
-                 #:literal [binary32 32]
-                 [PI.f64 64]
-                 [PI.f32 32]
-                 [E.f64 64]
-                 [E.f32 32]
-                 [INFINITY.f64 64]
-                 [INFINITY.f32 32]
-                 [NAN.f64 64]
-                 [NAN.f32 32]
-                 [neg.f64 128]
-                 [neg.f32 64]
-                 [+.f64 128]
-                 [+.f32 64]
-                 [-.f64 128]
-                 [-.f32 64]
-                 [*.f64 256]
-                 [*.f32 128]
-                 [/.f64 640]
-                 [/.f32 320]
-                 [==.f64 256]
-                 [==.f32 128]
-                 [!=.f64 256]
-                 [!=.f32 128]
-                 [>.f64 256]
-                 [>.f32 128]
-                 [<.f64 256]
-                 [<.f32 128]
-                 [>=.f64 256]
-                 [>=.f32 128]
-                 [<=.f64 256]
-                 [<=.f32 128])
+                 #:literal [binary64 1]
+                 #:literal [binary32 1]
+                 #:default-cost 1
+                 PI.f64
+                 PI.f32
+                 E.f64
+                 E.f32
+                 INFINITY.f64
+                 INFINITY.f32
+                 NAN.f64
+                 NAN.f32
+                 neg.f64
+                 neg.f32
+                 +.f64
+                 +.f32
+                 -.f64
+                 -.f32
+                 *.f64
+                 *.f32
+                 /.f64
+                 /.f32
+                 ==.f64
+                 ==.f32
+                 !=.f64
+                 !=.f32
+                 >.f64
+                 >.f32
+                 <.f64
+                 <.f32
+                 >=.f64
+                 >=.f32
+                 <=.f64
+                 <=.f32)
 
 ;; libm operations
 (define-platform libm64-platform
-                 #:literal [binary64 64]
-                 #:literal [binary32 32]
-                 #:default-cost 6400
+                 #:literal [binary64 1]
+                 #:literal [binary32 1]
+                 #:default-cost 1
                  #:optional acos.f64
                  acosh.f64
                  asin.f64
@@ -71,7 +72,7 @@
                  erf.f64
                  exp.f64
                  exp2.f64
-                 [fabs.f64 128]
+                 fabs.f64
                  fdim.f64
                  floor.f64
                  fmax.f64
@@ -88,15 +89,15 @@
                  round.f64
                  sin.f64
                  sinh.f64
-                 [sqrt.f64 640]
+                 sqrt.f64
                  tan.f64
                  tanh.f64
                  tgamma.f64
                  trunc.f64)
 
 (define-platform libm32-platform
-                 #:literal [binary32 32]
-                 #:default-cost 3200
+                 #:literal [binary32 1]
+                 #:default-cost 1
                  #:optional acos.f32
                  acosh.f32
                  asin.f32
@@ -112,7 +113,7 @@
                  erf.f32
                  exp.f32
                  exp2.f32
-                 [fabs.f32 64]
+                 fabs.f32
                  fdim.f32
                  floor.f32
                  fmax.f32
@@ -129,26 +130,26 @@
                  round.f32
                  sin.f32
                  sinh.f32
-                 [sqrt.f32 320]
+                 sqrt.f32
                  tan.f32
                  tanh.f32
                  tgamma.f32
                  trunc.f32)
 
 (define-platform accelerator-platform
-                 #:literal [binary64 64]
-                 #:literal [binary32 32]
-                 #:default-cost 3200
-                 #:optional [erfc.f64 6400]
-                 [expm1.f64 6400]
-                 [log1p.f64 6400]
-                 [hypot.f64 6400]
-                 [fma.f64 256]
+                 #:literal [binary64 1]
+                 #:literal [binary32 1]
+                 #:default-cost 1
+                 #:optional [erfc.f64 1]
+                 expm1.f64
+                 log1p.f64
+                 hypot.f64
+                 fma.f64
                  erfc.f32
                  expm1.f32
                  log1p.f32
                  hypot.f32
-                 [fma.f32 128])
+                 fma.f32)
 
 (define herbie20-platform
   (platform-union boolean-platform
