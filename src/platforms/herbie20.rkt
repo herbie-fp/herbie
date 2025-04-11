@@ -6,21 +6,19 @@
 (require "../plugin.rkt")
 
 ; universal boolean opertaions
-(define-platform boolean-platform
+(define-platform herbie20-platform
                  #:literal [bool 1]
+                 #:literal [binary64 1]
+                 #:literal [binary32 1]
                  #:default-cost 1
                  #:if-cost 1
+                 ; ---- Boolean ----
                  TRUE
                  FALSE
                  not
                  and
-                 or)
-
-;; machine floating-point operations
-(define-platform machine-platform
-                 #:literal [binary64 1]
-                 #:literal [binary32 1]
-                 #:default-cost 1
+                 or
+                 ; ---- Machine operations ----
                  PI.f64
                  PI.f32
                  E.f64
@@ -50,14 +48,9 @@
                  >=.f64
                  >=.f32
                  <=.f64
-                 <=.f32)
-
-;; libm operations
-(define-platform libm64-platform
-                 #:literal [binary64 1]
-                 #:literal [binary32 1]
-                 #:default-cost 1
-                 #:optional acos.f64
+                 <=.f32
+                 ; ---- Binary 64 operations ----
+                 acos.f64
                  acosh.f64
                  asin.f64
                  asinh.f64
@@ -93,12 +86,9 @@
                  tan.f64
                  tanh.f64
                  tgamma.f64
-                 trunc.f64)
-
-(define-platform libm32-platform
-                 #:literal [binary32 1]
-                 #:default-cost 1
-                 #:optional acos.f32
+                 trunc.f64
+                 ; ---- Binary 32 operations ----
+                 acos.f32
                  acosh.f32
                  asin.f32
                  asinh.f32
@@ -134,13 +124,9 @@
                  tan.f32
                  tanh.f32
                  tgamma.f32
-                 trunc.f32)
-
-(define-platform accelerator-platform
-                 #:literal [binary64 1]
-                 #:literal [binary32 1]
-                 #:default-cost 1
-                 #:optional [erfc.f64 1]
+                 trunc.f32
+                 ; ---- Accelerator operations ----
+                 erfc.f64
                  expm1.f64
                  log1p.f64
                  hypot.f64
@@ -150,13 +136,6 @@
                  log1p.f32
                  hypot.f32
                  fma.f32)
-
-(define herbie20-platform
-  (platform-union boolean-platform
-                  machine-platform
-                  libm64-platform
-                  libm32-platform
-                  accelerator-platform))
 
 ; Register herbie20
 (register-platform! 'herbie20 herbie20-platform)
