@@ -188,9 +188,14 @@
     (raise-user-error 'finalize-iter! "No candidates ready for pruning!"))
 
   (timeline-event! 'eval)
-  (define new-alts (^patched^))
+  (define orig-all-alts (atab-active-alts (^table^)))
   (define orig-fresh-alts (atab-not-done-alts (^table^)))
-  (define orig-done-alts (set-subtract (atab-active-alts (^table^)) (atab-not-done-alts (^table^))))
+  (define orig-done-alts (set-subtract orig-all-alts (atab-not-done-alts (^table^))))
+
+  ;; No point re-adding existing expressions---deduplicating inside alt-table more expensive
+  (define existing-exprs (list->set (map alt-expr orig-all-alts)))
+  (define new-alts (filter (lambda (a) (not (set-member? existing-exprs (alt-expr a)))) (^patched^)))
+
   (define-values (errss costs) (atab-eval-altns (^table^) new-alts (*context*)))
   (timeline-event! 'prune)
   (^table^ (atab-add-altns (^table^) new-alts errss costs))

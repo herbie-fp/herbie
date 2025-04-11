@@ -123,32 +123,39 @@
       (vector-set! coverage j #f)
       (set-remove! removable last))))
 
-(define (worst atab removable)
-  ;; Metrics for "worst" alt
-  (define (alt-num-points a)
-    (length (hash-ref (alt-table-alt->point-idxs atab) a)))
-  (define (alt-done? a)
-    (if (hash-ref (alt-table-alt->done? atab) a) 1 0))
-  (define (alt-cost a)
-    (if (*pareto-mode*)
-        (hash-ref (alt-table-alt->cost atab) a)
-        (backup-alt-cost a)))
-  ;; Rank by multiple metrics
-  (define not-done (argmins alt-done? (set->list removable)))
-  (define least-best-points (argmins alt-num-points not-done))
-  (define worst-cost (argmaxs alt-cost least-best-points))
-  ;; The set may have non-deterministic behavior,
-  ;; so we can only rely on some total order
-  (first (order-altns worst-cost)))
+(define ((removability<? atab) alt1 alt2)
+  (define alt1-done? (hash-ref (alt-table-alt->done? atab) alt1))
+  (define alt2-done? (hash-ref (alt-table-alt->done? atab) alt2))
+  (cond
+    [(and (not alt1-done?) alt2-done?) #t]
+    [(and alt1-done? (not alt2-done?)) #f]
+    [else
+     (define alt1-num (length (hash-ref (alt-table-alt->point-idxs atab) alt1)))
+     (define alt2-num (length (hash-ref (alt-table-alt->point-idxs atab) alt2)))
+     (cond
+       [(< alt1-num alt2-num) #t]
+       [(> alt1-num alt2-num) #f]
+       [else
+        (define alt1-cost (hash-ref (alt-table-alt->cost atab) alt1))
+        (define alt2-cost (hash-ref (alt-table-alt->cost atab) alt2))
+        (cond
+          [(< alt1-cost alt2-cost) #f]
+          [(< alt2-cost alt1-cost) #t]
+          [else (expr<? (alt-expr alt1) (alt-expr alt2))])])]))
 
 (define (atab-prune atab)
   (define sc (atab->set-cover atab))
-  (let loop ([removed '()])
-    (if (set-empty? (set-cover-removable sc))
-        (apply atab-remove* atab removed)
-        (let ([worst-alt (worst atab (set-cover-removable sc))])
+  (define removability (sort (set->list (set-cover-removable sc)) (removability<? atab)))
+  (let loop ([removed '()]
+             [removability removability])
+    (match removability
+      ['() (apply atab-remove* atab removed)]
+      [(cons worst-alt other-alts)
+       (cond
+         [(set-member? (set-cover-removable sc) worst-alt)
           (set-cover-remove! sc worst-alt)
-          (loop (cons worst-alt removed))))))
+          (loop (cons worst-alt removed) other-alts)]
+         [else (loop removed other-alts)])])))
 
 (define (hash-remove* hash keys)
   (for/fold ([hash hash]) ([key keys])
@@ -179,17 +186,14 @@
                [errs (in-list errss)]
                [cost (in-list costs)])
       (atab-add-altn atab altn errs cost)))
-  (define atab** (atab-dedup atab*))
-  (define atab***
-    (struct-copy alt-table
-                 atab**
-                 [alt->point-idxs (invert-index (alt-table-point-idx->alts atab**))]))
-  (define atab**** (atab-prune atab***))
+  (define atab**
+    (struct-copy alt-table atab* [alt->point-idxs (invert-index (alt-table-point-idx->alts atab*))]))
+  (define atab*** (atab-prune atab**))
   (struct-copy alt-table
-               atab****
-               [alt->point-idxs (invert-index (alt-table-point-idx->alts atab****))]
+               atab***
+               [alt->point-idxs (invert-index (alt-table-point-idx->alts atab***))]
                [all
-                (set-union (alt-table-all atab) (hash-keys (alt-table-alt->point-idxs atab****)))]))
+                (set-union (alt-table-all atab) (hash-keys (alt-table-alt->point-idxs atab***)))]))
 
 (define (invert-index point-idx->alts)
   (define alt->points* (make-hasheq))
@@ -199,15 +203,6 @@
            [alt (in-list (pareto-point-data ppt))])
       (hash-set! alt->points* alt (cons idx (hash-ref alt->points* alt '())))))
   (make-immutable-hasheq (hash->list alt->points*)))
-
-(define (atab-dedup atab)
-  (match-define (alt-table point-idx->alts alt->point-idxs alt->done? alt->cost pcontext _) atab)
-  (define point-idx->alts*
-    (for/vector #:length (vector-length point-idx->alts)
-                ([pcurve (in-vector point-idx->alts)])
-      (pareto-map (lambda (alts) (reverse (remove-duplicates (reverse alts) #:key alt-expr)))
-                  pcurve)))
-  (struct-copy alt-table atab [point-idx->alts point-idx->alts*]))
 
 (define (atab-add-altn atab altn errs cost)
   (match-define (alt-table point-idx->alts alt->point-idxs alt->done? alt->cost pcontext _) atab)
