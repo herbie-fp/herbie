@@ -195,8 +195,8 @@
   ;; No point re-adding existing expressions---deduplicating inside alt-table more expensive
   (define existing-exprs (list->set (map alt-expr orig-all-alts)))
   (define new-alts
-     (filter (lambda (a) (not (set-member? existing-exprs (alt-expr a))))
-             (remove-duplicates (^patched^) #:key alt-expr)))
+    (filter (lambda (a) (not (set-member? existing-exprs (alt-expr a))))
+            (sort (remove-duplicates (^patched^) #:key alt-expr) expr<? #:key alt-expr)))
 
   (define-values (errss costs) (atab-eval-altns (^table^) new-alts (*context*)))
   (timeline-event! 'prune)
