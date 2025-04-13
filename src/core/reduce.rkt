@@ -251,7 +251,7 @@
           (sort (reap [sow]
                       (hash-for-each h
                                      (λ (k v)
-                                       (when (not (= v 0))
+                                       (unless (= v 0)
                                          (sow (cons v k))))))
                 expr<?
                 #:key cdr))))
