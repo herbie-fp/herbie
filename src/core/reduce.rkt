@@ -159,7 +159,7 @@
 
 (define (gather-multiplicative-terms expr)
   (match expr
-    [(? number?) `(,expr)]
+    [(? number?) (list expr)]
     ['NAN `(NAN)]
     [(? symbol?) `(1 (1 . ,expr))]
     [`(neg ,arg)
