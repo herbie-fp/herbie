@@ -127,7 +127,7 @@
 
   ; Series expand
   (define approximations
-    (if (and (flag-set? 'generate 'taylor) (not (equal? iteration (- (*num-iterations*) 1))))
+    (if (and (flag-set? 'generate 'taylor) (equal? iteration (- (*num-iterations*) 1)))
         (run-taylor exprs start-altns global-batch)
         '()))
 
