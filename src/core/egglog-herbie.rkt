@@ -772,7 +772,7 @@
   extract-bindings)
 
 (define (egglog-unsound-detected curr-program tag params)
-  (define node-limit (dict-ref params 'node #f))
+  (define node-limit (dict-ref params 'node (*node-limit*)))
   (define iter-limit (dict-ref params 'iteration 100))
 
   ;; Make a copy here too so that we don't modify our original clean copy
@@ -783,9 +783,10 @@
   ;; 2. Repeat rules based on their ruleset tag once
   ;; 3. Run the unsound-rule function ruleset once
   ;; 4. Extract the (unsound) function that returns a bool
-  ;; 5. If this is true, we have unsoundless -> optimal iter limit is one below this
-  ;; 6. TODO: Run (print-size) parsing to calculate node limit
-  ;; 7. Repeat until we reach iter-limit
+  ;; 5. If (unsound) function returns "true", we have unsoundless -> optimal iter limit is one below this
+  ;; 6. Run (print-size) to get nodes of the form "node_name : num_nodes" for all nodes in egraph
+  ;; 7. If the total number of nodes is more than node-limit -> optimal iter limit is one below this
+  ;; 8. Increment until we hit above consition or iter-limit
 
   ;; TODO : const-fold
   ;; Add lifting and lowering to the schedule that we know will exist
@@ -800,6 +801,7 @@
       [else
        ;; Run the ruleset once more
        (egglog-program-add! `(run-schedule (repeat 1 ,tag)) temp-program)
+       (egglog-program-add! `(print-size) temp-program)
        (egglog-program-add! `(run unsound-rule 1) temp-program)
        (egglog-program-add! `(extract (unsound)) temp-program)
 
@@ -810,13 +812,40 @@
        (define lines (string-split (string-trim stdout-content) "\n"))
        (define last-line (list-ref lines (- (length lines) 1)))
 
-       (if (equal? last-line "true")
-           ; Unsoundness detected
+       (define total-nodes (calculate-nodes lines))
+
+       ;; If Unsoundness detected or node-limit reached, then return the
+       ;; optimal iter limit (one less than current)
+       (if (or (equal? last-line "true") (> total-nodes node-limit))
            (begin
              ; (printf "Unsoundness detected at iteration ~a\n" curr-iter)
-             (values (sub1 curr-iter))) ;; Return optimal iter limit (one less than current)
+             (values (sub1 curr-iter)))
 
            (loop (add1 curr-iter)))])))
+
+(define (calculate-nodes lines)
+  ;; TODO: Make this better - 341 esque helper function
+  (define (calculate-nodes-helper idx total-nodes)
+    (cond
+      ;; Has no nodes or first iteration
+      [(< idx 0) total-nodes]
+
+      ;; Reached the previous unsoundness result -> NOTE: "true" should technically never be reached
+      [(or (equal? (list-ref lines idx) "true") (equal? (list-ref lines idx) "false")) total-nodes]
+
+      ;; Otherwise, we need to add the total number of nodes for this one of the format
+      ;; "node_name : num_nodes"
+      [else
+       ;; break up into (list node_name num_nodes) with spaces
+       (define parts (string-split (list-ref lines idx) ":"))
+
+       ;; Get num_nodes in number
+       (define num_nodes (string->number (string-trim (cadr parts))))
+
+       (calculate-nodes-helper (- idx 1) (+ total-nodes num_nodes))]))
+
+  ;; Don't start from last index, but previous to last index - as last has current unsoundness result
+  (calculate-nodes-helper (- (length lines) 2) 0))
 
 (define (egglog-num? id)
   (string-prefix? (symbol->string id) "Num"))
