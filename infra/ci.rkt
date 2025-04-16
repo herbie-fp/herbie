@@ -48,15 +48,15 @@
     (match status
       ['success
        (match-define (improve-result preprocess _ start targets end) backend)
-       (match-define (alt-analysis start-alt _ start-error) start)
-       (match-define (alt-analysis end-alt _ end-error) (first end))
+       (match-define (alt-analysis start-alt start-error) start)
+       (match-define (alt-analysis end-alt end-error) (first end))
 
        ;; Pick lowest target from all target
        (define target-error
          ; If the list is empty, return false
          (if (empty? targets)
              #f
-             (argmin errors-score (map alt-analysis-test-errors targets))))
+             (argmin errors-score (map alt-analysis-errors targets))))
 
        (printf "[ ~as]   ~a→~a\t~a\n"
                (~r (/ time 1000) #:min-width 7 #:precision '(= 3))
