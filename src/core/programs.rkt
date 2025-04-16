@@ -177,7 +177,6 @@
                    [i (in-naturals 1)])
                (loop arg (cons i loc)))]))))
 
-
 (define/contract (replace-expression expr from to)
   (-> expr? expr? expr? expr?)
   (let loop ([expr expr])
