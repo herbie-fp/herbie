@@ -1214,7 +1214,6 @@
   (define iter-limit (dict-ref params 'iteration #f))
   (define scheduler (dict-ref params 'scheduler 'backoff))
   (define ffi-rules (map cdr egg-rules))
-
   ;; run the rules
   (let loop ([iter-limit iter-limit])
     (define egg-graph (egraph-copy egg-graph0))

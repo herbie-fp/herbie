@@ -64,7 +64,8 @@
                  (arithmetic simplify sound)
                  #:type ([a real] [b real])
                  [+-commutative (+ a b) (+ b a)]
-                 [*-commutative (* a b) (* b a)])
+                 [*-commutative (* a b) (* b a)]
+                 [sub-negate (- a b) (+ a (neg b))])
 
 ; Associativity
 (define-ruleset* associativity
