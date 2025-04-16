@@ -442,12 +442,12 @@
       (parameterize ([current-output-port os])
         (write-xexpr
          `(div ([id "history"])
-               (ol ,@(render-history altn processed-pcontext train-pcontext (test-context test)))))
+               (ol ,@(render-history altn processed-pcontext (test-context test)))))
         (get-output-string os))))
 
   (define derivations
     (for/list ([altn (in-list altns)])
-      (render-json altn processed-pcontext train-pcontext (test-context test))))
+      (render-json altn processed-pcontext (test-context test))))
 
   (hasheq 'test
           (~s test-fpcore)
@@ -484,7 +484,7 @@
   (define cost (alt-cost alt repr))
 
   (match-define (list train-pcontext processed-pcontext) pcontexts)
-  (define history (render-history alt processed-pcontext train-pcontext (test-context test)))
+  (define history (render-history alt processed-pcontext (test-context test)))
 
   (define vars (test-vars test))
   (define splitpoints
