@@ -65,7 +65,8 @@
                  #:type ([a real] [b real])
                  [+-commutative (+ a b) (+ b a)]
                  [*-commutative (* a b) (* b a)]
-                 [sub-negate (- a b) (+ a (neg b))])
+                 [sub-negate1 (- a b) (+ a (neg b))]
+                 [sub-negate2 (- a b) (neg (- b a))])
 
 ; Associativity
 (define-ruleset* associativity
