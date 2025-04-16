@@ -82,7 +82,6 @@
                #:when is-valid?)
       (define target-expr (fpcore->prog expr (*context*)))
       (define target-errs (errors target-expr test-pcontext* (*context*)))
-
       (alt-analysis (make-alt target-expr) target-errs)))
 
   ;; compute error/cost for output expression
