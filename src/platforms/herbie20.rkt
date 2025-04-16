@@ -1,56 +1,62 @@
 #lang racket
 
-;;; The default Herbie2.0 platform:
+;;; The default platform:
 ;;; C/C++ on Linux with a full libm
 
 (require "../plugin.rkt")
 
 ; universal boolean opertaions
-(define-platform herbie20-platform
+(define-platform boolean-platform
                  #:literal [bool 1]
-                 #:literal [binary64 1]
-                 #:literal [binary32 1]
                  #:default-cost 1
                  #:if-cost 1
-                 ; ---- Boolean ----
                  TRUE
                  FALSE
                  not
                  and
-                 or
-                 ; ---- Machine operations ----
-                 PI.f64
-                 PI.f32
-                 E.f64
-                 E.f32
-                 INFINITY.f64
-                 INFINITY.f32
-                 NAN.f64
-                 NAN.f32
-                 neg.f64
-                 neg.f32
-                 +.f64
-                 +.f32
-                 -.f64
-                 -.f32
-                 *.f64
-                 *.f32
-                 /.f64
-                 /.f32
-                 ==.f64
-                 ==.f32
-                 !=.f64
-                 !=.f32
-                 >.f64
-                 >.f32
-                 <.f64
-                 <.f32
-                 >=.f64
-                 >=.f32
-                 <=.f64
-                 <=.f32
-                 ; ---- Binary 64 operations ----
-                 acos.f64
+                 or)
+
+;; machine floating-point operations
+(define-platform machine-platform
+                 #:literal [binary64 64]
+                 #:literal [binary32 32]
+                 [PI.f64 64]
+                 [PI.f32 32]
+                 [E.f64 64]
+                 [E.f32 32]
+                 [INFINITY.f64 64]
+                 [INFINITY.f32 32]
+                 [NAN.f64 64]
+                 [NAN.f32 32]
+                 [neg.f64 128]
+                 [neg.f32 64]
+                 [+.f64 128]
+                 [+.f32 64]
+                 [-.f64 128]
+                 [-.f32 64]
+                 [*.f64 256]
+                 [*.f32 128]
+                 [/.f64 640]
+                 [/.f32 320]
+                 [==.f64 256]
+                 [==.f32 128]
+                 [!=.f64 256]
+                 [!=.f32 128]
+                 [>.f64 256]
+                 [>.f32 128]
+                 [<.f64 256]
+                 [<.f32 128]
+                 [>=.f64 256]
+                 [>=.f32 128]
+                 [<=.f64 256]
+                 [<=.f32 128])
+
+;; libm operations
+(define-platform libm64-platform
+                 #:literal [binary64 64]
+                 #:literal [binary32 32]
+                 #:default-cost 6400
+                 #:optional acos.f64
                  acosh.f64
                  asin.f64
                  asinh.f64
@@ -65,7 +71,7 @@
                  erf.f64
                  exp.f64
                  exp2.f64
-                 fabs.f64
+                 [fabs.f64 128]
                  fdim.f64
                  floor.f64
                  fmax.f64
@@ -82,13 +88,16 @@
                  round.f64
                  sin.f64
                  sinh.f64
-                 sqrt.f64
+                 [sqrt.f64 640]
                  tan.f64
                  tanh.f64
                  tgamma.f64
-                 trunc.f64
-                 ; ---- Binary 32 operations ----
-                 acos.f32
+                 trunc.f64)
+
+(define-platform libm32-platform
+                 #:literal [binary32 32]
+                 #:default-cost 3200
+                 #:optional acos.f32
                  acosh.f32
                  asin.f32
                  asinh.f32
@@ -103,7 +112,7 @@
                  erf.f32
                  exp.f32
                  exp2.f32
-                 fabs.f32
+                 [fabs.f32 64]
                  fdim.f32
                  floor.f32
                  fmax.f32
@@ -120,25 +129,37 @@
                  round.f32
                  sin.f32
                  sinh.f32
-                 sqrt.f32
+                 [sqrt.f32 320]
                  tan.f32
                  tanh.f32
                  tgamma.f32
-                 trunc.f32
-                 ; ---- Accelerator operations ----
-                 erfc.f64
-                 expm1.f64
-                 log1p.f64
-                 hypot.f64
-                 fma.f64
+                 trunc.f32)
+
+(define-platform accelerator-platform
+                 #:literal [binary64 64]
+                 #:literal [binary32 32]
+                 #:default-cost 3200
+                 #:optional [erfc.f64 6400]
+                 [expm1.f64 6400]
+                 [log1p.f64 6400]
+                 [hypot.f64 6400]
+                 [fma.f64 256]
                  erfc.f32
                  expm1.f32
                  log1p.f32
                  hypot.f32
-                 fma.f32)
+                 [fma.f32 128])
 
-; Register herbie20
-(register-platform! 'herbie20 herbie20-platform)
+(define herbie-platform
+  (platform-union boolean-platform
+                  machine-platform
+                  libm64-platform
+                  libm32-platform
+                  accelerator-platform))
+
+; Register all three
+
+(register-platform! 'herbie20 herbie-platform)
 
 ;; Do not run this file during testing
 (module test racket/base
