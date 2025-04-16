@@ -34,8 +34,8 @@
          (struct-out alt-analysis))
 
 (struct job-result (command test status time timeline profile warnings backend))
-(struct improve-result (preprocess pctxs start target end))
-(struct alt-analysis (alt train-errors test-errors) #:prefab)
+(struct improve-result (preprocess pcontext start target end))
+(struct alt-analysis (alt errors) #:prefab)
 
 ;; API users can supply their own, weird set of points, in which case
 ;; the first 256 are training points and everything is test points.
@@ -72,9 +72,8 @@
   ;; compute error/cost for input expression
   (define start-expr (test-input test))
   (define start-alt (make-alt-preprocessing start-expr (test-preprocess test)))
-  (define start-train-errs (errors start-expr train-pcontext (*context*)))
-  (define start-test-errs (errors start-expr test-pcontext* (*context*)))
-  (define start-alt-data (alt-analysis start-alt start-train-errs start-test-errs))
+  (define start-errs (errors start-expr test-pcontext* (*context*)))
+  (define start-alt-data (alt-analysis start-alt start-errs))
 
   ;; optionally compute error/cost for input expression
   (define target-alt-data
@@ -82,23 +81,20 @@
     (for/list ([(expr is-valid?) (in-dict (test-output test))]
                #:when is-valid?)
       (define target-expr (fpcore->prog expr (*context*)))
-      (define target-train-errs (errors target-expr train-pcontext (*context*)))
-      (define target-test-errs (errors target-expr test-pcontext* (*context*)))
+      (define target-errs (errors target-expr test-pcontext* (*context*)))
 
-      (alt-analysis (make-alt target-expr) target-train-errs target-test-errs)))
+      (alt-analysis (make-alt target-expr) target-errs)))
 
   ;; compute error/cost for output expression
   (define end-exprs (map alt-expr alternatives))
-  (define end-train-errs (batch-errors end-exprs train-pcontext (*context*)))
-  (define end-test-errs (batch-errors end-exprs test-pcontext* (*context*)))
-  (define end-data (map alt-analysis alternatives end-train-errs end-test-errs))
+  (define end-errs (batch-errors end-exprs test-pcontext* (*context*)))
+  (define end-data (map alt-analysis alternatives end-errs))
 
   ;; bundle up the result
   (timeline-adjust! 'regimes 'name (test-name test))
   (timeline-adjust! 'regimes 'link ".")
 
-  (define pctxs (list train-pcontext test-pcontext*))
-  (improve-result preprocessing pctxs start-alt-data target-alt-data end-data))
+  (improve-result preprocessing test-pcontext* start-alt-data target-alt-data end-data))
 
 (define (get-cost test)
   (define cost-proc (platform-cost-proc (*active-platform*)))
@@ -247,8 +243,6 @@
              #f
              #f
              #f
-             #f
-             #f
              (hash-ref result-hash 'time)
              link
              '()))
@@ -267,8 +261,7 @@
 
      ; starting expr analysis
      (define start-expr (read (open-input-string (hash-ref start 'expr))))
-     (define start-train-score (errors-score (hash-ref start 'train-score)))
-     (define start-test-score (errors-score (hash-ref start 'errors)))
+     (define start-score (errors-score (hash-ref start 'errors)))
      (define start-cost (hash-ref start 'cost))
 
      (define target-cost-score
@@ -288,44 +281,38 @@
      (define end-exprs
        (for/list ([end-analysis (in-list end)])
          (read (open-input-string (hash-ref end-analysis 'expr)))))
-     (define end-train-scores
-       (for/list ([end-analysis (in-list end)])
-         (errors-score (hash-ref end-analysis 'train-score))))
-     (define end-test-scores
+     (define end-scores
        (for/list ([end-analysis (in-list end)])
          (errors-score (hash-ref end-analysis 'errors))))
      (define end-costs (map (curryr hash-ref 'cost) end))
 
      ; terribly formatted pareto-optimal frontier
      (define cost&accuracy
-       (list (list start-cost start-test-score)
-             (list (car end-costs) (car end-test-scores))
-             (map list (cdr end-costs) (cdr end-test-scores) (cdr end-exprs))))
+       (list (list start-cost start-score)
+             (list (car end-costs) (car end-scores))
+             (map list (cdr end-costs) (cdr end-scores) (cdr end-exprs))))
 
      (define fuzz 0.1)
-     (define end-est-score (car end-train-scores))
-     (define end-score (car end-test-scores))
+     (define end-score (car end-scores))
      (define status
        (cond
          [(not (null? best-score))
           (cond
             [(< end-score (- best-score fuzz)) "gt-target"]
             [(< end-score (+ best-score fuzz)) "eq-target"]
-            [(> end-score (+ start-test-score fuzz)) "lt-start"]
-            [(> end-score (- start-test-score fuzz)) "eq-start"]
+            [(> end-score (+ start-score fuzz)) "lt-start"]
+            [(> end-score (- start-score fuzz)) "eq-start"]
             [(> end-score (+ best-score fuzz)) "lt-target"])]
 
-         [(and (< start-test-score 1) (< end-score (+ start-test-score 1))) "ex-start"]
-         [(< end-score (- start-test-score 1)) "imp-start"]
-         [(< end-score (+ start-test-score fuzz)) "apx-start"]
+         [(and (< start-score 1) (< end-score (+ start-score 1))) "ex-start"]
+         [(< end-score (- start-score 1)) "imp-start"]
+         [(< end-score (+ start-score fuzz)) "apx-start"]
          [else "uni-start"]))
 
      (struct-copy table-row
                   (dummy-table-row-from-hash result-hash status link)
-                  [start-est start-train-score]
-                  [start start-test-score]
+                  [start start-score]
                   [target target-cost-score]
-                  [result-est end-est-score]
                   [result end-score]
                   [output (car end-exprs)]
                   [cost-accuracy cost&accuracy])]
