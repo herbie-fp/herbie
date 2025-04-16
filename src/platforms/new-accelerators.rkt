@@ -237,7 +237,38 @@
                       binary64
                       #:spec (sin (* x 30))
                       #:fpcore (! :precision binary64 (sin30 x)))
-                      
+
+(define-operator-impl (sinavg.f32 [x : binary32] [y : binary32])
+                      binary32
+                      #:spec (sin (* (- x y) 1/2))
+                      #:fpcore (! :precision binary32 (sinavg x y)))
+
+(define-operator-impl (sinavg.f64 [x : binary64] [y : binary64])
+                      binary64
+                      #:spec (sin (* (- x y) 1/2))
+                      #:fpcore (! :precision binary64 (sinavg x y)))
+
+(define-operator-impl (cosavg.f32 [x : binary32] [y : binary32])
+                      binary32
+                      #:spec (cos (* (- x  y) 1/2))
+                      #:fpcore (! :precision binary32 (cosavg x y)))
+
+(define-operator-impl (cosavg.f64 [x : binary64] [y : binary64])
+                      binary64
+                      #:spec (cos (* (- x y) 1/2))
+                      #:fpcore (! :precision binary64 (cosavg x y)))
+
+(define-operator-impl (log1m.f32 [x : binary32])
+                      binary32
+                      #:spec (log (- 1 x))
+                      #:fpcore (! :precision binary32 (log1m x)))
+
+(define-operator-impl (log1m.f64 [x : binary64])
+                      binary64
+                      #:spec (log (- 1 x))
+                      #:fpcore (! :precision binary64 (log1m x)))
+
+
 
 (define-platform trig-accelerators
                  #:literal [binary64 64]
@@ -247,22 +278,43 @@
                  cosd.f64
                  sind.f32
                  sind.f64
-                 cosnd.f32
-                 cosnd.f64
-                 sinnd.f32
-                 sinnd.f64
-                 cos2pi.f32
-                 cos2pi.f64
-                 sin2pi.f32
-                 sin2pi.f64
-                 cos30.f32
-                 cos30.f64
-                 sin30.f32
-                 sin30.f64
+                ;;;  cosnd.f32
+                ;;;  cosnd.f64
+                ;;;  sinnd.f32
+                ;;;  sinnd.f64
+                ;;;  cos2pi.f32
+                ;;;  cos2pi.f64
+                ;;;  sin2pi.f32
+                ;;;  sin2pi.f64
+                ;;;  cos30.f32
+                ;;;  cos30.f64
+                ;;;  sin30.f32
+                ;;;  sin30.f64
                  sinratio.f32
                  sinratio.f64
                  cosratio.f32
                  cosratio.f64)
+
+(define-platform new-mined-accelerators
+                 #:literal [binary64 64]
+                 #:literal [binary32 32]
+                 #:default-cost 3200
+                 log1m.f64
+                 log1m.f32
+                 sinavg.f64
+                 sinavg.f32
+                 cosavg.f64
+                 cosavg.f32)
+
+(define-platform overlap-accelerators
+                 #:literal [binary64 64]
+                 #:literal [binary32 32]
+                 #:default-cost 3200
+                hypot.f64
+                 hypot.f32)
+
+
+        
 
 ;;; (define-platform new-accelerator-platform
 ;;;                     #:literal [binary64 64]
@@ -302,11 +354,19 @@
                   machine-platform
                   libm64-platform
                   libm32-platform
-                  trig-accelerators))
+                  trig-accelerators
+                  new-mined-accelerators
+                  overlap-accelerators))
 
 (define default-new-accel-platform
-  (platform-union new-accel-platform
-  accelerator-platform))
+  (platform-union 
+    boolean-platform
+                  machine-platform
+                  libm64-platform
+                  libm32-platform
+                  accelerator-platform
+                                    trig-accelerators
+                  new-mined-accelerators))
 
 (register-platform! 'noaccel no-accel-platform)
 (register-platform! 'new-accel new-accel-platform)

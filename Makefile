@@ -44,7 +44,7 @@ minimal-distribution:
 nightly: install
 	bash infra/nightly.sh bench/ reports1/ default-new-accel --threads 4
 	bash infra/publish.sh upload reports1/
-	bash infra/nightly.sh bench/ reports2/ default --threads 4
+	bash infra/nightly.sh bench/ reports2/ new-accel --threads 4
 	bash infra/publish.sh upload reports2/
 
 upgrade:
