@@ -12,7 +12,7 @@
          spec-prog?
          impl-prog?
          repr-of
-         location-do
+         location-set
          location-get
          free-variables
          replace-expression
@@ -144,14 +144,17 @@
 
 (define location? (listof natural-number/c))
 
-(define/contract (location-do loc prog f)
-  (-> location? expr? (-> expr? expr?) expr?)
+(define (location-do loc prog f)
   (match* (prog loc)
     [(_ (? null?)) (f prog)]
     [((approx spec impl) (cons 1 rest)) (approx (location-do rest spec f) impl)]
     [((approx spec impl) (cons idx rest)) (approx spec (location-do rest impl f))]
     [((hole prec spec) (cons 1 rest)) (hole prec (location-do rest spec f))]
     [((? list?) (cons idx rest)) (list-set prog idx (location-do rest (list-ref prog idx) f))]))
+
+(define/contract (location-set loc prog prog*)
+  (-> location? expr? expr? expr?)
+  (location-do loc prog (const prog*)))
 
 (define/contract (location-get loc prog)
   (-> location? expr? expr?)
