@@ -198,9 +198,7 @@
 
   (match altn
     [(alt prog 'start (list) _)
-     `#hash((program . ,(fpcore->string (expr->fpcore prog ctx)))
-            (type . "start")
-            (error . ,err))]
+     `#hash((program . ,(fpcore->string (expr->fpcore prog ctx))) (type . "start") (error . ,err))]
 
     [(alt prog `(regimes ,splitpoints) prevs _)
      (define intervals

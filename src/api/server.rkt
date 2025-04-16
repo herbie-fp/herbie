@@ -440,9 +440,8 @@
     (for/list ([altn (in-list altns)])
       (define os (open-output-string))
       (parameterize ([current-output-port os])
-        (write-xexpr
-         `(div ([id "history"])
-               (ol ,@(render-history altn processed-pcontext (test-context test)))))
+        (write-xexpr `(div ([id "history"])
+                           (ol ,@(render-history altn processed-pcontext (test-context test)))))
         (get-output-string os))))
 
   (define derivations
