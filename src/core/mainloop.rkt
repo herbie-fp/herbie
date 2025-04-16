@@ -9,7 +9,6 @@
          "bsearch.rkt"
          "batch.rkt"
          "derivations.rkt"
-         "explain.rkt"
          "patch.rkt"
          "points.rkt"
          "preprocess.rkt"
@@ -38,7 +37,6 @@
 ;; - Final steps: regimes, derivations, and remove preprocessing
 
 (define (run-improve! initial specification context pcontext)
-  (explain! initial context pcontext)
   (timeline-event! 'preprocess)
   (define preprocessing (find-preprocessing specification context))
   (timeline-push! 'symmetry (map ~a preprocessing))
@@ -238,33 +236,6 @@
 
 (define (rollback-iter!)
   (void))
-
-(define (explain! expr context pcontext)
-  (timeline-event! 'explain)
-
-  (define-values (fperrors
-                  explanations-table
-                  confusion-matrix
-                  maybe-confusion-matrix
-                  total-confusion-matrix
-                  freqs)
-    (explain expr context pcontext))
-
-  (for ([fperror (in-list fperrors)])
-    (match-define (list expr truth opreds oex upreds uex) fperror)
-    (timeline-push! 'fperrors expr truth opreds oex upreds uex))
-
-  (for ([explanation (in-list explanations-table)])
-    (match-define (list op expr expl val maybe-count flow-list locations) explanation)
-    (timeline-push! 'explanations op expr expl val maybe-count flow-list locations))
-
-  (timeline-push! 'confusion confusion-matrix)
-
-  (timeline-push! 'maybe-confusion maybe-confusion-matrix)
-
-  (timeline-push! 'total-confusion total-confusion-matrix)
-  (for ([(key val) (in-dict freqs)])
-    (timeline-push! 'freqs key val)))
 
 (define (make-regime! alts)
   (define ctx (*context*))
