@@ -47,7 +47,7 @@
       (with-output-to-file temp-file #:exists 'replace (lambda () (for-each writeln curr-program)))
       temp-file))
 
-  (printf "file path ~a\n" egglog-file-path)
+  ; (printf "file path ~a\n" egglog-file-path)
 
   (define egglog-path
     (or (find-executable-path "egglog") (error "egglog executable not found in PATH")))
@@ -71,7 +71,7 @@
         (fprintf old-error-port "incorrect program in ~a\n" egglog-file-path)
         (error "Failed to execute egglog"))))
 
-  ; (delete-file egglog-file-path)
+  (delete-file egglog-file-path)
 
   (cons (get-output-string stdout-port) (get-output-string stderr-port)))
 
@@ -165,9 +165,13 @@
   ;; 3. Inserting expressions into the egglog program and getting a Listof (exprs . extract bindings)
   (define extract-bindings (egglog-add-exprs curr-batch (egglog-runner-ctx runner) curr-program))
 
-  ;; 4. Running the schedule
+  ;; 4. Running the schedule : having coode inside to emulate egraph-run-rules
   (define run-schedule '())
   (define domain-fns '())
+
+  ;; Make a deep copy of the egglog program we have so far
+  (define deep-copy-program (egglog-program-copy curr-program))
+
   (for ([(tag schedule-params) (in-dict tag-schedule)])
     (match tag
       ['lifting
@@ -178,21 +182,13 @@
        (set! run-schedule
              (append run-schedule (list (list 'saturate tag))))] ; TODO : (list 'repeat 2 'const-fold)
       [_
-       ; Set params
-       (define is-node-present (dict-ref schedule-params 'node #f))
-       (define is-iteration-present (dict-ref schedule-params 'iteration #f))
+       ;; deep-copy-program used here
+       ;; Get the best iter limit by looking at the program from scratch
+       (define-values (best-iter-limit)
+         (egglog-unsound-detected deep-copy-program tag schedule-params))
 
-       (match* (is-node-present is-iteration-present)
-         [((? nonnegative-integer? node-amt) (? nonnegative-integer? iter-amt))
-          (set! run-schedule (append run-schedule `((repeat ,iter-amt ,tag))))]
-
-         [(#f (? nonnegative-integer? iter-amt))
-          (set! run-schedule (append run-schedule `((repeat ,iter-amt ,tag))))]
-
-         [((? nonnegative-integer? node-amt) #f)
-          (set! run-schedule (append run-schedule `((repeat 2 ,tag))))]
-
-         [(#f #f) `((repeat 2 ,tag))])]))
+       ; (set! run-schedule (append run-schedule `((repeat 2 ,tag))))]))
+       (set! run-schedule (append run-schedule `((repeat ,best-iter-limit ,tag))))]))
 
   (egglog-program-add! `(run-schedule ,@run-schedule) curr-program)
 
@@ -332,6 +328,30 @@
   (egglog-program-add! `(ruleset lowering) curr-program)
 
   (egglog-program-add! `(ruleset lifting) curr-program)
+
+  ;;; Adding function unsound before rules
+
+  ;; unsound functions
+  (egglog-program-add! `(function unsound () bool :merge (or old new)) curr-program)
+  (egglog-program-add! `(ruleset unsound-rule) curr-program)
+  (egglog-program-add! `(set (unsound) false) curr-program)
+
+  (egglog-program-add!
+   `(rule ((= (Num c1) (Num c2)) (!= c1 c2)) ((set (unsound) true)) :ruleset unsound-rule)
+   curr-program)
+
+  (egglog-program-add! `(let ?one (Num
+                                   [bigrat
+                                    (from-string "1")
+                                    (from-string "1")])
+                          )
+                       curr-program)
+  (egglog-program-add! `(let ?two (Num
+                                   [bigrat
+                                    (from-string "2")
+                                    (from-string "1")])
+                          )
+                       curr-program)
 
   (for ([curr-expr const-fold])
     (egglog-program-add! curr-expr curr-program))
@@ -750,6 +770,53 @@
           (string->symbol (format "?r~a" root)))))
 
   extract-bindings)
+
+(define (egglog-unsound-detected curr-program tag params)
+  (define node-limit (dict-ref params 'node #f))
+  (define iter-limit (dict-ref params 'iteration 100))
+
+  ;; Make a copy here too so that we don't modify our original clean copy
+  (define temp-program (egglog-program-copy curr-program))
+
+  ;; Algorithm:
+  ;; 1. Saturate lifting and lowering
+  ;; 2. Repeat rules based on their ruleset tag once
+  ;; 3. Run the unsound-rule function ruleset once
+  ;; 4. Extract the (unsound) function that returns a bool
+  ;; 5. If this is true, we have unsoundless -> optimal iter limit is one below this
+  ;; 6. TODO: Run (print-size) parsing to calculate node limit
+  ;; 7. Repeat until we reach iter-limit
+
+  ;; TODO : const-fold
+  ;; Add lifting and lowering to the schedule that we know will exist
+  (egglog-program-add! `(run-schedule (saturate lifting) (saturate lowering)) temp-program)
+
+  ;; Loop to check unsoundness
+  (let loop ([curr-iter 1])
+    (cond
+      [(> curr-iter iter-limit)
+       (printf "Reached iteration limit ~a without detecting unsoundness\n" iter-limit)
+       (values iter-limit)]
+      [else
+       ;; Run the ruleset once more
+       (egglog-program-add! `(run-schedule (repeat 1 ,tag)) temp-program)
+       (egglog-program-add! `(run unsound-rule 1) temp-program)
+       (egglog-program-add! `(extract (unsound)) temp-program)
+
+       ;; Extract returned value
+       (define egglog-output (process-egglog temp-program))
+
+       (define stdout-content (car egglog-output))
+       (define lines (string-split (string-trim stdout-content) "\n"))
+       (define last-line (list-ref lines (- (length lines) 1)))
+
+       (if (equal? last-line "true")
+           ; Unsoundness detected
+           (begin
+             ; (printf "Unsoundness detected at iteration ~a\n" curr-iter)
+             (values (sub1 curr-iter))) ;; Return optimal iter limit (one less than current)
+
+           (loop (add1 curr-iter)))])))
 
 (define (egglog-num? id)
   (string-prefix? (symbol->string id) "Num"))
