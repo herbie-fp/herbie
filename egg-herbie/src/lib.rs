@@ -25,7 +25,7 @@ pub struct Context {
 pub unsafe extern "C" fn egraph_create() -> *mut Context {
     Box::into_raw(Box::new(Context {
         iteration: 0,
-        runner: Runner::new(Default::default()).with_explanations_enabled(),
+        runner: Runner::new(Default::default()),
         rules: vec![],
     }))
 }
@@ -114,9 +114,7 @@ pub unsafe extern "C" fn egraph_add_node(
 pub unsafe extern "C" fn egraph_copy(ptr: *mut Context) -> *mut Context {
     // Safety: `ptr` was box allocated by `egraph_create`
     let context = Box::from_raw(ptr);
-    let mut runner = Runner::new(Default::default())
-        .with_explanations_enabled()
-        .with_egraph(context.runner.egraph.clone());
+    let mut runner = Runner::new(Default::default()).with_egraph(context.runner.egraph.clone());
     runner.roots = context.runner.roots.clone();
     runner.egraph.rebuild();
 

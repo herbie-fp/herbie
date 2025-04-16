@@ -221,17 +221,7 @@
 
 ;; returns a flattened list of terms or #f if it failed to expand the proof due to budget
 (define (egraph-get-proof egraph-data expr goal ctx)
-  (define egg-expr (expr->egg-expr expr ctx))
-  (define egg-goal (expr->egg-expr goal ctx))
-  (define str (egraph_get_proof (egraph-data-egraph-pointer egraph-data) egg-expr egg-goal))
-  (cond
-    [(<= (string-length str) (*proof-max-string-length*))
-     (define converted
-       (for/list ([expr (in-port read (open-input-string str))])
-         (egg-expr->expr expr ctx)))
-     (define expanded (expand-proof converted (box (*proof-max-length*))))
-     (if (member #f expanded) #f expanded)]
-    [else #f]))
+    #f)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; eggIR
