@@ -85,10 +85,14 @@
   (for ([var (in-list vars)])
     (mutable-batch-push! out var))
 
+  (define cache (make-hasheq))
+
   (define size 0)
   (define (munge prog)
-    (set! size (+ 1 size))
-    (mutable-batch-push! out (expr-recurse prog munge)))
+    (hash-ref! cache prog
+               (lambda ()
+                 (set! size (+ 1 size))
+                 (mutable-batch-push! out (expr-recurse prog munge)))))
 
   (define roots (list->vector (map munge exprs)))
   (define final (mutable-batch->batch out roots))
