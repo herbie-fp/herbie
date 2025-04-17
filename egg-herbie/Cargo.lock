@@ -52,7 +52,7 @@ checksum = "22ec99545bb0ed0ea7bb9b8e1e9122ea386ff8a48c0922e43f36d45ab09e0e80"
 [[package]]
 name = "egg"
 version = "0.9.5"
-source = "git+https://github.com/egraphs-good/egg.git?rev=6f2ac1ee72d0ec6b51d12c9ca59e94ada6615e87#6f2ac1ee72d0ec6b51d12c9ca59e94ada6615e87"
+source = "git+https://github.com/paulzzy/egg.git?branch=destructive-rewrites-for-herbie#ec23d4725234318466fca0241a1cc83a7686bae9"
 dependencies = [
  "env_logger",
  "fxhash",

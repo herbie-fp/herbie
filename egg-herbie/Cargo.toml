@@ -4,6 +4,9 @@ version = "0.3.0"
 authors = [ "Oliver Flatt <oflatt@gmail.com>", "Max Willsey <me@mwillsey.com>" ]
 edition = "2021"
 
+[patch."https://github.com/egraphs-good/egg.git"]
+egg = { git = "https://github.com/paulzzy/egg.git", branch = "destructive-rewrites-for-herbie" }
+
 [dependencies]
 egg = { git = "https://github.com/egraphs-good/egg.git", rev = "6f2ac1ee72d0ec6b51d12c9ca59e94ada6615e87" }
 

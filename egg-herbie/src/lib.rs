@@ -2,7 +2,10 @@
 
 pub mod math;
 
-use egg::{BackoffScheduler, Extractor, FromOp, Id, Language, SimpleScheduler, StopReason, Symbol};
+use egg::{
+    BackoffScheduler, Extractor, FromOp, Id, Language, SimpleScheduler, StopReason, Symbol,
+    UndoScheduler,
+};
 use indexmap::IndexMap;
 use libc::{c_void, strlen};
 use math::*;
@@ -176,7 +179,7 @@ pub unsafe extern "C" fn egraph_run(
         context.runner = if simple_scheduler {
             context.runner.with_scheduler(SimpleScheduler)
         } else {
-            context.runner.with_scheduler(BackoffScheduler::default())
+            context.runner.with_scheduler(UndoScheduler::default())
         };
 
         context.runner = context
