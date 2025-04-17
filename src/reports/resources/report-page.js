@@ -57,7 +57,7 @@ const filterGroups = {
     regressed: [
         "uni-start", "lt-start", "timeout", "crash",
     ],
-}
+};
 var filterGroupState = {
     "improved": true,
     "unchanged": true,
@@ -295,9 +295,9 @@ function buildDiffLine(jsonData, show) {
     const submitButton = Element("button", "Compute Diff")
     submitButton.addEventListener("click", async (e) => {
         e.preventDefault();
-        compareAgainstURL = urlInput.value;
         radioState = radioState ?? "endAcc";
-        fetchAndUpdate();
+        otherJsonData = await fetchBaseline(urlInput.value);
+        update();
     });
 
     const toleranceInputField = Element("input", {
@@ -902,32 +902,25 @@ function makeFilterFunction() {
     }
 }
 
-async function fetchAndUpdate() {
-    if (compareAgainstURL) {
-        // Could also split string on / and check if the last component = "results.json"
-        var url = compareAgainstURL
-        if (url.endsWith("/")) url += "results.json"
+async function fetchBaseline(baselineURL) {
+    if (!baselineURL) return;
 
-        let response = await fetch(url, {
-            headers: { "content-type": "text/plain" },
-            method: "GET",
-            mode: "cors",
-        })
-        const json = await response.json()
-        if (json.error) {
-            otherJsonData = null
-            update()
-            return
-        }
-        for (let test of json.tests) {
-            diffAgainstFields[`${test.name}`] = test
-        }
-        otherJsonData = json
-        update()
-    } else {
-        otherJsonData = null
-        update()
+    if (baselineURL.endsWith("/")) baselineURL += "results.json";
+    compareAgainstURL = baselineURL;
+
+    let response = await fetch(url, {
+        headers: { "content-type": "text/plain" },
+        method: "GET",
+        mode: "cors",
+    });
+
+    const json = await response.json()
+    if (json.error) return;
+
+    for (let test of json.tests) {
+        diffAgainstFields[test.name] = test;
     }
+    return json;
 }
 
 async function getResultsJson() {
