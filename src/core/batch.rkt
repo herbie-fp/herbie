@@ -89,7 +89,8 @@
 
   (define size 0)
   (define (munge prog)
-    (hash-ref! cache prog
+    (hash-ref! cache
+               prog
                (lambda ()
                  (set! size (+ 1 size))
                  (mutable-batch-push! out (expr-recurse prog munge)))))

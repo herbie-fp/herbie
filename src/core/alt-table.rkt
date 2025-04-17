@@ -64,8 +64,7 @@
        (vector-set! costs i cost))
      (for/list ([root (in-vector (batch-roots batch))])
        (vector-ref costs root))]
-    [else
-     (make-list (vector-length (batch-roots batch)) 1)]))
+    [else (make-list (vector-length (batch-roots batch)) 1)]))
 
 (define (make-alt-table pcontext initial-alt ctx)
   (define cost (alt-cost* initial-alt (context-repr ctx)))

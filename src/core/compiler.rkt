@@ -62,7 +62,10 @@
 (define (compile-progs exprs ctx)
   (define vars (context-vars ctx))
   (define num-vars (length vars))
-  (define batch (if (batch? exprs) exprs (progs->batch exprs #:timeline-push #t #:vars vars)))
+  (define batch
+    (if (batch? exprs)
+        exprs
+        (progs->batch exprs #:timeline-push #t #:vars vars)))
 
   ; Here we need to keep vars even though no roots refer to the vars
   (define batch* (batch-remove-zombie (batch-remove-approx batch) #:keep-vars #t))
