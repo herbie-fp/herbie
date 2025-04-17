@@ -68,11 +68,14 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Recursive Rewrite ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define (run-rr altns global-batch)
+(define (run-rr altns global-batch iteration)
   (timeline-event! 'rewrite)
 
   ; generate required rules
-  (define rules (*rules*))
+  (define rules
+    (if (equal? iteration (- (*num-iterations*) 1))
+        (*rules*)
+        (*sound-rules*)))
   (define lifting-rules (platform-lifting-rules))
   (define lowering-rules (platform-lowering-rules))
 
@@ -134,7 +137,7 @@
   ; Recursive rewrite
   (define rewritten
     (if (flag-set? 'generate 'rr)
-        (run-rr (append start-altns approximations) global-batch)
+        (run-rr (append start-altns approximations) global-batch iteration)
         '()))
 
   (remove-duplicates rewritten #:key (λ (x) (batchref-idx (alt-expr x)))))
