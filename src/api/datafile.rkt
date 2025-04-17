@@ -29,8 +29,6 @@
               start
               result
               target
-              start-est
-              result-est
               time
               link
               cost-accuracy)
@@ -113,8 +111,6 @@
                              start-bits
                              end-bits
                              target-bits
-                             start-est
-                             end-est
                              time
                              link
                              cost-accuracy)
@@ -139,8 +135,6 @@
                                 (start . ,start-bits)
                                 (end . ,end-bits)
                                 (target . ,target-bits)
-                                (start-est . ,start-est)
-                                (end-est . ,end-est)
                                 (vars . ,(and vars (map symbol->string vars)))
                                 (warnings . ,(map ~s warnings))
                                 (input . ,(~s input))
@@ -229,8 +223,6 @@
                               (get 'start)
                               (get 'end)
                               (get 'target)
-                              (hash-ref test 'start-est 0)
-                              (hash-ref test 'end-est 0)
                               (get 'time)
                               (get 'link)
                               cost-accuracy)))

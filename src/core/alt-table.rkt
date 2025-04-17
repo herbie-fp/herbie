@@ -187,7 +187,7 @@
         [idx (in-naturals)])
     (for* ([ppt (in-list pcurve)]
            [alt (in-list (pareto-point-data ppt))])
-      (hash-set! alt->points* alt (cons idx (hash-ref alt->points* alt '())))))
+      (hash-update! alt->points* alt (λ (v) (cons idx v)) '())))
   (make-immutable-hasheq (hash->list alt->points*)))
 
 (define (atab-add-altn atab altn errs cost)

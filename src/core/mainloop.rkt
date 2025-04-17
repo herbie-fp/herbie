@@ -53,13 +53,11 @@
     (finish-iter!))
   (define alternatives (extract!))
   (timeline-event! 'preprocess)
-  (define final-alts
-    (for/list ([altn alternatives])
-      (define expr (alt-expr altn))
-      (define preprocessing (alt-preprocessing altn))
-      (alt-add-preprocessing altn
-                             (remove-unnecessary-preprocessing expr context pcontext preprocessing))))
-  final-alts)
+  (for/list ([altn alternatives])
+    (define expr (alt-expr altn))
+    (define preprocessing (alt-preprocessing altn))
+    (alt-add-preprocessing altn
+                           (remove-unnecessary-preprocessing expr context pcontext preprocessing))))
 
 (define (extract!)
   (timeline-push-alts! '())
