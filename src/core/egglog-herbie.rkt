@@ -804,14 +804,10 @@
   ;; Add lifting and lowering to the schedule that we know will exist
 
   (when schedule-lower
-    egglog-program-add!
-    `(run-schedule (saturate lowering))
-    temp-program)
+    (egglog-program-add! `(run-schedule (saturate lowering)) temp-program))
 
   (when schedule-lift
-    egglog-program-add!
-    `(run-schedule (saturate lifting))
-    temp-program)
+    (egglog-program-add! `(run-schedule (saturate lifting)) temp-program))
 
   ;; Loop to check unsoundness
   (let loop ([curr-iter 1])
@@ -833,40 +829,34 @@
        (define lines (string-split (string-trim stdout-content) "\n"))
        (define last-line (list-ref lines (- (length lines) 1)))
 
-       (define total-nodes (calculate-nodes lines))
+       (define total_nodes (calculate-nodes lines))
 
        ;; If Unsoundness detected or node-limit reached, then return the
        ;; optimal iter limit (one less than current)
-       (if (or (equal? last-line "true") (> total-nodes node-limit))
-           (begin
-             ; (printf "Unsoundness detected at iteration ~a\n" curr-iter)
-             (values (sub1 curr-iter)))
-
+       (if (or (equal? last-line "true") (> total_nodes node-limit))
+           (values (sub1 curr-iter))
            (loop (add1 curr-iter)))])))
 
 (define (calculate-nodes lines)
-  ;; TODO: Make this better - 341 esque helper function
-  (define (calculate-nodes-helper idx total-nodes)
-    (cond
-      ;; Has no nodes or first iteration
-      [(< idx 0) total-nodes]
-
-      ;; Reached the previous unsoundness result -> NOTE: "true" should technically never be reached
-      [(or (equal? (list-ref lines idx) "true") (equal? (list-ref lines idx) "false")) total-nodes]
-
-      ;; Otherwise, we need to add the total number of nodes for this one of the format
-      ;; "node_name : num_nodes"
-      [else
-       ;; break up into (list node_name num_nodes) with spaces
-       (define parts (string-split (list-ref lines idx) ":"))
-
-       ;; Get num_nodes in number
-       (define num_nodes (string->number (string-trim (cadr parts))))
-
-       (calculate-nodes-helper (- idx 1) (+ total-nodes num_nodes))]))
-
   ;; Don't start from last index, but previous to last index - as last has current unsoundness result
-  (calculate-nodes-helper (- (length lines) 2) 0))
+  (define process-lines
+    (reverse (if (empty? lines)
+                 lines ;; Has no nodes or first iteration
+                 (take lines (- (length lines) 1)))))
+
+  ;; Break when we reach the previous unsoundness result -> NOTE: "true" should technically never be reached
+  (for/fold ([total_nodes 0]) ([line (in-list process-lines)])
+    #:break (or (equal? line "true") (equal? line "false"))
+
+    ;; We need to add the total number of nodes for this one of the format
+    ;; "node_name : num_nodes"
+    ;; break up into (list node_name num_nodes) with spaces
+    (define parts (string-split line ":"))
+
+    ;; Get num_nodes in number
+    (define num_nodes (string->number (string-trim (cadr parts))))
+
+    (values (+ total_nodes num_nodes))))
 
 (define (egglog-num? id)
   (string-prefix? (symbol->string id) "Num"))
