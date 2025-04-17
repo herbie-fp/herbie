@@ -2,6 +2,7 @@
 
 (require "../utils/float.rkt"
          "../syntax/types.rkt"
+         "batch.rkt"
          "compiler.rkt")
 
 (provide *pcontext*
@@ -71,8 +72,12 @@
   (define max-error (+ 1 (expt 2 (representation-total-bits repr))))
 
   ;; This generates the errors array in reverse because that's how lists work
+  (define num-exprs
+    (if (batch? exprs)
+        (vector-length (batch-roots exprs))
+        (length exprs)))
   (define num-points (pcontext-length pcontext))
-  (for/fold ([result (make-list (length exprs) '())])
+  (for/fold ([result (make-list num-exprs '())])
             ([point (in-vector (pcontext-points pcontext) (- num-points 1) -1 -1)]
              [exact (in-vector (pcontext-exacts pcontext) (- num-points 1) -1 -1)])
     (for/list ([out (in-vector (fn point))]

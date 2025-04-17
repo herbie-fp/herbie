@@ -62,21 +62,23 @@
 (define (compile-progs exprs ctx)
   (define vars (context-vars ctx))
   (define num-vars (length vars))
+  (define batch
+    (if (batch? exprs)
+        exprs
+        (progs->batch exprs #:timeline-push #t #:vars vars)))
 
   ; Here we need to keep vars even though no roots refer to the vars
-  (define batch
-    (batch-remove-zombie (batch-remove-approx (progs->batch exprs #:timeline-push #t #:vars vars))
-                         #:keep-vars #t))
+  (define batch* (batch-remove-zombie (batch-remove-approx batch) #:keep-vars #t))
 
   (define instructions
-    (for/vector #:length (- (batch-length batch) num-vars)
-                ([node (in-vector (batch-nodes batch) num-vars)])
+    (for/vector #:length (- (batch-length batch*) num-vars)
+                ([node (in-vector (batch-nodes batch*) num-vars)])
       (match node
         [(literal value (app get-representation repr)) (list (const (real->repr value repr)))]
         [(list 'if c t f) (list if-proc c t f)]
         [(list op args ...) (cons (impl-info op 'fl) args)])))
 
-  (make-progs-interpreter (batch-vars batch) instructions (batch-roots batch)))
+  (make-progs-interpreter (batch-vars batch*) instructions (batch-roots batch*)))
 
 ;; Like `compile-progs`, but a single prog.
 (define (compile-prog expr ctx)
