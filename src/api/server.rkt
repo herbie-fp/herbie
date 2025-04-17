@@ -437,12 +437,13 @@
         (list (~s test-fpcore))))
 
   (define histories
-    (for/list ([altn (in-list altns)])
-      (define os (open-output-string))
-      (parameterize ([current-output-port os])
-        (write-xexpr `(div ([id "history"])
-                           (ol ,@(render-history altn pcontext (test-context test)))))
-        (get-output-string os))))
+    (for/list ([altn (in-list altns)]
+               [analysis (if (hash? backend-hash) (hash-ref backend-hash 'end) '())])
+      (define history (read (open-input-string (hash-ref analysis 'history))))
+      (define block
+        `(div ([id "history"])
+              (ol ,@(render-history altn pcontext (test-context test)))))
+      (call-with-output-string (curry write-xexpr block))))
 
   (define derivations
     (for/list ([altn (in-list altns)])
