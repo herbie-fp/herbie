@@ -464,11 +464,8 @@ function buildTableContents(jsonData, otherJsonData, filterFunction) {
     var rows = []
     const jsonTest = jsonData.tests.sort(compareTests);
     for (let test of jsonTest) {
-        let other = diffAgainstFields[test.name]
-        if (filterFunction(test, other)) {
-            let row = buildRow(test, other)
-            rows.push(row)
-        }
+        let other = diffAgainstFields[test.name];
+        if (filterFunction(test, other)) rows.push(buildRow(test, other));
     }
     return rows;
 }
@@ -522,14 +519,12 @@ function buildRow(test, other) {
         return tr;
     } else {
         function timeTD(test) {
-            var timeDiff = test.time - diffAgainstFields[test.name].time
+            var timeDiff = test.time - other.time
             var color = "diff-time-red"
             var text
-            var titleText = `current: ${formatTime(test.time)} vs ${formatTime(diffAgainstFields[test.name].time)}`
+            var titleText = `current: ${formatTime(test.time)} vs ${formatTime(other.time)}`
             // Dirty equal less then 1 second
-            var areEqual = false
             if (Math.abs(timeDiff) < (filterTolerance * 1000)) {
-                areEqual = true
                 color = "diff-time-gray"
                 text = "~"
             } else if (timeDiff < 0) {
@@ -538,7 +533,7 @@ function buildRow(test, other) {
             } else {
                 text = "-" + `${formatTime(timeDiff)}`
             }
-            return { td: Element("td", { classList: color, title: titleText }, [text]), equal: areEqual }
+            return Element("td", { classList: color, title: titleText }, [text]);
         }
 
         function buildTDfor(o, t) {
@@ -546,12 +541,10 @@ function buildRow(test, other) {
             const tp = calculatePercent(t)
             var color = "diff-time-red"
             var diff = op - tp
-            var areEqual = false
             var titleText = `Original: ${op} vs ${tp}`
             var tdText = `- ${(diff).toFixed(1)}%`
             if (Math.abs((diff).toFixed(1)) <= filterTolerance) {
                 color = "diff-time-gray"
-                areEqual = true
                 tdText = "~"
             } else if (diff < 0) {
                 diff = Math.abs(diff)
@@ -563,19 +556,19 @@ function buildRow(test, other) {
 
         function startAccuracyTD(test) {
             const t = test.start / test.bits
-            const o = diffAgainstFields[test.name].start / diffAgainstFields[test.name].bits
+            const o = other.start / other.bits
             return buildTDfor(o, t)
         }
 
         function resultAccuracyTD(test) {
             const t = test.end / test.bits
-            const o = diffAgainstFields[test.name].end / diffAgainstFields[test.name].bits
+            const o = other.end / other.bits
             return buildTDfor(o, t)
         }
 
         function targetAccuracyTD(test) {
             const t = smallestTarget / test.bits
-            const o = diffAgainstFields[test.name].target / diffAgainstFields[test.name].bits
+            const o = other.target / other.bits
             return buildTDfor(o, t)
         }
 
@@ -583,14 +576,14 @@ function buildRow(test, other) {
         const resultAccuracy = resultAccuracyTD(test)
         const targetAccuracy = targetAccuracyTD(test)
 
-        var tdStartAccuracy = radioState == "startAcc" ? startAccuracy.td : Element("td", {}, [formatAccuracy(test.start / test.bits)])
-        var tdResultAccuracy = radioState == "endAcc" ? resultAccuracy.td : Element("td", {}, [formatAccuracy(test.end / test.bits)])
-        var tdTargetAccuracy = radioState == "targetAcc" ? targetAccuracy.td : Element("td", {}, [formatAccuracy(smallestTarget / test.bits)])
+        var tdStartAccuracy = radioState == "startAcc" ? startAccuracy : Element("td", {}, [formatAccuracy(test.start / test.bits)])
+        var tdResultAccuracy = radioState == "endAcc" ? resultAccuracy : Element("td", {}, [formatAccuracy(test.end / test.bits)])
+        var tdTargetAccuracy = radioState == "targetAcc" ? targetAccuracy : Element("td", {}, [formatAccuracy(smallestTarget / test.bits)])
         const tdTime = radioState == "time" ? timeTD(test) : Element("td", {}, [formatTime(test.time)])
 
         var testTitle = ""
-        if (test.output != diffAgainstFields[test.name].output) {
-            testTitle = `Current output:\n${test.output} \n \n Comparing to:\n ${diffAgainstFields[test.name].output}`
+        if (test.output != other.output) {
+            testTitle = `Current output:\n${test.output} \n \n Comparing to:\n ${other.output}`
         }
         if (test.status == "imp-start" ||
             test.status == "ex-start" ||
