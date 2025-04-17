@@ -66,7 +66,9 @@
                  [+-commutative (+ a b) (+ b a)]
                  [*-commutative (* a b) (* b a)]
                  [sub-negate1 (- a b) (+ a (neg b))]
-                 [sub-negate2 (- a b) (neg (- b a))])
+                 [sub-negate1-reverse (+ a (neg b)) (- a b)]
+                 [sub-negate2 (- a b) (neg (- b a))]
+                 [sub-negate2-reverse (neg (- b a)) (- a b)])
 
 ; Associativity
 (define-ruleset* associativity
@@ -199,6 +201,17 @@
  [difference-cubes (- (pow a 3) (pow b 3)) (* (+ (* a a) (+ (* b b) (* a b))) (- a b))]
  [flip3-+ (+ a b) (/ (+ (pow a 3) (pow b 3)) (+ (* a a) (- (* b b) (* a b))))]
  [flip3-- (- a b) (/ (- (pow a 3) (pow b 3)) (+ (* a a) (+ (* b b) (* a b))))])
+
+(define-ruleset* square-of-sum/sub
+                 (polynomials sound)
+                 #:type ([a real] [b real])
+                 [sum-square-pow2 (pow (+ a b) 2) (+ (+ (pow a 2) (* 2 (* a b))) (pow b 2))]
+                 [sum-square-mult (* (+ a b) (+ a b)) (+ (+ (pow a 2) (* 2 (* a b))) (pow b 2))]
+                 [sub-square-pow2 (pow (- a b) 2) (+ (- (pow a 2) (* 2 (* a b))) (pow b 2))]
+                 [sub-square-mult1 (* (- a b) (+ a b)) (+ (- (pow a 2) (* 2 (* a b))) (pow b 2))]
+                 [sub-square-mult2 (* (+ a b) (- a b)) (+ (- (pow a 2) (* 2 (* a b))) (pow b 2))]
+                 [sum-square-reverse (+ (+ (pow a 2) (* 2 (* a b))) (pow b 2)) (pow (+ a b) 2)]
+                 [sub-square-reverse (+ (- (pow a 2) (* 2 (* a b))) (pow b 2)) (pow (- a b) 2)])
 
 (define-ruleset*
  difference-of-cubes-rev
