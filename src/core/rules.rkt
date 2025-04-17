@@ -6,7 +6,6 @@
          "../syntax/syntax.rkt")
 
 (provide *rules*
-         *sound-rules*
          *simplify-rules*
          (struct-out rule))
 
@@ -27,9 +26,6 @@
 
 (define (*rules*)
   (filter rule-enabled? *all-rules*))
-
-(define (*sound-rules*)
-  (filter (conjoin rule-enabled? (has-tag? 'sound)) *all-rules*))
 
 (define (*simplify-rules*)
   (filter (conjoin rule-enabled? (has-tag? 'simplify)) *all-rules*))
