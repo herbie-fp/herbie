@@ -26,48 +26,31 @@
 
 (struct alt-table (point-idx->alts alt->point-idxs alt->done? alt->cost pcontext all) #:prefab)
 
-(define (backup-alt-cost altn)
-  (let loop ([expr (alt-expr altn)])
-    (match expr
-      [(list 'if cond ift iff) (+ 1 (loop cond) (max (loop ift) (loop iff)))]
-      [(list op args ...) (apply + 1 (map loop args))]
-      [_ 1])))
-
-; In normal mode, cost is not considered so we return a constant
-; The alt table becomes "degenerate"
-(define (alt-cost* altn repr)
-  (if (*pareto-mode*)
-      (alt-cost altn repr)
-      1))
-
 (define (alt-batch-cost batch repr)
-  (cond
-    [(*pareto-mode*)
-     (define node-cost-proc (platform-node-cost-proc (*active-platform*)))
-     (define costs (make-vector (vector-length (batch-nodes batch)) 0))
-     (for ([node (in-vector (batch-nodes batch))]
-           [i (in-naturals)])
-       (define cost
-         (match node
-           [(? literal?) ((node-cost-proc node repr))]
-           [(? symbol?) ((node-cost-proc node repr))]
-           [(? number?) 0] ; specs
-           [(approx _ impl) (vector-ref costs impl)]
-           [(list 'if cond ift iff)
-            (define cost-proc (node-cost-proc node repr))
-            (cost-proc (vector-ref costs cond) (vector-ref costs ift) (vector-ref costs iff))]
-           [(list (? (negate impl-exists?) impl) args ...) 0] ; specs
-           [(list impl args ...)
-            (define cost-proc (node-cost-proc node repr))
-            (define itypes (impl-info impl 'itype))
-            (apply cost-proc (map (curry vector-ref costs) args))]))
-       (vector-set! costs i cost))
-     (for/list ([root (in-vector (batch-roots batch))])
-       (vector-ref costs root))]
-    [else (make-list (vector-length (batch-roots batch)) 1)]))
+  (define node-cost-proc (platform-node-cost-proc (*active-platform*)))
+  (define costs (make-vector (vector-length (batch-nodes batch)) 0))
+  (for ([node (in-vector (batch-nodes batch))]
+        [i (in-naturals)])
+    (define cost
+      (match node
+        [(? literal?) ((node-cost-proc node repr))]
+        [(? symbol?) ((node-cost-proc node repr))]
+        [(? number?) 0] ; specs
+        [(approx _ impl) (vector-ref costs impl)]
+        [(list 'if cond ift iff)
+         (define cost-proc (node-cost-proc node repr))
+         (cost-proc (vector-ref costs cond) (vector-ref costs ift) (vector-ref costs iff))]
+        [(list (? (negate impl-exists?) impl) args ...) 0] ; specs
+        [(list impl args ...)
+         (define cost-proc (node-cost-proc node repr))
+         (define itypes (impl-info impl 'itype))
+         (apply cost-proc (map (curry vector-ref costs) args))]))
+    (vector-set! costs i cost))
+  (for/list ([root (in-vector (batch-roots batch))])
+    (vector-ref costs root)))
 
 (define (make-alt-table pcontext initial-alt ctx)
-  (define cost (alt-cost* initial-alt (context-repr ctx)))
+  (define cost (alt-cost initial-alt (context-repr ctx)))
   (define errs (errors (alt-expr initial-alt) pcontext ctx))
   (alt-table (for/vector #:length (pcontext-length pcontext)
                          ([err (in-list errs)])
