@@ -485,7 +485,7 @@ function getMinimum(target) {
 function buildRow(test, other) {
     var smallestTarget = getMinimum(test.target)
 
-    if (other) {
+    if (!other) {
         var startAccuracy = formatAccuracy(test.start / test.bits)
         var resultAccuracy = formatAccuracy(test.end / test.bits)
 
