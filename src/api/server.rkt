@@ -438,11 +438,11 @@
 
   (define histories
     (for/list ([altn (in-list altns)]
-               [analysis (if (hash? backend-hash) (hash-ref backend-hash 'end) '())])
+               [analysis (if (hash? backend-hash)
+                             (hash-ref backend-hash 'end)
+                             '())])
       (define history (read (open-input-string (hash-ref analysis 'history))))
-      (define block
-        `(div ([id "history"])
-              (ol ,@(render-history altn pcontext (test-context test)))))
+      (define block `(div ([id "history"]) (ol ,@(render-history altn pcontext (test-context test)))))
       (call-with-output-string (curry write-xexpr block))))
 
   (define derivations
