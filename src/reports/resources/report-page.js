@@ -558,7 +558,7 @@ function buildRow(test, other) {
                 color = "diff-time-green"
                 tdText = `+ ${(diff).toFixed(1)}%`
             }
-            return { td: Element("td", { classList: color, title: titleText }, [tdText]), equal: areEqual }
+            return Element("td", { classList: color, title: titleText }, [tdText]);
         }
 
         function startAccuracyTD(test) {
@@ -579,25 +579,18 @@ function buildRow(test, other) {
             return buildTDfor(o, t)
         }
 
-        var classList = [test.status]
         const startAccuracy = startAccuracyTD(test)
         const resultAccuracy = resultAccuracyTD(test)
         const targetAccuracy = targetAccuracyTD(test)
-        const time = timeTD(test)
 
         var tdStartAccuracy = radioState == "startAcc" ? startAccuracy.td : Element("td", {}, [formatAccuracy(test.start / test.bits)])
         var tdResultAccuracy = radioState == "endAcc" ? resultAccuracy.td : Element("td", {}, [formatAccuracy(test.end / test.bits)])
         var tdTargetAccuracy = radioState == "targetAcc" ? targetAccuracy.td : Element("td", {}, [formatAccuracy(smallestTarget / test.bits)])
-        const tdTime = radioState == "time" ? time.td : Element("td", {}, [formatTime(test.time)])
+        const tdTime = radioState == "time" ? timeTD(test) : Element("td", {}, [formatTime(test.time)])
 
-        var testTile = ""
-        var outputEqual = true
-        if (radioState == "output") {
-            outputEqual = false
-        }
+        var testTitle = ""
         if (test.output != diffAgainstFields[test.name].output) {
-            // TODO steal Latex formatting from Odyssey
-            testTile += `Current output:\n${test.output} \n \n Comparing to:\n ${diffAgainstFields[test.name].output}`
+            testTitle = `Current output:\n${test.output} \n \n Comparing to:\n ${diffAgainstFields[test.name].output}`
         }
         if (test.status == "imp-start" ||
             test.status == "ex-start" ||
@@ -610,15 +603,8 @@ function buildRow(test, other) {
             tdTargetAccuracy = Element("td", {}, [])
         }
 
-        const radioSelected = radioState
-
-        var nameTD = Element("td", {}, [test.name])
-        if (testTile != "") {
-            nameTD = Element("td", { title: testTile }, [test.name])
-        }
-
-        const tr = Element("tr", { classList: classList.join(" ") }, [
-            nameTD,
+        const tr = Element("tr", { classList: test.status }, [
+            Element("td", { title: testTitle }, [test.name]),
             tdStartAccuracy,
             tdResultAccuracy,
             tdTargetAccuracy,
