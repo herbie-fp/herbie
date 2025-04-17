@@ -167,46 +167,58 @@
 
   ;; 4. Running the schedule : having coode inside to emulate egraph-run-rules
   (define run-schedule '())
-  (define domain-fns '())
-
-  ;; Make a deep copy of the egglog program we have so far
-  (define deep-copy-program (egglog-program-copy curr-program))
+  (define schedule-lower #f)
+  (define schedule-lift #f)
 
   (for ([(tag schedule-params) (in-dict tag-schedule)])
     (match tag
-      ['lifting
-       (set! domain-fns (cons tag domain-fns))
-       (set! run-schedule (append run-schedule (list (list 'saturate tag))))]
-      ['lowering
-       (set! domain-fns (cons tag domain-fns))
-       (set! run-schedule
-             (append run-schedule (list (list 'saturate tag))))] ; TODO : (list 'repeat 2 'const-fold)
+      ['lifting (set! schedule-lift #t)]
+      ['lowering (set! schedule-lower #t)]
+      [_ (void)]))
+
+  ; First lifting
+  (when schedule-lift
+    (set! run-schedule (append run-schedule (list `(saturate lifting)))))
+
+  ; Then math rules tag
+  (for ([(tag schedule-params) (in-dict tag-schedule)])
+    (match tag
+      [(or 'lifting 'lowering) (void)]
       [_
-       ;; deep-copy-program used here
        ;; Get the best iter limit by looking at the program from scratch
        (define-values (best-iter-limit)
-         (egglog-unsound-detected deep-copy-program tag schedule-params))
+         (egglog-unsound-detected curr-program tag schedule-params schedule-lower schedule-lift))
+
+       ; (printf "best-iter ~a\n" best-iter-limit)
 
        ; (set! run-schedule (append run-schedule `((repeat 2 ,tag))))]))
        (set! run-schedule (append run-schedule `((repeat ,best-iter-limit ,tag))))]))
 
+  ; Last lowering
+  (when schedule-lower
+    (set! run-schedule (append run-schedule (list `(saturate lowering)))))
+
   (egglog-program-add! `(run-schedule ,@run-schedule) curr-program)
 
   ;; 5. Extraction -> should just need root ids
-  (for ([binding extract-bindings])
-    (define val
-      (if num-variants
-          `(extract ,binding 5)
+  (egglog-program-add-list! (for/list ([binding extract-bindings])
+                              `(extract ,binding 5))
+                            curr-program)
 
-          (match domain-fns
-            [(list 'lifting) `(extract (lift ,binding))]
-            [(list 'lowering)
-             (define curr-val
-               (symbol->string (representation-name (context-repr (egglog-runner-ctx runner)))))
-             `(extract (lower ,binding ,curr-val))]
-            [_ `(extract ,binding)])))
+  ; (for ([binding extract-bindings])
+  ;   (define val
+  ;     (if num-variants
+  ;         `(extract ,binding 5)
 
-    (egglog-program-add! val curr-program))
+  ;         (match domain-fns
+  ;           [(list 'lifting) `(extract (lift ,binding))]
+  ;           [(list 'lowering)
+  ;            (define curr-val
+  ;              (symbol->string (representation-name (context-repr (egglog-runner-ctx runner)))))
+  ;            `(extract (lower ,binding ,curr-val))]
+  ;           [_ `(extract ,binding)])))
+
+  ;   (egglog-program-add! val curr-program))
 
   ;; 6. After step-by-step building the program, process it
   ;; by running it using egglog
@@ -771,7 +783,7 @@
 
   extract-bindings)
 
-(define (egglog-unsound-detected curr-program tag params)
+(define (egglog-unsound-detected curr-program tag params schedule-lower schedule-lift)
   (define node-limit (dict-ref params 'node (*node-limit*)))
   (define iter-limit (dict-ref params 'iteration 100))
 
@@ -790,7 +802,16 @@
 
   ;; TODO : const-fold
   ;; Add lifting and lowering to the schedule that we know will exist
-  (egglog-program-add! `(run-schedule (saturate lifting) (saturate lowering)) temp-program)
+
+  (when schedule-lower
+    egglog-program-add!
+    `(run-schedule (saturate lowering))
+    temp-program)
+
+  (when schedule-lift
+    egglog-program-add!
+    `(run-schedule (saturate lifting))
+    temp-program)
 
   ;; Loop to check unsoundness
   (let loop ([curr-iter 1])
