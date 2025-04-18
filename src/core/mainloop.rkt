@@ -17,7 +17,8 @@
          "../syntax/platform.rkt"
          "../utils/timeline.rkt")
 
-(provide run-improve!)
+(provide run-improve!
+         sort-alts)
 
 ;; The Herbie main loop goes through a simple iterative process:
 ;;
@@ -64,7 +65,7 @@
   (define annotated-alts (add-derivations! joined-alts))
 
   (timeline-push! 'stop (if (atab-completed? (^table^)) "done" "fuel") 1)
-  (sort-alts annotated-alts))
+  (map car (sort-alts annotated-alts)))
 
 ;; The next few functions are for interactive use in a REPL, usually for debugging
 ;; In Emacs, you can install racket-mode and then use C-c C-k to start that REPL
@@ -138,8 +139,7 @@
 (define (choose-alts!)
   (define fresh-alts (atab-not-done-alts (^table^)))
   (define alts (choose-mult-alts fresh-alts))
-  (unless (*pareto-mode*)
-    (set! alts (take alts 1)))
+
   (timeline-push-alts! alts)
   (^next-alts^ alts)
   (^table^ (atab-set-picked (^table^) alts))
@@ -196,8 +196,7 @@
   (timeline-event! 'prune)
   (^table^ (atab-add-altns (^table^) new-alts errss costs))
   (define final-fresh-alts (atab-not-done-alts (^table^)))
-  (define final-done-alts (set-subtract (atab-active-alts (^table^)) (atab-not-done-alts (^table^))))
-
+  (define final-done-alts (set-subtract (atab-active-alts (^table^)) final-fresh-alts))
   (timeline-push! 'count
                   (+ (length new-alts) (length orig-fresh-alts) (length orig-done-alts))
                   (+ (length final-fresh-alts) (length final-done-alts)))
@@ -257,9 +256,15 @@
      (add-derivations alts)]
     [else alts]))
 
-(define (sort-alts alts)
+(define (sort-alts alts [errss (batch-errors (map alt-expr alts) (*pcontext*) (*context*))])
+  ;; sort everything by error + cost
   (define repr (context-repr (*context*)))
-  ;; find the best, sort the rest by cost
-  (define errss (batch-errors (map alt-expr alts) (*pcontext*) (*context*)))
-  (define best (car (argmin (compose errors-score cdr) (map cons alts errss))))
-  (cons best (sort (set-remove alts best) > #:key (curryr alt-cost repr))))
+  (define alts-to-be-sorted (map cons alts errss))
+  (define alts-sorted
+    (sort alts-to-be-sorted
+          (lambda (x y)
+            (or (< (errors-score (cdr x)) (errors-score (cdr y))) ; sort by error
+                (and (equal? (errors-score (cdr x))
+                             (errors-score (cdr y))) ; if error is equal sort by cost
+                     (< (alt-cost (car x) repr) (alt-cost (car y) repr)))))))
+  alts-sorted)

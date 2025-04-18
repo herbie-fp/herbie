@@ -150,11 +150,7 @@
                  hypot.f32
                  [fma.f32 128])
 
-; compose platforms
-
-(define hardware-platform (platform-union boolean-platform machine-platform))
-
-(define default-platform
+(define herbie-platform
   (platform-union boolean-platform
                   machine-platform
                   libm64-platform
@@ -163,9 +159,7 @@
 
 ; Register all three
 
-(register-platform! 'boolean boolean-platform)
-(register-platform! 'hardware hardware-platform)
-(register-platform! 'default default-platform)
+(register-platform! 'herbie20 herbie-platform)
 
 ;; Do not run this file during testing
 (module test racket/base
