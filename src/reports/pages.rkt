@@ -33,8 +33,8 @@
     (display "</pre>" out)))
 
 (define (make-page-timeout page out result-hash output? profile? #:timeout [timeout +inf.0])
-  (define e (engine (lambda () (make-page page out result-hash output? profile?))))
-  (if (engine-run e timeout)
+  (define e (engine (lambda (_) (make-page page out result-hash output? profile?))))
+  (if (engine-run timeout e)
       (engine-result e)
       (display "<!doctype html><h1>Timeout generating page</h1>" out)))
 
