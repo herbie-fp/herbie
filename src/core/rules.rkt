@@ -251,7 +251,7 @@
 (define-ruleset* squares-reduce
                  (arithmetic simplify sound)
                  #:type ([x real])
-                 [rem-square-sqrt (* (sqrt x) (sqrt x)) x]
+                 [rem-square-sqrt (* (sqrt x) (sqrt x)) (fabs x)]
                  [rem-sqrt-square (sqrt (* x x)) (fabs x)]
                  [rem-sqrt-square-rev (fabs x) (sqrt (* x x))])
 
