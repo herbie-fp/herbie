@@ -78,7 +78,7 @@
                (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count)))))
                (λ (out)
                  (with-handlers ([exn:fail? (page-error-handler result-hash page out)])
-                   (make-page page out result-hash (*demo-output*) #f))))]
+                   (make-page-timeout page out result-hash (*demo-output*) #f #:timeout 1000))))]
     [else (next-dispatcher)]))
 
 (define (generate-report req)

@@ -9,7 +9,7 @@
          "common.rkt")
 
 (provide all-pages
-         make-page
+         make-page-timeout
          page-error-handler)
 
 (define (all-pages result-hash)
@@ -30,6 +30,12 @@
     (display "<!doctype html><pre>" out)
     ((error-display-handler) (exn-message e) e)
     (display "</pre>" out)))
+
+(define (make-page-timeout page out result-hash output? profile? #:timeout [timeout +inf.0])
+  (define e (engine (lambda () (make-page page out result-hash output? profile?))))
+  (if (engine-run e timeout)
+      (engine-result e)
+      (display "<!doctype html><h1>Timeout generating page</h1>" out)))
 
 (define (make-page page out result-hash output? profile?)
   (match page

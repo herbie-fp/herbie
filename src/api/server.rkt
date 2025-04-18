@@ -57,7 +57,7 @@
     (call-with-output-file (build-path (*demo-output*) path page)
                            (λ (out)
                              (with-handlers ([exn:fail? (page-error-handler result-hash page out)])
-                               (make-page page out result-hash (*demo-output*) #f)))))
+                               (make-page-timeout page out result-hash (*demo-output*) #f #:timeout 10000)))))
   (define link (path-element->string (last (explode-path path))))
   (define data (get-table-data-from-hash result-hash link))
   (define data-file (build-path (*demo-output*) "results.json"))
