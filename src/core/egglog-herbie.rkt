@@ -189,7 +189,7 @@
        (define-values (best-iter-limit)
          (egglog-unsound-detected curr-program tag schedule-params schedule-lower schedule-lift))
 
-       ; (printf "best-iter ~a\n" best-iter-limit)
+       (printf "best-iter ~a\n\n" best-iter-limit)
 
        ; (set! run-schedule (append run-schedule `((repeat 2 ,tag))))]))
        (set! run-schedule (append run-schedule `((repeat ,best-iter-limit ,tag))))]))
@@ -785,7 +785,7 @@
 
 (define (egglog-unsound-detected curr-program tag params schedule-lower schedule-lift)
   (define node-limit (dict-ref params 'node (*node-limit*)))
-  (define iter-limit (dict-ref params 'iteration 100))
+  (define iter-limit (dict-ref params 'iteration 50))
 
   ;; Make a copy here too so that we don't modify our original clean copy
   (define temp-program (egglog-program-copy curr-program))
@@ -813,7 +813,7 @@
   (let loop ([curr-iter 1])
     (cond
       [(> curr-iter iter-limit)
-       (printf "Reached iteration limit ~a without detecting unsoundness\n" iter-limit)
+      ;  (printf "Reached iteration limit ~a without detecting unsoundness\n" iter-limit)
        (values iter-limit)]
       [else
        ;; Run the ruleset once more
@@ -828,8 +828,12 @@
        (define stdout-content (car egglog-output))
        (define lines (string-split (string-trim stdout-content) "\n"))
        (define last-line (list-ref lines (- (length lines) 1)))
+      ;  (printf "last-line : ~a\n" last-line)
 
        (define total_nodes (calculate-nodes lines))
+      ;  (printf "total_nodes : ~a\n" total_nodes)
+
+      (when (equal? last-line "true") (printf "ALERT : UNSOUNDNESS DETECTED when...\n"))
 
        ;; If Unsoundness detected or node-limit reached, then return the
        ;; optimal iter limit (one less than current)
