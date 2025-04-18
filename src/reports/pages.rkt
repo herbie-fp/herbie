@@ -1,6 +1,7 @@
 #lang racket
 
-(require json)
+(require json
+         racket/engine)
 (require "../syntax/read.rkt"
          "timeline.rkt"
          "plot.rkt"
