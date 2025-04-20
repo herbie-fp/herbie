@@ -70,12 +70,12 @@
                            (and target-error (errors-score target-error))
                            (errors-score end-error)))
 
-       (when (not success?)
+       (unless success?
          (printf "\nInput (~a bits):\n" (errors-score start-error))
          (pretty-print (alt-expr start-alt) (current-output-port) 1)
          (printf "\nOutput (~a bits):\n" (errors-score end-error))
          (pretty-print (alt-expr end-alt) (current-output-port) 1)
-
+       
          (when target-error
            (printf "\nTarget (~a bits):\n" (errors-score target-error))
            ;; internal tool so okay
