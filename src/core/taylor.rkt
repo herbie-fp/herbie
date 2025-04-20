@@ -218,7 +218,7 @@
        (define offset (car series))
        (cons offset*
              (λ (n)
-               (if (< (+ n (- offset offset*)) 0)
+               (if (negative? (+ n (- offset offset*)))
                    0
                    ((cdr series) (+ n (- offset offset*)))))))]))
 
