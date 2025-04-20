@@ -153,10 +153,10 @@
         [`(sqrt ,arg) (taylor-sqrt var (vector-ref taylor-approxs arg))]
         [`(cbrt ,arg) (taylor-cbrt var (vector-ref taylor-approxs arg))]
         [`(exp ,arg)
-         (let ([arg* (normalize-series (vector-ref taylor-approxs arg))])
-           (if (positive? (car arg*))
-               (taylor-exact (batch-ref expr-batch n))
-               (taylor-exp (zero-series arg*))))]
+         (define arg* (normalize-series (vector-ref taylor-approxs arg)))
+         (if (positive? (car arg*))
+             (taylor-exact (batch-ref expr-batch n))
+             (taylor-exp (zero-series arg*)))]
         [`(sin ,arg)
          (define arg* (normalize-series (vector-ref taylor-approxs arg)))
          (cond
@@ -483,18 +483,18 @@
     (hash-ref! hash
                n
                (λ ()
-                 (let* ([tmpl (logcompute n)])
-                   (reduce `(/ (+ ,@(for/list ([term tmpl])
-                                      (match term
-                                        [`(,coeff ,k ,ps ...)
-                                         `(* ,coeff
-                                             (/ (* ,@(for/list ([i (in-naturals 1)]
-                                                                [p ps])
-                                                       (if (= p 0)
-                                                           1
-                                                           `(pow (* ,(factorial i) ,(coeffs i)) ,p))))
-                                                (pow ,(coeffs 0) ,(- k))))])))
-                               ,(factorial n)))))))
+                 (define tmpl (logcompute n))
+                 (reduce `(/ (+ ,@(for/list ([term tmpl])
+                                    (match term
+                                      [`(,coeff ,k ,ps ...)
+                                       `(* ,coeff
+                                           (/ (* ,@(for/list ([i (in-naturals 1)]
+                                                              [p ps])
+                                                     (if (= p 0)
+                                                         1
+                                                         `(pow (* ,(factorial i) ,(coeffs i)) ,p))))
+                                              (pow ,(coeffs 0) ,(- k))))])))
+                             ,(factorial n))))))
 
   (cons 0
         (λ (n)
