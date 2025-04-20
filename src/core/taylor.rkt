@@ -485,15 +485,14 @@
                (λ ()
                  (define tmpl (logcompute n))
                  (reduce `(/ (+ ,@(for/list ([term tmpl])
-                                    (match term
-                                      [`(,coeff ,k ,ps ...)
-                                       `(* ,coeff
-                                           (/ (* ,@(for/list ([i (in-naturals 1)]
-                                                              [p ps])
-                                                     (if (= p 0)
-                                                         1
-                                                         `(pow (* ,(factorial i) ,(coeffs i)) ,p))))
-                                              (pow ,(coeffs 0) ,(- k))))])))
+                                    (match-define `(,coeff ,k ,ps ...) term)
+                                    `(* ,coeff
+                                        (/ (* ,@(for/list ([i (in-naturals 1)]
+                                                           [p ps])
+                                                  (if (= p 0)
+                                                      1
+                                                      `(pow (* ,(factorial i) ,(coeffs i)) ,p))))
+                                           (pow ,(coeffs 0) ,(- k))))))
                              ,(factorial n))))))
 
   (cons 0
