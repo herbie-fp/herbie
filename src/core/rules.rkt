@@ -133,6 +133,13 @@
                  #:type ([a real] [b real] [c real])
                  [cancel-sign-sub (- a (* (neg b) c)) (+ a (* b c))]
                  [cancel-sign-sub-inv (- a (* b c)) (+ a (* (neg b) c))])
+(define-ruleset* subtraction-flip
+                 (arithmetic simplify sound)
+                 #:type ([a real] [b real])
+                 [negate-sub (- a b) (+ a (neg b))]
+                 [negate-sub-reverse (+ a (neg b)) (- a b)]
+                 [negate-sub2 (- a b) (neg (- b a))]
+                 [negate-sub2-reverse (neg (- b a)) (- a b)])
 ; Safe Distributiviity
 (define-ruleset* distributivity-fp-safe
                  (arithmetic simplify sound)
@@ -181,6 +188,13 @@
                  (polynomials)
                  #:type ([a real] [b real])
                  [sqr-pow (pow a b) (* (pow a (/ b 2)) (pow a (/ b 2)))])
+(define-ruleset* square-of-sum/sub
+                 (arithmetic sound)
+                 #:type ([a real] [b real])
+                 [sum-square-pow (pow (+ a b) 2) (+ (+ (pow a 2) (* 2 (* a b))) (pow b 2))]
+                 [sub-square-pow (pow (- a b) 2) (+ (- (pow a 2) (* 2 (* a b))) (pow b 2))]
+                 [sum-square-reverse (+ (+ (pow a 2) (* 2 (* a b))) (pow b 2)) (pow (+ a b) 2)]
+                 [sub-square-reverse (+ (- (pow a 2) (* 2 (* a b))) (pow b 2)) (pow (- a b) 2)])
 
 (define-ruleset* difference-of-squares-flip
                  (polynomials)
