@@ -67,9 +67,7 @@
        (define success?
          (test-successful? test
                            (errors-score start-error)
-                           (if target-error
-                               (errors-score target-error)
-                               #f)
+                           (and target-error (errors-score target-error))
                            (errors-score end-error)))
 
        (when (not success?)
