@@ -16,9 +16,9 @@
   (match expr
     [(? string?)
      (define parsed (string->number expr))
-     (if parsed
-         parsed
-         (raise (error "string that is not a num")))]
+     (unless parsed
+       (raise (error "string that is not a num")))
+     parsed]
     [(list op args ...) (format-op (cons op (map (curry format-expr is-version-10) args)))]
     [(? symbol?)
      (if is-version-10
