@@ -19,7 +19,6 @@
 (define-runtime-module-path herbie10-platform "../platforms/herbie10.rkt")
 (define-runtime-module-path herbie20-platform "../platforms/herbie20.rkt")
 (define-runtime-module-path c-platform "../platforms/libm.rkt")
-(define-runtime-module-path math-platform "../platforms/math.rkt")
 
 ; Automatically loads default representations and platforms
 (define (load-herbie-builtins)
@@ -33,7 +32,6 @@
   (dynamic-require herbie10-platform #f)
   (dynamic-require herbie20-platform #f)
   (dynamic-require c-platform #f)
-  (dynamic-require math-platform #f)
   ; activate the required platform
   (activate-platform! (*platform-name*)))
 
