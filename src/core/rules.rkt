@@ -64,11 +64,7 @@
                  (arithmetic simplify sound)
                  #:type ([a real] [b real])
                  [+-commutative (+ a b) (+ b a)]
-                 [*-commutative (* a b) (* b a)]
-                 [sub-negate1 (- a b) (+ a (neg b))]
-                 [sub-negate1-reverse (+ a (neg b)) (- a b)]
-                 [sub-negate2 (- a b) (neg (- b a))]
-                 [sub-negate2-reverse (neg (- b a)) (- a b)])
+                 [*-commutative (* a b) (* b a)])
 
 ; Associativity
 (define-ruleset* associativity
@@ -137,13 +133,6 @@
                  #:type ([a real] [b real] [c real])
                  [cancel-sign-sub (- a (* (neg b) c)) (+ a (* b c))]
                  [cancel-sign-sub-inv (- a (* b c)) (+ a (* (neg b) c))])
-(define-ruleset* subtraction-flip
-                 (arithmetic simplify sound)
-                 #:type ([a real] [b real])
-                 [negate-sub (- a b) (+ a (neg b))]
-                 [negate-sub-reverse (+ a (neg b)) (- a b)]
-                 [negate-sub2 (- a b) (neg (- b a))]
-                 [negate-sub2-reverse (neg (- b a)) (- a b)])
 ; Safe Distributiviity
 (define-ruleset* distributivity-fp-safe
                  (arithmetic simplify sound)
@@ -192,13 +181,6 @@
                  (polynomials)
                  #:type ([a real] [b real])
                  [sqr-pow (pow a b) (* (pow a (/ b 2)) (pow a (/ b 2)))])
-(define-ruleset* square-of-sum/sub
-                 (arithmetic sound)
-                 #:type ([a real] [b real])
-                 [sum-square-pow (pow (+ a b) 2) (+ (+ (pow a 2) (* 2 (* a b))) (pow b 2))]
-                 [sub-square-pow (pow (- a b) 2) (+ (- (pow a 2) (* 2 (* a b))) (pow b 2))]
-                 [sum-square-reverse (+ (+ (pow a 2) (* 2 (* a b))) (pow b 2)) (pow (+ a b) 2)]
-                 [sub-square-reverse (+ (- (pow a 2) (* 2 (* a b))) (pow b 2)) (pow (- a b) 2)])
 
 (define-ruleset* difference-of-squares-flip
                  (polynomials)
@@ -215,14 +197,6 @@
  [difference-cubes (- (pow a 3) (pow b 3)) (* (+ (* a a) (+ (* b b) (* a b))) (- a b))]
  [flip3-+ (+ a b) (/ (+ (pow a 3) (pow b 3)) (+ (* a a) (- (* b b) (* a b))))]
  [flip3-- (- a b) (/ (- (pow a 3) (pow b 3)) (+ (* a a) (+ (* b b) (* a b))))])
-
-(define-ruleset* square-of-sum/sub
-                 (polynomials sound)
-                 #:type ([a real] [b real])
-                 [sum-square (pow (+ a b) 2) (+ (+ (pow a 2) (* 2 (* a b))) (pow b 2))]
-                 [sub-square (pow (- a b) 2) (+ (- (pow a 2) (* 2 (* a b))) (pow b 2))]
-                 [sum-square-reverse (+ (+ (pow a 2) (* 2 (* a b))) (pow b 2)) (pow (+ a b) 2)]
-                 [sub-square-reverse (+ (- (pow a 2) (* 2 (* a b))) (pow b 2)) (pow (- a b) 2)])
 
 (define-ruleset*
  difference-of-cubes-rev
