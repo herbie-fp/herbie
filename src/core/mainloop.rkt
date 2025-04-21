@@ -9,7 +9,6 @@
          "bsearch.rkt"
          "batch.rkt"
          "derivations.rkt"
-         "explain.rkt"
          "patch.rkt"
          "points.rkt"
          "preprocess.rkt"
@@ -18,7 +17,8 @@
          "../syntax/platform.rkt"
          "../utils/timeline.rkt")
 
-(provide run-improve!)
+(provide run-improve!
+         sort-alts)
 
 ;; The Herbie main loop goes through a simple iterative process:
 ;;
@@ -38,7 +38,6 @@
 ;; - Final steps: regimes, derivations, and remove preprocessing
 
 (define (run-improve! initial specification context pcontext)
-  (explain! initial context pcontext)
   (timeline-event! 'preprocess)
   (define preprocessing (find-preprocessing specification context))
   (timeline-push! 'symmetry (map ~a preprocessing))
@@ -66,7 +65,7 @@
   (define annotated-alts (add-derivations! joined-alts))
 
   (timeline-push! 'stop (if (atab-completed? (^table^)) "done" "fuel") 1)
-  (sort-alts annotated-alts))
+  (map car (sort-alts annotated-alts)))
 
 ;; The next few functions are for interactive use in a REPL, usually for debugging
 ;; In Emacs, you can install racket-mode and then use C-c C-k to start that REPL
@@ -140,8 +139,7 @@
 (define (choose-alts!)
   (define fresh-alts (atab-not-done-alts (^table^)))
   (define alts (choose-mult-alts fresh-alts))
-  (unless (*pareto-mode*)
-    (set! alts (take alts 1)))
+
   (timeline-push-alts! alts)
   (^next-alts^ alts)
   (^table^ (atab-set-picked (^table^) alts))
@@ -167,7 +165,7 @@
            (match event
              [(list 'taylor name var) (list 'taylor loc0 name var)]
              [(list 'rr input proof) (list 'rr loc0 input proof)]))
-         (define expr* (location-do loc0 (alt-expr orig) (const (debatchref (alt-expr altn)))))
+         (define expr* (location-set loc0 (alt-expr orig) (debatchref (alt-expr altn))))
          (alt expr* event* (list (loop (first prevs))) (alt-preprocessing orig))])))
 
   (^patched^ (reap [sow]
@@ -198,8 +196,7 @@
   (timeline-event! 'prune)
   (^table^ (atab-add-altns (^table^) new-alts errss costs))
   (define final-fresh-alts (atab-not-done-alts (^table^)))
-  (define final-done-alts (set-subtract (atab-active-alts (^table^)) (atab-not-done-alts (^table^))))
-
+  (define final-done-alts (set-subtract (atab-active-alts (^table^)) final-fresh-alts))
   (timeline-push! 'count
                   (+ (length new-alts) (length orig-fresh-alts) (length orig-done-alts))
                   (+ (length final-fresh-alts) (length final-done-alts)))
@@ -237,33 +234,6 @@
 (define (rollback-iter!)
   (void))
 
-(define (explain! expr context pcontext)
-  (timeline-event! 'explain)
-
-  (define-values (fperrors
-                  explanations-table
-                  confusion-matrix
-                  maybe-confusion-matrix
-                  total-confusion-matrix
-                  freqs)
-    (explain expr context pcontext))
-
-  (for ([fperror (in-list fperrors)])
-    (match-define (list expr truth opreds oex upreds uex) fperror)
-    (timeline-push! 'fperrors expr truth opreds oex upreds uex))
-
-  (for ([explanation (in-list explanations-table)])
-    (match-define (list op expr expl val maybe-count flow-list locations) explanation)
-    (timeline-push! 'explanations op expr expl val maybe-count flow-list locations))
-
-  (timeline-push! 'confusion confusion-matrix)
-
-  (timeline-push! 'maybe-confusion maybe-confusion-matrix)
-
-  (timeline-push! 'total-confusion total-confusion-matrix)
-  (for ([(key val) (in-dict freqs)])
-    (timeline-push! 'freqs key val)))
-
 (define (make-regime! alts)
   (define ctx (*context*))
   (define repr (context-repr ctx))
@@ -286,9 +256,15 @@
      (add-derivations alts)]
     [else alts]))
 
-(define (sort-alts alts)
+(define (sort-alts alts [errss (batch-errors (map alt-expr alts) (*pcontext*) (*context*))])
+  ;; sort everything by error + cost
   (define repr (context-repr (*context*)))
-  ;; find the best, sort the rest by cost
-  (define errss (batch-errors (map alt-expr alts) (*pcontext*) (*context*)))
-  (define best (car (argmin (compose errors-score cdr) (map cons alts errss))))
-  (cons best (sort (set-remove alts best) > #:key (curryr alt-cost repr))))
+  (define alts-to-be-sorted (map cons alts errss))
+  (define alts-sorted
+    (sort alts-to-be-sorted
+          (lambda (x y)
+            (or (< (errors-score (cdr x)) (errors-score (cdr y))) ; sort by error
+                (and (equal? (errors-score (cdr x))
+                             (errors-score (cdr y))) ; if error is equal sort by cost
+                     (< (alt-cost (car x) repr) (alt-cost (car y) repr)))))))
+  alts-sorted)
