@@ -36,7 +36,7 @@
 (define (make-points-json result-hash)
   (define test (car (load-tests (open-input-string (hash-ref result-hash 'test)))))
   (define backend (hash-ref result-hash 'backend))
-  (define test-points (map first (second (hash-ref backend 'pctxs))))
+  (define test-points (map first (hash-ref backend 'pcontext)))
   (define start (hash-ref backend 'start))
   (define targets (hash-ref backend 'target))
   (define end (hash-ref backend 'end))

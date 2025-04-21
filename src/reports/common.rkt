@@ -98,13 +98,13 @@
                         `(li (a ([href ,url]) ,text)))))))
 
 (define/contract (render-warnings warnings)
-  (-> (listof (list/c symbol? string? (listof any/c) (or/c string? #f) (listof string?))) xexpr?)
+  (-> (listof (list/c string? string? (or/c string? #f) (listof string?))) xexpr?)
   (if (null? warnings)
       ""
       `(ul ((class "warnings"))
            ,@(for/list ([warning warnings])
-               (match-define (list type message args url extra) warning)
-               `(li (h2 ,(apply format message args)
+               (match-define (list type message url extra) warning)
+               `(li (h2 ,message
                         ,(if url
                              `(a ([href ,url]) " (more)")
                              ""))

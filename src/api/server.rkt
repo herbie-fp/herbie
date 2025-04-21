@@ -54,10 +54,11 @@
 (define (write-results-to-disk result-hash path)
   (make-directory (build-path (*demo-output*) path))
   (for ([page (all-pages result-hash)])
-    (call-with-output-file (build-path (*demo-output*) path page)
-                           (λ (out)
-                             (with-handlers ([exn:fail? (page-error-handler result-hash page out)])
-                               (make-page page out result-hash (*demo-output*) #f)))))
+    (call-with-output-file
+     (build-path (*demo-output*) path page)
+     (λ (out)
+       (with-handlers ([exn:fail? (page-error-handler result-hash page out)])
+         (make-page-timeout page out result-hash (*demo-output*) #f #:timeout 10000)))))
   (define link (path-element->string (last (explode-path path))))
   (define data (get-table-data-from-hash result-hash link))
   (define data-file (build-path (*demo-output*) "results.json"))
@@ -419,13 +420,13 @@
       ['timeout #f]
       ['failure (exception->datum backend)]))
 
-  (define-values (altns train-pcontext processed-pcontext)
+  (define-values (altns pcontext)
     (cond
       [(equal? (job-result-status herbie-result) 'success)
        (define altns (map alt-analysis-alt (improve-result-end backend)))
-       (match-define (list train-pcontext processed-pcontext) (improve-result-pctxs backend))
-       (values altns train-pcontext processed-pcontext)]
-      [else (values '() #f #f)]))
+       (define pcontext (improve-result-pcontext backend))
+       (values altns pcontext)]
+      [else (values '() #f)]))
 
   (define test-fpcore
     (alt->fpcore test (make-alt-preprocessing (test-input test) (test-preprocess test))))
@@ -437,17 +438,17 @@
         (list (~s test-fpcore))))
 
   (define histories
-    (for/list ([altn (in-list altns)])
-      (define os (open-output-string))
-      (parameterize ([current-output-port os])
-        (write-xexpr
-         `(div ([id "history"])
-               (ol ,@(render-history altn processed-pcontext train-pcontext (test-context test)))))
-        (get-output-string os))))
+    (for/list ([altn (in-list altns)]
+               [analysis (if (hash? backend-hash)
+                             (hash-ref backend-hash 'end)
+                             '())])
+      (define history (read (open-input-string (hash-ref analysis 'history))))
+      (define block `(div ([id "history"]) (ol ,@(render-history altn pcontext (test-context test)))))
+      (call-with-output-string (curry write-xexpr block))))
 
   (define derivations
     (for/list ([altn (in-list altns)])
-      (render-json altn processed-pcontext train-pcontext (test-context test))))
+      (render-json altn pcontext (test-context test))))
 
   (hasheq 'test
           (~s test-fpcore)
@@ -466,25 +467,24 @@
 
 (define (backend-improve-result-hash-table backend test)
   (define repr (context-repr (test-context test)))
-  (define pcontexts (improve-result-pctxs backend))
+  (define pcontext (improve-result-pcontext backend))
   (hasheq 'preprocessing
           (map ~s (improve-result-preprocess backend))
-          'pctxs
-          (map (curryr pcontext->json repr) pcontexts)
+          'pcontext
+          (pcontext->json pcontext repr)
           'start
-          (analysis->json (improve-result-start backend) pcontexts test)
+          (analysis->json (improve-result-start backend) pcontext test)
           'target
-          (map (curryr analysis->json pcontexts test) (improve-result-target backend))
+          (map (curryr analysis->json pcontext test) (improve-result-target backend))
           'end
-          (map (curryr analysis->json pcontexts test) (improve-result-end backend))))
+          (map (curryr analysis->json pcontext test) (improve-result-end backend))))
 
-(define (analysis->json analysis pcontexts test)
+(define (analysis->json analysis pcontext test)
   (define repr (context-repr (test-context test)))
-  (match-define (alt-analysis alt train-errors test-errors) analysis)
+  (match-define (alt-analysis alt test-errors) analysis)
   (define cost (alt-cost alt repr))
 
-  (match-define (list train-pcontext processed-pcontext) pcontexts)
-  (define history (render-history alt processed-pcontext train-pcontext (test-context test)))
+  (define history (render-history alt pcontext (test-context test)))
 
   (define vars (test-vars test))
   (define splitpoints
@@ -498,8 +498,6 @@
           (~s (alt-expr alt))
           'history
           (~s history)
-          'train-score
-          train-errors
           'errors
           test-errors
           'cost
