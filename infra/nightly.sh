@@ -17,14 +17,17 @@ for bench in "$BENCHDIR"/*; do
   name=$(basename "$bench" .fpcore)
   rm -rf "$REPORTDIR"/"$name"
 
+  date +%s
   racket -y "src/main.rkt" report \
          --seed "$SEED" \
          "$@" \
          "$bench" "$REPORTDIR"/"$name"
   
+  date +%s
   dirs="$dirs $name";
 done
 
 # merge reports
 racket -y infra/merge.rkt "$REPORTDIR" $dirs
+date +%s
 
