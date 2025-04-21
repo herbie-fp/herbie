@@ -94,7 +94,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Recursive Rewrite ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define (run-rr altns global-batch iteration)
+(define (run-rr altns global-batch)
   (timeline-event! 'rewrite)
 
   ; generate required rules
@@ -139,7 +139,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Public API ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define (generate-candidates exprs iteration)
+(define (generate-candidates exprs)
   ; Batch to where we will extract everything
   ; Roots of this batch are constantly updated
   (define global-batch (progs->batch exprs))
@@ -160,7 +160,7 @@
   ; Recursive rewrite
   (define rewritten
     (if (flag-set? 'generate 'rr)
-        (run-rr start-altns #;(append start-altns approximations) global-batch iteration)
+        (run-rr start-altns #;(append start-altns approximations) global-batch)
         '()))
 
   (remove-duplicates (append rewritten approximations) #:key (λ (x) (batchref-idx (alt-expr x)))))
