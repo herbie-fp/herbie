@@ -1,5 +1,6 @@
 name: Distribute
 
+on: [push]
 # on:
 #   push:
 #     branches:
