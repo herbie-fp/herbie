@@ -159,8 +159,13 @@
     [_ (error 'compute-result "unknown command ~a" command)]))
 
 (define (herbie-do-server-job command job-id)
+  (define start (current-inexact-milliseconds))
   (define herbie-result (wrapper-run-herbie command job-id))
+  (eprintf "[job] ~ams\n" (- (current-inexact-milliseconds) start))
+
+  (set! start (current-inexact-milliseconds))
   (define basic-output ((get-json-converter command) herbie-result job-id))
+  (eprintf "[json] ~ams\n" (- (current-inexact-milliseconds) start))
   ;; Add default fields that all commands have
   (hash-set* basic-output
              'job
