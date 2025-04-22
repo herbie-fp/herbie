@@ -57,7 +57,7 @@
                  #:literal [binary32 32]
                  #:default-cost 6400
                  #:optional acos.f64
-                 #:optional [fabs.f64 128]
+                 [fabs.f64 128]
                  acosh.f64
                  asin.f64
                  asinh.f64
@@ -98,7 +98,7 @@
                  #:literal [binary32 32]
                  #:default-cost 3200
                  #:optional acos.f32
-                 #:optional [fabs.f32 64]
+                 [fabs.f32 64]
                  acosh.f32
                  asin.f32
                  asinh.f32

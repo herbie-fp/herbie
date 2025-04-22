@@ -13,7 +13,7 @@
                  #:default-cost 0
                  #:if-cost 0
                  #:optional fabs.f32
-                 #:optional fabs.f64
+                 fabs.f64
                  ; ---- Boolean ----
                  TRUE
                  FALSE

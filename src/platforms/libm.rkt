@@ -53,7 +53,7 @@
 (define-platform tunable-64bit
                  #:literal [binary64 64bit-move-cost]
                  #:optional [*.f64 0.24512299999999976]
-                 #:optional [fabs.f64 0.14942199999999971]
+                 [fabs.f64 0.14942199999999971]
                  [+.f64 0.2174189999999998]
                  [-.f64 0.20265700000000008]
                  [/.f64 0.2962459999999998]
@@ -104,7 +104,7 @@
 (define-platform tunable-32bit
                  #:literal [binary32 32bit-move-cost]
                  #:optional [*.f32 0.256602]
-                 #:optional [fabs.f32 0.12464599999999992]
+                 [fabs.f32 0.12464599999999992]
                  [+.f32 0.200445]
                  [-.f32 0.19106800000000014]
                  [/.f32 0.3465330000000001]
