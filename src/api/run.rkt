@@ -76,7 +76,7 @@
                            (λ (out)
                              (define start (current-inexact-milliseconds))
                              (with-handlers ([exn:fail? (page-error-handler result page out)])
-                               (make-page-timeout page out result #t #f #:timeout 60000))
+                               (make-page-timeout page out result #t #f #:timeout 10000))
                              (hash-update! page-times page (curry + (- (current-inexact-milliseconds) start)) 0))))
 
   (define table-data (get-table-data-from-hash result report-path))
