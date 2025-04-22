@@ -74,11 +74,15 @@
     (call-with-output-file (build-path report-directory page)
                            #:exists 'replace
                            (λ (out)
+                             (define start (current-inexact-milliseconds))
                              (with-handlers ([exn:fail? (page-error-handler result page out)])
-                               (make-page-timeout page out result #t #f #:timeout 60000)))))
+                               (make-page-timeout page out result #t #f #:timeout 60000))
+                             (hash-update! page-times page (curry + (- (current-inexact-milliseconds) start)) 0))))
 
   (define table-data (get-table-data-from-hash result report-path))
   table-data)
+
+(define page-times (make-hash))
 
 (define (run-tests tests #:dir dir #:threads threads)
   (define seed (get-seed))
@@ -108,6 +112,7 @@
                [test-number (in-naturals)])
       (generate-bench-report job-result (test-name test) test-number dir (length tests))))
 
+  (define info-start (current-inexact-milliseconds))
   (define info (make-report-info results #:seed seed))
   (write-datafile (build-path dir "results.json") info)
   (copy-file (web-resource "report-page.js") (build-path dir "report-page.js") #t)
@@ -138,6 +143,7 @@
       (delete-directory/files (build-path dir subdir))))
 
   (define report-time (- (current-inexact-milliseconds) start job-time))
+  (define info-time (- (current-inexact-milliseconds) info-start))
 
   (define total-herbie (apply + (map (curryr hash-ref 'time) job-results)))
   (define total-profile (apply + (map (curryr hash-ref 'profile-time) job-results)))
@@ -148,7 +154,10 @@
   (eprintf "  Profile ~ax~as\n" threads (format-secs (/ total-profile threads)))
   (eprintf "  JSONify ~ax~as\n" threads (format-secs (/ total-json threads)))
   (eprintf "  Long-pole ~as\n" (format-secs long-pole-time))
-  (eprintf "  Report    ~as\n" (format-secs report-time)))
+  (eprintf "  Report    ~as\n" (format-secs report-time))
+  (eprintf "    Info    ~as\n" (format-secs info-time))
+  (for ([(page page-time) (in-hash page-times)])
+    (eprintf "    ~a ~as\n" page (format-secs page-time))))
 
 (define (format-secs x)
   (~r (/ x 1000) #:precision '(= 3) #:min-width 8))
