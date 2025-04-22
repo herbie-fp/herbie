@@ -41,14 +41,20 @@
   ; Immediately convert points to reals to handle posits
   (define ordinal-points
     (for/list ([point (in-list test-points)])
-      (for/list ([x (in-list point)] [repr (in-list (test-var-reprs test))])
+      (for/list ([x (in-list point)]
+                 [repr (in-list (test-var-reprs test))])
         ((representation-repr->ordinal repr) (json->value x repr)))))
 
   (define-values (mins maxs)
-    (for/fold ([mins #f] [maxs #f]) ([point (in-list ordinal-points)])
-      (values
-       (if mins (map min point mins) point)
-       (if maxs (map max point maxs) point))))
+    (for/fold ([mins #f]
+               [maxs #f])
+              ([point (in-list ordinal-points)])
+      (values (if mins
+                  (map min point mins)
+                  point)
+              (if maxs
+                  (map max point maxs)
+                  point))))
 
   (define vars (test-vars test))
   (define bits (representation-total-bits repr))

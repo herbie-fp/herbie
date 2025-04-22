@@ -71,13 +71,14 @@
     (make-directory report-directory))
 
   (for ([page (all-pages result)])
-    (call-with-output-file (build-path report-directory page)
-                           #:exists 'replace
-                           (λ (out)
-                             (define start (current-inexact-milliseconds))
-                             (with-handlers ([exn:fail? (page-error-handler result page out)])
-                               (make-page-timeout page out result #t #f #:timeout 10000))
-                             (hash-update! page-times page (curry + (- (current-inexact-milliseconds) start)) 0))))
+    (call-with-output-file
+     (build-path report-directory page)
+     #:exists 'replace
+     (λ (out)
+       (define start (current-inexact-milliseconds))
+       (with-handlers ([exn:fail? (page-error-handler result page out)])
+         (make-page-timeout page out result #t #f #:timeout 10000))
+       (hash-update! page-times page (curry + (- (current-inexact-milliseconds) start)) 0))))
 
   (define table-data (get-table-data-from-hash result report-path))
   table-data)
