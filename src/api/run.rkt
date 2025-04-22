@@ -85,6 +85,7 @@
   (unless (directory-exists? dir)
     (make-directory dir))
 
+  (define start (current-inexact-milliseconds))
   (start-job-server threads)
   (define job-ids
     (for/list ([test (in-list tests)])
@@ -98,6 +99,8 @@
       (define result (wait-for-job job-id))
       (print-test-result (+ test-number 1) total-tests test result)
       result))
+  (define job-time (- (current-inexact-milliseconds) start))
+
   (define results
     (for/list ([job-id (in-list job-ids)]
                [job-result (in-list job-results)]
@@ -132,7 +135,23 @@
   (define extra-dirs (filter (λ (name) (not (member name expected-dirs))) actual-dirs))
   (for ([subdir extra-dirs])
     (with-handlers ([exn:fail:filesystem? (const true)])
-      (delete-directory/files (build-path dir subdir)))))
+      (delete-directory/files (build-path dir subdir))))
+
+  (define report-time (- (current-inexact-milliseconds) start job-time))
+
+  (define total-herbie (apply + (map (curryr hash-ref 'time) job-results)))
+  (define total-profile (apply + (map (curryr hash-ref 'profile-time) job-results)))
+  (define total-json (apply + (map (curryr hash-ref 'json-time) job-results)))
+  (define long-pole-time (- job-time (/ (+ total-herbie total-profile total-json) threads)))
+  (eprintf "Total time  ~as\n" (format-secs (- (current-inexact-milliseconds) start)))
+  (eprintf "  Herbie  ~ax~as\n" threads (format-secs (/ total-herbie threads)))
+  (eprintf "  Profile ~ax~as\n" threads (format-secs (/ total-profile threads)))
+  (eprintf "  JSONify ~ax~as\n" threads (format-secs (/ total-json threads)))
+  (eprintf "  Long-pole ~as\n" (format-secs long-pole-time))
+  (eprintf "  Report    ~as\n" (format-secs report-time)))
+
+(define (format-secs x)
+  (~r (/ x 1000) #:precision '(= 3) #:min-width 8))
 
 (define (test<? t1 t2)
   (cond

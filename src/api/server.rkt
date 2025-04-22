@@ -161,11 +161,11 @@
 (define (herbie-do-server-job command job-id)
   (define start (current-inexact-milliseconds))
   (define herbie-result (wrapper-run-herbie command job-id))
-  (eprintf "[job] ~ams\n" (- (current-inexact-milliseconds) start))
+  (define herbie-time (- (current-inexact-milliseconds) start))
 
-  (set! start (current-inexact-milliseconds))
   (define basic-output ((get-json-converter command) herbie-result job-id))
-  (eprintf "[json] ~ams\n" (- (current-inexact-milliseconds) start))
+  (define total-time (- (current-inexact-milliseconds) start))
+
   ;; Add default fields that all commands have
   (hash-set* basic-output
              'job
@@ -180,6 +180,10 @@
              (~a (job-result-status herbie-result))
              'time
              (job-result-time herbie-result)
+             'profile-time
+             (- herbie-time (job-result-time herbie-result))
+             'json-time
+             (- total-time herbie-time)
              'warnings
              (job-result-warnings herbie-result)))
 

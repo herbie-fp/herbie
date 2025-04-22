@@ -34,11 +34,9 @@
 
 (define (make-page-timeout page out result-hash output? profile? #:timeout [timeout +inf.0])
   (define e (engine (lambda (_) (make-page page out result-hash output? profile?))))
-  (define start (current-inexact-milliseconds))
   (if (engine-run timeout e)
       (engine-result e)
-      (display "<!doctype html><h1>Timeout generating page</h1>" out))
-  (eprintf "[~a]: ~ams\n" page (- (current-inexact-milliseconds) start)))
+      (display "<!doctype html><h1>Timeout generating page</h1>" out)))
 
 (define (make-page page out result-hash output? profile?)
   (match page
