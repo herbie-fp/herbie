@@ -62,10 +62,10 @@
                        #:key (λ (x) (batchref-idx (alt-expr x)))))
 
   ; lower approximations
-  (define lowering-rules (platform-lowering-rules))
   (define simplify-rules (*simplify-rules*))
   (define schedule
-    `((lower . ((iteration . 1) (scheduler . simple))) (simplify-rules . ((node . ,(*node-limit*))))))
+    `((lower . ((iteration . 1) (scheduler . simple))) (,simplify-rules . ((node .
+                                                                                 ,(*node-limit*))))))
 
   (define exprs (map (compose debatchref alt-expr) approxs))
   (define roots (list->vector (map (compose batchref-idx alt-expr) approxs)))
