@@ -14,6 +14,7 @@
 (provide (struct-out test)
          test-context
          test-output-repr
+         test-var-reprs
          load-tests
          parse-test)
 
@@ -32,6 +33,9 @@
 
 (define (test-output-repr test)
   (get-representation (test-output-repr-name test)))
+
+(define (test-var-reprs test)
+  (map get-representation (map cdr (test-var-repr-names test))))
 
 (define (test-context test)
   (define output-repr (get-representation (test-output-repr-name test)))
