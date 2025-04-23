@@ -72,7 +72,11 @@
   (timeline-event! 'rewrite)
 
   ; generate required rules
-  (define rules (*rules*))
+
+  ;; TODO : Change in patch
+  ; (define rules (*rules*))
+  (define rules (*included-rules*))
+  
   (define lifting-rules (platform-lifting-rules))
   (define lowering-rules (platform-lowering-rules))
 

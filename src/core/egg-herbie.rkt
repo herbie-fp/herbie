@@ -166,8 +166,6 @@
       ['simple #t]
       [_ (error 'egraph-run "unknown scheduler: `~a`" scheduler)]))
 
-  ; (printf "simple_scheduler?: ~a\n" simple_scheduler?)
-
   (egraph_run (egraph-data-egraph-pointer egraph-data)
               ffi-rules
               iter_limit
