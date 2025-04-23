@@ -196,9 +196,10 @@
                              (define entry-ivals
                                (filter (λ (intrvl) (= (interval-alt-idx intrvl) idx)) intervals))
                              (map (curryr interval->string repr) entry-ivals)))
-            (prevs . ,(for/list ([entry prevs]
-                                 [new-pcontext (regimes-split-pcontext pcontext splitpoints prevs ctx)])
-                        (render-json entry new-pcontext ctx))))]
+            (prevs .
+                   ,(for/list ([entry prevs]
+                               [new-pcontext (regimes-split-pcontext pcontext splitpoints prevs ctx)])
+                      (render-json entry new-pcontext ctx))))]
 
     [(alt prog `(taylor ,loc ,pt ,var) `(,prev) _)
      `#hash((program . ,(fpcore->string (expr->fpcore prog ctx)))
