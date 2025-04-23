@@ -20,7 +20,7 @@
 
 (provide combine-alts
          (struct-out sp)
-         splitpoints->point-preds)
+         regimes-split-pcontext)
 
 (module+ test
   (require rackunit
@@ -185,35 +185,26 @@
             (sp (si-cidx si1) expr split-at))
           (list (sp (si-cidx (last sindices)) expr +nan.0))))
 
-(define/contract (splitpoints->point-preds splitpoints alts ctx)
-  (-> valid-splitpoints? (listof alt?) context? (listof procedure?))
-
+(define (regimes-split-pcontext pcontext splitpoints alts ctx)
   (define bexpr (sp-bexpr (car splitpoints)))
   (define ctx* (struct-copy context ctx [repr (repr-of bexpr ctx)]))
   (define prog (compile-prog bexpr ctx*))
 
-  (for/list ([i (in-naturals)]
-             [alt alts]) ;; alts necessary to terminate loop
-    (λ (pt)
-      (define val (prog pt))
-      (for/first ([right splitpoints]
-                  #:when (or (equal? (sp-point right) +nan.0)
-                             (<=/total val (sp-point right) (context-repr ctx*))))
-        ;; Note that the last splitpoint has an sp-point of +nan.0, so we always find one
-        (equal? (sp-cidx right) i)))))
+  (define pts-vector (make-vector (length alts) '()))
+  (define exs-vector (make-vector (length alts) '()))
 
-(module+ test
-  (define context (make-debug-context '(x y)))
-  (parameterize ([*start-prog* '(/.f64 x y)])
-    (define sps
-      (list (sp 0 '(/.f64 y x) -inf.0)
-            (sp 2 '(/.f64 y x) 0.0)
-            (sp 0 '(/.f64 y x) +inf.0)
-            (sp 1 '(/.f64 y x) +nan.0)))
-    (match-define (list p0? p1? p2?)
-      (splitpoints->point-preds sps (map make-alt (build-list 3 (const '(λ (x y) (/ x y))))) context))
+  (for ([(pt ex) (in-pcontext pcontext)])
+    (define val (prog pt))
+    (for/first ([right (in-list splitpoints)]
+                #:when (or (equal? (sp-point right) +nan.0)
+                           (<=/total val (sp-point right) (context-repr ctx*))))
+      ;; Note that the last splitpoint has an sp-point of +nan.0, so we always find one
+      (vector-set! pts-vector (sp-cidx right) (cons pt (vector-ref pts-vector (sp-cidx right))))
+      (vector-set! exs-vector (sp-cidx right) (cons ex (vector-ref exs-vector (sp-cidx right))))))
 
-    (check-pred p0? #(0.0 -1.0))
-    (check-pred p2? #(-1.0 1.0))
-    (check-pred p0? #(+1.0 1.0))
-    (check-pred p1? #(0.0 0.0))))
+  (for/list ([sp (in-list splitpoints)])
+    (define pts (reverse (vector-ref pts-vector (sp-cidx sp))))
+    (define exs (reverse (vector-ref exs-vector (sp-cidx sp))))
+    (if (null? pts)
+        pcontext
+        (mk-pcontext pts exs))))
