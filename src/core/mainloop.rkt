@@ -173,8 +173,10 @@
                      (define start-expr (get-starting-expr altn))
                      (for ([full-altn (in-list (^next-alts^))])
                        (define expr (alt-expr full-altn))
-                       (for ([loc (in-list (get-locations expr start-expr))])
-                         (sow (reconstruct-alt altn loc full-altn)))))))
+                       (sow
+                        (for/fold ([full-altn full-altn])
+                                  ([loc (in-list (get-locations expr start-expr))])
+                          (reconstruct-alt altn loc full-altn)))))))
 
   (void))
 
