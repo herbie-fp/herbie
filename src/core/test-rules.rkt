@@ -35,26 +35,39 @@
   (define itypes (map type->repr (dict-values env)))
   (context vars (type->repr out) itypes))
 
+(define (extract-point v)
+  (match v
+    [#f #f]
+    [(list v*) v*]
+    [_ (error "Uknown Rival's result")]))
+
 (define (check-rule-sound test-rule)
   (match-define (rule name p1 p2 env out tags) test-rule)
   (define ctx (env->ctx env out))
 
-  (match-define (list pts exs)
-    (parameterize ([*num-points* (num-test-points)]
-                   [*max-find-range-depth* 0])
-      (sample-points '(TRUE) (list p1) (list ctx))))
+  ; Random sampling
+  (define-values (sampler) (λ () (vector-map random-generate (list->vector (context-var-reprs ctx)))))
 
-  (define compiler (make-real-compiler (list p2) (list ctx)))
-  (for ([pt (in-list pts)]
-        [v1 (in-list exs)])
-    (with-check-info* (map make-check-info (context-vars ctx) (vector->list pt))
-                      (λ ()
-                        (define-values (status v2) (real-apply compiler pt))
-                        (with-check-info (['lhs v1] ['rhs v2] ['status status])
-                                         (when (and (real? v2)
-                                                    (nan? v2)
-                                                    (not (set-member? '(exit unsamplable) status)))
-                                           (fail "Right hand side returns NaN")))))))
+  (define compiler1 (make-real-compiler (list p1) (list ctx)))
+  (define compiler2 (make-real-compiler (list p2) (list ctx)))
+
+  (for ([n (in-range (num-test-points))])
+    (define pt (sampler))
+    (define-values (status1 v1) (real-apply compiler1 pt))
+    (define-values (status2 v2) (real-apply compiler2 pt))
+    (set! v1 (extract-point v1))
+    (set! v2 (extract-point v2))
+
+    (with-check-info
+     (['rule test-rule] ['pt pt] ['lhs v1] ['rhs v2] ['lhs-status status1] ['rhs-status status2])
+     (when (or (and (set-member? '(exit valid) status1) ; Range shrinking!
+                    (equal? 'invalid status2))
+               (and (equal? 'valid status1) ; Different results for valid points
+                    (equal? 'valid status2)
+                    (and (not (equal? v1 v2))
+                         (and (not (equal? v1 0.0)) (not (equal? v2 -0.0)))
+                         (and (not (equal? v1 -0.0)) (not (equal? v2 0.0))))))
+       (fail "Rule is unsound")))))
 
 (define (check-rule-correct test-rule)
   (match-define (rule name p1 p2 env out tags) test-rule)
