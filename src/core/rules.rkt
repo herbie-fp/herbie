@@ -7,6 +7,7 @@
 
 (provide *rules*
          *simplify-rules*
+         *sound-rules*
          (struct-out rule))
 
 ;; A rule represents "find-and-replacing" `input` by `output`. Both
@@ -29,6 +30,9 @@
 
 (define (*simplify-rules*)
   (filter (conjoin rule-enabled? (has-tag? 'simplify)) *all-rules*))
+
+(define (*sound-rules*)
+  (filter (conjoin rule-enabled? (has-tag? 'sound)) *all-rules*))
 
 ;;
 ;;  Rule loading
@@ -792,12 +796,15 @@
                  [asinh-def-rev (log (+ x (sqrt (+ (* x x) 1)))) (asinh x)]
                  [atanh-def-rev (/ (log (/ (+ 1 x) (- 1 x))) 2) (atanh x)]
                  [acosh-def-rev (log (+ x (sqrt (- (* x x) 1)))) (acosh x)]
-                 [sinh-acosh-rev (sqrt (- (* x x) 1)) (sinh (acosh x))]
                  [tanh-asinh-rev (/ x (sqrt (+ 1 (* x x)))) (tanh (asinh x))]
                  [cosh-asinh-rev (sqrt (+ (* x x) 1)) (cosh (asinh x))]
                  [sinh-atanh-rev (/ x (sqrt (- 1 (* x x)))) (sinh (atanh x))]
-                 [tanh-acosh-rev (/ (sqrt (- (* x x) 1)) x) (tanh (acosh x))]
                  [cosh-atanh-rev (/ 1 (sqrt (- 1 (* x x)))) (cosh (atanh x))])
+(define-ruleset* ahtrig-expand-sound-simplify-rev-unsound
+                 (hyperbolic)
+                 #:type ([x real])
+                 [sinh-acosh-rev (sqrt (- (* x x) 1)) (sinh (acosh x))]
+                 [tanh-acosh-rev (/ (sqrt (- (* x x) 1)) x) (tanh (acosh x))])
 
 (define-ruleset* ahtrig-expand
                  (hyperbolic)
