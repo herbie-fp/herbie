@@ -118,10 +118,11 @@
             [(alt prog `(rr ,loc ,input ,proof) `(,prev) _)
              (loop prev pcontext)
 
-             (for ([step proof])
-               (define-values (dir rule loc expr) (splice-proof-step step))
-               (when (impl-prog? expr)
-                 (sow (cons expr pcontext))))]))))
+             (when proof
+               (for ([step proof])
+                 (define-values (dir rule loc expr) (splice-proof-step step))
+                 (when (impl-prog? expr)
+                   (sow (cons expr pcontext))))])))))
 
 ;; HTML renderer for derivations
 (define/contract (render-history altn pcontext ctx errcache)
