@@ -106,6 +106,8 @@
       result))
   (define job-time (- (current-inexact-milliseconds) start))
 
+  (dump-profile)
+
   (define results
     (for/list ([job-id (in-list job-ids)]
                [job-result (in-list job-results)]

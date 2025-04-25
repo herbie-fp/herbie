@@ -1,5 +1,8 @@
 #lang racket
 
+(require profile
+         "../utils/profile.rkt"
+         json)
 (require openssl/sha1)
 (require (only-in xml write-xexpr))
 
@@ -33,6 +36,7 @@
          start-job-server
          write-results-to-disk
          *demo-output*
+         dump-profile
          alt->fpcore)
 
 (define (warn-single-threaded-mpfr)
@@ -158,12 +162,29 @@
     ['sample make-sample-result]
     [_ (error 'compute-result "unknown command ~a" command)]))
 
+(define json-profile #f)
+
+(define (dump-profile)
+  (when json-profile
+    (call-with-output-file "reports/json-profile.json"
+                           #:exists 'replace
+                           (lambda (p) (write-json (profile->json json-profile) p)))))
+
 (define (herbie-do-server-job command job-id)
   (define start (current-inexact-milliseconds))
   (define herbie-result (wrapper-run-herbie command job-id))
   (define herbie-time (- (current-inexact-milliseconds) start))
 
-  (define basic-output ((get-json-converter command) herbie-result job-id))
+
+  (define basic-output
+    (profile-thunk (lambda () ((get-json-converter command) herbie-result job-id))
+                   #:order 'total
+                   #:delay 0.01
+                   #:render (lambda (p order)
+                              (set! json-profile
+                                    (if json-profile
+                                        (profile-merge p json-profile)
+                                        p)))))
   (define total-time (- (current-inexact-milliseconds) start))
 
   ;; Add default fields that all commands have
