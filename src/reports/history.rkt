@@ -98,22 +98,20 @@
 
 (define (collect-expressions altn pcontext ctx)
   (reap [sow]
-        (let loop ([altn altn] [pcontext pcontext])
+        (let loop ([altn altn]
+                   [pcontext pcontext])
           (when (impl-prog? (alt-expr altn))
             (sow (cons (alt-expr altn) pcontext)))
 
           (match altn
-            [(alt prog 'start (list) _)
-             (void)]
-            [(alt prog 'add-preprocessing `(,prev) _)
-             (loop prev pcontext)]
+            [(alt prog 'start (list) _) (void)]
+            [(alt prog 'add-preprocessing `(,prev) _) (loop prev pcontext)]
             [(alt _ `(regimes ,splitpoints) prevs _)
              (for ([entry prevs]
                    [new-pcontext (regimes-split-pcontext pcontext splitpoints prevs ctx)])
                (loop entry new-pcontext))]
 
-            [(alt prog `(taylor ,loc ,pt ,var) `(,prev) _)
-             (loop prev pcontext)]
+            [(alt prog `(taylor ,loc ,pt ,var) `(,prev) _) (loop prev pcontext)]
 
             [(alt prog `(rr ,loc ,input ,proof) `(,prev) _)
              (loop prev pcontext)
@@ -122,7 +120,7 @@
                (for ([step proof])
                  (define-values (dir rule loc expr) (splice-proof-step step))
                  (when (impl-prog? expr)
-                   (sow (cons expr pcontext))))])))))
+                   (sow (cons expr pcontext)))))]))))
 
 ;; HTML renderer for derivations
 (define/contract (render-history altn pcontext ctx errcache)
