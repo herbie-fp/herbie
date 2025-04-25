@@ -1222,6 +1222,8 @@
     (timeline-push! 'stop (~a (egraph-stop-reason egg-graph)) 1)
     (cond
       [(egraph-is-unsound-detected egg-graph)
+       (unsoundness #t)
+       (printf "Unsoundness detected for iteration ~a\n" (length iteration-data))
        ; unsoundness means run again with less iterations
        (define num-iters (length iteration-data))
        (if (<= num-iters 1) ; nothing to fall back on
@@ -1246,6 +1248,7 @@
                         [`lower (platform-lowering-rules)]
                         [else rules])))
       (define-values (egg-graph* iteration-data) (egraph-run-rules egg-graph egg-rules params))
+      (printf "Final egraph contains ~a iterations\n" (length iteration-data))
 
       ; get cost statistics
       (for ([iter (in-list iteration-data)]
@@ -1397,3 +1400,87 @@
   ; commit changes to the batch
   (finalize-batch)
   out)
+
+(define (check-rewrite-exists a b #:sound [sound #t])
+  (if sound
+      (printf "Using only sound rules\n")
+      (printf "Using all the rules\n"))
+  (define batch (progs->batch (list a)))
+  (define vars (free-variables a))
+  (define rules
+    (if sound
+        (*sound-rules*)
+        (*rules*)))
+  (define schedule `((,rules . ((node . 1000000000)))))
+  (define runner (make-egraph batch (batch-roots batch) (map (const 'binary64) vars) schedule))
+  (egraph-variations runner batch)
+  (printf "Stop reason: ~a\n" (egraph-stop-reason (egg-runner-egg-graph runner)))
+  (printf "Proof: \n")
+  (pretty-print (egraph-prove runner a b)))
+
+(define unsoundness (make-parameter #f))
+(define (find-unsound-rule a b #:sound [sound #t])
+  (if sound
+      (printf "Using only sound rules\n")
+      (printf "Using all the rules\n"))
+  (define batch (progs->batch (list a)))
+  (define vars (free-variables a))
+  (define rules
+    (if sound
+        (*sound-rules*)
+        (*rules*)))
+  (for ([rule (in-list rules)])
+    (unsoundness #f)
+    (define rules* (remove rule rules))
+    (define schedule `((,rules* . ((node . 1000000000)))))
+    (define runner (make-egraph batch (batch-roots batch) (map (const 'binary64) vars) schedule))
+    (egraph-variations runner batch)
+    (println rule)
+    (unless (unsoundness)
+      (println rule))))
+
+#;(module+ test
+    (require "sampling.rkt"
+             "../utils/float.rkt"
+             "rival.rkt")
+    (define rules (*sound-rules*))
+    (define number-samples 10000)
+    (define unsound-points-print-limit 10)
+
+    (for ([rule (in-list rules)])
+      (define unsound-points-print-count 0)
+      ; rule a -> b
+      (define a (rule-input rule))
+      (define b (rule-output rule))
+      (printf "~a, ~a -> ~a\n" rule a b)
+
+      (define vars (remove-duplicates (append (free-variables a) (free-variables b))))
+      (define default-context (make-debug-context vars))
+
+      (define a-compiler (make-real-compiler (list a) (list default-context)))
+      (define b-compiler (make-real-compiler (list b) (list default-context)))
+      (define-values (sampler)
+        (λ () (vector-map random-generate (list->vector (context-var-reprs default-context)))))
+
+      (define unsound-points (make-hash))
+      (define unsound #f)
+      (for ([n (in-range number-samples)])
+        (define pt (sampler))
+        (define-values (a-status a-ex)
+          (with-handlers ([exn:fail:contract? (λ (e) (values #f #f))])
+            (real-apply a-compiler pt)))
+        (define-values (b-status b-ex)
+          (with-handlers ([exn:fail:contract? (λ (e) (values #f #f))])
+            (real-apply b-compiler pt)))
+
+        (when (and (not (equal? a-ex b-ex))
+                   (not (hash-has-key? unsound-points (list a-ex b-ex)))
+                   (< unsound-points-print-count unsound-points-print-limit))
+          (printf "pt=~a, a-ex=~a, b-ex=~a\n" pt a-ex b-ex)
+          (hash-set! unsound-points (list a-ex b-ex) #t)
+          (set! unsound-points-print-count (add1 unsound-points-print-count))
+          (set! unsound #t)))
+
+      (when unsound
+        (printf "~a is UNSOUND!\n" rule))
+      (printf "\n")))
