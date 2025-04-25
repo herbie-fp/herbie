@@ -233,7 +233,7 @@
 
 (define-ruleset* fractions-distribute-rev
                  (fractions simplify sound)
-                 #:type ([a real] [b real] [c real] [d real])
+                 #:type ([a real] [b real] [c real])
                  [div-add-rev (+ (/ a c) (/ b c)) (/ (+ a b) c)])
 
 (define-ruleset* fractions-transform
@@ -247,7 +247,7 @@
 
 (define-ruleset* fractions-transform-rev
                  (fractions sound)
-                 #:type ([a real] [b real] [c real] [d real])
+                 #:type ([a real] [b real])
                  [frac-2neg-rev (/ (neg a) (neg b)) (/ a b)])
 
 ; Square root
@@ -376,7 +376,7 @@
                  [exp-lft-cube (exp (* a 3)) (pow (exp a) 3)])
 (define-ruleset* exp-factor-rev
                  (exponents simplify sound)
-                 #:type ([a real] [b real])
+                 #:type ([a real])
                  [exp-cbrt-rev (cbrt (exp a)) (exp (/ a 3))]
                  [exp-lft-cube-rev (pow (exp a) 3) (exp (* a 3))]
                  [exp-sqrt-rev (sqrt (exp a)) (exp (/ a 2))]
@@ -449,7 +449,7 @@
 
 (define-ruleset* log-distribute-sound
                  (exponents simplify sound)
-                 #:type ([a real] [b real])
+                 #:type ([a real])
                  [log-rec (log (/ 1 a)) (neg (log a))]
                  [log-E (log (E)) 1])
 
@@ -566,7 +566,7 @@
 
 (define-ruleset* trig-reduce-expressions-rev
                  (trigonometry simplify sound)
-                 #:type ([a real] [b real] [x real])
+                 #:type ([a real] [x real])
                  [1-sub-sin-rev (* (cos a) (cos a)) (- 1 (* (sin a) (sin a)))]
                  ;[hang-m0-tan-rev (tan (/ (neg a) 2)) (/ (- 1 (cos a)) (neg (sin a)))]
                  ;[hang-p0-tan-rev (tan (/ a 2)) (/ (- 1 (cos a)) (sin a))]
@@ -580,19 +580,19 @@
 
 (define-ruleset* trig-reduce
                  (trigonometry)
-                 #:type ([a real] [b real] [x real])
+                 #:type ([x real])
                  [neg-tan-+PI/2 (tan (+ x (/ (PI) 2))) (/ -1 (tan x))]
                  [tan-+PI/2 (tan (+ (neg x) (/ (PI) 2))) (/ 1 (tan x))])
 
 (define-ruleset* trig-reduce-rev
                  (trigonometry)
-                 #:type ([a real] [b real] [x real])
+                 #:type ([x real])
                  [neg-tan-+PI/2-rev (/ -1 (tan x)) (tan (+ x (/ (PI) 2)))]
                  [tan-+PI/2-rev (/ 1 (tan x)) (tan (+ (neg x) (/ (PI) 2)))])
 
 (define-ruleset* trig-expand-sound
                  (trigonometry sound)
-                 #:type ([x real] [y real] [a real] [b real])
+                 #:type ([x real] [y real])
                  [sin-sum (sin (+ x y)) (+ (* (sin x) (cos y)) (* (cos x) (sin y)))]
                  [cos-sum (cos (+ x y)) (- (* (cos x) (cos y)) (* (sin x) (sin y)))]
                  [tan-sum (tan (+ x y)) (/ (+ (tan x) (tan y)) (- 1 (* (tan x) (tan y))))]
@@ -609,7 +609,7 @@
 
 (define-ruleset* trig-expand-sound-rev
                  (trigonometry sound)
-                 #:type ([x real] [y real] [a real] [b real])
+                 #:type ([x real] [y real])
                  [cos-diff-rev (+ (* (cos x) (cos y)) (* (sin x) (sin y))) (cos (- x y))]
                  [sin-diff-rev (- (* (sin x) (cos y)) (* (cos x) (sin y))) (sin (- x y))]
                  [sin-sum-rev (+ (* (sin x) (cos y)) (* (cos x) (sin y))) (sin (+ x y))]
@@ -618,7 +618,7 @@
 
 (define-ruleset* trig-expand-sound2
                  (trigonometry sound)
-                 #:type ([x real] [y real] [a real] [b real])
+                 #:type ([x real] [y real])
                  [sqr-sin-a (* (sin x) (sin x)) (- 1/2 (* 1/2 (cos (* 2 x))))]
                  [sqr-cos-a (* (cos x) (cos x)) (+ 1/2 (* 1/2 (cos (* 2 x))))]
                  [diff-sin (- (sin x) (sin y)) (* 2 (* (sin (/ (- x y) 2)) (cos (/ (+ x y) 2))))]
@@ -755,7 +755,7 @@
 
 (define-ruleset* htrig-expand
                  (hyperbolic)
-                 #:type ([x real] [y real])
+                 #:type ([x real])
                  [tanh-1/2* (tanh (/ x 2)) (/ (- (cosh x) 1) (sinh x))]
                  [tanh-1/2*-rev (/ (- (cosh x) 1) (sinh x)) (tanh (/ x 2))])
 

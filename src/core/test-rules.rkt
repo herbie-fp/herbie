@@ -70,6 +70,7 @@
   ; Rule's data
   (match-define (rule name p1 p2 env out tags) test-rule)
   (define ctx (env->ctx env out))
+  (define number-of-vars (length (context-vars ctx)))
 
   ; Compilers + random sampler
   (define-values (sampler) (λ () (vector-map random-generate (list->vector (context-var-reprs ctx)))))
@@ -79,8 +80,21 @@
   ; Soundness for some common cases with simple integers
   ; Only for rules where every input var's repr is not 'bool
   (when (andmap (λ (x) (not (equal? 'bool (representation-name x)))) (context-var-reprs ctx))
-    (define number-of-vars (length (context-vars ctx)))
     (define pt-combinations (combinations (range -10 10 1) number-of-vars))
+    (for ([pt (in-list pt-combinations)])
+      (set! cnt (+ cnt (eval-check-sound compiler1 compiler2 (list->vector pt) test-rule)))))
+
+  ; Soundness for some common cases with pi, pi/2 etc
+  ; Only for rules where every input var's repr is not 'bool
+  (when (andmap (λ (x) (not (equal? 'bool (representation-name x)))) (context-var-reprs ctx))
+    (define pt-combinations (combinations (map degrees->radians (range 0 361 15)) number-of-vars))
+    (for ([pt (in-list pt-combinations)])
+      (set! cnt (+ cnt (eval-check-sound compiler1 compiler2 (list->vector pt) test-rule)))))
+
+  ; Soundness for some common cases with exp, 0, 1
+  ; Only for rules where every input var's repr is not 'bool
+  (when (andmap (λ (x) (not (equal? 'bool (representation-name x)))) (context-var-reprs ctx))
+    (define pt-combinations (combinations (list 0 1 (exp 1)) number-of-vars))
     (for ([pt (in-list pt-combinations)])
       (set! cnt (+ cnt (eval-check-sound compiler1 compiler2 (list->vector pt) test-rule)))))
 
@@ -110,7 +124,7 @@
                                          (check-eq? (ulp-difference v1 v2 (context-repr ctx)) 1))))))
 
 (define (check-rule rule)
-  #;(check-rule-correct rule)
+  (check-rule-correct rule)
   (when (set-member? (rule-tags rule) 'sound)
     (check-rule-sound rule)))
 
