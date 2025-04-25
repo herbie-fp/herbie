@@ -87,7 +87,7 @@
                  [associate-*r/ (* a (/ b c)) (/ (* a b) c)]
                  [associate-*l/ (* (/ a b) c) (/ (* a c) b)]
                  [associate-/r* (/ a (* b c)) (/ (/ a b) c)]
-                 [associate-/r/ (/ a (/ b c)) (* (/ a b) c)]
+                 ;[associate-/r/ (/ a (/ b c)) (* (/ a b) c)]
                  [associate-/l/ (/ (/ b c) a) (/ b (* c a))]
                  [associate-/l* (/ (* b c) a) (* b (/ c a))])
 
@@ -95,14 +95,14 @@
 (define-ruleset* id-reduce
                  (arithmetic simplify sound)
                  #:type ([a real])
-                 [remove-double-div (/ 1 (/ 1 a)) a]
-                 [rgt-mult-inverse (* a (/ 1 a)) 1]
-                 [lft-mult-inverse (* (/ 1 a) a) 1]
+                 ;[remove-double-div (/ 1 (/ 1 a)) a]
+                 ;[rgt-mult-inverse (* a (/ 1 a)) 1]
+                 ;[lft-mult-inverse (* (/ 1 a) a) 1]
                  [+-inverses (- a a) 0]
-                 [div0 (/ 0 a) 0]
+                 ;[div0 (/ 0 a) 0]
                  [mul0-lft (* 0 a) 0]
                  [mul0-rgt (* a 0) 0]
-                 [*-inverses (/ a a) 1]
+                 ;[*-inverses (/ a a) 1]
                  [+-lft-identity (+ 0 a) a]
                  [+-rgt-identity (+ a 0) a]
                  [--rgt-identity (- a 0) a]
@@ -254,7 +254,7 @@
 (define-ruleset* squares-reduce
                  (arithmetic simplify sound)
                  #:type ([x real])
-                 [rem-square-sqrt (* (sqrt x) (sqrt x)) x]
+                 ;[rem-square-sqrt (* (sqrt x) (sqrt x)) x]
                  [rem-sqrt-square (sqrt (* x x)) (fabs x)]
                  [rem-sqrt-square-rev (fabs x) (sqrt (* x x))])
 
@@ -288,7 +288,8 @@
                  [div-fabs (/ (fabs a) (fabs b)) (fabs (/ a b))])
 
 (define-ruleset* squares-transform-sound
-                 (arithmetic sound)
+                 (arithmetic
+                  #;sound)
                  #:type ([x real] [y real])
                  [sqrt-pow2 (pow (sqrt x) y) (pow x (/ y 2))]
                  [sqrt-unprod (* (sqrt x) (sqrt y)) (sqrt (* x y))]
@@ -345,7 +346,7 @@
 (define-ruleset* exp-reduce
                  (exponents simplify sound)
                  #:type ([x real])
-                 [rem-exp-log (exp (log x)) x]
+                 ;[rem-exp-log (exp (log x)) x]
                  [rem-log-exp (log (exp x)) x])
 
 (define-ruleset* exp-constants
@@ -396,7 +397,7 @@
 (define-ruleset* pow-canonicalize
                  (exponents simplify sound)
                  #:type ([a real] [b real])
-                 [exp-to-pow (exp (* (log a) b)) (pow a b)]
+                 ;[exp-to-pow (exp (* (log a) b)) (pow a b)]
                  [unpow1/2 (pow a 1/2) (sqrt a)]
                  [unpow2 (pow a 2) (* a a)]
                  [unpow3 (pow a 3) (* (* a a) a)]
@@ -412,11 +413,11 @@
                  (exponents sound)
                  #:type ([a real] [b real] [c real])
                  [pow-exp (pow (exp a) b) (exp (* a b))]
-                 [pow-prod-down (* (pow b a) (pow c a)) (pow (* b c) a)]
-                 [pow-prod-up (* (pow a b) (pow a c)) (pow a (+ b c))]
+                 ;[pow-prod-down (* (pow b a) (pow c a)) (pow (* b c) a)]
+                 ;[pow-prod-up (* (pow a b) (pow a c)) (pow a (+ b c))]
                  [pow-flip (/ 1 (pow a b)) (pow a (neg b))]
                  [pow-neg (pow a (neg b)) (/ 1 (pow a b))]
-                 [pow-div (/ (pow a b) (pow a c)) (pow a (- b c))])
+                 #;[pow-div (/ (pow a b) (pow a c)) (pow a (- b c))])
 
 (define-ruleset* pow-specialize-sound
                  (exponents sound)
@@ -437,7 +438,7 @@
                  [unpow-prod-down (pow (* b c) a) (* (pow b a) (pow c a))])
 
 (define-ruleset* pow-transform-fp-safe-nan
-                 (exponents simplify sound)
+                 (exponents simplify #;sound)
                  #:type ([a real])
                  [pow-base-0 (pow 0 a) 0])
 
@@ -468,8 +469,8 @@
 (define-ruleset* log-factor
                  (exponents sound)
                  #:type ([a real] [b real])
-                 [sum-log (+ (log a) (log b)) (log (* a b))]
-                 [diff-log (- (log a) (log b)) (log (/ a b))]
+                 #;[sum-log (+ (log a) (log b)) (log (* a b))]
+                 #;[diff-log (- (log a) (log b)) (log (/ a b))]
                  [neg-log (neg (log a)) (log (/ 1 a))])
 
 ; Trigonometry
@@ -505,8 +506,8 @@
  trig-inverses
  (trigonometry sound)
  #:type ([x real])
- [sin-asin (sin (asin x)) x]
- [cos-acos (cos (acos x)) x]
+ ;[sin-asin (sin (asin x)) x]
+ ;[cos-acos (cos (acos x)) x]
  [tan-atan (tan (atan x)) x]
  [atan-tan (atan (tan x)) (remainder x (PI))]
  [asin-sin (asin (sin x)) (- (fabs (remainder (+ x (/ (PI) 2)) (* 2 (PI)))) (/ (PI) 2))]
@@ -558,8 +559,8 @@
                  [tan-+PI (tan (+ x (PI))) (tan x)]
                  [hang-0p-tan (/ (sin a) (+ 1 (cos a))) (tan (/ a 2))]
                  [hang-0m-tan (/ (neg (sin a)) (+ 1 (cos a))) (tan (/ (neg a) 2))]
-                 [hang-p0-tan (/ (- 1 (cos a)) (sin a)) (tan (/ a 2))]
-                 [hang-m0-tan (/ (- 1 (cos a)) (neg (sin a))) (tan (/ (neg a) 2))]
+                 ;[hang-p0-tan (/ (- 1 (cos a)) (sin a)) (tan (/ a 2))]
+                 ;[hang-m0-tan (/ (- 1 (cos a)) (neg (sin a))) (tan (/ (neg a) 2))]
                  [hang-p-tan (/ (+ (sin a) (sin b)) (+ (cos a) (cos b))) (tan (/ (+ a b) 2))]
                  [hang-m-tan (/ (- (sin a) (sin b)) (+ (cos a) (cos b))) (tan (/ (- a b) 2))])
 
@@ -567,8 +568,8 @@
                  (trigonometry simplify sound)
                  #:type ([a real] [b real] [x real])
                  [1-sub-sin-rev (* (cos a) (cos a)) (- 1 (* (sin a) (sin a)))]
-                 [hang-m0-tan-rev (tan (/ (neg a) 2)) (/ (- 1 (cos a)) (neg (sin a)))]
-                 [hang-p0-tan-rev (tan (/ a 2)) (/ (- 1 (cos a)) (sin a))]
+                 ;[hang-m0-tan-rev (tan (/ (neg a) 2)) (/ (- 1 (cos a)) (neg (sin a)))]
+                 ;[hang-p0-tan-rev (tan (/ a 2)) (/ (- 1 (cos a)) (sin a))]
                  [hang-0m-tan-rev (tan (/ (neg a) 2)) (/ (neg (sin a)) (+ 1 (cos a)))]
                  [hang-0p-tan-rev (tan (/ a 2)) (/ (sin a) (+ 1 (cos a)))]
                  [tan-+PI-rev (tan x) (tan (+ x (PI)))]
@@ -659,9 +660,9 @@
                  (trigonometry sound)
                  #:type ([x real])
                  [cos-asin (cos (asin x)) (sqrt (- 1 (* x x)))]
-                 [tan-asin (tan (asin x)) (/ x (sqrt (- 1 (* x x))))]
+                 ;[tan-asin (tan (asin x)) (/ x (sqrt (- 1 (* x x))))]
                  [sin-acos (sin (acos x)) (sqrt (- 1 (* x x)))]
-                 [tan-acos (tan (acos x)) (/ (sqrt (- 1 (* x x))) x)]
+                 ;[tan-acos (tan (acos x)) (/ (sqrt (- 1 (* x x))) x)]
                  [sin-atan (sin (atan x)) (/ x (sqrt (+ 1 (* x x))))]
                  [cos-atan (cos (atan x)) (/ 1 (sqrt (+ 1 (* x x))))]
                  [asin-acos (asin x) (- (/ (PI) 2) (acos x))]
@@ -679,8 +680,8 @@
                  [atan-neg-rev (neg (atan x)) (atan (neg x))]
                  [acos-neg-rev (- (PI) (acos x)) (acos (neg x))]
                  [cos-atan-rev (/ 1 (sqrt (+ 1 (* x x)))) (cos (atan x))]
-                 [tan-acos-rev (/ (sqrt (- 1 (* x x))) x) (tan (acos x))]
-                 [tan-asin-rev (/ x (sqrt (- 1 (* x x)))) (tan (asin x))]
+                 ;[tan-acos-rev (/ (sqrt (- 1 (* x x))) x) (tan (acos x))]
+                 ;[tan-asin-rev (/ x (sqrt (- 1 (* x x)))) (tan (asin x))]
                  [cos-asin-rev (sqrt (- 1 (* x x))) (cos (asin x))]
                  [sin-atan-rev (/ x (sqrt (+ 1 (* x x)))) (sin (atan x))]
                  [sin-acos-rev (sqrt (- 1 (* x x))) (sin (acos x))])
@@ -781,14 +782,14 @@
                  [acosh-def (acosh x) (log (+ x (sqrt (- (* x x) 1))))]
                  [atanh-def (atanh x) (/ (log (/ (+ 1 x) (- 1 x))) 2)]
                  [sinh-asinh (sinh (asinh x)) x]
-                 [sinh-acosh (sinh (acosh x)) (sqrt (- (* x x) 1))]
+                 ;[sinh-acosh (sinh (acosh x)) (sqrt (- (* x x) 1))]
                  [sinh-atanh (sinh (atanh x)) (/ x (sqrt (- 1 (* x x))))]
                  [cosh-asinh (cosh (asinh x)) (sqrt (+ (* x x) 1))]
-                 [cosh-acosh (cosh (acosh x)) x]
+                 ;[cosh-acosh (cosh (acosh x)) x]
                  [cosh-atanh (cosh (atanh x)) (/ 1 (sqrt (- 1 (* x x))))]
                  [tanh-asinh (tanh (asinh x)) (/ x (sqrt (+ 1 (* x x))))]
-                 [tanh-acosh (tanh (acosh x)) (/ (sqrt (- (* x x) 1)) x)]
-                 [tanh-atanh (tanh (atanh x)) x])
+                 ;[tanh-acosh (tanh (acosh x)) (/ (sqrt (- (* x x) 1)) x)]
+                 #;[tanh-atanh (tanh (atanh x)) x])
 
 (define-ruleset* ahtrig-expand-sound-simplify-rev
                  (hyperbolic sound)
