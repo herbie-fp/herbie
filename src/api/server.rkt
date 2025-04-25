@@ -175,7 +175,6 @@
   (define herbie-result (wrapper-run-herbie command job-id))
   (define herbie-time (- (current-inexact-milliseconds) start))
 
-
   (define basic-output
     (profile-thunk (lambda () ((get-json-converter command) herbie-result job-id))
                    #:order 'total
