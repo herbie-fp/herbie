@@ -106,8 +106,6 @@
       result))
   (define job-time (- (current-inexact-milliseconds) start))
 
-  (dump-profile)
-
   (define results
     (for/list ([job-id (in-list job-ids)]
                [job-result (in-list job-results)]
@@ -129,6 +127,7 @@
                          #:exists 'replace)
   (define profile (merge-profile-jsons (read-json-files info dir "profile.json")))
   (call-with-output-file (build-path dir "profile.json") (curry write-json profile) #:exists 'replace)
+  (call-with-output-file (build-path dir "jsonify-profile.json") dump-profile #:exists 'replace)
 
   (call-with-output-file
    (build-path dir "timeline.html")

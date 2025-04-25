@@ -164,11 +164,9 @@
 
 (define json-profile #f)
 
-(define (dump-profile)
+(define (dump-profile p)
   (when json-profile
-    (call-with-output-file "json-profile.json"
-                           #:exists 'replace
-                           (lambda (p) (write-json (profile->json json-profile) p)))))
+    (write-json (profile->json json-profile) p)))
 
 (define (herbie-do-server-job command job-id)
   (define start (current-inexact-milliseconds))
