@@ -17,23 +17,6 @@
 (provide render-history
          render-json)
 
-(define (split-pcontext pcontext splitpoints alts ctx)
-  (define preds (splitpoints->point-preds splitpoints alts ctx))
-
-  (for/list ([pred preds])
-    (define-values (pts* exs*)
-      (for/lists (pts exs) ([(pt ex) (in-pcontext pcontext)] #:when (pred pt)) (values pt ex)))
-
-    ;; TODO: The (if) here just corrects for the possibility that we
-    ;; might have sampled new points that include no points in a given
-    ;; regime. Instead it would be best to continue sampling until we
-    ;; actually have many points in each regime. That would require
-    ;; breaking some abstraction boundaries right now so we haven't
-    ;; done it yet.
-    (if (null? pts*)
-        pcontext
-        (mk-pcontext pts* exs*))))
-
 (struct interval (alt-idx start-point end-point expr))
 
 (define (interval->string ival repr)
@@ -136,7 +119,7 @@
        (li ,@(apply append
                     (for/list ([entry prevs]
                                [idx (in-naturals)]
-                               [new-pcontext (split-pcontext pcontext splitpoints prevs ctx)])
+                               [new-pcontext (regimes-split-pcontext pcontext splitpoints prevs ctx)])
                       (define entry-ivals
                         (filter (λ (intrvl) (= (interval-alt-idx intrvl) idx)) intervals))
                       (define condition
@@ -213,9 +196,10 @@
                              (define entry-ivals
                                (filter (λ (intrvl) (= (interval-alt-idx intrvl) idx)) intervals))
                              (map (curryr interval->string repr) entry-ivals)))
-            (prevs . ,(for/list ([entry prevs]
-                                 [new-pcontext (split-pcontext pcontext splitpoints prevs ctx)])
-                        (render-json entry new-pcontext ctx))))]
+            (prevs .
+                   ,(for/list ([entry prevs]
+                               [new-pcontext (regimes-split-pcontext pcontext splitpoints prevs ctx)])
+                      (render-json entry new-pcontext ctx))))]
 
     [(alt prog `(taylor ,loc ,pt ,var) `(,prev) _)
      `#hash((program . ,(fpcore->string (expr->fpcore prog ctx)))
