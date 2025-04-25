@@ -166,7 +166,7 @@
 
 (define (dump-profile)
   (when json-profile
-    (call-with-output-file "reports/json-profile.json"
+    (call-with-output-file "json-profile.json"
                            #:exists 'replace
                            (lambda (p) (write-json (profile->json json-profile) p)))))
 
