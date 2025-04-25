@@ -425,10 +425,12 @@
 
   (define exprs
     (append-map (curryr collect-expressions pcontext ctx)
-                (map alt-analysis-alt
-                     (append (list (improve-result-start backend))
-                             (improve-result-target backend)
-                             (improve-result-end backend)))))
+                (if (equal? (job-result-status herbie-result) 'success)
+                    (map alt-analysis-alt
+                         (append (list (improve-result-start backend))
+                                 (improve-result-target backend)
+                                 (improve-result-end backend)))
+                    '())))
 
   (define pctx->exprs
     (for/hash ([group (in-list (group-by cdr exprs))])
