@@ -423,7 +423,11 @@
        (values altns pcontext)]
       [else (values '() #f)]))
 
-  (define exprs (append-map (curryr collect-expressions pcontext ctx) altns))
+  (define exprs
+    (append-map (curryr collect-expressions pcontext ctx)
+                (append (list (improve-result-start backend))
+                        (improve-result-target backend)
+                        (improve-result-end backend))))
 
   (define pctx->exprs
     (for/hash ([group (in-list (group-by cdr exprs))])
