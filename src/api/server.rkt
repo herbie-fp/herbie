@@ -423,9 +423,8 @@
        (values altns pcontext)]
       [else (values '() #f)]))
 
-  (define exprs
-    (append-map (curryr collect-expressions pcontext ctx) altns))
-  
+  (define exprs (append-map (curryr collect-expressions pcontext ctx) altns))
+
   (define pctx->exprs
     (for/hash ([group (in-list (group-by cdr exprs))])
       (values (cdar group) (map car group))))
@@ -433,9 +432,10 @@
   (define errcache
     (for/hash ([(pctx exprs) (in-hash pctx->exprs)])
       (define scores (map errors-score (batch-errors exprs pctx ctx)))
-      (values pctx (for/hash ([expr (in-list exprs)]
-                              [score (in-list scores)])
-                     (values expr score)))))
+      (values pctx
+              (for/hash ([expr (in-list exprs)]
+                         [score (in-list scores)])
+                (values expr score)))))
 
   (define test-fpcore
     (alt->fpcore test (make-alt-preprocessing (test-input test) (test-preprocess test))))
