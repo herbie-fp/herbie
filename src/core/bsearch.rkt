@@ -92,7 +92,7 @@
 (define (extract-subexpression expr var pattern ctx)
   (define body* (replace-expression expr pattern var))
   (define vars* (set-subtract (context-vars ctx) (free-variables pattern)))
-  (if (subset? (free-variables body*) (cons var vars*)) body* #f))
+  (and (subset? (free-variables body*) (cons var vars*)) body*))
 
 (define (prepend-argument evaluator val pcontext)
   (define pts
