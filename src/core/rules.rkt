@@ -172,15 +172,20 @@
                  [fp-cancel-sub-sign-inv (- a (* b c)) (+ a (* (neg b) c))])
 
 ; Difference of squares
-(define-ruleset* difference-of-squares-canonicalize
-                 (polynomials simplify sound)
-                 #:type ([a real] [b real])
-                 [swap-sqr (* (* a b) (* a b)) (* (* a a) (* b b))]
-                 [unswap-sqr (* (* a a) (* b b)) (* (* a b) (* a b))]
-                 [difference-of-squares (- (* a a) (* b b)) (* (+ a b) (- a b))]
-                 [difference-of-sqr-1 (- (* a a) 1) (* (+ a 1) (- a 1))]
-                 [difference-of-sqr--1 (+ (* a a) -1) (* (+ a 1) (- a 1))]
-                 [pow-sqr (* (pow a b) (pow a b)) (pow a (* 2 b))])
+(define-ruleset*
+ difference-of-squares-canonicalize
+ (polynomials simplify sound)
+ #:type ([a real] [b real])
+ [swap-sqr (* (* a b) (* a b)) (* (* a a) (* b b))]
+ [unswap-sqr (* (* a a) (* b b)) (* (* a b) (* a b))]
+ [difference-of-squares (- (* a a) (* b b)) (* (+ a b) (- a b))]
+ [difference-of-sqr-1 (- (* a a) 1) (* (+ a 1) (- a 1))]
+ [difference-of-sqr--1 (+ (* a a) -1) (* (+ a 1) (- a 1))]
+ #;[pow-sqr
+    (* (pow a b) (pow a b))
+    (pow
+     a
+     (* 2 b))]) ; Unsound at (-1.03e-117 -3730285336213468.5), LHS=invalid, RHS=valid (y is odd/even)
 
 (define-ruleset* difference-of-squares-canonicalize-rev
                  (polynomials simplify sound)
@@ -788,14 +793,14 @@
  [acosh-def (acosh x) (log (+ x (sqrt (- (* x x) 1))))]
  [atanh-def (atanh x) (/ (log (/ (+ 1 x) (- 1 x))) 2)]
  [sinh-asinh (sinh (asinh x)) x]
- [sinh-acosh (sinh (acosh x)) (sqrt (- (* x x) 1))] ; Unsound at x < -11, LHS=invalid, RHS=valid
+ ;[sinh-acosh (sinh (acosh x)) (sqrt (- (* x x) 1))] ; Unsound at x < -11, LHS=invalid, RHS=valid
  [sinh-atanh (sinh (atanh x)) (/ x (sqrt (- 1 (* x x))))]
  [cosh-asinh (cosh (asinh x)) (sqrt (+ (* x x) 1))]
- [cosh-acosh (cosh (acosh x)) x] ; Unsound at x < 1, LHS=invalid, RHS=valid
+ ;[cosh-acosh (cosh (acosh x)) x] ; Unsound at x < 1, LHS=invalid, RHS=valid
  [cosh-atanh (cosh (atanh x)) (/ 1 (sqrt (- 1 (* x x))))]
  [tanh-asinh (tanh (asinh x)) (/ x (sqrt (+ 1 (* x x))))]
- [tanh-acosh (tanh (acosh x)) (/ (sqrt (- (* x x) 1)) x)] ; Unsound at x < -1, LHS=invalid, RHS=valid
- [tanh-atanh (tanh (atanh x)) x]) ; Unsound at x not in [-1,1], LHS=invalid, RHS=valid
+ ;[tanh-acosh (tanh (acosh x)) (/ (sqrt (- (* x x) 1)) x)] ; Unsound at x < -1, LHS=invalid, RHS=valid
+ #;[tanh-atanh (tanh (atanh x)) x]) ; Unsound at x not in [-1,1], LHS=invalid, RHS=valid
 
 (define-ruleset* ahtrig-expand-sound-simplify-rev
                  (hyperbolic sound)
