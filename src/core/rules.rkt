@@ -499,8 +499,7 @@
  (trigonometry sound)
  #:type ([x real])
  [acos-cos-rev (fabs (remainder x (* 2 (PI)))) (acos (cos x))]
- [asin-sin-rev (- (fabs (remainder (+ x (/ (PI) 2)) (* 2 (PI)))) (/ (PI) 2)) (asin (sin x))]
-  )
+ [asin-sin-rev (- (fabs (remainder (+ x (/ (PI) 2)) (* 2 (PI)))) (/ (PI) 2)) (asin (sin x))])
 
 (define-ruleset* trig-inverses-simplified
                  (trigonometry)
@@ -558,13 +557,14 @@
                  [sin-+PI-rev (neg (sin x)) (sin (+ x (PI)))]
                  [cos-+PI-rev (neg (cos x)) (cos (+ x (PI)))])
 
-(define-ruleset* trig-reduce
-                 (trigonometry)
-                 #:type ([a real] [b real] [x real])
-                 [neg-tan-+PI/2 (tan (+ x (/ (PI) 2))) (/ -1 (tan x))]
-                 [tan-+PI/2 (tan (+ (neg x) (/ (PI) 2))) (/ 1 (tan x))]
-                 [hang-m0-tan-rev (tan (/ (neg a) 2)) (/ (- 1 (cos a)) (neg (sin a)))] ; unsound @ a = 0
-                 [hang-p0-tan-rev (tan (/ a 2)) (/ (- 1 (cos a)) (sin a))]) ; unsound @ a = 0
+(define-ruleset*
+ trig-reduce
+ (trigonometry)
+ #:type ([a real] [b real] [x real])
+ [neg-tan-+PI/2 (tan (+ x (/ (PI) 2))) (/ -1 (tan x))]
+ [tan-+PI/2 (tan (+ (neg x) (/ (PI) 2))) (/ 1 (tan x))]
+ [hang-m0-tan-rev (tan (/ (neg a) 2)) (/ (- 1 (cos a)) (neg (sin a)))] ; unsound @ a = 0
+ [hang-p0-tan-rev (tan (/ a 2)) (/ (- 1 (cos a)) (sin a))]) ; unsound @ a = 0
 
 (define-ruleset* trig-reduce-rev
                  (trigonometry)
@@ -630,13 +630,14 @@
                  [sin-mult-rev (/ (- (cos (- x y)) (cos (+ x y))) 2) (* (sin x) (sin y))]
                  [sin-cos-mult-rev (/ (+ (sin (- x y)) (sin (+ x y))) 2) (* (sin x) (cos y))])
 
-(define-ruleset* trig-expand
-                 (trigonometry)
-                 #:type ([x real] [y real] [a real] [b real])
-                 [tan-sum (tan (+ x y)) (/ (+ (tan x) (tan y)) (- 1 (* (tan x) (tan y))))] ; unsound @ x = y = pi/2
-                 [tan-2 (tan (* 2 x)) (/ (* 2 (tan x)) (- 1 (* (tan x) (tan x))))] ; unsound @ x = pi/2
-                 [tan-hang-p (tan (/ (+ a b) 2)) (/ (+ (sin a) (sin b)) (+ (cos a) (cos b)))]
-                 [tan-hang-m (tan (/ (- a b) 2)) (/ (- (sin a) (sin b)) (+ (cos a) (cos b)))])
+(define-ruleset*
+ trig-expand
+ (trigonometry)
+ #:type ([x real] [y real] [a real] [b real])
+ [tan-sum (tan (+ x y)) (/ (+ (tan x) (tan y)) (- 1 (* (tan x) (tan y))))] ; unsound @ x = y = pi/2
+ [tan-2 (tan (* 2 x)) (/ (* 2 (tan x)) (- 1 (* (tan x) (tan x))))] ; unsound @ x = pi/2
+ [tan-hang-p (tan (/ (+ a b) 2)) (/ (+ (sin a) (sin b)) (+ (cos a) (cos b)))]
+ [tan-hang-m (tan (/ (- a b) 2)) (/ (- (sin a) (sin b)) (+ (cos a) (cos b)))])
 
 (define-ruleset* atrig-expand
                  (trigonometry sound)
