@@ -52,6 +52,7 @@
     (list '[(cos (neg a)) . (cos a)]
           '[(sin (neg a)) . (sin a)]
           '[(cos (+ a (PI))) . (neg (cos a))]
+          '[(cos (+ a (/ (PI) 2))) . (sin a)]
           '[(cos (acos a)) . a]
           '[(cos (asin a)) . (sqrt (- 1 (* a a)))]
           '[(fabs (neg a)) . (fabs a)]
@@ -92,13 +93,15 @@
 
     [`(< (/ 1 ,a) 0) (list `(< ,a 0))]
     [`(< (neg ,a) 0) (list `(> ,a 0))]
-    [`(< (* 2 ,a) 0) (list `(< ,a 0))]
+    [`(< (* 2 ,a) ,(? number? b)) (list `(< ,a ,(/ b 2)))]
     [`(< (+ 1 ,a) 0) (list `(< ,a -1))]
     [`(< (/ ,x 2) 0) (list `(< ,x 0))]
     [`(< (+ ,x 1) 0) (list `(< ,x -1))]
+    [`(< (- ,a 1) ,(? number? b)) (list `(< ,a ,(+ b 1)))]
+    [`(< (- 1 ,x) 0) (list `(< 1 ,x))]
 
-    [`(< (- 1 (* ,a ,a)) 0) (list `(< 1 (fabs ,a)))]
-    [`(< (- (* ,a ,a) 1) 0) (list `(< (fabs ,a) 1))]
+    [`(< (* ,a ,a) 1) (list `(< (fabs ,a) 1))]
+    [`(< 1 (* ,a ,a)) (list `(< 1 (fabs ,a)))]
 
     [`(== (+ ,x (sqrt (+ (* ,x ,x) 1))) 0) '()]
     [`(== (+ ,x (sqrt (- (* ,x ,x) 1))) 0) '()]
@@ -112,6 +115,7 @@
 
     [`(== (+ (cos ,a) (cos ,b)) 0) (list `(== (cos (/ (+ ,a ,b) 2)) 0) `(== (cos (/ (- ,a ,b) 2)) 0))]
     [`(== (cos (* 2 ,a)) 0) (list `(== (tan ,a) 1) `(== (tan ,a) -1))]
+    [`(== (tan ,a) 0) (list `(== (sin ,a) 0))]
 
     [`(even-fraction? (neg ,b)) (list `(even-fraction? ,b))]
     [`(even-fraction? (+ ,b 1)) (list `(even-fraction? ,b))]
@@ -158,6 +162,7 @@
     (diff-log (implies (< (/ x y) 0) (or (< x 0) (< y 0))))
     (exp-to-pow (implies (and a b) a))
     (sinh-acosh (implies (< (fabs x) 1) (< x 1)))
+    (acosh-2-rev (implies (< (fabs x) 1) (< x 1)))
     (tanh-acosh (implies (< (fabs x) 1) (< x 1)) (implies (== x 0) (< x 1)))
     (hang-p0-tan (implies (== (cos (/ a 2)) 0) (== (sin a) 0)))
     (hang-m0-tan (implies (== (cos (/ a 2)) 0) (== (sin a) 0)))
@@ -166,7 +171,11 @@
              (implies (even-fraction? (- b c)) (or (even-fraction? b) (even-fraction? c))))
     (pow-prod-up (implies (< (+ b c) 0) (or (< b 0) (< c 0)))
                  (implies (even-fraction? (+ b c)) (or (even-fraction? b) (even-fraction? c))))
-    (pow-prod-down (implies (< (* b c) 0) (or (< b 0) (< c 0))))))
+    (pow-prod-down (implies (< (* b c) 0) (or (< b 0) (< c 0))))
+    ;; If y / 2 is an even fraction, y cannot have a factor of 2 in the numerator
+    (sqrt-pow1 (implies (and (< x 0) (even-fraction? (/ y 2)))
+                        (or (and (< x 0) (even-fraction? y)) (< (pow x y) 0))))
+    (log-pow-rev (implies (and a b) a) (implies (< (pow a b) 0) (< a 0)))))
 
 (define (execute-proof proof terms)
   (for/fold ([terms (simplify-conditions terms)]) ([step (in-list proof)])
