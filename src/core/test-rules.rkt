@@ -119,12 +119,8 @@
 
   ; Compilers + random sampler
   (define-values (sampler) (λ () (vector-map random-generate (list->vector (context-var-reprs ctx)))))
-  (define compiler1
-    (parameterize ([*rival-use-shorthands* #f])
-      (make-real-compiler (list p1) (list ctx))))
-  (define compiler2
-    (parameterize ([*rival-use-shorthands* #f])
-      (make-real-compiler (list p2) (list ctx))))
+  (define compiler1 (make-real-compiler (list p1) (list ctx)))
+  (define compiler2 (make-real-compiler (list p2) (list ctx)))
 
   ; -------------------- Soundness using common inputs --------------------------------------------
   (when (arguments-are-real? ctx)
