@@ -274,15 +274,15 @@
                  #:type ([x real] [y real])
                  [sqrt-pow2 (pow (sqrt x) y) (pow x (/ y 2))]
                  [sqrt-unprod (* (sqrt x) (sqrt y)) (sqrt (* x y))]
-                 [sqrt-undiv (/ (sqrt x) (sqrt y)) (sqrt (/ x y))]
-                 [sqrt-pow1 (sqrt (pow x y)) (pow x (/ y 2))])
+                 [sqrt-undiv (/ (sqrt x) (sqrt y)) (sqrt (/ x y))])
 
 (define-ruleset* squares-transform
                  (arithmetic)
                  #:type ([x real] [y real])
                  [sqrt-prod (sqrt (* x y)) (* (sqrt x) (sqrt y))] ; unsound @ x = y = -1
                  [sqrt-div (sqrt (/ x y)) (/ (sqrt x) (sqrt y))] ; unsound @ x = y = -1
-                 [add-sqr-sqrt x (* (sqrt x) (sqrt x))]) ; unsound @ x = -1
+                 [add-sqr-sqrt x (* (sqrt x) (sqrt x))] ; unsound @ x = -1
+                 [sqrt-pow1 (sqrt (pow x y)) (pow x (/ y 2))]) ; unsound @ x = -1, y = 2
 
 ; Cube root
 (define-ruleset* cubes-reduce
@@ -634,7 +634,6 @@
                  [sin-mult-rev (/ (- (cos (- x y)) (cos (+ x y))) 2) (* (sin x) (sin y))]
                  [sin-cos-mult-rev (/ (+ (sin (- x y)) (sin (+ x y))) 2) (* (sin x) (cos y))])
 
-;; TODO
 (define-ruleset*
  trig-expand
  (trigonometry)
@@ -753,8 +752,7 @@
 (define-ruleset* htrig-expand-unsound
                  (hyperbolic)
                  #:type ([x real] [y real])
-                 [tanh-1/2* (tanh (/ x 2)) (/ (- (cosh x) 1) (sinh x))] ; unsound @ x = 0
-                 [tanh-1/2*-rev (/ (- (cosh x) 1) (sinh x)) (tanh (/ x 2))])
+                 [tanh-1/2* (tanh (/ x 2)) (/ (- (cosh x) 1) (sinh x))]) ; unsound @ x = 0
 
 (define-ruleset* htrig-expand-fp-safe
                  (hyperbolic sound)

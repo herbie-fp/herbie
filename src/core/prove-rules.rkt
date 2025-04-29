@@ -50,9 +50,9 @@
 (define (simplify-expression expr)
   (define patterns
     (list '[(cos (neg a)) . (cos a)]
-          '[(sin (neg a)) . (sin a)]
+          '[(sin (neg a)) . (neg (sin a))]
           '[(cos (+ a (PI))) . (neg (cos a))]
-          '[(cos (+ a (/ (PI) 2))) . (sin a)]
+          '[(cos (+ a (/ (PI) 2))) . (neg (sin a))]
           '[(cos (acos a)) . a]
           '[(cos (asin a)) . (sqrt (- 1 (* a a)))]
           '[(fabs (neg a)) . (fabs a)]
@@ -172,9 +172,6 @@
     (pow-prod-up (implies (< (+ b c) 0) (or (< b 0) (< c 0)))
                  (implies (even-fraction? (+ b c)) (or (even-fraction? b) (even-fraction? c))))
     (pow-prod-down (implies (< (* b c) 0) (or (< b 0) (< c 0))))
-    ;; If y / 2 is an even fraction, y cannot have a factor of 2 in the numerator
-    (sqrt-pow1 (implies (and (< x 0) (even-fraction? (/ y 2)))
-                        (or (and (< x 0) (even-fraction? y)) (< (pow x y) 0))))
     (log-pow-rev (implies (and a b) a) (implies (< (pow a b) 0) (< a 0)))))
 
 (define (execute-proof proof terms)
