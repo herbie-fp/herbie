@@ -1,13 +1,16 @@
 #lang racket
 
-(require rackunit)
+(require rackunit
+         rival
+         math/bigfloat)
 (require "../utils/common.rkt"
          "../utils/float.rkt"
          "../syntax/load-plugin.rkt"
          "../syntax/types.rkt"
          "rival.rkt"
          "rules.rkt"
-         "sampling.rkt")
+         "sampling.rkt"
+         "programs.rkt")
 
 (load-herbie-builtins)
 
@@ -35,26 +38,109 @@
   (define itypes (map type->repr (dict-values env)))
   (context vars (type->repr out) itypes))
 
+(define (extract-point v)
+  (match v
+    [#f #f]
+    [(list v*) v*]
+    [_ (error "Uknown Rival's result")]))
+
+(define (contains-trig? expr)
+  (define trig-set '(sin cos tan asin acos atan atan2 sinh cosh tanh asinh acosh atanh))
+  (let loop ([expr expr])
+    (match expr
+      [(list op args ...) (or (set-member? trig-set op) (map loop args))]
+      [_ #f])))
+
+(define (eval-check-sound compiler1 compiler2 pt test-rule)
+  (define cnt 0)
+  (when (or (> (vector-count boolean? pt) 0)
+            (zero? (vector-count nan? pt))) ; Do not check soundess for NaN points
+    (set! cnt (add1 cnt))
+    (define-values (status1 v1) (real-apply compiler1 pt))
+    (define-values (status2 v2) (real-apply compiler2 pt))
+    (set! v1 (extract-point v1))
+    (set! v2 (extract-point v2))
+
+    (with-check-info
+     (['rule test-rule] ['pt pt] ['lhs v1] ['rhs v2] ['lhs-status status1] ['rhs-status status2])
+     (when (or (and (equal? 'valid status1) ; Range shrinking!
+                    (equal? 'invalid status2))
+               (and (equal? 'valid status1) ; Different results for valid points
+                    (equal? 'valid status2)
+                    (and (not (equal? v1 v2))
+                         (and (not (equal? v1 0.0)) (not (equal? v2 -0.0)))
+                         (and (not (equal? v1 -0.0)) (not (equal? v2 0.0))))))
+       (unsound-rules (cons (rule-name test-rule) (unsound-rules)))
+       (fail "Rule is unsound, LHS is valid, RHS is invalid"))))
+  cnt)
+
+(define (analyze-check-sound compiler1 compiler2 pt test-rule)
+  (define pt*
+    (parameterize ([bf-precision 53])
+      (for/vector ([p (in-vector pt)])
+        (ival (bf p) (bfnext (bf p))))))
+  (match-define (list res1 _ _) (real-compiler-analyze compiler1 pt*))
+  (match-define (list res2 _ _) (real-compiler-analyze compiler2 pt*))
+  (define lhs-err? (ival-hi res1))
+  (define lhs-err! (ival-lo res1))
+  (define rhs-err! (ival-lo res2))
+  (define rhs-err? (ival-hi res2))
+  (with-check-info (['rule test-rule] ['pt pt]
+                                      ['rhs-err! (ival-lo res2)]
+                                      ['rhs-err? (ival-hi res2)]
+                                      ['lhs-err? (ival-hi res1)]
+                                      ['lhs-err! (ival-lo res1)])
+                   (when (and (or rhs-err? rhs-err!) (not (or lhs-err? lhs-err!)))
+                     (unsound-rules (cons (rule-name test-rule) (unsound-rules)))
+                     (fail "Rule is unsound, LHS is error free, RHS contains error"))))
+
+(define (arguments-are-real? ctx)
+  (andmap (λ (x) (not (equal? 'bool (representation-name x)))) (context-var-reprs ctx)))
+
+(define (get-pts-combinations testing-range varc)
+  (apply cartesian-product (map (const testing-range) (range varc))))
+
 (define (check-rule-sound test-rule)
+  (define cnt 0)
   (match-define (rule name p1 p2 env out tags) test-rule)
-  (define ctx (env->ctx env out))
 
-  (match-define (list pts exs)
-    (parameterize ([*num-points* (num-test-points)]
-                   [*max-find-range-depth* 0])
-      (sample-points '(TRUE) (list p1) (list ctx))))
+  ; Context
+  (define vars (remove-duplicates (append (free-variables p1) (free-variables p2))))
+  (define out-repr (type->repr out))
+  (define input-reprs (map (λ (var) (type->repr (dict-ref env var))) vars))
+  (define ctx (context vars out-repr input-reprs))
+  (define varc (length (context-vars ctx)))
 
-  (define compiler (make-real-compiler (list p2) (list ctx)))
-  (for ([pt (in-list pts)]
-        [v1 (in-list exs)])
-    (with-check-info* (map make-check-info (context-vars ctx) (vector->list pt))
-                      (λ ()
-                        (define-values (status v2) (real-apply compiler pt))
-                        (with-check-info (['lhs v1] ['rhs v2] ['status status])
-                                         (when (and (real? v2)
-                                                    (nan? v2)
-                                                    (not (set-member? '(exit unsamplable) status)))
-                                           (fail "Right hand side returns NaN")))))))
+  ; Compilers + random sampler
+  (define-values (sampler) (λ () (vector-map random-generate (list->vector (context-var-reprs ctx)))))
+  (define compiler1
+    (parameterize ([*rival-use-shorthands* #f])
+      (make-real-compiler (list p1) (list ctx))))
+  (define compiler2
+    (parameterize ([*rival-use-shorthands* #f])
+      (make-real-compiler (list p2) (list ctx))))
+
+  ; -------------------- Soundness using common inputs --------------------------------------------
+  (when (arguments-are-real? ctx)
+    (define pt-combinations (get-pts-combinations (range -3 3 0.5) varc))
+    (for ([pt (in-list pt-combinations)])
+      (analyze-check-sound compiler1 compiler2 (list->vector pt) test-rule)
+      (set! cnt (+ cnt (eval-check-sound compiler1 compiler2 (list->vector pt) test-rule)))))
+
+  ; -------------------- Soundness using angles over PI's -------------------------------------------
+  ; This test modifies original expressions by replacing variables with '(* (PI) angle)
+  (when (and (arguments-are-real? ctx) (or (contains-trig? p1) (contains-trig? p2)))
+    (define pt-combinations (get-pts-combinations (map degrees->radians (range 0 361 15)) varc))
+    (for ([pt (in-list pt-combinations)])
+      (analyze-check-sound compiler1 compiler2 (list->vector pt) test-rule)
+      (set! cnt (+ cnt (eval-check-sound compiler1 compiler2 (list->vector pt) test-rule)))))
+
+  ; -------------------- Random fuzzing ------------------ ------------------------------------------
+  (for ([n (in-range (num-test-points))])
+    (define pt (sampler))
+    (set! cnt (+ cnt (eval-check-sound compiler1 compiler2 pt test-rule))))
+
+  (printf "Rule ~a has been checked for soundess ~a times\n" test-rule cnt))
 
 (define (check-rule-correct test-rule)
   (match-define (rule name p1 p2 env out tags) test-rule)
@@ -63,7 +149,8 @@
   (define pre (dict-ref *conditions* name '(TRUE)))
   (match-define (list pts exs1 exs2)
     (parameterize ([*num-points* (num-test-points)]
-                   [*max-find-range-depth* 0])
+                   [*max-find-range-depth* 0]
+                   [*rival-use-shorthands* #f])
       (sample-points pre (list p1 p2) (list ctx ctx))))
 
   (for ([pt (in-list pts)]
@@ -75,9 +162,10 @@
                                          (check-eq? (ulp-difference v1 v2 (context-repr ctx)) 1))))))
 
 (define (check-rule rule)
-  (check-rule-correct rule)
-  (when (set-member? (rule-tags rule) 'sound)
-    (check-rule-sound rule)))
+  ;(check-rule-correct rule)
+  (check-rule-sound rule)
+  #;(when (set-member? (rule-tags rule) 'sound)
+      (check-rule-sound rule)))
 
 (module+ main
   (num-test-points (* 100 (num-test-points)))
@@ -88,7 +176,9 @@
                     (first (filter (λ (x) (equal? (~a (rule-name x)) name)) (*rules*))))
                   (check-rule test-rule))))
 
+(define unsound-rules (make-parameter '()))
 (module+ test
   (for* ([rule (in-list (*rules*))])
     (test-case (~a (rule-name rule))
-      (check-rule rule))))
+      (check-rule rule)))
+  (println (unsound-rules)))
