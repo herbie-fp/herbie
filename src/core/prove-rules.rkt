@@ -21,7 +21,7 @@
             [`(sqrt ,x) (list `(< ,x 0))]
             [`(tan ,x) (list `(== (cos ,x) 0))]
             [`(tgamma ,x) (list `(and (<= ,x 0) (integer? ,x)))]
-            [`(pow ,a ,b) (list `(and (< ,a 0) (even-fraction? ,b)) `(and (== ,a 0) (< ,b 0)))]
+            [`(pow ,a ,b) (list `(and (< ,a 0) (even-denominator? ,b)) `(and (== ,a 0) (< ,b 0)))]
             [`(/ ,a ,b) (list `(== ,b 0))]
             [else '()])
           (if (list? x)
@@ -117,9 +117,9 @@
     [`(== (cos (* 2 ,a)) 0) (list `(== (tan ,a) 1) `(== (tan ,a) -1))]
     [`(== (tan ,a) 0) (list `(== (sin ,a) 0))]
 
-    [`(even-fraction? (neg ,b)) (list `(even-fraction? ,b))]
-    [`(even-fraction? (+ ,b 1)) (list `(even-fraction? ,b))]
-    [`(even-fraction? ,(? rational? a))
+    [`(even-denominator? (neg ,b)) (list `(even-denominator? ,b))]
+    [`(even-denominator? (+ ,b 1)) (list `(even-denominator? ,b))]
+    [`(even-denominator? ,(? rational? a))
      (if (even? (denominator a))
          '((TRUE))
          '())]
@@ -146,7 +146,7 @@
 
 (define soundness-proofs
   '((pow-plus (implies (< b -1) (< b 0)))
-    (pow-sqr (implies (even-fraction? (* 2 b)) (even-fraction? b)))
+    (pow-sqr (implies (even-denominator? (* 2 b)) (even-denominator? b)))
     (hang-0p-tan (implies (== (cos (/ a 2)) 0) (== (cos a) -1)))
     (hang-0p-tan-rev (implies (== (cos (/ a 2)) 0) (== (cos a) -1)))
     (hang-0m-tan (implies (== (cos (/ a 2)) 0) (== (cos a) -1)))
@@ -168,9 +168,10 @@
     (hang-m0-tan (implies (== (cos (/ a 2)) 0) (== (sin a) 0)))
     (sqrt-pow2 (implies (and a b) a))
     (pow-div (implies (< (- b c) 0) (or (< b 0) (> c 0)))
-             (implies (even-fraction? (- b c)) (or (even-fraction? b) (even-fraction? c))))
+             (implies (even-denominator? (- b c)) (or (even-denominator? b) (even-denominator? c))))
     (pow-prod-up (implies (< (+ b c) 0) (or (< b 0) (< c 0)))
-                 (implies (even-fraction? (+ b c)) (or (even-fraction? b) (even-fraction? c))))
+                 (implies (even-denominator? (+ b c))
+                          (or (even-denominator? b) (even-denominator? c))))
     (pow-prod-down (implies (< (* b c) 0) (or (< b 0) (< c 0))))
     (log-pow-rev (implies (and a b) a) (implies (< (pow a b) 0) (< a 0)))))
 
