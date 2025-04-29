@@ -1,37 +1,39 @@
 #lang racket
 
 (require rackunit)
-(require "../syntax/matcher.rkt"
+(require "../utils/common.rkt"
+         "../syntax/matcher.rkt"
          "programs.rkt"
          "rules.rkt")
 
-(define (validity-conditions x)
-  (append (match x
-            [`(acos ,x) (list `(< 1 (fabs ,x)))]
-            [`(acosh ,x) (list `(< ,x 1))]
-            [`(asin ,x) (list `(< 1 (fabs ,x)))]
-            [`(atanh ,x) (list `(<= 1 (fabs ,x)))]
-            [`(fmod ,x ,y) (list `(== ,y 0))]
-            [`(lgamma ,x) (list `(and (<= ,x 0) (integer? ,x)))]
-            [`(log ,x) (list `(<= ,x 0))]
-            [`(log10 ,x) (list `(<= ,x 0))]
-            [`(log2 ,x) (list `(<= ,x 0))]
-            [`(logb ,x) (list `(== ,x 0))]
-            [`(remainder ,x ,y) (list `(== ,y 0))]
-            [`(sqrt ,x) (list `(< ,x 0))]
-            [`(tan ,x) (list `(== (cos ,x) 0))]
-            [`(tgamma ,x) (list `(and (<= ,x 0) (integer? ,x)))]
-            [`(pow ,a ,b) (list `(and (< ,a 0) (even-denominator? ,b)) `(and (== ,a 0) (< ,b 0)))]
-            [`(/ ,a ,b) (list `(== ,b 0))]
-            [else '()])
-          (if (list? x)
-              (append-map validity-conditions (cdr x))
-              '())))
+(define (undefined-conditions x)
+  (reap [sow]
+        (for ([subexpr (in-list (all-subexpressions x))])
+          (match subexpr
+            [`(acos ,x) (sow `(< 1 (fabs ,x)))]
+            [`(acosh ,x) (sow `(< ,x 1))]
+            [`(asin ,x) (sow `(< 1 (fabs ,x)))]
+            [`(atanh ,x) (sow `(<= 1 (fabs ,x)))]
+            [`(fmod ,x ,y) (sow `(== ,y 0))]
+            [`(lgamma ,x) (sow `(and (<= ,x 0) (integer? ,x)))]
+            [`(log ,x) (sow `(<= ,x 0))]
+            [`(log10 ,x) (sow `(<= ,x 0))]
+            [`(log2 ,x) (sow `(<= ,x 0))]
+            [`(logb ,x) (sow `(== ,x 0))]
+            [`(remainder ,x ,y) (sow `(== ,y 0))]
+            [`(sqrt ,x) (sow `(< ,x 0))]
+            [`(tan ,x) (sow `(== (cos ,x) 0))]
+            [`(tgamma ,x) (sow `(and (<= ,x 0) (integer? ,x)))]
+            [`(pow ,a ,b)
+             (sow `(and (< ,a 0) (even-denominator? ,b)))
+             (sow `(and (== ,a 0) (< ,b 0)))]
+            [`(/ ,a ,b) (sow `(== ,b 0))]
+            [_ (void)]))))
 
 (define (reify c)
   (if c
-      '((TRUE))
-      '()))
+      '(TRUE)
+      '(FALSE)))
 
 ;; In general, the normal forms are:
 ;; - Only use ==, < conditions
@@ -47,99 +49,104 @@
   (for/fold ([expr expr]) ([(from to) (in-dict matches)])
     (replace-expression expr from to)))
 
+(define simplify-patterns
+  (list '[(cos (neg a)) . (cos a)]
+        '[(sin (neg a)) . (neg (sin a))]
+        '[(cos (+ a (PI))) . (neg (cos a))]
+        '[(cos (+ a (/ (PI) 2))) . (neg (sin a))]
+        '[(cos (acos a)) . a]
+        '[(cos (asin a)) . (sqrt (- 1 (* a a)))]
+        '[(fabs (neg a)) . (fabs a)]
+        '[(fabs (fabs a)) . (fabs a)]))
+
 (define (simplify-expression expr)
-  (define patterns
-    (list '[(cos (neg a)) . (cos a)]
-          '[(sin (neg a)) . (neg (sin a))]
-          '[(cos (+ a (PI))) . (neg (cos a))]
-          '[(cos (+ a (/ (PI) 2))) . (neg (sin a))]
-          '[(cos (acos a)) . a]
-          '[(cos (asin a)) . (sqrt (- 1 (* a a)))]
-          '[(fabs (neg a)) . (fabs a)]
-          '[(fabs (fabs a)) . (fabs a)]))
-  (for/fold ([expr expr]) ([(a b) (in-dict patterns)])
+  (for/fold ([expr expr]) ([(a b) (in-dict simplify-patterns)])
     (rewrite-all expr a b)))
 
 (define (simplify-condition term)
-  (match (simplify-expression term)
+  (match term
     [`(== ,(? number? a) ,(? number? b)) (reify (= a b))]
     [`(< ,(? number? a) ,(? number? b)) (reify (< a b))]
     [`(> ,(? number? a) ,(? number? b)) (reify (> a b))]
-    [`(== (PI) ,(? number?)) '()]
-    [`(== ,(? number? a) ,b) `((== ,b ,a))] ; canonicalize
-    [`(== (+ ,(? number? a) ,b) ,c) `((== (+ ,b ,a) ,c))] ; canonicalize
-    [`(== (- ,(? number? a) ,b) ,c) `((== (neg (- ,b ,a)) ,c))] ; canonicalize
-    [`(<= ,a ,b) (list `(< ,a ,b) `(== ,a ,b))] ; canonicalize
+    [`(== (PI) ,(? number?)) '(FALSE)]
+    [`(== ,(? number? a) ,b) `(== ,b ,a)] ; canonicalize
+    [`(== (+ ,(? number? a) ,b) ,c) `(== (+ ,b ,a) ,c)] ; canonicalize
+    [`(== (- ,(? number? a) ,b) ,c) `(== (neg (- ,b ,a)) ,c)] ; canonicalize
+    [`(<= ,a ,b) `(or (< ,a ,b) (== ,a ,b))] ; canonicalize
 
-    [`(== (cbrt ,a) 0) (list `(== ,a 0))]
-    [`(== (sqrt ,a) 0) (list `(== ,a 0))]
-    [`(== (neg ,a) 0) (list `(== ,a 0))]
-    [`(== (fabs ,a) 0) (list `(== ,a 0))]
-    [`(== (* ,a ,b) 0) (list `(== ,a 0) `(== ,b 0))]
-    [`(== (/ ,a ,b) 0) (list `(== ,a 0))]
-    [`(== (pow ,a ,b) 0) (list `(and (== ,a 0) (> ,b 0)))]
+    [`(== (cbrt ,a) 0) `(== ,a 0)]
+    [`(== (sqrt ,a) 0) `(== ,a 0)]
+    [`(== (neg ,a) 0) `(== ,a 0)]
+    [`(== (fabs ,a) 0) `(== ,a 0)]
+    [`(== (* ,a ,b) 0) `(or (== ,a 0) (== ,b 0))]
+    [`(== (/ ,a ,b) 0) `(== ,a 0)]
+    [`(== (pow ,a ,b) 0) `(and (== ,a 0) (> ,b 0))]
 
-    [`(== (fabs ,a) 1) (list `(== ,a 1) `(== ,a -1))]
-    [`(== (+ ,x 1) 0) (list `(== ,x -1))]
-    [`(== (- ,a 1) 0) (list `(== ,a 1))]
-    [`(== (* ,a ,a) 1) (list `(== (fabs ,a) 1))]
+    [`(== (fabs ,a) 1) `(or (== ,a 1) (== ,a -1))]
+    [`(== (+ ,x 1) 0) `(== ,x -1)]
+    [`(== (- ,a 1) 0) `(== ,a 1)]
+    [`(== (* ,a ,a) 1) `(== (fabs ,a) 1)]
 
-    [`(< (* ,a ,a) 0) '()]
-    [`(< (sqrt ,a) 0) '()]
-    [`(,(or '< '==) (cosh ,a) ,(? (conjoin number? (curryr < 1)))) '()]
-    [`(,(or '< '==) (exp ,a) ,(? (conjoin number? (curryr <= 0)))) '()]
-    [`(,(or '< '==) (* ,a ,a) ,(? (conjoin number? (curryr < 0)))) '()]
-    [`(,(or '< '==) (fabs ,a) ,(? (conjoin number? (curryr < 0)))) '()]
+    [`(< (* ,a ,a) 0) '(FALSE)]
+    [`(< (sqrt ,a) 0) '(FALSE)]
+    [`(,(or '< '==) (cosh ,a) ,(? (conjoin number? (curryr < 1)))) '(FALSE)]
+    [`(,(or '< '==) (exp ,a) ,(? (conjoin number? (curryr <= 0)))) '(FALSE)]
+    [`(,(or '< '==) (* ,a ,a) ,(? (conjoin number? (curryr < 0)))) '(FALSE)]
+    [`(,(or '< '==) (fabs ,a) ,(? (conjoin number? (curryr < 0)))) '(FALSE)]
 
-    [`(< (/ 1 ,a) 0) (list `(< ,a 0))]
-    [`(< (neg ,a) 0) (list `(> ,a 0))]
-    [`(< (* 2 ,a) ,(? number? b)) (list `(< ,a ,(/ b 2)))]
-    [`(< (+ 1 ,a) 0) (list `(< ,a -1))]
-    [`(< (/ ,x 2) 0) (list `(< ,x 0))]
-    [`(< (+ ,x 1) 0) (list `(< ,x -1))]
-    [`(< (- ,a 1) ,(? number? b)) (list `(< ,a ,(+ b 1)))]
-    [`(< (- 1 ,x) 0) (list `(< 1 ,x))]
+    [`(< (/ 1 ,a) 0) `(< ,a 0)]
+    [`(< (neg ,a) 0) `(> ,a 0)]
+    [`(< (* 2 ,a) ,(? number? b)) `(< ,a ,(/ b 2))]
+    [`(< (+ 1 ,a) 0) `(< ,a -1)]
+    [`(< (/ ,x 2) 0) `(< ,x 0)]
+    [`(< (+ ,x 1) 0) `(< ,x -1)]
+    [`(< (- ,a 1) ,(? number? b)) `(< ,a ,(+ b 1))]
+    [`(< (- 1 ,x) 0) `(< 1 ,x)]
 
-    [`(< (* ,a ,a) 1) (list `(< (fabs ,a) 1))]
-    [`(< 1 (* ,a ,a)) (list `(< 1 (fabs ,a)))]
+    [`(< (* ,a ,a) 1) `(< (fabs ,a) 1)]
+    [`(< 1 (* ,a ,a)) `(< 1 (fabs ,a))]
 
-    [`(== (+ ,x (sqrt (+ (* ,x ,x) 1))) 0) '()]
-    [`(== (+ ,x (sqrt (- (* ,x ,x) 1))) 0) '()]
-    [`(< (+ ,x (sqrt (+ (* ,x ,x) 1))) 0) '()]
-    [`(< (+ ,x (sqrt (- (* ,x ,x) 1))) 0) (list `(<= x -1))]
+    [`(== (+ ,x (sqrt (+ (* ,x ,x) 1))) 0) '(FALSE)]
+    [`(== (+ ,x (sqrt (- (* ,x ,x) 1))) 0) '(FALSE)]
+    [`(< (+ ,x (sqrt (+ (* ,x ,x) 1))) 0) '(FALSE)]
+    [`(< (+ ,x (sqrt (- (* ,x ,x) 1))) 0) `(<= x -1)]
 
-    [`(< 1 (fabs (,(or 'cos 'sin) x))) '()]
+    [`(< 1 (fabs (,(or 'cos 'sin) x))) '(FALSE)]
 
-    [`(== (/ (+ 1 ,x) (- 1 ,x)) 0) (list `(== ,x -1))]
-    [`(< (/ (+ 1 ,x) (- 1 ,x)) 0) (list `(< 1 (fabs x)))]
+    [`(== (/ (+ 1 ,x) (- 1 ,x)) 0) `(== ,x -1)]
+    [`(< (/ (+ 1 ,x) (- 1 ,x)) 0) `(< 1 (fabs x))]
 
-    [`(== (+ (cos ,a) (cos ,b)) 0) (list `(== (cos (/ (+ ,a ,b) 2)) 0) `(== (cos (/ (- ,a ,b) 2)) 0))]
-    [`(== (cos (* 2 ,a)) 0) (list `(== (tan ,a) 1) `(== (tan ,a) -1))]
-    [`(== (tan ,a) 0) (list `(== (sin ,a) 0))]
+    [`(== (+ (cos ,a) (cos ,b)) 0) `(or (== (cos (/ (+ ,a ,b) 2)) 0) (== (cos (/ (- ,a ,b) 2)) 0))]
+    [`(== (cos (* 2 ,a)) 0) `(or (== (tan ,a) 1) (== (tan ,a) -1))]
+    [`(== (tan ,a) 0) `(== (sin ,a) 0)]
 
-    [`(even-denominator? (neg ,b)) (list `(even-denominator? ,b))]
-    [`(even-denominator? (+ ,b 1)) (list `(even-denominator? ,b))]
+    [`(even-denominator? (neg ,b)) `(even-denominator? ,b)]
+    [`(even-denominator? (+ ,b 1)) `(even-denominator? ,b)]
     [`(even-denominator? ,(? rational? a))
      (if (even? (denominator a))
-         '((TRUE))
-         '())]
+         '(TRUE)
+         '(FALSE))]
 
-    [`(or ,sub ...) sub]
     [`(and ,sub ...)
      (define subs (map (compose simplify-conditions list) sub))
      (define conjunctions (apply cartesian-product subs))
-     (for/list ([conj (in-list conjunctions)])
-       (match (set-remove conj '(TRUE))
-         ['() '(TRUE)]
-         [(list a) a]
-         [(list as ...) (cons 'and as)]))]
-    [x (list x)]))
+     (cons 'or
+           (for/list ([conj (in-list conjunctions)])
+             (match (set-remove conj '(TRUE))
+               ['(FALSE) '(TRUE)]
+               [(list a) a]
+               [(list as ...) (cons 'and as)])))]
+    [_ term]))
 
 (define (simplify-conditions xs)
   (define simple1
-    (apply append
-           (for/list ([x (remove-duplicates xs)])
-             (simplify-condition x))))
+    (reap [sow]
+          (for ([x (remove-duplicates xs)])
+            (define out (simplify-condition (simplify-expression x)))
+            (match out
+              [`(or ,terms ...) (for-each sow terms)]
+              [`(FALSE) (void)]
+              [_ (sow out)]))))
   (if (equal? simple1 xs)
       xs
       (simplify-conditions simple1)))
@@ -185,17 +192,11 @@
   (for ([rule (in-list (*sound-rules*))])
     (test-case (~a (rule-name rule))
       (define proof (dict-ref soundness-proofs (rule-name rule) '()))
-      (define lhs-bad (execute-proof proof (validity-conditions (rule-input rule))))
-      (define rhs-bad (execute-proof proof (validity-conditions (rule-output rule))))
+      (define lhs-bad (execute-proof proof (undefined-conditions (rule-input rule))))
+      (define rhs-bad (execute-proof proof (undefined-conditions (rule-output rule))))
       (define extra (set-remove (set-subtract rhs-bad lhs-bad) '(FALSE)))
-      (when (not (null? extra))
-        (eprintf "Cannot prove rule ~a valid\n" (rule-name rule))
-        (for ([term (in-list extra)])
-          (eprintf "  ~a\n" term))
-        (eprintf "  --------------------\n")
-        (for ([term (in-list lhs-bad)])
-          (eprintf "  ~a\n" term))
-        (fail)))))
+      (with-check-info (('lhs-bad lhs-bad))
+        (check-equal? empty extra)))))
 
 (module+ test
   (potentially-unsound))
