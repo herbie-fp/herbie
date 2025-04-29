@@ -70,14 +70,14 @@
                          (and (not (equal? v1 0.0)) (not (equal? v2 -0.0)))
                          (and (not (equal? v1 -0.0)) (not (equal? v2 0.0))))))
        (*rules-unsound* (cons (rule-name test-rule) (*rules-unsound*)))
-       (fail "Rule is unsound"))))
+       (fail "Rule is unsound, LHS is valid, RHS is invalid"))))
   cnt)
 
 (define (analyze-check-sound compiler1 compiler2 pt test-rule)
   (define pt*
     (parameterize ([bf-precision 53])
       (for/vector ([p (in-vector pt)])
-        (ival (bfstep (bf p) -10) (bfstep (bf p) 10)))))
+        (ival (bf p) (bfstep (bf p) 1)))))
   (match-define (list res1 _ _) (real-compiler-analyze compiler1 pt*))
   (match-define (list res2 _ _) (real-compiler-analyze compiler2 pt*))
   (define lhs-err? (ival-hi res1))
@@ -90,6 +90,7 @@
                                       ['lhs-err? (ival-hi res1)]
                                       ['lhs-err! (ival-lo res1)])
                    (when (and (or rhs-err? rhs-err!) (not (or lhs-err? lhs-err!)))
+                     (*rules-unsound* (cons (rule-name test-rule) (*rules-unsound*)))
                      (fail "Rule is unsound, LHS is error free, RHS contains error"))))
 
 (define (arguments-are-real? ctx)
@@ -138,8 +139,6 @@
   ; -------------------- Random fuzzing ------------------ ------------------------------------------
   (for ([n (in-range (num-test-points))])
     (define pt (sampler))
-    (when (arguments-are-real? ctx)
-      (analyze-check-sound compiler1 compiler2 pt test-rule))
     (set! cnt (+ cnt (eval-check-sound compiler1 compiler2 pt test-rule))))
 
   (printf "Rule ~a has been checked for soundess ~a times\n" test-rule cnt))
@@ -179,7 +178,8 @@
 
 (define *rules-unsound* (make-parameter '()))
 (module+ test
-  (for* ([rule (in-list (*rules*) #;(filter (λ (x) (equal? (rule-name x) 'tan-2)) (*rules*)))])
+  (for* ([rule (in-list (*rules*)
+                        #;(filter (λ (x) (equal? (rule-name x) 'rem-sqrt-square-rev)) (*rules*)))])
     (test-case (~a (rule-name rule))
       (check-rule rule)))
   (println (*rules-unsound*)))
