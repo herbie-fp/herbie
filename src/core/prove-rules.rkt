@@ -49,12 +49,13 @@
 
 (define (simplify-expression expr)
   (define patterns
-    '([(cos (neg a)) . (cos a)]
-      [(cos (+ a (PI))) . (neg (cos a))]
-      [(cos (acos a)) . a]
-      [(cos (asin a)) . (sqrt (- 1 (* a a)))]
-      [(fabs (neg a)) . (fabs a)]
-      [(fabs (fabs a)) . (fabs a)]))
+    (list '[(cos (neg a)) . (cos a)]
+          '[(sin (neg a)) . (sin a)]
+          '[(cos (+ a (PI))) . (neg (cos a))]
+          '[(cos (acos a)) . a]
+          '[(cos (asin a)) . (sqrt (- 1 (* a a)))]
+          '[(fabs (neg a)) . (fabs a)]
+          '[(fabs (fabs a)) . (fabs a)]))
   (for/fold ([expr expr]) ([(a b) (in-dict patterns)])
     (rewrite-all expr a b)))
 
@@ -85,7 +86,7 @@
     [`(< (* ,a ,a) 0) '()]
     [`(< (sqrt ,a) 0) '()]
     [`(,(or '< '==) (cosh ,a) ,(? (conjoin number? (curryr < 1)))) '()]
-    [`(,(or '< '==) (exp ,a)  ,(? (conjoin number? (curryr <= 0)))) '()]
+    [`(,(or '< '==) (exp ,a) ,(? (conjoin number? (curryr <= 0)))) '()]
     [`(,(or '< '==) (* ,a ,a) ,(? (conjoin number? (curryr < 0)))) '()]
     [`(,(or '< '==) (fabs ,a) ,(? (conjoin number? (curryr < 0)))) '()]
 
@@ -109,8 +110,7 @@
     [`(== (/ (+ 1 ,x) (- 1 ,x)) 0) (list `(== ,x -1))]
     [`(< (/ (+ 1 ,x) (- 1 ,x)) 0) (list `(< 1 (fabs x)))]
 
-    [`(== (+ (cos ,a) (cos ,b)) 0)
-     (list `(== (cos (/ (+ ,a ,b) 2)) 0) `(== (cos (/ (- ,a ,b) 2)) 0))]
+    [`(== (+ (cos ,a) (cos ,b)) 0) (list `(== (cos (/ (+ ,a ,b) 2)) 0) `(== (cos (/ (- ,a ,b) 2)) 0))]
     [`(== (cos (* 2 ,a)) 0) (list `(== (tan ,a) 1) `(== (tan ,a) -1))]
 
     [`(even-fraction? (neg ,b)) (list `(even-fraction? ,b))]
@@ -133,10 +133,9 @@
 
 (define (simplify-conditions xs)
   (define simple1
-    (apply
-     append
-     (for/list ([x (remove-duplicates xs)])
-       (simplify-condition x))))
+    (apply append
+           (for/list ([x (remove-duplicates xs)])
+             (simplify-condition x))))
   (if (equal? simple1 xs)
       xs
       (simplify-conditions simple1)))
@@ -150,21 +149,18 @@
     (hang-0m-tan-rev (implies (== (cos (/ a 2)) 0) (== (cos a) -1)))
     (tanh-sum (implies (== (* (tanh x) (tanh y)) -1) (FALSE)))
     (tanh-def-a (implies (== (+ (exp x) (exp (neg x))) 0) (FALSE)))
-    (acosh-def (implies (< x 1) (or (< x -1) (== x -1) (< (fabs x) 1)))
-               (rewrite (fabs (fabs x)) (fabs x)))
-    (acosh-def-rev (implies (< x 1) (or (< x -1) (== x -1) (< (fabs x) 1)))
-                   (rewrite (fabs (fabs x)) (fabs x)))
+    (acosh-def (implies (< x 1) (or (< x -1) (== x -1) (< (fabs x) 1))))
+    (acosh-def-rev (implies (< x 1) (or (< x -1) (== x -1) (< (fabs x) 1))))
     (sqrt-undiv (implies (< (/ x y) 0) (or (< x 0) (< y 0))))
     (sqrt-unprod (implies (< (* x y) 0) (or (< x 0) (< y 0))))
     (tan-sum-rev (implies (== (cos (+ x y)) 0) (== (* (tan x) (tan y)) 1)))
-
     (sum-log (implies (< (* x y) 0) (or (< x 0) (< y 0))))
     (diff-log (implies (< (/ x y) 0) (or (< x 0) (< y 0))))
     (exp-to-pow (implies (and a b) a))
     (sinh-acosh (implies (< (fabs x) 1) (< x 1)))
     (tanh-acosh (implies (< (fabs x) 1) (< x 1)) (implies (== x 0) (< x 1)))
     (hang-p0-tan (implies (== (cos (/ a 2)) 0) (== (sin a) 0)))
-    (hang-m0-tan (implies (== (cos (/ a 2)) 0) (== (sin a) 0)) (rewrite (sin (neg a)) (neg (sin a))))
+    (hang-m0-tan (implies (== (cos (/ a 2)) 0) (== (sin a) 0)))
     (sqrt-pow2 (implies (and a b) a))
     (pow-div (implies (< (- b c) 0) (or (< b 0) (> c 0)))
              (implies (even-fraction? (- b c)) (or (even-fraction? b) (even-fraction? c))))
@@ -175,8 +171,7 @@
 (define (execute-proof proof terms)
   (for/fold ([terms (simplify-conditions terms)]) ([step (in-list proof)])
     (match step
-      [`(,(or 'implies 'rewrite) ,a ,b)
-       (simplify-conditions (map (curryr rewrite-all a b) terms))])))
+      [`(implies ,a ,b) (simplify-conditions (map (curryr rewrite-all a b) terms))])))
 
 (define (potentially-unsound)
   (define num 0)
