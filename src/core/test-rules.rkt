@@ -74,7 +74,6 @@
                     (and (not (equal? v1 v2))
                          (and (not (equal? v1 0.0)) (not (equal? v2 -0.0)))
                          (and (not (equal? v1 -0.0)) (not (equal? v2 0.0))))))
-       (unsound-rules (cons (rule-name test-rule) (unsound-rules)))
        (fail "Rule is unsound, LHS is valid, RHS is invalid"))))
   cnt)
 
@@ -98,7 +97,6 @@
                                       ['lhs-err? (ival-hi res1)]
                                       ['lhs-err! (ival-lo res1)])
                    (when (and (or rhs-err? rhs-err!) (not (or lhs-err? lhs-err!)))
-                     (unsound-rules (cons (rule-name test-rule) (unsound-rules)))
                      (fail "Rule is unsound, LHS is error free, RHS contains error"))))
 
 (define (arguments-are-real? ctx)
@@ -157,8 +155,7 @@
   (define pre (dict-ref *conditions* name '(TRUE)))
   (match-define (list pts exs1 exs2)
     (parameterize ([*num-points* (num-test-points)]
-                   [*max-find-range-depth* 0]
-                   [*rival-use-shorthands* #f])
+                   [*max-find-range-depth* 0])
       (sample-points pre (list p1 p2) (list ctx ctx))))
 
   (for ([pt (in-list pts)]
@@ -170,10 +167,9 @@
                                          (check-eq? (ulp-difference v1 v2 (context-repr ctx)) 1))))))
 
 (define (check-rule rule)
-  ;(check-rule-correct rule)
-  (check-rule-sound rule)
-  #;(when (set-member? (rule-tags rule) 'sound)
-      (check-rule-sound rule)))
+  (check-rule-correct rule)
+  (when (set-member? (rule-tags rule) 'sound)
+    (check-rule-sound rule)))
 
 (module+ main
   (num-test-points (* 100 (num-test-points)))
@@ -184,9 +180,7 @@
                     (first (filter (λ (x) (equal? (~a (rule-name x)) name)) (*rules*))))
                   (check-rule test-rule))))
 
-(define unsound-rules (make-parameter '()))
 (module+ test
   (for* ([rule (in-list (*rules*))])
     (test-case (~a (rule-name rule))
-      (check-rule rule)))
-  (println (unsound-rules)))
+      (check-rule rule))))

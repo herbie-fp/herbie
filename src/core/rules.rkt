@@ -411,12 +411,9 @@
                  (exponents sound)
                  #:type ([a real])
                  [pow1/2 (sqrt a) (pow a 1/2)]
+                 [pow1/3 (cbrt a) (pow a 1/3)]
                  [pow2 (* a a) (pow a 2)]
                  [pow3 (* (* a a) a) (pow a 3)])
-(define-ruleset* pow-specialize-unsound
-                 (exponents)
-                 #:type ([a real])
-                 [pow1/3 (cbrt a) (pow a 1/3)]) ; unsound @ a = -3
 
 (define-ruleset*
  pow-transform
