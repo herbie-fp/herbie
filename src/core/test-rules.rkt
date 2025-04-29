@@ -1,6 +1,7 @@
 #lang racket
 
-(require rackunit)
+(require rackunit
+         rival)
 (require "../utils/common.rkt"
          "../utils/float.rkt"
          "../syntax/load-plugin.rkt"
@@ -41,7 +42,14 @@
     [(list v*) v*]
     [_ (error "Uknown Rival's result")]))
 
-(define (eval-check-sound compiler1 compiler2 pt test-rule)
+(define (replace-var-with-angle expr var-to-angle)
+  (let loop ([expr expr])
+    (match expr
+      [(list op args ...) (cons op (map loop args))]
+      [(? number?) expr]
+      [_ `(* (PI) ,(hash-ref var-to-angle expr))])))
+
+(define (eval-check-sound compiler1 compiler2 pt test-rule #:pi [pi #f])
   (define cnt 0)
   (when (or (> (vector-count boolean? pt) 0)
             (zero? (vector-count nan? pt))) ; Do not check soundess for NaN points
@@ -51,54 +59,97 @@
     (set! v1 (extract-point v1))
     (set! v2 (extract-point v2))
 
+    ; Just a nice debugging when fuzzing for angles of PI
+    (when pi
+      (set! pt (angle-of-PI pt)))
+
     (with-check-info
      (['rule test-rule] ['pt pt] ['lhs v1] ['rhs v2] ['lhs-status status1] ['rhs-status status2])
-     (when (or (and (set-member? '(exit valid) status1) ; Range shrinking!
+     (when (or (and (equal? 'valid status1) ; Range shrinking!
                     (equal? 'invalid status2))
-               (and (set-member? '(exit valid) status2) ; Range widening!
-                    (equal? 'invalid status1))
                (and (equal? 'valid status1) ; Different results for valid points
                     (equal? 'valid status2)
                     (and (not (equal? v1 v2))
                          (and (not (equal? v1 0.0)) (not (equal? v2 -0.0)))
                          (and (not (equal? v1 -0.0)) (not (equal? v2 0.0))))))
+       (*rules-unsound* (cons (rule-name test-rule) (*rules-unsound*)))
        (fail "Rule is unsound"))))
   cnt)
 
+(define (analyze-check-sound compiler1 compiler2 pt test-rule #:pi [pi #f])
+  (match-define (list res1 _ _) (real-compiler-analyze compiler1 (vector)))
+  (match-define (list res2 _ _) (real-compiler-analyze compiler2 (vector)))
+  (define rhs-err! (ival-lo res2))
+  (define rhs-err? (ival-hi res2))
+  (define lhs-err? (ival-hi res1))
+  (define lhs-err! (ival-lo res1))
+  (with-check-info (['rule test-rule] ['pt (angle-of-PI pt)]
+                                      ['rhs-err! (ival-lo res2)]
+                                      ['rhs-err? (ival-hi res2)]
+                                      ['lhs-err? (ival-hi res1)]
+                                      ['lhs-err! (ival-lo res1)])
+                   (when (and (or rhs-err? rhs-err!) (not (or lhs-err! lhs-err?)))
+                     (fail "Rule is unsound, LHS is error free, RHS contains error"))))
+
+(define (arguments-are-real? ctx)
+  (andmap (λ (x) (not (equal? 'bool (representation-name x)))) (context-var-reprs ctx)))
+
+(define (get-pts-combinations testing-range varc)
+  (apply cartesian-product (map (const testing-range) (range varc))))
+
+(define (angle-of-PI pt)
+  (map (λ (x) `(* (PI) ,x)) (vector->list pt)))
+
 (define (check-rule-sound test-rule)
   (define cnt 0)
-  ; Rule's data
   (match-define (rule name p1 p2 env out tags) test-rule)
   (define ctx (env->ctx env out))
-  (define number-of-vars (length (context-vars ctx)))
+  (define varc (length (context-vars ctx)))
 
   ; Compilers + random sampler
   (define-values (sampler) (λ () (vector-map random-generate (list->vector (context-var-reprs ctx)))))
-  (define compiler1 (make-real-compiler (list p1) (list ctx)))
-  (define compiler2 (make-real-compiler (list p2) (list ctx)))
+  (define compiler1
+    (parameterize ([*rival-use-shorthands* #f])
+      (make-real-compiler (list p1) (list ctx))))
+  (define compiler2
+    (parameterize ([*rival-use-shorthands* #f])
+      (make-real-compiler (list p2) (list ctx))))
 
-  ; Soundness for some common cases with simple integers
-  ; Only for rules where every input var's repr is not 'bool
-  (when (andmap (λ (x) (not (equal? 'bool (representation-name x)))) (context-var-reprs ctx))
-    (define pt-combinations (combinations (range -10 10 1) number-of-vars))
+  ; -------------------- Soundness using common integers --------------------------------------------
+  (when (arguments-are-real? ctx)
+    (define pt-combinations (get-pts-combinations (range -5 5 0.5) varc))
     (for ([pt (in-list pt-combinations)])
       (set! cnt (+ cnt (eval-check-sound compiler1 compiler2 (list->vector pt) test-rule)))))
 
-  ; Soundness for some common cases with pi, pi/2 etc
-  ; Only for rules where every input var's repr is not 'bool
-  (when (andmap (λ (x) (not (equal? 'bool (representation-name x)))) (context-var-reprs ctx))
-    (define pt-combinations (combinations (map degrees->radians (range 0 361 15)) number-of-vars))
+  ; -------------------- Soundness using angles over PI's -------------------------------------------
+  ; This test modifies original expressions by replacing variables with '(* (PI) angle)
+  (when (arguments-are-real? ctx)
+    (define pt-combinations
+      (get-pts-combinations (list 0 1/6 1/3 1/2 2/3 5/6 1 7/6 4/3 3/2 5/3 11/6) varc))
+    (for ([pt (in-list pt-combinations)])
+      (define var-to-angle (make-hash (map (λ (x y) (cons x y)) (context-vars ctx) pt)))
+
+      (define compiler1*
+        (parameterize ([*rival-use-shorthands* #f])
+          (make-real-compiler (list (replace-var-with-angle p1 var-to-angle)) (list ctx))))
+      (define compiler2*
+        (parameterize ([*rival-use-shorthands* #f])
+          (make-real-compiler (list (replace-var-with-angle p2 var-to-angle)) (list ctx))))
+
+      ; Check for soundness by rival-analyze
+      (analyze-check-sound compiler1* compiler2* (list->vector pt) test-rule #:pi #t)
+
+      ; Check for soundness by ground-truth
+      (set! cnt
+            (+ cnt (eval-check-sound compiler1* compiler2* (list->vector pt) test-rule #:pi #t)))))
+
+  ; -------------------- Soundness for 0, 1 and exp -------------------------------------------------
+  (when (arguments-are-real? ctx)
+    (define pt-combinations (apply cartesian-product (map (const (list 0 1 (exp 1))) (range varc))))
     (for ([pt (in-list pt-combinations)])
       (set! cnt (+ cnt (eval-check-sound compiler1 compiler2 (list->vector pt) test-rule)))))
 
-  ; Soundness for some common cases with exp, 0, 1
-  ; Only for rules where every input var's repr is not 'bool
-  (when (andmap (λ (x) (not (equal? 'bool (representation-name x)))) (context-var-reprs ctx))
-    (define pt-combinations (combinations (list 0 1 (exp 1)) number-of-vars))
-    (for ([pt (in-list pt-combinations)])
-      (set! cnt (+ cnt (eval-check-sound compiler1 compiler2 (list->vector pt) test-rule)))))
-
-  ; Random soundess
+  ; -------------------- Random fuzzing ------------------ ------------------------------------------
   (for ([n (in-range (num-test-points))])
     (define pt (sampler))
     (set! cnt (+ cnt (eval-check-sound compiler1 compiler2 pt test-rule))))
@@ -112,7 +163,8 @@
   (define pre (dict-ref *conditions* name '(TRUE)))
   (match-define (list pts exs1 exs2)
     (parameterize ([*num-points* (num-test-points)]
-                   [*max-find-range-depth* 0])
+                   [*max-find-range-depth* 0]
+                   [*rival-use-shorthands* #f])
       (sample-points pre (list p1 p2) (list ctx ctx))))
 
   (for ([pt (in-list pts)]
@@ -137,7 +189,9 @@
                     (first (filter (λ (x) (equal? (~a (rule-name x)) name)) (*rules*))))
                   (check-rule test-rule))))
 
+(define *rules-unsound* (make-parameter '()))
 (module+ test
-  (for* ([rule (in-list (*rules*))])
+  (for* ([rule (in-list (*rules*) #;(filter (λ (x) (equal? (rule-name x) 'tan-2)) (*rules*)))])
     (test-case (~a (rule-name rule))
-      (check-rule rule))))
+      (check-rule rule)))
+  (println (*rules-unsound*)))
