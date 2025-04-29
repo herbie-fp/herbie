@@ -195,8 +195,7 @@
       (define lhs-bad (execute-proof proof (undefined-conditions (rule-input rule))))
       (define rhs-bad (execute-proof proof (undefined-conditions (rule-output rule))))
       (define extra (set-remove (set-subtract rhs-bad lhs-bad) '(FALSE)))
-      (with-check-info (('lhs-bad lhs-bad))
-        (check-equal? empty extra)))))
+      (with-check-info (('lhs-bad lhs-bad)) (check-equal? empty extra)))))
 
 (module+ test
   (potentially-unsound))
