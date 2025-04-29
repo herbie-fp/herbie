@@ -191,7 +191,7 @@
 ; Difference of cubes
 (define-ruleset*
  difference-of-cubes
- (polynomials sound)
+ (polynomials) ; unsound @ a = b = 0
  #:type ([a real] [b real])
  [sum-cubes (+ (pow a 3) (pow b 3)) (* (+ (* a a) (- (* b b) (* a b))) (+ a b))]
  [difference-cubes (- (pow a 3) (pow b 3)) (* (+ (* a a) (+ (* b b) (* a b))) (- a b))]
@@ -385,11 +385,6 @@
                  [unpow1/3 (pow a 1/3) (cbrt a)]
                  [pow-plus (* (pow a b) a) (pow a (+ b 1))])
 
-(define-ruleset* pow-canonicalize-rev
-                 (exponents sound)
-                 #:type ([a real] [b real])
-                 [pow-plus-rev (pow a (+ b 1)) (* (pow a b) a)])
-
 (define-ruleset* pow-transform-sound
                  (exponents sound)
                  #:type ([a real] [b real] [c real])
@@ -397,8 +392,13 @@
                  [pow-prod-down (* (pow b a) (pow c a)) (pow (* b c) a)]
                  [pow-prod-up (* (pow a b) (pow a c)) (pow a (+ b c))]
                  [pow-flip (/ 1 (pow a b)) (pow a (neg b))]
-                 [pow-neg (pow a (neg b)) (/ 1 (pow a b))]
                  [pow-div (/ (pow a b) (pow a c)) (pow a (- b c))])
+
+(define-ruleset* pow-transform-unsound
+                 (exponents)
+                 #:type ([a real] [b real])
+                 [pow-plus-rev (pow a (+ b 1)) (* (pow a b) a)] ; unsound @ a = 0, b = -1/2
+                 [pow-neg (pow a (neg b)) (/ 1 (pow a b))]) ; unsound @ a = 0, b = -1
 
 (define-ruleset* pow-specialize-sound
                  (exponents sound)
@@ -500,14 +500,15 @@
  #:type ([x real])
  [acos-cos-rev (fabs (remainder x (* 2 (PI)))) (acos (cos x))]
  [asin-sin-rev (- (fabs (remainder (+ x (/ (PI) 2)) (* 2 (PI)))) (/ (PI) 2)) (asin (sin x))]
- [atan-tan-rev (remainder x (PI)) (atan (tan x))])
+  )
 
 (define-ruleset* trig-inverses-simplified
                  (trigonometry)
                  #:type ([x real])
-                 [atan-tan-s (atan (tan x)) x]
-                 [asin-sin-s (asin (sin x)) x]
-                 [acos-cos-s (acos (cos x)) x])
+                 [atan-tan-s (atan (tan x)) x] ; unsound @ x = pi
+                 [asin-sin-s (asin (sin x)) x] ; unsound @ x = pi
+                 [acos-cos-s (acos (cos x)) x] ; unsound @ x = 2pi
+                 [atan-tan-rev (remainder x (PI)) (atan (tan x))]) ; unsound @ x = pi/2
 
 (define-ruleset* trig-reduce-expressions
                  (trigonometry sound)
@@ -549,8 +550,6 @@
                  (trigonometry sound)
                  #:type ([a real] [b real] [x real])
                  [1-sub-sin-rev (* (cos a) (cos a)) (- 1 (* (sin a) (sin a)))]
-                 [hang-m0-tan-rev (tan (/ (neg a) 2)) (/ (- 1 (cos a)) (neg (sin a)))]
-                 [hang-p0-tan-rev (tan (/ a 2)) (/ (- 1 (cos a)) (sin a))]
                  [hang-0m-tan-rev (tan (/ (neg a) 2)) (/ (neg (sin a)) (+ 1 (cos a)))]
                  [hang-0p-tan-rev (tan (/ a 2)) (/ (sin a) (+ 1 (cos a)))]
                  [tan-+PI-rev (tan x) (tan (+ x (PI)))]
@@ -563,7 +562,9 @@
                  (trigonometry)
                  #:type ([a real] [b real] [x real])
                  [neg-tan-+PI/2 (tan (+ x (/ (PI) 2))) (/ -1 (tan x))]
-                 [tan-+PI/2 (tan (+ (neg x) (/ (PI) 2))) (/ 1 (tan x))])
+                 [tan-+PI/2 (tan (+ (neg x) (/ (PI) 2))) (/ 1 (tan x))]
+                 [hang-m0-tan-rev (tan (/ (neg a) 2)) (/ (- 1 (cos a)) (neg (sin a)))] ; unsound @ a = 0
+                 [hang-p0-tan-rev (tan (/ a 2)) (/ (- 1 (cos a)) (sin a))]) ; unsound @ a = 0
 
 (define-ruleset* trig-reduce-rev
                  (trigonometry)
@@ -576,7 +577,6 @@
                  #:type ([x real] [y real] [a real] [b real])
                  [sin-sum (sin (+ x y)) (+ (* (sin x) (cos y)) (* (cos x) (sin y)))]
                  [cos-sum (cos (+ x y)) (- (* (cos x) (cos y)) (* (sin x) (sin y)))]
-                 [tan-sum (tan (+ x y)) (/ (+ (tan x) (tan y)) (- 1 (* (tan x) (tan y))))]
                  [sin-diff (sin (- x y)) (- (* (sin x) (cos y)) (* (cos x) (sin y)))]
                  [cos-diff (cos (- x y)) (+ (* (cos x) (cos y)) (* (sin x) (sin y)))]
                  [sin-2 (sin (* 2 x)) (* 2 (* (sin x) (cos x)))]
@@ -613,7 +613,6 @@
                  [sum-atan (+ (atan x) (atan y)) (atan2 (+ x y) (- 1 (* x y)))]
                  [tan-quot (tan x) (/ (sin x) (cos x))]
                  [quot-tan (/ (sin x) (cos x)) (tan x)]
-                 [tan-2 (tan (* 2 x)) (/ (* 2 (tan x)) (- 1 (* (tan x) (tan x))))]
                  [2-tan (/ (* 2 (tan x)) (- 1 (* (tan x) (tan x)))) (tan (* 2 x))])
 
 (define-ruleset* trig-expand-sound2-rev
@@ -634,6 +633,8 @@
 (define-ruleset* trig-expand
                  (trigonometry)
                  #:type ([x real] [y real] [a real] [b real])
+                 [tan-sum (tan (+ x y)) (/ (+ (tan x) (tan y)) (- 1 (* (tan x) (tan y))))] ; unsound @ x = y = pi/2
+                 [tan-2 (tan (* 2 x)) (/ (* 2 (tan x)) (- 1 (* (tan x) (tan x))))] ; unsound @ x = pi/2
                  [tan-hang-p (tan (/ (+ a b) 2)) (/ (+ (sin a) (sin b)) (+ (cos a) (cos b)))]
                  [tan-hang-m (tan (/ (- a b) 2)) (/ (- (sin a) (sin b)) (+ (cos a) (cos b)))])
 
@@ -778,16 +779,16 @@
                  [asinh-def-rev (log (+ x (sqrt (+ (* x x) 1)))) (asinh x)]
                  [atanh-def-rev (/ (log (/ (+ 1 x) (- 1 x))) 2) (atanh x)]
                  [acosh-def-rev (log (+ x (sqrt (- (* x x) 1)))) (acosh x)]
-                 [sinh-acosh-rev (sqrt (- (* x x) 1)) (sinh (acosh x))]
                  [tanh-asinh-rev (/ x (sqrt (+ 1 (* x x)))) (tanh (asinh x))]
                  [cosh-asinh-rev (sqrt (+ (* x x) 1)) (cosh (asinh x))]
                  [sinh-atanh-rev (/ x (sqrt (- 1 (* x x)))) (sinh (atanh x))]
-                 [tanh-acosh-rev (/ (sqrt (- (* x x) 1)) x) (tanh (acosh x))]
                  [cosh-atanh-rev (/ 1 (sqrt (- 1 (* x x)))) (cosh (atanh x))])
 
 (define-ruleset* ahtrig-expand
                  (hyperbolic)
                  #:type ([x real])
+                 [sinh-acosh-rev (sqrt (- (* x x) 1)) (sinh (acosh x))] ; unsound @ x = -2
+                 [tanh-acosh-rev (/ (sqrt (- (* x x) 1)) x) (tanh (acosh x))] ; unsound @ x = -2
                  [asinh-2 (acosh (+ (* 2 (* x x)) 1)) (* 2 (asinh x))]
                  [acosh-2 (acosh (- (* 2 (* x x)) 1)) (* 2 (acosh x))])
 
