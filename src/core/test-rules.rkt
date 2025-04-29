@@ -1,7 +1,8 @@
 #lang racket
 
 (require rackunit
-         rival)
+         rival
+         math/bigfloat)
 (require "../utils/common.rkt"
          "../utils/float.rkt"
          "../syntax/load-plugin.rkt"
@@ -49,7 +50,7 @@
       [(? number?) expr]
       [_ `(* (PI) ,(hash-ref var-to-angle expr))])))
 
-(define (eval-check-sound compiler1 compiler2 pt test-rule #:pi [pi #f])
+(define (eval-check-sound compiler1 compiler2 pt test-rule)
   (define cnt 0)
   (when (or (> (vector-count boolean? pt) 0)
             (zero? (vector-count nan? pt))) ; Do not check soundess for NaN points
@@ -58,10 +59,6 @@
     (define-values (status2 v2) (real-apply compiler2 pt))
     (set! v1 (extract-point v1))
     (set! v2 (extract-point v2))
-
-    ; Just a nice debugging when fuzzing for angles of PI
-    (when pi
-      (set! pt (angle-of-PI pt)))
 
     (with-check-info
      (['rule test-rule] ['pt pt] ['lhs v1] ['rhs v2] ['lhs-status status1] ['rhs-status status2])
@@ -76,19 +73,23 @@
        (fail "Rule is unsound"))))
   cnt)
 
-(define (analyze-check-sound compiler1 compiler2 pt test-rule #:pi [pi #f])
-  (match-define (list res1 _ _) (real-compiler-analyze compiler1 (vector)))
-  (match-define (list res2 _ _) (real-compiler-analyze compiler2 (vector)))
-  (define rhs-err! (ival-lo res2))
-  (define rhs-err? (ival-hi res2))
+(define (analyze-check-sound compiler1 compiler2 pt test-rule)
+  (define pt*
+    (parameterize ([bf-precision 53])
+      (for/vector ([p (in-vector pt)])
+        (ival (bfstep (bf p) -10) (bfstep (bf p) 10)))))
+  (match-define (list res1 _ _) (real-compiler-analyze compiler1 pt*))
+  (match-define (list res2 _ _) (real-compiler-analyze compiler2 pt*))
   (define lhs-err? (ival-hi res1))
   (define lhs-err! (ival-lo res1))
-  (with-check-info (['rule test-rule] ['pt (angle-of-PI pt)]
+  (define rhs-err! (ival-lo res2))
+  (define rhs-err? (ival-hi res2))
+  (with-check-info (['rule test-rule] ['pt pt]
                                       ['rhs-err! (ival-lo res2)]
                                       ['rhs-err? (ival-hi res2)]
                                       ['lhs-err? (ival-hi res1)]
                                       ['lhs-err! (ival-lo res1)])
-                   (when (and (or rhs-err? rhs-err!) (not (or lhs-err! lhs-err?)))
+                   (when (and (or rhs-err? rhs-err!) (not (or lhs-err? lhs-err!)))
                      (fail "Rule is unsound, LHS is error free, RHS contains error"))))
 
 (define (arguments-are-real? ctx)
@@ -96,9 +97,6 @@
 
 (define (get-pts-combinations testing-range varc)
   (apply cartesian-product (map (const testing-range) (range varc))))
-
-(define (angle-of-PI pt)
-  (map (λ (x) `(* (PI) ,x)) (vector->list pt)))
 
 (define (check-rule-sound test-rule)
   (define cnt 0)
@@ -119,39 +117,29 @@
   (when (arguments-are-real? ctx)
     (define pt-combinations (get-pts-combinations (range -5 5 0.5) varc))
     (for ([pt (in-list pt-combinations)])
+      (analyze-check-sound compiler1 compiler2 (list->vector pt) test-rule)
       (set! cnt (+ cnt (eval-check-sound compiler1 compiler2 (list->vector pt) test-rule)))))
 
   ; -------------------- Soundness using angles over PI's -------------------------------------------
   ; This test modifies original expressions by replacing variables with '(* (PI) angle)
   (when (arguments-are-real? ctx)
-    (define pt-combinations
-      (get-pts-combinations (list 0 1/6 1/3 1/2 2/3 5/6 1 7/6 4/3 3/2 5/3 11/6) varc))
+    (define pt-combinations (get-pts-combinations (map degrees->radians (range 0 361 15)) varc))
     (for ([pt (in-list pt-combinations)])
-      (define var-to-angle (make-hash (map (λ (x y) (cons x y)) (context-vars ctx) pt)))
-
-      (define compiler1*
-        (parameterize ([*rival-use-shorthands* #f])
-          (make-real-compiler (list (replace-var-with-angle p1 var-to-angle)) (list ctx))))
-      (define compiler2*
-        (parameterize ([*rival-use-shorthands* #f])
-          (make-real-compiler (list (replace-var-with-angle p2 var-to-angle)) (list ctx))))
-
-      ; Check for soundness by rival-analyze
-      (analyze-check-sound compiler1* compiler2* (list->vector pt) test-rule #:pi #t)
-
-      ; Check for soundness by ground-truth
-      (set! cnt
-            (+ cnt (eval-check-sound compiler1* compiler2* (list->vector pt) test-rule #:pi #t)))))
+      (analyze-check-sound compiler1 compiler2 (list->vector pt) test-rule)
+      (set! cnt (+ cnt (eval-check-sound compiler1 compiler2 (list->vector pt) test-rule)))))
 
   ; -------------------- Soundness for 0, 1 and exp -------------------------------------------------
   (when (arguments-are-real? ctx)
     (define pt-combinations (apply cartesian-product (map (const (list 0 1 (exp 1))) (range varc))))
     (for ([pt (in-list pt-combinations)])
+      (analyze-check-sound compiler1 compiler2 (list->vector pt) test-rule)
       (set! cnt (+ cnt (eval-check-sound compiler1 compiler2 (list->vector pt) test-rule)))))
 
   ; -------------------- Random fuzzing ------------------ ------------------------------------------
   (for ([n (in-range (num-test-points))])
     (define pt (sampler))
+    (when (arguments-are-real? ctx)
+      (analyze-check-sound compiler1 compiler2 pt test-rule))
     (set! cnt (+ cnt (eval-check-sound compiler1 compiler2 pt test-rule))))
 
   (printf "Rule ~a has been checked for soundess ~a times\n" test-rule cnt))
