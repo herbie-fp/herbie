@@ -826,31 +826,3 @@
                  [not-gt (not (> x y)) (<= x y)]
                  [not-lte (not (<= x y)) (> x y)]
                  [not-gte (not (>= x y)) (< x y)])
-
-(define-ruleset* branch-reduce
-                 (branches sound)
-                 #:type ([a bool] [b bool] [x real] [y real])
-                 [if-true (if (TRUE) x y) x]
-                 [if-false (if (FALSE) x y) y]
-                 [if-same (if a x x) x]
-                 [if-not (if (not a) x y) (if a y x)]
-                 [if-if-or
-                  (if a
-                      x
-                      (if b x y))
-                  (if (or a b) x y)]
-                 [if-if-or-not
-                  (if a
-                      x
-                      (if b y x))
-                  (if (or a (not b)) x y)]
-                 [if-if-and
-                  (if a
-                      (if b x y)
-                      y)
-                  (if (and a b) x y)]
-                 [if-if-and-not
-                  (if a
-                      (if b y x)
-                      y)
-                  (if (and a (not b)) x y)])
