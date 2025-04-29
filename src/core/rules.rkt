@@ -191,12 +191,16 @@
 ; Difference of cubes
 (define-ruleset*
  difference-of-cubes
- (polynomials) ; unsound @ a = b = 0
+ (polynomials sound)
  #:type ([a real] [b real])
  [sum-cubes (+ (pow a 3) (pow b 3)) (* (+ (* a a) (- (* b b) (* a b))) (+ a b))]
- [difference-cubes (- (pow a 3) (pow b 3)) (* (+ (* a a) (+ (* b b) (* a b))) (- a b))]
- [flip3-+ (+ a b) (/ (+ (pow a 3) (pow b 3)) (+ (* a a) (- (* b b) (* a b))))]
- [flip3-- (- a b) (/ (- (pow a 3) (pow b 3)) (+ (* a a) (+ (* b b) (* a b))))])
+ [difference-cubes (- (pow a 3) (pow b 3)) (* (+ (* a a) (+ (* b b) (* a b))) (- a b))])
+
+(define-ruleset* difference-of-cubes-unsound
+                 (polynomials) ; unsound @ a = b = 0
+                 #:type ([a real] [b real])
+                 [flip3-+ (+ a b) (/ (+ (pow a 3) (pow b 3)) (+ (* a a) (- (* b b) (* a b))))]
+                 [flip3-- (- a b) (/ (- (pow a 3) (pow b 3)) (+ (* a a) (+ (* b b) (* a b))))])
 
 (define-ruleset*
  difference-of-cubes-rev
@@ -408,8 +412,11 @@
                  #:type ([a real])
                  [pow1/2 (sqrt a) (pow a 1/2)]
                  [pow2 (* a a) (pow a 2)]
-                 [pow1/3 (cbrt a) (pow a 1/3)]
                  [pow3 (* (* a a) a) (pow a 3)])
+(define-ruleset* pow-specialize-unsound
+                 (exponents)
+                 #:type ([a real])
+                 [pow1/3 (cbrt a) (pow a 1/3)]) ; unsound @ a = -3
 
 (define-ruleset*
  pow-transform
@@ -800,7 +807,7 @@
 (define-ruleset* ahtrig-expand
                  (hyperbolic sound)
                  #:type ([x real])
-                 [asinh-2 (acosh (+ (* 2 (* x x)) 1)) (* 2 (asinh x))])
+                 [asinh-2 (acosh (+ (* 2 (* x x)) 1)) (* 2 (asinh (fabs x)))])
 
 (define-ruleset* ahtrig-expand-unsound
                  (hyperbolic)

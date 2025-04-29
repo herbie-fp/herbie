@@ -44,6 +44,7 @@
     [(list v*) v*]
     [_ (error "Uknown Rival's result")]))
 
+; Check whether expression contains trigonometric operations
 (define (contains-trig? expr)
   (define trig-set '(sin cos tan asin acos atan atan2 sinh cosh tanh asinh acosh atanh))
   (let loop ([expr expr])
@@ -51,6 +52,9 @@
       [(list op args ...) (or (set-member? trig-set op) (map loop args))]
       [_ #f])))
 
+; Function evaluates a point to a correct rounding for both compilers and check results
+; Fails if results of compiler1 are valid and results of compiler2 are invalid
+; or fails when results are valid and not equal
 (define (eval-check-sound compiler1 compiler2 pt test-rule)
   (define cnt 0)
   (when (or (> (vector-count boolean? pt) 0)
@@ -74,6 +78,9 @@
        (fail "Rule is unsound, LHS is valid, RHS is invalid"))))
   cnt)
 
+; Function analyzes an interval with 1ulp distance made out of pt for both compilers and check results
+; Fails if LHS is error free and RHS has some errors
+; This test helps with PI, PI/2 and etc as they can not be represented exactly
 (define (analyze-check-sound compiler1 compiler2 pt test-rule)
   (define pt*
     (parameterize ([bf-precision 53])
@@ -97,6 +104,7 @@
 (define (arguments-are-real? ctx)
   (andmap (λ (x) (not (equal? 'bool (representation-name x)))) (context-var-reprs ctx)))
 
+; get all possible permutations of testing-range with varc length
 (define (get-pts-combinations testing-range varc)
   (apply cartesian-product (map (const testing-range) (range varc))))
 
@@ -104,7 +112,7 @@
   (define cnt 0)
   (match-define (rule name p1 p2 env out tags) test-rule)
 
-  ; Context
+  ; Custom context
   (define vars (remove-duplicates (append (free-variables p1) (free-variables p2))))
   (define out-repr (type->repr out))
   (define input-reprs (map (λ (var) (type->repr (dict-ref env var))) vars))
