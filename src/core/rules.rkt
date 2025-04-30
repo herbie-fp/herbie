@@ -177,7 +177,7 @@
 (define-ruleset* division-flip
                  (arithmetic)
                  #:type ([a real] [b real])
-                 [division-flip (/ a b) (/ 1 (/ b a))])
+                 [division-flip (/ a b) (/ 1 (/ b a))]) ; unsound @ a = 0, b != 0
 
 (define-ruleset* addition-flip
                  (arithmetic sound)

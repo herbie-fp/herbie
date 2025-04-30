@@ -111,12 +111,8 @@
 
   ; Compilers + random sampler
   (define-values (sampler) (λ () (vector-map random-generate (list->vector (context-var-reprs ctx)))))
-  (define compiler1
-    (parameterize ([*rival-use-shorthands* #f])
-      (make-real-compiler (list p1) (list ctx))))
-  (define compiler2
-    (parameterize ([*rival-use-shorthands* #f])
-      (make-real-compiler (list p2) (list ctx))))
+  (define compiler1 (make-real-compiler (list p1) (list ctx)))
+  (define compiler2 (make-real-compiler (list p2) (list ctx)))
 
   ; -------------------- Soundness using common inputs --------------------------------------------
   (when (arguments-are-real? ctx)
@@ -147,8 +143,7 @@
   (define pre (dict-ref *conditions* name '(TRUE)))
   (match-define (list pts exs1 exs2)
     (parameterize ([*num-points* (num-test-points)]
-                   [*max-find-range-depth* 0]
-                   [*rival-use-shorthands* #f])
+                   [*max-find-range-depth* 0])
       (sample-points pre (list p1 p2) (list ctx ctx))))
 
   (for ([pt (in-list pts)]
