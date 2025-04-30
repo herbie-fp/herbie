@@ -7,6 +7,7 @@
          "../syntax/types.rkt"
          "rival.rkt"
          "rules.rkt"
+         "programs.rkt"
          "sampling.rkt")
 
 (load-herbie-builtins)
@@ -24,13 +25,13 @@
 
 (define double-repr (get-representation 'binary64))
 
-(define (env->ctx env out)
-  (define vars (dict-keys env))
+(define (env->ctx p1 p2)
+  (define vars (set-union (free-variables p1) (free-variables p2)))
   (context vars double-repr (map (const double-repr) vars)))
 
 (define (check-rule test-rule)
-  (match-define (rule name p1 p2 env out tags) test-rule)
-  (define ctx (env->ctx env out))
+  (match-define (rule name p1 p2 _ _ _) test-rule)
+  (define ctx (env->ctx p1 p2))
 
   (define pre (dict-ref *conditions* name '(TRUE)))
   (match-define (list pts exs1 exs2)
