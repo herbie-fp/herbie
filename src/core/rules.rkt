@@ -205,7 +205,7 @@
   [sqrt-prod (sqrt (* x y)) (* (sqrt x) (sqrt y)) #:unsound] ; unsound @ x = y = -1
   [sqrt-div (sqrt (/ x y)) (/ (sqrt x) (sqrt y)) #:unsound] ; unsound @ x = y = -1
   [add-sqr-sqrt x (* (sqrt x) (sqrt x)) #:unsound] ; unsound @ x = -1
-  [sqrt-pow1 (sqrt (pow x y)) (pow x (/ y 2)) #:unsound]) ; unsound @ x = -1, y = 2
+  #;[sqrt-pow1 (sqrt (pow x y)) (pow x (/ y 2)) #:unsound]) ; unsound @ x = -1, y = 2
 
 ; Cubing
 (define-rules arithmetic
@@ -298,8 +298,8 @@
   [pow-to-exp (pow a b) (exp (* (log a) b)) #:unsound] ; unsound @ a = -1, b = 1
   [pow-add (pow a (+ b c)) (* (pow a b) (pow a c)) #:unsound] ; unsound @ a = -1, b = c = 1/2
   [pow-sub (pow a (- b c)) (/ (pow a b) (pow a c)) #:unsound] ; unsound @ a = -1, b = c = 1/2
-  [pow-pow (pow (pow a b) c) (pow a (* b c)) #:unsound] ; unsound @ a = -1, b = 2, c = 1/4
-  [pow-unpow (pow a (* b c)) (pow (pow a b) c) #:unsound] ; unsound @ a = -1, b = 1/2, c = 2
+  #;[pow-pow (pow (pow a b) c) (pow a (* b c)) #:unsound] ; unsound @ a = -1, b = 2, c = 1/4
+  #;[pow-unpow (pow a (* b c)) (pow (pow a b) c) #:unsound] ; unsound @ a = -1, b = 1/2, c = 2
   [unpow-prod-down (pow (* b c) a) (* (pow b a) (pow c a)) #:unsound]) ; unsound @ a = 1/2, b = c = -1
 
 ; Logarithms
@@ -349,9 +349,9 @@
   [asin-sin-rev (- (fabs (remainder (+ x (/ (PI) 2)) (* 2 (PI)))) (/ (PI) 2)) (asin (sin x))])
 
 (define-rules trigonometry
-  [atan-tan-s (atan (tan x)) x #:unsound] ; unsound @ x = pi
-  [asin-sin-s (asin (sin x)) x #:unsound] ; unsound @ x = pi
-  [acos-cos-s (acos (cos x)) x #:unsound] ; unsound @ x = 2pi
+  #;[atan-tan-s (atan (tan x)) x #:unsound] ; unsound @ x = pi
+  #;[asin-sin-s (asin (sin x)) x #:unsound] ; unsound @ x = pi
+  #;[acos-cos-s (acos (cos x)) x #:unsound] ; unsound @ x = 2pi
   [atan-tan-rev (remainder x (PI)) (atan (tan x)) #:unsound]) ; unsound @ x = pi/2
 
 (define-rules trigonometry
@@ -589,5 +589,5 @@
   [tanh-1/2* (tanh (/ x 2)) (/ (- (cosh x) 1) (sinh x)) #:unsound] ; unsound @ x = 0
   [sinh-acosh-rev (sqrt (- (* x x) 1)) (sinh (acosh x)) #:unsound] ; unsound @ x = -1
   [tanh-acosh-rev (/ (sqrt (- (* x x) 1)) x) (tanh (acosh x)) #:unsound] ; unsound @ x = -1
-  [asinh-2 (acosh (+ (* 2 (* x x)) 1)) (* 2 (asinh x)) #:unsound] ; unsound @ x = -1
+  #;[asinh-2 (acosh (+ (* 2 (* x x)) 1)) (* 2 (asinh x)) #:unsound] ; unsound @ x = -1
   [acosh-2 (acosh (- (* 2 (* x x)) 1)) (* 2 (acosh x)) #:unsound]) ; unsound @ x = -1
