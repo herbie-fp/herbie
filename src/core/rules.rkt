@@ -144,6 +144,9 @@
   [mult-flip (/ a b) (* a (/ 1 b))]
   [mult-flip-rev (* a (/ 1 b)) (/ a b)])
 
+; Unsound division flip
+(define-rules arithmetic [division-flip (/ a b) (/ 1 (/ b a)) #:unsound]) ; unsound @ a = 0, b != 0
+
 ; Addition flip
 (define-rules arithmetic
   [add-flip (+ a b) (neg (- (neg a) b))]
