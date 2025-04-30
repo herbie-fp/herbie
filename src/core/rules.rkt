@@ -163,6 +163,10 @@
   [difference-of-sqr-1 (- (* a a) 1) (* (+ a 1) (- a 1))]
   [difference-of-sqr--1 (+ (* a a) -1) (* (+ a 1) (- a 1))]
   [pow-sqr (* (pow a b) (pow a b)) (pow a (* 2 b))]
+  [sum-square-pow (pow (+ a b) 2) (+ (+ (pow a 2) (* 2 (* a b))) (pow b 2))]
+  [sub-square-pow (pow (- a b) 2) (+ (- (pow a 2) (* 2 (* a b))) (pow b 2))]
+  [sum-square-reverse (+ (+ (pow a 2) (* 2 (* a b))) (pow b 2)) (pow (+ a b) 2)]
+  [sub-square-reverse (+ (- (pow a 2) (* 2 (* a b))) (pow b 2)) (pow (- a b) 2)]
   [difference-of-sqr-1-rev (* (+ a 1) (- a 1)) (- (* a a) 1)]
   [difference-of-sqr--1-rev (* (+ a 1) (- a 1)) (+ (* a a) -1)]
   [difference-of-squares-rev (* (+ a b) (- a b)) (- (* a a) (* b b))])
@@ -171,13 +175,6 @@
   [sqr-pow (pow a b) (* (pow a (/ b 2)) (pow a (/ b 2))) #:unsound] ; unsound @ a = -1, b = 1
   [flip-+ (+ a b) (/ (- (* a a) (* b b)) (- a b)) #:unsound] ; unsound @ a = b = 1
   [flip-- (- a b) (/ (- (* a a) (* b b)) (+ a b)) #:unsound]) ; unsound @ a = -1, b = 1
-
-; Square of sum/sub
-(define-rules polynomials
-  [sum-square-pow (pow (+ a b) 2) (+ (+ (pow a 2) (* 2 (* a b))) (pow b 2))]
-  [sub-square-pow (pow (- a b) 2) (+ (- (pow a 2) (* 2 (* a b))) (pow b 2))]
-  [sum-square-reverse (+ (+ (pow a 2) (* 2 (* a b))) (pow b 2)) (pow (+ a b) 2)]
-  [sub-square-reverse (+ (- (pow a 2) (* 2 (* a b))) (pow b 2)) (pow (- a b) 2)])
 
 ; Difference of cubes
 (define-rules polynomials
