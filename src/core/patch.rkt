@@ -73,10 +73,7 @@
 
   ; generate required rules
 
-  ;; TODO : Change in patch
-  ; (define rules (*rules*))
-  (define rules (*included-rules*))
-  
+  (define rules (*rules*))
   (define lifting-rules (platform-lifting-rules))
   (define lowering-rules (platform-lowering-rules))
 
@@ -85,7 +82,6 @@
     `((lift . ((iteration . 1) (scheduler . simple))) (,rules . ((node . ,(*node-limit*))))
                                                       (lower . ((iteration . 1) (scheduler .
                                                                                            simple)))))
-
   ; run egg
   (define exprs (map (compose debatchref alt-expr) altns))
   (define roots (list->vector (map (compose batchref-idx alt-expr) altns)))
