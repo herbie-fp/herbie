@@ -21,18 +21,16 @@
 (define (rule-enabled? rule)
   (ormap (curry flag-set? 'rules) (rule-tags rule)))
 
-(define ((has-tag? tag) rule)
-  (set-member? (rule-tags rule) tag))
+(define (rule-sound? rule)
+  (set-member? (rule-tags rule) 'sound))
 
 (define (*rules*)
   (filter rule-enabled? *all-rules*))
 
 (define (*sound-rules*)
-  (filter (conjoin rule-enabled? (has-tag? 'sound)) *all-rules*))
+  (filter (conjoin rule-enabled? rule-sound?) *all-rules*))
 
-;;
-;;  Rule loading
-;;
+;;  Rule definition syntax
 
 (define (make-rule-context input output)
   (map (curryr cons 'real) (set-union (free-variables 'input) (free-variables 'output))))
