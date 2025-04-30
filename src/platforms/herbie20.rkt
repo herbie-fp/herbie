@@ -57,6 +57,7 @@
                  #:literal [binary32 32]
                  #:default-cost 6400
                  #:optional acos.f64
+                 [fabs.f64 128]
                  acosh.f64
                  asin.f64
                  asinh.f64
@@ -71,7 +72,6 @@
                  erf.f64
                  exp.f64
                  exp2.f64
-                 [fabs.f64 128]
                  fdim.f64
                  floor.f64
                  fmax.f64
@@ -98,6 +98,7 @@
                  #:literal [binary32 32]
                  #:default-cost 3200
                  #:optional acos.f32
+                 [fabs.f32 64]
                  acosh.f32
                  asin.f32
                  asinh.f32
@@ -112,7 +113,6 @@
                  erf.f32
                  exp.f32
                  exp2.f32
-                 [fabs.f32 64]
                  fdim.f32
                  floor.f32
                  fmax.f32
@@ -150,11 +150,7 @@
                  hypot.f32
                  [fma.f32 128])
 
-; compose platforms
-
-(define hardware-platform (platform-union boolean-platform machine-platform))
-
-(define default-platform
+(define herbie-platform
   (platform-union boolean-platform
                   machine-platform
                   libm64-platform
@@ -163,9 +159,7 @@
 
 ; Register all three
 
-(register-platform! 'boolean boolean-platform)
-(register-platform! 'hardware hardware-platform)
-(register-platform! 'default default-platform)
+(register-platform! 'herbie20 herbie-platform)
 
 ;; Do not run this file during testing
 (module test racket/base

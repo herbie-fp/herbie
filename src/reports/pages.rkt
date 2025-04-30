@@ -1,6 +1,7 @@
 #lang racket
 
-(require json)
+(require json
+         racket/engine)
 (require "../syntax/read.rkt"
          "timeline.rkt"
          "plot.rkt"
@@ -9,7 +10,7 @@
          "common.rkt")
 
 (provide all-pages
-         make-page
+         make-page-timeout
          page-error-handler)
 
 (define (all-pages result-hash)
@@ -30,6 +31,12 @@
     (display "<!doctype html><pre>" out)
     ((error-display-handler) (exn-message e) e)
     (display "</pre>" out)))
+
+(define (make-page-timeout page out result-hash output? profile? #:timeout [timeout +inf.0])
+  (define e (engine (lambda (_) (make-page page out result-hash output? profile?))))
+  (if (engine-run timeout e)
+      (engine-result e)
+      (display "<!doctype html><h1>Timeout generating page</h1>" out)))
 
 (define (make-page page out result-hash output? profile?)
   (match page

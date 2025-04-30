@@ -60,7 +60,7 @@
   (define identities (append even-identities odd-identities swap-identities))
 
   ;; make egg runner
-  (define rules (*simplify-rules*))
+  (define rules (*sound-rules*))
 
   (define batch (progs->batch (cons spec (map cdr identities))))
   (define runner

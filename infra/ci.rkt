@@ -47,16 +47,16 @@
     (match-define (job-result _ test status time timeline profile warnings backend) result)
     (match status
       ['success
-       (match-define (improve-result preprocess pctxs start targets end) backend)
-       (match-define (alt-analysis start-alt _ start-error) start)
-       (match-define (alt-analysis end-alt _ end-error) (first end))
+       (match-define (improve-result preprocess _ start targets end) backend)
+       (match-define (alt-analysis start-alt start-error) start)
+       (match-define (alt-analysis end-alt end-error) (first end))
 
        ;; Pick lowest target from all target
        (define target-error
          ; If the list is empty, return false
          (if (empty? targets)
              #f
-             (argmin errors-score (map alt-analysis-test-errors targets))))
+             (argmin errors-score (map alt-analysis-errors targets))))
 
        (printf "[ ~as]   ~a→~a\t~a\n"
                (~r (/ time 1000) #:min-width 7 #:precision '(= 3))
@@ -67,12 +67,10 @@
        (define success?
          (test-successful? test
                            (errors-score start-error)
-                           (if target-error
-                               (errors-score target-error)
-                               #f)
+                           (and target-error (errors-score target-error))
                            (errors-score end-error)))
 
-       (when (not success?)
+       (unless success?
          (printf "\nInput (~a bits):\n" (errors-score start-error))
          (pretty-print (alt-expr start-alt) (current-output-port) 1)
          (printf "\nOutput (~a bits):\n" (errors-score end-error))

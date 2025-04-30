@@ -54,10 +54,11 @@
 (define (write-results-to-disk result-hash path)
   (make-directory (build-path (*demo-output*) path))
   (for ([page (all-pages result-hash)])
-    (call-with-output-file (build-path (*demo-output*) path page)
-                           (λ (out)
-                             (with-handlers ([exn:fail? (page-error-handler result-hash page out)])
-                               (make-page page out result-hash (*demo-output*) #f)))))
+    (call-with-output-file
+     (build-path (*demo-output*) path page)
+     (λ (out)
+       (with-handlers ([exn:fail? (page-error-handler result-hash page out)])
+         (make-page-timeout page out result-hash (*demo-output*) #f #:timeout 10000)))))
   (define link (path-element->string (last (explode-path path))))
   (define data (get-table-data-from-hash result-hash link))
   (define data-file (build-path (*demo-output*) "results.json"))
@@ -413,19 +414,35 @@
   (define timeline (job-result-timeline herbie-result))
   (define profile (job-result-profile herbie-result))
 
-  (define backend-hash
-    (match (job-result-status herbie-result)
-      ['success (backend-improve-result-hash-table backend test)]
-      ['timeout #f]
-      ['failure (exception->datum backend)]))
-
-  (define-values (altns train-pcontext processed-pcontext)
+  (define ctx (test-context test))
+  (define-values (altns pcontext)
     (cond
       [(equal? (job-result-status herbie-result) 'success)
        (define altns (map alt-analysis-alt (improve-result-end backend)))
-       (match-define (list train-pcontext processed-pcontext) (improve-result-pctxs backend))
-       (values altns train-pcontext processed-pcontext)]
-      [else (values '() #f #f)]))
+       (define pcontext (improve-result-pcontext backend))
+       (values altns pcontext)]
+      [else (values '() #f)]))
+
+  (define exprs
+    (append-map (curryr collect-expressions pcontext ctx)
+                (if (equal? (job-result-status herbie-result) 'success)
+                    (map alt-analysis-alt
+                         (append (list (improve-result-start backend))
+                                 (improve-result-target backend)
+                                 (improve-result-end backend)))
+                    '())))
+
+  (define pctx->exprs
+    (for/hash ([group (in-list (group-by cdr exprs))])
+      (values (cdar group) (map car group))))
+
+  (define errcache
+    (for/hash ([(pctx exprs) (in-hash pctx->exprs)])
+      (define scores (map errors-score (batch-errors exprs pctx ctx)))
+      (values pctx
+              (for/hash ([expr (in-list exprs)]
+                         [score (in-list scores)])
+                (values expr score)))))
 
   (define test-fpcore
     (alt->fpcore test (make-alt-preprocessing (test-input test) (test-preprocess test))))
@@ -436,18 +453,24 @@
           (~s (alt->fpcore test altn)))
         (list (~s test-fpcore))))
 
+  (define backend-hash
+    (match (job-result-status herbie-result)
+      ['success (backend-improve-result-hash-table backend test errcache)]
+      ['timeout #f]
+      ['failure (exception->datum backend)]))
+
   (define histories
-    (for/list ([altn (in-list altns)])
-      (define os (open-output-string))
-      (parameterize ([current-output-port os])
-        (write-xexpr
-         `(div ([id "history"])
-               (ol ,@(render-history altn processed-pcontext train-pcontext (test-context test)))))
-        (get-output-string os))))
+    (for/list ([altn (in-list altns)]
+               [analysis (if (hash? backend-hash)
+                             (hash-ref backend-hash 'end)
+                             '())])
+      (define history (read (open-input-string (hash-ref analysis 'history))))
+      (define block `(div ([id "history"]) (ol ,@history)))
+      (call-with-output-string (curry write-xexpr block))))
 
   (define derivations
     (for/list ([altn (in-list altns)])
-      (render-json altn processed-pcontext train-pcontext (test-context test))))
+      (render-json altn pcontext (test-context test) errcache)))
 
   (hasheq 'test
           (~s test-fpcore)
@@ -464,27 +487,26 @@
           'backend
           backend-hash))
 
-(define (backend-improve-result-hash-table backend test)
+(define (backend-improve-result-hash-table backend test errcache)
   (define repr (context-repr (test-context test)))
-  (define pcontexts (improve-result-pctxs backend))
+  (define pcontext (improve-result-pcontext backend))
   (hasheq 'preprocessing
           (map ~s (improve-result-preprocess backend))
-          'pctxs
-          (map (curryr pcontext->json repr) pcontexts)
+          'pcontext
+          (pcontext->json pcontext repr)
           'start
-          (analysis->json (improve-result-start backend) pcontexts test)
+          (analysis->json (improve-result-start backend) pcontext test errcache)
           'target
-          (map (curryr analysis->json pcontexts test) (improve-result-target backend))
+          (map (curryr analysis->json pcontext test errcache) (improve-result-target backend))
           'end
-          (map (curryr analysis->json pcontexts test) (improve-result-end backend))))
+          (map (curryr analysis->json pcontext test errcache) (improve-result-end backend))))
 
-(define (analysis->json analysis pcontexts test)
+(define (analysis->json analysis pcontext test errcache)
   (define repr (context-repr (test-context test)))
-  (match-define (alt-analysis alt train-errors test-errors) analysis)
+  (match-define (alt-analysis alt test-errors) analysis)
   (define cost (alt-cost alt repr))
 
-  (match-define (list train-pcontext processed-pcontext) pcontexts)
-  (define history (render-history alt processed-pcontext train-pcontext (test-context test)))
+  (define history (render-history alt pcontext (test-context test) errcache))
 
   (define vars (test-vars test))
   (define splitpoints
@@ -498,8 +520,6 @@
           (~s (alt-expr alt))
           'history
           (~s history)
-          'train-score
-          train-errors
           'errors
           test-errors
           'cost

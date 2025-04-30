@@ -679,14 +679,14 @@
     (define dirty?-vec* (make-vector n #f))
     (for ([id (in-range n)]
           #:when (vector-ref dirty?-vec id)
-          #:unless (vector-ref typed?-vec id))
-      (when (ormap enode-typed? (vector-ref id->eclass id))
-        (vector-set! typed?-vec id #t)
-        (define parent-ids (vector-ref id->parents id))
-        (unless (vector-empty? parent-ids)
-          (set! dirty? #t)
-          (for ([parent-id (in-vector parent-ids)])
-            (vector-set! dirty?-vec* parent-id #t)))))
+          #:unless (vector-ref typed?-vec id)
+          #:when (ormap enode-typed? (vector-ref id->eclass id)))
+      (vector-set! typed?-vec id #t)
+      (define parent-ids (vector-ref id->parents id))
+      (unless (vector-empty? parent-ids)
+        (set! dirty? #t)
+        (for ([parent-id (in-vector parent-ids)])
+          (vector-set! dirty?-vec* parent-id #t))))
     (when dirty?
       (check-typed! dirty?-vec*)))
 
@@ -950,7 +950,6 @@
 ;; procedure is `#f` if extraction finds no well-typed program
 ;; at a particular id with a particular output type.
 (define ((typed-egg-batch-extractor batch-extract-to) regraph)
-  (define cost-proc (if (*egraph-platform-cost*) platform-egg-cost-proc default-egg-cost-proc))
   (define eclasses (regraph-eclasses regraph))
   (define types (regraph-types regraph))
   (define n (vector-length eclasses))
@@ -974,7 +973,7 @@
   ; cost function has access to a mutable value through `cache`
   (define cache (box #f))
   (define (node-cost node type)
-    (and (node-ready? node) (cost-proc regraph cache node type unsafe-eclass-cost)))
+    (and (node-ready? node) (platform-egg-cost-proc regraph cache node type unsafe-eclass-cost)))
 
   ; updates the cost of the current eclass.
   ; returns whether the cost of the current eclass has improved.

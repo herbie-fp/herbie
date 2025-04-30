@@ -281,8 +281,7 @@
 (define prop-dict/c (listof (cons/c symbol? any/c)))
 
 ;; Prop list to dict
-(define/contract (props->dict props)
-  (-> list? (listof (cons/c symbol? any/c)))
+(define (props->dict props)
   (let loop ([props props]
              [dict '()])
     (match props
@@ -290,8 +289,7 @@
       [(list key) (error 'props->dict "unmatched key" key)]
       [(list) dict])))
 
-(define/contract (dict->props prop-dict)
-  (-> (listof (cons/c symbol? any/c)) list?)
+(define (dict->props prop-dict)
   (apply append
          (for/list ([(k v) (in-dict prop-dict)])
            (list k v))))
