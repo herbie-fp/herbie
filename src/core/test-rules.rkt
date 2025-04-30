@@ -1,8 +1,6 @@
 #lang racket
 
-(require rackunit
-         rival
-         math/bigfloat)
+(require rackunit)
 (require "../utils/common.rkt"
          "../utils/float.rkt"
          "../syntax/load-plugin.rkt"
@@ -34,6 +32,7 @@
 (define (check-rule test-rule)
   (match-define (rule name p1 p2 _ _ _) test-rule)
   (define ctx (env->ctx p1 p2))
+
   (define pre (dict-ref *conditions* name '(TRUE)))
   (unless (equal? pre '(TRUE))
     (check-false (set-member? (rule-tags test-rule) 'sound) "Sound rules cannot have conditions"))
