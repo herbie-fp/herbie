@@ -170,8 +170,24 @@
 
 (define-ruleset* multiplication-flip
                  (arithmetic sound)
-                 #:type ([a real])
-                 [mult-flip (/ a b) (* a (/ 1 b))])
+                 #:type ([a real] [b real])
+                 [mult-flip (/ a b) (* a (/ 1 b))]
+                 [mult-flip-rev (* a (/ 1 b)) (/ a b)])
+
+(define-ruleset* division-flip
+                 (arithmetic)
+                 #:type ([a real] [b real])
+                 [division-flip (/ a b) (/ 1 (/ b a))])
+
+(define-ruleset* addition-flip
+                 (arithmetic sound)
+                 #:type ([a real] [b real])
+                 [add-flip (+ a b) (neg (- (neg a) (neg b)))])
+
+(define-ruleset* common-denominator
+                 (arithmetic sound)
+                 #:type ([a real] [b real] [c real] [d real])
+                 [common-denominator (+ (/ a b) (/ c d)) (/ (+ (* a d) (* c b)) (* b d))])
 
 ; Difference of squares
 (define-ruleset* difference-of-squares-canonicalize
