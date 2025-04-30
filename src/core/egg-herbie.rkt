@@ -17,7 +17,8 @@
          "../syntax/types.rkt"
          "batch.rkt"
          "programs.rkt"
-         "rules.rkt")
+         "rules.rkt"
+         "../syntax/load-plugin.rkt")
 
 (provide (struct-out egg-runner)
          make-egraph
@@ -1222,8 +1223,6 @@
     (timeline-push! 'stop (~a (egraph-stop-reason egg-graph)) 1)
     (cond
       [(egraph-is-unsound-detected egg-graph)
-       (unsoundness #t)
-       (printf "Unsoundness detected for iteration ~a\n" (length iteration-data))
        ; unsoundness means run again with less iterations
        (define num-iters (length iteration-data))
        (if (<= num-iters 1) ; nothing to fall back on
@@ -1248,7 +1247,6 @@
                         [`lower (platform-lowering-rules)]
                         [else rules])))
       (define-values (egg-graph* iteration-data) (egraph-run-rules egg-graph egg-rules params))
-      (printf "Final egraph contains ~a iterations\n" (length iteration-data))
 
       ; get cost statistics
       (for ([iter (in-list iteration-data)]
@@ -1401,40 +1399,21 @@
   (finalize-batch)
   out)
 
-(define (check-rewrite-exists a b #:sound [sound #t])
-  (if sound
-      (printf "Using only sound rules\n")
-      (printf "Using all the rules\n"))
+(define (check-rewrite-exists a b #:rules [rules (*sound-rules*)])
   (define batch (progs->batch (list a)))
   (define vars (free-variables a))
-  (define rules
-    (if sound
-        (*sound-rules*)
-        (*rules*)))
-  (define schedule `((,rules . ((node . 1000000000)))))
+  (*context* (make-debug-context vars))
+
+  (define schedule `((,rules . ((node . 10000)))))
   (define runner (make-egraph batch (batch-roots batch) (map (const 'binary64) vars) schedule))
   (egraph-variations runner batch)
-  (printf "Stop reason: ~a\n" (egraph-stop-reason (egg-runner-egg-graph runner)))
-  (printf "Proof: \n")
   (pretty-print (egraph-prove runner a b)))
 
-(define unsoundness (make-parameter #f))
-(define (find-unsound-rule a b #:sound [sound #t])
-  (if sound
-      (printf "Using only sound rules\n")
-      (printf "Using all the rules\n"))
-  (define batch (progs->batch (list a)))
-  (define vars (free-variables a))
-  (define rules
-    (if sound
-        (*sound-rules*)
-        (*rules*)))
-  (for ([rule (in-list rules)])
-    (unsoundness #f)
-    (define rules* (remove rule rules))
-    (define schedule `((,rules* . ((node . 1000000000)))))
-    (define runner (make-egraph batch (batch-roots batch) (map (const 'binary64) vars) schedule))
-    (egraph-variations runner batch)
-    (println rule)
-    (unless (unsoundness)
-      (println rule))))
+#;(for ([rule (in-list (*sound-rules*))])
+    (define rules* (filter (λ (x) (not (equal? (rule-name x) (rule-name rule)))) (*sound-rules*)))
+    (define a (rule-input rule))
+    (define b (rule-output rule))
+    (with-handlers ([exn:fail? (λ (e) (eprintf "~a\n" e))])
+      (check-rewrite-exists a b #:rules rules*)
+      (eprintf "rule ~a can be removed\n" rule))
+    (sleep 5))
