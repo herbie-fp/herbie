@@ -163,10 +163,10 @@
 (define-ruleset* subtraction-flip
                  (arithmetic sound)
                  #:type ([a real] [b real])
-                 [negate-sub (- a b) (+ a (neg b))]
-                 [negate-sub-reverse (+ a (neg b)) (- a b)]
-                 [negate-sub2 (- a b) (neg (- b a))]
-                 [negate-sub2-reverse (neg (- b a)) (- a b)])
+                 [sub-flip (- a b) (+ a (neg b))]
+                 [sub-flip-reverse (+ a (neg b)) (- a b)]
+                 [sub-negate (- a b) (neg (- b a))]
+                 [sub-negate-rev (neg (- b a)) (- a b)])
 
 (define-ruleset* multiplication-flip
                  (arithmetic sound)
@@ -182,7 +182,10 @@
 (define-ruleset* addition-flip
                  (arithmetic sound)
                  #:type ([a real] [b real])
-                 [add-flip (+ a b) (neg (- (neg a) b))])
+                 [add-flip (+ a b) (neg (- (neg a) b))]
+                 [add-flip-rev (neg (- (neg a) b)) (+ a b)]
+                 [add-negate (neg (+ a b)) (- a (neg b))]
+                 [add-negate-rev (- a (neg b)) (neg (+ a b))])
 
 (define-ruleset* common-denominator
                  (arithmetic sound)
