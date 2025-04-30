@@ -145,8 +145,7 @@
   [mult-flip-rev (* a (/ 1 b)) (/ a b)])
 
 ; Unsound division flip
-(define-rules arithmetic
-  [division-flip (/ a b) (/ 1 (/ b a)) #:unsound]) ; unsound @ a = 0, b != 0
+(define-rules arithmetic [division-flip (/ a b) (/ 1 (/ b a)) #:unsound]) ; unsound @ a = 0, b != 0
 
 ; Addition flip
 (define-rules arithmetic
@@ -154,8 +153,7 @@
   [add-flip-rev (neg (- (neg a) b)) (+ a b)])
 
 ; Common denominator
-(define-rules arithmetic
-  [common-denominator (+ (/ a b) (/ c d)) (/ (+ (* a d) (* c b)) (* b d))])
+(define-rules arithmetic [common-denominator (+ (/ a b) (/ c d)) (/ (+ (* a d) (* c b)) (* b d))])
 
 ; Difference of squares
 (define-rules polynomials
