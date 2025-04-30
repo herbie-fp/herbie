@@ -182,7 +182,7 @@
 (define-ruleset* addition-flip
                  (arithmetic sound)
                  #:type ([a real] [b real])
-                 [add-flip (+ a b) (neg (- (neg a) (neg b)))])
+                 [add-flip (+ a b) (neg (- (neg a) b))])
 
 (define-ruleset* common-denominator
                  (arithmetic sound)
