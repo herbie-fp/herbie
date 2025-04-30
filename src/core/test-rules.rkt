@@ -15,8 +15,7 @@
 (define num-test-points (make-parameter 100))
 
 (define *conditions*
-  (list '[asinh-2 . (>= x 0)]
-        '[pow-unpow . (>= a 0)]
+  (list '[pow-unpow . (>= a 0)]
         '[pow-pow . (>= a 0)]
         '[sqrt-pow1 . (>= x 0)]
         '[asin-sin-s . (<= (fabs x) (/ (PI) 2))]
