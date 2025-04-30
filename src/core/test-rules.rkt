@@ -53,7 +53,7 @@
                        [rule (in-list (*rules*))]
                        #:when (equal? (~a (rule-name rule)) name))
                   (eprintf "Checking ~a...\n" name)
-                  (check-rule test-rule))))
+                  (check-rule rule))))
 
 (module+ test
   (for* ([rule (in-list (*rules*))])

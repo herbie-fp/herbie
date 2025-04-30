@@ -3,7 +3,8 @@
 ;; Arithmetic identities for rewriting programs.
 
 (require "../utils/common.rkt"
-         "../syntax/syntax.rkt")
+         "../syntax/syntax.rkt"
+         "programs.rkt")
 
 (provide *rules*
          *sound-rules*
@@ -33,7 +34,7 @@
 ;;  Rule definition syntax
 
 (define (make-rule-context input output)
-  (map (curryr cons 'real) (set-union (free-variables 'input) (free-variables 'output))))
+  (map (curryr cons 'real) (set-union (free-variables input) (free-variables output))))
 
 (define-syntax define-rule
   (syntax-rules ()
