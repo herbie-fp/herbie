@@ -34,6 +34,9 @@
   (define ctx (env->ctx p1 p2))
 
   (define pre (dict-ref *conditions* name '(TRUE)))
+  (unless (equal? pre '(TRUE))
+    (check-false (set-member? (rule-tags test-rule) 'sound) "Sound rules cannot have conditions"))
+
   (match-define (list pts exs1 exs2)
     (parameterize ([*num-points* (num-test-points)]
                    [*max-find-range-depth* 0])
