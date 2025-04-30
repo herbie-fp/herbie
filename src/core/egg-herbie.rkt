@@ -678,14 +678,14 @@
     (define dirty?-vec* (make-vector n #f))
     (for ([id (in-range n)]
           #:when (vector-ref dirty?-vec id)
-          #:unless (vector-ref typed?-vec id))
-      (when (ormap enode-typed? (vector-ref id->eclass id))
-        (vector-set! typed?-vec id #t)
-        (define parent-ids (vector-ref id->parents id))
-        (unless (vector-empty? parent-ids)
-          (set! dirty? #t)
-          (for ([parent-id (in-vector parent-ids)])
-            (vector-set! dirty?-vec* parent-id #t)))))
+          #:unless (vector-ref typed?-vec id)
+          #:when (ormap enode-typed? (vector-ref id->eclass id)))
+      (vector-set! typed?-vec id #t)
+      (define parent-ids (vector-ref id->parents id))
+      (unless (vector-empty? parent-ids)
+        (set! dirty? #t)
+        (for ([parent-id (in-vector parent-ids)])
+          (vector-set! dirty?-vec* parent-id #t))))
     (when dirty?
       (check-typed! dirty?-vec*)))
 

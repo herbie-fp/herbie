@@ -12,6 +12,8 @@
                  #:literal [binary32 0]
                  #:default-cost 0
                  #:if-cost 0
+                 #:optional fabs.f32
+                 fabs.f64
                  ; ---- Boolean ----
                  TRUE
                  FALSE
@@ -65,7 +67,6 @@
                  erf.f64
                  exp.f64
                  exp2.f64
-                 fabs.f64
                  fdim.f64
                  floor.f64
                  fmax.f64
@@ -103,7 +104,6 @@
                  erf.f32
                  exp.f32
                  exp2.f32
-                 fabs.f32
                  fdim.f32
                  floor.f32
                  fmax.f32

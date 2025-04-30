@@ -75,10 +75,9 @@
                            #:exists 'replace
                            (λ (out)
                              (with-handlers ([exn:fail? (page-error-handler result page out)])
-                               (make-page-timeout page out result #t #f #:timeout 60000)))))
+                               (make-page-timeout page out result #t #f #:timeout 10000)))))
 
-  (define table-data (get-table-data-from-hash result report-path))
-  table-data)
+  (get-table-data-from-hash result report-path))
 
 (define (run-tests tests #:dir dir #:threads threads)
   (define seed (get-seed))

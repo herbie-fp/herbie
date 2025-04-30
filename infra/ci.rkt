@@ -67,12 +67,10 @@
        (define success?
          (test-successful? test
                            (errors-score start-error)
-                           (if target-error
-                               (errors-score target-error)
-                               #f)
+                           (and target-error (errors-score target-error))
                            (errors-score end-error)))
 
-       (when (not success?)
+       (unless success?
          (printf "\nInput (~a bits):\n" (errors-score start-error))
          (pretty-print (alt-expr start-alt) (current-output-port) 1)
          (printf "\nOutput (~a bits):\n" (errors-score end-error))

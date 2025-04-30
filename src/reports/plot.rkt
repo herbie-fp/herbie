@@ -17,11 +17,6 @@
          real->ordinal
          splitpoints->json)
 
-(define (all-same? pts idx)
-  (= 1
-     (set-count (for/set ([pt pts])
-                  (list-ref pt idx)))))
-
 (define (ulps->bits-tenths x)
   (string->number (real->decimal-string (ulps->bits x) 1)))
 
@@ -37,32 +32,29 @@
   (define test (car (load-tests (open-input-string (hash-ref result-hash 'test)))))
   (define backend (hash-ref result-hash 'backend))
   (define test-points (map first (hash-ref backend 'pcontext)))
-  (define start (hash-ref backend 'start))
-  (define targets (hash-ref backend 'target))
-  (define end (hash-ref backend 'end))
-
   (define repr (test-output-repr test))
-  (define start-errors (hash-ref start 'errors))
 
-  (define target-errors (map (curryr hash-ref 'errors) targets))
-
-  (define end-errors (map (curryr hash-ref 'errors) end))
+  (define start-errors (hash-ref (hash-ref backend 'start) 'errors))
+  (define target-errors (map (curryr hash-ref 'errors) (hash-ref backend 'target)))
+  (define end-errors (map (curryr hash-ref 'errors) (hash-ref backend 'end)))
 
   ; Immediately convert points to reals to handle posits
-  (define newpoints
-    (for/list ([point test-points])
-      (for/list ([x point])
-        (json->value x repr))))
+  (define ordinal-points
+    (for/list ([point (in-list test-points)])
+      (for/list ([x (in-list point)]
+                 [repr (in-list (test-var-reprs test))])
+        ((representation-repr->ordinal repr) (json->value x repr)))))
 
-  (define points
-    (for/list ([point newpoints])
-      (for/list ([x point])
-        (repr->real x repr))))
-
-  (define json-points
-    (for/list ([point points])
-      (for/list ([value point])
-        (real->ordinal value repr))))
+  (define-values (mins maxs)
+    (for/fold ([mins #f]
+               [maxs #f])
+              ([point (in-list ordinal-points)])
+      (values (if mins
+                  (map min point mins)
+                  point)
+              (if maxs
+                  (map max point maxs)
+                  point))))
 
   (define vars (test-vars test))
   (define bits (representation-total-bits repr))
@@ -81,18 +73,22 @@
   (define ticks
     (for/list ([var (in-list vars)]
                [idx (in-naturals)]
-               #:unless (all-same? newpoints idx))
-      ; We want to bail out since choose-ticks will crash otherwise
-      (define points-at-idx (map (curryr list-ref idx) points))
-      (define real-ticks (choose-ticks (apply min points-at-idx) (apply max points-at-idx) repr))
-      (for/list ([val real-ticks])
+               [min-ordinal (in-list mins)]
+               [max-ordinal (in-list maxs)]
+               [repr (in-list (test-var-reprs test))]
+               ; We want to bail out since choose-ticks will crash otherwise
+               #:unless (equal? min-ordinal max-ordinal))
+      (define min-val (repr->real ((representation-ordinal->repr repr) min-ordinal) repr))
+      (define max-val (repr->real ((representation-ordinal->repr repr) max-ordinal) repr))
+      (define real-ticks (choose-ticks min-val max-val repr))
+      (for/list ([val (in-list real-ticks)])
         (define tick-str
           (if (or (= val 0) (< 0.01 (abs val) 100))
               (~r (exact->inexact val) #:precision 4)
               (string-replace (~r val #:notation 'exponential #:precision 0) "1e" "e")))
         (list tick-str (real->ordinal val repr)))))
 
-  (define splitpoints (hash-ref (car end) 'splitpoints))
+  (define splitpoints (hash-ref (car (hash-ref backend 'end)) 'splitpoints))
 
   ; NOTE ordinals *should* be passed as strings so we can detect truncation if
   ;   necessary, but this isn't implemented yet.
@@ -108,7 +104,7 @@
   ;   splitpoints: array with the ordinal splitpoints
   `#hasheq((bits . ,bits)
            (vars . ,(map symbol->string vars))
-           (points . ,json-points)
+           (points . ,ordinal-points)
            (error . ,error-entries)
            (ticks_by_varidx . ,ticks)
            (splitpoints_by_varidx . ,splitpoints)))
