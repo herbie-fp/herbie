@@ -145,7 +145,8 @@
   [mult-flip-rev (* a (/ 1 b)) (/ a b)])
 
 ; Unsound division flip
-(define-rules arithmetic [division-flip (/ a b) (/ 1 (/ b a)) #:unsound]) ; unsound @ a = 0, b != 0
+(define-rules arithmetic
+  [division-flip (/ a b) (/ 1 (/ b a)) #:unsound]) ; unsound @ a = 0, b != 0
 
 ; Addition flip
 (define-rules arithmetic
@@ -153,7 +154,8 @@
   [add-flip-rev (neg (- (neg a) b)) (+ a b)])
 
 ; Common denominator
-(define-rules arithmetic [common-denominator (+ (/ a b) (/ c d)) (/ (+ (* a d) (* c b)) (* b d))])
+(define-rules arithmetic
+  [common-denominator (+ (/ a b) (/ c d)) (/ (+ (* a d) (* c b)) (* b d))])
 
 ; Difference of squares
 (define-rules polynomials
@@ -616,5 +618,5 @@
   [tanh-1/2* (tanh (/ x 2)) (/ (- (cosh x) 1) (sinh x)) #:unsound] ; unsound @ x = 0
   [sinh-acosh-rev (sqrt (- (* x x) 1)) (sinh (acosh x)) #:unsound] ; unsound @ x = -1
   [tanh-acosh-rev (/ (sqrt (- (* x x) 1)) x) (tanh (acosh x)) #:unsound] ; unsound @ x = -1
-  [asinh-2 (acosh (+ (* 2 (* x x)) 1)) (* 2 (asinh x))] ; unsound @ x = -1
+  [asinh-2 (acosh (+ (* 2 (* x x)) 1)) (* 2 (asinh x)) #:unsound] ; unsound @ x = -1
   [acosh-2 (acosh (- (* 2 (* x x)) 1)) (* 2 (acosh x)) #:unsound]) ; unsound @ x = -1
