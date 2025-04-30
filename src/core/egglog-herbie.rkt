@@ -47,8 +47,6 @@
       (with-output-to-file temp-file #:exists 'replace (lambda () (for-each writeln curr-program)))
       temp-file))
 
-  ; (printf "file path ~a\n" egglog-file-path)
-
   (define egglog-path
     (or (find-executable-path "egglog") (error "egglog executable not found in PATH")))
 
@@ -165,7 +163,7 @@
   ;; 3. Inserting expressions into the egglog program and getting a Listof (exprs . extract bindings)
   (define extract-bindings (egglog-add-exprs curr-batch (egglog-runner-ctx runner) curr-program))
 
-  ;; 4. Running the schedule : having coode inside to emulate egraph-run-rules
+  ;; 4. Running the schedule : having code inside to emulate egraph-run-rules
   (define run-schedule '())
   (define schedule-lower #f)
   (define schedule-lift #f)
@@ -189,9 +187,6 @@
        (define-values (best-iter-limit)
          (egglog-unsound-detected curr-program tag schedule-params schedule-lower schedule-lift))
 
-       (printf "best-iter ~a\n\n" best-iter-limit)
-
-       ; (set! run-schedule (append run-schedule `((repeat 2 ,tag))))]))
        (set! run-schedule (append run-schedule `((repeat ,best-iter-limit ,tag))))]))
 
   ; Last lowering
@@ -202,23 +197,9 @@
 
   ;; 5. Extraction -> should just need root ids
   (egglog-program-add-list! (for/list ([binding extract-bindings])
-                              `(extract ,binding 5))
+                              `(extract ,binding 100))
                             curr-program)
 
-  ; (for ([binding extract-bindings])
-  ;   (define val
-  ;     (if num-variants
-  ;         `(extract ,binding 5)
-
-  ;         (match domain-fns
-  ;           [(list 'lifting) `(extract (lift ,binding))]
-  ;           [(list 'lowering)
-  ;            (define curr-val
-  ;              (symbol->string (representation-name (context-repr (egglog-runner-ctx runner)))))
-  ;            `(extract (lower ,binding ,curr-val))]
-  ;           [_ `(extract ,binding)])))
-
-  ;   (egglog-program-add! val curr-program))
 
   ;; 6. After step-by-step building the program, process it
   ;; by running it using egglog
@@ -237,8 +218,6 @@
         (if num-variants
             (map e2->expr next-expr)
             (list (e2->expr next-expr))))))
-
-  ; (printf "herbie-exprss : ~a" herbie-exprss)
 
   (define result
     (for/list ([variants (in-list herbie-exprss)])
@@ -328,7 +307,6 @@
                                       min-cost))
                (Approx M MTy)
                ,@(platform-impl-nodes pform min-cost)))
-
   (egglog-program-add! typed-graph curr-program)
 
   (egglog-program-add! `(constructor lower (M String) MTy :unextractable) curr-program)
@@ -812,9 +790,7 @@
   ;; Loop to check unsoundness
   (let loop ([curr-iter 1])
     (cond
-      [(> curr-iter iter-limit)
-      ;  (printf "Reached iteration limit ~a without detecting unsoundness\n" iter-limit)
-       (values iter-limit)]
+      [(> curr-iter iter-limit) (values iter-limit)]
       [else
        ;; Run the ruleset once more
        (egglog-program-add! `(run-schedule (repeat 1 ,tag)) temp-program)
@@ -828,12 +804,11 @@
        (define stdout-content (car egglog-output))
        (define lines (string-split (string-trim stdout-content) "\n"))
        (define last-line (list-ref lines (- (length lines) 1)))
-      ;  (printf "last-line : ~a\n" last-line)
 
        (define total_nodes (calculate-nodes lines))
-      ;  (printf "total_nodes : ~a\n" total_nodes)
 
-      (when (equal? last-line "true") (printf "ALERT : UNSOUNDNESS DETECTED when...\n"))
+      ;  (when (equal? last-line "true")
+      ;    (printf "ALERT : UNSOUNDNESS DETECTED when...\n"))
 
        ;; If Unsoundness detected or node-limit reached, then return the
        ;; optimal iter limit (one less than current)
