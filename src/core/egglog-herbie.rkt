@@ -127,11 +127,9 @@
   (egglog-runner batch roots reprs schedule ctx))
 
 ;; Runs egglog using an egglog runner by extracting multiple variants
-(define (run-egglog-multi-extractor runner
-                                    batch
-                                    #:num-variants [num-variants #t]) ; multi expression extraction
+(define (run-egglog-multi-extractor runner input-batch output-batch) ; multi expression extraction
 
-  (define curr-batch (batch-remove-zombie batch))
+  (define insert-batch (batch-remove-zombie input-batch))
   (define curr-program (make-egglog-program))
 
   ;; 1. Add the Prelude
@@ -161,7 +159,7 @@
       (cons tag schedule-params)))
 
   ;; 3. Inserting expressions into the egglog program and getting a Listof (exprs . extract bindings)
-  (define extract-bindings (egglog-add-exprs curr-batch (egglog-runner-ctx runner) curr-program))
+  (define extract-bindings (egglog-add-exprs insert-batch (egglog-runner-ctx runner) curr-program))
 
   ;; 4. Running the schedule : having code inside to emulate egraph-run-rules
   (define run-schedule '())
@@ -184,7 +182,7 @@
       [(or 'lifting 'lowering) (void)]
       [_
        ;; Get the best iter limit by looking at the program from scratch
-       (define-values (best-iter-limit)
+       (define best-iter-limit
          (egglog-unsound-detected curr-program tag schedule-params schedule-lower schedule-lift))
 
        (set! run-schedule (append run-schedule `((repeat ,best-iter-limit ,tag))))]))
@@ -197,7 +195,7 @@
 
   ;; 5. Extraction -> should just need root ids
   (egglog-program-add-list! (for/list ([binding extract-bindings])
-                              `(extract ,binding ,(*egglog-variants*)))
+                              `(extract ,binding ,(*egglog-variants-limit*)))
                             curr-program)
 
   ;; 6. After step-by-step building the program, process it
@@ -207,25 +205,24 @@
   ;; Extract its returned value
   (define stdout-content (car egglog-output))
 
-  (define input-batch curr-batch)
-  (define out (batch->mutable-batch input-batch))
+  (define output-mutable-batch (batch->mutable-batch output-batch))
 
   ;; (Listof (Listof exprs))
   (define herbie-exprss
     (let ([input-port (open-input-string stdout-content)])
       (for/list ([next-expr (in-port read input-port)])
-        (if num-variants
-            (map e2->expr next-expr)
-            (list (e2->expr next-expr))))))
+        (map e2->expr next-expr))))
 
   (define result
     (for/list ([variants (in-list herbie-exprss)])
-      (remove-duplicates
-       (for/list ([v (in-list variants)])
-         (egglog->batchref v input-batch out (context-repr (egglog-runner-ctx runner))))
-       #:key batchref-idx)))
+      (remove-duplicates (for/list ([v (in-list variants)])
+                           (egglog->batchref v
+                                             output-batch
+                                             output-mutable-batch
+                                             (context-repr (egglog-runner-ctx runner))))
+                         #:key batchref-idx)))
 
-  (batch-copy-mutable-nodes! input-batch out)
+  (batch-copy-mutable-nodes! output-batch output-mutable-batch)
 
   ;; (Listof (Listof batchref))
   result)
@@ -328,19 +325,6 @@
   (egglog-program-add!
    `(rule ((= (Num c1) (Num c2)) (!= c1 c2)) ((set (unsound) true)) :ruleset unsound-rule)
    curr-program)
-
-  (egglog-program-add! `(let ?one (Num
-                                   [bigrat
-                                    (from-string "1")
-                                    (from-string "1")])
-                          )
-                       curr-program)
-  (egglog-program-add! `(let ?two (Num
-                                   [bigrat
-                                    (from-string "2")
-                                    (from-string "1")])
-                          )
-                       curr-program)
 
   (for ([curr-expr const-fold])
     (egglog-program-add! curr-expr curr-program))
@@ -646,13 +630,16 @@
       [(hole _ _) (vector-set! spec-mask n #f)] ;; If hole, not a spec
       [(approx _ _) (vector-set! spec-mask n #f)] ;; If approx, not a spec
 
+      ;; If the condition or any branch is a spec, then this is a spec
+      [`(if ,cond ,ift ,iff) (vector-set! spec-mask n (vector-ref spec-mask cond))]
+
       [(list appl args ...)
        (if (hash-has-key? (id->e1) appl)
-           (vector-set! spec-mask n #t) ;; appl with op -> Is a spec
-           (vector-set! spec-mask n #f))] ;; appl impl -> Not a spec
+           ;; appl with op -> Is a spec
+           (vector-set! spec-mask n #t)
 
-      ;; If the condition or any branch is a spec, then this is a spec
-      [`(if ,cond ,ift ,iff) (vector-set! spec-mask n (vector-ref spec-mask cond))]))
+           ;; appl impl -> Not a spec
+           (vector-set! spec-mask n #f))]))
 
   (for ([root (in-vector (batch-roots batch))])
     (vector-set! root-mask root #t))
@@ -762,7 +749,7 @@
 
 (define (egglog-unsound-detected curr-program tag params schedule-lower schedule-lift)
   (define node-limit (dict-ref params 'node (*node-limit*)))
-  (define iter-limit (dict-ref params 'iteration 50))
+  (define iter-limit (dict-ref params 'iteration (*default-egglog-iter-limit*)))
 
   ;; Make a copy here too so that we don't modify our original clean copy
   (define temp-program (egglog-program-copy curr-program))
@@ -812,7 +799,7 @@
        ;; If Unsoundness detected or node-limit reached, then return the
        ;; optimal iter limit (one less than current)
        (if (or (equal? last-line "true") (> total_nodes node-limit))
-           (values (sub1 curr-iter))
+           (sub1 curr-iter)
            (loop (add1 curr-iter)))])))
 
 (define (calculate-nodes lines)

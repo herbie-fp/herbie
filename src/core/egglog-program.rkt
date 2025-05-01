@@ -28,13 +28,6 @@
 (define (get-current-program program)
   (reverse (egglog-program-exprs program)))
 
-;; TODO: Couldn't find a cleaner solution for this as egg-herbie uses Rust code
-;; Deep copy of an S-Expressions
-(define (exprs-copy exprs)
-  (cond
-    [(cons? exprs) (cons (exprs-copy (car exprs)) (exprs-copy (cdr exprs)))]
-    [else exprs]))
-
 ;; Creates a new egglog program using an existing one
 (define (egglog-program-copy program)
-  (struct-copy egglog-program program [exprs (exprs-copy (egglog-program-exprs program))]))
+  (struct-copy egglog-program program [exprs (egglog-program-exprs program)]))
