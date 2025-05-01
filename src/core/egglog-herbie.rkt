@@ -200,7 +200,6 @@
                               `(extract ,binding 100))
                             curr-program)
 
-
   ;; 6. After step-by-step building the program, process it
   ;; by running it using egglog
   (define egglog-output (process-egglog curr-program))
@@ -807,8 +806,8 @@
 
        (define total_nodes (calculate-nodes lines))
 
-      ;  (when (equal? last-line "true")
-      ;    (printf "ALERT : UNSOUNDNESS DETECTED when...\n"))
+       ;  (when (equal? last-line "true")
+       ;    (printf "ALERT : UNSOUNDNESS DETECTED when...\n"))
 
        ;; If Unsoundness detected or node-limit reached, then return the
        ;; optimal iter limit (one less than current)
