@@ -227,6 +227,8 @@
   [cbrt-div (cbrt (/ x y)) (/ (cbrt x) (cbrt y))]
   [cbrt-unprod (* (cbrt x) (cbrt y)) (cbrt (* x y))]
   [cbrt-undiv (/ (cbrt x) (cbrt y)) (cbrt (/ x y))]
+  [pow-cbrt (pow (cbrt x) y) (pow x (/ y 3))]
+  [cbrt-pow (cbrt (pow x y)) (pow x (/ y 3))]
   [add-cube-cbrt x (* (* (cbrt x) (cbrt x)) (cbrt x))]
   [add-cbrt-cube x (cbrt (* (* x x) x))]
   [cube-unmult (* x (* x x)) (pow x 3)])

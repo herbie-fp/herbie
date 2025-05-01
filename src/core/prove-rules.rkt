@@ -93,9 +93,10 @@
 
     [`(< (/ 1 ,a) 0) (list `(< ,a 0))]
     [`(< (neg ,a) 0) (list `(> ,a 0))]
+    [`(< (cbrt ,a) 0) (list `(< ,a 0))]
     [`(< (* 2 ,a) ,(? number? b)) (list `(< ,a ,(/ b 2)))]
     [`(< (+ 1 ,a) 0) (list `(< ,a -1))]
-    [`(< (/ ,x 2) 0) (list `(< ,x 0))]
+    [`(< (/ ,x ,(? (conjoin number? positive?))) 0) (list `(< ,x 0))]
     [`(< (+ ,x 1) 0) (list `(< ,x -1))]
     [`(< (- ,a 1) ,(? number? b)) (list `(< ,a ,(+ b 1)))]
     [`(< (- 1 ,x) 0) (list `(< 1 ,x))]
@@ -119,6 +120,7 @@
 
     [`(even-denominator? (neg ,b)) (list `(even-denominator? ,b))]
     [`(even-denominator? (+ ,b 1)) (list `(even-denominator? ,b))]
+    [`(even-denominator? (/ ,b 3)) (list `(even-denominator? ,b))]
     [`(even-denominator? ,(? rational? a))
      (if (even? (denominator a))
          '((TRUE))
