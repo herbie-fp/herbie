@@ -28,8 +28,6 @@ jobs:
       - uses: actions/checkout@master
       - name: "Install dependencies"
         run: make install
-      - name: "Install egglog"
-        run: make egglog-herbie
       - name: Create a Resyntax pull request
         uses: jackfirth/create-resyntax-pull-request@v0.5.1
         with:

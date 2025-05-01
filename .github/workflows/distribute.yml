@@ -52,8 +52,6 @@ jobs:
       - uses: actions/checkout@master
       - name: "Install dependencies"
         run: make install
-      - name: "Install egglog"
-        run: make egglog-herbie
       # Build executable and remove Herbie launcher
       - name: "Build standalone executable"
         run: make distribution
