@@ -6,6 +6,8 @@ set -e -x
 # Ensure egglog is installed
 make egglog-herbie
 
+export PATH="$PATH:/home/nightlies/.cargo/bin/"
+
 # Seed is fixed for the whole day; this way two branches run the same seed
 SEED=$(date "+%Y%j")
 BENCHDIR="$1"; shift
