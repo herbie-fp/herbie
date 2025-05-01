@@ -169,6 +169,9 @@
 ;; Time out for a given run. 2.5 minutes currently.
 (define *timeout* (make-parameter (* 1000 60 5/2)))
 
+;; The number of variants extracted from egglog
+(define *egglog-variants* (make-parameter 1000000))
+
 ;;; About Herbie:
 
 (define (run-command cmd)

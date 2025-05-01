@@ -197,7 +197,7 @@
 
   ;; 5. Extraction -> should just need root ids
   (egglog-program-add-list! (for/list ([binding extract-bindings])
-                              `(extract ,binding 100))
+                              `(extract ,binding ,(*egglog-variants*)))
                             curr-program)
 
   ;; 6. After step-by-step building the program, process it
