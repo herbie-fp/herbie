@@ -177,10 +177,9 @@
          (egglog-unsound-detected curr-program tag schedule-params run-schedule))
 
        (set! run-schedule (cons `(repeat ,best-iter-limit ,tag) run-schedule))]))
-       
+
   ;; Add the schedule to the program after reversing it
   (egglog-program-add! `(run-schedule ,@(reverse run-schedule)) curr-program)
-
 
   ;; 5. Extraction -> should just need root ids
   (egglog-program-add-list! (for/list ([binding extract-bindings])
