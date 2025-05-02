@@ -84,13 +84,15 @@
 
   ; run egg
   (define exprs (map (compose debatchref alt-expr) altns))
+  (define input-batch (progs->batch exprs))
+
   (define roots (list->vector (map (compose batchref-idx alt-expr) altns)))
   (define reprs (map (curryr repr-of (*context*)) exprs))
   (timeline-push! 'inputs (map ~a exprs))
 
   (define runner
     (if (flag-set? 'generate 'egglog)
-        (make-egglog-runner global-batch roots reprs schedule)
+        (make-egglog-runner input-batch (batch-roots input-batch) reprs schedule)
         (make-egraph global-batch roots reprs schedule)))
 
   (define batchrefss
