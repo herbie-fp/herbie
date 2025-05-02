@@ -162,36 +162,25 @@
   (define extract-bindings (egglog-add-exprs insert-batch (egglog-runner-ctx runner) curr-program))
 
   ;; 4. Running the schedule : having code inside to emulate egraph-run-rules
+
+  ; run-schedule specifies the schedule of rulesets to saturate the egraph
+  ; For performance, it stores the schedule in reverse order, and is reversed at the end
   (define run-schedule '())
-  (define schedule-lower #f)
-  (define schedule-lift #f)
 
   (for ([(tag schedule-params) (in-dict tag-schedule)])
     (match tag
-      ['lifting (set! schedule-lift #t)]
-      ['lowering (set! schedule-lower #t)]
-      [_ (void)]))
-
-  ; First lifting
-  (when schedule-lift
-    (set! run-schedule (append run-schedule (list `(saturate lifting)))))
-
-  ; Then math rules tag
-  (for ([(tag schedule-params) (in-dict tag-schedule)])
-    (match tag
-      [(or 'lifting 'lowering) (void)]
+      ['lifting (set! run-schedule (cons `(saturate lifting) run-schedule))]
+      ['lowering (set! run-schedule (cons `(saturate lowering) run-schedule))]
       [_
-       ;; Get the best iter limit by looking at the program from scratch
+       ;; Get the best iter limit for the current ruleset tag
        (define best-iter-limit
-         (egglog-unsound-detected curr-program tag schedule-params schedule-lower schedule-lift))
+         (egglog-unsound-detected curr-program tag schedule-params run-schedule))
 
-       (set! run-schedule (append run-schedule `((repeat ,best-iter-limit ,tag))))]))
+       (set! run-schedule (cons `(repeat ,best-iter-limit ,tag) run-schedule))]))
+       
+  ;; Add the schedule to the program after reversing it
+  (egglog-program-add! `(run-schedule ,@(reverse run-schedule)) curr-program)
 
-  ; Last lowering
-  (when schedule-lower
-    (set! run-schedule (append run-schedule (list `(saturate lowering)))))
-
-  (egglog-program-add! `(run-schedule ,@run-schedule) curr-program)
 
   ;; 5. Extraction -> should just need root ids
   (egglog-program-add-list! (for/list ([binding extract-bindings])
@@ -747,7 +736,7 @@
 
   extract-bindings)
 
-(define (egglog-unsound-detected curr-program tag params schedule-lower schedule-lift)
+(define (egglog-unsound-detected curr-program tag params current-schedule)
   (define node-limit (dict-ref params 'node (*node-limit*)))
   (define iter-limit (dict-ref params 'iteration (*default-egglog-iter-limit*)))
 
@@ -767,11 +756,8 @@
   ;; TODO : const-fold
   ;; Add lifting and lowering to the schedule that we know will exist
 
-  (when schedule-lower
-    (egglog-program-add! `(run-schedule (saturate lowering)) temp-program))
-
-  (when schedule-lift
-    (egglog-program-add! `(run-schedule (saturate lifting)) temp-program))
+  ;; Reverse the run-schedule before adding to the program
+  (egglog-program-add! `(run-schedule ,@(reverse current-schedule)) temp-program)
 
   ;; Loop to check unsoundness
   (let loop ([curr-iter 1])

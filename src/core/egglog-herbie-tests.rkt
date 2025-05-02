@@ -328,4 +328,4 @@
                                                       (lower . ((iteration . 1) (scheduler .
                                                                                            simple)))))
 
-  (run-egglog-multi-extractor (egglog-runner batch roots reprs schedule (*context*)) batch))
+  (run-egglog-multi-extractor (egglog-runner batch roots reprs schedule (*context*)) batch batch))
