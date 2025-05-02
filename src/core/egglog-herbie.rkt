@@ -127,9 +127,9 @@
   (egglog-runner batch roots reprs schedule ctx))
 
 ;; Runs egglog using an egglog runner by extracting multiple variants
-(define (run-egglog-multi-extractor runner input-batch output-batch) ; multi expression extraction
+(define (run-egglog-multi-extractor runner output-batch) ; multi expression extraction
 
-  (define insert-batch (batch-remove-zombie input-batch))
+  (define insert-batch (batch-remove-zombie (egglog-runner-batch runner)))
   (define curr-program (make-egglog-program))
 
   ;; 1. Add the Prelude

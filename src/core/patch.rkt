@@ -97,7 +97,7 @@
 
   (define batchrefss
     (if (flag-set? 'generate 'egglog)
-        (run-egglog-multi-extractor runner input-batch global-batch)
+        (run-egglog-multi-extractor runner global-batch)
         (egraph-variations runner global-batch)))
 
   ; apply changelists
