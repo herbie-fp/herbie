@@ -423,17 +423,17 @@
        (values altns pcontext)]
       [else (values '() #f)]))
 
-  (define exprs
-    (append-map collect-expressions
-                (if (equal? (job-result-status herbie-result) 'success)
-                    (map alt-analysis-alt
-                         (append (list (improve-result-start backend))
-                                 (improve-result-target backend)
-                                 (improve-result-end backend)))
-                    '())))
-
   (define errcache
-    (make-hash (map cons exprs (batch-errors exprs pcontext ctx))))
+    (cond
+      [(equal? (job-result-status herbie-result) 'success)
+       (define all-alts 
+         (map alt-analysis-alt
+              (append (list (improve-result-start backend))
+                      (improve-result-target backend)
+                      (improve-result-end backend))))
+       (define exprs (append-map collect-expressions all-alts))
+       (make-hash (map cons exprs (batch-errors exprs pcontext ctx)))]
+      [else #f]))
 
   (define test-fpcore
     (alt->fpcore test (make-alt-preprocessing (test-input test) (test-preprocess test))))
