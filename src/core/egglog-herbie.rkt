@@ -170,7 +170,14 @@
   (for ([(tag schedule-params) (in-dict tag-schedule)])
     (match tag
       ['lifting (set! run-schedule (cons `(saturate lifting) run-schedule))]
-      ['lowering (set! run-schedule (cons `(saturate lowering) run-schedule))]
+      ['lowering
+       (set! run-schedule (cons `(saturate lowering) run-schedule))
+       ;  (set! run-schedule (cons `(repeat 1 const-fold) run-schedule))
+
+       (define const-fold-best-iter-limit
+         (egglog-unsound-detected curr-program 'const-fold schedule-params run-schedule))
+
+       (set! run-schedule (cons `(repeat ,const-fold-best-iter-limit const-fold) run-schedule))]
       [_
        ;; Get the best iter limit for the current ruleset tag
        (define best-iter-limit
