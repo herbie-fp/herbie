@@ -4,6 +4,7 @@
          racket/random)
 (require "../config.rkt"
          "../utils/alternative.rkt"
+         "../utils/common.rkt"
          "../utils/timeline.rkt"
          "../utils/errors.rkt"
          "../utils/float.rkt"
@@ -20,7 +21,7 @@
 
 (provide combine-alts
          (struct-out sp)
-         regimes-split-pcontext)
+         regimes-pcontext-masks)
 
 (module+ test
   (require rackunit
@@ -92,7 +93,7 @@
 (define (extract-subexpression expr var pattern ctx)
   (define body* (replace-expression expr pattern var))
   (define vars* (set-subtract (context-vars ctx) (free-variables pattern)))
-  (if (subset? (free-variables body*) (cons var vars*)) body* #f))
+  (and (subset? (free-variables body*) (cons var vars*)) body*))
 
 (define (prepend-argument evaluator val pcontext)
   (define pts
@@ -108,8 +109,7 @@
 (define/reset *prepend-arguement-cache* (make-hash))
 (define (cache-get-prepend v expr macro)
   (define key (cons expr v))
-  (define value (hash-ref! (*prepend-arguement-cache*) key (lambda () (macro v))))
-  value)
+  (hash-ref! (*prepend-arguement-cache*) key (lambda () (macro v))))
 
 (define (valid-splitpoints? splitpoints)
   (and (= (set-count (list->set (map sp-bexpr splitpoints))) 1) (nan? (sp-point (last splitpoints)))))
@@ -149,16 +149,16 @@
     (left-point p1 p2))
 
   (define (left-point p1 p2)
-    (let ([left ((representation-repr->bf repr) p1)]
-          [right ((representation-repr->bf repr) p2)])
-      (define out
-        (if (bfnegative? left)
-            (bigfloat-interval-shortest left (bfmin (bf/ left 2.bf) right))
-            (bigfloat-interval-shortest left (bfmin (bf* left 2.bf) right))))
-      ;; It's important to return something strictly less than right
-      (if (bf= out right)
-          p1
-          ((representation-bf->repr repr) out))))
+    (define left ((representation-repr->bf repr) p1))
+    (define right ((representation-repr->bf repr) p2))
+    (define out
+      (if (bfnegative? left)
+          (bigfloat-interval-shortest left (bfmin (bf/ left 2.bf) right))
+          (bigfloat-interval-shortest left (bfmin (bf* left 2.bf) right))))
+    ;; It's important to return something strictly less than right
+    (if (bf= out right)
+        p1
+        ((representation-bf->repr repr) out)))
 
   (define use-binary
     (and (flag-set? 'reduce 'binary-search)
@@ -185,26 +185,18 @@
             (sp (si-cidx si1) expr split-at))
           (list (sp (si-cidx (last sindices)) expr +nan.0))))
 
-(define (regimes-split-pcontext pcontext splitpoints alts ctx)
+(define (regimes-pcontext-masks pcontext splitpoints alts ctx)
+  (define num-alts (length alts))
   (define bexpr (sp-bexpr (car splitpoints)))
   (define ctx* (struct-copy context ctx [repr (repr-of bexpr ctx)]))
   (define prog (compile-prog bexpr ctx*))
 
-  (define pts-vector (make-vector (length alts) '()))
-  (define exs-vector (make-vector (length alts) '()))
-
-  (for ([(pt ex) (in-pcontext pcontext)])
-    (define val (prog pt))
-    (for/first ([right (in-list splitpoints)]
-                #:when (or (equal? (sp-point right) +nan.0)
-                           (<=/total val (sp-point right) (context-repr ctx*))))
-      ;; Note that the last splitpoint has an sp-point of +nan.0, so we always find one
-      (vector-set! pts-vector (sp-cidx right) (cons pt (vector-ref pts-vector (sp-cidx right))))
-      (vector-set! exs-vector (sp-cidx right) (cons ex (vector-ref exs-vector (sp-cidx right))))))
-
-  (for/list ([sp (in-list splitpoints)])
-    (define pts (reverse (vector-ref pts-vector (sp-cidx sp))))
-    (define exs (reverse (vector-ref exs-vector (sp-cidx sp))))
-    (if (null? pts)
-        pcontext
-        (mk-pcontext pts exs))))
+  (flip-lists
+   (for/list ([(pt ex) (in-pcontext pcontext)])
+     (define val (prog pt))
+     (define alt-id
+       (for/first ([right (in-list splitpoints)]
+                  #:when (or (equal? (sp-point right) +nan.0)
+                             (<=/total val (sp-point right) (context-repr ctx*))))
+        (sp-cidx right)))
+     (build-list num-alts (curry = alt-id)))))

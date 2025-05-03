@@ -80,8 +80,7 @@
          (make-page-timeout page out result #t #f #:timeout 10000))
        (hash-update! page-times page (curry + (- (current-inexact-milliseconds) start)) 0))))
 
-  (define table-data (get-table-data-from-hash result report-path))
-  table-data)
+  (get-table-data-from-hash result report-path))
 
 (define page-times (make-hash))
 

@@ -7,6 +7,7 @@
          "../syntax/types.rkt"
          "rival.rkt"
          "rules.rkt"
+         "programs.rkt"
          "sampling.rkt")
 
 (load-herbie-builtins)
@@ -23,44 +24,19 @@
         '[atan-tan-s . (<= (fabs x) (/ (PI) 2))]))
 
 (define double-repr (get-representation 'binary64))
-(define boolean-repr (get-representation 'bool))
 
-(define (type->repr type)
-  (match type
-    ['real double-repr]
-    ['bool boolean-repr]))
+(define (env->ctx p1 p2)
+  (define vars (set-union (free-variables p1) (free-variables p2)))
+  (context vars double-repr (map (const double-repr) vars)))
 
-(define (env->ctx env out)
-  (define vars (dict-keys env))
-  (define itypes (map type->repr (dict-values env)))
-  (context vars (type->repr out) itypes))
-
-(define (check-rule-sound test-rule)
-  (match-define (rule name p1 p2 env out tags) test-rule)
-  (define ctx (env->ctx env out))
-
-  (match-define (list pts exs)
-    (parameterize ([*num-points* (num-test-points)]
-                   [*max-find-range-depth* 0])
-      (sample-points '(TRUE) (list p1) (list ctx))))
-
-  (define compiler (make-real-compiler (list p2) (list ctx)))
-  (for ([pt (in-list pts)]
-        [v1 (in-list exs)])
-    (with-check-info* (map make-check-info (context-vars ctx) (vector->list pt))
-                      (λ ()
-                        (define-values (status v2) (real-apply compiler pt))
-                        (with-check-info (['lhs v1] ['rhs v2] ['status status])
-                                         (when (and (real? v2)
-                                                    (nan? v2)
-                                                    (not (set-member? '(exit unsamplable) status)))
-                                           (fail "Right hand side returns NaN")))))))
-
-(define (check-rule-correct test-rule)
-  (match-define (rule name p1 p2 env out tags) test-rule)
-  (define ctx (env->ctx env out))
+(define (check-rule test-rule)
+  (match-define (rule name p1 p2 _ _ _) test-rule)
+  (define ctx (env->ctx p1 p2))
 
   (define pre (dict-ref *conditions* name '(TRUE)))
+  (unless (equal? pre '(TRUE))
+    (check-false (set-member? (rule-tags test-rule) 'sound) "Sound rules cannot have conditions"))
+
   (match-define (list pts exs1 exs2)
     (parameterize ([*num-points* (num-test-points)]
                    [*max-find-range-depth* 0])
@@ -74,19 +50,14 @@
                         (with-check-info (['lhs v1] ['rhs v2])
                                          (check-eq? (ulp-difference v1 v2 (context-repr ctx)) 1))))))
 
-(define (check-rule rule)
-  (check-rule-correct rule)
-  (when (set-member? (rule-tags rule) 'sound)
-    (check-rule-sound rule)))
-
 (module+ main
   (num-test-points (* 100 (num-test-points)))
   (command-line #:args names
-                (for ([name names])
+                (for* ([name (in-list names)]
+                       [rule (in-list (*rules*))]
+                       #:when (equal? (~a (rule-name rule)) name))
                   (eprintf "Checking ~a...\n" name)
-                  (define test-rule
-                    (first (filter (λ (x) (equal? (~a (rule-name x)) name)) (*rules*))))
-                  (check-rule test-rule))))
+                  (check-rule rule))))
 
 (module+ test
   (for* ([rule (in-list (*rules*))])
