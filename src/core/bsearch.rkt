@@ -191,12 +191,11 @@
   (define ctx* (struct-copy context ctx [repr (repr-of bexpr ctx)]))
   (define prog (compile-prog bexpr ctx*))
 
-  (flip-lists
-   (for/list ([(pt ex) (in-pcontext pcontext)])
-     (define val (prog pt))
-     (define alt-id
-       (for/first ([right (in-list splitpoints)]
-                  #:when (or (equal? (sp-point right) +nan.0)
-                             (<=/total val (sp-point right) (context-repr ctx*))))
-        (sp-cidx right)))
-     (build-list num-alts (curry = alt-id)))))
+  (flip-lists (for/list ([(pt ex) (in-pcontext pcontext)])
+                (define val (prog pt))
+                (define alt-id
+                  (for/first ([right (in-list splitpoints)]
+                              #:when (or (equal? (sp-point right) +nan.0)
+                                         (<=/total val (sp-point right) (context-repr ctx*))))
+                    (sp-cidx right)))
+                (build-list num-alts (curry = alt-id)))))
