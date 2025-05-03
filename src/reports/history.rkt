@@ -107,7 +107,8 @@
             [(alt prog 'add-preprocessing `(,prev) _) (loop prev)]
             [(alt _ `(regimes ,splitpoints) prevs _) (for-each loop prevs)]
             [(alt prog `(taylor ,loc ,pt ,var) `(,prev) _) (loop prev)]
-            [(alt prog `(rr ,loc ,input ,proof) `(,prev) _) (loop prev)
+            [(alt prog `(rr ,loc ,input ,proof) `(,prev) _)
+             (loop prev)
              (when proof
                (for ([step proof])
                  (define-values (dir rule loc expr) (splice-proof-step step))
@@ -170,14 +171,13 @@
                 ""))
        (li (p "Applied rewrites" (span ((class "error")) ,err))
            (div ((class "math")) "\\[\\leadsto " ,(program->tex prog ctx #:loc loc) "\\]")))]))
-  
+
 (define (errors-score-masked errs mask)
   (if (ormap identity mask)
-      (errors-score
-       (for/list ([err (in-list errs)]
-                  [use? (in-list mask)]
-                  #:when use?)
-         err))
+      (errors-score (for/list ([err (in-list errs)]
+                               [use? (in-list mask)]
+                               #:when use?)
+                      err))
       (errors-score errs)))
 
 (define (render-proof proof pcontext ctx errcache mask)
@@ -230,11 +230,10 @@
                              (define entry-ivals
                                (filter (λ (intrvl) (= (interval-alt-idx intrvl) idx)) intervals))
                              (map (curryr interval->string repr) entry-ivals)))
-            (prevs .
-                   ,(for/list ([entry prevs]
-                               [new-mask (regimes-pcontext-masks pcontext splitpoints prevs ctx)])
-                      (define mask* (map and-fn mask new-mask))
-                      (render-json entry pcontext ctx errcache mask*))))]
+            (prevs . ,(for/list ([entry prevs]
+                                 [new-mask (regimes-pcontext-masks pcontext splitpoints prevs ctx)])
+                        (define mask* (map and-fn mask new-mask))
+                        (render-json entry pcontext ctx errcache mask*))))]
 
     [(alt prog `(taylor ,loc ,pt ,var) `(,prev) _)
      `#hash((program . ,(fpcore->string (expr->fpcore prog ctx)))

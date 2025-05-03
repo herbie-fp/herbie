@@ -426,7 +426,7 @@
   (define errcache
     (cond
       [(equal? (job-result-status herbie-result) 'success)
-       (define all-alts 
+       (define all-alts
          (map alt-analysis-alt
               (append (list (improve-result-start backend))
                       (improve-result-target backend)
