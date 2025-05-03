@@ -8,7 +8,7 @@
   #hash([precision . (double fallback)]
         [setup . (simplify search)]
         [localize . (costs errors)]
-        [generate . (rr taylor simplify better-rr proofs)]
+        [generate . (rr simplify better-rr proofs)]
         [reduce . (regimes avg-error binary-search branch-expressions simplify)]
         [rules
          . (arithmetic polynomials
@@ -26,7 +26,7 @@
   #hash([precision . ()]
         [setup . (simplify search)]
         [localize . ()]
-        [generate . (rr taylor simplify proofs)]
+        [generate . (rr simplify proofs)]
         [reduce . (regimes binary-search branch-expressions simplify)]
         [rules
          . (arithmetic polynomials

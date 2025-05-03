@@ -105,6 +105,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Public API ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (generate-candidates exprs)
+;;; (displayln exprs)
+;!!! dump exprs here
   ; Batch to where we will extract everything
   ; Roots of this batch are constantly updated
   (define global-batch (progs->batch exprs))
@@ -128,4 +130,8 @@
         (run-rr (append start-altns approximations) global-batch)
         '()))
 
-  (remove-duplicates rewritten #:key (λ (x) (batchref-idx (alt-expr x)))))
+  (define deduped (remove-duplicates rewritten #:key (λ (x) (batchref-idx (alt-expr x)))))
+;;;   (for ([a deduped])
+;;;     (displayln (debatchref (alt-expr a))))
+deduped
+  )

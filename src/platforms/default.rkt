@@ -150,6 +150,176 @@
                  hypot.f32
                  [fma.f32 128])
 
+(define-operator-impl (cosd.f32 [x : binary32])
+                      binary32
+                      #:spec (cos (* (* (PI) x) 1/180))
+                      #:fpcore (! :precision binary32 (cosd x)))
+
+(define-operator-impl (cosd.f64 [x : binary64])
+                      binary64
+                      #:spec (cos (* (* (PI) x) 1/180))
+                      #:fpcore (! :precision binary64 (cosd x)))
+
+(define-operator-impl (cosratio.f32 [x : binary32] [y : binary32])
+                      binary32
+                      #:spec (cos (/ x y))
+                      #:fpcore (! :precision binary32 (cosratio x y)))
+
+(define-operator-impl (cosratio.f64 [x : binary64] [y : binary64])
+                      binary64
+                      #:spec (cos (/ x y))
+                      #:fpcore (! :precision binary64 (cosratio x y)))
+
+(define-operator-impl (sinratio.f32 [x : binary32] [y : binary32])
+                      binary32
+                      #:spec (sin (/ x y))
+                      #:fpcore (! :precision binary32 (sinratio x y)))
+
+(define-operator-impl (sinratio.f64 [x : binary64] [y : binary64])
+                      binary64
+                      #:spec (sin (/ x y))
+                      #:fpcore (! :precision binary64 (sinratio x y)))
+
+(define-operator-impl (cos2pi.f32 [x : binary32])
+                      binary32
+                      #:spec (cos (* (* (PI) x) 2))
+                      #:fpcore (! :precision binary32 (cos2pi x)))
+
+(define-operator-impl (cos2pi.f64 [x : binary64])
+                      binary64
+                      #:spec (cos (* (* (PI) x) 2))
+                      #:fpcore (! :precision binary64 (cos2pi x)))
+
+(define-operator-impl (cosnd.f32 [x : binary32])
+                      binary32
+                      #:spec (cos (* (* (PI) x) -1/180))
+                      #:fpcore (! :precision binary32 (cosnd x)))
+
+(define-operator-impl (cosnd.f64 [x : binary64])
+                      binary64
+                      #:spec (cos (* (* (PI) x) -1/180))
+                      #:fpcore (! :precision binary64 (cosnd x)))
+
+(define-operator-impl (sind.f32 [x : binary32])
+                      binary32
+                      #:spec (sin (* (* (PI) x) 1/180))
+                      #:fpcore (! :precision binary32 (sind x)))
+
+(define-operator-impl (sind.f64 [x : binary64])
+                      binary64
+                      #:spec (sin (* (* (PI) x) 1/180))
+                      #:fpcore (! :precision binary64 (sind x)))
+
+;;; (define-operator-impl (sinnd.f32 [x : binary32])
+;;;                       binary32
+;;;                       #:spec (sin (* (* (PI) x) -1/180))
+;;;                       #:fpcore (! :precision binary32 (sinnd x)))
+
+;;; (define-operator-impl (sinnd.f64 [x : binary64])
+;;;                       binary64
+;;;                       #:spec (sin (* (* (PI) x) -1/180))
+;;;                       #:fpcore (! :precision binary64 (sinnd x)))
+
+(define-operator-impl (sin2pi.f32 [x : binary32])
+                      binary32
+                      #:spec (sin (* (* (PI) x) 2))
+                      #:fpcore (! :precision binary32 (sin2pi x)))
+
+(define-operator-impl (sin2pi.f64 [x : binary64])
+                      binary64
+                      #:spec (sin (* (* (PI) x) 2))
+                      #:fpcore (! :precision binary64 (sin2pi x)))
+                      
+;;; (define-operator-impl (cos30.f32 [x : binary32])
+;;;                       binary32
+;;;                       #:spec (cos (* x 30))
+;;;                       #:fpcore (! :precision binary32 (cos30 x)))
+
+;;; (define-operator-impl (cos30.f64 [x : binary64])
+;;;                       binary64
+;;;                       #:spec (cos (* x 30))
+;;;                       #:fpcore (! :precision binary64 (cos30 x)))
+
+;;; (define-operator-impl (sin30.f32 [x : binary32])
+;;;                       binary32
+;;;                       #:spec (sin (* x 30))
+;;;                       #:fpcore (! :precision binary32 (sin30 x)))
+
+;;; (define-operator-impl (sin30.f64 [x : binary64])
+;;;                       binary64
+;;;                       #:spec (sin (* x 30))
+;;;                       #:fpcore (! :precision binary64 (sin30 x)))
+                      
+
+(define-platform new-accelerators-full
+                 #:literal [binary64 64]
+                 #:literal [binary32 32]
+                 #:default-cost 3200
+                 cosd.f32
+                 cosd.f64
+                 sind.f32
+                 sind.f64
+                 cosnd.f32
+                 cosnd.f64
+                 sinnd.f32
+                 sinnd.f64
+                 cos2pi.f32
+                 cos2pi.f64
+                 sin2pi.f32
+                 sin2pi.f64
+                 cos30.f32
+                 cos30.f64
+                 sin30.f32
+                 sin30.f64
+                 sinratio.f32
+                 sinratio.f64
+                 cosratio.f32
+                 cosratio.f64)
+
+
+
+(define-operator-impl (log1m.f32 [x : binary32])
+                      binary32
+                      #:spec (log (- 1 x))
+                      #:fpcore (! :precision binary32 (log1m x)))
+
+(define-operator-impl (log1m.f64 [x : binary64])
+                      binary64
+                      #:spec (log (- 1 x))
+                      #:fpcore (! :precision binary64 (log1m x)))
+
+(define-operator-impl (sinpi.f32 [x : binary32])
+                      binary32
+                      #:spec (sin (* x (PI)))
+                      #:fpcore (! :precision binary32 (sinpi x)))
+
+(define-operator-impl (sinpi.f64 [x : binary64])
+                      binary64
+                      #:spec (sin (* x (PI)))
+                      #:fpcore (! :precision binary64 (sinpi x)))
+
+(define-operator-impl (cospi.f32 [x : binary32])
+                      binary32
+                      #:spec (cos (* x (PI)))
+                      #:fpcore (! :precision binary32 (cospi x)))
+
+(define-operator-impl (cospi.f64 [x : binary64])
+                      binary64
+                      #:spec (cos (* x (PI)))
+                      #:fpcore (! :precision binary64 (cospi x)))
+
+
+(define-platform new-accelerators-pbrt
+                 #:literal [binary64 64]
+                 #:literal [binary32 32]
+                 #:default-cost 3200
+                 log1m.f32
+                 log1m.f64
+                 sinpi.f32
+                 sinpi.f64
+                 cospi.f32
+                 cospi.f64
+                 )
 ; compose platforms
 
 (define hardware-platform (platform-union boolean-platform machine-platform))
@@ -158,13 +328,21 @@
   (platform-union boolean-platform
                   machine-platform
                   libm64-platform
-                  libm32-platform))
+                  libm32-platform
+                  ))
+
+(define improve-platform
+(platform-union default-platform
+new-accelerators-full
+))
 
 ; Register all three
 
 (register-platform! 'boolean boolean-platform)
 (register-platform! 'hardware hardware-platform)
 (register-platform! 'default default-platform)
+(register-platform! 'improve improve-platform)
+
 
 ;; Do not run this file during testing
 (module test racket/base

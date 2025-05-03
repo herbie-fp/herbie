@@ -35,26 +35,19 @@
          (struct-out improve-result)
          (struct-out alt-analysis)
          sample-pcontext
-         *num-points*)
+         *num-points*
+         get-sample
+         get-sample-spec)
 
 (struct job-result (command test status time timeline profile warnings backend))
 (struct improve-result (preprocess pctxs start target end))
 (struct alt-analysis (alt train-errors test-errors) #:prefab)
 
 (define (sample-pcontext vars specification precondition)
-;;; (displayln "vars")
-;;; (displayln vars)
-;;; (displayln "spec")
-;;; (displayln specification)
-;;; (displayln "precon")
-;;; (displayln precondition)
-;;; (displayln (prog->spec '(*.f64 x x)))
-;;; (parse-test '(*.f64 x x))
-
-  
   (define sample (sample-points precondition (list specification) (list (*context*))))
-  (match-define (cons domain pts+exs) sample)
-  (cons domain (apply mk-pcontext pts+exs)))
+;;;   (match-define (cons domain pts+exs) sample)
+  (apply mk-pcontext sample))
+  
 ;; API users can supply their own, weird set of points, in which case
 ;; the first 256 are training points and everything is test points.
 ;; For backwards compatibility, exactly 8256 points are split as
@@ -167,6 +160,15 @@
   (define sample
     (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
       (sample-points precondition (list specification) (list (*context*)))))
+  (apply mk-pcontext sample))
+
+(define (get-sample-spec spec)
+  (random) ;; Tick the random number generator, for backwards compatibility
+  
+  (define precondition '(TRUE))
+  (define sample
+    (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
+      (sample-points precondition (list spec) (list (*context*)))))
   (apply mk-pcontext sample))
 
 ;;

@@ -51,32 +51,9 @@
 
   (timeline-event! 'preprocess)
   (define final-alts
-    (for/list ([altern alternatives])
-      (alt-add-preprocessing
-       altern
-       (remove-unnecessary-preprocessing best context pcontext (alt-preprocessing altern)))))
-  (values final-alts (remove-unnecessary-preprocessing best context pcontext preprocessing)))
-
-(define (run-iter!)
-  (when (^next-alts^)
-    (raise-user-error 'run-iter!
-                      "An iteration is already in progress\n~a"
-                      "Run (finish-iter!) to finish it, or (rollback-iter!) to abandon it.\n"))
-
-  (choose-alts!)
-  (localize!)
-  (reconstruct! (generate-candidates (^locs^)))
-;; Step 2: Access the reconstructed alternatives
-(define reconstructed-alts (^patched^))
-
-;; Step 3: Extract the expressions from the reconstructed alternatives
-(define expressions
-  (for/list ([altn (in-list reconstructed-alts)])
-    (alt-expr altn)))
-(displayln expressions)
-  (finalize-iter!))
     (for/list ([altn alternatives])
       (define expr (alt-expr altn))
+    ;;;   (displayln expr)
       (define preprocessing (alt-preprocessing altn))
       (alt-add-preprocessing altn
                              (remove-unnecessary-preprocessing expr context pcontext preprocessing))))
@@ -193,6 +170,7 @@
              [(list 'rr input proof) (list 'rr loc0 input proof)]
              [(list 'simplify input proof) (list 'simplify loc0 input proof)]))
          (define expr* (location-do loc0 (alt-expr orig) (const (debatchref (alt-expr altn)))))
+        ;;;  (displayln expr*)
          (alt expr* event* (list (loop (first prevs))) (alt-preprocessing orig))])))
 
   (^patched^ (reap [sow]

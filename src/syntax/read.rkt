@@ -15,7 +15,8 @@
          test-context
          test-output-repr
          load-tests
-         parse-test)
+         parse-test
+         load-port)
 
 (struct test
         (name identifier
