@@ -52,7 +52,8 @@
                        (sow mapped-sub-error))))))
 
   (for/hash ([group (in-list (group-by car pt-worst-subexpr))])
-    (let ([key (caar group)]) (values key (map cdr group)))))
+    (define key (caar group))
+    (values key (map cdr group))))
 
 (define (same-sign? a b)
   (or (and (bfpositive? a) (bfpositive? b)) (and (bfnegative? a) (bfnegative? b))))
