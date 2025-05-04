@@ -582,9 +582,9 @@
 
   (define points->expl (make-hash))
 
-  (for ([(_ points) (in-dict expls->points)])
-    (for ([pt (in-list points)])
-      (hash-update! points->expl pt (lambda (x) (+ 1 x)) 0)))
+  (for* ([(_ points) (in-dict expls->points)]
+         [pt (in-list points)])
+    (hash-update! points->expl pt (lambda (x) (+ 1 x)) 0))
 
   (define freqs (make-hash))
 
