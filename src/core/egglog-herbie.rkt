@@ -59,15 +59,14 @@
   (parameterize ([current-output-port stdout-port]
                  [current-error-port stderr-port])
     (unless (system (format "~a ~a" egglog-path egglog-file-path))
-      (begin
-        (fprintf old-error-port "stdout-port ~a\n" (get-output-string stdout-port))
-        ; Tail the last 100 lines of the error instead of everything
-        (fprintf old-error-port
-                 "stderr-port ~a\n"
-                 (string-join (take-right (string-split (get-output-string stderr-port) "\n") 100)
-                              "\n"))
-        (fprintf old-error-port "incorrect program in ~a\n" egglog-file-path)
-        (error "Failed to execute egglog"))))
+      (fprintf old-error-port "stdout-port ~a\n" (get-output-string stdout-port))
+      ; Tail the last 100 lines of the error instead of everything
+      (fprintf old-error-port
+               "stderr-port ~a\n"
+               (string-join (take-right (string-split (get-output-string stderr-port) "\n") 100)
+                            "\n"))
+      (fprintf old-error-port "incorrect program in ~a\n" egglog-file-path)
+      (error "Failed to execute egglog")))
 
   (delete-file egglog-file-path)
 
@@ -725,15 +724,12 @@
     (egglog-program-add! curr-binding-exprs curr-program))
 
   ; Only thing returned -> Extract Bindings
-  (define extract-bindings
-    (for/list ([root (batch-roots batch)])
-      (if (hash-has-key? vars root)
-          (if (vector-ref spec-mask root)
-              (string->symbol (format "?~a" (hash-ref vars root)))
-              (string->symbol (format "?t~a" (hash-ref vars root))))
-          (string->symbol (format "?r~a" root)))))
-
-  extract-bindings)
+  (for/list ([root (batch-roots batch)])
+    (if (hash-has-key? vars root)
+        (if (vector-ref spec-mask root)
+            (string->symbol (format "?~a" (hash-ref vars root)))
+            (string->symbol (format "?t~a" (hash-ref vars root))))
+        (string->symbol (format "?r~a" root)))))
 
 (define (egglog-unsound-detected curr-program tag params current-schedule)
   (define node-limit (dict-ref params 'node (*node-limit*)))
