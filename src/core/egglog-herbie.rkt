@@ -724,15 +724,12 @@
     (egglog-program-add! curr-binding-exprs curr-program))
 
   ; Only thing returned -> Extract Bindings
-  (define extract-bindings
-    (for/list ([root (batch-roots batch)])
-      (if (hash-has-key? vars root)
-          (if (vector-ref spec-mask root)
-              (string->symbol (format "?~a" (hash-ref vars root)))
-              (string->symbol (format "?t~a" (hash-ref vars root))))
-          (string->symbol (format "?r~a" root)))))
-
-  extract-bindings)
+  (for/list ([root (batch-roots batch)])
+    (if (hash-has-key? vars root)
+        (if (vector-ref spec-mask root)
+            (string->symbol (format "?~a" (hash-ref vars root)))
+            (string->symbol (format "?t~a" (hash-ref vars root))))
+        (string->symbol (format "?r~a" root)))))
 
 (define (egglog-unsound-detected curr-program tag params current-schedule)
   (define node-limit (dict-ref params 'node (*node-limit*)))
