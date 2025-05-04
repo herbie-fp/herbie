@@ -123,7 +123,7 @@
         (define parent+child-set (hash-union parent-set child-set #:combine (lambda (_ v) v)))
         (define new-parent-set
           (if (and (bigfloat? subexpr-val) (pred? subexpr-val))
-              (hash-update parent+child-set subexpr (lambda (x) (+ x 1)) 0)
+              (hash-update parent+child-set subexpr add1 0)
               parent+child-set))
         (hash-set! flow-hash subexpr new-parent-set))
 
@@ -590,7 +590,7 @@
 
   (for ([(pt _) (in-pcontext pctx)])
     (define freq (hash-ref points->expl pt 0))
-    (hash-update! freqs freq (lambda (x) (+ 1 x)) 0))
+    (hash-update! freqs freq add1 0))
 
   (values fperrors
           sorted-explanations-table
