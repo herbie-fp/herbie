@@ -2,6 +2,7 @@
 
 (require "../utils/common.rkt"
          "../syntax/syntax.rkt"
+         "batch.rkt"
          "programs.rkt")
 (provide reduce)
 
@@ -9,9 +10,9 @@
 ;; It uses commutativity, identities, inverses, associativity,
 ;; distributativity, and function inverses.
 
-(define/reset reduce-cache (make-hash))
+(define/reset reduce-cache (make-hasheq))
 
-(define/reset reduce-node-cache (make-hash))
+(define/reset reduce-node-cache (make-hasheq))
 
 ;; This is a transcription of egg-herbie/src/math.rs, lines 97-149
 (define (eval-application op . args)
@@ -60,14 +61,18 @@
   (check-equal? (eval-application 'exp 2) #f)) ; Not exact
 
 (define (reduce expr)
-  (hash-ref! (reduce-cache) expr (λ () (reduce* expr))))
+  ; Hash-consing everything once makes the cache work way better
+  (reduce* (first (batch->progs (progs->batch (list expr))))))
 
 (define (reduce* expr)
+  (hash-ref! (reduce-cache) expr (λ () (reduce** expr))))
+
+(define (reduce** expr)
   (match expr
     [(? number?) expr]
     [(? symbol?) expr]
     [`(,op ,args ...)
-     (define args* (map reduce args))
+     (define args* (map reduce* args))
      (define val (apply eval-application op args*))
      (or val (reduce-node (list* op args*)))]))
 
@@ -227,7 +232,7 @@
     [else `(1 (1 . ,expr))]))
 
 (define (combine-aterms terms)
-  (define h (make-hash))
+  (define h (make-hasheq))
   (for ([term terms])
     (let ([sum (hash-ref! h (cadr term) (λ () 0))]) (hash-set! h (cadr term) (+ (car term) sum))))
   (sort (reap [sow]
@@ -240,7 +245,7 @@
 
 (define (combine-mterms terms)
   (cons (car terms)
-        (let ([h (make-hash)])
+        (let ([h (make-hasheq)])
           (for ([term (in-list (cdr terms))])
             (define sum (hash-ref! h (cdr term) 0))
             (hash-set! h (cdr term) (+ (car term) sum)))
