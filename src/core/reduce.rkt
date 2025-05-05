@@ -66,10 +66,6 @@
   (match expr
     [(? number?) expr]
     [(? symbol?) expr]
-    [`(,(and (or '+ '- '*) op) ,args ...) ; v-ary
-     (define args* (map reduce args))
-     (define val (apply eval-application op args*))
-     (or val (reduce-node (list* op args*)))]
     [`(,op ,args ...)
      (define args* (map reduce args))
      (define val (apply eval-application op args*))
@@ -125,10 +121,10 @@
 (define (reduce-node* expr)
   (match (reduce-evaluation expr)
     [(? number?) expr]
-    [(? variable?) expr]
+    [(? symbol?) expr]
     [(or `(+ ,_ ...) `(- ,_ ...) `(neg ,_))
      (make-addition-node (combine-aterms (gather-additive-terms expr)))]
-    [(or `(* ,_ ...) `(/ ,_ ...) `(sqrt ,_) `(cbrt ,_) `(pow ,_ ,_))
+    [(or `(* ,_ ...) `(/ ,_ ...) `(sqrt ,_) `(cbrt ,_) `(pow ,_ ,(? real?)))
      (make-multiplication-node (combine-mterms (gather-multiplicative-terms expr)))]
     [`(exp (* ,c (log ,x))) (reduce-node* `(pow ,x ,c))]
     [else (reduce-inverses expr)]))
@@ -143,7 +139,7 @@
   (let ([label (or label expr)])
     (match expr
       [(? number?) `((,expr 1))]
-      [(? variable?) `((1 ,expr))]
+      [(? symbol?) `((1 ,expr))]
       [`(+ ,args ...) (append-map recurse args)]
       [`(neg ,arg) (map negate-term (recurse arg))]
       [`(- ,arg ,args ...) (append (recurse arg) (map negate-term (append-map recurse args)))]
@@ -245,8 +241,8 @@
 (define (combine-mterms terms)
   (cons (car terms)
         (let ([h (make-hash)])
-          (for ([term (cdr terms)])
-            (define sum (hash-ref! h (cdr term) (λ () 0)))
+          (for ([term (in-list (cdr terms))])
+            (define sum (hash-ref! h (cdr term) 0))
             (hash-set! h (cdr term) (+ (car term) sum)))
           (sort (reap [sow]
                       (hash-for-each h
