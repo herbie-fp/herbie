@@ -234,9 +234,7 @@
          (egg-expr->expr expr ctx)))
      (define expanded (expand-proof converted (box (*proof-max-length*))))
      (if (member #f expanded) #f expanded)]
-    [else
-     str
-     #;#f]))
+    [else #f]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; eggIR
