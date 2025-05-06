@@ -115,6 +115,8 @@
   [cancel-sign-sub (- a (* (neg b) c)) (+ a (* b c))]
   [cancel-sign-sub-inv (- a (* b c)) (+ a (* (neg b) c))])
 
+(define-rules arithmetic [distribute-sub-in (- (+ a b) (+ c d)) (+ (- a c) (- b d))])
+
 ; Safe Distributiviity
 (define-rules arithmetic
   [distribute-lft-neg-in (neg (* a b)) (* (neg a) b)]

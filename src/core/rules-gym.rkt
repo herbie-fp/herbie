@@ -6,11 +6,11 @@
          "../syntax/load-plugin.rkt"
          "rival.rkt")
 
-(define max-op-cnt 5)
+(define max-op-cnt 8)
 (define min-op-cnt 2)
-(define random-choices '(neg + - * / const var))
+(define random-choices '(neg + - * / #;const var))
 (define vars-choices '(x y z))
-(define num-expressions 100)
+(define num-expressions 1000)
 (define num-testing-points 100)
 (define verbose #t)
 
@@ -89,7 +89,7 @@
         (printf "\n\n~a -> ~a\n" a b))
       (define proof (check-rewrite-exists a b))
       (when verbose
-        (printf "~a\n" proof))
+        (pretty-print proof))
       (set! a b))))
 
 (module+ main
