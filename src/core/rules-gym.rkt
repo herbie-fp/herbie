@@ -6,12 +6,13 @@
          "../syntax/load-plugin.rkt"
          "rival.rkt")
 
-(define max-op-cnt 5)
-(define min-op-cnt 2)
-(define random-choices '(neg + - * const))
+(define max-op-cnt 8)
+(define min-op-cnt 5)
+(define random-choices '(neg + - * #;const var))
 (define vars-choices '(x y z))
-(define num-expressions 100)
+(define num-expressions 5000)
 (define num-testing-points 50)
+(define verbose #f)
 
 (define (get-constant)
   (random -3 4))
@@ -24,16 +25,18 @@
   (let loop ([count (random min-op-cnt max-op-cnt)])
     (cond
       [(<= count 0)
-       (if (zero? (random 0 2))
-           (get-constant)
-           (get-var))]
+       (get-var)
+       #;(if (zero? (random 0 2))
+             (get-constant)
+             (get-var))]
       [else
        (define rnd (random 0 (length random-choices)))
        (define node (list-ref random-choices rnd))
        (match node
          [(or '+ '- '*) (list node (loop (- count 1)) (loop (- count 2)))]
          ['neg (list node (loop (- count 1)))]
-         ['const (get-constant)])])))
+         ['const (get-constant)]
+         ['var (get-var)])])))
 
 (define (generate-points cnt)
   (define-values (sampler)
@@ -51,7 +54,9 @@
   (define exs
     (for/list ([pt (in-list test-pts)])
       (define-values (statuses values) (real-apply compiler pt))
-      (map (λ (ex idx) (cons ex idx)) values (range (length exprs)))))
+      (with-handlers ([exn:fail?
+                       (λ (e) (map (λ (idx) (cons #f idx)) (range (length exprs))))]) ; some errors
+        (map (λ (ex idx) (cons ex idx)) values (range (length exprs)))))) ; attaching id of expression
   exs)
 
 (define (group-exprs-by-evaluations exs)
@@ -71,20 +76,33 @@
     (set! equal-exprs (append* equal-exprs*)))
   equal-exprs)
 
+(define (check-rewrites e-classes exprs)
+  (for ([e-class (in-list e-classes)])
+    (define a (list-ref exprs (set-first e-class)))
+    (for ([idx (in-set (set-rest e-class))])
+      (define b (list-ref exprs idx))
+      (when verbose
+        (printf "\n\n~a -> ~a\n" a b))
+      (define proof (check-rewrite-exists a b))
+      (when verbose
+        (printf "~a\n" proof))
+      (set! a b))))
+
 (module+ main
   (load-herbie-plugins)
   (define exprs
     (remove-duplicates (for/list ([n (in-range num-expressions)])
                          (generate-expr))))
 
-  #;(pretty-print exprs)
-
   (define exs (evaluate-exprs exprs))
   (define e-classes (group-exprs-by-evaluations exs))
 
-  (pretty-print e-classes)
-  (for ([e-class (in-list e-classes)]
-        [n (in-naturals)])
-    (printf "E-class ~a:\n" n)
-    (for ([idx (in-set e-class)])
-      (printf "\t~a\n" (list-ref exprs idx)))))
+  (when verbose
+    (pretty-print e-classes)
+    (for ([e-class (in-list e-classes)]
+          [n (in-naturals)])
+      (printf "E-class ~a:\n" n)
+      (for ([idx (in-set e-class)])
+        (printf "\t~a\n" (list-ref exprs idx)))))
+
+  (check-rewrites e-classes exprs))
