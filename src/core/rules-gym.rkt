@@ -6,13 +6,13 @@
          "../syntax/load-plugin.rkt"
          "rival.rkt")
 
-(define max-op-cnt 8)
-(define min-op-cnt 5)
-(define random-choices '(neg + - * #;const var))
+(define max-op-cnt 5)
+(define min-op-cnt 2)
+(define random-choices '(neg + - * / const var))
 (define vars-choices '(x y z))
-(define num-expressions 5000)
-(define num-testing-points 50)
-(define verbose #f)
+(define num-expressions 100)
+(define num-testing-points 100)
+(define verbose #t)
 
 (define (get-constant)
   (random -3 4))
@@ -25,16 +25,15 @@
   (let loop ([count (random min-op-cnt max-op-cnt)])
     (cond
       [(<= count 0)
-       (get-var)
-       #;(if (zero? (random 0 2))
-             (get-constant)
-             (get-var))]
+       (if (zero? (random 0 2))
+           (get-constant)
+           (get-var))]
       [else
        (define rnd (random 0 (length random-choices)))
        (define node (list-ref random-choices rnd))
        (match node
-         [(or '+ '- '*) (list node (loop (- count 1)) (loop (- count 2)))]
-         ['neg (list node (loop (- count 1)))]
+         [(or '+ '- '* '/) (list node (loop (- count 1)) (loop (- count 2)))]
+         [(or 'neg 'sin 'cos 'tan) (list node (loop (- count 1)))]
          ['const (get-constant)]
          ['var (get-var)])])))
 
@@ -47,13 +46,18 @@
     (sampler)))
 
 (define (evaluate-exprs exprs)
-  (define ctxs (map (const (make-debug-context vars-choices)) exprs))
-  (define compiler (make-real-compiler exprs ctxs))
+  (define ctx (make-debug-context vars-choices))
+  (define compilers
+    (for/list ([expr exprs])
+      (make-real-compiler (list expr) (list ctx))))
   (define test-pts (generate-points num-testing-points))
 
   (define exs
     (for/list ([pt (in-list test-pts)])
-      (define-values (statuses values) (real-apply compiler pt))
+      (define values
+        (for/list ([compiler compilers])
+          (define-values (status value) (real-apply compiler pt))
+          value))
       (with-handlers ([exn:fail?
                        (λ (e) (map (λ (idx) (cons #f idx)) (range (length exprs))))]) ; some errors
         (map (λ (ex idx) (cons ex idx)) values (range (length exprs)))))) ; attaching id of expression
