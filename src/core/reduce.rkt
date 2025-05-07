@@ -185,20 +185,20 @@
                  'NAN
                  (apply / (car num) (map car dens)))
              (append (cdr num) (map negate-term (append-map cdr dens)))))]
-    [`(sqrt ,arg)
-     (let ([terms (gather-multiplicative-terms arg)])
-       (define exact-sqrt
-         (match (car terms)
-           ['NAN 'NAN]
-           [x (eval-application 'sqrt x)]))
-       (if exact-sqrt
-           (cons exact-sqrt
-                 (for/list ([term (cdr terms)])
-                   (cons (/ (car term) 2) (cdr term))))
-           (list* 1
-                  (cons 1 `(sqrt ,(car terms)))
-                  (for/list ([term (cdr terms)])
-                    (cons (/ (car term) 2) (cdr term))))))]
+    #;[`(sqrt ,arg)
+       (let ([terms (gather-multiplicative-terms arg)])
+         (define exact-sqrt
+           (match (car terms)
+             ['NAN 'NAN]
+             [x (eval-application 'sqrt x)]))
+         (if exact-sqrt
+             (cons exact-sqrt
+                   (for/list ([term (cdr terms)])
+                     (cons (/ (car term) 2) (cdr term))))
+             (list* 1
+                    (cons 1 `(sqrt ,(car terms)))
+                    (for/list ([term (cdr terms)])
+                      (cons (/ (car term) 2) (cdr term))))))]
     [`(cbrt ,arg)
      (let ([terms (gather-multiplicative-terms arg)])
        (define exact-cbrt
