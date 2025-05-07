@@ -60,8 +60,7 @@
   (define (key x)
     (define approx-pt (batchref-idx (alt-expr x)))
     (define hole-pt (approx-impl (vector-ref (batch-nodes global-batch) approx-pt)))
-    (define expr-pt (hole-spec (vector-ref (batch-nodes global-batch) hole-pt)))
-    expr-pt)
+    hole-pt)
 
   (define approxs (remove-duplicates (taylor-alts starting-exprs altns global-batch) #:key key))
 
