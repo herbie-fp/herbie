@@ -440,8 +440,8 @@
 (define-rules trigonometry
   [sin-sum (sin (+ x y)) (+ (* (sin x) (cos y)) (* (cos x) (sin y)))]
   [cos-sum (cos (+ x y)) (- (* (cos x) (cos y)) (* (sin x) (sin y)))]
-  ;[sin-diff (sin (- x y)) (- (* (sin x) (cos y)) (* (cos x) (sin y)))]
-  ;[cos-diff (cos (- x y)) (+ (* (cos x) (cos y)) (* (sin x) (sin y)))]
+  [sin-diff (sin (- x y)) (- (* (sin x) (cos y)) (* (cos x) (sin y)))]
+  [cos-diff (cos (- x y)) (+ (* (cos x) (cos y)) (* (sin x) (sin y)))]
   [sin-2 (sin (* 2 x)) (* 2 (* (sin x) (cos x)))]
   [sin-3 (sin (* 3 x)) (- (* 3 (sin x)) (* 4 (pow (sin x) 3)))]
   [2-sin (* 2 (* (sin x) (cos x))) (sin (* 2 x))]
@@ -452,8 +452,8 @@
   [3-cos (- (* 4 (pow (cos x) 3)) (* 3 (cos x))) (cos (* 3 x))])
 
 (define-rules trigonometry
-  ;[cos-diff-rev (+ (* (cos x) (cos y)) (* (sin x) (sin y))) (cos (- x y))]
-  ;[sin-diff-rev (- (* (sin x) (cos y)) (* (cos x) (sin y))) (sin (- x y))]
+  [cos-diff-rev (+ (* (cos x) (cos y)) (* (sin x) (sin y))) (cos (- x y))]
+  [sin-diff-rev (- (* (sin x) (cos y)) (* (cos x) (sin y))) (sin (- x y))]
   [sin-sum-rev (+ (* (sin x) (cos y)) (* (cos x) (sin y))) (sin (+ x y))]
   [tan-sum-rev (/ (+ (tan x) (tan y)) (- 1 (* (tan x) (tan y)))) (tan (+ x y))]
   [cos-sum-rev (- (* (cos x) (cos y)) (* (sin x) (sin y))) (cos (+ x y))])
