@@ -140,8 +140,8 @@
 (define-rules arithmetic
   [sub-flip (- a b) (+ a (neg b))]
   [sub-flip-reverse (+ a (neg b)) (- a b)]
-  [sub-negate (- a b) (neg (- b a))]
-  [sub-negate-rev (neg (- b a)) (- a b)]
+  [sub-negate (neg (- b a)) (- a b)]
+  [sub-negate-rev (- a b) (neg (- b a))]
   [add-flip (+ a b) (- a (neg b))]
   [add-flip-rev (- a (neg b)) (+ a b)]
   [add-negate (neg (+ a b)) (- (neg a) b)]
@@ -212,6 +212,7 @@
 (define-rules arithmetic
   [fabs-fabs (fabs (fabs x)) (fabs x)]
   [fabs-sub (fabs (- a b)) (fabs (- b a))]
+  [fabs-add (fabs (+ (fabs a) (fabs b))) (+ (fabs a) (fabs b))]
   [fabs-neg (fabs (neg x)) (fabs x)]
   [fabs-sqr (fabs (* x x)) (* x x)]
   [fabs-mul (fabs (* a b)) (* (fabs a) (fabs b))]
@@ -221,7 +222,9 @@
   [div-fabs (/ (fabs a) (fabs b)) (fabs (/ a b))]
   [sqrt-fabs (fabs (sqrt a)) (sqrt a)]
   [fabs-lhs-div (/ (fabs x) x) (/ x (fabs x))]
-  [fabs-rhs-div (/ x (fabs x)) (/ (fabs x) x)])
+  [fabs-rhs-div (/ x (fabs x)) (/ (fabs x) x)]
+  [pow2-fabs (pow (fabs x) 2) (pow x 2)]
+  [fabs-pow2 (fabs (pow x 2)) (pow x 2)])
 
 ; Square root
 (define-rules arithmetic
