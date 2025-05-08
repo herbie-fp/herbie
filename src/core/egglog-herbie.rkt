@@ -55,6 +55,8 @@
 
   (define old-error-port (current-error-port))
 
+  (define start-time (current-inexact-milliseconds))
+
   ;; Run egglog and capture output
   (parameterize ([current-output-port stdout-port]
                  [current-error-port stderr-port])
@@ -68,6 +70,10 @@
                               "\n"))
         (fprintf old-error-port "incorrect program in ~a\n" egglog-file-path)
         (error "Failed to execute egglog"))))
+
+  (define end-time (current-inexact-milliseconds))
+  (define duration (- end-time start-time))
+  (printf "Egglog execution took ~a ms\n" duration)
 
   (delete-file egglog-file-path)
 
@@ -195,7 +201,9 @@
 
   ;; 6. After step-by-step building the program, process it
   ;; by running it using egglog
+  (printf "Final run :\n")
   (define egglog-output (process-egglog curr-program))
+  (printf "\n")
 
   ;; Extract its returned value
   (define stdout-content (car egglog-output))
