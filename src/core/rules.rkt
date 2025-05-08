@@ -107,9 +107,9 @@
   [distribute-lft-in (* a (+ b c)) (+ (* a b) (* a c))]
   [distribute-rgt-in (* a (+ b c)) (+ (* b a) (* c a))]
   [distribute-lft-out (+ (* a b) (* a c)) (* a (+ b c))]
-  ;[distribute-lft-out-- (- (* a b) (* a c)) (* a (- b c))]
+  [distribute-lft-out-- (- (* a b) (* a c)) (* a (- b c))]
   [distribute-rgt-out (+ (* b a) (* c a)) (* a (+ b c))]
-  ;[distribute-rgt-out-- (- (* b a) (* c a)) (* a (- b c))]
+  [distribute-rgt-out-- (- (* b a) (* c a)) (* a (- b c))]
   [distribute-lft1-in (+ (* b a) a) (* (+ b 1) a)]
   [distribute-rgt1-in (+ a (* c a)) (* (+ c 1) a)]
   [cancel-sign-sub (- a (* (neg b) c)) (+ a (* b c))]
@@ -129,10 +129,10 @@
   [distribute-frac-neg2 (/ a (neg b)) (neg (/ a b))]
   [distribute-neg-frac (neg (/ a b)) (/ (neg a) b)]
   [distribute-neg-frac2 (neg (/ a b)) (/ a (neg b))]
-  ;[fp-cancel-sign-sub (- a (* (neg b) c)) (+ a (* b c))]
+  [fp-cancel-sign-sub (- a (* (neg b) c)) (+ a (* b c))]
   [fp-cancel-sub-sign (+ a (* (neg b) c)) (- a (* b c))]
   [fp-cancel-sign-sub-inv (+ a (* b c)) (- a (* (neg b) c))]
-  #;[fp-cancel-sub-sign-inv (- a (* b c)) (+ a (* (neg b) c))])
+  [fp-cancel-sub-sign-inv (- a (* b c)) (+ a (* (neg b) c))])
 
 ; Subtraction flip
 (define-rules arithmetic
@@ -162,15 +162,15 @@
   [swap-sqr (* (* a b) (* a b)) (* (* a a) (* b b))]
   [unswap-sqr (* (* a a) (* b b)) (* (* a b) (* a b))]
   [difference-of-squares (- (* a a) (* b b)) (* (+ a b) (- a b))]
-  #;[difference-of-sqr-1 (- (* a a) 1) (* (+ a 1) (- a 1))]
+  [difference-of-sqr-1 (- (* a a) 1) (* (+ a 1) (- a 1))]
   [difference-of-sqr--1 (+ (* a a) -1) (* (+ a 1) (- a 1))]
   [pow-sqr (* (pow a b) (pow a b)) (pow a (* 2 b))]
   [sum-square-pow (pow (+ a b) 2) (+ (+ (pow a 2) (* 2 (* a b))) (pow b 2))]
-  #;[sub-square-pow (pow (- a b) 2) (+ (- (pow a 2) (* 2 (* a b))) (pow b 2))]
+  [sub-square-pow (pow (- a b) 2) (+ (- (pow a 2) (* 2 (* a b))) (pow b 2))]
   [sum-square-reverse (+ (+ (pow a 2) (* 2 (* a b))) (pow b 2)) (pow (+ a b) 2)]
-  #;[sub-square-reverse (+ (- (pow a 2) (* 2 (* a b))) (pow b 2)) (pow (- a b) 2)]
+  [sub-square-reverse (+ (- (pow a 2) (* 2 (* a b))) (pow b 2)) (pow (- a b) 2)]
   [difference-of-sqr-1-rev (* (+ a 1) (- a 1)) (- (* a a) 1)]
-  #;[difference-of-sqr--1-rev (* (+ a 1) (- a 1)) (+ (* a a) -1)]
+  [difference-of-sqr--1-rev (* (+ a 1) (- a 1)) (+ (* a a) -1)]
   [difference-of-squares-rev (* (+ a b) (- a b)) (- (* a a) (* b b))])
 
 (define-rules polynomials
@@ -197,7 +197,7 @@
   [div-add-rev (+ (/ a c) (/ b c)) (/ (+ a b) c)]
   [sub-div (- (/ a c) (/ b c)) (/ (- a b) c)]
   [frac-add (+ (/ a b) (/ c d)) (/ (+ (* a d) (* b c)) (* b d))]
-  #;[frac-sub (- (/ a b) (/ c d)) (/ (- (* a d) (* b c)) (* b d))]
+  [frac-sub (- (/ a b) (/ c d)) (/ (- (* a d) (* b c)) (* b d))]
   [frac-times (* (/ a b) (/ c d)) (/ (* a c) (* b d))]
   [frac-2neg (/ a b) (/ (neg a) (neg b))]
   [frac-2neg-rev (/ (neg a) (neg b)) (/ a b)])
@@ -302,7 +302,9 @@
   [unpow3 (pow a 3) (* (* a a) a)]
   [unpow1/3 (pow a 1/3) (cbrt a)]
   [pow-base-0 (pow 0 a) 0]
-  [inv-pow (/ 1 a) (pow a -1)])
+  [inv-pow (/ 1 a) (pow a -1)]
+  [pow-neg-2 (pow (neg a) 2) (pow a 2)]
+  [unpow-neg-2 (pow a 2) (pow (neg a) 2)])
 
 (define-rules exponents
   [pow1/2 (sqrt a) (pow a 1/2)]

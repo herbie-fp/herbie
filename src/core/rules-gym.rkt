@@ -8,11 +8,11 @@
 
 (define max-op-cnt 8)
 (define min-op-cnt 2)
-(define random-choices '(neg + - * / #;const var))
+(define random-choices '(neg + - * / #;const var pow))
 (define vars-choices '(x y z))
-(define num-expressions 1000)
+(define num-expressions 5000)
 (define num-testing-points 100)
-(define verbose #t)
+(define verbose #f)
 
 (define (get-constant)
   (random -3 4))
@@ -25,13 +25,15 @@
   (let loop ([count (random min-op-cnt max-op-cnt)])
     (cond
       [(<= count 0)
-       (if (zero? (random 0 2))
-           (get-constant)
-           (get-var))]
+       (get-var)
+       #;(if (zero? (random 0 2))
+             (get-constant)
+             (get-var))]
       [else
        (define rnd (random 0 (length random-choices)))
        (define node (list-ref random-choices rnd))
        (match node
+         ['pow (list node (loop (- count 1)) 2)]
          [(or '+ '- '* '/) (list node (loop (- count 1)) (loop (- count 2)))]
          [(or 'neg 'sin 'cos 'tan) (list node (loop (- count 1)))]
          ['const (get-constant)]
@@ -85,10 +87,9 @@
     (define a (list-ref exprs (set-first e-class)))
     (for ([idx (in-set (set-rest e-class))])
       (define b (list-ref exprs idx))
-      (when verbose
-        (printf "\n\n~a -> ~a\n" a b))
       (define proof (check-rewrite-exists a b))
-      (when verbose
+      (when (or (not proof) verbose)
+        (printf "\n\n~a -> ~a\n" a b)
         (pretty-print proof))
       (set! a b))))
 
