@@ -350,23 +350,59 @@
                 [from-string "0"]
                 [from-string "1"])
       )
+    (let ?one (bigrat
+               [from-string "1"]
+               [from-string "1"])
+      )
     (rewrite (Add (Num x) (Num y)) (Num (+ x y)) :ruleset const-fold)
     (rewrite (Sub (Num x) (Num y)) (Num (- x y)) :ruleset const-fold)
     (rewrite (Mul (Num x) (Num y)) (Num (* x y)) :ruleset const-fold)
+    ; Non-total operator 1
     ;(rule ((= e (Div (Num x) (Num y))) (!= ?zero y)) ((union e (Num (/ x y)))) :ruleset const-fold)
     (rewrite (Neg (Num x)) (Num (neg x)) :ruleset const-fold)
+    ;; Power rules -> only case missing is 0^0 making it non-total
+    ;; 0^y where y > 0
     (rule ((= e (Pow (Num x) (Num y))) (= ?zero x) (> y ?zero))
           ((union e (Num ?zero)))
           :ruleset
           const-fold)
+    ;; x^0 where x != 0
     (rule ((= e (Pow (Num x) (Num y))) (= ?zero y) (!= ?zero x))
           ((union e (Num (bigrat (from-string "1") (from-string "1")))))
           :ruleset
           const-fold)
+    ;; x^y when y is a whole number and y > 0 and x != 0
     (rule ((= e (Pow (Num x) (Num y))) (> y ?zero) (!= ?zero x) (= y (round y)))
           ((union e (Num (pow x y))))
           :ruleset
           const-fold)
+    ;; New rule according to Rust : x^y where y is not a whole number
+    (rule ((= e (Pow (Num x) (Num y))) (> y ?zero) (!= ?zero x) (!= y (round y)))
+          ((union e (Num (pow x (round y)))))
+          :ruleset
+          const-fold)
+    ;; TODO
+    ;; Sqrt rules -> All are non-total but we can make them total by ensuring > 0
+    ; (rule ((= e (Sqrt (Num (bigrat a b)))) (> a ?zero)
+    ;                                        (> b ?zero)
+    ;                                        (= (* (sqrt a) (sqrt a)) a)
+    ;                                        (= (* (sqrt b) (sqrt b)) b))
+    ;       ((union e (Num (bigrat (sqrt a) (sqrt b)))))
+    ;       :ruleset
+    ;       const-fold)
+    ; (rule
+    ;  ((= e (Sqrt (Num (bigrat (bigint a) (bigint b)))))
+    ;   (> a 0)
+    ;   (> b 0)
+    ;   (= (* (sqrt (bigrat (bigint a) (from-string "1"))) (sqrt (bigrat (bigint a) (from-string "1"))))
+    ;      a)
+    ;   (= (* (sqrt (bigrat (bigint b) (from-string "1"))) (sqrt (bigrat (bigint b) (from-string "1"))))
+    ;      b))
+    ;  ((union e
+    ;          (Num (bigrat (sqrt (bigrat (bigint a) (from-string "1")))
+    ;                       (sqrt (bigrat (bigint b) (from-string "1")))))))
+    ;  :ruleset
+    ;  const-fold)
     (rule ((= e (Log (Num x))) (= (numer x) (denom x))) ((union e (Num ?zero))) :ruleset const-fold)
     (rule ((= e (Cbrt (Num x))) (= (numer x) (denom x)))
           ((union e (Num (bigrat (from-string "1") (from-string "1")))))
@@ -376,6 +412,8 @@
     (rewrite (Floor (Num x)) (Num (floor x)) :ruleset const-fold)
     (rewrite (Ceil (Num x)) (Num (ceil x)) :ruleset const-fold)
     (rewrite (Round (Num x)) (Num (round x)) :ruleset const-fold)))
+
+; (rule ((= e (Sqrt (Num (bigrat (bigint a) (bigint b))))) (> a 0) (> b 0) (= (* (sqrt a) (sqrt a)) a) (= (* (sqrt b) (sqrt b)) b)) ((union e (Num (bigrat (sqrt a) (sqrt b))))) :ruleset const-fold)
 
 (define (platform-spec-nodes)
   (for/list ([op (in-list (all-operators))])
