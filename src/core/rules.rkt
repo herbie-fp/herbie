@@ -115,7 +115,9 @@
   [cancel-sign-sub (- a (* (neg b) c)) (+ a (* b c))]
   [cancel-sign-sub-inv (- a (* b c)) (+ a (* (neg b) c))])
 
-(define-rules arithmetic [distribute-sub-in (- (+ a b) (+ c d)) (+ (- a c) (- b d))])
+(define-rules arithmetic
+  [distribute-sub-in (- (+ a b) (+ c d)) (+ (- a c) (- b d))]
+  [distribute-sub-out (+ (- a c) (- b d)) (- (+ a b) (+ c d))])
 
 ; Safe Distributiviity
 (define-rules arithmetic
@@ -134,28 +136,22 @@
   [fp-cancel-sign-sub-inv (+ a (* b c)) (- a (* (neg b) c))]
   [fp-cancel-sub-sign-inv (- a (* b c)) (+ a (* (neg b) c))])
 
-; Subtraction flip
+; Add/sub flips
 (define-rules arithmetic
   [sub-flip (- a b) (+ a (neg b))]
   [sub-flip-reverse (+ a (neg b)) (- a b)]
   [sub-negate (- a b) (neg (- b a))]
-  [sub-negate-rev (neg (- b a)) (- a b)])
+  [sub-negate-rev (neg (- b a)) (- a b)]
+  [add-flip (+ a b) (- a (neg b))]
+  [add-flip-rev (- a (neg b)) (+ a b)]
+  [add-negate (neg (+ a b)) (- (neg a) b)]
+  [add-negate-rev (- (neg a) b) (neg (+ a b))])
 
-; Multiplication flip
+; Mul/div flip
 (define-rules arithmetic
   [mult-flip (/ a b) (* a (/ 1 b))]
-  [mult-flip-rev (* a (/ 1 b)) (/ a b)])
-
-; Unsound division flip
-(define-rules arithmetic [division-flip (/ a b) (/ 1 (/ b a)) #:unsound]) ; unsound @ a = 0, b != 0
-
-; Addition flip
-(define-rules arithmetic
-  [add-flip (+ a b) (neg (- (neg a) b))]
-  [add-flip-rev (neg (- (neg a) b)) (+ a b)])
-
-; Common denominator
-(define-rules arithmetic [common-denominator (+ (/ a b) (/ c d)) (/ (+ (* a d) (* c b)) (* b d))])
+  [mult-flip-rev (* a (/ 1 b)) (/ a b)]
+  [division-flip (/ a b) (/ 1 (/ b a)) #:unsound]) ; unsound @ a = 0, b != 0
 
 ; Difference of squares
 (define-rules polynomials
