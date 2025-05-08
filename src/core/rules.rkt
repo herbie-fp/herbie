@@ -218,7 +218,8 @@
   [fabs-div (fabs (/ a b)) (/ (fabs a) (fabs b))]
   [neg-fabs (fabs x) (fabs (neg x))]
   [mul-fabs (* (fabs a) (fabs b)) (fabs (* a b))]
-  [div-fabs (/ (fabs a) (fabs b)) (fabs (/ a b))])
+  [div-fabs (/ (fabs a) (fabs b)) (fabs (/ a b))]
+  [sqrt-fabs (fabs (sqrt a)) (sqrt a)])
 
 ; Square root
 (define-rules arithmetic
