@@ -72,15 +72,17 @@
   (timeline-event! 'rewrite)
 
   ; generate required rules
+  (define sound-rules (*sound-rules*))
   (define rules (*rules*))
   (define lifting-rules (platform-lifting-rules))
   (define lowering-rules (platform-lowering-rules))
 
   ; egg schedule (3-phases for mathematical rewrites and implementation selection)
   (define schedule
-    `((lift . ((iteration . 1) (scheduler . simple))) (,rules . ((node . ,(*node-limit*))))
-                                                      (lower . ((iteration . 1) (scheduler .
-                                                                                           simple)))))
+    (list `(,lifting-rules . ((iteration . 1) (scheduler . simple)))
+          `(,sound-rules . ((node . ,(*node-limit*))))
+          `(,rules . ((iteration . 1)))
+          `(,lowering-rules . ((iteration . 1) (scheduler . simple)))))
 
   ; run egg
   (define exprs (map (compose debatchref alt-expr) altns))
