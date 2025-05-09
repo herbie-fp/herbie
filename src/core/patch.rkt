@@ -72,7 +72,7 @@
   (timeline-event! 'rewrite)
 
   ; generate required rules
-  (define rules (*rules*))
+  (define rules (*sound-rules*))
   (define lifting-rules (platform-lifting-rules))
   (define lowering-rules (platform-lowering-rules))
 
