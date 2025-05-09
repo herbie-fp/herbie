@@ -111,9 +111,7 @@
   [distribute-rgt-out (+ (* b a) (* c a)) (* a (+ b c))]
   [distribute-rgt-out-- (- (* b a) (* c a)) (* a (- b c))]
   [distribute-lft1-in (+ (* b a) a) (* (+ b 1) a)]
-  [distribute-rgt1-in (+ a (* c a)) (* (+ c 1) a)]
-  [cancel-sign-sub (- a (* (neg b) c)) (+ a (* b c))]
-  [cancel-sign-sub-inv (- a (* b c)) (+ a (* (neg b) c))])
+  [distribute-rgt1-in (+ a (* c a)) (* (+ c 1) a)])
 
 (define-rules arithmetic
   [distribute-sub-in (- (+ a b) (+ c d)) (+ (- a c) (- b d))]
