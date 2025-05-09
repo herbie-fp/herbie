@@ -128,7 +128,10 @@
     [(? variable?) expr]
     [(or `(+ ,_ ...) `(- ,_ ...) `(neg ,_))
      (make-addition-node (combine-aterms (gather-additive-terms expr)))]
-    [(or `(* ,_ ...) `(/ ,_ ...) `(sqrt ,_) `(cbrt ,_) `(pow ,_ ,_))
+    [(or `(* ,_ ...)
+         `(/ ,_ ...)
+         `(cbrt ,_)
+         `(pow ,_ ,(? (conjoin rational? (negate even-denominator?)))))
      (make-multiplication-node (combine-mterms (gather-multiplicative-terms expr)))]
     [`(exp (* ,c (log ,x))) (reduce-node* `(pow ,x ,c))]
     [else (reduce-inverses expr)]))
@@ -156,6 +159,9 @@
 
       [`(pow ,arg 1) `((1 1))]
       [else `((1 ,expr))])))
+
+(define (even-denominator? x)
+  (even? (denominator x)))
 
 (define (gather-multiplicative-terms expr)
   (match expr
@@ -185,20 +191,6 @@
                  'NAN
                  (apply / (car num) (map car dens)))
              (append (cdr num) (map negate-term (append-map cdr dens)))))]
-    [`(sqrt ,arg)
-     (let ([terms (gather-multiplicative-terms arg)])
-       (define exact-sqrt
-         (match (car terms)
-           ['NAN 'NAN]
-           [x (eval-application 'sqrt x)]))
-       (if exact-sqrt
-           (cons exact-sqrt
-                 (for/list ([term (cdr terms)])
-                   (cons (/ (car term) 2) (cdr term))))
-           (list* 1
-                  (cons 1 `(sqrt ,(car terms)))
-                  (for/list ([term (cdr terms)])
-                    (cons (/ (car term) 2) (cdr term))))))]
     [`(cbrt ,arg)
      (let ([terms (gather-multiplicative-terms arg)])
        (define exact-cbrt
@@ -214,7 +206,7 @@
                   (for/list ([term (cdr terms)])
                     (cons (/ (car term) 3) (cdr term))))))]
     [`(pow ,arg 0) '(1)]
-    [`(pow ,arg ,(? real? a))
+    [`(pow ,arg ,(? (conjoin rational? (negate even-denominator?)) a))
      (define terms (gather-multiplicative-terms arg))
      (define exact-pow
        (match (car terms)
@@ -291,10 +283,7 @@
 
 (define (make-multiplication-subnode terms)
   (make-multiplication-subsubsubnode
-   (for/list ([rootgroup (group-by (compose denominator car) terms)])
-     (define denom (denominator (caar rootgroup)))
-     (define newterms (map (λ (term) (cons (* (car term) denom) (cdr term))) rootgroup))
-     (cons 1 (mterm->expr (cons (/ 1 denom) (make-multiplication-subsubnode newterms)))))))
+   (list (cons 1 (mterm->expr (cons 1 (make-multiplication-subsubnode terms)))))))
 
 (define (make-multiplication-subsubnode terms)
   (let-values ([(pos neg) (partition (compose positive? car) terms)])
