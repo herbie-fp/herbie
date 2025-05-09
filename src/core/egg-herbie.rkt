@@ -17,14 +17,16 @@
          "../syntax/types.rkt"
          "batch.rkt"
          "programs.rkt"
-         "rules.rkt")
+         "rules.rkt"
+         "../syntax/load-plugin.rkt")
 
 (provide (struct-out egg-runner)
          make-egraph
          egraph-equal?
          egraph-prove
          egraph-best
-         egraph-variations)
+         egraph-variations
+         check-rewrite-exists)
 
 (module+ test
   (require rackunit)
@@ -224,6 +226,7 @@
   (define egg-expr (expr->egg-expr expr ctx))
   (define egg-goal (expr->egg-expr goal ctx))
   (define str (egraph_get_proof (egraph-data-egraph-pointer egraph-data) egg-expr egg-goal))
+
   (cond
     [(<= (string-length str) (*proof-max-string-length*))
      (define converted
@@ -1190,6 +1193,7 @@
   (match-define (list _ extract-enode _) extract)
   ; extract expressions
   (define key (cons id type))
+
   (cond
     ; at least one extractable expression
     [(hash-has-key? canon key)
@@ -1222,6 +1226,7 @@
     (timeline-push! 'stop (~a (egraph-stop-reason egg-graph)) 1)
     (cond
       [(egraph-is-unsound-detected egg-graph)
+       (println "unsoundness")
        ; unsoundness means run again with less iterations
        (define num-iters (length iteration-data))
        (if (<= num-iters 1) ; nothing to fall back on
@@ -1397,3 +1402,29 @@
   ; commit changes to the batch
   (finalize-batch)
   out)
+
+(define (check-rewrite-exists a b #:rules [rules (*sound-rules*)] #:node-limit [node-limit 10000])
+  (define batch (progs->batch (list a b)))
+  (define vars (remove-duplicates (append (free-variables a) (free-variables b))))
+  (*context* (make-debug-context vars))
+
+  (define schedule `((,rules . ((node . ,node-limit)))))
+  (define runner
+    (make-egraph batch
+                 (batch-roots batch)
+                 (list (get-representation 'binary64) (get-representation 'binary64))
+                 schedule))
+  (egraph-variations runner batch)
+  (with-handlers ([exn:fail? (λ (e) (eprintf "~a\n" e))])
+    (egraph-prove runner a b)))
+
+(define (check-eclasses a #:rules [rules (*sound-rules*)] #:node-limit [node-limit 10000])
+  (define batch (progs->batch (list a)))
+  (define vars (free-variables a))
+  (*context* (make-debug-context vars))
+
+  (define schedule `((,rules . ((node . ,node-limit)))))
+  (define runner
+    (make-egraph batch (batch-roots batch) (list (get-representation 'binary64)) schedule))
+  (define eclasses (map (λ (x) (map debatchref x)) (egraph-variations runner batch)))
+  (pretty-print eclasses))
