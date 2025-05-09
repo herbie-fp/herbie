@@ -47,6 +47,8 @@
       (with-output-to-file temp-file #:exists 'replace (lambda () (for-each writeln curr-program)))
       temp-file))
 
+  ; (printf "egglog-file-path ~a\n" egglog-file-path)
+
   (define egglog-path
     (or (find-executable-path "egglog") (error "egglog executable not found in PATH")))
 
@@ -194,10 +196,24 @@
   ;; Add the schedule to the program after reversing it
   (egglog-program-add! `(run-schedule ,@(reverse run-schedule)) curr-program)
 
+  (egglog-program-add! `(datatype ExtractList (Nil) (Cons MTy ExtractList)) curr-program)
+
   ;; 5. Extraction -> should just need root ids
-  (egglog-program-add-list! (for/list ([binding extract-bindings])
-                              `(extract ,binding ,(*egglog-variants-limit*)))
-                            curr-program)
+  ; (egglog-program-add-list! (for/list ([binding extract-bindings])
+  ;                             `(extract ,binding ,(*egglog-variants-limit*)))
+  ;                           curr-program)
+
+  ;; Build all extract bindings as a Linked List and perform a single extraction
+  (define (build-extract-list bindings)
+    (if (null? bindings)
+        '(Nil)
+        `(Cons ,(car bindings) ,(build-extract-list (cdr bindings)))))
+
+  (egglog-program-add! `(let extract-all-list ,(build-extract-list extract-bindings)
+                          )
+                       curr-program)
+
+  (egglog-program-add! `(extract extract-all-list ,(*egglog-variants-limit*)) curr-program)
 
   ;; 6. After step-by-step building the program, process it
   ;; by running it using egglog
@@ -210,11 +226,33 @@
 
   (define output-mutable-batch (batch->mutable-batch output-batch))
 
-  ;; (Listof (Listof exprs))
-  (define herbie-exprss
+  ; ;; (Listof (Listof exprs))
+  ; (define herbie-exprss
+  ;   (let ([input-port (open-input-string stdout-content)])
+  ;     (for/list ([next-expr (in-port read input-port)])
+  ;       (map e2->expr next-expr))))
+
+  ;; Parse the single big linked list from stdout
+  (define herbie-exprs
     (let ([input-port (open-input-string stdout-content)])
-      (for/list ([next-expr (in-port read input-port)])
-        (map e2->expr next-expr))))
+      (define big-list (read input-port))
+      ; (printf "big-list ~a\n" big-list)
+      ; (printf "car big-list ~a\n" (car big-list))
+
+      (define (flatten-cons-list lst)
+        ; (printf "flatten-cons-list ~a\n" lst)
+
+        ;; it's either Cons or Nil by definition
+        (match lst
+          [(list 'Cons expr rest) (cons (e2->expr expr) (flatten-cons-list rest))]
+          [(list 'Nil) '()]
+          [_ (error "Unexpected structure in Cons list: ~a" lst)]))
+
+      ;; it's a one element list so just take the first element
+      (flatten-cons-list (car big-list))))
+
+  ;; Listof (Listof expr) TODO : simplify the code
+  (define herbie-exprss (list herbie-exprs))
 
   (define result
     (for/list ([variants (in-list herbie-exprss)])
