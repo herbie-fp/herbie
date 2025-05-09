@@ -149,7 +149,7 @@
 (define-rules arithmetic
   [mult-flip (/ a b) (* a (/ 1 b))]
   [mult-flip-rev (* a (/ 1 b)) (/ a b)]
-  [division-flip (/ a b) (/ 1 (/ b a)) #:unsound]) ; unsound @ a = 0, b != 0
+  #;[division-flip (/ a b) (/ 1 (/ b a)) #:unsound]) ; unsound @ a = 0, b != 0
 
 ; Difference of squares
 (define-rules polynomials

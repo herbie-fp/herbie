@@ -8,7 +8,7 @@
 
 (define max-op-cnt 8)
 (define min-op-cnt 2)
-(define random-choices '(neg + - * / fabs const var pow sqrt cbrt))
+(define random-choices '(neg + - * / fabs #;const var pow sqrt cbrt))
 (define vars-choices '(x y z))
 (define num-expressions 5000)
 (define num-testing-points 100)
@@ -26,9 +26,9 @@
     (cond
       [(<= count 0)
        (get-var)
-       (if (zero? (random 0 2))
-           (get-constant)
-           (get-var))]
+       #;(if (zero? (random 0 2))
+             (get-constant)
+             (get-var))]
       [else
        (define rnd (random 0 (length random-choices)))
        (define node (list-ref random-choices rnd))
