@@ -227,7 +227,9 @@
   [pow2-fabs (pow (fabs x) 2) (pow x 2)]
   [pow2-fabs-rev (pow x 2) (pow (fabs x) 2)]
   [fabs-pow2 (fabs (pow x 2)) (pow x 2)]
-  [fabs-pow2-rev (pow x 2) (fabs (pow x 2))])
+  [fabs-pow2-rev (pow x 2) (fabs (pow x 2))]
+  [fabs-cbrt (fabs (/ (cbrt a) a)) (/ (cbrt a) a)]
+  [fabs-cbrt-rev (/ (cbrt a) a) (fabs (/ (cbrt a) a))])
 
 ; Square root
 (define-rules arithmetic
