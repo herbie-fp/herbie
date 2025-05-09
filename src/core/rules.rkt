@@ -224,13 +224,17 @@
   [fabs-lhs-div (/ (fabs x) x) (/ x (fabs x))]
   [fabs-rhs-div (/ x (fabs x)) (/ (fabs x) x)]
   [pow2-fabs (pow (fabs x) 2) (pow x 2)]
-  [fabs-pow2 (fabs (pow x 2)) (pow x 2)])
+  [pow2-fabs-rev (pow x 2) (pow (fabs x) 2)]
+  [fabs-pow2 (fabs (pow x 2)) (pow x 2)]
+  [fabs-pow2-rev (pow x 2) (fabs (pow x 2))])
 
 ; Square root
 (define-rules arithmetic
   [sqrt-pow2 (pow (sqrt x) y) (pow x (/ y 2))]
   [sqrt-unprod (* (sqrt x) (sqrt y)) (sqrt (* x y))]
-  [sqrt-undiv (/ (sqrt x) (sqrt y)) (sqrt (/ x y))])
+  [sqrt-undiv (/ (sqrt x) (sqrt y)) (sqrt (/ x y))]
+  [sqrt-prod-sound (sqrt (* (fabs x) y)) (* (sqrt (fabs x)) (sqrt y))]
+  [sqrt-div-sound (sqrt (/ (fabs x) y)) (/ (sqrt (fabs x)) (sqrt y))])
 
 (define-rules arithmetic
   [sqrt-prod (sqrt (* x y)) (* (sqrt x) (sqrt y)) #:unsound] ; unsound @ x = y = -1
