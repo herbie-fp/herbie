@@ -8,7 +8,7 @@
 
 (define max-op-cnt 8)
 (define min-op-cnt 2)
-(define random-choices '(neg + - * / fabs #;const var pow sqrt))
+(define random-choices '(neg + - * / fabs const var pow sqrt cbrt))
 (define vars-choices '(x y z))
 (define num-expressions 5000)
 (define num-testing-points 100)
@@ -26,16 +26,16 @@
     (cond
       [(<= count 0)
        (get-var)
-       #;(if (zero? (random 0 2))
-             (get-constant)
-             (get-var))]
+       (if (zero? (random 0 2))
+           (get-constant)
+           (get-var))]
       [else
        (define rnd (random 0 (length random-choices)))
        (define node (list-ref random-choices rnd))
        (match node
          ['pow (list node (loop (- count 1)) 2)]
          [(or '+ '- '* '/) (list node (loop (- count 1)) (loop (- count 2)))]
-         [(or 'neg 'sin 'cos 'tan 'fabs 'sqrt) (list node (loop (- count 1)))]
+         [(or 'neg 'sin 'cos 'tan 'fabs 'sqrt 'cbrt) (list node (loop (- count 1)))]
          ['const (get-constant)]
          ['var (get-var)])])))
 
@@ -103,18 +103,15 @@
 
 (module+ main
   (load-herbie-plugins)
-  (when verbose
-    (printf "Generating expressions...\n"))
+  (printf "Generating expressions...\n")
   (define exprs
     (remove-duplicates (for/list ([n (in-range num-expressions)])
                          (generate-expr))))
 
-  (when verbose
-    (printf "Evaluating expressions...\n"))
+  (printf "Evaluating expressions...\n")
   (define exs (evaluate-exprs exprs))
 
-  (when verbose
-    (printf "Grouping expressions...\n"))
+  (printf "Grouping expressions...\n")
   (define e-classes (group-exprs-by-evaluations exs))
 
   (when verbose
@@ -124,6 +121,5 @@
       (for ([idx (in-set e-class)])
         (printf "\t~a\n" (list-ref exprs idx)))))
 
-  (when verbose
-    (printf "Proving equivalence of expressions...\n"))
+  (printf "Proving equivalence of expressions...\n")
   (check-rewrites e-classes exprs))

@@ -206,7 +206,9 @@
   [sqr-neg (* (neg x) (neg x)) (* x x)]
   [sqr-abs (* (fabs x) (fabs x)) (* x x)]
   [sqr-abs-rev (* x x) (* (fabs x) (fabs x))]
-  [sqr-neg-rev (* x x) (* (neg x) (neg x))])
+  [sqr-neg-rev (* x x) (* (neg x) (neg x))]
+  [sqrt-cbrt (sqrt (cbrt x)) (cbrt (sqrt x))]
+  [cbrt-sqrt (cbrt (sqrt x)) (sqrt (cbrt x))])
 
 ; Absolute value
 (define-rules arithmetic
@@ -270,20 +272,25 @@
   [cbrt-neg (cbrt (neg x)) (neg (cbrt x))]
   [cbrt-neg-rev (neg (cbrt x)) (cbrt (neg x))]
   [cbrt-fabs (cbrt (fabs x)) (fabs (cbrt x))]
-  [cbrt-fabs-rev (fabs (cbrt x)) (cbrt (fabs x))])
+  [cbrt-fabs-rev (fabs (cbrt x)) (cbrt (fabs x))]
+  [cbrt-div-cbrt (/ (cbrt x) (fabs (cbrt x))) (/ x (fabs x))]
+  [cbrt-div-cbrt2 (/ (fabs (cbrt x)) (cbrt x)) (/ (fabs x) x)]) ; will it ever be used?
 
 ; Exponentials
 (define-rules exponents
   [add-log-exp x (log (exp x))]
   [add-exp-log x (exp (log x)) #:unsound] ; unsound @ x = 0
   [rem-exp-log (exp (log x)) x]
-  [rem-log-exp (log (exp x)) x])
+  [rem-log-exp (log (exp x)) x]
+  [log-fabs (log x) (log (fabs x))]) ; range widening
 
 (define-rules exponents
   [exp-0 (exp 0) 1]
   [exp-1-e (exp 1) (E)]
   [1-exp 1 (exp 0)]
-  [e-exp-1 (E) (exp 1)])
+  [e-exp-1 (E) (exp 1)]
+  [exp-fabs (exp x) (fabs (exp x))]
+  [fabs-exp (fabs (exp x)) (exp x)])
 
 (define-rules exponents
   [exp-sum (exp (+ a b)) (* (exp a) (exp b))]
@@ -370,8 +377,10 @@
 (define-rules trigonometry
   [sin-neg (sin (neg x)) (neg (sin x))]
   [cos-neg (cos (neg x)) (cos x)]
+  [cos-fabs (cos (fabs x)) (cos x)]
   [tan-neg (tan (neg x)) (neg (tan x))]
   [cos-neg-rev (cos x) (cos (neg x))]
+  [cos-fabs-rev (cos x) (cos (fabs x))]
   [sin-neg-rev (neg (sin x)) (sin (neg x))]
   [tan-neg-rev (neg (tan x)) (tan (neg x))])
 
