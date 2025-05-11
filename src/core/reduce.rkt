@@ -236,10 +236,9 @@
     (define sum (hash-ref! h (cadr term) (λ () 0)))
     (hash-set! h (cadr term) (+ (car term) sum)))
   (sort (reap [sow]
-              (hash-for-each h
-                             (λ (k v)
-                               (when (not (= v 0))
-                                 (sow (cons v k))))))
+              (for ([(k v) (in-hash h)])
+                (when (not (= v 0))
+                  (sow (cons v k)))))
         expr<?
         #:key cdr))
 
@@ -250,10 +249,9 @@
             (define sum (hash-ref! h (cdr term) (λ () 0)))
             (hash-set! h (cdr term) (+ (car term) sum)))
           (sort (reap [sow]
-                      (hash-for-each h
-                                     (λ (k v)
-                                       (unless (= v 0)
-                                         (sow (cons v k))))))
+                      (for ([(k v) (in-hash h)])
+                        (unless (= v 0)
+                          (sow (cons v k)))))
                 expr<?
                 #:key cdr))))
 
