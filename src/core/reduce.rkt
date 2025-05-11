@@ -246,7 +246,7 @@
   (cons (car terms)
         (let ([h (make-hash)])
           (for ([term (cdr terms)])
-            (define sum (hash-ref! h (cdr term) (λ () 0)))
+            (define sum (hash-ref! h (cdr term) 0))
             (hash-set! h (cdr term) (+ (car term) sum)))
           (sort (reap [sow]
                       (for ([(k v) (in-hash h)])
