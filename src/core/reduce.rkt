@@ -200,19 +200,19 @@
                   (for/list ([term (cdr terms)])
                     (cons (/ (car term) 2) (cdr term))))))]
     [`(cbrt ,arg)
-     (let ([terms (gather-multiplicative-terms arg)])
-       (define exact-cbrt
-         (match (car terms)
-           ['NAN 'NAN]
-           [x (eval-application 'cbrt (car terms))]))
-       (if exact-cbrt
-           (cons exact-cbrt
-                 (for/list ([term (cdr terms)])
-                   (cons (/ (car term) 3) (cdr term))))
-           (list* 1
-                  (cons 1 `(cbrt ,(car terms)))
-                  (for/list ([term (cdr terms)])
-                    (cons (/ (car term) 3) (cdr term))))))]
+     (define terms (gather-multiplicative-terms arg))
+     (define exact-cbrt
+       (match (car terms)
+         ['NAN 'NAN]
+         [x (eval-application 'cbrt (car terms))]))
+     (if exact-cbrt
+         (cons exact-cbrt
+               (for/list ([term (cdr terms)])
+                 (cons (/ (car term) 3) (cdr term))))
+         (list* 1
+                (cons 1 `(cbrt ,(car terms)))
+                (for/list ([term (cdr terms)])
+                  (cons (/ (car term) 3) (cdr term)))))]
     [`(pow ,arg 0) '(1)]
     [`(pow ,arg ,(? real? a))
      (define terms (gather-multiplicative-terms arg))
@@ -233,7 +233,8 @@
 (define (combine-aterms terms)
   (define h (make-hash))
   (for ([term terms])
-    (let ([sum (hash-ref! h (cadr term) (λ () 0))]) (hash-set! h (cadr term) (+ (car term) sum))))
+    (define sum (hash-ref! h (cadr term) (λ () 0)))
+    (hash-set! h (cadr term) (+ (car term) sum)))
   (sort (reap [sow]
               (hash-for-each h
                              (λ (k v)
@@ -297,14 +298,14 @@
      (cons 1 (mterm->expr (cons (/ 1 denom) (make-multiplication-subsubnode newterms)))))))
 
 (define (make-multiplication-subsubnode terms)
-  (let-values ([(pos neg) (partition (compose positive? car) terms)])
-    (cond
-      [(and (null? pos) (null? neg)) 1]
-      [(null? pos) `(/ 1 ,(make-multiplication-subsubsubnode (map negate-term neg)))]
-      [(null? neg) (make-multiplication-subsubsubnode pos)]
-      [else
-       `(/ ,(make-multiplication-subsubsubnode pos)
-           ,(make-multiplication-subsubsubnode (map negate-term neg)))])))
+  (define-values (pos neg) (partition (compose positive? car) terms))
+  (cond
+    [(and (null? pos) (null? neg)) 1]
+    [(null? pos) `(/ 1 ,(make-multiplication-subsubsubnode (map negate-term neg)))]
+    [(null? neg) (make-multiplication-subsubsubnode pos)]
+    [else
+     `(/ ,(make-multiplication-subsubsubnode pos)
+         ,(make-multiplication-subsubsubnode (map negate-term neg)))]))
 
 (define (make-multiplication-subsubsubnode terms)
   (match terms
