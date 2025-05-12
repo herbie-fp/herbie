@@ -8,7 +8,7 @@
 
 (define max-op-cnt 5)
 (define min-op-cnt 2)
-(define random-choices '(neg + - * / fabs #;const var pow sqrt cbrt log exp))
+(define random-choices '(neg + - * / fabs #;const var pow2 pow3 sqrt cbrt log exp))
 (define vars-choices '(x y z))
 (define num-expressions 5000)
 (define num-testing-points 100)
@@ -33,7 +33,8 @@
        (define rnd (random 0 (length random-choices)))
        (define node (list-ref random-choices rnd))
        (match node
-         ['pow (list node (loop (- count 1)) 2)]
+         ['pow2 (list 'pow (loop (- count 1)) 2)]
+         ['pow3 (list 'pow (loop (- count 1)) 3)]
          [(or '+ '- '* '/) (list node (loop (- count 1)) (loop (- count 2)))]
          [(or 'neg 'sin 'cos 'tan 'fabs 'sqrt 'cbrt 'log 'exp) (list node (loop (- count 1)))]
          ['const (get-constant)]

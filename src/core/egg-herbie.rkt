@@ -328,6 +328,7 @@
                  'special-/
                  'special-*
                  'special-tan
+                 'special-atan
                  'special-cos
                  'special-sin
                  'special-neg
@@ -576,6 +577,7 @@
        [(eq? f '$approx) (platform-reprs (*active-platform*))]
        [(eq? f 'if) (all-reprs/types)]
        [(or (eq? f 'special-tan)
+            (eq? f 'special-atan)
             (eq? f 'special-cos)
             (eq? f 'special-sin)
             (eq? f 'special-neg)
@@ -615,7 +617,8 @@
               (get-representation 'bool)
               'bool))
         (list 'if (lookup cond cond-type) (lookup ift type) (lookup iff type))]
-       [(or (eq? f 'special-tan)
+       [(or (eq? f 'special-atan)
+            (eq? f 'special-tan)
             (eq? f 'special-cos)
             (eq? f 'special-sin)
             (eq? f 'special-neg)
