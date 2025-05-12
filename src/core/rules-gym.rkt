@@ -6,9 +6,9 @@
          "../syntax/load-plugin.rkt"
          "rival.rkt")
 
-(define max-op-cnt 8)
+(define max-op-cnt 5)
 (define min-op-cnt 2)
-(define random-choices '(neg + - * / fabs #;const var pow sqrt cbrt))
+(define random-choices '(neg + - * / fabs #;const var pow sqrt cbrt log exp))
 (define vars-choices '(x y z))
 (define num-expressions 5000)
 (define num-testing-points 100)
@@ -35,7 +35,7 @@
        (match node
          ['pow (list node (loop (- count 1)) 2)]
          [(or '+ '- '* '/) (list node (loop (- count 1)) (loop (- count 2)))]
-         [(or 'neg 'sin 'cos 'tan 'fabs 'sqrt 'cbrt) (list node (loop (- count 1)))]
+         [(or 'neg 'sin 'cos 'tan 'fabs 'sqrt 'cbrt 'log 'exp) (list node (loop (- count 1)))]
          ['const (get-constant)]
          ['var (get-var)])])))
 

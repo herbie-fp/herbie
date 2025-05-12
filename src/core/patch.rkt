@@ -76,13 +76,11 @@
 
   ; generate required rules
   (define rules (*rules*))
-  (define lifting-rules (platform-lifting-rules))
-  (define lowering-rules (platform-lowering-rules))
 
   ; egg schedule (3-phases for mathematical rewrites and implementation selection)
   (define schedule
     `((lift . ((iteration . 1) (scheduler . simple))) (,rules . ((node . ,(*node-limit*))))
-                                                      (lower . ((iteration . 1) (scheduler .
+                                                      (lower . ((iteration . 2) (scheduler .
                                                                                            simple)))))
 
   ; run egg

@@ -319,6 +319,17 @@
            (list 'if (loop cond (get-representation 'bool)) (loop ift type) (loop iff type))
            (list 'if (loop cond 'bool) (loop ift type) (loop iff type)))]
       [(list (? impl-exists? impl) args ...) (cons impl (map loop args (impl-info impl 'itype)))]
+      [(list (or 'special-sqrt
+                 'special-log
+                 'special-exp
+                 'special-pow
+                 'special-+
+                 'special--
+                 'special-/
+                 'special-*)
+             args ...)
+       (define op (string->symbol (string-replace (symbol->string (car expr)) "special-" "")))
+       (cons op (map loop args (map (const 'real) args)))]
       [(list op args ...) (cons op (map loop args (operator-info op 'itype)))])))
 
 ;; Parses a string from egg into a single S-expr.
@@ -498,19 +509,21 @@
 ;; Expand and convert the rules for egg.
 ;; Uses a cache to only expand each rule once.
 (define (expand-rules rules)
-  (reap [sow]
-        (for ([rule (in-list rules)])
-          (define egg&ffi-rules
-            (hash-ref! (*egg-rule-cache*)
-                       rule
-                       (lambda ()
-                         (for/list ([egg-rule (in-list (rule->egg-rules rule))])
-                           (define name (rule-name egg-rule))
-                           (define ffi-rule
-                             (make-ffi-rule name (rule-input egg-rule) (rule-output egg-rule)))
-                           (hash-set! (*canon-names*) name (rule-name rule))
-                           (cons egg-rule ffi-rule)))))
-          (for-each sow egg&ffi-rules))))
+  (define rules*
+    (reap [sow]
+          (for ([rule (in-list rules)])
+            (define egg&ffi-rules
+              (hash-ref! (*egg-rule-cache*)
+                         rule
+                         (lambda ()
+                           (for/list ([egg-rule (in-list (rule->egg-rules rule))])
+                             (define name (rule-name egg-rule))
+                             (define ffi-rule
+                               (make-ffi-rule name (rule-input egg-rule) (rule-output egg-rule)))
+                             (hash-set! (*canon-names*) name (rule-name rule))
+                             (cons egg-rule ffi-rule)))))
+            (for-each sow egg&ffi-rules))))
+  rules*)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Racket egraph
@@ -554,6 +567,15 @@
      (cond
        [(eq? f '$approx) (platform-reprs (*active-platform*))]
        [(eq? f 'if) (all-reprs/types)]
+       [(or (eq? f 'special-sqrt)
+            (eq? f 'special-log)
+            (eq? f 'special-exp)
+            (eq? f 'special-pow)
+            (eq? f 'special-+)
+            (eq? f 'special--)
+            (eq? f 'special-/)
+            (eq? f 'special-*))
+        (list 'real)]
        [(impl-exists? f) (list (impl-info f 'otype))]
        [else (list (operator-info f 'otype))])]))
 
@@ -577,6 +599,19 @@
               (get-representation 'bool)
               'bool))
         (list 'if (lookup cond cond-type) (lookup ift type) (lookup iff type))]
+       [(or (eq? f 'special-sqrt) (eq? f 'special-log) (eq? f 'special-exp))
+        (define a (u32vector-ref ids 0))
+        (define op (string->symbol (string-replace (symbol->string f) "special-" "")))
+        (list op (lookup a 'real))]
+       [(or (eq? f 'special-pow)
+            (eq? f 'special-+)
+            (eq? f 'special--)
+            (eq? f 'special-/)
+            (eq? f 'special-*))
+        (define a (u32vector-ref ids 0))
+        (define b (u32vector-ref ids 1))
+        (define op (string->symbol (string-replace (symbol->string f) "special-" "")))
+        (list op (lookup a 'real) (lookup b 'real))]
        [else
         (define itypes
           (if (impl-exists? f)

@@ -149,7 +149,8 @@
 (define-rules arithmetic
   [mult-flip (/ a b) (* a (/ 1 b))]
   [mult-flip-rev (* a (/ 1 b)) (/ a b)]
-  #;[division-flip (/ a b) (/ 1 (/ b a)) #:unsound]) ; unsound @ a = 0, b != 0
+  ;[division-flip (/ a b) (/ 1 (/ b a)) #:unsound] ; unsound @ a = 0, b != 0
+  [division-flip (/ a b) (special-/ 1 (special-/ b a))])
 
 ; Difference of squares
 (define-rules polynomials
@@ -168,9 +169,12 @@
   [difference-of-squares-rev (* (+ a b) (- a b)) (- (* a a) (* b b))])
 
 (define-rules polynomials
-  [sqr-pow (pow a b) (* (pow a (/ b 2)) (pow a (/ b 2))) #:unsound] ; unsound @ a = -1, b = 1
-  [flip-+ (+ a b) (/ (- (* a a) (* b b)) (- a b)) #:unsound] ; unsound @ a = b = 1
-  [flip-- (- a b) (/ (- (* a a) (* b b)) (+ a b)) #:unsound]) ; unsound @ a = -1, b = 1
+  ;[sqr-pow (pow a b) (* (pow a (/ b 2)) (pow a (/ b 2))) #:unsound] ; unsound @ a = -1, b = 1
+  ;[flip-+ (+ a b) (/ (- (* a a) (* b b)) (- a b)) #:unsound] ; unsound @ a = b = 1
+  ;[flip-- (- a b) (/ (- (* a a) (* b b)) (+ a b)) #:unsound] ; unsound @ a = -1, b = 1
+  [sqr-pow (pow a b) (special-* (special-pow a (special-/ b 2)) (special-pow a (special-/ b 2)))]
+  [flip-+ (+ a b) (special-/ (- (* a a) (* b b)) (special-- a b))]
+  [flip-- (- a b) (special-/ (- (* a a) (* b b)) (special-+ a b))])
 
 ; Difference of cubes
 (define-rules polynomials
@@ -179,9 +183,23 @@
   [difference-cubes-rev (* (+ (* a a) (+ (* b b) (* a b))) (- a b)) (- (pow a 3) (pow b 3))]
   [sum-cubes-rev (* (+ (* a a) (- (* b b) (* a b))) (+ a b)) (+ (pow a 3) (pow b 3))])
 
-(define-rules polynomials ; unsound @ a = b = 0
-  [flip3-+ (+ a b) (/ (+ (pow a 3) (pow b 3)) (+ (* a a) (- (* b b) (* a b)))) #:unsound]
-  [flip3-- (- a b) (/ (- (pow a 3) (pow b 3)) (+ (* a a) (+ (* b b) (* a b)))) #:unsound])
+(define-rules polynomials
+  [flip3-+
+   (+ a b)
+   (/ (+ (pow a 3) (pow b 3)) (+ (* a a) (- (* b b) (* a b))))
+   #:unsound] ; unsound @ a = b = 0
+  [flip3--
+   (- a b)
+   (/ (- (pow a 3) (pow b 3)) (+ (* a a) (+ (* b b) (* a b))))
+   #:unsound] ; unsound @ a = b = 0
+  [flip3-special+
+   (+ a b)
+   (special-/ (+ (pow a 3) (pow b 3))
+              (special-+ (special-* a a) (special-- (special-* b b) (special-* a b))))]
+  [flip3-special-
+   (- a b)
+   (special-/ (- (pow a 3) (pow b 3))
+              (special-+ (special-* a a) (special-+ (special-* b b) (special-* a b))))])
 
 ; Dealing with fractions
 (define-rules fractions
@@ -241,10 +259,14 @@
   [sqrt-div-sound-right (sqrt (/ x (fabs y))) (/ (sqrt x) (sqrt (fabs y)))])
 
 (define-rules arithmetic
-  [sqrt-prod (sqrt (* x y)) (* (sqrt x) (sqrt y)) #:unsound] ; unsound @ x = y = -1
-  [sqrt-div (sqrt (/ x y)) (/ (sqrt x) (sqrt y)) #:unsound] ; unsound @ x = y = -1
-  [add-sqr-sqrt x (* (sqrt x) (sqrt x)) #:unsound] ; unsound @ x = -1
-  [sqrt-pow1 (sqrt (pow x y)) (pow x (/ y 2)) #:unsound]) ; unsound @ x = -1, y = 2
+  ;[sqrt-prod (sqrt (* x y)) (* (sqrt x) (sqrt y)) #:unsound] ; unsound @ x = y = -1
+  ;[sqrt-div (sqrt (/ x y)) (/ (sqrt x) (sqrt y)) #:unsound] ; unsound @ x = y = -1
+  ;[add-sqr-sqrt x (* (sqrt x) (sqrt x)) #:unsound] ; unsound @ x = -1
+  ;[sqrt-pow1 (sqrt (pow x y)) (pow x (/ y 2)) #:unsound] ; unsound @ x = -1, y = 2
+  [sqrt-prod (sqrt (* x y)) (special-* (special-sqrt x) (special-sqrt y))]
+  [sqrt-div (sqrt (/ x y)) (special-/ (special-sqrt x) (special-sqrt y))]
+  [add-sqr-sqrt x (* (sqrt x) (special-sqrt x))]
+  [sqrt-pow1 (sqrt (pow x y)) (special-pow x (special-/ y 2))])
 
 ; Cubing
 (define-rules arithmetic
@@ -279,7 +301,8 @@
 ; Exponentials
 (define-rules exponents
   [add-log-exp x (log (exp x))]
-  [add-exp-log x (exp (log x)) #:unsound] ; unsound @ x = 0
+  ;[add-exp-log x (exp (log x)) #:unsound] ; unsound @ x = 0
+  [add-exp-log x (special-exp (special-log x))]
   [rem-exp-log (exp (log x)) x]
   [rem-log-exp (log (exp x)) x]
   [log-fabs (log x) (log (fabs x))]) ; range widening
@@ -341,16 +364,24 @@
   [pow-div (/ (pow a b) (pow a c)) (pow a (- b c))])
 
 (define-rules exponents
-  [pow-plus-rev (pow a (+ b 1)) (* (pow a b) a) #:unsound] ; unsound @ a = 0, b = -1/2
-  [pow-neg (pow a (neg b)) (/ 1 (pow a b)) #:unsound]) ; unsound @ a = 0, b = -1
+  ;[pow-plus-rev (pow a (+ b 1)) (* (pow a b) a) #:unsound] ; unsound @ a = 0, b = -1/2
+  ;[pow-neg (pow a (neg b)) (/ 1 (pow a b)) #:unsound] ; unsound @ a = 0, b = -1
+  [pow-plus-rev (pow a (+ b 1)) (special-* (special-pow a b) a)]
+  [pow-neg (pow a (neg b)) (special-/ 1 (special-pow a b))])
 
 (define-rules exponents
-  [pow-to-exp (pow a b) (exp (* (log a) b)) #:unsound] ; unsound @ a = -1, b = 1
-  [pow-add (pow a (+ b c)) (* (pow a b) (pow a c)) #:unsound] ; unsound @ a = -1, b = c = 1/2
-  [pow-sub (pow a (- b c)) (/ (pow a b) (pow a c)) #:unsound] ; unsound @ a = -1, b = c = 1/2
-  [pow-pow (pow (pow a b) c) (pow a (* b c)) #:unsound] ; unsound @ a = -1, b = 2, c = 1/4
-  [pow-unpow (pow a (* b c)) (pow (pow a b) c) #:unsound] ; unsound @ a = -1, b = 1/2, c = 2
-  [unpow-prod-down (pow (* b c) a) (* (pow b a) (pow c a)) #:unsound]) ; unsound @ a = 1/2, b = c = -1
+  ;[pow-to-exp (pow a b) (exp (* (log a) b)) #:unsound] ; unsound @ a = -1, b = 1
+  ;[pow-add (pow a (+ b c)) (* (pow a b) (pow a c)) #:unsound] ; unsound @ a = -1, b = c = 1/2
+  ;[pow-sub (pow a (- b c)) (/ (pow a b) (pow a c)) #:unsound] ; unsound @ a = -1, b = c = 1/2
+  ;[pow-pow (pow (pow a b) c) (pow a (* b c)) #:unsound] ; unsound @ a = -1, b = 2, c = 1/4
+  ;[pow-unpow (pow a (* b c)) (pow (pow a b) c) #:unsound] ; unsound @ a = -1, b = 1/2, c = 2
+  ;[unpow-prod-down (pow (* b c) a) (* (pow b a) (pow c a)) #:unsound] ; unsound @ a = 1/2, b = c = -1
+  [pow-to-exp (pow a b) (special-exp (special-* (special-log a) b))]
+  [pow-add (pow a (+ b c)) (special-* (special-pow a b) (special-pow a c))]
+  [pow-sub (pow a (- b c)) (special-/ (special-pow a b) (special-pow a c))]
+  [pow-pow (pow (pow a b) c) (special-pow a (special-* b c))]
+  [pow-unpow (pow a (* b c)) (special-pow (special-pow a b) c)]
+  [unpow-prod-down (pow (* b c) a) (special-* (special-pow b a) (special-pow c a))])
 
 ; Logarithms
 (define-rules exponents
@@ -359,10 +390,12 @@
   [log-pow-rev (* b (log a)) (log (pow a b))])
 
 (define-rules exponents
-  [log-prod (log (* a b)) (+ (log a) (log b)) #:unsound] ; unsound @ a = b = -1
-  [log-div (log (/ a b)) (- (log a) (log b)) #:unsound] ; unsound @ a = b = -1
-  [log-pow (log (pow a b)) (* b (log a)) #:unsound]) ; unsound @ a = -1, b = 2
-
+  ;[log-prod (log (* a b)) (+ (log a) (log b)) #:unsound] ; unsound @ a = b = -1
+  ;[log-div (log (/ a b)) (- (log a) (log b)) #:unsound] ; unsound @ a = b = -1
+  ;[log-pow (log (pow a b)) (* b (log a)) #:unsound] ; unsound @ a = -1, b = 2
+  [log-prod (log (* a b)) (special-+ (special-log a) (special-log b))]
+  [log-div (log (/ a b)) (special-- (special-log a) (special-log b))]
+  [log-pow (log (pow a b)) (special-* b (special-log a))])
 (define-rules exponents
   [sum-log (+ (log a) (log b)) (log (* a b))]
   [diff-log (- (log a) (log b)) (log (/ a b))]
