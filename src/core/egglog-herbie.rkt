@@ -167,7 +167,9 @@
       (cons tag schedule-params)))
 
   ;; 3. Inserting expressions into the egglog program and getting a Listof (exprs . extract bindings)
-  (define extract-bindings (egglog-add-exprs insert-batch (egglog-runner-ctx runner) curr-program))
+  ; (define extract-bindings (egglog-add-exprs insert-batch (egglog-runner-ctx runner) curr-program))
+  (define-values (all-bindings binding-names)
+    (egglog-add-exprs insert-batch (egglog-runner-ctx runner) curr-program))
 
   ;; 4. Running the schedule : having code inside to emulate egraph-run-rules
 
@@ -197,9 +199,9 @@
   (egglog-program-add! `(run-schedule ,@(reverse run-schedule)) curr-program)
 
   ;; 5. Extraction -> should just need root ids
-  (egglog-program-add-list! (for/list ([binding extract-bindings])
-                              `(extract ,binding ,(*egglog-variants-limit*)))
-                            curr-program)
+  ; (egglog-program-add-list! (for/list ([binding extract-bindings])
+  ;                             `(extract ,binding ,(*egglog-variants-limit*)))
+  ;                           curr-program)
 
   ; (egglog-program-add! `(datatype ExtractList (Nil) (Cons MTy ExtractList)) curr-program)
 
@@ -214,6 +216,43 @@
   ;                      curr-program)
 
   ; (egglog-program-add! `(extract extract-all-list ,(*egglog-variants-limit*)) curr-program)
+  ;
+
+  ;; tood : get actual bindings not jjust the names of them
+
+  ; (egglog-program-add! `(constructor b1 () Expr) curr-program)
+  ; (egglog-program-add! `(ruleset init) curr-program)
+  ; (egglog-program-add! `(rule () (,@all-bindings (set (b1) ,binding-names) #:ruleset init))
+  ;                      curr-program)
+
+  ; (egglog-program-add! `(run init 1) curr-program)
+  ; (egglog-program-add! `(extract (b1)) curr-program)
+
+  (egglog-program-add! `(ruleset run-extract-commands) curr-program)
+
+  (define all-extract
+    (for/list ([binding binding-names])
+      `(extract ,binding ,(*egglog-variants-limit*))))
+
+  (egglog-program-add! `(rule () (,@all-extract) :ruleset run-extract-commands) curr-program)
+
+  ; (egglog-program-add! `(run 1 run-extract-commands) curr-program)
+  (egglog-program-add! `(run-schedule (repeat 1 run-extract-commands)) curr-program)
+
+  ;   (define bindings-thingie '())
+
+  ;   (for/list ([binding extract-bindings])
+  ;     (set! bindings-thingie (cons binding bindings-thingie))
+  ;     `(extract ,binding ,(*egglog-variants-limit*)))
+
+  ; (rule () (
+  ;   (let a1 ...)
+  ;   (let a2 ...)
+  ;   (set (b1) (... a2 ...))
+  ; ))
+
+  ; (run init 1)
+  ; (extract (b1))
 
   ;; 6. After step-by-step building the program, process it
   ;; by running it using egglog
@@ -223,6 +262,7 @@
 
   ;; Extract its returned value
   (define stdout-content (car egglog-output))
+  ; (printf "possible parsing error\n")
 
   (define output-mutable-batch (batch->mutable-batch output-batch))
 
@@ -231,6 +271,7 @@
     (let ([input-port (open-input-string stdout-content)])
       (for/list ([next-expr (in-port read input-port)])
         (map e2->expr next-expr))))
+  ; (printf "no parsing error\n")
 
   ; ;; Parse the single big linked list from stdout
   ; (define herbie-exprs
@@ -779,11 +820,14 @@
 
     (egglog-program-add! curr-var-lifting-rule curr-program))
 
+  (define all-bindings '())
+
   ; Var-spec-bindings
   (for ([var (in-list (context-vars ctx))])
     (define curr-var-spec-binding
       `(let ,(string->symbol (format "?~a" var)) (Var ,(symbol->string var))))
 
+    ; (set! all-bindings (cons curr-var-spec-binding all-bindings)))
     (egglog-program-add! curr-var-spec-binding curr-program))
 
   ; Var-typed-bindings
@@ -793,6 +837,7 @@
       `(let ,(string->symbol (format "?t~a" var))
          (,(typed-var-id (representation-name repr)) ,(symbol->string var))))
 
+    ; (set! all-bindings (cons curr-var-typed-binding all-bindings)))
     (egglog-program-add! curr-var-typed-binding curr-program))
 
   ; Binding Exprs
@@ -806,9 +851,10 @@
 
     (define curr-binding-exprs `(let ,binding ,(hash-ref bindings binding)))
 
+    ; (set! all-bindings (cons curr-binding-exprs all-bindings)))
     (egglog-program-add! curr-binding-exprs curr-program))
 
-  ; Only thing returned -> Extract Bindings
+  ; Extract Bindings
   (define extract-bindings
     (for/list ([root (batch-roots batch)])
       (if (hash-has-key? vars root)
@@ -817,7 +863,7 @@
               (string->symbol (format "?t~a" (hash-ref vars root))))
           (string->symbol (format "?r~a" root)))))
 
-  extract-bindings)
+  (values (reverse all-bindings) extract-bindings))
 
 (define (egglog-unsound-detected curr-program tag params current-schedule)
   (define node-limit (dict-ref params 'node (*node-limit*)))
