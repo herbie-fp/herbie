@@ -330,6 +330,7 @@
                  'special-tan
                  'special-atan
                  'special-cos
+                 'special-cosh
                  'special-sin
                  'special-neg
                  'special-sinh
@@ -518,21 +519,19 @@
 ;; Expand and convert the rules for egg.
 ;; Uses a cache to only expand each rule once.
 (define (expand-rules rules)
-  (define rules*
-    (reap [sow]
-          (for ([rule (in-list rules)])
-            (define egg&ffi-rules
-              (hash-ref! (*egg-rule-cache*)
-                         rule
-                         (lambda ()
-                           (for/list ([egg-rule (in-list (rule->egg-rules rule))])
-                             (define name (rule-name egg-rule))
-                             (define ffi-rule
-                               (make-ffi-rule name (rule-input egg-rule) (rule-output egg-rule)))
-                             (hash-set! (*canon-names*) name (rule-name rule))
-                             (cons egg-rule ffi-rule)))))
-            (for-each sow egg&ffi-rules))))
-  rules*)
+  (reap [sow]
+        (for ([rule (in-list rules)])
+          (define egg&ffi-rules
+            (hash-ref! (*egg-rule-cache*)
+                       rule
+                       (lambda ()
+                         (for/list ([egg-rule (in-list (rule->egg-rules rule))])
+                           (define name (rule-name egg-rule))
+                           (define ffi-rule
+                             (make-ffi-rule name (rule-input egg-rule) (rule-output egg-rule)))
+                           (hash-set! (*canon-names*) name (rule-name rule))
+                           (cons egg-rule ffi-rule)))))
+          (for-each sow egg&ffi-rules))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Racket egraph
@@ -579,6 +578,7 @@
        [(or (eq? f 'special-tan)
             (eq? f 'special-atan)
             (eq? f 'special-cos)
+            (eq? f 'special-cosh)
             (eq? f 'special-sin)
             (eq? f 'special-neg)
             (eq? f 'special-sinh)
@@ -620,6 +620,7 @@
        [(or (eq? f 'special-atan)
             (eq? f 'special-tan)
             (eq? f 'special-cos)
+            (eq? f 'special-cosh)
             (eq? f 'special-sin)
             (eq? f 'special-neg)
             (eq? f 'special-sinh)
