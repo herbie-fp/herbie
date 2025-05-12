@@ -73,7 +73,7 @@
 
   ; generate required rules
   (define sound-rules (*sound-rules*))
-  (define rules (*rules*))
+  (define unsound-rules (set-subtract (*rules*) (*sound-rules*)))
   (define lifting-rules (platform-lifting-rules))
   (define lowering-rules (platform-lowering-rules))
 
@@ -81,7 +81,7 @@
   (define schedule
     (list `(,lifting-rules . ((iteration . 1) (scheduler . simple)))
           `(,sound-rules . ((node . ,(*node-limit*))))
-          `(,rules . ((iteration . 1)))
+          `(,unsound-rules . ((iteration . 1)))
           `(,lowering-rules . ((iteration . 1) (scheduler . simple)))))
 
   ; run egg
