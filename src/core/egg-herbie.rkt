@@ -326,7 +326,15 @@
                  'special-+
                  'special--
                  'special-/
-                 'special-*)
+                 'special-*
+                 'special-tan
+                 'special-cos
+                 'special-sin
+                 'special-neg
+                 'special-sinh
+                 'special-acosh
+                 'special-asinh
+                 'special-tanh)
              args ...)
        (define op (string->symbol (string-replace (symbol->string (car expr)) "special-" "")))
        (cons op (map loop args (map (const 'real) args)))]
@@ -567,7 +575,15 @@
      (cond
        [(eq? f '$approx) (platform-reprs (*active-platform*))]
        [(eq? f 'if) (all-reprs/types)]
-       [(or (eq? f 'special-sqrt)
+       [(or (eq? f 'special-tan)
+            (eq? f 'special-cos)
+            (eq? f 'special-sin)
+            (eq? f 'special-neg)
+            (eq? f 'special-sinh)
+            (eq? f 'special-acosh)
+            (eq? f 'special-asinh)
+            (eq? f 'special-tanh)
+            (eq? f 'special-sqrt)
             (eq? f 'special-log)
             (eq? f 'special-exp)
             (eq? f 'special-pow)
@@ -599,7 +615,17 @@
               (get-representation 'bool)
               'bool))
         (list 'if (lookup cond cond-type) (lookup ift type) (lookup iff type))]
-       [(or (eq? f 'special-sqrt) (eq? f 'special-log) (eq? f 'special-exp))
+       [(or (eq? f 'special-tan)
+            (eq? f 'special-cos)
+            (eq? f 'special-sin)
+            (eq? f 'special-neg)
+            (eq? f 'special-sinh)
+            (eq? f 'special-acosh)
+            (eq? f 'special-asinh)
+            (eq? f 'special-tanh)
+            (eq? f 'special-sqrt)
+            (eq? f 'special-log)
+            (eq? f 'special-exp))
         (define a (u32vector-ref ids 0))
         (define op (string->symbol (string-replace (symbol->string f) "special-" "")))
         (list op (lookup a 'real))]
