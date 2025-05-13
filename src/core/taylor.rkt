@@ -478,7 +478,11 @@
   (match-define (cons shift coeffs) (normalize-series arg))
   (define hash (make-hash))
   (define negate? (and (number? (coeffs 0)) (not (positive? (coeffs 0)))))
-  (hash-set! hash 0 (reduce (if negate? `(log (neg ,(coeffs 0))) `(log ,(coeffs 0)))))
+  (define (maybe-negate x)
+    (if negate?
+        `(neg ,x)
+        x))
+  (hash-set! hash 0 (reduce `(log ,(maybe-negate (coeffs 0)))))
 
   (define (series n)
     (hash-ref! hash
@@ -493,13 +497,13 @@
                                                   (if (= p 0)
                                                       1
                                                       `(pow (* ,(factorial i) ,(coeffs i)) ,p))))
-                                           (pow ,(coeffs 0) ,(- k))))))
+                                           (exp (* ,(- k) ,(series 0)))))))
                              ,(factorial n))))))
 
   (cons 0
         (λ (n)
           (if (and (= n 0) (not (zero? shift)))
-              (reduce `(+ (* (neg ,shift) (log ,(if negate? `(neg ,var) var))) ,(series 0)))
+              (reduce `(+ (* (neg ,shift) (log ,(maybe-negate var))) ,(series 0)))
               (series n)))))
 
 (module+ test
