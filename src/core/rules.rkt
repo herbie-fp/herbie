@@ -258,7 +258,7 @@
   ;[add-sqr-sqrt x (* (sqrt x) (sqrt x)) #:unsound] ; unsound @ x = -1
   ;[sqrt-pow1 (sqrt (pow x y)) (pow x (/ y 2)) #:unsound] ; unsound @ x = -1, y = 2
   [sqrt-prod (sqrt (* x y)) (* (special-sqrt x) (special-sqrt y)) #:unsound]
-  [sqrt-div (sqrt (/ x y)) (/ (special-sqrt x) (special-sqrt y)) #:unsound]
+  [sqrt-div (sqrt (/ x y)) (special-/ (special-sqrt x) (special-sqrt y)) #:unsound]
   [add-sqr-sqrt x (* (special-sqrt x) (special-sqrt x)) #:unsound]
   [sqrt-pow1 (sqrt (pow x y)) (special-pow x (/ y 2)) #:unsound])
 
@@ -361,11 +361,8 @@
 (define-rules exponents
   ;[pow-plus-rev (pow a (+ b 1)) (* (pow a b) a) #:unsound] ; unsound @ a = 0, b = -1/2
   ;[pow-neg (pow a (neg b)) (/ 1 (pow a b)) #:unsound] ; unsound @ a = 0, b = -1
-  [pow-plus-rev (pow a (+ b 1)) (* (special-pow a b) a) #:unsound] ; power of negative odd number
-  [pow-neg
-   (pow a (neg b))
-   (special-/ 1 (special-pow a b))
-   #:unsound]) ; division by zero + power of negative odd number
+  [pow-plus-rev (pow a (+ b 1)) (special-* (special-pow a b) a) #:unsound]
+  [pow-neg (pow a (neg b)) (/ 1 (special-pow a b)) #:unsound])
 
 (define-rules exponents
   ;[pow-to-exp (pow a b) (exp (* (log a) b)) #:unsound] ; unsound @ a = -1, b = 1
@@ -374,7 +371,7 @@
   ;[pow-pow (pow (pow a b) c) (pow a (* b c)) #:unsound] ; unsound @ a = -1, b = 2, c = 1/4
   ;[pow-unpow (pow a (* b c)) (pow (pow a b) c) #:unsound] ; unsound @ a = -1, b = 1/2, c = 2
   ;[unpow-prod-down (pow (* b c) a) (* (pow b a) (pow c a)) #:unsound] ; unsound @ a = 1/2, b = c = -1
-  [pow-to-exp (pow a b) (exp (* (special-log a) b)) #:unsound]
+  [pow-to-exp (pow a b) (exp (special-* (special-log a) b)) #:unsound]
   [pow-add (pow a (+ b c)) (* (special-pow a b) (special-pow a c)) #:unsound]
   [pow-sub (pow a (- b c)) (special-/ (special-pow a b) (special-pow a c)) #:unsound]
   [pow-pow (pow (pow a b) c) (special-pow a (* b c)) #:unsound]
@@ -393,7 +390,7 @@
   ;[log-pow (log (pow a b)) (* b (log a)) #:unsound] ; unsound @ a = -1, b = 2
   [log-prod (log (* a b)) (+ (special-log a) (special-log b)) #:unsound]
   [log-div (log (/ a b)) (- (special-log a) (special-log b)) #:unsound]
-  [log-pow (log (pow a b)) (* b (special-log a)) #:unsound])
+  [log-pow (log (pow a b)) (special-* b (special-log a)) #:unsound])
 (define-rules exponents
   [sum-log (+ (log a) (log b)) (log (* a b))]
   [diff-log (- (log a) (log b)) (log (/ a b))]

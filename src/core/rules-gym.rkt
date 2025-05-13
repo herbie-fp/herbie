@@ -8,7 +8,7 @@
 
 (define max-op-cnt 5)
 (define min-op-cnt 2)
-(define random-choices '(neg + - * / fabs #;const var pow2 pow3 sqrt cbrt log exp))
+(define random-choices '(neg + - * / fabs #;const var #;pow2 #;pow3 sqrt cbrt log exp))
 (define vars-choices '(x y z))
 (define num-expressions 5000)
 (define num-testing-points 100)

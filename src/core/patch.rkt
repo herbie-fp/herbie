@@ -11,7 +11,10 @@
          "rules.rkt"
          "taylor.rkt"
          "batch.rkt"
-         "egglog-herbie.rkt")
+         "egglog-herbie.rkt"
+         "rival.rkt"
+         rival
+         math/bigfloat)
 
 (provide generate-candidates)
 
@@ -47,7 +50,34 @@
                 #:when (set-member? fv var)) ; check whether var exists in expr at all
             (for ([i (in-range (*taylor-order-limit*))])
               (define repr (repr-of expr (*context*)))
-              (define gen (approx spec (hole (representation-name repr) (genexpr))))
+              (define genex (genexpr))
+
+              ; do analyze
+              #;(define vars (free-variables genex))
+              #;(define vars-reprs (map (const (get-representation 'binary64)) vars))
+              #;(define ctx (context vars repr vars-reprs))
+              #;(define varc (length (context-vars ctx)))
+              #;(define compiler (make-real-compiler (list genex) (list ctx)))
+              #;(define pt
+                  (for/vector ([in (in-list vars)])
+                    (ival (bf -inf.0) (bf +inf.0))))
+              #;(match-define (list res _ _) (real-compiler-analyze compiler pt))
+
+              #;(define err! (ival-lo res))
+              #;(match err!
+                  [#t
+                   (printf "Invalid expansion of ~a\n" spec)
+                   (printf "\tExpansion - ~a\n" genex)
+                   (printf "\tVar - ~a\n" var)
+                   (printf "\tTransform-type - ~a\n" transform-type)
+                   (printf "\tOrder - ~a\n\n" i)
+                   (error)]
+                  [#f
+                   (define gen (approx spec (hole (representation-name repr) genex)))
+                   (define idx (mutable-batch-munge! global-batch-mutable gen))
+                   (sow (alt (batchref global-batch idx) `(taylor ,name ,var) (list altn) '()))])
+
+              (define gen (approx spec (hole (representation-name repr) genex)))
               (define idx (mutable-batch-munge! global-batch-mutable gen)) ; Munge gen
               (sow (alt (batchref global-batch idx) `(taylor ,name ,var) (list altn) '()))))
           (timeline-stop!))
