@@ -150,7 +150,7 @@
   [mult-flip (/ a b) (* a (/ 1 b))]
   [mult-flip-rev (* a (/ 1 b)) (/ a b)]
   ;[division-flip (/ a b) (/ 1 (/ b a)) #:unsound] ; unsound @ a = 0, b != 0
-  [division-flip (/ a b) (/ 1 (special-/ b a)) #:unsound])
+  [division-flip (/ a b) (special-/ 1 (special-/ b a)) #:unsound])
 
 ; Difference of squares
 (define-rules polynomials
@@ -172,9 +172,12 @@
   ;[sqr-pow (pow a b) (* (pow a (/ b 2)) (pow a (/ b 2))) #:unsound] ; unsound @ a = -1, b = 1
   ;[flip-+ (+ a b) (/ (- (* a a) (* b b)) (- a b)) #:unsound] ; unsound @ a = b = 1
   ;[flip-- (- a b) (/ (- (* a a) (* b b)) (+ a b)) #:unsound] ; unsound @ a = -1, b = 1
-  [sqr-pow (pow a b) (* (special-pow a (/ b 2)) (special-pow a (/ b 2))) #:unsound]
-  [flip-+ (+ a b) (special-/ (- (* a a) (* b b)) (- a b)) #:unsound]
-  [flip-- (- a b) (special-/ (- (* a a) (* b b)) (+ a b)) #:unsound])
+  [sqr-pow
+   (pow a b)
+   (special-* (special-pow a (special-/ b 2)) (special-pow a (special-/ b 2)))
+   #:unsound]
+  [flip-+ (+ a b) (special-/ (special-- (special-* a a) (special-* b b)) (special-- a b)) #:unsound]
+  [flip-- (- a b) (special-/ (special-- (special-* a a) (special-* b b)) (special-+ a b)) #:unsound])
 
 ; Difference of cubes
 (define-rules polynomials
@@ -192,8 +195,16 @@
      (- a b)
      (/ (- (pow a 3) (pow b 3)) (+ (* a a) (+ (* b b) (* a b))))
      #:unsound] ; unsound @ a = b = 0
-  [flip3-+ (+ a b) (special-/ (+ (pow a 3) (pow b 3)) (+ (* a a) (- (* b b) (* a b)))) #:unsound]
-  [flip3-- (- a b) (special-/ (- (pow a 3) (pow b 3)) (+ (* a a) (+ (* b b) (* a b)))) #:unsound])
+  [flip3-+
+   (+ a b)
+   (special-/ (special-+ (special-pow a 3) (special-pow b 3))
+              (special-+ (special-* a a) (special-- (special-* b b) (special-* a b))))
+   #:unsound]
+  [flip3--
+   (- a b)
+   (special-/ (special-- (special-pow a 3) (special-pow b 3))
+              (special-+ (special-* a a) (special-+ (special-* b b) (special-* a b))))
+   #:unsound])
 
 ; Dealing with fractions
 (define-rules fractions
@@ -257,10 +268,10 @@
   ;[sqrt-div (sqrt (/ x y)) (/ (sqrt x) (sqrt y)) #:unsound] ; unsound @ x = y = -1
   ;[add-sqr-sqrt x (* (sqrt x) (sqrt x)) #:unsound] ; unsound @ x = -1
   ;[sqrt-pow1 (sqrt (pow x y)) (pow x (/ y 2)) #:unsound] ; unsound @ x = -1, y = 2
-  [sqrt-prod (sqrt (* x y)) (* (special-sqrt x) (special-sqrt y)) #:unsound]
+  [sqrt-prod (sqrt (* x y)) (special-* (special-sqrt x) (special-sqrt y)) #:unsound]
   [sqrt-div (sqrt (/ x y)) (special-/ (special-sqrt x) (special-sqrt y)) #:unsound]
-  [add-sqr-sqrt x (* (special-sqrt x) (special-sqrt x)) #:unsound]
-  [sqrt-pow1 (sqrt (pow x y)) (special-pow x (/ y 2)) #:unsound])
+  [add-sqr-sqrt x (special-* (special-sqrt x) (special-sqrt x)) #:unsound]
+  [sqrt-pow1 (sqrt (pow x y)) (special-pow x (special-/ y 2)) #:unsound])
 
 ; Cubing
 (define-rules arithmetic
@@ -296,7 +307,7 @@
 (define-rules exponents
   [add-log-exp x (log (exp x))]
   ;[add-exp-log x (exp (log x)) #:unsound] ; unsound @ x = 0
-  [add-exp-log x (exp (special-log x)) #:unsound]
+  [add-exp-log x (special-exp (special-log x)) #:unsound]
   [rem-exp-log (exp (log x)) x]
   [rem-log-exp (log (exp x)) x]
   [log-fabs (log x) (log (fabs x))] ; range widening
@@ -346,7 +357,7 @@
 (define-rules exponents
   [pow1/2 (sqrt a) (pow a 1/2)]
   [pow2 (* a a) (pow a 2)]
-  [pow1/3 (cbrt a) (pow a 1/3)]
+  [pow1/3 (cbrt a) 1/3]
   [pow3 (* (* a a) a) (pow a 3)])
 
 (define-rules exponents
@@ -371,12 +382,12 @@
   ;[pow-pow (pow (pow a b) c) (pow a (* b c)) #:unsound] ; unsound @ a = -1, b = 2, c = 1/4
   ;[pow-unpow (pow a (* b c)) (pow (pow a b) c) #:unsound] ; unsound @ a = -1, b = 1/2, c = 2
   ;[unpow-prod-down (pow (* b c) a) (* (pow b a) (pow c a)) #:unsound] ; unsound @ a = 1/2, b = c = -1
-  [pow-to-exp (pow a b) (exp (special-* (special-log a) b)) #:unsound]
-  [pow-add (pow a (+ b c)) (* (special-pow a b) (special-pow a c)) #:unsound]
+  [pow-to-exp (pow a b) (special-exp (special-* (special-log a) b)) #:unsound]
+  [pow-add (pow a (+ b c)) (special-* (special-pow a b) (special-pow a c)) #:unsound]
   [pow-sub (pow a (- b c)) (special-/ (special-pow a b) (special-pow a c)) #:unsound]
-  [pow-pow (pow (pow a b) c) (special-pow a (* b c)) #:unsound]
+  [pow-pow (pow (pow a b) c) (special-pow a (special-* b c)) #:unsound]
   [pow-unpow (pow a (* b c)) (special-pow (special-pow a b) c) #:unsound]
-  [unpow-prod-down (pow (* b c) a) (* (special-pow b a) (special-pow c a)) #:unsound])
+  [unpow-prod-down (pow (* b c) a) (special-* (special-pow b a) (special-pow c a)) #:unsound])
 
 ; Logarithms
 (define-rules exponents
@@ -388,9 +399,9 @@
   ;[log-prod (log (* a b)) (+ (log a) (log b)) #:unsound] ; unsound @ a = b = -1
   ;[log-div (log (/ a b)) (- (log a) (log b)) #:unsound] ; unsound @ a = b = -1
   ;[log-pow (log (pow a b)) (* b (log a)) #:unsound] ; unsound @ a = -1, b = 2
-  [log-prod (log (* a b)) (+ (special-log a) (special-log b)) #:unsound]
-  [log-div (log (/ a b)) (- (special-log a) (special-log b)) #:unsound]
-  [log-pow (log (pow a b)) (* b (special-log a)) #:unsound])
+  [log-prod (log (* a b)) (special-+ (special-log a) (special-log b)) #:unsound]
+  [log-div (log (/ a b)) (special-- (special-log a) (special-log b)) #:unsound]
+  [log-pow (log (pow a b)) (special-* b (special-log a)) #:unsound])
 (define-rules exponents
   [sum-log (+ (log a) (log b)) (log (* a b))]
   [diff-log (- (log a) (log b)) (log (/ a b))]
@@ -432,7 +443,7 @@
   [atan-tan-s (atan (tan x)) (special-* 1 x) #:unsound] ; unsound @ x = pi
   [asin-sin-s (asin (sin x)) (special-* 1 x) #:unsound] ; unsound @ x = pi
   [acos-cos-s (acos (cos x)) (special-* 1 x) #:unsound] ; unsound @ x = 2pi
-  [atan-tan-rev (remainder x (PI)) (special-atan (tan x)) #:unsound]) ; unsound @ x = pi/2
+  [atan-tan-rev (remainder x (PI)) (special-atan (special-tan x)) #:unsound]) ; unsound @ x = pi/2
 
 (define-rules trigonometry
   [cos-sin-sum (+ (* (cos a) (cos a)) (* (sin a) (sin a))) 1]
@@ -485,10 +496,13 @@
   #;[tan-+PI/2 (tan (+ (neg x) (/ (PI) 2))) (/ 1 (tan x)) #:unsound] ; unsound @ x = pi/2
   #;[hang-m0-tan-rev (tan (/ (neg a) 2)) (/ (- 1 (cos a)) (neg (sin a))) #:unsound] ; unsound @ a = 0
   #;[hang-p0-tan-rev (tan (/ a 2)) (/ (- 1 (cos a)) (sin a)) #:unsound] ; unsound @ a = 0
-  [neg-tan-+PI/2 (tan (+ x (/ (PI) 2))) (special-/ -1 (tan x)) #:unsound]
-  [tan-+PI/2 (tan (+ (neg x) (/ (PI) 2))) (special-/ 1 (tan x)) #:unsound]
-  [hang-m0-tan-rev (tan (/ (neg a) 2)) (special-/ (- 1 (cos a)) (neg (sin a))) #:unsound]
-  [hang-p0-tan-rev (tan (/ a 2)) (special-/ (- 1 (cos a)) (sin a)) #:unsound])
+  [neg-tan-+PI/2 (tan (+ x (/ (PI) 2))) (special-/ -1 (special-tan x)) #:unsound]
+  [tan-+PI/2 (tan (+ (neg x) (/ (PI) 2))) (special-/ 1 (special-tan x)) #:unsound]
+  [hang-m0-tan-rev
+   (tan (/ (neg a) 2))
+   (special-/ (special-- 1 (special-cos a)) (special-neg (special-sin a)))
+   #:unsound]
+  [hang-p0-tan-rev (tan (/ a 2)) (special-/ (special-- 1 (special-cos a)) (special-sin a)) #:unsound])
 
 (define-rules trigonometry
   [sin-sum (sin (+ x y)) (+ (* (sin x) (cos y)) (* (cos x) (sin y)))]
@@ -550,10 +564,23 @@
   #;[tan-hang-p (tan (/ (+ a b) 2)) (/ (+ (sin a) (sin b)) (+ (cos a) (cos b))) #:unsound]
   ; unsound @ a = b = pi/2
   #;[tan-hang-m (tan (/ (- a b) 2)) (/ (- (sin a) (sin b)) (+ (cos a) (cos b))) #:unsound]
-  [tan-sum (tan (+ x y)) (special-/ (+ (tan x) (tan y)) (- 1 (* (tan x) (tan y)))) #:unsound]
-  [tan-2 (tan (* 2 x)) (special-/ (* 2 (tan x)) (- 1 (* (tan x) (tan x)))) #:unsound]
-  [tan-hang-p (tan (/ (+ a b) 2)) (special-/ (+ (sin a) (sin b)) (+ (cos a) (cos b))) #:unsound]
-  [tan-hang-m (tan (/ (- a b) 2)) (special-/ (- (sin a) (sin b)) (+ (cos a) (cos b))) #:unsound])
+  [tan-sum
+   (tan (+ x y))
+   (special-/ (special-+ (special-tan x) (special-tan y))
+              (special-- 1 (special-* (special-tan x) (special-tan y))))
+   #:unsound]
+  [tan-2
+   (tan (* 2 x))
+   (special-/ (special-* 2 (special-tan x)) (special-- 1 (special-* (special-tan x) (special-tan x))))
+   #:unsound]
+  [tan-hang-p
+   (tan (/ (+ a b) 2))
+   (special-/ (special-+ (special-sin a) (special-sin b)) (special-+ (special-cos a) (special-cos b)))
+   #:unsound]
+  [tan-hang-m
+   (tan (/ (- a b) 2))
+   (special-/ (special-- (special-sin a) (special-sin b)) (special-+ (special-cos a) (special-cos b)))
+   #:unsound])
 
 (define-rules trigonometry
   [cos-asin (cos (asin x)) (sqrt (- 1 (* x x)))]
@@ -680,8 +707,8 @@
   ;[tanh-acosh-rev (/ (sqrt (- (* x x) 1)) x) (tanh (acosh x)) #:unsound] ; unsound @ x = -1
   ;[asinh-2 (acosh (+ (* 2 (* x x)) 1)) (* 2 (asinh x)) #:unsound] ; unsound @ x = -1
   ;[acosh-2 (acosh (- (* 2 (* x x)) 1)) (* 2 (acosh x)) #:unsound] ; unsound @ x = -1
-  [tanh-1/2* (tanh (/ x 2)) (special-/ (- (special-cosh x) 1) (special-sinh x)) #:unsound]
+  [tanh-1/2* (tanh (/ x 2)) (special-/ (special-- (special-cosh x) 1) (special-sinh x)) #:unsound]
   [sinh-acosh-rev (sqrt (- (* x x) 1)) (special-sinh (special-acosh x)) #:unsound]
   [tanh-acosh-rev (/ (sqrt (- (* x x) 1)) x) (special-tanh (special-acosh x)) #:unsound]
-  [asinh-2 (acosh (+ (* 2 (* x x)) 1)) (* 2 (special-asinh x)) #:unsound]
-  [acosh-2 (acosh (- (* 2 (* x x)) 1)) (* 2 (special-acosh x)) #:unsound])
+  [asinh-2 (acosh (+ (* 2 (* x x)) 1)) (special-* 2 (special-asinh x)) #:unsound]
+  [acosh-2 (acosh (- (* 2 (* x x)) 1)) (special-* 2 (special-acosh x)) #:unsound])
