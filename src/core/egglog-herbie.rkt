@@ -831,6 +831,8 @@
       (match actual-binding
         [(cons 'lower _) 'MTy]
         [(cons 'lift _) 'M]
+
+        ;; TODO : fix this way of getting spec or impl
         [_ (if root? 'MTy 'M)]))
 
     (define curr-binding-exprs `(let ,binding-name ,actual-binding))
