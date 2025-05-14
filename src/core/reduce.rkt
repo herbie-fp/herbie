@@ -27,6 +27,7 @@
        [(and (zero? b) (not (zero? a))) 1]
        [(and (zero? a) (positive? b)) 0]
        [(and (not (zero? a)) (integer? b)) (expt a b)]
+       [(= a 1) 1]
        [else #f])]
     [(list 'sqrt (? exact-value? a))
      (define s1 (sqrt (numerator a)))
