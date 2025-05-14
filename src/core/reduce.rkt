@@ -27,6 +27,7 @@
        [(and (zero? b) (not (zero? a))) 1]
        [(and (zero? a) (positive? b)) 0]
        [(and (not (zero? a)) (integer? b)) (expt a b)]
+       [(= a -1) (if (even? (numerator b)) 1 -1)]
        [(= a 1) 1]
        [else #f])]
     [(list 'sqrt (? exact-value? a))
@@ -34,13 +35,13 @@
      (define s2 (sqrt (denominator a)))
      (and (real? s1) (real? s2) (exact? s1) (exact? s2) (/ s1 s2))]
     [(list 'cbrt (? exact-value? a))
-     (define inexact-num (inexact->exact (expt (numerator a) 1/3)))
-     (define inexact-den (inexact->exact (expt (denominator a) 1/3)))
+     (define inexact-num (inexact->exact (expt (abs (numerator a)) 1/3)))
+     (define inexact-den (inexact->exact (expt (abs (denominator a)) 1/3)))
      (and (real? inexact-num)
           (real? inexact-den)
-          (= (expt inexact-num 3) (numerator a))
-          (= (expt inexact-den 3) (denominator a))
-          (/ inexact-num inexact-den))]
+          (= (expt inexact-num 3) (abs (numerator a)))
+          (= (expt inexact-den 3) (abs (denominator a)))
+          (* (sgn a) (/ inexact-num inexact-den)))]
     [(list 'fabs (? exact-value? a)) (abs a)]
     [(list 'floor (? exact-value? a)) (floor a)]
     [(list 'ceil (? exact-value? a)) (ceiling a)]
@@ -67,10 +68,6 @@
   (match expr
     [(? number?) expr]
     [(? symbol?) expr]
-    [`(,(and (or '+ '- '*) op) ,args ...) ; v-ary
-     (define args* (map reduce args))
-     (define val (apply eval-application op args*))
-     (or val (reduce-node (list* op args*)))]
     [`(,op ,args ...)
      (define args* (map reduce args))
      (define val (apply eval-application op args*))
