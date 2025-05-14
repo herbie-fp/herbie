@@ -6,6 +6,8 @@
          "programs.rkt"
          "rules.rkt")
 
+(provide rewrite-unsound?)
+
 (define (undefined-conditions x)
   (reap [sow]
         (for ([subexpr (in-list (all-subexpressions x))])
@@ -57,7 +59,8 @@
         '[(cos (acos a)) . a]
         '[(cos (asin a)) . (sqrt (- 1 (* a a)))]
         '[(fabs (neg a)) . (fabs a)]
-        '[(fabs (fabs a)) . (fabs a)]))
+        '[(fabs (fabs a)) . (fabs a)]
+        '[(pow x 2) . (* x x)]))
 
 (define (simplify-expression expr)
   (for/fold ([expr expr]) ([(a b) (in-dict simplify-patterns)])
@@ -95,7 +98,10 @@
     [`(,(or '< '==) (fabs ,a) ,(? (conjoin number? (curryr < 0)))) '(FALSE)]
 
     [`(< (/ 1 ,a) 0) `(< ,a 0)]
+    [`(> (/ 1 ,a) 0) `(> ,a 0)]
+    [`(< (/ -1 ,a) 0) `(> ,a 0)]
     [`(< (neg ,a) 0) `(> ,a 0)]
+    [`(> (neg ,a) 0) `(< ,a 0)]
     [`(< (* 2 ,a) ,(? number? b)) `(< ,a ,(/ b 2))]
     [`(< (+ 1 ,a) 0) `(< ,a -1)]
     [`(< (/ ,x 2) 0) `(< ,x 0)]
@@ -187,15 +193,22 @@
     (match step
       [`(implies ,a ,b) (simplify-conditions (map (curryr rewrite-all a b) terms))])))
 
+(define (rewrite-unsound? lhs rhs [proof '()])
+  (define lhs-bad (execute-proof proof (undefined-conditions lhs)))
+  (define rhs-bad (execute-proof proof (undefined-conditions rhs)))
+  (define extra (set-remove (set-subtract rhs-bad lhs-bad) '(FALSE)))
+  (if (empty? extra)
+      (values #f #f)
+      (values lhs-bad extra)))
+
 (define (potentially-unsound)
   (define num 0)
   (for ([rule (in-list (*sound-rules*))])
     (test-case (~a (rule-name rule))
       (define proof (dict-ref soundness-proofs (rule-name rule) '()))
-      (define lhs-bad (execute-proof proof (undefined-conditions (rule-input rule))))
-      (define rhs-bad (execute-proof proof (undefined-conditions (rule-output rule))))
-      (define extra (set-remove (set-subtract rhs-bad lhs-bad) '(FALSE)))
-      (with-check-info (('lhs-bad lhs-bad)) (check-equal? empty extra)))))
+      (define-values (lhs-bad rhs-bad) (rewrite-unsound? (rule-input rule) (rule-output rule) proof))
+      (when rhs-bad
+        (with-check-info (['lhs-bad lhs-bad]) (check-false rhs-bad))))))
 
 (module+ test
   (potentially-unsound))

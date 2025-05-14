@@ -27,19 +27,21 @@
        [(and (zero? b) (not (zero? a))) 1]
        [(and (zero? a) (positive? b)) 0]
        [(and (not (zero? a)) (integer? b)) (expt a b)]
+       [(= a -1) (if (even? (numerator b)) 1 -1)]
+       [(= a 1) 1]
        [else #f])]
     [(list 'sqrt (? exact-value? a))
      (define s1 (sqrt (numerator a)))
      (define s2 (sqrt (denominator a)))
      (and (real? s1) (real? s2) (exact? s1) (exact? s2) (/ s1 s2))]
     [(list 'cbrt (? exact-value? a))
-     (define inexact-num (inexact->exact (expt (numerator a) 1/3)))
-     (define inexact-den (inexact->exact (expt (denominator a) 1/3)))
+     (define inexact-num (inexact->exact (expt (abs (numerator a)) 1/3)))
+     (define inexact-den (inexact->exact (expt (abs (denominator a)) 1/3)))
      (and (real? inexact-num)
           (real? inexact-den)
-          (= (expt inexact-num 3) (numerator a))
-          (= (expt inexact-den 3) (denominator a))
-          (/ inexact-num inexact-den))]
+          (= (expt inexact-num 3) (abs (numerator a)))
+          (= (expt inexact-den 3) (abs (denominator a)))
+          (* (sgn a) (/ inexact-num inexact-den)))]
     [(list 'fabs (? exact-value? a)) (abs a)]
     [(list 'floor (? exact-value? a)) (floor a)]
     [(list 'ceil (? exact-value? a)) (ceiling a)]
@@ -66,10 +68,6 @@
   (match expr
     [(? number?) expr]
     [(? symbol?) expr]
-    [`(,(and (or '+ '- '*) op) ,args ...) ; v-ary
-     (define args* (map reduce args))
-     (define val (apply eval-application op args*))
-     (or val (reduce-node (list* op args*)))]
     [`(,op ,args ...)
      (define args* (map reduce args))
      (define val (apply eval-application op args*))
@@ -128,7 +126,10 @@
     [(? variable?) expr]
     [(or `(+ ,_ ...) `(- ,_ ...) `(neg ,_))
      (make-addition-node (combine-aterms (gather-additive-terms expr)))]
-    [(or `(* ,_ ...) `(/ ,_ ...) `(sqrt ,_) `(cbrt ,_) `(pow ,_ ,_))
+    [(or `(* ,_ ...)
+         `(/ ,_ ...)
+         `(cbrt ,_)
+         `(pow ,_ ,(? (conjoin rational? (negate even-denominator?)))))
      (make-multiplication-node (combine-mterms (gather-multiplicative-terms expr)))]
     [`(exp (* ,c (log ,x))) (reduce-node* `(pow ,x ,c))]
     [else (reduce-inverses expr)]))
@@ -156,6 +157,9 @@
 
       [`(pow ,arg 1) `((1 1))]
       [else `((1 ,expr))])))
+
+(define (even-denominator? x)
+  (even? (denominator x)))
 
 (define (gather-multiplicative-terms expr)
   (match expr
@@ -185,20 +189,6 @@
                  'NAN
                  (apply / (car num) (map car dens)))
              (append (cdr num) (map negate-term (append-map cdr dens)))))]
-    [`(sqrt ,arg)
-     (let ([terms (gather-multiplicative-terms arg)])
-       (define exact-sqrt
-         (match (car terms)
-           ['NAN 'NAN]
-           [x (eval-application 'sqrt x)]))
-       (if exact-sqrt
-           (cons exact-sqrt
-                 (for/list ([term (cdr terms)])
-                   (cons (/ (car term) 2) (cdr term))))
-           (list* 1
-                  (cons 1 `(sqrt ,(car terms)))
-                  (for/list ([term (cdr terms)])
-                    (cons (/ (car term) 2) (cdr term))))))]
     [`(cbrt ,arg)
      (let ([terms (gather-multiplicative-terms arg)])
        (define exact-cbrt
@@ -214,7 +204,7 @@
                   (for/list ([term (cdr terms)])
                     (cons (/ (car term) 3) (cdr term))))))]
     [`(pow ,arg 0) '(1)]
-    [`(pow ,arg ,(? real? a))
+    [`(pow ,arg ,(? (conjoin rational? (negate even-denominator?)) a))
      (define terms (gather-multiplicative-terms arg))
      (define exact-pow
        (match (car terms)
@@ -291,10 +281,7 @@
 
 (define (make-multiplication-subnode terms)
   (make-multiplication-subsubsubnode
-   (for/list ([rootgroup (group-by (compose denominator car) terms)])
-     (define denom (denominator (caar rootgroup)))
-     (define newterms (map (λ (term) (cons (* (car term) denom) (cdr term))) rootgroup))
-     (cons 1 (mterm->expr (cons (/ 1 denom) (make-multiplication-subsubnode newterms)))))))
+   (list (cons 1 (mterm->expr (cons 1 (make-multiplication-subsubnode terms)))))))
 
 (define (make-multiplication-subsubnode terms)
   (let-values ([(pos neg) (partition (compose positive? car) terms)])
