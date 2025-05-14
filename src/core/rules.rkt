@@ -371,12 +371,9 @@
   ;[pow-pow (pow (pow a b) c) (pow a (* b c)) #:unsound] ; unsound @ a = -1, b = 2, c = 1/4
   ;[pow-unpow (pow a (* b c)) (pow (pow a b) c) #:unsound] ; unsound @ a = -1, b = 1/2, c = 2
   ;[unpow-prod-down (pow (* b c) a) (* (pow b a) (pow c a)) #:unsound] ; unsound @ a = 1/2, b = c = -1
-  [pow-to-exp (pow a b) (special-exp (* (special-log a) b)) #:unsound]
+  [pow-to-exp (pow a b) (exp (special-* (special-log a) b)) #:unsound]
   [pow-add (pow a (+ b c)) (* (special-pow a b) (special-pow a c)) #:unsound]
-  [pow-sub
-   (pow a (- b c))
-   (special-/ (special-pow a b) (special-pow a c))
-   #:unsound] ; terms can be divided by each other
+  [pow-sub (pow a (- b c)) (special-/ (special-pow a b) (special-pow a c)) #:unsound]
   [pow-pow (pow (pow a b) c) (special-pow a (* b c)) #:unsound]
   [pow-unpow (pow a (* b c)) (special-pow (special-pow a b) c) #:unsound]
   [unpow-prod-down (pow (* b c) a) (* (special-pow b a) (special-pow c a)) #:unsound])
@@ -432,9 +429,9 @@
   [asin-sin-rev (- (fabs (remainder (+ x (/ (PI) 2)) (* 2 (PI)))) (/ (PI) 2)) (asin (sin x))])
 
 (define-rules trigonometry
-  [atan-tan-s (atan (tan x)) x #:unsound] ; unsound @ x = pi
-  [asin-sin-s (asin (sin x)) x #:unsound] ; unsound @ x = pi
-  [acos-cos-s (acos (cos x)) x #:unsound] ; unsound @ x = 2pi
+  [atan-tan-s (atan (tan x)) (special-* 1 x) #:unsound] ; unsound @ x = pi
+  [asin-sin-s (asin (sin x)) (special-* 1 x) #:unsound] ; unsound @ x = pi
+  [acos-cos-s (acos (cos x)) (special-* 1 x) #:unsound] ; unsound @ x = 2pi
   [atan-tan-rev (remainder x (PI)) (special-atan (tan x)) #:unsound]) ; unsound @ x = pi/2
 
 (define-rules trigonometry
@@ -528,7 +525,8 @@
   [sum-atan (+ (atan x) (atan y)) (atan2 (+ x y) (- 1 (* x y)))]
   [tan-quot (tan x) (/ (sin x) (cos x))]
   [quot-tan (/ (sin x) (cos x)) (tan x)]
-  [2-tan (/ (* 2 (tan x)) (- 1 (* (tan x) (tan x)))) (tan (* 2 x))])
+  [2-tan (/ (* 2 (tan x)) (- 1 (* (tan x) (tan x)))) (tan (* 2 x))]
+  [atan2-def (atan2 y x) (special-atan (special-/ y x)) #:unsound])
 
 (define-rules trigonometry
   [diff-cos-rev (* -2 (* (sin (/ (- x y) 2)) (sin (/ (+ x y) 2)))) (- (cos x) (cos y))]
@@ -685,5 +683,5 @@
   [tanh-1/2* (tanh (/ x 2)) (special-/ (- (special-cosh x) 1) (special-sinh x)) #:unsound]
   [sinh-acosh-rev (sqrt (- (* x x) 1)) (special-sinh (special-acosh x)) #:unsound]
   [tanh-acosh-rev (/ (sqrt (- (* x x) 1)) x) (special-tanh (special-acosh x)) #:unsound]
-  [asinh-2 (acosh (+ (* 2 (* x x)) 1)) (* 2 (asinh (fabs x)))]
+  [asinh-2 (acosh (+ (* 2 (* x x)) 1)) (* 2 (special-asinh x)) #:unsound]
   [acosh-2 (acosh (- (* 2 (* x x)) 1)) (* 2 (special-acosh x)) #:unsound])
