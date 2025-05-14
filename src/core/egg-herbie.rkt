@@ -17,14 +17,16 @@
          "../syntax/types.rkt"
          "batch.rkt"
          "programs.rkt"
-         "rules.rkt")
+         "rules.rkt"
+         "../syntax/load-plugin.rkt")
 
 (provide (struct-out egg-runner)
          make-egraph
          egraph-equal?
          egraph-prove
          egraph-best
-         egraph-variations)
+         egraph-variations
+         check-rewrite-exists)
 
 (module+ test
   (require rackunit)
@@ -224,6 +226,7 @@
   (define egg-expr (expr->egg-expr expr ctx))
   (define egg-goal (expr->egg-expr goal ctx))
   (define str (egraph_get_proof (egraph-data-egraph-pointer egraph-data) egg-expr egg-goal))
+
   (cond
     [(<= (string-length str) (*proof-max-string-length*))
      (define converted
@@ -316,6 +319,27 @@
            (list 'if (loop cond (get-representation 'bool)) (loop ift type) (loop iff type))
            (list 'if (loop cond 'bool) (loop ift type) (loop iff type)))]
       [(list (? impl-exists? impl) args ...) (cons impl (map loop args (impl-info impl 'itype)))]
+      [(list (or 'special-sqrt
+                 'special-log
+                 'special-exp
+                 'special-pow
+                 'special-+
+                 'special--
+                 'special-/
+                 'special-*
+                 'special-tan
+                 'special-atan
+                 'special-cos
+                 'special-cosh
+                 'special-sin
+                 'special-neg
+                 'special-sinh
+                 'special-acosh
+                 'special-asinh
+                 'special-tanh)
+             args ...)
+       (define op (string->symbol (string-replace (symbol->string (car expr)) "special-" "")))
+       (cons op (map loop args (map (const 'real) args)))]
       [(list op args ...) (cons op (map loop args (operator-info op 'itype)))])))
 
 ;; Parses a string from egg into a single S-expr.
@@ -551,6 +575,25 @@
      (cond
        [(eq? f '$approx) (platform-reprs (*active-platform*))]
        [(eq? f 'if) (all-reprs/types)]
+       [(or (eq? f 'special-tan)
+            (eq? f 'special-atan)
+            (eq? f 'special-cos)
+            (eq? f 'special-cosh)
+            (eq? f 'special-sin)
+            (eq? f 'special-neg)
+            (eq? f 'special-sinh)
+            (eq? f 'special-acosh)
+            (eq? f 'special-asinh)
+            (eq? f 'special-tanh)
+            (eq? f 'special-sqrt)
+            (eq? f 'special-log)
+            (eq? f 'special-exp)
+            (eq? f 'special-pow)
+            (eq? f 'special-+)
+            (eq? f 'special--)
+            (eq? f 'special-/)
+            (eq? f 'special-*))
+        (list 'real)]
        [(impl-exists? f) (list (impl-info f 'otype))]
        [else (list (operator-info f 'otype))])]))
 
@@ -574,6 +617,31 @@
               (get-representation 'bool)
               'bool))
         (list 'if (lookup cond cond-type) (lookup ift type) (lookup iff type))]
+       [(or (eq? f 'special-atan)
+            (eq? f 'special-tan)
+            (eq? f 'special-cos)
+            (eq? f 'special-cosh)
+            (eq? f 'special-sin)
+            (eq? f 'special-neg)
+            (eq? f 'special-sinh)
+            (eq? f 'special-acosh)
+            (eq? f 'special-asinh)
+            (eq? f 'special-tanh)
+            (eq? f 'special-sqrt)
+            (eq? f 'special-log)
+            (eq? f 'special-exp))
+        (define a (u32vector-ref ids 0))
+        (define op (string->symbol (string-replace (symbol->string f) "special-" "")))
+        (list op (lookup a 'real))]
+       [(or (eq? f 'special-pow)
+            (eq? f 'special-+)
+            (eq? f 'special--)
+            (eq? f 'special-/)
+            (eq? f 'special-*))
+        (define a (u32vector-ref ids 0))
+        (define b (u32vector-ref ids 1))
+        (define op (string->symbol (string-replace (symbol->string f) "special-" "")))
+        (list op (lookup a 'real) (lookup b 'real))]
        [else
         (define itypes
           (if (impl-exists? f)
@@ -1190,6 +1258,7 @@
   (match-define (list _ extract-enode _) extract)
   ; extract expressions
   (define key (cons id type))
+
   (cond
     ; at least one extractable expression
     [(hash-has-key? canon key)
@@ -1222,6 +1291,7 @@
     (timeline-push! 'stop (~a (egraph-stop-reason egg-graph)) 1)
     (cond
       [(egraph-is-unsound-detected egg-graph)
+       (println "unsoundness")
        ; unsoundness means run again with less iterations
        (define num-iters (length iteration-data))
        (if (<= num-iters 1) ; nothing to fall back on
@@ -1397,3 +1467,29 @@
   ; commit changes to the batch
   (finalize-batch)
   out)
+
+(define (check-rewrite-exists a b #:rules [rules (*sound-rules*)] #:node-limit [node-limit 10000])
+  (define batch (progs->batch (list a b)))
+  (define vars (remove-duplicates (append (free-variables a) (free-variables b))))
+  (*context* (make-debug-context vars))
+
+  (define schedule `((,rules . ((node . ,node-limit)))))
+  (define runner
+    (make-egraph batch
+                 (batch-roots batch)
+                 (list (get-representation 'binary64) (get-representation 'binary64))
+                 schedule))
+  (egraph-variations runner batch)
+  (with-handlers ([exn:fail? (λ (e) (eprintf "~a\n" e))])
+    (egraph-prove runner a b)))
+
+(define (check-eclasses a #:rules [rules (*sound-rules*)] #:node-limit [node-limit 10000])
+  (define batch (progs->batch (list a)))
+  (define vars (free-variables a))
+  (*context* (make-debug-context vars))
+
+  (define schedule `((,rules . ((node . ,node-limit)))))
+  (define runner
+    (make-egraph batch (batch-roots batch) (list (get-representation 'binary64)) schedule))
+  (define eclasses (map (λ (x) (map debatchref x)) (egraph-variations runner batch)))
+  (pretty-print eclasses))
