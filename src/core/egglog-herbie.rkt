@@ -175,6 +175,10 @@
   (define-values (all-bindings extract-bindings)
     (egglog-add-exprs insert-batch (egglog-runner-ctx runner) curr-program))
 
+  (egglog-program-add! `(ruleset run-extract-commands) curr-program)
+  (egglog-program-add! `(rule () (,@all-bindings) :ruleset run-extract-commands) curr-program)
+  (egglog-program-add! `(run-schedule (repeat 1 run-extract-commands)) curr-program)
+
   ;; 4. Running the schedule : having code inside to emulate egraph-run-rules
 
   ; run-schedule specifies the schedule of rulesets to saturate the egraph
@@ -202,29 +206,21 @@
   (egglog-program-add! `(run-schedule ,@(reverse run-schedule)) curr-program)
 
   ;; 5. Extraction -> should just need root ids
-  ; (egglog-program-add! `(ruleset run-extract-commands) curr-program)
+  (for/list ([constructor-name extract-bindings])
+    (egglog-program-add! `(extract (,constructor-name) ,(*egglog-variants-limit*)) curr-program))
 
-  ; (egglog-program-add! `(rule () (,@all-bindings) :ruleset run-extract-commands) curr-program)
+  ; (define all-extract
+  ;   (for/list ([binding extract-bindings])
+  ;     `(extract ,binding ,(*egglog-variants-limit*))))
 
-  ; (egglog-program-add! `(run run-extract-commands 1) curr-program)
-
-  ; (for/list ([constructor-name extract-bindings])
-  ;   (egglog-program-add! `(extract (,constructor-name)) curr-program))
-
-  (egglog-program-add! `(ruleset run-extract-commands) curr-program)
-
-  (define all-extract
-    (for/list ([binding extract-bindings])
-      `(extract ,binding ,(*egglog-variants-limit*))))
-
-  (egglog-program-add! `(rule () (,@all-extract) :ruleset run-extract-commands) curr-program)
-  (egglog-program-add! `(run-schedule (repeat 1 run-extract-commands)) curr-program)
+  ; (egglog-program-add! `(rule () (,@all-extract) :ruleset run-extract-commands) curr-program)
+  ; (egglog-program-add! `(run-schedule (repeat 1 run-extract-commands)) curr-program)
 
   ;; 6. After step-by-step building the program, process it
   ;; by running it using egglog
-  (printf "Final run :\n")
+  ; (printf "Final run :\n")
   (define egglog-output (process-egglog curr-program))
-  (printf "done\n")
+  ; (printf "done\n")
 
   ;; Extract its returned value
   (define stdout-content (car egglog-output))
@@ -248,7 +244,7 @@
 
   (batch-copy-mutable-nodes! output-batch output-mutable-batch)
 
-  (printf "reached end\n")
+  ; (printf "reached end\n")
 
   ;; (Listof (Listof batchref))
   result)
@@ -771,85 +767,81 @@
 
     (egglog-program-add! curr-var-lifting-rule curr-program))
 
-  ; (define all-bindings '())
-  ; (define binding->constructor (make-hash)) ; map from binding name to constructor name
+  (define all-bindings '())
+  (define binding->constructor (make-hash)) ; map from binding name to constructor name
 
-  ; (define constructor-num 1)
+  (define constructor-num 1)
 
   ; ; Var-spec-bindings
-  ; (for ([var (in-list (context-vars ctx))])
-  ;   ; Get the binding names for the program
-  ;   (define binding-name (string->symbol (format "?~a" var)))
-  ;   (define constructor-name (string->symbol (format "const~a" constructor-num)))
+  (for ([var (in-list (context-vars ctx))])
+    ; Get the binding names for the program
+    (define binding-name (string->symbol (format "?~a" var)))
+    (define constructor-name (string->symbol (format "const~a" constructor-num)))
+    (hash-set! binding->constructor binding-name constructor-name)
 
-  ;   (hash-set! binding->constructor binding-name constructor-name)
+    ; Define the actual binding
+    (define curr-var-spec-binding `(let ,binding-name (Var ,(symbol->string var))))
 
-  ;   ; Define the actual binding
-  ;   (define curr-var-spec-binding `(let ,binding-name (Var ,(symbol->string var))))
+    ; Add the unique constructur to the program
+    (egglog-program-add! `(constructor ,constructor-name () M :unextractable) curr-program)
 
-  ;   ; Add the unique constructur to the program
-  ;   (egglog-program-add! `(constructor ,constructor-name () M :unextractable) curr-program)
-  ;   (set! constructor-num (add1 constructor-num))
+    ; Add the binding and constructor set to all-bindings for the future rule
+    (set! all-bindings (cons curr-var-spec-binding all-bindings))
+    (set! all-bindings (cons `(set (,constructor-name) ,binding-name) all-bindings))
 
-  ;   ; Add the binding and constructor set to all-bindings for the future rule
-  ;   (set! all-bindings (cons curr-var-spec-binding all-bindings))
-  ;   (set! all-bindings (cons `(set (,constructor-name) ,binding-name) all-bindings)))
+    (set! constructor-num (add1 constructor-num)))
 
-  ; ; Var-typed-bindings
-  ; (for ([var (in-list (context-vars ctx))]
-  ;       [repr (in-list (context-var-reprs ctx))])
-  ;   ; Get the binding names for the program
-  ;   (define binding-name (string->symbol (format "?t~a" var)))
-  ;   (define constructor-name (string->symbol (format "const~a" constructor-num)))
+  ; Var-typed-bindings
+  (for ([var (in-list (context-vars ctx))]
+        [repr (in-list (context-var-reprs ctx))])
+    ; Get the binding names for the program
+    (define binding-name (string->symbol (format "?t~a" var)))
+    (define constructor-name (string->symbol (format "const~a" constructor-num)))
+    (hash-set! binding->constructor binding-name constructor-name)
 
-  ;   (hash-set! binding->constructor binding-name constructor-name)
+    ; Define the actual binding
+    (define curr-var-typed-binding
+      `(let ,binding-name (,(typed-var-id (representation-name repr)) ,(symbol->string var))))
 
-  ;   ; Define the actual binding
-  ;   (define curr-var-typed-binding
-  ;     `(let ,binding-name (,(typed-var-id (representation-name repr)) ,(symbol->string var))))
+    ; Add the unique constructur to the program
+    (egglog-program-add! `(constructor ,constructor-name () MTy :unextractable) curr-program)
 
-  ;   ; Add the unique constructur to the program
-  ;   (egglog-program-add! `(constructor ,constructor-name () MTy :unextractable) curr-program)
-  ;   (set! constructor-num (add1 constructor-num))
+    ; Add the binding and constructor set to all-bindings for the future rule
+    (set! all-bindings (cons curr-var-typed-binding all-bindings))
+    (set! all-bindings (cons `(set (,constructor-name) ,binding-name) all-bindings))
 
-  ;   ; Add the binding and constructor set to all-bindings for the future rule
-  ;   (set! all-bindings (cons curr-var-typed-binding all-bindings))
-  ;   (set! all-bindings (cons `(set (,constructor-name) ,binding-name) all-bindings)))
+    (set! constructor-num (add1 constructor-num)))
 
-  ; ; Binding Exprs
-  ; (for ([root? (in-vector root-mask)]
-  ;       [n (in-naturals)]
-  ;       #:when (not (hash-has-key? vars n)))
+  ; Binding Exprs
+  (for ([root? (in-vector root-mask)]
+        [n (in-naturals)]
+        #:when (not (hash-has-key? vars n)))
 
-  ;   (define binding-name
-  ;     (if root?
-  ;         (string->symbol (format "?r~a" n))
-  ;         (string->symbol (format "?b~a" n))))
+    (define binding-name
+      (if root?
+          (string->symbol (format "?r~a" n))
+          (string->symbol (format "?b~a" n))))
 
-  ;   (define constructor-name (string->symbol (format "const~a" constructor-num)))
+    (define constructor-name (string->symbol (format "const~a" constructor-num)))
+    (hash-set! binding->constructor binding-name constructor-name)
 
-  ;   (hash-set! binding->constructor binding-name constructor-name)
+    (define actual-binding (hash-ref bindings binding-name))
 
-  ;   (define actual-binding (hash-ref bindings binding-name))
+    (define curr-datatype
+      (match actual-binding
+        [(cons 'lower _) 'MTy]
+        [(cons 'lift _) 'M]
+        [_ (if root? 'MTy 'M)]))
 
-  ;   (define typed-or-not
-  ;     (match actual-binding
-  ;       [(cons 'lower _) 'MTy]
-  ;       [(cons 'lift _) 'M]
-  ;       [_
-  ;        ; When it's a var-typed binding, we need to add it to the extract-bindings for final extraction
-  ;        (cond
-  ;          [root? 'MTy]
-  ;          [else 'M])]))
+    (define curr-binding-exprs `(let ,binding-name ,actual-binding))
 
-  ;   (define curr-binding-exprs `(let ,binding-name ,(hash-ref bindings binding-name)))
+    (egglog-program-add! `(constructor ,constructor-name () ,curr-datatype :unextractable)
+                         curr-program)
 
-  ;   (egglog-program-add! `(constructor ,constructor-name () ,typed-or-not :unextractable)
-  ;                        curr-program)
-  ;   (set! constructor-num (add1 constructor-num))
+    (set! all-bindings (cons curr-binding-exprs all-bindings))
+    (set! all-bindings (cons `(set (,constructor-name) ,binding-name) all-bindings))
 
-  ;   (set! all-bindings (cons curr-binding-exprs all-bindings))
-  ;   (set! all-bindings (cons `(set (,constructor-name) ,binding-name) all-bindings)))
+    (set! constructor-num (add1 constructor-num)))
 
   ; (define extract-bindings '())
 
@@ -868,50 +860,64 @@
   ;           ; )
   ;           )
 
-  (define all-bindings '())
-
-  ; Var-spec-bindings
-  (for ([var (in-list (context-vars ctx))])
-    (define curr-var-spec-binding
-      `(let ,(string->symbol (format "?~a" var)) (Var ,(symbol->string var))))
-
-    ; (set! all-bindings (cons curr-var-spec-binding all-bindings)))
-    (egglog-program-add! curr-var-spec-binding curr-program))
-
-  ; Var-typed-bindings
-  (for ([var (in-list (context-vars ctx))]
-        [repr (in-list (context-var-reprs ctx))])
-    (define curr-var-typed-binding
-      `(let ,(string->symbol (format "?t~a" var))
-         (,(typed-var-id (representation-name repr)) ,(symbol->string var))))
-
-    ; (set! all-bindings (cons curr-var-typed-binding all-bindings)))
-    (egglog-program-add! curr-var-typed-binding curr-program))
-
-  ; Binding Exprs
-  (for ([root? (in-vector root-mask)]
-        [n (in-naturals)]
-        #:when (not (hash-has-key? vars n)))
-    (define binding
-      (if root?
-          (string->symbol (format "?r~a" n))
-          (string->symbol (format "?b~a" n))))
-
-    (define curr-binding-exprs `(let ,binding ,(hash-ref bindings binding)))
-
-    ; (set! all-bindings (cons curr-binding-exprs all-bindings)))
-    (egglog-program-add! curr-binding-exprs curr-program))
-
-  ; Extract Bindings
-  (define extract-bindings
+  (define curr-bindings
     (for/list ([root (batch-roots batch)])
-      (if (hash-has-key? vars root)
-          (if (vector-ref spec-mask root)
-              (string->symbol (format "?~a" (hash-ref vars root)))
-              (string->symbol (format "?t~a" (hash-ref vars root))))
-          (string->symbol (format "?r~a" root)))))
+      (define curr-binding-name
+        (if (hash-has-key? vars root)
+            (if (vector-ref spec-mask root)
+                (string->symbol (format "?~a" (hash-ref vars root)))
+                (string->symbol (format "?t~a" (hash-ref vars root))))
+            (string->symbol (format "?r~a" root))))
 
-  (values (reverse all-bindings) extract-bindings))
+      (hash-ref binding->constructor curr-binding-name)
+      ; curr-binding-name
+      ))
+
+  ; (printf "prev : ~a\n" curr-bindings)
+
+  (values (reverse all-bindings) curr-bindings))
+
+; ; Var-spec-bindings
+; (for ([var (in-list (context-vars ctx))])
+;   (define curr-var-spec-binding
+;     `(let ,(string->symbol (format "?~a" var)) (Var ,(symbol->string var))))
+
+;   (egglog-program-add! curr-var-spec-binding curr-program))
+
+; ; Var-typed-bindings
+; (for ([var (in-list (context-vars ctx))]
+;       [repr (in-list (context-var-reprs ctx))])
+;   (define curr-var-typed-binding
+;     `(let ,(string->symbol (format "?t~a" var))
+;        (,(typed-var-id (representation-name repr)) ,(symbol->string var))))
+
+;   (egglog-program-add! curr-var-typed-binding curr-program))
+
+; ; Binding Exprs
+; (for ([root? (in-vector root-mask)]
+;       [n (in-naturals)]
+;       #:when (not (hash-has-key? vars n)))
+;   (define binding
+;     (if root?
+;         (string->symbol (format "?r~a" n))
+;         (string->symbol (format "?b~a" n))))
+
+;   (define curr-binding-exprs `(let ,binding ,(hash-ref bindings binding)))
+
+;   (egglog-program-add! curr-binding-exprs curr-program))
+
+; ; Extract Bindings
+; (define extract-bindings
+;   (for/list ([root (batch-roots batch)])
+;     (if (hash-has-key? vars root)
+;         (if (vector-ref spec-mask root)
+;             (string->symbol (format "?~a" (hash-ref vars root)))
+;             (string->symbol (format "?t~a" (hash-ref vars root))))
+;         (string->symbol (format "?r~a" root)))))
+
+;  (printf "extract-bindings : ~a\n" extract-bindings)
+
+; (values (reverse all-bindings) extract-bindings))
 
 (define (egglog-unsound-detected curr-program tag params current-schedule)
   (define node-limit (dict-ref params 'node (*node-limit*)))
