@@ -206,11 +206,9 @@
   (for ([rule (in-list (*sound-rules*))])
     (test-case (~a (rule-name rule))
       (define proof (dict-ref soundness-proofs (rule-name rule) '()))
-      (define-values (lhs-bad rhs-bad)
-        (rewrite-unsound? (rule-input rule) (rule-output rule) proof))
+      (define-values (lhs-bad rhs-bad) (rewrite-unsound? (rule-input rule) (rule-output rule) proof))
       (when rhs-bad
-        (with-check-info (['lhs-bad lhs-bad])
-          (check-false rhs-bad))))))
+        (with-check-info (['lhs-bad lhs-bad]) (check-false rhs-bad))))))
 
 (module+ test
   (potentially-unsound))
