@@ -4,7 +4,8 @@
          make-egglog-program
          egglog-program-add!
          egglog-program-add-list!
-         get-current-program)
+         get-current-program
+         egglog-program-copy)
 
 ;; Track the entire Egglog program in one go by "converting" into racket based code
 (struct egglog-program ([exprs #:mutable])) ; update using set-egglog-program-exprs!
@@ -26,3 +27,7 @@
 ;; Get program as (Listof exprs) in the correct order
 (define (get-current-program program)
   (reverse (egglog-program-exprs program)))
+
+;; Creates a new egglog program using an existing one
+(define (egglog-program-copy program)
+  (struct-copy egglog-program program [exprs (egglog-program-exprs program)]))

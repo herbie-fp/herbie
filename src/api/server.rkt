@@ -423,26 +423,17 @@
        (values altns pcontext)]
       [else (values '() #f)]))
 
-  (define exprs
-    (append-map (curryr collect-expressions pcontext ctx)
-                (if (equal? (job-result-status herbie-result) 'success)
-                    (map alt-analysis-alt
-                         (append (list (improve-result-start backend))
-                                 (improve-result-target backend)
-                                 (improve-result-end backend)))
-                    '())))
-
-  (define pctx->exprs
-    (for/hash ([group (in-list (group-by cdr exprs))])
-      (values (cdar group) (map car group))))
-
   (define errcache
-    (for/hash ([(pctx exprs) (in-hash pctx->exprs)])
-      (define scores (map errors-score (batch-errors exprs pctx ctx)))
-      (values pctx
-              (for/hash ([expr (in-list exprs)]
-                         [score (in-list scores)])
-                (values expr score)))))
+    (cond
+      [(equal? (job-result-status herbie-result) 'success)
+       (define all-alts
+         (map alt-analysis-alt
+              (append (list (improve-result-start backend))
+                      (improve-result-target backend)
+                      (improve-result-end backend))))
+       (define exprs (append-map collect-expressions all-alts))
+       (make-hash (map cons exprs (batch-errors exprs pcontext ctx)))]
+      [else #f]))
 
   (define test-fpcore
     (alt->fpcore test (make-alt-preprocessing (test-input test) (test-preprocess test))))
