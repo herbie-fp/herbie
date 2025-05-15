@@ -51,8 +51,6 @@
       (with-output-to-file temp-file #:exists 'replace (lambda () (for-each writeln curr-program)))
       temp-file))
 
-  ; (printf "egglog-file-path ~a\n" egglog-file-path)
-
   (define egglog-path
     (or (find-executable-path "egglog") (error "egglog executable not found in PATH")))
 
@@ -60,8 +58,6 @@
   (define stderr-port (open-output-string))
 
   (define old-error-port (current-error-port))
-
-  (define start-time (current-inexact-milliseconds))
 
   ;; Run egglog and capture output
   (parameterize ([current-output-port stdout-port]
@@ -76,10 +72,6 @@
                               "\n"))
         (fprintf old-error-port "incorrect program in ~a\n" egglog-file-path)
         (error "Failed to execute egglog"))))
-
-  (define end-time (current-inexact-milliseconds))
-  (define duration (- end-time start-time))
-  ; (printf "Egglog execution took ~a ms\n" duration)
 
   (delete-file egglog-file-path)
 
@@ -171,7 +163,6 @@
       (cons tag schedule-params)))
 
   ;; 3. Inserting expressions into the egglog program and getting a Listof (exprs . extract bindings)
-  ; (define extract-bindings (egglog-add-exprs insert-batch (egglog-runner-ctx runner) curr-program))
   (define-values (all-bindings extract-bindings)
     (egglog-add-exprs insert-batch (egglog-runner-ctx runner) curr-program))
 
@@ -205,22 +196,13 @@
   ;; Add the schedule to the program after reversing it
   (egglog-program-add! `(run-schedule ,@(reverse run-schedule)) curr-program)
 
-  ;; 5. Extraction -> should just need root ids
+  ;; 5. Extraction -> should just need constructor names from egglog-add-exprs
   (for/list ([constructor-name extract-bindings])
     (egglog-program-add! `(extract (,constructor-name) ,(*egglog-variants-limit*)) curr-program))
 
-  ; (define all-extract
-  ;   (for/list ([binding extract-bindings])
-  ;     `(extract ,binding ,(*egglog-variants-limit*))))
-
-  ; (egglog-program-add! `(rule () (,@all-extract) :ruleset run-extract-commands) curr-program)
-  ; (egglog-program-add! `(run-schedule (repeat 1 run-extract-commands)) curr-program)
-
   ;; 6. After step-by-step building the program, process it
   ;; by running it using egglog
-  ; (printf "Final run :\n")
   (define egglog-output (process-egglog curr-program))
-  ; (printf "done\n")
 
   ;; Extract its returned value
   (define stdout-content (car egglog-output))
@@ -243,8 +225,6 @@
                          #:key batchref-idx)))
 
   (batch-copy-mutable-nodes! output-batch output-mutable-batch)
-
-  ; (printf "reached end\n")
 
   ;; (Listof (Listof batchref))
   result)
@@ -384,7 +364,7 @@
     (rewrite (Add (Num x) (Num y)) (Num (+ x y)) :ruleset const-fold)
     (rewrite (Sub (Num x) (Num y)) (Num (- x y)) :ruleset const-fold)
     (rewrite (Mul (Num x) (Num y)) (Num (* x y)) :ruleset const-fold)
-    ; Non-total operator 1
+    ; TODO : Non-total operator
     ;(rule ((= e (Div (Num x) (Num y))) (!= ?zero y)) ((union e (Num (/ x y)))) :ruleset const-fold)
     (rewrite (Neg (Num x)) (Num (neg x)) :ruleset const-fold)
     ;; Power rules -> only case missing is 0^0 making it non-total
@@ -408,28 +388,8 @@
           ((union e (Num (pow x (round y)))))
           :ruleset
           const-fold)
-    ;; TODO
-    ;; Sqrt rules -> All are non-total but we can make them total by ensuring > 0
-    ; (rule ((= e (Sqrt (Num (bigrat a b)))) (> a ?zero)
-    ;                                        (> b ?zero)
-    ;                                        (= (* (sqrt a) (sqrt a)) a)
-    ;                                        (= (* (sqrt b) (sqrt b)) b))
-    ;       ((union e (Num (bigrat (sqrt a) (sqrt b)))))
-    ;       :ruleset
-    ;       const-fold)
-    ; (rule
-    ;  ((= e (Sqrt (Num (bigrat (bigint a) (bigint b)))))
-    ;   (> a 0)
-    ;   (> b 0)
-    ;   (= (* (sqrt (bigrat (bigint a) (from-string "1"))) (sqrt (bigrat (bigint a) (from-string "1"))))
-    ;      a)
-    ;   (= (* (sqrt (bigrat (bigint b) (from-string "1"))) (sqrt (bigrat (bigint b) (from-string "1"))))
-    ;      b))
-    ;  ((union e
-    ;          (Num (bigrat (sqrt (bigrat (bigint a) (from-string "1")))
-    ;                       (sqrt (bigrat (bigint b) (from-string "1")))))))
-    ;  :ruleset
-    ;  const-fold)
+    ;; Sqrt rules -> Non-total but egglog implementation handles it
+    (rule ((= e (Sqrt (Num n))) (sqrt n)) ((union e (Num (sqrt n)))) :ruleset const-fold)
     (rule ((= e (Log (Num x))) (= (numer x) (denom x))) ((union e (Num ?zero))) :ruleset const-fold)
     (rule ((= e (Cbrt (Num x))) (= (numer x) (denom x)))
           ((union e (Num (bigrat (from-string "1") (from-string "1")))))
@@ -439,8 +399,6 @@
     (rewrite (Floor (Num x)) (Num (floor x)) :ruleset const-fold)
     (rewrite (Ceil (Num x)) (Num (ceil x)) :ruleset const-fold)
     (rewrite (Round (Num x)) (Num (round x)) :ruleset const-fold)))
-
-; (rule ((= e (Sqrt (Num (bigrat (bigint a) (bigint b))))) (> a 0) (> b 0) (= (* (sqrt a) (sqrt a)) a) (= (* (sqrt b) (sqrt b)) b)) ((union e (Num (bigrat (sqrt a) (sqrt b))))) :ruleset const-fold)
 
 (define (platform-spec-nodes)
   (for/list ([op (in-list (all-operators))])
@@ -845,23 +803,6 @@
 
     (set! constructor-num (add1 constructor-num)))
 
-  ; (define extract-bindings '())
-
-  ; ; ;Extract Bindings
-  ; (for ([root (batch-roots batch)])
-  ;   (define curr-binding-name
-  ;     (if (hash-has-key? vars root)
-  ;         (if (vector-ref spec-mask root)
-  ;             (string->symbol (format "?~a" (hash-ref vars root)))
-  ;             (string->symbol (format "?t~a" (hash-ref vars root))))
-  ;         (string->symbol (format "?r~a" root))))
-
-  ;   ; (when (hash-has-key? binding->constructor curr-binding-name)
-  ;     (set! extract-bindings
-  ;           (cons (hash-ref binding->constructor curr-binding-name) extract-bindings))
-  ;           ; )
-  ;           )
-
   (define curr-bindings
     (for/list ([root (batch-roots batch)])
       (define curr-binding-name
@@ -871,55 +812,9 @@
                 (string->symbol (format "?t~a" (hash-ref vars root))))
             (string->symbol (format "?r~a" root))))
 
-      (hash-ref binding->constructor curr-binding-name)
-      ; curr-binding-name
-      ))
-
-  ; (printf "prev : ~a\n" curr-bindings)
+      (hash-ref binding->constructor curr-binding-name)))
 
   (values (reverse all-bindings) curr-bindings))
-
-; ; Var-spec-bindings
-; (for ([var (in-list (context-vars ctx))])
-;   (define curr-var-spec-binding
-;     `(let ,(string->symbol (format "?~a" var)) (Var ,(symbol->string var))))
-
-;   (egglog-program-add! curr-var-spec-binding curr-program))
-
-; ; Var-typed-bindings
-; (for ([var (in-list (context-vars ctx))]
-;       [repr (in-list (context-var-reprs ctx))])
-;   (define curr-var-typed-binding
-;     `(let ,(string->symbol (format "?t~a" var))
-;        (,(typed-var-id (representation-name repr)) ,(symbol->string var))))
-
-;   (egglog-program-add! curr-var-typed-binding curr-program))
-
-; ; Binding Exprs
-; (for ([root? (in-vector root-mask)]
-;       [n (in-naturals)]
-;       #:when (not (hash-has-key? vars n)))
-;   (define binding
-;     (if root?
-;         (string->symbol (format "?r~a" n))
-;         (string->symbol (format "?b~a" n))))
-
-;   (define curr-binding-exprs `(let ,binding ,(hash-ref bindings binding)))
-
-;   (egglog-program-add! curr-binding-exprs curr-program))
-
-; ; Extract Bindings
-; (define extract-bindings
-;   (for/list ([root (batch-roots batch)])
-;     (if (hash-has-key? vars root)
-;         (if (vector-ref spec-mask root)
-;             (string->symbol (format "?~a" (hash-ref vars root)))
-;             (string->symbol (format "?t~a" (hash-ref vars root))))
-;         (string->symbol (format "?r~a" root)))))
-
-;  (printf "extract-bindings : ~a\n" extract-bindings)
-
-; (values (reverse all-bindings) extract-bindings))
 
 (define (egglog-unsound-detected curr-program tag params current-schedule)
   (define node-limit (dict-ref params 'node (*node-limit*)))
