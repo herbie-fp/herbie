@@ -13,16 +13,6 @@
 (load-herbie-builtins)
 
 (define num-test-points (make-parameter 100))
-
-(define *conditions*
-  (list '[asinh-2 . (>= x 0)]
-        '[pow-unpow . (>= a 0)]
-        '[pow-pow . (>= a 0)]
-        '[sqrt-pow1 . (>= x 0)]
-        '[asin-sin-s . (<= (fabs x) (/ (PI) 2))]
-        '[acos-cos-s . (and (<= 0 x) (<= x (PI)))]
-        '[atan-tan-s . (<= (fabs x) (/ (PI) 2))]))
-
 (define double-repr (get-representation 'binary64))
 
 (define (env->ctx p1 p2)
@@ -33,14 +23,10 @@
   (match-define (rule name p1 p2 _ _ _) test-rule)
   (define ctx (env->ctx p1 p2))
 
-  (define pre (dict-ref *conditions* name '(TRUE)))
-  (unless (equal? pre '(TRUE))
-    (check-false (set-member? (rule-tags test-rule) 'sound) "Sound rules cannot have conditions"))
-
   (match-define (list pts exs1 exs2)
     (parameterize ([*num-points* (num-test-points)]
                    [*max-find-range-depth* 0])
-      (sample-points pre (list p1 p2) (list ctx ctx))))
+      (sample-points '(TRUE) (list p1 p2) (list ctx ctx))))
 
   (for ([pt (in-list pts)]
         [v1 (in-list exs1)]

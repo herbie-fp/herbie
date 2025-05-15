@@ -104,10 +104,11 @@
     [`(> (neg ,a) 0) `(< ,a 0)]
     [`(< (* 2 ,a) ,(? number? b)) `(< ,a ,(/ b 2))]
     [`(< (+ 1 ,a) 0) `(< ,a -1)]
-    [`(< (/ ,x 2) 0) `(< ,x 0)]
+    [`(< (/ ,x ,(? (conjoin number? positive?))) 0) `(< ,x 0)]
     [`(< (+ ,x 1) 0) `(< ,x -1)]
     [`(< (- ,a 1) ,(? number? b)) `(< ,a ,(+ b 1))]
     [`(< (- 1 ,x) 0) `(< 1 ,x)]
+    [`(< (cbrt ,a) 0) `(< ,a 0)]
 
     [`(< (* ,a ,a) 1) `(< (fabs ,a) 1)]
     [`(< 1 (* ,a ,a)) `(< 1 (fabs ,a))]
@@ -128,6 +129,7 @@
 
     [`(even-denominator? (neg ,b)) `(even-denominator? ,b)]
     [`(even-denominator? (+ ,b 1)) `(even-denominator? ,b)]
+    [`(even-denominator? (/ ,b 3)) `(even-denominator? ,b)]
     [`(even-denominator? ,(? rational? a))
      (if (even? (denominator a))
          '(TRUE)
