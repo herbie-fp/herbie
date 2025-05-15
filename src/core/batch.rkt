@@ -200,7 +200,7 @@
 (module+ test
   (require rackunit)
   (define (zombie-test #:nodes nodes #:roots roots)
-    (define in-batch (batch nodes roots '()))
+    (define in-batch (batch nodes roots))
     (define out-batch (batch-remove-zombie in-batch))
     (check-equal? (batch->progs out-batch) (batch->progs in-batch))
     (batch-nodes out-batch))
