@@ -67,7 +67,7 @@
     (make-egraph batch
                  (batch-roots batch)
                  (make-list (vector-length (batch-roots batch)) (context-repr ctx))
-                 `((,rules . ((node . ,(*node-limit*)) (scheduler . simple))))))
+                 `((,rules . ((node . ,(*node-limit*)))))))
 
   ;; TODO : FIGURE HOW TO IMPLEMENT PREPROCESS
 
