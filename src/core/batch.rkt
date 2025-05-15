@@ -142,7 +142,7 @@
      (define zombie-mask (make-vector nodes-length #t))
      (for ([root (in-vector roots)])
        (vector-set! zombie-mask root #f))
-     (for ([i (in-naturals)]
+     (for ([i (in-range (- nodes-length 1) -1 -1)]
            [node (in-vector nodes (- nodes-length 1) -1 -1)]
            [zmb (in-vector zombie-mask (- nodes-length 1) -1 -1)])
        (when (and keep-vars (symbol? node))
