@@ -52,7 +52,8 @@
                        (sow mapped-sub-error))))))
 
   (for/hash ([group (in-list (group-by car pt-worst-subexpr))])
-    (let ([key (caar group)]) (values key (map cdr group)))))
+    (define key (caar group))
+    (values key (map cdr group))))
 
 (define (same-sign? a b)
   (or (and (bfpositive? a) (bfpositive? b)) (and (bfnegative? a) (bfnegative? b))))
@@ -122,7 +123,7 @@
         (define parent+child-set (hash-union parent-set child-set #:combine (lambda (_ v) v)))
         (define new-parent-set
           (if (and (bigfloat? subexpr-val) (pred? subexpr-val))
-              (hash-update parent+child-set subexpr (lambda (x) (+ x 1)) 0)
+              (hash-update parent+child-set subexpr add1 0)
               parent+child-set))
         (hash-set! flow-hash subexpr new-parent-set))
 
@@ -581,15 +582,15 @@
 
   (define points->expl (make-hash))
 
-  (for ([(_ points) (in-dict expls->points)])
-    (for ([pt (in-list points)])
-      (hash-update! points->expl pt (lambda (x) (+ 1 x)) 0)))
+  (for* ([(_ points) (in-dict expls->points)]
+         [pt (in-list points)])
+    (hash-update! points->expl pt (lambda (x) (+ 1 x)) 0))
 
   (define freqs (make-hash))
 
   (for ([(pt _) (in-pcontext pctx)])
     (define freq (hash-ref points->expl pt 0))
-    (hash-update! freqs freq (lambda (x) (+ 1 x)) 0))
+    (hash-update! freqs freq add1 0))
 
   (values fperrors
           sorted-explanations-table

@@ -57,9 +57,12 @@
   (timeline-event! 'series)
   (timeline-push! 'inputs (map ~a starting-exprs))
 
-  (define approxs
-    (remove-duplicates (taylor-alts starting-exprs altns global-batch)
-                       #:key (λ (x) (batchref-idx (alt-expr x)))))
+  (define (key x)
+    (define approx-pt (batchref-idx (alt-expr x)))
+    (define hole-pt (approx-impl (vector-ref (batch-nodes global-batch) approx-pt)))
+    hole-pt)
+
+  (define approxs (remove-duplicates (taylor-alts starting-exprs altns global-batch) #:key key))
 
   (timeline-push! 'outputs (map ~a (map (compose debatchref alt-expr) approxs)))
   (timeline-push! 'count (length altns) (length approxs))
@@ -84,13 +87,15 @@
 
   ; run egg
   (define exprs (map (compose debatchref alt-expr) altns))
+  (define input-batch (progs->batch exprs))
+
   (define roots (list->vector (map (compose batchref-idx alt-expr) altns)))
   (define reprs (map (curryr repr-of (*context*)) exprs))
   (timeline-push! 'inputs (map ~a exprs))
 
   (define runner
     (if (flag-set? 'generate 'egglog)
-        (make-egglog-runner global-batch roots reprs schedule)
+        (make-egglog-runner input-batch (batch-roots input-batch) reprs schedule)
         (make-egraph global-batch roots reprs schedule)))
 
   (define batchrefss

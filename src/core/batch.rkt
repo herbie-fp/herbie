@@ -48,10 +48,10 @@
   (hash-ref! hashcons
              term
              (lambda ()
-               (let ([new-idx (hash-count hashcons)])
-                 (hash-set! hashcons term new-idx)
-                 (set-mutable-batch-nodes! b (cons term (mutable-batch-nodes b)))
-                 new-idx))))
+               (define new-idx (hash-count hashcons))
+               (hash-set! hashcons term new-idx)
+               (set-mutable-batch-nodes! b (cons term (mutable-batch-nodes b)))
+               new-idx)))
 
 (define (mutable-batch->batch b roots)
   (batch (list->vector (reverse (mutable-batch-nodes b))) roots))

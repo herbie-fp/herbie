@@ -477,7 +477,12 @@
 (define (taylor-log var arg)
   (match-define (cons shift coeffs) (normalize-series arg))
   (define hash (make-hash))
-  (hash-set! hash 0 (reduce `(log ,(coeffs 0))))
+  (define negate? (and (number? (coeffs 0)) (not (positive? (coeffs 0)))))
+  (define (maybe-negate x)
+    (if negate?
+        `(neg ,x)
+        x))
+  (hash-set! hash 0 (reduce `(log ,(maybe-negate (coeffs 0)))))
 
   (define (series n)
     (hash-ref! hash
@@ -492,13 +497,13 @@
                                                   (if (= p 0)
                                                       1
                                                       `(pow (* ,(factorial i) ,(coeffs i)) ,p))))
-                                           (pow ,(coeffs 0) ,(- k))))))
+                                           (exp (* ,(- k) ,(series 0)))))))
                              ,(factorial n))))))
 
   (cons 0
         (λ (n)
           (if (and (= n 0) (not (zero? shift)))
-              (reduce `(+ (* (neg ,shift) (log ,var)) ,(series 0)))
+              (reduce `(+ (* (neg ,shift) (log ,(maybe-negate var))) ,(series 0)))
               (series n)))))
 
 (module+ test
@@ -522,4 +527,4 @@
   (check-equal? (coeffs '(cbrt (+ 1 x))) '(1 1/3 -1/9 5/81 -10/243 22/729 -154/6561))
   (check-equal? (coeffs '(sqrt x)) '((sqrt x) 0 0 0 0 0 0))
   (check-equal? (coeffs '(cbrt x)) '((cbrt x) 0 0 0 0 0 0))
-  (check-equal? (coeffs '(cbrt (* x x))) '((cbrt (pow x 2)) 0 0 0 0 0 0)))
+  (check-equal? (coeffs '(cbrt (* x x))) '((pow x 2/3) 0 0 0 0 0 0)))
