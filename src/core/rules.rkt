@@ -130,21 +130,13 @@
   [fp-cancel-sign-sub-inv (+ a (* b c)) (- a (* (neg b) c))]
   [fp-cancel-sub-sign-inv (- a (* b c)) (+ a (* (neg b) c))])
 
-; Add/sub flips
 (define-rules arithmetic
   [sub-flip (- a b) (+ a (neg b))]
   [sub-flip-reverse (+ a (neg b)) (- a b)]
   [sub-negate (neg (- b a)) (- a b)]
   [sub-negate-rev (- a b) (neg (- b a))]
   [add-flip (+ a b) (- a (neg b))]
-  [add-flip-rev (- a (neg b)) (+ a b)]
-  [add-negate (neg (+ a b)) (- (neg a) b)]
-  [add-negate-rev (- (neg a) b) (neg (+ a b))])
-
-; Mul/div flip
-(define-rules arithmetic
-  [mult-flip (/ a b) (* a (/ 1 b))]
-  [mult-flip-rev (* a (/ 1 b)) (/ a b)])
+  [add-flip-rev (- a (neg b)) (+ a b)])
 
 ; Difference of squares
 (define-rules polynomials
@@ -156,11 +148,29 @@
   [pow-sqr (* (pow a b) (pow a b)) (pow a (* 2 b))]
   [sum-square-pow (pow (+ a b) 2) (+ (+ (pow a 2) (* 2 (* a b))) (pow b 2))]
   [sub-square-pow (pow (- a b) 2) (+ (- (pow a 2) (* 2 (* a b))) (pow b 2))]
-  [sum-square-reverse (+ (+ (pow a 2) (* 2 (* a b))) (pow b 2)) (pow (+ a b) 2)]
-  [sub-square-reverse (+ (- (pow a 2) (* 2 (* a b))) (pow b 2)) (pow (- a b) 2)]
+  [sum-square-pow-rev (+ (+ (pow a 2) (* 2 (* a b))) (pow b 2)) (pow (+ a b) 2)]
+  [sub-square-pow-rev (+ (- (pow a 2) (* 2 (* a b))) (pow b 2)) (pow (- a b) 2)]
   [difference-of-sqr-1-rev (* (+ a 1) (- a 1)) (- (* a a) 1)]
   [difference-of-sqr--1-rev (* (+ a 1) (- a 1)) (+ (* a a) -1)]
   [difference-of-squares-rev (* (+ a b) (- a b)) (- (* a a) (* b b))])
+
+; Mul/div flip
+(define-rules arithmetic
+  [mult-flip (/ a b) (* a (/ 1 b))]
+  [mult-flip-rev (* a (/ 1 b)) (/ a b)]
+  [div-flip (/ a b) (/ 1 (/ b a)) #:unsound] ; unsound @ a = 0, b != 0
+  [div-flip-rev (/ 1 (/ b a)) (/ a b)])
+
+(define-rules arithmetic
+  [sum-to-mult (+ a b) (* (+ 1 (/ b a)) a) #:unsound]
+  [sum-to-mult-rev (* (+ 1 (/ b a)) a) (+ a b)]
+  [sub-to-mult (- a b) (* (- 1 (/ b a)) a) #:unsound]
+  [sub-to-mult-rev (* (- 1 (/ b a)) a) (- a b)]
+  [add-to-fraction (+ c (/ b a)) (/ (+ (* c a) b) a)]
+  [add-to-fraction-rev (/ (+ (* c a) b) a) (+ c (/ b a))]
+  [sub-to-fraction (- c (/ b a)) (/ (- (* c a) b) a)]
+  [sub-to-fraction-rev (/ (- (* c a) b) a) (- c (/ b a))]
+  [common-denominator (+ (/ a b) (/ c d)) (/ (+ (* a d) (* c b)) (* b d))])
 
 (define-rules polynomials
   [sqr-pow (pow a b) (* (pow a (/ b 2)) (pow a (/ b 2))) #:unsound] ; unsound @ a = -1, b = 1
@@ -199,7 +209,9 @@
   [sqr-neg (* (neg x) (neg x)) (* x x)]
   [sqr-abs (* (fabs x) (fabs x)) (* x x)]
   [sqr-abs-rev (* x x) (* (fabs x) (fabs x))]
-  [sqr-neg-rev (* x x) (* (neg x) (neg x))])
+  [sqr-neg-rev (* x x) (* (neg x) (neg x))]
+  [sqrt-cbrt (sqrt (cbrt x)) (cbrt (sqrt x))]
+  [cbrt-sqrt (cbrt (sqrt x)) (sqrt (cbrt x))])
 
 ; Absolute value
 (define-rules arithmetic
@@ -213,8 +225,12 @@
   [neg-fabs (fabs x) (fabs (neg x))]
   [mul-fabs (* (fabs a) (fabs b)) (fabs (* a b))]
   [div-fabs (/ (fabs a) (fabs b)) (fabs (/ a b))]
+  [sqrt-fabs (fabs (sqrt a)) (sqrt a)]
+  [sqrt-fabs-rev (sqrt a) (fabs (sqrt a))]
   [fabs-lhs-div (/ (fabs x) x) (/ x (fabs x))]
-  [fabs-rhs-div (/ x (fabs x)) (/ (fabs x) x)])
+  [fabs-rhs-div (/ x (fabs x)) (/ (fabs x) x)]
+  [fabs-cbrt (fabs (/ (cbrt a) a)) (/ (cbrt a) a)]
+  [fabs-cbrt-rev (/ (cbrt a) a) (fabs (/ (cbrt a) a))])
 
 ; Square root
 (define-rules arithmetic
