@@ -130,6 +130,22 @@
   [fp-cancel-sign-sub-inv (+ a (* b c)) (- a (* (neg b) c))]
   [fp-cancel-sub-sign-inv (- a (* b c)) (+ a (* (neg b) c))])
 
+; Add/sub flips
+(define-rules arithmetic
+  [sub-flip (- a b) (+ a (neg b))]
+  [sub-flip-reverse (+ a (neg b)) (- a b)]
+  [sub-negate (neg (- b a)) (- a b)]
+  [sub-negate-rev (- a b) (neg (- b a))]
+  [add-flip (+ a b) (- a (neg b))]
+  [add-flip-rev (- a (neg b)) (+ a b)]
+  [add-negate (neg (+ a b)) (- (neg a) b)]
+  [add-negate-rev (- (neg a) b) (neg (+ a b))])
+
+; Mul/div flip
+(define-rules arithmetic
+  [mult-flip (/ a b) (* a (/ 1 b))]
+  [mult-flip-rev (* a (/ 1 b)) (/ a b)])
+
 ; Difference of squares
 (define-rules polynomials
   [swap-sqr (* (* a b) (* a b)) (* (* a a) (* b b))]
@@ -138,6 +154,10 @@
   [difference-of-sqr-1 (- (* a a) 1) (* (+ a 1) (- a 1))]
   [difference-of-sqr--1 (+ (* a a) -1) (* (+ a 1) (- a 1))]
   [pow-sqr (* (pow a b) (pow a b)) (pow a (* 2 b))]
+  [sum-square-pow (pow (+ a b) 2) (+ (+ (pow a 2) (* 2 (* a b))) (pow b 2))]
+  [sub-square-pow (pow (- a b) 2) (+ (- (pow a 2) (* 2 (* a b))) (pow b 2))]
+  [sum-square-reverse (+ (+ (pow a 2) (* 2 (* a b))) (pow b 2)) (pow (+ a b) 2)]
+  [sub-square-reverse (+ (- (pow a 2) (* 2 (* a b))) (pow b 2)) (pow (- a b) 2)]
   [difference-of-sqr-1-rev (* (+ a 1) (- a 1)) (- (* a a) 1)]
   [difference-of-sqr--1-rev (* (+ a 1) (- a 1)) (+ (* a a) -1)]
   [difference-of-squares-rev (* (+ a b) (- a b)) (- (* a a) (* b b))])
