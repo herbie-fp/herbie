@@ -78,7 +78,7 @@
         [(list 'if c t f) (list if-proc c t f)]
         [(list op args ...) (cons (impl-info op 'fl) args)])))
 
-  (make-progs-interpreter (batch-vars batch*) instructions (batch-roots batch*)))
+  (make-progs-interpreter vars instructions (batch-roots batch*)))
 
 ;; Like `compile-progs`, but a single prog.
 (define (compile-prog expr ctx)
