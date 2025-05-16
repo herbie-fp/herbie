@@ -30,21 +30,7 @@ const filterNames = {
     "timeout": "Timeout",
     "crash": "Crash",
 }
-var filterState = {
-    "imp-start": true,
-    "ex-start": true,
-    "eq-start": true,
-    "eq-target": true,
-    "gt-target": true,
-    "gt-start": true,
-    "uni-start": true,
-    "lt-target": true,
-    "lt-start": true,
-    "apx-start": true,
-    "timeout": true,
-    "crash": true,
-    "error": true,
-}
+var filterState = Object.fromEntries(Object.keys(filterNames).map(k => [k, true]));
 
 const filterGroups = {
     improved: [
@@ -57,12 +43,8 @@ const filterGroups = {
     regressed: [
         "uni-start", "lt-start", "timeout", "crash",
     ],
-}
-var filterGroupState = {
-    "improved": true,
-    "unchanged": true,
-    "regressed": true,
-}
+};
+var filterGroupState = Object.fromEntries(Object.keys(filterGroups).map(k => [k, true]));
 
 const radioStates = {
     output: { title: "Output Expression", tolerance: false, },
@@ -139,10 +121,6 @@ function Element(tagname, props, children) {
 
 function calculatePercent(decimal) {
     return ((100 - (100 * (decimal)))).toFixed(1)
-}
-
-function formatAccuracy(decimal) {
-    return `${calculatePercent(decimal)}%`
 }
 
 function formatTime(ms) {
@@ -295,9 +273,9 @@ function buildDiffLine(jsonData, show) {
     const submitButton = Element("button", "Compute Diff")
     submitButton.addEventListener("click", async (e) => {
         e.preventDefault();
-        compareAgainstURL = urlInput.value;
         radioState = radioState ?? "endAcc";
-        fetchAndUpdate();
+        otherJsonData = await fetchBaseline(urlInput.value);
+        update();
     });
 
     const toleranceInputField = Element("input", {
@@ -366,9 +344,9 @@ function buildBody(jsonData, otherJsonData) {
         Element("div", {}, [
             "Average Percentage Accurate: ",
             Element("span", { classList: "number" }, [
-                formatAccuracy(total_start / maximum_accuracy),
+                calculatePercent(total_start / maximum_accuracy), "%",
                 Element("span", { classList: "unit" }, [" → ",]),
-                formatAccuracy(total_result / maximum_accuracy),]),
+                calculatePercent(total_result / maximum_accuracy), "%"]),
         ]),
         Element("div", {}, [
             "Time:",
@@ -464,11 +442,8 @@ function buildTableContents(jsonData, otherJsonData, filterFunction) {
     var rows = []
     const jsonTest = jsonData.tests.sort(compareTests);
     for (let test of jsonTest) {
-        let other = diffAgainstFields[test.name]
-        if (filterFunction(test, other)) {
-            let row = buildRow(test, other)
-            rows.push(row)
-        }
+        let other = diffAgainstFields[test.name];
+        if (filterFunction(test, other)) rows.push(buildRow(test, other));
     }
     return rows;
 }
@@ -486,160 +461,135 @@ function getMinimum(target) {
 
 // HACK I kinda hate this split lambda function, Zane
 function buildRow(test, other) {
-    var row
     var smallestTarget = getMinimum(test.target)
 
-    eitherOr(test, other,
-        (function () {
-            var startAccuracy = formatAccuracy(test.start / test.bits)
-            var resultAccuracy = formatAccuracy(test.end / test.bits)
+    if (!other) {
+        var startAccuracy = calculatePercent(test.start / test.bits) + "%"
+        var resultAccuracy = calculatePercent(test.end / test.bits) + "%"
+        var targetAccuracy = calculatePercent(smallestTarget / test.bits) + "%"
 
-            var targetAccuracy = formatAccuracy(smallestTarget / test.bits)
+        if (test.status == "imp-start" || test.status == "ex-start" || test.status == "apx-start") {
+            targetAccuracy = ""
+        }
+        if (test.status == "timeout" || test.status == "error") {
+            startAccuracy = ""
+            resultAccuracy = ""
+            targetAccuracy = ""
+        }
+        const tr = Element("tr", { classList: test.status }, [
+            Element("td", {}, [test.name]),
+            Element("td", {}, [startAccuracy]),
+            Element("td", {}, [resultAccuracy]),
+            Element("td", {}, [targetAccuracy]),
+            Element("td", {}, [formatTime(test.time)]),
+            Element("td", {}, [
+                Element("a", {
+                    href: `${test.link}/graph.html`
+                }, ["»"])]),
+            Element("td", {}, [
+                Element("a", {
+                    href: `${test.link}/timeline.html`
+                }, ["📊"])]),
+        ])
+        // TODO fix bug with cmd/ctrl click.
+        tr.addEventListener("click", () => tr.querySelector("a").click())
+        return tr;
+    } else {
+        function timeTD(test) {
+            var timeDiff = test.time - other.time
+            var color, text
+            if (timeDiff > filterTolerance * 1000) {
+                color = "diff-time-red";
+                text = "-" + formatTime(timeDiff);
+            } else if (timeDiff < -filterTolerance * 1000) {
+                color = "diff-time-green";
+                text = "+ " + formatTime(Math.abs(timeDiff));
+            } else {
+                color = "diff-time-gray";
+                text = "~";
+            }
+            var titleText = `current: ${formatTime(test.time)} vs ${formatTime(other.time)}`
+            return Element("td", { classList: color, title: titleText }, [text]);
+        }
 
-            if (test.status == "imp-start" || test.status == "ex-start" || test.status == "apx-start") {
-                targetAccuracy = ""
+        function buildTDfor(o, t) {
+            const op = calculatePercent(o)
+            const tp = calculatePercent(t)
+            var color = "diff-time-red"
+            var diff = op - tp
+            var titleText = `Original: ${op} vs ${tp}`
+            var tdText = `- ${(diff).toFixed(1)}%`
+            if (Math.abs((diff).toFixed(1)) <= filterTolerance) {
+                color = "diff-time-gray"
+                tdText = "~"
+            } else if (diff < 0) {
+                diff = Math.abs(diff)
+                color = "diff-time-green"
+                tdText = `+ ${(diff).toFixed(1)}%`
             }
-            if (test.status == "timeout" || test.status == "error") {
-                startAccuracy = ""
-                resultAccuracy = ""
-                targetAccuracy = ""
-            }
-            const tr = Element("tr", { classList: test.status }, [
-                Element("td", {}, [test.name]),
-                Element("td", {}, [startAccuracy]),
-                Element("td", {}, [resultAccuracy]),
-                Element("td", {}, [targetAccuracy]),
-                Element("td", {}, [formatTime(test.time)]),
-                Element("td", {}, [
-                    Element("a", {
-                        href: `${test.link}/graph.html`
-                    }, ["»"])]),
-                Element("td", {}, [
-                    Element("a", {
-                        href: `${test.link}/timeline.html`
-                    }, ["📊"])]),
-            ])
-            // TODO fix bug with cmd/ctrl click.
-            tr.addEventListener("click", () => tr.querySelector("a").click())
-            row = tr
-        })
-        , (function () {
-            function timeTD(test) {
-                var timeDiff = test.time - diffAgainstFields[test.name].time
-                var color = "diff-time-red"
-                var text
-                var titleText = `current: ${formatTime(test.time)} vs ${formatTime(diffAgainstFields[test.name].time)}`
-                // Dirty equal less then 1 second
-                var areEqual = false
-                if (Math.abs(timeDiff) < (filterTolerance * 1000)) {
-                    areEqual = true
-                    color = "diff-time-gray"
-                    text = "~"
-                } else if (timeDiff < 0) {
-                    color = "diff-time-green"
-                    text = "+ " + `${formatTime(Math.abs(timeDiff))}`
-                } else {
-                    text = "-" + `${formatTime(timeDiff)}`
-                }
-                return { td: Element("td", { classList: color, title: titleText }, [text]), equal: areEqual }
-            }
+            return Element("td", { classList: color, title: titleText }, [tdText]);
+        }
 
-            function buildTDfor(o, t) {
-                const op = calculatePercent(o)
-                const tp = calculatePercent(t)
-                var color = "diff-time-red"
-                var diff = op - tp
-                var areEqual = false
-                var titleText = `Original: ${op} vs ${tp}`
-                var tdText = `- ${(diff).toFixed(1)}%`
-                if (Math.abs((diff).toFixed(1)) <= filterTolerance) {
-                    color = "diff-time-gray"
-                    areEqual = true
-                    tdText = "~"
-                } else if (diff < 0) {
-                    diff = Math.abs(diff)
-                    color = "diff-time-green"
-                    tdText = `+ ${(diff).toFixed(1)}%`
-                }
-                return { td: Element("td", { classList: color, title: titleText }, [tdText]), equal: areEqual }
-            }
+        function startAccuracyTD(test) {
+            const t = test.start / test.bits
+            const o = other.start / other.bits
+            return buildTDfor(o, t)
+        }
 
-            function startAccuracyTD(test) {
-                const t = test.start / test.bits
-                const o = diffAgainstFields[test.name].start / diffAgainstFields[test.name].bits
-                return buildTDfor(o, t)
-            }
+        function resultAccuracyTD(test) {
+            const t = test.end / test.bits
+            const o = other.end / other.bits
+            return buildTDfor(o, t)
+        }
 
-            function resultAccuracyTD(test) {
-                const t = test.end / test.bits
-                const o = diffAgainstFields[test.name].end / diffAgainstFields[test.name].bits
-                return buildTDfor(o, t)
-            }
+        function targetAccuracyTD(test) {
+            const t = smallestTarget / test.bits
+            const o = other.target / other.bits
+            return buildTDfor(o, t)
+        }
 
-            function targetAccuracyTD(test) {
-                const t = smallestTarget / test.bits
-                const o = diffAgainstFields[test.name].target / diffAgainstFields[test.name].bits
-                return buildTDfor(o, t)
-            }
+        const startAccuracy = startAccuracyTD(test)
+        const resultAccuracy = resultAccuracyTD(test)
+        const targetAccuracy = targetAccuracyTD(test)
 
-            var classList = [test.status]
-            const startAccuracy = startAccuracyTD(test)
-            const resultAccuracy = resultAccuracyTD(test)
-            const targetAccuracy = targetAccuracyTD(test)
-            const time = timeTD(test)
+        var tdStartAccuracy = radioState == "startAcc" ? startAccuracy : Element("td", {}, [calculatePercent(test.start / test.bits), "%"])
+        var tdResultAccuracy = radioState == "endAcc" ? resultAccuracy : Element("td", {}, [calculatePercent(test.end / test.bits), "%"])
+        var tdTargetAccuracy = radioState == "targetAcc" ? targetAccuracy : Element("td", {}, [calculatePercent(smallestTarget / test.bits), "%"])
+        const tdTime = radioState == "time" ? timeTD(test) : Element("td", {}, [formatTime(test.time)])
 
-            var tdStartAccuracy = radioState == "startAcc" ? startAccuracy.td : Element("td", {}, [formatAccuracy(test.start / test.bits)])
-            var tdResultAccuracy = radioState == "endAcc" ? resultAccuracy.td : Element("td", {}, [formatAccuracy(test.end / test.bits)])
-            var tdTargetAccuracy = radioState == "targetAcc" ? targetAccuracy.td : Element("td", {}, [formatAccuracy(smallestTarget / test.bits)])
-            const tdTime = radioState == "time" ? time.td : Element("td", {}, [formatTime(test.time)])
+        var testTitle = ""
+        if (test.output != other.output) {
+            testTitle = `Current output:\n${test.output} \n \n Comparing to:\n ${other.output}`
+        }
+        if (test.status == "imp-start" ||
+            test.status == "ex-start" ||
+            test.status == "apx-start") {
+            tdTargetAccuracy = Element("td", {}, [])
+        }
+        if (test.status == "timeout" || test.status == "error") {
+            tdStartAccuracy = Element("td", {}, [])
+            tdResultAccuracy = Element("td", {}, [])
+            tdTargetAccuracy = Element("td", {}, [])
+        }
 
-            var testTile = ""
-            var outputEqual = true
-            if (radioState == "output") {
-                outputEqual = false
-            }
-            if (test.output != diffAgainstFields[test.name].output) {
-                // TODO steal Latex formatting from Odyssey
-                testTile += `Current output:\n${test.output} \n \n Comparing to:\n ${diffAgainstFields[test.name].output}`
-            }
-            if (test.status == "imp-start" ||
-                test.status == "ex-start" ||
-                test.status == "apx-start") {
-                tdTargetAccuracy = Element("td", {}, [])
-            }
-            if (test.status == "timeout" || test.status == "error") {
-                tdStartAccuracy = Element("td", {}, [])
-                tdResultAccuracy = Element("td", {}, [])
-                tdTargetAccuracy = Element("td", {}, [])
-            }
-
-            const radioSelected = radioState
-
-            var nameTD = Element("td", {}, [test.name])
-            if (testTile != "") {
-                nameTD = Element("td", { title: testTile }, [test.name])
-            }
-
-            const tr = Element("tr", { classList: classList.join(" ") }, [
-                nameTD,
-                tdStartAccuracy,
-                tdResultAccuracy,
-                tdTargetAccuracy,
-                tdTime,
-                Element("td", {}, [
-                    Element("a", {
-                        href: `${test.link}/graph.html`
-                    }, ["»"])]),
-                Element("td", {}, [
-                    Element("a", {
-                        href: `${test.link}/timeline.html`
-                    }, ["📊"])]),
-            ])
-            tr.addEventListener("click", () => tr.querySelector("a").click())
-            row = tr
-        })
-    )
-    return row
+        const tr = Element("tr", { classList: test.status }, [
+            Element("td", { title: testTitle }, [test.name]),
+            tdStartAccuracy,
+            tdResultAccuracy,
+            tdTargetAccuracy,
+            tdTime,
+            Element("td", {}, [
+                Element("a", {
+                    href: `${test.link}/graph.html`
+                }, ["»"])]),
+            Element("td", {}, [
+                Element("a", {
+                    href: `${test.link}/timeline.html`
+                }, ["📊"])]),
+        ])
+        tr.addEventListener("click", () => tr.querySelector("a").click())
+        return tr;
+    }
 }
 
 function buildDiffControls(jsonData) {
@@ -745,15 +695,6 @@ function buildFilterControls(jsonData) {
     return filters;
 }
 
-function eitherOr(baselineRow, diffRow, singleFunction, pairFunctions) {
-    // Pulled out into a function so if testing for diffRow needs to change only have to update here
-    if (diffRow == undefined) {
-        singleFunction()
-    } else {
-        pairFunctions()
-    }
-}
-
 function showGetJsonError(error) {
     const header = Element("header", {}, [
         Element("h1", {}, "Error loading results"),
@@ -813,22 +754,13 @@ function showGetJsonError(error) {
 
 function makeFilterFunction() {
     return function filterFunction(baseData, diffData) {
-        var returnValue = true
 
         // Section to hide diffs that are below the provided tolerance
         if (hideDirtyEqual) {
             // Diff Start Accuracy
             if (radioState == "output") {
                 if (baseData.output != diffData.output) {
-                    returnValue = returnValue && false;
-                }
-                const t = baseData.start / baseData.bits
-                const o = diffData.start / diffData.bits
-                const op = calculatePercent(o)
-                const tp = calculatePercent(t)
-                var diff = op - tp
-                if (Math.abs((diff).toFixed(1)) <= filterTolerance) {
-                    returnValue = returnValue && false;
+                    return false;
                 }
             }
             // Diff Start Accuracy
@@ -839,7 +771,7 @@ function makeFilterFunction() {
                 const tp = calculatePercent(t)
                 var diff = op - tp
                 if (Math.abs((diff).toFixed(1)) <= filterTolerance) {
-                    returnValue = returnValue && false
+                    return false;
                 }
             }
             
@@ -851,7 +783,7 @@ function makeFilterFunction() {
                 const tp = calculatePercent(t)
                 var diff = op - tp
                 if (Math.abs((diff).toFixed(1)) <= filterTolerance) {
-                    returnValue = returnValue && false
+                    return false;
                 }
             }
 
@@ -866,7 +798,7 @@ function makeFilterFunction() {
                 const tp = calculatePercent(t)
                 var diff = op - tp
                 if (Math.abs((diff).toFixed(1)) <= filterTolerance) {
-                    returnValue = returnValue && false
+                    return false;
                 }
             }
 
@@ -874,18 +806,15 @@ function makeFilterFunction() {
             if (radioState == "time") {
                 var timeDiff = baseData.time - diffData.time
                 if (Math.abs(timeDiff) < (filterTolerance * 1000)) {
-                    returnValue = returnValue && false
+                    return false;
                 }
             }
         }
 
         const linkComponents = baseData.link.split("/")
-        // guard statement
         if (filterBySuite && linkComponents.length > 1) {
             // defensive lowerCase
-            const left = filterBySuite;
-            const right = linkComponents[0]
-            if (left.toLowerCase() != right.toLowerCase()) {
+            if (filterBySuite.toLowerCase() != linkComponents[0].toLowerCase()) {
                 return false
             }
         }
@@ -898,36 +827,29 @@ function makeFilterFunction() {
             return false
         }
 
-        return returnValue
+        return true
     }
 }
 
-async function fetchAndUpdate() {
-    if (compareAgainstURL) {
-        // Could also split string on / and check if the last component = "results.json"
-        var url = compareAgainstURL
-        if (url.endsWith("/")) url += "results.json"
+async function fetchBaseline(url) {
+    if (!url) return;
 
-        let response = await fetch(url, {
-            headers: { "content-type": "text/plain" },
-            method: "GET",
-            mode: "cors",
-        })
-        const json = await response.json()
-        if (json.error) {
-            otherJsonData = null
-            update()
-            return
-        }
-        for (let test of json.tests) {
-            diffAgainstFields[`${test.name}`] = test
-        }
-        otherJsonData = json
-        update()
-    } else {
-        otherJsonData = null
-        update()
+    if (url.endsWith("/")) url += "results.json";
+    compareAgainstURL = url;
+
+    let response = await fetch(url, {
+        headers: { "content-type": "text/plain" },
+        method: "GET",
+        mode: "cors",
+    });
+
+    const json = await response.json()
+    if (json.error) return;
+
+    for (let test of json.tests) {
+        diffAgainstFields[test.name] = test;
     }
+    return json;
 }
 
 async function getResultsJson() {
