@@ -464,9 +464,9 @@ function buildRow(test, other) {
     var smallestTarget = getMinimum(test.target)
 
     if (!other) {
-        var startAccuracy = calculatePercent(test.start / test.bits)
-        var resultAccuracy = calculatePercent(test.end / test.bits)
-        var targetAccuracy = calculatePercent(smallestTarget / test.bits)
+        var startAccuracy = calculatePercent(test.start / test.bits) + "%"
+        var resultAccuracy = calculatePercent(test.end / test.bits) + "%"
+        var targetAccuracy = calculatePercent(smallestTarget / test.bits) + "%"
 
         if (test.status == "imp-start" || test.status == "ex-start" || test.status == "apx-start") {
             targetAccuracy = ""
@@ -478,9 +478,9 @@ function buildRow(test, other) {
         }
         const tr = Element("tr", { classList: test.status }, [
             Element("td", {}, [test.name]),
-            Element("td", {}, [startAccuracy, "%"]),
-            Element("td", {}, [resultAccuracy, "%"]),
-            Element("td", {}, [targetAccuracy, "%"]),
+            Element("td", {}, [startAccuracy]),
+            Element("td", {}, [resultAccuracy]),
+            Element("td", {}, [targetAccuracy]),
             Element("td", {}, [formatTime(test.time)]),
             Element("td", {}, [
                 Element("a", {
