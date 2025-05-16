@@ -199,9 +199,7 @@
   [sqr-neg (* (neg x) (neg x)) (* x x)]
   [sqr-abs (* (fabs x) (fabs x)) (* x x)]
   [sqr-abs-rev (* x x) (* (fabs x) (fabs x))]
-  [sqr-neg-rev (* x x) (* (neg x) (neg x))]
-  [sqrt-cbrt (sqrt (cbrt x)) (cbrt (sqrt x))] ; can be reached in 4 steps
-  [cbrt-sqrt (cbrt (sqrt x)) (sqrt (cbrt x))]) ; can be reached in 4 steps
+  [sqr-neg-rev (* x x) (* (neg x) (neg x))])
 
 ; Absolute value
 (define-rules arithmetic
@@ -266,8 +264,7 @@
   [add-log-exp x (log (exp x))]
   [add-exp-log x (exp (log x)) #:unsound] ; unsound @ x = 0
   [rem-exp-log (exp (log x)) x]
-  [rem-log-exp (log (exp x)) x]
-  [log-fabs (log x) (log (fabs x))]) ; range widening
+  [rem-log-exp (log (exp x)) x])
 
 (define-rules exponents
   [exp-0 (exp 0) 1]
