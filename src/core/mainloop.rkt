@@ -48,7 +48,7 @@
 
   (for ([iteration (in-range (*num-iterations*))]
         #:break (atab-completed? (^table^)))
-    (finish-iter!))
+    (finish-iter! (equal? iteration (sub1 (*num-iterations*)))))
   (define alternatives (extract!))
   (timeline-event! 'preprocess)
   (for/list ([altn alternatives])
@@ -224,11 +224,11 @@
   (^patched^ #f)
   (void))
 
-(define (finish-iter!)
+(define (finish-iter! taylor?)
   (unless (^next-alts^)
     (choose-alts!))
   (define locs (append-map (compose all-subexpressions alt-expr) (^next-alts^)))
-  (reconstruct! (generate-candidates (remove-duplicates locs)))
+  (reconstruct! (generate-candidates (remove-duplicates locs) taylor?))
   (finalize-iter!)
   (void))
 
