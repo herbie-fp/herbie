@@ -314,19 +314,23 @@
   (load-herbie-builtins)
 
   (define batch
-    (progs->batch (list '(-.f64 (sqrt.f64 (+.f64 x #s(literal 1 binary64))) (sqrt.f64 x)))))
+    (progs->batch (list '(-.f64 (sin.f64 (+.f64 x eps)) (sin.f64 x))
+                        '(sin.f64 (+.f64 x eps))
+                        '(+.f64 x eps)
+                        'x
+                        'eps
+                        '(sin.f64 x))))
 
   (define roots (batch-roots batch))
 
-  (*context* (make-debug-context '(x)))
+  (*context* (make-debug-context '(x eps)))
 
   (define reprs (make-list (vector-length (batch-roots batch)) (context-repr (*context*))))
 
   (define rules (*rules*))
   (define schedule
-    `((lift . ((iteration . 1) (scheduler . simple))) (,rules . ((node . ,(*node-limit*))))
-                                                      (lower . ((iteration . 1) (scheduler .
-                                                                                           simple)))))
+    `((lift . ((iteration . 1) (scheduler . simple)))
+      (,rules . ((node . ,(*node-limit*)) (scheduler . simple)))
+      (lower . ((iteration . 1) (scheduler . simple)))))
 
-  ; (run-egglog-multi-extractor (egglog-runner batch roots reprs schedule (*context*)) batch)
-  )
+  (run-egglog-multi-extractor (egglog-runner batch roots reprs schedule (*context*)) batch))
