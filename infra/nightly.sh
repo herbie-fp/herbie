@@ -4,7 +4,7 @@
 set -e -x
 
 # Ensure egglog is in the path
-export PATH="$PATH:/home/nightlies/.cargo/bin/"
+export PATH="$PATH:$HOME/.cargo/bin/"
 
 # Seed is fixed for the whole day; this way two branches run the same seed
 SEED=$(date "+%Y%j")

@@ -44,6 +44,10 @@
 
   (define egglog-file-path
     (let ([temp-file (make-temporary-file "program-to-egglog-~a.egg")])
+      ; temp-file is properly garbage collected if it exists
+      (when (file-exists? temp-file)
+        (delete-file temp-file))
+
       (with-output-to-file temp-file #:exists 'replace (lambda () (for-each writeln curr-program)))
       temp-file))
 
@@ -58,15 +62,16 @@
   ;; Run egglog and capture output
   (parameterize ([current-output-port stdout-port]
                  [current-error-port stderr-port])
-    (unless (system (format "~a ~a" egglog-path egglog-file-path))
-      (fprintf old-error-port "stdout-port ~a\n" (get-output-string stdout-port))
-      ; Tail the last 100 lines of the error instead of everything
-      (fprintf old-error-port
-               "stderr-port ~a\n"
-               (string-join (take-right (string-split (get-output-string stderr-port) "\n") 100)
-                            "\n"))
-      (fprintf old-error-port "incorrect program in ~a\n" egglog-file-path)
-      (error "Failed to execute egglog")))
+    (unless (system (format "RUST_BACKTRACE=1 ~a ~a" egglog-path egglog-file-path))
+      (begin
+        (fprintf old-error-port "stdout-port ~a\n" (get-output-string stdout-port))
+        ; Tail the last 100 lines of the error instead of everything
+        (fprintf old-error-port
+                 "stderr-port ~a\n"
+                 (string-join (take-right (string-split (get-output-string stderr-port) "\n") 100)
+                              "\n"))
+        (fprintf old-error-port "incorrect program in ~a\n" egglog-file-path)
+        (error "Failed to execute egglog"))))
 
   (delete-file egglog-file-path)
 
@@ -158,7 +163,12 @@
       (cons tag schedule-params)))
 
   ;; 3. Inserting expressions into the egglog program and getting a Listof (exprs . extract bindings)
-  (define extract-bindings (egglog-add-exprs insert-batch (egglog-runner-ctx runner) curr-program))
+  (define-values (all-bindings extract-bindings)
+    (egglog-add-exprs insert-batch (egglog-runner-ctx runner) curr-program))
+
+  (egglog-program-add! `(ruleset run-extract-commands) curr-program)
+  (egglog-program-add! `(rule () (,@all-bindings) :ruleset run-extract-commands) curr-program)
+  (egglog-program-add! `(run-schedule (repeat 1 run-extract-commands)) curr-program)
 
   ;; 4. Running the schedule : having code inside to emulate egraph-run-rules
 
@@ -169,7 +179,13 @@
   (for ([(tag schedule-params) (in-dict tag-schedule)])
     (match tag
       ['lifting (set! run-schedule (cons `(saturate lifting) run-schedule))]
-      ['lowering (set! run-schedule (cons `(saturate lowering) run-schedule))]
+      ['lowering
+       (set! run-schedule (cons `(saturate lowering) run-schedule))
+
+       (define const-fold-best-iter-limit
+         (egglog-unsound-detected curr-program 'const-fold schedule-params run-schedule))
+
+       (set! run-schedule (cons `(repeat ,const-fold-best-iter-limit const-fold) run-schedule))]
       [_
        ;; Get the best iter limit for the current ruleset tag
        (define best-iter-limit
@@ -180,10 +196,9 @@
   ;; Add the schedule to the program after reversing it
   (egglog-program-add! `(run-schedule ,@(reverse run-schedule)) curr-program)
 
-  ;; 5. Extraction -> should just need root ids
-  (egglog-program-add-list! (for/list ([binding extract-bindings])
-                              `(extract ,binding ,(*egglog-variants-limit*)))
-                            curr-program)
+  ;; 5. Extraction -> should just need constructor names from egglog-add-exprs
+  (for/list ([constructor-name extract-bindings])
+    (egglog-program-add! `(extract (,constructor-name) ,(*egglog-variants-limit*)) curr-program))
 
   ;; 6. After step-by-step building the program, process it
   ;; by running it using egglog
@@ -342,23 +357,39 @@
                 [from-string "0"]
                 [from-string "1"])
       )
+    (let ?one (bigrat
+               [from-string "1"]
+               [from-string "1"])
+      )
     (rewrite (Add (Num x) (Num y)) (Num (+ x y)) :ruleset const-fold)
     (rewrite (Sub (Num x) (Num y)) (Num (- x y)) :ruleset const-fold)
     (rewrite (Mul (Num x) (Num y)) (Num (* x y)) :ruleset const-fold)
+    ; TODO : Non-total operator
     ;(rule ((= e (Div (Num x) (Num y))) (!= ?zero y)) ((union e (Num (/ x y)))) :ruleset const-fold)
     (rewrite (Neg (Num x)) (Num (neg x)) :ruleset const-fold)
+    ;; Power rules -> only case missing is 0^0 making it non-total
+    ;; 0^y where y > 0
     (rule ((= e (Pow (Num x) (Num y))) (= ?zero x) (> y ?zero))
           ((union e (Num ?zero)))
           :ruleset
           const-fold)
+    ;; x^0 where x != 0
     (rule ((= e (Pow (Num x) (Num y))) (= ?zero y) (!= ?zero x))
           ((union e (Num (bigrat (from-string "1") (from-string "1")))))
           :ruleset
           const-fold)
+    ;; x^y when y is a whole number and y > 0 and x != 0
     (rule ((= e (Pow (Num x) (Num y))) (> y ?zero) (!= ?zero x) (= y (round y)))
           ((union e (Num (pow x y))))
           :ruleset
           const-fold)
+    ;; New rule according to Rust : x^y where y is not a whole number
+    (rule ((= e (Pow (Num x) (Num y))) (> y ?zero) (!= ?zero x) (!= y (round y)))
+          ((union e (Num (pow x (round y)))))
+          :ruleset
+          const-fold)
+    ;; Sqrt rules -> Non-total but egglog implementation handles it
+    (rule ((= e (Sqrt (Num n))) (sqrt n)) ((union e (Num (sqrt n)))) :ruleset const-fold)
     (rule ((= e (Log (Num x))) (= (numer x) (denom x))) ((union e (Num ?zero))) :ruleset const-fold)
     (rule ((= e (Cbrt (Num x))) (= (numer x) (denom x)))
           ((union e (Num (bigrat (from-string "1") (from-string "1")))))
@@ -694,42 +725,96 @@
 
     (egglog-program-add! curr-var-lifting-rule curr-program))
 
-  ; Var-spec-bindings
-  (for ([var (in-list (context-vars ctx))])
-    (define curr-var-spec-binding
-      `(let ,(string->symbol (format "?~a" var)) (Var ,(symbol->string var))))
+  (define all-bindings '())
+  (define binding->constructor (make-hash)) ; map from binding name to constructor name
 
-    (egglog-program-add! curr-var-spec-binding curr-program))
+  (define constructor-num 1)
+
+  ; ; Var-spec-bindings
+  (for ([var (in-list (context-vars ctx))])
+    ; Get the binding names for the program
+    (define binding-name (string->symbol (format "?~a" var)))
+    (define constructor-name (string->symbol (format "const~a" constructor-num)))
+    (hash-set! binding->constructor binding-name constructor-name)
+
+    ; Define the actual binding
+    (define curr-var-spec-binding `(let ,binding-name (Var ,(symbol->string var))))
+
+    ; Add the unique constructur to the program
+    (egglog-program-add! `(constructor ,constructor-name () M :unextractable) curr-program)
+
+    ; Add the binding and constructor set to all-bindings for the future rule
+    (set! all-bindings (cons curr-var-spec-binding all-bindings))
+    (set! all-bindings (cons `(set (,constructor-name) ,binding-name) all-bindings))
+
+    (set! constructor-num (add1 constructor-num)))
 
   ; Var-typed-bindings
   (for ([var (in-list (context-vars ctx))]
         [repr (in-list (context-var-reprs ctx))])
-    (define curr-var-typed-binding
-      `(let ,(string->symbol (format "?t~a" var))
-         (,(typed-var-id (representation-name repr)) ,(symbol->string var))))
+    ; Get the binding names for the program
+    (define binding-name (string->symbol (format "?t~a" var)))
+    (define constructor-name (string->symbol (format "const~a" constructor-num)))
+    (hash-set! binding->constructor binding-name constructor-name)
 
-    (egglog-program-add! curr-var-typed-binding curr-program))
+    ; Define the actual binding
+    (define curr-var-typed-binding
+      `(let ,binding-name (,(typed-var-id (representation-name repr)) ,(symbol->string var))))
+
+    ; Add the unique constructur to the program
+    (egglog-program-add! `(constructor ,constructor-name () MTy :unextractable) curr-program)
+
+    ; Add the binding and constructor set to all-bindings for the future rule
+    (set! all-bindings (cons curr-var-typed-binding all-bindings))
+    (set! all-bindings (cons `(set (,constructor-name) ,binding-name) all-bindings))
+
+    (set! constructor-num (add1 constructor-num)))
 
   ; Binding Exprs
   (for ([root? (in-vector root-mask)]
         [n (in-naturals)]
         #:when (not (hash-has-key? vars n)))
-    (define binding
+
+    (define binding-name
       (if root?
           (string->symbol (format "?r~a" n))
           (string->symbol (format "?b~a" n))))
 
-    (define curr-binding-exprs `(let ,binding ,(hash-ref bindings binding)))
+    (define constructor-name (string->symbol (format "const~a" constructor-num)))
+    (hash-set! binding->constructor binding-name constructor-name)
 
-    (egglog-program-add! curr-binding-exprs curr-program))
+    (define actual-binding (hash-ref bindings binding-name))
 
-  ; Only thing returned -> Extract Bindings
-  (for/list ([root (batch-roots batch)])
-    (if (hash-has-key? vars root)
-        (if (vector-ref spec-mask root)
-            (string->symbol (format "?~a" (hash-ref vars root)))
-            (string->symbol (format "?t~a" (hash-ref vars root))))
-        (string->symbol (format "?r~a" root)))))
+    (define curr-datatype
+      (match actual-binding
+        [(cons 'lower _) 'MTy]
+        [(cons 'lift _) 'M]
+
+        ;; TODO : fix this way of getting spec or impl
+        [_ (if root? 'MTy 'M)]))
+
+    (define curr-binding-exprs `(let ,binding-name ,actual-binding))
+
+    (egglog-program-add! `(constructor ,constructor-name () ,curr-datatype :unextractable)
+                         curr-program)
+
+    (set! all-bindings (cons curr-binding-exprs all-bindings))
+    (set! all-bindings (cons `(set (,constructor-name) ,binding-name) all-bindings))
+
+    (set! constructor-num (add1 constructor-num)))
+
+  (define curr-bindings
+    (for/list ([root (batch-roots batch)])
+      (define curr-binding-name
+        (if (hash-has-key? vars root)
+            (if (vector-ref spec-mask root)
+                (string->symbol (format "?~a" (hash-ref vars root)))
+                (string->symbol (format "?t~a" (hash-ref vars root))))
+            (string->symbol (format "?r~a" root))))
+
+      (hash-ref binding->constructor curr-binding-name)))
+
+  (values (reverse all-bindings) curr-bindings))
 
 (define (egglog-unsound-detected curr-program tag params current-schedule)
   (define node-limit (dict-ref params 'node (*node-limit*)))
