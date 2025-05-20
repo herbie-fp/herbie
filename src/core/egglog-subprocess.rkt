@@ -46,6 +46,7 @@
         (define expr (read egglog-output))
         ; (printf "expr : ~a\n" expr)
         expr))
+    ; (printf "reached out\n")
 
     result))
 
@@ -68,6 +69,8 @@
                                ; Reraise the exception
                                (raise exn))])
 
+    ; (printf "Sending to egglog: \n~a\n\n" commands)
+
     (displayln egglog-program egglog-in)
     (flush-output egglog-in)
 
@@ -76,12 +79,15 @@
 
     (let loop ()
       (define line (read-line egglog-output 'any))
+      ; (printf "line : ~a\n" line)
       (cond
         [(or (equal? line "true") (equal? line "false")) (set! sound (equal? line "true"))]
         [else
          (set! lines (cons line lines))
 
          (loop)]))
+
+    ; (printf "done\n")
 
     (values lines sound)))
 
@@ -157,10 +163,10 @@
   (close-output-port egglog-in)
   (close-input-port egglog-output)
 
-  (define err-results (read-string 1000 err))
+  ; (define err-results (read-string 1000 err))
   (close-input-port err)
 
-  (printf "Egglog logs:\n~a" err-results)
+  ; (printf "Egglog logs:\n~a" err-results)
 
   (subprocess-wait egglog-process)
 

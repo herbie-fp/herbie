@@ -133,7 +133,7 @@
 
 ;; Runs egglog using an egglog runner by extracting multiple variants
 (define (run-egglog-multi-extractor runner output-batch) ; multi expression extraction
-
+  (printf "Running egglog\n")
   (define insert-batch (batch-remove-zombie (egglog-runner-batch runner)))
   (define curr-program (make-egglog-program))
 
@@ -175,7 +175,7 @@
   (define-values (egglog-process egglog-output egglog-in err) (create-new-egglog-subprocess))
 
   (define log-out (open-output-file "egglog-stderr.log" #:mode 'text #:exists 'replace))
-  (thread (λ ()
+  (thread (lambda ()
             (for ([line (in-lines err)])
               (fprintf log-out "~a\n" line)
               (flush-output log-out))))
@@ -271,7 +271,7 @@
   ;; Close everything subprocess related
   (close-output-port egglog-in)
   (close-input-port egglog-output)
-  (close-input-port err)
+  ; (close-input-port err)
   (subprocess-wait egglog-process)
   (unless (eq? (subprocess-status egglog-process) 'done)
     (subprocess-kill egglog-process #f))
@@ -897,8 +897,9 @@
                '(extract (unsound))))
 
        ;; We actually care about the curr-output
-       ;  (define curr-output
-       ;    (send-to-egglog curr-schedule egglog-process egglog-output egglog-in err #:num-extracts 1))
+       ; (define curr-output
+       ;   (send-to-egglog curr-schedule egglog-process egglog-output egglog-in err #:num-extracts 1))
+       ; (define unsound? (equal? (list-ref curr-output 0) 'true))
 
        (define-values (node-values unsound?)
          (send-to-egglog-unsound-detection curr-schedule egglog-process egglog-output egglog-in err))
