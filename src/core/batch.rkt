@@ -1,7 +1,6 @@
 #lang racket
 
-(require "../utils/timeline.rkt"
-         "../syntax/syntax.rkt")
+(require "../syntax/syntax.rkt")
 
 (provide progs->batch ; (Listof Expr) -> Batch
          batch->progs ; Batch -> ?(or (Listof Root) (Vectorof Root)) -> (Listof Expr)
@@ -9,6 +8,7 @@
          (struct-out batchref) ; temporarily for patch.rkt
          (struct-out mutable-batch) ; temporarily for patch.rkt
          batch-length ; Batch -> Integer
+         batch-tree-size ; Batch -> Integer
          batch-ref ; Batch -> Idx -> Expr
          deref ; Batchref -> Expr
          batch-replace ; Batch -> (Expr<Batchref> -> Expr<Batchref>) -> Batch

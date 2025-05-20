@@ -3,6 +3,7 @@
 (require "../syntax/syntax.rkt"
          "../syntax/types.rkt"
          "../utils/float.rkt"
+         "../utils/timeline.rkt"
          "batch.rkt")
 
 (provide compile-progs
