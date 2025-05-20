@@ -44,10 +44,6 @@
 
   (define egglog-file-path
     (let ([temp-file (make-temporary-file "program-to-egglog-~a.egg")])
-      ; temp-file is properly garbage collected if it exists
-      (when (file-exists? temp-file)
-        (delete-file temp-file))
-
       (with-output-to-file temp-file #:exists 'replace (lambda () (for-each writeln curr-program)))
       temp-file))
 
@@ -163,6 +159,49 @@
       (cons tag schedule-params)))
 
   ;; 3. Inserting expressions into the egglog program and getting a Listof (exprs . extract bindings)
+
+  ;; Overview of the new extraction method:
+  ;;
+  ;; The idea is to wrap the top-level `let` bindings inside a rule, and then
+  ;; execute that rule to perform the computation and store results using constructors.
+  ;;
+  ;; In the original design, we had a sequence of `let` bindings followed by a schedule run and
+  ;; then we perform an extraction of the required bindings.
+  ;;
+  ;; The new design introduces unextractable constructors to hold each intermediate result.
+  ;; These constructors are used in combination with a rule that performs all the bindings
+  ;; and assigns them via `set`
+  ;;
+  ;;   (constructor const1 () Expr :unextractable)
+  ;;   (constructor const2 () Expr :unextractable)
+  ;;   (constructor const3 () Expr :unextractable)
+  ;;   ...
+  ;;
+  ;;   (ruleset init)
+  ;;
+  ;;   (rule () (
+  ;;     (let a1 ...)
+  ;;     (set (const1) a1)
+  ;;
+  ;;     (let a2 ...)
+  ;;     (set (const2) a2)
+  ;;
+  ;;     (let b1 ...)
+  ;;     (set (const3) b1)
+  ;;   )
+  ;;   :ruleset init)
+  ;;
+  ;;   (run init 1)
+  ;;   (extract (const1))
+  ;;   (extract (const2))
+  ;;   (extract (const3))
+  ;;
+  ;;
+  ;; The idea behind this updated design is to prevent egglog from constantly rebuilding which
+  ;; it does after every top level command. Hence, we wrap the top level bindings into the actions
+  ;; of a rule and make them accessible through their unique constructor. Therefore, we must
+  ;; keep track of the mapping between each binding and its corresponding constructor.
+
   (define-values (all-bindings extract-bindings)
     (egglog-add-exprs insert-batch (egglog-runner-ctx runner) curr-program))
 
@@ -180,12 +219,12 @@
     (match tag
       ['lifting (set! run-schedule (cons `(saturate lifting) run-schedule))]
       ['lowering
-       (set! run-schedule (cons `(saturate lowering) run-schedule))
-
        (define const-fold-best-iter-limit
          (egglog-unsound-detected curr-program 'const-fold schedule-params run-schedule))
 
-       (set! run-schedule (cons `(repeat ,const-fold-best-iter-limit const-fold) run-schedule))]
+       (set! run-schedule (cons `(repeat ,const-fold-best-iter-limit const-fold) run-schedule))
+
+       (set! run-schedule (cons `(saturate lowering) run-schedule))]
       [_
        ;; Get the best iter limit for the current ruleset tag
        (define best-iter-limit
@@ -858,9 +897,6 @@
        (define last-line (list-ref lines (- (length lines) 1)))
 
        (define total_nodes (calculate-nodes lines))
-
-       ;  (when (equal? last-line "true")
-       ;    (printf "ALERT : UNSOUNDNESS DETECTED when...\n"))
 
        ;; If Unsoundness detected or node-limit reached, then return the
        ;; optimal iter limit (one less than current)
