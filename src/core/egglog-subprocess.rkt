@@ -139,7 +139,8 @@
   (define-values (node-values unsound?)
     (send-to-egglog-unsound-detection print-size-commands egglog-process egglog-output egglog-in err))
 
-  (for ([line node-values] #:when (> (string-length line) 0))
+  (for ([line node-values]
+        #:when (> (string-length line) 0))
     (printf "Line : ~a\n" line)
     (printf "string? : ~a\n\n" (string? line)))
   (printf "\nUnsound : ~a\n\n" unsound?)
@@ -166,7 +167,6 @@
   (unless (eq? (subprocess-status egglog-process) 'done)
     (subprocess-kill egglog-process #f)))
 
-
 (define (calculate-nodes lines)
   ;; Don't start from last index, but previous to last index - as last has current unsoundness result
   (define process-lines
@@ -184,9 +184,9 @@
     (define parts (string-split line ":"))
 
     ;; Get num_nodes in number
-    (define num_nodes 
+    (define num_nodes
       (if (> (length parts) 0)
-        (string->number (string-trim (cadr parts)))
-        0))
+          (string->number (string-trim (cadr parts)))
+          0))
 
     (values (+ total_nodes num_nodes))))

@@ -897,13 +897,13 @@
                '(extract (unsound))))
 
        ;; We actually care about the curr-output
-      ;  (define curr-output
-      ;    (send-to-egglog curr-schedule egglog-process egglog-output egglog-in err #:num-extracts 1))
+       ;  (define curr-output
+       ;    (send-to-egglog curr-schedule egglog-process egglog-output egglog-in err #:num-extracts 1))
 
-      (define-values (node-values unsound?) 
-        (send-to-egglog-unsound-detection curr-schedule egglog-process egglog-output egglog-in err))
+       (define-values (node-values unsound?)
+         (send-to-egglog-unsound-detection curr-schedule egglog-process egglog-output egglog-in err))
 
-      (define total_nodes (calculate-nodes node-values))
+       (define total_nodes (calculate-nodes node-values))
 
        ;  (when unsound?
        ;    (printf "ALERT : UNSOUNDNESS DETECTED when...\n"))
@@ -988,10 +988,10 @@
 
     ;; Get num_nodes in number
     ; (define num_nodes (string->number (string-trim (cadr parts))))
-    (define num_nodes 
+    (define num_nodes
       (if (> (length parts) 0)
-        (string->number (string-trim (cadr parts)))
-        0))
+          (string->number (string-trim (cadr parts)))
+          0))
 
     (values (+ total_nodes num_nodes))))
 
