@@ -133,7 +133,6 @@
 
 ;; Runs egglog using an egglog runner by extracting multiple variants
 (define (run-egglog-multi-extractor runner output-batch) ; multi expression extraction
-  (printf "Running egglog\n")
   (define insert-batch (batch-remove-zombie (egglog-runner-batch runner)))
   (define curr-program (make-egglog-program))
 
@@ -174,11 +173,10 @@
   ;;;; SUBPROCESS START ;;;;
   (define-values (egglog-process egglog-output egglog-in err) (create-new-egglog-subprocess))
 
-  (define log-out (open-output-file "egglog-stderr.log" #:mode 'text #:exists 'replace))
   (thread (lambda ()
-            (for ([line (in-lines err)])
-              (fprintf log-out "~a\n" line)
-              (flush-output log-out))))
+            (with-handlers ([exn:fail? (lambda (_) (void))])
+              (for ([line (in-lines err)])
+                (void)))))
 
   ;; Send whatever we have so far to egglog
   ;; Expected no output anyways as there is no extraction
@@ -271,7 +269,7 @@
   ;; Close everything subprocess related
   (close-output-port egglog-in)
   (close-input-port egglog-output)
-  ; (close-input-port err)
+  (close-input-port err)
   (subprocess-wait egglog-process)
   (unless (eq? (subprocess-status egglog-process) 'done)
     (subprocess-kill egglog-process #f))
