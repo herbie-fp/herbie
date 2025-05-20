@@ -38,10 +38,10 @@
     [(mutable-batch? b) (hash-count (mutable-batch-index b))]
     [else (error 'batch-length "Invalid batch" b)]))
 
-(struct mutable-batch ([nodes #:mutable] [index #:mutable]))
+(struct mutable-batch ([nodes #:mutable] [index #:mutable] cache))
 
 (define (make-mutable-batch)
-  (mutable-batch '() (make-hash)))
+  (mutable-batch '() (make-hash) (make-hasheq)))
 
 (define (mutable-batch-push! b term)
   (define hashcons (mutable-batch-index b))
@@ -57,7 +57,7 @@
   (batch (list->vector (reverse (mutable-batch-nodes b))) roots))
 
 (define (batch->mutable-batch b)
-  (mutable-batch (reverse (vector->list (batch-nodes b))) (batch-restore-index b)))
+  (mutable-batch (reverse (vector->list (batch-nodes b))) (batch-restore-index b) (make-hasheq)))
 
 (define (batch-copy-mutable-nodes! b mb)
   (set-batch-nodes! b (list->vector (reverse (mutable-batch-nodes mb)))))
@@ -78,18 +78,15 @@
 (define (progs->batch exprs #:timeline-push [timeline-push #f] #:vars [vars '()])
 
   (define out (make-mutable-batch))
+
   (for ([var (in-list vars)])
     (mutable-batch-push! out var))
 
-  (define cache (make-hasheq))
+  (define roots
+    (for/vector #:length (length exprs)
+                ([expr (in-list exprs)])
+      (mutable-batch-munge! out expr)))
 
-  (define (munge prog)
-    (hash-ref! cache
-               prog
-               (lambda ()
-                 (mutable-batch-push! out (expr-recurse prog munge)))))
-
-  (define roots (list->vector (map munge exprs)))
   (define final (mutable-batch->batch out roots))
   (when timeline-push
     (timeline-push! 'compiler (batch-tree-size final) (batch-length final)))
@@ -108,8 +105,9 @@
     (+ total self-count)))
 
 (define (mutable-batch-munge! b expr)
+  (define cache (mutable-batch-cache b))
   (define (munge prog)
-    (mutable-batch-push! b (expr-recurse prog munge)))
+    (hash-ref! cache prog (lambda () (mutable-batch-push! b (expr-recurse prog munge)))))
   (munge expr))
 
 (define (batch->progs b [roots (batch-roots b)])
