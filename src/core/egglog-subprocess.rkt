@@ -1,5 +1,8 @@
 #lang racket
-(require racket/string)
+
+(provide create-new-egglog-subprocess
+         send-to-egglog
+         send-to-egglog-unsound-detection)
 
 (define egglog-path
   (or (find-executable-path "egglog") (error "egglog executable not found in PATH")))
@@ -9,68 +12,97 @@
 
   (values egglog-process egglog-output egglog-in err))
 
-(define (send-to-egglog commands egglog-process egglog-output egglog-in err)
+(define (send-to-egglog commands
+                        egglog-process
+                        egglog-output
+                        egglog-in
+                        err
+                        #:num-extracts [num-extracts 0])
+
   (define egglog-program (apply ~s #:separator "\n" commands))
 
   (with-handlers ([exn:fail? (lambda (exn)
-                               ; Handle the exception - print diagnostic info and re-raise
                                (printf "Egglog command failed with exception:\n~a\n"
                                        (exn-message exn))
 
-                               (define stdout-output (read-available-output egglog-output))
-                               (define stderr-output (read-available-output err))
+                               (define stdout-output (port->string egglog-output))
+                               (define stderr-output (port->string err))
 
                                (printf "Stdout:\n~a\n" stdout-output)
                                (printf "Stderr:\n~a\n" stderr-output)
 
-                               ; Kill process if still running
                                (when (not (subprocess-status egglog-process))
                                  (subprocess-kill egglog-process #t))
 
-                               ; Re-raise the exception
+                               ; Reraise the exception
+                               (raise exn))])
+
+    ; (printf "Sending to egglog: \n~a\n\n" egglog-program)
+    (displayln egglog-program egglog-in)
+    (flush-output egglog-in)
+
+    (define result
+      (for/list ([i (in-range num-extracts)])
+        (define expr (read egglog-output))
+        ; (printf "expr : ~a\n" expr)
+        expr))
+
+    result))
+
+(define (send-to-egglog-unsound-detection commands egglog-process egglog-output egglog-in err)
+  (define egglog-program (apply ~s #:separator "\n" commands))
+
+  (with-handlers ([exn:fail? (lambda (exn)
+                               (printf "Egglog command failed with exception:\n~a\n"
+                                       (exn-message exn))
+
+                               (define stdout-output (port->string egglog-output))
+                               (define stderr-output (port->string err))
+
+                               (printf "Stdout:\n~a\n" stdout-output)
+                               (printf "Stderr:\n~a\n" stderr-output)
+
+                               (when (not (subprocess-status egglog-process))
+                                 (subprocess-kill egglog-process #t))
+
+                               ; Reraise the exception
                                (raise exn))])
 
     (displayln egglog-program egglog-in)
     (flush-output egglog-in)
-    (sleep 0.1)
 
-    (define partial-output (read-available-output egglog-output))
-    (define output-lines (string-split partial-output "\n"))
+    (define lines '())
+    (define sound #t)
 
-    (for ([line (in-list output-lines)])
-      (printf "Line: ~a\n" line))
+    (let loop ()
+      (define line (read-line egglog-output 'any))
+      (cond
+        [(or (equal? line "true") (equal? line "false")) (set! sound (equal? line "true"))] ; done
+        [else
+         (set! lines (cons line lines))
 
-    ; (printf "Egglog error:\n~a" (read-available-output err))
+         (loop)]))
 
-    output-lines))
-
-(define (close-subprocess egglog-process egglog-output egglog-in err)
-  (close-output-port egglog-in)
-  (close-input-port egglog-output)
-  (close-input-port err)
-
-  (subprocess-wait egglog-process)
-
-  (unless (eq? (subprocess-status egglog-process) 'done)
-    (subprocess-kill egglog-process #f)))
-
-(define (read-available-output port)
-  (define out '())
-  (let loop ()
-    (if (char-ready? port)
-        (begin
-          (set! out (cons (read-char port) out))
-          (loop))
-        (list->string (reverse out)))))
+    (values lines sound)))
 
 (module+ test
   (require rackunit)
+
+  (define-values (egglog-process egglog-output egglog-in err) (create-new-egglog-subprocess))
+
+  (thread (λ ()
+            (for ([line (in-lines err)])
+              (printf "[egglog-log] ~a\n" line))))
 
   (define first-commands
     (list '(datatype Expr (Var String :cost 150) (Add Expr Expr :cost 200))
           '(constructor const1 () Expr :unextractable)
           '(constructor const2 () Expr :unextractable)
           '(constructor const3 () Expr :unextractable)
+          '(function unsound () bool :merge (or old new))
+          '(ruleset unsound-rule)
+          '(set (unsound) false)
+          '(rule ((= (Num c1) (Num c2)) (!= c1 c2)) ((set (unsound) true)) :ruleset unsound-rule)
           '(ruleset init)
           '(rule ()
                  ((let a1 (Var
@@ -88,17 +120,35 @@
                   (set (const3) b1))
                  :ruleset
                  init)
-          '(run init 1)
-          '(extract (const1))))
+          '(run init 1)))
 
-  (define second-commands (list '(extract (const2)) '(extract (const3))))
+  ; Nothing to output
+  (send-to-egglog first-commands egglog-process egglog-output egglog-in err)
 
-  (define-values (egglog-process egglog-output egglog-in err) (create-new-egglog-subprocess))
+  ; Has extract 1 thing
+  (define second-commands (list '(extract (const1))))
 
-  (define lines1 (send-to-egglog first-commands egglog-process egglog-output egglog-in err))
+  (define lines1
+    (send-to-egglog second-commands egglog-process egglog-output egglog-in err #:num-extracts 1))
   (printf "\noutput-vals1 : ~a\n\n" lines1)
 
-  (define lines2 (send-to-egglog second-commands egglog-process egglog-output egglog-in err))
+  ;; Print size
+
+  (define print-size-commands (list '(print-size) '(run unsound-rule 1) '(extract (unsound))))
+
+  (define-values (ps-thing sound?)
+    (send-to-egglog-unsound-detection print-size-commands egglog-process egglog-output egglog-in err))
+
+  (for ([line ps-thing] #:when (> (string-length line) 0))
+    (printf "Line : ~a\n" line)
+    (printf "string? : ~a\n\n" (string? line)))
+  (printf "\nSound : ~a\n\n" sound?)
+
+  ;; last two
+  (define third-commands (list '(extract (const2)) '(extract (const3))))
+
+  (define lines2
+    (send-to-egglog third-commands egglog-process egglog-output egglog-in err #:num-extracts 2))
   (printf "\noutput-vals2 : ~a\n\n" lines2)
 
   (close-output-port egglog-in)
@@ -112,7 +162,4 @@
   (subprocess-wait egglog-process)
 
   (unless (eq? (subprocess-status egglog-process) 'done)
-    (subprocess-kill egglog-process #f))
-
-  ;   (close-subprocess egglog-process egglog-output egglog-in err)
-  )
+    (subprocess-kill egglog-process #f)))
