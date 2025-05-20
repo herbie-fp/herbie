@@ -68,6 +68,7 @@
 (FPCore (x)
  :name "2cbrt (problem 3.3.4)"
  :pre (and (> x 1) (< x 1e+308))
+ :herbie-expected 2.5
  :alt 
  (! :herbie-platform c
   (/ 1 (+ (* (cbrt (+ x 1)) (cbrt (+ x 1))) (* (cbrt x) (cbrt (+ x 1))) (* (cbrt x) (cbrt x)))))
