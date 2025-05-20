@@ -83,19 +83,29 @@
 
   (define cache (make-hasheq))
 
-  (define size 0)
   (define (munge prog)
     (hash-ref! cache
                prog
                (lambda ()
-                 (set! size (+ 1 size))
                  (mutable-batch-push! out (expr-recurse prog munge)))))
 
   (define roots (list->vector (map munge exprs)))
   (define final (mutable-batch->batch out roots))
   (when timeline-push
-    (timeline-push! 'compiler size (batch-length final)))
+    (timeline-push! 'compiler (batch-tree-size final) (batch-length final)))
   final)
+
+(define (batch-tree-size b)
+  (define len (vector-length (batch-nodes b)))
+  (define counts (make-vector len 0))
+  (for ([root (in-vector (batch-roots b))])
+    (vector-set! counts root (+ 1 (vector-ref counts root))))
+  (for/fold ([total 0])
+            ([i (in-range (- len 1) -1 -1)]
+             [node (in-vector (batch-nodes b) (- len 1) -1 -1)])
+    (define self-count (vector-ref counts i))
+    (expr-recurse node (lambda (n) (vector-set! counts n (+ self-count (vector-ref counts n)))))
+    (+ total self-count)))
 
 (define (mutable-batch-munge! b expr)
   (define (munge prog)
