@@ -77,7 +77,7 @@
     (let loop ()
       (define line (read-line egglog-output 'any))
       (cond
-        [(or (equal? line "true") (equal? line "false")) (set! sound (equal? line "true"))] ; done
+        [(or (equal? line "true") (equal? line "false")) (set! sound (equal? line "true"))]
         [else
          (set! lines (cons line lines))
 
@@ -136,13 +136,15 @@
 
   (define print-size-commands (list '(print-size) '(run unsound-rule 1) '(extract (unsound))))
 
-  (define-values (ps-thing sound?)
+  (define-values (node-values unsound?)
     (send-to-egglog-unsound-detection print-size-commands egglog-process egglog-output egglog-in err))
 
-  (for ([line ps-thing] #:when (> (string-length line) 0))
+  (for ([line node-values] #:when (> (string-length line) 0))
     (printf "Line : ~a\n" line)
     (printf "string? : ~a\n\n" (string? line)))
-  (printf "\nSound : ~a\n\n" sound?)
+  (printf "\nUnsound : ~a\n\n" unsound?)
+
+  (printf "num-nodes : ~a\n" (calculate-nodes node-values))
 
   ;; last two
   (define third-commands (list '(extract (const2)) '(extract (const3))))
@@ -163,3 +165,28 @@
 
   (unless (eq? (subprocess-status egglog-process) 'done)
     (subprocess-kill egglog-process #f)))
+
+
+(define (calculate-nodes lines)
+  ;; Don't start from last index, but previous to last index - as last has current unsoundness result
+  (define process-lines
+    (reverse (if (empty? lines)
+                 lines ;; Has no nodes or first iteration
+                 (take lines (- (length lines) 1)))))
+
+  ;; Break when we reach the previous unsoundness result -> NOTE: "true" should technically never be reached
+  (for/fold ([total_nodes 0]) ([line (in-list process-lines)])
+    #:break (or (equal? line "true") (equal? line "false"))
+
+    ;; We need to add the total number of nodes for this one of the format
+    ;; "node_name : num_nodes"
+    ;; break up into (list node_name num_nodes) with spaces
+    (define parts (string-split line ":"))
+
+    ;; Get num_nodes in number
+    (define num_nodes 
+      (if (> (length parts) 0)
+        (string->number (string-trim (cadr parts)))
+        0))
+
+    (values (+ total_nodes num_nodes))))

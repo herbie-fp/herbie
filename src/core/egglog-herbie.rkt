@@ -268,6 +268,14 @@
 
   (batch-copy-mutable-nodes! output-batch output-mutable-batch)
 
+  ;; Close everything subprocess related
+  (close-output-port egglog-in)
+  (close-input-port egglog-output)
+  (close-input-port err)
+  (subprocess-wait egglog-process)
+  (unless (eq? (subprocess-status egglog-process) 'done)
+    (subprocess-kill egglog-process #f))
+
   ;; (Listof (Listof batchref))
   result)
 
@@ -884,26 +892,25 @@
        (define curr-schedule
          (list '(push)
                `(run-schedule (repeat 1 ,tag))
-               ;  '(print-size) TODO node limit
+               '(print-size) ;; TODO node limit
                '(run unsound-rule 1)
                '(extract (unsound))))
 
        ;; We actually care about the curr-output
-       (define curr-output
-         (send-to-egglog curr-schedule egglog-process egglog-output egglog-in err #:num-extracts 1))
+      ;  (define curr-output
+      ;    (send-to-egglog curr-schedule egglog-process egglog-output egglog-in err #:num-extracts 1))
 
-       (define last-line (list-ref curr-output 0))
+      (define-values (node-values unsound?) 
+        (send-to-egglog-unsound-detection curr-schedule egglog-process egglog-output egglog-in err))
 
-       ;  (define total_nodes (calculate-nodes curr-output))
+      (define total_nodes (calculate-nodes node-values))
 
-       ;  (when (equal? last-line "true")
+       ;  (when unsound?
        ;    (printf "ALERT : UNSOUNDNESS DETECTED when...\n"))
 
        ;; If Unsoundness detected or node-limit reached, then return the
        ;; optimal iter limit (one less than current)
-       (if (or (equal? last-line 'true) #f ; (> total_nodes node-limit)
-               )
-
+       (if (or unsound? (> total_nodes node-limit))
            (begin
              ;; First pop state then send
              (send-to-egglog (list '(pop)) egglog-process egglog-output egglog-in err)
@@ -980,7 +987,11 @@
     (define parts (string-split line ":"))
 
     ;; Get num_nodes in number
-    (define num_nodes (string->number (string-trim (cadr parts))))
+    ; (define num_nodes (string->number (string-trim (cadr parts))))
+    (define num_nodes 
+      (if (> (length parts) 0)
+        (string->number (string-trim (cadr parts)))
+        0))
 
     (values (+ total_nodes num_nodes))))
 
