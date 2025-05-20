@@ -30,7 +30,7 @@
     [_ expr]))
 
 ;; Batches store these recursive structures, flattened
-(struct batch ([nodes #:mutable] [roots #:mutable] vars))
+(struct batch ([nodes #:mutable] [roots #:mutable]))
 
 (define (batch-length b)
   (cond
@@ -38,10 +38,10 @@
     [(mutable-batch? b) (hash-count (mutable-batch-index b))]
     [else (error 'batch-length "Invalid batch" b)]))
 
-(struct mutable-batch ([nodes #:mutable] [index #:mutable] [vars #:mutable]))
+(struct mutable-batch ([nodes #:mutable] [index #:mutable]))
 
 (define (make-mutable-batch)
-  (mutable-batch '() (make-hash) '()))
+  (mutable-batch '() (make-hash)))
 
 (define (mutable-batch-push! b term)
   (define hashcons (mutable-batch-index b))
@@ -51,23 +51,19 @@
                (define new-idx (hash-count hashcons))
                (hash-set! hashcons term new-idx)
                (set-mutable-batch-nodes! b (cons term (mutable-batch-nodes b)))
-               (when (symbol? term)
-                 (set-mutable-batch-vars! b (cons term (mutable-batch-vars b))))
                new-idx)))
 
 (define (mutable-batch->batch b roots)
-  (batch (list->vector (reverse (mutable-batch-nodes b))) roots (reverse (mutable-batch-vars b))))
+  (batch (list->vector (reverse (mutable-batch-nodes b))) roots))
 
 (define (batch->mutable-batch b)
-  (mutable-batch (reverse (vector->list (batch-nodes b)))
-                 (batch-restore-index b)
-                 (reverse (batch-vars b))))
+  (mutable-batch (reverse (vector->list (batch-nodes b))) (batch-restore-index b)))
 
 (define (batch-copy-mutable-nodes! b mb)
   (set-batch-nodes! b (list->vector (reverse (mutable-batch-nodes mb)))))
 
 (define (batch-copy b)
-  (batch (vector-copy (batch-nodes b)) (vector-copy (batch-roots b)) (batch-vars b)))
+  (batch (vector-copy (batch-nodes b)) (vector-copy (batch-roots b))))
 
 (struct batchref (batch idx))
 
@@ -146,20 +142,19 @@
      (define zombie-mask (make-vector nodes-length #t))
      (for ([root (in-vector roots)])
        (vector-set! zombie-mask root #f))
-     (for ([node (in-vector nodes (- nodes-length 1) -1 -1)]
-           [zmb (in-vector zombie-mask (- nodes-length 1) -1 -1)]
-           #:when (not zmb))
-       (expr-recurse node (λ (n) (vector-set! zombie-mask n #f))))
+     (for ([i (in-range (- nodes-length 1) -1 -1)]
+           [node (in-vector nodes (- nodes-length 1) -1 -1)]
+           [zmb (in-vector zombie-mask (- nodes-length 1) -1 -1)])
+       (when (and keep-vars (symbol? node))
+         (vector-set! zombie-mask i #f))
+       (unless zmb
+         (expr-recurse node (λ (n) (vector-set! zombie-mask n #f)))))
 
      (define mappings (make-vector nodes-length -1))
      (define (remap idx)
        (vector-ref mappings idx))
 
      (define out (make-mutable-batch))
-     (when keep-vars
-       (for ([var (in-list (batch-vars input-batch))])
-         (mutable-batch-push! out var)))
-
      (for ([node (in-vector nodes)]
            [zmb (in-vector zombie-mask)]
            [n (in-naturals)]
@@ -205,7 +200,7 @@
 (module+ test
   (require rackunit)
   (define (zombie-test #:nodes nodes #:roots roots)
-    (define in-batch (batch nodes roots '()))
+    (define in-batch (batch nodes roots))
     (define out-batch (batch-remove-zombie in-batch))
     (check-equal? (batch->progs out-batch) (batch->progs in-batch))
     (batch-nodes out-batch))

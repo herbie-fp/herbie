@@ -192,8 +192,8 @@
 
 (define (execute-proof proof terms)
   (for/fold ([terms (simplify-conditions terms)]) ([step (in-list proof)])
-    (match step
-      [`(implies ,a ,b) (simplify-conditions (map (curryr rewrite-all a b) terms))])))
+    (match-define `(implies ,a ,b) step)
+    (simplify-conditions (map (curryr rewrite-all a b) terms))))
 
 (define (rewrite-unsound? lhs rhs [proof '()])
   (define lhs-bad (execute-proof proof (undefined-conditions lhs)))
