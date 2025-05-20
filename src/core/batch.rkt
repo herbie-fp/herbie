@@ -75,22 +75,17 @@
   (match-define (batchref b idx) x)
   (batch-ref b idx))
 
-(define (progs->batch exprs #:timeline-push [timeline-push #f] #:vars [vars '()])
-
+(define (progs->batch exprs #:vars [vars '()])
   (define out (make-mutable-batch))
 
   (for ([var (in-list vars)])
     (mutable-batch-push! out var))
-
   (define roots
     (for/vector #:length (length exprs)
                 ([expr (in-list exprs)])
       (mutable-batch-munge! out expr)))
 
-  (define final (mutable-batch->batch out roots))
-  (when timeline-push
-    (timeline-push! 'compiler (batch-tree-size final) (batch-length final)))
-  final)
+  (mutable-batch->batch out roots))
 
 (define (batch-tree-size b)
   (define len (vector-length (batch-nodes b)))
