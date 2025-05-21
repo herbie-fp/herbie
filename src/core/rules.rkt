@@ -175,7 +175,7 @@
 
 (define-rules arithmetic
   [fake-sub (+ a b) (+ (- a b) (* 2 b))]
-  [fake-add (- a b) (- (+ a b) (* 2 a))]
+  [fake-add (- a b) (- (+ a b) (* 2 b))]
   [fake-div (* a b) (* (/ a b) (pow b 2)) #:unsound] ; unsound @ b = 0, a = 1
   [fake-mult (/ a b) (/ (* a b) (pow b 2))])
 
