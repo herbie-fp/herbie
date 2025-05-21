@@ -3,6 +3,7 @@
 (require "../syntax/syntax.rkt"
          "../syntax/types.rkt"
          "../utils/float.rkt"
+         "../utils/timeline.rkt"
          "batch.rkt")
 
 (provide compile-progs
@@ -65,7 +66,9 @@
   (define batch
     (if (batch? exprs)
         exprs
-        (progs->batch exprs #:timeline-push #t #:vars vars)))
+        (progs->batch exprs #:vars vars)))
+
+  (timeline-push! 'compiler (batch-tree-size batch) (batch-length batch))
 
   ; Here we need to keep vars even though no roots refer to the vars
   (define batch* (batch-remove-zombie (batch-remove-approx batch) #:keep-vars #t))
