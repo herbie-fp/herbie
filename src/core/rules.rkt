@@ -163,9 +163,9 @@
 
 ; Fractions
 (define-rules arithmetic
-  [sum-to-mult (+ a b) (* (+ 1 (/ b a)) a) #:unsound]
+  [sum-to-mult (+ a b) (* (+ 1 (/ b a)) a) #:unsound] ; unsound @ a = 0, b = 1
   [sum-to-mult-rev (* (+ 1 (/ b a)) a) (+ a b)]
-  [sub-to-mult (- a b) (* (- 1 (/ b a)) a) #:unsound]
+  [sub-to-mult (- a b) (* (- 1 (/ b a)) a) #:unsound] ; unsound @ a = 0, b = 1
   [sub-to-mult-rev (* (- 1 (/ b a)) a) (- a b)]
   [add-to-fraction (+ c (/ b a)) (/ (+ (* c a) b) a)]
   [add-to-fraction-rev (/ (+ (* c a) b) a) (+ c (/ b a))]
@@ -176,8 +176,8 @@
 (define-rules arithmetic
   [fake-sub (+ a b) (+ (- a b) (* 2 b))]
   [fake-add (- a b) (- (+ a b) (* 2 a))]
-  [fake-div (* a b) (* (/ a b) (pow b 2)) #:unsound]
-  [fake-mult (/ a b) (/ (* a b) (pow b 2)) #:unsound])
+  [fake-div (* a b) (* (/ a b) (pow b 2)) #:unsound] ; unsound @ b = 0, a = 1
+  [fake-mult (/ a b) (/ (* a b) (pow b 2))])
 
 (define-rules polynomials
   [sqr-pow (pow a b) (* (pow a (/ b 2)) (pow a (/ b 2))) #:unsound] ; unsound @ a = -1, b = 1
