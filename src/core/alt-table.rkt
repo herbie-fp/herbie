@@ -187,7 +187,7 @@
                [alt->cost (hash-remove* alt->cost altns)]))
 
 (define (atab-eval-altns atab altns ctx)
-  (define batch (progs->batch (map alt-expr altns) #:timeline-push #t #:vars (context-vars ctx)))
+  (define batch (progs->batch (map alt-expr altns) #:vars (context-vars ctx)))
   (define errss (batch-errors batch (alt-table-pcontext atab) ctx))
   (define costs (alt-batch-cost batch (context-repr ctx)))
   (values errss costs))
