@@ -1,6 +1,7 @@
 #lang racket
 
-(require "../syntax/syntax.rkt")
+(require "../syntax/syntax.rkt"
+         "../utils/common.rkt")
 
 (provide progs->batch ; (Listof Expr) -> Batch
          batch->progs ; Batch -> ?(or (Listof Root) (Vectorof Root)) -> (Listof Expr)
@@ -90,14 +91,11 @@
 (define (batch-tree-size b)
   (define len (vector-length (batch-nodes b)))
   (define counts (make-vector len 0))
-  (for ([root (in-vector (batch-roots b))])
-    (vector-set! counts root (+ 1 (vector-ref counts root))))
-  (for/fold ([total 0])
-            ([i (in-range (- len 1) -1 -1)]
-             [node (in-vector (batch-nodes b) (- len 1) -1 -1)])
-    (define self-count (vector-ref counts i))
-    (expr-recurse node (lambda (n) (vector-set! counts n (+ self-count (vector-ref counts n)))))
-    (+ total self-count)))
+  (for ([i (in-naturals)]
+        [node (in-vector (batch-nodes b))])
+    (define args (reap [sow] (expr-recurse node sow)))
+    (vector-set! counts i (apply + 1 (map (curry vector-ref counts) args))))
+  (apply + (map (curry vector-ref counts) (vector->list (batch-roots b)))))
 
 (define (mutable-batch-munge! b expr)
   (define cache (mutable-batch-cache b))
