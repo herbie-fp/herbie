@@ -161,6 +161,7 @@
   [div-flip (/ a b) (/ 1 (/ b a)) #:unsound] ; unsound @ a = 0, b != 0
   [div-flip-rev (/ 1 (/ b a)) (/ a b)])
 
+; Fractions
 (define-rules arithmetic
   [sum-to-mult (+ a b) (* (+ 1 (/ b a)) a) #:unsound]
   [sum-to-mult-rev (* (+ 1 (/ b a)) a) (+ a b)]
@@ -171,6 +172,12 @@
   [sub-to-fraction (- c (/ b a)) (/ (- (* c a) b) a)]
   [sub-to-fraction-rev (/ (- (* c a) b) a) (- c (/ b a))]
   [common-denominator (+ (/ a b) (/ c d)) (/ (+ (* a d) (* c b)) (* b d))])
+
+(define-rules arithmetic
+  [fake-sub (+ a b) (+ (- a b) (* 2 b))]
+  [fake-add (- a b) (- (+ a b) (* 2 a))]
+  [fake-div (* a b) (* (/ a b) (pow b 2)) #:unsound]
+  [fake-mult (/ a b) (/ (* a b) (pow b 2)) #:unsound])
 
 (define-rules polynomials
   [sqr-pow (pow a b) (* (pow a (/ b 2)) (pow a (/ b 2))) #:unsound] ; unsound @ a = -1, b = 1
