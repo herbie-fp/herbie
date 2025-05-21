@@ -173,12 +173,6 @@
   [sub-to-fraction-rev (/ (- (* c a) b) a) (- c (/ b a))]
   [common-denominator (+ (/ a b) (/ c d)) (/ (+ (* a d) (* c b)) (* b d))])
 
-(define-rules arithmetic
-  [fake-sub (+ a b) (+ (- a b) (* 2 b))]
-  [fake-add (- a b) (- (+ a b) (* 2 b))]
-  [fake-div (* a b) (* (/ a b) (pow b 2)) #:unsound] ; unsound @ b = 0, a = 1
-  [fake-mult (/ a b) (/ (* a b) (pow b 2))])
-
 (define-rules polynomials
   [sqr-pow (pow a b) (* (pow a (/ b 2)) (pow a (/ b 2))) #:unsound] ; unsound @ a = -1, b = 1
   [flip-+ (+ a b) (/ (- (* a a) (* b b)) (- a b)) #:unsound] ; unsound @ a = b = 1
