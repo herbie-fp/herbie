@@ -239,6 +239,10 @@
   [sqrt-undiv (/ (sqrt x) (sqrt y)) (sqrt (/ x y))])
 
 (define-rules arithmetic
+  [sqrt-prod-sound (sqrt (* (fabs x) y)) (* (sqrt (fabs x)) (sqrt y))]
+  [sqrt-div-left-sound-left (sqrt (/ (fabs x) y)) (/ (sqrt (fabs x)) (sqrt y))]
+  [sqrt-div-left-sound-right (sqrt (/ x (fabs y))) (/ (sqrt x) (sqrt (fabs y)))]
+  [add-sqr-sqrt-sound (fabs x) (* (sqrt (fabs x)) (sqrt (fabs x)))]
   [sqrt-prod (sqrt (* x y)) (* (sqrt x) (sqrt y)) #:unsound] ; unsound @ x = y = -1
   [sqrt-div (sqrt (/ x y)) (/ (sqrt x) (sqrt y)) #:unsound] ; unsound @ x = y = -1
   [add-sqr-sqrt x (* (sqrt x) (sqrt x)) #:unsound]) ; unsound @ x = -1
@@ -341,6 +345,7 @@
   [pow-neg (pow a (neg b)) (/ 1 (pow a b)) #:unsound]) ; unsound @ a = 0, b = -1
 
 (define-rules exponents
+  [pow-to-exp-sound (pow (fabs a) b) (exp (* (log (fabs a)) b))]
   [pow-to-exp (pow a b) (exp (* (log a) b)) #:unsound] ; unsound @ a = -1, b = 1
   [pow-add (pow a (+ b c)) (* (pow a b) (pow a c)) #:unsound] ; unsound @ a = -1, b = c = 1/2
   [pow-sub (pow a (- b c)) (/ (pow a b) (pow a c)) #:unsound] ; unsound @ a = -1, b = c = 1/2
@@ -353,6 +358,10 @@
   [log-pow-rev (* b (log a)) (log (pow a b))])
 
 (define-rules exponents
+  [log-prod-sound (log (* (fabs a) b)) (+ (log (fabs a)) (log b))]
+  [log-div-left-sound (log (/ (fabs a) b)) (- (log (fabs a)) (log b))]
+  [log-div-right-sound (log (/ a (fabs b))) (- (log a) (log (fabs b)))]
+  [log-pow-sound (log (pow (fabs a) b)) (* b (log (fabs a)))]
   [log-prod (log (* a b)) (+ (log a) (log b)) #:unsound] ; unsound @ a = b = -1
   [log-div (log (/ a b)) (- (log a) (log b)) #:unsound] ; unsound @ a = b = -1
   [log-pow (log (pow a b)) (* b (log a)) #:unsound]) ; unsound @ a = -1, b = 2
