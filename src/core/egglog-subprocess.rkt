@@ -46,7 +46,7 @@
         (define expr (read egglog-output))
         ; (printf "expr : ~a\n" expr)
         expr))
-    ; (printf "reached out\n")
+    ; (printf "reached out\n\n")
 
     result))
 
@@ -87,7 +87,7 @@
 
          (loop)]))
 
-    ; (printf "done\n")
+    ; (printf "done\n\n")
 
     (values lines sound)))
 

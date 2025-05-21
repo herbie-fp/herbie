@@ -186,48 +186,38 @@
 
   ; run-schedule specifies the schedule of rulesets to saturate the egraph
   ; For performance, it stores the schedule in reverse order, and is reversed at the end
-  (define run-schedule '())
 
   (for ([(tag schedule-params) (in-dict tag-schedule)])
     (match tag
       ['lifting
-       (define lift-run-schedule (list '(run-schedule (saturate lifting))))
-
-       ; dont care about output
-       (send-to-egglog lift-run-schedule egglog-process egglog-output egglog-in err)]
+       (send-to-egglog (list '(run-schedule (saturate lifting)))
+                       egglog-process
+                       egglog-output
+                       egglog-in
+                       err)]
 
       ['lowering
-       (define lower-run-schedule (list '(run-schedule (saturate lowering))))
-
-       ; dont care about output
-       (send-to-egglog lower-run-schedule egglog-process egglog-output egglog-in err)
-
-       ;  (define const-fold-best-iter-limit
-       ;    (egglog-unsound-detected curr-program 'const-fold schedule-params run-schedule))
-
-       ;  (set! run-schedule (cons `(repeat ,const-fold-best-iter-limit const-fold) run-schedule))
-
        (egglog-unsound-detected-subprocess 'const-fold
                                            schedule-params
                                            egglog-process
                                            egglog-output
                                            egglog-in
-                                           err)]
-      [_
-       ;  ;; Get the best iter limit for the current ruleset tag
-       ;  (define best-iter-limit
-       ;    (egglog-unsound-detected curr-program tag schedule-params run-schedule))
+                                           err)
 
-       ;  (set! run-schedule (cons `(repeat ,best-iter-limit ,tag) run-schedule))
+       (send-to-egglog (list '(run-schedule (saturate lowering)))
+                       egglog-process
+                       egglog-output
+                       egglog-in
+                       err)]
+
+      [_
+       ;; Get the best iter limit for the current ruleset tag
        (egglog-unsound-detected-subprocess tag
                                            schedule-params
                                            egglog-process
                                            egglog-output
                                            egglog-in
                                            err)]))
-
-  ;; Add the schedule to the program after reversing it
-  ; (egglog-program-add! `(run-schedule ,@(reverse run-schedule)) curr-program)
 
   ;; 5. Extraction -> should just need constructor names from egglog-add-exprs
   (define extract-commands
