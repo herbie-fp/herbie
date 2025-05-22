@@ -95,14 +95,15 @@
         [n (in-vector (batch-nodes b))])
     (define fv
       (match n
-        [_ #:when (equal? i except-index) (set)]
+        [_
+         #:when (equal? i except-index)
+         (set)]
         [(? symbol?) (set n)]
         [(? number?) (set)]
         [(? literal?) (set)]
         [(approx _ impl) (vector-ref out impl)]
         [(hole _ _) (set)]
-        [(list op args ...)
-         (apply set-union (set) (map (curry vector-ref out) args))]))
+        [(list op args ...) (apply set-union (set) (map (curry vector-ref out) args))]))
     (vector-set! out i fv))
   out)
 
