@@ -442,8 +442,10 @@
                                 `(tr (td ,(~a key) (td ,(~a val)))))))))
 
 (define (render-phase-counts alts)
-  (match-define (list (list inputs outputs)) alts)
-  `((dt "Counts") (dd ,(~r inputs #:group-sep " ") " → " ,(~r outputs #:group-sep " "))))
+  `((dt "Counts")
+    ,@(for/list ([rec (in-list alts)])
+        (match-define (list inputs outputs) alts)
+        `(dd ,(~r inputs #:group-sep " ") " → " ,(~r outputs #:group-sep " ")))))
 
 (define (render-phase-alts alts)
   `((dt "Alt Table")
