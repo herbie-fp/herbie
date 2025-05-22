@@ -39,45 +39,6 @@
 ; - rationals
 ; - string
 
-;; High-level function that writes the program to a file, runs it then returns output
-(define (process-egglog program)
-  (define curr-program (get-current-program program))
-
-  (define egglog-file-path
-    (let ([temp-file (make-temporary-file "program-to-egglog-~a.egg")])
-      ; temp-file is properly garbage collected if it exists
-      (when (file-exists? temp-file)
-        (delete-file temp-file))
-
-      (with-output-to-file temp-file #:exists 'replace (lambda () (for-each writeln curr-program)))
-      temp-file))
-
-  (define egglog-path
-    (or (find-executable-path "egglog") (error "egglog executable not found in PATH")))
-
-  (define stdout-port (open-output-string))
-  (define stderr-port (open-output-string))
-
-  (define old-error-port (current-error-port))
-
-  ;; Run egglog and capture output
-  (parameterize ([current-output-port stdout-port]
-                 [current-error-port stderr-port])
-    (unless (system (format "RUST_BACKTRACE=1 ~a ~a" egglog-path egglog-file-path))
-      (begin
-        (fprintf old-error-port "stdout-port ~a\n" (get-output-string stdout-port))
-        ; Tail the last 100 lines of the error instead of everything
-        (fprintf old-error-port
-                 "stderr-port ~a\n"
-                 (string-join (take-right (string-split (get-output-string stderr-port) "\n") 100)
-                              "\n"))
-        (fprintf old-error-port "incorrect program in ~a\n" egglog-file-path)
-        (error "Failed to execute egglog"))))
-
-  (delete-file egglog-file-path)
-
-  (cons (get-output-string stdout-port) (get-output-string stderr-port)))
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Public API
 ;; Most calls to egglog should be done through this interface.
@@ -197,12 +158,21 @@
                        err)]
 
       ['lowering
-       (egglog-unsound-detected-subprocess 'const-fold
-                                           schedule-params
-                                           egglog-process
-                                           egglog-output
-                                           egglog-in
-                                           err)
+       ;; TODO: Move this to saturating after math rules
+       (define-values (num-iters run-again?)
+         (egglog-unsound-detected-subprocess 'const-fold
+                                             schedule-params
+                                             egglog-process
+                                             egglog-output
+                                             egglog-in
+                                             err))
+
+       (when run-again?
+         (send-to-egglog (list `(run-schedule (repeat ,num-iters ,tag)))
+                         egglog-process
+                         egglog-output
+                         egglog-in
+                         err))
 
        (send-to-egglog (list '(run-schedule (saturate lowering)))
                        egglog-process
@@ -212,12 +182,20 @@
 
       [_
        ;; Get the best iter limit for the current ruleset tag
-       (egglog-unsound-detected-subprocess tag
-                                           schedule-params
-                                           egglog-process
-                                           egglog-output
-                                           egglog-in
-                                           err)]))
+       (define-values (num-iters run-again?)
+         (egglog-unsound-detected-subprocess tag
+                                             schedule-params
+                                             egglog-process
+                                             egglog-output
+                                             egglog-in
+                                             err))
+       ;  (printf "num-iters : ~a\n" num-iters)
+       (when run-again?
+         (send-to-egglog (list `(run-schedule (repeat ,num-iters ,tag)))
+                         egglog-process
+                         egglog-output
+                         egglog-in
+                         err))]))
 
   ;; 5. Extraction -> should just need constructor names from egglog-add-exprs
   (define extract-commands
@@ -866,98 +844,83 @@
   ;; 5. If (unsound) function returns "true", we have unsoundless, so go to Step 9 for ROLLBACK
   ;; 6. Run (print-size) to get nodes of the form "node_name : num_nodes" for all nodes in egraph
   ;; 7. If the total number of nodes is more than node-limit, so go to Step 9 for ROLLBACK
-  ;; 8. Increment curr-iter by 1, and if it has not reach iter-limit, restart from Step 1
+  ;; 8. Increment curr-iter by 1, and if it has not reach iter-limit, restart from Step 2
   ;; 9. If we reach the ROLLBACK stage, the optimal number of iterations for this ruleset is one
   ;;    below current. Therefore, we run (POP) to ROLLBACK to the last valid state.
+  ;;    Then run the whole thing one last time from the ideal number of iterations
+  ;; TODO : add const-fold somewhere
+
+  ; Saturation detection by verifying the previous number of nodes and nw ones
+  (define prev-number-nodes -1)
+
+  ;; First push
+  (send-to-egglog (list '(push)) egglog-process egglog-output egglog-in err)
 
   ;; Loop to check unsoundness
   (let loop ([curr-iter 1])
     (cond
-      [(> curr-iter iter-limit) (values iter-limit)] ; Note we do NOT (pop) here
+      ; Note we do NOT (pop) here
+      ; Return that we do not need to run again because we did not pop
+      [(> curr-iter iter-limit) (values iter-limit #f)]
       [else
-       ;; Follow algorithm and run the ruleset once more
 
-       (define curr-schedule
-         (list '(push)
-               `(run-schedule (repeat 1 ,tag))
-               '(print-size) ;; TODO node limit
+       ;; Run the ruleset once more
+       (define math-rules-schedule
+         (list `(run-schedule (repeat 1 ,tag))
+               '(print-size)
                '(run unsound-rule 1)
                '(extract (unsound))))
 
-       ;; We actually care about the curr-output
-       ; (define curr-output
-       ;   (send-to-egglog curr-schedule egglog-process egglog-output egglog-in err #:num-extracts 1))
-       ; (define unsound? (equal? (list-ref curr-output 0) 'true))
+       ;; Get egglog output
+       (define-values (exit-detect? total-nodes)
+         (get-egglog-output math-rules-schedule
+                            egglog-process
+                            egglog-output
+                            egglog-in
+                            err
+                            node-limit))
 
-       (define-values (node-values unsound?)
-         (send-to-egglog-unsound-detection curr-schedule egglog-process egglog-output egglog-in err))
+       (cond
+         ;; TODO: Do I need to check only "equal?" or do I check "<". Can that even happen? Also do
+         ;;       we even do this check when saturating const-fold or do we only run this for
+         ;;        math rules?
+         ;;
+         ;;  Check for saturation we verify the number of nodes stayed the same from a previous iteration
+         ;;  If so, return the iter-limit and do not need to run again
+         [(equal? total-nodes prev-number-nodes) (values curr-iter #f)]
 
-       (define total_nodes (calculate-nodes node-values))
+         ;; If Unsoundness detected or node-limit reached, then return the
+         ;; optimal iter limit (one less than current)
+         [exit-detect?
+          ;; Pop once at the end since the egraph isn't valid
+          (send-to-egglog (list '(pop)) egglog-process egglog-output egglog-in err)
 
-       ;  (when unsound?
-       ;    (printf "ALERT : UNSOUNDNESS DETECTED when...\n"))
+          ;; Return one less than current iteration and indicate that we need to run again because pop
+          (values (sub1 curr-iter) #t)]
 
-       ;; If Unsoundness detected or node-limit reached, then return the
-       ;; optimal iter limit (one less than current)
-       (if (or unsound? (> total_nodes node-limit))
-           (begin
-             ;; First pop state then send
-             (send-to-egglog (list '(pop)) egglog-process egglog-output egglog-in err)
-             (sub1 curr-iter))
+         ;; Continue to next iteration of the math rules
+         [else
+          ;; set for the next iteration
+          (set! prev-number-nodes total-nodes)
 
-           (loop (add1 curr-iter)))])))
+          (loop (add1 curr-iter))])])))
 
-(define (egglog-unsound-detected curr-program tag params current-schedule)
-  (define node-limit (dict-ref params 'node (*node-limit*)))
-  (define iter-limit (dict-ref params 'iteration (*default-egglog-iter-limit*)))
+(define (get-egglog-output curr-schedule egglog-process egglog-output egglog-in err node-limit)
+  (define-values (node-values unsound?)
+    (send-to-egglog-unsound-detection curr-schedule egglog-process egglog-output egglog-in err))
 
-  ;; Make a copy here too so that we don't modify our original clean copy
-  (define temp-program (egglog-program-copy curr-program))
+  ;  (when unsound?
+  ;    (printf "ALERT : UNSOUNDNESS DETECTED when...\n"))
 
-  ;; Algorithm:
-  ;; 1. Saturate lifting and lowering
-  ;; 2. Repeat rules based on their ruleset tag once
-  ;; 3. Run the unsound-rule function ruleset once
-  ;; 4. Extract the (unsound) function that returns a bool
-  ;; 5. If (unsound) function returns "true", we have unsoundless -> optimal iter limit is one below this
-  ;; 6. Run (print-size) to get nodes of the form "node_name : num_nodes" for all nodes in egraph
-  ;; 7. If the total number of nodes is more than node-limit -> optimal iter limit is one below this
-  ;; 8. Increment until we hit above consition or iter-limit
+  (define total_nodes (calculate-nodes node-values))
 
-  ;; TODO : const-fold
-  ;; Add lifting and lowering to the schedule that we know will exist
+  ;; There are 3 cases when we can exit the unsound detection
+  ;;  1. Unsoundness is detected in the egraph
+  ;;  2. We have reached or exceeded the set node limit
+  ;;  3. Saturation check which is done in parent function
+  (define exit-detect? (or unsound? (>= total_nodes node-limit)))
 
-  ;; Reverse the run-schedule before adding to the program
-  (egglog-program-add! `(run-schedule ,@(reverse current-schedule)) temp-program)
-
-  ;; Loop to check unsoundness
-  (let loop ([curr-iter 1])
-    (cond
-      [(> curr-iter iter-limit) (values iter-limit)]
-      [else
-       ;; Run the ruleset once more
-       (egglog-program-add! `(run-schedule (repeat 1 ,tag)) temp-program)
-       (egglog-program-add! `(print-size) temp-program)
-       (egglog-program-add! `(run unsound-rule 1) temp-program)
-       (egglog-program-add! `(extract (unsound)) temp-program)
-
-       ;; Extract returned value
-       (define egglog-output (process-egglog temp-program))
-
-       (define stdout-content (car egglog-output))
-       (define lines (string-split (string-trim stdout-content) "\n"))
-       (define last-line (list-ref lines (- (length lines) 1)))
-
-       (define total_nodes (calculate-nodes lines))
-
-       ;  (when (equal? last-line "true")
-       ;    (printf "ALERT : UNSOUNDNESS DETECTED when...\n"))
-
-       ;; If Unsoundness detected or node-limit reached, then return the
-       ;; optimal iter limit (one less than current)
-       (if (or (equal? last-line "true") (> total_nodes node-limit))
-           (sub1 curr-iter)
-           (loop (add1 curr-iter)))])))
+  (values exit-detect? total_nodes))
 
 (define (calculate-nodes lines)
   ;; Don't start from last index, but previous to last index - as last has current unsoundness result

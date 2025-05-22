@@ -7,7 +7,9 @@
 (define egglog-path
   (or (find-executable-path "egglog") (error "egglog executable not found in PATH")))
 
+;; High-level function that writes the program to a file, runs it then returns output
 (define (create-new-egglog-subprocess)
+  ; TODO : "RUST_BACKTRACE=1"
   (define-values (egglog-process egglog-output egglog-in err) (subprocess #f #f #f egglog-path))
 
   (values egglog-process egglog-output egglog-in err))
@@ -75,13 +77,13 @@
     (flush-output egglog-in)
 
     (define lines '())
-    (define sound #t)
+    (define unsound? #t) ; maybe make it false
 
     (let loop ()
       (define line (read-line egglog-output 'any))
       ; (printf "line : ~a\n" line)
       (cond
-        [(or (equal? line "true") (equal? line "false")) (set! sound (equal? line "true"))]
+        [(or (equal? line "true") (equal? line "false")) (set! unsound? (equal? line "true"))]
         [else
          (set! lines (cons line lines))
 
@@ -89,7 +91,7 @@
 
     ; (printf "done\n\n")
 
-    (values lines sound)))
+    (values lines unsound?)))
 
 (module+ test
   (require rackunit)

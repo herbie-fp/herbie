@@ -173,7 +173,7 @@
 (define *egglog-variants-limit* (make-parameter 1000000))
 
 ;; The number of iterations for the egglog search
-(define *default-egglog-iter-limit* (make-parameter 10))
+(define *default-egglog-iter-limit* (make-parameter 50))
 
 ;;; About Herbie:
 
