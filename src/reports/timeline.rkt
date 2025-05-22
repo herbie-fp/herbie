@@ -443,7 +443,7 @@
 
 (define (render-phase-counts alts)
   `((dt "Counts") ,@(for/list ([rec (in-list alts)])
-                      (match-define (list inputs outputs) alts)
+                      (match-define (list inputs outputs) rec)
                       `(dd ,(~r inputs #:group-sep " ") " → " ,(~r outputs #:group-sep " ")))))
 
 (define (render-phase-alts alts)
