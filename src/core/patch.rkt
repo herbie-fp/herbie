@@ -29,7 +29,6 @@
 
 (define (taylor-alts starting-exprs altns global-batch)
   (define specs (map prog->spec starting-exprs))
-  (define spec-string (~a specs)) ; TODO: make output more useful somehow
   (define free-vars (map free-variables specs))
   (define vars (context-vars (*context*)))
 
@@ -38,7 +37,7 @@
         (for* ([var (in-list vars)]
                [transform-type transforms-to-try])
           (match-define (list name f finv) transform-type)
-          (define timeline-stop! (timeline-start! 'series spec-string (~a var) (~a name)))
+          (define timeline-stop! (timeline-start! 'series (~a var) (~a name)))
           (define genexprs (approximate specs var #:transform (cons f finv)))
           (for ([genexpr (in-list genexprs)]
                 [spec (in-list specs)]
