@@ -5,6 +5,8 @@
          "../utils/float.rkt"
          "../utils/timeline.rkt"
          "../syntax/types.rkt"
+         "../syntax/syntax.rkt"
+         "batch.rkt"
          "compiler.rkt"
          "points.rkt"
          "programs.rkt")
@@ -26,6 +28,7 @@
      (fprintf port "#<option ~a>" (option-split-indices opt)))])
 
 (define (pareto-regimes sorted ctx)
+  (timeline-event! 'regimes)
   (define err-lsts (batch-errors (map alt-expr sorted) (*pcontext*) ctx))
   (define branches
     (if (null? sorted)
@@ -51,7 +54,6 @@
 ;; can insert a timeline break between them.
 
 (define (infer-splitpoints branch-exprs alts err-lsts* #:errs [cerrs (hash)] ctx)
-  (timeline-event! 'regimes)
   (timeline-push! 'inputs (map (compose ~a alt-expr) alts))
   (define sorted-bexprs
     (sort branch-exprs (lambda (x y) (< (hash-ref cerrs x -1) (hash-ref cerrs y -1)))))
@@ -87,31 +89,50 @@
   (timeline-push! 'oracle (errors-score (map (curry apply max) err-lsts)))
   (values best errs))
 
+(define (batch-free-vars b #:except [except-index #f])
+  (define out (make-vector (batch-length b)))
+  (for ([i (in-naturals)]
+        [n (in-vector (batch-nodes b))])
+    (define fv
+      (match n
+        [_ #:when (equal? i except-index) (set)]
+        [(? symbol?) (set n)]
+        [(? number?) (set)]
+        [(? literal?) (set)]
+        [(approx _ impl) (vector-ref out impl)]
+        [(hole _ _) (set)]
+        [(list op args ...)
+         (apply set-union (map (curry vector-ref out) args))]))
+    (vector-set! out i fv))
+  out)
+
+(define (batch-critical-subexpressions b)
+  (define basic-fv (batch-free-vars b))
+  (define start-root (vector-ref (batch-roots b) 0))
+  (reap [sow]
+        (for ([i (in-naturals)]
+              [n (in-vector (batch-nodes b))])
+          (define cut-fv (batch-free-vars b #:except i))
+          (define critical?
+            ;; We can only binary search if the branch expression is
+            ;; critical for some of the alts and also for the start
+            ;; program.
+            (and (not (set-empty? (vector-ref basic-fv i)))
+                 (set-disjoint? (vector-ref basic-fv i) (vector-ref cut-fv start-root))
+                 (for/or ([root (in-vector (batch-roots b) 1)])
+                   (set-disjoint? (vector-ref basic-fv i) (vector-ref cut-fv start-root)))))
+          (when critical?
+            (sow i)))))
+
+(define ((has-real-repr? ctx) e)
+  (equal? (representation-type (repr-of e ctx)) 'real))
+
 (define (exprs-to-branch-on alts ctx)
-  (define alt-critexprs
-    (for/list ([alt (in-list alts)])
-      (all-critical-subexpressions (alt-expr alt) ctx)))
-  (define start-critexprs (all-critical-subexpressions (*start-prog*) ctx))
-  ;; We can only binary search if the branch expression is critical
-  ;; for all of the alts and also for the start prgoram.
-  (filter (λ (e) (equal? (representation-type (repr-of e ctx)) 'real))
-          (set-intersect start-critexprs (apply set-union alt-critexprs))))
-
-;; Requires that expr is not a λ expression
-(define (critical-subexpression? expr subexpr)
-  (define crit-vars (free-variables subexpr))
-  (define replaced-expr (replace-expression expr subexpr 1))
-  (define non-crit-vars (free-variables replaced-expr))
-  (and (not (null? crit-vars)) (set-disjoint? crit-vars non-crit-vars)))
-
-;; Requires that prog is a λ expression
-(define (all-critical-subexpressions expr ctx)
-  ;; We append all variables here in case of (λ (x y) 0) or similar,
-  ;; where the variables do not appear in the body but are still worth
-  ;; splitting on
-  (for/list ([subexpr (set-union (context-vars ctx) (all-subexpressions expr))]
-             #:when (critical-subexpression? expr subexpr))
-    subexpr))
+  (define all-exprs (cons (*start-prog*) (map alt-expr alts)))
+  (define b (progs->batch all-exprs #:vars (context-vars ctx)))
+  (define crits (batch-critical-subexpressions b))
+  (define crit-exprs (batch->progs (batch (batch-nodes b) (list->vector crits))))
+  (filter (has-real-repr? ctx) crit-exprs))
 
 (define (option-on-expr alts err-lsts expr ctx)
   (define timeline-stop! (timeline-start! 'times (~a expr)))
