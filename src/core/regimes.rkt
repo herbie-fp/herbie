@@ -111,14 +111,14 @@
   (define start-root (vector-ref (batch-roots b) 0))
   (reap [sow]
         (for ([i (in-naturals)]
-              [n (in-vector (batch-nodes b))])
+              [n (in-vector (batch-nodes b))]
+              #:unless (set-empty? (vector-ref basic-fv i)))
           (define cut-fv (batch-free-vars b #:except i))
           (define critical?
             ;; We can only binary search if the branch expression is
             ;; critical for some of the alts and also for the start
             ;; program.
-            (and (not (set-empty? (vector-ref basic-fv i)))
-                 (set-disjoint? (vector-ref basic-fv i) (vector-ref cut-fv start-root))
+            (and (set-disjoint? (vector-ref basic-fv i) (vector-ref cut-fv start-root))
                  (for/or ([root (in-vector (batch-roots b) 1)])
                    (set-disjoint? (vector-ref basic-fv i) (vector-ref cut-fv start-root)))))
           (when critical?
