@@ -123,10 +123,8 @@
 
   ; Starting alternatives
   (define start-altns
-    (for/list ([expr (in-list exprs)]
-               [root (in-vector (batch-roots global-batch))])
-      (define repr (repr-of expr (*context*)))
-      (alt (batchref global-batch root) (list 'patch expr repr) '() '())))
+    (for/list ([root (in-vector (batch-roots global-batch))])
+      (alt (batchref global-batch root) 'patch '() '())))
 
   ; Series expand
   (define approximations
