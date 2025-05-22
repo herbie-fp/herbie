@@ -97,7 +97,7 @@
       (match n
         [_
          #:when (equal? i except-index)
-         (set)]
+         (list)]
         [(? symbol?) (list n)]
         [(? number?) (list)]
         [(? literal?) (list)]
