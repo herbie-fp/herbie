@@ -102,7 +102,7 @@
         [(approx _ impl) (vector-ref out impl)]
         [(hole _ _) (set)]
         [(list op args ...)
-         (apply set-union (map (curry vector-ref out) args))]))
+         (apply set-union (set) (map (curry vector-ref out) args))]))
     (vector-set! out i fv))
   out)
 
