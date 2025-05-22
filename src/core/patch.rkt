@@ -59,8 +59,7 @@
   (timeline-push! 'inputs (map ~a starting-exprs))
 
   (define (key x)
-    (define approx-pt (batchref-idx (alt-expr x)))
-    (approx-impl (vector-ref (batch-nodes global-batch) approx-pt)))
+    (approx-impl (deref (alt-expr x))))
 
   (define approxs (remove-duplicates (taylor-alts starting-exprs altns global-batch) #:key key))
 
@@ -138,4 +137,4 @@
         (run-rr (append start-altns approximations) global-batch)
         '()))
 
-  (remove-duplicates rewritten #:key (λ (x) (batchref-idx (alt-expr x)))))
+  (remove-duplicates rewritten #:key alt-expr))
