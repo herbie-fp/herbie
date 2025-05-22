@@ -75,8 +75,6 @@
 
   ; generate required rules
   (define rules (*rules*))
-  (define lifting-rules (platform-lifting-rules))
-  (define lowering-rules (platform-lowering-rules))
 
   ; egg schedule (3-phases for mathematical rewrites and implementation selection)
   (define schedule
