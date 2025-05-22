@@ -98,12 +98,12 @@
         [_
          #:when (equal? i except-index)
          (set)]
-        [(? symbol?) (set n)]
-        [(? number?) (set)]
-        [(? literal?) (set)]
+        [(? symbol?) (list n)]
+        [(? number?) (list)]
+        [(? literal?) (list)]
         [(approx _ impl) (vector-ref out impl)]
-        [(hole _ _) (set)]
-        [(list op args ...) (apply set-union (set) (map (curry vector-ref out) args))]))
+        [(hole _ _) (list)]
+        [(list op args ...) (apply set-union (list) (map (curry vector-ref out) args))]))
     (vector-set! out i fv))
   out)
 
