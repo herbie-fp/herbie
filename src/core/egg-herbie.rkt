@@ -66,7 +66,6 @@
                eg-data
                [egraph-pointer (egraph_copy (egraph-data-egraph-pointer eg-data))]))
 
-
 ; Adds expressions returning the root ids
 (define (egraph-add-exprs egg-data batch roots ctx)
   (match-define (egraph-data ptr id->spec) egg-data)

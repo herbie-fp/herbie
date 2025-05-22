@@ -46,7 +46,6 @@
     [(list 'if cond ift iff) (repr-of-node batch ift ctx)]
     [(list op args ...) (impl-info op 'otype)]))
 
-
 (define (all-subexpressions expr #:reverse? [reverse? #f])
   (define subexprs
     (reap [sow]
