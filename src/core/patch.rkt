@@ -87,7 +87,7 @@
   (define batchrefss
     (if (flag-set? 'generate 'egglog)
         (run-egglog-multi-extractor runner global-batch)
-        (egraph-variations runner global-batch)))
+        (egraph-best runner global-batch)))
 
   ; apply changelists
   (define rewritten
