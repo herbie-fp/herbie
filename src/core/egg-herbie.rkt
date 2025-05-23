@@ -316,6 +316,27 @@
            (list 'if (loop cond (get-representation 'bool)) (loop ift type) (loop iff type))
            (list 'if (loop cond 'bool) (loop ift type) (loop iff type)))]
       [(list (? impl-exists? impl) args ...) (cons impl (map loop args (impl-info impl 'itype)))]
+      [(list (or 'special-sqrt
+                 'special-log
+                 'special-exp
+                 'special-pow
+                 'special-+
+                 'special--
+                 'special-/
+                 'special-*
+                 'special-tan
+                 'special-atan
+                 'special-cos
+                 'special-cosh
+                 'special-sin
+                 'special-neg
+                 'special-sinh
+                 'special-acosh
+                 'special-asinh
+                 'special-tanh)
+             args ...)
+       (define op (string->symbol (string-replace (symbol->string (car expr)) "special-" "")))
+       (cons op (map loop args (map (const 'real) args)))]
       [(list op args ...) (cons op (map loop args (operator-info op 'itype)))])))
 
 ;; Parses a string from egg into a single S-expr.
@@ -551,6 +572,25 @@
      (cond
        [(eq? f '$approx) (platform-reprs (*active-platform*))]
        [(eq? f 'if) (all-reprs/types)]
+       [(or (eq? f 'special-tan)
+            (eq? f 'special-atan)
+            (eq? f 'special-cos)
+            (eq? f 'special-cosh)
+            (eq? f 'special-sin)
+            (eq? f 'special-neg)
+            (eq? f 'special-sinh)
+            (eq? f 'special-acosh)
+            (eq? f 'special-asinh)
+            (eq? f 'special-tanh)
+            (eq? f 'special-sqrt)
+            (eq? f 'special-log)
+            (eq? f 'special-exp)
+            (eq? f 'special-pow)
+            (eq? f 'special-+)
+            (eq? f 'special--)
+            (eq? f 'special-/)
+            (eq? f 'special-*))
+        (list 'real)]
        [(impl-exists? f) (list (impl-info f 'otype))]
        [else (list (operator-info f 'otype))])]))
 
@@ -574,6 +614,31 @@
               (get-representation 'bool)
               'bool))
         (list 'if (lookup cond cond-type) (lookup ift type) (lookup iff type))]
+       [(or (eq? f 'special-atan)
+            (eq? f 'special-tan)
+            (eq? f 'special-cos)
+            (eq? f 'special-cosh)
+            (eq? f 'special-sin)
+            (eq? f 'special-neg)
+            (eq? f 'special-sinh)
+            (eq? f 'special-acosh)
+            (eq? f 'special-asinh)
+            (eq? f 'special-tanh)
+            (eq? f 'special-sqrt)
+            (eq? f 'special-log)
+            (eq? f 'special-exp))
+        (define a (u32vector-ref ids 0))
+        (define op (string->symbol (string-replace (symbol->string f) "special-" "")))
+        (list op (lookup a 'real))]
+       [(or (eq? f 'special-pow)
+            (eq? f 'special-+)
+            (eq? f 'special--)
+            (eq? f 'special-/)
+            (eq? f 'special-*))
+        (define a (u32vector-ref ids 0))
+        (define b (u32vector-ref ids 1))
+        (define op (string->symbol (string-replace (symbol->string f) "special-" "")))
+        (list op (lookup a 'real) (lookup b 'real))]
        [else
         (define itypes
           (if (impl-exists? f)
