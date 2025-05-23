@@ -228,8 +228,8 @@
   [div-fabs (/ (fabs a) (fabs b)) (fabs (/ a b))]
   [sqrt-fabs (fabs (sqrt a)) (sqrt a)]
   [sqrt-fabs-rev (sqrt a) (fabs (sqrt a))]
-  [fabs-lhs-div (/ (fabs x) x) (copysign 1 x) #;(/ x (fabs x))]
-  [fabs-rhs-div (/ x (fabs x)) (copysign 1 x) #;(/ (fabs x) x)]
+  [fabs-lhs-div (/ (fabs x) x) (copysign 1 x)]
+  [fabs-rhs-div (/ x (fabs x)) (copysign 1 x)]
   [fabs-cbrt (fabs (/ (cbrt a) a)) (/ (cbrt a) a)]
   [fabs-cbrt-rev (/ (cbrt a) a) (fabs (/ (cbrt a) a))])
 
@@ -273,8 +273,8 @@
   [cbrt-neg-rev (neg (cbrt x)) (cbrt (neg x))]
   [cbrt-fabs (cbrt (fabs x)) (fabs (cbrt x))]
   [cbrt-fabs-rev (fabs (cbrt x)) (cbrt (fabs x))]
-  [cbrt-div-cbrt (/ (cbrt x) (fabs (cbrt x))) (copysign 1 x) #;(/ x (fabs x))]
-  [cbrt-div-cbrt2 (/ (fabs (cbrt x)) (cbrt x)) (copysign 1 x) #;(/ (fabs x) x)])
+  [cbrt-div-cbrt (/ (cbrt x) (fabs (cbrt x))) (copysign 1 x)]
+  [cbrt-div-cbrt2 (/ (fabs (cbrt x)) (cbrt x)) (copysign 1 x)])
 
 ; Exponentials
 (define-rules exponents
