@@ -66,7 +66,7 @@
 (define (batch-copy b)
   (batch (vector-copy (batch-nodes b)) (vector-copy (batch-roots b))))
 
-(struct batchref (batch idx))
+(struct batchref (batch idx) #:transparent)
 
 (define (deref x)
   (match-define (batchref b idx) x)

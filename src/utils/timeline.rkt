@@ -206,7 +206,7 @@
 (define-timeline mixsample [time +] [function false] [precision false])
 (define-timeline rules [rule false] [count +])
 (define-timeline times [time +] [input false])
-(define-timeline series [time +] [expr false] [var false] [transform false])
+(define-timeline series [time +] [var false] [transform false])
 (define-timeline compiler [before +] [after +])
 (define-timeline outcomes [time +] [prec false] [category false] [count +])
 (define-timeline accuracy [accuracy])
