@@ -26,6 +26,7 @@
      (fprintf port "#<option ~a>" (option-split-indices opt)))])
 
 (define (pareto-regimes sorted ctx)
+  (timeline-event! 'regimes)
   (define err-lsts (batch-errors (map alt-expr sorted) (*pcontext*) ctx))
   (define branches
     (if (null? sorted)
@@ -51,7 +52,6 @@
 ;; can insert a timeline break between them.
 
 (define (infer-splitpoints branch-exprs alts err-lsts* #:errs [cerrs (hash)] ctx)
-  (timeline-event! 'regimes)
   (timeline-push! 'inputs (map (compose ~a alt-expr) alts))
   (define sorted-bexprs
     (sort branch-exprs (lambda (x y) (< (hash-ref cerrs x -1) (hash-ref cerrs y -1)))))
