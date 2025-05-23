@@ -63,11 +63,42 @@
     (approx-impl (deref (alt-expr x))))
 
   (define approxs (remove-duplicates (taylor-alts altns global-batch) #:key key))
+  (define approxs* (run-lowering approxs global-batch))
 
-  (timeline-push! 'outputs (map ~a (map (compose debatchref alt-expr) approxs)))
-  (timeline-push! 'count (length altns) (length approxs))
+  (timeline-push! 'outputs (map ~a (map (compose debatchref alt-expr) approxs*)))
+  (timeline-push! 'count (length altns) (length approxs*))
 
-  approxs)
+  approxs*)
+
+(define (run-lowering altns global-batch)
+  (define schedule `((lower . ((iteration . 1) (scheduler . simple)))))
+
+  ; run egg
+  (define exprs (map (compose debatchref alt-expr) altns))
+  (define input-batch (progs->batch exprs))
+
+  (define roots (list->vector (map (compose batchref-idx alt-expr) altns)))
+  (define reprs (map (curryr repr-of (*context*)) exprs))
+
+  (define runner
+    (if (flag-set? 'generate 'egglog)
+        (make-egglog-runner input-batch (batch-roots input-batch) reprs schedule)
+        (make-egraph global-batch roots reprs schedule)))
+
+  (define batchrefss
+    (if (flag-set? 'generate 'egglog)
+        (run-egglog-multi-extractor runner global-batch)
+        (egraph-best runner global-batch)))
+
+  ; apply changelists
+  (define rewritten
+    (reap [sow]
+          (for ([batchrefs (in-list batchrefss)]
+                [altn (in-list altns)])
+            (for ([batchref* (in-list batchrefs)])
+              (sow (alt batchref* (list 'rr runner #f) (list altn) '()))))))
+
+  rewritten)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Recursive Rewrite ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -135,7 +166,7 @@
   ; Recursive rewrite
   (define rewritten
     (if (flag-set? 'generate 'rr)
-        (run-rr (append start-altns approximations) global-batch)
+        (run-rr start-altns global-batch)
         '()))
 
-  (remove-duplicates rewritten #:key alt-expr))
+  (remove-duplicates (append rewritten approximations) #:key alt-expr))
