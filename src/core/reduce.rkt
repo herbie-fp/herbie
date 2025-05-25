@@ -183,12 +183,12 @@
                  (/ (car terms)))
              (map negate-term (cdr terms))))]
     [`(/ ,arg ,args ...)
-     (let ([num (gather-multiplicative-terms arg)]
-           [dens (map gather-multiplicative-terms args)])
-       (cons (if (or (eq? (car num) 'NAN) (ormap (compose (curryr member '(0 NAN)) car) dens))
-                 'NAN
-                 (apply / (car num) (map car dens)))
-             (append (cdr num) (map negate-term (append-map cdr dens)))))]
+     (define num (gather-multiplicative-terms arg))
+     (define dens (map gather-multiplicative-terms args))
+     (cons (if (or (eq? (car num) 'NAN) (ormap (compose (curryr member '(0 NAN)) car) dens))
+               'NAN
+               (apply / (car num) (map car dens)))
+           (append (cdr num) (map negate-term (append-map cdr dens))))]
     [`(cbrt ,arg)
      (define terms (gather-multiplicative-terms arg))
      (define exact-cbrt
