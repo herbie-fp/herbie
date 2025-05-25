@@ -91,14 +91,11 @@
         (egraph-best runner global-batch)))
 
   ; apply changelists
-  (define rewritten
-    (reap [sow]
-          (for ([batchrefs (in-list batchrefss)]
-                [altn (in-list altns)])
-            (for ([batchref* (in-list batchrefs)])
-              (sow (alt batchref* (list 'rr runner #f) (list altn) '()))))))
-
-  rewritten)
+  (reap [sow]
+        (for ([batchrefs (in-list batchrefss)]
+              [altn (in-list altns)])
+          (for ([batchref* (in-list batchrefs)])
+            (sow (alt batchref* (list 'rr runner #f) (list altn) '()))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Recursive Rewrite ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
