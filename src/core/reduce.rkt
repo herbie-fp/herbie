@@ -223,7 +223,7 @@
 (define (combine-aterms terms)
   (define h (make-hash))
   (for ([term terms])
-    (define sum (hash-ref! h (cadr term) (λ () 0)))
+    (define sum (hash-ref! h (cadr term) 0))
     (hash-set! h (cadr term) (+ (car term) sum)))
   (sort (reap [sow]
               (for ([(k v) (in-hash h)]
