@@ -59,15 +59,14 @@
   (parameterize ([current-output-port stdout-port]
                  [current-error-port stderr-port])
     (unless (system (format "RUST_BACKTRACE=1 ~a ~a" egglog-path egglog-file-path))
-      (begin
-        (fprintf old-error-port "stdout-port ~a\n" (get-output-string stdout-port))
-        ; Tail the last 100 lines of the error instead of everything
-        (fprintf old-error-port
-                 "stderr-port ~a\n"
-                 (string-join (take-right (string-split (get-output-string stderr-port) "\n") 100)
-                              "\n"))
-        (fprintf old-error-port "incorrect program in ~a\n" egglog-file-path)
-        (error "Failed to execute egglog"))))
+      (fprintf old-error-port "stdout-port ~a\n" (get-output-string stdout-port))
+      ; Tail the last 100 lines of the error instead of everything
+      (fprintf old-error-port
+               "stderr-port ~a\n"
+               (string-join (take-right (string-split (get-output-string stderr-port) "\n") 100)
+                            "\n"))
+      (fprintf old-error-port "incorrect program in ~a\n" egglog-file-path)
+      (error "Failed to execute egglog")))
 
   (delete-file egglog-file-path)
 
