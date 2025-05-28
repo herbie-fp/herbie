@@ -110,7 +110,11 @@
     [(and (*demo-output*) (file-exists? (build-path (*demo-output*) "results.json")))
      (next-dispatcher)]
     [else
-     (define info (make-report-info (get-improve-table-data) #:seed (get-seed)))
+     (define improve-results (get-improve-results))
+     (define table-data
+       (for/list ([result (get-improve-results)])
+         (get-table-data-from-hash result (hash-ref result 'path))))
+     (define info (make-report-info table-data #:seed (get-seed)))
      (response 200
                #"OK"
                (current-seconds)

@@ -22,7 +22,7 @@
          (submod "../utils/timeline.rkt" debug))
 
 (provide make-path
-         get-improve-table-data
+         get-improve-results
          server-check-on
          get-results-for
          get-timeline-for
@@ -65,7 +65,7 @@
   (log "Checking on: ~a.\n" job-id)
   (manager-ask 'check job-id))
 
-(define (get-improve-table-data)
+(define (get-improve-results)
   (log "Getting improve results.\n")
   (manager-ask 'improve))
 
@@ -119,7 +119,7 @@
         [(list 'improve)
          (for/list ([(job-id result) (in-hash completed-jobs)]
                     #:when (equal? (hash-ref result 'command) "improve"))
-           (get-table-data-from-hash result (make-path job-id)))])))
+           result)])))
 
 (define (get-json-converter command)
   (match (herbie-command-command command)
@@ -309,7 +309,7 @@
         (define improved-list
           (for/list ([(job-id result) (in-hash completed-jobs)]
                      #:when (equal? (hash-ref result 'command) "improve"))
-            (get-table-data-from-hash result (make-path job-id))))
+            result))
         (place-channel-put handler improved-list)]))))
 
 (define (make-worker worker-id)
