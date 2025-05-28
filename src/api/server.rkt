@@ -67,8 +67,7 @@
                    #:profile? [profile? #f]
                    #:timeline? [timeline? #f])
   (define job (herbie-command command test seed pcontext profile? timeline?))
-  (define job-id (compute-job-id job))
-  (manager-tell 'start manager job job-id)
+  (define job-id (manager-ask 'start manager job))
   (log "Job ~a, Qed up for program: ~a\n" job-id (test-name test))
   job-id)
 
@@ -106,22 +105,17 @@
 
 ;; Implementation of the two manager types (threaded and basic)
 
-(define ((manager-tell-threaded manager) msg . args)
-  (place-channel-put manager (list* msg args)))
-
 (define ((manager-ask-threaded manager) msg . args)
   (define-values (a b) (place-channel))
   (place-channel-put manager (list* msg b args))
   (place-channel-get a))
 
-(define (manager-tell-basic msg . args)
-  (match msg
-    ['start
-     (match-define (list #f command job-id) args)
-     (hash-set! queued-jobs job-id command)]))
-
 (define (manager-ask-basic msg . args)
   (match (list* msg args) ; public commands
+    [(list 'start hash-false command)
+     (define job-id (compute-job-id command))
+     (hash-set! queued-jobs job-id command)
+     job-id]
     [(list 'wait hash-false job-id)
      (define command (hash-ref queued-jobs job-id))
      (define result (herbie-do-server-job command job-id))
@@ -135,12 +129,6 @@
      (for/list ([(job-id result) (in-hash completed-jobs)]
                 #:when (equal? (hash-ref result 'command) "improve"))
        result)]))
-
-(define (manager-tell msg . args)
-  (log "Telling manager: ~a.\n" msg)
-  (if manager
-      (apply (manager-tell-threaded manager) msg args)
-      (apply manager-tell-basic msg args)))
 
 (define (manager-ask msg . args)
   (log "Asking manager: ~a, ~a.\n" msg args)
@@ -236,7 +224,9 @@
         (hash-remove! waiting job-id)]
 
        ;; Public API
-       [(list 'start self command job-id)
+       [(list 'start handler self command)
+        (define job-id (compute-job-id command))
+        (place-channel-put handler job-id)
         ; Check if the work has been completed already if not assign the work.
         (cond
           [(hash-has-key? completed-jobs job-id)
