@@ -163,7 +163,7 @@
         " | "
         (a ([id "use-fpcore"]) "Use FPCore"))
     (cond
-      [(is-server-up)
+      [(server-up?)
        `(form
          ([action ,(url improve)] [method "post"] [id "formula"] [data-progress ,(url improve-start)])
          (textarea ([name "formula"] [autofocus "true"]
@@ -363,8 +363,8 @@
                      (fprintf out "Doing ~a\n" (hash-ref entry 'type))))))]))
 
 (define (check-up req)
-  (response/full (if (is-server-up) 200 500)
-                 (if (is-server-up) #"Up" #"Down")
+  (response/full (if (server-up?) 200 500)
+                 (if (server-up?) #"Up" #"Down")
                  (current-seconds)
                  #"text/plain"
                  (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count))))

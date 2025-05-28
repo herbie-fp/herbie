@@ -22,22 +22,16 @@
          (submod "../utils/timeline.rkt" debug))
 
 (provide make-path
-         get-improve-results
-         server-check-on
          get-results-for
          get-timeline-for
+         server-check-on
+         get-improve-results
          job-count
-         is-server-up
          start-job
          wait-for-job
+         server-up?
          start-job-server
          alt->fpcore)
-
-(define (warn-single-threaded-mpfr)
-  (local-require ffi/unsafe)
-  (local-require math/private/bigfloat/mpfr)
-  (unless ((get-ffi-obj 'mpfr_buildopt_tls_p mpfr-lib (_fun -> _bool)))
-    (warn 'mpfr-threads "Your MPFR is single-threaded. Herbie will work but be slower than normal.")))
 
 (define log-level #f)
 (define (log msg . args)
@@ -92,6 +86,26 @@
   (define finished-result (manager-ask 'wait manager job-id))
   (log "Done waiting for: ~a\n" job-id)
   finished-result)
+
+(define (server-up?)
+  (if manager
+      (not (sync/timeout 0 manager-dead-event))
+      #t))
+
+;; Start the job server
+;; worker-cap: `false` or `no` to not use Racket `place` best used for
+;; debugging, specific yes to use the number of cores on your system as the
+;; worker cap or specif the number of workers you would like to use
+;; logging: Set to #f as default. Set to #t to print what the server is doing
+;; to standard error.
+(define (start-job-server worker-cap #:logging [set-logging #f])
+  (set! log-level set-logging)
+  (when worker-cap
+    (define r (make-manager worker-cap))
+    (set! manager-dead-event (place-dead-evt r))
+    (set! manager r)))
+
+;; Public API follows
 
 (define (manager-tell msg . args)
   (log "Telling manager: ~a.\n" msg)
@@ -160,23 +174,11 @@
   (place-channel-put manager (list* msg b args))
   (place-channel-get a))
 
-(define (is-server-up)
-  (if manager
-      (not (sync/timeout 0 manager-dead-event))
-      #t))
-
-;; Start the job server
-;; worker-cap: `false` or `no` to not use Racket `place` best used for
-;; debugging, specific yes to use the number of cores on your system as the
-;; worker cap or specif the number of workers you would like to use
-;; logging: Set to #f as default. Set to #t to print what the server is doing
-;; to standard error.
-(define (start-job-server worker-cap #:logging [set-logging #f])
-  (set! log-level set-logging)
-  (when worker-cap
-    (define r (make-manager worker-cap))
-    (set! manager-dead-event (place-dead-evt r))
-    (set! manager r)))
+(define (warn-single-threaded-mpfr)
+  (local-require ffi/unsafe)
+  (local-require math/private/bigfloat/mpfr)
+  (unless ((get-ffi-obj 'mpfr_buildopt_tls_p mpfr-lib (_fun -> _bool)))
+    (warn 'mpfr-threads "Your MPFR is single-threaded. Herbie will work but be slower than normal.")))
 
 (define manager #f)
 (define manager-dead-event #f)
