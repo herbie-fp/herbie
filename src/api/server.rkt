@@ -73,8 +73,10 @@
 ;; Whole-server public methods
 
 (define (server-start threads)
-  (when threads
-    (set! manager (make-manager threads))))
+  (set! manager
+        (if threads
+            (make-manager threads)
+            'basic)))
 
 (define (server-improve-results)
   (log "Getting improve results.\n")
@@ -85,9 +87,9 @@
   (apply + job-list))
 
 (define (server-up?)
-  (if manager
-      (not (sync/timeout 0 (place-dead-evt manager)))
-      #t))
+  (match manager
+    [(? place? x) (not (sync/timeout 0 (place-dead-evt x)))]
+    ['basic #t]))
 
 ;; Interface for two manager types (threaded and basic)
 
@@ -95,11 +97,11 @@
 
 (define (manager-ask msg . args)
   (log "Asking manager: ~a, ~a.\n" msg args)
-  (if manager
-      (apply (manager-ask-threaded manager) msg args)
-      (apply manager-ask-basic msg args)))
+  (match manager
+    [(? place? x) (apply manager-ask-threaded x msg args)]
+    ['basic (apply manager-ask-basic msg args)]))
 
-(define ((manager-ask-threaded manager) msg . args)
+(define (manager-ask-threaded manager msg . args)
   (define-values (a b) (place-channel))
   (place-channel-put manager (list* msg b args))
   (place-channel-get a))
