@@ -235,14 +235,8 @@
    (log "Manager waiting to assign work.\n")
    (for ([i (in-naturals)])
      (match (place-channel-get ch)
-       [(list 'start self command job-id)
-        ; Check if the work has been completed already if not assign the work.
-        (cond
-          [(hash-has-key? completed-jobs job-id)
-           (place-channel-put self (list 'send job-id (hash-ref completed-jobs job-id)))]
-          [else
-           (hash-set! queued-jobs job-id command)
-           (place-channel-put self (list 'assign self))])]
+
+       ;; Private API
        [(list 'assign self)
         (define reassigned (make-hash))
         (for ([(wid worker) (in-hash waiting-workers)]
@@ -270,6 +264,21 @@
         (log "waiting job ~a completed\n" job-id)
         (place-channel-put self (list 'send job-id result))
         (place-channel-put self (list 'assign self))]
+       [(list 'send job-id result)
+        (log "Sending result for ~a.\n" job-id)
+        (for ([handle (hash-ref waiting job-id '())])
+          (place-channel-put handle result))
+        (hash-remove! waiting job-id)]
+
+       ;; Public API
+       [(list 'start self command job-id)
+        ; Check if the work has been completed already if not assign the work.
+        (cond
+          [(hash-has-key? completed-jobs job-id)
+           (place-channel-put self (list 'send job-id (hash-ref completed-jobs job-id)))]
+          [else
+           (hash-set! queued-jobs job-id command)
+           (place-channel-put self (list 'assign self))])]
        [(list 'wait handler self job-id)
         (log "Waiting for job: ~a\n" job-id)
         ; first we add the handler to the wait list.
@@ -280,11 +289,6 @@
           (log "Done waiting for job: ~a\n" job-id)
           ; we have a result to send.
           (place-channel-put self (list 'send job-id result)))]
-       [(list 'send job-id result)
-        (log "Sending result for ~a.\n" job-id)
-        (for ([handle (hash-ref waiting job-id '())])
-          (place-channel-put handle result))
-        (hash-remove! waiting job-id)]
        ; Get the result for the given id, return false if no work found.
        [(list 'result handler job-id) (place-channel-put handler (hash-ref completed-jobs job-id #f))]
        [(list 'timeline handler job-id)
