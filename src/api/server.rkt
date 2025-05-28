@@ -21,16 +21,16 @@
          "../syntax/syntax.rkt"
          (submod "../utils/timeline.rkt" debug))
 
-(provide make-path
-         get-results-for
-         get-timeline-for
-         server-check-on
-         get-improve-results
-         job-count
-         start-job
-         wait-for-job
-         server-up?
-         start-job-server)
+(provide job-path
+         job-results
+         job-timeline
+         job-status
+         job-start
+         job-wait
+         server-start
+         server-improve-results
+         server-count
+         server-up?)
 
 (define log-level #f)
 (define (log msg . args)
@@ -41,35 +41,26 @@
 (struct herbie-command (command test seed pcontext profile? timeline?) #:prefab)
 
 ; computes the path used for server URLs
-(define (make-path id)
+(define (job-path id)
   (format "~a.~a" id *herbie-commit*))
 
 ; Returns #f is now job exsist for the given job-id
-(define (get-results-for job-id)
+(define (job-results job-id)
   (log "Getting result for job: ~a.\n" job-id)
   (manager-ask 'result job-id))
 
-(define (get-timeline-for job-id)
+(define (job-timeline job-id)
   (log "Getting timeline for job: ~a.\n" job-id)
   (manager-ask 'timeline job-id))
 
 ; Returns #f if there is no job returns the job-id if there is a completed job.
-(define (server-check-on job-id)
+(define (job-status job-id)
   (log "Checking on: ~a.\n" job-id)
   (manager-ask 'check job-id))
 
-(define (get-improve-results)
-  (log "Getting improve results.\n")
-  (manager-ask 'improve))
-
-(define (job-count)
-  (define job-list (manager-ask 'count))
-  (log "Currently ~a jobs in progress, ~a jobs in queue.\n" (first job-list) (second job-list))
-  (apply + job-list))
-
 ;; Starts a job on the server
 ;; TODO contract?
-(define (start-job command
+(define (job-start command
                    test
                    #:seed [seed #f]
                    #:pcontext [pcontext #f]
@@ -81,15 +72,10 @@
   (log "Job ~a, Qed up for program: ~a\n" job-id (test-name test))
   job-id)
 
-(define (wait-for-job job-id)
+(define (job-wait job-id)
   (define finished-result (manager-ask 'wait manager job-id))
   (log "Done waiting for: ~a\n" job-id)
   finished-result)
-
-(define (server-up?)
-  (if manager
-      (not (sync/timeout 0 manager-dead-event))
-      #t))
 
 ;; Start the job server
 ;; worker-cap: `false` or `no` to not use Racket `place` best used for
@@ -97,12 +83,26 @@
 ;; worker cap or specif the number of workers you would like to use
 ;; logging: Set to #f as default. Set to #t to print what the server is doing
 ;; to standard error.
-(define (start-job-server worker-cap #:logging [set-logging #f])
+(define (server-start worker-cap #:logging [set-logging #f])
   (set! log-level set-logging)
   (when worker-cap
     (define r (make-manager worker-cap))
     (set! manager-dead-event (place-dead-evt r))
     (set! manager r)))
+
+(define (server-improve-results)
+  (log "Getting improve results.\n")
+  (manager-ask 'improve))
+
+(define (server-count)
+  (define job-list (manager-ask 'count))
+  (log "Currently ~a jobs in progress, ~a jobs in queue.\n" (first job-list) (second job-list))
+  (apply + job-list))
+
+(define (server-up?)
+  (if manager
+      (not (sync/timeout 0 manager-dead-event))
+      #t))
 
 ;; Public API follows
 
@@ -153,7 +153,7 @@
              'job
              job-id
              'path
-             (make-path job-id)
+             (job-path job-id)
              'command
              (~a (herbie-command-command command))
              'name

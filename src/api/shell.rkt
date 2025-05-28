@@ -41,13 +41,13 @@
 (define (run-improve input output #:threads [threads #f])
   (define seed (get-seed))
   (define tests (load-tests input))
-  (start-job-server threads)
+  (server-start threads)
   (define ids
     (for/list ([test (in-list tests)])
-      (start-job 'improve test #:seed seed #:pcontext #f #:profile? #f #:timeline-disabled? #f)))
+      (job-start 'improve test #:seed seed #:pcontext #f #:profile? #f #:timeline-disabled? #f)))
   (define results
     (for/list ([id ids])
-      (wait-for-job id)))
+      (job-wait id)))
 
   (if (equal? output "-")
       (print-improve-outputs tests results (current-output-port) #:seed seed)
@@ -62,11 +62,11 @@
            (match (system-type 'os)
              ['windows "Ctrl-Z Enter"]
              [_ "Ctrl-D"]))
-  (start-job-server #f)
+  (server-start #f)
   (with-handlers ([exn:break? (λ (e) (exit 0))])
     (for ([test (in-producer get-shell-input eof-object?)]
           [idx (in-naturals)])
-      (define result (wait-for-job (start-job 'improve test #:seed seed)))
+      (define result (job-wait (job-start 'improve test #:seed seed)))
       (match (hash-ref result 'status)
         ["success" (pretty-print (job-result->fpcore result) (current-output-port) 1)]
         ["failure"
