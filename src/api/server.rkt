@@ -3,22 +3,22 @@
 (require openssl/sha1)
 (require (only-in xml write-xexpr))
 
-(require "../core/points.rkt"
-         "../reports/history.rkt"
-         "../reports/plot.rkt"
-         "../reports/common.rkt"
-         "../syntax/types.rkt"
+(require "../syntax/load-plugin.rkt"
          "../syntax/read.rkt"
-         "../syntax/load-plugin.rkt"
          "../syntax/sugar.rkt"
+         "../syntax/syntax.rkt"
+         "../syntax/types.rkt"
          "../utils/alternative.rkt"
          "../utils/common.rkt"
          "../utils/errors.rkt"
          "../utils/float.rkt"
+         "../core/points.rkt"
+         "../reports/common.rkt"
+         "../reports/history.rkt"
          "../reports/pages.rkt"
-         "sandbox.rkt"
+         "../reports/plot.rkt"
          "datafile.rkt"
-         "../syntax/syntax.rkt"
+         "sandbox.rkt"
          (submod "../utils/timeline.rkt" debug))
 
 (provide job-path
