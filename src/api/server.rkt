@@ -199,6 +199,11 @@
 ;; to standard error.
 (define (start-job-server worker-cap #:logging [set-logging #f])
   (set! log-level set-logging)
+  (cond
+    [worker-cap
+     (eprintf "Starting Herbie ~a with ~a workers and seed ~a...\n" *herbie-version* worker-cap (get-seed))]
+    [else
+     (eprintf "Starting Herbie ~a with seed ~a...\n" *herbie-version* (get-seed))])
   (when worker-cap
     (define r (make-manager worker-cap))
     (set! manager-dead-event (place-dead-evt r))
