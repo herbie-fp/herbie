@@ -85,9 +85,7 @@
 (define (server-start worker-cap #:logging [set-logging #f])
   (set! log-level set-logging)
   (when worker-cap
-    (define r (make-manager worker-cap))
-    (set! manager-dead-event (place-dead-evt r))
-    (set! manager r)))
+    (set! manager (make-manager worker-cap))))
 
 (define (server-improve-results)
   (log "Getting improve results.\n")
@@ -100,7 +98,7 @@
 
 (define (server-up?)
   (if manager
-      (not (sync/timeout 0 manager-dead-event))
+      (not (sync/timeout 0 (place-dead-evt manager)))
       #t))
 
 ;; Implementation of the two manager types (threaded and basic)
@@ -146,7 +144,6 @@
     (warn 'mpfr-threads "Your MPFR is single-threaded. Herbie will work but be slower than normal.")))
 
 (define manager #f)
-(define manager-dead-event #f)
 
 (define (compute-job-id job-info)
   (sha1 (open-input-string (~s job-info))))
