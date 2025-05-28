@@ -32,9 +32,8 @@
          server-count
          server-up?)
 
-(define log-level #f)
 (define (log msg . args)
-  (when log-level
+  (when false
     (apply eprintf msg args)))
 
 ;; Job object, What herbie excepts as input for a new job.
@@ -77,15 +76,9 @@
   finished-result)
 
 ;; Start the job server
-;; worker-cap: `false` or `no` to not use Racket `place` best used for
-;; debugging, specific yes to use the number of cores on your system as the
-;; worker cap or specif the number of workers you would like to use
-;; logging: Set to #f as default. Set to #t to print what the server is doing
-;; to standard error.
-(define (server-start worker-cap #:logging [set-logging #f])
-  (set! log-level set-logging)
-  (when worker-cap
-    (set! manager (make-manager worker-cap))))
+(define (server-start threads)
+  (when threads
+    (set! manager (make-manager threads))))
 
 (define (server-improve-results)
   (log "Getting improve results.\n")
