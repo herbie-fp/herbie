@@ -426,7 +426,7 @@
   (parse-test formula))
 
 ; The name get-seed is taken.
-(define (parse-seed post-data)
+(define (get-seed post-data)
   (hash-ref post-data 'seed #f))
 
 (define (get-pcontext post-data)
@@ -436,30 +436,30 @@
 
 (define-api-endpoint ("sample" post-data)
   (define test (get-test post-data))
-  (define seed (parse-seed post-data))
+  (define seed (get-seed post-data))
   (start-job 'sample test #:seed seed))
 
 (define-api-endpoint ("explanations" post-data)
   (define test (get-test post-data))
-  (define seed (parse-seed post-data))
+  (define seed (get-seed post-data))
   (define pcontext (get-pcontext post-data))
   (start-job 'explanations test #:seed seed #:pcontext pcontext))
 
 (define-api-endpoint ("analyze" post-data)
   (define test (get-test post-data))
-  (define seed (parse-seed post-data))
+  (define seed (get-seed post-data))
   (define pcontext (get-pcontext post-data))
   (start-job 'errors test #:seed seed #:pcontext pcontext))
 
 (define-api-endpoint ("localerror" post-data)
   (define test (get-test post-data))
-  (define seed (parse-seed post-data))
+  (define seed (get-seed post-data))
   (define pcontext (get-pcontext post-data))
   (start-job 'local-error test #:seed seed #:pcontext pcontext))
 
 (define-api-endpoint ("alternatives" post-data)
   (define test (get-test post-data))
-  (define seed (parse-seed post-data))
+  (define seed (get-seed post-data))
   (define pcontext (get-pcontext post-data))
   (start-job 'alternatives test #:seed seed #:pcontext pcontext))
 
