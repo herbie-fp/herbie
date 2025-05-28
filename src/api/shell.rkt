@@ -44,7 +44,7 @@
   (server-start threads)
   (define ids
     (for/list ([test (in-list tests)])
-      (job-start 'improve test #:seed seed #:pcontext #f #:profile? #f #:timeline-disabled? #f)))
+      (job-start 'improve test #:seed seed #:pcontext #f #:profile? #f #:timeline? #f)))
   (define results
     (for/list ([id ids])
       (job-wait id)))
