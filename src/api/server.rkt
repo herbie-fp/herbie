@@ -22,11 +22,11 @@
          (submod "../utils/timeline.rkt" debug))
 
 (provide job-path
+         job-start
+         job-status
+         job-wait
          job-results
          job-timeline
-         job-status
-         job-start
-         job-wait
          server-start
          server-improve-results
          server-count
@@ -39,26 +39,9 @@
 ;; Job object, What herbie excepts as input for a new job.
 (struct herbie-command (command test seed pcontext profile? timeline?) #:prefab)
 
-; computes the path used for server URLs
 (define (job-path id)
   (format "~a.~a" id *herbie-commit*))
 
-; Returns #f is now job exsist for the given job-id
-(define (job-results job-id)
-  (log "Getting result for job: ~a.\n" job-id)
-  (manager-ask 'result job-id))
-
-(define (job-timeline job-id)
-  (log "Getting timeline for job: ~a.\n" job-id)
-  (manager-ask 'timeline job-id))
-
-; Returns #f if there is no job returns the job-id if there is a completed job.
-(define (job-status job-id)
-  (log "Checking on: ~a.\n" job-id)
-  (manager-ask 'check job-id))
-
-;; Starts a job on the server
-;; TODO contract?
 (define (job-start command
                    test
                    #:seed [seed #f]
@@ -70,12 +53,25 @@
   (log "Job ~a, Qed up for program: ~a\n" job-id (test-name test))
   job-id)
 
+(define (job-status job-id)
+  (log "Checking on: ~a.\n" job-id)
+  (manager-ask 'check job-id))
+
 (define (job-wait job-id)
   (define finished-result (manager-ask 'wait manager job-id))
   (log "Done waiting for: ~a\n" job-id)
   finished-result)
 
-;; Start the job server
+(define (job-results job-id)
+  (log "Getting result for job: ~a.\n" job-id)
+  (manager-ask 'result job-id))
+
+(define (job-timeline job-id)
+  (log "Getting timeline for job: ~a.\n" job-id)
+  (manager-ask 'timeline job-id))
+
+;; Whole-server public methods
+
 (define (server-start threads)
   (when threads
     (set! manager (make-manager threads))))
@@ -86,7 +82,6 @@
 
 (define (server-count)
   (define job-list (manager-ask 'count))
-  (log "Currently ~a jobs in progress, ~a jobs in queue.\n" (first job-list) (second job-list))
   (apply + job-list))
 
 (define (server-up?)
@@ -94,7 +89,15 @@
       (not (sync/timeout 0 (place-dead-evt manager)))
       #t))
 
-;; Implementation of the two manager types (threaded and basic)
+;; Interface for two manager types (threaded and basic)
+
+(define manager #f)
+
+(define (manager-ask msg . args)
+  (log "Asking manager: ~a, ~a.\n" msg args)
+  (if manager
+      (apply (manager-ask-threaded manager) msg args)
+      (apply manager-ask-basic msg args)))
 
 (define ((manager-ask-threaded manager) msg . args)
   (define-values (a b) (place-channel))
@@ -121,22 +124,10 @@
                 #:when (equal? (hash-ref result 'command) "improve"))
        result)]))
 
-(define (manager-ask msg . args)
-  (log "Asking manager: ~a, ~a.\n" msg args)
-  (if manager
-      (apply (manager-ask-threaded manager) msg args)
-      (apply manager-ask-basic msg args)))
+;; Implementation of threaded manager
 
 (define queued-jobs (make-hash))
 (define completed-jobs (make-hash))
-
-(define (warn-single-threaded-mpfr)
-  (local-require ffi/unsafe)
-  (local-require math/private/bigfloat/mpfr)
-  (unless ((get-ffi-obj 'mpfr_buildopt_tls_p mpfr-lib (_fun -> _bool)))
-    (warn 'mpfr-threads "Your MPFR is single-threaded. Herbie will work but be slower than normal.")))
-
-(define manager #f)
 
 (define (compute-job-id job-info)
   (sha1 (open-input-string (~s job-info))))
@@ -252,8 +243,9 @@
         (place-channel-put handler (and (hash-has-key? completed-jobs job-id) job-id))]
        ; Returns the current count of working workers.
        [(list 'count handler)
-        (log "Count requested\n")
-        (place-channel-put handler (list (hash-count busy-workers) (hash-count queued-jobs)))]
+        (define counts (list (hash-count busy-workers) (hash-count queued-jobs)))
+        (log "Currently ~a jobs in progress, ~a jobs in queue.\n" (first counts) (second counts))
+        (place-channel-put handler counts)]
        ; Retreive the improve results for results.json
        [(list 'improve handler)
         (define improved-list
@@ -261,6 +253,14 @@
                      #:when (equal? (hash-ref result 'command) "improve"))
             result))
         (place-channel-put handler improved-list)]))))
+
+;; Implementation of threaded worker
+
+(define (warn-single-threaded-mpfr)
+  (local-require ffi/unsafe)
+  (local-require math/private/bigfloat/mpfr)
+  (unless ((get-ffi-obj 'mpfr_buildopt_tls_p mpfr-lib (_fun -> _bool)))
+    (warn 'mpfr-threads "Your MPFR is single-threaded. Herbie will work but be slower than normal.")))
 
 (define (make-worker worker-id)
   (warn-single-threaded-mpfr)
@@ -306,6 +306,8 @@
   (define out-result (herbie-do-server-job command job-id))
   (log "Job: ~a finished, returning work to manager\n" job-id)
   (place-channel-put manager (list 'finished manager worker-id job-id out-result)))
+
+;; Worker internals
 
 (define (herbie-do-server-job command job-id)
   (define herbie-result (wrapper-run-herbie command job-id))
