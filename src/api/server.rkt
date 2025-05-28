@@ -104,74 +104,52 @@
       (not (sync/timeout 0 manager-dead-event))
       #t))
 
-;; Public API follows
+;; Implementation of the two manager types (threaded and basic)
+
+(define ((manager-tell-threaded manager) msg . args)
+  (place-channel-put manager (list* msg args)))
+
+(define ((manager-ask-threaded manager) msg . args)
+  (define-values (a b) (place-channel))
+  (place-channel-put manager (list* msg b args))
+  (place-channel-get a))
+
+(define (manager-tell-basic msg . args)
+  (match msg
+    ['start
+     (match-define (list #f command job-id) args)
+     (hash-set! queued-jobs job-id command)]))
+
+(define (manager-ask-basic msg . args)
+  (match (list* msg args) ; public commands
+    [(list 'wait hash-false job-id)
+     (define command (hash-ref queued-jobs job-id))
+     (define result (herbie-do-server-job command job-id))
+     (hash-set! completed-jobs job-id result)
+     result]
+    [(list 'result job-id) (hash-ref completed-jobs job-id #f)]
+    [(list 'timeline job-id) (hash-ref completed-jobs job-id #f)]
+    [(list 'check job-id) (and (hash-ref completed-jobs job-id #f) job-id)]
+    [(list 'count) (list 0 0)]
+    [(list 'improve)
+     (for/list ([(job-id result) (in-hash completed-jobs)]
+                #:when (equal? (hash-ref result 'command) "improve"))
+       result)]))
 
 (define (manager-tell msg . args)
   (log "Telling manager: ~a.\n" msg)
   (if manager
-      (place-channel-put manager (list* msg args))
-      (match msg
-        ['start
-         (match-define (list #f command job-id) args)
-         (hash-set! queued-jobs job-id command)])))
+      (apply (manager-tell-threaded manager) msg args)
+      (apply manager-tell-basic msg args)))
 
 (define (manager-ask msg . args)
   (log "Asking manager: ~a, ~a.\n" msg args)
   (if manager
-      (manager-ask-with-callback msg args)
-      (match (list* msg args) ; public commands
-        [(list 'wait hash-false job-id)
-         (define command (hash-ref queued-jobs job-id))
-         (define result (herbie-do-server-job command job-id))
-         (hash-set! completed-jobs job-id result)
-         result]
-        [(list 'result job-id) (hash-ref completed-jobs job-id #f)]
-        [(list 'timeline job-id) (hash-ref completed-jobs job-id #f)]
-        [(list 'check job-id) (and (hash-ref completed-jobs job-id #f) job-id)]
-        [(list 'count) (list 0 0)]
-        [(list 'improve)
-         (for/list ([(job-id result) (in-hash completed-jobs)]
-                    #:when (equal? (hash-ref result 'command) "improve"))
-           result)])))
-
-(define (get-json-converter command)
-  (match (herbie-command-command command)
-    ['alternatives make-alternatives-result]
-    ['cost make-cost-result]
-    ['errors make-error-result]
-    ['explanations make-explanation-result]
-    ['improve make-alternatives-result]
-    ['local-error make-local-error-result]
-    ['sample make-sample-result]
-    [_ (error 'compute-result "unknown command ~a" command)]))
-
-(define (herbie-do-server-job command job-id)
-  (define herbie-result (wrapper-run-herbie command job-id))
-  (define basic-output ((get-json-converter command) herbie-result job-id))
-  ;; Add default fields that all commands have
-  (hash-set* basic-output
-             'job
-             job-id
-             'path
-             (job-path job-id)
-             'command
-             (~a (herbie-command-command command))
-             'name
-             (test-name (herbie-command-test command))
-             'status
-             (~a (job-result-status herbie-result))
-             'time
-             (job-result-time herbie-result)
-             'warnings
-             (job-result-warnings herbie-result)))
+      (apply (manager-ask-threaded manager) msg args)
+      (apply manager-ask-basic msg args)))
 
 (define queued-jobs (make-hash))
 (define completed-jobs (make-hash))
-
-(define (manager-ask-with-callback msg args)
-  (define-values (a b) (place-channel))
-  (place-channel-put manager (list* msg b args))
-  (place-channel-get a))
 
 (define (warn-single-threaded-mpfr)
   (local-require ffi/unsafe)
@@ -184,19 +162,6 @@
 
 (define (compute-job-id job-info)
   (sha1 (open-input-string (~s job-info))))
-
-(define (wrapper-run-herbie cmd job-id)
-  (log "Started ~a job (~a): ~a\n"
-       (herbie-command-command cmd)
-       job-id
-       (test-name (herbie-command-test cmd)))
-  (begin0 (run-herbie (herbie-command-command cmd)
-                      (herbie-command-test cmd)
-                      #:seed (herbie-command-seed cmd)
-                      #:pcontext (herbie-command-pcontext cmd)
-                      #:profile? (herbie-command-profile? cmd)
-                      #:timeline? (herbie-command-timeline? cmd))
-    (log "Completed ~a job (~a)\n" (herbie-command-command cmd) job-id)))
 
 (define-syntax (place/context* stx)
   (syntax-case stx ()
@@ -361,6 +326,52 @@
   (define out-result (herbie-do-server-job command job-id))
   (log "Job: ~a finished, returning work to manager\n" job-id)
   (place-channel-put manager (list 'finished manager worker-id job-id out-result)))
+
+(define (herbie-do-server-job command job-id)
+  (define herbie-result (wrapper-run-herbie command job-id))
+  (define basic-output ((get-json-converter command) herbie-result job-id))
+  ;; Add default fields that all commands have
+  (hash-set* basic-output
+             'job
+             job-id
+             'path
+             (job-path job-id)
+             'command
+             (~a (herbie-command-command command))
+             'name
+             (test-name (herbie-command-test command))
+             'status
+             (~a (job-result-status herbie-result))
+             'time
+             (job-result-time herbie-result)
+             'warnings
+             (job-result-warnings herbie-result)))
+
+(define (wrapper-run-herbie cmd job-id)
+  (log "Started ~a job (~a): ~a\n"
+       (herbie-command-command cmd)
+       job-id
+       (test-name (herbie-command-test cmd)))
+  (begin0 (run-herbie (herbie-command-command cmd)
+                      (herbie-command-test cmd)
+                      #:seed (herbie-command-seed cmd)
+                      #:pcontext (herbie-command-pcontext cmd)
+                      #:profile? (herbie-command-profile? cmd)
+                      #:timeline? (herbie-command-timeline? cmd))
+    (log "Completed ~a job (~a)\n" (herbie-command-command cmd) job-id)))
+
+;; JSON conversion stuff
+
+(define (get-json-converter command)
+  (match (herbie-command-command command)
+    ['alternatives make-alternatives-result]
+    ['cost make-cost-result]
+    ['errors make-error-result]
+    ['explanations make-explanation-result]
+    ['improve make-alternatives-result]
+    ['local-error make-local-error-result]
+    ['sample make-sample-result]
+    [_ (error 'compute-result "unknown command ~a" command)]))
 
 (define (make-explanation-result herbie-result job-id)
   (hasheq 'explanation (job-result-backend herbie-result)))
