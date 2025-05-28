@@ -477,20 +477,17 @@
 
 (define (render-phase-series n times)
   `((dt "Calls")
-    (dd
-     (p ,(~a (length times)) " calls:")
-     (canvas ([id ,(format "calls-~a" n)]
-              [title
-               "Weighted histogram; height corresponds to percentage of runtime in that bucket."]))
-     (script "histogram(\"" ,(format "calls-~a" n) "\", " ,(jsexpr->string (map first times)) ")")
-     (table
-      ((class "times"))
-      (thead (tr (th "Time") (th "Variable") (th) (th "Point") (th "Expression")))
-      ,@
-      (for/list ([rec (in-list (sort times > #:key first))]
-                 [_ (in-range 5)])
-        (match-define (list time expr var transform) rec)
-        `(tr (td ,(format-time time)) (td (pre ,var)) (td "@") (td ,transform) (td (pre ,expr))))))))
+    (dd (p ,(~a (length times)) " calls:")
+        (canvas ([id ,(format "calls-~a" n)]
+                 [title
+                  "Weighted histogram; height corresponds to percentage of runtime in that bucket."]))
+        (script "histogram(\"" ,(format "calls-~a" n) "\", " ,(jsexpr->string (map first times)) ")")
+        (table ((class "times"))
+               (thead (tr (th "Time") (th "Variable") (th "Point")))
+               ,@(for/list ([rec (in-list (sort times > #:key first))]
+                            [_ (in-range 5)])
+                   (match-define (list time var transform) rec)
+                   `(tr (td ,(format-time time)) (td (pre ,var)) (td ,transform)))))))
 
 (define (render-phase-compiler compiler)
   (match-define (list (list sizes compileds) ...) compiler)
