@@ -440,28 +440,28 @@
   (start-job 'sample test #:seed seed))
 
 (define-api-endpoint ("explanations" post-data)
-  (start-job 'explanations
-             (get-test post-data)
-             #:seed (parse-seed post-data)
-             #:pcontext (get-pcontext post-data)))
+  (define test (get-test post-data))
+  (define seed (parse-seed post-data))
+  (define pcontext (get-pcontext post-data))
+  (start-job 'explanations test #:seed seed #:pcontext pcontext))
 
 (define-api-endpoint ("analyze" post-data)
-  (start-job 'errors
-             (get-test post-data)
-             #:seed (parse-seed post-data)
-             #:pcontext (get-pcontext post-data)))
+  (define test (get-test post-data))
+  (define seed (parse-seed post-data))
+  (define pcontext (get-pcontext post-data))
+  (start-job 'errors test #:seed seed #:pcontext pcontext))
 
 (define-api-endpoint ("localerror" post-data)
-  (start-job 'local-error
-             (get-test post-data)
-             #:seed (parse-seed post-data)
-             #:pcontext (get-pcontext post-data)))
+  (define test (get-test post-data))
+  (define seed (parse-seed post-data))
+  (define pcontext (get-pcontext post-data))
+  (start-job 'local-error test #:seed seed #:pcontext pcontext))
 
 (define-api-endpoint ("alternatives" post-data)
-  (start-job 'alternatives
-             (get-test post-data)
-             #:seed (parse-seed post-data)
-             #:pcontext (get-pcontext post-data)))
+  (define test (get-test post-data))
+  (define seed (parse-seed post-data))
+  (define pcontext (get-pcontext post-data))
+  (start-job 'alternatives test #:seed seed #:pcontext pcontext))
 
 (define-api-endpoint ("cost" post-data)
   (start-job 'cost (get-test post-data) #:seed #f))
