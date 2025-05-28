@@ -474,27 +474,25 @@
                              (define result (core->mathjs (syntax->datum formula)))
                              (hasheq 'mathjs result))))
 
+(define (get-converter target-lang)
+  (case target-lang
+    [("python") core->python]
+    [("c") core->c]
+    [("fortran") core->fortran]
+    [("java") core->java]
+    [("julia") core->julia]
+    [("matlab") core->matlab]
+    [("wls") core->wls]
+    [("tex") core->tex]
+    [("js") core->js]
+    [else (error "Unsupported target language:" target-lang)]))
+
 (define translate-endpoint
   (post-with-json-response (lambda (post-data)
                              ; FPCore formula and target language
                              (define formula (read (open-input-string (hash-ref post-data 'formula))))
                              (define target-lang (hash-ref post-data 'language))
-                             ; Select the appropriate conversion function
-                             (define lang-converter
-                               (case target-lang
-                                 [("python") core->python]
-                                 [("c") core->c]
-                                 [("fortran") core->fortran]
-                                 [("java") core->java]
-                                 [("julia") core->julia]
-                                 [("matlab") core->matlab]
-                                 [("wls") core->wls]
-                                 [("tex") core->tex]
-                                 [("js") core->js]
-                                 [else (error "Unsupported target language:" target-lang)]))
-
-                             ; convert the expression
-                             (define converted (lang-converter formula "expr"))
+                             (define converted ((get-converter target-lang) formula "expr"))
                              (hasheq 'result converted 'language target-lang))))
 
 (define (run-demo #:quiet [quiet? #f]
