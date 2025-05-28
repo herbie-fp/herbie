@@ -24,6 +24,7 @@
          "../reports/core2mathjs.rkt"
          "../reports/pages.rkt"
          "datafile.rkt"
+         "sandbox.rkt"
          "server.rkt")
 
 (provide run-demo)
@@ -62,6 +63,28 @@
                   [("api" "mathjs") #:method "post" ->mathjs-endpoint]
                   [("api" "translate") #:method "post" translate-endpoint]
                   [("api" "start" "improve") #:method "post" improve-start]))
+
+(define (write-results-to-disk result-hash path)
+  (make-directory (build-path (*demo-output*) path))
+  (for ([page (all-pages result-hash)])
+    (call-with-output-file
+     (build-path (*demo-output*) path page)
+     (λ (out)
+       (with-handlers ([exn:fail? (page-error-handler result-hash page out)])
+         (make-page-timeout page out result-hash (*demo-output*) #f #:timeout 10000)))))
+  (define link (path-element->string (last (explode-path path))))
+  (define data (get-table-data-from-hash result-hash link))
+  (define data-file (build-path (*demo-output*) "results.json"))
+  (define html-file (build-path (*demo-output*) "index.html"))
+  (define info
+    (if (file-exists? data-file)
+        (let ([info (call-with-input-file data-file read-datafile)])
+          (struct-copy report-info info [tests (cons data (report-info-tests info))]))
+        (make-report-info (list data) #:seed (get-seed))))
+  (define tmp-file (build-path (*demo-output*) "results.tmp"))
+  (write-datafile tmp-file info)
+  (rename-file-or-directory tmp-file data-file #t)
+  (copy-file (web-resource "report.html") html-file #t))
 
 (define (generate-page req job-id page)
   (define path (first (string-split (url->string (request-uri req)) "/")))
@@ -525,6 +548,3 @@
                  #:extra-files-paths (filter identity (list (web-resource) (*demo-output*)))
                  #:log-file (*demo-log*)
                  #:file-not-found-responder (gen-file-not-found-responder (web-resource "404.html"))))
-
-(module+ main
-  (run-demo #t))

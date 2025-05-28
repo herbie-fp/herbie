@@ -3,8 +3,7 @@
 (require openssl/sha1)
 (require (only-in xml write-xexpr))
 
-(require "sandbox.rkt"
-         "../core/points.rkt"
+(require "../core/points.rkt"
          "../reports/history.rkt"
          "../reports/plot.rkt"
          "../reports/common.rkt"
@@ -17,6 +16,7 @@
          "../utils/errors.rkt"
          "../utils/float.rkt"
          "../reports/pages.rkt"
+         "sandbox.rkt"
          "datafile.rkt"
          "../syntax/syntax.rkt"
          (submod "../utils/timeline.rkt" debug))
@@ -31,7 +31,6 @@
          start-job
          wait-for-job
          start-job-server
-         write-results-to-disk
          *demo-output*
          alt->fpcore)
 
@@ -50,28 +49,6 @@
 
 ;; Job object, What herbie excepts as input for a new job.
 (struct herbie-command (command test seed pcontext profile? timeline-disabled?) #:prefab)
-
-(define (write-results-to-disk result-hash path)
-  (make-directory (build-path (*demo-output*) path))
-  (for ([page (all-pages result-hash)])
-    (call-with-output-file
-     (build-path (*demo-output*) path page)
-     (λ (out)
-       (with-handlers ([exn:fail? (page-error-handler result-hash page out)])
-         (make-page-timeout page out result-hash (*demo-output*) #f #:timeout 10000)))))
-  (define link (path-element->string (last (explode-path path))))
-  (define data (get-table-data-from-hash result-hash link))
-  (define data-file (build-path (*demo-output*) "results.json"))
-  (define html-file (build-path (*demo-output*) "index.html"))
-  (define info
-    (if (file-exists? data-file)
-        (let ([info (call-with-input-file data-file read-datafile)])
-          (struct-copy report-info info [tests (cons data (report-info-tests info))]))
-        (make-report-info (list data) #:seed (get-seed))))
-  (define tmp-file (build-path (*demo-output*) "results.tmp"))
-  (write-datafile tmp-file info)
-  (rename-file-or-directory tmp-file data-file #t)
-  (copy-file (web-resource "report.html") html-file #t))
 
 ; computes the path used for server URLs
 (define (make-path id)
