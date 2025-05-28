@@ -31,7 +31,6 @@
          start-job
          wait-for-job
          start-job-server
-         *demo-output*
          alt->fpcore)
 
 (define (warn-single-threaded-mpfr)
@@ -39,8 +38,6 @@
   (local-require math/private/bigfloat/mpfr)
   (unless ((get-ffi-obj 'mpfr_buildopt_tls_p mpfr-lib (_fun -> _bool)))
     (warn 'mpfr-threads "Your MPFR is single-threaded. Herbie will work but be slower than normal.")))
-
-(define *demo-output* (make-parameter false))
 
 (define log-level #f)
 (define (log msg . args)

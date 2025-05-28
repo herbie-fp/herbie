@@ -32,6 +32,7 @@
 (define *demo?* (make-parameter false))
 (define *demo-prefix* (make-parameter "/"))
 (define *demo-log* (make-parameter false))
+(define *demo-output* (make-parameter false))
 
 (define (add-prefix url)
   (string-replace (string-append (*demo-prefix*) url) "//" "/"))
