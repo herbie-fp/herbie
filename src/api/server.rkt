@@ -30,8 +30,7 @@
          start-job
          wait-for-job
          server-up?
-         start-job-server
-         alt->fpcore)
+         start-job-server)
 
 (define log-level #f)
 (define (log msg . args)
