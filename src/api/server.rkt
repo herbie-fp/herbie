@@ -36,9 +36,7 @@
   (when false
     (apply eprintf msg args)))
 
-;; Job object, What herbie excepts as input for a new job.
-(struct herbie-command (command test seed pcontext profile? timeline?) #:prefab)
-
+;; Job-specific public API
 (define (job-path id)
   (format "~a.~a" id *herbie-commit*))
 
@@ -48,8 +46,7 @@
                    #:pcontext [pcontext #f]
                    #:profile? [profile? #f]
                    #:timeline? [timeline? #f])
-  (define job (herbie-command command test seed pcontext profile? timeline?))
-  (define job-id (manager-ask 'start manager job))
+  (define job-id (manager-ask 'start manager command test seed pcontext profile? timeline?))
   (log "Job ~a, Qed up for program: ~a\n" job-id (test-name test))
   job-id)
 
@@ -127,6 +124,8 @@
        result)]))
 
 ;; Implementation of threaded manager
+
+(struct herbie-command (command test seed pcontext profile? timeline?) #:prefab)
 
 (define queued-jobs (make-hash))
 (define completed-jobs (make-hash))
@@ -207,7 +206,8 @@
         (hash-remove! waiting job-id)]
 
        ;; Public API
-       [(list 'start handler self command)
+       [(list 'start handler self command test seed pcontext profile? timeline?)
+        (define job (herbie-command command test seed pcontext profile? timeline?))
         (define job-id (compute-job-id command))
         (place-channel-put handler job-id)
         ; Check if the work has been completed already if not assign the work.
