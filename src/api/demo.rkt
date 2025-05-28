@@ -313,13 +313,7 @@
        (when (eof-object? formula)
          (raise-herbie-error "no formula specified"))
        (define test (parse-test formula))
-       (define job-id
-         (start-job 'improve
-                    test
-                    #:seed (get-seed)
-                    #:pcontext #f
-                    #:profile? #f
-                    #:timeline-disabled? #f))
+       (define job-id (start-job 'improve test #:seed (get-seed) #:profile? #f #:timeline? #t))
        (body job-id))]
     [_
      (response/error "Demo Error"
@@ -443,47 +437,34 @@
 (define-api-endpoint ("sample" post-data)
   (define test (get-test post-data))
   (define seed (parse-seed post-data))
-  (start-job 'sample test #:seed seed #:pcontext #f #:profile? #f #:timeline-disabled? #t))
+  (start-job 'sample test #:seed seed))
 
 (define-api-endpoint ("explanations" post-data)
   (start-job 'explanations
              (get-test post-data)
              #:seed (parse-seed post-data)
-             #:pcontext (get-pcontext post-data)
-             #:profile? #f
-             #:timeline-disabled? #t))
+             #:pcontext (get-pcontext post-data)))
 
 (define-api-endpoint ("analyze" post-data)
   (start-job 'errors
              (get-test post-data)
              #:seed (parse-seed post-data)
-             #:pcontext (get-pcontext post-data)
-             #:profile? #f
-             #:timeline-disabled? #t))
+             #:pcontext (get-pcontext post-data)))
 
 (define-api-endpoint ("localerror" post-data)
   (start-job 'local-error
              (get-test post-data)
              #:seed (parse-seed post-data)
-             #:pcontext (get-pcontext post-data)
-             #:profile? #f
-             #:timeline-disabled? #t))
+             #:pcontext (get-pcontext post-data)))
 
 (define-api-endpoint ("alternatives" post-data)
   (start-job 'alternatives
              (get-test post-data)
              #:seed (parse-seed post-data)
-             #:pcontext (get-pcontext post-data)
-             #:profile? #f
-             #:timeline-disabled? #t))
+             #:pcontext (get-pcontext post-data)))
 
 (define-api-endpoint ("cost" post-data)
-  (start-job 'cost
-             (get-test post-data)
-             #:seed #f
-             #:pcontext #f
-             #:profile? #f
-             #:timeline-disabled? #f))
+  (start-job 'cost (get-test post-data) #:seed #f))
 
 (define ->mathjs-endpoint
   (post-with-json-response (lambda (post-data)

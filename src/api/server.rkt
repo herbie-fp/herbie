@@ -45,7 +45,7 @@
     (apply eprintf msg args)))
 
 ;; Job object, What herbie excepts as input for a new job.
-(struct herbie-command (command test seed pcontext profile? timeline-disabled?) #:prefab)
+(struct herbie-command (command test seed pcontext profile? timeline?) #:prefab)
 
 ; computes the path used for server URLs
 (define (make-path id)
@@ -81,8 +81,8 @@
                    #:seed [seed #f]
                    #:pcontext [pcontext #f]
                    #:profile? [profile? #f]
-                   #:timeline-disabled? [timeline-disabled? #f])
-  (define job (herbie-command command test seed pcontext profile? timeline-disabled?))
+                   #:timeline? [timeline? #f])
+  (define job (herbie-command command test seed pcontext profile? timeline?))
   (define job-id (compute-job-id job))
   (manager-tell 'start manager job job-id)
   (log "Job ~a, Qed up for program: ~a\n" job-id (test-name test))
@@ -194,7 +194,7 @@
                       #:seed (herbie-command-seed cmd)
                       #:pcontext (herbie-command-pcontext cmd)
                       #:profile? (herbie-command-profile? cmd)
-                      #:timeline-disabled? (herbie-command-timeline-disabled? cmd))
+                      #:timeline? (herbie-command-timeline? cmd))
     (log "Completed ~a job (~a)\n" (herbie-command-command cmd) job-id)))
 
 (define-syntax (place/context* stx)
