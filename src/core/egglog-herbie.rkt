@@ -203,13 +203,13 @@
       ['lowering
        ;; TODO: Move this to saturating after math rules
        ;  (define-values (num-iters run-again?)
-       (egglog-unsound-detected-subprocess 'const-fold
-                                           schedule-params
-                                           egglog-process
-                                           egglog-output
-                                           egglog-in
-                                           err
-                                           curr-program)
+       ;  (egglog-unsound-detected-subprocess 'const-fold
+       ;                                      schedule-params
+       ;                                      egglog-process
+       ;                                      egglog-output
+       ;                                      egglog-in
+       ;                                      err
+       ;                                      curr-program)
        ;  )
 
        ;  (when run-again?
@@ -235,7 +235,7 @@
                                            err
                                            curr-program)
        ;  )
-       ; (printf "num-iters : ~a\n" num-iters)
+       ;  (printf "num-iters : ~a\n" num-iters)
        ;  (when run-again?
        ;    (send-to-egglog (list `(run-schedule (repeat ,num-iters ,tag)))
        ;                    egglog-process
@@ -435,15 +435,11 @@
                 [from-string "0"]
                 [from-string "1"])
       )
-    (let ?one (bigrat
-               [from-string "1"]
-               [from-string "1"])
-      )
     (rewrite (Add (Num x) (Num y)) (Num (+ x y)) :ruleset const-fold)
     (rewrite (Sub (Num x) (Num y)) (Num (- x y)) :ruleset const-fold)
     (rewrite (Mul (Num x) (Num y)) (Num (* x y)) :ruleset const-fold)
     ; TODO : Non-total operator
-    ;(rule ((= e (Div (Num x) (Num y))) (!= ?zero y)) ((union e (Num (/ x y)))) :ruleset const-fold)
+    (rule ((= e (Div (Num x) (Num y))) (!= ?zero y)) ((union e (Num (/ x y)))) :ruleset const-fold)
     (rewrite (Neg (Num x)) (Num (neg x)) :ruleset const-fold)
     ;; Power rules -> only case missing is 0^0 making it non-total
     ;; 0^y where y > 0
@@ -922,6 +918,8 @@
   ; Saturation detection by verifying the previous number of nodes and nw ones
   (define prev-number-nodes -1)
 
+  (define pop-schedule (list '(pop)))
+
   ;; First push
   ; (send-to-egglog (list '(push)) egglog-process egglog-output egglog-in err)
 
@@ -934,38 +932,28 @@
       [else
 
        ;; Run the ruleset once more
-       (define math-rules-schedule
+       (define math-schedule
          (list '(push)
                `(run-schedule (repeat 1 ,tag))
                '(print-size)
                '(run unsound-rule 1)
                '(extract (unsound))))
 
-       (egglog-program-add-list! math-rules-schedule curr-program)
+       (egglog-program-add-list! math-schedule curr-program)
 
        ;; Get egglog output
-       (define-values (exit-detect? total-nodes)
-         (get-egglog-output math-rules-schedule
-                            egglog-process
-                            egglog-output
-                            egglog-in
-                            err
-                            node-limit))
+       (define-values (math-exit? math-nodes)
+         (get-egglog-output math-schedule egglog-process egglog-output egglog-in err node-limit))
 
        (cond
-         ;; TODO: Do I need to check only "equal?" or do I check "<". Can that even happen? Also do
-         ;;       we even do this check when saturating const-fold or do we only run this for
-         ;;        math rules?
-         ;;
          ;;  Check for saturation we verify the number of nodes stayed the same from a previous iteration
          ;;  If so, return the iter-limit and do not need to run again
-         [(equal? total-nodes prev-number-nodes) (values curr-iter #f)]
+         [(equal? math-nodes prev-number-nodes) (values curr-iter #f)]
 
          ;; If Unsoundness detected or node-limit reached, then return the
          ;; optimal iter limit (one less than current)
-         [exit-detect?
+         [math-exit?
           ;; Pop once at the end since the egraph isn't valid
-          (define pop-schedule (list '(pop)))
           (egglog-program-add-list! pop-schedule curr-program)
           (send-to-egglog pop-schedule egglog-process egglog-output egglog-in err)
 
@@ -974,10 +962,34 @@
 
          ;; Continue to next iteration of the math rules
          [else
-          ;; set for the next iteration
-          (set! prev-number-nodes total-nodes)
+          ;; set for the constant folding iteration
+          (set! prev-number-nodes math-nodes)
 
-          (loop (add1 curr-iter))])])))
+          ;; 3. Run const-fold
+          (define const-schedule
+            (list '(push)
+                  `(run-schedule (repeat 1 const-fold))
+                  '(print-size)
+                  '(run unsound-rule 1)
+                  '(extract (unsound))))
+
+          (egglog-program-add-list! const-schedule curr-program)
+
+          (define-values (const-exit? const-nodes)
+            (get-egglog-output const-schedule egglog-process egglog-output egglog-in err node-limit))
+
+          (cond
+            [(equal? const-nodes prev-number-nodes) (values curr-iter #f)]
+            [const-exit?
+             (egglog-program-add-list! pop-schedule curr-program)
+             (send-to-egglog pop-schedule egglog-process egglog-output egglog-in err)
+             (values (sub1 curr-iter) #t)]
+
+            [else
+             ;; Update state for the next iteration
+             (set! prev-number-nodes const-nodes)
+
+             (loop (add1 curr-iter))])])])))
 
 (define (get-egglog-output curr-schedule egglog-process egglog-output egglog-in err node-limit)
   (define-values (node-values unsound?)
