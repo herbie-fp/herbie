@@ -105,11 +105,12 @@
 
 (define (manager-ask-basic msg . args)
   (match (list* msg args) ; public commands
-    [(list 'start hash-false command)
-     (define job-id (compute-job-id command))
-     (hash-set! queued-jobs job-id command)
+    [(list 'start 'basic command test seed pcontext profile? timeline?)
+     (define job (herbie-command command test seed pcontext profile? timeline?))
+     (define job-id (compute-job-id job))
+     (hash-set! queued-jobs job-id job)
      job-id]
-    [(list 'wait hash-false job-id)
+    [(list 'wait 'basic job-id)
      (define command (hash-ref queued-jobs job-id))
      (define result (herbie-do-server-job command job-id))
      (hash-set! completed-jobs job-id result)
