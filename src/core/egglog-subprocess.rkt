@@ -1,5 +1,7 @@
 #lang racket
 
+(require "../config.rkt")
+
 (provide create-new-egglog-subprocess
          send-to-egglog
          send-to-egglog-unsound-detection)
@@ -7,8 +9,25 @@
 (define egglog-path
   (or (find-executable-path "egglog") (error "egglog executable not found in PATH")))
 
+(define dump-file #f)
+
 ;; High-level function that writes the program to a file, runs it then returns output
+;;
+;; If the flag is set to dump the egglog file, since a new subprocess is starting, we can
+;;  create a new file to dump the egglog program is and set it
 (define (create-new-egglog-subprocess)
+  ;; Dump-file
+  (when (flag-set? 'dump 'egglog)
+    (define dump-dir "dump-egglog")
+    (unless (directory-exists? dump-dir)
+      (make-directory dump-dir))
+    (define name
+      (for/first ([i (in-naturals)]
+                  #:unless (file-exists? (build-path dump-dir (format "~a.egg" i))))
+        (build-path dump-dir (format "~a.egg" i))))
+
+    (set! dump-file (open-output-file name #:exists 'replace)))
+
   ; TODO : "RUST_BACKTRACE=1"
   (define-values (egglog-process egglog-output egglog-in err) (subprocess #f #f #f egglog-path))
 
@@ -23,6 +42,10 @@
 
   (define egglog-program (apply ~s #:separator "\n" commands))
 
+  (when dump-file
+    (for ([expr commands])
+      (pretty-print expr dump-file 1)))
+
   (with-handlers ([exn:fail? (lambda (exn)
                                (printf "Egglog command failed with exception:\n~a\n"
                                        (exn-message exn))
@@ -39,22 +62,20 @@
                                ; Reraise the exception
                                (raise exn))])
 
-    ; (printf "Sending to egglog: \n~a\n\n" egglog-program)
     (displayln egglog-program egglog-in)
     (flush-output egglog-in)
 
-    (define result
-      (for/list ([i (in-range num-extracts)])
-        (define expr (read egglog-output))
-        ; (printf "expr : ~a\n" expr)
-        expr))
-    ; (printf "reached out\n\n")
-
-    result))
+    ;; Return each S-expr based on the numer of extractions
+    (for/list ([i (in-range num-extracts)])
+      (read egglog-output))))
 
 (define (send-to-egglog-unsound-detection commands egglog-process egglog-output egglog-in err)
   (define egglog-program (apply ~s #:separator "\n" commands))
 
+  (when dump-file
+    (for ([expr commands])
+      (pretty-print expr dump-file 1)))
+
   (with-handlers ([exn:fail? (lambda (exn)
                                (printf "Egglog command failed with exception:\n~a\n"
                                        (exn-message exn))
@@ -70,26 +91,21 @@
 
                                ; Reraise the exception
                                (raise exn))])
-
-    ; (printf "Sending to egglog: \n~a\n\n" commands)
 
     (displayln egglog-program egglog-in)
     (flush-output egglog-in)
 
     (define lines '())
-    (define unsound? #t) ; maybe make it false
+    (define unsound? #t)
 
     (let loop ()
       (define line (read-line egglog-output 'any))
-      ; (printf "line : ~a\n" line)
       (cond
         [(or (equal? line "true") (equal? line "false")) (set! unsound? (equal? line "true"))]
         [else
          (set! lines (cons line lines))
 
          (loop)]))
-
-    ; (printf "done\n\n")
 
     (values lines unsound?)))
 
