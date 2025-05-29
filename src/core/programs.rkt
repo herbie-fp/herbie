@@ -12,6 +12,7 @@
          spec-prog?
          impl-prog?
          repr-of
+         repr-of-node
          location-set
          location-get
          get-locations
@@ -32,6 +33,17 @@
     [(approx _ impl) (repr-of impl ctx)]
     [(hole precision spec) (get-representation precision)]
     [(list 'if cond ift iff) (repr-of ift ctx)]
+    [(list op args ...) (impl-info op 'otype)]))
+
+; Index inside (batch-nodes batch) -> type
+(define (repr-of-node batch idx ctx)
+  (define node (vector-ref (batch-nodes batch) idx))
+  (match node
+    [(literal val precision) (get-representation precision)]
+    [(? variable?) (context-lookup ctx node)]
+    [(approx _ impl) (repr-of-node batch impl ctx)]
+    [(hole precision spec) (get-representation precision)]
+    [(list 'if cond ift iff) (repr-of-node batch ift ctx)]
     [(list op args ...) (impl-info op 'otype)]))
 
 (define (all-subexpressions expr #:reverse? [reverse? #f])

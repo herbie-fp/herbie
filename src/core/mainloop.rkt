@@ -149,17 +149,16 @@
 (define (reconstruct! alts)
   ;; extracts the base expressions of a patch as a batchref
   (define (get-starting-expr altn)
-    (match* ((alt-event altn) (alt-prevs altn))
-      [((list 'patch expr _) _) expr]
-      [(_ (list prev)) (get-starting-expr prev)]
-      [(_ _) (error 'get-starting-spec "unexpected: ~a" altn)]))
+    (match (alt-prevs altn)
+      [(list) (debatchref (alt-expr altn))]
+      [(list prev) (get-starting-expr prev)]))
 
   ;; takes a patch and converts it to a full alt
   (define (reconstruct-alt altn loc0 orig)
     (let loop ([altn altn])
       (match-define (alt _ event prevs _) altn)
       (match event
-        [(list 'patch _ _) orig]
+        ['patch orig]
         [_
          (define event*
            (match event
