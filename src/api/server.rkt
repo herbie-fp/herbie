@@ -190,12 +190,10 @@
        [(list 'finished self wid job-id result)
         (log "Job ~a finished, saving result.\n" job-id)
         (hash-set! completed-jobs job-id result)
-
         ; move worker to waiting list
         (hash-remove! current-jobs job-id)
         (hash-set! waiting-workers wid (hash-ref busy-workers wid))
         (hash-remove! busy-workers wid)
-
         (log "waiting job ~a completed\n" job-id)
         (place-channel-put self (list 'send job-id result))
         (place-channel-put self (list 'assign self))]
@@ -208,14 +206,14 @@
        ;; Public API
        [(list 'start handler self command test seed pcontext profile? timeline?)
         (define job (herbie-command command test seed pcontext profile? timeline?))
-        (define job-id (compute-job-id command))
+        (define job-id (compute-job-id job))
         (place-channel-put handler job-id)
         ; Check if the work has been completed already if not assign the work.
         (cond
           [(hash-has-key? completed-jobs job-id)
            (place-channel-put self (list 'send job-id (hash-ref completed-jobs job-id)))]
           [else
-           (hash-set! queued-jobs job-id command)
+           (hash-set! queued-jobs job-id job)
            (place-channel-put self (list 'assign self))])]
        [(list 'wait handler self job-id)
         (log "Waiting for job: ~a\n" job-id)
