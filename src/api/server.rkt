@@ -70,6 +70,14 @@
 ;; Whole-server public methods
 
 (define (server-start threads)
+  (cond
+    [threads
+     (eprintf "Starting Herbie ~a with ~a workers and seed ~a...\n"
+              *herbie-version*
+              threads
+              (get-seed))]
+    [else (eprintf "Starting Herbie ~a with seed ~a...\n" *herbie-version* (get-seed))])
+
   (set! manager
         (if threads
             (make-manager threads)

@@ -508,10 +508,6 @@
   (*demo-log* log)
   (server-start threads)
 
-  (unless quiet?
-    (eprintf "Herbie ~a with seed ~a\n" *herbie-version* (get-seed))
-    (eprintf "Find help on https://herbie.uwplse.org/, exit with Ctrl-C\n"))
-
   (serve/servlet dispatch
                  #:listen-ip (if public #f "127.0.0.1")
                  #:port port
