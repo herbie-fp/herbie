@@ -188,8 +188,7 @@
 
 (define (compile-preprocessing expression context preprocessing)
   (match preprocessing
-    [(list 'sort vars ...)
-     (error 'compile-preprocessing "Cannot compile away preprocessing, sorry!")]
+    [(list 'sort vars ...) (error 'compile-preprocessing "Cannot compile away preprocessing, sorry!")]
     [(list 'abs var)
      (define repr (context-lookup context var))
      (define fabs (get-fpcore-impl 'fabs (repr->prop repr) (list repr)))
@@ -201,5 +200,5 @@
      (define replacement `(,fabs ,var))
      (define mul (get-fpcore-impl '* (repr->prop repr) (list repr repr)))
      (define copysign (get-fpcore-impl 'copysign (repr->prop repr) (list repr)))
-     `(,mul (,copysign ,#(literal 1 (representation-name repr)) ,var)
+     `(,mul (,copysign ,(literal 1 (representation-name repr)) ,var)
             ,(replace-expression expression var replacement))]))

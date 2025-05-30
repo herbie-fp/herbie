@@ -60,13 +60,13 @@
   (define useful-preprocessing
     (remove-unnecessary-preprocessing expr context pcontext initial-preprocessing))
   (define-values (expr* final-preprocessing)
-    (for/fold ([expr expr] [final-preprocessing '()])
+    (for/fold ([expr expr]
+               [final-preprocessing '()])
               ([preprocessing (in-list useful-preprocessing)])
       (match preprocessing
-        [(list 'sort vars ...) ; Cannot currently compile this away
-         (values expr (cons preprocessing final-preprocessing))]
-        [_
-         (values (compile-preprocessing expr context preprocessing) final-preprocessing)])))
+        ; Cannot currently compile this away
+        [(list 'sort vars ...) (values expr (cons preprocessing final-preprocessing))]
+        [_ (values (compile-preprocessing expr context preprocessing) final-preprocessing)])))
   (alt expr* 'add-preprocessing (list altn) (reverse final-preprocessing)))
 
 (define (extract!)
