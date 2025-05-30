@@ -578,15 +578,9 @@
               (get-representation 'bool)
               'bool))
         (list 'if (lookup cond cond-type) (lookup ift type) (lookup iff type))]
-       [(and (string-contains? (~a f) "special") (equal? (u32vector-length ids) 1))
-        (define a (u32vector-ref ids 0))
+       [(string-contains? (~a f) "special")
         (define op (string->symbol (string-replace (symbol->string f) "special-" "")))
-        (list op (lookup a 'real))]
-       [(and (string-contains? (~a f) "special") (equal? (u32vector-length ids) 2))
-        (define a (u32vector-ref ids 0))
-        (define b (u32vector-ref ids 1))
-        (define op (string->symbol (string-replace (symbol->string f) "special-" "")))
-        (list op (lookup a 'real) (lookup b 'real))]
+        (list* op (map (λ (x) (lookup (u32vector-ref ids x) 'real)) (range (u32vector-length ids))))]
        [else
         (define itypes
           (if (impl-exists? f)
