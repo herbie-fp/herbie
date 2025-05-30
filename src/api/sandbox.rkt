@@ -158,12 +158,12 @@
                     #:seed [seed #f]
                     #:pcontext [pcontext #f]
                     #:profile? [profile? #f]
-                    #:timeline-disabled? [timeline-disabled? #f])
+                    #:timeline? [timeline? #f])
   (define timeline #f)
   (define profile #f)
 
   (define (on-exception start-time e)
-    (parameterize ([*timeline-disabled* timeline-disabled?])
+    (parameterize ([*timeline-disabled* (not timeline?)])
       (timeline-event! 'end)
       (define time (- (current-inexact-milliseconds) start-time))
       (match command
@@ -171,7 +171,7 @@
         [_ (raise e)])))
 
   (define (on-timeout)
-    (parameterize ([*timeline-disabled* timeline-disabled?])
+    (parameterize ([*timeline-disabled* (not timeline?)])
       (timeline-load! timeline)
       (timeline-event! 'end)
       (match command
@@ -180,7 +180,7 @@
         [_ (error 'run-herbie "command ~a timed out" command)])))
 
   (define (compute-result)
-    (parameterize ([*timeline-disabled* timeline-disabled?])
+    (parameterize ([*timeline-disabled* (not timeline?)])
       (define start-time (current-inexact-milliseconds))
       (reset!)
       (*context* (test-context test))
