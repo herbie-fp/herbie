@@ -57,7 +57,7 @@
 
 (define (run-shell)
   (define seed (get-seed))
-  (start-job-server #f)
+  (server-start #f)
   (eprintf "Find help on https://herbie.uwplse.org/, exit with ~a\n"
            (match (system-type 'os)
              ['windows "Ctrl-Z Enter"]
