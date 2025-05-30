@@ -199,6 +199,6 @@
      (define fabs (get-fpcore-impl 'fabs (repr->prop repr) (list repr)))
      (define replacement `(,fabs ,var))
      (define mul (get-fpcore-impl '* (repr->prop repr) (list repr repr)))
-     (define copysign (get-fpcore-impl 'copysign (repr->prop repr) (list repr)))
+     (define copysign (get-fpcore-impl 'copysign (repr->prop repr) (list repr repr)))
      `(,mul (,copysign ,(literal 1 (representation-name repr)) ,var)
             ,(replace-expression expression var replacement))]))
