@@ -102,13 +102,12 @@
     (values lines unsound?)))
 
 (module+ test
-  (require rackunit)
-
   (define-values (egglog-process egglog-output egglog-in err) (create-new-egglog-subprocess))
 
-  (thread (λ ()
-            (for ([line (in-lines err)])
-              (printf "[egglog-log] ~a\n" line))))
+  (thread (lambda ()
+            (with-handlers ([exn:fail? (lambda (_) (void))])
+              (for ([line (in-lines err)])
+                (printf "[egglog-log] ~a\n" line)))))
 
   (define first-commands
     (list '(datatype Expr (Var String :cost 150) (Add Expr Expr :cost 200))
@@ -139,13 +138,13 @@
           '(run init 1)))
 
   ; Nothing to output
-  (send-to-egglog first-commands egglog-process egglog-output egglog-in err)
+  (send-to-egglog first-commands egglog-process egglog-output egglog-in err #f)
 
   ; Has extract 1 thing
   (define second-commands (list '(extract (const1))))
 
   (define lines1
-    (send-to-egglog second-commands egglog-process egglog-output egglog-in err #:num-extracts 1))
+    (send-to-egglog second-commands egglog-process egglog-output egglog-in err #f #:num-extracts 1))
   (printf "\noutput-vals1 : ~a\n\n" lines1)
 
   ;; Print size
@@ -153,7 +152,12 @@
   (define print-size-commands (list '(print-size) '(run unsound-rule 1) '(extract (unsound))))
 
   (define-values (node-values unsound?)
-    (send-to-egglog-unsound-detection print-size-commands egglog-process egglog-output egglog-in err))
+    (send-to-egglog-unsound-detection print-size-commands
+                                      egglog-process
+                                      egglog-output
+                                      egglog-in
+                                      err
+                                      #f))
 
   (for ([line node-values]
         #:when (> (string-length line) 0))
@@ -167,16 +171,12 @@
   (define third-commands (list '(extract (const2)) '(extract (const3))))
 
   (define lines2
-    (send-to-egglog third-commands egglog-process egglog-output egglog-in err #:num-extracts 2))
+    (send-to-egglog third-commands egglog-process egglog-output egglog-in err #f #:num-extracts 2))
   (printf "\noutput-vals2 : ~a\n\n" lines2)
 
   (close-output-port egglog-in)
   (close-input-port egglog-output)
-
-  ; (define err-results (read-string 1000 err))
   (close-input-port err)
-
-  ; (printf "Egglog logs:\n~a" err-results)
 
   (subprocess-wait egglog-process)
 
