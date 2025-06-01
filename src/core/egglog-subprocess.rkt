@@ -6,27 +6,13 @@
          send-to-egglog
          send-to-egglog-unsound-detection)
 
-(define egglog-path
-  (or (find-executable-path "egglog") (error "egglog executable not found in PATH")))
-
-(define dump-file #f)
-
 ;; High-level function that writes the program to a file, runs it then returns output
 ;;
 ;; If the flag is set to dump the egglog file, since a new subprocess is starting, we can
 ;;  create a new file to dump the egglog program is and set it
 (define (create-new-egglog-subprocess)
-  ;; Dump-file
-  (when (flag-set? 'dump 'egglog)
-    (define dump-dir "dump-egglog")
-    (unless (directory-exists? dump-dir)
-      (make-directory dump-dir))
-    (define name
-      (for/first ([i (in-naturals)]
-                  #:unless (file-exists? (build-path dump-dir (format "~a.egg" i))))
-        (build-path dump-dir (format "~a.egg" i))))
-
-    (set! dump-file (open-output-file name #:exists 'replace)))
+  (define egglog-path
+    (or (find-executable-path "egglog") (error "egglog executable not found in PATH")))
 
   ; TODO : "RUST_BACKTRACE=1"
   (define-values (egglog-process egglog-output egglog-in err) (subprocess #f #f #f egglog-path))
@@ -38,6 +24,7 @@
                         egglog-output
                         egglog-in
                         err
+                        dump-file
                         #:num-extracts [num-extracts 0])
 
   (define egglog-program (apply ~s #:separator "\n" commands))
@@ -69,7 +56,12 @@
     (for/list ([i (in-range num-extracts)])
       (read egglog-output))))
 
-(define (send-to-egglog-unsound-detection commands egglog-process egglog-output egglog-in err)
+(define (send-to-egglog-unsound-detection commands
+                                          egglog-process
+                                          egglog-output
+                                          egglog-in
+                                          err
+                                          dump-file)
   (define egglog-program (apply ~s #:separator "\n" commands))
 
   (when dump-file
