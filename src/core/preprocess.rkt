@@ -25,7 +25,8 @@
        (get-fpcore-impl 'fabs (repr->prop repr) (list repr))))
 
 (define (has-copysign-impl? repr)
-  (get-fpcore-impl 'copysign (repr->prop repr) (list repr repr)))
+  (and (get-fpcore-impl '* (repr->prop repr) (list repr repr))
+       (get-fpcore-impl 'copysign (repr->prop repr) (list repr repr))))
 
 ;; The even identities: f(x) = f(-x)
 ;; Requires `neg` and `fabs` operator implementations.
@@ -44,6 +45,7 @@
     (cons `(negabs ,var) (replace-expression `(neg ,spec) var `(neg ,var)))))
 
 ;; Swap identities: f(a, b) = f(b, a)
+;; TODO: require both vars have the same repr
 (define (make-swap-identities spec ctx)
   (define pairs (combinations (context-vars ctx) 2))
   (for/list ([pair (in-list pairs)])
@@ -188,7 +190,14 @@
 
 (define (compile-preprocessing expression context preprocessing)
   (match preprocessing
-    [(list 'sort vars ...) (error 'compile-preprocessing "Cannot compile away preprocessing, sorry!")]
+    [(list 'sort vars ...)
+     ; Not handled yet
+     #f]
+    [(list 'sort a b)
+     (define repr (context-lookup context a))
+     (define fmin (get-fpcore-impl 'fmin (repr->prop repr) (list repr repr)))
+     (define fmax (get-fpcore-impl 'fmax (repr->prop repr) (list repr repr)))
+     (replace-vars (list (cons a `(,fmin ,a ,b)) (cons b `(,fmax ,a ,b))) expression)]
     [(list 'abs var)
      (define repr (context-lookup context var))
      (define fabs (get-fpcore-impl 'fabs (repr->prop repr) (list repr)))

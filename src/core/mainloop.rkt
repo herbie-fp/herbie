@@ -63,10 +63,10 @@
     (for/fold ([expr expr]
                [final-preprocessing '()])
               ([preprocessing (in-list useful-preprocessing)])
-      (match preprocessing
-        ; Cannot currently compile this away
-        [(list 'sort vars ...) (values expr (cons preprocessing final-preprocessing))]
-        [_ (values (compile-preprocessing expr context preprocessing) final-preprocessing)])))
+      (define compiled (compile-preprocessing expr context preprocessing))
+      (if compiled
+          (values compiled final-preprocessing)
+          (values expr (cons preprocessing final-preprocessing)))))
   (alt expr* 'add-preprocessing (list altn) (reverse final-preprocessing)))
 
 (define (extract!)
