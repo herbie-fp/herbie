@@ -190,9 +190,8 @@
 
 (define (compile-preprocessing expression context preprocessing)
   (match preprocessing
-    [(list 'sort vars ...)
-     ; Not handled yet
-     #f]
+    ; Not handled yet
+    [(list 'sort vars ...) #f]
     [(list 'sort a b)
      (define repr (context-lookup context a))
      (define fmin (get-fpcore-impl 'fmin (repr->prop repr) (list repr repr)))
