@@ -3,225 +3,144 @@
 (require openssl/sha1)
 (require (only-in xml write-xexpr))
 
-(require "sandbox.rkt"
-         "../core/points.rkt"
-         "../reports/history.rkt"
-         "../reports/plot.rkt"
-         "../reports/common.rkt"
-         "../syntax/types.rkt"
+(require "../syntax/load-plugin.rkt"
          "../syntax/read.rkt"
-         "../syntax/load-plugin.rkt"
          "../syntax/sugar.rkt"
+         "../syntax/syntax.rkt"
+         "../syntax/types.rkt"
          "../utils/alternative.rkt"
          "../utils/common.rkt"
          "../utils/errors.rkt"
          "../utils/float.rkt"
+         "../core/points.rkt"
+         "../reports/common.rkt"
+         "../reports/history.rkt"
          "../reports/pages.rkt"
+         "../reports/plot.rkt"
          "datafile.rkt"
-         "../syntax/syntax.rkt"
+         "sandbox.rkt"
          (submod "../utils/timeline.rkt" debug))
 
-(provide make-path
-         get-improve-table-data
-         server-check-on
-         get-results-for
-         get-timeline-for
-         job-count
-         is-server-up
-         start-job
-         wait-for-job
-         start-job-server
-         write-results-to-disk
-         *demo-output*
-         alt->fpcore)
+(provide job-path
+         job-start
+         job-status
+         job-wait
+         job-results
+         job-timeline
+         server-start
+         server-improve-results
+         server-count
+         server-up?)
 
-(define (warn-single-threaded-mpfr)
-  (local-require ffi/unsafe)
-  (local-require math/private/bigfloat/mpfr)
-  (unless ((get-ffi-obj 'mpfr_buildopt_tls_p mpfr-lib (_fun -> _bool)))
-    (warn 'mpfr-threads "Your MPFR is single-threaded. Herbie will work but be slower than normal.")))
-
-(define *demo-output* (make-parameter false))
-
-(define log-level #f)
 (define (log msg . args)
-  (when log-level
+  (when false
     (apply eprintf msg args)))
 
-;; Job object, What herbie excepts as input for a new job.
-(struct herbie-command (command test seed pcontext profile? timeline-disabled?) #:prefab)
-
-(define (write-results-to-disk result-hash path)
-  (make-directory (build-path (*demo-output*) path))
-  (for ([page (all-pages result-hash)])
-    (call-with-output-file
-     (build-path (*demo-output*) path page)
-     (λ (out)
-       (with-handlers ([exn:fail? (page-error-handler result-hash page out)])
-         (make-page-timeout page out result-hash (*demo-output*) #f #:timeout 10000)))))
-  (define link (path-element->string (last (explode-path path))))
-  (define data (get-table-data-from-hash result-hash link))
-  (define data-file (build-path (*demo-output*) "results.json"))
-  (define html-file (build-path (*demo-output*) "index.html"))
-  (define info
-    (if (file-exists? data-file)
-        (let ([info (call-with-input-file data-file read-datafile)])
-          (struct-copy report-info info [tests (cons data (report-info-tests info))]))
-        (make-report-info (list data) #:seed (get-seed))))
-  (define tmp-file (build-path (*demo-output*) "results.tmp"))
-  (write-datafile tmp-file info)
-  (rename-file-or-directory tmp-file data-file #t)
-  (copy-file (web-resource "report.html") html-file #t))
-
-; computes the path used for server URLs
-(define (make-path id)
+;; Job-specific public API
+(define (job-path id)
   (format "~a.~a" id *herbie-commit*))
 
-; Returns #f is now job exsist for the given job-id
-(define (get-results-for job-id)
-  (log "Getting result for job: ~a.\n" job-id)
-  (manager-ask 'result job-id))
-
-(define (get-timeline-for job-id)
-  (log "Getting timeline for job: ~a.\n" job-id)
-  (manager-ask 'timeline job-id))
-
-; Returns #f if there is no job returns the job-id if there is a completed job.
-(define (server-check-on job-id)
-  (log "Checking on: ~a.\n" job-id)
-  (manager-ask 'check job-id))
-
-(define (get-improve-table-data)
-  (log "Getting improve results.\n")
-  (manager-ask 'improve))
-
-(define (job-count)
-  (define job-list (manager-ask 'count))
-  (log "Currently ~a jobs in progress, ~a jobs in queue.\n" (first job-list) (second job-list))
-  (apply + job-list))
-
-;; Starts a job on the server
-;; TODO contract?
-(define (start-job command
+(define (job-start command
                    test
                    #:seed [seed #f]
                    #:pcontext [pcontext #f]
                    #:profile? [profile? #f]
-                   #:timeline-disabled? [timeline-disabled? #f])
-  (define job (herbie-command command test seed pcontext profile? timeline-disabled?))
-  (define job-id (compute-job-id job))
-  (manager-tell 'start manager job job-id)
+                   #:timeline? [timeline? #f])
+  (define job-id (manager-ask 'start manager command test seed pcontext profile? timeline?))
   (log "Job ~a, Qed up for program: ~a\n" job-id (test-name test))
   job-id)
 
-(define (wait-for-job job-id)
+(define (job-status job-id)
+  (log "Checking on: ~a.\n" job-id)
+  (manager-ask 'check job-id))
+
+(define (job-wait job-id)
   (define finished-result (manager-ask 'wait manager job-id))
   (log "Done waiting for: ~a\n" job-id)
   finished-result)
 
-(define (manager-tell msg . args)
-  (log "Telling manager: ~a.\n" msg)
-  (if manager
-      (place-channel-put manager (list* msg args))
-      (match msg
-        ['start
-         (match-define (list #f command job-id) args)
-         (hash-set! queued-jobs job-id command)])))
+(define (job-results job-id)
+  (log "Getting result for job: ~a.\n" job-id)
+  (manager-ask 'result job-id))
+
+(define (job-timeline job-id)
+  (log "Getting timeline for job: ~a.\n" job-id)
+  (manager-ask 'timeline job-id))
+
+;; Whole-server public methods
+
+(define (server-start threads)
+  (cond
+    [threads
+     (eprintf "Starting Herbie ~a with ~a workers and seed ~a...\n"
+              *herbie-version*
+              threads
+              (get-seed))]
+    [else (eprintf "Starting Herbie ~a with seed ~a...\n" *herbie-version* (get-seed))])
+
+  (set! manager
+        (if threads
+            (make-manager threads)
+            'basic)))
+
+(define (server-improve-results)
+  (log "Getting improve results.\n")
+  (manager-ask 'improve))
+
+(define (server-count)
+  (define job-list (manager-ask 'count))
+  (apply + job-list))
+
+(define (server-up?)
+  (match manager
+    [(? place? x) (not (sync/timeout 0 (place-dead-evt x)))]
+    ['basic #t]))
+
+;; Interface for two manager types (threaded and basic)
+
+(define manager #f)
 
 (define (manager-ask msg . args)
   (log "Asking manager: ~a, ~a.\n" msg args)
-  (if manager
-      (manager-ask-with-callback msg args)
-      (match (list* msg args) ; public commands
-        [(list 'wait hash-false job-id)
-         (define command (hash-ref queued-jobs job-id))
-         (define result (herbie-do-server-job command job-id))
-         (hash-set! completed-jobs job-id result)
-         result]
-        [(list 'result job-id) (hash-ref completed-jobs job-id #f)]
-        [(list 'timeline job-id) (hash-ref completed-jobs job-id #f)]
-        [(list 'check job-id) (and (hash-ref completed-jobs job-id #f) job-id)]
-        [(list 'count) (list 0 0)]
-        [(list 'improve)
-         (for/list ([(job-id result) (in-hash completed-jobs)]
-                    #:when (equal? (hash-ref result 'command) "improve"))
-           (get-table-data-from-hash result (make-path job-id)))])))
+  (match manager
+    [(? place? x) (apply manager-ask-threaded x msg args)]
+    ['basic (apply manager-ask-basic msg args)]))
 
-(define (get-json-converter command)
-  (match (herbie-command-command command)
-    ['alternatives make-alternatives-result]
-    ['cost make-cost-result]
-    ['errors make-error-result]
-    ['explanations make-explanation-result]
-    ['improve make-alternatives-result]
-    ['local-error make-local-error-result]
-    ['sample make-sample-result]
-    [_ (error 'compute-result "unknown command ~a" command)]))
-
-(define (herbie-do-server-job command job-id)
-  (define herbie-result (wrapper-run-herbie command job-id))
-  (define basic-output ((get-json-converter command) herbie-result job-id))
-  ;; Add default fields that all commands have
-  (hash-set* basic-output
-             'job
-             job-id
-             'path
-             (make-path job-id)
-             'command
-             (~a (herbie-command-command command))
-             'name
-             (test-name (herbie-command-test command))
-             'status
-             (~a (job-result-status herbie-result))
-             'time
-             (job-result-time herbie-result)
-             'warnings
-             (job-result-warnings herbie-result)))
-
-(define queued-jobs (make-hash))
-(define completed-jobs (make-hash))
-
-(define (manager-ask-with-callback msg args)
+(define (manager-ask-threaded manager msg . args)
   (define-values (a b) (place-channel))
   (place-channel-put manager (list* msg b args))
   (place-channel-get a))
 
-(define (is-server-up)
-  (if manager
-      (not (sync/timeout 0 manager-dead-event))
-      #t))
+(define (manager-ask-basic msg . args)
+  (match (list* msg args) ; public commands
+    [(list 'start 'basic command test seed pcontext profile? timeline?)
+     (define job (herbie-command command test seed pcontext profile? timeline?))
+     (define job-id (compute-job-id job))
+     (hash-set! queued-jobs job-id job)
+     job-id]
+    [(list 'wait 'basic job-id)
+     (define command (hash-ref queued-jobs job-id))
+     (define result (herbie-do-server-job command job-id))
+     (hash-set! completed-jobs job-id result)
+     result]
+    [(list 'result job-id) (hash-ref completed-jobs job-id #f)]
+    [(list 'timeline job-id) (hash-ref completed-jobs job-id #f)]
+    [(list 'check job-id) (and (hash-ref completed-jobs job-id #f) job-id)]
+    [(list 'count) (list 0 0)]
+    [(list 'improve)
+     (for/list ([(job-id result) (in-hash completed-jobs)]
+                #:when (equal? (hash-ref result 'command) "improve"))
+       result)]))
 
-;; Start the job server
-;; worker-cap: `false` or `no` to not use Racket `place` best used for
-;; debugging, specific yes to use the number of cores on your system as the
-;; worker cap or specif the number of workers you would like to use
-;; logging: Set to #f as default. Set to #t to print what the server is doing
-;; to standard error.
-(define (start-job-server worker-cap #:logging [set-logging #f])
-  (set! log-level set-logging)
-  (when worker-cap
-    (define r (make-manager worker-cap))
-    (set! manager-dead-event (place-dead-evt r))
-    (set! manager r)))
+;; Implementation of threaded manager
 
-(define manager #f)
-(define manager-dead-event #f)
+(struct herbie-command (command test seed pcontext profile? timeline?) #:prefab)
+
+(define queued-jobs (make-hash))
+(define completed-jobs (make-hash))
 
 (define (compute-job-id job-info)
   (sha1 (open-input-string (~s job-info))))
-
-(define (wrapper-run-herbie cmd job-id)
-  (log "Started ~a job (~a): ~a\n"
-       (herbie-command-command cmd)
-       job-id
-       (test-name (herbie-command-test cmd)))
-  (begin0 (run-herbie (herbie-command-command cmd)
-                      (herbie-command-test cmd)
-                      #:seed (herbie-command-seed cmd)
-                      #:pcontext (herbie-command-pcontext cmd)
-                      #:profile? (herbie-command-profile? cmd)
-                      #:timeline-disabled? (herbie-command-timeline-disabled? cmd))
-    (log "Completed ~a job (~a)\n" (herbie-command-command cmd) job-id)))
 
 (define-syntax (place/context* stx)
   (syntax-case stx ()
@@ -260,14 +179,8 @@
    (log "Manager waiting to assign work.\n")
    (for ([i (in-naturals)])
      (match (place-channel-get ch)
-       [(list 'start self command job-id)
-        ; Check if the work has been completed already if not assign the work.
-        (cond
-          [(hash-has-key? completed-jobs job-id)
-           (place-channel-put self (list 'send job-id (hash-ref completed-jobs job-id)))]
-          [else
-           (hash-set! queued-jobs job-id command)
-           (place-channel-put self (list 'assign self))])]
+
+       ;; Private API
        [(list 'assign self)
         (define reassigned (make-hash))
         (for ([(wid worker) (in-hash waiting-workers)]
@@ -286,15 +199,31 @@
        [(list 'finished self wid job-id result)
         (log "Job ~a finished, saving result.\n" job-id)
         (hash-set! completed-jobs job-id result)
-
         ; move worker to waiting list
         (hash-remove! current-jobs job-id)
         (hash-set! waiting-workers wid (hash-ref busy-workers wid))
         (hash-remove! busy-workers wid)
-
         (log "waiting job ~a completed\n" job-id)
         (place-channel-put self (list 'send job-id result))
         (place-channel-put self (list 'assign self))]
+       [(list 'send job-id result)
+        (log "Sending result for ~a.\n" job-id)
+        (for ([handle (hash-ref waiting job-id '())])
+          (place-channel-put handle result))
+        (hash-remove! waiting job-id)]
+
+       ;; Public API
+       [(list 'start handler self command test seed pcontext profile? timeline?)
+        (define job (herbie-command command test seed pcontext profile? timeline?))
+        (define job-id (compute-job-id job))
+        (place-channel-put handler job-id)
+        ; Check if the work has been completed already if not assign the work.
+        (cond
+          [(hash-has-key? completed-jobs job-id)
+           (place-channel-put self (list 'send job-id (hash-ref completed-jobs job-id)))]
+          [else
+           (hash-set! queued-jobs job-id job)
+           (place-channel-put self (list 'assign self))])]
        [(list 'wait handler self job-id)
         (log "Waiting for job: ~a\n" job-id)
         ; first we add the handler to the wait list.
@@ -305,11 +234,6 @@
           (log "Done waiting for job: ~a\n" job-id)
           ; we have a result to send.
           (place-channel-put self (list 'send job-id result)))]
-       [(list 'send job-id result)
-        (log "Sending result for ~a.\n" job-id)
-        (for ([handle (hash-ref waiting job-id '())])
-          (place-channel-put handle result))
-        (hash-remove! waiting job-id)]
        ; Get the result for the given id, return false if no work found.
        [(list 'result handler job-id) (place-channel-put handler (hash-ref completed-jobs job-id #f))]
        [(list 'timeline handler job-id)
@@ -328,15 +252,24 @@
         (place-channel-put handler (and (hash-has-key? completed-jobs job-id) job-id))]
        ; Returns the current count of working workers.
        [(list 'count handler)
-        (log "Count requested\n")
-        (place-channel-put handler (list (hash-count busy-workers) (hash-count queued-jobs)))]
+        (define counts (list (hash-count busy-workers) (hash-count queued-jobs)))
+        (log "Currently ~a jobs in progress, ~a jobs in queue.\n" (first counts) (second counts))
+        (place-channel-put handler counts)]
        ; Retreive the improve results for results.json
        [(list 'improve handler)
         (define improved-list
           (for/list ([(job-id result) (in-hash completed-jobs)]
                      #:when (equal? (hash-ref result 'command) "improve"))
-            (get-table-data-from-hash result (make-path job-id))))
+            result))
         (place-channel-put handler improved-list)]))))
+
+;; Implementation of threaded worker
+
+(define (warn-single-threaded-mpfr)
+  (local-require ffi/unsafe)
+  (local-require math/private/bigfloat/mpfr)
+  (unless ((get-ffi-obj 'mpfr_buildopt_tls_p mpfr-lib (_fun -> _bool)))
+    (warn 'mpfr-threads "Your MPFR is single-threaded. Herbie will work but be slower than normal.")))
 
 (define (make-worker worker-id)
   (warn-single-threaded-mpfr)
@@ -382,6 +315,54 @@
   (define out-result (herbie-do-server-job command job-id))
   (log "Job: ~a finished, returning work to manager\n" job-id)
   (place-channel-put manager (list 'finished manager worker-id job-id out-result)))
+
+;; Worker internals
+
+(define (herbie-do-server-job command job-id)
+  (define herbie-result (wrapper-run-herbie command job-id))
+  (define basic-output ((get-json-converter command) herbie-result job-id))
+  ;; Add default fields that all commands have
+  (hash-set* basic-output
+             'job
+             job-id
+             'path
+             (job-path job-id)
+             'command
+             (~a (herbie-command-command command))
+             'name
+             (test-name (herbie-command-test command))
+             'status
+             (~a (job-result-status herbie-result))
+             'time
+             (job-result-time herbie-result)
+             'warnings
+             (job-result-warnings herbie-result)))
+
+(define (wrapper-run-herbie cmd job-id)
+  (log "Started ~a job (~a): ~a\n"
+       (herbie-command-command cmd)
+       job-id
+       (test-name (herbie-command-test cmd)))
+  (begin0 (run-herbie (herbie-command-command cmd)
+                      (herbie-command-test cmd)
+                      #:seed (herbie-command-seed cmd)
+                      #:pcontext (herbie-command-pcontext cmd)
+                      #:profile? (herbie-command-profile? cmd)
+                      #:timeline? (herbie-command-timeline? cmd))
+    (log "Completed ~a job (~a)\n" (herbie-command-command cmd) job-id)))
+
+;; JSON conversion stuff
+
+(define (get-json-converter command)
+  (match (herbie-command-command command)
+    ['alternatives make-alternatives-result]
+    ['cost make-cost-result]
+    ['errors make-error-result]
+    ['explanations make-explanation-result]
+    ['improve make-alternatives-result]
+    ['local-error make-local-error-result]
+    ['sample make-sample-result]
+    [_ (error 'compute-result "unknown command ~a" command)]))
 
 (define (make-explanation-result herbie-result job-id)
   (hasheq 'explanation (job-result-backend herbie-result)))

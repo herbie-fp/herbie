@@ -24,6 +24,7 @@
          "../reports/core2mathjs.rkt"
          "../reports/pages.rkt"
          "datafile.rkt"
+         "sandbox.rkt"
          "server.rkt")
 
 (provide run-demo)
@@ -31,6 +32,7 @@
 (define *demo?* (make-parameter false))
 (define *demo-prefix* (make-parameter "/"))
 (define *demo-log* (make-parameter false))
+(define *demo-output* (make-parameter false))
 
 (define (add-prefix url)
   (string-replace (string-append (*demo-prefix*) url) "//" "/"))
@@ -40,13 +42,12 @@
  (λ (x)
    (and (not (and (*demo-output*) ; If we've already saved to disk, skip this job
                   (directory-exists? (build-path (*demo-output*) x))))
-        (let ([m (regexp-match #rx"^([0-9a-f]+)\\.[0-9a-f.]+" x)])
-          (and m (server-check-on (second m))))))
+        (let ([m (regexp-match #rx"^([0-9a-f]+)\\.[0-9a-f.]+" x)]) (and m (job-status (second m))))))
  (λ (x)
    (let ([m (regexp-match #rx"^([0-9a-f]+)\\.[0-9a-f.]+" x)])
-     (server-check-on (if m
-                          (second m)
-                          x)))))
+     (job-status (if m
+                     (second m)
+                     x)))))
 
 (define-bidi-match-expander hash-arg hash-arg/m hash-arg/m)
 
@@ -63,9 +64,31 @@
                   [("api" "translate") #:method "post" translate-endpoint]
                   [("api" "start" "improve") #:method "post" improve-start]))
 
+(define (write-results-to-disk result-hash path)
+  (make-directory (build-path (*demo-output*) path))
+  (for ([page (all-pages result-hash)])
+    (call-with-output-file
+     (build-path (*demo-output*) path page)
+     (λ (out)
+       (with-handlers ([exn:fail? (page-error-handler result-hash page out)])
+         (make-page-timeout page out result-hash (*demo-output*) #f #:timeout 10000)))))
+  (define link (path-element->string (last (explode-path path))))
+  (define data (get-table-data-from-hash result-hash link))
+  (define data-file (build-path (*demo-output*) "results.json"))
+  (define html-file (build-path (*demo-output*) "index.html"))
+  (define info
+    (if (file-exists? data-file)
+        (let ([info (call-with-input-file data-file read-datafile)])
+          (struct-copy report-info info [tests (cons data (report-info-tests info))]))
+        (make-report-info (list data) #:seed (get-seed))))
+  (define tmp-file (build-path (*demo-output*) "results.tmp"))
+  (write-datafile tmp-file info)
+  (rename-file-or-directory tmp-file data-file #t)
+  (copy-file (web-resource "report.html") html-file #t))
+
 (define (generate-page req job-id page)
   (define path (first (string-split (url->string (request-uri req)) "/")))
-  (define result-hash (get-results-for job-id))
+  (define result-hash (job-results job-id))
   (cond
     [(set-member? (all-pages result-hash) page)
      ;; Write page contents to disk
@@ -75,7 +98,7 @@
                #"OK"
                (current-seconds)
                #"text"
-               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count)))))
+               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (server-count)))))
                (λ (out)
                  (with-handlers ([exn:fail? (page-error-handler result-hash page out)])
                    (make-page-timeout page out result-hash (*demo-output*) #f #:timeout 1000))))]
@@ -86,12 +109,15 @@
     [(and (*demo-output*) (file-exists? (build-path (*demo-output*) "results.json")))
      (next-dispatcher)]
     [else
-     (define info (make-report-info (get-improve-table-data) #:seed (get-seed)))
+     (define table-data
+       (for/list ([result (in-list (server-improve-results))])
+         (get-table-data-from-hash result (hash-ref result 'path))))
+     (define info (make-report-info table-data #:seed (get-seed)))
      (response 200
                #"OK"
                (current-seconds)
                #"text"
-               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count)))))
+               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (server-count)))))
                (λ (out) (write-datafile out info)))]))
 
 (define url (compose add-prefix url*))
@@ -123,7 +149,7 @@
     (make-directory (*demo-output*)))
 
   (response/xexpr
-   #:headers (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count)))))
+   #:headers (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (server-count)))))
    (herbie-page
     #:title (if (*demo?*) "Herbie web demo" "Herbie")
     #:show-title (*demo?*)
@@ -135,7 +161,7 @@
         " | "
         (a ([id "use-fpcore"]) "Use FPCore"))
     (cond
-      [(is-server-up)
+      [(server-up?)
        `(form
          ([action ,(url improve)] [method "post"] [id "formula"] [data-progress ,(url improve-start)])
          (textarea ([name "formula"] [autofocus "true"]
@@ -166,7 +192,7 @@
     (if (*demo?*)
         `(p "To handle the high volume of requests, web requests are queued; "
             "there are "
-            (span ([id "num-jobs"]) ,(~a (job-count)))
+            (span ([id "num-jobs"]) ,(~a (server-count)))
             " jobs in the queue right now. "
             "Web demo requests may also time out and cap the number of improvement iterations. "
             "To avoid these limitations, "
@@ -243,13 +269,13 @@
                  (list (string->bytes/utf-8 (xexpr->string (herbie-page #:title title body))))))
 
 (define (get-result req job-id)
-  (match (get-results-for job-id)
+  (match (job-results job-id)
     [#f
      (response 404
                #"Job Not Found"
                (current-seconds)
                #"text/plain"
-               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count))))
+               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (server-count))))
                      (header #"X-Herbie-Job-ID" (string->bytes/utf-8 job-id))
                      (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
                void)]
@@ -258,7 +284,7 @@
                #"Job complete"
                (current-seconds)
                #"text/plain"
-               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count))))
+               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (server-count))))
                      (header #"X-Herbie-Job-ID" (string->bytes/utf-8 job-id))
                      (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
                (curry write-json job-result))]))
@@ -285,13 +311,7 @@
        (when (eof-object? formula)
          (raise-herbie-error "no formula specified"))
        (define test (parse-test formula))
-       (define job-id
-         (start-job 'improve
-                    test
-                    #:seed (get-seed)
-                    #:pcontext #f
-                    #:profile? #f
-                    #:timeline-disabled? #f))
+       (define job-id (job-start 'improve test #:seed (get-seed) #:profile? #f #:timeline? #t))
        (body job-id))]
     [_
      (response/error "Demo Error"
@@ -309,13 +329,13 @@
                     (current-seconds)
                     #"text/plain"
                     (list (header #"Location" (string->bytes/utf-8 (url check-status job-id)))
-                          (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count))))
+                          (header #"X-Job-Count" (string->bytes/utf-8 (~a (server-count))))
                           (header #"X-Herbie-Job-ID" (string->bytes/utf-8 job-id)))
                     '()))
    (url main)))
 
 (define (check-status req job-id)
-  (match (get-timeline-for job-id)
+  (match (job-timeline job-id)
     [(? hash? result-hash)
      (response/full 201
                     #"Job complete"
@@ -324,7 +344,7 @@
                     (list (header #"Location"
                                   (string->bytes/utf-8
                                    (add-prefix (format "~a.~a/graph.html" job-id *herbie-commit*))))
-                          (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count))))
+                          (header #"X-Job-Count" (string->bytes/utf-8 (~a (server-count))))
                           (header #"X-Herbie-Job-ID" (string->bytes/utf-8 job-id))
                           (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
                     '())]
@@ -333,7 +353,7 @@
                #"Job in progress"
                (current-seconds)
                #"text/plain"
-               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count))))
+               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (server-count))))
                      (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
                (λ (out)
                  (when timeline
@@ -341,30 +361,30 @@
                      (fprintf out "Doing ~a\n" (hash-ref entry 'type))))))]))
 
 (define (check-up req)
-  (response/full (if (is-server-up) 200 500)
-                 (if (is-server-up) #"Up" #"Down")
+  (response/full (if (server-up?) 200 500)
+                 (if (server-up?) #"Up" #"Down")
                  (current-seconds)
                  #"text/plain"
-                 (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count))))
+                 (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (server-count))))
                        (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
                  '()))
 
 (define (improve req)
   (improve-common req
                   (λ (job-id)
-                    (wait-for-job job-id)
+                    (job-wait job-id)
                     (redirect-to (add-prefix (format "~a.~a/graph.html" job-id *herbie-commit*))
                                  see-other))
                   (url main)))
 
 (define (get-timeline req job-id)
-  (match (get-results-for job-id)
+  (match (job-results job-id)
     [#f
      (response 404
                #"Job Not Found"
                (current-seconds)
                #"text/plain"
-               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count))))
+               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (server-count))))
                      (header #"X-Herbie-Job-ID" (string->bytes/utf-8 job-id))
                      (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
                void)]
@@ -373,7 +393,7 @@
                #"Job complete"
                (current-seconds)
                #"text/plain"
-               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (job-count))))
+               (list (header #"X-Job-Count" (string->bytes/utf-8 (~a (server-count))))
                      (header #"X-Herbie-Job-ID" (string->bytes/utf-8 job-id))
                      (header #"Access-Control-Allow-Origin" (string->bytes/utf-8 "*")))
                (curry write-json (hash-ref job-result 'timeline)))]))
@@ -386,11 +406,11 @@
     (define sync-fn
       (post-with-json-response (lambda (post-data)
                                  (define job-id (function post-data))
-                                 (wait-for-job job-id))))
+                                 (job-wait job-id))))
     (define async-fn
       (post-with-json-response (lambda (post-data)
                                  (define job-id (function post-data))
-                                 (hasheq 'job job-id 'path (make-path job-id)))))
+                                 (hasheq 'job job-id 'path (job-path job-id)))))
     (define-values (new-dispatch new-url)
       (let ([old-dispatch dispatch])
         (dispatch-rules [("api" name) #:method "post" sync-fn]
@@ -415,47 +435,34 @@
 (define-api-endpoint ("sample" post-data)
   (define test (get-test post-data))
   (define seed (parse-seed post-data))
-  (start-job 'sample test #:seed seed #:pcontext #f #:profile? #f #:timeline-disabled? #t))
+  (job-start 'sample test #:seed seed))
 
 (define-api-endpoint ("explanations" post-data)
-  (start-job 'explanations
-             (get-test post-data)
-             #:seed (parse-seed post-data)
-             #:pcontext (get-pcontext post-data)
-             #:profile? #f
-             #:timeline-disabled? #t))
+  (define test (get-test post-data))
+  (define seed (parse-seed post-data))
+  (define pcontext (get-pcontext post-data))
+  (job-start 'explanations test #:seed seed #:pcontext pcontext))
 
 (define-api-endpoint ("analyze" post-data)
-  (start-job 'errors
-             (get-test post-data)
-             #:seed (parse-seed post-data)
-             #:pcontext (get-pcontext post-data)
-             #:profile? #f
-             #:timeline-disabled? #t))
+  (define test (get-test post-data))
+  (define seed (parse-seed post-data))
+  (define pcontext (get-pcontext post-data))
+  (job-start 'errors test #:seed seed #:pcontext pcontext))
 
 (define-api-endpoint ("localerror" post-data)
-  (start-job 'local-error
-             (get-test post-data)
-             #:seed (parse-seed post-data)
-             #:pcontext (get-pcontext post-data)
-             #:profile? #f
-             #:timeline-disabled? #t))
+  (define test (get-test post-data))
+  (define seed (parse-seed post-data))
+  (define pcontext (get-pcontext post-data))
+  (job-start 'local-error test #:seed seed #:pcontext pcontext))
 
 (define-api-endpoint ("alternatives" post-data)
-  (start-job 'alternatives
-             (get-test post-data)
-             #:seed (parse-seed post-data)
-             #:pcontext (get-pcontext post-data)
-             #:profile? #f
-             #:timeline-disabled? #t))
+  (define test (get-test post-data))
+  (define seed (parse-seed post-data))
+  (define pcontext (get-pcontext post-data))
+  (job-start 'alternatives test #:seed seed #:pcontext pcontext))
 
 (define-api-endpoint ("cost" post-data)
-  (start-job 'cost
-             (get-test post-data)
-             #:seed #f
-             #:pcontext #f
-             #:profile? #f
-             #:timeline-disabled? #f))
+  (job-start 'cost (get-test post-data) #:seed #f))
 
 (define ->mathjs-endpoint
   (post-with-json-response (lambda (post-data)
@@ -465,27 +472,25 @@
                              (define result (core->mathjs (syntax->datum formula)))
                              (hasheq 'mathjs result))))
 
+(define (get-converter target-lang)
+  (case target-lang
+    [("python") core->python]
+    [("c") core->c]
+    [("fortran") core->fortran]
+    [("java") core->java]
+    [("julia") core->julia]
+    [("matlab") core->matlab]
+    [("wls") core->wls]
+    [("tex") core->tex]
+    [("js") core->js]
+    [else (error "Unsupported target language:" target-lang)]))
+
 (define translate-endpoint
   (post-with-json-response (lambda (post-data)
                              ; FPCore formula and target language
                              (define formula (read (open-input-string (hash-ref post-data 'formula))))
                              (define target-lang (hash-ref post-data 'language))
-                             ; Select the appropriate conversion function
-                             (define lang-converter
-                               (case target-lang
-                                 [("python") core->python]
-                                 [("c") core->c]
-                                 [("fortran") core->fortran]
-                                 [("java") core->java]
-                                 [("julia") core->julia]
-                                 [("matlab") core->matlab]
-                                 [("wls") core->wls]
-                                 [("tex") core->tex]
-                                 [("js") core->js]
-                                 [else (error "Unsupported target language:" target-lang)]))
-
-                             ; convert the expression
-                             (define converted (lang-converter formula "expr"))
+                             (define converted ((get-converter target-lang) formula "expr"))
                              (hasheq 'result converted 'language target-lang))))
 
 (define (run-demo #:quiet [quiet? #f]
@@ -501,11 +506,7 @@
   (*demo-output* output)
   (*demo-prefix* prefix)
   (*demo-log* log)
-  (start-job-server threads)
-
-  (unless quiet?
-    (eprintf "Herbie ~a with seed ~a\n" *herbie-version* (get-seed))
-    (eprintf "Find help on https://herbie.uwplse.org/, exit with Ctrl-C\n"))
+  (server-start threads)
 
   (serve/servlet dispatch
                  #:listen-ip (if public #f "127.0.0.1")
@@ -525,6 +526,3 @@
                  #:extra-files-paths (filter identity (list (web-resource) (*demo-output*)))
                  #:log-file (*demo-log*)
                  #:file-not-found-responder (gen-file-not-found-responder (web-resource "404.html"))))
-
-(module+ main
-  (run-demo #t))
