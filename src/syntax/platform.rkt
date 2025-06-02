@@ -358,13 +358,6 @@
   ; (cons approx-rule impl-rules))
   impl-rules)
 
-(define (add-special expr)
-  (match expr
-    [(list op args ...)
-     (define op* (string->symbol (string-append "special-" (symbol->string op))))
-     (cons op* (map add-special args))]
-    [_ expr]))
-
 ;; Synthesizes lowering rules for a given platform.
 (define (platform-lowering-rules [pform (*active-platform*)])
   (define impls (platform-impls pform))
@@ -378,8 +371,8 @@
                 (define itypes (map representation-type (impl-info impl 'itype)))
                 (define otype (representation-type (impl-info impl 'otype)))
                 (list (rule name spec-expr impl-expr (map cons vars itypes) otype '(lowering))
-                      (rule (sym-append 'lower-special- impl)
-                            (add-special spec-expr)
+                      (rule (sym-append 'lower-unsound- impl)
+                            (add-unsound spec-expr)
                             impl-expr
                             (map cons vars itypes)
                             otype

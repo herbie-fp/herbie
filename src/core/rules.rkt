@@ -8,7 +8,8 @@
 
 (provide *rules*
          *sound-rules*
-         (struct-out rule))
+         (struct-out rule)
+         add-unsound)
 
 ;; A rule represents "find-and-replacing" `input` by `output`. Both
 ;; are patterns, meaning that symbols represent pattern variables.
@@ -36,11 +37,9 @@
 (define (make-rule-context input output)
   (map (curryr cons 'real) (set-union (free-variables input) (free-variables output))))
 
-(define (add-special expr)
+(define (add-unsound expr)
   (match expr
-    [(list op args ...)
-     (define op* (string->symbol (string-append "special-" (symbol->string op))))
-     (cons op* (map add-special args))]
+    [(list op args ...) (cons (sym-append "unsound-" op) (map add-unsound args))]
     [_ expr]))
 
 (define-syntax define-rule
@@ -53,7 +52,7 @@
      (set!
       *all-rules*
       (cons
-       (rule 'rname 'input (add-special 'output) (make-rule-context 'input 'output) 'real '(group))
+       (rule 'rname 'input (add-unsound 'output) (make-rule-context 'input 'output) 'real '(group))
        *all-rules*))]))
 
 (define-syntax-rule (define-rules group
