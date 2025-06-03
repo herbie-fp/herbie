@@ -189,25 +189,6 @@
       ["TeX" output]
       [_ (string-trim (second lines) #px"\\s+return\\s+")]))
   (match instruction
-    [(list 'abs x)
-     (define x* (string->symbol (string-append (symbol->string x) "_m")))
-     (define r (list-ref (context-var-reprs ctx) (index-of (context-vars ctx) x)))
-     (define fabs-impl (get-fpcore-impl 'fabs (repr->prop r) (list r)))
-     (define e (list fabs-impl x))
-     (define c (context (list x) r r))
-     (list (format "~a = ~a" x* (converter* e c)))]
-    [(list 'negabs x)
-     ; TODO: why are x* and x-sign unused?
-     (define x* (string->symbol (format "~a_m" x)))
-     (define r (context-lookup ctx x))
-     (define fabs-impl (get-fpcore-impl 'fabs (repr->prop r) (list r)))
-     (define copysign-impl (get-fpcore-impl 'copysign (repr->prop r) (list r r)))
-     (define e* (list fabs-impl x))
-     (define x-sign (string->symbol (format "~a_s" x)))
-     (define e-sign (list copysign-impl (literal 1 (representation-name r)) x))
-     (define c (context (list x) r r))
-     (list (format "~a = ~a" (format "~a\\_m" x) (converter* e* c))
-           (format "~a = ~a" (format "~a\\_s" x) (converter* e-sign c)))]
     [(list 'sort vs ...)
      (define vs (context-vars ctx))
      (define vs* (context-vars ctx*))
