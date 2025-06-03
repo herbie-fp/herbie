@@ -305,6 +305,9 @@
            (list 'if (loop cond (get-representation 'bool)) (loop ift type) (loop iff type))
            (list 'if (loop cond 'bool) (loop ift type) (loop iff type)))]
       [(list (? impl-exists? impl) args ...) (cons impl (map loop args (impl-info impl 'itype)))]
+      [(list (? (λ (x) (string-contains? (~a x) "unsound")) op) args ...)
+       (define op* (string->symbol (string-replace (symbol->string (car expr)) "unsound-" "")))
+       (cons op* (map loop args (map (const 'real) args)))]
       [(list op args ...) (cons op (map loop args (operator-info op 'itype)))])))
 
 ;; Parses a string from egg into a single S-expr.
@@ -540,6 +543,7 @@
      (cond
        [(eq? f '$approx) (platform-reprs (*active-platform*))]
        [(eq? f 'if) (all-reprs/types)]
+       [(string-contains? (~a f) "unsound") (list 'real)]
        [(impl-exists? f) (list (impl-info f 'otype))]
        [else (list (operator-info f 'otype))])]))
 
@@ -563,6 +567,9 @@
               (get-representation 'bool)
               'bool))
         (list 'if (lookup cond cond-type) (lookup ift type) (lookup iff type))]
+       [(string-contains? (~a f) "unsound")
+        (define op (string->symbol (string-replace (symbol->string f) "unsound-" "")))
+        (list* op (map (λ (x) (lookup (u32vector-ref ids x) 'real)) (range (u32vector-length ids))))]
        [else
         (define itypes
           (if (impl-exists? f)
