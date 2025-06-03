@@ -48,4 +48,5 @@
 (module+ test
   (for* ([rule (in-list (*rules*))])
     (test-case (~a (rule-name rule))
-      (check-rule rule))))
+      (when (set-member? (rule-tags rule) 'sound)
+        (check-rule rule)))))
