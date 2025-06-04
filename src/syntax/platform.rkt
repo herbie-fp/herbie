@@ -361,15 +361,22 @@
 ;; Synthesizes lowering rules for a given platform.
 (define (platform-lowering-rules [pform (*active-platform*)])
   (define impls (platform-impls pform))
-  (for/list ([impl (in-list impls)])
-    (hash-ref! (*lowering-rules*)
-               (cons impl pform)
-               (lambda ()
-                 (define name (sym-append 'lower- impl))
-                 (define-values (vars spec-expr impl-expr) (impl->rule-parts impl))
-                 (define itypes (map representation-type (impl-info impl 'itype)))
-                 (define otype (representation-type (impl-info impl 'otype)))
-                 (rule name spec-expr impl-expr (map cons vars itypes) otype '(lowering))))))
+  (append* (for/list ([impl (in-list impls)])
+             (hash-ref!
+              (*lowering-rules*)
+              (cons impl pform)
+              (lambda ()
+                (define name (sym-append 'lower- impl))
+                (define-values (vars spec-expr impl-expr) (impl->rule-parts impl))
+                (define itypes (map representation-type (impl-info impl 'itype)))
+                (define otype (representation-type (impl-info impl 'otype)))
+                (list (rule name spec-expr impl-expr (map cons vars itypes) otype '(lowering))
+                      (rule (sym-append 'lower-unsound- impl)
+                            (add-unsound spec-expr)
+                            impl-expr
+                            (map cons vars itypes)
+                            otype
+                            '(lowering))))))))
 
 ;; Extracts the `fpcore` field of an operator implementation
 ;; as a property dictionary and expression.
