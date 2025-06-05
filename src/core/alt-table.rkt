@@ -17,7 +17,7 @@
           (atab-all-alts (alt-table? . -> . (listof alt?)))
           (atab-not-done-alts (alt-table? . -> . (listof alt?)))
           (atab-eval-altns (alt-table? (listof alt?) context? . -> . (values any/c any/c)))
-          (atab-add-altns (alt-table? (listof alt?) any/c any/c . -> . alt-table?))
+          (atab-add-altns (alt-table? (listof alt?) any/c any/c context? . -> . alt-table?))
           (atab-set-picked (alt-table? (listof alt?) . -> . alt-table?))
           (atab-completed? (alt-table? . -> . boolean?))
           (atab-min-errors (alt-table? . -> . (listof real?)))))
@@ -192,13 +192,13 @@
   (define costs (alt-batch-cost batch (context-repr ctx)))
   (values errss costs))
 
-(define (atab-add-altns atab altns errss costs)
+(define (atab-add-altns atab altns errss costs ctx)
   (define atab*
     (for/fold ([atab atab])
               ([altn (in-list altns)]
                [errs (in-list errss)]
                [cost (in-list costs)])
-      (atab-add-altn atab altn errs cost)))
+      (atab-add-altn atab altn errs cost ctx)))
   (define atab**
     (struct-copy alt-table atab* [alt->point-idxs (invert-index (alt-table-point-idx->alts atab*))]))
   (define atab*** (atab-prune atab**))
@@ -217,16 +217,19 @@
       (hash-update! alt->points* alt (λ (v) (cons idx v)) '())))
   (make-immutable-hasheq (hash->list alt->points*)))
 
-(define (atab-add-altn atab altn errs cost)
+(define (atab-add-altn atab altn errs cost ctx)
   (match-define (alt-table point-idx->alts alt->point-idxs alt->done? alt->cost pcontext _) atab)
+  (define max-error (+ 1 (expt 2 (representation-total-bits (context-repr ctx)))))
 
   (define point-idx->alts*
     (for/vector #:length (vector-length point-idx->alts)
                 ([pcurve (in-vector point-idx->alts)]
                  [err (in-list errs)])
-      (define ppt (pareto-point cost err (list altn)))
-      ;; This creates duplicate points, but they are removed by `alt-dedup`
-      (pareto-union (list ppt) pcurve #:combine append)))
+      (cond
+        [(< err max-error) ; Only include points if they are valid
+         (define ppt (pareto-point cost err (list altn)))
+         (pareto-union (list ppt) pcurve #:combine append)]
+        [else pcurve])))
 
   (alt-table point-idx->alts*
              (hash-set alt->point-idxs altn #f)
