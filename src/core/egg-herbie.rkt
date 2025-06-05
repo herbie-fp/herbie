@@ -103,11 +103,10 @@
   ; node -> natural
   ; inserts an expression into the e-graph, returning its e-class id.
 
-  (define (insert-node! node root?)
+  (define (insert-node! node)
     (match node
-      [(list op ids ...) (egraph_add_node ptr (symbol->string op) (list->u32vec ids) root?)]
-      [(? symbol? x) (egraph_add_node ptr (symbol->string x) 0-vec root?)]
-      [(? number? n) (egraph_add_node ptr (number->string n) 0-vec root?)]))
+      [(list op ids ...) (egraph_add_node ptr (~s op) (list->u32vec ids))]
+      [(? (disjoin symbol? number?) x) (egraph_add_node ptr (~s x) 0-vec)]))
 
   (define insert-batch (batch-remove-zombie batch roots))
   (define mappings (build-vector (batch-length insert-batch) values))
@@ -115,21 +114,19 @@
     (vector-ref mappings x))
 
   ; Inserting nodes bottom-up
-  (define root-mask (make-vector (batch-length insert-batch) #f))
-  (for ([root (in-vector (batch-roots insert-batch))])
-    (vector-set! root-mask root #t))
   (for ([node (in-vector (batch-nodes insert-batch))]
-        [root? (in-vector root-mask)]
         [n (in-naturals)])
     (define idx
       (match node
-        [(literal v _) (insert-node! v root?)]
-        [(? number?) (insert-node! node root?)]
-        [(? symbol?) (insert-node! (var->egg-var node ctx) root?)]
+        [(literal v _) (insert-node! v)]
+        [(? number?) (insert-node! node)]
+        [(? symbol?) (insert-node! (var->egg-var node ctx))]
         [(hole prec spec) (remap spec)] ; "hole" terms currently disappear
-        [(approx spec impl) (insert-node! (list '$approx (remap spec) (remap impl)) root?)]
-        [(list op (app remap args) ...) (insert-node! (cons op args) root?)]))
+        [(approx spec impl) (insert-node! (list '$approx (remap spec) (remap impl)))]
+        [(list op (app remap args) ...) (insert-node! (cons op args))]))
     (vector-set! mappings n idx))
+  (for ([root (in-vector (batch-roots insert-batch))])
+    (egraph_add_root ptr (remap root)))
 
   (for ([node (in-vector (batch-nodes insert-batch))]
         #:when (approx? node))
@@ -305,6 +302,9 @@
            (list 'if (loop cond (get-representation 'bool)) (loop ift type) (loop iff type))
            (list 'if (loop cond 'bool) (loop ift type) (loop iff type)))]
       [(list (? impl-exists? impl) args ...) (cons impl (map loop args (impl-info impl 'itype)))]
+      [(list (? (λ (x) (string-contains? (~a x) "unsound")) op) args ...)
+       (define op* (string->symbol (string-replace (symbol->string (car expr)) "unsound-" "")))
+       (cons op* (map loop args (map (const 'real) args)))]
       [(list op args ...) (cons op (map loop args (operator-info op 'itype)))])))
 
 ;; Parses a string from egg into a single S-expr.
@@ -540,6 +540,7 @@
      (cond
        [(eq? f '$approx) (platform-reprs (*active-platform*))]
        [(eq? f 'if) (all-reprs/types)]
+       [(string-contains? (~a f) "unsound") (list 'real)]
        [(impl-exists? f) (list (impl-info f 'otype))]
        [else (list (operator-info f 'otype))])]))
 
@@ -563,6 +564,9 @@
               (get-representation 'bool)
               'bool))
         (list 'if (lookup cond cond-type) (lookup ift type) (lookup iff type))]
+       [(string-contains? (~a f) "unsound")
+        (define op (string->symbol (string-replace (symbol->string f) "unsound-" "")))
+        (list* op (map (λ (x) (lookup (u32vector-ref ids x) 'real)) (range (u32vector-length ids))))]
        [else
         (define itypes
           (if (impl-exists? f)

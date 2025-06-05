@@ -9,6 +9,7 @@
          "../syntax/load-plugin.rkt"
          "batch.rkt"
          "egglog-program.rkt"
+         "../utils/common.rkt"
          "egglog-subprocess.rkt")
 
 (provide (struct-out egglog-runner)
@@ -94,7 +95,9 @@
 
 ;; Runs egglog using an egglog runner by extracting multiple variants
 (define (run-egglog-multi-extractor runner output-batch) ; multi expression extraction
-  (define insert-batch (batch-remove-zombie (egglog-runner-batch runner)))
+
+  (define insert-batch
+    (batch-remove-zombie (egglog-runner-batch runner) (egglog-runner-roots runner)))
   (define curr-program (make-egglog-program))
 
   ;; Dump-file
@@ -457,14 +460,24 @@
     (rewrite (Round (Num x)) (Num (round x)) :ruleset const-fold)))
 
 (define (platform-spec-nodes)
-  (for/list ([op (in-list (all-operators))])
-    (hash-set! (id->e1) op (serialize-op op))
-    (hash-set! (e1->id) (serialize-op op) op)
-    (define arity (length (operator-info op 'itype)))
-    `(,(serialize-op op) ,@(for/list ([i (in-range arity)])
-                             'M)
-                         :cost
-                         4294967295)))
+  (append* (for/list ([op (in-list (all-operators))])
+             (hash-set! (id->e1) op (serialize-op op))
+             (hash-set! (e1->id) (serialize-op op) op)
+
+             ; Unsound versions of operations
+             (define unsound-op (sym-append "unsound-" op))
+             (hash-set! (id->e1) unsound-op (serialize-op unsound-op))
+             (hash-set! (e1->id) (serialize-op unsound-op) unsound-op)
+
+             (define arity (length (operator-info op 'itype)))
+             (list `(,(serialize-op op) ,@(for/list ([i (in-range arity)])
+                                            'M)
+                                        :cost
+                                        4294967295)
+                   `(,(serialize-op unsound-op) ,@(for/list ([i (in-range arity)])
+                                                    'M)
+                                                :cost
+                                                4294967295)))))
 
 (define (platform-impl-nodes pform min-cost)
   (for/list ([impl (in-list (platform-impls pform))])

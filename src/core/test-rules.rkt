@@ -19,6 +19,13 @@
   (define vars (set-union (free-variables p1) (free-variables p2)))
   (context vars double-repr (map (const double-repr) vars)))
 
+(define (drop-unsound expr)
+  (match expr
+    [(list (? (λ (x) (string-contains? (~a x) "unsound")) op) args ...)
+     (define op* (string->symbol (string-replace (symbol->string (car expr)) "unsound-" "")))
+     (cons op* (map drop-unsound args))]
+    [_ expr]))
+
 (define (check-rule test-rule)
   (match-define (rule name p1 p2 _ _ _) test-rule)
   (define ctx (env->ctx p1 p2))
@@ -26,7 +33,7 @@
   (match-define (list pts exs1 exs2)
     (parameterize ([*num-points* (num-test-points)]
                    [*max-find-range-depth* 0])
-      (sample-points '(TRUE) (list p1 p2) (list ctx ctx))))
+      (sample-points '(TRUE) (list p1 (drop-unsound p2)) (list ctx ctx))))
 
   (for ([pt (in-list pts)]
         [v1 (in-list exs1)]

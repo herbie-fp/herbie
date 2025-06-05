@@ -98,7 +98,7 @@
 (define (inject-candidate! expr)
   (define new-alts (list (make-alt expr)))
   (define-values (errss costs) (atab-eval-altns (^table^) new-alts (*context*)))
-  (^table^ (atab-add-altns (^table^) new-alts errss costs))
+  (^table^ (atab-add-altns (^table^) new-alts errss costs (*context*)))
   (void))
 
 ;; The rest of the file is various helper / glue functions used by
@@ -194,7 +194,7 @@
 
   (define-values (errss costs) (atab-eval-altns (^table^) new-alts (*context*)))
   (timeline-event! 'prune)
-  (^table^ (atab-add-altns (^table^) new-alts errss costs))
+  (^table^ (atab-add-altns (^table^) new-alts errss costs (*context*)))
   (define final-fresh-alts (atab-not-done-alts (^table^)))
   (define final-done-alts (set-subtract (atab-active-alts (^table^)) final-fresh-alts))
   (timeline-push! 'count

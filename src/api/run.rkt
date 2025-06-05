@@ -84,25 +84,19 @@
   (unless (directory-exists? dir)
     (make-directory dir))
 
-  (start-job-server threads)
+  (server-start threads)
   (define job-ids
     (for/list ([test (in-list tests)])
-      (start-job 'improve test #:seed seed #:pcontext #f #:profile? #t #:timeline-disabled? #f)))
+      (job-start 'improve test #:seed seed #:pcontext #f #:profile? #t #:timeline? #t)))
 
   (define total-tests (length tests))
-  (define job-results
-    (for/list ([job-id (in-list job-ids)]
-               [test (in-list tests)]
-               [test-number (in-naturals)])
-      (define result (wait-for-job job-id))
-      (print-test-result (+ test-number 1) total-tests test result)
-      result))
   (define results
     (for/list ([job-id (in-list job-ids)]
-               [job-result (in-list job-results)]
                [test (in-list tests)]
                [test-number (in-naturals)])
-      (generate-bench-report job-result (test-name test) test-number dir (length tests))))
+      (define result (job-wait job-id))
+      (print-test-result (+ test-number 1) total-tests test result)
+      (generate-bench-report result (test-name test) test-number dir total-tests)))
 
   (define info (make-report-info results #:seed seed))
   (write-datafile (build-path dir "results.json") info)
