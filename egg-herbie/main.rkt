@@ -8,6 +8,7 @@
 (provide egraph_create
          egraph_destroy
          egraph_add_expr
+         egraph_add_root
          egraph_add_node
          egraph_run
          egraph_copy
@@ -171,13 +172,14 @@
 ;; egraph -> expr -> id
 (define-eggmath egraph_add_expr (_fun _egraph-pointer _rust/datum -> _uint))
 
+(define-eggmath egraph_add_root (_fun _egraph-pointer _uint -> _void))
+
 ; egraph -> string -> ids -> bool -> id
 (define-eggmath egraph_add_node
                 (_fun [p : _egraph-pointer] ; egraph
                       [f : _rust/string] ; enode op
                       [v : _u32vector] ; id vector
                       [_uint = (u32vector-length v)] ; id vector length
-                      [is_root : _stdbool] ; root node?
                       ->
                       _uint))
 

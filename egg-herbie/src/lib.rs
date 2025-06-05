@@ -86,12 +86,17 @@ pub unsafe extern "C" fn egraph_add_expr(ptr: *mut Context, expr: *const c_char)
 }
 
 #[no_mangle]
+pub unsafe extern "C" fn egraph_add_root(ptr: *mut Context, id: u32) {
+    let mut context = ManuallyDrop::new(Box::from_raw(ptr));
+    context.runner.roots.push(Id::from(id as usize));
+}
+
+#[no_mangle]
 pub unsafe extern "C" fn egraph_add_node(
     ptr: *mut Context,
     f: *const c_char,
     ids_ptr: *const u32,
     num_ids: u32,
-    is_root: bool,
 ) -> u32 {
     let _ = env_logger::try_init();
     // Safety: `ptr` was box allocated by `egraph_create`
@@ -103,10 +108,6 @@ pub unsafe extern "C" fn egraph_add_node(
     let ids = ids.iter().map(|id| Id::from(*id as usize)).collect();
     let node = Math::from_op(f, ids).unwrap();
     let id = context.runner.egraph.add(node);
-    if is_root {
-        context.runner.roots.push(id);
-    }
-
     usize::from(id) as u32
 }
 
