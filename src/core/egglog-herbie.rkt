@@ -95,7 +95,6 @@
 
 ;; Runs egglog using an egglog runner by extracting multiple variants
 (define (run-egglog-multi-extractor runner output-batch) ; multi expression extraction
-
   (define insert-batch
     (batch-remove-zombie (egglog-runner-batch runner) (egglog-runner-roots runner)))
   (define curr-program (make-egglog-program))
@@ -940,21 +939,33 @@
                             node-limit
                             dump-file))
 
-       ;  (printf "num nodes : ~a\n" math-total-nodes)
-
        (cond
          ;;  There are two condiitons where we exit unsoundness dteection WITHOUT running (pop)
-         ;;  1. For Saturation, verify the number of nodes stayed the same from a previous iteration
-         ;;  2. When you exceed Node Limit, then that is the final iteration
-         ;;  If either is true, return the iter-limit and do not run another iteration
+         ;;  1. Saturation: when the number of nodes stays the same between iterations.
+         ;;  2. Node limit: when the e-graph exceeds the allowed number of nodes.
+         ;;  If either condition is met, return the current iteration limit and avoid running another
+         ;;  iteration.
 
-         [(or (equal? math-total-nodes prev-number-nodes) math-node-limit?) (values curr-iter #f)]
+         ;; TODO : This saturation condition below is problematic. Simply checking unchanged node
+         ;;        count is misleading as we could, theoretically, have a ruleset that merges e-classes
+         ;;        without increasing number of nodes, meaning further iterations "could" make
+         ;;        progress. This logic incorrectly considers it saturated. Consider modifying the
+         ;;        logic or submit a feature request to Egglog for more accurate saturation detection.
+         [(equal? math-total-nodes prev-number-nodes) (values curr-iter #f)]
 
-         ;; TODO : Remove below
-         ; [(equal? math-total-nodes prev-number-nodes) (values curr-iter #f)]
-         ; [math-node-limit?
-         ;   (send-to-egglog (list '(pop)) egglog-process egglog-output egglog-in err dump-file)
-         ;   (values (sub1 curr-iter) #t)]
+         ;; TODO : This logic below is also algorithmally incorrect.  If we hit the node limit, we
+         ;;        should "stop" at that iteration, not rollback by 1. The correct line should be
+         ;;        [math-node-limit? (values curr-iter #f)]
+         ;;
+         ;;        However, we currently use this rollback logic for performance reasons due to
+         ;;        extraction. While we have tested that the extraction time linearly increases with
+         ;;        larger e-graphs (that indicates we have not done something majorly wrong).
+         ;;        However, even 0.1s can be considered too high for a reltively small (~2000 nodes)
+         ;;        e-graph while extracting. For now, popping provides a smaller e-graph and gives
+         ;;        performance comparable to Egg-Herbie, thought it doesn't affect correctness too much
+         [math-node-limit?
+          (send-to-egglog (list '(pop)) egglog-process egglog-output egglog-in err dump-file)
+          (values (sub1 curr-iter) #t)]
 
          ;; If Unsoundness detected or node-limit reached, then return the
          ;; optimal iter limit (one less than current) and run (pop)
@@ -988,8 +999,7 @@
                                dump-file))
 
           (cond
-            ; [(or (equal? const-total-nodes prev-number-nodes) const-node-limit?)
-            ;  (values curr-iter #f)]
+            ;; TODO:  See the TODO from above
             [(equal? const-total-nodes prev-number-nodes) (values curr-iter #f)]
             [const-node-limit?
              (send-to-egglog (list '(pop)) egglog-process egglog-output egglog-in err dump-file)
@@ -1029,7 +1039,6 @@
   ;;  1. Unsoundness is detected in the egraph
   ;;  2. We have reached or exceeded the set node limit
   ;;  3. Saturation check which is done in parent function
-  ; (define exit-detect? (or unsound? (>= total_nodes node-limit)))
 
   (values unsound? (>= total_nodes node-limit) total_nodes))
 
