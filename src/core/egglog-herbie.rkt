@@ -927,12 +927,21 @@
                             node-limit
                             dump-file))
 
+       ;  (printf "num nodes : ~a\n" math-total-nodes)
+
        (cond
          ;;  There are two condiitons where we exit unsoundness dteection WITHOUT running (pop)
          ;;  1. For Saturation, verify the number of nodes stayed the same from a previous iteration
          ;;  2. When you exceed Node Limit, then that is the final iteration
          ;;  If either is true, return the iter-limit and do not run another iteration
+
          [(or (equal? math-total-nodes prev-number-nodes) math-node-limit?) (values curr-iter #f)]
+
+         ;; TODO : Remove below
+         ; [(equal? math-total-nodes prev-number-nodes) (values curr-iter #f)]
+         ; [math-node-limit?
+         ;   (send-to-egglog (list '(pop)) egglog-process egglog-output egglog-in err dump-file)
+         ;   (values (sub1 curr-iter) #t)]
 
          ;; If Unsoundness detected or node-limit reached, then return the
          ;; optimal iter limit (one less than current) and run (pop)
@@ -966,8 +975,13 @@
                                dump-file))
 
           (cond
-            [(or (equal? const-total-nodes prev-number-nodes) const-node-limit?)
-             (values curr-iter #f)]
+            ; [(or (equal? const-total-nodes prev-number-nodes) const-node-limit?)
+            ;  (values curr-iter #f)]
+            [(equal? const-total-nodes prev-number-nodes) (values curr-iter #f)]
+            [const-node-limit?
+             (send-to-egglog (list '(pop)) egglog-process egglog-output egglog-in err dump-file)
+             (values (sub1 curr-iter) #t)]
+
             [const-unsound?
              (send-to-egglog (list '(pop)) egglog-process egglog-output egglog-in err dump-file)
              (values (sub1 curr-iter) #t)]
