@@ -512,45 +512,29 @@ function buildRow(test, other) {
             return Element("td", { classList: color, title: titleText }, [text]);
         }
 
-        function buildTDfor(o, t) {
-            const op = calculatePercent(o)
-            const tp = calculatePercent(t)
-            var color = "diff-time-red"
-            var diff = op - tp
-            var titleText = `Original: ${op} vs ${tp}`
-            var tdText = `- ${(diff).toFixed(1)}%`
-            if (Math.abs((diff).toFixed(1)) <= filterTolerance) {
+        function accuracyTD(testVal, otherVal) {
+            const op = calculatePercent(otherVal / other.bits)
+            const tp = calculatePercent(testVal / test.bits)
+            let diff = op - tp
+            let color = "diff-time-red"
+            let tdText = `- ${diff.toFixed(1)}%`
+
+            if (Math.abs(diff.toFixed(1)) <= filterTolerance) {
                 color = "diff-time-gray"
                 tdText = "~"
             } else if (diff < 0) {
                 diff = Math.abs(diff)
                 color = "diff-time-green"
-                tdText = `+ ${(diff).toFixed(1)}%`
+                tdText = `+ ${diff.toFixed(1)}%`
             }
-            return Element("td", { classList: color, title: titleText }, [tdText]);
+
+            const titleText = `Original: ${op} vs ${tp}`
+            return Element("td", { classList: color, title: titleText }, [tdText])
         }
 
-        function startAccuracyTD(test) {
-            const t = test.start / test.bits
-            const o = other.start / other.bits
-            return buildTDfor(o, t)
-        }
-
-        function resultAccuracyTD(test) {
-            const t = test.end / test.bits
-            const o = other.end / other.bits
-            return buildTDfor(o, t)
-        }
-
-        function targetAccuracyTD(test) {
-            const t = smallestTarget / test.bits
-            const o = other.target / other.bits
-            return buildTDfor(o, t)
-        }
-
-        const startAccuracy = startAccuracyTD(test)
-        const resultAccuracy = resultAccuracyTD(test)
-        const targetAccuracy = targetAccuracyTD(test)
+        const startAccuracy = accuracyTD(test.start, other.start)
+        const resultAccuracy = accuracyTD(test.end, other.end)
+        const targetAccuracy = accuracyTD(smallestTarget, other.target)
 
         var tdStartAccuracy = radioState == "startAcc" ? startAccuracy : Element("td", {}, [calculatePercent(test.start / test.bits), "%"])
         var tdResultAccuracy = radioState == "endAcc" ? resultAccuracy : Element("td", {}, [calculatePercent(test.end / test.bits), "%"])
