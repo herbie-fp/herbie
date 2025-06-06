@@ -190,11 +190,9 @@
       [_ (string-trim (second lines) #px"\\s+return\\s+")]))
   (match instruction
     [(list 'sort vs ...)
-     (define vs (context-vars ctx))
-     (define vs* (context-vars ctx*))
      ;; We added some sign-* variables to the front of the variable
      ;; list in `ctx*`, we only want the originals here
-     (list (format-sort-instruction (take-right vs* (length vs)) language))]))
+     (list (format-sort-instruction vs language))]))
 
 (define (format-sort-instruction vs l)
   (match l
