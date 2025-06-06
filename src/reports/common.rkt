@@ -189,10 +189,7 @@
       ["TeX" output]
       [_ (string-trim (second lines) #px"\\s+return\\s+")]))
   (match instruction
-    [(list 'sort vs ...)
-     ;; We added some sign-* variables to the front of the variable
-     ;; list in `ctx*`, we only want the originals here
-     (list (format-sort-instruction vs language))]))
+    [(list 'sort vs ...) (list (format-sort-instruction vs language))]))
 
 (define (format-sort-instruction vs l)
   (match l
