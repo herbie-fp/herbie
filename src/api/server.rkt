@@ -288,18 +288,16 @@
                          *functions*)
    (parameterize ([current-error-port (open-output-nowhere)]) ; hide output
      (load-herbie-plugins))
-  (define worker-thread
-    (thread (λ ()
-              (let loop ([seed #f])
-                (match (thread-receive)
-                  [(work manager worker-id job-id command)
-                   (log "run-job: ~a, ~a\n" worker-id job-id)
-                   (define out-result (herbie-do-server-job command job-id))
-                   (log "Job: ~a finished, returning work to manager\n" job-id)
-                   (place-channel-put manager
-                                       (list 'finished manager worker-id job-id
-                                             out-result))])
-                (loop seed)))))
+   (define worker-thread
+     (thread (λ ()
+               (let loop ([seed #f])
+                 (match (thread-receive)
+                   [(work manager worker-id job-id command)
+                    (log "run-job: ~a, ~a\n" worker-id job-id)
+                    (define out-result (herbie-do-server-job command job-id))
+                    (log "Job: ~a finished, returning work to manager\n" job-id)
+                    (place-channel-put manager (list 'finished manager worker-id job-id out-result))])
+                 (loop seed)))))
    (define timeline #f)
    (define current-job-id #f)
    (for ([_ (in-naturals)])
