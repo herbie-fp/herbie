@@ -62,7 +62,7 @@
   (define-values (expr* final-preprocessing)
     (for/fold ([expr expr]
                [final-preprocessing '()])
-              ([preprocessing (in-list useful-preprocessing)])
+              ([preprocessing (in-list (reverse useful-preprocessing))])
       (define compiled (compile-preprocessing expr context preprocessing))
       (if compiled
           (values compiled final-preprocessing)
