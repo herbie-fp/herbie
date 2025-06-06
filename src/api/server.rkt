@@ -292,7 +292,11 @@
      (thread (λ ()
                (let loop ([seed #f])
                  (match (thread-receive)
-                   [job-info (run-job job-info)])
+                   [(work manager worker-id job-id command)
+                    (log "run-job: ~a, ~a\n" worker-id job-id)
+                    (define out-result (herbie-do-server-job command job-id))
+                    (log "Job: ~a finished, returning work to manager\n" job-id)
+                    (place-channel-put manager (list 'finished manager worker-id job-id out-result))])
                  (loop seed)))))
    (define timeline #f)
    (define current-job-id #f)
@@ -308,13 +312,6 @@
         (place-channel-put handler (reverse (unbox timeline)))]))))
 
 (struct work (manager worker-id job-id job))
-
-(define (run-job job-info)
-  (match-define (work manager worker-id job-id command) job-info)
-  (log "run-job: ~a, ~a\n" worker-id job-id)
-  (define out-result (herbie-do-server-job command job-id))
-  (log "Job: ~a finished, returning work to manager\n" job-id)
-  (place-channel-put manager (list 'finished manager worker-id job-id out-result)))
 
 ;; Worker internals
 
