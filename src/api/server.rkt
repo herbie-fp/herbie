@@ -470,6 +470,10 @@
           'end
           (map (curryr analysis->json pcontext test errcache) (improve-result-end backend))))
 
+(define (pcontext->json pcontext repr)
+  (for/list ([(pt ex) (in-pcontext pcontext)])
+    (list (map (curryr value->json repr) (vector->list pt)) (value->json ex repr))))
+
 (define (analysis->json analysis pcontext test errcache)
   (define repr (context-repr (test-context test)))
   (match-define (alt-analysis alt test-errors) analysis)

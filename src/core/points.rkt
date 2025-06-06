@@ -11,8 +11,6 @@
          for/pcontext
          pcontext?
          pcontext-points
-         json->pcontext
-         pcontext->json
          split-pcontext
          pcontext-length
          errors
@@ -86,23 +84,3 @@
                 max-error
                 (ulp-difference out exact repr))
             rest))))
-
-;; Herbie <=> JSON conversion for pcontext
-;; A JSON pcontext is just a list of lists
-;; ((pt1 ex1) (pt2 ex2) ...)
-
-(define (json->pcontext json ctx)
-  (define output-repr (context-repr ctx))
-  (define var-reprs (context-var-reprs ctx))
-  (define-values (pts exs)
-    (for/lists (pts exs)
-               ([entry (in-list json)])
-               (match-define (list pt ex) entry)
-               (unless (and (list? pt) (= (length pt) (length var-reprs)))
-                 (error 'json->pcontext "Invalid point ~a" pt))
-               (values (list->vector (map json->value pt var-reprs)) (json->value ex output-repr))))
-  (mk-pcontext pts exs))
-
-(define (pcontext->json pcontext repr)
-  (for/list ([(pt ex) (in-pcontext pcontext)])
-    (list (map (curryr value->json repr) (vector->list pt)) (value->json ex repr))))
