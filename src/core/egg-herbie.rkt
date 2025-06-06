@@ -103,11 +103,10 @@
   ; node -> natural
   ; inserts an expression into the e-graph, returning its e-class id.
 
-  (define (insert-node! node root?)
+  (define (insert-node! node)
     (match node
-      [(list op ids ...) (egraph_add_node ptr (symbol->string op) (list->u32vec ids) root?)]
-      [(? symbol? x) (egraph_add_node ptr (symbol->string x) 0-vec root?)]
-      [(? number? n) (egraph_add_node ptr (number->string n) 0-vec root?)]))
+      [(list op ids ...) (egraph_add_node ptr (~s op) (list->u32vec ids))]
+      [(? (disjoin symbol? number?) x) (egraph_add_node ptr (~s x) 0-vec)]))
 
   (define insert-batch (batch-remove-zombie batch roots))
   (define mappings (build-vector (batch-length insert-batch) values))
@@ -115,21 +114,19 @@
     (vector-ref mappings x))
 
   ; Inserting nodes bottom-up
-  (define root-mask (make-vector (batch-length insert-batch) #f))
-  (for ([root (in-vector (batch-roots insert-batch))])
-    (vector-set! root-mask root #t))
   (for ([node (in-vector (batch-nodes insert-batch))]
-        [root? (in-vector root-mask)]
         [n (in-naturals)])
     (define idx
       (match node
-        [(literal v _) (insert-node! v root?)]
-        [(? number?) (insert-node! node root?)]
-        [(? symbol?) (insert-node! (var->egg-var node ctx) root?)]
+        [(literal v _) (insert-node! v)]
+        [(? number?) (insert-node! node)]
+        [(? symbol?) (insert-node! (var->egg-var node ctx))]
         [(hole prec spec) (remap spec)] ; "hole" terms currently disappear
-        [(approx spec impl) (insert-node! (list '$approx (remap spec) (remap impl)) root?)]
-        [(list op (app remap args) ...) (insert-node! (cons op args) root?)]))
+        [(approx spec impl) (insert-node! (list '$approx (remap spec) (remap impl)))]
+        [(list op (app remap args) ...) (insert-node! (cons op args))]))
     (vector-set! mappings n idx))
+  (for ([root (in-vector (batch-roots insert-batch))])
+    (egraph_add_root ptr (remap root)))
 
   (for ([node (in-vector (batch-nodes insert-batch))]
         #:when (approx? node))
