@@ -1057,14 +1057,17 @@
                  enode)]
             [(list '$approx spec (app eggref impl))
              (define spec* (vector-ref id->spec spec))
-             (unless spec*
-               (error 'regraph-extract-variants "no initial approx node in eclass"))
              (define spec-type
                (if (representation? type)
                    (representation-type type)
                    type))
-             (define final-spec (egg-parsed->expr spec* spec-type))
-             (define final-spec-idx (mutable-batch-munge! out final-spec))
+             (define final-spec-idx
+               (match spec*
+                 ; Unsound rules applied, spec is not in id->spec, it is inside egg-nodes
+                 [#f (loop (eggref spec) spec-type)]
+                 [_ ; spec is stored inside id->spec, spec is stored as a string
+                  (define final-spec (egg-parsed->expr spec* spec-type))
+                  (mutable-batch-munge! out final-spec)]))
              (approx final-spec-idx (loop impl type))]
             [(list 'if (app eggref cond) (app eggref ift) (app eggref iff))
              (if (representation? type)
@@ -1215,6 +1218,7 @@
     (timeline-push! 'stop (~a (egraph-stop-reason egg-graph)) 1)
     (cond
       [(egraph-is-unsound-detected egg-graph)
+       (error "UNSOOOUUUND")
        ; unsoundness means run again with less iterations
        (define num-iters (length iteration-data))
        (if (<= num-iters 1) ; nothing to fall back on

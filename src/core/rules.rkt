@@ -42,6 +42,9 @@
     [(list op args ...) (cons (sym-append "unsound-" op) (map add-unsound args))]
     [_ expr]))
 
+(define (make-unsound-approx rhs lhs)
+  (list '$approx lhs (add-unsound rhs)))
+
 (define-syntax define-rule
   (syntax-rules ()
     [(define-rule rname group input output)
@@ -49,11 +52,14 @@
            (cons (rule 'rname 'input 'output (make-rule-context 'input 'output) 'real '(group sound))
                  *all-rules*))]
     [(define-rule rname group input output #:unsound)
-     (set!
-      *all-rules*
-      (cons
-       (rule 'rname 'input (add-unsound 'output) (make-rule-context 'input 'output) 'real '(group))
-       *all-rules*))]))
+     (set! *all-rules*
+           (cons (rule 'rname
+                       'input
+                       (make-unsound-approx 'output 'input)
+                       (make-rule-context 'input 'output)
+                       'real
+                       '(group))
+                 *all-rules*))]))
 
 (define-syntax-rule (define-rules group
                       [rname input output flags ...] ...)
