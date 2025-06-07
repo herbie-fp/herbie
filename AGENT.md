@@ -5,7 +5,7 @@
   is mandatory and PRs that don't follow the coding style are
   rejected.
 - As a quick test to make sure everything is working, you can run
-  `racket src/main.rkt report bench/tutorial.rkt tmp`; this should
+  `racket src/main.rkt report bench/tutorial.fpcore tmp`; this should
   take about 5-10 seconds and all of the tests should pass, getting
   basically perfect accuracy.
 - You can also run the unit tests with `raco test src/`, but these
