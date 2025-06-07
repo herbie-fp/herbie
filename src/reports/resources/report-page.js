@@ -156,6 +156,20 @@ function toTitleCase(str) {
     )
 }
 
+function buildHeader(title) {
+    return Element("header", {}, [
+        Element("h1", {}, title),
+        Element("img", { src: "logo-car.png" }, []),
+        Element("nav", {}, [
+            Element("ul", {}, [
+                Element("li", {}, [
+                    Element("a", { href: "timeline.html" }, ["Metrics"])
+                ])
+            ])
+        ]),
+    ])
+}
+
 // Based on https://observablehq.com/@fil/plot-onclick-experimental-plugin
 // However, simplified because we don't need hit box data
 function on(mark, listeners = {}) {
@@ -365,13 +379,7 @@ function buildBody(jsonData, otherJsonData) {
         ]),
     ])
 
-    const header = Element("header", {}, [
-        Element("h1", {}, "Herbie Results"),
-        Element("img", { src: "logo-car.png" }, []),
-        Element("nav", {}, [
-            Element("ul", {}, [Element("li", {}, [Element("a", { href: "timeline.html" }, ["Metrics"])])])
-        ]),
-    ])
+    const header = buildHeader("Herbie Results")
 
     const figureRow = Element("div", { classList: "figure-row" }, [
         Element("figure", { id: "xy" }, [
@@ -680,13 +688,7 @@ function buildFilterControls(jsonData) {
 }
 
 function showGetJsonError(error) {
-    const header = Element("header", {}, [
-        Element("h1", {}, "Error loading results"),
-        Element("img", { src: "logo-car.png" }, []),
-        Element("nav", {}, [
-            Element("ul", {}, [Element("li", {}, [Element("a", { href: "timeline.html" }, ["Metrics"])])])
-        ]),
-    ])
+    const header = buildHeader("Error loading results")
 
     let is_windows = navigator.userAgent.indexOf("Windows") !== -1;
     let page_name = window.location.pathname.split("/").at(-1);
