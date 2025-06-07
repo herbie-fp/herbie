@@ -13,9 +13,7 @@
          "points.rkt"
          "preprocess.rkt"
          "programs.rkt"
-         "regimes.rkt"
-         "../syntax/platform.rkt"
-         "../utils/timeline.rkt")
+         "regimes.rkt")
 
 (provide run-improve!
          sort-alts)
