@@ -24,7 +24,18 @@
 
 ;; Public API
 
-(struct alt-table (point-idx->alts alt->point-idxs alt->done? alt->cost pcontext all) #:prefab)
+(struct alt-table (point-idx->alts alt->done? alt->cost pcontext all) #:prefab)
+
+;; Compute an index from alternatives to the point indices that they are best at
+(define (alt-table-alt->point-idxs atab)
+  (define point-idx->alts (alt-table-point-idx->alts atab))
+  (define alt->points* (make-hasheq))
+  (for ([pcurve (in-vector point-idx->alts)]
+        [idx (in-naturals)])
+    (for* ([ppt (in-list pcurve)]
+           [alt (in-list (pareto-point-data ppt))])
+      (hash-update! alt->points* alt (lambda (v) (cons idx v)) '())))
+  (make-immutable-hasheq (hash->list alt->points*)))
 
 (define (alt-batch-cost batch repr)
   (define node-cost-proc (platform-node-cost-proc (*active-platform*)))
@@ -55,9 +66,6 @@
   (alt-table (for/vector #:length (pcontext-length pcontext)
                          ([err (in-list errs)])
                (list (pareto-point cost err (list initial-alt))))
-             (hasheq initial-alt
-                     (for/list ([idx (in-range (pcontext-length pcontext))])
-                       idx))
              (hasheq initial-alt #f)
              (hasheq initial-alt cost)
              pcontext
@@ -104,7 +112,8 @@
 (struct set-cover (removable coverage))
 
 (define (atab->set-cover atab)
-  (match-define (alt-table pnts->alts alts->pnts alt->done? alt->cost _ _) atab)
+  (match-define (alt-table pnts->alts _ _ _ _) atab)
+  (define alts->pnts (alt-table-alt->point-idxs atab))
   (define tied (list->mutable-seteq (hash-keys alts->pnts)))
   (define coverage '())
   (for* ([pcurve (in-vector pnts->alts)]
@@ -174,7 +183,7 @@
     (hash-remove hash key)))
 
 (define (atab-remove* atab . altns)
-  (match-define (alt-table point-idx->alts alt->point-idxs alt->done? alt->cost pctx _) atab)
+  (match-define (alt-table point-idx->alts alt->done? alt->cost pctx _) atab)
   (define pnt-idx->alts*
     (for/vector #:length (vector-length point-idx->alts)
                 ([pcurve (in-vector point-idx->alts)])
@@ -182,7 +191,6 @@
   (struct-copy alt-table
                atab
                [point-idx->alts pnt-idx->alts*]
-               [alt->point-idxs (hash-remove* alt->point-idxs altns)]
                [alt->done? (hash-remove* alt->done? altns)]
                [alt->cost (hash-remove* alt->cost altns)]))
 
@@ -199,26 +207,13 @@
                [errs (in-list errss)]
                [cost (in-list costs)])
       (atab-add-altn atab altn errs cost ctx)))
-  (define atab**
-    (struct-copy alt-table atab* [alt->point-idxs (invert-index (alt-table-point-idx->alts atab*))]))
-  (define atab*** (atab-prune atab**))
+  (define atab** (atab-prune atab*))
   (struct-copy alt-table
-               atab***
-               [alt->point-idxs (invert-index (alt-table-point-idx->alts atab***))]
-               [all
-                (set-union (alt-table-all atab) (hash-keys (alt-table-alt->point-idxs atab***)))]))
-
-(define (invert-index point-idx->alts)
-  (define alt->points* (make-hasheq))
-  (for ([pcurve (in-vector point-idx->alts)]
-        [idx (in-naturals)])
-    (for* ([ppt (in-list pcurve)]
-           [alt (in-list (pareto-point-data ppt))])
-      (hash-update! alt->points* alt (λ (v) (cons idx v)) '())))
-  (make-immutable-hasheq (hash->list alt->points*)))
+               atab**
+               [all (set-union (alt-table-all atab) (hash-keys (alt-table-alt->point-idxs atab**)))]))
 
 (define (atab-add-altn atab altn errs cost ctx)
-  (match-define (alt-table point-idx->alts alt->point-idxs alt->done? alt->cost pcontext _) atab)
+  (match-define (alt-table point-idx->alts alt->done? alt->cost pcontext _) atab)
   (define max-error (+ 1 (expt 2 (representation-total-bits (context-repr ctx)))))
 
   (define point-idx->alts*
@@ -232,7 +227,6 @@
         [else pcurve])))
 
   (alt-table point-idx->alts*
-             (hash-set alt->point-idxs altn #f)
              (hash-set alt->done? altn #f)
              (hash-set alt->cost altn cost)
              pcontext
