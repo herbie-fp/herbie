@@ -406,6 +406,7 @@ function buildBody(jsonData, otherJsonData) {
     }
 
     const rows = buildTableContents(jsonData, otherJsonData, filterFunction)
+    const footer = buildDiffFooter(jsonData, otherJsonData, filterFunction)
     const resultsTable = Element("table", { id: "results" }, [
         Element("thead", {}, [
             Element("tr", {}, [
@@ -416,7 +417,8 @@ function buildBody(jsonData, otherJsonData) {
                 buildTableHeader("time"),
             ]),
         ]),
-        rows
+        rows,
+        footer
     ]);
     return [header, stats, figureRow, buildControls(jsonData, rows.length), resultsTable]
 }
@@ -446,6 +448,78 @@ function buildTableContents(jsonData, otherJsonData, filterFunction) {
         if (filterFunction(test, other)) rows.push(buildRow(test, other));
     }
     return rows;
+}
+
+function computeDiffTotal(jsonData, filterFunction) {
+    if (!otherJsonData || !radioState) return 0;
+    let total = 0;
+    for (let test of jsonData.tests) {
+        let other = diffAgainstFields[test.name];
+        if (!other) continue;
+        if (!filterFunction(test, other)) continue;
+
+        if (radioState == "startAcc") {
+            const cur = calculatePercent(test.start / test.bits);
+            const base = calculatePercent(other.start / other.bits);
+            total += cur - base;
+        } else if (radioState == "endAcc") {
+            const cur = calculatePercent(test.end / test.bits);
+            const base = calculatePercent(other.end / other.bits);
+            total += cur - base;
+        } else if (radioState == "targetAcc") {
+            const curMin = getMinimum(test.target);
+            const baseMin = getMinimum(other.target);
+            if (curMin !== false && baseMin !== false) {
+                total += calculatePercent(curMin / test.bits) -
+                         calculatePercent(baseMin / other.bits);
+            }
+        } else if (radioState == "time") {
+            total += other.time - test.time;
+        }
+    }
+    return total;
+}
+
+function buildDiffFooter(jsonData, otherJsonData, filterFunction) {
+    if (!otherJsonData || !radioState) return [];
+
+    const total = computeDiffTotal(jsonData, filterFunction);
+    let color = "diff-time-gray";
+    let text = "~";
+
+    if (radioState == "time") {
+        if (Math.abs(total) > filterTolerance * 1000) {
+            if (total > 0) {
+                color = "diff-time-green";
+                text = "+ " + formatTime(total);
+            } else {
+                color = "diff-time-red";
+                text = "-" + formatTime(Math.abs(total));
+            }
+        }
+    } else {
+        if (Math.abs(total.toFixed(1)) > filterTolerance) {
+            if (total > 0) {
+                color = "diff-time-green";
+                text = "+ " + total.toFixed(1) + "%";
+            } else {
+                color = "diff-time-red";
+                text = "-" + Math.abs(total).toFixed(1) + "%";
+            }
+        }
+    }
+
+    const cells = [
+        Element("th", {}, ["Total"]),
+        radioState == "startAcc" ? Element("td", { classList: color }, [text]) : Element("td", {}, []),
+        radioState == "endAcc" ? Element("td", { classList: color }, [text]) : Element("td", {}, []),
+        radioState == "targetAcc" ? Element("td", { classList: color }, [text]) : Element("td", {}, []),
+        radioState == "time" ? Element("td", { classList: color }, [text]) : Element("td", {}, []),
+        Element("td", {}, []),
+        Element("td", {}, []),
+    ];
+
+    return Element("tfoot", {}, [Element("tr", {}, cells)]);
 }
 
 function getMinimum(target) {
