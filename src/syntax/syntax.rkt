@@ -328,13 +328,6 @@
   (define impl (operator-impl name ctx spec fpcore* fl-proc*))
   (hash-set! operator-impls name impl))
 
-(define (well-formed? expr)
-  (match expr
-    [(? number?) #t]
-    [(? variable?) #t]
-    [`(,impl ,args ...) (andmap well-formed? args)]
-    [_ #f]))
-
 (define-syntax (define-operator-impl stx)
   (define (oops! why [sub-stx #f])
     (raise-syntax-error 'define-operator-impl why stx sub-stx))
