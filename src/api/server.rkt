@@ -402,7 +402,7 @@
                       (improve-result-target backend)
                       (improve-result-end backend))))
        (define exprs (append-map collect-expressions all-alts))
-       (make-hash (map cons exprs (batch-errors exprs pcontext ctx)))]
+       (make-hash (map cons exprs (batch-errors exprs pcontext)))]
       [else #f]))
 
   (define test-fpcore

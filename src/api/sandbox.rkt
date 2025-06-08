@@ -72,7 +72,7 @@
   ;; compute error/cost for input expression
   (define start-expr (test-input test))
   (define start-alt (make-alt-preprocessing start-expr (test-preprocess test)))
-  (define start-errs (errors start-expr test-pcontext* (*context*)))
+  (define start-errs (errors start-expr test-pcontext*))
   (define start-alt-data (alt-analysis start-alt start-errs))
 
   ;; optionally compute error/cost for input expression
@@ -81,12 +81,12 @@
     (for/list ([(expr is-valid?) (in-dict (test-output test))]
                #:when is-valid?)
       (define target-expr (fpcore->prog expr (*context*)))
-      (define target-errs (errors target-expr test-pcontext* (*context*)))
+      (define target-errs (errors target-expr test-pcontext*))
       (alt-analysis (make-alt target-expr) target-errs)))
 
   ;; compute error/cost for output expression
   ;; and sort alternatives by accuracy + cost on testing subset
-  (define test-errs* (batch-errors (map alt-expr alternatives) test-pcontext* (*context*)))
+  (define test-errs* (batch-errors (map alt-expr alternatives) test-pcontext*))
   (define sorted-end-exprs (sort-alts alternatives test-errs*))
   (define end-exprs (map (compose alt-expr car) sorted-end-exprs))
   (define end-errs (map cdr sorted-end-exprs))
@@ -108,7 +108,7 @@
     (error 'get-errors "cannnot run without a pcontext"))
 
   (define-values (_ test-pcontext) (partition-pcontext pcontext))
-  (define errs (errors (test-input test) test-pcontext (*context*)))
+  (define errs (errors (test-input test) test-pcontext))
   (for/list ([(pt _) (in-pcontext test-pcontext)]
              [err (in-list errs)])
     (cons pt err)))
@@ -147,7 +147,7 @@
   (define sample
     (parameterize ([*num-points* (+ (*num-points*) (*reeval-pts*))])
       (sample-points precondition (list specification) (list (*context*)))))
-  (apply mk-pcontext sample))
+  (apply mk-pcontext (append sample (list (*context*)))))
 
 ;;
 ;;  Public interface

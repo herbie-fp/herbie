@@ -104,7 +104,7 @@
   (define (new-sampler)
     (values (vector-append (vector val) (random-ref pts)) #f))
   (define-values (results _) (batch-prepare-points evaluator new-sampler))
-  (apply mk-pcontext results))
+  (apply mk-pcontext (append results (list (pcontext-ctx pcontext)))))
 
 (define/reset *prepend-arguement-cache* (make-hash))
 (define (cache-get-prepend v expr macro)

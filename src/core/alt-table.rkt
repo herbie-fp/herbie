@@ -51,7 +51,7 @@
 
 (define (make-alt-table pcontext initial-alt ctx)
   (define cost (alt-cost initial-alt (context-repr ctx)))
-  (define errs (errors (alt-expr initial-alt) pcontext ctx))
+  (define errs (errors (alt-expr initial-alt) pcontext))
   (alt-table (for/vector #:length (pcontext-length pcontext)
                          ([err (in-list errs)])
                (list (pareto-point cost err (list initial-alt))))
@@ -188,7 +188,7 @@
 
 (define (atab-eval-altns atab altns ctx)
   (define batch (progs->batch (map alt-expr altns) #:vars (context-vars ctx)))
-  (define errss (batch-errors batch (alt-table-pcontext atab) ctx))
+  (define errss (batch-errors batch (alt-table-pcontext atab)))
   (define costs (alt-batch-cost batch (context-repr ctx)))
   (values errss costs))
 

@@ -11,6 +11,7 @@
          for/pcontext
          pcontext?
          pcontext-points
+         pcontext-ctx
          split-pcontext
          pcontext-length
          errors
@@ -22,7 +23,7 @@
 ;; points; and 2) a ground-truth output for each input.
 
 (define *pcontext* (make-parameter #f))
-(struct pcontext (points exacts) #:prefab)
+(struct pcontext (points exacts ctx) #:prefab)
 
 (define (in-pcontext pcontext)
   (in-parallel (in-vector (pcontext-points pcontext)) (in-vector (pcontext-exacts pcontext))))
@@ -30,17 +31,17 @@
 (define (pcontext-length pcontext)
   (vector-length (pcontext-points pcontext)))
 
-(define/contract (mk-pcontext points exacts)
-  (-> (non-empty-listof vector?) (non-empty-listof any/c) pcontext?)
-  (pcontext (list->vector points) (list->vector exacts)))
+(define/contract (mk-pcontext points exacts ctx)
+  (-> (non-empty-listof vector?) (non-empty-listof any/c) context? pcontext?)
+  (pcontext (list->vector points) (list->vector exacts) ctx))
 
 (define-syntax-rule (for/pcontext ([(pt ex) pcontext] other ...) body ...)
   (let-values ([(pts* exs*)
                 (for/lists (pts* exs*) ([(pt ex) (in-pcontext pcontext)] other ...) body ...)])
-    (mk-pcontext pts* exs*)))
+    (mk-pcontext pts* exs* (pcontext-ctx pcontext))))
 
 (define (split-pcontext pctx num-a num-b)
-  (match-define (pcontext pts exs) pctx)
+  (match-define (pcontext pts exs ctx) pctx)
   (unless (= (+ num-a num-b) (vector-length pts))
     (error 'split-pcontext
            "Cannot split pcontext of size ~a into ~a and ~a"
@@ -49,7 +50,7 @@
            num-b))
   (define-values (pts-a pts-b) (vector-split-at pts num-a))
   (define-values (exs-a exs-b) (vector-split-at exs num-a))
-  (values (pcontext pts-a exs-a) (pcontext pts-b exs-b)))
+  (values (pcontext pts-a exs-a ctx) (pcontext pts-b exs-b ctx)))
 
 ;; Herbie's standard error measure is the average bits of error across
 ;; all points in a pcontext.
@@ -60,10 +61,10 @@
 (define (errors-score e)
   (apply average (map ulps->bits e)))
 
-(define (errors expr pcontext ctx)
+(define (errors expr pcontext [ctx (pcontext-ctx pcontext)])
   (first (batch-errors (list expr) pcontext ctx)))
 
-(define (batch-errors exprs pcontext ctx)
+(define (batch-errors exprs pcontext [ctx (pcontext-ctx pcontext)])
   (define fn (compile-progs exprs ctx))
   (define repr (context-repr ctx))
   (define special? (representation-special-value? repr))

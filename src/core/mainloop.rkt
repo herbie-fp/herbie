@@ -106,7 +106,7 @@
 ;; and timeline data.
 
 (define (score-alt alt)
-  (errors-score (errors (alt-expr alt) (*pcontext*) (*context*))))
+  (errors-score (errors (alt-expr alt) (*pcontext*))))
 
 ; Pareto mode alt picking
 (define (choose-mult-alts altns)
@@ -253,7 +253,7 @@
      (add-derivations alts)]
     [else alts]))
 
-(define (sort-alts alts [errss (batch-errors (map alt-expr alts) (*pcontext*) (*context*))])
+(define (sort-alts alts [errss (batch-errors (map alt-expr alts) (*pcontext*))])
   ;; sort everything by error + cost
   (define repr (context-repr (*context*)))
   (define alts-to-be-sorted (map cons alts errss))
