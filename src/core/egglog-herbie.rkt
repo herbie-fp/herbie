@@ -95,6 +95,7 @@
 
 ;; Runs egglog using an egglog runner by extracting multiple variants
 (define (run-egglog-multi-extractor runner output-batch) ; multi expression extraction
+  (printf "soundegg herbie\n")
   (define insert-batch
     (batch-remove-zombie (egglog-runner-batch runner) (egglog-runner-roots runner)))
   (define curr-program (make-egglog-program))

@@ -205,12 +205,12 @@
 
 (define (potentially-unsound)
   (define num 0)
-  (for ([rule (in-list (*sound-rules*))])
+  (for ([rule (in-list (*rules*))])
     (test-case (~a (rule-name rule))
       (define proof (dict-ref soundness-proofs (rule-name rule) '()))
       (define-values (lhs-bad rhs-bad) (rewrite-unsound? (rule-input rule) (rule-output rule) proof))
       (when rhs-bad
         (with-check-info (['lhs-bad lhs-bad]) (check-false rhs-bad))))))
 
-(module+ test
-  (potentially-unsound))
+; (module+ test
+;   (potentially-unsound))

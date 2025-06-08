@@ -361,22 +361,15 @@
 ;; Synthesizes lowering rules for a given platform.
 (define (platform-lowering-rules [pform (*active-platform*)])
   (define impls (platform-impls pform))
-  (append* (for/list ([impl (in-list impls)])
-             (hash-ref!
-              (*lowering-rules*)
-              (cons impl pform)
-              (lambda ()
-                (define name (sym-append 'lower- impl))
-                (define-values (vars spec-expr impl-expr) (impl->rule-parts impl))
-                (define itypes (map representation-type (impl-info impl 'itype)))
-                (define otype (representation-type (impl-info impl 'otype)))
-                (list (rule name spec-expr impl-expr (map cons vars itypes) otype '(lowering))
-                      (rule (sym-append 'lower-unsound- impl)
-                            (add-unsound spec-expr)
-                            impl-expr
-                            (map cons vars itypes)
-                            otype
-                            '(lowering))))))))
+  (for/list ([impl (in-list impls)])
+    (hash-ref! (*lowering-rules*)
+               (cons impl pform)
+               (lambda ()
+                 (define name (sym-append 'lower- impl))
+                 (define-values (vars spec-expr impl-expr) (impl->rule-parts impl))
+                 (define itypes (map representation-type (impl-info impl 'itype)))
+                 (define otype (representation-type (impl-info impl 'otype)))
+                 (rule name spec-expr impl-expr (map cons vars itypes) otype '(lowering))))))
 
 ;; Extracts the `fpcore` field of an operator implementation
 ;; as a property dictionary and expression.
@@ -385,30 +378,15 @@
     [(list '! props ... body) (values (props->dict props) body)]
     [body (values '() body)]))
 
-(define/reset op-hash #f)
-
 ;; For a given FPCore operator, rounding context, and input representations,
 ;; finds the best operator implementation. Panics if none can be found.
 (define/contract (get-fpcore-impl op prop-dict ireprs)
   (-> symbol? prop-dict/c (listof representation?) (or/c symbol? #f))
-
-  (unless (op-hash)
-    (define h (make-hash))
-    (for ([impl (in-list (platform-impls (*active-platform*)))])
-      (define-values (_ expr) (impl->fpcore impl))
-      (define expr*
-        (if (symbol? expr)
-            (list expr)
-            expr))
-      (when (list? expr*)
-        (hash-update! h (car expr*) (curry cons impl) '())))
-    (op-hash h))
-
   ; gather all implementations that have the same spec, input representations,
   ; and its FPCore translation has properties that are found in `prop-dict`
   (define impls
     (reap [sow]
-          (for ([impl (in-list (hash-ref (op-hash) op '()))]
+          (for ([impl (in-list (platform-impls (*active-platform*)))]
                 #:when (equal? ireprs (impl-info impl 'itype)))
             (define-values (prop-dict* expr) (impl->fpcore impl))
             (define expr*

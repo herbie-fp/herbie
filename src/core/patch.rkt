@@ -11,7 +11,8 @@
          "rules.rkt"
          "taylor.rkt"
          "batch.rkt"
-         "egglog-herbie.rkt")
+         "egglog-herbie.rkt"
+         "egglog-herbie-old.rkt")
 
 (provide generate-candidates)
 
@@ -87,7 +88,8 @@
 
   (define batchrefss
     (if (flag-set? 'generate 'egglog)
-        (run-egglog-multi-extractor runner global-batch)
+        ; (run-egglog-multi-extractor runner global-batch)
+        (run-egglog-multi-extractor-old runner global-batch)
         (egraph-best runner global-batch)))
 
   ; apply changelists
@@ -126,7 +128,8 @@
 
   (define batchrefss
     (if (flag-set? 'generate 'egglog)
-        (run-egglog-multi-extractor runner global-batch)
+        ; (run-egglog-multi-extractor runner global-batch)
+        (run-egglog-multi-extractor-old runner global-batch)
         (egraph-variations runner global-batch)))
 
   ; apply changelists
