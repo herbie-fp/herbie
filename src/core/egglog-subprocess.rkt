@@ -43,7 +43,7 @@
                                (printf "Stdout:\n~a\n" stdout-output)
                                (printf "Stderr:\n~a\n" stderr-output)
 
-                               (when (not (subprocess-status egglog-process))
+                               (unless (subprocess-status egglog-process)
                                  (subprocess-kill egglog-process #t))
 
                                ; Reraise the exception
@@ -78,7 +78,7 @@
                                (printf "Stdout:\n~a\n" stdout-output)
                                (printf "Stderr:\n~a\n" stderr-output)
 
-                               (when (not (subprocess-status egglog-process))
+                               (unless (subprocess-status egglog-process)
                                  (subprocess-kill egglog-process #t))
 
                                ; Reraise the exception
