@@ -172,10 +172,10 @@
            '(NAN)
            (cons (- (car terms)) (cdr terms))))]
     [`(* ,args ...)
-     (let ([terms (map gather-multiplicative-terms args)])
-       (if (ormap (curry eq? 'NAN) (map car terms))
-           '(NAN)
-           (cons (apply * (map car terms)) (apply append (map cdr terms)))))]
+     (define terms (map gather-multiplicative-terms args))
+     (if (ormap (curry eq? 'NAN) (map car terms))
+         '(NAN)
+         (cons (apply * (map car terms)) (apply append (map cdr terms))))]
     [`(/ ,arg)
      (define terms (gather-multiplicative-terms arg))
      (cons (if (member (car terms) '(0 NAN))
