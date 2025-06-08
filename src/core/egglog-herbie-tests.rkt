@@ -2,7 +2,8 @@
 
 (require rackunit
          "egglog-herbie.rkt"
-         "../syntax/syntax.rkt")
+         "../syntax/syntax.rkt"
+         "egglog-herbie-old.rkt")
 
 (define (test-e1->expr)
   (check-equal? (e1->expr '(Num (bigrat (from-string "3") (from-string "4")))) 3/4)
@@ -374,4 +375,4 @@
       (,rules . ((node . ,(*node-limit*)) (scheduler . simple)))
       (lower . ((iteration . 1) (scheduler . simple)))))
 
-  (run-egglog-multi-extractor (egglog-runner batch roots reprs schedule ctx) batch))
+  (run-egglog-multi-extractor-old (egglog-runner batch roots reprs schedule ctx) batch))
