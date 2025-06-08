@@ -548,7 +548,7 @@ function makelabel(i, base, factor) {
     return num / den;
 }
 
-function makeHistogram(id, xdata, ydata, options) {
+function histogram(id, xdata, ydata, options) {
     var width = options?.width ?? 676;
     var height = options?.height ?? 60;
     var margin = 5;
@@ -556,8 +556,6 @@ function makeHistogram(id, xdata, ydata, options) {
     var ticks = 5;
     var bucketnum = options?.buckets ?? 25;
     var bucketwidth = Math.round(width / bucketnum);
-
-    var proportional = options?.proportional ?? true;
 
     var canvas = document.getElementById(id);
     if (xdata.length == 0 || (ydata && xdata.length != ydata.length)) { return canvas.remove(); } // Early exit
@@ -579,7 +577,7 @@ function makeHistogram(id, xdata, ydata, options) {
     buckets.fill(0);
     for (var i = 0; i < xdata.length; i++) {
         var j = Math.floor(xdata[i] / xma * buckets.length);
-        var weight = ydata ? ydata[i] : (proportional ? xdata[i] : 1);
+        var weight = ydata ? ydata[i] : xdata[i];
         buckets[Math.min(j, buckets.length-1)] += weight;
         sum += weight;
     }
@@ -619,14 +617,6 @@ function makeHistogram(id, xdata, ydata, options) {
         ctx.fillText(label, pos / xma * width + margin, labels + margin + height + ticks + margin);
         ctx.stroke();
     }
-}
-
-function histogram(id, data, options) {
-    makeHistogram(id, data, null, options);
-}
-
-function histogram2D(id, xdata, ydata, options) {
-    makeHistogram(id, xdata, ydata, options);
 }
 
 function run_components() {

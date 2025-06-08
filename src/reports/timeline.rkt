@@ -208,7 +208,7 @@
                                         (canvas ([id ,(format "calls-~a" n)]
                                                  [title
                                                   "Histogram of precisions of the used operation"]))
-                                        (script "histogram2D(\""
+                                        (script "histogram(\""
                                                 ,(format "calls-~a" n)
                                                 "\", "
                                                 ,(jsexpr->string precisions)
