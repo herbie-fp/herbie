@@ -322,48 +322,57 @@ function buildCompareForm(jsonData) {
     return Element("form", {}, [radioButtons, " ", hideEqual]);
 }
 
-function buildBody(jsonData, otherJsonData) {
-    let filterFunction = makeFilterFunction();
-
-    var total_start = 0
-    var total_result = 0
-    var maximum_accuracy = 0
-    var total_time = 0
-    var total_crash_timeout = 0
-    jsonData.tests.forEach((test) => {
-        total_start += test.start
-        total_result += test.end
-        maximum_accuracy += test.bits
-        total_time += test.time
+function summarizeTests(tests) {
+    return tests.reduce((acc, test) => {
+        acc.totalStart += test.start;
+        acc.totalEnd += test.end;
+        acc.maxAccuracy += test.bits;
+        acc.totalTime += test.time;
         if (test.status == "timeout" || test.status == "crash") {
-            total_crash_timeout += 1
+            acc.crashCount += 1;
         }
-    })
+        return acc;
+    }, { totalStart: 0, totalEnd: 0, maxAccuracy: 0, totalTime: 0, crashCount: 0 });
+}
 
-    const stats = Element("div", { id: "large" }, [
+function buildStats(summary) {
+    return Element("div", { id: "large" }, [
         Element("div", {}, [
             "Average Percentage Accurate: ",
             Element("span", { classList: "number" }, [
-                calculatePercent(total_start / maximum_accuracy), "%",
+                calculatePercent(summary.totalStart / summary.maxAccuracy), "%",
                 Element("span", { classList: "unit" }, [" → ",]),
-                calculatePercent(total_result / maximum_accuracy), "%"]),
+                calculatePercent(summary.totalEnd / summary.maxAccuracy), "%" ]),
         ]),
         Element("div", {}, [
             "Time:",
-            Element("span", { classList: "number" }, [formatTime(total_time)])
+            Element("span", { classList: "number" }, [formatTime(summary.totalTime)])
         ]),
         Element("div", {}, [
             "Bad Runs:",
-            Element("span", { classList: "number", title: "Crashes and timeouts are considered bad runs." }, [`${total_crash_timeout}/${jsonData.tests.length}`])
+            Element("span", {
+                classList: "number",
+                title: "Crashes and timeouts are considered bad runs."
+            }, [`${summary.crashCount}/${summary.testCount}`])
         ]),
         Element("div", {}, [
             "Speedup:",
             Element("span", {
                 classList: "number",
                 title: "Aggregate speedup of fastest alternative that improves accuracy."
-            }, [calculateSpeedup(jsonData["merged-cost-accuracy"])])
+            }, [calculateSpeedup(summary.mergedCostAccuracy)])
         ]),
-    ])
+    ]);
+}
+
+function buildBody(jsonData, otherJsonData) {
+    let filterFunction = makeFilterFunction();
+
+    const summary = summarizeTests(jsonData.tests);
+    summary.testCount = jsonData.tests.length;
+    summary.mergedCostAccuracy = jsonData["merged-cost-accuracy"];
+
+    const stats = buildStats(summary);
 
     const header = Element("header", {}, [
         Element("h1", {}, "Herbie Results"),
