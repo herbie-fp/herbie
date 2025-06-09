@@ -102,86 +102,87 @@
     (values lines unsound?)))
 
 (module+ test
-  (define-values (egglog-process egglog-output egglog-in err) (create-new-egglog-subprocess))
+  (when (find-executable-path "egglog")
+    (define-values (egglog-process egglog-output egglog-in err) (create-new-egglog-subprocess))
 
-  (thread (lambda ()
-            (with-handlers ([exn:fail? (lambda (_) (void))])
-              (for ([line (in-lines err)])
-                (printf "[egglog-log] ~a\n" line)))))
+    (thread (lambda ()
+              (with-handlers ([exn:fail? (lambda (_) (void))])
+                (for ([line (in-lines err)])
+                  (printf "[egglog-log] ~a\n" line)))))
 
-  (define first-commands
-    (list '(datatype Expr (Var String :cost 150) (Add Expr Expr :cost 200))
-          '(constructor const1 () Expr :unextractable)
-          '(constructor const2 () Expr :unextractable)
-          '(constructor const3 () Expr :unextractable)
-          '(function unsound () bool :merge (or old new))
-          '(ruleset unsound-rule)
-          '(set (unsound) false)
-          '(rule ((= (Num c1) (Num c2)) (!= c1 c2)) ((set (unsound) true)) :ruleset unsound-rule)
-          '(ruleset init)
-          '(rule ()
-                 ((let a1 (Var
-                           "x")
-                    )
-                  (set (const1) a1)
-                  (let a2 (Var
-                           "y")
-                    )
-                  (set (const2) a2)
-                  (let b1 (Add
-                           a1
-                           a2)
-                    )
-                  (set (const3) b1))
-                 :ruleset
-                 init)
-          '(run init 1)))
+    (define first-commands
+      (list '(datatype Expr (Var String :cost 150) (Add Expr Expr :cost 200))
+            '(constructor const1 () Expr :unextractable)
+            '(constructor const2 () Expr :unextractable)
+            '(constructor const3 () Expr :unextractable)
+            '(function unsound () bool :merge (or old new))
+            '(ruleset unsound-rule)
+            '(set (unsound) false)
+            '(rule ((= (Num c1) (Num c2)) (!= c1 c2)) ((set (unsound) true)) :ruleset unsound-rule)
+            '(ruleset init)
+            '(rule ()
+                   ((let a1 (Var
+                             "x")
+                      )
+                    (set (const1) a1)
+                    (let a2 (Var
+                             "y")
+                      )
+                    (set (const2) a2)
+                    (let b1 (Add
+                             a1
+                             a2)
+                      )
+                    (set (const3) b1))
+                   :ruleset
+                   init)
+            '(run init 1)))
 
-  ; Nothing to output
-  (send-to-egglog first-commands egglog-process egglog-output egglog-in err #f)
+    ; Nothing to output
+    (send-to-egglog first-commands egglog-process egglog-output egglog-in err #f)
 
-  ; Has extract 1 thing
-  (define second-commands (list '(extract (const1))))
+    ; Has extract 1 thing
+    (define second-commands (list '(extract (const1))))
 
-  (define lines1
-    (send-to-egglog second-commands egglog-process egglog-output egglog-in err #f #:num-extracts 1))
-  (printf "\noutput-vals1 : ~a\n\n" lines1)
+    (define lines1
+      (send-to-egglog second-commands egglog-process egglog-output egglog-in err #f #:num-extracts 1))
+    (printf "\noutput-vals1 : ~a\n\n" lines1)
 
-  ;; Print size
+    ;; Print size
 
-  (define print-size-commands (list '(print-size) '(run unsound-rule 1) '(extract (unsound))))
+    (define print-size-commands (list '(print-size) '(run unsound-rule 1) '(extract (unsound))))
 
-  (define-values (node-values unsound?)
-    (send-to-egglog-unsound-detection print-size-commands
-                                      egglog-process
-                                      egglog-output
-                                      egglog-in
-                                      err
-                                      #f))
+    (define-values (node-values unsound?)
+      (send-to-egglog-unsound-detection print-size-commands
+                                        egglog-process
+                                        egglog-output
+                                        egglog-in
+                                        err
+                                        #f))
 
-  (for ([line node-values]
-        #:when (> (string-length line) 0))
-    (printf "Line : ~a\n" line)
-    (printf "string? : ~a\n\n" (string? line)))
-  (printf "\nUnsound : ~a\n\n" unsound?)
+    (for ([line node-values]
+          #:when (> (string-length line) 0))
+      (printf "Line : ~a\n" line)
+      (printf "string? : ~a\n\n" (string? line)))
+    (printf "\nUnsound : ~a\n\n" unsound?)
 
-  (printf "num-nodes : ~a\n" (calculate-nodes node-values))
+    (printf "num-nodes : ~a\n" (calculate-nodes node-values))
 
-  ;; last two
-  (define third-commands (list '(extract (const2)) '(extract (const3))))
+    ;; last two
+    (define third-commands (list '(extract (const2)) '(extract (const3))))
 
-  (define lines2
-    (send-to-egglog third-commands egglog-process egglog-output egglog-in err #f #:num-extracts 2))
-  (printf "\noutput-vals2 : ~a\n\n" lines2)
+    (define lines2
+      (send-to-egglog third-commands egglog-process egglog-output egglog-in err #f #:num-extracts 2))
+    (printf "\noutput-vals2 : ~a\n\n" lines2)
 
-  (close-output-port egglog-in)
-  (close-input-port egglog-output)
-  (close-input-port err)
+    (close-output-port egglog-in)
+    (close-input-port egglog-output)
+    (close-input-port err)
 
-  (subprocess-wait egglog-process)
+    (subprocess-wait egglog-process)
 
-  (unless (eq? (subprocess-status egglog-process) 'done)
-    (subprocess-kill egglog-process #f)))
+    (unless (eq? (subprocess-status egglog-process) 'done)
+      (subprocess-kill egglog-process #f))))
 
 (define (calculate-nodes lines)
   ;; Don't start from last index, but previous to last index - as last has current unsoundness result
