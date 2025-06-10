@@ -9,8 +9,6 @@
          drop-at
          find-duplicates
          partial-sums
-         argmins
-         argmaxs
          set-disjoint?
          subsequence?
          disjoint-set
@@ -21,7 +19,6 @@
          quasisyntax
          dict
          sym-append
-         gen-vars
          string-replace*
          format-time
          format-bits
@@ -48,40 +45,6 @@
     (let ([sows (cdr sows)] ...)
       body ...)
     (values (reverse ((car sows))) ...)))
-
-;; Single precision numbers
-
-(define cast-single
-  (let ([flsingle identity])
-    (local-require racket/flonum)
-    flsingle))
-
-;; Utility list functions
-
-(define (argmins f lst)
-  (let loop ([lst lst]
-             [best-score #f]
-             [best-elts '()])
-    (cond
-      [(null? lst) (reverse best-elts)]
-      [else
-       (define elt (car lst))
-       (define lst* (cdr lst))
-       (define score (f elt))
-       (cond
-         [(not best-score) (loop lst* score (list elt))]
-         [(< score best-score) (loop lst* score (list elt))]
-         [(> score best-score) (loop lst* best-score best-elts)]
-         [(= score best-score) (loop lst* best-score (cons elt best-elts))])])))
-
-(module+ test
-  (check-equal? (argmins string-length '("a" "bb" "f" "ccc" "dd" "eee" "g")) '("a" "f" "g")))
-
-(define (argmaxs f lst)
-  (argmins (λ (x) (- (f x))) lst))
-
-(module+ test
-  (check-equal? (argmaxs string-length '("a" "bb" "f" "ccc" "dd" "eee" "g")) '("ccc" "eee")))
 
 (define (drop-at ls index)
   (define-values (front back) (split-at ls index))
@@ -270,11 +233,6 @@
 
 (define (sym-append . args)
   (string->symbol (apply string-append (map ~a args))))
-
-;; Generates a list of variables names.
-(define/contract (gen-vars n)
-  (-> natural? (listof symbol?))
-  (build-list n (lambda (i) (string->symbol (format "x~a" i)))))
 
 ;; FPCore properties
 
