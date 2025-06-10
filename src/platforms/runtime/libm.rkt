@@ -4,8 +4,8 @@
 ;; The builtin plugins prefer to use the underlying libm rather
 ;; than Racket's implementations
 
-(require ffi/unsafe)
-(require "utils.rkt")
+(require ffi/unsafe
+         (submod "../../syntax/syntax.rkt" internals))
 
 (provide define-libm
          define-libm-impl)
