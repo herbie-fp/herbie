@@ -136,7 +136,7 @@
 (define *max-mpfr-prec* (make-parameter 10000))
 
 ;; The maximum size of an egraph
-(define *node-limit* (make-parameter 6000))
+(define *node-limit* (make-parameter 8000))
 (printf "*node-limit* : ~a\n" (*node-limit*))
 (define *proof-max-length* (make-parameter 200))
 (define *proof-max-string-length* (make-parameter 10000))
