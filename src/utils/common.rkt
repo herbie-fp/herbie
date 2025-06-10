@@ -9,8 +9,6 @@
          drop-at
          find-duplicates
          partial-sums
-         set-disjoint?
-         subsequence?
          disjoint-set
          disjoint-set-find!
          disjoint-set-union!
@@ -19,7 +17,6 @@
          quasisyntax
          dict
          sym-append
-         string-replace*
          format-time
          format-bits
          format-accuracy
@@ -76,28 +73,6 @@
       (set! duplicates (cons x duplicates)))
     (set-add! found x))
   (reverse duplicates))
-
-(define (set-disjoint? s1 s2)
-  (set-empty? (set-intersect s2 s1)))
-
-(module+ test
-  (check-true (set-disjoint? '(a b c) '(e f g)))
-  (check-true (set-disjoint? '() '()))
-  (check-false (set-disjoint? '(a b c) '(a))))
-
-(define (subsequence? v l)
-  (or (empty? v) (let ([v* (member (first v) l)]) (and v* (subsequence? (rest v) v*)))))
-
-(module+ test
-  (define l (range 10))
-  (check-true (subsequence? empty empty))
-  (check-true (subsequence? empty l))
-  (check-true (subsequence? '(1) l))
-  (check-true (subsequence? '(1 2) l))
-  (check-true (subsequence? '(1 3 5 7 9) l))
-  (check-true (subsequence? '(1 2 5 8) l))
-  (check-false (subsequence? '(x y) l))
-  (check-false (subsequence? '(1 2 10) l)))
 
 ;; Union-find
 
@@ -222,12 +197,6 @@
   (if name
       (build-path web-resource-path name)
       web-resource-path))
-
-(define/contract (string-replace* str changes)
-  (-> string? (listof (cons/c string? string?)) string?)
-  (for/fold ([str str]) ([change changes])
-    (match-define (cons from to) change)
-    (string-replace str from to)))
 
 ;; Symbol generation
 

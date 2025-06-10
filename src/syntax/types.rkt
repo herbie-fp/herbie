@@ -7,7 +7,6 @@
          (struct-out representation)
          get-representation
          repr-exists?
-         repr->symbol
          repr->prop
          (struct-out context)
          *context*
@@ -44,12 +43,6 @@
      (fprintf port "#<representation ~a>" (representation-name repr)))])
 
 (define representations (hash))
-
-;; Representation name sanitizer
-(define (repr->symbol repr)
-  (define replace-table `((" " . "_") ("(" . "") (")" . "")))
-  (define repr-name (representation-name repr))
-  (string->symbol (string-replace* (~a repr-name) replace-table)))
 
 ;; Converts a representation into a rounding property
 (define (repr->prop repr)
