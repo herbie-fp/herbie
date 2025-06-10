@@ -296,10 +296,11 @@
            "../syntax/load-plugin.rkt"
            "egglog-herbie.rkt")
 
-  (load-herbie-builtins)
-  (populate-e->id-tables)
-  (test-e1->expr)
-  (test-e2->expr))
+  (when (find-executable-path "egglog")
+    (load-herbie-builtins)
+    (populate-e->id-tables)
+    (test-e1->expr)
+    (test-e2->expr)))
 
 ;; run-sample-egglog
 (module+ test
@@ -374,4 +375,5 @@
       (,rules . ((node . ,(*node-limit*)) (scheduler . simple)))
       (lower . ((iteration . 1) (scheduler . simple)))))
 
-  (run-egglog-multi-extractor (egglog-runner batch roots reprs schedule ctx) batch))
+  (when (find-executable-path "egglog")
+    (run-egglog-multi-extractor (egglog-runner batch roots reprs schedule ctx) batch)))

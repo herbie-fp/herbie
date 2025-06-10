@@ -88,8 +88,7 @@
   (manager-ask 'improve))
 
 (define (server-count)
-  (define job-list (manager-ask 'count))
-  (apply + job-list))
+  (manager-ask 'count))
 
 (define (server-up?)
   (match manager
@@ -137,7 +136,7 @@
      (when command
        (hash-set! completed-jobs job-id result))
      job-id]
-    [(list 'count) (list 0 0)]
+    [(list 'count) 0]
     [(list 'improve)
      (for/list ([(job-id result) (in-hash completed-jobs)]
                 #:when (equal? (hash-ref result 'command) "improve"))
@@ -263,9 +262,9 @@
         (place-channel-put handler (and (hash-has-key? completed-jobs job-id) job-id))]
        ; Returns the current count of working workers.
        [(list 'count handler)
-        (define counts (list (hash-count busy-workers) (hash-count queued-jobs)))
-        (log "Currently ~a jobs in progress, ~a jobs in queue.\n" (first counts) (second counts))
-        (place-channel-put handler counts)]
+        (define total (+ (hash-count busy-workers) (hash-count queued-jobs)))
+        (log "Currently ~a jobs total.\n" total)
+        (place-channel-put handler total)]
        ; Retreive the improve results for results.json
        [(list 'improve handler)
         (define improved-list
