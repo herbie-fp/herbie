@@ -66,13 +66,7 @@
   (check-equal? (partial-sums #(1 4 6 3 8)) #(1 5 11 14 22)))
 
 (define (find-duplicates l)
-  (define found (mutable-set))
-  (define duplicates '())
-  (for ([x l])
-    (when (set-member? found x)
-      (set! duplicates (cons x duplicates)))
-    (set-add! found x))
-  (reverse duplicates))
+  (map car (filter (compose pair? rest) (group-by identity l))))
 
 ;; Union-find
 
