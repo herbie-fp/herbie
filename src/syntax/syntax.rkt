@@ -29,6 +29,8 @@
            register-operator-impl!
            define-operator
            register-operator!
+           define-constants
+           define-comparator-impls
            variable?))
 
 (module+ test
@@ -265,7 +267,7 @@
   (unless (equal? actual-ty otype)
     (type-error! spec actual-ty otype)))
 
-; Registers an operator implementation `name` with context `ctx` and spec `spec.
+; Registers an operator implementation `name` with context `ctx` and spec `spec`.
 ; Can optionally specify a floating-point implementation and fpcore translation.
 (define/contract (register-operator-impl! name ctx spec #:fl [fl-proc #f] #:fpcore [fpcore #f])
   (->* (symbol? context? any/c) (#:fl (or/c procedure? #f) #:fpcore any/c) void?)
@@ -386,6 +388,22 @@
            ; bad
            [_ (oops! "bad syntax" fields)])))]
     [_ (oops! "bad syntax")]))
+
+(define-syntax-rule (define-constants repr [name impl-name value] ...)
+  (begin
+    (define-operator-impl (impl-name)
+                          repr
+                          #:spec (name)
+                          #:fl (const value)
+                          #:fpcore (! :precision repr name)) ...))
+
+(define-syntax-rule (define-comparator-impls repr [name impl-name impl-fn attrib ...] ...)
+  (begin
+    (define-operator-impl (impl-name [x : repr] [y : repr])
+                          bool
+                          #:spec (name x y)
+                          #:fl impl-fn
+                          attrib ...) ...))
 
 ;; Expression predicates ;;
 

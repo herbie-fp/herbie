@@ -10,32 +10,32 @@
          make-debug-context)
 
 ;; Builtin plugins
-(define-runtime-module-path bool-plugin "../platforms/bool.rkt")
-(define-runtime-module-path binary32-plugin "../platforms/binary32.rkt")
-(define-runtime-module-path binary64-plugin "../platforms/binary64.rkt")
-(define-runtime-module-path fallback-plugin "../platforms/fallback.rkt")
+;(define-runtime-module-path bool-plugin "../platforms/bool.rkt")
+;(define-runtime-module-path binary32-plugin "../platforms/binary32.rkt")
+;(define-runtime-module-path binary64-plugin "../platforms/binary64.rkt")
+;(define-runtime-module-path fallback-plugin "../platforms/fallback.rkt")
 
 ;; Builtin platforms
-(define-runtime-module-path herbie10-platform "../platforms/herbie10.rkt")
+;(define-runtime-module-path herbie10-platform "../platforms/herbie10.rkt")
 (define-runtime-module-path herbie20-platform "../platforms/herbie20.rkt")
-(define-runtime-module-path c-platform "../platforms/libm.rkt")
-(define-runtime-module-path math-platform "../platforms/math.rkt")
+;(define-runtime-module-path c-platform "../platforms/libm.rkt")
+;(define-runtime-module-path math-platform "../platforms/math.rkt")
 
 ; Automatically loads default representations and platforms
 (define (load-herbie-builtins)
   ;; Load in all plugins
   ;; Warning: the order here is important!
-  (dynamic-require bool-plugin #f)
-  (dynamic-require binary64-plugin #f)
-  (dynamic-require binary32-plugin #f)
-  (dynamic-require fallback-plugin #f)
+  ;(dynamic-require bool-plugin #f)
+  ;(dynamic-require binary64-plugin #f)
+  ;(dynamic-require binary32-plugin #f)
+  ;(dynamic-require fallback-plugin #f)
   ;; Load all platforms
-  (dynamic-require herbie10-platform #f)
+  ;(dynamic-require herbie10-platform #f)
   (dynamic-require herbie20-platform #f)
-  (dynamic-require c-platform #f)
-  (dynamic-require math-platform #f)
+  ;(dynamic-require c-platform #f)
+  ;(dynamic-require math-platform #f)
   ; activate the required platform
-  (activate-platform! (*platform-name*)))
+  (activate-platform! 'herbie20))
 
 (define (load-herbie-plugins)
   (load-herbie-builtins)
