@@ -137,6 +137,7 @@
 
 ;; The maximum size of an egraph
 (define *node-limit* (make-parameter 500))
+(printf "*node-limit* : ~a\n" (*node-limit*))
 (define *proof-max-length* (make-parameter 200))
 (define *proof-max-string-length* (make-parameter 10000))
 
