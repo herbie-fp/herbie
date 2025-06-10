@@ -119,13 +119,24 @@
      (hash-set! queued-jobs job-id job)
      job-id]
     [(list 'wait 'basic job-id)
-     (define command (hash-ref queued-jobs job-id))
-     (define result (herbie-do-server-job command job-id))
-     (hash-set! completed-jobs job-id result)
+     (define command (hash-ref queued-jobs job-id #f))
+     (define result (and command (herbie-do-server-job command job-id)))
+     (when command
+       (hash-set! completed-jobs job-id result))
      result]
     [(list 'result job-id) (hash-ref completed-jobs job-id #f)]
-    [(list 'timeline job-id) (hash-ref completed-jobs job-id #f)]
-    [(list 'check job-id) (and (hash-ref completed-jobs job-id #f) job-id)]
+    [(list 'timeline job-id)
+     (define command (hash-ref queued-jobs job-id #f))
+     (define result (and command (herbie-do-server-job command job-id)))
+     (when command
+       (hash-set! completed-jobs job-id result))
+     result]
+    [(list 'check job-id)
+     (define command (hash-ref queued-jobs job-id #f))
+     (define result (and command (herbie-do-server-job command job-id)))
+     (when command
+       (hash-set! completed-jobs job-id result))
+     job-id]
     [(list 'count) (list 0 0)]
     [(list 'improve)
      (for/list ([(job-id result) (in-hash completed-jobs)]
