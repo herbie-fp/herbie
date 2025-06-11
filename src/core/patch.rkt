@@ -104,7 +104,7 @@
   (define free-vars (batch-free-vars global-batch))
   (define real-altns
     (for/list ([altn (in-list altns)]
-               #:when (set-empty? (vector-ref free-vars (batchref-idx (alt-expr  altn)))))
+               #:when (set-empty? (vector-ref free-vars (batchref-idx (alt-expr altn)))))
       altn))
   (define roots
     (for/vector ([altn (in-list real-altns)])
@@ -115,8 +115,7 @@
   (define batch* (batch-remove-zombie global-batch roots))
   (define specs (map prog->spec (batch->progs batch*)))
   (timeline-push! 'inputs (map ~a specs))
-  (define real-compiler
-    (make-real-compiler specs contexts))
+  (define real-compiler (make-real-compiler specs contexts))
   (define-values (status pts) (real-apply real-compiler (vector)))
   (define literals
     (for/list ([pt (in-list pts)]
@@ -190,7 +189,7 @@
   (define start-altns
     (for/list ([root (in-vector (batch-roots global-batch))])
       (alt (batchref global-batch root) 'patch '() '())))
-  
+
   (define evaluations
     (if (flag-set? 'generate 'evaluate)
         (run-evaluate start-altns global-batch)

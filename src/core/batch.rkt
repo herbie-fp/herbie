@@ -118,8 +118,7 @@
         [node (in-vector (batch-nodes batch))])
     (define fv
       (cond
-        [(symbol? node)
-         (set node)]
+        [(symbol? node) (set node)]
         [else
          (define arg-free-vars (mutable-set))
          (expr-recurse node (lambda (i) (set-union! arg-free-vars (vector-ref out i))))
