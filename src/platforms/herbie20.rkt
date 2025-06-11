@@ -13,26 +13,38 @@
          "../syntax/platform.rkt"
          (submod "../syntax/platform.rkt" internals)
          (submod "../syntax/syntax.rkt"
-                 internals) ; for define-operator-impl, define-constants, define-comparator-impls
+                 internals) ; for make-operator-impl, define-constants, define-comparator-impls
          (submod "../syntax/types.rkt" internals)) ; for define-representation
+
+(define herbie20-platform (make-empty-platform 'herbie20 #:if-cost 1 #:default-cost 1))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BOOLEAN ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; representation ;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define-representation (bool bool boolean?)
-                       identity
-                       identity
-                       (λ (x) (= x 0))
-                       (λ (x) (if x 1 0))
-                       1
-                       (const #f))
+(define bool
+  (make-representation #:name 'bool
+                       #:type 'bool
+                       #:repr? boolean?
+                       #:bf->repr identity
+                       #:repr->bf identity
+                       #:ordinal->repr (λ (x) (= x 0))
+                       #:repr->ordinal (λ (x) (if x 1 0))
+                       #:total-bits 1
+                       #:special-value? (const #f)
+                       #:cost 1))
+
+(platform-register-representation! herbie20-platform bool)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; constants ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; Don't use define-constants because don't want to require :precision bool annotation
-(define-operator-impl (TRUE) bool #:spec (TRUE) #:fl (const true) #:fpcore (! TRUE))
-(define-operator-impl (FALSE) bool #:spec (FALSE) #:fl (const false) #:fpcore (! FALSE))
+(define TRUE.bool
+  (make-operator-impl (TRUE) bool #:spec (TRUE) #:fl (const true) #:fpcore (! TRUE) #:cost 1))
+(platform-register-implementation! herbie20-platform TRUE.bool)
+
+(define FALSE.bool
+  (make-operator-impl (FALSE) bool #:spec (FALSE) #:fl (const false) #:fpcore (! FALSE) #:cost 1))
+(platform-register-implementation! herbie20-platform FALSE.bool)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; operators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -41,23 +53,42 @@
 (define (or-fn . as)
   (ormap identity as))
 
-(define-operator-impl (not [x : bool]) bool #:spec (not x) #:fl not)
+(define not.bool
+  (make-operator-impl (not [x : bool]) bool #:spec (not x) #:fpcore (not x) #:fl not #:cost 1))
 
-(define-operator-impl (and [x : bool] [y : bool]) bool #:spec (and x y) #:fl and-fn)
+(define and.bool
+  (make-operator-impl (and [x : bool] [y : bool])
+                      bool
+                      #:spec (and x y)
+                      #:fpcore (and x y)
+                      #:fl and-fn
+                      #:cost 1))
 
-(define-operator-impl (or [x : bool] [y : bool]) bool #:spec (or x y) #:fl or-fn)
+(define or.bool
+  (make-operator-impl (or [x : bool] [y : bool])
+                      bool
+                      #:spec (or x y)
+                      #:fpcore (or x y)
+                      #:fl or-fn
+                      #:cost 1))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BINARY 32 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; representation ;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define-representation (binary32 real flonum?)
-                       bigfloat->float32
-                       bf
-                       (shift 31 ordinal->float32)
-                       (unshift 31 float32->ordinal)
-                       32
-                       nan?)
+(define binary32
+  (make-representation #:name 'binary32
+                       #:type 'real
+                       #:repr? flonum?
+                       #:bf->repr bigfloat->float32
+                       #:repr->bf bf
+                       #:ordinal->repr (shift 31 ordinal->float32)
+                       #:repr->ordinal (unshift 31 float32->ordinal)
+                       #:total-bits 32
+                       #:special-value? nan?
+                       #:cost 1))
+
+(platform-register-representation! herbie20-platform binary32)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; constants ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -95,76 +126,103 @@
 (define fl32* (compose flsingle *))
 (define fl32/ (compose flsingle /))
 
-(define-operator-impl (neg.f32 [x : binary32])
-                      binary32
-                      #:spec (neg x)
-                      #:fpcore (! :precision binary32 (- x))
-                      #:fl fl32-)
+(make-operator-impl (neg.f32 [x : binary32])
+                    binary32
+                    #:spec (neg x)
+                    #:fpcore (! :precision binary32 (- x))
+                    #:fl fl32-)
 
-(define-operator-impl (+.f32 [x : binary32] [y : binary32])
-                      binary32
-                      #:spec (+ x y)
-                      #:fpcore (! :precision binary32 (+ x y))
-                      #:fl fl32+)
+(make-operator-impl (+.f32 [x : binary32] [y : binary32])
+                    binary32
+                    #:spec (+ x y)
+                    #:fpcore (! :precision binary32 (+ x y))
+                    #:fl fl32+)
 
-(define-operator-impl (-.f32 [x : binary32] [y : binary32])
-                      binary32
-                      #:spec (- x y)
-                      #:fpcore (! :precision binary32 (- x y))
-                      #:fl fl32-)
+(make-operator-impl (-.f32 [x : binary32] [y : binary32])
+                    binary32
+                    #:spec (- x y)
+                    #:fpcore (! :precision binary32 (- x y))
+                    #:fl fl32-)
 
-(define-operator-impl (*.f32 [x : binary32] [y : binary32])
-                      binary32
-                      #:spec (* x y)
-                      #:fpcore (! :precision binary32 (* x y))
-                      #:fl fl32*)
+(make-operator-impl (*.f32 [x : binary32] [y : binary32])
+                    binary32
+                    #:spec (* x y)
+                    #:fpcore (! :precision binary32 (* x y))
+                    #:fl fl32*)
 
-(define-operator-impl (/.f32 [x : binary32] [y : binary32])
-                      binary32
-                      #:spec (/ x y)
-                      #:fpcore (! :precision binary32 (/ x y))
-                      #:fl fl32/)
+(make-operator-impl (/.f32 [x : binary32] [y : binary32])
+                    binary32
+                    #:spec (/ x y)
+                    #:fpcore (! :precision binary32 (/ x y))
+                    #:fl fl32/)
 
-(define-comparator-impls binary32
-                         [== ==.f32 =]
-                         [!= !=.f32 (negate =)]
-                         [< <.f32 <]
-                         [> >.f32 >]
-                         [<= <=.f32 <=]
-                         [>= >=.f32 >=])
+#;(define-comparator-impls binary32
+                           [== ==.f32 =]
+                           [!= !=.f32 (negate =)]
+                           [< <.f32 <]
+                           [> >.f32 >]
+                           [<= <=.f32 <=]
+                           [>= >=.f32 >=])
 
-(define-libm-impls/binary32 [(binary32 binary32)
-                             (fabs exp
-                                   sin
-                                   cos
-                                   tan
-                                   sinh
-                                   cosh
-                                   acos
-                                   acosh
-                                   asin
-                                   asinh
-                                   atan
-                                   atanh
-                                   cbrt
-                                   ceil
-                                   erf
-                                   exp
-                                   exp2
-                                   floor
-                                   lgamma
-                                   log
-                                   log10
-                                   log2
-                                   logb
-                                   rint
-                                   round
-                                   sqrt
-                                   tanh
-                                   tgamma
-                                   trunc)]
-                            [(binary32 binary32 binary32)
-                             (pow atan2 copysign fdim fmax fmin fmod pow remainder)])
+(make-operator-impl (==.f32 [x : binary32] [y : binary32])
+                    bool
+                    #:spec (== x y)
+                    #:fpcore (== x y)
+                    #:fl =)
+(make-operator-impl (!=.f32 [x : binary32] [y : binary32])
+                    bool
+                    #:spec (!= x y)
+                    #:fpcore (!= x y)
+                    #:fl (negate =))
+(make-operator-impl (<.f32 [x : binary32] [y : binary32]) bool #:spec (< x y) #:fpcore (< x y) #:fl <)
+(make-operator-impl (>.f32 [x : binary32] [y : binary32]) bool #:spec (> x y) #:fpcore (> x y) #:fl >)
+(make-operator-impl (<=.f32 [x : binary32] [y : binary32])
+                    bool
+                    #:spec (<= x y)
+                    #:fpcore (<= x y)
+                    #:fl <=)
+(make-operator-impl (>=.f32 [x : binary32] [y : binary32])
+                    bool
+                    #:spec (>= x y)
+                    #:fpcore (>= x y)
+                    #:fl >=)
+
+; Same as:
+; (define-libm fabsf (fabsf float float))
+; (make-operator-impl (fabs.f32 [x : binary32]) binary32 #:spec (fabs x y) #:fl fabsf)
+; ...
+#;(define-libm-impls/binary32 [(binary32 binary32)
+                               (fabs exp
+                                     sin
+                                     cos
+                                     tan
+                                     sinh
+                                     cosh
+                                     acos
+                                     acosh
+                                     asin
+                                     asinh
+                                     atan
+                                     atanh
+                                     cbrt
+                                     ceil
+                                     erf
+                                     exp
+                                     exp2
+                                     floor
+                                     lgamma
+                                     log
+                                     log10
+                                     log2
+                                     logb
+                                     rint
+                                     round
+                                     sqrt
+                                     tanh
+                                     tgamma
+                                     trunc)]
+                              [(binary32 binary32 binary32)
+                               (pow atan2 copysign fdim fmax fmin fmod pow remainder)])
 
 (define-libm c_erfcf (erfcf float float))
 (define-libm c_expm1f (expm1f float float))
@@ -173,51 +231,57 @@
 (define-libm c_fmaf (fmaf float float float float))
 
 (when c_erfcf
-  (define-operator-impl (erfc.f32 [x : binary32])
-                        binary32
-                        #:spec (- 1 (erf x))
-                        #:fpcore (! :precision binary32 (erfc x))
-                        #:fl c_erfcf))
+  (make-operator-impl (erfc.f32 [x : binary32])
+                      binary32
+                      #:spec (- 1 (erf x))
+                      #:fpcore (! :precision binary32 (erfc x))
+                      #:fl c_erfcf))
 
 (when c_expm1f
-  (define-operator-impl (expm1.f32 [x : binary32])
-                        binary32
-                        #:spec (- (exp x) 1)
-                        #:fpcore (! :precision binary32 (expm1 x))
-                        #:fl c_expm1f))
+  (make-operator-impl (expm1.f32 [x : binary32])
+                      binary32
+                      #:spec (- (exp x) 1)
+                      #:fpcore (! :precision binary32 (expm1 x))
+                      #:fl c_expm1f))
 
 (when c_log1pf
-  (define-operator-impl (log1p.f32 [x : binary32])
-                        binary32
-                        #:spec (log (+ 1 x))
-                        #:fpcore (! :precision binary32 (log1p x))
-                        #:fl c_log1pf))
+  (make-operator-impl (log1p.f32 [x : binary32])
+                      binary32
+                      #:spec (log (+ 1 x))
+                      #:fpcore (! :precision binary32 (log1p x))
+                      #:fl c_log1pf))
 
 (when c_hypotf
-  (define-operator-impl (hypot.f32 [x : binary32] [y : binary32])
-                        binary32
-                        #:spec (sqrt (+ (* x x) (* y y)))
-                        #:fpcore (! :precision binary32 (hypot x y))
-                        #:fl c_hypotf))
+  (make-operator-impl (hypot.f32 [x : binary32] [y : binary32])
+                      binary32
+                      #:spec (sqrt (+ (* x x) (* y y)))
+                      #:fpcore (! :precision binary32 (hypot x y))
+                      #:fl c_hypotf))
 
 (when c_fmaf
-  (define-operator-impl (fma.f32 [x : binary32] [y : binary32] [z : binary32])
-                        binary32
-                        #:spec (+ (* x y) z)
-                        #:fpcore (! :precision binary32 (fma x y z))
-                        #:fl c_fmaf))
+  (make-operator-impl (fma.f32 [x : binary32] [y : binary32] [z : binary32])
+                      binary32
+                      #:spec (+ (* x y) z)
+                      #:fpcore (! :precision binary32 (fma x y z))
+                      #:fl c_fmaf))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BINARY 64 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; representation ;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define-representation (binary64 real flonum?)
-                       bigfloat->flonum
-                       bf
-                       (shift 63 ordinal->flonum)
-                       (unshift 63 flonum->ordinal)
-                       64
-                       nan?)
+(define binary64
+  (make-representation #:name 'binary64
+                       #:type 'real
+                       #:repr? flonum?
+                       #:bf->repr bigfloat->flonum
+                       #:repr->bf bf
+                       #:ordinal->repr (shift 63 ordinal->flonum)
+                       #:repr->ordinal (unshift 63 flonum->ordinal)
+                       #:total-bits 64
+                       #:special-value? nan?
+                       #:cost 1))
+
+(platform-register-representation! herbie20-platform binary64)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; constants ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -229,31 +293,31 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; operators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define-operator-impl (neg.f64 [x : binary64])
-                      binary64
-                      #:spec (neg x)
-                      #:fpcore (! :precision binary64 (- x))
-                      #:fl -)
-(define-operator-impl (+.f64 [x : binary64] [y : binary64])
-                      binary64
-                      #:spec (+ x y)
-                      #:fpcore (! :precision binary64 (+ x y))
-                      #:fl +)
-(define-operator-impl (-.f64 [x : binary64] [y : binary64])
-                      binary64
-                      #:spec (- x y)
-                      #:fpcore (! :precision binary64 (- x y))
-                      #:fl -)
-(define-operator-impl (*.f64 [x : binary64] [y : binary64])
-                      binary64
-                      #:spec (* x y)
-                      #:fpcore (! :precision binary64 (* x y))
-                      #:fl *)
-(define-operator-impl (/.f64 [x : binary64] [y : binary64])
-                      binary64
-                      #:spec (/ x y)
-                      #:fpcore (! :precision binary64 (/ x y))
-                      #:fl /)
+(make-operator-impl (neg.f64 [x : binary64])
+                    binary64
+                    #:spec (neg x)
+                    #:fpcore (! :precision binary64 (- x))
+                    #:fl -)
+(make-operator-impl (+.f64 [x : binary64] [y : binary64])
+                    binary64
+                    #:spec (+ x y)
+                    #:fpcore (! :precision binary64 (+ x y))
+                    #:fl +)
+(make-operator-impl (-.f64 [x : binary64] [y : binary64])
+                    binary64
+                    #:spec (- x y)
+                    #:fpcore (! :precision binary64 (- x y))
+                    #:fl -)
+(make-operator-impl (*.f64 [x : binary64] [y : binary64])
+                    binary64
+                    #:spec (* x y)
+                    #:fpcore (! :precision binary64 (* x y))
+                    #:fl *)
+(make-operator-impl (/.f64 [x : binary64] [y : binary64])
+                    binary64
+                    #:spec (/ x y)
+                    #:fpcore (! :precision binary64 (/ x y))
+                    #:fl /)
 
 ; Libm operators
 
@@ -271,40 +335,40 @@
   (begin
     (define-libm-impls/binary64* (itype ... otype) name ...) ...))
 
-(define-libm-impls/binary64 [(binary64 binary64)
-                             (fabs exp
-                                   sin
-                                   cos
-                                   tan
-                                   sinh
-                                   cosh
-                                   acos
-                                   acosh
-                                   asin
-                                   asinh
-                                   atan
-                                   atanh
-                                   cbrt
-                                   ceil
-                                   cosh
-                                   erf
-                                   exp
-                                   exp2
-                                   floor
-                                   lgamma
-                                   log
-                                   log10
-                                   log2
-                                   logb
-                                   rint
-                                   round
-                                   sinh
-                                   sqrt
-                                   tanh
-                                   tgamma
-                                   trunc)]
-                            [(binary64 binary64 binary64)
-                             (pow atan2 copysign fdim fmax fmin fmod pow remainder)])
+#;(define-libm-impls/binary64 [(binary64 binary64)
+                               (fabs exp
+                                     sin
+                                     cos
+                                     tan
+                                     sinh
+                                     cosh
+                                     acos
+                                     acosh
+                                     asin
+                                     asinh
+                                     atan
+                                     atanh
+                                     cbrt
+                                     ceil
+                                     cosh
+                                     erf
+                                     exp
+                                     exp2
+                                     floor
+                                     lgamma
+                                     log
+                                     log10
+                                     log2
+                                     logb
+                                     rint
+                                     round
+                                     sinh
+                                     sqrt
+                                     tanh
+                                     tgamma
+                                     trunc)]
+                              [(binary64 binary64 binary64)
+                               (pow atan2 copysign fdim fmax fmin fmod pow remainder)])
 
 (define-libm c_erfc (erfc double double))
 (define-libm c_expm1 (expm1 double double))
@@ -313,47 +377,47 @@
 (define-libm c_fma (fma double double double double))
 
 (when c_erfc
-  (define-operator-impl (erfc.f64 [x : binary64])
-                        binary64
-                        #:spec (- 1 (erf x))
-                        #:fpcore (! :precision binary64 (erfc x))
-                        #:fl c_erfc))
+  (make-operator-impl (erfc.f64 [x : binary64])
+                      binary64
+                      #:spec (- 1 (erf x))
+                      #:fpcore (! :precision binary64 (erfc x))
+                      #:fl c_erfc))
 
 (when c_expm1
-  (define-operator-impl (expm1.f64 [x : binary64])
-                        binary64
-                        #:spec (- (exp x) 1)
-                        #:fpcore (! :precision binary64 (expm1 x))
-                        #:fl c_expm1))
+  (make-operator-impl (expm1.f64 [x : binary64])
+                      binary64
+                      #:spec (- (exp x) 1)
+                      #:fpcore (! :precision binary64 (expm1 x))
+                      #:fl c_expm1))
 
 (when c_log1p
-  (define-operator-impl (log1p.f64 [x : binary64])
-                        binary64
-                        #:spec (log (+ 1 x))
-                        #:fpcore (! :precision binary64 (log1p x))
-                        #:fl c_log1p))
+  (make-operator-impl (log1p.f64 [x : binary64])
+                      binary64
+                      #:spec (log (+ 1 x))
+                      #:fpcore (! :precision binary64 (log1p x))
+                      #:fl c_log1p))
 
 (when c_hypot
-  (define-operator-impl (hypot.f64 [x : binary64] [y : binary64])
-                        binary64
-                        #:spec (sqrt (+ (* x x) (* y y)))
-                        #:fpcore (! :precision binary64 (hypot x y))
-                        #:fl c_hypot))
+  (make-operator-impl (hypot.f64 [x : binary64] [y : binary64])
+                      binary64
+                      #:spec (sqrt (+ (* x x) (* y y)))
+                      #:fpcore (! :precision binary64 (hypot x y))
+                      #:fl c_hypot))
 
 (when c_fma
-  (define-operator-impl (fma.f64 [x : binary64] [y : binary64] [z : binary64])
-                        binary64
-                        #:spec (+ (* x y) z)
-                        #:fpcore (! :precision binary64 (fma x y z))
-                        #:fl c_fma))
+  (make-operator-impl (fma.f64 [x : binary64] [y : binary64] [z : binary64])
+                      binary64
+                      #:spec (+ (* x y) z)
+                      #:fpcore (! :precision binary64 (fma x y z))
+                      #:fl c_fma))
 
-(define-comparator-impls binary64
-                         [== ==.f64 =]
-                         [!= !=.f64 (negate =)]
-                         [< <.f64 <]
-                         [> >.f64 >]
-                         [<= <=.f64 <=]
-                         [>= >=.f64 >=])
+#;(define-comparator-impls binary64
+                           [== ==.f64 =]
+                           [!= !=.f64 (negate =)]
+                           [< <.f64 <]
+                           [> >.f64 >]
+                           [<= <=.f64 <=]
+                           [>= >=.f64 >=])
 
 (define-platform boolean-platform
                  #:literal [bool 1]
@@ -512,17 +576,17 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; additional converters ;;;;;;;;;;;;;;;;;
 
-(define-operator-impl (binary64->binary32 [x : binary64])
-                      binary32
-                      #:spec x
-                      #:fpcore (! :precision binary32 (cast x))
-                      #:fl flsingle)
+(make-operator-impl (binary64->binary32 [x : binary64])
+                    binary32
+                    #:spec x
+                    #:fpcore (! :precision binary32 (cast x))
+                    #:fl flsingle)
 
-(define-operator-impl (binary32->binary64 [x : binary32])
-                      binary64
-                      #:spec x
-                      #:fpcore (! :precision binary64 (cast x))
-                      #:fl identity)
+(make-operator-impl (binary32->binary64 [x : binary32])
+                    binary64
+                    #:spec x
+                    #:fpcore (! :precision binary64 (cast x))
+                    #:fl identity)
 
 ;; Do not run this file during testing
 (module test racket/base

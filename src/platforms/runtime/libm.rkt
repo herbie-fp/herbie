@@ -73,8 +73,8 @@
          #'(begin
              (define-libm proc (cname citype ... cotype))
              (when proc
-               (define-operator-impl (name [var : itype] ...)
-                                     otype
-                                     #:spec (op var ...)
-                                     #:fl proc
-                                     fields ...)))))]))
+               (make-operator-impl (name [var : itype] ...)
+                                   otype
+                                   #:spec (op var ...)
+                                   #:fl proc
+                                   fields ...)))))]))

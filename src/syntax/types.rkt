@@ -17,6 +17,7 @@
 
 (module+ internals
   (provide define-type
+           make-representation
            define-representation
            register-generator!
            register-representation!
@@ -37,7 +38,7 @@
 ;; Representations
 
 (struct representation
-        (name type repr? bf->repr repr->bf ordinal->repr repr->ordinal total-bits special-value?)
+        (name type repr? bf->repr repr->bf ordinal->repr repr->ordinal total-bits special-value? cost)
   #:transparent
   #:methods gen:custom-write
   [(define (write-proc repr port mode)
@@ -109,6 +110,29 @@
     (raise-herbie-error "Tried to register a representation for type ~a: not found" type))
   (define repr (apply representation name type repr? args))
   (set! representations (hash-set representations name repr)))
+
+(define (make-representation #:name name
+                             #:type type
+                             #:repr? repr?
+                             #:bf->repr bf->repr
+                             #:repr->bf repr->bf
+                             #:ordinal->repr ordinal->repr
+                             #:repr->ordinal repr->ordinal
+                             #:total-bits total-bits
+                             #:special-value? special-value?
+                             #:cost cost)
+  (unless (type-name? type)
+    (raise-herbie-error "Tried to register a representation for type ~a: not found" type))
+  (representation name
+                  type
+                  repr?
+                  bf->repr
+                  repr->bf
+                  ordinal->repr
+                  repr->ordinal
+                  total-bits
+                  special-value?
+                  cost))
 
 ;; Associates an existing representation with a (possibly different) name.
 ;; Useful for defining an common alias for an equivalent representation,

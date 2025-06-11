@@ -25,12 +25,11 @@
          register-function!)
 
 (module+ internals
-  (provide define-operator-impl
+  (provide make-operator-impl
            register-operator-impl!
            define-operator
            register-operator!
            define-constants
-           define-comparator-impls
            variable?))
 
 (module+ test
@@ -191,7 +190,7 @@
 ;;  - its FPCore representation
 ;;  - a floating-point implementation
 ;;
-(struct operator-impl (name ctx spec fpcore fl))
+(struct operator-impl (name ctx spec fpcore fl cost))
 
 ;; Operator implementation table
 ;; Tracks implementations that are loaded into Racket's runtime
@@ -200,17 +199,18 @@
 ;; Looks up a property `field` of an real operator `op`.
 ;; Panics if the operator is not found.
 (define/contract (impl-info impl field)
-  (-> symbol? (or/c 'vars 'itype 'otype 'spec 'fpcore 'fl) any/c)
-  (unless (hash-has-key? operator-impls impl)
-    (error 'impl-info "Unknown operator implementation ~a" impl))
-  (define info (hash-ref operator-impls impl))
+  (-> operator-impl? (or/c 'vars 'itype 'otype 'spec 'fpcore 'fl 'cost) any/c)
+  #;(unless (hash-has-key? operator-impls impl)
+      (error 'impl-info "Unknown operator implementation ~a" impl))
+  ;(define info (hash-ref operator-impls impl))
   (case field
-    [(vars) (context-vars (operator-impl-ctx info))]
-    [(itype) (context-var-reprs (operator-impl-ctx info))]
-    [(otype) (context-repr (operator-impl-ctx info))]
-    [(spec) (operator-impl-spec info)]
-    [(fpcore) (operator-impl-fpcore info)]
-    [(fl) (operator-impl-fl info)]))
+    [(vars) (context-vars (operator-impl-ctx impl))]
+    [(itype) (context-var-reprs (operator-impl-ctx impl))]
+    [(otype) (context-repr (operator-impl-ctx impl))]
+    [(spec) (operator-impl-spec impl)]
+    [(fpcore) (operator-impl-fpcore impl)]
+    [(fl) (operator-impl-fl impl)]
+    [(cost) (operator-impl-cost impl)]))
 
 ;; Checks a specification.
 (define (check-spec! name ctx spec)
@@ -269,8 +269,15 @@
 
 ; Registers an operator implementation `name` with context `ctx` and spec `spec`.
 ; Can optionally specify a floating-point implementation and fpcore translation.
-(define/contract (register-operator-impl! name ctx spec #:fl [fl-proc #f] #:fpcore [fpcore #f])
-  (->* (symbol? context? any/c) (#:fl (or/c procedure? #f) #:fpcore any/c) void?)
+(define/contract (register-operator-impl! name
+                                          ctx
+                                          spec
+                                          #:fl [fl-proc #f]
+                                          #:fpcore [fpcore #f]
+                                          #:cost [cost #f])
+  (->* (symbol? context? any/c)
+       (#:fl (or/c procedure? #f) #:fpcore any/c #:cost (or/c #f real?))
+       operator-impl?)
   ; check specification
   (check-spec! name ctx spec)
   (define vars (context-vars ctx))
@@ -279,33 +286,24 @@
     (match spec
       [(list op (or (? number?) (? symbol?)) ...) op]
       [_ #f]))
-  ; check or synthesize FPCore translatin
+  ; check or synthesize FPCore translation
   (define fpcore*
-    (cond
-      [fpcore ; provided -> TODO: check free variables, props
-       (match fpcore
-         [`(! ,props ... (,op ,args ...))
-          (unless (even? (length props))
-            (error 'register-operator-impl! "~a: umatched property in ~a" name fpcore))
-          (unless (symbol? op)
-            (error 'register-operator-impl! "~a: expected symbol `~a`" name op))
-          (for ([arg (in-list args)]
-                #:unless (or (symbol? arg) (number? arg)))
-            (error 'register-operator-impl! "~a: expected terminal `~a`" name arg))]
-         [`(,op ,args ...)
-          (unless (symbol? op)
-            (error 'register-operator-impl! "~a: expected symbol `~a`" name op))
-          (for ([arg (in-list args)]
-                #:unless (or (symbol? arg) (number? arg)))
-            (error 'register-operator-impl! "~a: expected terminal `~a`" name arg))]
-         [_ (error 'register-operator-impl! "Invalid fpcore for ~a: ~a" name fpcore)])
-       fpcore]
-      [else ; not provided => need to generate it
-       (define repr (context-repr ctx))
-       (define bool-repr (get-representation 'bool))
-       (if (equal? repr bool-repr)
-           `(,op ,@vars) ; special case: boolean-valued operations do not need a precision annotation
-           `(! :precision ,(representation-name repr) (,op ,@vars)))]))
+    (match fpcore
+      [`(! ,props ... (,op ,args ...))
+       (unless (even? (length props))
+         (error 'register-operator-impl! "~a: umatched property in ~a" name fpcore))
+       (unless (symbol? op)
+         (error 'register-operator-impl! "~a: expected symbol `~a`" name op))
+       (for ([arg (in-list args)]
+             #:unless (or (symbol? arg) (number? arg)))
+         (error 'register-operator-impl! "~a: expected terminal `~a`" name arg))]
+      [`(,op ,args ...)
+       (unless (symbol? op)
+         (error 'register-operator-impl! "~a: expected symbol `~a`" name op))
+       (for ([arg (in-list args)]
+             #:unless (or (symbol? arg) (number? arg)))
+         (error 'register-operator-impl! "~a: expected terminal `~a`" name arg))]
+      [_ (error 'register-operator-impl! "Invalid fpcore for ~a: ~a" name fpcore)]))
   ; check or synthesize floating-point operation
   (define fl-proc*
     (cond
@@ -326,13 +324,11 @@
                                fail))
                          name)]))
 
-  ; update tables
-  (define impl (operator-impl name ctx spec fpcore* fl-proc*))
-  (hash-set! operator-impls name impl))
+  (operator-impl name ctx spec fpcore* fl-proc* cost))
 
-(define-syntax (define-operator-impl stx)
+(define-syntax (make-operator-impl stx)
   (define (oops! why [sub-stx #f])
-    (raise-syntax-error 'define-operator-impl why stx sub-stx))
+    (raise-syntax-error 'make-operator-impl why stx sub-stx))
   (syntax-case stx (:)
     [(_ (id [var : repr] ...) rtype fields ...)
      (let ([id #'id]
@@ -346,6 +342,7 @@
        (define spec #f)
        (define core #f)
        (define fl-expr #f)
+       (define op-cost #f)
 
        (let loop ([fields fields])
          (syntax-case fields ()
@@ -355,14 +352,14 @@
             (with-syntax ([id id]
                           [spec spec]
                           [core core]
-                          [fl-expr fl-expr])
+                          [fl-expr fl-expr]
+                          [op-cost op-cost])
               #'(register-operator-impl! 'id
-                                         (context '(var ...)
-                                                  (get-representation 'rtype)
-                                                  (list (get-representation 'repr) ...))
+                                         (context '(var ...) rtype (list repr ...))
                                          'spec
                                          #:fl fl-expr
-                                         #:fpcore 'core))]
+                                         #:fpcore 'core
+                                         #:cost op-cost))]
            [(#:spec expr rest ...)
             (cond
               [spec (oops! "multiple #:spec clauses" stx)]
@@ -384,6 +381,13 @@
                (set! fl-expr #'expr)
                (loop #'(rest ...))])]
            [(#:fl) (oops! "expected value after keyword `#:fl`" stx)]
+           [(#:cost cost rest ...)
+            (cond
+              [op-cost (oops! "multiple #:cost clauses" stx)]
+              [else
+               (set! op-cost #'cost)
+               (loop #'(rest ...))])]
+           [(#:cost) (oops! "expected value after keyword `#:cost`" stx)]
 
            ; bad
            [_ (oops! "bad syntax" fields)])))]
@@ -391,19 +395,11 @@
 
 (define-syntax-rule (define-constants repr [name impl-name value] ...)
   (begin
-    (define-operator-impl (impl-name)
-                          repr
-                          #:spec (name)
-                          #:fl (const value)
-                          #:fpcore (! :precision repr name)) ...))
-
-(define-syntax-rule (define-comparator-impls repr [name impl-name impl-fn attrib ...] ...)
-  (begin
-    (define-operator-impl (impl-name [x : repr] [y : repr])
-                          bool
-                          #:spec (name x y)
-                          #:fl impl-fn
-                          attrib ...) ...))
+    (make-operator-impl (impl-name)
+                        repr
+                        #:spec (name)
+                        #:fl (const value)
+                        #:fpcore (! :precision repr name)) ...))
 
 ;; Expression predicates ;;
 

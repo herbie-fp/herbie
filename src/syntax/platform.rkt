@@ -14,6 +14,10 @@
          platform-lifting-rules
          platform-lowering-rules
 
+         make-empty-platform
+         platform-register-representation!
+         platform-register-implementation!
+
          get-fpcore-impl
          ;; Platform API
          ;; Operator sets
@@ -21,7 +25,7 @@
           [platform? (-> any/c boolean?)]
           [platform-name (-> platform? any/c)]
           [platform-reprs (-> platform? (listof representation?))]
-          [platform-impls (-> platform? (listof symbol?))]
+          #;[platform-impls (-> platform? (listof symbol?))]
           [platform-union (-> platform? platform? ... platform?)]
           [platform-intersect (-> platform? platform? ... platform?)]
           [platform-subtract (-> platform? platform? ... platform?)]
@@ -29,7 +33,8 @@
           [platform-impl-cost (-> platform? any/c any/c)]
           [platform-repr-cost (-> platform? any/c any/c)]
           [platform-node-cost-proc (-> platform? procedure?)]
-          [platform-cost-proc (-> platform? procedure?)]))
+          [platform-cost-proc (-> platform? procedure?)])
+         platform-impls)
 
 (module+ internals
   (provide register-platform!))
@@ -44,7 +49,7 @@
 ;;;
 ;;; A small API is provided for platforms for querying the supported
 ;;; operators, operator implementations, and representation conversions.
-(struct platform (name reprs impls impl-costs repr-costs)
+(struct platform (name [reprs #:mutable] [impls #:mutable] impl-costs repr-costs)
   #:name $platform
   #:constructor-name create-platform
   #:methods gen:custom-write
@@ -76,6 +81,48 @@
   (when (hash-has-key? platforms name)
     (error 'register-platform! "platform already registered ~a" name))
   (hash-set! platforms name (struct-copy $platform pform [name name])))
+
+(define (make-empty-platform name #:if-cost [if-cost #f] #:default-cost [default-cost #f])
+  (define reprs '())
+  (define impls '())
+  (define costs (make-hash))
+  (define repr-costs (make-hash))
+
+  (when if-cost
+    (hash-set! costs 'if if-cost))
+  (hash-set! costs 'default default-cost)
+
+  (create-platform name reprs impls costs repr-costs))
+
+(define (platform-register-representation! platform repr)
+  (define reprs (platform-reprs platform))
+  (define repr-costs (platform-repr-costs platform))
+  (when (member repr reprs)
+    (raise-herbie-error "Duplicate representation ~a in platform ~a" repr platform))
+  (set-platform-reprs! platform (cons repr reprs))
+  (hash-set! repr-costs repr (representation-cost repr)))
+
+(define (platform-register-implementation! platform impl)
+  ; Reprs check
+  (define reprs (platform-reprs platform))
+  (define otype (impl-info impl 'otype))
+  (define itype (impl-info impl 'itype))
+  (define impl-reprs (remove-duplicates (cons otype itype)))
+  (unless (andmap (curryr member reprs) impl-reprs)
+    (raise-herbie-error "Platform ~a missing representation of ~a implementation" platform impl))
+
+  ; Cost
+  (define impl-costs (platform-impl-costs platform))
+  (define cost (impl-info impl 'cost))
+  (define default-cost (hash-ref impl-costs 'default))
+  (unless (or cost default-cost)
+    (raise-herbie-error "Missing cost for ~a" impl))
+  (hash-set! impl-costs impl (or cost default-cost))
+
+  (define impls (platform-impls platform))
+  (when (member impl impls)
+    (raise-herbie-error "Impl ~a is already registered in platform ~a" impl platform))
+  (set-platform-impls! platform (cons impl impls)))
 
 ;; Constructor procedure for platforms.
 ;; The platform is described by a list of implementations.

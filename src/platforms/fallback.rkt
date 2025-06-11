@@ -5,7 +5,7 @@
 (require math/base
          math/bigfloat
          math/special-functions)
-(require "runtime/utils.rkt")
+(require (submod "../syntax/syntax.rkt" internals))
 
 ;; Do not run this file with `raco test`
 (module test racket/base
