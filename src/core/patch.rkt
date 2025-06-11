@@ -115,11 +115,15 @@
   (define batch* (batch-remove-zombie global-batch roots))
   (define specs (map prog->spec (batch->progs batch*)))
   (timeline-push! 'inputs (map ~a specs))
-  (define real-compiler (make-real-compiler specs contexts))
-  (define-values (status pts) (real-apply real-compiler (vector)))
+  (define-values (status pts)
+    (if (null? specs)
+        (values 'invalid #f)
+        (let ([real-compiler (make-real-compiler specs contexts)])
+          (real-apply real-compiler (vector)))))
   (define literals
     (for/list ([pt (in-list pts)]
-               [ctx (in-list contexts)])
+               [ctx (in-list contexts)]
+               #:when (equal? status 'valid))
       (define repr (context-repr ctx))
       (literal (repr->real pt repr) (representation-name repr))))
 
@@ -127,7 +131,8 @@
   (define global-batch-mutable (batch->mutable-batch global-batch)) ; Create a mutable batch
   (define final-altns
     (for/list ([literal (in-list literals)]
-               [altn (in-list real-altns)])
+               [altn (in-list real-altns)]
+               #:when (equal? status 'valid))
       (define idx (mutable-batch-munge! global-batch-mutable literal))
       (alt (batchref global-batch idx) '(evaluate) (list altn) '())))
   (batch-copy-mutable-nodes! global-batch global-batch-mutable)
