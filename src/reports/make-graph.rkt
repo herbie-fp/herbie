@@ -150,7 +150,8 @@
                   [expr end-exprs]
                   [errs end-errors]
                   [cost end-costs]
-                  [history end-histories])
+                  [history end-histories]
+                  #:unless (and (null? preprocessing) (equal? start-expr expr)))
          (define-values (dropdown body)
            (render-program expr ctx #:ident identifier #:instructions preprocessing))
          `(section ([id ,(format "alternative~a" i)] (class "programs"))
