@@ -121,7 +121,7 @@
         (let ([real-compiler (make-real-compiler specs contexts)])
           (real-apply real-compiler (vector)))))
   (define literals
-    (for/list ([pt (in-list pts)]
+    (for/list ([pt (in-list (if (equal? status 'valid) pts '()))]
                [ctx (in-list contexts)]
                #:when (equal? status 'valid))
       (define repr (context-repr ctx))
