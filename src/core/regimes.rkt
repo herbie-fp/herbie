@@ -102,7 +102,7 @@
   (define crit-vars (free-variables subexpr))
   (define replaced-expr (replace-expression expr subexpr 1))
   (define non-crit-vars (free-variables replaced-expr))
-  (and (not (null? crit-vars)) (set-disjoint? crit-vars non-crit-vars)))
+  (and (not (null? crit-vars)) (null? (set-intersect crit-vars non-crit-vars))))
 
 ;; Requires that prog is a λ expression
 (define (all-critical-subexpressions expr ctx)
