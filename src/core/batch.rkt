@@ -10,6 +10,7 @@
          (struct-out mutable-batch) ; temporarily for patch.rkt
          batch-length ; Batch -> Integer
          batch-tree-size ; Batch -> Integer
+         batch-free-vars
          batch-ref ; Batch -> Idx -> Expr
          deref ; Batchref -> Expr
          batch-replace ; Batch -> (Expr<Batchref> -> Expr<Batchref>) -> Batch
@@ -110,6 +111,21 @@
     (vector-set! exprs idx (expr-recurse node (lambda (x) (vector-ref exprs x)))))
   (for/list ([root roots])
     (vector-ref exprs root)))
+
+(define (batch-free-vars batch)
+  (define out (make-vector (vector-length (batch-nodes batch))))
+  (for ([i (in-naturals)]
+        [node (in-vector (batch-nodes batch))])
+    (define fv
+      (cond
+        [(symbol? node)
+         (set node)]
+        [else
+         (define arg-free-vars (mutable-set))
+         (expr-recurse node (lambda (i) (set-union! arg-free-vars (vector-ref out i))))
+         arg-free-vars]))
+    (vector-set! out i fv))
+  out)
 
 (define (batch-replace b f)
   (define out (make-mutable-batch))

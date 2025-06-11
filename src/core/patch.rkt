@@ -5,13 +5,15 @@
          "../syntax/types.rkt"
          "../utils/alternative.rkt"
          "../utils/common.rkt"
+         "../utils/float.rkt"
          "../utils/timeline.rkt"
+         "batch.rkt"
          "egg-herbie.rkt"
+         "egglog-herbie.rkt"
          "programs.rkt"
          "rules.rkt"
-         "taylor.rkt"
-         "batch.rkt"
-         "egglog-herbie.rkt")
+         "rival.rkt"
+         "taylor.rkt")
 
 (provide generate-candidates)
 
@@ -97,6 +99,41 @@
           (for ([batchref* (in-list batchrefs)])
             (sow (alt batchref* (list 'rr runner #f) (list altn) '()))))))
 
+(define (run-evaluate altns global-batch)
+  (timeline-event! 'sample)
+  (define free-vars (batch-free-vars global-batch))
+  (define real-altns
+    (for/list ([altn (in-list altns)]
+               #:when (set-empty? (vector-ref free-vars (batchref-idx (alt-expr  altn)))))
+      altn))
+  (define roots
+    (for/vector ([altn (in-list real-altns)])
+      (batchref-idx (alt-expr altn))))
+  (define contexts
+    (for/list ([root (in-vector roots)])
+      (context '() (repr-of-node global-batch root (*context*)) '())))
+  (define batch* (batch-remove-zombie global-batch roots))
+  (define specs (map prog->spec (batch->progs batch*)))
+  (timeline-push! 'inputs (map ~a specs))
+  (define real-compiler
+    (make-real-compiler specs contexts))
+  (define-values (status pts) (real-apply real-compiler (vector)))
+  (define literals
+    (for/list ([pt (in-list pts)]
+               [ctx (in-list contexts)])
+      (define repr (context-repr ctx))
+      (literal (repr->real pt repr) (representation-name repr))))
+
+  (timeline-push! 'outputs (map ~a literals))
+  (define global-batch-mutable (batch->mutable-batch global-batch)) ; Create a mutable batch
+  (define final-altns
+    (for/list ([literal (in-list literals)]
+               [altn (in-list real-altns)])
+      (define idx (mutable-batch-munge! global-batch-mutable literal))
+      (alt (batchref global-batch idx) '(evaluate) (list altn) '())))
+  (batch-copy-mutable-nodes! global-batch global-batch-mutable)
+  final-altns)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Recursive Rewrite ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (run-rr altns global-batch)
@@ -153,6 +190,11 @@
   (define start-altns
     (for/list ([root (in-vector (batch-roots global-batch))])
       (alt (batchref global-batch root) 'patch '() '())))
+  
+  (define evaluations
+    (if (flag-set? 'generate 'evaluate)
+        (run-evaluate start-altns global-batch)
+        '()))
 
   ; Series expand
   (define approximations
@@ -166,4 +208,4 @@
         (run-rr start-altns global-batch)
         '()))
 
-  (remove-duplicates (append rewritten approximations) #:key alt-expr))
+  (remove-duplicates (append evaluations rewritten approximations) #:key alt-expr))
