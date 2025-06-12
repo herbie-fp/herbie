@@ -152,6 +152,9 @@
          (taylor-quotient (vector-ref taylor-approxs num) (vector-ref taylor-approxs den))]
         [`(sqrt ,arg) (taylor-sqrt var (vector-ref taylor-approxs arg))]
         [`(cbrt ,arg) (taylor-cbrt var (vector-ref taylor-approxs arg))]
+        [`(fabs ,arg)
+         (or (taylor-fabs var (vector-ref taylor-approxs arg))
+             (taylor-exact (batch-ref expr-batch n)))]
         [`(exp ,arg)
          (define arg* (normalize-series (vector-ref taylor-approxs arg)))
          (if (positive? (car arg*))
@@ -347,6 +350,32 @@
                                            (* 3 ,f0 ,f0))))))])
       (cons (/ offset* 3) f))))
 
+(define (make-abs-monomial var power)
+  (if (zero? power)
+      1
+      `(fabs ,(make-monomial var power))))
+
+(define (scale-abs-power var power series)
+  (match-define (cons off coeffs) series)
+  (cons (+ power off)
+        (λ (n)
+          (if (< (- n power) 0)
+              0
+              (reduce `(* ,(make-abs-monomial var power) ,(coeffs (- n power))))))))
+
+(define (taylor-fabs var term)
+  (match-define (cons offset coeffs) (normalize-series term))
+  (define shifted (cons 0 (zero-series (cons offset coeffs))))
+  (define a0 ((cdr shifted) 0))
+  (cond
+    [(and (number? a0) (not (zero? a0)))
+     (define core
+       (if (positive? a0)
+           shifted
+           (taylor-negate shifted)))
+     (scale-abs-power var offset core)]
+    [else #f]))
+
 (define (taylor-pow coeffs n)
   (match n ;; Russian peasant multiplication
     [(? negative?) (taylor-pow (taylor-invert coeffs) (- n))]
@@ -527,4 +556,6 @@
   (check-equal? (coeffs '(cbrt (+ 1 x))) '(1 1/3 -1/9 5/81 -10/243 22/729 -154/6561))
   (check-equal? (coeffs '(sqrt x)) '((sqrt x) 0 0 0 0 0 0))
   (check-equal? (coeffs '(cbrt x)) '((cbrt x) 0 0 0 0 0 0))
-  (check-equal? (coeffs '(cbrt (* x x))) '((pow x 2/3) 0 0 0 0 0 0)))
+  (check-equal? (coeffs '(cbrt (* x x))) '((pow x 2/3) 0 0 0 0 0 0))
+  (check-equal? (coeffs '(fabs (+ 2 x))) '(2 1 0 0 0 0 0))
+  (check-equal? (coeffs '(fabs (+ -2 x))) '(2 -1 0 0 0 0 0)))
