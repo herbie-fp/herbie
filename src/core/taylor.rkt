@@ -142,7 +142,7 @@
         [(? variable?) (taylor-exact node)]
         [`(,const) (taylor-exact node)]
         [`(+ ,args ...) (apply taylor-add (map (curry vector-ref taylor-approxs) args))]
-        [`(neg ,arg) (taylor-negate ((curry vector-ref taylor-approxs) arg))]
+        [`(neg ,arg) (taylor-scale -1 ((curry vector-ref taylor-approxs) arg))]
         [`(* ,left ,right)
          (taylor-mult (vector-ref taylor-approxs left) (vector-ref taylor-approxs right))]
         [`(/ ,num ,den)
@@ -180,10 +180,10 @@
             ; Our taylor-cos function assumes that a0 is 0,
             ; because that way it is especially simple. We correct for this here
             ; We use the identity cos (x + y) = cos x cos y - sin x sin y
-            (taylor-add (taylor-mult (taylor-exact `(cos ,((cdr arg*) 0)))
-                                     (taylor-cos (zero-series arg*)))
-                        (taylor-negate (taylor-mult (taylor-exact `(sin ,((cdr arg*) 0)))
-                                                    (taylor-sin (zero-series arg*)))))]
+            (taylor-add (taylor-scale `(cos ,((cdr arg*) 0))
+                                      (taylor-cos (zero-series arg*)))
+                        (taylor-scale `(neg (sin ,((cdr arg*) 0)))
+                                      (taylor-sin (zero-series arg*))))]
            [else (taylor-cos (zero-series arg*))])]
         [`(log ,arg) (taylor-log var (vector-ref taylor-approxs arg))]
         [`(pow ,base ,power)
@@ -236,8 +236,9 @@
                          (reduce (make-sum (for/list ([series serieses])
                                              (series n))))))))))
 
-(define (taylor-negate term)
-  (cons (car term) (λ (n) (reduce (list 'neg ((cdr term) n))))))
+(define (taylor-scale scale series)
+  (match-define (cons offset coeffs) series)
+  (cons offset (lambda (n) (reduce `(* ,scale ,(coeffs n))))))
 
 (define (taylor-mult left right)
   (cons (+ (car left) (car right))
@@ -350,31 +351,24 @@
                                            (* 3 ,f0 ,f0))))))])
       (cons (/ offset* 3) f))))
 
-(define (make-abs-monomial var power)
-  (if (zero? power)
-      1
-      `(fabs ,(make-monomial var power))))
-
-(define (scale-abs-power var power series)
-  (match-define (cons off coeffs) series)
-  (cons (+ power off)
-        (λ (n)
-          (if (< (- n power) 0)
-              0
-              (reduce `(* ,(make-abs-monomial var power) ,(coeffs (- n power))))))))
-
 (define (taylor-fabs var term)
-  (match-define (cons offset coeffs) (normalize-series term))
-  (define shifted (cons 0 (zero-series (cons offset coeffs))))
-  (define a0 ((cdr shifted) 0))
+  (match-define (cons offset coeffs) term)
+  ; x^3 * (1 0 0 0 0 0 0)
+  (define a0 (coeffs 0))
+  ; 1
+  (define scale
+    `(* ,(if (odd? offset) `(fabs ,var) 1)
+        ,(if (and (number? a0) (negative? a0)) -1 1)))
+  ; (fabs x)
+  (eprintf "offset ~a a0 ~a scale ~a\n" offset a0 scale)
   (cond
-    [(and (number? a0) (not (zero? a0)))
-     (define core
-       (if (positive? a0)
-           shifted
-           (taylor-negate shifted)))
-     (scale-abs-power var offset core)]
-    [else #f]))
+    [(or (not (number? a0)) (zero? a0))
+     #f]
+    [(odd? offset)
+     ; x^2 * (1 0 0 0)
+     (taylor-scale scale (cons (add1 offset) coeffs))]
+    [(even? offset)
+     (taylor-scale scale (cons offset coeffs))]))
 
 (define (taylor-pow coeffs n)
   (match n ;; Russian peasant multiplication
