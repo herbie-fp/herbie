@@ -180,10 +180,8 @@
             ; Our taylor-cos function assumes that a0 is 0,
             ; because that way it is especially simple. We correct for this here
             ; We use the identity cos (x + y) = cos x cos y - sin x sin y
-            (taylor-add (taylor-scale `(cos ,((cdr arg*) 0))
-                                      (taylor-cos (zero-series arg*)))
-                        (taylor-scale `(neg (sin ,((cdr arg*) 0)))
-                                      (taylor-sin (zero-series arg*))))]
+            (taylor-add (taylor-scale `(cos ,((cdr arg*) 0)) (taylor-cos (zero-series arg*)))
+                        (taylor-scale `(neg (sin ,((cdr arg*) 0))) (taylor-sin (zero-series arg*))))]
            [else (taylor-cos (zero-series arg*))])]
         [`(log ,arg) (taylor-log var (vector-ref taylor-approxs arg))]
         [`(pow ,base ,power)
@@ -355,15 +353,14 @@
   (match-define (cons offset coeffs) term)
   (define a0 (coeffs 0))
   (define scale
-    `(* ,(if (odd? offset) `(fabs ,var) 1)
+    `(* ,(if (odd? offset)
+             `(fabs ,var)
+             1)
         ,(if (and (number? a0) (negative? a0)) -1 1)))
   (cond
-    [(or (not (number? a0)) (zero? a0))
-     #f]
-    [(odd? offset)
-     (taylor-scale scale (cons (add1 offset) coeffs))]
-    [(even? offset)
-     (taylor-scale scale (cons offset coeffs))]))
+    [(or (not (number? a0)) (zero? a0)) #f]
+    [(odd? offset) (taylor-scale scale (cons (add1 offset) coeffs))]
+    [(even? offset) (taylor-scale scale (cons offset coeffs))]))
 
 (define (taylor-pow coeffs n)
   (match n ;; Russian peasant multiplication
