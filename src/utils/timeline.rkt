@@ -30,7 +30,7 @@
 (define always-compact '(mixsample outcomes))
 
 (define (timeline-event! type)
-  (when *timeline-active-key*
+  (when (and *timeline-active-key* (pair? (unbox (*timeline*))))
     (hash-update! (car (unbox (*timeline*)))
                   *timeline-active-key*
                   (curry append *timeline-active-value*)
