@@ -398,13 +398,15 @@
       "?"))
 
 (define js-tex-include
-  '((link ([rel "stylesheet"]
-           [href "https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/katex.min.css"]
-           [integrity "sha384-9tPv11A+glH/on/wEu99NVwDPwkMQESOocs/ZGXPoIiLE8MU/qkqUcZ3zzL+6DuH"]
-           [crossorigin "anonymous"]))
-    (script ([src "https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/katex.min.js"]
-             [integrity "sha384-U8Vrjwb8fuHMt6ewaCy8uqeUXv4oitYACKdB0VziCerzt011iQ/0TqlSlv8MReCm"]
-             [crossorigin "anonymous"]))
-    (script ([src "https://cdn.jsdelivr.net/npm/katex@0.10.0-beta/dist/contrib/auto-render.min.js"]
-             [integrity "sha384-aGfk5kvhIq5x1x5YdvCp4upKZYnA8ckafviDpmWEKp4afOZEqOli7gqSnh8I6enH"]
-             [crossorigin "anonymous"]))))
+   '((link ([rel "stylesheet"]
+            [href "https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.css"]
+            [integrity "sha384-5TcZemv2l/9On385z///+d7MSYlvIEw9FuZTIdZ14vJLqWphw7e7ZPuOiCHJcFCP"]
+            [crossorigin "anonymous"]))
+     (script ([defer ""]
+              [src "https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.js"]
+              [integrity "sha384-cMkvdD8LoxVzGF/RPUKAcvmm49FQ0oxwDF3BGKtDXcEc+T1b2N+teh/OJfpU0jr6"]
+              [crossorigin "anonymous"]))
+     (script ([defer ""]
+              [src "https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/contrib/auto-render.min.js"]
+              [integrity "sha384-hCXGrW6PitJEwbkoStFjeJxv+fSOOQKOPbJxSfM6G5sWZjAyWhXiTIIAmQqnlLlh"]
+              [crossorigin "anonymous"]))))
