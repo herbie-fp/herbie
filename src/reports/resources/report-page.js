@@ -168,6 +168,7 @@ function buildDropdown(options, selected, placeholder, onChange) {
         update();
     });
     return select;
+}
 
 function buildHeader(title) {
     return Element("header", {}, [
