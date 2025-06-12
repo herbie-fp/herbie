@@ -353,19 +353,14 @@
 
 (define (taylor-fabs var term)
   (match-define (cons offset coeffs) term)
-  ; x^3 * (1 0 0 0 0 0 0)
   (define a0 (coeffs 0))
-  ; 1
   (define scale
     `(* ,(if (odd? offset) `(fabs ,var) 1)
         ,(if (and (number? a0) (negative? a0)) -1 1)))
-  ; (fabs x)
-  (eprintf "offset ~a a0 ~a scale ~a\n" offset a0 scale)
   (cond
     [(or (not (number? a0)) (zero? a0))
      #f]
     [(odd? offset)
-     ; x^2 * (1 0 0 0)
      (taylor-scale scale (cons (add1 offset) coeffs))]
     [(even? offset)
      (taylor-scale scale (cons offset coeffs))]))
