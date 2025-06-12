@@ -160,6 +160,7 @@
         [_
          (define event*
            (match event
+             [(list 'evaluate) (list 'evaluate loc0)]
              [(list 'taylor name var) (list 'taylor loc0 name var)]
              [(list 'rr input proof) (list 'rr loc0 input proof)]))
          (define expr* (location-set loc0 (alt-expr orig) (debatchref (alt-expr altn))))
