@@ -97,10 +97,22 @@
 (define (platform-register-representation! platform repr)
   (define reprs (platform-reprs platform))
   (define repr-costs (platform-repr-costs platform))
+
+  ; Cost check
+  (define impl-costs (platform-impl-costs platform))
+  (define repr-cost (representation-cost repr))
+  (define default-cost (hash-ref impl-costs 'default))
+  (define final-cost (or repr-cost default-cost))
+  (unless final-cost
+    (raise-herbie-error "Missing cost for ~a" repr))
+
+  ; Duplicate check
   (when (member repr reprs)
     (raise-herbie-error "Duplicate representation ~a in platform ~a" repr platform))
+
+  ; Update tables
   (set-platform-reprs! platform (cons repr reprs))
-  (hash-set! repr-costs repr (representation-cost repr)))
+  (hash-set! repr-costs repr final-cost))
 
 (define (platform-register-implementation! platform impl)
   ; Reprs check
@@ -111,18 +123,22 @@
   (unless (andmap (curryr member reprs) impl-reprs)
     (raise-herbie-error "Platform ~a missing representation of ~a implementation" platform impl))
 
-  ; Cost
+  ; Cost check
   (define impl-costs (platform-impl-costs platform))
   (define cost (impl-info impl 'cost))
   (define default-cost (hash-ref impl-costs 'default))
-  (unless (or cost default-cost)
+  (define final-cost (or cost default-cost))
+  (unless final-cost
     (raise-herbie-error "Missing cost for ~a" impl))
-  (hash-set! impl-costs impl (or cost default-cost))
 
+  ; Dupicate check
   (define impls (platform-impls platform))
   (when (member impl impls)
     (raise-herbie-error "Impl ~a is already registered in platform ~a" impl platform))
-  (set-platform-impls! platform (cons impl impls)))
+
+  ; Update tables
+  (set-platform-impls! platform (cons impl impls))
+  (hash-set! impl-costs impl final-cost))
 
 ;; Constructor procedure for platforms.
 ;; The platform is described by a list of implementations.

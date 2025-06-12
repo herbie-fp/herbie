@@ -287,23 +287,22 @@
       [(list op (or (? number?) (? symbol?)) ...) op]
       [_ #f]))
   ; check or synthesize FPCore translation
-  (define fpcore*
-    (match fpcore
-      [`(! ,props ... (,op ,args ...))
-       (unless (even? (length props))
-         (error 'register-operator-impl! "~a: umatched property in ~a" name fpcore))
-       (unless (symbol? op)
-         (error 'register-operator-impl! "~a: expected symbol `~a`" name op))
-       (for ([arg (in-list args)]
-             #:unless (or (symbol? arg) (number? arg)))
-         (error 'register-operator-impl! "~a: expected terminal `~a`" name arg))]
-      [`(,op ,args ...)
-       (unless (symbol? op)
-         (error 'register-operator-impl! "~a: expected symbol `~a`" name op))
-       (for ([arg (in-list args)]
-             #:unless (or (symbol? arg) (number? arg)))
-         (error 'register-operator-impl! "~a: expected terminal `~a`" name arg))]
-      [_ (error 'register-operator-impl! "Invalid fpcore for ~a: ~a" name fpcore)]))
+  (match fpcore
+    [`(! ,props ... (,op ,args ...))
+     (unless (even? (length props))
+       (error 'register-operator-impl! "~a: umatched property in ~a" name fpcore))
+     (unless (symbol? op)
+       (error 'register-operator-impl! "~a: expected symbol `~a`" name op))
+     (for ([arg (in-list args)]
+           #:unless (or (symbol? arg) (number? arg)))
+       (error 'register-operator-impl! "~a: expected terminal `~a`" name arg))]
+    [`(,op ,args ...)
+     (unless (symbol? op)
+       (error 'register-operator-impl! "~a: expected symbol `~a`" name op))
+     (for ([arg (in-list args)]
+           #:unless (or (symbol? arg) (number? arg)))
+       (error 'register-operator-impl! "~a: expected terminal `~a`" name arg))]
+    [_ (error 'register-operator-impl! "Invalid fpcore for ~a: ~a" name fpcore)])
   ; check or synthesize floating-point operation
   (define fl-proc*
     (cond
@@ -323,8 +322,7 @@
                                (first exs)
                                fail))
                          name)]))
-
-  (operator-impl name ctx spec fpcore* fl-proc* cost))
+  (operator-impl name ctx spec fpcore fl-proc* cost))
 
 (define-syntax (make-operator-impl stx)
   (define (oops! why [sub-stx #f])

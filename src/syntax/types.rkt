@@ -120,7 +120,7 @@
                              #:repr->ordinal repr->ordinal
                              #:total-bits total-bits
                              #:special-value? special-value?
-                             #:cost cost)
+                             #:cost [cost #f])
   (unless (type-name? type)
     (raise-herbie-error "Tried to register a representation for type ~a: not found" type))
   (representation name
