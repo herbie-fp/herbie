@@ -157,10 +157,12 @@ function toTitleCase(str) {
 }
 
 function buildHeader(title) {
+    // The online demo always runs with seed 1; hide the Metrics link there
+    const showMetricsLink = resultsJsonData?.seed !== 1
     return Element("header", {}, [
         Element("h1", {}, title),
         Element("img", { src: "logo-car.png" }, []),
-        Element("nav", {}, [
+        showMetricsLink && Element("nav", {}, [
             Element("ul", {}, [
                 Element("li", {}, [
                     Element("a", { href: "timeline.html" }, ["Metrics"])
