@@ -156,7 +156,7 @@ function toTitleCase(str) {
     )
 }
 
-function createDropdown(options, selected, placeholder, onChange) {
+function buildDropdown(options, selected, placeholder, onChange) {
     const select = Element("select", [
         Element("option", { value: "", selected: !selected }, [placeholder]),
         options.map((opt) =>
@@ -168,6 +168,19 @@ function createDropdown(options, selected, placeholder, onChange) {
         update();
     });
     return select;
+
+function buildHeader(title) {
+    return Element("header", {}, [
+        Element("h1", {}, title),
+        Element("img", { src: "logo-car.png" }, []),
+        Element("nav", {}, [
+            Element("ul", {}, [
+                Element("li", {}, [
+                    Element("a", { href: "timeline.html" }, ["Metrics"])
+                ])
+            ])
+        ]),
+    ])
 }
 
 // Based on https://observablehq.com/@fil/plot-onclick-experimental-plugin
@@ -336,56 +349,59 @@ function buildCompareForm(jsonData) {
     return Element("form", {}, [radioButtons, " ", hideEqual]);
 }
 
-function buildBody(jsonData, otherJsonData) {
-    let filterFunction = makeFilterFunction();
-
-    var total_start = 0
-    var total_result = 0
-    var maximum_accuracy = 0
-    var total_time = 0
-    var total_crash_timeout = 0
-    jsonData.tests.forEach((test) => {
-        total_start += test.start
-        total_result += test.end
-        maximum_accuracy += test.bits
-        total_time += test.time
+function summarizeTests(tests) {
+    return tests.reduce((acc, test) => {
+        acc.totalStart += test.start;
+        acc.totalEnd += test.end;
+        acc.maxAccuracy += test.bits;
+        acc.totalTime += test.time;
         if (test.status == "timeout" || test.status == "crash") {
-            total_crash_timeout += 1
+            acc.crashCount += 1;
         }
-    })
+        return acc;
+    }, { totalStart: 0, totalEnd: 0, maxAccuracy: 0, totalTime: 0, crashCount: 0 });
+}
 
-    const stats = Element("div", { id: "large" }, [
+function buildStats(summary) {
+    return Element("div", { id: "large" }, [
         Element("div", {}, [
             "Average Percentage Accurate: ",
             Element("span", { classList: "number" }, [
-                calculatePercent(total_start / maximum_accuracy), "%",
+                calculatePercent(summary.totalStart / summary.maxAccuracy), "%",
                 Element("span", { classList: "unit" }, [" → ",]),
-                calculatePercent(total_result / maximum_accuracy), "%"]),
+                calculatePercent(summary.totalEnd / summary.maxAccuracy), "%" ]),
         ]),
         Element("div", {}, [
             "Time:",
-            Element("span", { classList: "number" }, [formatTime(total_time)])
+            Element("span", { classList: "number" }, [formatTime(summary.totalTime)])
         ]),
         Element("div", {}, [
             "Bad Runs:",
-            Element("span", { classList: "number", title: "Crashes and timeouts are considered bad runs." }, [`${total_crash_timeout}/${jsonData.tests.length}`])
+            Element("span", {
+                classList: "number",
+                title: "Crashes and timeouts are considered bad runs."
+            }, [`${summary.crashCount}/${summary.testCount}`])
         ]),
         Element("div", {}, [
             "Speedup:",
             Element("span", {
                 classList: "number",
                 title: "Aggregate speedup of fastest alternative that improves accuracy."
-            }, [calculateSpeedup(jsonData["merged-cost-accuracy"])])
+            }, [calculateSpeedup(summary.mergedCostAccuracy)])
         ]),
-    ])
+    ]);
+}
 
-    const header = Element("header", {}, [
-        Element("h1", {}, "Herbie Results"),
-        Element("img", { src: "logo-car.png" }, []),
-        Element("nav", {}, [
-            Element("ul", {}, [Element("li", {}, [Element("a", { href: "timeline.html" }, ["Metrics"])])])
-        ]),
-    ])
+function buildBody(jsonData, otherJsonData) {
+    let filterFunction = makeFilterFunction();
+
+    const summary = summarizeTests(jsonData.tests);
+    summary.testCount = jsonData.tests.length;
+    summary.mergedCostAccuracy = jsonData["merged-cost-accuracy"];
+
+    const stats = buildStats(summary);
+
+    const header = buildHeader("Herbie Results")
 
     const figureRow = Element("div", { classList: "figure-row" }, [
         Element("figure", { id: "xy" }, [
@@ -420,6 +436,7 @@ function buildBody(jsonData, otherJsonData) {
     }
 
     const rows = buildTableContents(jsonData, otherJsonData, filterFunction)
+    const footer = buildDiffFooter(jsonData, otherJsonData, filterFunction)
     const resultsTable = Element("table", { id: "results" }, [
         Element("thead", {}, [
             Element("tr", {}, [
@@ -430,7 +447,8 @@ function buildBody(jsonData, otherJsonData) {
                 buildTableHeader("time"),
             ]),
         ]),
-        rows
+        rows,
+        footer
     ]);
     return [header, stats, figureRow, buildControls(jsonData, rows.length), resultsTable]
 }
@@ -460,6 +478,78 @@ function buildTableContents(jsonData, otherJsonData, filterFunction) {
         if (filterFunction(test, other)) rows.push(buildRow(test, other));
     }
     return rows;
+}
+
+function computeDiffTotal(jsonData, filterFunction) {
+    if (!otherJsonData || !radioState) return 0;
+    let total = 0;
+    for (let test of jsonData.tests) {
+        let other = diffAgainstFields[test.name];
+        if (!other) continue;
+        if (!filterFunction(test, other)) continue;
+
+        if (radioState == "startAcc") {
+            const cur = calculatePercent(test.start / test.bits);
+            const base = calculatePercent(other.start / other.bits);
+            total += cur - base;
+        } else if (radioState == "endAcc") {
+            const cur = calculatePercent(test.end / test.bits);
+            const base = calculatePercent(other.end / other.bits);
+            total += cur - base;
+        } else if (radioState == "targetAcc") {
+            const curMin = getMinimum(test.target);
+            const baseMin = getMinimum(other.target);
+            if (curMin !== false && baseMin !== false) {
+                total += calculatePercent(curMin / test.bits) -
+                         calculatePercent(baseMin / other.bits);
+            }
+        } else if (radioState == "time") {
+            total += other.time - test.time;
+        }
+    }
+    return total;
+}
+
+function buildDiffFooter(jsonData, otherJsonData, filterFunction) {
+    if (!otherJsonData || !radioState) return [];
+
+    const total = computeDiffTotal(jsonData, filterFunction);
+    let color = "diff-time-gray";
+    let text = "~";
+
+    if (radioState == "time") {
+        if (Math.abs(total) > filterTolerance * 1000) {
+            if (total > 0) {
+                color = "diff-time-green";
+                text = "+ " + formatTime(total);
+            } else {
+                color = "diff-time-red";
+                text = "-" + formatTime(Math.abs(total));
+            }
+        }
+    } else {
+        if (Math.abs(total.toFixed(1)) > filterTolerance) {
+            if (total > 0) {
+                color = "diff-time-green";
+                text = "+ " + total.toFixed(1) + "%";
+            } else {
+                color = "diff-time-red";
+                text = "-" + Math.abs(total).toFixed(1) + "%";
+            }
+        }
+    }
+
+    const cells = [
+        Element("th", {}, ["Total"]),
+        radioState == "startAcc" ? Element("td", { classList: color }, [text]) : Element("td", {}, []),
+        radioState == "endAcc" ? Element("td", { classList: color }, [text]) : Element("td", {}, []),
+        radioState == "targetAcc" ? Element("td", { classList: color }, [text]) : Element("td", {}, []),
+        radioState == "time" ? Element("td", { classList: color }, [text]) : Element("td", {}, []),
+        Element("td", {}, []),
+        Element("td", {}, []),
+    ];
+
+    return Element("tfoot", {}, [Element("tr", {}, cells)]);
 }
 
 function getMinimum(target) {
@@ -655,14 +745,14 @@ function buildFilterControls(jsonData) {
         filterButtons.push(button)
     }
 
-    const dropDown = createDropdown(
+    const dropDown = buildDropdown(
         allSuites,
         filterBySuite,
         "Filter by suite",
         (value) => { filterBySuite = value; },
     );
 
-    const dropDown2 = createDropdown(
+    const dropDown2 = buildDropdown(
         allWarnings,
         filterByWarning,
         "Filter to warning",
@@ -688,13 +778,7 @@ function buildFilterControls(jsonData) {
 }
 
 function showGetJsonError(error) {
-    const header = Element("header", {}, [
-        Element("h1", {}, "Error loading results"),
-        Element("img", { src: "logo-car.png" }, []),
-        Element("nav", {}, [
-            Element("ul", {}, [Element("li", {}, [Element("a", { href: "timeline.html" }, ["Metrics"])])])
-        ]),
-    ])
+    const header = buildHeader("Error loading results")
 
     let is_windows = navigator.userAgent.indexOf("Windows") !== -1;
     let page_name = window.location.pathname.split("/").at(-1);

@@ -9,10 +9,6 @@
          drop-at
          find-duplicates
          partial-sums
-         argmins
-         argmaxs
-         set-disjoint?
-         subsequence?
          disjoint-set
          disjoint-set-find!
          disjoint-set-union!
@@ -21,8 +17,6 @@
          quasisyntax
          dict
          sym-append
-         gen-vars
-         string-replace*
          format-time
          format-bits
          format-accuracy
@@ -49,40 +43,6 @@
       body ...)
     (values (reverse ((car sows))) ...)))
 
-;; Single precision numbers
-
-(define cast-single
-  (let ([flsingle identity])
-    (local-require racket/flonum)
-    flsingle))
-
-;; Utility list functions
-
-(define (argmins f lst)
-  (let loop ([lst lst]
-             [best-score #f]
-             [best-elts '()])
-    (cond
-      [(null? lst) (reverse best-elts)]
-      [else
-       (define elt (car lst))
-       (define lst* (cdr lst))
-       (define score (f elt))
-       (cond
-         [(not best-score) (loop lst* score (list elt))]
-         [(< score best-score) (loop lst* score (list elt))]
-         [(> score best-score) (loop lst* best-score best-elts)]
-         [(= score best-score) (loop lst* best-score (cons elt best-elts))])])))
-
-(module+ test
-  (check-equal? (argmins string-length '("a" "bb" "f" "ccc" "dd" "eee" "g")) '("a" "f" "g")))
-
-(define (argmaxs f lst)
-  (argmins (λ (x) (- (f x))) lst))
-
-(module+ test
-  (check-equal? (argmaxs string-length '("a" "bb" "f" "ccc" "dd" "eee" "g")) '("ccc" "eee")))
-
 (define (drop-at ls index)
   (define-values (front back) (split-at ls index))
   (append front (rest back)))
@@ -106,35 +66,7 @@
   (check-equal? (partial-sums #(1 4 6 3 8)) #(1 5 11 14 22)))
 
 (define (find-duplicates l)
-  (define found (mutable-set))
-  (define duplicates '())
-  (for ([x l])
-    (when (set-member? found x)
-      (set! duplicates (cons x duplicates)))
-    (set-add! found x))
-  (reverse duplicates))
-
-(define (set-disjoint? s1 s2)
-  (set-empty? (set-intersect s2 s1)))
-
-(module+ test
-  (check-true (set-disjoint? '(a b c) '(e f g)))
-  (check-true (set-disjoint? '() '()))
-  (check-false (set-disjoint? '(a b c) '(a))))
-
-(define (subsequence? v l)
-  (or (empty? v) (let ([v* (member (first v) l)]) (and v* (subsequence? (rest v) v*)))))
-
-(module+ test
-  (define l (range 10))
-  (check-true (subsequence? empty empty))
-  (check-true (subsequence? empty l))
-  (check-true (subsequence? '(1) l))
-  (check-true (subsequence? '(1 2) l))
-  (check-true (subsequence? '(1 3 5 7 9) l))
-  (check-true (subsequence? '(1 2 5 8) l))
-  (check-false (subsequence? '(x y) l))
-  (check-false (subsequence? '(1 2 10) l)))
+  (map car (filter (compose pair? rest) (group-by identity l))))
 
 ;; Union-find
 
@@ -260,21 +192,10 @@
       (build-path web-resource-path name)
       web-resource-path))
 
-(define/contract (string-replace* str changes)
-  (-> string? (listof (cons/c string? string?)) string?)
-  (for/fold ([str str]) ([change changes])
-    (match-define (cons from to) change)
-    (string-replace str from to)))
-
 ;; Symbol generation
 
 (define (sym-append . args)
   (string->symbol (apply string-append (map ~a args))))
-
-;; Generates a list of variables names.
-(define/contract (gen-vars n)
-  (-> natural? (listof symbol?))
-  (build-list n (lambda (i) (string->symbol (format "x~a" i)))))
 
 ;; FPCore properties
 
