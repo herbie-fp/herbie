@@ -66,6 +66,7 @@
       (and (not (null? better)) (apply max better))))
 
   (define end-error (car end-errors))
+  (define alt-number 0)
 
   `(html
     (head (meta ([charset "utf-8"]))
@@ -150,12 +151,14 @@
                   [expr end-exprs]
                   [errs end-errors]
                   [cost end-costs]
-                  [history end-histories])
+                  [history end-histories]
+                  #:unless (and (null? preprocessing) (equal? start-expr expr)))
+         (set! alt-number (add1 alt-number))
          (define-values (dropdown body)
            (render-program expr ctx #:ident identifier #:instructions preprocessing))
-         `(section ([id ,(format "alternative~a" i)] (class "programs"))
+         `(section ([id ,(format "alternative~a" alt-number)] (class "programs"))
                    (h2 "Alternative "
-                       ,(~a i)
+                       ,(~a alt-number)
                        ": "
                        (span ((class "subhead"))
                              (data ,(format-accuracy (errors-score errs) repr-bits #:unit "%"))
