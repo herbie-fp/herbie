@@ -156,6 +156,20 @@ function toTitleCase(str) {
     )
 }
 
+function buildDropdown(options, selected, placeholder, onChange) {
+    const select = Element("select", [
+        Element("option", { value: "", selected: !selected }, [placeholder]),
+        options.map((opt) =>
+            Element("option", { value: opt, selected: selected == opt }, [opt])
+        ),
+    ]);
+    select.addEventListener("input", () => {
+        onChange(select.value ?? "");
+        update();
+    });
+    return select;
+}
+
 function buildHeader(title) {
     return Element("header", {}, [
         Element("h1", {}, title),
@@ -732,25 +746,19 @@ function buildFilterControls(jsonData) {
         filterButtons.push(button)
     }
 
-    const dropDown = Element("select", [
-        Element("option", { value: "", selected: !filterBySuite }, ["Filter by suite"]),
-        allSuites.map((suite, i) => 
-            Element("option", { value: suite, selected: filterBySuite == suite }, [toTitleCase(suite)]))
-    ]);
-    dropDown.addEventListener("input", (e) => {
-        filterBySuite = dropDown.value ?? "";
-        update();
-    });
+    const dropDown = buildDropdown(
+        allSuites,
+        filterBySuite,
+        "Filter by suite",
+        (value) => { filterBySuite = value; },
+    );
 
-    const dropDown2 = Element("select", [
-        Element("option", { value: "", selected: !filterByWarning }, ["Filter to warning"]),
-        allWarnings.map((name) => 
-            Element("option", { value: name, selected: filterByWarning == name }, [name]))
-    ]);
-    dropDown2.addEventListener("input", (e) => {
-        filterByWarning = dropDown2.value ?? "";
-        update();
-    });
+    const dropDown2 = buildDropdown(
+        allWarnings,
+        filterByWarning,
+        "Filter to warning",
+        (value) => { filterByWarning = value; },
+    );
 
     let groupButtons = [];
     for (let i in filterGroupState) {
