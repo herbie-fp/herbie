@@ -156,7 +156,7 @@
          (set! alt-number (add1 alt-number))
          (define-values (dropdown body)
            (render-program expr ctx #:ident identifier #:instructions preprocessing))
-         `(section ([id ,(format "alternative~a" i)] (class "programs"))
+         `(section ([id ,(format "alternative~a" alt-number)] (class "programs"))
                    (h2 "Alternative "
                        ,(~a alt-number)
                        ": "
