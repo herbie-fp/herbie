@@ -29,9 +29,8 @@
            register-operator-impl!
            define-operator
            register-operator!
-           define-constants
-           variable?
-           print-impl))
+           ;define-constants
+           variable?))
 
 (module+ test
   (require rackunit
@@ -192,6 +191,8 @@
 ;;  - a floating-point implementation
 ;;
 (struct operator-impl (name ctx spec fpcore fl cost))
+
+(define operator-impls (make-hash))
 
 ;; Looks up a property `field` of an real operator `op`.
 ;; Panics if the operator is not found.
@@ -396,13 +397,13 @@
 
 ;; Expression predicates ;;
 
-#;(define (impl-exists? op)
-    (hash-has-key? operator-impls op))
+(define (impl-exists? op)
+  (hash-has-key? operator-impls op))
 
-#;(define (constant-operator? op)
-    (and (symbol? op)
-         (or (and (hash-has-key? operators op) (null? (operator-itype (hash-ref operators op))))
-             (and (hash-has-key? operator-impls op) (null? (impl-info op 'vars))))))
+(define (constant-operator? op)
+  (and (symbol? op)
+       (or (and (hash-has-key? operators op) (null? (operator-itype (hash-ref operators op))))
+           (and (hash-has-key? operator-impls op) (null? (impl-info op 'vars))))))
 
 (define (variable? var)
   (and (symbol? var)
