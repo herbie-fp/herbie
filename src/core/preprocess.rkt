@@ -79,8 +79,6 @@
                  (make-list (vector-length (batch-roots batch)) (context-repr ctx))
                  `((,rules . ((node . ,(*node-limit*)))))))
 
-  ;; TODO : FIGURE HOW TO IMPLEMENT PREPROCESS
-
   ;; collect equalities
   (define abs-instrs
     (for/list ([(ident spec*) (in-dict even-identities)]
@@ -97,22 +95,7 @@
                #:when (egraph-equal? runner spec spec*))
       (match-define (list 'swap a b) ident)
       (list a b)))
-  ;(define components (connected-components (context-vars ctx) swaps))
-  ;(define sort-instrs
-    (for/list ([component (in-list components)]
-               #:when (> (length component) 1))
-      (cons 'sort component)))
-
   (append abs-instrs negabs-instrs swaps))
-
-(define (connected-components variables swaps)
-  (define components (disjoint-set (length variables)))
-  (for ([swap (in-list swaps)])
-    (match-define (list a b) swap)
-    (disjoint-set-union! components
-                         (disjoint-set-find! components (index-of variables a))
-                         (disjoint-set-find! components (index-of variables b))))
-  (group-by (compose (curry disjoint-set-find! components) (curry index-of variables)) variables))
 
 (define (preprocess-pcontext context pcontext preprocessing)
   (define preprocess
@@ -140,9 +123,9 @@
   (define variables (context-vars context))
   (define sort* (curryr sort (curryr </total (context-repr context))))
   (match instruction
-    [(list 'sort component ...)
-     (define indices (indexes-where variables (curry set-member? component)))
-     (define repr (context-lookup context (first component)))
+    [(list 'sort a b)
+     (define indices (indexes-where variables (curry set-member? (list a b))))
+     (define repr (context-lookup context a))
      (lambda (x y)
        (define subsequence (map (curry vector-ref x) indices))
        (define sorted (sort subsequence (curryr </total repr)))
@@ -199,7 +182,6 @@
      (define fmin (get-fpcore-impl 'fmin (repr->prop repr) (list repr repr)))
      (define fmax (get-fpcore-impl 'fmax (repr->prop repr) (list repr repr)))
      (replace-vars (list (cons a `(,fmin ,a ,b)) (cons b `(,fmax ,a ,b))) expression)]
-    [(list 'sort vars ...) #f]
     [(list 'abs var)
      (define repr (context-lookup context var))
      (define fabs (get-fpcore-impl 'fabs (repr->prop repr) (list repr)))
