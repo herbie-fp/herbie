@@ -172,15 +172,6 @@
                                               [count counts])
                                      `(tr (td ,(~r count #:group-sep " ") "×") (td ,(~a reason))))))))
 
-(define (format-percent num den)
-  (string-append (if (zero? den)
-                     (cond
-                       [(positive? num) "+∞"]
-                       [(zero? num) "0"]
-                       [(negative? num) "-∞"])
-                     (~r (* (/ num den) 100) #:precision 1))
-                 "%"))
-
 (define (average . values)
   (/ (apply + values) (length values)))
 
