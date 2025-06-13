@@ -97,13 +97,13 @@
                #:when (egraph-equal? runner spec spec*))
       (match-define (list 'swap a b) ident)
       (list a b)))
-  (define components (connected-components (context-vars ctx) swaps))
-  (define sort-instrs
+  ;(define components (connected-components (context-vars ctx) swaps))
+  ;(define sort-instrs
     (for/list ([component (in-list components)]
                #:when (> (length component) 1))
       (cons 'sort component)))
 
-  (append abs-instrs negabs-instrs sort-instrs))
+  (append abs-instrs negabs-instrs swaps))
 
 (define (connected-components variables swaps)
   (define components (disjoint-set (length variables)))
