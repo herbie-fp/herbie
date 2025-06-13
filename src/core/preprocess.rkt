@@ -48,16 +48,16 @@
              #:when (and (has-fabs-impl? repr) (has-copysign-impl? (context-repr ctx))))
     (cons `(negabs ,var) (replace-expression `(neg ,spec) var `(neg ,var)))))
 
-;; Swap identities: f(a, b) = f(b, a)
+;; Sort identities: f(a, b) = f(b, a)
 ;; TODO: require both vars have the same repr
-(define (make-swap-identities spec ctx)
+(define (make-sort-identities spec ctx)
   (define pairs (combinations (context-vars ctx) 2))
   (for/list ([pair (in-list pairs)]
-             ;; Can only swap same-repr variables
+             ;; Can only sort same-repr variables
              #:when (equal? (context-lookup ctx (first pair)) (context-lookup ctx (second pair)))
              #:when (has-fmin-fmax-impl? (context-lookup ctx (first pair))))
     (match-define (list a b) pair)
-    (cons `(swap ,a ,b) (replace-vars `((,a . ,b) (,b . ,a)) spec))))
+    (cons `(sort ,a ,b) (replace-vars `((,a . ,b) (,b . ,a)) spec))))
 
 ;; See https://pavpanchekha.com/blog/symmetric-expressions.html
 (define (find-preprocessing expr ctx)
@@ -66,8 +66,8 @@
   ;; identities
   (define even-identities (make-even-identities spec ctx))
   (define odd-identities (make-odd-identities spec ctx))
-  (define swap-identities (make-swap-identities spec ctx))
-  (define identities (append even-identities odd-identities swap-identities))
+  (define sort-identities (make-sort-identities spec ctx))
+  (define identities (append even-identities odd-identities sort-identities))
 
   ;; make egg runner
   (define rules (*sound-rules*))
@@ -90,11 +90,11 @@
                #:when (egraph-equal? runner spec spec*))
       ident))
 
-  (define swaps
-    (for/list ([(ident spec*) (in-dict swap-identities)]
+  (define sort-instrs
+    (for/list ([(ident spec*) (in-dict sort-identities)]
                #:when (egraph-equal? runner spec spec*))
       ident))
-  (append abs-instrs negabs-instrs swaps))
+  (append abs-instrs negabs-instrs sort-instrs))
 
 (define (preprocess-pcontext context pcontext preprocessing)
   (define preprocess
