@@ -61,7 +61,7 @@
     (for/fold ([expr expr])
               ([preprocessing (in-list (reverse useful-preprocessing))])
       (compile-preprocessing expr context preprocessing)))
-  (alt expr* 'add-preprocessing (list altn) (reverse final-preprocessing)))
+  (alt expr* 'add-preprocessing (list altn) '()))
 
 (define (extract!)
   (timeline-push-alts! '())
