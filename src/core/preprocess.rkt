@@ -93,8 +93,7 @@
   (define swaps
     (for/list ([(ident spec*) (in-dict swap-identities)]
                #:when (egraph-equal? runner spec spec*))
-      (match-define (list 'swap a b) ident)
-      (list a b)))
+      ident))
   (append abs-instrs negabs-instrs swaps))
 
 (define (preprocess-pcontext context pcontext preprocessing)
