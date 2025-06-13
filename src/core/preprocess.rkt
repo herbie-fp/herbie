@@ -24,6 +24,10 @@
 (define (has-fabs-impl? repr)
   (get-fpcore-impl 'fabs (repr->prop repr) (list repr)))
 
+(define (has-fmin-fmax-impl? repr)
+  (and (get-fpcore-impl 'fmin (repr->prop repr) (list repr repr))
+       (get-fpcore-impl 'fmax (repr->prop repr) (list repr repr))))
+
 (define (has-copysign-impl? repr)
   (and (get-fpcore-impl '* (repr->prop repr) (list repr repr))
        (get-fpcore-impl 'copysign (repr->prop repr) (list repr repr))))
@@ -50,7 +54,8 @@
   (define pairs (combinations (context-vars ctx) 2))
   (for/list ([pair (in-list pairs)]
              ;; Can only swap same-repr variables
-             #:when (equal? (context-lookup ctx (first pair)) (context-lookup ctx (second pair))))
+             #:when (equal? (context-lookup ctx (first pair)) (context-lookup ctx (second pair)))
+             #:when (has-fmin-fmax-impl? (context-lookup ctx (first pair))))
     (match-define (list a b) pair)
     (cons `(swap ,a ,b) (replace-vars `((,a . ,b) (,b . ,a)) spec))))
 
