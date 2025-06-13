@@ -296,10 +296,11 @@
            "../syntax/load-plugin.rkt"
            "egglog-herbie.rkt")
 
-  (load-herbie-builtins)
-  (populate-e->id-tables)
-  (test-e1->expr)
-  (test-e2->expr))
+  (when (find-executable-path "egglog")
+    (load-herbie-builtins)
+    (populate-e->id-tables)
+    (test-e1->expr)
+    (test-e2->expr)))
 
 ;; run-sample-egglog
 (module+ test
@@ -321,11 +322,52 @@
                         'eps
                         '(sin.f64 x))))
 
+  (define batch2
+    (progs->batch
+     (list
+      '(-.f64 (sin.f64 (+.f64 x #s(literal 1 binary64))) (sin.f64 x))
+      '(sin.f64 (+.f64 x #s(literal 1 binary64)))
+      '(+.f64 x #s(literal 1 binary64))
+      'x
+      #s(literal 1 binary64)
+      '(sin.f64 x)
+      #s(approx (- (sin (+ x 1)) (sin x)) #s(hole binary64 (sin 1)))
+      #s(approx (- (sin (+ x 1)) (sin x)) #s(hole binary64 (+ (sin 1) (* x (- (cos 1) 1)))))
+      #s(approx (- (sin (+ x 1)) (sin x))
+                #s(hole binary64 (+ (sin 1) (* x (- (+ (cos 1) (* -1/2 (* x (sin 1)))) 1)))))
+      #s(approx (- (sin (+ x 1)) (sin x))
+                #s(hole binary64
+                        (+ (sin 1)
+                           (* x
+                              (- (+ (cos 1) (* x (+ (* -1/2 (sin 1)) (* x (+ 1/6 (* -1/6 (cos 1)))))))
+                                 1)))))
+      #s(approx (sin (+ x 1)) #s(hole binary64 (+ (sin 1) (* x (cos 1)))))
+      #s(approx (sin (+ x 1)) #s(hole binary64 (+ (sin 1) (* x (+ (cos 1) (* -1/2 (* x (sin 1))))))))
+      #s(approx (sin (+ x 1))
+                #s(hole binary64
+                        (+ (sin 1)
+                           (* x (+ (cos 1) (* x (+ (* -1/2 (sin 1)) (* -1/6 (* x (cos 1))))))))))
+      #s(approx (+ x 1) #s(hole binary64 1))
+      #s(approx (+ x 1) #s(hole binary64 (+ 1 x)))
+      #s(approx x #s(hole binary64 x))
+      #s(approx (sin x) #s(hole binary64 (* x (+ 1 (* -1/6 (pow x 2))))))
+      #s(approx (sin x) #s(hole binary64 (* x (+ 1 (* (pow x 2) (- (* 1/120 (pow x 2)) 1/6))))))
+      #s(approx
+         (sin x)
+         #s(hole binary64
+                 (* x (+ 1 (* (pow x 2) (- (* (pow x 2) (+ 1/120 (* -1/5040 (pow x 2)))) 1/6))))))
+      #s(approx (- (sin (+ x 1)) (sin x)) #s(hole binary64 (- (sin (+ 1 x)) (sin x))))
+      #s(approx (sin (+ x 1)) #s(hole binary64 (sin (+ 1 x))))
+      #s(approx (+ x 1) #s(hole binary64 (* x (+ 1 (/ 1 x)))))
+      #s(approx (sin x) #s(hole binary64 (sin x)))
+      #s(approx (- (sin (+ x 1)) (sin x)) #s(hole binary64 (- (sin (- 1 (* -1 x))) (sin x))))
+      #s(approx (sin (+ x 1)) #s(hole binary64 (sin (- 1 (* -1 x))))))))
+
   (define roots (batch-roots batch))
 
-  (*context* (make-debug-context '(x eps)))
+  (define ctx (make-debug-context '(x eps)))
 
-  (define reprs (make-list (vector-length (batch-roots batch)) (context-repr (*context*))))
+  (define reprs (make-list (vector-length (batch-roots batch)) (context-repr ctx)))
 
   (define rules (*rules*))
   (define schedule
@@ -333,4 +375,5 @@
       (,rules . ((node . ,(*node-limit*)) (scheduler . simple)))
       (lower . ((iteration . 1) (scheduler . simple)))))
 
-  (run-egglog-multi-extractor (egglog-runner batch roots reprs schedule (*context*)) batch))
+  (when (find-executable-path "egglog")
+    (run-egglog-multi-extractor (egglog-runner batch roots reprs schedule ctx) batch)))

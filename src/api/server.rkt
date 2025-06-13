@@ -88,8 +88,7 @@
   (manager-ask 'improve))
 
 (define (server-count)
-  (define job-list (manager-ask 'count))
-  (apply + job-list))
+  (manager-ask 'count))
 
 (define (server-up?)
   (match manager
@@ -119,14 +118,25 @@
      (hash-set! queued-jobs job-id job)
      job-id]
     [(list 'wait 'basic job-id)
-     (define command (hash-ref queued-jobs job-id))
-     (define result (herbie-do-server-job command job-id))
-     (hash-set! completed-jobs job-id result)
+     (define command (hash-ref queued-jobs job-id #f))
+     (define result (and command (herbie-do-server-job command job-id)))
+     (when command
+       (hash-set! completed-jobs job-id result))
      result]
     [(list 'result job-id) (hash-ref completed-jobs job-id #f)]
-    [(list 'timeline job-id) (hash-ref completed-jobs job-id #f)]
-    [(list 'check job-id) (and (hash-ref completed-jobs job-id #f) job-id)]
-    [(list 'count) (list 0 0)]
+    [(list 'timeline job-id)
+     (define command (hash-ref queued-jobs job-id #f))
+     (define result (and command (herbie-do-server-job command job-id)))
+     (when command
+       (hash-set! completed-jobs job-id result))
+     result]
+    [(list 'check job-id)
+     (define command (hash-ref queued-jobs job-id #f))
+     (define result (and command (herbie-do-server-job command job-id)))
+     (when command
+       (hash-set! completed-jobs job-id result))
+     job-id]
+    [(list 'count) 0]
     [(list 'improve)
      (for/list ([(job-id result) (in-hash completed-jobs)]
                 #:when (equal? (hash-ref result 'command) "improve"))
@@ -252,9 +262,9 @@
         (place-channel-put handler (and (hash-has-key? completed-jobs job-id) job-id))]
        ; Returns the current count of working workers.
        [(list 'count handler)
-        (define counts (list (hash-count busy-workers) (hash-count queued-jobs)))
-        (log "Currently ~a jobs in progress, ~a jobs in queue.\n" (first counts) (second counts))
-        (place-channel-put handler counts)]
+        (define total (+ (hash-count busy-workers) (hash-count queued-jobs)))
+        (log "Currently ~a jobs total.\n" total)
+        (place-channel-put handler total)]
        ; Retreive the improve results for results.json
        [(list 'improve handler)
         (define improved-list
@@ -290,10 +300,13 @@
      (load-herbie-plugins))
    (define worker-thread
      (thread (λ ()
-               (let loop ([seed #f])
-                 (match (thread-receive)
-                   [job-info (run-job job-info)])
-                 (loop seed)))))
+               (let loop ()
+                 (match-define (list manager worker-id job-id command) (thread-receive))
+                 (log "run-job: ~a, ~a\n" worker-id job-id)
+                 (define out-result (herbie-do-server-job command job-id))
+                 (log "Job: ~a finished, returning work to manager\n" job-id)
+                 (place-channel-put manager (list 'finished manager worker-id job-id out-result))
+                 (loop)))))
    (define timeline #f)
    (define current-job-id #f)
    (for ([_ (in-naturals)])
@@ -302,25 +315,24 @@
         (set! timeline (*timeline*))
         (set! current-job-id job-id)
         (log "[~a] working on [~a].\n" job-id (test-name (herbie-command-test command)))
-        (thread-send worker-thread (work manager worker-id job-id command))]
+        (thread-send worker-thread (list manager worker-id job-id command))]
        [(list 'timeline handler)
         (log "Timeline requested from worker[~a] for job ~a\n" worker-id current-job-id)
         (place-channel-put handler (reverse (unbox timeline)))]))))
 
-(struct work (manager worker-id job-id job))
-
-(define (run-job job-info)
-  (match-define (work manager worker-id job-id command) job-info)
-  (log "run-job: ~a, ~a\n" worker-id job-id)
-  (define out-result (herbie-do-server-job command job-id))
-  (log "Job: ~a finished, returning work to manager\n" job-id)
-  (place-channel-put manager (list 'finished manager worker-id job-id out-result)))
-
-;; Worker internals
-
-(define (herbie-do-server-job command job-id)
-  (define herbie-result (wrapper-run-herbie command job-id))
+(define (herbie-do-server-job h-command job-id)
+  (match-define (herbie-command command test seed pcontext profile? timeline?) h-command)
+  (log "Started ~a job (~a): ~a\n" command job-id (test-name test))
+  (define herbie-result
+    (run-herbie command
+                test
+                #:seed seed
+                #:pcontext pcontext
+                #:profile? profile?
+                #:timeline? timeline?))
+  (log "Completed ~a job (~a), starting reporting\n" command job-id)
   (define basic-output ((get-json-converter command) herbie-result job-id))
+  (log "Completed reporting ~a job (~a)\n" command job-id)
   ;; Add default fields that all commands have
   (hash-set* basic-output
              'job
@@ -328,9 +340,9 @@
              'path
              (job-path job-id)
              'command
-             (~a (herbie-command-command command))
+             (~a command)
              'name
-             (test-name (herbie-command-test command))
+             (test-name test)
              'status
              (~a (job-result-status herbie-result))
              'time
@@ -338,23 +350,10 @@
              'warnings
              (job-result-warnings herbie-result)))
 
-(define (wrapper-run-herbie cmd job-id)
-  (log "Started ~a job (~a): ~a\n"
-       (herbie-command-command cmd)
-       job-id
-       (test-name (herbie-command-test cmd)))
-  (begin0 (run-herbie (herbie-command-command cmd)
-                      (herbie-command-test cmd)
-                      #:seed (herbie-command-seed cmd)
-                      #:pcontext (herbie-command-pcontext cmd)
-                      #:profile? (herbie-command-profile? cmd)
-                      #:timeline? (herbie-command-timeline? cmd))
-    (log "Completed ~a job (~a)\n" (herbie-command-command cmd) job-id)))
-
 ;; JSON conversion stuff
 
 (define (get-json-converter command)
-  (match (herbie-command-command command)
+  (match command
     ['alternatives make-alternatives-result]
     ['cost make-cost-result]
     ['errors make-error-result]
@@ -472,6 +471,10 @@
           (map (curryr analysis->json pcontext test errcache) (improve-result-target backend))
           'end
           (map (curryr analysis->json pcontext test errcache) (improve-result-end backend))))
+
+(define (pcontext->json pcontext repr)
+  (for/list ([(pt ex) (in-pcontext pcontext)])
+    (list (map (curryr value->json repr) (vector->list pt)) (value->json ex repr))))
 
 (define (analysis->json analysis pcontext test errcache)
   (define repr (context-repr (test-context test)))

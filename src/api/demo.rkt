@@ -15,12 +15,14 @@
          web-server/servlet-env)
 
 (require "../config.rkt"
+         "../syntax/types.rkt"
          "../syntax/read.rkt"
+         "../syntax/sugar.rkt"
          "../utils/common.rkt"
-         "../utils/errors.rkt")
-(require "../core/points.rkt"
-         "../syntax/sugar.rkt")
-(require "../reports/common.rkt"
+         "../utils/errors.rkt"
+         "../utils/float.rkt"
+         "../core/points.rkt"
+         "../reports/common.rkt"
          "../reports/core2mathjs.rkt"
          "../reports/pages.rkt"
          "datafile.rkt"
@@ -426,6 +428,18 @@
 ; The name get-seed is taken.
 (define (parse-seed post-data)
   (hash-ref post-data 'seed #f))
+
+(define (json->pcontext json ctx)
+  (define output-repr (context-repr ctx))
+  (define var-reprs (context-var-reprs ctx))
+  (define-values (pts exs)
+    (for/lists (pts exs)
+               ([entry (in-list json)])
+               (match-define (list pt ex) entry)
+               (unless (and (list? pt) (= (length pt) (length var-reprs)))
+                 (error 'json->pcontext "Invalid point ~a" pt))
+               (values (list->vector (map json->value pt var-reprs)) (json->value ex output-repr))))
+  (mk-pcontext pts exs))
 
 (define (get-pcontext post-data)
   (define test (get-test post-data))

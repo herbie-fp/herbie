@@ -136,8 +136,6 @@
   (define sort* (curryr sort (curryr </total (context-repr context))))
   (match instruction
     [(list 'sort component ...)
-     (unless (subsequence? component variables)
-       (error 'instruction->operator "component should always be a subsequence of variables"))
      (define indices (indexes-where variables (curry set-member? component)))
      (define repr (context-lookup context (first component)))
      (lambda (x y)

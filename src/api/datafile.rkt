@@ -136,7 +136,7 @@
                                 (end . ,end-bits)
                                 (target . ,target-bits)
                                 (vars . ,(and vars (map symbol->string vars)))
-                                (warnings . ,(map ~s warnings))
+                                (warnings . ,warnings)
                                 (input . ,(~s input))
                                 (output . ,(~s output))
                                 (spec . ,(~s spec))
@@ -215,7 +215,7 @@
                                     (parse-string cs)
                                     (map (curry map parse-string) cs)))
                               vars
-                              (map string->symbol (hash-ref test 'warnings '()))
+                              (hash-ref test 'warnings '())
                               (parse-string (get 'input))
                               (parse-string (get 'output))
                               (parse-string (hash-ref test 'spec "#f"))

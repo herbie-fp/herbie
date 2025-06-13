@@ -13,9 +13,7 @@
          "points.rkt"
          "preprocess.rkt"
          "programs.rkt"
-         "regimes.rkt"
-         "../syntax/platform.rkt"
-         "../utils/timeline.rkt")
+         "regimes.rkt")
 
 (provide run-improve!
          sort-alts)
@@ -48,7 +46,7 @@
 
   (for ([iteration (in-range (*num-iterations*))]
         #:break (atab-completed? (^table^)))
-    (finish-iter!))
+    (run-iteration!))
   (define alternatives (extract!))
   (timeline-event! 'preprocess)
   (for/list ([altn alternatives])
@@ -174,6 +172,7 @@
         [_
          (define event*
            (match event
+             [(list 'evaluate) (list 'evaluate loc0)]
              [(list 'taylor name var) (list 'taylor loc0 name var)]
              [(list 'rr input proof) (list 'rr loc0 input proof)]))
          (define expr* (location-set loc0 (alt-expr orig) (debatchref (alt-expr altn))))
@@ -235,15 +234,12 @@
   (^patched^ #f)
   (void))
 
-(define (finish-iter!)
+(define (run-iteration!)
   (unless (^next-alts^)
     (choose-alts!))
   (define locs (append-map (compose all-subexpressions alt-expr) (^next-alts^)))
   (reconstruct! (generate-candidates (remove-duplicates locs)))
   (finalize-iter!)
-  (void))
-
-(define (rollback-iter!)
   (void))
 
 (define (make-regime! alts)

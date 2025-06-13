@@ -1,0 +1,4 @@
+(FPCore ()
+  :name "xkcd217 (a numerical coincidence)"
+  :precision binary64
+  (- 20 (- (exp PI) PI)))
