@@ -17,6 +17,7 @@
          make-empty-platform
          platform-register-representation!
          platform-register-implementation!
+         display-platform
 
          get-fpcore-impl
          ;; Platform API
@@ -66,18 +67,87 @@
 
 ;; Loads a platform.
 (define (activate-platform! name)
-  (define pform (hash-ref platforms name #f))
+  (define platform (hash-ref platforms name #f))
 
-  (unless pform
+  (unless platform
     (raise-herbie-error "unknown platform `~a`, found (~a)"
                         name
                         (string-join (map ~a (hash-keys platforms)) ", ")))
 
   (*platform-name* name)
-  (*active-platform* pform))
+  (*active-platform* platform))
+
+(define (display-platform platform)
+  (define impls (platform-impls platform))
+  (define reprs (platform-reprs platform))
+  (define impl-costs (platform-impl-costs platform))
+  (define if-cost (hash-ref! impl-costs 'if #f))
+  (define default-cost (hash-ref! impl-costs 'default #f))
+
+  (printf "Platform: ~a;\n          if-cost: ~a;\n          default-cost: ~a\n\n"
+          (platform-name platform)
+          if-cost
+          default-cost)
+
+  (printf "Representations:\n")
+  (define reprs-data
+    (for/list ([repr (in-list reprs)]
+               [n (in-naturals)])
+      (match-define (representation name type _ _ _ _ _ total-bits _ cost) repr)
+      (list n name type total-bits cost)))
+  (write-table reprs-data (list "idx" "name" "type" "#bits" "cost"))
+
+  (printf "\nImplementations\n")
+  (define impls-data
+    (for/list ([impl (in-list impls)]
+               [n (in-naturals)])
+      (define name (impl-info impl 'name))
+      (define itype (map representation-name (impl-info impl 'itype)))
+      (define otype (representation-name (impl-info impl 'otype)))
+      (define spec (impl-info impl 'spec))
+      (define cost (impl-info impl 'cost))
+      (unless cost
+        (set! cost (format "~a (default cost)" default-cost)))
+      (list n name itype otype spec cost)))
+  (write-table impls-data (list "idx" "name" "itype" "otype" "spec" "cost")))
+
+(define (write-table data headers #:buffer-space [buffer-space 2])
+  (define row-length (length (car data)))
+  (define cell-widths (make-vector row-length 0))
+
+  ; Measure cell-lengths
+  (for ([header (in-list headers)]
+        [i (in-naturals)])
+    (vector-set! cell-widths
+                 i
+                 (max (+ (string-length header) buffer-space) (vector-ref cell-widths i))))
+  (for ([row (in-list data)])
+    (for ([elem row]
+          [i (in-naturals)])
+      (vector-set! cell-widths
+                   i
+                   (max (+ (string-length (~a elem)) buffer-space) (vector-ref cell-widths i)))))
+
+  ; Header
+  (printf "~a" (~a (list-ref headers 0) #:width (vector-ref cell-widths 0)))
+  (for ([i (in-range 1 row-length)])
+    (printf "|~a" (~a (list-ref headers i) #:width (vector-ref cell-widths i))))
+  (printf "\n")
+  (printf "~a" (~a "" #:width (vector-ref cell-widths 0) #:right-pad-string "-"))
+  (for ([i (in-range 1 row-length)])
+    (printf "+~a" (~a "" #:width (vector-ref cell-widths i) #:right-pad-string "-")))
+  (printf "\n")
+
+  ; Content
+  (for ([row data])
+    (printf "~a" (~a (list-ref row 0) #:width (vector-ref cell-widths 0)))
+    (for ([i (in-range 1 row-length)])
+      (printf "|~a" (~a (list-ref row i) #:width (vector-ref cell-widths i))))
+    (printf "\n")))
 
 ;; Registers a platform under identifier `name`.
-(define (register-platform! name pform)
+(define (register-platform! pform)
+  (define name (platform-name pform))
   (when (hash-has-key? platforms name)
     (error 'register-platform! "platform already registered ~a" name))
   (hash-set! platforms name (struct-copy $platform pform [name name])))
@@ -104,11 +174,13 @@
   (define default-cost (hash-ref impl-costs 'default))
   (define final-cost (or repr-cost default-cost))
   (unless final-cost
-    (raise-herbie-error "Missing cost for ~a" repr))
+    (raise-herbie-error "Missing cost for representation ~a in platform ~a"
+                        (representation-name repr)
+                        (platform-name platform)))
 
   ; Duplicate check
   (when (member repr reprs)
-    (raise-herbie-error "Duplicate representation ~a in platform ~a" repr platform))
+    (raise-herbie-error "Duplicate representation ~a in platform ~a" repr (platform-name platform)))
 
   ; Update tables
   (set-platform-reprs! platform (cons repr reprs))
@@ -121,7 +193,9 @@
   (define itype (impl-info impl 'itype))
   (define impl-reprs (remove-duplicates (cons otype itype)))
   (unless (andmap (curryr member reprs) impl-reprs)
-    (raise-herbie-error "Platform ~a missing representation of ~a implementation" platform impl))
+    (raise-herbie-error "Platform ~a missing representation of ~a implementation"
+                        (platform-name platform)
+                        (impl-info impl 'name)))
 
   ; Cost check
   (define impl-costs (platform-impl-costs platform))
@@ -129,12 +203,14 @@
   (define default-cost (hash-ref impl-costs 'default))
   (define final-cost (or cost default-cost))
   (unless final-cost
-    (raise-herbie-error "Missing cost for ~a" impl))
+    (raise-herbie-error "Missing cost for ~a" (impl-info impl 'name)))
 
   ; Dupicate check
   (define impls (platform-impls platform))
-  (when (member impl impls)
-    (raise-herbie-error "Impl ~a is already registered in platform ~a" impl platform))
+  (when (member impl impls (λ (x y) (equal? (impl-info x 'name) (impl-info y 'name))))
+    (raise-herbie-error "Impl ~a is already registered in platform ~a"
+                        (impl-info impl 'name)
+                        (platform-name platform)))
 
   ; Update tables
   (set-platform-impls! platform (cons impl impls))
@@ -156,21 +232,22 @@
   (define costs (make-hash))
   (define missing (mutable-set))
   (define impls
-    (reap
-     [sow]
-     (for ([impl-sig (in-list pform)])
-       (match-define (list impl cost) impl-sig)
-       (define final-cost cost)
-       (unless (or cost default-cost)
-         (raise-herbie-error "Missing cost for ~a" impl))
-       (unless cost
-         (set! final-cost default-cost))
-       (cond
-         [(impl-exists? impl)
-          (hash-set! costs impl final-cost)
-          (sow impl)]
-         [optional? (set-add! missing impl)]
-         [else (raise-herbie-missing-error "Missing implementation ~a required by platform" impl)]))))
+    (reap [sow]
+          (for ([impl-sig (in-list pform)])
+            (match-define (list impl cost) impl-sig)
+            (define final-cost cost)
+            (unless (or cost default-cost)
+              (raise-herbie-error "Missing cost for ~a" (impl-info impl 'name)))
+            (unless cost
+              (set! final-cost default-cost))
+            (cond
+              [(impl-exists? impl)
+               (hash-set! costs impl final-cost)
+               (sow impl)]
+              [optional? (set-add! missing impl)]
+              [else
+               (raise-herbie-missing-error "Missing implementation ~a required by platform"
+                                           (impl-info impl 'name))]))))
   (define reprs
     (remove-duplicates (apply append
                               (for/list ([impl (in-list impls)])

@@ -30,7 +30,8 @@
            define-operator
            register-operator!
            define-constants
-           variable?))
+           variable?
+           print-impl))
 
 (module+ test
   (require rackunit
@@ -192,18 +193,12 @@
 ;;
 (struct operator-impl (name ctx spec fpcore fl cost))
 
-;; Operator implementation table
-;; Tracks implementations that are loaded into Racket's runtime
-(define operator-impls (make-hasheq))
-
 ;; Looks up a property `field` of an real operator `op`.
 ;; Panics if the operator is not found.
 (define/contract (impl-info impl field)
-  (-> operator-impl? (or/c 'vars 'itype 'otype 'spec 'fpcore 'fl 'cost) any/c)
-  #;(unless (hash-has-key? operator-impls impl)
-      (error 'impl-info "Unknown operator implementation ~a" impl))
-  ;(define info (hash-ref operator-impls impl))
+  (-> operator-impl? (or/c 'name 'vars 'itype 'otype 'spec 'fpcore 'fl 'cost) any/c)
   (case field
+    [(name) (operator-impl-name impl)]
     [(vars) (context-vars (operator-impl-ctx impl))]
     [(itype) (context-var-reprs (operator-impl-ctx impl))]
     [(otype) (context-repr (operator-impl-ctx impl))]
@@ -391,23 +386,23 @@
            [_ (oops! "bad syntax" fields)])))]
     [_ (oops! "bad syntax")]))
 
-(define-syntax-rule (define-constants repr [name impl-name value] ...)
-  (begin
-    (make-operator-impl (impl-name)
-                        repr
-                        #:spec (name)
-                        #:fl (const value)
-                        #:fpcore (! :precision repr name)) ...))
+#;(define-syntax-rule (define-constants repr [name impl-name value] ...)
+    (begin
+      (make-operator-impl (impl-name)
+                          repr
+                          #:spec (name)
+                          #:fl (const value)
+                          #:fpcore (! :precision repr name)) ...))
 
 ;; Expression predicates ;;
 
-(define (impl-exists? op)
-  (hash-has-key? operator-impls op))
+#;(define (impl-exists? op)
+    (hash-has-key? operator-impls op))
 
-(define (constant-operator? op)
-  (and (symbol? op)
-       (or (and (hash-has-key? operators op) (null? (operator-itype (hash-ref operators op))))
-           (and (hash-has-key? operator-impls op) (null? (impl-info op 'vars))))))
+#;(define (constant-operator? op)
+    (and (symbol? op)
+         (or (and (hash-has-key? operators op) (null? (operator-itype (hash-ref operators op))))
+             (and (hash-has-key? operator-impls op) (null? (impl-info op 'vars))))))
 
 (define (variable? var)
   (and (symbol? var)
