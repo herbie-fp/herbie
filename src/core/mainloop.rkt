@@ -50,10 +50,17 @@
   (define alternatives (extract!))
   (timeline-event! 'preprocess)
   (for/list ([altn alternatives])
-    (define expr (alt-expr altn))
-    (define preprocessing (alt-preprocessing altn))
-    (alt-add-preprocessing altn
-                           (remove-unnecessary-preprocessing expr context pcontext preprocessing))))
+    (apply-preprocessing altn context pcontext)))
+
+(define (apply-preprocessing altn context pcontext)
+  (define expr (alt-expr altn))
+  (define initial-preprocessing (alt-preprocessing altn))
+  (define useful-preprocessing
+    (remove-unnecessary-preprocessing expr context pcontext initial-preprocessing))
+  (define expr*
+    (for/fold ([expr expr]) ([preprocessing (in-list (reverse useful-preprocessing))])
+      (compile-preprocessing expr context preprocessing)))
+  (alt expr* 'add-preprocessing (list altn) '()))
 
 (define (extract!)
   (timeline-push-alts! '())
