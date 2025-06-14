@@ -9,9 +9,6 @@
          drop-at
          find-duplicates
          partial-sums
-         disjoint-set
-         disjoint-set-find!
-         disjoint-set-union!
          get-seed
          set-seed!
          quasisyntax
@@ -67,23 +64,6 @@
 
 (define (find-duplicates l)
   (map car (filter (compose pair? rest) (group-by identity l))))
-
-;; Union-find
-
-(define (disjoint-set s)
-  (list->vector (range s)))
-
-(define (disjoint-set-find! d x)
-  (define p (vector-ref d x))
-  (cond
-    [(= p x) x]
-    [else
-     (define r (disjoint-set-find! d p))
-     (vector-set! d x r)
-     r]))
-
-(define (disjoint-set-union! d x y)
-  (vector-set! d y x))
 
 ;; Miscellaneous helper
 

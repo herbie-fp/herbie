@@ -57,15 +57,10 @@
   (define initial-preprocessing (alt-preprocessing altn))
   (define useful-preprocessing
     (remove-unnecessary-preprocessing expr context pcontext initial-preprocessing))
-  (define-values (expr* final-preprocessing)
-    (for/fold ([expr expr]
-               [final-preprocessing '()])
-              ([preprocessing (in-list (reverse useful-preprocessing))])
-      (define compiled (compile-preprocessing expr context preprocessing))
-      (if compiled
-          (values compiled final-preprocessing)
-          (values expr (cons preprocessing final-preprocessing)))))
-  (alt expr* 'add-preprocessing (list altn) (reverse final-preprocessing)))
+  (define expr*
+    (for/fold ([expr expr]) ([preprocessing (in-list (reverse useful-preprocessing))])
+      (compile-preprocessing expr context preprocessing)))
+  (alt expr* 'add-preprocessing (list altn) '()))
 
 (define (extract!)
   (timeline-push-alts! '())

@@ -48,16 +48,16 @@
              #:when (and (has-fabs-impl? repr) (has-copysign-impl? (context-repr ctx))))
     (cons `(negabs ,var) (replace-expression `(neg ,spec) var `(neg ,var)))))
 
-;; Swap identities: f(a, b) = f(b, a)
+;; Sort identities: f(a, b) = f(b, a)
 ;; TODO: require both vars have the same repr
-(define (make-swap-identities spec ctx)
+(define (make-sort-identities spec ctx)
   (define pairs (combinations (context-vars ctx) 2))
   (for/list ([pair (in-list pairs)]
-             ;; Can only swap same-repr variables
+             ;; Can only sort same-repr variables
              #:when (equal? (context-lookup ctx (first pair)) (context-lookup ctx (second pair)))
              #:when (has-fmin-fmax-impl? (context-lookup ctx (first pair))))
     (match-define (list a b) pair)
-    (cons `(swap ,a ,b) (replace-vars `((,a . ,b) (,b . ,a)) spec))))
+    (cons `(sort ,a ,b) (replace-vars `((,a . ,b) (,b . ,a)) spec))))
 
 ;; See https://pavpanchekha.com/blog/symmetric-expressions.html
 (define (find-preprocessing expr ctx)
@@ -66,8 +66,8 @@
   ;; identities
   (define even-identities (make-even-identities spec ctx))
   (define odd-identities (make-odd-identities spec ctx))
-  (define swap-identities (make-swap-identities spec ctx))
-  (define identities (append even-identities odd-identities swap-identities))
+  (define sort-identities (make-sort-identities spec ctx))
+  (define identities (append even-identities odd-identities sort-identities))
 
   ;; make egg runner
   (define rules (*sound-rules*))
@@ -78,8 +78,6 @@
                  (batch-roots batch)
                  (make-list (vector-length (batch-roots batch)) (context-repr ctx))
                  `((,rules . ((node . ,(*node-limit*)))))))
-
-  ;; TODO : FIGURE HOW TO IMPLEMENT PREPROCESS
 
   ;; collect equalities
   (define abs-instrs
@@ -92,27 +90,11 @@
                #:when (egraph-equal? runner spec spec*))
       ident))
 
-  (define swaps
-    (for/list ([(ident spec*) (in-dict swap-identities)]
-               #:when (egraph-equal? runner spec spec*))
-      (match-define (list 'swap a b) ident)
-      (list a b)))
-  (define components (connected-components (context-vars ctx) swaps))
   (define sort-instrs
-    (for/list ([component (in-list components)]
-               #:when (> (length component) 1))
-      (cons 'sort component)))
-
+    (for/list ([(ident spec*) (in-dict sort-identities)]
+               #:when (egraph-equal? runner spec spec*))
+      ident))
   (append abs-instrs negabs-instrs sort-instrs))
-
-(define (connected-components variables swaps)
-  (define components (disjoint-set (length variables)))
-  (for ([swap (in-list swaps)])
-    (match-define (list a b) swap)
-    (disjoint-set-union! components
-                         (disjoint-set-find! components (index-of variables a))
-                         (disjoint-set-find! components (index-of variables b))))
-  (group-by (compose (curry disjoint-set-find! components) (curry index-of variables)) variables))
 
 (define (preprocess-pcontext context pcontext preprocessing)
   (define preprocess
@@ -140,9 +122,9 @@
   (define variables (context-vars context))
   (define sort* (curryr sort (curryr </total (context-repr context))))
   (match instruction
-    [(list 'sort component ...)
-     (define indices (indexes-where variables (curry set-member? component)))
-     (define repr (context-lookup context (first component)))
+    [(list 'sort a b)
+     (define indices (indexes-where variables (curry set-member? (list a b))))
+     (define repr (context-lookup context a))
      (lambda (x y)
        (define subsequence (map (curry vector-ref x) indices))
        (define sorted (sort subsequence (curryr </total repr)))
@@ -199,7 +181,6 @@
      (define fmin (get-fpcore-impl 'fmin (repr->prop repr) (list repr repr)))
      (define fmax (get-fpcore-impl 'fmax (repr->prop repr) (list repr repr)))
      (replace-vars (list (cons a `(,fmin ,a ,b)) (cons b `(,fmax ,a ,b))) expression)]
-    [(list 'sort vars ...) #f]
     [(list 'abs var)
      (define repr (context-lookup context var))
      (define fabs (get-fpcore-impl 'fabs (repr->prop repr) (list repr)))
