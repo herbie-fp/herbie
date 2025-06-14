@@ -11,26 +11,17 @@
 (provide (struct-out literal)
          (struct-out approx)
          (struct-out hole)
-         variable?
-         constant-operator?
          operator-exists?
          operator-info
          all-operators
-
-         prog->spec
-
-         impl-exists?
          impl-info
          *functions*
          register-function!)
 
 (module+ internals
   (provide make-operator-impl
-           register-operator-impl!
            define-operator
-           register-operator!
-           ;define-constants
-           variable?))
+           register-operator!))
 
 (module+ test
   (require rackunit
@@ -192,8 +183,6 @@
 ;;
 (struct operator-impl (name ctx spec fpcore fl cost))
 
-(define operator-impls (make-hash))
-
 ;; Looks up a property `field` of an real operator `op`.
 ;; Panics if the operator is not found.
 (define/contract (impl-info impl field)
@@ -263,63 +252,6 @@
   (unless (equal? actual-ty otype)
     (type-error! spec actual-ty otype)))
 
-; Registers an operator implementation `name` with context `ctx` and spec `spec`.
-; Can optionally specify a floating-point implementation and fpcore translation.
-(define/contract (register-operator-impl! name
-                                          ctx
-                                          spec
-                                          #:fl [fl-proc #f]
-                                          #:fpcore [fpcore #f]
-                                          #:cost [cost #f])
-  (->* (symbol? context? any/c)
-       (#:fl (or/c procedure? #f) #:fpcore any/c #:cost (or/c #f real?))
-       operator-impl?)
-  ; check specification
-  (check-spec! name ctx spec)
-  (define vars (context-vars ctx))
-  ; synthesize operator (if the spec contains exactly one operator)
-  (define op
-    (match spec
-      [(list op (or (? number?) (? symbol?)) ...) op]
-      [_ #f]))
-  ; check or synthesize FPCore translation
-  (match fpcore
-    [`(! ,props ... (,op ,args ...))
-     (unless (even? (length props))
-       (error 'register-operator-impl! "~a: umatched property in ~a" name fpcore))
-     (unless (symbol? op)
-       (error 'register-operator-impl! "~a: expected symbol `~a`" name op))
-     (for ([arg (in-list args)]
-           #:unless (or (symbol? arg) (number? arg)))
-       (error 'register-operator-impl! "~a: expected terminal `~a`" name arg))]
-    [`(,op ,args ...)
-     (unless (symbol? op)
-       (error 'register-operator-impl! "~a: expected symbol `~a`" name op))
-     (for ([arg (in-list args)]
-           #:unless (or (symbol? arg) (number? arg)))
-       (error 'register-operator-impl! "~a: expected terminal `~a`" name arg))]
-    [_ (error 'register-operator-impl! "Invalid fpcore for ~a: ~a" name fpcore)])
-  ; check or synthesize floating-point operation
-  (define fl-proc*
-    (cond
-      [fl-proc ; provided => check arity
-       (unless (procedure-arity-includes? fl-proc (length vars) #t)
-         (error 'register-operator-impl!
-                "~a: procedure does not accept ~a arguments"
-                name
-                (length vars)))
-       fl-proc]
-      [else ; need to generate
-       (define compiler (make-real-compiler (list spec) (list ctx)))
-       (define fail ((representation-bf->repr (context-repr ctx)) +nan.bf))
-       (procedure-rename (lambda pt
-                           (define-values (_ exs) (real-apply compiler (list->vector pt)))
-                           (if exs
-                               (first exs)
-                               fail))
-                         name)]))
-  (operator-impl name ctx spec fpcore fl-proc* cost))
-
 (define-syntax (make-operator-impl stx)
   (define (oops! why [sub-stx #f])
     (raise-syntax-error 'make-operator-impl why stx sub-stx))
@@ -387,30 +319,6 @@
            [_ (oops! "bad syntax" fields)])))]
     [_ (oops! "bad syntax")]))
 
-#;(define-syntax-rule (define-constants repr [name impl-name value] ...)
-    (begin
-      (make-operator-impl (impl-name)
-                          repr
-                          #:spec (name)
-                          #:fl (const value)
-                          #:fpcore (! :precision repr name)) ...))
-
-;; Expression predicates ;;
-
-(define (impl-exists? op)
-  (hash-has-key? operator-impls op))
-
-(define (constant-operator? op)
-  (and (symbol? op)
-       (or (and (hash-has-key? operators op) (null? (operator-itype (hash-ref operators op))))
-           (and (hash-has-key? operator-impls op) (null? (impl-info op 'vars))))))
-
-(define (variable? var)
-  (and (symbol? var)
-       (or (not (hash-has-key? operators var))
-           (not (null? (operator-itype (hash-ref operators var)))))
-       (or (not (hash-has-key? operator-impls var)) (not (null? (impl-info var 'vars))))))
-
 ;; Floating-point expressions require that numbers
 ;; be rounded to a particular precision.
 (struct literal (value precision) #:prefab)
@@ -427,22 +335,3 @@
 
 (define (register-function! name args repr body) ;; Adds a function definition.
   (hash-set! (*functions*) name (list args repr body)))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; LImpl -> LSpec
-
-;; Translates an LImpl to a LSpec.
-(define (prog->spec expr)
-  (match expr
-    [(? literal?) (literal-value expr)]
-    [(? variable?) expr]
-    [(approx spec _) spec]
-    [`(if ,cond ,ift ,iff)
-     `(if ,(prog->spec cond)
-          ,(prog->spec ift)
-          ,(prog->spec iff))]
-    [`(,impl ,args ...)
-     (define vars (impl-info impl 'vars))
-     (define spec (impl-info impl 'spec))
-     (define env (map cons vars (map prog->spec args)))
-     (pattern-substitute spec env)]))

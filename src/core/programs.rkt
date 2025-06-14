@@ -2,7 +2,6 @@
 
 (require "../utils/common.rkt"
          "../syntax/syntax.rkt"
-         "../syntax/types.rkt"
          (only-in "batch.rkt" batch-nodes))
 
 (provide expr?

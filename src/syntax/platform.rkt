@@ -2,7 +2,7 @@
 
 (require "../utils/common.rkt"
          "../utils/errors.rkt"
-         "../core/programs.rkt"
+         ;"../core/programs.rkt"
          "../core/rules.rkt"
          "matcher.rkt"
          "syntax.rkt"
@@ -19,14 +19,24 @@
          platform-register-implementation!
          display-platform
 
+         ; from types.rkt
+         repr-exists?
+         get-representation
+
+         ; from syntax.rkt
+         prog->spec
+         impl-exists?
+         variable?
+         constant-operator?
+
          get-fpcore-impl
          ;; Platform API
          ;; Operator sets
          (contract-out ;; Platforms
           [platform? (-> any/c boolean?)]
           [platform-name (-> platform? any/c)]
-          [platform-reprs (-> platform? (listof representation?))]
-          #;[platform-impls (-> platform? (listof symbol?))]
+          [platform-reprs (-> platform? hash?)]
+          [platform-impls (-> platform? hash?)]
           #;[platform-union (-> platform? platform? ... platform?)]
           #;[platform-intersect (-> platform? platform? ... platform?)]
           #;[platform-subtract (-> platform? platform? ... platform?)]
@@ -34,8 +44,7 @@
           #;[platform-impl-cost (-> platform? any/c any/c)]
           #;[platform-repr-cost (-> platform? any/c any/c)]
           #;[platform-node-cost-proc (-> platform? procedure?)]
-          #;[platform-cost-proc (-> platform? procedure?)])
-         platform-impls)
+          #;[platform-cost-proc (-> platform? procedure?)]))
 
 (module+ internals
   (provide register-platform!))
@@ -145,20 +154,22 @@
     (printf "\n")))
 
 ;; Registers a platform under identifier `name`.
-(define (register-platform! pform)
-  (define name (platform-name pform))
+(define (register-platform! platform)
+  (define name (platform-name platform))
   (when (hash-has-key? platforms name)
     (error 'register-platform! "platform already registered ~a" name))
-  (hash-set! platforms name (struct-copy $platform pform [name name])))
+  (hash-set! platforms name (struct-copy $platform platform [name name]))
+  (display-platform platform))
 
 (define (make-empty-platform name #:if-cost [if-cost #f] #:default-cost [default-cost #f])
   (define reprs (make-hash))
   (define impls (make-hash))
+  (when (hash-has-key? platforms name)
+    (error 'make-empty-platform "platform with name ~a is already registered" name))
   (create-platform name if-cost default-cost reprs impls))
 
 (define (platform-register-representation! platform repr)
   (define reprs (platform-reprs platform))
-
   ; Cost check
   (define repr-cost (representation-cost repr))
   (define default-cost (platform-default-cost platform))
@@ -166,42 +177,109 @@
     (raise-herbie-error "Missing cost for representation ~a in platform ~a"
                         (representation-name repr)
                         (platform-name platform)))
-
   ; Duplicate check
   (when (hash-has-key? reprs (representation-name repr))
     (raise-herbie-error "Duplicate representation ~a in platform ~a"
                         (representation-name repr)
                         (platform-name platform)))
-
   ; Update table
   (hash-set! reprs (representation-name repr) repr))
 
 (define (platform-register-implementation! platform impl)
-  ; Reprs check
+  ; Unless implementation is missing (fabs.f32 on Windows, for example)
+  (unless (equal? impl #f)
+    ; Reprs check
+    (define reprs (platform-reprs platform))
+    (define otype (impl-info impl 'otype))
+    (define itype (impl-info impl 'itype))
+    (define impl-reprs (map representation-name (remove-duplicates (cons otype itype))))
+    (unless (andmap (curry hash-has-key? reprs) impl-reprs)
+      (raise-herbie-error "Platform ~a missing representation of ~a implementation"
+                          (platform-name platform)
+                          (impl-info impl 'name)))
+    ; Cost check
+    (define impl-cost (impl-info impl 'cost))
+    (define default-cost (platform-default-cost platform))
+    (unless (or impl-cost default-cost)
+      (raise-herbie-error "Missing cost for ~a" (impl-info impl 'name)))
+    ; Dupicate check
+    (define impls (platform-impls platform))
+    (when (hash-has-key? impls (impl-info impl 'name))
+      (raise-herbie-error "Impl ~a is already registered in platform ~a"
+                          (impl-info impl 'name)
+                          (platform-name platform)))
+    ; Update table
+    (hash-set! impls (impl-info impl 'name) impl)))
+
+(define (repr-exists? name)
+  (define platform (*active-platform*))
   (define reprs (platform-reprs platform))
-  (define otype (impl-info impl 'otype))
-  (define itype (impl-info impl 'itype))
-  (define impl-reprs (map representation-name (remove-duplicates (cons otype itype))))
-  (unless (andmap (curry hash-has-key? reprs) impl-reprs)
-    (raise-herbie-error "Platform ~a missing representation of ~a implementation"
-                        (platform-name platform)
-                        (impl-info impl 'name)))
+  (hash-has-key? reprs name))
 
-  ; Cost check
-  (define impl-cost (impl-info impl 'cost))
-  (define default-cost (platform-default-cost platform))
-  (unless (or impl-cost default-cost)
-    (raise-herbie-error "Missing cost for ~a" (impl-info impl 'name)))
+;; Returns the representation associated with `name`
+;; attempts to generate the repr if not initially found
+(define (get-representation name)
+  (define platform (*active-platform*))
+  (define reprs (platform-reprs platform))
+  (or (hash-ref reprs name #f)
+      (and (generate-repr name) (hash-ref reprs name #f))
+      (raise-herbie-error "Could not find support for ~a representation: ~a"
+                          name
+                          (string-join (map ~s (hash-keys reprs)) ", "))))
 
-  ; Dupicate check
-  (define impls (platform-impls platform))
-  (when (hash-has-key? impls (impl-info impl 'name))
-    (raise-herbie-error "Impl ~a is already registered in platform ~a"
-                        (impl-info impl 'name)
-                        (platform-name platform)))
+;; Queries each plugin to generate the representation
+(define (generate-repr repr-name)
+  (error "not implemented")
+  #;(or (hash-has-key? representations repr-name)
+        (for/or ([proc repr-generators])
+          ;; Check if a user accidently created an infinite loop in their plugin!
+          (when (and (eq? proc (*current-generator*)) (not (hash-has-key? representations repr-name)))
+            (raise-herbie-error
+             (string-append
+              "Tried to generate `~a` representation while generating the same representation. "
+              "Check your plugin to make sure you register your representation(s) "
+              "before calling `get-representation`!")
+             repr-name))
+          (parameterize ([*current-generator* proc])
+            (proc repr-name)))))
 
-  ; Update table
-  (hash-set! impls (impl-info impl 'name) impl))
+;; Expression predicates ;;
+
+(define (impl-exists? op)
+  (define platform (*active-platform*))
+  (define impls (platform-impls platforms))
+  (hash-has-key? impls op))
+
+(define (constant-operator? op)
+  (and (symbol? op)
+       (or (and (hash-has-key? (all-operators) op)
+                (null? (operator-info (hash-ref (all-operators) op) 'itype)))
+           (and (impl-exists? op) (null? (impl-info op 'vars))))))
+
+(define (variable? var)
+  (and (symbol? var)
+       (or (not (hash-has-key? (all-operators) var))
+           (not (null? (operator-info (hash-ref (all-operators) var) 'itype))))
+       (or (not (impl-exists? var)) (not (null? (impl-info var 'vars))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; LImpl -> LSpec
+
+;; Translates an LImpl to a LSpec.
+(define (prog->spec expr)
+  (match expr
+    [(? literal?) (literal-value expr)]
+    [(? variable?) expr]
+    [(approx spec _) spec]
+    [`(if ,cond ,ift ,iff)
+     `(if ,(prog->spec cond)
+          ,(prog->spec ift)
+          ,(prog->spec iff))]
+    [`(,impl ,args ...)
+     (define vars (impl-info impl 'vars))
+     (define spec (impl-info impl 'spec))
+     (define env (map cons vars (map prog->spec args)))
+     (pattern-substitute spec env)]))
 
 ;; Constructor procedure for platforms.
 ;; The platform is described by a list of implementations.

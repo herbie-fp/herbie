@@ -598,8 +598,6 @@
 
 (register-platform! herbie20-platform)
 
-(display-platform herbie20-platform)
-
 ;; Do not run this file during testing
 (module test racket/base
   )
