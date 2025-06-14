@@ -155,93 +155,15 @@
       (core->tex prog* #:loc (and loc (cons 2 loc)) #:color "blue")
       "ERROR"))
 
-(define (combine-fpcore-instruction i e c)
-  (match i
-    [(list 'abs x)
-     (define x* (string->symbol (string-append (symbol->string x) "_m")))
-     (define e* (replace-expression e x x*))
-     (define p (index-of (context-vars c) x))
-     (define c* (struct-copy context c [vars (list-set (context-vars c) p x*)]))
-     (cons e* c*)]
-    [(list 'negabs x)
-     (define x-string (symbol->string x))
-     (define x-sign (string->symbol (string-append x-string "_s")))
-     (define x* (string->symbol (string-append x-string "_m")))
-     (define p (index-of (context-vars c) x))
-     (define r (list-ref (context-var-reprs c) p))
-     (define c* (struct-copy context c [vars (list-set (context-vars c) p x*)]))
-     (define c** (context-extend c* x-sign r))
-     (define *-impl (get-fpcore-impl '* (repr->prop (context-repr c)) (list r (context-repr c))))
-     (define e* (list *-impl x-sign (replace-expression e x x*)))
-     (cons e* c**)]
-    [_ (cons e c)]))
-
-(define (format-prelude-instruction instruction ctx ctx* language converter)
-  (define (converter* e c)
-    (define fpcore (program->fpcore e c))
-    (define output (converter fpcore "code"))
-    (define lines (string-split output "\n"))
-    (match language
-      ["FPCore" (pretty-format e #:mode 'display)]
-      ["Fortran" (string-trim (third lines) #px"\\s+code\\s+=\\s+")]
-      ["MATLAB" (string-trim (second lines) #px"\\s+tmp\\s+=\\s+")]
-      ["Wolfram" (string-trim (first lines) #px".*:=\\s+")]
-      ["TeX" output]
-      [_ (string-trim (second lines) #px"\\s+return\\s+")]))
-  (match instruction
-    [(list 'sort vs ...) (list (format-sort-instruction vs language))]))
-
-(define (format-sort-instruction vs l)
-  (match l
-    ["C" (format "assert(~a);" (format-less-than-condition vs))]
-    ["Java" (format "assert ~a;" (format-less-than-condition vs))]
-    ["Python"
-     (define comma-joined (comma-join vs))
-     (format "[~a] = sort([~a])" comma-joined comma-joined)]
-    ["Julia"
-     (define comma-joined (comma-join vs))
-     (format "~a = sort([~a])" comma-joined comma-joined)]
-    ["MATLAB"
-     (define comma-joined (comma-join vs))
-     (format "~a = num2cell(sort([~a])){:}" comma-joined comma-joined)]
-    ["TeX"
-     (define comma-joined (comma-join vs))
-     (format "[~a] = \\mathsf{sort}([~a])\\\\" comma-joined comma-joined)]
-    [_
-     (match vs
-       [(list x y) (format sort-note (format "~a and ~a" x y))]
-       [(list vs ...)
-        (format sort-note
-                (string-join (map ~a vs)
-                             ", "
-                             ;; "Lil Jon, he always tells the truth"
-                             #:before-last ", and "))])]))
-
-(define (format-less-than-condition variables)
-  (string-join (for/list ([a (in-list variables)]
-                          [b (in-list (cdr variables))])
-                 (format "~a < ~a" a b))
-               " && "))
-
-(define (comma-join vs)
-  (string-join (map ~a vs) ", "))
-
-(define sort-note "NOTE: ~a should be sorted in increasing order before calling this function.")
-
 (define (render-program expr
                         ctx
                         #:ident [identifier #f]
                         #:pre [precondition '(TRUE)]
                         #:instructions [instructions empty])
   (define output-repr (context-repr ctx))
-  (match-define (cons expr* ctx*)
-    (foldl (match-lambda*
-             [(list i (cons e c)) (combine-fpcore-instruction i e c)])
-           (cons expr ctx)
-           instructions))
   (define out-prog
     (parameterize ([*expr-cse-able?* at-least-two-ops?])
-      (core-cse (program->fpcore expr* ctx* #:ident identifier))))
+      (core-cse (program->fpcore expr ctx #:ident identifier))))
 
   (define output-prec (representation-name output-repr))
   (define out-prog* (fpcore-add-props out-prog (list ':precision output-prec)))
@@ -257,19 +179,7 @@
                     (symbol->string identifier)
                     "code"))
               (define out (converter out-prog* name))
-              (define prelude-lines
-                (string-join
-                 (append-map (lambda (instruction)
-                               (format-prelude-instruction instruction ctx ctx* lang converter))
-                             instructions)
-                 (if (equal? lang "TeX") "\\\\\n" "\n")
-                 #:after-last "\n"))
-              (sow (cons lang
-                         ((if (equal? lang "TeX")
-                              (curry format "\\begin{array}{l}\n~a\\\\\n~a\\end{array}\n")
-                              string-append)
-                          prelude-lines
-                          out)))))))
+              (sow (cons lang out))))))
 
   (define math-out (dict-ref versions "TeX" ""))
 
