@@ -58,8 +58,7 @@
   (define useful-preprocessing
     (remove-unnecessary-preprocessing expr context pcontext initial-preprocessing))
   (define expr*
-    (for/fold ([expr expr])
-              ([preprocessing (in-list (reverse useful-preprocessing))])
+    (for/fold ([expr expr]) ([preprocessing (in-list (reverse useful-preprocessing))])
       (compile-preprocessing expr context preprocessing)))
   (alt expr* 'add-preprocessing (list altn) '()))
 
