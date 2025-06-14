@@ -144,7 +144,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Public API ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define (generate-candidates exprs)
+(define (generate-candidates exprs iter)
   ; Batch to where we will extract everything
   ; Roots of this batch are constantly updated
   (define global-batch (progs->batch exprs))
@@ -156,7 +156,7 @@
 
   ; Series expand
   (define approximations
-    (if (flag-set? 'generate 'taylor)
+    (if (and (flag-set? 'generate 'taylor) (equal? iter (- (*num-iterations*) 1)))
         (run-taylor start-altns global-batch)
         '()))
 
