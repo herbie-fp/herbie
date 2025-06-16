@@ -7,12 +7,10 @@
 (provide (rename-out [timeline-push! timeline-push!/unsafe] [timeline-start! timeline-start!/unsafe])
          (contract-out (timeline-event! (symbol? . -> . void?))
                        (timeline-push! (symbol? jsexpr? ... . -> . void?))
-                       (timeline-adjust! (symbol? symbol? jsexpr? ... . -> . void?))
                        (timeline-start! (symbol? jsexpr? ... . -> . (-> void?))))
          timeline-load!
          timeline-extract
          timeline-merge
-         timeline-relink
          *timeline-disabled*)
 (module+ debug
   (provide *timeline*))
@@ -73,14 +71,6 @@
                        '()))
        (set! *timeline-active-key* key)
        (set! *timeline-active-value* (list val))])))
-
-(define (timeline-adjust! type key . values)
-  (unless (*timeline-disabled*)
-    (for/first ([cell (unbox (*timeline*))]
-                #:when (equal? (hash-ref cell 'type) (~a type)))
-      (hash-set! cell key values)
-      true)
-    (void)))
 
 (define *timeline-1st-timer* #f)
 (define *timeline-2nd-timer* #f)
@@ -144,13 +134,6 @@
              (hash-update! evt* 'gc-time (λ (v) (- (hash-ref next 'gc-time) v)))
              (hash-update! evt* 'memory (λ (v) (diff-memory-records (hash-ref next 'memory) v)))
              evt*)))
-
-(define (timeline-relink link timeline)
-  (for/list ([event (in-list timeline)])
-    (for/hasheq ([(k v) (in-hash event)])
-      (if (equal? k 'link)
-          (values k (map (λ (p) (path->string (build-path link p))) v))
-          (values k v)))))
 
 (define timeline-types (make-hasheq))
 

@@ -221,14 +221,12 @@
       `((dt ,name) (dd ,@(map (lambda (s) `(p ,(~a s))) (first info))))
       empty))
 
-(define (render-phase-accuracy accuracy oracle baseline name link repr-name)
+(define (render-phase-accuracy accuracy oracle baseline repr-name)
   (define rows
     (sort (for/list ([acc accuracy]
                      [ora oracle]
-                     [bas baseline]
-                     [name name]
-                     [link link])
-            (list (- acc ora) (- bas acc) link name))
+                     [bas baseline])
+            (list (- acc ora) (- bas acc)))
           >
           #:key first))
 
@@ -252,11 +250,9 @@
                                  `((table ((class "times"))
                                           ,@(for/list ([rec (in-list rows)]
                                                        [_ (in-range 5)])
-                                              (match-define (list left gained link name) rec)
+                                              (match-define (list left gained) rec)
                                               `(tr (td ,(format-bits left #:unit #t))
-                                                   (td ,(format-percent gained (+ left gained)))
-                                                   (td (a ([href ,(format "~a/graph.html" link)])
-                                                          ,(or name "")))))))
+                                                   (td ,(format-percent gained (+ left gained)))))))
                                  '())))))
 
 (define (render-phase-pruning kept-data)
