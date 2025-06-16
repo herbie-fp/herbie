@@ -40,7 +40,40 @@
                        branches)]
         [dump . ()]))
 
-(define (check-flag-deprecated! category flag)
+(define (flag-deprecated? category flag)
+  (match* (category flag)
+    [('precision 'double) #t]
+    [('precision 'fallback) #t]
+    [('setup 'simplify) #t]
+    [('generate 'better-rr) #t]
+    [('generate 'simplify) #t]
+    [('reduce 'simplify) #t]
+    [('reduce 'avg-error) #t]
+    [('localize 'costs) #t]
+    [('localize 'errors) #t]
+    [(_ _) #f]))
+
+; `hash-copy` returns a mutable hash, which makes `dict-update` invalid
+(define *flags* (make-parameter (make-immutable-hash (hash->list default-flags))))
+
+(define (flag-set? class flag)
+  (set-member? (dict-ref (*flags*) class) flag))
+
+(define (enable-flag! category flag)
+  (when (flag-deprecated? category flag)
+    (warn-flag-deprecated! category flag))
+  (define (update cat-flags)
+    (set-add cat-flags flag))
+  (*flags* (dict-update (*flags*) category update)))
+
+(define (disable-flag! category flag)
+  (when (flag-deprecated? category flag)
+    (warn-flag-deprecated! category flag))
+  (define (update cat-flags)
+    (set-remove cat-flags flag))
+  (*flags* (dict-update (*flags*) category update)))
+
+(define (warn-flag-deprecated! category flag)
   (match* (category flag)
     [('precision 'double)
      (eprintf "The precision:double option has been removed.\n")
@@ -79,31 +112,6 @@
      (eprintf "  Herbie no longer performs localization.\n")
      (eprintf "See <herbie://herbie.uwplse.org/doc/~a/options.html> for more.\n" *herbie-version*)]
     [(_ _) (void)]))
-
-(define (enable-flag! category flag)
-  (check-flag-deprecated! category flag)
-  (define (update cat-flags)
-    (set-add cat-flags flag))
-  (*flags* (dict-update (*flags*) category update)))
-
-(define (disable-flag! category flag)
-  (check-flag-deprecated! category flag)
-  (define (update cat-flags)
-    (set-remove cat-flags flag))
-  (*flags* (dict-update (*flags*) category update)))
-
-(define (flag-set? class flag)
-  (set-member? (dict-ref (*flags*) class) flag))
-
-(define (flag-deprecated? category flag)
-  (match* (category flag)
-    [('precision 'double) #t]
-    [('precision 'fallback) #t]
-    [('generate 'better-rr) #t]
-    [(_ _) #f]))
-
-; `hash-copy` returns a mutable hash, which makes `dict-update` invalid
-(define *flags* (make-parameter (make-immutable-hash (hash->list default-flags))))
 
 (define (changed-flags)
   (filter identity
