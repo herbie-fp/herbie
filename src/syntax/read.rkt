@@ -26,7 +26,6 @@
               expected
               spec
               pre
-              preprocess
               output-repr-name
               var-repr-names)
   #:prefab)
@@ -216,7 +215,6 @@
         (dict-ref prop-dict ':herbie-expected #t)
         spec
         pre*
-        (dict-ref prop-dict ':herbie-preprocess empty)
         (representation-name default-repr)
         (for/list ([var (in-list var-names)]
                    [repr (in-list var-reprs)])

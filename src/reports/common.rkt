@@ -155,11 +155,7 @@
       (core->tex prog* #:loc (and loc (cons 2 loc)) #:color "blue")
       "ERROR"))
 
-(define (render-program expr
-                        ctx
-                        #:ident [identifier #f]
-                        #:pre [precondition '(TRUE)]
-                        #:instructions [instructions empty])
+(define (render-program expr ctx #:ident [identifier #f] #:pre [precondition '(TRUE)])
   (define output-repr (context-repr ctx))
   (define out-prog
     (parameterize ([*expr-cse-able?* at-least-two-ops?])

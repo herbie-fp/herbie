@@ -31,7 +31,6 @@
         (table-row-target-prog row)
         (fpcore->prog (table-row-spec row) ctx)
         (fpcore->prog (table-row-pre row) ctx)
-        (table-row-preprocess row)
         (representation-name repr)
         (for/list ([(k v) (in-dict var-reprs)])
           (cons k (representation-name v)))
