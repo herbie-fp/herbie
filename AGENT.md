@@ -18,4 +18,4 @@
   paragraphs in length. For all but the most trivial fixes, describe
   the current behavior and why you changed it.
 - Be explicit about the expected impact: "should be faster", "should
-  be more accurate", "pure refactor, not changes", and so on.
+  be more accurate", "pure refactor, no changes", and so on.
