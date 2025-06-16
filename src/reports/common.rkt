@@ -31,7 +31,6 @@
          render-comparison
          render-specification
          render-program
-         render-bogosity
          render-help
          render-reproduction
          format-percent
@@ -247,18 +246,6 @@
                        [(negative? num) "-∞"])
                      (~r (* (/ num den) 100) #:precision '(= 1)))
                  "%"))
-
-(define (render-bogosity domain-info)
-  (define total (round (apply + (hash-values domain-info))))
-  (define tags '(valid unknown infinite unsamplable invalid precondition))
-  `(div ((class "bogosity"))
-        ,@(for/list ([tag tags])
-            (define pct (format-percent (hash-ref domain-info tag 0) total))
-            `(div ((class ,(format "bogosity-~a" tag)) [data-id ,(format "bogosity-~a" tag)]
-                                                       [data-type ,(~a tag)]
-                                                       [data-timespan
-                                                        ,(~a (hash-ref domain-info tag 0))]
-                                                       [title ,(format "~a (~a)" tag pct)])))))
 
 (define/contract (render-reproduction test #:bug? [bug? #f])
   (->* (test?) (#:bug? boolean?) xexpr?)
