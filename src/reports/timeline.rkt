@@ -55,7 +55,8 @@
 
 (define/contract (render-phase curr n total-time)
   (-> timeline-phase? integer? real? xexpr?)
-  (match-define (dict 'time time 'type type) curr)
+  (define time (dict-ref curr 'time))
+  (define type (dict-ref curr 'type))
 
   `(div ((class ,(format "timeline-block timeline-~a" type)) [id ,(format "timeline~a" n)])
         (h3 (a ([href ,(format "#timeline~a" n)]) ,(~a type))

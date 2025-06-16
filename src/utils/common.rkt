@@ -12,7 +12,6 @@
          get-seed
          set-seed!
          quasisyntax
-         dict
          sym-append
          format-time
          format-bits
@@ -101,13 +100,6 @@
                         [a #'(quasisyntax a)]))])
          #`(app syntax-e #,(datum->syntax stx (cons #'list parts))))]
       [(_ a) #'(app syntax-e 'a)])))
-
-(define-match-expander dict
-  (λ (stx)
-    (syntax-case stx (quote)
-      [(_) #'(? dict?)]
-      [(dict 'x y rest ...)
-       #'(and (dict rest ...) (? (curryr dict-has-key? 'x)) (app (curryr dict-ref 'x) y))])))
 
 ;; String formatting operations
 
