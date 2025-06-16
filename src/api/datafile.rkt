@@ -35,8 +35,7 @@
   #:prefab)
 
 (struct report-info (date commit branch seed flags points iterations tests merged-cost-accuracy)
-  #:prefab
-  #:mutable)
+  #:prefab)
 
 (define (make-report-info tests #:seed [seed #f])
   (report-info (current-date)
