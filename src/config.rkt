@@ -130,8 +130,6 @@
 ;; The maximum number of consecutive skipped points for sampling valid points
 (define *max-skipped-points* (make-parameter 100))
 
-(define *max-bsearch-bits* (make-parameter 48))
-
 ;; Maximum MPFR precision allowed during exact evaluation
 (define *max-mpfr-prec* (make-parameter 10000))
 
@@ -139,9 +137,6 @@
 (define *node-limit* (make-parameter 4000))
 (define *proof-max-length* (make-parameter 200))
 (define *proof-max-string-length* (make-parameter 10000))
-
-;; In localization, the maximum number of locations returned
-(define *localize-expressions-limit* (make-parameter 4))
 
 ;; How long of a Taylor series to generate; too long and we time out
 (define *taylor-order-limit* (make-parameter 4))

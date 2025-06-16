@@ -69,7 +69,7 @@
 ;; Invariant: (pred p1) and (not (pred p2))
 (define (binary-search-floats pred p1 p2 repr)
   (cond
-    [(<= (ulps->bits (ulp-difference p1 p2 repr)) (*max-bsearch-bits*))
+    [(<= (ulps->bits (ulp-difference p1 p2 repr)) (*binary-search-accuracy*))
      (timeline-push! 'stop "narrow-enough" 1)
      (values p1 p2)]
     [else
