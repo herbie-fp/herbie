@@ -21,8 +21,7 @@
 (define (alt-map f altn)
   (f (struct-copy alt altn [prevs (map (curry alt-map f) (alt-prevs altn))])))
 
-;; A useful parameter for many of Herbie's subsystems, though
-;; ultimately one that should be located somewhere else or perhaps
-;; exorcised
+;; A useful parameter for regimes/bsearch
+;; TODO: should be the spec, not initial program, and ideally not a global
 
 (define *start-prog* (make-parameter #f))
