@@ -28,7 +28,6 @@
 (provide run-herbie
          get-table-data-from-hash
          *reeval-pts*
-         *timeout*
          (struct-out job-result)
          (struct-out improve-result)
          (struct-out alt-analysis))
