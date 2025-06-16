@@ -3,25 +3,16 @@
 (require "../syntax/platform.rkt")
 (provide (struct-out alt)
          make-alt
-         alt?
-         alt-expr
-         alt-add-event
          *start-prog*
          alt-cost
          alt-map)
 
-;; Alts are a lightweight audit trail.
-;; An alt records a low-level view of how Herbie got
-;; from one program to another.
-;; They are a labeled linked list of changes.
+;; Alts are an expression plus a derivation for it.
 
 (struct alt (expr event prevs preprocessing) #:prefab)
 
 (define (make-alt expr)
   (alt expr 'start '() '()))
-
-(define (alt-add-event altn event)
-  (alt (alt-expr altn) event (list altn) (alt-preprocessing altn)))
 
 (define (alt-cost altn repr)
   (define expr-cost (platform-cost-proc (*active-platform*)))
