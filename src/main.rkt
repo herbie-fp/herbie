@@ -1,7 +1,7 @@
 #lang racket
 
 (require racket/lazy-require)
-(require "utils/common.rkt"
+(require "config.rkt"
          "utils/multi-command-line.rkt"
          "utils/errors.rkt"
          "syntax/load-plugin.rkt"
