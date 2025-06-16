@@ -7,9 +7,7 @@
          alt-expr
          alt-add-event
          *start-prog*
-         *all-alts*
          alt-cost
-         alt-equal?
          alt-map)
 
 ;; Alts are a lightweight audit trail.
@@ -21,9 +19,6 @@
 
 (define (make-alt expr)
   (alt expr 'start '() '()))
-
-(define (alt-equal? x y)
-  (equal? (alt-expr x) (alt-expr y)))
 
 (define (alt-add-event altn event)
   (alt (alt-expr altn) event (list altn) (alt-preprocessing altn)))
@@ -40,4 +35,3 @@
 ;; exorcised
 
 (define *start-prog* (make-parameter #f))
-(define *all-alts* (make-parameter '()))

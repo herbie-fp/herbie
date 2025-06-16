@@ -121,7 +121,7 @@
     [(< (length altns) (*pareto-pick-limit*)) altns] ; take max
     [else
      (define best (argmin score-alt altns))
-     (define altns* (sort (filter-not (curry alt-equal? best) altns) < #:key (curryr alt-cost repr)))
+     (define altns* (sort (set-remove altns best) < #:key (curryr alt-cost repr)))
      (define simplest (car altns*))
      (define altns** (cdr altns*))
      (define div-size (round (/ (length altns**) (- (*pareto-pick-limit*) 1))))
