@@ -178,6 +178,20 @@
 ;; The number of iterations for the egglog search
 (define *default-egglog-iter-limit* (make-parameter 50))
 
+;;; The random seed
+
+(define the-seed #f)
+
+(define (get-seed)
+  (or the-seed (error "Seed is not set yet!")))
+
+(define (set-seed! seed)
+  "Reset the random number generator to a new seed"
+  (set! the-seed seed)
+  (if (vector? seed)
+      (current-pseudo-random-generator (vector->pseudo-random-generator seed))
+      (random-seed seed)))
+
 ;;; About Herbie:
 
 (define (run-command cmd)

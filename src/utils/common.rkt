@@ -64,20 +64,6 @@
 (define (find-duplicates l)
   (map car (filter (compose pair? rest) (group-by identity l))))
 
-;; Miscellaneous helper
-
-(define the-seed #f)
-
-(define (get-seed)
-  (or the-seed (error "Seed is not set yet!")))
-
-(define (set-seed! seed)
-  "Reset the random number generator to a new seed"
-  (set! the-seed seed)
-  (if (vector? seed)
-      (current-pseudo-random-generator (vector->pseudo-random-generator seed))
-      (random-seed seed)))
-
 ;; Matching support for syntax objects.
 
 ;; Begin the match with a #`
