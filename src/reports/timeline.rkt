@@ -71,8 +71,8 @@
             ,@(dict-call curr render-phase-counts 'count)
             ,@(dict-call curr render-phase-alts 'alts)
             ,@(dict-call curr render-phase-inputs 'inputs 'outputs)
-            ,@(dict-call curr render-phase-times #:extra n 'times)
-            ,@(dict-call curr render-phase-series #:extra n 'series)
+            ,@(dict-call curr render-phase-times 'times)
+            ,@(dict-call curr render-phase-series 'series)
             ,@(dict-call curr render-phase-bstep 'bstep)
             ,@(dict-call curr render-phase-branches 'branch)
             ,@(dict-call curr render-phase-sampling 'sampling)
@@ -82,15 +82,16 @@
             ,@(dict-call curr render-phase-mixed-sampling 'mixsample)
             ,@(dict-call curr render-phase-bogosity 'bogosity))))
 
-(define (if-cons test x l)
-  (if test
-      (cons x l)
-      l))
+(define/reset id-counter 0)
 
-(define (dict-call d f #:default [default '()] #:extra [extra (void)] . args)
+(define (make-id)
+  (id-counter (+ 1 (id-counter)))
+  (id-counter))
+
+(define (dict-call d f . args)
   (if (andmap (curry dict-has-key? d) args)
-      (apply f (if-cons (not (void? extra)) extra (map (curry dict-ref d) args)))
-      default))
+      (apply f (map (curry dict-ref d) args))
+      '()))
 
 (define (render-phase-algorithm algorithm)
   `((dt "Algorithm")
@@ -322,10 +323,10 @@
                          (td ,(format-accuracy score (representation-total-bits repr) #:unit "%") "")
                          (td (pre ,expr)))))))))
 
-(define (render-phase-times n times)
+(define (render-phase-times times)
   `((dt "Calls")
     (dd (p ,(~r (length times) #:group-sep " ") " calls:")
-        (canvas ([id ,(format "calls-~a" n)]
+        (canvas ([id ,(format "calls-~a" (make-id))]
                  [title
                   "Weighted histogram; height corresponds to percentage of runtime in that bucket."]))
         (script "histogram(\"" ,(format "calls-~a" n) "\", " ,(jsexpr->string (map first times)) ")")
@@ -335,10 +336,10 @@
                    (match-define (list time expr) rec)
                    `(tr (td ,(format-time time)) (td (pre ,(~a expr)))))))))
 
-(define (render-phase-series n times)
+(define (render-phase-series times)
   `((dt "Calls")
     (dd (p ,(~a (length times)) " calls:")
-        (canvas ([id ,(format "calls-~a" n)]
+        (canvas ([id ,(format "calls-~a" (make-id))]
                  [title
                   "Weighted histogram; height corresponds to percentage of runtime in that bucket."]))
         (script "histogram(\"" ,(format "calls-~a" n) "\", " ,(jsexpr->string (map first times)) ")")
