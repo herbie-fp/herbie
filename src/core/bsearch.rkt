@@ -151,7 +151,7 @@
   (define (left-point p1 p2)
     (define left ((representation-repr->bf repr) p1))
     (define right ((representation-repr->bf repr) p2))
-    (define out
+    (define out ; TODO: Try using bigfloat-pick-point here?
       (if (bfnegative? left)
           (bigfloat-interval-shortest left (bfmin (bf/ left 2.bf) right))
           (bigfloat-interval-shortest left (bfmin (bf* left 2.bf) right))))
