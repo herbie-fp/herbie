@@ -204,7 +204,6 @@
 (define-timeline memory [live +] [alloc +])
 (define-timeline method [method])
 (define-timeline mixsample [time +] [function false] [precision false])
-(define-timeline rules [rule false] [count +])
 (define-timeline times [time +] [input false])
 (define-timeline series [time +] [var false] [transform false])
 (define-timeline compiler [before +] [after +])
@@ -219,26 +218,12 @@
 (define-timeline sampling #:custom merge-sampling-tables)
 (define-timeline bogosity #:custom (λ (x y) (list (hash-union (car x) (car y) #:combine +))))
 (define-timeline symmetry #:unmergable)
-(define-timeline remove-preprocessing #:unmergable)
-(define-timeline locations #:unmergable)
 (define-timeline bstep #:unmergable)
 (define-timeline kept #:unmergable)
 (define-timeline min-error #:unmergable)
 (define-timeline egraph #:unmergable)
 (define-timeline stop [reason false] [count +])
 (define-timeline branch #:unmergable)
-(define-timeline explanations
-                 [op false]
-                 [expr (const #f)]
-                 [expl false]
-                 [count +]
-                 [mcount +]
-                 [flows (const #f)]
-                 [locations (const #f)])
-(define-timeline confusion #:custom (λ (x y) (list (map + (car x) (car y)))))
-(define-timeline total-confusion #:custom (λ (x y) (list (map + (car x) (car y)))))
-(define-timeline maybe-confusion #:custom (λ (x y) (list (map + (car x) (car y)))))
-(define-timeline freqs [key false] [val +])
 
 (define (timeline-merge . timelines)
   ;; The timelines in this case are JSON objects, as above
