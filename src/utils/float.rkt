@@ -55,8 +55,7 @@
 (define (=/total x1 x2 repr)
   (define ->ordinal (representation-repr->ordinal repr))
   (define special? (representation-special-value? repr))
-  (or (= (->ordinal x1) (->ordinal x2))
-      (and (special? x1) (special? x2))))
+  (or (= (->ordinal x1) (->ordinal x2)) (and (special? x1) (special? x2))))
 
 (define (</total x1 x2 repr)
   (define special? (representation-special-value? repr))
