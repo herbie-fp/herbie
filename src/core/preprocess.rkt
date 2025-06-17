@@ -164,7 +164,7 @@
     [(< (length result) (length preprocessing))
      (remove-unnecessary-preprocessing expression context pcontext result #:removed newly-removed)]
     [else
-     (timeline-push! 'remove-preprocessing (map ~a newly-removed))
+     (timeline-push! 'symmetry (map ~a result))
      result]))
 
 (define (preprocessing-<=? expression context pcontext preprocessing1 preprocessing2)

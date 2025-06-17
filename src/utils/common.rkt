@@ -12,7 +12,6 @@
          get-seed
          set-seed!
          quasisyntax
-         dict
          sym-append
          format-time
          format-bits
@@ -65,20 +64,6 @@
 (define (find-duplicates l)
   (map car (filter (compose pair? rest) (group-by identity l))))
 
-;; Miscellaneous helper
-
-(define the-seed #f)
-
-(define (get-seed)
-  (or the-seed (error "Seed is not set yet!")))
-
-(define (set-seed! seed)
-  "Reset the random number generator to a new seed"
-  (set! the-seed seed)
-  (if (vector? seed)
-      (current-pseudo-random-generator (vector->pseudo-random-generator seed))
-      (random-seed seed)))
-
 ;; Matching support for syntax objects.
 
 ;; Begin the match with a #`
@@ -101,13 +86,6 @@
                         [a #'(quasisyntax a)]))])
          #`(app syntax-e #,(datum->syntax stx (cons #'list parts))))]
       [(_ a) #'(app syntax-e 'a)])))
-
-(define-match-expander dict
-  (λ (stx)
-    (syntax-case stx (quote)
-      [(_) #'(? dict?)]
-      [(dict 'x y rest ...)
-       #'(and (dict rest ...) (? (curryr dict-has-key? 'x)) (app (curryr dict-ref 'x) y))])))
 
 ;; String formatting operations
 

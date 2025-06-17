@@ -28,7 +28,6 @@
 (provide run-herbie
          get-table-data-from-hash
          *reeval-pts*
-         *timeout*
          (struct-out job-result)
          (struct-out improve-result)
          (struct-out alt-analysis))
@@ -91,10 +90,6 @@
   (define end-exprs (map (compose alt-expr car) sorted-end-exprs))
   (define end-errs (map cdr sorted-end-exprs))
   (define end-data (map alt-analysis alternatives end-errs))
-
-  ;; bundle up the result
-  (timeline-adjust! 'regimes 'name (test-name test))
-  (timeline-adjust! 'regimes 'link ".")
 
   (improve-result preprocessing test-pcontext* start-alt-data target-alt-data end-data))
 

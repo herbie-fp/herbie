@@ -35,8 +35,7 @@
   #:prefab)
 
 (struct report-info (date commit branch seed flags points iterations tests merged-cost-accuracy)
-  #:prefab
-  #:mutable)
+  #:prefab)
 
 (define (make-report-info tests #:seed [seed #f])
   (report-info (current-date)
@@ -228,9 +227,6 @@
                               cost-accuracy)))
                (hash-ref json 'merged-cost-accuracy null)))
 
-(define (unique? a)
-  (or (null? a) (andmap (curry equal? (car a)) (cdr a))))
-
 (define (merge-datafiles dfs #:dirs [dirs #f])
   (when (null? dfs)
     (error 'merge-datafiles "Cannot merge no datafiles"))
@@ -239,7 +235,7 @@
                           report-info-flags
                           report-info-points
                           report-info-iterations))]
-        #:unless (unique? (map f dfs)))
+        #:unless (<= (set-count (list->set (map f dfs))) 1))
     (error 'merge-datafiles "Cannot merge datafiles at different ~a" f))
   (unless dirs
     (set! dirs (map (const #f) dfs)))

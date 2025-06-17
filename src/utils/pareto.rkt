@@ -3,8 +3,6 @@
 (provide (struct-out pareto-point)
          pareto-map
          pareto-union
-         pareto-minimize
-         pareto-convex
          pareto-combine)
 
 (struct pareto-point (cost error data) #:prefab)
