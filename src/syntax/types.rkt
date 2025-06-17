@@ -3,15 +3,13 @@
 (require "../utils/common.rkt"
          "../utils/errors.rkt")
 
-(provide type-name?
-         (struct-out representation)
+(provide (struct-out representation)
          get-representation
          repr-exists?
          repr->prop
          (struct-out context)
          *context*
          context-extend
-         context-append
          context-lookup)
 
 (module+ internals
@@ -127,12 +125,6 @@
                ctx
                [vars (cons var (context-vars ctx))]
                [var-reprs (cons repr (context-var-reprs ctx))]))
-
-(define (context-append ctx var repr)
-  (struct-copy context
-               ctx
-               [vars (append (context-vars ctx) (list var))]
-               [var-reprs (append (context-var-reprs ctx) (list repr))]))
 
 (define (context-lookup ctx var)
   (dict-ref (map cons (context-vars ctx) (context-var-reprs ctx)) var))

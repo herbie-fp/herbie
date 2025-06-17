@@ -164,7 +164,7 @@
     [(< (length result) (length preprocessing))
      (remove-unnecessary-preprocessing expression context pcontext result #:removed newly-removed)]
     [else
-     (timeline-push! 'remove-preprocessing (map ~a newly-removed))
+     (timeline-push! 'symmetry (map ~a result))
      result]))
 
 (define (preprocessing-<=? expression context pcontext preprocessing1 preprocessing2)
@@ -180,16 +180,16 @@
      (define repr (context-lookup context a))
      (define fmin (get-fpcore-impl 'fmin (repr->prop repr) (list repr repr)))
      (define fmax (get-fpcore-impl 'fmax (repr->prop repr) (list repr repr)))
-     (replace-vars (list (cons a `(,fmin ,a ,b)) (cons b `(,fmax ,a ,b))) expression)]
+     (replace-vars (list (cons a (list fmin a b)) (cons b (list fmax a b))) expression)]
     [(list 'abs var)
      (define repr (context-lookup context var))
      (define fabs (get-fpcore-impl 'fabs (repr->prop repr) (list repr)))
-     (define replacement `(,fabs ,var))
+     (define replacement (list fabs var))
      (replace-expression expression var replacement)]
     [(list 'negabs var)
      (define repr (context-lookup context var))
      (define fabs (get-fpcore-impl 'fabs (repr->prop repr) (list repr)))
-     (define replacement `(,fabs ,var))
+     (define replacement (list fabs var))
      (define mul (get-fpcore-impl '* (repr->prop repr) (list repr repr)))
      (define copysign (get-fpcore-impl 'copysign (repr->prop repr) (list repr repr)))
      `(,mul (,copysign ,(literal 1 (representation-name repr)) ,var)

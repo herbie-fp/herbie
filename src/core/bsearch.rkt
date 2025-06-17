@@ -69,7 +69,7 @@
 ;; Invariant: (pred p1) and (not (pred p2))
 (define (binary-search-floats pred p1 p2 repr)
   (cond
-    [(<= (ulps->bits (ulp-difference p1 p2 repr)) (*max-bsearch-bits*))
+    [(<= (ulps->bits (ulp-difference p1 p2 repr)) (*binary-search-accuracy*))
      (timeline-push! 'stop "narrow-enough" 1)
      (values p1 p2)]
     [else
@@ -151,7 +151,7 @@
   (define (left-point p1 p2)
     (define left ((representation-repr->bf repr) p1))
     (define right ((representation-repr->bf repr) p2))
-    (define out
+    (define out ; TODO: Try using bigfloat-pick-point here?
       (if (bfnegative? left)
           (bigfloat-interval-shortest left (bfmin (bf/ left 2.bf) right))
           (bigfloat-interval-shortest left (bfmin (bf* left 2.bf) right))))
