@@ -167,10 +167,10 @@
     ['NAN `(NAN)]
     [(? symbol?) `(1 (1 . ,expr))]
     [`(neg ,arg)
-     (let ([terms (gather-multiplicative-terms arg)])
-       (if (eq? (car terms) 'NAN)
-           '(NAN)
-           (cons (- (car terms)) (cdr terms))))]
+     (define terms (gather-multiplicative-terms arg))
+     (if (eq? (car terms) 'NAN)
+         '(NAN)
+         (cons (- (car terms)) (cdr terms)))]
     [`(* ,args ...)
      (define terms (map gather-multiplicative-terms args))
      (if (ormap (curry eq? 'NAN) (map car terms))
