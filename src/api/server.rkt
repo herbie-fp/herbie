@@ -415,8 +415,7 @@
        (make-hash (map cons exprs (batch-errors exprs pcontext ctx)))]
       [else #f]))
 
-  (define test-fpcore
-    (alt->fpcore test (make-alt (test-input test))))
+  (define test-fpcore (alt->fpcore test (make-alt (test-input test))))
 
   (define fpcores
     (if (equal? (job-result-status herbie-result) 'success)

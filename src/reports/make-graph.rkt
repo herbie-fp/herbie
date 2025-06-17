@@ -150,8 +150,7 @@
                   [errs end-errors]
                   [cost end-costs]
                   [history end-histories])
-         (define-values (dropdown body)
-           (render-program expr ctx #:ident identifier))
+         (define-values (dropdown body) (render-program expr ctx #:ident identifier))
          `(section ([id ,(format "alternative~a" i)] (class "programs"))
                    (h2 "Alternative "
                        ,(~a i)

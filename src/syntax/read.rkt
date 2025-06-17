@@ -18,16 +18,7 @@
          load-tests
          parse-test)
 
-(struct test
-        (name identifier
-              vars
-              input
-              output
-              expected
-              spec
-              pre
-              output-repr-name
-              var-repr-names)
+(struct test (name identifier vars input output expected spec pre output-repr-name var-repr-names)
   #:prefab)
 
 (define (test-output-repr test)
