@@ -25,13 +25,13 @@
   [(define (write-proc opt port mode)
      (fprintf port "#<option ~a>" (option-split-indices opt)))])
 
-(define (pareto-regimes sorted ctx)
+(define (pareto-regimes sorted start-prog ctx)
   (timeline-event! 'regimes)
   (define err-lsts (batch-errors (map alt-expr sorted) (*pcontext*) ctx))
   (define branches
     (if (null? sorted)
         '()
-        (exprs-to-branch-on sorted ctx)))
+        (exprs-to-branch-on sorted start-prog ctx)))
   (define branch-exprs
     (if (flag-set? 'reduce 'branch-expressions)
         branches
@@ -87,11 +87,11 @@
   (timeline-push! 'oracle (errors-score (map (curry apply max) err-lsts)))
   (values best errs))
 
-(define (exprs-to-branch-on alts ctx)
+(define (exprs-to-branch-on alts start-prog ctx)
   (define alt-critexprs
     (for/list ([alt (in-list alts)])
       (all-critical-subexpressions (alt-expr alt) ctx)))
-  (define start-critexprs (all-critical-subexpressions (*start-prog*) ctx))
+  (define start-critexprs (all-critical-subexpressions start-prog ctx))
   ;; We can only binary search if the branch expression is critical
   ;; for all of the alts and also for the start prgoram.
   (filter (λ (e) (equal? (representation-type (repr-of e ctx)) 'real))
@@ -151,8 +151,7 @@
 
 (module+ test
   (define ctx (make-debug-context '(x)))
-  (parameterize ([*start-prog* (literal 1 'binary64)]
-                 [*pcontext* (mk-pcontext '(#(0.5) #(4.0)) '(1.0 1.0))])
+  (parameterize ([*pcontext* (mk-pcontext '(#(0.5) #(4.0)) '(1.0 1.0))])
     (define alts (map make-alt (list '(fmin.f64 x 1) '(fmax.f64 x 1))))
     (define err-lsts `((,(expt 2.0 53) 1.0) (1.0 ,(expt 2.0 53))))
 
