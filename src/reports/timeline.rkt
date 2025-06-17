@@ -329,7 +329,7 @@
         (canvas ([id ,(format "calls-~a" (make-id))]
                  [title
                   "Weighted histogram; height corresponds to percentage of runtime in that bucket."]))
-        (script "histogram(\"" ,(format "calls-~a" (make-id)) "\", " ,(jsexpr->string (map first times)) ")")
+        (script ,(format "histogram('calls-~a', " (make-id)) ,(jsexpr->string (map first times)) ")")
         (table ((class "times"))
                ,@(for/list ([rec (in-list (sort times > #:key first))]
                             [_ (in-range 5)])
@@ -342,7 +342,7 @@
         (canvas ([id ,(format "calls-~a" (make-id))]
                  [title
                   "Weighted histogram; height corresponds to percentage of runtime in that bucket."]))
-        (script "histogram(\"" ,(format "calls-~a" (make-id)) "\", " ,(jsexpr->string (map first times)) ")")
+        (script ,(format "histogram('calls-~a', " (make-id)) ,(jsexpr->string (map first times)) ")")
         (table ((class "times"))
                (thead (tr (th "Time") (th "Variable") (th "Point")))
                ,@(for/list ([rec (in-list (sort times > #:key first))]
