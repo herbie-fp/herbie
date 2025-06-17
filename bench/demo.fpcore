@@ -40,3 +40,10 @@
  :name "jeff quadratic root 2"
  (let ((d (sqrt (- (* b b) (* (* 4 a) c)))))
    (if (>= b 0) (/ (* 2 c) (- (- b) d)) (/ (+ (- b) d) (* 2 a)))))
+
+(FPCore (p)
+  :herbie-target
+    (if (and (>= p -1e-6) (<= p 0))
+      (- (+ p 1) (/ (* p p) (- p 1)))
+      (- p (fma (/ p (- p 1)) p -1)))
+  (- (+ p 1.0) (/ (pow (fmin p 0.0) 2.0) (- (fmin p 0.0) 1.0))))
