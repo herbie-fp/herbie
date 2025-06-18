@@ -1,6 +1,6 @@
 #lang racket
 
-(require "../syntax/syntax.rkt"
+(require (only-in "../syntax/syntax.rkt" approx hole literal)
          "../utils/common.rkt")
 
 (provide progs->batch ; (Listof Expr) -> Batch

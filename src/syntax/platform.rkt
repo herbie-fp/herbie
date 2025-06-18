@@ -6,18 +6,13 @@
          "matcher.rkt"
          "types.rkt" ; representation structure
          (only-in (submod "types.rkt" internals) make-representation)
-         "syntax.rkt"
-         (submod "syntax.rkt" internals))
+         (only-in "syntax.rkt" impl-info operator-info all-operators approx literal? literal-value)
+         (only-in (submod "syntax.rkt" internals) make-operator-impl))
 
 (provide *active-platform*
          activate-platform!
          platform-lifting-rules
          platform-lowering-rules
-
-         make-empty-platform
-         platform-register-representation!
-         platform-register-implementation!
-         display-platform
 
          ; from types.rkt
          repr-exists? ; moved here
@@ -47,7 +42,11 @@
           #;[platform-cost-proc (-> platform? procedure?)]))
 
 (module+ internals
-  (provide register-platform!
+  (provide make-empty-platform
+           platform-register-representation!
+           platform-register-implementation!
+           display-platform
+           register-platform!
            ; from syntax.rkt + types.rkt
            make-operator-impl
            make-representation))

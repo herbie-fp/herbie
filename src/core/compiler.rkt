@@ -3,6 +3,7 @@
 (require (only-in "../syntax/syntax.rkt" approx literal impl-info)
          "../syntax/types.rkt" ; representation + context
          (only-in "../syntax/platform.rkt" get-representation)
+         (only-in "programs.rkt" repr-of)
          "../utils/float.rkt"
          "../utils/timeline.rkt"
          "batch.rkt")

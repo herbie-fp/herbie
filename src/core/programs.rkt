@@ -1,7 +1,19 @@
 #lang racket
 
 (require "../utils/common.rkt"
-         "../syntax/platform.rkt"
+         (only-in "../syntax/syntax.rkt"
+                  literal?
+                  literal
+                  literal-value
+                  approx?
+                  approx
+                  approx-spec
+                  approx-impl
+                  hole
+                  impl-info
+                  operator-exists?)
+         (only-in "../syntax/platform.rkt" get-representation variable? impl-exists?)
+         (only-in "../syntax/types.rkt" context-lookup)
          (only-in "batch.rkt" batch-nodes))
 
 (provide expr?

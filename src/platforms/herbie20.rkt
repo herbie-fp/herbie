@@ -7,10 +7,9 @@
          math/flonum)
 
 (require "runtime/float32.rkt" ; float representation helper functions
-         "runtime/libm.rkt") ; libm runtime support functions
+         "runtime/libm.rkt") ; libm wrapper
 
 (require "../utils/float.rkt" ; for shift/unshift
-         "../syntax/platform.rkt"
          (submod "../syntax/platform.rkt" internals)) ; for define-representation
 
 (define herbie20-platform (make-empty-platform 'herbie20 #:if-cost 1 #:default-cost 1))

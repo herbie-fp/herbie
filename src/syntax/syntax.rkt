@@ -6,7 +6,7 @@
          "../utils/errors.rkt"
          "../core/rival.rkt"
          "matcher.rkt"
-         "types.rkt"
+         "types.rkt" ; context + representation structure
          (submod "types.rkt" internals))
 
 (provide (struct-out literal)
@@ -17,13 +17,12 @@
          all-operators
          impl-info
          *functions*
-         register-function!
-         free-variables)
+         register-function!)
 
 (module+ internals
   (provide make-operator-impl
-           define-operator
-           register-operator!))
+           #;define-operator ; these are not used
+           #;register-operator!))
 
 (module+ test
   (require rackunit
@@ -52,20 +51,6 @@
 ;; Returns all operators.
 (define (all-operators)
   (sort (hash-keys operators) symbol<?))
-
-; Custom variable? function that duplicates one from platform.rkt, except without impls
-(define (variable? var)
-  (and (symbol? var)
-       (or (not (hash-has-key? operators var))
-           (not (null? (operator-info (hash-ref (all-operators) var) 'itype))))))
-
-(define (free-variables prog)
-  (match prog
-    [(? literal?) '()]
-    [(? number?) '()]
-    [(? variable?) (list prog)]
-    [(approx _ impl) (free-variables impl)]
-    [(list _ args ...) (remove-duplicates (append-map free-variables args))]))
 
 ;; Looks up a property `field` of an real operator `op`.
 ;; Panics if the operator is not found.
