@@ -1,10 +1,13 @@
 #lang racket
 
 (require "../syntax/syntax.rkt"
-         "../utils/common.rkt")
+         "../utils/common.rkt"
+         "../utils/float.rkt"
+         "../syntax/types.rkt")
 
 (provide progs->batch ; (Listof Expr) -> Batch
          batch->progs ; Batch -> ?(or (Listof Root) (Vectorof Root)) -> (Listof Expr)
+         batch->json ; Batch -> ?(or (Listof Root) (Vectorof Root)) -> jsexpr?
          (struct-out batch)
          (struct-out batchref) ; temporarily for patch.rkt
          (struct-out mutable-batch) ; temporarily for patch.rkt
@@ -112,6 +115,22 @@
   (for/list ([root roots])
     (vector-ref exprs root)))
 
+(define (batch->json b [roots (batch-roots b)])
+  (define (node->json node)
+    (match node
+      [(? number?) node]
+      [(? symbol?) (~a node)]
+      [(literal val prec) (list "literal" (value->json val (get-representation prec)) (~a prec))]
+      [(approx spec impl) (list "approx" spec impl)]
+      [(hole prec spec) (list "hole" (~a prec) spec)]
+      [(list op args ...) (cons (~a op) args)]
+      [_ node]))
+  (hash 'nodes
+        (for/list ([node (in-vector (batch-nodes b))])
+          (node->json node))
+        'roots
+        (vector->list roots)))
+
 (define (batch-free-vars batch)
   (define out (make-vector (vector-length (batch-nodes batch))))
   (for ([i (in-naturals)]
@@ -207,6 +226,9 @@
    '(+ 1 (neg (* 1/2 (+ (exp (/ (sin 3) (cos 3))) (/ 1 (exp (/ (sin 3) (cos 3)))))))))
   (test-munge-unmunge '(cbrt x))
   (test-munge-unmunge '(x))
+  (test-case "batch->json" ; ensure batch->json returns expected structure
+    (define batch (progs->batch (list '(+ x y))))
+    (check-equal? (batch->json batch) (hash 'nodes (list "x" "y" (list "+" 0 1)) 'roots (list 2))))
   (test-munge-unmunge `(+.f64 (sin.f64 ,(approx '(* 1/2 (+ (exp x) (neg (/ 1 (exp x)))))
                                                 '(+.f64 ,(f64 3)
                                                         (*.f64 ,(f64 25) (sin.f64 ,(f64 6))))))

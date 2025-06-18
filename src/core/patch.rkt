@@ -59,7 +59,7 @@
 
 (define (run-taylor altns global-batch)
   (timeline-event! 'series)
-  (timeline-push! 'inputs (map ~a (batch->progs global-batch)))
+  (timeline-push! 'inputs (batch->json global-batch))
 
   (define (key x)
     (approx-impl (deref (alt-expr x))))

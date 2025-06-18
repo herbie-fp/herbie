@@ -7,11 +7,36 @@
          "common.rkt"
          "../syntax/types.rkt"
          "../utils/float.rkt"
+         "../syntax/syntax.rkt"
          "../config.rkt")
 (provide make-timeline)
 
 (define timeline-phase? (hash/c symbol? any/c))
 (define timeline? (listof timeline-phase?))
+
+;; Convert a batch in JSON form back into a list of programs
+(define (batch-json->progs j)
+  (define nodes (list->vector (hash-ref j 'nodes)))
+  (define exprs (make-vector (vector-length nodes)))
+  (define (build idx)
+    (define cached (vector-ref exprs idx))
+    (if cached
+        cached
+        (let* ([node (vector-ref nodes idx)]
+               [val (match node
+                      [(? number?) node]
+                      [(? string?) (string->symbol node)]
+                      [(list "literal" v p)
+                       (literal (json->value v (get-representation (string->symbol p)))
+                                (string->symbol p))]
+                      [(list "approx" s i) (approx (build s) (build i))]
+                      [(list "hole" p s) (hole (string->symbol p) (build s))]
+                      [(list op args ...) (cons (string->symbol op) (map build args))]
+                      [_ node])])
+          (vector-set! exprs idx val)
+          val)))
+  (for/list ([r (in-list (hash-ref j 'roots))])
+    (build r)))
 
 ;; This first part handles timelines for a single Herbie run
 
@@ -384,7 +409,18 @@
                                        (td ,(~a category))))))))
 
 (define (render-phase-inputs inputs outputs)
-  `((dt "Calls") (dd ,@(for/list ([call inputs]
+  (define (arg->progs a)
+    (if (hash? a)
+        (batch-json->progs a)
+        (list a)))
+  (define calls
+    (for/list ([call inputs])
+      (apply append
+             (for/list ([arg (if (list? call)
+                                 call
+                                 (list call))])
+               (arg->progs arg)))))
+  `((dt "Calls") (dd ,@(for/list ([call calls]
                                   [output outputs]
                                   [n (in-naturals 1)])
                          `(details (summary "Call " ,(~a n))
