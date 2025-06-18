@@ -4,7 +4,7 @@
 
 (require "../utils/common.rkt"
          "../syntax/syntax.rkt"
-         "programs.rkt")
+         #;"programs.rkt")
 
 (provide *rules*
          *sound-rules*
@@ -31,8 +31,6 @@
 
 (define (*sound-rules*)
   (filter (conjoin rule-enabled? rule-sound?) *all-rules*))
-
-;;  Rule definition syntax
 
 (define (make-rule-context input output)
   (map (curryr cons 'real) (set-union (free-variables input) (free-variables output))))

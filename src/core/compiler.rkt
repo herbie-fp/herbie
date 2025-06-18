@@ -1,7 +1,8 @@
 #lang racket
 
-(require "../syntax/syntax.rkt"
-         "../syntax/types.rkt"
+(require (only-in "../syntax/syntax.rkt" approx literal impl-info)
+         "../syntax/types.rkt" ; representation + context
+         (only-in "../syntax/platform.rkt" get-representation)
          "../utils/float.rkt"
          "../utils/timeline.rkt"
          "batch.rkt")

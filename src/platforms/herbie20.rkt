@@ -11,10 +11,7 @@
 
 (require "../utils/float.rkt" ; for shift/unshift
          "../syntax/platform.rkt"
-         (submod "../syntax/platform.rkt" internals)
-         (submod "../syntax/syntax.rkt"
-                 internals) ; for make-operator-impl, define-constants, define-comparator-impls
-         (submod "../syntax/types.rkt" internals)) ; for define-representation
+         (submod "../syntax/platform.rkt" internals)) ; for define-representation
 
 (define herbie20-platform (make-empty-platform 'herbie20 #:if-cost 1 #:default-cost 1))
 
@@ -282,7 +279,8 @@
     ([pow 1] [atan2 1] [copysign 1] [fdim 1] [fmax 1] [fmin 1] [fmod 1] [remainder 1])]))
 
 (for ([libm-impl.f32 (in-list libm-impls.f32)])
-  (platform-register-implementation! herbie20-platform libm-impl.f32))
+  (when libm-impl.f32
+    (platform-register-implementation! herbie20-platform libm-impl.f32)))
 
 (define c_erfcf (make-libm (erfcf float float)))
 (define c_expm1f (make-libm (expm1f float float)))
@@ -476,7 +474,8 @@
     ([pow 1] [atan2 1] [copysign 1] [fdim 1] [fmax 1] [fmin 1] [fmod 1] [remainder 1])]))
 
 (for ([libm-impl.f64 (in-list libm-impls.f64)])
-  (platform-register-implementation! herbie20-platform libm-impl.f64))
+  (when libm-impl.f64
+    (platform-register-implementation! herbie20-platform libm-impl.f64)))
 
 (define c_erfc (make-libm (erfc double double)))
 (define c_expm1 (make-libm (expm1 double double)))

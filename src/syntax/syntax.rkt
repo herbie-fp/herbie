@@ -2,11 +2,12 @@
 
 (require math/bigfloat)
 
-(require "../core/rival.rkt"
-         "../utils/common.rkt"
+(require "../utils/common.rkt"
          "../utils/errors.rkt"
+         "../core/rival.rkt"
          "matcher.rkt"
-         "types.rkt")
+         "types.rkt"
+         (submod "types.rkt" internals))
 
 (provide (struct-out literal)
          (struct-out approx)
@@ -16,7 +17,8 @@
          all-operators
          impl-info
          *functions*
-         register-function!)
+         register-function!
+         free-variables)
 
 (module+ internals
   (provide make-operator-impl
@@ -50,6 +52,20 @@
 ;; Returns all operators.
 (define (all-operators)
   (sort (hash-keys operators) symbol<?))
+
+; Custom variable? function that duplicates one from platform.rkt, except without impls
+(define (variable? var)
+  (and (symbol? var)
+       (or (not (hash-has-key? operators var))
+           (not (null? (operator-info (hash-ref (all-operators) var) 'itype))))))
+
+(define (free-variables prog)
+  (match prog
+    [(? literal?) '()]
+    [(? number?) '()]
+    [(? variable?) (list prog)]
+    [(approx _ impl) (free-variables impl)]
+    [(list _ args ...) (remove-duplicates (append-map free-variables args))]))
 
 ;; Looks up a property `field` of an real operator `op`.
 ;; Panics if the operator is not found.
@@ -252,6 +268,63 @@
   (unless (equal? actual-ty otype)
     (type-error! spec actual-ty otype)))
 
+; Registers an operator implementation `name` with context `ctx` and spec `spec`.
+; Can optionally specify a floating-point implementation and fpcore translation.
+(define/contract (create-operator-impl! name
+                                        ctx
+                                        spec
+                                        #:fl [fl-proc #f]
+                                        #:fpcore [fpcore #f]
+                                        #:cost [cost #f])
+  (->* (symbol? context? any/c)
+       (#:fl (or/c procedure? #f) #:fpcore any/c #:cost (or/c #f real?))
+       operator-impl?)
+  ; check specification
+  (check-spec! name ctx spec)
+  (define vars (context-vars ctx))
+  ; synthesize operator (if the spec contains exactly one operator)
+  (define op
+    (match spec
+      [(list op (or (? number?) (? symbol?)) ...) op]
+      [_ #f]))
+  ; check or synthesize FPCore translation
+  (match fpcore
+    [`(! ,props ... (,op ,args ...))
+     (unless (even? (length props))
+       (error 'create-operator-impl! "~a: umatched property in ~a" name fpcore))
+     (unless (symbol? op)
+       (error 'create-operator-impl! "~a: expected symbol `~a`" name op))
+     (for ([arg (in-list args)]
+           #:unless (or (symbol? arg) (number? arg)))
+       (error 'create-operator-impl! "~a: expected terminal `~a`" name arg))]
+    [`(,op ,args ...)
+     (unless (symbol? op)
+       (error 'create-operator-impl! "~a: expected symbol `~a`" name op))
+     (for ([arg (in-list args)]
+           #:unless (or (symbol? arg) (number? arg)))
+       (error 'create-operator-impl! "~a: expected terminal `~a`" name arg))]
+    [_ (error 'create-operator-impl! "Invalid fpcore for ~a: ~a" name fpcore)])
+  ; check or synthesize floating-point operation
+  (define fl-proc*
+    (cond
+      [fl-proc ; provided => check arity
+       (unless (procedure-arity-includes? fl-proc (length vars) #t)
+         (error 'create-operator-impl!
+                "~a: procedure does not accept ~a arguments"
+                name
+                (length vars)))
+       fl-proc]
+      [else ; need to generate
+       (define compiler (make-real-compiler (list spec) (list ctx)))
+       (define fail ((representation-bf->repr (context-repr ctx)) +nan.bf))
+       (procedure-rename (lambda pt
+                           (define-values (_ exs) (real-apply compiler (list->vector pt)))
+                           (if exs
+                               (first exs)
+                               fail))
+                         name)]))
+  (operator-impl name ctx spec fpcore fl-proc* cost))
+
 (define-syntax (make-operator-impl stx)
   (define (oops! why [sub-stx #f])
     (raise-syntax-error 'make-operator-impl why stx sub-stx))
@@ -280,12 +353,12 @@
                           [core core]
                           [fl-expr fl-expr]
                           [op-cost op-cost])
-              #'(register-operator-impl! 'id
-                                         (context '(var ...) rtype (list repr ...))
-                                         'spec
-                                         #:fl fl-expr
-                                         #:fpcore 'core
-                                         #:cost op-cost))]
+              #'(create-operator-impl! 'id
+                                       (context '(var ...) rtype (list repr ...))
+                                       'spec
+                                       #:fl fl-expr
+                                       #:fpcore 'core
+                                       #:cost op-cost))]
            [(#:spec expr rest ...)
             (cond
               [spec (oops! "multiple #:spec clauses" stx)]

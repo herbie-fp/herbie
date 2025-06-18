@@ -1,7 +1,7 @@
 #lang racket
 
 (require "../utils/common.rkt"
-         "../syntax/syntax.rkt"
+         "../syntax/platform.rkt"
          (only-in "batch.rkt" batch-nodes))
 
 (provide expr?
