@@ -1,8 +1,8 @@
 #lang racket
 
-(require (only-in "../syntax/syntax.rkt" approx literal impl-info)
+(require (only-in "../syntax/syntax.rkt" approx literal)
          "../syntax/types.rkt" ; representation + context
-         (only-in "../syntax/platform.rkt" get-representation)
+         (only-in "../syntax/platform.rkt" get-representation impl-info)
          (only-in "programs.rkt" repr-of)
          "../utils/float.rkt"
          "../utils/timeline.rkt"

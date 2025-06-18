@@ -3,8 +3,6 @@
 ;;; The default platform:
 ;;; C/C++ on Linux with a full libm
 
-(require "../plugin.rkt")
-
 (define 64bit-move-cost 0.12538399999999972)
 (define 32bit-move-cost 0.12961999999999974)
 (define boolean-move-cost 0.1) ; should be okay?

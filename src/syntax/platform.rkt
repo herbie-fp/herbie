@@ -6,7 +6,7 @@
          "matcher.rkt"
          "types.rkt" ; representation structure
          (only-in (submod "types.rkt" internals) make-representation)
-         (only-in "syntax.rkt" impl-info operator-info approx literal? literal-value operators)
+         "syntax.rkt"
          (only-in (submod "syntax.rkt" internals) make-operator-impl))
 
 (provide *active-platform*
@@ -23,6 +23,7 @@
          impl-exists? ; moved here
          variable? ; moved here
          constant-operator? ; moved here
+         impl-info ; moved here
 
          get-fpcore-impl
          ;; Platform API
@@ -36,10 +37,10 @@
           #;[platform-intersect (-> platform? platform? ... platform?)]
           #;[platform-subtract (-> platform? platform? ... platform?)]
           ; Cost model
-          #;[platform-impl-cost (-> platform? any/c any/c)]
-          #;[platform-repr-cost (-> platform? any/c any/c)]
-          #;[platform-node-cost-proc (-> platform? procedure?)]
-          #;[platform-cost-proc (-> platform? procedure?)]))
+          [platform-impl-cost (-> platform? any/c any/c)]
+          [platform-repr-cost (-> platform? any/c any/c)]
+          [platform-node-cost-proc (-> platform? procedure?)]
+          [platform-cost-proc (-> platform? procedure?)]))
 
 (module+ internals
   (provide make-empty-platform
@@ -61,7 +62,7 @@
 ;;;
 ;;; A small API is provided for platforms for querying the supported
 ;;; operators, operator implementations, and representation conversions.
-(struct platform (name if-cost default-cost reprs impls)
+(struct platform (name if-cost default-cost representations implementations)
   #:name $platform
   #:constructor-name create-platform
   #:methods gen:custom-write
@@ -110,7 +111,7 @@
   x)
 
 (define (platform-register-representation! platform repr)
-  (define reprs (platform-reprs platform))
+  (define reprs (platform-representations platform))
   ; Cost check
   (define repr-cost (representation-cost repr))
   (define default-cost (platform-default-cost platform))
@@ -128,51 +129,50 @@
 
 (define (platform-register-implementation! platform impl)
   (unless impl
-    (raise-herbie-error "Platform ~a missing implementation"
-                        (platform-name platform)
-                        (impl-info impl 'name)))
+    (raise-herbie-error "Platform ~a missing implementation" (platform-name platform)))
   ; Reprs check
-  (define reprs (platform-reprs platform))
-  (define otype (impl-info impl 'otype))
-  (define itype (impl-info impl 'itype))
+  (define reprs (platform-representations platform))
+  (define otype (context-repr (operator-impl-ctx impl)))
+  (define itype (context-var-reprs (operator-impl-ctx impl)))
   (define impl-reprs (map representation-name (remove-duplicates (cons otype itype))))
   (unless (andmap (curry hash-has-key? reprs) impl-reprs)
     (raise-herbie-error "Platform ~a missing representation of ~a implementation"
                         (platform-name platform)
-                        (impl-info impl 'name)))
+                        (operator-impl-name impl)))
   ; Cost check
-  (define impl-cost (impl-info impl 'cost))
+  (define impl-cost (operator-impl-cost impl))
   (define default-cost (platform-default-cost platform))
   (unless (or impl-cost default-cost)
-    (raise-herbie-error "Missing cost for ~a" (impl-info impl 'name)))
+    (raise-herbie-error "Missing cost for ~a" (operator-impl-name impl)))
   ; Dupicate check
-  (define impls (platform-impls platform))
-  (when (hash-has-key? impls (impl-info impl 'name))
+  (define impls (platform-implementations platform))
+  (when (hash-has-key? impls (operator-impl-name impl))
     (raise-herbie-error "Impl ~a is already registered in platform ~a"
-                        (impl-info impl 'name)
+                        (operator-impl-name impl)
                         (platform-name platform)))
   ; Update table
-  (hash-set! impls (impl-info impl 'name) impl))
+  (hash-set! impls (operator-impl-name impl) impl))
 
 (define (repr-exists? name)
   (define platform (*active-platform*))
-  (define reprs (platform-reprs platform))
+  (define reprs (platform-representations platform))
   (hash-has-key? reprs name))
 
 ;; Returns the representation associated with `name`
 ;; attempts to generate the repr if not initially found
 (define (get-representation name)
   (define platform (*active-platform*))
-  (define reprs (platform-reprs platform))
+  (define reprs (platform-representations platform))
   (or (hash-ref reprs name #f)
       (and (generate-repr name) (hash-ref reprs name #f))
-      (raise-herbie-error "Could not find support for ~a representation: ~a"
+      (raise-herbie-error "Could not find support for ~a representation: ~a in a platform ~a"
                           name
-                          (string-join (map ~s (hash-keys reprs)) ", "))))
+                          (string-join (map ~s (hash-keys reprs)) ", ")
+                          (platform-name platform))))
 
 ;; Queries each plugin to generate the representation
 (define (generate-repr repr-name)
-  (error "not implemented")
+  (error "generate-repr is not implemented")
   #;(or (hash-has-key? representations repr-name)
         (for/or ([proc repr-generators])
           ;; Check if a user accidently created an infinite loop in their plugin!
@@ -190,7 +190,7 @@
 
 (define (impl-exists? op)
   (define platform (*active-platform*))
-  (define impls (platform-impls platform))
+  (define impls (platform-implementations platform))
   (hash-has-key? impls op))
 
 (define (constant-operator? op)
@@ -291,55 +291,77 @@
                           (for/fold ([rs rs]) ([rs0 (in-list rss)])
                             (filter-not (curry set-member? (list->set rs0)) rs)))))
 
+;; Looks up a property `field` of an real operator `op`.
+;; Panics if the operator is not found.
+(define/contract (impl-info impl-name field)
+  (-> symbol? (or/c 'name 'vars 'itype 'otype 'spec 'fpcore 'fl 'cost) any/c)
+  (define impls (platform-implementations (*active-platform*)))
+  (define impl (hash-ref impls impl-name (lambda () (error 'impl-info "unknown impl '~a" impl))))
+  (case field
+    [(name) (operator-impl-name impl)]
+    [(vars) (context-vars (operator-impl-ctx impl))]
+    [(itype) (context-var-reprs (operator-impl-ctx impl))]
+    [(otype) (context-repr (operator-impl-ctx impl))]
+    [(spec) (operator-impl-spec impl)]
+    [(fpcore) (operator-impl-fpcore impl)]
+    [(fl) (operator-impl-fl impl)]
+    [(cost) (operator-impl-cost impl)]))
+
+(define (platform-impls platform)
+  (hash-keys (platform-implementations platform)))
+
+(define (platform-reprs platform)
+  (hash-keys (platform-representations platform)))
+
 ; Implementation cost in a platform.
-#;(define (platform-impl-cost platform impl)
-    (hash-ref (platform-impl-costs pform)
-              impl
-              (lambda () (error 'platform-impl-cost "no cost for impl '~a" impl))))
+(define (platform-impl-cost platform impl)
+  (define default-cost (platform-default-cost platform))
+  (define impl-cost (impl-info impl 'cost))
+  (or impl-cost default-cost))
 
 ; Representation (terminal) cost in a platform.
-#;(define (platform-repr-cost pform repr)
-    (hash-ref (platform-repr-costs pform)
-              repr
-              (lambda () (error 'platform-repr-cost "no cost for repr ~a" repr))))
+(define (platform-repr-cost platform repr)
+  (define default-cost (platform-default-cost platform))
+  (define repr-cost (representation-cost (get-representation repr)))
+  (or repr-cost default-cost))
 
 ; Cost model of a single node by a platform.
 ; Returns a procedure that must be called with the costs of the children.
-#;(define ((platform-node-cost-proc pform) expr repr)
-    (match expr
-      [(? literal?) (lambda () (platform-repr-cost pform repr))]
-      [(? symbol?) (lambda () (platform-repr-cost pform repr))]
-      [(list 'if _ _ _)
-       (define if-cost (platform-impl-cost pform 'if))
-       (lambda (cond-cost ift-cost iff-cost)
-         (match if-cost
-           [`(max ,n) (+ n cond-cost (max ift-cost iff-cost))]
-           [`(sum ,n) (+ n cond-cost ift-cost iff-cost)]))]
-      [(list impl args ...)
-       (define impl-cost (platform-impl-cost pform impl))
-       (lambda itype-costs
-         (unless (= (length itype-costs) (length args))
-           (error 'platform-node-cost-proc "arity mismatch, expected ~a arguments" (length args)))
-         (apply + impl-cost itype-costs))]))
+(define ((platform-node-cost-proc pform) expr repr)
+  (match expr
+    [(? literal?) (lambda () (platform-repr-cost pform repr))]
+    [(? symbol?) (lambda () (platform-repr-cost pform repr))]
+    [(list 'if _ _ _)
+     (define if-cost (platform-impl-cost pform 'if))
+     (lambda (cond-cost ift-cost iff-cost)
+       (match if-cost
+         [`(max ,n) (+ n cond-cost (max ift-cost iff-cost))]
+         [`(sum ,n) (+ n cond-cost ift-cost iff-cost)]))]
+    [(list impl args ...)
+     (define impl-cost (platform-impl-cost pform impl))
+     (lambda itype-costs
+       (unless (= (length itype-costs) (length args))
+         (error 'platform-node-cost-proc "arity mismatch, expected ~a arguments" (length args)))
+       (apply + impl-cost itype-costs))]))
 
 ; Cost model parameterized by a platform.
-#;(define (platform-cost-proc pform)
-    (define bool-repr (get-representation 'bool))
-    (define node-cost-proc (platform-node-cost-proc pform))
-    (λ (expr repr)
-      (let loop ([expr expr]
-                 [repr repr])
-        (match expr
-          [(? literal?) ((node-cost-proc expr repr))]
-          [(? symbol?) ((node-cost-proc expr repr))]
-          [(approx _ impl) (loop impl repr)]
-          [(list 'if cond ift iff)
-           (define cost-proc (node-cost-proc expr repr))
-           (cost-proc (loop cond bool-repr) (loop ift repr) (loop iff repr))]
-          [(list impl args ...)
-           (define cost-proc (node-cost-proc expr repr))
-           (define itypes (impl-info impl 'itype))
-           (apply cost-proc (map loop args itypes))]))))
+(define (platform-cost-proc pform)
+  (define bool-repr (get-representation 'bool)) ; that's sketchy
+  (define node-cost-proc (platform-node-cost-proc pform))
+  (λ (expr repr)
+    (let loop ([expr expr]
+               [repr repr])
+      (match expr
+        [(? literal?) ((node-cost-proc expr repr))]
+        [(? symbol?) ((node-cost-proc expr repr))]
+        [(approx _ impl) (loop impl repr)]
+        [(list 'if cond ift iff)
+         (define cost-proc (node-cost-proc expr repr))
+         (cost-proc (loop cond bool-repr) (loop ift repr) (loop iff repr))]
+        [(list impl args ...)
+         (define cost-proc (node-cost-proc expr repr))
+         (define itypes (impl-info impl 'itype))
+         (apply cost-proc (map loop args itypes))]))))
 
 ;; Rules from impl to spec (fixed for a particular platform)
 (define/reset *lifting-rules* (make-hash))
@@ -451,8 +473,8 @@
      best]))
 
 (define (display-platform platform)
-  (define impls (platform-impls platform))
-  (define reprs (platform-reprs platform))
+  (define impls (platform-implementations platform))
+  (define reprs (platform-representations platform))
   (define if-cost (platform-if-cost platform))
   (define default-cost (platform-default-cost platform))
 
@@ -463,7 +485,7 @@
 
   (printf "Representations:\n")
   (define reprs-data
-    (for/list ([(key repr) (in-hash reprs)]
+    (for/list ([(_ repr) (in-hash reprs)]
                [n (in-naturals)])
       (match-define (representation name type _ _ _ _ _ total-bits _ cost) repr)
       (unless cost
@@ -473,13 +495,13 @@
 
   (printf "\nImplementations\n")
   (define impls-data
-    (for/list ([(key impl) (in-hash impls)]
+    (for/list ([(_ impl) (in-hash impls)]
                [n (in-naturals)])
-      (define name (impl-info impl 'name))
-      (define itype (map representation-name (impl-info impl 'itype)))
-      (define otype (representation-name (impl-info impl 'otype)))
-      (define spec (impl-info impl 'spec))
-      (define cost (impl-info impl 'cost))
+      (define name (operator-impl-name impl))
+      (define itype (map representation-name (context-var-reprs (operator-impl-ctx impl))))
+      (define otype (representation-name (context-repr (operator-impl-ctx impl))))
+      (define spec (operator-impl-spec impl))
+      (define cost (operator-impl-cost impl))
       (unless cost
         (set! cost (format "~a (default cost)" default-cost)))
       (list n name itype otype spec cost)))

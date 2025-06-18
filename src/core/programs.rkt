@@ -10,9 +10,8 @@
                   approx-spec
                   approx-impl
                   hole
-                  impl-info
                   operator-exists?)
-         (only-in "../syntax/platform.rkt" get-representation variable? impl-exists?)
+         (only-in "../syntax/platform.rkt" get-representation variable? impl-exists? impl-info)
          (only-in "../syntax/types.rkt" context-lookup)
          (only-in "batch.rkt" batch-nodes))
 

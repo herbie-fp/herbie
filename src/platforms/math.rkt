@@ -4,8 +4,6 @@
 ;;; We use textbook mathematical operators, i.e.,
 ;;; no special numbers functions
 
-(require "../plugin.rkt")
-
 (define move-cost 0.02333600000000001)
 (define fl-move-cost (* move-cost 4))
 

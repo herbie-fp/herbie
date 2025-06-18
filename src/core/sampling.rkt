@@ -8,6 +8,7 @@
          "../utils/float.rkt"
          "../utils/timeline.rkt"
          "../syntax/types.rkt"
+         (only-in "../syntax/platform.rkt" get-representation)
          "searchreals.rkt"
          "rival.rkt")
 

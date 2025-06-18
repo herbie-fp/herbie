@@ -3,8 +3,6 @@
 ;;; The zero-cost platform:
 ;;; Includes boolean, binary32, binary64, accelerator operations
 
-(require "../plugin.rkt")
-
 ; universal boolean opertaions
 (define-platform herbie10-platform
                  #:literal [bool 0]

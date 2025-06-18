@@ -2,6 +2,7 @@
 
 (require "../utils/common.rkt"
          "../syntax/syntax.rkt"
+         (only-in "../syntax/platform.rkt" variable?)
          "programs.rkt")
 (provide reduce)
 

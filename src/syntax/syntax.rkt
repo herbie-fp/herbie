@@ -12,11 +12,11 @@
 (provide (struct-out literal)
          (struct-out approx)
          (struct-out hole)
+         (struct-out operator-impl)
          operator-exists?
          operator-info
          all-operators ; return a list of operators names
          operators ; returns hash of operators
-         impl-info
          *functions*
          register-function!)
 
@@ -182,20 +182,6 @@
 ;;  - a floating-point implementation
 ;;
 (struct operator-impl (name ctx spec fpcore fl cost))
-
-;; Looks up a property `field` of an real operator `op`.
-;; Panics if the operator is not found.
-(define/contract (impl-info impl field)
-  (-> operator-impl? (or/c 'name 'vars 'itype 'otype 'spec 'fpcore 'fl 'cost) any/c)
-  (case field
-    [(name) (operator-impl-name impl)]
-    [(vars) (context-vars (operator-impl-ctx impl))]
-    [(itype) (context-var-reprs (operator-impl-ctx impl))]
-    [(otype) (context-repr (operator-impl-ctx impl))]
-    [(spec) (operator-impl-spec impl)]
-    [(fpcore) (operator-impl-fpcore impl)]
-    [(fl) (operator-impl-fl impl)]
-    [(cost) (operator-impl-cost impl)]))
 
 ;; Checks a specification.
 (define (check-spec! name ctx spec)
