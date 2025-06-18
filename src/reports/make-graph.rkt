@@ -37,7 +37,6 @@
   (define ctx (test-context test))
   (define identifier (test-identifier test))
 
-  (define preprocessing (map (compose read open-input-string) (hash-ref backend 'preprocessing)))
   (define start-expr (read (open-input-string (hash-ref (hash-ref backend 'start) 'expr))))
   (define start-cost (hash-ref (hash-ref backend 'start) 'cost))
   (define start-error (hash-ref (hash-ref backend 'start) 'errors))
@@ -151,8 +150,7 @@
                   [errs end-errors]
                   [cost end-costs]
                   [history end-histories])
-         (define-values (dropdown body)
-           (render-program expr ctx #:ident identifier #:instructions preprocessing))
+         (define-values (dropdown body) (render-program expr ctx #:ident identifier))
          `(section ([id ,(format "alternative~a" i)] (class "programs"))
                    (h2 "Alternative "
                        ,(~a i)

@@ -45,7 +45,8 @@
   (define pcontext* (preprocess-pcontext context pcontext preprocessing))
   (*pcontext* pcontext*)
   (*start-prog* initial)
-  (^table^ (make-alt-table pcontext (make-alt-preprocessing initial preprocessing) context))
+  (define start-alt (alt initial 'start '() preprocessing))
+  (^table^ (make-alt-table pcontext start-alt context))
 
   (for ([iteration (in-range (*num-iterations*))]
         #:break (atab-completed? (^table^)))
@@ -123,7 +124,7 @@
     [(< (length altns) (*pareto-pick-limit*)) altns] ; take max
     [else
      (define best (argmin score-alt altns))
-     (define altns* (sort (filter-not (curry alt-equal? best) altns) < #:key (curryr alt-cost repr)))
+     (define altns* (sort (set-remove altns best) < #:key (curryr alt-cost repr)))
      (define simplest (car altns*))
      (define altns** (cdr altns*))
      (define div-size (round (/ (length altns**) (- (*pareto-pick-limit*) 1))))

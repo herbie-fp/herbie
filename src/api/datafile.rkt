@@ -17,7 +17,6 @@
         (name identifier
               status
               pre
-              preprocess
               precision
               conversions
               vars
@@ -98,7 +97,6 @@
                              identifier
                              status
                              pre
-                             preprocess
                              prec
                              conversions
                              vars
@@ -126,7 +124,6 @@
                  (list cost error (~a expr))))]))
     (make-hash `((name . ,name) (identifier . ,(~s identifier))
                                 (pre . ,(~s pre))
-                                (preprocess . ,(~s preprocess))
                                 (prec . ,(~s prec))
                                 (bits . ,(representation-total-bits (get-representation prec)))
                                 (conversions . ,(map (curry map ~s) conversions))
@@ -207,7 +204,6 @@
                               (parse-string (hash-ref test 'identifier "#f"))
                               (get 'status)
                               (parse-string (hash-ref test 'pre "TRUE"))
-                              (parse-string (hash-ref test 'preprocess "()"))
                               (parse-string (hash-ref test 'prec "binary64"))
                               (let ([cs (hash-ref test 'conversions "()")])
                                 (if (string? cs)
