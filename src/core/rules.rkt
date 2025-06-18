@@ -183,8 +183,8 @@
 
 (define-rules polynomials
   [sqr-pow (pow a b) (* (pow a (/ b 2)) (pow a (/ b 2))) #:unsound] ; unsound @ a = -1, b = 1
-  [flip-+ (+ a b) (/ (- (* a a) (* b b)) (- a b)) #:unsound] ; unsound @ a = b = 1
-  [flip-- (- a b) (/ (- (* a a) (* b b)) (+ a b)) #:unsound]) ; unsound @ a = -1, b = 1
+  [flip-+ (+ a b) (safe-/ (- (* a a) (* b b)) (- a b) (+ a b))] ; unsound @ a = b = 1
+  [flip-- (- a b) (safe-/ (- (* a a) (* b b)) (+ a b) (- a b))]) ; unsound @ a = -1, b = 1
 
 ; Difference of cubes
 (define-rules polynomials
@@ -194,8 +194,8 @@
   [sum-cubes-rev (* (+ (* a a) (- (* b b) (* a b))) (+ a b)) (+ (pow a 3) (pow b 3))])
 
 (define-rules polynomials ; unsound @ a = b = 0
-  [flip3-+ (+ a b) (/ (+ (pow a 3) (pow b 3)) (+ (* a a) (- (* b b) (* a b)))) #:unsound]
-  [flip3-- (- a b) (/ (- (pow a 3) (pow b 3)) (+ (* a a) (+ (* b b) (* a b)))) #:unsound])
+  [flip3-+ (+ a b) (safe-/ (+ (pow a 3) (pow b 3)) (+ (* a a) (- (* b b) (* a b))) (+ a b))]
+  [flip3-- (- a b) (safe-/ (- (pow a 3) (pow b 3)) (+ (* a a) (+ (* b b) (* a b))) (- a b))])
 
 ; Dealing with fractions
 (define-rules fractions
