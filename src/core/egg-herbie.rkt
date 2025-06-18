@@ -305,6 +305,10 @@
       [(list (? (λ (x) (string-contains? (~a x) "unsound")) op) args ...)
        (define op* (string->symbol (string-replace (symbol->string (car expr)) "unsound-" "")))
        (cons op* (map loop args (map (const 'real) args)))]
+      [(list (? (λ (x) (string-prefix? (symbol->string x) "sound-")) op) args ...)
+       (define op* (string->symbol (substring (symbol->string (car expr)) (string-length "sound-"))))
+       (define args* (drop-right args 1))
+       (cons op* (map loop args* (map (const 'real) args*)))]
       [(list op args ...) (cons op (map loop args (operator-info op 'itype)))])))
 
 ;; Parses a string from egg into a single S-expr.
@@ -331,6 +335,8 @@
       (define computed-in (egg-expr->expr out (*context*)))
       (check-equal? out expected-out)
       (check-equal? computed-in in)))
+
+  (check-equal? (egg-expr->expr '(sound-sqrt $var0 $var1) (*context*)) '(sqrt x))
 
   (*context* (make-debug-context '(x a b c r)))
   (define extended-expr-list
@@ -541,6 +547,7 @@
        [(eq? f '$approx) (platform-reprs (*active-platform*))]
        [(eq? f 'if) (all-reprs/types)]
        [(string-contains? (~a f) "unsound") (list 'real)]
+       [(string-prefix? (~a f) "sound-") (list 'real)]
        [(impl-exists? f) (list (impl-info f 'otype))]
        [else (list (operator-info f 'otype))])]))
 
@@ -567,6 +574,11 @@
        [(string-contains? (~a f) "unsound")
         (define op (string->symbol (string-replace (symbol->string f) "unsound-" "")))
         (list* op (map (λ (x) (lookup (u32vector-ref ids x) 'real)) (range (u32vector-length ids))))]
+       [(string-prefix? (~a f) "sound-")
+        (define op (string->symbol (substring (symbol->string f) (string-length "sound-"))))
+        (list* op
+               (map (λ (x) (lookup (u32vector-ref ids x) 'real))
+                    (range (- (u32vector-length ids) 1))))]
        [else
         (define itypes
           (if (impl-exists? f)
