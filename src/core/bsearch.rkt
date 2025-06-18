@@ -32,13 +32,13 @@
 ;; The last splitpoint uses +nan.0 for pt and represents the "else"
 (struct sp (cidx bexpr point) #:prefab)
 
-(define (combine-alts best-option ctx)
+(define (combine-alts best-option start-prog ctx)
   (match-define (option splitindices alts pts expr _) best-option)
   (match splitindices
     [(list (si cidx _)) (list-ref alts cidx)]
     [_
      (timeline-event! 'bsearch)
-     (define splitpoints (sindices->spoints pts expr alts splitindices ctx))
+     (define splitpoints (sindices->spoints pts expr alts splitindices start-prog ctx))
 
      (define expr*
        (for/fold ([expr (alt-expr (list-ref alts (sp-cidx (last splitpoints))))])
@@ -119,8 +119,8 @@
 ;; float form always come from the range [f(idx1), f(idx2)). If the
 ;; float form of a split is f(idx2), or entirely outside that range,
 ;; problems may arise.
-(define/contract (sindices->spoints points expr alts sindices ctx)
-  (-> (listof vector?) any/c (listof alt?) (listof si?) context? valid-splitpoints?)
+(define/contract (sindices->spoints points expr alts sindices start-prog ctx)
+  (-> (listof vector?) any/c (listof alt?) (listof si?) any/c context? valid-splitpoints?)
   (define repr (repr-of expr ctx))
 
   (define eval-expr (compile-prog expr ctx))
@@ -128,7 +128,7 @@
   (define var (gensym 'branch))
   (define ctx* (context-extend ctx var repr))
   (define progs (map (compose (curryr extract-subexpression var expr ctx) alt-expr) alts))
-  (define start-prog (extract-subexpression (*start-prog*) var expr ctx))
+  (define start-prog-sub (extract-subexpression start-prog var expr ctx))
 
   ; Not totally clear if this should actually use the precondition
   (define start-real-compiler
@@ -163,7 +163,7 @@
   (define use-binary
     (and (flag-set? 'reduce 'binary-search)
          ;; Binary search is only valid if we correctly extracted the branch expression
-         (andmap identity (cons start-prog progs))))
+         (andmap identity (cons start-prog-sub progs))))
 
   (append (for/list ([si1 sindices]
                      [si2 (cdr sindices)])

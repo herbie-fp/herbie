@@ -30,6 +30,9 @@
 (define/reset ^patched^ #f)
 (define/reset ^table^ #f)
 
+;; Starting program for the current run
+(define *start-prog* (make-parameter #f))
+
 ;; These high-level functions give the high-level workflow of Herbie:
 ;; - Initial steps: explain, preprocessing, initialize the alt table
 ;; - the loop: choose some alts, localize, run the patch table, and finalize
@@ -66,7 +69,7 @@
   (timeline-push-alts! '())
 
   (define all-alts (atab-all-alts (^table^)))
-  (define joined-alts (make-regime! all-alts)) ;; HERE
+  (define joined-alts (make-regime! all-alts (*start-prog*))) ;; HERE
   (define annotated-alts (add-derivations! joined-alts))
 
   (timeline-push! 'stop (if (atab-completed? (^table^)) "done" "fuel") 1)
@@ -237,7 +240,7 @@
   (finalize-iter!)
   (void))
 
-(define (make-regime! alts)
+(define (make-regime! alts start-prog)
   (define ctx (*context*))
   (define repr (context-repr ctx))
 
@@ -247,9 +250,9 @@
           (equal? (representation-type repr) 'real)
           (not (null? (context-vars ctx)))
           (get-fpcore-impl '<= '() (list repr repr)))
-     (define opts (pareto-regimes (sort alts < #:key (curryr alt-cost repr)) ctx))
+     (define opts (pareto-regimes (sort alts < #:key (curryr alt-cost repr)) start-prog ctx))
      (for/list ([opt (in-list opts)])
-       (combine-alts opt ctx))]
+       (combine-alts opt start-prog ctx))]
     [else (list (argmin score-alt alts))]))
 
 (define (add-derivations! alts)
