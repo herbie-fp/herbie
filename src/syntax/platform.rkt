@@ -6,7 +6,7 @@
          "matcher.rkt"
          "types.rkt" ; representation structure
          (only-in (submod "types.rkt" internals) make-representation)
-         (only-in "syntax.rkt" impl-info operator-info all-operators approx literal? literal-value)
+         (only-in "syntax.rkt" impl-info operator-info approx literal? literal-value operators)
          (only-in (submod "syntax.rkt" internals) make-operator-impl))
 
 (provide *active-platform*
@@ -190,19 +190,18 @@
 
 (define (impl-exists? op)
   (define platform (*active-platform*))
-  (define impls (platform-impls platforms))
+  (define impls (platform-impls platform))
   (hash-has-key? impls op))
 
 (define (constant-operator? op)
   (and (symbol? op)
-       (or (and (hash-has-key? (all-operators) op)
-                (null? (operator-info (hash-ref (all-operators) op) 'itype)))
+       (or (and (hash-has-key? operators op) (null? (operator-info (hash-ref operators op) 'itype)))
            (and (impl-exists? op) (null? (impl-info op 'vars))))))
 
 (define (variable? var)
   (and (symbol? var)
-       (or (not (hash-has-key? (all-operators) var))
-           (not (null? (operator-info (hash-ref (all-operators) var) 'itype))))
+       (or (not (hash-has-key? operators var))
+           (not (null? (operator-info (hash-ref operators var) 'itype))))
        (or (not (impl-exists? var)) (not (null? (impl-info var 'vars))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

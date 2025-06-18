@@ -14,15 +14,14 @@
          (struct-out hole)
          operator-exists?
          operator-info
-         all-operators
+         all-operators ; return a list of operators names
+         operators ; returns hash of operators
          impl-info
          *functions*
          register-function!)
 
 (module+ internals
-  (provide make-operator-impl
-           #;define-operator ; these are not used
-           #;register-operator!))
+  (provide make-operator-impl))
 
 (module+ test
   (require rackunit
