@@ -468,15 +468,14 @@
              (hash-set! (id->e1) unsound-op (serialize-op unsound-op))
              (hash-set! (e1->id) (serialize-op unsound-op) unsound-op)
 
+             (define sound-op (sym-append "sound-" op))
+             (hash-set! (id->e1) sound-op (serialize-op sound-op))
+             (hash-set! (e1->id) (serialize-op sound-op) sound-op)
+
              (define arity (length (operator-info op 'itype)))
-             (list `(,(serialize-op op) ,@(for/list ([i (in-range arity)])
-                                            'M)
-                                        :cost
-                                        4294967295)
-                   `(,(serialize-op unsound-op) ,@(for/list ([i (in-range arity)])
-                                                    'M)
-                                                :cost
-                                                4294967295)))))
+             (list `(,(serialize-op op) ,@(make-list arity 'M) :cost 4294967295)
+                   `(,(serialize-op sound-op) ,@(make-list arity 'M) M :cost 4294967295)
+                   `(,(serialize-op unsound-op) ,@(make-list arity 'M) :cost 4294967295)))))
 
 (define (platform-impl-nodes pform min-cost)
   (for/list ([impl (in-list (platform-impls pform))])
