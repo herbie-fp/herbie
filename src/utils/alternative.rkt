@@ -3,7 +3,6 @@
 (require "../syntax/platform.rkt")
 (provide (struct-out alt)
          make-alt
-         *start-prog*
          alt-cost
          alt-map)
 
@@ -20,8 +19,3 @@
 
 (define (alt-map f altn)
   (f (struct-copy alt altn [prevs (map (curry alt-map f) (alt-prevs altn))])))
-
-;; A useful parameter for regimes/bsearch
-;; TODO: should be the spec, not initial program, and ideally not a global
-
-(define *start-prog* (make-parameter #f))

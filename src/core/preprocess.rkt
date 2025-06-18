@@ -64,10 +64,10 @@
   (define spec (prog->spec expr))
 
   ;; identities
-  (define even-identities (make-even-identities spec ctx))
-  (define odd-identities (make-odd-identities spec ctx))
-  (define sort-identities (make-sort-identities spec ctx))
-  (define identities (append even-identities odd-identities sort-identities))
+  (define identities
+    (append (make-even-identities spec ctx)
+            (make-odd-identities spec ctx)
+            (make-sort-identities spec ctx)))
 
   ;; make egg runner
   (define rules (*sound-rules*))
@@ -80,21 +80,9 @@
                  `((,rules . ((node . ,(*node-limit*)))))))
 
   ;; collect equalities
-  (define abs-instrs
-    (for/list ([(ident spec*) (in-dict even-identities)]
-               #:when (egraph-equal? runner spec spec*))
-      ident))
-
-  (define negabs-instrs
-    (for/list ([(ident spec*) (in-dict odd-identities)]
-               #:when (egraph-equal? runner spec spec*))
-      ident))
-
-  (define sort-instrs
-    (for/list ([(ident spec*) (in-dict sort-identities)]
-               #:when (egraph-equal? runner spec spec*))
-      ident))
-  (append abs-instrs negabs-instrs sort-instrs))
+  (for/list ([(ident spec*) (in-dict identities)]
+             #:when (egraph-equal? runner spec spec*))
+    ident))
 
 (define (preprocess-pcontext context pcontext preprocessing)
   (define preprocess
