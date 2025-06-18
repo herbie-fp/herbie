@@ -7,7 +7,7 @@
          "types.rkt" ; representation structure
          (only-in (submod "types.rkt" internals) make-representation)
          "syntax.rkt"
-         (only-in (submod "syntax.rkt" internals) make-operator-impl))
+         (submod "syntax.rkt" internals))
 
 (provide *active-platform*
          activate-platform!
@@ -31,8 +31,8 @@
          (contract-out ;; Platforms
           [platform? (-> any/c boolean?)]
           [platform-name (-> platform? any/c)]
-          [platform-reprs (-> platform? hash?)]
-          [platform-impls (-> platform? hash?)]
+          [platform-reprs (-> platform? (listof representation?))]
+          [platform-impls (-> platform? (listof symbol?))]
           #;[platform-union (-> platform? platform? ... platform?)]
           #;[platform-intersect (-> platform? platform? ... platform?)]
           #;[platform-subtract (-> platform? platform? ... platform?)]
@@ -102,13 +102,10 @@
   (define impls (make-hash))
   (when (hash-has-key? platforms name)
     (error 'make-empty-platform "platform with name ~a is already registered" name))
-  (when if-cost
-    (set! if-cost (platform/parse-if-cost if-cost)))
+  (unless (or if-cost default-cost)
+    (error 'make-empty-platform "Platform ~a is missing cost for if function" name))
+  (set! if-cost (platform/parse-if-cost (or if-cost default-cost)))
   (create-platform name if-cost default-cost reprs impls))
-
-; dummy function
-(define (platform/parse-if-cost x)
-  x)
 
 (define (platform-register-representation! platform repr)
   (define reprs (platform-representations platform))
@@ -164,7 +161,7 @@
   (define platform (*active-platform*))
   (define reprs (platform-representations platform))
   (or (hash-ref reprs name #f)
-      (and (generate-repr name) (hash-ref reprs name #f))
+      ; (and (generate-repr name) (hash-ref reprs name #f)) useless line of code
       (raise-herbie-error "Could not find support for ~a representation: ~a in a platform ~a"
                           name
                           (string-join (map ~s (hash-keys reprs)) ", ")
@@ -195,7 +192,7 @@
 
 (define (constant-operator? op)
   (and (symbol? op)
-       (or (and (hash-has-key? operators op) (null? (operator-info (hash-ref operators op) 'itype)))
+       (or (and (hash-has-key? operators op) (null? (operator-itype (hash-ref operators op))))
            (and (impl-exists? op) (null? (impl-info op 'vars))))))
 
 (define (variable? var)
@@ -223,13 +220,19 @@
      (define env (map cons vars (map prog->spec args)))
      (pattern-substitute spec env)]))
 
-(begin-for-syntax
-  ;; Parse if cost syntax
-  (define (platform/parse-if-cost stx)
-    (syntax-case stx (max sum)
-      [(max x) #'(list 'max x)]
-      [(sum x) #'(list 'sum x)]
-      [x #'(list 'max x)])))
+#;(begin-for-syntax
+    ;; Parse if cost syntax
+    (define (platform/parse-if-cost stx)
+      (syntax-case stx (max sum)
+        [(max x) #'(list 'max x)]
+        [(sum x) #'(list 'sum x)]
+        [x #'(list 'max x)])))
+
+(define (platform/parse-if-cost cost)
+  (match cost
+    [`(max ,x) `(max ,x)]
+    [`(sum ,x) `(sum ,x)]
+    [x `(max ,x)]))
 
 ;; Merger for costs.
 (define (merge-cost pform-costs key #:optional? [optional? #f])
@@ -296,7 +299,14 @@
 (define/contract (impl-info impl-name field)
   (-> symbol? (or/c 'name 'vars 'itype 'otype 'spec 'fpcore 'fl 'cost) any/c)
   (define impls (platform-implementations (*active-platform*)))
-  (define impl (hash-ref impls impl-name (lambda () (error 'impl-info "unknown impl '~a" impl))))
+  (define impl
+    (hash-ref impls
+              impl-name
+              (lambda ()
+                (error 'impl-info
+                       "unknown impl '~a in platform ~a"
+                       impl-name
+                       (platform-name (*active-platform*))))))
   (case field
     [(name) (operator-impl-name impl)]
     [(vars) (context-vars (operator-impl-ctx impl))]
@@ -305,13 +315,13 @@
     [(spec) (operator-impl-spec impl)]
     [(fpcore) (operator-impl-fpcore impl)]
     [(fl) (operator-impl-fl impl)]
-    [(cost) (operator-impl-cost impl)]))
+    [(cost) (or (operator-impl-cost impl) (platform-default-cost (*active-platform*)))]))
 
 (define (platform-impls platform)
   (hash-keys (platform-implementations platform)))
 
 (define (platform-reprs platform)
-  (hash-keys (platform-representations platform)))
+  (hash-values (platform-representations platform)))
 
 ; Implementation cost in a platform.
 (define (platform-impl-cost platform impl)
@@ -322,32 +332,32 @@
 ; Representation (terminal) cost in a platform.
 (define (platform-repr-cost platform repr)
   (define default-cost (platform-default-cost platform))
-  (define repr-cost (representation-cost (get-representation repr)))
+  (define repr-cost (representation-cost repr))
   (or repr-cost default-cost))
 
 ; Cost model of a single node by a platform.
 ; Returns a procedure that must be called with the costs of the children.
-(define ((platform-node-cost-proc pform) expr repr)
+(define ((platform-node-cost-proc platform) expr repr)
   (match expr
-    [(? literal?) (lambda () (platform-repr-cost pform repr))]
-    [(? symbol?) (lambda () (platform-repr-cost pform repr))]
+    [(? literal?) (lambda () (platform-repr-cost platform repr))]
+    [(? symbol?) (lambda () (platform-repr-cost platform repr))]
     [(list 'if _ _ _)
-     (define if-cost (platform-impl-cost pform 'if))
+     (define if-cost (platform-if-cost platform))
      (lambda (cond-cost ift-cost iff-cost)
        (match if-cost
          [`(max ,n) (+ n cond-cost (max ift-cost iff-cost))]
          [`(sum ,n) (+ n cond-cost ift-cost iff-cost)]))]
     [(list impl args ...)
-     (define impl-cost (platform-impl-cost pform impl))
+     (define impl-cost (platform-impl-cost platform impl))
      (lambda itype-costs
        (unless (= (length itype-costs) (length args))
          (error 'platform-node-cost-proc "arity mismatch, expected ~a arguments" (length args)))
        (apply + impl-cost itype-costs))]))
 
 ; Cost model parameterized by a platform.
-(define (platform-cost-proc pform)
+(define (platform-cost-proc platform)
   (define bool-repr (get-representation 'bool)) ; that's sketchy
-  (define node-cost-proc (platform-node-cost-proc pform))
+  (define node-cost-proc (platform-node-cost-proc platform))
   (λ (expr repr)
     (let loop ([expr expr]
                [repr repr])

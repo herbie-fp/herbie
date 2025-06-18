@@ -12,7 +12,6 @@
 (provide (struct-out literal)
          (struct-out approx)
          (struct-out hole)
-         (struct-out operator-impl)
          operator-exists?
          operator-info
          all-operators ; return a list of operators names
@@ -21,7 +20,9 @@
          register-function!)
 
 (module+ internals
-  (provide make-operator-impl))
+  (provide make-operator-impl
+           (struct-out operator-impl) ; required by platform.rkt
+           (struct-out operator))) ; required by platform.rkt
 
 (module+ test
   (require rackunit
