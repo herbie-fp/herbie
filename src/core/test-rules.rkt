@@ -24,6 +24,10 @@
     [(list (? (λ (x) (string-contains? (~a x) "unsound")) op) args ...)
      (define op* (string->symbol (string-replace (symbol->string (car expr)) "unsound-" "")))
      (cons op* (map drop-unsound args))]
+    [(list (? (λ (x) (string-prefix? (symbol->string x) "sound-")) op) args ...)
+     (define op* (string->symbol (substring (symbol->string (car expr)) (string-length "sound-"))))
+     (define args* (drop-right args 1))
+     (cons op* (map drop-unsound args*))]
     [_ expr]))
 
 (define (check-rule test-rule)
