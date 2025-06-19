@@ -7,7 +7,6 @@
          "../utils/common.rkt"
          "../utils/float.rkt"
          "../utils/timeline.rkt"
-         "../utils/float.rkt"
          "batch.rkt"
          "egg-herbie.rkt"
          "points.rkt"
