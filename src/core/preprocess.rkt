@@ -74,7 +74,8 @@
     (make-egraph batch
                  (batch-roots batch)
                  (make-list (vector-length (batch-roots batch)) (context-repr ctx))
-                 `((,rules . ((node . ,(*node-limit*)))))))
+                 `((,rules . ((node . ,(*node-limit*)))))
+                 ctx))
 
   ;; collect equalities
   (for/list ([(ident spec*) (in-dict identities)]
