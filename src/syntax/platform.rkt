@@ -198,7 +198,7 @@
 (define (variable? var)
   (and (symbol? var)
        (or (not (hash-has-key? operators var))
-           (not (null? (operator-info (hash-ref operators var) 'itype))))
+           (not (null? (operator-itype (hash-ref operators var)))))
        (or (not (impl-exists? var)) (not (null? (impl-info var 'vars))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
