@@ -269,7 +269,7 @@
                                         [logb 3200]
                                         [rint 3200]
                                         [round 3200]
-                                        [sqrt 320] ; not a mistake, it is 320
+                                        [sqrt 320] ; not a typo, it is 320
                                         [tanh 3200]
                                         [tgamma 3200]
                                         [trunc 3200])]
