@@ -13,6 +13,7 @@
          activate-platform!
          platform-lifting-rules
          platform-lowering-rules
+         platform-copy
 
          ; from types.rkt
          repr-exists? ; moved here
@@ -90,12 +91,18 @@
   (*active-platform* platform)
   (display-platform platform))
 
+(define (platform-copy platform)
+  (struct-copy $platform
+               platform
+               [representations (hash-copy (platform-representations platform))]
+               [implementations (hash-copy (platform-implementations platform))]))
+
 ;; Registers a platform under identifier `name`.
 (define (register-platform! platform)
   (define name (platform-name platform))
   (when (hash-has-key? platforms name)
     (error 'register-platform! "platform already registered ~a" name))
-  (hash-set! platforms name (struct-copy $platform platform [name name])))
+  (hash-set! platforms name (platform-copy platform)))
 
 (define (make-empty-platform name #:if-cost [if-cost #f] #:default-cost [default-cost #f])
   (define reprs (make-hash))
@@ -325,9 +332,7 @@
 
 ; Implementation cost in a platform.
 (define (platform-impl-cost platform impl)
-  (define default-cost (platform-default-cost platform))
-  (define impl-cost (impl-info impl 'cost))
-  (or impl-cost default-cost))
+  (impl-info impl 'cost))
 
 ; Representation (terminal) cost in a platform.
 (define (platform-repr-cost platform repr)

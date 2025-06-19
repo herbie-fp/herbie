@@ -534,7 +534,7 @@
                                               [logb 0.332842]
                                               [rint 0.310159]
                                               [round 0.776288]
-                                              [sqrt 0.222512] ; not a typo
+                                              [sqrt 0.222512]
                                               [tanh 0.985656]
                                               [tgamma 2.40065]
                                               [trunc 0.27144])]

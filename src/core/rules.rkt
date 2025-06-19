@@ -34,10 +34,8 @@
 ; An analog of free-variables due to cycles in loading
 (define (get-input-variables prog)
   (match prog
-    [(? literal?) '()]
     [(? number?) '()]
     [(? symbol?) (list prog)]
-    [(approx _ impl) (get-input-variables impl)]
     [(list _ args ...) (remove-duplicates (append-map get-input-variables args))]))
 
 (define (make-rule-context input output)
