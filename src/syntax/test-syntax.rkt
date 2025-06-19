@@ -13,13 +13,16 @@
            math/bigfloat)
 
   (load-herbie-builtins)
-
+  (define default-platform (*active-platform*))
+  (define binary64 (get-representation 'binary64))
   ; log1pmd(x) = log1p(x) - log1p(-x)
 
-  (define-operator-impl (log1pmd.f64 [x : binary64])
-                        binary64
-                        #:spec (- (log (+ 1 x)) (log (+ 1 (neg x))))
-                        #:fpcore (! :precision binary64 (log1pmd x)))
+  (platform-register-implementation! default-platform
+                                     (make-operator-impl (log1pmd.f64 [x : binary64])
+                                                         binary64
+                                                         #:spec (- (log (+ 1 x)) (log (+ 1 (neg x))))
+                                                         #:fpcore (! :precision binary64 (log1pmd x))
+                                                         #:cost 6400))
 
   (define log1pmd-proc (impl-info 'log1pmd.f64 'fl))
   (define log1pmd-vals '((0.0 . 0.0) (0.5 . 1.0986122886681098) (-0.5 . -1.0986122886681098)))
@@ -27,23 +30,20 @@
     (check-equal? (log1pmd-proc pt) out (format "log1pmd(~a) = ~a" pt out)))
 
   ; fast sine
-
-  (define-operator-impl (fast-sin.f64 [x : binary64])
-                        binary64
-                        #:spec (sin x)
-                        #:fpcore (! :precision binary64 :math-library fast (sin x))
-                        #:fl (lambda (x)
-                               (parameterize ([bf-precision 12])
-                                 (bigfloat->flonum (bfsin (bf x))))))
+  (platform-register-implementation!
+   default-platform
+   (make-operator-impl (fast-sin.f64 [x : binary64])
+                       binary64
+                       #:spec (sin x)
+                       #:fpcore (! :precision binary64 :math-library fast (sin x))
+                       #:fl (lambda (x)
+                              (parameterize ([bf-precision 12])
+                                (bigfloat->flonum (bfsin (bf x)))))))
 
   (define sin-proc (impl-info 'fast-sin.f64 'fl))
   (define sin-vals '((0.0 . 0.0) (1.0 . 0.841552734375) (-1.0 . -0.841552734375)))
   (for ([(pt out) (in-dict sin-vals)])
     (check-equal? (sin-proc pt) out (format "sin(~a) = ~a" pt out)))
-
-  (define-platform test-platform [log1pmd.f64 6400] [fast-sin.f64 6400])
-  (register-platform! 'test (platform-union (*active-platform*) test-platform))
-  (activate-platform! 'test)
 
   ; get-fpcore-impl
 

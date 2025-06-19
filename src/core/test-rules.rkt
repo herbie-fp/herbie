@@ -8,6 +8,7 @@
          "rival.rkt"
          "rules.rkt"
          "programs.rkt"
+         "../syntax/platform.rkt"
          "sampling.rkt")
 
 (load-herbie-builtins)

@@ -588,21 +588,21 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; additional converters ;;;;;;;;;;;;;;;;;
 
-(platform-register-implementation! herbie20-platform
-                                   (make-operator-impl (binary64->binary32 [x : binary64])
-                                                       binary32
-                                                       #:spec x
-                                                       #:fpcore (! :precision binary32 (cast x))
-                                                       #:fl flsingle
-                                                       #:cost 64))
+#;(platform-register-implementation! herbie20-platform
+                                     (make-operator-impl (binary64->binary32 [x : binary64])
+                                                         binary32
+                                                         #:spec x
+                                                         #:fpcore (! :precision binary32 (cast x))
+                                                         #:fl flsingle
+                                                         #:cost 64))
 
-(platform-register-implementation! herbie20-platform
-                                   (make-operator-impl (binary32->binary64 [x : binary32])
-                                                       binary64
-                                                       #:spec x
-                                                       #:fpcore (! :precision binary64 (cast x))
-                                                       #:fl identity
-                                                       #:cost 64))
+#;(platform-register-implementation! herbie20-platform
+                                     (make-operator-impl (binary32->binary64 [x : binary32])
+                                                         binary64
+                                                         #:spec x
+                                                         #:fpcore (! :precision binary64 (cast x))
+                                                         #:fl identity
+                                                         #:cost 64))
 
 (register-platform! herbie20-platform)
 

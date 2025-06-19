@@ -87,15 +87,15 @@
                         (string-join (map ~a (hash-keys platforms)) ", ")))
 
   (*platform-name* name)
-  (*active-platform* platform))
+  (*active-platform* platform)
+  (display-platform platform))
 
 ;; Registers a platform under identifier `name`.
 (define (register-platform! platform)
   (define name (platform-name platform))
   (when (hash-has-key? platforms name)
     (error 'register-platform! "platform already registered ~a" name))
-  (hash-set! platforms name (struct-copy $platform platform [name name]))
-  (display-platform platform))
+  (hash-set! platforms name (struct-copy $platform platform [name name])))
 
 (define (make-empty-platform name #:if-cost [if-cost #f] #:default-cost [default-cost #f])
   (define reprs (make-hash))
