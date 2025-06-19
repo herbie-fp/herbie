@@ -128,3 +128,32 @@
 
 (define (context-lookup ctx var)
   (dict-ref (map cons (context-vars ctx) (context-var-reprs ctx)) var))
+
+(module+ test
+  (require rackunit)
+
+  (define load-herbie-builtins (dynamic-require "load-plugin.rkt" 'load-herbie-builtins))
+  (load-herbie-builtins)
+
+  ;; Dummy representation registration
+  (check-false (repr-exists? 'dummy))
+  (register-representation! 'dummy 'real number? identity identity identity identity 0 (const #f))
+  (check-true (repr-exists? 'dummy))
+
+  (define dummy (get-representation 'dummy))
+  (check-equal? (representation-name dummy) 'dummy)
+  (check-equal? (get-representation 'dummy) dummy)
+
+  ;; Context operations
+  (define <b64> (get-representation 'binary64))
+  (define <bool> (get-representation 'bool))
+
+  (define ctx (context '() <b64> '()))
+  (define ctx1 (context-extend ctx 'x <b64>))
+  (check-equal? (context-vars ctx1) '(x))
+  (check-equal? (context-lookup ctx1 'x) <b64>)
+
+  (define ctx2 (context-extend ctx1 'y <bool>))
+  (check-equal? (context-vars ctx2) '(y x))
+  (check-equal? (context-lookup ctx2 'y) <bool>)
+  (check-equal? (context-lookup ctx2 'x) <b64>))
