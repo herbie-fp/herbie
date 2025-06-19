@@ -1,4 +1,7 @@
-.PHONY: help install egg-herbie nightly index start-server deploy
+EGGLOG_VERSION = b8ae2d18e68667af966ef392156db30a802ef07f
+EGGLOG_DIR = egglog
+
+.PHONY: help install egg-herbie egglog nightly index start-server deploy
 
 help:
 	@echo "Type 'make install' to install Herbie"
@@ -13,6 +16,7 @@ clean:
 	raco pkg remove --force --no-docs egg-herbie-windows && echo "Uninstalled old egg-herbie" || :
 	raco pkg remove --force --no-docs egg-herbie-osx && echo "Uninstalled old egg-herbie" || :
 	raco pkg remove --force --no-docs egg-herbie-macosm1 && echo "Uninstalled old egg-herbie" || :
+	cargo uninstall egglog && rm -rf $(EGGLOG_DIR) && echo "Uninstalled egglog" || :
 
 update:
 	raco pkg install --skip-installed --no-docs --auto --name herbie src/
@@ -28,9 +32,10 @@ egg-herbie:
 	raco pkg remove --force --no-docs egg-herbie-macosm1 && echo "Warning: uninstalling egg-herbie and reinstalling local version" || :
 	raco pkg install ./egg-herbie
 
-egglog-herbie:
-	cargo install --git https://github.com/egraphs-good/egglog.git --rev c7cfe8b8a420455798e00171659332abb94a8148
-
+egglog:
+	git clone https://github.com/egraphs-good/egglog.git $(EGGLOG_DIR) && echo "Cloning egglog" || :
+	cd $(EGGLOG_DIR) && git fetch origin && git checkout $(EGGLOG_VERSION)
+	cd $(EGGLOG_DIR) && cargo install --path .
 
 distribution: minimal-distribution
 	cp -r bench herbie-compiled/
