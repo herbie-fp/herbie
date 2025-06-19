@@ -113,8 +113,6 @@
 
 (define/reset log-cache (make-hash '((1 . ((1 -1 1))))))
 
-(define/reset series-cache (make-hash))
-
 (define (n-sum-to n k)
   (hash-ref! (n-sum-to-cache)
              (cons n k)

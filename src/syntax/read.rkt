@@ -18,17 +18,7 @@
          load-tests
          parse-test)
 
-(struct test
-        (name identifier
-              vars
-              input
-              output
-              expected
-              spec
-              pre
-              preprocess
-              output-repr-name
-              var-repr-names)
+(struct test (name identifier vars input output expected spec pre output-repr-name var-repr-names)
   #:prefab)
 
 (define (test-output-repr test)
@@ -216,7 +206,6 @@
         (dict-ref prop-dict ':herbie-expected #t)
         spec
         pre*
-        (dict-ref prop-dict ':herbie-preprocess empty)
         (representation-name default-repr)
         (for/list ([var (in-list var-names)]
                    [repr (in-list var-reprs)])

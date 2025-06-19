@@ -241,6 +241,15 @@
   [fabs-cbrt (fabs (/ (cbrt a) a)) (/ (cbrt a) a)]
   [fabs-cbrt-rev (/ (cbrt a) a) (fabs (/ (cbrt a) a))])
 
+; Copysign
+(define-rules arithmetic
+  [copysign-neg (copysign a (neg b)) (neg (copysign a b))]
+  [neg-copysign (neg (copysign a b)) (copysign a (neg b))]
+  [copysign-other-neg (copysign (neg a) b) (copysign a b)]
+  [copysign-fabs (copysign a (fabs b)) (fabs a)]
+  [copysign-other-fabs (copysign (fabs a) b) (copysign a b)]
+  [fabs-copysign (fabs (copysign a b)) (fabs a)])
+
 ; Square root
 (define-rules arithmetic
   [sqrt-pow2 (pow (sqrt x) y) (pow x (/ y 2))]
@@ -283,6 +292,11 @@
   [cbrt-fabs-rev (fabs (cbrt x)) (cbrt (fabs x))]
   [cbrt-div-cbrt (/ (cbrt x) (fabs (cbrt x))) (copysign 1 x)]
   [cbrt-div-cbrt2 (/ (fabs (cbrt x)) (cbrt x)) (copysign 1 x)])
+
+; Min and max
+(define-rules arithmetic
+  [fmin-swap (fmin a b) (fmin b a)]
+  [fmax-swap (fmax a b) (fmax b a)])
 
 ; Exponentials
 (define-rules exponents
