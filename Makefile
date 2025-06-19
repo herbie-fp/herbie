@@ -7,7 +7,7 @@ help:
 	@echo "Type 'make install' to install Herbie"
 	@echo "Then type 'racket -l herbie web' to run it."
 
-install: clean egg-herbie egglog-herbie update
+install: clean egg-herbie egglog update
 
 clean:
 	raco pkg remove --force --no-docs herbie && echo "Uninstalled old herbie" || :
