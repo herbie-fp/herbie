@@ -9,8 +9,6 @@
          "../utils/timeline.rkt"
          "../utils/float.rkt"
          "batch.rkt"
-         "egglog-herbie.rkt"
-         "../config.rkt"
          "egg-herbie.rkt"
          "points.rkt"
          "programs.rkt"
