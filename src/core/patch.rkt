@@ -84,8 +84,8 @@
 
   (define runner
     (if (flag-set? 'generate 'egglog)
-        (make-egglog-runner input-batch (batch-roots input-batch) reprs schedule)
-        (make-egraph global-batch roots reprs schedule)))
+        (make-egglog-runner input-batch (batch-roots input-batch) reprs schedule (*context*))
+        (make-egraph global-batch roots reprs schedule (*context*))))
 
   (define batchrefss
     (if (flag-set? 'generate 'egglog)
@@ -164,8 +164,8 @@
 
   (define runner
     (if (flag-set? 'generate 'egglog)
-        (make-egglog-runner input-batch (batch-roots input-batch) reprs schedule)
-        (make-egraph global-batch roots reprs schedule)))
+        (make-egglog-runner input-batch (batch-roots input-batch) reprs schedule (*context*))
+        (make-egraph global-batch roots reprs schedule (*context*))))
 
   (define batchrefss
     (if (flag-set? 'generate 'egglog)
