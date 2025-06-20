@@ -1082,12 +1082,17 @@
     [(? variable?) #t]
     [`(,impl ,args ...) (and (not (eq? impl 'typed-id)) (andmap egglog-expr-typed? args))]))
 
+(define (egglog-rational->rational e)
+  (match e
+    [`(bigrat (from_string ,n) (from_string ,d))
+     (/ (string->number n) (string->number d))]
+    [_ (error 'egglog-rational->rational "expected `(bigrat (from_string <n>) (from_string <d>))` got `~a`" e)]))
+
 (define (e1->expr expr)
   (let loop ([expr expr])
     (match expr
-      [`(,(? egglog-num? num) (bigrat (from-string ,n) (from-string ,d)))
-       (/ (string->number n) (string->number d))]
-      [`(,(? egglog-var? var) ,v) (string->symbol v)]
+      [`(Num ,n) (egglog-rational->rational n)]
+      [`(Var ,v) (string->symbol v)]
       [`(If ,cond ,ift ,iff)
        `(if ,(loop cond)
             ,(loop ift)
@@ -1097,8 +1102,7 @@
 (define (e2->expr expr)
   (let loop ([expr expr])
     (match expr
-      [`(,(? egglog-num? num) (bigrat (from-string ,n) (from-string ,d)))
-       (/ (string->number n) (string->number d))]
+      [`(,(? egglog-num? num) ,n) (egglog-rational->rational n)]
       [`(,(? egglog-var? var) ,v) (string->symbol v)]
       [`(IfTy ,cond ,ift ,iff)
        `(if ,(loop cond)
