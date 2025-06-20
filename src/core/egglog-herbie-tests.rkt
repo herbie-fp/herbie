@@ -363,8 +363,6 @@
       #s(approx (- (sin (+ x 1)) (sin x)) #s(hole binary64 (- (sin (- 1 (* -1 x))) (sin x))))
       #s(approx (sin (+ x 1)) #s(hole binary64 (sin (- 1 (* -1 x))))))))
 
-  (define roots (batch-roots batch))
-
   (define ctx (make-debug-context '(x eps)))
 
   (define reprs (make-list (vector-length (batch-roots batch)) (context-repr ctx)))
@@ -376,4 +374,4 @@
       (lower . ((iteration . 1) (scheduler . simple)))))
 
   (when (find-executable-path "egglog")
-    (run-egglog-multi-extractor (egglog-runner batch roots reprs schedule ctx) batch)))
+    (run-egglog-multi-extractor (egglog-runner batch reprs schedule ctx) batch)))
