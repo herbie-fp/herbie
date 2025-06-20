@@ -37,9 +37,9 @@
 
 (define (actual-errors expr pcontext)
   (match-define (cons subexprs pt-errorss)
-    (parameterize ([*pcontext* pcontext])
-      (flip-lists (hash->list (first (compute-local-errors (list (all-subexpressions expr))
-                                                           (*context*)))))))
+    (flip-lists (hash->list (first (compute-local-errors (list (all-subexpressions expr))
+                                                         (*context*)
+                                                         pcontext)))))
 
   (define pt-worst-subexpr
     (append* (reap [sow]
