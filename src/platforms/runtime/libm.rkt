@@ -18,7 +18,7 @@
 ;; ```
 (define-syntax (make-libm stx)
   (define (oops! why [sub-stx #f])
-    (raise-syntax-error 'define-libm why stx sub-stx))
+    (raise-syntax-error 'make-libm why stx sub-stx))
   (define (ctype->ffi type)
     (syntax-case type (double float integer)
       [double #'_double]
@@ -43,13 +43,26 @@
 ;; ```
 (define-syntax (make-libm-impl stx)
   (define (oops! why [sub-stx #f])
-    (raise-syntax-error 'define-libm-impl why stx sub-stx))
+    (raise-syntax-error 'make-libm-impl why stx sub-stx))
+
   (define (repr->type repr)
-    (syntax-case repr ()
-      [binary64 #'double]
-      [binary32 #'float]
-      [integer #'integer]
-      [_ (oops! "unknown type" repr)]))
+    (cond
+      [(identifier? repr)
+       (let ([sym (syntax-e repr)])
+         (cond
+           [(eq? sym 'binary64) #'double]
+           [(eq? sym 'binary32) #'float]
+           [(eq? sym 'integer) #'integer]
+           [else (oops! "unknown type" repr)]))]
+      [else (oops! "expected identifier" repr)]))
+
+  #;(define (repr->type repr)
+      (syntax-case repr (binary64 binary32 integer)
+        [binary64 #'double]
+        [binary32 #'float]
+        [integer #'integer]
+        [_ (oops! "unknown type" repr)]))
+
   (syntax-case stx ()
     [(_ cname (op name itype ...) otype cost fields ...)
      (let ([op #'op]
