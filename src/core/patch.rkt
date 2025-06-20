@@ -76,16 +76,17 @@
   (define schedule `((lower . ((iteration . 1) (scheduler . simple)))))
 
   ; run egg
-  (define exprs (map (compose debatchref alt-expr) altns))
-  (define input-batch (progs->batch exprs))
-
   (define roots (list->vector (map (compose batchref-idx alt-expr) altns)))
-  (define reprs (map (curryr repr-of (*context*)) exprs))
+  (define reprs
+    (for/list ([root (in-vector roots)])
+      (repr-of-node global-batch root (*context*))))
+
+  (define batch* (batch-remove-zombie global-batch roots))
 
   (define runner
     (if (flag-set? 'generate 'egglog)
-        (make-egglog-runner input-batch (batch-roots input-batch) reprs schedule)
-        (make-egraph global-batch roots reprs schedule)))
+        (make-egglog-runner batch* reprs schedule)
+        (make-egraph batch* reprs schedule)))
 
   (define batchrefss
     (if (flag-set? 'generate 'egglog)
@@ -154,18 +155,17 @@
           `(,rules . ((node . ,(*node-limit*))))
           `(lower . ((iteration . 1) (scheduler . simple)))))
 
-  ; run egg
-  (define exprs (map (compose debatchref alt-expr) altns))
-  (define input-batch (progs->batch exprs))
-
   (define roots (list->vector (map (compose batchref-idx alt-expr) altns)))
-  (define reprs (map (curryr repr-of (*context*)) exprs))
-  (timeline-push! 'inputs (map ~a exprs))
+  (define reprs
+    (for/list ([root (in-vector roots)])
+      (repr-of-node global-batch root (*context*))))
+  (define batch* (batch-remove-zombie global-batch roots))
+  (timeline-push! 'inputs (map (compose ~a debatchref alt-expr) altns))
 
   (define runner
     (if (flag-set? 'generate 'egglog)
-        (make-egglog-runner input-batch (batch-roots input-batch) reprs schedule)
-        (make-egraph global-batch roots reprs schedule)))
+        (make-egglog-runner batch* reprs schedule)
+        (make-egraph batch* reprs schedule)))
 
   (define batchrefss
     (if (flag-set? 'generate 'egglog)
