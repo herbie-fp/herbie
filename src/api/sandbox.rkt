@@ -20,7 +20,6 @@
          "../syntax/platform.rkt"
          "../core/points.rkt"
          "../core/explain.rkt"
-         "../core/preprocess.rkt"
          "../utils/profile.rkt"
          "../utils/timeline.rkt"
          (submod "../utils/timeline.rkt" debug))
@@ -28,13 +27,12 @@
 (provide run-herbie
          get-table-data-from-hash
          *reeval-pts*
-         *timeout*
          (struct-out job-result)
          (struct-out improve-result)
          (struct-out alt-analysis))
 
 (struct job-result (command test status time timeline profile warnings backend))
-(struct improve-result (preprocess pcontext start target end))
+(struct improve-result (pcontext start target end))
 (struct alt-analysis (alt errors) #:prefab)
 
 ;; API users can supply their own, weird set of points, in which case
@@ -63,16 +61,12 @@
     (error 'get-alternatives "cannnot run without a pcontext"))
 
   (define-values (train-pcontext test-pcontext) (partition-pcontext joint-pcontext))
-  ;; TODO: Ignoring all user-provided preprocessing right now
   (define alternatives (run-improve! (test-input test) (test-spec test) (*context*) train-pcontext))
-
-  (define preprocessing (alt-preprocessing (first alternatives)))
-  (define test-pcontext* (preprocess-pcontext (*context*) test-pcontext preprocessing))
 
   ;; compute error/cost for input expression
   (define start-expr (test-input test))
-  (define start-alt (make-alt-preprocessing start-expr (test-preprocess test)))
-  (define start-errs (errors start-expr test-pcontext* (*context*)))
+  (define start-alt (make-alt start-expr))
+  (define start-errs (errors start-expr test-pcontext (*context*)))
   (define start-alt-data (alt-analysis start-alt start-errs))
 
   ;; optionally compute error/cost for input expression
@@ -81,22 +75,18 @@
     (for/list ([(expr is-valid?) (in-dict (test-output test))]
                #:when is-valid?)
       (define target-expr (fpcore->prog expr (*context*)))
-      (define target-errs (errors target-expr test-pcontext* (*context*)))
+      (define target-errs (errors target-expr test-pcontext (*context*)))
       (alt-analysis (make-alt target-expr) target-errs)))
 
   ;; compute error/cost for output expression
   ;; and sort alternatives by accuracy + cost on testing subset
-  (define test-errs* (batch-errors (map alt-expr alternatives) test-pcontext* (*context*)))
-  (define sorted-end-exprs (sort-alts alternatives test-errs*))
+  (define test-errs (batch-errors (map alt-expr alternatives) test-pcontext (*context*)))
+  (define sorted-end-exprs (sort-alts alternatives test-errs))
   (define end-exprs (map (compose alt-expr car) sorted-end-exprs))
   (define end-errs (map cdr sorted-end-exprs))
   (define end-data (map alt-analysis alternatives end-errs))
 
-  ;; bundle up the result
-  (timeline-adjust! 'regimes 'name (test-name test))
-  (timeline-adjust! 'regimes 'link ".")
-
-  (improve-result preprocessing test-pcontext* start-alt-data target-alt-data end-data))
+  (improve-result test-pcontext start-alt-data target-alt-data end-data))
 
 (define (get-cost test)
   (define cost-proc (platform-cost-proc (*active-platform*)))
@@ -224,16 +214,10 @@
 (define (dummy-table-row-from-hash result-hash status link)
   (define test (car (load-tests (open-input-string (hash-ref result-hash 'test)))))
   (define repr (test-output-repr test))
-  (define preprocess
-    (if (eq? (hash-ref result-hash 'status) 'success)
-        (map (compose read open-input-string)
-             (hash-ref (hash-ref result-hash 'backend) 'preprocessing))
-        (test-preprocess test)))
   (table-row (test-name test)
              (test-identifier test)
              status
              (prog->fpcore (test-pre test) (test-context test))
-             preprocess
              (representation-name repr)
              '() ; TODO: eliminate field
              (test-vars test)

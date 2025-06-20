@@ -106,6 +106,7 @@
           (match altn
             [(alt prog 'start (list) _) (void)]
             [(alt prog 'add-preprocessing `(,prev) _) (loop prev)]
+            [(alt prog `(evaluate ,loc) `(,prev) _) (loop prev)]
             [(alt _ `(regimes ,splitpoints) prevs _) (for-each loop prevs)]
             [(alt prog `(taylor ,loc ,pt ,var) `(,prev) _) (loop prev)]
             [(alt prog `(rr ,loc ,input ,proof) `(,prev) _)
@@ -159,6 +160,16 @@
      (define core (mixed->fpcore prog ctx))
      `(,@(render-history prev pcontext ctx errcache mask)
        (li (p "Taylor expanded in " ,(~a var) " around " ,(~a pt))
+           (div ((class "math"))
+                "\\[\\leadsto "
+                ,(core->tex core #:loc (and loc (cons 2 loc)) #:color "blue")
+                "\\]")))]
+
+    [(alt prog `(evaluate ,loc) `(,prev) _)
+     (define core (mixed->fpcore prog ctx))
+     (define err (altn-errors altn pcontext ctx errcache mask))
+     `(,@(render-history prev pcontext ctx errcache mask)
+       (li (p "Evaluated real constant" (span ((class "error")) ,err))
            (div ((class "math"))
                 "\\[\\leadsto "
                 ,(core->tex core #:loc (and loc (cons 2 loc)) #:color "blue")
@@ -242,6 +253,13 @@
             (prev . ,(render-json prev pcontext ctx errcache mask))
             (pt . ,(~a pt))
             (var . ,(~a var))
+            (loc . ,loc)
+            (error . ,err))]
+
+    [(alt prog `(evaluate ,loc) `(,prev) _)
+     `#hash((program . ,(fpcore->string (expr->fpcore prog ctx)))
+            (type . "evaluate")
+            (prev . ,(render-json prev pcontext ctx errcache mask))
             (loc . ,loc)
             (error . ,err))]
 

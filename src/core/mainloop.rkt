@@ -30,6 +30,9 @@
 (define/reset ^patched^ #f)
 (define/reset ^table^ #f)
 
+;; Starting program for the current run
+(define *start-prog* (make-parameter #f))
+
 ;; These high-level functions give the high-level workflow of Herbie:
 ;; - Initial steps: explain, preprocessing, initialize the alt table
 ;; - the loop: choose some alts, localize, run the patch table, and finalize
@@ -42,7 +45,8 @@
   (define pcontext* (preprocess-pcontext context pcontext preprocessing))
   (*pcontext* pcontext*)
   (*start-prog* initial)
-  (^table^ (make-alt-table pcontext (make-alt-preprocessing initial preprocessing) context))
+  (define start-alt (alt initial 'start '() preprocessing))
+  (^table^ (make-alt-table pcontext start-alt context))
 
   (for ([iteration (in-range (*num-iterations*))]
         #:break (atab-completed? (^table^)))
@@ -50,16 +54,23 @@
   (define alternatives (extract!))
   (timeline-event! 'preprocess)
   (for/list ([altn alternatives])
-    (define expr (alt-expr altn))
-    (define preprocessing (alt-preprocessing altn))
-    (alt-add-preprocessing altn
-                           (remove-unnecessary-preprocessing expr context pcontext preprocessing))))
+    (apply-preprocessing altn context pcontext)))
+
+(define (apply-preprocessing altn context pcontext)
+  (define expr (alt-expr altn))
+  (define initial-preprocessing (alt-preprocessing altn))
+  (define useful-preprocessing
+    (remove-unnecessary-preprocessing expr context pcontext initial-preprocessing))
+  (define expr*
+    (for/fold ([expr expr]) ([preprocessing (in-list (reverse useful-preprocessing))])
+      (compile-preprocessing expr context preprocessing)))
+  (alt expr* 'add-preprocessing (list altn) '()))
 
 (define (extract!)
   (timeline-push-alts! '())
 
   (define all-alts (atab-all-alts (^table^)))
-  (define joined-alts (make-regime! all-alts)) ;; HERE
+  (define joined-alts (make-regime! all-alts (*start-prog*))) ;; HERE
   (define annotated-alts (add-derivations! joined-alts))
 
   (timeline-push! 'stop (if (atab-completed? (^table^)) "done" "fuel") 1)
@@ -113,7 +124,7 @@
     [(< (length altns) (*pareto-pick-limit*)) altns] ; take max
     [else
      (define best (argmin score-alt altns))
-     (define altns* (sort (filter-not (curry alt-equal? best) altns) < #:key (curryr alt-cost repr)))
+     (define altns* (sort (set-remove altns best) < #:key (curryr alt-cost repr)))
      (define simplest (car altns*))
      (define altns** (cdr altns*))
      (define div-size (round (/ (length altns**) (- (*pareto-pick-limit*) 1))))
@@ -160,6 +171,7 @@
         [_
          (define event*
            (match event
+             [(list 'evaluate) (list 'evaluate loc0)]
              [(list 'taylor name var) (list 'taylor loc0 name var)]
              [(list 'rr input proof) (list 'rr loc0 input proof)]))
          (define expr* (location-set loc0 (alt-expr orig) (debatchref (alt-expr altn))))
@@ -229,7 +241,7 @@
   (finalize-iter!)
   (void))
 
-(define (make-regime! alts)
+(define (make-regime! alts start-prog)
   (define ctx (*context*))
   (define repr (context-repr ctx))
 
@@ -239,9 +251,9 @@
           (equal? (representation-type repr) 'real)
           (not (null? (context-vars ctx)))
           (get-fpcore-impl '<= '() (list repr repr)))
-     (define opts (pareto-regimes (sort alts < #:key (curryr alt-cost repr)) ctx))
+     (define opts (pareto-regimes (sort alts < #:key (curryr alt-cost repr)) start-prog ctx))
      (for/list ([opt (in-list opts)])
-       (combine-alts opt ctx))]
+       (combine-alts opt start-prog ctx))]
     [else (list (argmin score-alt alts))]))
 
 (define (add-derivations! alts)
