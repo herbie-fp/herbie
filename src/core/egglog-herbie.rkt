@@ -65,7 +65,7 @@
 ;;     - scheduler: `(scheduler . <name>)` [default: backoff]
 ;;        - `simple`: run all rules without banning
 ;;        - `backoff`: ban rules if the fire too much
-(define (make-egglog-runner batch reprs schedule #:context [ctx (*context*)])
+(define (make-egglog-runner batch reprs schedule ctx)
   (define (oops! fmt . args)
     (apply error 'verify-schedule! fmt args))
   ; verify the schedule

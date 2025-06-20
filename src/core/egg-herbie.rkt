@@ -311,7 +311,7 @@
   (egg-parsed->expr (flatten-let egg-expr) ctx (context-repr ctx)))
 
 (module+ test
-  (*context* (make-debug-context '(x y z)))
+  (define ctx (make-debug-context '(x y z)))
 
   (define test-exprs
     (list (cons '(+.f64 y x) '(+.f64 $var1 $var0))
@@ -326,12 +326,12 @@
 
   (let ([egg-graph (make-egraph-data)])
     (for ([(in expected-out) (in-dict test-exprs)])
-      (define out (expr->egg-expr in (*context*)))
-      (define computed-in (egg-expr->expr out (*context*)))
+      (define out (expr->egg-expr in ctx))
+      (define computed-in (egg-expr->expr out ctx))
       (check-equal? out expected-out)
       (check-equal? computed-in in)))
 
-  (*context* (make-debug-context '(x a b c r)))
+  (set! ctx (make-debug-context '(x a b c r)))
   (define extended-expr-list
     ; specifications
     (list '(/ (- (exp x) (exp (neg x))) 2)
@@ -354,8 +354,8 @@
 
   (let ([egg-graph (make-egraph-data)])
     (for ([expr extended-expr-list])
-      (define egg-expr (expr->egg-expr expr (*context*)))
-      (check-equal? (egg-expr->expr egg-expr (*context*)) expr))))
+      (define egg-expr (expr->egg-expr expr ctx))
+      (check-equal? (egg-expr->expr egg-expr ctx) expr))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Proofs
@@ -1281,7 +1281,7 @@
 ;;     - scheduler: `(scheduler . <name>)` [default: backoff]
 ;;        - `simple`: run all rules without banning
 ;;        - `backoff`: ban rules if the fire too much
-(define (make-egraph batch reprs schedule #:context [ctx (*context*)])
+(define (make-egraph batch reprs schedule ctx)
   (define (oops! fmt . args)
     (apply error 'verify-schedule! fmt args))
   ; verify the schedule

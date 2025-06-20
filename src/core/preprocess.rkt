@@ -7,10 +7,7 @@
          "../utils/common.rkt"
          "../utils/float.rkt"
          "../utils/timeline.rkt"
-         "../utils/float.rkt"
          "batch.rkt"
-         "egglog-herbie.rkt"
-         "../config.rkt"
          "egg-herbie.rkt"
          "points.rkt"
          "programs.rkt"
@@ -76,7 +73,8 @@
   (define runner
     (make-egraph batch
                  (make-list (vector-length (batch-roots batch)) (context-repr ctx))
-                 `((,rules . ((node . ,(*node-limit*)))))))
+                 `((,rules . ((node . ,(*node-limit*)))))
+                 ctx))
 
   ;; collect equalities
   (for/list ([(ident spec*) (in-dict identities)]
