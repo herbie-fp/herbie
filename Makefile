@@ -16,7 +16,7 @@ clean:
 	raco pkg remove --force --no-docs egg-herbie-windows && echo "Uninstalled old egg-herbie" || :
 	raco pkg remove --force --no-docs egg-herbie-osx && echo "Uninstalled old egg-herbie" || :
 	raco pkg remove --force --no-docs egg-herbie-macosm1 && echo "Uninstalled old egg-herbie" || :
-# cargo uninstall egglog && rm -rf $(EGGLOG_DIR) && echo "Uninstalled egglog" || :
+	cargo uninstall egglog && rm -rf $(EGGLOG_DIR) && echo "Uninstalled egglog" || :
 
 update:
 	raco pkg install --skip-installed --no-docs --auto --name herbie src/
