@@ -140,7 +140,7 @@
         [(? variable?) (taylor-exact node)]
         [`(,const) (taylor-exact node)]
         [`(+ ,args ...) (apply taylor-add (map (curry vector-ref taylor-approxs) args))]
-        [`(neg ,arg) (taylor-negate ((curry vector-ref taylor-approxs) arg))]
+        [`(neg ,arg) (taylor-scale -1 ((curry vector-ref taylor-approxs) arg))]
         [`(* ,left ,right)
          (taylor-mult (vector-ref taylor-approxs left) (vector-ref taylor-approxs right))]
         [`(/ ,num ,den)
@@ -150,6 +150,9 @@
          (taylor-quotient (vector-ref taylor-approxs num) (vector-ref taylor-approxs den))]
         [`(sqrt ,arg) (taylor-sqrt var (vector-ref taylor-approxs arg))]
         [`(cbrt ,arg) (taylor-cbrt var (vector-ref taylor-approxs arg))]
+        [`(fabs ,arg)
+         (or (taylor-fabs var (vector-ref taylor-approxs arg))
+             (taylor-exact (batch-ref expr-batch n)))]
         [`(exp ,arg)
          (define arg* (normalize-series (vector-ref taylor-approxs arg)))
          (if (positive? (car arg*))
@@ -175,10 +178,8 @@
             ; Our taylor-cos function assumes that a0 is 0,
             ; because that way it is especially simple. We correct for this here
             ; We use the identity cos (x + y) = cos x cos y - sin x sin y
-            (taylor-add (taylor-mult (taylor-exact `(cos ,((cdr arg*) 0)))
-                                     (taylor-cos (zero-series arg*)))
-                        (taylor-negate (taylor-mult (taylor-exact `(sin ,((cdr arg*) 0)))
-                                                    (taylor-sin (zero-series arg*)))))]
+            (taylor-add (taylor-scale `(cos ,((cdr arg*) 0)) (taylor-cos (zero-series arg*)))
+                        (taylor-scale `(neg (sin ,((cdr arg*) 0))) (taylor-sin (zero-series arg*))))]
            [else (taylor-cos (zero-series arg*))])]
         [`(log ,arg) (taylor-log var (vector-ref taylor-approxs arg))]
         [`(pow ,base ,power)
@@ -231,8 +232,9 @@
                          (reduce (make-sum (for/list ([series serieses])
                                              (series n))))))))))
 
-(define (taylor-negate term)
-  (cons (car term) (λ (n) (reduce (list 'neg ((cdr term) n))))))
+(define (taylor-scale scale series)
+  (match-define (cons offset coeffs) series)
+  (cons offset (lambda (n) (reduce `(* ,scale ,(coeffs n))))))
 
 (define (taylor-mult left right)
   (cons (+ (car left) (car right))
@@ -344,6 +346,19 @@
                                                   `(* ,(f a) ,(f b) ,(f c))))
                                            (* 3 ,f0 ,f0))))))])
       (cons (/ offset* 3) f))))
+
+(define (taylor-fabs var term)
+  (match-define (cons offset coeffs) term)
+  (define a0 (coeffs 0))
+  (define scale
+    `(* ,(if (odd? offset)
+             `(fabs ,var)
+             1)
+        ,(if (and (number? a0) (negative? a0)) -1 1)))
+  (cond
+    [(or (not (number? a0)) (zero? a0)) #f]
+    [(odd? offset) (taylor-scale scale (cons (add1 offset) coeffs))]
+    [(even? offset) (taylor-scale scale (cons offset coeffs))]))
 
 (define (taylor-pow coeffs n)
   (match n ;; Russian peasant multiplication
@@ -525,4 +540,6 @@
   (check-equal? (coeffs '(cbrt (+ 1 x))) '(1 1/3 -1/9 5/81 -10/243 22/729 -154/6561))
   (check-equal? (coeffs '(sqrt x)) '((sqrt x) 0 0 0 0 0 0))
   (check-equal? (coeffs '(cbrt x)) '((cbrt x) 0 0 0 0 0 0))
-  (check-equal? (coeffs '(cbrt (* x x))) '((pow x 2/3) 0 0 0 0 0 0)))
+  (check-equal? (coeffs '(cbrt (* x x))) '((pow x 2/3) 0 0 0 0 0 0))
+  (check-equal? (coeffs '(fabs (+ 2 x))) '(2 1 0 0 0 0 0))
+  (check-equal? (coeffs '(fabs (+ -2 x))) '(2 -1 0 0 0 0 0)))
