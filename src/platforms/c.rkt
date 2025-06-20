@@ -622,6 +622,7 @@
                                                          #:cost 64bit-move-cost))
 
 (register-platform! c-platform)
+(display-platform c-platform)
 
 ;; Do not run this file during testing
 (module test racket/base

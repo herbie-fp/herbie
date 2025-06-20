@@ -88,8 +88,7 @@
                         (string-join (map ~a (hash-keys platforms)) ", ")))
 
   (*platform-name* name)
-  (*active-platform* platform)
-  (display-platform platform))
+  (*active-platform* platform))
 
 (define (platform-copy platform)
   (struct-copy $platform
@@ -396,7 +395,7 @@
   (define impls (platform-impls platform))
   (for/list ([impl (in-list impls)])
     (hash-ref! (*lifting-rules*)
-               (cons impl (platform-name platform))
+               (cons impl platform)
                (lambda ()
                  (define name (sym-append 'lift- impl))
                  (define itypes (impl-info impl 'itype))
@@ -410,7 +409,7 @@
   (append* (for/list ([impl (in-list impls)])
              (hash-ref!
               (*lowering-rules*)
-              (cons impl (platform-name platform))
+              (cons impl platform)
               (lambda ()
                 (define name (sym-append 'lower- impl))
                 (define-values (vars spec-expr impl-expr) (impl->rule-parts impl))
