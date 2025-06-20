@@ -75,7 +75,6 @@
   (define batch (progs->batch (cons spec (map cdr identities))))
   (define runner
     (make-egraph batch
-                 (batch-roots batch)
                  (make-list (vector-length (batch-roots batch)) (context-repr ctx))
                  `((,rules . ((node . ,(*node-limit*)))))))
 
