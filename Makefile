@@ -34,9 +34,10 @@ egg-herbie:
 	raco pkg install ./egg-herbie
 
 egglog:
+	cargo --version
 	git clone https://github.com/egraphs-good/egglog.git $(EGGLOG_DIR) && echo "Cloning egglog" || :
 	cd $(EGGLOG_DIR) && git fetch origin && git checkout $(EGGLOG_VERSION)
-	cd $(EGGLOG_DIR) && cargo install --locked --path .
+	cd $(EGGLOG_DIR) && cargo install --path . --locked
 
 distribution: minimal-distribution
 	cp -r bench herbie-compiled/
