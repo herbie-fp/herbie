@@ -67,7 +67,7 @@
                [egraph-pointer (egraph_copy (egraph-data-egraph-pointer eg-data))]))
 
 ; Adds expressions returning the root ids
-(define (egraph-add-exprs egg-data batch roots ctx)
+(define (egraph-add-exprs egg-data batch ctx)
   (match-define (egraph-data ptr id->spec) egg-data)
 
   ; normalizes an approx spec
@@ -108,13 +108,12 @@
       [(list op ids ...) (egraph_add_node ptr (~s op) (list->u32vec ids))]
       [(? (disjoin symbol? number?) x) (egraph_add_node ptr (~s x) 0-vec)]))
 
-  (define insert-batch (batch-remove-zombie batch roots))
-  (define mappings (build-vector (batch-length insert-batch) values))
+  (define mappings (build-vector (batch-length batch) values))
   (define (remap x)
     (vector-ref mappings x))
 
   ; Inserting nodes bottom-up
-  (for ([node (in-vector (batch-nodes insert-batch))]
+  (for ([node (in-vector (batch-nodes batch))]
         [n (in-naturals)])
     (define idx
       (match node
@@ -125,20 +124,20 @@
         [(approx spec impl) (insert-node! (list '$approx (remap spec) (remap impl)))]
         [(list op (app remap args) ...) (insert-node! (cons op args))]))
     (vector-set! mappings n idx))
-  (for ([root (in-vector (batch-roots insert-batch))])
+  (for ([root (in-vector (batch-roots batch))])
     (egraph_add_root ptr (remap root)))
 
-  (for ([node (in-vector (batch-nodes insert-batch))]
+  (for ([node (in-vector (batch-nodes batch))]
         #:when (approx? node))
     (match-define (approx spec impl) node)
     (hash-ref! id->spec
                (remap spec)
                (lambda ()
-                 (define spec* (normalize-spec (batch-ref insert-batch spec)))
-                 (define type (representation-type (repr-of-node insert-batch impl ctx)))
+                 (define spec* (normalize-spec (batch-ref batch spec)))
+                 (define type (representation-type (repr-of-node batch impl ctx)))
                  (cons spec* type))))
 
-  (for/list ([root (in-vector (batch-roots insert-batch))])
+  (for/list ([root (in-vector (batch-roots batch))])
     (remap root)))
 
 ;; runs rules on an egraph (optional iteration limit)
@@ -202,7 +201,7 @@
 
 (define (egraph-expr-equal? egraph-data expr goal ctx)
   (define batch (progs->batch (list expr goal)))
-  (match-define (list id1 id2) (egraph-add-exprs egraph-data batch (batch-roots batch) ctx))
+  (match-define (list id1 id2) (egraph-add-exprs egraph-data batch ctx))
   (= id1 id2))
 
 ;; returns a flattened list of terms or #f if it failed to expand the proof due to budget
@@ -1222,12 +1221,12 @@
            (loop (sub1 num-iters)))]
       [else (values egg-graph iteration-data)])))
 
-(define (egraph-run-schedule batch roots schedule ctx)
+(define (egraph-run-schedule batch schedule ctx)
   ; allocate the e-graph
   (define egg-graph (make-egraph-data))
 
   ; insert expressions into the e-graph
-  (define root-ids (egraph-add-exprs egg-graph batch roots ctx))
+  (define root-ids (egraph-add-exprs egg-graph batch ctx))
 
   ; run the schedule
   (define egg-graph*
@@ -1266,7 +1265,7 @@
 
 ;; Herbie's version of an egg runner.
 ;; Defines parameters for running rewrite rules with egg
-(struct egg-runner (batch roots reprs schedule ctx new-roots egg-graph)
+(struct egg-runner (batch reprs schedule ctx new-roots egg-graph)
   #:transparent ; for equality
   #:methods gen:custom-write ; for abbreviated printing
   [(define (write-proc alt port mode)
@@ -1282,7 +1281,7 @@
 ;;     - scheduler: `(scheduler . <name>)` [default: backoff]
 ;;        - `simple`: run all rules without banning
 ;;        - `backoff`: ban rules if the fire too much
-(define (make-egraph batch roots reprs schedule ctx)
+(define (make-egraph batch reprs schedule ctx)
   (define (oops! fmt . args)
     (apply error 'verify-schedule! fmt args))
   ; verify the schedule
@@ -1306,10 +1305,10 @@
            [_ (oops! "in instruction `~a`, unknown parameter `~a`" instr param)]))]
       [_ (oops! "expected `(<rules> . <params>)`, got `~a`" instr)]))
 
-  (define-values (root-ids egg-graph) (egraph-run-schedule batch roots schedule ctx))
+  (define-values (root-ids egg-graph) (egraph-run-schedule batch schedule ctx))
 
   ; make the runner
-  (egg-runner batch roots reprs schedule ctx root-ids egg-graph))
+  (egg-runner batch reprs schedule ctx root-ids egg-graph))
 
 (define (regraph-dump regraph root-ids reprs)
   (define dump-dir "dump-egg")

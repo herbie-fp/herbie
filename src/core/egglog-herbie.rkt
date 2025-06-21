@@ -48,7 +48,7 @@
 
 ;; Herbie's version of an egglog runner.
 ;; Defines parameters for running rewrite rules with egglog
-(struct egglog-runner (batch roots reprs schedule ctx)
+(struct egglog-runner (batch reprs schedule ctx)
   #:transparent ; for equality
   #:methods gen:custom-write ; for abbreviated printing
   [(define (write-proc alt port mode)
@@ -65,7 +65,7 @@
 ;;     - scheduler: `(scheduler . <name>)` [default: backoff]
 ;;        - `simple`: run all rules without banning
 ;;        - `backoff`: ban rules if the fire too much
-(define (make-egglog-runner batch roots reprs schedule ctx)
+(define (make-egglog-runner batch reprs schedule ctx)
   (define (oops! fmt . args)
     (apply error 'verify-schedule! fmt args))
   ; verify the schedule
@@ -91,12 +91,11 @@
       [_ (oops! "expected `(<rules> . <params>)`, got `~a`" instr)]))
 
   ; make the runner
-  (egglog-runner batch roots reprs schedule ctx))
+  (egglog-runner batch reprs schedule ctx))
 
 ;; Runs egglog using an egglog runner by extracting multiple variants
 (define (run-egglog-multi-extractor runner output-batch) ; multi expression extraction
-  (define insert-batch
-    (batch-remove-zombie (egglog-runner-batch runner) (egglog-runner-roots runner)))
+  (define insert-batch (egglog-runner-batch runner))
   (define curr-program (make-egglog-program))
 
   ;; Dump-file
