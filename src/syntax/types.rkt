@@ -13,8 +13,7 @@
 (module+ internals
   (provide define-type
            make-representation
-           register-generator!
-           #;register-representation-alias!))
+           register-generator!))
 
 ;; Types
 
@@ -81,15 +80,6 @@
                   total-bits
                   special-value?
                   cost))
-
-;; Associates an existing representation with a (possibly different) name.
-;; Useful for defining an common alias for an equivalent representation,
-;; e.g. float for binary32.
-#;(define (register-representation-alias! name repr)
-    (unless (representation? repr)
-      (raise-herbie-error "Tried to register an alias for representation ~a: not found"
-                          (representation-name repr)))
-    (set! representations (hash-set representations name repr)))
 
 ;; Contexts
 

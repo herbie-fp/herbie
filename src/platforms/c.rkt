@@ -12,8 +12,8 @@
 (require "../utils/float.rkt" ; for shift/unshift
          (submod "../syntax/platform.rkt" internals))
 
-(define 64bit-move-cost 0.125384)
-(define 32bit-move-cost 0.12963)
+(define 64bit-move-cost 0.12538399999999972)
+(define 32bit-move-cost 0.12961999999999974)
 (define boolean-move-cost 0.1)
 
 (define c-platform
@@ -157,7 +157,7 @@
                                                        #:spec (neg x)
                                                        #:fpcore (! :precision binary32 (- x))
                                                        #:fl fl32-
-                                                       #:cost 0.115677))
+                                                       #:cost 0.11567699999999992))
 
 (platform-register-implementation! c-platform
                                    (make-operator-impl (+.f32 [x : binary32] [y : binary32])
@@ -173,7 +173,7 @@
                                                        #:spec (- x y)
                                                        #:fpcore (! :precision binary32 (- x y))
                                                        #:fl fl32-
-                                                       #:cost 0.191068))
+                                                       #:cost 0.19106800000000014))
 
 (platform-register-implementation! c-platform
                                    (make-operator-impl (*.f32 [x : binary32] [y : binary32])
@@ -189,7 +189,7 @@
                                                        #:spec (/ x y)
                                                        #:fpcore (! :precision binary32 (/ x y))
                                                        #:fl fl32/
-                                                       #:cost 0.346533))
+                                                       #:cost 0.3465330000000001))
 
 (platform-register-implementation! c-platform
                                    (make-operator-impl (==.f32 [x : binary32] [y : binary32])
@@ -262,41 +262,41 @@
 
 (define libm-impls.f32
   (make-libm-impls/binary32 [(binary32 binary32)
-                             ([fabs 0.124646] [sin 4.21853]
-                                              [cos 4.273883]
-                                              [tan 4.669173]
-                                              [sinh 1.746303]
-                                              [cosh 1.32949]
-                                              [acos 0.521333]
-                                              [acosh 0.847705]
-                                              [asin 0.480267]
-                                              [asinh 1.120725]
-                                              [atan 1.101518]
-                                              [atanh 0.465283]
-                                              [cbrt 1.946652]
-                                              [ceil 0.287118]
-                                              [erf 1.121118]
-                                              [exp 1.386056]
-                                              [exp2 1.1716]
-                                              [floor 0.295966]
-                                              [lgamma 2.22032]
-                                              [log 0.778197]
-                                              [log10 1.179358]
-                                              [log2 0.864416]
-                                              [logb 0.36221]
-                                              [rint 0.293168]
-                                              [round 0.86771]
-                                              [sqrt 0.254647]
-                                              [tanh 1.056722]
-                                              [tgamma 2.628082]
-                                              [trunc 0.287654])]
+                             ([fabs 0.12464599999999992] [sin 4.2185290000000003]
+                                                         [cos 4.2738829999999994]
+                                                         [tan 4.669173000000001]
+                                                         [sinh 1.7463029999999996]
+                                                         [cosh 1.32949]
+                                                         [acos 0.5213330000000001]
+                                                         [acosh 0.847705]
+                                                         [asin 0.4802670000000002]
+                                                         [asinh 1.1207249999999999]
+                                                         [atan 1.1015179999999995]
+                                                         [atanh 0.4652830000000002]
+                                                         [cbrt 1.946652]
+                                                         [ceil 0.287118]
+                                                         [erf 1.1211180000000001]
+                                                         [exp 1.3860560000000002]
+                                                         [exp2 1.1716009999999999]
+                                                         [floor 0.2959660000000004]
+                                                         [lgamma 2.2203209999999998]
+                                                         [log 0.778197]
+                                                         [log10 1.1793579999999997]
+                                                         [log2 0.8644160000000004]
+                                                         [logb 0.36221]
+                                                         [rint 0.29316799999999997]
+                                                         [round 0.8677139999999997]
+                                                         [sqrt 0.25464700000000007]
+                                                         [tanh 1.0567220000000002]
+                                                         [tgamma 2.6280819999999994]
+                                                         [trunc 0.28765399999999997])]
                             [(binary32 binary32 binary32)
-                             ([pow 2.028296] [atan2 1.955913]
-                                             [copysign 0.20428]
-                                             [fdim 0.763562]
-                                             [fmax 0.236365]
-                                             [fmin 0.241269]
-                                             [fmod 1.718247]
+                             ([pow 2.028296] [atan2 1.9559129999999997]
+                                             [copysign 0.2042799999999998]
+                                             [fdim 0.7635619999999999]
+                                             [fmax 0.23636500000000005]
+                                             [fmin 0.24126899999999996]
+                                             [fmod 1.7182470000000002]
                                              [remainder 1.030245])]))
 
 (for ([libm-impl.f32 (in-list libm-impls.f32)])
@@ -343,7 +343,7 @@
                                                          #:spec (sqrt (+ (* x x) (* y y)))
                                                          #:fpcore (! :precision binary32 (hypot x y))
                                                          #:fl c_hypotf
-                                                         #:cost 1.681608)))
+                                                         #:cost 1.6816069999999997)))
 
 (when c_fmaf
   (platform-register-implementation!
@@ -412,7 +412,7 @@
                                                        #:spec (neg x)
                                                        #:fpcore (! :precision binary64 (- x))
                                                        #:fl -
-                                                       #:cost 0.121142))
+                                                       #:cost 0.12114199999999964))
 
 (platform-register-implementation! c-platform
                                    (make-operator-impl (+.f64 [x : binary64] [y : binary64])
@@ -420,7 +420,7 @@
                                                        #:spec (+ x y)
                                                        #:fpcore (! :precision binary64 (+ x y))
                                                        #:fl +
-                                                       #:cost 0.217419))
+                                                       #:cost 0.2174189999999998))
 
 (platform-register-implementation! c-platform
                                    (make-operator-impl (-.f64 [x : binary64] [y : binary64])
@@ -428,7 +428,7 @@
                                                        #:spec (- x y)
                                                        #:fpcore (! :precision binary64 (- x y))
                                                        #:fl -
-                                                       #:cost 0.202657))
+                                                       #:cost 0.20265700000000008))
 
 (platform-register-implementation! c-platform
                                    (make-operator-impl (*.f64 [x : binary64] [y : binary64])
@@ -436,7 +436,7 @@
                                                        #:spec (* x y)
                                                        #:fpcore (! :precision binary64 (* x y))
                                                        #:fl *
-                                                       #:cost 0.245123))
+                                                       #:cost 0.24512299999999976))
 
 (platform-register-implementation! c-platform
                                    (make-operator-impl (/.f64 [x : binary64] [y : binary64])
@@ -444,7 +444,7 @@
                                                        #:spec (/ x y)
                                                        #:fpcore (! :precision binary64 (/ x y))
                                                        #:fl /
-                                                       #:cost 0.296246))
+                                                       #:cost 0.2962459999999998))
 
 (platform-register-implementation! c-platform
                                    (make-operator-impl (==.f64 [x : binary64] [y : binary64])
@@ -510,42 +510,42 @@
 
 (define libm-impls.f64
   (make-libm-impls/binary64 [(binary64 binary64)
-                             ([fabs 0.149422] [sin 3.979444]
-                                              [cos 3.998834]
-                                              [tan 4.3931]
-                                              [sinh 1.53454]
-                                              [cosh 1.332794]
-                                              [acos 0.528324]
-                                              [acosh 0.929629]
-                                              [asin 0.592536]
-                                              [asinh 1.120752]
-                                              [atan 1.149123]
-                                              [atanh 0.477357]
-                                              [cbrt 1.89928]
-                                              [ceil 0.269904]
-                                              [erf 1.064252]
-                                              [exp 1.270031]
-                                              [exp2 1.070903]
-                                              [floor 0.270019]
-                                              [lgamma 2.109717]
-                                              [log 0.719641]
-                                              [log10 1.099494]
-                                              [log2 0.805026]
-                                              [logb 0.332842]
-                                              [rint 0.310159]
-                                              [round 0.776288]
-                                              [sqrt 0.222512]
-                                              [tanh 0.985656]
-                                              [tgamma 2.40065]
-                                              [trunc 0.27144])]
+                             ([fabs 0.14942199999999971] [sin 3.979444]
+                                                         [cos 3.9988340000000006]
+                                                         [tan 4.3931]
+                                                         [sinh 1.5345409999999998]
+                                                         [cosh 1.3327939999999996]
+                                                         [acos 0.5283240000000002]
+                                                         [acosh 0.929629]
+                                                         [asin 0.592536]
+                                                         [asinh 1.120752]
+                                                         [atan 1.1491229999999997]
+                                                         [atanh 0.4773569999999998]
+                                                         [cbrt 1.8992809999999996]
+                                                         [ceil 0.2699039999999999]
+                                                         [erf 1.0642519999999996]
+                                                         [exp 1.270031]
+                                                         [exp2 1.0709029999999997]
+                                                         [floor 0.27001899999999957]
+                                                         [lgamma 2.1097169999999998]
+                                                         [log 0.719641]
+                                                         [log10 1.0994940000000002]
+                                                         [log2 0.8050260000000001]
+                                                         [logb 0.33284199999999986]
+                                                         [rint 0.3101590000000003]
+                                                         [round 0.7762879999999997]
+                                                         [sqrt 0.2225119999999998]
+                                                         [tanh 0.9856559999999996]
+                                                         [tgamma 2.4006499999999997]
+                                                         [trunc 0.2714409999999996])]
                             [(binary64 binary64 binary64)
-                             ([pow 1.860082] [atan2 1.81383]
-                                             [copysign 0.238628]
-                                             [fdim 0.725493]
-                                             [fmax 0.24807]
-                                             [fmin 0.266808]
-                                             [fmod 1.532448]
-                                             [remainder 0.949438])]))
+                             ([pow 1.860082] [atan2 1.8138300000000002]
+                                             [copysign 0.23862799999999962]
+                                             [fdim 0.7254930000000001]
+                                             [fmax 0.2480699999999998]
+                                             [fmin 0.26680799999999994]
+                                             [fmod 1.5324479999999996]
+                                             [remainder 0.9494380000000005])]))
 
 (for ([libm-impl.f64 (in-list libm-impls.f64)])
   (when libm-impl.f64
@@ -564,7 +564,7 @@
                                                          #:spec (- 1 (erf x))
                                                          #:fpcore (! :precision binary64 (erfc x))
                                                          #:fl c_erfc
-                                                         #:cost 0.858862)))
+                                                         #:cost 0.8588620000000002)))
 
 (when c_expm1
   (platform-register-implementation! c-platform
@@ -573,7 +573,7 @@
                                                          #:spec (- (exp x) 1)
                                                          #:fpcore (! :precision binary64 (expm1 x))
                                                          #:fl c_expm1
-                                                         #:cost 0.848349)))
+                                                         #:cost 0.8483490000000002)))
 
 (when c_log1p
   (platform-register-implementation! c-platform
@@ -582,7 +582,7 @@
                                                          #:spec (log (+ 1 x))
                                                          #:fpcore (! :precision binary64 (log1p x))
                                                          #:fl c_log1p
-                                                         #:cost 1.241683)))
+                                                         #:cost 1.2416829999999997)))
 
 (when c_hypot
   (platform-register-implementation! c-platform
@@ -601,7 +601,7 @@
                        #:spec (+ (* x y) z)
                        #:fpcore (! :precision binary64 (fma x y z))
                        #:fl c_fma
-                       #:cost 0.371747)))
+                       #:cost 0.37174700000000026)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; additional converters ;;;;;;;;;;;;;;;;;
 
