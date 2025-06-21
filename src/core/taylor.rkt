@@ -5,6 +5,7 @@
          "../syntax/syntax.rkt"
          "batch.rkt"
          "programs.rkt"
+         (only-in "../syntax/platform.rkt" variable?)
          "reduce.rkt")
 
 (provide approximate)

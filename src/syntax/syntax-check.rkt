@@ -4,7 +4,8 @@
 (require "../utils/common.rkt"
          "../utils/errors.rkt"
          "syntax.rkt"
-         "types.rkt")
+         "types.rkt"
+         "platform.rkt")
 (provide assert-program!)
 
 (define (check-expression* stx vars error!)

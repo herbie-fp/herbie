@@ -17,7 +17,17 @@
          value->json
          json->value
          real->repr
-         repr->real)
+         repr->real
+         shift
+         unshift)
+
+(define (shift bits fn)
+  (define shift-val (expt 2 bits))
+  (λ (x) (fn (- x shift-val))))
+
+(define (unshift bits fn)
+  (define shift-val (expt 2 bits))
+  (λ (x) (+ (fn x) shift-val)))
 
 (define (ulp-difference x y repr)
   (define ->ordinal (representation-repr->ordinal repr))

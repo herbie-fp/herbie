@@ -5,8 +5,9 @@
 (require "../utils/common.rkt"
          "../utils/float.rkt"
          "../syntax/sugar.rkt"
-         "../syntax/syntax.rkt"
+         (only-in "../syntax/syntax.rkt" literal? approx)
          "../syntax/types.rkt"
+         (only-in "../syntax/platform.rkt" variable? prog->spec get-representation impl-info)
          "batch.rkt"
          "compiler.rkt"
          "points.rkt"

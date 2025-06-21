@@ -7,6 +7,7 @@
          "../syntax/sugar.rkt"
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
+         "../syntax/platform.rkt"
          "../core/bsearch.rkt"
          "../utils/alternative.rkt"
          "../utils/common.rkt"

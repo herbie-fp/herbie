@@ -6,7 +6,8 @@
          "../reports/timeline.rkt"
          "../syntax/read.rkt"
          "../syntax/sugar.rkt"
-         "../syntax/types.rkt"
+         "../syntax/types.rkt" ; context
+         (only-in "../syntax/platform.rkt" get-representation)
          "../utils/common.rkt"
          "../utils/profile.rkt"
          "../utils/timeline.rkt"

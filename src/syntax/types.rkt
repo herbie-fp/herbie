@@ -4,8 +4,6 @@
          "../utils/errors.rkt")
 
 (provide (struct-out representation)
-         get-representation
-         repr-exists?
          repr->prop
          (struct-out context)
          *context*
@@ -14,10 +12,8 @@
 
 (module+ internals
   (provide define-type
-           define-representation
-           register-generator!
-           register-representation!
-           register-representation-alias!))
+           make-representation
+           register-generator!))
 
 ;; Types
 
@@ -34,13 +30,11 @@
 ;; Representations
 
 (struct representation
-        (name type repr? bf->repr repr->bf ordinal->repr repr->ordinal total-bits special-value?)
+        (name type repr? bf->repr repr->bf ordinal->repr repr->ordinal total-bits special-value? cost)
   #:transparent
   #:methods gen:custom-write
   [(define (write-proc repr port mode)
      (fprintf port "#<representation ~a>" (representation-name repr)))])
-
-(define representations (hash))
 
 ;; Converts a representation into a rounding property
 (define (repr->prop repr)
@@ -64,54 +58,28 @@
   (unless (set-member? repr-generators proc)
     (set! repr-generators (cons proc repr-generators))))
 
-;; Queries each plugin to generate the representation
-(define (generate-repr repr-name)
-  (or (hash-has-key? representations repr-name)
-      (for/or ([proc repr-generators])
-        ;; Check if a user accidently created an infinite loop in their plugin!
-        (when (and (eq? proc (*current-generator*)) (not (hash-has-key? representations repr-name)))
-          (raise-herbie-error
-           (string-append
-            "Tried to generate `~a` representation while generating the same representation. "
-            "Check your plugin to make sure you register your representation(s) "
-            "before calling `get-representation`!")
-           repr-name))
-        (parameterize ([*current-generator* proc])
-          (proc repr-name)))))
-
-;; Returns the representation associated with `name`
-;; attempts to generate the repr if not initially found
-(define (get-representation name)
-  (or (hash-ref representations name #f)
-      (and (generate-repr name) (hash-ref representations name #f))
-      (raise-herbie-error "Could not find support for ~a representation: ~a"
-                          name
-                          (string-join (map ~s (hash-keys representations)) ", "))))
-
-(define (repr-exists? name)
-  (hash-has-key? representations name))
-
-;; Registers a representation that can be invoked with ':precision <name>'.
-;; Creates a new representation with the given traits and associates it
-;; with the same name. See `register-representation-alias!` for associating
-;; a representation with a different name.
-(define (register-representation! name type repr? . args)
+(define (make-representation #:name name
+                             #:type type
+                             #:repr? repr?
+                             #:bf->repr bf->repr
+                             #:repr->bf repr->bf
+                             #:ordinal->repr ordinal->repr
+                             #:repr->ordinal repr->ordinal
+                             #:total-bits total-bits
+                             #:special-value? special-value?
+                             #:cost [cost #f])
   (unless (type-name? type)
     (raise-herbie-error "Tried to register a representation for type ~a: not found" type))
-  (define repr (apply representation name type repr? args))
-  (set! representations (hash-set representations name repr)))
-
-;; Associates an existing representation with a (possibly different) name.
-;; Useful for defining an common alias for an equivalent representation,
-;; e.g. float for binary32.
-(define (register-representation-alias! name repr)
-  (unless (representation? repr)
-    (raise-herbie-error "Tried to register an alias for representation ~a: not found"
-                        (representation-name repr)))
-  (set! representations (hash-set representations name repr)))
-
-(define-syntax-rule (define-representation (name type repr?) args ...)
-  (register-representation! 'name 'type repr? args ...))
+  (representation name
+                  type
+                  repr?
+                  bf->repr
+                  repr->bf
+                  ordinal->repr
+                  repr->ordinal
+                  total-bits
+                  special-value?
+                  cost))
 
 ;; Contexts
 
