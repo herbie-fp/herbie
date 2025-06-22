@@ -102,7 +102,6 @@ label.timeout {accent-color: var(--result-timeout);}
 .diff-time-green {color: green;}
 .diff-time-gray {color: gray;}
 .diff-status {color: #0000aa;}
-.diff-output {background-color: pink;}
 .report-details {border: 1px solid var(--accent-board); padding: 1ex; margin: 0 0 1em 0;}
 .report-details h2 {font-size: 16px;}
 .report-details h3 {font-size: 14px;}
@@ -158,37 +157,8 @@ tr.timeout    td:nth-child(3) {background-color:#8e8e93;color:#f7f7f7;}
 .help-button:hover { background: #444; color: #eee; text-decoration: none; cursor: pointer; }
 .help-button.float { float: right; font-size: 120%; font-weight: normal; }
 
-/* Subreports */
-
-#subreports-toggle {
-    color: #2A6496;
-    text-decoration: none;
-    cursor: pointer;
-    margin-left: 1em;
-}
-
-.active, #subreports-toggle:hover {
-    text-decoration: underline;
-    color: #295785
-}
-
-#subreports.no-subreports #with-subreports { display: none; }
-#subreports #with-subreports { display: block; border-top: 1px solid #ddd; }
-
-#subreport-table {
-    padding: 5px 0 5px 1em;
-}
-
-#subreport-table table {
-    border-collapse: collapse;
-    border-spacing: 0;
-}
-
-#subreport-table table tr th { line-height: 25px; padding-right: 10px; }
-#subreport-table table tr td { line-height: 25px; padding-right: 10px; }
 
 /* Detail page layout */
-
 section { display: flow-root; }
 
 /* Warnings */
