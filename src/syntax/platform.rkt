@@ -99,7 +99,8 @@
   (define name (platform-name platform))
   (when (hash-has-key? platforms name)
     (error 'register-platform! "platform already registered ~a" name))
-  (hash-set! platforms name (platform-copy platform)))
+  (hash-set! platforms name (platform-copy platform))
+  (display-platform platform))
 
 (define (make-empty-platform name
                              #:if-cost [if-cost #f]
