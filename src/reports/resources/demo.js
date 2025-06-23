@@ -40,7 +40,7 @@ function tree_errors(tree, expected) /* tree -> list */ {
                 FUNCTIONS.forEach(function(item,index,array){
                     console.log(`Element at index ${index}: ${item}`);
                 })
-                messages.push("Function <code>" + node.name + "</code> unsupported. aaaahhhhhhhhhhhhhhhhhhhhh");
+                messages.push("Function <code>" + node.name + "</code> unsupported.");
             } else if (FUNCTIONS[node.name][0].length !== node.args.length) {
                 messages.push("Function <code>" + node.name + "</code> expects " +
                               FUNCTIONS[node.name][0].length + " arguments");
