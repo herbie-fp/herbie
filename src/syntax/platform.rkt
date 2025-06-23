@@ -63,7 +63,7 @@
 ;;;
 ;;; A small API is provided for platforms for querying the supported
 ;;; operators, operator implementations, and representation conversions.
-(struct platform (name if-cost default-cost representations implementations)
+(struct platform (name if-cost default-cost representations implementations repr-generator)
   #:name $platform
   #:constructor-name create-platform
   #:methods gen:custom-write
@@ -103,7 +103,10 @@
     (error 'register-platform! "platform already registered ~a" name))
   (hash-set! platforms name (platform-copy platform)))
 
-(define (make-empty-platform name #:if-cost [if-cost #f] #:default-cost [default-cost #f])
+(define (make-empty-platform name
+                             #:if-cost [if-cost #f]
+                             #:default-cost [default-cost #f]
+                             #:repr-generator [repr-generator #f])
   (define reprs (make-hash))
   (define impls (make-hash))
   (when (hash-has-key? platforms name)
@@ -111,7 +114,7 @@
   (unless (or if-cost default-cost)
     (error 'make-empty-platform "Platform ~a is missing cost for if function" name))
   (set! if-cost (platform/parse-if-cost (or if-cost default-cost)))
-  (create-platform name if-cost default-cost reprs impls))
+  (create-platform name if-cost default-cost reprs impls repr-generator))
 
 (define (platform-register-representation! platform repr)
   (define reprs (platform-representations platform))
@@ -166,28 +169,13 @@
 (define (get-representation name)
   (define platform (*active-platform*))
   (define reprs (platform-representations platform))
+  (define repr-generator (platform-repr-generator platform))
   (or (hash-ref reprs name #f)
-      ; (and (generate-repr name) (hash-ref reprs name #f)) useless line of code
+      (repr-generator name) ; assumes that repr-generator is provided
       (raise-herbie-error "Could not find support for ~a representation: ~a in a platform ~a"
                           name
                           (string-join (map ~s (hash-keys reprs)) ", ")
                           (platform-name platform))))
-
-;; Queries each plugin to generate the representation
-(define (generate-repr repr-name)
-  (error "generate-repr is not implemented")
-  #;(or (hash-has-key? representations repr-name)
-        (for/or ([proc repr-generators])
-          ;; Check if a user accidently created an infinite loop in their plugin!
-          (when (and (eq? proc (*current-generator*)) (not (hash-has-key? representations repr-name)))
-            (raise-herbie-error
-             (string-append
-              "Tried to generate `~a` representation while generating the same representation. "
-              "Check your plugin to make sure you register your representation(s) "
-              "before calling `get-representation`!")
-             repr-name))
-          (parameterize ([*current-generator* proc])
-            (proc repr-name)))))
 
 ;; Expression predicates ;;
 
@@ -360,7 +348,6 @@
 
 ; Cost model parameterized by a platform.
 (define (platform-cost-proc platform)
-  (define bool-repr (get-representation 'bool)) ; that's sketchy
   (define node-cost-proc (platform-node-cost-proc platform))
   (λ (expr repr)
     (let loop ([expr expr]
@@ -370,6 +357,7 @@
         [(? symbol?) ((node-cost-proc expr repr))]
         [(approx _ impl) (loop impl repr)]
         [(list 'if cond ift iff)
+         (define bool-repr (get-representation 'bool)) ; that's sketchy
          (define cost-proc (node-cost-proc expr repr))
          (cost-proc (loop cond bool-repr) (loop ift repr) (loop iff repr))]
         [(list impl args ...)

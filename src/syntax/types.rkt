@@ -42,22 +42,6 @@
     ['bool '()]
     ['real (list (cons ':precision (representation-name repr)))]))
 
-;; Repr / operator generation
-;; Some plugins might define 'parameterized' reprs (e.g. fixed point with
-;; m integer and n fractional bits). Since defining an infinite number of reprs
-;; is impossible, Herbie stores a list of 'repr generators' to query if it comes
-;; across a repr that is not known at the time.
-
-;; Generators take one argument, a repr name, and returns true if knows what the
-;; repr is and has generated that repr and its operators, and false otherwise
-(define repr-generators '())
-(define *current-generator* (make-parameter #f))
-
-(define/contract (register-generator! proc)
-  (-> (-> any/c any/c) void?)
-  (unless (set-member? repr-generators proc)
-    (set! repr-generators (cons proc repr-generators))))
-
 (define (make-representation #:name name
                              #:type type
                              #:repr? repr?
