@@ -5,11 +5,14 @@ FUNCTIONS = {}
 "+ - * / pow copysign fdim fmin fmax fmod hypot remainder".split(" ").forEach(function(op) {
     FUNCTIONS[op] = [["real", "real"], "real"];
 });
-("fabs sqrt exp log sin cos tan asin acos atan sinh cosh tanh asinh acosh atanh " +
+("fabs sqrt exp log sin cos tan asin acos atan sinh cosh tanh asinh acosh atanh" +
  "cbrt ceil erf erfc exp2 expm1 floor lgamma log10 log1p log2 logb rint " + 
  "round tgamma trunc").split(" ").forEach(function(op) {
      FUNCTIONS[op] = [["real"], "real"];
 });
+FUNCTIONS.forEach(function(op){
+    console.log(op);
+})
 FUNCTIONS["fma"] = [["real", "real", "real"], "real"];
 "< > == != <= >=".split(" ").forEach(function(op) {
     FUNCTIONS[op] = [["real", "real"], "bool"];
@@ -34,7 +37,10 @@ function tree_errors(tree, expected) /* tree -> list */ {
         case "FunctionNode":
             node.name = SECRETFUNCTIONS[node.name] || node.name;
             if (!FUNCTIONS[node.name]) {
-                messages.push("Function <code>" + node.name + "</code> unsupported.");
+                FUNCTIONS.forEach(function(item,index,array){
+                    console.log(`Element at index ${index}: ${item}`);
+                })
+                messages.push("Function <code>" + node.name + "</code> unsupported. aaaahhhhhhhhhhhhhhhhhhhhh");
             } else if (FUNCTIONS[node.name][0].length !== node.args.length) {
                 messages.push("Function <code>" + node.name + "</code> expects " +
                               FUNCTIONS[node.name][0].length + " arguments");
