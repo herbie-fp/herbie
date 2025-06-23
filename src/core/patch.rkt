@@ -5,13 +5,15 @@
          "../syntax/types.rkt"
          "../utils/alternative.rkt"
          "../utils/common.rkt"
+         "../utils/float.rkt"
          "../utils/timeline.rkt"
+         "batch.rkt"
          "egg-herbie.rkt"
+         "egglog-herbie.rkt"
          "programs.rkt"
          "rules.rkt"
-         "taylor.rkt"
-         "batch.rkt"
-         "egglog-herbie.rkt")
+         "rival.rkt"
+         "taylor.rkt")
 
 (provide generate-candidates)
 
@@ -74,16 +76,17 @@
   (define schedule `((lower . ((iteration . 1) (scheduler . simple)))))
 
   ; run egg
-  (define exprs (map (compose debatchref alt-expr) altns))
-  (define input-batch (progs->batch exprs))
-
   (define roots (list->vector (map (compose batchref-idx alt-expr) altns)))
-  (define reprs (map (curryr repr-of (*context*)) exprs))
+  (define reprs
+    (for/list ([root (in-vector roots)])
+      (repr-of-node global-batch root (*context*))))
+
+  (define batch* (batch-remove-zombie global-batch roots))
 
   (define runner
     (if (flag-set? 'generate 'egglog)
-        (make-egglog-runner input-batch (batch-roots input-batch) reprs schedule)
-        (make-egraph global-batch roots reprs schedule)))
+        (make-egglog-runner batch* reprs schedule (*context*))
+        (make-egraph batch* reprs schedule (*context*))))
 
   (define batchrefss
     (if (flag-set? 'generate 'egglog)
@@ -96,6 +99,47 @@
               [altn (in-list altns)])
           (for ([batchref* (in-list batchrefs)])
             (sow (alt batchref* (list 'rr runner #f) (list altn) '()))))))
+
+(define (run-evaluate altns global-batch)
+  (timeline-event! 'sample)
+  (define free-vars (batch-free-vars global-batch))
+  (define real-altns
+    (for/list ([altn (in-list altns)]
+               #:when (set-empty? (vector-ref free-vars (batchref-idx (alt-expr altn)))))
+      altn))
+  (define roots
+    (for/vector ([altn (in-list real-altns)])
+      (batchref-idx (alt-expr altn))))
+  (define contexts
+    (for/list ([root (in-vector roots)])
+      (context '() (repr-of-node global-batch root (*context*)) '())))
+  (define batch* (batch-remove-zombie global-batch roots))
+  (define specs (map prog->spec (batch->progs batch*)))
+  (timeline-push! 'inputs (map ~a specs))
+  (define-values (status pts)
+    (if (null? specs)
+        (values 'invalid #f)
+        (let ([real-compiler (make-real-compiler specs contexts)])
+          (real-apply real-compiler (vector)))))
+  (define literals
+    (for/list ([pt (in-list (if (equal? status 'valid)
+                                pts
+                                '()))]
+               [ctx (in-list contexts)]
+               #:when (equal? status 'valid))
+      (define repr (context-repr ctx))
+      (literal (repr->real pt repr) (representation-name repr))))
+
+  (timeline-push! 'outputs (map ~a literals))
+  (define global-batch-mutable (batch->mutable-batch global-batch)) ; Create a mutable batch
+  (define final-altns
+    (for/list ([literal (in-list literals)]
+               [altn (in-list real-altns)]
+               #:when (equal? status 'valid))
+      (define idx (mutable-batch-munge! global-batch-mutable literal))
+      (alt (batchref global-batch idx) '(evaluate) (list altn) '())))
+  (batch-copy-mutable-nodes! global-batch global-batch-mutable)
+  final-altns)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Recursive Rewrite ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -111,18 +155,17 @@
           `(,rules . ((node . ,(*node-limit*))))
           `(lower . ((iteration . 1) (scheduler . simple)))))
 
-  ; run egg
-  (define exprs (map (compose debatchref alt-expr) altns))
-  (define input-batch (progs->batch exprs))
-
   (define roots (list->vector (map (compose batchref-idx alt-expr) altns)))
-  (define reprs (map (curryr repr-of (*context*)) exprs))
-  (timeline-push! 'inputs (map ~a exprs))
+  (define reprs
+    (for/list ([root (in-vector roots)])
+      (repr-of-node global-batch root (*context*))))
+  (define batch* (batch-remove-zombie global-batch roots))
+  (timeline-push! 'inputs (map (compose ~a debatchref alt-expr) altns))
 
   (define runner
     (if (flag-set? 'generate 'egglog)
-        (make-egglog-runner input-batch (batch-roots input-batch) reprs schedule)
-        (make-egraph global-batch roots reprs schedule)))
+        (make-egglog-runner batch* reprs schedule (*context*))
+        (make-egraph batch* reprs schedule (*context*))))
 
   (define batchrefss
     (if (flag-set? 'generate 'egglog)
@@ -154,6 +197,11 @@
     (for/list ([root (in-vector (batch-roots global-batch))])
       (alt (batchref global-batch root) 'patch '() '())))
 
+  (define evaluations
+    (if (flag-set? 'generate 'evaluate)
+        (run-evaluate start-altns global-batch)
+        '()))
+
   ; Series expand
   (define approximations
     (if (flag-set? 'generate 'taylor)
@@ -166,4 +214,4 @@
         (run-rr start-altns global-batch)
         '()))
 
-  (remove-duplicates (append rewritten approximations) #:key alt-expr))
+  (remove-duplicates (append evaluations rewritten approximations) #:key alt-expr))

@@ -5,8 +5,7 @@
          "batch.rkt"
          "compiler.rkt")
 
-(provide *pcontext*
-         in-pcontext
+(provide in-pcontext
          mk-pcontext
          for/pcontext
          pcontext?
@@ -21,7 +20,6 @@
 ;; ground-truth information. They contain 1) a set of sampled input
 ;; points; and 2) a ground-truth output for each input.
 
-(define *pcontext* (make-parameter #f))
 (struct pcontext (points exacts) #:prefab)
 
 (define (in-pcontext pcontext)

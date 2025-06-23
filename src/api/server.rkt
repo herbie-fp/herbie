@@ -415,8 +415,7 @@
        (make-hash (map cons exprs (batch-errors exprs pcontext ctx)))]
       [else #f]))
 
-  (define test-fpcore
-    (alt->fpcore test (make-alt-preprocessing (test-input test) (test-preprocess test))))
+  (define test-fpcore (alt->fpcore test (make-alt (test-input test))))
 
   (define fpcores
     (if (equal? (job-result-status herbie-result) 'success)
@@ -461,9 +460,7 @@
 (define (backend-improve-result-hash-table backend test errcache)
   (define repr (context-repr (test-context test)))
   (define pcontext (improve-result-pcontext backend))
-  (hasheq 'preprocessing
-          (map ~s (improve-result-preprocess backend))
-          'pcontext
+  (hasheq 'pcontext
           (pcontext->json pcontext repr)
           'start
           (analysis->json (improve-result-start backend) pcontext test errcache)
@@ -519,9 +516,6 @@
            ,@(if (equal? (test-spec test) empty)
                  '()
                  `(:herbie-spec ,(prog->fpcore (test-spec test) (test-context test))))
-           ,@(if (equal? (alt-preprocessing altn) empty)
-                 '()
-                 `(:herbie-preprocess ,(alt-preprocessing altn)))
            ,@(if (equal? (test-expected test) #t)
                  '()
                  `(:herbie-expected ,(test-expected test)))

@@ -63,7 +63,7 @@
   (for/list ([(name loc) (in-dict ctx)])
     (define name* (or name "(unnamed)"))
     (match loc
-      [(srcloc file line col _ _) (cons name* (list file line col))]
+      [(srcloc file line col _ _) (list name* file line col)]
       [#f (cons name* #f)])))
 
 (define (syntax-locations->datum exn)

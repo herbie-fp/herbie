@@ -3,16 +3,13 @@
 (require "../utils/common.rkt"
          "../utils/errors.rkt")
 
-(provide type-name?
-         (struct-out representation)
+(provide (struct-out representation)
          get-representation
          repr-exists?
-         repr->symbol
          repr->prop
          (struct-out context)
          *context*
          context-extend
-         context-append
          context-lookup)
 
 (module+ internals
@@ -44,12 +41,6 @@
      (fprintf port "#<representation ~a>" (representation-name repr)))])
 
 (define representations (hash))
-
-;; Representation name sanitizer
-(define (repr->symbol repr)
-  (define replace-table `((" " . "_") ("(" . "") (")" . "")))
-  (define repr-name (representation-name repr))
-  (string->symbol (string-replace* (~a repr-name) replace-table)))
 
 ;; Converts a representation into a rounding property
 (define (repr->prop repr)
@@ -135,11 +126,34 @@
                [vars (cons var (context-vars ctx))]
                [var-reprs (cons repr (context-var-reprs ctx))]))
 
-(define (context-append ctx var repr)
-  (struct-copy context
-               ctx
-               [vars (append (context-vars ctx) (list var))]
-               [var-reprs (append (context-var-reprs ctx) (list repr))]))
-
 (define (context-lookup ctx var)
   (dict-ref (map cons (context-vars ctx) (context-var-reprs ctx)) var))
+
+(module+ test
+  (require rackunit)
+
+  (define load-herbie-builtins (dynamic-require "load-plugin.rkt" 'load-herbie-builtins))
+  (load-herbie-builtins)
+
+  ;; Dummy representation registration
+  (check-false (repr-exists? 'dummy))
+  (register-representation! 'dummy 'real number? identity identity identity identity 0 (const #f))
+  (check-true (repr-exists? 'dummy))
+
+  (define dummy (get-representation 'dummy))
+  (check-equal? (representation-name dummy) 'dummy)
+  (check-equal? (get-representation 'dummy) dummy)
+
+  ;; Context operations
+  (define <b64> (get-representation 'binary64))
+  (define <bool> (get-representation 'bool))
+
+  (define ctx (context '() <b64> '()))
+  (define ctx1 (context-extend ctx 'x <b64>))
+  (check-equal? (context-vars ctx1) '(x))
+  (check-equal? (context-lookup ctx1 'x) <b64>)
+
+  (define ctx2 (context-extend ctx1 'y <bool>))
+  (check-equal? (context-vars ctx2) '(y x))
+  (check-equal? (context-lookup ctx2 'y) <bool>)
+  (check-equal? (context-lookup ctx2 'x) <b64>))

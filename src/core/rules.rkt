@@ -241,6 +241,15 @@
   [fabs-cbrt (fabs (/ (cbrt a) a)) (/ (cbrt a) a)]
   [fabs-cbrt-rev (/ (cbrt a) a) (fabs (/ (cbrt a) a))])
 
+; Copysign
+(define-rules arithmetic
+  [copysign-neg (copysign a (neg b)) (neg (copysign a b))]
+  [neg-copysign (neg (copysign a b)) (copysign a (neg b))]
+  [copysign-other-neg (copysign (neg a) b) (copysign a b)]
+  [copysign-fabs (copysign a (fabs b)) (fabs a)]
+  [copysign-other-fabs (copysign (fabs a) b) (copysign a b)]
+  [fabs-copysign (fabs (copysign a b)) (fabs a)])
+
 ; Square root
 (define-rules arithmetic
   [sqrt-pow2 (pow (sqrt x) y) (pow x (/ y 2))]
@@ -283,6 +292,11 @@
   [cbrt-fabs-rev (fabs (cbrt x)) (cbrt (fabs x))]
   [cbrt-div-cbrt (/ (cbrt x) (fabs (cbrt x))) (copysign 1 x)]
   [cbrt-div-cbrt2 (/ (fabs (cbrt x)) (cbrt x)) (copysign 1 x)])
+
+; Min and max
+(define-rules arithmetic
+  [fmin-swap (fmin a b) (fmin b a)]
+  [fmax-swap (fmax a b) (fmax b a)])
 
 ; Exponentials
 (define-rules exponents
@@ -404,9 +418,6 @@
   [asin-sin-rev (- (fabs (remainder (+ x (/ (PI) 2)) (* 2 (PI)))) (/ (PI) 2)) (asin (sin x))])
 
 (define-rules trigonometry
-  [atan-tan-rev (remainder x (PI)) (atan (tan x)) #:unsound]) ; unsound @ x = pi/2
-
-(define-rules trigonometry
   [cos-sin-sum (+ (* (cos a) (cos a)) (* (sin a) (sin a))) 1]
   [1-sub-cos (- 1 (* (cos a) (cos a))) (* (sin a) (sin a))]
   [1-sub-sin (- 1 (* (sin a) (sin a))) (* (cos a) (cos a))]
@@ -451,12 +462,6 @@
   [cos-+PI-rev (neg (cos x)) (cos (+ x (PI)))]
   [neg-tan-+PI/2-rev (/ -1 (tan x)) (tan (+ x (/ (PI) 2)))]
   [tan-+PI/2-rev (/ 1 (tan x)) (tan (+ (neg x) (/ (PI) 2)))])
-
-(define-rules trigonometry
-  [neg-tan-+PI/2 (tan (+ x (/ (PI) 2))) (/ -1 (tan x)) #:unsound] ; unsound @ x = pi/2
-  [tan-+PI/2 (tan (+ (neg x) (/ (PI) 2))) (/ 1 (tan x)) #:unsound] ; unsound @ x = pi/2
-  [hang-m0-tan-rev (tan (/ (neg a) 2)) (/ (- 1 (cos a)) (neg (sin a))) #:unsound] ; unsound @ a = 0
-  [hang-p0-tan-rev (tan (/ a 2)) (/ (- 1 (cos a)) (sin a)) #:unsound]) ; unsound @ a = 0
 
 (define-rules trigonometry
   [sin-sum (sin (+ x y)) (+ (* (sin x) (cos y)) (* (cos x) (sin y)))]
@@ -507,16 +512,6 @@
   [cos-mult-rev (/ (+ (cos (+ x y)) (cos (- x y))) 2) (* (cos x) (cos y))]
   [sin-mult-rev (/ (- (cos (- x y)) (cos (+ x y))) 2) (* (sin x) (sin y))]
   [sin-cos-mult-rev (/ (+ (sin (- x y)) (sin (+ x y))) 2) (* (sin x) (cos y))])
-
-(define-rules trigonometry
-  ; unsound @ x = y = pi/2
-  [tan-sum (tan (+ x y)) (/ (+ (tan x) (tan y)) (- 1 (* (tan x) (tan y)))) #:unsound]
-  ; unsound @ x = pi/2
-  [tan-2 (tan (* 2 x)) (/ (* 2 (tan x)) (- 1 (* (tan x) (tan x)))) #:unsound]
-  ; unsound @ a = pi/2 b = -pi/2
-  [tan-hang-p (tan (/ (+ a b) 2)) (/ (+ (sin a) (sin b)) (+ (cos a) (cos b))) #:unsound]
-  ; unsound @ a = b = pi/2
-  [tan-hang-m (tan (/ (- a b) 2)) (/ (- (sin a) (sin b)) (+ (cos a) (cos b))) #:unsound])
 
 (define-rules trigonometry
   [cos-asin (cos (asin x)) (sqrt (- 1 (* x x)))]
@@ -637,9 +632,3 @@
   [cosh-atanh-rev (/ 1 (sqrt (- 1 (* x x)))) (cosh (atanh x))]
   [asinh-2 (acosh (+ (* 2 (* x x)) 1)) (* 2 (asinh (fabs x)))]
   [acosh-2-rev (* 2 (acosh x)) (acosh (- (* 2 (* x x)) 1))])
-
-(define-rules hyperbolic
-  [tanh-1/2* (tanh (/ x 2)) (/ (- (cosh x) 1) (sinh x)) #:unsound] ; unsound @ x = 0
-  [sinh-acosh-rev (sqrt (- (* x x) 1)) (sinh (acosh x)) #:unsound] ; unsound @ x = -1
-  [tanh-acosh-rev (/ (sqrt (- (* x x) 1)) x) (tanh (acosh x)) #:unsound] ; unsound @ x = -1
-  [acosh-2 (acosh (- (* 2 (* x x)) 1)) (* 2 (acosh x)) #:unsound]) ; unsound @ x = -1
