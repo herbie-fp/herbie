@@ -42,7 +42,9 @@
    (if (>= b 0) (/ (* 2 c) (- (- b) d)) (/ (+ (- b) d) (* 2 a)))))
 
 (FPCore (p)
-  :herbie-target
+  :name "peicewise-defined"
+  :pre (and (>= p -1.79e308) (<= p 1.79e308))
+  :alt
     (if (and (>= p -1e-6) (<= p 0))
       (- (+ p 1) (/ (* p p) (- p 1)))
       (- p (fma (/ p (- p 1)) p -1)))
