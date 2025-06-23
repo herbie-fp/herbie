@@ -12,8 +12,7 @@
 
 (module+ internals
   (provide define-type
-           make-representation
-           register-generator!))
+           make-representation))
 
 ;; Types
 
