@@ -34,9 +34,6 @@
           [platform-name (-> platform? any/c)]
           [platform-reprs (-> platform? (listof representation?))]
           [platform-impls (-> platform? (listof symbol?))]
-          #;[platform-union (-> platform? platform? ... platform?)]
-          #;[platform-intersect (-> platform? platform? ... platform?)]
-          #;[platform-subtract (-> platform? platform? ... platform?)]
           ; Cost model
           [platform-impl-cost (-> platform? any/c any/c)]
           [platform-repr-cost (-> platform? any/c any/c)]
@@ -47,6 +44,7 @@
   (provide make-empty-platform
            platform-register-representation!
            platform-register-implementation!
+           platform-register-implementations!
            display-platform
            register-platform!
            ; from syntax.rkt + types.rkt
@@ -93,7 +91,7 @@
 (define (platform-copy platform)
   (struct-copy $platform
                platform
-               [representations (hash-copy (platform-representations platform))] ; deep copy
+               [representations (hash-copy (platform-representations platform))]
                [implementations (hash-copy (platform-implementations platform))]))
 
 ;; Registers a platform under identifier `name`.
@@ -106,7 +104,7 @@
 (define (make-empty-platform name
                              #:if-cost [if-cost #f]
                              #:default-cost [default-cost #f]
-                             #:repr-generator [repr-generator #f])
+                             #:repr-generator [repr-generator (const #f)])
   (define reprs (make-hash))
   (define impls (make-hash))
   (when (hash-has-key? platforms name)
@@ -159,10 +157,17 @@
   ; Update table
   (hash-set! impls (operator-impl-name impl) impl))
 
-(define (repr-exists? name)
-  (define platform (*active-platform*))
-  (define reprs (platform-representations platform))
-  (hash-has-key? reprs name))
+(define-syntax (platform-register-implementations! stx)
+  (syntax-case stx ()
+    [(_ platform ([name ([var : repr] ...) otype spec fl fpcore cost] ...))
+     #'(begin
+         (platform-register-implementation! platform
+                                            (make-operator-impl (name [var : repr] ...)
+                                                                otype
+                                                                #:spec spec
+                                                                #:fl fl
+                                                                #:fpcore fpcore
+                                                                #:cost cost)) ...)]))
 
 ;; Returns the representation associated with `name`
 ;; attempts to generate the repr if not initially found
@@ -176,6 +181,11 @@
                           name
                           (string-join (map ~s (hash-keys reprs)) ", ")
                           (platform-name platform))))
+
+(define (repr-exists? name)
+  (define platform (*active-platform*))
+  (define reprs (platform-representations platform))
+  (hash-has-key? reprs name))
 
 ;; Expression predicates ;;
 
@@ -214,79 +224,11 @@
      (define env (map cons vars (map prog->spec args)))
      (pattern-substitute spec env)]))
 
-#;(begin-for-syntax
-    ;; Parse if cost syntax
-    (define (platform/parse-if-cost stx)
-      (syntax-case stx (max sum)
-        [(max x) #'(list 'max x)]
-        [(sum x) #'(list 'sum x)]
-        [x #'(list 'max x)])))
-
 (define (platform/parse-if-cost cost)
   (match cost
     [`(max ,x) `(max ,x)]
     [`(sum ,x) `(sum ,x)]
     [x `(max ,x)]))
-
-;; Merger for costs.
-(define (merge-cost pform-costs key #:optional? [optional? #f])
-  (define costs (map (lambda (h) (hash-ref h key #f)) pform-costs))
-  (match-define (list c0 cs ...) costs)
-  (define cost
-    (for/fold ([c0 c0]) ([c1 (in-list cs)])
-      (match* (c0 c1)
-        [(#f _) c1]
-        [(_ #f) c0]
-        [(c c) c]
-        [(_ _) (error 'merge-costs "mismatch when combining cost model ~a ~a" key costs)])))
-  (unless (or cost optional?)
-    (error 'merge-costs "cannot find cost for implementation ~a" key))
-  cost)
-
-;; Set operations on platforms.
-#;(define ((make-set-operation merge-impls) p1 . ps)
-    ; apply set operation on impls
-    (define impls (apply merge-impls (map platform-impls (cons p1 ps))))
-    ; valid representations are based on impls
-    (define reprs
-      (remove-duplicates (for/fold ([reprs '()]) ([impl (in-list impls)])
-                           (append (cons (impl-info impl 'otype) (impl-info impl 'itype)) reprs))))
-    ; impl costs are based on impls
-    (define pform-impl-costs (map platform-impl-costs (cons p1 ps)))
-    (define impl-costs
-      (for/hash ([impl (in-list impls)])
-        (values impl (merge-cost pform-impl-costs impl))))
-    ; special case for `if`
-    (define if-cost (merge-cost pform-impl-costs 'if #:optional? #t))
-    (when if-cost
-      (set! impl-costs (hash-set impl-costs 'if if-cost)))
-    ; repr costs are based on reprs (may be missing)
-    (define pform-repr-costs (map platform-repr-costs (cons p1 ps)))
-    (define repr-costs (hash))
-    (for/list ([repr (in-list reprs)])
-      (define repr-cost (merge-cost pform-repr-costs repr #:optional? #t))
-      (when repr-cost
-        (set! repr-costs (hash-set repr-costs repr repr-cost))))
-    (create-platform #f reprs impls impl-costs repr-costs))
-
-;; Set union for platforms.
-;; Use list operations for deterministic ordering.
-#;(define platform-union
-    (make-set-operation (λ (rs . rss) (remove-duplicates (apply append rs rss)))))
-
-;; Set intersection for platforms.
-;; Use list operations for deterministic ordering.
-#;(define platform-intersect
-    (make-set-operation (λ (rs . rss)
-                          (for/fold ([rs rs]) ([rs0 (in-list rss)])
-                            (filter (curry set-member? (list->set rs0)) rs)))))
-
-;; Set subtract for platforms.
-;; Use list operations for deterministic ordering.
-#;(define platform-subtract
-    (make-set-operation (λ (rs . rss)
-                          (for/fold ([rs rs]) ([rs0 (in-list rss)])
-                            (filter-not (curry set-member? (list->set rs0)) rs)))))
 
 ;; Looks up a property `field` of an real operator `op`.
 ;; Panics if the operator is not found.
@@ -357,7 +299,7 @@
         [(? symbol?) ((node-cost-proc expr repr))]
         [(approx _ impl) (loop impl repr)]
         [(list 'if cond ift iff)
-         (define bool-repr (get-representation 'bool)) ; that's sketchy
+         (define bool-repr (get-representation 'bool)) ; that's sketchy, bool repr might not exist
          (define cost-proc (node-cost-proc expr repr))
          (cost-proc (loop cond bool-repr) (loop ift repr) (loop iff repr))]
         [(list impl args ...)

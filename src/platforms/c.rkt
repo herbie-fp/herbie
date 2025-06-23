@@ -39,21 +39,10 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; constants ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(platform-register-implementation! c-platform
-                                   (make-operator-impl (TRUE)
-                                                       bool
-                                                       #:spec (TRUE)
-                                                       #:fl (const true)
-                                                       #:fpcore (! TRUE)
-                                                       #:cost boolean-move-cost))
-
-(platform-register-implementation! c-platform
-                                   (make-operator-impl (FALSE)
-                                                       bool
-                                                       #:spec (FALSE)
-                                                       #:fl (const false)
-                                                       #:fpcore (! FALSE)
-                                                       #:cost boolean-move-cost))
+(platform-register-implementations!
+ c-platform
+ ([TRUE  () bool (TRUE)  (const true)  (! TRUE)  boolean-move-cost]
+  [FALSE () bool (FALSE) (const false) (! FALSE) boolean-move-cost]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; operators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -62,29 +51,11 @@
 (define (or-fn . as)
   (ormap identity as))
 
-(platform-register-implementation! c-platform
-                                   (make-operator-impl (not [x : bool])
-                                                       bool
-                                                       #:spec (not x)
-                                                       #:fpcore (not x)
-                                                       #:fl not
-                                                       #:cost boolean-move-cost))
-
-(platform-register-implementation! c-platform
-                                   (make-operator-impl (and [x : bool] [y : bool])
-                                                       bool
-                                                       #:spec (and x y)
-                                                       #:fpcore (and x y)
-                                                       #:fl and-fn
-                                                       #:cost boolean-move-cost))
-
-(platform-register-implementation! c-platform
-                                   (make-operator-impl (or [x : bool] [y : bool])
-                                                       bool
-                                                       #:spec (or x y)
-                                                       #:fpcore (or x y)
-                                                       #:fl or-fn
-                                                       #:cost boolean-move-cost))
+(platform-register-implementations!
+ c-platform
+ ([not ([x : bool])            bool (not x)   not    (not x)   boolean-move-cost]
+  [and ([x : bool] [y : bool]) bool (and x y) and-fn (and x y) boolean-move-cost]
+  [or  ([x : bool] [y : bool]) bool (or x y)  or-fn  (or x y)  boolean-move-cost]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BINARY 32 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -106,37 +77,12 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; constants ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(platform-register-implementation! c-platform
-                                   (make-operator-impl (PI.f32)
-                                                       binary32
-                                                       #:spec (PI)
-                                                       #:fl (const (flsingle pi))
-                                                       #:fpcore (! :precision binary32 (PI))
-                                                       #:cost 32bit-move-cost))
-
-(platform-register-implementation! c-platform
-                                   (make-operator-impl (E.f32)
-                                                       binary32
-                                                       #:spec (E)
-                                                       #:fl (const (flsingle (exp 1.0)))
-                                                       #:fpcore (! :precision binary32 (E))
-                                                       #:cost 32bit-move-cost))
-
-(platform-register-implementation! c-platform
-                                   (make-operator-impl (INFINITY.f32)
-                                                       binary32
-                                                       #:spec (INFINITY)
-                                                       #:fl (const +inf.0)
-                                                       #:fpcore (! :precision binary32 (INFINITY))
-                                                       #:cost 32bit-move-cost))
-
-(platform-register-implementation! c-platform
-                                   (make-operator-impl (NAN.f32)
-                                                       binary32
-                                                       #:spec (NAN)
-                                                       #:fl (const +nan.0)
-                                                       #:fpcore (! :precision binary32 (NAN))
-                                                       #:cost 32bit-move-cost))
+(platform-register-implementations!
+ c-platform
+ ([PI.f32       () binary32 (PI)       (const (flsingle pi))        (! :precision binary32 (PI))       32bit-move-cost]
+  [E.f32        () binary32 (E)        (const (flsingle (exp 1.0))) (! :precision binary32 (E))        32bit-move-cost]
+  [INFINITY.f32 () binary32 (INFINITY) (const +inf.0)               (! :precision binary32 (INFINITY)) 32bit-move-cost]
+  [NAN.f32      () binary32 (NAN)      (const +nan.0)               (! :precision binary32 (NAN))      32bit-move-cost]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; operators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -151,101 +97,22 @@
 (define fl32* (compose flsingle *))
 (define fl32/ (compose flsingle /))
 
-(platform-register-implementation! c-platform
-                                   (make-operator-impl (neg.f32 [x : binary32])
-                                                       binary32
-                                                       #:spec (neg x)
-                                                       #:fpcore (! :precision binary32 (- x))
-                                                       #:fl fl32-
-                                                       #:cost 0.11567699999999992))
-
-(platform-register-implementation! c-platform
-                                   (make-operator-impl (+.f32 [x : binary32] [y : binary32])
-                                                       binary32
-                                                       #:spec (+ x y)
-                                                       #:fpcore (! :precision binary32 (+ x y))
-                                                       #:fl fl32+
-                                                       #:cost 0.200445))
-
-(platform-register-implementation! c-platform
-                                   (make-operator-impl (-.f32 [x : binary32] [y : binary32])
-                                                       binary32
-                                                       #:spec (- x y)
-                                                       #:fpcore (! :precision binary32 (- x y))
-                                                       #:fl fl32-
-                                                       #:cost 0.19106800000000014))
-
-(platform-register-implementation! c-platform
-                                   (make-operator-impl (*.f32 [x : binary32] [y : binary32])
-                                                       binary32
-                                                       #:spec (* x y)
-                                                       #:fpcore (! :precision binary32 (* x y))
-                                                       #:fl fl32*
-                                                       #:cost 0.256602))
-
-(platform-register-implementation! c-platform
-                                   (make-operator-impl (/.f32 [x : binary32] [y : binary32])
-                                                       binary32
-                                                       #:spec (/ x y)
-                                                       #:fpcore (! :precision binary32 (/ x y))
-                                                       #:fl fl32/
-                                                       #:cost 0.3465330000000001))
-
-(platform-register-implementation! c-platform
-                                   (make-operator-impl (==.f32 [x : binary32] [y : binary32])
-                                                       bool
-                                                       #:spec (== x y)
-                                                       #:fpcore (== x y)
-                                                       #:fl =
-                                                       #:cost 32bit-move-cost))
-
-(platform-register-implementation! c-platform
-                                   (make-operator-impl (!=.f32 [x : binary32] [y : binary32])
-                                                       bool
-                                                       #:spec (!= x y)
-                                                       #:fpcore (!= x y)
-                                                       #:fl (negate =)
-                                                       #:cost 32bit-move-cost))
-
-(platform-register-implementation! c-platform
-                                   (make-operator-impl (<.f32 [x : binary32] [y : binary32])
-                                                       bool
-                                                       #:spec (< x y)
-                                                       #:fpcore (< x y)
-                                                       #:fl <
-                                                       #:cost 32bit-move-cost))
-
-(platform-register-implementation! c-platform
-                                   (make-operator-impl (>.f32 [x : binary32] [y : binary32])
-                                                       bool
-                                                       #:spec (> x y)
-                                                       #:fpcore (> x y)
-                                                       #:fl >
-                                                       #:cost 32bit-move-cost))
-
-(platform-register-implementation! c-platform
-                                   (make-operator-impl (<=.f32 [x : binary32] [y : binary32])
-                                                       bool
-                                                       #:spec (<= x y)
-                                                       #:fpcore (<= x y)
-                                                       #:fl <=
-                                                       #:cost 32bit-move-cost))
-
-(platform-register-implementation! c-platform
-                                   (make-operator-impl (>=.f32 [x : binary32] [y : binary32])
-                                                       bool
-                                                       #:spec (>= x y)
-                                                       #:fpcore (>= x y)
-                                                       #:fl >=
-                                                       #:cost 32bit-move-cost))
+; ([name   ([var : repr] ...)              otype    spec     fl         fpcore                         cost])
+(platform-register-implementations!
+ c-platform
+ ([neg.f32 ([x : binary32])                binary32 (neg x)  fl32-      (! :precision binary32 (- x))   0.11567699999999992]
+  [+.f32   ([x : binary32] [y : binary32]) binary32 (+ x y)  fl32+      (! :precision binary32 (+ x y)) 0.200445]
+  [-.f32   ([x : binary32] [y : binary32]) binary32 (- x y)  fl32-      (! :precision binary32 (- x y)) 0.19106800000000014]
+  [*.f32   ([x : binary32] [y : binary32]) binary32 (* x y)  fl32*      (! :precision binary32 (* x y)) 0.256602]
+  [/.f32   ([x : binary32] [y : binary32]) binary32 (/ x y)  fl32/      (! :precision binary32 (/ x y)) 0.3465330000000001]
+  [==.f32  ([x : binary32] [y : binary32]) bool     (== x y) =          (== x y)                        32bit-move-cost]
+  [!=.f32  ([x : binary32] [y : binary32]) bool     (!= x y) (negate =) (!= x y)                        32bit-move-cost]
+  [<.f32   ([x : binary32] [y : binary32]) bool     (< x y)  <          (< x y)                         32bit-move-cost]
+  [>.f32   ([x : binary32] [y : binary32]) bool     (> x y)  >          (> x y)                         32bit-move-cost]
+  [<=.f32  ([x : binary32] [y : binary32]) bool     (<= x y) <=         (<= x y)                        32bit-move-cost]
+  [>=.f32  ([x : binary32] [y : binary32]) bool     (>= x y) >=         (>= x y)                        32bit-move-cost]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; libm operators ;;;;;;;;;;;;;;;;;;;;;;;;
-
-; Same as
-; (define fabsf.libm (make-libm fabsf.libm (fabsf float float)))
-; (define fabs.f32
-;   (make-operator-impl (fabs.f32 [x : binary32]) binary32 #:spec (fabs x) #:fl fabsf.libm #:cost 1))
-; (platform-register-implementation! c-platform fabs.f32)
 
 (define-syntax (make-libm-impl/binary32 stx)
   (syntax-case stx (real)
@@ -375,124 +242,28 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; constants ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(platform-register-implementation! c-platform
-                                   (make-operator-impl (PI.f64)
-                                                       binary64
-                                                       #:spec (PI)
-                                                       #:fl (const pi)
-                                                       #:fpcore (! :precision binary64 (PI))
-                                                       #:cost 64bit-move-cost))
-(platform-register-implementation! c-platform
-                                   (make-operator-impl (E.f64)
-                                                       binary64
-                                                       #:spec (E)
-                                                       #:fl (const (exp 1.0))
-                                                       #:fpcore (! :precision binary64 (E))
-                                                       #:cost 64bit-move-cost))
-(platform-register-implementation! c-platform
-                                   (make-operator-impl (INFINITY.f64)
-                                                       binary64
-                                                       #:spec (INFINITY)
-                                                       #:fl (const +inf.0)
-                                                       #:fpcore (! :precision binary64 (INFINITY))
-                                                       #:cost 64bit-move-cost))
-(platform-register-implementation! c-platform
-                                   (make-operator-impl (NAN.f64)
-                                                       binary64
-                                                       #:spec (NAN)
-                                                       #:fl (const +nan.0)
-                                                       #:fpcore (! :precision binary64 (NAN))
-                                                       #:cost 64bit-move-cost))
+(platform-register-implementations!
+ c-platform
+ ([PI.f64       () binary64 (PI)       (const pi)        (! :precision binary64 (PI))       64bit-move-cost]
+  [E.f64        () binary64 (E)        (const (exp 1.0)) (! :precision binary64 (E))        64bit-move-cost]
+  [INFINITY.f64 () binary64 (INFINITY) (const +inf.0)    (! :precision binary64 (INFINITY)) 64bit-move-cost]
+  [NAN.f64      () binary64 (NAN)      (const +nan.0)    (! :precision binary64 (NAN))      64bit-move-cost]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; operators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(platform-register-implementation! c-platform
-                                   (make-operator-impl (neg.f64 [x : binary64])
-                                                       binary64
-                                                       #:spec (neg x)
-                                                       #:fpcore (! :precision binary64 (- x))
-                                                       #:fl -
-                                                       #:cost 0.12114199999999964))
-
-(platform-register-implementation! c-platform
-                                   (make-operator-impl (+.f64 [x : binary64] [y : binary64])
-                                                       binary64
-                                                       #:spec (+ x y)
-                                                       #:fpcore (! :precision binary64 (+ x y))
-                                                       #:fl +
-                                                       #:cost 0.2174189999999998))
-
-(platform-register-implementation! c-platform
-                                   (make-operator-impl (-.f64 [x : binary64] [y : binary64])
-                                                       binary64
-                                                       #:spec (- x y)
-                                                       #:fpcore (! :precision binary64 (- x y))
-                                                       #:fl -
-                                                       #:cost 0.20265700000000008))
-
-(platform-register-implementation! c-platform
-                                   (make-operator-impl (*.f64 [x : binary64] [y : binary64])
-                                                       binary64
-                                                       #:spec (* x y)
-                                                       #:fpcore (! :precision binary64 (* x y))
-                                                       #:fl *
-                                                       #:cost 0.24512299999999976))
-
-(platform-register-implementation! c-platform
-                                   (make-operator-impl (/.f64 [x : binary64] [y : binary64])
-                                                       binary64
-                                                       #:spec (/ x y)
-                                                       #:fpcore (! :precision binary64 (/ x y))
-                                                       #:fl /
-                                                       #:cost 0.2962459999999998))
-
-(platform-register-implementation! c-platform
-                                   (make-operator-impl (==.f64 [x : binary64] [y : binary64])
-                                                       bool
-                                                       #:spec (== x y)
-                                                       #:fpcore (== x y)
-                                                       #:fl =
-                                                       #:cost 64bit-move-cost))
-
-(platform-register-implementation! c-platform
-                                   (make-operator-impl (!=.f64 [x : binary64] [y : binary64])
-                                                       bool
-                                                       #:spec (!= x y)
-                                                       #:fpcore (!= x y)
-                                                       #:fl (negate =)
-                                                       #:cost 64bit-move-cost))
-
-(platform-register-implementation! c-platform
-                                   (make-operator-impl (<.f64 [x : binary64] [y : binary64])
-                                                       bool
-                                                       #:spec (< x y)
-                                                       #:fpcore (< x y)
-                                                       #:fl <
-                                                       #:cost 64bit-move-cost))
-
-(platform-register-implementation! c-platform
-                                   (make-operator-impl (>.f64 [x : binary64] [y : binary64])
-                                                       bool
-                                                       #:spec (> x y)
-                                                       #:fpcore (> x y)
-                                                       #:fl >
-                                                       #:cost 64bit-move-cost))
-
-(platform-register-implementation! c-platform
-                                   (make-operator-impl (<=.f64 [x : binary64] [y : binary64])
-                                                       bool
-                                                       #:spec (<= x y)
-                                                       #:fpcore (<= x y)
-                                                       #:fl <=
-                                                       #:cost 64bit-move-cost))
-
-(platform-register-implementation! c-platform
-                                   (make-operator-impl (>=.f64 [x : binary64] [y : binary64])
-                                                       bool
-                                                       #:spec (>= x y)
-                                                       #:fpcore (>= x y)
-                                                       #:fl >=
-                                                       #:cost 64bit-move-cost))
+(platform-register-implementations!
+ c-platform
+ ([neg.f64 ([x : binary64])                binary64 (neg x)  -          (! :precision binary64 (- x))   0.12114199999999964]
+  [+.f64   ([x : binary64] [y : binary64]) binary64 (+ x y)  +          (! :precision binary64 (+ x y)) 0.2174189999999998]
+  [-.f64   ([x : binary64] [y : binary64]) binary64 (- x y)  -          (! :precision binary64 (- x y)) 0.20265700000000008]
+  [*.f64   ([x : binary64] [y : binary64]) binary64 (* x y)  *          (! :precision binary64 (* x y)) 0.24512299999999976]
+  [/.f64   ([x : binary64] [y : binary64]) binary64 (/ x y)  /          (! :precision binary64 (/ x y)) 0.2962459999999998]
+  [==.f64  ([x : binary64] [y : binary64]) bool     (== x y) =          (== x y)                        64bit-move-cost]
+  [!=.f64  ([x : binary64] [y : binary64]) bool     (!= x y) (negate =) (!= x y)                        64bit-move-cost]
+  [<.f64   ([x : binary64] [y : binary64]) bool     (< x y)  <          (< x y)                         64bit-move-cost]
+  [>.f64   ([x : binary64] [y : binary64]) bool     (> x y)  >          (> x y)                         64bit-move-cost]
+  [<=.f64  ([x : binary64] [y : binary64]) bool     (<= x y) <=         (<= x y)                        64bit-move-cost]
+  [>=.f64  ([x : binary64] [y : binary64]) bool     (>= x y) >=         (>= x y)                        64bit-move-cost]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; libm operators ;;;;;;;;;;;;;;;;;;;;;;;;
 
