@@ -36,9 +36,9 @@
 ;; incorrectly composes double-posit, posit-quire conversions.
 ;;
 
-(define quire8-max (quire8-fdp-add (double->quire8 0.0) posit8-max posit8-max))
-(define quire8-nmax (quire8-fdp-sub (double->quire8 0.0) posit8-max posit8-max))
-(define quire16-max (quire16-fdp-add (double->quire16 0.0) posit16-max posit16-max))
+(define quire8-max   (quire8-fdp-add  (double->quire8 0.0)  posit8-max  posit8-max))
+(define quire8-nmax  (quire8-fdp-sub  (double->quire8 0.0)  posit8-max  posit8-max))
+(define quire16-max  (quire16-fdp-add (double->quire16 0.0) posit16-max posit16-max))
 (define quire16-nmax (quire16-fdp-sub (double->quire16 0.0) posit16-max posit16-max))
 ; These crash
 ; (define quire32-max (quire32-fdp-add (double->quire32 0.0) posit32-max posit32-max))
