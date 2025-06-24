@@ -107,14 +107,13 @@
   (unless pcontext
     (error 'explain "cannot run without a pcontext"))
 
-  (*pcontext* pcontext)
   (define-values (fperrors
                   sorted-explanations-table
                   confusion-matrix
                   maybe-confusion-matrix
                   total-confusion-matrix
                   freqs)
-    (explain (test-input test) (*context*) (*pcontext*)))
+    (explain (test-input test) (*context*) pcontext))
 
   sorted-explanations-table)
 
@@ -127,8 +126,7 @@
   (unless pcontext
     (error 'get-local-error "cannnot run without a pcontext"))
 
-  (*pcontext* pcontext)
-  (local-error-as-tree (test-input test) (*context*)))
+  (local-error-as-tree (test-input test) (*context*) pcontext))
 
 (define (get-sample test)
   (random) ;; Tick the random number generator, for backwards compatibility

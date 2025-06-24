@@ -32,6 +32,7 @@
 
 ;; Starting program for the current run
 (define *start-prog* (make-parameter #f))
+(define *pcontext* (make-parameter #f))
 
 ;; These high-level functions give the high-level workflow of Herbie:
 ;; - Initial steps: explain, preprocessing, initialize the alt table
@@ -251,9 +252,10 @@
           (equal? (representation-type repr) 'real)
           (not (null? (context-vars ctx)))
           (get-fpcore-impl '<= '() (list repr repr)))
-     (define opts (pareto-regimes (sort alts < #:key (curryr alt-cost repr)) start-prog ctx))
+     (define opts
+       (pareto-regimes (sort alts < #:key (curryr alt-cost repr)) start-prog ctx (*pcontext*)))
      (for/list ([opt (in-list opts)])
-       (combine-alts opt start-prog ctx))]
+       (combine-alts opt start-prog ctx (*pcontext*)))]
     [else (list (argmin score-alt alts))]))
 
 (define (add-derivations! alts)

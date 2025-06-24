@@ -20,9 +20,9 @@
   `(html (head (meta ([charset "utf-8"]))
                (title "Result page for the " ,(~a command) " command is not available right now.")
                ,@js-tex-include
-               (script ([src "https://unpkg.com/mathjs@4.4.2/dist/math.min.js"]))
-               (script ([src "https://unpkg.com/d3@6.7.0/dist/d3.min.js"]))
-               (script ([src "https://unpkg.com/@observablehq/plot@0.4.3/dist/plot.umd.min.js"]))
+               (script ([src "https://www.jsdelivr.com/package/npm/mathjs@14"] [defer ""]))
+               (script ([src "https://cdn.jsdelivr.net/npm/d3@7"] [defer ""]))
+               (script ([src "https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6"] [defer ""]))
                (link ([rel "stylesheet"] [type "text/css"] [href "../report.css"]))
                (script ([src "../report.js"])))
          (body (h2 "Result page for the " ,(~a command) " command is not available right now."))))
@@ -65,14 +65,15 @@
       (and (not (null? better)) (apply max better))))
 
   (define end-error (car end-errors))
+  (define alt-number 0)
 
   `(html
     (head (meta ([charset "utf-8"]))
           (title "Result for " ,(~a (test-name test)))
           ,@js-tex-include
-          (script ([src "https://unpkg.com/mathjs@4.4.2/dist/math.min.js"]))
-          (script ([src "https://unpkg.com/d3@6.7.0/dist/d3.min.js"]))
-          (script ([src "https://unpkg.com/@observablehq/plot@0.4.3/dist/plot.umd.min.js"]))
+          (script ([src "https://www.jsdelivr.com/package/npm/mathjs@14"] [defer ""]))
+          (script ([src "https://cdn.jsdelivr.net/npm/d3@7"] [defer ""]))
+          (script ([src "https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6"] [defer ""]))
           (link ([rel "stylesheet"] [type "text/css"] [href "../report.css"]))
           (script ([src "../report.js"])))
     (body
@@ -149,11 +150,13 @@
                   [expr end-exprs]
                   [errs end-errors]
                   [cost end-costs]
-                  [history end-histories])
+                  [history end-histories]
+                  #:unless (equal? start-expr expr))
+         (set! alt-number (add1 alt-number))
          (define-values (dropdown body) (render-program expr ctx #:ident identifier))
          `(section ([id ,(format "alternative~a" i)] (class "programs"))
                    (h2 "Alternative "
-                       ,(~a i)
+                       ,(~a alt-number)
                        ": "
                        (span ((class "subhead"))
                              (data ,(format-accuracy (errors-score errs) repr-bits #:unit "%"))

@@ -32,13 +32,13 @@
 ;; The last splitpoint uses +nan.0 for pt and represents the "else"
 (struct sp (cidx bexpr point) #:prefab)
 
-(define (combine-alts best-option start-prog ctx)
+(define (combine-alts best-option start-prog ctx pcontext)
   (match-define (option splitindices alts pts expr _) best-option)
   (match splitindices
     [(list (si cidx _)) (list-ref alts cidx)]
     [_
      (timeline-event! 'bsearch)
-     (define splitpoints (sindices->spoints pts expr alts splitindices start-prog ctx))
+     (define splitpoints (sindices->spoints pts expr alts splitindices start-prog ctx pcontext))
 
      (define expr*
        (for/fold ([expr (alt-expr (list-ref alts (sp-cidx (last splitpoints))))])
@@ -119,8 +119,8 @@
 ;; float form always come from the range [f(idx1), f(idx2)). If the
 ;; float form of a split is f(idx2), or entirely outside that range,
 ;; problems may arise.
-(define/contract (sindices->spoints points expr alts sindices start-prog ctx)
-  (-> (listof vector?) any/c (listof alt?) (listof si?) any/c context? valid-splitpoints?)
+(define/contract (sindices->spoints points expr alts sindices start-prog ctx pcontext)
+  (-> (listof vector?) any/c (listof alt?) (listof si?) any/c context? pcontext? valid-splitpoints?)
   (define repr (repr-of expr ctx))
 
   (define eval-expr (compile-prog expr ctx))
@@ -135,7 +135,7 @@
     (and start-prog (make-real-compiler (list (prog->spec start-prog)) (list ctx*))))
 
   (define (prepend-macro v)
-    (prepend-argument start-real-compiler v (*pcontext*)))
+    (prepend-argument start-real-compiler v pcontext))
 
   (define (find-split expr1 expr2 v1 v2)
     (define (pred v)
