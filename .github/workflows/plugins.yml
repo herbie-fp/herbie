@@ -24,6 +24,7 @@ jobs:
       - uses: actions/checkout@master
       - name: "Install dependencies"
         run: make install
+      - name: "Install SoftPosit support"
         run: raco pkg update --auto softposit-rkt
       - name: "Run posit benchmarks"
         run: racket infra/ci.rkt --platform softposit --precision posit16 --seed 0 infra/bench/posits.fpcore
