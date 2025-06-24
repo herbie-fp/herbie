@@ -16,6 +16,7 @@
 (define-runtime-module-path racket-platform "../platforms/racket.rkt")
 (define-runtime-module-path math-platform "../platforms/math.rkt")
 (define-runtime-module-path rival-platform "../platforms/rival.rkt")
+(define-runtime-module-path softposit-platform "../platforms/softposit.rkt")
 
 ; Automatically loads default platforms
 (define (load-herbie-builtins)
@@ -26,6 +27,7 @@
   (dynamic-require racket-platform #f)
   (dynamic-require math-platform #f)
   (dynamic-require rival-platform #f)
+  (dynamic-require softposit-platform #f)
   ; activate the required platform
   (activate-platform! (*platform-name*)))
 

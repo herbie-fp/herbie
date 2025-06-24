@@ -99,11 +99,6 @@
   (set-seed! seed)
 
   (command-line #:program "ci.rkt"
-                #:multi [("--plugin")
-                         path
-                         "Which additional Herbie plugins to use"
-                         (dynamic-require path #f)
-                         (*loose-plugins* (cons path (*loose-plugins*)))]
                 #:once-each
                 [("--seed")
                  rs

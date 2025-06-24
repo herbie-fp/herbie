@@ -367,7 +367,6 @@
 ;; finds the best operator implementation. Panics if none can be found.
 (define/contract (get-fpcore-impl op prop-dict ireprs)
   (-> symbol? prop-dict/c (listof representation?) (or/c symbol? #f))
-
   (unless (op-hash)
     (define h (make-hash))
     (for ([impl (in-list (platform-impls (*active-platform*)))])
