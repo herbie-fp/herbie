@@ -15,6 +15,7 @@
 (define-runtime-module-path c-platform "../platforms/c.rkt")
 (define-runtime-module-path racket-platform "../platforms/racket.rkt")
 (define-runtime-module-path math-platform "../platforms/math.rkt")
+(define-runtime-module-path rival-platform "../platforms/rival.rkt")
 
 ; Automatically loads default platforms
 (define (load-herbie-builtins)
@@ -24,6 +25,7 @@
   (dynamic-require c-platform #f)
   (dynamic-require racket-platform #f)
   (dynamic-require math-platform #f)
+  (dynamic-require rival-platform #f)
   ; activate the required platform
   (activate-platform! (*platform-name*)))
 
