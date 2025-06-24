@@ -86,7 +86,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; operators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; ([name   ([var : repr] ...)              otype    spec     fl         fpcore                         cost])
+; ([name   ([var : repr] ...)              otype    spec     fl         fpcore                          cost])
 (platform-register-implementations!
  c-platform
  ([neg.f32 ([x : binary32])                binary32 (neg x)  fl32-      (! :precision binary32 (- x))   0.11567699999999992]
@@ -156,7 +156,7 @@
 (define c_hypotf (make-libm (hypotf float float float)))
 (define c_fmaf   (make-libm (fmaf   float float float float)))
 
-; ([name     ([var : repr] ...)                             otype    spec                       fl      fpcore                           cost])
+; ([name     ([var : repr] ...)                             otype    spec                       fl      fpcore                               cost])
 (platform-register-implementations!
  c-platform
  ([erfc.f32  ([x : binary32])                               binary32 (- 1 (erf x))              c_erfcf  (! :precision binary32 (erfc x))    0.907758]
@@ -263,7 +263,7 @@
 (define c_hypot (make-libm (hypot double double double)))
 (define c_fma   (make-libm (fma   double double double double)))
 
-; ([name     ([var : repr] ...)                             otype    spec                       fl      fpcore                           cost])
+; ([name     ([var : repr] ...)                             otype    spec                       fl      fpcore                              cost])
 (platform-register-implementations!
  c-platform
  ([erfc.f64  ([x : binary64])                               binary64 (- 1 (erf x))              c_erfc  (! :precision binary64 (erfc x))    0.8588620000000002]

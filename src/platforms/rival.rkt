@@ -74,7 +74,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BINARY 32 TABLE ;;;;;;;;;;;;;;;;;;;;;;;
 
-; ([name   ([var : repr] ...)                                   otype    spec                       fl fpcore                                          cost])
+; ([name         ([var : repr] ...)                             otype    spec                       fl fpcore                                          cost])
 (platform-register-implementations!
  rival-platform
  (; Constants
@@ -159,7 +159,9 @@
 
 (platform-register-representation! rival-platform binary64)
 
-; ([name   ([var : repr] ...)                                   otype    spec                       fl fpcore                                          cost])
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BINARY 64 TABLE ;;;;;;;;;;;;;;;;;;;;;;;
+
+; ([name         ([var : repr] ...)                             otype    spec                       fl fpcore                                          cost])
 (platform-register-implementations!
  rival-platform
  (; Constants

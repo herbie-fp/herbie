@@ -258,7 +258,7 @@
     (match spec
       [(list op (or (? number?) (? symbol?)) ...) op]
       [_ #f]))
-  ; check or synthesize FPCore translation
+  ; check FPCore translation
   (match fpcore
     [`(! ,props ... (,op ,args ...))
      (unless (even? (length props))
