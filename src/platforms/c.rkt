@@ -1,6 +1,6 @@
 #lang racket
 
-;;; The default platform:
+;;; C platform:
 ;;; C/C++ on Linux with a full libm
 
 (require math/bigfloat
@@ -10,7 +10,7 @@
          "../utils/float.rkt"  ; for shift/unshift
          (submod "../syntax/platform.rkt" internals))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;; EMPTY PLATFORM ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;; EMPTY PLATFORM ;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define 64bit-move-cost   0.12538399999999972)
 (define 32bit-move-cost   0.12961999999999974)
@@ -160,56 +160,22 @@
   (when libm-impl.f32
     (platform-register-implementation! c-platform libm-impl.f32)))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;; libm accelerators ;;;;;;;;;;;;;;;;;;;;;
+
 (define c_erfcf  (make-libm (erfcf  float float)))
 (define c_expm1f (make-libm (expm1f float float)))
 (define c_log1pf (make-libm (log1pf float float)))
 (define c_hypotf (make-libm (hypotf float float float)))
 (define c_fmaf   (make-libm (fmaf   float float float float)))
 
-(when c_erfcf
-  (platform-register-implementation! c-platform
-                                     (make-operator-impl (erfc.f32 [x : binary32])
-                                                         binary32
-                                                         #:spec (- 1 (erf x))
-                                                         #:fpcore (! :precision binary32 (erfc x))
-                                                         #:fl c_erfcf
-                                                         #:cost 0.907758)))
-
-(when c_expm1f
-  (platform-register-implementation! c-platform
-                                     (make-operator-impl (expm1.f32 [x : binary32])
-                                                         binary32
-                                                         #:spec (- (exp x) 1)
-                                                         #:fpcore (! :precision binary32 (expm1 x))
-                                                         #:fl c_expm1f
-                                                         #:cost 0.906484)))
-
-(when c_log1pf
-  (platform-register-implementation! c-platform
-                                     (make-operator-impl (log1p.f32 [x : binary32])
-                                                         binary32
-                                                         #:spec (log (+ 1 x))
-                                                         #:fpcore (! :precision binary32 (log1p x))
-                                                         #:fl c_log1pf
-                                                         #:cost 1.302969)))
-
-(when c_hypotf
-  (platform-register-implementation! c-platform
-                                     (make-operator-impl (hypot.f32 [x : binary32] [y : binary32])
-                                                         binary32
-                                                         #:spec (sqrt (+ (* x x) (* y y)))
-                                                         #:fpcore (! :precision binary32 (hypot x y))
-                                                         #:fl c_hypotf
-                                                         #:cost 1.6816069999999997)))
-
-(when c_fmaf
-  (platform-register-implementation!  c-platform
-                                      (make-operator-impl (fma.f32 [x : binary32] [y : binary32] [z : binary32])
-                                                          binary32
-                                                          #:spec (+ (* x y) z)
-                                                          #:fpcore (! :precision binary32 (fma x y z))
-                                                          #:fl c_fmaf
-                                                          #:cost 0.38934)))
+; ([name     ([var : repr] ...)                             otype    spec                       fl      fpcore                           cost])
+(platform-register-implementations!
+ c-platform
+ ([erfc.f32  ([x : binary32])                               binary32 (- 1 (erf x))              c_erfcf  (! :precision binary32 (erfc x))    0.907758]
+  [expm1.f32 ([x : binary32])                               binary32 (- (exp x) 1)              c_expm1f (! :precision binary32 (expm1 x))   0.906484]
+  [log1p.f32 ([x : binary32])                               binary32 (log (+ 1 x))              c_log1pf (! :precision binary32 (log1p x))   1.302969]
+  [hypot.f32 ([x : binary32] [y : binary32])                binary32 (sqrt (+ (* x x) (* y y))) c_hypotf (! :precision binary32 (hypot x y)) 1.6816069999999997]
+  [fma.f32   ([x : binary32] [y : binary32] [z : binary32]) binary32 (+ (* x y) z)              c_fmaf   (! :precision binary32 (fma x y z)) 0.38934]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BINARY 64 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -302,56 +268,22 @@
   (when libm-impl.f64
     (platform-register-implementation! c-platform libm-impl.f64)))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;; libm accelerators ;;;;;;;;;;;;;;;;;;;;;
+
 (define c_erfc  (make-libm (erfc  double double)))
 (define c_expm1 (make-libm (expm1 double double)))
 (define c_log1p (make-libm (log1p double double)))
 (define c_hypot (make-libm (hypot double double double)))
 (define c_fma   (make-libm (fma   double double double double)))
 
-(when c_erfc
-  (platform-register-implementation! c-platform
-                                     (make-operator-impl (erfc.f64 [x : binary64])
-                                                         binary64
-                                                         #:spec (- 1 (erf x))
-                                                         #:fpcore (! :precision binary64 (erfc x))
-                                                         #:fl c_erfc
-                                                         #:cost 0.8588620000000002)))
-
-(when c_expm1
-  (platform-register-implementation! c-platform
-                                     (make-operator-impl (expm1.f64 [x : binary64])
-                                                         binary64
-                                                         #:spec (- (exp x) 1)
-                                                         #:fpcore (! :precision binary64 (expm1 x))
-                                                         #:fl c_expm1
-                                                         #:cost 0.8483490000000002)))
-
-(when c_log1p
-  (platform-register-implementation! c-platform
-                                     (make-operator-impl (log1p.f64 [x : binary64])
-                                                         binary64
-                                                         #:spec (log (+ 1 x))
-                                                         #:fpcore (! :precision binary64 (log1p x))
-                                                         #:fl c_log1p
-                                                         #:cost 1.2416829999999997)))
-
-(when c_hypot
-  (platform-register-implementation! c-platform
-                                     (make-operator-impl (hypot.f64 [x : binary64] [y : binary64])
-                                                         binary64
-                                                         #:spec (sqrt (+ (* x x) (* y y)))
-                                                         #:fpcore (! :precision binary64 (hypot x y))
-                                                         #:fl c_hypot
-                                                         #:cost 1.498331)))
-
-(when c_fma
-  (platform-register-implementation! c-platform
-                                     (make-operator-impl (fma.f64 [x : binary64] [y : binary64] [z : binary64])
-                                                         binary64
-                                                         #:spec (+ (* x y) z)
-                                                         #:fpcore (! :precision binary64 (fma x y z))
-                                                         #:fl c_fma
-                                                         #:cost 0.37174700000000026)))
+; ([name     ([var : repr] ...)                             otype    spec                       fl      fpcore                           cost])
+(platform-register-implementations!
+ c-platform
+ ([erfc.f64  ([x : binary64])                               binary64 (- 1 (erf x))              c_erfc  (! :precision binary64 (erfc x))    0.8588620000000002]
+  [expm1.f64 ([x : binary64])                               binary64 (- (exp x) 1)              c_expm1 (! :precision binary64 (expm1 x))   0.8483490000000002]
+  [log1p.f64 ([x : binary64])                               binary64 (log (+ 1 x))              c_log1p (! :precision binary64 (log1p x))   1.2416829999999997]
+  [hypot.f64 ([x : binary64] [y : binary64])                binary64 (sqrt (+ (* x x) (* y y))) c_hypot (! :precision binary64 (hypot x y)) 1.498331]
+  [fma.f64   ([x : binary64] [y : binary64] [z : binary64]) binary64 (+ (* x y) z)              c_fma   (! :precision binary64 (fma x y z)) 0.37174700000000026]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; additional converters ;;;;;;;;;;;;;;;;;
 
@@ -370,6 +302,8 @@
                                                          #:fpcore (! :precision binary64 (cast x))
                                                          #:fl identity
                                                          #:cost 64bit-move-cost))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;; REGISTER PLATFORM ;;;;;;;;;;;;;;;;;;;;;
 
 (register-platform! c-platform)
 

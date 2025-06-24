@@ -4,13 +4,13 @@
 ;;; C/C++ on Linux with a full libm
 
 (require math/bigfloat
-         math/flonum)
-
-(require "runtime/float32.rkt" ; float representation helper functions
-         "runtime/libm.rkt") ; libm wrapper
-
-(require "../utils/float.rkt" ; for shift/unshift
+         math/flonum
+         "runtime/float32.rkt" ; float representation helper functions
+         "runtime/libm.rkt"    ; libm wrapper
+         "../utils/float.rkt"  ; for shift/unshift
          (submod "../syntax/platform.rkt" internals))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;; EMPTY PLATFORM ;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define herbie20-platform (make-empty-platform 'herbie20 #:if-cost 1 #:default-cost 1))
 
@@ -34,13 +34,10 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; constants ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(platform-register-implementation!
+(platform-register-implementations!
  herbie20-platform
- (make-operator-impl (TRUE) bool #:spec (TRUE) #:fl (const true) #:fpcore (! TRUE) #:cost 1))
-
-(platform-register-implementation!
- herbie20-platform
- (make-operator-impl (FALSE) bool #:spec (FALSE) #:fl (const false) #:fpcore (! FALSE) #:cost 1))
+ ([TRUE  () bool (TRUE)  (const true)  (! TRUE)  1]
+  [FALSE () bool (FALSE) (const false) (! FALSE) 1]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; operators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -49,25 +46,11 @@
 (define (or-fn . as)
   (ormap identity as))
 
-(platform-register-implementation!
+(platform-register-implementations!
  herbie20-platform
- (make-operator-impl (not [x : bool]) bool #:spec (not x) #:fpcore (not x) #:fl not #:cost 1))
-
-(platform-register-implementation! herbie20-platform
-                                   (make-operator-impl (and [x : bool] [y : bool])
-                                                       bool
-                                                       #:spec (and x y)
-                                                       #:fpcore (and x y)
-                                                       #:fl and-fn
-                                                       #:cost 1))
-
-(platform-register-implementation! herbie20-platform
-                                   (make-operator-impl (or [x : bool] [y : bool])
-                                                       bool
-                                                       #:spec (or x y)
-                                                       #:fpcore (or x y)
-                                                       #:fl or-fn
-                                                       #:cost 1))
+ ([not ([x : bool])            bool (not x)   not    (not x)   1]
+  [and ([x : bool] [y : bool]) bool (and x y) and-fn (and x y) 1]
+  [or  ([x : bool] [y : bool]) bool (or x y)  or-fn  (or x y)  1]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BINARY 32 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -89,37 +72,12 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; constants ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(platform-register-implementation! herbie20-platform
-                                   (make-operator-impl (PI.f32)
-                                                       binary32
-                                                       #:spec (PI)
-                                                       #:fl (const (flsingle pi))
-                                                       #:fpcore (! :precision binary32 (PI))
-                                                       #:cost 32))
-
-(platform-register-implementation! herbie20-platform
-                                   (make-operator-impl (E.f32)
-                                                       binary32
-                                                       #:spec (E)
-                                                       #:fl (const (flsingle (exp 1.0)))
-                                                       #:fpcore (! :precision binary32 (E))
-                                                       #:cost 32))
-
-(platform-register-implementation! herbie20-platform
-                                   (make-operator-impl (INFINITY.f32)
-                                                       binary32
-                                                       #:spec (INFINITY)
-                                                       #:fl (const +inf.0)
-                                                       #:fpcore (! :precision binary32 (INFINITY))
-                                                       #:cost 32))
-
-(platform-register-implementation! herbie20-platform
-                                   (make-operator-impl (NAN.f32)
-                                                       binary32
-                                                       #:spec (NAN)
-                                                       #:fl (const +nan.0)
-                                                       #:fpcore (! :precision binary32 (NAN))
-                                                       #:cost 32))
+(platform-register-implementations!
+ herbie20-platform
+ ([PI.f32       () binary32 (PI)       (const (flsingle pi))        (! :precision binary32 (PI))       32]
+  [E.f32        () binary32 (E)        (const (flsingle (exp 1.0))) (! :precision binary32 (E))        32]
+  [INFINITY.f32 () binary32 (INFINITY) (const +inf.0)               (! :precision binary32 (INFINITY)) 32]
+  [NAN.f32      () binary32 (NAN)      (const +nan.0)               (! :precision binary32 (NAN))      32]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; operators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -134,163 +92,76 @@
 (define fl32* (compose flsingle *))
 (define fl32/ (compose flsingle /))
 
-(platform-register-implementation! herbie20-platform
-                                   (make-operator-impl (neg.f32 [x : binary32])
-                                                       binary32
-                                                       #:spec (neg x)
-                                                       #:fpcore (! :precision binary32 (- x))
-                                                       #:fl fl32-
-                                                       #:cost 64))
-
-(platform-register-implementation! herbie20-platform
-                                   (make-operator-impl (+.f32 [x : binary32] [y : binary32])
-                                                       binary32
-                                                       #:spec (+ x y)
-                                                       #:fpcore (! :precision binary32 (+ x y))
-                                                       #:fl fl32+
-                                                       #:cost 64))
-
-(platform-register-implementation! herbie20-platform
-                                   (make-operator-impl (-.f32 [x : binary32] [y : binary32])
-                                                       binary32
-                                                       #:spec (- x y)
-                                                       #:fpcore (! :precision binary32 (- x y))
-                                                       #:fl fl32-
-                                                       #:cost 64))
-
-(platform-register-implementation! herbie20-platform
-                                   (make-operator-impl (*.f32 [x : binary32] [y : binary32])
-                                                       binary32
-                                                       #:spec (* x y)
-                                                       #:fpcore (! :precision binary32 (* x y))
-                                                       #:fl fl32*
-                                                       #:cost 128))
-
-(platform-register-implementation! herbie20-platform
-                                   (make-operator-impl (/.f32 [x : binary32] [y : binary32])
-                                                       binary32
-                                                       #:spec (/ x y)
-                                                       #:fpcore (! :precision binary32 (/ x y))
-                                                       #:fl fl32/
-                                                       #:cost 320))
-
-(platform-register-implementation! herbie20-platform
-                                   (make-operator-impl (==.f32 [x : binary32] [y : binary32])
-                                                       bool
-                                                       #:spec (== x y)
-                                                       #:fpcore (== x y)
-                                                       #:fl =
-                                                       #:cost 128))
-
-(platform-register-implementation! herbie20-platform
-                                   (make-operator-impl (!=.f32 [x : binary32] [y : binary32])
-                                                       bool
-                                                       #:spec (!= x y)
-                                                       #:fpcore (!= x y)
-                                                       #:fl (negate =)
-                                                       #:cost 128))
-
-(platform-register-implementation! herbie20-platform
-                                   (make-operator-impl (<.f32 [x : binary32] [y : binary32])
-                                                       bool
-                                                       #:spec (< x y)
-                                                       #:fpcore (< x y)
-                                                       #:fl <
-                                                       #:cost 128))
-
-(platform-register-implementation! herbie20-platform
-                                   (make-operator-impl (>.f32 [x : binary32] [y : binary32])
-                                                       bool
-                                                       #:spec (> x y)
-                                                       #:fpcore (> x y)
-                                                       #:fl >
-                                                       #:cost 128))
-
-(platform-register-implementation! herbie20-platform
-                                   (make-operator-impl (<=.f32 [x : binary32] [y : binary32])
-                                                       bool
-                                                       #:spec (<= x y)
-                                                       #:fpcore (<= x y)
-                                                       #:fl <=
-                                                       #:cost 128))
-
-(platform-register-implementation! herbie20-platform
-                                   (make-operator-impl (>=.f32 [x : binary32] [y : binary32])
-                                                       bool
-                                                       #:spec (>= x y)
-                                                       #:fpcore (>= x y)
-                                                       #:fl >=
-                                                       #:cost 128))
+; ([name   ([var : repr] ...)              otype    spec     fl         fpcore                         cost])
+(platform-register-implementations!
+ herbie20-platform
+ ([neg.f32 ([x : binary32])                binary32 (neg x)  fl32-      (! :precision binary32 (- x))   64]
+  [+.f32   ([x : binary32] [y : binary32]) binary32 (+ x y)  fl32+      (! :precision binary32 (+ x y)) 64]
+  [-.f32   ([x : binary32] [y : binary32]) binary32 (- x y)  fl32-      (! :precision binary32 (- x y)) 64]
+  [*.f32   ([x : binary32] [y : binary32]) binary32 (* x y)  fl32*      (! :precision binary32 (* x y)) 128]
+  [/.f32   ([x : binary32] [y : binary32]) binary32 (/ x y)  fl32/      (! :precision binary32 (/ x y)) 320]
+  [==.f32  ([x : binary32] [y : binary32]) bool     (== x y) =          (== x y)                        128]
+  [!=.f32  ([x : binary32] [y : binary32]) bool     (!= x y) (negate =) (!= x y)                        128]
+  [<.f32   ([x : binary32] [y : binary32]) bool     (< x y)  <          (< x y)                         128]
+  [>.f32   ([x : binary32] [y : binary32]) bool     (> x y)  >          (> x y)                         128]
+  [<=.f32  ([x : binary32] [y : binary32]) bool     (<= x y) <=         (<= x y)                        128]
+  [>=.f32  ([x : binary32] [y : binary32]) bool     (>= x y) >=         (>= x y)                        128]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; libm operators ;;;;;;;;;;;;;;;;;;;;;;;;
 
-; Same as
-; (define fabsf.libm (make-libm fabsf.libm (fabsf float float)))
-; (define fabs.f32
-;   (make-operator-impl (fabs.f32 [x : binary32]) binary32 #:spec (fabs x) #:fl fabsf.libm #:cost 1))
-; (platform-register-implementation! herbie20-platform fabs.f32)
-
-(define-syntax (make-libm-impl/binary32 stx)
-  (syntax-case stx (real)
-    [(_ op (itype ...) otype cost attrib ...)
-     (with-syntax ([impl (string->symbol (format "~a.f32" (syntax->datum #'op)))]
-                   [cname (string->symbol (format "~af" (syntax->datum #'op)))])
-       #'(make-libm-impl cname (op impl itype ...) otype cost attrib ...))]))
-
-(define-syntax-rule (make-libm-impls/binary32* (itype ... otype) [name cost] ...)
-  (list (make-libm-impl/binary32 name (itype ...) otype cost) ...))
-
-(define-syntax-rule (make-libm-impls/binary32 [(itype ... otype) ([name cost] ...)] ...)
-  (apply append (list (make-libm-impls/binary32* (itype ... otype) [name cost] ...) ...)))
-
 (define libm-impls.f32
-  (make-libm-impls/binary32 [(binary32 binary32)
-                             ([fabs 64] [sin 3200]
-                                        [cos 3200]
-                                        [tan 3200]
-                                        [sinh 3200]
-                                        [cosh 3200]
-                                        [acos 3200]
-                                        [acosh 3200]
-                                        [asin 3200]
-                                        [asinh 3200]
-                                        [atan 3200]
-                                        [atanh 3200]
-                                        [cbrt 3200]
-                                        [ceil 3200]
-                                        [erf 3200]
-                                        [exp 3200]
-                                        [exp2 3200]
-                                        [floor 3200]
-                                        [lgamma 3200]
-                                        [log 3200]
-                                        [log10 3200]
-                                        [log2 3200]
-                                        [logb 3200]
-                                        [rint 3200]
-                                        [round 3200]
-                                        [sqrt 320] ; not a typo, it is 320
-                                        [tanh 3200]
-                                        [tgamma 3200]
-                                        [trunc 3200])]
-                            [(binary32 binary32 binary32)
-                             ([pow 3200] [atan2 3200]
-                                         [copysign 3200]
-                                         [fdim 3200]
-                                         [fmax 3200]
-                                         [fmin 3200]
-                                         [fmod 3200]
-                                         [remainder 3200])]))
+  (make-libm-impls/binary32
+   [(binary32 binary32)
+    ([fabs      64]
+     [sin       3200]
+     [cos       3200]
+     [tan       3200]
+     [sinh      3200]
+     [cosh      3200]
+     [acos      3200]
+     [acosh     3200]
+     [asin      3200]
+     [asinh     3200]
+     [atan      3200]
+     [atanh     3200]
+     [cbrt      3200]
+     [ceil      3200]
+     [erf       3200]
+     [exp       3200]
+     [exp2      3200]
+     [floor     3200]
+     [lgamma    3200]
+     [log       3200]
+     [log10     3200]
+     [log2      3200]
+     [logb      3200]
+     [rint      3200]
+     [round     3200]
+     [sqrt      320] ; not a typo, it is 320
+     [tanh      3200]
+     [tgamma    3200]
+     [trunc     3200])]
+   [(binary32 binary32 binary32)
+    ([pow       3200]
+     [atan2     3200]
+     [copysign  3200]
+     [fdim      3200]
+     [fmax      3200]
+     [fmin      3200]
+     [fmod      3200]
+     [remainder 3200])]))
 
 (for ([libm-impl.f32 (in-list libm-impls.f32)])
   (when libm-impl.f32
     (platform-register-implementation! herbie20-platform libm-impl.f32)))
 
-(define c_erfcf (make-libm (erfcf float float)))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;; libm accelerators ;;;;;;;;;;;;;;;;;;;;;
+
+(define c_erfcf  (make-libm (erfcf  float float)))
 (define c_expm1f (make-libm (expm1f float float)))
 (define c_log1pf (make-libm (log1pf float float)))
 (define c_hypotf (make-libm (hypotf float float float)))
-(define c_fmaf (make-libm (fmaf float float float float)))
+(define c_fmaf   (make-libm (fmaf   float float float float)))
 
 (when c_erfcf
   (platform-register-implementation! herbie20-platform
@@ -329,14 +200,13 @@
                                                          #:cost 3200)))
 
 (when c_fmaf
-  (platform-register-implementation!
-   herbie20-platform
-   (make-operator-impl (fma.f32 [x : binary32] [y : binary32] [z : binary32])
-                       binary32
-                       #:spec (+ (* x y) z)
-                       #:fpcore (! :precision binary32 (fma x y z))
-                       #:fl c_fmaf
-                       #:cost 128)))
+  (platform-register-implementation! herbie20-platform
+                                     (make-operator-impl (fma.f32 [x : binary32] [y : binary32] [z : binary32])
+                                                         binary32
+                                                         #:spec (+ (* x y) z)
+                                                         #:fpcore (! :precision binary32 (fma x y z))
+                                                         #:fl c_fmaf
+                                                         #:cost 128)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BINARY 64 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -358,187 +228,84 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; constants ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(platform-register-implementation! herbie20-platform
-                                   (make-operator-impl (PI.f64)
-                                                       binary64
-                                                       #:spec (PI)
-                                                       #:fl (const pi)
-                                                       #:fpcore (! :precision binary64 (PI))
-                                                       #:cost 64))
-(platform-register-implementation! herbie20-platform
-                                   (make-operator-impl (E.f64)
-                                                       binary64
-                                                       #:spec (E)
-                                                       #:fl (const (exp 1.0))
-                                                       #:fpcore (! :precision binary64 (E))
-                                                       #:cost 64))
-(platform-register-implementation! herbie20-platform
-                                   (make-operator-impl (INFINITY.f64)
-                                                       binary64
-                                                       #:spec (INFINITY)
-                                                       #:fl (const +inf.0)
-                                                       #:fpcore (! :precision binary64 (INFINITY))
-                                                       #:cost 64))
-(platform-register-implementation! herbie20-platform
-                                   (make-operator-impl (NAN.f64)
-                                                       binary64
-                                                       #:spec (NAN)
-                                                       #:fl (const +nan.0)
-                                                       #:fpcore (! :precision binary64 (NAN))
-                                                       #:cost 64))
+(platform-register-implementations!
+ herbie20-platform
+ ([PI.f64       () binary64 (PI)       (const pi)        (! :precision binary64 (PI))       64]
+  [E.f64        () binary64 (E)        (const (exp 1.0)) (! :precision binary64 (E))        64]
+  [INFINITY.f64 () binary64 (INFINITY) (const +inf.0)    (! :precision binary64 (INFINITY)) 64]
+  [NAN.f64      () binary64 (NAN)      (const +nan.0)    (! :precision binary64 (NAN))      64]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; operators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(platform-register-implementation! herbie20-platform
-                                   (make-operator-impl (neg.f64 [x : binary64])
-                                                       binary64
-                                                       #:spec (neg x)
-                                                       #:fpcore (! :precision binary64 (- x))
-                                                       #:fl -
-                                                       #:cost 128))
-
-(platform-register-implementation! herbie20-platform
-                                   (make-operator-impl (+.f64 [x : binary64] [y : binary64])
-                                                       binary64
-                                                       #:spec (+ x y)
-                                                       #:fpcore (! :precision binary64 (+ x y))
-                                                       #:fl +
-                                                       #:cost 128))
-
-(platform-register-implementation! herbie20-platform
-                                   (make-operator-impl (-.f64 [x : binary64] [y : binary64])
-                                                       binary64
-                                                       #:spec (- x y)
-                                                       #:fpcore (! :precision binary64 (- x y))
-                                                       #:fl -
-                                                       #:cost 128))
-
-(platform-register-implementation! herbie20-platform
-                                   (make-operator-impl (*.f64 [x : binary64] [y : binary64])
-                                                       binary64
-                                                       #:spec (* x y)
-                                                       #:fpcore (! :precision binary64 (* x y))
-                                                       #:fl *
-                                                       #:cost 256))
-
-(platform-register-implementation! herbie20-platform
-                                   (make-operator-impl (/.f64 [x : binary64] [y : binary64])
-                                                       binary64
-                                                       #:spec (/ x y)
-                                                       #:fpcore (! :precision binary64 (/ x y))
-                                                       #:fl /
-                                                       #:cost 640))
-
-(platform-register-implementation! herbie20-platform
-                                   (make-operator-impl (==.f64 [x : binary64] [y : binary64])
-                                                       bool
-                                                       #:spec (== x y)
-                                                       #:fpcore (== x y)
-                                                       #:fl =
-                                                       #:cost 256))
-
-(platform-register-implementation! herbie20-platform
-                                   (make-operator-impl (!=.f64 [x : binary64] [y : binary64])
-                                                       bool
-                                                       #:spec (!= x y)
-                                                       #:fpcore (!= x y)
-                                                       #:fl (negate =)
-                                                       #:cost 256))
-
-(platform-register-implementation! herbie20-platform
-                                   (make-operator-impl (<.f64 [x : binary64] [y : binary64])
-                                                       bool
-                                                       #:spec (< x y)
-                                                       #:fpcore (< x y)
-                                                       #:fl <
-                                                       #:cost 256))
-
-(platform-register-implementation! herbie20-platform
-                                   (make-operator-impl (>.f64 [x : binary64] [y : binary64])
-                                                       bool
-                                                       #:spec (> x y)
-                                                       #:fpcore (> x y)
-                                                       #:fl >
-                                                       #:cost 256))
-
-(platform-register-implementation! herbie20-platform
-                                   (make-operator-impl (<=.f64 [x : binary64] [y : binary64])
-                                                       bool
-                                                       #:spec (<= x y)
-                                                       #:fpcore (<= x y)
-                                                       #:fl <=
-                                                       #:cost 256))
-
-(platform-register-implementation! herbie20-platform
-                                   (make-operator-impl (>=.f64 [x : binary64] [y : binary64])
-                                                       bool
-                                                       #:spec (>= x y)
-                                                       #:fpcore (>= x y)
-                                                       #:fl >=
-                                                       #:cost 256))
+(platform-register-implementations!
+ herbie20-platform
+ ([neg.f64 ([x : binary64])                binary64 (neg x)  -          (! :precision binary64 (- x))   128]
+  [+.f64   ([x : binary64] [y : binary64]) binary64 (+ x y)  +          (! :precision binary64 (+ x y)) 128]
+  [-.f64   ([x : binary64] [y : binary64]) binary64 (- x y)  -          (! :precision binary64 (- x y)) 128]
+  [*.f64   ([x : binary64] [y : binary64]) binary64 (* x y)  *          (! :precision binary64 (* x y)) 256]
+  [/.f64   ([x : binary64] [y : binary64]) binary64 (/ x y)  /          (! :precision binary64 (/ x y)) 640]
+  [==.f64  ([x : binary64] [y : binary64]) bool     (== x y) =          (== x y)                        256]
+  [!=.f64  ([x : binary64] [y : binary64]) bool     (!= x y) (negate =) (!= x y)                        256]
+  [<.f64   ([x : binary64] [y : binary64]) bool     (< x y)  <          (< x y)                         256]
+  [>.f64   ([x : binary64] [y : binary64]) bool     (> x y)  >          (> x y)                         256]
+  [<=.f64  ([x : binary64] [y : binary64]) bool     (<= x y) <=         (<= x y)                        256]
+  [>=.f64  ([x : binary64] [y : binary64]) bool     (>= x y) >=         (>= x y)                        256]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; libm operators ;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define-syntax (make-libm-impl/binary64 stx)
-  (syntax-case stx (real)
-    [(_ op (itype ...) otype cost attrib ...)
-     (with-syntax ([impl (string->symbol (format "~a.f64" (syntax->datum #'op)))])
-       #'(make-libm-impl op (op impl itype ...) otype cost attrib ...))]))
-
-(define-syntax-rule (make-libm-impls/binary64* (itype ... otype) [name cost] ...)
-  (list (make-libm-impl/binary64 name (itype ...) otype cost) ...))
-
-(define-syntax-rule (make-libm-impls/binary64 [(itype ... otype) ([name cost] ...)] ...)
-  (apply append (list (make-libm-impls/binary64* (itype ... otype) [name cost] ...) ...)))
-
 (define libm-impls.f64
-  (make-libm-impls/binary64 [(binary64 binary64)
-                             ([fabs 128] [sin 6400]
-                                         [cos 6400]
-                                         [tan 6400]
-                                         [sinh 6400]
-                                         [cosh 6400]
-                                         [acos 6400]
-                                         [acosh 6400]
-                                         [asin 6400]
-                                         [asinh 6400]
-                                         [atan 6400]
-                                         [atanh 6400]
-                                         [cbrt 6400]
-                                         [ceil 6400]
-                                         [erf 6400]
-                                         [exp 6400]
-                                         [exp2 6400]
-                                         [floor 6400]
-                                         [lgamma 6400]
-                                         [log 6400]
-                                         [log10 6400]
-                                         [log2 6400]
-                                         [logb 6400]
-                                         [rint 6400]
-                                         [round 6400]
-                                         [sqrt 640] ; not a typo
-                                         [tanh 6400]
-                                         [tgamma 6400]
-                                         [trunc 6400])]
-                            [(binary64 binary64 binary64)
-                             ([pow 6400] [atan2 6400]
-                                         [copysign 6400]
-                                         [fdim 6400]
-                                         [fmax 6400]
-                                         [fmin 6400]
-                                         [fmod 6400]
-                                         [remainder 6400])]))
+  (make-libm-impls/binary64
+   [(binary64 binary64)
+    ([fabs      128]
+     [sin       6400]
+     [cos       6400]
+     [tan       6400]
+     [sinh      6400]
+     [cosh      6400]
+     [acos      6400]
+     [acosh     6400]
+     [asin      6400]
+     [asinh     6400]
+     [atan      6400]
+     [atanh     6400]
+     [cbrt      6400]
+     [ceil      6400]
+     [erf       6400]
+     [exp       6400]
+     [exp2      6400]
+     [floor     6400]
+     [lgamma    6400]
+     [log       6400]
+     [log10     6400]
+     [log2      6400]
+     [logb      6400]
+     [rint      6400]
+     [round     6400]
+     [sqrt      640] ; not a typo
+     [tanh      6400]
+     [tgamma    6400]
+     [trunc     6400])]
+   [(binary64 binary64 binary64)
+    ([pow       6400]
+     [atan2     6400]
+     [copysign  6400]
+     [fdim      6400]
+     [fmax      6400]
+     [fmin      6400]
+     [fmod      6400]
+     [remainder 6400])]))
 
 (for ([libm-impl.f64 (in-list libm-impls.f64)])
   (when libm-impl.f64
     (platform-register-implementation! herbie20-platform libm-impl.f64)))
 
-(define c_erfc (make-libm (erfc double double)))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;; libm accelerators ;;;;;;;;;;;;;;;;;;;;;
+
+(define c_erfc  (make-libm (erfc  double double)))
 (define c_expm1 (make-libm (expm1 double double)))
 (define c_log1p (make-libm (log1p double double)))
 (define c_hypot (make-libm (hypot double double double)))
-(define c_fma (make-libm (fma double double double double)))
+(define c_fma   (make-libm (fma   double double double double)))
 
 (when c_erfc
   (platform-register-implementation! herbie20-platform
@@ -577,14 +344,13 @@
                                                          #:cost 6400)))
 
 (when c_fma
-  (platform-register-implementation!
-   herbie20-platform
-   (make-operator-impl (fma.f64 [x : binary64] [y : binary64] [z : binary64])
-                       binary64
-                       #:spec (+ (* x y) z)
-                       #:fpcore (! :precision binary64 (fma x y z))
-                       #:fl c_fma
-                       #:cost 256)))
+  (platform-register-implementation! herbie20-platform
+                                     (make-operator-impl (fma.f64 [x : binary64] [y : binary64] [z : binary64])
+                                                         binary64
+                                                         #:spec (+ (* x y) z)
+                                                         #:fpcore (! :precision binary64 (fma x y z))
+                                                         #:fl c_fma
+                                                         #:cost 256)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; additional converters ;;;;;;;;;;;;;;;;;
 
@@ -603,6 +369,8 @@
                                                          #:fpcore (! :precision binary64 (cast x))
                                                          #:fl identity
                                                          #:cost 64))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;; REGISTER PLATFORM ;;;;;;;;;;;;;;;;;;;;;
 
 (register-platform! herbie20-platform)
 

@@ -79,15 +79,13 @@
                      [(citype ...) (map repr->type itypes)]
                      [cotype (repr->type #'otype)])
          #'(let* ([proc (make-libm (cname citype ... cotype))]
-                  [impl (if proc
-                            (make-operator-impl (name [var : itype] ...)
+                  [impl (make-operator-impl (name [var : itype] ...)
                                                 otype
                                                 #:spec (op var ...)
                                                 #:fpcore (! :precision otype (op var ...))
                                                 #:fl proc
                                                 #:cost cost
-                                                fields ...)
-                            #f)])
+                                                fields ...)])
              impl)))]))
 
 ; Define binary32 implementations with libm's fl

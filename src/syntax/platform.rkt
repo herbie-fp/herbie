@@ -155,8 +155,14 @@
     (raise-herbie-error "Impl ~a is already registered in platform ~a"
                         (operator-impl-name impl)
                         (platform-name platform)))
-  ; Update table
-  (hash-set! impls (operator-impl-name impl) impl))
+  ; When fl is provided - add impl, otherwise it is a missing operator
+  (define fl (operator-impl-fl impl))
+  (printf "~a ~a\n" (operator-impl-name impl) fl)
+  (if fl
+      (hash-set! impls (operator-impl-name impl) impl)
+      (warn 'platform-register-implementation!
+            "operator implementation ~a has missing fl field"
+            (operator-impl-name impl))))
 
 (define-syntax (platform-register-implementations! stx)
   (syntax-case stx ()

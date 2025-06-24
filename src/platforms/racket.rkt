@@ -1,15 +1,16 @@
 #lang racket
 
-;;; The default platform:
-;;; C/C++ on Linux with a full libm
+;;; Racket platform:
+;;; Default Racket math functions
 
 (require math/bigfloat
          math/flonum
          math/base
-         math/special-functions)
-
-(require "../utils/float.rkt" ; for shift/unshift
+         math/special-functions
+         "../utils/float.rkt" ; for shift/unshift
          (submod "../syntax/platform.rkt" internals))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;; EMPTY PLATFORM ;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define racket-platform (make-empty-platform 'racket #:if-cost 1 #:default-cost 1))
 
@@ -26,19 +27,17 @@
                        #:ordinal->repr (λ (x) (= x 0))
                        #:repr->ordinal (λ (x) (if x 1 0))
                        #:total-bits 1
-                       #:special-value? (const #f)))
+                       #:special-value? (const #f)
+                       #:cost 1))
 
 (platform-register-representation! racket-platform bool)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; constants ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(platform-register-implementation!
+(platform-register-implementations!
  racket-platform
- (make-operator-impl (TRUE.rkt) bool #:spec (TRUE) #:fl (const true) #:fpcore (! TRUE)))
-
-(platform-register-implementation!
- racket-platform
- (make-operator-impl (FALSE.rkt) bool #:spec (FALSE) #:fl (const false) #:fpcore (! FALSE)))
+ ([TRUE.rkt  () bool (TRUE)  (const true)  (! TRUE)  1]
+  [FALSE.rkt () bool (FALSE) (const false) (! FALSE) 1]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; operators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -47,23 +46,11 @@
 (define (or-fn . as)
   (ormap identity as))
 
-(platform-register-implementation!
+(platform-register-implementations!
  racket-platform
- (make-operator-impl (not.rkt [x : bool]) bool #:spec (not x) #:fpcore (not x) #:fl not))
-
-(platform-register-implementation! racket-platform
-                                   (make-operator-impl (and.rkt [x : bool] [y : bool])
-                                                       bool
-                                                       #:spec (and x y)
-                                                       #:fpcore (and x y)
-                                                       #:fl and-fn))
-
-(platform-register-implementation! racket-platform
-                                   (make-operator-impl (or.rkt [x : bool] [y : bool])
-                                                       bool
-                                                       #:spec (or x y)
-                                                       #:fpcore (or x y)
-                                                       #:fl or-fn))
+ ([not.rkt ([x : bool])            bool (not x)   not    (not x)   1]
+  [and.rkt ([x : bool] [y : bool]) bool (and x y) and-fn (and x y) 1]
+  [or.rkt  ([x : bool] [y : bool]) bool (or x y)  or-fn  (or x y)  1]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BINARY 64 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -78,87 +65,36 @@
                        #:ordinal->repr (shift 63 ordinal->flonum)
                        #:repr->ordinal (unshift 63 flonum->ordinal)
                        #:total-bits 64
-                       #:special-value? nan?))
+                       #:special-value? nan?
+                       #:cost 1))
 
 (platform-register-representation! racket-platform binary64)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; constants ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(platform-register-implementation! racket-platform
-                                   (make-operator-impl (PI.rkt)
-                                                       binary64
-                                                       #:spec (PI)
-                                                       #:fl (const pi)
-                                                       #:fpcore (! :precision binary64 (PI))))
+(platform-register-implementations!
+ racket-platform
+ ([PI.rkt       () binary64 (PI)       (const pi)        (! :precision binary64 (PI))       1]
+  [E.rkt        () binary64 (E)        (const (exp 1.0)) (! :precision binary64 (E))        1]
+  [INFINITY.rkt () binary64 (INFINITY) (const +inf.0)    (! :precision binary64 (INFINITY)) 1]
+  [NAN.rkt      () binary64 (NAN)      (const +nan.0)    (! :precision binary64 (NAN))      1]))
 
-(platform-register-implementation! racket-platform
-                                   (make-operator-impl (E.rkt)
-                                                       binary64
-                                                       #:spec (E)
-                                                       #:fl (const (exp 1.0))
-                                                       #:fpcore (! :precision binary64 (E))))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;; comparators ;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(platform-register-implementation! racket-platform
-                                   (make-operator-impl (INFINITY.rkt)
-                                                       binary64
-                                                       #:spec (INFINITY)
-                                                       #:fl (const +inf.0)
-                                                       #:fpcore (! :precision binary64 (INFINITY))))
-
-(platform-register-implementation! racket-platform
-                                   (make-operator-impl (NAN.rkt)
-                                                       binary64
-                                                       #:spec (NAN)
-                                                       #:fl (const +nan.0)
-                                                       #:fpcore (! :precision binary64 (NAN))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;; comparators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(platform-register-implementation! racket-platform
-                                   (make-operator-impl (==.rkt [x : binary64] [y : binary64])
-                                                       bool
-                                                       #:spec (== x y)
-                                                       #:fpcore (== x y)
-                                                       #:fl =))
-
-(platform-register-implementation! racket-platform
-                                   (make-operator-impl (!=.rkt [x : binary64] [y : binary64])
-                                                       bool
-                                                       #:spec (!= x y)
-                                                       #:fpcore (!= x y)
-                                                       #:fl (negate =)))
-
-(platform-register-implementation! racket-platform
-                                   (make-operator-impl (<.rkt [x : binary64] [y : binary64])
-                                                       bool
-                                                       #:spec (< x y)
-                                                       #:fpcore (< x y)
-                                                       #:fl <))
-
-(platform-register-implementation! racket-platform
-                                   (make-operator-impl (>.rkt [x : binary64] [y : binary64])
-                                                       bool
-                                                       #:spec (> x y)
-                                                       #:fpcore (> x y)
-                                                       #:fl >))
-
-(platform-register-implementation! racket-platform
-                                   (make-operator-impl (<=. [x : binary64] [y : binary64])
-                                                       bool
-                                                       #:spec (<= x y)
-                                                       #:fpcore (<= x y)
-                                                       #:fl <=))
-
-(platform-register-implementation! racket-platform
-                                   (make-operator-impl (>=.rkt [x : binary64] [y : binary64])
-                                                       bool
-                                                       #:spec (>= x y)
-                                                       #:fpcore (>= x y)
-                                                       #:fl >=))
+(platform-register-implementations!
+ racket-platform
+ ([==.rkt ([x : binary64] [y : binary64]) bool (== x y) =          (== x y) 1]
+  [!=.rkt ([x : binary64] [y : binary64]) bool (!= x y) (negate =) (!= x y) 1]
+  [<.rkt  ([x : binary64] [y : binary64]) bool (< x y)  <          (< x y)  1]
+  [>.rkt  ([x : binary64] [y : binary64]) bool (> x y)  >          (> x y)  1]
+  [<=.rkt ([x : binary64] [y : binary64]) bool (<= x y) <=         (<= x y) 1]
+  [>=.rkt ([x : binary64] [y : binary64]) bool (>= x y) >=         (>= x y) 1]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; operators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define-syntax (register-fallback-operator stx)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;; utils ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define-syntax (register-racket-operator stx)
   (syntax-case stx (real fl)
     [(_ (name tsig ...) fields ...)
      (let ([name (syntax-e #'name)])
@@ -167,27 +103,27 @@
             racket-platform
             (make-operator-impl (name tsig ...) binary64 fields ...))))]))
 
-(define-syntax-rule (register-1ary-fallback-operator op fn cost)
-  (register-fallback-operator (op [x : binary64])
+(define-syntax-rule (register-1ary-racket-operator op fn cost)
+  (register-racket-operator (op [x : binary64])
                               #:spec (op x)
                               #:fpcore (! :precision binary64 (op x))
                               #:fl fn
                               #:cost cost))
 
-(define-syntax-rule (register-2ary-fallback-operator op fn cost)
-  (register-fallback-operator (op [x : binary64] [y : binary64])
+(define-syntax-rule (register-2ary-racket-operator op fn cost)
+  (register-racket-operator (op [x : binary64] [y : binary64])
                               #:spec (op x y)
                               #:fpcore (! :precision binary64 (op x y))
                               #:fl fn
                               #:cost cost))
 
-(define-syntax-rule (register-1ary-fallback-operators [op fn cost] ...)
+(define-syntax-rule (register-1ary-racket-operators [op fn cost] ...)
   (begin
-    (register-1ary-fallback-operator op fn cost) ...))
+    (register-1ary-racket-operator op fn cost) ...))
 
-(define-syntax-rule (register-2ary-fallback-operators [op fn cost] ...)
+(define-syntax-rule (register-2ary-racket-operators [op fn cost] ...)
   (begin
-    (register-2ary-fallback-operator op fn cost) ...))
+    (register-2ary-racket-operator op fn cost) ...))
 
 (define ((no-complex fun) . xs)
   (define res (apply fun xs))
@@ -202,106 +138,81 @@
 (define (bffma x y z)
   (bf+ (bf* x y) z))
 
-(register-1ary-fallback-operators [neg - #f]
-                                  [acos (no-complex acos) #f]
-                                  [acosh (no-complex acosh) #f]
-                                  [asin (no-complex asin) #f]
-                                  [asinh (no-complex asinh) #f]
-                                  [atan (no-complex atan) #f]
-                                  [atanh (no-complex atanh) #f]
-                                  [cbrt (no-complex (λ (x) (expt x 1/3))) #f]
-                                  [ceil ceiling #f]
-                                  [cos cos #f]
-                                  [cosh cosh #f]
-                                  [erf (no-complex erf) #f]
-                                  [exp exp #f]
-                                  [exp2 (no-complex (λ (x) (expt 2 x))) #f]
-                                  [fabs abs #f]
-                                  [floor floor #f]
-                                  [lgamma log-gamma #f]
-                                  [log (no-complex log) #f]
-                                  [log10 (no-complex (λ (x) (log x 10))) #f]
-                                  [log2 (from-bigfloat bflog2) #f]
-                                  [logb (λ (x) (floor (bigfloat->flonum (bflog2 (bf (abs x)))))) #f]
-                                  [rint round #f]
-                                  [round round #f]
-                                  [sin sin #f]
-                                  [sinh sinh #f]
-                                  [sqrt (no-complex sqrt) #f]
-                                  [tan tan #f]
-                                  [tanh tanh #f]
-                                  [tgamma gamma #f]
-                                  [trunc truncate #f])
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;; unary operators ;;;;;;;;;;;;;;;;;;;;;;;
 
-(register-2ary-fallback-operators [+ + #f]
-                                  [- - #f]
-                                  [* * #f]
-                                  [/ / #f]
-                                  [atan2 (no-complex atan) #f]
-                                  [copysign
-                                   (λ (x y)
-                                     (if (>= y 0)
-                                         (abs x)
-                                         (- (abs x))))
-                                   #f]
-                                  [fdim (λ (x y) (max (- x y) 0)) #f]
-                                  [fmax
-                                   (λ (x y)
-                                     (cond
-                                       [(nan? x) y]
-                                       [(nan? y) x]
-                                       [else (max x y)]))
-                                   #f]
-                                  [fmin
-                                   (λ (x y)
-                                     (cond
-                                       [(nan? x) y]
-                                       [(nan? y) x]
-                                       [else (min x y)]))
-                                   #f]
-                                  [fmod (from-bigfloat bffmod) #f]
-                                  [pow (no-complex expt) #f]
-                                  [remainder remainder #f])
+; ([op fn cost] ...) 
+(register-1ary-racket-operators
+ [neg    -                                                        1]
+ [acos   (no-complex acos)                                        1]
+ [acosh  (no-complex acosh)                                       1]
+ [asin   (no-complex asin)                                        1]
+ [asinh  (no-complex asinh)                                       1]
+ [atan   (no-complex atan)                                        1]
+ [atanh  (no-complex atanh)                                       1]
+ [cbrt   (no-complex (λ (x) (expt x 1/3)))                        1]
+ [ceil   ceiling                                                  1]
+ [cos    cos                                                      1]
+ [cosh   cosh                                                     1]
+ [erf    (no-complex erf)                                         1]
+ [exp    exp                                                      1]
+ [exp2   (no-complex (λ (x) (expt 2 x)))                          1]
+ [fabs   abs                                                      1]
+ [floor  floor                                                    1]
+ [lgamma log-gamma                                                1]
+ [log    (no-complex log)                                         1]
+ [log10  (no-complex (λ (x) (log x 10)))                          1]
+ [log2   (from-bigfloat bflog2)                                   1]
+ [logb   (λ (x) (floor (bigfloat->flonum (bflog2 (bf (abs x)))))) 1]
+ [rint   round                                                    1]
+ [round  round                                                    1]
+ [sin    sin                                                      1]
+ [sinh   sinh                                                     1]
+ [sqrt   (no-complex sqrt)                                        1]
+ [tan    tan                                                      1]
+ [tanh   tanh                                                     1]
+ [tgamma gamma                                                    1]
+ [trunc  truncate                                                 1])
 
-(platform-register-implementation!
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;; binary operators ;;;;;;;;;;;;;;;;;;;;;;
+
+; ([op fn cost] ...) 
+(register-2ary-racket-operators
+ [+         +                         1]
+ [-         -                         1]
+ [*         *                         1]
+ [/         /                         1]
+ [atan2     (no-complex atan)         1]
+ [copysign  (λ (x y)
+              (if (>= y 0)
+                  (abs x)
+                  (- (abs x))))       1]
+ [fdim      (λ (x y) (max (- x y) 0)) 1]
+ [fmax      (λ (x y)
+              (cond
+                [(nan? x) y]
+                [(nan? y) x]
+                [else (max x y)]))    1]
+ [fmin      (λ (x y)
+              (cond
+                [(nan? x) y]
+                [(nan? y) x]
+                [else (min x y)]))    1]
+ [fmod      (from-bigfloat bffmod)    1]
+ [pow       (no-complex expt)         1]
+ [remainder remainder                 1])
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;; accelerators ;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; ([name     ([var : repr] ...)                             otype    spec                       fl                      fpcore                           cost])
+(platform-register-implementations!
  racket-platform
- (make-operator-impl (erfc.rkt [x : binary64])
-                     binary64
-                     #:spec (- 1 (erf x))
-                     #:fpcore (! :precision binary64 :math-library racket (erfc x))
-                     #:fl erfc))
+ ([erfc.rkt  ([x : binary64])                               binary64 (- 1 (erf x))              erfc                    (! :precision binary64 (erfc x))    1]
+  [expm1.rkt ([x : binary64])                               binary64 (- (exp x) 1)              (from-bigfloat bfexpm1) (! :precision binary64 (expm1 x))   1]
+  [log1p.rkt ([x : binary64])                               binary64 (log (+ 1 x))              (from-bigfloat bflog1p) (! :precision binary64 (log1p x))   1]
+  [hypot.rkt ([x : binary64] [y : binary64])                binary64 (sqrt (+ (* x x) (* y y))) (from-bigfloat bfhypot) (! :precision binary64 (hypot x y)) 1]
+  [fma.rkt   ([x : binary64] [y : binary64] [z : binary64]) binary64 (+ (* x y) z)              (from-bigfloat bffma)   (! :precision binary64 (fma x y z)) 1]))
 
-(platform-register-implementation!
- racket-platform
- (make-operator-impl (expm1.rkt [x : binary64])
-                     binary64
-                     #:spec (- (exp x) 1)
-                     #:fpcore (! :precision binary64 :math-library racket (expm1 x))
-                     #:fl (from-bigfloat bfexpm1)))
-
-(platform-register-implementation!
- racket-platform
- (make-operator-impl (log1p.rkt [x : binary64])
-                     binary64
-                     #:spec (log (+ 1 x))
-                     #:fpcore (! :precision binary64 :math-library racket (log1p x))
-                     #:fl (from-bigfloat bflog1p)))
-
-(platform-register-implementation!
- racket-platform
- (make-operator-impl (hypot.rkt [x : binary64] [y : binary64])
-                     binary64
-                     #:spec (sqrt (+ (* x x) (* y y)))
-                     #:fpcore (! :precision binary64 :math-library racket (hypot x y))
-                     #:fl (from-bigfloat bfhypot)))
-
-(platform-register-implementation!
- racket-platform
- (make-operator-impl (fma.rkt [x : binary64] [y : binary64] [z : binary64])
-                     binary64
-                     #:spec (+ (* x y) z)
-                     #:fpcore (! :precision binary64 :math-library racket (fma x y z))
-                     #:fl (from-bigfloat bffma)))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;; REGISTER PLATFORM ;;;;;;;;;;;;;;;;;;;;;
 
 (register-platform! racket-platform)
 
