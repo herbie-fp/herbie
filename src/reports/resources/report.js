@@ -290,13 +290,15 @@ const CostAccuracy = new Component('#cost-accuracy', {
         // - We make a broken line to show the real Pareto frontier
         let line = []
         let last = null;
-        for (let pt of rest_pts) {
+        rest_pts.forEach((pt, i) => {
+            let target = "alternative" + (i + 1);
+            if (!document.getElementById(target)) return;
             if (!last || pt[1] > last[1]) {
                 if (last) line.push([pt[0], last[1]]);
                 line.push([pt[0], pt[1]]);
                 last = pt;
             }
-        }
+        })
 
         const out = Plot.plot({
             marks: [
@@ -336,6 +338,7 @@ const CostAccuracy = new Component('#cost-accuracy', {
         const bits = benchmark["bits"];
         const initial_accuracy = 100*(1 - initial_pt[1]/bits);
 
+        let alt_number = 0;
         return Element("tbody", [
             Element("tr", [
                 Element("th", "Initial program"),
@@ -343,16 +346,15 @@ const CostAccuracy = new Component('#cost-accuracy', {
                 Element("td", "1.0×")
             ]),
             rest_pts.map((d, i) => {
+                let target = "alternative" + (i + 1);
+                if (!document.getElementById(target)) return;
                 let accuracy = 100*(1 - d[1]/bits);
                 let speedup = initial_pt[0]/d[0];
+                alt_number++;
                 return Element("tr", [
-                    Element("th",
-                        rest_pts.length > 1 ?
-                            Element("a", { href: "#alternative" + (i + 1)},
-                                "Alternative " + (i + 1)) 
-                            // else
-                            : "Alternative " + (i + 1)
-                    ),
+                    Element("th", [
+                        Element("a", { href: "#" + target}, "Alternative " + alt_number) 
+                    ]),
                     Element("td", { className: accuracy >= initial_accuracy ? "better" : "" },
                             accuracy.toFixed(1) + "%"),
                     Element("td", { className: speedup >= 1 ? "better" : "" },
