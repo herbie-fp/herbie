@@ -17,6 +17,7 @@ clean:
 update:
 	raco pkg install --skip-installed --no-docs --auto --name herbie src/
 	raco pkg update --auto rival
+	raco pkg update --auto softposit-rkt
 	raco pkg update --name herbie --deps search-auto src/
 
 egg-herbie:
