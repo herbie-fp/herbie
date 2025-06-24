@@ -223,7 +223,7 @@
 (platform-register-implementations!
  softposit-platform
  (; Posit8
-  [neg.p8          ([x : posit8])                              posit8  (neg x)       posit8-neg        (! :precision posit8 (- x))      #f]
+  [neg.p8          ([x : posit8])                              posit8  (neg x)       posit8-neg        (! :precision posit8 (- x))        #f]
   [+.p8            ([x : posit8]  [y : posit8])                posit8  (+ x y)       posit8-add        (! :precision posit8 (+ x y))      #f]
   [-.p8            ([x : posit8]  [y : posit8])                posit8  (- x y)       posit8-sub        (! :precision posit8 (- x y))      #f]
   [*.p8            ([x : posit8]  [y : posit8])                posit8  (* x y)       posit8-mul        (! :precision posit8 (* x y))      #f]
@@ -236,7 +236,7 @@
   [<=.p8           ([x : posit8]  [y : posit8])                bool    (<= x y)      posit8<=          (<= x y)                           #f]
   [>=.p8           ([x : posit8]  [y : posit8])                bool    (>= x y)      posit8>=          (>= x y)                           #f]
   ; Posit 16
-  [neg.p16         ([x : posit16])                             posit16 (neg x)       posit16-neg       (! :precision posit16 (- x))     #f]
+  [neg.p16         ([x : posit16])                             posit16 (neg x)       posit16-neg       (! :precision posit16 (- x))       #f]
   [+.p16           ([x : posit16] [y : posit16])               posit16 (+ x y)       posit16-add       (! :precision posit16 (+ x y))     #f]
   [-.p16           ([x : posit16] [y : posit16])               posit16 (- x y)       posit16-sub       (! :precision posit16 (- x y))     #f]
   [*.p16           ([x : posit16] [y : posit16])               posit16 (* x y)       posit16-mul       (! :precision posit16 (* x y))     #f]
@@ -249,7 +249,7 @@
   [<=.p16          ([x : posit16] [y : posit16])               bool    (<= x y)      posit16<=         (<= x y)                           #f]
   [>=.p16          ([x : posit16] [y : posit16])               bool    (>= x y)      posit16>=         (>= x y)                           #f]
   ; Posit 32
-  [neg.p32         ([x : posit32])                             posit32 (neg x)       posit32-neg       (! :precision posit32 (- x))     #f]
+  [neg.p32         ([x : posit32])                             posit32 (neg x)       posit32-neg       (! :precision posit32 (- x))       #f]
   [+.p32           ([x : posit32] [y : posit32])               posit32 (+ x y)       posit32-add       (! :precision posit32 (+ x y))     #f]
   [-.p32           ([x : posit32] [y : posit32])               posit32 (- x y)       posit32-sub       (! :precision posit32 (- x y))     #f]
   [*.p32           ([x : posit32] [y : posit32])               posit32 (* x y)       posit32-mul       (! :precision posit32 (* x y))     #f]

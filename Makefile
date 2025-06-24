@@ -15,9 +15,9 @@ clean:
 	raco pkg remove --force --no-docs egg-herbie-macosm1 && echo "Uninstalled old egg-herbie" || :
 
 update:
+	raco pkg install softposit-rkt
 	raco pkg install --skip-installed --no-docs --auto --name herbie src/
 	raco pkg update --auto rival
-	raco pkg update --auto softposit-rkt
 	raco pkg update --name herbie --deps search-auto src/
 
 egg-herbie:
