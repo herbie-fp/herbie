@@ -8,7 +8,11 @@
          math/flonum)
 (provide bigfloat->float32
          float32->ordinal
-         ordinal->float32)
+         ordinal->float32
+         fl32+
+         fl32-
+         fl32*
+         fl32/)
 
 (module hairy racket/base
   (require (only-in math/private/bigfloat/mpfr get-mpfr-fun _mpfr-pointer _rnd_t bf-rounding-mode))
@@ -37,3 +41,20 @@
   (if (negative? x)
       (- (bit-field->float32 (- x)))
       (bit-field->float32 x)))
+
+;; Wrapping arithmetic operations with `flsingle` introduces a
+;; possible double-rounding problem but, perhaps surprisingly, this
+;; double-rounding problem never actually causes error; see:
+;;
+;;   https://hal.science/hal-01091186/document
+
+(define fl32+ (compose flsingle +))
+(define fl32- (compose flsingle -))
+(define fl32* (compose flsingle *))
+(define fl32/ (compose flsingle /))
+
+(module+ test
+  (check-equal? (fl32+ 1.0 2.0) 3.0)
+  (check-equal? (fl32- 1.0 2.0) -1.0)
+  (check-equal? (fl32* 1.0 2.0) 2.0)
+  (check-equal? (fl32/ 1.0 2.0) 0.5))

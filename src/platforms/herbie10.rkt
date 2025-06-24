@@ -81,17 +81,6 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; operators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; Wrapping arithmetic operations with `flsingle` introduces a
-;; possible double-rounding problem but, perhaps surprisingly, this
-;; double-rounding problem never actually causes error; see:
-;;
-;;   https://hal.science/hal-01091186/document
-
-(define fl32+ (compose flsingle +))
-(define fl32- (compose flsingle -))
-(define fl32* (compose flsingle *))
-(define fl32/ (compose flsingle /))
-
 ; ([name   ([var : repr] ...)              otype    spec     fl         fpcore                         cost])
 (platform-register-implementations!
  herbie10-platform
