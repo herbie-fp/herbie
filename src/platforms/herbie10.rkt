@@ -163,50 +163,14 @@
 (define c_hypotf (make-libm (hypotf float float float)))
 (define c_fmaf   (make-libm (fmaf   float float float float)))
 
-(when c_erfcf
-  (platform-register-implementation! herbie10-platform
-                                     (make-operator-impl (erfc.f32 [x : binary32])
-                                                         binary32
-                                                         #:spec (- 1 (erf x))
-                                                         #:fpcore (! :precision binary32 (erfc x))
-                                                         #:fl c_erfcf
-                                                         #:cost 0)))
-
-(when c_expm1f
-  (platform-register-implementation! herbie10-platform
-                                     (make-operator-impl (expm1.f32 [x : binary32])
-                                                         binary32
-                                                         #:spec (- (exp x) 1)
-                                                         #:fpcore (! :precision binary32 (expm1 x))
-                                                         #:fl c_expm1f
-                                                         #:cost 0)))
-
-(when c_log1pf
-  (platform-register-implementation! herbie10-platform
-                                     (make-operator-impl (log1p.f32 [x : binary32])
-                                                         binary32
-                                                         #:spec (log (+ 1 x))
-                                                         #:fpcore (! :precision binary32 (log1p x))
-                                                         #:fl c_log1pf
-                                                         #:cost 0)))
-
-(when c_hypotf
-  (platform-register-implementation! herbie10-platform
-                                     (make-operator-impl (hypot.f32 [x : binary32] [y : binary32])
-                                                         binary32
-                                                         #:spec (sqrt (+ (* x x) (* y y)))
-                                                         #:fpcore (! :precision binary32 (hypot x y))
-                                                         #:fl c_hypotf
-                                                         #:cost 0)))
-
-(when c_fmaf
-  (platform-register-implementation! herbie10-platform
-                                     (make-operator-impl (fma.f32 [x : binary32] [y : binary32] [z : binary32])
-                                                         binary32
-                                                         #:spec (+ (* x y) z)
-                                                         #:fpcore (! :precision binary32 (fma x y z))
-                                                         #:fl c_fmaf
-                                                         #:cost 0)))
+; ([name     ([var : repr] ...)                             otype    spec                       fl       fpcore                           cost])
+(platform-register-implementations!
+ herbie10-platform
+ ([erfc.f32  ([x : binary32])                               binary32 (- 1 (erf x))              c_erfcf  (! :precision binary32 (erfc x))    0]
+  [expm1.f32 ([x : binary32])                               binary32 (- (exp x) 1)              c_expm1f (! :precision binary32 (expm1 x))   0]
+  [log1p.f32 ([x : binary32])                               binary32 (log (+ 1 x))              c_log1pf (! :precision binary32 (log1p x))   0]
+  [hypot.f32 ([x : binary32] [y : binary32])                binary32 (sqrt (+ (* x x) (* y y))) c_hypotf (! :precision binary32 (hypot x y)) 0]
+  [fma.f32   ([x : binary32] [y : binary32] [z : binary32]) binary32 (+ (* x y) z)              c_fmaf   (! :precision binary32 (fma x y z)) 0]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BINARY 64 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -307,50 +271,14 @@
 (define c_hypot (make-libm (hypot double double double)))
 (define c_fma   (make-libm (fma   double double double double)))
 
-(when c_erfc
-  (platform-register-implementation! herbie10-platform
-                                     (make-operator-impl (erfc.f64 [x : binary64])
-                                                         binary64
-                                                         #:spec (- 1 (erf x))
-                                                         #:fpcore (! :precision binary64 (erfc x))
-                                                         #:fl c_erfc
-                                                         #:cost 0)))
-
-(when c_expm1
-  (platform-register-implementation! herbie10-platform
-                                     (make-operator-impl (expm1.f64 [x : binary64])
-                                                         binary64
-                                                         #:spec (- (exp x) 1)
-                                                         #:fpcore (! :precision binary64 (expm1 x))
-                                                         #:fl c_expm1
-                                                         #:cost 0)))
-
-(when c_log1p
-  (platform-register-implementation! herbie10-platform
-                                     (make-operator-impl (log1p.f64 [x : binary64])
-                                                         binary64
-                                                         #:spec (log (+ 1 x))
-                                                         #:fpcore (! :precision binary64 (log1p x))
-                                                         #:fl c_log1p
-                                                         #:cost 0)))
-
-(when c_hypot
-  (platform-register-implementation! herbie10-platform
-                                     (make-operator-impl (hypot.f64 [x : binary64] [y : binary64])
-                                                         binary64
-                                                         #:spec (sqrt (+ (* x x) (* y y)))
-                                                         #:fpcore (! :precision binary64 (hypot x y))
-                                                         #:fl c_hypot
-                                                         #:cost 0)))
-
-(when c_fma
-  (platform-register-implementation! herbie10-platform
-                                     (make-operator-impl (fma.f64 [x : binary64] [y : binary64] [z : binary64])
-                                                         binary64
-                                                         #:spec (+ (* x y) z)
-                                                         #:fpcore (! :precision binary64 (fma x y z))
-                                                         #:fl c_fma
-                                                         #:cost 0)))
+; ([name     ([var : repr] ...)                             otype    spec                       fl      fpcore                          cost])
+(platform-register-implementations!
+ herbie10-platform
+ ([erfc.f64  ([x : binary64])                               binary64 (- 1 (erf x))              c_erfc  (! :precision binary64 (erfc x))    0]
+  [expm1.f64 ([x : binary64])                               binary64 (- (exp x) 1)              c_expm1 (! :precision binary64 (expm1 x))   0]
+  [log1p.f64 ([x : binary64])                               binary64 (log (+ 1 x))              c_log1p (! :precision binary64 (log1p x))   0]
+  [hypot.f64 ([x : binary64] [y : binary64])                binary64 (sqrt (+ (* x x) (* y y))) c_hypot (! :precision binary64 (hypot x y)) 0]
+  [fma.f64   ([x : binary64] [y : binary64] [z : binary64]) binary64 (+ (* x y) z)              c_fma   (! :precision binary64 (fma x y z)) 0]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; additional converters ;;;;;;;;;;;;;;;;;
 

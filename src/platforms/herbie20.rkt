@@ -152,8 +152,7 @@
      [remainder 3200])]))
 
 (for ([libm-impl.f32 (in-list libm-impls.f32)])
-  (when libm-impl.f32
-    (platform-register-implementation! herbie20-platform libm-impl.f32)))
+  (platform-register-implementation! herbie20-platform libm-impl.f32))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; libm accelerators ;;;;;;;;;;;;;;;;;;;;;
 
@@ -163,50 +162,14 @@
 (define c_hypotf (make-libm (hypotf float float float)))
 (define c_fmaf   (make-libm (fmaf   float float float float)))
 
-(when c_erfcf
-  (platform-register-implementation! herbie20-platform
-                                     (make-operator-impl (erfc.f32 [x : binary32])
-                                                         binary32
-                                                         #:spec (- 1 (erf x))
-                                                         #:fpcore (! :precision binary32 (erfc x))
-                                                         #:fl c_erfcf
-                                                         #:cost 3200)))
-
-(when c_expm1f
-  (platform-register-implementation! herbie20-platform
-                                     (make-operator-impl (expm1.f32 [x : binary32])
-                                                         binary32
-                                                         #:spec (- (exp x) 1)
-                                                         #:fpcore (! :precision binary32 (expm1 x))
-                                                         #:fl c_expm1f
-                                                         #:cost 3200)))
-
-(when c_log1pf
-  (platform-register-implementation! herbie20-platform
-                                     (make-operator-impl (log1p.f32 [x : binary32])
-                                                         binary32
-                                                         #:spec (log (+ 1 x))
-                                                         #:fpcore (! :precision binary32 (log1p x))
-                                                         #:fl c_log1pf
-                                                         #:cost 3200)))
-
-(when c_hypotf
-  (platform-register-implementation! herbie20-platform
-                                     (make-operator-impl (hypot.f32 [x : binary32] [y : binary32])
-                                                         binary32
-                                                         #:spec (sqrt (+ (* x x) (* y y)))
-                                                         #:fpcore (! :precision binary32 (hypot x y))
-                                                         #:fl c_hypotf
-                                                         #:cost 3200)))
-
-(when c_fmaf
-  (platform-register-implementation! herbie20-platform
-                                     (make-operator-impl (fma.f32 [x : binary32] [y : binary32] [z : binary32])
-                                                         binary32
-                                                         #:spec (+ (* x y) z)
-                                                         #:fpcore (! :precision binary32 (fma x y z))
-                                                         #:fl c_fmaf
-                                                         #:cost 128)))
+; ([name     ([var : repr] ...)                             otype    spec                       fl       fpcore                              cost])
+(platform-register-implementations!
+ herbie20-platform
+ ([erfc.f32  ([x : binary32])                               binary32 (- 1 (erf x))              c_erfcf  (! :precision binary32 (erfc x))    3200]
+  [expm1.f32 ([x : binary32])                               binary32 (- (exp x) 1)              c_expm1f (! :precision binary32 (expm1 x))   3200]
+  [log1p.f32 ([x : binary32])                               binary32 (log (+ 1 x))              c_log1pf (! :precision binary32 (log1p x))   3200]
+  [hypot.f32 ([x : binary32] [y : binary32])                binary32 (sqrt (+ (* x x) (* y y))) c_hypotf (! :precision binary32 (hypot x y)) 3200]
+  [fma.f32   ([x : binary32] [y : binary32] [z : binary32]) binary32 (+ (* x y) z)              c_fmaf   (! :precision binary32 (fma x y z)) 128]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BINARY 64 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -296,8 +259,7 @@
      [remainder 6400])]))
 
 (for ([libm-impl.f64 (in-list libm-impls.f64)])
-  (when libm-impl.f64
-    (platform-register-implementation! herbie20-platform libm-impl.f64)))
+  (platform-register-implementation! herbie20-platform libm-impl.f64))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; libm accelerators ;;;;;;;;;;;;;;;;;;;;;
 
@@ -307,50 +269,14 @@
 (define c_hypot (make-libm (hypot double double double)))
 (define c_fma   (make-libm (fma   double double double double)))
 
-(when c_erfc
-  (platform-register-implementation! herbie20-platform
-                                     (make-operator-impl (erfc.f64 [x : binary64])
-                                                         binary64
-                                                         #:spec (- 1 (erf x))
-                                                         #:fpcore (! :precision binary64 (erfc x))
-                                                         #:fl c_erfc
-                                                         #:cost 6400)))
-
-(when c_expm1
-  (platform-register-implementation! herbie20-platform
-                                     (make-operator-impl (expm1.f64 [x : binary64])
-                                                         binary64
-                                                         #:spec (- (exp x) 1)
-                                                         #:fpcore (! :precision binary64 (expm1 x))
-                                                         #:fl c_expm1
-                                                         #:cost 6400)))
-
-(when c_log1p
-  (platform-register-implementation! herbie20-platform
-                                     (make-operator-impl (log1p.f64 [x : binary64])
-                                                         binary64
-                                                         #:spec (log (+ 1 x))
-                                                         #:fpcore (! :precision binary64 (log1p x))
-                                                         #:fl c_log1p
-                                                         #:cost 6400)))
-
-(when c_hypot
-  (platform-register-implementation! herbie20-platform
-                                     (make-operator-impl (hypot.f64 [x : binary64] [y : binary64])
-                                                         binary64
-                                                         #:spec (sqrt (+ (* x x) (* y y)))
-                                                         #:fpcore (! :precision binary64 (hypot x y))
-                                                         #:fl c_hypot
-                                                         #:cost 6400)))
-
-(when c_fma
-  (platform-register-implementation! herbie20-platform
-                                     (make-operator-impl (fma.f64 [x : binary64] [y : binary64] [z : binary64])
-                                                         binary64
-                                                         #:spec (+ (* x y) z)
-                                                         #:fpcore (! :precision binary64 (fma x y z))
-                                                         #:fl c_fma
-                                                         #:cost 256)))
+; ([name     ([var : repr] ...)                             otype    spec                       fl      fpcore                           cost])
+(platform-register-implementations!
+ herbie20-platform
+ ([erfc.f64  ([x : binary64])                               binary64 (- 1 (erf x))              c_erfc  (! :precision binary64 (erfc x))    6400]
+  [expm1.f64 ([x : binary64])                               binary64 (- (exp x) 1)              c_expm1 (! :precision binary64 (expm1 x))   6400]
+  [log1p.f64 ([x : binary64])                               binary64 (log (+ 1 x))              c_log1p (! :precision binary64 (log1p x))   6400]
+  [hypot.f64 ([x : binary64] [y : binary64])                binary64 (sqrt (+ (* x x) (* y y))) c_hypot (! :precision binary64 (hypot x y)) 6400]
+  [fma.f64   ([x : binary64] [y : binary64] [z : binary64]) binary64 (+ (* x y) z)              c_fma   (! :precision binary64 (fma x y z)) 256]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; additional converters ;;;;;;;;;;;;;;;;;
 

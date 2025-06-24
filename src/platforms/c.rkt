@@ -157,8 +157,7 @@
      [remainder 1.030245])]))
 
 (for ([libm-impl.f32 (in-list libm-impls.f32)])
-  (when libm-impl.f32
-    (platform-register-implementation! c-platform libm-impl.f32)))
+  (platform-register-implementation! c-platform libm-impl.f32))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; libm accelerators ;;;;;;;;;;;;;;;;;;;;;
 
@@ -265,8 +264,7 @@
      [remainder 0.9494380000000005])]))
 
 (for ([libm-impl.f64 (in-list libm-impls.f64)])
-  (when libm-impl.f64
-    (platform-register-implementation! c-platform libm-impl.f64)))
+  (platform-register-implementation! c-platform libm-impl.f64))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; libm accelerators ;;;;;;;;;;;;;;;;;;;;;
 

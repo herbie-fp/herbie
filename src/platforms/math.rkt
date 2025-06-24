@@ -77,27 +77,27 @@
 
 (platform-register-implementations!
  math-platform
- ([PI.f32       () binary32 (PI)       (const (flsingle pi))        (! :precision binary32 (PI))       fl-move-cost]
-  [E.f32        () binary32 (E)        (const (flsingle (exp 1.0))) (! :precision binary32 (E))        fl-move-cost]
-  [INFINITY.f32 () binary32 (INFINITY) (const +inf.0)               (! :precision binary32 (INFINITY)) fl-move-cost]
-  [NAN.f32      () binary32 (NAN)      (const +nan.0)               (! :precision binary32 (NAN))      fl-move-cost]))
+ ([PI.f64       () binary64 (PI)       (const pi)        (! :precision binary64 (PI))       fl-move-cost]
+  [E.f64        () binary64 (E)        (const (exp 1.0)) (! :precision binary64 (E))        fl-move-cost]
+  [INFINITY.f64 () binary64 (INFINITY) (const +inf.0)    (! :precision binary64 (INFINITY)) fl-move-cost]
+  [NAN.f64      () binary64 (NAN)      (const +nan.0)    (! :precision binary64 (NAN))      fl-move-cost]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; operators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; ([name   ([var : repr] ...)              otype    spec     fl         fpcore                         cost])
 (platform-register-implementations!
  math-platform
- ([neg.f32 ([x : binary32])                binary32 (neg x)  fl32-      (! :precision binary32 (- x))   0.096592]
-  [+.f32   ([x : binary32] [y : binary32]) binary32 (+ x y)  fl32+      (! :precision binary32 (+ x y)) 0.164604]
-  [-.f32   ([x : binary32] [y : binary32]) binary32 (- x y)  fl32-      (! :precision binary32 (- x y)) 0.15163999999999997]
-  [*.f32   ([x : binary32] [y : binary32]) binary32 (* x y)  fl32*      (! :precision binary32 (* x y)) 0.20874800000000002]
-  [/.f32   ([x : binary32] [y : binary32]) binary32 (/ x y)  fl32/      (! :precision binary32 (/ x y)) 0.26615199999999994]
-  [==.f32  ([x : binary32] [y : binary32]) bool     (== x y) =          (== x y)                        fl-move-cost]
-  [!=.f32  ([x : binary32] [y : binary32]) bool     (!= x y) (negate =) (!= x y)                        fl-move-cost]
-  [<.f32   ([x : binary32] [y : binary32]) bool     (< x y)  <          (< x y)                         fl-move-cost]
-  [>.f32   ([x : binary32] [y : binary32]) bool     (> x y)  >          (> x y)                         fl-move-cost]
-  [<=.f32  ([x : binary32] [y : binary32]) bool     (<= x y) <=         (<= x y)                        fl-move-cost]
-  [>=.f32  ([x : binary32] [y : binary32]) bool     (>= x y) >=         (>= x y)                        fl-move-cost]))
+ ([neg.f64 ([x : binary64])                binary64 (neg x)  -          (! :precision binary64 (- x))   0.096592]
+  [+.f64   ([x : binary64] [y : binary64]) binary64 (+ x y)  +          (! :precision binary64 (+ x y)) 0.164604]
+  [-.f64   ([x : binary64] [y : binary64]) binary64 (- x y)  -          (! :precision binary64 (- x y)) 0.15163999999999997]
+  [*.f64   ([x : binary64] [y : binary64]) binary64 (* x y)  *          (! :precision binary64 (* x y)) 0.20874800000000002]
+  [/.f64   ([x : binary64] [y : binary64]) binary64 (/ x y)  /          (! :precision binary64 (/ x y)) 0.26615199999999994]
+  [==.f64  ([x : binary64] [y : binary64]) bool     (== x y) =          (== x y)                        fl-move-cost]
+  [!=.f64  ([x : binary64] [y : binary64]) bool     (!= x y) (negate =) (!= x y)                        fl-move-cost]
+  [<.f64   ([x : binary64] [y : binary64]) bool     (< x y)  <          (< x y)                         fl-move-cost]
+  [>.f64   ([x : binary64] [y : binary64]) bool     (> x y)  >          (> x y)                         fl-move-cost]
+  [<=.f64  ([x : binary64] [y : binary64]) bool     (<= x y) <=         (<= x y)                        fl-move-cost]
+  [>=.f64  ([x : binary64] [y : binary64]) bool     (>= x y) >=         (>= x y)                        fl-move-cost]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; libm operators ;;;;;;;;;;;;;;;;;;;;;;;;
 
