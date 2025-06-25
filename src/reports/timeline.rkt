@@ -243,7 +243,7 @@
                            ,(format-percent (apply + bits) total-remaining)
                            ")"
                            (p "Threshold costs "
-                              ,(format-cost (apply + (filter (curry > 1) bits)) repr)
+                              ,(format-bits (apply + (filter (curry > 1) bits)) repr)
                               "b"
                               " ("
                               ,(format-percent (apply + (filter (curry > 1) bits)) total-remaining)
@@ -300,7 +300,7 @@
 (define (render-phase-error min-error-table)
   (match-define (list min-error repr-name) (car min-error-table))
   (define repr (get-representation (read (open-input-string repr-name))))
-  `((dt "Accuracy") (dd ,(format-accuracy min-error (representation-total-bits repr) #:unit "%") "")))
+  `((dt "Accuracy") (dd ,(format-accuracy min-error repr #:unit "%") "")))
 
 (define (render-phase-counts alts)
   `((dt "Counts") ,@(for/list ([rec (in-list alts)])
@@ -320,7 +320,7 @@
                             ["next" `(td (span ([title "Selected for next iteration"]) "▶"))]
                             ["done" `(td (span ([title "Selected in a prior iteration"]) "✓"))]
                             ["fresh" `(td)])
-                         (td ,(format-accuracy score (representation-total-bits repr) #:unit "%") "")
+                         (td ,(format-accuracy score repr #:unit "%") "")
                          (td (pre ,expr)))))))))
 
 (define (render-phase-times times)
@@ -370,7 +370,7 @@
                ,@(for/list ([rec (in-list branches)])
                    (match-define (list expr score splits repr-name) rec)
                    (define repr (get-representation (read (open-input-string repr-name))))
-                   `(tr (td ,(format-accuracy score (representation-total-bits repr) #:unit "%") "")
+                   `(tr (td ,(format-accuracy score repr #:unit "%") "")
                         (td ,(~a splits))
                         (td (code ,expr))))))))
 

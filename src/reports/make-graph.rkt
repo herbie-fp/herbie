@@ -33,7 +33,6 @@
   (define time (hash-ref result-hash 'time))
   (define warnings (hash-ref result-hash 'warnings))
   (define repr (test-output-repr test))
-  (define repr-bits (representation-total-bits repr))
   (define ctx (test-context test))
   (define identifier (test-identifier test))
 
@@ -85,12 +84,12 @@
      (div ([id "large"])
           ,(render-comparison
             "Percentage Accurate"
-            (format-accuracy (errors-score start-error) repr-bits #:unit "%")
-            (format-accuracy (errors-score end-error) repr-bits #:unit "%")
+            (format-accuracy (errors-score start-error) repr #:unit "%")
+            (format-accuracy (errors-score end-error) repr #:unit "%")
             #:title
             (format "Minimum Accuracy: ~a → ~a"
-                    (format-accuracy (apply max (map ulps->bits start-error)) repr-bits #:unit "%")
-                    (format-accuracy (apply max (map ulps->bits end-error)) repr-bits #:unit "%")))
+                    (format-accuracy (apply max (map ulps->bits start-error)) repr #:unit "%")
+                    (format-accuracy (apply max (map ulps->bits end-error)) repr #:unit "%")))
           ,(render-large "Time" (format-time time))
           ,(render-large "Alternatives" (~a (length end-exprs)))
           ,(if (*pareto-mode*)
@@ -139,7 +138,7 @@
                   (h2 "Initial Program"
                       ": "
                       (span ((class "subhead"))
-                            (data ,(format-accuracy (errors-score start-error) repr-bits #:unit "%"))
+                            (data ,(format-accuracy (errors-score start-error) repr #:unit "%"))
                             " accurate, "
                             (data "1.0×")
                             " speedup")
@@ -159,7 +158,7 @@
                        ,(~a alt-number)
                        ": "
                        (span ((class "subhead"))
-                             (data ,(format-accuracy (errors-score errs) repr-bits #:unit "%"))
+                             (data ,(format-accuracy (errors-score errs) repr #:unit "%"))
                              " accurate, "
                              (data ,(if (zero? cost)
                                         "N/A"
@@ -182,7 +181,7 @@
                  ,(~a i)
                  ": "
                  (span ((class "subhead"))
-                       (data ,(format-accuracy (errors-score target-error) repr-bits #:unit "%"))
+                       (data ,(format-accuracy (errors-score target-error) repr #:unit "%"))
                        " accurate, "
                        (data ,(~r (/ start-cost target-cost) #:precision '(= 1)) "×")
                        " speedup")

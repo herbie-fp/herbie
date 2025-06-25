@@ -55,9 +55,8 @@
 
 (define (altn-errors altn pcontext ctx errcache mask)
   (define repr (context-repr ctx))
-  (define repr-bits (representation-total-bits repr))
   (define err (errors-score-masked (hash-ref errcache (alt-expr altn)) mask))
-  (format-accuracy err repr-bits #:unit "%"))
+  (format-accuracy err repr #:unit "%"))
 
 (define (expr->fpcore expr ctx #:ident [ident #f])
   (list 'FPCore
@@ -204,13 +203,12 @@
                              ["rtl" "right to left"]
                              ["ltr" "left to right"]))
                          (define prog (read (open-input-string prog-str)))
-                         (define bits (representation-total-bits (context-repr ctx)))
                          (if (equal? dir "goal")
                              ""
                              `(li (p (code ([title ,dir]) ,rule)
                                      (span ([class "error"])
                                            ,(if (number? err)
-                                                (format-accuracy err bits #:unit "%")
+                                                (format-accuracy err (context-repr ctx) #:unit "%")
                                                 err)))
                                   (div ((class "math"))
                                        "\\[\\leadsto "

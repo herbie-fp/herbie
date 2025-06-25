@@ -25,7 +25,8 @@
          "../syntax/platform.rkt"
          "../syntax/syntax.rkt")
 
-(provide render-menu
+(provide format-accuracy
+         render-menu
          render-warnings
          render-large
          render-comparison
@@ -50,6 +51,16 @@
          core->tex
          expr->tex
          core->js)
+
+(define (format-accuracy numerator repr #:sign [sign #f] #:unit [unit ""])
+  (define denominator (representation-total-bits repr))
+  (cond
+    [(and numerator (positive? denominator))
+     (define percent (~r (- 100 (* (/ numerator denominator) 100)) #:precision '(= 1)))
+     (if (and (positive? numerator) sign)
+         (format "+~a~a" percent unit)
+         (format "~a~a" percent unit))]
+    [else ""]))
 
 (define (write-html xexpr out)
   (fprintf out "<!doctype html>\n")
