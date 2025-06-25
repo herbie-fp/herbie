@@ -341,7 +341,7 @@
 
   ;; Add raw if-cost
   (set! raw-costs
-        (cons (match (platform-impl-cost pform 'if)
+        (cons (match (platform-if-cost pform)
                 [`(max ,n) n] ; Not quite right (copied from egg-herbie.rkt)
                 [`(sum ,n) n])
               raw-costs))
@@ -360,7 +360,7 @@
                      MTy
                      MTy
                      :cost
-                     ,(normalize-cost (match (platform-impl-cost pform 'if)
+                     ,(normalize-cost (match (platform-if-cost pform)
                                         [`(max ,n) n] ; Not quite right (copied from egg-herbie.rkt)
                                         [`(sum ,n) n])
                                       min-cost))

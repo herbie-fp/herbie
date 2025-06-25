@@ -515,6 +515,8 @@
   (check-pred exact-integer? (car (vector-ref (taylor 'x batch) root))))
 
 (module+ test
+  (require "../syntax/load-plugin.rkt")
+  (load-herbie-builtins)
   (define (coeffs expr #:n [n 7])
     (define batch (progs->batch (list expr)))
     (set! batch (expand-taylor batch))

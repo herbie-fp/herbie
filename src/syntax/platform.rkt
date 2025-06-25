@@ -32,6 +32,7 @@
          (contract-out ;; Platforms
           [platform? (-> any/c boolean?)]
           [platform-name (-> platform? any/c)]
+          [platform-if-cost (-> platform? any/c)]
           [platform-reprs (-> platform? (listof representation?))]
           [platform-impls (-> platform? (listof symbol?))]
           ; Cost model
@@ -99,8 +100,7 @@
   (define name (platform-name platform))
   (when (hash-has-key? platforms name)
     (error 'register-platform! "platform already registered ~a" name))
-  (hash-set! platforms name (platform-copy platform))
-  (display-platform platform))
+  (hash-set! platforms name (platform-copy platform)))
 
 (define (make-empty-platform name
                              #:if-cost [if-cost #f]
