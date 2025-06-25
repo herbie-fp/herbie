@@ -195,20 +195,23 @@
   `(div ([class "proof"])
         (details (summary "Step-by-step derivation")
                  (ol ,@(for/list ([step (in-list proof-json)])
+                         (define-values (direction err loc rule prog-str)
+                           (apply values (map (curry hash-ref step)
+                                              '(direction error loc rule program))))
                          (define dir
-                           (match (hash-ref step 'direction)
+                           (match direction
                              ["goal" "goal"]
                              ["rtl" "right to left"]
                              ["ltr" "left to right"]))
-                         (define err (hash-ref step 'error))
-                         (define loc (hash-ref step 'loc))
-                         (define rule (hash-ref step 'rule))
-                         (define prog (read (open-input-string (hash-ref step 'program))))
+                         (define prog (read (open-input-string prog-str)))
                          (define bits (representation-total-bits (context-repr ctx)))
                          (if (equal? dir "goal")
                              ""
                              `(li (p (code ([title ,dir]) ,rule)
-                                     (span ([class "error"]) ,(format-accuracy err bits)))
+                                     (span ([class "error"])
+                                           ,(if (number? err)
+                                                (format-accuracy err bits #:unit "%")
+                                                err)))
                                   (div ((class "math"))
                                        "\\[\\leadsto "
                                        ,(core->tex prog #:loc (and loc (cons 2 loc)) #:color "blue")
