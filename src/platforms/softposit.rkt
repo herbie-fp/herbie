@@ -12,7 +12,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; utils ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define posit8-max (ordinal->posit8 (- (expt 2 (- 8 1)) 1)))
+(define posit8-max  (ordinal->posit8  (- (expt 2 (- 8 1)) 1)))
 (define posit16-max (ordinal->posit16 (- (expt 2 (- 16 1)) 1)))
 (define posit32-max (ordinal->posit32 (- (expt 2 (- 32 1)) 1)))
 
@@ -77,14 +77,17 @@
         (if (> x 0) quire32-max quire32-nmax)
         y)))
 
+(define (and-fn . as)
+  (andmap identity as))
+(define (or-fn . as)
+  (ormap identity as))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; EMPTY PLATFORM ;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define softposit-platform
   (make-empty-platform 'softposit #:if-cost 1 #:default-cost 1))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BOOLEAN ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;; representation ;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;; REPRESENTATIONS ;;;;;;;;;;;;;;;;;;;;;;;
 
 (define bool
   (make-representation #:name 'bool
@@ -97,30 +100,6 @@
                        #:total-bits 1
                        #:special-value? (const #f)
                        #:cost #f))
-
-(platform-register-representation! softposit-platform bool)
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;; constants ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(platform-register-implementations!
- softposit-platform
- ([TRUE  () bool (TRUE)  (const true)  (! TRUE)  #f]
-  [FALSE () bool (FALSE) (const false) (! FALSE) #f]))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;; operators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(define (and-fn . as)
-  (andmap identity as))
-(define (or-fn . as)
-  (ormap identity as))
-
-(platform-register-implementations!
- softposit-platform
- ([not ([x : bool])            bool (not x)   not    (not x)   #f]
-  [and ([x : bool] [y : bool]) bool (and x y) and-fn (and x y) #f]
-  [or  ([x : bool] [y : bool]) bool (or x y)  or-fn  (or x y)  #f]))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;; OTHER REPRESENTATIONS ;;;;;;;;;;;;;;;;;
 
 (define posit8
   (make-representation #:name 'posit8
@@ -207,6 +186,7 @@
                        #:special-value? nan?
                        #:cost #f))
 
+(platform-register-representation! softposit-platform bool)
 (platform-register-representation! softposit-platform posit8)
 (platform-register-representation! softposit-platform posit16)
 (platform-register-representation! softposit-platform posit32)
@@ -217,9 +197,19 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; OPERATORS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BOOLEAN IMPLS ;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(platform-register-implementations!
+ softposit-platform
+ ([TRUE  ()                      bool (TRUE)    (const true)  (! TRUE)  #f]
+  [FALSE ()                      bool (FALSE)   (const false) (! FALSE) #f]
+  [not   ([x : bool])            bool (not x)   not           (not x)   #f]
+  [and   ([x : bool] [y : bool]) bool (and x y) and-fn        (and x y) #f]
+  [or    ([x : bool] [y : bool]) bool (or x y)  or-fn         (or x y)  #f]))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; POSIT IMPLS ;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; ([name    ([var : repr] ...)            otype   spec     fl                fpcore                        cost])
+; ([name           ([var : repr] ...)                          otype   spec          fl                fpcore                           cost])
 (platform-register-implementations!
  softposit-platform
  (; Posit8
@@ -297,6 +287,9 @@
   [posit32->quire32  ([x : posit32])  quire32  x posit32->quire32 (! :precision quire32 (cast x))  #f]))
 
 (register-platform! softposit-platform)
+
+(module+ main
+  (display-platform softposit-platform))
 
 ;; Do not run this file during testing
 (module test racket/base

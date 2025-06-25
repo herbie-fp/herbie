@@ -231,6 +231,9 @@
 
 (register-platform! rival-platform)
 
+(module+ main
+  (display-platform rival-platform))
+
 ;; Do not run this file during testing
 (module test racket/base
   )

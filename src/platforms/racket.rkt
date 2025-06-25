@@ -216,6 +216,9 @@
 
 (register-platform! racket-platform)
 
+(module+ main
+  (display-platform racket-platform))
+
 ;; Do not run this file during testing
 (module test racket/base
   )

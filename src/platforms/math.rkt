@@ -164,6 +164,9 @@
 
 (register-platform! math-platform)
 
+(module+ main
+  (display-platform math-platform))
+
 ;; Do not run this file during testing
 (module test racket/base
   )

@@ -289,6 +289,9 @@
 
 (register-platform! herbie10-platform)
 
+(module+ main
+  (display-platform herbie10-platform))
+
 ;; Do not run this file during testing
 (module test racket/base
   )
