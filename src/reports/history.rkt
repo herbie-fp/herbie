@@ -178,7 +178,7 @@
      (define err (altn-errors altn pcontext ctx errcache mask))
      `(,@(render-history prev pcontext ctx errcache mask)
        (li ,(if proof
-                (render-proof proof pcontext ctx errcache mask)
+                (render-proof (render-proof-json proof pcontext ctx errcache mask) ctx)
                 ""))
        (li (p "Applied rewrites" (span ((class "error")) ,err))
            (div ((class "math")) "\\[\\leadsto " ,(program->tex prog ctx #:loc loc) "\\]")))]))
@@ -191,27 +191,24 @@
                       err))
       (errors-score errs)))
 
-(define (render-proof proof pcontext ctx errcache mask)
+(define (render-proof proof-json ctx)
   `(div ((class "proof"))
         (details (summary "Step-by-step derivation")
-                 (ol ,@(for/list ([step proof])
-                         (define-values (dir rule loc expr) (splice-proof-step step))
-                         ;; need to handle mixed real/float expressions
-                         (define-values (err prog)
-                           (cond
-                             [(impl-prog? expr) ; impl program?
-                              (define score (errors-score-masked (hash-ref errcache expr) mask))
-                              (define bits (representation-total-bits (context-repr ctx)))
-                              (values (format-accuracy score bits) (program->fpcore expr ctx))]
-                             [else (values "N/A" (mixed->fpcore expr ctx))]))
-                         ; the proof
-                         (if (equal? dir 'Goal)
+                 (ol ,@(for/list ([step (in-list proof-json)])
+                         (define dir
+                           (match (hash-ref step 'direction)
+                             ["goal" "goal"]
+                             ["rtl" "right to left"]
+                             ["ltr" "left to right"]))
+                         (define err (hash-ref step 'error))
+                         (define loc (hash-ref step 'loc))
+                         (define rule (hash-ref step 'rule))
+                         (define prog (read (open-input-string (hash-ref step 'program))))
+                         (define bits (representation-total-bits (context-repr ctx)))
+                         (if (equal? dir "goal")
                              ""
-                             `(li ,(let ([dir (match dir
-                                                ['Rewrite<= "right to left"]
-                                                ['Rewrite=> "left to right"])])
-                                     `(p (code ([title ,dir]) ,(~a rule))
-                                         (span ((class "error")) ,err)))
+                             `(li (p (code ([title ,dir]) ,rule)
+                                     (span ((class "error")) ,(format-accuracy err bits)))
                                   (div ((class "math"))
                                        "\\[\\leadsto "
                                        ,(core->tex prog #:loc (and loc (cons 2 loc)) #:color "blue")
@@ -282,13 +279,17 @@
 (define (render-proof-json proof pcontext ctx errcache mask)
   (for/list ([step proof])
     (define-values (dir rule loc expr) (splice-proof-step step))
-    (define err
-      (if (impl-prog? expr)
-          (errors-score-masked (hash-ref errcache expr) mask)
-          "N/A"))
+    (define-values (err fpcore)
+      (cond
+        [(impl-prog? expr)
+         (values (errors-score-masked (hash-ref errcache expr) mask)
+                 (program->fpcore expr ctx))]
+        [else
+         (values "N/A" (mixed->fpcore expr ctx))]))
 
     `#hash((error . ,err)
-           (program . ,(fpcore->string (expr->fpcore expr ctx)))
+           (program . ,(fpcore->string fpcore))
+
            (direction . ,(match dir
                            ['Rewrite<= "rtl"]
                            ['Rewrite=> "ltr"]
