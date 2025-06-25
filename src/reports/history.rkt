@@ -192,7 +192,7 @@
       (errors-score errs)))
 
 (define (render-proof proof-json ctx)
-  `(div ((class "proof"))
+  `(div ([class "proof"])
         (details (summary "Step-by-step derivation")
                  (ol ,@(for/list ([step (in-list proof-json)])
                          (define dir
@@ -208,7 +208,7 @@
                          (if (equal? dir "goal")
                              ""
                              `(li (p (code ([title ,dir]) ,rule)
-                                     (span ((class "error")) ,(format-accuracy err bits)))
+                                     (span ([class "error"]) ,(format-accuracy err bits)))
                                   (div ((class "math"))
                                        "\\[\\leadsto "
                                        ,(core->tex prog #:loc (and loc (cons 2 loc)) #:color "blue")
