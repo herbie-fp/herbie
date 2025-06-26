@@ -18,6 +18,7 @@
          get-representation
          impl-exists?
          impl-info
+         prog->spec
          get-fpcore-impl
          ;; Platform API
          ;; Operator sets
@@ -172,6 +173,25 @@
   (define platform (*active-platform*))
   (define reprs (platform-representations platform))
   (hash-has-key? reprs name))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; LImpl -> LSpec
+
+;; Translates an LImpl to a LSpec.
+(define (prog->spec expr)
+  (match expr
+    [(? literal?) (literal-value expr)]
+    [(? symbol?) expr]
+    [(approx spec _) spec]
+    [`(if ,cond ,ift ,iff)
+     `(if ,(prog->spec cond)
+          ,(prog->spec ift)
+          ,(prog->spec iff))]
+    [`(,impl ,args ...)
+     (define vars (impl-info impl 'vars))
+     (define spec (impl-info impl 'spec))
+     (define env (map cons vars (map prog->spec args)))
+     (pattern-substitute spec env)]))
 
 ;; Expression predicates ;;
 

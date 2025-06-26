@@ -4,7 +4,6 @@
          "../syntax/syntax.rkt"
          "../syntax/platform.rkt"
          "../syntax/types.rkt"
-         "../syntax/matcher.rkt"
          "batch.rkt")
 
 (provide expr?
@@ -20,31 +19,11 @@
          get-locations
          free-variables
          replace-expression
-         replace-vars
-         prog->spec)
+         replace-vars)
 
 ;; Programs are just lisp lists plus atoms
 
 (define expr? (or/c list? symbol? boolean? real? literal? approx?))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; LImpl -> LSpec
-
-;; Translates an LImpl to a LSpec.
-(define (prog->spec expr)
-  (match expr
-    [(? literal?) (literal-value expr)]
-    [(? symbol?) expr]
-    [(approx spec _) spec]
-    [`(if ,cond ,ift ,iff)
-     `(if ,(prog->spec cond)
-          ,(prog->spec ift)
-          ,(prog->spec iff))]
-    [`(,impl ,args ...)
-     (define vars (impl-info impl 'vars))
-     (define spec (impl-info impl 'spec))
-     (define env (map cons vars (map prog->spec args)))
-     (pattern-substitute spec env)]))
 
 ;; Returns repr name
 ;; Fast version does not recurse into functions applications
