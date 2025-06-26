@@ -16,10 +16,7 @@
          platform-copy
          repr-exists?
          get-representation
-         prog->spec
          impl-exists?
-         variable?
-         constant-operator?
          impl-info
          get-fpcore-impl
          ;; Platform API
@@ -182,36 +179,6 @@
   (define platform (*active-platform*))
   (define impls (platform-implementations platform))
   (hash-has-key? impls op))
-
-(define (constant-operator? op)
-  (and (symbol? op)
-       (or (and (hash-has-key? operators op) (null? (operator-itype (hash-ref operators op))))
-           (and (impl-exists? op) (null? (impl-info op 'vars))))))
-
-(define (variable? var)
-  (and (symbol? var)
-       (or (not (hash-has-key? operators var))
-           (not (null? (operator-itype (hash-ref operators var)))))
-       (or (not (impl-exists? var)) (not (null? (impl-info var 'vars))))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; LImpl -> LSpec
-
-;; Translates an LImpl to a LSpec.
-(define (prog->spec expr)
-  (match expr
-    [(? literal?) (literal-value expr)]
-    [(? variable?) expr]
-    [(approx spec _) spec]
-    [`(if ,cond ,ift ,iff)
-     `(if ,(prog->spec cond)
-          ,(prog->spec ift)
-          ,(prog->spec iff))]
-    [`(,impl ,args ...)
-     (define vars (impl-info impl 'vars))
-     (define spec (impl-info impl 'spec))
-     (define env (map cons vars (map prog->spec args)))
-     (pattern-substitute spec env)]))
 
 (define (platform/parse-if-cost cost)
   (match cost

@@ -1078,7 +1078,7 @@
 (define (egglog-expr-typed? expr)
   (match expr
     [(? number?) #t]
-    [(? variable?) #t]
+    [(? symbol?) #t]
     [`(,impl ,args ...) (and (not (eq? impl 'typed-id)) (andmap egglog-expr-typed? args))]))
 
 (define (e1->expr expr)

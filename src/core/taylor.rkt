@@ -5,7 +5,6 @@
          "../syntax/syntax.rkt"
          "batch.rkt"
          "programs.rkt"
-         (only-in "../syntax/platform.rkt" variable?)
          "reduce.rkt")
 
 (provide approximate)
@@ -138,7 +137,7 @@
       (match node
         [(? (curry equal? var)) (taylor-exact 0 1)]
         [(? number?) (taylor-exact node)]
-        [(? variable?) (taylor-exact node)]
+        [(? symbol?) (taylor-exact node)]
         [`(,const) (taylor-exact node)]
         [`(+ ,args ...) (apply taylor-add (map (curry vector-ref taylor-approxs) args))]
         [`(neg ,arg) (taylor-negate ((curry vector-ref taylor-approxs) arg))]

@@ -139,7 +139,7 @@
       ; applications
       [`(,op ,args ...) `(,op ,@(map (curryr loop env) args))]
       ; constants
-      [(? constant-operator?) (list expr)]
+      [(? operator-exists? op) (list expr)]
       ; variables
       [(? symbol?) (dict-ref env expr expr)]
       ; other
@@ -180,7 +180,7 @@
                   [(? exact?) expr]
                   [_ (inexact->exact expr)])
                 (dict-ref prop-dict ':precision))]
-      [(? variable?) expr]
+      [(? symbol?) expr]
       [(list 'if cond ift iff)
        (define cond* (loop cond prop-dict))
        (define ift* (loop ift prop-dict))

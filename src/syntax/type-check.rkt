@@ -64,13 +64,13 @@
              [ctx ctx])
     (match stx
       [#`,(? number?) (get-representation (dict-ref prop-dict ':precision))]
-      [#`,(? variable? x) (context-lookup ctx x)]
-      [#`,(? constant-operator? op)
+      [#`,(? operator-exists? op)
        (match (get-fpcore-impl op prop-dict '())
          [#f ; no implementation found
           (error! stx "No implementation of `~a` in platform for context `~a`" op prop-dict)
           (get-representation (dict-ref prop-dict ':precision))]
          [impl (impl-info impl 'otype)])]
+      [#`,(? symbol? x) (context-lookup ctx x)]
       [#`(let ([,ids #,exprs] ...) #,body)
        (define ctx*
          (for/fold ([ctx* ctx])

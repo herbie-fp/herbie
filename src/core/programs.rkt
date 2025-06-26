@@ -1,19 +1,11 @@
 #lang racket
 
 (require "../utils/common.rkt"
-         (only-in "../syntax/syntax.rkt"
-                  literal?
-                  literal
-                  literal-value
-                  approx?
-                  approx
-                  approx-spec
-                  approx-impl
-                  hole
-                  operator-exists?)
-         (only-in "../syntax/platform.rkt" get-representation variable? impl-exists? impl-info)
-         (only-in "../syntax/types.rkt" context-lookup)
-         (only-in "batch.rkt" batch-nodes))
+         "../syntax/syntax.rkt"
+         "../syntax/platform.rkt"
+         "../syntax/types.rkt"
+         "../syntax/matcher.rkt"
+         "batch.rkt")
 
 (provide expr?
          expr<?
@@ -28,18 +20,38 @@
          get-locations
          free-variables
          replace-expression
-         replace-vars)
+         replace-vars
+         prog->spec)
 
 ;; Programs are just lisp lists plus atoms
 
 (define expr? (or/c list? symbol? boolean? real? literal? approx?))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; LImpl -> LSpec
+
+;; Translates an LImpl to a LSpec.
+(define (prog->spec expr)
+  (match expr
+    [(? literal?) (literal-value expr)]
+    [(? symbol?) expr]
+    [(approx spec _) spec]
+    [`(if ,cond ,ift ,iff)
+     `(if ,(prog->spec cond)
+          ,(prog->spec ift)
+          ,(prog->spec iff))]
+    [`(,impl ,args ...)
+     (define vars (impl-info impl 'vars))
+     (define spec (impl-info impl 'spec))
+     (define env (map cons vars (map prog->spec args)))
+     (pattern-substitute spec env)]))
 
 ;; Returns repr name
 ;; Fast version does not recurse into functions applications
 (define (repr-of expr ctx)
   (match expr
     [(literal val precision) (get-representation precision)]
-    [(? variable?) (context-lookup ctx expr)]
+    [(? symbol?) (context-lookup ctx expr)]
     [(approx _ impl) (repr-of impl ctx)]
     [(hole precision spec) (get-representation precision)]
     [(list 'if cond ift iff) (repr-of ift ctx)]
@@ -50,7 +62,7 @@
   (define node (vector-ref (batch-nodes batch) idx))
   (match node
     [(literal val precision) (get-representation precision)]
-    [(? variable?) (context-lookup ctx node)]
+    [(? symbol?) (context-lookup ctx node)]
     [(approx _ impl) (repr-of-node batch impl ctx)]
     [(hole precision spec) (get-representation precision)]
     [(list 'if cond ift iff) (repr-of-node batch ift ctx)]
@@ -64,7 +76,7 @@
             (match expr
               [(? number?) (void)]
               [(? literal?) (void)]
-              [(? variable?) (void)]
+              [(? symbol?) (void)]
               [(approx _ impl) (loop impl)]
               [`(if ,c ,t ,f)
                (loop c)
@@ -152,7 +164,7 @@
   (match prog
     [(? literal?) '()]
     [(? number?) '()]
-    [(? variable?) (list prog)]
+    [(? symbol?) (list prog)]
     [(approx _ impl) (free-variables impl)]
     [(list _ args ...) (remove-duplicates (append-map free-variables args))]))
 

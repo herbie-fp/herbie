@@ -2,7 +2,6 @@
 
 (require "../utils/common.rkt"
          "../syntax/syntax.rkt"
-         (only-in "../syntax/platform.rkt" variable?)
          "programs.rkt")
 (provide reduce)
 
@@ -124,7 +123,7 @@
 (define (reduce-node* expr)
   (match (reduce-evaluation expr)
     [(? number?) expr]
-    [(? variable?) expr]
+    [(? symbol?) expr]
     [(or `(+ ,_ ...) `(- ,_ ...) `(neg ,_))
      (make-addition-node (combine-aterms (gather-additive-terms expr)))]
     [(or `(* ,_ ...)
@@ -145,7 +144,7 @@
   (let ([label (or label expr)])
     (match expr
       [(? number?) `((,expr 1))]
-      [(? variable?) `((1 ,expr))]
+      [(? symbol?) `((1 ,expr))]
       [`(+ ,args ...) (append-map recurse args)]
       [`(neg ,arg) (map negate-term (recurse arg))]
       [`(- ,arg ,args ...) (append (recurse arg) (map negate-term (append-map recurse args)))]

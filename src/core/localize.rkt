@@ -5,9 +5,9 @@
 (require "../utils/common.rkt"
          "../utils/float.rkt"
          "../syntax/sugar.rkt"
-         (only-in "../syntax/syntax.rkt" literal? approx)
+         "../syntax/syntax.rkt"
          "../syntax/types.rkt"
-         (only-in "../syntax/platform.rkt" variable? prog->spec get-representation impl-info)
+         "../syntax/platform.rkt"
          "batch.rkt"
          "compiler.rkt"
          "points.rkt"
@@ -48,7 +48,7 @@
 (define (local-error exact node repr get-exact)
   (match node
     [(? literal?) 1]
-    [(? variable?) 1]
+    [(? symbol?) 1]
     [(approx _ impl) (ulp-difference exact (get-exact impl) repr)]
     [`(if ,c ,ift ,iff) 1]
     [(list f args ...)
@@ -196,7 +196,7 @@
     [(list '! props ... (list op args ...)) op]
     [(list op args ...) op]
     [(? number? c) (exact->inexact c)]
-    [(? variable? c) c]))
+    [(? symbol? c) c]))
 
 (define (expr->json-tree expr ctx decorate)
   (define (make-json-tree subexpr)
