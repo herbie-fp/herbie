@@ -55,7 +55,7 @@
 ;;;
 ;;; A small API is provided for platforms for querying the supported
 ;;; operators, operator implementations, and representation conversions.
-(struct platform (name if-cost default-cost representations implementations repr-generator)
+(struct platform (name if-cost default-cost representations implementations)
   #:name $platform
   #:constructor-name create-platform
   #:methods gen:custom-write
@@ -95,10 +95,7 @@
     (error 'register-platform! "platform already registered ~a" name))
   (hash-set! platforms name (platform-copy platform)))
 
-(define (make-empty-platform name
-                             #:if-cost [if-cost #f]
-                             #:default-cost [default-cost #f]
-                             #:repr-generator [repr-generator (const #f)])
+(define (make-empty-platform name #:if-cost [if-cost #f] #:default-cost [default-cost #f])
   (define reprs (make-hash))
   (define impls (make-hash))
   (when (hash-has-key? platforms name)
@@ -106,7 +103,7 @@
   (unless (or if-cost default-cost)
     (error 'make-empty-platform "Platform ~a is missing cost for if function" name))
   (set! if-cost (platform/parse-if-cost (or if-cost default-cost)))
-  (create-platform name if-cost default-cost reprs impls repr-generator))
+  (create-platform name if-cost default-cost reprs impls))
 
 (define (platform-register-representation! platform repr)
   (define reprs (platform-representations platform))
@@ -168,9 +165,7 @@
 (define (get-representation name)
   (define platform (*active-platform*))
   (define reprs (platform-representations platform))
-  (define repr-generator (platform-repr-generator platform))
   (or (hash-ref reprs name #f)
-      (repr-generator name) ; assumes that repr-generator is provided
       (raise-herbie-error "Could not find support for ~a representation: ~a in a platform ~a"
                           name
                           (string-join (map ~s (hash-keys reprs)) ", ")
