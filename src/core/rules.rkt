@@ -3,7 +3,7 @@
 ;; Arithmetic identities for rewriting programs.
 
 (require "../utils/common.rkt"
-         (only-in "../syntax/syntax.rkt" literal? approx))
+         "../syntax/syntax.rkt")
 
 (provide *rules*
          *sound-rules*

@@ -1,7 +1,6 @@
 #lang racket
 
-(require rackunit
-         "../syntax/load-plugin.rkt")
+(require rackunit)
 (require "../utils/common.rkt"
          "../syntax/matcher.rkt"
          "programs.rkt"
@@ -214,5 +213,4 @@
         (with-check-info (['lhs-bad lhs-bad]) (check-false rhs-bad))))))
 
 (module+ test
-  (load-herbie-builtins)
   (potentially-unsound))
