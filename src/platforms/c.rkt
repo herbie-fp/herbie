@@ -17,7 +17,7 @@
 (define boolean-move-cost 0.1)
 
 (define c-platform
-  (make-empty-platform 'c #:if-cost boolean-move-cost #:default-cost 64bit-move-cost))
+  (make-empty-platform 'c #:if-cost boolean-move-cost))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BOOLEAN ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

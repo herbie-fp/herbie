@@ -53,7 +53,7 @@
 ;;;
 ;;; A small API is provided for platforms for querying the supported
 ;;; operators, operator implementations, and representation conversions.
-(struct platform (name if-cost default-cost representations implementations)
+(struct platform (name if-cost representations implementations)
   #:name $platform
   #:constructor-name create-platform
   #:methods gen:custom-write
@@ -93,22 +93,21 @@
     (error 'register-platform! "platform already registered ~a" name))
   (hash-set! platforms name (platform-copy platform)))
 
-(define (make-empty-platform name #:if-cost [if-cost #f] #:default-cost [default-cost #f])
+(define (make-empty-platform name #:if-cost [if-cost #f])
   (define reprs (make-hash))
   (define impls (make-hash))
   (when (hash-has-key? platforms name)
     (error 'make-empty-platform "platform with name ~a is already registered" name))
-  (unless (or if-cost default-cost)
+  (unless if-cost
     (error 'make-empty-platform "Platform ~a is missing cost for if function" name))
-  (set! if-cost (platform/parse-if-cost (or if-cost default-cost)))
-  (create-platform name if-cost default-cost reprs impls))
+  (set! if-cost (platform/parse-if-cost if-cost))
+  (create-platform name if-cost reprs impls))
 
 (define (platform-register-representation! platform repr)
   (define reprs (platform-representations platform))
   ; Cost check
   (define repr-cost (representation-cost repr))
-  (define default-cost (platform-default-cost platform))
-  (unless (or repr-cost default-cost)
+  (unless repr-cost
     (raise-herbie-error "Missing cost for representation ~a in platform ~a"
                         (representation-name repr)
                         (platform-name platform)))
@@ -134,8 +133,7 @@
                         (operator-impl-name impl)))
   ; Cost check
   (define impl-cost (operator-impl-cost impl))
-  (define default-cost (platform-default-cost platform))
-  (unless (or impl-cost default-cost)
+  (unless impl-cost
     (raise-herbie-error "Missing cost for ~a" (operator-impl-name impl)))
   ; Dupicate check
   (define impls (platform-implementations platform))
@@ -227,7 +225,7 @@
     [(spec) (operator-impl-spec impl)]
     [(fpcore) (operator-impl-fpcore impl)]
     [(fl) (operator-impl-fl impl)]
-    [(cost) (or (operator-impl-cost impl) (platform-default-cost (*active-platform*)))]))
+    [(cost) (operator-impl-cost impl)]))
 
 (define (platform-impls platform)
   (hash-keys (platform-implementations platform)))
@@ -237,9 +235,7 @@
 
 ; Representation (terminal) cost in a platform.
 (define (platform-repr-cost platform repr)
-  (define default-cost (platform-default-cost platform))
-  (define repr-cost (representation-cost repr))
-  (or repr-cost default-cost))
+  (representation-cost repr))
 
 ; Cost model of a single node by a platform.
 ; Returns a procedure that must be called with the costs of the children.
@@ -390,20 +386,14 @@
   (define impls (platform-implementations platform))
   (define reprs (platform-representations platform))
   (define if-cost (platform-if-cost platform))
-  (define default-cost (platform-default-cost platform))
 
-  (printf "Platform: ~a;\n          if-cost: ~a;\n          default-cost: ~a\n\n"
-          (platform-name platform)
-          if-cost
-          default-cost)
+  (printf "Platform: ~a;\n          if-cost: ~a;\n\n" (platform-name platform) if-cost)
 
   (printf "Representations:\n")
   (define reprs-data
     (for/list ([(_ repr) (in-hash reprs)]
                [n (in-naturals)])
       (match-define (representation name type _ _ _ _ _ total-bits _ cost) repr)
-      (unless cost
-        (set! cost (format "~a (default cost)" default-cost)))
       (list n name type total-bits cost)))
   (write-table reprs-data (list "idx" "name" "type" "#bits" "cost"))
 
@@ -416,8 +406,6 @@
       (define otype (representation-name (context-repr (operator-impl-ctx impl))))
       (define spec (operator-impl-spec impl))
       (define cost (operator-impl-cost impl))
-      (unless cost
-        (set! cost (format "~a (default cost)" default-cost)))
       (list n name itype otype spec cost)))
   (write-table impls-data (list "idx" "name" "itype" "otype" "spec" "cost")))
 

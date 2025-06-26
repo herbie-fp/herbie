@@ -11,10 +11,10 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; EMPTY PLATFORM ;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define default-cost 1)
+(define cost 1)
 
 (define rival-platform
-  (make-empty-platform 'rival #:if-cost default-cost #:default-cost default-cost))
+  (make-empty-platform 'rival #:if-cost cost))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BOOLEAN ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -30,7 +30,7 @@
                        #:repr->ordinal (λ (x) (if x 1 0))
                        #:total-bits 1
                        #:special-value? (const #f)
-                       #:cost default-cost))
+                       #:cost cost))
 
 (platform-register-representation! rival-platform bool)
 
@@ -38,8 +38,8 @@
 
 (platform-register-implementations!
  rival-platform
- ([TRUE  () bool (TRUE)  (const true)  (! TRUE)  default-cost]
-  [FALSE () bool (FALSE) (const false) (! FALSE) default-cost]))
+ ([TRUE  () bool (TRUE)  (const true)  (! TRUE)  cost]
+  [FALSE () bool (FALSE) (const false) (! FALSE) cost]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; operators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -50,9 +50,9 @@
 
 (platform-register-implementations!
  rival-platform
- ([not ([x : bool])            bool (not x)   not    (not x)   default-cost]
-  [and ([x : bool] [y : bool]) bool (and x y) and-fn (and x y) default-cost]
-  [or  ([x : bool] [y : bool]) bool (or x y)  or-fn  (or x y)  default-cost]))
+ ([not ([x : bool])            bool (not x)   not    (not x)   cost]
+  [and ([x : bool] [y : bool]) bool (and x y) and-fn (and x y) cost]
+  [or  ([x : bool] [y : bool]) bool (or x y)  or-fn  (or x y)  cost]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BINARY 32 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -68,7 +68,7 @@
                        #:repr->ordinal (unshift 31 float32->ordinal)
                        #:total-bits 32
                        #:special-value? nan?
-                       #:cost default-cost))
+                       #:cost cost))
 
 (platform-register-representation! rival-platform binary32)
 
@@ -78,67 +78,67 @@
 (platform-register-implementations!
  rival-platform
  (; Constants
-  [PI.f32        ()                                             binary32 (PI)                       #f (! :precision binary32 (PI))            default-cost]
-  [E.f32         ()                                             binary32 (E)                        #f (! :precision binary32 (E))             default-cost]
-  [INFINITY.f32  ()                                             binary32 (INFINITY)                 #f (! :precision binary32 (INFINITY))      default-cost]
-  [NAN.f32       ()                                             binary32 (NAN)                      #f (! :precision binary32 (NAN))           default-cost]
+  [PI.f32        ()                                             binary32 (PI)                       #f (! :precision binary32 (PI))            cost]
+  [E.f32         ()                                             binary32 (E)                        #f (! :precision binary32 (E))             cost]
+  [INFINITY.f32  ()                                             binary32 (INFINITY)                 #f (! :precision binary32 (INFINITY))      cost]
+  [NAN.f32       ()                                             binary32 (NAN)                      #f (! :precision binary32 (NAN))           cost]
   ; Default operators
-  [neg.f32       ([x : binary32])                               binary32 (neg x)                    #f (! :precision binary32 (- x))           default-cost]
-  [+.f32         ([x : binary32] [y : binary32])                binary32 (+ x y)                    #f (! :precision binary32 (+ x y))         default-cost]
-  [-.f32         ([x : binary32] [y : binary32])                binary32 (- x y)                    #f (! :precision binary32 (- x y))         default-cost]
-  [*.f32         ([x : binary32] [y : binary32])                binary32 (* x y)                    #f (! :precision binary32 (* x y))         default-cost]
-  [/.f32         ([x : binary32] [y : binary32])                binary32 (/ x y)                    #f (! :precision binary32 (/ x y))         default-cost]
-  [==.f32        ([x : binary32] [y : binary32])                bool     (== x y)                   #f (== x y)                                default-cost]
-  [!=.f32        ([x : binary32] [y : binary32])                bool     (!= x y)                   #f (!= x y)                                default-cost]
-  [<.f32         ([x : binary32] [y : binary32])                bool     (< x y)                    #f (< x y)                                 default-cost]
-  [>.f32         ([x : binary32] [y : binary32])                bool     (> x y)                    #f (> x y)                                 default-cost]
-  [<=.f32        ([x : binary32] [y : binary32])                bool     (<= x y)                   #f (<= x y)                                default-cost]
-  [>=.f32        ([x : binary32] [y : binary32])                bool     (>= x y)                   #f (>= x y)                                default-cost]
+  [neg.f32       ([x : binary32])                               binary32 (neg x)                    #f (! :precision binary32 (- x))           cost]
+  [+.f32         ([x : binary32] [y : binary32])                binary32 (+ x y)                    #f (! :precision binary32 (+ x y))         cost]
+  [-.f32         ([x : binary32] [y : binary32])                binary32 (- x y)                    #f (! :precision binary32 (- x y))         cost]
+  [*.f32         ([x : binary32] [y : binary32])                binary32 (* x y)                    #f (! :precision binary32 (* x y))         cost]
+  [/.f32         ([x : binary32] [y : binary32])                binary32 (/ x y)                    #f (! :precision binary32 (/ x y))         cost]
+  [==.f32        ([x : binary32] [y : binary32])                bool     (== x y)                   #f (== x y)                                cost]
+  [!=.f32        ([x : binary32] [y : binary32])                bool     (!= x y)                   #f (!= x y)                                cost]
+  [<.f32         ([x : binary32] [y : binary32])                bool     (< x y)                    #f (< x y)                                 cost]
+  [>.f32         ([x : binary32] [y : binary32])                bool     (> x y)                    #f (> x y)                                 cost]
+  [<=.f32        ([x : binary32] [y : binary32])                bool     (<= x y)                   #f (<= x y)                                cost]
+  [>=.f32        ([x : binary32] [y : binary32])                bool     (>= x y)                   #f (>= x y)                                cost]
   ; Unary operators
-  [fabs.f32      ([x : binary32])                               binary32 (fabs x)                   #f (! :precision binary32 (fabs x))        default-cost]
-  [sin.f32       ([x : binary32])                               binary32 (sin x)                    #f (! :precision binary32 (sin x))         default-cost]
-  [cos.f32       ([x : binary32])                               binary32 (cos x)                    #f (! :precision binary32 (cos x))         default-cost]
-  [tan.f32       ([x : binary32])                               binary32 (tan x)                    #f (! :precision binary32 (tan x))         default-cost]
-  [sinh.f32      ([x : binary32])                               binary32 (sinh x)                   #f (! :precision binary32 (sinh x))        default-cost]
-  [cosh.f32      ([x : binary32])                               binary32 (cosh x)                   #f (! :precision binary32 (cosh x))        default-cost]
-  [acos.f32      ([x : binary32])                               binary32 (acos x)                   #f (! :precision binary32 (acos x))        default-cost]
-  [acosh.f32     ([x : binary32])                               binary32 (acosh x)                  #f (! :precision binary32 (acosh x))       default-cost]
-  [asin.f32      ([x : binary32])                               binary32 (asin x)                   #f (! :precision binary32 (asin x))        default-cost]
-  [asinh.f32     ([x : binary32])                               binary32 (asinh x)                  #f (! :precision binary32 (asinh x))       default-cost]
-  [atan.f32      ([x : binary32])                               binary32 (atan x)                   #f (! :precision binary32 (atan x))        default-cost]
-  [atanh.f32     ([x : binary32])                               binary32 (atanh x)                  #f (! :precision binary32 (atanh x))       default-cost]
-  [cbrt.f32      ([x : binary32])                               binary32 (cbrt x)                   #f (! :precision binary32 (cbrt x))        default-cost]
-  [ceil.f32      ([x : binary32])                               binary32 (ceil x)                   #f (! :precision binary32 (ceil x))        default-cost]
-  [erf.f32       ([x : binary32])                               binary32 (erf x)                    #f (! :precision binary32 (erf x))         default-cost]
-  [exp.f32       ([x : binary32])                               binary32 (exp x)                    #f (! :precision binary32 (exp x))         default-cost]
-  [exp2.f32      ([x : binary32])                               binary32 (exp2 x)                   #f (! :precision binary32 (exp2 x))        default-cost]
-  [floor.f32     ([x : binary32])                               binary32 (floor x)                  #f (! :precision binary32 (floor x))       default-cost]
-  [lgamma.f32    ([x : binary32])                               binary32 (lgamma x)                 #f (! :precision binary32 (lgamma x))      default-cost]
-  [log.f32       ([x : binary32])                               binary32 (log x)                    #f (! :precision binary32 (log x))         default-cost]
-  [log10.f32     ([x : binary32])                               binary32 (log10 x)                  #f (! :precision binary32 (log10 x))       default-cost]
-  [log2.f32      ([x : binary32])                               binary32 (log2 x)                   #f (! :precision binary32 (log2 x))        default-cost]
-  [logb.f32      ([x : binary32])                               binary32 (logb x)                   #f (! :precision binary32 (logb x))        default-cost]
-  [rint.f32      ([x : binary32])                               binary32 (rint x)                   #f (! :precision binary32 (rint x))        default-cost]
-  [round.f32     ([x : binary32])                               binary32 (round x)                  #f (! :precision binary32 (round x))       default-cost]
-  [sqrt.f32      ([x : binary32])                               binary32 (sqrt x)                   #f (! :precision binary32 (sqrt x))        default-cost]
-  [tanh.f32      ([x : binary32])                               binary32 (tanh x)                   #f (! :precision binary32 (tanh x))        default-cost]
-  [tgamma.f32    ([x : binary32])                               binary32 (tgamma x)                 #f (! :precision binary32 (tgamma x))      default-cost]
-  [trunc.f32     ([x : binary32])                               binary32 (trunc x)                  #f (! :precision binary32 (trunc x))       default-cost]
+  [fabs.f32      ([x : binary32])                               binary32 (fabs x)                   #f (! :precision binary32 (fabs x))        cost]
+  [sin.f32       ([x : binary32])                               binary32 (sin x)                    #f (! :precision binary32 (sin x))         cost]
+  [cos.f32       ([x : binary32])                               binary32 (cos x)                    #f (! :precision binary32 (cos x))         cost]
+  [tan.f32       ([x : binary32])                               binary32 (tan x)                    #f (! :precision binary32 (tan x))         cost]
+  [sinh.f32      ([x : binary32])                               binary32 (sinh x)                   #f (! :precision binary32 (sinh x))        cost]
+  [cosh.f32      ([x : binary32])                               binary32 (cosh x)                   #f (! :precision binary32 (cosh x))        cost]
+  [acos.f32      ([x : binary32])                               binary32 (acos x)                   #f (! :precision binary32 (acos x))        cost]
+  [acosh.f32     ([x : binary32])                               binary32 (acosh x)                  #f (! :precision binary32 (acosh x))       cost]
+  [asin.f32      ([x : binary32])                               binary32 (asin x)                   #f (! :precision binary32 (asin x))        cost]
+  [asinh.f32     ([x : binary32])                               binary32 (asinh x)                  #f (! :precision binary32 (asinh x))       cost]
+  [atan.f32      ([x : binary32])                               binary32 (atan x)                   #f (! :precision binary32 (atan x))        cost]
+  [atanh.f32     ([x : binary32])                               binary32 (atanh x)                  #f (! :precision binary32 (atanh x))       cost]
+  [cbrt.f32      ([x : binary32])                               binary32 (cbrt x)                   #f (! :precision binary32 (cbrt x))        cost]
+  [ceil.f32      ([x : binary32])                               binary32 (ceil x)                   #f (! :precision binary32 (ceil x))        cost]
+  [erf.f32       ([x : binary32])                               binary32 (erf x)                    #f (! :precision binary32 (erf x))         cost]
+  [exp.f32       ([x : binary32])                               binary32 (exp x)                    #f (! :precision binary32 (exp x))         cost]
+  [exp2.f32      ([x : binary32])                               binary32 (exp2 x)                   #f (! :precision binary32 (exp2 x))        cost]
+  [floor.f32     ([x : binary32])                               binary32 (floor x)                  #f (! :precision binary32 (floor x))       cost]
+  [lgamma.f32    ([x : binary32])                               binary32 (lgamma x)                 #f (! :precision binary32 (lgamma x))      cost]
+  [log.f32       ([x : binary32])                               binary32 (log x)                    #f (! :precision binary32 (log x))         cost]
+  [log10.f32     ([x : binary32])                               binary32 (log10 x)                  #f (! :precision binary32 (log10 x))       cost]
+  [log2.f32      ([x : binary32])                               binary32 (log2 x)                   #f (! :precision binary32 (log2 x))        cost]
+  [logb.f32      ([x : binary32])                               binary32 (logb x)                   #f (! :precision binary32 (logb x))        cost]
+  [rint.f32      ([x : binary32])                               binary32 (rint x)                   #f (! :precision binary32 (rint x))        cost]
+  [round.f32     ([x : binary32])                               binary32 (round x)                  #f (! :precision binary32 (round x))       cost]
+  [sqrt.f32      ([x : binary32])                               binary32 (sqrt x)                   #f (! :precision binary32 (sqrt x))        cost]
+  [tanh.f32      ([x : binary32])                               binary32 (tanh x)                   #f (! :precision binary32 (tanh x))        cost]
+  [tgamma.f32    ([x : binary32])                               binary32 (tgamma x)                 #f (! :precision binary32 (tgamma x))      cost]
+  [trunc.f32     ([x : binary32])                               binary32 (trunc x)                  #f (! :precision binary32 (trunc x))       cost]
   ; Binary operators
-  [pow.f32       ([x : binary32] [y : binary32])                binary32 (pow x y)                  #f (! :precision binary32 (pow x y))       default-cost]
-  [atan2.f32     ([x : binary32] [y : binary32])                binary32 (atan2 x y)                #f (! :precision binary32 (atan2 x y))     default-cost]
-  [copysign.f32  ([x : binary32] [y : binary32])                binary32 (copysign x y)             #f (! :precision binary32 (copysign x y))  default-cost]
-  [fdim.f32      ([x : binary32] [y : binary32])                binary32 (fdim x y)                 #f (! :precision binary32 (fdim x y))      default-cost]
-  [fmax.f32      ([x : binary32] [y : binary32])                binary32 (fmax x y)                 #f (! :precision binary32 (fmax x y))      default-cost]
-  [fmin.f32      ([x : binary32] [y : binary32])                binary32 (fmin x y)                 #f (! :precision binary32 (fmin x y))      default-cost]
-  [fmod.f32      ([x : binary32] [y : binary32])                binary32 (fmod x y)                 #f (! :precision binary32 (fmod x y))      default-cost]
-  [remainder.f32 ([x : binary32] [y : binary32])                binary32 (remainder x y)            #f (! :precision binary32 (remainder x y)) default-cost]
+  [pow.f32       ([x : binary32] [y : binary32])                binary32 (pow x y)                  #f (! :precision binary32 (pow x y))       cost]
+  [atan2.f32     ([x : binary32] [y : binary32])                binary32 (atan2 x y)                #f (! :precision binary32 (atan2 x y))     cost]
+  [copysign.f32  ([x : binary32] [y : binary32])                binary32 (copysign x y)             #f (! :precision binary32 (copysign x y))  cost]
+  [fdim.f32      ([x : binary32] [y : binary32])                binary32 (fdim x y)                 #f (! :precision binary32 (fdim x y))      cost]
+  [fmax.f32      ([x : binary32] [y : binary32])                binary32 (fmax x y)                 #f (! :precision binary32 (fmax x y))      cost]
+  [fmin.f32      ([x : binary32] [y : binary32])                binary32 (fmin x y)                 #f (! :precision binary32 (fmin x y))      cost]
+  [fmod.f32      ([x : binary32] [y : binary32])                binary32 (fmod x y)                 #f (! :precision binary32 (fmod x y))      cost]
+  [remainder.f32 ([x : binary32] [y : binary32])                binary32 (remainder x y)            #f (! :precision binary32 (remainder x y)) cost]
   ; Accelerators
-  [erfc.f32      ([x : binary32])                               binary32 (- 1 (erf x))              #f (! :precision binary32 (erfc x))        default-cost]
-  [expm1.f32     ([x : binary32])                               binary32 (- (exp x) 1)              #f (! :precision binary32 (expm1 x))       default-cost]
-  [log1p.f32     ([x : binary32])                               binary32 (log (+ 1 x))              #f (! :precision binary32 (log1p x))       default-cost]
-  [hypot.f32     ([x : binary32] [y : binary32])                binary32 (sqrt (+ (* x x) (* y y))) #f (! :precision binary32 (hypot x y))     default-cost]
-  [fma.f32       ([x : binary32] [y : binary32] [z : binary32]) binary32 (+ (* x y) z)              #f (! :precision binary32 (fma x y z))     default-cost]))
+  [erfc.f32      ([x : binary32])                               binary32 (- 1 (erf x))              #f (! :precision binary32 (erfc x))        cost]
+  [expm1.f32     ([x : binary32])                               binary32 (- (exp x) 1)              #f (! :precision binary32 (expm1 x))       cost]
+  [log1p.f32     ([x : binary32])                               binary32 (log (+ 1 x))              #f (! :precision binary32 (log1p x))       cost]
+  [hypot.f32     ([x : binary32] [y : binary32])                binary32 (sqrt (+ (* x x) (* y y))) #f (! :precision binary32 (hypot x y))     cost]
+  [fma.f32       ([x : binary32] [y : binary32] [z : binary32]) binary32 (+ (* x y) z)              #f (! :precision binary32 (fma x y z))     cost]))
  
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BINARY 64 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -155,7 +155,7 @@
                        #:repr->ordinal (unshift 63 flonum->ordinal)
                        #:total-bits 64
                        #:special-value? nan?
-                       #:cost default-cost))
+                       #:cost cost))
 
 (platform-register-representation! rival-platform binary64)
 
@@ -165,67 +165,67 @@
 (platform-register-implementations!
  rival-platform
  (; Constants
-  [PI.f64        ()                                             binary64 (PI)                       #f (! :precision binary64 (PI))            default-cost]
-  [E.f64         ()                                             binary64 (E)                        #f (! :precision binary64 (E))             default-cost]
-  [INFINITY.f64  ()                                             binary64 (INFINITY)                 #f (! :precision binary64 (INFINITY))      default-cost]
-  [NAN.f64       ()                                             binary64 (NAN)                      #f (! :precision binary64 (NAN))           default-cost]
+  [PI.f64        ()                                             binary64 (PI)                       #f (! :precision binary64 (PI))            cost]
+  [E.f64         ()                                             binary64 (E)                        #f (! :precision binary64 (E))             cost]
+  [INFINITY.f64  ()                                             binary64 (INFINITY)                 #f (! :precision binary64 (INFINITY))      cost]
+  [NAN.f64       ()                                             binary64 (NAN)                      #f (! :precision binary64 (NAN))           cost]
   ; Default operators
-  [neg.f64       ([x : binary64])                               binary64 (neg x)                    #f (! :precision binary64 (- x))           default-cost]
-  [+.f64         ([x : binary64] [y : binary64])                binary64 (+ x y)                    #f (! :precision binary64 (+ x y))         default-cost]
-  [-.f64         ([x : binary64] [y : binary64])                binary64 (- x y)                    #f (! :precision binary64 (- x y))         default-cost]
-  [*.f64         ([x : binary64] [y : binary64])                binary64 (* x y)                    #f (! :precision binary64 (* x y))         default-cost]
-  [/.f64         ([x : binary64] [y : binary64])                binary64 (/ x y)                    #f (! :precision binary64 (/ x y))         default-cost]
-  [==.f64        ([x : binary64] [y : binary64])                bool     (== x y)                   #f (== x y)                                default-cost]
-  [!=.f64        ([x : binary64] [y : binary64])                bool     (!= x y)                   #f (!= x y)                                default-cost]
-  [<.f64         ([x : binary64] [y : binary64])                bool     (< x y)                    #f (< x y)                                 default-cost]
-  [>.f64         ([x : binary64] [y : binary64])                bool     (> x y)                    #f (> x y)                                 default-cost]
-  [<=.f64        ([x : binary64] [y : binary64])                bool     (<= x y)                   #f (<= x y)                                default-cost]
-  [>=.f64        ([x : binary64] [y : binary64])                bool     (>= x y)                   #f (>= x y)                                default-cost]
+  [neg.f64       ([x : binary64])                               binary64 (neg x)                    #f (! :precision binary64 (- x))           cost]
+  [+.f64         ([x : binary64] [y : binary64])                binary64 (+ x y)                    #f (! :precision binary64 (+ x y))         cost]
+  [-.f64         ([x : binary64] [y : binary64])                binary64 (- x y)                    #f (! :precision binary64 (- x y))         cost]
+  [*.f64         ([x : binary64] [y : binary64])                binary64 (* x y)                    #f (! :precision binary64 (* x y))         cost]
+  [/.f64         ([x : binary64] [y : binary64])                binary64 (/ x y)                    #f (! :precision binary64 (/ x y))         cost]
+  [==.f64        ([x : binary64] [y : binary64])                bool     (== x y)                   #f (== x y)                                cost]
+  [!=.f64        ([x : binary64] [y : binary64])                bool     (!= x y)                   #f (!= x y)                                cost]
+  [<.f64         ([x : binary64] [y : binary64])                bool     (< x y)                    #f (< x y)                                 cost]
+  [>.f64         ([x : binary64] [y : binary64])                bool     (> x y)                    #f (> x y)                                 cost]
+  [<=.f64        ([x : binary64] [y : binary64])                bool     (<= x y)                   #f (<= x y)                                cost]
+  [>=.f64        ([x : binary64] [y : binary64])                bool     (>= x y)                   #f (>= x y)                                cost]
   ; Unary operators
-  [fabs.f64      ([x : binary64])                               binary64 (fabs x)                   #f (! :precision binary64 (fabs x))        default-cost]
-  [sin.f64       ([x : binary64])                               binary64 (sin x)                    #f (! :precision binary64 (sin x))         default-cost]
-  [cos.f64       ([x : binary64])                               binary64 (cos x)                    #f (! :precision binary64 (cos x))         default-cost]
-  [tan.f64       ([x : binary64])                               binary64 (tan x)                    #f (! :precision binary64 (tan x))         default-cost]
-  [sinh.f64      ([x : binary64])                               binary64 (sinh x)                   #f (! :precision binary64 (sinh x))        default-cost]
-  [cosh.f64      ([x : binary64])                               binary64 (cosh x)                   #f (! :precision binary64 (cosh x))        default-cost]
-  [acos.f64      ([x : binary64])                               binary64 (acos x)                   #f (! :precision binary64 (acos x))        default-cost]
-  [acosh.f64     ([x : binary64])                               binary64 (acosh x)                  #f (! :precision binary64 (acosh x))       default-cost]
-  [asin.f64      ([x : binary64])                               binary64 (asin x)                   #f (! :precision binary64 (asin x))        default-cost]
-  [asinh.f64     ([x : binary64])                               binary64 (asinh x)                  #f (! :precision binary64 (asinh x))       default-cost]
-  [atan.f64      ([x : binary64])                               binary64 (atan x)                   #f (! :precision binary64 (atan x))        default-cost]
-  [atanh.f64     ([x : binary64])                               binary64 (atanh x)                  #f (! :precision binary64 (atanh x))       default-cost]
-  [cbrt.f64      ([x : binary64])                               binary64 (cbrt x)                   #f (! :precision binary64 (cbrt x))        default-cost]
-  [ceil.f64      ([x : binary64])                               binary64 (ceil x)                   #f (! :precision binary64 (ceil x))        default-cost]
-  [erf.f64       ([x : binary64])                               binary64 (erf x)                    #f (! :precision binary64 (erf x))         default-cost]
-  [exp.f64       ([x : binary64])                               binary64 (exp x)                    #f (! :precision binary64 (exp x))         default-cost]
-  [exp2.f64      ([x : binary64])                               binary64 (exp2 x)                   #f (! :precision binary64 (exp2 x))        default-cost]
-  [floor.f64     ([x : binary64])                               binary64 (floor x)                  #f (! :precision binary64 (floor x))       default-cost]
-  [lgamma.f64    ([x : binary64])                               binary64 (lgamma x)                 #f (! :precision binary64 (lgamma x))      default-cost]
-  [log.f64       ([x : binary64])                               binary64 (log x)                    #f (! :precision binary64 (log x))         default-cost]
-  [log10.f64     ([x : binary64])                               binary64 (log10 x)                  #f (! :precision binary64 (log10 x))       default-cost]
-  [log2.f64      ([x : binary64])                               binary64 (log2 x)                   #f (! :precision binary64 (log2 x))        default-cost]
-  [logb.f64      ([x : binary64])                               binary64 (logb x)                   #f (! :precision binary64 (logb x))        default-cost]
-  [rint.f64      ([x : binary64])                               binary64 (rint x)                   #f (! :precision binary64 (rint x))        default-cost]
-  [round.f64     ([x : binary64])                               binary64 (round x)                  #f (! :precision binary64 (round x))       default-cost]
-  [sqrt.f64      ([x : binary64])                               binary64 (sqrt x)                   #f (! :precision binary64 (sqrt x))        default-cost]
-  [tanh.f64      ([x : binary64])                               binary64 (tanh x)                   #f (! :precision binary64 (tanh x))        default-cost]
-  [tgamma.f64    ([x : binary64])                               binary64 (tgamma x)                 #f (! :precision binary64 (tgamma x))      default-cost]
-  [trunc.f64     ([x : binary64])                               binary64 (trunc x)                  #f (! :precision binary64 (trunc x))       default-cost]
+  [fabs.f64      ([x : binary64])                               binary64 (fabs x)                   #f (! :precision binary64 (fabs x))        cost]
+  [sin.f64       ([x : binary64])                               binary64 (sin x)                    #f (! :precision binary64 (sin x))         cost]
+  [cos.f64       ([x : binary64])                               binary64 (cos x)                    #f (! :precision binary64 (cos x))         cost]
+  [tan.f64       ([x : binary64])                               binary64 (tan x)                    #f (! :precision binary64 (tan x))         cost]
+  [sinh.f64      ([x : binary64])                               binary64 (sinh x)                   #f (! :precision binary64 (sinh x))        cost]
+  [cosh.f64      ([x : binary64])                               binary64 (cosh x)                   #f (! :precision binary64 (cosh x))        cost]
+  [acos.f64      ([x : binary64])                               binary64 (acos x)                   #f (! :precision binary64 (acos x))        cost]
+  [acosh.f64     ([x : binary64])                               binary64 (acosh x)                  #f (! :precision binary64 (acosh x))       cost]
+  [asin.f64      ([x : binary64])                               binary64 (asin x)                   #f (! :precision binary64 (asin x))        cost]
+  [asinh.f64     ([x : binary64])                               binary64 (asinh x)                  #f (! :precision binary64 (asinh x))       cost]
+  [atan.f64      ([x : binary64])                               binary64 (atan x)                   #f (! :precision binary64 (atan x))        cost]
+  [atanh.f64     ([x : binary64])                               binary64 (atanh x)                  #f (! :precision binary64 (atanh x))       cost]
+  [cbrt.f64      ([x : binary64])                               binary64 (cbrt x)                   #f (! :precision binary64 (cbrt x))        cost]
+  [ceil.f64      ([x : binary64])                               binary64 (ceil x)                   #f (! :precision binary64 (ceil x))        cost]
+  [erf.f64       ([x : binary64])                               binary64 (erf x)                    #f (! :precision binary64 (erf x))         cost]
+  [exp.f64       ([x : binary64])                               binary64 (exp x)                    #f (! :precision binary64 (exp x))         cost]
+  [exp2.f64      ([x : binary64])                               binary64 (exp2 x)                   #f (! :precision binary64 (exp2 x))        cost]
+  [floor.f64     ([x : binary64])                               binary64 (floor x)                  #f (! :precision binary64 (floor x))       cost]
+  [lgamma.f64    ([x : binary64])                               binary64 (lgamma x)                 #f (! :precision binary64 (lgamma x))      cost]
+  [log.f64       ([x : binary64])                               binary64 (log x)                    #f (! :precision binary64 (log x))         cost]
+  [log10.f64     ([x : binary64])                               binary64 (log10 x)                  #f (! :precision binary64 (log10 x))       cost]
+  [log2.f64      ([x : binary64])                               binary64 (log2 x)                   #f (! :precision binary64 (log2 x))        cost]
+  [logb.f64      ([x : binary64])                               binary64 (logb x)                   #f (! :precision binary64 (logb x))        cost]
+  [rint.f64      ([x : binary64])                               binary64 (rint x)                   #f (! :precision binary64 (rint x))        cost]
+  [round.f64     ([x : binary64])                               binary64 (round x)                  #f (! :precision binary64 (round x))       cost]
+  [sqrt.f64      ([x : binary64])                               binary64 (sqrt x)                   #f (! :precision binary64 (sqrt x))        cost]
+  [tanh.f64      ([x : binary64])                               binary64 (tanh x)                   #f (! :precision binary64 (tanh x))        cost]
+  [tgamma.f64    ([x : binary64])                               binary64 (tgamma x)                 #f (! :precision binary64 (tgamma x))      cost]
+  [trunc.f64     ([x : binary64])                               binary64 (trunc x)                  #f (! :precision binary64 (trunc x))       cost]
   ; Binary operators
-  [pow.f64       ([x : binary64] [y : binary64])                binary64 (pow x y)                  #f (! :precision binary64 (pow x y))       default-cost]
-  [atan2.f64     ([x : binary64] [y : binary64])                binary64 (atan2 x y)                #f (! :precision binary64 (atan2 x y))     default-cost]
-  [copysign.f64  ([x : binary64] [y : binary64])                binary64 (copysign x y)             #f (! :precision binary64 (copysign x y))  default-cost]
-  [fdim.f64      ([x : binary64] [y : binary64])                binary64 (fdim x y)                 #f (! :precision binary64 (fdim x y))      default-cost]
-  [fmax.f64      ([x : binary64] [y : binary64])                binary64 (fmax x y)                 #f (! :precision binary64 (fmax x y))      default-cost]
-  [fmin.f64      ([x : binary64] [y : binary64])                binary64 (fmin x y)                 #f (! :precision binary64 (fmin x y))      default-cost]
-  [fmod.f64      ([x : binary64] [y : binary64])                binary64 (fmod x y)                 #f (! :precision binary64 (fmod x y))      default-cost]
-  [remainder.f64 ([x : binary64] [y : binary64])                binary64 (remainder x y)            #f (! :precision binary64 (remainder x y)) default-cost]
+  [pow.f64       ([x : binary64] [y : binary64])                binary64 (pow x y)                  #f (! :precision binary64 (pow x y))       cost]
+  [atan2.f64     ([x : binary64] [y : binary64])                binary64 (atan2 x y)                #f (! :precision binary64 (atan2 x y))     cost]
+  [copysign.f64  ([x : binary64] [y : binary64])                binary64 (copysign x y)             #f (! :precision binary64 (copysign x y))  cost]
+  [fdim.f64      ([x : binary64] [y : binary64])                binary64 (fdim x y)                 #f (! :precision binary64 (fdim x y))      cost]
+  [fmax.f64      ([x : binary64] [y : binary64])                binary64 (fmax x y)                 #f (! :precision binary64 (fmax x y))      cost]
+  [fmin.f64      ([x : binary64] [y : binary64])                binary64 (fmin x y)                 #f (! :precision binary64 (fmin x y))      cost]
+  [fmod.f64      ([x : binary64] [y : binary64])                binary64 (fmod x y)                 #f (! :precision binary64 (fmod x y))      cost]
+  [remainder.f64 ([x : binary64] [y : binary64])                binary64 (remainder x y)            #f (! :precision binary64 (remainder x y)) cost]
   ; Accelerators
-  [erfc.f64      ([x : binary64])                               binary64 (- 1 (erf x))              #f (! :precision binary64 (erfc x))        default-cost]
-  [expm1.f64     ([x : binary64])                               binary64 (- (exp x) 1)              #f (! :precision binary64 (expm1 x))       default-cost]
-  [log1p.f64     ([x : binary64])                               binary64 (log (+ 1 x))              #f (! :precision binary64 (log1p x))       default-cost]
-  [hypot.f64     ([x : binary64] [y : binary64])                binary64 (sqrt (+ (* x x) (* y y))) #f (! :precision binary64 (hypot x y))     default-cost]
-  [fma.f64       ([x : binary64] [y : binary64] [z : binary64]) binary64 (+ (* x y) z)              #f (! :precision binary64 (fma x y z))     default-cost]))
+  [erfc.f64      ([x : binary64])                               binary64 (- 1 (erf x))              #f (! :precision binary64 (erfc x))        cost]
+  [expm1.f64     ([x : binary64])                               binary64 (- (exp x) 1)              #f (! :precision binary64 (expm1 x))       cost]
+  [log1p.f64     ([x : binary64])                               binary64 (log (+ 1 x))              #f (! :precision binary64 (log1p x))       cost]
+  [hypot.f64     ([x : binary64] [y : binary64])                binary64 (sqrt (+ (* x x) (* y y))) #f (! :precision binary64 (hypot x y))     cost]
+  [fma.f64       ([x : binary64] [y : binary64] [z : binary64]) binary64 (+ (* x y) z)              #f (! :precision binary64 (fma x y z))     cost]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; REGISTER PLATFORM ;;;;;;;;;;;;;;;;;;;;;
 
