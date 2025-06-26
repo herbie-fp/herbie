@@ -4,10 +4,8 @@
          "../utils/errors.rkt"
          "../core/rules.rkt"
          "matcher.rkt"
-         "types.rkt" ; representation structure
-         (only-in (submod "types.rkt" internals) make-representation)
-         "syntax.rkt"
-         (submod "syntax.rkt" internals))
+         "types.rkt"
+         "syntax.rkt")
 
 (provide *active-platform*
          activate-platform!
@@ -31,17 +29,16 @@
           ; Cost model
           [platform-repr-cost (-> platform? any/c any/c)]
           [platform-node-cost-proc (-> platform? procedure?)]
-          [platform-cost-proc (-> platform? procedure?)]))
-
-(module+ internals
-  (provide make-empty-platform
-           platform-register-representation!
-           platform-register-implementation!
-           platform-register-implementations!
-           display-platform
-           register-platform!
-           make-operator-impl
-           make-representation))
+          [platform-cost-proc (-> platform? procedure?)])
+         ; Platform creation
+         make-empty-platform
+         platform-register-representation!
+         platform-register-implementation!
+         platform-register-implementations!
+         display-platform
+         register-platform!
+         make-operator-impl
+         make-representation)
 
 ;;; Platforms describe a set of representations, operator, and constants
 ;;; Herbie should use during its improvement loop. Platforms are just

@@ -138,7 +138,7 @@
 (module+ test
   (require rackunit)
   (require "load-plugin.rkt"
-           (submod "platform.rkt" internals))
+           "platform.rkt")
   (load-herbie-builtins)
 
   ;; Dummy representation registration

@@ -5,7 +5,7 @@
 ;; than Racket's implementations
 
 (require ffi/unsafe
-         (only-in (submod "../../syntax/syntax.rkt" internals) make-operator-impl))
+         "../../syntax/syntax.rkt")
 
 (provide make-libm
          make-libm-impl

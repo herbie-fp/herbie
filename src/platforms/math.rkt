@@ -8,7 +8,7 @@
          math/flonum
          "runtime/libm.rkt" ; libm wrapper in Racket
          "../utils/float.rkt" ; for shift/unshift
-         (submod "../syntax/platform.rkt" internals))
+         "../syntax/platform.rkt")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; EMPTY PLATFORM ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

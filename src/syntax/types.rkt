@@ -8,11 +8,9 @@
          (struct-out context)
          *context*
          context-extend
-         context-lookup)
-
-(module+ internals
-  (provide define-type
-           make-representation))
+         context-lookup
+         define-type
+         make-representation)
 
 ;; Types
 

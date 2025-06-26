@@ -8,7 +8,7 @@
          softposit-rkt
          "../utils/float.rkt"  ; for shift/unshift
          rival
-         (submod "../syntax/platform.rkt" internals))
+         "../syntax/platform.rkt")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; utils ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

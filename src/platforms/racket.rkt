@@ -8,7 +8,7 @@
          math/base
          math/special-functions
          "../utils/float.rkt" ; for shift/unshift
-         (submod "../syntax/platform.rkt" internals))
+         "../syntax/platform.rkt")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; EMPTY PLATFORM ;;;;;;;;;;;;;;;;;;;;;;;;
 

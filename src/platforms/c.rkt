@@ -8,7 +8,7 @@
          "runtime/float32.rkt" ; float representation helper functions
          "runtime/libm.rkt"    ; libm wrapper
          "../utils/float.rkt"  ; for shift/unshift
-         (submod "../syntax/platform.rkt" internals))
+         "../syntax/platform.rkt")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; EMPTY PLATFORM ;;;;;;;;;;;;;;;;;;;;;;;;
 

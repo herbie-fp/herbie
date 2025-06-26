@@ -6,8 +6,7 @@
          "../utils/errors.rkt"
          "../core/rival.rkt"
          "matcher.rkt"
-         "types.rkt" ; context + representation structure
-         (submod "types.rkt" internals))
+         "types.rkt")
 
 (provide (struct-out literal)
          (struct-out approx)
@@ -17,12 +16,10 @@
          all-operators ; return a list of operators names
          operators ; returns hash of operators
          *functions*
-         register-function!)
-
-(module+ internals
-  (provide make-operator-impl
-           (struct-out operator-impl) ; required by platform.rkt
-           (struct-out operator))) ; required by platform.rkt
+         register-function!
+         make-operator-impl
+         (struct-out operator-impl) ; required by platform.rkt
+         (struct-out operator)) ; required by platform.rkt
 
 (module+ test
   (require rackunit
