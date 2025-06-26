@@ -48,15 +48,12 @@
     (raise-syntax-error 'make-libm-impl why stx sub-stx))
 
   (define (repr->type repr)
-    (cond
-      [(identifier? repr)
-       (let ([sym (syntax-e repr)])
-         (cond
-           [(eq? sym 'binary64) #'double]
-           [(eq? sym 'binary32) #'float]
-           [(eq? sym 'integer) #'integer]
-           [else (oops! "unknown type" repr)]))]
-      [else (oops! "expected identifier" repr)]))
+    (let ([sym (syntax-e repr)])
+      (cond
+        [(eq? sym 'binary64) #'double]
+        [(eq? sym 'binary32) #'float]
+        [(eq? sym 'integer) #'integer]
+        [else (oops! "unknown type" repr)])))
 
   (syntax-case stx ()
     [(_ cname (op name itype ...) otype cost fields ...)
@@ -80,12 +77,12 @@
                      [cotype (repr->type #'otype)])
          #'(let* ([proc (make-libm (cname citype ... cotype))]
                   [impl (make-operator-impl (name [var : itype] ...)
-                                                otype
-                                                #:spec (op var ...)
-                                                #:fpcore (! :precision otype (op var ...))
-                                                #:fl proc
-                                                #:cost cost
-                                                fields ...)])
+                                            otype
+                                            #:spec (op var ...)
+                                            #:fpcore (! :precision otype (op var ...))
+                                            #:fl proc
+                                            #:cost cost
+                                            fields ...)])
              impl)))]))
 
 ; Define binary32 implementations with libm's fl

@@ -839,10 +839,10 @@
             [(? symbol?) (platform-repr-cost (*active-platform*) type)]
             [(list '$approx x y) 0]
             [(list 'if c x y)
-             (match (platform-impl-cost (*active-platform*) 'if)
+             (match (platform-if-cost (*active-platform*))
                [`(max ,n) n] ; Not quite right
                [`(sum ,n) n])]
-            [(list op args ...) (platform-impl-cost (*active-platform*) op)])
+            [(list op args ...) (impl-info op 'cost)])
           1))
     (values (string->symbol (format "~a.~a" n k))
             (hash 'op

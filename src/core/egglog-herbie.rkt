@@ -348,7 +348,7 @@
 
   ;; Add raw platform-impl-nodes
   (for ([impl (in-list (platform-impls pform))])
-    (set! raw-costs (cons (platform-impl-cost pform impl) raw-costs)))
+    (set! raw-costs (cons (impl-info impl 'cost) raw-costs)))
 
   (define min-cost (apply min raw-costs))
 
@@ -486,7 +486,7 @@
     `(,typed-name ,@(for/list ([i (in-range arity)])
                       'MTy)
                   :cost
-                  ,(normalize-cost (platform-impl-cost pform impl) min-cost))))
+                  ,(normalize-cost (impl-info impl 'cost) min-cost))))
 
 (define (typed-num-id repr-name)
   (string->symbol (string-append "Num" (symbol->string repr-name))))

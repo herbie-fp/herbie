@@ -14,18 +14,13 @@
          platform-lifting-rules
          platform-lowering-rules
          platform-copy
-
-         ; from types.rkt
-         repr-exists? ; moved here
-         get-representation ; moved here
-
-         ; from syntax.rkt
-         prog->spec ; moved here
-         impl-exists? ; moved here
-         variable? ; moved here
-         constant-operator? ; moved here
-         impl-info ; moved here
-
+         repr-exists?
+         get-representation
+         prog->spec
+         impl-exists?
+         variable?
+         constant-operator?
+         impl-info
          get-fpcore-impl
          ;; Platform API
          ;; Operator sets
@@ -36,7 +31,6 @@
           [platform-reprs (-> platform? (listof representation?))]
           [platform-impls (-> platform? (listof symbol?))]
           ; Cost model
-          [platform-impl-cost (-> platform? any/c any/c)]
           [platform-repr-cost (-> platform? any/c any/c)]
           [platform-node-cost-proc (-> platform? procedure?)]
           [platform-cost-proc (-> platform? procedure?)]))
@@ -48,7 +42,6 @@
            platform-register-implementations!
            display-platform
            register-platform!
-           ; from syntax.rkt + types.rkt
            make-operator-impl
            make-representation))
 
@@ -260,10 +253,6 @@
 (define (platform-reprs platform)
   (hash-values (platform-representations platform)))
 
-; Implementation cost in a platform.
-(define (platform-impl-cost platform impl)
-  (impl-info impl 'cost))
-
 ; Representation (terminal) cost in a platform.
 (define (platform-repr-cost platform repr)
   (define default-cost (platform-default-cost platform))
@@ -283,7 +272,7 @@
          [`(max ,n) (+ n cond-cost (max ift-cost iff-cost))]
          [`(sum ,n) (+ n cond-cost ift-cost iff-cost)]))]
     [(list impl args ...)
-     (define impl-cost (platform-impl-cost platform impl))
+     (define impl-cost (impl-info impl 'cost))
      (lambda itype-costs
        (unless (= (length itype-costs) (length args))
          (error 'platform-node-cost-proc "arity mismatch, expected ~a arguments" (length args)))
@@ -322,7 +311,6 @@
 
 ;; Synthesizes lifting rules for a platform platform.
 (define (platform-lifting-rules [platform (*active-platform*)])
-  ;; every impl maps to a spec
   (define impls (platform-impls platform))
   (for/list ([impl (in-list impls)])
     (hash-ref! (*lifting-rules*)
