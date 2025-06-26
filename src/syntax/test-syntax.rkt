@@ -37,7 +37,8 @@
                          #:fpcore (! :precision binary64 :math-library fast (sin x))
                          #:fl (lambda (x)
                                 (parameterize ([bf-precision 12])
-                                  (bigfloat->flonum (bfsin (bf x)))))))
+                                  (bigfloat->flonum (bfsin (bf x)))))
+                         #:cost 123))
 
     (define sin-proc (impl-info 'fast-sin.f64 'fl))
     (define sin-vals '((0.0 . 0.0) (1.0 . 0.841552734375) (-1.0 . -0.841552734375)))

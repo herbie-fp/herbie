@@ -154,7 +154,8 @@
                                                             #:ordinal->repr identity
                                                             #:repr->ordinal identity
                                                             #:total-bits 0
-                                                            #:special-value? (const #f)))
+                                                            #:special-value? (const #f)
+                                                            #:cost 1))
     (check-true (repr-exists? 'dummy))
 
     (define dummy (get-representation 'dummy))
