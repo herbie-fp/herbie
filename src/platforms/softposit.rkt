@@ -100,8 +100,7 @@
                        #:ordinal->repr (λ (x) (= x 0))
                        #:repr->ordinal (λ (x) (if x 1 0))
                        #:total-bits 1
-                       #:special-value? (const #f)
-                       #:cost cost))
+                       #:special-value? (const #f)))
 
 (define posit8
   (make-representation #:name 'posit8
@@ -112,8 +111,7 @@
                        #:ordinal->repr (shift 7 ordinal->posit8)
                        #:repr->ordinal (unshift 7 posit8->ordinal)
                        #:total-bits 8
-                       #:special-value? (curry posit8= (posit8-nar))
-                       #:cost cost))
+                       #:special-value? (curry posit8= (posit8-nar))))
 
 (define posit16
   (make-representation #:name 'posit16
@@ -124,8 +122,7 @@
                        #:ordinal->repr (shift 15 ordinal->posit16)
                        #:repr->ordinal (unshift 15 posit16->ordinal)
                        #:total-bits 16
-                       #:special-value? (curry posit16= (posit16-nar))
-                       #:cost cost))
+                       #:special-value? (curry posit16= (posit16-nar))))
 
 (define posit32
   (make-representation #:name 'posit32
@@ -136,8 +133,7 @@
                        #:ordinal->repr (shift 31 ordinal->posit32)
                        #:repr->ordinal (unshift 31 posit32->ordinal)
                        #:total-bits 32
-                       #:special-value? (curry posit32= (posit32-nar))
-                       #:cost cost))
+                       #:special-value? (curry posit32= (posit32-nar))))
 
 (define quire8
   (make-representation #:name 'quire8
@@ -148,8 +144,7 @@
                        #:ordinal->repr (compose double->quire8 ordinal->flonum)
                        #:repr->ordinal (compose flonum->ordinal quire8->double)
                        #:total-bits 64
-                       #:special-value? (const #f)
-                       #:cost cost))
+                       #:special-value? (const #f)))
 
 (define quire16
   (make-representation #:name 'quire16
@@ -160,8 +155,7 @@
                        #:ordinal->repr (compose double->quire16 ordinal->flonum)
                        #:repr->ordinal (compose flonum->ordinal quire16->double)
                        #:total-bits 64
-                       #:special-value? (const #f)
-                       #:cost cost))
+                       #:special-value? (const #f)))
 
 (define quire32
   (make-representation #:name 'quire32
@@ -172,8 +166,7 @@
                        #:ordinal->repr (compose double->quire32 ordinal->flonum)
                        #:repr->ordinal (compose flonum->ordinal quire32->double)
                        #:total-bits 64
-                       #:special-value? (const #f)
-                       #:cost cost))
+                       #:special-value? (const #f)))
 
 ; Binary64 is needed for casting from double to softposit formats
 (define binary64
@@ -185,17 +178,16 @@
                        #:ordinal->repr (shift 63 ordinal->flonum)
                        #:repr->ordinal (unshift 63 flonum->ordinal)
                        #:total-bits 64
-                       #:special-value? nan?
-                       #:cost cost))
+                       #:special-value? nan?))
 
-(platform-register-representation! softposit-platform bool)
-(platform-register-representation! softposit-platform posit8)
-(platform-register-representation! softposit-platform posit16)
-(platform-register-representation! softposit-platform posit32)
-(platform-register-representation! softposit-platform quire8)
-(platform-register-representation! softposit-platform quire16)
-(platform-register-representation! softposit-platform quire32)
-(platform-register-representation! softposit-platform binary64)
+(platform-register-representation! softposit-platform #:repr bool     #:cost cost)
+(platform-register-representation! softposit-platform #:repr posit8   #:cost cost)
+(platform-register-representation! softposit-platform #:repr posit16  #:cost cost)
+(platform-register-representation! softposit-platform #:repr posit32  #:cost cost)
+(platform-register-representation! softposit-platform #:repr quire8   #:cost cost)
+(platform-register-representation! softposit-platform #:repr quire16  #:cost cost)
+(platform-register-representation! softposit-platform #:repr quire32  #:cost cost)
+(platform-register-representation! softposit-platform #:repr binary64 #:cost cost)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; OPERATORS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

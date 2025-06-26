@@ -50,7 +50,7 @@
 ;;;
 ;;; A small API is provided for platforms for querying the supported
 ;;; operators, operator implementations, and representation conversions.
-(struct platform (name if-cost representations implementations)
+(struct platform (name if-cost representations implementations representation-costs)
   #:name $platform
   #:constructor-name create-platform
   #:methods gen:custom-write
@@ -92,29 +92,26 @@
 
 (define (make-empty-platform name #:if-cost [if-cost #f])
   (define reprs (make-hash))
+  (define repr-costs (make-hash))
   (define impls (make-hash))
   (when (hash-has-key? platforms name)
     (error 'make-empty-platform "platform with name ~a is already registered" name))
   (unless if-cost
     (error 'make-empty-platform "Platform ~a is missing cost for if function" name))
   (set! if-cost (platform/parse-if-cost if-cost))
-  (create-platform name if-cost reprs impls))
+  (create-platform name if-cost reprs impls repr-costs))
 
-(define (platform-register-representation! platform repr)
+(define (platform-register-representation! platform #:repr repr #:cost cost)
   (define reprs (platform-representations platform))
-  ; Cost check
-  (define repr-cost (representation-cost repr))
-  (unless repr-cost
-    (raise-herbie-error "Missing cost for representation ~a in platform ~a"
-                        (representation-name repr)
-                        (platform-name platform)))
+  (define repr-costs (platform-representation-costs platform))
   ; Duplicate check
   (when (hash-has-key? reprs (representation-name repr))
     (raise-herbie-error "Duplicate representation ~a in platform ~a"
                         (representation-name repr)
                         (platform-name platform)))
-  ; Update table
-  (hash-set! reprs (representation-name repr) repr))
+  ; Update tables
+  (hash-set! reprs (representation-name repr) repr)
+  (hash-set! repr-costs (representation-name repr) cost))
 
 (define (platform-register-implementation! platform impl)
   (unless impl
@@ -232,7 +229,8 @@
 
 ; Representation (terminal) cost in a platform.
 (define (platform-repr-cost platform repr)
-  (representation-cost repr))
+  (define repr-costs (platform-representation-costs platform))
+  (hash-ref repr-costs (representation-name repr)))
 
 ; Cost model of a single node by a platform.
 ; Returns a procedure that must be called with the costs of the children.
@@ -285,11 +283,11 @@
   (values vars spec (cons impl vars)))
 
 ;; Synthesizes lifting rules for a platform platform.
-(define (platform-lifting-rules [platform (*active-platform*)])
-  (define impls (platform-impls platform))
+(define (platform-lifting-rules [pform (*active-platform*)])
+  (define impls (platform-impls pform))
   (for/list ([impl (in-list impls)])
     (hash-ref! (*lifting-rules*)
-               (cons impl (platform-name platform))
+               (cons impl pform)
                (lambda ()
                  (define name (sym-append 'lift- impl))
                  (define itypes (impl-info impl 'itype))
@@ -298,12 +296,12 @@
                  (rule name impl-expr spec-expr (map cons vars itypes) otype '(lifting))))))
 
 ;; Synthesizes lowering rules for a given platform.
-(define (platform-lowering-rules [platform (*active-platform*)])
-  (define impls (platform-impls platform))
+(define (platform-lowering-rules [pform (*active-platform*)])
+  (define impls (platform-impls pform))
   (append* (for/list ([impl (in-list impls)])
              (hash-ref!
               (*lowering-rules*)
-              (cons impl (platform-name platform))
+              (cons impl pform)
               (lambda ()
                 (define name (sym-append 'lower- impl))
                 (define-values (vars spec-expr impl-expr) (impl->rule-parts impl))
@@ -382,6 +380,7 @@
 (define (display-platform platform)
   (define impls (platform-implementations platform))
   (define reprs (platform-representations platform))
+  (define repr-costs (platform-representation-costs platform))
   (define if-cost (platform-if-cost platform))
 
   (printf "Platform: ~a;\n          if-cost: ~a;\n\n" (platform-name platform) if-cost)
@@ -390,7 +389,8 @@
   (define reprs-data
     (for/list ([(_ repr) (in-hash reprs)]
                [n (in-naturals)])
-      (match-define (representation name type _ _ _ _ _ total-bits _ cost) repr)
+      (match-define (representation name type _ _ _ _ _ total-bits _) repr)
+      (define cost (hash-ref repr-costs name))
       (list n name type total-bits cost)))
   (write-table reprs-data (list "idx" "name" "type" "#bits" "cost"))
 

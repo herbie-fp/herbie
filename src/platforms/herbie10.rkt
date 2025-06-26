@@ -27,10 +27,9 @@
                        #:ordinal->repr (λ (x) (= x 0))
                        #:repr->ordinal (λ (x) (if x 1 0))
                        #:total-bits 1
-                       #:special-value? (const #f)
-                       #:cost 0))
+                       #:special-value? (const #f)))
 
-(platform-register-representation! herbie10-platform bool)
+(platform-register-representation! herbie10-platform #:repr bool #:cost 0)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; constants ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -65,10 +64,9 @@
                        #:ordinal->repr (shift 31 ordinal->float32)
                        #:repr->ordinal (unshift 31 float32->ordinal)
                        #:total-bits 32
-                       #:special-value? nan?
-                       #:cost 0))
+                       #:special-value? nan?))
 
-(platform-register-representation! herbie10-platform binary32)
+(platform-register-representation! herbie10-platform #:repr binary32 #:cost 0)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; constants ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -174,10 +172,9 @@
                        #:ordinal->repr (shift 63 ordinal->flonum)
                        #:repr->ordinal (unshift 63 flonum->ordinal)
                        #:total-bits 64
-                       #:special-value? nan?
-                       #:cost 0))
+                       #:special-value? nan?))
 
-(platform-register-representation! herbie10-platform binary64)
+(platform-register-representation! herbie10-platform #:repr binary64 #:cost 0)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; constants ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

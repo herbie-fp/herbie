@@ -27,7 +27,7 @@
 ;; Representations
 
 (struct representation
-        (name type repr? bf->repr repr->bf ordinal->repr repr->ordinal total-bits special-value? cost)
+        (name type repr? bf->repr repr->bf ordinal->repr repr->ordinal total-bits special-value?)
   #:transparent
   #:methods gen:custom-write
   [(define (write-proc repr port mode)
@@ -47,8 +47,7 @@
                              #:ordinal->repr ordinal->repr
                              #:repr->ordinal repr->ordinal
                              #:total-bits total-bits
-                             #:special-value? special-value?
-                             #:cost [cost #f])
+                             #:special-value? special-value?)
   (unless (type-name? type)
     (raise-herbie-error "Tried to register a representation for type ~a: not found" type))
   (representation name
@@ -59,8 +58,7 @@
                   ordinal->repr
                   repr->ordinal
                   total-bits
-                  special-value?
-                  cost))
+                  special-value?))
 
 ;; Contexts
 

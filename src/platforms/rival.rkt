@@ -29,10 +29,9 @@
                        #:ordinal->repr (λ (x) (= x 0))
                        #:repr->ordinal (λ (x) (if x 1 0))
                        #:total-bits 1
-                       #:special-value? (const #f)
-                       #:cost cost))
+                       #:special-value? (const #f)))
 
-(platform-register-representation! rival-platform bool)
+(platform-register-representation! rival-platform #:repr bool #:cost cost)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; constants ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -67,10 +66,9 @@
                        #:ordinal->repr (shift 31 ordinal->float32)
                        #:repr->ordinal (unshift 31 float32->ordinal)
                        #:total-bits 32
-                       #:special-value? nan?
-                       #:cost cost))
+                       #:special-value? nan?))
 
-(platform-register-representation! rival-platform binary32)
+(platform-register-representation! rival-platform #:repr binary32 #:cost cost)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BINARY 32 TABLE ;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -154,10 +152,9 @@
                        #:ordinal->repr (shift 63 ordinal->flonum)
                        #:repr->ordinal (unshift 63 flonum->ordinal)
                        #:total-bits 64
-                       #:special-value? nan?
-                       #:cost cost))
+                       #:special-value? nan?))
 
-(platform-register-representation! rival-platform binary64)
+(platform-register-representation! rival-platform #:repr binary64 #:cost cost)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BINARY 64 TABLE ;;;;;;;;;;;;;;;;;;;;;;;
 

@@ -32,10 +32,9 @@
                        #:ordinal->repr (λ (x) (= x 0))
                        #:repr->ordinal (λ (x) (if x 1 0))
                        #:total-bits 1
-                       #:special-value? (const #f)
-                       #:cost boolean-move-cost))
+                       #:special-value? (const #f)))
 
-(platform-register-representation! c-platform bool)
+(platform-register-representation! c-platform #:repr bool #:cost boolean-move-cost)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; constants ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -70,10 +69,9 @@
                        #:ordinal->repr (shift 31 ordinal->float32)
                        #:repr->ordinal (unshift 31 float32->ordinal)
                        #:total-bits 32
-                       #:special-value? nan?
-                       #:cost 32bit-move-cost))
+                       #:special-value? nan?))
 
-(platform-register-representation! c-platform binary32)
+(platform-register-representation! c-platform #:repr binary32 #:cost 32bit-move-cost)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; constants ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -178,10 +176,9 @@
                        #:ordinal->repr (shift 63 ordinal->flonum)
                        #:repr->ordinal (unshift 63 flonum->ordinal)
                        #:total-bits 64
-                       #:special-value? nan?
-                       #:cost 64bit-move-cost))
+                       #:special-value? nan?))
 
-(platform-register-representation! c-platform binary64)
+(platform-register-representation! c-platform #:repr binary64 #:cost 64bit-move-cost)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; constants ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
