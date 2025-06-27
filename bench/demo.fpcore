@@ -65,5 +65,5 @@
 (FPCore (a b c)
   :name "Q^3 (Cubic Equation Discriminant Part)"
   :precision binary64
-  :pre (and (<= -1e9 a 1e9) (<= -1e9 c 1e9) (<= -1e9 b 1e9))
+  :pre (and (<= -1e9 a 1e9) (<= -1e9 b 1e9) (<= -1e9 c 1e9))
   (pow (/ (- (* 3.0 (* a c)) (pow b 2.0)) (* 9.0 (pow a 2.0))) 3.0))
