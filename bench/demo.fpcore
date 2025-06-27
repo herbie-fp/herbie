@@ -59,7 +59,7 @@
 (FPCore (a b C)
   :name "Law of Cosines"
   :precision binary64
-  :pre (and (<= 0 a 1e9) (<= 0 b 1e9) (<= 0 C 3.14159265358979323))
+  :pre (and (<= 0 a 1e9) (<= 0 b 1e9) (<= 0 C PI))
   (sqrt (- (+ (pow a 2.0) (pow b 2.0)) (* (* (* 2.0 a) b) (cos C)))))
 
 (FPCore (a c b)
