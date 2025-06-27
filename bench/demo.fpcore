@@ -49,3 +49,21 @@
       (- (+ p 1) (/ (* p p) (- p 1)))
       (- p (fma (/ p (- p 1)) p -1)))
   (- (+ p 1.0) (/ (pow (fmin p 0.0) 2.0) (- (fmin p 0.0) 1.0))))
+
+(FPCore (x)
+  :name "(x - 1) to (x - 20)"
+  :precision binary64
+  :pre (<= 1 x 20)
+  (* (* (* (* (* (* (* (* (* (* (* (* (* (* (* (* (* (* (* (- x 1.0) (- x 2.0)) (- x 3.0)) (- x 4.0)) (- x 5.0)) (- x 6.0)) (- x 7.0)) (- x 8.0)) (- x 9.0)) (- x 10.0)) (- x 11.0)) (- x 12.0)) (- x 13.0)) (- x 14.0)) (- x 15.0)) (- x 16.0)) (- x 17.0)) (- x 18.0)) (- x 19.0)) (- x 20.0)))
+
+(FPCore (a b C)
+  :name "Law of Cosines"
+  :precision binary64
+  :pre (and (<= 0 a 1e9) (<= 0 b 1e9) (<= 0 C PI))
+  (sqrt (- (+ (pow a 2.0) (pow b 2.0)) (* (* (* 2.0 a) b) (cos C)))))
+
+(FPCore (a b c)
+  :name "Q^3 (Cubic Equation Discriminant Part)"
+  :precision binary64
+  :pre (and (<= -1e9 a 1e9) (<= -1e9 b 1e9) (<= -1e9 c 1e9))
+  (pow (/ (- (* 3.0 (* a c)) (pow b 2.0)) (* 9.0 (pow a 2.0))) 3.0))
