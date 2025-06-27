@@ -62,7 +62,7 @@
   :pre (and (<= 0 a 1e9) (<= 0 b 1e9) (<= 0 C PI))
   (sqrt (- (+ (pow a 2.0) (pow b 2.0)) (* (* (* 2.0 a) b) (cos C)))))
 
-(FPCore (a c b)
+(FPCore (a b c)
   :name "Q^3 (Cubic Equation Discriminant Part)"
   :precision binary64
   :pre (and (<= -1e9 a 1e9) (<= -1e9 c 1e9) (<= -1e9 b 1e9))
