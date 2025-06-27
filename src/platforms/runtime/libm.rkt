@@ -56,7 +56,7 @@
         [else (oops! "unknown type" repr)])))
 
   (syntax-case stx ()
-    [(_ cname (op name itype ...) otype cost fields ...)
+    [(_ cname (op name itype ...) otype cost)
      (let ([op #'op]
            [name #'name]
            [cname #'cname]
@@ -81,8 +81,7 @@
                                             #:spec (op var ...)
                                             #:fpcore (! :precision otype (op var ...))
                                             #:fl proc
-                                            #:cost cost
-                                            fields ...)])
+                                            #:cost cost)])
              impl)))]))
 
 ; Define binary32 implementations with libm's fl
