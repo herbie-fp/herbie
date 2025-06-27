@@ -37,7 +37,7 @@
          format-percent
          write-html
          program->fpcore
-         program->tex
+         fpcore->tex
          fpcore->string
          js-tex-include
          doc-url
@@ -159,10 +159,9 @@
                                                       ("Wolfram" "wl" ,core->wls)
                                                       ("TeX" "tex" ,(λ (c i) (core->tex c)))))
 
-(define (program->tex prog ctx #:loc [loc #f])
-  (define prog* (program->fpcore prog ctx))
-  (if (supported-by-lang? prog* "tex")
-      (core->tex prog* #:loc (and loc (cons 2 loc)) #:color "blue")
+(define (fpcore->tex fpcore #:loc [loc #f])
+  (if (supported-by-lang? fpcore "tex")
+      (core->tex fpcore #:loc (and loc (cons 2 loc)) #:color "blue")
       "ERROR"))
 
 (define (render-program expr ctx #:ident [identifier #f] #:pre [precondition '(TRUE)])

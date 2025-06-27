@@ -86,10 +86,9 @@
             "Percentage Accurate"
             (format-accuracy (errors-score start-error) repr #:unit "%")
             (format-accuracy (errors-score end-error) repr #:unit "%")
-            #:title
-            (format "Minimum Accuracy: ~a → ~a"
-                    (format-accuracy (apply max (map ulps->bits start-error)) repr #:unit "%")
-                    (format-accuracy (apply max (map ulps->bits end-error)) repr #:unit "%")))
+            #:title (format "Minimum Accuracy: ~a → ~a"
+                            (format-accuracy (apply max (map ulps->bits start-error)) repr #:unit "%")
+                            (format-accuracy (apply max (map ulps->bits end-error)) repr #:unit "%")))
           ,(render-large "Time" (format-time time))
           ,(render-large "Alternatives" (~a (length end-exprs)))
           ,(if (*pareto-mode*)
@@ -175,17 +174,16 @@
          (define target-cost (hash-ref target 'cost))
          (define target-expr (read (open-input-string (hash-ref target 'expr))))
          (let-values ([(dropdown body) (render-program target-expr ctx #:ident identifier)])
-           `(section
-             ([id ,(format "target~a" i)] (class "programs"))
-             (h2 "Developer Target "
-                 ,(~a i)
-                 ": "
-                 (span ((class "subhead"))
-                       (data ,(format-accuracy (errors-score target-error) repr #:unit "%"))
-                       " accurate, "
-                       (data ,(~r (/ start-cost target-cost) #:precision '(= 1)) "×")
-                       " speedup")
-                 ,dropdown
-                 ,(render-help "report.html#target"))
-             ,body)))
+           `(section ([id ,(format "target~a" i)] (class "programs"))
+                     (h2 "Developer Target "
+                         ,(~a i)
+                         ": "
+                         (span ((class "subhead"))
+                               (data ,(format-accuracy (errors-score target-error) repr #:unit "%"))
+                               " accurate, "
+                               (data ,(~r (/ start-cost target-cost) #:precision '(= 1)) "×")
+                               " speedup")
+                         ,dropdown
+                         ,(render-help "report.html#target"))
+                     ,body)))
      ,(render-reproduction test))))

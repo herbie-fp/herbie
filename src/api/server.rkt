@@ -478,7 +478,8 @@
   (match-define (alt-analysis alt test-errors) analysis)
   (define cost (alt-cost alt repr))
 
-  (define history (render-history alt pcontext (test-context test) errcache))
+  (define history-json (render-json alt pcontext (test-context test) errcache))
+  (define history (render-history history-json (test-context test)))
 
   (define vars (test-vars test))
   (define splitpoints
