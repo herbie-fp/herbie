@@ -3,15 +3,16 @@
 (require (only-in xml write-xexpr xexpr?)
          (only-in fpbench core->tex *expr-cse-able?* [core-common-subexpr-elim core-cse]))
 
-(require "../utils/common.rkt"
-         "../core/points.rkt"
+(require "../utils/alternative.rkt"
+         "../utils/common.rkt"
          "../utils/float.rkt"
-         "../utils/alternative.rkt"
-         "../syntax/types.rkt"
          "../syntax/read.rkt"
+         "../syntax/types.rkt"
          "../core/bsearch.rkt"
+         "../core/points.rkt"
          "../api/sandbox.rkt"
-         "common.rkt")
+         "common.rkt"
+         "history.rkt")
 
 (provide make-graph
          dummy-graph)
@@ -50,7 +51,7 @@
   (define end-costs (map (curryr hash-ref 'cost) end))
   (define end-histories
     (for/list ([end-analysis (in-list end)])
-      (read (open-input-string (hash-ref end-analysis 'history)))))
+      (hash-ref end-analysis 'history)))
 
   ; Speedup is going to be #f if cost is 0 for each alternative
   (define speedup
@@ -167,7 +168,8 @@
                        ,dropdown
                        ,(render-help "report.html#alternatives"))
                    ,body
-                   (details (summary "Derivation") (ol ((class "history")) ,@history))))
+                   (details (summary "Derivation") (ol ((class "history"))
+                                                       ,@(render-history history ctx)))))
      ,@(for/list ([i (in-naturals 1)]
                   [target (in-list targets)])
          (define target-error (hash-ref target 'errors))
