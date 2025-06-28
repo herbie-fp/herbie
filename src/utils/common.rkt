@@ -15,8 +15,6 @@
          sym-append
          format-time
          format-bits
-         format-accuracy
-         format-cost
          web-resource
          prop-dict/c
          props->dict
@@ -124,24 +122,6 @@
     [(not r) ""]
     [(and (positive? r) sign) (format "+~a~a" (/ (round (* r 10)) 10) unit)]
     [else (format "~a~a" (/ (round (* r 10)) 10) unit)]))
-
-(define (format-accuracy numerator denominator #:sign [sign #f] #:unit [unit ""])
-  (cond
-    [(and numerator (positive? denominator))
-     (define percent (~r (- 100 (* (/ numerator denominator) 100)) #:precision '(= 1)))
-     (if (and (positive? numerator) sign)
-         (format "+~a~a" percent unit)
-         (format "~a~a" percent unit))]
-    [else ""]))
-
-(define (format-cost r repr #:sign [sign #f])
-  (cond
-    [(not r) ""]
-    [else
-     (define val (~r (/ (round (* r 10)) 10) #:precision 2))
-     (cond
-       [(and (positive? r) sign) (format "+~a" val)]
-       [else (format "~a" val)])]))
 
 (define-runtime-path web-resource-path "../reports/resources/")
 

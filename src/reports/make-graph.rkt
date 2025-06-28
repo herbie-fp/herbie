@@ -3,15 +3,16 @@
 (require (only-in xml write-xexpr xexpr?)
          (only-in fpbench core->tex *expr-cse-able?* [core-common-subexpr-elim core-cse]))
 
-(require "../utils/common.rkt"
-         "../core/points.rkt"
+(require "../utils/alternative.rkt"
+         "../utils/common.rkt"
          "../utils/float.rkt"
-         "../utils/alternative.rkt"
-         "../syntax/types.rkt"
          "../syntax/read.rkt"
+         "../syntax/types.rkt"
          "../core/bsearch.rkt"
+         "../core/points.rkt"
          "../api/sandbox.rkt"
-         "common.rkt")
+         "common.rkt"
+         "history.rkt")
 
 (provide make-graph
          dummy-graph)
@@ -33,7 +34,6 @@
   (define time (hash-ref result-hash 'time))
   (define warnings (hash-ref result-hash 'warnings))
   (define repr (test-output-repr test))
-  (define repr-bits (representation-total-bits repr))
   (define ctx (test-context test))
   (define identifier (test-identifier test))
 
@@ -51,7 +51,7 @@
   (define end-costs (map (curryr hash-ref 'cost) end))
   (define end-histories
     (for/list ([end-analysis (in-list end)])
-      (read (open-input-string (hash-ref end-analysis 'history)))))
+      (hash-ref end-analysis 'history)))
 
   ; Speedup is going to be #f if cost is 0 for each alternative
   (define speedup
@@ -85,12 +85,11 @@
      (div ([id "large"])
           ,(render-comparison
             "Percentage Accurate"
-            (format-accuracy (errors-score start-error) repr-bits #:unit "%")
-            (format-accuracy (errors-score end-error) repr-bits #:unit "%")
-            #:title
-            (format "Minimum Accuracy: ~a → ~a"
-                    (format-accuracy (apply max (map ulps->bits start-error)) repr-bits #:unit "%")
-                    (format-accuracy (apply max (map ulps->bits end-error)) repr-bits #:unit "%")))
+            (format-accuracy (errors-score start-error) repr #:unit "%")
+            (format-accuracy (errors-score end-error) repr #:unit "%")
+            #:title (format "Minimum Accuracy: ~a → ~a"
+                            (format-accuracy (apply max (map ulps->bits start-error)) repr #:unit "%")
+                            (format-accuracy (apply max (map ulps->bits end-error)) repr #:unit "%")))
           ,(render-large "Time" (format-time time))
           ,(render-large "Alternatives" (~a (length end-exprs)))
           ,(if (*pareto-mode*)
@@ -139,7 +138,7 @@
                   (h2 "Initial Program"
                       ": "
                       (span ((class "subhead"))
-                            (data ,(format-accuracy (errors-score start-error) repr-bits #:unit "%"))
+                            (data ,(format-accuracy (errors-score start-error) repr #:unit "%"))
                             " accurate, "
                             (data "1.0×")
                             " speedup")
@@ -159,7 +158,7 @@
                        ,(~a alt-number)
                        ": "
                        (span ((class "subhead"))
-                             (data ,(format-accuracy (errors-score errs) repr-bits #:unit "%"))
+                             (data ,(format-accuracy (errors-score errs) repr #:unit "%"))
                              " accurate, "
                              (data ,(if (zero? cost)
                                         "N/A"
@@ -169,24 +168,24 @@
                        ,dropdown
                        ,(render-help "report.html#alternatives"))
                    ,body
-                   (details (summary "Derivation") (ol ((class "history")) ,@history))))
+                   (details (summary "Derivation")
+                            (ol ((class "history")) ,@(render-history history ctx)))))
      ,@(for/list ([i (in-naturals 1)]
                   [target (in-list targets)])
          (define target-error (hash-ref target 'errors))
          (define target-cost (hash-ref target 'cost))
          (define target-expr (read (open-input-string (hash-ref target 'expr))))
          (let-values ([(dropdown body) (render-program target-expr ctx #:ident identifier)])
-           `(section
-             ([id ,(format "target~a" i)] (class "programs"))
-             (h2 "Developer Target "
-                 ,(~a i)
-                 ": "
-                 (span ((class "subhead"))
-                       (data ,(format-accuracy (errors-score target-error) repr-bits #:unit "%"))
-                       " accurate, "
-                       (data ,(~r (/ start-cost target-cost) #:precision '(= 1)) "×")
-                       " speedup")
-                 ,dropdown
-                 ,(render-help "report.html#target"))
-             ,body)))
+           `(section ([id ,(format "target~a" i)] (class "programs"))
+                     (h2 "Developer Target "
+                         ,(~a i)
+                         ": "
+                         (span ((class "subhead"))
+                               (data ,(format-accuracy (errors-score target-error) repr #:unit "%"))
+                               " accurate, "
+                               (data ,(~r (/ start-cost target-cost) #:precision '(= 1)) "×")
+                               " speedup")
+                         ,dropdown
+                         ,(render-help "report.html#target"))
+                     ,body)))
      ,(render-reproduction test))))

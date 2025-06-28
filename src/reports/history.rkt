@@ -55,21 +55,8 @@
 
 (define (altn-errors altn pcontext ctx errcache mask)
   (define repr (context-repr ctx))
-  (define repr-bits (representation-total-bits repr))
   (define err (errors-score-masked (hash-ref errcache (alt-expr altn)) mask))
-  (format-accuracy err repr-bits #:unit "%"))
-
-(define (expr->fpcore expr ctx #:ident [ident #f])
-  (list 'FPCore
-        (context-vars ctx)
-        (let loop ([expr expr])
-          (match expr
-            [(? symbol?) expr]
-            [(? number?) expr]
-            [(? literal?) (literal-value expr)]
-            [(approx spec impl) (loop impl)]
-            [(hole precision spec) (loop spec)]
-            [(list op args ...) (cons op (map loop args))]))))
+  (format-accuracy err repr #:unit "%"))
 
 (define (mixed->fpcore expr ctx)
   (define expr*
@@ -123,65 +110,49 @@
   (make-list (pcontext-length pcontext) #f))
 
 ;; HTML renderer for derivations
-(define (render-history altn pcontext ctx errcache [mask (make-mask pcontext)])
-  (match altn
-    [(alt prog 'start (list) _)
-     (define err (altn-errors altn pcontext ctx errcache mask))
+(define (render-history json ctx)
+  (define err
+    (match (hash-ref json 'error)
+      [(? number? n) (format-accuracy n (context-repr ctx) #:unit "%")]
+      [other other]))
+  (define prog (read (open-input-string (hash-ref json 'program))))
+  (match (hash-ref json 'type)
+    ["start"
      (list `(li (p "Initial program " (span ((class "error")) ,err))
-                (div ((class "math")) "\\[" ,(program->tex prog ctx) "\\]")))]
+                (div ((class "math")) "\\[" ,(fpcore->tex prog) "\\]")))]
 
-    [(alt prog 'add-preprocessing `(,prev) _)
-     ;; TODO message to user is? proof later
-     `(,@(render-history prev pcontext ctx errcache mask) (li "Add Preprocessing"))]
+    ["add-preprocessing" `(,@(render-history (hash-ref json 'prev) ctx) (li "Add Preprocessing"))]
 
-    [(alt _ `(regimes ,splitpoints) prevs _)
-     (define intervals
-       (for/list ([start-sp (cons (sp -1 -1 #f) splitpoints)]
-                  [end-sp splitpoints])
-         (interval (sp-cidx end-sp) (sp-point start-sp) (sp-point end-sp) (sp-bexpr end-sp))))
-     (define repr (context-repr ctx))
-
+    ["regimes"
+     (define prevs (hash-ref json 'prevs))
      `((li ((class "event")) "Split input into " ,(~a (length prevs)) " regimes")
        (li ,@(apply append
-                    (for/list ([entry prevs]
-                               [idx (in-naturals)]
-                               [new-mask (regimes-pcontext-masks pcontext splitpoints prevs ctx)])
-                      (define mask* (map and-fn mask new-mask))
-                      (define entry-ivals
-                        (filter (λ (intrvl) (= (interval-alt-idx intrvl) idx)) intervals))
-                      (define condition
-                        (string-join (map (curryr interval->string repr) entry-ivals) " or "))
-                      `((h2 (code "if " (span ((class "condition")) ,condition)))
-                        (ol ,@(render-history entry pcontext ctx errcache mask*))))))
+                    (for/list ([entry (in-list prevs)]
+                               [condition (in-list (hash-ref json 'conditions))])
+                      `((h2 (code "if " (span ((class "condition")) ,(string-join condition " or "))))
+                        (ol ,@(render-history entry ctx))))))
        (li ((class "event")) "Recombined " ,(~a (length prevs)) " regimes into one program."))]
 
-    [(alt prog `(taylor ,loc ,pt ,var) `(,prev) _)
-     (define core (mixed->fpcore prog ctx))
-     `(,@(render-history prev pcontext ctx errcache mask)
-       (li (p "Taylor expanded in " ,(~a var) " around " ,(~a pt))
-           (div ((class "math"))
-                "\\[\\leadsto "
-                ,(core->tex core #:loc (and loc (cons 2 loc)) #:color "blue")
-                "\\]")))]
+    ["taylor"
+     (define-values (prev pt var loc) (apply values (map (curry hash-ref json) '(prev pt var loc))))
+     `(,@(render-history prev ctx)
+       (li (p "Taylor expanded in " ,var " around " ,pt)
+           (div ((class "math")) "\\[\\leadsto " ,(fpcore->tex prog #:loc loc) "\\]")))]
 
-    [(alt prog `(evaluate ,loc) `(,prev) _)
-     (define core (mixed->fpcore prog ctx))
-     (define err (altn-errors altn pcontext ctx errcache mask))
-     `(,@(render-history prev pcontext ctx errcache mask)
+    ["evaluate"
+     (define-values (prev loc) (apply values (map (curry hash-ref json) '(prev loc))))
+     `(,@(render-history prev ctx)
        (li (p "Evaluated real constant" (span ((class "error")) ,err))
-           (div ((class "math"))
-                "\\[\\leadsto "
-                ,(core->tex core #:loc (and loc (cons 2 loc)) #:color "blue")
-                "\\]")))]
+           (div ((class "math")) "\\[\\leadsto " ,(fpcore->tex prog #:loc loc) "\\]")))]
 
-    [(alt prog `(rr ,loc ,input ,proof) `(,prev) _)
-     (define err (altn-errors altn pcontext ctx errcache mask))
-     `(,@(render-history prev pcontext ctx errcache mask)
-       (li ,(if proof
-                (render-proof proof pcontext ctx errcache mask)
-                ""))
+    ["rr"
+     (define-values (prev loc proof) (apply values (map (curry hash-ref json) '(prev loc proof))))
+     `(,@(render-history prev ctx)
+       (li ,(if (eq? proof (json-null))
+                ""
+                (render-proof proof ctx)))
        (li (p "Applied rewrites" (span ((class "error")) ,err))
-           (div ((class "math")) "\\[\\leadsto " ,(program->tex prog ctx #:loc loc) "\\]")))]))
+           (div ((class "math")) "\\[\\leadsto " ,(fpcore->tex prog #:loc loc) "\\]")))]))
 
 (define (errors-score-masked errs mask)
   (if (ormap identity mask)
@@ -191,31 +162,29 @@
                       err))
       (errors-score errs)))
 
-(define (render-proof proof pcontext ctx errcache mask)
-  `(div ((class "proof"))
-        (details (summary "Step-by-step derivation")
-                 (ol ,@(for/list ([step proof])
-                         (define-values (dir rule loc expr) (splice-proof-step step))
-                         ;; need to handle mixed real/float expressions
-                         (define-values (err prog)
-                           (cond
-                             [(impl-prog? expr) ; impl program?
-                              (define score (errors-score-masked (hash-ref errcache expr) mask))
-                              (define bits (representation-total-bits (context-repr ctx)))
-                              (values (format-accuracy score bits) (program->fpcore expr ctx))]
-                             [else (values "N/A" (mixed->fpcore expr ctx))]))
-                         ; the proof
-                         (if (equal? dir 'Goal)
-                             ""
-                             `(li ,(let ([dir (match dir
-                                                ['Rewrite<= "right to left"]
-                                                ['Rewrite=> "left to right"])])
-                                     `(p (code ([title ,dir]) ,(~a rule))
-                                         (span ((class "error")) ,err)))
-                                  (div ((class "math"))
-                                       "\\[\\leadsto "
-                                       ,(core->tex prog #:loc (and loc (cons 2 loc)) #:color "blue")
-                                       "\\]"))))))))
+(define (render-proof proof-json ctx)
+  `(div
+    ((class "proof"))
+    (details
+     (summary "Step-by-step derivation")
+     (ol ,@
+         (for/list ([step (in-list proof-json)])
+           (define-values (direction err loc rule prog-str)
+             (apply values (map (curry hash-ref step) '(direction error loc rule program))))
+           (define dir
+             (match direction
+               ["goal" "goal"]
+               ["rtl" "right to left"]
+               ["ltr" "left to right"]))
+           (define prog (read (open-input-string prog-str)))
+           (if (equal? dir "goal")
+               ""
+               `(li (p (code ([title ,dir]) ,rule)
+                       (span ((class "error"))
+                             ,(if (number? err)
+                                  (format-accuracy err (context-repr ctx) #:unit "%")
+                                  err)))
+                    (div ((class "math")) "\\[\\leadsto " ,(fpcore->tex prog #:loc loc) "\\]"))))))))
 
 (define (render-json altn pcontext ctx errcache [mask (make-list (pcontext-length pcontext) #f)])
   (define repr (context-repr ctx))
@@ -226,7 +195,7 @@
 
   (match altn
     [(alt prog 'start (list) _)
-     `#hash((program . ,(fpcore->string (expr->fpcore prog ctx))) (type . "start") (error . ,err))]
+     `#hash((program . ,(fpcore->string (program->fpcore prog ctx))) (type . "start") (error . ,err))]
 
     [(alt prog `(regimes ,splitpoints) prevs _)
      (define intervals
@@ -234,8 +203,9 @@
                   [end-sp splitpoints])
          (interval (sp-cidx end-sp) (sp-point start-sp) (sp-point end-sp) (sp-bexpr end-sp))))
 
-     `#hash((program . ,(fpcore->string (expr->fpcore prog ctx)))
+     `#hash((program . ,(fpcore->string (program->fpcore prog ctx)))
             (type . "regimes")
+            (error . ,err)
             (conditions . ,(for/list ([entry prevs]
                                       [idx (in-naturals)])
                              (define entry-ivals
@@ -247,7 +217,7 @@
                         (render-json entry pcontext ctx errcache mask*))))]
 
     [(alt prog `(taylor ,loc ,pt ,var) `(,prev) _)
-     `#hash((program . ,(fpcore->string (expr->fpcore prog ctx)))
+     `#hash((program . ,(fpcore->string (program->fpcore prog ctx)))
             (type . "taylor")
             (prev . ,(render-json prev pcontext ctx errcache mask))
             (pt . ,(~a pt))
@@ -256,14 +226,14 @@
             (error . ,err))]
 
     [(alt prog `(evaluate ,loc) `(,prev) _)
-     `#hash((program . ,(fpcore->string (expr->fpcore prog ctx)))
+     `#hash((program . ,(fpcore->string (program->fpcore prog ctx)))
             (type . "evaluate")
             (prev . ,(render-json prev pcontext ctx errcache mask))
             (loc . ,loc)
             (error . ,err))]
 
     [(alt prog `(rr ,loc ,input ,proof) `(,prev) _)
-     `#hash((program . ,(fpcore->string (expr->fpcore prog ctx)))
+     `#hash((program . ,(fpcore->string (program->fpcore prog ctx)))
             (type . "rr")
             (prev . ,(render-json prev pcontext ctx errcache mask))
             (proof . ,(if proof
@@ -273,7 +243,7 @@
             (error . ,err))]
 
     [(alt prog 'add-preprocessing `(,prev) preprocessing)
-     `#hash((program . ,(fpcore->string (expr->fpcore prog ctx)))
+     `#hash((program . ,(fpcore->string (program->fpcore prog ctx)))
             (type . "add-preprocessing")
             (prev . ,(render-json prev pcontext ctx errcache mask))
             (error . ,err)
@@ -282,13 +252,14 @@
 (define (render-proof-json proof pcontext ctx errcache mask)
   (for/list ([step proof])
     (define-values (dir rule loc expr) (splice-proof-step step))
-    (define err
-      (if (impl-prog? expr)
-          (errors-score-masked (hash-ref errcache expr) mask)
-          "N/A"))
+    (define-values (err fpcore)
+      (cond
+        [(impl-prog? expr)
+         (values (errors-score-masked (hash-ref errcache expr) mask) (program->fpcore expr ctx))]
+        [else (values "N/A" (mixed->fpcore expr ctx))]))
 
     `#hash((error . ,err)
-           (program . ,(fpcore->string (expr->fpcore expr ctx)))
+           (program . ,(fpcore->string fpcore))
            (direction . ,(match dir
                            ['Rewrite<= "rtl"]
                            ['Rewrite=> "ltr"]

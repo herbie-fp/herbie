@@ -434,13 +434,16 @@
                [analysis (if (hash? backend-hash)
                              (hash-ref backend-hash 'end)
                              '())])
-      (define history (read (open-input-string (hash-ref analysis 'history))))
-      (define block `(div ([id "history"]) (ol ,@history)))
+      (define history (hash-ref analysis 'history))
+      (define block `(div ([id "history"]) (ol ,@(render-history history ctx))))
       (call-with-output-string (curry write-xexpr block))))
 
   (define derivations
-    (for/list ([altn (in-list altns)])
-      (render-json altn pcontext (test-context test) errcache)))
+    (for/list ([altn (in-list altns)]
+               [analysis (if (hash? backend-hash)
+                             (hash-ref backend-hash 'end)
+                             '())])
+      (hash-ref analysis 'history)))
 
   (hasheq 'test
           (~s test-fpcore)
@@ -478,7 +481,7 @@
   (match-define (alt-analysis alt test-errors) analysis)
   (define cost (alt-cost alt repr))
 
-  (define history (render-history alt pcontext (test-context test) errcache))
+  (define history-json (render-json alt pcontext (test-context test) errcache))
 
   (define vars (test-vars test))
   (define splitpoints
@@ -491,7 +494,7 @@
   (hasheq 'expr
           (~s (alt-expr alt))
           'history
-          (~s history)
+          history-json
           'errors
           test-errors
           'cost
