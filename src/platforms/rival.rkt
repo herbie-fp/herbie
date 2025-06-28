@@ -8,12 +8,13 @@
          "runtime/float32.rkt" ; float representation helper functions
          "../utils/float.rkt"  ; for shift/unshift
          "../syntax/platform.rkt")
+(provide platform)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; EMPTY PLATFORM ;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define cost 1)
 
-(define rival-platform
+(define platform
   (make-empty-platform 'rival #:if-cost cost))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BOOLEAN ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -31,12 +32,12 @@
                        #:total-bits 1
                        #:special-value? (const #f)))
 
-(platform-register-representation! rival-platform #:repr bool #:cost cost)
+(platform-register-representation! platform #:repr bool #:cost cost)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; constants ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (platform-register-implementations!
- rival-platform
+ platform
  ([TRUE  () bool (TRUE)  (const true)  (! TRUE)  cost]
   [FALSE () bool (FALSE) (const false) (! FALSE) cost]))
 
@@ -48,7 +49,7 @@
   (ormap identity as))
 
 (platform-register-implementations!
- rival-platform
+ platform
  ([not ([x : bool])            bool (not x)   not    (not x)   cost]
   [and ([x : bool] [y : bool]) bool (and x y) and-fn (and x y) cost]
   [or  ([x : bool] [y : bool]) bool (or x y)  or-fn  (or x y)  cost]))
@@ -68,13 +69,13 @@
                        #:total-bits 32
                        #:special-value? nan?))
 
-(platform-register-representation! rival-platform #:repr binary32 #:cost cost)
+(platform-register-representation! platform #:repr binary32 #:cost cost)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BINARY 32 TABLE ;;;;;;;;;;;;;;;;;;;;;;;
 
 ; ([name         ([var : repr] ...)                             otype    spec                       fl fpcore                                          cost])
 (platform-register-implementations!
- rival-platform
+ platform
  (; Constants
   [PI.f32        ()                                             binary32 (PI)                       #f (! :precision binary32 (PI))            cost]
   [E.f32         ()                                             binary32 (E)                        #f (! :precision binary32 (E))             cost]
@@ -154,13 +155,13 @@
                        #:total-bits 64
                        #:special-value? nan?))
 
-(platform-register-representation! rival-platform #:repr binary64 #:cost cost)
+(platform-register-representation! platform #:repr binary64 #:cost cost)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BINARY 64 TABLE ;;;;;;;;;;;;;;;;;;;;;;;
 
 ; ([name         ([var : repr] ...)                             otype    spec                       fl fpcore                                          cost])
 (platform-register-implementations!
- rival-platform
+ platform
  (; Constants
   [PI.f64        ()                                             binary64 (PI)                       #f (! :precision binary64 (PI))            cost]
   [E.f64         ()                                             binary64 (E)                        #f (! :precision binary64 (E))             cost]
@@ -226,10 +227,10 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; REGISTER PLATFORM ;;;;;;;;;;;;;;;;;;;;;
 
-(register-platform! rival-platform)
+(register-platform! platform)
 
 (module+ main
-  (display-platform rival-platform))
+  (display-platform platform))
 
 ;; Do not run this file during testing
 (module test racket/base
