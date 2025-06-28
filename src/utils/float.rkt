@@ -23,7 +23,11 @@
          unshift
          <bool>
          <binary32>
-         <binary64>)
+         <binary64>
+         fl32-
+         fl32+
+         fl32*
+         fl32/)
 
 (define (shift bits fn)
   (define shift-val (expt 2 bits))

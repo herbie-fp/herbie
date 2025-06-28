@@ -310,6 +310,7 @@
 
 (module+ test
   (require "../utils/float.rkt")
+  (activate-platform! (*platform-name*))
   (define ctx (context '(x y z) <binary64> (make-list 3 <binary64>)))
 
   (define test-exprs

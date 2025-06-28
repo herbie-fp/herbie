@@ -199,6 +199,7 @@
 ;; testing FPCore format
 (module+ test
   (require rackunit)
+  (activate-platform! (*platform-name*))
 
   (define (get-errs stx)
     (reap [sow]

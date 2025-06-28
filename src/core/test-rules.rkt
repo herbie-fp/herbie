@@ -10,6 +10,8 @@
          "../syntax/platform.rkt"
          "sampling.rkt")
 
+(activate-platform! (*platform-name*))
+
 (define num-test-points (make-parameter 100))
 (define double-repr (get-representation 'binary64))
 

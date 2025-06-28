@@ -307,7 +307,10 @@
            "../syntax/types.rkt"
            "batch.rkt"
            "rules.rkt"
-           "../config.rkt")
+           "../config.rkt"
+           "../syntax/platform.rkt"
+           "../utils/float.rkt")
+  (activate-platform! (*platform-name*))
 
   (define batch
     (progs->batch (list '(-.f64 (sin.f64 (+.f64 x eps)) (sin.f64 x))

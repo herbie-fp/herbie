@@ -282,6 +282,7 @@
   (require rackunit
            "../utils/float.rkt")
 
+  (activate-platform! (*platform-name*))
   (define precision 'binary64)
   (define ctx (context '(x y z a) <binary64> (make-list 4 <binary64>)))
 

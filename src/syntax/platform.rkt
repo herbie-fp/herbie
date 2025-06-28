@@ -69,7 +69,6 @@
 (define-runtime-path platform-dir "../platforms/")
 
 (define (load-platform! name)
-  (eprintf "Loading platform ~a\n" name)
   (if (or (string-contains? name "/") (string-contains? name "."))
       (dynamic-require name 'platform)
       (dynamic-require (build-path platform-dir (format "~a.rkt" name)) 'platform)))
