@@ -254,6 +254,7 @@
        (if root?
            node
            (push! impl node))]
+      [(list spec-op) spec-op]
       [(list spec-op args ...) (list* spec-op (map munge args))]))
 
   (define root (munge expr #:root? #t))
