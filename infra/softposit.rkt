@@ -6,9 +6,10 @@
 (require math/flonum
          math/bigfloat
          softposit-rkt
-         "../utils/float.rkt"  ; for shift/unshift
+         "../src/utils/float.rkt"  ; for shift/unshift
          rival
-         "../syntax/platform.rkt")
+         "../src/syntax/platform.rkt")
+(provide platform)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; utils ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -86,7 +87,7 @@
 
 (define cost 1)
 
-(define softposit-platform
+(define platform
   (make-empty-platform 'softposit #:if-cost 1))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; REPRESENTATIONS ;;;;;;;;;;;;;;;;;;;;;;;
@@ -180,21 +181,21 @@
                        #:total-bits 64
                        #:special-value? nan?))
 
-(platform-register-representation! softposit-platform #:repr bool     #:cost cost)
-(platform-register-representation! softposit-platform #:repr posit8   #:cost cost)
-(platform-register-representation! softposit-platform #:repr posit16  #:cost cost)
-(platform-register-representation! softposit-platform #:repr posit32  #:cost cost)
-(platform-register-representation! softposit-platform #:repr quire8   #:cost cost)
-(platform-register-representation! softposit-platform #:repr quire16  #:cost cost)
-(platform-register-representation! softposit-platform #:repr quire32  #:cost cost)
-(platform-register-representation! softposit-platform #:repr binary64 #:cost cost)
+(platform-register-representation! platform #:repr bool     #:cost cost)
+(platform-register-representation! platform #:repr posit8   #:cost cost)
+(platform-register-representation! platform #:repr posit16  #:cost cost)
+(platform-register-representation! platform #:repr posit32  #:cost cost)
+(platform-register-representation! platform #:repr quire8   #:cost cost)
+(platform-register-representation! platform #:repr quire16  #:cost cost)
+(platform-register-representation! platform #:repr quire32  #:cost cost)
+(platform-register-representation! platform #:repr binary64 #:cost cost)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; OPERATORS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BOOLEAN IMPLS ;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (platform-register-implementations!
- softposit-platform
+ platform
  ([TRUE  ()                      bool (TRUE)    (const true)  (! TRUE)  cost]
   [FALSE ()                      bool (FALSE)   (const false) (! FALSE) cost]
   [not   ([x : bool])            bool (not x)   not           (not x)   cost]
@@ -205,7 +206,7 @@
 
 ; ([name           ([var : repr] ...)                          otype   spec          fl                fpcore                           cost])
 (platform-register-implementations!
- softposit-platform
+ platform
  (; Posit8
   [neg.p8          ([x : posit8])                              posit8  (neg x)       posit8-neg        (! :precision posit8 (- x))        cost]
   [+.p8            ([x : posit8]  [y : posit8])                posit8  (+ x y)       posit8-add        (! :precision posit8 (+ x y))      cost]
@@ -257,7 +258,7 @@
 
 ; ([name             ([var : repr] ...) otype  spec fl             fpcore                        cost])
 (platform-register-implementations!
- softposit-platform
+ platform
  (; Posit/float implementations
   [binary64->posit8  ([x : binary64]) posit8   x double->posit8   (! :precision posit8 (cast x))   cost]
   [binary64->posit16 ([x : binary64]) posit16  x double->posit16  (! :precision posit16 (cast x))  cost]
@@ -280,10 +281,10 @@
   [posit16->quire16  ([x : posit16])  quire16  x posit16->quire16 (! :precision quire16 (cast x))  cost]
   [posit32->quire32  ([x : posit32])  quire32  x posit32->quire32 (! :precision quire32 (cast x))  cost]))
 
-(register-platform! softposit-platform)
+(register-platform! platform)
 
 (module+ main
-  (display-platform softposit-platform))
+  (display-platform platform))
 
 ;; Do not run this file during testing
 (module test racket/base
