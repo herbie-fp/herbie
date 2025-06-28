@@ -1,14 +1,20 @@
 #lang racket
 
-(require racket/lazy-require)
+(require racket/lazy-require
+         racket/runtime-path)
 (require "config.rkt"
          "utils/multi-command-line.rkt"
          "utils/errors.rkt"
          "syntax/load-plugin.rkt"
          "syntax/platform.rkt")
 
-;; Load all the plugins
-(load-herbie-plugins)
+;; Define the built-in platforms to force bundling them
+(define-runtime-module-path herbie10-platform "platforms/herbie10.rkt")
+(define-runtime-module-path herbie20-platform "platforms/herbie20.rkt")
+(define-runtime-module-path c-platform "platforms/c.rkt")
+(define-runtime-module-path racket-platform "platforms/racket.rkt")
+(define-runtime-module-path math-platform "platforms/math.rkt")
+(define-runtime-module-path rival-platform "platforms/rival.rkt")
 
 (lazy-require ["api/demo.rkt" (run-demo)]
               ["api/run.rkt" (make-report rerun-report)]
@@ -76,7 +82,7 @@
    [("--platform")
     platform
     ("The platform to use during improvement" "[Default: default]")
-    (activate-platform! (string->symbol platform))]
+    (*platform-name* platform)]
    [("--num-iters")
     num
     ("The number of iterations to use for the main loop. Herbie may find additional improvements

@@ -41,6 +41,7 @@
 (define (run-improve input output #:threads [threads #f])
   (define seed (get-seed))
   (define tests (load-tests input))
+  (activate-platform! (*platform-name*))
   (server-start threads)
   (define ids
     (for/list ([test (in-list tests)])
@@ -57,6 +58,7 @@
 
 (define (run-shell)
   (define seed (get-seed))
+  (activate-platform! (*platform-name*))
   (server-start #f)
   (eprintf "Find help on https://herbie.uwplse.org/, exit with ~a\n"
            (match (system-type 'os)

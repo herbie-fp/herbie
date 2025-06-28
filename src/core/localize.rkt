@@ -16,10 +16,8 @@
 
 (module+ test
   (require rackunit
-           "../syntax/load-plugin.rkt"
            "../syntax/syntax.rkt"
-           "../syntax/sugar.rkt")
-  (load-herbie-builtins))
+           "../syntax/sugar.rkt"))
 
 (provide compute-local-errors
          eval-progs-real

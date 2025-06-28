@@ -2,7 +2,6 @@
 
 (require "../src/utils/common.rkt"
          "../src/core/points.rkt"
-         "../src/syntax/load-plugin.rkt"
          "../src/utils/alternative.rkt"
          "../src/api/sandbox.rkt"
          "../src/syntax/read.rkt"

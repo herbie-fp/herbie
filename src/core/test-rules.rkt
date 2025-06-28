@@ -3,15 +3,12 @@
 (require rackunit)
 (require "../utils/common.rkt"
          "../utils/float.rkt"
-         "../syntax/load-plugin.rkt"
          "../syntax/types.rkt"
          "rival.rkt"
          "rules.rkt"
          "programs.rkt"
          "../syntax/platform.rkt"
          "sampling.rkt")
-
-(load-herbie-builtins)
 
 (define num-test-points (make-parameter 100))
 (define double-repr (get-representation 'binary64))

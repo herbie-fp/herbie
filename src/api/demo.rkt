@@ -520,6 +520,7 @@
   (*demo-output* output)
   (*demo-prefix* prefix)
   (*demo-log* log)
+  (activate-platform! (*platform-name*))
   (server-start threads)
 
   (serve/servlet dispatch

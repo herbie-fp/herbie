@@ -5,7 +5,6 @@
          "../src/utils/profile.rkt"
          "../src/api/datafile.rkt"
          "../src/reports/timeline.rkt"
-         "../src/syntax/load-plugin.rkt"
          "../src/reports/common.rkt")
 
 (define (merge-timelines outdir . dirs)
@@ -36,7 +35,6 @@
                          (curry write-json (profile->json joint-pf))))
 
 (define (merge-reports outdir . dirs)
-  (load-herbie-builtins)
   (define rss
     (filter (conjoin (negate eof-object?) identity)
             (for/list ([dir (in-list dirs)])

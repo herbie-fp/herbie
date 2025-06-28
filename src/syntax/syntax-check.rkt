@@ -198,9 +198,7 @@
 
 ;; testing FPCore format
 (module+ test
-  (require rackunit
-           "load-plugin.rkt")
-  (load-herbie-builtins)
+  (require rackunit)
 
   (define (get-errs stx)
     (reap [sow]

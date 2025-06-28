@@ -293,11 +293,9 @@
 ; run-tests
 (module+ test
   (require rackunit
-           "../syntax/load-plugin.rkt"
            "egglog-herbie.rkt")
 
   (when (find-executable-path "egglog")
-    (load-herbie-builtins)
     (populate-e->id-tables)
     (test-e1->expr)
     (test-e2->expr)))
@@ -306,13 +304,10 @@
 (module+ test
   (require rackunit
            "egglog-herbie.rkt"
-           "../syntax/load-plugin.rkt"
            "../syntax/types.rkt"
            "batch.rkt"
            "rules.rkt"
            "../config.rkt")
-
-  (load-herbie-builtins)
 
   (define batch
     (progs->batch (list '(-.f64 (sin.f64 (+.f64 x eps)) (sin.f64 x))
@@ -363,7 +358,7 @@
       #s(approx (- (sin (+ x 1)) (sin x)) #s(hole binary64 (- (sin (- 1 (* -1 x))) (sin x))))
       #s(approx (sin (+ x 1)) #s(hole binary64 (sin (- 1 (* -1 x))))))))
 
-  (define ctx (make-debug-context '(x eps)))
+  (define ctx (context '(x eps) <binary64> (make-list 2 <binary64>)))
 
   (define reprs (make-list (vector-length (batch-roots batch)) (context-repr ctx)))
 
