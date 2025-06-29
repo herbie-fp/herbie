@@ -165,7 +165,7 @@
      (define repr (context-lookup context a))
      (define fmin (get-fpcore-impl 'fmin (repr->prop repr) (list repr repr)))
      (define fmax (get-fpcore-impl 'fmax (repr->prop repr) (list repr repr)))
-     (replace-vars (list (cons a (list fmin a b)) (cons b (list fmax a b))) expression)]
+     (replace-vars (list (list a fmin a b) (list b fmax a b)) expression)]
     [(list 'abs var)
      (define repr (context-lookup context var))
      (define fabs (get-fpcore-impl 'fabs (repr->prop repr) (list repr)))
