@@ -429,15 +429,6 @@
       ['timeout #f]
       ['failure (exception->datum backend)]))
 
-  (define histories
-    (for/list ([altn (in-list altns)]
-               [analysis (if (hash? backend-hash)
-                             (hash-ref backend-hash 'end)
-                             '())])
-      (define history (hash-ref analysis 'history))
-      (define block `(div ([id "history"]) (ol ,@(render-history history ctx))))
-      (call-with-output-string (curry write-xexpr block))))
-
   (define derivations
     (for/list ([altn (in-list altns)]
                [analysis (if (hash? backend-hash)
@@ -453,8 +444,6 @@
           profile
           'alternatives ; FIXME: currently used by Odyssey but should maybe be in 'backend?
           fpcores
-          'histories ; FIXME: currently used by Odyssey but should switch to 'derivations below
-          histories
           'derivations
           derivations
           'backend
