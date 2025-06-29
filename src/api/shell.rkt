@@ -1,6 +1,7 @@
 #lang racket
 
-(require "../syntax/read.rkt"
+(require "../syntax/platform.rkt"
+         "../syntax/read.rkt"
          "../utils/common.rkt"
          "server.rkt")
 (provide run-shell
