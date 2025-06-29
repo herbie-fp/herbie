@@ -26,6 +26,7 @@
                   (cons var (representation-name repr)))]))
 
 (define (run-tests . bench-dirs)
+  (activate-platform! (*platform-name*))
   (define default-precision
     (if (*precision*)
         (representation-name (*precision*))
@@ -92,8 +93,6 @@
 
 (module+ main
   ;; Load all the plugins
-  (load-herbie-plugins)
-
   (define seed (random 1 (expt 2 31)))
   (set-seed! seed)
 
@@ -108,7 +107,7 @@
                 [("--platform")
                  platform
                  "Which platform to use for tests"
-                 (activate-platform! (string->symbol platform))]
+                 (*platform-name* (string->symbol platform))]
                 [("--precision")
                  prec
                  "Which precision to use for tests"
