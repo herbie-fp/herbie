@@ -301,7 +301,8 @@
            (list 'if (loop cond (get-representation 'bool)) (loop ift type) (loop iff type))
            (list 'if (loop cond 'bool) (loop ift type) (loop iff type)))]
       [(list (? impl-exists? impl) args ...) (cons impl (map loop args (impl-info impl 'itype)))]
-      [(list (? (λ (x) (string-contains? (~a x) "unsound")) op) args ...)
+      [(list op args ...)
+       #:when (string-contains? (~a op) "unsound")
        (define op* (string->symbol (string-replace (symbol->string (car expr)) "unsound-" "")))
        (cons op* (map loop args (map (const 'real) args)))]
       [(list op args ...) (cons op (map loop args (operator-info op 'itype)))])))
