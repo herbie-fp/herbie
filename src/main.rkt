@@ -5,7 +5,6 @@
 (require "config.rkt"
          "utils/multi-command-line.rkt"
          "utils/errors.rkt"
-         "syntax/load-plugin.rkt"
          "syntax/platform.rkt")
 
 ;; Define the built-in platforms to force bundling them

@@ -3,7 +3,6 @@
 (require "../core/programs.rkt"
          "../utils/common.rkt"
          "../utils/errors.rkt"
-         "load-plugin.rkt"
          "platform.rkt"
          "sugar.rkt"
          "syntax-check.rkt"

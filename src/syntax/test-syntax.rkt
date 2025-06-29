@@ -1,7 +1,6 @@
 #lang racket
 
-(require "load-plugin.rkt"
-         "syntax.rkt"
+(require "syntax.rkt"
          "platform.rkt"
          "types.rkt")
 
