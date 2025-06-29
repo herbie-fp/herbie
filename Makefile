@@ -58,7 +58,7 @@ start-server:
 		--log infra/server.log --quiet 2>&1
 
 fmt:
-	@raco fmt -i $(shell find egg-herbie/ src/ infra/ -name '*.rkt' -not -path 'src/platforms/*.rkt')
+	@raco fmt -i $(shell find egg-herbie/ src/ infra/ -name '*.rkt' -not -path 'src/platforms/*.rkt' -not -path "infra/softposit.rkt")
 
 herbie.zip herbie.zip.CHECKSUM:
 	raco pkg create src/
