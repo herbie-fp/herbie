@@ -92,25 +92,19 @@
   (define seed (random 1 (expt 2 31)))
   (set-seed! seed)
 
-  (command-line #:program "ci.rkt"
-                #:once-each
-                [("--seed")
-                 rs
-                 "The random seed to use in point generation. If false (#f), a random seed is used'"
-                 (define given-seed (read (open-input-string rs)))
-                 (when given-seed
-                   (set-seed! given-seed))]
-                [("--platform")
-                 platform
-                 "Which platform to use for tests"
-                 (*platform-name* platform)]
-                [("--precision")
-                 prec
-                 "Which precision to use for tests"
-                 (*precision* (string->symbol prec))]
-                [("--num-iters")
-                 num
-                 "The number of iterations to use for the main loop"
-                 (*num-iterations* (string->number num))]
-                #:args bench-dir
-                (exit (if (apply run-tests bench-dir) 0 1))))
+  (command-line
+   #:program "ci.rkt"
+   #:once-each [("--seed")
+                rs
+                "The random seed to use in point generation. If false (#f), a random seed is used'"
+                (define given-seed (read (open-input-string rs)))
+                (when given-seed
+                  (set-seed! given-seed))]
+   [("--platform") platform "Which platform to use for tests" (*platform-name* platform)]
+   [("--precision") prec "Which precision to use for tests" (*precision* (string->symbol prec))]
+   [("--num-iters")
+    num
+    "The number of iterations to use for the main loop"
+    (*num-iterations* (string->number num))]
+   #:args bench-dir
+   (exit (if (apply run-tests bench-dir) 0 1))))
