@@ -27,12 +27,8 @@
 
 (define (run-tests . bench-dirs)
   (activate-platform! (*platform-name*))
-  (define default-precision
-    (if (*precision*)
-        (representation-name (*precision*))
-        (*default-precision*)))
   (define tests
-    (parameterize ([*default-precision* default-precision])
+    (parameterize ([*default-precision* (*precision*)])
       (append-map load-tests bench-dirs)))
   (define seed (pseudo-random-generator->vector (current-pseudo-random-generator)))
   (printf "Running Herbie on ~a tests, seed: ~a\n" (length tests) seed)
@@ -41,7 +37,7 @@
     (printf "~a/~a\t" (~a (+ 1 i) #:width 3 #:align 'right) (length tests))
     (define the-test*
       (if (*precision*)
-          (override-test-precision the-test (*precision*))
+          (override-test-precision the-test (get-representation (*precision*)))
           the-test))
     (define result (run-herbie 'improve the-test* #:seed seed))
     (match-define (job-result _ test status time timeline profile warnings backend) result)
@@ -107,11 +103,11 @@
                 [("--platform")
                  platform
                  "Which platform to use for tests"
-                 (*platform-name* (string->symbol platform))]
+                 (*platform-name* platform)]
                 [("--precision")
                  prec
                  "Which precision to use for tests"
-                 (*precision* (get-representation (string->symbol prec)))]
+                 (*precision* (string->symbol prec))]
                 [("--num-iters")
                  num
                  "The number of iterations to use for the main loop"
