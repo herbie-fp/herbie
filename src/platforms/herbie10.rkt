@@ -5,7 +5,6 @@
 
 (require math/bigfloat
          math/flonum
-         "runtime/float32.rkt" ; float representation helper functions
          "runtime/libm.rkt"    ; libm wrapper
          "../utils/float.rkt"  ; for shift/unshift
          "../syntax/platform.rkt")
@@ -56,16 +55,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; representation ;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define binary32
-  (make-representation #:name 'binary32
-                       #:type 'real
-                       #:repr? flonum?
-                       #:bf->repr bigfloat->float32
-                       #:repr->bf bf
-                       #:ordinal->repr (shift 31 ordinal->float32)
-                       #:repr->ordinal (unshift 31 float32->ordinal)
-                       #:total-bits 32
-                       #:special-value? nan?))
+(define binary32 <binary32>)
 
 (platform-register-representation! platform #:repr binary32 #:cost 0)
 
