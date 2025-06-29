@@ -5,7 +5,6 @@
 
 (require math/bigfloat
          math/flonum
-         "runtime/float32.rkt" ; float representation helper functions
          "../utils/float.rkt"  ; for shift/unshift
          "../syntax/platform.rkt")
 (provide platform)
