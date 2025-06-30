@@ -23,8 +23,8 @@
 
 (platform-register-implementations!
  platform
- ([TRUE  () bool (TRUE)  (const true)  (! TRUE)  boolean-move-cost]
-  [FALSE () bool (FALSE) (const false) (! FALSE) boolean-move-cost]))
+ ([TRUE  () bool (TRUE)  (const true)  TRUE  boolean-move-cost]
+  [FALSE () bool (FALSE) (const false) FALSE boolean-move-cost]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; operators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

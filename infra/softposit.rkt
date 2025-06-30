@@ -6,8 +6,7 @@
 (require math/flonum
          math/bigfloat
          softposit-rkt
-         "../src/utils/float.rkt"  ; for shift/unshift
-         rival
+         "../src/syntax/types.rkt"  ; for shift/unshift
          "../src/syntax/platform.rkt")
 (provide platform)
 
@@ -87,8 +86,9 @@
 
 (define cost 1)
 
-(define platform
-  (make-empty-platform 'softposit #:if-cost 1))
+(define platform (make-empty-platform 'softposit))
+
+(platform-register-if-cost! platform #:cost 1)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; REPRESENTATIONS ;;;;;;;;;;;;;;;;;;;;;;;
 
