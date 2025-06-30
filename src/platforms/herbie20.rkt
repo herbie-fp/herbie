@@ -73,11 +73,11 @@
 ; ([name   ([var : repr] ...)              otype    spec     fl         fpcore                         cost])
 (platform-register-implementations!
  platform
- ([neg.f32 ([x : binary32])                binary32 (neg x)  fl32-      (! :precision binary32 (- x))   64]
-  [+.f32   ([x : binary32] [y : binary32]) binary32 (+ x y)  fl32+      (! :precision binary32 (+ x y)) 64]
-  [-.f32   ([x : binary32] [y : binary32]) binary32 (- x y)  fl32-      (! :precision binary32 (- x y)) 64]
-  [*.f32   ([x : binary32] [y : binary32]) binary32 (* x y)  fl32*      (! :precision binary32 (* x y)) 128]
-  [/.f32   ([x : binary32] [y : binary32]) binary32 (/ x y)  fl32/      (! :precision binary32 (/ x y)) 320]
+ ([neg.f32 ([x : binary32])                binary32 (neg x)  (compose flsingle -)      (! :precision binary32 (- x))   64]
+  [+.f32   ([x : binary32] [y : binary32]) binary32 (+ x y)  (compose flsingle +)      (! :precision binary32 (+ x y)) 64]
+  [-.f32   ([x : binary32] [y : binary32]) binary32 (- x y)  (compose flsingle -)      (! :precision binary32 (- x y)) 64]
+  [*.f32   ([x : binary32] [y : binary32]) binary32 (* x y)  (compose flsingle *)      (! :precision binary32 (* x y)) 128]
+  [/.f32   ([x : binary32] [y : binary32]) binary32 (/ x y)  (compose flsingle /)      (! :precision binary32 (/ x y)) 320]
   [==.f32  ([x : binary32] [y : binary32]) bool     (== x y) =          (== x y)                        128]
   [!=.f32  ([x : binary32] [y : binary32]) bool     (!= x y) (negate =) (!= x y)                        128]
   [<.f32   ([x : binary32] [y : binary32]) bool     (< x y)  <          (< x y)                         128]

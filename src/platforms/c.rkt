@@ -3,11 +3,10 @@
 ;;; C platform:
 ;;; C/C++ on Linux with a full libm
 
-(require math/bigfloat
-         math/flonum
+(require math/flonum ; for flsingle
          "runtime/libm.rkt"    ; libm wrapper
          "../utils/float.rkt"  ; for shift/unshift
-         "../syntax/platform.rkt")
+         )
 #;(provide platform)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; EMPTY PLATFORM ;;;;;;;;;;;;;;;;;;;;;;;;
@@ -69,11 +68,11 @@
 ; ([name   ([var : repr] ...)              otype    spec     fl         fpcore                          cost])
 (platform-register-implementations!
  platform
- ([neg.f32 ([x : binary32])                binary32 (neg x)  fl32-      (! :precision binary32 (- x))   0.11567699999999992]
-  [+.f32   ([x : binary32] [y : binary32]) binary32 (+ x y)  fl32+      (! :precision binary32 (+ x y)) 0.200445]
-  [-.f32   ([x : binary32] [y : binary32]) binary32 (- x y)  fl32-      (! :precision binary32 (- x y)) 0.19106800000000014]
-  [*.f32   ([x : binary32] [y : binary32]) binary32 (* x y)  fl32*      (! :precision binary32 (* x y)) 0.256602]
-  [/.f32   ([x : binary32] [y : binary32]) binary32 (/ x y)  fl32/      (! :precision binary32 (/ x y)) 0.3465330000000001]
+ ([neg.f32 ([x : binary32])                binary32 (neg x)  (compose flsingle -)      (! :precision binary32 (- x))   0.11567699999999992]
+  [+.f32   ([x : binary32] [y : binary32]) binary32 (+ x y)  (compose flsingle +)      (! :precision binary32 (+ x y)) 0.200445]
+  [-.f32   ([x : binary32] [y : binary32]) binary32 (- x y)  (compose flsingle -)      (! :precision binary32 (- x y)) 0.19106800000000014]
+  [*.f32   ([x : binary32] [y : binary32]) binary32 (* x y)  (compose flsingle *)      (! :precision binary32 (* x y)) 0.256602]
+  [/.f32   ([x : binary32] [y : binary32]) binary32 (/ x y)  (compose flsingle /)      (! :precision binary32 (/ x y)) 0.3465330000000001]
   [==.f32  ([x : binary32] [y : binary32]) bool     (== x y) =          (== x y)                        32bit-move-cost]
   [!=.f32  ([x : binary32] [y : binary32]) bool     (!= x y) (negate =) (!= x y)                        32bit-move-cost]
   [<.f32   ([x : binary32] [y : binary32]) bool     (< x y)  <          (< x y)                         32bit-move-cost]
