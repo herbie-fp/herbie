@@ -13,6 +13,6 @@
     (syntax-case stx ()
       [(_ content ...)
        #'(#%module-begin
-          (define local-platform (make-empty-platform 'platform #:if-cost 1))
+          (define local-platform (make-empty-platform 'platform))
           content ...
           (provide local-platform))])))

@@ -12,7 +12,9 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; EMPTY PLATFORM ;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define platform (make-empty-platform 'herbie10 #:if-cost 0))
+(define platform (make-empty-platform 'herbie10))
+
+(platform-register-if-cost! platform #:if-cost 0)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BOOLEAN ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

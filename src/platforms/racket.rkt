@@ -13,7 +13,9 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; EMPTY PLATFORM ;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define platform (make-empty-platform 'racket #:if-cost 1))
+(define platform (make-empty-platform 'racket))
+
+(platform-register-if-cost! platform #:if-cost 1)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BOOLEAN ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

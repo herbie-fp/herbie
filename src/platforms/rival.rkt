@@ -12,9 +12,9 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; EMPTY PLATFORM ;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define cost 1)
+(define platform (make-empty-platform 'rival))
 
-(define platform
-  (make-empty-platform 'rival #:if-cost cost))
+(platform-register-if-cost! platform #:if-cost cost)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BOOLEAN ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

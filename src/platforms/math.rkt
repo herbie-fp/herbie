@@ -16,7 +16,9 @@
 (define move-cost    0.02333600000000001)
 (define fl-move-cost (* move-cost 4))
 
-(define platform (make-empty-platform 'math #:if-cost move-cost))
+(define platform (make-empty-platform 'math))
+
+(platform-register-if-cost! platform #:if-cost move-cost)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BOOLEAN ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

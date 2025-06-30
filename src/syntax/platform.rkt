@@ -36,6 +36,7 @@
          platform-register-representation!
          platform-register-implementation!
          platform-register-implementations!
+         platform-register-if-cost!
          display-platform
          register-platform!
          make-operator-impl
@@ -51,7 +52,7 @@
 ;;;
 ;;; A small API is provided for platforms for querying the supported
 ;;; operators, operator implementations, and representation conversions.
-(struct platform (name if-cost representations implementations representation-costs)
+(struct platform (name [if-cost #:mutable] representations implementations representation-costs)
   #:name $platform
   #:constructor-name create-platform
   #:methods gen:custom-write
@@ -98,16 +99,16 @@
     (error 'register-platform! "platform already registered ~a" name))
   (hash-set! platforms name (platform-copy platform)))
 
-(define (make-empty-platform name #:if-cost [if-cost #f])
+(define (make-empty-platform name)
   (define reprs (make-hash))
   (define repr-costs (make-hash))
   (define impls (make-hash))
   (when (hash-has-key? platforms name)
     (error 'make-empty-platform "platform with name ~a is already registered" name))
-  (unless if-cost
-    (error 'make-empty-platform "Platform ~a is missing cost for if function" name))
-  (set! if-cost (platform/parse-if-cost if-cost))
-  (create-platform name if-cost reprs impls repr-costs))
+  (create-platform name #f reprs impls repr-costs))
+
+(define (platform-register-if-cost! platform #:cost cost)
+  (set-platform-if-cost! platform (platform/parse-if-cost cost)))
 
 (define (platform-register-representation! platform #:repr repr #:cost cost)
   (define reprs (platform-representations platform))
