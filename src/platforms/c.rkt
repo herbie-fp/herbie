@@ -59,10 +59,10 @@
 
 (platform-register-implementations!
  platform
- ([PI.f32       () binary32 (PI)       (const (flsingle pi))        (! :precision binary32 (PI))       32bit-move-cost]
-  [E.f32        () binary32 (E)        (const (flsingle (exp 1.0))) (! :precision binary32 (E))        32bit-move-cost]
-  [INFINITY.f32 () binary32 (INFINITY) (const +inf.0)               (! :precision binary32 (INFINITY)) 32bit-move-cost]
-  [NAN.f32      () binary32 (NAN)      (const +nan.0)               (! :precision binary32 (NAN))      32bit-move-cost]))
+ ([PI.f32       () binary32 (PI)       (const (flsingle pi))        (! :precision binary32 PI)       32bit-move-cost]
+  [E.f32        () binary32 (E)        (const (flsingle (exp 1.0))) (! :precision binary32 E)        32bit-move-cost]
+  [INFINITY.f32 () binary32 (INFINITY) (const +inf.0)               (! :precision binary32 INFINITY) 32bit-move-cost]
+  [NAN.f32      () binary32 (NAN)      (const +nan.0)               (! :precision binary32 NAN)      32bit-move-cost]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; operators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -157,10 +157,10 @@
 
 (platform-register-implementations!
  platform
- ([PI.f64       () binary64 (PI)       (const pi)        (! :precision binary64 (PI))       64bit-move-cost]
-  [E.f64        () binary64 (E)        (const (exp 1.0)) (! :precision binary64 (E))        64bit-move-cost]
-  [INFINITY.f64 () binary64 (INFINITY) (const +inf.0)    (! :precision binary64 (INFINITY)) 64bit-move-cost]
-  [NAN.f64      () binary64 (NAN)      (const +nan.0)    (! :precision binary64 (NAN))      64bit-move-cost]))
+ ([PI.f64       () binary64 (PI)       (const pi)        (! :precision binary64 PI)       64bit-move-cost]
+  [E.f64        () binary64 (E)        (const (exp 1.0)) (! :precision binary64 E)        64bit-move-cost]
+  [INFINITY.f64 () binary64 (INFINITY) (const +inf.0)    (! :precision binary64 INFINITY) 64bit-move-cost]
+  [NAN.f64      () binary64 (NAN)      (const +nan.0)    (! :precision binary64 NAN)      64bit-move-cost]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; operators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

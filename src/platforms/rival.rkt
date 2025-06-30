@@ -67,10 +67,10 @@
 (platform-register-implementations!
  platform
  (; Constants
-  [PI.f32        ()                                             binary32 (PI)                       #f (! :precision binary32 (PI))            cost]
-  [E.f32         ()                                             binary32 (E)                        #f (! :precision binary32 (E))             cost]
-  [INFINITY.f32  ()                                             binary32 (INFINITY)                 #f (! :precision binary32 (INFINITY))      cost]
-  [NAN.f32       ()                                             binary32 (NAN)                      #f (! :precision binary32 (NAN))           cost]
+  [PI.f32        ()                                             binary32 (PI)                       #f (! :precision binary32 PI)              cost]
+  [E.f32         ()                                             binary32 (E)                        #f (! :precision binary32 E)               cost]
+  [INFINITY.f32  ()                                             binary32 (INFINITY)                 #f (! :precision binary32 INFINITY)        cost]
+  [NAN.f32       ()                                             binary32 (NAN)                      #f (! :precision binary32 NAN)             cost]
   ; Default operators
   [neg.f32       ([x : binary32])                               binary32 (neg x)                    #f (! :precision binary32 (- x))           cost]
   [+.f32         ([x : binary32] [y : binary32])                binary32 (+ x y)                    #f (! :precision binary32 (+ x y))         cost]
@@ -153,10 +153,10 @@
 (platform-register-implementations!
  platform
  (; Constants
-  [PI.f64        ()                                             binary64 (PI)                       #f (! :precision binary64 (PI))            cost]
-  [E.f64         ()                                             binary64 (E)                        #f (! :precision binary64 (E))             cost]
-  [INFINITY.f64  ()                                             binary64 (INFINITY)                 #f (! :precision binary64 (INFINITY))      cost]
-  [NAN.f64       ()                                             binary64 (NAN)                      #f (! :precision binary64 (NAN))           cost]
+  [PI.f64        ()                                             binary64 (PI)                       #f (! :precision binary64 PI)              cost]
+  [E.f64         ()                                             binary64 (E)                        #f (! :precision binary64 E)               cost]
+  [INFINITY.f64  ()                                             binary64 (INFINITY)                 #f (! :precision binary64 INFINITY)        cost]
+  [NAN.f64       ()                                             binary64 (NAN)                      #f (! :precision binary64 NAN)             cost]
   ; Default operators
   [neg.f64       ([x : binary64])                               binary64 (neg x)                    #f (! :precision binary64 (- x))           cost]
   [+.f64         ([x : binary64] [y : binary64])                binary64 (+ x y)                    #f (! :precision binary64 (+ x y))         cost]

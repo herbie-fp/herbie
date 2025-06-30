@@ -73,10 +73,10 @@
 
 (platform-register-implementations!
  platform
- ([PI.rkt       () binary64 (PI)       (const pi)        (! :precision binary64 (PI))       1]
-  [E.rkt        () binary64 (E)        (const (exp 1.0)) (! :precision binary64 (E))        1]
-  [INFINITY.rkt () binary64 (INFINITY) (const +inf.0)    (! :precision binary64 (INFINITY)) 1]
-  [NAN.rkt      () binary64 (NAN)      (const +nan.0)    (! :precision binary64 (NAN))      1]))
+ ([PI.rkt       () binary64 (PI)       (const pi)        (! :precision binary64 PI)       1]
+  [E.rkt        () binary64 (E)        (const (exp 1.0)) (! :precision binary64 E)        1]
+  [INFINITY.rkt () binary64 (INFINITY) (const +inf.0)    (! :precision binary64 INFINITY) 1]
+  [NAN.rkt      () binary64 (NAN)      (const +nan.0)    (! :precision binary64 NAN)      1]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; comparators ;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
