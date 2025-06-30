@@ -5,7 +5,8 @@
          "../src/utils/profile.rkt"
          "../src/api/datafile.rkt"
          "../src/reports/timeline.rkt"
-         "../src/reports/common.rkt")
+         "../src/reports/common.rkt"
+         "../src/syntax/platform.rkt")
 
 (define (merge-timelines outdir . dirs)
   (define tls
@@ -51,6 +52,7 @@
 
 (module+ main
   (command-line #:args (outdir . dirs)
+                (activate-platform! (*platform-name*))
                 (apply merge-reports outdir dirs)
                 (apply merge-timelines outdir dirs)
                 (apply merge-profiles outdir dirs)
