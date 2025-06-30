@@ -1,4 +1,4 @@
-#lang racket
+#lang s-exp "../platform.rkt"
 
 ;;; C platform:
 ;;; C/C++ on Linux with a full libm
@@ -8,7 +8,7 @@
          "runtime/libm.rkt"    ; libm wrapper
          "../utils/float.rkt"  ; for shift/unshift
          "../syntax/platform.rkt")
-(provide platform)
+#;(provide platform)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; EMPTY PLATFORM ;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -16,7 +16,7 @@
 (define 32bit-move-cost   0.12961999999999974)
 (define boolean-move-cost 0.1)
 
-(define platform
+#;(define platform
   (make-empty-platform 'c #:if-cost boolean-move-cost))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BOOLEAN ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
