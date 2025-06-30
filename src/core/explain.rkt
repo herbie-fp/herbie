@@ -7,6 +7,7 @@
          "../utils/float.rkt"
          "../syntax/types.rkt"
          "../syntax/syntax.rkt"
+         "../syntax/platform.rkt"
          "localize.rkt"
          "points.rkt"
          "programs.rkt"

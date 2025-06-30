@@ -2,7 +2,8 @@
 
 (require json
          racket/date)
-(require "../syntax/types.rkt"
+(require "../syntax/platform.rkt"
+         "../syntax/types.rkt"
          "../utils/common.rkt"
          "../utils/pareto.rkt")
 

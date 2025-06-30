@@ -5,6 +5,7 @@
 (require "../utils/common.rkt"
          "../api/datafile.rkt"
          "common.rkt"
+         "../syntax/platform.rkt"
          "../syntax/types.rkt"
          "../utils/float.rkt"
          "../config.rkt")

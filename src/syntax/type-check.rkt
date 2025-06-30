@@ -64,13 +64,13 @@
              [ctx ctx])
     (match stx
       [#`,(? number?) (get-representation (dict-ref prop-dict ':precision))]
-      [#`,(? variable? x) (context-lookup ctx x)]
-      [#`,(? constant-operator? op)
+      [#`,(? operator-exists? op)
        (match (get-fpcore-impl op prop-dict '())
          [#f ; no implementation found
           (error! stx "No implementation of `~a` in platform for context `~a`" op prop-dict)
           (get-representation (dict-ref prop-dict ':precision))]
          [impl (impl-info impl 'otype)])]
+      [#`,(? symbol? x) (context-lookup ctx x)]
       [#`(let ([,ids #,exprs] ...) #,body)
        (define ctx*
          (for/fold ([ctx* ctx])
@@ -137,33 +137,65 @@
 
 (module+ test
   (require rackunit)
-  (require "load-plugin.rkt")
-  (load-herbie-builtins)
+  (require "platform.rkt")
+  (activate-platform! (*platform-name*))
 
-  (define (fail! stx msg . args)
-    (error (apply format msg args) stx))
+  ;; Dummy representation registration
+  (check-false (repr-exists? 'dummy))
+  (define platform (platform-copy (*active-platform*)))
+  (parameterize ([*active-platform* platform])
+    (platform-register-representation! platform
+                                       #:repr (make-representation #:name 'dummy
+                                                                   #:type 'real
+                                                                   #:repr? number?
+                                                                   #:bf->repr identity
+                                                                   #:repr->bf identity
+                                                                   #:ordinal->repr identity
+                                                                   #:repr->ordinal identity
+                                                                   #:total-bits 0
+                                                                   #:special-value? (const #f))
+                                       #:cost 1)
+    (check-true (repr-exists? 'dummy))
 
-  (define (check-types env-type rtype expr #:env [env '()])
-    (define ctx (context (map car env) env-type (map cdr env)))
-    (define repr (expression->type expr (repr->prop env-type) ctx fail!))
-    (check-equal? repr rtype))
+    (define dummy (get-representation 'dummy))
+    (check-equal? (representation-name dummy) 'dummy)
+    (check-equal? (get-representation 'dummy) dummy)
 
-  (define (check-fails type expr #:env [env '()])
-    (define fail? #f)
-    (define ctx (context (map car env) type (map cdr env)))
-    (expression->type expr (repr->prop type) ctx (lambda _ (set! fail? #t)))
-    (check-true fail?))
+    ;; Context operations
+    (define <b64> (get-representation 'binary64))
+    (define <bool> (get-representation 'bool))
 
-  (define <bool> (get-representation 'bool))
-  (define <b64> (get-representation 'binary64))
+    (define ctx (context '() <b64> '()))
+    (define ctx1 (context-extend ctx 'x <b64>))
+    (check-equal? (context-vars ctx1) '(x))
+    (check-equal? (context-lookup ctx1 'x) <b64>)
 
-  (check-types <b64> <b64> #'4)
-  (check-types <b64> <b64> #'x #:env `((x . ,<b64>)))
-  (check-types <b64> <b64> #'(acos x) #:env `((x . ,<b64>)))
-  (check-fails <b64> #'(acos x) #:env `((x . ,<bool>)))
-  (check-types <b64> <bool> #'(and a b) #:env `((a . ,<bool>) (b . ,<bool>)))
-  (check-types <b64> <b64> #'(if (== a 1) 1 0) #:env `((a . ,<b64>)))
-  (check-fails <b64> #'(if (== a 1) 1 0) #:env `((a . ,<bool>)))
-  (check-types <b64> <bool> #'(let ([a 1]) TRUE))
-  (check-fails <b64> #'(if (== a 1) 1 TRUE) #:env `((a . ,<b64>)))
-  (check-types <b64> <b64> #'(let ([a 1]) a) #:env `((a . ,<bool>))))
+    (define ctx2 (context-extend ctx1 'y <bool>))
+    (check-equal? (context-vars ctx2) '(y x))
+    (check-equal? (context-lookup ctx2 'y) <bool>)
+    (check-equal? (context-lookup ctx2 'x) <b64>)
+
+    (define (fail! stx msg . args)
+      (error (apply format msg args) stx))
+
+    (define (check-types env-type rtype expr #:env [env '()])
+      (define ctx (context (map car env) env-type (map cdr env)))
+      (define repr (expression->type expr (repr->prop env-type) ctx fail!))
+      (check-equal? repr rtype))
+
+    (define (check-fails type expr #:env [env '()])
+      (define fail? #f)
+      (define ctx (context (map car env) type (map cdr env)))
+      (expression->type expr (repr->prop type) ctx (lambda _ (set! fail? #t)))
+      (check-true fail?))
+
+    (check-types <b64> <b64> #'4)
+    (check-types <b64> <b64> #'x #:env `((x . ,<b64>)))
+    (check-types <b64> <b64> #'(acos x) #:env `((x . ,<b64>)))
+    (check-fails <b64> #'(acos x) #:env `((x . ,<bool>)))
+    (check-types <b64> <bool> #'(and a b) #:env `((a . ,<bool>) (b . ,<bool>)))
+    (check-types <b64> <b64> #'(if (== a 1) 1 0) #:env `((a . ,<b64>)))
+    (check-fails <b64> #'(if (== a 1) 1 0) #:env `((a . ,<bool>)))
+    (check-types <b64> <bool> #'(let ([a 1]) TRUE))
+    (check-fails <b64> #'(if (== a 1) 1 TRUE) #:env `((a . ,<b64>)))
+    (check-types <b64> <b64> #'(let ([a 1]) a) #:env `((a . ,<bool>)))))

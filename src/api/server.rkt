@@ -3,11 +3,11 @@
 (require openssl/sha1)
 (require (only-in xml write-xexpr))
 
-(require "../syntax/load-plugin.rkt"
-         "../syntax/read.rkt"
+(require "../syntax/read.rkt"
          "../syntax/sugar.rkt"
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
+         "../syntax/platform.rkt"
          "../utils/alternative.rkt"
          "../utils/common.rkt"
          "../utils/errors.rkt"
@@ -174,8 +174,7 @@
                          *platform-name*
                          *loose-plugins*
                          *functions*)
-   (parameterize ([current-error-port (open-output-nowhere)]) ; hide output
-     (load-herbie-plugins))
+   (activate-platform! (*platform-name*))
    ; not sure if the above code is actaully needed.
    (define busy-workers (make-hash))
    (define waiting-workers (make-hash))
@@ -296,8 +295,7 @@
                          *platform-name*
                          *loose-plugins*
                          *functions*)
-   (parameterize ([current-error-port (open-output-nowhere)]) ; hide output
-     (load-herbie-plugins))
+   (activate-platform! (*platform-name*))
    (define worker-thread
      (thread (λ ()
                (let loop ()

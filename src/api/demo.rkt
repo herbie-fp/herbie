@@ -18,6 +18,7 @@
          "../syntax/types.rkt"
          "../syntax/read.rkt"
          "../syntax/sugar.rkt"
+         "../syntax/platform.rkt"
          "../utils/common.rkt"
          "../utils/errors.rkt"
          "../utils/float.rkt"
@@ -520,6 +521,7 @@
   (*demo-output* output)
   (*demo-prefix* prefix)
   (*demo-log* log)
+  (activate-platform! (*platform-name*))
   (server-start threads)
 
   (serve/servlet dispatch

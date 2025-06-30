@@ -137,7 +137,7 @@
       (match node
         [(? (curry equal? var)) (taylor-exact 0 1)]
         [(? number?) (taylor-exact node)]
-        [(? variable?) (taylor-exact node)]
+        [(? symbol?) (taylor-exact node)]
         [`(,const) (taylor-exact node)]
         [`(+ ,args ...) (apply taylor-add (map (curry vector-ref taylor-approxs) args))]
         [`(neg ,arg) (taylor-negate ((curry vector-ref taylor-approxs) arg))]
@@ -505,9 +505,7 @@
               (series n)))))
 
 (module+ test
-  (require rackunit
-           "../syntax/types.rkt"
-           "../syntax/load-plugin.rkt")
+  (require rackunit)
   (define batch (progs->batch (list '(pow x 1.0))))
   (set! batch (expand-taylor batch))
   (define root (vector-ref (batch-roots batch) 0))

@@ -6,7 +6,6 @@
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
          "../config.rkt"
-         "../syntax/load-plugin.rkt"
          "batch.rkt"
          "egglog-program.rkt"
          "../utils/common.rkt"
@@ -319,7 +318,6 @@
   (exact-round (* (/ c min-cost) 100)))
 
 (define (prelude curr-program #:mixed-egraph? [mixed-egraph? #t])
-  (load-herbie-builtins)
   (define pform (*active-platform*))
 
   (define spec-egraph
@@ -341,14 +339,14 @@
 
   ;; Add raw if-cost
   (set! raw-costs
-        (cons (match (platform-impl-cost pform 'if)
+        (cons (match (platform-if-cost pform)
                 [`(max ,n) n] ; Not quite right (copied from egg-herbie.rkt)
                 [`(sum ,n) n])
               raw-costs))
 
   ;; Add raw platform-impl-nodes
   (for ([impl (in-list (platform-impls pform))])
-    (set! raw-costs (cons (platform-impl-cost pform impl) raw-costs)))
+    (set! raw-costs (cons (impl-info impl 'cost) raw-costs)))
 
   (define min-cost (apply min raw-costs))
 
@@ -360,7 +358,7 @@
                      MTy
                      MTy
                      :cost
-                     ,(normalize-cost (match (platform-impl-cost pform 'if)
+                     ,(normalize-cost (match (platform-if-cost pform)
                                         [`(max ,n) n] ; Not quite right (copied from egg-herbie.rkt)
                                         [`(sum ,n) n])
                                       min-cost))
@@ -486,7 +484,7 @@
     `(,typed-name ,@(for/list ([i (in-range arity)])
                       'MTy)
                   :cost
-                  ,(normalize-cost (platform-impl-cost pform impl) min-cost))))
+                  ,(normalize-cost (impl-info impl 'cost) min-cost))))
 
 (define (typed-num-id repr-name)
   (string->symbol (string-append "Num" (symbol->string repr-name))))
@@ -1078,7 +1076,7 @@
 (define (egglog-expr-typed? expr)
   (match expr
     [(? number?) #t]
-    [(? variable?) #t]
+    [(? symbol?) #t]
     [`(,impl ,args ...) (and (not (eq? impl 'typed-id)) (andmap egglog-expr-typed? args))]))
 
 (define (e1->expr expr)

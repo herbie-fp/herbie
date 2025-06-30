@@ -27,9 +27,7 @@
          egraph-variations)
 
 (module+ test
-  (require rackunit)
-  (require "../syntax/load-plugin.rkt")
-  (load-herbie-builtins))
+  (require rackunit))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; FFI utils
@@ -312,7 +310,9 @@
   (egg-parsed->expr (flatten-let egg-expr) ctx (context-repr ctx)))
 
 (module+ test
-  (define ctx (make-debug-context '(x y z)))
+  (require "../utils/float.rkt")
+  (activate-platform! (*platform-name*))
+  (define ctx (context '(x y z) <binary64> (make-list 3 <binary64>)))
 
   (define test-exprs
     (list (cons '(+.f64 y x) '(+.f64 $var1 $var0))
@@ -332,7 +332,7 @@
       (check-equal? out expected-out)
       (check-equal? computed-in in)))
 
-  (set! ctx (make-debug-context '(x a b c r)))
+  (set! ctx (context '(x a b c r) <binary64> (make-list 5 <binary64>)))
   (define extended-expr-list
     ; specifications
     (list '(/ (- (exp x) (exp (neg x))) 2)
@@ -840,10 +840,10 @@
             [(? symbol?) (platform-repr-cost (*active-platform*) type)]
             [(list '$approx x y) 0]
             [(list 'if c x y)
-             (match (platform-impl-cost (*active-platform*) 'if)
+             (match (platform-if-cost (*active-platform*))
                [`(max ,n) n] ; Not quite right
                [`(sum ,n) n])]
-            [(list op args ...) (platform-impl-cost (*active-platform*) op)])
+            [(list op args ...) (impl-info op 'cost)])
           1))
     (values (string->symbol (format "~a.~a" n k))
             (hash 'op

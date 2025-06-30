@@ -7,6 +7,7 @@
          "../syntax/sugar.rkt"
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
+         "../syntax/platform.rkt"
          "batch.rkt"
          "compiler.rkt"
          "points.rkt"
@@ -15,10 +16,8 @@
 
 (module+ test
   (require rackunit
-           "../syntax/load-plugin.rkt"
            "../syntax/syntax.rkt"
-           "../syntax/sugar.rkt")
-  (load-herbie-builtins))
+           "../syntax/sugar.rkt"))
 
 (provide compute-local-errors
          eval-progs-real
@@ -47,7 +46,7 @@
 (define (local-error exact node repr get-exact)
   (match node
     [(? literal?) 1]
-    [(? variable?) 1]
+    [(? symbol?) 1]
     [(approx _ impl) (ulp-difference exact (get-exact impl) repr)]
     [`(if ,c ,ift ,iff) 1]
     [(list f args ...)
@@ -195,7 +194,7 @@
     [(list '! props ... (list op args ...)) op]
     [(list op args ...) op]
     [(? number? c) (exact->inexact c)]
-    [(? variable? c) c]))
+    [(? symbol? c) c]))
 
 (define (expr->json-tree expr ctx decorate)
   (define (make-json-tree subexpr)

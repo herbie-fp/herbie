@@ -5,8 +5,8 @@
          "../src/utils/profile.rkt"
          "../src/api/datafile.rkt"
          "../src/reports/timeline.rkt"
-         "../src/syntax/load-plugin.rkt"
-         "../src/reports/common.rkt")
+         "../src/reports/common.rkt"
+         "../src/syntax/platform.rkt")
 
 (define (merge-timelines outdir . dirs)
   (define tls
@@ -36,7 +36,6 @@
                          (curry write-json (profile->json joint-pf))))
 
 (define (merge-reports outdir . dirs)
-  (load-herbie-builtins)
   (define rss
     (filter (conjoin (negate eof-object?) identity)
             (for/list ([dir (in-list dirs)])
@@ -53,6 +52,7 @@
 
 (module+ main
   (command-line #:args (outdir . dirs)
+                (activate-platform! (*platform-name*))
                 (apply merge-reports outdir dirs)
                 (apply merge-timelines outdir dirs)
                 (apply merge-profiles outdir dirs)

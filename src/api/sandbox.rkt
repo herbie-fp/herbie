@@ -18,6 +18,7 @@
          "../core/sampling.rkt"
          "../core/mainloop.rkt"
          "../syntax/platform.rkt"
+         "../core/programs.rkt"
          "../core/points.rkt"
          "../core/explain.rkt"
          "../utils/profile.rkt"

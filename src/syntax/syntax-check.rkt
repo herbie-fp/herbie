@@ -4,7 +4,8 @@
 (require "../utils/common.rkt"
          "../utils/errors.rkt"
          "syntax.rkt"
-         "types.rkt")
+         "types.rkt"
+         "platform.rkt")
 (provide assert-program!)
 
 (define (check-expression* stx vars error!)
@@ -12,8 +13,8 @@
              [vars vars])
     (match stx
       [#`,(? number?) (void)]
-      [#`,(? constant-operator?) (void)]
-      [#`,(? variable? var)
+      [#`,(? operator-exists? stx) (void)]
+      [#`,(? symbol? var)
        (unless (set-member? vars stx)
          (error! stx "Unknown variable ~a" var))]
       [#`(let* ([#,vars* #,vals] ...) #,body)
@@ -197,9 +198,8 @@
 
 ;; testing FPCore format
 (module+ test
-  (require rackunit
-           "load-plugin.rkt")
-  (load-herbie-builtins)
+  (require rackunit)
+  (activate-platform! (*platform-name*))
 
   (define (get-errs stx)
     (reap [sow]

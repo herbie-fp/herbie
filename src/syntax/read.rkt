@@ -3,7 +3,6 @@
 (require "../core/programs.rkt"
          "../utils/common.rkt"
          "../utils/errors.rkt"
-         "load-plugin.rkt"
          "platform.rkt"
          "sugar.rkt"
          "syntax-check.rkt"
@@ -280,11 +279,11 @@
 
 (module+ test
   (require rackunit
-           "load-plugin.rkt")
-  (load-herbie-builtins)
+           "../utils/float.rkt")
 
+  (activate-platform! (*platform-name*))
   (define precision 'binary64)
-  (define ctx (make-debug-context '(x y z a)))
+  (define ctx (context '(x y z a) <binary64> (make-list 4 <binary64>)))
 
   ;; inlining
 

@@ -32,8 +32,8 @@
 
 (module+ test
   (require rackunit)
-  (require "../syntax/load-plugin.rkt")
-  (load-herbie-builtins)
+  (require "../syntax/platform.rkt")
+  (activate-platform! (*platform-name*))
   (define binary64 (get-representation 'binary64))
   (define pre '(and (and (<= 0 a) (<= a 1)) (and (<= 0 b) (<= b 1))))
 

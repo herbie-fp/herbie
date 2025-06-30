@@ -3,8 +3,7 @@
 ;; Arithmetic identities for rewriting programs.
 
 (require "../utils/common.rkt"
-         "../syntax/syntax.rkt"
-         "programs.rkt")
+         "../syntax/syntax.rkt")
 
 (provide *rules*
          *sound-rules*
@@ -32,10 +31,15 @@
 (define (*sound-rules*)
   (filter (conjoin rule-enabled? rule-sound?) *all-rules*))
 
-;;  Rule definition syntax
+; An analog of free-variables due to cycles in loading
+(define (get-input-variables prog)
+  (match prog
+    [(? number?) '()]
+    [(? symbol?) (list prog)]
+    [(list _ args ...) (remove-duplicates (append-map get-input-variables args))]))
 
 (define (make-rule-context input output)
-  (map (curryr cons 'real) (set-union (free-variables input) (free-variables output))))
+  (map (curryr cons 'real) (set-union (get-input-variables input) (get-input-variables output))))
 
 (define (add-unsound expr)
   (match expr
