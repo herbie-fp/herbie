@@ -271,6 +271,8 @@
      (for ([arg (in-list args)]
            #:unless (or (symbol? arg) (number? arg)))
        (error 'create-operator-impl! "~a: expected terminal `~a`" name arg))]
+    [(? symbol?)
+     (void)]
     [_ (error 'create-operator-impl! "Invalid fpcore for ~a: ~a" name fpcore)])
   ; check or synthesize floating-point operation
   (define fl-proc*
