@@ -75,10 +75,10 @@
 
 (platform-register-implementations!
  math-platform
- ([PI.f64       () binary64 (PI)       (const pi)        (! :precision binary64 (PI))       fl-move-cost]
-  [E.f64        () binary64 (E)        (const (exp 1.0)) (! :precision binary64 (E))        fl-move-cost]
-  [INFINITY.f64 () binary64 (INFINITY) (const +inf.0)    (! :precision binary64 (INFINITY)) fl-move-cost]
-  [NAN.f64      () binary64 (NAN)      (const +nan.0)    (! :precision binary64 (NAN))      fl-move-cost]))
+ ([PI.f64       () binary64 (PI)       (const pi)        (! :precision binary64 PI)       fl-move-cost]
+  [E.f64        () binary64 (E)        (const (exp 1.0)) (! :precision binary64 E)        fl-move-cost]
+  [INFINITY.f64 () binary64 (INFINITY) (const +inf.0)    (! :precision binary64 INFINITY) fl-move-cost]
+  [NAN.f64      () binary64 (NAN)      (const +nan.0)    (! :precision binary64 NAN)      fl-move-cost]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; operators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

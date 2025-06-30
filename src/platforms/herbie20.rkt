@@ -72,10 +72,10 @@
 
 (platform-register-implementations!
  herbie20-platform
- ([PI.f32       () binary32 (PI)       (const (flsingle pi))        (! :precision binary32 (PI))       32]
-  [E.f32        () binary32 (E)        (const (flsingle (exp 1.0))) (! :precision binary32 (E))        32]
-  [INFINITY.f32 () binary32 (INFINITY) (const +inf.0)               (! :precision binary32 (INFINITY)) 32]
-  [NAN.f32      () binary32 (NAN)      (const +nan.0)               (! :precision binary32 (NAN))      32]))
+ ([PI.f32       () binary32 (PI)       (const (flsingle pi))        (! :precision binary32 PI)       32]
+  [E.f32        () binary32 (E)        (const (flsingle (exp 1.0))) (! :precision binary32 E)        32]
+  [INFINITY.f32 () binary32 (INFINITY) (const +inf.0)               (! :precision binary32 INFINITY) 32]
+  [NAN.f32      () binary32 (NAN)      (const +nan.0)               (! :precision binary32 NAN)      32]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; operators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -179,10 +179,10 @@
 
 (platform-register-implementations!
  herbie20-platform
- ([PI.f64       () binary64 (PI)       (const pi)        (! :precision binary64 (PI))       64]
-  [E.f64        () binary64 (E)        (const (exp 1.0)) (! :precision binary64 (E))        64]
-  [INFINITY.f64 () binary64 (INFINITY) (const +inf.0)    (! :precision binary64 (INFINITY)) 64]
-  [NAN.f64      () binary64 (NAN)      (const +nan.0)    (! :precision binary64 (NAN))      64]))
+ ([PI.f64       () binary64 (PI)       (const pi)        (! :precision binary64 PI)       64]
+  [E.f64        () binary64 (E)        (const (exp 1.0)) (! :precision binary64 E)        64]
+  [INFINITY.f64 () binary64 (INFINITY) (const +inf.0)    (! :precision binary64 INFINITY) 64]
+  [NAN.f64      () binary64 (NAN)      (const +nan.0)    (! :precision binary64 NAN)      64]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; operators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
