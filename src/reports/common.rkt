@@ -25,7 +25,8 @@
          "../syntax/platform.rkt"
          "../syntax/syntax.rkt")
 
-(provide render-menu
+(provide format-accuracy
+         render-menu
          render-warnings
          render-large
          render-comparison
@@ -36,7 +37,7 @@
          format-percent
          write-html
          program->fpcore
-         program->tex
+         fpcore->tex
          fpcore->string
          js-tex-include
          doc-url
@@ -50,6 +51,16 @@
          core->tex
          expr->tex
          core->js)
+
+(define (format-accuracy numerator repr #:sign [sign #f] #:unit [unit ""])
+  (define denominator (representation-total-bits repr))
+  (cond
+    [(and numerator (positive? denominator))
+     (define percent (~r (- 100 (* (/ numerator denominator) 100)) #:precision '(= 1)))
+     (if (and (positive? numerator) sign)
+         (format "+~a~a" percent unit)
+         (format "~a~a" percent unit))]
+    [else ""]))
 
 (define (write-html xexpr out)
   (fprintf out "<!doctype html>\n")
@@ -148,10 +159,9 @@
                                                       ("Wolfram" "wl" ,core->wls)
                                                       ("TeX" "tex" ,(λ (c i) (core->tex c)))))
 
-(define (program->tex prog ctx #:loc [loc #f])
-  (define prog* (program->fpcore prog ctx))
-  (if (supported-by-lang? prog* "tex")
-      (core->tex prog* #:loc (and loc (cons 2 loc)) #:color "blue")
+(define (fpcore->tex fpcore #:loc [loc #f])
+  (if (supported-by-lang? fpcore "tex")
+      (core->tex fpcore #:loc (and loc (cons 2 loc)) #:color "blue")
       "ERROR"))
 
 (define (render-program expr ctx #:ident [identifier #f] #:pre [precondition '(TRUE)])

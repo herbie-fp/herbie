@@ -21,7 +21,8 @@
 
 (define (drop-unsound expr)
   (match expr
-    [(list (? (λ (x) (string-contains? (~a x) "unsound")) op) args ...)
+    [(list op args ...)
+     #:when (string-contains? (~a op) "unsound")
      (define op* (string->symbol (string-replace (symbol->string (car expr)) "unsound-" "")))
      (cons op* (map drop-unsound args))]
     [_ expr]))

@@ -183,7 +183,7 @@
   (when (> (hash-ref table2 'infinite 0.0) (* 0.2 total))
     (warn 'inf-points
           #:url "faq.html#inf-points"
-          "~a of points produce a very large (infinite) output. You may want to add a precondition."
-          (format-accuracy (- total (hash-ref table2 'infinite)) total #:unit "%")))
+          "~a% of points produce a very large (infinite) output. You may want to add a precondition."
+          (~r (/ (- total (hash-ref table2 'infinite)) total 0.01) #:precision '(= 1))))
   (timeline-push! 'bogosity (combine-tables table table2))
   results)

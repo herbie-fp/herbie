@@ -244,7 +244,7 @@
                            ,(format-percent (apply + bits) total-remaining)
                            ")"
                            (p "Threshold costs "
-                              ,(format-cost (apply + (filter (curry > 1) bits)) repr)
+                              ,(format-bits (apply + (filter (curry > 1) bits)) repr)
                               "b"
                               " ("
                               ,(format-percent (apply + (filter (curry > 1) bits)) total-remaining)
@@ -301,7 +301,7 @@
 (define (render-phase-error min-error-table)
   (match-define (list min-error repr-name) (car min-error-table))
   (define repr (get-representation (read (open-input-string repr-name))))
-  `((dt "Accuracy") (dd ,(format-accuracy min-error (representation-total-bits repr) #:unit "%") "")))
+  `((dt "Accuracy") (dd ,(format-accuracy min-error repr #:unit "%") "")))
 
 (define (render-phase-counts alts)
   `((dt "Counts") ,@(for/list ([rec (in-list alts)])
@@ -310,19 +310,19 @@
 
 (define (render-phase-alts alts)
   `((dt "Alt Table")
-    (dd (details
-         (summary "Click to see full alt table")
-         (table ((class "times"))
-                (thead (tr (th "Status") (th "Accuracy") (th "Program")))
-                ,@(for/list ([rec (in-list alts)])
-                    (match-define (list expr status score repr-name) rec)
-                    (define repr (get-representation (read (open-input-string repr-name))))
-                    `(tr ,(match status
-                            ["next" `(td (span ([title "Selected for next iteration"]) "▶"))]
-                            ["done" `(td (span ([title "Selected in a prior iteration"]) "✓"))]
-                            ["fresh" `(td)])
-                         (td ,(format-accuracy score (representation-total-bits repr) #:unit "%") "")
-                         (td (pre ,expr)))))))))
+    (dd (details (summary "Click to see full alt table")
+                 (table ((class "times"))
+                        (thead (tr (th "Status") (th "Accuracy") (th "Program")))
+                        ,@
+                        (for/list ([rec (in-list alts)])
+                          (match-define (list expr status score repr-name) rec)
+                          (define repr (get-representation (read (open-input-string repr-name))))
+                          `(tr ,(match status
+                                  ["next" `(td (span ([title "Selected for next iteration"]) "▶"))]
+                                  ["done" `(td (span ([title "Selected in a prior iteration"]) "✓"))]
+                                  ["fresh" `(td)])
+                               (td ,(format-accuracy score repr #:unit "%") "")
+                               (td (pre ,expr)))))))))
 
 (define (render-phase-times times)
   `((dt "Calls")
@@ -365,15 +365,15 @@
                            " saved)"))))
 
 (define (render-phase-branches branches)
-  `((dt "Results")
-    (dd (table ((class "times"))
-               (thead (tr (th "Accuracy") (th "Segments") (th "Branch")))
-               ,@(for/list ([rec (in-list branches)])
-                   (match-define (list expr score splits repr-name) rec)
-                   (define repr (get-representation (read (open-input-string repr-name))))
-                   `(tr (td ,(format-accuracy score (representation-total-bits repr) #:unit "%") "")
-                        (td ,(~a splits))
-                        (td (code ,expr))))))))
+  `((dt "Results") (dd (table ((class "times"))
+                              (thead (tr (th "Accuracy") (th "Segments") (th "Branch")))
+                              ,@(for/list ([rec (in-list branches)])
+                                  (match-define (list expr score splits repr-name) rec)
+                                  (define repr
+                                    (get-representation (read (open-input-string repr-name))))
+                                  `(tr (td ,(format-accuracy score repr #:unit "%") "")
+                                       (td ,(~a splits))
+                                       (td (code ,expr))))))))
 
 (define (render-phase-outcomes outcomes)
   `((dt "Samples") (dd (table ((class "times"))

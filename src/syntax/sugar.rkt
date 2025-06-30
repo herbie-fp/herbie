@@ -242,8 +242,10 @@
   (define (munge expr #:root? [root? #f])
     (match expr
       [(? literal?) (literal->fpcore expr)]
+      [(? number?) expr]
       [(? symbol?) expr]
       [(approx _ impl) (munge impl)]
+      [(hole _ spec) (munge spec)]
       [(list 'if cond ift iff) (list 'if (munge cond) (munge ift) (munge iff))]
       [(list (? impl-exists? impl) args ...)
        (define args* (map munge args))
@@ -251,7 +253,9 @@
        (define node (replace-vars (map cons vars args*) (impl-info impl 'fpcore)))
        (if root?
            node
-           (push! impl node))]))
+           (push! impl node))]
+      [(list spec-op) spec-op]
+      [(list spec-op args ...) (list* spec-op (map munge args))]))
 
   (define root (munge expr #:root? #t))
   (cons (list->vector (reverse instrs)) root))
