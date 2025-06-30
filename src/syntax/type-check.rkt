@@ -146,8 +146,6 @@
   (parameterize ([*active-platform* platform])
     (platform-register-representation! platform
                                        #:repr (make-representation #:name 'dummy
-                                                                   #:type 'real
-                                                                   #:repr? number?
                                                                    #:bf->repr identity
                                                                    #:repr->bf identity
                                                                    #:ordinal->repr identity
