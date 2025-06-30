@@ -1,8 +1,7 @@
 #lang racket
 
 (require math/bigfloat
-         math/base
-         math/flonum)
+         math/base)
 (require "../utils/common.rkt"
          "../syntax/types.rkt"
          "../utils/errors.rkt")
