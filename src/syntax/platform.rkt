@@ -397,7 +397,7 @@
   (define reprs-data
     (for/list ([(_ repr) (in-hash reprs)]
                [n (in-naturals)])
-      (match-define (representation name type _ _ _ _ _ total-bits _) repr)
+      (match-define (representation name type _ _ _ _ total-bits _) repr)
       (define cost (hash-ref repr-costs name))
       (list n name type total-bits cost)))
   (write-table reprs-data (list "idx" "name" "type" "#bits" "cost"))

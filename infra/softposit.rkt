@@ -92,21 +92,10 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; REPRESENTATIONS ;;;;;;;;;;;;;;;;;;;;;;;
 
-(define bool
-  (make-representation #:name 'bool
-                       #:type 'bool
-                       #:repr? boolean?
-                       #:bf->repr identity
-                       #:repr->bf identity
-                       #:ordinal->repr (λ (x) (= x 0))
-                       #:repr->ordinal (λ (x) (if x 1 0))
-                       #:total-bits 1
-                       #:special-value? (const #f)))
+(define bool <bool>)
 
 (define posit8
   (make-representation #:name 'posit8
-                       #:type 'real
-                       #:repr? posit8?
                        #:bf->repr (compose double->posit8* bigfloat->flonum)
                        #:repr->bf (compose bf-inf->nan posit8->double)
                        #:ordinal->repr (shift 7 ordinal->posit8)
@@ -116,8 +105,6 @@
 
 (define posit16
   (make-representation #:name 'posit16
-                       #:type 'real
-                       #:repr? posit16?
                        #:bf->repr (compose double->posit16* bigfloat->flonum)
                        #:repr->bf (compose bf-inf->nan posit16->double)
                        #:ordinal->repr (shift 15 ordinal->posit16)
@@ -127,8 +114,6 @@
 
 (define posit32
   (make-representation #:name 'posit32
-                       #:type 'real
-                       #:repr? posit32?
                        #:bf->repr (compose double->posit32* bigfloat->flonum)
                        #:repr->bf (compose bf-inf->nan posit32->double)
                        #:ordinal->repr (shift 31 ordinal->posit32)
@@ -138,8 +123,6 @@
 
 (define quire8
   (make-representation #:name 'quire8
-                       #:type 'real
-                       #:repr? quire8?
                        #:bf->repr (compose double->quire8* bigfloat->flonum)
                        #:repr->bf (compose bf-inf->nan quire8->double)
                        #:ordinal->repr (compose double->quire8 ordinal->flonum)
@@ -149,8 +132,6 @@
 
 (define quire16
   (make-representation #:name 'quire16
-                       #:type 'real
-                       #:repr? quire16?
                        #:bf->repr (compose double->quire16* bigfloat->flonum)
                        #:repr->bf (compose bf-inf->nan quire16->double)
                        #:ordinal->repr (compose double->quire16 ordinal->flonum)
@@ -160,8 +141,6 @@
 
 (define quire32
   (make-representation #:name 'quire32
-                       #:type 'real
-                       #:repr? quire32?
                        #:bf->repr (compose double->quire32 bigfloat->flonum) ; TODO: use double->quire32* when crash fixed
                        #:repr->bf (compose bf-inf->nan quire32->double)
                        #:ordinal->repr (compose double->quire32 ordinal->flonum)
@@ -170,16 +149,7 @@
                        #:special-value? (const #f)))
 
 ; Binary64 is needed for casting from double to softposit formats
-(define binary64
-  (make-representation #:name 'binary64
-                       #:type 'real
-                       #:repr? flonum?
-                       #:bf->repr bigfloat->flonum
-                       #:repr->bf bf
-                       #:ordinal->repr (shift 63 ordinal->flonum)
-                       #:repr->ordinal (unshift 63 flonum->ordinal)
-                       #:total-bits 64
-                       #:special-value? nan?))
+(define binary64 <binary64>)
 
 (platform-register-representation! platform #:repr bool     #:cost cost)
 (platform-register-representation! platform #:repr posit8   #:cost cost)

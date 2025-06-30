@@ -5,7 +5,6 @@
 
 (require math/flonum ; for flsingle
          "runtime/libm.rkt"    ; libm wrapper
-         "../utils/float.rkt"  ; for shift/unshift
          )
 #;(provide platform)
 

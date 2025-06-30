@@ -5,7 +5,7 @@
 
 (require math/bigfloat
          math/flonum
-         "../utils/float.rkt"  ; for shift/unshift
+         "../syntax/types.rkt"  ; for shift/unshift
          "../syntax/platform.rkt")
 (provide platform)
 
@@ -20,16 +20,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; representation ;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define bool
-  (make-representation #:name 'bool
-                       #:type 'bool
-                       #:repr? boolean?
-                       #:bf->repr identity
-                       #:repr->bf identity
-                       #:ordinal->repr (λ (x) (= x 0))
-                       #:repr->ordinal (λ (x) (if x 1 0))
-                       #:total-bits 1
-                       #:special-value? (const #f)))
+(define bool <bool>)
 
 (platform-register-representation! platform #:repr bool #:cost cost)
 
@@ -134,16 +125,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; representation ;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define binary64
-  (make-representation #:name 'binary64
-                       #:type 'real
-                       #:repr? flonum?
-                       #:bf->repr bigfloat->flonum
-                       #:repr->bf bf
-                       #:ordinal->repr (shift 63 ordinal->flonum)
-                       #:repr->ordinal (unshift 63 flonum->ordinal)
-                       #:total-bits 64
-                       #:special-value? nan?))
+(define binary64 <binary64>)
 
 (platform-register-representation! platform #:repr binary64 #:cost cost)
 
