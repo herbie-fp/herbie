@@ -1,15 +1,15 @@
 #lang racket
 
-(require "load-plugin.rkt"
-         "syntax.rkt"
+(require "syntax.rkt"
          "platform.rkt"
          "types.rkt")
 
 (module+ test
   (require rackunit
-           math/bigfloat)
+           math/bigfloat
+           "../config.rkt")
 
-  (load-herbie-builtins)
+  (activate-platform! (*platform-name*))
   (define platform (platform-copy (*active-platform*)))
   (define binary64 (get-representation 'binary64))
   ; log1pmd(x) = log1p(x) - log1p(-x)

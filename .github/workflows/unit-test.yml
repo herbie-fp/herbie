@@ -24,6 +24,9 @@ jobs:
       - uses: actions/checkout@master
       - name: "Install dependencies"
         run: make install
+      # SoftPosit is required to test the softposit platform we use for testing
+      - name: "Install SoftPosit support"
+        run: raco pkg install softposit-rkt
 
       - name: "Test raco fmt compliance"
         run: make fmt && git diff --exit-code

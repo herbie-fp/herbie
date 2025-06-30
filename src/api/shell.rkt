@@ -1,6 +1,7 @@
 #lang racket
 
-(require "../syntax/read.rkt"
+(require "../syntax/platform.rkt"
+         "../syntax/read.rkt"
          "../utils/common.rkt"
          "server.rkt")
 (provide run-shell
@@ -40,6 +41,7 @@
 
 (define (run-improve input output #:threads [threads #f])
   (define seed (get-seed))
+  (activate-platform! (*platform-name*))
   (define tests (load-tests input))
   (server-start threads)
   (define ids
@@ -57,6 +59,7 @@
 
 (define (run-shell)
   (define seed (get-seed))
+  (activate-platform! (*platform-name*))
   (server-start #f)
   (eprintf "Find help on https://herbie.uwplse.org/, exit with ~a\n"
            (match (system-type 'os)

@@ -9,13 +9,14 @@
          "runtime/libm.rkt" ; libm wrapper in Racket
          "../utils/float.rkt" ; for shift/unshift
          "../syntax/platform.rkt")
+(provide platform)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; EMPTY PLATFORM ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define move-cost    0.02333600000000001)
 (define fl-move-cost (* move-cost 4))
 
-(define math-platform (make-empty-platform 'math #:if-cost move-cost))
+(define platform (make-empty-platform 'math #:if-cost move-cost))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BOOLEAN ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -32,12 +33,12 @@
                        #:total-bits 1
                        #:special-value? (const #f)))
 
-(platform-register-representation! math-platform #:repr bool #:cost move-cost)
+(platform-register-representation! platform #:repr bool #:cost move-cost)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; constants ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (platform-register-implementations!
- math-platform
+ platform
  ([TRUE  () bool (TRUE)  (const true)  (! TRUE)  move-cost]
   [FALSE () bool (FALSE) (const false) (! FALSE) move-cost]))
 
@@ -49,7 +50,7 @@
   (ormap identity as))
 
 (platform-register-implementations!
- math-platform
+ platform
  ([not ([x : bool])            bool (not x)   not    (not x)   move-cost]
   [and ([x : bool] [y : bool]) bool (and x y) and-fn (and x y) move-cost]
   [or  ([x : bool] [y : bool]) bool (or x y)  or-fn  (or x y)  move-cost]))
@@ -69,12 +70,12 @@
                        #:total-bits 64
                        #:special-value? nan?))
 
-(platform-register-representation! math-platform #:repr binary64 #:cost fl-move-cost)
+(platform-register-representation! platform #:repr binary64 #:cost fl-move-cost)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; constants ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (platform-register-implementations!
- math-platform
+ platform
  ([PI.f64       () binary64 (PI)       (const pi)        (! :precision binary64 PI)       fl-move-cost]
   [E.f64        () binary64 (E)        (const (exp 1.0)) (! :precision binary64 E)        fl-move-cost]
   [INFINITY.f64 () binary64 (INFINITY) (const +inf.0)    (! :precision binary64 INFINITY) fl-move-cost]
@@ -84,7 +85,7 @@
 
 ; ([name   ([var : repr] ...)              otype    spec     fl         fpcore                         cost])
 (platform-register-implementations!
- math-platform
+ platform
  ([neg.f64 ([x : binary64])                binary64 (neg x)  -          (! :precision binary64 (- x))   0.096592]
   [+.f64   ([x : binary64] [y : binary64]) binary64 (+ x y)  +          (! :precision binary64 (+ x y)) 0.164604]
   [-.f64   ([x : binary64] [y : binary64]) binary64 (- x y)  -          (! :precision binary64 (- x y)) 0.15163999999999997]
@@ -143,14 +144,14 @@
 
 (for ([libm-impl.f64 (in-list libm-impls.f64)])
   (when libm-impl.f64
-    (platform-register-implementation! math-platform libm-impl.f64)))
+    (platform-register-implementation! platform libm-impl.f64)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; libm accelerators ;;;;;;;;;;;;;;;;;;;;;
 
 (define c_erfc (make-libm (erfc double double)))
 
 (when c_erfc
-  (platform-register-implementation! math-platform
+  (platform-register-implementation! platform
                                      (make-operator-impl (erfc.f64 [x : binary64])
                                                          binary64
                                                          #:spec (- 1 (erf x))
@@ -160,10 +161,10 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; REGISTER PLATFORM ;;;;;;;;;;;;;;;;;;;;;
 
-(register-platform! math-platform)
+(register-platform! platform)
 
 (module+ main
-  (display-platform math-platform))
+  (display-platform platform))
 
 ;; Do not run this file during testing
 (module test racket/base

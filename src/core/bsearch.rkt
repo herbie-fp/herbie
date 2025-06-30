@@ -24,9 +24,7 @@
          regimes-pcontext-masks)
 
 (module+ test
-  (require rackunit
-           "../syntax/load-plugin.rkt")
-  (load-herbie-builtins))
+  (require rackunit))
 
 ;; A splitpoint (sp a b pt) means we should use alt a if b < pt
 ;; The last splitpoint uses +nan.0 for pt and represents the "else"

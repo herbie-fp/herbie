@@ -38,12 +38,14 @@
         (table-row-conversions row)))
 
 (define (make-report bench-dirs #:dir dir #:threads threads)
+  (activate-platform! (*platform-name*))
   (define tests (reverse (sort (append-map load-tests bench-dirs) test<?)))
   (run-tests tests #:dir dir #:threads threads))
 
 (define (rerun-report json-file #:dir dir #:threads threads)
   (define data (call-with-input-file json-file read-datafile))
   (define tests (map extract-test (report-info-tests data)))
+  (activate-platform! (*platform-name*))
   (*flags* (report-info-flags data))
   (set-seed! (report-info-seed data))
   (*num-points* (report-info-points data))

@@ -15,7 +15,6 @@ clean:
 	raco pkg remove --force --no-docs egg-herbie-macosm1 && echo "Uninstalled old egg-herbie" || :
 
 update:
-	raco pkg install --skip-installed softposit-rkt
 	raco pkg install --skip-installed --no-docs --auto --name herbie src/
 	raco pkg update --auto rival
 	raco pkg update --name herbie --deps search-auto src/
@@ -59,7 +58,7 @@ start-server:
 		--log infra/server.log --quiet 2>&1
 
 fmt:
-	@raco fmt -i $(shell find egg-herbie/ src/ infra/ -name '*.rkt' -not -path 'src/platforms/*.rkt')
+	@raco fmt -i $(shell find egg-herbie/ src/ infra/ -name '*.rkt' -not -path 'src/platforms/*.rkt' -not -path "infra/softposit.rkt")
 
 herbie.zip herbie.zip.CHECKSUM:
 	raco pkg create src/

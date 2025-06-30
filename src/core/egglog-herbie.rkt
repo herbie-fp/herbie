@@ -6,7 +6,6 @@
          "../syntax/syntax.rkt"
          "../syntax/types.rkt"
          "../config.rkt"
-         "../syntax/load-plugin.rkt"
          "batch.rkt"
          "egglog-program.rkt"
          "../utils/common.rkt"
@@ -319,7 +318,6 @@
   (exact-round (* (/ c min-cost) 100)))
 
 (define (prelude curr-program #:mixed-egraph? [mixed-egraph? #t])
-  (load-herbie-builtins)
   (define pform (*active-platform*))
 
   (define spec-egraph

@@ -1,5 +1,6 @@
 #lang racket
 
+(require racket/runtime-path)
 (require "../utils/common.rkt"
          "../utils/errors.rkt"
          "../core/rules.rkt"
@@ -65,9 +66,16 @@
 ;; Active platform
 (define *active-platform* (make-parameter #f))
 
+(define-runtime-path platform-dir "../platforms/")
+
+(define (load-platform! name)
+  (if (or (string-contains? name "/") (string-contains? name "."))
+      (dynamic-require name 'platform)
+      (dynamic-require (build-path platform-dir (format "~a.rkt" name)) 'platform)))
+
 ;; Loads a platform.
 (define (activate-platform! name)
-  (define platform (hash-ref platforms name #f))
+  (define platform (hash-ref! platforms name (lambda () (load-platform! (~a name)))))
 
   (unless platform
     (raise-herbie-error "unknown platform `~a`, found (~a)"
