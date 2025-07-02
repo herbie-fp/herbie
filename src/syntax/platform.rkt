@@ -449,14 +449,14 @@
       (printf "|~a" (~a (list-ref row i) #:width (vector-ref cell-widths i))))
     (printf "\n")))
 
-(define platform (make-empty-platform 'test #:if-cost 1))
-(define binary64 <binary64>)
-(platform-register-representation! platform #:repr binary64 #:cost 1)
-(platform-register-implementations! platform
-                                    ([hypot.f32
-                                      ([x : binary64] [y : binary64])
-                                      binary64
-                                      (sqrt (fmax (pow x 2) (pow y 2)))
-                                      'libm
-                                      (! :precision binary32 (hypot x y))
-                                      1.6816069999999997]))
+#;(define platform (make-empty-platform 'test #:if-cost 1))
+#;(define binary64 <binary64>)
+#;(platform-register-representation! platform #:repr binary64 #:cost 1)
+#;(platform-register-implementations! platform
+                                      ([hypot.f32
+                                        ([x : binary64] [y : binary64])
+                                        binary64
+                                        (sqrt (fmax (pow x 2) (pow y 2)))
+                                        'libm
+                                        (! :precision binary32 (hypot x y))
+                                        1.6816069999999997]))

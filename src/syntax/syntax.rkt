@@ -290,46 +290,60 @@
       ['libm
        (match (libm-optimize spec)
          [(list op (? symbol? args) ...) ; One operation spec
-          (define itypes (map representation-name (context-var-reprs ctx)))
-          (define otype (representation-name (context-repr ctx)))
-          (define cname (if (equal? otype 'binary32) (sym-append op 'f) op))
-          (make-libm-runtime cname itypes otype)]
+          (let* ([itypes (map repr->ctype (context-var-reprs ctx))]
+                 [otype (repr->ctype (context-repr ctx))]
+                 [cname (if (equal? otype 'float)
+                            (sym-append op 'f)
+                            op)])
+            (define fl (make-libm-runtime cname itypes otype))
+            (unless fl
+              (error 'create-operator-impl!
+                     "Could not find libm implementation of `~a ~a -> ~a`"
+                     cname
+                     itypes
+                     otype))
+            fl)]
          [_ ; Multiple operations spec
-          (define reprs (make-hash))
-          (define otype (context-repr ctx))
-          (define instrs
-            (let loop ([spec (libm-optimize spec)])
-              (match spec
-                [(list op (app loop args) ...)
-                 (define itypes (map (curry hash-ref reprs) args))
-                 (when (equal? (representation-name otype) 'binary32)
-                   (set! op (sym-append op 'f)))
-                 (define fl (make-libm-runtime op itypes (representation-name otype)))
-                 (unless fl
-                   (error 'create-operator-impl! "Could not find libm implementation of `~a ~a -> ~a`" op itypes otype))
-                 (define node (cons fl args))
-                 (hash-set! reprs node (representation-name otype))
-                 node]
-                [(? symbol? var)
-                 (hash-set! reprs var (representation-name (context-lookup ctx var)))
-                 var]
-                [(? number? num)
-                 (define num* (real->repr num otype)) ; I guess? 
-                 (hash-set! reprs num* (representation-name otype))
-                 num*])))
+          (error 'create-operator-impl!
+                 "Could not find a libm single-operator implementation of `~a` for ~a context"
+                 spec
+                 ctx)
+          #;(define reprs (make-hash))
+          #;(define otype (context-repr ctx))
+          #;(define instrs
+              (let loop ([spec (libm-optimize spec)])
+                (match spec
+                  [(list op (app loop args) ...)
+                   (define itypes (map (curry hash-ref reprs) args))
+                   (when (equal? (representation-name otype) 'binary32)
+                     (set! op (sym-append op 'f)))
+                   (define fl (make-libm-runtime op itypes (representation-name otype)))
+                   (unless fl
+                     (error 'create-operator-impl!
+                            "Could not find libm implementation of `~a ~a -> ~a`"
+                            op
+                            itypes
+                            otype))
+                   (define node (cons fl args))
+                   (hash-set! reprs node (representation-name otype))
+                   node]
+                  [(? symbol? var)
+                   (hash-set! reprs var (representation-name (context-lookup ctx var)))
+                   var]
+                  [(? number? num)
+                   (define num* (real->repr num otype)) ; I guess?
+                   (hash-set! reprs num* (representation-name otype))
+                   num*])))
 
-          (define vars (context-vars ctx))
-          (procedure-rename (lambda pt
-                              (define var-pt (make-hash (map cons vars pt)))
-                              (let loop ([instr instrs])
-                                (match instr
-                                  [(list op (app loop args) ...)
-                                   (apply op args)]
-                                  [(? symbol? var)
-                                   (hash-ref var-pt var)]
-                                  [(? number? num)
-                                   num])))
-                            name)])]
+          #;(define vars (context-vars ctx))
+          #;(procedure-rename (lambda pt
+                                (define var-pt (make-hash (map cons vars pt)))
+                                (let loop ([instr instrs])
+                                  (match instr
+                                    [(list op (app loop args) ...) (apply op args)]
+                                    [(? symbol? var) (hash-ref var-pt var)]
+                                    [(? number? num) num])))
+                              name)])]
       [else ; provided => check arity
        (unless (procedure-arity-includes? fl-proc (length vars) #t)
          (error 'create-operator-impl!

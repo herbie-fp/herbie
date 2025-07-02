@@ -10,7 +10,8 @@
          context-extend
          context-lookup
          define-type
-         make-representation)
+         make-representation
+         repr->ctype)
 
 ;; Types
 
@@ -38,6 +39,13 @@
   (match (representation-type repr)
     ['bool '()]
     ['real (list (cons ':precision (representation-name repr)))]))
+
+(define (repr->ctype repr)
+  (match (representation-name repr)
+    ['binary64 'double]
+    ['binary32 'float]
+    ['integer 'integer]
+    [_ (raise-herbie-error "Unresolved c-type for representation ~a" (representation-name repr))]))
 
 (define (make-representation #:name name
                              #:type type
