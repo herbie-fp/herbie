@@ -100,51 +100,48 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; libm operators ;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define libm-impls.f64
-  (make-libm-impls/binary64
-   [(binary64 binary64)
-    ([fabs      0.10162]
-     [sin       3.318128]
-     [cos       3.32288]
-     [tan       3.710904]
-     [sinh      1.20954]
-     [cosh      0.953896]
-     [acos      0.357748]
-     [acosh     0.659472]
-     [asin      0.389788]
-     [asinh     0.835028]
-     [atan      0.83752]
-     [atanh     0.36238]
-     [cbrt      1.565176]
-     [ceil      0.47299]
-     [erf       0.806436]
-     [exp       1.0806]
-     [exp2      0.825484]
-     [floor     0.468568]
-     [lgamma    1.568012]
-     [log       0.505724]
-     [log10     0.868856]
-     [log2      0.681276]
-     [logb      0.220656]
-     [rint      0.121864]
-     [round     0.658564]
-     [sqrt      0.191872]
-     [tanh      0.824016]
-     [tgamma    1.882576]
-     [trunc     0.463644])]
-   [(binary64 binary64 binary64)
-    ([pow       1.52482]
-     [atan2     1.492804]
-     [copysign  0.200452]
-     [fdim      0.592576]
-     [fmax      0.3106]
-     [fmin      0.289256]
-     [fmod      94.277144]
-     [remainder 16.165012])]))
-
-(for ([libm-impl.f64 (in-list libm-impls.f64)])
-  (when libm-impl.f64
-    (platform-register-implementation! platform libm-impl.f64)))
+; ([name        ([var : repr] ...)              otype    spec            fl    fpcore                                  cost])
+(platform-register-implementations!
+ platform
+ (; Unary libm operators
+  [fabs.64      ([x : binary64])                binary64 (fabs x)        'libm (! :precision binary64 (fabs x))        0.10162]
+  [sin.64       ([x : binary64])                binary64 (sin x)         'libm (! :precision binary64 (sin x))         3.318128]
+  [cos.64       ([x : binary64])                binary64 (cos x)         'libm (! :precision binary64 (cos x))         3.32288]
+  [tan.64       ([x : binary64])                binary64 (tan x)         'libm (! :precision binary64 (tan x))         3.710904]
+  [sinh.64      ([x : binary64])                binary64 (sinh x)        'libm (! :precision binary64 (sinh x))        1.20954]
+  [cosh.64      ([x : binary64])                binary64 (cosh x)        'libm (! :precision binary64 (cosh x))        0.953896]
+  [acos.64      ([x : binary64])                binary64 (acos x)        'libm (! :precision binary64 (acos x))        0.357748]
+  [acosh.64     ([x : binary64])                binary64 (acosh x)       'libm (! :precision binary64 (acosh x))       0.659472]
+  [asin.64      ([x : binary64])                binary64 (asin x)        'libm (! :precision binary64 (asin x))        0.389788]
+  [asinh.64     ([x : binary64])                binary64 (asinh x)       'libm (! :precision binary64 (asinh x))       0.835028]
+  [atan.64      ([x : binary64])                binary64 (atan x)        'libm (! :precision binary64 (atan x))        0.83752]
+  [atanh.64     ([x : binary64])                binary64 (atanh x)       'libm (! :precision binary64 (atanh x))       0.36238]
+  [cbrt.64      ([x : binary64])                binary64 (cbrt x)        'libm (! :precision binary64 (cbrt x))        1.565176]
+  [ceil.64      ([x : binary64])                binary64 (ceil x)        'libm (! :precision binary64 (ceil x))        0.47299]
+  [erf.64       ([x : binary64])                binary64 (erf x)         'libm (! :precision binary64 (erf x))         0.806436]
+  [exp.64       ([x : binary64])                binary64 (exp x)         'libm (! :precision binary64 (exp x))         1.0806]
+  [exp2.64      ([x : binary64])                binary64 (exp2 x)        'libm (! :precision binary64 (exp2 x))        0.825484]
+  [floor.64     ([x : binary64])                binary64 (floor x)       'libm (! :precision binary64 (floor x))       0.468568]
+  [lgamma.64    ([x : binary64])                binary64 (lgamma x)      'libm (! :precision binary64 (lgamma x))      1.568012]
+  [log.64       ([x : binary64])                binary64 (log x)         'libm (! :precision binary64 (log x))         0.505724]
+  [log10.64     ([x : binary64])                binary64 (log10 x)       'libm (! :precision binary64 (log10 x))       0.868856]
+  [log2.64      ([x : binary64])                binary64 (log2 x)        'libm (! :precision binary64 (log2 x))        0.681276]
+  [logb.64      ([x : binary64])                binary64 (logb x)        'libm (! :precision binary64 (logb x))        0.220656]
+  [rint.64      ([x : binary64])                binary64 (rint x)        'libm (! :precision binary64 (rint x))        0.121864]
+  [round.64     ([x : binary64])                binary64 (round x)       'libm (! :precision binary64 (round x))       0.658564]
+  [sqrt.64      ([x : binary64])                binary64 (sqrt x)        'libm (! :precision binary64 (sqrt x))        0.191872]
+  [tanh.64      ([x : binary64])                binary64 (tanh x)        'libm (! :precision binary64 (tanh x))        0.824016]
+  [tgamma.64    ([x : binary64])                binary64 (tgamma x)      'libm (! :precision binary64 (tgamma x))      1.882576]
+  [trunc.64     ([x : binary64])                binary64 (trunc x)       'libm (! :precision binary64 (trunc x))       0.463644]
+  ; Binary libm operators
+  [pow.64       ([x : binary64] [y : binary64]) binary64 (pow x y)       'libm (! :precision binary64 (pow x y))       1.52482]
+  [atan2.64     ([x : binary64] [y : binary64]) binary64 (atan2 x y)     'libm (! :precision binary64 (atan2 x y))     1.492804]
+  [copysign.64  ([x : binary64] [y : binary64]) binary64 (copysign x y)  'libm (! :precision binary64 (copysign x y))  0.200452]
+  [fdim.64      ([x : binary64] [y : binary64]) binary64 (fdim x y)      'libm (! :precision binary64 (fdim x y))      0.592576]
+  [fmax.64      ([x : binary64] [y : binary64]) binary64 (fmax x y)      'libm (! :precision binary64 (fmax x y))      0.3106]
+  [fmin.64      ([x : binary64] [y : binary64]) binary64 (fmin x y)      'libm (! :precision binary64 (fmin x y))      0.289256]
+  [fmod.64      ([x : binary64] [y : binary64]) binary64 (fmod x y)      'libm (! :precision binary64 (fmod x y))      94.277144]
+  [remainder.64 ([x : binary64] [y : binary64]) binary64 (remainder x y) 'libm (! :precision binary64 (remainder x y)) 16.165012]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; libm accelerators ;;;;;;;;;;;;;;;;;;;;;
 

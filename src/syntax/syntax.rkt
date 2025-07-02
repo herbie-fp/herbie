@@ -289,16 +289,15 @@
                          name)]
       ['libm
        (define reprs (make-hash))
+       (define otype (context-repr ctx))
        (define instrs
          (let loop ([spec (libm-optimize spec)])
            (match spec
              [(list op (app loop args) ...)
               (define itypes (map (curry hash-ref reprs) args))
-              (define otype
-                (representation-name (context-repr ctx))) ; I guess? We want it to be deterministic
-              (when (equal? otype 'binary32)
+              (when (equal? (representation-name otype) 'binary32)
                 (set! op (sym-append op 'f)))
-              (define fl (make-libm-runtime op itypes otype))
+              (define fl (make-libm-runtime op itypes (representation-name otype)))
               (unless fl
                 (error 'create-operator-impl!
                        "Could not find libm implementation of `~a ~a -> ~a`"
@@ -306,15 +305,15 @@
                        itypes
                        otype))
               (define node (cons fl args))
-              (hash-set! reprs node otype)
+              (hash-set! reprs node (representation-name otype))
               node]
-             [(? symbol?)
-              (hash-set! reprs spec (representation-name (context-lookup ctx spec)))
-              spec]
-             [(? number?)
-              (define repr (context-repr ctx))
-              (hash-set! reprs (real->repr spec repr) (representation-name repr)) ; I guess?
-              (real->repr spec repr)]))) ; to do: cast number to a specific representation
+             [(? symbol? var)
+              (hash-set! reprs var (representation-name (context-lookup ctx var)))
+              var]
+             [(? number? num)
+              (define num* (real->repr num otype)) ; I guess?
+              (hash-set! reprs num* (representation-name otype))
+              num*])))
 
        (define vars (context-vars ctx))
        (procedure-rename (lambda pt
@@ -322,8 +321,8 @@
                            (let loop ([instr instrs])
                              (match instr
                                [(list op (app loop args) ...) (apply op args)]
-                               [(? symbol?) (hash-ref var-pt instr)]
-                               [(? number?) instr])))
+                               [(? symbol? var) (hash-ref var-pt var)]
+                               [(? number? num) num])))
                          name)]
       [else ; provided => check arity
        (unless (procedure-arity-includes? fl-proc (length vars) #t)
