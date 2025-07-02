@@ -5,18 +5,39 @@
 ;; than Racket's implementations
 
 (require ffi/unsafe
-         "../../syntax/syntax.rkt")
+         #;"../../syntax/syntax.rkt")
 
 (provide make-libm
-         make-libm-impl
-         make-libm-impls/binary32
-         make-libm-impls/binary64)
+         make-libm-runtime
+         libm-optimize
+         repr->type
+         
+         #;make-libm-impl
+         #;make-libm-impls/binary32
+         #;make-libm-impls/binary64)
+
+; Libm's accelerators
+(define (libm-optimize spec)
+  (match spec
+    [`(- 1 (erf ,x)) `(erfc ,x)]
+    [`(- (exp ,x) 1) `(expm1 x)]
+    [`(log (+ 1 ,x)) `(log1p ,x)]
+    [`(sqrt (+ (* ,x ,x) (* ,y ,y))) `(hypot ,x ,y)]
+    [`(+ (* ,x ,y) ,z) `(fma ,x ,y ,z)]
+    [_ spec]))
+
+(define (repr->type repr)
+  (match repr
+    ['binary64 _double]
+    ['binary32 _float]
+    ['integer _int]
+    [else (raise-syntax-error 'repr->type "unknown type" repr)]))
 
 ;; Looks up a function `name` with type signature `itype -> ... -> otype`
 ;; in the system libm and binds to `id` the FFI function or `#f` if
 ;; the procedure cannot be found.
 ;; ```
-;; (define-libm <id> (<name> <itype> ... <otype))
+;; (make-libm (<name> <itype> ... <otype))
 ;; ```
 (define-syntax (make-libm stx)
   (define (oops! why [sub-stx #f])
@@ -30,20 +51,21 @@
   (syntax-case stx ()
     [(_ (name itype ... otype))
      (begin
-       (unless (identifier? #'id)
-         (oops! "expected identifier" #'id))
        (unless (identifier? #'name)
          (oops! "expected identifier" #'name))
        (with-syntax ([(itype ...) (map ctype->ffi (syntax->list #'(itype ...)))]
                      [otype (ctype->ffi #'otype)])
          #'(get-ffi-obj 'name #f (_fun itype ... -> otype) (const #f))))]))
 
+(define (make-libm-runtime name itypes otype)
+  (get-ffi-obj name #f (_cprocedure (map repr->type itypes) (repr->type otype)) (const #f)))
+
 ;; Define a Herbie operator implementation whose underlying
 ;; procedure is a libm function.
 ;; ```
 ;; (define-libm-impl <libm-name> (<op> <impl> <itype> ...) <otype> <attrib> ...)
 ;; ```
-(define-syntax (make-libm-impl stx)
+#;(define-syntax (make-libm-impl stx)
   (define (oops! why [sub-stx #f])
     (raise-syntax-error 'make-libm-impl why stx sub-stx))
 
@@ -92,29 +114,29 @@
 ;   (make-operator-impl (fabs.f32 [x : binary32]) binary32 #:spec (fabs x) #:fl fabsf.libm #:cost 1))
 ; (platform-register-implementation! herbie20-platform fabs.f32)
 
-(define-syntax (make-libm-impl/binary32 stx)
+#;(define-syntax (make-libm-impl/binary32 stx)
   (syntax-case stx (real)
     [(_ op (itype ...) otype cost attrib ...)
      (with-syntax ([impl (string->symbol (format "~a.f32" (syntax->datum #'op)))]
                    [cname (string->symbol (format "~af" (syntax->datum #'op)))])
        #'(make-libm-impl cname (op impl itype ...) otype cost attrib ...))]))
 
-(define-syntax-rule (make-libm-impls/binary32* (itype ... otype) [name cost] ...)
+#;(define-syntax-rule (make-libm-impls/binary32* (itype ... otype) [name cost] ...)
   (list (make-libm-impl/binary32 name (itype ...) otype cost) ...))
 
-(define-syntax-rule (make-libm-impls/binary32 [(itype ... otype) ([name cost] ...)] ...)
+#;(define-syntax-rule (make-libm-impls/binary32 [(itype ... otype) ([name cost] ...)] ...)
   (apply append (list (make-libm-impls/binary32* (itype ... otype) [name cost] ...) ...)))
 
 ; Define binary64 implementations with libm's fl
 
-(define-syntax (make-libm-impl/binary64 stx)
+#;(define-syntax (make-libm-impl/binary64 stx)
   (syntax-case stx (real)
     [(_ op (itype ...) otype cost attrib ...)
      (with-syntax ([impl (string->symbol (format "~a.f64" (syntax->datum #'op)))])
        #'(make-libm-impl op (op impl itype ...) otype cost attrib ...))]))
 
-(define-syntax-rule (make-libm-impls/binary64* (itype ... otype) [name cost] ...)
+#;(define-syntax-rule (make-libm-impls/binary64* (itype ... otype) [name cost] ...)
   (list (make-libm-impl/binary64 name (itype ...) otype cost) ...))
 
-(define-syntax-rule (make-libm-impls/binary64 [(itype ... otype) ([name cost] ...)] ...)
+#;(define-syntax-rule (make-libm-impls/binary64 [(itype ... otype) ([name cost] ...)] ...)
   (apply append (list (make-libm-impls/binary64* (itype ... otype) [name cost] ...) ...)))

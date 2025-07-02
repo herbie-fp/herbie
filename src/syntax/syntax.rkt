@@ -4,9 +4,11 @@
 
 (require "../utils/common.rkt"
          "../utils/errors.rkt"
+         "../utils/float.rkt"
          "../core/rival.rkt"
          "matcher.rkt"
-         "types.rkt")
+         "types.rkt"
+         "../platforms/runtime/libm.rkt")
 
 (provide (struct-out literal)
          (struct-out approx)
@@ -245,7 +247,7 @@
                                         #:fpcore [fpcore #f]
                                         #:cost [cost #f])
   (->* (symbol? context? any/c)
-       (#:fl (or/c procedure? #f) #:fpcore any/c #:cost (or/c #f real?))
+       (#:fl (or/c procedure? #f 'libm 'correct-rounding) #:fpcore any/c #:cost (or/c #f real?))
        operator-impl?)
   ; check specification
   (check-spec! name ctx spec)
@@ -274,15 +276,9 @@
     [_ (error 'create-operator-impl! "Invalid fpcore for ~a: ~a" name fpcore)])
   ; check or synthesize floating-point operation
   (define fl-proc*
-    (cond
-      [fl-proc ; provided => check arity
-       (unless (procedure-arity-includes? fl-proc (length vars) #t)
-         (error 'create-operator-impl!
-                "~a: procedure does not accept ~a arguments"
-                name
-                (length vars)))
-       fl-proc]
-      [else ; need to generate
+    (match fl-proc
+      [#f (error 'create-operator-impl! "fl-proc is not provided for `~a` implementation" name)]
+      ['correct-rounding
        (define compiler (make-real-compiler (list spec) (list ctx)))
        (define fail ((representation-bf->repr (context-repr ctx)) +nan.bf))
        (procedure-rename (lambda pt
@@ -290,7 +286,52 @@
                            (if exs
                                (first exs)
                                fail))
-                         name)]))
+                         name)]
+      ['libm
+       (define reprs (make-hash))
+       (define instrs
+         (let loop ([spec (libm-optimize spec)])
+           (match spec
+             [(list op (app loop args) ...)
+              (define itypes (map (curry hash-ref reprs) args))
+              (define otype
+                (representation-name (context-repr ctx))) ; I guess? We want it to be deterministic
+              (when (equal? otype 'binary32)
+                (set! op (sym-append op 'f)))
+              (define fl (make-libm-runtime op itypes otype))
+              (unless fl
+                (error 'create-operator-impl!
+                       "Could not find libm implementation of `~a ~a -> ~a`"
+                       op
+                       itypes
+                       otype))
+              (define node (cons fl args))
+              (hash-set! reprs node otype)
+              node]
+             [(? symbol?)
+              (hash-set! reprs spec (representation-name (context-lookup ctx spec)))
+              spec]
+             [(? number?)
+              (define repr (context-repr ctx))
+              (hash-set! reprs (real->repr spec repr) (representation-name repr)) ; I guess?
+              (real->repr spec repr)]))) ; to do: cast number to a specific representation
+
+       (define vars (context-vars ctx))
+       (procedure-rename (lambda pt
+                           (define var-pt (make-hash (map cons vars pt)))
+                           (let loop ([instr instrs])
+                             (match instr
+                               [(list op (app loop args) ...) (apply op args)]
+                               [(? symbol?) (hash-ref var-pt instr)]
+                               [(? number?) instr])))
+                         name)]
+      [else ; provided => check arity
+       (unless (procedure-arity-includes? fl-proc (length vars) #t)
+         (error 'create-operator-impl!
+                "~a: procedure does not accept ~a arguments"
+                name
+                (length vars)))
+       fl-proc]))
   (operator-impl name ctx spec fpcore fl-proc* cost))
 
 (define-syntax (make-operator-impl stx)
