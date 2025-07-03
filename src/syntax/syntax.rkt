@@ -5,10 +5,9 @@
 (require "../utils/common.rkt"
          "../utils/errors.rkt"
          "../utils/float.rkt"
-         "../core/rival.rkt"
          "matcher.rkt"
          "types.rkt"
-         "../platforms/runtime/libm.rkt")
+         "generators.rkt")
 
 (provide (struct-out literal)
          (struct-out approx)
@@ -247,7 +246,7 @@
                                         #:fpcore [fpcore #f]
                                         #:cost [cost #f])
   (->* (symbol? context? any/c)
-       (#:fl (or/c procedure? #f 'libm 'correct-rounding) #:fpcore any/c #:cost (or/c #f real?))
+       (#:fl (or/c procedure? #f) #:fpcore any/c #:cost (or/c #f real?))
        operator-impl?)
   ; check specification
   (check-spec! name ctx spec)
@@ -277,80 +276,15 @@
   ; check or synthesize floating-point operation
   (define fl-proc*
     (match fl-proc
-      [#f (error 'create-operator-impl! "fl-proc is not provided for `~a` implementation" name)]
-      ['correct-rounding
-       (define compiler (make-real-compiler (list spec) (list ctx)))
-       (define fail ((representation-bf->repr (context-repr ctx)) +nan.bf))
-       (procedure-rename (lambda pt
-                           (define-values (_ exs) (real-apply compiler (list->vector pt)))
-                           (if exs
-                               (first exs)
-                               fail))
-                         name)]
-      ['libm
-       (match (libm-optimize spec)
-         [(list op (? symbol? args) ...) ; One operation spec
-          (let* ([itypes (map repr->ctype (context-var-reprs ctx))]
-                 [otype (repr->ctype (context-repr ctx))]
-                 [cname (if (equal? otype 'float)
-                            (sym-append op 'f)
-                            op)])
-            (define fl (make-libm-runtime cname itypes otype))
-            (unless fl
-              (error 'create-operator-impl!
-                     "Could not find libm implementation of `~a ~a -> ~a`"
-                     cname
-                     itypes
-                     otype))
-            fl)]
-         [_ ; Multiple operations spec
-          (error 'create-operator-impl!
-                 "Could not find a libm single-operator implementation of `~a` for ~a context"
-                 spec
-                 ctx)
-          #;(define reprs (make-hash))
-          #;(define otype (context-repr ctx))
-          #;(define instrs
-              (let loop ([spec (libm-optimize spec)])
-                (match spec
-                  [(list op (app loop args) ...)
-                   (define itypes (map (curry hash-ref reprs) args))
-                   (when (equal? (representation-name otype) 'binary32)
-                     (set! op (sym-append op 'f)))
-                   (define fl (make-libm-runtime op itypes (representation-name otype)))
-                   (unless fl
-                     (error 'create-operator-impl!
-                            "Could not find libm implementation of `~a ~a -> ~a`"
-                            op
-                            itypes
-                            otype))
-                   (define node (cons fl args))
-                   (hash-set! reprs node (representation-name otype))
-                   node]
-                  [(? symbol? var)
-                   (hash-set! reprs var (representation-name (context-lookup ctx var)))
-                   var]
-                  [(? number? num)
-                   (define num* (real->repr num otype)) ; I guess?
-                   (hash-set! reprs num* (representation-name otype))
-                   num*])))
-
-          #;(define vars (context-vars ctx))
-          #;(procedure-rename (lambda pt
-                                (define var-pt (make-hash (map cons vars pt)))
-                                (let loop ([instr instrs])
-                                  (match instr
-                                    [(list op (app loop args) ...) (apply op args)]
-                                    [(? symbol? var) (hash-ref var-pt var)]
-                                    [(? number? num) num])))
-                              name)])]
-      [else ; provided => check arity
+      [(? generator? gen) (gen spec ctx)]
+      [(? procedure?) ; provided => check arity
        (unless (procedure-arity-includes? fl-proc (length vars) #t)
          (error 'create-operator-impl!
                 "~a: procedure does not accept ~a arguments"
                 name
                 (length vars)))
-       fl-proc]))
+       fl-proc]
+      [#f (error 'create-operator-impl! "fl-proc is not provided for `~a` implementation" name)]))
   (operator-impl name ctx spec fpcore fl-proc* cost))
 
 (define-syntax (make-operator-impl stx)

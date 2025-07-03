@@ -12,6 +12,8 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; EMPTY PLATFORM ;;;;;;;;;;;;;;;;;;;;;;;;
 
+(define gen (from-libm))
+
 (define platform (make-empty-platform 'herbie20 #:if-cost 1))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BOOLEAN ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -91,55 +93,55 @@
 (platform-register-implementations!
  platform
  (; Unary libm operators
-  [fabs.f32      ([x : binary32])                binary32 (fabs x)        'libm (! :precision binary32 (fabs x))        64]
-  [sin.f32       ([x : binary32])                binary32 (sin x)         'libm (! :precision binary32 (sin x))         3200]
-  [cos.f32       ([x : binary32])                binary32 (cos x)         'libm (! :precision binary32 (cos x))         3200]
-  [tan.f32       ([x : binary32])                binary32 (tan x)         'libm (! :precision binary32 (tan x))         3200]
-  [sinh.f32      ([x : binary32])                binary32 (sinh x)        'libm (! :precision binary32 (sinh x))        3200]
-  [cosh.f32      ([x : binary32])                binary32 (cosh x)        'libm (! :precision binary32 (cosh x))        3200]
-  [acos.f32      ([x : binary32])                binary32 (acos x)        'libm (! :precision binary32 (acos x))        3200]
-  [acosh.f32     ([x : binary32])                binary32 (acosh x)       'libm (! :precision binary32 (acosh x))       3200]
-  [asin.f32      ([x : binary32])                binary32 (asin x)        'libm (! :precision binary32 (asin x))        3200]
-  [asinh.f32     ([x : binary32])                binary32 (asinh x)       'libm (! :precision binary32 (asinh x))       3200]
-  [atan.f32      ([x : binary32])                binary32 (atan x)        'libm (! :precision binary32 (atan x))        3200]
-  [atanh.f32     ([x : binary32])                binary32 (atanh x)       'libm (! :precision binary32 (atanh x))       3200]
-  [cbrt.f32      ([x : binary32])                binary32 (cbrt x)        'libm (! :precision binary32 (cbrt x))        3200]
-  [ceil.f32      ([x : binary32])                binary32 (ceil x)        'libm (! :precision binary32 (ceil x))        3200]
-  [erf.f32       ([x : binary32])                binary32 (erf x)         'libm (! :precision binary32 (erf x))         3200]
-  [exp.f32       ([x : binary32])                binary32 (exp x)         'libm (! :precision binary32 (exp x))         3200]
-  [exp2.f32      ([x : binary32])                binary32 (exp2 x)        'libm (! :precision binary32 (exp2 x))        3200]
-  [floor.f32     ([x : binary32])                binary32 (floor x)       'libm (! :precision binary32 (floor x))       3200]
-  [lgamma.f32    ([x : binary32])                binary32 (lgamma x)      'libm (! :precision binary32 (lgamma x))      3200]
-  [log.f32       ([x : binary32])                binary32 (log x)         'libm (! :precision binary32 (log x))         3200]
-  [log10.f32     ([x : binary32])                binary32 (log10 x)       'libm (! :precision binary32 (log10 x))       3200]
-  [log2.f32      ([x : binary32])                binary32 (log2 x)        'libm (! :precision binary32 (log2 x))        3200]
-  [logb.f32      ([x : binary32])                binary32 (logb x)        'libm (! :precision binary32 (logb x))        3200]
-  [rint.f32      ([x : binary32])                binary32 (rint x)        'libm (! :precision binary32 (rint x))        3200]
-  [round.f32     ([x : binary32])                binary32 (round x)       'libm (! :precision binary32 (round x))       3200]
-  [sqrt.f32      ([x : binary32])                binary32 (sqrt x)        'libm (! :precision binary32 (sqrt x))        320]
-  [tanh.f32      ([x : binary32])                binary32 (tanh x)        'libm (! :precision binary32 (tanh x))        3200]
-  [tgamma.f32    ([x : binary32])                binary32 (tgamma x)      'libm (! :precision binary32 (tgamma x))      3200]
-  [trunc.f32     ([x : binary32])                binary32 (trunc x)       'libm (! :precision binary32 (trunc x))       3200]
+  [fabs.f32      ([x : binary32])                binary32 (fabs x)        gen (! :precision binary32 (fabs x))        64]
+  [sin.f32       ([x : binary32])                binary32 (sin x)         gen (! :precision binary32 (sin x))         3200]
+  [cos.f32       ([x : binary32])                binary32 (cos x)         gen (! :precision binary32 (cos x))         3200]
+  [tan.f32       ([x : binary32])                binary32 (tan x)         gen (! :precision binary32 (tan x))         3200]
+  [sinh.f32      ([x : binary32])                binary32 (sinh x)        gen (! :precision binary32 (sinh x))        3200]
+  [cosh.f32      ([x : binary32])                binary32 (cosh x)        gen (! :precision binary32 (cosh x))        3200]
+  [acos.f32      ([x : binary32])                binary32 (acos x)        gen (! :precision binary32 (acos x))        3200]
+  [acosh.f32     ([x : binary32])                binary32 (acosh x)       gen (! :precision binary32 (acosh x))       3200]
+  [asin.f32      ([x : binary32])                binary32 (asin x)        gen (! :precision binary32 (asin x))        3200]
+  [asinh.f32     ([x : binary32])                binary32 (asinh x)       gen (! :precision binary32 (asinh x))       3200]
+  [atan.f32      ([x : binary32])                binary32 (atan x)        gen (! :precision binary32 (atan x))        3200]
+  [atanh.f32     ([x : binary32])                binary32 (atanh x)       gen (! :precision binary32 (atanh x))       3200]
+  [cbrt.f32      ([x : binary32])                binary32 (cbrt x)        gen (! :precision binary32 (cbrt x))        3200]
+  [ceil.f32      ([x : binary32])                binary32 (ceil x)        gen (! :precision binary32 (ceil x))        3200]
+  [erf.f32       ([x : binary32])                binary32 (erf x)         gen (! :precision binary32 (erf x))         3200]
+  [exp.f32       ([x : binary32])                binary32 (exp x)         gen (! :precision binary32 (exp x))         3200]
+  [exp2.f32      ([x : binary32])                binary32 (exp2 x)        gen (! :precision binary32 (exp2 x))        3200]
+  [floor.f32     ([x : binary32])                binary32 (floor x)       gen (! :precision binary32 (floor x))       3200]
+  [lgamma.f32    ([x : binary32])                binary32 (lgamma x)      gen (! :precision binary32 (lgamma x))      3200]
+  [log.f32       ([x : binary32])                binary32 (log x)         gen (! :precision binary32 (log x))         3200]
+  [log10.f32     ([x : binary32])                binary32 (log10 x)       gen (! :precision binary32 (log10 x))       3200]
+  [log2.f32      ([x : binary32])                binary32 (log2 x)        gen (! :precision binary32 (log2 x))        3200]
+  [logb.f32      ([x : binary32])                binary32 (logb x)        gen (! :precision binary32 (logb x))        3200]
+  [rint.f32      ([x : binary32])                binary32 (rint x)        gen (! :precision binary32 (rint x))        3200]
+  [round.f32     ([x : binary32])                binary32 (round x)       gen (! :precision binary32 (round x))       3200]
+  [sqrt.f32      ([x : binary32])                binary32 (sqrt x)        gen (! :precision binary32 (sqrt x))        320]
+  [tanh.f32      ([x : binary32])                binary32 (tanh x)        gen (! :precision binary32 (tanh x))        3200]
+  [tgamma.f32    ([x : binary32])                binary32 (tgamma x)      gen (! :precision binary32 (tgamma x))      3200]
+  [trunc.f32     ([x : binary32])                binary32 (trunc x)       gen (! :precision binary32 (trunc x))       3200]
   ; Binary libm operators
-  [pow.f32       ([x : binary32] [y : binary32]) binary32 (pow x y)       'libm (! :precision binary32 (pow x y))       3200]
-  [atan2.f32     ([x : binary32] [y : binary32]) binary32 (atan2 x y)     'libm (! :precision binary32 (atan2 x y))     3200]
-  [copysign.f32  ([x : binary32] [y : binary32]) binary32 (copysign x y)  'libm (! :precision binary32 (copysign x y))  3200]
-  [fdim.f32      ([x : binary32] [y : binary32]) binary32 (fdim x y)      'libm (! :precision binary32 (fdim x y))      3200]
-  [fmax.f32      ([x : binary32] [y : binary32]) binary32 (fmax x y)      'libm (! :precision binary32 (fmax x y))      3200]
-  [fmin.f32      ([x : binary32] [y : binary32]) binary32 (fmin x y)      'libm (! :precision binary32 (fmin x y))      3200]
-  [fmod.f32      ([x : binary32] [y : binary32]) binary32 (fmod x y)      'libm (! :precision binary32 (fmod x y))      3200]
-  [remainder.f32 ([x : binary32] [y : binary32]) binary32 (remainder x y) 'libm (! :precision binary32 (remainder x y)) 3200]))
+  [pow.f32       ([x : binary32] [y : binary32]) binary32 (pow x y)       gen (! :precision binary32 (pow x y))       3200]
+  [atan2.f32     ([x : binary32] [y : binary32]) binary32 (atan2 x y)     gen (! :precision binary32 (atan2 x y))     3200]
+  [copysign.f32  ([x : binary32] [y : binary32]) binary32 (copysign x y)  gen (! :precision binary32 (copysign x y))  3200]
+  [fdim.f32      ([x : binary32] [y : binary32]) binary32 (fdim x y)      gen (! :precision binary32 (fdim x y))      3200]
+  [fmax.f32      ([x : binary32] [y : binary32]) binary32 (fmax x y)      gen (! :precision binary32 (fmax x y))      3200]
+  [fmin.f32      ([x : binary32] [y : binary32]) binary32 (fmin x y)      gen (! :precision binary32 (fmin x y))      3200]
+  [fmod.f32      ([x : binary32] [y : binary32]) binary32 (fmod x y)      gen (! :precision binary32 (fmod x y))      3200]
+  [remainder.f32 ([x : binary32] [y : binary32]) binary32 (remainder x y) gen (! :precision binary32 (remainder x y)) 3200]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; libm accelerators ;;;;;;;;;;;;;;;;;;;;;
 
 ; ([name     ([var : repr] ...)                             otype    spec                       fl      fpcore                               cost])
 (platform-register-implementations!
  platform
- ([erfc.f32  ([x : binary32])                               binary32 (- 1 (erf x))              'libm (! :precision binary32 (erfc x))    3200]
-  [expm1.f32 ([x : binary32])                               binary32 (- (exp x) 1)              'libm (! :precision binary32 (expm1 x))   3200]
-  [log1p.f32 ([x : binary32])                               binary32 (log (+ 1 x))              'libm (! :precision binary32 (log1p x))   3200]
-  [hypot.f32 ([x : binary32] [y : binary32])                binary32 (sqrt (+ (* x x) (* y y))) 'libm (! :precision binary32 (hypot x y)) 32007]
-  [fma.f32   ([x : binary32] [y : binary32] [z : binary32]) binary32 (+ (* x y) z)              'libm (! :precision binary32 (fma x y z)) 128]))
+ ([erfc.f32  ([x : binary32])                               binary32 (- 1 (erf x))              gen (! :precision binary32 (erfc x))    3200]
+  [expm1.f32 ([x : binary32])                               binary32 (- (exp x) 1)              gen (! :precision binary32 (expm1 x))   3200]
+  [log1p.f32 ([x : binary32])                               binary32 (log (+ 1 x))              gen (! :precision binary32 (log1p x))   3200]
+  [hypot.f32 ([x : binary32] [y : binary32])                binary32 (sqrt (+ (* x x) (* y y))) gen (! :precision binary32 (hypot x y)) 32007]
+  [fma.f32   ([x : binary32] [y : binary32] [z : binary32]) binary32 (+ (* x y) z)              gen (! :precision binary32 (fma x y z)) 128]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BINARY 64 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -189,55 +191,55 @@
 (platform-register-implementations!
  platform
  (; Unary libm operators
-  [fabs.f64      ([x : binary64])                binary64 (fabs x)        'libm (! :precision binary64 (fabs x))        128]
-  [sin.f64       ([x : binary64])                binary64 (sin x)         'libm (! :precision binary64 (sin x))         6400]
-  [cos.f64       ([x : binary64])                binary64 (cos x)         'libm (! :precision binary64 (cos x))         6400]
-  [tan.f64       ([x : binary64])                binary64 (tan x)         'libm (! :precision binary64 (tan x))         6400]
-  [sinh.f64      ([x : binary64])                binary64 (sinh x)        'libm (! :precision binary64 (sinh x))        6400]
-  [cosh.f64      ([x : binary64])                binary64 (cosh x)        'libm (! :precision binary64 (cosh x))        6400]
-  [acos.f64      ([x : binary64])                binary64 (acos x)        'libm (! :precision binary64 (acos x))        6400]
-  [acosh.f64     ([x : binary64])                binary64 (acosh x)       'libm (! :precision binary64 (acosh x))       6400]
-  [asin.f64      ([x : binary64])                binary64 (asin x)        'libm (! :precision binary64 (asin x))        6400]
-  [asinh.f64     ([x : binary64])                binary64 (asinh x)       'libm (! :precision binary64 (asinh x))       6400]
-  [atan.f64      ([x : binary64])                binary64 (atan x)        'libm (! :precision binary64 (atan x))        6400]
-  [atanh.f64     ([x : binary64])                binary64 (atanh x)       'libm (! :precision binary64 (atanh x))       6400]
-  [cbrt.f64      ([x : binary64])                binary64 (cbrt x)        'libm (! :precision binary64 (cbrt x))        6400]
-  [ceil.f64      ([x : binary64])                binary64 (ceil x)        'libm (! :precision binary64 (ceil x))        6400]
-  [erf.f64       ([x : binary64])                binary64 (erf x)         'libm (! :precision binary64 (erf x))         6400]
-  [exp.f64       ([x : binary64])                binary64 (exp x)         'libm (! :precision binary64 (exp x))         6400]
-  [exp2.f64      ([x : binary64])                binary64 (exp2 x)        'libm (! :precision binary64 (exp2 x))        6400]
-  [floor.f64     ([x : binary64])                binary64 (floor x)       'libm (! :precision binary64 (floor x))       6400]
-  [lgamma.f64    ([x : binary64])                binary64 (lgamma x)      'libm (! :precision binary64 (lgamma x))      6400]
-  [log.f64       ([x : binary64])                binary64 (log x)         'libm (! :precision binary64 (log x))         6400]
-  [log10.f64     ([x : binary64])                binary64 (log10 x)       'libm (! :precision binary64 (log10 x))       6400]
-  [log2.f64      ([x : binary64])                binary64 (log2 x)        'libm (! :precision binary64 (log2 x))        6400]
-  [logb.f64      ([x : binary64])                binary64 (logb x)        'libm (! :precision binary64 (logb x))        6400]
-  [rint.f64      ([x : binary64])                binary64 (rint x)        'libm (! :precision binary64 (rint x))        6400]
-  [round.f64     ([x : binary64])                binary64 (round x)       'libm (! :precision binary64 (round x))       6400]
-  [sqrt.f64      ([x : binary64])                binary64 (sqrt x)        'libm (! :precision binary64 (sqrt x))        640]
-  [tanh.f64      ([x : binary64])                binary64 (tanh x)        'libm (! :precision binary64 (tanh x))        6400]
-  [tgamma.f64    ([x : binary64])                binary64 (tgamma x)      'libm (! :precision binary64 (tgamma x))      6400]
-  [trunc.f64     ([x : binary64])                binary64 (trunc x)       'libm (! :precision binary64 (trunc x))       6400]
+  [fabs.f64      ([x : binary64])                binary64 (fabs x)        gen (! :precision binary64 (fabs x))        128]
+  [sin.f64       ([x : binary64])                binary64 (sin x)         gen (! :precision binary64 (sin x))         6400]
+  [cos.f64       ([x : binary64])                binary64 (cos x)         gen (! :precision binary64 (cos x))         6400]
+  [tan.f64       ([x : binary64])                binary64 (tan x)         gen (! :precision binary64 (tan x))         6400]
+  [sinh.f64      ([x : binary64])                binary64 (sinh x)        gen (! :precision binary64 (sinh x))        6400]
+  [cosh.f64      ([x : binary64])                binary64 (cosh x)        gen (! :precision binary64 (cosh x))        6400]
+  [acos.f64      ([x : binary64])                binary64 (acos x)        gen (! :precision binary64 (acos x))        6400]
+  [acosh.f64     ([x : binary64])                binary64 (acosh x)       gen (! :precision binary64 (acosh x))       6400]
+  [asin.f64      ([x : binary64])                binary64 (asin x)        gen (! :precision binary64 (asin x))        6400]
+  [asinh.f64     ([x : binary64])                binary64 (asinh x)       gen (! :precision binary64 (asinh x))       6400]
+  [atan.f64      ([x : binary64])                binary64 (atan x)        gen (! :precision binary64 (atan x))        6400]
+  [atanh.f64     ([x : binary64])                binary64 (atanh x)       gen (! :precision binary64 (atanh x))       6400]
+  [cbrt.f64      ([x : binary64])                binary64 (cbrt x)        gen (! :precision binary64 (cbrt x))        6400]
+  [ceil.f64      ([x : binary64])                binary64 (ceil x)        gen (! :precision binary64 (ceil x))        6400]
+  [erf.f64       ([x : binary64])                binary64 (erf x)         gen (! :precision binary64 (erf x))         6400]
+  [exp.f64       ([x : binary64])                binary64 (exp x)         gen (! :precision binary64 (exp x))         6400]
+  [exp2.f64      ([x : binary64])                binary64 (exp2 x)        gen (! :precision binary64 (exp2 x))        6400]
+  [floor.f64     ([x : binary64])                binary64 (floor x)       gen (! :precision binary64 (floor x))       6400]
+  [lgamma.f64    ([x : binary64])                binary64 (lgamma x)      gen (! :precision binary64 (lgamma x))      6400]
+  [log.f64       ([x : binary64])                binary64 (log x)         gen (! :precision binary64 (log x))         6400]
+  [log10.f64     ([x : binary64])                binary64 (log10 x)       gen (! :precision binary64 (log10 x))       6400]
+  [log2.f64      ([x : binary64])                binary64 (log2 x)        gen (! :precision binary64 (log2 x))        6400]
+  [logb.f64      ([x : binary64])                binary64 (logb x)        gen (! :precision binary64 (logb x))        6400]
+  [rint.f64      ([x : binary64])                binary64 (rint x)        gen (! :precision binary64 (rint x))        6400]
+  [round.f64     ([x : binary64])                binary64 (round x)       gen (! :precision binary64 (round x))       6400]
+  [sqrt.f64      ([x : binary64])                binary64 (sqrt x)        gen (! :precision binary64 (sqrt x))        640]
+  [tanh.f64      ([x : binary64])                binary64 (tanh x)        gen (! :precision binary64 (tanh x))        6400]
+  [tgamma.f64    ([x : binary64])                binary64 (tgamma x)      gen (! :precision binary64 (tgamma x))      6400]
+  [trunc.f64     ([x : binary64])                binary64 (trunc x)       gen (! :precision binary64 (trunc x))       6400]
   ; Binary libm operators
-  [pow.f64       ([x : binary64] [y : binary64]) binary64 (pow x y)       'libm (! :precision binary64 (pow x y))       6400]
-  [atan2.f64     ([x : binary64] [y : binary64]) binary64 (atan2 x y)     'libm (! :precision binary64 (atan2 x y))     6400]
-  [copysign.f64  ([x : binary64] [y : binary64]) binary64 (copysign x y)  'libm (! :precision binary64 (copysign x y))  6400]
-  [fdim.f64      ([x : binary64] [y : binary64]) binary64 (fdim x y)      'libm (! :precision binary64 (fdim x y))      6400]
-  [fmax.f64      ([x : binary64] [y : binary64]) binary64 (fmax x y)      'libm (! :precision binary64 (fmax x y))      6400]
-  [fmin.f64      ([x : binary64] [y : binary64]) binary64 (fmin x y)      'libm (! :precision binary64 (fmin x y))      6400]
-  [fmod.f64      ([x : binary64] [y : binary64]) binary64 (fmod x y)      'libm (! :precision binary64 (fmod x y))      6400]
-  [remainder.f64 ([x : binary64] [y : binary64]) binary64 (remainder x y) 'libm (! :precision binary64 (remainder x y)) 6400]))
+  [pow.f64       ([x : binary64] [y : binary64]) binary64 (pow x y)       gen (! :precision binary64 (pow x y))       6400]
+  [atan2.f64     ([x : binary64] [y : binary64]) binary64 (atan2 x y)     gen (! :precision binary64 (atan2 x y))     6400]
+  [copysign.f64  ([x : binary64] [y : binary64]) binary64 (copysign x y)  gen (! :precision binary64 (copysign x y))  6400]
+  [fdim.f64      ([x : binary64] [y : binary64]) binary64 (fdim x y)      gen (! :precision binary64 (fdim x y))      6400]
+  [fmax.f64      ([x : binary64] [y : binary64]) binary64 (fmax x y)      gen (! :precision binary64 (fmax x y))      6400]
+  [fmin.f64      ([x : binary64] [y : binary64]) binary64 (fmin x y)      gen (! :precision binary64 (fmin x y))      6400]
+  [fmod.f64      ([x : binary64] [y : binary64]) binary64 (fmod x y)      gen (! :precision binary64 (fmod x y))      6400]
+  [remainder.f64 ([x : binary64] [y : binary64]) binary64 (remainder x y) gen (! :precision binary64 (remainder x y)) 6400]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; libm accelerators ;;;;;;;;;;;;;;;;;;;;;
 
 ; ([name     ([var : repr] ...)                             otype    spec                       fl    fpcore                              cost])
 (platform-register-implementations!
  platform
- ([erfc.f64  ([x : binary64])                               binary64 (- 1 (erf x))              'libm (! :precision binary64 (erfc x))    6400]
-  [expm1.f64 ([x : binary64])                               binary64 (- (exp x) 1)              'libm (! :precision binary64 (expm1 x))   6400]
-  [log1p.f64 ([x : binary64])                               binary64 (log (+ 1 x))              'libm (! :precision binary64 (log1p x))   6400]
-  [hypot.f64 ([x : binary64] [y : binary64])                binary64 (sqrt (+ (* x x) (* y y))) 'libm (! :precision binary64 (hypot x y)) 6400]
-  [fma.f64   ([x : binary64] [y : binary64] [z : binary64]) binary64 (+ (* x y) z)              'libm (! :precision binary64 (fma x y z)) 256]))
+ ([erfc.f64  ([x : binary64])                               binary64 (- 1 (erf x))              gen (! :precision binary64 (erfc x))    6400]
+  [expm1.f64 ([x : binary64])                               binary64 (- (exp x) 1)              gen (! :precision binary64 (expm1 x))   6400]
+  [log1p.f64 ([x : binary64])                               binary64 (log (+ 1 x))              gen (! :precision binary64 (log1p x))   6400]
+  [hypot.f64 ([x : binary64] [y : binary64])                binary64 (sqrt (+ (* x x) (* y y))) gen (! :precision binary64 (hypot x y)) 6400]
+  [fma.f64   ([x : binary64] [y : binary64] [z : binary64]) binary64 (+ (* x y) z)              gen (! :precision binary64 (fma x y z)) 256]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; additional converters ;;;;;;;;;;;;;;;;;
 

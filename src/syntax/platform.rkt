@@ -7,7 +7,8 @@
          "matcher.rkt"
          "types.rkt"
          "syntax.rkt"
-         "../utils/float.rkt")
+         "../utils/float.rkt"
+         "generators.rkt")
 
 (provide *active-platform*
          activate-platform!
@@ -35,12 +36,11 @@
          ; Platform creation
          make-empty-platform
          platform-register-representation!
-         platform-register-implementation!
          platform-register-implementations!
          display-platform
          register-platform!
-         make-operator-impl
-         make-representation)
+         make-representation
+         (all-from-out "generators.rkt"))
 
 ;;; Platforms describe a set of representations, operator, and constants
 ;;; Herbie should use during its improvement loop. Platforms are just
@@ -448,15 +448,3 @@
     (for ([i (in-range 1 row-length)])
       (printf "|~a" (~a (list-ref row i) #:width (vector-ref cell-widths i))))
     (printf "\n")))
-
-#;(define platform (make-empty-platform 'test #:if-cost 1))
-#;(define binary64 <binary64>)
-#;(platform-register-representation! platform #:repr binary64 #:cost 1)
-#;(platform-register-implementations! platform
-                                      ([hypot.f32
-                                        ([x : binary64] [y : binary64])
-                                        binary64
-                                        (sqrt (fmax (pow x 2) (pow y 2)))
-                                        'libm
-                                        (! :precision binary32 (hypot x y))
-                                        1.6816069999999997]))
