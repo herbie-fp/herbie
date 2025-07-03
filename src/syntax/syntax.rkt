@@ -4,7 +4,6 @@
 
 (require "../utils/common.rkt"
          "../utils/errors.rkt"
-         "../utils/float.rkt"
          "matcher.rkt"
          "types.rkt"
          "generators.rkt")

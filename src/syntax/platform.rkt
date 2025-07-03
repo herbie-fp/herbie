@@ -36,9 +36,11 @@
          ; Platform creation
          make-empty-platform
          platform-register-representation!
+         platform-register-implementation!
          platform-register-implementations!
          display-platform
          register-platform!
+         make-operator-impl
          make-representation
          (all-from-out "generators.rkt"))
 
