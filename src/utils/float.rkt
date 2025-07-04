@@ -135,7 +135,8 @@
              (loop (+ precision 4))))]))) ; 2^4 > 10
 
 (define (real->repr x repr)
-  ((representation-bf->repr repr) (bf x)))
+  (parameterize ([bf-precision (representation-total-bits repr)])
+    ((representation-bf->repr repr) (bf x))))
 
 (define (repr->real x repr)
   (match x

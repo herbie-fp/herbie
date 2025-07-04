@@ -4,9 +4,9 @@
 
 (require "../utils/common.rkt"
          "../utils/errors.rkt"
-         "../core/rival.rkt"
          "matcher.rkt"
-         "types.rkt")
+         "types.rkt"
+         "generators.rkt")
 
 (provide (struct-out literal)
          (struct-out approx)
@@ -274,23 +274,16 @@
     [_ (error 'create-operator-impl! "Invalid fpcore for ~a: ~a" name fpcore)])
   ; check or synthesize floating-point operation
   (define fl-proc*
-    (cond
-      [fl-proc ; provided => check arity
+    (match fl-proc
+      [(? generator? gen) (gen spec ctx)]
+      [(? procedure?) ; provided => check arity
        (unless (procedure-arity-includes? fl-proc (length vars) #t)
          (error 'create-operator-impl!
                 "~a: procedure does not accept ~a arguments"
                 name
                 (length vars)))
        fl-proc]
-      [else ; need to generate
-       (define compiler (make-real-compiler (list spec) (list ctx)))
-       (define fail ((representation-bf->repr (context-repr ctx)) +nan.bf))
-       (procedure-rename (lambda pt
-                           (define-values (_ exs) (real-apply compiler (list->vector pt)))
-                           (if exs
-                               (first exs)
-                               fail))
-                         name)]))
+      [#f (error 'create-operator-impl! "fl-proc is not provided for `~a` implementation" name)]))
   (operator-impl name ctx spec fpcore fl-proc* cost))
 
 (define-syntax (make-operator-impl stx)
