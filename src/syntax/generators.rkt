@@ -28,17 +28,7 @@
 
 ; ----------------------- LIBM GENERATOR ----------------------------
 
-;; Libm's accelerators
-(define (libm-optimize spec)
-  (match spec
-    [`(- 1 (erf ,x)) `(erfc ,x)]
-    [`(- (exp ,x) 1) `(expm1 ,x)]
-    [`(log (+ 1 ,x)) `(log1p ,x)]
-    [`(sqrt (+ (* ,x ,x) (* ,y ,y))) `(hypot ,x ,y)]
-    [`(+ (* ,x ,y) ,z) `(fma ,x ,y ,z)]
-    [_ spec]))
-
-;; Reprs -> ctypegit s
+;; Reprs -> ctype
 (define (repr->ctype repr)
   (match (representation-name repr)
     ['binary64 'double]
@@ -46,28 +36,12 @@
     ['integer 'integer]
     [_ (error 'repr->ctype "Unresolved c-type for representation ~a" (representation-name repr))]))
 
-;; Libm generator tries to generate a single-operator implementation of spec,
-;; panics if there are more than one operator in spec
-(define (from-libm)
+(define (from-libm name)
   (define (generate-libm-function spec ctx)
-    (match (libm-optimize spec)
-      [(list op (? symbol? args) ...)
-       (let* ([itypes (map repr->ctype (context-var-reprs ctx))]
-              [otype (repr->ctype (context-repr ctx))]
-              [cname (if (equal? otype 'float)
-                         (sym-append op 'f)
-                         op)])
-         (define fl (make-libm-runtime cname itypes otype))
-         (unless fl
-           (error 'libm-generator
-                  "Could not find libm implementation of `~a ~a ~a`"
-                  otype
-                  cname
-                  itypes))
-         fl)]
-      [_
-       (error 'libm-generator
-              "Could not find a libm single-operator implementation of `~a` for ~a context"
-              spec
-              ctx)]))
+    (let ([itypes (map repr->ctype (context-var-reprs ctx))]
+          [otype (repr->ctype (context-repr ctx))])
+      (define fl (make-libm-runtime name itypes otype))
+      (unless fl
+        (error 'libm-generator "Could not find libm implementation of `~a ~a ~a`" otype name itypes))
+      fl))
   (procedure-rename generate-libm-function 'generator))
