@@ -249,7 +249,6 @@
        operator-impl?)
   ; check specification
   (check-spec! name ctx spec)
-  (define vars (context-vars ctx))
   ; synthesize operator (if the spec contains exactly one operator)
   (define op
     (match spec
@@ -276,16 +275,18 @@
   (define fl-proc*
     (match fl-proc
       [(? generator? gen) (gen spec ctx)]
-      [(? procedure?) ; provided => check arity
-       (unless (procedure-arity-includes? fl-proc (length vars) #t)
-         (error 'create-operator-impl!
-                "~a: procedure accepts ~a arguments, but ~a is provided"
-                name
-                (procedure-arity fl-proc)
-                (length vars)))
-       fl-proc]
+      [(? procedure?) fl-proc]
       [#f (error 'create-operator-impl! "fl-proc is not provided for `~a` implementation" name)]))
+  (arity-check name fl-proc* ctx) ; check arity
   (operator-impl name ctx spec fpcore fl-proc* cost))
+
+(define (arity-check name procedure ctx)
+  (unless (procedure-arity-includes? procedure (length (context-vars ctx)) #t)
+    (error 'arity-check
+           "Procedure `~a` accepts ~a arguments, but ~a is provided"
+           name
+           (procedure-arity procedure)
+           (length (context-vars ctx)))))
 
 (define-syntax (make-operator-impl stx)
   (define (oops! why [sub-stx #f])

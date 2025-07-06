@@ -50,30 +50,23 @@
 
 ; ----------------------- MPFR GENERATOR ----------------------------
 
-;; MPFR must use at least 2 bits of precision
-(define minimum-mpfr-precision 2)
+(define (repr->bf x type)
+  ((representation-repr->bf type) x))
 
-;; Reprs -> precision
-(define (repr->precision repr)
-  (max minimum-mpfr-precision (representation-total-bits repr)))
+(define (bf->repr x type)
+  ((representation-bf->repr type) x))
 
 (define (from-mpfr name)
   (define (generate-mpfr-function spec ctx)
-    (let ([iprecs (map repr->precision (context-var-reprs ctx))]
-          [oprec (repr->precision (context-repr ctx))]
+    (let ([itypes (context-var-reprs ctx)]
+          [otype (context-repr ctx)]
           [op (dynamic-require '(lib "math/bigfloat") name)])
-      (unless (procedure-arity-includes? op (length iprecs) #t)
-        (error 'from-mpfr
-               "MPFR procedure `~a` accepts ~a arguments, but ~a is provided"
-               name
-               (procedure-arity op)
-               (length iprecs)))
       (lambda pt
         (define pt*
-          (for/list ([p (in-list pt)]
-                     [iprec (in-list iprecs)])
-            (parameterize ([bf-precision iprec])
-              (bf p))))
-        (bigfloat->flonum (parameterize ([bf-precision oprec])
-                            (apply op pt*))))))
+          (for/list ([x (in-list pt)]
+                     [itype (in-list itypes)])
+            (repr->bf x itype)))
+        (bf->repr (parameterize ([bf-precision (representation-total-bits otype)])
+                    (apply op pt*))
+                  otype))))
   (procedure-rename generate-mpfr-function 'generator))
