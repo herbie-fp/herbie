@@ -129,9 +129,9 @@
      [fmod      0]
      [remainder 0])]))
 
-(for ([libm-impl.f32 (in-list libm-impls.f32)])
-  (when libm-impl.f32
-    (platform-register-implementation! platform libm-impl.f32)))
+(for ([libm-impl.f32 (in-list libm-impls.f32)]
+      #:when libm-impl.f32)
+  (platform-register-implementation! platform libm-impl.f32))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; libm accelerators ;;;;;;;;;;;;;;;;;;;;;
 
@@ -236,9 +236,9 @@
      [fmod      0]
      [remainder 0])]))
 
-(for ([libm-impl.f64 (in-list libm-impls.f64)])
-  (when libm-impl.f64
-    (platform-register-implementation! platform libm-impl.f64)))
+(for ([libm-impl.f64 (in-list libm-impls.f64)]
+      #:when libm-impl.f64)
+  (platform-register-implementation! platform libm-impl.f64))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; libm accelerators ;;;;;;;;;;;;;;;;;;;;;
 
