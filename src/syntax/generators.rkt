@@ -15,6 +15,7 @@
   (equal? (object-name obj) 'generator))
 
 ; ----------------------- RIVAL GENERATOR ---------------------------
+
 (define (correct-rounding)
   (define (generate-correctly-rounded-function spec ctx)
     (define compiler (make-real-compiler (list spec) (list ctx)))
