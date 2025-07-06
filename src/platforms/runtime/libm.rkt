@@ -48,12 +48,12 @@
     (raise-syntax-error 'make-libm-impl why stx sub-stx))
 
   (define (repr->type repr)
-    (let ([sym (syntax-e repr)])
-      (cond
-        [(eq? sym 'binary64) #'double]
-        [(eq? sym 'binary32) #'float]
-        [(eq? sym 'integer) #'integer]
-        [else (oops! "unknown type" repr)])))
+    (define sym (syntax-e repr))
+    (cond
+      [(eq? sym 'binary64) #'double]
+      [(eq? sym 'binary32) #'float]
+      [(eq? sym 'integer) #'integer]
+      [else (oops! "unknown type" repr)]))
 
   (syntax-case stx ()
     [(_ cname (op name itype ...) otype cost)
