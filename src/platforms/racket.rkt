@@ -136,9 +136,17 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; unary operators ;;;;;;;;;;;;;;;;;;;;;;;
 
+;; neg operation has a specific format with regard to fpcore, (- x) instead of (neg x)
+(platform-register-implementation! platform
+                                     (make-operator-impl (neg.rkt [x : binary64])
+                                                         binary64
+                                                         #:spec (neg x)
+                                                         #:fpcore (! :precision binary64 (- x))
+                                                         #:fl -
+                                                         #:cost 1))
+  
 ; ([op fn cost] ...) 
 (register-1ary-racket-operators
- [neg    -                                                        1]
  [acos   (no-complex acos)                                        1]
  [acosh  (no-complex acosh)                                       1]
  [asin   (no-complex asin)                                        1]
