@@ -279,8 +279,9 @@
       [(? procedure?) ; provided => check arity
        (unless (procedure-arity-includes? fl-proc (length vars) #t)
          (error 'create-operator-impl!
-                "~a: procedure does not accept ~a arguments"
+                "~a: procedure accepts ~a arguments, but ~a is provided"
                 name
+                (procedure-arity fl-proc)
                 (length vars)))
        fl-proc]
       [#f (error 'create-operator-impl! "fl-proc is not provided for `~a` implementation" name)]))

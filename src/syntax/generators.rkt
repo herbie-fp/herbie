@@ -9,6 +9,7 @@
 
 (provide correct-rounding
          from-libm
+         from-mpfr
          generator?)
 
 (define (generator? obj)
@@ -46,3 +47,33 @@
         (error 'libm-generator "Could not find libm implementation of `~a ~a ~a`" otype name itypes))
       fl))
   (procedure-rename generate-libm-function 'generator))
+
+; ----------------------- MPFR GENERATOR ----------------------------
+
+;; MPFR must use at least 2 bits of precision
+(define minimum-mpfr-precision 2)
+
+;; Reprs -> precision
+(define (repr->precision repr)
+  (max minimum-mpfr-precision (representation-total-bits repr)))
+
+(define (from-mpfr name)
+  (define (generate-mpfr-function spec ctx)
+    (let ([iprecs (map repr->precision (context-var-reprs ctx))]
+          [oprec (repr->precision (context-repr ctx))]
+          [op (dynamic-require '(lib "math/bigfloat") name)])
+      (unless (procedure-arity-includes? op (length iprecs) #t)
+        (error 'from-mpfr
+               "MPFR procedure `~a` accepts ~a arguments, but ~a is provided"
+               name
+               (procedure-arity op)
+               (length iprecs)))
+      (lambda pt
+        (define pt*
+          (for/list ([p (in-list pt)]
+                     [iprec (in-list iprecs)])
+            (parameterize ([bf-precision iprec])
+              (bf p))))
+        (bigfloat->flonum (parameterize ([bf-precision oprec])
+                            (apply op pt*))))))
+  (procedure-rename generate-mpfr-function 'generator))

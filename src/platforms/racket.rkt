@@ -128,14 +128,11 @@
   (define res (apply fun xs))
   (if (real? res) res +nan.0))
 
-(define ((from-bigfloat bff) . args)
-  (bigfloat->flonum (apply bff (map bf args))))
-
 (define (bffmod x mod)
-  (bf- x (bf* (bftruncate (bf/ x mod)) mod)))
+  (bigfloat->flonum (bf- (bf x) (bf* (bftruncate (bf/ (bf x) (bf mod))) (bf mod)))))
 
 (define (bffma x y z)
-  (bf+ (bf* x y) z))
+  (bigfloat->flonum (bf+ (bf* (bf x) (bf y)) (bf z))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; unary operators ;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -160,7 +157,7 @@
  [lgamma log-gamma                                                1]
  [log    (no-complex log)                                         1]
  [log10  (no-complex (λ (x) (log x 10)))                          1]
- [log2   (from-bigfloat bflog2)                                   1]
+ [log2   (from-mpfr 'bflog2)                                      1]
  [logb   (λ (x) (floor (bigfloat->flonum (bflog2 (bf (abs x)))))) 1]
  [rint   round                                                    1]
  [round  round                                                    1]
@@ -196,7 +193,7 @@
                 [(nan? x) y]
                 [(nan? y) x]
                 [else (min x y)]))    1]
- [fmod      (from-bigfloat bffmod)    1]
+ [fmod      bffmod                    1]
  [pow       (no-complex expt)         1]
  [remainder remainder                 1])
 
@@ -206,10 +203,10 @@
 (platform-register-implementations!
  platform
  ([erfc.rkt  ([x : binary64])                               binary64 (- 1 (erf x))              erfc                    (! :precision binary64 (erfc x))    1]
-  [expm1.rkt ([x : binary64])                               binary64 (- (exp x) 1)              (from-bigfloat bfexpm1) (! :precision binary64 (expm1 x))   1]
-  [log1p.rkt ([x : binary64])                               binary64 (log (+ 1 x))              (from-bigfloat bflog1p) (! :precision binary64 (log1p x))   1]
-  [hypot.rkt ([x : binary64] [y : binary64])                binary64 (sqrt (+ (* x x) (* y y))) (from-bigfloat bfhypot) (! :precision binary64 (hypot x y)) 1]
-  [fma.rkt   ([x : binary64] [y : binary64] [z : binary64]) binary64 (+ (* x y) z)              (from-bigfloat bffma)   (! :precision binary64 (fma x y z)) 1]))
+  [expm1.rkt ([x : binary64])                               binary64 (- (exp x) 1)              (from-mpfr 'bfexpm1)    (! :precision binary64 (expm1 x))   1]
+  [log1p.rkt ([x : binary64])                               binary64 (log (+ 1 x))              (from-mpfr 'bflog1p)    (! :precision binary64 (log1p x))   1]
+  [hypot.rkt ([x : binary64] [y : binary64])                binary64 (sqrt (+ (* x x) (* y y))) (from-mpfr 'bfhypot)    (! :precision binary64 (hypot x y)) 1]
+  [fma.rkt   ([x : binary64] [y : binary64] [z : binary64]) binary64 (+ (* x y) z)              bffma                   (! :precision binary64 (fma x y z)) 1]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; REGISTER PLATFORM ;;;;;;;;;;;;;;;;;;;;;
 
