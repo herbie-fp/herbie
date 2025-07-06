@@ -205,7 +205,7 @@
                        #:repr? flonum?
                        #:bf->repr bigfloat->float32
                        #:repr->bf (λ (x)
-                                    (parameterize ([bf-precision 23])
+                                    (parameterize ([bf-precision 24])
                                       (bf x)))
                        #:ordinal->repr (shift 31 ordinal->float32)
                        #:repr->ordinal (unshift 31 float32->ordinal)
@@ -218,7 +218,7 @@
                        #:repr? flonum?
                        #:bf->repr bigfloat->flonum
                        #:repr->bf (λ (x)
-                                    (parameterize ([bf-precision 52])
+                                    (parameterize ([bf-precision 53])
                                       (bf x)))
                        #:ordinal->repr (shift 63 ordinal->flonum)
                        #:repr->ordinal (unshift 63 flonum->ordinal)
