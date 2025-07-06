@@ -58,15 +58,14 @@
 
 (define (from-mpfr name)
   (define (generate-mpfr-function spec ctx)
-    (let ([itypes (context-var-reprs ctx)]
-          [otype (context-repr ctx)]
-          [op (dynamic-require '(lib "math/bigfloat") name)])
+    (let* ([itypes (context-var-reprs ctx)]
+           [otype (context-repr ctx)]
+           [op (dynamic-require '(lib "math/bigfloat") name)]
+           [working-precision (representation-total-bits otype)])
       (lambda pt
-        (define pt*
-          (for/list ([x (in-list pt)]
-                     [itype (in-list itypes)])
-            (repr->bf x itype)))
-        (bf->repr (parameterize ([bf-precision (representation-total-bits otype)])
-                    (apply op pt*))
-                  otype))))
+        (define pt* (map repr->bf pt itypes))
+        (define bf-out
+          (parameterize ([bf-precision working-precision])
+            (apply op pt*)))
+        (bf->repr bf-out otype))))
   (procedure-rename generate-mpfr-function 'generator))
