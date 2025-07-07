@@ -199,6 +199,7 @@
 ;; testing FPCore format
 (module+ test
   (require rackunit)
+  (require "../syntax/load-platform.rkt")
   (activate-platform! (*platform-name*))
 
   (define (get-errs stx)

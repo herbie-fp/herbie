@@ -8,6 +8,7 @@
          "rules.rkt"
          "programs.rkt"
          "../syntax/platform.rkt"
+         "../syntax/load-platform.rkt"
          "sampling.rkt")
 
 (activate-platform! (*platform-name*))

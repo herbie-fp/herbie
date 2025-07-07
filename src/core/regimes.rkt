@@ -149,7 +149,8 @@
     (list-ref errs (si-cidx (findf (lambda (x) (< i (si-pidx x))) split-indices)))))
 
 (module+ test
-  (require "../syntax/platform.rkt")
+  (require "../syntax/platform.rkt"
+           "../syntax/load-platform.rkt")
   (activate-platform! (*platform-name*))
   (define ctx (context '(x) <binary64> (list <binary64>)))
   (define pctx (mk-pcontext '(#(0.5) #(4.0)) '(1.0 1.0)))

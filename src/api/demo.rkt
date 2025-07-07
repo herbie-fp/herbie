@@ -19,6 +19,7 @@
          "../syntax/read.rkt"
          "../syntax/sugar.rkt"
          "../syntax/platform.rkt"
+         "../syntax/load-platform.rkt"
          "../utils/common.rkt"
          "../utils/errors.rkt"
          "../utils/float.rkt"

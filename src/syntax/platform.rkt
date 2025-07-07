@@ -9,7 +9,6 @@
          "syntax.rkt")
 
 (provide *active-platform*
-         activate-platform!
          platform-lifting-rules
          platform-lowering-rules
          platform-copy
@@ -37,7 +36,6 @@
          platform-register-implementation!
          platform-register-implementations!
          display-platform
-         register-platform!
          make-operator-impl
          make-representation)
 
@@ -60,30 +58,8 @@
          (fprintf port "#<platform:~a>" (platform-name p))
          (fprintf port "#<platform>")))])
 
-;; Platform table, mapping name to platform
-(define platforms (make-hash))
-
 ;; Active platform
 (define *active-platform* (make-parameter #f))
-
-(define-runtime-path platform-dir "../platforms/")
-
-(define (load-platform! name)
-  (if (or (string-contains? name "/") (string-contains? name "."))
-      (dynamic-require name 'platform)
-      (dynamic-require (build-path platform-dir (format "~a.rkt" name)) 'platform)))
-
-;; Loads a platform.
-(define (activate-platform! name)
-  (define platform (hash-ref! platforms name (lambda () (load-platform! (~a name)))))
-
-  (unless platform
-    (raise-herbie-error "unknown platform `~a`, found (~a)"
-                        name
-                        (string-join (map ~a (hash-keys platforms)) ", ")))
-
-  (*platform-name* name)
-  (*active-platform* platform))
 
 (define (platform-copy platform)
   (struct-copy $platform
@@ -91,19 +67,10 @@
                [representations (hash-copy (platform-representations platform))]
                [implementations (hash-copy (platform-implementations platform))]))
 
-;; Registers a platform under identifier `name`.
-(define (register-platform! platform)
-  (define name (platform-name platform))
-  (when (hash-has-key? platforms name)
-    (error 'register-platform! "platform already registered ~a" name))
-  (hash-set! platforms name (platform-copy platform)))
-
 (define (make-empty-platform name #:if-cost [if-cost #f])
   (define reprs (make-hash))
   (define repr-costs (make-hash))
   (define impls (make-hash))
-  (when (hash-has-key? platforms name)
-    (error 'make-empty-platform "platform with name ~a is already registered" name))
   (unless if-cost
     (error 'make-empty-platform "Platform ~a is missing cost for if function" name))
   (set! if-cost (platform/parse-if-cost if-cost))

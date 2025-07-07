@@ -5,16 +5,9 @@
 (require "config.rkt"
          "utils/multi-command-line.rkt"
          "utils/errors.rkt"
-         "syntax/platform.rkt")
+         "syntax/load-platform.rkt")
 
 ;; Define the built-in platforms to force bundling them
-(define-runtime-module-path herbie10-platform "platforms/herbie10.rkt")
-(define-runtime-module-path herbie20-platform "platforms/herbie20.rkt")
-(define-runtime-module-path c-platform "platforms/c.rkt")
-(define-runtime-module-path racket-platform "platforms/racket.rkt")
-(define-runtime-module-path math-platform "platforms/math.rkt")
-(define-runtime-module-path rival-platform "platforms/rival.rkt")
-
 (lazy-require ["api/demo.rkt" (run-demo)]
               ["api/run.rkt" (make-report rerun-report)]
               ["api/shell.rkt" (run-shell run-improve)])
