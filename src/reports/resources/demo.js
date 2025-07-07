@@ -5,7 +5,7 @@ FUNCTIONS = {}
 "+ - * / pow copysign fdim fmin fmax fmod hypot remainder atan2".split(" ").forEach(function(op) {
     FUNCTIONS[op] = [["real", "real"], "real"];
 });
-("fabs sqrt exp log sin cos tan asin acos atan sinh cosh tanh asinh acosh atanh" +
+("fabs sqrt exp log sin cos tan asin acos atan sinh cosh tanh asinh acosh atanh " +
  "cbrt ceil erf erfc exp2 expm1 floor lgamma log10 log1p log2 logb rint " + 
  "round tgamma trunc").split(" ").forEach(function(op) {
      FUNCTIONS[op] = [["real"], "real"];
