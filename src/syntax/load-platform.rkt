@@ -13,12 +13,18 @@
 (define-runtime-module-path rival-platform "../platforms/rival.rkt")
 
 (define default-platforms
-  (hash "herbie10" herbie10-platform
-        "herbie20" herbie20-platform
-        "c" c-platform
-        "racket" racket-platform
-        "math" math-platform
-        "rival" rival-platform))
+  (hash "herbie10"
+        herbie10-platform
+        "herbie20"
+        herbie20-platform
+        "c"
+        c-platform
+        "racket"
+        racket-platform
+        "math"
+        math-platform
+        "rival"
+        rival-platform))
 
 (define platforms (make-hash))
 
@@ -33,4 +39,3 @@
 
   (*platform-name* name)
   (*active-platform* platform))
-
