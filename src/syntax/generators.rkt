@@ -9,7 +9,7 @@
 
 (provide correct-rounding
          from-libm
-         from-mpfr
+         from-bigfloat
          generator?)
 
 (define (generator? obj)
@@ -56,7 +56,7 @@
 (define (bf->repr x type)
   ((representation-bf->repr type) x))
 
-(define (from-mpfr name)
+(define (from-bigfloat name)
   (define (generate-mpfr-function spec ctx)
     (let* ([itypes (context-var-reprs ctx)]
            [otype (context-repr ctx)]
