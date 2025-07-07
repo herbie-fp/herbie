@@ -144,16 +144,13 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; libm accelerators ;;;;;;;;;;;;;;;;;;;;;
 
-(define c_erfc (make-libm (erfc double double)))
-
-(when c_erfc
-  (platform-register-implementation! platform
-                                     (make-operator-impl (erfc.f64 [x : binary64])
-                                                         binary64
-                                                         #:spec (- 1 (erf x))
-                                                         #:fpcore (! :precision binary64 (erfc x))
-                                                         #:fl (from-libm 'erfc)
-                                                         #:cost 0.816512)))
+(platform-register-implementation! platform
+                                   (make-operator-impl (erfc.f64 [x : binary64])
+                                                       binary64
+                                                       #:spec (- 1 (erf x))
+                                                       #:fpcore (! :precision binary64 (erfc x))
+                                                       #:fl (from-libm 'erfc)
+                                                       #:cost 0.816512))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; REGISTER PLATFORM ;;;;;;;;;;;;;;;;;;;;;
 

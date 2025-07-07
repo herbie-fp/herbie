@@ -9,12 +9,11 @@
          "../utils/common.rkt")
 
 (provide correct-rounding
-         make-libm
          from-libm
          from-bigfloat
          (struct-out generator))
 
-(struct generator (gen) #:prefab)
+(struct generator (gen))
 
 ; ----------------------- RIVAL GENERATOR ---------------------------
 
@@ -32,52 +31,26 @@
 ; ----------------------- LIBM GENERATOR ----------------------------
 
 ;; Looks up a function `name` with type signature `itype -> ... -> otype`
-;; in the system libm and binds to `id` the FFI function or `#f` if
+;; in the system libm and returns the FFI function or `#f` if
 ;; the procedure cannot be found.
 ;; ```
 ;; (make-libm (<name> <itype> ... <otype))
 ;; ```
-(define-syntax (make-libm stx)
-  (define (oops! why [sub-stx #f])
-    (raise-syntax-error 'make-libm why stx sub-stx))
-  (define (ctype->ffi type)
-    (syntax-case type (double float integer)
-      [double #'_double]
-      [float #'_float]
-      [integer #'_int]
-      [_ (oops! "unknown type" type)]))
-  (syntax-case stx ()
-    [(_ (name itype ... otype))
-     (begin
-       (unless (identifier? #'name)
-         (oops! "expected identifier" #'name))
-       (with-syntax ([(itype ...) (map ctype->ffi (syntax->list #'(itype ...)))]
-                     [otype (ctype->ffi #'otype)])
-         #'(get-ffi-obj 'name #f (_fun itype ... -> otype) (const #f))))]))
-
-(define (make-libm-runtime name itypes otype)
-  ; Ctype matching
-  (define (ctype->ffi repr)
-    (match repr
-      ['double _double]
-      ['float _float]
+(define (make-libm name itypes otype)
+  ; Repr matching
+  (define (repr->ffi repr)
+    (match (representation-name repr)
+      ['binary64 _double]
+      ['binary32 _float]
       ['integer _int]
       [else (raise-syntax-error 'repr->type "unknown type" repr)]))
-  (get-ffi-obj name #f (_cprocedure (map ctype->ffi itypes) (ctype->ffi otype)) (const #f)))
-
-;; Reprs -> ctype
-(define (repr->ctype repr)
-  (match (representation-name repr)
-    ['binary64 'double]
-    ['binary32 'float]
-    ['integer 'integer]
-    [_ (error 'repr->ctype "Unresolved c-type for representation ~a" (representation-name repr))]))
+  (get-ffi-obj name #f (_cprocedure (map repr->ffi itypes) (repr->ffi otype)) (const #f)))
 
 (define (from-libm name)
   (define (generate-libm-function spec ctx)
-    (let ([itypes (map repr->ctype (context-var-reprs ctx))]
-          [otype (repr->ctype (context-repr ctx))])
-      (define fl (make-libm-runtime name itypes otype))
+    (let ([itypes (context-var-reprs ctx)]
+          [otype (context-repr ctx)])
+      (define fl (make-libm name itypes otype))
       (unless fl
         (error 'libm-generator "Could not find libm implementation of `~a ~a ~a`" otype name itypes))
       fl))
