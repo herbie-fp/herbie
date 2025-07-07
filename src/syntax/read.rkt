@@ -185,7 +185,7 @@
                #:when (eq? key ':alt))
       (match (parse-platform-name val) ; plat-name is symbol or #f
         ; If plat-name extracted, check if name matches
-        [(? symbol? plat-name) (cons val (equal? plat-name (*platform-name*)))]
+        [(? symbol? plat-name) (cons val (equal? (~a plat-name) (*platform-name*)))]
         ; try to lower
         [#f
          (with-handlers ([exn:fail:user:herbie:missing? (lambda (e) (cons val #f))])
