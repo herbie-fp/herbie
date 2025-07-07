@@ -137,7 +137,8 @@
 
 (module+ test
   (require rackunit)
-  (require "platform.rkt")
+  (require "platform.rkt"
+           "../syntax/load-platform.rkt")
   (activate-platform! (*platform-name*))
 
   ;; Dummy representation registration

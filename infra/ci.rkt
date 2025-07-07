@@ -6,7 +6,8 @@
          "../src/api/sandbox.rkt"
          "../src/syntax/read.rkt"
          "../src/syntax/types.rkt"
-         "../src/syntax/platform.rkt")
+         "../src/syntax/platform.rkt"
+         "../src/syntax/load-platform.rkt")
 
 (define *precision* (make-parameter #f))
 

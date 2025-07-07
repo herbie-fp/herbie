@@ -279,7 +279,8 @@
 
 (module+ test
   (require rackunit
-           "../utils/float.rkt")
+           "../utils/float.rkt"
+           "../syntax/load-platform.rkt")
 
   (activate-platform! (*platform-name*))
   (define precision 'binary64)

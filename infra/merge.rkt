@@ -6,7 +6,8 @@
          "../src/api/datafile.rkt"
          "../src/reports/timeline.rkt"
          "../src/reports/common.rkt"
-         "../src/syntax/platform.rkt")
+         "../src/syntax/platform.rkt"
+         "../src/syntax/load-platform.rkt")
 
 (define (merge-timelines outdir . dirs)
   (define tls

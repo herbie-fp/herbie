@@ -8,6 +8,7 @@
          "../syntax/sugar.rkt"
          "../syntax/types.rkt"
          "../syntax/platform.rkt"
+         "../syntax/load-platform.rkt"
          "../utils/common.rkt"
          "../utils/profile.rkt"
          "../utils/timeline.rkt"

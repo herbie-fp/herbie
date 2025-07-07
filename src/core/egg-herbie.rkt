@@ -310,7 +310,8 @@
   (egg-parsed->expr (flatten-let egg-expr) ctx (context-repr ctx)))
 
 (module+ test
-  (require "../utils/float.rkt")
+  (require "../utils/float.rkt"
+           "../syntax/load-platform.rkt")
   (activate-platform! (*platform-name*))
   (define ctx (context '(x y z) <binary64> (make-list 3 <binary64>)))
 
