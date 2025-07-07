@@ -2,7 +2,7 @@ CONSTANTS = {"PI": "real", "E": "real", "TRUE": "bool", "FALSE": "bool"}
 
 FUNCTIONS = {}
 
-"+ - * / pow copysign fdim fmin fmax fmod hypot remainder".split(" ").forEach(function(op) {
+"+ - * / pow copysign fdim fmin fmax fmod hypot remainder atan2".split(" ").forEach(function(op) {
     FUNCTIONS[op] = [["real", "real"], "real"];
 });
 ("fabs sqrt exp log sin cos tan asin acos atan sinh cosh tanh asinh acosh atanh" +
