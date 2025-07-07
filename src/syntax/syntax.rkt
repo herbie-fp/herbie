@@ -245,7 +245,7 @@
                                         #:fpcore [fpcore #f]
                                         #:cost [cost #f])
   (->* (symbol? context? any/c)
-       (#:fl (or/c procedure? #f) #:fpcore any/c #:cost (or/c #f real?))
+       (#:fl (or/c procedure? generator? #f) #:fpcore any/c #:cost (or/c #f real?))
        operator-impl?)
   ; check specification
   (check-spec! name ctx spec)
@@ -274,19 +274,16 @@
   ; check or synthesize floating-point operation
   (define fl-proc*
     (match fl-proc
-      [(? generator? gen) (gen spec ctx)]
+      [(? generator?) ((generator-gen fl-proc) spec ctx)]
       [(? procedure?) fl-proc]
       [#f (error 'create-operator-impl! "fl-proc is not provided for `~a` implementation" name)]))
-  (arity-check name fl-proc* ctx) ; check arity
-  (operator-impl name ctx spec fpcore fl-proc* cost))
-
-(define (arity-check name procedure ctx)
-  (unless (procedure-arity-includes? procedure (length (context-vars ctx)) #t)
+  (unless (procedure-arity-includes? fl-proc* (length (context-vars ctx)) #t) ; check arity
     (error 'arity-check
            "Procedure `~a` accepts ~a arguments, but ~a is provided"
            name
-           (procedure-arity procedure)
-           (length (context-vars ctx)))))
+           (procedure-arity fl-proc*)
+           (length (context-vars ctx))))
+  (operator-impl name ctx spec fpcore fl-proc* cost))
 
 (define-syntax (make-operator-impl stx)
   (define (oops! why [sub-stx #f])

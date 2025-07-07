@@ -2,18 +2,19 @@
 
 (require math/flonum
          math/bigfloat
-         "../core/rival.rkt"
+         ffi/unsafe)
+
+(require "../core/rival.rkt"
          "types.rkt"
-         "../platforms/runtime/libm.rkt"
          "../utils/common.rkt")
 
 (provide correct-rounding
+         make-libm
          from-libm
          from-bigfloat
-         generator?)
+         (struct-out generator))
 
-(define (generator? obj)
-  (equal? (object-name obj) 'generator))
+(struct generator (gen) #:prefab)
 
 ; ----------------------- RIVAL GENERATOR ---------------------------
 
@@ -26,9 +27,43 @@
       (if exs
           (first exs)
           fail)))
-  (procedure-rename generate-correctly-rounded-function 'generator))
+  (generator generate-correctly-rounded-function))
 
 ; ----------------------- LIBM GENERATOR ----------------------------
+
+;; Looks up a function `name` with type signature `itype -> ... -> otype`
+;; in the system libm and binds to `id` the FFI function or `#f` if
+;; the procedure cannot be found.
+;; ```
+;; (make-libm (<name> <itype> ... <otype))
+;; ```
+(define-syntax (make-libm stx)
+  (define (oops! why [sub-stx #f])
+    (raise-syntax-error 'make-libm why stx sub-stx))
+  (define (ctype->ffi type)
+    (syntax-case type (double float integer)
+      [double #'_double]
+      [float #'_float]
+      [integer #'_int]
+      [_ (oops! "unknown type" type)]))
+  (syntax-case stx ()
+    [(_ (name itype ... otype))
+     (begin
+       (unless (identifier? #'name)
+         (oops! "expected identifier" #'name))
+       (with-syntax ([(itype ...) (map ctype->ffi (syntax->list #'(itype ...)))]
+                     [otype (ctype->ffi #'otype)])
+         #'(get-ffi-obj 'name #f (_fun itype ... -> otype) (const #f))))]))
+
+(define (make-libm-runtime name itypes otype)
+  ; Ctype matching
+  (define (ctype->ffi repr)
+    (match repr
+      ['double _double]
+      ['float _float]
+      ['integer _int]
+      [else (raise-syntax-error 'repr->type "unknown type" repr)]))
+  (get-ffi-obj name #f (_cprocedure (map ctype->ffi itypes) (ctype->ffi otype)) (const #f)))
 
 ;; Reprs -> ctype
 (define (repr->ctype repr)
@@ -46,9 +81,9 @@
       (unless fl
         (error 'libm-generator "Could not find libm implementation of `~a ~a ~a`" otype name itypes))
       fl))
-  (procedure-rename generate-libm-function 'generator))
+  (generator generate-libm-function))
 
-; ----------------------- MPFR GENERATOR ----------------------------
+; ----------------------- BIGFLOAT GENERATOR ------------------------
 
 (define (repr->bf x type)
   ((representation-repr->bf type) x))
@@ -68,4 +103,4 @@
           (parameterize ([bf-precision working-precision])
             (apply op pt*)))
         (bf->repr bf-out otype))))
-  (procedure-rename generate-mpfr-function 'generator))
+  (generator generate-mpfr-function))

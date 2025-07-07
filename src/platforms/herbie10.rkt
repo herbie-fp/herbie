@@ -5,7 +5,6 @@
 
 (require math/bigfloat
          math/flonum
-         "runtime/libm.rkt"    ; libm wrapper
          "../utils/float.rkt"  ; for shift/unshift
          "../syntax/platform.rkt")
 (provide platform)
