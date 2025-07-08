@@ -5,6 +5,17 @@
 (require math/flonum         ; for flsingle
          "runtime/libm.rkt") ; libm wrapper
 
+(define-syntax-rule (define-operation (name [arg irepr] ...) orepr
+                      flags ...)
+  (let ([impl (make-operator-impl (name [arg : irepr] ...) orepr
+                                  flags ...)])
+    (platform-register-implementation! platform impl)))
+
+(define-syntax-rule (define-operations ([arg irepr] ...) orepr
+                      [name flags ...] ...)
+  (begin
+    (define-operation (name [arg irepr] ...) orepr flags ...) ...))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; EMPTY PLATFORM ;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define 64bit-move-cost   0.12538399999999972)
@@ -21,10 +32,9 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; constants ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(platform-register-implementations!
- platform
- ([TRUE  () bool (TRUE)  (const true)  TRUE  boolean-move-cost]
-  [FALSE () bool (FALSE) (const false) FALSE boolean-move-cost]))
+(define-operations () <bool>
+  [TRUE  #:spec (TRUE)  #:fl (const true)  #:fpcore TRUE  #:cost boolean-move-cost]
+  [FALSE #:spec (FALSE) #:fl (const false) #:fpcore FALSE #:cost boolean-move-cost])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; operators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -33,11 +43,12 @@
 (define (or-fn . as)
   (ormap identity as))
 
-(platform-register-implementations!
- platform
- ([not ([x : bool])            bool (not x)   not    (not x)   boolean-move-cost]
-  [and ([x : bool] [y : bool]) bool (and x y) and-fn (and x y) boolean-move-cost]
-  [or  ([x : bool] [y : bool]) bool (or x y)  or-fn  (or x y)  boolean-move-cost]))
+(define-operations ([x <bool>] [y <bool>]) <bool>
+  [and #:spec (and x y) #:fl and-fn #:fpcore (and x y) #:cost boolean-move-cost]
+  [or  #:spec (or x y)  #:fl or-fn  #:fpcore (or x y)  #:cost boolean-move-cost])
+
+(define-operation (not [x <bool>]) <bool>
+  #:spec (not x) #:fl not #:fpcore (not x) #:cost boolean-move-cost)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BINARY 32 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -47,29 +58,34 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; constants ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(platform-register-implementations!
- platform
- ([PI.f32       () binary32 (PI)       (const (flsingle pi))        (! :precision binary32 PI)       32bit-move-cost]
-  [E.f32        () binary32 (E)        (const (flsingle (exp 1.0))) (! :precision binary32 E)        32bit-move-cost]
-  [INFINITY.f32 () binary32 (INFINITY) (const +inf.0)               (! :precision binary32 INFINITY) 32bit-move-cost]
-  [NAN.f32      () binary32 (NAN)      (const +nan.0)               (! :precision binary32 NAN)      32bit-move-cost]))
+(define pi.f32 (flsingle pi))
+(define e.f32 (flsingle (exp 1)))
+
+(define-operations () <binary32>
+  [PI.f32   #:spec (PI)       #:fl (const pi.f32) #:fpcore (! :precision binary32 PI)       #:cost 32bit-move-cost]
+  [E.f32    #:spec (E)        #:fl (const e.f32)  #:fpcore (! :precision binary32 E)        #:cost 32bit-move-cost]
+  [INFINITY #:spec (INFINITY) #:fl (const +inf.0) #:fpcore (! :precision binary32 INFINITY) #:cost 32bit-move-cost]
+  [NAN.f32  #:spec (NAN)      #:fl (const +nan.0) #:fpcore (! :precision binary32 NAN)      #:cost 32bit-move-cost])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; operators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; ([name   ([var : repr] ...)              otype    spec     fl         fpcore                          cost])
-(platform-register-implementations!
- platform
- ([neg.f32 ([x : binary32])                binary32 (neg x)  (compose flsingle -)      (! :precision binary32 (- x))   0.11567699999999992]
-  [+.f32   ([x : binary32] [y : binary32]) binary32 (+ x y)  (compose flsingle +)      (! :precision binary32 (+ x y)) 0.200445]
-  [-.f32   ([x : binary32] [y : binary32]) binary32 (- x y)  (compose flsingle -)      (! :precision binary32 (- x y)) 0.19106800000000014]
-  [*.f32   ([x : binary32] [y : binary32]) binary32 (* x y)  (compose flsingle *)      (! :precision binary32 (* x y)) 0.256602]
-  [/.f32   ([x : binary32] [y : binary32]) binary32 (/ x y)  (compose flsingle /)      (! :precision binary32 (/ x y)) 0.3465330000000001]
-  [==.f32  ([x : binary32] [y : binary32]) bool     (== x y) =          (== x y)                        32bit-move-cost]
-  [!=.f32  ([x : binary32] [y : binary32]) bool     (!= x y) (negate =) (!= x y)                        32bit-move-cost]
-  [<.f32   ([x : binary32] [y : binary32]) bool     (< x y)  <          (< x y)                         32bit-move-cost]
-  [>.f32   ([x : binary32] [y : binary32]) bool     (> x y)  >          (> x y)                         32bit-move-cost]
-  [<=.f32  ([x : binary32] [y : binary32]) bool     (<= x y) <=         (<= x y)                        32bit-move-cost]
-  [>=.f32  ([x : binary32] [y : binary32]) bool     (>= x y) >=         (>= x y)                        32bit-move-cost]))
+(define-operation (neg.f32 [x <binary32>]) <binary32>
+  #:spec (neg x) #:fl (compose flsingle -) #:fpcore (! :precision binary32 (- x)) #:cost 0.11567699999999992)
+
+(define-operations ([x <binary32>] [y <binary32>]) <binary32>
+  [+.f32 #:spec (+ x y) #:fl (compose flsingle +) #:fpcore (! :precision binary32 (+ x y)) #:cost 0.200445]
+  [-.f32 #:spec (- x y) #:fl (compose flsingle -) #:fpcore (! :precision binary32 (- x y)) #:cost 0.19106800000000014]
+  [*.f32 #:spec (* x y) #:fl (compose flsingle *) #:fpcore (! :precision binary32 (* x y)) #:cost 0.256602]
+  [/.f32 #:spec (/ x y) #:fl (compose flsingle /) #:fpcore (! :precision binary32 (/ x y)) #:cost 0.3465330000000001])
+
+(define-operations ([x <binary32>] [y <binary32>]) <bool>
+  [==.f32 #:spec (== x y) #:fl =          #:fpcore (== x y) #:cost 32bit-move-cost]
+  [!=.f32 #:spec (!= x y) #:fl (negate =) #:fpcore (!= x y) #:cost 32bit-move-cost]
+  [<.f32  #:spec (< x y)  #:fl <          #:fpcore (< x y)  #:cost 32bit-move-cost]
+  [>.f32  #:spec (> x y)  #:fl >          #:fpcore (> x y)  #:cost 32bit-move-cost]
+  [<=.f32 #:spec (<= x y) #:fl <=         #:fpcore (<= x y) #:cost 32bit-move-cost]
+  [>=.f32 #:spec (>= x y) #:fl >=         #:fpcore (>= x y) #:cost 32bit-move-cost])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; libm operators ;;;;;;;;;;;;;;;;;;;;;;;;
 
