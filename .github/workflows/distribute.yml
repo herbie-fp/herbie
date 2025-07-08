@@ -1,9 +1,6 @@
 name: Distribute
 
-on:
-  push:
-    branches:
-      - main
+on: [push]
 
 env:
   RUST_BACKTRACE: full
