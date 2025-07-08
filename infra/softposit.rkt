@@ -281,8 +281,6 @@
   [posit16->quire16  ([x : posit16])  quire16  x posit16->quire16 (! :precision quire16 (cast x))  cost]
   [posit32->quire32  ([x : posit32])  quire32  x posit32->quire32 (! :precision quire32 (cast x))  cost]))
 
-(register-platform! platform)
-
 (module+ main
   (display-platform platform))
 

@@ -218,8 +218,6 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; REGISTER PLATFORM ;;;;;;;;;;;;;;;;;;;;;
 
-(register-platform! platform)
-
 (module+ main
   (display-platform platform))
 

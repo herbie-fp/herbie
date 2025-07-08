@@ -8,6 +8,7 @@
          "../syntax/syntax.rkt"
          "../syntax/sugar.rkt"
          "../syntax/types.rkt"
+         "../syntax/load-platform.rkt"
          "../core/localize.rkt"
          "../utils/alternative.rkt"
          "../core/compiler.rkt"
