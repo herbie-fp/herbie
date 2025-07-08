@@ -309,7 +309,8 @@
            "rules.rkt"
            "../config.rkt"
            "../syntax/platform.rkt"
-           "../utils/float.rkt")
+           "../utils/float.rkt"
+           "../syntax/load-platform.rkt")
   (activate-platform! (*platform-name*))
 
   (define batch

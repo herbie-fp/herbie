@@ -7,7 +7,8 @@
 (module+ test
   (require rackunit
            math/bigfloat
-           "../config.rkt")
+           "../config.rkt"
+           "../syntax/load-platform.rkt")
 
   (activate-platform! (*platform-name*))
   (define platform (platform-copy (*active-platform*)))

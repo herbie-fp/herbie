@@ -126,9 +126,9 @@
      [fmod      94.277144]
      [remainder 16.165012])]))
 
-(for ([libm-impl.f64 (in-list libm-impls.f64)])
-  (when libm-impl.f64
-    (platform-register-implementation! platform libm-impl.f64)))
+(for ([libm-impl.f64 (in-list libm-impls.f64)]
+      #:when libm-impl.f64)
+  (platform-register-implementation! platform libm-impl.f64))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; libm accelerators ;;;;;;;;;;;;;;;;;;;;;
 
@@ -144,8 +144,6 @@
                                                          #:cost 0.816512)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; REGISTER PLATFORM ;;;;;;;;;;;;;;;;;;;;;
-
-(register-platform! platform)
 
 (module+ main
   (display-platform platform))
