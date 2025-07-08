@@ -16,7 +16,7 @@
 (define boolean-move-cost 0.1)
 
 (define platform
-  (make-empty-platform 'c #:if-cost boolean-move-cost))
+  (make-empty-platform 'c-windows #:if-cost boolean-move-cost))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BOOLEAN ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -132,7 +132,6 @@
  ([erfc.f32  ([x : binary32])                               binary32 (- 1 (erf x))              (from-libm 'erfcf)  (! :precision binary32 (erfc x))    0.907758]
   [expm1.f32 ([x : binary32])                               binary32 (- (exp x) 1)              (from-libm 'expm1f) (! :precision binary32 (expm1 x))   0.906484]
   [log1p.f32 ([x : binary32])                               binary32 (log (+ 1 x))              (from-libm 'log1pf) (! :precision binary32 (log1p x))   1.302969]
-  [hypot.f32 ([x : binary32] [y : binary32])                binary32 (sqrt (+ (* x x) (* y y))) (from-libm 'hypotf) (! :precision binary32 (hypot x y)) 1.6816069999999997]
   [fma.f32   ([x : binary32] [y : binary32] [z : binary32]) binary32 (+ (* x y) z)              (from-libm 'fmaf)   (! :precision binary32 (fma x y z)) 0.38934]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BINARY 64 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

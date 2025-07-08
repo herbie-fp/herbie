@@ -16,7 +16,7 @@
 (define boolean-move-cost 0.1)
 
 (define platform
-  (make-empty-platform 'c #:if-cost boolean-move-cost))
+  (make-empty-platform 'c-linux #:if-cost boolean-move-cost))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BOOLEAN ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
