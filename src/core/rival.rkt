@@ -145,4 +145,4 @@
 ;; for the given inputs range. The result is an interval representing
 ;; how certain the result is: no, maybe, yes.
 (define (real-compiler-analyze compiler input-ranges [hint #f])
-  (rival-analyze (real-compiler-machine compiler) input-ranges hint))
+  (rival-analyze-with-hints (real-compiler-machine compiler) input-ranges hint))
