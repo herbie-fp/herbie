@@ -1,7 +1,7 @@
 #lang racket
 
 ;;; C platform:
-;;; C/C++ on Linux with a full libm
+;;; C/C++ on Windows with a full libm
 
 (require math/bigfloat
          math/flonum
