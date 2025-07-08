@@ -161,7 +161,7 @@
 (define *default-precision* (make-parameter 'binary64))
 
 ;; The platform that Herbie will evaluate with.
-(define *platform-name* (make-parameter "c"))
+(define *platform-name* (make-parameter "c-linux"))
 
 ;; Plugins loaded locally rather than through Racket.
 (define *loose-plugins* (make-parameter '()))
