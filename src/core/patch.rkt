@@ -187,11 +187,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Public API ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define (generate-candidates exprs)
-  ; Batch to where we will extract everything
-  ; Roots of this batch are constantly updated
-  (define global-batch (progs->batch exprs))
-
+(define (generate-candidates global-batch)
   ; Starting alternatives
   (define start-altns
     (for/list ([root (in-vector (batch-roots global-batch))])

@@ -160,7 +160,7 @@
   ;; extracts the base expressions of a patch as a batchref
   (define (get-starting-expr altn)
     (match (alt-prevs altn)
-      [(list) (debatchref (alt-expr altn))]
+      [(list) (alt-expr altn)]
       [(list prev) (get-starting-expr prev)]))
 
   ;; takes a patch and converts it to a full alt
@@ -175,17 +175,19 @@
              [(list 'evaluate) (list 'evaluate loc0)]
              [(list 'taylor name var) (list 'taylor loc0 name var)]
              [(list 'rr input proof) (list 'rr loc0 input proof)]))
-         (define expr* (location-set loc0 (alt-expr orig) (debatchref (alt-expr altn))))
+         (define expr* (batch-location-set loc0 (alt-expr orig) (alt-expr altn)))
          (alt expr* event* (list (loop (first prevs))) (alt-preprocessing orig))])))
 
   (^patched^ (reap [sow]
-                   (for ([altn (in-list alts)]) ;; does not have preproc
-                     (define start-expr (get-starting-expr altn))
+                   (for ([altn (in-list alts)])
+                     (define start-expr (get-starting-expr altn)) ; batchref to global-batch
                      (for ([full-altn (in-list (^next-alts^))])
-                       (define expr (alt-expr full-altn))
+                       (define expr (alt-expr full-altn)) ; batchref
                        (sow (for/fold ([full-altn full-altn])
-                                      ([loc (in-list (get-locations expr start-expr))])
+                                      ([loc (in-list (batch-get-locations expr start-expr))])
                               (reconstruct-alt altn loc full-altn)))))))
+
+  (^patched^ (unmunge-alts (^patched^)))
 
   (void))
 
@@ -237,8 +239,19 @@
 (define (run-iteration!)
   (unless (^next-alts^)
     (choose-alts!))
-  (define locs (append-map (compose all-subexpressions alt-expr) (^next-alts^)))
-  (reconstruct! (generate-candidates (remove-duplicates locs)))
+
+  ; -------------- TESTING ------------
+  (define test-batch (batch (vector) (vector)))
+  (unless (equal? (unmunge-alts (munge-alts test-batch (^next-alts^))) (^next-alts^))
+    (error "munge/unmunge alts failed"))
+  ; -----------------------------------
+
+  (define global-batch (batch (vector) (vector)))
+  (^next-alts^ (munge-alts global-batch (^next-alts^)))
+  (define locs* (remove-duplicates (append-map (compose batch-all-subnodes alt-expr) (^next-alts^))))
+  (set-batch-roots! global-batch (list->vector locs*))
+
+  (reconstruct! (generate-candidates global-batch))
   (finalize-iter!)
   (void))
 

@@ -1,7 +1,9 @@
 #lang racket
 
 (require "../syntax/syntax.rkt"
-         "../utils/common.rkt")
+         "../utils/common.rkt"
+
+         "../utils/alternative.rkt")
 
 (provide progs->batch ; (Listof Expr) -> Batch
          batch->progs ; Batch -> ?(or (Listof Root) (Vectorof Root)) -> (Listof Expr)
@@ -21,15 +23,55 @@
          batch->mutable-batch ; Batch -> Mutable-batch
          batch-copy-mutable-nodes! ; Batch -> Mutable-batch -> Void
          mutable-batch-push! ; Mutable-batch -> Node -> Idx
-         batch-copy)
+         batch-copy
+
+         munge-alts
+         unmunge-alts
+         batch-all-subnodes)
 
 ;; This function defines the recursive structure of expressions
-(define (expr-recurse expr f)
+(define (expr-recurse expr f #:recurse-on-spec [recurse-on-spec #t])
   (match expr
-    [(approx spec impl) (approx (f spec) (f impl))]
+    [(approx spec impl)
+     (approx (if recurse-on-spec
+                 (f spec)
+                 spec)
+             (f impl))]
     [(hole precision spec) (hole precision (f spec))]
     [(list op args ...) (cons op (map f args))]
     [_ expr]))
+
+(define (batch-all-subnodes x)
+  (match-define (batchref b idx) x)
+  (define nodes (batch-nodes b))
+  (reap [sow]
+        (let loop ([idx idx])
+          (sow idx)
+          (expr-recurse (vector-ref nodes idx) loop #:recurse-on-spec #f))))
+
+(define (munge-alts b altns)
+  (define mb (batch->mutable-batch b))
+  (define altns*
+    (for/list ([altn altns])
+      (let loop ([altn* altn])
+        (define idx (mutable-batch-munge! mb (alt-expr altn*)))
+        (define prevs
+          (match (alt-prevs altn*)
+            [(list) '()]
+            [(list prev) (list (loop prev))]))
+        (struct-copy alt altn* [expr (batchref b idx)] [prevs prevs]))))
+  (batch-copy-mutable-nodes! b mb)
+  altns*)
+
+(define (unmunge-alts altns)
+  (for/list ([altn altns])
+    (let loop ([altn* altn])
+      (define expr (debatchref (alt-expr altn*)))
+      (define prevs
+        (match (alt-prevs altn*)
+          [(list) '()]
+          [(list prev) (list (loop prev))]))
+      (struct-copy alt altn* [expr expr] [prevs prevs]))))
 
 ;; Batches store these recursive structures, flattened
 (struct batch ([nodes #:mutable] [roots #:mutable]))

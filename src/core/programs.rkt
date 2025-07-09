@@ -19,7 +19,9 @@
          get-locations
          free-variables
          replace-expression
-         replace-vars)
+         replace-vars
+         batch-get-locations
+         batch-location-set)
 
 ;; Programs are just lisp lists plus atoms
 
@@ -170,6 +172,31 @@
   (-> location? expr? expr? expr?)
   (location-do loc prog (const prog*)))
 
+(define/contract (batch-location-set loc full-batchref sub-batchref)
+  (-> location? batchref? batchref? batchref?)
+  (define batch (batchref-batch full-batchref))
+  (define sub-idx (batchref-idx sub-batchref))
+  (define idx (batchref-idx full-batchref))
+  (define nodes (batch-nodes batch))
+  ; Adding the rest of the nodes with right indices
+  (define mutable-batch (batch->mutable-batch batch))
+  (define idx*
+    (let loop ([loc loc]
+               [idx idx])
+      (define node (vector-ref nodes idx))
+      (match* (node loc)
+        [(_ (? null?)) sub-idx]
+        [((approx spec impl) (cons 1 rest))
+         (mutable-batch-push! mutable-batch (approx (loop rest spec) impl))]
+        [((approx spec impl) (cons i rest))
+         (mutable-batch-push! mutable-batch (approx spec (loop rest impl)))]
+        [((hole prec spec) (cons 1 rest))
+         (mutable-batch-push! mutable-batch (hole prec (loop rest spec)))]
+        [((? list?) (cons i rest))
+         (mutable-batch-push! mutable-batch (list-set node i (loop rest (list-ref node i))))])))
+  (batch-copy-mutable-nodes! batch mutable-batch)
+  (batchref batch idx*))
+
 (define/contract (location-get loc prog)
   (-> location? expr? expr?)
   ; Clever continuation usage to early-return
@@ -182,6 +209,26 @@
                    [loc '()])
           (match expr
             [(== subexpr) (sow (reverse loc))]
+            [(? literal?) (void)]
+            [(? symbol?) (void)]
+            [(approx _ impl) (loop impl (cons 2 loc))]
+            [(list _ args ...)
+             (for ([arg (in-list args)]
+                   [i (in-naturals 1)])
+               (loop arg (cons i loc)))]))))
+
+(define (batch-get-locations full-batchref sub-batchref)
+  (match-define (batchref b idx) full-batchref)
+  (match-define (batchref sub-b sub-idx) sub-batchref)
+  (unless (equal? b sub-b)
+    (error 'get-locations "batches should be the same in both batchrefs"))
+  (define nodes (batch-nodes b))
+  (define sub-node (vector-ref nodes sub-idx))
+  (reap [sow]
+        (let loop ([idx idx]
+                   [loc '()])
+          (match (vector-ref nodes idx)
+            [(== sub-node) (sow (reverse loc))]
             [(? literal?) (void)]
             [(? symbol?) (void)]
             [(approx _ impl) (loop impl (cons 2 loc))]
