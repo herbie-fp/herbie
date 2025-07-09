@@ -6,7 +6,9 @@
          "../core/rules.rkt"
          "matcher.rkt"
          "types.rkt"
-         "syntax.rkt")
+         "syntax.rkt"
+         "../utils/float.rkt"
+         "generators.rkt")
 
 (provide *active-platform*
          platform-lifting-rules
@@ -37,7 +39,8 @@
          platform-register-implementations!
          display-platform
          make-operator-impl
-         make-representation)
+         make-representation
+         (all-from-out "generators.rkt"))
 
 ;;; Platforms describe a set of representations, operator, and constants
 ;;; Herbie should use during its improvement loop. Platforms are just

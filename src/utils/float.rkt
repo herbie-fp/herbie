@@ -135,7 +135,8 @@
              (loop (+ precision 4))))]))) ; 2^4 > 10
 
 (define (real->repr x repr)
-  ((representation-bf->repr repr) (bf x)))
+  (parameterize ([bf-precision (representation-total-bits repr)])
+    ((representation-bf->repr repr) (bf x))))
 
 (define (repr->real x repr)
   (match x
@@ -203,7 +204,9 @@
                        #:type 'real
                        #:repr? flonum?
                        #:bf->repr bigfloat->float32
-                       #:repr->bf bf
+                       #:repr->bf (λ (x)
+                                    (parameterize ([bf-precision 24])
+                                      (bf x)))
                        #:ordinal->repr (shift 31 ordinal->float32)
                        #:repr->ordinal (unshift 31 float32->ordinal)
                        #:total-bits 32
@@ -214,7 +217,9 @@
                        #:type 'real
                        #:repr? flonum?
                        #:bf->repr bigfloat->flonum
-                       #:repr->bf bf
+                       #:repr->bf (λ (x)
+                                    (parameterize ([bf-precision 53])
+                                      (bf x)))
                        #:ordinal->repr (shift 63 ordinal->flonum)
                        #:repr->ordinal (unshift 63 flonum->ordinal)
                        #:total-bits 64
