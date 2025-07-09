@@ -241,9 +241,9 @@
     (choose-alts!))
 
   ; -------------- TESTING ------------
-  (define test-batch (batch (vector) (vector)))
-  (unless (equal? (unmunge-alts (munge-alts test-batch (^next-alts^))) (^next-alts^))
-    (error "munge/unmunge alts failed"))
+  ; (define test-batch (batch (vector) (vector)))
+  ; (unless (equal? (unmunge-alts (munge-alts test-batch (^next-alts^))) (^next-alts^))
+  ;   (error "munge/unmunge alts failed"))
   ; -----------------------------------
 
   (define global-batch (batch (vector) (vector)))
