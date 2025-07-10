@@ -5,9 +5,21 @@
 
 (require math/bigfloat
          math/flonum
-         "../utils/float.rkt"  ; for shift/unshift
+         "../syntax/types.rkt"  ; for shift/unshift
          "../syntax/platform.rkt")
 (provide platform)
+
+(define-syntax-rule (define-operation (name [arg irepr] ...) orepr
+                      flags ...)
+  (let ([impl (make-operator-impl (name [arg : irepr] ...) orepr
+                                  flags ...)])
+    (platform-register-implementation! platform impl)))
+
+(define-syntax-rule (define-operations ([arg irepr] ...) orepr
+                      [name flags ...] ...)
+  (begin
+    (define-operation (name [arg irepr] ...) orepr flags ...) ...))
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; EMPTY PLATFORM ;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -66,14 +78,19 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; operators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; ([name   ([var : repr] ...)              otype    spec     fl         fpcore                          cost])
+
+(define-operation (neg.f32 [x <binary32>]) <binary32>
+  #:spec (neg x) #:fl (compose flsingle -) #:fpcore (! :precision binary32 (- x)) #:cost 0.11567699999999992)
+
+(define-operations ([x <binary32>] [y <binary32>]) <binary32>
+  [+.f32 #:spec (+ x y) #:fl (compose flsingle +) #:fpcore (! :precision binary32 (+ x y)) #:cost 0.200445]
+  [-.f32 #:spec (- x y) #:fl (compose flsingle -) #:fpcore (! :precision binary32 (- x y)) #:cost 0.19106800000000014]
+  [*.f32 #:spec (* x y) #:fl (compose flsingle *) #:fpcore (! :precision binary32 (* x y)) #:cost 0.256602]
+  [/.f32 #:spec (/ x y) #:fl (compose flsingle /) #:fpcore (! :precision binary32 (/ x y)) #:cost 0.3465330000000001])
+
 (platform-register-implementations!
  platform
- ([neg.f32 ([x : binary32])                binary32 (neg x)  fl32-      (! :precision binary32 (- x))   0.11567699999999992]
-  [+.f32   ([x : binary32] [y : binary32]) binary32 (+ x y)  fl32+      (! :precision binary32 (+ x y)) 0.200445]
-  [-.f32   ([x : binary32] [y : binary32]) binary32 (- x y)  fl32-      (! :precision binary32 (- x y)) 0.19106800000000014]
-  [*.f32   ([x : binary32] [y : binary32]) binary32 (* x y)  fl32*      (! :precision binary32 (* x y)) 0.256602]
-  [/.f32   ([x : binary32] [y : binary32]) binary32 (/ x y)  fl32/      (! :precision binary32 (/ x y)) 0.3465330000000001]
-  [==.f32  ([x : binary32] [y : binary32]) bool     (== x y) =          (== x y)                        32bit-move-cost]
+ ([==.f32  ([x : binary32] [y : binary32]) bool     (== x y) =          (== x y)                        32bit-move-cost]
   [!=.f32  ([x : binary32] [y : binary32]) bool     (!= x y) (negate =) (!= x y)                        32bit-move-cost]
   [<.f32   ([x : binary32] [y : binary32]) bool     (< x y)  <          (< x y)                         32bit-move-cost]
   [>.f32   ([x : binary32] [y : binary32]) bool     (> x y)  >          (> x y)                         32bit-move-cost]

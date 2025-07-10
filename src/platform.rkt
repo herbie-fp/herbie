@@ -14,4 +14,6 @@
       [(_ content ...)
        #'(#%module-begin (define local-platform (make-empty-platform 'platform))
                          content ...
-                         (provide local-platform))])))
+                         (provide local-platform)
+                         (module+ main (display-platform local-platform))
+                         (module test racket/base))])))
