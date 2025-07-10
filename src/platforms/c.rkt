@@ -29,8 +29,6 @@
 
 (define-representation <binary32> #:cost 32bit-move-cost)
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;; constants ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
 (define pi.f32 (flsingle pi))
 (define e.f32 (flsingle (exp 1)))
 
@@ -39,8 +37,6 @@
   [E.f32        #:spec (E)        #:impl (const e.f32)  #:fpcore (! :precision binary32 E)        #:cost 32bit-move-cost]
   [INFINITY.f32 #:spec (INFINITY) #:impl (const +inf.0) #:fpcore (! :precision binary32 INFINITY) #:cost 32bit-move-cost]
   [NAN.f32      #:spec (NAN)      #:impl (const +nan.0) #:fpcore (! :precision binary32 NAN)      #:cost 32bit-move-cost])
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;; operators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define-operation (neg.f32 [x <binary32>]) <binary32>
   #:spec (neg x) #:impl (compose flsingle -) #:fpcore (! :precision binary32 (- x)) #:cost 0.11567699999999992)
@@ -58,8 +54,6 @@
   [>.f32  #:spec (> x y)  #:impl >          #:fpcore (> x y)  #:cost 32bit-move-cost]
   [<=.f32 #:spec (<= x y) #:impl <=         #:fpcore (<= x y) #:cost 32bit-move-cost]
   [>=.f32 #:spec (>= x y) #:impl >=         #:fpcore (>= x y) #:cost 32bit-move-cost])
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;; libm operators ;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define-operations ([x <binary32>]) <binary32>
   [fabs.f32   #:spec (fabs x)   #:impl (from-libm 'fabsf)     #:fpcore (! :precision binary32 (fabs x))   #:cost 0.12464599999999992]
@@ -102,8 +96,6 @@
   [fmod.f32      #:spec (fmod x y)      #:impl (from-libm 'fmodf)      #:fpcore (! :precision binary32 (fmod x y))      #:cost 1.7182470000000002]
   [remainder.f32 #:spec (remainder x y) #:impl (from-libm 'remainderf) #:fpcore (! :precision binary32 (remainder x y)) #:cost 1.030245])
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;; libm accelerators ;;;;;;;;;;;;;;;;;;;;;
-
 (define-operations ([x <binary32>]) <binary32>
   [erfc.f32  #:spec (- 1 (erf x)) #:impl (from-libm 'erfcf)  #:fpcore (! :precision binary32 (erfc x))  #:cost 0.907758]
   [expm1.f32 #:spec (- (exp x) 1) #:impl (from-libm 'expm1f) #:fpcore (! :precision binary32 (expm1 x)) #:cost 0.906484]
@@ -121,15 +113,11 @@
 
 (define-representation <binary64> #:cost 64bit-move-cost)
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;; constants ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
 (define-operations () <binary64>
   [PI.f64   #:spec (PI)       #:impl (const pi)      #:fpcore (! :precision binary64 PI)       #:cost 64bit-move-cost]
   [E.f64    #:spec (E)        #:impl (const (exp 1)) #:fpcore (! :precision binary64 E)        #:cost 64bit-move-cost]
   [INFINITY #:spec (INFINITY) #:impl (const +inf.0)  #:fpcore (! :precision binary64 INFINITY) #:cost 64bit-move-cost]
   [NAN.f64  #:spec (NAN)      #:impl (const +nan.0)  #:fpcore (! :precision binary64 NAN)      #:cost 64bit-move-cost])
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;; operators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define-operation (neg.f64 [x <binary64>]) <binary64>
   #:spec (neg x) #:impl - #:fpcore (! :precision binary64 (- x)) #:cost 0.11567699999999992)
@@ -147,8 +135,6 @@
   [>.f64  #:spec (> x y)  #:impl >          #:fpcore (> x y)  #:cost 64bit-move-cost]
   [<=.f64 #:spec (<= x y) #:impl <=         #:fpcore (<= x y) #:cost 64bit-move-cost]
   [>=.f64 #:spec (>= x y) #:impl >=         #:fpcore (>= x y) #:cost 64bit-move-cost])
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;; libm operators ;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define-operations ([x <binary64>]) <binary64>
   [fabs.f64   #:spec (fabs x)   #:impl (from-libm 'fabs)     #:fpcore (! :precision binary64 (fabs x))   #:cost 0.12464599999999992]
@@ -191,8 +177,6 @@
   [fmod.f64      #:spec (fmod x y)      #:impl (from-libm 'fmod)      #:fpcore (! :precision binary64 (fmod x y))      #:cost 1.7182470000000002]
   [remainder.f64 #:spec (remainder x y) #:impl (from-libm 'remainder) #:fpcore (! :precision binary64 (remainder x y)) #:cost 1.030245])
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;; libm accelerators ;;;;;;;;;;;;;;;;;;;;;
-
 (define-operations ([x <binary64>]) <binary64>
   [erfc.f64  #:spec (- 1 (erf x)) #:impl (from-libm 'erfc)  #:fpcore (! :precision binary64 (erfc x))  #:cost 0.907758]
   [expm1.f64 #:spec (- (exp x) 1) #:impl (from-libm 'expm1) #:fpcore (! :precision binary64 (expm1 x)) #:cost 0.906484]
@@ -206,7 +190,7 @@
   #:spec (+ (* x y) z) #:impl (from-libm 'fma)
   #:fpcore (! :precision binary64 (fma x y z)) #:cost 0.38934)
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;; additional converters ;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;; CASTS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define-operation (binary64->binary32 [x <binary64>]) <binary32>
   #:spec x #:fpcore (! :precision binary32 (cast x)) #:impl flsingle #:cost 32bit-move-cost)
