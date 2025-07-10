@@ -4,7 +4,8 @@
 (require racket/stxparam)
 (require "syntax/platform.rkt"
          "syntax/syntax.rkt"
-         "syntax/types.rkt")
+         "syntax/types.rkt"
+         "syntax/generators.rkt")
 (provide define-if
          define-representation
          define-operation
@@ -13,6 +14,7 @@
          (rename-out [platform-module-begin #%module-begin])
          (except-out (all-from-out racket) #%module-begin)
          (all-from-out "syntax/platform.rkt")
+         (all-from-out "syntax/generators.rkt")
          (all-from-out "syntax/types.rkt"))
 
 (define platform-being-defined (make-parameter #f))

@@ -22,7 +22,7 @@
      (make-operator-impl (log1pmd.f64 [x : binary64])
                          binary64
                          #:spec (- (log (+ 1 x)) (log (+ 1 (neg x))))
-                         #:impl (correct-rounding)
+                         #:impl (from-rival)
                          #:fpcore (! :precision binary64 (log1pmd x))
                          #:cost 6400))
     (define log1pmd-proc (impl-info 'log1pmd.f64 'fl))
