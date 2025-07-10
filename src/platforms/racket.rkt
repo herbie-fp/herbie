@@ -112,12 +112,6 @@
   (define res (apply fun xs))
   (if (real? res) res +nan.0))
 
-(define (bffmod x mod)
-  (bigfloat->flonum (bf- (bf x) (bf* (bftruncate (bf/ (bf x) (bf mod))) (bf mod)))))
-
-(define (bffma x y z)
-  (bigfloat->flonum (bf+ (bf* (bf x) (bf y)) (bf z))))
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; unary operators ;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; neg operation has a specific format with regard to fpcore, (- x) instead of (neg x)
@@ -149,8 +143,6 @@
  [lgamma log-gamma                                                1]
  [log    (no-complex log)                                         1]
  [log10  (no-complex (λ (x) (log x 10)))                          1]
- [log2   (from-bigfloat 'bflog2)                                  1]
- [logb   (λ (x) (floor (bigfloat->flonum (bflog2 (bf (abs x)))))) 1]
  [rint   round                                                    1]
  [round  round                                                    1]
  [sin    sin                                                      1]
@@ -185,20 +177,12 @@
                 [(nan? x) y]
                 [(nan? y) x]
                 [else (min x y)]))    1]
- [fmod      bffmod                    1]
  [pow       (no-complex expt)         1]
  [remainder remainder                 1])
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;; accelerators ;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-; ([name     ([var : repr] ...)                             otype    spec                       fl                      fpcore                           cost])
 (platform-register-implementations!
  platform
- ([erfc.rkt  ([x : binary64])                               binary64 (- 1 (erf x))              erfc                     (! :precision binary64 (erfc x))    1]
-  [expm1.rkt ([x : binary64])                               binary64 (- (exp x) 1)              (from-bigfloat 'bfexpm1) (! :precision binary64 (expm1 x))   1]
-  [log1p.rkt ([x : binary64])                               binary64 (log (+ 1 x))              (from-bigfloat 'bflog1p) (! :precision binary64 (log1p x))   1]
-  [hypot.rkt ([x : binary64] [y : binary64])                binary64 (sqrt (+ (* x x) (* y y))) (from-bigfloat 'bfhypot) (! :precision binary64 (hypot x y)) 1]
-  [fma.rkt   ([x : binary64] [y : binary64] [z : binary64]) binary64 (+ (* x y) z)              bffma                    (! :precision binary64 (fma x y z)) 1]))
+ ([erfc.rkt  ([x : binary64])                               binary64 (- 1 (erf x))              erfc                     (! :precision binary64 (erfc x))    1]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; REGISTER PLATFORM ;;;;;;;;;;;;;;;;;;;;;
 
