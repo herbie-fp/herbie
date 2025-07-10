@@ -1,19 +1,13 @@
-#lang s-exp "../platform.rkt"
+#lang racket
 
-;; C/C++ platform with a full libm
+;;; C platform:
+;;; C/C++ on Windows with a full libm
 
-(require math/flonum)
-
-(define-syntax-rule (define-operation (name [arg irepr] ...) orepr
-                      flags ...)
-  (let ([impl (make-operator-impl (name [arg : irepr] ...) orepr
-                                  flags ...)])
-    (platform-register-implementation! platform impl)))
-
-(define-syntax-rule (define-operations ([arg irepr] ...) orepr
-                      [name flags ...] ...)
-  (begin
-    (define-operation (name [arg irepr] ...) orepr flags ...) ...))
+(require math/bigfloat
+         math/flonum
+         "../utils/float.rkt"  ; for shift/unshift
+         "../syntax/platform.rkt")
+(provide platform)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; EMPTY PLATFORM ;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -21,9 +15,12 @@
 (define 32bit-move-cost   0.12961999999999974)
 (define boolean-move-cost 0.1)
 
-(platform-register-if-cost! platform #:cost boolean-move-cost)
+(define platform
+  (make-empty-platform 'c-windows #:if-cost boolean-move-cost))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BOOLEAN ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;; representation ;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define bool <bool>)
 
@@ -31,9 +28,10 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; constants ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define-operations () <bool>
-  [TRUE  #:spec (TRUE)  #:fl (const true)  #:fpcore TRUE  #:cost boolean-move-cost]
-  [FALSE #:spec (FALSE) #:fl (const false) #:fpcore FALSE #:cost boolean-move-cost])
+(platform-register-implementations!
+ platform
+ ([TRUE  () bool (TRUE)  (const true)  (! TRUE)  boolean-move-cost]
+  [FALSE () bool (FALSE) (const false) (! FALSE) boolean-move-cost]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; operators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -42,14 +40,15 @@
 (define (or-fn . as)
   (ormap identity as))
 
-(define-operations ([x <bool>] [y <bool>]) <bool>
-  [and #:spec (and x y) #:fl and-fn #:fpcore (and x y) #:cost boolean-move-cost]
-  [or  #:spec (or x y)  #:fl or-fn  #:fpcore (or x y)  #:cost boolean-move-cost])
-
-(define-operation (not [x <bool>]) <bool>
-  #:spec (not x) #:fl not #:fpcore (not x) #:cost boolean-move-cost)
+(platform-register-implementations!
+ platform
+ ([not ([x : bool])            bool (not x)   not    (not x)   boolean-move-cost]
+  [and ([x : bool] [y : bool]) bool (and x y) and-fn (and x y) boolean-move-cost]
+  [or  ([x : bool] [y : bool]) bool (or x y)  or-fn  (or x y)  boolean-move-cost]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BINARY 32 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;; representation ;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define binary32 <binary32>)
 
@@ -57,34 +56,29 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; constants ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define pi.f32 (flsingle pi))
-(define e.f32 (flsingle (exp 1)))
-
-(define-operations () <binary32>
-  [PI.f32   #:spec (PI)       #:fl (const pi.f32) #:fpcore (! :precision binary32 PI)       #:cost 32bit-move-cost]
-  [E.f32    #:spec (E)        #:fl (const e.f32)  #:fpcore (! :precision binary32 E)        #:cost 32bit-move-cost]
-  [INFINITY #:spec (INFINITY) #:fl (const +inf.0) #:fpcore (! :precision binary32 INFINITY) #:cost 32bit-move-cost]
-  [NAN.f32  #:spec (NAN)      #:fl (const +nan.0) #:fpcore (! :precision binary32 NAN)      #:cost 32bit-move-cost])
+(platform-register-implementations!
+ platform
+ ([PI.f32       () binary32 (PI)       (const (flsingle pi))        (! :precision binary32 PI)       32bit-move-cost]
+  [E.f32        () binary32 (E)        (const (flsingle (exp 1.0))) (! :precision binary32 E)        32bit-move-cost]
+  [INFINITY.f32 () binary32 (INFINITY) (const +inf.0)               (! :precision binary32 INFINITY) 32bit-move-cost]
+  [NAN.f32      () binary32 (NAN)      (const +nan.0)               (! :precision binary32 NAN)      32bit-move-cost]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; operators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; ([name   ([var : repr] ...)              otype    spec     fl         fpcore                          cost])
-(define-operation (neg.f32 [x <binary32>]) <binary32>
-  #:spec (neg x) #:fl (compose flsingle -) #:fpcore (! :precision binary32 (- x)) #:cost 0.11567699999999992)
-
-(define-operations ([x <binary32>] [y <binary32>]) <binary32>
-  [+.f32 #:spec (+ x y) #:fl (compose flsingle +) #:fpcore (! :precision binary32 (+ x y)) #:cost 0.200445]
-  [-.f32 #:spec (- x y) #:fl (compose flsingle -) #:fpcore (! :precision binary32 (- x y)) #:cost 0.19106800000000014]
-  [*.f32 #:spec (* x y) #:fl (compose flsingle *) #:fpcore (! :precision binary32 (* x y)) #:cost 0.256602]
-  [/.f32 #:spec (/ x y) #:fl (compose flsingle /) #:fpcore (! :precision binary32 (/ x y)) #:cost 0.3465330000000001])
-
-(define-operations ([x <binary32>] [y <binary32>]) <bool>
-  [==.f32 #:spec (== x y) #:fl =          #:fpcore (== x y) #:cost 32bit-move-cost]
-  [!=.f32 #:spec (!= x y) #:fl (negate =) #:fpcore (!= x y) #:cost 32bit-move-cost]
-  [<.f32  #:spec (< x y)  #:fl <          #:fpcore (< x y)  #:cost 32bit-move-cost]
-  [>.f32  #:spec (> x y)  #:fl >          #:fpcore (> x y)  #:cost 32bit-move-cost]
-  [<=.f32 #:spec (<= x y) #:fl <=         #:fpcore (<= x y) #:cost 32bit-move-cost]
-  [>=.f32 #:spec (>= x y) #:fl >=         #:fpcore (>= x y) #:cost 32bit-move-cost])
+(platform-register-implementations!
+ platform
+ ([neg.f32 ([x : binary32])                binary32 (neg x)  fl32-      (! :precision binary32 (- x))   0.11567699999999992]
+  [+.f32   ([x : binary32] [y : binary32]) binary32 (+ x y)  fl32+      (! :precision binary32 (+ x y)) 0.200445]
+  [-.f32   ([x : binary32] [y : binary32]) binary32 (- x y)  fl32-      (! :precision binary32 (- x y)) 0.19106800000000014]
+  [*.f32   ([x : binary32] [y : binary32]) binary32 (* x y)  fl32*      (! :precision binary32 (* x y)) 0.256602]
+  [/.f32   ([x : binary32] [y : binary32]) binary32 (/ x y)  fl32/      (! :precision binary32 (/ x y)) 0.3465330000000001]
+  [==.f32  ([x : binary32] [y : binary32]) bool     (== x y) =          (== x y)                        32bit-move-cost]
+  [!=.f32  ([x : binary32] [y : binary32]) bool     (!= x y) (negate =) (!= x y)                        32bit-move-cost]
+  [<.f32   ([x : binary32] [y : binary32]) bool     (< x y)  <          (< x y)                         32bit-move-cost]
+  [>.f32   ([x : binary32] [y : binary32]) bool     (> x y)  >          (> x y)                         32bit-move-cost]
+  [<=.f32  ([x : binary32] [y : binary32]) bool     (<= x y) <=         (<= x y)                        32bit-move-cost]
+  [>=.f32  ([x : binary32] [y : binary32]) bool     (>= x y) >=         (>= x y)                        32bit-move-cost]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; libm operators ;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -92,7 +86,6 @@
 (platform-register-implementations!
  platform
  (; Unary libm operators
-  [fabs.f32      ([x : binary32])                binary32 (fabs x)        (from-libm 'fabsf)      (! :precision binary32 (fabs x))        0.12464599999999992]
   [sin.f32       ([x : binary32])                binary32 (sin x)         (from-libm 'sinf)       (! :precision binary32 (sin x))         4.2185290000000003]
   [cos.f32       ([x : binary32])                binary32 (cos x)         (from-libm 'cosf)       (! :precision binary32 (cos x))         4.2738829999999994]
   [tan.f32       ([x : binary32])                binary32 (tan x)         (from-libm 'tanf)       (! :precision binary32 (tan x))         4.669173000000001]
@@ -139,10 +132,11 @@
  ([erfc.f32  ([x : binary32])                               binary32 (- 1 (erf x))              (from-libm 'erfcf)  (! :precision binary32 (erfc x))    0.907758]
   [expm1.f32 ([x : binary32])                               binary32 (- (exp x) 1)              (from-libm 'expm1f) (! :precision binary32 (expm1 x))   0.906484]
   [log1p.f32 ([x : binary32])                               binary32 (log (+ 1 x))              (from-libm 'log1pf) (! :precision binary32 (log1p x))   1.302969]
-  [hypot.f32 ([x : binary32] [y : binary32])                binary32 (sqrt (+ (* x x) (* y y))) (from-libm 'hypotf) (! :precision binary32 (hypot x y)) 1.6816069999999997]
   [fma.f32   ([x : binary32] [y : binary32] [z : binary32]) binary32 (+ (* x y) z)              (from-libm 'fmaf)   (! :precision binary32 (fma x y z)) 0.38934]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BINARY 64 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;; representation ;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define binary64 <binary64>)
 

@@ -4,9 +4,9 @@
 
 (require "../utils/common.rkt"
          "../utils/errors.rkt"
-         "../core/rival.rkt"
          "matcher.rkt"
-         "types.rkt")
+         "types.rkt"
+         "generators.rkt")
 
 (provide (struct-out literal)
          (struct-out approx)
@@ -245,11 +245,10 @@
                                         #:fpcore [fpcore #f]
                                         #:cost [cost #f])
   (->* (symbol? context? any/c)
-       (#:fl (or/c procedure? #f) #:fpcore any/c #:cost (or/c #f real?))
+       (#:fl (or/c procedure? generator? #f) #:fpcore any/c #:cost (or/c #f real?))
        operator-impl?)
   ; check specification
   (check-spec! name ctx spec)
-  (define vars (context-vars ctx))
   ; synthesize operator (if the spec contains exactly one operator)
   (define op
     (match spec
@@ -275,23 +274,16 @@
     [_ (error 'create-operator-impl! "Invalid fpcore for ~a: ~a" name fpcore)])
   ; check or synthesize floating-point operation
   (define fl-proc*
-    (cond
-      [fl-proc ; provided => check arity
-       (unless (procedure-arity-includes? fl-proc (length vars) #t)
-         (error 'create-operator-impl!
-                "~a: procedure does not accept ~a arguments"
-                name
-                (length vars)))
-       fl-proc]
-      [else ; need to generate
-       (define compiler (make-real-compiler (list spec) (list ctx)))
-       (define fail ((representation-bf->repr (context-repr ctx)) +nan.bf))
-       (procedure-rename (lambda pt
-                           (define-values (_ exs) (real-apply compiler (list->vector pt)))
-                           (if exs
-                               (first exs)
-                               fail))
-                         name)]))
+    (match fl-proc
+      [(? generator?) ((generator-gen fl-proc) spec ctx)]
+      [(? procedure?) fl-proc]
+      [#f (error 'create-operator-impl! "fl-proc is not provided for `~a` implementation" name)]))
+  (unless (procedure-arity-includes? fl-proc* (length (context-vars ctx)) #t) ; check arity
+    (error 'arity-check
+           "Procedure `~a` accepts ~a arguments, but ~a is provided"
+           name
+           (procedure-arity fl-proc*)
+           (length (context-vars ctx))))
   (operator-impl name ctx spec fpcore fl-proc* cost))
 
 (define-syntax (make-operator-impl stx)

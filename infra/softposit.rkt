@@ -94,6 +94,8 @@
 
 (define bool <bool>)
 
+(define binary64 <binary64>)
+
 (define posit8
   (make-representation #:name 'posit8
                        #:bf->repr (compose double->posit8* bigfloat->flonum)
@@ -148,17 +150,14 @@
                        #:total-bits 64
                        #:special-value? (const #f)))
 
-; Binary64 is needed for casting from double to softposit formats
-(define binary64 <binary64>)
-
 (platform-register-representation! platform #:repr bool     #:cost cost)
+(platform-register-representation! platform #:repr binary64 #:cost cost)
 (platform-register-representation! platform #:repr posit8   #:cost cost)
 (platform-register-representation! platform #:repr posit16  #:cost cost)
 (platform-register-representation! platform #:repr posit32  #:cost cost)
 (platform-register-representation! platform #:repr quire8   #:cost cost)
 (platform-register-representation! platform #:repr quire16  #:cost cost)
 (platform-register-representation! platform #:repr quire32  #:cost cost)
-(platform-register-representation! platform #:repr binary64 #:cost cost)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; OPERATORS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
