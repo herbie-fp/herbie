@@ -229,7 +229,7 @@
                                                          binary32
                                                          #:spec x
                                                          #:fpcore (! :precision binary32 (cast x))
-                                                         #:fl flsingle
+                                                         #:impl flsingle
                                                          #:cost 64))
 
 #;(platform-register-implementation! platform
@@ -237,7 +237,7 @@
                                                          binary64
                                                          #:spec x
                                                          #:fpcore (! :precision binary64 (cast x))
-                                                         #:fl identity
+                                                         #:impl identity
                                                          #:cost 64))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; REGISTER PLATFORM ;;;;;;;;;;;;;;;;;;;;;

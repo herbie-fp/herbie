@@ -133,7 +133,7 @@
                                                        binary64
                                                        #:spec (- 1 (erf x))
                                                        #:fpcore (! :precision binary64 (erfc x))
-                                                       #:fl (from-libm 'erfc)
+                                                       #:impl (from-libm 'erfc)
                                                        #:cost 0.816512))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; REGISTER PLATFORM ;;;;;;;;;;;;;;;;;;;;;

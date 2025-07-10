@@ -90,14 +90,14 @@
   (register-racket-operator (op [x : binary64])
                               #:spec (op x)
                               #:fpcore (! :precision binary64 (op x))
-                              #:fl fn
+                              #:impl fn
                               #:cost cost))
 
 (define-syntax-rule (register-2ary-racket-operator op fn cost)
   (register-racket-operator (op [x : binary64] [y : binary64])
                               #:spec (op x y)
                               #:fpcore (! :precision binary64 (op x y))
-                              #:fl fn
+                              #:impl fn
                               #:cost cost))
 
 (define-syntax-rule (register-1ary-racket-operators [op fn cost] ...)
@@ -126,7 +126,7 @@
                                                          binary64
                                                          #:spec (neg x)
                                                          #:fpcore (! :precision binary64 (- x))
-                                                         #:fl -
+                                                         #:impl -
                                                          #:cost 1))
 
 ; ([op fn cost] ...) 

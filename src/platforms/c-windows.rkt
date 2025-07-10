@@ -80,13 +80,13 @@
 ; ([name   ([var : repr] ...)              otype    spec     fl         fpcore                          cost])
 
 (define-operation (neg.f32 [x <binary32>]) <binary32>
-  #:spec (neg x) #:fl (compose flsingle -) #:fpcore (! :precision binary32 (- x)) #:cost 0.11567699999999992)
+  #:spec (neg x) #:impl (compose flsingle -) #:fpcore (! :precision binary32 (- x)) #:cost 0.11567699999999992)
 
 (define-operations ([x <binary32>] [y <binary32>]) <binary32>
-  [+.f32 #:spec (+ x y) #:fl (compose flsingle +) #:fpcore (! :precision binary32 (+ x y)) #:cost 0.200445]
-  [-.f32 #:spec (- x y) #:fl (compose flsingle -) #:fpcore (! :precision binary32 (- x y)) #:cost 0.19106800000000014]
-  [*.f32 #:spec (* x y) #:fl (compose flsingle *) #:fpcore (! :precision binary32 (* x y)) #:cost 0.256602]
-  [/.f32 #:spec (/ x y) #:fl (compose flsingle /) #:fpcore (! :precision binary32 (/ x y)) #:cost 0.3465330000000001])
+  [+.f32 #:spec (+ x y) #:impl (compose flsingle +) #:fpcore (! :precision binary32 (+ x y)) #:cost 0.200445]
+  [-.f32 #:spec (- x y) #:impl (compose flsingle -) #:fpcore (! :precision binary32 (- x y)) #:cost 0.19106800000000014]
+  [*.f32 #:spec (* x y) #:impl (compose flsingle *) #:fpcore (! :precision binary32 (* x y)) #:cost 0.256602]
+  [/.f32 #:spec (/ x y) #:impl (compose flsingle /) #:fpcore (! :precision binary32 (/ x y)) #:cost 0.3465330000000001])
 
 (platform-register-implementations!
  platform

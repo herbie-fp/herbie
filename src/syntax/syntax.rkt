@@ -241,11 +241,11 @@
 (define/contract (create-operator-impl! name
                                         ctx
                                         spec
-                                        #:fl [fl-proc #f]
+                                        #:impl [fl-proc #f]
                                         #:fpcore [fpcore #f]
                                         #:cost [cost #f])
   (->* (symbol? context? any/c)
-       (#:fl (or/c procedure? generator? #f) #:fpcore any/c #:cost (or/c #f real?))
+       (#:impl (or/c procedure? generator? #f) #:fpcore any/c #:cost (or/c #f real?))
        operator-impl?)
   ; check specification
   (check-spec! name ctx spec)
@@ -317,7 +317,7 @@
               #'(create-operator-impl! 'id
                                        (context '(var ...) rtype (list repr ...))
                                        'spec
-                                       #:fl fl-expr
+                                       #:impl fl-expr
                                        #:fpcore 'core
                                        #:cost op-cost))]
            [(#:spec expr rest ...)
@@ -334,13 +334,13 @@
                (set! core #'expr)
                (loop #'(rest ...))])]
            [(#:fpcore) (oops! "expected value after keyword `#:fpcore`" stx)]
-           [(#:fl expr rest ...)
+           [(#:impl expr rest ...)
             (cond
               [fl-expr (oops! "multiple #:fl clauses" stx)]
               [else
                (set! fl-expr #'expr)
                (loop #'(rest ...))])]
-           [(#:fl) (oops! "expected value after keyword `#:fl`" stx)]
+           [(#:impl) (oops! "expected value after keyword `#:fl`" stx)]
            [(#:cost cost rest ...)
             (cond
               [op-cost (oops! "multiple #:cost clauses" stx)]

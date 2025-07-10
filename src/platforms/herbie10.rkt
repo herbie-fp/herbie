@@ -229,14 +229,14 @@
                                                          binary32
                                                          #:spec x
                                                          #:fpcore (! :precision binary32 (cast x))
-                                                         #:fl flsingle))
+                                                         #:impl flsingle))
 
 #;(platform-register-implementation! platform
                                      (make-operator-impl (binary32->binary64 [x : binary32])
                                                          binary64
                                                          #:spec x
                                                          #:fpcore (! :precision binary64 (cast x))
-                                                         #:fl identity))
+                                                         #:impl identity))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; REGISTER PLATFORM ;;;;;;;;;;;;;;;;;;;;;
 

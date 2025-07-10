@@ -125,7 +125,7 @@
                                             (make-operator-impl (name [var : repr] ...)
                                                                 otype
                                                                 #:spec spec
-                                                                #:fl fl
+                                                                #:impl fl
                                                                 #:fpcore fpcore
                                                                 #:cost cost)) ...)]))
 
