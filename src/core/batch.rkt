@@ -25,9 +25,10 @@
          mutable-batch-push! ; Mutable-batch -> Node -> Idx
          batch-copy
 
-         munge-alts
-         unmunge-alts
-         batch-all-subnodes)
+         alts->batchrefs
+         batchrefs->alts
+         batch-all-subnodes
+         alts-batch)
 
 ;; This function defines the recursive structure of expressions
 (define (expr-recurse expr f #:recurse-on-spec [recurse-on-spec #t])
@@ -49,7 +50,7 @@
           (sow idx)
           (expr-recurse (vector-ref nodes idx) loop #:recurse-on-spec #f))))
 
-(define (munge-alts b altns)
+(define (alts->batchrefs b altns)
   (define mb (batch->mutable-batch b))
   (define altns*
     (for/list ([altn altns])
@@ -63,7 +64,7 @@
   (batch-copy-mutable-nodes! b mb)
   altns*)
 
-(define (unmunge-alts altns)
+(define (batchrefs->alts altns)
   (for/list ([altn altns])
     (let loop ([altn* altn])
       (define expr (debatchref (alt-expr altn*)))
@@ -75,6 +76,8 @@
 
 ;; Batches store these recursive structures, flattened
 (struct batch ([nodes #:mutable] [roots #:mutable]))
+
+(define alts-batch (batch (vector) (vector)))
 
 (define (batch-length b)
   (cond

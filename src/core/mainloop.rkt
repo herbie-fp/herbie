@@ -157,6 +157,7 @@
 
 ;; Converts a patch to full alt with valid history
 (define (reconstruct! alts)
+  (define mutable-alts-batch (batch->mutable-batch alts-batch))
   ;; extracts the base expressions of a patch as a batchref
   (define (get-starting-expr altn)
     (match (alt-prevs altn)
@@ -164,7 +165,7 @@
       [(list prev) (get-starting-expr prev)]))
 
   ;; takes a patch and converts it to a full alt
-  (define (reconstruct-alt altn loc0 orig)
+  (define (reconstruct-alt altn locs orig)
     (let loop ([altn altn])
       (match-define (alt _ event prevs _) altn)
       (match event
@@ -172,23 +173,39 @@
         [_
          (define event*
            (match event
-             [(list 'evaluate) (list 'evaluate loc0)]
-             [(list 'taylor name var) (list 'taylor loc0 name var)]
-             [(list 'rr input proof) (list 'rr loc0 input proof)]))
-         (define expr* (batch-location-set loc0 (alt-expr orig) (alt-expr altn)))
-         (alt expr* event* (list (loop (first prevs))) (alt-preprocessing orig))])))
+             [(list 'evaluate)
+              (list 'evaluate
+                    (if (null? locs)
+                        locs
+                        (car locs)))]
+             [(list 'taylor name var)
+              (list 'taylor
+                    (if (null? locs)
+                        locs
+                        (car locs))
+                    name
+                    var)]
+             [(list 'rr input proof)
+              (list 'rr
+                    (if (null? locs)
+                        locs
+                        (car locs))
+                    input
+                    proof)]))
+         (define expr* (batch-locations-set locs mutable-alts-batch (alt-expr orig) (alt-expr altn)))
+         (alt expr* event* (map loop prevs) (alt-preprocessing orig))])))
 
   (^patched^ (reap [sow]
                    (for ([altn (in-list alts)])
-                     (define start-expr (get-starting-expr altn)) ; batchref to global-batch
+                     (define start-expr (get-starting-expr altn))
                      (for ([full-altn (in-list (^next-alts^))])
-                       (define expr (alt-expr full-altn)) ; batchref
-                       (sow (for/fold ([full-altn full-altn])
-                                      ([loc (in-list (batch-get-locations expr start-expr))])
-                              (reconstruct-alt altn loc full-altn)))))))
+                       (define expr (alt-expr full-altn))
+                       (define locs (batch-get-locations expr start-expr))
+                       (sow (reconstruct-alt altn locs full-altn))))))
 
-  (^patched^ (unmunge-alts (^patched^)))
-
+  (batch-copy-mutable-nodes! alts-batch mutable-alts-batch)
+  (^patched^ (batchrefs->alts (^patched^)))
+  (^next-alts^ (batchrefs->alts (^next-alts^)))
   (void))
 
 ;; Finish iteration
@@ -242,16 +259,18 @@
 
   ; -------------- TESTING ------------
   ; (define test-batch (batch (vector) (vector)))
-  ; (unless (equal? (unmunge-alts (munge-alts test-batch (^next-alts^))) (^next-alts^))
+  ; (unless (equal? (batchrefs->atls (alts->batchrefs test-batch (^next-alts^))) (^next-alts^))
   ;   (error "munge/unmunge alts failed"))
   ; -----------------------------------
 
-  (define global-batch (batch (vector) (vector)))
-  (^next-alts^ (munge-alts global-batch (^next-alts^)))
-  (define locs* (remove-duplicates (append-map (compose batch-all-subnodes alt-expr) (^next-alts^))))
-  (set-batch-roots! global-batch (list->vector locs*))
+  (set-batch-nodes! alts-batch (vector))
+  (set-batch-roots! alts-batch (vector))
 
-  (reconstruct! (generate-candidates global-batch))
+  (^next-alts^ (alts->batchrefs alts-batch (^next-alts^)))
+  (define locs (remove-duplicates (append-map (compose batch-all-subnodes alt-expr) (^next-alts^))))
+  (set-batch-roots! alts-batch (list->vector locs))
+
+  (reconstruct! (generate-candidates alts-batch))
   (finalize-iter!)
   (void))
 

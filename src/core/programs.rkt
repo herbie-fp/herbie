@@ -21,7 +21,7 @@
          replace-expression
          replace-vars
          batch-get-locations
-         batch-location-set)
+         batch-locations-set)
 
 ;; Programs are just lisp lists plus atoms
 
@@ -172,30 +172,47 @@
   (-> location? expr? expr? expr?)
   (location-do loc prog (const prog*)))
 
-(define/contract (batch-location-set loc full-batchref sub-batchref)
-  (-> location? batchref? batchref? batchref?)
-  (define batch (batchref-batch full-batchref))
+(define/contract (batch-locations-set locs mutable-batch full-batchref sub-batchref)
+  (-> (listof location?) mutable-batch? batchref? batchref? batchref?)
   (define sub-idx (batchref-idx sub-batchref))
   (define idx (batchref-idx full-batchref))
-  (define nodes (batch-nodes batch))
-  ; Adding the rest of the nodes with right indices
-  (define mutable-batch (batch->mutable-batch batch))
+  (define nodes (batch-nodes alts-batch))
   (define idx*
-    (let loop ([loc loc]
+    (let loop ([locs locs]
                [idx idx])
-      (define node (vector-ref nodes idx))
-      (match* (node loc)
-        [(_ (? null?)) sub-idx]
-        [((approx spec impl) (cons 1 rest))
-         (mutable-batch-push! mutable-batch (approx (loop rest spec) impl))]
-        [((approx spec impl) (cons i rest))
-         (mutable-batch-push! mutable-batch (approx spec (loop rest impl)))]
-        [((hole prec spec) (cons 1 rest))
-         (mutable-batch-push! mutable-batch (hole prec (loop rest spec)))]
-        [((? list?) (cons i rest))
-         (mutable-batch-push! mutable-batch (list-set node i (loop rest (list-ref node i))))])))
-  (batch-copy-mutable-nodes! batch mutable-batch)
-  (batchref batch idx*))
+      (let ([locs* (filter-not null? locs)]
+            [node (vector-ref nodes idx)])
+        (match* (node locs*)
+          [(_ (? null?)) sub-idx]
+          [((approx spec impl) _)
+           (define spec-locs (filter (λ (x) (equal? (car x) 1)) locs*))
+           (define spec*
+             (if (null? spec-locs)
+                 spec
+                 (loop (map rest spec-locs) spec)))
+
+           (define impl-locs (filter (λ (x) (equal? (car x) 2)) locs*))
+           (define impl*
+             (if (null? impl-locs)
+                 impl
+                 (loop (map rest impl-locs) impl)))
+
+           (mutable-batch-push! mutable-batch (approx spec* impl*))]
+
+          [((hole prec spec) _)
+           (define spec* (loop (map rest locs*) spec))
+           (mutable-batch-push! mutable-batch (hole prec spec*))]
+
+          [((list op args ...) _)
+           (define args*
+             (for/list ([arg (in-list args)]
+                        [n (in-naturals 1)])
+               (define locs** (filter (λ (x) (equal? (car x) n)) locs*))
+               (if (null? locs**)
+                   arg
+                   (loop (map rest locs**) arg))))
+           (mutable-batch-push! mutable-batch (cons op args*))]))))
+  (batchref alts-batch idx*))
 
 (define/contract (location-get loc prog)
   (-> location? expr? expr?)
