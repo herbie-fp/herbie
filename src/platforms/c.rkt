@@ -4,25 +4,6 @@
 
 (require math/flonum)
 
-(define-syntax-rule (define-operation (name [arg irepr] ...) orepr
-                      flags ...)
-  (let ([impl (make-operator-impl (name [arg : irepr] ...) orepr
-                                  flags ...)])
-    (platform-register-implementation! platform impl)))
-
-(define-syntax-rule (define-operations ([arg irepr] ...) orepr
-                      [name flags ...] ...)
-  (begin
-    (define-operation (name [arg irepr] ...) orepr flags ...) ...))
-
-(define-syntax-rule (define-if #:cost cost)
-  (platform-register-if-cost! platform #:cost cost))
-
-(define-syntax-rule (define-representation repr #:cost cost)
-  (platform-register-representation! platform #:repr repr #:cost cost))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;; EMPTY PLATFORM ;;;;;;;;;;;;;;;;;;;;;;;;
-
 (define 64bit-move-cost   0.12538399999999972)
 (define 32bit-move-cost   0.12961999999999974)
 (define boolean-move-cost 0.1)
@@ -33,22 +14,13 @@
 
 (define-representation <bool> #:cost boolean-move-cost)
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;; constants ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
 (define-operations () <bool>
   [TRUE  #:spec (TRUE)  #:fl (const true)  #:fpcore TRUE  #:cost boolean-move-cost]
   [FALSE #:spec (FALSE) #:fl (const false) #:fpcore FALSE #:cost boolean-move-cost])
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;; operators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(define (and-fn . as)
-  (andmap identity as))
-(define (or-fn . as)
-  (ormap identity as))
-
 (define-operations ([x <bool>] [y <bool>]) <bool>
-  [and #:spec (and x y) #:fl and-fn #:fpcore (and x y) #:cost boolean-move-cost]
-  [or  #:spec (or x y)  #:fl or-fn  #:fpcore (or x y)  #:cost boolean-move-cost])
+  [and #:spec (and x y) #:fl (curry andmap values) #:fpcore (and x y) #:cost boolean-move-cost]
+  [or  #:spec (or x y)  #:fl (curry ormap values)  #:fpcore (or x y)  #:cost boolean-move-cost])
 
 (define-operation (not [x <bool>]) <bool>
   #:spec (not x) #:fl not #:fpcore (not x) #:cost boolean-move-cost)
