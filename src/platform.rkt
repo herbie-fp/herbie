@@ -3,11 +3,13 @@
 (require (for-syntax racket))
 (require racket/stxparam)
 (require "syntax/platform.rkt"
+         "syntax/syntax.rkt"
          "syntax/types.rkt")
 (provide define-if
          define-representation
          define-operation
          define-operations
+         fpcore-context
          (rename-out [platform-module-begin #%module-begin])
          (except-out (all-from-out racket) #%module-begin)
          (all-from-out "syntax/platform.rkt")

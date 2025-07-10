@@ -1,6 +1,7 @@
 #lang racket
 
-(require math/bigfloat)
+(require math/bigfloat
+         racket/hash)
 
 (require "../utils/common.rkt"
          "../utils/errors.rkt"
@@ -18,6 +19,7 @@
          *functions*
          register-function!
          make-operator-impl
+         fpcore-context
          (struct-out operator-impl) ; required by platform.rkt
          (struct-out operator)) ; required by platform.rkt
 
@@ -236,6 +238,20 @@
   (unless (equal? actual-ty otype)
     (type-error! spec actual-ty otype)))
 
+(define fpcore-context (make-parameter '()))
+
+(define (fpcore-parameterize spec)
+  (if (empty? (fpcore-context))
+      spec
+      (match spec
+        [`(! ,props ... ,body)
+         (define props1 (make-immutable-hash (props->dict (fpcore-context))))
+         (define props2 (make-immutable-hash (props->dict props)))
+         (define props* (dict->props (hash-union props1 props2 #:combine (lambda (x y) y))))
+         `(! ,@props* ,body)]
+        [body
+         `(! ,@(fpcore-context) ,body)])))
+
 ; Registers an operator implementation `name` with context `ctx` and spec `spec`.
 ; Can optionally specify a floating-point implementation and fpcore translation.
 (define/contract (create-operator-impl! name
@@ -255,7 +271,7 @@
       [(list op (or (? number?) (? symbol?)) ...) op]
       [_ #f]))
   ; check FPCore translation
-  (match fpcore
+  (match (fpcore-parameterize (or fpcore spec))
     [`(! ,props ... (,op ,args ...))
      (unless (even? (length props))
        (error 'create-operator-impl! "~a: umatched property in ~a" name fpcore))
@@ -284,7 +300,7 @@
            name
            (procedure-arity fl-proc*)
            (length (context-vars ctx))))
-  (operator-impl name ctx spec fpcore fl-proc* cost))
+  (operator-impl name ctx spec (fpcore-parameterize (or fpcore spec)) fl-proc* cost))
 
 (define-syntax (make-operator-impl stx)
   (define (oops! why [sub-stx #f])
