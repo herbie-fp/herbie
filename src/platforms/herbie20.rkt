@@ -5,7 +5,7 @@
 
 (require math/bigfloat
          math/flonum
-         "../utils/float.rkt"  ; for shift/unshift
+         "../syntax/types.rkt"  ; for shift/unshift
          "../syntax/platform.rkt")
 (provide platform)
 
