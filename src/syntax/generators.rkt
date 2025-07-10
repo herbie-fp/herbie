@@ -11,7 +11,8 @@
 (provide from-rival
          from-libm
          from-bigfloat
-         define-generator)
+         define-generator
+         (struct-out generator))
 
 (struct generator (gen))
 
