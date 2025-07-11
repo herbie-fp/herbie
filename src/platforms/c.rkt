@@ -125,7 +125,7 @@
     [NAN.f64  #:spec (NAN)      #:impl (const +nan.0)  #:cost 64bit-move-cost])
   
   (define-operation (neg.f64 [x <binary64>]) <binary64>
-    #:spec (neg x) #:impl - #:fpcore (- x) #:cost 0.11567699999999992)
+    #:spec (neg x) #:impl - #:fpcore (- x) #:cost 0.125)
   
   (define-operations ([x <binary64>] [y <binary64>]) <binary64>
     [+.f64 #:spec (+ x y) #:impl + #:cost 0.200]

@@ -29,6 +29,13 @@
 
 (define-representation <binary32> #:cost 32bit-move-cost)
 
+(define-operations ([x <binary32>] [y <binary32>]) <bool>
+  [==.f32 #:spec (== x y) #:impl =          #:cost 32bit-move-cost]
+  [!=.f32 #:spec (!= x y) #:impl (negate =) #:cost 32bit-move-cost]
+  [<.f32  #:spec (< x y)  #:impl <          #:cost 32bit-move-cost]
+  [>.f32  #:spec (> x y)  #:impl >          #:cost 32bit-move-cost]
+  [<=.f32 #:spec (<= x y) #:impl <=         #:cost 32bit-move-cost]
+  [>=.f32 #:spec (>= x y) #:impl >=         #:cost 32bit-move-cost])
 
 (parameterize ([fpcore-context '(:precision binary32)])
   (define-operations () <binary32>
@@ -45,14 +52,6 @@
     [-.f32 #:spec (- x y) #:impl (compose flsingle -) #:cost 0.200]
     [*.f32 #:spec (* x y) #:impl (compose flsingle *) #:cost 0.250]
     [/.f32 #:spec (/ x y) #:impl (compose flsingle /) #:cost 0.350])
-  
-  (define-operations ([x <binary32>] [y <binary32>]) <bool>
-    [==.f32 #:spec (== x y) #:impl =          #:cost 32bit-move-cost]
-    [!=.f32 #:spec (!= x y) #:impl (negate =) #:cost 32bit-move-cost]
-    [<.f32  #:spec (< x y)  #:impl <          #:cost 32bit-move-cost]
-    [>.f32  #:spec (> x y)  #:impl >          #:cost 32bit-move-cost]
-    [<=.f32 #:spec (<= x y) #:impl <=         #:cost 32bit-move-cost]
-    [>=.f32 #:spec (>= x y) #:impl >=         #:cost 32bit-move-cost])
   
   (define-operations ([x <binary32>]) <binary32>
     [sin.f32    #:spec (sin x)    #:impl (from-libm 'sinf)    #:cost 4.250]
@@ -103,6 +102,12 @@
 
 (define-representation <binary64> #:cost 64bit-move-cost)
 
+(define-operations ([x <binary64>] [y <binary64>]) <binary64>
+  [+.f64 #:spec (+ x y) #:impl + #:cost 0.200]
+  [-.f64 #:spec (- x y) #:impl - #:cost 0.200]
+  [*.f64 #:spec (* x y) #:impl * #:cost 0.250]
+  [/.f64 #:spec (/ x y) #:impl / #:cost 0.350])
+
 (parameterize ([fpcore-context '(:precision binary64)])
   (define-operations () <binary64>
     [PI.f64   #:spec (PI)       #:impl (const pi)      #:cost 64bit-move-cost]
@@ -111,13 +116,7 @@
     [NAN.f64  #:spec (NAN)      #:impl (const +nan.0)  #:cost 64bit-move-cost])
   
   (define-operation (neg.f64 [x <binary64>]) <binary64>
-    #:spec (neg x) #:impl - #:fpcore (- x) #:cost 0.11567699999999992)
-  
-  (define-operations ([x <binary64>] [y <binary64>]) <binary64>
-    [+.f64 #:spec (+ x y) #:impl + #:cost 0.200]
-    [-.f64 #:spec (- x y) #:impl - #:cost 0.200]
-    [*.f64 #:spec (* x y) #:impl * #:cost 0.250]
-    [/.f64 #:spec (/ x y) #:impl / #:cost 0.350])
+    #:spec (neg x) #:impl - #:fpcore (- x) #:cost 0.125)
   
   (define-operations ([x <binary64>] [y <binary64>]) <bool>
     [==.f64 #:spec (== x y) #:impl =          #:cost 64bit-move-cost]
