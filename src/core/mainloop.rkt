@@ -165,7 +165,7 @@
       [(list prev) (get-starting-expr prev)]))
 
   ;; takes a patch and converts it to a full alt
-  (define (reconstruct-alt altn locs orig)
+  (define (reconstruct-alt altn loc0 orig)
     (let loop ([altn altn])
       (match-define (alt _ event prevs _) altn)
       (match event
@@ -173,26 +173,10 @@
         [_
          (define event*
            (match event
-             [(list 'evaluate)
-              (list 'evaluate
-                    (if (null? locs)
-                        locs
-                        (car locs)))]
-             [(list 'taylor name var)
-              (list 'taylor
-                    (if (null? locs)
-                        locs
-                        (car locs))
-                    name
-                    var)]
-             [(list 'rr input proof)
-              (list 'rr
-                    (if (null? locs)
-                        locs
-                        (car locs))
-                    input
-                    proof)]))
-         (define expr* (batch-locations-set locs mutable-alts-batch (alt-expr orig) (alt-expr altn)))
+             [(list 'evaluate) (list 'evaluate loc0)]
+             [(list 'taylor name var) (list 'taylor loc0 name var)]
+             [(list 'rr input proof) (list 'rr loc0 input proof)]))
+         (define expr* (batch-location-set loc0 mutable-alts-batch (alt-expr orig) (alt-expr altn)))
          (alt expr* event* (map loop prevs) (alt-preprocessing orig))])))
 
   (^patched^ (reap [sow]
@@ -200,8 +184,9 @@
                      (define start-expr (get-starting-expr altn))
                      (for ([full-altn (in-list (^next-alts^))])
                        (define expr (alt-expr full-altn))
-                       (define locs (batch-get-locations expr start-expr))
-                       (sow (reconstruct-alt altn locs full-altn))))))
+                       (sow (for/fold ([full-altn full-altn])
+                                      ([loc (in-list (batch-get-locations expr start-expr))])
+                              (reconstruct-alt altn loc full-altn)))))))
 
   (batch-copy-mutable-nodes! alts-batch mutable-alts-batch)
   (^patched^ (batchrefs->alts (^patched^)))
@@ -257,16 +242,10 @@
   (unless (^next-alts^)
     (choose-alts!))
 
-  ; -------------- TESTING ------------
-  ; (define test-batch (batch (vector) (vector)))
-  ; (unless (equal? (batchrefs->atls (alts->batchrefs test-batch (^next-alts^))) (^next-alts^))
-  ;   (error "munge/unmunge alts failed"))
-  ; -----------------------------------
-
   (set-batch-nodes! alts-batch (vector))
   (set-batch-roots! alts-batch (vector))
-
   (^next-alts^ (alts->batchrefs alts-batch (^next-alts^)))
+  
   (define locs (remove-duplicates (append-map (compose batch-all-subnodes alt-expr) (^next-alts^))))
   (set-batch-roots! alts-batch (list->vector locs))
 
