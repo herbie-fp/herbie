@@ -39,6 +39,19 @@
 
   (reap [sow]
         (define global-batch-mutable (batch->mutable-batch global-batch)) ; Create a mutable batch
+          [transform-type transforms-to-try])
+          (match-define (list name f finv) transform-type)
+          (define timeline-stop! (timeline-start! 'series (~a var) (~a name)))
+          (define genexprs (approximate specs var #:transform (cons f finv)))
+          spec (in-list specs)]
+          [repr (in-list reprs)]
+          [altn (in-list altns)]
+          [fv (in-list free-vars)]
+          #:when (set-member? fv var)) ; check whether var exists in expr at all
+          (for ([i (in-range (*taylor-order-limit*))])
+          (define gen (approx spec (hole (representation-name repr) (0))))
+              (define idx (mutable-batch-munge! global-batch-mutable gen)) ; Munge gen
+              (sow (alt (batchref global-batch idx) `(taylor ,name ,var) (list altn) '()))))
         (for* ([var (in-list vars)]
                [transform-type transforms-to-try])
           (match-define (list name f finv) transform-type)
