@@ -29,6 +29,14 @@
 
 (define-representation <binary32> #:cost 32bit-move-cost)
 
+(define-operations ([x <binary32>] [y <binary32>]) <bool>
+  [==.f32 #:spec (== x y) #:impl =          #:cost 32bit-move-cost]
+  [!=.f32 #:spec (!= x y) #:impl (negate =) #:cost 32bit-move-cost]
+  [<.f32  #:spec (< x y)  #:impl <          #:cost 32bit-move-cost]
+  [>.f32  #:spec (> x y)  #:impl >          #:cost 32bit-move-cost]
+  [<=.f32 #:spec (<= x y) #:impl <=         #:cost 32bit-move-cost]
+  [>=.f32 #:spec (>= x y) #:impl >=         #:cost 32bit-move-cost])
+
 (parameterize ([fpcore-context '(:precision binary32)])
   (define-operations () <binary32>
     [PI.f32       #:spec (PI)       #:impl (const (flsingle pi))       #:cost 32bit-move-cost]
@@ -44,14 +52,6 @@
     [-.f32 #:spec (- x y) #:impl (compose flsingle -) #:cost 0.200]
     [*.f32 #:spec (* x y) #:impl (compose flsingle *) #:cost 0.250]
     [/.f32 #:spec (/ x y) #:impl (compose flsingle /) #:cost 0.350])
-  
-  (define-operations ([x <binary32>] [y <binary32>]) <bool>
-    [==.f32 #:spec (== x y) #:impl =          #:cost 32bit-move-cost]
-    [!=.f32 #:spec (!= x y) #:impl (negate =) #:cost 32bit-move-cost]
-    [<.f32  #:spec (< x y)  #:impl <          #:cost 32bit-move-cost]
-    [>.f32  #:spec (> x y)  #:impl >          #:cost 32bit-move-cost]
-    [<=.f32 #:spec (<= x y) #:impl <=         #:cost 32bit-move-cost]
-    [>=.f32 #:spec (>= x y) #:impl >=         #:cost 32bit-move-cost])
   
   (define-operations ([x <binary32>]) <binary32>
     [fabs.f32   #:spec (fabs x)   #:impl (from-libm 'fabsf)   #:cost 0.125]
@@ -109,6 +109,14 @@
 
 (define-representation <binary64> #:cost 64bit-move-cost)
 
+(define-operations ([x <binary64>] [y <binary64>]) <bool>
+  [==.f64 #:spec (== x y) #:impl =          #:cost 64bit-move-cost]
+  [!=.f64 #:spec (!= x y) #:impl (negate =) #:cost 64bit-move-cost]
+  [<.f64  #:spec (< x y)  #:impl <          #:cost 64bit-move-cost]
+  [>.f64  #:spec (> x y)  #:impl >          #:cost 64bit-move-cost]
+  [<=.f64 #:spec (<= x y) #:impl <=         #:cost 64bit-move-cost]
+  [>=.f64 #:spec (>= x y) #:impl >=         #:cost 64bit-move-cost])
+
 (parameterize ([fpcore-context '(:precision binary64)])
   (define-operations () <binary64>
     [PI.f64   #:spec (PI)       #:impl (const pi)      #:cost 64bit-move-cost]
@@ -124,14 +132,6 @@
     [-.f64 #:spec (- x y) #:impl - #:cost 0.200]
     [*.f64 #:spec (* x y) #:impl * #:cost 0.250]
     [/.f64 #:spec (/ x y) #:impl / #:cost 0.350])
-  
-  (define-operations ([x <binary64>] [y <binary64>]) <bool>
-    [==.f64 #:spec (== x y) #:impl =          #:cost 64bit-move-cost]
-    [!=.f64 #:spec (!= x y) #:impl (negate =) #:cost 64bit-move-cost]
-    [<.f64  #:spec (< x y)  #:impl <          #:cost 64bit-move-cost]
-    [>.f64  #:spec (> x y)  #:impl >          #:cost 64bit-move-cost]
-    [<=.f64 #:spec (<= x y) #:impl <=         #:cost 64bit-move-cost]
-    [>=.f64 #:spec (>= x y) #:impl >=         #:cost 64bit-move-cost])
   
   (define-operations ([x <binary64>]) <binary64>
     [fabs.f64   #:spec (fabs x)   #:impl (from-libm 'fabs)      #:cost 0.125]
