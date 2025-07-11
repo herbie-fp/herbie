@@ -96,10 +96,9 @@
 (define <binary32>
   (make-representation #:name 'binary32
                        #:bf->repr bigfloat->float32
-                       #:repr->bf
-                       (lambda (x)
-                         (parameterize ([bf-precision 24])
-                           (bf x)))
+                       #:repr->bf (lambda (x)
+                                    (parameterize ([bf-precision 24])
+                                      (bf x)))
                        #:ordinal->repr (shift 31 ordinal->float32)
                        #:repr->ordinal (unshift 31 float32->ordinal)
                        #:total-bits 32
@@ -108,10 +107,9 @@
 (define <binary64>
   (make-representation #:name 'binary64
                        #:bf->repr bigfloat->flonum
-                       #:repr->bf
-                       (lambda (x)
-                         (parameterize ([bf-precision 53])
-                           (bf x)))
+                       #:repr->bf (lambda (x)
+                                    (parameterize ([bf-precision 53])
+                                      (bf x)))
                        #:ordinal->repr (shift 63 ordinal->flonum)
                        #:repr->ordinal (unshift 63 flonum->ordinal)
                        #:total-bits 64

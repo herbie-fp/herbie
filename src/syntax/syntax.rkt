@@ -249,8 +249,7 @@
          (define props2 (make-immutable-hash (props->dict props)))
          (define props* (dict->props (hash-union props1 props2 #:combine (lambda (x y) y))))
          `(! ,@props* ,body)]
-        [body
-         `(! ,@(fpcore-context) ,body)])))
+        [body `(! ,@(fpcore-context) ,body)])))
 
 ; Registers an operator implementation `name` with context `ctx` and spec `spec`.
 ; Can optionally specify a floating-point implementation and fpcore translation.

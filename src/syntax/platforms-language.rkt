@@ -24,13 +24,12 @@
 (define-syntax-rule (define-representation repr #:cost cost)
   (platform-register-representation! (platform-being-defined) #:repr repr #:cost cost))
 
-(define-syntax-rule (define-operation (name [arg irepr] ...) orepr
-                      flags ...)
-  (let ([impl (make-operator-impl (name [arg : irepr] ...) orepr
-                                  flags ...)])
+(define-syntax-rule (define-operation (name [arg irepr] ...) orepr flags ...)
+  (let ([impl (make-operator-impl (name [arg : irepr] ...) orepr flags ...)])
     (platform-register-implementation! (platform-being-defined) impl)))
 
-(define-syntax-rule (define-operations ([arg irepr] ...) orepr
+(define-syntax-rule (define-operations ([arg irepr] ...)
+                      orepr
                       [name flags ...] ...)
   (begin
     (define-operation (name [arg irepr] ...) orepr flags ...) ...))
@@ -45,5 +44,7 @@
                          content ...
                          (platform-being-defined old-platform-being-defined)
                          (provide local-platform)
-                         (module+ main (display-platform local-platform))
-                         (module test racket/base))])))
+                         (module+ main
+                           (display-platform local-platform))
+                         (module test racket/base
+                           ))])))

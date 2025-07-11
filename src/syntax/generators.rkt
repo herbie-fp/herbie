@@ -16,8 +16,11 @@
 
 (struct generator (gen))
 
-(define-syntax-rule (define-generator ((name args ...) spec ctx) body ...)
-  (define (name args ...) (generator (lambda (spec ctx) body ...))))
+(define-syntax-rule (define-generator ((name args ...) spec ctx)
+                      body ...)
+  (define (name args ...)
+    (generator (lambda (spec ctx)
+                 body ...))))
 
 ; ----------------------- RIVAL GENERATOR ---------------------------
 
