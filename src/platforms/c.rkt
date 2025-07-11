@@ -1,4 +1,4 @@
-#lang s-exp "../syntax/platforms-language.rkt"
+#lang s-exp "../platform.rkt"
 
 ;; C/C++ platform with a full libm
 
