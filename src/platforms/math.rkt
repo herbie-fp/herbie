@@ -6,7 +6,7 @@
 
 (require math/bigfloat
          math/flonum
-         "../utils/float.rkt" ; for shift/unshift
+         "../syntax/types.rkt" ; for shift/unshift
          "../syntax/platform.rkt")
 (provide platform)
 
@@ -15,22 +15,15 @@
 (define move-cost    0.02333600000000001)
 (define fl-move-cost (* move-cost 4))
 
-(define platform (make-empty-platform 'math #:if-cost move-cost))
+(define platform (make-empty-platform 'math))
+
+(platform-register-if-cost! platform #:if-cost move-cost)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BOOLEAN ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; representation ;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define bool
-  (make-representation #:name 'bool
-                       #:type 'bool
-                       #:repr? boolean?
-                       #:bf->repr identity
-                       #:repr->bf identity
-                       #:ordinal->repr (λ (x) (= x 0))
-                       #:repr->ordinal (λ (x) (if x 1 0))
-                       #:total-bits 1
-                       #:special-value? (const #f)))
+(define bool <bool>)
 
 (platform-register-representation! platform #:repr bool #:cost move-cost)
 
@@ -58,16 +51,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; representation ;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define binary64
-  (make-representation #:name 'binary64
-                       #:type 'real
-                       #:repr? flonum?
-                       #:bf->repr bigfloat->flonum
-                       #:repr->bf bf
-                       #:ordinal->repr (shift 63 ordinal->flonum)
-                       #:repr->ordinal (unshift 63 flonum->ordinal)
-                       #:total-bits 64
-                       #:special-value? nan?))
+(define binary64 <binary64>)
 
 (platform-register-representation! platform #:repr binary64 #:cost fl-move-cost)
 
@@ -149,7 +133,7 @@
                                                        binary64
                                                        #:spec (- 1 (erf x))
                                                        #:fpcore (! :precision binary64 (erfc x))
-                                                       #:fl (from-libm 'erfc)
+                                                       #:impl (from-libm 'erfc)
                                                        #:cost 0.816512))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; REGISTER PLATFORM ;;;;;;;;;;;;;;;;;;;;;

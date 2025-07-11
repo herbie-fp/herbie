@@ -5,28 +5,21 @@
 
 (require math/bigfloat
          math/flonum
-         "../utils/float.rkt"  ; for shift/unshift
+         "../syntax/types.rkt"  ; for shift/unshift
          "../syntax/platform.rkt")
 (provide platform)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; EMPTY PLATFORM ;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define platform (make-empty-platform 'herbie10 #:if-cost 0))
+(define platform (make-empty-platform 'herbie10))
+
+(platform-register-if-cost! platform #:if-cost 0)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BOOLEAN ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; representation ;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define bool
-  (make-representation #:name 'bool
-                       #:type 'bool
-                       #:repr? boolean?
-                       #:bf->repr identity
-                       #:repr->bf identity
-                       #:ordinal->repr (λ (x) (= x 0))
-                       #:repr->ordinal (λ (x) (if x 1 0))
-                       #:total-bits 1
-                       #:special-value? (const #f)))
+(define bool <bool>)
 
 (platform-register-representation! platform #:repr bool #:cost 0)
 
@@ -72,11 +65,11 @@
 ; ([name   ([var : repr] ...)              otype    spec     fl         fpcore                         cost])
 (platform-register-implementations!
  platform
- ([neg.f32 ([x : binary32])                binary32 (neg x)  fl32-      (! :precision binary32 (- x))   0]
-  [+.f32   ([x : binary32] [y : binary32]) binary32 (+ x y)  fl32+      (! :precision binary32 (+ x y)) 0]
-  [-.f32   ([x : binary32] [y : binary32]) binary32 (- x y)  fl32-      (! :precision binary32 (- x y)) 0]
-  [*.f32   ([x : binary32] [y : binary32]) binary32 (* x y)  fl32*      (! :precision binary32 (* x y)) 0]
-  [/.f32   ([x : binary32] [y : binary32]) binary32 (/ x y)  fl32/      (! :precision binary32 (/ x y)) 0]
+ ([neg.f32 ([x : binary32])                binary32 (neg x)  (compose flsingle -)      (! :precision binary32 (- x))   0]
+  [+.f32   ([x : binary32] [y : binary32]) binary32 (+ x y)  (compose flsingle +)      (! :precision binary32 (+ x y)) 0]
+  [-.f32   ([x : binary32] [y : binary32]) binary32 (- x y)  (compose flsingle -)      (! :precision binary32 (- x y)) 0]
+  [*.f32   ([x : binary32] [y : binary32]) binary32 (* x y)  (compose flsingle *)      (! :precision binary32 (* x y)) 0]
+  [/.f32   ([x : binary32] [y : binary32]) binary32 (/ x y)  (compose flsingle /)      (! :precision binary32 (/ x y)) 0]
   [==.f32  ([x : binary32] [y : binary32]) bool     (== x y) =          (== x y)                        0]
   [!=.f32  ([x : binary32] [y : binary32]) bool     (!= x y) (negate =) (!= x y)                        0]
   [<.f32   ([x : binary32] [y : binary32]) bool     (< x y)  <          (< x y)                         0]
@@ -144,16 +137,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; representation ;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define binary64
-  (make-representation #:name 'binary64
-                       #:type 'real
-                       #:repr? flonum?
-                       #:bf->repr bigfloat->flonum
-                       #:repr->bf bf
-                       #:ordinal->repr (shift 63 ordinal->flonum)
-                       #:repr->ordinal (unshift 63 flonum->ordinal)
-                       #:total-bits 64
-                       #:special-value? nan?))
+(define binary64 <binary64>)
 
 (platform-register-representation! platform #:repr binary64 #:cost 0)
 
@@ -245,14 +229,14 @@
                                                          binary32
                                                          #:spec x
                                                          #:fpcore (! :precision binary32 (cast x))
-                                                         #:fl flsingle))
+                                                         #:impl flsingle))
 
 #;(platform-register-implementation! platform
                                      (make-operator-impl (binary32->binary64 [x : binary32])
                                                          binary64
                                                          #:spec x
                                                          #:fpcore (! :precision binary64 (cast x))
-                                                         #:fl identity))
+                                                         #:impl identity))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; REGISTER PLATFORM ;;;;;;;;;;;;;;;;;;;;;
 

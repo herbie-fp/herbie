@@ -22,7 +22,7 @@
      (make-operator-impl (log1pmd.f64 [x : binary64])
                          binary64
                          #:spec (- (log (+ 1 x)) (log (+ 1 (neg x))))
-                         #:fl (correct-rounding)
+                         #:impl (from-rival)
                          #:fpcore (! :precision binary64 (log1pmd x))
                          #:cost 6400))
     (define log1pmd-proc (impl-info 'log1pmd.f64 'fl))
@@ -37,9 +37,9 @@
                          binary64
                          #:spec (sin x)
                          #:fpcore (! :precision binary64 :math-library fast (sin x))
-                         #:fl (lambda (x)
-                                (parameterize ([bf-precision 12])
-                                  (bigfloat->flonum (bfsin (bf x)))))
+                         #:impl (lambda (x)
+                                  (parameterize ([bf-precision 12])
+                                    (bigfloat->flonum (bfsin (bf x)))))
                          #:cost 123))
 
     (define sin-proc (impl-info 'fast-sin.f64 'fl))
