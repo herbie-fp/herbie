@@ -177,18 +177,13 @@
   (define sub-idx (batchref-idx sub-batchref))
   (define idx (batchref-idx full-batchref))
 
-  (define b-nodes (batch-nodes alts-batch))
-  (define b-length (batch-length alts-batch))
-
-  (define mb-nodes (mutable-batch-nodes mutable-batch))
-  (define mb-length (length (mutable-batch-nodes mutable-batch)))
-
   (define (get-node idx)
-    (match (>= idx b-length)
+    (match (>= idx (batch-length alts-batch))
       [#t
-       (define idx* (- mb-length idx 1))
-       (list-ref mb-nodes idx*)]
-      [#f (vector-ref b-nodes idx)]))
+       (define idx* (- (length (mutable-batch-nodes mutable-batch)) idx 1))
+       (list-ref (mutable-batch-nodes mutable-batch) idx*)]
+      [#f (vector-ref (batch-nodes alts-batch) idx)]))
+
   (define idx*
     (let loop ([loc0 loc0]
                [idx idx])

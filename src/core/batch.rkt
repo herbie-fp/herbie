@@ -45,10 +45,10 @@
 (define (batch-all-subnodes x)
   (match-define (batchref b idx) x)
   (define nodes (batch-nodes b))
-  (reap [sow]
-        (let loop ([idx idx])
-          (sow idx)
-          (expr-recurse (vector-ref nodes idx) loop #:recurse-on-spec #f))))
+  (remove-duplicates (reap [sow]
+                           (let loop ([idx idx])
+                             (sow idx)
+                             (expr-recurse (vector-ref nodes idx) loop #:recurse-on-spec #f)))))
 
 (define (alts->batchrefs b altns)
   (define mb (batch->mutable-batch b))
@@ -65,9 +65,15 @@
   altns*)
 
 (define (batchrefs->alts altns)
+  (define exprs (make-vector (batch-length alts-batch)))
+  (for ([node (in-vector (batch-nodes alts-batch))]
+        [idx (in-naturals)])
+    (vector-set! exprs idx (expr-recurse node (lambda (x) (vector-ref exprs x)))))
+
   (for/list ([altn altns])
     (let loop ([altn* altn])
-      (define expr (debatchref (alt-expr altn*)))
+      (define idx (batchref-idx (alt-expr altn*)))
+      (define expr (vector-ref exprs idx))
       (define prevs
         (match (alt-prevs altn*)
           [(list) '()]

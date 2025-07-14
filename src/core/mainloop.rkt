@@ -244,8 +244,8 @@
 
   (set-batch-nodes! alts-batch (vector))
   (set-batch-roots! alts-batch (vector))
-  (^next-alts^ (alts->batchrefs alts-batch (^next-alts^)))
 
+  (^next-alts^ (alts->batchrefs alts-batch (^next-alts^)))
   (define locs (remove-duplicates (append-map (compose batch-all-subnodes alt-expr) (^next-alts^))))
   (set-batch-roots! alts-batch (list->vector locs))
 
