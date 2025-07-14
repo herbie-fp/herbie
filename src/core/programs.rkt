@@ -172,16 +172,14 @@
   (-> location? expr? expr? expr?)
   (location-do loc prog (const prog*)))
 
-(define/contract (batch-location-set loc0 mutable-batch full-batchref sub-batchref)
-  (-> location? mutable-batch? batchref? batchref? batchref?)
+(define/contract (batch-location-set loc0 mutable-batch cache full-batchref sub-batchref)
+  (-> location? mutable-batch? hash? batchref? batchref? batchref?)
   (define sub-idx (batchref-idx sub-batchref))
   (define idx (batchref-idx full-batchref))
 
   (define (get-node idx)
     (match (>= idx (batch-length alts-batch))
-      [#t
-       (define idx* (- (length (mutable-batch-nodes mutable-batch)) idx 1))
-       (list-ref (mutable-batch-nodes mutable-batch) idx*)]
+      [#t (hash-ref cache idx)]
       [#f (vector-ref (batch-nodes alts-batch) idx)]))
 
   (define idx*
@@ -191,11 +189,20 @@
         (match* (node loc0)
           [(_ (? null?)) sub-idx]
           [((approx spec impl) (cons 1 rest))
-           (mutable-batch-push! mutable-batch (approx (loop rest spec) impl))]
+           (define node* (approx (loop rest spec) impl))
+           (define idx* (mutable-batch-push! mutable-batch node*))
+           (hash-set! cache idx* node*)
+           idx*]
           [((approx spec impl) (cons 2 rest))
-           (mutable-batch-push! mutable-batch (approx spec (loop rest impl)))]
+           (define node* (approx spec (loop rest impl)))
+           (define idx* (mutable-batch-push! mutable-batch node*))
+           (hash-set! cache idx* node*)
+           idx*]
           [((hole prec spec) (cons 1 rest))
-           (mutable-batch-push! mutable-batch (hole prec (loop rest spec)))]
+           (define node* (hole prec (loop rest spec)))
+           (define idx* (mutable-batch-push! mutable-batch node*))
+           (hash-set! cache idx* node*)
+           idx*]
           [((list op args ...) (cons idx rest))
            (define args*
              (for/list ([arg (in-list args)]
@@ -203,7 +210,10 @@
                (if (equal? n idx)
                    (loop rest arg)
                    arg)))
-           (mutable-batch-push! mutable-batch (cons op args*))]))))
+           (define node* (cons op args*))
+           (define idx* (mutable-batch-push! mutable-batch node*))
+           (hash-set! cache idx* node*)
+           idx*]))))
   (batchref alts-batch idx*))
 
 (define/contract (location-get loc prog)

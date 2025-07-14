@@ -158,6 +158,7 @@
 ;; Converts a patch to full alt with valid history
 (define (reconstruct! alts)
   (define mutable-alts-batch (batch->mutable-batch alts-batch))
+  (define location-set-cache (make-hash))
   ;; extracts the base expressions of a patch as a batchref
   (define (get-starting-expr altn)
     (match (alt-prevs altn)
@@ -176,7 +177,12 @@
              [(list 'evaluate) (list 'evaluate loc0)]
              [(list 'taylor name var) (list 'taylor loc0 name var)]
              [(list 'rr input proof) (list 'rr loc0 input proof)]))
-         (define expr* (batch-location-set loc0 mutable-alts-batch (alt-expr orig) (alt-expr altn)))
+         (define expr*
+           (batch-location-set loc0
+                               mutable-alts-batch
+                               location-set-cache
+                               (alt-expr orig)
+                               (alt-expr altn)))
          (alt expr* event* (map loop prevs) (alt-preprocessing orig))])))
 
   (^patched^ (reap [sow]
