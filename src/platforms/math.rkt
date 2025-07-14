@@ -93,4 +93,4 @@
     [remainder.f64 #:spec (remainder x y) #:impl (from-libm 'remainder) #:cost 16.165012])
   
   (define-operation (erfc.f64 [x <binary64>]) <binary64>
-    #:spec (- 1 (erf x)) #:impl (from-libm 'erfc)  #:fpcore (erfc x)  #:cost 0.816512)
+    #:spec (- 1 (erf x)) #:impl (from-libm 'erfc)  #:fpcore (erfc x)  #:cost 0.816512))

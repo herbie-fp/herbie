@@ -1,4 +1,4 @@
-#lang racket
+#lang s-exp "../platform.rkt"
 
 ;;; Rival correctly-rounded platform
 
@@ -9,12 +9,12 @@
 (define-representation <bool> #:cost 1)
 
 (define-operations () <bool>
-  [TRUE  #:spec (TRUE)  #:impl (from-rival)  #:cost 1]
-  [FALSE #:spec (FALSE) #:impl (from-rival)) #:cost 1])
+  [TRUE  #:spec (TRUE)  #:impl (from-rival) #:cost 1]
+  [FALSE #:spec (FALSE) #:impl (from-rival) #:cost 1])
 
 (define-operations ([x <bool>] [y <bool>]) <bool>
   [and #:spec (and x y) #:impl (from-rival) #:cost 1]
-  [or  #:spec (or x y)  #:impl (from-rival)  #:cost 1])
+  [or  #:spec (or x y)  #:impl (from-rival) #:cost 1])
 
 (define-operation (not [x <bool>]) <bool>
   #:spec (not x) #:impl not #:cost 1)
@@ -34,7 +34,7 @@
 (parameterize ([fpcore-context '(:precision binary32)])
   (define-operations () <binary32>
     [PI.f32 #:spec (PI) #:impl (from-rival) #:cost 1]
-    [E.f32  #:spec (E)  #:impl (from-rival) #:cost 1]))
+    [E.f32  #:spec (E)  #:impl (from-rival) #:cost 1])
   
   (define-operation (neg.f32 [x <binary32>]) <binary32>
     #:spec (neg x) #:impl (from-rival) #:fpcore (- x) #:cost 1)

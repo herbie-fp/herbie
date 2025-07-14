@@ -12,33 +12,33 @@
 
 (define-representation <bool> #:cost 1)
 
-(define-operators () <bool>
+(define-operations () <bool>
   [true  #:spec (TRUE)  #:impl (const true)  #:fpcore TRUE  #:cost 1]
-  [false #:spec (FALSE) #:impl (const false) #:fpcore FALSE #:cost 1]))
+  [false #:spec (FALSE) #:impl (const false) #:fpcore FALSE #:cost 1])
 
 (define-operations ([x <bool>] [y <bool>]) <bool>
-  [and #:spec (and x y) #:impl (lambda v (andmap values v)) #:cost boolean-move-cost]
-  [or  #:spec (or x y)  #:impl (lambda v (ormap values v))  #:cost boolean-move-cost])
+  [and #:spec (and x y) #:impl (lambda v (andmap values v)) #:cost 1]
+  [or  #:spec (or x y)  #:impl (lambda v (ormap values v))  #:cost 1])
 
 (define-operation (not [x <bool>]) <bool>
-  #:spec (not x) #:impl not #:cost boolean-move-cost)
+  #:spec (not x) #:impl not #:cost 1)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BINARY 64 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define-representation <binary64> #:cost 1)
 
 (parameterize ([fpcore-context '(:precision binary32)])
-  (define-operators () <binary64>
+  (define-operations () <binary64>
     [PI.rkt       #:spec (PI)       #:impl (const pi)       #:fpcore PI       #:cost 1]
     [INFINITY.rkt #:spec (INFINITY) #:impl (const +inf.0)   #:fpcore INFINITY #:cost 1]
     [NAN.rkt      #:spec (NAN)      #:impl (const +nan.0)   #:fpcore NAN      #:cost 1]))
 
-(define-operators ([x <binary64>] [y <binary64>]) <bool>
+(define-operations ([x <binary64>] [y <binary64>]) <bool>
   [=  #:spec (== x y) #:impl =  #:cost 1]
   [<  #:spec (< x y)  #:impl <  #:cost 1]
   [>  #:spec (> x y)  #:impl >  #:cost 1]
   [<= #:spec (<= x y) #:impl <= #:cost 1]
-  [>= #:spec (>= x y) #:impl >= #:cost 1]))
+  [>= #:spec (>= x y) #:impl >= #:cost 1])
 
 (define ((no-complex fun) . xs)
   (define res (apply fun xs))
@@ -47,7 +47,7 @@
 (define-operation (-/1 [x <binary64>]) <binary64>
   #:spec (neg x) #:impl - #:fpcore (- x) #:cost 1)
 
-(define-operators ([x <binary64>]) <binary64>
+(define-operations ([x <binary64>]) <binary64>
  [acos      #:spec (acos  x) #:impl (no-complex acos)  #:cost 1]
  [acosh     #:spec (acosh x) #:impl (no-complex acosh) #:cost 1]
  [asin      #:spec (asin  x) #:impl (no-complex asin)  #:cost 1]
@@ -57,7 +57,6 @@
  [ceiling   #:spec (ceil  x) #:impl ceiling            #:cost 1]
  [cos       #:spec (cos   x) #:impl cos                #:cost 1]
  [cosh      #:spec (cosh  x) #:impl cosh               #:cost 1]
- [erf       #:spec (erf   x) #:impl (no-complex erf)   #:cost 1]
  [exp       #:spec (exp   x) #:impl exp                #:cost 1]
  [abs       #:spec (fabs  x) #:impl abs                #:cost 1]
  [floor     #:spec (floor x) #:impl floor              #:cost 1]
@@ -70,7 +69,7 @@
  [tanh      #:spec (tanh  x) #:impl tanh               #:cost 1]
  [truncate  #:spec (trunc x) #:impl truncate           #:cost 1])
 
-(define-operators ([x <binary64>] [y <binary64>]) <binary64>
+(define-operations ([x <binary64>] [y <binary64>]) <binary64>
  [+         #:spec (+ x y)         #:impl +                 #:cost 1]
  [-         #:spec (- x y)         #:impl -                 #:cost 1]
  [*         #:spec (* x y)         #:impl *                 #:cost 1]
@@ -81,11 +80,11 @@
  [expt      #:spec (pow x y)       #:impl (no-complex expt) #:cost 1]
  [remainder #:spec (remainder x y) #:impl remainder         #:cost 1])
 
-(define-operator (//1 [x <binary64>]) <binary64>
+(define-operation (//1 [x <binary64>]) <binary64>
   #:spec (/ 1 x) #:impl / #:cost 1)
 
-(define-operator (log/2 [x <binary64>] [y <binary64>]) <binary64>
+(define-operation (log/2 [x <binary64>] [y <binary64>]) <binary64>
   #:spec (/ (log x) (log y)) #:impl log #:cost 1)
 
-(define-operator (flsingle [x <binary64>]) <binary64>
+(define-operation (flsingle [x <binary64>]) <binary64>
   #:spec x #:impl flsingle #:cost 1)
