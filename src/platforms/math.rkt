@@ -13,8 +13,8 @@
 (define-representation <bool> #:cost move-cost)
 
 (define-operations () <bool>
-  [TRUE  #:spec (TRUE)  #:impl (const true)  #:cost move-cost]
-  [FALSE #:spec (FALSE) #:impl (const false) #:cost move-cost])
+  [TRUE  #:spec (TRUE)  #:impl (const true)  #:fpcore TRUE  #:cost move-cost]
+  [FALSE #:spec (FALSE) #:impl (const false) #:fpcore FALSE #:cost move-cost])
 
 (define-operations ([x <bool>] [y <bool>]) <bool>
   [and #:spec (and x y) #:impl (lambda v (andmap values v)) #:cost move-cost]
@@ -37,10 +37,10 @@
 
 (parameterize ([fpcore-context '(:precision binary64)])
   (define-operations () <binary64>
-    [PI.f64   #:spec (PI)       #:impl (const pi)      #:cost fl-move-cost]
-    [E.f64    #:spec (E)        #:impl (const (exp 1)) #:cost fl-move-cost]
-    [INFINITY #:spec (INFINITY) #:impl (const +inf.0)  #:cost fl-move-cost]
-    [NAN.f64  #:spec (NAN)      #:impl (const +nan.0)  #:cost fl-move-cost])
+    [PI.f64   #:spec (PI)       #:impl (const pi)      #:fpcore PI       #:cost fl-move-cost]
+    [E.f64    #:spec (E)        #:impl (const (exp 1)) #:fpcore E        #:cost fl-move-cost]
+    [INFINITY #:spec (INFINITY) #:impl (const +inf.0)  #:fpcore INFINITY #:cost fl-move-cost]
+    [NAN.f64  #:spec (NAN)      #:impl (const +nan.0)  #:fpcore NAN      #:cost fl-move-cost])
   
   (define-operation (neg.f64 [x <binary64>]) <binary64>
     #:spec (neg x) #:impl - #:fpcore (- x) #:cost 0.096592)
