@@ -133,6 +133,8 @@
 (define (validate-platform! platform)
   (unless (platform-if-cost platform)
     (raise-herbie-error "Platform does not have an if cost"))
+  (when (empty? (platform-implementations platform))
+    (raise-herbie-error "Platform contains no operations"))
   (for ([(name impl) (in-hash (platform-implementations platform))])
     (define ctx (operator-impl-ctx impl))
     (for ([repr (in-list (cons (context-repr ctx) (context-var-reprs ctx)))])
