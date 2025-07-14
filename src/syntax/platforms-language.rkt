@@ -43,6 +43,7 @@
                          (platform-being-defined local-platform)
                          content ...
                          (platform-being-defined old-platform-being-defined)
+                         (validate-platform! local-platform)
                          (provide local-platform)
                          (module+ main
                            (display-platform local-platform))

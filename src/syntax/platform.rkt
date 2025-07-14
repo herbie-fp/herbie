@@ -14,6 +14,7 @@
          platform-lifting-rules
          platform-lowering-rules
          platform-copy
+         validate-platform!
          repr-exists?
          get-representation
          impl-exists?
@@ -128,6 +129,16 @@
                                                                 #:impl fl
                                                                 #:fpcore fpcore
                                                                 #:cost cost)) ...)]))
+
+(define (validate-platform! platform)
+  (unless (platform-if-cost platform)
+    (raise-herbie-error "Platform does not have an if cost"))
+  (for ([(name impl) (in-hash (platform-implementations platform))])
+    (define ctx (operator-impl-ctx impl))
+    (for ([repr (in-list (cons (context-repr ctx) (context-var-reprs ctx)))])
+      (unless (equal? (hash-ref (platform-representations platform) (representation-name repr) #f)
+                      repr)
+        (raise-herbie-error "Representation ~a not defined" (representation-name repr))))))
 
 ;; Returns the representation associated with `name`
 ;; attempts to generate the repr if not initially found
