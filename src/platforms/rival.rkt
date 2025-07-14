@@ -2,205 +2,186 @@
 
 ;;; Rival correctly-rounded platform
 
-(require math/bigfloat
-         math/flonum
-         "../syntax/types.rkt"  ; for shift/unshift
-         "../syntax/platform.rkt")
-(provide platform)
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;; EMPTY PLATFORM ;;;;;;;;;;;;;;;;;;;;;;;;
-
-(define cost 1)
-(define platform (make-empty-platform 'rival))
-
-(platform-register-if-cost! platform #:if-cost cost)
+(define-if #:cost 1)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BOOLEAN ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;; representation ;;;;;;;;;;;;;;;;;;;;;;;;
+(define-representation <bool> #:cost 1)
 
-(define bool <bool>)
+(define-operations () <bool>
+  [TRUE  #:spec (TRUE)  #:impl (from-rival)  #:cost 1]
+  [FALSE #:spec (FALSE) #:impl (from-rival)) #:cost 1])
 
-(platform-register-representation! platform #:repr bool #:cost cost)
+(define-operations ([x <bool>] [y <bool>]) <bool>
+  [and #:spec (and x y) #:impl (from-rival) #:cost 1]
+  [or  #:spec (or x y)  #:impl (from-rival)  #:cost 1])
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;; constants ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(platform-register-implementations!
- platform
- ([TRUE  () bool (TRUE)  (const true)  (! TRUE)  cost]
-  [FALSE () bool (FALSE) (const false) (! FALSE) cost]))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;; operators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(define (and-fn . as)
-  (andmap identity as))
-(define (or-fn . as)
-  (ormap identity as))
-
-(platform-register-implementations!
- platform
- ([not ([x : bool])            bool (not x)   not    (not x)   cost]
-  [and ([x : bool] [y : bool]) bool (and x y) and-fn (and x y) cost]
-  [or  ([x : bool] [y : bool]) bool (or x y)  or-fn  (or x y)  cost]))
+(define-operation (not [x <bool>]) <bool>
+  #:spec (not x) #:impl not #:cost 1)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BINARY 32 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;; representation ;;;;;;;;;;;;;;;;;;;;;;;;
+(define-representation <binary32> #:cost 1)
 
-(define binary32 <binary32>)
+(define-operations ([x <binary32>] [y <binary32>]) <bool>
+  [==.f32 #:spec (== x y) #:impl (from-rival) #:cost 1]
+  [!=.f32 #:spec (!= x y) #:impl (from-rival) #:cost 1]
+  [<.f32  #:spec (< x y)  #:impl (from-rival) #:cost 1]
+  [>.f32  #:spec (> x y)  #:impl (from-rival) #:cost 1]
+  [<=.f32 #:spec (<= x y) #:impl (from-rival) #:cost 1]
+  [>=.f32 #:spec (>= x y) #:impl (from-rival) #:cost 1])
 
-(platform-register-representation! platform #:repr binary32 #:cost cost)
+(parameterize ([fpcore-context '(:precision binary32)])
+  (define-operations () <binary32>
+    [PI.f32 #:spec (PI) #:impl (from-rival) #:cost 1]
+    [E.f32  #:spec (E)  #:impl (from-rival) #:cost 1]))
+  
+  (define-operation (neg.f32 [x <binary32>]) <binary32>
+    #:spec (neg x) #:impl (from-rival) #:fpcore (- x) #:cost 1)
+  
+  (define-operations ([x <binary32>] [y <binary32>]) <binary32>
+    [+.f32 #:spec (+ x y) #:impl (from-rival) #:cost 1]
+    [-.f32 #:spec (- x y) #:impl (from-rival) #:cost 1]
+    [*.f32 #:spec (* x y) #:impl (from-rival) #:cost 1]
+    [/.f32 #:spec (/ x y) #:impl (from-rival) #:cost 1])
+  
+  (define-operations ([x <binary32>]) <binary32>
+    [fabs.f32   #:spec (fabs x)   #:impl (from-rival) #:cost 1]
+    [sin.f32    #:spec (sin x)    #:impl (from-rival) #:cost 1]
+    [cos.f32    #:spec (cos x)    #:impl (from-rival) #:cost 1]
+    [tan.f32    #:spec (tan x)    #:impl (from-rival) #:cost 1]
+    [sinh.f32   #:spec (sinh x)   #:impl (from-rival) #:cost 1]
+    [cosh.f32   #:spec (cosh x)   #:impl (from-rival) #:cost 1]
+    [acos.f32   #:spec (acos x)   #:impl (from-rival) #:cost 1]
+    [acosh.f32  #:spec (acosh x)  #:impl (from-rival) #:cost 1]
+    [asin.f32   #:spec (asin x)   #:impl (from-rival) #:cost 1]
+    [asinh.f32  #:spec (asinh x)  #:impl (from-rival) #:cost 1]
+    [atan.f32   #:spec (atan x)   #:impl (from-rival) #:cost 1]
+    [atanh.f32  #:spec (atanh x)  #:impl (from-rival) #:cost 1]
+    [cbrt.f32   #:spec (cbrt x)   #:impl (from-rival) #:cost 1]
+    [ceil.f32   #:spec (ceil x)   #:impl (from-rival) #:cost 1]
+    [erf.f32    #:spec (erf x)    #:impl (from-rival) #:cost 1]
+    [exp.f32    #:spec (exp x)    #:impl (from-rival) #:cost 1]
+    [exp2.f32   #:spec (exp2 x)   #:impl (from-rival) #:cost 1]
+    [floor.f32  #:spec (floor x)  #:impl (from-rival) #:cost 1]
+    [lgamma.f32 #:spec (lgamma x) #:impl (from-rival) #:cost 1]
+    [log.f32    #:spec (log x)    #:impl (from-rival) #:cost 1]
+    [log10.f32  #:spec (log10 x)  #:impl (from-rival) #:cost 1]
+    [log2.f32   #:spec (log2 x)   #:impl (from-rival) #:cost 1]
+    [logb.f32   #:spec (logb x)   #:impl (from-rival) #:cost 1]
+    [rint.f32   #:spec (rint x)   #:impl (from-rival) #:cost 1]
+    [round.f32  #:spec (round x)  #:impl (from-rival) #:cost 1]
+    [sqrt.f32   #:spec (sqrt x)   #:impl (from-rival) #:cost 1]
+    [tanh.f32   #:spec (tanh x)   #:impl (from-rival) #:cost 1]
+    [tgamma.f32 #:spec (tgamma x) #:impl (from-rival) #:cost 1]
+    [trunc.f32  #:spec (trunc x)  #:impl (from-rival) #:cost 1])
+  
+  (define-operations ([x <binary32>] [y <binary32>]) <binary32>
+    [pow.f32       #:spec (pow x y)       #:impl (from-rival) #:cost 1]
+    [atan2.f32     #:spec (atan2 x y)     #:impl (from-rival) #:cost 1]
+    [copysign.f32  #:spec (copysign x y)  #:impl (from-rival) #:cost 1]
+    [fdim.f32      #:spec (fdim x y)      #:impl (from-rival) #:cost 1]
+    [fmax.f32      #:spec (fmax x y)      #:impl (from-rival) #:cost 1]
+    [fmin.f32      #:spec (fmin x y)      #:impl (from-rival) #:cost 1]
+    [fmod.f32      #:spec (fmod x y)      #:impl (from-rival) #:cost 1]
+    [remainder.f32 #:spec (remainder x y) #:impl (from-rival) #:cost 1])
+  
+  (define-operations ([x <binary32>]) <binary32>
+    [erfc.f32  #:spec (- 1 (erf x)) #:impl (from-rival) #:fpcore (erfc x)  #:cost 1]
+    [expm1.f32 #:spec (- (exp x) 1) #:impl (from-rival) #:fpcore (expm1 x) #:cost 1]
+    [log1p.f32 #:spec (log (+ 1 x)) #:impl (from-rival) #:fpcore (log1p x) #:cost 1])
+  
+  (define-operation (hypot.f32 [x <binary32>] [y <binary32>]) <binary32>
+    #:spec (sqrt (+ (* x x) (* y y))) #:impl (from-rival) #:fpcore (hypot x y) #:cost 1)
+  
+  (define-operation (fma.f32 [x <binary32>] [y <binary32>] [z <binary32>]) <binary32>
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BINARY 32 TABLE ;;;;;;;;;;;;;;;;;;;;;;;
-
-; ([name         ([var : repr] ...)                             otype    spec                       fl fpcore                                          cost])
-(platform-register-implementations!
- platform
- (; Constants
-  [PI.f32        ()                                             binary32 (PI)                       (from-rival) (! :precision binary32 PI)              cost]
-  [E.f32         ()                                             binary32 (E)                        (from-rival) (! :precision binary32 E)               cost]
-  [INFINITY.f32  ()                                             binary32 (INFINITY)                 (from-rival) (! :precision binary32 INFINITY)        cost]
-  [NAN.f32       ()                                             binary32 (NAN)                      (from-rival) (! :precision binary32 NAN)             cost]
-  ; Default operators
-  [neg.f32       ([x : binary32])                               binary32 (neg x)                    (from-rival) (! :precision binary32 (- x))           cost]
-  [+.f32         ([x : binary32] [y : binary32])                binary32 (+ x y)                    (from-rival) (! :precision binary32 (+ x y))         cost]
-  [-.f32         ([x : binary32] [y : binary32])                binary32 (- x y)                    (from-rival) (! :precision binary32 (- x y))         cost]
-  [*.f32         ([x : binary32] [y : binary32])                binary32 (* x y)                    (from-rival) (! :precision binary32 (* x y))         cost]
-  [/.f32         ([x : binary32] [y : binary32])                binary32 (/ x y)                    (from-rival) (! :precision binary32 (/ x y))         cost]
-  [==.f32        ([x : binary32] [y : binary32])                bool     (== x y)                   (from-rival) (== x y)                                cost]
-  [!=.f32        ([x : binary32] [y : binary32])                bool     (!= x y)                   (from-rival) (!= x y)                                cost]
-  [<.f32         ([x : binary32] [y : binary32])                bool     (< x y)                    (from-rival) (< x y)                                 cost]
-  [>.f32         ([x : binary32] [y : binary32])                bool     (> x y)                    (from-rival) (> x y)                                 cost]
-  [<=.f32        ([x : binary32] [y : binary32])                bool     (<= x y)                   (from-rival) (<= x y)                                cost]
-  [>=.f32        ([x : binary32] [y : binary32])                bool     (>= x y)                   (from-rival) (>= x y)                                cost]
-  ; Unary operators
-  [fabs.f32      ([x : binary32])                               binary32 (fabs x)                   (from-rival) (! :precision binary32 (fabs x))        cost]
-  [sin.f32       ([x : binary32])                               binary32 (sin x)                    (from-rival) (! :precision binary32 (sin x))         cost]
-  [cos.f32       ([x : binary32])                               binary32 (cos x)                    (from-rival) (! :precision binary32 (cos x))         cost]
-  [tan.f32       ([x : binary32])                               binary32 (tan x)                    (from-rival) (! :precision binary32 (tan x))         cost]
-  [sinh.f32      ([x : binary32])                               binary32 (sinh x)                   (from-rival) (! :precision binary32 (sinh x))        cost]
-  [cosh.f32      ([x : binary32])                               binary32 (cosh x)                   (from-rival) (! :precision binary32 (cosh x))        cost]
-  [acos.f32      ([x : binary32])                               binary32 (acos x)                   (from-rival) (! :precision binary32 (acos x))        cost]
-  [acosh.f32     ([x : binary32])                               binary32 (acosh x)                  (from-rival) (! :precision binary32 (acosh x))       cost]
-  [asin.f32      ([x : binary32])                               binary32 (asin x)                   (from-rival) (! :precision binary32 (asin x))        cost]
-  [asinh.f32     ([x : binary32])                               binary32 (asinh x)                  (from-rival) (! :precision binary32 (asinh x))       cost]
-  [atan.f32      ([x : binary32])                               binary32 (atan x)                   (from-rival) (! :precision binary32 (atan x))        cost]
-  [atanh.f32     ([x : binary32])                               binary32 (atanh x)                  (from-rival) (! :precision binary32 (atanh x))       cost]
-  [cbrt.f32      ([x : binary32])                               binary32 (cbrt x)                   (from-rival) (! :precision binary32 (cbrt x))        cost]
-  [ceil.f32      ([x : binary32])                               binary32 (ceil x)                   (from-rival) (! :precision binary32 (ceil x))        cost]
-  [erf.f32       ([x : binary32])                               binary32 (erf x)                    (from-rival) (! :precision binary32 (erf x))         cost]
-  [exp.f32       ([x : binary32])                               binary32 (exp x)                    (from-rival) (! :precision binary32 (exp x))         cost]
-  [exp2.f32      ([x : binary32])                               binary32 (exp2 x)                   (from-rival) (! :precision binary32 (exp2 x))        cost]
-  [floor.f32     ([x : binary32])                               binary32 (floor x)                  (from-rival) (! :precision binary32 (floor x))       cost]
-  [lgamma.f32    ([x : binary32])                               binary32 (lgamma x)                 (from-rival) (! :precision binary32 (lgamma x))      cost]
-  [log.f32       ([x : binary32])                               binary32 (log x)                    (from-rival) (! :precision binary32 (log x))         cost]
-  [log10.f32     ([x : binary32])                               binary32 (log10 x)                  (from-rival) (! :precision binary32 (log10 x))       cost]
-  [log2.f32      ([x : binary32])                               binary32 (log2 x)                   (from-rival) (! :precision binary32 (log2 x))        cost]
-  [logb.f32      ([x : binary32])                               binary32 (logb x)                   (from-rival) (! :precision binary32 (logb x))        cost]
-  [rint.f32      ([x : binary32])                               binary32 (rint x)                   (from-rival) (! :precision binary32 (rint x))        cost]
-  [round.f32     ([x : binary32])                               binary32 (round x)                  (from-rival) (! :precision binary32 (round x))       cost]
-  [sqrt.f32      ([x : binary32])                               binary32 (sqrt x)                   (from-rival) (! :precision binary32 (sqrt x))        cost]
-  [tanh.f32      ([x : binary32])                               binary32 (tanh x)                   (from-rival) (! :precision binary32 (tanh x))        cost]
-  [tgamma.f32    ([x : binary32])                               binary32 (tgamma x)                 (from-rival) (! :precision binary32 (tgamma x))      cost]
-  [trunc.f32     ([x : binary32])                               binary32 (trunc x)                  (from-rival) (! :precision binary32 (trunc x))       cost]
-  ; Binary operators
-  [pow.f32       ([x : binary32] [y : binary32])                binary32 (pow x y)                  (from-rival) (! :precision binary32 (pow x y))       cost]
-  [atan2.f32     ([x : binary32] [y : binary32])                binary32 (atan2 x y)                (from-rival) (! :precision binary32 (atan2 x y))     cost]
-  [copysign.f32  ([x : binary32] [y : binary32])                binary32 (copysign x y)             (from-rival) (! :precision binary32 (copysign x y))  cost]
-  [fdim.f32      ([x : binary32] [y : binary32])                binary32 (fdim x y)                 (from-rival) (! :precision binary32 (fdim x y))      cost]
-  [fmax.f32      ([x : binary32] [y : binary32])                binary32 (fmax x y)                 (from-rival) (! :precision binary32 (fmax x y))      cost]
-  [fmin.f32      ([x : binary32] [y : binary32])                binary32 (fmin x y)                 (from-rival) (! :precision binary32 (fmin x y))      cost]
-  [fmod.f32      ([x : binary32] [y : binary32])                binary32 (fmod x y)                 (from-rival) (! :precision binary32 (fmod x y))      cost]
-  [remainder.f32 ([x : binary32] [y : binary32])                binary32 (remainder x y)            (from-rival) (! :precision binary32 (remainder x y)) cost]
-  ; Accelerators
-  [erfc.f32      ([x : binary32])                               binary32 (- 1 (erf x))              (from-rival) (! :precision binary32 (erfc x))        cost]
-  [expm1.f32     ([x : binary32])                               binary32 (- (exp x) 1)              (from-rival) (! :precision binary32 (expm1 x))       cost]
-  [log1p.f32     ([x : binary32])                               binary32 (log (+ 1 x))              (from-rival) (! :precision binary32 (log1p x))       cost]
-  [hypot.f32     ([x : binary32] [y : binary32])                binary32 (sqrt (+ (* x x) (* y y))) (from-rival) (! :precision binary32 (hypot x y))     cost]
-  [fma.f32       ([x : binary32] [y : binary32] [z : binary32]) binary32 (+ (* x y) z)              (from-rival) (! :precision binary32 (fma x y z))     cost]))
- 
+    #:spec (+ (* x y) z) #:impl (from-rival) #:fpcore (fma x y z) #:cost 1))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BINARY 64 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;; representation ;;;;;;;;;;;;;;;;;;;;;;;;
+(define-representation <binary64> #:cost 1)
 
-(define binary64 <binary64>)
+(define-operations ([x <binary64>] [y <binary64>]) <bool>
+  [==.f64 #:spec (== x y) #:impl (from-rival) #:cost 1]
+  [!=.f64 #:spec (!= x y) #:impl (from-rival) #:cost 1]
+  [<.f64  #:spec (< x y)  #:impl (from-rival) #:cost 1]
+  [>.f64  #:spec (> x y)  #:impl (from-rival) #:cost 1]
+  [<=.f64 #:spec (<= x y) #:impl (from-rival) #:cost 1]
+  [>=.f64 #:spec (>= x y) #:impl (from-rival) #:cost 1])
 
-(platform-register-representation! platform #:repr binary64 #:cost cost)
+(parameterize ([fpcore-context '(:precision binary64)])
+  (define-operations () <binary64>
+    [PI.f64   #:spec (PI)       #:impl (from-rival) #:cost 1]
+    [E.f64    #:spec (E)        #:impl (from-rival) #:cost 1]
+    [INFINITY #:spec (INFINITY) #:impl (from-rival) #:cost 1]
+    [NAN.f64  #:spec (NAN)      #:impl (from-rival) #:cost 1])
+  
+  (define-operation (neg.f64 [x <binary64>]) <binary64>
+    #:spec (neg x) #:impl (from-rival) #:fpcore (- x) #:cost 1)
+  
+  (define-operations ([x <binary64>] [y <binary64>]) <binary64>
+    [+.f64 #:spec (+ x y) #:impl (from-rival) #:cost 1]
+    [-.f64 #:spec (- x y) #:impl (from-rival) #:cost 1]
+    [*.f64 #:spec (* x y) #:impl (from-rival) #:cost 1]
+    [/.f64 #:spec (/ x y) #:impl (from-rival) #:cost 1])
+  
+  (define-operations ([x <binary64>]) <binary64>
+    [fabs.f64   #:spec (fabs x)   #:impl (from-rival) #:cost 1]
+    [sin.f64    #:spec (sin x)    #:impl (from-rival) #:cost 1]
+    [cos.f64    #:spec (cos x)    #:impl (from-rival) #:cost 1]
+    [tan.f64    #:spec (tan x)    #:impl (from-rival) #:cost 1]
+    [sinh.f64   #:spec (sinh x)   #:impl (from-rival) #:cost 1]
+    [cosh.f64   #:spec (cosh x)   #:impl (from-rival) #:cost 1]
+    [acos.f64   #:spec (acos x)   #:impl (from-rival) #:cost 1]
+    [acosh.f64  #:spec (acosh x)  #:impl (from-rival) #:cost 1]
+    [asin.f64   #:spec (asin x)   #:impl (from-rival) #:cost 1]
+    [asinh.f64  #:spec (asinh x)  #:impl (from-rival) #:cost 1]
+    [atan.f64   #:spec (atan x)   #:impl (from-rival) #:cost 1]
+    [atanh.f64  #:spec (atanh x)  #:impl (from-rival) #:cost 1]
+    [cbrt.f64   #:spec (cbrt x)   #:impl (from-rival) #:cost 1]
+    [ceil.f64   #:spec (ceil x)   #:impl (from-rival) #:cost 1]
+    [erf.f64    #:spec (erf x)    #:impl (from-rival) #:cost 1]
+    [exp.f64    #:spec (exp x)    #:impl (from-rival) #:cost 1]
+    [exp2.f64   #:spec (exp2 x)   #:impl (from-rival) #:cost 1]
+    [floor.f64  #:spec (floor x)  #:impl (from-rival) #:cost 1]
+    [lgamma.f64 #:spec (lgamma x) #:impl (from-rival) #:cost 1]
+    [log.f64    #:spec (log x)    #:impl (from-rival) #:cost 1]
+    [log10.f64  #:spec (log10 x)  #:impl (from-rival) #:cost 1]
+    [log2.f64   #:spec (log2 x)   #:impl (from-rival) #:cost 1]
+    [logb.f64   #:spec (logb x)   #:impl (from-rival) #:cost 1]
+    [rint.f64   #:spec (rint x)   #:impl (from-rival) #:cost 1]
+    [round.f64  #:spec (round x)  #:impl (from-rival) #:cost 1]
+    [sqrt.f64   #:spec (sqrt x)   #:impl (from-rival) #:cost 1]
+    [tanh.f64   #:spec (tanh x)   #:impl (from-rival) #:cost 1]
+    [tgamma.f64 #:spec (tgamma x) #:impl (from-rival) #:cost 1]
+    [trunc.f64  #:spec (trunc x)  #:impl (from-rival) #:cost 1])
+  
+  (define-operations ([x <binary64>] [y <binary64>]) <binary64>
+    [pow.f64       #:spec (pow x y)       #:impl (from-rival) #:cost 1]
+    [atan2.f64     #:spec (atan2 x y)     #:impl (from-rival) #:cost 1]
+    [copysign.f64  #:spec (copysign x y)  #:impl (from-rival) #:cost 1]
+    [fdim.f64      #:spec (fdim x y)      #:impl (from-rival) #:cost 1]
+    [fmax.f64      #:spec (fmax x y)      #:impl (from-rival) #:cost 1]
+    [fmin.f64      #:spec (fmin x y)      #:impl (from-rival) #:cost 1]
+    [fmod.f64      #:spec (fmod x y)      #:impl (from-rival) #:cost 1]
+    [remainder.f64 #:spec (remainder x y) #:impl (from-rival) #:cost 1])
+  
+  (define-operations ([x <binary64>]) <binary64>
+    [erfc.f64  #:spec (- 1 (erf x)) #:impl (from-rival) #:fpcore (erfc x)  #:cost 1]
+    [expm1.f64 #:spec (- (exp x) 1) #:impl (from-rival) #:fpcore (expm1 x) #:cost 1]
+    [log1p.f64 #:spec (log (+ 1 x)) #:impl (from-rival) #:fpcore (log1p x) #:cost 1])
+  
+  (define-operation (hypot.f64 [x <binary64>] [y <binary64>]) <binary64>
+    #:spec (sqrt (+ (* x x) (* y y))) #:impl (from-rival) #:fpcore (hypot x y) #:cost 1)
+  
+  (define-operation (fma.f64 [x <binary64>] [y <binary64>] [z <binary64>]) <binary64>
+    #:spec (+ (* x y) z) #:impl (from-rival) #:fpcore (fma x y z) #:cost 1))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BINARY 64 TABLE ;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;; CASTS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; ([name         ([var : repr] ...)                             otype    spec                       fl fpcore                                          cost])
-(platform-register-implementations!
- platform
- (; Constants
-  [PI.f64        ()                                             binary64 (PI)                       (from-rival) (! :precision binary64 PI)              cost]
-  [E.f64         ()                                             binary64 (E)                        (from-rival) (! :precision binary64 E)               cost]
-  [INFINITY.f64  ()                                             binary64 (INFINITY)                 (from-rival) (! :precision binary64 INFINITY)        cost]
-  [NAN.f64       ()                                             binary64 (NAN)                      (from-rival) (! :precision binary64 NAN)             cost]
-  ; Default operators
-  [neg.f64       ([x : binary64])                               binary64 (neg x)                    (from-rival) (! :precision binary64 (- x))           cost]
-  [+.f64         ([x : binary64] [y : binary64])                binary64 (+ x y)                    (from-rival) (! :precision binary64 (+ x y))         cost]
-  [-.f64         ([x : binary64] [y : binary64])                binary64 (- x y)                    (from-rival) (! :precision binary64 (- x y))         cost]
-  [*.f64         ([x : binary64] [y : binary64])                binary64 (* x y)                    (from-rival) (! :precision binary64 (* x y))         cost]
-  [/.f64         ([x : binary64] [y : binary64])                binary64 (/ x y)                    (from-rival) (! :precision binary64 (/ x y))         cost]
-  [==.f64        ([x : binary64] [y : binary64])                bool     (== x y)                   (from-rival) (== x y)                                cost]
-  [!=.f64        ([x : binary64] [y : binary64])                bool     (!= x y)                   (from-rival) (!= x y)                                cost]
-  [<.f64         ([x : binary64] [y : binary64])                bool     (< x y)                    (from-rival) (< x y)                                 cost]
-  [>.f64         ([x : binary64] [y : binary64])                bool     (> x y)                    (from-rival) (> x y)                                 cost]
-  [<=.f64        ([x : binary64] [y : binary64])                bool     (<= x y)                   (from-rival) (<= x y)                                cost]
-  [>=.f64        ([x : binary64] [y : binary64])                bool     (>= x y)                   (from-rival) (>= x y)                                cost]
-  ; Unary operators
-  [fabs.f64      ([x : binary64])                               binary64 (fabs x)                   (from-rival) (! :precision binary64 (fabs x))        cost]
-  [sin.f64       ([x : binary64])                               binary64 (sin x)                    (from-rival) (! :precision binary64 (sin x))         cost]
-  [cos.f64       ([x : binary64])                               binary64 (cos x)                    (from-rival) (! :precision binary64 (cos x))         cost]
-  [tan.f64       ([x : binary64])                               binary64 (tan x)                    (from-rival) (! :precision binary64 (tan x))         cost]
-  [sinh.f64      ([x : binary64])                               binary64 (sinh x)                   (from-rival) (! :precision binary64 (sinh x))        cost]
-  [cosh.f64      ([x : binary64])                               binary64 (cosh x)                   (from-rival) (! :precision binary64 (cosh x))        cost]
-  [acos.f64      ([x : binary64])                               binary64 (acos x)                   (from-rival) (! :precision binary64 (acos x))        cost]
-  [acosh.f64     ([x : binary64])                               binary64 (acosh x)                  (from-rival) (! :precision binary64 (acosh x))       cost]
-  [asin.f64      ([x : binary64])                               binary64 (asin x)                   (from-rival) (! :precision binary64 (asin x))        cost]
-  [asinh.f64     ([x : binary64])                               binary64 (asinh x)                  (from-rival) (! :precision binary64 (asinh x))       cost]
-  [atan.f64      ([x : binary64])                               binary64 (atan x)                   (from-rival) (! :precision binary64 (atan x))        cost]
-  [atanh.f64     ([x : binary64])                               binary64 (atanh x)                  (from-rival) (! :precision binary64 (atanh x))       cost]
-  [cbrt.f64      ([x : binary64])                               binary64 (cbrt x)                   (from-rival) (! :precision binary64 (cbrt x))        cost]
-  [ceil.f64      ([x : binary64])                               binary64 (ceil x)                   (from-rival) (! :precision binary64 (ceil x))        cost]
-  [erf.f64       ([x : binary64])                               binary64 (erf x)                    (from-rival) (! :precision binary64 (erf x))         cost]
-  [exp.f64       ([x : binary64])                               binary64 (exp x)                    (from-rival) (! :precision binary64 (exp x))         cost]
-  [exp2.f64      ([x : binary64])                               binary64 (exp2 x)                   (from-rival) (! :precision binary64 (exp2 x))        cost]
-  [floor.f64     ([x : binary64])                               binary64 (floor x)                  (from-rival) (! :precision binary64 (floor x))       cost]
-  [lgamma.f64    ([x : binary64])                               binary64 (lgamma x)                 (from-rival) (! :precision binary64 (lgamma x))      cost]
-  [log.f64       ([x : binary64])                               binary64 (log x)                    (from-rival) (! :precision binary64 (log x))         cost]
-  [log10.f64     ([x : binary64])                               binary64 (log10 x)                  (from-rival) (! :precision binary64 (log10 x))       cost]
-  [log2.f64      ([x : binary64])                               binary64 (log2 x)                   (from-rival) (! :precision binary64 (log2 x))        cost]
-  [logb.f64      ([x : binary64])                               binary64 (logb x)                   (from-rival) (! :precision binary64 (logb x))        cost]
-  [rint.f64      ([x : binary64])                               binary64 (rint x)                   (from-rival) (! :precision binary64 (rint x))        cost]
-  [round.f64     ([x : binary64])                               binary64 (round x)                  (from-rival) (! :precision binary64 (round x))       cost]
-  [sqrt.f64      ([x : binary64])                               binary64 (sqrt x)                   (from-rival) (! :precision binary64 (sqrt x))        cost]
-  [tanh.f64      ([x : binary64])                               binary64 (tanh x)                   (from-rival) (! :precision binary64 (tanh x))        cost]
-  [tgamma.f64    ([x : binary64])                               binary64 (tgamma x)                 (from-rival) (! :precision binary64 (tgamma x))      cost]
-  [trunc.f64     ([x : binary64])                               binary64 (trunc x)                  (from-rival) (! :precision binary64 (trunc x))       cost]
-  ; Binary operators
-  [pow.f64       ([x : binary64] [y : binary64])                binary64 (pow x y)                  (from-rival) (! :precision binary64 (pow x y))       cost]
-  [atan2.f64     ([x : binary64] [y : binary64])                binary64 (atan2 x y)                (from-rival) (! :precision binary64 (atan2 x y))     cost]
-  [copysign.f64  ([x : binary64] [y : binary64])                binary64 (copysign x y)             (from-rival) (! :precision binary64 (copysign x y))  cost]
-  [fdim.f64      ([x : binary64] [y : binary64])                binary64 (fdim x y)                 (from-rival) (! :precision binary64 (fdim x y))      cost]
-  [fmax.f64      ([x : binary64] [y : binary64])                binary64 (fmax x y)                 (from-rival) (! :precision binary64 (fmax x y))      cost]
-  [fmin.f64      ([x : binary64] [y : binary64])                binary64 (fmin x y)                 (from-rival) (! :precision binary64 (fmin x y))      cost]
-  [fmod.f64      ([x : binary64] [y : binary64])                binary64 (fmod x y)                 (from-rival) (! :precision binary64 (fmod x y))      cost]
-  [remainder.f64 ([x : binary64] [y : binary64])                binary64 (remainder x y)            (from-rival) (! :precision binary64 (remainder x y)) cost]
-  ; Accelerators
-  [erfc.f64      ([x : binary64])                               binary64 (- 1 (erf x))              (from-rival) (! :precision binary64 (erfc x))        cost]
-  [expm1.f64     ([x : binary64])                               binary64 (- (exp x) 1)              (from-rival) (! :precision binary64 (expm1 x))       cost]
-  [log1p.f64     ([x : binary64])                               binary64 (log (+ 1 x))              (from-rival) (! :precision binary64 (log1p x))       cost]
-  [hypot.f64     ([x : binary64] [y : binary64])                binary64 (sqrt (+ (* x x) (* y y))) (from-rival) (! :precision binary64 (hypot x y))     cost]
-  [fma.f64       ([x : binary64] [y : binary64] [z : binary64]) binary64 (+ (* x y) z)              (from-rival) (! :precision binary64 (fma x y z))     cost]))
+(define-operation (binary64->binary32 [x <binary64>]) <binary32>
+  #:spec x #:fpcore (! :precision binary32 (cast x)) #:impl (from-rival) #:cost 1)
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;; REGISTER PLATFORM ;;;;;;;;;;;;;;;;;;;;;
-
-(module+ main
-  (display-platform platform))
-
-;; Do not run this file during testing
-(module test racket/base
-  )
+(define-operation (binary32->binary64 [x <binary32>]) <binary64>
+  #:spec x #:fpcore (! :precision binary64 (cast x)) #:impl (from-rival) #:cost 1)
