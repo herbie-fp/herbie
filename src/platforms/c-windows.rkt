@@ -65,7 +65,7 @@
     [asinh.f32  #:spec (asinh x)  #:impl (from-libm 'asinhf)  #:cost 1.125]
     [atan.f32   #:spec (atan x)   #:impl (from-libm 'atanf)   #:cost 1.100]
     [atanh.f32  #:spec (atanh x)  #:impl (from-libm 'atanhf)  #:cost 0.500]
-    [cbrt.f32   #:spec (cbrt x)   #:impl (from-libm 'cbrtf)   #:cost 2.00]
+    [cbrt.f32   #:spec (cbrt x)   #:impl (from-libm 'cbrtf)   #:cost 2.000]
     [ceil.f32   #:spec (ceil x)   #:impl (from-libm 'ceilf)   #:cost 0.250]
     [erf.f32    #:spec (erf x)    #:impl (from-libm 'erff)    #:cost 1.125]
     [exp.f32    #:spec (exp x)    #:impl (from-libm 'expf)    #:cost 1.375]
