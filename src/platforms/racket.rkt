@@ -1,194 +1,91 @@
-#lang racket
+#lang s-exp "../platform.rkt"
 
-;;; Racket platform:
-;;; Default Racket math functions
+;;; Racket platform, focusing on racket/base and math/base.
+;;; Therefore only one data type, <binary64>, is supported.
 
-(require math/bigfloat
-         math/flonum
-         math/base
-         math/special-functions
-         "../syntax/types.rkt" ; for shift/unshift
-         "../syntax/platform.rkt")
-(provide platform)
+(require math/flonum
+         math/base)
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;; EMPTY PLATFORM ;;;;;;;;;;;;;;;;;;;;;;;;
-
-(define platform (make-empty-platform 'racket))
-
-(platform-register-if-cost! platform #:if-cost 1)
+(define-if #:cost 1)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BOOLEAN ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;; representation ;;;;;;;;;;;;;;;;;;;;;;;;
+(define-representation <bool> #:cost 1)
 
-(define bool <bool>)
+(define-operators () <bool>
+  [true  #:spec (TRUE)  #:impl (const true)  #:fpcore TRUE  #:cost 1]
+  [false #:spec (FALSE) #:impl (const false) #:fpcore FALSE #:cost 1]))
 
-(platform-register-representation! platform #:repr bool #:cost 1)
+(define-operations ([x <bool>] [y <bool>]) <bool>
+  [and #:spec (and x y) #:impl (lambda v (andmap values v)) #:cost boolean-move-cost]
+  [or  #:spec (or x y)  #:impl (lambda v (ormap values v))  #:cost boolean-move-cost])
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;; constants ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(platform-register-implementations!
- platform
- ([TRUE.rkt  () bool (TRUE)  (const true)  (! TRUE)  1]
-  [FALSE.rkt () bool (FALSE) (const false) (! FALSE) 1]))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;; operators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(define (and-fn . as)
-  (andmap identity as))
-(define (or-fn . as)
-  (ormap identity as))
-
-(platform-register-implementations!
- platform
- ([not.rkt ([x : bool])            bool (not x)   not    (not x)   1]
-  [and.rkt ([x : bool] [y : bool]) bool (and x y) and-fn (and x y) 1]
-  [or.rkt  ([x : bool] [y : bool]) bool (or x y)  or-fn  (or x y)  1]))
+(define-operation (not [x <bool>]) <bool>
+  #:spec (not x) #:impl not #:cost boolean-move-cost)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BINARY 64 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;; representation ;;;;;;;;;;;;;;;;;;;;;;;;
+(define-representation <binary64> #:cost 1)
 
-(define binary64 <binary64>)
+(parameterize ([fpcore-context '(:precision binary32)])
+  (define-operators () <binary64>
+    [PI.rkt       #:spec (PI)       #:impl (const pi)       #:fpcore PI       #:cost 1]
+    [INFINITY.rkt #:spec (INFINITY) #:impl (const +inf.0)   #:fpcore INFINITY #:cost 1]
+    [NAN.rkt      #:spec (NAN)      #:impl (const +nan.0)   #:fpcore NAN      #:cost 1]))
 
-(platform-register-representation! platform #:repr binary64 #:cost 1)
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;; constants ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(platform-register-implementations!
- platform
- ([PI.rkt       () binary64 (PI)       (const pi)        (! :precision binary64 PI)       1]
-  [E.rkt        () binary64 (E)        (const (exp 1.0)) (! :precision binary64 E)        1]
-  [INFINITY.rkt () binary64 (INFINITY) (const +inf.0)    (! :precision binary64 INFINITY) 1]
-  [NAN.rkt      () binary64 (NAN)      (const +nan.0)    (! :precision binary64 NAN)      1]))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;; comparators ;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(platform-register-implementations!
- platform
- ([==.rkt ([x : binary64] [y : binary64]) bool (== x y) =          (== x y) 1]
-  [!=.rkt ([x : binary64] [y : binary64]) bool (!= x y) (negate =) (!= x y) 1]
-  [<.rkt  ([x : binary64] [y : binary64]) bool (< x y)  <          (< x y)  1]
-  [>.rkt  ([x : binary64] [y : binary64]) bool (> x y)  >          (> x y)  1]
-  [<=.rkt ([x : binary64] [y : binary64]) bool (<= x y) <=         (<= x y) 1]
-  [>=.rkt ([x : binary64] [y : binary64]) bool (>= x y) >=         (>= x y) 1]))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;; operators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;; utils ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(define-syntax (register-racket-operator stx)
-  (syntax-case stx (real fl)
-    [(_ (name tsig ...) fields ...)
-     (let ([name (syntax-e #'name)])
-       (with-syntax ([name (string->symbol (format "~a.rkt" name))])
-         #'(platform-register-implementation!
-            platform
-            (make-operator-impl (name tsig ...) binary64 fields ...))))]))
-
-(define-syntax-rule (register-1ary-racket-operator op fn cost)
-  (register-racket-operator (op [x : binary64])
-                              #:spec (op x)
-                              #:fpcore (! :precision binary64 (op x))
-                              #:impl fn
-                              #:cost cost))
-
-(define-syntax-rule (register-2ary-racket-operator op fn cost)
-  (register-racket-operator (op [x : binary64] [y : binary64])
-                              #:spec (op x y)
-                              #:fpcore (! :precision binary64 (op x y))
-                              #:impl fn
-                              #:cost cost))
-
-(define-syntax-rule (register-1ary-racket-operators [op fn cost] ...)
-  (begin
-    (register-1ary-racket-operator op fn cost) ...))
-
-(define-syntax-rule (register-2ary-racket-operators [op fn cost] ...)
-  (begin
-    (register-2ary-racket-operator op fn cost) ...))
+(define-operators ([x <binary64>] [y <binary64>]) <bool>
+  [=  #:spec (== x y) #:impl =  #:cost 1]
+  [<  #:spec (< x y)  #:impl <  #:cost 1]
+  [>  #:spec (> x y)  #:impl >  #:cost 1]
+  [<= #:spec (<= x y) #:impl <= #:cost 1]
+  [>= #:spec (>= x y) #:impl >= #:cost 1]))
 
 (define ((no-complex fun) . xs)
   (define res (apply fun xs))
   (if (real? res) res +nan.0))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;; unary operators ;;;;;;;;;;;;;;;;;;;;;;;
+(define-operation (-/1 [x <binary64>]) <binary64>
+  #:spec (neg x) #:impl - #:fpcore (- x) #:cost 1)
 
-;; neg operation has a specific format with regard to fpcore, (- x) instead of (neg x)
-(platform-register-implementation! platform
-                                     (make-operator-impl (neg.rkt [x : binary64])
-                                                         binary64
-                                                         #:spec (neg x)
-                                                         #:fpcore (! :precision binary64 (- x))
-                                                         #:impl -
-                                                         #:cost 1))
+(define-operators ([x <binary64>]) <binary64>
+ [acos      #:spec (acos  x) #:impl (no-complex acos)  #:cost 1]
+ [acosh     #:spec (acosh x) #:impl (no-complex acosh) #:cost 1]
+ [asin      #:spec (asin  x) #:impl (no-complex asin)  #:cost 1]
+ [asinh     #:spec (asinh x) #:impl (no-complex asinh) #:cost 1]
+ [atan      #:spec (atan  x) #:impl (no-complex atan)  #:cost 1]
+ [atanh     #:spec (atanh x) #:impl (no-complex atanh) #:cost 1]
+ [ceiling   #:spec (ceil  x) #:impl ceiling            #:cost 1]
+ [cos       #:spec (cos   x) #:impl cos                #:cost 1]
+ [cosh      #:spec (cosh  x) #:impl cosh               #:cost 1]
+ [erf       #:spec (erf   x) #:impl (no-complex erf)   #:cost 1]
+ [exp       #:spec (exp   x) #:impl exp                #:cost 1]
+ [abs       #:spec (fabs  x) #:impl abs                #:cost 1]
+ [floor     #:spec (floor x) #:impl floor              #:cost 1]
+ [log       #:spec (log   x) #:impl (no-complex log)   #:cost 1]
+ [round     #:spec (round x) #:impl round              #:cost 1]
+ [sin       #:spec (sin   x) #:impl sin                #:cost 1]
+ [sinh      #:spec (sinh  x) #:impl sinh               #:cost 1]
+ [sqrt      #:spec (sqrt  x) #:impl (no-complex sqrt)  #:cost 1]
+ [tan       #:spec (tan   x) #:impl tan                #:cost 1]
+ [tanh      #:spec (tanh  x) #:impl tanh               #:cost 1]
+ [truncate  #:spec (trunc x) #:impl truncate           #:cost 1])
 
-; ([op fn cost] ...) 
-(register-1ary-racket-operators
- [acos   (no-complex acos)                                        1]
- [acosh  (no-complex acosh)                                       1]
- [asin   (no-complex asin)                                        1]
- [asinh  (no-complex asinh)                                       1]
- [atan   (no-complex atan)                                        1]
- [atanh  (no-complex atanh)                                       1]
- [cbrt   (no-complex (λ (x) (expt x 1/3)))                        1]
- [ceil   ceiling                                                  1]
- [cos    cos                                                      1]
- [cosh   cosh                                                     1]
- [erf    (no-complex erf)                                         1]
- [exp    exp                                                      1]
- [exp2   (no-complex (λ (x) (expt 2 x)))                          1]
- [fabs   abs                                                      1]
- [floor  floor                                                    1]
- [lgamma log-gamma                                                1]
- [log    (no-complex log)                                         1]
- [log10  (no-complex (λ (x) (log x 10)))                          1]
- [rint   round                                                    1]
- [round  round                                                    1]
- [sin    sin                                                      1]
- [sinh   sinh                                                     1]
- [sqrt   (no-complex sqrt)                                        1]
- [tan    tan                                                      1]
- [tanh   tanh                                                     1]
- [tgamma gamma                                                    1]
- [trunc  truncate                                                 1])
+(define-operators ([x <binary64>] [y <binary64>]) <binary64>
+ [+         #:spec (+ x y)         #:impl +                 #:cost 1]
+ [-         #:spec (- x y)         #:impl -                 #:cost 1]
+ [*         #:spec (* x y)         #:impl *                 #:cost 1]
+ [/         #:spec (/ x y)         #:impl /                 #:cost 1]
+ [atan/2    #:spec (atan2 x y)     #:impl (no-complex atan) #:cost 1]
+ [max       #:spec (fmax x y)      #:impl max               #:cost 1]
+ [min       #:spec (fmin x y)      #:impl min               #:cost 1]
+ [expt      #:spec (pow x y)       #:impl (no-complex expt) #:cost 1]
+ [remainder #:spec (remainder x y) #:impl remainder         #:cost 1])
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;; binary operators ;;;;;;;;;;;;;;;;;;;;;;
+(define-operator (//1 [x <binary64>]) <binary64>
+  #:spec (/ 1 x) #:impl / #:cost 1)
 
-; ([op fn cost] ...) 
-(register-2ary-racket-operators
- [+         +                         1]
- [-         -                         1]
- [*         *                         1]
- [/         /                         1]
- [atan2     (no-complex atan)         1]
- [copysign  (λ (x y)
-              (if (>= y 0)
-                  (abs x)
-                  (- (abs x))))       1]
- [fdim      (λ (x y) (max (- x y) 0)) 1]
- [fmax      (λ (x y)
-              (cond
-                [(nan? x) y]
-                [(nan? y) x]
-                [else (max x y)]))    1]
- [fmin      (λ (x y)
-              (cond
-                [(nan? x) y]
-                [(nan? y) x]
-                [else (min x y)]))    1]
- [pow       (no-complex expt)         1]
- [remainder remainder                 1])
+(define-operator (log/2 [x <binary64>] [y <binary64>]) <binary64>
+  #:spec (/ (log x) (log y)) #:impl log #:cost 1)
 
-(platform-register-implementations!
- platform
- ([erfc.rkt  ([x : binary64])                               binary64 (- 1 (erf x))              erfc                     (! :precision binary64 (erfc x))    1]))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;; REGISTER PLATFORM ;;;;;;;;;;;;;;;;;;;;;
-
-(module+ main
-  (display-platform platform))
-
-;; Do not run this file during testing
-(module test racket/base
-  )
+(define-operator (flsingle [x <binary64>]) <binary64>
+  #:spec x #:impl flsingle #:cost 1)
