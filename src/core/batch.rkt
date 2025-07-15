@@ -25,8 +25,8 @@
          mutable-batch-push! ; Mutable-batch -> Node -> Idx
          batch-copy
 
-         alts->batchrefs
-         batchrefs->alts
+         batchify-alts
+         unbatchify-alts
          batchref-all-subnodes
          alts-batch)
 
@@ -42,20 +42,21 @@
     [(list op args ...) (cons op (map f args))]
     [_ expr]))
 
-(define (batchref-all-subnodes x #:reverse? [reverse? #f])
+(define (batchref-all-subnodes x #:reverse? [reverse? #f] #:include-spec? [include-spec #f])
   (match-define (batchref b idx) x)
   (define nodes (batch-nodes b))
   (define subnodes
     (reap [sow]
           (let loop ([idx idx])
             (sow idx)
-            (expr-recurse (vector-ref nodes idx) loop #:recurse-on-spec #f))))
+            (expr-recurse (vector-ref nodes idx) loop #:recurse-on-spec include-spec))))
   (remove-duplicates (if reverse?
                          (reverse subnodes)
                          subnodes)))
 
-(define (alts->batchrefs b altns)
-  (define mb (batch->mutable-batch b))
+;; Writes expressions of alternatives into alts-batch
+(define (batchify-alts altns)
+  (define mb (batch->mutable-batch alts-batch))
   (define altns*
     (for/list ([altn altns])
       (let loop ([altn* altn])
@@ -64,16 +65,16 @@
           (match (alt-prevs altn*)
             [(list) '()]
             [(list prev) (list (loop prev))]))
-        (struct-copy alt altn* [expr (batchref b idx)] [prevs prevs]))))
-  (batch-copy-mutable-nodes! b mb)
+        (struct-copy alt altn* [expr (batchref alts-batch idx)] [prevs prevs]))))
+  (batch-copy-mutable-nodes! alts-batch mb)
   altns*)
 
-(define (batchrefs->alts altns)
+;; Converts batchrefs of altns into expressions, assuming that batchrefs refer to alts-batch
+(define (unbatchify-alts altns)
   (define exprs (make-vector (batch-length alts-batch)))
   (for ([node (in-vector (batch-nodes alts-batch))]
         [idx (in-naturals)])
     (vector-set! exprs idx (expr-recurse node (lambda (x) (vector-ref exprs x)))))
-
   (for/list ([altn altns])
     (let loop ([altn* altn])
       (define idx (batchref-idx (alt-expr altn*)))
@@ -154,9 +155,8 @@
   (apply + (map (curry vector-ref counts) (vector->list (batch-roots b)))))
 
 (define (mutable-batch-munge! b expr)
-  (define cache (mutable-batch-cache b))
   (define (munge prog)
-    (hash-ref! cache prog (lambda () (mutable-batch-push! b (expr-recurse prog munge)))))
+    (mutable-batch-push! b (expr-recurse prog munge)))
   (munge expr))
 
 (define (batch->progs b [roots (batch-roots b)])

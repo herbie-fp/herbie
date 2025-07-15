@@ -195,8 +195,8 @@
                               (reconstruct-alt altn loc full-altn)))))))
 
   (batch-copy-mutable-nodes! alts-batch mutable-alts-batch)
-  (^patched^ (batchrefs->alts (^patched^)))
-  (^next-alts^ (batchrefs->alts (^next-alts^)))
+  (^patched^ (unbatchify-alts (^patched^)))
+  (^next-alts^ (unbatchify-alts (^next-alts^)))
   (void))
 
 ;; Finish iteration
@@ -251,7 +251,7 @@
   (set-batch-nodes! alts-batch (vector))
   (set-batch-roots! alts-batch (vector))
 
-  (^next-alts^ (alts->batchrefs alts-batch (^next-alts^)))
+  (^next-alts^ (batchify-alts (^next-alts^)))
   (define roots
     (remove-duplicates (append-map (compose batchref-all-subnodes alt-expr) (^next-alts^))))
   (set-batch-roots! alts-batch (list->vector roots))
