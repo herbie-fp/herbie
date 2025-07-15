@@ -506,7 +506,7 @@
                  `(:pre ,(prog->fpcore (test-pre test) (test-context test))))
            ,@(if (equal? (test-spec test) empty)
                  '()
-                 `(:herbie-spec ,(prog->fpcore (test-spec test) (test-context test))))
+                 `(:spec ,(prog->fpcore (test-spec test) (test-context test))))
            ,@(if (equal? (test-expected test) #t)
                  '()
                  `(:herbie-expected ,(test-expected test)))
