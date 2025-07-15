@@ -76,7 +76,7 @@
     [logb.f32   #:spec (logb x)   #:impl (from-libm 'logbf)   #:cost 3200]
     [rint.f32   #:spec (rint x)   #:impl (from-libm 'rintf)   #:cost 3200]
     [round.f32  #:spec (round x)  #:impl (from-libm 'roundf)  #:cost 3200]
-    [sqrt.f32   #:spec (sqrt x)   #:impl (from-libm 'sqrtf)   #:cost 3200]
+    [sqrt.f32   #:spec (sqrt x)   #:impl (from-libm 'sqrtf)   #:cost 320]
     [tanh.f32   #:spec (tanh x)   #:impl (from-libm 'tanhf)   #:cost 3200]
     [tgamma.f32 #:spec (tgamma x) #:impl (from-libm 'tgammaf) #:cost 3200]
     [trunc.f32  #:spec (trunc x)  #:impl (from-libm 'truncf)  #:cost 3200])
@@ -156,7 +156,7 @@
     [logb.f64   #:spec (logb x)   #:impl (from-libm 'logb)      #:cost 6400]
     [rint.f64   #:spec (rint x)   #:impl (from-libm 'rint)      #:cost 6400]
     [round.f64  #:spec (round x)  #:impl (from-libm 'round)     #:cost 6400]
-    [sqrt.f64   #:spec (sqrt x)   #:impl (from-libm 'sqrt)      #:cost 6400]
+    [sqrt.f64   #:spec (sqrt x)   #:impl (from-libm 'sqrt)      #:cost 640]
     [tanh.f64   #:spec (tanh x)   #:impl (from-libm 'tanh)      #:cost 6400]
     [tgamma.f64 #:spec (tgamma x) #:impl (from-libm 'tgamma)    #:cost 6400]
     [trunc.f64  #:spec (trunc x)  #:impl (from-libm 'trunc)     #:cost 6400])
