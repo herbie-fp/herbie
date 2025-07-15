@@ -6,8 +6,7 @@
 (require math/flonum
          math/bigfloat
          softposit-rkt
-         "../src/utils/float.rkt"  ; for shift/unshift
-         rival
+         "../src/syntax/types.rkt"  ; for shift/unshift
          "../src/syntax/platform.rkt")
 (provide platform)
 
@@ -87,8 +86,9 @@
 
 (define cost 1)
 
-(define platform
-  (make-empty-platform 'softposit #:if-cost 1))
+(define platform (make-empty-platform 'softposit))
+
+(platform-register-if-cost! platform #:cost 1)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; REPRESENTATIONS ;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -98,8 +98,6 @@
 
 (define posit8
   (make-representation #:name 'posit8
-                       #:type 'real
-                       #:repr? posit8?
                        #:bf->repr (compose double->posit8* bigfloat->flonum)
                        #:repr->bf (compose bf-inf->nan posit8->double)
                        #:ordinal->repr (shift 7 ordinal->posit8)
@@ -109,8 +107,6 @@
 
 (define posit16
   (make-representation #:name 'posit16
-                       #:type 'real
-                       #:repr? posit16?
                        #:bf->repr (compose double->posit16* bigfloat->flonum)
                        #:repr->bf (compose bf-inf->nan posit16->double)
                        #:ordinal->repr (shift 15 ordinal->posit16)
@@ -120,8 +116,6 @@
 
 (define posit32
   (make-representation #:name 'posit32
-                       #:type 'real
-                       #:repr? posit32?
                        #:bf->repr (compose double->posit32* bigfloat->flonum)
                        #:repr->bf (compose bf-inf->nan posit32->double)
                        #:ordinal->repr (shift 31 ordinal->posit32)
@@ -131,8 +125,6 @@
 
 (define quire8
   (make-representation #:name 'quire8
-                       #:type 'real
-                       #:repr? quire8?
                        #:bf->repr (compose double->quire8* bigfloat->flonum)
                        #:repr->bf (compose bf-inf->nan quire8->double)
                        #:ordinal->repr (compose double->quire8 ordinal->flonum)
@@ -142,8 +134,6 @@
 
 (define quire16
   (make-representation #:name 'quire16
-                       #:type 'real
-                       #:repr? quire16?
                        #:bf->repr (compose double->quire16* bigfloat->flonum)
                        #:repr->bf (compose bf-inf->nan quire16->double)
                        #:ordinal->repr (compose double->quire16 ordinal->flonum)
@@ -153,8 +143,6 @@
 
 (define quire32
   (make-representation #:name 'quire32
-                       #:type 'real
-                       #:repr? quire32?
                        #:bf->repr (compose double->quire32 bigfloat->flonum) ; TODO: use double->quire32* when crash fixed
                        #:repr->bf (compose bf-inf->nan quire32->double)
                        #:ordinal->repr (compose double->quire32 ordinal->flonum)

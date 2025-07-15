@@ -1,8 +1,7 @@
 #lang racket
 
 (require math/bigfloat
-         math/base
-         math/flonum)
+         math/base)
 (require "../utils/common.rkt"
          "../syntax/types.rkt"
          "../utils/errors.rkt")
@@ -18,24 +17,7 @@
          value->json
          json->value
          real->repr
-         repr->real
-         shift
-         unshift
-         <bool>
-         <binary32>
-         <binary64>
-         fl32-
-         fl32+
-         fl32*
-         fl32/)
-
-(define (shift bits fn)
-  (define shift-val (expt 2 bits))
-  (λ (x) (fn (- x shift-val))))
-
-(define (unshift bits fn)
-  (define shift-val (expt 2 bits))
-  (λ (x) (+ (fn x) shift-val)))
+         repr->real)
 
 (define (ulp-difference x y repr)
   (define ->ordinal (representation-repr->ordinal repr))
@@ -142,85 +124,3 @@
   (match x
     [(? boolean?) x]
     [_ (bigfloat->real ((representation-repr->bf repr) x))]))
-
-(module hairy racket/base
-  (require (only-in math/private/bigfloat/mpfr get-mpfr-fun _mpfr-pointer _rnd_t bf-rounding-mode))
-  (require ffi/unsafe)
-  (provide bigfloat->float32)
-  (define mpfr-get-flt (get-mpfr-fun 'mpfr_get_flt (_fun _mpfr-pointer _rnd_t -> _float)))
-  (define (bigfloat->float32 x)
-    (mpfr-get-flt x (bf-rounding-mode))))
-(require (submod "." hairy))
-
-(module+ test
-  (require rackunit))
-
-(define (float32->bit-field x)
-  (integer-bytes->integer (real->floating-point-bytes x 4) #f #f))
-
-(define (float32->ordinal x)
-  (if (negative? x)
-      (- (float32->bit-field (- x)))
-      (float32->bit-field (abs x))))
-
-(define (bit-field->float32 x)
-  (floating-point-bytes->real (integer->integer-bytes x 4 #f #f) #f))
-
-(define (ordinal->float32 x)
-  (if (negative? x)
-      (- (bit-field->float32 (- x)))
-      (bit-field->float32 x)))
-
-;; Wrapping arithmetic operations with `flsingle` introduces a
-;; possible double-rounding problem but, perhaps surprisingly, this
-;; double-rounding problem never actually causes error; see:
-;;
-;;   https://hal.science/hal-01091186/document
-
-(define fl32+ (compose flsingle +))
-(define fl32- (compose flsingle -))
-(define fl32* (compose flsingle *))
-(define fl32/ (compose flsingle /))
-
-(module+ test
-  (check-equal? (fl32+ 1.0 2.0) 3.0)
-  (check-equal? (fl32- 1.0 2.0) -1.0)
-  (check-equal? (fl32* 1.0 2.0) 2.0)
-  (check-equal? (fl32/ 1.0 2.0) 0.5))
-
-(define <bool>
-  (make-representation #:name 'bool
-                       #:type 'bool
-                       #:repr? boolean?
-                       #:bf->repr identity
-                       #:repr->bf identity
-                       #:ordinal->repr (λ (x) (= x 0))
-                       #:repr->ordinal (λ (x) (if x 1 0))
-                       #:total-bits 1
-                       #:special-value? (const #f)))
-
-(define <binary32>
-  (make-representation #:name 'binary32
-                       #:type 'real
-                       #:repr? flonum?
-                       #:bf->repr bigfloat->float32
-                       #:repr->bf (λ (x)
-                                    (parameterize ([bf-precision 24])
-                                      (bf x)))
-                       #:ordinal->repr (shift 31 ordinal->float32)
-                       #:repr->ordinal (unshift 31 float32->ordinal)
-                       #:total-bits 32
-                       #:special-value? nan?))
-
-(define <binary64>
-  (make-representation #:name 'binary64
-                       #:type 'real
-                       #:repr? flonum?
-                       #:bf->repr bigfloat->flonum
-                       #:repr->bf (λ (x)
-                                    (parameterize ([bf-precision 53])
-                                      (bf x)))
-                       #:ordinal->repr (shift 63 ordinal->flonum)
-                       #:repr->ordinal (unshift 63 flonum->ordinal)
-                       #:total-bits 64
-                       #:special-value? nan?))
