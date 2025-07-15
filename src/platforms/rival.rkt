@@ -95,7 +95,6 @@
     #:spec (sqrt (+ (* x x) (* y y))) #:impl (from-rival) #:fpcore (hypot x y) #:cost 1)
   
   (define-operation (fma.f32 [x <binary32>] [y <binary32>] [z <binary32>]) <binary32>
-
     #:spec (+ (* x y) z) #:impl (from-rival) #:fpcore (fma x y z) #:cost 1))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BINARY 64 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
