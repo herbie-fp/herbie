@@ -27,11 +27,10 @@
 
 (define-representation <binary64> #:cost 1)
 
-(parameterize ([fpcore-context '(:precision binary32)])
-  (define-operations () <binary64>
-    [PI.rkt       #:spec (PI)       #:impl (const pi)       #:fpcore PI       #:cost 1]
-    [INFINITY.rkt #:spec (INFINITY) #:impl (const +inf.0)   #:fpcore INFINITY #:cost 1]
-    [NAN.rkt      #:spec (NAN)      #:impl (const +nan.0)   #:fpcore NAN      #:cost 1]))
+(define-operations () <binary64>
+  [PI.rkt       #:spec (PI)       #:impl (const pi)       #:fpcore PI       #:cost 1]
+  [INFINITY.rkt #:spec (INFINITY) #:impl (const +inf.0)   #:fpcore INFINITY #:cost 1]
+  [NAN.rkt      #:spec (NAN)      #:impl (const +nan.0)   #:fpcore NAN      #:cost 1])
 
 (define-operations ([x <binary64>] [y <binary64>]) <bool>
   [=  #:spec (== x y) #:impl =  #:cost 1]
