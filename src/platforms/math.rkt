@@ -1,7 +1,7 @@
 #lang s-exp "../platform.rkt"
 
 ;;; C/C++ on Linux with reduced libm, meaning no special numeric
-;;; functions. It is also 32-bit only.
+;;; functions. It is also 64-bit only.
 
 (define move-cost    0.02333600000000001)
 (define fl-move-cost (* move-cost 4))
