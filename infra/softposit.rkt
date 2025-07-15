@@ -3,7 +3,9 @@
 ;;; Softposit platform, using David Thien's softposit-rkt package for
 ;;; bindings. Provides operations like real->posit16 or +.p16.
 
-(require softposit-rkt)
+(require math/bigfloat
+         math/flonum
+         softposit-rkt)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; utils ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -140,24 +142,24 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BOOLEAN IMPLS ;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define-representation <bool> #:cost boolean-move-cost)
+(define-representation <bool> #:cost 1)
 
 (define-operations () <bool>
-  [TRUE  #:spec (TRUE)  #:impl (const true)  #:fpcore TRUE  #:cost boolean-move-cost]
-  [FALSE #:spec (FALSE) #:impl (const false) #:fpcore FALSE #:cost boolean-move-cost])
+  [TRUE  #:spec (TRUE)  #:impl (const true)  #:fpcore TRUE  #:cost 1]
+  [FALSE #:spec (FALSE) #:impl (const false) #:fpcore FALSE #:cost 1])
 
 (define-operations ([x <bool>] [y <bool>]) <bool>
-  [and #:spec (and x y) #:impl (lambda v (andmap values v)) #:cost boolean-move-cost]
-  [or  #:spec (or x y)  #:impl (lambda v (ormap values v))  #:cost boolean-move-cost])
+  [and #:spec (and x y) #:impl (lambda v (andmap values v)) #:cost 1]
+  [or  #:spec (or x y)  #:impl (lambda v (ormap values v))  #:cost 1])
 
 (define-operation (not [x <bool>]) <bool>
-  #:spec (not x) #:impl not #:cost boolean-move-cost)
+  #:spec (not x) #:impl not #:cost 1)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; POSIT IMPLS ;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define-representation <posit8>  #:cost cost)
-(define-representation <posit16> #:cost cost)
-(define-representation <posit32> #:cost cost)
+(define-representation <posit8>  #:cost 1)
+(define-representation <posit16> #:cost 1)
+(define-representation <posit32> #:cost 1)
 
 (define-operations ([x <posit8>] [y <posit8>]) <bool>
   [==.p8 #:spec (== x y) #:impl posit8=  #:cost 1]
@@ -168,7 +170,7 @@
 
 (parameterize ([fpcore-context '(:precision posit8)])
   (define-operations ([x <posit8>]) <posit8>
-    [neg.p8  #:spec (neg x)  #:impl posit8-neg  #:cost 1]
+    [neg.p8  #:spec (neg x)  #:impl posit8-neg  #:fpcore (- x) #:cost 1]
     [sqrt.p8 #:spec (sqrt x) #:impl posit8-sqrt #:cost 1])
 
   (define-operations ([x <posit8>] [y <posit8>]) <posit8>
@@ -186,7 +188,7 @@
 
 (parameterize ([fpcore-context '(:precision posit16)])
   (define-operations ([x <posit16>]) <posit16>
-    [neg.p16  #:spec (neg x)  #:impl posit16-neg  #:cost 1]
+    [neg.p16  #:spec (neg x)  #:impl posit16-neg  #:fpcore (- x) #:cost 1]
     [sqrt.p16 #:spec (sqrt x) #:impl posit16-sqrt #:cost 1])
 
   (define-operations ([x <posit16>] [y <posit16>]) <posit16>
@@ -204,7 +206,7 @@
 
 (parameterize ([fpcore-context '(:precision posit32)])
   (define-operations ([x <posit32>]) <posit32>
-    [neg.p32  #:spec (neg x)  #:impl posit32-neg  #:cost 1]
+    [neg.p32  #:spec (neg x)  #:impl posit32-neg  #:fpcore (- x) #:cost 1]
     [sqrt.p32 #:spec (sqrt x) #:impl posit32-sqrt #:cost 1])
 
   (define-operations ([x <posit32>] [y <posit32>]) <posit32>
@@ -215,64 +217,64 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; QUIRE OPERATIONS ;;;;;;;;;;;;;;;;;;;;;;;
 
-(define-representation <quire8>  #:cost cost)
-(define-representation <quire16> #:cost cost)
-(define-representation <quire32> #:cost cost)
+(define-representation <quire8>  #:cost 1)
+(define-representation <quire16> #:cost 1)
+(define-representation <quire32> #:cost 1)
 
 (parameterize ([fpcore-context '(:precision quire8)])
   (define-operations ([x <quire8>] [y <posit8>] [z <posit8>]) <quire8>
-    [quire8-mul-add #:spec (+ x (* y z)) #:impl quire8-fdp-add #:fpcore (fma y z x)     #:cost 1]
-    [quire8-mul-sub #:spec (- x (* y z)) #:impl quire8-fdp-sub #:fpcore (fma (- y) z x) #:cost 1]))
+    [quire8-mul-add #:spec (+ x (* y z)) #:impl quire8-fdp-add #:fpcore (fdp x y z) #:cost 1]
+    [quire8-mul-sub #:spec (- x (* y z)) #:impl quire8-fdp-sub #:fpcore (fds x y z) #:cost 1]))
 
 (parameterize ([fpcore-context '(:precision quire16)])
   (define-operations ([x <quire16>] [y <posit16>] [z <posit16>]) <quire16>
-    [quire16-mul-add #:spec (+ x (* y z)) #:impl quire16-fdp-add #:fpcore (fma y z x)     #:cost 1]
-    [quire16-mul-sub #:spec (- x (* y z)) #:impl quire16-fdp-sub #:fpcore (fma (- y) z x) #:cost 1]))
+    [quire16-mul-add #:spec (+ x (* y z)) #:impl quire16-fdp-add #:fpcore (fdp x y z) #:cost 1]
+    [quire16-mul-sub #:spec (- x (* y z)) #:impl quire16-fdp-sub #:fpcore (fds x y z) #:cost 1]))
 
 (parameterize ([fpcore-context '(:precision quire32)])
   (define-operations ([x <quire32>] [y <posit32>] [z <posit32>]) <quire32>
-    [quire32-mul-add #:spec (+ x (* y z)) #:impl quire32-fdp-add #:fpcore (fma y z x)     #:cost 1]
-    [quire32-mul-sub #:spec (- x (* y z)) #:impl quire32-fdp-sub #:fpcore (fma (- y) z x) #:cost 1]))
+    [quire32-mul-add #:spec (+ x (* y z)) #:impl quire32-fdp-add #:fpcore (fdp x y z) #:cost 1]
+    [quire32-mul-sub #:spec (- x (* y z)) #:impl quire32-fdp-sub #:fpcore (fds x y z) #:cost 1]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; CONVERTERS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define-representation <binary64> #:cost cost)
+(define-representation <binary64> #:cost 1)
 
 (define-operation (binary64->posit8  [x <binary64>]) <posit8>
-  #:spec x #:impl double->posit8   #:fpcore (! :precision posit8 (cast x))   #:cost cost]
+  #:spec x #:impl double->posit8   #:fpcore (! :precision posit8 (cast x))   #:cost 1)
 (define-operation (binary64->posit16 [x <binary64>]) <posit16>
-  #:spec x #:impl double->posit16  #:fpcore (! :precision posit16 (cast x))  #:cost cost]
+  #:spec x #:impl double->posit16  #:fpcore (! :precision posit16 (cast x))  #:cost 1)
 (define-operation (binary64->posit32 [x <binary64>]) <posit32>
-  #:spec x #:impl double->posit32  #:fpcore (! :precision posit32 (cast x))  #:cost cost]
+  #:spec x #:impl double->posit32  #:fpcore (! :precision posit32 (cast x))  #:cost 1)
 (define-operation (posit8->binary64  [x <posit8>])   <binary64>
-  #:spec x #:impl posit8->double   #:fpcore (! :precision binary64 (cast x)) #:cost cost]
+  #:spec x #:impl posit8->double   #:fpcore (! :precision binary64 (cast x)) #:cost 1)
 (define-operation (posit16->binary64 [x <posit16>])  <binary64>
-  #:spec x #:impl posit16->double  #:fpcore (! :precision binary64 (cast x)) #:cost cost]
+  #:spec x #:impl posit16->double  #:fpcore (! :precision binary64 (cast x)) #:cost 1)
 (define-operation (posit32->binary64 [x <posit32>])  <binary64>
-  #:spec x #:impl posit32->double  #:fpcore (! :precision binary64 (cast x)) #:cost cost]
+  #:spec x #:impl posit32->double  #:fpcore (! :precision binary64 (cast x)) #:cost 1)
 
 (define-operation (binary64->quire8  [x <binary64>]) <quire8>
-  #:spec x #:impl double->quire8   #:fpcore (! :precision quire8 (cast x))   #:cost cost]
+  #:spec x #:impl double->quire8   #:fpcore (! :precision quire8 (cast x))   #:cost 1)
 (define-operation (binary64->quire16 [x <binary64>]) <quire16>
-  #:spec x #:impl double->quire16  #:fpcore (! :precision quire16 (cast x))  #:cost cost]
+  #:spec x #:impl double->quire16  #:fpcore (! :precision quire16 (cast x))  #:cost 1)
 (define-operation (binary64->quire32 [x <binary64>]) <quire32>
-  #:spec x #:impl double->quire32  #:fpcore (! :precision quire32 (cast x))  #:cost cost]
+  #:spec x #:impl double->quire32  #:fpcore (! :precision quire32 (cast x))  #:cost 1)
 (define-operation (quire8->binary64  [x <quire8>])   <binary64>
-  #:spec x #:impl quire8->double   #:fpcore (! :precision binary64 (cast x)) #:cost cost]
+  #:spec x #:impl quire8->double   #:fpcore (! :precision binary64 (cast x)) #:cost 1)
 (define-operation (quire16->binary64 [x <quire16>])  <binary64>
-  #:spec x #:impl quire16->double  #:fpcore (! :precision binary64 (cast x)) #:cost cost]
+  #:spec x #:impl quire16->double  #:fpcore (! :precision binary64 (cast x)) #:cost 1)
 (define-operation (quire32->binary64 [x <quire32>])  <binary64>
-  #:spec x #:impl quire32->double  #:fpcore (! :precision binary64 (cast x)) #:cost cost]
+  #:spec x #:impl quire32->double  #:fpcore (! :precision binary64 (cast x)) #:cost 1)
 
 (define-operation (quire8->posit8    [x <quire8>])   <posit8>
-  #:spec x #:impl quire8->posit8   #:fpcore (! :precision posit8 (cast x))   #:cost cost]
+  #:spec x #:impl quire8->posit8   #:fpcore (! :precision posit8 (cast x))   #:cost 1)
 (define-operation (quire16->posit16  [x <quire16>])  <posit16>
-  #:spec x #:impl quire16->posit16 #:fpcore (! :precision posit16 (cast x))  #:cost cost]
+  #:spec x #:impl quire16->posit16 #:fpcore (! :precision posit16 (cast x))  #:cost 1)
 (define-operation (quire32->posit32  [x <quire32>])  <posit32>
-  #:spec x #:impl quire32->posit32 #:fpcore (! :precision posit32 (cast x))  #:cost cost]
+  #:spec x #:impl quire32->posit32 #:fpcore (! :precision posit32 (cast x))  #:cost 1)
 (define-operation (posit8->quire8    [x <posit8>])   <quire8>
-  #:spec x #:impl posit8->quire8   #:fpcore (! :precision quire8 (cast x))   #:cost cost]
+  #:spec x #:impl posit8->quire8   #:fpcore (! :precision quire8 (cast x))   #:cost 1)
 (define-operation (posit16->quire16  [x <posit16>])  <quire16>
-  #:spec x #:impl posit16->quire16 #:fpcore (! :precision quire16 (cast x))  #:cost cost]
+  #:spec x #:impl posit16->quire16 #:fpcore (! :precision quire16 (cast x))  #:cost 1)
 (define-operation (posit32->quire32  [x <posit32>])  <quire32>
-  #:spec x #:impl posit32->quire32 #:fpcore (! :precision quire32 (cast x))  #:cost cost]))
+  #:spec x #:impl posit32->quire32 #:fpcore (! :precision quire32 (cast x))  #:cost 1)
