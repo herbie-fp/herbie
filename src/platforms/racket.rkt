@@ -86,4 +86,4 @@
   #:spec (/ (log x) (log y)) #:impl log #:cost 1)
 
 (define-operation (flsingle [x <binary64>]) <binary64>
-  #:spec x #:impl flsingle #:cost 1)
+  #:spec x #:impl flsingle #:fpcore (cast x) #:cost 1)
