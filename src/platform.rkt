@@ -1,6 +1,6 @@
 #lang racket
 
-(require herbie/syntax/platforms-language)
-(provide (all-from-out herbie/syntax/platforms-language))
+(require "syntax/platforms-language.rkt")
+(provide (all-from-out "syntax/platforms-language.rkt"))
 (module reader syntax/module-reader
-  herbie/syntax/platforms-language)
+  "syntax/platforms-language.rkt")
