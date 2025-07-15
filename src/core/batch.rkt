@@ -27,7 +27,7 @@
 
          alts->batchrefs
          batchrefs->alts
-         batch-all-subnodes
+         batchref-all-subnodes
          alts-batch)
 
 ;; This function defines the recursive structure of expressions
@@ -42,13 +42,17 @@
     [(list op args ...) (cons op (map f args))]
     [_ expr]))
 
-(define (batch-all-subnodes x)
+(define (batchref-all-subnodes x #:reverse? [reverse? #f])
   (match-define (batchref b idx) x)
   (define nodes (batch-nodes b))
-  (remove-duplicates (reap [sow]
-                           (let loop ([idx idx])
-                             (sow idx)
-                             (expr-recurse (vector-ref nodes idx) loop #:recurse-on-spec #f)))))
+  (define subnodes
+    (reap [sow]
+          (let loop ([idx idx])
+            (sow idx)
+            (expr-recurse (vector-ref nodes idx) loop #:recurse-on-spec #f))))
+  (remove-duplicates (if reverse?
+                         (reverse subnodes)
+                         subnodes)))
 
 (define (alts->batchrefs b altns)
   (define mb (batch->mutable-batch b))

@@ -30,8 +30,9 @@
                               #;(log ,log-x ,exp-x))))
 
 (define (taylor-alts altns global-batch)
+  (define roots (list->vector (map (compose batchref-idx alt-expr) altns)))
   (define reprs
-    (for/list ([root (in-vector (batch-roots global-batch))])
+    (for/list ([root (in-vector roots)])
       (repr-of-node global-batch root (*context*))))
   (define specs (map prog->spec (batch->progs global-batch)))
   (define free-vars (map free-variables specs))

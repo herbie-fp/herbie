@@ -252,8 +252,9 @@
   (set-batch-roots! alts-batch (vector))
 
   (^next-alts^ (alts->batchrefs alts-batch (^next-alts^)))
-  (define locs (remove-duplicates (append-map (compose batch-all-subnodes alt-expr) (^next-alts^))))
-  (set-batch-roots! alts-batch (list->vector locs))
+  (define roots
+    (remove-duplicates (append-map (compose batchref-all-subnodes alt-expr) (^next-alts^))))
+  (set-batch-roots! alts-batch (list->vector roots))
 
   (reconstruct! (generate-candidates alts-batch))
   (finalize-iter!)
