@@ -33,11 +33,7 @@
                        fractions
                        exponents
                        trigonometry
-                       hyperbolic
-                       numerics
-                       special
-                       bools
-                       branches)]
+                       hyperbolic)]
         [dump . ()]))
 
 (define (flag-deprecated? category flag)
@@ -51,6 +47,10 @@
     [('reduce 'avg-error) #t]
     [('localize 'costs) #t]
     [('localize 'errors) #t]
+    [('rules 'numerics) #t]
+    [('rules 'special) #t]
+    [('rules 'bools) #t]
+    [('rules 'branches) #t]
     [(_ _) #f]))
 
 ; `hash-copy` returns a mutable hash, which makes `dict-update` invalid
@@ -110,6 +110,10 @@
     [('localize 'errors)
      (eprintf "The localize:errors option has been removed.\n")
      (eprintf "  Herbie no longer performs localization.\n")
+     (eprintf "See <herbie://herbie.uwplse.org/doc/~a/options.html> for more.\n" *herbie-version*)]
+    [('rules _)
+     (eprintf "The rules:~a ruleset has been removed.\n")
+     (eprintf "  These rules are no longer used by Herbie.\n")
      (eprintf "See <herbie://herbie.uwplse.org/doc/~a/options.html> for more.\n" *herbie-version*)]
     [(_ _) (void)]))
 
