@@ -92,14 +92,12 @@
                             (format-accuracy (apply max (map ulps->bits end-error)) repr #:unit "%")))
           ,(render-large "Time" (format-time time))
           ,(render-large "Alternatives" (~a (length end-exprs)))
-          ,(if (*pareto-mode*)
-               (render-large "Speedup"
-                             (if speedup
-                                 (~r speedup #:precision '(= 1))
-                                 "N/A")
-                             "×"
-                             #:title "Relative speed of fastest alternative that improves accuracy.")
-               ""))
+          ,(render-large "Speedup"
+                         (if speedup
+                             (~r speedup #:precision '(= 1))
+                             "N/A")
+                         "×"
+                         #:title "Relative speed of fastest alternative that improves accuracy."))
      ,(render-warnings warnings)
      ,(render-specification test)
      (figure ([id "graphs"])

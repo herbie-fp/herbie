@@ -99,12 +99,6 @@
      during sampling. May fix \"Cannot sample enough valid points\" but will slow."
      (format "[Default: ~a iterations]" (*max-find-range-depth*)))
     (*max-find-range-depth* (string->number num))]
-   [("--no-pareto")
-    ("Disables Pareto-Herbie (Pherbie). Pareto-mode performs accuracy and expression cost
-     optimization and extracts multiple output expressions that are Pareto-optimal. Disabling
-     this feature forces Herbie to extract a single, most-accurate output expression."
-     "[Default: Pareto-Herbie enabled]")
-    (*pareto-mode* #f)]
    [("--profile") "Whether to profile each run (no-op, always on)" (void)]
    #:multi
    [("-o" "--disable")

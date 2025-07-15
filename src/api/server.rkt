@@ -171,7 +171,6 @@
                          *reeval-pts*
                          *node-limit*
                          *max-find-range-depth*
-                         *pareto-mode*
                          *platform-name*
                          *functions*)
    (activate-platform! (*platform-name*))
@@ -291,7 +290,6 @@
                          *reeval-pts*
                          *node-limit*
                          *max-find-range-depth*
-                         *pareto-mode*
                          *platform-name*
                          *functions*)
    (activate-platform! (*platform-name*))
