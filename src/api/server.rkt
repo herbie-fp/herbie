@@ -173,7 +173,6 @@
                          *max-find-range-depth*
                          *pareto-mode*
                          *platform-name*
-                         *loose-plugins*
                          *functions*)
    (activate-platform! (*platform-name*))
    ; not sure if the above code is actaully needed.
@@ -294,7 +293,6 @@
                          *max-find-range-depth*
                          *pareto-mode*
                          *platform-name*
-                         *loose-plugins*
                          *functions*)
    (activate-platform! (*platform-name*))
    (define worker-thread

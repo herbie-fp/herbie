@@ -106,11 +106,7 @@
      "[Default: Pareto-Herbie enabled]")
     (*pareto-mode* #f)]
    [("--profile") "Whether to profile each run (no-op, always on)" (void)]
-   #:multi [("--plugin")
-            path
-            ("Path to a Herbie plugin." "Allows for dynamic loading of \"loose\" plugins.")
-            (dynamic-require path #f)
-            (*loose-plugins* (cons path (*loose-plugins*)))]
+   #:multi
    [("-o" "--disable")
     flag
     ("Disable a search flag (formatted category:name)."
