@@ -69,7 +69,7 @@
   (pow (/ (- (* 3.0 (* a c)) (pow b 2.0)) (* 9.0 (pow a 2.0))) 3.0))
 
 (FPCore (x a)
-  :name "1-pow(1-x,a)"
+  :name "Success Probability"
   :precision binary64
-  :pre (and (and (<= 0.0 x) (<= x 1.0)) (and (<= 0.33333333 a) (<= a 3.0)))
+  :pre (and (and (<= 0.0 x) (<= x 1.0)) (and (<= 1/3 a) (<= a 3.0)))
   (- 1.0 (pow (- 1.0 x) a)))
