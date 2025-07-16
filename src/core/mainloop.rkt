@@ -156,8 +156,8 @@
   (void))
 
 ;; Converts a patch to full alt with valid history
-(define (reconstruct! alts)
-  (define mutable-alts-batch (batch->mutable-batch alts-batch))
+(define (reconstruct! global-batch alts)
+  (define mutable-global-batch (batch->mutable-batch global-batch))
   (define location-set-cache (make-hash))
   ;; extracts the base expressions of a patch as a batchref
   (define (get-starting-expr altn)
@@ -179,7 +179,7 @@
              [(list 'rr input proof) (list 'rr loc0 input proof)]))
          (define expr*
            (batch-location-set loc0
-                               mutable-alts-batch
+                               mutable-global-batch
                                location-set-cache
                                (alt-expr orig)
                                (alt-expr altn)))
@@ -194,9 +194,9 @@
                                       ([loc (in-list (batch-get-locations expr start-expr))])
                               (reconstruct-alt altn loc full-altn)))))))
 
-  (batch-copy-mutable-nodes! alts-batch mutable-alts-batch)
-  (^patched^ (unbatchify-alts (^patched^)))
-  (^next-alts^ (unbatchify-alts (^next-alts^)))
+  (batch-copy-mutable-nodes! global-batch mutable-global-batch)
+  (^patched^ (unbatchify-alts global-batch (^patched^)))
+  (^next-alts^ (unbatchify-alts global-batch (^next-alts^)))
   (void))
 
 ;; Finish iteration
@@ -248,15 +248,14 @@
   (unless (^next-alts^)
     (choose-alts!))
 
-  (set-batch-nodes! alts-batch (vector))
-  (set-batch-roots! alts-batch (vector))
+  (define global-batch (make-batch))
 
-  (^next-alts^ (batchify-alts (^next-alts^)))
+  (^next-alts^ (batchify-alts global-batch (^next-alts^)))
   (define roots
     (remove-duplicates (append-map (compose batchref-all-subnodes alt-expr) (^next-alts^))))
-  (set-batch-roots! alts-batch (list->vector roots))
+  (set-batch-roots! global-batch (list->vector roots))
 
-  (reconstruct! (generate-candidates alts-batch))
+  (reconstruct! global-batch (generate-candidates global-batch))
   (finalize-iter!)
   (void))
 

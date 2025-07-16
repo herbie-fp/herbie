@@ -20,6 +20,7 @@
          batch-remove-zombie ; Batch -> ?(Vectorof Root) -> Batch
          mutable-batch-munge! ; Mutable-batch -> Expr -> Root
          make-mutable-batch ; Mutable-batch
+         make-batch ; Batch
          batch->mutable-batch ; Batch -> Mutable-batch
          batch-copy-mutable-nodes! ; Batch -> Mutable-batch -> Void
          mutable-batch-push! ; Mutable-batch -> Node -> Idx
@@ -27,8 +28,7 @@
 
          batchify-alts
          unbatchify-alts
-         batchref-all-subnodes
-         alts-batch)
+         batchref-all-subnodes)
 
 ;; This function defines the recursive structure of expressions
 (define (expr-recurse expr f)
@@ -62,9 +62,9 @@
                          (reverse subnodes)
                          subnodes)))
 
-;; Writes expressions of alternatives into alts-batch
-(define (batchify-alts altns)
-  (define mb (batch->mutable-batch alts-batch))
+;; Writes expressions of alternatives into batch, returnes new alternatives with batchrefs
+(define (batchify-alts batch altns)
+  (define mb (batch->mutable-batch batch))
   (define altns*
     (for/list ([altn altns])
       (let loop ([altn* altn])
@@ -73,14 +73,14 @@
           (match (alt-prevs altn*)
             [(list) '()]
             [(list prev) (list (loop prev))]))
-        (struct-copy alt altn* [expr (batchref alts-batch idx)] [prevs prevs]))))
-  (batch-copy-mutable-nodes! alts-batch mb)
+        (struct-copy alt altn* [expr (batchref batch idx)] [prevs prevs]))))
+  (batch-copy-mutable-nodes! batch mb)
   altns*)
 
-;; Converts batchrefs of altns into expressions, assuming that batchrefs refer to alts-batch
-(define (unbatchify-alts altns)
-  (define exprs (make-vector (batch-length alts-batch)))
-  (for ([node (in-vector (batch-nodes alts-batch))]
+;; Converts batchrefs of altns into expressions, assuming that batchrefs refer to batch
+(define (unbatchify-alts batch altns)
+  (define exprs (make-vector (batch-length batch)))
+  (for ([node (in-vector (batch-nodes batch))]
         [idx (in-naturals)])
     (vector-set! exprs idx (expr-recurse node (lambda (x) (vector-ref exprs x)))))
   (for/list ([altn altns])
@@ -96,8 +96,6 @@
 ;; Batches store these recursive structures, flattened
 (struct batch ([nodes #:mutable] [roots #:mutable]))
 
-(define alts-batch (batch (vector) (vector)))
-
 (define (batch-length b)
   (cond
     [(batch? b) (vector-length (batch-nodes b))]
@@ -108,6 +106,9 @@
 
 (define (make-mutable-batch)
   (mutable-batch '() (make-hash) (make-hasheq)))
+
+(define (make-batch)
+  (batch (vector) (vector)))
 
 (define (mutable-batch-push! b term)
   (define hashcons (mutable-batch-index b))
