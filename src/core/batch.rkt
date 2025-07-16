@@ -38,15 +38,11 @@
     [(list op args ...) (cons op (map f args))]
     [_ expr]))
 
-(define (batchref-all-subnodes x #:reverse? [reverse? #f] #:include-spec? [include-spec #f])
+(define (batchref-all-subnodes x #:reverse? [reverse? #f])
   ;; No recursion on approx-spec
   (define (expr-recurse* expr f)
     (match expr
-      [(approx spec impl)
-       (approx (if include-spec
-                   (f spec)
-                   spec)
-               (f impl))]
+      [(approx spec impl) (approx spec (f impl))]
       [(hole precision spec) (hole precision (f spec))]
       [(list op args ...) (cons op (map f args))]
       [_ expr]))

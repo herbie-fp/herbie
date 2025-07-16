@@ -176,6 +176,8 @@
   (-> location? mutable-batch? hash? batchref? batchref? batchref?)
   (match-define (batchref sub-batch sub-idx) sub-batchref)
   (match-define (batchref full-batch full-idx) full-batchref)
+  (unless (equal? sub-batch full-batch)
+    (error 'batch-location-set "Function assumes that batches are equal"))
 
   (define (get-node idx)
     (hash-ref cache idx (λ () (vector-ref (batch-nodes full-batch) idx))))
@@ -185,12 +187,12 @@
     (hash-set! cache idx node)
     idx)
 
-  (define (mutable-batch-munge-batchref! b-ref)
-    (define b (batchref-batch b-ref))
-    (define nodes (batch-nodes b))
-    (define node-refs (batchref-all-subnodes b-ref #:reverse? #t #:include-spec? #t))
-    (for/last ([idx (in-list node-refs)])
-      (push-node (vector-ref nodes idx))))
+  #;(define (mutable-batch-munge-batchref! b-ref)
+      (define b (batchref-batch b-ref))
+      (define nodes (batch-nodes b))
+      (define node-refs (batchref-all-subnodes b-ref #:reverse? #t #:include-spec? #t))
+      (for/last ([idx (in-list node-refs)])
+        (push-node (vector-ref nodes idx))))
 
   (define idx*
     (let loop ([loc0 loc0]
@@ -198,9 +200,10 @@
       (let ([node (get-node idx)])
         (match* (node loc0)
           [(_ (? null?))
-           (if (equal? full-batch sub-batch)
-               sub-idx ; sub-nodes are already in full-batch - no need to munge
-               (mutable-batch-munge-batchref! mutable-batch sub-batchref))]
+           sub-idx
+           #;(if (equal? full-batch sub-batch)
+                 sub-idx ; sub-nodes are already in full-batch - no need to munge
+                 (mutable-batch-munge-batchref! mutable-batch sub-batchref))]
           [((approx spec impl) (cons 1 rest)) (push-node (approx (loop rest spec) impl))]
           [((approx spec impl) (cons 2 rest)) (push-node (approx spec (loop rest impl)))]
           [((hole prec spec) (cons 1 rest)) (push-node (hole prec (loop rest spec)))]
