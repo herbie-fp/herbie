@@ -156,8 +156,7 @@
   (void))
 
 ;; Converts a patch to full alt with valid history
-(define (reconstruct! global-batch alts)
-  (define mutable-global-batch (batch->mutable-batch global-batch))
+(define (reconstruct! alts)
   (define location-set-cache (make-hash))
   ;; extracts the base expressions of a patch as a batchref
   (define (get-starting-expr altn)
@@ -179,7 +178,7 @@
              [(list 'rr input proof) (list 'rr loc0 input proof)]))
          (define expr*
            (batch-location-set loc0
-                               mutable-global-batch
+                               (*global-batch-mutable*)
                                location-set-cache
                                (alt-expr orig)
                                (alt-expr altn)))
@@ -194,9 +193,9 @@
                                       ([loc (in-list (batch-get-locations expr start-expr))])
                               (reconstruct-alt altn loc full-altn)))))))
 
-  (batch-copy-mutable-nodes! global-batch mutable-global-batch)
-  (^patched^ (unbatchify-alts global-batch (^patched^)))
-  (^next-alts^ (unbatchify-alts global-batch (^next-alts^)))
+  (batch-copy-mutable-nodes! (*global-batch*) (*global-batch-mutable*))
+  (^patched^ (unbatchify-alts (*global-batch*) (^patched^)))
+  (^next-alts^ (unbatchify-alts (*global-batch*) (^next-alts^)))
   (void))
 
 ;; Finish iteration
@@ -254,8 +253,11 @@
   (define roots
     (remove-duplicates (append-map (compose batchref-all-subnodes alt-expr) (^next-alts^))))
   (set-batch-roots! global-batch (list->vector roots))
+  (define global-batch-mutable (batch->mutable-batch global-batch))
 
-  (reconstruct! global-batch (generate-candidates global-batch))
+  (parameterize ([*global-batch* global-batch]
+                 [*global-batch-mutable* global-batch-mutable])
+    (reconstruct! (generate-candidates)))
   (finalize-iter!)
   (void))
 

@@ -28,7 +28,13 @@
 
          batchify-alts
          unbatchify-alts
-         batchref-all-subnodes)
+         batchref-all-subnodes
+
+         *global-batch*
+         *global-batch-mutable*)
+
+(define *global-batch* (make-parameter #f))
+(define *global-batch-mutable* (make-parameter #f))
 
 ;; This function defines the recursive structure of expressions
 (define (expr-recurse expr f)

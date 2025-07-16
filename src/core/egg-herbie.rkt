@@ -942,7 +942,7 @@
 ;; Extraction is partial, that is, the result of the extraction
 ;; procedure is `#f` if extraction finds no well-typed program
 ;; at a particular id with a particular output type.
-(define ((typed-egg-batch-extractor batch-extract-to) regraph)
+(define ((typed-egg-batch-extractor) regraph)
   (define eclasses (regraph-eclasses regraph))
   (define types (regraph-types regraph))
   (define n (vector-length eclasses))
@@ -1006,13 +1006,12 @@
   (define id->spec (regraph-specs regraph))
 
   (define ctx (regraph-ctx regraph))
-  (define-values (add-id add-enode finalize-batch)
-    (egg-nodes->batch costs id->spec batch-extract-to ctx))
+  (define-values (add-id add-enode finalize-batch) (egg-nodes->batch costs id->spec ctx))
   ;; These functions provide a setup to extract nodes into batch-extract-to from nodes
   (list add-id add-enode finalize-batch))
 
-(define (egg-nodes->batch egg-nodes id->spec input-batch ctx)
-  (define out (batch->mutable-batch input-batch))
+(define (egg-nodes->batch egg-nodes id->spec ctx)
+  (define out (*global-batch-mutable*))
   ; This fuction here is only because of cycles in loads:( Can not be imported from egg-herbie.rkt
   (define (egg-parsed->expr expr type)
     (let loop ([expr expr]
@@ -1084,7 +1083,7 @@
                  (loop arg type)))
              (cons op args*)]))
         (mutable-batch-push! out enode*)))
-    (batchref input-batch idx))
+    (batchref (*global-batch*) idx))
 
   ; same as add-enode but works with index as an input instead of enode
   (define (add-id id type)
@@ -1092,7 +1091,7 @@
 
   ; Commit changes to the input-batch
   (define (finalize-batch)
-    (batch-copy-mutable-nodes! input-batch out))
+    (batch-copy-mutable-nodes! (*global-batch*) out))
 
   (values add-id add-enode finalize-batch))
 
@@ -1348,7 +1347,7 @@
     (error 'egraph-prove "proof extraction failed between`~a` and `~a`" start end))
   proof)
 
-(define (egraph-best runner batch)
+(define (egraph-best runner)
   (define ctx (egg-runner-ctx runner))
   (define root-ids (egg-runner-new-roots runner))
   (define egg-graph (egg-runner-egg-graph runner))
@@ -1358,7 +1357,7 @@
   (when (flag-set? 'dump 'egg)
     (regraph-dump regraph root-ids reprs))
 
-  (define extract-id ((typed-egg-batch-extractor batch) regraph))
+  (define extract-id ((typed-egg-batch-extractor) regraph))
   (define finalize-batch (last extract-id))
 
   ; (Listof (Listof batchref))
@@ -1370,7 +1369,7 @@
   (finalize-batch)
   out)
 
-(define (egraph-variations runner batch)
+(define (egraph-variations runner)
   (define ctx (egg-runner-ctx runner))
   (define root-ids (egg-runner-new-roots runner))
   (define egg-graph (egg-runner-egg-graph runner))
@@ -1380,7 +1379,7 @@
   (when (flag-set? 'dump 'egg)
     (regraph-dump regraph root-ids reprs))
 
-  (define extract-id ((typed-egg-batch-extractor batch) regraph))
+  (define extract-id ((typed-egg-batch-extractor) regraph))
   (define finalize-batch (last extract-id))
 
   ; (Listof (Listof batchref))
