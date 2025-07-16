@@ -31,25 +31,33 @@
          alts-batch)
 
 ;; This function defines the recursive structure of expressions
-(define (expr-recurse expr f #:recurse-on-spec [recurse-on-spec #t])
+(define (expr-recurse expr f)
   (match expr
-    [(approx spec impl)
-     (approx (if recurse-on-spec
-                 (f spec)
-                 spec)
-             (f impl))]
+    [(approx spec impl) (approx (f spec) (f impl))]
     [(hole precision spec) (hole precision (f spec))]
     [(list op args ...) (cons op (map f args))]
     [_ expr]))
 
 (define (batchref-all-subnodes x #:reverse? [reverse? #f] #:include-spec? [include-spec #f])
+  ;; No recursion on approx-spec
+  (define (expr-recurse* expr f)
+    (match expr
+      [(approx spec impl)
+       (approx (if include-spec
+                   (f spec)
+                   spec)
+               (f impl))]
+      [(hole precision spec) (hole precision (f spec))]
+      [(list op args ...) (cons op (map f args))]
+      [_ expr]))
+
   (match-define (batchref b idx) x)
   (define nodes (batch-nodes b))
   (define subnodes
     (reap [sow]
           (let loop ([idx idx])
             (sow idx)
-            (expr-recurse (vector-ref nodes idx) loop #:recurse-on-spec include-spec))))
+            (expr-recurse* (vector-ref nodes idx) loop))))
   (remove-duplicates (if reverse?
                          (reverse subnodes)
                          subnodes)))

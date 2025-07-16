@@ -185,7 +185,7 @@
     (hash-set! cache idx node)
     idx)
 
-  (define (mutable-batch-munge-batchref! mb b-ref)
+  (define (mutable-batch-munge-batchref! b-ref)
     (define b (batchref-batch b-ref))
     (define nodes (batch-nodes b))
     (define node-refs (batchref-all-subnodes b-ref #:reverse? #t #:include-spec? #t))
