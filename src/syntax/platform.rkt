@@ -6,12 +6,15 @@
          "../core/rules.rkt"
          "matcher.rkt"
          "types.rkt"
-         "syntax.rkt")
+         "syntax.rkt"
+         "../utils/float.rkt"
+         "generators.rkt")
 
 (provide *active-platform*
          platform-lifting-rules
          platform-lowering-rules
          platform-copy
+         validate-platform!
          repr-exists?
          get-representation
          impl-exists?
@@ -35,9 +38,11 @@
          platform-register-representation!
          platform-register-implementation!
          platform-register-implementations!
+         platform-register-if-cost!
          display-platform
          make-operator-impl
-         make-representation)
+         make-representation
+         (all-from-out "generators.rkt"))
 
 ;;; Platforms describe a set of representations, operator, and constants
 ;;; Herbie should use during its improvement loop. Platforms are just
@@ -49,7 +54,7 @@
 ;;;
 ;;; A small API is provided for platforms for querying the supported
 ;;; operators, operator implementations, and representation conversions.
-(struct platform (name if-cost representations implementations representation-costs)
+(struct platform (name [if-cost #:mutable] representations implementations representation-costs)
   #:name $platform
   #:constructor-name create-platform
   #:methods gen:custom-write
@@ -67,14 +72,14 @@
                [representations (hash-copy (platform-representations platform))]
                [implementations (hash-copy (platform-implementations platform))]))
 
-(define (make-empty-platform name #:if-cost [if-cost #f])
+(define (make-empty-platform name)
   (define reprs (make-hash))
   (define repr-costs (make-hash))
   (define impls (make-hash))
-  (unless if-cost
-    (error 'make-empty-platform "Platform ~a is missing cost for if function" name))
-  (set! if-cost (platform/parse-if-cost if-cost))
-  (create-platform name if-cost reprs impls repr-costs))
+  (create-platform name #f reprs impls repr-costs))
+
+(define (platform-register-if-cost! platform #:cost cost)
+  (set-platform-if-cost! platform (platform/parse-if-cost cost)))
 
 (define (platform-register-representation! platform #:repr repr #:cost cost)
   (define reprs (platform-representations platform))
@@ -121,9 +126,21 @@
                                             (make-operator-impl (name [var : repr] ...)
                                                                 otype
                                                                 #:spec spec
-                                                                #:fl fl
+                                                                #:impl fl
                                                                 #:fpcore fpcore
                                                                 #:cost cost)) ...)]))
+
+(define (validate-platform! platform)
+  (unless (platform-if-cost platform)
+    (raise-herbie-error "Platform does not have an if cost"))
+  (when (empty? (platform-implementations platform))
+    (raise-herbie-error "Platform contains no operations"))
+  (for ([(name impl) (in-hash (platform-implementations platform))])
+    (define ctx (operator-impl-ctx impl))
+    (for ([repr (in-list (cons (context-repr ctx) (context-var-reprs ctx)))])
+      (unless (equal? (hash-ref (platform-representations platform) (representation-name repr) #f)
+                      repr)
+        (raise-herbie-error "Representation ~a not defined" (representation-name repr))))))
 
 ;; Returns the representation associated with `name`
 ;; attempts to generate the repr if not initially found
@@ -364,7 +381,7 @@
   (define reprs-data
     (for/list ([(_ repr) (in-hash reprs)]
                [n (in-naturals)])
-      (match-define (representation name type _ _ _ _ _ total-bits _) repr)
+      (match-define (representation name type _ _ _ _ total-bits _) repr)
       (define cost (hash-ref repr-costs name))
       (list n name type total-bits cost)))
   (write-table reprs-data (list "idx" "name" "type" "#bits" "cost"))

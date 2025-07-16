@@ -1,6 +1,6 @@
 #lang s-exp "../platform.rkt"
 
-;; C/C++ platform with a full libm
+;; C/C++ on Windows platform with a full libm
 
 (require math/flonum)
 
@@ -54,7 +54,6 @@
     [/.f32 #:spec (/ x y) #:impl (compose flsingle /) #:cost 0.350])
   
   (define-operations ([x <binary32>]) <binary32>
-    [fabs.f32   #:spec (fabs x)   #:impl (from-libm 'fabsf)   #:cost 0.125]
     [sin.f32    #:spec (sin x)    #:impl (from-libm 'sinf)    #:cost 4.250]
     [cos.f32    #:spec (cos x)    #:impl (from-libm 'cosf)    #:cost 4.250]
     [tan.f32    #:spec (tan x)    #:impl (from-libm 'tanf)    #:cost 4.750]
@@ -97,25 +96,17 @@
   (define-operations ([x <binary32>]) <binary32>
     [erfc.f32  #:spec (- 1 (erf x)) #:impl (from-libm 'erfcf)  #:fpcore (erfc x)  #:cost 0.900]
     [expm1.f32 #:spec (- (exp x) 1) #:impl (from-libm 'expm1f) #:fpcore (expm1 x) #:cost 0.900]
-    [log1p.f32 #:spec (log (+ 1 x)) #:impl (from-libm 'log1pf) #:fpcore (log1p x) #:cost 1.300])
-  
-  (define-operation (hypot.f32 [x <binary32>] [y <binary32>]) <binary32>
-    #:spec (sqrt (+ (* x x) (* y y))) #:impl (from-libm 'hypotf) #:fpcore (hypot x y) #:cost 1.700)
-  
-  (define-operation (fma.f32 [x <binary32>] [y <binary32>] [z <binary32>]) <binary32>
-    #:spec (+ (* x y) z) #:impl (from-libm 'fmaf) #:fpcore (fma x y z) #:cost 0.375))
+    [log1p.f32 #:spec (log (+ 1 x)) #:impl (from-libm 'log1pf) #:fpcore (log1p x) #:cost 1.300]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BINARY 64 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define-representation <binary64> #:cost 64bit-move-cost)
 
-(define-operations ([x <binary64>] [y <binary64>]) <bool>
-  [==.f64 #:spec (== x y) #:impl =          #:cost 64bit-move-cost]
-  [!=.f64 #:spec (!= x y) #:impl (negate =) #:cost 64bit-move-cost]
-  [<.f64  #:spec (< x y)  #:impl <          #:cost 64bit-move-cost]
-  [>.f64  #:spec (> x y)  #:impl >          #:cost 64bit-move-cost]
-  [<=.f64 #:spec (<= x y) #:impl <=         #:cost 64bit-move-cost]
-  [>=.f64 #:spec (>= x y) #:impl >=         #:cost 64bit-move-cost])
+(define-operations ([x <binary64>] [y <binary64>]) <binary64>
+  [+.f64 #:spec (+ x y) #:impl + #:cost 0.200]
+  [-.f64 #:spec (- x y) #:impl - #:cost 0.200]
+  [*.f64 #:spec (* x y) #:impl * #:cost 0.250]
+  [/.f64 #:spec (/ x y) #:impl / #:cost 0.350])
 
 (parameterize ([fpcore-context '(:precision binary64)])
   (define-operations () <binary64>
@@ -127,11 +118,13 @@
   (define-operation (neg.f64 [x <binary64>]) <binary64>
     #:spec (neg x) #:impl - #:fpcore (- x) #:cost 0.125)
   
-  (define-operations ([x <binary64>] [y <binary64>]) <binary64>
-    [+.f64 #:spec (+ x y) #:impl + #:cost 0.200]
-    [-.f64 #:spec (- x y) #:impl - #:cost 0.200]
-    [*.f64 #:spec (* x y) #:impl * #:cost 0.250]
-    [/.f64 #:spec (/ x y) #:impl / #:cost 0.350])
+  (define-operations ([x <binary64>] [y <binary64>]) <bool>
+    [==.f64 #:spec (== x y) #:impl =          #:cost 64bit-move-cost]
+    [!=.f64 #:spec (!= x y) #:impl (negate =) #:cost 64bit-move-cost]
+    [<.f64  #:spec (< x y)  #:impl <          #:cost 64bit-move-cost]
+    [>.f64  #:spec (> x y)  #:impl >          #:cost 64bit-move-cost]
+    [<=.f64 #:spec (<= x y) #:impl <=         #:cost 64bit-move-cost]
+    [>=.f64 #:spec (>= x y) #:impl >=         #:cost 64bit-move-cost])
   
   (define-operations ([x <binary64>]) <binary64>
     [fabs.f64   #:spec (fabs x)   #:impl (from-libm 'fabs)      #:cost 0.125]

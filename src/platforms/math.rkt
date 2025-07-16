@@ -1,169 +1,96 @@
-#lang racket
+#lang s-exp "../platform.rkt"
 
-;;; C/C++ on Linux with reduced libm
-;;; We use textbook mathematical operators, i.e.,
-;;; no special numbers functions
-
-(require math/bigfloat
-         math/flonum
-         "runtime/libm.rkt" ; libm wrapper in Racket
-         "../utils/float.rkt" ; for shift/unshift
-         "../syntax/platform.rkt")
-(provide platform)
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;; EMPTY PLATFORM ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; C/C++ on Linux with reduced libm, meaning no special numeric
+;;; functions. It is also 64-bit only.
 
 (define move-cost    0.02333600000000001)
 (define fl-move-cost (* move-cost 4))
 
-(define platform (make-empty-platform 'math #:if-cost move-cost))
+(define-if #:cost move-cost)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BOOLEAN ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;; representation ;;;;;;;;;;;;;;;;;;;;;;;;
+(define-representation <bool> #:cost move-cost)
 
-(define bool
-  (make-representation #:name 'bool
-                       #:type 'bool
-                       #:repr? boolean?
-                       #:bf->repr identity
-                       #:repr->bf identity
-                       #:ordinal->repr (λ (x) (= x 0))
-                       #:repr->ordinal (λ (x) (if x 1 0))
-                       #:total-bits 1
-                       #:special-value? (const #f)))
+(define-operations () <bool>
+  [TRUE  #:spec (TRUE)  #:impl (const true)  #:fpcore TRUE  #:cost move-cost]
+  [FALSE #:spec (FALSE) #:impl (const false) #:fpcore FALSE #:cost move-cost])
 
-(platform-register-representation! platform #:repr bool #:cost move-cost)
+(define-operations ([x <bool>] [y <bool>]) <bool>
+  [and #:spec (and x y) #:impl (lambda v (andmap values v)) #:cost move-cost]
+  [or  #:spec (or x y)  #:impl (lambda v (ormap values v))  #:cost move-cost])
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;; constants ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(platform-register-implementations!
- platform
- ([TRUE  () bool (TRUE)  (const true)  (! TRUE)  move-cost]
-  [FALSE () bool (FALSE) (const false) (! FALSE) move-cost]))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;; operators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(define (and-fn . as)
-  (andmap identity as))
-(define (or-fn . as)
-  (ormap identity as))
-
-(platform-register-implementations!
- platform
- ([not ([x : bool])            bool (not x)   not    (not x)   move-cost]
-  [and ([x : bool] [y : bool]) bool (and x y) and-fn (and x y) move-cost]
-  [or  ([x : bool] [y : bool]) bool (or x y)  or-fn  (or x y)  move-cost]))
+(define-operation (not [x <bool>]) <bool>
+  #:spec (not x) #:impl not #:cost move-cost)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BINARY 64 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;; representation ;;;;;;;;;;;;;;;;;;;;;;;;
+(define-representation <binary64> #:cost fl-move-cost)
 
-(define binary64
-  (make-representation #:name 'binary64
-                       #:type 'real
-                       #:repr? flonum?
-                       #:bf->repr bigfloat->flonum
-                       #:repr->bf bf
-                       #:ordinal->repr (shift 63 ordinal->flonum)
-                       #:repr->ordinal (unshift 63 flonum->ordinal)
-                       #:total-bits 64
-                       #:special-value? nan?))
+(define-operations ([x <binary64>] [y <binary64>]) <bool>
+  [==.f64 #:spec (== x y) #:impl =          #:cost fl-move-cost]
+  [!=.f64 #:spec (!= x y) #:impl (negate =) #:cost fl-move-cost]
+  [<.f64  #:spec (< x y)  #:impl <          #:cost fl-move-cost]
+  [>.f64  #:spec (> x y)  #:impl >          #:cost fl-move-cost]
+  [<=.f64 #:spec (<= x y) #:impl <=         #:cost fl-move-cost]
+  [>=.f64 #:spec (>= x y) #:impl >=         #:cost fl-move-cost])
 
-(platform-register-representation! platform #:repr binary64 #:cost fl-move-cost)
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;; constants ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(platform-register-implementations!
- platform
- ([PI.f64       () binary64 (PI)       (const pi)        (! :precision binary64 PI)       fl-move-cost]
-  [E.f64        () binary64 (E)        (const (exp 1.0)) (! :precision binary64 E)        fl-move-cost]
-  [INFINITY.f64 () binary64 (INFINITY) (const +inf.0)    (! :precision binary64 INFINITY) fl-move-cost]
-  [NAN.f64      () binary64 (NAN)      (const +nan.0)    (! :precision binary64 NAN)      fl-move-cost]))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;; operators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-; ([name   ([var : repr] ...)              otype    spec     fl         fpcore                         cost])
-(platform-register-implementations!
- platform
- ([neg.f64 ([x : binary64])                binary64 (neg x)  -          (! :precision binary64 (- x))   0.096592]
-  [+.f64   ([x : binary64] [y : binary64]) binary64 (+ x y)  +          (! :precision binary64 (+ x y)) 0.164604]
-  [-.f64   ([x : binary64] [y : binary64]) binary64 (- x y)  -          (! :precision binary64 (- x y)) 0.15163999999999997]
-  [*.f64   ([x : binary64] [y : binary64]) binary64 (* x y)  *          (! :precision binary64 (* x y)) 0.20874800000000002]
-  [/.f64   ([x : binary64] [y : binary64]) binary64 (/ x y)  /          (! :precision binary64 (/ x y)) 0.26615199999999994]
-  [==.f64  ([x : binary64] [y : binary64]) bool     (== x y) =          (== x y)                        fl-move-cost]
-  [!=.f64  ([x : binary64] [y : binary64]) bool     (!= x y) (negate =) (!= x y)                        fl-move-cost]
-  [<.f64   ([x : binary64] [y : binary64]) bool     (< x y)  <          (< x y)                         fl-move-cost]
-  [>.f64   ([x : binary64] [y : binary64]) bool     (> x y)  >          (> x y)                         fl-move-cost]
-  [<=.f64  ([x : binary64] [y : binary64]) bool     (<= x y) <=         (<= x y)                        fl-move-cost]
-  [>=.f64  ([x : binary64] [y : binary64]) bool     (>= x y) >=         (>= x y)                        fl-move-cost]))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;; libm operators ;;;;;;;;;;;;;;;;;;;;;;;;
-
-(define libm-impls.f64
-  (make-libm-impls/binary64
-   [(binary64 binary64)
-    ([fabs      0.10162]
-     [sin       3.318128]
-     [cos       3.32288]
-     [tan       3.710904]
-     [sinh      1.20954]
-     [cosh      0.953896]
-     [acos      0.357748]
-     [acosh     0.659472]
-     [asin      0.389788]
-     [asinh     0.835028]
-     [atan      0.83752]
-     [atanh     0.36238]
-     [cbrt      1.565176]
-     [ceil      0.47299]
-     [erf       0.806436]
-     [exp       1.0806]
-     [exp2      0.825484]
-     [floor     0.468568]
-     [lgamma    1.568012]
-     [log       0.505724]
-     [log10     0.868856]
-     [log2      0.681276]
-     [logb      0.220656]
-     [rint      0.121864]
-     [round     0.658564]
-     [sqrt      0.191872]
-     [tanh      0.824016]
-     [tgamma    1.882576]
-     [trunc     0.463644])]
-   [(binary64 binary64 binary64)
-    ([pow       1.52482]
-     [atan2     1.492804]
-     [copysign  0.200452]
-     [fdim      0.592576]
-     [fmax      0.3106]
-     [fmin      0.289256]
-     [fmod      94.277144]
-     [remainder 16.165012])]))
-
-(for ([libm-impl.f64 (in-list libm-impls.f64)]
-      #:when libm-impl.f64)
-  (platform-register-implementation! platform libm-impl.f64))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;; libm accelerators ;;;;;;;;;;;;;;;;;;;;;
-
-(define c_erfc (make-libm (erfc double double)))
-
-(when c_erfc
-  (platform-register-implementation! platform
-                                     (make-operator-impl (erfc.f64 [x : binary64])
-                                                         binary64
-                                                         #:spec (- 1 (erf x))
-                                                         #:fpcore (! :precision binary64 (erfc x))
-                                                         #:fl c_erfc
-                                                         #:cost 0.816512)))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;; REGISTER PLATFORM ;;;;;;;;;;;;;;;;;;;;;
-
-(module+ main
-  (display-platform platform))
-
-;; Do not run this file during testing
-(module test racket/base
-  )
+(parameterize ([fpcore-context '(:precision binary64)])
+  (define-operations () <binary64>
+    [PI.f64   #:spec (PI)       #:impl (const pi)      #:fpcore PI       #:cost fl-move-cost]
+    [E.f64    #:spec (E)        #:impl (const (exp 1)) #:fpcore E        #:cost fl-move-cost]
+    [INFINITY #:spec (INFINITY) #:impl (const +inf.0)  #:fpcore INFINITY #:cost fl-move-cost]
+    [NAN.f64  #:spec (NAN)      #:impl (const +nan.0)  #:fpcore NAN      #:cost fl-move-cost])
+  
+  (define-operation (neg.f64 [x <binary64>]) <binary64>
+    #:spec (neg x) #:impl - #:fpcore (- x) #:cost 0.096592)
+  
+  (define-operations ([x <binary64>] [y <binary64>]) <binary64>
+    [+.f64 #:spec (+ x y) #:impl + #:cost 0.164604]
+    [-.f64 #:spec (- x y) #:impl - #:cost 0.15163999999999997]
+    [*.f64 #:spec (* x y) #:impl * #:cost 0.20874800000000002]
+    [/.f64 #:spec (/ x y) #:impl / #:cost 0.26615199999999994])
+  
+  (define-operations ([x <binary64>]) <binary64>
+    [fabs.f64   #:spec (fabs x)   #:impl (from-libm 'fabs)      #:cost 0.10162]
+    [sin.f64    #:spec (sin x)    #:impl (from-libm 'sin)       #:cost 3.318128]
+    [cos.f64    #:spec (cos x)    #:impl (from-libm 'cos)       #:cost 3.32288]
+    [tan.f64    #:spec (tan x)    #:impl (from-libm 'tan)       #:cost 3.710904]
+    [sinh.f64   #:spec (sinh x)   #:impl (from-libm 'sinh)      #:cost 1.20954]
+    [cosh.f64   #:spec (cosh x)   #:impl (from-libm 'cosh)      #:cost 0.953896]
+    [acos.f64   #:spec (acos x)   #:impl (from-libm 'acos)      #:cost 0.357748]
+    [acosh.f64  #:spec (acosh x)  #:impl (from-libm 'acosh)     #:cost 0.659472]
+    [asin.f64   #:spec (asin x)   #:impl (from-libm 'asin)      #:cost 0.389788]
+    [asinh.f64  #:spec (asinh x)  #:impl (from-libm 'asinh)     #:cost 0.835028]
+    [atan.f64   #:spec (atan x)   #:impl (from-libm 'atan)      #:cost 0.83752]
+    [atanh.f64  #:spec (atanh x)  #:impl (from-libm 'atanh)     #:cost 0.36238]
+    [cbrt.f64   #:spec (cbrt x)   #:impl (from-libm 'cbrt)      #:cost 1.565176]
+    [ceil.f64   #:spec (ceil x)   #:impl (from-libm 'ceil)      #:cost 0.47299]
+    [erf.f64    #:spec (erf x)    #:impl (from-libm 'erf)       #:cost 0.806436]
+    [exp.f64    #:spec (exp x)    #:impl (from-libm 'exp)       #:cost 1.0806]
+    [exp2.f64   #:spec (exp2 x)   #:impl (from-libm 'exp2)      #:cost 0.825484]
+    [floor.f64  #:spec (floor x)  #:impl (from-libm 'floor)     #:cost 0.468568]
+    [lgamma.f64 #:spec (lgamma x) #:impl (from-libm 'lgamma)    #:cost 1.568012]
+    [log.f64    #:spec (log x)    #:impl (from-libm 'log)       #:cost 0.505724]
+    [log10.f64  #:spec (log10 x)  #:impl (from-libm 'log10)     #:cost 0.868856]
+    [log2.f64   #:spec (log2 x)   #:impl (from-libm 'log2)      #:cost 0.681276]
+    [logb.f64   #:spec (logb x)   #:impl (from-libm 'logb)      #:cost 0.220656]
+    [rint.f64   #:spec (rint x)   #:impl (from-libm 'rint)      #:cost 0.121864]
+    [round.f64  #:spec (round x)  #:impl (from-libm 'round)     #:cost 0.658564]
+    [sqrt.f64   #:spec (sqrt x)   #:impl (from-libm 'sqrt)      #:cost 0.191872]
+    [tanh.f64   #:spec (tanh x)   #:impl (from-libm 'tanh)      #:cost 0.824016]
+    [tgamma.f64 #:spec (tgamma x) #:impl (from-libm 'tgamma)    #:cost 1.882576]
+    [trunc.f64  #:spec (trunc x)  #:impl (from-libm 'trunc)     #:cost 0.463644])
+  
+  (define-operations ([x <binary64>] [y <binary64>]) <binary64>
+    [pow.f64       #:spec (pow x y)       #:impl (from-libm 'pow)       #:cost 1.52482]
+    [atan2.f64     #:spec (atan2 x y)     #:impl (from-libm 'atan2)     #:cost 1.492804]
+    [copysign.f64  #:spec (copysign x y)  #:impl (from-libm 'copysign)  #:cost 0.200452]
+    [fdim.f64      #:spec (fdim x y)      #:impl (from-libm 'fdim)      #:cost 0.592576]
+    [fmax.f64      #:spec (fmax x y)      #:impl (from-libm 'fmax)      #:cost 0.3106]
+    [fmin.f64      #:spec (fmin x y)      #:impl (from-libm 'fmin)      #:cost 0.289256]
+    [fmod.f64      #:spec (fmod x y)      #:impl (from-libm 'fmod)      #:cost 94.277144]
+    [remainder.f64 #:spec (remainder x y) #:impl (from-libm 'remainder) #:cost 16.165012])
+  
+  (define-operation (erfc.f64 [x <binary64>]) <binary64>
+    #:spec (- 1 (erf x)) #:impl (from-libm 'erfc)  #:fpcore (erfc x)  #:cost 0.816512))
