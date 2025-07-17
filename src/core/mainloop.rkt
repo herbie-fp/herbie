@@ -185,14 +185,16 @@
                                (alt-expr altn)))
          (alt expr* event* (map loop prevs) (alt-preprocessing orig))])))
 
-  (^patched^ (reap [sow]
-                   (for ([altn (in-list alts)])
-                     (define start-expr (get-starting-expr altn))
-                     (for ([full-altn (in-list (^next-alts^))])
-                       (define expr (alt-expr full-altn))
-                       (sow (for/fold ([full-altn full-altn])
-                                      ([loc (in-list (batch-get-locations expr start-expr))])
-                              (reconstruct-alt altn loc full-altn)))))))
+  (^patched^ (remove-duplicates
+              (reap [sow]
+                    (for ([altn (in-list alts)])
+                      (define start-expr (get-starting-expr altn))
+                      (for ([full-altn (in-list (^next-alts^))])
+                        (define expr (alt-expr full-altn))
+                        (sow (for/fold ([full-altn full-altn])
+                                       ([loc (in-list (batch-get-locations expr start-expr))])
+                               (reconstruct-alt altn loc full-altn))))))
+              #:key (compose batchref-idx alt-expr)))
 
   (batch-copy-mutable-nodes! global-batch mutable-global-batch)
   (^patched^ (unbatchify-alts global-batch (^patched^)))
