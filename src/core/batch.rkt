@@ -26,7 +26,6 @@
          mutable-batch-push! ; Mutable-batch -> Node -> Idx
          batch-copy
 
-         batchify-alts
          unbatchify-alts
          batchref-all-subnodes)
 
@@ -58,36 +57,20 @@
                          (reverse subnodes)
                          subnodes)))
 
-;; Writes expressions of alternatives into batch, returnes new alternatives with batchrefs
-(define (batchify-alts batch altns)
-  (define mb (batch->mutable-batch batch))
-  (define altns*
-    (for/list ([altn altns])
-      (let loop ([altn* altn])
-        (define idx (mutable-batch-munge! mb (alt-expr altn*)))
-        (define prevs
-          (match (alt-prevs altn*)
-            [(list) '()]
-            [(list prev) (list (loop prev))]))
-        (struct-copy alt altn* [expr (batchref batch idx)] [prevs prevs]))))
-  (batch-copy-mutable-nodes! batch mb)
-  altns*)
-
 ;; Converts batchrefs of altns into expressions, assuming that batchrefs refer to batch
 (define (unbatchify-alts batch altns)
   (define exprs (make-vector (batch-length batch)))
   (for ([node (in-vector (batch-nodes batch))]
         [idx (in-naturals)])
     (vector-set! exprs idx (expr-recurse node (lambda (x) (vector-ref exprs x)))))
-  (for/list ([altn altns])
-    (let loop ([altn* altn])
-      (define idx (batchref-idx (alt-expr altn*)))
-      (define expr (vector-ref exprs idx))
-      (define prevs
-        (match (alt-prevs altn*)
-          [(list) '()]
-          [(list prev) (list (loop prev))]))
-      (struct-copy alt altn* [expr expr] [prevs prevs]))))
+  (define (unmunge altn)
+    (define expr (alt-expr altn))
+    (define expr*
+      (if (batchref? expr)
+          (vector-ref exprs (batchref-idx expr))
+          expr))
+    (struct-copy alt altn [expr expr*]))
+  (map (curry alt-map unmunge) altns))
 
 ;; Batches store these recursive structures, flattened
 (struct batch ([nodes #:mutable] [roots #:mutable]))
@@ -160,9 +143,8 @@
   (apply + (map (curry vector-ref counts) (vector->list (batch-roots b)))))
 
 (define (mutable-batch-munge! b expr)
-  (define cache (mutable-batch-cache b))
   (define (munge prog)
-    (hash-ref! cache prog (lambda () (mutable-batch-push! b (expr-recurse prog munge)))))
+    (mutable-batch-push! b (expr-recurse prog munge)))
   (munge expr))
 
 (define (batch->progs b [roots (batch-roots b)])

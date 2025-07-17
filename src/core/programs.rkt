@@ -8,6 +8,7 @@
 
 (provide expr?
          expr<?
+         expr=?
          all-subexpressions
          ops-in-expr
          spec-prog?
@@ -121,6 +122,13 @@
          cmp-spec)]
     [((? approx?) _) 1]
     [(_ (? approx?)) -1]
+    [((? hole?) (? hole?))
+     (define cmp-spec (expr-cmp (hole-spec a) (hole-spec b)))
+     (if (zero? cmp-spec)
+         (expr-cmp (hole-precision a) (hole-precision b))
+         cmp-spec)]
+    [((? hole?) _) 1]
+    [(_ (? hole?)) -1]
     [((? symbol?) (? symbol?))
      (cond
        [(symbol<? a b) -1]
@@ -138,6 +146,9 @@
 
 (define (expr<? a b)
   (negative? (expr-cmp a b)))
+
+(define (expr=? a b)
+  (zero? (expr-cmp a b)))
 
 ;; Converting constants
 
@@ -176,11 +187,13 @@
   (-> location? mutable-batch? hash? batchref? batchref? batchref?)
   (match-define (batchref sub-batch sub-idx) sub-batchref)
   (match-define (batchref full-batch full-idx) full-batchref)
+  (define nodes (batch-nodes full-batch))
+
   (unless (equal? sub-batch full-batch)
     (error 'batch-location-set "Function assumes that batches are equal"))
 
   (define (get-node idx)
-    (hash-ref cache idx (λ () (vector-ref (batch-nodes full-batch) idx))))
+    (hash-ref cache idx (λ () (vector-ref nodes idx))))
 
   (define (push-node node)
     (define idx (mutable-batch-push! mutable-batch node))
@@ -207,11 +220,11 @@
           [((approx spec impl) (cons 1 rest)) (push-node (approx (loop rest spec) impl))]
           [((approx spec impl) (cons 2 rest)) (push-node (approx spec (loop rest impl)))]
           [((hole prec spec) (cons 1 rest)) (push-node (hole prec (loop rest spec)))]
-          [((list op args ...) (cons i rest))
+          [((list op args ...) (cons loc rest))
            (define args*
              (for/list ([arg (in-list args)]
                         [n (in-naturals 1)])
-               (if (equal? n i)
+               (if (equal? n loc)
                    (loop rest arg)
                    arg)))
            (push-node (cons op args*))]))))

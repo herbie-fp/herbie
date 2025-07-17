@@ -183,7 +183,7 @@
                                location-set-cache
                                (alt-expr orig)
                                (alt-expr altn)))
-         (alt expr* event* (map loop prevs) (alt-preprocessing orig))])))
+         (alt expr* event* (list (loop (first prevs))) (alt-preprocessing orig))])))
 
   (^patched^ (remove-duplicates
               (reap [sow]
@@ -246,16 +246,63 @@
   (^patched^ #f)
   (void))
 
+(define (alt-equal? a a*)
+  (let loop ([a a]
+             [a* a*])
+    (match-define (alt expr-a event-a prevs-a preprocessing-a) a)
+    (match-define (alt expr-a* event-a* prevs-a* preprocessing-a*) a*)
+    (and (expr=? expr-a expr-a*)
+         (or (equal? event-a event-a*) (equal? (car event-a) (car event-a*)))
+         (equal? preprocessing-a preprocessing-a*)
+         (equal? (length prevs-a) (length prevs-a*))
+         (andmap loop prevs-a prevs-a*))))
+
+(define (alts-equal? alts alts*)
+  (unless (equal? (length alts) (length alts*))
+    (printf "alts are not equal in length!\n")
+    (error))
+  (for ([altn (sort alts expr<? #:key alt-expr)]
+        [altn* (sort alts* expr<? #:key alt-expr)])
+    (unless (alt-equal? altn altn*)
+      (printf "alts are not equal!\n")
+      (printf "Given:\n~a\n~a\n" altn altn*)
+      (error))))
+
+(define (exprs-equal? exprs exprs*)
+  (unless (equal? (length exprs) (length exprs*))
+    (printf "exprs are not equal!\n")
+    (error))
+  (for ([expr exprs]
+        [expr* exprs*])
+    (unless (expr=? expr expr*)
+      (printf "exprs are not equal!\n")
+      (printf "Given:\n~a\n~a\n" expr expr*)
+      (error))))
+
 (define (run-iteration!)
   (unless (^next-alts^)
     (choose-alts!))
 
   (define global-batch (make-batch))
+  (define global-batch-mutable (batch->mutable-batch global-batch))
 
-  (^next-alts^ (batchify-alts global-batch (^next-alts^)))
+  ;(alts-equal? (^next-alts^) (unbatchify-alts global-batch (batchify-alts global-batch (^next-alts^))))
+  ;(define locs (remove-duplicates (append-map (compose all-subexpressions alt-expr) (^next-alts^))))
+
+  (define (munge-alt x)
+    (define idx (mutable-batch-munge! global-batch-mutable (alt-expr x)))
+    (struct-copy alt x [expr (batchref global-batch idx)]))
+  (^next-alts^ (map munge-alt (^next-alts^)))
+  (batch-copy-mutable-nodes! global-batch global-batch-mutable)
+
   (define roots
     (remove-duplicates (append-map (compose batchref-all-subnodes alt-expr) (^next-alts^))))
   (set-batch-roots! global-batch (list->vector roots))
+
+  ;(exprs-equal? (batch->progs global-batch) locs)
+  ;(define candidates-old (generate-candidates-old locs))
+  ;(define global-batch* (batchref-batch (alt-expr (car candidates-old))))
+  ;(alts-equal? (unbatchify-alts global-batch* candidates-old) (unbatchify-alts global-batch candidates))
 
   (reconstruct! global-batch (generate-candidates global-batch))
   (finalize-iter!)

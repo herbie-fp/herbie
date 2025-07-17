@@ -15,7 +15,8 @@
          "rival.rkt"
          "taylor.rkt")
 
-(provide generate-candidates)
+(provide generate-candidates
+         generate-candidates-old)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Taylor ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -189,6 +190,34 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; Public API ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (generate-candidates global-batch)
+  ; Starting alternatives
+  (define start-altns
+    (for/list ([root (in-vector (batch-roots global-batch))])
+      (alt (batchref global-batch root) 'patch '() '())))
+
+  (define evaluations
+    (if (flag-set? 'generate 'evaluate)
+        (run-evaluate start-altns global-batch)
+        '()))
+
+  ; Series expand
+  (define approximations
+    (if (flag-set? 'generate 'taylor)
+        (run-taylor start-altns global-batch)
+        '()))
+
+  ; Recursive rewrite
+  (define rewritten
+    (if (flag-set? 'generate 'rr)
+        (run-rr start-altns global-batch)
+        '()))
+
+  (remove-duplicates (append evaluations rewritten approximations) #:key alt-expr))
+
+(define (generate-candidates-old exprs)
+  ; Batch to where we will extract everything
+  ; Roots of this batch are constantly updated
+  (define global-batch (progs->batch exprs))
   ; Starting alternatives
   (define start-altns
     (for/list ([root (in-vector (batch-roots global-batch))])
