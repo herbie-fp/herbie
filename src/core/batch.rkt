@@ -160,8 +160,9 @@
   (apply + (map (curry vector-ref counts) (vector->list (batch-roots b)))))
 
 (define (mutable-batch-munge! b expr)
+  (define cache (mutable-batch-cache b))
   (define (munge prog)
-    (mutable-batch-push! b (expr-recurse prog munge)))
+    (hash-ref! cache prog (lambda () (mutable-batch-push! b (expr-recurse prog munge)))))
   (munge expr))
 
 (define (batch->progs b [roots (batch-roots b)])
