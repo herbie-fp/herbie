@@ -17,6 +17,7 @@
          deref ; Batchref -> Expr
          batch-replace ; Batch -> (Expr<Batchref> -> Expr<Batchref>) -> Batch
          debatchref ; Batchref -> Expr
+         batch-alive-nodes ; Batch -> ?(Vectorof Root) -> ?Boolean -> Vector
          batch-remove-zombie ; Batch -> ?(Vectorof Root) -> Batch
          mutable-batch-munge! ; Mutable-batch -> Expr -> Root
          make-mutable-batch ; Mutable-batch
@@ -84,9 +85,6 @@
 (define (make-mutable-batch)
   (mutable-batch '() (make-hash) (make-hasheq)))
 
-(define (make-batch)
-  (batch (vector) (vector)))
-
 (define (mutable-batch-push! b term)
   (define hashcons (mutable-batch-index b))
   (hash-ref! hashcons
@@ -141,8 +139,9 @@
   (apply + (map (curry vector-ref counts) (vector->list (batch-roots b)))))
 
 (define (mutable-batch-munge! b expr)
+  (define cache (mutable-batch-cache b))
   (define (munge prog)
-    (mutable-batch-push! b (expr-recurse prog munge)))
+    (hash-ref! cache prog (lambda () (mutable-batch-push! b (expr-recurse prog munge)))))
   (munge expr))
 
 (define (batch->progs b [roots (batch-roots b)])
@@ -187,42 +186,39 @@
   (define roots (vector-map (curry vector-ref mapping) (batch-roots b)))
   (mutable-batch->batch out roots))
 
+;; Function returns indices of alive nodes within a batch for given roots
 (define (batch-alive-nodes batch [roots (batch-roots batch)] #:keep-vars-alive [keep-vars-alive #f])
   (define nodes (batch-nodes batch))
   (define nodes-length (batch-length batch))
   (define alive-mask (make-vector nodes-length #f))
   (for ([root (in-vector roots)])
     (vector-set! alive-mask root #t))
-  (for ([i (in-range (- nodes-length 1) -1 -1)]
-        [node (in-vector nodes (- nodes-length 1) -1 -1)]
-        [alv (in-vector alive-mask (- nodes-length 1) -1 -1)])
-    (when (and keep-vars-alive (symbol? node))
-      (vector-set! alive-mask i #t))
-    (when alv
-      (expr-recurse node (λ (n) (vector-set! alive-mask n #t)))))
-  alive-mask)
+  (reverse (for/list ([i (in-range (- nodes-length 1) -1 -1)]
+                      [node (in-vector nodes (- nodes-length 1) -1 -1)]
+                      [alv (in-vector alive-mask (- nodes-length 1) -1 -1)]
+                      #:when (or alv (and keep-vars-alive (symbol? node))))
+             (expr-recurse node (λ (n) (vector-set! alive-mask n #t)))
+             i)))
 
-; The function removes any zombie nodes from batch with respect to the roots
-; Time complexity: O(|R| + |N|), where |R| - number of roots, |N| - length of nodes
-; Space complexity: O(|N| + |N*| + |R|), where |N*| is a length of nodes without zombie nodes
-; The flag keep-vars is used in compiler.rkt when vars should be preserved no matter what
+;; The function removes any zombie nodes from batch with respect to the roots
+;; Time complexity: O(|R| + |N|), where |R| - number of roots, |N| - length of nodes
+;; Space complexity: O(|N| + |N*| + |R|), where |N*| is a length of nodes without zombie nodes
+;; The flag keep-vars is used in compiler.rkt when vars should be preserved no matter what
 (define (batch-remove-zombie batch [roots (batch-roots batch)] #:keep-vars [keep-vars #f])
   (define nodes (batch-nodes batch))
   (define nodes-length (batch-length batch))
   (match (zero? nodes-length)
     [#f
-     (define alive-mask (batch-alive-nodes batch roots #:keep-vars-alive keep-vars))
+     (define alive-nodes (batch-alive-nodes batch roots #:keep-vars-alive keep-vars))
 
      (define mappings (make-vector nodes-length -1))
      (define (remap idx)
        (vector-ref mappings idx))
 
      (define out (make-mutable-batch))
-     (for ([node (in-vector nodes)]
-           [alv (in-vector alive-mask)]
-           [n (in-naturals)]
-           #:when alv)
-       (vector-set! mappings n (mutable-batch-push! out (expr-recurse node remap))))
+     (for ([alv (in-list alive-nodes)])
+       (define node (vector-ref nodes alv))
+       (vector-set! mappings alv (mutable-batch-push! out (expr-recurse node remap))))
 
      (define roots* (vector-map (curry vector-ref mappings) roots))
      (mutable-batch->batch out roots*)]
