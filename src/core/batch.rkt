@@ -187,7 +187,10 @@
   (mutable-batch->batch out roots))
 
 ;; Function returns indices of alive nodes within a batch for given roots
-(define (batch-alive-nodes batch [roots (batch-roots batch)] #:keep-vars-alive [keep-vars-alive #f])
+(define (batch-alive-nodes batch
+                           [roots (batch-roots batch)]
+                           #:keep-vars-alive [keep-vars-alive #f]
+                           #:condition [condition (const #t)])
   (define nodes (batch-nodes batch))
   (define nodes-length (batch-length batch))
   (define alive-mask (make-vector nodes-length #f))
@@ -196,7 +199,7 @@
   (reverse (for/list ([i (in-range (- nodes-length 1) -1 -1)]
                       [node (in-vector nodes (- nodes-length 1) -1 -1)]
                       [alv (in-vector alive-mask (- nodes-length 1) -1 -1)]
-                      #:when (or alv (and keep-vars-alive (symbol? node))))
+                      #:when (and (or alv (and keep-vars-alive (symbol? node))) (condition node)))
              (expr-recurse node (λ (n) (vector-set! alive-mask n #t)))
              i)))
 
