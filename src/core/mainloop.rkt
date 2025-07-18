@@ -255,8 +255,9 @@
     (struct-copy alt x [expr (batchref global-batch idx)]))
 
   (^next-alts^ (map make-batchref (^next-alts^) (vector->list (batch-roots global-batch))))
-  (define roots
-    (remove-duplicates (append-map (compose batchref-all-subnodes alt-expr) (^next-alts^))))
+  (define roots ; ideally, approx-spec nodes need to be dropped
+    (batch-alive-nodes
+     global-batch))
   (set-batch-roots! global-batch (list->vector roots))
 
   (reconstruct! global-batch (generate-candidates global-batch))
