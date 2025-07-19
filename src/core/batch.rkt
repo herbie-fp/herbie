@@ -1,7 +1,9 @@
 #lang racket
 
 (require "../syntax/syntax.rkt"
-         "../utils/common.rkt")
+         "../utils/common.rkt"
+
+         "../utils/alternative.rkt")
 
 (provide progs->batch ; (Listof Expr) -> Batch
          batch->progs ; Batch -> ?(or (Listof Root) (Vectorof Root)) -> (Listof Expr)
@@ -15,13 +17,15 @@
          deref ; Batchref -> Expr
          batch-replace ; Batch -> (Expr<Batchref> -> Expr<Batchref>) -> Batch
          debatchref ; Batchref -> Expr
+         batch-alive-nodes ; Batch -> ?(Vectorof Root) -> Vector
          batch-remove-zombie ; Batch -> ?(Vectorof Root) -> Batch
          mutable-batch-munge! ; Mutable-batch -> Expr -> Root
          make-mutable-batch ; Mutable-batch
          batch->mutable-batch ; Batch -> Mutable-batch
          batch-copy-mutable-nodes! ; Batch -> Mutable-batch -> Void
          mutable-batch-push! ; Mutable-batch -> Node -> Idx
-         batch-copy)
+         batch-copy
+         unbatchify-alts)
 
 ;; This function defines the recursive structure of expressions
 (define (expr-recurse expr f)
@@ -30,6 +34,21 @@
     [(hole precision spec) (hole precision (f spec))]
     [(list op args ...) (cons op (map f args))]
     [_ expr]))
+
+;; Converts batchrefs of altns into expressions, assuming that batchrefs refer to batch
+(define (unbatchify-alts batch altns)
+  (define exprs (make-vector (batch-length batch)))
+  (for ([node (in-vector (batch-nodes batch))]
+        [idx (in-naturals)])
+    (vector-set! exprs idx (expr-recurse node (lambda (x) (vector-ref exprs x)))))
+  (define (unmunge altn)
+    (define expr (alt-expr altn))
+    (define expr*
+      (if (batchref? expr)
+          (vector-ref exprs (batchref-idx expr))
+          expr))
+    (struct-copy alt altn [expr expr*]))
+  (map (curry alt-map unmunge) altns))
 
 ;; Batches store these recursive structures, flattened
 (struct batch ([nodes #:mutable] [roots #:mutable]))
@@ -146,40 +165,47 @@
   (define roots (vector-map (curry vector-ref mapping) (batch-roots b)))
   (mutable-batch->batch out roots))
 
-; The function removes any zombie nodes from batch with respect to the roots
-; Time complexity: O(|R| + |N|), where |R| - number of roots, |N| - length of nodes
-; Space complexity: O(|N| + |N*| + |R|), where |N*| is a length of nodes without zombie nodes
-; The flag keep-vars is used in compiler.rkt when vars should be preserved no matter what
-(define (batch-remove-zombie input-batch [roots (batch-roots input-batch)] #:keep-vars [keep-vars #f])
-  (define nodes (batch-nodes input-batch))
-  (define nodes-length (batch-length input-batch))
+;; Function returns indices of alive nodes within a batch for given roots,
+;;   where alive node is a child of a root + meets a condition - (condition node)
+(define (batch-alive-nodes batch
+                           [roots (batch-roots batch)]
+                           #:keep-vars-alive [keep-vars-alive #f]
+                           #:condition [condition (const #t)])
+  (define nodes (batch-nodes batch))
+  (define nodes-length (batch-length batch))
+  (define alive-mask (make-vector nodes-length #f))
+  (for ([root (in-vector roots)])
+    (vector-set! alive-mask root #t))
+  (reverse (for/list ([i (in-range (- nodes-length 1) -1 -1)]
+                      [node (in-vector nodes (- nodes-length 1) -1 -1)]
+                      [alv (in-vector alive-mask (- nodes-length 1) -1 -1)]
+                      #:when (or (and alv (condition node)) (and keep-vars-alive (symbol? node))))
+             (expr-recurse node (λ (n) (vector-set! alive-mask n #t)))
+             i)))
+
+;; The function removes any zombie nodes from batch with respect to the roots
+;; Time complexity: O(|R| + |N|), where |R| - number of roots, |N| - length of nodes
+;; Space complexity: O(|N| + |N*| + |R|), where |N*| is a length of nodes without zombie nodes
+;; The flag keep-vars is used in compiler.rkt when vars should be preserved no matter what
+(define (batch-remove-zombie batch [roots (batch-roots batch)] #:keep-vars [keep-vars #f])
+  (define nodes (batch-nodes batch))
+  (define nodes-length (batch-length batch))
   (match (zero? nodes-length)
     [#f
-     (define zombie-mask (make-vector nodes-length #t))
-     (for ([root (in-vector roots)])
-       (vector-set! zombie-mask root #f))
-     (for ([i (in-range (- nodes-length 1) -1 -1)]
-           [node (in-vector nodes (- nodes-length 1) -1 -1)]
-           [zmb (in-vector zombie-mask (- nodes-length 1) -1 -1)])
-       (when (and keep-vars (symbol? node))
-         (vector-set! zombie-mask i #f))
-       (unless zmb
-         (expr-recurse node (λ (n) (vector-set! zombie-mask n #f)))))
+     (define alive-nodes (batch-alive-nodes batch roots #:keep-vars-alive keep-vars))
 
      (define mappings (make-vector nodes-length -1))
      (define (remap idx)
        (vector-ref mappings idx))
 
      (define out (make-mutable-batch))
-     (for ([node (in-vector nodes)]
-           [zmb (in-vector zombie-mask)]
-           [n (in-naturals)]
-           #:unless zmb)
-       (vector-set! mappings n (mutable-batch-push! out (expr-recurse node remap))))
+     (for ([alv (in-list alive-nodes)])
+       (define node (vector-ref nodes alv))
+       (vector-set! mappings alv (mutable-batch-push! out (expr-recurse node remap))))
 
      (define roots* (vector-map (curry vector-ref mappings) roots))
      (mutable-batch->batch out roots*)]
-    [#t (batch-copy input-batch)]))
+    [#t (batch-copy batch)]))
 
 (define (batch-ref batch reg)
   (define (unmunge reg)
