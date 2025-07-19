@@ -8,7 +8,6 @@
 
 (provide expr?
          expr<?
-         expr=?
          all-subexpressions
          ops-in-expr
          spec-prog?
@@ -154,9 +153,6 @@
 (define (expr<? a b)
   (negative? (expr-cmp a b)))
 
-(define (expr=? a b)
-  (zero? (expr-cmp a b)))
-
 ;; Converting constants
 
 (define (free-variables prog)
@@ -207,23 +203,12 @@
     (hash-set! cache idx node)
     idx)
 
-  #;(define (mutable-batch-munge-batchref! b-ref)
-      (define b (batchref-batch b-ref))
-      (define nodes (batch-nodes b))
-      (define node-refs (batchref-all-subnodes b-ref #:reverse? #t #:include-spec? #t))
-      (for/last ([idx (in-list node-refs)])
-        (push-node (vector-ref nodes idx))))
-
   (define idx*
     (let loop ([loc0 loc0]
                [idx full-idx])
       (let ([node (get-node idx)])
         (match* (node loc0)
-          [(_ (? null?))
-           sub-idx
-           #;(if (equal? full-batch sub-batch)
-                 sub-idx ; sub-nodes are already in full-batch - no need to munge
-                 (mutable-batch-munge-batchref! mutable-batch sub-batchref))]
+          [(_ (? null?)) sub-idx]
           [((approx spec impl) (cons 1 rest)) (push-node (approx (loop rest spec) impl))]
           [((approx spec impl) (cons 2 rest)) (push-node (approx spec (loop rest impl)))]
           [((hole prec spec) (cons 1 rest)) (push-node (hole prec (loop rest spec)))]

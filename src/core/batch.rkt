@@ -17,7 +17,7 @@
          deref ; Batchref -> Expr
          batch-replace ; Batch -> (Expr<Batchref> -> Expr<Batchref>) -> Batch
          debatchref ; Batchref -> Expr
-         batch-alive-nodes ; Batch -> ?(Vectorof Root) -> ?Boolean -> Vector
+         batch-alive-nodes ; Batch -> ?(Vectorof Root) -> Vector
          batch-remove-zombie ; Batch -> ?(Vectorof Root) -> Batch
          mutable-batch-munge! ; Mutable-batch -> Expr -> Root
          make-mutable-batch ; Mutable-batch
@@ -25,8 +25,7 @@
          batch-copy-mutable-nodes! ; Batch -> Mutable-batch -> Void
          mutable-batch-push! ; Mutable-batch -> Node -> Idx
          batch-copy
-         unbatchify-alts
-         batchref-all-subnodes)
+         unbatchify-alts)
 
 ;; This function defines the recursive structure of expressions
 (define (expr-recurse expr f)
@@ -35,26 +34,6 @@
     [(hole precision spec) (hole precision (f spec))]
     [(list op args ...) (cons op (map f args))]
     [_ expr]))
-
-(define (batchref-all-subnodes x #:reverse? [reverse? #f])
-  ;; No recursion on approx-spec
-  (define (expr-recurse* expr f)
-    (match expr
-      [(approx spec impl) (approx spec (f impl))]
-      [(hole precision spec) (hole precision (f spec))]
-      [(list op args ...) (cons op (map f args))]
-      [_ expr]))
-
-  (match-define (batchref b idx) x)
-  (define nodes (batch-nodes b))
-  (define subnodes
-    (reap [sow]
-          (let loop ([idx idx])
-            (sow idx)
-            (expr-recurse* (vector-ref nodes idx) loop))))
-  (remove-duplicates (if reverse?
-                         (reverse subnodes)
-                         subnodes)))
 
 ;; Converts batchrefs of altns into expressions, assuming that batchrefs refer to batch
 (define (unbatchify-alts batch altns)
@@ -186,7 +165,8 @@
   (define roots (vector-map (curry vector-ref mapping) (batch-roots b)))
   (mutable-batch->batch out roots))
 
-;; Function returns indices of alive nodes within a batch for given roots
+;; Function returns indices of alive nodes within a batch for given roots,
+;;   where alive node is a child of a root + meets a condition - (condition node)
 (define (batch-alive-nodes batch
                            [roots (batch-roots batch)]
                            #:keep-vars-alive [keep-vars-alive #f]
@@ -199,7 +179,7 @@
   (reverse (for/list ([i (in-range (- nodes-length 1) -1 -1)]
                       [node (in-vector nodes (- nodes-length 1) -1 -1)]
                       [alv (in-vector alive-mask (- nodes-length 1) -1 -1)]
-                      #:when (and (or alv (and keep-vars-alive (symbol? node))) (condition node)))
+                      #:when (or (and alv (condition node)) (and keep-vars-alive (symbol? node))))
              (expr-recurse node (λ (n) (vector-set! alive-mask n #t)))
              i)))
 
