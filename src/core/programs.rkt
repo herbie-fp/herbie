@@ -213,12 +213,7 @@
           [((approx spec impl) (cons 2 rest)) (push-node (approx spec (loop rest impl)))]
           [((hole prec spec) (cons 1 rest)) (push-node (hole prec (loop rest spec)))]
           [((list op args ...) (cons loc rest))
-           (define args*
-             (for/list ([arg (in-list args)]
-                        [n (in-naturals 1)])
-               (if (equal? n loc)
-                   (loop rest arg)
-                   arg)))
+           (define args* (list-update args (sub1 loc) (curry loop rest)))
            (push-node (cons op args*))]))))
   (batchref full-batch idx*))
 
