@@ -191,6 +191,11 @@
                       (define start-expr (get-starting-expr altn))
                       (for ([full-altn (in-list (^next-alts^))])
                         (define expr (alt-expr full-altn))
+                        (unless (equal? (batch-get-locations expr start-expr)
+                                        (get-locations (debatchref expr) (debatchref start-expr)))
+                          (error (format "Locations do not match:\n~a\n~a\n\n"
+                                         (batch-get-locations expr start-expr)
+                                         (get-locations (debatchref expr) (debatchref start-expr)))))
                         (sow (for/fold ([full-altn full-altn])
                                        ([loc (in-list (batch-get-locations expr start-expr))])
                                (reconstruct-alt altn loc full-altn))))))

@@ -245,18 +245,30 @@
   (define nodes (batch-nodes full-batch))
   (define sub-node (vector-ref nodes sub-idx))
 
-  (reap [sow]
-        (let loop ([idx full-idx]
-                   [loc '()])
-          (match (vector-ref nodes idx)
-            [(== sub-node) (sow (reverse loc))]
-            [(? literal?) (void)]
-            [(? symbol?) (void)]
-            [(approx _ impl) (loop impl (cons 2 loc))]
-            [(list _ args ...)
-             (for ([arg (in-list args)]
-                   [i (in-naturals 1)])
-               (loop arg (cons i loc)))]))))
+  (define start (min sub-idx full-idx))
+  (define end (max sub-idx full-idx))
+
+  (define locations (make-hash (list (cons start '(())))))
+  (for ([node (in-vector nodes (+ start 1) (+ end 1))]
+        [n (in-naturals (+ start 1))])
+    (match node
+      [(? literal?) (void)]
+      [(? symbol?) (void)]
+      [(? number?) (void)]
+      [(approx _ impl)
+       (when (hash-has-key? locations impl)
+         (define loc* (map (curry cons 2) (hash-ref locations impl)))
+         (hash-set! locations n loc*))]
+      [(list _ args ...)
+       (for ([arg (in-list args)]
+             [i (in-naturals 1)]
+             #:when (hash-has-key? locations arg))
+         (define loc (hash-ref locations arg))
+         (define loc* (map (curry cons i) loc))
+         (hash-set! locations n (append (hash-ref locations n '()) loc*)))]))
+  (if (> sub-idx full-idx)
+      (map reverse (hash-ref locations end (λ () '())))
+      (hash-ref locations end (λ () '()))))
 
 (define/contract (replace-expression expr from to)
   (-> expr? expr? expr? expr?)
