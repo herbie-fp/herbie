@@ -2,14 +2,13 @@
 
 (require "../syntax/syntax.rkt"
          "../utils/common.rkt"
+         "../utils/alternative.rkt") ; for unbatchify-alts
 
-         "../utils/alternative.rkt")
-
-(provide progs->batch ; (Listof Expr) -> Batch
-         batch->progs ; Batch -> ?(or (Listof Root) (Vectorof Root)) -> (Listof Expr)
+(provide progs->batch ; List<Expr> -> Batch
+         batch->progs ; Batch -> ?(or List<Root> Vector<Root>) -> List<Expr>
          (struct-out batch)
-         (struct-out batchref) ; temporarily for patch.rkt
-         (struct-out mutable-batch) ; temporarily for patch.rkt
+         (struct-out batchref)
+         (struct-out mutable-batch)
          batch-length ; Batch -> Integer
          batch-tree-size ; Batch -> Integer
          batch-free-vars
@@ -17,8 +16,9 @@
          deref ; Batchref -> Expr
          batch-replace ; Batch -> (Expr<Batchref> -> Expr<Batchref>) -> Batch
          debatchref ; Batchref -> Expr
-         batch-alive-nodes ; Batch -> ?(Vectorof Root) -> Vector
-         batch-remove-zombie ; Batch -> ?(Vectorof Root) -> Batch
+         batch-alive-nodes ; Batch -> ?Vector<Root> -> Vector<Idx>
+         batch-reconstruct-exprs ; Batch -> Vector<Expr>
+         batch-remove-zombie ; Batch -> ?Vector<Root> -> Batch
          mutable-batch-munge! ; Mutable-batch -> Expr -> Root
          make-mutable-batch ; Mutable-batch
          batch->mutable-batch ; Batch -> Mutable-batch
@@ -37,10 +37,7 @@
 
 ;; Converts batchrefs of altns into expressions, assuming that batchrefs refer to batch
 (define (unbatchify-alts batch altns)
-  (define exprs (make-vector (batch-length batch)))
-  (for ([node (in-vector (batch-nodes batch))]
-        [idx (in-naturals)])
-    (vector-set! exprs idx (expr-recurse node (lambda (x) (vector-ref exprs x)))))
+  (define exprs (batch-reconstruct-exprs batch))
   (define (unmunge altn)
     (define expr (alt-expr altn))
     (define expr*
@@ -124,10 +121,7 @@
   (munge expr))
 
 (define (batch->progs b [roots (batch-roots b)])
-  (define exprs (make-vector (batch-length b)))
-  (for ([node (in-vector (batch-nodes b))]
-        [idx (in-naturals)])
-    (vector-set! exprs idx (expr-recurse node (lambda (x) (vector-ref exprs x)))))
+  (define exprs (batch-reconstruct-exprs b))
   (for/list ([root roots])
     (vector-ref exprs root)))
 
@@ -182,6 +176,14 @@
                       #:when (or (and alv (condition node)) (and keep-vars-alive (symbol? node))))
              (expr-recurse node (λ (n) (vector-set! alive-mask n #t)))
              i)))
+
+;; Function constructs a vector of expressions for the given nodes of a batch
+(define (batch-reconstruct-exprs batch)
+  (define exprs (make-vector (batch-length batch)))
+  (for ([node (in-vector (batch-nodes batch))]
+        [idx (in-naturals)])
+    (vector-set! exprs idx (expr-recurse node (lambda (x) (vector-ref exprs x)))))
+  exprs)
 
 ;; The function removes any zombie nodes from batch with respect to the roots
 ;; Time complexity: O(|R| + |N|), where |R| - number of roots, |N| - length of nodes
