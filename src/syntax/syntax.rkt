@@ -181,7 +181,7 @@
 ;;  - its FPCore representation
 ;;  - a floating-point implementation
 ;;
-(struct operator-impl (name ctx spec fpcore fl cost))
+(struct operator-impl (name ctx spec fpcore fl cost aggregate))
 
 ;; Checks a specification.
 (define (check-spec! name ctx spec)
@@ -258,9 +258,13 @@
                                         spec
                                         #:impl [fl-proc #f]
                                         #:fpcore [fpcore #f]
-                                        #:cost [cost #f])
+                                        #:cost [cost #f]
+                                        #:aggregate [aggregate +])
   (->* (symbol? context? any/c)
-       (#:impl (or/c procedure? generator? #f) #:fpcore any/c #:cost (or/c #f real?))
+       (#:impl (or/c procedure? generator? #f)
+               #:fpcore any/c
+               #:cost (or/c #f real?)
+               #:aggregate procedure?)
        operator-impl?)
   ; check specification
   (check-spec! name ctx spec)
@@ -299,7 +303,7 @@
            name
            (procedure-arity fl-proc*)
            (length (context-vars ctx))))
-  (operator-impl name ctx spec (fpcore-parameterize (or fpcore spec)) fl-proc* cost))
+  (operator-impl name ctx spec (fpcore-parameterize (or fpcore spec)) fl-proc* cost aggregate))
 
 (define-syntax (make-operator-impl stx)
   (define (oops! why [sub-stx #f])
@@ -318,6 +322,7 @@
        (define core #f)
        (define fl-expr #f)
        (define op-cost #f)
+       (define aggregate-expr #f)
 
        (let loop ([fields fields])
          (syntax-case fields ()
@@ -328,13 +333,15 @@
                           [spec spec]
                           [core core]
                           [fl-expr fl-expr]
-                          [op-cost op-cost])
+                          [op-cost op-cost]
+                          [aggregate-expr aggregate-expr])
               #'(create-operator-impl! 'id
                                        (context '(var ...) rtype (list repr ...))
                                        'spec
                                        #:impl fl-expr
                                        #:fpcore 'core
-                                       #:cost op-cost))]
+                                       #:cost op-cost
+                                       #:aggregate (or aggregate-expr +)))]
            [(#:spec expr rest ...)
             (cond
               [spec (oops! "multiple #:spec clauses" stx)]
@@ -363,6 +370,13 @@
                (set! op-cost #'cost)
                (loop #'(rest ...))])]
            [(#:cost) (oops! "expected value after keyword `#:cost`" stx)]
+           [(#:aggregate expr rest ...)
+            (cond
+              [aggregate-expr (oops! "multiple #:aggregate clauses" stx)]
+              [else
+               (set! aggregate-expr #'expr)
+               (loop #'(rest ...))])]
+           [(#:aggregate) (oops! "expected value after keyword `#:aggregate`" stx)]
 
            ; bad
            [_ (oops! "bad syntax" fields)])))]
