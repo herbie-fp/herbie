@@ -274,20 +274,13 @@
   (unless (^next-alts^)
     (choose-alts!))
 
-  (define b*
-    (progs->batch (remove-duplicates (append-map (compose all-subexpressions alt-expr)
-                                                 (^next-alts^)))))
-
   (define global-batch (progs->batch (map alt-expr (^next-alts^))))
   (define (make-batchref x idx)
     (struct-copy alt x [expr (batchref global-batch idx)]))
 
   (^next-alts^ (map make-batchref (^next-alts^) (vector->list (batch-roots global-batch))))
   (define roots (batch-alive-nodes global-batch #:condition node-is-impl?))
-  (set-batch-roots! global-batch (batch-roots b*) #;(list->vector roots))
-
-  ;(printf "~a\n~a\n\n" (batch-nodes global-batch) (batch-nodes b*))
-  ;(printf "~a\n~a\n\n" (batch-roots global-batch) (batch-roots b*))
+  (set-batch-roots! global-batch (list->vector roots))
 
   (reconstruct! global-batch (generate-candidates global-batch))
   (finalize-iter!)
