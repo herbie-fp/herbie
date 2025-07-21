@@ -191,6 +191,19 @@
                       (define start-expr (get-starting-expr altn))
                       (for ([full-altn (in-list (^next-alts^))])
                         (define expr (alt-expr full-altn))
+
+                        ; For debugging purposes
+                        #;(batch-copy-mutable-nodes! global-batch mutable-global-batch)
+                        #;(define locations*
+                            (get-locations (debatchref expr) (debatchref start-expr)))
+                        #;(unless (equal? locations* (batch-get-locations expr start-expr))
+                            (printf "not equal\n~a\n~a\n~a\n~a\n\n"
+                                    (debatchref expr)
+                                    (debatchref start-expr)
+                                    locations*
+                                    (batch-get-locations expr start-expr))
+                            (error))
+
                         (sow (for/fold ([full-altn full-altn])
                                        ([loc (in-list (batch-get-locations expr start-expr))])
                                (reconstruct-alt altn loc full-altn))))))

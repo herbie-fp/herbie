@@ -27,6 +27,13 @@
          batch-copy
          unbatchify-alts)
 
+;; Batches store these recursive structures, flattened
+(struct batch ([nodes #:mutable] [roots #:mutable]))
+
+(struct mutable-batch ([nodes #:mutable] [index #:mutable] cache))
+
+(struct batchref (batch idx) #:transparent)
+
 ;; This function defines the recursive structure of expressions
 (define (expr-recurse expr f)
   (match expr
@@ -40,23 +47,18 @@
   (define exprs (batch-reconstruct-exprs batch))
   (define (unmunge altn)
     (define expr (alt-expr altn))
-    (define expr*
-      (if (batchref? expr)
-          (vector-ref exprs (batchref-idx expr))
-          expr))
-    (struct-copy alt altn [expr expr*]))
+    (match expr
+      [(? batchref?)
+       (define expr* (vector-ref exprs (batchref-idx expr)))
+       (struct-copy alt altn [expr expr*])]
+      [_ altn]))
   (map (curry alt-map unmunge) altns))
-
-;; Batches store these recursive structures, flattened
-(struct batch ([nodes #:mutable] [roots #:mutable]))
 
 (define (batch-length b)
   (cond
     [(batch? b) (vector-length (batch-nodes b))]
     [(mutable-batch? b) (hash-count (mutable-batch-index b))]
     [else (error 'batch-length "Invalid batch" b)]))
-
-(struct mutable-batch ([nodes #:mutable] [index #:mutable] cache))
 
 (define (make-mutable-batch)
   (mutable-batch '() (make-hash) (make-hasheq)))
@@ -82,8 +84,6 @@
 
 (define (batch-copy b)
   (batch (vector-copy (batch-nodes b)) (vector-copy (batch-roots b))))
-
-(struct batchref (batch idx) #:transparent)
 
 (define (deref x)
   (match-define (batchref b idx) x)
@@ -170,15 +170,12 @@
   (define alive-mask (make-vector nodes-length #f))
   (for ([root (in-vector roots)])
     (vector-set! alive-mask root #t))
-  (define out
-    (for/vector ([i (in-range (- nodes-length 1) -1 -1)]
-                 [node (in-vector nodes (- nodes-length 1) -1 -1)]
-                 [alv (in-vector alive-mask (- nodes-length 1) -1 -1)]
-                 #:when (or (and alv (condition node)) (and keep-vars-alive (symbol? node))))
-      (expr-recurse node (λ (n) (vector-set! alive-mask n #t)))
-      i))
-  (vector-sort! out <)
-  out)
+  (for/vector ([i (in-range (- nodes-length 1) -1 -1)]
+               [node (in-vector nodes (- nodes-length 1) -1 -1)]
+               [alv (in-vector alive-mask (- nodes-length 1) -1 -1)]
+               #:when (or (and alv (condition node)) (and keep-vars-alive (symbol? node))))
+    (expr-recurse node (λ (n) (vector-set! alive-mask n #t)))
+    i))
 
 ;; Function constructs a vector of expressions for the given nodes of a batch
 (define (batch-reconstruct-exprs batch)
@@ -198,6 +195,7 @@
   (match (zero? nodes-length)
     [#f
      (define alive-nodes (batch-alive-nodes batch roots #:keep-vars-alive keep-vars))
+     (vector-sort! alive-nodes <)
 
      (define mappings (make-vector nodes-length -1))
      (define (remap idx)

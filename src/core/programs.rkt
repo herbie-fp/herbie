@@ -237,26 +237,6 @@
                    [i (in-naturals 1)])
                (loop arg (cons i loc)))]))))
 
-(define (batch-get-locations full-batchref sub-batchref)
-  (match-define (batchref full-batch full-idx) full-batchref)
-  (match-define (batchref sub-batch sub-idx) sub-batchref)
-  (unless (equal? sub-batch full-batch)
-    (error 'batch-get-locations "Function assumes that batches are equal"))
-  (define nodes (batch-nodes full-batch))
-  (define sub-node (vector-ref nodes sub-idx))
-  (reap [sow]
-        (let loop ([idx full-idx]
-                   [loc '()])
-          (match (vector-ref nodes idx)
-            [(== sub-node) (sow (reverse loc))]
-            [(? literal?) (void)]
-            [(? symbol?) (void)]
-            [(approx _ impl) (loop impl (cons 2 loc))]
-            [(list _ args ...)
-             (for ([arg (in-list args)]
-                   [i (in-naturals 1)])
-               (loop arg (cons i loc)))]))))
-
 #;(define (batch-get-locations full-batchref sub-batchref)
     (match-define (batchref full-batch full-idx) full-batchref)
     (match-define (batchref sub-batch sub-idx) sub-batchref)
@@ -264,31 +244,55 @@
       (error 'batch-get-locations "Function assumes that batches are equal"))
     (define nodes (batch-nodes full-batch))
     (define sub-node (vector-ref nodes sub-idx))
+    (reap [sow]
+          (let loop ([idx full-idx]
+                     [loc '()])
+            (match (vector-ref nodes idx)
+              [(== sub-node) (sow (reverse loc))]
+              [(? literal?) (void)]
+              [(? symbol?) (void)]
+              [(approx _ impl) (loop impl (cons 2 loc))]
+              [(list _ args ...)
+               (for ([arg (in-list args)]
+                     [i (in-naturals 1)])
+                 (loop arg (cons i loc)))]))))
 
-    (define start (min sub-idx full-idx))
-    (define end (max sub-idx full-idx))
+(define (batch-get-locations full-batchref sub-batchref)
+  (match-define (batchref full-batch full-idx) full-batchref)
+  (match-define (batchref sub-batch sub-idx) sub-batchref)
+  (unless (equal? sub-batch full-batch)
+    (error 'batch-get-locations "Function assumes that batches are equal"))
+  (define nodes (batch-nodes full-batch))
 
-    (define locations (make-hash (list (cons start '(())))))
-    (for ([node (in-vector nodes (+ start 1) (+ end 1))]
-          [n (in-naturals (+ start 1))])
-      (match node
-        [(? literal?) (void)]
-        [(? symbol?) (void)]
-        [(? number?) (void)]
-        [(approx _ impl)
-         (when (hash-has-key? locations impl)
-           (define loc* (map (curry cons 2) (hash-ref locations impl)))
-           (hash-set! locations n loc*))]
-        [(list _ args ...)
-         (for ([arg (in-list args)]
-               [i (in-naturals 1)]
-               #:when (hash-has-key? locations arg))
-           (define loc (hash-ref locations arg))
-           (define loc* (map (curry cons i) loc))
-           (hash-set! locations n (append (hash-ref locations n '()) loc*)))]))
-    (if (> sub-idx full-idx)
-        (map reverse (hash-ref locations end (λ () '())))
-        (hash-ref locations end (λ () '()))))
+  (define (locations-update locations prev-idx new-loc new-idx)
+    (define loc (hash-ref locations prev-idx))
+    (define loc* (map (curry cons new-loc) loc))
+    (hash-update! locations new-idx (curryr append loc*) '()))
+
+  (cond
+    [(equal? sub-idx full-idx) '(())] ; to be fused with line below, left just for testing
+    [(> sub-idx full-idx) '()]
+    [else
+     (define locations (make-hash (list (cons sub-idx '(())))))
+     (for ([node (in-vector nodes (+ sub-idx 1) (+ full-idx 1) 1)]
+           [n (in-naturals (+ sub-idx 1))])
+       (match node
+         [(list _ args ...)
+          (for ([arg (in-list args)]
+                [i (in-naturals 1)]
+                #:when (hash-has-key? locations arg))
+            (locations-update locations arg i n))]
+         [(approx _ impl)
+          (when (hash-has-key? locations impl)
+            (locations-update locations impl 2 n))]
+         [(hole _ spec)
+          (when (hash-has-key? locations spec)
+            (locations-update locations spec 1 n))]
+         [_ void]
+         #;[(? literal?) (void)]
+         #;[(? symbol?) (void)]
+         #;[(? number?) (void)]))
+     (hash-ref locations full-idx '())]))
 
 (define/contract (replace-expression expr from to)
   (-> expr? expr? expr? expr?)
