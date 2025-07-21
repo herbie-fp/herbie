@@ -183,19 +183,6 @@
                                location-set-cache
                                (alt-expr orig)
                                (alt-expr altn)))
-
-         #;(batch-copy-mutable-nodes! global-batch mutable-global-batch)
-         #;(define expr*****
-             (location-set loc0 (debatchref (alt-expr orig)) (debatchref (alt-expr altn))))
-         #;(unless (equal? (debatchref expr*) expr*****)
-             (printf "location set:\n~a\n~a\n~a\n~a\n~a\n\n"
-                     (debatchref expr*)
-                     expr*****
-                     (debatchref (alt-expr orig))
-                     (debatchref (alt-expr altn))
-                     loc0)
-             (error))
-
          (alt expr* event* (list (loop (first prevs))) (alt-preprocessing orig))])))
 
   (^patched^ (remove-duplicates
@@ -204,17 +191,6 @@
                       (define start-expr (get-starting-expr altn))
                       (for ([full-altn (in-list (^next-alts^))])
                         (define expr (alt-expr full-altn))
-
-                        #;(batch-copy-mutable-nodes! global-batch mutable-global-batch)
-                        #;(unless (equal? (batch-get-locations expr start-expr)
-                                          (get-locations (debatchref expr) (debatchref start-expr)))
-                            (printf "Locations do not match:\n~a\n~a\n~a\n~a\n\n"
-                                    (batch-get-locations expr start-expr)
-                                    (get-locations (debatchref expr) (debatchref start-expr))
-                                    (debatchref expr)
-                                    (debatchref start-expr))
-                            (error))
-
                         (sow (for/fold ([full-altn full-altn])
                                        ([loc (in-list (batch-get-locations expr start-expr))])
                                (reconstruct-alt altn loc full-altn))))))
@@ -280,7 +256,7 @@
 
   (^next-alts^ (map make-batchref (^next-alts^) (vector->list (batch-roots global-batch))))
   (define roots (batch-alive-nodes global-batch #:condition node-is-impl?))
-  (set-batch-roots! global-batch (list->vector roots))
+  (set-batch-roots! global-batch roots)
 
   (reconstruct! global-batch (generate-candidates global-batch))
   (finalize-iter!)

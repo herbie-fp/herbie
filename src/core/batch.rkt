@@ -170,12 +170,15 @@
   (define alive-mask (make-vector nodes-length #f))
   (for ([root (in-vector roots)])
     (vector-set! alive-mask root #t))
-  (reverse (for/list ([i (in-range (- nodes-length 1) -1 -1)]
-                      [node (in-vector nodes (- nodes-length 1) -1 -1)]
-                      [alv (in-vector alive-mask (- nodes-length 1) -1 -1)]
-                      #:when (or (and alv (condition node)) (and keep-vars-alive (symbol? node))))
-             (expr-recurse node (λ (n) (vector-set! alive-mask n #t)))
-             i)))
+  (define out
+    (for/vector ([i (in-range (- nodes-length 1) -1 -1)]
+                 [node (in-vector nodes (- nodes-length 1) -1 -1)]
+                 [alv (in-vector alive-mask (- nodes-length 1) -1 -1)]
+                 #:when (or (and alv (condition node)) (and keep-vars-alive (symbol? node))))
+      (expr-recurse node (λ (n) (vector-set! alive-mask n #t)))
+      i))
+  (vector-sort! out <)
+  out)
 
 ;; Function constructs a vector of expressions for the given nodes of a batch
 (define (batch-reconstruct-exprs batch)
@@ -201,7 +204,7 @@
        (vector-ref mappings idx))
 
      (define out (make-mutable-batch))
-     (for ([alv (in-list alive-nodes)])
+     (for ([alv (in-vector alive-nodes)])
        (define node (vector-ref nodes alv))
        (vector-set! mappings alv (mutable-batch-push! out (expr-recurse node remap))))
 
