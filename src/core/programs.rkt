@@ -265,34 +265,37 @@
   (define nodes (batch-nodes full-batch))
 
   (define (locations-update locations prev-idx new-loc new-idx)
-    (define loc (hash-ref locations prev-idx))
-    (define loc* (map (curry cons new-loc) loc))
-    (hash-update! locations new-idx (curryr append loc*) '()))
+    (when (and (>= prev-idx 0)
+               (vector-ref locations
+                           prev-idx)) ; when prev-idx is in the valid range + has some locs stored
+      (define prev-locs (vector-ref locations prev-idx))
+      (define new-locs (map (curry cons new-loc) prev-locs)) ; append prev-locs with new-loc
+      (vector-set! locations
+                   new-idx
+                   (append (or (vector-ref locations new-idx) '())
+                           new-locs)))) ; update new-locs at new-idx
+
+  (define (remap x)
+    (- x sub-idx))
 
   (cond
-    [(equal? sub-idx full-idx) '(())] ; to be fused with line below, left just for testing
-    [(> sub-idx full-idx) '()]
+    [(equal? sub-idx full-idx) '(())]
+    [(> sub-idx full-idx)
+     '()] ; sub-idx can not be a child of full-idx if it is inserted after full-idx
     [else
-     (define locations (make-hash (list (cons sub-idx '(())))))
-     (for ([node (in-vector nodes (+ sub-idx 1) (+ full-idx 1) 1)]
-           [n (in-naturals (+ sub-idx 1))])
+     (define locations (make-vector (add1 (- full-idx sub-idx)) #f))
+     (vector-set! locations 0 '(()))
+     (for ([node (in-vector nodes (add1 sub-idx) (add1 full-idx))]
+           [n (in-naturals 1)])
        (match node
-         [(list _ args ...)
+         [(list _ (app remap args) ...)
           (for ([arg (in-list args)]
-                [i (in-naturals 1)]
-                #:when (hash-has-key? locations arg))
+                [i (in-naturals 1)])
             (locations-update locations arg i n))]
-         [(approx _ impl)
-          (when (hash-has-key? locations impl)
-            (locations-update locations impl 2 n))]
-         [(hole _ spec)
-          (when (hash-has-key? locations spec)
-            (locations-update locations spec 1 n))]
-         [_ void]
-         #;[(? literal?) (void)]
-         #;[(? symbol?) (void)]
-         #;[(? number?) (void)]))
-     (hash-ref locations full-idx '())]))
+         [(approx _ (app remap impl)) (locations-update locations impl 2 n)]
+         [(hole _ (app remap spec)) (locations-update locations spec 1 n)]
+         [_ void])) ; literal/number/symbol
+     (or (vector-ref locations (remap full-idx)) '())]))
 
 (define/contract (replace-expression expr from to)
   (-> expr? expr? expr? expr?)
