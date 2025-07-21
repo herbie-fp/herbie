@@ -256,6 +256,7 @@
              (for ([arg (in-list args)]
                    [i (in-naturals 1)])
                (loop arg (cons i loc)))]))))
+
 #;(define (batch-get-locations full-batchref sub-batchref)
     (match-define (batchref full-batch full-idx) full-batchref)
     (match-define (batchref sub-batch sub-idx) sub-batchref)
