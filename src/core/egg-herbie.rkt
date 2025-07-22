@@ -294,10 +294,6 @@
       [`(Explanation ,body ...) `(Explanation ,@(map (lambda (e) (loop e type)) body))]
       [(list 'Rewrite=> rule expr) (list 'Rewrite=> (get-canon-rule-name rule rule) (loop expr type))]
       [(list 'Rewrite<= rule expr) (list 'Rewrite<= (get-canon-rule-name rule rule) (loop expr type))]
-      [(list 'if cond ift iff)
-       (if (representation? type)
-           (list 'if (loop cond (get-representation 'bool)) (loop ift type) (loop iff type))
-           (list 'if (loop cond 'bool) (loop ift type) (loop iff type)))]
       [(list (? impl-exists? impl) args ...) (cons impl (map loop args (impl-info impl 'itype)))]
       [(list op args ...)
        #:when (string-contains? (~a op) "unsound")
@@ -540,7 +536,6 @@
     [(cons f _) ; application
      (cond
        [(eq? f '$approx) (platform-reprs (*active-platform*))]
-       [(eq? f 'if) (all-reprs/types)]
        [(string-contains? (~a f) "unsound") (list 'real)]
        [(impl-exists? f) (list (impl-info f 'otype))]
        [else (list (operator-info f 'otype))])]))
@@ -556,15 +551,6 @@
         (define spec (u32vector-ref ids 0))
         (define impl (u32vector-ref ids 1))
         (list '$approx (lookup spec (representation-type type)) (lookup impl type))]
-       [(eq? f 'if) ; if expression
-        (define cond (u32vector-ref ids 0))
-        (define ift (u32vector-ref ids 1))
-        (define iff (u32vector-ref ids 2))
-        (define cond-type
-          (if (representation? type)
-              (get-representation 'bool)
-              'bool))
-        (list 'if (lookup cond cond-type) (lookup ift type) (lookup iff type))]
        [(string-contains? (~a f) "unsound")
         (define op (string->symbol (string-replace (symbol->string f) "unsound-" "")))
         (list* op (map (λ (x) (lookup (u32vector-ref ids x) 'real)) (range (u32vector-length ids))))]
@@ -1028,10 +1014,6 @@
                (representation-type type)
                type))
          (approx (loop spec spec-type) (loop impl type))]
-        [(list 'if cond ift iff)
-         (if (representation? type)
-             (list 'if (loop cond (get-representation 'bool)) (loop ift type) (loop iff type))
-             (list 'if (loop cond 'bool) (loop ift type) (loop iff type)))]
         [(list (? impl-exists? impl) args ...) (cons impl (map loop args (impl-info impl 'itype)))]
         [(list op args ...) (cons op (map loop args (operator-info op 'itype)))])))
 
@@ -1063,10 +1045,6 @@
              (define final-spec (egg-parsed->expr spec* spec-type))
              (define final-spec-idx (mutable-batch-munge! out final-spec))
              (approx final-spec-idx (loop impl type))]
-            [(list 'if (app eggref cond) (app eggref ift) (app eggref iff))
-             (if (representation? type)
-                 (list 'if (loop cond (get-representation 'bool)) (loop ift type) (loop iff type))
-                 (list 'if (loop cond 'bool) (loop ift type) (loop iff type)))]
             [(list (? impl-exists? impl) (app eggref args) ...)
              (define args*
                (for/list ([arg (in-list args)]
@@ -1116,7 +1094,6 @@
     [(? symbol?) 1]
     ; approx node
     [(list '$approx _ impl) (rec impl)]
-    [(list 'if cond ift iff) (+ 1 (rec cond) (rec ift) (rec iff))]
     [(list (? impl-exists? impl) args ...)
      (match (pow-impl-args impl args)
        [(cons _ e)
@@ -1146,9 +1123,6 @@
         ((node-cost-proc node repr))]
        ; approx node
        [(list '$approx _ impl) (rec impl)]
-       [(list 'if cond ift iff) ; if expression
-        (define cost-proc (node-cost-proc node type))
-        (cost-proc (rec cond) (rec ift) (rec iff))]
        [(list (? impl-exists?) args ...) ; impls
         (define cost-proc (node-cost-proc node type))
         (apply cost-proc (map rec args))])]

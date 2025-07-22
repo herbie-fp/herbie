@@ -32,10 +32,9 @@
 ;; - let expressions are inlined
 ;; - numbers are rounded to a particular format
 ;;
-;; <expr> ::= (if <expr> <expr> <expr>)
-;;        ::= (<impl> <expr> ...)
-;;        ::= (literal <number> <repr>)
-;;        ::= <id>
+;; <expr> ::= (<impl> <expr> ...)
+;;          | (literal <number> <repr>)
+;;          | <id>
 ;;
 ;; Every operator has a type signature where types are representations.
 ;; In practice, most operator implemenetations have uniform representations but
@@ -51,10 +50,9 @@
 ;; - casts are mapped to the identity operation
 ;; - numbers are formatless
 ;;
-;; <expr> ::= (if <expr> <expr> <expr>)
-;;        ::= (<op> <expr> ...)
-;;        ::= <number>
-;;        ::= <id>
+;; <expr> ::= (<op> <expr> ...)
+;;          | <number>
+;;          | <id>
 ;;
 
 #lang racket
@@ -181,11 +179,6 @@
                   [_ (inexact->exact expr)])
                 (dict-ref prop-dict ':precision))]
       [(? symbol?) expr]
-      [(list 'if cond ift iff)
-       (define cond* (loop cond prop-dict))
-       (define ift* (loop ift prop-dict))
-       (define iff* (loop iff prop-dict))
-       (list 'if cond* ift* iff*)]
       [(list '! props ... body)
        (loop body
              (if (not (null? props))
@@ -246,7 +239,6 @@
       [(? symbol?) expr]
       [(approx _ impl) (munge impl)]
       [(hole _ spec) (munge spec)]
-      [(list 'if cond ift iff) (list 'if (munge cond) (munge ift) (munge iff))]
       [(list (? impl-exists? impl) args ...)
        (define args* (map munge args))
        (define vars (impl-info impl 'vars))

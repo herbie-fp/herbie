@@ -300,10 +300,6 @@
                (literal expr (representation-name type))
                expr)]
           [(? symbol?) expr]
-          [`(if ,cond ,ift ,iff)
-           (if (representation? type)
-               (list 'if (loop cond (get-representation 'bool)) (loop ift type) (loop iff type))
-               (list 'if (loop cond 'bool) (loop ift type) (loop iff type)))]
           [(approx spec impl) (approx (loop spec #f) (loop impl type))]
           [(list (? impl-exists? impl) args ...) (cons impl (map loop args (impl-info impl 'itype)))]
           [(list op args ...)
