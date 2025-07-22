@@ -6,7 +6,12 @@
 (require math/flonum
          math/base)
 
-(define-if #:cost 1)
+(define (if-impl c t f)
+  (if c t f))
+
+(define (if-cost c t f)
+  (+ c (max t f)))
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BOOLEAN ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -26,6 +31,10 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BINARY 64 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define-representation <binary64> #:cost 1)
+
+(define-operation (if.f64 [c <bool>] [t <binary64>] [f <binary64>]) <binary64>
+  #:spec (if c t f) #:impl if-impl
+  #:cost 1 #:aggregate if-cost)
 
 (define-operations () <binary64>
   [PI.rkt       #:spec (PI)       #:impl (const pi)       #:fpcore PI       #:cost 1]

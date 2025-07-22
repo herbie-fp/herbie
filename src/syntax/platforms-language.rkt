@@ -5,8 +5,7 @@
          "types.rkt"
          "generators.rkt")
 
-(provide define-if
-         define-representation
+(provide define-representation
          define-operation
          define-operations
          fpcore-context
@@ -17,9 +16,6 @@
          (all-from-out "types.rkt"))
 
 (define platform-being-defined (make-parameter #f))
-
-(define-syntax-rule (define-if #:cost cost)
-  (platform-register-if-cost! (platform-being-defined) #:cost cost))
 
 (define-syntax-rule (define-representation repr #:cost cost)
   (platform-register-representation! (platform-being-defined) #:repr repr #:cost cost))

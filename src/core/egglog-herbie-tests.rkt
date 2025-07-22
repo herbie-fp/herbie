@@ -51,10 +51,10 @@
 
   (check-equal? (e2->expr '(Var "y")) 'y)
 
-  (check-equal? (e2->expr '(IfTy (Var "y")
-                                 (Num (bigrat (from-string "1") (from-string "2")))
-                                 (Num (bigrat (from-string "0") (from-string "1")))))
-                '(if y 1/2 0))
+  (check-equal? (e2->expr '(Iff64Ty (Var "y")
+                                    (Num (bigrat (from-string "1") (from-string "2")))
+                                    (Num (bigrat (from-string "0") (from-string "1")))))
+                '(if.f64 y 1/2 0))
 
   (check-equal? (e2->expr '(Mulf64Ty (Num (bigrat (from-string "2") (from-string "1")))
                                      (Num (bigrat (from-string "3") (from-string "1")))))
@@ -154,10 +154,10 @@
                                                (Var "z"))))
                 '(*.f32 3/2 (+.f32 4/5 z)))
 
-  (check-equal? (e2->expr '(IfTy (Var "cond")
-                                 (Num (bigrat (from-string "7") (from-string "8")))
-                                 (Num (bigrat (from-string "-2") (from-string "3")))))
-                '(if cond 7/8 -2/3)))
+  (check-equal? (e2->expr '(Iff32Ty (Var "cond")
+                                    (Num (bigrat (from-string "7") (from-string "8")))
+                                    (Num (bigrat (from-string "-2") (from-string "3")))))
+                '(if.f32 cond 7/8 -2/3)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Testing API
@@ -262,6 +262,8 @@
                                        (Neqf64Ty . !=.f64)
                                        (NotboolTy . not.bool)
                                        (OrboolTy . or.bool)
+                                       (Iff32Ty . if.f32)
+                                       (Iff64Ty . if.f64)
                                        (Pif32Ty . PI.f32)
                                        (Pif64Ty . PI.f64)
                                        (Powf32Ty . pow.f32)

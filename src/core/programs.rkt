@@ -33,7 +33,6 @@
     [(? symbol?) (context-lookup ctx expr)]
     [(approx _ impl) (repr-of impl ctx)]
     [(hole precision spec) (get-representation precision)]
-    [(list 'if cond ift iff) (repr-of ift ctx)]
     [(list op args ...) (impl-info op 'otype)]))
 
 ; Index inside (batch-nodes batch) -> type
@@ -44,7 +43,6 @@
     [(? symbol?) (context-lookup ctx node)]
     [(approx _ impl) (repr-of-node batch impl ctx)]
     [(hole precision spec) (get-representation precision)]
-    [(list 'if cond ift iff) (repr-of-node batch ift ctx)]
     [(list op args ...) (impl-info op 'otype)]))
 
 (define (all-subexpressions expr #:reverse? [reverse? #f])
@@ -86,7 +84,6 @@
     [(? symbol?) #t]
     [(? literal?) #t]
     [(approx spec impl) (and (spec-prog? spec) (impl-prog? impl))]
-    [(list 'if cond ift iff) (and (impl-prog? cond) (impl-prog? ift) (impl-prog? iff))]
     [(list (? impl-exists?) args ...) (andmap impl-prog? args)]
     [_ #f]))
 

@@ -37,9 +37,6 @@
         [(? symbol?) ((node-cost-proc node repr))]
         [(? number?) 0] ; specs
         [(approx _ impl) (vector-ref costs impl)]
-        [(list 'if cond ift iff)
-         (define cost-proc (node-cost-proc node repr))
-         (cost-proc (vector-ref costs cond) (vector-ref costs ift) (vector-ref costs iff))]
         [(list (? (negate impl-exists?) impl) args ...) 0] ; specs
         [(list impl args ...)
          (define cost-proc (node-cost-proc node repr))

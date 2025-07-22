@@ -4,11 +4,16 @@
 
 (require math/flonum)
 
+(define (if-impl c t f)
+  (if c t f))
+
+(define (if-cost c t f)
+  (+ c (max t f)))
+
 (define 64bit-move-cost   0.125)
 (define 32bit-move-cost   0.125)
 (define boolean-move-cost 0.100)
 
-(define-if #:cost boolean-move-cost)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BOOLEAN ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -28,6 +33,10 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BINARY 32 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define-representation <binary32> #:cost 32bit-move-cost)
+
+(define-operation (if.f32 [c <bool>] [t <binary32>] [f <binary32>]) <binary32>
+  #:spec (if c t f) #:impl if-impl
+  #:cost boolean-move-cost #:aggregate if-cost)
 
 (define-operations ([x <binary32>] [y <binary32>]) <bool>
   [==.f32 #:spec (== x y) #:impl =          #:cost 32bit-move-cost]
@@ -101,6 +110,10 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BINARY 64 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define-representation <binary64> #:cost 64bit-move-cost)
+
+(define-operation (if.f64 [c <bool>] [t <binary64>] [f <binary64>]) <binary64>
+  #:spec (if c t f) #:impl if-impl
+  #:cost boolean-move-cost #:aggregate if-cost)
 
 (define-operations ([x <binary64>] [y <binary64>]) <binary64>
   [+.f64 #:spec (+ x y) #:impl + #:cost 0.200]

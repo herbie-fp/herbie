@@ -26,7 +26,6 @@
          (contract-out ;; Platforms
           [platform? (-> any/c boolean?)]
           [platform-name (-> platform? any/c)]
-          [platform-if-cost (-> platform? any/c)]
           [platform-reprs (-> platform? (listof representation?))]
           [platform-impls (-> platform? (listof symbol?))]
           ; Cost model
@@ -38,8 +37,10 @@
          platform-register-representation!
          platform-register-implementation!
          platform-register-implementations!
-         platform-register-if-cost!
          display-platform
+         if-cost
+         if-impl
+         (for-syntax if-impl)
          make-operator-impl
          make-representation
          (all-from-out "generators.rkt"))
@@ -54,7 +55,7 @@
 ;;;
 ;;; A small API is provided for platforms for querying the supported
 ;;; operators, operator implementations, and representation conversions.
-(struct platform (name [if-cost #:mutable] representations implementations representation-costs)
+(struct platform (name representations implementations representation-costs)
   #:name $platform
   #:constructor-name create-platform
   #:methods gen:custom-write
@@ -76,10 +77,7 @@
   (define reprs (make-hash))
   (define repr-costs (make-hash))
   (define impls (make-hash))
-  (create-platform name #f reprs impls repr-costs))
-
-(define (platform-register-if-cost! platform #:cost cost)
-  (set-platform-if-cost! platform (platform/parse-if-cost cost)))
+  (create-platform name reprs impls repr-costs))
 
 (define (platform-register-representation! platform #:repr repr #:cost cost)
   (define reprs (platform-representations platform))
@@ -131,8 +129,6 @@
                                                                 #:cost cost)) ...)]))
 
 (define (validate-platform! platform)
-  (unless (platform-if-cost platform)
-    (raise-herbie-error "Platform does not have an if cost"))
   (when (empty? (platform-implementations platform))
     (raise-herbie-error "Platform contains no operations"))
   (for ([(name impl) (in-hash (platform-implementations platform))])
@@ -184,12 +180,6 @@
   (define impls (platform-implementations platform))
   (hash-has-key? impls op))
 
-(define (platform/parse-if-cost cost)
-  (match cost
-    [`(max ,x) `(max ,x)]
-    [`(sum ,x) `(sum ,x)]
-    [x `(max ,x)]))
-
 ;; Looks up a property `field` of an real operator `op`.
 ;; Panics if the operator is not found.
 (define/contract (impl-info impl-name field)
@@ -225,18 +215,23 @@
   (define repr-costs (platform-representation-costs platform))
   (hash-ref repr-costs (representation-name repr)))
 
+;; Default cost aggregation for `if` operations.
+(define (if-cost cond-cost then-cost else-cost)
+  (+ cond-cost (max then-cost else-cost)))
+
+;; Default implementation for typed `if` operators.
+(define (if-impl c t f)
+  (if c t f))
+(begin-for-syntax
+  (define (if-impl c t f)
+    (if c t f)))
+
 ; Cost model of a single node by a platform.
 ; Returns a procedure that must be called with the costs of the children.
 (define ((platform-node-cost-proc platform) expr repr)
   (match expr
     [(? literal?) (lambda () (platform-repr-cost platform repr))]
     [(? symbol?) (lambda () (platform-repr-cost platform repr))]
-    [(list 'if _ _ _)
-     (define if-cost (platform-if-cost platform))
-     (lambda (cond-cost ift-cost iff-cost)
-       (match if-cost
-         [`(max ,n) (+ n cond-cost (max ift-cost iff-cost))]
-         [`(sum ,n) (+ n cond-cost ift-cost iff-cost)]))]
     [(list impl args ...)
      (define impl-cost (impl-info impl 'cost))
      (define impl-agg (impl-info impl 'aggregate))
@@ -255,10 +250,6 @@
         [(? literal?) ((node-cost-proc expr repr))]
         [(? symbol?) ((node-cost-proc expr repr))]
         [(approx _ impl) (loop impl repr)]
-        [(list 'if cond ift iff)
-         (define bool-repr (get-representation 'bool)) ; that's sketchy, bool repr might not exist
-         (define cost-proc (node-cost-proc expr repr))
-         (cost-proc (loop cond bool-repr) (loop ift repr) (loop iff repr))]
         [(list impl args ...)
          (define cost-proc (node-cost-proc expr repr))
          (define itypes (impl-info impl 'itype))
@@ -375,9 +366,8 @@
   (define impls (platform-implementations platform))
   (define reprs (platform-representations platform))
   (define repr-costs (platform-representation-costs platform))
-  (define if-cost (platform-if-cost platform))
 
-  (printf "Platform: ~a;\n          if-cost: ~a;\n\n" (platform-name platform) if-cost)
+  (printf "Platform: ~a\n\n" (platform-name platform))
 
   (printf "Representations:\n")
   (define reprs-data
