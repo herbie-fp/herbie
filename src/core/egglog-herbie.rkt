@@ -317,10 +317,7 @@
   (define pform (*active-platform*))
 
   (define spec-egraph
-    `(datatype M
-               (Num BigRat :cost 4294967295)
-               (Var String :cost 4294967295)
-               ,@(platform-spec-nodes)))
+    `(datatype M (Num BigRat :cost 4294967295) (Var String :cost 4294967295) ,@(platform-spec-nodes)))
 
   (egglog-program-add! spec-egraph curr-program)
 
