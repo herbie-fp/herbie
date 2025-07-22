@@ -195,7 +195,7 @@
   (match (zero? nodes-length)
     [#f
      (define alive-nodes (batch-alive-nodes batch roots #:keep-vars-alive keep-vars))
-     (vector-sort! alive-nodes <)
+     (vector-sort! alive-nodes <) ; nodes should be in ascending order
 
      (define mappings (make-vector nodes-length -1))
      (define (remap idx)

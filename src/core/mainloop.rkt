@@ -250,16 +250,13 @@
   (unless (^next-alts^)
     (choose-alts!))
 
-  (define locs (append-map (compose all-subexpressions alt-expr) (^next-alts^)))
-  (define b* (progs->batch locs))
-
   (define global-batch (progs->batch (map alt-expr (^next-alts^))))
   (define (make-batchref x idx)
     (struct-copy alt x [expr (batchref global-batch idx)]))
 
   (^next-alts^ (map make-batchref (^next-alts^) (vector->list (batch-roots global-batch))))
   (define roots (batch-alive-nodes global-batch #:condition node-is-impl?))
-  (set-batch-roots! global-batch (batch-roots b*) #;roots)
+  (set-batch-roots! global-batch roots)
 
   (reconstruct! global-batch (generate-candidates global-batch))
   (finalize-iter!)

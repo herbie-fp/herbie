@@ -237,26 +237,6 @@
                    [i (in-naturals 1)])
                (loop arg (cons i loc)))]))))
 
-#;(define (batch-get-locations full-batchref sub-batchref)
-    (match-define (batchref full-batch full-idx) full-batchref)
-    (match-define (batchref sub-batch sub-idx) sub-batchref)
-    (unless (equal? sub-batch full-batch)
-      (error 'batch-get-locations "Function assumes that batches are equal"))
-    (define nodes (batch-nodes full-batch))
-    (define sub-node (vector-ref nodes sub-idx))
-    (reap [sow]
-          (let loop ([idx full-idx]
-                     [loc '()])
-            (match (vector-ref nodes idx)
-              [(== sub-node) (sow (reverse loc))]
-              [(? literal?) (void)]
-              [(? symbol?) (void)]
-              [(approx _ impl) (loop impl (cons 2 loc))]
-              [(list _ args ...)
-               (for ([arg (in-list args)]
-                     [i (in-naturals 1)])
-                 (loop arg (cons i loc)))]))))
-
 (define (batch-get-locations full-batchref sub-batchref)
   (match-define (batchref full-batch full-idx) full-batchref)
   (match-define (batchref sub-batch sub-idx) sub-batchref)
