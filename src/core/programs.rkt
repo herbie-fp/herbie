@@ -245,36 +245,30 @@
   (define nodes (batch-nodes full-batch))
 
   (define (locations-update locations prev-idx new-loc new-idx)
-    (when (and (>= prev-idx 0)
-               (vector-ref locations
-                           prev-idx)) ; when prev-idx is in the valid range + has some locs stored
+    (unless (null? (vector-ref locations prev-idx)) ; when prev-idx has some locs stored
       (define prev-locs (vector-ref locations prev-idx))
       (define new-locs (map (curry cons new-loc) prev-locs)) ; append prev-locs with new-loc
       (vector-set! locations
                    new-idx
-                   (append (or (vector-ref locations new-idx) '())
-                           new-locs)))) ; update new-locs at new-idx
-
-  (define (remap x)
-    (- x sub-idx))
+                   (append (vector-ref locations new-idx) new-locs)))) ; update new-locs at new-idx
 
   (cond
     [(> sub-idx full-idx)
      '()] ; sub-idx can not be a child of full-idx if it is inserted after full-idx
     [else
-     (define locations (make-vector (add1 (- full-idx sub-idx)) #f))
-     (vector-set! locations 0 '(()))
+     (define locations (make-vector (batch-length full-batch) '()))
+     (vector-set! locations sub-idx '(()))
      (for ([node (in-vector nodes (add1 sub-idx) (add1 full-idx))]
            [n (in-naturals 1)])
        (match node
-         [(list _ (app remap args) ...)
+         [(list _ args ...)
           (for ([arg (in-list args)]
                 [i (in-naturals 1)])
             (locations-update locations arg i n))]
-         [(approx _ (app remap impl)) (locations-update locations impl 2 n)]
-         [(hole _ (app remap spec)) (locations-update locations spec 1 n)]
+         [(approx _ impl) (locations-update locations impl 2 n)]
+         [(hole _ spec) (locations-update locations spec 1 n)]
          [_ void])) ; literal/number/symbol
-     (or (vector-ref locations (remap full-idx)) '())]))
+     (vector-ref locations full-idx)]))
 
 (define/contract (replace-expression expr from to)
   (-> expr? expr? expr? expr?)
