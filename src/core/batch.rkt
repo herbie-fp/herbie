@@ -21,7 +21,6 @@
          batch-remove-zombie ; Batch -> ?Vector<Root> -> Batch
          mutable-batch-munge! ; Mutable-batch -> Expr -> Root
          make-mutable-batch ; Mutable-batch
-         make-batch ; Batch
          batch->mutable-batch ; Batch -> Mutable-batch
          batch-copy-mutable-nodes! ; Batch -> Mutable-batch -> Void
          mutable-batch-push! ; Mutable-batch -> Node -> Idx
@@ -63,9 +62,6 @@
 
 (define (make-mutable-batch)
   (mutable-batch '() (make-hash) (make-hasheq)))
-
-(define (make-batch)
-  (batch (vector) (vector)))
 
 (define (mutable-batch-push! b term)
   (define hashcons (mutable-batch-index b))

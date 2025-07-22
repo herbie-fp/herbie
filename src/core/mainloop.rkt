@@ -198,7 +198,7 @@
 
   (batch-copy-mutable-nodes! global-batch mutable-global-batch)
   (^patched^ (unbatchify-alts global-batch (^patched^)))
-  (^next-alts^ (unbatchify-alts global-batch (^next-alts^)))
+  ; No need to unmunge ^next-alts^
   (void))
 
 ;; Finish iteration
@@ -250,18 +250,13 @@
   (unless (^next-alts^)
     (choose-alts!))
 
-  ; Munging alts into a global batch
-  (define global-batch (make-batch))
-  (define global-batch-mutable (batch->mutable-batch global-batch))
-  (define (make-batchref altn)
-    (define idx (mutable-batch-munge! global-batch-mutable (alt-expr altn)))
-    (struct-copy alt altn [expr (batchref global-batch idx)]))
-  (^next-alts^ (map (λ (x) (alt-map make-batchref x)) (^next-alts^)))
-  (batch-copy-mutable-nodes! global-batch global-batch-mutable)
+  (define global-batch (progs->batch (map alt-expr (^next-alts^))))
+  (define (make-batchref x idx)
+    (struct-copy alt x [expr (batchref global-batch idx)]))
 
-  (define roots (list->vector (map (compose batchref-idx alt-expr) (^next-alts^))))
-  (define roots* (batch-alive-nodes global-batch roots #:condition node-is-impl?))
-  (set-batch-roots! global-batch roots*)
+  (^next-alts^ (map make-batchref (^next-alts^) (vector->list (batch-roots global-batch))))
+  (define roots (batch-alive-nodes global-batch #:condition node-is-impl?))
+  (set-batch-roots! global-batch roots)
 
   (reconstruct! global-batch (generate-candidates global-batch))
   (finalize-iter!)
