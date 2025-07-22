@@ -193,7 +193,7 @@
 ;; Looks up a property `field` of an real operator `op`.
 ;; Panics if the operator is not found.
 (define/contract (impl-info impl-name field)
-  (-> symbol? (or/c 'name 'vars 'itype 'otype 'spec 'fpcore 'fl 'cost) any/c)
+  (-> symbol? (or/c 'name 'vars 'itype 'otype 'spec 'fpcore 'fl 'cost 'aggregate) any/c)
   (define impls (platform-implementations (*active-platform*)))
   (define impl
     (hash-ref impls
@@ -211,7 +211,8 @@
     [(spec) (operator-impl-spec impl)]
     [(fpcore) (operator-impl-fpcore impl)]
     [(fl) (operator-impl-fl impl)]
-    [(cost) (operator-impl-cost impl)]))
+    [(cost) (operator-impl-cost impl)]
+    [(aggregate) (operator-impl-aggregate impl)]))
 
 (define (platform-impls platform)
   (hash-keys (platform-implementations platform)))
@@ -238,10 +239,11 @@
          [`(sum ,n) (+ n cond-cost ift-cost iff-cost)]))]
     [(list impl args ...)
      (define impl-cost (impl-info impl 'cost))
+     (define impl-agg (impl-info impl 'aggregate))
      (lambda itype-costs
        (unless (= (length itype-costs) (length args))
          (error 'platform-node-cost-proc "arity mismatch, expected ~a arguments" (length args)))
-       (apply + impl-cost itype-costs))]))
+       (+ impl-cost (apply impl-agg itype-costs)))]))
 
 ; Cost model parameterized by a platform.
 (define (platform-cost-proc platform)
