@@ -441,7 +441,10 @@
              (hash-set! (id->e1) unsound-op (serialize-op unsound-op))
              (hash-set! (e1->id) (serialize-op unsound-op) unsound-op)
 
-             (define arity (match op ['if 3] [_ (length (operator-info op 'itype))]))
+             (define arity
+               (match op
+                 ['if 3]
+                 [_ (length (operator-info op 'itype))]))
              (list `(,(serialize-op op) ,@(for/list ([i (in-range arity)])
                                             'M)
                                         :cost
