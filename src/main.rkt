@@ -100,12 +100,11 @@
      (format "[Default: ~a iterations]" (*max-find-range-depth*)))
     (*max-find-range-depth* (string->number num))]
    [("--profile") "Whether to profile each run (no-op, always on)" (void)]
-   #:multi
-   [("-o" "--disable")
-    flag
-    ("Disable a search flag (formatted category:name)."
-     "See `+o/--enable` for the full list of search flags.")
-    (apply disable-flag! (string->flag flag))]
+   #:multi [("-o" "--disable")
+            flag
+            ("Disable a search flag (formatted category:name)."
+             "See `+o/--enable` for the full list of search flags.")
+            (apply disable-flag! (string->flag flag))]
    [("+o" "--enable")
     flag
     ("Enable a search flag (formatted category:name)."
