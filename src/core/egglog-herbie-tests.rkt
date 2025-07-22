@@ -313,7 +313,7 @@
            "../syntax/platform.rkt"
            "../utils/float.rkt"
            "../syntax/load-platform.rkt")
-  (activate-platform! (*platform-name*))
+  (activate-platform! "c")
 
   (define batch
     (progs->batch (list '(-.f64 (sin.f64 (+.f64 x eps)) (sin.f64 x))
