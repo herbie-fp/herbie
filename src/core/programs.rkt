@@ -245,8 +245,8 @@
   (define nodes (batch-nodes full-batch))
 
   (define (locations-update locations prev-idx new-loc new-idx)
-    (unless (null? (vector-ref locations prev-idx)) ; when prev-idx has some locs stored
-      (define prev-locs (vector-ref locations prev-idx))
+    (define prev-locs (vector-ref locations prev-idx))
+    (unless (null? prev-locs) ; when prev-idx has some locs stored
       (define new-locs (map (curry cons new-loc) prev-locs)) ; append prev-locs with new-loc
       (vector-set! locations
                    new-idx

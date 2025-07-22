@@ -170,11 +170,20 @@
   (define alive-mask (make-vector nodes-length #f))
   (for ([root (in-vector roots)])
     (vector-set! alive-mask root #t))
-  (for/vector ([i (in-range (- nodes-length 1) -1 -1)]
-               [node (in-vector nodes (- nodes-length 1) -1 -1)]
-               [alv (in-vector alive-mask (- nodes-length 1) -1 -1)]
-               #:when (or (and alv (condition node)) (and keep-vars-alive (symbol? node))))
-    (expr-recurse node (λ (n) (vector-set! alive-mask n #t)))
+  (for ([i (in-range (- nodes-length 1) -1 -1)]
+        [node (in-vector nodes (- nodes-length 1) -1 -1)]
+        [alv (in-vector alive-mask (- nodes-length 1) -1 -1)]
+        #:when (or (and alv (condition node)) (and keep-vars-alive (symbol? node))))
+    (unless alv ; if keep-vars-alive then alv may not be #t, making sure it's #t
+      (vector-set! alive-mask i #t))
+    (expr-recurse node
+                  (λ (n)
+                    (when (condition (vector-ref nodes n))
+                      (vector-set! alive-mask n #t)))))
+  ; Return indices of alive nodes in ascending order
+  (for/vector ([alv (in-vector alive-mask)]
+               [i (in-naturals)]
+               #:when alv)
     i))
 
 ;; Function constructs a vector of expressions for the given nodes of a batch
@@ -195,7 +204,6 @@
   (match (zero? nodes-length)
     [#f
      (define alive-nodes (batch-alive-nodes batch roots #:keep-vars-alive keep-vars))
-     (vector-sort! alive-nodes <) ; nodes should be in ascending order
 
      (define mappings (make-vector nodes-length -1))
      (define (remap idx)

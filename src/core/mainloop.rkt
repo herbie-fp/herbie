@@ -211,23 +211,18 @@
   (define orig-fresh-alts (atab-not-done-alts (^table^)))
   (define orig-done-alts (set-subtract orig-all-alts (atab-not-done-alts (^table^))))
 
-  ;; No point re-adding existing expressions---deduplicating inside alt-table more expensive
-  ;(define existing-exprs (list->set (map alt-expr orig-all-alts)))
-  ;(define new-alts (filter (lambda (a) (not (set-member? existing-exprs (alt-expr a)))) (^patched^)))
-  (define new-alts (^patched^))
-
-  (define-values (errss costs) (atab-eval-altns (^table^) new-alts (*context*)))
+  (define-values (errss costs) (atab-eval-altns (^table^) (^patched^) (*context*)))
   (timeline-event! 'prune)
-  (^table^ (atab-add-altns (^table^) new-alts errss costs (*context*)))
+  (^table^ (atab-add-altns (^table^) (^patched^) errss costs (*context*)))
   (define final-fresh-alts (atab-not-done-alts (^table^)))
   (define final-done-alts (set-subtract (atab-active-alts (^table^)) final-fresh-alts))
   (timeline-push! 'count
-                  (+ (length new-alts) (length orig-fresh-alts) (length orig-done-alts))
+                  (+ (length (^patched^)) (length orig-fresh-alts) (length orig-done-alts))
                   (+ (length final-fresh-alts) (length final-done-alts)))
 
   (define data
     (hash 'new
-          (list (length new-alts) (length (set-intersect new-alts final-fresh-alts)))
+          (list (length (^patched^)) (length (set-intersect (^patched^) final-fresh-alts)))
           'fresh
           (list (length orig-fresh-alts) (length (set-intersect orig-fresh-alts final-fresh-alts)))
           'done
