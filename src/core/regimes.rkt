@@ -170,9 +170,7 @@
   ;; splitpoint (the second, since it is better at the further point).
   (test-regimes (literal 1 'binary64) '(0))
 
-  (test-regimes `(if.f64 (==.f64 x ,(literal 0.5 'binary64))
-                         ,(literal 1 'binary64)
-                         (NAN.f64))
+  (test-regimes `(if.f64 (==.f64 x ,(literal 0.5 'binary64)) ,(literal 1 'binary64) (NAN.f64))
                 '(1 0)))
 
 ;; Given error-lsts, returns a list of sp objects representing where the optimal splitpoints are.
