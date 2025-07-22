@@ -279,7 +279,6 @@
     (- x sub-idx))
 
   (cond
-    [(equal? sub-idx full-idx) '(())]
     [(> sub-idx full-idx)
      '()] ; sub-idx can not be a child of full-idx if it is inserted after full-idx
     [else
