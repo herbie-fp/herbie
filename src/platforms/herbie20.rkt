@@ -34,23 +34,23 @@
   [<=.f32 #:spec (<= x y) #:impl <=         #:cost 128]
   [>=.f32 #:spec (>= x y) #:impl >=         #:cost 128])
 
-(parameterize ([fpcore-context '(:precision binary32)])
-  (define-operations () <binary32>
+(define-operations () <binary32> #:fpcore (:precision binary32)
     [PI.f32       #:spec (PI)       #:impl (const (flsingle pi))       #:fpcore PI       #:cost 32]
     [E.f32        #:spec (E)        #:impl (const (flsingle (exp 1)))  #:fpcore E        #:cost 32]
     [INFINITY.f32 #:spec (INFINITY) #:impl (const +inf.0)              #:fpcore INFINITY #:cost 32]
     [NAN.f32      #:spec (NAN)      #:impl (const +nan.0)              #:fpcore NAN      #:cost 32])
+
+(define-operation (neg.f32 [x <binary32>]) <binary32>
+  #:spec (neg x) #:impl (compose flsingle -)
+  #:fpcore (! :precision binary32 (- x)) #:cost 64)
   
-  (define-operation (neg.f32 [x <binary32>]) <binary32>
-    #:spec (neg x) #:impl (compose flsingle -) #:fpcore (- x) #:cost 64)
-  
-  (define-operations ([x <binary32>] [y <binary32>]) <binary32>
+ (define-operations ([x <binary32>] [y <binary32>]) <binary32> #:fpcore (:precision binary32)
     [+.f32 #:spec (+ x y) #:impl (compose flsingle +) #:cost 64]
     [-.f32 #:spec (- x y) #:impl (compose flsingle -) #:cost 64]
     [*.f32 #:spec (* x y) #:impl (compose flsingle *) #:cost 128]
     [/.f32 #:spec (/ x y) #:impl (compose flsingle /) #:cost 320])
-  
-  (define-operations ([x <binary32>]) <binary32>
+
+ (define-operations ([x <binary32>]) <binary32> #:fpcore (:precision binary32)
     [fabs.f32   #:spec (fabs x)   #:impl (from-libm 'fabsf)   #:cost 64]
     [sin.f32    #:spec (sin x)    #:impl (from-libm 'sinf)    #:cost 3200]
     [cos.f32    #:spec (cos x)    #:impl (from-libm 'cosf)    #:cost 3200]
@@ -81,7 +81,7 @@
     [tgamma.f32 #:spec (tgamma x) #:impl (from-libm 'tgammaf) #:cost 3200]
     [trunc.f32  #:spec (trunc x)  #:impl (from-libm 'truncf)  #:cost 3200])
   
-  (define-operations ([x <binary32>] [y <binary32>]) <binary32>
+ (define-operations ([x <binary32>] [y <binary32>]) <binary32> #:fpcore (:precision binary32)
     [pow.f32       #:spec (pow x y)       #:impl (from-libm 'powf)       #:cost 3200]
     [atan2.f32     #:spec (atan2 x y)     #:impl (from-libm 'atan2f)     #:cost 3200]
     [copysign.f32  #:spec (copysign x y)  #:impl (from-libm 'copysignf)  #:cost 3200]
@@ -91,16 +91,18 @@
     [fmod.f32      #:spec (fmod x y)      #:impl (from-libm 'fmodf)      #:cost 3200]
     [remainder.f32 #:spec (remainder x y) #:impl (from-libm 'remainderf) #:cost 3200])
   
-  (define-operations ([x <binary32>]) <binary32>
+ (define-operations ([x <binary32>]) <binary32> #:fpcore (:precision binary32)
     [erfc.f32  #:spec (- 1 (erf x)) #:impl (from-libm 'erfcf)  #:fpcore (erfc x)  #:cost 3200]
     [expm1.f32 #:spec (- (exp x) 1) #:impl (from-libm 'expm1f) #:fpcore (expm1 x) #:cost 3200]
     [log1p.f32 #:spec (log (+ 1 x)) #:impl (from-libm 'log1pf) #:fpcore (log1p x) #:cost 3200])
   
-  (define-operation (hypot.f32 [x <binary32>] [y <binary32>]) <binary32>
-    #:spec (sqrt (+ (* x x) (* y y))) #:impl (from-libm 'hypotf) #:fpcore (hypot x y) #:cost 3200)
-  
-  (define-operation (fma.f32 [x <binary32>] [y <binary32>] [z <binary32>]) <binary32>
-    #:spec (+ (* x y) z) #:impl (from-libm 'fmaf) #:fpcore (fma x y z) #:cost 128))
+(define-operation (hypot.f32 [x <binary32>] [y <binary32>]) <binary32>
+  #:spec (sqrt (+ (* x x) (* y y))) #:impl (from-libm 'hypotf)
+  #:fpcore (! :precision binary32 (hypot x y)) #:cost 3200)
+
+(define-operation (fma.f32 [x <binary32>] [y <binary32>] [z <binary32>]) <binary32>
+  #:spec (+ (* x y) z) #:impl (from-libm 'fmaf)
+  #:fpcore (! :precision binary32 (fma x y z)) #:cost 128)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BINARY 64 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -114,23 +116,23 @@
   [<=.f64 #:spec (<= x y) #:impl <=         #:cost 256]
   [>=.f64 #:spec (>= x y) #:impl >=         #:cost 256])
   
-(parameterize ([fpcore-context '(:precision binary64)])
-  (define-operations () <binary64>
+(define-operations () <binary64> #:fpcore (:precision binary64)
     [PI.f64   #:spec (PI)       #:impl (const pi)      #:fpcore PI       #:cost 64]
     [E.f64    #:spec (E)        #:impl (const (exp 1)) #:fpcore E        #:cost 64]
     [INFINITY #:spec (INFINITY) #:impl (const +inf.0)  #:fpcore INFINITY #:cost 64]
     [NAN.f64  #:spec (NAN)      #:impl (const +nan.0)  #:fpcore NAN      #:cost 64])
+
+ (define-operation (neg.f64 [x <binary64>]) <binary64>
+   #:spec (neg x) #:impl -
+   #:fpcore (! :precision binary64 (- x)) #:cost 128)
   
-  (define-operation (neg.f64 [x <binary64>]) <binary64>
-    #:spec (neg x) #:impl - #:fpcore (- x) #:cost 128)
-  
-  (define-operations ([x <binary64>] [y <binary64>]) <binary64>
+ (define-operations ([x <binary64>] [y <binary64>]) <binary64> #:fpcore (:precision binary64)
     [+.f64 #:spec (+ x y) #:impl + #:cost 128]
     [-.f64 #:spec (- x y) #:impl - #:cost 128]
     [*.f64 #:spec (* x y) #:impl * #:cost 256]
     [/.f64 #:spec (/ x y) #:impl / #:cost 640])
 
-  (define-operations ([x <binary64>]) <binary64>
+ (define-operations ([x <binary64>]) <binary64> #:fpcore (:precision binary64)
     [fabs.f64   #:spec (fabs x)   #:impl (from-libm 'fabs)      #:cost 128]
     [sin.f64    #:spec (sin x)    #:impl (from-libm 'sin)       #:cost 6400]
     [cos.f64    #:spec (cos x)    #:impl (from-libm 'cos)       #:cost 6400]
@@ -161,7 +163,7 @@
     [tgamma.f64 #:spec (tgamma x) #:impl (from-libm 'tgamma)    #:cost 6400]
     [trunc.f64  #:spec (trunc x)  #:impl (from-libm 'trunc)     #:cost 6400])
   
-  (define-operations ([x <binary64>] [y <binary64>]) <binary64>
+ (define-operations ([x <binary64>] [y <binary64>]) <binary64> #:fpcore (:precision binary64)
     [pow.f64       #:spec (pow x y)       #:impl (from-libm 'pow)       #:cost 6400]
     [atan2.f64     #:spec (atan2 x y)     #:impl (from-libm 'atan2)     #:cost 6400]
     [copysign.f64  #:spec (copysign x y)  #:impl (from-libm 'copysign)  #:cost 6400]
@@ -171,16 +173,18 @@
     [fmod.f64      #:spec (fmod x y)      #:impl (from-libm 'fmod)      #:cost 6400]
     [remainder.f64 #:spec (remainder x y) #:impl (from-libm 'remainder) #:cost 6400])
   
-  (define-operations ([x <binary64>]) <binary64>
+ (define-operations ([x <binary64>]) <binary64> #:fpcore (:precision binary64)
     [erfc.f64  #:spec (- 1 (erf x)) #:impl (from-libm 'erfc)  #:fpcore (erfc x)  #:cost 6400]
     [expm1.f64 #:spec (- (exp x) 1) #:impl (from-libm 'expm1) #:fpcore (expm1 x) #:cost 6400]
     [log1p.f64 #:spec (log (+ 1 x)) #:impl (from-libm 'log1p) #:fpcore (log1p x) #:cost 6400])
   
-  (define-operation (hypot.f64 [x <binary64>] [y <binary64>]) <binary64>
-    #:spec (sqrt (+ (* x x) (* y y))) #:impl (from-libm 'hypot) #:fpcore (hypot x y) #:cost 6400)
-  
-  (define-operation (fma.f64 [x <binary64>] [y <binary64>] [z <binary64>]) <binary64>
-    #:spec (+ (* x y) z) #:impl (from-libm 'fma) #:fpcore (fma x y z) #:cost 256))
+ (define-operation (hypot.f64 [x <binary64>] [y <binary64>]) <binary64>
+   #:spec (sqrt (+ (* x x) (* y y))) #:impl (from-libm 'hypot)
+   #:fpcore (! :precision binary64 (hypot x y)) #:cost 6400)
+
+ (define-operation (fma.f64 [x <binary64>] [y <binary64>] [z <binary64>]) <binary64>
+   #:spec (+ (* x y) z) #:impl (from-libm 'fma)
+   #:fpcore (! :precision binary64 (fma x y z)) #:cost 256)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; CASTS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
