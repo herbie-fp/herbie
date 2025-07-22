@@ -42,11 +42,13 @@
        (for/fold ([expr (alt-expr (list-ref alts (sp-cidx (last splitpoints))))])
                  ([splitpoint (cdr (reverse splitpoints))])
          (define repr (repr-of (sp-bexpr splitpoint) ctx))
+         (define if-impl (get-fpcore-impl 'if '() (list (get-representation 'bool) repr repr)))
          (define <=-impl (get-fpcore-impl '<= '() (list repr repr)))
-         `(if (,<=-impl ,(sp-bexpr splitpoint)
-                        ,(literal (repr->real (sp-point splitpoint) repr) (representation-name repr)))
-              ,(alt-expr (list-ref alts (sp-cidx splitpoint)))
-              ,expr)))
+         `(,if-impl
+           (,<=-impl ,(sp-bexpr splitpoint)
+                     ,(literal (repr->real (sp-point splitpoint) repr) (representation-name repr)))
+           ,(alt-expr (list-ref alts (sp-cidx splitpoint)))
+           ,expr)))
 
      ;; We don't want unused alts in our history!
      (define-values (alts* splitpoints*) (remove-unused-alts alts splitpoints))
