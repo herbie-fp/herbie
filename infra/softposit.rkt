@@ -168,16 +168,15 @@
   [<=.p8 #:spec (<= x y) #:impl posit8<= #:cost 1]
   [>=.p8 #:spec (>= x y) #:impl posit8>= #:cost 1])
 
-(parameterize ([fpcore-context '(:precision posit8)])
-  (define-operations ([x <posit8>]) <posit8>
-    [neg.p8  #:spec (neg x)  #:impl posit8-neg  #:fpcore (- x) #:cost 1]
-    [sqrt.p8 #:spec (sqrt x) #:impl posit8-sqrt #:cost 1])
+(define-operations ([x <posit8>]) <posit8> #:fpcore (:precision posit8)
+  [neg.p8  #:spec (neg x)  #:impl posit8-neg  #:fpcore (- x) #:cost 1]
+  [sqrt.p8 #:spec (sqrt x) #:impl posit8-sqrt #:cost 1])
 
-  (define-operations ([x <posit8>] [y <posit8>]) <posit8>
-    [+.p8 #:spec (+ x y) #:impl posit8-add #:cost 1]
-    [-.p8 #:spec (- x y) #:impl posit8-sub #:cost 1]
-    [*.p8 #:spec (* x y) #:impl posit8-mul #:cost 1]
-    [/.p8 #:spec (/ x y) #:impl posit8-div #:cost 1]))
+(define-operations ([x <posit8>] [y <posit8>]) <posit8> #:fpcore (:precision posit8)
+  [+.p8 #:spec (+ x y) #:impl posit8-add #:cost 1]
+  [-.p8 #:spec (- x y) #:impl posit8-sub #:cost 1]
+  [*.p8 #:spec (* x y) #:impl posit8-mul #:cost 1]
+  [/.p8 #:spec (/ x y) #:impl posit8-div #:cost 1])
 
 (define-operations ([x <posit16>] [y <posit16>]) <bool>
   [==.p16 #:spec (== x y) #:impl posit16=  #:cost 1]
@@ -186,16 +185,15 @@
   [<=.p16 #:spec (<= x y) #:impl posit16<= #:cost 1]
   [>=.p16 #:spec (>= x y) #:impl posit16>= #:cost 1])
 
-(parameterize ([fpcore-context '(:precision posit16)])
-  (define-operations ([x <posit16>]) <posit16>
-    [neg.p16  #:spec (neg x)  #:impl posit16-neg  #:fpcore (- x) #:cost 1]
-    [sqrt.p16 #:spec (sqrt x) #:impl posit16-sqrt #:cost 1])
+(define-operations ([x <posit16>]) <posit16> #:fpcore (:precision posit16)
+  [neg.p16  #:spec (neg x)  #:impl posit16-neg  #:fpcore (- x) #:cost 1]
+  [sqrt.p16 #:spec (sqrt x) #:impl posit16-sqrt #:cost 1])
 
-  (define-operations ([x <posit16>] [y <posit16>]) <posit16>
-    [+.p16 #:spec (+ x y) #:impl posit16-add #:cost 1]
-    [-.p16 #:spec (- x y) #:impl posit16-sub #:cost 1]
-    [*.p16 #:spec (* x y) #:impl posit16-mul #:cost 1]
-    [/.p16 #:spec (/ x y) #:impl posit16-div #:cost 1]))
+(define-operations ([x <posit16>] [y <posit16>]) <posit16> #:fpcore (:precision posit16)
+  [+.p16 #:spec (+ x y) #:impl posit16-add #:cost 1]
+  [-.p16 #:spec (- x y) #:impl posit16-sub #:cost 1]
+  [*.p16 #:spec (* x y) #:impl posit16-mul #:cost 1]
+  [/.p16 #:spec (/ x y) #:impl posit16-div #:cost 1])
 
 (define-operations ([x <posit32>] [y <posit32>]) <bool>
   [==.p32 #:spec (== x y) #:impl posit32=  #:cost 1]
@@ -204,16 +202,15 @@
   [<=.p32 #:spec (<= x y) #:impl posit32<= #:cost 1]
   [>=.p32 #:spec (>= x y) #:impl posit32>= #:cost 1])
 
-(parameterize ([fpcore-context '(:precision posit32)])
-  (define-operations ([x <posit32>]) <posit32>
-    [neg.p32  #:spec (neg x)  #:impl posit32-neg  #:fpcore (- x) #:cost 1]
-    [sqrt.p32 #:spec (sqrt x) #:impl posit32-sqrt #:cost 1])
+(define-operations ([x <posit32>]) <posit32> #:fpcore (:precision posit32)
+  [neg.p32  #:spec (neg x)  #:impl posit32-neg  #:fpcore (- x) #:cost 1]
+  [sqrt.p32 #:spec (sqrt x) #:impl posit32-sqrt #:cost 1])
 
-  (define-operations ([x <posit32>] [y <posit32>]) <posit32>
-    [+.p32 #:spec (+ x y) #:impl posit32-add #:cost 1]
-    [-.p32 #:spec (- x y) #:impl posit32-sub #:cost 1]
-    [*.p32 #:spec (* x y) #:impl posit32-mul #:cost 1]
-    [/.p32 #:spec (/ x y) #:impl posit32-div #:cost 1]))
+(define-operations ([x <posit32>] [y <posit32>]) <posit32> #:fpcore (:precision posit32)
+  [+.p32 #:spec (+ x y) #:impl posit32-add #:cost 1]
+  [-.p32 #:spec (- x y) #:impl posit32-sub #:cost 1]
+  [*.p32 #:spec (* x y) #:impl posit32-mul #:cost 1]
+  [/.p32 #:spec (/ x y) #:impl posit32-div #:cost 1])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; QUIRE OPERATIONS ;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -221,20 +218,17 @@
 (define-representation <quire16> #:cost 1)
 (define-representation <quire32> #:cost 1)
 
-(parameterize ([fpcore-context '(:precision quire8)])
-  (define-operations ([x <quire8>] [y <posit8>] [z <posit8>]) <quire8>
-    [quire8-mul-add #:spec (+ x (* y z)) #:impl quire8-fdp-add #:fpcore (fdp x y z) #:cost 1]
-    [quire8-mul-sub #:spec (- x (* y z)) #:impl quire8-fdp-sub #:fpcore (fds x y z) #:cost 1]))
+(define-operations ([x <quire8>] [y <posit8>] [z <posit8>]) <quire8> #:fpcore (:precision quire8)
+  [quire8-mul-add #:spec (+ x (* y z)) #:impl quire8-fdp-add #:fpcore (fdp x y z) #:cost 1]
+  [quire8-mul-sub #:spec (- x (* y z)) #:impl quire8-fdp-sub #:fpcore (fds x y z) #:cost 1])
 
-(parameterize ([fpcore-context '(:precision quire16)])
-  (define-operations ([x <quire16>] [y <posit16>] [z <posit16>]) <quire16>
-    [quire16-mul-add #:spec (+ x (* y z)) #:impl quire16-fdp-add #:fpcore (fdp x y z) #:cost 1]
-    [quire16-mul-sub #:spec (- x (* y z)) #:impl quire16-fdp-sub #:fpcore (fds x y z) #:cost 1]))
+(define-operations ([x <quire16>] [y <posit16>] [z <posit16>]) <quire16> #:fpcore (:precision quire16)
+  [quire16-mul-add #:spec (+ x (* y z)) #:impl quire16-fdp-add #:fpcore (fdp x y z) #:cost 1]
+  [quire16-mul-sub #:spec (- x (* y z)) #:impl quire16-fdp-sub #:fpcore (fds x y z) #:cost 1])
 
-(parameterize ([fpcore-context '(:precision quire32)])
-  (define-operations ([x <quire32>] [y <posit32>] [z <posit32>]) <quire32>
-    [quire32-mul-add #:spec (+ x (* y z)) #:impl quire32-fdp-add #:fpcore (fdp x y z) #:cost 1]
-    [quire32-mul-sub #:spec (- x (* y z)) #:impl quire32-fdp-sub #:fpcore (fds x y z) #:cost 1]))
+(define-operations ([x <quire32>] [y <posit32>] [z <posit32>]) <quire32> #:fpcore (:precision quire32)
+  [quire32-mul-add #:spec (+ x (* y z)) #:impl quire32-fdp-add #:fpcore (fdp x y z) #:cost 1]
+  [quire32-mul-sub #:spec (- x (* y z)) #:impl quire32-fdp-sub #:fpcore (fds x y z) #:cost 1])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; CONVERTERS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
