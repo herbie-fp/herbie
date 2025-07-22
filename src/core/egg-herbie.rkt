@@ -320,7 +320,7 @@
           (cons '(*.f64 x y) '(*.f64 $var0 $var1))
           (cons '(+.f64 (*.f64 x y) #s(literal 2 binary64)) '(+.f64 (*.f64 $var0 $var1) 2))
           (cons '(cos.f32 (PI.f32)) '(cos.f32 (PI.f32)))
-          (cons '(if (TRUE) x y) '(if (TRUE) $var0 $var1))))
+          (cons '(if.f64 (TRUE) x y) '(if.f64 (TRUE) $var0 $var1))))
 
   (let ([egg-graph (make-egraph-data)])
     (for ([(in expected-out) (in-dict test-exprs)])
