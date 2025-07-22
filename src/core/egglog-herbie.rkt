@@ -320,7 +320,6 @@
     `(datatype M
                (Num BigRat :cost 4294967295)
                (Var String :cost 4294967295)
-               (If M M M :cost 4294967295)
                ,@(platform-spec-nodes)))
 
   (egglog-program-add! spec-egraph curr-program)
