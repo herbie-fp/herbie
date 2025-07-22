@@ -9,6 +9,8 @@
          define-operation
          define-operations
          fpcore-context
+         if-impl
+         if-cost
          (rename-out [platform-module-begin #%module-begin])
          (except-out (all-from-out racket) #%module-begin)
          (all-from-out "platform.rkt")
@@ -49,3 +51,9 @@
                            (display-platform local-platform))
                          (module test racket/base
                            ))])))
+
+(define (if-impl c t f)
+  (if c t f))
+
+(define (if-cost c t f)
+  (+ c (max t f)))

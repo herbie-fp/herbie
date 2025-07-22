@@ -46,9 +46,6 @@
     [(list op a b c) (op (vector-ref regs a) (vector-ref regs b) (vector-ref regs c))]
     [(list op args ...) (apply op (map (curry vector-ref regs) args))]))
 
-(define (if-proc c a b)
-  (if c a b))
-
 (define (batch-remove-approx batch)
   (batch-replace batch
                  (lambda (node)

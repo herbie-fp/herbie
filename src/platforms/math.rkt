@@ -3,12 +3,6 @@
 ;;; C/C++ on Linux with reduced libm, meaning no special numeric
 ;;; functions. It is also 64-bit only.
 
-(define (if-impl c t f)
-  (if c t f))
-
-(define (if-cost c t f)
-  (+ c (max t f)))
-
 (define move-cost    0.02333600000000001)
 (define fl-move-cost (* move-cost 4))
 

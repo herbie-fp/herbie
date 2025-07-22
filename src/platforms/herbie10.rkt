@@ -5,13 +5,6 @@
 
 (require math/flonum)
 
-(define (if-impl c t f)
-  (if c t f))
-
-(define (if-cost c t f)
-  (+ c (max t f)))
-
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BOOLEAN ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define-representation <bool> #:cost 0)

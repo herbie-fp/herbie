@@ -2,10 +2,6 @@
 
 ;;; Rival correctly-rounded platform
 
-(define (if-cost c t f)
-  (+ c (max t f)))
-
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BOOLEAN ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define-representation <bool> #:cost 1)

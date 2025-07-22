@@ -7,12 +7,6 @@
          math/flonum
          softposit-rkt)
 
-(define (if-impl c t f)
-  (if c t f))
-
-(define (if-cost c t f)
-  (+ c (max t f)))
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; utils ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define posit8-max  (ordinal->posit8  (- (expt 2 (- 8 1)) 1)))

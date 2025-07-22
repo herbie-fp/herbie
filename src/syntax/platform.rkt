@@ -38,9 +38,6 @@
          platform-register-implementation!
          platform-register-implementations!
          display-platform
-         if-cost
-         if-impl
-         (for-syntax if-impl)
          make-operator-impl
          make-representation
          (all-from-out "generators.rkt"))
@@ -214,17 +211,6 @@
 (define (platform-repr-cost platform repr)
   (define repr-costs (platform-representation-costs platform))
   (hash-ref repr-costs (representation-name repr)))
-
-;; Default cost aggregation for `if` operations.
-(define (if-cost cond-cost then-cost else-cost)
-  (+ cond-cost (max then-cost else-cost)))
-
-;; Default implementation for typed `if` operators.
-(define (if-impl c t f)
-  (if c t f))
-(begin-for-syntax
-  (define (if-impl c t f)
-    (if c t f)))
 
 ; Cost model of a single node by a platform.
 ; Returns a procedure that must be called with the costs of the children.
