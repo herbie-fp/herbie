@@ -47,7 +47,7 @@
 
 ; Index inside (batch-nodes batch) -> type
 (define (repr-of-node batch idx ctx)
-  (define node (vector-ref (batch-nodes batch) idx))
+  (define node (mutable-treelist-ref (batch-nodes batch) idx))
   (match node
     [(literal val precision) (get-representation precision)]
     [(? symbol?) (context-lookup ctx node)]
@@ -186,8 +186,8 @@
   (-> location? expr? expr? expr?)
   (location-do loc prog (const prog*)))
 
-(define/contract (batch-location-set loc0 mutable-batch cache full-batchref sub-batchref)
-  (-> location? mutable-batch? hash? batchref? batchref? batchref?)
+(define/contract (batch-location-set loc0 batch full-batchref sub-batchref)
+  (-> location? batch? batchref? batchref? batchref?)
   (match-define (batchref sub-batch sub-idx) sub-batchref)
   (match-define (batchref full-batch full-idx) full-batchref)
   (define nodes (batch-nodes full-batch))
@@ -195,26 +195,18 @@
   (unless (equal? sub-batch full-batch)
     (error 'batch-location-set "Function assumes that batches are equal"))
 
-  (define (get-node idx)
-    (hash-ref cache idx (λ () (vector-ref nodes idx))))
-
-  (define (push-node node)
-    (define idx (mutable-batch-push! mutable-batch node))
-    (hash-set! cache idx node)
-    idx)
-
   (define idx*
     (let loop ([loc0 loc0]
                [idx full-idx])
-      (let ([node (get-node idx)])
+      (let ([node (mutable-treelist-ref nodes idx)])
         (match* (node loc0)
           [(_ (? null?)) sub-idx]
-          [((approx spec impl) (cons 1 rest)) (push-node (approx (loop rest spec) impl))]
-          [((approx spec impl) (cons 2 rest)) (push-node (approx spec (loop rest impl)))]
-          [((hole prec spec) (cons 1 rest)) (push-node (hole prec (loop rest spec)))]
+          [((approx spec impl) (cons 1 rest)) (batch-push! batch (approx (loop rest spec) impl))]
+          [((approx spec impl) (cons 2 rest)) (batch-push! batch (approx spec (loop rest impl)))]
+          [((hole prec spec) (cons 1 rest)) (batch-push! batch (hole prec (loop rest spec)))]
           [((list op args ...) (cons loc rest))
            (define args* (list-update args (sub1 loc) (curry loop rest)))
-           (push-node (cons op args*))]))))
+           (batch-push! batch (cons op args*))]))))
   (batchref full-batch idx*))
 
 (define/contract (location-get loc prog)
@@ -258,8 +250,8 @@
     [else
      (define locations (make-vector (batch-length full-batch) '()))
      (vector-set! locations sub-idx '(()))
-     (for ([node (in-vector nodes (add1 sub-idx) (add1 full-idx))]
-           [n (in-naturals (add1 sub-idx))])
+     (for ([n (in-range (add1 sub-idx) (add1 full-idx))])
+       (define node (mutable-treelist-ref nodes n)) ; to be replaced with API's instruction
        (match node
          [(list _ args ...)
           (for ([arg (in-list args)]

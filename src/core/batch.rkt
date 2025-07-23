@@ -5,7 +5,10 @@
          "../utils/alternative.rkt" ; for unbatchify-alts
          racket/mutable-treelist)
 
-(provide progs->batch ; List<Expr> -> Batch
+(provide mutable-treelist-ref
+         in-mutable-treelist ; for now, ideally users should not know anything about mutable-treelist, just in-batch/batch-ref
+
+         progs->batch ; List<Expr> -> Batch
          batch->progs ; Batch -> ?(or List<Root> Vector<Root>) -> List<Expr>
 
          (struct-out batch)
