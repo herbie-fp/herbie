@@ -7,22 +7,25 @@
 
 (provide progs->batch ; List<Expr> -> Batch
          batch->progs ; Batch -> ?(or List<Root> Vector<Root>) -> List<Expr>
+
          (struct-out batch)
-         (struct-out batchref)
+         make-batch ; Batch
+         batch-push! ; Batch -> Node -> Idx
+         batch-munge! ; Batch -> Expr -> Root
+         batch-copy ; Batch -> Batc
+         batch-ref ; Batch -> Idx -> Exprh
          batch-length ; Batch -> Integer
          batch-tree-size ; Batch -> Integer
          batch-free-vars
-         batch-ref ; Batch -> Idx -> Expr
-         deref ; Batchref -> Expr
          batch-replace ; Batch -> (Expr<Batchref> -> Expr<Batchref>) -> Batch
-         debatchref ; Batchref -> Expr
          batch-alive-nodes ; Batch -> ?Vector<Root> -> Vector<Idx>
          batch-reconstruct-exprs ; Batch -> Vector<Expr>
          batch-remove-zombie ; Batch -> ?Vector<Root> -> Batch
-         batch-munge! ; Batch -> Expr -> Root
-         make-batch ; Batch
-         batch-push! ; Batch -> Node -> Idx
-         batch-copy ; Batch -> Batch
+
+         (struct-out batchref)
+         deref ; Batchref -> Expr
+         debatchref ; Batchref -> Expr
+
          unbatchify-alts)
 
 ;; Batches store these recursive structures, flattened
