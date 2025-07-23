@@ -558,12 +558,9 @@
        [else
         (define itypes
           (cond
-            [(impl-exists? f)
-             (impl-info f 'itype)]
-            [(eq? f 'if)
-             (list 'bool type type)]
-            [else
-             (operator-info f 'itype)]))
+            [(impl-exists? f) (impl-info f 'itype)]
+            [(eq? f 'if) (list 'bool type type)]
+            [else (operator-info f 'itype)]))
         ; unsafe since we don't check that |itypes| = |ids|
         ; optimize for common cases to avoid extra allocations
         (cons
@@ -1020,8 +1017,7 @@
                type))
          (approx (loop spec spec-type) (loop impl type))]
         [(list (? impl-exists? impl) args ...) (cons impl (map loop args (impl-info impl 'itype)))]
-        [(list 'if c t f)
-         (list 'if (loop c 'bool) (loop t 'real) (loop f 'real))]
+        [(list 'if c t f) (list 'if (loop c 'bool) (loop t 'real) (loop f 'real))]
         [(list op args ...) (cons op (map loop args (operator-info op 'itype)))])))
 
   (define (eggref id)
