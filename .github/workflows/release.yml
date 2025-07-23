@@ -30,9 +30,9 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install Racket
-        uses: Bogdanp/setup-racket@v1.11
+        uses: Bogdanp/setup-racket@v1.14
         with:
-          version: 8.11
+          version: 8.16
           architecture: ${{ matrix.arch }}
 
       - name: Install Rust compiler
