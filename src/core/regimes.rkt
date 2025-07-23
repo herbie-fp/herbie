@@ -40,7 +40,6 @@
     (cond
       [(null? alts) '()]
       ; Only return one option if not pareto mode
-      [(and (not (*pareto-mode*)) (not (equal? alts sorted))) '()]
       [else
        (define-values (opt new-errs)
          (infer-splitpoints branch-exprs alts err-lsts #:errs errs ctx pcontext))
