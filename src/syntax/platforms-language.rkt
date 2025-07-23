@@ -28,11 +28,15 @@
   (let ([impl (make-operator-impl (name [arg : irepr] ...) orepr flags ...)])
     (platform-register-implementation! (platform-being-defined) impl)))
 
-(define-syntax-rule (define-operations ([arg irepr] ...)
-                      orepr
-                      [name flags ...] ...)
-  (begin
-    (define-operation (name [arg irepr] ...) orepr flags ...) ...))
+(define-syntax (define-operations stx)
+  (syntax-case stx ()
+    [(_ ([arg irepr] ...) orepr #:fpcore fc [name flags ...] ...)
+     #'(parameterize ([fpcore-context 'fc])
+         (begin
+           (define-operation (name [arg irepr] ...) orepr flags ...) ...))]
+    [(_ ([arg irepr] ...) orepr [name flags ...] ...)
+     #'(begin
+         (define-operation (name [arg irepr] ...) orepr flags ...) ...)]))
 
 (define-syntax (platform-module-begin stx)
   (with-syntax ([local-platform (datum->syntax stx 'platform)])

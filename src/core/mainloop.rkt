@@ -156,11 +156,13 @@
   (void))
 
 ;; Converts a patch to full alt with valid history
-(define (reconstruct! alts)
+(define (reconstruct! global-batch alts)
+  (define mutable-global-batch (batch->mutable-batch global-batch))
+  (define location-set-cache (make-hash))
   ;; extracts the base expressions of a patch as a batchref
   (define (get-starting-expr altn)
     (match (alt-prevs altn)
-      [(list) (debatchref (alt-expr altn))]
+      [(list) (alt-expr altn)]
       [(list prev) (get-starting-expr prev)]))
 
   ;; takes a patch and converts it to a full alt
@@ -175,18 +177,28 @@
              [(list 'evaluate) (list 'evaluate loc0)]
              [(list 'taylor name var) (list 'taylor loc0 name var)]
              [(list 'rr input proof) (list 'rr loc0 input proof)]))
-         (define expr* (location-set loc0 (alt-expr orig) (debatchref (alt-expr altn))))
+         (define expr*
+           (batch-location-set loc0
+                               mutable-global-batch
+                               location-set-cache
+                               (alt-expr orig)
+                               (alt-expr altn)))
          (alt expr* event* (list (loop (first prevs))) (alt-preprocessing orig))])))
 
-  (^patched^ (reap [sow]
-                   (for ([altn (in-list alts)]) ;; does not have preproc
-                     (define start-expr (get-starting-expr altn))
-                     (for ([full-altn (in-list (^next-alts^))])
-                       (define expr (alt-expr full-altn))
-                       (sow (for/fold ([full-altn full-altn])
-                                      ([loc (in-list (get-locations expr start-expr))])
-                              (reconstruct-alt altn loc full-altn)))))))
+  (^patched^ (remove-duplicates
+              (reap [sow]
+                    (for ([altn (in-list alts)])
+                      (define start-expr (get-starting-expr altn))
+                      (for ([full-altn (in-list (^next-alts^))])
+                        (define expr (alt-expr full-altn))
+                        (sow (for/fold ([full-altn full-altn])
+                                       ([loc (in-list (batch-get-locations expr start-expr))])
+                               (reconstruct-alt altn loc full-altn))))))
+              #:key (compose batchref-idx alt-expr)))
 
+  (batch-copy-mutable-nodes! global-batch mutable-global-batch)
+  (^patched^ (unbatchify-alts global-batch (^patched^)))
+  ; No need to unmunge ^next-alts^
   (void))
 
 ;; Finish iteration
@@ -199,22 +211,18 @@
   (define orig-fresh-alts (atab-not-done-alts (^table^)))
   (define orig-done-alts (set-subtract orig-all-alts (atab-not-done-alts (^table^))))
 
-  ;; No point re-adding existing expressions---deduplicating inside alt-table more expensive
-  (define existing-exprs (list->set (map alt-expr orig-all-alts)))
-  (define new-alts (filter (lambda (a) (not (set-member? existing-exprs (alt-expr a)))) (^patched^)))
-
-  (define-values (errss costs) (atab-eval-altns (^table^) new-alts (*context*)))
+  (define-values (errss costs) (atab-eval-altns (^table^) (^patched^) (*context*)))
   (timeline-event! 'prune)
-  (^table^ (atab-add-altns (^table^) new-alts errss costs (*context*)))
+  (^table^ (atab-add-altns (^table^) (^patched^) errss costs (*context*)))
   (define final-fresh-alts (atab-not-done-alts (^table^)))
   (define final-done-alts (set-subtract (atab-active-alts (^table^)) final-fresh-alts))
   (timeline-push! 'count
-                  (+ (length new-alts) (length orig-fresh-alts) (length orig-done-alts))
+                  (+ (length (^patched^)) (length orig-fresh-alts) (length orig-done-alts))
                   (+ (length final-fresh-alts) (length final-done-alts)))
 
   (define data
     (hash 'new
-          (list (length new-alts) (length (set-intersect new-alts final-fresh-alts)))
+          (list (length (^patched^)) (length (set-intersect (^patched^) final-fresh-alts)))
           'fresh
           (list (length orig-fresh-alts) (length (set-intersect orig-fresh-alts final-fresh-alts)))
           'done
@@ -237,8 +245,16 @@
 (define (run-iteration!)
   (unless (^next-alts^)
     (choose-alts!))
-  (define locs (append-map (compose all-subexpressions alt-expr) (^next-alts^)))
-  (reconstruct! (generate-candidates (remove-duplicates locs)))
+
+  (define global-batch (progs->batch (map alt-expr (^next-alts^))))
+  (define (make-batchref x idx)
+    (struct-copy alt x [expr (batchref global-batch idx)]))
+
+  (^next-alts^ (map make-batchref (^next-alts^) (vector->list (batch-roots global-batch))))
+  (define roots (batch-alive-nodes global-batch #:condition node-is-impl?))
+  (set-batch-roots! global-batch roots)
+
+  (reconstruct! global-batch (generate-candidates global-batch))
   (finalize-iter!)
   (void))
 
