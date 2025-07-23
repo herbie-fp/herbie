@@ -538,6 +538,7 @@
        [(eq? f '$approx) (platform-reprs (*active-platform*))]
        [(string-contains? (~a f) "unsound") (list 'real)]
        [(impl-exists? f) (list (impl-info f 'otype))]
+       [(eq? f 'if) '(real bool)]
        [else (list (operator-info f 'otype))])]))
 
 ;; Rebuilds an e-node using typed e-classes
@@ -556,9 +557,13 @@
         (list* op (map (λ (x) (lookup (u32vector-ref ids x) 'real)) (range (u32vector-length ids))))]
        [else
         (define itypes
-          (if (impl-exists? f)
-              (impl-info f 'itype)
-              (operator-info f 'itype)))
+          (cond
+            [(impl-exists? f)
+             (impl-info f 'itype)]
+            [(eq? f 'if)
+             (list 'bool type type)]
+            [else
+             (operator-info f 'itype)]))
         ; unsafe since we don't check that |itypes| = |ids|
         ; optimize for common cases to avoid extra allocations
         (cons
@@ -1015,6 +1020,8 @@
                type))
          (approx (loop spec spec-type) (loop impl type))]
         [(list (? impl-exists? impl) args ...) (cons impl (map loop args (impl-info impl 'itype)))]
+        [(list 'if c t f)
+         (list 'if (loop c 'bool) (loop t 'real) (loop f 'real))]
         [(list op args ...) (cons op (map loop args (operator-info op 'itype)))])))
 
   (define (eggref id)
@@ -1051,6 +1058,8 @@
                           [type (in-list (impl-info impl 'itype))])
                  (loop arg type)))
              (cons impl args*)]
+            [(list 'if c t f)
+             (list 'if (loop (eggref c) 'bool) (loop (eggref t) type) (loop (eggref f) type))]
             [(list (? operator-exists? op) (app eggref args) ...)
              (define args*
                (for/list ([arg (in-list args)]
