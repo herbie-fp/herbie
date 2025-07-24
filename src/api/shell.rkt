@@ -38,7 +38,8 @@
        (fprintf p ";; ~a in ~a\n" (if type "Error" "Crash") name)]
       ["timeout" (fprintf p ";; ~a times out in ~as\n" (/ (*timeout*) 1000) name)]
       ["success" (void)])
-    (pretty-print (job-result->fpcore res) p 1)))
+    (displayln (fpcore->string (job-result->fpcore res)) p)
+    (newline)))
 
 (define (run-improve input output #:threads [threads #f])
   (define seed (get-seed))
@@ -71,7 +72,7 @@
           [idx (in-naturals)])
       (define result (job-wait (job-start 'improve test #:seed seed)))
       (match (hash-ref result 'status)
-        ["success" (pretty-print (job-result->fpcore result) (current-output-port) 1)]
+        ["success" (displayln (fpcore->string (job-result->fpcore result)))]
         ["failure"
          (match-define (list 'exn type msg url locs traceback) (hash-ref result 'backend))
          (printf "; ~a\n" msg)
