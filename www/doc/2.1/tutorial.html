@@ -44,9 +44,11 @@
 
   <p>
     After a brief wait, your web browser should open and show you
-    Herbie's main window. Check installation if this doesn&apos;t
-    occur. The most important part of the page is this bit:
+    Herbie's main window. Re-check the
+    <a href="installing.html">installation steps</a>
+    if this doesn&apos;t occur.
   </p>
+  <p>The most important part of the page is this bit:</p>
 
   <figure>
     <img width="100%" src="web-input.png" alt="The program input field in the Herbie web UI."/>
@@ -99,12 +101,13 @@
 
   <p>
     Herbie measures accuracy by comparing a program's result against
-    the exact answer calculated using GNU MPFR. The difference
+    the exact answer calculated using high-precision arithmetic. The difference
     between these two is then measured in "bits of error" which
-    represents how many of the most significant bits that the
+    counts how many of the most significant bits that the
     approximate and exact result agree on. This error is then
     averaged across many different sample inputs to determine
-    the program's overall accuracy.
+    the program's overall accuracy. You can read more about this
+    <a href="error.html">here</a>.
   </p>
 
   <h2>Programming with Herbie</h2>
@@ -233,12 +236,12 @@ else {
     <img width="100%" src="problematic-xim.png" />
   </figure>
 
-<p>The drop in accuracy (due to <a href="https://en.wikipedia.org/wiki/Floating-point_arithmetic#Dealing_with_exceptional_cases">floating-point overflow</a>)
-  once <code>xim</code> is bigger than  about <code>1e150</code>
-  really stands out, but you can also see that Herbie's alternative
-  is more accurate for smaller <code>xim</code> values, too. You can
-  also change the graph to plot accuracy versus <code>xre</code>
-  instead:</p>
+<p>There's a really obvious drop in accuracy once <code>xim</code>
+  gets bigger than about <code>1e150</code>
+  (due to <a href="https://en.wikipedia.org/wiki/Floating-point_arithmetic#Dealing_with_exceptional_cases">floating-point overflow</a>),
+  but you can also see that Herbie's alternative is more accurate
+  for smaller <code>xim</code> values, too. You can also change the
+  graph to plot accuracy versus <code>xre</code> instead:</p>
 
   <figure>
     <img width="100%" src="problematic-xre.png" />
