@@ -3,7 +3,7 @@
 (require "../syntax/syntax.rkt"
          "../utils/common.rkt"
          "../utils/alternative.rkt" ; for unbatchify-alts
-         racket/mutable-treelist)
+         "../utils/treelist/mutable-treelist-copy.rkt")
 
 (provide mutable-treelist-ref
          in-mutable-treelist ; for now, ideally users should not know anything about mutable-treelist, just in-batch/batch-ref
@@ -15,8 +15,8 @@
          make-batch ; Batch
          batch-push! ; Batch -> Node -> Idx
          batch-munge! ; Batch -> Expr -> Root
-         batch-copy ; Batch -> Batc
-         batch-ref ; Batch -> Idx -> Exprh
+         batch-copy ; Batch -> Batch
+         batch-ref ; Batch -> Idx -> Expr
          batch-length ; Batch -> Integer
          batch-tree-size ; Batch -> Integer
          batch-free-vars
