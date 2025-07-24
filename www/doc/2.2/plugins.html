@@ -96,7 +96,7 @@
   (inclusive) and 2<sup><var>width</var></sup> (exclusive). Ordinals
   must be in real-number order; that is, if <code>(repr->bf x)</code>
   is less than <code>(repr->bf y)</code>, then <code>(repr->ordinal
-  x)</code> should be less than <code>(ordinal->bf y)</code>.</p>
+  x)</code> should be less than <code>(repr->ordinal y)</code>.</p>
 
   <p>The <code>#:special</code> function should return true for NaN
   values (or whatever your representation calls values that don't
