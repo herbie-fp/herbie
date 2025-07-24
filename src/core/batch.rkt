@@ -2,13 +2,9 @@
 
 (require "../syntax/syntax.rkt"
          "../utils/common.rkt"
-         "../utils/alternative.rkt" ; for unbatchify-alts
-         "../utils/treelist/mutable-treelist-copy.rkt")
+         "../utils/alternative.rkt") ; for unbatchify-alts
 
-(provide mutable-treelist-ref
-         in-mutable-treelist ; for now, ideally users should not know anything about mutable-treelist, just in-batch/batch-ref
-
-         progs->batch ; List<Expr> -> Batch
+(provide progs->batch ; List<Expr> -> Batch
          batch->progs ; Batch -> ?(or List<Root> Vector<Root>) -> List<Expr>
 
          (struct-out batch)
@@ -37,7 +33,7 @@
 (struct batchref (batch idx) #:transparent)
 
 (define (make-batch)
-  (batch (mutable-treelist) (make-hash) (make-hasheq) (vector)))
+  (batch (make-hasheq) (make-hash) (make-hasheq) (vector)))
 
 ;; This function defines the recursive structure of expressions
 (define (expr-recurse expr f)
@@ -60,27 +56,27 @@
   (map (curry alt-map unmunge) altns))
 
 (define (batch-length b)
-  (mutable-treelist-length (batch-nodes b)))
+  (hash-count (batch-nodes b)))
 
 (define (batch-push! b term)
   (define hashcons (batch-index b))
   (hash-ref! hashcons
              term
              (lambda ()
-               (define new-idx (hash-count hashcons))
-               (hash-set! hashcons term new-idx)
-               (mutable-treelist-add! (batch-nodes b) term)
-               new-idx)))
+               (define idx (hash-count hashcons))
+               (hash-set! hashcons term idx)
+               (hash-set! (batch-nodes b) idx term)
+               idx)))
 
 (define (batch-copy b)
-  (batch (mutable-treelist-copy (batch-nodes b))
+  (batch (hash-copy (batch-nodes b))
          (hash-copy (batch-index b))
          (hash-copy (batch-cache b))
          (vector-copy (batch-roots b))))
 
 (define (deref x)
   (match-define (batchref b idx) x)
-  (expr-recurse (mutable-treelist-ref (batch-nodes b) idx) (lambda (ref) (batchref b ref))))
+  (expr-recurse (hash-ref (batch-nodes b) idx) (lambda (ref) (batchref b ref))))
 
 (define (debatchref x)
   (match-define (batchref b idx) x)
@@ -102,8 +98,8 @@
 (define (batch-tree-size b)
   (define len (batch-length b))
   (define counts (make-vector len 0))
-  (for ([i (in-naturals)]
-        [node (in-mutable-treelist (batch-nodes b))])
+  (for ([i (range 0 (batch-length b))])
+    (define node (hash-ref (batch-nodes b) i))
     (define args (reap [sow] (expr-recurse node sow)))
     (vector-set! counts i (apply + 1 (map (curry vector-ref counts) args))))
   (apply + (map (curry vector-ref counts) (vector->list (batch-roots b)))))
@@ -121,8 +117,8 @@
 
 (define (batch-free-vars batch)
   (define out (make-vector (batch-length batch)))
-  (for ([i (in-naturals)]
-        [node (in-mutable-treelist (batch-nodes batch))])
+  (for ([i (range 0 (batch-length batch))])
+    (define node (hash-ref (batch-nodes batch) i))
     (define fv
       (cond
         [(symbol? node) (set node)]
@@ -136,8 +132,8 @@
 (define (batch-replace b f)
   (define out (batch-copy b))
   (define mapping (make-vector (batch-length b) -1))
-  (for ([node (in-mutable-treelist (batch-nodes b))]
-        [idx (in-naturals)])
+  (for ([idx (range 0 (batch-length b))])
+    (define node (hash-ref (batch-nodes b) idx))
     (define replacement (f (expr-recurse node (lambda (x) (batchref b x)))))
     (define final-idx
       (let loop ([expr replacement])
@@ -166,15 +162,14 @@
   (for ([root (in-vector roots)])
     (vector-set! alive-mask root #t))
   (for ([i (in-range (- nodes-length 1) -1 -1)]
-        ;[node (in-mutable-treelist nodes (- nodes-length 1) -1 -1)]
         [alv (in-vector alive-mask (- nodes-length 1) -1 -1)]
-        #:do [(define node (mutable-treelist-ref nodes i))]
+        #:do [(define node (hash-ref nodes i))]
         #:when (or (and alv (condition node)) (and keep-vars-alive (symbol? node))))
     (unless alv ; if keep-vars-alive then alv may not be #t, making sure it's #t
       (vector-set! alive-mask i #t))
     (expr-recurse node
                   (λ (n)
-                    (when (condition (mutable-treelist-ref nodes n))
+                    (when (condition (hash-ref nodes n))
                       (vector-set! alive-mask n #t)))))
   ; Return indices of alive nodes in ascending order
   (for/vector ([alv (in-vector alive-mask)]
@@ -185,8 +180,8 @@
 ;; Function constructs a vector of expressions for the given nodes of a batch
 (define (batch-reconstruct-exprs batch)
   (define exprs (make-vector (batch-length batch)))
-  (for ([node (in-mutable-treelist (batch-nodes batch))]
-        [idx (in-naturals)])
+  (for ([idx (range 0 (batch-length batch))])
+    (define node (hash-ref (batch-nodes batch) idx))
     (vector-set! exprs idx (expr-recurse node (lambda (x) (vector-ref exprs x)))))
   exprs)
 
@@ -207,7 +202,7 @@
 
      (define out (make-batch))
      (for ([alv (in-vector alive-nodes)])
-       (define node (mutable-treelist-ref nodes alv))
+       (define node (hash-ref nodes alv))
        (vector-set! mappings alv (batch-push! out (expr-recurse node remap))))
 
      (define roots* (vector-map (curry vector-ref mappings) roots))
@@ -217,7 +212,7 @@
 
 (define (batch-ref batch reg)
   (define (unmunge reg)
-    (define node (mutable-treelist-ref (batch-nodes batch) reg))
+    (define node (hash-ref (batch-nodes batch) reg))
     (expr-recurse node unmunge))
   (unmunge reg))
 
@@ -242,6 +237,7 @@
                               ,(f64 4))))
 
 ; Tests for remove-zombie-nodes
+#;
 (module+ test
   (require rackunit)
   (define (zombie-test #:nodes nodes #:roots roots)

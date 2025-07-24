@@ -131,8 +131,8 @@
   (define nodes (batch-nodes expr-batch))
   (define taylor-approxs (make-vector (batch-length expr-batch))) ; vector of approximations
 
-  (for ([node (in-mutable-treelist nodes)]
-        [n (in-naturals)])
+  (for ([n (range 0 (batch-length expr-batch))])
+    (define node (hash-ref (batch-nodes expr-batch) n))
     (define approx
       (match node
         [(? (curry equal? var)) (taylor-exact 0 1)]
@@ -144,7 +144,7 @@
         [`(* ,left ,right)
          (taylor-mult (vector-ref taylor-approxs left) (vector-ref taylor-approxs right))]
         [`(/ ,num ,den)
-         #:when (equal? (mutable-treelist-ref nodes num) 1)
+         #:when (equal? (hash-ref nodes num) 1)
          (taylor-invert (vector-ref taylor-approxs den))]
         [`(/ ,num ,den)
          (taylor-quotient (vector-ref taylor-approxs num) (vector-ref taylor-approxs den))]
@@ -182,9 +182,8 @@
            [else (taylor-cos (zero-series arg*))])]
         [`(log ,arg) (taylor-log var (vector-ref taylor-approxs arg))]
         [`(pow ,base ,power)
-         #:when (exact-integer? (mutable-treelist-ref nodes power))
-         (taylor-pow (normalize-series (vector-ref taylor-approxs base))
-                     (mutable-treelist-ref nodes power))]
+         #:when (exact-integer? (hash-ref nodes power))
+         (taylor-pow (normalize-series (vector-ref taylor-approxs base)) (hash-ref nodes power))]
         [_ (taylor-exact (batch-ref expr-batch n))]))
     (vector-set! taylor-approxs n approx))
   taylor-approxs)

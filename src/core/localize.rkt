@@ -86,7 +86,7 @@
           [repr (in-list reprs-list)]
           [exact (in-vector exacts)]
           [expr-idx (in-naturals)])
-      (define err (local-error exact (mutable-treelist-ref nodes root) repr get-exact))
+      (define err (local-error exact (hash-ref nodes root) repr get-exact))
       (vector-set! (vector-ref errs expr-idx) pt-idx err)))
 
   (define n 0)
@@ -169,7 +169,7 @@
           [actual (in-vector actuals)]
           [delta (in-vector deltas)]
           [expr-idx (in-naturals)])
-      (define ulp-err (local-error exact (mutable-treelist-ref nodes root) repr get-exact))
+      (define ulp-err (local-error exact (hash-ref nodes root) repr get-exact))
       (vector-set! (vector-ref exacts-out expr-idx) pt-idx exact)
       (vector-set! (vector-ref approx-out expr-idx) pt-idx actual)
       (vector-set! (vector-ref ulp-errs expr-idx) pt-idx ulp-err)
