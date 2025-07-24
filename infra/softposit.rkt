@@ -82,7 +82,6 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; EMPTY PLATFORM ;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define-if #:cost 1)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; REPRESENTATIONS ;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -158,8 +157,17 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; POSIT IMPLS ;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define-representation <posit8>  #:cost 1)
+(define-operation (if.p8 [c <bool>] [t <posit8>] [f <posit8>]) <posit8>
+  #:spec (if c t f) #:impl if-impl
+  #:cost 1 #:aggregate if-cost)
 (define-representation <posit16> #:cost 1)
+(define-operation (if.p16 [c <bool>] [t <posit16>] [f <posit16>]) <posit16>
+  #:spec (if c t f) #:impl if-impl
+  #:cost 1 #:aggregate if-cost)
 (define-representation <posit32> #:cost 1)
+(define-operation (if.p32 [c <bool>] [t <posit32>] [f <posit32>]) <posit32>
+  #:spec (if c t f) #:impl if-impl
+  #:cost 1 #:aggregate if-cost)
 
 (define-operations ([x <posit8>] [y <posit8>]) <bool>
   [==.p8 #:spec (== x y) #:impl posit8=  #:cost 1]

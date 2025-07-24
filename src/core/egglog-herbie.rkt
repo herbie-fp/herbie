@@ -300,10 +300,6 @@
                (literal expr (representation-name type))
                expr)]
           [(? symbol?) expr]
-          [`(if ,cond ,ift ,iff)
-           (if (representation? type)
-               (list 'if (loop cond (get-representation 'bool)) (loop ift type) (loop iff type))
-               (list 'if (loop cond 'bool) (loop ift type) (loop iff type)))]
           [(approx spec impl) (approx (loop spec #f) (loop impl type))]
           [(list (? impl-exists? impl) args ...) (cons impl (map loop args (impl-info impl 'itype)))]
           [(list op args ...)
@@ -321,11 +317,7 @@
   (define pform (*active-platform*))
 
   (define spec-egraph
-    `(datatype M
-               (Num BigRat :cost 4294967295)
-               (Var String :cost 4294967295)
-               (If M M M :cost 4294967295)
-               ,@(platform-spec-nodes)))
+    `(datatype M (Num BigRat :cost 4294967295) (Var String :cost 4294967295) ,@(platform-spec-nodes)))
 
   (egglog-program-add! spec-egraph curr-program)
 
@@ -337,13 +329,6 @@
   (for ([repr (in-list (all-repr-names))])
     (set! raw-costs (cons (platform-repr-cost pform (get-representation repr)) raw-costs)))
 
-  ;; Add raw if-cost
-  (set! raw-costs
-        (cons (match (platform-if-cost pform)
-                [`(max ,n) n] ; Not quite right (copied from egg-herbie.rkt)
-                [`(sum ,n) n])
-              raw-costs))
-
   ;; Add raw platform-impl-nodes
   (for ([impl (in-list (platform-impls pform))])
     (set! raw-costs (cons (impl-info impl 'cost) raw-costs)))
@@ -354,14 +339,6 @@
     `(datatype MTy
                ,@(num-typed-nodes pform min-cost)
                ,@(var-typed-nodes pform min-cost)
-               (IfTy MTy
-                     MTy
-                     MTy
-                     :cost
-                     ,(normalize-cost (match (platform-if-cost pform)
-                                        [`(max ,n) n] ; Not quite right (copied from egg-herbie.rkt)
-                                        [`(sum ,n) n])
-                                      min-cost))
                (Approx M MTy)
                ,@(platform-impl-nodes pform min-cost)))
   (egglog-program-add! typed-graph curr-program)
@@ -401,11 +378,6 @@
 
   (for ([curr-expr (num-lifting-rules)])
     (egglog-program-add! curr-expr curr-program))
-
-  (for ([curr-expr (if-lowering-rules)])
-    (egglog-program-add! curr-expr curr-program))
-
-  (egglog-program-add! (if-lifting-rule) curr-program)
 
   (egglog-program-add! (approx-lifting-rule) curr-program)
 
@@ -456,7 +428,7 @@
     (rewrite (Round (Num x)) (Num (round x)) :ruleset const-fold)))
 
 (define (platform-spec-nodes)
-  (append* (for/list ([op (in-list (all-operators))])
+  (append* (for/list ([op (in-list (cons 'if (all-operators)))])
              (hash-set! (id->e1) op (serialize-op op))
              (hash-set! (e1->id) (serialize-op op) op)
 
@@ -465,7 +437,10 @@
              (hash-set! (id->e1) unsound-op (serialize-op unsound-op))
              (hash-set! (e1->id) (serialize-op unsound-op) unsound-op)
 
-             (define arity (length (operator-info op 'itype)))
+             (define arity
+               (match op
+                 ['if 3]
+                 [_ (length (operator-info op 'itype))]))
              (list `(,(serialize-op op) ,@(for/list ([i (in-range arity)])
                                             'M)
                                         :cost
@@ -530,33 +505,6 @@
             (union (lift e) se))
            :ruleset
            lifting)))
-
-(define (if-lowering-rules)
-  (for/list ([repr (in-list (all-repr-names))])
-    `(rule ((= e (If ifc ift iff)) (= tifc (lower ifc "bool"))
-                                   (= tift (lower ift ,(symbol->string repr)))
-                                   (= tiff (lower iff ,(symbol->string repr))))
-           ((let t0 ,(symbol->string repr)
-              )
-            (let et0 (IfTy
-                      tifc
-                      tift
-                      tiff)
-              )
-            (union (lower e t0) et0))
-           :ruleset
-           lowering)))
-
-(define (if-lifting-rule)
-  `(rule ((= e (IfTy ifc ift iff)) (= sifc (lift ifc)) (= sift (lift ift)) (= siff (lift iff)))
-         ((let se (If
-                   sifc
-                   sift
-                   siff)
-            )
-          (union (lift e) se))
-         :ruleset
-         lifting))
 
 (define (approx-lifting-rule)
   `(rule ((= e (Approx spec impl))) ((union (lift e) spec)) :ruleset lifting))
@@ -634,7 +582,6 @@
          (bigrat (from-string ,(number->string (numerator (literal-value expr))))
                  (from-string ,(number->string (denominator (literal-value expr))))))]
       [(? symbol?) expr]
-      [`(if ,cond ,ift ,iff) `(IfTy ,(loop cond repr) ,(loop ift repr) ,(loop iff repr))]
       [(list op args ...)
        `(,(hash-ref (id->e2) op) ,@(for/list ([arg (in-list args)]
                                               [itype (in-list (impl-info op 'itype))])
@@ -647,7 +594,6 @@
        `(Num (bigrat (from-string ,(number->string (numerator expr)))
                      (from-string ,(number->string (denominator expr)))))]
       [(? symbol?) expr]
-      [`(if ,cond ,ift ,iff) `(If ,(loop cond) ,(loop ift) ,(loop iff))]
       [(list op args ...) `(,(hash-ref (id->e1) op) ,@(map loop args))])))
 
 (define (expr->e1-expr expr)
@@ -657,7 +603,6 @@
        `(Num (bigrat (from-string ,(number->string (numerator expr)))
                      (from-string ,(number->string (denominator expr)))))]
       [(? symbol?) `(Var ,(symbol->string expr))]
-      [`(if ,cond ,ift ,iff) `(If ,(loop cond) ,(loop ift) ,(loop iff))]
       [(list op args ...) `(,(hash-ref (id->e1) op) ,@(map loop args))])))
 
 (define (egglog-rewrite-rules rules tag)
@@ -739,8 +684,6 @@
          `(Num (bigrat (from-string ,(number->string (numerator node)))
                        (from-string ,(number->string (denominator node)))))]
         [(? symbol?) #f]
-        [`(if ,cond ,ift ,iff)
-         (list (if spec? 'If 'IfTy) (remap cond spec?) (remap ift spec?) (remap iff spec?))]
         [(approx spec impl) `(Approx ,(remap spec #t) ,(remap impl #f))]
         [(list impl args ...)
          `(,(hash-ref (if spec?
@@ -1097,9 +1040,5 @@
       [`(,(? egglog-num? num) (bigrat (from-string ,n) (from-string ,d)))
        (/ (string->number n) (string->number d))]
       [`(,(? egglog-var? var) ,v) (string->symbol v)]
-      [`(IfTy ,cond ,ift ,iff)
-       `(if ,(loop cond)
-            ,(loop ift)
-            ,(loop iff))]
       [`(Approx ,spec ,impl) (approx (e1->expr spec) (loop impl))] ;;; todo approx bug or not?
       [`(,impl ,args ...) `(,(hash-ref (e2->id) impl) ,@(map loop args))])))

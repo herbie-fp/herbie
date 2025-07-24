@@ -6,7 +6,6 @@
 (define move-cost    0.02333600000000001)
 (define fl-move-cost (* move-cost 4))
 
-(define-if #:cost move-cost)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BOOLEAN ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -26,6 +25,10 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BINARY 64 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define-representation <binary64> #:cost fl-move-cost)
+
+(define-operation (if.f64 [c <bool>] [t <binary64>] [f <binary64>]) <binary64>
+  #:spec (if c t f) #:impl if-impl
+  #:cost move-cost #:aggregate if-cost)
 
 (define-operations ([x <binary64>] [y <binary64>]) <bool>
   [==.f64 #:spec (== x y) #:impl =          #:cost fl-move-cost]
