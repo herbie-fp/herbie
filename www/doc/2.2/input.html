@@ -43,14 +43,11 @@
   mathematical expressions. FPCore looks like this:</p>
 
   <pre>(FPCore (<var>inputs ...</var>) <var>properties ...</var> <var>expression</var>)</pre>
-  <pre>(FPCore <var>name</var> (<var>inputs ...</var>) <var>properties ...</var> <var>expression</var>)</pre>
 
   <p>
     Each <var>input</var> is a variable name, like <code>x</code>,
     used in the <var>expression</var>. Properties are used to specify
     additional information about the <var>expression</var>'s context.
-    If <var>name</var> is specified, the function can be referenced in
-    subsequent FPCore declarations in the file.
   </p>
 
   <p>
@@ -63,17 +60,12 @@
 
   <p>
     The semicolon (<kbd>;</kbd>) character introduces a line comment.
-    We recommend the <code>.fpcore</code> file extension for Herbie input files.
+    We recommend the <code>.fpcore</code> file extension for FPCore files.
   </p>
   
   <h2>Supported functions</h2>
   
-  <p>
-    Herbie supports all functions
-    from <a href="http://pubs.opengroup.org/onlinepubs/7908799/xsh/math.h.html">math.h</a>
-    with floating-point-only inputs and outputs. The best supported
-    functions include:
-  </p>
+  <p>FPCore expressions can use any of the following functions:</p>
 
   <dl class="function-list">
     <dt><code>+</code>, <code>-</code>, <code>*</code>, <code>/</code>, <code>fabs</code></dt>
@@ -95,13 +87,12 @@
   </dl>
 
   <p>Herbie also supports the constants <code>PI</code>
-  and <code>E</code>. Use <code>-</code> for both subtraction and negation.</p>
+  and <code>E</code>. Use <code>-</code> for both subtraction and
+  negation.</p>
 
-  <p>Herbie links against your computer's <code>libm</code> to
-  evaluate these functions. So, each function has the same behavior in
-  Herbie as in your code. You can instead use
-  the <a href="#precisions"><code>racket</code> precision</a> if you
-  instead want reproducible behavior.</p>
+  <p>However, how Herbie evaluates these functions, their cost, and
+  what additional functions are available depends on
+  the <a href="platforms.rkt">platform</a> you select.</p>
 
   <h2 id="conditionals">Conditionals</h2>
   
@@ -122,7 +113,7 @@
     <dd>The two boolean values</dd>
   </dl>
 
-  <p>The comparison functions support chained comparisons with more than two arguments;
+  <p>The comparison operators support chained comparisons with more than two arguments;
     for example <code>(&lt; 1 x 10)</code> means <code>1 < x < 10</code>.</p>
 
   <h2 id="intermediates">Intermediate variables</h2>
@@ -157,8 +148,9 @@
 
   <p>Internally, Herbie treats intermediate values only as a
   notational convenience, and inlines their values before improving
-  the formula's accuracy. Using intermediate variables will therefore
-  not produce a more accurate result or help Herbie run faster.</p>
+  the formula&apos;s accuracy. Using intermediate variables will
+  therefore not produce a more accurate result or help Herbie run
+  faster.</p>
 
   <h2 id="specs">Specifications</h2>
 
@@ -175,8 +167,9 @@
   :spec (sin (/ 1 x))
   (+ (/ 1 x) (/ 1 (* 6 (pow x 3)))))</pre>
 
-  <p>Herbie will only use the <code>:spec</code> expression to
-  evaluate error, not to search for accurate expressions.</p>
+  <p>Herbie will use the <code>:spec</code> expression to evaluate
+  error, but use body expression as a starting-point for finding
+  more accurate expressions.</p>
 
   <h2 id="preconditions">Preconditions</h2>
 
@@ -205,39 +198,25 @@
     <dd>Single-precision IEEE-754 floating point</dd>
     <dt><code>binary64</code></dt>
     <dd>Double-precision IEEE-754 floating point</dd>
-    <dt><code>racket</code></dt>
-    <dd>Like <code>binary64</code>, but using Racket math functions
-      rather than your computer's <code>libm</code>.</dd>
   </dl>
 
-  <p>By default, <code>binary64</code> is assumed. Herbie also has
-  a <a href="plugins.html">plugin system</a> to load additional
+  <p><a href="platforms.html">Platforms<a/> can also add additional
   precisions.</p>
 
-  <p>Herbie won't produce mixed-precision code unless you allow it to
-  do so, using the <code>:herbie-conversions</code> property:</p>
-
-  <dl class="function-list">
-    <dt><code>:herbie-conversions<br/>([<var>prec1</var> <var>prec2</var>] ...)</code></dt>
-    <dd>Expressions in precision <code>prec1</code>, can be rewriten
-    to use precision <code>prec2</code>, and vice versa.</dd>
-  </dl>
-
-  <p>All conversions are assumed to be bidirectional. For example, if
-  you specify <code>:herbie-conversions ([binary64 binary32])</code>,
-  Herbie will be able to add conversions between single- and
-  double-precision floating-point.</p>
-
   <h2 id="properties">Miscellaneous Input Properties</h2>
+
+  <p>A <var>name</var> can be provided before the argument list to
+  name an FPCore. That FPCore can then be called in other, later
+  FPCores.</p>
 
   <p>Herbie uses the <code>:name</code> property to name FPCores in
   its UI. Its value ought to be a string.</p>
 
   <p>Herbie allows <code>:alt</code> properties to specify additional
-  "developer targets"; these might be other alternatives you've tried
-  that you want to compare against.</p>
+  "developer targets"; these might be other alternatives you&apos;ve
+  tried that you want to compare against.</p>
 
-  <p>Herbie's benchmark suite also uses properties for continuous
+  <p>Herbie&apos;s benchmark suite also uses properties for continuous
   integration, but these are not officially supported and their use is
   discouraged.</p>
   

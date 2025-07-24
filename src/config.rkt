@@ -28,16 +28,7 @@
         [localize . ()]
         [generate . (rr taylor proofs evaluate)]
         [reduce . (regimes binary-search branch-expressions)]
-        [rules
-         . (arithmetic polynomials
-                       fractions
-                       exponents
-                       trigonometry
-                       hyperbolic
-                       numerics
-                       special
-                       bools
-                       branches)]
+        [rules . (arithmetic polynomials fractions exponents trigonometry hyperbolic)]
         [dump . ()]))
 
 (define (flag-deprecated? category flag)
@@ -51,6 +42,10 @@
     [('reduce 'avg-error) #t]
     [('localize 'costs) #t]
     [('localize 'errors) #t]
+    [('rules 'numerics) #t]
+    [('rules 'special) #t]
+    [('rules 'bools) #t]
+    [('rules 'branches) #t]
     [(_ _) #f]))
 
 ; `hash-copy` returns a mutable hash, which makes `dict-update` invalid
@@ -111,6 +106,10 @@
      (eprintf "The localize:errors option has been removed.\n")
      (eprintf "  Herbie no longer performs localization.\n")
      (eprintf "See <herbie://herbie.uwplse.org/doc/~a/options.html> for more.\n" *herbie-version*)]
+    [('rules _)
+     (eprintf "The rules:~a ruleset has been removed.\n")
+     (eprintf "  These rules are no longer used by Herbie.\n")
+     (eprintf "See <herbie://herbie.uwplse.org/doc/~a/options.html> for more.\n" *herbie-version*)]
     [(_ _) (void)]))
 
 (define (changed-flags)
@@ -154,7 +153,6 @@
 (define *binary-search-accuracy* (make-parameter 48))
 
 ;; Pherbie related options
-(define *pareto-mode* (make-parameter #t))
 (define *pareto-pick-limit* (make-parameter 5))
 
 ;; If `:precision` is unspecified, which representation should we use?
@@ -162,9 +160,6 @@
 
 ;; The platform that Herbie will evaluate with.
 (define *platform-name* (make-parameter (if (equal? (system-type 'os) 'windows) "c-windows" "c")))
-
-;; Plugins loaded locally rather than through Racket.
-(define *loose-plugins* (make-parameter '()))
 
 ;; Sets the number of total points for Herbie to sample.
 (define *reeval-pts* (make-parameter 8000))

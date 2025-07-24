@@ -40,7 +40,7 @@
   (with-syntax ([local-platform (datum->syntax stx 'platform)])
     (syntax-case stx ()
       [(_ content ...)
-       #'(#%module-begin (define local-platform (make-empty-platform 'platform))
+       #'(#%module-begin (define local-platform (make-empty-platform))
                          (define old-platform-being-defined (platform-being-defined))
                          (platform-being-defined local-platform)
                          content ...

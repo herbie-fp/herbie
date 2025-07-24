@@ -12,6 +12,7 @@
          ops-in-expr
          spec-prog?
          impl-prog?
+         node-is-impl?
          repr-of
          repr-of-node
          location-set
@@ -19,11 +20,19 @@
          get-locations
          free-variables
          replace-expression
-         replace-vars)
+         replace-vars
+         batch-get-locations
+         batch-location-set)
 
 ;; Programs are just lisp lists plus atoms
 
 (define expr? (or/c list? symbol? boolean? real? literal? approx?))
+
+(define (node-is-impl? node)
+  (match node
+    [(? number?) #f]
+    [(list (? operator-exists? op) args ...) #f]
+    [_ #t]))
 
 ;; Returns repr name
 ;; Fast version does not recurse into functions applications
@@ -116,6 +125,13 @@
          cmp-spec)]
     [((? approx?) _) 1]
     [(_ (? approx?)) -1]
+    [((? hole?) (? hole?))
+     (define cmp-spec (expr-cmp (hole-spec a) (hole-spec b)))
+     (if (zero? cmp-spec)
+         (expr-cmp (hole-precision a) (hole-precision b))
+         cmp-spec)]
+    [((? hole?) _) 1]
+    [(_ (? hole?)) -1]
     [((? symbol?) (? symbol?))
      (cond
        [(symbol<? a b) -1]
@@ -167,6 +183,37 @@
   (-> location? expr? expr? expr?)
   (location-do loc prog (const prog*)))
 
+(define/contract (batch-location-set loc0 mutable-batch cache full-batchref sub-batchref)
+  (-> location? mutable-batch? hash? batchref? batchref? batchref?)
+  (match-define (batchref sub-batch sub-idx) sub-batchref)
+  (match-define (batchref full-batch full-idx) full-batchref)
+  (define nodes (batch-nodes full-batch))
+
+  (unless (equal? sub-batch full-batch)
+    (error 'batch-location-set "Function assumes that batches are equal"))
+
+  (define (get-node idx)
+    (hash-ref cache idx (λ () (vector-ref nodes idx))))
+
+  (define (push-node node)
+    (define idx (mutable-batch-push! mutable-batch node))
+    (hash-set! cache idx node)
+    idx)
+
+  (define idx*
+    (let loop ([loc0 loc0]
+               [idx full-idx])
+      (let ([node (get-node idx)])
+        (match* (node loc0)
+          [(_ (? null?)) sub-idx]
+          [((approx spec impl) (cons 1 rest)) (push-node (approx (loop rest spec) impl))]
+          [((approx spec impl) (cons 2 rest)) (push-node (approx spec (loop rest impl)))]
+          [((hole prec spec) (cons 1 rest)) (push-node (hole prec (loop rest spec)))]
+          [((list op args ...) (cons loc rest))
+           (define args* (list-update args (sub1 loc) (curry loop rest)))
+           (push-node (cons op args*))]))))
+  (batchref full-batch idx*))
+
 (define/contract (location-get loc prog)
   (-> location? expr? expr?)
   ; Clever continuation usage to early-return
@@ -186,6 +233,39 @@
              (for ([arg (in-list args)]
                    [i (in-naturals 1)])
                (loop arg (cons i loc)))]))))
+
+(define (batch-get-locations full-batchref sub-batchref)
+  (match-define (batchref full-batch full-idx) full-batchref)
+  (match-define (batchref sub-batch sub-idx) sub-batchref)
+  (unless (equal? sub-batch full-batch)
+    (error 'batch-get-locations "Function assumes that batches are equal"))
+  (define nodes (batch-nodes full-batch))
+
+  (define (locations-update locations prev-idx new-loc new-idx)
+    (define prev-locs (vector-ref locations prev-idx))
+    (unless (null? prev-locs) ; when prev-idx has some locs stored
+      (define new-locs (map (curry cons new-loc) prev-locs)) ; append prev-locs with new-loc
+      (vector-set! locations
+                   new-idx
+                   (append (vector-ref locations new-idx) new-locs)))) ; update new-locs at new-idx
+
+  (cond
+    [(> sub-idx full-idx)
+     '()] ; sub-idx can not be a child of full-idx if it is inserted after full-idx
+    [else
+     (define locations (make-vector (batch-length full-batch) '()))
+     (vector-set! locations sub-idx '(()))
+     (for ([node (in-vector nodes (add1 sub-idx) (add1 full-idx))]
+           [n (in-naturals (add1 sub-idx))])
+       (match node
+         [(list _ args ...)
+          (for ([arg (in-list args)]
+                [i (in-naturals 1)])
+            (locations-update locations arg i n))]
+         [(approx _ impl) (locations-update locations impl 2 n)]
+         [(hole _ spec) (locations-update locations spec 1 n)]
+         [_ void])) ; literal/number/symbol
+     (vector-ref locations full-idx)]))
 
 (define/contract (replace-expression expr from to)
   (-> expr? expr? expr? expr?)
