@@ -4,10 +4,9 @@
 #lang racket/base
 (require (for-syntax racket/base
                      syntax/for-body)
-         racket/hash-code
+         racket/vector
          "treelist-copy.rkt"
-         (submod "treelist-copy.rkt" unsafe)
-         racket/private/sort)
+         (submod "treelist-copy.rkt" unsafe))
 
 (provide make-mutable-treelist
          (rename-out [build-mutable-treelist mutable-treelist])
