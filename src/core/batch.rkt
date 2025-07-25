@@ -13,7 +13,8 @@
          batch-length ; Batch -> Integer
          batch-tree-size ; Batch -> Integer
          batch-free-vars
-         batch-ref ; Batch -> Idx -> Expr
+         batch-ref ; Batch -> Idx -> Node
+         batch-pull ; Batch -> Idx -> Expr
          deref ; Batchref -> Expr
          batch-replace ; Batch -> (Expr<Batchref> -> Expr<Batchref>) -> Batch
          debatchref ; Batchref -> Expr
@@ -91,11 +92,11 @@
 
 (define (deref x)
   (match-define (batchref b idx) x)
-  (expr-recurse (vector-ref (batch-nodes b) idx) (lambda (ref) (batchref b ref))))
+  (expr-recurse (batch-ref b idx) (lambda (ref) (batchref b ref))))
 
 (define (debatchref x)
   (match-define (batchref b idx) x)
-  (batch-ref b idx))
+  (batch-pull b idx))
 
 (define (progs->batch exprs #:vars [vars '()])
   (define out (make-mutable-batch))
@@ -110,7 +111,7 @@
   (mutable-batch->batch out roots))
 
 (define (batch-tree-size b)
-  (define len (vector-length (batch-nodes b)))
+  (define len (batch-length b))
   (define counts (make-vector len 0))
   (for ([i (in-naturals)]
         [node (in-batch b)])
@@ -169,7 +170,6 @@
                            [roots (batch-roots batch)]
                            #:keep-vars-alive [keep-vars-alive #f]
                            #:condition [condition (const #t)])
-  (define nodes (batch-nodes batch))
   (define len (batch-length batch))
   (define alive-mask (make-vector len #f))
   (for ([root (in-vector roots)])
@@ -182,7 +182,7 @@
       (vector-set! alive-mask i #t))
     (expr-recurse node
                   (λ (n)
-                    (when (condition (vector-ref nodes n))
+                    (when (condition (batch-ref batch n))
                       (vector-set! alive-mask n #t)))))
   ; Return indices of alive nodes in ascending order
   (for/vector ([alv (in-vector alive-mask)]
@@ -203,19 +203,18 @@
 ;; Space complexity: O(|N| + |N*| + |R|), where |N*| is a length of nodes without zombie nodes
 ;; The flag keep-vars is used in compiler.rkt when vars should be preserved no matter what
 (define (batch-remove-zombie batch [roots (batch-roots batch)] #:keep-vars [keep-vars #f])
-  (define nodes (batch-nodes batch))
-  (define nodes-length (batch-length batch))
-  (match (zero? nodes-length)
+  (define len (batch-length batch))
+  (match (zero? len)
     [#f
      (define alive-nodes (batch-alive-nodes batch roots #:keep-vars-alive keep-vars))
 
-     (define mappings (make-vector nodes-length -1))
+     (define mappings (make-vector len -1))
      (define (remap idx)
        (vector-ref mappings idx))
 
      (define out (make-mutable-batch))
      (for ([alv (in-vector alive-nodes)])
-       (define node (vector-ref nodes alv))
+       (define node (batch-ref batch alv))
        (vector-set! mappings alv (mutable-batch-push! out (expr-recurse node remap))))
 
      (define roots* (vector-map (curry vector-ref mappings) roots))
@@ -223,8 +222,11 @@
     [#t (batch-copy batch)]))
 
 (define (batch-ref batch reg)
+  (vector-ref (batch-nodes batch) reg))
+
+(define (batch-pull batch reg)
   (define (unmunge reg)
-    (define node (vector-ref (batch-nodes batch) reg))
+    (define node (batch-ref batch reg))
     (expr-recurse node unmunge))
   (unmunge reg))
 

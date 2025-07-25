@@ -131,7 +131,7 @@
     (hash-ref! id->spec
                (remap spec)
                (lambda ()
-                 (define spec* (normalize-spec (batch-ref batch spec)))
+                 (define spec* (normalize-spec (batch-pull batch spec)))
                  (define type (representation-type (repr-of-node batch impl ctx)))
                  (cons spec* type))))
 

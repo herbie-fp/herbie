@@ -46,7 +46,7 @@
 
 ; Index inside (batch-nodes batch) -> type
 (define (repr-of-node batch idx ctx)
-  (define node (vector-ref (batch-nodes batch) idx))
+  (define node (batch-ref batch idx))
   (match node
     [(literal val precision) (get-representation precision)]
     [(? symbol?) (context-lookup ctx node)]
@@ -187,13 +187,12 @@
   (-> location? mutable-batch? hash? batchref? batchref? batchref?)
   (match-define (batchref sub-batch sub-idx) sub-batchref)
   (match-define (batchref full-batch full-idx) full-batchref)
-  (define nodes (batch-nodes full-batch))
 
   (unless (equal? sub-batch full-batch)
     (error 'batch-location-set "Function assumes that batches are equal"))
 
   (define (get-node idx)
-    (hash-ref cache idx (λ () (vector-ref nodes idx))))
+    (hash-ref cache idx (λ () (batch-ref full-batch idx))))
 
   (define (push-node node)
     (define idx (mutable-batch-push! mutable-batch node))
