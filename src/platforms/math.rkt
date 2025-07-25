@@ -1,4 +1,4 @@
-#lang s-exp "../platform.rkt"
+#lang s-exp "../syntax/platforms-language.rkt"
 
 ;;; C/C++ on Linux with reduced libm, meaning no special numeric
 ;;; functions. It is also 64-bit only.

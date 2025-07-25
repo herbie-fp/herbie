@@ -1,4 +1,4 @@
-#lang s-exp "../platform.rkt"
+#lang s-exp "../syntax/platforms-language.rkt"
 
 ;;; Rival correctly-rounded platform
 

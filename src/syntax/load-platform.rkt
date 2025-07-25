@@ -32,7 +32,7 @@
 (define platforms (make-hash))
 
 (define (activate-platform! name)
-  (define path (hash-ref default-platforms name name))
+  (define path (hash-ref default-platforms name (string->path name)))
   (define platform (hash-ref! platforms name (lambda () (dynamic-require path 'platform))))
 
   (unless platform
