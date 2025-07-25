@@ -82,21 +82,6 @@
     [(list op args ...) (ormap list? args)]
     [_ #f]))
 
-(define (fpcore->string core)
-  (define-values (ident args props expr)
-    (match core
-      [(list 'FPCore name (list args ...) props ... expr) (values name args props expr)]
-      [(list 'FPCore (list args ...) props ... expr) (values #f args props expr)]))
-  (define props* ; make sure each property (name, value) gets put on the same line
-    (for/list ([(prop name)
-                (in-dict (apply dict-set* '() props))]) ; how to make a list of pairs from a list
-      (format "~a ~a" prop name)))
-  (define top
-    (if ident
-        (format "FPCore ~a ~a" ident args)
-        (format "FPCore ~a" args)))
-  (pretty-format `(,top ,@props* ,expr) #:mode 'display))
-
 (define (doc-url page)
   (format "https://herbie.uwplse.org/doc/~a/~a" *herbie-version* page))
 

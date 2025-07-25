@@ -497,7 +497,7 @@
            ,(test-name test)
            :precision
            ,(test-output-repr-name test)
-           ,@(if (eq? (test-pre test) '(TRUE))
+           ,@(if (equal? (test-pre test) '(TRUE))
                  '()
                  `(:pre ,(prog->fpcore (test-pre test) (test-context test))))
            ,@(if (equal? (test-spec test) empty)
