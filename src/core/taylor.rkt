@@ -131,7 +131,7 @@
   (define nodes (batch-nodes expr-batch))
   (define taylor-approxs (make-vector (batch-length expr-batch))) ; vector of approximations
 
-  (for ([node (in-vector nodes)]
+  (for ([node (in-batch expr-batch)]
         [n (in-naturals)])
     (define approx
       (match node

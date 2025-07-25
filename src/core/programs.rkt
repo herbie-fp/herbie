@@ -239,7 +239,6 @@
   (match-define (batchref sub-batch sub-idx) sub-batchref)
   (unless (equal? sub-batch full-batch)
     (error 'batch-get-locations "Function assumes that batches are equal"))
-  (define nodes (batch-nodes full-batch))
 
   (define (locations-update locations prev-idx new-loc new-idx)
     (define prev-locs (vector-ref locations prev-idx))
@@ -255,7 +254,7 @@
     [else
      (define locations (make-vector (batch-length full-batch) '()))
      (vector-set! locations sub-idx '(()))
-     (for ([node (in-vector nodes (add1 sub-idx) (add1 full-idx))]
+     (for ([node (in-batch full-idx (add1 sub-idx) (add1 full-idx))]
            [n (in-naturals (add1 sub-idx))])
        (match node
          [(list _ args ...)
