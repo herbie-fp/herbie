@@ -73,7 +73,8 @@
 
   (define instructions
     (for/vector #:length (- (batch-length batch*) num-vars)
-                ([node (in-vector (batch-nodes batch*) num-vars)])
+                ([n (in-range num-vars (batch-length batch*))])
+      (define node (mutable-treelist-ref (batch-nodes batch*) n))
       (match node
         [(literal value (app get-representation repr)) (list (const (real->repr value repr)))]
         [(list op args ...) (cons (impl-info op 'fl) args)])))
