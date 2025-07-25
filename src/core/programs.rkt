@@ -254,7 +254,7 @@
     [else
      (define locations (make-vector (batch-length full-batch) '()))
      (vector-set! locations sub-idx '(()))
-     (for ([node (in-batch full-idx (add1 sub-idx) (add1 full-idx))]
+     (for ([node (in-batch full-batch (add1 sub-idx) (add1 full-idx))]
            [n (in-naturals (add1 sub-idx))])
        (match node
          [(list _ args ...)
