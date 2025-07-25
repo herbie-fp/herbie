@@ -369,12 +369,12 @@
   operations:</p>
 
   <pre>(define-operations ([x &lt;binary32&gt;]) &lt;binary32&gt;
-    #:fpcore (:precision binary32)
+    #:fpcore (! :precision binary32)
     [fabs.f32 #:spec (fabs x) #:impl (from-libm 'fabsf) #:cost 0.125]
     [sin.f32  #:spec (sin x)  #:impl (from-libm 'sinf)  #:cost 4.250]
     ...)
   (define-operations ([x &lt;binary64&gt;]) &lt;binary64&gt;
-    #:fpcore (:precision binary64)
+    #:fpcore (! :precision binary64)
     [fabs.f64 #:spec (fabs x) #:impl (from-libm 'fabs)  #:cost 0.125]
     [sin.f64  #:spec (sin x)  #:impl (from-libm 'sin)   #:cost 4.200]
     ...)</pre>

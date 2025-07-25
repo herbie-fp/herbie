@@ -8,7 +8,6 @@
 (provide define-representation
          define-operation
          define-operations
-         fpcore-context
          if-impl
          if-cost
          (rename-out [platform-module-begin #%module-begin])

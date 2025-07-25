@@ -38,7 +38,7 @@
   [<=.f64 #:spec (<= x y) #:impl <=         #:cost fl-move-cost]
   [>=.f64 #:spec (>= x y) #:impl >=         #:cost fl-move-cost])
 
-(define-operations () <binary64> #:fpcore (:precision binary64)
+(define-operations () <binary64> #:fpcore (! :precision binary64)
   [PI.f64   #:spec (PI)       #:impl (const pi)      #:fpcore PI       #:cost fl-move-cost]
   [E.f64    #:spec (E)        #:impl (const (exp 1)) #:fpcore E        #:cost fl-move-cost]
   [INFINITY #:spec (INFINITY) #:impl (const +inf.0)  #:fpcore INFINITY #:cost fl-move-cost]
@@ -48,13 +48,13 @@
   #:spec (neg x) #:impl -
   #:fpcore (! :precision binary64 (- x)) #:cost 0.096592)
 
-(define-operations ([x <binary64>] [y <binary64>]) <binary64> #:fpcore (:precision binary64)
+(define-operations ([x <binary64>] [y <binary64>]) <binary64> #:fpcore (! :precision binary64)
   [+.f64 #:spec (+ x y) #:impl + #:cost 0.164604]
   [-.f64 #:spec (- x y) #:impl - #:cost 0.15163999999999997]
   [*.f64 #:spec (* x y) #:impl * #:cost 0.20874800000000002]
   [/.f64 #:spec (/ x y) #:impl / #:cost 0.26615199999999994])
 
-(define-operations ([x <binary64>]) <binary64> #:fpcore (:precision binary64)
+(define-operations ([x <binary64>]) <binary64> #:fpcore (! :precision binary64)
   [fabs.f64   #:spec (fabs x)   #:impl (from-libm 'fabs)      #:cost 0.10162]
   [sin.f64    #:spec (sin x)    #:impl (from-libm 'sin)       #:cost 3.318128]
   [cos.f64    #:spec (cos x)    #:impl (from-libm 'cos)       #:cost 3.32288]
@@ -85,7 +85,7 @@
   [tgamma.f64 #:spec (tgamma x) #:impl (from-libm 'tgamma)    #:cost 1.882576]
   [trunc.f64  #:spec (trunc x)  #:impl (from-libm 'trunc)     #:cost 0.463644])
 
-(define-operations ([x <binary64>] [y <binary64>]) <binary64> #:fpcore (:precision binary64)
+(define-operations ([x <binary64>] [y <binary64>]) <binary64> #:fpcore (! :precision binary64)
   [pow.f64       #:spec (pow x y)       #:impl (from-libm 'pow)       #:cost 1.52482]
   [atan2.f64     #:spec (atan2 x y)     #:impl (from-libm 'atan2)     #:cost 1.492804]
   [copysign.f64  #:spec (copysign x y)  #:impl (from-libm 'copysign)  #:cost 0.200452]

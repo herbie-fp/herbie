@@ -241,15 +241,17 @@
 (define fpcore-context (make-parameter '()))
 
 (define (fpcore-parameterize spec)
-  (if (empty? (fpcore-context))
-      spec
-      (match spec
-        [`(! ,props ... ,body)
-         (define props1 (make-immutable-hash (props->dict (fpcore-context))))
-         (define props2 (make-immutable-hash (props->dict props)))
-         (define props* (dict->props (hash-union props1 props2 #:combine (lambda (x y) y))))
-         `(! ,@props* ,body)]
-        [body `(! ,@(fpcore-context) ,body)])))
+  (match (fpcore-context)
+    ['() spec]
+    [`(! ,ctx-props ...)
+     (match spec
+       [`(! ,props ... ,body)
+        (define props1 (make-immutable-hash (props->dict ctx-props)))
+        (define props2 (make-immutable-hash (props->dict props)))
+        (define props* (dict->props (hash-union props1 props2 #:combine (lambda (x y) y))))
+        `(! ,@props* ,body)]
+       [body `(! ,@ctx-props ,body)])]
+    [ctx (error 'fpcore-context "expected `(! ...)`, got `~a`" ctx)]))
 
 ; Registers an operator implementation `name` with context `ctx` and spec `spec`.
 ; Can optionally specify a floating-point implementation and fpcore translation.
