@@ -31,13 +31,6 @@
 (define (*sound-rules*)
   (filter (conjoin rule-enabled? rule-sound?) *all-rules*))
 
-; An analog of free-variables due to cycles in loading
-(define (get-input-variables prog)
-  (match prog
-    [(? number?) '()]
-    [(? symbol?) (list prog)]
-    [(list _ args ...) (remove-duplicates (append-map get-input-variables args))]))
-
 (define (add-unsound expr)
   (match expr
     [(list op args ...) (cons (sym-append "unsound-" op) (map add-unsound args))]
