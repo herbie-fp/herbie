@@ -161,13 +161,9 @@
       [(list 'FPCore (list args ...) props ... expr) (values #f args props expr)]))
   (define props* ; make sure each property (name, value) gets put on the same line
     (for/list ([(prop name) (in-dict (props->dict props))])
-      (format "~a ~a" prop (pretty-format name (- 69 (string-length (~a prop)))
-                                          #:mode 'write))))
+      (format "~a ~a" prop (pretty-format name (- 69 (string-length (~a prop))) #:mode 'write))))
   (define top
     (if ident
         (format "FPCore ~a ~a" ident args)
         (format "FPCore ~a" args)))
-  (format "(~a\n  ~a\n  ~a)"
-          top
-          (string-join props*  "\n  ")
-          (pretty-format expr 70 #:mode 'write)))
+  (format "(~a\n  ~a\n  ~a)" top (string-join props* "\n  ") (pretty-format expr 70 #:mode 'write)))
