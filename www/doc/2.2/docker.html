@@ -50,38 +50,31 @@
   
   <p>This will download the Herbie image and then run
   its <a href="options.html">shell tool</a>.</p>
-  
-  <p>Herbie in Docker is more limited; for example, it will not
-  recognize plugins installed outside the Docker container.</p>
 
   <h2>Running the web interface</h2>
 
-  <p>
-    You can run the Herbie web server locally with
+  <p>You can run the Herbie web server locally with
 
   <pre class="shell">docker run -it --rm -p 8000:80 uwplse/herbie</pre>
 
-    and access the server at <a href="http://localhost:8000">http://localhost:8000</a>.
-    </p>
-    <p>
-      (Herbie's Docker image binds to port 80 by
-    default; this command uses the <code>-p &lt;hostport&gt;:80</code> option to expose Herbie on port 8000.)
-  </p>
+  and access the server
+  at <a href="http://localhost:8000">http://localhost:8000</a>.</p>
 
-  <p>
-    If you are using the <code>--log</code>
-    or <code>--save-session</code> flags for the web shell,
-    you will also need to mount the relevant directories into the
-    Docker container using the <code>-v</code> Docker option, as in
-    the examples below.
-  </p>
+  <p>(Herbie's Docker image binds to the container's port 80 by
+  default; this command uses the <code>-p 8000:80</code> option to
+  expose that container port as the host's port 8000.)</p>
+
+  <p>If you are using the <code>--log</code>
+  or <code>--save-session</code> flags for the web shell, you will
+  also need to mount the relevant directories into the Docker
+  container using the <code>-v</code> Docker option, as in the
+  examples below.</p>
 
   <h2>Generating files and reports</h2>
 
-  <p>
-    To use Herbie in <a href="using-cli.html">batch mode</a>, you will
-    need to mount the input in the Docker container. Do that with:
-  </p>
+  <p>To use Herbie in <a href="using-cli.html">batch mode</a>, you
+  will need to mount the input in the Docker container. Do that
+  with:</p>
   
   <pre class="shell">docker run -it --rm \
     -v <var>in-dir</var>:/in \
@@ -89,17 +82,13 @@
     -u $USER \
     uwplse/herbie improve /in/<var>in-file</var> /out/<var>out-file</var></pre>
 
-  <p>
-    In this command, you are asking Herbie to read input
-    from <var>in-file</var> in <var>in-dir</var>, and write output
-    to <var>out-file</var> in <var>out-dir</var>. The command looks
-    the same if you want Herbie to read input from a directory;
-    just leave <var>in-file</var> blank.
-  </p>
+  <p>In this command, you are asking Herbie to read input
+  from <var>in-file</var> in <var>in-dir</var>, and write output
+  to <var>out-file</var> in <var>out-dir</var>. The command looks the
+  same if you want Herbie to read input from a directory; just
+  leave <var>in-file</var> blank.</p>
 
-  <p>
-    To generate reports from Herbie, you can run:
-  </p>
+  <p>To generate reports from Herbie, you can run:</p>
 
   <pre class="shell">docker run -it --rm \
     -v <var>in-dir</var>:/in \
@@ -107,38 +96,48 @@
     -u $USER \
     uwplse/herbie report /in/<var>in-file</var> /out/</pre>
 
-  <p>
-    As before, the input and output directories must be mounted inside
-    the Docker container. Note that both here and above, the user is
-    set to the current user. This is to ensure that the files Herbie creates
-    have the correct permissions set.
-  </p>
+  <p>As before, the input and output directories must be mounted inside
+  the Docker container. Note that both here and above, the user is
+  set to the current user. This is to ensure that the files Herbie creates
+  have the correct permissions set.</p>
+
+  <h2>Loading custom platforms</h2>
+
+  <p>If you'd like to write and use <a href="platforms.html">custom
+  platforms</a> with Herbie in Docker, you'll need to mount the
+  platform directory as well:</p>
+
+  <pre class="shell">docker run -it --rm \
+    -v <var>platform-dir</var>:/platform \
+    -u $USER \
+    uwplse/herbie shell \
+    --platform /platform/<var>platform.rkt</var></pre>
+
+  <p>You can use custom platforms for the web interface or in batch
+  mode using a similar approach.</p>
 
   <h2>Building the Docker image</h2>
 
-  <p>This section is primarily of interest for the Herbie developers.</p>
+  <p>This section is primarily of interest the Herbie developers.</p>
 
-  <p>
-    Clone the repo and confirm that Herbie builds correctly
-    with <code>make install</code>.
-  </p>
+  <p>Clone the repo and confirm that Herbie builds correctly
+  with <code>make install</code>. Next, examine the Dockerfile and
+  Makefile together. The Dockerfile should follow a process exactly
+  like the Makefile, except a clean initial environment is
+  assumed.</p>
 
-  <p>
-    Next, examine the Dockerfile and Makefile together. The Dockerfile
-    should follow a process exactly like the Makefile, except a clean
-    initial environment is assumed. The build may be split into 2 or
-    more stages to limit the size of the resulting image. Each stage
-    consists of a <code>FROM</code> command and a series of further
-    commands to build up the desired environment, and later stages can
-    refer to earlier stages by name&mdash;for example, <code>COPY
-    --from=earlier-stage ...</code> can copy files compiled in earlier
-    images. You may need to do things like bumping the version of Rust
-    used for binary compilation or the version of Racket used in
-    production, or adjusting paths to match the newest version of the
-    repo.
-  </p>
+  <p>The build is split into 2 or more stages to limit the size of the
+  resulting image. Each stage consists of a <code>FROM</code> command
+  and a series of further commands to build up the desired
+  environment, and later stages can refer to earlier stages by
+  name&mdash;for example, <code>COPY --from=earlier-stage ...</code>
+  can copy files compiled in earlier images.</p>
 
-  <p>Once you are ready to build, run this command from the repository root:</p>
+  <p>Before building the official image, bump the version of Rust used
+  for binary compilation and the version of Racket used in production,
+  and adjusting paths to match the newest version of the repo.</p>
+
+  <p>Once you are ready, run this from the repository root:</p>
 
   <pre class="shell">docker build -t uwplse/herbie:test .</pre>
 
@@ -149,7 +148,8 @@
 
   <p>The web demo should now be visible at <code>http://localhost:8000</code>.</p>
   
-  <p>To open a shell in a running container for testing, first get the container ID with:</p>
+  <p>To open a shell in a running container for testing, first get the
+  container ID with:</p>
 
   <pre class="shell">docker ps</pre>
 
@@ -157,7 +157,7 @@
 
   <pre class="shell">docker exec -it &lt;CONTAINER ID&gt; sh</pre>
   
-  <p>The code and egg-herbie binaries should be
+  <p>The code and <code>egg-herbie</code> binaries should be
   under <code>/src</code>.</p>
 
 </body>

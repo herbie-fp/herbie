@@ -70,7 +70,9 @@
   that representation from memory and the cost of an operation is the
   time it takes to execute that operation. However, in principle,
   platforms can use cost to represent another metric like area or
-  latency. Only relative costs matter.</p>
+  latency. Only relative costs matter. If you're not sure, just
+  putting "<code>1</code>" for all the costs is not a bad place to
+  start.</p>
   
   <h2>Defining a Platform</h2>
 
@@ -90,7 +92,11 @@
   can do. If necessary, it can define new representations.</p>
   
   <p>Herbie's <a href="https://github.com/herbie-fp/herbie/tree/main/src/platforms">built-in
-  platforms</a> are good example platforms to study or modify.</p>
+  platforms</a> are good example platforms to study or modify. If you
+  use them as an example, you'll need to change the <code>#lang</code>
+  line at the top of the file to be <code>herbie/platforms</code>; the
+  built-in platforms are different because they are built in to Herbie
+  and can't assume Herbie is installed.</p>
 
   <h2>Defining Representations</h2>
 

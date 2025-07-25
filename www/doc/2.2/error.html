@@ -42,8 +42,8 @@ considering.</p>
 typically use floating-point numbers. Because there are infinitely
 many real numbers, but only finitely many floating-point numbers, some
 real numbers can't be accurately represented. This means that every
-time you do an operation, the true result typically has to
-be <em>rounded</em> to a representable one.</p>
+time you do an operation, the true result will be <em>rounded</em> to
+a representable one.</p>
 
 <p>Take an extreme example: the code <code>1e100 + 1</code>, which
 increments a huge number in IEEE 754 double-precision floating-point.
@@ -74,16 +74,15 @@ possible floating-point numbers, from largest to smallest. In that
 list, compare the floating-point value you computed to the one closest
 to the true answer. If they are the same, that's called 0 bits of
 error; if they are one apart, that's called one bit of error; three
-apart is two bits of error; and so on.</p>
+apart is two bits of error; seven apart is three bits; and so on.</p>
 
 <p>In general, if the two floating-point values are <var>n</var> items
 apart, Herbie says they have <code>log2(n + 1)</code> bits of error.
 Values like <code>0</code> and <code>-0</code> are treated as having 0
-bits of error, and <code>NaN</code> is considered to have the maximum
-number of bits of error against non-<code>NaN</code> values. While
-there's all sorts of theoretical justifications, Herbie mainly uses
-this error metric because we've found it to give the best
-results. </p>
+bits of error, and NaN is considered to have the maximum number of
+bits of error against non-NaN values. While there's all sorts of
+theoretical justifications, Herbie mainly uses this error metric
+because we've found it to give the best results. </p>
 
 <p>On a single input, the best way to interpret the "bits of error"
 metric is that it tells you roughly how many bits of the answer,
@@ -93,8 +92,8 @@ because it's four out of 64. But with 40 or 50 bits of error, you're
 getting less accuracy out of the computation than even a
 single-precision floating-point value. And it's even possible to have
 something like 58 or 60 bits of error, in which case even the sign and
-exponent bits (which in double-precision floating-point occupy the top
-12 bits of the number) are incorrect.</p>
+exponent bits (which in double-precision floating-point the the most
+significant 12 bits) are incorrect.</p>
 
 <h2>Percentage accuracy</h2>
 
@@ -108,9 +107,9 @@ input. But usually you're interested in the error of a computation
 across many possible inputs. Herbie therefore averages the accuracy
 percentage across many randomly-sampled valid inputs.</p>
 
-<p>Typically, inputs points are either very accurate or not accurate
-at all. So when computing percentage accuracy, Herbie's averaging a
-lot of points with near-100% accuracy and a lot of points with near-0%
+<p>Typically, input points are either very accurate or not accurate at
+all. So when computing percentage accuracy, Herbie's averaging a lot
+of points with near-100% accuracy and a lot of points with near-0%
 accuracy. In that sense, you can think of percentage accuracy as
 measuring mostly what percentage <em>of inputs</em> are accurate. If
 Herbie says your computation is 75% accurate what it's really saying
@@ -118,9 +117,8 @@ is that about a quarter of inputs produce usable outputs.</p>
 
 <h2>Valid inputs</h2>
 
-<p>Since percentage accuracy averages over many points, it depends on
-what points it is averaging over, and how is samples among them.
-Herbie samples among <em>valid</em> inputs, uniformly distributed.</p>
+<p>When Herbie computes this average, it's over <em>valid</em>,
+uniformly distributed input points.</p>
 
 <p>Herbie considers an input valid if it is a floating-point value in
 the appropriate precision and its true, real-number output 1) exists;
@@ -128,20 +126,21 @@ the appropriate precision and its true, real-number output 1) exists;
 dive into each requirement.</p>
 
 <ol>
-  <li>An output can fail to exist for an input if that input does
-    something like divide by zero or take the square root of a
-    negative number. Then that input is invalid.</li>
-  <li>An input can fail to satisfy the user's precondition.
-    Preconditions can be basically anything, but most often they
-    specify a range of inputs. For example, if the precondition
+  <li>An output can fail to exist for an input if something like a
+    division by zero or square root of a negative number
+    happens <em>even with exact, real-number computation</em>. Then
+    there's no exact answer to compare against and the point is
+    considered invalid.</li>
+  <li>An input can fail to satisfy the user's precondition, which are
+    usually a range of inputs. For example, if the precondition
     is <code>(&lt; 1 x 2)</code>, then the input <code>x = 3</code> is
     invalid.</li>
   <li>Finally, and most rarely, Herbie can fail to compute the output
     for a particular input. For example, the computation <code>(/ (exp
     1e9) (exp 1e9))</code>, which divides two identical but gargantuan
     numbers, does have an exact real-number answer (one), but Herbie
-    can't compute that exact answer because the intermediate steps are
-    too large. This input is also invalid, but you'll
+    can't compute that exact answer because the intermediate values
+    are too large. This input is also invalid, but you'll
     get <a href="faq.html#ground-truth">a warning</a> if this
     happens.</li>
 </ol>
@@ -149,19 +148,17 @@ dive into each requirement.</p>
 <p>Herbie's percentage accuracy metric only averages over valid
 points. This means that when you change your precondition, you change
 which points are valid, and that can change the percentage accuracy
-reported by Herbie. This is useful: if you know there's a rare error,
-but Herbie thinks error is low, you can change your precondition to
-focus on the points of interest.</p>
+reported by Herbie. This is useful: if you've observed a
+floating-point error, you can tailor your precondition to focus on
+inputs near the one you've observed.</p>
 
-<p>Some inputs are valid in surprising ways. For example, consider the
-expression <code>(exp x)</code> for <code>x = 1e100</code>. The true
-real-number result is a very large but finite number; but that real
-number, whatever it is, rounds to infinity in double-precision
-floating point. Herbie does consider this input valid, but infinite
-values are a little odd in floating-point so you might find this
-surprising. For this reason, Herbie
-issues <a href="faq.html#inf-points">a warning</a> if too many outputs
-are infinite.</p>
+<p>Infinite outputs can be valid. For example, consider <code>(exp
+x)</code> for <code>x = 1e100</code>. The true real-number result is
+some very large finite number. That real number, whatever it is,
+rounds to infinity in double-precision floating point. Herbie thus
+considers this input valid. Since you might find this surprising,
+Herbie issues <a href="faq.html#inf-points">a warning</a> if too many
+outputs are infinite.</p>
 
 <h2>Sampling inputs</h2>
 
@@ -172,10 +169,9 @@ uniformly distributed.</p>
 
 <p>For example, there are as many floating-point values between 1 and
 2 as there are between one and one half, because floating-point values
-use an exponential encoding. But that means that if you're looking at
-a computation where the input comes from the interval <kbd>[0.5,
-2]</kbd>, Herbie will weigh the first third of that range twice as
-high as the other two thirds.</p>
+use an exponential encoding. But that means that, in the
+interval <kbd>[0.5, 2]</kbd>, Herbie will sample from the first third
+of that range twice as often as from the other two thirds.</p>
 
 <p>This can produce unintuitive results, especially for intervals that
 cross 0. For example, in the interval <kbd>[0, 1]</kbd>, the second
@@ -183,7 +179,10 @@ half of that interval (from one half to one) has a tiny proportion of
 the weight (in double-precision floating-point, about 0.1%). If Herbie
 can improve accuracy by a little bit between zero and one half, while
 dramatically reducing accuracy between one half and one, it will think
-that that's an accuracy improvement. You might disagree.</p>
+that that's an accuracy improvement. For this reason, Herbie prompts
+you to add a minimum absolute value for ranges that cross zero. Even a
+trivial minimum absolute value, like <code>1e-10</code>, can
+dramatically improve Herbie's results.</p>
 
 <p>Unfortunately, there's no way for Herbie to intuit exactly what you
 mean, so understanding this error distribution is essential to
