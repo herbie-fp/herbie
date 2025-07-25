@@ -73,12 +73,6 @@
   <p>You can use the drop-down in the top left to display the
   specification in an alternative syntax.</p>
 
-  <p>The colored outcome bar summarizes the sampled floating-point
-    inputs that produce valid, unknown, or invalid outputs. Green
-    outcomes are valid, broken down into finite and infinite. Unknown
-    outputs are red. Blue outcomes are invalid (fail precondition or
-    domain errors) and are ignored by Herbie.</p>
-
   <!-- Colors copied from src/web/resources/report.css -->
   <h2 id="graph">Local Percentage Accuracy graph</h2>
 
@@ -147,14 +141,13 @@
   <p>The accuracy and relative speed of each alternative is given in
     the title. Below the title, the alternative expression itself is
     given. The dropdown in the top right can be used to change the
-    syntax used.</p>
-
-  <p>By definition, the speed of the initial program is 1.0×, and it
-    has no derivation since it was provided by the user.</p>
+    syntax used. If Herbie could not come up with anything better than
+    the initial program, no alternatives are displayed.</p>
 
   <p>Each alternative also has a derivation, which can be shown by
     clicking on "Derivation". The derivation shows each step Herbie
-    took to transform the initial program into this alternative.</p>
+    took to transform the initial program into this alternative. The
+    initial program has no derivation.</p>
 
   <figure>
     <img width="100%" src="report-alternative-derivation.png" />
@@ -163,9 +156,8 @@
   <p>Each step in the derivation gives the accuracy after that step.
     Sometimes you can use that to pick a less-complex and
     not-substantially-less-accurate program. The derivation will also
-    call out any time the input is split into cases. When a part of
-    the step is colored blue, that identifies the changed part of the
-    expression.</p>
+    call out any case splits. When a part of the step is colored blue,
+    that identifies the changed part of the expression.</p>
 
   <p>Derivations may also contain "step-by-step derivations"; you can
   click on those step-by-step derivations to expand them. Each step in
@@ -177,10 +169,14 @@
     <img width="100%" src="report-step-by-step.png" />
   </figure>
 
+  <p>Derivations are intended to give you more confidence in Herbie's
+  results and are not guaranteed to be an accurate reflection of
+  Herbie's internal process of constructing an alternative.</p>
+
   <h2 id="reproduction">Reproduction</h2>
 
-  <p>Finally, Herbie gives a command to reproduce that result. If you
-    find a Herbie bug, include this code snippet when
+  <p>Finally, Herbie gives a command you can run to reproduce its
+    result. If you find a Herbie bug, include this code snippet when
     <a href="https://github.com/uwplse/herbie/issues">filing an issue</a>.</p>
 
   <figure>
