@@ -20,8 +20,8 @@
   </header>
 
   <p>
-    <a href="../../">Herbie</a> rewrites floating point expressions to
-      make them more accurate. Floating point arithmetic is
+    <a href="../../">Herbie</a> rewrites floating-point expressions to
+      make them more accurate. Floating-point arithmetic is
       <a href="error.html">inaccurate</a>; even 0.1 + 0.2 ≠ 0.3 in
       floating-point. Herbie helps find and fix these mysterious
       inaccuracies.
@@ -44,9 +44,12 @@
 
   <p>
     After a brief wait, your web browser should open and show you
-    Herbie's main window. The most important part of the page is this
-    bit:
+    Herbie's main window. Re-check the
+    <a href="installing.html">installation steps</a>
+    if this doesn&apos;t occur.
   </p>
+
+  <p>The most important part of the page is this bit:</p>
 
   <figure>
     <img width="100%" src="web-input.png" alt="The program input field in the Herbie web UI."/>
@@ -56,7 +59,7 @@
     Let's start by just looking at an example of Herbie running.
     Click "Show an example". This will pre-fill the expression
     <kbd>sqrt(x + 1) - sqrt(x)</kbd>
-    with <code>x</code> ranging from to <kbd>0</kbd> and <kbd>1.79e308</kbd>.
+    with <code>x</code> ranging from <kbd>0</kbd> to <kbd>1.79e308</kbd>.
   </p>
 
   <figure>
@@ -81,6 +84,10 @@
     <img width="100%" src="report-large.png" alt="Statistics and error measures for this Herbie run." />
   </figure>
 
+  <p>Note that Herbie's algorithm is randomized, so you likely won't
+  see the exact same thing; you might see more or fewer alternatives,
+  and they might be more or less accurate and fast.</p>
+
   <p>
     Here, you can see that Herbie's most accurate alternative has an
     accuracy of 99.7%, much better than the initial program's 53.2%,
@@ -91,6 +98,18 @@
     details like how they were derived. These details are all
     <a href="report.html">documented</a>, but for the sake of the
     tutorial let's move on to a more realistic example.
+  </p>
+
+  <p>
+    Herbie measures accuracy by comparing a program's result against
+    the exact answer calculated using high-precision arithmetic. The difference
+    between these two is then measured in "bits of error" which
+    counts how many of the most significant bits that the
+    approximate and exact result agree on. This error is then
+    averaged across many different sample inputs to determine
+    the program's overall accuracy. Herbie's
+    <a href="error.html">error documentation</a>
+    describes the process in more detail.
   </p>
 
   <h2>Programming with Herbie</h2>
@@ -128,7 +147,7 @@
 
   <p>
     For our example, let's start
-    in <a href="https://github.com/josdejong/mathjs/tree/master/lib/function"><code>lib/function/</code></a>.
+    in <a href="https://github.com/josdejong/mathjs/tree/da306e26ed34272db44e35f07a3b015c0155d99a/lib/function"><code>lib/function/</code></a>.
     This directory contains many subdirectories; each file in each
     subdirectory defines a collection of mathematical functions. We're
     interested in the complex square root function, which is defined in
@@ -203,7 +222,7 @@ else {
   <h2>Herbie's results</h2>
 
   <p>Herbie will churn for a few seconds and produce a results page.
-    In this case, Herbie found 4 alternatives, and we're interested in
+    In this case, Herbie found 6 alternatives, and we're interested in
     the most accurate one, which should have an
     <a href="error.html">accuracy of 84.6%:</a></p>
 
@@ -219,11 +238,12 @@ else {
     <img width="100%" src="problematic-xim.png" />
   </figure>
 
-  <p>The drop in accuracy once <code>xim</code> is bigger than
-  about <code>1e150</code> really stands out, but you can also see
-  that Herbie's alternative more accurate for smaller <code>xim</code>
-  values, too. You can also change the graph to plot accuracy
-  versus <code>xre</code> instead:</p>
+<p>There's a really obvious drop in accuracy once <code>xim</code>
+  gets bigger than about <code>1e150</code>
+  (due to <a href="https://en.wikipedia.org/wiki/Floating-point_arithmetic#Dealing_with_exceptional_cases">floating-point overflow</a>),
+  but you can also see that Herbie's alternative is more accurate
+  for smaller <code>xim</code> values, too. You can also change the
+  graph to plot accuracy versus <code>xre</code> instead:</p>
 
   <figure>
     <img width="100%" src="problematic-xre.png" />
@@ -241,10 +261,9 @@ else {
     <img width="100%" src="problematic-pareto-table.png" />
   </figure>
 
-  <p>Herbie's algorithm is randomized, so you likely won't see the
-  exact same thing; you might see more or fewer alternatives, and they
-  might be more or less accurate and fast. That said, the most
-  accurate alternative should be pretty similar.</p>
+  <p>Remember that Herbie's algorithm is randomized, so you likely
+  won't see the exact same thing. That said, the most accurate
+  alternative should be pretty similar.</p>
 
   <p>That alternative itself is shown lower down on the page:</p>
 
@@ -255,10 +274,11 @@ else {
   <p>A couple features of this alternative stand out immediately.
   First of all, Herbie inserted an <code>if</code> statement.
   This <code>if</code> statement handles a phenomenon known as
-  cancellation, and is part of why Herbie's alternative is more
-  accurate. Herbie also replaced the square root operation with
-  the <code>hypot</code> function, which computes distances more
-  accurately than a direct square root operation.</p>
+  <a href="https://en.wikipedia.org/wiki/Catastrophic_cancellation">cancellation</a>,
+  and is part of why Herbie's alternative is more accurate. Herbie
+  also replaced the square root operation with the <code>hypot</code>
+  function, which computes distances more accurately than a direct
+  square root operation.</p>
 
   <p>If you want to see more about how Herbie derived this result, you
   could click on the word "Derivation" to see a detailed, step-by-step
@@ -311,11 +331,11 @@ else {
   gets better, you can re-run it on this original expression to see if
   it comes up with improvements in accuracy.</p>
 
-  <p>By the way, for some languages, including JavaScript, you can use
-  the drop-down in the top-right corner of the alternative block to
-  translate Herbie&apos;s output to that language. However, you will
-  still probably need to refactor and modify the results to fit your
-  code structure, just like here.</p>
+  <p>Additionally, for some languages (e.g. JavaScript, Python,
+  Wolfram, etc) you can use the drop-down in the top-right corner
+  of the alternative block to translate Herbie&apos;s output to that
+  language. However, you will still probably need to refactor and
+  modify the results to fit your code structure, just like here.</p>
 
   <h2>Next steps</h2>
 
