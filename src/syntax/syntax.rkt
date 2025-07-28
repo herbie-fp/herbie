@@ -16,7 +16,6 @@
          operator-exists?
          operator-info
          all-operators ; return a list of operators names
-         operators ; returns hash of operators
          *functions*
          register-function!
          make-operator-impl
@@ -37,7 +36,6 @@
 ;; has an associated operator so the spec is here
 
 ;; All real operators come from Rival
-(define operators rival-functions)
 
 ;; Checks if an operator has been registered.
 (define (operator-exists? op)
@@ -57,20 +55,6 @@
   (case field
     [(itype) itypes]
     [(otype) otype]))
-
-;; Registers an operator. This only extends the local `operators` table.
-(define (register-operator! name itypes otype)
-  (set! operators (hash-set operators name (cons otype itypes))))
-
-(define-syntax (define-operator stx)
-  (syntax-case stx ()
-    [(_ (id itype ...) otype _ ...) #'(register-operator! 'id '(itype ...) 'otype)]))
-
-(define-syntax define-operators
-  (syntax-rules (: ->)
-    [(_ [name : itype ... -> otype] ...)
-     (begin
-       (define-operator (name itype ...) otype) ...)]))
 
 (module+ test
   ; check expected number of operators
