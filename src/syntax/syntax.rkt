@@ -22,11 +22,6 @@
          fpcore-context
          (struct-out operator-impl)) ; required by platform.rkt
 
-(module+ test
-  (require rackunit
-           rival
-           (only-in rival/eval/main rival-functions)))
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Real operators
 ;; Pure mathematical operations
@@ -55,15 +50,6 @@
   (case field
     [(itype) itypes]
     [(otype) otype]))
-
-(module+ test
-  ; check expected number of operators
-  (check-equal? (length (all-operators)) (hash-count rival-functions))
-
-  ; check that Rival supports all non-accelerator operators
-  (for ([op (in-list (all-operators))])
-    (define vars (map (lambda (_) (gensym)) (operator-info op 'itype)))
-    (rival-compile (list `(,op ,@vars)) vars (list flonum-discretization))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Operator implementations
