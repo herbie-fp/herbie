@@ -179,8 +179,8 @@ section { display: flow-root; }
 .programs { position: relative; }
 .programs select { position: absolute; right: 3em; }
 .program { display: inline-block; text-align: left; }
-#precondition { padding: 0 1em 1em; margin: 0 -1em 1em; border-bottom: 2px solid white; }
-#precondition:before { content: "Precondition"; float: left; color: #444; }
+#precondition { margin: 2em 0; }
+#precondition:before { content: "Precondition:"; display: block; color: #444; margin-left: -2em; }
 /* Allow line breaks in display equations (see https://katex.org/docs/issues.html) */
 .katex-display > .katex { white-space: normal }
 .katex-display .base { margin: 0.25em 0 }
