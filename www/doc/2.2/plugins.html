@@ -46,8 +46,9 @@
   <p>Specifically, a representation value needs to be convertible to
   Racket <a href="https://docs.racket-lang.org/math/bigfloat.html"><code>bigfloat</code></a>
   values (which are basically MPFR floats) and also
-  to <em>ordinals</em>, meaning integers between 0 and
-  2<sup><var>w</var></sup> for some bit width <var>w</var>.</p>
+  to <em>ordinals</em>, meaning integers between
+  -2<sup><var>w</var>&minus;1</sup> and
+  2<sup><var>w</var>&minus;1</sup>&minus;1 for some bit width <var>w</var>.</p>
 
   <p>Create representations with <code>make-representation</code>:</p>
 
@@ -92,8 +93,9 @@
   instead.</p>
 
   <p>The <code>#:ordinal->repr</code> and <code>#:repr->ordinal</code>
-  functions represent ordinals as Racket integers between 0
-  (inclusive) and 2<sup><var>width</var></sup> (exclusive). Ordinals
+  functions represent ordinals as Racket integers between
+  -2<sup><var>width</var>&minus;1</sup> (inclusive) and
+  2<sup><var>width</var>&minus;1</sup> (exclusive). Ordinals
   must be in real-number order; that is, if <code>(repr->bf x)</code>
   is less than <code>(repr->bf y)</code>, then <code>(repr->ordinal
   x)</code> should be less than <code>(repr->ordinal y)</code>.</p>

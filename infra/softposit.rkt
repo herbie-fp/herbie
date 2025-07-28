@@ -89,8 +89,8 @@
   (make-representation #:name 'posit8
                        #:bf->repr (compose double->posit8* bigfloat->flonum)
                        #:repr->bf (compose bf-inf->nan posit8->double)
-                       #:ordinal->repr (shift 7 ordinal->posit8)
-                       #:repr->ordinal (unshift 7 posit8->ordinal)
+                       #:ordinal->repr ordinal->posit8
+                       #:repr->ordinal posit8->ordinal
                        #:total-bits 8
                        #:special-value? (curry posit8= (posit8-nar))))
 
@@ -98,8 +98,8 @@
   (make-representation #:name 'posit16
                        #:bf->repr (compose double->posit16* bigfloat->flonum)
                        #:repr->bf (compose bf-inf->nan posit16->double)
-                       #:ordinal->repr (shift 15 ordinal->posit16)
-                       #:repr->ordinal (unshift 15 posit16->ordinal)
+                       #:ordinal->repr ordinal->posit16
+                       #:repr->ordinal posit16->ordinal
                        #:total-bits 16
                        #:special-value? (curry posit16= (posit16-nar))))
 
@@ -107,8 +107,8 @@
   (make-representation #:name 'posit32
                        #:bf->repr (compose double->posit32* bigfloat->flonum)
                        #:repr->bf (compose bf-inf->nan posit32->double)
-                       #:ordinal->repr (shift 31 ordinal->posit32)
-                       #:repr->ordinal (unshift 31 posit32->ordinal)
+                       #:ordinal->repr ordinal->posit32
+                       #:repr->ordinal posit32->ordinal
                        #:total-bits 32
                        #:special-value? (curry posit32= (posit32-nar))))
 
