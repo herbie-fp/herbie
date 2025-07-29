@@ -76,8 +76,7 @@
 
   (define instructions
     (for/vector #:length (- (batch-length batch*) num-vars)
-                ([n (in-range num-vars (batch-length batch*))])
-      (define node (dvector-ref (batch-nodes batch*) n))
+                ([node (in-dvector (batch-nodes batch*) num-vars)])
       (match node
         [(literal value (app get-representation repr)) (list (const (real->repr value repr)))]
         [(list 'if c t f) (list if-proc c t f)]
