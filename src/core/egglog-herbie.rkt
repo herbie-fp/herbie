@@ -695,7 +695,7 @@
   (define spec-mask (make-vector (batch-length batch) #f))
 
   (for ([n (in-naturals)]
-        [node (in-gvector (batch-nodes batch))])
+        [node (in-dvector (batch-nodes batch))])
     (match node
       [(? literal?) (vector-set! spec-mask n #f)] ;; If literal, not a spec
       [(? number?) (vector-set! spec-mask n #t)] ;; If number, it's a spec
@@ -720,7 +720,7 @@
 
   (for ([root (in-vector (batch-roots batch))])
     (vector-set! root-mask root #t))
-  (for ([node (in-gvector (batch-nodes batch))]
+  (for ([node (in-dvector (batch-nodes batch))]
         [root? (in-vector root-mask)]
         [spec? (in-vector spec-mask)]
         [n (in-naturals)])

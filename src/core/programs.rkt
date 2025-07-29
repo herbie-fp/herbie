@@ -47,7 +47,7 @@
 
 ; Index inside (batch-nodes batch) -> type
 (define (repr-of-node batch idx ctx)
-  (define node (gvector-ref (batch-nodes batch) idx))
+  (define node (dvector-ref (batch-nodes batch) idx))
   (match node
     [(literal val precision) (get-representation precision)]
     [(? symbol?) (context-lookup ctx node)]
@@ -198,7 +198,7 @@
   (define idx*
     (let loop ([loc0 loc0]
                [idx full-idx])
-      (let ([node (gvector-ref nodes idx)])
+      (let ([node (dvector-ref nodes idx)])
         (match* (node loc0)
           [(_ (? null?)) sub-idx]
           [((approx spec impl) (cons 1 rest)) (batch-push! full-batch (approx (loop rest spec) impl))]
@@ -250,8 +250,8 @@
     [else
      (define locations (make-vector (batch-length full-batch) '()))
      (vector-set! locations sub-idx '(()))
-     (for ([n (in-range (add1 sub-idx) (add1 full-idx))])
-       (define node (gvector-ref nodes n)) ; to be replaced with API's instruction
+     (for ([n (in-range (add1 sub-idx) (add1 full-idx))]
+           [node (in-dvector nodes (add1 sub-idx) (add1 full-idx))])
        (match node
          [(list _ args ...)
           (for ([arg (in-list args)]

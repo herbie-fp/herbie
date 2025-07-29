@@ -132,7 +132,7 @@
   (define taylor-approxs (make-vector (batch-length expr-batch))) ; vector of approximations
 
   (for ([n (in-naturals)]
-        [node (in-gvector nodes)])
+        [node (in-dvector nodes)])
     (define approx
       (match node
         [(? (curry equal? var)) (taylor-exact 0 1)]
@@ -144,7 +144,7 @@
         [`(* ,left ,right)
          (taylor-mult (vector-ref taylor-approxs left) (vector-ref taylor-approxs right))]
         [`(/ ,num ,den)
-         #:when (equal? (gvector-ref nodes num) 1)
+         #:when (equal? (dvector-ref nodes num) 1)
          (taylor-invert (vector-ref taylor-approxs den))]
         [`(/ ,num ,den)
          (taylor-quotient (vector-ref taylor-approxs num) (vector-ref taylor-approxs den))]
@@ -182,8 +182,8 @@
            [else (taylor-cos (zero-series arg*))])]
         [`(log ,arg) (taylor-log var (vector-ref taylor-approxs arg))]
         [`(pow ,base ,power)
-         #:when (exact-integer? (gvector-ref nodes power))
-         (taylor-pow (normalize-series (vector-ref taylor-approxs base)) (gvector-ref nodes power))]
+         #:when (exact-integer? (dvector-ref nodes power))
+         (taylor-pow (normalize-series (vector-ref taylor-approxs base)) (dvector-ref nodes power))]
         [_ (taylor-exact (batch-ref expr-batch n))]))
     (vector-set! taylor-approxs n approx))
   taylor-approxs)

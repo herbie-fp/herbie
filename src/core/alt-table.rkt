@@ -30,7 +30,7 @@
   (define node-cost-proc (platform-node-cost-proc (*active-platform*)))
   (define costs (make-vector (batch-length batch) 0))
   (for ([i (in-naturals)]
-        [node (in-gvector (batch-nodes batch))])
+        [node (in-dvector (batch-nodes batch))])
     (define cost
       (match node
         [(? literal?) ((node-cost-proc node repr))]

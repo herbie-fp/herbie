@@ -4,7 +4,8 @@
          dvector-add!
          dvector-ref
          in-dvector
-         dvector-length)
+         dvector-length
+         dvector-copy)
 
 (define starting-length 128)
 
@@ -33,6 +34,10 @@
 
 (define (dvector-ref dvec idx)
   (vector-ref (dvector-vec dvec) idx))
+
+(define (dvector-copy dvec)
+  (match-define (dvector vec tail-pt len) dvec)
+  (dvector (vector-copy vec) tail-pt len))
 
 (define (in-dvector dvec [start 0] [end (dvector-tail-pt dvec)] [step 1])
   (when (or (< (dvector-tail-pt dvec) end) (> start (dvector-tail-pt dvec)))

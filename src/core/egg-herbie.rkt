@@ -112,7 +112,7 @@
 
   ; Inserting nodes bottom-up
   (for ([n (in-naturals)]
-        [node (in-gvector (batch-nodes batch))])
+        [node (in-dvector (batch-nodes batch))])
     (define idx
       (match node
         [(literal v _) (insert-node! v)]
@@ -125,7 +125,7 @@
   (for ([root (in-vector (batch-roots batch))])
     (egraph_add_root ptr (remap root)))
 
-  (for ([node (in-gvector (batch-nodes batch))]
+  (for ([node (in-dvector (batch-nodes batch))]
         #:when (approx? node))
     (match-define (approx spec impl) node)
     (hash-ref! id->spec
