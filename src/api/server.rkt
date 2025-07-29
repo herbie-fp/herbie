@@ -171,9 +171,7 @@
                          *reeval-pts*
                          *node-limit*
                          *max-find-range-depth*
-                         *pareto-mode*
                          *platform-name*
-                         *loose-plugins*
                          *functions*)
    (activate-platform! (*platform-name*))
    ; not sure if the above code is actaully needed.
@@ -292,9 +290,7 @@
                          *reeval-pts*
                          *node-limit*
                          *max-find-range-depth*
-                         *pareto-mode*
                          *platform-name*
-                         *loose-plugins*
                          *functions*)
    (activate-platform! (*platform-name*))
    (define worker-thread
@@ -501,12 +497,12 @@
            ,(test-name test)
            :precision
            ,(test-output-repr-name test)
-           ,@(if (eq? (test-pre test) '(TRUE))
+           ,@(if (equal? (test-pre test) '(TRUE))
                  '()
                  `(:pre ,(prog->fpcore (test-pre test) (test-context test))))
            ,@(if (equal? (test-spec test) empty)
                  '()
-                 `(:herbie-spec ,(prog->fpcore (test-spec test) (test-context test))))
+                 `(:spec ,(prog->fpcore (test-spec test) (test-context test))))
            ,@(if (equal? (test-expected test) #t)
                  '()
                  `(:herbie-expected ,(test-expected test)))

@@ -3,6 +3,7 @@
 (require racket/runtime-path)
 (require "../utils/common.rkt"
          "../utils/errors.rkt"
+         "../config.rkt"
          "../core/rules.rkt"
          "matcher.rkt"
          "types.rkt"
@@ -25,8 +26,6 @@
          ;; Operator sets
          (contract-out ;; Platforms
           [platform? (-> any/c boolean?)]
-          [platform-name (-> platform? any/c)]
-          [platform-if-cost (-> platform? any/c)]
           [platform-reprs (-> platform? (listof representation?))]
           [platform-impls (-> platform? (listof symbol?))]
           ; Cost model
@@ -38,7 +37,6 @@
          platform-register-representation!
          platform-register-implementation!
          platform-register-implementations!
-         platform-register-if-cost!
          display-platform
          make-operator-impl
          make-representation
@@ -54,14 +52,12 @@
 ;;;
 ;;; A small API is provided for platforms for querying the supported
 ;;; operators, operator implementations, and representation conversions.
-(struct platform (name [if-cost #:mutable] representations implementations representation-costs)
+(struct platform (representations implementations representation-costs)
   #:name $platform
   #:constructor-name create-platform
   #:methods gen:custom-write
   [(define (write-proc p port mode)
-     (if (platform-name p)
-         (fprintf port "#<platform:~a>" (platform-name p))
-         (fprintf port "#<platform>")))])
+     (fprintf port "#<platform>"))])
 
 ;; Active platform
 (define *active-platform* (make-parameter #f))
@@ -72,14 +68,11 @@
                [representations (hash-copy (platform-representations platform))]
                [implementations (hash-copy (platform-implementations platform))]))
 
-(define (make-empty-platform name)
+(define (make-empty-platform)
   (define reprs (make-hash))
   (define repr-costs (make-hash))
   (define impls (make-hash))
-  (create-platform name #f reprs impls repr-costs))
-
-(define (platform-register-if-cost! platform #:cost cost)
-  (set-platform-if-cost! platform (platform/parse-if-cost cost)))
+  (create-platform reprs impls repr-costs))
 
 (define (platform-register-representation! platform #:repr repr #:cost cost)
   (define reprs (platform-representations platform))
@@ -88,14 +81,14 @@
   (when (hash-has-key? reprs (representation-name repr))
     (raise-herbie-error "Duplicate representation ~a in platform ~a"
                         (representation-name repr)
-                        (platform-name platform)))
+                        (*platform-name*)))
   ; Update tables
   (hash-set! reprs (representation-name repr) repr)
   (hash-set! repr-costs (representation-name repr) cost))
 
 (define (platform-register-implementation! platform impl)
   (unless impl
-    (raise-herbie-error "Platform ~a missing implementation" (platform-name platform)))
+    (raise-herbie-error "Platform ~a missing implementation" (*platform-name*)))
   ; Reprs check
   (define reprs (platform-representations platform))
   (define otype (context-repr (operator-impl-ctx impl)))
@@ -103,7 +96,7 @@
   (define impl-reprs (map representation-name (remove-duplicates (cons otype itype))))
   (unless (andmap (curry hash-has-key? reprs) impl-reprs)
     (raise-herbie-error "Platform ~a missing representation of ~a implementation"
-                        (platform-name platform)
+                        (*platform-name*)
                         (operator-impl-name impl)))
   ; Cost check
   (define impl-cost (operator-impl-cost impl))
@@ -114,7 +107,7 @@
   (when (hash-has-key? impls (operator-impl-name impl))
     (raise-herbie-error "Impl ~a is already registered in platform ~a"
                         (operator-impl-name impl)
-                        (platform-name platform)))
+                        (*platform-name*)))
   ; Update table
   (hash-set! impls (operator-impl-name impl) impl))
 
@@ -131,8 +124,6 @@
                                                                 #:cost cost)) ...)]))
 
 (define (validate-platform! platform)
-  (unless (platform-if-cost platform)
-    (raise-herbie-error "Platform does not have an if cost"))
   (when (empty? (platform-implementations platform))
     (raise-herbie-error "Platform contains no operations"))
   (for ([(name impl) (in-hash (platform-implementations platform))])
@@ -151,7 +142,7 @@
       (raise-herbie-error "Could not find support for ~a representation: ~a in a platform ~a"
                           name
                           (string-join (map ~s (hash-keys reprs)) ", ")
-                          (platform-name platform))))
+                          (*platform-name*))))
 
 (define (repr-exists? name)
   (define platform (*active-platform*))
@@ -184,12 +175,6 @@
   (define impls (platform-implementations platform))
   (hash-has-key? impls op))
 
-(define (platform/parse-if-cost cost)
-  (match cost
-    [`(max ,x) `(max ,x)]
-    [`(sum ,x) `(sum ,x)]
-    [x `(max ,x)]))
-
 ;; Looks up a property `field` of an real operator `op`.
 ;; Panics if the operator is not found.
 (define/contract (impl-info impl-name field)
@@ -199,10 +184,7 @@
     (hash-ref impls
               impl-name
               (lambda ()
-                (error 'impl-info
-                       "unknown impl '~a in platform ~a"
-                       impl-name
-                       (platform-name (*active-platform*))))))
+                (error 'impl-info "unknown impl '~a in platform ~a" impl-name (*platform-name*)))))
   (case field
     [(name) (operator-impl-name impl)]
     [(vars) (context-vars (operator-impl-ctx impl))]
@@ -231,12 +213,6 @@
   (match expr
     [(? literal?) (lambda () (platform-repr-cost platform repr))]
     [(? symbol?) (lambda () (platform-repr-cost platform repr))]
-    [(list 'if _ _ _)
-     (define if-cost (platform-if-cost platform))
-     (lambda (cond-cost ift-cost iff-cost)
-       (match if-cost
-         [`(max ,n) (+ n cond-cost (max ift-cost iff-cost))]
-         [`(sum ,n) (+ n cond-cost ift-cost iff-cost)]))]
     [(list impl args ...)
      (define impl-cost (impl-info impl 'cost))
      (define impl-agg (impl-info impl 'aggregate))
@@ -255,10 +231,6 @@
         [(? literal?) ((node-cost-proc expr repr))]
         [(? symbol?) ((node-cost-proc expr repr))]
         [(approx _ impl) (loop impl repr)]
-        [(list 'if cond ift iff)
-         (define bool-repr (get-representation 'bool)) ; that's sketchy, bool repr might not exist
-         (define cost-proc (node-cost-proc expr repr))
-         (cost-proc (loop cond bool-repr) (loop ift repr) (loop iff repr))]
         [(list impl args ...)
          (define cost-proc (node-cost-proc expr repr))
          (define itypes (impl-info impl 'itype))
@@ -375,9 +347,6 @@
   (define impls (platform-implementations platform))
   (define reprs (platform-representations platform))
   (define repr-costs (platform-representation-costs platform))
-  (define if-cost (platform-if-cost platform))
-
-  (printf "Platform: ~a;\n          if-cost: ~a;\n\n" (platform-name platform) if-cost)
 
   (printf "Representations:\n")
   (define reprs-data

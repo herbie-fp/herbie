@@ -1,0 +1,414 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Herbie Platforms</title>
+  <link rel='stylesheet' type='text/css' href='../../main.css'>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script type="text/javascript" src="toc.js"></script>
+</head>
+<body>
+  <header>
+    <h1>Writing a Herbie Platform</h1>
+    <a href="../../"><img class="logo" src="../../logo-car.png" /></a>
+    <nav>
+      <ul>
+        <li><a href="../../demo/">Try</a></li>
+        <li><a href="installing.html">Install</a></li>
+        <li><a href="tutorial.html">Learn</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <p>Platforms define <a href="../../">Herbie</a> compilation targets.
+  A platform might be specific to a programming language, to a math
+  library, or to a hardware ISA. Writing a custom platforms can help
+  Herbie produce faster and more accurate programs.</p>
+
+  <h2>Platform Concepts</h2>
+  
+  <p>Herbie operates on mathematical specifications and floating-point
+  expressions.</p>
+
+  <p><dfn>Specifications</dfn> are built from rational numbers,
+  variables, and <dfn>functions</dfn> like <code>+</code>,
+  <code>sin</code>, <code>&lt;</code>, and <code>if</code>. A
+  specification has a <dfn>type</dfn>, which is
+  either <code>real</code> or <code>bool</code>.</p>
+
+  <p>Types, functions, and specifications have floating-point
+  analogs.</p>
+  
+  <p><dfn>Representations</dfn> are the floating-point analogs of
+  types, and Herbie comes with three built in:
+  <code>&lt;binary32&gt;</code> and <code>&lt;binary64&gt;</code> are
+  reprentations of <code>real</code> and correspond to single- and
+  double-precision IEEE-754 arithmetic. There's also
+  a <code>&lt;bool&gt;</code> representation for booleans. It's
+  possible to define new representations, described
+  on <a href="plugins.html">another page</a>.</p>
+
+  <p><dfn>Operations</dfn> are the floating-point analog of functions
+  and represent the actual floating-point operation the compilation
+  target can perform. There are typically several operations for each
+  supported function; for example, in the C standard library
+  <a href="https://en.cppreference.com/w/c/numeric/math/cos.html">provides</a>
+  <code>cosf</code> and <code>cos</code>, both of which correspond to
+  the <code>cos</code> function but for different representations
+  (<code>&lt;binary32&gt;</code> and <code>&lt;binary64&gt;</code>).</p>
+  
+  <p><dfn>Expressions</dfn> are the floating-point analog of
+  specifications and represent target-specific floating-point
+  computations. Platforms, to put it simply, just define the set of
+  representations and operations that expressions are allowed to use.
+  Herbie then searches for a fast and accurate expression that
+  corresponds to the user's input specification.</p>
+
+  <p>Each representation, operation, and thus expression has a
+  <dfn>cost</dfn>, which is a non-negative real number. Generally, the
+  cost of a representation is the time it takes to read a value of
+  that representation from memory and the cost of an operation is the
+  time it takes to execute that operation. However, in principle,
+  platforms can use cost to represent another metric like area or
+  latency. Only relative costs matter. If you're not sure, just
+  putting "<code>1</code>" for all the costs is not a bad place to
+  start.</p>
+  
+  <h2>Defining a Platform</h2>
+
+  <p>A platform definition is a text file that starts with:</p>
+
+  <pre>#lang herbie/platform</pre>
+  
+  <p>Herbie can then be informed to use this platform by passing
+  the <code>--platform <var>path/to/file</var></code> <a href="options.html">command-line
+  argument</a>.</p>
+
+  <p>The file contains <a href="https://racket-lang.org/">Racket</a>
+  code. That code can define the platform's representations and
+  operations using <code>define-representation</code>
+  and <code>define-operation</code>. It can also define variables and
+  helper functions, import external packages, or anything else Racket
+  can do. If necessary, it can define new representations.</p>
+  
+  <p>Herbie's <a href="https://github.com/herbie-fp/herbie/tree/main/src/platforms">built-in
+  platforms</a> are good example platforms to study or modify. If you
+  use them as an example, you'll need to change the <code>#lang</code>
+  line at the top of the file to be <code>herbie/platforms</code>; the
+  built-in platforms are different because they are built in to Herbie
+  and can't assume Herbie is installed.</p>
+
+  <h2>Defining Representations</h2>
+
+  <p>The typical platform starts by defining the representations it
+  uses and their costs with <code>define-representation<code>:</p>
+
+  <pre>(define-representation &lt;bool&gt; #:cost 1)
+(define-representation &lt;binary64&gt; #:cost 1.5)</pre>
+
+  <p>This cost is the cost for reading a variable or literal of that
+  representation. Note that platforms must explicitly define a cost
+  for the <code>&lt;bool&gt;</code> representation if it uses
+  booleans. If the platform forgets to define a representation that it
+  uses, Herbie will produce an error when loading the platform.</p>
+
+  <p>If the same cost is used repeatedly, it can be convenient to
+  define a variable:</p>
+
+  <pre>(define cost 1)
+(define-representation &lt;bool&gt; #:cost cost)</pre>
+  
+  <p>After defining the representations it uses, a platform then
+  defines all the operations it supports.</p>
+  
+  <h2>Defining Operations</h2>
+
+  <p>An operation is defined by four fields:</p>
+
+  <ul>
+    <li>A <dfn>signature</dfn>, which gives the operation's name and
+    its input and output representations.</li>
+
+    <li>A <dfn>specification</dfn> for the operation's mathematical
+    behavior.</li>
+
+    <li>An <dfn>implementation</dfn> that computes the operation's
+    output given concrete inputs.</li>
+
+    <li>A <dfn>cost</dfn> for using the operation in an
+    expression.</li>
+  </ul>
+  
+  <p>The <code>define-operation</code> construct requires exactly
+  these four fields:</p>
+
+  <pre>(define-operation (recip [x &lt;binary32&gt;]) &lt;binary32&gt;
+  #:spec (/ 1 x) #:impl (lambda (x) ...) #:cost 3)</pre>
+
+  <p>The first line gives the operation's signature: it is
+  named <code>recip</code>, it has one single-precision
+  input <code>x</code>, and it outputs a single-precision float.</p>
+
+  <p>The <code>#:spec</code> field gives this operation's
+  specification as <code>(/ 1 x)</code>, one divided
+  by <code>x</code>. In other words, this operation computes a
+  number's reciprocal.</p>
+
+  <p>The <code>#:impl</code> field gives this operation's
+  implementation, as a Racket function (defined
+  with <code>lambda</code>). An operation's implementation is a Racket
+  function with as many arguments as the operation. It is called with
+  concrete inputs in the corresponding input representations, and must
+  return an output in the output representation. It can be defined
+  using a <code>lambda</code>, a <code>define</code> block, or any
+  other function-defining Racket construct.</p>
+
+  <p>When an implementation function is called,
+  <code>&lt;binary64&gt;</code> and <code>&lt;binary32&gt;</code>
+  arguments are passed as Racket
+  <a href="https://docs.racket-lang.org/guide/performance.html#%28tech._flonum%29">flonums</a>,
+  while <code>&lt;bool&gt;</code> arguments are passed as Racket
+  <a href="https://docs.racket-lang.org/reference/booleans.html#%28def._%28%28quote._~23~25kernel%29._boolean~3f%29%29">booleans</a>.
+  Single-precision numbers aren't a separate type in Racket. instead,
+  you create them from double-precision floats by
+  calling <a href="https://docs.racket-lang.org/reference/flonums.html#%28def._%28%28lib._racket%2Fflonum..rkt%29._flsingle%29%29"><code>flsingle</code></a>.</p>
+
+  <p>For this example, to compute a 32-bit reciprocal for a 32-bit
+  input, one could use <code>(flsingle (/ 1.0 x))</code> for the body
+  of the <code>lambda</code>.</p>
+
+  <p>The <code>#:cost</code> field gives this operation's cost, 3.</p>
+
+  <h2>Defining Multiple Operations</h2>
+  
+  <p>Realistic platform usually have a lot of similar operations:
+  addition, subtraction, multiplication, and division, or sine,
+  cosine, tangent, and so on. The <code>define-operations</code>
+  construct defines multiple operations at a time, as long as they
+  have the same input and output representations:</p>
+
+  <pre>(define-operations ([x &lt;binary64&gt;] [y &lt;binary64&gt;]) &lt;binary64&gt;
+    [+ #:spec (+ x y) #:impl + #:cost 0.200]
+    [- #:spec (- x y) #:impl - #:cost 0.200]
+    [* #:spec (* x y) #:impl * #:cost 0.250]
+    [/ #:spec (/ x y) #:impl / #:cost 0.350])</pre>
+
+  <p>This block defines four functions, each with their own name,
+  specification, implementation, and cost. Note that in this case
+  the <code>#:impl</code> column refers to the Racket
+  functions <code>+</code>, <code>-</code>, <code>*</code>,
+  and <code>/</code>.</p>
+
+  <h2>Common Kinds of Operations</h2>
+
+  <p>This section lists common kinds of operations and notes things
+  you should keep in mind when defining them.</p>
+
+  <h3>Math Library Functions</h3>
+
+  <p>Most operating systems have a standard <code>libm</code> library
+  that provides elementary functions like <code>cos</code>. You can
+  use Herbie's <code>from-libm</code> helper to load implementations
+  from <code>libm</code>:</p>
+
+  <pre>(define-operation (fabs.f32 [x &lt;binary32&gt;]) &lt;binary32&gt;
+  #:spec (fabs x) #:impl (from-libm 'fabsf) #:cost 0.125)</pre>
+
+  <p>The <code>from-libm</code> uses dynamic linking to
+  load <code>libm</code>, extracts the symbol passed
+  to <code>from-libm</code>, and then uses the operation's signature
+  to call into the dynamically-linked library from Racket. Must make
+  sure to pass the correct symbol name; for single-precision
+  functions, make sure to add the "<code>f</code>" suffix.</p>
+
+  <h3>Numeric Variations</h3>
+
+  <p>Some platforms provide numeric variations like <code>log1p</code>
+  or <code>cosd</code> for common functions. You can define operations
+  for them using complex specifications:</p>
+
+  <pre>(define-operation (cosd [x &lt;binary64&gt;]) &lt;binary64&gt;
+  #:spec (cos (* x (/ (PI) 180))) #:impl (lambda (x) ...) #:cost 4)</pre>
+
+  <p>The <code>#:spec</code> in this example explains to Herbie
+  that <code>cosd</code> is the cosine of <code>x</code> in degrees.
+  Herbie will then use <code>cosd</code> when that improves
+  accuracy.</p>
+
+  <p>Other common numeric variations
+  include <code>fma</code>, <code>log1p</code>, <code>expm1</code>,
+  and <code>hypot</code>. If they're available on your target,
+  we <em>strongly</em> recommend defining operations for them; they
+  often improve accuracy by quite a bit!</p>
+
+  <h3>Conversions</h3>
+
+  <p>A conversion or cast operation uses mixed representations:</p>
+
+  <pre>(define-operation (64-&gt;32 [x &lt;binary64&gt;]) &lt;binary32&gt;
+  #:spec x #:impl flsingle #:cost 1)</pre>
+
+  <p>This operation has a 64-bit input and a 32-bit output. Its
+  specification is just <code>x</code>, which means it doesn't
+  actually do anything mathematically. The implementation is the
+  standard Racket <code>flsingle</code> function (which converts from
+  double- to single-precision) and it has a cost of 1.</p>
+
+  <p>Herbie will use this conversion operation for casting between the
+  two types.</p>
+
+  <h3>Comparisons</h3>
+
+  <p>Comparison operations return <code>&lt;bool&gt;</code>:</p>
+
+  <pre>(define-operations ([x &lt;binary64&gt;] [y &lt;binary64&gt;]) <bool>
+  [==.f64 #:spec (== x y) #:impl =          #:cost 1]
+  [!=.f64 #:spec (!= x y) #:impl (negate =) #:cost 1]
+  [&lt;.f64  #:spec (&lt; x y)  #:impl &lt;          #:cost 1]
+  [&gt;.f64  #:spec (&gt; x y)  #:impl &gt;          #:cost 1]
+  [&lt;=.f64 #:spec (&lt;= x y) #:impl &lt;=         #:cost 1]
+  [&gt;=.f64 #:spec (&gt;= x y) #:impl &gt;=         #:cost 1])</pre>
+  
+  <p>Here, <code>negate</code> is
+  a <a href="https://docs.racket-lang.org/reference/procedures.html#%28def._%28%28lib._racket%2Ffunction..rkt%29._negate%29%29">Racket
+  function</a> that negates a comparison function.</p>
+
+  <p>A platform only needs to provide the comparison functions
+  available on the target. However, Herbie's "regimes" pass uses
+  the <code>&lt;=</code> operation, so it's best to provide one if one
+  is available.</p>
+
+  <p>A platform that uses both representation needs to define
+  separate <code>&lt;binary32&gt;</code>
+  and <code>&lt;binary64&gt;</code> comparison operations. They can
+  have different costs.</p>
+
+  <h3>Conditionals</h3>
+
+  <p>Conditionals can be defined as operations with a boolean argument:</p>
+
+  <pre>(define-operation (if-f64 [c <bool>] [t &lt;binary64&gt;] [f &lt;binary64&gt;]) &lt;binary64&gt;
+  #:spec (if c t f) #:impl if-impl
+  #:cost 14 #:aggregate if-cost)</pre>
+
+  <p>Here <code>if-impl</code> is a Herbie-provided Racket function
+  that wraps a standard <code>if</code> statement, while
+  the <code>if<code> inside the <code>#:spec</code> is how
+  specifications refer to mathematical conditional expressions.</p>
+
+  <p>Besides the standard <code>#:cost</code> field, conditional
+  operations should usually also specify <code>if-cost</code> for
+  the <code>#:aggregate</code> field. This informs Herbie that the
+  cost of an <code>if-f64</code> should only consider the bigger of
+  the true and false branches' costs. If the <code>#:aggregate</code>
+  field is removed, Herbie will add the costs costs of both branches,
+  just like a normal operation, even though only one branch is
+  actually executed. Other operations can also use aggregate
+  functions, but there's usually not a good reason for this.</p>
+
+  <p>A platform needs to define both <code>&lt;binary32&gt;</code>
+  and <code>&lt;binary64&gt;</code> conditional operations if it uses
+  both representations. They can have different costs. There's
+  typically no need to define conditional operations
+  for <code>&lt;bool&gt;</code> as Herbie does not rewrite boolean
+  expressions.</p>
+
+  <h3>Constants</h3>
+
+  <p>Mathematical constants like <code>E</code> and <code>PI</code>
+  are considered operations in Herbie; they just have no inputs. For
+  example, to define a 64-bit inverse-&pi; constant, write:</p>
+
+  <pre>(define-operation (INVPI) &lt;binary64&gt;
+  #:spec (/ 1 (PI)) #:impl (lambda () ...) #:fpcore PI #:cost 0.5)</pre>
+
+  <p>Note the parentheses in various fields. The
+  name <code>INVPI</code> has parentheses around it like all operation
+  signatures; it just doesn't have any arguments after the name. In
+  the <code>#:spec</code>, the <code>PI</code> constant is also
+  wrapped in parentheses because it is also treated as a zero-argument
+  function. And in the <code>#:impl</code>, the implementation is
+  given by a Racket function of no arguments. You can also use
+  the <a href="https://docs.racket-lang.org/reference/procedures.html#%28def._%28%28lib._racket%2Ffunction..rkt%29._const%29%29">Racket <code>const</code>
+  function</a> to construct these no-argument functions.</p>
+
+  <p>But in the <code>#:fpcore</code> field the <code>PI</code> value
+  doesn't use parentheses, because FPCore treats constants as
+  constants, not zero-argument functions.</p>
+
+  <p>Constants can be defined in any precision. If you want the same
+  constant to be available in multiple precisions, you have to define
+  multiple constant operations.</p>
+
+  <h3>Negation</h3>
+
+  <p>Herbie's specification language has a negation function, and it's
+  usually a good idea to define a negation operation if your target
+  has one. Define it like this:</p>
+
+  <pre>(define-operation (neg.f32 [x &lt;binary64&gt;]) &lt;binary64&gt;
+    #:spec (neg x) #:impl - #:fpcore (- x) #:cost 0.125)</pre>
+
+  <p>Here, in the <code>#:spec</code>, <code>(neg x)</code> refers to
+  the negation function in Herbie's specification language, while
+  the <code>-</code> symbol after <code>#:impl</code> refers to
+  Racket's subtraction function, which also acts as a negation
+  function.</p>
+
+  <p>There is also an <code>#:fpcore</code> field. This field tells
+  Herbie how to represent this operation in FPCore (for user input and
+  output). The default <code>#:fpcore</code> is the operation's
+  <code>#:spec</code> but there are a few functions (like negation)
+  where Herbie's specification language uses a different syntax from
+  FPCore and <code>#:fpcore</code> needs to be specified manually.</p>
+
+  <h3>Precision-specific Variations</h3>
+
+  <p>If a platform supports both <code>&lt;binary32&gt;</code>
+  and <code>&lt;binary64&gt;</code>, they often support similar
+  operations:</p>
+
+  <pre>(define-operations ([x &lt;binary32&gt;]) &lt;binary32&gt;
+    #:fpcore (:precision binary32)
+    [fabs.f32 #:spec (fabs x) #:impl (from-libm 'fabsf) #:cost 0.125]
+    [sin.f32  #:spec (sin x)  #:impl (from-libm 'sinf)  #:cost 4.250]
+    ...)
+  (define-operations ([x &lt;binary64&gt;]) &lt;binary64&gt;
+    #:fpcore (:precision binary64)
+    [fabs.f64 #:spec (fabs x) #:impl (from-libm 'fabs)  #:cost 0.125]
+    [sin.f64  #:spec (sin x)  #:impl (from-libm 'sin)   #:cost 4.200]
+    ...)</pre>
+
+  <p>Here, two <code>define-operations</code> blocks define two sets
+  of functions with different signatures but identical specifications.
+  To disambiguate these functions in FPCore output,
+  the <code>#:fpcore</code> argument to <code>define-operations</code>
+  defines <a href="input.html">different FPCore properties</a> for
+  each set of operations.</p>
+
+  <h3>Hard-to-emulate Operations</h3>
+
+  <p>Sometimes a platform will offer an operation that's difficult to
+  implement accurately. In this case, Herbie's <code>from-rival</code>
+  helper can provide a slow but correctly-rounded implementation:</p>
+
+  <pre>(define-opertion (dotprod [a &lt;binary64&gt;] [b &lt;binary64&gt;]
+                            [c &lt;binary64&gt;] [d &lt;binary64&gt;]) &lt;binary64&gt;
+  #:spec (+ (* a b) (* c d)) #:impl (from-rival) #:cost 1.25)</pre>
+
+  <p>The <code>from-rival</code> helper uses
+  the <a href="https://www.mpfr.org/">MPFR</a> library to evaluate the
+  operation's specification. Compilation is usually <em>much</em>
+  slower than with a native floating-point implementation, but for
+  unusual operations that are difficult to implement otherwise, it can
+  still allow compilation to proceed.</p>
+
+  <p>Note that <code>from-rival</code> implementations are always
+  "correctly-rounded", meaning as accurate as possible. Most targets
+  don't actually offer correctly-rounded operations, which can mean
+  that Herbie's outputs won't be as accurate as Herbie assumes. It's
+  always better to execute the actual operation on the actual target
+  if possible, so as to precisely emulate its actual behavior.</p>
+
+</body>
+</html>

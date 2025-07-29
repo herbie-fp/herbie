@@ -40,7 +40,6 @@
     (cond
       [(null? alts) '()]
       ; Only return one option if not pareto mode
-      [(and (not (*pareto-mode*)) (not (equal? alts sorted))) '()]
       [else
        (define-values (opt new-errs)
          (infer-splitpoints branch-exprs alts err-lsts #:errs errs ctx pcontext))
@@ -151,7 +150,7 @@
 (module+ test
   (require "../syntax/platform.rkt"
            "../syntax/load-platform.rkt")
-  (activate-platform! (*platform-name*))
+  (activate-platform! "c")
   (define ctx (context '(x) <binary64> (list <binary64>)))
   (define pctx (mk-pcontext '(#(0.5) #(4.0)) '(1.0 1.0)))
   (define alts (map make-alt (list '(fmin.f64 x 1) '(fmax.f64 x 1))))
@@ -170,9 +169,7 @@
   ;; splitpoint (the second, since it is better at the further point).
   (test-regimes (literal 1 'binary64) '(0))
 
-  (test-regimes `(if (==.f64 x ,(literal 0.5 'binary64))
-                     ,(literal 1 'binary64)
-                     (NAN.f64))
+  (test-regimes `(if.f64 (==.f64 x ,(literal 0.5 'binary64)) ,(literal 1 'binary64) (NAN.f64))
                 '(1 0)))
 
 ;; Given error-lsts, returns a list of sp objects representing where the optimal splitpoints are.

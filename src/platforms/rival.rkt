@@ -2,8 +2,6 @@
 
 ;;; Rival correctly-rounded platform
 
-(define-if #:cost 1)
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BOOLEAN ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define-representation <bool> #:cost 1)
@@ -22,6 +20,9 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BINARY 32 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define-representation <binary32> #:cost 1)
+
+(define-operation (if.f32 [c <bool>] [t <binary32>] [f <binary32>]) <binary32>
+  #:spec (if c t f) #:impl (from-rival) #:cost 1 #:aggregate if-cost)
 
 (define-operations ([x <binary32>] [y <binary32>]) <bool>
   [==.f32 #:spec (== x y) #:impl (from-rival) #:cost 1]
@@ -99,6 +100,9 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; BINARY 64 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define-representation <binary64> #:cost 1)
+
+(define-operation (if.f64 [c <bool>] [t <binary64>] [f <binary64>]) <binary64>
+  #:spec (if c t f) #:impl (from-rival) #:cost 1 #:aggregate if-cost)
 
 (define-operations ([x <binary64>] [y <binary64>]) <bool>
   [==.f64 #:spec (== x y) #:impl (from-rival) #:cost 1]

@@ -46,9 +46,6 @@
     [(list op a b c) (op (vector-ref regs a) (vector-ref regs b) (vector-ref regs c))]
     [(list op args ...) (apply op (map (curry vector-ref regs) args))]))
 
-(define (if-proc c a b)
-  (if c a b))
-
 (define (batch-remove-approx batch)
   (batch-replace batch
                  (lambda (node)
@@ -79,7 +76,6 @@
                 ([node (in-dvector (batch-nodes batch*) num-vars)])
       (match node
         [(literal value (app get-representation repr)) (list (const (real->repr value repr)))]
-        [(list 'if c t f) (list if-proc c t f)]
         [(list op args ...) (cons (impl-info op 'fl) args)])))
 
   (make-progs-interpreter vars instructions (batch-roots batch*)))

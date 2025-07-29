@@ -5,11 +5,12 @@
          "types.rkt"
          "generators.rkt")
 
-(provide define-if
-         define-representation
+(provide define-representation
          define-operation
          define-operations
          fpcore-context
+         if-impl
+         if-cost
          (rename-out [platform-module-begin #%module-begin])
          (except-out (all-from-out racket) #%module-begin)
          (all-from-out "platform.rkt")
@@ -17,9 +18,6 @@
          (all-from-out "types.rkt"))
 
 (define platform-being-defined (make-parameter #f))
-
-(define-syntax-rule (define-if #:cost cost)
-  (platform-register-if-cost! (platform-being-defined) #:cost cost))
 
 (define-syntax-rule (define-representation repr #:cost cost)
   (platform-register-representation! (platform-being-defined) #:repr repr #:cost cost))
@@ -42,7 +40,7 @@
   (with-syntax ([local-platform (datum->syntax stx 'platform)])
     (syntax-case stx ()
       [(_ content ...)
-       #'(#%module-begin (define local-platform (make-empty-platform 'platform))
+       #'(#%module-begin (define local-platform (make-empty-platform))
                          (define old-platform-being-defined (platform-being-defined))
                          (platform-being-defined local-platform)
                          content ...
@@ -53,3 +51,9 @@
                            (display-platform local-platform))
                          (module test racket/base
                            ))])))
+
+(define (if-impl c t f)
+  (if c t f))
+
+(define (if-cost c t f)
+  (+ c (max t f)))
