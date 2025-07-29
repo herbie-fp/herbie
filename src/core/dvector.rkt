@@ -5,14 +5,42 @@
          dvector-ref
          in-dvector
          dvector-length
-         dvector-copy)
+         dvector-copy
+         (rename-out [create-dvector dvector]))
 
 (define starting-length 128)
 
-(struct dvector ([vec #:mutable] [tail-pt #:mutable] [len #:mutable]))
+(struct dvector ([vec #:mutable] [tail-pt #:mutable] [len #:mutable])
+  #:methods gen:custom-write
+  [(define (write-proc dvec port mode)
+     (define elems
+       (for/list ([elem (in-dvector dvec)])
+         (~a elem)))
+     (fprintf port "'#d(~a)" (string-join elems " ")))]
+  #:property prop:equal+hash
+  (list (λ (a b eq?) ; equal? override
+          (and (dvector? b) (eq? (dvector-vec a) (dvector-vec b))))
+        (λ (a hc) ; hash-code
+          (+ (hc (dvector-vec a)) (dvector-tail-pt a) (dvector-len a)))
+        (λ (a hc) ; secondary-hash-code
+          (+ (hc (dvector-vec a)) (* 7 (dvector-tail-pt a)) (+ 1 (dvector-len a))))))
 
-(define (make-dvector)
-  (dvector (make-vector starting-length) 0 starting-length))
+(define (make-dvector [size 0] [v -1])
+  (define size*
+    (cond
+      [(< size starting-length) starting-length]
+      [else
+       (let loop ([size* (* starting-length 2)])
+         (if (< size size*)
+             size*
+             (loop (* size* 2))))]))
+  (dvector (make-vector size* v) size size*))
+
+(define (create-dvector . args)
+  (define dvec (make-dvector))
+  (for ([arg args])
+    (dvector-add! dvec arg))
+  dvec)
 
 (define (dvector-extend! dvec)
   (match-define (dvector vec tail-pt len) dvec)
@@ -52,6 +80,27 @@
 
   ;; Test: Create a new dvector
   (define dv (make-dvector))
+
+  (define dv1 (make-dvector)) ; default
+  (check-equal? (dvector-tail-pt dv1) 0)
+  (check-equal? (dvector-len dv1) starting-length)
+  (check-equal? (vector-length (dvector-vec dv1)) starting-length)
+
+  (define dv2 (make-dvector 10 5))
+  (check-equal? (dvector-tail-pt dv2) 10)
+  (check-equal? (dvector-len dv2) starting-length)
+  (check-equal? (vector-length (dvector-vec dv2)) starting-length)
+  (check-equal? (vector-ref (dvector-vec dv2) 0) 5)
+
+  ;; Large input triggers dynamic size growth
+  (define dv3 (make-dvector 300))
+  (check-true (> (dvector-len dv3) 300))
+  (check-equal? (dvector-tail-pt dv3) 300)
+
+  ;; Custom equal? behavior: only same vector => equal
+  (define dv4 dv2) ; same instance
+  (define dv5 (make-dvector 10 5)) ; same content, different vector
+  (check-true (equal? dv2 dv4))
 
   (check-equal? (dvector-length dv) 0)
   (check-equal? (vector-length (dvector-vec dv)) 128)

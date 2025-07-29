@@ -2,8 +2,8 @@
 
 (require "../syntax/syntax.rkt"
          "../utils/common.rkt"
-         "../utils/alternative.rkt"
-         "dvector.rkt") ; for unbatchify-alts
+         "../utils/alternative.rkt" ; for unbatchify-alts
+         "dvector.rkt")
 
 (provide progs->batch ; List<Expr> -> Batch
          batch->progs ; Batch -> ?(or List<Root> Vector<Root>) -> List<Expr>
@@ -241,29 +241,29 @@
                               ,(f64 4))))
 
 ; Tests for remove-zombie-nodes
-#;(module+ test
-    (require rackunit)
-    (define (zombie-test #:nodes nodes #:roots roots)
-      (define in-batch (batch nodes (make-hash) (make-hasheq) roots))
-      (define out-batch (batch-remove-zombie in-batch))
-      (check-equal? (batch->progs out-batch) (batch->progs in-batch))
-      (batch-nodes out-batch))
+(module+ test
+  (require rackunit)
+  (define (zombie-test #:nodes nodes #:roots roots)
+    (define in-batch (batch nodes (make-hash) (make-hasheq) roots))
+    (define out-batch (batch-remove-zombie in-batch))
+    (check-equal? (batch->progs out-batch) (batch->progs in-batch))
+    (batch-nodes out-batch))
 
-    (check-equal? (dvector 0 '(sqrt 0) 2 '(pow 2 1))
-                  (zombie-test #:nodes (dvector 0 1 '(sqrt 0) 2 '(pow 3 2)) #:roots (vector 4)))
-    (check-equal? (dvector 0 '(sqrt 0) '(exp 1))
-                  (zombie-test #:nodes (dvector 0 6 '(pow 0 1) '(* 2 0) '(sqrt 0) '(exp 4))
-                               #:roots (vector 5)))
-    (check-equal? (dvector 0 1/2 '(+ 0 1))
-                  (zombie-test #:nodes (dvector 0 1/2 '(+ 0 1) '(* 2 0)) #:roots (vector 2)))
-    (check-equal? (dvector 0 1/2 '(exp 1) (approx 2 0))
-                  (zombie-test #:nodes (dvector 0 1/2 '(+ 0 1) '(* 2 0) '(exp 1) (approx 4 0))
-                               #:roots (vector 5)))
-    (check-equal? (dvector 'x 2 1/2 '(* 0 0) (approx 3 1) '(pow 2 4))
-                  (zombie-test #:nodes
-                               (dvector 'x 2 1/2 '(sqrt 1) '(cbrt 1) '(* 0 0) (approx 5 1) '(pow 2 6))
-                               #:roots (vector 7)))
-    (check-equal? (dvector 'x 2 1/2 '(sqrt 1) '(* 0 0) (approx 4 1) '(pow 2 5))
-                  (zombie-test #:nodes
-                               (dvector 'x 2 1/2 '(sqrt 1) '(cbrt 1) '(* 0 0) (approx 5 1) '(pow 2 6))
-                               #:roots (vector 7 3))))
+  (check-equal? (dvector 0 '(sqrt 0) 2 '(pow 2 1))
+                (zombie-test #:nodes (dvector 0 1 '(sqrt 0) 2 '(pow 3 2)) #:roots (vector 4)))
+  (check-equal? (dvector 0 '(sqrt 0) '(exp 1))
+                (zombie-test #:nodes (dvector 0 6 '(pow 0 1) '(* 2 0) '(sqrt 0) '(exp 4))
+                             #:roots (vector 5)))
+  (check-equal? (dvector 0 1/2 '(+ 0 1))
+                (zombie-test #:nodes (dvector 0 1/2 '(+ 0 1) '(* 2 0)) #:roots (vector 2)))
+  (check-equal? (dvector 0 1/2 '(exp 1) (approx 2 0))
+                (zombie-test #:nodes (dvector 0 1/2 '(+ 0 1) '(* 2 0) '(exp 1) (approx 4 0))
+                             #:roots (vector 5)))
+  (check-equal? (dvector 'x 2 1/2 '(* 0 0) (approx 3 1) '(pow 2 4))
+                (zombie-test #:nodes
+                             (dvector 'x 2 1/2 '(sqrt 1) '(cbrt 1) '(* 0 0) (approx 5 1) '(pow 2 6))
+                             #:roots (vector 7)))
+  (check-equal? (dvector 'x 2 1/2 '(sqrt 1) '(* 0 0) (approx 4 1) '(pow 2 5))
+                (zombie-test #:nodes
+                             (dvector 'x 2 1/2 '(sqrt 1) '(cbrt 1) '(* 0 0) (approx 5 1) '(pow 2 6))
+                             #:roots (vector 7 3))))
