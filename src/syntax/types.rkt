@@ -91,7 +91,7 @@
 
 ;; Does not use make-representation to define a repr of bool
 (define <bool>
-  (representation 'bool 'bool identity identity (curry = 0) (lambda (x) (if x 1 0)) 1 (const #f)))
+  (representation 'bool 'bool identity identity (curry = 0) (lambda (x) (if x 0 -1)) 1 (const #f)))
 
 (define <binary32>
   (make-representation #:name 'binary32
@@ -99,8 +99,8 @@
                        #:repr->bf (lambda (x)
                                     (parameterize ([bf-precision 24])
                                       (bf x)))
-                       #:ordinal->repr (shift 31 ordinal->float32)
-                       #:repr->ordinal (unshift 31 float32->ordinal)
+                       #:ordinal->repr ordinal->float32
+                       #:repr->ordinal float32->ordinal
                        #:total-bits 32
                        #:special-value? nan?))
 
@@ -110,8 +110,8 @@
                        #:repr->bf (lambda (x)
                                     (parameterize ([bf-precision 53])
                                       (bf x)))
-                       #:ordinal->repr (shift 63 ordinal->flonum)
-                       #:repr->ordinal (unshift 63 flonum->ordinal)
+                       #:ordinal->repr ordinal->flonum
+                       #:repr->ordinal flonum->ordinal
                        #:total-bits 64
                        #:special-value? nan?))
 
