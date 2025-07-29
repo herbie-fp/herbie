@@ -26,7 +26,7 @@
 
 (define-operation (if.f32 [c <bool>] [t <binary32>] [f <binary32>]) <binary32>
   #:spec (if c t f) #:impl if-impl
-  #:cost 0 #:aggregate if-cost)
+  #:cost (if-cost 0))
 
 (define-operations ([x <binary32>] [y <binary32>]) <bool>
   [==.f32 #:spec (== x y) #:impl =          #:cost 0]
@@ -112,7 +112,7 @@
 
 (define-operation (if.f64 [c <bool>] [t <binary64>] [f <binary64>]) <binary64>
   #:spec (if c t f) #:impl if-impl
-  #:cost 0 #:aggregate if-cost)
+  #:cost (if-cost 0))
 
 (define-operations ([x <binary64>] [y <binary64>]) <bool>
   [==.f64 #:spec (== x y) #:impl =          #:cost 0]

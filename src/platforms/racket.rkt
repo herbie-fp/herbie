@@ -27,7 +27,7 @@
 
 (define-operation (if.f64 [c <bool>] [t <binary64>] [f <binary64>]) <binary64>
   #:spec (if c t f) #:impl if-impl
-  #:cost 1 #:aggregate if-cost)
+  #:cost (if-cost 1))
 
 (define-operations () <binary64>
   [PI.rkt       #:spec (PI)       #:impl (const pi)       #:fpcore PI       #:cost 1]
