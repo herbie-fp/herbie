@@ -40,6 +40,8 @@
   (dvector (vector-copy vec) tail-pt len))
 
 (define (in-dvector dvec [start 0] [end (dvector-tail-pt dvec)] [step 1])
+  (when (or (< (dvector-tail-pt dvec) end) (> start (dvector-tail-pt dvec)))
+    (error "in-divector is out of index"))
   (in-vector (dvector-vec dvec) start end step))
 
 (define (dvector-length dvec)
