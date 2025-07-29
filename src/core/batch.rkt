@@ -2,7 +2,8 @@
 
 (require "../syntax/syntax.rkt"
          "../utils/common.rkt"
-         "../utils/alternative.rkt") ; for unbatchify-alts
+         "../utils/alternative.rkt"
+         data/gvector) ; for unbatchify-alts
 
 (provide progs->batch ; List<Expr> -> Batch
          batch->progs ; Batch -> ?(or List<Root> Vector<Root>) -> List<Expr>
@@ -25,7 +26,10 @@
          deref ; Batchref -> Expr
          debatchref ; Batchref -> Expr
 
-         unbatchify-alts)
+         unbatchify-alts
+
+         gvector-ref
+         in-gvector)
 
 ;; Batches store these recursive structures, flattened
 (struct batch ([nodes #:mutable] [index #:mutable] cache [roots #:mutable]))
@@ -33,7 +37,7 @@
 (struct batchref (batch idx) #:transparent)
 
 (define (make-batch)
-  (batch (make-hasheq) (make-hash) (make-hasheq) (vector)))
+  (batch (make-gvector) (make-hash) (make-hasheq) (vector)))
 
 ;; This function defines the recursive structure of expressions
 (define (expr-recurse expr f)
@@ -56,7 +60,7 @@
   (map (curry alt-map unmunge) altns))
 
 (define (batch-length b)
-  (hash-count (batch-nodes b)))
+  (gvector-count (batch-nodes b)))
 
 (define (batch-push! b term)
   (define hashcons (batch-index b))
@@ -65,18 +69,18 @@
              (lambda ()
                (define idx (hash-count hashcons))
                (hash-set! hashcons term idx)
-               (hash-set! (batch-nodes b) idx term)
+               (gvector-add! (batch-nodes b) term)
                idx)))
 
 (define (batch-copy b)
-  (batch (hash-copy (batch-nodes b))
+  (batch (vector->gvector (vector-copy (gvector->vector (batch-nodes b))))
          (hash-copy (batch-index b))
          (hash-copy (batch-cache b))
          (vector-copy (batch-roots b))))
 
 (define (deref x)
   (match-define (batchref b idx) x)
-  (expr-recurse (hash-ref (batch-nodes b) idx) (lambda (ref) (batchref b ref))))
+  (expr-recurse (gvector-ref (batch-nodes b) idx) (lambda (ref) (batchref b ref))))
 
 (define (debatchref x)
   (match-define (batchref b idx) x)
@@ -98,8 +102,8 @@
 (define (batch-tree-size b)
   (define len (batch-length b))
   (define counts (make-vector len 0))
-  (for ([i (range 0 (batch-length b))])
-    (define node (hash-ref (batch-nodes b) i))
+  (for ([i (in-naturals)]
+        [node (in-gvector (batch-nodes b))])
     (define args (reap [sow] (expr-recurse node sow)))
     (vector-set! counts i (apply + 1 (map (curry vector-ref counts) args))))
   (apply + (map (curry vector-ref counts) (vector->list (batch-roots b)))))
@@ -117,8 +121,8 @@
 
 (define (batch-free-vars batch)
   (define out (make-vector (batch-length batch)))
-  (for ([i (range 0 (batch-length batch))])
-    (define node (hash-ref (batch-nodes batch) i))
+  (for ([i (in-naturals)]
+        [node (in-gvector (batch-nodes batch))])
     (define fv
       (cond
         [(symbol? node) (set node)]
@@ -132,8 +136,8 @@
 (define (batch-replace b f)
   (define out (batch-copy b))
   (define mapping (make-vector (batch-length b) -1))
-  (for ([idx (range 0 (batch-length b))])
-    (define node (hash-ref (batch-nodes b) idx))
+  (for ([idx (in-naturals)]
+        [node (in-gvector (batch-nodes b))])
     (define replacement (f (expr-recurse node (lambda (x) (batchref b x)))))
     (define final-idx
       (let loop ([expr replacement])
@@ -163,13 +167,13 @@
     (vector-set! alive-mask root #t))
   (for ([i (in-range (- nodes-length 1) -1 -1)]
         [alv (in-vector alive-mask (- nodes-length 1) -1 -1)]
-        #:do [(define node (hash-ref nodes i))]
+        #:do [(define node (gvector-ref nodes i))]
         #:when (or (and alv (condition node)) (and keep-vars-alive (symbol? node))))
     (unless alv ; if keep-vars-alive then alv may not be #t, making sure it's #t
       (vector-set! alive-mask i #t))
     (expr-recurse node
                   (λ (n)
-                    (when (condition (hash-ref nodes n))
+                    (when (condition (gvector-ref nodes n))
                       (vector-set! alive-mask n #t)))))
   ; Return indices of alive nodes in ascending order
   (for/vector ([alv (in-vector alive-mask)]
@@ -180,8 +184,8 @@
 ;; Function constructs a vector of expressions for the given nodes of a batch
 (define (batch-reconstruct-exprs batch)
   (define exprs (make-vector (batch-length batch)))
-  (for ([idx (range 0 (batch-length batch))])
-    (define node (hash-ref (batch-nodes batch) idx))
+  (for ([idx (in-naturals)]
+        [node (in-gvector (batch-nodes batch))])
     (vector-set! exprs idx (expr-recurse node (lambda (x) (vector-ref exprs x)))))
   exprs)
 
@@ -202,7 +206,7 @@
 
      (define out (make-batch))
      (for ([alv (in-vector alive-nodes)])
-       (define node (hash-ref nodes alv))
+       (define node (gvector-ref nodes alv))
        (vector-set! mappings alv (batch-push! out (expr-recurse node remap))))
 
      (define roots* (vector-map (curry vector-ref mappings) roots))
@@ -212,7 +216,7 @@
 
 (define (batch-ref batch reg)
   (define (unmunge reg)
-    (define node (hash-ref (batch-nodes batch) reg))
+    (define node (gvector-ref (batch-nodes batch) reg))
     (expr-recurse node unmunge))
   (unmunge reg))
 
@@ -237,7 +241,6 @@
                               ,(f64 4))))
 
 ; Tests for remove-zombie-nodes
-#;
 (module+ test
   (require rackunit)
   (define (zombie-test #:nodes nodes #:roots roots)
@@ -246,24 +249,21 @@
     (check-equal? (batch->progs out-batch) (batch->progs in-batch))
     (batch-nodes out-batch))
 
-  (check-equal? (mutable-treelist 0 '(sqrt 0) 2 '(pow 2 1))
-                (zombie-test #:nodes (mutable-treelist 0 1 '(sqrt 0) 2 '(pow 3 2))
-                             #:roots (vector 4)))
-  (check-equal? (mutable-treelist 0 '(sqrt 0) '(exp 1))
-                (zombie-test #:nodes (mutable-treelist 0 6 '(pow 0 1) '(* 2 0) '(sqrt 0) '(exp 4))
+  (check-equal? (gvector 0 '(sqrt 0) 2 '(pow 2 1))
+                (zombie-test #:nodes (gvector 0 1 '(sqrt 0) 2 '(pow 3 2)) #:roots (vector 4)))
+  (check-equal? (gvector 0 '(sqrt 0) '(exp 1))
+                (zombie-test #:nodes (gvector 0 6 '(pow 0 1) '(* 2 0) '(sqrt 0) '(exp 4))
                              #:roots (vector 5)))
-  (check-equal? (mutable-treelist 0 1/2 '(+ 0 1))
-                (zombie-test #:nodes (mutable-treelist 0 1/2 '(+ 0 1) '(* 2 0)) #:roots (vector 2)))
-  (check-equal? (mutable-treelist 0 1/2 '(exp 1) (approx 2 0))
-                (zombie-test #:nodes (mutable-treelist 0 1/2 '(+ 0 1) '(* 2 0) '(exp 1) (approx 4 0))
+  (check-equal? (gvector 0 1/2 '(+ 0 1))
+                (zombie-test #:nodes (gvector 0 1/2 '(+ 0 1) '(* 2 0)) #:roots (vector 2)))
+  (check-equal? (gvector 0 1/2 '(exp 1) (approx 2 0))
+                (zombie-test #:nodes (gvector 0 1/2 '(+ 0 1) '(* 2 0) '(exp 1) (approx 4 0))
                              #:roots (vector 5)))
-  (check-equal?
-   (mutable-treelist 'x 2 1/2 '(* 0 0) (approx 3 1) '(pow 2 4))
-   (zombie-test #:nodes
-                (mutable-treelist 'x 2 1/2 '(sqrt 1) '(cbrt 1) '(* 0 0) (approx 5 1) '(pow 2 6))
-                #:roots (vector 7)))
-  (check-equal?
-   (mutable-treelist 'x 2 1/2 '(sqrt 1) '(* 0 0) (approx 4 1) '(pow 2 5))
-   (zombie-test #:nodes
-                (mutable-treelist 'x 2 1/2 '(sqrt 1) '(cbrt 1) '(* 0 0) (approx 5 1) '(pow 2 6))
-                #:roots (vector 7 3))))
+  (check-equal? (gvector 'x 2 1/2 '(* 0 0) (approx 3 1) '(pow 2 4))
+                (zombie-test #:nodes
+                             (gvector 'x 2 1/2 '(sqrt 1) '(cbrt 1) '(* 0 0) (approx 5 1) '(pow 2 6))
+                             #:roots (vector 7)))
+  (check-equal? (gvector 'x 2 1/2 '(sqrt 1) '(* 0 0) (approx 4 1) '(pow 2 5))
+                (zombie-test #:nodes
+                             (gvector 'x 2 1/2 '(sqrt 1) '(cbrt 1) '(* 0 0) (approx 5 1) '(pow 2 6))
+                             #:roots (vector 7 3))))
