@@ -139,7 +139,7 @@
     (vector-set! out i fv))
   out)
 
-(define (batch-replace b f)
+(define (batch-replace b f [roots (batch-roots b)])
   (define out (make-mutable-batch))
   (define mapping (make-vector (batch-length b) -1))
   (for ([node (in-vector (batch-nodes b))]
@@ -156,8 +156,8 @@
            (vector-ref mapping idx)]
           [_ (mutable-batch-push! out (expr-recurse expr loop))])))
     (vector-set! mapping idx final-idx))
-  (define roots (vector-map (curry vector-ref mapping) (batch-roots b)))
-  (mutable-batch->batch out roots))
+  (define roots* (vector-map (curry vector-ref mapping) roots))
+  (mutable-batch->batch out roots*))
 
 ;; Function returns indices of alive nodes within a batch for given roots,
 ;;   where alive node is a child of a root
@@ -259,14 +259,14 @@
                              #:roots (vector 5)))
   (check-equal? (vector 0 1/2 '(+ 0 1))
                 (zombie-test #:nodes (vector 0 1/2 '(+ 0 1) '(* 2 0)) #:roots (vector 2)))
-  (check-equal? (vector 0 1/2 '(exp 1) (approx 2 0))
+  (check-equal? (vector 0 (approx 4 0))
                 (zombie-test #:nodes (vector 0 1/2 '(+ 0 1) '(* 2 0) '(exp 1) (approx 4 0))
                              #:roots (vector 5)))
-  (check-equal? (vector 'x 2 1/2 '(* 0 0) (approx 3 1) '(pow 2 4))
+  (check-equal? (vector 2 1/2 (approx 5 0) '(pow 1 2))
                 (zombie-test #:nodes
                              (vector 'x 2 1/2 '(sqrt 1) '(cbrt 1) '(* 0 0) (approx 5 1) '(pow 2 6))
                              #:roots (vector 7)))
-  (check-equal? (vector 'x 2 1/2 '(sqrt 1) '(* 0 0) (approx 4 1) '(pow 2 5))
+  (check-equal? (vector 2 1/2 '(sqrt 0) (approx 5 0) '(pow 1 3))
                 (zombie-test #:nodes
                              (vector 'x 2 1/2 '(sqrt 1) '(cbrt 1) '(* 0 0) (approx 5 1) '(pow 2 6))
                              #:roots (vector 7 3))))

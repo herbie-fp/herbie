@@ -44,6 +44,8 @@
     [(literal val precision) (get-representation precision)]
     [(? symbol?) (context-lookup ctx node)]
     [(approx _ impl) (repr-of-node batch impl ctx)]
+    [(list '$approx _ impl)
+     (repr-of-node batch impl ctx)] ; needed at egg-herbie.rkt: egraph-add-exprs
     [(hole precision spec) (get-representation precision)]
     [(list op args ...) (impl-info op 'otype)]))
 

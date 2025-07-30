@@ -102,6 +102,14 @@
             (sow (alt batchref* (list 'rr runner #f) (list altn) '()))))))
 
 (define (run-evaluate altns global-batch)
+  (define (batch-remove-approx-spec batch roots)
+    (batch-replace batch
+                   (lambda (node)
+                     (match node
+                       [(approx _ impl) impl]
+                       [node node]))
+                   roots))
+
   (timeline-event! 'sample)
   (define free-vars (batch-free-vars global-batch))
   (define real-altns
@@ -114,7 +122,8 @@
   (define contexts
     (for/list ([root (in-vector roots)])
       (context '() (repr-of-node global-batch root (*context*)) '())))
-  (define batch* (batch-remove-zombie global-batch roots))
+
+  (define batch* (batch-remove-zombie (batch-remove-approx-spec global-batch roots)))
   (define specs (map prog->spec (batch->progs batch*)))
   (timeline-push! 'inputs (map ~a specs))
   (define-values (status pts)
