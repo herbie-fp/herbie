@@ -12,7 +12,6 @@
          ops-in-expr
          spec-prog?
          impl-prog?
-         node-is-impl?
          repr-of
          repr-of-node
          location-set
@@ -27,12 +26,6 @@
 ;; Programs are just lisp lists plus atoms
 
 (define expr? (or/c list? symbol? boolean? real? literal? approx?))
-
-(define (node-is-impl? node)
-  (match node
-    [(? number?) #f]
-    [(list (? operator-exists? op) args ...) #f]
-    [_ #t]))
 
 ;; Returns repr name
 ;; Fast version does not recurse into functions applications

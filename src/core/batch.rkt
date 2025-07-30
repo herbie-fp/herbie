@@ -37,7 +37,7 @@
 ;; This function defines the recursive structure of expressions
 (define (expr-recurse expr f)
   (match expr
-    [(approx spec impl) (approx (f spec) (f impl))]
+    [(approx spec impl) (approx spec (f impl))]
     [(hole precision spec) (hole precision (f spec))]
     [(list op args ...) (cons op (map f args))]
     [_ expr]))
@@ -160,11 +160,8 @@
   (mutable-batch->batch out roots))
 
 ;; Function returns indices of alive nodes within a batch for given roots,
-;;   where alive node is a child of a root + meets a condition - (condition node)
-(define (batch-alive-nodes batch
-                           [roots (batch-roots batch)]
-                           #:keep-vars-alive [keep-vars-alive #f]
-                           #:condition [condition (const #t)])
+;;   where alive node is a child of a root
+(define (batch-alive-nodes batch [roots (batch-roots batch)] #:keep-vars-alive [keep-vars-alive #f])
   (define nodes (batch-nodes batch))
   (define nodes-length (batch-length batch))
   (define alive-mask (make-vector nodes-length #f))
@@ -173,13 +170,10 @@
   (for ([i (in-range (- nodes-length 1) -1 -1)]
         [node (in-vector nodes (- nodes-length 1) -1 -1)]
         [alv (in-vector alive-mask (- nodes-length 1) -1 -1)]
-        #:when (or (and alv (condition node)) (and keep-vars-alive (symbol? node))))
+        #:when (or alv (and keep-vars-alive (symbol? node))))
     (unless alv ; if keep-vars-alive then alv may not be #t, making sure it's #t
       (vector-set! alive-mask i #t))
-    (expr-recurse node
-                  (λ (n)
-                    (when (condition (vector-ref nodes n))
-                      (vector-set! alive-mask n #t)))))
+    (expr-recurse node (λ (n) (vector-set! alive-mask n #t))))
   ; Return indices of alive nodes in ascending order
   (for/vector ([alv (in-vector alive-mask)]
                [i (in-naturals)]

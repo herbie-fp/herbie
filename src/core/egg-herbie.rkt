@@ -106,12 +106,25 @@
       [(list op ids ...) (egraph_add_node ptr (~s op) (list->u32vec ids))]
       [(? (disjoin symbol? number?) x) (egraph_add_node ptr (~s x) 0-vec)]))
 
-  (define mappings (build-vector (batch-length batch) values))
+  ; The function recurses on spec
+  (define (batch-parse-approx batch)
+    (batch-replace batch
+                   (lambda (node)
+                     (match node
+                       [(approx spec impl) (list '$approx spec impl)]
+                       [_ node]))))
+
+  (define batch*
+    (if (zero? (batch-length batch))
+        (batch-copy batch)
+        (batch-remove-zombie (batch-parse-approx batch))))
+
+  (define mappings (build-vector (batch-length batch*) values))
   (define (remap x)
     (vector-ref mappings x))
 
   ; Inserting nodes bottom-up
-  (for ([node (in-vector (batch-nodes batch))]
+  (for ([node (in-vector (batch-nodes batch*))]
         [n (in-naturals)])
     (define idx
       (match node
@@ -119,23 +132,24 @@
         [(? number?) (insert-node! node)]
         [(? symbol?) (insert-node! (var->egg-var node ctx))]
         [(hole prec spec) (remap spec)] ; "hole" terms currently disappear
-        [(approx spec impl) (insert-node! (list '$approx (remap spec) (remap impl)))]
+        [(list '$approx spec impl) (insert-node! (list '$approx (remap spec) (remap impl)))]
         [(list op (app remap args) ...) (insert-node! (cons op args))]))
     (vector-set! mappings n idx))
-  (for ([root (in-vector (batch-roots batch))])
+  (for ([root (in-vector (batch-roots batch*))])
     (egraph_add_root ptr (remap root)))
 
-  (for ([node (in-vector (batch-nodes batch))]
-        #:when (approx? node))
-    (match-define (approx spec impl) node)
-    (hash-ref! id->spec
-               (remap spec)
-               (lambda ()
-                 (define spec* (normalize-spec (batch-ref batch spec)))
-                 (define type (representation-type (repr-of-node batch impl ctx)))
-                 (cons spec* type))))
+  (for ([node (in-vector (batch-nodes batch*))])
+    (match node
+      [(list '$approx spec impl)
+       (hash-ref! id->spec
+                  (remap spec)
+                  (lambda ()
+                    (define spec* (normalize-spec (batch-ref batch* spec)))
+                    (define type (representation-type (repr-of-node batch* impl ctx)))
+                    (cons spec* type)))]
+      [_ (void)]))
 
-  (for/list ([root (in-vector (batch-roots batch))])
+  (for/list ([root (in-vector (batch-roots batch*))])
     (remap root)))
 
 ;; runs rules on an egraph (optional iteration limit)
@@ -1046,8 +1060,7 @@
                    (representation-type type)
                    type))
              (define final-spec (egg-parsed->expr spec* spec-type))
-             (define final-spec-idx (mutable-batch-munge! out final-spec))
-             (approx final-spec-idx (loop impl type))]
+             (approx final-spec (loop impl type))]
             [(list (? impl-exists? impl) (app eggref args) ...)
              (define args*
                (for/list ([arg (in-list args)]
