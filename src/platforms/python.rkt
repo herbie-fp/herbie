@@ -102,18 +102,25 @@
 )
 
 (define-operations ([x <binary64>] [y <binary64>] [w <binary64>]) <binary64> #:fpcore (:precision binary64)
-    [fsum.3var    #:spec (+ (+ x y) w)         #:impl (from-rival) #:fpcore (fsum x y w) #:cost 1]
-    [prod.3var    #:spec (* (* x y) w)         #:impl (from-rival)  #:fpcore (prod x y w) #:cost 1]
+    [fsum.3var    #:spec (+ (+ x y) w)  #:impl (from-rival) #:fpcore (fsum x y w) #:cost 1]
+    [prod.3var    #:spec (* (* x y) w)  #:impl (from-rival)  #:fpcore (prod x y w) #:cost 1]
 )
 
 (define-operations ([x <binary64>] [y <binary64>] [w <binary64>] [z <binary64>]) <binary64> #:fpcore (:precision binary64)
-    [fsum.4var    #:spec (+ (+ (+ x y) z) w)         #:impl (from-rival) #:fpcore (fsum x y w z) #:cost 1]
-    [prod.4var    #:spec (* (* (* x y) w) z)         #:impl (from-rival) #:fpcore (prod x y w z) #:cost 1]
+    [fsum.4var    #:spec (+ (+ (+ x y) z) w)  #:impl (from-rival) #:fpcore (fsum x y w z) #:cost 1]
+    [prod.4var    #:spec (* (* (* x y) w) z)  #:impl (from-rival) #:fpcore (prod x y w z) #:cost 1]
+    [dist.2D      #:spec (sqrt (+ (pow (- y x) 2) (pow (- w z) 2))) #:impl (from-rival) #:fpcore (dist x y w z) #:cost 1]
+    [sumprod.4vars #:spec (+ (* x w) (* y z)) #:impl (from-rival) #:fpcore (sumprod x y w z) #:cost 1]
 )
 
 (define-operations ([x <binary64>] [y <binary64>] [w <binary64>] [z <binary64>] [v <binary64>]) <binary64> #:fpcore (:precision binary64)
-    [fsum.5var    #:spec (+ (+ (+ (+ x y) z) w) v)         #:impl (from-rival) #:fpcore (fsum x y w z v) #:cost 1]
-    [prod.5var    #:spec (* (* (* (* x y) w) z) v)         #:impl (from-rival) #:fpcore (prod x y w z v) #:cost 1]
+    [fsum.5var    #:spec (+ (+ (+ (+ x y) z) w) v)  #:impl (from-rival) #:fpcore (fsum x y w z v) #:cost 1]
+    [prod.5var    #:spec (* (* (* (* x y) w) z) v)  #:impl (from-rival) #:fpcore (prod x y w z v) #:cost 1]
+)
+
+(define-operations ([x <binary64>] [y <binary64>] [w <binary64>] [z <binary64>] [v <binary64>] [ u <binary64>]) <binary64> #:fpcore (:precision binary64)
+  [dist.3D  #:spec (sqrt (+ (+ (pow (- y x) 2) (pow (- w z) 2)) (pow (- v u) 2))) #:impl (from-rival) #:fpcore (dist x y w z v u) #:cost 1]
+  [sumprod.6vars #:spec (+ (+ (* x z) (* y v)) (* w u)) #:impl (from-rival) #:fpcore (sumprod x y w z v u) #:cost 1]
 )
 
 (define-operation (hypot.py [x <binary64>] [y <binary64>]) <binary64>
