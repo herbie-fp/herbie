@@ -98,14 +98,17 @@
     [remainder.py #:spec (remainder x y) #:impl (from-libm 'remainder) #:cost 1]
     [ldexp.py     #:spec (* x (pow 2 y)) #:impl (from-libm 'ldexp) #:fpcore (ldexp x y) #:cost 1]
     [fsum.2var    #:spec (+ x y) #:impl (from-rival)  #:fpcore (fsum x y) #:cost 1]
+    [prod.2var    #:spec (* x y) #:impl (from-rival)  #:fpcore (prod x y) #:cost 1]
 )
 
 (define-operations ([x <binary64>] [y <binary64>] [w <binary64>]) <binary64> #:fpcore (:precision binary64)
     [fsum.3var    #:spec (+ (+ x y) w)         #:impl (from-rival) #:fpcore (fsum x y w) #:cost 1]
+    [prod.3var    #:spec (* (* x y) w)         #:impl (from-rival)  #:fpcore (prod x y w) #:cost 1]
 )
 
 (define-operations ([x <binary64>] [y <binary64>] [w <binary64>] [z <binary64>]) <binary64> #:fpcore (:precision binary64)
     [fsum.4var    #:spec (+ (+ (+ x y) z) w)         #:impl (from-rival) #:fpcore (fsum x y w z) #:cost 1]
+    [prod.4var    #:spec (* (* (* x y) w) z)         #:impl (from-rival) #:fpcore (prod x y w z) #:cost 1]
 )
 
 (define-operations ([x <binary64>] [y <binary64>] [w <binary64>] [z <binary64>] [v <binary64>]) <binary64> #:fpcore (:precision binary64)
