@@ -48,8 +48,7 @@
 (define (dvector-extend! dvec)
   (match-define (dvector vec _) dvec)
   (define cap (dvector-capacity dvec))
-  (define cap* (* 2 cap))
-  (define vec* (make-vector cap*))
+  (define vec* (make-vector (* 2 cap)))
   (vector-copy! vec* 0 vec)
   (set-dvector-vec! dvec vec*))
 
