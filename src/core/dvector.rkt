@@ -4,7 +4,7 @@
          dvector-add!
          dvector-ref
          in-dvector
-         dvector-lengthgit s
+         dvector-length
          dvector-copy
          (rename-out [create-dvector dvector]))
 
