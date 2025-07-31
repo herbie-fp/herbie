@@ -83,9 +83,9 @@
 )
 
 (define-operations ([x <binary64>]) <binary64> #:fpcore (:precision binary64)
-  [erfc.py  #:spec (- 1 (erf x)) #:impl (from-libm 'erfc)  #:fpcore (erfc x) #:cost 0.900]
-  [expm1.py #:spec (- (exp x) 1) #:impl (from-libm 'expm1) #:fpcore (expm1 x) #:cost 0.900]
-  [log1p.py #:spec (log (+ 1 x)) #:impl (from-libm 'log1p) #:fpcore (log1p x) #:cost 1.300])
+  [erfc.py  #:spec (- 1 (erf x)) #:impl (from-libm 'erfc)  #:fpcore (erfc x) #:cost 1]
+  [expm1.py #:spec (- (exp x) 1) #:impl (from-libm 'expm1) #:fpcore (expm1 x) #:cost 1]
+  [log1p.py #:spec (log (+ 1 x)) #:impl (from-libm 'log1p) #:fpcore (log1p x) #:cost 1])
 
 (define-operations ([x <binary64>] [y <binary64>]) <binary64> #:fpcore (:precision binary64)
     [pow.py       #:spec (pow x y)       #:impl (from-libm 'pow)       #:cost 1]
