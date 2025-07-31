@@ -6,11 +6,11 @@
          in-dvector
          dvector-length
          dvector-copy
-         (rename-out [create-dvector dvector]))
+         create-dvector)
 
 (define starting-length 128)
 
-(struct dvector ([vec #:mutable] [tail-pt #:mutable] [len #:mutable])
+(struct dvector ([vec #:mutable] [length #:mutable])
   #:methods gen:custom-write
   [(define (write-proc dvec port mode)
      (define elems
@@ -21,9 +21,9 @@
   (list (λ (a b eq?) ; equal? override
           (and (dvector? b) (eq? (dvector-vec a) (dvector-vec b))))
         (λ (a hc) ; hash-code
-          (+ (hc (dvector-vec a)) (dvector-tail-pt a) (dvector-len a)))
+          (+ (hc (dvector-vec a)) (dvector-length a)))
         (λ (a hc) ; secondary-hash-code
-          (+ (hc (dvector-vec a)) (* 7 (dvector-tail-pt a)) (+ 1 (dvector-len a))))))
+          (+ (hc (dvector-vec a)) (* 7 (+ 1 (dvector-length a)))))))
 
 (define (make-dvector [size 0] [v -1])
   (define size*
@@ -34,7 +34,7 @@
          (if (< size size*)
              size*
              (loop (* size* 2))))]))
-  (dvector (make-vector size* v) size size*))
+  (dvector (make-vector size* v) size))
 
 (define (create-dvector . args)
   (define dvec (make-dvector))
@@ -42,38 +42,38 @@
     (dvector-add! dvec arg))
   dvec)
 
+(define (dvector-capacity dvec)
+  (vector-length (dvector-vec dvec)))
+
 (define (dvector-extend! dvec)
-  (match-define (dvector vec tail-pt len) dvec)
-  (define len* (* 2 len))
-  (define vec* (make-vector len*))
+  (match-define (dvector vec _) dvec)
+  (define cap (dvector-capacity dvec))
+  (define cap* (* 2 cap))
+  (define vec* (make-vector cap*))
   (vector-copy! vec* 0 vec)
-  (set-dvector-vec! dvec vec*)
-  (set-dvector-len! dvec len*))
+  (set-dvector-vec! dvec vec*))
 
 (define (dvector-add! dvec elem)
-  (match-define (dvector vec tail-pt len) dvec)
+  (match-define (dvector vec len) dvec)
   (cond
-    [(equal? tail-pt len)
+    [(equal? len (dvector-capacity dvec))
      (dvector-extend! dvec)
      (dvector-add! dvec elem)]
     [else
-     (vector-set! vec tail-pt elem)
-     (set-dvector-tail-pt! dvec (add1 tail-pt))]))
+     (vector-set! vec len elem)
+     (set-dvector-length! dvec (add1 len))]))
 
 (define (dvector-ref dvec idx)
   (vector-ref (dvector-vec dvec) idx))
 
 (define (dvector-copy dvec)
-  (match-define (dvector vec tail-pt len) dvec)
-  (dvector (vector-copy vec) tail-pt len))
+  (match-define (dvector vec len) dvec)
+  (dvector (vector-copy vec) len))
 
-(define (in-dvector dvec [start 0] [end (dvector-tail-pt dvec)] [step 1])
-  (when (or (< (dvector-tail-pt dvec) end) (> start (dvector-tail-pt dvec)))
-    (error "in-divector is out of index"))
+(define (in-dvector dvec [start 0] [end (dvector-length dvec)] [step 1])
+  (when (or (< (dvector-length dvec) end) (> start (dvector-length dvec)))
+    (error "in-dvector is out of index"))
   (in-vector (dvector-vec dvec) start end step))
-
-(define (dvector-length dvec)
-  (dvector-tail-pt dvec))
 
 (module+ test
   (require rackunit)
@@ -82,20 +82,20 @@
   (define dv (make-dvector))
 
   (define dv1 (make-dvector)) ; default
-  (check-equal? (dvector-tail-pt dv1) 0)
-  (check-equal? (dvector-len dv1) starting-length)
+  (check-equal? (dvector-length dv1) 0)
+  (check-equal? (dvector-capacity dv1) starting-length)
   (check-equal? (vector-length (dvector-vec dv1)) starting-length)
 
   (define dv2 (make-dvector 10 5))
-  (check-equal? (dvector-tail-pt dv2) 10)
-  (check-equal? (dvector-len dv2) starting-length)
+  (check-equal? (dvector-length dv2) 10)
+  (check-equal? (dvector-capacity dv2) starting-length)
   (check-equal? (vector-length (dvector-vec dv2)) starting-length)
   (check-equal? (vector-ref (dvector-vec dv2) 0) 5)
 
   ;; Large input triggers dynamic size growth
   (define dv3 (make-dvector 300))
-  (check-true (> (dvector-len dv3) 300))
-  (check-equal? (dvector-tail-pt dv3) 300)
+  (check-true (> (dvector-capacity dv3) 300))
+  (check-equal? (dvector-length dv3) 300)
 
   ;; Custom equal? behavior: only same vector => equal
   (define dv4 dv2) ; same instance
