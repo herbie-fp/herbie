@@ -311,7 +311,9 @@
   (batchref input-batch idx))
 
 (define (normalize-cost c min-cost)
-  (exact-round (* (/ c min-cost) 100)))
+  (if (= min-cost 0)
+      c
+      (exact-round (* (/ c min-cost) 100))))
 
 (define (prelude curr-program #:mixed-egraph? [mixed-egraph? #t])
   (define pform (*active-platform*))
