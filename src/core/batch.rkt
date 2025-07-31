@@ -139,7 +139,7 @@
   out)
 
 (define (batch-replace b f)
-  (define out (batch-copy b))
+  (define out (make-batch))
   (define mapping (make-vector (batch-length b) -1))
   (for ([node (in-batch b)]
         [idx (in-naturals)])
