@@ -126,12 +126,26 @@
     (vector-ref exprs root)))
 
 (define (batch-free-vars batch)
+  ;; This function is here due to cycles - originally it is from programs.rkt
+  (define (free-variables prog)
+    (match prog
+      [(? literal?) '()]
+      [(? number?) '()]
+      [(? symbol?) (list prog)]
+      [(approx _ impl) (free-variables impl)]
+      [(list _ args ...) (remove-duplicates (append-map free-variables args))]))
+
   (define out (make-vector (vector-length (batch-nodes batch))))
   (for ([i (in-naturals)]
         [node (in-vector (batch-nodes batch))])
     (define fv
       (cond
         [(symbol? node) (set node)]
+        [(approx? node)
+         (define impl-free-vars (mutable-set))
+         (expr-recurse node (lambda (i) (set-union! impl-free-vars (vector-ref out i))))
+         (define spec-free-vars (list->set (free-variables (approx-spec node))))
+         (set-union spec-free-vars impl-free-vars)]
         [else
          (define arg-free-vars (mutable-set))
          (expr-recurse node (lambda (i) (set-union! arg-free-vars (vector-ref out i))))
