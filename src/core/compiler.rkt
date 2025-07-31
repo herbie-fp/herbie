@@ -73,7 +73,7 @@
 
   (define instructions
     (for/vector #:length (- (batch-length batch*) num-vars)
-                ([node (in-dvector (batch-nodes batch*) num-vars)])
+                ([node (in-batch batch* num-vars)])
       (match node
         [(literal value (app get-representation repr)) (list (const (real->repr value repr)))]
         [(list op args ...) (cons (impl-info op 'fl) args)])))

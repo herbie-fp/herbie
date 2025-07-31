@@ -111,8 +111,8 @@
     (vector-ref mappings x))
 
   ; Inserting nodes bottom-up
-  (for ([n (in-naturals)]
-        [node (in-dvector (batch-nodes batch))])
+  (for ([node (in-batch batch)]
+        [n (in-naturals)])
     (define idx
       (match node
         [(literal v _) (insert-node! v)]
@@ -125,13 +125,13 @@
   (for ([root (in-vector (batch-roots batch))])
     (egraph_add_root ptr (remap root)))
 
-  (for ([node (in-dvector (batch-nodes batch))]
+  (for ([node (in-batch batch)]
         #:when (approx? node))
     (match-define (approx spec impl) node)
     (hash-ref! id->spec
                (remap spec)
                (lambda ()
-                 (define spec* (normalize-spec (batch-ref batch spec)))
+                 (define spec* (normalize-spec (batch-pull batch spec)))
                  (define type (representation-type (repr-of-node batch impl ctx)))
                  (cons spec* type))))
 

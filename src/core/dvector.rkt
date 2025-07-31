@@ -71,9 +71,9 @@
   (dvector (vector-copy vec) len))
 
 (define (in-dvector dvec [start 0] [end (dvector-length dvec)] [step 1])
-  (when (or (< (dvector-length dvec) end) (> start (dvector-length dvec)))
+  (when (or (< (dvector-length dvec) (or end (dvector-length dvec))) (> start (dvector-length dvec)))
     (error "in-dvector is out of index"))
-  (in-vector (dvector-vec dvec) start end step))
+  (in-vector (dvector-vec dvec) start (or end (dvector-length dvec)) step))
 
 (module+ test
   (require rackunit)
