@@ -619,7 +619,19 @@
                   ,tag))))
 
 (define (egglog-add-exprs batch ctx curr-program)
-  (define mappings (build-vector (batch-length batch) values))
+  ; The function recurses on spec
+  (define (batch-parse-approx batch)
+    (batch-replace batch
+                   (lambda (node)
+                     (match node
+                       [(approx spec impl) (list '$approx spec impl)]
+                       [_ node]))))
+  (define batch*
+    (if (zero? (batch-length batch))
+        (batch-copy batch)
+        (batch-remove-zombie (batch-parse-approx batch))))
+
+  (define mappings (build-vector (batch-length batch*) values))
   (define bindings (make-hash))
   (define vars (make-hash))
   (define (remap x spec?)
@@ -642,11 +654,11 @@
 
   (define root-bindings '())
   ; Inserting nodes bottom-up
-  (define root-mask (make-vector (batch-length batch) #f))
-  (define spec-mask (make-vector (batch-length batch) #f))
+  (define root-mask (make-vector (batch-length batch*) #f))
+  (define spec-mask (make-vector (batch-length batch*) #f))
 
-  (for ([n (in-range (batch-length batch))])
-    (define node (vector-ref (batch-nodes batch) n))
+  (for ([n (in-range (batch-length batch*))])
+    (define node (vector-ref (batch-nodes batch*) n))
     (match node
       [(? literal?) (vector-set! spec-mask n #f)] ;; If literal, not a spec
       [(? number?) (vector-set! spec-mask n #t)] ;; If number, it's a spec
@@ -656,7 +668,7 @@
         n
         #f)] ;; If symbol, assume not a spec could be either (find way to distinguish) : PREPROCESS
       [(hole _ _) (vector-set! spec-mask n #f)] ;; If hole, not a spec
-      [(approx _ _) (vector-set! spec-mask n #f)] ;; If approx, not a spec
+      [(list '$approx _ _) (vector-set! spec-mask n #f)] ;; If approx, not a spec
 
       ;; If the condition or any branch is a spec, then this is a spec
       [`(if ,cond ,ift ,iff) (vector-set! spec-mask n (vector-ref spec-mask cond))]
@@ -669,9 +681,9 @@
            ;; appl impl -> Not a spec
            (vector-set! spec-mask n #f))]))
 
-  (for ([root (in-vector (batch-roots batch))])
+  (for ([root (in-vector (batch-roots batch*))])
     (vector-set! root-mask root #t))
-  (for ([node (in-vector (batch-nodes batch))]
+  (for ([node (in-vector (batch-nodes batch*))]
         [root? (in-vector root-mask)]
         [spec? (in-vector spec-mask)]
         [n (in-naturals)])
@@ -684,7 +696,7 @@
          `(Num (bigrat (from-string ,(number->string (numerator node)))
                        (from-string ,(number->string (denominator node)))))]
         [(? symbol?) #f]
-        [(approx spec impl) `(Approx ,(remap spec #t) ,(remap impl #f))]
+        [(list '$approx spec impl) `(Approx ,(remap spec #t) ,(remap impl #f))]
         [(list impl args ...)
          `(,(hash-ref (if spec?
                           (id->e1)
@@ -812,7 +824,7 @@
     (set! constructor-num (add1 constructor-num)))
 
   (define curr-bindings
-    (for/list ([root (batch-roots batch)])
+    (for/list ([root (batch-roots batch*)])
       (define curr-binding-name
         (if (hash-has-key? vars root)
             (if (vector-ref spec-mask root)
