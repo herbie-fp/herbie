@@ -32,12 +32,12 @@
          in-dvector)
 
 ;; Batches store these recursive structures, flattened
-(struct batch ([nodes #:mutable] [index #:mutable] cache [roots #:mutable]))
+(struct batch ([nodes #:mutable] [index #:mutable] cache))
 
 (struct batchref (batch idx) #:transparent)
 
 (define (make-batch)
-  (batch (make-dvector) (make-hash) (make-hasheq) (vector)))
+  (batch (make-dvector) (make-hash) (make-hasheq)))
 
 ;; This function defines the recursive structure of expressions
 (define (expr-recurse expr f)
@@ -75,8 +75,7 @@
 (define (batch-copy b)
   (batch (dvector-copy (batch-nodes b))
          (hash-copy (batch-index b))
-         (hash-copy (batch-cache b))
-         (vector-copy (batch-roots b))))
+         (hash-copy (batch-cache b))))
 
 (define (deref x)
   (match-define (batchref b idx) x)
@@ -88,36 +87,31 @@
 
 (define (progs->batch exprs #:vars [vars '()])
   (define out (make-batch))
-
   (for ([var (in-list vars)])
     (batch-push! out var))
-  (define roots
-    (for/vector #:length (length exprs)
-                ([expr (in-list exprs)])
-      (batch-munge! out expr)))
+  (for/list #:length (length exprs)
+    ([expr (in-list exprs)])
+    (batch-munge! out expr)))
 
-  (set-batch-roots! out roots)
-  out)
-
-(define (batch-tree-size b)
+(define (batch-tree-size b brfs)
   (define len (batch-length b))
   (define counts (make-vector len 0))
   (for ([i (in-naturals)]
         [node (in-dvector (batch-nodes b))])
     (define args (reap [sow] (expr-recurse node sow)))
     (vector-set! counts i (apply + 1 (map (curry vector-ref counts) args))))
-  (apply + (map (curry vector-ref counts) (vector->list (batch-roots b)))))
+  (apply + (map (curry vector-ref counts) (map batchref-idx brfs))))
 
 (define (batch-munge! b expr)
   (define cache (batch-cache b))
   (define (munge prog)
     (hash-ref! cache prog (lambda () (batch-push! b (expr-recurse prog munge)))))
-  (munge expr))
+  (batchref b (munge expr)))
 
-(define (batch->progs b [roots (batch-roots b)])
+(define (batch->progs b brfs)
   (define exprs (batch-reconstruct-exprs b))
-  (for/list ([root roots])
-    (vector-ref exprs root)))
+  (for/list ([brf brfs])
+    (vector-ref exprs (batchref-idx brf))))
 
 (define (batch-free-vars batch)
   (define out (make-vector (batch-length batch)))
@@ -133,7 +127,7 @@
     (vector-set! out i fv))
   out)
 
-(define (batch-replace b f)
+(define (batch-replace b f brfs)
   (define out (batch-copy b))
   (define mapping (make-vector (batch-length b) -1))
   (for ([idx (in-naturals)]
@@ -150,9 +144,8 @@
            (vector-ref mapping idx)]
           [_ (batch-push! out (expr-recurse expr loop))])))
     (vector-set! mapping idx final-idx))
-  (define roots (vector-map (curry vector-ref mapping) (batch-roots b)))
-  (set-batch-roots! out roots)
-  out)
+  (define brfs* (map (compose (curry batchref out) (curry vector-ref mapping) batchref-idx) brfs))
+  (values out brfs*))
 
 ;; Function returns indices of alive nodes within a batch for given roots,
 ;;   where alive node is a child of a root + meets a condition - (condition node)
