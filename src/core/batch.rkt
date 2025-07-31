@@ -28,10 +28,7 @@
          deref ; Batchref -> Expr
          debatchref ; Batchref -> Expr
 
-         unbatchify-alts
-
-         dvector-ref
-         in-dvector)
+         unbatchify-alts)
 
 ;; Batches store these recursive structures, flattened
 (struct batch ([nodes #:mutable] [index #:mutable] cache [roots #:mutable]))
