@@ -267,6 +267,7 @@
           (> (length alts) 1)
           (equal? (representation-type repr) 'real)
           (not (null? (context-vars ctx)))
+          (get-fpcore-impl 'if '() (list <bool> repr repr))
           (get-fpcore-impl '<= '() (list repr repr)))
      (define opts
        (pareto-regimes (sort alts < #:key (curryr alt-cost repr)) start-prog ctx (*pcontext*)))
