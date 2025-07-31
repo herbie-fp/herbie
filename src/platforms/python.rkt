@@ -113,6 +113,7 @@
 
 (define-operations ([x <binary64>] [y <binary64>] [w <binary64>] [z <binary64>] [v <binary64>]) <binary64> #:fpcore (:precision binary64)
     [fsum.5var    #:spec (+ (+ (+ (+ x y) z) w) v)         #:impl (from-rival) #:fpcore (fsum x y w z v) #:cost 1]
+    [prod.5var    #:spec (* (* (* (* x y) w) z) v)         #:impl (from-rival) #:fpcore (prod x y w z v) #:cost 1]
 )
 
 (define-operation (hypot.py [x <binary64>] [y <binary64>]) <binary64>
