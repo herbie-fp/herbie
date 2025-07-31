@@ -334,7 +334,10 @@
     (set! raw-costs (cons (impl-info impl 'cost) raw-costs)))
 
   (define nonzero-costs (filter (negate zero?) raw-costs))
-  (define min-cost (if (empty? nonzero-costs) 1 (apply min nonzero-costs)))
+  (define min-cost
+    (if (empty? nonzero-costs)
+        1
+        (apply min nonzero-costs)))
 
   (define typed-graph
     `(datatype MTy
