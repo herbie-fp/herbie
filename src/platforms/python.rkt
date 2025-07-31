@@ -36,9 +36,9 @@
 (define-operations () <binary64> #:fpcore (:precision binary64)
   [pi    #:spec (PI)   #:impl (const (flsingle pi))       #:fpcore PI       #:cost 64bit-move-cost]
   [e     #:spec (E)    #:impl (const (flsingle (exp 1)))  #:fpcore E        #:cost 64bit-move-cost]
-  [inf   #:spec (INFINITY)  #:impl (const +inf.0)              #:fpcore INFINITY #:cost 64bit-move-cost]
+  [inf   #:spec (INFINITY)  #:impl (const +inf.0)         #:fpcore INFINITY #:cost 64bit-move-cost]
   [nan   #:spec (NAN)  #:impl (const +nan.0)              #:fpcore NAN      #:cost 64bit-move-cost]
-  [tau   #:spec (* 2 (PI))  #:impl (const(* 2 pi))             #:fpcore (* 2 PI) #:cost 64bit-move-cost]
+  [tau   #:spec (* 2 (PI))  #:impl (const(* 2 pi))        #:fpcore (* 2 PI) #:cost 64bit-move-cost]
 )
 
 (define-operations ([x <binary64>] [y <binary64>]) <binary64> #:fpcore (:precision binary64)
@@ -97,24 +97,24 @@
     [fmod.py      #:spec (fmod x y)      #:impl (from-libm 'fmod)      #:cost 1]
     [remainder.py #:spec (remainder x y) #:impl (from-libm 'remainder) #:cost 1]
     [ldexp.py     #:spec (* x (pow 2 y)) #:impl (from-libm 'ldexp) #:fpcore (ldexp x y) #:cost 1]
-    [fsum.2var    #:spec (+ x y) #:impl (from-rival)  #:fpcore (fsum x y) #:cost 1]
+    [fsum.2var    #:spec (+ x y) #:impl (lambda (x y) (flsum x y))  #:fpcore (fsum x y) #:cost 1]
     [prod.2var    #:spec (* x y) #:impl (from-rival)  #:fpcore (prod x y) #:cost 1]
 )
 
 (define-operations ([x <binary64>] [y <binary64>] [w <binary64>]) <binary64> #:fpcore (:precision binary64)
-    [fsum.3var    #:spec (+ (+ x y) w)  #:impl (from-rival) #:fpcore (fsum x y w) #:cost 1]
+    [fsum.3var    #:spec (+ (+ x y) w)  #:impl (lambda (x y w) (flsum x y w)) #:fpcore (fsum x y w) #:cost 1]
     [prod.3var    #:spec (* (* x y) w)  #:impl (from-rival)  #:fpcore (prod x y w) #:cost 1]
 )
 
 (define-operations ([x <binary64>] [y <binary64>] [w <binary64>] [z <binary64>]) <binary64> #:fpcore (:precision binary64)
-    [fsum.4var    #:spec (+ (+ (+ x y) z) w)  #:impl (from-rival) #:fpcore (fsum x y w z) #:cost 1]
+    [fsum.4var    #:spec (+ (+ (+ x y) z) w)  #:impl (lambda (x y w z) (flsum x y w z)) #:fpcore (fsum x y w z) #:cost 1]
     [prod.4var    #:spec (* (* (* x y) w) z)  #:impl (from-rival) #:fpcore (prod x y w z) #:cost 1]
     [dist.2D      #:spec (sqrt (+ (pow (- y x) 2) (pow (- w z) 2))) #:impl (from-rival) #:fpcore (dist x y w z) #:cost 1]
     [sumprod.4vars #:spec (+ (* x w) (* y z)) #:impl (from-rival) #:fpcore (sumprod x y w z) #:cost 1]
 )
 
 (define-operations ([x <binary64>] [y <binary64>] [w <binary64>] [z <binary64>] [v <binary64>]) <binary64> #:fpcore (:precision binary64)
-    [fsum.5var    #:spec (+ (+ (+ (+ x y) z) w) v)  #:impl (from-rival) #:fpcore (fsum x y w z v) #:cost 1]
+    [fsum.5var    #:spec (+ (+ (+ (+ x y) z) w) v)  #:impl (lambda (x y w z v) (flsum x y w z v)) #:fpcore (fsum x y w z v) #:cost 1]
     [prod.5var    #:spec (* (* (* (* x y) w) z) v)  #:impl (from-rival) #:fpcore (prod x y w z v) #:cost 1]
 )
 
