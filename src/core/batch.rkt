@@ -54,8 +54,8 @@
   (define (unmunge altn)
     (define expr (alt-expr altn))
     (match expr
-      [(? batchref?)
-       (define expr* (vector-ref exprs (batchref-idx expr)))
+      [(? batchref? brf)
+       (define expr* (exprs brf))
        (struct-copy alt altn [expr expr*])]
       [_ altn]))
   (map (curry alt-map unmunge) altns))
@@ -107,7 +107,7 @@
 (define (batch->progs b brfs)
   (define exprs (batch-reconstruct-exprs b))
   (for/list ([brf brfs])
-    (vector-ref exprs (batchref-idx brf))))
+    (exprs brf)))
 
 (define (batch-free-vars batch)
   (define out (make-vector (batch-length batch)))
@@ -181,10 +181,15 @@
 ;; Function constructs a vector of expressions for the given nodes of a batch
 (define (batch-reconstruct-exprs batch)
   (define exprs (make-vector (batch-length batch)))
-  (for ([node (in-batch batch)]
-        [idx (in-naturals)])
-    (vector-set! exprs idx (expr-recurse node (lambda (x) (vector-ref exprs x)))))
-  exprs)
+  (define pt -1)
+  (λ (brf)
+    (cond
+      [(>= pt (batchref-idx brf)) (vector-ref exprs (batchref-idx brf))]
+      [(for ([node (in-batch batch (max 0 pt) (add1 (batchref-idx brf)))]
+             [idx (in-naturals (max 0 pt))])
+         (vector-set! exprs idx (expr-recurse node (lambda (x) (vector-ref exprs x)))))
+       (set! pt (batchref-idx brf))
+       (vector-ref exprs (batchref-idx brf))])))
 
 ;; The function removes any zombie nodes from batch with respect to the roots
 ;; Time complexity: O(|R| + |N|), where |R| - number of roots, |N| - length of nodes
@@ -195,11 +200,9 @@
   (match (zero? len)
     [#f (batch-apply batch brfs identity #:keep-vars keep-vars)]
     [#t
-     (define out (batch-copy batch))
-     (define brfs*
-       (for/list ([brf brfs])
-         (batchref out (batchref-idx brf))))
-     (values out brfs*)]))
+     (unless (null? brfs)
+       (error 'batch-remove-zombie "Non-empty batchrefs in an empty batch!"))
+     (values (batch-copy batch) '())]))
 
 (define (batch-ref batch reg)
   (dvector-ref (batch-nodes batch) reg))
