@@ -26,7 +26,7 @@
 
 (struct alt-table (point-idx->alts alt->point-idxs alt->done? alt->cost pcontext all) #:prefab)
 
-(define (alt-batch-cost batch repr)
+(define (alt-batch-cost batch brfs repr)
   (define node-cost-proc (platform-node-cost-proc (*active-platform*)))
   (define costs (make-vector (batch-length batch) 0))
   (for ([node (in-batch batch)]
@@ -43,8 +43,8 @@
          (define itypes (impl-info impl 'itype))
          (apply cost-proc (map (curry vector-ref costs) args))]))
     (vector-set! costs i cost))
-  (for/list ([root (in-vector (batch-roots batch))])
-    (vector-ref costs root)))
+  (for/list ([brf (in-list brfs)])
+    (vector-ref costs (batchref-idx brf))))
 
 (define (make-alt-table pcontext initial-alt ctx)
   (define cost (alt-cost initial-alt (context-repr ctx)))
@@ -184,8 +184,8 @@
                [alt->cost (hash-remove* alt->cost altns)]))
 
 (define (atab-eval-altns atab altns ctx)
-  (define batch (progs->batch (map alt-expr altns) #:vars (context-vars ctx)))
-  (define errss (batch-errors batch (alt-table-pcontext atab) ctx))
+  (define-values (batch brfs) (progs->batch (map alt-expr altns) #:vars (context-vars ctx)))
+  (define errss (batch-errors batch brfs (alt-table-pcontext atab) ctx))
   (define costs (alt-batch-cost batch (context-repr ctx)))
   (values errss costs))
 

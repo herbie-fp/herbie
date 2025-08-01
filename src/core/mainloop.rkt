@@ -273,7 +273,7 @@
      (add-derivations alts)]
     [else alts]))
 
-(define (sort-alts alts [errss (batch-errors (map alt-expr alts) (*pcontext*) (*context*))])
+(define (sort-alts alts [errss (exprs-errors (map alt-expr alts) (*pcontext*) (*context*))])
   ;; sort everything by error + cost
   (define repr (context-repr (*context*)))
   (define alts-to-be-sorted (map cons alts errss))

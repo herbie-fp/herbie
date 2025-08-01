@@ -8,6 +8,7 @@
          "batch.rkt")
 
 (provide compile-progs
+         compile-batch
          compile-prog)
 
 ;; Interpreter taking a narrow IR
@@ -46,8 +47,9 @@
     [(list op a b c) (op (vector-ref regs a) (vector-ref regs b) (vector-ref regs c))]
     [(list op args ...) (apply op (map (curry vector-ref regs) args))]))
 
-(define (batch-remove-approx batch)
+(define (batch-remove-approx batch brfs)
   (batch-apply batch
+               brfs
                (lambda (node)
                  (match node
                    [(approx spec impl) impl]
@@ -60,16 +62,18 @@
 ;; Requires some hooks to complete the translation.
 (define (compile-progs exprs ctx)
   (define vars (context-vars ctx))
+  (define-values (batch brfs) (progs->batch exprs #:vars vars))
+  (compile-batch batch brfs ctx))
+
+(define (compile-batch batch brfs ctx)
+  (define vars (context-vars ctx))
   (define num-vars (length vars))
-  (define batch
-    (if (batch? exprs)
-        exprs
-        (progs->batch exprs #:vars vars)))
 
   (timeline-push! 'compiler (batch-tree-size batch) (batch-length batch))
 
   ; Here we need to keep vars even though no roots refer to the vars
-  (define batch* (batch-remove-zombie (batch-remove-approx batch) #:keep-vars #t))
+  (define-values (batch-no-approx brfs-no-approx) (batch-remove-approx batch brfs))
+  (define-values (batch* brfs*) (batch-remove-zombie batch-no-approx brfs-no-approx #:keep-vars #t))
 
   (define instructions
     (for/vector #:length (- (batch-length batch*) num-vars)
@@ -77,8 +81,9 @@
       (match node
         [(literal value (app get-representation repr)) (list (const (real->repr value repr)))]
         [(list op args ...) (cons (impl-info op 'fl) args)])))
+  (define rootvec (map batchref-idx brfs*))
 
-  (make-progs-interpreter vars instructions (batch-roots batch*)))
+  (make-progs-interpreter vars instructions rootvec))
 
 ;; Like `compile-progs`, but a single prog.
 (define (compile-prog expr ctx)
