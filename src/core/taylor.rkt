@@ -128,11 +128,10 @@
 
 (define (taylor var expr-batch)
   "Return a pair (e, n), such that expr ~= e var^n"
-  (define nodes (batch-nodes expr-batch))
   (define taylor-approxs (make-vector (batch-length expr-batch))) ; vector of approximations
 
-  (for ([n (in-naturals)]
-        [node (in-dvector nodes)])
+  (for ([node (in-batch expr-batch)]
+        [n (in-naturals)])
     (define approx
       (match node
         [(? (curry equal? var)) (taylor-exact 0 1)]
@@ -144,7 +143,7 @@
         [`(* ,left ,right)
          (taylor-mult (vector-ref taylor-approxs left) (vector-ref taylor-approxs right))]
         [`(/ ,num ,den)
-         #:when (equal? (dvector-ref nodes num) 1)
+         #:when (equal? (batch-ref expr-batch num) 1)
          (taylor-invert (vector-ref taylor-approxs den))]
         [`(/ ,num ,den)
          (taylor-quotient (vector-ref taylor-approxs num) (vector-ref taylor-approxs den))]
@@ -153,12 +152,12 @@
         [`(exp ,arg)
          (define arg* (normalize-series (vector-ref taylor-approxs arg)))
          (if (positive? (car arg*))
-             (taylor-exact (batch-ref expr-batch n))
+             (taylor-exact (batch-pull expr-batch n))
              (taylor-exp (zero-series arg*)))]
         [`(sin ,arg)
          (define arg* (normalize-series (vector-ref taylor-approxs arg)))
          (cond
-           [(positive? (car arg*)) (taylor-exact (batch-ref expr-batch n))]
+           [(positive? (car arg*)) (taylor-exact (batch-pull expr-batch n))]
            [(= (car arg*) 0)
             ; Our taylor-sin function assumes that a0 is 0,
             ; because that way it is especially simple. We correct for this here
@@ -170,7 +169,7 @@
         [`(cos ,arg)
          (define arg* (normalize-series (vector-ref taylor-approxs arg)))
          (cond
-           [(positive? (car arg*)) (taylor-exact (batch-ref expr-batch n))]
+           [(positive? (car arg*)) (taylor-exact (batch-pull expr-batch n))]
            [(= (car arg*) 0)
             ; Our taylor-cos function assumes that a0 is 0,
             ; because that way it is especially simple. We correct for this here
@@ -182,9 +181,10 @@
            [else (taylor-cos (zero-series arg*))])]
         [`(log ,arg) (taylor-log var (vector-ref taylor-approxs arg))]
         [`(pow ,base ,power)
-         #:when (exact-integer? (dvector-ref nodes power))
-         (taylor-pow (normalize-series (vector-ref taylor-approxs base)) (dvector-ref nodes power))]
-        [_ (taylor-exact (batch-ref expr-batch n))]))
+         #:when (exact-integer? (batch-ref expr-batch power))
+         (taylor-pow (normalize-series (vector-ref taylor-approxs base))
+                     (batch-ref expr-batch power))]
+        [_ (taylor-exact (batch-pull expr-batch n))]))
     (vector-set! taylor-approxs n approx))
   taylor-approxs)
 

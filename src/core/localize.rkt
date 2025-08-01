@@ -69,7 +69,6 @@
       (struct-copy context ctx [repr repr])))
 
   (define expr-batch (progs->batch exprs-list))
-  (define nodes (batch-nodes expr-batch))
   (define roots (batch-roots expr-batch))
 
   (define subexprs-fn (eval-progs-real (map prog->spec exprs-list) ctx-list))
@@ -86,7 +85,7 @@
           [repr (in-list reprs-list)]
           [exact (in-vector exacts)]
           [expr-idx (in-naturals)])
-      (define err (local-error exact (dvector-ref nodes root) repr get-exact))
+      (define err (local-error exact (batch-ref expr-batch root) repr get-exact))
       (vector-set! (vector-ref errs expr-idx) pt-idx err)))
 
   (define n 0)
@@ -142,7 +141,6 @@
   (define delta-fn (eval-progs-real compare-specs (map (const delta-ctx) compare-specs)))
 
   (define expr-batch (progs->batch exprs-list))
-  (define nodes (batch-nodes expr-batch))
   (define roots (batch-roots expr-batch))
 
   (define ulp-errs (make-matrix roots pcontext))
@@ -169,7 +167,7 @@
           [actual (in-vector actuals)]
           [delta (in-vector deltas)]
           [expr-idx (in-naturals)])
-      (define ulp-err (local-error exact (dvector-ref nodes root) repr get-exact))
+      (define ulp-err (local-error exact (batch-ref expr-batch root) repr get-exact))
       (vector-set! (vector-ref exacts-out expr-idx) pt-idx exact)
       (vector-set! (vector-ref approx-out expr-idx) pt-idx actual)
       (vector-set! (vector-ref ulp-errs expr-idx) pt-idx ulp-err)

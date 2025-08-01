@@ -46,7 +46,7 @@
 
 ; Index inside (batch-nodes batch) -> type
 (define (repr-of-node batch idx ctx)
-  (define node (dvector-ref (batch-nodes batch) idx))
+  (define node (batch-ref batch idx))
   (match node
     [(literal val precision) (get-representation precision)]
     [(? symbol?) (context-lookup ctx node)]
@@ -187,7 +187,6 @@
   (-> location? batchref? batchref? batchref?)
   (match-define (batchref sub-batch sub-idx) sub-batchref)
   (match-define (batchref full-batch full-idx) full-batchref)
-  (define nodes (batch-nodes full-batch))
 
   (unless (equal? sub-batch full-batch)
     (error 'batch-location-set "Function assumes that batches are equal"))
@@ -195,7 +194,7 @@
   (define idx*
     (let loop ([loc0 loc0]
                [idx full-idx])
-      (let ([node (dvector-ref nodes idx)])
+      (let ([node (batch-ref full-batch idx)])
         (match* (node loc0)
           [(_ (? null?)) sub-idx]
           [((approx spec impl) (cons 1 rest)) (batch-push! full-batch (approx (loop rest spec) impl))]
@@ -231,7 +230,6 @@
   (match-define (batchref sub-batch sub-idx) sub-batchref)
   (unless (equal? sub-batch full-batch)
     (error 'batch-get-locations "Function assumes that batches are equal"))
-  (define nodes (batch-nodes full-batch))
 
   (define (locations-update locations prev-idx new-loc new-idx)
     (define prev-locs (vector-ref locations prev-idx))
@@ -247,8 +245,8 @@
     [else
      (define locations (make-vector (batch-length full-batch) '()))
      (vector-set! locations sub-idx '(()))
-     (for ([n (in-range (add1 sub-idx) (add1 full-idx))]
-           [node (in-dvector nodes (add1 sub-idx) (add1 full-idx))])
+     (for ([node (in-batch full-batch (add1 sub-idx) (add1 full-idx))]
+           [n (in-naturals (add1 sub-idx))])
        (match node
          [(list _ args ...)
           (for ([arg (in-list args)]

@@ -29,8 +29,8 @@
 (define (alt-batch-cost batch repr)
   (define node-cost-proc (platform-node-cost-proc (*active-platform*)))
   (define costs (make-vector (batch-length batch) 0))
-  (for ([i (in-naturals)]
-        [node (in-dvector (batch-nodes batch))])
+  (for ([node (in-batch batch)]
+        [i (in-naturals)])
     (define cost
       (match node
         [(? literal?) ((node-cost-proc node repr))]
