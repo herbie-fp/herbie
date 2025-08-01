@@ -609,15 +609,10 @@
 (define (egglog-rewrite-rules rules tag)
   (for/list ([rule (in-list rules)]
              #:when (not (symbol? (rule-input rule))))
-    (if (not (representation? (rule-otype rule)))
-        `(rewrite ,(expr->e1-pattern (rule-input rule))
-                  ,(expr->e1-pattern (rule-output rule))
-                  :ruleset
-                  ,tag)
-        `(rewrite ,(expr->e2-pattern (rule-input rule) (rule-otype rule))
-                  ,(expr->e2-pattern (rule-output rule) (rule-otype rule))
-                  :ruleset
-                  ,tag))))
+    `(rewrite ,(expr->e1-pattern (rule-input rule))
+              ,(expr->e1-pattern (rule-output rule))
+              :ruleset
+              ,tag)))
 
 (define (egglog-add-exprs batch ctx curr-program)
   (define mappings (build-vector (batch-length batch) values))

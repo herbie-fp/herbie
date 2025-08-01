@@ -256,30 +256,23 @@
                (cons impl pform)
                (lambda ()
                  (define name (sym-append 'lift- impl))
-                 (define itypes (impl-info impl 'itype))
-                 (define otype (impl-info impl 'otype))
                  (define-values (vars spec-expr impl-expr) (impl->rule-parts impl))
-                 (rule name impl-expr spec-expr (map cons vars itypes) otype '(lifting))))))
+                 (rule name impl-expr spec-expr '(lifting))))))
 
 ;; Synthesizes lowering rules for a given platform.
 (define (platform-lowering-rules [pform (*active-platform*)])
   (define impls (platform-impls pform))
   (append* (for/list ([impl (in-list impls)])
-             (hash-ref!
-              (*lowering-rules*)
-              (cons impl pform)
-              (lambda ()
-                (define name (sym-append 'lower- impl))
-                (define-values (vars spec-expr impl-expr) (impl->rule-parts impl))
-                (define itypes (map representation-type (impl-info impl 'itype)))
-                (define otype (representation-type (impl-info impl 'otype)))
-                (list (rule name spec-expr impl-expr (map cons vars itypes) otype '(lowering))
-                      (rule (sym-append 'lower-unsound- impl)
-                            (add-unsound spec-expr)
-                            impl-expr
-                            (map cons vars itypes)
-                            otype
-                            '(lowering))))))))
+             (hash-ref! (*lowering-rules*)
+                        (cons impl pform)
+                        (lambda ()
+                          (define name (sym-append 'lower- impl))
+                          (define-values (vars spec-expr impl-expr) (impl->rule-parts impl))
+                          (list (rule name spec-expr impl-expr '(lowering))
+                                (rule (sym-append 'lower-unsound- impl)
+                                      (add-unsound spec-expr)
+                                      impl-expr
+                                      '(lowering))))))))
 
 ;; Extracts the `fpcore` field of an operator implementation
 ;; as a property dictionary and expression.
