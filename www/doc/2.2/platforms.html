@@ -289,22 +289,19 @@
 
   <pre>(define-operation (if-f64 [c <bool>] [t &lt;binary64&gt;] [f &lt;binary64&gt;]) &lt;binary64&gt;
   #:spec (if c t f) #:impl if-impl
-  #:cost 14 #:aggregate if-cost)</pre>
+  #:cost (if-cost 14) )</pre>
 
   <p>Here <code>if-impl</code> is a Herbie-provided Racket function
   that wraps a standard <code>if</code> statement, while
-  the <code>if<code> inside the <code>#:spec</code> is how
+  the <code>if</code> inside the <code>#:spec</code> is how
   specifications refer to mathematical conditional expressions.</p>
 
-  <p>Besides the standard <code>#:cost</code> field, conditional
-  operations should usually also specify <code>if-cost</code> for
-  the <code>#:aggregate</code> field. This informs Herbie that the
-  cost of an <code>if-f64</code> should only consider the bigger of
-  the true and false branches' costs. If the <code>#:aggregate</code>
-  field is removed, Herbie will add the costs costs of both branches,
-  just like a normal operation, even though only one branch is
-  actually executed. Other operations can also use aggregate
-  functions, but there's usually not a good reason for this.</p>
+  <p>Conditional operations usually pass a procedure to
+  <code>#:cost</code>. The helper <code>if-cost</code> returns a procedure
+  that receives the costs of the arguments and combines them into a
+  total cost. It computes the cost of evaluating the condition plus the
+  larger of the two branch costs. In this example we add a constant cost
+  of 14 to that value.</p>
 
   <p>A platform needs to define both <code>&lt;binary32&gt;</code>
   and <code>&lt;binary64&gt;</code> conditional operations if it uses

@@ -333,7 +333,11 @@
   (for ([impl (in-list (platform-impls pform))])
     (set! raw-costs (cons (impl-info impl 'cost) raw-costs)))
 
-  (define min-cost (apply min raw-costs))
+  (define nonzero-costs (filter (negate zero?) raw-costs))
+  (define min-cost
+    (if (empty? nonzero-costs)
+        1
+        (apply min nonzero-costs)))
 
   (define typed-graph
     `(datatype MTy
