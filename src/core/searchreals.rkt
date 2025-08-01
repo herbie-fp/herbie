@@ -93,7 +93,7 @@
              [n 0])
     (match-define (search-space true false other true-hints other-hints) space)
     (timeline-push! 'sampling n (make-sampling-table var-reprs true false other))
-    
+
     (define n* (remainder n (vector-length var-reprs)))
     (if (or (>= n depth) (empty? (search-space-other space)) (>= (length other) (expt 2 depth)))
         (list (append (search-space-true space) (search-space-other space))

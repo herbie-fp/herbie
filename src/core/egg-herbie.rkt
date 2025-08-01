@@ -301,15 +301,16 @@
       [(list op args ...)
        ;; Unfortunately the type parameter doesn't tell us much because mixed exprs exist
        ;; so if we see something like (and a b) we literally don't know which "and" it is
-       (cons op (map loop args (cond
-                                 [(and (operator-exists? op) (impl-exists? op))
-                                  (if (representation? type)
-                                      (impl-info op 'itype)
-                                      (operator-info op 'itype))]
-                                 [(impl-exists? op)
-                                  (impl-info op 'itype)]
-                                 [(operator-exists? op)
-                                  (operator-info op 'itype)])))])))
+       (cons op
+             (map loop
+                  args
+                  (cond
+                    [(and (operator-exists? op) (impl-exists? op))
+                     (if (representation? type)
+                         (impl-info op 'itype)
+                         (operator-info op 'itype))]
+                    [(impl-exists? op) (impl-info op 'itype)]
+                    [(operator-exists? op) (operator-info op 'itype)])))])))
 
 ;; Parses a string from egg into a single S-expr.
 (define (egg-expr->expr egg-expr ctx)
@@ -1027,9 +1028,12 @@
                type))
          (approx (loop spec spec-type) (loop impl type))]
         [(list op args ...)
-         (cons op (map loop args (if (representation? type)
-                                     (impl-info op 'itype)
-                                     (operator-info op 'itype))))])))
+         (cons op
+               (map loop
+                    args
+                    (if (representation? type)
+                        (impl-info op 'itype)
+                        (operator-info op 'itype))))])))
 
   (define (eggref id)
     (cdr (vector-ref egg-nodes id)))
